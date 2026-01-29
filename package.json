@@ -25,19 +25,16 @@
     "typecheck": "bun run --parallel typecheck:frontend typecheck:worker",
     "typecheck:frontend": "cd frontend && bun run astro check",
     "typecheck:worker": "cd worker && tsc --noEmit",
-    "lint": "eslint . --ext .ts,.tsx,.astro",
-    "lint:fix": "eslint . --ext .ts,.tsx,.astro --fix",
-    "format": "prettier --write \"**/*.{ts,tsx,astro,json,md}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,astro,json,md}\""
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "check": "biome check .",
+    "check:fix": "biome check --write ."
   },
   "devDependencies": {
+    "@biomejs/biome": "^1.9.0",
     "@types/bun": "latest",
-    "@typescript-eslint/eslint-plugin": "^7.0.0",
-    "@typescript-eslint/parser": "^7.0.0",
-    "eslint": "^8.57.0",
-    "eslint-plugin-astro": "^1.0.0",
-    "prettier": "^3.2.0",
-    "prettier-plugin-astro": "^0.13.0",
     "typescript": "^5.9.3"
   }
 }
