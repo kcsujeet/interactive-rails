@@ -1,0 +1,7 @@
+{
+  "id": "controllers-101",
+  "name": "Controllers 101",
+  "description": "Master the basics of Rails controllers",
+  "order": 4,
+  "totalChallenges": 10
+}

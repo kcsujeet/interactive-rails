@@ -1,0 +1,339 @@
+/* RailsExpert - Pixel Art / Retro Theme */
+
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+:root {
+  /* Color palette - retro gaming inspired */
+  --color-bg: #1a1a2e;
+  --color-bg-dark: #0f0f1a;
+  --color-bg-light: #25253d;
+  --color-primary: #e94560;
+  --color-secondary: #0f3460;
+  --color-accent: #16c79a;
+  --color-gold: #ffd700;
+  --color-text: #eaeaea;
+  --color-text-dim: #888;
+  --color-hp: #e94560;
+  --color-hp-bg: #3d1a25;
+  --color-xp: #16c79a;
+  --color-xp-bg: #0d3d30;
+  --color-danger: #ff4444;
+  --color-success: #44ff44;
+
+  /* Pixel font */
+  --font-pixel: 'Press Start 2P', monospace;
+  --font-body: system-ui, -apple-system, sans-serif;
+
+  /* Sizes */
+  --border-radius: 4px;
+  --pixel-border: 4px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+/* Pixel-style border */
+.pixel-border {
+  border: var(--pixel-border) solid var(--color-text);
+  box-shadow:
+    inset -4px -4px 0 0 #666,
+    inset 4px 4px 0 0 #fff;
+}
+
+/* Pixel button */
+.pixel-btn {
+  font-family: var(--font-pixel);
+  font-size: 0.75rem;
+  padding: 12px 24px;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  cursor: pointer;
+  text-transform: uppercase;
+  position: relative;
+  transition: transform 0.1s;
+  box-shadow:
+    0 4px 0 0 #b8354a,
+    0 6px 0 0 #000;
+}
+
+.pixel-btn:hover {
+  transform: translateY(2px);
+  box-shadow:
+    0 2px 0 0 #b8354a,
+    0 4px 0 0 #000;
+}
+
+.pixel-btn:active {
+  transform: translateY(4px);
+  box-shadow:
+    0 0 0 0 #b8354a,
+    0 2px 0 0 #000;
+}
+
+.pixel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.pixel-btn.secondary {
+  background: var(--color-secondary);
+  box-shadow:
+    0 4px 0 0 #0a2440,
+    0 6px 0 0 #000;
+}
+
+.pixel-btn.success {
+  background: var(--color-accent);
+  box-shadow:
+    0 4px 0 0 #0e8a6a,
+    0 6px 0 0 #000;
+}
+
+/* Pixel card/panel */
+.pixel-panel {
+  background: var(--color-bg-light);
+  border: 3px solid var(--color-text);
+  padding: 16px;
+  position: relative;
+}
+
+.pixel-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  pointer-events: none;
+}
+
+/* HP/XP Bars */
+.stat-bar {
+  height: 20px;
+  background: var(--color-bg-dark);
+  border: 2px solid var(--color-text);
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-bar-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.stat-bar-fill.hp {
+  background: linear-gradient(180deg, #ff6b6b, var(--color-hp));
+}
+
+.stat-bar-fill.xp {
+  background: linear-gradient(180deg, #4ade80, var(--color-xp));
+}
+
+.stat-bar-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-pixel);
+  font-size: 0.5rem;
+  color: white;
+  text-shadow: 1px 1px 0 black;
+}
+
+/* Headings */
+h1, h2, h3 {
+  font-family: var(--font-pixel);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+h1 {
+  font-size: 1.5rem;
+  color: var(--color-primary);
+  text-shadow: 3px 3px 0 var(--color-bg-dark);
+}
+
+h2 {
+  font-size: 1rem;
+  color: var(--color-accent);
+}
+
+h3 {
+  font-size: 0.75rem;
+}
+
+/* Code blocks */
+pre, code {
+  font-family: 'Fira Code', 'Consolas', monospace;
+  background: var(--color-bg-dark);
+  border: 2px solid var(--color-secondary);
+  border-radius: var(--border-radius);
+}
+
+pre {
+  padding: 16px;
+  overflow-x: auto;
+}
+
+code {
+  padding: 2px 6px;
+}
+
+/* Forms */
+input, textarea {
+  font-family: var(--font-body);
+  background: var(--color-bg-dark);
+  border: 2px solid var(--color-text-dim);
+  color: var(--color-text);
+  padding: 12px;
+  width: 100%;
+  transition: border-color 0.2s;
+}
+
+input:focus, textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+label {
+  font-family: var(--font-pixel);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  display: block;
+  color: var(--color-text-dim);
+}
+
+/* Animations */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+@keyframes flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.shake {
+  animation: shake 0.3s ease-in-out;
+}
+
+.flash {
+  animation: flash 0.2s ease-in-out 3;
+}
+
+.bounce {
+  animation: bounce 0.5s ease-in-out infinite;
+}
+
+/* Layout utilities */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.flex {
+  display: flex;
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.gap-2 {
+  gap: 8px;
+}
+
+.gap-4 {
+  gap: 16px;
+}
+
+.gap-8 {
+  gap: 32px;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.mt-4 {
+  margin-top: 16px;
+}
+
+.mt-8 {
+  margin-top: 32px;
+}
+
+.mb-4 {
+  margin-bottom: 16px;
+}
+
+.mb-8 {
+  margin-bottom: 32px;
+}
+
+/* Grid for realm map */
+.realm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  html {
+    font-size: 14px;
+  }
+
+  h1 {
+    font-size: 1.2rem;
+  }
+
+  .pixel-btn {
+    font-size: 0.6rem;
+    padding: 10px 16px;
+  }
+}

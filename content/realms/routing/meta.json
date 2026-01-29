@@ -1,0 +1,10 @@
+{
+  "id": "routing",
+  "name": "Routing Labyrinth",
+  "description": "Navigate the paths of Rails routing - RESTful resources, nested routes, and custom paths",
+  "order": 3,
+  "icon": "compass",
+  "color": "#ffd700",
+  "dungeons": ["restful", "nested", "custom", "constraints", "url-helpers"],
+  "unlockRequirement": { "realm": "activerecord" }
+}

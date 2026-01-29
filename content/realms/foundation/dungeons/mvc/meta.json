@@ -1,0 +1,7 @@
+{
+  "id": "mvc",
+  "name": "MVC Architecture",
+  "description": "Understand the Model-View-Controller pattern that powers Rails",
+  "order": 1,
+  "totalChallenges": 10
+}

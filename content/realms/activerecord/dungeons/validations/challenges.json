@@ -1,0 +1,153 @@
+[
+  {
+    "id": "activerecord-validations-001",
+    "type": "multiple_choice",
+    "difficulty": 2,
+    "xp_reward": 30,
+    "monster": { "name": "Blank Bug", "sprite": "blank-bug", "hp": 55 },
+    "question": "Which validation ensures a field is not empty?",
+    "options": [
+      { "id": "a", "text": "validates :title, required: true" },
+      { "id": "b", "text": "validates :title, presence: true" },
+      { "id": "c", "text": "validates :title, not_empty: true" },
+      { "id": "d", "text": "validates :title, exists: true" }
+    ],
+    "correct_answer": "b",
+    "explanation": "presence: true ensures the attribute is not blank (nil, empty string, or whitespace only)."
+  },
+  {
+    "id": "activerecord-validations-002",
+    "type": "fill_in_blank",
+    "difficulty": 2,
+    "xp_reward": 30,
+    "monster": { "name": "Unique Unicorn", "sprite": "unique-unicorn", "hp": 55 },
+    "question": "To ensure email addresses are unique, you use:",
+    "code_snippet": "validates :email, ____: true",
+    "correct_answer": "uniqueness",
+    "explanation": "uniqueness: true checks the database for existing records with the same value. Add scope: for scoped uniqueness."
+  },
+  {
+    "id": "activerecord-validations-003",
+    "type": "multiple_choice",
+    "difficulty": 2,
+    "xp_reward": 35,
+    "monster": { "name": "Length Leech", "sprite": "length-leech", "hp": 60 },
+    "question": "How do you validate a title is between 5 and 100 characters?",
+    "options": [
+      { "id": "a", "text": "validates :title, length: { minimum: 5, maximum: 100 }" },
+      { "id": "b", "text": "validates :title, length: 5..100" },
+      { "id": "c", "text": "validates :title, size: { min: 5, max: 100 }" },
+      { "id": "d", "text": "validates :title, chars: { from: 5, to: 100 }" }
+    ],
+    "correct_answer": "a",
+    "explanation": "length accepts minimum:, maximum:, is: (exact), in: (range), and within: (range) options."
+  },
+  {
+    "id": "activerecord-validations-004",
+    "type": "multiple_choice",
+    "difficulty": 2,
+    "xp_reward": 35,
+    "monster": { "name": "Format Fiend", "sprite": "format-fiend", "hp": 60 },
+    "question": "How do you validate an email format with a regex?",
+    "options": [
+      { "id": "a", "text": "validates :email, regex: EMAIL_REGEX" },
+      { "id": "b", "text": "validates :email, format: { with: EMAIL_REGEX }" },
+      { "id": "c", "text": "validates :email, pattern: EMAIL_REGEX" },
+      { "id": "d", "text": "validates :email, match: EMAIL_REGEX" }
+    ],
+    "correct_answer": "b",
+    "explanation": "format: { with: /regex/ } validates the attribute matches the pattern. Use without: for inverse matching."
+  },
+  {
+    "id": "activerecord-validations-005",
+    "type": "code_analysis",
+    "difficulty": 3,
+    "xp_reward": 40,
+    "monster": { "name": "Numericality Nightmare", "sprite": "numeric-nightmare", "hp": 70 },
+    "question": "What does this validation ensure?",
+    "code_snippet": "validates :age, numericality: { greater_than_or_equal_to: 0, only_integer: true }",
+    "options": [
+      { "id": "a", "text": "Age is any positive number" },
+      { "id": "b", "text": "Age is a non-negative integer" },
+      { "id": "c", "text": "Age is greater than 0" },
+      { "id": "d", "text": "Age is optional but numeric if present" }
+    ],
+    "correct_answer": "b",
+    "explanation": "greater_than_or_equal_to: 0 allows 0+, only_integer: true rejects decimals. Together: 0, 1, 2... but not -1 or 1.5."
+  },
+  {
+    "id": "activerecord-validations-006",
+    "type": "multiple_choice",
+    "difficulty": 3,
+    "xp_reward": 40,
+    "monster": { "name": "Conditional Chimera", "sprite": "conditional-chimera", "hp": 70 },
+    "question": "How do you only validate presence of bio if user is admin?",
+    "options": [
+      { "id": "a", "text": "validates :bio, presence: true, when: :admin?" },
+      { "id": "b", "text": "validates :bio, presence: true, if: :admin?" },
+      { "id": "c", "text": "validates :bio, presence: { if: :admin? }" },
+      { "id": "d", "text": "validates :bio, presence: true, only: :admin" }
+    ],
+    "correct_answer": "b",
+    "explanation": "if: :method_name makes validation conditional. Also works with if: -> { condition } for lambdas."
+  },
+  {
+    "id": "activerecord-validations-007",
+    "type": "multiple_choice",
+    "difficulty": 3,
+    "xp_reward": 40,
+    "monster": { "name": "Error Elemental", "sprite": "error-elemental", "hp": 75 },
+    "question": "How do you access validation errors after save fails?",
+    "options": [
+      { "id": "a", "text": "article.validation_errors" },
+      { "id": "b", "text": "article.errors" },
+      { "id": "c", "text": "article.error_messages" },
+      { "id": "d", "text": "Article.errors" }
+    ],
+    "correct_answer": "b",
+    "explanation": "article.errors returns an ActiveModel::Errors object. Use .full_messages for readable strings, [:field] for specific field errors."
+  },
+  {
+    "id": "activerecord-validations-008",
+    "type": "fill_in_blank",
+    "difficulty": 3,
+    "xp_reward": 45,
+    "monster": { "name": "Custom Creature", "sprite": "custom-creature", "hp": 75 },
+    "question": "To add a custom validation method, you use:",
+    "code_snippet": "____ :must_have_valid_slug",
+    "correct_answer": "validate",
+    "explanation": "'validate' (singular) registers a custom method. 'validates' (plural) is for built-in validators with options."
+  },
+  {
+    "id": "activerecord-validations-009",
+    "type": "multiple_choice",
+    "difficulty": 3,
+    "xp_reward": 45,
+    "monster": { "name": "Skip Specter", "sprite": "skip-specter", "hp": 80 },
+    "question": "How do you save a record while skipping validations?",
+    "options": [
+      { "id": "a", "text": "article.save(skip_validations: true)" },
+      { "id": "b", "text": "article.save(validate: false)" },
+      { "id": "c", "text": "article.save!" },
+      { "id": "d", "text": "article.force_save" }
+    ],
+    "correct_answer": "b",
+    "explanation": "save(validate: false) skips validations. Use cautiously as it can create invalid data. update_column also skips validations."
+  },
+  {
+    "id": "activerecord-validations-010",
+    "type": "multiple_choice",
+    "difficulty": 4,
+    "xp_reward": 50,
+    "monster": { "name": "Validation Overlord (BOSS)", "sprite": "validation-boss", "hp": 120 },
+    "question": "What's the difference between save and save!?",
+    "options": [
+      { "id": "a", "text": "save! is faster" },
+      { "id": "b", "text": "save returns true/false, save! raises an exception on failure" },
+      { "id": "c", "text": "save! skips callbacks" },
+      { "id": "d", "text": "No difference" }
+    ],
+    "correct_answer": "b",
+    "explanation": "save returns false if validations fail. save! raises ActiveRecord::RecordInvalid, useful when failure should halt execution."
+  }
+]

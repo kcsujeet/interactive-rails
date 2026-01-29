@@ -1,0 +1,7 @@
+{
+  "id": "routing-basics",
+  "name": "Basic Routing",
+  "description": "Learn how URLs map to controller actions",
+  "order": 3,
+  "totalChallenges": 10
+}

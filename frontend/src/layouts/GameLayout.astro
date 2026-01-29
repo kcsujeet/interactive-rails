@@ -1,0 +1,32 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import Header from '../components/ui/Header.astro';
+
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<BaseLayout title={title}>
+  <div class="game-container">
+    <Header />
+    <main class="game-main">
+      <slot />
+    </main>
+  </div>
+</BaseLayout>
+
+<style>
+  .game-container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .game-main {
+    flex: 1;
+    padding: 24px;
+  }
+</style>

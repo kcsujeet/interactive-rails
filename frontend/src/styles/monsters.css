@@ -1,0 +1,202 @@
+/* Pixel Art Monster Sprites - CSS-based */
+
+.monster-sprite {
+  width: 128px;
+  height: 128px;
+  image-rendering: pixelated;
+  position: relative;
+}
+
+/* Base monster container */
+.pixel-monster {
+  display: grid;
+  width: 128px;
+  height: 128px;
+  background: var(--monster-bg, transparent);
+  position: relative;
+  filter: drop-shadow(0 4px 0 rgba(0,0,0,0.3));
+}
+
+/* Generic bug monster */
+.monster-bug {
+  --monster-bg: #1a1a2e;
+  background:
+    /* Eyes */
+    radial-gradient(circle at 35% 35%, #ff4444 8px, transparent 8px),
+    radial-gradient(circle at 65% 35%, #ff4444 8px, transparent 8px),
+    /* Body */
+    linear-gradient(to bottom, #4a9c5d 0%, #2d6b3a 100%);
+  border-radius: 20% 20% 40% 40%;
+  animation: bug-idle 1s ease-in-out infinite;
+}
+
+.monster-bug::before {
+  content: '🐛';
+  font-size: 64px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Database monster */
+.monster-database {
+  background: linear-gradient(to bottom, #3498db, #2980b9);
+  border-radius: 10px;
+}
+
+.monster-database::before {
+  content: '🗄️';
+  font-size: 64px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Controller monster */
+.monster-controller {
+  background: linear-gradient(135deg, #9b59b6, #8e44ad);
+  border-radius: 15px;
+}
+
+.monster-controller::before {
+  content: '🎮';
+  font-size: 64px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Route monster */
+.monster-route {
+  background: linear-gradient(45deg, #f39c12, #e67e22);
+  border-radius: 50%;
+}
+
+.monster-route::before {
+  content: '🗺️';
+  font-size: 64px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Query monster */
+.monster-query {
+  background: linear-gradient(to right, #1abc9c, #16a085);
+  border-radius: 10px 30px;
+}
+
+.monster-query::before {
+  content: '🔍';
+  font-size: 64px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Validation monster */
+.monster-validation {
+  background: linear-gradient(to bottom, #e74c3c, #c0392b);
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+}
+
+.monster-validation::before {
+  content: '⚠️';
+  font-size: 48px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Boss monsters - larger and more detailed */
+.monster-boss {
+  width: 160px;
+  height: 160px;
+  animation: boss-pulse 2s ease-in-out infinite;
+}
+
+.monster-boss::after {
+  content: '👑';
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 32px;
+}
+
+/* Animations */
+@keyframes bug-idle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes boss-pulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 4px 0 rgba(0,0,0,0.3)); }
+  50% { transform: scale(1.05); filter: drop-shadow(0 6px 8px rgba(255,0,0,0.3)); }
+}
+
+@keyframes damage-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-10px); }
+  40% { transform: translateX(10px); }
+  60% { transform: translateX(-10px); }
+  80% { transform: translateX(10px); }
+}
+
+@keyframes defeat-fade {
+  0% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.2); }
+  100% { opacity: 0; transform: scale(0); }
+}
+
+.monster-damaged {
+  animation: damage-shake 0.3s ease-in-out;
+}
+
+.monster-defeated {
+  animation: defeat-fade 0.5s ease-out forwards;
+}
+
+/* Monster by type mapping */
+[data-monster-type="confused-controller"] { @extend .monster-controller; }
+[data-monster-type="model-muddle"] { @extend .monster-database; }
+[data-monster-type="view-vampire"] { background: linear-gradient(to bottom, #8e44ad, #9b59b6); }
+[data-monster-type="fat-controller"] { @extend .monster-controller; transform: scaleX(1.3); }
+[data-monster-type="request-wraith"] { @extend .monster-route; }
+[data-monster-type="n1-nightmare"] { background: linear-gradient(45deg, #c0392b, #e74c3c); }
+[data-monster-type="orphan-ogre"] { @extend .monster-database; }
+[data-monster-type="validation-vampire"] { @extend .monster-validation; }
+
+/* Specific monster emojis */
+.monster-emoji {
+  font-size: 80px;
+  line-height: 128px;
+  text-align: center;
+  filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.5));
+}
+
+/* Monster type to emoji mapping */
+.monster-emoji[data-type="bug"]::before { content: '🐛'; }
+.monster-emoji[data-type="database"]::before { content: '🗄️'; }
+.monster-emoji[data-type="controller"]::before { content: '🎮'; }
+.monster-emoji[data-type="route"]::before { content: '🗺️'; }
+.monster-emoji[data-type="query"]::before { content: '🔍'; }
+.monster-emoji[data-type="validation"]::before { content: '⚠️'; }
+.monster-emoji[data-type="view"]::before { content: '👁️'; }
+.monster-emoji[data-type="model"]::before { content: '📦'; }
+.monster-emoji[data-type="callback"]::before { content: '🔄'; }
+.monster-emoji[data-type="association"]::before { content: '🔗'; }
+.monster-emoji[data-type="migration"]::before { content: '📊'; }
+.monster-emoji[data-type="helper"]::before { content: '🛠️'; }
+.monster-emoji[data-type="boss"]::before { content: '👹'; }
+.monster-emoji[data-type="ghost"]::before { content: '👻'; }
+.monster-emoji[data-type="dragon"]::before { content: '🐉'; }
+.monster-emoji[data-type="snake"]::before { content: '🐍'; }
+.monster-emoji[data-type="spider"]::before { content: '🕷️'; }
+.monster-emoji[data-type="bat"]::before { content: '🦇'; }

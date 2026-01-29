@@ -1,0 +1,7 @@
+{
+  "id": "url-helpers",
+  "name": "URL Helpers",
+  "description": "Generate paths and URLs the Rails way",
+  "order": 5,
+  "totalChallenges": 10
+}

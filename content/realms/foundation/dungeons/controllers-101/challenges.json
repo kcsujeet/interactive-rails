@@ -1,0 +1,153 @@
+[
+  {
+    "id": "foundation-controllers-001",
+    "type": "multiple_choice",
+    "difficulty": 1,
+    "xp_reward": 20,
+    "monster": { "name": "Action Ant", "sprite": "action-ant", "hp": 40 },
+    "question": "What is a controller 'action' in Rails?",
+    "options": [
+      { "id": "a", "text": "A private method in the controller" },
+      { "id": "b", "text": "A public method that handles a request" },
+      { "id": "c", "text": "A callback method" },
+      { "id": "d", "text": "A helper method" }
+    ],
+    "correct_answer": "b",
+    "explanation": "Actions are public methods in controllers that handle HTTP requests and typically render views or redirect."
+  },
+  {
+    "id": "foundation-controllers-002",
+    "type": "fill_in_blank",
+    "difficulty": 1,
+    "xp_reward": 20,
+    "monster": { "name": "Instance Insect", "sprite": "instance-insect", "hp": 40 },
+    "question": "To pass data from a controller to a view, you use:",
+    "code_snippet": "____ = Article.all",
+    "correct_answer": "@articles",
+    "explanation": "Instance variables (prefixed with @) are automatically available in views. Local variables are not shared."
+  },
+  {
+    "id": "foundation-controllers-003",
+    "type": "multiple_choice",
+    "difficulty": 1,
+    "xp_reward": 25,
+    "monster": { "name": "Params Parasite", "sprite": "params-parasite", "hp": 45 },
+    "question": "How do you access form data submitted to a controller?",
+    "options": [
+      { "id": "a", "text": "request.body" },
+      { "id": "b", "text": "params" },
+      { "id": "c", "text": "form_data" },
+      { "id": "d", "text": "@params" }
+    ],
+    "correct_answer": "b",
+    "explanation": "The 'params' hash contains all request parameters - from the URL, query string, and form submissions."
+  },
+  {
+    "id": "foundation-controllers-004",
+    "type": "multiple_choice",
+    "difficulty": 2,
+    "xp_reward": 30,
+    "monster": { "name": "Render Reptile", "sprite": "render-reptile", "hp": 55 },
+    "question": "What happens if you don't explicitly render or redirect in an action?",
+    "options": [
+      { "id": "a", "text": "An error is raised" },
+      { "id": "b", "text": "Rails renders a view matching the action name" },
+      { "id": "c", "text": "A blank page is shown" },
+      { "id": "d", "text": "It redirects to root" }
+    ],
+    "correct_answer": "b",
+    "explanation": "Rails implicitly renders a view with the same name as the action. For 'index' action, it renders 'index.html.erb'."
+  },
+  {
+    "id": "foundation-controllers-005",
+    "type": "code_analysis",
+    "difficulty": 2,
+    "xp_reward": 30,
+    "monster": { "name": "Redirect Rodent", "sprite": "redirect-rodent", "hp": 55 },
+    "question": "What's the difference between render and redirect_to?",
+    "options": [
+      { "id": "a", "text": "They're the same thing" },
+      { "id": "b", "text": "render shows a view, redirect_to sends a new HTTP request" },
+      { "id": "c", "text": "render is for HTML, redirect_to is for JSON" },
+      { "id": "d", "text": "redirect_to is deprecated" }
+    ],
+    "correct_answer": "b",
+    "explanation": "render displays a template in the current request. redirect_to sends a 302 response, causing the browser to make a new request."
+  },
+  {
+    "id": "foundation-controllers-006",
+    "type": "fill_in_blank",
+    "difficulty": 2,
+    "xp_reward": 30,
+    "monster": { "name": "Before Beast", "sprite": "before-beast", "hp": 60 },
+    "question": "To run code before every action, you use:",
+    "code_snippet": "____ :authenticate_user",
+    "correct_answer": "before_action",
+    "explanation": "before_action (formerly before_filter) runs the specified method before controller actions. Use 'only:' or 'except:' to limit scope."
+  },
+  {
+    "id": "foundation-controllers-007",
+    "type": "multiple_choice",
+    "difficulty": 2,
+    "xp_reward": 35,
+    "monster": { "name": "Status Specter", "sprite": "status-specter", "hp": 60 },
+    "question": "How do you return a 404 Not Found response?",
+    "options": [
+      { "id": "a", "text": "render status: 404" },
+      { "id": "b", "text": "head :not_found" },
+      { "id": "c", "text": "raise ActiveRecord::RecordNotFound" },
+      { "id": "d", "text": "All of the above work" }
+    ],
+    "correct_answer": "d",
+    "explanation": "All three work. 'raise ActiveRecord::RecordNotFound' is idiomatic in Rails and triggers the default 404 page."
+  },
+  {
+    "id": "foundation-controllers-008",
+    "type": "multiple_choice",
+    "difficulty": 3,
+    "xp_reward": 40,
+    "monster": { "name": "JSON Jackal", "sprite": "json-jackal", "hp": 70 },
+    "question": "How do you respond with JSON in a controller?",
+    "options": [
+      { "id": "a", "text": "render json: @article" },
+      { "id": "b", "text": "respond_to { |f| f.json { render json: @article } }" },
+      { "id": "c", "text": "Both A and B work" },
+      { "id": "d", "text": "return @article.to_json" }
+    ],
+    "correct_answer": "c",
+    "explanation": "Both work. 'render json:' is simpler. 'respond_to' is useful when you need to handle multiple formats (HTML, JSON, etc.)."
+  },
+  {
+    "id": "foundation-controllers-009",
+    "type": "code_analysis",
+    "difficulty": 3,
+    "xp_reward": 40,
+    "monster": { "name": "Private Poltergeist", "sprite": "private-poltergeist", "hp": 70 },
+    "question": "Why are strong parameters defined as private methods?",
+    "code_snippet": "private\ndef article_params\n  params.require(:article).permit(:title, :body)\nend",
+    "options": [
+      { "id": "a", "text": "For security - prevents them from being called as actions" },
+      { "id": "b", "text": "It's just a convention, they could be public" },
+      { "id": "c", "text": "Private methods run faster" },
+      { "id": "d", "text": "To hide them from the router" }
+    ],
+    "correct_answer": "a",
+    "explanation": "Private methods can't be routed to as actions. This prevents someone from directly accessing /articles/article_params."
+  },
+  {
+    "id": "foundation-controllers-010",
+    "type": "multiple_choice",
+    "difficulty": 3,
+    "xp_reward": 45,
+    "monster": { "name": "Controller King (BOSS)", "sprite": "controller-boss", "hp": 100 },
+    "question": "What is the purpose of ApplicationController?",
+    "options": [
+      { "id": "a", "text": "It's the entry point for all requests" },
+      { "id": "b", "text": "A base class where you put shared controller logic" },
+      { "id": "c", "text": "It handles application configuration" },
+      { "id": "d", "text": "It manages the application lifecycle" }
+    ],
+    "correct_answer": "b",
+    "explanation": "ApplicationController is the base class for all controllers. Shared behavior like authentication filters go here."
+  }
+]

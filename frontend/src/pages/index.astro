@@ -1,0 +1,384 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Level Up Your Rails Skills">
+  <main class="landing">
+    <header class="landing-header">
+      <nav class="landing-nav container">
+        <a href="/" class="logo">
+          <span class="logo-icon">⚔️</span>
+          <span class="logo-text">RailsExpert</span>
+        </a>
+        <div class="nav-links">
+          <a href="/login" class="nav-link">Login</a>
+          <a href="/signup" class="pixel-btn">Start Playing</a>
+        </div>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <div class="container">
+        <div class="hero-content">
+          <h1 class="hero-title">
+            <span class="title-line">Become a</span>
+            <span class="title-highlight">Rails Warrior</span>
+          </h1>
+          <p class="hero-subtitle">
+            Master Ruby on Rails through an epic gaming adventure.
+            Battle code monsters, defeat bugs, and level up your skills!
+          </p>
+          <div class="hero-cta">
+            <a href="/signup" class="pixel-btn">Begin Your Journey</a>
+            <a href="#features" class="pixel-btn secondary">Learn More</a>
+          </div>
+        </div>
+
+        <div class="hero-visual">
+          <div class="pixel-panel hero-game-preview">
+            <pre class="hero-ascii">{`
+    ╔═══════════════════════╗
+    ║   🐛 N+1 QUERY BUG    ║
+    ║   ████████░░ HP: 80%  ║
+    ╚═══════════════════════╝
+
+    Which method prevents
+    N+1 queries?
+
+    [A] .includes(:posts)  ✓
+    [B] .joins(:posts)
+    [C] .where(posts: true)
+    [D] .pluck(:posts)
+
+    ⚔️ CORRECT! +50 XP
+            `}</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="features" id="features">
+      <div class="container">
+        <h2 class="section-title">Game Features</h2>
+        <div class="features-grid">
+          <div class="feature-card pixel-panel">
+            <span class="feature-icon">🏰</span>
+            <h3>11 Realms to Conquer</h3>
+            <p>From Rails basics to advanced architecture, explore comprehensive learning paths.</p>
+          </div>
+          <div class="feature-card pixel-panel">
+            <span class="feature-icon">⚔️</span>
+            <h3>Battle Code Monsters</h3>
+            <p>Fight bugs, fix code, and defeat challenges in an RPG-style combat system.</p>
+          </div>
+          <div class="feature-card pixel-panel">
+            <span class="feature-icon">📈</span>
+            <h3>Level Up & Progress</h3>
+            <p>Earn XP, unlock achievements, and track your journey to Rails mastery.</p>
+          </div>
+          <div class="feature-card pixel-panel">
+            <span class="feature-icon">🎮</span>
+            <h3>Retro Pixel Art</h3>
+            <p>Enjoy nostalgic 8-bit aesthetics while learning modern Rails techniques.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="realms-preview">
+      <div class="container">
+        <h2 class="section-title">Master All Realms</h2>
+        <div class="realms-list">
+          <div class="realm-preview beginner">
+            <span class="realm-level">Beginner</span>
+            <ul>
+              <li>🏰 Foundation Fortress</li>
+              <li>📚 ActiveRecord Depths</li>
+              <li>🗺️ Routing Labyrinth</li>
+            </ul>
+          </div>
+          <div class="realm-preview intermediate">
+            <span class="realm-level">Intermediate</span>
+            <ul>
+              <li>🎮 Controller Citadel</li>
+              <li>🎨 View Valley</li>
+              <li>🗄️ Database Dungeons</li>
+            </ul>
+          </div>
+          <div class="realm-preview advanced">
+            <span class="realm-level">Advanced</span>
+            <ul>
+              <li>⚡ Performance Peaks</li>
+              <li>📧 Email & Notifications</li>
+              <li>💎 Database Mastery</li>
+            </ul>
+          </div>
+          <div class="realm-preview expert">
+            <span class="realm-level">Expert</span>
+            <ul>
+              <li>🚀 DevOps & Deployment</li>
+              <li>👑 Architecture Apex</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta-section">
+      <div class="container text-center">
+        <h2>Ready to Become a Rails Master?</h2>
+        <p>Join thousands of developers leveling up their skills.</p>
+        <a href="/signup" class="pixel-btn">Start Your Adventure</a>
+      </div>
+    </section>
+
+    <footer class="landing-footer">
+      <div class="container">
+        <p>© 2024 RailsExpert. Built with ❤️ for Rails developers.</p>
+      </div>
+    </footer>
+  </main>
+</BaseLayout>
+
+<style>
+  .landing {
+    min-height: 100vh;
+  }
+
+  .landing-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: rgba(26, 26, 46, 0.95);
+    backdrop-filter: blur(10px);
+    border-bottom: 2px solid var(--color-primary);
+    z-index: 100;
+    padding: 12px 0;
+  }
+
+  .landing-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+  }
+
+  .logo-icon {
+    font-size: 1.5rem;
+  }
+
+  .logo-text {
+    font-family: var(--font-pixel);
+    font-size: 1rem;
+    color: var(--color-primary);
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .nav-link {
+    font-family: var(--font-pixel);
+    font-size: 0.6rem;
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  /* Hero */
+  .hero {
+    padding: 120px 0 80px;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+  }
+
+  .hero .container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: center;
+  }
+
+  .hero-title {
+    font-size: 2rem;
+    margin-bottom: 24px;
+  }
+
+  .title-line {
+    display: block;
+    color: var(--color-text);
+  }
+
+  .title-highlight {
+    display: block;
+    color: var(--color-primary);
+    text-shadow: 4px 4px 0 var(--color-bg-dark);
+  }
+
+  .hero-subtitle {
+    font-size: 1.1rem;
+    color: var(--color-text-dim);
+    margin-bottom: 32px;
+    line-height: 1.8;
+  }
+
+  .hero-cta {
+    display: flex;
+    gap: 16px;
+  }
+
+  .hero-game-preview {
+    background: var(--color-bg-dark);
+    padding: 24px;
+  }
+
+  .hero-ascii {
+    font-family: monospace;
+    font-size: 0.85rem;
+    color: var(--color-accent);
+    line-height: 1.4;
+    white-space: pre;
+  }
+
+  /* Features */
+  .features {
+    padding: 80px 0;
+    background: var(--color-bg-dark);
+  }
+
+  .section-title {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 24px;
+  }
+
+  .feature-card {
+    text-align: center;
+    padding: 32px 24px;
+  }
+
+  .feature-icon {
+    font-size: 3rem;
+    display: block;
+    margin-bottom: 16px;
+  }
+
+  .feature-card h3 {
+    margin-bottom: 12px;
+    color: var(--color-accent);
+  }
+
+  .feature-card p {
+    color: var(--color-text-dim);
+    font-size: 0.95rem;
+  }
+
+  /* Realms Preview */
+  .realms-preview {
+    padding: 80px 0;
+  }
+
+  .realms-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 24px;
+  }
+
+  .realm-preview {
+    background: var(--color-bg-light);
+    border: 2px solid var(--color-text-dim);
+    padding: 24px;
+    border-radius: var(--border-radius);
+  }
+
+  .realm-level {
+    display: inline-block;
+    font-family: var(--font-pixel);
+    font-size: 0.6rem;
+    padding: 4px 12px;
+    margin-bottom: 16px;
+    background: var(--color-secondary);
+  }
+
+  .realm-preview.beginner .realm-level { background: var(--color-accent); }
+  .realm-preview.intermediate .realm-level { background: var(--color-gold); color: black; }
+  .realm-preview.advanced .realm-level { background: var(--color-primary); }
+  .realm-preview.expert .realm-level { background: #9333ea; }
+
+  .realm-preview ul {
+    list-style: none;
+  }
+
+  .realm-preview li {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--color-bg);
+    font-size: 0.9rem;
+  }
+
+  .realm-preview li:last-child {
+    border-bottom: none;
+  }
+
+  /* CTA */
+  .cta-section {
+    padding: 80px 0;
+    background: linear-gradient(135deg, var(--color-secondary), var(--color-bg-dark));
+  }
+
+  .cta-section h2 {
+    margin-bottom: 16px;
+  }
+
+  .cta-section p {
+    margin-bottom: 32px;
+    color: var(--color-text-dim);
+  }
+
+  /* Footer */
+  .landing-footer {
+    padding: 24px 0;
+    text-align: center;
+    border-top: 2px solid var(--color-bg-light);
+    color: var(--color-text-dim);
+    font-size: 0.85rem;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .hero .container {
+      grid-template-columns: 1fr;
+      text-align: center;
+    }
+
+    .hero-cta {
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .hero-visual {
+      display: none;
+    }
+
+    .hero-title {
+      font-size: 1.5rem;
+    }
+
+    .nav-links .nav-link {
+      display: none;
+    }
+  }
+</style>

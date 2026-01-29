@@ -1,0 +1,43 @@
+{
+  "name": "railsexpert",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "worker"
+  ],
+  "scripts": {
+    "dev": "bun run --parallel dev:frontend dev:worker",
+    "dev:frontend": "cd frontend && bun run dev",
+    "dev:worker": "cd worker && bun run dev",
+    "build": "bun run build:frontend && bun run build:worker",
+    "build:frontend": "cd frontend && bun run build",
+    "build:worker": "cd worker && bun run build",
+    "preview": "cd frontend && bun run preview",
+    "db:migrate": "cd worker && wrangler d1 execute railsexpert-db --file=src/db/schema.sql --local",
+    "db:migrate:prod": "cd worker && wrangler d1 execute railsexpert-db --file=src/db/schema.sql",
+    "deploy": "bun run build && bun run deploy:worker && bun run deploy:frontend",
+    "deploy:frontend": "cd frontend && wrangler pages deploy dist",
+    "deploy:worker": "cd worker && wrangler deploy",
+    "test": "bun test",
+    "test:worker": "cd worker && bun test",
+    "typecheck": "bun run --parallel typecheck:frontend typecheck:worker",
+    "typecheck:frontend": "cd frontend && bun run astro check",
+    "typecheck:worker": "cd worker && tsc --noEmit",
+    "lint": "eslint . --ext .ts,.tsx,.astro",
+    "lint:fix": "eslint . --ext .ts,.tsx,.astro --fix",
+    "format": "prettier --write \"**/*.{ts,tsx,astro,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,astro,json,md}\""
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-astro": "^1.0.0",
+    "prettier": "^3.2.0",
+    "prettier-plugin-astro": "^0.13.0",
+    "typescript": "^5.9.3"
+  }
+}

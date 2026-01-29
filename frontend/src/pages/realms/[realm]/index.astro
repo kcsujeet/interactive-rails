@@ -1,0 +1,217 @@
+---
+import GameLayout from '../../../layouts/GameLayout.astro';
+
+const { realm } = Astro.params;
+---
+
+<GameLayout title={`${realm} - Dungeons`}>
+  <div class="realm-detail container" data-realm-id={realm}>
+    <div class="realm-header">
+      <a href="/realms" class="back-link">← Back to Realms</a>
+      <h1 id="realm-title">Loading...</h1>
+      <p id="realm-desc"></p>
+    </div>
+
+    <div class="dungeons-grid" id="dungeons-container">
+      <div class="loading">
+        <span class="loading-text">Loading dungeons...</span>
+      </div>
+    </div>
+  </div>
+</GameLayout>
+
+<script>
+  import { getDungeons, getRealms } from '../../../lib/api';
+
+  const realmId = document.querySelector('.realm-detail')?.getAttribute('data-realm-id');
+
+  async function loadDungeons() {
+    const container = document.getElementById('dungeons-container');
+    const titleEl = document.getElementById('realm-title');
+    const descEl = document.getElementById('realm-desc');
+
+    if (!container || !realmId) return;
+
+    try {
+      // Get realm info
+      const realmsData = await getRealms();
+      const realm = realmsData.realms.find(r => r.id === realmId);
+
+      if (realm && titleEl && descEl) {
+        titleEl.textContent = realm.name;
+        descEl.textContent = realm.description;
+      }
+
+      // Get dungeons
+      const { dungeons } = await getDungeons(realmId);
+
+      container.innerHTML = dungeons.map((dungeon, index) => `
+        <a href="${dungeon.isUnlocked ? `/realms/${realmId}/${dungeon.id}` : '#'}"
+           class="dungeon-card pixel-panel ${dungeon.isUnlocked ? '' : 'locked'} ${dungeon.isCompleted ? 'completed' : ''}"
+           ${!dungeon.isUnlocked ? 'onclick="event.preventDefault()"' : ''}>
+          <div class="dungeon-number">${index + 1}</div>
+          <div class="dungeon-info">
+            <h3 class="dungeon-name">${dungeon.name}</h3>
+            <div class="dungeon-progress">
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: ${(dungeon.challengesCompleted / dungeon.totalChallenges) * 100}%"></div>
+              </div>
+              <span class="progress-text">${dungeon.challengesCompleted}/${dungeon.totalChallenges}</span>
+            </div>
+            ${dungeon.bestScore > 0 ? `<div class="best-score">Best: ${dungeon.bestScore} pts</div>` : ''}
+          </div>
+          <div class="dungeon-status">
+            ${dungeon.isCompleted ? '✓' : dungeon.isUnlocked ? '→' : '🔒'}
+          </div>
+        </a>
+      `).join('');
+
+    } catch (err) {
+      container.innerHTML = `
+        <div class="error pixel-panel">
+          <p>Failed to load dungeons. Please log in.</p>
+          <a href="/login" class="pixel-btn">Login</a>
+        </div>
+      `;
+    }
+  }
+
+  loadDungeons();
+</script>
+
+<style>
+  .realm-detail {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 24px 0;
+  }
+
+  .realm-header {
+    margin-bottom: 32px;
+  }
+
+  .back-link {
+    display: inline-block;
+    font-family: var(--font-pixel);
+    font-size: 0.6rem;
+    color: var(--color-text-dim);
+    text-decoration: none;
+    margin-bottom: 16px;
+    transition: color 0.2s;
+  }
+
+  .back-link:hover {
+    color: var(--color-primary);
+  }
+
+  .realm-header h1 {
+    margin-bottom: 8px;
+  }
+
+  .realm-header p {
+    color: var(--color-text-dim);
+  }
+
+  .dungeons-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  :global(.dungeon-card) {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    text-decoration: none;
+    color: var(--color-text);
+    transition: all 0.2s;
+  }
+
+  :global(.dungeon-card:hover:not(.locked)) {
+    border-color: var(--color-primary);
+    transform: translateX(4px);
+  }
+
+  :global(.dungeon-card.locked) {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  :global(.dungeon-card.completed) {
+    border-color: var(--color-accent);
+  }
+
+  :global(.dungeon-number) {
+    font-family: var(--font-pixel);
+    font-size: 1.5rem;
+    color: var(--color-primary);
+    min-width: 50px;
+    text-align: center;
+  }
+
+  :global(.dungeon-info) {
+    flex: 1;
+  }
+
+  :global(.dungeon-name) {
+    font-size: 0.8rem;
+    margin-bottom: 8px;
+    color: var(--color-accent);
+  }
+
+  :global(.dungeon-progress) {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  :global(.progress-bar) {
+    flex: 1;
+    height: 10px;
+    background: var(--color-bg-dark);
+    border: 2px solid var(--color-text-dim);
+  }
+
+  :global(.progress-fill) {
+    height: 100%;
+    background: var(--color-accent);
+    transition: width 0.3s;
+  }
+
+  :global(.progress-text) {
+    font-family: var(--font-pixel);
+    font-size: 0.5rem;
+    white-space: nowrap;
+  }
+
+  :global(.best-score) {
+    font-family: var(--font-pixel);
+    font-size: 0.5rem;
+    color: var(--color-gold);
+    margin-top: 8px;
+  }
+
+  :global(.dungeon-status) {
+    font-size: 1.5rem;
+    min-width: 40px;
+    text-align: center;
+  }
+
+  .loading {
+    text-align: center;
+    padding: 48px;
+  }
+
+  .loading-text {
+    font-family: var(--font-pixel);
+    font-size: 0.8rem;
+    color: var(--color-text-dim);
+    animation: pulse 1.5s infinite;
+  }
+
+  :global(.error) {
+    text-align: center;
+    padding: 32px;
+  }
+</style>

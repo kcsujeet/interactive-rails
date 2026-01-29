@@ -1,0 +1,103 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import LoginForm from '../components/auth/LoginForm';
+---
+
+<BaseLayout title="Login">
+  <main class="auth-page">
+    <div class="auth-container">
+      <a href="/" class="back-link">← Back to Home</a>
+      <div class="auth-card pixel-panel">
+        <div class="auth-header">
+          <span class="logo-icon">⚔️</span>
+          <h1>RailsExpert</h1>
+        </div>
+        <LoginForm client:load />
+      </div>
+    </div>
+  </main>
+</BaseLayout>
+
+<style>
+  .auth-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .auth-container {
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .back-link {
+    display: inline-block;
+    font-family: var(--font-pixel);
+    font-size: 0.6rem;
+    color: var(--color-text-dim);
+    text-decoration: none;
+    margin-bottom: 16px;
+    transition: color 0.2s;
+  }
+
+  .back-link:hover {
+    color: var(--color-primary);
+  }
+
+  .auth-card {
+    padding: 32px;
+  }
+
+  .auth-header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .logo-icon {
+    font-size: 3rem;
+    display: block;
+    margin-bottom: 16px;
+  }
+
+  .auth-header h1 {
+    font-size: 1.2rem;
+  }
+
+  :global(.auth-form) {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  :global(.auth-form h2) {
+    text-align: center;
+    margin-bottom: 8px;
+  }
+
+  :global(.form-group) {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  :global(.error-message) {
+    background: rgba(233, 69, 96, 0.2);
+    border: 2px solid var(--color-danger);
+    padding: 12px;
+    font-size: 0.9rem;
+    color: var(--color-danger);
+  }
+
+  :global(.auth-switch) {
+    text-align: center;
+    font-size: 0.9rem;
+    color: var(--color-text-dim);
+    margin-top: 16px;
+  }
+
+  :global(.auth-switch a) {
+    color: var(--color-accent);
+  }
+</style>

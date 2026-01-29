@@ -1,0 +1,255 @@
+---
+import GameLayout from '../layouts/GameLayout.astro';
+---
+
+<GameLayout title="Dashboard">
+  <div class="dashboard container">
+    <h1>Your Progress</h1>
+
+    <div class="dashboard-grid" id="dashboard-content">
+      <div class="loading">
+        <span class="loading-text">Loading stats...</span>
+      </div>
+    </div>
+  </div>
+</GameLayout>
+
+<script>
+  import { getProgress, getAchievements } from '../lib/api';
+  import { $progress } from '../stores/gameStore';
+  import { escapeHtml } from '../lib/utils';
+
+  async function loadDashboard() {
+    const container = document.getElementById('dashboard-content');
+    if (!container) return;
+
+    try {
+      const [progress, achievementsData] = await Promise.all([
+        getProgress(),
+        getAchievements(),
+      ]);
+
+      $progress.set(progress);
+
+      const xpForNextLevel = Math.floor(100 * Math.pow(1.5, progress.level));
+      const xpPercent = Math.round((progress.xp / xpForNextLevel) * 100);
+      const hpPercent = Math.round((progress.currentHp / progress.maxHp) * 100);
+
+      container.innerHTML = `
+        <div class="stats-card pixel-panel">
+          <h2>Warrior Stats</h2>
+          <div class="stat-item">
+            <span class="stat-label">Level</span>
+            <span class="stat-value level-badge">${progress.level}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">XP</span>
+            <div class="stat-bar">
+              <div class="stat-bar-fill xp" style="width: ${xpPercent}%"></div>
+              <span class="stat-bar-text">${progress.xp}/${xpForNextLevel}</span>
+            </div>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">HP</span>
+            <div class="stat-bar">
+              <div class="stat-bar-fill hp" style="width: ${hpPercent}%"></div>
+              <span class="stat-bar-text">${progress.currentHp}/${progress.maxHp}</span>
+            </div>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Daily Streak</span>
+            <span class="stat-value">${progress.dailyStreak} 🔥</span>
+          </div>
+        </div>
+
+        <div class="stats-card pixel-panel">
+          <h2>Battle Record</h2>
+          <div class="stat-item">
+            <span class="stat-label">Challenges</span>
+            <span class="stat-value">${progress.stats.challengesAttempted}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Accuracy</span>
+            <span class="stat-value">${progress.stats.accuracy}%</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Dungeons Cleared</span>
+            <span class="stat-value">${progress.stats.dungeonsCompleted}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Realms Conquered</span>
+            <span class="stat-value">${progress.stats.realmsCompleted}</span>
+          </div>
+        </div>
+
+        <div class="stats-card pixel-panel achievements-card">
+          <h2>Achievements</h2>
+          <div class="achievements-grid">
+            ${achievementsData.achievements.map(a => `
+              <div class="achievement ${a.unlocked ? 'unlocked' : 'locked'}">
+                <span class="achievement-icon">${a.unlocked ? getAchievementIcon(a.icon) : '🔒'}</span>
+                <span class="achievement-name">${escapeHtml(a.name)}</span>
+                <span class="achievement-desc">${escapeHtml(a.description)}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    } catch (err) {
+      console.error('Dashboard load error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      const isAuthError = errorMessage.includes('Unauthorized') || errorMessage.includes('Invalid token');
+
+      container.innerHTML = `
+        <div class="error pixel-panel">
+          <p>${isAuthError ? 'Please log in to view your dashboard.' : `Error: ${escapeHtml(errorMessage)}`}</p>
+          ${isAuthError
+            ? '<a href="/login" class="pixel-btn">Login</a>'
+            : '<button class="pixel-btn" onclick="window.location.reload()">Retry</button>'
+          }
+        </div>
+      `;
+    }
+  }
+
+  function getAchievementIcon(icon: string): string {
+    const icons: Record<string, string> = {
+      sword: '⚔️',
+      shield: '🛡️',
+      fire: '🔥',
+      star: '⭐',
+      crown: '👑',
+      lightning: '⚡',
+      trophy: '🏆',
+      medal: '🎖️',
+    };
+    return icons[icon] || '🏅';
+  }
+
+  loadDashboard();
+</script>
+
+<style>
+  .dashboard {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 24px 0;
+  }
+
+  .dashboard h1 {
+    margin-bottom: 32px;
+  }
+
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 24px;
+  }
+
+  :global(.stats-card) {
+    padding: 24px;
+  }
+
+  :global(.stats-card h2) {
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--color-bg);
+  }
+
+  :global(.stat-item) {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--color-bg);
+  }
+
+  :global(.stat-item:last-child) {
+    border-bottom: none;
+  }
+
+  :global(.stat-label) {
+    font-family: var(--font-pixel);
+    font-size: 0.6rem;
+    color: var(--color-text-dim);
+    text-transform: uppercase;
+  }
+
+  :global(.stat-value) {
+    font-family: var(--font-pixel);
+    font-size: 0.8rem;
+    color: var(--color-accent);
+  }
+
+  :global(.level-badge) {
+    background: var(--color-primary);
+    color: white;
+    padding: 4px 12px;
+    font-size: 1rem;
+  }
+
+  :global(.achievements-card) {
+    grid-column: 1 / -1;
+  }
+
+  :global(.achievements-grid) {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 16px;
+  }
+
+  :global(.achievement) {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 16px;
+    background: var(--color-bg);
+    border: 2px solid var(--color-text-dim);
+  }
+
+  :global(.achievement.unlocked) {
+    border-color: var(--color-gold);
+    background: rgba(255, 215, 0, 0.1);
+  }
+
+  :global(.achievement.locked) {
+    opacity: 0.5;
+  }
+
+  :global(.achievement-icon) {
+    font-size: 2rem;
+    margin-bottom: 8px;
+  }
+
+  :global(.achievement-name) {
+    font-family: var(--font-pixel);
+    font-size: 0.5rem;
+    color: var(--color-accent);
+    margin-bottom: 4px;
+  }
+
+  :global(.achievement-desc) {
+    font-size: 0.75rem;
+    color: var(--color-text-dim);
+  }
+
+  .loading {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 48px;
+  }
+
+  .loading-text {
+    font-family: var(--font-pixel);
+    font-size: 0.8rem;
+    color: var(--color-text-dim);
+    animation: pulse 1.5s infinite;
+  }
+
+  :global(.error) {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 32px;
+  }
+</style>

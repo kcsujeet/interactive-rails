@@ -1,0 +1,12 @@
+name = "railsexpert-api"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[vars]
+ENVIRONMENT = "development"
+JWT_SECRET = "dev-secret-change-in-production"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "railsexpert-db"
+database_id = "local"

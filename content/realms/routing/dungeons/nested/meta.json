@@ -1,0 +1,7 @@
+{
+  "id": "nested",
+  "name": "Nested Resources",
+  "description": "Route parent-child relationships elegantly",
+  "order": 2,
+  "totalChallenges": 10
+}

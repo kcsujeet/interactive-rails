@@ -1,0 +1,154 @@
+[
+  {
+    "id": "activerecord-models-001",
+    "type": "multiple_choice",
+    "difficulty": 1,
+    "xp_reward": 25,
+    "monster": { "name": "Migration Mimic", "sprite": "migration-mimic", "hp": 50 },
+    "question": "What command generates a new model with a migration?",
+    "options": [
+      { "id": "a", "text": "rails new model Article" },
+      { "id": "b", "text": "rails generate model Article title:string body:text" },
+      { "id": "c", "text": "rails create Article" },
+      { "id": "d", "text": "rails model Article --generate" }
+    ],
+    "correct_answer": "b",
+    "explanation": "'rails generate model' (or 'rails g model') creates a model file and a migration with the specified columns."
+  },
+  {
+    "id": "activerecord-models-002",
+    "type": "fill_in_blank",
+    "difficulty": 1,
+    "xp_reward": 25,
+    "monster": { "name": "Table Troll", "sprite": "table-troll", "hp": 50 },
+    "question": "By convention, a model named 'Article' maps to which database table?",
+    "code_snippet": "Table name: ____",
+    "correct_answer": "articles",
+    "explanation": "Rails pluralizes and lowercases model names for table names: Article → articles, Person → people, Category → categories."
+  },
+  {
+    "id": "activerecord-models-003",
+    "type": "multiple_choice",
+    "difficulty": 2,
+    "xp_reward": 30,
+    "monster": { "name": "Schema Shade", "sprite": "schema-shade", "hp": 60 },
+    "question": "What does 'rails db:migrate' do?",
+    "options": [
+      { "id": "a", "text": "Creates the database" },
+      { "id": "b", "text": "Runs pending migrations to update the database schema" },
+      { "id": "c", "text": "Exports data to a file" },
+      { "id": "d", "text": "Deletes all tables" }
+    ],
+    "correct_answer": "b",
+    "explanation": "db:migrate runs all pending migrations, applying changes to your database schema in order."
+  },
+  {
+    "id": "activerecord-models-004",
+    "type": "code_analysis",
+    "difficulty": 2,
+    "xp_reward": 30,
+    "monster": { "name": "Column Crawler", "sprite": "column-crawler", "hp": 60 },
+    "question": "What does this migration do?",
+    "code_snippet": "def change\n  add_column :articles, :published_at, :datetime\n  add_index :articles, :published_at\nend",
+    "options": [
+      { "id": "a", "text": "Creates a new articles table" },
+      { "id": "b", "text": "Adds a column and an index to existing articles table" },
+      { "id": "c", "text": "Removes a column from articles" },
+      { "id": "d", "text": "Renames the published_at column" }
+    ],
+    "correct_answer": "b",
+    "explanation": "add_column adds a new column, add_index creates a database index for faster queries on that column."
+  },
+  {
+    "id": "activerecord-models-005",
+    "type": "multiple_choice",
+    "difficulty": 2,
+    "xp_reward": 35,
+    "monster": { "name": "Rollback Revenant", "sprite": "rollback-revenant", "hp": 65 },
+    "question": "How do you undo the last migration?",
+    "options": [
+      { "id": "a", "text": "rails db:undo" },
+      { "id": "b", "text": "rails db:rollback" },
+      { "id": "c", "text": "rails db:migrate:down" },
+      { "id": "d", "text": "rails db:reverse" }
+    ],
+    "correct_answer": "b",
+    "explanation": "db:rollback reverses the last migration. Add STEP=n to rollback multiple migrations."
+  },
+  {
+    "id": "activerecord-models-006",
+    "type": "fill_in_blank",
+    "difficulty": 2,
+    "xp_reward": 35,
+    "monster": { "name": "Primary Phantom", "sprite": "primary-phantom", "hp": 65 },
+    "question": "ActiveRecord automatically creates which column as the primary key?",
+    "code_snippet": "Column: ____",
+    "correct_answer": "id",
+    "explanation": "Rails automatically adds an 'id' column as an auto-incrementing primary key (bigint in Rails 5.1+)."
+  },
+  {
+    "id": "activerecord-models-007",
+    "type": "multiple_choice",
+    "difficulty": 3,
+    "xp_reward": 40,
+    "monster": { "name": "Reference Reaper", "sprite": "reference-reaper", "hp": 75 },
+    "question": "What does 't.references :user' do in a migration?",
+    "options": [
+      { "id": "a", "text": "Creates a user_id column and an index" },
+      { "id": "b", "text": "Creates a foreign key constraint only" },
+      { "id": "c", "text": "Links to the users table via URL" },
+      { "id": "d", "text": "Creates a user column of type reference" }
+    ],
+    "correct_answer": "a",
+    "explanation": "t.references :user creates user_id (bigint), an index on it, and optionally a foreign key with 'foreign_key: true'."
+  },
+  {
+    "id": "activerecord-models-008",
+    "type": "multiple_choice",
+    "difficulty": 3,
+    "xp_reward": 40,
+    "monster": { "name": "Timestamp Terror", "sprite": "timestamp-terror", "hp": 75 },
+    "question": "What do 'created_at' and 'updated_at' columns do?",
+    "options": [
+      { "id": "a", "text": "You must update them manually" },
+      { "id": "b", "text": "Rails automatically sets them on create/update" },
+      { "id": "c", "text": "They're optional and never used" },
+      { "id": "d", "text": "They track who created/updated records" }
+    ],
+    "correct_answer": "b",
+    "explanation": "These 'magic' columns are automatically managed by Rails. created_at is set once; updated_at changes on every save."
+  },
+  {
+    "id": "activerecord-models-009",
+    "type": "code_analysis",
+    "difficulty": 3,
+    "xp_reward": 45,
+    "monster": { "name": "Irreversible Imp", "sprite": "irreversible-imp", "hp": 80 },
+    "question": "Why might this migration cause problems?",
+    "code_snippet": "def change\n  remove_column :users, :email\nend",
+    "options": [
+      { "id": "a", "text": "It's perfectly fine" },
+      { "id": "b", "text": "Rails can't reverse it without knowing the column type" },
+      { "id": "c", "text": "remove_column doesn't exist" },
+      { "id": "d", "text": "You can't remove columns in Rails" }
+    ],
+    "correct_answer": "b",
+    "explanation": "To make remove_column reversible, specify the type: remove_column :users, :email, :string. Otherwise rollback fails."
+  },
+  {
+    "id": "activerecord-models-010",
+    "type": "multiple_choice",
+    "difficulty": 3,
+    "xp_reward": 50,
+    "monster": { "name": "Model Monarch (BOSS)", "sprite": "model-boss", "hp": 110 },
+    "question": "What file shows the current database schema?",
+    "options": [
+      { "id": "a", "text": "db/schema.rb" },
+      { "id": "b", "text": "config/database.yml" },
+      { "id": "c", "text": "app/models/schema.rb" },
+      { "id": "d", "text": "db/migrate/schema.rb" }
+    ],
+    "correct_answer": "a",
+    "explanation": "db/schema.rb is auto-generated and shows the current database structure. It's used by db:schema:load for fresh setups."
+  }
+]

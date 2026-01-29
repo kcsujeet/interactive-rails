@@ -1,0 +1,10 @@
+{
+  "id": "foundation",
+  "name": "Foundation Fortress",
+  "description": "Master the basics of Ruby on Rails - MVC architecture, directory structure, and core concepts",
+  "order": 1,
+  "icon": "castle",
+  "color": "#16c79a",
+  "dungeons": ["mvc", "directory", "routing-basics", "controllers-101", "views-erb"],
+  "unlockRequirement": null
+}

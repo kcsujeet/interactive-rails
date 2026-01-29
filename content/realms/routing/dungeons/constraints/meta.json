@@ -1,0 +1,7 @@
+{
+  "id": "constraints",
+  "name": "Route Constraints",
+  "description": "Control route matching with constraints",
+  "order": 4,
+  "totalChallenges": 10
+}

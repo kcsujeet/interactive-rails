@@ -1,0 +1,155 @@
+[
+  {
+    "id": "activerecord-associations-001",
+    "type": "multiple_choice",
+    "difficulty": 2,
+    "xp_reward": 30,
+    "monster": { "name": "Orphan Ogre", "sprite": "orphan-ogre", "hp": 60 },
+    "question": "Which side of a one-to-many relationship has the foreign key?",
+    "options": [
+      { "id": "a", "text": "The 'has_many' side" },
+      { "id": "b", "text": "The 'belongs_to' side" },
+      { "id": "c", "text": "Both sides" },
+      { "id": "d", "text": "Neither, it's in a join table" }
+    ],
+    "correct_answer": "b",
+    "explanation": "The belongs_to side holds the foreign key. A Comment belongs_to Article, so comments table has article_id."
+  },
+  {
+    "id": "activerecord-associations-002",
+    "type": "fill_in_blank",
+    "difficulty": 2,
+    "xp_reward": 30,
+    "monster": { "name": "Foreign Key Fiend", "sprite": "fk-fiend", "hp": 60 },
+    "question": "If a Comment belongs_to an Article, what column should the comments table have?",
+    "code_snippet": "Column: ____",
+    "correct_answer": "article_id",
+    "explanation": "Rails convention: foreign key is singular model name + _id. article_id references the articles table."
+  },
+  {
+    "id": "activerecord-associations-003",
+    "type": "code_analysis",
+    "difficulty": 2,
+    "xp_reward": 35,
+    "monster": { "name": "Dependency Demon", "sprite": "dependency-demon", "hp": 65 },
+    "question": "What does 'dependent: :destroy' do here?",
+    "code_snippet": "class Author < ApplicationRecord\n  has_many :books, dependent: :destroy\nend",
+    "options": [
+      { "id": "a", "text": "Destroys the author when a book is deleted" },
+      { "id": "b", "text": "Destroys all books when the author is deleted" },
+      { "id": "c", "text": "Prevents author deletion if books exist" },
+      { "id": "d", "text": "Marks books as deleted without removing them" }
+    ],
+    "correct_answer": "b",
+    "explanation": "dependent: :destroy cascades deletion - when an author is destroyed, all their books are also destroyed."
+  },
+  {
+    "id": "activerecord-associations-004",
+    "type": "multiple_choice",
+    "difficulty": 2,
+    "xp_reward": 35,
+    "monster": { "name": "Many Menace", "sprite": "many-menace", "hp": 65 },
+    "question": "For a many-to-many relationship, which associations would you use?",
+    "options": [
+      { "id": "a", "text": "has_many on both sides" },
+      { "id": "b", "text": "has_many :through on both sides with a join model" },
+      { "id": "c", "text": "belongs_to on both sides" },
+      { "id": "d", "text": "has_one on both sides" }
+    ],
+    "correct_answer": "b",
+    "explanation": "has_many :through uses a join model (like Enrollment for Student-Course). Both sides say has_many :through."
+  },
+  {
+    "id": "activerecord-associations-005",
+    "type": "multiple_choice",
+    "difficulty": 3,
+    "xp_reward": 40,
+    "monster": { "name": "Polymorphic Phantom", "sprite": "poly-phantom", "hp": 75 },
+    "question": "When would you use a polymorphic association?",
+    "options": [
+      { "id": "a", "text": "When a model can belong to multiple different model types" },
+      { "id": "b", "text": "When you need multiple foreign keys" },
+      { "id": "c", "text": "When models share the same table" },
+      { "id": "d", "text": "When you want to avoid foreign keys" }
+    ],
+    "correct_answer": "a",
+    "explanation": "Polymorphic associations let one model belong to multiple types. E.g., Comment can belong to Article, Photo, or Video."
+  },
+  {
+    "id": "activerecord-associations-006",
+    "type": "code_analysis",
+    "difficulty": 3,
+    "xp_reward": 40,
+    "monster": { "name": "Through Thorn", "sprite": "through-thorn", "hp": 75 },
+    "question": "What does this allow you to do?",
+    "code_snippet": "class Doctor < ApplicationRecord\n  has_many :appointments\n  has_many :patients, through: :appointments\nend",
+    "options": [
+      { "id": "a", "text": "doctor.patients returns all patients with appointments" },
+      { "id": "b", "text": "Creates a patients column on doctors" },
+      { "id": "c", "text": "doctor.appointments becomes unavailable" },
+      { "id": "d", "text": "Removes the need for an appointments table" }
+    ],
+    "correct_answer": "a",
+    "explanation": "has_many :through lets you access patients directly through appointments: doctor.patients, without manual joining."
+  },
+  {
+    "id": "activerecord-associations-007",
+    "type": "fill_in_blank",
+    "difficulty": 3,
+    "xp_reward": 40,
+    "monster": { "name": "Inverse Imp", "sprite": "inverse-imp", "hp": 80 },
+    "question": "To avoid extra database queries, you can specify:",
+    "code_snippet": "has_many :comments, ____: :article",
+    "correct_answer": "inverse_of",
+    "explanation": "inverse_of tells Rails the reciprocal association, avoiding redundant queries when accessing the parent from children."
+  },
+  {
+    "id": "activerecord-associations-008",
+    "type": "multiple_choice",
+    "difficulty": 3,
+    "xp_reward": 45,
+    "monster": { "name": "Self-Join Serpent", "sprite": "selfjoin-serpent", "hp": 80 },
+    "question": "How would you model employees with managers (also employees)?",
+    "options": [
+      { "id": "a", "text": "Create a separate managers table" },
+      { "id": "b", "text": "Self-referential association with manager_id on employees" },
+      { "id": "c", "text": "Use a polymorphic association" },
+      { "id": "d", "text": "This isn't possible in Rails" }
+    ],
+    "correct_answer": "b",
+    "explanation": "Self-referential: belongs_to :manager, class_name: 'Employee' and has_many :subordinates, class_name: 'Employee', foreign_key: 'manager_id'"
+  },
+  {
+    "id": "activerecord-associations-009",
+    "type": "multiple_choice",
+    "difficulty": 3,
+    "xp_reward": 45,
+    "monster": { "name": "Counter Cache Creature", "sprite": "counter-creature", "hp": 85 },
+    "question": "What does 'counter_cache: true' do?",
+    "code_snippet": "belongs_to :article, counter_cache: true",
+    "options": [
+      { "id": "a", "text": "Caches the article in memory" },
+      { "id": "b", "text": "Maintains a comments_count column on articles" },
+      { "id": "c", "text": "Limits the number of comments" },
+      { "id": "d", "text": "Speeds up comment queries" }
+    ],
+    "correct_answer": "b",
+    "explanation": "Counter cache maintains a count column (comments_count) on the parent, avoiding COUNT queries. Requires a migration to add the column."
+  },
+  {
+    "id": "activerecord-associations-010",
+    "type": "multiple_choice",
+    "difficulty": 4,
+    "xp_reward": 50,
+    "monster": { "name": "Association Archon (BOSS)", "sprite": "association-boss", "hp": 120 },
+    "question": "What's the difference between has_many :through and has_and_belongs_to_many?",
+    "options": [
+      { "id": "a", "text": "No difference, they're aliases" },
+      { "id": "b", "text": "has_many :through uses a join model, HABTM uses a simple join table" },
+      { "id": "c", "text": "HABTM is faster" },
+      { "id": "d", "text": "has_many :through is deprecated" }
+    ],
+    "correct_answer": "b",
+    "explanation": "has_many :through uses a full model for the join (can have attributes, validations). HABTM uses a simple join table with no model."
+  }
+]

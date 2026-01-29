@@ -1,0 +1,153 @@
+[
+  {
+    "id": "routing-restful-001",
+    "type": "multiple_choice",
+    "difficulty": 2,
+    "xp_reward": 30,
+    "monster": { "name": "REST Wraith", "sprite": "rest-wraith", "hp": 60 },
+    "question": "How many routes does 'resources :articles' generate?",
+    "options": [
+      { "id": "a", "text": "4 routes" },
+      { "id": "b", "text": "5 routes" },
+      { "id": "c", "text": "7 routes" },
+      { "id": "d", "text": "8 routes" }
+    ],
+    "correct_answer": "c",
+    "explanation": "resources generates 7 routes: index, show, new, create, edit, update, destroy. Each maps to a controller action."
+  },
+  {
+    "id": "routing-restful-002",
+    "type": "fill_in_blank",
+    "difficulty": 2,
+    "xp_reward": 30,
+    "monster": { "name": "Verb Vulture", "sprite": "verb-vulture", "hp": 60 },
+    "question": "The 'destroy' action uses which HTTP verb?",
+    "code_snippet": "HTTP Verb: ____",
+    "correct_answer": "DELETE",
+    "explanation": "DELETE is used for destroy. GET for index/show/new/edit, POST for create, PATCH/PUT for update."
+  },
+  {
+    "id": "routing-restful-003",
+    "type": "code_analysis",
+    "difficulty": 2,
+    "xp_reward": 35,
+    "monster": { "name": "Path Phantom", "sprite": "path-phantom", "hp": 65 },
+    "question": "What URL does 'edit_article_path(@article)' generate if @article.id is 5?",
+    "options": [
+      { "id": "a", "text": "/articles/5/edit" },
+      { "id": "b", "text": "/articles/edit/5" },
+      { "id": "c", "text": "/edit/articles/5" },
+      { "id": "d", "text": "/articles/5" }
+    ],
+    "correct_answer": "a",
+    "explanation": "RESTful edit path is /resource/:id/edit. The ID comes before /edit in the URL."
+  },
+  {
+    "id": "routing-restful-004",
+    "type": "multiple_choice",
+    "difficulty": 2,
+    "xp_reward": 35,
+    "monster": { "name": "Only Ogre", "sprite": "only-ogre", "hp": 65 },
+    "question": "How do you generate only index and show routes?",
+    "options": [
+      { "id": "a", "text": "resources :articles, actions: [:index, :show]" },
+      { "id": "b", "text": "resources :articles, only: [:index, :show]" },
+      { "id": "c", "text": "resources :articles { index; show }" },
+      { "id": "d", "text": "get_resources :articles, :index, :show" }
+    ],
+    "correct_answer": "b",
+    "explanation": "only: limits which routes are generated. Opposite is except: which excludes specific routes."
+  },
+  {
+    "id": "routing-restful-005",
+    "type": "multiple_choice",
+    "difficulty": 3,
+    "xp_reward": 40,
+    "monster": { "name": "Member Monster", "sprite": "member-monster", "hp": 70 },
+    "question": "What's the difference between member and collection routes?",
+    "options": [
+      { "id": "a", "text": "member requires an ID, collection doesn't" },
+      { "id": "b", "text": "collection requires an ID, member doesn't" },
+      { "id": "c", "text": "They're the same" },
+      { "id": "d", "text": "member is for GET, collection is for POST" }
+    ],
+    "correct_answer": "a",
+    "explanation": "member routes act on a single resource (/articles/5/publish). collection routes act on the collection (/articles/search)."
+  },
+  {
+    "id": "routing-restful-006",
+    "type": "code_analysis",
+    "difficulty": 3,
+    "xp_reward": 40,
+    "monster": { "name": "Collection Creature", "sprite": "collection-creature", "hp": 75 },
+    "question": "What route does this create?",
+    "code_snippet": "resources :articles do\n  collection do\n    get 'search'\n  end\nend",
+    "options": [
+      { "id": "a", "text": "GET /articles/:id/search" },
+      { "id": "b", "text": "GET /articles/search" },
+      { "id": "c", "text": "GET /search/articles" },
+      { "id": "d", "text": "POST /articles/search" }
+    ],
+    "correct_answer": "b",
+    "explanation": "collection routes don't have an :id parameter. This creates GET /articles/search → articles#search"
+  },
+  {
+    "id": "routing-restful-007",
+    "type": "fill_in_blank",
+    "difficulty": 3,
+    "xp_reward": 45,
+    "monster": { "name": "Singular Serpent", "sprite": "singular-serpent", "hp": 75 },
+    "question": "For a single resource per user (like a profile), use:",
+    "code_snippet": "____ :profile",
+    "correct_answer": "resource",
+    "explanation": "resource (singular) creates routes without IDs: /profile instead of /profiles/:id. Useful for current user's own resources."
+  },
+  {
+    "id": "routing-restful-008",
+    "type": "multiple_choice",
+    "difficulty": 3,
+    "xp_reward": 45,
+    "monster": { "name": "Shallow Shadow", "sprite": "shallow-shadow", "hp": 80 },
+    "question": "What does 'shallow: true' do in nested resources?",
+    "options": [
+      { "id": "a", "text": "Removes all nested routes" },
+      { "id": "b", "text": "Un-nests show, edit, update, destroy (only keeps nesting for index, new, create)" },
+      { "id": "c", "text": "Creates only one level of nesting" },
+      { "id": "d", "text": "Makes routes case-insensitive" }
+    ],
+    "correct_answer": "b",
+    "explanation": "shallow: true keeps /articles/:article_id/comments for index/new/create, but uses /comments/:id for show/edit/update/destroy."
+  },
+  {
+    "id": "routing-restful-009",
+    "type": "multiple_choice",
+    "difficulty": 4,
+    "xp_reward": 50,
+    "monster": { "name": "API Apparition", "sprite": "api-apparition", "hp": 85 },
+    "question": "For an API, how do you generate routes without 'new' and 'edit'?",
+    "options": [
+      { "id": "a", "text": "resources :articles, api: true" },
+      { "id": "b", "text": "resources :articles, except: [:new, :edit]" },
+      { "id": "c", "text": "api_resources :articles" },
+      { "id": "d", "text": "resources :articles, format: :json" }
+    ],
+    "correct_answer": "b",
+    "explanation": "APIs don't need new/edit (those render forms). Use except: [:new, :edit] or only: [:index, :show, :create, :update, :destroy]."
+  },
+  {
+    "id": "routing-restful-010",
+    "type": "multiple_choice",
+    "difficulty": 4,
+    "xp_reward": 55,
+    "monster": { "name": "RESTful Ruler (BOSS)", "sprite": "restful-boss", "hp": 130 },
+    "question": "Why does Rails prefer PATCH over PUT for updates?",
+    "options": [
+      { "id": "a", "text": "PATCH is faster" },
+      { "id": "b", "text": "PUT should replace entire resource, PATCH updates partially" },
+      { "id": "c", "text": "PUT is deprecated" },
+      { "id": "d", "text": "No technical difference, just convention" }
+    ],
+    "correct_answer": "b",
+    "explanation": "Semantically, PUT replaces an entire resource, PATCH updates specific fields. Rails forms usually send partial updates, so PATCH is more accurate."
+  }
+]

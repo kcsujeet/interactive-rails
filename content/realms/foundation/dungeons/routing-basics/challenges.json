@@ -1,0 +1,155 @@
+[
+  {
+    "id": "foundation-routing-001",
+    "type": "multiple_choice",
+    "difficulty": 1,
+    "xp_reward": 20,
+    "monster": { "name": "Path Pest", "sprite": "path-pest", "hp": 40 },
+    "question": "What does 'resources :articles' generate in Rails routes?",
+    "options": [
+      { "id": "a", "text": "Only the index route" },
+      { "id": "b", "text": "All 7 RESTful routes (index, show, new, create, edit, update, destroy)" },
+      { "id": "c", "text": "Only CRUD routes without index" },
+      { "id": "d", "text": "A single resource route" }
+    ],
+    "correct_answer": "b",
+    "explanation": "'resources' generates all 7 RESTful routes: index, show, new, create, edit, update, and destroy."
+  },
+  {
+    "id": "foundation-routing-002",
+    "type": "multiple_choice",
+    "difficulty": 1,
+    "xp_reward": 20,
+    "monster": { "name": "HTTP Hound", "sprite": "http-hound", "hp": 40 },
+    "question": "Which HTTP verb is used for the 'create' action?",
+    "options": [
+      { "id": "a", "text": "GET" },
+      { "id": "b", "text": "POST" },
+      { "id": "c", "text": "PUT" },
+      { "id": "d", "text": "PATCH" }
+    ],
+    "correct_answer": "b",
+    "explanation": "POST is used for creating new resources. GET retrieves, PUT/PATCH update, and DELETE removes."
+  },
+  {
+    "id": "foundation-routing-003",
+    "type": "fill_in_blank",
+    "difficulty": 1,
+    "xp_reward": 25,
+    "monster": { "name": "Root Roach", "sprite": "root-roach", "hp": 45 },
+    "question": "To set the homepage to the ArticlesController#index action, you write:",
+    "code_snippet": "____ 'articles#index'",
+    "correct_answer": "root",
+    "explanation": "The 'root' method sets the root URL (/) of your application to the specified controller#action."
+  },
+  {
+    "id": "foundation-routing-004",
+    "type": "multiple_choice",
+    "difficulty": 2,
+    "xp_reward": 30,
+    "monster": { "name": "Verb Vulture", "sprite": "verb-vulture", "hp": 55 },
+    "question": "What's the difference between PUT and PATCH in Rails?",
+    "options": [
+      { "id": "a", "text": "They're identical in Rails" },
+      { "id": "b", "text": "PUT replaces entire resource, PATCH updates partially (Rails prefers PATCH)" },
+      { "id": "c", "text": "PUT is for create, PATCH is for update" },
+      { "id": "d", "text": "PATCH is deprecated in favor of PUT" }
+    ],
+    "correct_answer": "b",
+    "explanation": "Technically, PUT replaces an entire resource while PATCH updates partially. Rails defaults to PATCH for updates since Rails 4."
+  },
+  {
+    "id": "foundation-routing-005",
+    "type": "code_analysis",
+    "difficulty": 2,
+    "xp_reward": 30,
+    "monster": { "name": "Route Raven", "sprite": "route-raven", "hp": 55 },
+    "question": "What URL path does this route create?",
+    "code_snippet": "get 'dashboard', to: 'pages#dashboard'",
+    "options": [
+      { "id": "a", "text": "/pages/dashboard" },
+      { "id": "b", "text": "/dashboard" },
+      { "id": "c", "text": "/dashboard/pages" },
+      { "id": "d", "text": "/pages#dashboard" }
+    ],
+    "correct_answer": "b",
+    "explanation": "The first argument is the URL path ('/dashboard'), and 'to:' specifies the controller#action to handle it."
+  },
+  {
+    "id": "foundation-routing-006",
+    "type": "multiple_choice",
+    "difficulty": 2,
+    "xp_reward": 30,
+    "monster": { "name": "Singular Specter", "sprite": "singular-specter", "hp": 60 },
+    "question": "When would you use 'resource' (singular) instead of 'resources' (plural)?",
+    "options": [
+      { "id": "a", "text": "When you only have one record in the database" },
+      { "id": "b", "text": "When there's only one of something per user (like a profile)" },
+      { "id": "c", "text": "When you don't need an ID in the URL" },
+      { "id": "d", "text": "Both B and C" }
+    ],
+    "correct_answer": "d",
+    "explanation": "Singular 'resource' is for things where IDs aren't needed in URLs, like a user's own profile (/profile instead of /profiles/1)."
+  },
+  {
+    "id": "foundation-routing-007",
+    "type": "fill_in_blank",
+    "difficulty": 2,
+    "xp_reward": 35,
+    "monster": { "name": "Path Helper Phantom", "sprite": "helper-phantom", "hp": 60 },
+    "question": "With 'resources :articles', what helper gives you the path to create a new article?",
+    "code_snippet": "link_to 'New Article', ____",
+    "correct_answer": "new_article_path",
+    "explanation": "RESTful routes generate helpers: articles_path (index), article_path(id) (show), new_article_path (new), edit_article_path(id) (edit)."
+  },
+  {
+    "id": "foundation-routing-008",
+    "type": "multiple_choice",
+    "difficulty": 3,
+    "xp_reward": 40,
+    "monster": { "name": "Namespace Nightmare", "sprite": "namespace-nightmare", "hp": 70 },
+    "question": "What does this route configuration do?",
+    "code_snippet": "namespace :admin do\n  resources :articles\nend",
+    "options": [
+      { "id": "a", "text": "Creates routes at /articles with Admin:: prefix" },
+      { "id": "b", "text": "Creates routes at /admin/articles expecting Admin::ArticlesController" },
+      { "id": "c", "text": "Requires admin authentication for articles" },
+      { "id": "d", "text": "Creates a subdomain admin.example.com/articles" }
+    ],
+    "correct_answer": "b",
+    "explanation": "Namespace adds a URL prefix (/admin/articles) and expects the controller in a module (Admin::ArticlesController in app/controllers/admin/)."
+  },
+  {
+    "id": "foundation-routing-009",
+    "type": "code_analysis",
+    "difficulty": 3,
+    "xp_reward": 40,
+    "monster": { "name": "Constraint Creeper", "sprite": "constraint-creeper", "hp": 70 },
+    "question": "What command shows all routes in a Rails application?",
+    "options": [
+      { "id": "a", "text": "rails routes" },
+      { "id": "b", "text": "rake routes" },
+      { "id": "c", "text": "Both A and B work" },
+      { "id": "d", "text": "rails show:routes" }
+    ],
+    "correct_answer": "c",
+    "explanation": "Both 'rails routes' and 'rake routes' work. 'rails routes' is preferred in modern Rails. Add '-g pattern' to filter."
+  },
+  {
+    "id": "foundation-routing-010",
+    "type": "multiple_choice",
+    "difficulty": 3,
+    "xp_reward": 45,
+    "monster": { "name": "Route Rex (BOSS)", "sprite": "route-boss", "hp": 100 },
+    "question": "What's the purpose of 'only:' and 'except:' in route definitions?",
+    "code_snippet": "resources :articles, only: [:index, :show]",
+    "options": [
+      { "id": "a", "text": "Filters which articles are accessible" },
+      { "id": "b", "text": "Limits which RESTful routes are generated" },
+      { "id": "c", "text": "Adds authentication requirements" },
+      { "id": "d", "text": "Specifies allowed HTTP methods" }
+    ],
+    "correct_answer": "b",
+    "explanation": "'only:' and 'except:' limit which of the 7 RESTful routes are generated. This example only creates index and show routes."
+  }
+]
