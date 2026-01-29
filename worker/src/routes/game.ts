@@ -117,16 +117,20 @@ gameRoutes.get('/realms/:realmId/dungeons', authMiddleware, async (c) => {
 
   const dungeons = realm.dungeons.map((dungeonId, index) => {
     const progress = progressMap.get(dungeonId);
+    const isCompleted = progress?.is_completed ?? false;
     // First dungeon is unlocked, others require previous dungeon completion
+    // Also unlock if the dungeon itself is already completed (player has played it before)
     const previousDungeonId = index > 0 ? realm.dungeons[index - 1] : undefined;
     const isUnlocked =
-      index === 0 || (previousDungeonId !== undefined && progressMap.get(previousDungeonId)?.is_completed === true);
+      index === 0 ||
+      isCompleted ||
+      (previousDungeonId !== undefined && progressMap.get(previousDungeonId)?.is_completed === true);
 
     return {
       id: dungeonId,
       name: `Dungeon ${index + 1}`,
       isUnlocked,
-      isCompleted: progress?.is_completed ?? false,
+      isCompleted,
       challengesCompleted: progress?.challenges_completed ?? 0,
       totalChallenges: progress?.total_challenges ?? 10,
       bestScore: progress?.best_score ?? 0,
