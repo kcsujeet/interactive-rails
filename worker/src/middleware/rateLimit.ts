@@ -19,18 +19,24 @@ interface RateLimitEntry {
 // In production, replace with KV or Durable Objects
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
-// Cleanup old entries periodically
-function cleanupStore(): void {
+// Track last cleanup time
+let lastCleanup = 0;
+const CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
+// Cleanup old entries (called during request handling)
+function cleanupStoreIfNeeded(): void {
   const now = Date.now();
+  if (now - lastCleanup < CLEANUP_INTERVAL_MS) {
+    return;
+  }
+
+  lastCleanup = now;
   for (const [key, entry] of rateLimitStore.entries()) {
     if (entry.resetAt < now) {
       rateLimitStore.delete(key);
     }
   }
 }
-
-// Run cleanup every 5 minutes
-setInterval(cleanupStore, 5 * 60 * 1000);
 
 interface RateLimitOptions {
   windowMs: number;
@@ -55,6 +61,9 @@ export function rateLimit(options: RateLimitOptions) {
     if (skip?.(c)) {
       return next();
     }
+
+    // Cleanup old entries periodically during request handling
+    cleanupStoreIfNeeded();
 
     const key = keyGenerator(c);
     const now = Date.now();
@@ -98,7 +107,7 @@ export const authRateLimiter = rateLimit({
   windowMs: AUTH.RATE_LIMIT.AUTH_WINDOW_MS,
   max: AUTH.RATE_LIMIT.AUTH_MAX_REQUESTS,
   keyGenerator: (c) => {
-    // Include IP and attempted email for stricter limiting
+    // Include IP for stricter limiting
     const ip = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
     return `auth:${ip}`;
   },
