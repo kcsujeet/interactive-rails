@@ -1,24 +1,23 @@
-import { useStore } from '@nanostores/react';
-import { $xpToNextLevel, $progress } from '../../stores/gameStore';
+import { useGameStore, selectLevelProgress } from '../../stores';
 
 export default function XPBar() {
-  const progress = useStore($progress);
-  const xpInfo = useStore($xpToNextLevel);
-
-  if (!progress) return null;
+  const level = useGameStore((state) => state.level);
+  const xp = useGameStore((state) => state.xp);
+  const xpToNextLevel = useGameStore((state) => state.xpToNextLevel);
+  const progressPercent = useGameStore(selectLevelProgress);
 
   return (
     <div className="xp-bar-container">
       <div className="xp-level">
-        <span className="level-badge">LVL {progress.level}</span>
+        <span className="level-badge">LVL {level}</span>
       </div>
       <div className="xp-bar stat-bar">
         <div
           className="stat-bar-fill xp"
-          style={{ width: `${xpInfo.percent}%` }}
+          style={{ width: `${progressPercent}%` }}
         />
         <span className="stat-bar-text">
-          {xpInfo.current}/{xpInfo.needed} XP
+          {xp}/{xpToNextLevel} XP
         </span>
       </div>
     </div>

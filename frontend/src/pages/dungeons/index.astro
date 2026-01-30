@@ -1,0 +1,10 @@
+---
+import GameLayout from '../../layouts/GameLayout.astro';
+import DungeonsListApp from '../../components/pages/DungeonsListApp';
+---
+
+<GameLayout title="Dungeons | RailsExpert">
+  <div id="dungeons-app" class="min-h-[60vh] p-4">
+    <DungeonsListApp client:load />
+  </div>
+</GameLayout>

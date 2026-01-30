@@ -2,6 +2,7 @@
 import { defineConfig } from 'astro/config';
 import cloudflare from '@astrojs/cloudflare';
 import react from '@astrojs/react';
+import tailwindcss from '@tailwindcss/vite';
 
 // https://astro.build/config
 export default defineConfig({
@@ -13,6 +14,7 @@ export default defineConfig({
   }),
   integrations: [react()],
   vite: {
+    plugins: [tailwindcss()],
     server: {
       proxy: {
         // Proxy API requests to worker in development
@@ -20,6 +22,16 @@ export default defineConfig({
           target: 'http://localhost:8787',
           changeOrigin: true,
         },
+      },
+    },
+    // Optimize Phaser for production
+    optimizeDeps: {
+      include: ['phaser'],
+    },
+    build: {
+      // Ensure Phaser is bundled correctly
+      commonjsOptions: {
+        include: [/phaser/, /node_modules/],
       },
     },
   },

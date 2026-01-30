@@ -1,0 +1,10 @@
+---
+import GameLayout from '../layouts/GameLayout.astro';
+import SandboxApp from '../components/pages/SandboxApp';
+---
+
+<GameLayout title="Sandbox | RailsExpert">
+  <div id="sandbox-app" style="height: calc(100vh - 80px);">
+    <SandboxApp client:load />
+  </div>
+</GameLayout>

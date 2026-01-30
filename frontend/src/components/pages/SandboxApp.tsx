@@ -1,0 +1,291 @@
+/**
+ * Sandbox App Component
+ *
+ * Free-form pipeline builder for practice mode.
+ */
+
+import { useState } from 'react';
+
+interface NodeData {
+  id: string;
+  type: string;
+  position: { x: number; y: number };
+  config: Record<string, unknown>;
+}
+
+interface Connection {
+  sourceNodeId: string;
+  targetNodeId: string;
+}
+
+const nodeTypes = [
+  { type: 'request', name: 'Request', color: '#3b82f6', description: 'Entry point for HTTP requests' },
+  { type: 'router', name: 'Router', color: '#a78bfa', description: 'Routes requests to controllers' },
+  { type: 'controller', name: 'Controller', color: '#10b981', description: 'Handles request logic' },
+  { type: 'model', name: 'Model', color: '#f59e0b', description: 'ActiveRecord models' },
+  { type: 'database', name: 'Database', color: '#ef4444', description: 'PostgreSQL/SQLite' },
+  { type: 'cache', name: 'Cache', color: '#06b6d4', description: 'Redis/Memcached' },
+  { type: 'view', name: 'View', color: '#a855f7', description: 'ERB/Jbuilder templates' },
+  { type: 'response', name: 'Response', color: '#22c55e', description: 'Exit point for responses' },
+  { type: 'background_job', name: 'Background Job', color: '#9333ea', description: 'Sidekiq/ActiveJob' },
+];
+
+export function SandboxApp() {
+  const [nodes, setNodes] = useState<NodeData[]>([]);
+  const [connections, setConnections] = useState<Connection[]>([]);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [isSimulating, setIsSimulating] = useState(false);
+
+  function addNode(type: string) {
+    const newNode: NodeData = {
+      id: `node-${Date.now()}`,
+      type,
+      position: { x: 200 + Math.random() * 400, y: 100 + Math.random() * 300 },
+      config: {},
+    };
+    setNodes([...nodes, newNode]);
+  }
+
+  function removeSelectedNode() {
+    if (!selectedNodeId) return;
+    setNodes(nodes.filter((n) => n.id !== selectedNodeId));
+    setConnections(
+      connections.filter(
+        (c) => c.sourceNodeId !== selectedNodeId && c.targetNodeId !== selectedNodeId
+      )
+    );
+    setSelectedNodeId(null);
+  }
+
+  function clearCanvas() {
+    setNodes([]);
+    setConnections([]);
+    setSelectedNodeId(null);
+  }
+
+  function toggleSimulation() {
+    setIsSimulating(!isSimulating);
+  }
+
+  return (
+    <div className="h-[calc(100vh-120px)] flex">
+      {/* Left sidebar - Node Palette */}
+      <div className="w-72 bg-gray-800 border-r border-gray-700 overflow-y-auto flex-shrink-0">
+        <div className="p-4">
+          <h2 className="text-lg font-bold text-white mb-2">Sandbox Mode</h2>
+          <p className="text-xs text-gray-400 mb-4">
+            Free-form pipeline builder for practice. No objectives, no time limits.
+          </p>
+
+          <div className="mb-4">
+            <a
+              href="/dungeons"
+              className="block w-full px-4 py-2 bg-blue-600 text-white text-center rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Back to Dungeons
+            </a>
+          </div>
+
+          <h3 className="text-sm font-semibold text-gray-300 mb-2 uppercase tracking-wider">
+            Node Palette
+          </h3>
+          <p className="text-xs text-gray-400 mb-3">Click to add to canvas</p>
+
+          <div className="space-y-2">
+            {nodeTypes.map((nodeType) => (
+              <button
+                key={nodeType.type}
+                onClick={() => addNode(nodeType.type)}
+                className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 hover:border-gray-500 hover:bg-gray-650 transition-colors text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-8 h-8 rounded flex items-center justify-center text-white font-bold text-xs"
+                    style={{ backgroundColor: nodeType.color }}
+                  >
+                    {nodeType.name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="text-sm text-white font-medium">{nodeType.name}</div>
+                    <div className="text-xs text-gray-400">{nodeType.description}</div>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Main canvas area */}
+      <div className="flex-1 flex flex-col">
+        {/* Top toolbar */}
+        <div className="h-14 bg-gray-800 border-b border-gray-700 flex items-center justify-between px-4">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={clearCanvas}
+              className="px-3 py-1.5 bg-gray-700 text-gray-300 text-sm rounded hover:bg-gray-600"
+            >
+              Clear All
+            </button>
+            <button
+              onClick={removeSelectedNode}
+              disabled={!selectedNodeId}
+              className={`px-3 py-1.5 text-sm rounded ${
+                selectedNodeId
+                  ? 'bg-red-600 text-white hover:bg-red-700'
+                  : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              Delete Selected
+            </button>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-gray-400">
+              {nodes.length} nodes, {connections.length} connections
+            </div>
+            <button
+              onClick={toggleSimulation}
+              className={`px-4 py-1.5 text-sm rounded font-medium ${
+                isSimulating
+                  ? 'bg-red-600 text-white hover:bg-red-700'
+                  : 'bg-green-600 text-white hover:bg-green-700'
+              }`}
+            >
+              {isSimulating ? 'Stop Simulation' : 'Start Simulation'}
+            </button>
+          </div>
+        </div>
+
+        {/* Canvas */}
+        <div className="flex-1 bg-gray-900 relative overflow-hidden">
+          {/* Grid pattern */}
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage:
+                'radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px)',
+              backgroundSize: '40px 40px',
+            }}
+          />
+
+          {/* Nodes */}
+          {nodes.map((node) => {
+            const nodeType = nodeTypes.find((t) => t.type === node.type);
+            const isSelected = node.id === selectedNodeId;
+
+            return (
+              <div
+                key={node.id}
+                onClick={() => setSelectedNodeId(node.id)}
+                className={`absolute cursor-pointer transition-shadow ${
+                  isSelected ? 'ring-2 ring-amber-400 ring-offset-2 ring-offset-gray-900' : ''
+                }`}
+                style={{
+                  left: node.position.x,
+                  top: node.position.y,
+                  transform: 'translate(-50%, -50%)',
+                }}
+              >
+                <div
+                  className="w-40 rounded-lg border-2 overflow-hidden"
+                  style={{ borderColor: nodeType?.color || '#6b7280' }}
+                >
+                  <div
+                    className="px-3 py-2 text-white text-sm font-medium"
+                    style={{ backgroundColor: nodeType?.color || '#6b7280' }}
+                  >
+                    {nodeType?.name || node.type}
+                  </div>
+                  <div className="bg-gray-800 px-3 py-2">
+                    <div className="text-xs text-gray-400">{nodeType?.description || ''}</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Empty state */}
+          {nodes.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center">
+                <p className="text-gray-500 text-lg mb-2">Sandbox Canvas</p>
+                <p className="text-gray-600 text-sm">Click nodes in the palette to add them</p>
+                <p className="text-gray-600 text-sm mt-1">Drag nodes to position them</p>
+              </div>
+            </div>
+          )}
+
+          {/* Simulation overlay */}
+          {isSimulating && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-green-900/90 text-green-300 px-4 py-2 rounded-full text-sm font-medium animate-pulse">
+              Simulation Running...
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Right sidebar - Inspector/Metrics */}
+      <div className="w-80 bg-gray-800 border-l border-gray-700 overflow-y-auto flex-shrink-0">
+        <div className="p-4">
+          <h2 className="text-lg font-bold text-white mb-4">Inspector</h2>
+
+          {selectedNodeId ? (
+            <div>
+              <h3 className="text-sm font-semibold text-gray-300 mb-2">Selected Node</h3>
+              <div className="bg-gray-700 rounded-lg p-4">
+                <p className="text-white">
+                  {nodes.find((n) => n.id === selectedNodeId)?.type}
+                </p>
+                <p className="text-xs text-gray-400 mt-2">
+                  Click on node ports to create connections
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-300 mb-2">Metrics</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center p-2 bg-gray-700 rounded">
+                    <span className="text-xs text-gray-400">Latency p95</span>
+                    <span className="text-sm text-green-400 font-mono">--ms</span>
+                  </div>
+                  <div className="flex justify-between items-center p-2 bg-gray-700 rounded">
+                    <span className="text-xs text-gray-400">Queries/Request</span>
+                    <span className="text-sm text-green-400 font-mono">--</span>
+                  </div>
+                  <div className="flex justify-between items-center p-2 bg-gray-700 rounded">
+                    <span className="text-xs text-gray-400">Cache Hit Rate</span>
+                    <span className="text-sm text-gray-400 font-mono">--%</span>
+                  </div>
+                  <div className="flex justify-between items-center p-2 bg-gray-700 rounded">
+                    <span className="text-xs text-gray-400">Error Rate</span>
+                    <span className="text-sm text-green-400 font-mono">0%</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-semibold text-gray-300 mb-2">Tips</h3>
+                <div className="bg-blue-900/30 border border-blue-700 rounded p-3 text-xs text-blue-300">
+                  <p className="mb-2">
+                    <strong>Sandbox mode</strong> is for practice!
+                  </p>
+                  <ul className="list-disc list-inside space-y-1 text-gray-400">
+                    <li>Try building a complete request flow</li>
+                    <li>Add caching to see hit rates improve</li>
+                    <li>Configure models with eager loading</li>
+                    <li>Watch metrics change as you optimize</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default SandboxApp;

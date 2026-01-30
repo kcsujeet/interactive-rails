@@ -16,7 +16,7 @@ import GameLayout from '../layouts/GameLayout.astro';
 
 <script>
   import { getProgress, getAchievements } from '../lib/api';
-  import { $progress } from '../stores/gameStore';
+  import { useGameStore } from '../stores';
   import { escapeHtml } from '../lib/utils';
 
   async function loadDashboard() {
@@ -29,7 +29,7 @@ import GameLayout from '../layouts/GameLayout.astro';
         getAchievements(),
       ]);
 
-      $progress.set(progress);
+      // Progress loaded from API - Zustand store hydrated in React components
 
       const xpForNextLevel = Math.floor(100 * Math.pow(1.5, progress.level));
       const xpPercent = Math.round((progress.xp / xpForNextLevel) * 100);

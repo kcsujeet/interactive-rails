@@ -1,0 +1,12 @@
+---
+import GameLayout from '../../layouts/GameLayout.astro';
+import DungeonPlayApp from '../../components/pages/DungeonPlayApp';
+
+const { dungeonId } = Astro.params;
+---
+
+<GameLayout title="Dungeon | RailsExpert">
+  <div id="dungeon-play-app" style="height: calc(100vh - 80px);">
+    <DungeonPlayApp client:load dungeonId={dungeonId || ''} />
+  </div>
+</GameLayout>

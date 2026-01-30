@@ -8,6 +8,7 @@ import { cors } from 'hono/cors';
 import { authRoutes } from './routes/auth';
 import { gameRoutes } from './routes/game';
 import { progressRoutes } from './routes/progress';
+import { pipelineRoutes } from './routes/pipeline';
 import { requestIdMiddleware } from './middleware/requestId';
 import { generalRateLimiter } from './middleware/rateLimit';
 import { isAppError, normalizeError } from './errors';
@@ -101,6 +102,7 @@ app.get('/health', async (c) => {
 app.route('/api/auth', authRoutes);
 app.route('/api/game', gameRoutes);
 app.route('/api/progress', progressRoutes);
+app.route('/api/pipeline', pipelineRoutes);
 
 // ==================== Error Handling ====================
 
