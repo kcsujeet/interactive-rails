@@ -1,0 +1,348 @@
+/**
+ * Level 18: Cloud Storage
+ *
+ * Direct upload to S3 bypasses app server.
+ * Shows memory usage difference between traditional and direct upload.
+ */
+
+import { useState, useEffect } from 'react';
+import type { LevelComponentProps } from '../index';
+import {
+  LevelLayout,
+  LeftPanel,
+  CenterPanel,
+  RightPanel,
+  LevelHeader,
+  InstructionPanel,
+  CodePreviewPanel,
+  useLevelCompletion,
+} from '../shared';
+
+interface Upload {
+  id: number;
+  filename: string;
+  size: number;
+  progress: number;
+  method: 'traditional' | 'direct';
+  status: 'uploading' | 'completed' | 'failed';
+}
+
+export function Level18Storage({ onComplete, onExit }: LevelComponentProps) {
+  const { completeLevel } = useLevelCompletion();
+  const [directUploadEnabled, setDirectUploadEnabled] = useState(false);
+  const [uploads, setUploads] = useState<Upload[]>([]);
+  const [memoryUsage, setMemoryUsage] = useState(0);
+  const [memoryPeak, setMemoryPeak] = useState(0);
+  const [directUploadsCompleted, setDirectUploadsCompleted] = useState(0);
+
+  const isComplete = directUploadEnabled && directUploadsCompleted >= 2 && memoryPeak < 100;
+
+  const startUpload = () => {
+    const id = Date.now();
+    const size = 50 + Math.floor(Math.random() * 100); // 50-150 MB
+    const upload: Upload = {
+      id,
+      filename: `video_${id}.mp4`,
+      size,
+      progress: 0,
+      method: directUploadEnabled ? 'direct' : 'traditional',
+      status: 'uploading',
+    };
+
+    setUploads(prev => [...prev.slice(-4), upload]);
+
+    // Simulate upload progress
+    const interval = setInterval(() => {
+      setUploads(prev => prev.map(u => {
+        if (u.id !== id) return u;
+        if (u.progress >= 100) {
+          clearInterval(interval);
+          if (u.method === 'direct') {
+            setDirectUploadsCompleted(c => c + 1);
+          }
+          return { ...u, status: 'completed' };
+        }
+        return { ...u, progress: u.progress + 10 };
+      }));
+
+      // Memory simulation
+      if (!directUploadEnabled) {
+        // Traditional: memory increases during upload
+        setMemoryUsage(prev => {
+          const newUsage = Math.min(200, prev + size / 10);
+          setMemoryPeak(p => Math.max(p, newUsage));
+          return newUsage;
+        });
+      }
+    }, 300);
+
+    // Memory decreases after upload
+    setTimeout(() => {
+      clearInterval(interval);
+      if (!directUploadEnabled) {
+        setMemoryUsage(prev => Math.max(0, prev - size));
+      }
+    }, 3500);
+  };
+
+  // Memory decay
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMemoryUsage(prev => Math.max(0, prev - 5));
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleComplete = async () => {
+    const success = await completeLevel('act3-level18-file-storage', { stars: 3 });
+    if (success) {
+      onComplete({ stars: 3 });
+    }
+  };
+
+  return (
+    <LevelLayout>
+      <LeftPanel>
+        <InstructionPanel
+          scenario="Users upload 4K videos (100MB+). The entire file goes through our Rails app, causing memory to spike and sometimes crash the server!"
+          instructions={[
+            'Upload a video and watch memory spike',
+            'Enable direct upload to S3',
+            'Upload again - memory stays flat!',
+          ]}
+          goal="Learn ActiveStorage direct upload to bypass your app server for large files."
+        >
+          <div className="p-4 border-t border-gray-800">
+            <button
+              onClick={() => {
+                setDirectUploadEnabled(true);
+                setMemoryPeak(memoryUsage);
+              }}
+              disabled={directUploadEnabled}
+              className={`w-full py-3 rounded-lg font-medium transition-colors ${
+                directUploadEnabled
+                  ? 'bg-green-600 text-white cursor-default'
+                  : 'bg-cyan-600 hover:bg-cyan-500 text-white'
+              }`}
+            >
+              {directUploadEnabled ? 'Direct Upload Enabled' : 'Enable Direct Upload'}
+            </button>
+          </div>
+
+          <div className="p-4 border-t border-gray-800">
+            <button
+              onClick={startUpload}
+              className="w-full py-3 rounded-lg font-medium bg-purple-600 hover:bg-purple-500 text-white transition-colors"
+            >
+              Upload Video File
+            </button>
+          </div>
+
+          <div className="p-4 border-t border-gray-800">
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+              Server Memory
+            </div>
+            <div className={`text-3xl font-bold mb-2 ${
+              memoryUsage > 150 ? 'text-red-400' :
+              memoryUsage > 100 ? 'text-yellow-400' :
+              'text-green-400'
+            }`}>
+              {Math.round(memoryUsage)} MB
+            </div>
+            <div className="bg-gray-700 rounded-full h-4 overflow-hidden">
+              <div
+                className={`h-full transition-all ${
+                  memoryUsage > 150 ? 'bg-red-500' :
+                  memoryUsage > 100 ? 'bg-yellow-500' :
+                  'bg-green-500'
+                }`}
+                style={{ width: `${Math.min(100, memoryUsage / 2)}%` }}
+              />
+            </div>
+            <div className="text-xs text-gray-500 mt-2">
+              Peak: {Math.round(memoryPeak)} MB
+              {memoryPeak > 150 && <span className="text-red-400 ml-2">Danger zone!</span>}
+            </div>
+          </div>
+        </InstructionPanel>
+      </LeftPanel>
+
+      <CenterPanel>
+        <LevelHeader
+          levelNumber={18}
+          levelName="Cloud Storage"
+          actNumber={3}
+          onExit={onExit}
+          onReset={() => {
+            setDirectUploadEnabled(false);
+            setUploads([]);
+            setMemoryUsage(0);
+            setMemoryPeak(0);
+            setDirectUploadsCompleted(0);
+          }}
+        />
+
+        <div className="flex-1 relative bg-gray-950 p-8">
+          {/* Architecture */}
+          <div className="flex items-center justify-center gap-4 mb-8">
+            {/* Browser */}
+            <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 w-32 text-center">
+              <div className="text-2xl mb-2">B</div>
+              <div className="text-gray-400 text-sm">Browser</div>
+            </div>
+
+            {directUploadEnabled ? (
+              <>
+                {/* Direct to S3 */}
+                <div className="flex flex-col items-center gap-2">
+                  <div className="flex items-center">
+                    <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                    <span className="text-xs text-gray-500 ml-1">presigned URL</span>
+                  </div>
+                </div>
+
+                <div className="bg-gray-800 border border-gray-700 rounded-xl p-3 w-28 text-center">
+                  <div className="text-lg mb-1">A</div>
+                  <div className="text-gray-400 text-xs">App</div>
+                  <div className="text-green-400 text-xs mt-1">Low mem</div>
+                </div>
+
+                <div className="flex flex-col items-center gap-2">
+                  <div className="flex items-center">
+                    <svg className="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                    <span className="text-xs text-green-500 ml-1">direct upload</span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Through app */}
+                <svg className="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+
+                <div className={`border rounded-xl p-4 w-32 text-center transition-colors ${
+                  memoryUsage > 100 ? 'bg-red-900/40 border-red-500' : 'bg-gray-800 border-gray-700'
+                }`}>
+                  <div className="text-2xl mb-2">A</div>
+                  <div className={`text-sm ${memoryUsage > 100 ? 'text-red-400' : 'text-gray-400'}`}>
+                    App Server
+                  </div>
+                  {memoryUsage > 100 && (
+                    <div className="text-red-400 text-xs mt-1">Memory spike!</div>
+                  )}
+                </div>
+
+                <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+              </>
+            )}
+
+            {/* S3 */}
+            <div className="bg-orange-900/40 border border-orange-600 rounded-xl p-4 w-32 text-center">
+              <div className="text-2xl mb-2">S3</div>
+              <div className="text-orange-400 text-sm">Storage</div>
+            </div>
+          </div>
+
+          {/* Upload List */}
+          <div className="bg-gray-900 rounded-xl p-4 max-w-xl mx-auto">
+            <div className="text-gray-400 text-xs uppercase tracking-wider mb-3">Uploads</div>
+            <div className="space-y-3">
+              {uploads.map(u => (
+                <div key={u.id} className="bg-gray-800 rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-white text-sm">{u.filename}</span>
+                    <span className="text-gray-400 text-xs">{u.size} MB</span>
+                  </div>
+                  <div className="bg-gray-700 rounded-full h-2 overflow-hidden mb-2">
+                    <div
+                      className={`h-full transition-all ${
+                        u.method === 'direct' ? 'bg-green-500' : 'bg-yellow-500'
+                      }`}
+                      style={{ width: `${u.progress}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className={u.method === 'direct' ? 'text-green-400' : 'text-yellow-400'}>
+                      {u.method === 'direct' ? 'Direct to S3' : 'Via App Server'}
+                    </span>
+                    <span className={u.status === 'completed' ? 'text-green-400' : 'text-gray-400'}>
+                      {u.status === 'completed' ? 'Done' : `${u.progress}%`}
+                    </span>
+                  </div>
+                </div>
+              ))}
+              {uploads.length === 0 && (
+                <div className="text-gray-600 text-center py-4">Click "Upload Video" to start</div>
+              )}
+            </div>
+          </div>
+
+          {/* Completion button */}
+          {isComplete && (
+            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
+              <button
+                onClick={handleComplete}
+                className="px-8 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white font-bold rounded-lg shadow-lg"
+              >
+                Complete Level
+              </button>
+            </div>
+          )}
+        </div>
+      </CenterPanel>
+
+      <RightPanel>
+        <CodePreviewPanel
+          files={[{
+            filename: 'app/javascript/direct_upload.js',
+            language: 'javascript',
+            code: `import { DirectUpload } from "@rails/activestorage"
+
+class Uploader {
+  constructor(file, url) {
+    this.upload = new DirectUpload(file, url, this)
+  }
+
+  start(callback) {
+    this.upload.create((error, blob) => {
+      if (error) {
+        callback(error)
+      } else {
+        // File uploaded directly to S3!
+        // Only blob metadata sent to Rails
+        callback(null, blob.signed_id)
+      }
+    })
+  }
+
+  directUploadWillStoreFileWithXHR(request) {
+    request.upload.addEventListener("progress",
+      event => this.progress(event)
+    )
+  }
+}
+
+// config/storage.yml
+amazon:
+  service: S3
+  access_key_id: <%= ENV['AWS_ACCESS_KEY_ID'] %>
+  secret_access_key: <%= ENV['AWS_SECRET_ACCESS_KEY'] %>
+  bucket: <%= ENV['S3_BUCKET'] %>
+  direct_upload: true  # Enable direct upload!`,
+            highlight: [5, 12, 13, 14, 31],
+          }]}
+          learningGoal="Direct upload sends files straight to S3, bypassing your app server. This prevents memory spikes and speeds up uploads."
+        />
+      </RightPanel>
+    </LevelLayout>
+  );
+}
+
+export default Level18Storage;

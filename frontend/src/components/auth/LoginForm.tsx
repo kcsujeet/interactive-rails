@@ -16,7 +16,7 @@ export default function LoginForm() {
     try {
       const response = await login(email, password);
       setAuth(response.user);
-      window.location.href = '/realms';
+      window.location.href = '/acts';
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
@@ -31,8 +31,9 @@ export default function LoginForm() {
       {error && <div className="error-message">{error}</div>}
 
       <div className="form-group">
-        <label htmlFor="email">Email</label>
+        <label className="label" htmlFor="email">Email</label>
         <input
+          className="input"
           type="email"
           id="email"
           value={email}
@@ -40,12 +41,14 @@ export default function LoginForm() {
           required
           disabled={isLoading}
           autoComplete="email"
+          placeholder="you@example.com"
         />
       </div>
 
       <div className="form-group">
-        <label htmlFor="password">Password</label>
+        <label className="label" htmlFor="password">Password</label>
         <input
+          className="input"
           type="password"
           id="password"
           value={password}
@@ -53,15 +56,16 @@ export default function LoginForm() {
           required
           disabled={isLoading}
           autoComplete="current-password"
+          placeholder="••••••••"
         />
       </div>
 
-      <button type="submit" className="pixel-btn" disabled={isLoading}>
-        {isLoading ? 'Logging in...' : 'Enter the Arena'}
+      <button type="submit" className="btn btn-primary w-full" disabled={isLoading}>
+        {isLoading ? 'Logging in...' : 'Sign In'}
       </button>
 
       <p className="auth-switch">
-        New warrior?{' '}
+        New to RailsExpert?{' '}
         <a href="/signup">Create an account</a>
       </p>
     </form>

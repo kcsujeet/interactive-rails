@@ -2,17 +2,18 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 ---
 
-<BaseLayout title="Level Up Your Rails Skills">
+<BaseLayout title="Master Rails Performance">
   <main class="landing">
     <header class="landing-header">
       <nav class="landing-nav container">
         <a href="/" class="logo">
-          <span class="logo-icon">⚔️</span>
+          <span class="logo-icon">🔧</span>
           <span class="logo-text">RailsExpert</span>
         </a>
-        <div class="nav-links">
+        <div class="nav-links" id="nav-auth">
+          <!-- Will be populated by JS based on auth state -->
           <a href="/login" class="nav-link">Login</a>
-          <a href="/signup" class="pixel-btn">Start Playing</a>
+          <a href="/signup" class="btn btn-primary">Get Started</a>
         </div>
       </nav>
     </header>
@@ -20,105 +21,207 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     <section class="hero">
       <div class="container">
         <div class="hero-content">
+          <div class="badge-new">New Learning Experience</div>
           <h1 class="hero-title">
-            <span class="title-line">Become a</span>
-            <span class="title-highlight">Rails Warrior</span>
+            <span class="title-line">Master Rails</span>
+            <span class="title-highlight">Performance</span>
           </h1>
           <p class="hero-subtitle">
-            Master Ruby on Rails through an epic gaming adventure.
-            Battle code monsters, defeat bugs, and level up your skills!
+            Build, debug, and optimize Rails request pipelines in an interactive simulation.
+            Watch N+1 queries spawn enemies and cache hits create shields in real-time.
           </p>
-          <div class="hero-cta">
-            <a href="/signup" class="pixel-btn">Begin Your Journey</a>
-            <a href="#features" class="pixel-btn secondary">Learn More</a>
+          <div class="hero-cta" id="hero-cta">
+            <a href="/signup" class="btn btn-primary btn-lg" id="cta-primary">Start Building</a>
+            <a href="#how-it-works" class="btn btn-secondary btn-lg">See How It Works</a>
           </div>
         </div>
 
         <div class="hero-visual">
-          <div class="pixel-panel hero-game-preview">
-            <pre class="hero-ascii">{`
-    ╔═══════════════════════╗
-    ║   🐛 N+1 QUERY BUG    ║
-    ║   ████████░░ HP: 80%  ║
-    ╚═══════════════════════╝
-
-    Which method prevents
-    N+1 queries?
-
-    [A] .includes(:posts)  ✓
-    [B] .joins(:posts)
-    [C] .where(posts: true)
-    [D] .pluck(:posts)
-
-    ⚔️ CORRECT! +50 XP
-            `}</pre>
+          <div class="card pipeline-preview">
+            <div class="preview-header">
+              <span class="preview-dot red"></span>
+              <span class="preview-dot yellow"></span>
+              <span class="preview-dot green"></span>
+              <span class="preview-title">Pipeline Builder</span>
+            </div>
+            <div class="preview-content">
+              <div class="pipeline-demo">
+                <div class="node node-request">Request</div>
+                <div class="connection"></div>
+                <div class="node node-router">Router</div>
+                <div class="connection"></div>
+                <div class="node node-controller">Controller</div>
+                <div class="connection-split">
+                  <div class="connection-branch">
+                    <div class="connection"></div>
+                    <div class="node node-model">Model</div>
+                    <div class="connection"></div>
+                    <div class="node node-database warning">
+                      Database
+                      <span class="node-badge">N+1!</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="metrics-bar">
+                <div class="metric">
+                  <span class="metric-label">Latency</span>
+                  <span class="metric-value danger">847ms</span>
+                </div>
+                <div class="metric">
+                  <span class="metric-label">Queries</span>
+                  <span class="metric-value danger">127</span>
+                </div>
+                <div class="metric">
+                  <span class="metric-label">Stability</span>
+                  <span class="metric-value warning">34%</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="features" id="features">
+    <section class="how-it-works" id="how-it-works">
       <div class="container">
-        <h2 class="section-title">Game Features</h2>
-        <div class="features-grid">
-          <div class="feature-card pixel-panel">
-            <span class="feature-icon">🏰</span>
-            <h3>11 Realms to Conquer</h3>
-            <p>From Rails basics to advanced architecture, explore comprehensive learning paths.</p>
+        <h2 class="section-title">How It Works</h2>
+        <p class="section-subtitle">Learn Rails performance through hands-on simulation</p>
+
+        <div class="steps-grid">
+          <div class="step card">
+            <div class="step-number">1</div>
+            <h3>Build Pipelines</h3>
+            <p>Drag and drop Rails components to construct request pipelines. Connect routes, controllers, models, and databases.</p>
           </div>
-          <div class="feature-card pixel-panel">
-            <span class="feature-icon">⚔️</span>
-            <h3>Battle Code Monsters</h3>
-            <p>Fight bugs, fix code, and defeat challenges in an RPG-style combat system.</p>
+          <div class="step card">
+            <div class="step-number">2</div>
+            <h3>Watch the Simulation</h3>
+            <p>See requests flow through your pipeline in real-time. Misconfigurations spawn enemies that attack your system stability.</p>
           </div>
-          <div class="feature-card pixel-panel">
-            <span class="feature-icon">📈</span>
-            <h3>Level Up & Progress</h3>
-            <p>Earn XP, unlock achievements, and track your journey to Rails mastery.</p>
+          <div class="step card">
+            <div class="step-number">3</div>
+            <h3>Debug & Optimize</h3>
+            <p>Use the inspector to find N+1 queries, add indexes, implement caching, and deploy defenses to stabilize your system.</p>
           </div>
-          <div class="feature-card pixel-panel">
-            <span class="feature-icon">🎮</span>
-            <h3>Retro Pixel Art</h3>
-            <p>Enjoy nostalgic 8-bit aesthetics while learning modern Rails techniques.</p>
+          <div class="step card">
+            <div class="step-number">4</div>
+            <h3>Complete Acts</h3>
+            <p>Progress through 80 levels across 7 acts, each teaching core Rails performance concepts. Earn stars and unlock advanced techniques.</p>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="realms-preview">
+    <section class="concepts">
       <div class="container">
-        <h2 class="section-title">Master All Realms</h2>
-        <div class="realms-list">
-          <div class="realm-preview beginner">
-            <span class="realm-level">Beginner</span>
-            <ul>
-              <li>🏰 Foundation Fortress</li>
-              <li>📚 ActiveRecord Depths</li>
-              <li>🗺️ Routing Labyrinth</li>
-            </ul>
+        <h2 class="section-title">Rails Concepts → Game Mechanics</h2>
+        <p class="section-subtitle">Abstract concepts become tangible through visual feedback</p>
+
+        <div class="concepts-grid">
+          <div class="concept-card card">
+            <div class="concept-icon enemy">👾</div>
+            <h3>N+1 Queries</h3>
+            <p>Each N+1 query spawns a Query Swarm enemy that attacks your system. Add eager loading to defeat them.</p>
+            <div class="concept-mapping">
+              <span class="mapping-from">includes(:posts)</span>
+              <span class="mapping-arrow">→</span>
+              <span class="mapping-to">Eager Loader Defense</span>
+            </div>
           </div>
-          <div class="realm-preview intermediate">
-            <span class="realm-level">Intermediate</span>
-            <ul>
-              <li>🎮 Controller Citadel</li>
-              <li>🎨 View Valley</li>
-              <li>🗄️ Database Dungeons</li>
-            </ul>
+
+          <div class="concept-card card">
+            <div class="concept-icon defense">🛡️</div>
+            <h3>Caching</h3>
+            <p>Cache hits generate protective shields around your nodes. Russian doll caching creates nested defenses.</p>
+            <div class="concept-mapping">
+              <span class="mapping-from">Rails.cache.fetch</span>
+              <span class="mapping-arrow">→</span>
+              <span class="mapping-to">Cache Shield</span>
+            </div>
           </div>
-          <div class="realm-preview advanced">
-            <span class="realm-level">Advanced</span>
-            <ul>
-              <li>⚡ Performance Peaks</li>
-              <li>📧 Email & Notifications</li>
-              <li>💎 Database Mastery</li>
-            </ul>
+
+          <div class="concept-card card">
+            <div class="concept-icon turret">🎯</div>
+            <h3>Database Indexes</h3>
+            <p>Indexes become speed turrets that accelerate queries passing through. Missing indexes slow everything down.</p>
+            <div class="concept-mapping">
+              <span class="mapping-from">add_index :users, :email</span>
+              <span class="mapping-arrow">→</span>
+              <span class="mapping-to">Index Turret</span>
+            </div>
           </div>
-          <div class="realm-preview expert">
-            <span class="realm-level">Expert</span>
-            <ul>
-              <li>🚀 DevOps & Deployment</li>
-              <li>👑 Architecture Apex</li>
-            </ul>
+
+          <div class="concept-card card">
+            <div class="concept-icon worker">⚙️</div>
+            <h3>Background Jobs</h3>
+            <p>Sidekiq workers become automated drones that handle heavy processing without blocking requests.</p>
+            <div class="concept-mapping">
+              <span class="mapping-from">perform_later</span>
+              <span class="mapping-arrow">→</span>
+              <span class="mapping-to">Worker Drone</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="levels-preview">
+      <div class="container">
+        <h2 class="section-title">Progressive Learning Path</h2>
+        <p class="section-subtitle">80 levels across 7 acts - from basics to production-grade optimization</p>
+
+        <div class="levels-list">
+          <div class="level-card card beginner">
+            <div class="level-header">
+              <span class="level-tag">Act I</span>
+              <span class="level-difficulty">★☆☆☆☆</span>
+            </div>
+            <h3>Birth of the App</h3>
+            <p>Learn MVC basics, associations, validations, and callbacks through 8 foundational levels.</p>
+            <div class="level-concepts">
+              <span class="concept-tag">has_many</span>
+              <span class="concept-tag">belongs_to</span>
+            </div>
+          </div>
+
+          <div class="level-card card intermediate">
+            <div class="level-header">
+              <span class="level-tag">Act II-III</span>
+              <span class="level-difficulty">★★★☆☆</span>
+            </div>
+            <h3>Growth & Scale</h3>
+            <p>Fix N+1 queries, add indexes, implement caching, and background jobs across 24 levels.</p>
+            <div class="level-concepts">
+              <span class="concept-tag">includes()</span>
+              <span class="concept-tag">Rails.cache</span>
+            </div>
+          </div>
+
+          <div class="level-card card advanced">
+            <div class="level-header">
+              <span class="level-tag">Act IV-V</span>
+              <span class="level-difficulty">★★★★☆</span>
+            </div>
+            <h3>Production & Infrastructure</h3>
+            <p>Handle security, concurrency, Redis, Sidekiq, and message queues across 28 levels.</p>
+            <div class="level-concepts">
+              <span class="concept-tag">Circuit Breaker</span>
+              <span class="concept-tag">Pub/Sub</span>
+            </div>
+          </div>
+
+          <div class="level-card card expert">
+            <div class="level-header">
+              <span class="level-tag">Act VI-VII</span>
+              <span class="level-difficulty">★★★★★</span>
+            </div>
+            <h3>Platform & Expert</h3>
+            <p>Master APIs, observability, sharding, and incident response across 20 final levels.</p>
+            <div class="level-concepts">
+              <span class="concept-tag">Read Replicas</span>
+              <span class="concept-tag">Feature Flags</span>
+            </div>
           </div>
         </div>
       </div>
@@ -126,15 +229,46 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
     <section class="cta-section">
       <div class="container text-center">
-        <h2>Ready to Become a Rails Master?</h2>
-        <p>Join thousands of developers leveling up their skills.</p>
-        <a href="/signup" class="pixel-btn">Start Your Adventure</a>
+        <h2>Ready to Optimize?</h2>
+        <p>Start building pipelines and mastering Rails performance today.</p>
+        <a href="/signup" class="btn btn-primary btn-lg" id="cta-bottom">Create Free Account</a>
       </div>
     </section>
 
+<script>
+  // Check auth state and update UI
+  const USER_KEY = 'railsexpert_user';
+  const user = localStorage.getItem(USER_KEY);
+
+  if (user) {
+    // User is logged in - update nav
+    const navAuth = document.getElementById('nav-auth');
+    if (navAuth) {
+      navAuth.innerHTML = `
+        <a href="/acts" class="nav-link">Acts</a>
+        <a href="/dashboard" class="btn btn-primary">Dashboard</a>
+      `;
+    }
+
+    // Update hero CTA
+    const ctaPrimary = document.getElementById('cta-primary');
+    if (ctaPrimary) {
+      ctaPrimary.href = '/acts';
+      ctaPrimary.textContent = 'Start Learning';
+    }
+
+    // Update bottom CTA
+    const ctaBottom = document.getElementById('cta-bottom');
+    if (ctaBottom) {
+      ctaBottom.href = '/acts';
+      ctaBottom.textContent = 'Continue Learning';
+    }
+  }
+</script>
+
     <footer class="landing-footer">
       <div class="container">
-        <p>© 2024 RailsExpert. Built with ❤️ for Rails developers.</p>
+        <p>© 2024 RailsExpert. Learn Rails performance through simulation.</p>
       </div>
     </footer>
   </main>
@@ -145,16 +279,23 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     min-height: 100vh;
   }
 
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* Header */
   .landing-header {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
-    background: rgba(26, 26, 46, 0.95);
+    background: rgba(15, 15, 26, 0.95);
     backdrop-filter: blur(10px);
-    border-bottom: 2px solid var(--color-primary);
+    border-bottom: 1px solid var(--color-game-border);
     z-index: 100;
-    padding: 12px 0;
+    padding: 16px 0;
   }
 
   .landing-nav {
@@ -175,9 +316,9 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   }
 
   .logo-text {
-    font-family: var(--font-pixel);
-    font-size: 1rem;
-    color: var(--color-primary);
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #f3f4f6;
   }
 
   .nav-links {
@@ -187,15 +328,25 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   }
 
   .nav-link {
-    font-family: var(--font-pixel);
-    font-size: 0.6rem;
-    color: var(--color-text);
+    font-size: 0.875rem;
+    color: #9ca3af;
     text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .nav-link:hover {
+    color: #f3f4f6;
+  }
+
+  /* Buttons */
+  .btn-lg {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
   }
 
   /* Hero */
   .hero {
-    padding: 120px 0 80px;
+    padding: 140px 0 80px;
     min-height: 100vh;
     display: flex;
     align-items: center;
@@ -204,31 +355,46 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   .hero .container {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 48px;
+    gap: 64px;
     align-items: center;
   }
 
+  .badge-new {
+    display: inline-block;
+    padding: 6px 12px;
+    background: rgba(59, 130, 246, 0.15);
+    border: 1px solid #3b82f6;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    color: #60a5fa;
+    margin-bottom: 16px;
+  }
+
   .hero-title {
-    font-size: 2rem;
+    font-size: 3rem;
+    font-weight: 800;
     margin-bottom: 24px;
+    line-height: 1.1;
   }
 
   .title-line {
     display: block;
-    color: var(--color-text);
+    color: #f3f4f6;
   }
 
   .title-highlight {
     display: block;
-    color: var(--color-primary);
-    text-shadow: 4px 4px 0 var(--color-bg-dark);
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 
   .hero-subtitle {
-    font-size: 1.1rem;
-    color: var(--color-text-dim);
+    font-size: 1.125rem;
+    color: #9ca3af;
     margin-bottom: 32px;
-    line-height: 1.8;
+    line-height: 1.7;
   }
 
   .hero-cta {
@@ -236,128 +402,376 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     gap: 16px;
   }
 
-  .hero-game-preview {
-    background: var(--color-bg-dark);
+  /* Pipeline Preview */
+  .pipeline-preview {
+    background: var(--color-game-surface);
+    overflow: hidden;
+  }
+
+  .preview-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--color-game-bg);
+    border-bottom: 1px solid var(--color-game-border);
+  }
+
+  .preview-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+
+  .preview-dot.red { background: #ef4444; }
+  .preview-dot.yellow { background: #f59e0b; }
+  .preview-dot.green { background: #22c55e; }
+
+  .preview-title {
+    margin-left: auto;
+    font-size: 0.75rem;
+    color: #6b7280;
+  }
+
+  .preview-content {
     padding: 24px;
   }
 
-  .hero-ascii {
-    font-family: monospace;
-    font-size: 0.85rem;
-    color: var(--color-accent);
-    line-height: 1.4;
-    white-space: pre;
+  .pipeline-demo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 24px;
   }
 
-  /* Features */
-  .features {
-    padding: 80px 0;
-    background: var(--color-bg-dark);
+  .node {
+    padding: 8px 16px;
+    background: var(--color-game-border);
+    border: 2px solid #4b5563;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #f3f4f6;
+    position: relative;
   }
 
+  .node-request { border-color: #3b82f6; background: rgba(59, 130, 246, 0.2); }
+  .node-router { border-color: #a78bfa; background: rgba(167, 139, 250, 0.2); }
+  .node-controller { border-color: #10b981; background: rgba(16, 185, 129, 0.2); }
+  .node-model { border-color: #f59e0b; background: rgba(245, 158, 11, 0.2); }
+  .node-database { border-color: #ef4444; background: rgba(239, 68, 68, 0.2); }
+  .node-database.warning {
+    animation: pulse 2s ease-in-out infinite;
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+  }
+
+  .node-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    padding: 2px 6px;
+    background: #ef4444;
+    border-radius: 4px;
+    font-size: 0.625rem;
+    color: white;
+  }
+
+  .connection {
+    width: 2px;
+    height: 16px;
+    background: #4b5563;
+  }
+
+  .connection-split {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .connection-branch {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .metrics-bar {
+    display: flex;
+    justify-content: space-around;
+    padding: 16px;
+    background: var(--color-game-bg);
+    border-radius: 8px;
+  }
+
+  .metric {
+    text-align: center;
+  }
+
+  .metric-label {
+    display: block;
+    font-size: 0.625rem;
+    color: #6b7280;
+    margin-bottom: 4px;
+  }
+
+  .metric-value {
+    font-size: 1rem;
+    font-weight: 700;
+    font-family: var(--font-mono);
+  }
+
+  .metric-value.danger { color: #ef4444; }
+  .metric-value.warning { color: #f59e0b; }
+  .metric-value.success { color: #22c55e; }
+
+  /* Sections */
   .section-title {
     text-align: center;
+    font-size: 2rem;
+    font-weight: 700;
+    color: #f3f4f6;
+    margin-bottom: 8px;
+  }
+
+  .section-subtitle {
+    text-align: center;
+    color: #9ca3af;
     margin-bottom: 48px;
   }
 
-  .features-grid {
+  /* How It Works */
+  .how-it-works {
+    padding: 80px 0;
+    background: var(--color-game-surface);
+  }
+
+  .steps-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
     gap: 24px;
   }
 
-  .feature-card {
+  .step {
+    padding: 24px;
     text-align: center;
-    padding: 32px 24px;
   }
 
-  .feature-icon {
-    font-size: 3rem;
-    display: block;
-    margin-bottom: 16px;
+  .step-number {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: white;
+    margin: 0 auto 16px;
   }
 
-  .feature-card h3 {
-    margin-bottom: 12px;
-    color: var(--color-accent);
+  .step h3 {
+    font-size: 1rem;
+    color: #f3f4f6;
+    margin-bottom: 8px;
   }
 
-  .feature-card p {
-    color: var(--color-text-dim);
-    font-size: 0.95rem;
+  .step p {
+    font-size: 0.875rem;
+    color: #9ca3af;
+    line-height: 1.6;
   }
 
-  /* Realms Preview */
-  .realms-preview {
+  /* Concepts */
+  .concepts {
     padding: 80px 0;
   }
 
-  .realms-list {
+  .concepts-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
     gap: 24px;
   }
 
-  .realm-preview {
-    background: var(--color-bg-light);
-    border: 2px solid var(--color-text-dim);
+  .concept-card {
     padding: 24px;
-    border-radius: var(--border-radius);
   }
 
-  .realm-level {
-    display: inline-block;
-    font-family: var(--font-pixel);
-    font-size: 0.6rem;
-    padding: 4px 12px;
+  .concept-icon {
+    font-size: 2.5rem;
     margin-bottom: 16px;
-    background: var(--color-secondary);
   }
 
-  .realm-preview.beginner .realm-level { background: var(--color-accent); }
-  .realm-preview.intermediate .realm-level { background: var(--color-gold); color: black; }
-  .realm-preview.advanced .realm-level { background: var(--color-primary); }
-  .realm-preview.expert .realm-level { background: #9333ea; }
-
-  .realm-preview ul {
-    list-style: none;
+  .concept-card h3 {
+    font-size: 1.125rem;
+    color: #f3f4f6;
+    margin-bottom: 8px;
   }
 
-  .realm-preview li {
-    padding: 8px 0;
-    border-bottom: 1px solid var(--color-bg);
-    font-size: 0.9rem;
+  .concept-card p {
+    font-size: 0.875rem;
+    color: #9ca3af;
+    line-height: 1.6;
+    margin-bottom: 16px;
   }
 
-  .realm-preview li:last-child {
-    border-bottom: none;
+  .concept-mapping {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    background: var(--color-game-bg);
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-family: var(--font-mono);
+  }
+
+  .mapping-from {
+    color: #f59e0b;
+  }
+
+  .mapping-arrow {
+    color: #6b7280;
+  }
+
+  .mapping-to {
+    color: #22c55e;
+  }
+
+  /* Levels Preview */
+  .levels-preview {
+    padding: 80px 0;
+    background: var(--color-game-surface);
+  }
+
+  .levels-list {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+  }
+
+  .level-card {
+    padding: 24px;
+  }
+
+  .level-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  .level-tag {
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 4px 8px;
+    border-radius: 4px;
+  }
+
+  .level-card.beginner .level-tag {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+  }
+
+  .level-card.intermediate .level-tag {
+    background: rgba(59, 130, 246, 0.2);
+    color: #3b82f6;
+  }
+
+  .level-card.advanced .level-tag {
+    background: rgba(168, 85, 247, 0.2);
+    color: #a855f7;
+  }
+
+  .level-card.expert .level-tag {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+  }
+
+  .level-difficulty {
+    font-size: 0.875rem;
+    color: #f59e0b;
+  }
+
+  .level-card h3 {
+    font-size: 1rem;
+    color: #f3f4f6;
+    margin-bottom: 8px;
+  }
+
+  .level-card p {
+    font-size: 0.875rem;
+    color: #9ca3af;
+    line-height: 1.5;
+    margin-bottom: 12px;
+  }
+
+  .level-concepts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .concept-tag {
+    font-size: 0.625rem;
+    font-family: var(--font-mono);
+    padding: 4px 8px;
+    background: var(--color-game-bg);
+    border-radius: 4px;
+    color: #60a5fa;
   }
 
   /* CTA */
   .cta-section {
     padding: 80px 0;
-    background: linear-gradient(135deg, var(--color-secondary), var(--color-bg-dark));
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
+    border-top: 1px solid var(--color-game-border);
+    border-bottom: 1px solid var(--color-game-border);
   }
 
   .cta-section h2 {
-    margin-bottom: 16px;
+    font-size: 2rem;
+    font-weight: 700;
+    color: #f3f4f6;
+    margin-bottom: 12px;
   }
 
   .cta-section p {
-    margin-bottom: 32px;
-    color: var(--color-text-dim);
+    color: #9ca3af;
+    margin-bottom: 24px;
+  }
+
+  .text-center {
+    text-align: center;
   }
 
   /* Footer */
   .landing-footer {
     padding: 24px 0;
     text-align: center;
-    border-top: 2px solid var(--color-bg-light);
-    color: var(--color-text-dim);
-    font-size: 0.85rem;
+    color: #6b7280;
+    font-size: 0.875rem;
+  }
+
+  /* Animations */
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
   }
 
   /* Responsive */
+  @media (max-width: 1024px) {
+    .steps-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    .levels-list {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
   @media (max-width: 768px) {
     .hero .container {
       grid-template-columns: 1fr;
@@ -374,7 +788,13 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     }
 
     .hero-title {
-      font-size: 1.5rem;
+      font-size: 2rem;
+    }
+
+    .steps-grid,
+    .concepts-grid,
+    .levels-list {
+      grid-template-columns: 1fr;
     }
 
     .nav-links .nav-link {

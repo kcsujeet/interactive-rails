@@ -97,17 +97,21 @@ export async function getRealms(): Promise<{ realms: Realm[] }> {
   return fetchApi('/api/game/realms');
 }
 
-export async function getDungeons(
+export async function getLevels(
   realmId: string
-): Promise<{ realm: { id: string; name: string; description: string }; dungeons: Dungeon[] }> {
-  return fetchApi(`/api/game/realms/${realmId}/dungeons`);
+): Promise<{ realm: { id: string; name: string; description: string }; levels: Dungeon[] }> {
+  return fetchApi(`/api/game/realms/${realmId}/levels`);
 }
 
 export async function getChallenges(
-  dungeonId: string
-): Promise<{ dungeonId: string; challenges: Challenge[] }> {
-  return fetchApi(`/api/game/dungeons/${dungeonId}/challenges`);
+  levelId: string
+): Promise<{ levelId: string; challenges: Challenge[] }> {
+  return fetchApi(`/api/game/levels/${levelId}/challenges`);
 }
+
+// Backwards compatibility
+/** @deprecated Use getLevels instead */
+export const getDungeons = getLevels;
 
 export async function submitAnswer(
   challengeId: string,

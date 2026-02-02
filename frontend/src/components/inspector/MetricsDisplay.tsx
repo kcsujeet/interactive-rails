@@ -1,10 +1,49 @@
-// Metrics display component showing latency, throughput, and other key metrics
+/**
+ * Metrics Display Component
+ *
+ * Shows latency, throughput, database, cache, memory, and error metrics.
+ * Supports both nested SimulationMetrics format and flat LiveMetrics format.
+ */
 
 import type { SimulationMetrics } from '../../stores/simulation';
+import type { LiveMetrics } from '../game/types';
+
+// Unified metrics type that handles both formats
+type MetricsInput = SimulationMetrics | LiveMetrics | null;
 
 interface MetricsDisplayProps {
-  metrics: SimulationMetrics | null;
+  metrics: MetricsInput;
   className?: string;
+}
+
+// Helper to extract values from either format
+function getMetricValue(
+  metrics: MetricsInput,
+  nestedPath: string[],
+  flatKey: keyof LiveMetrics
+): number {
+  if (!metrics) return 0;
+
+  // Try nested format first (SimulationMetrics)
+  let value: unknown = metrics;
+  for (const key of nestedPath) {
+    if (value && typeof value === 'object' && key in value) {
+      value = (value as Record<string, unknown>)[key];
+    } else {
+      value = undefined;
+      break;
+    }
+  }
+
+  if (typeof value === 'number') return value;
+
+  // Fall back to flat format (LiveMetrics)
+  if (flatKey in metrics) {
+    const flatValue = metrics[flatKey as keyof typeof metrics];
+    if (typeof flatValue === 'number') return flatValue;
+  }
+
+  return 0;
 }
 
 // Gauge component for latency display
@@ -117,19 +156,42 @@ function StatCard({
 export function MetricsDisplay({ metrics, className = '' }: MetricsDisplayProps) {
   if (!metrics) {
     return (
-      <div className={`bg-gray-800 p-4 rounded-lg ${className}`}>
+      <div className={`p-4 ${className}`}>
         <p className="text-gray-400 text-center">No simulation data</p>
       </div>
     );
   }
 
-  const hasNPlusOne = metrics.nPlusOneCount > 0;
-  const hasHighLatency = metrics.latency.p95 > 500;
-  const hasHighErrorRate = metrics.errorRate > 5;
-  const hasMemoryPressure = metrics.memoryPressure !== 'low';
+  // Extract values using helper that handles both formats
+  const latencyP50 = getMetricValue(metrics, ['latency', 'p50'], 'latency');
+  const latencyP95 = getMetricValue(metrics, ['latency', 'p95'], 'latency');
+  const latencyP99 = getMetricValue(metrics, ['latency', 'p99'], 'latency');
+
+  const requestsPerSecond = getMetricValue(metrics, ['throughput', 'requestsPerSecond'], 'queryCount');
+  const completedRequests = getMetricValue(metrics, ['throughput', 'completedRequests'], 'queryCount');
+  const failedRequests = getMetricValue(metrics, ['throughput', 'failedRequests'], 'queryCount');
+
+  const queryTotal = getMetricValue(metrics, ['queries', 'total'], 'queryCount');
+  const queriesPerRequest = getMetricValue(metrics, ['queries', 'perRequest'], 'queriesPerRequest');
+  const nPlusOneCount = getMetricValue(metrics, ['queries', 'nPlusOneCount'], 'queryCount');
+
+  const cacheHitRate = getMetricValue(metrics, ['cache', 'hitRate'], 'cacheHitRate');
+  const cacheSize = getMetricValue(metrics, ['cache', 'size'], 'queryCount');
+
+  const memoryUsage = getMetricValue(metrics, ['memory', 'usage'], 'memoryUsage');
+  const memoryPressure = (metrics as SimulationMetrics)?.memory?.pressure || 'low';
+
+  const errorRate = getMetricValue(metrics, ['errors', 'rate'], 'errorRate');
+  const errorTypes = (metrics as SimulationMetrics)?.errors?.types || {};
+
+  // Determine warning states
+  const hasNPlusOne = nPlusOneCount > 0;
+  const hasHighLatency = latencyP95 > 500 || (metrics as LiveMetrics)?.latency > 500;
+  const hasHighErrorRate = errorRate > 5;
+  const hasMemoryPressure = memoryPressure !== 'low';
 
   return (
-    <div className={`bg-gray-800 p-4 rounded-lg space-y-4 ${className}`}>
+    <div className={`p-4 space-y-4 ${className}`}>
       {/* Latency Section */}
       <div>
         <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
@@ -143,19 +205,19 @@ export function MetricsDisplay({ metrics, className = '' }: MetricsDisplayProps)
         <div className="space-y-2">
           <LatencyGauge
             label="p50"
-            value={metrics.latency.p50}
+            value={latencyP50 || (metrics as LiveMetrics)?.latency || 0}
             max={1000}
             thresholds={{ good: 100, warning: 300 }}
           />
           <LatencyGauge
             label="p95"
-            value={metrics.latency.p95}
+            value={latencyP95 || (metrics as LiveMetrics)?.latency || 0}
             max={1000}
             thresholds={{ good: 200, warning: 500 }}
           />
           <LatencyGauge
             label="p99"
-            value={metrics.latency.p99}
+            value={latencyP99 || (metrics as LiveMetrics)?.latency || 0}
             max={1000}
             thresholds={{ good: 300, warning: 750 }}
           />
@@ -169,12 +231,12 @@ export function MetricsDisplay({ metrics, className = '' }: MetricsDisplayProps)
           <StatCard
             icon="/"
             label="req/s"
-            value={metrics.throughput.requestsPerSecond}
+            value={requestsPerSecond}
           />
           <StatCard
             icon="#"
             label="Completed"
-            value={metrics.throughput.completedRequests}
+            value={completedRequests || queryTotal}
           />
         </div>
       </div>
@@ -193,31 +255,28 @@ export function MetricsDisplay({ metrics, className = '' }: MetricsDisplayProps)
           <StatCard
             icon="Q"
             label="Queries"
-            value={metrics.queryCount}
+            value={queryTotal || (metrics as LiveMetrics)?.queryCount || 0}
             warning={hasNPlusOne}
           />
           <StatCard
             icon="Q/R"
             label="Queries/Request"
-            value={metrics.queriesPerRequest.toFixed(1)}
-            color={metrics.queriesPerRequest > 10 ? 'text-red-400' : 'text-white'}
+            value={(queriesPerRequest || 0).toFixed(1)}
+            color={queriesPerRequest > 10 ? 'text-red-400' : 'text-white'}
           />
         </div>
         {hasNPlusOne && (
           <div className="mt-2 p-2 bg-red-900/30 rounded text-xs text-red-300">
-            {metrics.nPlusOneCount} N+1 query patterns detected. Use eager loading!
+            {nPlusOneCount} N+1 query patterns detected. Use eager loading!
           </div>
         )}
-        <div className="mt-2">
-          <PercentageBar label="Index Usage" value={metrics.indexUsageRate} />
-        </div>
       </div>
 
       {/* Cache Section */}
       <div>
         <h3 className="text-sm font-semibold text-white mb-3">Cache</h3>
-        <PercentageBar label="Cache Hit Rate" value={metrics.cacheHitRate} />
-        {metrics.cacheHitRate < 50 && metrics.cacheSize > 0 && (
+        <PercentageBar label="Cache Hit Rate" value={cacheHitRate || 0} />
+        {cacheHitRate < 50 && cacheSize > 0 && (
           <p className="text-xs text-amber-400 mt-1">
             Low cache hit rate. Consider cache warming or adjusting TTL.
           </p>
@@ -231,18 +290,22 @@ export function MetricsDisplay({ metrics, className = '' }: MetricsDisplayProps)
           {hasMemoryPressure && (
             <span
               className={`text-xs px-2 py-0.5 rounded ${
-                metrics.memoryPressure === 'critical'
+                memoryPressure === 'critical'
                   ? 'bg-red-500 text-white'
-                  : metrics.memoryPressure === 'high'
+                  : memoryPressure === 'high'
                     ? 'bg-amber-500 text-black'
                     : 'bg-yellow-500 text-black'
               }`}
             >
-              {metrics.memoryPressure.toUpperCase()}
+              {memoryPressure.toUpperCase()}
             </span>
           )}
         </h3>
-        <PercentageBar label="Memory Usage" value={metrics.memoryUsage} inverted />
+        <PercentageBar
+          label="Memory Usage"
+          value={memoryUsage || (metrics as LiveMetrics)?.cpuLoad || 0}
+          inverted
+        />
       </div>
 
       {/* Errors Section */}
@@ -251,7 +314,7 @@ export function MetricsDisplay({ metrics, className = '' }: MetricsDisplayProps)
           <span>Errors</span>
           {hasHighErrorRate && (
             <span className="text-xs bg-red-500 text-white px-2 py-0.5 rounded">
-              {metrics.errorRate.toFixed(1)}%
+              {errorRate.toFixed(1)}%
             </span>
           )}
         </h3>
@@ -259,22 +322,22 @@ export function MetricsDisplay({ metrics, className = '' }: MetricsDisplayProps)
           <StatCard
             icon="X"
             label="Failed"
-            value={metrics.throughput.failedRequests}
+            value={failedRequests}
             color={hasHighErrorRate ? 'text-red-400' : 'text-white'}
           />
           <StatCard
             icon="%"
             label="Error Rate"
-            value={metrics.errorRate.toFixed(1)}
+            value={errorRate.toFixed(1)}
             suffix="%"
             color={hasHighErrorRate ? 'text-red-400' : 'text-white'}
           />
         </div>
-        {Object.entries(metrics.errorTypes).length > 0 && (
+        {Object.keys(errorTypes).length > 0 && (
           <div className="mt-2 text-xs">
             <span className="text-gray-400">Error types:</span>
             <ul className="mt-1">
-              {Object.entries(metrics.errorTypes).map(([type, count]) => (
+              {Object.entries(errorTypes).map(([type, count]) => (
                 <li key={type} className="text-red-300">
                   {type}: {count}
                 </li>

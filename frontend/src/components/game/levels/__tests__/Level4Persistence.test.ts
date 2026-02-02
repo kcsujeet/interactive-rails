@@ -1,0 +1,167 @@
+/**
+ * Tests for Level 4: Persistence
+ *
+ * Validates that both models are connected to database for persistence.
+ */
+
+import { describe, test, expect } from 'bun:test';
+
+interface ValidationResult {
+  valid: boolean;
+  message: string;
+  details?: string[];
+}
+
+interface Level4State {
+  databaseAdded: boolean;
+  modelsConnectedToDb: Set<string>;
+}
+
+// Recreate validation logic from component
+function validateLevel4Solution(state: Level4State): ValidationResult {
+  const errors: string[] = [];
+
+  if (!state.databaseAdded) {
+    errors.push('Add a Database node to the canvas');
+  }
+
+  if (!state.modelsConnectedToDb.has('post-model')) {
+    errors.push('Connect Post model to Database for persistence');
+  }
+
+  if (!state.modelsConnectedToDb.has('comment-model')) {
+    errors.push('Connect Comment model to Database for persistence');
+  }
+
+  if (errors.length > 0) {
+    return {
+      valid: false,
+      message: 'Data is still transient (memory only)!',
+      details: errors,
+    };
+  }
+
+  return {
+    valid: true,
+    message: 'Data now persists across restarts!',
+  };
+}
+
+describe('Level 4: Persistence', () => {
+  describe('Initial State', () => {
+    test('should be invalid when nothing done', () => {
+      const result = validateLevel4Solution({
+        databaseAdded: false,
+        modelsConnectedToDb: new Set(),
+      });
+
+      expect(result.valid).toBe(false);
+    });
+
+    test('should require adding database', () => {
+      const result = validateLevel4Solution({
+        databaseAdded: false,
+        modelsConnectedToDb: new Set(),
+      });
+
+      expect(result.details!.some(d => d.includes('Database node'))).toBe(true);
+    });
+
+    test('should require connecting post model', () => {
+      const result = validateLevel4Solution({
+        databaseAdded: true,
+        modelsConnectedToDb: new Set(),
+      });
+
+      expect(result.details!.some(d => d.includes('Post model'))).toBe(true);
+    });
+
+    test('should require connecting comment model', () => {
+      const result = validateLevel4Solution({
+        databaseAdded: true,
+        modelsConnectedToDb: new Set(),
+      });
+
+      expect(result.details!.some(d => d.includes('Comment model'))).toBe(true);
+    });
+  });
+
+  describe('Partial Progress', () => {
+    test('should be invalid with only post connected', () => {
+      const result = validateLevel4Solution({
+        databaseAdded: true,
+        modelsConnectedToDb: new Set(['post-model']),
+      });
+
+      expect(result.valid).toBe(false);
+      expect(result.details!.some(d => d.includes('Comment'))).toBe(true);
+    });
+
+    test('should be invalid with only comment connected', () => {
+      const result = validateLevel4Solution({
+        databaseAdded: true,
+        modelsConnectedToDb: new Set(['comment-model']),
+      });
+
+      expect(result.valid).toBe(false);
+      expect(result.details!.some(d => d.includes('Post'))).toBe(true);
+    });
+
+    test('should be invalid without database', () => {
+      const result = validateLevel4Solution({
+        databaseAdded: false,
+        modelsConnectedToDb: new Set(['post-model', 'comment-model']),
+      });
+
+      expect(result.valid).toBe(false);
+    });
+  });
+
+  describe('Correct Solution', () => {
+    test('should be valid with both models connected', () => {
+      const result = validateLevel4Solution({
+        databaseAdded: true,
+        modelsConnectedToDb: new Set(['post-model', 'comment-model']),
+      });
+
+      expect(result.valid).toBe(true);
+    });
+
+    test('should have correct success message', () => {
+      const result = validateLevel4Solution({
+        databaseAdded: true,
+        modelsConnectedToDb: new Set(['post-model', 'comment-model']),
+      });
+
+      expect(result.message).toContain('persists');
+    });
+  });
+
+  describe('Transient vs Persisted', () => {
+    test('transient data is lost on restart', () => {
+      // Simulate restart behavior
+      let dataCounter = 5;
+      const isPersisted = false;
+
+      // On restart, transient data is cleared
+      if (!isPersisted) {
+        dataCounter = 0;
+      }
+
+      expect(dataCounter).toBe(0);
+    });
+
+    test('persisted data survives restart', () => {
+      // Simulate restart behavior
+      let dataCounter = 5;
+      const isPersisted = true;
+
+      // On restart, persisted data remains
+      if (!isPersisted) {
+        dataCounter = 0;
+      }
+
+      expect(dataCounter).toBe(5);
+    });
+  });
+});

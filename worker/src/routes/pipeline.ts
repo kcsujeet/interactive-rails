@@ -72,6 +72,7 @@ pipelineRoutes.get('/dungeons', authMiddleware, async (c) => {
   );
 
   // Dungeon definitions (in real app, would come from content module)
+  // Tutorials unlock by completing the previous one, boss requires all tutorials
   const dungeons = [
     {
       id: 'tutorial-n-plus-one',
@@ -87,7 +88,7 @@ pipelineRoutes.get('/dungeons', authMiddleware, async (c) => {
       name: 'Database Indexing Tutorial',
       description: 'Learn to speed up queries with proper database indexes',
       difficulty: 2,
-      requiredLevel: 3,
+      requiredLevel: 1,
       requiredDungeons: ['tutorial-n-plus-one'],
       xpReward: 200,
     },
@@ -96,7 +97,7 @@ pipelineRoutes.get('/dungeons', authMiddleware, async (c) => {
       name: 'Rails Caching Tutorial',
       description: 'Implement caching strategies to dramatically improve performance',
       difficulty: 3,
-      requiredLevel: 5,
+      requiredLevel: 1,
       requiredDungeons: ['tutorial-indexing'],
       xpReward: 250,
     },
@@ -105,7 +106,7 @@ pipelineRoutes.get('/dungeons', authMiddleware, async (c) => {
       name: 'The Database Guardian',
       description: 'A boss dungeon that tests all your database optimization skills',
       difficulty: 5,
-      requiredLevel: 10,
+      requiredLevel: 1,
       requiredDungeons: ['tutorial-n-plus-one', 'tutorial-indexing', 'tutorial-caching'],
       xpReward: 500,
     },
@@ -367,6 +368,20 @@ pipelineRoutes.get('/progress', authMiddleware, async (c) => {
     progress = await db.prepare('SELECT * FROM player_progress WHERE user_id = ?').bind(userId).first();
   }
 
+  // Get completed levels (dungeon_id column stores level IDs)
+  const completionsRows = await db
+    .prepare('SELECT dungeon_id, stars_earned, best_stability FROM dungeon_completions WHERE user_id = ?')
+    .bind(userId)
+    .all();
+
+  const completedLevels = (completionsRows.results || []).map((r) => r.dungeon_id as string);
+  const levelProgress = (completionsRows.results || []).map((r) => ({
+    levelId: r.dungeon_id as string,
+    completed: true,
+    stars: r.stars_earned as number,
+    bestScore: r.best_stability as number,
+  }));
+
   // Parse JSON fields
   const unlockedNodes = JSON.parse((progress?.unlocked_nodes as string) || '[]');
   const unlockedDefenses = JSON.parse((progress?.unlocked_defenses as string) || '[]');
@@ -384,6 +399,8 @@ pipelineRoutes.get('/progress', authMiddleware, async (c) => {
       unlockedActions,
       titles,
       currentTitle: progress?.current_title || null,
+      completedLevels,
+      levelProgress,
       stats: {
         dungeonsCompleted: progress?.dungeons_completed || 0,
         totalStarsEarned: progress?.total_stars_earned || 0,
@@ -396,6 +413,170 @@ pipelineRoutes.get('/progress', authMiddleware, async (c) => {
     },
   });
 });
+
+/**
+ * POST /api/pipeline/levels/:levelId/complete
+ * Record a level completion (alias for dungeons endpoint for new UI)
+ */
+pipelineRoutes.post(
+  '/levels/:levelId/complete',
+  authMiddleware,
+  zValidator('json', completionSchema),
+  async (c) => {
+    const { levelId } = c.req.param();
+    const { stars, finalStability, timeToComplete, finalMetrics } = c.req.valid('json');
+    const userId = c.get('userId');
+    const db = c.env.DB;
+
+    // XP rewards by level (would come from content in real app)
+    const xpReward = 100; // Default XP for new levels
+
+    // Check for existing completion
+    const existing = await db
+      .prepare('SELECT * FROM dungeon_completions WHERE user_id = ? AND dungeon_id = ?')
+      .bind(userId, levelId)
+      .first();
+
+    const finalMetricsJson = JSON.stringify(finalMetrics);
+
+    if (existing) {
+      // Update if this is a better run
+      const isNewBestStability = finalStability > (existing.best_stability as number);
+      const isNewBestTime = timeToComplete < (existing.best_time_seconds as number);
+      const isNewBestStars = stars > (existing.stars_earned as number);
+
+      if (isNewBestStability || isNewBestTime || isNewBestStars) {
+        await db
+          .prepare(
+            `UPDATE dungeon_completions SET
+              stars_earned = MAX(stars_earned, ?),
+              final_stability = ?,
+              time_to_complete_seconds = ?,
+              final_metrics = ?,
+              best_stability = MAX(best_stability, ?),
+              best_time_seconds = MIN(best_time_seconds, ?),
+              best_completed_at = CASE WHEN ? > best_stability THEN CURRENT_TIMESTAMP ELSE best_completed_at END,
+              attempts = attempts + 1
+            WHERE user_id = ? AND dungeon_id = ?`
+          )
+          .bind(
+            stars,
+            finalStability,
+            timeToComplete,
+            finalMetricsJson,
+            finalStability,
+            timeToComplete,
+            finalStability,
+            userId,
+            levelId
+          )
+          .run();
+      } else {
+        // Just increment attempts
+        await db
+          .prepare('UPDATE dungeon_completions SET attempts = attempts + 1 WHERE user_id = ? AND dungeon_id = ?')
+          .bind(userId, levelId)
+          .run();
+      }
+    } else {
+      // First completion
+      await db
+        .prepare(
+          `INSERT INTO dungeon_completions
+            (id, user_id, dungeon_id, stars_earned, final_stability, time_to_complete_seconds, final_metrics, best_stability, best_time_seconds)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .bind(
+          generateId(),
+          userId,
+          levelId,
+          stars,
+          finalStability,
+          timeToComplete,
+          finalMetricsJson,
+          finalStability,
+          timeToComplete
+        )
+        .run();
+    }
+
+    // Update player progress
+    const progress = await db.prepare('SELECT * FROM player_progress WHERE user_id = ?').bind(userId).first();
+
+    if (progress) {
+      // Only award XP on first completion
+      const xpToAdd = existing ? 0 : xpReward;
+      const newXp = (progress.xp as number) + xpToAdd;
+      const newLevel = levelFromXp(newXp);
+      const levelsCompleted = (progress.dungeons_completed as number) + (existing ? 0 : 1);
+      const starsEarned = (progress.total_stars_earned as number) + (existing ? Math.max(0, stars - (existing.stars_earned as number)) : stars);
+
+      await db
+        .prepare(
+          `UPDATE player_progress SET
+            xp = ?,
+            level = ?,
+            dungeons_completed = ?,
+            total_stars_earned = ?,
+            last_played_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE user_id = ?`
+        )
+        .bind(newXp, newLevel, levelsCompleted, starsEarned, userId)
+        .run();
+
+      logger.info('Level completed', {
+        requestId: c.get('requestId'),
+        userId,
+        levelId,
+        stars,
+        isFirstCompletion: !existing,
+        xpAwarded: xpToAdd,
+      });
+
+      return c.json({
+        success: true,
+        data: {
+          isFirstCompletion: !existing,
+          xpAwarded: xpToAdd,
+          newLevel,
+          newTotalXp: newXp,
+          stars,
+          stability: finalStability,
+        },
+        meta: {
+          requestId: c.get('requestId'),
+          timestamp: new Date().toISOString(),
+        },
+      });
+    }
+
+    // Create progress if it doesn't exist
+    await db
+      .prepare(
+        `INSERT INTO player_progress (user_id, xp, level, dungeons_completed, total_stars_earned, last_played_at)
+        VALUES (?, ?, ?, 1, ?, CURRENT_TIMESTAMP)`
+      )
+      .bind(userId, xpReward, levelFromXp(xpReward), stars)
+      .run();
+
+    return c.json({
+      success: true,
+      data: {
+        isFirstCompletion: true,
+        xpAwarded: xpReward,
+        newLevel: levelFromXp(xpReward),
+        newTotalXp: xpReward,
+        stars,
+        stability: finalStability,
+      },
+      meta: {
+        requestId: c.get('requestId'),
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }
+);
 
 /**
  * GET /api/pipeline/leaderboard/:dungeonId

@@ -50,7 +50,7 @@ export {
 export {
   useGameStore,
   type GameState,
-  type DungeonCompletion,
+  type LevelCompletion,
   type Achievement,
   type PlayerStats,
   selectLevelProgress,

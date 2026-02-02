@@ -215,7 +215,7 @@ export function InspectorPanel({
                 : 'Request timeline unlocks at level 10'}
             </p>
             <p className="text-gray-500 text-xs mt-2">
-              Complete more dungeons to level up!
+              Complete more levels to unlock!
             </p>
           </div>
         )}

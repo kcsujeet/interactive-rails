@@ -1,0 +1,261 @@
+/**
+ * Level 9: Data Contracts
+ *
+ * Validate input at the boundary using dry-validation contracts.
+ * Dirty (jagged) particles become clean (smooth) after validation.
+ */
+
+import { useState, useEffect } from 'react';
+import type { LevelComponentProps } from '../index';
+import {
+  LevelLayout,
+  LeftPanel,
+  CenterPanel,
+  RightPanel,
+  LevelHeader,
+  InstructionPanel,
+  CodePreviewPanel,
+  useLevelCompletion,
+} from '../shared';
+
+interface Particle {
+  id: number;
+  x: number;
+  y: number;
+  dirty: boolean;
+  validated: boolean;
+}
+
+export function Level9Contracts({ onComplete, onExit }: LevelComponentProps) {
+  const { completeLevel } = useLevelCompletion();
+  const [contractAdded, setContractAdded] = useState(false);
+  const [particles, setParticles] = useState<Particle[]>([]);
+  const [validatedCount, setValidatedCount] = useState(0);
+  const [rejectedCount, setRejectedCount] = useState(0);
+
+  const isComplete = contractAdded && validatedCount >= 5;
+
+  // Spawn particles
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const id = Date.now();
+      const isDirty = Math.random() > 0.3; // 70% are dirty
+      setParticles(prev => [...prev.slice(-10), {
+        id,
+        x: 50,
+        y: 200 + Math.random() * 100,
+        dirty: isDirty,
+        validated: false,
+      }]);
+    }, 800);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Animate particles
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setParticles(prev => prev.map(p => {
+        let newX = p.x + 3;
+
+        // At contract boundary (x=300), validate
+        if (contractAdded && newX >= 300 && newX < 310 && !p.validated) {
+          if (p.dirty) {
+            // Dirty particles get rejected
+            setRejectedCount(c => c + 1);
+            return { ...p, x: newX, validated: true };
+          } else {
+            // Clean particles pass through
+            setValidatedCount(c => c + 1);
+            return { ...p, x: newX, validated: true };
+          }
+        }
+
+        return { ...p, x: newX };
+      }).filter(p => p.x < 600));
+    }, 50);
+
+    return () => clearInterval(interval);
+  }, [contractAdded]);
+
+  const handleComplete = async () => {
+    const success = await completeLevel('act2-level9-data-contracts', { stars: 3 });
+    if (success) {
+      onComplete({ stars: 3 });
+    }
+  };
+
+  return (
+    <LevelLayout>
+      <LeftPanel>
+        <InstructionPanel
+          scenario="Mobile clients are sending malformed data - missing fields, wrong types, invalid formats. The errors are bubbling up deep in the service layer."
+          instructions={[
+            'Observe the dirty (red/jagged) particles entering the system',
+            'Add a Contract node to validate at the boundary',
+            'Watch invalid data get rejected before it causes problems',
+          ]}
+          goal="Learn to validate input at system boundaries using data contracts."
+        >
+          <div className="p-4 border-t border-gray-800">
+            <button
+              onClick={() => setContractAdded(true)}
+              disabled={contractAdded}
+              className={`w-full py-3 rounded-lg font-medium transition-colors ${
+                contractAdded
+                  ? 'bg-green-600 text-white cursor-default'
+                  : 'bg-cyan-600 hover:bg-cyan-500 text-white'
+              }`}
+            >
+              {contractAdded ? 'Contract Added' : 'Add Contract Node'}
+            </button>
+          </div>
+
+          <div className="p-4 border-t border-gray-800">
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Statistics</div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-green-900/30 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-green-400">{validatedCount}</div>
+                <div className="text-xs text-green-400/70">Validated</div>
+              </div>
+              <div className="bg-red-900/30 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-red-400">{rejectedCount}</div>
+                <div className="text-xs text-red-400/70">Rejected</div>
+              </div>
+            </div>
+          </div>
+        </InstructionPanel>
+      </LeftPanel>
+
+      <CenterPanel>
+        <LevelHeader
+          levelNumber={9}
+          levelName="Data Contracts"
+          actNumber={2}
+          onExit={onExit}
+          onReset={() => {
+            setContractAdded(false);
+            setParticles([]);
+            setValidatedCount(0);
+            setRejectedCount(0);
+          }}
+        />
+
+        <div className="flex-1 relative bg-gray-950 overflow-hidden">
+          {/* Pipeline visualization */}
+          <svg className="absolute inset-0 w-full h-full">
+            {/* API boundary */}
+            <rect x="40" y="150" width="80" height="200" fill="#374151" rx="8" />
+            <text x="80" y="260" textAnchor="middle" fill="#9ca3af" fontSize="12">API</text>
+
+            {/* Contract (if added) */}
+            {contractAdded && (
+              <>
+                <rect x="280" y="180" width="60" height="140" fill="#0891b2" rx="8" />
+                <text x="310" y="255" textAnchor="middle" fill="white" fontSize="11">Contract</text>
+                <text x="310" y="270" textAnchor="middle" fill="white" fontSize="9">Validator</text>
+              </>
+            )}
+
+            {/* Service */}
+            <rect x="450" y="150" width="100" height="200" fill="#374151" rx="8" />
+            <text x="500" y="260" textAnchor="middle" fill="#9ca3af" fontSize="12">Service</text>
+
+            {/* Connection lines */}
+            <line x1="120" y1="250" x2={contractAdded ? "280" : "450"} y2="250" stroke="#4b5563" strokeWidth="2" strokeDasharray="5,5" />
+            {contractAdded && (
+              <line x1="340" y1="250" x2="450" y2="250" stroke="#0891b2" strokeWidth="2" />
+            )}
+
+            {/* Particles */}
+            {particles.map(p => {
+              const isRejected = contractAdded && p.validated && p.dirty;
+              if (isRejected && p.x > 320) return null; // Don't show rejected particles past contract
+
+              return (
+                <g key={p.id}>
+                  {p.dirty && !p.validated ? (
+                    // Jagged particle (dirty)
+                    <polygon
+                      points={`${p.x},${p.y-8} ${p.x+6},${p.y-4} ${p.x+8},${p.y} ${p.x+6},${p.y+4} ${p.x},${p.y+8} ${p.x-6},${p.y+4} ${p.x-8},${p.y} ${p.x-6},${p.y-4}`}
+                      fill="#ef4444"
+                    />
+                  ) : (
+                    // Smooth particle (clean)
+                    <circle cx={p.x} cy={p.y} r="8" fill="#22c55e" />
+                  )}
+                </g>
+              );
+            })}
+
+            {/* Rejection effect */}
+            {particles.filter(p => contractAdded && p.validated && p.dirty && p.x >= 300 && p.x < 350).map(p => (
+              <g key={`reject-${p.id}`}>
+                <text x={p.x} y={p.y - 15} textAnchor="middle" fill="#ef4444" fontSize="10">REJECTED</text>
+              </g>
+            ))}
+          </svg>
+
+          {/* Legend */}
+          <div className="absolute bottom-4 left-4 bg-gray-900/80 rounded-lg p-3 text-xs space-y-2">
+            <div className="flex items-center gap-2">
+              <svg width="16" height="16"><polygon points="8,0 14,4 16,8 14,12 8,16 2,12 0,8 2,4" fill="#ef4444" transform="scale(0.5) translate(8,8)" /></svg>
+              <span className="text-gray-400">Dirty data (invalid)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg width="16" height="16"><circle cx="8" cy="8" r="6" fill="#22c55e" /></svg>
+              <span className="text-gray-400">Clean data (valid)</span>
+            </div>
+          </div>
+
+          {/* Completion button */}
+          {isComplete && (
+            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
+              <button
+                onClick={handleComplete}
+                className="px-8 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white font-bold rounded-lg shadow-lg"
+              >
+                Complete Level
+              </button>
+            </div>
+          )}
+        </div>
+      </CenterPanel>
+
+      <RightPanel>
+        <CodePreviewPanel
+          files={[{
+            filename: 'app/contracts/create_order_contract.rb',
+            language: 'ruby',
+            code: `class CreateOrderContract < Dry::Validation::Contract
+  params do
+    required(:email).filled(:string)
+    required(:amount).filled(:integer, gt?: 0)
+    required(:items).array(:hash) do
+      required(:product_id).filled(:integer)
+      required(:quantity).filled(:integer, gt?: 0)
+    end
+  end
+
+  rule(:email) do
+    key.failure('invalid format') unless value.match?(URI::MailTo::EMAIL_REGEXP)
+  end
+end
+
+# Usage in controller:
+result = CreateOrderContract.new.call(params)
+if result.success?
+  OrderService.new(result.to_h).call
+else
+  render json: { errors: result.errors.to_h }, status: 422
+end`,
+            highlight: [2, 3, 4, 5, 6, 7, 8, 9],
+          }]}
+          learningGoal="Validate data at system boundaries. Contracts ensure invalid data never reaches your business logic."
+        />
+      </RightPanel>
+    </LevelLayout>
+  );
+}
+
+export default Level9Contracts;

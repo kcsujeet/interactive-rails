@@ -4,7 +4,7 @@
  * Manages player progression and game state including:
  * - Player level and XP
  * - Unlocked nodes and actions
- * - Dungeon completion status
+ * - Level completion status
  * - Achievements and stats
  */
 
@@ -18,8 +18,8 @@ import type { DefenseType } from './simulation';
 // Types
 // ============================================
 
-export interface DungeonCompletion {
-  dungeonId: string;
+export interface LevelCompletion {
+  levelId: string;
   starsEarned: 1 | 2 | 3;
   finalStability: number;
   timeToComplete: number; // milliseconds
@@ -36,7 +36,7 @@ export interface Achievement {
 }
 
 export interface PlayerStats {
-  totalDungeonsCompleted: number;
+  totalLevelsCompleted: number;
   totalXPEarned: number;
   totalPlayTime: number; // milliseconds
   perfectScores: number; // 3-star completions
@@ -61,9 +61,9 @@ export interface GameState {
   unlockedDefenses: DefenseType[];
   unlockedActions: string[];
 
-  // Dungeon progress
-  completedDungeons: Map<string, DungeonCompletion>;
-  currentDungeonId: string | null;
+  // Level progress
+  completedLevels: Map<string, LevelCompletion>;
+  currentLevelId: string | null;
 
   // Achievements
   achievements: Achievement[];
@@ -91,11 +91,11 @@ export interface GameState {
   isNodeUnlocked: (nodeType: NodeType) => boolean;
   isDefenseUnlocked: (defenseType: DefenseType) => boolean;
 
-  // Actions - Dungeons
-  setCurrentDungeon: (dungeonId: string | null) => void;
-  completeDungeon: (completion: Omit<DungeonCompletion, 'completedAt'>) => void;
-  getDungeonCompletion: (dungeonId: string) => DungeonCompletion | undefined;
-  isDungeonCompleted: (dungeonId: string) => boolean;
+  // Actions - Levels
+  setCurrentLevel: (levelId: string | null) => void;
+  completeLevel: (completion: Omit<LevelCompletion, 'completedAt'>) => void;
+  getLevelCompletion: (levelId: string) => LevelCompletion | undefined;
+  isLevelCompleted: (levelId: string) => boolean;
 
   // Actions - Achievements
   updateAchievementProgress: (achievementId: string, progress: number) => void;
@@ -127,9 +127,9 @@ const XP_SCALING_FACTOR = 1.5;
 
 const DEFAULT_ACHIEVEMENTS: Achievement[] = [
   {
-    id: 'first_dungeon',
+    id: 'first_level',
     name: 'First Steps',
-    description: 'Complete your first dungeon',
+    description: 'Complete your first level',
     unlockedAt: null,
     progress: 0,
     maxProgress: 1,
@@ -137,15 +137,15 @@ const DEFAULT_ACHIEVEMENTS: Achievement[] = [
   {
     id: 'perfect_score',
     name: 'Perfectionist',
-    description: 'Get 3 stars on a dungeon',
+    description: 'Get 3 stars on a level',
     unlockedAt: null,
     progress: 0,
     maxProgress: 1,
   },
   {
-    id: 'five_dungeons',
-    name: 'Dungeon Crawler',
-    description: 'Complete 5 dungeons',
+    id: 'five_levels',
+    name: 'Level Master',
+    description: 'Complete 5 levels',
     unlockedAt: null,
     progress: 0,
     maxProgress: 5,
@@ -193,7 +193,7 @@ const DEFAULT_ACHIEVEMENTS: Achievement[] = [
 ];
 
 const DEFAULT_STATS: PlayerStats = {
-  totalDungeonsCompleted: 0,
+  totalLevelsCompleted: 0,
   totalXPEarned: 0,
   totalPlayTime: 0,
   perfectScores: 0,
@@ -244,8 +244,8 @@ export const useGameStore = create<GameState>()(
           unlockedNodes: [...INITIAL_UNLOCKED_NODES],
           unlockedDefenses: [...INITIAL_UNLOCKED_DEFENSES],
           unlockedActions: [...INITIAL_UNLOCKED_ACTIONS],
-          completedDungeons: new Map(),
-          currentDungeonId: null,
+          completedLevels: new Map(),
+          currentLevelId: null,
           achievements: [...DEFAULT_ACHIEVEMENTS],
           stats: { ...DEFAULT_STATS },
           sessionStartTime: null,
@@ -351,30 +351,30 @@ export const useGameStore = create<GameState>()(
             return get().unlockedDefenses.includes(defenseType);
           },
 
-          // Dungeons
-          setCurrentDungeon: (dungeonId) => {
+          // Levels
+          setCurrentLevel: (levelId) => {
             set((state) => {
-              state.currentDungeonId = dungeonId;
+              state.currentLevelId = levelId;
             });
           },
 
-          completeDungeon: (completion) => {
+          completeLevel: (completion) => {
             set((state) => {
-              const fullCompletion: DungeonCompletion = {
+              const fullCompletion: LevelCompletion = {
                 ...completion,
                 completedAt: new Date().toISOString(),
               };
 
-              const existing = state.completedDungeons.get(completion.dungeonId);
+              const existing = state.completedLevels.get(completion.levelId);
 
               // Only update if new completion is better or first time
               if (!existing || completion.starsEarned > existing.starsEarned) {
-                state.completedDungeons.set(completion.dungeonId, fullCompletion);
+                state.completedLevels.set(completion.levelId, fullCompletion);
               }
 
               // Update stats
               if (!existing) {
-                state.stats.totalDungeonsCompleted += 1;
+                state.stats.totalLevelsCompleted += 1;
               }
 
               if (completion.starsEarned === 3 && (!existing || existing.starsEarned < 3)) {
@@ -386,10 +386,10 @@ export const useGameStore = create<GameState>()(
               }
 
               // Update achievements
-              const firstDungeon = state.achievements.find((a) => a.id === 'first_dungeon');
-              if (firstDungeon && !firstDungeon.unlockedAt) {
-                firstDungeon.unlockedAt = new Date().toISOString();
-                firstDungeon.progress = 1;
+              const firstLevel = state.achievements.find((a) => a.id === 'first_level');
+              if (firstLevel && !firstLevel.unlockedAt) {
+                firstLevel.unlockedAt = new Date().toISOString();
+                firstLevel.progress = 1;
               }
 
               if (completion.starsEarned === 3) {
@@ -400,11 +400,11 @@ export const useGameStore = create<GameState>()(
                 }
               }
 
-              const fiveDungeons = state.achievements.find((a) => a.id === 'five_dungeons');
-              if (fiveDungeons) {
-                fiveDungeons.progress = state.stats.totalDungeonsCompleted;
-                if (fiveDungeons.progress >= fiveDungeons.maxProgress && !fiveDungeons.unlockedAt) {
-                  fiveDungeons.unlockedAt = new Date().toISOString();
+              const fiveLevels = state.achievements.find((a) => a.id === 'five_levels');
+              if (fiveLevels) {
+                fiveLevels.progress = state.stats.totalLevelsCompleted;
+                if (fiveLevels.progress >= fiveLevels.maxProgress && !fiveLevels.unlockedAt) {
+                  fiveLevels.unlockedAt = new Date().toISOString();
                 }
               }
 
@@ -424,12 +424,12 @@ export const useGameStore = create<GameState>()(
             });
           },
 
-          getDungeonCompletion: (dungeonId) => {
-            return get().completedDungeons.get(dungeonId);
+          getLevelCompletion: (levelId) => {
+            return get().completedLevels.get(levelId);
           },
 
-          isDungeonCompleted: (dungeonId) => {
-            return get().completedDungeons.has(dungeonId);
+          isLevelCompleted: (levelId) => {
+            return get().completedLevels.has(levelId);
           },
 
           // Achievements
@@ -533,8 +533,8 @@ export const useGameStore = create<GameState>()(
               state.unlockedNodes = [...INITIAL_UNLOCKED_NODES];
               state.unlockedDefenses = [...INITIAL_UNLOCKED_DEFENSES];
               state.unlockedActions = [...INITIAL_UNLOCKED_ACTIONS];
-              state.completedDungeons = new Map();
-              state.currentDungeonId = null;
+              state.completedLevels = new Map();
+              state.currentLevelId = null;
               state.achievements = [...DEFAULT_ACHIEVEMENTS];
               state.stats = { ...DEFAULT_STATS };
               state.sessionStartTime = null;
@@ -555,7 +555,7 @@ export const useGameStore = create<GameState>()(
           unlockedNodes: state.unlockedNodes,
           unlockedDefenses: state.unlockedDefenses,
           unlockedActions: state.unlockedActions,
-          // Note: completedDungeons is a Map, needs custom serialization
+          // Note: completedLevels is a Map, needs custom serialization
           stats: state.stats,
         }),
       }
@@ -579,7 +579,7 @@ export const selectLockedAchievements = (state: GameState) =>
 
 export const selectTotalStars = (state: GameState) => {
   let total = 0;
-  state.completedDungeons.forEach((completion) => {
+  state.completedLevels.forEach((completion) => {
     total += completion.starsEarned;
   });
   return total;
@@ -594,3 +594,10 @@ export const selectCanUnlockDefense = (defenseType: DefenseType) => (state: Game
 export const selectNodeUnlockLevel = (nodeType: NodeType) => NODE_UNLOCK_LEVELS[nodeType];
 
 export const selectDefenseUnlockLevel = (defenseType: DefenseType) => DEFENSE_UNLOCK_LEVELS[defenseType];
+
+// ============================================
+// Backwards Compatibility Aliases
+// ============================================
+
+/** @deprecated Use LevelCompletion instead */
+export type DungeonCompletion = LevelCompletion;

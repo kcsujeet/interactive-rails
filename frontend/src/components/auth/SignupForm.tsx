@@ -37,7 +37,7 @@ export default function SignupForm() {
     try {
       const response = await signup(email, username, password);
       setAuth(response.user);
-      window.location.href = '/realms';
+      window.location.href = '/acts';
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Signup failed');
     } finally {
@@ -52,8 +52,9 @@ export default function SignupForm() {
       {error && <div className="error-message">{error}</div>}
 
       <div className="form-group">
-        <label htmlFor="email">Email</label>
+        <label className="label" htmlFor="email">Email</label>
         <input
+          className="input"
           type="email"
           id="email"
           value={email}
@@ -61,12 +62,14 @@ export default function SignupForm() {
           required
           disabled={isLoading}
           autoComplete="email"
+          placeholder="you@example.com"
         />
       </div>
 
       <div className="form-group">
-        <label htmlFor="username">Username</label>
+        <label className="label" htmlFor="username">Username</label>
         <input
+          className="input"
           type="text"
           id="username"
           value={username}
@@ -77,12 +80,14 @@ export default function SignupForm() {
           maxLength={20}
           pattern="[a-zA-Z0-9_]+"
           autoComplete="username"
+          placeholder="your_username"
         />
       </div>
 
       <div className="form-group">
-        <label htmlFor="password">Password</label>
+        <label className="label" htmlFor="password">Password</label>
         <input
+          className="input"
           type="password"
           id="password"
           value={password}
@@ -91,12 +96,14 @@ export default function SignupForm() {
           disabled={isLoading}
           minLength={8}
           autoComplete="new-password"
+          placeholder="Min 8 characters"
         />
       </div>
 
       <div className="form-group">
-        <label htmlFor="confirmPassword">Confirm Password</label>
+        <label className="label" htmlFor="confirmPassword">Confirm Password</label>
         <input
+          className="input"
           type="password"
           id="confirmPassword"
           value={confirmPassword}
@@ -104,16 +111,17 @@ export default function SignupForm() {
           required
           disabled={isLoading}
           autoComplete="new-password"
+          placeholder="Repeat password"
         />
       </div>
 
-      <button type="submit" className="pixel-btn" disabled={isLoading}>
-        {isLoading ? 'Creating...' : 'Begin Your Journey'}
+      <button type="submit" className="btn btn-primary w-full" disabled={isLoading}>
+        {isLoading ? 'Creating...' : 'Create Account'}
       </button>
 
       <p className="auth-switch">
-        Already a warrior?{' '}
-        <a href="/login">Login</a>
+        Already have an account?{' '}
+        <a href="/login">Sign in</a>
       </p>
     </form>
   );

@@ -32,7 +32,7 @@ function RealmCard({ realm, index }: RealmCardProps) {
               <div className="progress-fill" style={{ width: `${progress}%` }} />
             </div>
             <span className="progress-text">
-              {realm.dungeonsCompleted}/{realm.totalDungeons} Dungeons
+              {realm.dungeonsCompleted}/{realm.totalDungeons} Levels
             </span>
           </div>
         )}
@@ -87,7 +87,7 @@ export default function RealmMap() {
     <div className="realm-map">
       <div className="realm-header">
         <h1>Choose Your Realm</h1>
-        <p>Complete dungeons to unlock new realms and become a Rails Master!</p>
+        <p>Complete levels to unlock new realms and become a Rails Master!</p>
       </div>
 
       <div className="realm-grid">

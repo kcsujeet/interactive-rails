@@ -22,8 +22,8 @@ export type ModalType =
   | 'help'
   | 'node-config'
   | 'achievements'
-  | 'dungeon-complete'
-  | 'dungeon-failed'
+  | 'level-complete'
+  | 'level-failed'
   | 'confirm'
   | 'tutorial'
   | null;

@@ -7,10 +7,11 @@ import SignupForm from '../components/auth/SignupForm';
   <main class="auth-page">
     <div class="auth-container">
       <a href="/" class="back-link">← Back to Home</a>
-      <div class="auth-card pixel-panel">
+      <div class="auth-card card">
         <div class="auth-header">
-          <span class="logo-icon">⚔️</span>
+          <span class="logo-icon">🔧</span>
           <h1>RailsExpert</h1>
+          <p class="tagline">Master Rails Performance</p>
         </div>
         <SignupForm client:load />
       </div>
@@ -25,6 +26,7 @@ import SignupForm from '../components/auth/SignupForm';
     align-items: center;
     justify-content: center;
     padding: 24px;
+    background: linear-gradient(135deg, var(--color-game-bg) 0%, var(--color-game-surface) 100%);
   }
 
   .auth-container {
@@ -34,16 +36,15 @@ import SignupForm from '../components/auth/SignupForm';
 
   .back-link {
     display: inline-block;
-    font-family: var(--font-pixel);
-    font-size: 0.6rem;
-    color: var(--color-text-dim);
+    font-size: 0.875rem;
+    color: #9ca3af;
     text-decoration: none;
     margin-bottom: 16px;
     transition: color 0.2s;
   }
 
   .back-link:hover {
-    color: var(--color-primary);
+    color: #3b82f6;
   }
 
   .auth-card {
@@ -62,7 +63,16 @@ import SignupForm from '../components/auth/SignupForm';
   }
 
   .auth-header h1 {
-    font-size: 1.2rem;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #f3f4f6;
+    margin: 0 0 8px 0;
+  }
+
+  .tagline {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin: 0;
   }
 
   :global(.auth-form) {
@@ -74,30 +84,38 @@ import SignupForm from '../components/auth/SignupForm';
   :global(.auth-form h2) {
     text-align: center;
     margin-bottom: 8px;
+    font-size: 1.25rem;
+    color: #f3f4f6;
   }
 
   :global(.form-group) {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
   }
 
   :global(.error-message) {
-    background: rgba(233, 69, 96, 0.2);
-    border: 2px solid var(--color-danger);
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid #dc2626;
+    border-radius: 0.5rem;
     padding: 12px;
-    font-size: 0.9rem;
-    color: var(--color-danger);
+    font-size: 0.875rem;
+    color: #fca5a5;
   }
 
   :global(.auth-switch) {
     text-align: center;
-    font-size: 0.9rem;
-    color: var(--color-text-dim);
-    margin-top: 16px;
+    font-size: 0.875rem;
+    color: #9ca3af;
+    margin-top: 8px;
   }
 
   :global(.auth-switch a) {
-    color: var(--color-accent);
+    color: #3b82f6;
+    text-decoration: none;
+  }
+
+  :global(.auth-switch a:hover) {
+    text-decoration: underline;
   }
 </style>

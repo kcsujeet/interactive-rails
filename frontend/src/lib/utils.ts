@@ -56,10 +56,13 @@ export function createElement<K extends keyof HTMLElementTagNameMap>(
 }
 
 /**
- * Formats a dungeon ID to a human-readable name
+ * Formats a level ID to a human-readable name
  */
-export function formatDungeonName(dungeonId: string): string {
-  return dungeonId
+export function formatLevelName(levelId: string): string {
+  return levelId
     .replace(/-/g, ' ')
     .replace(/\b\w/g, (l) => l.toUpperCase());
 }
+
+/** @deprecated Use formatLevelName instead */
+export const formatDungeonName = formatLevelName;

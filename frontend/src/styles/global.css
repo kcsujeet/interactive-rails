@@ -89,6 +89,35 @@
   100% { opacity: 0; transform: translateY(-30px); }
 }
 
+@keyframes slideDown {
+  0% { opacity: 0; transform: translateY(-10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slideDown {
+  animation: slideDown 0.2s ease-out forwards;
+}
+
+/* ============================================
+   LEGACY COMPATIBILITY LAYER
+   Maps old CSS variable names to new design system
+   ============================================ */
+:root {
+  /* Old variable names mapped to new values */
+  --color-bg: var(--color-game-bg);
+  --color-bg-dark: #0a0a14;
+  --color-bg-light: var(--color-game-surface);
+  --color-primary: #ef4444;
+  --color-secondary: #1e3a5f;
+  --color-accent: #00d9ff;
+  --color-gold: #ffd700;
+  --color-danger: #e94560;
+  --color-text: #f0f0f0;
+  --color-text-dim: #888;
+  --font-pixel: var(--font-game);
+  --border-radius: 4px;
+}
+
 /* ============================================
    BASE STYLES
    ============================================ */
@@ -277,7 +306,8 @@ body {
   }
 }
 
-.btn-pixel {
+.btn-pixel,
+.pixel-btn {
   font-family: var(--font-game);
   font-size: 0.75rem;
   text-transform: uppercase;
@@ -290,6 +320,9 @@ body {
   position: relative;
   transition: transform 100ms;
   box-shadow: 0 4px 0 0 #b91c1c, 0 6px 0 0 #000;
+  border-radius: 0;
+  text-decoration: none;
+  display: inline-block;
   &:hover {
     transform: translateY(2px);
     box-shadow: 0 2px 0 0 #b91c1c, 0 4px 0 0 #000;
@@ -298,6 +331,30 @@ body {
     transform: translateY(4px);
     box-shadow: 0 0 0 0 #b91c1c, 0 2px 0 0 #000;
   }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+}
+
+.pixel-btn.secondary {
+  background-color: var(--color-game-surface);
+  box-shadow: 0 4px 0 0 var(--color-game-border), 0 6px 0 0 #000;
+  &:hover {
+    box-shadow: 0 2px 0 0 var(--color-game-border), 0 4px 0 0 #000;
+  }
+  &:active {
+    box-shadow: 0 0 0 0 var(--color-game-border), 0 2px 0 0 #000;
+  }
+}
+
+/* Legacy pixel-panel class */
+.pixel-panel {
+  background-color: var(--color-game-surface);
+  border: 2px solid var(--color-game-border);
+  border-radius: 0;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.3);
 }
 
 /* Cards & Panels */
@@ -429,6 +486,42 @@ body {
 
 .progress-stability .progress-fill {
   background: linear-gradient(to right, #2563eb, #60a5fa);
+}
+
+/* Legacy stat-bar styles */
+.stat-bar {
+  flex: 1;
+  height: 1.25rem;
+  background-color: var(--color-game-border);
+  border-radius: 0;
+  overflow: hidden;
+  position: relative;
+  margin-left: 1rem;
+}
+
+.stat-bar-fill {
+  height: 100%;
+  transition: width 300ms ease-out;
+}
+
+.stat-bar-fill.xp {
+  background: linear-gradient(to right, #16a34a, #4ade80);
+}
+
+.stat-bar-fill.hp {
+  background: linear-gradient(to right, #dc2626, #f87171);
+}
+
+.stat-bar-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.625rem;
+  font-family: var(--font-game);
+  color: white;
+  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
 }
 
 /* ============================================

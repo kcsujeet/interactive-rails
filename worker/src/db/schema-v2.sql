@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS user_achievements (
   achievement_id TEXT NOT NULL,
   -- Achievement metadata
   progress INTEGER DEFAULT 0,
-  is_complete BOOLEAN DEFAULT 0,
+  is_complete INTEGER DEFAULT 0,
   -- Timestamps
   started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   completed_at DATETIME DEFAULT NULL,

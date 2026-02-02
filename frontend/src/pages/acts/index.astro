@@ -1,0 +1,10 @@
+---
+import GameLayout from '../../layouts/GameLayout.astro';
+import ActsListApp from '../../components/pages/ActsListApp';
+---
+
+<GameLayout title="Acts | RailsExpert">
+  <div id="acts-app" class="min-h-[60vh] p-4">
+    <ActsListApp client:load />
+  </div>
+</GameLayout>
