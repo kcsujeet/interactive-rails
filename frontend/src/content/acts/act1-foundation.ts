@@ -188,7 +188,7 @@ const level3CRUD: Level = {
   name: 'CRUD Operations',
   trigger: {
     type: 'new_feature',
-    description: 'Users need to Create, Read, Update, and Delete posts.',
+    description: 'Your Post model exists but the database is empty. Time to learn ActiveRecord.',
   },
   startingPipeline: {
     nodes: [
@@ -197,19 +197,17 @@ const level3CRUD: Level = {
     connections: [],
   },
   problem: {
-    observation: 'Model exists but no way to interact with it.',
-    rootCause: 'No CRUD operations implemented.',
+    observation: 'Model exists but no data in the database.',
+    rootCause: 'Need to learn how to interact with records using ActiveRecord.',
     codeExample: `# CRUD = Create, Read, Update, Delete
-# These are the 7 RESTful actions:
+# The four fundamental database operations:
 
-# index   - GET    /posts      - list all
-# show    - GET    /posts/:id  - show one
-# new     - GET    /posts/new  - form for new
-# create  - POST   /posts      - create new
-# edit    - GET    /posts/:id/edit - form for edit
-# update  - PATCH  /posts/:id  - update existing
-# destroy - DELETE /posts/:id  - delete`,
-    goal: 'Implement all 7 RESTful CRUD actions.',
+Post.create(title: "Hello")  # Create
+Post.all                      # Read (all)
+Post.find(1)                  # Read (one)
+Post.first.update(title: "")  # Update
+Post.last.destroy             # Delete`,
+    goal: 'Execute all CRUD operations in the Rails console.',
     thresholds: {},
   },
   successConditions: [
@@ -218,60 +216,46 @@ const level3CRUD: Level = {
   availableNodes: ['controller', 'view'],
   unlockedNodes: [],
   learningContent: {
-    title: 'RESTful CRUD Operations',
-    conceptExplanation: `REST (Representational State Transfer) provides a standard way to interact with resources.
+    title: 'ActiveRecord CRUD Operations',
+    conceptExplanation: `CRUD stands for Create, Read, Update, Delete - the four fundamental database operations.
 
-**The 7 actions:**
-- index: List all resources
-- show: Display one resource
-- new: Form for creating
-- create: Actually create
-- edit: Form for editing
-- update: Actually update
-- destroy: Delete
+**ActiveRecord methods:**
+- Create: Post.create, Post.new + save
+- Read: Post.all, Post.find, Post.find_by, Post.where
+- Update: post.update, post.save
+- Delete: post.destroy, Post.destroy_all
 
-Rails scaffolds make this easy but understanding the pattern is essential.`,
-    railsCodeExample: `# config/routes.rb
-resources :posts
+Every web app uses these constantly.`,
+    railsCodeExample: `# CREATE - Make new records
+Post.create(title: "Hello", body: "World")
+post = Post.new(title: "Draft")
+post.save
 
-# app/controllers/posts_controller.rb
-class PostsController < ApplicationController
-  def index
-    @posts = Post.all
-  end
+# READ - Fetch records
+Post.all                     # All posts
+Post.find(1)                 # By ID (raises if not found)
+Post.find_by(title: "Hi")    # By attribute (returns nil)
+Post.where(published: true)  # Filter multiple
 
-  def show
-    @post = Post.find(params[:id])
-  end
+# UPDATE - Modify records
+post = Post.find(1)
+post.update(title: "New Title")
 
-  def create
-    @post = Post.new(post_params)
-    if @post.save
-      redirect_to @post
-    else
-      render :new
-    end
-  end
-
-  private
-
-  def post_params
-    params.require(:post).permit(:title, :body)
-  end
-end`,
+# DELETE - Remove records
+post.destroy`,
     commonMistakes: [
-      'Not using strong parameters',
-      'Forgetting to handle failed saves',
-      'Not following RESTful conventions',
+      'Using find when find_by is safer (no exception)',
+      'Forgetting that destroy runs callbacks, delete does not',
+      'Not checking if save/update returned true or false',
     ],
-    whenToUse: 'Every resource needs CRUD operations.',
+    whenToUse: 'Every time you interact with database records.',
     furtherReading: [
-      { title: 'Rails Routing', url: 'https://guides.rubyonrails.org/routing.html' },
+      { title: 'Active Record Basics', url: 'https://guides.rubyonrails.org/active_record_basics.html' },
     ],
   },
   hint: {
     delay: 25,
-    text: 'Implement each CRUD action following RESTful conventions.',
+    text: 'Click the commands to execute them in the Rails console.',
   },
 };
 
