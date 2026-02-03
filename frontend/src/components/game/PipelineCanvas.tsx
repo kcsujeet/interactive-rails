@@ -58,8 +58,8 @@ export function PipelineCanvas({
     <div
       ref={canvasRef}
       data-canvas-bg
-      className={`flex-1 bg-gray-900 relative overflow-hidden ${
-        draggedNodeType ? 'ring-2 ring-blue-500 ring-inset' : ''
+      className={`flex-1 bg-game-bg relative overflow-hidden ${
+        draggedNodeType ? 'ring-2 ring-sky-500 ring-inset' : ''
       } ${pendingConnection ? 'cursor-crosshair' : ''}`}
       onDragOver={onDragOver}
       onDrop={onDrop}
@@ -68,13 +68,12 @@ export function PipelineCanvas({
       onMouseLeave={onMouseUp}
       onClick={onClick}
     >
-      {/* Grid pattern */}
+      {/* Grid pattern - subtle dots */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          backgroundImage:
-            'radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px)',
-          backgroundSize: '40px 40px',
+          backgroundImage: 'radial-gradient(circle, rgba(56,189,248,0.12) 1px, transparent 1px)',
+          backgroundSize: '24px 24px',
         }}
       />
 
@@ -148,7 +147,7 @@ export function PipelineCanvas({
             cx={particle.x}
             cy={particle.y}
             r={3}
-            fill="#f59e0b"
+            fill="#7dd3fc"
             opacity={1 - particle.progress}
           >
             <animate
@@ -202,10 +201,14 @@ export function PipelineCanvas({
       {/* Empty state */}
       {placedNodes.length === 0 && !draggedNodeType && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="text-center">
-            <p className="text-gray-500 text-lg mb-2">Pipeline Canvas</p>
-            <p className="text-gray-600 text-sm mb-1">1. Drag nodes from the palette to build your pipeline</p>
-            <p className="text-gray-600 text-sm">2. Drag from output port (right) to input port (left) to connect</p>
+          <div className="text-center max-w-sm">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-game-surface border border-game-border mb-4">
+              <svg className="w-6 h-6 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+              </svg>
+            </div>
+            <p className="text-white font-medium mb-2">Blueprint Canvas</p>
+            <p className="text-slate-500 text-sm">Drag nodes from the palette to build your pipeline, then connect them.</p>
           </div>
         </div>
       )}
@@ -213,8 +216,8 @@ export function PipelineCanvas({
       {/* Drop indicator */}
       {draggedNodeType && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="text-center bg-blue-900/50 px-6 py-4 rounded-lg border-2 border-dashed border-blue-500">
-            <p className="text-blue-300 text-lg">Drop here to place node</p>
+          <div className="text-center bg-sky-950/80 px-8 py-5 rounded-lg border border-sky-700">
+            <p className="text-sky-300 font-medium">Drop here to place node</p>
           </div>
         </div>
       )}

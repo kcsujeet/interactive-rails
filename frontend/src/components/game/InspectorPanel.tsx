@@ -47,7 +47,7 @@ export function InspectorPanel({
       <button
         type="button"
         onClick={onOpen}
-        className="absolute right-0 top-1/2 -translate-y-1/2 bg-gray-800 text-gray-400 p-2 rounded-l-lg border border-r-0 border-gray-700 hover:text-white z-10"
+        className="absolute right-0 top-1/2 -translate-y-1/2 bg-game-surface text-slate-400 p-2 rounded-l-md border border-r-0 border-game-border hover:text-white z-10"
         aria-label="Open inspector"
       >
         <svg
@@ -67,14 +67,17 @@ export function InspectorPanel({
     placedNodes.length - (initialNodesCount ?? challenge?.initialNodes.length ?? 0);
 
   return (
-    <div className="w-80 bg-gray-800 border-l border-gray-700 overflow-y-auto shrink-0">
+    <div className="w-80 bg-game-surface border-l border-game-border overflow-y-auto shrink-0">
       <div className="p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-white">Inspector</h2>
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <div className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Diagnostics</div>
+            <h2 className="text-sm font-semibold text-white -mt-0.5">Inspector</h2>
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-gray-400 hover:text-white"
+            className="text-slate-500 hover:text-white transition-colors"
             aria-label="Close inspector"
           >
             <svg
@@ -96,22 +99,22 @@ export function InspectorPanel({
 
         {/* Selected node info */}
         {selectedNodeId && (
-          <div className="mb-4 p-3 bg-gray-700 rounded-lg">
-            <h3 className="text-sm font-semibold text-white mb-2">Selected Node</h3>
-            <p className="text-sm text-gray-300 mb-2">
+          <div className="mb-5 p-4 bg-game-bg border border-game-border rounded-lg">
+            <h3 className="text-[10px] font-medium text-slate-500 mb-2 uppercase tracking-wider">Selected Node</h3>
+            <p className="text-sm text-white font-medium mb-3">
               {getNodeInfo(placedNodes.find((n) => n.id === selectedNodeId)?.type || '').name}
             </p>
 
             {/* Label Editor */}
-            <div className="mb-2">
-              <label htmlFor="node-label-input" className="block text-xs text-gray-400 mb-1">
+            <div className="mb-3">
+              <label htmlFor="node-label-input" className="block text-xs text-slate-500 mb-1.5">
                 Label
               </label>
               <input
                 id="node-label-input"
                 type="text"
-                className="w-full bg-gray-800 text-white text-xs border border-gray-600 rounded px-2 py-1 focus:border-blue-500 focus:outline-none"
-                placeholder="Custom Label"
+                className="w-full bg-slate-950 text-white text-sm border border-game-border rounded-md px-3 py-2 focus:border-sky-500 focus:outline-none transition-colors"
+                placeholder="Custom label..."
                 value={placedNodes.find((n) => n.id === selectedNodeId)?.config?.label || ''}
                 onChange={(e) =>
                   onUpdateNode?.(selectedNodeId, {
@@ -127,41 +130,41 @@ export function InspectorPanel({
             <button
               type="button"
               onClick={onDeleteSelected}
-              className="mt-2 text-xs text-red-400 hover:text-red-300"
+              className="text-xs text-rose-400 hover:text-rose-300 transition-colors"
             >
               Delete this node
             </button>
           </div>
         )}
 
-        <div className="space-y-4">
+        <div className="space-y-5">
           <div>
-            <h3 className="text-sm font-semibold text-gray-300 mb-2">Pipeline</h3>
+            <h3 className="text-[10px] font-medium text-slate-500 mb-2 uppercase tracking-wider">Pipeline</h3>
             <div className="grid grid-cols-2 gap-2">
-              <div className="bg-gray-700 rounded p-3">
-                <div className="text-2xl font-bold text-white">{placedNodes.length}</div>
-                <div className="text-xs text-gray-400">nodes</div>
+              <div className="bg-game-bg border border-game-border rounded-md p-3">
+                <div className="text-2xl font-semibold text-white tabular-nums">{placedNodes.length}</div>
+                <div className="text-[10px] text-slate-500 uppercase tracking-wider">nodes</div>
               </div>
-              <div className="bg-gray-700 rounded p-3">
-                <div className="text-2xl font-bold text-white">{connectionsCount}</div>
-                <div className="text-xs text-gray-400">connections</div>
+              <div className="bg-game-bg border border-game-border rounded-md p-3">
+                <div className="text-2xl font-semibold text-white tabular-nums">{connectionsCount}</div>
+                <div className="text-[10px] text-slate-500 uppercase tracking-wider">connections</div>
               </div>
             </div>
           </div>
 
           <div>
-            <h3 className="text-sm font-semibold text-gray-300 mb-2">Queries</h3>
-            <div className="bg-gray-700 rounded p-3">
-              <div className="text-2xl font-bold text-white">
+            <h3 className="text-[10px] font-medium text-slate-500 mb-2 uppercase tracking-wider">Queries</h3>
+            <div className="bg-game-bg border border-game-border rounded-md p-3">
+              <div className="text-2xl font-semibold text-white tabular-nums">
                 {placedNodes.filter((n) => n.type === 'database').length}
               </div>
-              <div className="text-xs text-gray-400">database nodes</div>
+              <div className="text-[10px] text-slate-500 uppercase tracking-wider">database nodes</div>
             </div>
           </div>
 
           {/* Connection tips */}
           {placedNodes.length > 0 && connectionsCount === 0 && !showValidation && (
-            <div className="bg-amber-900/30 border border-amber-700 rounded p-3">
+            <div className="bg-amber-950/40 border border-amber-900 rounded-lg p-4">
               <div className="text-sm text-amber-300 font-medium mb-1">Tip: Connect your nodes</div>
               <div className="text-xs text-amber-200/70">
                 Drag from a node&apos;s right port to another node&apos;s left port to create a
@@ -175,7 +178,7 @@ export function InspectorPanel({
             <button
               type="button"
               onClick={onCheckPipeline}
-              className="w-full px-4 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors"
+              className="w-full px-4 py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-500 transition-colors"
             >
               Check Pipeline
             </button>
@@ -184,36 +187,36 @@ export function InspectorPanel({
           {/* Validation results */}
           {showValidation && lastValidation && (
             <div>
-              <h3 className="text-sm font-semibold text-gray-300 mb-2">Pipeline Status</h3>
+              <h3 className="text-[10px] font-medium text-slate-500 mb-2 uppercase tracking-wider">Pipeline Status</h3>
               <div
-                className={`rounded p-3 border ${
+                className={`rounded-lg p-4 border ${
                   lastValidation.valid
-                    ? 'bg-green-900/30 border-green-700'
-                    : 'bg-red-900/20 border-red-800/50'
+                    ? 'bg-emerald-950/40 border-emerald-900'
+                    : 'bg-rose-950/40 border-rose-900'
                 }`}
               >
                 <div className="flex items-center gap-2 mb-2">
                   <span
-                    className={`text-lg ${lastValidation.valid ? 'text-green-400' : 'text-red-400'}`}
+                    className={`text-lg ${lastValidation.valid ? 'text-emerald-400' : 'text-rose-400'}`}
                   >
                     {lastValidation.valid ? '✓' : '✗'}
                   </span>
                   <span
-                    className={`text-sm font-medium ${lastValidation.valid ? 'text-green-300' : 'text-red-300'}`}
+                    className={`text-sm font-medium ${lastValidation.valid ? 'text-emerald-300' : 'text-rose-300'}`}
                   >
                     {lastValidation.valid ? 'Valid Pipeline!' : 'Invalid Pipeline'}
                   </span>
-                  <span className="ml-auto text-xs text-gray-400">
+                  <span className="ml-auto text-xs text-slate-500 tabular-nums">
                     Score: {lastValidation.score}
                   </span>
                 </div>
                 {lastValidation.errors.length > 0 && (
-                  <ul className="text-xs text-red-300/80 space-y-1 mb-3">
+                  <ul className="text-xs text-rose-300/80 space-y-1.5 mb-3">
                     {lastValidation.errors.slice(0, 4).map((err) => (
-                      <li key={err}>{err}</li>
+                      <li key={err}>• {err}</li>
                     ))}
                     {lastValidation.errors.length > 4 && (
-                      <li className="text-gray-500">
+                      <li className="text-slate-500">
                         ...and {lastValidation.errors.length - 4} more
                       </li>
                     )}
@@ -223,7 +226,7 @@ export function InspectorPanel({
                   <button
                     type="button"
                     onClick={onResetValidation}
-                    className="w-full px-3 py-2 bg-gray-700 text-gray-300 text-sm rounded hover:bg-gray-600"
+                    className="w-full px-3 py-2 bg-game-bg text-slate-300 text-sm font-medium rounded-md border border-game-border hover:bg-game-border/50 transition-colors"
                   >
                     Try Again
                   </button>
@@ -233,20 +236,20 @@ export function InspectorPanel({
           )}
 
           <div>
-            <h3 className="text-sm font-semibold text-gray-300 mb-2">Pipeline Stats</h3>
-            <div className="bg-gray-700/50 rounded p-3 space-y-2">
+            <h3 className="text-[10px] font-medium text-slate-500 mb-2 uppercase tracking-wider">Pipeline Stats</h3>
+            <div className="bg-game-bg border border-game-border rounded-md p-4 space-y-2.5">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-400">Nodes</span>
-                <span className="text-white font-medium">{placedNodes.length}</span>
+                <span className="text-slate-500">Nodes</span>
+                <span className="text-white font-medium tabular-nums">{placedNodes.length}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-400">Connections</span>
-                <span className="text-white font-medium">{connectionsCount}</span>
+                <span className="text-slate-500">Connections</span>
+                <span className="text-white font-medium tabular-nums">{connectionsCount}</span>
               </div>
               {addedNodes > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">Nodes Added</span>
-                  <span className="text-green-400 font-medium">+{addedNodes}</span>
+                  <span className="text-slate-500">Nodes Added</span>
+                  <span className="text-emerald-400 font-medium tabular-nums">+{addedNodes}</span>
                 </div>
               )}
             </div>
@@ -260,7 +263,7 @@ export function InspectorPanel({
                 const stars = lastValidation.score >= 80 ? 3 : lastValidation.score >= 50 ? 2 : 1;
                 onComplete(stars);
               }}
-              className="w-full px-4 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-colors"
+              className="w-full px-4 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-500 transition-colors"
             >
               Complete Challenge
             </button>

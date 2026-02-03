@@ -45,71 +45,78 @@ export function GameTopBar(props: GameTopBarProps | LegacyGameTopBarProps) {
   } = props;
 
   return (
-    <div className="h-14 bg-gray-800 border-b border-gray-700 flex items-center justify-between px-4">
-      <div className="flex items-center gap-4">
-        <h2 className="font-semibold text-white">{level?.name}</h2>
-        <span className="text-sm text-gray-400">
-          Room {currentRoom + 1}/{level?.rooms?.length || 1}
-        </span>
-        <span className="text-sm text-gray-500">
-          {placedNodesCount} nodes, {connectionsCount} connections
-        </span>
+    <div className="h-14 bg-game-surface border-b border-game-border flex items-center justify-between px-5">
+      <div className="flex items-center gap-6">
+        <div>
+          <div className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Session</div>
+          <h2 className="text-sm font-semibold text-white -mt-0.5">{level?.name}</h2>
+        </div>
+        <div className="h-8 w-px bg-game-border" />
+        <div className="flex items-center gap-4 text-sm text-slate-500">
+          <span>Room {currentRoom + 1}/{level?.rooms?.length || 1}</span>
+          <span>{placedNodesCount} nodes</span>
+          <span>{connectionsCount} connections</span>
+        </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-5">
         {/* Stability indicator */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-400">Stability:</span>
-          <div className="w-32 h-3 bg-gray-700 rounded-full overflow-hidden">
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Stability</span>
+          <div className="w-28 h-2 bg-game-bg rounded-full overflow-hidden border border-game-border">
             <div
               className={`h-full transition-all duration-300 ${
                 stability >= 80
-                  ? 'bg-green-500'
+                  ? 'bg-emerald-500'
                   : stability >= 50
                     ? 'bg-amber-500'
-                    : 'bg-red-500'
+                    : 'bg-rose-500'
               }`}
               style={{ width: `${stability}%` }}
             />
           </div>
           <span
-            className={`text-sm font-bold ${
+            className={`text-sm font-semibold tabular-nums ${
               stability >= 80
-                ? 'text-green-400'
+                ? 'text-emerald-400'
                 : stability >= 50
                   ? 'text-amber-400'
-                  : 'text-red-400'
+                  : 'text-rose-400'
             }`}
           >
             {stability}
           </span>
         </div>
 
+        <div className="h-8 w-px bg-game-border" />
+
         {/* Controls */}
-        {gameState === 'playing' ? (
+        <div className="flex items-center gap-2">
+          {gameState === 'playing' ? (
+            <button
+              type="button"
+              onClick={onPause}
+              className="px-3.5 py-1.5 bg-amber-600 text-white text-sm font-medium rounded-md hover:bg-amber-500 transition-colors"
+            >
+              Pause
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onResume}
+              className="px-3.5 py-1.5 bg-emerald-600 text-white text-sm font-medium rounded-md hover:bg-emerald-500 transition-colors"
+            >
+              Resume
+            </button>
+          )}
           <button
             type="button"
-            onClick={onPause}
-            className="px-3 py-1 bg-amber-600 text-white text-sm rounded hover:bg-amber-700"
+            onClick={onExit}
+            className="px-3.5 py-1.5 bg-game-bg text-slate-400 text-sm font-medium rounded-md border border-game-border hover:bg-game-border/50 hover:text-slate-300 transition-colors"
           >
-            Pause
+            Exit
           </button>
-        ) : (
-          <button
-            type="button"
-            onClick={onResume}
-            className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
-          >
-            Resume
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={onExit}
-          className="px-3 py-1 bg-gray-700 text-gray-300 text-sm rounded hover:bg-gray-600"
-        >
-          Exit
-        </button>
+        </div>
       </div>
     </div>
   );

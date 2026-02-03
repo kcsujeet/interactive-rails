@@ -89,16 +89,16 @@ export function PipelineNode({
           data-port="input"
           className={`absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
             pendingConnection && !isConnectionSource
-              ? 'bg-green-500 border-green-300 scale-125 cursor-pointer'
+              ? 'bg-emerald-400 border-emerald-200 scale-125 cursor-pointer'
               : hasInputConnection
-                ? 'bg-gray-600 border-gray-400'
-                : 'bg-gray-700 border-gray-500'
+                ? 'bg-slate-700 border-slate-400'
+                : 'bg-slate-800 border-slate-600'
           }`}
           onMouseUp={(e) => onCompleteConnection(e, node.id)}
         >
           <div
             className={`w-2 h-2 rounded-full ${
-              pendingConnection && !isConnectionSource ? 'bg-white' : 'bg-gray-400'
+              pendingConnection && !isConnectionSource ? 'bg-white' : 'bg-slate-300'
             }`}
           />
         </div>
@@ -110,25 +110,25 @@ export function PipelineNode({
           data-port="output"
           className={`absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all ${
             isConnectionSource
-              ? 'bg-blue-500 border-blue-300 scale-125'
+              ? 'bg-sky-400 border-sky-200 scale-125'
               : hasOutputConnection
-                ? 'bg-gray-600 border-gray-400 hover:bg-blue-600 hover:border-blue-400'
-                : 'bg-gray-700 border-gray-500 hover:bg-blue-600 hover:border-blue-400'
+                ? 'bg-slate-700 border-slate-400 hover:bg-sky-500 hover:border-sky-300'
+                : 'bg-slate-800 border-slate-600 hover:bg-sky-500 hover:border-sky-300'
           }`}
           onMouseDown={(e) => onStartConnection(e, node.id)}
         >
           <div
-            className={`w-2 h-2 rounded-full ${isConnectionSource ? 'bg-white' : 'bg-gray-400'}`}
+            className={`w-2 h-2 rounded-full ${isConnectionSource ? 'bg-white' : 'bg-slate-300'}`}
           />
         </div>
       )}
 
       <div
-        className={`w-32 rounded-lg border-2 overflow-hidden shadow-lg ${
-          isSelected ? 'ring-2 ring-white ring-offset-2 ring-offset-gray-900' : ''
+        className={`w-32 rounded-lg border overflow-hidden ${
+          isSelected ? 'ring-2 ring-sky-400 ring-offset-2 ring-offset-slate-950' : ''
         }`}
         style={{
-          borderColor: isPipelineBroken && node.type === 'database' ? '#6b7280' : nodeInfo.color,
+          borderColor: isPipelineBroken && node.type === 'database' ? '#475569' : `${nodeInfo.color}`,
           opacity: isPipelineBroken && node.type === 'database' ? 0.6 : 1,
         }}
       >
@@ -139,16 +139,16 @@ export function PipelineNode({
           {nodeInfo.name}
           {/* Activity indicator for database */}
           {node.type === 'database' && simulationRunning && !isPipelineBroken && (
-            <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-amber-400 animate-pulse" />
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
           )}
           {node.type === 'database' && isPipelineBroken && (
-            <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-gray-500" />
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-slate-500" />
           )}
         </div>
-        <div className="bg-gray-800 px-3 py-2">
+        <div className="bg-slate-950 px-3 py-2 border-t border-slate-800">
           <div
-            className={`text-xs text-center ${
-              isPipelineBroken && node.type === 'database' ? 'text-gray-500' : 'text-gray-400'
+            className={`text-xs text-center font-mono ${
+              isPipelineBroken && node.type === 'database' ? 'text-slate-600' : 'text-slate-400'
             }`}
           >
             {getNodeLabel()}

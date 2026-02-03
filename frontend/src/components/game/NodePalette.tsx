@@ -52,68 +52,68 @@ export function NodePalette({
   const shouldShowMetrics = showMetrics ?? !!challenge?.initialMetrics;
 
   return (
-    <div className="w-64 bg-gray-800 border-r border-gray-700 overflow-y-auto shrink-0">
+    <div className="w-64 bg-game-surface border-r border-game-border overflow-y-auto shrink-0">
       <div className="p-4">
         {/* Live metrics display */}
         {shouldShowMetrics && (
-          <div className={`mb-4 rounded-lg p-3 border transition-all duration-500 ${
+          <div className={`mb-5 rounded-lg p-4 border transition-all duration-300 ${
             isPipelineBroken
-              ? 'bg-gray-900/50 border-gray-700'
-              : 'bg-gray-900/50 border-gray-600'
+              ? 'bg-game-bg border-slate-700'
+              : 'bg-game-bg border-game-border'
           }`}>
-            <div className={`text-xs font-semibold mb-2 ${
-              isPipelineBroken ? 'text-gray-400' : 'text-blue-400'
+            <div className={`text-[10px] font-medium mb-3 uppercase tracking-wider ${
+              isPipelineBroken ? 'text-slate-500' : 'text-sky-400'
             }`}>
               {isPipelineBroken
                 ? `Pipeline Broken - ${breakReason}`
                 : 'Live Metrics'}
             </div>
 
-            <div className="mb-2">
-              <div className="flex justify-between text-[10px] text-gray-500 mb-1">
+            <div className="mb-3">
+              <div className="flex justify-between text-xs text-slate-500 mb-1">
                 <span>Queries</span>
-                <span className="text-white">
+                <span className="text-white font-medium tabular-nums">
                   {liveMetrics.queryCount.toLocaleString()}
                 </span>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2 text-center">
-              <div className="bg-gray-900/50 rounded p-2">
-                <div className="text-lg font-bold text-white">
-                  {Math.round(liveMetrics.latency)}ms
+              <div className="bg-slate-950 rounded-md p-3 border border-game-border">
+                <div className="text-xl font-semibold text-white tabular-nums">
+                  {Math.round(liveMetrics.latency)}
                 </div>
-                <div className="text-[10px] text-gray-500">latency</div>
+                <div className="text-[10px] text-slate-500 uppercase tracking-wider">ms</div>
               </div>
-              <div className="bg-gray-900/50 rounded p-2">
-                <div className="text-lg font-bold text-white">
+              <div className="bg-slate-950 rounded-md p-3 border border-game-border">
+                <div className="text-xl font-semibold text-white tabular-nums">
                   {Math.round(liveMetrics.dbLoad)}%
                 </div>
-                <div className="text-[10px] text-gray-500">DB load</div>
+                <div className="text-[10px] text-slate-500 uppercase tracking-wider">db load</div>
               </div>
             </div>
 
-            <div className="mt-2 space-y-1">
+            <div className="mt-3 space-y-2">
               <div>
-                <div className="flex justify-between text-[10px] text-gray-500">
+                <div className="flex justify-between text-[10px] text-slate-500 mb-1">
                   <span>CPU</span>
-                  <span>{Math.round(liveMetrics.cpuLoad)}%</span>
+                  <span className="tabular-nums">{Math.round(liveMetrics.cpuLoad)}%</span>
                 </div>
-                <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                <div className="h-1.5 bg-slate-900 rounded-full overflow-hidden">
                   <div
-                    className="h-full transition-all duration-300 bg-blue-500"
+                    className="h-full transition-all duration-300 bg-sky-500"
                     style={{ width: `${liveMetrics.cpuLoad}%` }}
                   />
                 </div>
               </div>
               <div>
-                <div className="flex justify-between text-[10px] text-gray-500">
+                <div className="flex justify-between text-[10px] text-slate-500 mb-1">
                   <span>Database</span>
-                  <span>{Math.round(liveMetrics.dbLoad)}%</span>
+                  <span className="tabular-nums">{Math.round(liveMetrics.dbLoad)}%</span>
                 </div>
-                <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                <div className="h-1.5 bg-slate-900 rounded-full overflow-hidden">
                   <div
-                    className="h-full transition-all duration-300 bg-blue-500"
+                    className="h-full transition-all duration-300 bg-sky-500"
                     style={{ width: `${liveMetrics.dbLoad}%` }}
                   />
                 </div>
@@ -124,21 +124,21 @@ export function NodePalette({
 
         {/* Goal reminder */}
         {goalText && (
-          <div className="mb-4 bg-green-900/20 border border-green-800/50 rounded-lg p-3">
-            <div className="text-xs font-semibold text-green-400 mb-1">Goal</div>
-            <div className="text-xs text-green-200/70">{goalText}</div>
+          <div className="mb-5 bg-emerald-950/40 border border-emerald-900 rounded-lg p-4">
+            <div className="text-[10px] font-medium text-emerald-400 mb-1.5 uppercase tracking-wider">Goal</div>
+            <div className="text-sm text-emerald-200/90 leading-relaxed">{goalText}</div>
           </div>
         )}
 
-        <h2 className="text-lg font-bold text-white mb-2">Add Nodes</h2>
+        <h2 className="text-sm font-semibold text-white mb-1">Blueprint Nodes</h2>
 
         {availableNodeTypes.length === 0 ? (
-          <p className="text-xs text-gray-500 italic">
+          <p className="text-xs text-slate-500 mt-2">
             No nodes to add for this challenge. Focus on the existing pipeline.
           </p>
         ) : (
           <>
-            <p className="text-xs text-gray-400 mb-4">Drag to fix the pipeline</p>
+            <p className="text-xs text-slate-500 mb-4">Drag components onto the canvas</p>
             <div className="space-y-2">
               {nodeTypes
                 .filter(node => availableNodeTypes.includes(node.type))
@@ -148,34 +148,39 @@ export function NodePalette({
                     draggable
                     onDragStart={(e) => onDragStart(e, node.type)}
                     onDragEnd={onDragEnd}
-                    className={`p-3 rounded-lg border-2 cursor-grab active:cursor-grabbing transition-all ${
+                    className={`p-3 rounded-md border cursor-grab active:cursor-grabbing transition-all ${
                       draggedNodeType === node.type
                         ? 'opacity-50 border-dashed'
-                        : 'hover:scale-[1.02]'
+                        : 'hover:translate-x-0.5 hover:shadow-md'
                     }`}
                     style={{
-                      backgroundColor: `${node.color}20`,
-                      borderColor: node.color,
+                      backgroundColor: `${node.color}15`,
+                      borderColor: `${node.color}60`,
                     }}
                   >
-                    <span className="text-sm text-white font-medium">{node.name}</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-white font-medium">{node.name}</span>
+                      <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 8h16M4 16h16" />
+                      </svg>
+                    </div>
                   </div>
                 ))}
             </div>
           </>
         )}
 
-        <div className="mt-6 pt-4 border-t border-gray-700">
-          <h3 className="text-sm font-semibold text-gray-300 mb-2">Actions</h3>
+        <div className="mt-6 pt-5 border-t border-game-border">
+          <h3 className="text-[10px] font-medium text-slate-500 mb-3 uppercase tracking-wider">Actions</h3>
           <div className="space-y-2">
             <button
               type="button"
               onClick={onDeleteSelected}
               disabled={!selectedNodeId}
-              className={`w-full px-3 py-2 text-sm rounded ${
+              className={`w-full px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                 selectedNodeId
-                  ? 'bg-red-600 text-white hover:bg-red-700'
-                  : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                  ? 'bg-rose-600 text-white hover:bg-rose-500'
+                  : 'bg-game-bg text-slate-600 border border-game-border cursor-not-allowed'
               }`}
             >
               Delete Selected
@@ -184,10 +189,10 @@ export function NodePalette({
               type="button"
               onClick={onClearConnections}
               disabled={connectionsCount === 0}
-              className={`w-full px-3 py-2 text-sm rounded ${
+              className={`w-full px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                 connectionsCount > 0
-                  ? 'bg-amber-600 text-white hover:bg-amber-700'
-                  : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                  ? 'bg-amber-600 text-white hover:bg-amber-500'
+                  : 'bg-game-bg text-slate-600 border border-game-border cursor-not-allowed'
               }`}
             >
               Clear Connections
@@ -196,10 +201,10 @@ export function NodePalette({
               type="button"
               onClick={onClearAll}
               disabled={placedNodesCount === 0}
-              className={`w-full px-3 py-2 text-sm rounded ${
+              className={`w-full px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                 placedNodesCount > 0
-                  ? 'bg-gray-600 text-white hover:bg-gray-500'
-                  : 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                  ? 'bg-slate-700 text-white hover:bg-slate-600'
+                  : 'bg-game-bg text-slate-600 border border-game-border cursor-not-allowed'
               }`}
             >
               Clear All
@@ -207,13 +212,13 @@ export function NodePalette({
           </div>
         </div>
 
-        <div className="mt-6 pt-4 border-t border-gray-700">
-          <h3 className="text-sm font-semibold text-gray-300 mb-2">How to Connect</h3>
-          <div className="text-xs text-gray-400 space-y-1">
-            <p>Drag from right port to left port</p>
-            <p>Click a connection line to delete it</p>
-            <p>Request has no input port</p>
-            <p>Response has no output port</p>
+        <div className="mt-6 pt-5 border-t border-game-border">
+          <h3 className="text-[10px] font-medium text-slate-500 mb-2 uppercase tracking-wider">How To Connect</h3>
+          <div className="text-xs text-slate-500 space-y-1.5">
+            <p>• Drag from right port to left port</p>
+            <p>• Click a connection line to delete it</p>
+            <p>• Request has no input port</p>
+            <p>• Response has no output port</p>
           </div>
         </div>
       </div>

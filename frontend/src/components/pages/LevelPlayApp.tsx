@@ -5,7 +5,8 @@
  */
 
 import { useEffect, useState } from 'react';
-import { getActForLevel, getLevel } from '../../content/acts';
+import { getActForLevel, getLevel, getNextLevel } from '../../content/acts';
+import { completeLevel as completeLevelProgress } from '../../lib/progress';
 import {
   BriefingScreen,
   CompletionScreen,
@@ -257,9 +258,10 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
         const connectedNodes = placedNodes.filter((n) => connectedIds.has(n.id));
         const dbChoice = connectedNodes.find((n) => n.type === 'postgres' || n.type === 'sqlite')
           ?.type as 'postgres' | 'sqlite';
-        const feChoice = connectedNodes.find((n) => n.type === 'react' || n.type === 'erb')?.type as
+        const feChoice = connectedNodes.find((n) => n.type === 'react' || n.type === 'erb' || n.type === 'hotwire')?.type as
           | 'react'
-          | 'erb';
+          | 'erb'
+          | 'hotwire';
 
         if (dbChoice && feChoice) {
           stackChoices = { database: dbChoice, frontend: feChoice };
@@ -267,25 +269,21 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
         }
       }
 
-      const response = await fetch(`/api/pipeline/levels/${levelId}/complete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          stars,
-          finalStability: stability,
-          timeToComplete: 300,
-          stackChoices, // Send this to the backend
-          finalMetrics: {
-            avgLatency: 50,
-            queriesPerRequest: 3,
-            cacheHitRate: 80,
-            errorRate: 0,
-          },
-        }),
+      const result = await completeLevelProgress({
+        levelId,
+        stars,
+        finalStability: stability,
+        timeToComplete: 300,
+        stackChoices,
+        finalMetrics: {
+          avgLatency: 50,
+          queriesPerRequest: 3,
+          cacheHitRate: 80,
+          errorRate: 0,
+        },
       });
 
-      if (response.ok) {
+      if (result.success) {
         setGameState('completed');
       }
     } catch (err) {
@@ -296,7 +294,7 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 if (loading) {
   return (
       <div className="h-full flex items-center justify-center">
-        <div className="text-lg text-gray-400">Loading level...</div>
+        <div className="text-sm text-slate-500">Loading level...</div>
       </div>
     );
 }
@@ -313,8 +311,16 @@ if (gameState === 'briefing' && levelData) {
 }
 
 if (gameState === 'completed') {
+  const nextLevel = getNextLevel(levelId);
   return (
-      <CompletionScreen levelName={levelData?.name || ''} stars={earnedStars} onExit={exitLevel} />
+      <CompletionScreen
+        levelName={levelData?.name || ''}
+        stars={earnedStars}
+        onExit={exitLevel}
+        learningContent={level?.learningContent}
+        nextLevelId={nextLevel?.id}
+        isCapstone={level?.isCapstone}
+      />
     );
 }
 
@@ -326,24 +332,20 @@ if ((gameState === 'playing' || gameState === 'paused') && CustomLevelComponent)
       onComplete={async (data) => {
         const stars = data?.stars ?? 3;
         try {
-          const response = await fetch(`/api/pipeline/levels/${levelId}/complete`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({
-              stars,
-              finalStability: 100,
-              timeToComplete: 120,
-              finalMetrics: {
-                avgLatency: 0,
-                queriesPerRequest: 0,
-                cacheHitRate: 0,
-                errorRate: 0,
-              },
-            }),
+          const result = await completeLevelProgress({
+            levelId,
+            stars,
+            finalStability: 100,
+            timeToComplete: 120,
+            finalMetrics: {
+              avgLatency: 0,
+              queriesPerRequest: 0,
+              cacheHitRate: 0,
+              errorRate: 0,
+            },
           });
 
-          if (response.ok) {
+          if (result.success) {
             setEarnedStars(stars);
             setGameState('completed');
           }
