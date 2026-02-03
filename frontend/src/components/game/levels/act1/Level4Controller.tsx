@@ -235,21 +235,36 @@ end`;
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-8 overflow-auto">
-          <div className="max-w-2xl mx-auto">
-            {/* Router explanation */}
-            <div className="text-center mb-8">
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-900/30 border border-amber-600 rounded-lg">
-                <span className="text-amber-400 font-mono text-sm">config/routes.rb</span>
-                <span className="text-gray-400 text-sm">maps URLs to controller actions</span>
+        <div className="flex-1 relative bg-gray-950 p-6 overflow-auto">
+          <div className="max-w-4xl mx-auto">
+            {/* Header with file paths */}
+            <div className="grid grid-cols-2 gap-4 mb-2">
+              <div className="text-center">
+                <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-900/30 border border-amber-600/50 rounded-lg text-xs">
+                  <span className="text-amber-400 font-mono">config/routes.rb</span>
+                </span>
+              </div>
+              <div className="text-center">
+                <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-900/30 border border-blue-600/50 rounded-lg text-xs">
+                  <span className="text-blue-400 font-mono">app/controllers/posts_controller.rb</span>
+                </span>
               </div>
             </div>
 
-            {/* Routes Table */}
+            {/* Two-column route → controller mapping */}
             <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <span className="text-white font-semibold">HTTP Routes</span>
+              {/* Column Headers */}
+              <div className="grid grid-cols-2 bg-gray-800 border-b border-gray-700">
+                <div className="px-4 py-3 border-r border-gray-700">
+                  <span className="text-white font-semibold">HTTP Routes</span>
+                </div>
+                <div className="px-4 py-3 flex items-center gap-2">
+                  <span className="w-6 h-6 rounded bg-blue-600 flex items-center justify-center text-white font-bold text-xs">C</span>
+                  <span className="text-white font-semibold">PostsController</span>
+                </div>
               </div>
+
+              {/* Route → Action rows */}
               <div className="divide-y divide-gray-800">
                 {routes.map(route => {
                   const isCorrect = route.action === route.correctAction;
@@ -258,92 +273,111 @@ end`;
                   return (
                     <div
                       key={route.id}
-                      onDragOver={e => {
-                        e.preventDefault();
-                        setDragOverRoute(route.id);
-                      }}
-                      onDragLeave={() => setDragOverRoute(null)}
-                      onDrop={() => handleDrop(route.id)}
-                      className={`p-4 flex items-center gap-4 transition-colors ${
-                        dragOverRoute === route.id ? 'bg-blue-900/20' : ''
-                      }`}
+                      className="grid grid-cols-2"
                     >
-                      {/* HTTP Method */}
-                      <span
-                        className="px-2 py-1 rounded text-xs font-bold w-16 text-center"
-                        style={{
-                          backgroundColor: `${METHOD_COLORS[route.method]}20`,
-                          color: METHOD_COLORS[route.method],
+                      {/* Left: Route */}
+                      <div
+                        onDragOver={e => {
+                          e.preventDefault();
+                          setDragOverRoute(route.id);
                         }}
+                        onDragLeave={() => setDragOverRoute(null)}
+                        onDrop={() => handleDrop(route.id)}
+                        className={`p-4 flex items-center gap-3 border-r border-gray-700 transition-colors ${
+                          dragOverRoute === route.id ? 'bg-blue-900/20' : ''
+                        }`}
                       >
-                        {route.method}
-                      </span>
-
-                      {/* Path */}
-                      <span className="font-mono text-sm text-gray-300 w-32">{route.path}</span>
-
-                      {/* Arrow */}
-                      <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                      </svg>
-
-                      {/* Action slot */}
-                      {route.action ? (
-                        <div
-                          className={`flex-1 flex items-center justify-between p-2 rounded border ${
-                            isCorrect
-                              ? 'bg-green-900/30 border-green-600'
-                              : 'bg-red-900/30 border-red-600'
-                          }`}
+                        {/* HTTP Method */}
+                        <span
+                          className="px-2 py-1 rounded text-xs font-bold w-14 text-center shrink-0"
+                          style={{
+                            backgroundColor: `${METHOD_COLORS[route.method]}20`,
+                            color: METHOD_COLORS[route.method],
+                          }}
                         >
-                          <span className={`font-mono text-sm ${isCorrect ? 'text-green-400' : 'text-red-400'}`}>
-                            posts#{assignedAction?.name}
-                          </span>
-                          <button
-                            onClick={() => clearRoute(route.id)}
-                            className="text-gray-400 hover:text-white transition-colors"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </div>
-                      ) : (
-                        <div className={`flex-1 p-3 rounded border-2 border-dashed text-center text-sm ${
-                          dragOverRoute === route.id
-                            ? 'border-blue-500 text-blue-400'
-                            : 'border-gray-600 text-gray-500'
-                        }`}>
-                          Drop action here
-                        </div>
-                      )}
+                          {route.method}
+                        </span>
 
-                      {/* Status indicator */}
-                      {isCorrect && (
-                        <svg className="w-5 h-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        {/* Path */}
+                        <span className="font-mono text-sm text-gray-300">{route.path}</span>
+
+                        {/* Arrow */}
+                        <svg className="w-5 h-5 text-gray-600 shrink-0 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                         </svg>
-                      )}
+
+                        {/* Action slot (drop zone) */}
+                        {route.action ? (
+                          <div
+                            className={`flex items-center gap-2 px-2 py-1 rounded border shrink-0 ${
+                              isCorrect
+                                ? 'bg-green-900/30 border-green-600'
+                                : 'bg-red-900/30 border-red-600'
+                            }`}
+                          >
+                            <span className={`font-mono text-xs ${isCorrect ? 'text-green-400' : 'text-red-400'}`}>
+                              #{assignedAction?.name}
+                            </span>
+                            <button
+                              onClick={() => clearRoute(route.id)}
+                              className="text-gray-400 hover:text-white transition-colors"
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        ) : (
+                          <div className={`px-3 py-1 rounded border-2 border-dashed text-xs shrink-0 ${
+                            dragOverRoute === route.id
+                              ? 'border-blue-500 text-blue-400'
+                              : 'border-gray-600 text-gray-500'
+                          }`}>
+                            drop
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Right: Controller Action */}
+                      <div className={`p-4 transition-all ${
+                        route.action
+                          ? isCorrect
+                            ? 'bg-green-900/10'
+                            : 'bg-red-900/10'
+                          : 'bg-gray-900/50'
+                      }`}>
+                        {route.action && assignedAction ? (
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className={`font-mono text-sm font-semibold ${isCorrect ? 'text-green-400' : 'text-red-400'}`}>
+                                def {assignedAction.name}
+                              </span>
+                              {isCorrect && (
+                                <svg className="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              )}
+                            </div>
+                            <code className="text-xs text-gray-400 font-mono pl-4 block">
+                              {assignedAction.code}
+                            </code>
+                            <span className="text-xs text-gray-600 font-mono pl-4 block">end</span>
+                          </div>
+                        ) : (
+                          <div className="text-gray-600 text-sm italic">
+                            No action mapped
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
               </div>
             </div>
 
-            {/* Controller Box */}
-            <div className="mt-8 bg-gray-900 rounded-xl border-2 border-blue-500 overflow-hidden">
-              <div className="bg-blue-900/40 px-4 py-3 border-b border-blue-500/50 flex items-center gap-3">
-                <span className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-lg">
-                  C
-                </span>
-                <div>
-                  <div className="text-white font-semibold">PostsController</div>
-                  <div className="text-blue-300 text-xs">app/controllers/posts_controller.rb</div>
-                </div>
-              </div>
-              <div className="p-4 text-sm text-gray-400">
-                Receives requests from the router and calls the appropriate action method.
-              </div>
+            {/* Hint */}
+            <div className="mt-4 text-center text-gray-500 text-sm">
+              Drag actions from the left panel to map each route to its controller action
             </div>
           </div>
         </div>
