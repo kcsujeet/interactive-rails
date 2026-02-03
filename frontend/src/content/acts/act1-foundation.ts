@@ -1,8 +1,8 @@
 /**
- * Act I: The Foundation
- * "Getting it Running."
+ * Act 1: Rails Fundamentals
+ * "Building the Foundation"
  *
- * Levels 1-5: Project Setup, MVC, Associations, Persistence, Security
+ * Levels 1-8: Stack Choice, Model, CRUD, Controller, Views, MVC Pipeline, Persistence, Associations
  */
 
 import type { Act, Level } from '../../components/game/types';
@@ -18,7 +18,7 @@ const level1StackChoice: Level = {
   name: 'The Stack Choice',
   trigger: {
     type: 'initialization',
-    description: 'Day 1. You are initializing the repository. Your architectural choices today will determine your scaling limits in Act IV.',
+    description: 'Day 1. You are initializing the repository. Your architectural choices today will determine your scaling limits later.',
   },
   startingPipeline: {
     nodes: [
@@ -70,14 +70,14 @@ rails new myapp                        # Hotwire/ERB (monolithic)`,
     conceptExplanation: `Your initial technology choices cascade throughout the application lifecycle:
 
 **PostgreSQL vs SQLite:**
-- PostgreSQL: Production-ready, supports advanced features like sharding (Level 22)
+- PostgreSQL: Production-ready, supports advanced features like sharding
 - SQLite: Simple file-based DB, great for development, but cannot scale horizontally
 
 **React vs Hotwire:**
 - React: Requires a separate API layer (--api flag), more complex but flexible
 - Hotwire: Monolithic approach, simpler architecture, Rails-native
 
-These choices are permanent. SQLite users will face limitations in Act IV.`,
+These choices affect what you can do later in the curriculum.`,
     railsCodeExample: `# PostgreSQL setup
 rails new myapp --database=postgresql
 
@@ -104,17 +104,372 @@ production:
 };
 
 // ============================================
-// Level 2: The First Request (MVC)
+// Level 2: The Model
 // ============================================
 
-const level2FirstRequest: Level = {
-  id: 'act1-level2-first-request',
+const level2Model: Level = {
+  id: 'act1-level2-model',
   actId: 1,
   levelNumber: 2,
-  name: 'The First Request',
+  name: 'The Model',
+  trigger: {
+    type: 'new_feature',
+    description: 'Time to create your first data model. What does a Post look like?',
+  },
+  startingPipeline: {
+    nodes: [],
+    connections: [],
+  },
+  problem: {
+    observation: 'Empty application with no data structure.',
+    rootCause: 'No models defined yet.',
+    codeExample: `# We need to define what data looks like
+# rails generate model Post title:string body:text
+
+class Post < ApplicationRecord
+  # What validations should we add?
+  # What attributes does it have?
+end`,
+    goal: 'Design the Post model with appropriate attributes and validations.',
+    thresholds: {},
+  },
+  successConditions: [
+    { type: 'node_present', nodeType: 'model' },
+  ],
+  availableNodes: ['model'],
+  unlockedNodes: [],
+  learningContent: {
+    title: 'ActiveRecord Models',
+    conceptExplanation: `Models are the M in MVC. They represent your data and business logic.
+
+**Key concepts:**
+- Models map to database tables
+- Validations ensure data integrity
+- Callbacks hook into the lifecycle
+
+Each model inherits from ApplicationRecord which gives you all of ActiveRecord's magic.`,
+    railsCodeExample: `# app/models/post.rb
+class Post < ApplicationRecord
+  validates :title, presence: true, length: { maximum: 255 }
+  validates :body, presence: true
+
+  before_save :normalize_title
+
+  private
+
+  def normalize_title
+    self.title = title.titleize
+  end
+end`,
+    commonMistakes: [
+      'Not adding validations',
+      'Putting too much logic in models (fat models)',
+      'Forgetting database indexes',
+    ],
+    whenToUse: 'Create a model for each entity in your domain.',
+    furtherReading: [
+      { title: 'Active Record Basics', url: 'https://guides.rubyonrails.org/active_record_basics.html' },
+    ],
+  },
+  hint: {
+    delay: 20,
+    text: 'Define the attributes and validations for your Post model.',
+  },
+};
+
+// ============================================
+// Level 3: CRUD Operations
+// ============================================
+
+const level3CRUD: Level = {
+  id: 'act1-level3-crud',
+  actId: 1,
+  levelNumber: 3,
+  name: 'CRUD Operations',
+  trigger: {
+    type: 'new_feature',
+    description: 'Users need to Create, Read, Update, and Delete posts.',
+  },
+  startingPipeline: {
+    nodes: [
+      { id: 'model-node', type: 'model', x: 400, y: 300, locked: true, config: { label: 'Post' } },
+    ],
+    connections: [],
+  },
+  problem: {
+    observation: 'Model exists but no way to interact with it.',
+    rootCause: 'No CRUD operations implemented.',
+    codeExample: `# CRUD = Create, Read, Update, Delete
+# These are the 7 RESTful actions:
+
+# index   - GET    /posts      - list all
+# show    - GET    /posts/:id  - show one
+# new     - GET    /posts/new  - form for new
+# create  - POST   /posts      - create new
+# edit    - GET    /posts/:id/edit - form for edit
+# update  - PATCH  /posts/:id  - update existing
+# destroy - DELETE /posts/:id  - delete`,
+    goal: 'Implement all 7 RESTful CRUD actions.',
+    thresholds: {},
+  },
+  successConditions: [
+    { type: 'crud_complete', modelType: 'Post' },
+  ],
+  availableNodes: ['controller', 'view'],
+  unlockedNodes: [],
+  learningContent: {
+    title: 'RESTful CRUD Operations',
+    conceptExplanation: `REST (Representational State Transfer) provides a standard way to interact with resources.
+
+**The 7 actions:**
+- index: List all resources
+- show: Display one resource
+- new: Form for creating
+- create: Actually create
+- edit: Form for editing
+- update: Actually update
+- destroy: Delete
+
+Rails scaffolds make this easy but understanding the pattern is essential.`,
+    railsCodeExample: `# config/routes.rb
+resources :posts
+
+# app/controllers/posts_controller.rb
+class PostsController < ApplicationController
+  def index
+    @posts = Post.all
+  end
+
+  def show
+    @post = Post.find(params[:id])
+  end
+
+  def create
+    @post = Post.new(post_params)
+    if @post.save
+      redirect_to @post
+    else
+      render :new
+    end
+  end
+
+  private
+
+  def post_params
+    params.require(:post).permit(:title, :body)
+  end
+end`,
+    commonMistakes: [
+      'Not using strong parameters',
+      'Forgetting to handle failed saves',
+      'Not following RESTful conventions',
+    ],
+    whenToUse: 'Every resource needs CRUD operations.',
+    furtherReading: [
+      { title: 'Rails Routing', url: 'https://guides.rubyonrails.org/routing.html' },
+    ],
+  },
+  hint: {
+    delay: 25,
+    text: 'Implement each CRUD action following RESTful conventions.',
+  },
+};
+
+// ============================================
+// Level 4: The Controller
+// ============================================
+
+const level4Controller: Level = {
+  id: 'act1-level4-controller',
+  actId: 1,
+  levelNumber: 4,
+  name: 'The Controller',
   trigger: {
     type: 'incident',
-    description: 'The server is booting, but localhost:3000 is hitting a 404 Error.',
+    description: 'Requests are coming in but nothing happens. We need a traffic director.',
+  },
+  startingPipeline: {
+    nodes: [
+      { id: 'request-node', type: 'request', x: 100, y: 250, locked: true },
+      { id: 'model-node', type: 'model', x: 500, y: 250, locked: true, config: { label: 'Post' } },
+    ],
+    connections: [],
+  },
+  problem: {
+    observation: 'Requests come in but have nowhere to go.',
+    rootCause: 'No controller to handle the request.',
+    codeExample: `# Requests need a controller to:
+# 1. Receive the request
+# 2. Interact with models
+# 3. Prepare data for views
+# 4. Send the response
+
+class PostsController < ApplicationController
+  def index
+    @posts = Post.all  # Talk to model
+  end                   # Render view automatically
+end`,
+    goal: 'Create a controller that connects requests to models.',
+    thresholds: {},
+  },
+  successConditions: [
+    { type: 'node_present', nodeType: 'controller' },
+    { type: 'connection', sourceType: 'request', targetType: 'controller' },
+    { type: 'connection', sourceType: 'controller', targetType: 'model' },
+  ],
+  availableNodes: ['router', 'controller'],
+  unlockedNodes: [],
+  learningContent: {
+    title: 'Rails Controllers',
+    conceptExplanation: `Controllers are the C in MVC. They orchestrate the request/response cycle.
+
+**Responsibilities:**
+- Receive HTTP requests
+- Parse parameters
+- Call models for data
+- Prepare instance variables for views
+- Render responses
+
+Keep controllers thin! They should delegate to models and services.`,
+    railsCodeExample: `# app/controllers/posts_controller.rb
+class PostsController < ApplicationController
+  before_action :set_post, only: [:show, :edit, :update, :destroy]
+
+  def index
+    @posts = Post.all
+  end
+
+  def show
+    # @post already set by before_action
+  end
+
+  private
+
+  def set_post
+    @post = Post.find(params[:id])
+  end
+
+  def post_params
+    params.require(:post).permit(:title, :body)
+  end
+end`,
+    commonMistakes: [
+      'Fat controllers with too much logic',
+      'Not using before_action for common setup',
+      'Querying database in views instead of controller',
+    ],
+    whenToUse: 'One controller per resource, following RESTful conventions.',
+    furtherReading: [
+      { title: 'Action Controller Overview', url: 'https://guides.rubyonrails.org/action_controller_overview.html' },
+    ],
+  },
+  hint: {
+    delay: 20,
+    text: 'Add a controller between the request and the model.',
+  },
+};
+
+// ============================================
+// Level 5: Views
+// ============================================
+
+const level5Views: Level = {
+  id: 'act1-level5-views',
+  actId: 1,
+  levelNumber: 5,
+  name: 'Views',
+  trigger: {
+    type: 'incident',
+    description: 'Data loads but users see nothing. We need to render HTML.',
+  },
+  startingPipeline: {
+    nodes: [
+      { id: 'request-node', type: 'request', x: 80, y: 250, locked: true },
+      { id: 'router-node', type: 'router', x: 200, y: 250, locked: true },
+      { id: 'controller-node', type: 'controller', x: 340, y: 250, locked: true },
+      { id: 'model-node', type: 'model', x: 500, y: 250, locked: true, config: { label: 'Post' } },
+    ],
+    connections: [
+      { id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'router-node' },
+      { id: 'c2', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
+      { id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
+    ],
+  },
+  problem: {
+    observation: 'Controller returns data but users see a blank page.',
+    rootCause: 'No view templates to render the data.',
+    codeExample: `# Controller sets instance variables:
+def index
+  @posts = Post.all
+end
+
+# But we need a view to display them:
+# app/views/posts/index.html.erb
+<h1>Posts</h1>
+<% @posts.each do |post| %>
+  <p><%= post.title %></p>
+<% end %>`,
+    goal: 'Add views to render the data as HTML.',
+    thresholds: {},
+  },
+  successConditions: [
+    { type: 'node_present', nodeType: 'view' },
+    { type: 'node_present', nodeType: 'response' },
+    { type: 'connection', sourceType: 'model', targetType: 'view' },
+  ],
+  availableNodes: ['view', 'response', 'database'],
+  unlockedNodes: [],
+  learningContent: {
+    title: 'Rails Views & ERB',
+    conceptExplanation: `Views are the V in MVC. They render data into HTML.
+
+**ERB (Embedded Ruby):**
+- <%= %> outputs the result
+- <% %> executes without output
+- Partials with _filename.html.erb
+- Layouts wrap views
+
+Views should be dumb! No complex logic, just display data.`,
+    railsCodeExample: `<!-- app/views/posts/index.html.erb -->
+<h1>All Posts</h1>
+
+<% @posts.each do |post| %>
+  <article>
+    <h2><%= link_to post.title, post %></h2>
+    <p><%= truncate(post.body, length: 100) %></p>
+    <small>Posted <%= time_ago_in_words(post.created_at) %> ago</small>
+  </article>
+<% end %>
+
+<%= link_to "New Post", new_post_path %>`,
+    commonMistakes: [
+      'Complex logic in views',
+      'N+1 queries in view loops',
+      'Not using partials for reusability',
+    ],
+    whenToUse: 'Create a view for each controller action that renders HTML.',
+    furtherReading: [
+      { title: 'Action View Overview', url: 'https://guides.rubyonrails.org/action_view_overview.html' },
+    ],
+  },
+  hint: {
+    delay: 20,
+    text: 'Add a View node to render data and a Response node to send it back.',
+  },
+};
+
+// ============================================
+// Level 6: The MVC Pipeline
+// ============================================
+
+const level6MVCPipeline: Level = {
+  id: 'act1-level6-mvc-pipeline',
+  actId: 1,
+  levelNumber: 6,
+  name: 'The MVC Pipeline',
+  trigger: {
+    type: 'incident',
+    description: 'Time to connect everything. Build the complete request cycle.',
   },
   startingPipeline: {
     nodes: [
@@ -123,19 +478,17 @@ const level2FirstRequest: Level = {
     connections: [],
   },
   problem: {
-    observation: 'A Request node is firing red particles into the void. They disappear with a "poof".',
-    rootCause: 'No MVC pipeline exists to handle the request.',
-    codeExample: `# Current state: Request goes nowhere
-# GET /posts => 404 Not Found
-
-# You need to build:
-# 1. Router - maps URL to controller
-# 2. Controller - handles request logic
-# 3. Model - represents data
-# 4. Database - stores data
-# 5. View - renders response
-# 6. Response - sends back to client`,
-    goal: 'Build the MVC pipeline. Connect Request to Response through the proper Rails components.',
+    observation: 'Request particles fire but vanish into the void.',
+    rootCause: 'No complete MVC pipeline.',
+    codeExample: `# The complete Rails request cycle:
+# 1. Request comes in
+# 2. Router maps URL to controller#action
+# 3. Controller handles logic
+# 4. Model queries/persists data
+# 5. Database stores data
+# 6. View renders HTML
+# 7. Response sent to client`,
+    goal: 'Build a complete MVC pipeline from Request to Response.',
     thresholds: {},
   },
   successConditions: [
@@ -145,73 +498,156 @@ const level2FirstRequest: Level = {
     { type: 'node_present', nodeType: 'database' },
     { type: 'node_present', nodeType: 'view' },
     { type: 'node_present', nodeType: 'response' },
-    { type: 'connection', sourceType: 'request', targetType: 'router' },
-    { type: 'connection', sourceType: 'router', targetType: 'controller' },
-    { type: 'connection', sourceType: 'controller', targetType: 'model' },
-    { type: 'connection', sourceType: 'model', targetType: 'database' },
-    { type: 'connection', sourceType: 'database', targetType: 'view' },
-    { type: 'connection', sourceType: 'view', targetType: 'response' },
+    { type: 'pipeline_complete' },
   ],
   availableNodes: ['router', 'controller', 'model', 'database', 'view', 'response'],
   unlockedNodes: [],
   learningContent: {
-    title: 'The Rails Request/Response Cycle',
-    conceptExplanation: `Every Rails request follows the MVC pattern:
+    title: 'The Complete MVC Pipeline',
+    conceptExplanation: `This is the foundation of every Rails application.
 
-1. **Request** → Browser sends HTTP request
-2. **Router** → routes.rb maps URL to controller action
-3. **Controller** → ApplicationController handles logic
-4. **Model** → ActiveRecord queries data
-5. **Database** → PostgreSQL/SQLite stores data
-6. **View** → ERB template renders HTML
-7. **Response** → HTML sent back to browser
+**Request Flow:**
+Request → Router → Controller → Model → Database
+                                ↓
+Response ← View ← Controller ←─┘
 
-This is the foundation of every Rails application.`,
-    railsCodeExample: `# config/routes.rb
-Rails.application.routes.draw do
-  resources :posts
+Understanding this flow is essential for debugging and optimization.`,
+    railsCodeExample: `# 1. Router (config/routes.rb)
+get '/posts', to: 'posts#index'
+
+# 2. Controller (app/controllers/posts_controller.rb)
+def index
+  @posts = Post.all
 end
 
-# app/controllers/posts_controller.rb
-class PostsController < ApplicationController
-  def index
-    @posts = Post.all
-  end
+# 3. Model (app/models/post.rb)
+class Post < ApplicationRecord
 end
 
-# app/views/posts/index.html.erb
-<h1>Posts</h1>
-<% @posts.each do |post| %>
-  <p><%= post.title %></p>
-<% end %>`,
+# 4. View (app/views/posts/index.html.erb)
+<%= @posts.each { |p| p.title } %>`,
     commonMistakes: [
-      'Skipping the router and going directly to controller',
-      'Querying database directly in views',
-      'Not understanding the request lifecycle',
+      'Skipping layers (controller querying database directly)',
+      'Circular dependencies',
+      'Not following conventions',
     ],
-    whenToUse: 'Every single Rails request follows this pattern.',
+    whenToUse: 'Every Rails request follows this pattern.',
     furtherReading: [
-      { title: 'Rails Routing', url: 'https://guides.rubyonrails.org/routing.html' },
+      { title: 'Rails Guides', url: 'https://guides.rubyonrails.org/' },
     ],
   },
   hint: {
-    delay: 20,
-    text: 'Drag nodes from the palette. Connect them: Request → Router → Controller → Model → Database → View → Response',
+    delay: 30,
+    text: 'Connect: Request → Router → Controller → Model → Database → View → Response',
   },
 };
 
 // ============================================
-// Level 3: Semantic Associations
+// Level 7: Persistence
 // ============================================
 
-const level3Associations: Level = {
-  id: 'act1-level3-associations',
+const level7Persistence: Level = {
+  id: 'act1-level7-persistence',
   actId: 1,
-  levelNumber: 3,
-  name: 'Semantic Associations',
+  levelNumber: 7,
+  name: 'Persistence',
+  trigger: {
+    type: 'incident',
+    description: 'Users are complaining their posts vanish when the server restarts.',
+  },
+  startingPipeline: {
+    nodes: [
+      { id: 'request-node', type: 'request', x: 80, y: 250, locked: true },
+      { id: 'router-node', type: 'router', x: 200, y: 250, locked: true },
+      { id: 'controller-node', type: 'controller', x: 340, y: 250, locked: true },
+      { id: 'model-node', type: 'model', x: 500, y: 250, locked: true, config: { label: 'Post' } },
+      { id: 'view-node', type: 'view', x: 660, y: 250, locked: true },
+      { id: 'response-node', type: 'response', x: 820, y: 250, locked: true },
+    ],
+    connections: [
+      { id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'router-node' },
+      { id: 'c2', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
+      { id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
+      { id: 'c4', sourceNodeId: 'model-node', targetNodeId: 'view-node' },
+      { id: 'c5', sourceNodeId: 'view-node', targetNodeId: 'response-node' },
+    ],
+  },
+  problem: {
+    observation: 'Models glow Blue (Transient). Data disappears on restart.',
+    rootCause: 'Models are not connected to persistent storage.',
+    codeExample: `# Current state: Data lives in memory only
+@posts = []  # Lost on restart!
+
+# After restart:
+@posts  # => [] (empty!)
+
+# We need persistent storage:
+@posts = Post.all  # Reads from database`,
+    goal: 'Connect the models to the Database. Make data survive restarts.',
+    thresholds: {},
+  },
+  successConditions: [
+    { type: 'node_present', nodeType: 'database' },
+    { type: 'connection', sourceType: 'model', targetType: 'database' },
+  ],
+  availableNodes: ['database'],
+  unlockedNodes: [],
+  learningContent: {
+    title: 'Memory vs Disk: The Persistence Layer',
+    conceptExplanation: `Data can live in two places:
+
+**Memory (Transient)**
+- Fast but temporary
+- Lost on restart/crash
+- Good for caches, sessions
+
+**Database (Persistent)**
+- Slower but permanent
+- Survives restarts
+- The source of truth
+
+ActiveRecord maps Models to Database tables.`,
+    railsCodeExample: `# config/database.yml
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+
+production:
+  <<: *default
+  url: <%= ENV['DATABASE_URL'] %>
+
+# Migrations create tables
+rails generate migration CreatePosts title:string body:text
+rails db:migrate`,
+    commonMistakes: [
+      'Storing important data in instance variables',
+      'Not understanding ephemeral filesystems',
+      'Using file storage on Heroku/containers',
+    ],
+    whenToUse: 'Always persist important data to database.',
+    furtherReading: [
+      { title: 'Active Record Migrations', url: 'https://guides.rubyonrails.org/active_record_migrations.html' },
+    ],
+  },
+  hint: {
+    delay: 20,
+    text: 'Add a Database node and connect the Model to it.',
+  },
+};
+
+// ============================================
+// Level 8: Associations
+// ============================================
+
+const level8Associations: Level = {
+  id: 'act1-level8-associations',
+  actId: 1,
+  levelNumber: 8,
+  name: 'Associations',
   trigger: {
     type: 'new_feature',
-    description: 'We have a Blog, but we can\'t show Comments. The data isn\'t linking.',
+    description: 'Posts need comments. How do we relate models together?',
   },
   startingPipeline: {
     nodes: [
@@ -221,7 +657,7 @@ const level3Associations: Level = {
       { id: 'post-model', type: 'model', x: 500, y: 250, locked: true, config: { label: 'Post' } },
       { id: 'database-node', type: 'database', x: 680, y: 250, locked: true },
       { id: 'view-node', type: 'view', x: 840, y: 250, locked: true },
-      { id: 'response-node', type: 'response', x: 980, y: 250, locked: true },
+      { id: 'response-node', type: 'response', x: 1000, y: 250, locked: true },
     ],
     connections: [
       { id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'router-node' },
@@ -233,8 +669,8 @@ const level3Associations: Level = {
     ],
   },
   problem: {
-    observation: 'Posts load correctly, but the comments section is empty.',
-    rootCause: 'The Comment model doesn\'t exist in the pipeline, and no association is defined.',
+    observation: 'Posts load correctly, but there is no way to show comments.',
+    rootCause: 'The Comment model does not exist and no association is defined.',
     codeExample: `# Current state:
 class Post < ApplicationRecord
   # No associations defined!
@@ -242,7 +678,7 @@ end
 
 # We need comments to appear under posts
 # But the Post model doesn't know about Comments...`,
-    goal: 'Add a Comment model and connect it to Post with the correct relationship type.',
+    goal: 'Add a Comment model and connect it to Post with the correct relationship.',
     thresholds: {},
   },
   successConditions: [
@@ -282,15 +718,15 @@ end
     },
   ],
   learningContent: {
-    title: 'ActiveRecord Associations: has_many / belongs_to',
-    conceptExplanation: `Rails associations define relationships between models:
+    title: 'ActiveRecord Associations',
+    conceptExplanation: `Associations define relationships between models:
 
 **has_many** - A post has many comments (one-to-many)
 **belongs_to** - A comment belongs to a post (the inverse)
 **has_one** - A user has one profile (one-to-one)
 **has_and_belongs_to_many** - Tags and posts (many-to-many)
 
-The Model → Model connection in the pipeline represents these relationships.`,
+The Model → Model connection represents these relationships.`,
     railsCodeExample: `# app/models/post.rb
 class Post < ApplicationRecord
   has_many :comments, dependent: :destroy
@@ -306,8 +742,8 @@ post = Post.find(1)
 post.comments  # Returns all comments for this post`,
     commonMistakes: [
       'Using has_one when you need has_many',
-      'Forgetting dependent: :destroy leaves orphan records',
-      'Not adding foreign key index to the database',
+      'Forgetting dependent: :destroy',
+      'Not adding foreign key index',
     ],
     whenToUse: 'has_many when one record owns multiple of another type.',
     furtherReading: [
@@ -316,262 +752,29 @@ post.comments  # Returns all comments for this post`,
   },
   hint: {
     delay: 25,
-    text: 'Drag a Model node (Comment) to the canvas. Connect Post → Comment. Choose "has_many" in the dialog.',
+    text: 'Add a Comment model. Connect Post → Comment and choose "has_many".',
   },
 };
 
 // ============================================
-// Level 4: Persistence Layer
-// ============================================
-
-const level4Persistence: Level = {
-  id: 'act1-level4-persistence',
-  actId: 1,
-  levelNumber: 4,
-  name: 'Persistence Layer',
-  trigger: {
-    type: 'incident',
-    description: 'Users are complaining their posts vanish when the Dyno restarts.',
-  },
-  startingPipeline: {
-    nodes: [
-      { id: 'request-node', type: 'request', x: 80, y: 250, locked: true },
-      { id: 'router-node', type: 'router', x: 200, y: 250, locked: true },
-      { id: 'controller-node', type: 'controller', x: 340, y: 250, locked: true },
-      { id: 'post-model', type: 'model', x: 500, y: 180, locked: true, config: { label: 'Post' } },
-      { id: 'comment-model', type: 'model', x: 500, y: 320, locked: true, config: { label: 'Comment' } },
-      { id: 'view-node', type: 'view', x: 700, y: 250, locked: true },
-      { id: 'response-node', type: 'response', x: 860, y: 250, locked: true },
-    ],
-    connections: [
-      { id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'router-node' },
-      { id: 'c2', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
-      { id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
-      { id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'comment-model' },
-      { id: 'c5', sourceNodeId: 'post-model', targetNodeId: 'view-node' },
-      { id: 'c6', sourceNodeId: 'comment-model', targetNodeId: 'view-node' },
-      { id: 'c7', sourceNodeId: 'view-node', targetNodeId: 'response-node' },
-    ],
-  },
-  problem: {
-    observation: 'Models are glowing Blue (Transient). Data disappears on restart.',
-    rootCause: 'Models are not connected to persistent storage.',
-    codeExample: `# Current state: Data lives in memory only
-@posts = []  # Lost on restart!
-
-# After restart:
-@posts  # => [] (empty!)
-
-# We need persistent storage:
-@posts = Post.all  # Reads from database`,
-    goal: 'Connect the models to the Database. Make data survive restarts.',
-    thresholds: {},
-  },
-  successConditions: [
-    { type: 'node_present', nodeType: 'database' },
-    { type: 'connection', sourceType: 'model', targetType: 'database' },
-    { type: 'path_exists', pathFrom: 'post-model', pathTo: 'database' },
-  ],
-  availableNodes: ['database'],
-  unlockedNodes: [],
-  simulationEvents: [
-    {
-      type: 'restart',
-      timestamp: 0,
-      description: 'Server restarted - transient data cleared',
-    },
-  ],
-  learningContent: {
-    title: 'Memory vs Disk: The Persistence Layer',
-    conceptExplanation: `Data can live in two places:
-
-**Memory (Transient)**
-- Fast but temporary
-- Lost on restart/crash
-- Good for caches, sessions
-
-**Database (Persistent)**
-- Slower but permanent
-- Survives restarts
-- The source of truth
-
-ActiveRecord maps Models to Database tables. Without this connection, data exists only in memory.`,
-    railsCodeExample: `# config/database.yml
-default: &default
-  adapter: postgresql
-  encoding: unicode
-  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
-
-development:
-  <<: *default
-  database: myapp_development
-
-production:
-  <<: *default
-  url: <%= ENV['DATABASE_URL'] %>`,
-    commonMistakes: [
-      'Storing important data in instance variables instead of database',
-      'Not understanding that Heroku dynos restart frequently',
-      'Using file storage on ephemeral filesystems',
-    ],
-    whenToUse: 'Always persist important data. Use memory only for caches.',
-    furtherReading: [
-      { title: 'Active Record Basics', url: 'https://guides.rubyonrails.org/active_record_basics.html' },
-    ],
-  },
-  hint: {
-    delay: 20,
-    text: 'Place a Database node. Connect both Model nodes to it. Click "Simulate Restart" to verify.',
-  },
-};
-
-// ============================================
-// Level 5: Environment Security
-// ============================================
-
-const level5Security: Level = {
-  id: 'act1-level5-security',
-  actId: 1,
-  levelNumber: 5,
-  name: 'Environment Security',
-  trigger: {
-    type: 'incident',
-    description: 'The build failed. CI/CD cannot connect to the database.',
-  },
-  startingPipeline: {
-    nodes: [
-      { id: 'request-node', type: 'request', x: 80, y: 250, locked: true },
-      { id: 'router-node', type: 'router', x: 200, y: 250, locked: true },
-      { id: 'controller-node', type: 'controller', x: 340, y: 250, locked: true },
-      { id: 'post-model', type: 'model', x: 500, y: 180, locked: true, config: { label: 'Post' } },
-      { id: 'comment-model', type: 'model', x: 500, y: 320, locked: true, config: { label: 'Comment' } },
-      { id: 'database-node', type: 'database', x: 680, y: 250, locked: true },
-      { id: 'view-node', type: 'view', x: 840, y: 250, locked: true },
-      { id: 'response-node', type: 'response', x: 980, y: 250, locked: true },
-    ],
-    connections: [
-      { id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'router-node' },
-      { id: 'c2', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
-      { id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
-      { id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'comment-model' },
-      { id: 'c5', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
-      { id: 'c6', sourceNodeId: 'comment-model', targetNodeId: 'database-node' },
-      { id: 'c7', sourceNodeId: 'database-node', targetNodeId: 'view-node' },
-      { id: 'c8', sourceNodeId: 'view-node', targetNodeId: 'response-node' },
-    ],
-  },
-  problem: {
-    observation: 'Database node shows "Access Denied" lock icon. CI/CD build is failing.',
-    rootCause: 'Database credentials are not properly configured via environment variables.',
-    codeExample: `# CI/CD Error:
-PG::ConnectionBad: could not connect to server
-FATAL:  password authentication failed for user "postgres"
-
-# The database password is hardcoded!
-# config/database.yml
-production:
-  password: "supersecret123"  # WRONG: Exposed in git!`,
-    goal: 'Add an ENV node and configure it to securely provide database credentials.',
-    thresholds: {},
-  },
-  successConditions: [
-    { type: 'node_present', nodeType: 'env' },
-    { type: 'connection', sourceType: 'env', targetType: 'database' },
-    { type: 'decision_made', decisionValue: 'encrypted' },
-  ],
-  availableNodes: ['env'],
-  unlockedNodes: [],
-  decisionModals: [
-    {
-      trigger: { sourceType: 'env', targetType: 'database' },
-      question: 'How should secrets be stored?',
-      options: [
-        {
-          label: 'Publicly Visible',
-          value: 'public',
-          preview: 'Secrets visible in git history',
-          consequence: 'SECURITY LEAK: Credentials exposed!',
-          correct: false,
-        },
-        {
-          label: 'Encrypted (credentials.yml.enc)',
-          value: 'encrypted',
-          preview: 'Secrets encrypted with master key',
-          consequence: 'Secure: Only decrypted at runtime',
-          correct: true,
-        },
-      ],
-    },
-  ],
-  simulationEvents: [
-    {
-      type: 'leak',
-      timestamp: 0,
-      description: 'Security leak detected! Credentials exposed in repository.',
-      affectedNodes: ['env', 'database-node'],
-    },
-  ],
-  learningContent: {
-    title: 'Environment Variables & Secrets Management',
-    conceptExplanation: `Never commit secrets to version control!
-
-**Rails Credentials (Recommended)**
-- Encrypted file: config/credentials.yml.enc
-- Decrypted with RAILS_MASTER_KEY
-- Safe to commit to git
-
-**Environment Variables**
-- Set in deployment environment
-- Not in codebase
-- Used via ENV['KEY']
-
-The ENV node represents your secrets management layer.`,
-    railsCodeExample: `# Edit credentials
-rails credentials:edit
-
-# config/credentials.yml.enc (decrypted)
-database:
-  password: supersecret123
-
-# config/database.yml
-production:
-  password: <%= Rails.application.credentials.dig(:database, :password) %>
-
-# Or with ENV variables
-production:
-  url: <%= ENV['DATABASE_URL'] %>`,
-    commonMistakes: [
-      'Committing .env files with real secrets',
-      'Using the same credentials in dev and production',
-      'Not rotating credentials after a leak',
-    ],
-    whenToUse: 'Always use encrypted credentials or environment variables for secrets.',
-    furtherReading: [
-      { title: 'Rails Credentials', url: 'https://guides.rubyonrails.org/security.html#custom-credentials' },
-    ],
-  },
-  hint: {
-    delay: 20,
-    text: 'Drag the ENV node onto the canvas. Connect it to Database. Select "Encrypted" in the dialog.',
-  },
-};
-
-// ============================================
-// Act I Definition
+// Act 1 Definition
 // ============================================
 
 export const actOne: Act = {
   id: 1,
-  name: 'The Foundation',
-  tagline: 'Getting it Running.',
-  description: 'Project Setup, MVC, Associations, Persistence, and Security. Build the base for everything that follows.',
+  name: 'Rails Fundamentals',
+  tagline: 'Building the Foundation',
+  description: 'Learn the core of Rails: Models, Views, Controllers, and how they work together.',
   levels: [
     level1StackChoice,
-    level2FirstRequest,
-    level3Associations,
-    level4Persistence,
-    level5Security,
+    level2Model,
+    level3CRUD,
+    level4Controller,
+    level5Views,
+    level6MVCPipeline,
+    level7Persistence,
+    level8Associations,
   ],
   unlockedNodes: ['terminal', 'postgresql', 'sqlite', 'react', 'hotwire'],
-  metricsVisible: false, // No performance metrics in Act I
+  metricsVisible: false,
 };

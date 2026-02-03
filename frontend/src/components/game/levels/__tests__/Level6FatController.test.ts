@@ -1,27 +1,21 @@
 /**
- * Tests for Level 6: The Fat Controller
+ * Tests for Level 6: Separation of Concerns
  *
- * Validates that blocks must be moved to their CORRECT locations,
- * not just moved anywhere to reduce complexity.
+ * Player places code blocks from a palette into the correct architectural layer.
+ * Teaches: Controllers handle HTTP, Models handle data, Services handle business logic.
  */
 
 import { describe, test, expect } from 'bun:test';
 
 // Types matching the component
-interface LogicBlock {
+interface CodeBlock {
   id: string;
   name: string;
   code: string;
   color: string;
-  currentLocation: string;
-  validTargets: string[];
-}
-
-interface NodeWithBlocks {
-  id: string;
-  type: string;
-  name: string;
-  blocks: string[];
+  description: string;
+  correctTarget: 'controller' | 'model' | 'service';
+  currentLocation: string | null; // null = in palette, or node id
 }
 
 interface ValidationResult {
@@ -31,215 +25,274 @@ interface ValidationResult {
 }
 
 // Recreate validation logic from component
-const COMPLEXITY_THRESHOLD = 50;
-const BLOCK_COMPLEXITY = 20;
-
-function validateLevel6Solution(blocks: LogicBlock[], nodes: NodeWithBlocks[]): ValidationResult {
+function validateLevel6Solution(blocks: CodeBlock[]): ValidationResult {
   const errors: string[] = [];
 
-  // Calculate controller complexity
-  const controllerNode = nodes.find(n => n.id === 'controller-1');
-  const controllerComplexity = controllerNode ? controllerNode.blocks.length * BLOCK_COMPLEXITY + 5 : 0;
-
-  // Check each block is in its correct location
-  for (const block of blocks) {
-    const currentNode = nodes.find(n => n.id === block.currentLocation);
-    if (!currentNode) continue;
-
-    const isCorrect = block.validTargets.includes(currentNode.type);
-
-    if (!isCorrect) {
-      if (block.currentLocation === 'controller-1') {
-        errors.push(`${block.name} is still in the Controller`);
-      } else {
-        errors.push(`${block.name} should be in ${block.validTargets.join(' or ')}, not ${currentNode.type}`);
-      }
-    }
+  // Check all blocks are placed
+  const unplacedBlocks = blocks.filter(b => b.currentLocation === null);
+  if (unplacedBlocks.length > 0) {
+    errors.push(`${unplacedBlocks.length} block(s) still need to be placed`);
   }
 
-  // Also check complexity threshold
-  if (controllerComplexity >= COMPLEXITY_THRESHOLD) {
-    errors.push(`Controller complexity (${controllerComplexity}) is still above threshold (${COMPLEXITY_THRESHOLD})`);
+  // Check blocks are in correct locations
+  const ARCHITECTURE_NODES = [
+    { id: 'controller', name: 'OrdersController' },
+    { id: 'model', name: 'Order' },
+    { id: 'service', name: 'CheckoutService' },
+  ];
+
+  for (const block of blocks) {
+    if (block.currentLocation && block.currentLocation !== block.correctTarget) {
+      const targetNode = ARCHITECTURE_NODES.find(n => n.id === block.currentLocation);
+      errors.push(`"${block.name}" doesn't belong in ${targetNode?.name || 'that location'}`);
+    }
   }
 
   if (errors.length > 0) {
     return {
       valid: false,
-      message: 'Not quite right!',
+      message: 'Architecture needs adjustment!',
       details: errors,
     };
   }
 
   return {
     valid: true,
-    message: 'All blocks are in their correct locations!',
+    message: 'Clean architecture - each layer has a single responsibility!',
   };
 }
 
-// Test data
-const INITIAL_BLOCKS: LogicBlock[] = [
-  { id: 'validate', name: 'Validate', code: 'validates :title, presence: true', color: '#22c55e', currentLocation: 'controller-1', validTargets: ['model'] },
-  { id: 'charge', name: 'Charge', code: 'Stripe.charge(amount)', color: '#3b82f6', currentLocation: 'controller-1', validTargets: ['service'] },
-  { id: 'email', name: 'Email', code: 'UserMailer.welcome.deliver_later', color: '#f59e0b', currentLocation: 'controller-1', validTargets: ['service'] },
-  { id: 'save', name: 'Save', code: '@post.save!', color: '#8b5cf6', currentLocation: 'controller-1', validTargets: ['model'] },
+// Test data - matches the component's CODE_BLOCKS
+const CODE_BLOCKS: CodeBlock[] = [
+  {
+    id: 'params',
+    name: 'Permit Params',
+    code: 'params.require(:order).permit(:product_id, :quantity)',
+    color: '#3b82f6',
+    description: 'Handles incoming HTTP parameters',
+    correctTarget: 'controller',
+    currentLocation: null,
+  },
+  {
+    id: 'response',
+    name: 'Render Response',
+    code: 'render json: { order: @order }, status: :created',
+    color: '#06b6d4',
+    description: 'Formats HTTP response',
+    correctTarget: 'controller',
+    currentLocation: null,
+  },
+  {
+    id: 'validation',
+    name: 'Validation',
+    code: 'validates :total, numericality: { greater_than: 0 }',
+    color: '#22c55e',
+    description: 'Ensures data integrity',
+    correctTarget: 'model',
+    currentLocation: null,
+  },
+  {
+    id: 'association',
+    name: 'Association',
+    code: 'belongs_to :user\nhas_many :line_items',
+    color: '#10b981',
+    description: 'Defines data relationships',
+    correctTarget: 'model',
+    currentLocation: null,
+  },
+  {
+    id: 'payment',
+    name: 'Process Payment',
+    code: 'Stripe::Charge.create(amount: total_cents)',
+    color: '#f59e0b',
+    description: 'External API integration',
+    correctTarget: 'service',
+    currentLocation: null,
+  },
+  {
+    id: 'email',
+    name: 'Send Receipt',
+    code: 'OrderMailer.receipt(@order).deliver_later',
+    color: '#ef4444',
+    description: 'Triggers side effects',
+    correctTarget: 'service',
+    currentLocation: null,
+  },
 ];
 
-const INITIAL_NODES: NodeWithBlocks[] = [
-  { id: 'controller-1', type: 'controller', name: 'PostsController', blocks: ['validate', 'charge', 'email', 'save'] },
-  { id: 'model-1', type: 'model', name: 'Post', blocks: [] },
-  { id: 'service-1', type: 'service', name: 'OrderService', blocks: [] },
-];
-
-describe('Level 6: Fat Controller', () => {
-  describe('Initial State', () => {
-    test('should be invalid when no blocks are moved', () => {
-      const result = validateLevel6Solution(INITIAL_BLOCKS, INITIAL_NODES);
+describe('Level 6: Separation of Concerns', () => {
+  describe('Initial State (all blocks in palette)', () => {
+    test('should be invalid when no blocks are placed', () => {
+      const result = validateLevel6Solution(CODE_BLOCKS);
 
       expect(result.valid).toBe(false);
       expect(result.details).toBeDefined();
-      expect(result.details!.length).toBeGreaterThan(0);
-    });
-
-    test('should report all 4 blocks still in controller', () => {
-      const result = validateLevel6Solution(INITIAL_BLOCKS, INITIAL_NODES);
-
-      expect(result.details).toContain('Validate is still in the Controller');
-      expect(result.details).toContain('Charge is still in the Controller');
-      expect(result.details).toContain('Email is still in the Controller');
-      expect(result.details).toContain('Save is still in the Controller');
-    });
-
-    test('should report complexity above threshold', () => {
-      const result = validateLevel6Solution(INITIAL_BLOCKS, INITIAL_NODES);
-
-      // 4 blocks * 20 + 5 = 85
-      expect(result.details!.some(d => d.includes('complexity') && d.includes('85'))).toBe(true);
+      expect(result.details!.some(d => d.includes('6 block(s) still need to be placed'))).toBe(true);
     });
   });
 
-  describe('Partial Solutions (False Positives Prevention)', () => {
-    test('should be invalid when only Validate moved to Model', () => {
-      const blocks = INITIAL_BLOCKS.map(b =>
-        b.id === 'validate' ? { ...b, currentLocation: 'model-1' } : b
+  describe('Partial Solutions', () => {
+    test('should be invalid when only some blocks are placed', () => {
+      const blocks = CODE_BLOCKS.map(b =>
+        b.id === 'params' ? { ...b, currentLocation: 'controller' } : b
       );
-      const nodes = [
-        { ...INITIAL_NODES[0], blocks: ['charge', 'email', 'save'] },
-        { ...INITIAL_NODES[1], blocks: ['validate'] },
-        { ...INITIAL_NODES[2], blocks: [] },
-      ];
 
-      const result = validateLevel6Solution(blocks, nodes);
+      const result = validateLevel6Solution(blocks);
 
       expect(result.valid).toBe(false);
-      expect(result.details).toContain('Charge is still in the Controller');
-      expect(result.details).toContain('Email is still in the Controller');
-      expect(result.details).toContain('Save is still in the Controller');
+      expect(result.details!.some(d => d.includes('5 block(s) still need to be placed'))).toBe(true);
     });
 
-    test('should be invalid when Validate and Charge moved but Email and Save remain', () => {
-      const blocks = INITIAL_BLOCKS.map(b => {
-        if (b.id === 'validate') return { ...b, currentLocation: 'model-1' };
-        if (b.id === 'charge') return { ...b, currentLocation: 'service-1' };
+    test('should be invalid when blocks are placed in wrong locations', () => {
+      const blocks = CODE_BLOCKS.map(b => {
+        // Place all blocks, but put payment in controller (wrong!)
+        if (b.id === 'params') return { ...b, currentLocation: 'controller' };
+        if (b.id === 'response') return { ...b, currentLocation: 'controller' };
+        if (b.id === 'validation') return { ...b, currentLocation: 'model' };
+        if (b.id === 'association') return { ...b, currentLocation: 'model' };
+        if (b.id === 'payment') return { ...b, currentLocation: 'controller' }; // WRONG
+        if (b.id === 'email') return { ...b, currentLocation: 'service' };
         return b;
       });
-      const nodes = [
-        { ...INITIAL_NODES[0], blocks: ['email', 'save'] },
-        { ...INITIAL_NODES[1], blocks: ['validate'] },
-        { ...INITIAL_NODES[2], blocks: ['charge'] },
-      ];
 
-      const result = validateLevel6Solution(blocks, nodes);
+      const result = validateLevel6Solution(blocks);
 
       expect(result.valid).toBe(false);
-      // Complexity: 2 blocks * 20 + 5 = 45 (under 50), but blocks still wrong
-      expect(result.details).toContain('Email is still in the Controller');
-      expect(result.details).toContain('Save is still in the Controller');
+      expect(result.details!.some(d => d.includes('Process Payment') && d.includes('OrdersController'))).toBe(true);
     });
 
-    test('should be invalid when complexity under threshold but blocks in wrong places', () => {
-      // Move Validate to Service (wrong!) and Charge to Model (wrong!)
-      const blocks = INITIAL_BLOCKS.map(b => {
-        if (b.id === 'validate') return { ...b, currentLocation: 'service-1' }; // WRONG
-        if (b.id === 'charge') return { ...b, currentLocation: 'model-1' }; // WRONG
-        if (b.id === 'email') return { ...b, currentLocation: 'service-1' };
-        if (b.id === 'save') return { ...b, currentLocation: 'model-1' };
+    test('should be invalid when model blocks placed in service', () => {
+      const blocks = CODE_BLOCKS.map(b => {
+        if (b.id === 'params') return { ...b, currentLocation: 'controller' };
+        if (b.id === 'response') return { ...b, currentLocation: 'controller' };
+        if (b.id === 'validation') return { ...b, currentLocation: 'service' }; // WRONG
+        if (b.id === 'association') return { ...b, currentLocation: 'model' };
+        if (b.id === 'payment') return { ...b, currentLocation: 'service' };
+        if (b.id === 'email') return { ...b, currentLocation: 'service' };
         return b;
       });
-      const nodes = [
-        { ...INITIAL_NODES[0], blocks: [] },
-        { ...INITIAL_NODES[1], blocks: ['charge', 'save'] },
-        { ...INITIAL_NODES[2], blocks: ['validate', 'email'] },
-      ];
 
-      const result = validateLevel6Solution(blocks, nodes);
+      const result = validateLevel6Solution(blocks);
 
       expect(result.valid).toBe(false);
-      expect(result.details!.some(d => d.includes('Validate') && d.includes('model'))).toBe(true);
-      expect(result.details!.some(d => d.includes('Charge') && d.includes('service'))).toBe(true);
+      expect(result.details!.some(d => d.includes('Validation') && d.includes('CheckoutService'))).toBe(true);
+    });
+
+    test('should be invalid when service blocks placed in model', () => {
+      const blocks = CODE_BLOCKS.map(b => {
+        if (b.id === 'params') return { ...b, currentLocation: 'controller' };
+        if (b.id === 'response') return { ...b, currentLocation: 'controller' };
+        if (b.id === 'validation') return { ...b, currentLocation: 'model' };
+        if (b.id === 'association') return { ...b, currentLocation: 'model' };
+        if (b.id === 'payment') return { ...b, currentLocation: 'model' }; // WRONG
+        if (b.id === 'email') return { ...b, currentLocation: 'model' }; // WRONG
+        return b;
+      });
+
+      const result = validateLevel6Solution(blocks);
+
+      expect(result.valid).toBe(false);
+      expect(result.details!.some(d => d.includes('Process Payment') && d.includes('Order'))).toBe(true);
+      expect(result.details!.some(d => d.includes('Send Receipt') && d.includes('Order'))).toBe(true);
     });
   });
 
   describe('Correct Solution', () => {
     test('should be valid when all blocks are in correct locations', () => {
-      const blocks = INITIAL_BLOCKS.map(b => {
-        if (b.id === 'validate') return { ...b, currentLocation: 'model-1' };
-        if (b.id === 'save') return { ...b, currentLocation: 'model-1' };
-        if (b.id === 'charge') return { ...b, currentLocation: 'service-1' };
-        if (b.id === 'email') return { ...b, currentLocation: 'service-1' };
-        return b;
-      });
-      const nodes = [
-        { ...INITIAL_NODES[0], blocks: [] },
-        { ...INITIAL_NODES[1], blocks: ['validate', 'save'] },
-        { ...INITIAL_NODES[2], blocks: ['charge', 'email'] },
-      ];
+      const blocks = CODE_BLOCKS.map(b => ({
+        ...b,
+        currentLocation: b.correctTarget,
+      }));
 
-      const result = validateLevel6Solution(blocks, nodes);
+      const result = validateLevel6Solution(blocks);
 
       expect(result.valid).toBe(true);
-      expect(result.message).toContain('correct locations');
+      expect(result.message).toContain('single responsibility');
     });
 
-    test('should report correct success message', () => {
-      const blocks = INITIAL_BLOCKS.map(b => {
-        if (b.id === 'validate') return { ...b, currentLocation: 'model-1' };
-        if (b.id === 'save') return { ...b, currentLocation: 'model-1' };
-        if (b.id === 'charge') return { ...b, currentLocation: 'service-1' };
-        if (b.id === 'email') return { ...b, currentLocation: 'service-1' };
-        return b;
-      });
-      const nodes = [
-        { ...INITIAL_NODES[0], blocks: [] },
-        { ...INITIAL_NODES[1], blocks: ['validate', 'save'] },
-        { ...INITIAL_NODES[2], blocks: ['charge', 'email'] },
-      ];
+    test('should have no errors when all blocks correctly placed', () => {
+      const blocks = CODE_BLOCKS.map(b => ({
+        ...b,
+        currentLocation: b.correctTarget,
+      }));
 
-      const result = validateLevel6Solution(blocks, nodes);
+      const result = validateLevel6Solution(blocks);
 
-      expect(result.valid).toBe(true);
       expect(result.details).toBeUndefined();
     });
   });
 
-  describe('Complexity Calculation', () => {
-    test('initial complexity should be 85 (4 blocks * 20 + 5)', () => {
-      const controllerNode = INITIAL_NODES.find(n => n.id === 'controller-1')!;
-      const complexity = controllerNode.blocks.length * BLOCK_COMPLEXITY + 5;
-      expect(complexity).toBe(85);
+  describe('Block Classification', () => {
+    test('Permit Params should go to Controller', () => {
+      const block = CODE_BLOCKS.find(b => b.id === 'params')!;
+      expect(block.correctTarget).toBe('controller');
     });
 
-    test('complexity with 2 blocks should be 45', () => {
-      const complexity = 2 * BLOCK_COMPLEXITY + 5;
-      expect(complexity).toBe(45);
+    test('Render Response should go to Controller', () => {
+      const block = CODE_BLOCKS.find(b => b.id === 'response')!;
+      expect(block.correctTarget).toBe('controller');
     });
 
-    test('complexity with 0 blocks should be 5', () => {
-      const complexity = 0 * BLOCK_COMPLEXITY + 5;
-      expect(complexity).toBe(5);
+    test('Validation should go to Model', () => {
+      const block = CODE_BLOCKS.find(b => b.id === 'validation')!;
+      expect(block.correctTarget).toBe('model');
     });
 
-    test('threshold should be 50', () => {
-      expect(COMPLEXITY_THRESHOLD).toBe(50);
+    test('Association should go to Model', () => {
+      const block = CODE_BLOCKS.find(b => b.id === 'association')!;
+      expect(block.correctTarget).toBe('model');
+    });
+
+    test('Process Payment should go to Service', () => {
+      const block = CODE_BLOCKS.find(b => b.id === 'payment')!;
+      expect(block.correctTarget).toBe('service');
+    });
+
+    test('Send Receipt should go to Service', () => {
+      const block = CODE_BLOCKS.find(b => b.id === 'email')!;
+      expect(block.correctTarget).toBe('service');
+    });
+  });
+
+  describe('Architecture Principles', () => {
+    test('should have 2 controller-related blocks', () => {
+      const controllerBlocks = CODE_BLOCKS.filter(b => b.correctTarget === 'controller');
+      expect(controllerBlocks.length).toBe(2);
+    });
+
+    test('should have 2 model-related blocks', () => {
+      const modelBlocks = CODE_BLOCKS.filter(b => b.correctTarget === 'model');
+      expect(modelBlocks.length).toBe(2);
+    });
+
+    test('should have 2 service-related blocks', () => {
+      const serviceBlocks = CODE_BLOCKS.filter(b => b.correctTarget === 'service');
+      expect(serviceBlocks.length).toBe(2);
+    });
+
+    test('HTTP concerns belong in Controller', () => {
+      const httpBlocks = CODE_BLOCKS.filter(
+        b => b.description.toLowerCase().includes('http') ||
+             b.description.toLowerCase().includes('response') ||
+             b.description.toLowerCase().includes('parameter')
+      );
+      httpBlocks.forEach(b => expect(b.correctTarget).toBe('controller'));
+    });
+
+    test('Data concerns belong in Model', () => {
+      const dataBlocks = CODE_BLOCKS.filter(
+        b => b.description.toLowerCase().includes('data') ||
+             b.description.toLowerCase().includes('relationship')
+      );
+      dataBlocks.forEach(b => expect(b.correctTarget).toBe('model'));
+    });
+
+    test('Business logic belongs in Service', () => {
+      const businessBlocks = CODE_BLOCKS.filter(
+        b => b.description.toLowerCase().includes('external') ||
+             b.description.toLowerCase().includes('side effect')
+      );
+      businessBlocks.forEach(b => expect(b.correctTarget).toBe('service'));
     });
   });
 });

@@ -1,0 +1,461 @@
+/**
+ * Level 34: API Gateway
+ *
+ * Central entry point for microservices architecture.
+ * Player learns routing, auth, rate limiting, and aggregation.
+ */
+
+import { useState } from 'react';
+import type { LevelComponentProps } from '../index';
+import {
+  LevelLayout,
+  LeftPanel,
+  CenterPanel,
+  RightPanel,
+  LevelHeader,
+  InstructionPanel,
+  CodePreviewPanel,
+  useLevelCompletion,
+  type ValidationResult,
+} from '../shared';
+
+interface GatewayFeature {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  enabled: boolean;
+}
+
+interface Service {
+  id: string;
+  name: string;
+  path: string;
+  icon: string;
+  healthy: boolean;
+  latency: number;
+}
+
+interface Request {
+  id: number;
+  path: string;
+  status: 'pending' | 'authenticated' | 'rate-limited' | 'routed' | 'aggregated' | 'completed' | 'blocked';
+  stages: string[];
+}
+
+const INITIAL_FEATURES: GatewayFeature[] = [
+  { id: 'auth', name: 'Authentication', description: 'Validate JWT tokens', icon: '🔐', enabled: false },
+  { id: 'rate-limit', name: 'Rate Limiting', description: 'Protect backend services', icon: '🚦', enabled: false },
+  { id: 'routing', name: 'Request Routing', description: 'Route to correct service', icon: '🔀', enabled: false },
+  { id: 'aggregation', name: 'Response Aggregation', description: 'Combine multiple responses', icon: '📦', enabled: false },
+];
+
+const SERVICES: Service[] = [
+  { id: 'users', name: 'User Service', path: '/api/users', icon: '👤', healthy: true, latency: 50 },
+  { id: 'orders', name: 'Order Service', path: '/api/orders', icon: '🛒', healthy: true, latency: 80 },
+  { id: 'products', name: 'Product Service', path: '/api/products', icon: '📦', healthy: true, latency: 40 },
+  { id: 'payments', name: 'Payment Service', path: '/api/payments', icon: '💳', healthy: true, latency: 100 },
+];
+
+export function Level34APIGateway({ onComplete, onExit }: LevelComponentProps) {
+  const { completeLevel } = useLevelCompletion();
+  const [features, setFeatures] = useState<GatewayFeature[]>(INITIAL_FEATURES);
+  const [services, setServices] = useState<Service[]>(SERVICES);
+  const [requests, setRequests] = useState<Request[]>([]);
+
+  const toggleFeature = (featureId: string) => {
+    setFeatures(prev => prev.map(f =>
+      f.id === featureId ? { ...f, enabled: !f.enabled } : f
+    ));
+  };
+
+  const toggleServiceHealth = (serviceId: string) => {
+    setServices(prev => prev.map(s =>
+      s.id === serviceId ? { ...s, healthy: !s.healthy } : s
+    ));
+  };
+
+  const simulateRequest = (path: string, isAggregation: boolean = false) => {
+    const request: Request = {
+      id: Date.now(),
+      path,
+      status: 'pending',
+      stages: [],
+    };
+
+    setRequests(prev => [...prev.slice(-9), request]);
+
+    const authEnabled = features.find(f => f.id === 'auth')?.enabled;
+    const rateLimitEnabled = features.find(f => f.id === 'rate-limit')?.enabled;
+    const routingEnabled = features.find(f => f.id === 'routing')?.enabled;
+    const aggregationEnabled = features.find(f => f.id === 'aggregation')?.enabled;
+
+    let stages: string[] = [];
+    let delay = 0;
+
+    // Auth check
+    if (authEnabled) {
+      stages.push('Auth');
+      delay += 200;
+      setTimeout(() => {
+        setRequests(prev => prev.map(r =>
+          r.id === request.id ? { ...r, status: 'authenticated', stages: ['✓ Auth'] } : r
+        ));
+      }, delay);
+    }
+
+    // Rate limit check
+    if (rateLimitEnabled) {
+      stages.push('Rate Limit');
+      delay += 200;
+      const blocked = Math.random() < 0.1; // 10% chance of rate limit
+      setTimeout(() => {
+        setRequests(prev => prev.map(r =>
+          r.id === request.id
+            ? {
+                ...r,
+                status: blocked ? 'rate-limited' : r.status,
+                stages: [...r.stages, blocked ? '✗ Rate Limited' : '✓ Rate OK'],
+              }
+            : r
+        ));
+      }, delay);
+    }
+
+    // Routing
+    if (routingEnabled && !isAggregation) {
+      stages.push('Route');
+      delay += 300;
+      const service = services.find(s => path.includes(s.id));
+      setTimeout(() => {
+        setRequests(prev => prev.map(r =>
+          r.id === request.id
+            ? {
+                ...r,
+                status: 'routed',
+                stages: [...r.stages, `✓ Route → ${service?.name || 'Service'}`],
+              }
+            : r
+        ));
+      }, delay);
+    }
+
+    // Aggregation
+    if (aggregationEnabled && isAggregation) {
+      stages.push('Aggregate');
+      delay += 500;
+      setTimeout(() => {
+        setRequests(prev => prev.map(r =>
+          r.id === request.id
+            ? {
+                ...r,
+                status: 'aggregated',
+                stages: [...r.stages, '✓ Aggregate: Users + Orders + Products'],
+              }
+            : r
+        ));
+      }, delay);
+    }
+
+    // Complete
+    delay += 200;
+    setTimeout(() => {
+      setRequests(prev => prev.map(r =>
+        r.id === request.id && r.status !== 'rate-limited'
+          ? { ...r, status: 'completed', stages: [...r.stages, '✓ Response'] }
+          : r
+      ));
+    }, delay);
+  };
+
+  const validateSolution = (): ValidationResult => {
+    const enabledCount = features.filter(f => f.enabled).length;
+    if (enabledCount < 3) {
+      return {
+        valid: false,
+        message: 'Enable more gateway features!',
+        details: ['At least 3 features needed for a proper API gateway'],
+      };
+    }
+    if (requests.length < 3) {
+      return {
+        valid: false,
+        message: 'Process more requests!',
+        details: ['Simulate some API traffic through the gateway'],
+      };
+    }
+    return { valid: true, message: 'API Gateway configured!' };
+  };
+
+  const handleComplete = async () => {
+    const success = await completeLevel('act6-level34-api-gateway', { stars: 3 });
+    if (success) {
+      onComplete({ stars: 3 });
+    }
+  };
+
+  return (
+    <LevelLayout>
+      <LeftPanel>
+        <InstructionPanel
+          scenario="Your microservices are exposed directly to the internet. Each one has its own auth, rate limiting, and routing. Time to centralize with an API Gateway!"
+          instructions={[
+            'Auth: Single point for token validation',
+            'Rate Limit: Protect all services uniformly',
+            'Routing: Direct traffic to correct service',
+            'Aggregation: Combine responses for clients',
+          ]}
+          goal="Build a central API gateway that handles cross-cutting concerns for all microservices."
+        >
+          {/* Feature Toggles */}
+          <div className="p-4 border-t border-gray-800">
+            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+              Gateway Features
+            </div>
+            <div className="space-y-2">
+              {features.map(feature => (
+                <button
+                  key={feature.id}
+                  onClick={() => toggleFeature(feature.id)}
+                  className={`w-full p-2 rounded-lg text-left transition-all border ${
+                    feature.enabled ? 'border-green-500 bg-green-900/20' : 'border-gray-700 bg-gray-800'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span>{feature.icon}</span>
+                    <div className="flex-1">
+                      <div className={feature.enabled ? 'text-green-400' : 'text-white'}>
+                        {feature.name}
+                      </div>
+                      <div className="text-xs text-gray-500">{feature.description}</div>
+                    </div>
+                    {feature.enabled && <span className="text-green-400">✓</span>}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="p-4 border-t border-gray-800">
+            <div className="flex justify-between text-sm mb-2">
+              <span className="text-gray-400">Features enabled</span>
+              <span className={features.filter(f => f.enabled).length >= 3 ? 'text-green-400' : 'text-white'}>
+                {features.filter(f => f.enabled).length} / {features.length}
+              </span>
+            </div>
+          </div>
+        </InstructionPanel>
+      </LeftPanel>
+
+      <CenterPanel>
+        <LevelHeader
+          levelNumber={34}
+          levelName="API Gateway"
+          actNumber={6}
+          onExit={onExit}
+          onReset={() => {
+            setFeatures(INITIAL_FEATURES);
+            setServices(SERVICES);
+            setRequests([]);
+          }}
+          onValidate={validateSolution}
+          onComplete={handleComplete}
+        />
+
+        <div className="flex-1 relative bg-gray-950 p-6 overflow-auto">
+          <div className="max-w-5xl mx-auto">
+            {/* Architecture Visualization */}
+            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
+              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
+                <div className="text-white font-semibold">Architecture</div>
+              </div>
+              <div className="p-8">
+                <div className="flex items-center justify-between">
+                  {/* Clients */}
+                  <div className="text-center">
+                    <div className="w-20 h-20 bg-blue-600 rounded-lg flex flex-col items-center justify-center mb-2">
+                      <span className="text-2xl">📱</span>
+                      <span className="text-xs text-white">Clients</span>
+                    </div>
+                  </div>
+
+                  <div className="text-2xl text-gray-600">→</div>
+
+                  {/* API Gateway */}
+                  <div className="text-center">
+                    <div className="w-48 p-4 bg-purple-600 rounded-xl">
+                      <div className="text-2xl mb-2">🚪</div>
+                      <div className="text-white font-semibold">API Gateway</div>
+                      <div className="flex flex-wrap justify-center gap-1 mt-2">
+                        {features.map(f => (
+                          <span
+                            key={f.id}
+                            className={`text-xs px-2 py-1 rounded ${
+                              f.enabled ? 'bg-green-500/30 text-green-300' : 'bg-gray-700/50 text-gray-400'
+                            }`}
+                          >
+                            {f.icon}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-2xl text-gray-600">→</div>
+
+                  {/* Services */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {services.map(service => (
+                      <button
+                        key={service.id}
+                        onClick={() => toggleServiceHealth(service.id)}
+                        className={`p-3 rounded-lg border transition-all ${
+                          service.healthy
+                            ? 'border-green-500 bg-green-900/20'
+                            : 'border-red-500 bg-red-900/20 opacity-60'
+                        }`}
+                      >
+                        <div className="text-xl">{service.icon}</div>
+                        <div className={`text-xs ${service.healthy ? 'text-green-400' : 'text-red-400'}`}>
+                          {service.name}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Request Simulation */}
+            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
+              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
+                <div className="text-white font-semibold">Simulate Requests</div>
+              </div>
+              <div className="p-4 grid grid-cols-5 gap-3">
+                {services.map(service => (
+                  <button
+                    key={service.id}
+                    onClick={() => simulateRequest(service.path)}
+                    className="p-3 rounded-lg bg-cyan-900/30 border border-cyan-600 hover:bg-cyan-900/50 transition-all"
+                  >
+                    <div className="text-xl">{service.icon}</div>
+                    <div className="text-xs text-cyan-400 font-mono">{service.path}</div>
+                  </button>
+                ))}
+                <button
+                  onClick={() => simulateRequest('/api/dashboard', true)}
+                  className="p-3 rounded-lg bg-purple-900/30 border border-purple-600 hover:bg-purple-900/50 transition-all"
+                >
+                  <div className="text-xl">📊</div>
+                  <div className="text-xs text-purple-400 font-mono">/api/dashboard</div>
+                  <div className="text-[10px] text-gray-500">Aggregated</div>
+                </button>
+              </div>
+            </div>
+
+            {/* Request Log */}
+            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
+              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
+                <div className="text-white font-semibold">Request Pipeline</div>
+              </div>
+              <div className="p-4 space-y-3 max-h-48 overflow-y-auto">
+                {requests.length === 0 ? (
+                  <div className="text-center py-8 text-gray-600">
+                    Click an endpoint above to simulate a request
+                  </div>
+                ) : (
+                  requests.map(req => (
+                    <div key={req.id} className="p-3 bg-gray-800 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-mono text-cyan-400">{req.path}</span>
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          req.status === 'completed' ? 'bg-green-900/40 text-green-400' :
+                          req.status === 'rate-limited' ? 'bg-red-900/40 text-red-400' :
+                          'bg-yellow-900/40 text-yellow-400'
+                        }`}>
+                          {req.status}
+                        </span>
+                      </div>
+                      <div className="flex gap-2 flex-wrap">
+                        {req.stages.map((stage, i) => (
+                          <span key={i} className="text-xs text-gray-400 bg-gray-700 px-2 py-1 rounded">
+                            {stage}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </CenterPanel>
+
+      <RightPanel>
+        <CodePreviewPanel
+          files={[
+            {
+              filename: 'nginx/api_gateway.conf',
+              language: 'nginx',
+              code: `upstream users_service {
+  server users:3000;
+}
+
+upstream orders_service {
+  server orders:3001;
+}
+
+server {
+  listen 80;
+
+  # Auth check
+  location /api/ {
+    auth_request /auth/validate;
+
+    # Rate limiting
+    limit_req zone=api burst=10;
+  }
+
+  # Route to services
+  location /api/users {
+    proxy_pass http://users_service;
+  }
+
+  location /api/orders {
+    proxy_pass http://orders_service;
+  }
+}`,
+              highlight: features.find(f => f.id === 'auth')?.enabled ? [14] :
+                        features.find(f => f.id === 'rate-limit')?.enabled ? [17] : [],
+            },
+          ]}
+          learningGoal="API Gateway is the front door to your microservices. It handles auth, rate limiting, routing, and protocol translation."
+        >
+          <div className="p-4 border-t border-gray-800">
+            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Gateway Benefits</div>
+            <ul className="text-xs text-gray-400 space-y-1">
+              <li>• Single entry point</li>
+              <li>• Centralized security</li>
+              <li>• Protocol translation</li>
+              <li>• Request aggregation</li>
+              <li>• Circuit breaking</li>
+            </ul>
+          </div>
+
+          <div className="p-4 border-t border-gray-800">
+            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Tools</div>
+            <ul className="text-xs text-gray-400 space-y-1">
+              <li>• Kong - Full-featured</li>
+              <li>• NGINX - Lightweight</li>
+              <li>• AWS API Gateway</li>
+              <li>• Traefik - K8s native</li>
+            </ul>
+          </div>
+        </CodePreviewPanel>
+      </RightPanel>
+    </LevelLayout>
+  );
+}
+
+export default Level34APIGateway;

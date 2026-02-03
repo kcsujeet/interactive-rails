@@ -65,7 +65,7 @@ export interface Level {
 }
 
 export interface LevelTrigger {
-  type: 'initialization' | 'traffic_spike' | 'new_feature' | 'attack' | 'outage' | 'data_growth' | 'user_complaint' | 'incident' | 'security_audit' | 'refactor_request';
+  type: 'initialization' | 'traffic_spike' | 'new_feature' | 'attack' | 'outage' | 'data_growth' | 'user_complaint' | 'incident' | 'security_audit' | 'refactor_request' | 'code_review' | 'security_incident' | 'performance_alert' | 'optimization' | 'scaling' | 'architecture';
   description: string;
   /** For traffic_spike: requests per second multiplier */
   intensity?: number;
@@ -93,7 +93,7 @@ export interface MetricThresholds {
 }
 
 export interface SuccessCondition {
-  type: 'metric' | 'node_present' | 'connection' | 'node_absent' | 'slot_filled' | 'logic_block_moved' | 'complexity_under' | 'decision_made' | 'path_exists' | 'node_count';
+  type: 'metric' | 'node_present' | 'connection' | 'node_absent' | 'slot_filled' | 'logic_block_moved' | 'complexity_under' | 'decision_made' | 'path_exists' | 'node_count' | 'crud_complete' | 'pipeline_complete' | 'security_configured' | 'scopes_defined' | 'controller_lines' | 'service_created' | 'form_object_created' | 'authorization_configured' | 'view_component_created' | 'n1_identified' | 'eager_loading_applied' | 'queries_optimized' | 'pagination_implemented' | 'caching_configured' | 'background_jobs_configured' | 'api_resilience_configured' | 'webhooks_configured' | 'storage_configured' | 'idempotency_configured' | 'health_checks_configured' | 'load_balancing_configured' | 'cdn_configured' | 'rate_limiting_configured' | 'connection_pool_configured' | 'zero_downtime_configured' | 'message_queue_configured' | 'distributed_cache_configured' | 'api_gateway_configured' | 'microservice_extracted';
   /** For metric conditions */
   metric?: string;
   operator?: 'lt' | 'lte' | 'gt' | 'gte' | 'eq';
@@ -118,6 +118,10 @@ export interface SuccessCondition {
   /** For path_exists conditions */
   pathFrom?: string;
   pathTo?: string;
+  /** For crud_complete conditions */
+  modelType?: string;
+  /** For controller_lines conditions */
+  maxLines?: number;
 }
 
 export interface LearningContent {
