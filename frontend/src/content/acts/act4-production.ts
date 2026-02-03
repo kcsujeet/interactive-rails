@@ -168,7 +168,7 @@ const level24FileStorage: Level = {
 # GOOD: Direct upload
 # Browser -> S3 (direct)
 # App only receives URL`,
-    goal: 'Configure ActiveStorage with direct uploads to S3.',
+    goal: 'Configure storage provider, enable direct uploads, and add CDN.',
     thresholds: {},
   },
   successConditions: [{ type: 'storage_configured' }],

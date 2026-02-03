@@ -243,7 +243,7 @@ const level30ConnectionPooling: Level = {
     rootCause: 'Connection pool misconfigured.',
     codeExample: `# Error: ActiveRecord::ConnectionTimeoutError
 # could not obtain a connection from the pool within 5.000 seconds`,
-    goal: 'Configure optimal database connection pool size.',
+    goal: 'Adjust pool size and timeout to handle concurrent requests.',
     thresholds: {},
   },
   successConditions: [{ type: 'connection_pool_configured' }],
@@ -253,13 +253,12 @@ const level30ConnectionPooling: Level = {
     title: 'Database Connection Pooling',
     conceptExplanation: `Pool = Pre-established connections for reuse.
 
-**Formula:**
-pool_size = (web_concurrency * max_threads) + (sidekiq_concurrency)
+**Key settings:**
+- pool_size: Number of connections available
+- checkout_timeout: How long to wait for a connection
 
-**Example:**
-- 2 Puma workers × 5 threads = 10
-- Sidekiq with 10 threads = 10
-- Total: 20 connections per dyno`,
+**Rule of thumb:**
+Pool should be >= concurrent requests (workers × threads)`,
     railsCodeExample: `# config/database.yml
 production:
   adapter: postgresql

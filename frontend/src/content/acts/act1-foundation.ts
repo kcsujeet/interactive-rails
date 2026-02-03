@@ -114,7 +114,7 @@ const level2Model: Level = {
   name: 'The Model',
   trigger: {
     type: 'new_feature',
-    description: 'Time to create your first data model. What does a Post look like?',
+    description: 'You\'re starting a blog. Before writing code, decide what a Post looks like.',
   },
   startingPipeline: {
     nodes: [],
@@ -127,10 +127,10 @@ const level2Model: Level = {
 # rails generate model Post title:string body:text
 
 class Post < ApplicationRecord
-  # What validations should we add?
   # What attributes does it have?
+  # title, body, published_at, author...
 end`,
-    goal: 'Design the Post model with appropriate attributes and validations.',
+    goal: 'Select the attributes your Post model needs.',
     thresholds: {},
   },
   successConditions: [
@@ -140,31 +140,37 @@ end`,
   unlockedNodes: [],
   learningContent: {
     title: 'ActiveRecord Models',
-    conceptExplanation: `Models are the M in MVC. They represent your data and business logic.
+    conceptExplanation: `Models are the M in MVC. They represent your data.
 
 **Key concepts:**
 - Models map to database tables
-- Validations ensure data integrity
-- Callbacks hook into the lifecycle
+- Attributes become database columns
+- Each attribute has a type (string, text, integer, boolean, datetime)
 
-Each model inherits from ApplicationRecord which gives you all of ActiveRecord's magic.`,
-    railsCodeExample: `# app/models/post.rb
+Choose attributes that capture the essential data your application needs.`,
+    railsCodeExample: `# Generate a model with attributes
+rails generate model Post title:string body:text published:boolean
+
+# This creates:
+# - app/models/post.rb
+# - db/migrate/xxx_create_posts.rb
+
+# app/models/post.rb
 class Post < ApplicationRecord
-  validates :title, presence: true, length: { maximum: 255 }
-  validates :body, presence: true
+  # Attributes: title, body, published, created_at, updated_at
+end
 
-  before_save :normalize_title
-
-  private
-
-  def normalize_title
-    self.title = title.titleize
-  end
+# migration creates the table
+create_table :posts do |t|
+  t.string :title
+  t.text :body
+  t.boolean :published
+  t.timestamps
 end`,
     commonMistakes: [
-      'Not adding validations',
-      'Putting too much logic in models (fat models)',
-      'Forgetting database indexes',
+      'Too many attributes (start minimal)',
+      'Wrong data types (string vs text)',
+      'Forgetting timestamps',
     ],
     whenToUse: 'Create a model for each entity in your domain.',
     furtherReading: [
@@ -173,7 +179,7 @@ end`,
   },
   hint: {
     delay: 20,
-    text: 'Define the attributes and validations for your Post model.',
+    text: 'Select at least title and body as attributes for your Post.',
   },
 };
 
@@ -380,65 +386,60 @@ const level5Views: Level = {
     ],
   },
   problem: {
-    observation: 'Controller returns data but users see a blank page.',
-    rootCause: 'No view templates to render the data.',
+    observation: 'Controller has data but the templates are incomplete.',
+    rootCause: 'ERB tags missing - views don\'t know how to display the data.',
     codeExample: `# Controller sets instance variables:
-def index
-  @posts = Post.all
+def show
+  @post = Post.find(params[:id])
 end
 
-# But we need a view to display them:
-# app/views/posts/index.html.erb
-<h1>Posts</h1>
-<% @posts.each do |post| %>
-  <p><%= post.title %></p>
+# View needs ERB tags to display:
+<h1><%= @post.title %></h1>  # Output tag
+<% @posts.each do |p| %>     # Execute tag (no output)
+  <%= p.title %>
 <% end %>`,
-    goal: 'Add views to render the data as HTML.',
+    goal: 'Fill in the ERB tags to render data from the controller.',
     thresholds: {},
   },
   successConditions: [
     { type: 'node_present', nodeType: 'view' },
-    { type: 'node_present', nodeType: 'response' },
-    { type: 'connection', sourceType: 'model', targetType: 'view' },
   ],
-  availableNodes: ['view', 'response', 'database'],
+  availableNodes: ['view'],
   unlockedNodes: [],
   learningContent: {
     title: 'Rails Views & ERB',
-    conceptExplanation: `Views are the V in MVC. They render data into HTML.
+    conceptExplanation: `Views are the V in MVC. ERB (Embedded Ruby) lets you mix Ruby with HTML.
 
-**ERB (Embedded Ruby):**
-- <%= %> outputs the result
-- <% %> executes without output
-- Partials with _filename.html.erb
-- Layouts wrap views
+**Two types of ERB tags:**
+- <%= %> - Output tag: evaluates Ruby and outputs result
+- <% %> - Execute tag: runs Ruby without output (loops, conditionals)
 
-Views should be dumb! No complex logic, just display data.`,
-    railsCodeExample: `<!-- app/views/posts/index.html.erb -->
+Controllers pass data to views via instance variables (@post, @posts).`,
+    railsCodeExample: `<!-- app/views/posts/show.html.erb -->
+<h1><%= @post.title %></h1>
+<p><%= @post.body %></p>
+
+<!-- app/views/posts/index.html.erb -->
 <h1>All Posts</h1>
 
 <% @posts.each do |post| %>
   <article>
-    <h2><%= link_to post.title, post %></h2>
-    <p><%= truncate(post.body, length: 100) %></p>
-    <small>Posted <%= time_ago_in_words(post.created_at) %> ago</small>
+    <%= link_to post.title, post %>
   </article>
-<% end %>
-
-<%= link_to "New Post", new_post_path %>`,
+<% end %>`,
     commonMistakes: [
-      'Complex logic in views',
-      'N+1 queries in view loops',
-      'Not using partials for reusability',
+      'Using <% %> when you need <%= %> (nothing shows up)',
+      'Forgetting the closing <% end %> for loops',
+      'Putting complex logic in views instead of helpers',
     ],
-    whenToUse: 'Create a view for each controller action that renders HTML.',
+    whenToUse: 'Every view that displays dynamic data needs ERB tags.',
     furtherReading: [
       { title: 'Action View Overview', url: 'https://guides.rubyonrails.org/action_view_overview.html' },
     ],
   },
   hint: {
     delay: 20,
-    text: 'Add a View node to render data and a Response node to send it back.',
+    text: 'Drag the ERB tags to the correct slots in the template.',
   },
 };
 

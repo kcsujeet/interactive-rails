@@ -134,10 +134,10 @@ def create
   @user.subscribe_to_newsletter
   # ... 100 more lines
 end`,
-    goal: 'Extract business logic from controllers into appropriate layers.',
+    goal: 'Drag each code block to its proper architectural layer.',
     thresholds: {},
   },
-  successConditions: [{ type: 'controller_lines', maxLines: 100 }],
+  successConditions: [{ type: 'controller_lines' }],
   availableNodes: ['service'],
   unlockedNodes: ['service'],
   learningContent: {

@@ -151,33 +151,34 @@ Post.pluck(:title)  # Only loads titles`,
     title: 'Query Optimization Techniques',
     conceptExplanation: `Optimize what you load and how you query.
 
-**Loading:**
-- select: Load specific columns
-- pluck: Get raw values (no models)
-- find_each: Batch processing
+**Loading less data:**
+- select: Load specific columns (returns models)
+- pluck: Get raw values (no model objects)
+
+**Smarter queries:**
+- exists?: Check if records exist (faster than count > 0)
+- count: Count in database, not Ruby
 
 **Indexes:**
 - Add indexes for WHERE clauses
 - Add indexes for foreign keys`,
-    railsCodeExample: `# select - partial model
+    railsCodeExample: `# select - partial model (less memory)
 Post.select(:id, :title).where(published: true)
 
-# pluck - raw values
+# pluck - raw values (even less memory)
 Post.where(published: true).pluck(:title)
 # => ["Post 1", "Post 2"]
 
 # exists? instead of count > 0
-Post.where(author: user).exists?
+Post.where(author: user).exists?  # LIMIT 1, fast!
 
-# find_each for large datasets
-Post.find_each(batch_size: 1000) do |post|
-  process(post)
-end
+# count in database
+Post.where(published: true).count  # SQL COUNT(*)
 
 # Add index in migration
 add_index :posts, :author_id
 add_index :posts, [:published, :created_at]`,
-    commonMistakes: ['SELECT * when you need one column', 'Missing indexes on foreign keys'],
+    commonMistakes: ['SELECT * when you need one column', 'Missing indexes on foreign keys', 'Using .count when you need .exists?'],
     whenToUse: 'Always for large datasets or performance-critical paths.',
     furtherReading: [{ title: 'Rails Performance', url: 'https://www.speedshop.co/2019/01/10/three-activerecord-mistakes.html' }],
   },
@@ -264,8 +265,8 @@ Post.popular  # Runs full query
 Rails.cache.fetch('popular_posts', expires_in: 1.hour) do
   Post.popular.to_a
 end`,
-    goal: 'Implement multi-layer caching strategy.',
-    thresholds: { minCacheHitRate: 80 },
+    goal: 'Enable at least 2 caching layers to reduce database load.',
+    thresholds: {},
   },
   successConditions: [{ type: 'caching_configured' }],
   availableNodes: ['cache'],
