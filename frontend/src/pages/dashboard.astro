@@ -111,7 +111,7 @@ import GameLayout from '../layouts/GameLayout.astro';
             <a href="/acts" class="action-card">
               <span class="action-icon">📚</span>
               <span class="action-title">Acts</span>
-              <span class="action-desc">Learn Rails through 80 levels</span>
+              <span class="action-desc">Learn Rails through 35 levels</span>
             </a>
             <a href="/sandbox" class="action-card">
               <span class="action-icon">🔧</span>
@@ -153,6 +153,11 @@ import GameLayout from '../layouts/GameLayout.astro';
     justify-content: space-between;
     align-items: center;
     margin-bottom: 32px;
+    background: rgba(11, 31, 54, 0.6);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    border-radius: 16px;
+    padding: 20px 24px;
+    box-shadow: 0 24px 40px -32px rgba(3, 10, 20, 0.9);
   }
 
   .dashboard-header h1 {
@@ -181,12 +186,12 @@ import GameLayout from '../layouts/GameLayout.astro';
   :global(.quick-actions h2) {
     font-size: 0.875rem;
     font-weight: 600;
-    color: #9ca3af;
+    color: rgba(226, 240, 255, 0.6);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin: 0 0 20px 0;
     padding-bottom: 12px;
-    border-bottom: 1px solid var(--color-game-border);
+    border-bottom: 1px solid rgba(56, 189, 248, 0.2);
   }
 
   :global(.stat-row) {
@@ -194,7 +199,7 @@ import GameLayout from '../layouts/GameLayout.astro';
     justify-content: space-between;
     align-items: center;
     padding: 12px 0;
-    border-bottom: 1px solid var(--color-game-border);
+    border-bottom: 1px solid rgba(56, 189, 248, 0.15);
   }
 
   :global(.stat-row:last-child) {
@@ -203,7 +208,7 @@ import GameLayout from '../layouts/GameLayout.astro';
 
   :global(.stat-label) {
     font-size: 0.875rem;
-    color: #9ca3af;
+    color: rgba(226, 240, 255, 0.7);
   }
 
   :global(.stat-value) {
@@ -213,8 +218,8 @@ import GameLayout from '../layouts/GameLayout.astro';
   }
 
   :global(.stat-value.level-badge) {
-    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-    color: white;
+    background: linear-gradient(135deg, #38bdf8, #22d3ee);
+    color: #05202f;
     padding: 4px 16px;
     border-radius: 9999px;
     font-size: 0.875rem;
@@ -231,7 +236,8 @@ import GameLayout from '../layouts/GameLayout.astro';
   :global(.progress-bar) {
     flex: 1;
     height: 1.5rem;
-    background-color: var(--color-game-border);
+    background-color: rgba(3, 15, 30, 0.8);
+    border: 1px solid rgba(56, 189, 248, 0.2);
     border-radius: 9999px;
     overflow: hidden;
     position: relative;
@@ -240,7 +246,7 @@ import GameLayout from '../layouts/GameLayout.astro';
 
   :global(.progress-fill) {
     height: 100%;
-    background: linear-gradient(to right, #22c55e, #4ade80);
+    background: linear-gradient(to right, #38bdf8, #22d3ee);
     transition: width 300ms ease-out;
     border-radius: 9999px;
   }
@@ -265,7 +271,7 @@ import GameLayout from '../layouts/GameLayout.astro';
   :global(.unlock-category h3) {
     font-size: 0.75rem;
     font-weight: 600;
-    color: #9ca3af;
+    color: rgba(226, 240, 255, 0.6);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-bottom: 12px;
@@ -286,15 +292,15 @@ import GameLayout from '../layouts/GameLayout.astro';
   }
 
   :global(.unlock-tag.node) {
-    background: rgba(59, 130, 246, 0.15);
-    color: #60a5fa;
-    border: 1px solid rgba(59, 130, 246, 0.3);
+    background: rgba(56, 189, 248, 0.15);
+    color: #bae6fd;
+    border: 1px solid rgba(56, 189, 248, 0.3);
   }
 
   :global(.unlock-tag.defense) {
-    background: rgba(34, 197, 94, 0.15);
-    color: #4ade80;
-    border: 1px solid rgba(34, 197, 94, 0.3);
+    background: rgba(16, 185, 129, 0.15);
+    color: #a7f3d0;
+    border: 1px solid rgba(16, 185, 129, 0.3);
   }
 
   :global(.quick-actions) {
@@ -313,15 +319,15 @@ import GameLayout from '../layouts/GameLayout.astro';
     align-items: center;
     text-align: center;
     padding: 24px;
-    background: var(--color-game-bg);
-    border: 1px solid var(--color-game-border);
+    background: rgba(3, 15, 30, 0.7);
+    border: 1px solid rgba(56, 189, 248, 0.2);
     border-radius: 0.5rem;
     text-decoration: none;
     transition: all 200ms;
   }
 
   :global(.action-card:hover) {
-    border-color: #3b82f6;
+    border-color: #38bdf8;
     transform: translateY(-2px);
   }
 
@@ -339,7 +345,7 @@ import GameLayout from '../layouts/GameLayout.astro';
 
   :global(.action-desc) {
     font-size: 0.75rem;
-    color: #6b7280;
+    color: rgba(226, 240, 255, 0.6);
   }
 
   .loading {
@@ -350,7 +356,7 @@ import GameLayout from '../layouts/GameLayout.astro';
 
   .loading-text {
     font-size: 0.875rem;
-    color: #6b7280;
+    color: rgba(226, 240, 255, 0.6);
     animation: pulse 1.5s infinite;
   }
 
@@ -361,7 +367,7 @@ import GameLayout from '../layouts/GameLayout.astro';
 
   :global(.error p) {
     margin-bottom: 16px;
-    color: #9ca3af;
+    color: rgba(226, 240, 255, 0.7);
   }
 
   @keyframes pulse {

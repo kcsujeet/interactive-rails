@@ -280,6 +280,7 @@ const level35Microservices: Level = {
   actId: 6,
   levelNumber: 35,
   name: 'Microservices',
+  isCapstone: true,
   trigger: {
     type: 'architecture',
     description: 'Monolith is 2M lines. Teams stepping on each other. Time to extract services.',
@@ -296,12 +297,17 @@ const level35Microservices: Level = {
 # 2. Extract to separate service
 # 3. Route traffic to new service
 # 4. Remove from monolith`,
-    goal: 'Extract a bounded context into a microservice.',
+    goal: 'Design a safe extraction with routing, async events, and cache strategy.',
     thresholds: {},
   },
-  successConditions: [{ type: 'microservice_extracted' }],
-  availableNodes: [],
-  unlockedNodes: [],
+  successConditions: [
+    { type: 'api_gateway_configured' },
+    { type: 'message_queue_configured' },
+    { type: 'distributed_cache_configured' },
+    { type: 'microservice_extracted' },
+  ],
+  availableNodes: ['api_gateway', 'message_queue', 'redis_cluster'],
+  unlockedNodes: ['api_gateway', 'message_queue', 'redis_cluster'],
   learningContent: {
     title: 'Microservices Extraction (Capstone)',
     conceptExplanation: `Break monolith into independently deployable services.
@@ -389,7 +395,7 @@ end`,
       { title: 'Monolith to Microservices', url: 'https://www.oreilly.com/library/view/monolith-to-microservices/9781492047834/' },
     ],
   },
-  hint: { delay: 30, text: 'Use Strangler Fig: proxy, extract, cut over, remove.' },
+  hint: { delay: 30, text: 'Use Strangler Fig: gateway + events + cache + gradual cutover.' },
 };
 
 // ============================================

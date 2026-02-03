@@ -1,22 +1,11 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/ui/Header.astro';
 ---
 
 <BaseLayout title="Master Rails Performance">
   <main class="landing">
-    <header class="landing-header">
-      <nav class="landing-nav container">
-        <a href="/" class="logo">
-          <span class="logo-icon">🔧</span>
-          <span class="logo-text">RailsExpert</span>
-        </a>
-        <div class="nav-links" id="nav-auth">
-          <!-- Will be populated by JS based on auth state -->
-          <a href="/login" class="nav-link">Login</a>
-          <a href="/signup" class="btn btn-primary">Get Started</a>
-        </div>
-      </nav>
-    </header>
+    <Header />
 
     <section class="hero">
       <div class="container">
@@ -31,7 +20,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
             Watch N+1 queries spawn enemies and cache hits create shields in real-time.
           </p>
           <div class="hero-cta" id="hero-cta">
-            <a href="/signup" class="btn btn-primary btn-lg" id="cta-primary">Start Building</a>
+            <a href="/dashboard" class="btn btn-primary btn-lg" id="cta-primary">Start Learning</a>
             <a href="#how-it-works" class="btn btn-secondary btn-lg">See How It Works</a>
           </div>
         </div>
@@ -107,7 +96,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
           <div class="step card">
             <div class="step-number">4</div>
             <h3>Complete Acts</h3>
-            <p>Progress through 80 levels across 7 acts, each teaching core Rails performance concepts. Earn stars and unlock advanced techniques.</p>
+          <p>Progress through 35 levels across 6 acts, each teaching core Rails performance concepts. Earn stars and unlock advanced techniques.</p>
           </div>
         </div>
       </div>
@@ -169,7 +158,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     <section class="levels-preview">
       <div class="container">
         <h2 class="section-title">Progressive Learning Path</h2>
-        <p class="section-subtitle">80 levels across 7 acts - from basics to production-grade optimization</p>
+        <p class="section-subtitle">35 levels across 6 acts - from fundamentals to production-grade optimization</p>
 
         <div class="levels-list">
           <div class="level-card card beginner">
@@ -178,7 +167,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
               <span class="level-difficulty">★☆☆☆☆</span>
             </div>
             <h3>Birth of the App</h3>
-            <p>Learn MVC basics, associations, validations, and callbacks through 8 foundational levels.</p>
+            <p>Learn MVC basics, associations, validations, and callbacks through the foundational act.</p>
             <div class="level-concepts">
               <span class="concept-tag">has_many</span>
               <span class="concept-tag">belongs_to</span>
@@ -191,7 +180,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
               <span class="level-difficulty">★★★☆☆</span>
             </div>
             <h3>Growth & Scale</h3>
-            <p>Fix N+1 queries, add indexes, implement caching, and background jobs across 24 levels.</p>
+            <p>Fix N+1 queries, add indexes, implement caching, and background jobs across the middle acts.</p>
             <div class="level-concepts">
               <span class="concept-tag">includes()</span>
               <span class="concept-tag">Rails.cache</span>
@@ -204,7 +193,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
               <span class="level-difficulty">★★★★☆</span>
             </div>
             <h3>Production & Infrastructure</h3>
-            <p>Handle security, concurrency, Redis, Sidekiq, and message queues across 28 levels.</p>
+            <p>Handle security, concurrency, Redis, Sidekiq, and message queues across late acts.</p>
             <div class="level-concepts">
               <span class="concept-tag">Circuit Breaker</span>
               <span class="concept-tag">Pub/Sub</span>
@@ -213,11 +202,11 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
           <div class="level-card card expert">
             <div class="level-header">
-              <span class="level-tag">Act VI-VII</span>
+              <span class="level-tag">Act VI</span>
               <span class="level-difficulty">★★★★★</span>
             </div>
             <h3>Platform & Expert</h3>
-            <p>Master APIs, observability, sharding, and incident response across 20 final levels.</p>
+            <p>Master APIs, observability, sharding, and incident response in the capstone act.</p>
             <div class="level-concepts">
               <span class="concept-tag">Read Replicas</span>
               <span class="concept-tag">Feature Flags</span>
@@ -231,7 +220,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       <div class="container text-center">
         <h2>Ready to Optimize?</h2>
         <p>Start building pipelines and mastering Rails performance today.</p>
-        <a href="/signup" class="btn btn-primary btn-lg" id="cta-bottom">Create Free Account</a>
+        <a href="/dashboard" class="btn btn-primary btn-lg" id="cta-bottom">Start Learning</a>
       </div>
     </section>
 
@@ -241,27 +230,18 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   const user = localStorage.getItem(USER_KEY);
 
   if (user) {
-    // User is logged in - update nav
-    const navAuth = document.getElementById('nav-auth');
-    if (navAuth) {
-      navAuth.innerHTML = `
-        <a href="/acts" class="nav-link">Acts</a>
-        <a href="/dashboard" class="btn btn-primary">Dashboard</a>
-      `;
-    }
-
     // Update hero CTA
     const ctaPrimary = document.getElementById('cta-primary');
     if (ctaPrimary) {
-      ctaPrimary.href = '/acts';
-      ctaPrimary.textContent = 'Start Learning';
+      ctaPrimary.href = '/dashboard';
+      ctaPrimary.textContent = 'Open Dashboard';
     }
 
     // Update bottom CTA
     const ctaBottom = document.getElementById('cta-bottom');
     if (ctaBottom) {
-      ctaBottom.href = '/acts';
-      ctaBottom.textContent = 'Continue Learning';
+      ctaBottom.href = '/dashboard';
+      ctaBottom.textContent = 'Go to Dashboard';
     }
   }
 </script>
@@ -277,65 +257,18 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 <style>
   .landing {
     min-height: 100vh;
+    background:
+      radial-gradient(circle at top right, rgba(56, 189, 248, 0.12), transparent 45%),
+      radial-gradient(circle at 20% 20%, rgba(34, 211, 238, 0.1), transparent 40%),
+      linear-gradient(rgba(56, 189, 248, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56, 189, 248, 0.06) 1px, transparent 1px);
+    background-size: 100% 100%, 100% 100%, 28px 28px, 28px 28px;
   }
 
   .container {
     max-width: 1200px;
     margin: 0 auto;
     padding: 0 24px;
-  }
-
-  /* Header */
-  .landing-header {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    background: rgba(15, 15, 26, 0.95);
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid var(--color-game-border);
-    z-index: 100;
-    padding: 16px 0;
-  }
-
-  .landing-nav {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .logo {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    text-decoration: none;
-  }
-
-  .logo-icon {
-    font-size: 1.5rem;
-  }
-
-  .logo-text {
-    font-size: 1.125rem;
-    font-weight: 700;
-    color: #f3f4f6;
-  }
-
-  .nav-links {
-    display: flex;
-    gap: 16px;
-    align-items: center;
-  }
-
-  .nav-link {
-    font-size: 0.875rem;
-    color: #9ca3af;
-    text-decoration: none;
-    transition: color 0.2s;
-  }
-
-  .nav-link:hover {
-    color: #f3f4f6;
   }
 
   /* Buttons */
@@ -346,7 +279,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
   /* Hero */
   .hero {
-    padding: 140px 0 80px;
+    padding: 96px 0 120px;
     min-height: 100vh;
     display: flex;
     align-items: center;
@@ -362,11 +295,11 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   .badge-new {
     display: inline-block;
     padding: 6px 12px;
-    background: rgba(59, 130, 246, 0.15);
-    border: 1px solid #3b82f6;
+    background: rgba(56, 189, 248, 0.15);
+    border: 1px solid #38bdf8;
     border-radius: 9999px;
     font-size: 0.75rem;
-    color: #60a5fa;
+    color: #bae6fd;
     margin-bottom: 16px;
   }
 
@@ -384,7 +317,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
   .title-highlight {
     display: block;
-    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    background: linear-gradient(135deg, #38bdf8, #22d3ee);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -392,7 +325,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
   .hero-subtitle {
     font-size: 1.125rem;
-    color: #9ca3af;
+    color: rgba(226, 240, 255, 0.75);
     margin-bottom: 32px;
     line-height: 1.7;
   }
@@ -402,9 +335,17 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     gap: 16px;
   }
 
+  .hero-visual {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
   /* Pipeline Preview */
   .pipeline-preview {
-    background: var(--color-game-surface);
+    background: linear-gradient(135deg, rgba(7, 20, 35, 0.9), rgba(11, 31, 54, 0.85));
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    box-shadow: 0 30px 60px -40px rgba(3, 10, 20, 0.9);
     overflow: hidden;
   }
 
@@ -413,8 +354,8 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     align-items: center;
     gap: 8px;
     padding: 12px 16px;
-    background: var(--color-game-bg);
-    border-bottom: 1px solid var(--color-game-border);
+    background: rgba(3, 15, 30, 0.7);
+    border-bottom: 1px solid rgba(56, 189, 248, 0.2);
   }
 
   .preview-dot {
@@ -430,11 +371,17 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   .preview-title {
     margin-left: auto;
     font-size: 0.75rem;
-    color: #6b7280;
+    color: rgba(226, 240, 255, 0.7);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
   }
 
   .preview-content {
-    padding: 24px;
+    padding: 18px;
+    background-image:
+      linear-gradient(rgba(56, 189, 248, 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56, 189, 248, 0.08) 1px, transparent 1px);
+    background-size: 20px 20px;
   }
 
   .pipeline-demo {
@@ -447,23 +394,23 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
   .node {
     padding: 8px 16px;
-    background: var(--color-game-border);
-    border: 2px solid #4b5563;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.35);
     border-radius: 6px;
     font-size: 0.75rem;
     font-weight: 600;
-    color: #f3f4f6;
+    color: #e6f6ff;
     position: relative;
   }
 
-  .node-request { border-color: #3b82f6; background: rgba(59, 130, 246, 0.2); }
-  .node-router { border-color: #a78bfa; background: rgba(167, 139, 250, 0.2); }
-  .node-controller { border-color: #10b981; background: rgba(16, 185, 129, 0.2); }
+  .node-request { border-color: #38bdf8; background: rgba(56, 189, 248, 0.2); }
+  .node-router { border-color: #60a5fa; background: rgba(96, 165, 250, 0.2); }
+  .node-controller { border-color: #22d3ee; background: rgba(34, 211, 238, 0.2); }
   .node-model { border-color: #f59e0b; background: rgba(245, 158, 11, 0.2); }
-  .node-database { border-color: #ef4444; background: rgba(239, 68, 68, 0.2); }
+  .node-database { border-color: #f43f5e; background: rgba(244, 63, 94, 0.2); }
   .node-database.warning {
     animation: pulse 2s ease-in-out infinite;
-    box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+    box-shadow: 0 0 20px rgba(244, 63, 94, 0.3);
   }
 
   .node-badge {
@@ -471,7 +418,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     top: -8px;
     right: -8px;
     padding: 2px 6px;
-    background: #ef4444;
+    background: #f43f5e;
     border-radius: 4px;
     font-size: 0.625rem;
     color: white;
@@ -499,8 +446,9 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     display: flex;
     justify-content: space-around;
     padding: 16px;
-    background: var(--color-game-bg);
+    background: rgba(3, 15, 30, 0.7);
     border-radius: 8px;
+    border: 1px solid rgba(56, 189, 248, 0.2);
   }
 
   .metric {
@@ -510,7 +458,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   .metric-label {
     display: block;
     font-size: 0.625rem;
-    color: #6b7280;
+    color: rgba(226, 240, 255, 0.6);
     margin-bottom: 4px;
   }
 
@@ -520,7 +468,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     font-family: var(--font-mono);
   }
 
-  .metric-value.danger { color: #ef4444; }
+  .metric-value.danger { color: #f43f5e; }
   .metric-value.warning { color: #f59e0b; }
   .metric-value.success { color: #22c55e; }
 
@@ -529,20 +477,20 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     text-align: center;
     font-size: 2rem;
     font-weight: 700;
-    color: #f3f4f6;
+    color: #e6f6ff;
     margin-bottom: 8px;
   }
 
   .section-subtitle {
     text-align: center;
-    color: #9ca3af;
+    color: rgba(226, 240, 255, 0.7);
     margin-bottom: 48px;
   }
 
   /* How It Works */
   .how-it-works {
     padding: 80px 0;
-    background: var(--color-game-surface);
+    background: linear-gradient(135deg, rgba(11, 31, 54, 0.8), rgba(7, 20, 35, 0.9));
   }
 
   .steps-grid {
@@ -559,7 +507,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   .step-number {
     width: 48px;
     height: 48px;
-    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    background: linear-gradient(135deg, #38bdf8, #22d3ee);
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -578,7 +526,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
   .step p {
     font-size: 0.875rem;
-    color: #9ca3af;
+    color: rgba(226, 240, 255, 0.7);
     line-height: 1.6;
   }
 
@@ -600,6 +548,14 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   .concept-icon {
     font-size: 2.5rem;
     margin-bottom: 16px;
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.3);
   }
 
   .concept-card h3 {
@@ -610,7 +566,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
   .concept-card p {
     font-size: 0.875rem;
-    color: #9ca3af;
+    color: rgba(226, 240, 255, 0.7);
     line-height: 1.6;
     margin-bottom: 16px;
   }
@@ -620,7 +576,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     align-items: center;
     gap: 8px;
     padding: 12px;
-    background: var(--color-game-bg);
+    background: rgba(3, 15, 30, 0.7);
     border-radius: 6px;
     font-size: 0.75rem;
     font-family: var(--font-mono);
@@ -631,7 +587,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   }
 
   .mapping-arrow {
-    color: #6b7280;
+    color: rgba(226, 240, 255, 0.5);
   }
 
   .mapping-to {
@@ -641,7 +597,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   /* Levels Preview */
   .levels-preview {
     padding: 80px 0;
-    background: var(--color-game-surface);
+    background: linear-gradient(135deg, rgba(11, 31, 54, 0.8), rgba(7, 20, 35, 0.9));
   }
 
   .levels-list {
@@ -703,7 +659,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
   .level-card p {
     font-size: 0.875rem;
-    color: #9ca3af;
+    color: rgba(226, 240, 255, 0.7);
     line-height: 1.5;
     margin-bottom: 12px;
   }
@@ -718,15 +674,15 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     font-size: 0.625rem;
     font-family: var(--font-mono);
     padding: 4px 8px;
-    background: var(--color-game-bg);
+    background: rgba(3, 15, 30, 0.7);
     border-radius: 4px;
-    color: #60a5fa;
+    color: #7dd3fc;
   }
 
   /* CTA */
   .cta-section {
     padding: 80px 0;
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(34, 211, 238, 0.12));
     border-top: 1px solid var(--color-game-border);
     border-bottom: 1px solid var(--color-game-border);
   }
@@ -739,7 +695,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   }
 
   .cta-section p {
-    color: #9ca3af;
+    color: rgba(226, 240, 255, 0.7);
     margin-bottom: 24px;
   }
 
@@ -751,7 +707,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   .landing-footer {
     padding: 24px 0;
     text-align: center;
-    color: #6b7280;
+    color: rgba(226, 240, 255, 0.6);
     font-size: 0.875rem;
   }
 

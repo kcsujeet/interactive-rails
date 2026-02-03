@@ -12,8 +12,8 @@ import { createToken } from '../utils/jwt';
 import { authMiddleware } from '../middleware/auth';
 import { authRateLimiter } from '../middleware/rateLimit';
 import { UserRepository } from '../repositories/userRepository';
-import { ProgressRepository } from '../repositories/progressRepository';
-import { UnauthorizedError, ValidationError } from '../errors';
+import { PipelineProgressRepository } from '../repositories/pipelineProgressRepository';
+import { UnauthorizedError } from '../errors';
 import { AUTH, HTTP_STATUS } from '../constants';
 import { logger } from '../utils/logger';
 import type { Env } from '../types';
@@ -73,7 +73,7 @@ function formatUserResponse(user: { id: string; email: string; username: string 
 authRoutes.post('/signup', zValidator('json', signupSchema), async (c) => {
   const { email, username, password } = c.req.valid('json');
   const userRepo = new UserRepository(c.env.DB);
-  const progressRepo = new ProgressRepository(c.env.DB);
+  const progressRepo = new PipelineProgressRepository(c.env.DB);
 
   logger.info('Signup attempt', {
     requestId: c.get('requestId'),
@@ -86,7 +86,7 @@ authRoutes.post('/signup', zValidator('json', signupSchema), async (c) => {
   const user = await userRepo.create({ email, username, passwordHash });
 
   // Create initial progress
-  await progressRepo.create({ userId: user.id });
+  await progressRepo.createPlayerProgress({ userId: user.id });
 
   // Generate and set auth token
   const token = await createToken({ userId: user.id }, c.env.JWT_SECRET);

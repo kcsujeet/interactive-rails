@@ -25,6 +25,10 @@ CREATE TABLE IF NOT EXISTS player_progress (
   unlocked_actions TEXT DEFAULT '[]',
   unlocked_nodes TEXT DEFAULT '["request","router","controller","view","response"]',
   unlocked_defenses TEXT DEFAULT '["index_turret"]',
+  -- Stack choices from Level 1
+  stack_choices TEXT DEFAULT NULL,
+  -- Guest import tracking
+  guest_imported_at DATETIME DEFAULT NULL,
   -- Titles and achievements
   titles TEXT DEFAULT '[]',
   current_title TEXT DEFAULT NULL,

@@ -26,7 +26,12 @@ import SignupForm from '../components/auth/SignupForm';
     align-items: center;
     justify-content: center;
     padding: 24px;
-    background: linear-gradient(135deg, var(--color-game-bg) 0%, var(--color-game-surface) 100%);
+    background:
+      radial-gradient(circle at top right, rgba(56, 189, 248, 0.15), transparent 45%),
+      linear-gradient(rgba(56, 189, 248, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56, 189, 248, 0.06) 1px, transparent 1px),
+      linear-gradient(135deg, var(--color-game-bg) 0%, var(--color-game-surface) 100%);
+    background-size: 100% 100%, 24px 24px, 24px 24px, 100% 100%;
   }
 
   .auth-container {
@@ -37,18 +42,21 @@ import SignupForm from '../components/auth/SignupForm';
   .back-link {
     display: inline-block;
     font-size: 0.875rem;
-    color: #9ca3af;
+    color: rgba(226, 240, 255, 0.7);
     text-decoration: none;
     margin-bottom: 16px;
     transition: color 0.2s;
   }
 
   .back-link:hover {
-    color: #3b82f6;
+    color: #7dd3fc;
   }
 
   .auth-card {
     padding: 32px;
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    background: rgba(11, 31, 54, 0.8);
+    box-shadow: 0 30px 60px -40px rgba(3, 10, 20, 0.9);
   }
 
   .auth-header {
@@ -71,7 +79,7 @@ import SignupForm from '../components/auth/SignupForm';
 
   .tagline {
     font-size: 0.875rem;
-    color: #6b7280;
+    color: rgba(226, 240, 255, 0.6);
     margin: 0;
   }
 
@@ -85,7 +93,7 @@ import SignupForm from '../components/auth/SignupForm';
     text-align: center;
     margin-bottom: 8px;
     font-size: 1.25rem;
-    color: #f3f4f6;
+    color: #e6f6ff;
   }
 
   :global(.form-group) {
@@ -106,12 +114,12 @@ import SignupForm from '../components/auth/SignupForm';
   :global(.auth-switch) {
     text-align: center;
     font-size: 0.875rem;
-    color: #9ca3af;
+    color: rgba(226, 240, 255, 0.7);
     margin-top: 8px;
   }
 
   :global(.auth-switch a) {
-    color: #3b82f6;
+    color: #7dd3fc;
     text-decoration: none;
   }
 

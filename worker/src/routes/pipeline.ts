@@ -19,12 +19,35 @@ const completionSchema = z.object({
   stars: z.number().int().min(1).max(3),
   finalStability: z.number().int().min(0).max(100),
   timeToComplete: z.number().int().positive(),
+  stackChoices: z
+    .object({
+      database: z.enum(['postgres', 'sqlite']),
+      frontend: z.enum(['react', 'erb', 'hotwire']),
+    })
+    .optional(),
   finalMetrics: z.object({
     avgLatency: z.number(),
     queriesPerRequest: z.number(),
     cacheHitRate: z.number(),
     errorRate: z.number(),
   }),
+});
+
+const importSchema = z.object({
+  completedLevels: z.array(z.string()),
+  levelProgress: z.record(
+    z.object({
+      stars: z.number().int().min(1).max(3),
+      bestScore: z.number().int().min(0).max(100),
+    })
+  ),
+  stackChoices: z
+    .object({
+      database: z.enum(['postgres', 'sqlite']),
+      frontend: z.enum(['react', 'erb', 'hotwire']),
+    })
+    .nullable()
+    .optional(),
 });
 
 // ==================== Helper Functions ====================
@@ -46,6 +69,9 @@ function levelFromXp(xp: number): number {
   }
   return level;
 }
+
+const IMPORT_BASE_XP = 100;
+const IMPORT_STAR_BONUS = 25;
 
 // ==================== Routes ====================
 
@@ -185,7 +211,7 @@ pipelineRoutes.post(
   zValidator('json', completionSchema),
   async (c) => {
     const { dungeonId } = c.req.param();
-    const { stars, finalStability, timeToComplete, finalMetrics } = c.req.valid('json');
+    const { stars, finalStability, timeToComplete, finalMetrics, stackChoices } = c.req.valid('json');
     const userId = c.get('userId');
     const db = c.env.DB;
 
@@ -271,6 +297,13 @@ pipelineRoutes.post(
     const progress = await db.prepare('SELECT * FROM player_progress WHERE user_id = ?').bind(userId).first();
 
     if (progress) {
+      if (stackChoices) {
+        await db
+          .prepare('UPDATE player_progress SET stack_choices = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?')
+          .bind(JSON.stringify(stackChoices), userId)
+          .run();
+      }
+
       // Only award XP on first completion
       const xpToAdd = existing ? 0 : xpReward;
       const newXp = (progress.xp as number) + xpToAdd;
@@ -321,10 +354,10 @@ pipelineRoutes.post(
     // Create progress if it doesn't exist
     await db
       .prepare(
-        `INSERT INTO player_progress (user_id, xp, level, dungeons_completed, total_stars_earned, last_played_at)
-        VALUES (?, ?, ?, 1, ?, CURRENT_TIMESTAMP)`
+        `INSERT INTO player_progress (user_id, xp, level, dungeons_completed, total_stars_earned, last_played_at, stack_choices)
+        VALUES (?, ?, ?, 1, ?, CURRENT_TIMESTAMP, ?)`
       )
-      .bind(userId, xpReward, levelFromXp(xpReward), stars)
+      .bind(userId, xpReward, levelFromXp(xpReward), stars, stackChoices ? JSON.stringify(stackChoices) : null)
       .run();
 
     return c.json({
@@ -387,6 +420,7 @@ pipelineRoutes.get('/progress', authMiddleware, async (c) => {
   const unlockedDefenses = JSON.parse((progress?.unlocked_defenses as string) || '[]');
   const unlockedActions = JSON.parse((progress?.unlocked_actions as string) || '[]');
   const titles = JSON.parse((progress?.titles as string) || '[]');
+  const stackChoices = progress?.stack_choices ? JSON.parse(progress.stack_choices as string) : null;
 
   return c.json({
     success: true,
@@ -406,6 +440,8 @@ pipelineRoutes.get('/progress', authMiddleware, async (c) => {
         totalStarsEarned: progress?.total_stars_earned || 0,
         totalPlayTime: progress?.total_play_time_seconds || 0,
       },
+      stackChoices,
+      guestImportedAt: progress?.guest_imported_at || null,
     },
     meta: {
       requestId: c.get('requestId'),
@@ -424,7 +460,7 @@ pipelineRoutes.post(
   zValidator('json', completionSchema),
   async (c) => {
     const { levelId } = c.req.param();
-    const { stars, finalStability, timeToComplete, finalMetrics } = c.req.valid('json');
+    const { stars, finalStability, timeToComplete, finalMetrics, stackChoices } = c.req.valid('json');
     const userId = c.get('userId');
     const db = c.env.DB;
 
@@ -504,6 +540,13 @@ pipelineRoutes.post(
     const progress = await db.prepare('SELECT * FROM player_progress WHERE user_id = ?').bind(userId).first();
 
     if (progress) {
+      if (stackChoices) {
+        await db
+          .prepare('UPDATE player_progress SET stack_choices = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?')
+          .bind(JSON.stringify(stackChoices), userId)
+          .run();
+      }
+
       // Only award XP on first completion
       const xpToAdd = existing ? 0 : xpReward;
       const newXp = (progress.xp as number) + xpToAdd;
@@ -554,10 +597,10 @@ pipelineRoutes.post(
     // Create progress if it doesn't exist
     await db
       .prepare(
-        `INSERT INTO player_progress (user_id, xp, level, dungeons_completed, total_stars_earned, last_played_at)
-        VALUES (?, ?, ?, 1, ?, CURRENT_TIMESTAMP)`
+        `INSERT INTO player_progress (user_id, xp, level, dungeons_completed, total_stars_earned, last_played_at, stack_choices)
+        VALUES (?, ?, ?, 1, ?, CURRENT_TIMESTAMP, ?)`
       )
-      .bind(userId, xpReward, levelFromXp(xpReward), stars)
+      .bind(userId, xpReward, levelFromXp(xpReward), stars, stackChoices ? JSON.stringify(stackChoices) : null)
       .run();
 
     return c.json({
@@ -618,5 +661,178 @@ pipelineRoutes.get('/leaderboard/:dungeonId', async (c) => {
     },
   });
 });
+
+/**
+ * POST /api/pipeline/progress/import
+ * Import guest progress (one-time sync)
+ */
+pipelineRoutes.post(
+  '/progress/import',
+  authMiddleware,
+  zValidator('json', importSchema),
+  async (c) => {
+    const userId = c.get('userId');
+    const { completedLevels, levelProgress, stackChoices } = c.req.valid('json');
+    const db = c.env.DB;
+
+    const progress = await db.prepare('SELECT * FROM player_progress WHERE user_id = ?').bind(userId).first();
+
+    if (progress?.guest_imported_at) {
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'GUEST_IMPORT_ALREADY_USED',
+            message: 'Guest progress has already been imported for this account.',
+          },
+          meta: {
+            requestId: c.get('requestId'),
+            timestamp: new Date().toISOString(),
+          },
+        },
+        409
+      );
+    }
+
+    if (!progress) {
+      await db
+        .prepare(
+          `INSERT INTO player_progress (user_id, level, xp, unlocked_nodes, unlocked_defenses, guest_imported_at, stack_choices, last_played_at)
+          VALUES (?, 1, 0, '["request","router","controller","view","response"]', '["index_turret"]', CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)`
+        )
+        .bind(userId, stackChoices ? JSON.stringify(stackChoices) : null)
+        .run();
+    }
+
+    let xpToAdd = 0;
+    let newCompletions = 0;
+    let addedStars = 0;
+
+    for (const levelId of completedLevels) {
+      const progressEntry = levelProgress[levelId];
+      if (!progressEntry) continue;
+
+      const stars = progressEntry.stars;
+      const bestScore = progressEntry.bestScore;
+
+      const existing = await db
+        .prepare('SELECT * FROM dungeon_completions WHERE user_id = ? AND dungeon_id = ?')
+        .bind(userId, levelId)
+        .first();
+
+      const finalMetricsJson = JSON.stringify({
+        avgLatency: 0,
+        queriesPerRequest: 0,
+        cacheHitRate: 0,
+        errorRate: 0,
+      });
+
+      if (existing) {
+        const isNewBestStability = bestScore > (existing.best_stability as number);
+        const isNewBestStars = stars > (existing.stars_earned as number);
+
+        if (isNewBestStability || isNewBestStars) {
+          await db
+            .prepare(
+              `UPDATE dungeon_completions SET
+                stars_earned = MAX(stars_earned, ?),
+                final_stability = ?,
+                time_to_complete_seconds = ?,
+                final_metrics = ?,
+                best_stability = MAX(best_stability, ?),
+                best_time_seconds = MIN(best_time_seconds, ?),
+                best_completed_at = CASE WHEN ? > best_stability THEN CURRENT_TIMESTAMP ELSE best_completed_at END,
+                attempts = attempts + 1
+              WHERE user_id = ? AND dungeon_id = ?`
+            )
+            .bind(
+              stars,
+              bestScore,
+              0,
+              finalMetricsJson,
+              bestScore,
+              0,
+              bestScore,
+              userId,
+              levelId
+            )
+            .run();
+        }
+
+        if (isNewBestStars) {
+          addedStars += Math.max(0, stars - (existing.stars_earned as number));
+        }
+      } else {
+        await db
+          .prepare(
+            `INSERT INTO dungeon_completions
+              (id, user_id, dungeon_id, stars_earned, final_stability, time_to_complete_seconds, final_metrics, best_stability, best_time_seconds)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          )
+          .bind(
+            generateId(),
+            userId,
+            levelId,
+            stars,
+            bestScore,
+            0,
+            finalMetricsJson,
+            bestScore,
+            0
+          )
+          .run();
+
+        xpToAdd += IMPORT_BASE_XP + stars * IMPORT_STAR_BONUS;
+        newCompletions += 1;
+        addedStars += stars;
+      }
+    }
+
+    const updatedProgress = await db.prepare('SELECT * FROM player_progress WHERE user_id = ?').bind(userId).first();
+    const currentXp = (updatedProgress?.xp as number) || 0;
+    const currentCompleted = (updatedProgress?.dungeons_completed as number) || 0;
+    const currentStars = (updatedProgress?.total_stars_earned as number) || 0;
+
+    const newXp = currentXp + xpToAdd;
+    const newLevel = levelFromXp(newXp);
+
+    await db
+      .prepare(
+        `UPDATE player_progress SET
+          xp = ?,
+          level = ?,
+          dungeons_completed = ?,
+          total_stars_earned = ?,
+          guest_imported_at = CURRENT_TIMESTAMP,
+          stack_choices = ?,
+          last_played_at = CURRENT_TIMESTAMP,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = ?`
+      )
+      .bind(
+        newXp,
+        newLevel,
+        currentCompleted + newCompletions,
+        currentStars + addedStars,
+        stackChoices ? JSON.stringify(stackChoices) : updatedProgress?.stack_choices || null,
+        userId
+      )
+      .run();
+
+    return c.json({
+      success: true,
+      data: {
+        importedCompletions: newCompletions,
+        xpAdded: xpToAdd,
+        newLevel,
+        newTotalXp: newXp,
+      },
+      meta: {
+        requestId: c.get('requestId'),
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }
+);
 
 export { pipelineRoutes };

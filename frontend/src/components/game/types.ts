@@ -36,6 +36,8 @@ export interface Level {
   actId: number;
   levelNumber: number;
   name: string;
+  /** Whether this level is the capstone finale */
+  isCapstone?: boolean;
   /** What happens to trigger this level's problem */
   trigger: LevelTrigger;
   /** The starting state of the pipeline */
