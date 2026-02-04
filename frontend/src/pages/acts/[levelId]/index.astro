@@ -1,0 +1,12 @@
+---
+import LevelInfoApp from "@/components/pages/LevelInfoApp";
+import GameLayout from "@/layouts/GameLayout.astro";
+
+const { levelId } = Astro.params;
+---
+
+<GameLayout title="Level Info">
+  <div class="p-6">
+    <LevelInfoApp client:load levelId={levelId || ''} />
+  </div>
+</GameLayout>

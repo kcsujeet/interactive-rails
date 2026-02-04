@@ -8,7 +8,6 @@ import { useEffect, useState } from 'react';
 import { getActForLevel, getLevel, getNextLevel } from '../../content/acts';
 import { completeLevel as completeLevelProgress } from "@/lib/progress";
 import {
-	BriefingScreen,
 	CompletionScreen,
 	type Connection,
 	type GameState,
@@ -32,7 +31,7 @@ interface LevelPlayAppProps {
 
 export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 	const [loading, setLoading] = useState(true);
-	const [gameState, setGameState] = useState<GameState>('loading');
+	const [gameState, setGameState] = useState<GameState>('playing');
 	const [currentRoom] = useState(0);
 	const [stability] = useState(100);
 	const [isInspectorOpen, setIsInspectorOpen] = useState(true);
@@ -159,10 +158,11 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 
 		setLevelData(data);
 		setLoading(false);
-		setGameState('briefing');
+		// Start the level immediately - briefing is shown on separate page
+		initializeLevel();
 	}
 
-	function startLevel() {
+	function initializeLevel() {
 		if (challenge) {
 			// Use legacy challenge format
 			setPlacedNodes([...challenge.initialNodes]);
@@ -230,7 +230,7 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 	}
 
 	function exitLevel() {
-		window.location.href = '/acts';
+		window.location.href = `/acts/${levelId}`;
 	}
 
 	function checkPipeline() {
@@ -310,17 +310,6 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 			<div className="h-full flex items-center justify-center">
 				<div className="text-sm text-muted-foreground">Loading level...</div>
 			</div>
-		);
-	}
-
-	if (gameState === 'briefing' && levelData) {
-		return (
-			<BriefingScreen
-				challenge={challenge}
-				level={levelData}
-				onExit={exitLevel}
-				onStart={startLevel}
-			/>
 		);
 	}
 

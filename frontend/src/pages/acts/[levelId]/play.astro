@@ -2,10 +2,9 @@
 import LevelPlayApp from "@/components/pages/LevelPlayApp";
 import GameLayout from "@/layouts/GameLayout.astro";
 
-
 const { levelId } = Astro.params;
 ---
 
-<GameLayout title="Level | RailsExpert" fullscreen={true}>
+<GameLayout title="Level" fullscreen={true}>
   <LevelPlayApp client:load levelId={levelId || ''} />
 </GameLayout>

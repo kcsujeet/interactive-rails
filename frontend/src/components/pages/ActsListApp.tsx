@@ -1,7 +1,7 @@
 /**
  * Acts List App Component
  *
- * Displays the list of Acts with expandable levels and completion status.
+ * Displays the list of Acts with levels and completion status.
  */
 
 import { useEffect, useState } from 'react';
@@ -11,10 +11,10 @@ import {
 	getTotalLevelCount,
 	isLevelUnlocked,
 } from '../../content/acts';
-import { getProgress } from "@/lib/progress";
-import type { Act, Level } from '../game/types';
-import { Badge } from '../ui/Badge';
+import { getProgress } from '@/lib/progress';
+import type { Level } from '../game/types';
 import { Button } from '../ui/Button';
+import { Check, ChevronRight, Lock, Star } from 'lucide-react';
 
 interface LevelProgress {
 	levelId: string;
@@ -25,225 +25,75 @@ interface LevelProgress {
 
 function LevelCard({
 	level,
-	actNumber,
 	isUnlocked,
 	progress,
 	onSelect,
 }: {
 	level: Level;
-	actNumber: number;
 	isUnlocked: boolean;
 	progress?: LevelProgress;
 	onSelect: () => void;
 }) {
 	const isCompleted = progress?.completed || false;
 	const stars = progress?.stars || 0;
-	const isCapstone = level.isCapstone || false;
 
 	return (
 		<Button
+			variant="ghost"
 			className={`
-        w-full h-auto text-left py-2.5 px-3 justify-start border transition-all
-        ${
-					isUnlocked
-						? 'border-border hover:bg-accent hover:border-border cursor-pointer'
-						: 'border-transparent cursor-not-allowed opacity-40'
+				w-full h-auto text-left p-4 justify-start rounded-lg border transition-all
+				${isUnlocked
+					? 'border-border hover:border-primary/50'
+					: 'border-transparent opacity-50'
 				}
-      `}
+			`}
 			disabled={!isUnlocked}
 			onClick={onSelect}
-			variant="ghost"
 		>
-			<div className="flex items-center gap-3 w-full">
-				<div className="flex-1 min-w-0">
-					<div className="flex items-center gap-2">
-						<span className="text-[11px] text-muted-foreground font-mono tabular-nums shrink-0">
-							{level.levelNumber}
-						</span>
-						<h4 className="text-sm font-medium text-foreground truncate">
-							{level.name}
-						</h4>
-						{isCapstone && (
-							<Badge className="text-[10px]" variant="success">
-								Capstone
-							</Badge>
-						)}
-						{isCompleted && (
-							<svg
-								className="w-4 h-4 text-success shrink-0"
-								fill="none"
-								stroke="currentColor"
-								strokeWidth={2.5}
-								viewBox="0 0 24 24"
-							>
-								<path
-									d="M5 13l4 4L19 7"
-									strokeLinecap="round"
-									strokeLinejoin="round"
-								/>
-							</svg>
-						)}
-					</div>
-					<div className="flex items-center gap-2 mt-0.5">
-						<span className="text-xs text-muted-foreground truncate">
+			<div className="flex items-center justify-between w-full">
+				<div className="flex items-center gap-3 min-w-0">
+					<span className="text-xs text-muted-foreground font-mono w-5">
+						{level.levelNumber}
+					</span>
+					<div className="min-w-0">
+						<div className="flex items-center gap-2">
+							<h4 className="text-sm font-medium text-foreground truncate">
+								{level.name}
+							</h4>
+							{isCompleted && <Check className="w-4 h-4 text-success shrink-0" />}
+						</div>
+						<p className="text-xs text-muted-foreground truncate mt-0.5">
 							{level.learningContent.title}
-						</span>
-						{isCompleted && stars > 0 && (
-							<div className="flex items-center gap-px shrink-0">
-								{Array.from({ length: 3 }).map((_, i) => (
-									<svg
-										className={`w-3 h-3 ${i < stars ? 'text-warning' : 'text-muted'}`}
-										fill="currentColor"
-										key={`star-${level.id}-${i}`}
-										viewBox="0 0 20 20"
-									>
-										<path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-									</svg>
-								))}
-							</div>
-						)}
+						</p>
 					</div>
 				</div>
-				{!isUnlocked && (
-					<svg
-						className="w-4 h-4 text-muted-foreground shrink-0"
-						fill="currentColor"
-						viewBox="0 0 20 20"
-					>
-						<path
-							clipRule="evenodd"
-							d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
-							fillRule="evenodd"
-						/>
-					</svg>
-				)}
-				{isUnlocked && !isCompleted && (
-					<svg
-						className="w-4 h-4 text-muted-foreground shrink-0"
-						fill="none"
-						stroke="currentColor"
-						strokeWidth={2}
-						viewBox="0 0 24 24"
-					>
-						<path
-							d="M9 5l7 7-7 7"
-							strokeLinecap="round"
-							strokeLinejoin="round"
-						/>
-					</svg>
-				)}
+				<div className="flex items-center gap-3 shrink-0">
+					{isCompleted && stars > 0 && (
+						<div className="flex items-center gap-0.5">
+							{Array.from({ length: 3 }).map((_, i) => (
+								<Star
+									key={i}
+									className={`w-3.5 h-3.5 ${i < stars ? 'text-warning fill-warning' : 'text-muted'}`}
+								/>
+							))}
+						</div>
+					)}
+					{!isUnlocked && <Lock className="w-4 h-4 text-muted-foreground" />}
+					{isUnlocked && !isCompleted && (
+						<ChevronRight className="w-4 h-4 text-muted-foreground" />
+					)}
+				</div>
 			</div>
 		</Button>
 	);
 }
 
-function ActSection({
-	act,
-	completedLevels,
-	levelProgress,
-	defaultExpanded,
-}: {
-	act: Act;
-	completedLevels: string[];
-	levelProgress: Map<string, LevelProgress>;
-	defaultExpanded: boolean;
-}) {
-	const [expanded, setExpanded] = useState(defaultExpanded);
-
-	const completedCount = act.levels.filter((l) =>
-		completedLevels.includes(l.id),
-	).length;
-	const totalCount = act.levels.length;
-	const progressPercent = Math.round((completedCount / totalCount) * 100);
-
-	const hasUnlockedLevel = act.levels.some((l) =>
-		isLevelUnlocked(l.id, completedLevels),
-	);
-
-	return (
-		<div className={hasUnlockedLevel ? '' : 'opacity-40'}>
-			<Button
-				className="w-full h-auto py-3 px-0 justify-between group"
-				onClick={() => setExpanded(!expanded)}
-				variant="ghost"
-			>
-				<div className="flex items-center gap-3">
-					<div
-						className={`flex items-center justify-center w-8 h-8 rounded-lg text-sm font-semibold ${
-							completedCount === totalCount
-								? 'bg-success/15 text-success'
-								: hasUnlockedLevel
-									? 'bg-secondary text-foreground'
-									: 'bg-secondary/50 text-muted-foreground'
-						}`}
-					>
-						{act.id}
-					</div>
-					<div className="text-left">
-						<h3 className="text-base font-medium text-foreground group-hover:text-primary transition-colors">
-							{act.name}
-						</h3>
-						<p className="text-xs text-muted-foreground">{act.tagline}</p>
-					</div>
-				</div>
-				<div className="flex items-center gap-4">
-					<div className="flex items-center gap-2">
-						<span className="text-xs text-muted-foreground tabular-nums">
-							{completedCount}/{totalCount}
-						</span>
-						<div className="w-16 h-1 bg-secondary rounded-full overflow-hidden">
-							<div
-								className="h-full bg-success transition-all"
-								style={{ width: `${progressPercent}%` }}
-							/>
-						</div>
-					</div>
-					<svg
-						className={`w-4 h-4 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`}
-						fill="none"
-						stroke="currentColor"
-						viewBox="0 0 24 24"
-					>
-						<path
-							d="M19 9l-7 7-7-7"
-							strokeLinecap="round"
-							strokeLinejoin="round"
-							strokeWidth={2}
-						/>
-					</svg>
-				</div>
-			</Button>
-
-			{expanded && (
-				<div className="pl-11 pb-4 grid gap-1.5">
-					{act.levels.map((level) => (
-						<LevelCard
-							actNumber={act.id}
-							isUnlocked={isLevelUnlocked(level.id, completedLevels)}
-							key={level.id}
-							level={level}
-							onSelect={() => {
-								if (isLevelUnlocked(level.id, completedLevels)) {
-									window.location.href = `/acts/${level.id}`;
-								}
-							}}
-							progress={levelProgress.get(level.id)}
-						/>
-					))}
-				</div>
-			)}
-		</div>
-	);
-}
-
 export function ActsListApp() {
 	const [completedLevels, setCompletedLevels] = useState<string[]>([]);
-	const [levelProgress, setLevelProgress] = useState<
-		Map<string, LevelProgress>
-	>(new Map());
+	const [levelProgress, setLevelProgress] = useState<Map<string, LevelProgress>>(new Map());
+	const [selectedActId, setSelectedActId] = useState<number>(1);
 	const [isGuest, setIsGuest] = useState(true);
 	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
 		fetchProgress();
@@ -265,9 +115,15 @@ export function ActsListApp() {
 				});
 			}
 			setLevelProgress(progressMap);
+
+			// Auto-select the act with the first incomplete level
+			const allLevels = getAllLevels();
+			const currentLevel = allLevels.find((l) => !progress.completedLevels.includes(l.id));
+			if (currentLevel) {
+				setSelectedActId(currentLevel.actId);
+			}
 		} catch (err) {
 			console.error('Fetch progress error:', err);
-			setError(null);
 		} finally {
 			setLoading(false);
 		}
@@ -283,155 +139,111 @@ export function ActsListApp() {
 
 	const totalLevels = getTotalLevelCount();
 	const totalCompleted = completedLevels.length;
-	const allLevels = getAllLevels();
-	const currentLevel = allLevels.find(
-		(level) => !completedLevels.includes(level.id),
-	);
-	const currentAct = currentLevel
-		? ACTS.find((act) => act.id === currentLevel.actId)
-		: ACTS[ACTS.length - 1];
-	const capstoneLevel = allLevels.find((level) => level.isCapstone);
-	const capstoneCompleted = capstoneLevel
-		? completedLevels.includes(capstoneLevel.id)
-		: false;
+	const selectedAct = ACTS.find((a) => a.id === selectedActId) || ACTS[0];
 
 	return (
-		<div className="max-w-4xl mx-auto">
-			{/* Header */}
+		<div className="max-w-3xl mx-auto">
+			{/* Progress bar */}
 			<div className="mb-8">
-				<h1 className="text-2xl font-bold text-foreground mb-1">
-					Rails Mastery
-				</h1>
-				<p className="text-muted-foreground">
-					Master Rails performance through {totalLevels} levels across{' '}
-					{ACTS.length} acts.
-				</p>
-				<div className="mt-4 flex items-center gap-3">
-					<div className="px-4 py-2 bg-card border border-border rounded-lg">
-						<span className="text-muted-foreground">Progress: </span>
-						<span className="text-foreground font-semibold tabular-nums">
-							{totalCompleted}/{totalLevels}
-						</span>
-					</div>
-					<Button asChild variant="outline">
-						<a href="/sandbox">Sandbox Mode</a>
-					</Button>
-				</div>
-			</div>
-
-			{/* Progress Summary */}
-			<div className="mb-8 flex items-center gap-6">
-				<div className="flex items-center gap-3">
-					<div className="text-sm text-muted-foreground">Progress</div>
-					<div className="flex items-center gap-2">
-						<div className="w-32 h-1.5 bg-secondary rounded-full overflow-hidden">
-							<div
-								className="h-full bg-primary transition-all"
-								style={{
-									width: `${Math.round((totalCompleted / totalLevels) * 100)}%`,
-								}}
-							/>
-						</div>
-						<span className="text-sm text-foreground font-medium tabular-nums">
-							{totalCompleted}/{totalLevels}
-						</span>
-					</div>
-				</div>
-				<div className="h-4 w-px bg-border" />
-				<div className="flex items-center gap-2">
-					<span className="text-sm text-muted-foreground">Current:</span>
-					<span className="text-sm text-foreground font-medium">
-						{currentAct?.name || 'Complete'}
+				<div className="flex items-center justify-between mb-2">
+					<span className="text-sm text-muted-foreground">Overall Progress</span>
+					<span className="text-sm font-medium text-foreground tabular-nums">
+						{totalCompleted} / {totalLevels}
 					</span>
 				</div>
-				{capstoneCompleted && (
-					<>
-						<div className="h-4 w-px bg-border" />
-						<Badge variant="success">Capstone Cleared</Badge>
-					</>
-				)}
-			</div>
-
-			{/* Act Map */}
-			<div className="mb-8 flex items-center gap-2">
-				{ACTS.map((act, index) => {
-					const actCompleted = act.levels.every((level) =>
-						completedLevels.includes(level.id),
-					);
-					const actUnlocked = act.levels.some((level) =>
-						isLevelUnlocked(level.id, completedLevels),
-					);
-					const isActive = currentAct?.id === act.id;
-
-					return (
-						<div className="flex items-center gap-2" key={act.id}>
-							<div
-								className={`relative h-8 w-8 rounded-lg flex items-center justify-center text-sm font-medium transition-colors ${
-									actCompleted
-										? 'bg-success/15 text-success'
-										: isActive
-											? 'bg-primary/15 text-primary'
-											: actUnlocked
-												? 'bg-secondary text-muted-foreground'
-												: 'bg-secondary/50 text-muted-foreground/50'
-								}`}
-							>
-								{act.id}
-								{isActive && (
-									<span className="absolute -bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-primary" />
-								)}
-							</div>
-							{index < ACTS.length - 1 && (
-								<div
-									className={`h-px w-4 ${actCompleted ? 'bg-success' : 'bg-border'}`}
-								/>
-							)}
-						</div>
-					);
-				})}
+				<div className="h-2 bg-secondary rounded-full overflow-hidden">
+					<div
+						className="h-full bg-primary transition-all"
+						style={{ width: `${Math.round((totalCompleted / totalLevels) * 100)}%` }}
+					/>
+				</div>
 			</div>
 
 			{isGuest && (
 				<div className="mb-6 flex items-center justify-between gap-4 py-3 px-4 bg-warning/10 border border-warning/20 rounded-lg">
-					<div className="flex items-center gap-3">
-						<div className="w-2 h-2 rounded-full bg-warning" />
-						<span className="text-sm text-foreground">
-							Playing as guest — progress won't sync across devices
-						</span>
-					</div>
-					<a
-						className="text-sm text-primary font-medium hover:underline"
-						href="/signup"
-					>
-						Create account →
-					</a>
+					<span className="text-sm text-foreground">
+						Playing as guest — progress won't sync
+					</span>
+					<Button variant="link" size="sm" asChild className="px-0">
+						<a href="/signup">Create account</a>
+					</Button>
 				</div>
 			)}
 
-			{error && (
-				<div className="mb-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive">
-					{error}
-				</div>
-			)}
+			{/* Act tabs */}
+			<div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+				{ACTS.map((act) => {
+					const actCompleted = act.levels.every((l) => completedLevels.includes(l.id));
+					const actUnlocked = act.levels.some((l) => isLevelUnlocked(l.id, completedLevels));
+					const isSelected = selectedActId === act.id;
+					const completedCount = act.levels.filter((l) => completedLevels.includes(l.id)).length;
 
-			{/* Acts list */}
-			<div className="space-y-2">
-				{ACTS.map((act, index) => (
-					<ActSection
-						act={act}
-						completedLevels={completedLevels}
-						defaultExpanded={
-							index === 0 ||
-							act.levels.some(
-								(l) =>
-									isLevelUnlocked(l.id, completedLevels) &&
-									!completedLevels.includes(l.id),
-							)
-						}
-						key={act.id}
-						levelProgress={levelProgress}
-					/>
-				))}
+					return (
+						<Button
+							key={act.id}
+							variant="ghost"
+							onClick={() => setSelectedActId(act.id)}
+							disabled={!actUnlocked}
+							className={`
+								flex-shrink-0 h-auto px-4 py-3 rounded-lg border-2 transition-all text-left justify-start
+								${isSelected
+									? 'border-primary bg-primary/10'
+									: actUnlocked
+										? 'border-border hover:border-primary/50'
+										: 'border-transparent opacity-50'
+								}
+							`}
+						>
+							<div className="flex items-center gap-3">
+								<div
+									className={`
+										w-8 h-8 rounded-md flex items-center justify-center text-sm font-semibold
+										${actCompleted
+											? 'bg-success/15 text-success'
+											: isSelected
+												? 'bg-primary/15 text-primary'
+												: 'bg-secondary text-muted-foreground'
+										}
+									`}
+								>
+									{actCompleted ? <Check className="w-4 h-4" /> : act.id}
+								</div>
+								<div>
+									<div className="text-sm font-medium text-foreground whitespace-nowrap">
+										{act.name}
+									</div>
+									<div className="text-xs text-muted-foreground">
+										{completedCount}/{act.levels.length} levels
+									</div>
+								</div>
+							</div>
+						</Button>
+					);
+				})}
+			</div>
+
+			{/* Selected act content */}
+			<div className="bg-card border border-border rounded-xl p-6">
+				<div className="mb-6">
+					<h2 className="text-lg font-semibold text-foreground">{selectedAct.name}</h2>
+					<p className="text-sm text-muted-foreground mt-1">{selectedAct.tagline}</p>
+				</div>
+
+				<div className="space-y-2">
+					{selectedAct.levels.map((level) => (
+						<LevelCard
+							key={level.id}
+							level={level}
+							isUnlocked={isLevelUnlocked(level.id, completedLevels)}
+							progress={levelProgress.get(level.id)}
+							onSelect={() => {
+								if (isLevelUnlocked(level.id, completedLevels)) {
+									window.location.href = `/acts/${level.id}`;
+								}
+							}}
+						/>
+					))}
+				</div>
 			</div>
 		</div>
 	);
