@@ -208,3 +208,23 @@ container.innerHTML = `<div class="${cardClass}">Dynamic content</div>`;
 - Use semantic color tokens: `text-foreground`, `bg-card`, `border-border`, `text-muted-foreground`
 - Use Tailwind classes directly, not custom CSS classes in `<style>` blocks
 - For Astro pages, import and use React components directly (they render statically without hydration for presentational use)
+
+## Icons
+
+**Use Lucide React icons instead of emojis throughout the codebase.**
+
+```tsx
+// ✅ CORRECT - Use Lucide icons
+import { Database, Zap, Search, Settings } from "lucide-react";
+
+<Database className="w-5 h-5 text-primary" />
+<Zap className="w-4 h-4" />
+```
+
+```tsx
+// ❌ WRONG - Don't use emojis
+<span>🗄️</span>
+<span>⚡</span>
+```
+
+This ensures consistent styling, proper sizing, and accessibility across the application.

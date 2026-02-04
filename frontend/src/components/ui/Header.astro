@@ -1,6 +1,8 @@
 ---
-// Header component - client-side interactivity handled by script
 import { Button } from "@/components/ui/Button";
+
+const pathname = Astro.url.pathname;
+const isActive = (href: string) => pathname === href || pathname.startsWith(href);
 ---
 
 <header class="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-xl">
@@ -10,14 +12,14 @@ import { Button } from "@/components/ui/Button";
       <span class="text-sm font-semibold text-foreground">RailsExpert</span>
     </a>
 
-    <nav class="hidden md:flex gap-10" id="main-nav">
-      <Button variant="ghost" size="sm" asChild>
+    <nav class="hidden md:flex items-center gap-1" id="main-nav">
+      <Button variant={isActive('/acts') ? 'primary' : 'ghost'} size="sm">
         <a href="/acts">Acts</a>
       </Button>
-      <Button variant="ghost" size="sm" asChild>
+      <Button variant={isActive('/sandbox') ? 'primary' : 'ghost'} size="sm">
         <a href="/sandbox">Sandbox</a>
       </Button>
-      <Button variant="ghost" size="sm" asChild>
+      <Button variant={isActive('/dashboard') ? 'primary' : 'ghost'} size="sm">
         <a href="/dashboard">Dashboard</a>
       </Button>
     </nav>
