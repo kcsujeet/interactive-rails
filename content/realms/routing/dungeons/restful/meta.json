@@ -1,7 +1,7 @@
 {
-  "id": "restful",
-  "name": "RESTful Routes",
-  "description": "Master the seven standard resource routes",
-  "order": 1,
-  "totalChallenges": 10
+	"id": "restful",
+	"name": "RESTful Routes",
+	"description": "Master the seven standard resource routes",
+	"order": 1,
+	"totalChallenges": 10
 }

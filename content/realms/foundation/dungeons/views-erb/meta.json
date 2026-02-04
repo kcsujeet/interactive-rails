@@ -1,7 +1,7 @@
 {
-  "id": "views-erb",
-  "name": "Views & ERB",
-  "description": "Create dynamic HTML with Embedded Ruby",
-  "order": 5,
-  "totalChallenges": 10
+	"id": "views-erb",
+	"name": "Views & ERB",
+	"description": "Create dynamic HTML with Embedded Ruby",
+	"order": 5,
+	"totalChallenges": 10
 }

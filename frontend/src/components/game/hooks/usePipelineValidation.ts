@@ -7,261 +7,277 @@ import { useCallback, useMemo } from 'react';
 import { getLevel } from '../../../content/acts';
 import { isValidConnection, levelChallenges } from '../data';
 import type {
-  Connection,
-  LiveMetrics,
-  PlacedNode,
-  SuccessCondition,
-  ValidationResult,
+	Connection,
+	LiveMetrics,
+	PlacedNode,
+	SuccessCondition,
+	ValidationResult,
 } from '../types';
 
 export interface UsePipelineValidationReturn {
-  isPipelineBroken: boolean;
-  breakReason: string | null;
-  hasSolutionNode: boolean;
-  findPath: (startType: string, endType: string) => boolean;
-  validatePipeline: () => ValidationResult;
-  checkChallenge: (metrics?: LiveMetrics) => ValidationResult;
+	isPipelineBroken: boolean;
+	breakReason: string | null;
+	hasSolutionNode: boolean;
+	findPath: (startType: string, endType: string) => boolean;
+	validatePipeline: () => ValidationResult;
+	checkChallenge: (metrics?: LiveMetrics) => ValidationResult;
 }
 
 export function usePipelineValidation(
-  levelId: string,
-  placedNodes: PlacedNode[],
-  connections: Connection[]
+	levelId: string,
+	placedNodes: PlacedNode[],
+	connections: Connection[],
 ): UsePipelineValidationReturn {
-  // BFS path finding
-  const findPath = useCallback(
-    (startType: string, endType: string): boolean => {
-      const startNode = placedNodes.find((n) => n.type === startType);
-      const endNode = placedNodes.find((n) => n.type === endType);
-      if (!startNode || !endNode) return false;
+	// BFS path finding
+	const findPath = useCallback(
+		(startType: string, endType: string): boolean => {
+			const startNode = placedNodes.find((n) => n.type === startType);
+			const endNode = placedNodes.find((n) => n.type === endType);
+			if (!startNode || !endNode) return false;
 
-      const visited = new Set<string>();
-      const queue = [startNode.id];
+			const visited = new Set<string>();
+			const queue = [startNode.id];
 
-      while (queue.length > 0) {
-        const currentId = queue.shift();
-        if (!currentId || visited.has(currentId)) continue;
-        visited.add(currentId);
+			while (queue.length > 0) {
+				const currentId = queue.shift();
+				if (!currentId || visited.has(currentId)) continue;
+				visited.add(currentId);
 
-        const currentNode = placedNodes.find((n) => n.id === currentId);
-        if (currentNode?.type === endType) return true;
+				const currentNode = placedNodes.find((n) => n.id === currentId);
+				if (currentNode?.type === endType) return true;
 
-        for (const conn of connections) {
-          if (conn.sourceNodeId === currentId && !visited.has(conn.targetNodeId)) {
-            queue.push(conn.targetNodeId);
-          }
-        }
-      }
-      return false;
-    },
-    [placedNodes, connections]
-  );
+				for (const conn of connections) {
+					if (
+						conn.sourceNodeId === currentId &&
+						!visited.has(conn.targetNodeId)
+					) {
+						queue.push(conn.targetNodeId);
+					}
+				}
+			}
+			return false;
+		},
+		[placedNodes, connections],
+	);
 
-  // Pipeline state
-  const { isPipelineBroken, breakReason } = useMemo(() => {
-    const hasRequestToResponse = findPath('request', 'response');
-    const modelNode = placedNodes.find((n) => n.type === 'model');
-    const dbNode = placedNodes.find((n) => n.type === 'database');
-    const hasModelToDatabase = modelNode && dbNode ? findPath('model', 'database') : true;
+	// Pipeline state
+	const { isPipelineBroken, breakReason } = useMemo(() => {
+		const hasRequestToResponse = findPath('request', 'response');
+		const modelNode = placedNodes.find((n) => n.type === 'model');
+		const dbNode = placedNodes.find((n) => n.type === 'database');
+		const hasModelToDatabase =
+			modelNode && dbNode ? findPath('model', 'database') : true;
 
-    const broken = !hasRequestToResponse || !hasModelToDatabase;
-    const reason = !hasRequestToResponse
-      ? 'No path from Request to Response'
-      : !hasModelToDatabase
-        ? 'Model not connected to Database'
-        : null;
+		const broken = !hasRequestToResponse || !hasModelToDatabase;
+		const reason = !hasRequestToResponse
+			? 'No path from Request to Response'
+			: !hasModelToDatabase
+				? 'Model not connected to Database'
+				: null;
 
-    return { isPipelineBroken: broken, breakReason: reason };
-  }, [findPath, placedNodes]);
+		return { isPipelineBroken: broken, breakReason: reason };
+	}, [findPath, placedNodes]);
 
-  // Check if solution node is present for this level
-  const hasSolutionNode = useMemo(() => {
-    const challenge = levelChallenges[levelId];
-    if (!challenge) return false;
+	// Check if solution node is present for this level
+	const hasSolutionNode = useMemo(() => {
+		const challenge = levelChallenges[levelId];
+		if (!challenge) return false;
 
-    const solutionType = challenge.solutionNodeType;
+		const solutionType = challenge.solutionNodeType;
 
-    if (solutionType === 'multiple') {
-      const hasEagerLoad = placedNodes.some((n) => n.type === 'eager_load');
-      const hasCache = placedNodes.some((n) => n.type === 'cache');
-      return hasEagerLoad && hasCache;
-    }
+		if (solutionType === 'multiple') {
+			const hasEagerLoad = placedNodes.some((n) => n.type === 'eager_load');
+			const hasCache = placedNodes.some((n) => n.type === 'cache');
+			return hasEagerLoad && hasCache;
+		}
 
-    const hasSolution = placedNodes.some((n) => n.type === solutionType);
-    const solutionConnected = connections.some((c) => {
-      const source = placedNodes.find((n) => n.id === c.sourceNodeId);
-      const target = placedNodes.find((n) => n.id === c.targetNodeId);
-      return source?.type === solutionType || target?.type === solutionType;
-    });
+		const hasSolution = placedNodes.some((n) => n.type === solutionType);
+		const solutionConnected = connections.some((c) => {
+			const source = placedNodes.find((n) => n.id === c.sourceNodeId);
+			const target = placedNodes.find((n) => n.id === c.targetNodeId);
+			return source?.type === solutionType || target?.type === solutionType;
+		});
 
-    return hasSolution && solutionConnected;
-  }, [levelId, placedNodes, connections]);
+		return hasSolution && solutionConnected;
+	}, [levelId, placedNodes, connections]);
 
-  // Validate entire pipeline
-  const validatePipeline = useCallback((): ValidationResult => {
-    const errors: string[] = [];
-    let score = 0;
+	// Validate entire pipeline
+	const validatePipeline = useCallback((): ValidationResult => {
+		const errors: string[] = [];
+		let score = 0;
 
-    const types = placedNodes.map((n) => n.type);
-    const hasRequest = types.includes('request');
-    const hasRouter = types.includes('router');
-    const hasController = types.includes('controller');
-    const hasResponse = types.includes('response');
+		const types = placedNodes.map((n) => n.type);
+		const hasRequest = types.includes('request');
+		const hasRouter = types.includes('router');
+		const hasController = types.includes('controller');
+		const hasResponse = types.includes('response');
 
-    if (!hasRequest) errors.push('Missing Request node (start of pipeline)');
-    if (!hasRouter) errors.push('Missing Router node');
-    if (!hasController) errors.push('Missing Controller node');
-    if (!hasResponse) errors.push('Missing Response node (end of pipeline)');
+		if (!hasRequest) errors.push('Missing Request node (start of pipeline)');
+		if (!hasRouter) errors.push('Missing Router node');
+		if (!hasController) errors.push('Missing Controller node');
+		if (!hasResponse) errors.push('Missing Response node (end of pipeline)');
 
-    let validConnectionCount = 0;
-    let invalidConnectionCount = 0;
+		let validConnectionCount = 0;
+		let invalidConnectionCount = 0;
 
-    for (const conn of connections) {
-      const sourceNode = placedNodes.find((n) => n.id === conn.sourceNodeId);
-      const targetNode = placedNodes.find((n) => n.id === conn.targetNodeId);
+		for (const conn of connections) {
+			const sourceNode = placedNodes.find((n) => n.id === conn.sourceNodeId);
+			const targetNode = placedNodes.find((n) => n.id === conn.targetNodeId);
 
-      if (sourceNode && targetNode) {
-        if (isValidConnection(sourceNode.type, targetNode.type)) {
-          validConnectionCount++;
-        } else {
-          invalidConnectionCount++;
-          errors.push(`Invalid: ${sourceNode.type} → ${targetNode.type}`);
-        }
-      }
-    }
+			if (sourceNode && targetNode) {
+				if (isValidConnection(sourceNode.type, targetNode.type)) {
+					validConnectionCount++;
+				} else {
+					invalidConnectionCount++;
+					errors.push(`Invalid: ${sourceNode.type} → ${targetNode.type}`);
+				}
+			}
+		}
 
-    const hasCompletePath = findPath('request', 'response');
-    if (!hasCompletePath && hasRequest && hasResponse) {
-      errors.push('No complete path from Request to Response');
-    }
+		const hasCompletePath = findPath('request', 'response');
+		if (!hasCompletePath && hasRequest && hasResponse) {
+			errors.push('No complete path from Request to Response');
+		}
 
-    if (hasRequest) score += 10;
-    if (hasRouter) score += 10;
-    if (hasController) score += 10;
-    if (hasResponse) score += 10;
-    score += validConnectionCount * 15;
-    score -= invalidConnectionCount * 20;
-    if (hasCompletePath) score += 30;
-    if (types.includes('cache')) score += 10;
-    if (types.filter((t) => t === 'model').length > 1) score += 10;
+		if (hasRequest) score += 10;
+		if (hasRouter) score += 10;
+		if (hasController) score += 10;
+		if (hasResponse) score += 10;
+		score += validConnectionCount * 15;
+		score -= invalidConnectionCount * 20;
+		if (hasCompletePath) score += 30;
+		if (types.includes('cache')) score += 10;
+		if (types.filter((t) => t === 'model').length > 1) score += 10;
 
-    return {
-      valid: errors.length === 0 && hasCompletePath,
-      errors,
-      warnings: [],
-      score: Math.max(0, Math.min(100, score)),
-    };
-  }, [placedNodes, connections, findPath]);
+		return {
+			valid: errors.length === 0 && hasCompletePath,
+			errors,
+			warnings: [],
+			score: Math.max(0, Math.min(100, score)),
+		};
+	}, [placedNodes, connections, findPath]);
 
-  // Evaluate a single success condition
-  const evaluateCondition = useCallback(
-    (condition: SuccessCondition, metrics?: LiveMetrics): { passed: boolean; message: string } => {
-      switch (condition.type) {
-        case 'node_present': {
-          const hasNode = placedNodes.some((n) => n.type === condition.nodeType);
-          return {
-            passed: hasNode,
-            message: hasNode ? '' : `Missing ${condition.nodeType} node`,
-          };
-        }
-        case 'node_absent': {
-          const hasNode = placedNodes.some((n) => n.type === condition.nodeType);
-          return {
-            passed: !hasNode,
-            message: !hasNode ? '' : `Remove the ${condition.nodeType} node`,
-          };
-        }
-        case 'connection': {
-          // Supports "OR" logic if targetType is an array (not yet typed, but we can check loosely or update types)
-          // For now, let's assume strict single types as per interface,
-          // BUT for Level 1 we hardcoded successConditions in act1.ts to be specific.
-          // Wait, Level 1 needs "Postgres OR SQLite".
-          // The cleanest way is to check if the connection exists matching specific types.
+	// Evaluate a single success condition
+	const evaluateCondition = useCallback(
+		(
+			condition: SuccessCondition,
+			metrics?: LiveMetrics,
+		): { passed: boolean; message: string } => {
+			switch (condition.type) {
+				case 'node_present': {
+					const hasNode = placedNodes.some(
+						(n) => n.type === condition.nodeType,
+					);
+					return {
+						passed: hasNode,
+						message: hasNode ? '' : `Missing ${condition.nodeType} node`,
+					};
+				}
+				case 'node_absent': {
+					const hasNode = placedNodes.some(
+						(n) => n.type === condition.nodeType,
+					);
+					return {
+						passed: !hasNode,
+						message: !hasNode ? '' : `Remove the ${condition.nodeType} node`,
+					};
+				}
+				case 'connection': {
+					// Supports "OR" logic if targetType is an array (not yet typed, but we can check loosely or update types)
+					// For now, let's assume strict single types as per interface,
+					// BUT for Level 1 we hardcoded successConditions in act1.ts to be specific.
+					// Wait, Level 1 needs "Postgres OR SQLite".
+					// The cleanest way is to check if the connection exists matching specific types.
 
-          const hasConnection = connections.some((conn) => {
-            const source = placedNodes.find((n) => n.id === conn.sourceNodeId);
-            const target = placedNodes.find((n) => n.id === conn.targetNodeId);
-            return source?.type === condition.sourceType && target?.type === condition.targetType;
-          });
+					const hasConnection = connections.some((conn) => {
+						const source = placedNodes.find((n) => n.id === conn.sourceNodeId);
+						const target = placedNodes.find((n) => n.id === conn.targetNodeId);
+						return (
+							source?.type === condition.sourceType &&
+							target?.type === condition.targetType
+						);
+					});
 
-          // Special handling for Level 1 Stack Choice if we want flexible validation
-          // But actually, in act1-birth.ts I defined:
-          // { type: 'connection', sourceType: 'terminal', targetType: 'postgres' }
-          // This implies STRICT checking.
-          // I need to update act1-birth.ts first to allow OR, or update this validator to handle strict + alternative.
+					// Special handling for Level 1 Stack Choice if we want flexible validation
+					// But actually, in act1-birth.ts I defined:
+					// { type: 'connection', sourceType: 'terminal', targetType: 'postgres' }
+					// This implies STRICT checking.
+					// I need to update act1-birth.ts first to allow OR, or update this validator to handle strict + alternative.
 
-          return {
-            passed: hasConnection,
-            message: hasConnection
-              ? ''
-              : `Connect ${condition.sourceType} → ${condition.targetType}`,
-          };
-        }
-        case 'metric': {
-          // Metric conditions would be checked during simulation
-          // For now, pass if the pipeline structure is correct
-          return { passed: true, message: '' };
-        }
-        default:
-          return { passed: true, message: '' };
-      }
-    },
-    [placedNodes, connections]
-  );
+					return {
+						passed: hasConnection,
+						message: hasConnection
+							? ''
+							: `Connect ${condition.sourceType} → ${condition.targetType}`,
+					};
+				}
+				case 'metric': {
+					// Metric conditions would be checked during simulation
+					// For now, pass if the pipeline structure is correct
+					return { passed: true, message: '' };
+				}
+				default:
+					return { passed: true, message: '' };
+			}
+		},
+		[placedNodes, connections],
+	);
 
-  // Check challenge-specific success condition
-  const checkChallenge = useCallback(
-    (metrics?: LiveMetrics): ValidationResult => {
-      // First check legacy challenge format
-      const challenge = levelChallenges[levelId];
-      if (challenge) {
-        const result = challenge.successCondition(placedNodes, connections);
-        return {
-          valid: result.success,
-          errors: result.success ? [] : [result.message],
-          warnings: [],
-          score: result.success ? 100 : 0,
-        };
-      }
+	// Check challenge-specific success condition
+	const checkChallenge = useCallback(
+		(metrics?: LiveMetrics): ValidationResult => {
+			// First check legacy challenge format
+			const challenge = levelChallenges[levelId];
+			if (challenge) {
+				const result = challenge.successCondition(placedNodes, connections);
+				return {
+					valid: result.success,
+					errors: result.success ? [] : [result.message],
+					warnings: [],
+					score: result.success ? 100 : 0,
+				};
+			}
 
-      // Then check new Level format from acts
-      const level = getLevel(levelId);
-      if (level?.successConditions) {
-        const errors: string[] = [];
-        let passedCount = 0;
+			// Then check new Level format from acts
+			const level = getLevel(levelId);
+			if (level?.successConditions) {
+				const errors: string[] = [];
+				let passedCount = 0;
 
-        for (const condition of level.successConditions) {
-          const result = evaluateCondition(condition);
-          if (result.passed) {
-            passedCount++;
-          } else if (result.message) {
-            errors.push(result.message);
-          }
-        }
+				for (const condition of level.successConditions) {
+					const result = evaluateCondition(condition);
+					if (result.passed) {
+						passedCount++;
+					} else if (result.message) {
+						errors.push(result.message);
+					}
+				}
 
-        const allPassed = passedCount === level.successConditions.length;
-        const score = Math.round((passedCount / level.successConditions.length) * 100);
+				const allPassed = passedCount === level.successConditions.length;
+				const score = Math.round(
+					(passedCount / level.successConditions.length) * 100,
+				);
 
-        return {
-          valid: allPassed,
-          errors,
-          warnings: [],
-          score,
-        };
-      }
+				return {
+					valid: allPassed,
+					errors,
+					warnings: [],
+					score,
+				};
+			}
 
-      // Fallback to general pipeline validation
-      return validatePipeline();
-    },
-    [levelId, placedNodes, connections, evaluateCondition, validatePipeline]
-  );
+			// Fallback to general pipeline validation
+			return validatePipeline();
+		},
+		[levelId, placedNodes, connections, evaluateCondition, validatePipeline],
+	);
 
-  return {
-    isPipelineBroken,
-    breakReason,
-    hasSolutionNode,
-    findPath,
-    validatePipeline,
-    checkChallenge,
-  };
+	return {
+		isPipelineBroken,
+		breakReason,
+		hasSolutionNode,
+		findPath,
+		validatePipeline,
+		checkChallenge,
+	};
 }

@@ -12,19 +12,20 @@ import type { Act, Level } from '../../components/game/types';
 // ============================================
 
 const level32MessageQueues: Level = {
-  id: 'act6-level32-message-queues',
-  actId: 6,
-  levelNumber: 32,
-  name: 'Message Queues',
-  trigger: {
-    type: 'architecture',
-    description: 'Services need to communicate asynchronously. Tight coupling is killing us.',
-  },
-  startingPipeline: { nodes: [], connections: [] },
-  problem: {
-    observation: 'Services directly call each other. Failure cascades.',
-    rootCause: 'No asynchronous messaging layer.',
-    codeExample: `# BAD: Synchronous coupling
+	id: 'act6-level32-message-queues',
+	actId: 6,
+	levelNumber: 32,
+	name: 'Message Queues',
+	trigger: {
+		type: 'architecture',
+		description:
+			'Services need to communicate asynchronously. Tight coupling is killing us.',
+	},
+	startingPipeline: { nodes: [], connections: [] },
+	problem: {
+		observation: 'Services directly call each other. Failure cascades.',
+		rootCause: 'No asynchronous messaging layer.',
+		codeExample: `# BAD: Synchronous coupling
 OrderService.create(order) do
   InventoryService.reserve(items)
   PaymentService.charge(amount)
@@ -34,21 +35,21 @@ end
 # GOOD: Event-driven
 OrderService.create(order)
 publish('order.created', order)`,
-    goal: 'Implement pub/sub messaging for service decoupling.',
-    thresholds: {},
-  },
-  successConditions: [{ type: 'message_queue_configured' }],
-  availableNodes: ['message_queue'],
-  unlockedNodes: ['message_queue'],
-  learningContent: {
-    title: 'Message Queues & Event-Driven Architecture',
-    conceptExplanation: `Decouple services with asynchronous messaging.
+		goal: 'Implement pub/sub messaging for service decoupling.',
+		thresholds: {},
+	},
+	successConditions: [{ type: 'message_queue_configured' }],
+	availableNodes: ['message_queue'],
+	unlockedNodes: ['message_queue'],
+	learningContent: {
+		title: 'Message Queues & Event-Driven Architecture',
+		conceptExplanation: `Decouple services with asynchronous messaging.
 
 **Patterns:**
 - Pub/Sub: Broadcast events to many subscribers
 - Work Queue: Distribute tasks to workers
 - Request/Reply: Async RPC`,
-    railsCodeExample: `# Using Sidekiq for work queues
+		railsCodeExample: `# Using Sidekiq for work queues
 class OrderCreatedWorker
   include Sidekiq::Worker
 
@@ -87,11 +88,15 @@ class KarafkaApp < Karafka::App
     end
   end
 end`,
-    commonMistakes: ['No dead letter queue', 'Not handling duplicates', 'Losing messages on failure'],
-    whenToUse: 'When services need to communicate without tight coupling.',
-    furtherReading: [{ title: 'Karafka', url: 'https://karafka.io/' }],
-  },
-  hint: { delay: 20, text: 'Publish events, let subscribers handle them.' },
+		commonMistakes: [
+			'No dead letter queue',
+			'Not handling duplicates',
+			'Losing messages on failure',
+		],
+		whenToUse: 'When services need to communicate without tight coupling.',
+		furtherReading: [{ title: 'Karafka', url: 'https://karafka.io/' }],
+	},
+	hint: { delay: 20, text: 'Publish events, let subscribers handle them.' },
 };
 
 // ============================================
@@ -99,35 +104,35 @@ end`,
 // ============================================
 
 const level33DistributedCaching: Level = {
-  id: 'act6-level33-distributed-caching',
-  actId: 6,
-  levelNumber: 33,
-  name: 'Distributed Caching',
-  trigger: {
-    type: 'scaling',
-    description: 'Single Redis cannot handle the load. Need distributed cache.',
-  },
-  startingPipeline: { nodes: [], connections: [] },
-  problem: {
-    observation: 'Single Redis at capacity. Cache misses increasing.',
-    rootCause: 'No distributed caching layer.',
-    codeExample: `# Single Redis: One node handles all cache
+	id: 'act6-level33-distributed-caching',
+	actId: 6,
+	levelNumber: 33,
+	name: 'Distributed Caching',
+	trigger: {
+		type: 'scaling',
+		description: 'Single Redis cannot handle the load. Need distributed cache.',
+	},
+	startingPipeline: { nodes: [], connections: [] },
+	problem: {
+		observation: 'Single Redis at capacity. Cache misses increasing.',
+		rootCause: 'No distributed caching layer.',
+		codeExample: `# Single Redis: One node handles all cache
 # Distributed: Multiple nodes share the load`,
-    goal: 'Configure Redis Cluster for distributed caching.',
-    thresholds: {},
-  },
-  successConditions: [{ type: 'distributed_cache_configured' }],
-  availableNodes: ['redis_cluster'],
-  unlockedNodes: ['redis_cluster'],
-  learningContent: {
-    title: 'Distributed Caching with Redis Cluster',
-    conceptExplanation: `Scale cache horizontally across nodes.
+		goal: 'Configure Redis Cluster for distributed caching.',
+		thresholds: {},
+	},
+	successConditions: [{ type: 'distributed_cache_configured' }],
+	availableNodes: ['redis_cluster'],
+	unlockedNodes: ['redis_cluster'],
+	learningContent: {
+		title: 'Distributed Caching with Redis Cluster',
+		conceptExplanation: `Scale cache horizontally across nodes.
 
 **Strategies:**
 - Redis Cluster: Automatic sharding
 - Consistent Hashing: Predictable key distribution
 - Read Replicas: Scale reads`,
-    railsCodeExample: `# config/environments/production.rb
+		railsCodeExample: `# config/environments/production.rb
 config.cache_store = :redis_cache_store, {
   cluster: [
     { host: 'redis1.example.com', port: 6379 },
@@ -172,11 +177,16 @@ def hot_data(key)
     end
   end
 end`,
-    commonMistakes: ['No error handling', 'Cache stampede', 'No fallback'],
-    whenToUse: 'When single Redis cannot handle load.',
-    furtherReading: [{ title: 'Redis Cluster', url: 'https://redis.io/docs/management/scaling/' }],
-  },
-  hint: { delay: 20, text: 'Use Redis Cluster with proper error handling.' },
+		commonMistakes: ['No error handling', 'Cache stampede', 'No fallback'],
+		whenToUse: 'When single Redis cannot handle load.',
+		furtherReading: [
+			{
+				title: 'Redis Cluster',
+				url: 'https://redis.io/docs/management/scaling/',
+			},
+		],
+	},
+	hint: { delay: 20, text: 'Use Redis Cluster with proper error handling.' },
 };
 
 // ============================================
@@ -184,41 +194,42 @@ end`,
 // ============================================
 
 const level34APIGateway: Level = {
-  id: 'act6-level34-api-gateway',
-  actId: 6,
-  levelNumber: 34,
-  name: 'API Gateway',
-  trigger: {
-    type: 'architecture',
-    description: 'Clients calling multiple services directly. Need unified entry point.',
-  },
-  startingPipeline: { nodes: [], connections: [] },
-  problem: {
-    observation: 'Mobile app calls 5 different services for one screen.',
-    rootCause: 'No API aggregation layer.',
-    codeExample: `# Without gateway: Client calls each service
+	id: 'act6-level34-api-gateway',
+	actId: 6,
+	levelNumber: 34,
+	name: 'API Gateway',
+	trigger: {
+		type: 'architecture',
+		description:
+			'Clients calling multiple services directly. Need unified entry point.',
+	},
+	startingPipeline: { nodes: [], connections: [] },
+	problem: {
+		observation: 'Mobile app calls 5 different services for one screen.',
+		rootCause: 'No API aggregation layer.',
+		codeExample: `# Without gateway: Client calls each service
 # /users/1 -> User Service
 # /orders?user=1 -> Order Service
 # /recommendations -> Rec Service
 
 # With gateway: Single call
 # /api/dashboard -> Gateway aggregates`,
-    goal: 'Implement API Gateway pattern.',
-    thresholds: {},
-  },
-  successConditions: [{ type: 'api_gateway_configured' }],
-  availableNodes: ['api_gateway'],
-  unlockedNodes: ['api_gateway'],
-  learningContent: {
-    title: 'API Gateway Pattern',
-    conceptExplanation: `Single entry point for all client requests.
+		goal: 'Implement API Gateway pattern.',
+		thresholds: {},
+	},
+	successConditions: [{ type: 'api_gateway_configured' }],
+	availableNodes: ['api_gateway'],
+	unlockedNodes: ['api_gateway'],
+	learningContent: {
+		title: 'API Gateway Pattern',
+		conceptExplanation: `Single entry point for all client requests.
 
 **Responsibilities:**
 - Request routing
 - Authentication
 - Rate limiting
 - Response aggregation`,
-    railsCodeExample: `# Gateway controller aggregates multiple services
+		railsCodeExample: `# Gateway controller aggregates multiple services
 class Api::DashboardController < ApplicationController
   def show
     # Parallel service calls
@@ -264,11 +275,23 @@ services:
       - name: rate-limiting
         config:
           minute: 100`,
-    commonMistakes: ['Gateway becoming monolith', 'No circuit breakers', 'Single point of failure'],
-    whenToUse: 'When clients need to aggregate from multiple services.',
-    furtherReading: [{ title: 'API Gateway Pattern', url: 'https://microservices.io/patterns/apigateway.html' }],
-  },
-  hint: { delay: 20, text: 'Aggregate service calls, add authentication and rate limiting.' },
+		commonMistakes: [
+			'Gateway becoming monolith',
+			'No circuit breakers',
+			'Single point of failure',
+		],
+		whenToUse: 'When clients need to aggregate from multiple services.',
+		furtherReading: [
+			{
+				title: 'API Gateway Pattern',
+				url: 'https://microservices.io/patterns/apigateway.html',
+			},
+		],
+	},
+	hint: {
+		delay: 20,
+		text: 'Aggregate service calls, add authentication and rate limiting.',
+	},
 };
 
 // ============================================
@@ -276,20 +299,22 @@ services:
 // ============================================
 
 const level35Microservices: Level = {
-  id: 'act6-level35-microservices',
-  actId: 6,
-  levelNumber: 35,
-  name: 'Microservices',
-  isCapstone: true,
-  trigger: {
-    type: 'architecture',
-    description: 'Monolith is 2M lines. Teams stepping on each other. Time to extract services.',
-  },
-  startingPipeline: { nodes: [], connections: [] },
-  problem: {
-    observation: 'Monolith deployment takes 2 hours. Teams blocked on each other.',
-    rootCause: 'Monolith has grown too large.',
-    codeExample: `# Monolith: Everything in one codebase
+	id: 'act6-level35-microservices',
+	actId: 6,
+	levelNumber: 35,
+	name: 'Microservices',
+	isCapstone: true,
+	trigger: {
+		type: 'architecture',
+		description:
+			'Monolith is 2M lines. Teams stepping on each other. Time to extract services.',
+	},
+	startingPipeline: { nodes: [], connections: [] },
+	problem: {
+		observation:
+			'Monolith deployment takes 2 hours. Teams blocked on each other.',
+		rootCause: 'Monolith has grown too large.',
+		codeExample: `# Monolith: Everything in one codebase
 # Microservices: Independent deployable services
 
 # Extraction strategy: Strangler Fig Pattern
@@ -297,20 +322,20 @@ const level35Microservices: Level = {
 # 2. Extract to separate service
 # 3. Route traffic to new service
 # 4. Remove from monolith`,
-    goal: 'Design a safe extraction with routing, async events, and cache strategy.',
-    thresholds: {},
-  },
-  successConditions: [
-    { type: 'api_gateway_configured' },
-    { type: 'message_queue_configured' },
-    { type: 'distributed_cache_configured' },
-    { type: 'microservice_extracted' },
-  ],
-  availableNodes: ['api_gateway', 'message_queue', 'redis_cluster'],
-  unlockedNodes: ['api_gateway', 'message_queue', 'redis_cluster'],
-  learningContent: {
-    title: 'Microservices Extraction (Capstone)',
-    conceptExplanation: `Break monolith into independently deployable services.
+		goal: 'Design a safe extraction with routing, async events, and cache strategy.',
+		thresholds: {},
+	},
+	successConditions: [
+		{ type: 'api_gateway_configured' },
+		{ type: 'message_queue_configured' },
+		{ type: 'distributed_cache_configured' },
+		{ type: 'microservice_extracted' },
+	],
+	availableNodes: ['api_gateway', 'message_queue', 'redis_cluster'],
+	unlockedNodes: ['api_gateway', 'message_queue', 'redis_cluster'],
+	learningContent: {
+		title: 'Microservices Extraction (Capstone)',
+		conceptExplanation: `Break monolith into independently deployable services.
 
 **When to extract:**
 - Different scaling needs
@@ -319,7 +344,7 @@ const level35Microservices: Level = {
 
 **Strangler Fig Pattern:**
 Gradually replace monolith functionality.`,
-    railsCodeExample: `# Step 1: Identify bounded context (Billing)
+		railsCodeExample: `# Step 1: Identify bounded context (Billing)
 # app/models/billing/ - extract everything here
 
 # Step 2: Create service interface in monolith
@@ -383,19 +408,28 @@ def create_charge(user_id, amount)
 
   old_charge
 end`,
-    commonMistakes: [
-      'Extracting too many services at once',
-      'Distributed monolith (services too coupled)',
-      'No feature flags for rollback',
-      'Forgetting data migration',
-    ],
-    whenToUse: 'When monolith size blocks team productivity.',
-    furtherReading: [
-      { title: 'Strangler Fig Pattern', url: 'https://martinfowler.com/bliki/StranglerFigApplication.html' },
-      { title: 'Monolith to Microservices', url: 'https://www.oreilly.com/library/view/monolith-to-microservices/9781492047834/' },
-    ],
-  },
-  hint: { delay: 30, text: 'Use Strangler Fig: gateway + events + cache + gradual cutover.' },
+		commonMistakes: [
+			'Extracting too many services at once',
+			'Distributed monolith (services too coupled)',
+			'No feature flags for rollback',
+			'Forgetting data migration',
+		],
+		whenToUse: 'When monolith size blocks team productivity.',
+		furtherReading: [
+			{
+				title: 'Strangler Fig Pattern',
+				url: 'https://martinfowler.com/bliki/StranglerFigApplication.html',
+			},
+			{
+				title: 'Monolith to Microservices',
+				url: 'https://www.oreilly.com/library/view/monolith-to-microservices/9781492047834/',
+			},
+		],
+	},
+	hint: {
+		delay: 30,
+		text: 'Use Strangler Fig: gateway + events + cache + gradual cutover.',
+	},
 };
 
 // ============================================
@@ -403,16 +437,17 @@ end`,
 // ============================================
 
 export const actSix: Act = {
-  id: 6,
-  name: 'System Design',
-  tagline: 'Architecting at Scale',
-  description: 'Master system design: message queues, distributed caching, API gateways, and microservices extraction.',
-  levels: [
-    level32MessageQueues,
-    level33DistributedCaching,
-    level34APIGateway,
-    level35Microservices,
-  ],
-  unlockedNodes: ['message_queue', 'redis_cluster', 'api_gateway'],
-  metricsVisible: true,
+	id: 6,
+	name: 'System Design',
+	tagline: 'Architecting at Scale',
+	description:
+		'Master system design: message queues, distributed caching, API gateways, and microservices extraction.',
+	levels: [
+		level32MessageQueues,
+		level33DistributedCaching,
+		level34APIGateway,
+		level35Microservices,
+	],
+	unlockedNodes: ['message_queue', 'redis_cluster', 'api_gateway'],
+	metricsVisible: true,
 };

@@ -12,38 +12,38 @@ import type { Act, Level } from '../../components/game/types';
 // ============================================
 
 const level22ExternalAPIs: Level = {
-  id: 'act4-level22-external-apis',
-  actId: 4,
-  levelNumber: 22,
-  name: 'External APIs',
-  trigger: {
-    type: 'incident',
-    description: 'Stripe API timeout crashed the checkout flow.',
-  },
-  startingPipeline: { nodes: [], connections: [] },
-  problem: {
-    observation: 'External API calls block requests and cause timeouts.',
-    rootCause: 'No resilience patterns for external dependencies.',
-    codeExample: `# BAD: No timeout, no retry
+	id: 'act4-level22-external-apis',
+	actId: 4,
+	levelNumber: 22,
+	name: 'External APIs',
+	trigger: {
+		type: 'incident',
+		description: 'Stripe API timeout crashed the checkout flow.',
+	},
+	startingPipeline: { nodes: [], connections: [] },
+	problem: {
+		observation: 'External API calls block requests and cause timeouts.',
+		rootCause: 'No resilience patterns for external dependencies.',
+		codeExample: `# BAD: No timeout, no retry
 response = HTTParty.get('https://api.stripe.com/...')
 
 # GOOD: Timeout + retry + circuit breaker
 response = with_resilience { stripe_client.charge(amount) }`,
-    goal: 'Implement resilience patterns for external API calls.',
-    thresholds: {},
-  },
-  successConditions: [{ type: 'api_resilience_configured' }],
-  availableNodes: ['circuit_breaker'],
-  unlockedNodes: ['circuit_breaker'],
-  learningContent: {
-    title: 'Resilient API Integration',
-    conceptExplanation: `External APIs fail. Be prepared.
+		goal: 'Implement resilience patterns for external API calls.',
+		thresholds: {},
+	},
+	successConditions: [{ type: 'api_resilience_configured' }],
+	availableNodes: ['circuit_breaker'],
+	unlockedNodes: ['circuit_breaker'],
+	learningContent: {
+		title: 'Resilient API Integration',
+		conceptExplanation: `External APIs fail. Be prepared.
 
 **Patterns:**
 - Timeouts: Don't wait forever
 - Retries: Try again with backoff
 - Circuit breaker: Stop calling failed services`,
-    railsCodeExample: `# Using Faraday with middleware
+		railsCodeExample: `# Using Faraday with middleware
 connection = Faraday.new do |f|
   f.request :retry, max: 3, interval: 0.5
   f.options.timeout = 5
@@ -70,11 +70,16 @@ rescue CircuitBreaker::OpenError
   queue_for_retry
   render_payment_pending
 end`,
-    commonMistakes: ['No timeouts', 'Infinite retries', 'No fallback behavior'],
-    whenToUse: 'Every external API call.',
-    furtherReading: [{ title: 'Circuit Breaker Pattern', url: 'https://martinfowler.com/bliki/CircuitBreaker.html' }],
-  },
-  hint: { delay: 20, text: 'Add timeouts, retries, and circuit breaker.' },
+		commonMistakes: ['No timeouts', 'Infinite retries', 'No fallback behavior'],
+		whenToUse: 'Every external API call.',
+		furtherReading: [
+			{
+				title: 'Circuit Breaker Pattern',
+				url: 'https://martinfowler.com/bliki/CircuitBreaker.html',
+			},
+		],
+	},
+	hint: { delay: 20, text: 'Add timeouts, retries, and circuit breaker.' },
 };
 
 // ============================================
@@ -82,37 +87,38 @@ end`,
 // ============================================
 
 const level23Webhooks: Level = {
-  id: 'act4-level23-webhooks',
-  actId: 4,
-  levelNumber: 23,
-  name: 'Webhooks',
-  trigger: {
-    type: 'new_feature',
-    description: 'Stripe sends payment events via webhooks. How do we handle them?',
-  },
-  startingPipeline: { nodes: [], connections: [] },
-  problem: {
-    observation: 'Need to receive and process webhook events.',
-    rootCause: 'No webhook handling infrastructure.',
-    codeExample: `# Webhook endpoint needs:
+	id: 'act4-level23-webhooks',
+	actId: 4,
+	levelNumber: 23,
+	name: 'Webhooks',
+	trigger: {
+		type: 'new_feature',
+		description:
+			'Stripe sends payment events via webhooks. How do we handle them?',
+	},
+	startingPipeline: { nodes: [], connections: [] },
+	problem: {
+		observation: 'Need to receive and process webhook events.',
+		rootCause: 'No webhook handling infrastructure.',
+		codeExample: `# Webhook endpoint needs:
 # 1. Signature verification
 # 2. Idempotent processing
 # 3. Async handling`,
-    goal: 'Implement secure, idempotent webhook handling.',
-    thresholds: {},
-  },
-  successConditions: [{ type: 'webhooks_configured' }],
-  availableNodes: [],
-  unlockedNodes: [],
-  learningContent: {
-    title: 'Webhook Security & Reliability',
-    conceptExplanation: `Webhooks are incoming HTTP requests from external services.
+		goal: 'Implement secure, idempotent webhook handling.',
+		thresholds: {},
+	},
+	successConditions: [{ type: 'webhooks_configured' }],
+	availableNodes: [],
+	unlockedNodes: [],
+	learningContent: {
+		title: 'Webhook Security & Reliability',
+		conceptExplanation: `Webhooks are incoming HTTP requests from external services.
 
 **Requirements:**
 - Verify signatures (prevent spoofing)
 - Handle duplicates (idempotency)
 - Process async (return 200 fast)`,
-    railsCodeExample: `# app/controllers/webhooks_controller.rb
+		railsCodeExample: `# app/controllers/webhooks_controller.rb
 class WebhooksController < ApplicationController
   skip_before_action :verify_authenticity_token
 
@@ -138,11 +144,20 @@ class WebhooksController < ApplicationController
     head :ok
   end
 end`,
-    commonMistakes: ['No signature verification', 'Sync processing', 'No idempotency'],
-    whenToUse: 'Any external service integration with webhooks.',
-    furtherReading: [{ title: 'Stripe Webhooks', url: 'https://stripe.com/docs/webhooks' }],
-  },
-  hint: { delay: 20, text: 'Verify signature, check idempotency, process async.' },
+		commonMistakes: [
+			'No signature verification',
+			'Sync processing',
+			'No idempotency',
+		],
+		whenToUse: 'Any external service integration with webhooks.',
+		furtherReading: [
+			{ title: 'Stripe Webhooks', url: 'https://stripe.com/docs/webhooks' },
+		],
+	},
+	hint: {
+		delay: 20,
+		text: 'Verify signature, check idempotency, process async.',
+	},
 };
 
 // ============================================
@@ -150,39 +165,39 @@ end`,
 // ============================================
 
 const level24FileStorage: Level = {
-  id: 'act4-level24-file-storage',
-  actId: 4,
-  levelNumber: 24,
-  name: 'File Storage',
-  trigger: {
-    type: 'scaling',
-    description: 'Users upload 4K videos. Memory spikes crash the server.',
-  },
-  startingPipeline: { nodes: [], connections: [] },
-  problem: {
-    observation: 'Large file uploads crash the application.',
-    rootCause: 'Files routed through app server instead of direct upload.',
-    codeExample: `# BAD: File goes through app
+	id: 'act4-level24-file-storage',
+	actId: 4,
+	levelNumber: 24,
+	name: 'File Storage',
+	trigger: {
+		type: 'scaling',
+		description: 'Users upload 4K videos. Memory spikes crash the server.',
+	},
+	startingPipeline: { nodes: [], connections: [] },
+	problem: {
+		observation: 'Large file uploads crash the application.',
+		rootCause: 'Files routed through app server instead of direct upload.',
+		codeExample: `# BAD: File goes through app
 # Browser -> App Server -> S3 (memory spike!)
 
 # GOOD: Direct upload
 # Browser -> S3 (direct)
 # App only receives URL`,
-    goal: 'Configure storage provider, enable direct uploads, and add CDN.',
-    thresholds: {},
-  },
-  successConditions: [{ type: 'storage_configured' }],
-  availableNodes: ['s3'],
-  unlockedNodes: ['s3'],
-  learningContent: {
-    title: 'ActiveStorage & Direct Uploads',
-    conceptExplanation: `ActiveStorage handles file uploads in Rails.
+		goal: 'Configure storage provider, enable direct uploads, and add CDN.',
+		thresholds: {},
+	},
+	successConditions: [{ type: 'storage_configured' }],
+	availableNodes: ['s3'],
+	unlockedNodes: ['s3'],
+	learningContent: {
+		title: 'ActiveStorage & Direct Uploads',
+		conceptExplanation: `ActiveStorage handles file uploads in Rails.
 
 **Direct Upload:**
 - Browser uploads directly to S3
 - App server not involved
 - No memory pressure`,
-    railsCodeExample: `# config/storage.yml
+		railsCodeExample: `# config/storage.yml
 amazon:
   service: S3
   access_key_id: <%= ENV['AWS_ACCESS_KEY_ID'] %>
@@ -206,11 +221,16 @@ const upload = new DirectUpload(file, url)
 upload.create((error, blob) => {
   // blob.signed_id to attach to model
 })`,
-    commonMistakes: ['Large files through app server', 'No CDN for serving'],
-    whenToUse: 'Any file uploads, especially > 1MB.',
-    furtherReading: [{ title: 'ActiveStorage', url: 'https://guides.rubyonrails.org/active_storage_overview.html' }],
-  },
-  hint: { delay: 20, text: 'Enable direct_upload: true for large files.' },
+		commonMistakes: ['Large files through app server', 'No CDN for serving'],
+		whenToUse: 'Any file uploads, especially > 1MB.',
+		furtherReading: [
+			{
+				title: 'ActiveStorage',
+				url: 'https://guides.rubyonrails.org/active_storage_overview.html',
+			},
+		],
+	},
+	hint: { delay: 20, text: 'Enable direct_upload: true for large files.' },
 };
 
 // ============================================
@@ -218,19 +238,19 @@ upload.create((error, blob) => {
 // ============================================
 
 const level25Idempotency: Level = {
-  id: 'act4-level25-idempotency',
-  actId: 4,
-  levelNumber: 25,
-  name: 'Idempotency',
-  trigger: {
-    type: 'incident',
-    description: 'Customer charged twice! Duplicate webhook delivered.',
-  },
-  startingPipeline: { nodes: [], connections: [] },
-  problem: {
-    observation: 'Duplicate requests cause duplicate charges.',
-    rootCause: 'Operations are not idempotent.',
-    codeExample: `# BAD: Duplicate creates two charges
+	id: 'act4-level25-idempotency',
+	actId: 4,
+	levelNumber: 25,
+	name: 'Idempotency',
+	trigger: {
+		type: 'incident',
+		description: 'Customer charged twice! Duplicate webhook delivered.',
+	},
+	startingPipeline: { nodes: [], connections: [] },
+	problem: {
+		observation: 'Duplicate requests cause duplicate charges.',
+		rootCause: 'Operations are not idempotent.',
+		codeExample: `# BAD: Duplicate creates two charges
 def charge(amount)
   Stripe::Charge.create(amount: amount)
 end
@@ -242,21 +262,21 @@ def charge(amount, idempotency_key:)
     idempotency_key: idempotency_key
   )
 end`,
-    goal: 'Make critical operations idempotent.',
-    thresholds: {},
-  },
-  successConditions: [{ type: 'idempotency_configured' }],
-  availableNodes: [],
-  unlockedNodes: [],
-  learningContent: {
-    title: 'Idempotency Patterns',
-    conceptExplanation: `An operation is idempotent if running it multiple times has the same effect as running it once.
+		goal: 'Make critical operations idempotent.',
+		thresholds: {},
+	},
+	successConditions: [{ type: 'idempotency_configured' }],
+	availableNodes: [],
+	unlockedNodes: [],
+	learningContent: {
+		title: 'Idempotency Patterns',
+		conceptExplanation: `An operation is idempotent if running it multiple times has the same effect as running it once.
 
 **Critical for:**
 - Payment processing
 - Webhook handling
 - API requests`,
-    railsCodeExample: `# Database-backed idempotency
+		railsCodeExample: `# Database-backed idempotency
 class ProcessPayment
   def call(order_id, idempotency_key)
     # Check if already processed
@@ -284,11 +304,20 @@ class ProcessPayment
     Payment.find_by!(idempotency_key: idempotency_key)
   end
 end`,
-    commonMistakes: ['No idempotency key', 'Race conditions', 'Retrying non-idempotent operations'],
-    whenToUse: 'Payment processing, webhooks, any operation with side effects.',
-    furtherReading: [{ title: 'Stripe Idempotency', url: 'https://stripe.com/docs/api/idempotent_requests' }],
-  },
-  hint: { delay: 20, text: 'Use unique keys and check-before-create pattern.' },
+		commonMistakes: [
+			'No idempotency key',
+			'Race conditions',
+			'Retrying non-idempotent operations',
+		],
+		whenToUse: 'Payment processing, webhooks, any operation with side effects.',
+		furtherReading: [
+			{
+				title: 'Stripe Idempotency',
+				url: 'https://stripe.com/docs/api/idempotent_requests',
+			},
+		],
+	},
+	hint: { delay: 20, text: 'Use unique keys and check-before-create pattern.' },
 };
 
 // ============================================
@@ -296,35 +325,35 @@ end`,
 // ============================================
 
 const level26HealthChecks: Level = {
-  id: 'act4-level26-health-checks',
-  actId: 4,
-  levelNumber: 26,
-  name: 'Health Checks',
-  trigger: {
-    type: 'incident',
-    description: 'Kubernetes keeps killing pods. Need proper health checks.',
-  },
-  startingPipeline: { nodes: [], connections: [] },
-  problem: {
-    observation: 'Container orchestrator cannot determine app health.',
-    rootCause: 'No health check endpoints.',
-    codeExample: `# Kubernetes needs:
+	id: 'act4-level26-health-checks',
+	actId: 4,
+	levelNumber: 26,
+	name: 'Health Checks',
+	trigger: {
+		type: 'incident',
+		description: 'Kubernetes keeps killing pods. Need proper health checks.',
+	},
+	startingPipeline: { nodes: [], connections: [] },
+	problem: {
+		observation: 'Container orchestrator cannot determine app health.',
+		rootCause: 'No health check endpoints.',
+		codeExample: `# Kubernetes needs:
 # livenessProbe: Is the app alive?
 # readinessProbe: Can it handle traffic?`,
-    goal: 'Implement liveness, readiness, and deep health checks.',
-    thresholds: {},
-  },
-  successConditions: [{ type: 'health_checks_configured' }],
-  availableNodes: [],
-  unlockedNodes: [],
-  learningContent: {
-    title: 'Health Checks for Production',
-    conceptExplanation: `Three types of health checks:
+		goal: 'Implement liveness, readiness, and deep health checks.',
+		thresholds: {},
+	},
+	successConditions: [{ type: 'health_checks_configured' }],
+	availableNodes: [],
+	unlockedNodes: [],
+	learningContent: {
+		title: 'Health Checks for Production',
+		conceptExplanation: `Three types of health checks:
 
 **Liveness** - Is the process alive? (restart if not)
 **Readiness** - Can it handle traffic? (remove from LB if not)
 **Deep** - Are all dependencies healthy?`,
-    railsCodeExample: `# config/routes.rb
+		railsCodeExample: `# config/routes.rb
 get '/health/live', to: 'health#live'
 get '/health/ready', to: 'health#ready'
 get '/health/deep', to: 'health#deep'
@@ -374,11 +403,23 @@ readinessProbe:
     port: 3000
   initialDelaySeconds: 5
   periodSeconds: 5`,
-    commonMistakes: ['Heavy checks in liveness', 'No readiness probe', 'Checking non-critical services'],
-    whenToUse: 'Every production deployment.',
-    furtherReading: [{ title: 'Kubernetes Probes', url: 'https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/' }],
-  },
-  hint: { delay: 20, text: 'Liveness should be simple, readiness checks dependencies.' },
+		commonMistakes: [
+			'Heavy checks in liveness',
+			'No readiness probe',
+			'Checking non-critical services',
+		],
+		whenToUse: 'Every production deployment.',
+		furtherReading: [
+			{
+				title: 'Kubernetes Probes',
+				url: 'https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/',
+			},
+		],
+	},
+	hint: {
+		delay: 20,
+		text: 'Liveness should be simple, readiness checks dependencies.',
+	},
 };
 
 // ============================================
@@ -386,17 +427,18 @@ readinessProbe:
 // ============================================
 
 export const actFour: Act = {
-  id: 4,
-  name: 'Production Ready',
-  tagline: 'Building for the Real World',
-  description: 'Prepare your Rails app for production: external APIs, webhooks, file storage, idempotency, and health checks.',
-  levels: [
-    level22ExternalAPIs,
-    level23Webhooks,
-    level24FileStorage,
-    level25Idempotency,
-    level26HealthChecks,
-  ],
-  unlockedNodes: ['circuit_breaker', 's3'],
-  metricsVisible: true,
+	id: 4,
+	name: 'Production Ready',
+	tagline: 'Building for the Real World',
+	description:
+		'Prepare your Rails app for production: external APIs, webhooks, file storage, idempotency, and health checks.',
+	levels: [
+		level22ExternalAPIs,
+		level23Webhooks,
+		level24FileStorage,
+		level25Idempotency,
+		level26HealthChecks,
+	],
+	unlockedNodes: ['circuit_breaker', 's3'],
+	metricsVisible: true,
 };

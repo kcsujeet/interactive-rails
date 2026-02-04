@@ -2,7 +2,7 @@
 @import "tailwindcss";
 
 /* Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap");
 
 /* ============================================
    THEME CONFIGURATION (Tailwind v4)
@@ -100,9 +100,9 @@
   --color-defense-validator: #14b8a6;
 
   /* Fonts */
-  --font-sans: 'Space Grotesk', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
-  --font-game: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  --font-sans: "Space Grotesk", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --font-game: "Space Grotesk", system-ui, -apple-system, sans-serif;
 
   /* Animations */
   --animate-shake: shake 0.3s ease-in-out;
@@ -120,24 +120,48 @@
    KEYFRAME ANIMATIONS
    ============================================ */
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-5px); }
-  75% { transform: translateX(5px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
 }
 
 @keyframes glow {
-  0%, 100% { box-shadow: 0 0 10px currentColor; }
-  50% { box-shadow: 0 0 25px currentColor, 0 0 40px currentColor; }
+  0%,
+  100% {
+    box-shadow: 0 0 10px currentColor;
+  }
+  50% {
+    box-shadow: 0 0 25px currentColor, 0 0 40px currentColor;
+  }
 }
 
 @keyframes damage {
-  0% { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-30px); }
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
 }
 
 @keyframes slideDown {
-  0% { opacity: 0; transform: translateY(-10px); }
-  100% { opacity: 1; transform: translateY(0); }
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .animate-slideDown {
@@ -174,7 +198,7 @@
 html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
 body {
@@ -270,8 +294,7 @@ body {
 }
 
 @utility bg-grid {
-  background-image:
-    linear-gradient(to right, rgba(28, 54, 80, 0.3) 1px, transparent 1px),
+  background-image: linear-gradient(to right, rgba(28, 54, 80, 0.3) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(28, 54, 80, 0.3) 1px, transparent 1px);
   background-size: 40px 40px;
 }

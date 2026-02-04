@@ -2,13 +2,12 @@
  * Repository exports
  */
 
-export { UserRepository } from './userRepository';
-export type { CreateUserData } from './userRepository';
-
-export { ProgressRepository } from './progressRepository';
 export type {
-  CreateProgressData,
-  UpdateProgressData,
-  RecordAttemptData,
-  ProgressStats,
+	CreateProgressData,
+	ProgressStats,
+	RecordAttemptData,
+	UpdateProgressData,
 } from './progressRepository';
+export { ProgressRepository } from './progressRepository';
+export type { CreateUserData } from './userRepository';
+export { UserRepository } from './userRepository';

@@ -1,7 +1,7 @@
 {
-  "id": "directory",
-  "name": "Directory Structure",
-  "description": "Navigate the Rails application folder structure like a pro",
-  "order": 2,
-  "totalChallenges": 10
+	"id": "directory",
+	"name": "Directory Structure",
+	"description": "Navigate the Rails application folder structure like a pro",
+	"order": 2,
+	"totalChallenges": 10
 }

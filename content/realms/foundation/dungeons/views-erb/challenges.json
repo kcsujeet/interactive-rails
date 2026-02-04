@@ -1,155 +1,176 @@
 [
-  {
-    "id": "foundation-views-001",
-    "type": "multiple_choice",
-    "difficulty": 1,
-    "xp_reward": 20,
-    "monster": { "name": "ERB Elf", "sprite": "erb-elf", "hp": 40 },
-    "question": "What does ERB stand for?",
-    "options": [
-      { "id": "a", "text": "Embedded Ruby" },
-      { "id": "b", "text": "Extended Ruby Base" },
-      { "id": "c", "text": "Evaluated Ruby Blocks" },
-      { "id": "d", "text": "Enhanced Ruby Builder" }
-    ],
-    "correct_answer": "a",
-    "explanation": "ERB stands for Embedded Ruby. It allows you to embed Ruby code within HTML templates."
-  },
-  {
-    "id": "foundation-views-002",
-    "type": "multiple_choice",
-    "difficulty": 1,
-    "xp_reward": 20,
-    "monster": { "name": "Tag Terror", "sprite": "tag-terror", "hp": 40 },
-    "question": "What's the difference between <%= %> and <% %>?",
-    "options": [
-      { "id": "a", "text": "No difference" },
-      { "id": "b", "text": "<%= %> outputs the result, <% %> executes without output" },
-      { "id": "c", "text": "<%= %> is for strings, <% %> is for numbers" },
-      { "id": "d", "text": "<% %> outputs the result, <%= %> doesn't" }
-    ],
-    "correct_answer": "b",
-    "explanation": "<%= %> evaluates Ruby and outputs the result to HTML. <% %> executes Ruby without outputting (used for loops, conditionals)."
-  },
-  {
-    "id": "foundation-views-003",
-    "type": "fill_in_blank",
-    "difficulty": 1,
-    "xp_reward": 25,
-    "monster": { "name": "Partial Pixie", "sprite": "partial-pixie", "hp": 45 },
-    "question": "To render a partial named '_sidebar.html.erb', you write:",
-    "code_snippet": "<%= render partial: '____' %>",
-    "correct_answer": "sidebar",
-    "explanation": "Partials are named with an underscore prefix (_sidebar), but you reference them without it when rendering."
-  },
-  {
-    "id": "foundation-views-004",
-    "type": "multiple_choice",
-    "difficulty": 2,
-    "xp_reward": 30,
-    "monster": { "name": "XSS Xenomorph", "sprite": "xss-xeno", "hp": 55 },
-    "question": "Why does Rails automatically escape HTML in <%= %> tags?",
-    "options": [
-      { "id": "a", "text": "For performance" },
-      { "id": "b", "text": "To prevent XSS (Cross-Site Scripting) attacks" },
-      { "id": "c", "text": "To ensure valid HTML" },
-      { "id": "d", "text": "It doesn't escape HTML" }
-    ],
-    "correct_answer": "b",
-    "explanation": "Rails escapes HTML to prevent XSS attacks. User input like <script> tags become harmless text instead of executable code."
-  },
-  {
-    "id": "foundation-views-005",
-    "type": "code_analysis",
-    "difficulty": 2,
-    "xp_reward": 30,
-    "monster": { "name": "Link Lurker", "sprite": "link-lurker", "hp": 55 },
-    "question": "What HTML does this generate?",
-    "code_snippet": "<%= link_to 'Home', root_path, class: 'nav-link' %>",
-    "options": [
-      { "id": "a", "text": "<a href=\"/\" class=\"nav-link\">Home</a>" },
-      { "id": "b", "text": "<link href=\"/\">Home</link>" },
-      { "id": "c", "text": "<a class=\"nav-link\">Home</a>" },
-      { "id": "d", "text": "<button class=\"nav-link\">Home</button>" }
-    ],
-    "correct_answer": "a",
-    "explanation": "link_to generates an anchor tag. First arg is the link text, second is the URL, and options like class become HTML attributes."
-  },
-  {
-    "id": "foundation-views-006",
-    "type": "multiple_choice",
-    "difficulty": 2,
-    "xp_reward": 30,
-    "monster": { "name": "Layout Lich", "sprite": "layout-lich", "hp": 60 },
-    "question": "What does the 'yield' keyword do in a layout file?",
-    "options": [
-      { "id": "a", "text": "Returns control to the controller" },
-      { "id": "b", "text": "Inserts the content from the specific view being rendered" },
-      { "id": "c", "text": "Yields to JavaScript execution" },
-      { "id": "d", "text": "Pauses rendering" }
-    ],
-    "correct_answer": "b",
-    "explanation": "In layouts, 'yield' marks where the view content goes. The layout wraps around the specific view's content."
-  },
-  {
-    "id": "foundation-views-007",
-    "type": "fill_in_blank",
-    "difficulty": 2,
-    "xp_reward": 35,
-    "monster": { "name": "Form Phantom", "sprite": "form-phantom", "hp": 60 },
-    "question": "To create a form for a new @article, you start with:",
-    "code_snippet": "<%= form_with model: ____ do |f| %>",
-    "correct_answer": "@article",
-    "explanation": "form_with model: @article automatically sets the form action and method based on whether @article is new or existing."
-  },
-  {
-    "id": "foundation-views-008",
-    "type": "multiple_choice",
-    "difficulty": 3,
-    "xp_reward": 40,
-    "monster": { "name": "Collection Cobra", "sprite": "collection-cobra", "hp": 70 },
-    "question": "What's a more efficient way to render this?",
-    "code_snippet": "<% @articles.each do |article| %>\n  <%= render partial: 'article', locals: { article: article } %>\n<% end %>",
-    "options": [
-      { "id": "a", "text": "Can't be improved" },
-      { "id": "b", "text": "<%= render @articles %>" },
-      { "id": "c", "text": "<%= render collection: @articles %>" },
-      { "id": "d", "text": "Both B and C work" }
-    ],
-    "correct_answer": "d",
-    "explanation": "Both 'render @articles' and 'render collection: @articles' render the _article partial for each item, more efficiently than a Ruby loop."
-  },
-  {
-    "id": "foundation-views-009",
-    "type": "multiple_choice",
-    "difficulty": 3,
-    "xp_reward": 40,
-    "monster": { "name": "Content Chimera", "sprite": "content-chimera", "hp": 70 },
-    "question": "How do you add content to a named yield section in the layout?",
-    "code_snippet": "# In layout: <%= yield :sidebar %>\n# In view: ???",
-    "options": [
-      { "id": "a", "text": "<% sidebar do %>content<% end %>" },
-      { "id": "b", "text": "<% content_for :sidebar do %>content<% end %>" },
-      { "id": "c", "text": "<%= yield_to :sidebar do %>content<% end %>" },
-      { "id": "d", "text": "<%= render :sidebar do %>content<% end %>" }
-    ],
-    "correct_answer": "b",
-    "explanation": "content_for captures a block of content that's inserted at the matching 'yield :name' in the layout."
-  },
-  {
-    "id": "foundation-views-010",
-    "type": "multiple_choice",
-    "difficulty": 3,
-    "xp_reward": 45,
-    "monster": { "name": "View Overlord (BOSS)", "sprite": "view-boss", "hp": 100 },
-    "question": "What helper would you use to safely output raw HTML that you trust?",
-    "options": [
-      { "id": "a", "text": "raw()" },
-      { "id": "b", "text": "html_safe" },
-      { "id": "c", "text": "sanitize()" },
-      { "id": "d", "text": "All of these can be used, with different safety levels" }
-    ],
-    "correct_answer": "d",
-    "explanation": "raw() and html_safe mark strings as safe (use carefully!). sanitize() is safer - it allows HTML but strips dangerous tags."
-  }
+	{
+		"id": "foundation-views-001",
+		"type": "multiple_choice",
+		"difficulty": 1,
+		"xp_reward": 20,
+		"monster": { "name": "ERB Elf", "sprite": "erb-elf", "hp": 40 },
+		"question": "What does ERB stand for?",
+		"options": [
+			{ "id": "a", "text": "Embedded Ruby" },
+			{ "id": "b", "text": "Extended Ruby Base" },
+			{ "id": "c", "text": "Evaluated Ruby Blocks" },
+			{ "id": "d", "text": "Enhanced Ruby Builder" }
+		],
+		"correct_answer": "a",
+		"explanation": "ERB stands for Embedded Ruby. It allows you to embed Ruby code within HTML templates."
+	},
+	{
+		"id": "foundation-views-002",
+		"type": "multiple_choice",
+		"difficulty": 1,
+		"xp_reward": 20,
+		"monster": { "name": "Tag Terror", "sprite": "tag-terror", "hp": 40 },
+		"question": "What's the difference between <%= %> and <% %>?",
+		"options": [
+			{ "id": "a", "text": "No difference" },
+			{
+				"id": "b",
+				"text": "<%= %> outputs the result, <% %> executes without output"
+			},
+			{ "id": "c", "text": "<%= %> is for strings, <% %> is for numbers" },
+			{ "id": "d", "text": "<% %> outputs the result, <%= %> doesn't" }
+		],
+		"correct_answer": "b",
+		"explanation": "<%= %> evaluates Ruby and outputs the result to HTML. <% %> executes Ruby without outputting (used for loops, conditionals)."
+	},
+	{
+		"id": "foundation-views-003",
+		"type": "fill_in_blank",
+		"difficulty": 1,
+		"xp_reward": 25,
+		"monster": { "name": "Partial Pixie", "sprite": "partial-pixie", "hp": 45 },
+		"question": "To render a partial named '_sidebar.html.erb', you write:",
+		"code_snippet": "<%= render partial: '____' %>",
+		"correct_answer": "sidebar",
+		"explanation": "Partials are named with an underscore prefix (_sidebar), but you reference them without it when rendering."
+	},
+	{
+		"id": "foundation-views-004",
+		"type": "multiple_choice",
+		"difficulty": 2,
+		"xp_reward": 30,
+		"monster": { "name": "XSS Xenomorph", "sprite": "xss-xeno", "hp": 55 },
+		"question": "Why does Rails automatically escape HTML in <%= %> tags?",
+		"options": [
+			{ "id": "a", "text": "For performance" },
+			{ "id": "b", "text": "To prevent XSS (Cross-Site Scripting) attacks" },
+			{ "id": "c", "text": "To ensure valid HTML" },
+			{ "id": "d", "text": "It doesn't escape HTML" }
+		],
+		"correct_answer": "b",
+		"explanation": "Rails escapes HTML to prevent XSS attacks. User input like <script> tags become harmless text instead of executable code."
+	},
+	{
+		"id": "foundation-views-005",
+		"type": "code_analysis",
+		"difficulty": 2,
+		"xp_reward": 30,
+		"monster": { "name": "Link Lurker", "sprite": "link-lurker", "hp": 55 },
+		"question": "What HTML does this generate?",
+		"code_snippet": "<%= link_to 'Home', root_path, class: 'nav-link' %>",
+		"options": [
+			{ "id": "a", "text": "<a href=\"/\" class=\"nav-link\">Home</a>" },
+			{ "id": "b", "text": "<link href=\"/\">Home</link>" },
+			{ "id": "c", "text": "<a class=\"nav-link\">Home</a>" },
+			{ "id": "d", "text": "<button class=\"nav-link\">Home</button>" }
+		],
+		"correct_answer": "a",
+		"explanation": "link_to generates an anchor tag. First arg is the link text, second is the URL, and options like class become HTML attributes."
+	},
+	{
+		"id": "foundation-views-006",
+		"type": "multiple_choice",
+		"difficulty": 2,
+		"xp_reward": 30,
+		"monster": { "name": "Layout Lich", "sprite": "layout-lich", "hp": 60 },
+		"question": "What does the 'yield' keyword do in a layout file?",
+		"options": [
+			{ "id": "a", "text": "Returns control to the controller" },
+			{
+				"id": "b",
+				"text": "Inserts the content from the specific view being rendered"
+			},
+			{ "id": "c", "text": "Yields to JavaScript execution" },
+			{ "id": "d", "text": "Pauses rendering" }
+		],
+		"correct_answer": "b",
+		"explanation": "In layouts, 'yield' marks where the view content goes. The layout wraps around the specific view's content."
+	},
+	{
+		"id": "foundation-views-007",
+		"type": "fill_in_blank",
+		"difficulty": 2,
+		"xp_reward": 35,
+		"monster": { "name": "Form Phantom", "sprite": "form-phantom", "hp": 60 },
+		"question": "To create a form for a new @article, you start with:",
+		"code_snippet": "<%= form_with model: ____ do |f| %>",
+		"correct_answer": "@article",
+		"explanation": "form_with model: @article automatically sets the form action and method based on whether @article is new or existing."
+	},
+	{
+		"id": "foundation-views-008",
+		"type": "multiple_choice",
+		"difficulty": 3,
+		"xp_reward": 40,
+		"monster": {
+			"name": "Collection Cobra",
+			"sprite": "collection-cobra",
+			"hp": 70
+		},
+		"question": "What's a more efficient way to render this?",
+		"code_snippet": "<% @articles.each do |article| %>\n  <%= render partial: 'article', locals: { article: article } %>\n<% end %>",
+		"options": [
+			{ "id": "a", "text": "Can't be improved" },
+			{ "id": "b", "text": "<%= render @articles %>" },
+			{ "id": "c", "text": "<%= render collection: @articles %>" },
+			{ "id": "d", "text": "Both B and C work" }
+		],
+		"correct_answer": "d",
+		"explanation": "Both 'render @articles' and 'render collection: @articles' render the _article partial for each item, more efficiently than a Ruby loop."
+	},
+	{
+		"id": "foundation-views-009",
+		"type": "multiple_choice",
+		"difficulty": 3,
+		"xp_reward": 40,
+		"monster": {
+			"name": "Content Chimera",
+			"sprite": "content-chimera",
+			"hp": 70
+		},
+		"question": "How do you add content to a named yield section in the layout?",
+		"code_snippet": "# In layout: <%= yield :sidebar %>\n# In view: ???",
+		"options": [
+			{ "id": "a", "text": "<% sidebar do %>content<% end %>" },
+			{ "id": "b", "text": "<% content_for :sidebar do %>content<% end %>" },
+			{ "id": "c", "text": "<%= yield_to :sidebar do %>content<% end %>" },
+			{ "id": "d", "text": "<%= render :sidebar do %>content<% end %>" }
+		],
+		"correct_answer": "b",
+		"explanation": "content_for captures a block of content that's inserted at the matching 'yield :name' in the layout."
+	},
+	{
+		"id": "foundation-views-010",
+		"type": "multiple_choice",
+		"difficulty": 3,
+		"xp_reward": 45,
+		"monster": {
+			"name": "View Overlord (BOSS)",
+			"sprite": "view-boss",
+			"hp": 100
+		},
+		"question": "What helper would you use to safely output raw HTML that you trust?",
+		"options": [
+			{ "id": "a", "text": "raw()" },
+			{ "id": "b", "text": "html_safe" },
+			{ "id": "c", "text": "sanitize()" },
+			{
+				"id": "d",
+				"text": "All of these can be used, with different safety levels"
+			}
+		],
+		"correct_answer": "d",
+		"explanation": "raw() and html_safe mark strings as safe (use carefully!). sanitize() is safer - it allows HTML but strips dangerous tags."
+	}
 ]

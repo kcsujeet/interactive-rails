@@ -1,156 +1,190 @@
 [
-  {
-    "id": "activerecord-queries-001",
-    "type": "multiple_choice",
-    "difficulty": 2,
-    "xp_reward": 30,
-    "monster": { "name": "Find Fiend", "sprite": "find-fiend", "hp": 55 },
-    "question": "What's the difference between find and find_by?",
-    "options": [
-      { "id": "a", "text": "find uses ID, find_by uses any attribute" },
-      { "id": "b", "text": "find_by is deprecated" },
-      { "id": "c", "text": "find returns an array, find_by returns one record" },
-      { "id": "d", "text": "A, and find raises if not found while find_by returns nil" }
-    ],
-    "correct_answer": "d",
-    "explanation": "find(id) raises RecordNotFound if not found. find_by(attr: value) returns nil. Both return a single record."
-  },
-  {
-    "id": "activerecord-queries-002",
-    "type": "fill_in_blank",
-    "difficulty": 2,
-    "xp_reward": 30,
-    "monster": { "name": "Where Wolf", "sprite": "where-wolf", "hp": 55 },
-    "question": "To find all published articles, you write:",
-    "code_snippet": "Article.____(published: true)",
-    "correct_answer": "where",
-    "explanation": "where returns an ActiveRecord::Relation with records matching the conditions. It's chainable and lazy-loaded."
-  },
-  {
-    "id": "activerecord-queries-003",
-    "type": "multiple_choice",
-    "difficulty": 2,
-    "xp_reward": 35,
-    "monster": { "name": "Order Orc", "sprite": "order-orc", "hp": 60 },
-    "question": "How do you order articles by created_at descending?",
-    "options": [
-      { "id": "a", "text": "Article.order(:created_at, :desc)" },
-      { "id": "b", "text": "Article.order(created_at: :desc)" },
-      { "id": "c", "text": "Article.sort(created_at: :desc)" },
-      { "id": "d", "text": "Article.order_by(:created_at).desc" }
-    ],
-    "correct_answer": "b",
-    "explanation": "order(column: :direction) sorts results. :desc for descending, :asc for ascending. Can chain multiple: order(created_at: :desc, title: :asc)."
-  },
-  {
-    "id": "activerecord-queries-004",
-    "type": "code_analysis",
-    "difficulty": 2,
-    "xp_reward": 35,
-    "monster": { "name": "N+1 Nightmare", "sprite": "n1-nightmare", "hp": 65 },
-    "question": "What problem does this code have?",
-    "code_snippet": "@articles = Article.all\n@articles.each do |article|\n  puts article.author.name\nend",
-    "options": [
-      { "id": "a", "text": "Syntax error" },
-      { "id": "b", "text": "N+1 query problem - one query per author" },
-      { "id": "c", "text": "Memory leak" },
-      { "id": "d", "text": "No problem" }
-    ],
-    "correct_answer": "b",
-    "explanation": "This causes N+1: 1 query for articles + N queries for each author. Fix with Article.includes(:author).all"
-  },
-  {
-    "id": "activerecord-queries-005",
-    "type": "fill_in_blank",
-    "difficulty": 3,
-    "xp_reward": 40,
-    "monster": { "name": "Eager Elemental", "sprite": "eager-elemental", "hp": 70 },
-    "question": "To eager load authors with articles (preventing N+1):",
-    "code_snippet": "Article.____(: author).all",
-    "correct_answer": "includes",
-    "explanation": "includes eager loads associations. preload always uses separate queries, eager_load always uses JOIN. includes chooses smartly."
-  },
-  {
-    "id": "activerecord-queries-006",
-    "type": "multiple_choice",
-    "difficulty": 3,
-    "xp_reward": 40,
-    "monster": { "name": "Scope Specter", "sprite": "scope-specter", "hp": 70 },
-    "question": "What's the benefit of using scopes?",
-    "code_snippet": "scope :published, -> { where(published: true) }",
-    "options": [
-      { "id": "a", "text": "They're faster than where clauses" },
-      { "id": "b", "text": "Reusable, chainable, and keep query logic in the model" },
-      { "id": "c", "text": "They cache results automatically" },
-      { "id": "d", "text": "Required for complex queries" }
-    ],
-    "correct_answer": "b",
-    "explanation": "Scopes encapsulate query logic, making it reusable and chainable: Article.published.recent.limit(5)"
-  },
-  {
-    "id": "activerecord-queries-007",
-    "type": "multiple_choice",
-    "difficulty": 3,
-    "xp_reward": 45,
-    "monster": { "name": "Pluck Poltergeist", "sprite": "pluck-poltergeist", "hp": 75 },
-    "question": "What's the advantage of pluck over map?",
-    "code_snippet": "# Option A: Article.all.map(&:title)\n# Option B: Article.pluck(:title)",
-    "options": [
-      { "id": "a", "text": "pluck returns ActiveRecord objects" },
-      { "id": "b", "text": "pluck queries only the needed columns, using less memory" },
-      { "id": "c", "text": "map is always better" },
-      { "id": "d", "text": "No difference in performance" }
-    ],
-    "correct_answer": "b",
-    "explanation": "pluck selects only specified columns and returns plain values, not AR objects. Much faster and uses less memory for large datasets."
-  },
-  {
-    "id": "activerecord-queries-008",
-    "type": "multiple_choice",
-    "difficulty": 3,
-    "xp_reward": 45,
-    "monster": { "name": "Batch Beast", "sprite": "batch-beast", "hp": 80 },
-    "question": "How do you process 1 million records without running out of memory?",
-    "options": [
-      { "id": "a", "text": "Article.all.each { |a| process(a) }" },
-      { "id": "b", "text": "Article.find_each { |a| process(a) }" },
-      { "id": "c", "text": "Article.limit(1000000).each { |a| process(a) }" },
-      { "id": "d", "text": "Use raw SQL" }
-    ],
-    "correct_answer": "b",
-    "explanation": "find_each loads records in batches (default 1000) instead of all at once. find_in_batches yields batches as arrays."
-  },
-  {
-    "id": "activerecord-queries-009",
-    "type": "code_analysis",
-    "difficulty": 4,
-    "xp_reward": 50,
-    "monster": { "name": "Join Juggernaut", "sprite": "join-juggernaut", "hp": 85 },
-    "question": "What's the difference between joins and includes?",
-    "options": [
-      { "id": "a", "text": "joins filters with INNER JOIN, includes eager loads" },
-      { "id": "b", "text": "They're the same" },
-      { "id": "c", "text": "includes does INNER JOIN, joins does LEFT JOIN" },
-      { "id": "d", "text": "joins eager loads, includes just adds conditions" }
-    ],
-    "correct_answer": "a",
-    "explanation": "joins does INNER JOIN for filtering (doesn't load association). includes eager loads associations (LEFT OUTER JOIN or separate queries)."
-  },
-  {
-    "id": "activerecord-queries-010",
-    "type": "multiple_choice",
-    "difficulty": 4,
-    "xp_reward": 55,
-    "monster": { "name": "Query Overlord (BOSS)", "sprite": "query-boss", "hp": 130 },
-    "question": "When would you use exists? instead of present?",
-    "code_snippet": "# Option A: Article.where(published: true).present?\n# Option B: Article.where(published: true).exists?",
-    "options": [
-      { "id": "a", "text": "exists? only checks existence without loading records" },
-      { "id": "b", "text": "present? is always better" },
-      { "id": "c", "text": "exists? loads all records" },
-      { "id": "d", "text": "No difference" }
-    ],
-    "correct_answer": "a",
-    "explanation": "exists? uses SELECT 1 ... LIMIT 1, very fast. present? loads records to check if array is not empty. Use exists? for existence checks."
-  }
+	{
+		"id": "activerecord-queries-001",
+		"type": "multiple_choice",
+		"difficulty": 2,
+		"xp_reward": 30,
+		"monster": { "name": "Find Fiend", "sprite": "find-fiend", "hp": 55 },
+		"question": "What's the difference between find and find_by?",
+		"options": [
+			{ "id": "a", "text": "find uses ID, find_by uses any attribute" },
+			{ "id": "b", "text": "find_by is deprecated" },
+			{
+				"id": "c",
+				"text": "find returns an array, find_by returns one record"
+			},
+			{
+				"id": "d",
+				"text": "A, and find raises if not found while find_by returns nil"
+			}
+		],
+		"correct_answer": "d",
+		"explanation": "find(id) raises RecordNotFound if not found. find_by(attr: value) returns nil. Both return a single record."
+	},
+	{
+		"id": "activerecord-queries-002",
+		"type": "fill_in_blank",
+		"difficulty": 2,
+		"xp_reward": 30,
+		"monster": { "name": "Where Wolf", "sprite": "where-wolf", "hp": 55 },
+		"question": "To find all published articles, you write:",
+		"code_snippet": "Article.____(published: true)",
+		"correct_answer": "where",
+		"explanation": "where returns an ActiveRecord::Relation with records matching the conditions. It's chainable and lazy-loaded."
+	},
+	{
+		"id": "activerecord-queries-003",
+		"type": "multiple_choice",
+		"difficulty": 2,
+		"xp_reward": 35,
+		"monster": { "name": "Order Orc", "sprite": "order-orc", "hp": 60 },
+		"question": "How do you order articles by created_at descending?",
+		"options": [
+			{ "id": "a", "text": "Article.order(:created_at, :desc)" },
+			{ "id": "b", "text": "Article.order(created_at: :desc)" },
+			{ "id": "c", "text": "Article.sort(created_at: :desc)" },
+			{ "id": "d", "text": "Article.order_by(:created_at).desc" }
+		],
+		"correct_answer": "b",
+		"explanation": "order(column: :direction) sorts results. :desc for descending, :asc for ascending. Can chain multiple: order(created_at: :desc, title: :asc)."
+	},
+	{
+		"id": "activerecord-queries-004",
+		"type": "code_analysis",
+		"difficulty": 2,
+		"xp_reward": 35,
+		"monster": { "name": "N+1 Nightmare", "sprite": "n1-nightmare", "hp": 65 },
+		"question": "What problem does this code have?",
+		"code_snippet": "@articles = Article.all\n@articles.each do |article|\n  puts article.author.name\nend",
+		"options": [
+			{ "id": "a", "text": "Syntax error" },
+			{ "id": "b", "text": "N+1 query problem - one query per author" },
+			{ "id": "c", "text": "Memory leak" },
+			{ "id": "d", "text": "No problem" }
+		],
+		"correct_answer": "b",
+		"explanation": "This causes N+1: 1 query for articles + N queries for each author. Fix with Article.includes(:author).all"
+	},
+	{
+		"id": "activerecord-queries-005",
+		"type": "fill_in_blank",
+		"difficulty": 3,
+		"xp_reward": 40,
+		"monster": {
+			"name": "Eager Elemental",
+			"sprite": "eager-elemental",
+			"hp": 70
+		},
+		"question": "To eager load authors with articles (preventing N+1):",
+		"code_snippet": "Article.____(: author).all",
+		"correct_answer": "includes",
+		"explanation": "includes eager loads associations. preload always uses separate queries, eager_load always uses JOIN. includes chooses smartly."
+	},
+	{
+		"id": "activerecord-queries-006",
+		"type": "multiple_choice",
+		"difficulty": 3,
+		"xp_reward": 40,
+		"monster": { "name": "Scope Specter", "sprite": "scope-specter", "hp": 70 },
+		"question": "What's the benefit of using scopes?",
+		"code_snippet": "scope :published, -> { where(published: true) }",
+		"options": [
+			{ "id": "a", "text": "They're faster than where clauses" },
+			{
+				"id": "b",
+				"text": "Reusable, chainable, and keep query logic in the model"
+			},
+			{ "id": "c", "text": "They cache results automatically" },
+			{ "id": "d", "text": "Required for complex queries" }
+		],
+		"correct_answer": "b",
+		"explanation": "Scopes encapsulate query logic, making it reusable and chainable: Article.published.recent.limit(5)"
+	},
+	{
+		"id": "activerecord-queries-007",
+		"type": "multiple_choice",
+		"difficulty": 3,
+		"xp_reward": 45,
+		"monster": {
+			"name": "Pluck Poltergeist",
+			"sprite": "pluck-poltergeist",
+			"hp": 75
+		},
+		"question": "What's the advantage of pluck over map?",
+		"code_snippet": "# Option A: Article.all.map(&:title)\n# Option B: Article.pluck(:title)",
+		"options": [
+			{ "id": "a", "text": "pluck returns ActiveRecord objects" },
+			{
+				"id": "b",
+				"text": "pluck queries only the needed columns, using less memory"
+			},
+			{ "id": "c", "text": "map is always better" },
+			{ "id": "d", "text": "No difference in performance" }
+		],
+		"correct_answer": "b",
+		"explanation": "pluck selects only specified columns and returns plain values, not AR objects. Much faster and uses less memory for large datasets."
+	},
+	{
+		"id": "activerecord-queries-008",
+		"type": "multiple_choice",
+		"difficulty": 3,
+		"xp_reward": 45,
+		"monster": { "name": "Batch Beast", "sprite": "batch-beast", "hp": 80 },
+		"question": "How do you process 1 million records without running out of memory?",
+		"options": [
+			{ "id": "a", "text": "Article.all.each { |a| process(a) }" },
+			{ "id": "b", "text": "Article.find_each { |a| process(a) }" },
+			{ "id": "c", "text": "Article.limit(1000000).each { |a| process(a) }" },
+			{ "id": "d", "text": "Use raw SQL" }
+		],
+		"correct_answer": "b",
+		"explanation": "find_each loads records in batches (default 1000) instead of all at once. find_in_batches yields batches as arrays."
+	},
+	{
+		"id": "activerecord-queries-009",
+		"type": "code_analysis",
+		"difficulty": 4,
+		"xp_reward": 50,
+		"monster": {
+			"name": "Join Juggernaut",
+			"sprite": "join-juggernaut",
+			"hp": 85
+		},
+		"question": "What's the difference between joins and includes?",
+		"options": [
+			{
+				"id": "a",
+				"text": "joins filters with INNER JOIN, includes eager loads"
+			},
+			{ "id": "b", "text": "They're the same" },
+			{ "id": "c", "text": "includes does INNER JOIN, joins does LEFT JOIN" },
+			{ "id": "d", "text": "joins eager loads, includes just adds conditions" }
+		],
+		"correct_answer": "a",
+		"explanation": "joins does INNER JOIN for filtering (doesn't load association). includes eager loads associations (LEFT OUTER JOIN or separate queries)."
+	},
+	{
+		"id": "activerecord-queries-010",
+		"type": "multiple_choice",
+		"difficulty": 4,
+		"xp_reward": 55,
+		"monster": {
+			"name": "Query Overlord (BOSS)",
+			"sprite": "query-boss",
+			"hp": 130
+		},
+		"question": "When would you use exists? instead of present?",
+		"code_snippet": "# Option A: Article.where(published: true).present?\n# Option B: Article.where(published: true).exists?",
+		"options": [
+			{
+				"id": "a",
+				"text": "exists? only checks existence without loading records"
+			},
+			{ "id": "b", "text": "present? is always better" },
+			{ "id": "c", "text": "exists? loads all records" },
+			{ "id": "d", "text": "No difference" }
+		],
+		"correct_answer": "a",
+		"explanation": "exists? uses SELECT 1 ... LIMIT 1, very fast. present? loads records to check if array is not empty. Use exists? for existence checks."
+	}
 ]

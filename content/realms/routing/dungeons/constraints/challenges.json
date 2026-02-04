@@ -1,12 +1,184 @@
 [
-  {"id": "routing-constraints-001", "type": "multiple_choice", "difficulty": 2, "xp_reward": 30, "monster": {"name": "Regex Rat", "sprite": "regex-rat", "hp": 60}, "question": "What does this constraint do?", "code_snippet": "get '/users/:id', to: 'users#show', constraints: { id: /\\d+/ }", "options": [{"id": "a", "text": "Requires ID to be exactly 'd+'"}, {"id": "b", "text": "Requires ID to be one or more digits"}, {"id": "c", "text": "Makes ID optional"}, {"id": "d", "text": "Limits to 10 users"}], "correct_answer": "b", "explanation": "constraints: { id: /\\d+/ } requires the id parameter to match the regex (one or more digits). Non-numeric IDs won't match."},
-  {"id": "routing-constraints-002", "type": "fill_in_blank", "difficulty": 2, "xp_reward": 30, "monster": {"name": "Format Fiend", "sprite": "format-fiend", "hp": 60}, "question": "To restrict a route to JSON format only:", "code_snippet": "get '/api/users', to: 'api/users#index', ____: { format: 'json' }", "correct_answer": "constraints", "explanation": "constraints: { format: 'json' } or defaults: { format: 'json' } work. constraints restricts matching, defaults sets a value."},
-  {"id": "routing-constraints-003", "type": "multiple_choice", "difficulty": 3, "xp_reward": 40, "monster": {"name": "Subdomain Shade", "sprite": "subdomain-shade", "hp": 70}, "question": "How do you create routes only for the 'api' subdomain?", "options": [{"id": "a", "text": "namespace :api, subdomain: 'api'"}, {"id": "b", "text": "constraints subdomain: 'api' do ... end"}, {"id": "c", "text": "scope subdomain: 'api' do ... end"}, {"id": "d", "text": "Both B and C work"}], "correct_answer": "d", "explanation": "Both constraints and scope can take subdomain:. constraints is for matching, scope adds both matching and defaults."},
-  {"id": "routing-constraints-004", "type": "code_analysis", "difficulty": 3, "xp_reward": 40, "monster": {"name": "Class Creature", "sprite": "class-creature", "hp": 75}, "question": "What does this custom constraint class do?", "code_snippet": "class AdminConstraint\n  def matches?(request)\n    request.session[:admin]\n  end\nend\n\nconstraints AdminConstraint.new do\n  resources :admin\nend", "options": [{"id": "a", "text": "Validates admin password"}, {"id": "b", "text": "Only matches routes if session[:admin] is truthy"}, {"id": "c", "text": "Creates admin user automatically"}, {"id": "d", "text": "Redirects non-admins"}], "correct_answer": "b", "explanation": "Custom constraint classes must have a matches?(request) method. Routes inside only match if it returns truthy."},
-  {"id": "routing-constraints-005", "type": "multiple_choice", "difficulty": 3, "xp_reward": 45, "monster": {"name": "Lambda Lurker", "sprite": "lambda-lurker", "hp": 75}, "question": "Simpler way to write the admin constraint?", "options": [{"id": "a", "text": "constraints: :admin"}, {"id": "b", "text": "constraints(-> (req) { req.session[:admin] }) { ... }"}, {"id": "c", "text": "if_admin { ... }"}, {"id": "d", "text": "guard :admin { ... }"}], "correct_answer": "b", "explanation": "Lambda constraints are concise for simple checks. The lambda receives the request object and returns true/false."},
-  {"id": "routing-constraints-006", "type": "fill_in_blank", "difficulty": 3, "xp_reward": 45, "monster": {"name": "Host Haunt", "sprite": "host-haunt", "hp": 80}, "question": "To match only requests to a specific host:", "code_snippet": "constraints ____: 'www.example.com' do\n  resources :pages\nend", "correct_answer": "host", "explanation": "host: matches the full host. subdomain: matches just the subdomain. domain: matches the domain portion."},
-  {"id": "routing-constraints-007", "type": "multiple_choice", "difficulty": 4, "xp_reward": 50, "monster": {"name": "IP Imp", "sprite": "ip-imp", "hp": 85}, "question": "How would you restrict routes to local network IPs?", "options": [{"id": "a", "text": "constraints: { ip: '192.168.*' }"}, {"id": "b", "text": "constraints(-> (r) { r.remote_ip.start_with?('192.168.') })"}, {"id": "c", "text": "local_only: true"}, {"id": "d", "text": "Not possible in routing"}], "correct_answer": "b", "explanation": "Use a lambda with request.remote_ip for IP-based constraints. Rails doesn't have built-in IP constraints."},
-  {"id": "routing-constraints-008", "type": "multiple_choice", "difficulty": 4, "xp_reward": 50, "monster": {"name": "Precedence Phantom", "sprite": "precedence-phantom", "hp": 85}, "question": "If two routes could match, which one wins?", "code_snippet": "get '/users/:id', to: 'users#show'\nget '/users/new', to: 'users#new'", "options": [{"id": "a", "text": "The more specific one (users/new)"}, {"id": "b", "text": "The first one defined wins"}, {"id": "c", "text": "It raises an error"}, {"id": "d", "text": "Both are triggered"}], "correct_answer": "b", "explanation": "Rails matches routes top-to-bottom, first match wins. Here /users/new would match :id='new'. Reorder to put /users/new first!"},
-  {"id": "routing-constraints-009", "type": "code_analysis", "difficulty": 4, "xp_reward": 55, "monster": {"name": "Request Reaper", "sprite": "request-reaper", "hp": 90}, "question": "What request properties can constraints access?", "options": [{"id": "a", "text": "Only URL parameters"}, {"id": "b", "text": "Full request object: headers, session, cookies, IP, etc."}, {"id": "c", "text": "Only subdomain and format"}, {"id": "d", "text": "Only HTTP method"}], "correct_answer": "b", "explanation": "Constraint lambdas/classes receive the full Rack request. Access headers, cookies, session, remote_ip, user_agent, etc."},
-  {"id": "routing-constraints-010", "type": "multiple_choice", "difficulty": 4, "xp_reward": 55, "monster": {"name": "Constraint Champion (BOSS)", "sprite": "constraint-boss", "hp": 130}, "question": "Best use case for route constraints?", "options": [{"id": "a", "text": "User authentication (prefer controller filters)"}, {"id": "b", "text": "Multi-tenancy, API versioning, subdomain routing"}, {"id": "c", "text": "Database queries (too slow)"}, {"id": "d", "text": "Form validation"}], "correct_answer": "b", "explanation": "Constraints are great for infrastructure routing: subdomains, API versions, locales. Avoid heavy logic - keep auth/authz in controllers."}
+	{
+		"id": "routing-constraints-001",
+		"type": "multiple_choice",
+		"difficulty": 2,
+		"xp_reward": 30,
+		"monster": { "name": "Regex Rat", "sprite": "regex-rat", "hp": 60 },
+		"question": "What does this constraint do?",
+		"code_snippet": "get '/users/:id', to: 'users#show', constraints: { id: /\\d+/ }",
+		"options": [
+			{ "id": "a", "text": "Requires ID to be exactly 'd+'" },
+			{ "id": "b", "text": "Requires ID to be one or more digits" },
+			{ "id": "c", "text": "Makes ID optional" },
+			{ "id": "d", "text": "Limits to 10 users" }
+		],
+		"correct_answer": "b",
+		"explanation": "constraints: { id: /\\d+/ } requires the id parameter to match the regex (one or more digits). Non-numeric IDs won't match."
+	},
+	{
+		"id": "routing-constraints-002",
+		"type": "fill_in_blank",
+		"difficulty": 2,
+		"xp_reward": 30,
+		"monster": { "name": "Format Fiend", "sprite": "format-fiend", "hp": 60 },
+		"question": "To restrict a route to JSON format only:",
+		"code_snippet": "get '/api/users', to: 'api/users#index', ____: { format: 'json' }",
+		"correct_answer": "constraints",
+		"explanation": "constraints: { format: 'json' } or defaults: { format: 'json' } work. constraints restricts matching, defaults sets a value."
+	},
+	{
+		"id": "routing-constraints-003",
+		"type": "multiple_choice",
+		"difficulty": 3,
+		"xp_reward": 40,
+		"monster": {
+			"name": "Subdomain Shade",
+			"sprite": "subdomain-shade",
+			"hp": 70
+		},
+		"question": "How do you create routes only for the 'api' subdomain?",
+		"options": [
+			{ "id": "a", "text": "namespace :api, subdomain: 'api'" },
+			{ "id": "b", "text": "constraints subdomain: 'api' do ... end" },
+			{ "id": "c", "text": "scope subdomain: 'api' do ... end" },
+			{ "id": "d", "text": "Both B and C work" }
+		],
+		"correct_answer": "d",
+		"explanation": "Both constraints and scope can take subdomain:. constraints is for matching, scope adds both matching and defaults."
+	},
+	{
+		"id": "routing-constraints-004",
+		"type": "code_analysis",
+		"difficulty": 3,
+		"xp_reward": 40,
+		"monster": {
+			"name": "Class Creature",
+			"sprite": "class-creature",
+			"hp": 75
+		},
+		"question": "What does this custom constraint class do?",
+		"code_snippet": "class AdminConstraint\n  def matches?(request)\n    request.session[:admin]\n  end\nend\n\nconstraints AdminConstraint.new do\n  resources :admin\nend",
+		"options": [
+			{ "id": "a", "text": "Validates admin password" },
+			{ "id": "b", "text": "Only matches routes if session[:admin] is truthy" },
+			{ "id": "c", "text": "Creates admin user automatically" },
+			{ "id": "d", "text": "Redirects non-admins" }
+		],
+		"correct_answer": "b",
+		"explanation": "Custom constraint classes must have a matches?(request) method. Routes inside only match if it returns truthy."
+	},
+	{
+		"id": "routing-constraints-005",
+		"type": "multiple_choice",
+		"difficulty": 3,
+		"xp_reward": 45,
+		"monster": { "name": "Lambda Lurker", "sprite": "lambda-lurker", "hp": 75 },
+		"question": "Simpler way to write the admin constraint?",
+		"options": [
+			{ "id": "a", "text": "constraints: :admin" },
+			{
+				"id": "b",
+				"text": "constraints(-> (req) { req.session[:admin] }) { ... }"
+			},
+			{ "id": "c", "text": "if_admin { ... }" },
+			{ "id": "d", "text": "guard :admin { ... }" }
+		],
+		"correct_answer": "b",
+		"explanation": "Lambda constraints are concise for simple checks. The lambda receives the request object and returns true/false."
+	},
+	{
+		"id": "routing-constraints-006",
+		"type": "fill_in_blank",
+		"difficulty": 3,
+		"xp_reward": 45,
+		"monster": { "name": "Host Haunt", "sprite": "host-haunt", "hp": 80 },
+		"question": "To match only requests to a specific host:",
+		"code_snippet": "constraints ____: 'www.example.com' do\n  resources :pages\nend",
+		"correct_answer": "host",
+		"explanation": "host: matches the full host. subdomain: matches just the subdomain. domain: matches the domain portion."
+	},
+	{
+		"id": "routing-constraints-007",
+		"type": "multiple_choice",
+		"difficulty": 4,
+		"xp_reward": 50,
+		"monster": { "name": "IP Imp", "sprite": "ip-imp", "hp": 85 },
+		"question": "How would you restrict routes to local network IPs?",
+		"options": [
+			{ "id": "a", "text": "constraints: { ip: '192.168.*' }" },
+			{
+				"id": "b",
+				"text": "constraints(-> (r) { r.remote_ip.start_with?('192.168.') })"
+			},
+			{ "id": "c", "text": "local_only: true" },
+			{ "id": "d", "text": "Not possible in routing" }
+		],
+		"correct_answer": "b",
+		"explanation": "Use a lambda with request.remote_ip for IP-based constraints. Rails doesn't have built-in IP constraints."
+	},
+	{
+		"id": "routing-constraints-008",
+		"type": "multiple_choice",
+		"difficulty": 4,
+		"xp_reward": 50,
+		"monster": {
+			"name": "Precedence Phantom",
+			"sprite": "precedence-phantom",
+			"hp": 85
+		},
+		"question": "If two routes could match, which one wins?",
+		"code_snippet": "get '/users/:id', to: 'users#show'\nget '/users/new', to: 'users#new'",
+		"options": [
+			{ "id": "a", "text": "The more specific one (users/new)" },
+			{ "id": "b", "text": "The first one defined wins" },
+			{ "id": "c", "text": "It raises an error" },
+			{ "id": "d", "text": "Both are triggered" }
+		],
+		"correct_answer": "b",
+		"explanation": "Rails matches routes top-to-bottom, first match wins. Here /users/new would match :id='new'. Reorder to put /users/new first!"
+	},
+	{
+		"id": "routing-constraints-009",
+		"type": "code_analysis",
+		"difficulty": 4,
+		"xp_reward": 55,
+		"monster": {
+			"name": "Request Reaper",
+			"sprite": "request-reaper",
+			"hp": 90
+		},
+		"question": "What request properties can constraints access?",
+		"options": [
+			{ "id": "a", "text": "Only URL parameters" },
+			{
+				"id": "b",
+				"text": "Full request object: headers, session, cookies, IP, etc."
+			},
+			{ "id": "c", "text": "Only subdomain and format" },
+			{ "id": "d", "text": "Only HTTP method" }
+		],
+		"correct_answer": "b",
+		"explanation": "Constraint lambdas/classes receive the full Rack request. Access headers, cookies, session, remote_ip, user_agent, etc."
+	},
+	{
+		"id": "routing-constraints-010",
+		"type": "multiple_choice",
+		"difficulty": 4,
+		"xp_reward": 55,
+		"monster": {
+			"name": "Constraint Champion (BOSS)",
+			"sprite": "constraint-boss",
+			"hp": 130
+		},
+		"question": "Best use case for route constraints?",
+		"options": [
+			{ "id": "a", "text": "User authentication (prefer controller filters)" },
+			{ "id": "b", "text": "Multi-tenancy, API versioning, subdomain routing" },
+			{ "id": "c", "text": "Database queries (too slow)" },
+			{ "id": "d", "text": "Form validation" }
+		],
+		"correct_answer": "b",
+		"explanation": "Constraints are great for infrastructure routing: subdomains, API versions, locales. Avoid heavy logic - keep auth/authz in controllers."
+	}
 ]

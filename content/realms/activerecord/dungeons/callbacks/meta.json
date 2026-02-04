@@ -1,7 +1,7 @@
 {
-  "id": "callbacks",
-  "name": "Callbacks",
-  "description": "Hook into the ActiveRecord lifecycle",
-  "order": 4,
-  "totalChallenges": 10
+	"id": "callbacks",
+	"name": "Callbacks",
+	"description": "Hook into the ActiveRecord lifecycle",
+	"order": 4,
+	"totalChallenges": 10
 }

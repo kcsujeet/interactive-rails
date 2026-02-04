@@ -1,41 +1,41 @@
 {
-  "name": "railsexpert",
-  "version": "0.1.0",
-  "type": "module",
-  "private": true,
-  "workspaces": [
-    "frontend",
-    "worker"
-  ],
-  "scripts": {
-    "dev": "bun run --parallel dev:frontend dev:worker",
-    "dev:frontend": "cd frontend && bun run dev",
-    "dev:worker": "cd worker && bun run dev",
-    "build": "bun run build:frontend && bun run build:worker",
-    "build:frontend": "cd frontend && bun run build",
-    "build:worker": "cd worker && bun run build",
-    "preview": "cd frontend && bun run preview",
-    "db:migrate": "cd worker && wrangler d1 execute railsexpert-db --file=src/db/schema.sql --local",
-    "db:migrate:prod": "cd worker && wrangler d1 execute railsexpert-db --file=src/db/schema.sql",
-    "deploy": "bun run build && bun run deploy:worker && bun run deploy:frontend",
-    "deploy:frontend": "cd frontend && wrangler pages deploy dist",
-    "deploy:worker": "cd worker && wrangler deploy",
-    "test": "bun test",
-    "test:worker": "cd worker && bun test",
-    "typecheck": "bun run --parallel typecheck:frontend typecheck:worker",
-    "typecheck:frontend": "cd frontend && bun run astro check",
-    "typecheck:worker": "cd worker && tsc --noEmit",
-    "lint": "biome lint .",
-    "lint:fix": "biome lint --write .",
-    "format": "biome format --write .",
-    "format:check": "biome format .",
-    "check": "biome check .",
-    "check:fix": "biome check --write .",
-    "validate:levels": "bun run frontend/scripts/validate-levels.ts"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^1.9.0",
-    "@types/bun": "latest",
-    "typescript": "^5.9.3"
-  }
+	"name": "railsexpert",
+	"version": "0.1.0",
+	"type": "module",
+	"private": true,
+	"workspaces": [
+		"frontend",
+		"worker"
+	],
+	"scripts": {
+		"dev": "bun run --parallel dev:frontend dev:worker",
+		"dev:frontend": "cd frontend && bun run dev",
+		"dev:worker": "cd worker && bun run dev",
+		"build": "bun run build:frontend && bun run build:worker",
+		"build:frontend": "cd frontend && bun run build",
+		"build:worker": "cd worker && bun run build",
+		"preview": "cd frontend && bun run preview",
+		"db:migrate": "cd worker && wrangler d1 execute railsexpert-db --file=src/db/schema.sql --local",
+		"db:migrate:prod": "cd worker && wrangler d1 execute railsexpert-db --file=src/db/schema.sql",
+		"deploy": "bun run build && bun run deploy:worker && bun run deploy:frontend",
+		"deploy:frontend": "cd frontend && wrangler pages deploy dist",
+		"deploy:worker": "cd worker && wrangler deploy",
+		"test": "bun test",
+		"test:worker": "cd worker && bun test",
+		"typecheck": "bun run --parallel typecheck:frontend typecheck:worker",
+		"typecheck:frontend": "cd frontend && bun run astro check",
+		"typecheck:worker": "cd worker && tsc --noEmit",
+		"lint": "biome lint .",
+		"lint:fix": "biome lint --write .",
+		"format": "biome format --write .",
+		"format:check": "biome format .",
+		"check": "biome check .",
+		"check:fix": "biome check --write .",
+		"validate:levels": "bun run frontend/scripts/validate-levels.ts"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.3.14",
+		"@types/bun": "latest",
+		"typescript": "^5.9.3"
+	}
 }

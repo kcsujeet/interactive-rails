@@ -1,157 +1,177 @@
 [
-  {
-    "id": "foundation-directory-001",
-    "type": "multiple_choice",
-    "difficulty": 1,
-    "xp_reward": 20,
-    "monster": { "name": "Folder Fiend", "sprite": "folder-fiend", "hp": 40 },
-    "question": "Where are Rails models stored by default?",
-    "options": [
-      { "id": "a", "text": "app/models/" },
-      { "id": "b", "text": "models/" },
-      { "id": "c", "text": "lib/models/" },
-      { "id": "d", "text": "db/models/" }
-    ],
-    "correct_answer": "a",
-    "explanation": "Rails models live in app/models/. The 'app' directory contains most of your application code."
-  },
-  {
-    "id": "foundation-directory-002",
-    "type": "multiple_choice",
-    "difficulty": 1,
-    "xp_reward": 20,
-    "monster": { "name": "Config Creature", "sprite": "config-creature", "hp": 40 },
-    "question": "Which file contains the database configuration?",
-    "options": [
-      { "id": "a", "text": "config/database.yml" },
-      { "id": "b", "text": "db/config.rb" },
-      { "id": "c", "text": "config/db.rb" },
-      { "id": "d", "text": "database.yml" }
-    ],
-    "correct_answer": "a",
-    "explanation": "Database configuration lives in config/database.yml, where you set up development, test, and production databases."
-  },
-  {
-    "id": "foundation-directory-003",
-    "type": "multiple_choice",
-    "difficulty": 1,
-    "xp_reward": 20,
-    "monster": { "name": "Migration Monster", "sprite": "migration-monster", "hp": 45 },
-    "question": "Where are database migration files stored?",
-    "options": [
-      { "id": "a", "text": "app/migrations/" },
-      { "id": "b", "text": "db/migrate/" },
-      { "id": "c", "text": "config/migrations/" },
-      { "id": "d", "text": "migrations/" }
-    ],
-    "correct_answer": "b",
-    "explanation": "Migrations live in db/migrate/. Each file is timestamped and contains changes to your database schema."
-  },
-  {
-    "id": "foundation-directory-004",
-    "type": "multiple_choice",
-    "difficulty": 1,
-    "xp_reward": 25,
-    "monster": { "name": "Route Rat", "sprite": "route-rat", "hp": 45 },
-    "question": "Which file defines your application's routes?",
-    "options": [
-      { "id": "a", "text": "app/routes.rb" },
-      { "id": "b", "text": "routes/config.rb" },
-      { "id": "c", "text": "config/routes.rb" },
-      { "id": "d", "text": "config/routing.rb" }
-    ],
-    "correct_answer": "c",
-    "explanation": "Routes are defined in config/routes.rb. This file maps URLs to controller actions."
-  },
-  {
-    "id": "foundation-directory-005",
-    "type": "multiple_choice",
-    "difficulty": 2,
-    "xp_reward": 30,
-    "monster": { "name": "Gem Goblin", "sprite": "gem-goblin", "hp": 55 },
-    "question": "What file lists all the gems (dependencies) your Rails app needs?",
-    "options": [
-      { "id": "a", "text": "gems.rb" },
-      { "id": "b", "text": "Gemfile" },
-      { "id": "c", "text": "config/gems.yml" },
-      { "id": "d", "text": "dependencies.rb" }
-    ],
-    "correct_answer": "b",
-    "explanation": "The Gemfile in your project root lists all gem dependencies. Bundler reads this to install the correct versions."
-  },
-  {
-    "id": "foundation-directory-006",
-    "type": "multiple_choice",
-    "difficulty": 2,
-    "xp_reward": 30,
-    "monster": { "name": "Helper Haunt", "sprite": "helper-haunt", "hp": 55 },
-    "question": "Where would you put a helper method to format currency across multiple views?",
-    "options": [
-      { "id": "a", "text": "app/helpers/application_helper.rb" },
-      { "id": "b", "text": "app/controllers/application_controller.rb" },
-      { "id": "c", "text": "lib/formatters.rb" },
-      { "id": "d", "text": "app/views/helpers.rb" }
-    ],
-    "correct_answer": "a",
-    "explanation": "View helpers go in app/helpers/. ApplicationHelper is available to all views. Controller-specific helpers go in their respective files."
-  },
-  {
-    "id": "foundation-directory-007",
-    "type": "multiple_choice",
-    "difficulty": 2,
-    "xp_reward": 30,
-    "monster": { "name": "Asset Apparition", "sprite": "asset-apparition", "hp": 60 },
-    "question": "In a modern Rails 7+ app, where do JavaScript files typically live?",
-    "options": [
-      { "id": "a", "text": "app/assets/javascripts/" },
-      { "id": "b", "text": "app/javascript/" },
-      { "id": "c", "text": "public/javascripts/" },
-      { "id": "d", "text": "vendor/javascript/" }
-    ],
-    "correct_answer": "b",
-    "explanation": "Rails 7+ uses importmap or jsbundling, placing JavaScript in app/javascript/. The old asset pipeline used app/assets/javascripts/."
-  },
-  {
-    "id": "foundation-directory-008",
-    "type": "multiple_choice",
-    "difficulty": 2,
-    "xp_reward": 35,
-    "monster": { "name": "Test Troll", "sprite": "test-troll", "hp": 60 },
-    "question": "Where do RSpec tests typically live in a Rails app?",
-    "options": [
-      { "id": "a", "text": "test/" },
-      { "id": "b", "text": "spec/" },
-      { "id": "c", "text": "app/tests/" },
-      { "id": "d", "text": "rspec/" }
-    ],
-    "correct_answer": "b",
-    "explanation": "RSpec tests go in the spec/ directory. The default Rails test framework (Minitest) uses test/ instead."
-  },
-  {
-    "id": "foundation-directory-009",
-    "type": "fill_in_blank",
-    "difficulty": 3,
-    "xp_reward": 40,
-    "monster": { "name": "Environment Elemental", "sprite": "env-elemental", "hp": 70 },
-    "question": "To add environment-specific configuration for production, you would edit:",
-    "code_snippet": "config/environments/____.rb",
-    "correct_answer": "production",
-    "explanation": "Environment configs live in config/environments/. Each environment (development, test, production) has its own file."
-  },
-  {
-    "id": "foundation-directory-010",
-    "type": "multiple_choice",
-    "difficulty": 3,
-    "xp_reward": 45,
-    "monster": { "name": "Directory Dragon (BOSS)", "sprite": "directory-boss", "hp": 100 },
-    "question": "Where should you place custom classes that don't fit MVC (like service objects)?",
-    "options": [
-      { "id": "a", "text": "app/models/" },
-      { "id": "b", "text": "lib/" },
-      { "id": "c", "text": "app/services/ (create it)" },
-      { "id": "d", "text": "Both B and C are acceptable" }
-    ],
-    "correct_answer": "d",
-    "explanation": "Both lib/ and custom app/ directories (like app/services/) work. app/services/ is autoloaded by default; lib/ needs configuration."
-  }
+	{
+		"id": "foundation-directory-001",
+		"type": "multiple_choice",
+		"difficulty": 1,
+		"xp_reward": 20,
+		"monster": { "name": "Folder Fiend", "sprite": "folder-fiend", "hp": 40 },
+		"question": "Where are Rails models stored by default?",
+		"options": [
+			{ "id": "a", "text": "app/models/" },
+			{ "id": "b", "text": "models/" },
+			{ "id": "c", "text": "lib/models/" },
+			{ "id": "d", "text": "db/models/" }
+		],
+		"correct_answer": "a",
+		"explanation": "Rails models live in app/models/. The 'app' directory contains most of your application code."
+	},
+	{
+		"id": "foundation-directory-002",
+		"type": "multiple_choice",
+		"difficulty": 1,
+		"xp_reward": 20,
+		"monster": {
+			"name": "Config Creature",
+			"sprite": "config-creature",
+			"hp": 40
+		},
+		"question": "Which file contains the database configuration?",
+		"options": [
+			{ "id": "a", "text": "config/database.yml" },
+			{ "id": "b", "text": "db/config.rb" },
+			{ "id": "c", "text": "config/db.rb" },
+			{ "id": "d", "text": "database.yml" }
+		],
+		"correct_answer": "a",
+		"explanation": "Database configuration lives in config/database.yml, where you set up development, test, and production databases."
+	},
+	{
+		"id": "foundation-directory-003",
+		"type": "multiple_choice",
+		"difficulty": 1,
+		"xp_reward": 20,
+		"monster": {
+			"name": "Migration Monster",
+			"sprite": "migration-monster",
+			"hp": 45
+		},
+		"question": "Where are database migration files stored?",
+		"options": [
+			{ "id": "a", "text": "app/migrations/" },
+			{ "id": "b", "text": "db/migrate/" },
+			{ "id": "c", "text": "config/migrations/" },
+			{ "id": "d", "text": "migrations/" }
+		],
+		"correct_answer": "b",
+		"explanation": "Migrations live in db/migrate/. Each file is timestamped and contains changes to your database schema."
+	},
+	{
+		"id": "foundation-directory-004",
+		"type": "multiple_choice",
+		"difficulty": 1,
+		"xp_reward": 25,
+		"monster": { "name": "Route Rat", "sprite": "route-rat", "hp": 45 },
+		"question": "Which file defines your application's routes?",
+		"options": [
+			{ "id": "a", "text": "app/routes.rb" },
+			{ "id": "b", "text": "routes/config.rb" },
+			{ "id": "c", "text": "config/routes.rb" },
+			{ "id": "d", "text": "config/routing.rb" }
+		],
+		"correct_answer": "c",
+		"explanation": "Routes are defined in config/routes.rb. This file maps URLs to controller actions."
+	},
+	{
+		"id": "foundation-directory-005",
+		"type": "multiple_choice",
+		"difficulty": 2,
+		"xp_reward": 30,
+		"monster": { "name": "Gem Goblin", "sprite": "gem-goblin", "hp": 55 },
+		"question": "What file lists all the gems (dependencies) your Rails app needs?",
+		"options": [
+			{ "id": "a", "text": "gems.rb" },
+			{ "id": "b", "text": "Gemfile" },
+			{ "id": "c", "text": "config/gems.yml" },
+			{ "id": "d", "text": "dependencies.rb" }
+		],
+		"correct_answer": "b",
+		"explanation": "The Gemfile in your project root lists all gem dependencies. Bundler reads this to install the correct versions."
+	},
+	{
+		"id": "foundation-directory-006",
+		"type": "multiple_choice",
+		"difficulty": 2,
+		"xp_reward": 30,
+		"monster": { "name": "Helper Haunt", "sprite": "helper-haunt", "hp": 55 },
+		"question": "Where would you put a helper method to format currency across multiple views?",
+		"options": [
+			{ "id": "a", "text": "app/helpers/application_helper.rb" },
+			{ "id": "b", "text": "app/controllers/application_controller.rb" },
+			{ "id": "c", "text": "lib/formatters.rb" },
+			{ "id": "d", "text": "app/views/helpers.rb" }
+		],
+		"correct_answer": "a",
+		"explanation": "View helpers go in app/helpers/. ApplicationHelper is available to all views. Controller-specific helpers go in their respective files."
+	},
+	{
+		"id": "foundation-directory-007",
+		"type": "multiple_choice",
+		"difficulty": 2,
+		"xp_reward": 30,
+		"monster": {
+			"name": "Asset Apparition",
+			"sprite": "asset-apparition",
+			"hp": 60
+		},
+		"question": "In a modern Rails 7+ app, where do JavaScript files typically live?",
+		"options": [
+			{ "id": "a", "text": "app/assets/javascripts/" },
+			{ "id": "b", "text": "app/javascript/" },
+			{ "id": "c", "text": "public/javascripts/" },
+			{ "id": "d", "text": "vendor/javascript/" }
+		],
+		"correct_answer": "b",
+		"explanation": "Rails 7+ uses importmap or jsbundling, placing JavaScript in app/javascript/. The old asset pipeline used app/assets/javascripts/."
+	},
+	{
+		"id": "foundation-directory-008",
+		"type": "multiple_choice",
+		"difficulty": 2,
+		"xp_reward": 35,
+		"monster": { "name": "Test Troll", "sprite": "test-troll", "hp": 60 },
+		"question": "Where do RSpec tests typically live in a Rails app?",
+		"options": [
+			{ "id": "a", "text": "test/" },
+			{ "id": "b", "text": "spec/" },
+			{ "id": "c", "text": "app/tests/" },
+			{ "id": "d", "text": "rspec/" }
+		],
+		"correct_answer": "b",
+		"explanation": "RSpec tests go in the spec/ directory. The default Rails test framework (Minitest) uses test/ instead."
+	},
+	{
+		"id": "foundation-directory-009",
+		"type": "fill_in_blank",
+		"difficulty": 3,
+		"xp_reward": 40,
+		"monster": {
+			"name": "Environment Elemental",
+			"sprite": "env-elemental",
+			"hp": 70
+		},
+		"question": "To add environment-specific configuration for production, you would edit:",
+		"code_snippet": "config/environments/____.rb",
+		"correct_answer": "production",
+		"explanation": "Environment configs live in config/environments/. Each environment (development, test, production) has its own file."
+	},
+	{
+		"id": "foundation-directory-010",
+		"type": "multiple_choice",
+		"difficulty": 3,
+		"xp_reward": 45,
+		"monster": {
+			"name": "Directory Dragon (BOSS)",
+			"sprite": "directory-boss",
+			"hp": 100
+		},
+		"question": "Where should you place custom classes that don't fit MVC (like service objects)?",
+		"options": [
+			{ "id": "a", "text": "app/models/" },
+			{ "id": "b", "text": "lib/" },
+			{ "id": "c", "text": "app/services/ (create it)" },
+			{ "id": "d", "text": "Both B and C are acceptable" }
+		],
+		"correct_answer": "d",
+		"explanation": "Both lib/ and custom app/ directories (like app/services/) work. app/services/ is autoloaded by default; lib/ needs configuration."
+	}
 ]

@@ -1,10 +1,10 @@
 {
-  "id": "activerecord",
-  "name": "ActiveRecord Depths",
-  "description": "Master database interactions with Rails ORM - models, associations, and queries",
-  "order": 2,
-  "icon": "database",
-  "color": "#e94560",
-  "dungeons": ["models", "associations", "validations", "callbacks", "queries"],
-  "unlockRequirement": { "realm": "foundation" }
+	"id": "activerecord",
+	"name": "ActiveRecord Depths",
+	"description": "Master database interactions with Rails ORM - models, associations, and queries",
+	"order": 2,
+	"icon": "database",
+	"color": "#e94560",
+	"dungeons": ["models", "associations", "validations", "callbacks", "queries"],
+	"unlockRequirement": { "realm": "foundation" }
 }

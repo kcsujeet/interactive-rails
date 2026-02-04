@@ -1,0 +1,6 @@
+{
+	"editor.codeActionsOnSave": {
+		"source.action.useSortedAttributes.biome": "explicit",
+		"source.fixAll.biome": "explicit"
+	}
+}

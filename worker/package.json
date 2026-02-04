@@ -1,28 +1,28 @@
 {
-  "name": "railsexpert-worker",
-  "version": "0.1.0",
-  "type": "module",
-  "private": true,
-  "scripts": {
-    "dev": "wrangler dev",
-    "build": "wrangler deploy --dry-run",
-    "deploy": "wrangler deploy",
-    "db:migrate": "wrangler d1 execute railsexpert-db --file=src/db/schema.sql --local && wrangler d1 execute railsexpert-db --file=src/db/schema-v2.sql --local",
-    "db:migrate:prod": "wrangler d1 execute railsexpert-db --file=src/db/schema.sql && wrangler d1 execute railsexpert-db --file=src/db/schema-v2.sql",
-    "db:migrate:v2": "wrangler d1 execute railsexpert-db --file=src/db/schema-v2.sql --local",
-    "test": "bun test"
-  },
-  "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260129.0",
-    "@types/bun": "latest",
-    "wrangler": "^4.61.0"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
-  },
-  "dependencies": {
-    "@hono/zod-validator": "^0.7.6",
-    "hono": "^4.11.7",
-    "zod": "^4.3.6"
-  }
+	"name": "railsexpert-worker",
+	"version": "0.1.0",
+	"type": "module",
+	"private": true,
+	"scripts": {
+		"dev": "wrangler dev",
+		"build": "wrangler deploy --dry-run",
+		"deploy": "wrangler deploy",
+		"db:migrate": "wrangler d1 execute railsexpert-db --file=src/db/schema.sql --local && wrangler d1 execute railsexpert-db --file=src/db/schema-v2.sql --local",
+		"db:migrate:prod": "wrangler d1 execute railsexpert-db --file=src/db/schema.sql && wrangler d1 execute railsexpert-db --file=src/db/schema-v2.sql",
+		"db:migrate:v2": "wrangler d1 execute railsexpert-db --file=src/db/schema-v2.sql --local",
+		"test": "bun test"
+	},
+	"devDependencies": {
+		"@cloudflare/workers-types": "^4.20260129.0",
+		"@types/bun": "latest",
+		"wrangler": "^4.61.0"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	},
+	"dependencies": {
+		"@hono/zod-validator": "^0.7.6",
+		"hono": "^4.11.7",
+		"zod": "^4.3.6"
+	}
 }

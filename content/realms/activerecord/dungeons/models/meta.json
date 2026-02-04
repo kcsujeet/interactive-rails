@@ -1,7 +1,7 @@
 {
-  "id": "models",
-  "name": "Models & Migrations",
-  "description": "Create and manage database tables through Rails models",
-  "order": 1,
-  "totalChallenges": 10
+	"id": "models",
+	"name": "Models & Migrations",
+	"description": "Create and manage database tables through Rails models",
+	"order": 1,
+	"totalChallenges": 10
 }

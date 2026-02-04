@@ -1,7 +1,7 @@
 {
-  "id": "custom",
-  "name": "Custom Routes",
-  "description": "Create non-RESTful routes for special needs",
-  "order": 3,
-  "totalChallenges": 10
+	"id": "custom",
+	"name": "Custom Routes",
+	"description": "Create non-RESTful routes for special needs",
+	"order": 3,
+	"totalChallenges": 10
 }

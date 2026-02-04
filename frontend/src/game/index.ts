@@ -5,4 +5,4 @@
  */
 
 export { GameLayer, useGameLayer } from './GameLayer';
-export { PhaserGameManager, gameManager } from './PhaserGame';
+export { gameManager, PhaserGameManager } from './PhaserGame';

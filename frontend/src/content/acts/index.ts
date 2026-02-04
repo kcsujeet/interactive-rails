@@ -19,14 +19,7 @@ import { actSix } from './act6-system-design';
 // All Acts
 // ============================================
 
-export const ACTS: Act[] = [
-  actOne,
-  actTwo,
-  actThree,
-  actFour,
-  actFive,
-  actSix,
-];
+export const ACTS: Act[] = [actOne, actTwo, actThree, actFour, actFive, actSix];
 
 // ============================================
 // Helper Functions
@@ -36,93 +29,102 @@ export const ACTS: Act[] = [
  * Get an act by its ID
  */
 export function getAct(actId: number): Act | undefined {
-  return ACTS.find(act => act.id === actId);
+	return ACTS.find((act) => act.id === actId);
 }
 
 /**
  * Get a level by its ID
  */
 export function getLevel(levelId: string): Level | undefined {
-  for (const act of ACTS) {
-    const level = act.levels.find(l => l.id === levelId);
-    if (level) return level;
-  }
-  return undefined;
+	for (const act of ACTS) {
+		const level = act.levels.find((l) => l.id === levelId);
+		if (level) return level;
+	}
+	return undefined;
 }
 
 /**
  * Get all levels across all acts
  */
 export function getAllLevels(): Level[] {
-  return ACTS.flatMap(act => act.levels);
+	return ACTS.flatMap((act) => act.levels);
 }
 
 /**
  * Get the next level after a given level ID
  */
 export function getNextLevel(currentLevelId: string): Level | undefined {
-  const allLevels = getAllLevels();
-  const currentIndex = allLevels.findIndex(l => l.id === currentLevelId);
-  if (currentIndex === -1 || currentIndex === allLevels.length - 1) {
-    return undefined;
-  }
-  return allLevels[currentIndex + 1];
+	const allLevels = getAllLevels();
+	const currentIndex = allLevels.findIndex((l) => l.id === currentLevelId);
+	if (currentIndex === -1 || currentIndex === allLevels.length - 1) {
+		return undefined;
+	}
+	return allLevels[currentIndex + 1];
 }
 
 /**
  * Get the act that contains a given level
  */
 export function getActForLevel(levelId: string): Act | undefined {
-  return ACTS.find(act => act.levels.some(l => l.id === levelId));
+	return ACTS.find((act) => act.levels.some((l) => l.id === levelId));
 }
 
 /**
  * Get level count for display
  */
 export function getTotalLevelCount(): number {
-  return ACTS.reduce((sum, act) => sum + act.levels.length, 0);
+	return ACTS.reduce((sum, act) => sum + act.levels.length, 0);
 }
 
 /**
  * Check if a level is unlocked based on player progress
  */
-export function isLevelUnlocked(levelId: string, completedLevels: string[]): boolean {
-  // Dev mode: unlock all levels
-  if (typeof window !== 'undefined' && localStorage.getItem('railsexpert_unlock_all') === 'true') {
-    return true;
-  }
+export function isLevelUnlocked(
+	levelId: string,
+	completedLevels: string[],
+): boolean {
+	// Dev mode: unlock all levels
+	if (
+		typeof window !== 'undefined' &&
+		localStorage.getItem('railsexpert_unlock_all') === 'true'
+	) {
+		return true;
+	}
 
-  const allLevels = getAllLevels();
-  const levelIndex = allLevels.findIndex(l => l.id === levelId);
+	const allLevels = getAllLevels();
+	const levelIndex = allLevels.findIndex((l) => l.id === levelId);
 
-  // First level is always unlocked
-  if (levelIndex === 0) return true;
+	// First level is always unlocked
+	if (levelIndex === 0) return true;
 
-  // Level is unlocked if the previous level is completed
-  const prevLevel = allLevels[levelIndex - 1];
-  return completedLevels.includes(prevLevel.id);
+	// Level is unlocked if the previous level is completed
+	const prevLevel = allLevels[levelIndex - 1];
+	return completedLevels.includes(prevLevel.id);
 }
 
 /**
  * Get level number within the game (1-35)
  */
 export function getGlobalLevelNumber(levelId: string): number {
-  const allLevels = getAllLevels();
-  const index = allLevels.findIndex(l => l.id === levelId);
-  return index + 1;
+	const allLevels = getAllLevels();
+	const index = allLevels.findIndex((l) => l.id === levelId);
+	return index + 1;
 }
 
 /**
  * Check if an act is unlocked based on player progress
  */
-export function isActUnlocked(actId: number, completedLevels: string[]): boolean {
-  if (actId === 1) return true;
+export function isActUnlocked(
+	actId: number,
+	completedLevels: string[],
+): boolean {
+	if (actId === 1) return true;
 
-  const prevAct = ACTS.find(a => a.id === actId - 1);
-  if (!prevAct) return false;
+	const prevAct = ACTS.find((a) => a.id === actId - 1);
+	if (!prevAct) return false;
 
-  // Act is unlocked if all levels in previous act are completed
-  return prevAct.levels.every(level => completedLevels.includes(level.id));
+	// Act is unlocked if all levels in previous act are completed
+	return prevAct.levels.every((level) => completedLevels.includes(level.id));
 }
 
 // Re-export individual acts for direct access

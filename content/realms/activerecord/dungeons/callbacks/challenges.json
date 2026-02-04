@@ -1,153 +1,201 @@
 [
-  {
-    "id": "activerecord-callbacks-001",
-    "type": "multiple_choice",
-    "difficulty": 2,
-    "xp_reward": 30,
-    "monster": { "name": "Before Beast", "sprite": "before-beast", "hp": 55 },
-    "question": "When does 'before_save' run?",
-    "options": [
-      { "id": "a", "text": "Only before creating new records" },
-      { "id": "b", "text": "Only before updating existing records" },
-      { "id": "c", "text": "Before both create and update" },
-      { "id": "d", "text": "After the record is saved" }
-    ],
-    "correct_answer": "c",
-    "explanation": "before_save runs before both create and update. Use before_create or before_update for specific operations."
-  },
-  {
-    "id": "activerecord-callbacks-002",
-    "type": "multiple_choice",
-    "difficulty": 2,
-    "xp_reward": 30,
-    "monster": { "name": "After Apparition", "sprite": "after-apparition", "hp": 55 },
-    "question": "Which callback runs after a record is successfully saved to the database?",
-    "options": [
-      { "id": "a", "text": "after_save" },
-      { "id": "b", "text": "after_commit" },
-      { "id": "c", "text": "Both, but after_commit waits for transaction commit" },
-      { "id": "d", "text": "after_persist" }
-    ],
-    "correct_answer": "c",
-    "explanation": "after_save runs after save but within the transaction. after_commit runs after the transaction is committed (safer for external actions)."
-  },
-  {
-    "id": "activerecord-callbacks-003",
-    "type": "fill_in_blank",
-    "difficulty": 2,
-    "xp_reward": 35,
-    "monster": { "name": "Validation Vampire", "sprite": "validation-vampire", "hp": 60 },
-    "question": "To run code before validations, use:",
-    "code_snippet": "____ :normalize_email",
-    "correct_answer": "before_validation",
-    "explanation": "before_validation is perfect for normalizing data (like downcasing emails) before validation rules are checked."
-  },
-  {
-    "id": "activerecord-callbacks-004",
-    "type": "code_analysis",
-    "difficulty": 3,
-    "xp_reward": 40,
-    "monster": { "name": "Halt Hydra", "sprite": "halt-hydra", "hp": 70 },
-    "question": "What happens if a before_save callback returns false?",
-    "code_snippet": "before_save :check_something\n\ndef check_something\n  false\nend",
-    "options": [
-      { "id": "a", "text": "Save continues normally" },
-      { "id": "b", "text": "The save is halted (record not saved)" },
-      { "id": "c", "text": "An exception is raised" },
-      { "id": "d", "text": "Only in Rails 4 and earlier" }
-    ],
-    "correct_answer": "b",
-    "explanation": "In older Rails, returning false halted the callback chain. In Rails 5+, use 'throw :abort' to halt - false is just a return value."
-  },
-  {
-    "id": "activerecord-callbacks-005",
-    "type": "multiple_choice",
-    "difficulty": 3,
-    "xp_reward": 40,
-    "monster": { "name": "Destroy Dragon", "sprite": "destroy-dragon", "hp": 70 },
-    "question": "What's the difference between before_destroy and dependent: :destroy?",
-    "options": [
-      { "id": "a", "text": "They're the same thing" },
-      { "id": "b", "text": "before_destroy is a callback, dependent: :destroy handles associations" },
-      { "id": "c", "text": "before_destroy is deprecated" },
-      { "id": "d", "text": "dependent: :destroy is a callback" }
-    ],
-    "correct_answer": "b",
-    "explanation": "before_destroy is a lifecycle callback for custom logic. dependent: :destroy is an association option that destroys related records."
-  },
-  {
-    "id": "activerecord-callbacks-006",
-    "type": "multiple_choice",
-    "difficulty": 3,
-    "xp_reward": 40,
-    "monster": { "name": "Transaction Terror", "sprite": "transaction-terror", "hp": 75 },
-    "question": "When should you use after_commit instead of after_save?",
-    "options": [
-      { "id": "a", "text": "When you need faster execution" },
-      { "id": "b", "text": "When triggering external services (emails, background jobs)" },
-      { "id": "c", "text": "When updating other models" },
-      { "id": "d", "text": "Always use after_save instead" }
-    ],
-    "correct_answer": "b",
-    "explanation": "after_commit runs after the DB transaction commits. Use it for external actions - if the transaction rolls back, the action shouldn't happen."
-  },
-  {
-    "id": "activerecord-callbacks-007",
-    "type": "fill_in_blank",
-    "difficulty": 3,
-    "xp_reward": 45,
-    "monster": { "name": "Conditional Creature", "sprite": "conditional-creature", "hp": 75 },
-    "question": "To only run a callback when a specific attribute changes:",
-    "code_snippet": "after_save :notify_admin, if: :____",
-    "correct_answer": "saved_change_to_status?",
-    "explanation": "saved_change_to_attribute? checks if an attribute changed during the save. Rails 5.1+ uses this instead of attribute_changed?."
-  },
-  {
-    "id": "activerecord-callbacks-008",
-    "type": "multiple_choice",
-    "difficulty": 3,
-    "xp_reward": 45,
-    "monster": { "name": "Touch Troll", "sprite": "touch-troll", "hp": 80 },
-    "question": "Which callback does NOT get triggered by update_column?",
-    "options": [
-      { "id": "a", "text": "before_save" },
-      { "id": "b", "text": "after_save" },
-      { "id": "c", "text": "All callbacks are skipped" },
-      { "id": "d", "text": "Only after_commit is skipped" }
-    ],
-    "correct_answer": "c",
-    "explanation": "update_column bypasses validations AND all callbacks. It writes directly to the database. Use carefully!"
-  },
-  {
-    "id": "activerecord-callbacks-009",
-    "type": "multiple_choice",
-    "difficulty": 4,
-    "xp_reward": 50,
-    "monster": { "name": "Order Ogre", "sprite": "order-ogre", "hp": 85 },
-    "question": "What is the correct order of callbacks when creating a record?",
-    "options": [
-      { "id": "a", "text": "before_validation → before_save → before_create → after_create → after_save → after_commit" },
-      { "id": "b", "text": "before_save → before_validation → before_create → after_save" },
-      { "id": "c", "text": "before_create → before_save → after_create → after_save" },
-      { "id": "d", "text": "before_validation → before_create → before_save → after_save" }
-    ],
-    "correct_answer": "a",
-    "explanation": "Order: validation callbacks → save callbacks (around create/update) → commit callbacks. before_create is inside before_save."
-  },
-  {
-    "id": "activerecord-callbacks-010",
-    "type": "multiple_choice",
-    "difficulty": 4,
-    "xp_reward": 55,
-    "monster": { "name": "Callback Colossus (BOSS)", "sprite": "callback-boss", "hp": 130 },
-    "question": "Why might heavy logic in callbacks be an anti-pattern?",
-    "options": [
-      { "id": "a", "text": "Callbacks are slow" },
-      { "id": "b", "text": "Makes code harder to test and reason about, hidden side effects" },
-      { "id": "c", "text": "Callbacks don't work in production" },
-      { "id": "d", "text": "Rails discourages callbacks" }
-    ],
-    "correct_answer": "b",
-    "explanation": "Heavy callback logic creates hidden side effects, makes testing difficult, and couples concerns. Consider service objects for complex logic."
-  }
+	{
+		"id": "activerecord-callbacks-001",
+		"type": "multiple_choice",
+		"difficulty": 2,
+		"xp_reward": 30,
+		"monster": { "name": "Before Beast", "sprite": "before-beast", "hp": 55 },
+		"question": "When does 'before_save' run?",
+		"options": [
+			{ "id": "a", "text": "Only before creating new records" },
+			{ "id": "b", "text": "Only before updating existing records" },
+			{ "id": "c", "text": "Before both create and update" },
+			{ "id": "d", "text": "After the record is saved" }
+		],
+		"correct_answer": "c",
+		"explanation": "before_save runs before both create and update. Use before_create or before_update for specific operations."
+	},
+	{
+		"id": "activerecord-callbacks-002",
+		"type": "multiple_choice",
+		"difficulty": 2,
+		"xp_reward": 30,
+		"monster": {
+			"name": "After Apparition",
+			"sprite": "after-apparition",
+			"hp": 55
+		},
+		"question": "Which callback runs after a record is successfully saved to the database?",
+		"options": [
+			{ "id": "a", "text": "after_save" },
+			{ "id": "b", "text": "after_commit" },
+			{
+				"id": "c",
+				"text": "Both, but after_commit waits for transaction commit"
+			},
+			{ "id": "d", "text": "after_persist" }
+		],
+		"correct_answer": "c",
+		"explanation": "after_save runs after save but within the transaction. after_commit runs after the transaction is committed (safer for external actions)."
+	},
+	{
+		"id": "activerecord-callbacks-003",
+		"type": "fill_in_blank",
+		"difficulty": 2,
+		"xp_reward": 35,
+		"monster": {
+			"name": "Validation Vampire",
+			"sprite": "validation-vampire",
+			"hp": 60
+		},
+		"question": "To run code before validations, use:",
+		"code_snippet": "____ :normalize_email",
+		"correct_answer": "before_validation",
+		"explanation": "before_validation is perfect for normalizing data (like downcasing emails) before validation rules are checked."
+	},
+	{
+		"id": "activerecord-callbacks-004",
+		"type": "code_analysis",
+		"difficulty": 3,
+		"xp_reward": 40,
+		"monster": { "name": "Halt Hydra", "sprite": "halt-hydra", "hp": 70 },
+		"question": "What happens if a before_save callback returns false?",
+		"code_snippet": "before_save :check_something\n\ndef check_something\n  false\nend",
+		"options": [
+			{ "id": "a", "text": "Save continues normally" },
+			{ "id": "b", "text": "The save is halted (record not saved)" },
+			{ "id": "c", "text": "An exception is raised" },
+			{ "id": "d", "text": "Only in Rails 4 and earlier" }
+		],
+		"correct_answer": "b",
+		"explanation": "In older Rails, returning false halted the callback chain. In Rails 5+, use 'throw :abort' to halt - false is just a return value."
+	},
+	{
+		"id": "activerecord-callbacks-005",
+		"type": "multiple_choice",
+		"difficulty": 3,
+		"xp_reward": 40,
+		"monster": {
+			"name": "Destroy Dragon",
+			"sprite": "destroy-dragon",
+			"hp": 70
+		},
+		"question": "What's the difference between before_destroy and dependent: :destroy?",
+		"options": [
+			{ "id": "a", "text": "They're the same thing" },
+			{
+				"id": "b",
+				"text": "before_destroy is a callback, dependent: :destroy handles associations"
+			},
+			{ "id": "c", "text": "before_destroy is deprecated" },
+			{ "id": "d", "text": "dependent: :destroy is a callback" }
+		],
+		"correct_answer": "b",
+		"explanation": "before_destroy is a lifecycle callback for custom logic. dependent: :destroy is an association option that destroys related records."
+	},
+	{
+		"id": "activerecord-callbacks-006",
+		"type": "multiple_choice",
+		"difficulty": 3,
+		"xp_reward": 40,
+		"monster": {
+			"name": "Transaction Terror",
+			"sprite": "transaction-terror",
+			"hp": 75
+		},
+		"question": "When should you use after_commit instead of after_save?",
+		"options": [
+			{ "id": "a", "text": "When you need faster execution" },
+			{
+				"id": "b",
+				"text": "When triggering external services (emails, background jobs)"
+			},
+			{ "id": "c", "text": "When updating other models" },
+			{ "id": "d", "text": "Always use after_save instead" }
+		],
+		"correct_answer": "b",
+		"explanation": "after_commit runs after the DB transaction commits. Use it for external actions - if the transaction rolls back, the action shouldn't happen."
+	},
+	{
+		"id": "activerecord-callbacks-007",
+		"type": "fill_in_blank",
+		"difficulty": 3,
+		"xp_reward": 45,
+		"monster": {
+			"name": "Conditional Creature",
+			"sprite": "conditional-creature",
+			"hp": 75
+		},
+		"question": "To only run a callback when a specific attribute changes:",
+		"code_snippet": "after_save :notify_admin, if: :____",
+		"correct_answer": "saved_change_to_status?",
+		"explanation": "saved_change_to_attribute? checks if an attribute changed during the save. Rails 5.1+ uses this instead of attribute_changed?."
+	},
+	{
+		"id": "activerecord-callbacks-008",
+		"type": "multiple_choice",
+		"difficulty": 3,
+		"xp_reward": 45,
+		"monster": { "name": "Touch Troll", "sprite": "touch-troll", "hp": 80 },
+		"question": "Which callback does NOT get triggered by update_column?",
+		"options": [
+			{ "id": "a", "text": "before_save" },
+			{ "id": "b", "text": "after_save" },
+			{ "id": "c", "text": "All callbacks are skipped" },
+			{ "id": "d", "text": "Only after_commit is skipped" }
+		],
+		"correct_answer": "c",
+		"explanation": "update_column bypasses validations AND all callbacks. It writes directly to the database. Use carefully!"
+	},
+	{
+		"id": "activerecord-callbacks-009",
+		"type": "multiple_choice",
+		"difficulty": 4,
+		"xp_reward": 50,
+		"monster": { "name": "Order Ogre", "sprite": "order-ogre", "hp": 85 },
+		"question": "What is the correct order of callbacks when creating a record?",
+		"options": [
+			{
+				"id": "a",
+				"text": "before_validation → before_save → before_create → after_create → after_save → after_commit"
+			},
+			{
+				"id": "b",
+				"text": "before_save → before_validation → before_create → after_save"
+			},
+			{
+				"id": "c",
+				"text": "before_create → before_save → after_create → after_save"
+			},
+			{
+				"id": "d",
+				"text": "before_validation → before_create → before_save → after_save"
+			}
+		],
+		"correct_answer": "a",
+		"explanation": "Order: validation callbacks → save callbacks (around create/update) → commit callbacks. before_create is inside before_save."
+	},
+	{
+		"id": "activerecord-callbacks-010",
+		"type": "multiple_choice",
+		"difficulty": 4,
+		"xp_reward": 55,
+		"monster": {
+			"name": "Callback Colossus (BOSS)",
+			"sprite": "callback-boss",
+			"hp": 130
+		},
+		"question": "Why might heavy logic in callbacks be an anti-pattern?",
+		"options": [
+			{ "id": "a", "text": "Callbacks are slow" },
+			{
+				"id": "b",
+				"text": "Makes code harder to test and reason about, hidden side effects"
+			},
+			{ "id": "c", "text": "Callbacks don't work in production" },
+			{ "id": "d", "text": "Rails discourages callbacks" }
+		],
+		"correct_answer": "b",
+		"explanation": "Heavy callback logic creates hidden side effects, makes testing difficult, and couples concerns. Consider service objects for complex logic."
+	}
 ]

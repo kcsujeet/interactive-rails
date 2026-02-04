@@ -6,34 +6,34 @@
  */
 
 import { ReactFlowProvider } from '@xyflow/react';
-import PipelineCanvas from './PipelineCanvas';
-import NodePalette from './NodePalette';
 import clsx from 'clsx';
+import NodePalette from './NodePalette';
+import PipelineCanvas from './PipelineCanvas';
 
 interface PipelineEditorProps {
-  className?: string;
-  isReadOnly?: boolean;
-  showPalette?: boolean;
+	className?: string;
+	isReadOnly?: boolean;
+	showPalette?: boolean;
 }
 
 export default function PipelineEditor({
-  className,
-  isReadOnly = false,
-  showPalette = true,
+	className,
+	isReadOnly = false,
+	showPalette = true,
 }: PipelineEditorProps) {
-  return (
-    <ReactFlowProvider>
-      <div className={clsx('flex h-full w-full', className)}>
-        {/* Node Palette (left sidebar) */}
-        {showPalette && !isReadOnly && (
-          <NodePalette className="w-72 flex-shrink-0" />
-        )}
+	return (
+		<ReactFlowProvider>
+			<div className={clsx('flex h-full w-full', className)}>
+				{/* Node Palette (left sidebar) */}
+				{showPalette && !isReadOnly && (
+					<NodePalette className="w-72 flex-shrink-0" />
+				)}
 
-        {/* Pipeline Canvas (main area) */}
-        <div className="flex-1 relative">
-          <PipelineCanvas isReadOnly={isReadOnly} />
-        </div>
-      </div>
-    </ReactFlowProvider>
-  );
+				{/* Pipeline Canvas (main area) */}
+				<div className="flex-1 relative">
+					<PipelineCanvas isReadOnly={isReadOnly} />
+				</div>
+			</div>
+		</ReactFlowProvider>
+	);
 }

@@ -1,10 +1,10 @@
 ---
-import BaseLayout from './BaseLayout.astro';
 import Header from '../components/ui/Header.astro';
+import BaseLayout from './BaseLayout.astro';
 
 interface Props {
-  title: string;
-  fullscreen?: boolean;
+	title: string;
+	fullscreen?: boolean;
 }
 
 const { title, fullscreen = false } = Astro.props;

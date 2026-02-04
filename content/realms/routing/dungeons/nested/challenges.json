@@ -1,157 +1,178 @@
 [
-  {
-    "id": "routing-nested-001",
-    "type": "code_analysis",
-    "difficulty": 2,
-    "xp_reward": 30,
-    "monster": { "name": "Nest Nibbler", "sprite": "nest-nibbler", "hp": 60 },
-    "question": "What URL does this routing create for the comments index?",
-    "code_snippet": "resources :articles do\n  resources :comments\nend",
-    "options": [
-      { "id": "a", "text": "/comments" },
-      { "id": "b", "text": "/articles/:article_id/comments" },
-      { "id": "c", "text": "/articles/comments" },
-      { "id": "d", "text": "/comments/:article_id" }
-    ],
-    "correct_answer": "b",
-    "explanation": "Nested resources include the parent ID in the URL. Comments belong to a specific article."
-  },
-  {
-    "id": "routing-nested-002",
-    "type": "fill_in_blank",
-    "difficulty": 2,
-    "xp_reward": 30,
-    "monster": { "name": "Parent Pest", "sprite": "parent-pest", "hp": 60 },
-    "question": "In a nested comments controller, the article ID is accessed via:",
-    "code_snippet": "params[:____]",
-    "correct_answer": "article_id",
-    "explanation": "Nested route params use singular_parent_id format. The comment's own ID would be params[:id]."
-  },
-  {
-    "id": "routing-nested-003",
-    "type": "multiple_choice",
-    "difficulty": 2,
-    "xp_reward": 35,
-    "monster": { "name": "Helper Harpy", "sprite": "helper-harpy", "hp": 65 },
-    "question": "What path helper creates a link to a nested comment?",
-    "options": [
-      { "id": "a", "text": "comment_path(@comment)" },
-      { "id": "b", "text": "article_comment_path(@article, @comment)" },
-      { "id": "c", "text": "nested_comment_path(@article, @comment)" },
-      { "id": "d", "text": "@article.comments.path(@comment)" }
-    ],
-    "correct_answer": "b",
-    "explanation": "Nested path helpers include both resources: parent_child_path(parent, child). The parent comes first."
-  },
-  {
-    "id": "routing-nested-004",
-    "type": "multiple_choice",
-    "difficulty": 3,
-    "xp_reward": 40,
-    "monster": { "name": "Deep Dweller", "sprite": "deep-dweller", "hp": 70 },
-    "question": "Why is nesting more than 1 level deep considered bad practice?",
-    "code_snippet": "resources :authors do\n  resources :books do\n    resources :chapters do\n      resources :pages\n    end\n  end\nend",
-    "options": [
-      { "id": "a", "text": "It doesn't work in Rails" },
-      { "id": "b", "text": "URLs become unwieldy, path helpers get complex" },
-      { "id": "c", "text": "Performance issues" },
-      { "id": "d", "text": "It's actually fine" }
-    ],
-    "correct_answer": "b",
-    "explanation": "Deep nesting creates long URLs (/authors/1/books/2/chapters/3/pages/4) and complex helpers. Keep nesting to 1 level; use shallow routing."
-  },
-  {
-    "id": "routing-nested-005",
-    "type": "code_analysis",
-    "difficulty": 3,
-    "xp_reward": 40,
-    "monster": { "name": "Shallow Shade", "sprite": "shallow-shade", "hp": 75 },
-    "question": "What routes does 'shallow: true' NOT nest?",
-    "code_snippet": "resources :articles do\n  resources :comments, shallow: true\nend",
-    "options": [
-      { "id": "a", "text": "index, new, create" },
-      { "id": "b", "text": "show, edit, update, destroy" },
-      { "id": "c", "text": "All routes become nested" },
-      { "id": "d", "text": "All routes become non-nested" }
-    ],
-    "correct_answer": "b",
-    "explanation": "shallow keeps index/new/create nested (need parent context). show/edit/update/destroy become /comments/:id (don't need parent in URL)."
-  },
-  {
-    "id": "routing-nested-006",
-    "type": "fill_in_blank",
-    "difficulty": 3,
-    "xp_reward": 45,
-    "monster": { "name": "Scope Scorpion", "sprite": "scope-scorpion", "hp": 75 },
-    "question": "To nest comments under articles without full resource routes, use:",
-    "code_snippet": "____ '/articles/:article_id' do\n  resources :comments\nend",
-    "correct_answer": "scope",
-    "explanation": "scope adds URL prefix without the full parent resource. Useful when you only need specific nested routes."
-  },
-  {
-    "id": "routing-nested-007",
-    "type": "multiple_choice",
-    "difficulty": 3,
-    "xp_reward": 45,
-    "monster": { "name": "Module Moth", "sprite": "module-moth", "hp": 80 },
-    "question": "How does nesting affect which controller handles the request?",
-    "options": [
-      { "id": "a", "text": "Uses ArticlesController for both" },
-      { "id": "b", "text": "Uses CommentsController in app/controllers/comments_controller.rb" },
-      { "id": "c", "text": "Uses Articles::CommentsController" },
-      { "id": "d", "text": "Nesting doesn't affect controller location" }
-    ],
-    "correct_answer": "b",
-    "explanation": "By default, nested resources still use the standard controller (CommentsController). Use namespace to create module-based controllers."
-  },
-  {
-    "id": "routing-nested-008",
-    "type": "code_analysis",
-    "difficulty": 4,
-    "xp_reward": 50,
-    "monster": { "name": "Concern Crawler", "sprite": "concern-crawler", "hp": 85 },
-    "question": "What does this routing concern do?",
-    "code_snippet": "concern :commentable do\n  resources :comments\nend\n\nresources :articles, concerns: :commentable\nresources :photos, concerns: :commentable",
-    "options": [
-      { "id": "a", "text": "Creates shared comment routes for both articles and photos" },
-      { "id": "b", "text": "Makes comments belong to both models" },
-      { "id": "c", "text": "Creates a polymorphic association" },
-      { "id": "d", "text": "Generates API documentation" }
-    ],
-    "correct_answer": "a",
-    "explanation": "Concerns let you define reusable route blocks. Both /articles/:id/comments and /photos/:id/comments are created."
-  },
-  {
-    "id": "routing-nested-009",
-    "type": "multiple_choice",
-    "difficulty": 4,
-    "xp_reward": 50,
-    "monster": { "name": "Form Phantom", "sprite": "form-phantom", "hp": 85 },
-    "question": "In a form for a nested comment, what should the form_with URL be?",
-    "code_snippet": "<%= form_with model: ??? do |f| %>",
-    "options": [
-      { "id": "a", "text": "model: @comment" },
-      { "id": "b", "text": "model: [@article, @comment]" },
-      { "id": "c", "text": "url: article_comments_path(@article)" },
-      { "id": "d", "text": "Both B and C work" }
-    ],
-    "correct_answer": "d",
-    "explanation": "model: [@article, @comment] is elegant - Rails infers the URL. Explicit url: works too. For new comments, @comment is a new record."
-  },
-  {
-    "id": "routing-nested-010",
-    "type": "multiple_choice",
-    "difficulty": 4,
-    "xp_reward": 55,
-    "monster": { "name": "Nested Nemesis (BOSS)", "sprite": "nested-boss", "hp": 130 },
-    "question": "Best practice for nested resource URL structure is:",
-    "options": [
-      { "id": "a", "text": "Always nest everything to show relationships" },
-      { "id": "b", "text": "Never nest, use query params instead" },
-      { "id": "c", "text": "Nest only when you need the parent ID to find the resource" },
-      { "id": "d", "text": "Nest up to 3 levels deep" }
-    ],
-    "correct_answer": "c",
-    "explanation": "Nest when the child resource is always accessed in context of parent. If a comment can stand alone, use shallow routing or flat routes."
-  }
+	{
+		"id": "routing-nested-001",
+		"type": "code_analysis",
+		"difficulty": 2,
+		"xp_reward": 30,
+		"monster": { "name": "Nest Nibbler", "sprite": "nest-nibbler", "hp": 60 },
+		"question": "What URL does this routing create for the comments index?",
+		"code_snippet": "resources :articles do\n  resources :comments\nend",
+		"options": [
+			{ "id": "a", "text": "/comments" },
+			{ "id": "b", "text": "/articles/:article_id/comments" },
+			{ "id": "c", "text": "/articles/comments" },
+			{ "id": "d", "text": "/comments/:article_id" }
+		],
+		"correct_answer": "b",
+		"explanation": "Nested resources include the parent ID in the URL. Comments belong to a specific article."
+	},
+	{
+		"id": "routing-nested-002",
+		"type": "fill_in_blank",
+		"difficulty": 2,
+		"xp_reward": 30,
+		"monster": { "name": "Parent Pest", "sprite": "parent-pest", "hp": 60 },
+		"question": "In a nested comments controller, the article ID is accessed via:",
+		"code_snippet": "params[:____]",
+		"correct_answer": "article_id",
+		"explanation": "Nested route params use singular_parent_id format. The comment's own ID would be params[:id]."
+	},
+	{
+		"id": "routing-nested-003",
+		"type": "multiple_choice",
+		"difficulty": 2,
+		"xp_reward": 35,
+		"monster": { "name": "Helper Harpy", "sprite": "helper-harpy", "hp": 65 },
+		"question": "What path helper creates a link to a nested comment?",
+		"options": [
+			{ "id": "a", "text": "comment_path(@comment)" },
+			{ "id": "b", "text": "article_comment_path(@article, @comment)" },
+			{ "id": "c", "text": "nested_comment_path(@article, @comment)" },
+			{ "id": "d", "text": "@article.comments.path(@comment)" }
+		],
+		"correct_answer": "b",
+		"explanation": "Nested path helpers include both resources: parent_child_path(parent, child). The parent comes first."
+	},
+	{
+		"id": "routing-nested-004",
+		"type": "multiple_choice",
+		"difficulty": 3,
+		"xp_reward": 40,
+		"monster": { "name": "Deep Dweller", "sprite": "deep-dweller", "hp": 70 },
+		"question": "Why is nesting more than 1 level deep considered bad practice?",
+		"code_snippet": "resources :authors do\n  resources :books do\n    resources :chapters do\n      resources :pages\n    end\n  end\nend",
+		"options": [
+			{ "id": "a", "text": "It doesn't work in Rails" },
+			{ "id": "b", "text": "URLs become unwieldy, path helpers get complex" },
+			{ "id": "c", "text": "Performance issues" },
+			{ "id": "d", "text": "It's actually fine" }
+		],
+		"correct_answer": "b",
+		"explanation": "Deep nesting creates long URLs (/authors/1/books/2/chapters/3/pages/4) and complex helpers. Keep nesting to 1 level; use shallow routing."
+	},
+	{
+		"id": "routing-nested-005",
+		"type": "code_analysis",
+		"difficulty": 3,
+		"xp_reward": 40,
+		"monster": { "name": "Shallow Shade", "sprite": "shallow-shade", "hp": 75 },
+		"question": "What routes does 'shallow: true' NOT nest?",
+		"code_snippet": "resources :articles do\n  resources :comments, shallow: true\nend",
+		"options": [
+			{ "id": "a", "text": "index, new, create" },
+			{ "id": "b", "text": "show, edit, update, destroy" },
+			{ "id": "c", "text": "All routes become nested" },
+			{ "id": "d", "text": "All routes become non-nested" }
+		],
+		"correct_answer": "b",
+		"explanation": "shallow keeps index/new/create nested (need parent context). show/edit/update/destroy become /comments/:id (don't need parent in URL)."
+	},
+	{
+		"id": "routing-nested-006",
+		"type": "fill_in_blank",
+		"difficulty": 3,
+		"xp_reward": 45,
+		"monster": {
+			"name": "Scope Scorpion",
+			"sprite": "scope-scorpion",
+			"hp": 75
+		},
+		"question": "To nest comments under articles without full resource routes, use:",
+		"code_snippet": "____ '/articles/:article_id' do\n  resources :comments\nend",
+		"correct_answer": "scope",
+		"explanation": "scope adds URL prefix without the full parent resource. Useful when you only need specific nested routes."
+	},
+	{
+		"id": "routing-nested-007",
+		"type": "multiple_choice",
+		"difficulty": 3,
+		"xp_reward": 45,
+		"monster": { "name": "Module Moth", "sprite": "module-moth", "hp": 80 },
+		"question": "How does nesting affect which controller handles the request?",
+		"options": [
+			{ "id": "a", "text": "Uses ArticlesController for both" },
+			{
+				"id": "b",
+				"text": "Uses CommentsController in app/controllers/comments_controller.rb"
+			},
+			{ "id": "c", "text": "Uses Articles::CommentsController" },
+			{ "id": "d", "text": "Nesting doesn't affect controller location" }
+		],
+		"correct_answer": "b",
+		"explanation": "By default, nested resources still use the standard controller (CommentsController). Use namespace to create module-based controllers."
+	},
+	{
+		"id": "routing-nested-008",
+		"type": "code_analysis",
+		"difficulty": 4,
+		"xp_reward": 50,
+		"monster": {
+			"name": "Concern Crawler",
+			"sprite": "concern-crawler",
+			"hp": 85
+		},
+		"question": "What does this routing concern do?",
+		"code_snippet": "concern :commentable do\n  resources :comments\nend\n\nresources :articles, concerns: :commentable\nresources :photos, concerns: :commentable",
+		"options": [
+			{
+				"id": "a",
+				"text": "Creates shared comment routes for both articles and photos"
+			},
+			{ "id": "b", "text": "Makes comments belong to both models" },
+			{ "id": "c", "text": "Creates a polymorphic association" },
+			{ "id": "d", "text": "Generates API documentation" }
+		],
+		"correct_answer": "a",
+		"explanation": "Concerns let you define reusable route blocks. Both /articles/:id/comments and /photos/:id/comments are created."
+	},
+	{
+		"id": "routing-nested-009",
+		"type": "multiple_choice",
+		"difficulty": 4,
+		"xp_reward": 50,
+		"monster": { "name": "Form Phantom", "sprite": "form-phantom", "hp": 85 },
+		"question": "In a form for a nested comment, what should the form_with URL be?",
+		"code_snippet": "<%= form_with model: ??? do |f| %>",
+		"options": [
+			{ "id": "a", "text": "model: @comment" },
+			{ "id": "b", "text": "model: [@article, @comment]" },
+			{ "id": "c", "text": "url: article_comments_path(@article)" },
+			{ "id": "d", "text": "Both B and C work" }
+		],
+		"correct_answer": "d",
+		"explanation": "model: [@article, @comment] is elegant - Rails infers the URL. Explicit url: works too. For new comments, @comment is a new record."
+	},
+	{
+		"id": "routing-nested-010",
+		"type": "multiple_choice",
+		"difficulty": 4,
+		"xp_reward": 55,
+		"monster": {
+			"name": "Nested Nemesis (BOSS)",
+			"sprite": "nested-boss",
+			"hp": 130
+		},
+		"question": "Best practice for nested resource URL structure is:",
+		"options": [
+			{ "id": "a", "text": "Always nest everything to show relationships" },
+			{ "id": "b", "text": "Never nest, use query params instead" },
+			{
+				"id": "c",
+				"text": "Nest only when you need the parent ID to find the resource"
+			},
+			{ "id": "d", "text": "Nest up to 3 levels deep" }
+		],
+		"correct_answer": "c",
+		"explanation": "Nest when the child resource is always accessed in context of parent. If a comment can stand alone, use shallow routing or flat routes."
+	}
 ]

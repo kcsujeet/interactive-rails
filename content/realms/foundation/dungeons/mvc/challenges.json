@@ -1,158 +1,194 @@
 [
-  {
-    "id": "foundation-mvc-001",
-    "type": "multiple_choice",
-    "difficulty": 1,
-    "xp_reward": 20,
-    "monster": { "name": "Confused Controller", "sprite": "confused-controller", "hp": 40 },
-    "question": "In the MVC pattern, which component is responsible for handling user input and coordinating between Model and View?",
-    "options": [
-      { "id": "a", "text": "Controller" },
-      { "id": "b", "text": "Model" },
-      { "id": "c", "text": "View" },
-      { "id": "d", "text": "Router" }
-    ],
-    "correct_answer": "a",
-    "explanation": "The Controller receives user input, processes it by interacting with the Model, and determines which View to render."
-  },
-  {
-    "id": "foundation-mvc-002",
-    "type": "multiple_choice",
-    "difficulty": 1,
-    "xp_reward": 20,
-    "monster": { "name": "Model Muddle", "sprite": "model-muddle", "hp": 40 },
-    "question": "Where should business logic primarily live in a Rails application?",
-    "options": [
-      { "id": "a", "text": "In the Controller" },
-      { "id": "b", "text": "In the Model" },
-      { "id": "c", "text": "In the View" },
-      { "id": "d", "text": "In the Routes" }
-    ],
-    "correct_answer": "b",
-    "explanation": "The Model is the proper place for business logic. Controllers should be 'thin', delegating logic to models and service objects."
-  },
-  {
-    "id": "foundation-mvc-003",
-    "type": "multiple_choice",
-    "difficulty": 1,
-    "xp_reward": 20,
-    "monster": { "name": "View Vampire", "sprite": "view-vampire", "hp": 45 },
-    "question": "What is the primary responsibility of the View in MVC?",
-    "options": [
-      { "id": "a", "text": "Processing user input" },
-      { "id": "b", "text": "Storing data in the database" },
-      { "id": "c", "text": "Presenting data to the user" },
-      { "id": "d", "text": "Defining routes" }
-    ],
-    "correct_answer": "c",
-    "explanation": "The View's responsibility is presentation - it takes data from the controller and renders it as HTML (or other formats) for the user."
-  },
-  {
-    "id": "foundation-mvc-004",
-    "type": "multiple_choice",
-    "difficulty": 1,
-    "xp_reward": 25,
-    "monster": { "name": "Fat Controller", "sprite": "fat-controller", "hp": 50 },
-    "question": "What does 'Fat Model, Skinny Controller' mean in Rails?",
-    "options": [
-      { "id": "a", "text": "Models should have many attributes, controllers few actions" },
-      { "id": "b", "text": "Business logic belongs in models, controllers should be minimal" },
-      { "id": "c", "text": "Models should be large files, controllers small files" },
-      { "id": "d", "text": "Use more models than controllers in your app" }
-    ],
-    "correct_answer": "b",
-    "explanation": "'Fat Model, Skinny Controller' is a design principle meaning business logic should live in models, while controllers should only coordinate between models and views."
-  },
-  {
-    "id": "foundation-mvc-005",
-    "type": "multiple_choice",
-    "difficulty": 2,
-    "xp_reward": 30,
-    "monster": { "name": "Request Wraith", "sprite": "request-wraith", "hp": 55 },
-    "question": "In a typical Rails request cycle, what is the correct order?",
-    "options": [
-      { "id": "a", "text": "Router → Controller → Model → View" },
-      { "id": "b", "text": "Controller → Router → View → Model" },
-      { "id": "c", "text": "Model → Controller → Router → View" },
-      { "id": "d", "text": "View → Controller → Model → Router" }
-    ],
-    "correct_answer": "a",
-    "explanation": "A request first hits the Router, which directs it to a Controller action. The Controller interacts with the Model for data, then renders a View."
-  },
-  {
-    "id": "foundation-mvc-006",
-    "type": "fill_in_blank",
-    "difficulty": 2,
-    "xp_reward": 30,
-    "monster": { "name": "Naming Nightmare", "sprite": "naming-nightmare", "hp": 55 },
-    "question": "By Rails convention, if your model is named 'Article', the controller should be named:",
-    "code_snippet": "class ____Controller < ApplicationController\nend",
-    "correct_answer": "Articles",
-    "explanation": "Rails uses convention over configuration. Controllers are pluralized: Article model → ArticlesController."
-  },
-  {
-    "id": "foundation-mvc-007",
-    "type": "multiple_choice",
-    "difficulty": 2,
-    "xp_reward": 30,
-    "monster": { "name": "Convention Crusher", "sprite": "convention-crusher", "hp": 60 },
-    "question": "Which file would contain the HTML for displaying a list of users?",
-    "options": [
-      { "id": "a", "text": "app/controllers/users_controller.rb" },
-      { "id": "b", "text": "app/models/user.rb" },
-      { "id": "c", "text": "app/views/users/index.html.erb" },
-      { "id": "d", "text": "config/routes.rb" }
-    ],
-    "correct_answer": "c",
-    "explanation": "Views live in app/views, organized by controller name. The index action's view is index.html.erb in the users folder."
-  },
-  {
-    "id": "foundation-mvc-008",
-    "type": "multiple_choice",
-    "difficulty": 2,
-    "xp_reward": 35,
-    "monster": { "name": "Inheritance Imp", "sprite": "inheritance-imp", "hp": 60 },
-    "question": "What class do all Rails controllers inherit from by default?",
-    "options": [
-      { "id": "a", "text": "ActionController::Base" },
-      { "id": "b", "text": "ApplicationController" },
-      { "id": "c", "text": "BaseController" },
-      { "id": "d", "text": "Rails::Controller" }
-    ],
-    "correct_answer": "b",
-    "explanation": "Controllers inherit from ApplicationController, which itself inherits from ActionController::Base. This allows you to add shared functionality."
-  },
-  {
-    "id": "foundation-mvc-009",
-    "type": "code_analysis",
-    "difficulty": 3,
-    "xp_reward": 40,
-    "monster": { "name": "Logic Leech", "sprite": "logic-leech", "hp": 70 },
-    "question": "What's wrong with this controller code?",
-    "code_snippet": "class ArticlesController < ApplicationController\n  def index\n    @articles = Article.where(published: true)\n                       .where('created_at > ?', 1.week.ago)\n                       .order(views: :desc)\n                       .limit(10)\n    @articles.each { |a| a.view_count += 1; a.save }\n  end\nend",
-    "options": [
-      { "id": "a", "text": "The query is too complex for a controller" },
-      { "id": "b", "text": "Business logic (updating view counts) is in the controller" },
-      { "id": "c", "text": "Both A and B - this controller is too fat" },
-      { "id": "d", "text": "Nothing is wrong, this is proper MVC" }
-    ],
-    "correct_answer": "c",
-    "explanation": "This controller has too much logic. The complex query should be a scope in the Model, and the view count update should be a Model method or background job."
-  },
-  {
-    "id": "foundation-mvc-010",
-    "type": "multiple_choice",
-    "difficulty": 3,
-    "xp_reward": 45,
-    "monster": { "name": "MVC Master (BOSS)", "sprite": "mvc-boss", "hp": 100 },
-    "question": "Which Rails principle complements MVC by reducing configuration?",
-    "options": [
-      { "id": "a", "text": "Don't Repeat Yourself (DRY)" },
-      { "id": "b", "text": "Convention over Configuration" },
-      { "id": "c", "text": "Separation of Concerns" },
-      { "id": "d", "text": "Single Responsibility Principle" }
-    ],
-    "correct_answer": "b",
-    "explanation": "Convention over Configuration means Rails assumes sensible defaults (like ArticlesController for Article model), reducing boilerplate configuration."
-  }
+	{
+		"id": "foundation-mvc-001",
+		"type": "multiple_choice",
+		"difficulty": 1,
+		"xp_reward": 20,
+		"monster": {
+			"name": "Confused Controller",
+			"sprite": "confused-controller",
+			"hp": 40
+		},
+		"question": "In the MVC pattern, which component is responsible for handling user input and coordinating between Model and View?",
+		"options": [
+			{ "id": "a", "text": "Controller" },
+			{ "id": "b", "text": "Model" },
+			{ "id": "c", "text": "View" },
+			{ "id": "d", "text": "Router" }
+		],
+		"correct_answer": "a",
+		"explanation": "The Controller receives user input, processes it by interacting with the Model, and determines which View to render."
+	},
+	{
+		"id": "foundation-mvc-002",
+		"type": "multiple_choice",
+		"difficulty": 1,
+		"xp_reward": 20,
+		"monster": { "name": "Model Muddle", "sprite": "model-muddle", "hp": 40 },
+		"question": "Where should business logic primarily live in a Rails application?",
+		"options": [
+			{ "id": "a", "text": "In the Controller" },
+			{ "id": "b", "text": "In the Model" },
+			{ "id": "c", "text": "In the View" },
+			{ "id": "d", "text": "In the Routes" }
+		],
+		"correct_answer": "b",
+		"explanation": "The Model is the proper place for business logic. Controllers should be 'thin', delegating logic to models and service objects."
+	},
+	{
+		"id": "foundation-mvc-003",
+		"type": "multiple_choice",
+		"difficulty": 1,
+		"xp_reward": 20,
+		"monster": { "name": "View Vampire", "sprite": "view-vampire", "hp": 45 },
+		"question": "What is the primary responsibility of the View in MVC?",
+		"options": [
+			{ "id": "a", "text": "Processing user input" },
+			{ "id": "b", "text": "Storing data in the database" },
+			{ "id": "c", "text": "Presenting data to the user" },
+			{ "id": "d", "text": "Defining routes" }
+		],
+		"correct_answer": "c",
+		"explanation": "The View's responsibility is presentation - it takes data from the controller and renders it as HTML (or other formats) for the user."
+	},
+	{
+		"id": "foundation-mvc-004",
+		"type": "multiple_choice",
+		"difficulty": 1,
+		"xp_reward": 25,
+		"monster": {
+			"name": "Fat Controller",
+			"sprite": "fat-controller",
+			"hp": 50
+		},
+		"question": "What does 'Fat Model, Skinny Controller' mean in Rails?",
+		"options": [
+			{
+				"id": "a",
+				"text": "Models should have many attributes, controllers few actions"
+			},
+			{
+				"id": "b",
+				"text": "Business logic belongs in models, controllers should be minimal"
+			},
+			{
+				"id": "c",
+				"text": "Models should be large files, controllers small files"
+			},
+			{ "id": "d", "text": "Use more models than controllers in your app" }
+		],
+		"correct_answer": "b",
+		"explanation": "'Fat Model, Skinny Controller' is a design principle meaning business logic should live in models, while controllers should only coordinate between models and views."
+	},
+	{
+		"id": "foundation-mvc-005",
+		"type": "multiple_choice",
+		"difficulty": 2,
+		"xp_reward": 30,
+		"monster": {
+			"name": "Request Wraith",
+			"sprite": "request-wraith",
+			"hp": 55
+		},
+		"question": "In a typical Rails request cycle, what is the correct order?",
+		"options": [
+			{ "id": "a", "text": "Router → Controller → Model → View" },
+			{ "id": "b", "text": "Controller → Router → View → Model" },
+			{ "id": "c", "text": "Model → Controller → Router → View" },
+			{ "id": "d", "text": "View → Controller → Model → Router" }
+		],
+		"correct_answer": "a",
+		"explanation": "A request first hits the Router, which directs it to a Controller action. The Controller interacts with the Model for data, then renders a View."
+	},
+	{
+		"id": "foundation-mvc-006",
+		"type": "fill_in_blank",
+		"difficulty": 2,
+		"xp_reward": 30,
+		"monster": {
+			"name": "Naming Nightmare",
+			"sprite": "naming-nightmare",
+			"hp": 55
+		},
+		"question": "By Rails convention, if your model is named 'Article', the controller should be named:",
+		"code_snippet": "class ____Controller < ApplicationController\nend",
+		"correct_answer": "Articles",
+		"explanation": "Rails uses convention over configuration. Controllers are pluralized: Article model → ArticlesController."
+	},
+	{
+		"id": "foundation-mvc-007",
+		"type": "multiple_choice",
+		"difficulty": 2,
+		"xp_reward": 30,
+		"monster": {
+			"name": "Convention Crusher",
+			"sprite": "convention-crusher",
+			"hp": 60
+		},
+		"question": "Which file would contain the HTML for displaying a list of users?",
+		"options": [
+			{ "id": "a", "text": "app/controllers/users_controller.rb" },
+			{ "id": "b", "text": "app/models/user.rb" },
+			{ "id": "c", "text": "app/views/users/index.html.erb" },
+			{ "id": "d", "text": "config/routes.rb" }
+		],
+		"correct_answer": "c",
+		"explanation": "Views live in app/views, organized by controller name. The index action's view is index.html.erb in the users folder."
+	},
+	{
+		"id": "foundation-mvc-008",
+		"type": "multiple_choice",
+		"difficulty": 2,
+		"xp_reward": 35,
+		"monster": {
+			"name": "Inheritance Imp",
+			"sprite": "inheritance-imp",
+			"hp": 60
+		},
+		"question": "What class do all Rails controllers inherit from by default?",
+		"options": [
+			{ "id": "a", "text": "ActionController::Base" },
+			{ "id": "b", "text": "ApplicationController" },
+			{ "id": "c", "text": "BaseController" },
+			{ "id": "d", "text": "Rails::Controller" }
+		],
+		"correct_answer": "b",
+		"explanation": "Controllers inherit from ApplicationController, which itself inherits from ActionController::Base. This allows you to add shared functionality."
+	},
+	{
+		"id": "foundation-mvc-009",
+		"type": "code_analysis",
+		"difficulty": 3,
+		"xp_reward": 40,
+		"monster": { "name": "Logic Leech", "sprite": "logic-leech", "hp": 70 },
+		"question": "What's wrong with this controller code?",
+		"code_snippet": "class ArticlesController < ApplicationController\n  def index\n    @articles = Article.where(published: true)\n                       .where('created_at > ?', 1.week.ago)\n                       .order(views: :desc)\n                       .limit(10)\n    @articles.each { |a| a.view_count += 1; a.save }\n  end\nend",
+		"options": [
+			{ "id": "a", "text": "The query is too complex for a controller" },
+			{
+				"id": "b",
+				"text": "Business logic (updating view counts) is in the controller"
+			},
+			{ "id": "c", "text": "Both A and B - this controller is too fat" },
+			{ "id": "d", "text": "Nothing is wrong, this is proper MVC" }
+		],
+		"correct_answer": "c",
+		"explanation": "This controller has too much logic. The complex query should be a scope in the Model, and the view count update should be a Model method or background job."
+	},
+	{
+		"id": "foundation-mvc-010",
+		"type": "multiple_choice",
+		"difficulty": 3,
+		"xp_reward": 45,
+		"monster": { "name": "MVC Master (BOSS)", "sprite": "mvc-boss", "hp": 100 },
+		"question": "Which Rails principle complements MVC by reducing configuration?",
+		"options": [
+			{ "id": "a", "text": "Don't Repeat Yourself (DRY)" },
+			{ "id": "b", "text": "Convention over Configuration" },
+			{ "id": "c", "text": "Separation of Concerns" },
+			{ "id": "d", "text": "Single Responsibility Principle" }
+		],
+		"correct_answer": "b",
+		"explanation": "Convention over Configuration means Rails assumes sensible defaults (like ArticlesController for Article model), reducing boilerplate configuration."
+	}
 ]

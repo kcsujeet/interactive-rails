@@ -1,7 +1,7 @@
 {
-  "id": "queries",
-  "name": "Query Interface",
-  "description": "Master ActiveRecord queries and scopes",
-  "order": 5,
-  "totalChallenges": 10
+	"id": "queries",
+	"name": "Query Interface",
+	"description": "Master ActiveRecord queries and scopes",
+	"order": 5,
+	"totalChallenges": 10
 }

@@ -1,7 +1,7 @@
 {
-  "id": "associations",
-  "name": "Associations",
-  "description": "Connect models with has_many, belongs_to, and more",
-  "order": 2,
-  "totalChallenges": 10
+	"id": "associations",
+	"name": "Associations",
+	"description": "Connect models with has_many, belongs_to, and more",
+	"order": 2,
+	"totalChallenges": 10
 }

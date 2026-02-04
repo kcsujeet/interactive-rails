@@ -3,31 +3,33 @@
  * Validates JWT tokens from cookies and attaches userId to context
  */
 
-import { createMiddleware } from 'hono/factory';
 import { getCookie } from 'hono/cookie';
-import { verifyToken } from '../utils/jwt';
-import { UnauthorizedError } from '../errors';
+import { createMiddleware } from 'hono/factory';
 import { AUTH } from '../constants';
+import { UnauthorizedError } from '../errors';
 import type { Env } from '../types';
+import { verifyToken } from '../utils/jwt';
 
 declare module 'hono' {
-  interface ContextVariableMap {
-    userId: string;
-  }
+	interface ContextVariableMap {
+		userId: string;
+	}
 }
 
-export const authMiddleware = createMiddleware<{ Bindings: Env }>(async (c, next) => {
-  const token = getCookie(c, AUTH.COOKIE.NAME);
+export const authMiddleware = createMiddleware<{ Bindings: Env }>(
+	async (c, next) => {
+		const token = getCookie(c, AUTH.COOKIE.NAME);
 
-  if (!token) {
-    throw new UnauthorizedError('Authentication required');
-  }
+		if (!token) {
+			throw new UnauthorizedError('Authentication required');
+		}
 
-  try {
-    const payload = await verifyToken(token, c.env.JWT_SECRET);
-    c.set('userId', payload.userId);
-    await next();
-  } catch (error) {
-    throw new UnauthorizedError('Invalid or expired token');
-  }
-});
+		try {
+			const payload = await verifyToken(token, c.env.JWT_SECRET);
+			c.set('userId', payload.userId);
+			await next();
+		} catch (error) {
+			throw new UnauthorizedError('Invalid or expired token');
+		}
+	},
+);

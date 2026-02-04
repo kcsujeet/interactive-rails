@@ -13,16 +13,15 @@
  */
 
 export { Level1StackChoice } from './Level1StackChoice';
+// Legacy exports for backwards compatibility (will be removed)
+export { Level2FirstRequest } from './Level2FirstRequest';
 export { Level2Model } from './Level2Model';
+export { Level3Associations } from './Level3Associations';
 export { Level3CRUD } from './Level3CRUD';
 export { Level4Controller } from './Level4Controller';
+export { Level4Persistence } from './Level4Persistence';
+export { Level5Security } from './Level5Security';
 export { Level5Views } from './Level5Views';
 export { Level6MVCPipeline } from './Level6MVCPipeline';
 export { Level7Persistence } from './Level7Persistence';
 export { Level8Associations } from './Level8Associations';
-
-// Legacy exports for backwards compatibility (will be removed)
-export { Level2FirstRequest } from './Level2FirstRequest';
-export { Level3Associations } from './Level3Associations';
-export { Level4Persistence } from './Level4Persistence';
-export { Level5Security } from './Level5Security';

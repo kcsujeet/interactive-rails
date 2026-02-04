@@ -1,7 +1,7 @@
 {
-  "id": "validations",
-  "name": "Validations",
-  "description": "Ensure data integrity with model validations",
-  "order": 3,
-  "totalChallenges": 10
+	"id": "validations",
+	"name": "Validations",
+	"description": "Ensure data integrity with model validations",
+	"order": 3,
+	"totalChallenges": 10
 }
