@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useMemo } from 'react';
 import hljs from 'highlight.js/lib/core';
 import ruby from 'highlight.js/lib/languages/ruby';
 import 'highlight.js/styles/night-owl.css';
@@ -11,19 +11,20 @@ interface CodeBlockProps {
 }
 
 export function CodeBlock({ code, language = 'ruby' }: CodeBlockProps) {
-	const codeRef = useRef<HTMLElement>(null);
-
-	useEffect(() => {
-		if (codeRef.current) {
-			hljs.highlightElement(codeRef.current);
+	const highlightedCode = useMemo(() => {
+		try {
+			return hljs.highlight(code.trim(), { language }).value;
+		} catch {
+			return code.trim();
 		}
 	}, [code, language]);
 
 	return (
-		<pre className="p-5 text-sm whitespace-pre-wrap font-mono leading-relaxed overflow-x-auto bg-transparent!">
-			<code ref={codeRef} className={`language-${language}`}>
-				{code.trim()}
-			</code>
+		<pre className="p-5 text-sm whitespace-pre-wrap font-mono leading-relaxed overflow-x-auto">
+			<code
+				className={`language-${language} hljs`}
+				dangerouslySetInnerHTML={{ __html: highlightedCode }}
+			/>
 		</pre>
 	);
 }

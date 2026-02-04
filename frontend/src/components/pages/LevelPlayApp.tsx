@@ -5,10 +5,9 @@
  */
 
 import { useEffect, useState } from 'react';
-import { getActForLevel, getLevel, getNextLevel } from '../../content/acts';
-import { completeLevel as completeLevelProgress } from "@/lib/progress";
+import { getActForLevel, getLevel } from '@/content/acts';
+import { completeLevel as completeLevelProgress } from '@/lib/progress';
 import {
-	CompletionScreen,
 	type Connection,
 	type GameState,
 	GameTopBar,
@@ -40,7 +39,7 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 	const [lastValidation, setLastValidation] = useState<ValidationResult | null>(
 		null,
 	);
-	const [earnedStars, setEarnedStars] = useState(2);
+	const [, setEarnedStars] = useState(0);
 
 	// Pipeline state hook
 	const pipelineState = usePipelineState();
@@ -90,6 +89,7 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 	);
 	const { liveMetrics, setLiveMetrics, queryParticles } = simulation;
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: loadLevel should only run once on mount
 	useEffect(() => {
 		loadLevel();
 	}, []);
@@ -97,7 +97,7 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 	function loadLevel() {
 		// 1. Fetch previous choices (Mocked for now - eventually from backend/context)
 		// In a real implementation, we'd fetch this from the API or a global context
-		const stackChoice = { frontend: 'react' }; // Default/Mock for testing dynamic logic
+		const _stackChoice = { frontend: 'react' }; // Default/Mock for testing dynamic logic
 
 		const activeLevel = level;
 
@@ -105,7 +105,7 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 		if (activeLevel && activeLevel.levelNumber === 2) {
 			// Patch Level 2: If React, ask for Serializer instead of View
 			// Note: We need to clone the level to avoid mutating the global constant
-			const patchedLevel = JSON.parse(JSON.stringify(activeLevel));
+			const _patchedLevel = JSON.parse(JSON.stringify(activeLevel));
 
 			// If we chose React in L1 (we need to fetch this state, for now we assume React to test)
 			// effective choice logic would be here.
@@ -256,7 +256,12 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 		try {
 			// Scan for Stack Choices (Level 1)
 			const terminals = placedNodes.filter((n) => n.type === 'terminal');
-			let stackChoices;
+			let stackChoices:
+				| {
+						database: 'postgres' | 'sqlite';
+						frontend: 'react' | 'erb' | 'hotwire';
+				  }
+				| undefined;
 
 			if (terminals.length > 0) {
 				// Find what's connected to the terminal
@@ -299,7 +304,9 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 			});
 
 			if (result.success) {
-				setGameState('completed');
+				// Redirect to completion page
+				const act = getActForLevel(levelId);
+				window.location.href = `/acts/${act?.id || 1}/${levelId}/complete?stars=${stars}`;
 			}
 		} catch (err) {
 			console.error('Failed to save completion:', err);
@@ -311,21 +318,6 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 			<div className="h-full flex items-center justify-center">
 				<div className="text-sm text-muted-foreground">Loading level...</div>
 			</div>
-		);
-	}
-
-	if (gameState === 'completed') {
-		const nextLevel = getNextLevel(levelId);
-		return (
-			<CompletionScreen
-				isCapstone={level?.isCapstone}
-				learningContent={level?.learningContent}
-				levelName={levelData?.name || ''}
-				nextLevelId={nextLevel?.id}
-				nextLevelActId={nextLevel?.actId}
-				onExit={exitLevel}
-				stars={earnedStars}
-			/>
 		);
 	}
 
@@ -354,8 +346,9 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 						});
 
 						if (result.success) {
-							setEarnedStars(stars);
-							setGameState('completed');
+							// Redirect to completion page
+							const act = getActForLevel(levelId);
+							window.location.href = `/acts/${act?.id || 1}/${levelId}/complete?stars=${stars}`;
 						}
 					} catch (err) {
 						console.error('Failed to save level completion:', err);

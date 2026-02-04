@@ -9,8 +9,9 @@ import { getLevel, getActForLevel } from '../../content/acts';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { levelChallenges } from '../game';
-import { Play, Target, Code, ChevronRight } from 'lucide-react';
+import { Play, Target, Code } from 'lucide-react';
 import { CodeBlock } from '../ui/CodeBlock';
+import { LevelBreadcrumb } from '../ui/LevelBreadcrumb';
 
 interface LevelInfoAppProps {
 	levelId: string;
@@ -98,19 +99,11 @@ export function LevelInfoApp({ levelId }: LevelInfoAppProps) {
 	return (
 		<div className="max-w-3xl mx-auto">
 			{/* Breadcrumb */}
-			<nav className="flex items-center gap-1.5 text-sm mb-6">
-				<a href="/acts" className="text-muted-foreground hover:text-foreground transition-colors">
-					Acts
-				</a>
-				<ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50" />
-				<a href={`/acts/${levelInfo.actId}`} className="text-muted-foreground hover:text-foreground transition-colors">
-					{levelInfo.actName}
-				</a>
-				<ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50" />
-				<span className="text-foreground font-medium">
-					Level {levelInfo.levelNumber}
-				</span>
-			</nav>
+			<LevelBreadcrumb
+				actId={levelInfo.actId}
+				actName={levelInfo.actName}
+				levelNumber={levelInfo.levelNumber}
+			/>
 
 			{/* Header */}
 			<div className="flex items-start gap-5 mb-8">

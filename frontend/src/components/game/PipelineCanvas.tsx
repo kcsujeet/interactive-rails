@@ -14,7 +14,7 @@ import type {
 } from './types';
 
 interface PipelineCanvasProps {
-	canvasRef: RefObject<HTMLDivElement>;
+	canvasRef: RefObject<HTMLDivElement | null>;
 	placedNodes: PlacedNode[];
 	connections: Connection[];
 	pendingConnection: PendingConnection | null;

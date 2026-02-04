@@ -1,0 +1,144 @@
+---
+import GameLayout from "@/layouts/GameLayout.astro";
+import { getLevel, getActForLevel, getNextLevel } from "@/content/acts";
+import { Button } from "@/components/ui/Button";
+import { CodeBlock } from "@/components/ui/CodeBlock";
+import { LevelBreadcrumb } from "@/components/ui/LevelBreadcrumb";
+import { Star, CheckCircle, ArrowRight, AlertTriangle, BookOpen } from "lucide-react";
+
+const { actId, levelId } = Astro.params;
+const starsParam = Astro.url.searchParams.get('stars');
+const stars = starsParam ? parseInt(starsParam, 10) : 3;
+
+const level = getLevel(levelId || '');
+const act = getActForLevel(levelId || '');
+const nextLevel = getNextLevel(levelId || '');
+
+if (!level || !act) {
+  return Astro.redirect('/acts');
+}
+
+const { learningContent, isCapstone } = level;
+
+// Score messaging based on stars
+const scoreMessage = stars === 3
+  ? "Perfect! You've mastered this concept."
+  : stars === 2
+    ? "Great job! You've got the basics down."
+    : "Good start! Consider revisiting this level later.";
+---
+
+<GameLayout title="Level Complete">
+  <div class="p-6">
+    <div class="max-w-2xl mx-auto">
+      {/* Breadcrumb */}
+      <LevelBreadcrumb
+        client:load
+        actId={act.id}
+        actName={act.name}
+        levelNumber={level.levelNumber}
+        currentPage="complete"
+      />
+
+      {/* Score Section */}
+      <div class="text-center mb-10">
+        <div class="inline-flex items-center justify-center w-14 h-14 rounded-full bg-success/15 mb-4">
+          <CheckCircle className="w-7 h-7 text-success" />
+        </div>
+        <h1 class="text-2xl font-bold text-foreground mb-1">
+          {isCapstone ? 'Capstone Complete!' : 'Level Complete!'}
+        </h1>
+        <p class="text-muted-foreground text-sm mb-5">{level.name}</p>
+
+        {/* Stars */}
+        <div class="inline-flex items-center gap-3 bg-card border border-border rounded-xl px-6 py-4">
+          <div class="flex gap-1">
+            {[1, 2, 3].map((i) => (
+              <Star
+                className={`w-7 h-7 ${i <= stars ? 'text-warning fill-warning' : 'text-muted'}`}
+              />
+            ))}
+          </div>
+          <div class="h-8 w-px bg-border" />
+          <div class="text-left">
+            <div class="text-lg font-bold text-foreground">{stars}/3 Stars</div>
+            <div class="text-xs text-muted-foreground">{scoreMessage}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Learning Section */}
+      {learningContent && (
+        <div class="space-y-8">
+          {/* Section Header */}
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <BookOpen className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h2 class="text-lg font-semibold text-foreground">What You Learned</h2>
+              <p class="text-sm text-muted-foreground">{learningContent.title}</p>
+            </div>
+          </div>
+
+          {/* Concept Explanation */}
+          <div class="bg-card rounded-xl border border-border p-6">
+            <p class="text-foreground leading-relaxed whitespace-pre-line">
+              {learningContent.conceptExplanation}
+            </p>
+          </div>
+
+          {/* Code Example */}
+          <div>
+            <h3 class="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-success" />
+              Here's how it looks in Rails
+            </h3>
+            <div class="rounded-xl border border-border overflow-hidden">
+              <CodeBlock client:load code={learningContent.railsCodeExample} language="ruby" />
+            </div>
+          </div>
+
+          {/* Common Mistakes */}
+          {learningContent.commonMistakes.length > 0 && (
+            <div>
+              <h3 class="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-warning" />
+                Watch out for these mistakes
+              </h3>
+              <div class="bg-warning/5 border border-warning/20 rounded-xl p-5">
+                <ul class="space-y-3">
+                  {learningContent.commonMistakes.map((mistake) => (
+                    <li class="flex items-start gap-3 text-sm">
+                      <span class="text-warning font-bold mt-0.5">×</span>
+                      <span class="text-foreground">{mistake}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Actions */}
+      <div class="mt-10 pt-6 border-t border-border">
+        {nextLevel ? (
+          <a href={`/acts/${nextLevel.actId}/${nextLevel.id}`}>
+            <Button className="w-full">
+              Continue to Next Level
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </a>
+        ) : (
+          <a href="/acts">
+            <Button className="w-full">
+              Back to All Acts
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </a>
+        )}
+      </div>
+    </div>
+  </div>
+</GameLayout>

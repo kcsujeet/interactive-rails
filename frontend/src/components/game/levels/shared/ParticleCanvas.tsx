@@ -149,7 +149,7 @@ export function ParticleCanvas({
 	className = '',
 }: ParticleCanvasProps) {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
-	const animationRef = useRef<number>();
+	const animationRef = useRef<number | undefined>(undefined);
 	const poofEffects = useRef<
 		Map<string, { x: number; y: number; progress: number }>
 	>(new Map());
