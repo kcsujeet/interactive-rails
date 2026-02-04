@@ -5,9 +5,19 @@
  * Features slots for database and frontend choices with live code preview.
  */
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Button } from '../ui/Button';
 import type { GameChoices } from './types';
+import {
+	Lightbulb,
+	Database,
+	Feather,
+	Zap,
+	Atom,
+	Cog,
+	AlertTriangle,
+	Hexagon,
+} from 'lucide-react';
 
 interface Level1StackChoiceProps {
 	onComplete: (choices: GameChoices) => void;
@@ -107,7 +117,7 @@ export function Level1StackChoice({
 				{/* Scenario */}
 				<div className="p-4 border-b border-border">
 					<div className="flex items-center gap-2 text-warning text-sm font-medium mb-2">
-						<span>💡</span>
+						<Lightbulb className="w-4 h-4" />
 						<span>Scenario</span>
 					</div>
 					<p className="text-sm text-foreground leading-relaxed">
@@ -155,7 +165,7 @@ export function Level1StackChoice({
 								color="#336791"
 								description="Production-ready relational database"
 								disabled={database === 'postgresql'}
-								icon="🐘"
+								icon={<Database className="w-5 h-5" />}
 								name="PostgreSQL"
 								onDragStart={handleDragStart}
 								type="postgresql"
@@ -164,7 +174,7 @@ export function Level1StackChoice({
 								color="#003b57"
 								description="Simple file-based database"
 								disabled={database === 'sqlite'}
-								icon="🪶"
+								icon={<Feather className="w-5 h-5" />}
 								name="SQLite"
 								onDragStart={handleDragStart}
 								type="sqlite"
@@ -184,7 +194,7 @@ export function Level1StackChoice({
 								color="#ff6b6b"
 								description="Rails-native frontend with Turbo"
 								disabled={frontend === 'hotwire'}
-								icon="⚡"
+								icon={<Zap className="w-5 h-5" />}
 								name="Hotwire/ERB"
 								onDragStart={handleDragStart}
 								type="hotwire"
@@ -193,7 +203,7 @@ export function Level1StackChoice({
 								color="#61dafb"
 								description="Modern SPA with API backend"
 								disabled={frontend === 'react'}
-								icon="⚛️"
+								icon={<Atom className="w-5 h-5" />}
 								name="React"
 								onDragStart={handleDragStart}
 								type="react"
@@ -310,7 +320,7 @@ export function Level1StackChoice({
 								onClick={handleGenerate}
 								size="lg"
 							>
-								<span>⚙️</span>
+								<Cog className="w-5 h-5" />
 								<span>GENERATE APP</span>
 							</Button>
 							{!canGenerate && (
@@ -425,7 +435,7 @@ interface PaletteItemProps {
 	name: string;
 	description: string;
 	color: string;
-	icon: string;
+	icon: ReactNode;
 	warning?: string;
 	benefit?: string;
 	disabled?: boolean;
@@ -458,8 +468,8 @@ function PaletteItem({
 			style={{ borderLeftColor: color, borderLeftWidth: 4 }}
 		>
 			<div className="flex items-start justify-between mb-1">
-				<div className="flex items-center gap-2">
-					<span>{icon}</span>
+				<div className="flex items-center gap-2" style={{ color }}>
+					{icon}
 					<span className="font-medium text-foreground">{name}</span>
 				</div>
 				<span className="text-xs text-muted-foreground uppercase">
@@ -467,8 +477,8 @@ function PaletteItem({
 				</span>
 			</div>
 			<p className="text-xs text-muted-foreground mb-1">{description}</p>
-			{warning && <p className="text-xs text-warning">⚡ {warning}</p>}
-			{benefit && <p className="text-xs text-success">⚡ {benefit}</p>}
+			{warning && <p className="text-xs text-warning flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> {warning}</p>}
+			{benefit && <p className="text-xs text-success flex items-center gap-1"><Zap className="w-3 h-3" /> {benefit}</p>}
 		</div>
 	);
 }
@@ -480,7 +490,7 @@ interface SlotProps {
 	filledInfo: {
 		name: string;
 		description: string;
-		icon: string;
+		icon: ReactNode;
 		color: string;
 	} | null;
 	onDrop: (e: React.DragEvent) => void;
@@ -522,7 +532,7 @@ function Slot({
 					}}
 				>
 					<div className="flex items-center gap-3 mb-2">
-						<span className="text-2xl">{filledInfo.icon}</span>
+						<span style={{ color: filledInfo.color }}>{filledInfo.icon}</span>
 						<div>
 							<div className="font-semibold text-foreground">
 								{filledInfo.name}
@@ -555,7 +565,7 @@ function Slot({
 			onDragOver={onDragOver}
 			onDrop={onDrop}
 		>
-			<div className="text-3xl text-muted mb-2">⬡</div>
+			<Hexagon className="w-8 h-8 text-muted mb-2" />
 			<div className="text-sm font-medium text-muted-foreground">{label}</div>
 			<div className="text-xs text-muted">{sublabel}</div>
 			<div className="text-xs text-primary mt-2">Drag & drop here</div>
@@ -569,7 +579,7 @@ function getDatabaseInfo(db: DatabaseChoice) {
 		return {
 			name: 'PostgreSQL',
 			description: 'Production-ready relational database',
-			icon: '🐘',
+			icon: <Database className="w-6 h-6" />,
 			color: '#336791',
 		};
 	}
@@ -577,7 +587,7 @@ function getDatabaseInfo(db: DatabaseChoice) {
 		return {
 			name: 'SQLite',
 			description: 'Simple file-based database',
-			icon: '🪶',
+			icon: <Feather className="w-6 h-6" />,
 			color: '#003b57',
 		};
 	}
@@ -589,7 +599,7 @@ function getFrontendInfo(fe: FrontendChoice) {
 		return {
 			name: 'Hotwire/ERB',
 			description: 'Rails-native frontend with Turbo',
-			icon: '⚡',
+			icon: <Zap className="w-6 h-6" />,
 			color: '#ff6b6b',
 		};
 	}
@@ -597,7 +607,7 @@ function getFrontendInfo(fe: FrontendChoice) {
 		return {
 			name: 'React',
 			description: 'Modern SPA with API backend',
-			icon: '⚛️',
+			icon: <Atom className="w-6 h-6" />,
 			color: '#61dafb',
 		};
 	}

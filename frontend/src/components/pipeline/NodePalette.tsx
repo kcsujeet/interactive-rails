@@ -6,16 +6,28 @@
  */
 
 import clsx from 'clsx';
-import { type DragEvent, memo, useCallback } from 'react';
+import { type DragEvent, memo, useCallback, type ReactNode } from 'react';
 import type { NodeType } from "@/stores";
 import { selectNodeUnlockLevel, useGameStore } from "@/stores";
+import {
+	Zap,
+	GitBranch,
+	Settings,
+	Package,
+	Database,
+	HardDrive,
+	Eye,
+	CheckCircle,
+	Clock,
+	Lock,
+} from 'lucide-react';
 
 interface NodeDefinition {
 	type: NodeType;
 	label: string;
 	description: string;
 	color: string;
-	icon: string;
+	icon: ReactNode;
 }
 
 const NODE_DEFINITIONS: NodeDefinition[] = [
@@ -24,63 +36,63 @@ const NODE_DEFINITIONS: NodeDefinition[] = [
 		label: 'Request',
 		description: 'Entry point for HTTP requests',
 		color: '#3b82f6',
-		icon: '⚡',
+		icon: <Zap className="w-5 h-5" />,
 	},
 	{
 		type: 'router',
 		label: 'Router',
 		description: 'Routes requests to controllers',
 		color: '#a78bfa',
-		icon: '🔀',
+		icon: <GitBranch className="w-5 h-5" />,
 	},
 	{
 		type: 'controller',
 		label: 'Controller',
 		description: 'Handles business logic',
 		color: '#10b981',
-		icon: '🎮',
+		icon: <Settings className="w-5 h-5" />,
 	},
 	{
 		type: 'model',
 		label: 'Model',
 		description: 'Data layer and associations',
 		color: '#f59e0b',
-		icon: '📦',
+		icon: <Package className="w-5 h-5" />,
 	},
 	{
 		type: 'database',
 		label: 'Database',
 		description: 'Persistent data storage',
 		color: '#ef4444',
-		icon: '🗄️',
+		icon: <Database className="w-5 h-5" />,
 	},
 	{
 		type: 'cache',
 		label: 'Cache',
 		description: 'In-memory data caching',
 		color: '#06b6d4',
-		icon: '💾',
+		icon: <HardDrive className="w-5 h-5" />,
 	},
 	{
 		type: 'view',
 		label: 'View',
 		description: 'Renders HTML/JSON responses',
 		color: '#a855f7',
-		icon: '👁️',
+		icon: <Eye className="w-5 h-5" />,
 	},
 	{
 		type: 'response',
 		label: 'Response',
 		description: 'Final HTTP response',
 		color: '#22c55e',
-		icon: '✅',
+		icon: <CheckCircle className="w-5 h-5" />,
 	},
 	{
 		type: 'background_job',
 		label: 'Background Job',
 		description: 'Async task processing',
 		color: '#9333ea',
-		icon: '⏳',
+		icon: <Clock className="w-5 h-5" />,
 	},
 ];
 
@@ -123,7 +135,7 @@ const NodePaletteItem = memo(function NodePaletteItem({
 			{!isUnlocked && (
 				<div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-lg z-10">
 					<div className="text-center">
-						<span className="text-lg">🔒</span>
+						<Lock className="w-5 h-5 mx-auto text-muted-foreground" />
 						<p className="text-xs text-muted-foreground mt-1">
 							Level {unlockLevel}
 						</p>
@@ -134,8 +146,8 @@ const NodePaletteItem = memo(function NodePaletteItem({
 			<div className="flex items-start gap-3">
 				{/* Icon with colored background */}
 				<div
-					className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-xl"
-					style={{ backgroundColor: `${node.color}20` }}
+					className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center"
+					style={{ backgroundColor: `${node.color}20`, color: node.color }}
 				>
 					{node.icon}
 				</div>

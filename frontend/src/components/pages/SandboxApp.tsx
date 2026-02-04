@@ -118,7 +118,7 @@ export function SandboxApp() {
 	return (
 		<div className="h-[calc(100vh-120px)] flex">
 			{/* Left sidebar - Node Palette */}
-			<div className="w-72 bg-card border-r border-border overflow-y-auto flex-shrink-0">
+			<div className="w-72 bg-card border-r border-border overflow-y-auto shrink-0">
 				<div className="p-4">
 					<h2 className="text-lg font-bold text-foreground mb-2">
 						Sandbox Mode
@@ -286,7 +286,7 @@ export function SandboxApp() {
 			</div>
 
 			{/* Right sidebar - Inspector/Metrics */}
-			<div className="w-80 bg-card border-l border-border overflow-y-auto flex-shrink-0">
+			<div className="w-80 bg-card border-l border-border overflow-y-auto shrink-0">
 				<div className="p-4">
 					<h2 className="text-lg font-bold text-foreground mb-4">Inspector</h2>
 

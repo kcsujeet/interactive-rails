@@ -1,7 +1,23 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { Realm } from '../../../../shared/types';
 import { getRealms } from "@/lib/api";
 import { Button } from '../ui/Button';
+import {
+	Castle,
+	BookOpen,
+	Map,
+	Settings,
+	Palette,
+	Database,
+	Zap,
+	Mail,
+	Gem,
+	Rocket,
+	Crown,
+	Lock,
+	Sword,
+	Check,
+} from 'lucide-react';
 
 interface RealmCardProps {
 	realm: Realm;
@@ -16,18 +32,18 @@ function RealmCard({ realm, index }: RealmCardProps) {
 			: 0;
 
 	// Different icons for different realms
-	const icons = [
-		'🏰',
-		'📚',
-		'🗺️',
-		'🎮',
-		'🎨',
-		'🗄️',
-		'⚡',
-		'📧',
-		'💎',
-		'🚀',
-		'👑',
+	const icons: ReactNode[] = [
+		<Castle key="castle" className="w-6 h-6" />,
+		<BookOpen key="book" className="w-6 h-6" />,
+		<Map key="map" className="w-6 h-6" />,
+		<Settings key="settings" className="w-6 h-6" />,
+		<Palette key="palette" className="w-6 h-6" />,
+		<Database key="database" className="w-6 h-6" />,
+		<Zap key="zap" className="w-6 h-6" />,
+		<Mail key="mail" className="w-6 h-6" />,
+		<Gem key="gem" className="w-6 h-6" />,
+		<Rocket key="rocket" className="w-6 h-6" />,
+		<Crown key="crown" className="w-6 h-6" />,
 	];
 
 	return (
@@ -36,7 +52,7 @@ function RealmCard({ realm, index }: RealmCardProps) {
 			href={isLocked ? '#' : `/realms/${realm.id}`}
 			onClick={(e) => isLocked && e.preventDefault()}
 		>
-			<div className="realm-icon">{isLocked ? '🔒' : icons[index] || '⚔️'}</div>
+			<div className="realm-icon">{isLocked ? <Lock className="w-6 h-6" /> : icons[index] || <Sword className="w-6 h-6" />}</div>
 			<div className="realm-info">
 				<h3 className="realm-name">{realm.name}</h3>
 				<p className="realm-desc">{realm.description}</p>
@@ -55,7 +71,7 @@ function RealmCard({ realm, index }: RealmCardProps) {
 				)}
 			</div>
 			{realm.dungeonsCompleted === realm.totalDungeons &&
-				realm.totalDungeons > 0 && <div className="realm-complete">✓</div>}
+				realm.totalDungeons > 0 && <div className="realm-complete"><Check className="w-5 h-5" /></div>}
 		</a>
 	);
 }

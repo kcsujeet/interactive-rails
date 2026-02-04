@@ -116,7 +116,7 @@ function BaseNode({
 			{/* Target Handle (input) */}
 			{showTargetHandle && (
 				<Handle
-					className="!w-3 !h-3 !bg-card !border-2 !border-border hover:!border-blue-500 hover:!scale-125 transition-all"
+					className="w-3! h-3! bg-card! border-2! border-border! hover:border-blue-500! hover:scale-125! transition-all"
 					position={Position.Left}
 					type="target"
 				/>
@@ -125,7 +125,7 @@ function BaseNode({
 			{/* Source Handle (output) */}
 			{showSourceHandle && (
 				<Handle
-					className="!w-3 !h-3 !bg-card !border-2 !border-border hover:!border-blue-500 hover:!scale-125 transition-all"
+					className="w-3! h-3! bg-card! border-2! border-border! hover:border-blue-500! hover:scale-125! transition-all"
 					position={Position.Right}
 					type="source"
 				/>
