@@ -9,7 +9,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       <a href="/" class="back-link">← Back to Home</a>
       <div class="auth-card card">
         <div class="auth-header">
-          <span class="logo-icon">🔧</span>
+          <img src="/favicon.svg" alt="RailsExpert Logo" class="logo-icon" />
           <h1>RailsExpert</h1>
           <p class="tagline">Master Rails Performance</p>
         </div>
@@ -65,9 +65,10 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   }
 
   .logo-icon {
-    font-size: 3rem;
+    width: 4rem;
+    height: 4rem;
     display: block;
-    margin-bottom: 16px;
+    margin: 0 auto 16px;
   }
 
   .auth-header h1 {

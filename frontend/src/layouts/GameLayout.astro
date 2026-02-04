@@ -15,7 +15,7 @@ const { title, fullscreen = false } = Astro.props;
     {fullscreen ? (
       <div class="game-min-header">
         <a href="/acts" class="game-min-logo">
-          <span class="game-min-icon">🔧</span>
+          <img src="/favicon.svg" alt="RailsExpert" class="game-min-icon" />
           <span>RailsExpert</span>
         </a>
       </div>
@@ -71,6 +71,7 @@ const { title, fullscreen = false } = Astro.props;
   }
 
   .game-min-icon {
-    font-size: 1rem;
+    width: 1.25rem;
+    height: 1.25rem;
   }
 </style>

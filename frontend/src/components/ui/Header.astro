@@ -5,7 +5,7 @@
 <header class="header">
   <div class="container header-content">
     <a href="/" class="logo">
-      <span class="logo-icon">🔧</span>
+      <img src="/favicon.svg" alt="RailsExpert Logo" class="logo-image" />
       <span class="logo-text">RailsExpert</span>
     </a>
 
@@ -38,9 +38,10 @@
     const user = $user.get();
 
     if (user && authContainer) {
+      const userLevel = (user as any).level || 1;
       authContainer.innerHTML = `
         <div class="user-info">
-          <span class="user-level">Lv ${user.level || 1}</span>
+          <span class="user-level">Lv ${userLevel}</span>
           <span class="username">${escapeHtml(user.username)}</span>
           <button id="logout-btn" class="btn btn-ghost btn-sm">Logout</button>
         </div>
@@ -98,8 +99,9 @@
     text-decoration: none;
   }
 
-  .logo-icon {
-    font-size: 1.25rem;
+  .logo-image {
+    width: 1.5rem;
+    height: 1.5rem;
   }
 
   .logo-text {
