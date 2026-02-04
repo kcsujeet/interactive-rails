@@ -86,7 +86,7 @@ function DataFlowEdge({
 					<div
 						className={clsx(
 							'px-2 py-1 rounded text-xs font-mono',
-							'bg-game-surface border border-game-border shadow-lg',
+							'bg-card border border-border shadow-lg',
 							'opacity-0 group-hover:opacity-100 transition-opacity',
 							selected && 'opacity-100',
 						)}

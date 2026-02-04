@@ -142,7 +142,7 @@ export function LevelMap({
 
 	return (
 		<div
-			className={`bg-game-surface/80 border border-border rounded-lg p-4 ${className}`}
+			className={`bg-card/80 border border-border rounded-lg p-4 ${className}`}
 		>
 			{/* Level header */}
 			<div className="mb-4">
@@ -280,7 +280,7 @@ export function LevelCard({
 		<Button
 			className={`
         w-full text-left p-4 rounded-lg border transition-all h-auto
-        ${isUnlocked ? 'bg-game-surface/80 border-border hover:border-primary/60 hover:bg-game-surface cursor-pointer' : 'bg-card/60 border-border cursor-not-allowed opacity-60'}
+        ${isUnlocked ? 'bg-card/80 border-border hover:border-primary/60 hover:bg-card cursor-pointer' : 'bg-card/60 border-border cursor-not-allowed opacity-60'}
       `}
 			disabled={!isUnlocked}
 			onClick={onSelect}

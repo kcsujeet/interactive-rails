@@ -109,3 +109,70 @@ bun --hot ./index.ts
 ```
 
 For more information, read the Bun API docs in `node_modules/bun-types/docs/**.mdx`.
+
+## UI Components (shadcn/ui Pattern)
+
+This project uses a shadcn/ui-style design system. Follow these strict guidelines:
+
+### Installing New Components
+
+Always use the shadcn CLI to add new UI components:
+
+```sh
+bunx shadcn@latest add button
+bunx shadcn@latest add card
+bunx shadcn@latest add badge
+bunx shadcn@latest add input
+```
+
+Never manually create UI components - use the CLI to ensure consistency with the design system.
+
+### Use Actual Components, Not Variant Functions
+
+Always use the actual UI components (`Button`, `Card`, `Badge`, etc.) instead of just the variant functions:
+
+```tsx
+// ✅ CORRECT - Use actual components
+import { Button } from "../components/ui/Button";
+import { Card } from "../components/ui/Card";
+import { Badge } from "../components/ui/Badge";
+
+<Button asChild size="xl">
+  <a href="/dashboard">Start Learning</a>
+</Button>
+
+<Card className="p-6">
+  <h3>Card content</h3>
+</Card>
+
+<Badge variant="success">Active</Badge>
+```
+
+```tsx
+// ❌ WRONG - Don't use variant functions for static markup
+import { buttonVariants } from "../components/ui/Button";
+
+<a href="/dashboard" class={buttonVariants({ size: "xl" })}>Start Learning</a>
+```
+
+### When to Use Variant Functions
+
+Only use `buttonVariants`, `cardVariants`, etc. when generating dynamic HTML via JavaScript (e.g., `innerHTML`):
+
+```tsx
+// ✅ CORRECT - Variant functions for dynamic innerHTML
+const cardClass = cardVariants({});
+container.innerHTML = `<div class="${cardClass}">Dynamic content</div>`;
+```
+
+### No Custom CSS Utility Classes
+
+- Never create custom utility classes like `.btn`, `.card`, `.input`, `.auth-card`, `.cta-btn`
+- Use Tailwind classes directly on elements or use the UI components
+- Keep `global.css` minimal: only design tokens (`@theme`), keyframes, base styles, and third-party library styles
+
+### Styling Guidelines
+
+- Use semantic color tokens: `text-foreground`, `bg-card`, `border-border`, `text-muted-foreground`
+- Use Tailwind classes directly, not custom CSS classes in `<style>` blocks
+- For Astro pages, import and use React components directly (they render statically without hydration for presentational use)

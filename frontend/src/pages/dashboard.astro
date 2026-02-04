@@ -1,31 +1,41 @@
 ---
 import GameLayout from "../layouts/GameLayout.astro";
+import { Button } from "../components/ui/Button";
+import { Card } from "../components/ui/Card";
 ---
 
 <GameLayout title="Dashboard">
-  <div class="dashboard">
-    <header class="dashboard-header">
-      <h1>Your Progress</h1>
-      <a href="/acts" class="btn btn-primary">Start Learning</a>
-    </header>
+  <div class="max-w-[1000px] mx-auto p-6">
+    <Card className="flex justify-between items-center p-5 mb-8">
+      <h1 class="text-2xl font-bold text-foreground">Your Progress</h1>
+      <Button asChild>
+        <a href="/acts">Start Learning</a>
+      </Button>
+    </Card>
 
-    <div class="dashboard-grid" id="dashboard-content">
-      <div class="loading card">
-        <span class="loading-text">Loading stats...</span>
-      </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="dashboard-content">
+      <Card className="col-span-full p-12 text-center">
+        <span class="text-sm text-muted-foreground animate-pulse">Loading stats...</span>
+      </Card>
     </div>
   </div>
 </GameLayout>
 
 <script>
   import { escapeHtml } from '../lib/utils';
+  import { cardVariants } from '../components/ui/Card';
+  import { buttonVariants } from '../components/ui/Button';
+
+  // For dynamic innerHTML, we need the class strings
+  const cardClass = cardVariants({});
+  const primaryBtnClass = buttonVariants({ variant: 'default' });
+  const secondaryBtnClass = buttonVariants({ variant: 'outline' });
 
   async function loadDashboard() {
     const container = document.getElementById('dashboard-content');
     if (!container) return;
 
     try {
-      // Use the new pipeline progress API
       const response = await fetch('/api/pipeline/progress', {
         credentials: 'include',
       });
@@ -45,78 +55,81 @@ import GameLayout from "../layouts/GameLayout.astro";
       const xpForNextLevel = progress.xpToNextLevel || Math.floor(100 * Math.pow(1.5, progress.level));
       const xpPercent = Math.round((progress.xp / xpForNextLevel) * 100);
 
-      // Format play time
       const totalMinutes = Math.floor((progress.stats?.totalPlayTime || 0) / 60);
       const playTimeText = totalMinutes < 60
         ? `${totalMinutes} min`
         : `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m`;
 
       container.innerHTML = `
-        <div class="stats-card card">
-          <h2>Player Stats</h2>
-          <div class="stat-row">
-            <span class="stat-label">Level</span>
-            <span class="stat-value level-badge">${progress.level}</span>
-          </div>
-          <div class="stat-row">
-            <span class="stat-label">Experience</span>
-            <div class="progress-bar">
-              <div class="progress-fill" style="width: ${xpPercent}%"></div>
-              <span class="progress-text">${progress.xp}/${xpForNextLevel} XP</span>
+        <div class="${cardClass} p-6">
+          <h2 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5 pb-3 border-b border-border">Player Stats</h2>
+          <div class="space-y-3">
+            <div class="flex justify-between items-center py-3 border-b border-border/50">
+              <span class="text-sm text-muted-foreground">Level</span>
+              <span class="px-4 py-1 rounded-full text-sm font-semibold bg-gradient-to-r from-primary to-cyan-400 text-primary-foreground">${progress.level}</span>
             </div>
-          </div>
-          <div class="stat-row">
-            <span class="stat-label">Current Title</span>
-            <span class="stat-value">${progress.currentTitle || 'Novice'}</span>
-          </div>
-        </div>
-
-        <div class="stats-card card">
-          <h2>Performance</h2>
-          <div class="stat-row">
-            <span class="stat-label">Levels Completed</span>
-            <span class="stat-value">${progress.stats?.levelsCompleted || progress.stats?.dungeonsCompleted || 0}</span>
-          </div>
-          <div class="stat-row">
-            <span class="stat-label">Total Stars</span>
-            <span class="stat-value stars">${progress.stats?.totalStarsEarned || 0} ★</span>
-          </div>
-          <div class="stat-row">
-            <span class="stat-label">Total Play Time</span>
-            <span class="stat-value">${playTimeText}</span>
-          </div>
-        </div>
-
-        <div class="stats-card card wide">
-          <h2>Unlocked Abilities</h2>
-          <div class="unlocks-grid">
-            <div class="unlock-category">
-              <h3>Nodes</h3>
-              <div class="unlock-tags">
-                ${(progress.unlockedNodes || []).map((n: string) => `<span class="unlock-tag node">${n}</span>`).join('')}
+            <div class="flex justify-between items-center py-3 border-b border-border/50 gap-4">
+              <span class="text-sm text-muted-foreground">Experience</span>
+              <div class="flex-1 h-6 bg-muted rounded-full overflow-hidden relative border border-border">
+                <div class="h-full bg-gradient-to-r from-primary to-cyan-400 rounded-full transition-all duration-300" style="width: ${xpPercent}%"></div>
+                <span class="absolute inset-0 flex items-center justify-center text-xs font-medium text-foreground">${progress.xp}/${xpForNextLevel} XP</span>
               </div>
             </div>
-            <div class="unlock-category">
-              <h3>Defenses</h3>
-              <div class="unlock-tags">
-                ${(progress.unlockedDefenses || []).map((d: string) => `<span class="unlock-tag defense">${d.replace('_', ' ')}</span>`).join('')}
+            <div class="flex justify-between items-center py-3">
+              <span class="text-sm text-muted-foreground">Current Title</span>
+              <span class="text-foreground font-semibold">${progress.currentTitle || 'Novice'}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="${cardClass} p-6">
+          <h2 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5 pb-3 border-b border-border">Performance</h2>
+          <div class="space-y-3">
+            <div class="flex justify-between items-center py-3 border-b border-border/50">
+              <span class="text-sm text-muted-foreground">Levels Completed</span>
+              <span class="text-foreground font-semibold">${progress.stats?.levelsCompleted || progress.stats?.dungeonsCompleted || 0}</span>
+            </div>
+            <div class="flex justify-between items-center py-3 border-b border-border/50">
+              <span class="text-sm text-muted-foreground">Total Stars</span>
+              <span class="text-warning font-semibold">${progress.stats?.totalStarsEarned || 0} ★</span>
+            </div>
+            <div class="flex justify-between items-center py-3">
+              <span class="text-sm text-muted-foreground">Total Play Time</span>
+              <span class="text-foreground font-semibold">${playTimeText}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="${cardClass} p-6 col-span-full">
+          <h2 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5 pb-3 border-b border-border">Unlocked Abilities</h2>
+          <div class="grid md:grid-cols-2 gap-6">
+            <div>
+              <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Nodes</h3>
+              <div class="flex flex-wrap gap-2">
+                ${(progress.unlockedNodes || []).map((n: string) => `<span class="px-3 py-1.5 rounded-full text-xs font-medium bg-primary/15 text-primary border border-primary/30 capitalize">${n}</span>`).join('')}
+              </div>
+            </div>
+            <div>
+              <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Defenses</h3>
+              <div class="flex flex-wrap gap-2">
+                ${(progress.unlockedDefenses || []).map((d: string) => `<span class="px-3 py-1.5 rounded-full text-xs font-medium bg-success/15 text-success border border-success/30 capitalize">${d.replace('_', ' ')}</span>`).join('')}
               </div>
             </div>
           </div>
         </div>
 
-        <div class="quick-actions card wide">
-          <h2>Quick Actions</h2>
-          <div class="actions-grid">
-            <a href="/acts" class="action-card">
-              <span class="action-icon">📚</span>
-              <span class="action-title">Acts</span>
-              <span class="action-desc">Learn Rails through 35 levels</span>
+        <div class="${cardClass} p-6 col-span-full">
+          <h2 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5 pb-3 border-b border-border">Quick Actions</h2>
+          <div class="grid md:grid-cols-2 gap-4">
+            <a href="/acts" class="${cardClass} p-6 flex flex-col items-center text-center no-underline hover:bg-accent transition-colors">
+              <span class="text-4xl mb-3">📚</span>
+              <span class="text-foreground font-semibold mb-1">Acts</span>
+              <span class="text-xs text-muted-foreground">Learn Rails through 35 levels</span>
             </a>
-            <a href="/sandbox" class="action-card">
-              <span class="action-icon">🔧</span>
-              <span class="action-title">Sandbox</span>
-              <span class="action-desc">Practice building pipelines</span>
+            <a href="/sandbox" class="${cardClass} p-6 flex flex-col items-center text-center no-underline hover:bg-accent transition-colors">
+              <span class="text-4xl mb-3">🔧</span>
+              <span class="text-foreground font-semibold mb-1">Sandbox</span>
+              <span class="text-xs text-muted-foreground">Practice building pipelines</span>
             </a>
           </div>
         </div>
@@ -127,11 +140,11 @@ import GameLayout from "../layouts/GameLayout.astro";
       const isAuthError = errorMessage.includes('Unauthorized') || errorMessage.includes('Invalid token');
 
       container.innerHTML = `
-        <div class="error card wide">
-          <p>${isAuthError ? 'Please log in to view your dashboard.' : `Error: ${escapeHtml(errorMessage)}`}</p>
+        <div class="${cardClass} col-span-full p-12 text-center">
+          <p class="text-muted-foreground mb-4">${isAuthError ? 'Please log in to view your dashboard.' : `Error: ${escapeHtml(errorMessage)}`}</p>
           ${isAuthError
-            ? '<a href="/login" class="btn btn-primary">Login</a>'
-            : '<button class="btn btn-secondary" onclick="window.location.reload()">Retry</button>'
+            ? `<a href="/login" class="${primaryBtnClass}">Login</a>`
+            : `<button class="${secondaryBtnClass}" onclick="window.location.reload()">Retry</button>`
           }
         </div>
       `;
@@ -140,252 +153,3 @@ import GameLayout from "../layouts/GameLayout.astro";
 
   loadDashboard();
 </script>
-
-<style>
-  .dashboard {
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 24px;
-  }
-
-  .dashboard-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 32px;
-    background: rgba(11, 31, 54, 0.6);
-    border: 1px solid rgba(56, 189, 248, 0.25);
-    border-radius: 16px;
-    padding: 20px 24px;
-    box-shadow: 0 24px 40px -32px rgba(3, 10, 20, 0.9);
-  }
-
-  .dashboard-header h1 {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #f3f4f6;
-    margin: 0;
-  }
-
-  .dashboard-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 24px;
-  }
-
-  :global(.stats-card) {
-    padding: 24px;
-  }
-
-  :global(.stats-card.wide),
-  :global(.card.wide) {
-    grid-column: 1 / -1;
-  }
-
-  :global(.stats-card h2),
-  :global(.quick-actions h2) {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: rgba(226, 240, 255, 0.6);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin: 0 0 20px 0;
-    padding-bottom: 12px;
-    border-bottom: 1px solid rgba(56, 189, 248, 0.2);
-  }
-
-  :global(.stat-row) {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 0;
-    border-bottom: 1px solid rgba(56, 189, 248, 0.15);
-  }
-
-  :global(.stat-row:last-child) {
-    border-bottom: none;
-  }
-
-  :global(.stat-label) {
-    font-size: 0.875rem;
-    color: rgba(226, 240, 255, 0.7);
-  }
-
-  :global(.stat-value) {
-    font-size: 1rem;
-    font-weight: 600;
-    color: #f3f4f6;
-  }
-
-  :global(.stat-value.level-badge) {
-    background: linear-gradient(135deg, #38bdf8, #22d3ee);
-    color: #05202f;
-    padding: 4px 16px;
-    border-radius: 9999px;
-    font-size: 0.875rem;
-  }
-
-  :global(.stat-value.streak) {
-    color: #f59e0b;
-  }
-
-  :global(.stat-value.stars) {
-    color: #fbbf24;
-  }
-
-  :global(.progress-bar) {
-    flex: 1;
-    height: 1.5rem;
-    background-color: rgba(3, 15, 30, 0.8);
-    border: 1px solid rgba(56, 189, 248, 0.2);
-    border-radius: 9999px;
-    overflow: hidden;
-    position: relative;
-    margin-left: 1rem;
-  }
-
-  :global(.progress-fill) {
-    height: 100%;
-    background: linear-gradient(to right, #38bdf8, #22d3ee);
-    transition: width 300ms ease-out;
-    border-radius: 9999px;
-  }
-
-  :global(.progress-text) {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: white;
-  }
-
-  :global(.unlocks-grid) {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 24px;
-  }
-
-  :global(.unlock-category h3) {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: rgba(226, 240, 255, 0.6);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 12px;
-  }
-
-  :global(.unlock-tags) {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  :global(.unlock-tag) {
-    padding: 6px 12px;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    text-transform: capitalize;
-  }
-
-  :global(.unlock-tag.node) {
-    background: rgba(56, 189, 248, 0.15);
-    color: #bae6fd;
-    border: 1px solid rgba(56, 189, 248, 0.3);
-  }
-
-  :global(.unlock-tag.defense) {
-    background: rgba(16, 185, 129, 0.15);
-    color: #a7f3d0;
-    border: 1px solid rgba(16, 185, 129, 0.3);
-  }
-
-  :global(.quick-actions) {
-    padding: 24px;
-  }
-
-  :global(.actions-grid) {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-  }
-
-  :global(.action-card) {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    padding: 24px;
-    background: rgba(3, 15, 30, 0.7);
-    border: 1px solid rgba(56, 189, 248, 0.2);
-    border-radius: 0.5rem;
-    text-decoration: none;
-    transition: all 200ms;
-  }
-
-  :global(.action-card:hover) {
-    border-color: #38bdf8;
-    transform: translateY(-2px);
-  }
-
-  :global(.action-icon) {
-    font-size: 2.5rem;
-    margin-bottom: 12px;
-  }
-
-  :global(.action-title) {
-    font-size: 1rem;
-    font-weight: 600;
-    color: #f3f4f6;
-    margin-bottom: 4px;
-  }
-
-  :global(.action-desc) {
-    font-size: 0.75rem;
-    color: rgba(226, 240, 255, 0.6);
-  }
-
-  .loading {
-    grid-column: 1 / -1;
-    text-align: center;
-    padding: 48px;
-  }
-
-  .loading-text {
-    font-size: 0.875rem;
-    color: rgba(226, 240, 255, 0.6);
-    animation: pulse 1.5s infinite;
-  }
-
-  :global(.error) {
-    text-align: center;
-    padding: 48px;
-  }
-
-  :global(.error p) {
-    margin-bottom: 16px;
-    color: rgba(226, 240, 255, 0.7);
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-  }
-
-  @media (max-width: 768px) {
-    .dashboard-grid {
-      grid-template-columns: 1fr;
-    }
-
-    :global(.achievements-grid) {
-      grid-template-columns: repeat(2, 1fr);
-    }
-
-    :global(.actions-grid) {
-      grid-template-columns: 1fr;
-    }
-  }
-</style>

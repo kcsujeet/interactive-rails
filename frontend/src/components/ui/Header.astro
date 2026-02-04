@@ -2,22 +2,21 @@
 // Header component - client-side interactivity handled by script
 ---
 
-<header class="header">
-  <div class="container header-content">
-    <a href="/" class="logo">
-      <img src="/favicon.svg" alt="RailsExpert Logo" class="logo-image" />
-      <span class="logo-text">RailsExpert</span>
+<header class="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-xl">
+  <div class="max-w-[1200px] mx-auto px-6 h-12 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-2 no-underline hover:opacity-80 transition-opacity">
+      <img src="/favicon.svg" alt="RailsExpert Logo" class="w-5 h-5" />
+      <span class="text-sm font-semibold text-foreground">RailsExpert</span>
     </a>
 
-    <nav class="nav" id="main-nav">
-      <a href="/acts" class="nav-link">Acts</a>
-      <a href="/sandbox" class="nav-link">Sandbox</a>
-      <a href="/dashboard" class="nav-link">Dashboard</a>
+    <nav class="hidden md:flex gap-0.5" id="main-nav">
+      <a href="/acts" class="text-[13px] font-medium text-muted-foreground no-underline px-3 py-1.5 rounded-md hover:text-foreground hover:bg-muted transition-all">Acts</a>
+      <a href="/sandbox" class="text-[13px] font-medium text-muted-foreground no-underline px-3 py-1.5 rounded-md hover:text-foreground hover:bg-muted transition-all">Sandbox</a>
+      <a href="/dashboard" class="text-[13px] font-medium text-muted-foreground no-underline px-3 py-1.5 rounded-md hover:text-foreground hover:bg-muted transition-all">Dashboard</a>
     </nav>
 
-    <div class="header-right" id="header-auth">
-      <!-- Populated by client-side JS -->
-      <a href="/login" class="btn btn-secondary btn-sm">Login</a>
+    <div class="flex items-center gap-3" id="header-auth">
+      <a href="/login" class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-secondary-foreground bg-secondary border border-border rounded-md no-underline hover:bg-muted transition-all">Login</a>
     </div>
   </div>
 </header>
@@ -26,13 +25,10 @@
   import { $user, initAuth, clearAuth } from '../../stores/authStore';
   import { escapeHtml } from '../../lib/utils';
 
-  // In dev, use relative URL (proxied through Astro dev server for same-origin cookies)
   const API_URL = import.meta.env.DEV ? '' : 'https://api.railsexpert.com';
 
-  // Initialize auth state from localStorage
   initAuth();
 
-  // Update header based on auth state
   function updateHeader() {
     const authContainer = document.getElementById('header-auth');
     const user = $user.get();
@@ -40,15 +36,14 @@
     if (user && authContainer) {
       const userLevel = (user as any).level || 1;
       authContainer.innerHTML = `
-        <div class="user-info">
-          <span class="user-level">Lv ${userLevel}</span>
-          <span class="username">${escapeHtml(user.username)}</span>
-          <button id="logout-btn" class="btn btn-ghost btn-sm">Logout</button>
+        <div class="flex items-center gap-2.5">
+          <span class="text-[11px] font-semibold text-primary px-2 py-0.5 bg-primary/15 rounded-md">Lv ${userLevel}</span>
+          <span class="text-[13px] font-medium text-foreground">${escapeHtml(user.username)}</span>
+          <button id="logout-btn" class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-muted-foreground bg-transparent border-0 rounded-md cursor-pointer hover:bg-muted hover:text-foreground transition-all">Logout</button>
         </div>
       `;
 
       document.getElementById('logout-btn')?.addEventListener('click', async () => {
-        // Call logout API to clear HttpOnly cookie
         try {
           await fetch(`${API_URL}/api/auth/logout`, {
             method: 'POST',
@@ -64,112 +59,5 @@
   }
 
   updateHeader();
-
-  // Listen for auth changes
   $user.subscribe(updateHeader);
 </script>
-
-<style>
-  .header {
-    background: var(--color-card);
-    border-bottom: 1px solid var(--color-border);
-    padding: 0;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
-
-  .container {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 0 24px;
-  }
-
-  .header-content {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 56px;
-  }
-
-  .logo {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    text-decoration: none;
-  }
-
-  .logo-image {
-    width: 1.5rem;
-    height: 1.5rem;
-  }
-
-  .logo-text {
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--color-foreground);
-  }
-
-  .nav {
-    display: flex;
-    gap: 4px;
-  }
-
-  .nav-link {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--color-muted-foreground);
-    text-decoration: none;
-    padding: 8px 14px;
-    border-radius: 0.375rem;
-    transition: all 150ms;
-  }
-
-  .nav-link:hover {
-    color: var(--color-foreground);
-    background: var(--color-background);
-  }
-
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  :global(.user-info) {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  :global(.user-level) {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--color-primary);
-    padding: 4px 10px;
-    background: color-mix(in oklch, var(--color-primary) 15%, transparent);
-    border: 1px solid color-mix(in oklch, var(--color-primary) 25%, transparent);
-    border-radius: 0.375rem;
-  }
-
-  :global(.username) {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--color-foreground);
-  }
-
-  .btn-sm {
-    padding: 0.5rem 1rem;
-    font-size: 0.8125rem;
-  }
-
-  @media (max-width: 768px) {
-    .nav {
-      display: none;
-    }
-
-    .logo-text {
-      font-size: 0.9375rem;
-    }
-  }
-</style>

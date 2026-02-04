@@ -1,4 +1,4 @@
-/* RailsExpert - Production Design System (Tailwind v4) */
+/* RailsExpert - Design System (Tailwind v4) */
 @import "tailwindcss";
 
 /* Google Fonts */
@@ -8,69 +8,49 @@
    THEME CONFIGURATION (Tailwind v4)
    ============================================ */
 @theme {
-  /* ========== Semantic Design Tokens ========== */
-  /* Base */
-  --color-background: #071423;
-  --color-foreground: #f3f4f6;
+  /* Background Hierarchy */
+  --color-background: #030712;
+  --color-foreground: #f1f5f9;
 
   /* Card */
-  --color-card: #0b1f36;
-  --color-card-foreground: #f3f4f6;
+  --color-card: #0a1628;
+  --color-card-foreground: #f1f5f9;
 
   /* Primary */
   --color-primary: #38bdf8;
-  --color-primary-foreground: #05202f;
+  --color-primary-foreground: #020617;
 
   /* Secondary */
-  --color-secondary: #1c3650;
-  --color-secondary-foreground: #e5f4ff;
+  --color-secondary: #0f172a;
+  --color-secondary-foreground: #e2e8f0;
 
   /* Muted */
-  --color-muted: #1c3650;
+  --color-muted: #1e293b;
   --color-muted-foreground: #94a3b8;
 
   /* Accent */
-  --color-accent: #0b1f36;
-  --color-accent-foreground: #e5f4ff;
+  --color-accent: #0f2035;
+  --color-accent-foreground: #e2e8f0;
 
   /* Destructive */
-  --color-destructive: #dc2626;
+  --color-destructive: #ef4444;
   --color-destructive-foreground: #fef2f2;
 
   /* Success */
-  --color-success: #22c55e;
-  --color-success-foreground: #052e16;
+  --color-success: #10b981;
+  --color-success-foreground: #ecfdf5;
 
   /* Warning */
   --color-warning: #f59e0b;
   --color-warning-foreground: #451a03;
 
-  /* Error */
-  --color-error: #ef4444;
-  --color-error-foreground: #fef2f2;
-
   /* Border & Input */
-  --color-border: #1c3650;
-  --color-input: #1c3650;
+  --color-border: rgba(148, 163, 184, 0.12);
+  --color-input: rgba(148, 163, 184, 0.12);
   --color-ring: #38bdf8;
 
-  /* ========== Brand Colors ========== */
-  --color-brand-50: #e6f6ff;
-  --color-brand-100: #c0e9ff;
-  --color-brand-200: #8fd8ff;
-  --color-brand-300: #5cc5ff;
-  --color-brand-400: #2bb3ff;
-  --color-brand-500: #0099e6;
-  --color-brand-600: #0077b3;
-  --color-brand-700: #005a85;
-  --color-brand-800: #003f5c;
-  --color-brand-900: #02273d;
-
-  /* ========== Game UI Colors ========== */
-  --color-game-bg: #071423;
-  --color-game-surface: #0b1f36;
-  --color-game-border: #1c3650;
-  --color-game-muted: #2e4f6a;
+  /* Elevated surface */
+  --color-elevated: #0f2035;
 
   /* Pipeline Node Colors */
   --color-node-request: #3b82f6;
@@ -80,112 +60,42 @@
   --color-node-database: #ef4444;
   --color-node-cache: #06b6d4;
   --color-node-view: #a855f7;
-  --color-node-response: #22c55e;
-  --color-node-job: #9333ea;
-
-  /* Enemy Colors */
-  --color-enemy-swarm: #ef4444;
-  --color-enemy-blob: #8b5cf6;
-  --color-enemy-chain: #f59e0b;
-  --color-enemy-wraith: #6366f1;
-  --color-enemy-spike: #dc2626;
-  --color-enemy-phantom: #0ea5e9;
-
-  /* Defense Colors */
-  --color-defense-index: #22c55e;
-  --color-defense-cache: #3b82f6;
-  --color-defense-eager: #f97316;
-  --color-defense-rate: #eab308;
-  --color-defense-worker: #a855f7;
-  --color-defense-validator: #14b8a6;
+  --color-node-response: #10b981;
+  --color-node-job: #8b5cf6;
 
   /* Fonts */
   --font-sans: "Space Grotesk", system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", monospace;
-  --font-game: "Space Grotesk", system-ui, -apple-system, sans-serif;
 
   /* Animations */
   --animate-shake: shake 0.3s ease-in-out;
   --animate-glow: glow 2s ease-in-out infinite;
   --animate-damage: damage 0.5s ease-out forwards;
   --animate-pulse-slow: pulse 3s ease-in-out infinite;
-
-  /* Transition timing */
-  --transition-fast: 150ms;
-  --transition-normal: 250ms;
-  --transition-slow: 350ms;
 }
 
 /* ============================================
    KEYFRAME ANIMATIONS
    ============================================ */
 @keyframes shake {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  25% {
-    transform: translateX(-5px);
-  }
-  75% {
-    transform: translateX(5px);
-  }
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
 }
 
 @keyframes glow {
-  0%,
-  100% {
-    box-shadow: 0 0 10px currentColor;
-  }
-  50% {
-    box-shadow: 0 0 25px currentColor, 0 0 40px currentColor;
-  }
+  0%, 100% { box-shadow: 0 0 10px currentColor; }
+  50% { box-shadow: 0 0 25px currentColor, 0 0 40px currentColor; }
 }
 
 @keyframes damage {
-  0% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-30px);
-  }
+  0% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-30px); }
 }
 
 @keyframes slideDown {
-  0% {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-slideDown {
-  animation: slideDown 0.2s ease-out forwards;
-}
-
-/* ============================================
-   LEGACY COMPATIBILITY LAYER
-   Maps old CSS variable names to new design system
-   ============================================ */
-:root {
-  /* Old variable names mapped to new values */
-  --color-bg: var(--color-game-bg);
-  --color-bg-dark: #04101d;
-  --color-bg-light: var(--color-game-surface);
-  --color-primary: #0099e6;
-  --color-secondary: #0f2a44;
-  --color-accent: #4cc9f0;
-  --color-gold: #ffd700;
-  --color-danger: #e94f64;
-  --color-text: #f0f0f0;
-  --color-text-dim: #888;
-  --font-pixel: var(--font-game);
-  --border-radius: 4px;
+  0% { opacity: 0; transform: translateY(-10px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
 
 /* ============================================
@@ -202,406 +112,52 @@ html {
 }
 
 body {
-  background-color: var(--color-game-bg);
-  color: #f3f4f6;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
   min-height: 100vh;
   font-family: var(--font-sans);
 }
 
-/* Scrollbar styling */
+/* Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-game-bg);
+  background: var(--color-background);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-game-border);
+  background: var(--color-muted);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-game-muted);
+  background: var(--color-muted-foreground);
 }
 
-/* Focus styles for accessibility */
+/* Focus */
 :focus-visible {
   outline: none;
-  ring: 2px solid #3b82f6;
-  ring-offset: 2px;
-  ring-offset-color: var(--color-game-bg);
+  box-shadow: 0 0 0 2px var(--color-ring);
 }
 
-/* Selection styling */
+/* Selection */
 ::selection {
-  background: #2563eb;
+  background: rgba(56, 189, 248, 0.3);
   color: white;
 }
 
 /* ============================================
-   UTILITY CLASSES
-   ============================================ */
-@utility text-game {
-  font-family: var(--font-game);
-}
-
-@utility text-mono {
-  font-family: var(--font-mono);
-}
-
-@utility bg-game-bg {
-  background-color: var(--color-game-bg);
-}
-
-@utility bg-game-surface {
-  background-color: var(--color-game-surface);
-}
-
-@utility border-game-border {
-  border-color: var(--color-game-border);
-}
-
-@utility text-shadow {
-  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
-}
-
-@utility text-shadow-lg {
-  text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.7);
-}
-
-@utility glow-blue {
-  box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
-}
-
-@utility glow-green {
-  box-shadow: 0 0 20px rgba(34, 197, 94, 0.5);
-}
-
-@utility glow-red {
-  box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
-}
-
-@utility glow-amber {
-  box-shadow: 0 0 20px rgba(245, 158, 11, 0.5);
-}
-
-@utility backdrop-game {
-  backdrop-filter: blur(12px);
-  background-color: rgba(11, 31, 54, 0.85);
-}
-
-@utility bg-grid {
-  background-image: linear-gradient(to right, rgba(28, 54, 80, 0.3) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(28, 54, 80, 0.3) 1px, transparent 1px);
-  background-size: 40px 40px;
-}
-
-@utility bg-dots {
-  background-image: radial-gradient(circle, rgba(28, 54, 80, 0.4) 1px, transparent 1px);
-  background-size: 20px 20px;
-}
-
-@utility scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-  &::-webkit-scrollbar {
-    display: none;
-  }
-}
-
-/* ============================================
-   COMPONENT STYLES
-   ============================================ */
-
-/* Buttons */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
-  font-weight: 500;
-  font-size: 0.875rem;
-  transition: all 150ms;
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-  &:focus-visible {
-    outline: none;
-    ring: 2px;
-    ring-offset: 2px;
-    ring-offset-color: var(--color-game-bg);
-  }
-}
-
-.btn-primary {
-  background-color: #38bdf8;
-  color: #05202f;
-  font-weight: 600;
-  &:hover:not(:disabled) {
-    background-color: #22d3ee;
-  }
-  &:active:not(:disabled) {
-    transform: scale(0.98);
-  }
-}
-
-.btn-secondary {
-  background-color: rgba(3, 15, 30, 0.7);
-  color: #e5f4ff;
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  &:hover:not(:disabled) {
-    background-color: rgba(56, 189, 248, 0.15);
-  }
-}
-
-.btn-danger {
-  background-color: #dc2626;
-  color: white;
-  &:hover:not(:disabled) {
-    background-color: #b91c1c;
-  }
-}
-
-.btn-ghost {
-  background-color: transparent;
-  color: #cbd5f5;
-  &:hover:not(:disabled) {
-    background-color: rgba(56, 189, 248, 0.12);
-  }
-}
-
-/* Modern button variants */
-.btn-pixel,
-.pixel-btn {
-  font-family: var(--font-sans);
-  font-size: 0.875rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  padding: 0.75rem 1.5rem;
-  background-color: var(--color-brand-500);
-  color: white;
-  border: none;
-  cursor: pointer;
-  position: relative;
-  transition: all 150ms ease;
-  border-radius: 0.5rem;
-  text-decoration: none;
-  display: inline-block;
-  &:hover {
-    background-color: var(--color-brand-400);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 153, 230, 0.3);
-  }
-  &:active {
-    transform: translateY(0);
-    box-shadow: none;
-  }
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-  }
-}
-
-.pixel-btn.secondary {
-  background-color: var(--color-game-surface);
-  border: 1px solid var(--color-game-border);
-  &:hover {
-    background-color: var(--color-game-muted);
-    border-color: var(--color-game-muted);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  }
-}
-
-/* Legacy pixel-panel class - modernized */
-.pixel-panel {
-  background-color: var(--color-game-surface);
-  border: 1px solid var(--color-game-border);
-  border-radius: 0.75rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-}
-
-/* Cards & Panels */
-.card {
-  background-color: var(--color-game-surface);
-  border-radius: 0.75rem;
-  border: 1px solid var(--color-game-border);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  overflow: hidden;
-}
-
-.card-header {
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid var(--color-game-border);
-}
-
-.card-body {
-  padding: 1rem 1.5rem;
-}
-
-.card-footer {
-  padding: 1rem 1.5rem;
-  border-top: 1px solid var(--color-game-border);
-  background-color: rgba(4, 16, 29, 0.5);
-}
-
-.panel {
-  background-color: var(--color-game-surface);
-  border-radius: 0.5rem;
-  border: 1px solid var(--color-game-border);
-  padding: 1rem;
-}
-
-/* Form Elements */
-.input {
-  width: 100%;
-  padding: 0.625rem 1rem;
-  border-radius: 0.5rem;
-  background-color: var(--color-game-bg);
-  border: 1px solid var(--color-game-border);
-  color: #f3f4f6;
-  transition: border-color 150ms, box-shadow 150ms;
-  &::placeholder {
-    color: #6b7280;
-  }
-  &:focus {
-    outline: none;
-    border-color: #38bdf8;
-    box-shadow: 0 0 0 1px #38bdf8;
-  }
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-}
-
-.input-error {
-  border-color: #ef4444;
-  &:focus {
-    border-color: #ef4444;
-    box-shadow: 0 0 0 1px #ef4444;
-  }
-}
-
-.label {
-  display: block;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #d1d5db;
-  margin-bottom: 0.375rem;
-}
-
-/* Badges */
-.badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.125rem 0.5rem;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-
-.badge-primary {
-  background-color: rgba(30, 58, 138, 0.5);
-  color: #93c5fd;
-  border: 1px solid #1d4ed8;
-}
-
-.badge-success {
-  background-color: rgba(20, 83, 45, 0.5);
-  color: #86efac;
-  border: 1px solid #15803d;
-}
-
-.badge-warning {
-  background-color: rgba(120, 53, 15, 0.5);
-  color: #fcd34d;
-  border: 1px solid #b45309;
-}
-
-.badge-danger {
-  background-color: rgba(127, 29, 29, 0.5);
-  color: #fca5a5;
-  border: 1px solid #b91c1c;
-}
-
-/* Progress Bars */
-.progress {
-  height: 0.5rem;
-  background-color: var(--color-game-border);
-  border-radius: 9999px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  transition: all 300ms ease-out;
-  border-radius: 9999px;
-}
-
-.progress-hp .progress-fill {
-  background-color: #ef4444;
-}
-
-.progress-xp .progress-fill {
-  background-color: #22c55e;
-}
-
-.progress-stability .progress-fill {
-  background-color: #3b82f6;
-}
-
-/* Legacy stat-bar styles */
-.stat-bar {
-  flex: 1;
-  height: 1.25rem;
-  background-color: var(--color-game-border);
-  border-radius: 0;
-  overflow: hidden;
-  position: relative;
-  margin-left: 1rem;
-}
-
-.stat-bar-fill {
-  height: 100%;
-  transition: width 300ms ease-out;
-}
-
-.stat-bar-fill.xp {
-  background-color: #22c55e;
-}
-
-.stat-bar-fill.hp {
-  background-color: #ef4444;
-}
-
-.stat-bar-text {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.625rem;
-  font-family: var(--font-game);
-  color: white;
-  text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5);
-}
-
-/* ============================================
-   REACT FLOW CUSTOM STYLES
+   REACT FLOW STYLES
    ============================================ */
 .react-flow {
-  background-color: var(--color-game-bg);
+  background-color: var(--color-background);
 }
 
 .react-flow__background {
-  background-color: var(--color-game-bg);
+  background-color: var(--color-background);
 }
 
 .react-flow__edge-path {
@@ -613,8 +169,8 @@ body {
 }
 
 .react-flow__controls {
-  background-color: var(--color-game-surface);
-  border: 1px solid var(--color-game-border);
+  background-color: var(--color-card);
+  border: 1px solid var(--color-border);
   border-radius: 0.5rem;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
@@ -622,19 +178,19 @@ body {
 .react-flow__controls-button {
   background-color: transparent;
   border: none;
-  color: #d1d5db;
+  color: var(--color-muted-foreground);
   transition: background-color 150ms, color 150ms;
-  &:hover {
-    background-color: var(--color-game-border);
-    color: white;
-  }
+}
+
+.react-flow__controls-button:hover {
+  background-color: var(--color-muted);
+  color: var(--color-foreground);
 }
 
 .react-flow__minimap {
-  background-color: var(--color-game-surface);
-  border: 1px solid var(--color-game-border);
+  background-color: var(--color-card);
+  border: 1px solid var(--color-border);
   border-radius: 0.5rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
 .react-flow__attribution {
@@ -642,122 +198,31 @@ body {
 }
 
 .react-flow__selection {
-  background-color: rgba(59, 130, 246, 0.1);
-  border: 1px solid #3b82f6;
+  background-color: rgba(56, 189, 248, 0.1);
+  border: 1px solid var(--color-primary);
 }
 
 .react-flow__handle {
   width: 12px;
   height: 12px;
-  background-color: var(--color-game-surface);
-  border: 2px solid var(--color-game-border);
+  background-color: var(--color-card);
+  border: 2px solid var(--color-border);
   transition: all 150ms;
-  &:hover {
-    border-color: #3b82f6;
-    transform: scale(1.25);
-  }
+}
+
+.react-flow__handle:hover {
+  border-color: var(--color-primary);
+  transform: scale(1.25);
 }
 
 .react-flow__handle-connecting {
-  border-color: #3b82f6;
-  background-color: #3b82f6;
+  border-color: var(--color-primary);
+  background-color: var(--color-primary);
 }
 
 .react-flow__handle-valid {
-  border-color: #22c55e;
-  background-color: #22c55e;
-}
-
-/* ============================================
-   GAME-SPECIFIC STYLES
-   ============================================ */
-
-/* Enemy sprites */
-.enemy-sprite {
-  transition: transform 200ms;
-  &:hover {
-    transform: scale(1.1);
-  }
-  &.damaged {
-    animation: shake 0.3s ease-in-out;
-  }
-}
-
-/* Defense sprites */
-.defense-sprite {
-  transition: all 200ms;
-  &.active {
-    animation: glow 2s ease-in-out infinite;
-  }
-  &.cooldown {
-    opacity: 0.5;
-  }
-}
-
-/* Health bars for enemies */
-.enemy-health-bar {
-  height: 4px;
-  background-color: #374151;
-  border-radius: 9999px;
-  overflow: hidden;
-  margin-top: 4px;
-}
-
-.enemy-health-fill {
-  height: 100%;
-  background-color: #ef4444;
-  transition: width 200ms;
-}
-
-/* Damage numbers */
-.damage-number {
-  position: absolute;
-  font-size: 0.875rem;
-  font-weight: 700;
-  pointer-events: none;
-  animation: damage 0.5s ease-out forwards;
-  &.critical {
-    color: #facc15;
-    font-size: 1.125rem;
-  }
-}
-
-/* Stability ring */
-.stability-ring {
-  position: relative;
-  width: 96px;
-  height: 96px;
-}
-
-.stability-ring svg {
-  width: 100%;
-  height: 100%;
-  transform: rotate(-90deg);
-}
-
-.stability-ring circle {
-  fill: none;
-  stroke-width: 8px;
-  transition: all 500ms;
-}
-
-.stability-ring .bg {
-  stroke: var(--color-game-border);
-}
-
-.stability-ring .fill {
-  stroke-dasharray: 251.2;
-  transition: stroke-dashoffset 0.5s ease-out;
-}
-
-.stability-ring .value {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  font-weight: 700;
+  border-color: var(--color-success);
+  background-color: var(--color-success);
 }
 
 /* ============================================

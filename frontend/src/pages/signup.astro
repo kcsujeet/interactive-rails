@@ -1,130 +1,21 @@
 ---
 import SignupForm from '../components/auth/SignupForm';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { Card } from '../components/ui/Card';
 ---
 
 <BaseLayout title="Create Account">
-  <main class="auth-page">
-    <div class="auth-container">
-      <a href="/" class="back-link">← Back to Home</a>
-      <div class="auth-card card">
-        <div class="auth-header">
-          <img src="/favicon.svg" alt="RailsExpert Logo" class="logo-icon" />
-          <h1>RailsExpert</h1>
-          <p class="tagline">Master Rails Performance</p>
+  <main class="min-h-screen flex items-center justify-center p-6 bg-background">
+    <div class="w-full max-w-[400px]">
+      <a href="/" class="inline-block text-sm text-muted-foreground hover:text-foreground transition-colors mb-4">← Back to Home</a>
+      <Card className="p-8 shadow-xl">
+        <div class="text-center mb-8">
+          <img src="/favicon.svg" alt="RailsExpert Logo" class="w-16 h-16 mx-auto mb-4" />
+          <h1 class="text-2xl font-bold text-foreground mb-2">RailsExpert</h1>
+          <p class="text-sm text-muted-foreground">Master Rails Performance</p>
         </div>
         <SignupForm client:load />
-      </div>
+      </Card>
     </div>
   </main>
 </BaseLayout>
-
-<style>
-  .auth-page {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-    background:
-      radial-gradient(circle at top right, rgba(56, 189, 248, 0.15), transparent 45%),
-      linear-gradient(rgba(56, 189, 248, 0.06) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(56, 189, 248, 0.06) 1px, transparent 1px),
-      linear-gradient(135deg, var(--color-game-bg) 0%, var(--color-game-surface) 100%);
-    background-size: 100% 100%, 24px 24px, 24px 24px, 100% 100%;
-  }
-
-  .auth-container {
-    width: 100%;
-    max-width: 400px;
-  }
-
-  .back-link {
-    display: inline-block;
-    font-size: 0.875rem;
-    color: rgba(226, 240, 255, 0.7);
-    text-decoration: none;
-    margin-bottom: 16px;
-    transition: color 0.2s;
-  }
-
-  .back-link:hover {
-    color: #7dd3fc;
-  }
-
-  .auth-card {
-    padding: 32px;
-    border: 1px solid rgba(56, 189, 248, 0.35);
-    background: rgba(11, 31, 54, 0.8);
-    box-shadow: 0 30px 60px -40px rgba(3, 10, 20, 0.9);
-  }
-
-  .auth-header {
-    text-align: center;
-    margin-bottom: 32px;
-  }
-
-  .logo-icon {
-    width: 4rem;
-    height: 4rem;
-    display: block;
-    margin: 0 auto 16px;
-  }
-
-  .auth-header h1 {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #f3f4f6;
-    margin: 0 0 8px 0;
-  }
-
-  .tagline {
-    font-size: 0.875rem;
-    color: rgba(226, 240, 255, 0.6);
-    margin: 0;
-  }
-
-  :global(.auth-form) {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  :global(.auth-form h2) {
-    text-align: center;
-    margin-bottom: 8px;
-    font-size: 1.25rem;
-    color: #e6f6ff;
-  }
-
-  :global(.form-group) {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  :global(.error-message) {
-    background: rgba(239, 68, 68, 0.15);
-    border: 1px solid #dc2626;
-    border-radius: 0.5rem;
-    padding: 12px;
-    font-size: 0.875rem;
-    color: #fca5a5;
-  }
-
-  :global(.auth-switch) {
-    text-align: center;
-    font-size: 0.875rem;
-    color: rgba(226, 240, 255, 0.7);
-    margin-top: 8px;
-  }
-
-  :global(.auth-switch a) {
-    color: #7dd3fc;
-    text-decoration: none;
-  }
-
-  :global(.auth-switch a:hover) {
-    text-decoration: underline;
-  }
-</style>

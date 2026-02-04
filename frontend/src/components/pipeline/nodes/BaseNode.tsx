@@ -39,18 +39,18 @@ function BaseNode({
 	return (
 		<div
 			className={clsx(
-				'relative min-w-[140px] rounded-lg border-2 bg-game-surface shadow-lg transition-all duration-200',
+				'relative min-w-[140px] rounded-lg border-2 bg-card shadow-lg transition-all duration-200',
 				selected
-					? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-game-bg'
+					? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-background'
 					: '',
-				status === 'error' ? 'border-red-500' : 'border-game-border',
+				status === 'error' ? 'border-red-500' : 'border-border',
 			)}
 			style={{ borderColor: selected ? color : undefined }}
 		>
 			{/* Status indicator */}
 			<div
 				className={clsx(
-					'absolute -top-1.5 -right-1.5 w-3 h-3 rounded-full border-2 border-game-surface',
+					'absolute -top-1.5 -right-1.5 w-3 h-3 rounded-full border-2 border-card',
 					statusColor,
 				)}
 				title={`Status: ${status}`}
@@ -71,7 +71,7 @@ function BaseNode({
 
 			{/* Metrics (if available) */}
 			{metrics && (
-				<div className="px-3 py-2 text-xs space-y-1 border-t border-game-border">
+				<div className="px-3 py-2 text-xs space-y-1 border-t border-border">
 					{metrics.processTime > 0 && (
 						<div className="flex justify-between">
 							<span className="text-muted-foreground">Time:</span>
@@ -116,7 +116,7 @@ function BaseNode({
 			{/* Target Handle (input) */}
 			{showTargetHandle && (
 				<Handle
-					className="!w-3 !h-3 !bg-game-surface !border-2 !border-game-border hover:!border-blue-500 hover:!scale-125 transition-all"
+					className="!w-3 !h-3 !bg-card !border-2 !border-border hover:!border-blue-500 hover:!scale-125 transition-all"
 					position={Position.Left}
 					type="target"
 				/>
@@ -125,7 +125,7 @@ function BaseNode({
 			{/* Source Handle (output) */}
 			{showSourceHandle && (
 				<Handle
-					className="!w-3 !h-3 !bg-game-surface !border-2 !border-game-border hover:!border-blue-500 hover:!scale-125 transition-all"
+					className="!w-3 !h-3 !bg-card !border-2 !border-border hover:!border-blue-500 hover:!scale-125 transition-all"
 					position={Position.Right}
 					type="source"
 				/>

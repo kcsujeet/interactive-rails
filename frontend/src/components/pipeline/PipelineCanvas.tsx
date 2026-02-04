@@ -157,7 +157,7 @@ export default function PipelineCanvas({
 			tabIndex={0}
 		>
 			<ReactFlow
-				className="bg-game-bg"
+				className="bg-background"
 				defaultEdgeOptions={{
 					type: 'smoothstep',
 					animated: true,
@@ -194,7 +194,7 @@ export default function PipelineCanvas({
 
 				{/* Controls */}
 				<Controls
-					className="!bg-game-surface !border-game-border !shadow-lg"
+					className="!bg-card !border-border !shadow-lg"
 					position="bottom-left"
 					showFitView
 					showInteractive={!isReadOnly}
@@ -203,7 +203,7 @@ export default function PipelineCanvas({
 
 				{/* Minimap */}
 				<MiniMap
-					className="!bg-game-surface !border-game-border"
+					className="!bg-card !border-border"
 					nodeColor={nodeColor}
 					nodeStrokeWidth={3}
 					pannable

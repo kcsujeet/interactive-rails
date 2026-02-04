@@ -113,15 +113,15 @@ const NodePaletteItem = memo(function NodePaletteItem({
 			className={clsx(
 				'group relative p-3 rounded-lg border-2 transition-all duration-200',
 				isUnlocked
-					? 'bg-game-surface border-game-border cursor-grab hover:border-blue-500 hover:shadow-lg active:cursor-grabbing'
-					: 'bg-game-bg/50 border-game-border/50 cursor-not-allowed opacity-60',
+					? 'bg-card border-border cursor-grab hover:border-blue-500 hover:shadow-lg active:cursor-grabbing'
+					: 'bg-background/50 border-border/50 cursor-not-allowed opacity-60',
 			)}
 			draggable={isUnlocked}
 			onDragStart={handleDragStart}
 		>
 			{/* Lock overlay */}
 			{!isUnlocked && (
-				<div className="absolute inset-0 flex items-center justify-center bg-game-bg/80 rounded-lg z-10">
+				<div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-lg z-10">
 					<div className="text-center">
 						<span className="text-lg">🔒</span>
 						<p className="text-xs text-muted-foreground mt-1">
@@ -220,12 +220,12 @@ function NodePalette({ className }: NodePaletteProps) {
 	return (
 		<div
 			className={clsx(
-				'flex flex-col h-full bg-game-surface border-r border-game-border',
+				'flex flex-col h-full bg-card border-r border-border',
 				className,
 			)}
 		>
 			{/* Header */}
-			<div className="px-4 py-3 border-b border-game-border">
+			<div className="px-4 py-3 border-b border-border">
 				<h3 className="font-semibold text-foreground">Node Palette</h3>
 				<p className="text-xs text-muted-foreground mt-1">
 					Drag nodes onto the canvas to build your pipeline
@@ -241,7 +241,7 @@ function NodePalette({ className }: NodePaletteProps) {
 			</div>
 
 			{/* Footer with level info */}
-			<div className="px-4 py-3 border-t border-game-border bg-game-bg/50">
+			<div className="px-4 py-3 border-t border-border bg-background/50">
 				<div className="flex items-center justify-between text-xs">
 					<span className="text-muted-foreground">Your Level:</span>
 					<span className="font-medium text-primary">Level {playerLevel}</span>

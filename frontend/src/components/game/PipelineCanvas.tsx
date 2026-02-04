@@ -61,7 +61,7 @@ export function PipelineCanvas({
 	return (
 		// biome-ignore lint/a11y/useKeyWithClickEvents: Canvas uses mouse interactions
 		<div
-			className={`flex-1 bg-game-bg relative overflow-hidden ${
+			className={`flex-1 bg-background relative overflow-hidden ${
 				draggedNodeType ? 'ring-2 ring-primary ring-inset' : ''
 			} ${pendingConnection ? 'cursor-crosshair' : ''}`}
 			data-canvas-bg
@@ -223,7 +223,7 @@ export function PipelineCanvas({
 			{placedNodes.length === 0 && !draggedNodeType && (
 				<div className="absolute inset-0 flex items-center justify-center pointer-events-none">
 					<div className="text-center max-w-sm">
-						<div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-game-surface border border-game-border mb-4">
+						<div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-card border border-border mb-4">
 							<svg
 								className="w-6 h-6 text-muted-foreground"
 								fill="none"
