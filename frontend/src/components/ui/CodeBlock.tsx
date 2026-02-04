@@ -20,7 +20,7 @@ export function CodeBlock({ code, language = 'ruby' }: CodeBlockProps) {
 	}, [code, language]);
 
 	return (
-		<pre className="p-5 text-sm whitespace-pre-wrap font-mono leading-relaxed overflow-x-auto !bg-transparent">
+		<pre className="p-5 text-sm whitespace-pre-wrap font-mono leading-relaxed overflow-x-auto bg-transparent!">
 			<code ref={codeRef} className={`language-${language}`}>
 				{code.trim()}
 			</code>

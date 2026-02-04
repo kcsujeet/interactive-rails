@@ -44,6 +44,15 @@ export function getLevel(levelId: string): Level | undefined {
 }
 
 /**
+ * Get a level by act ID and level number
+ */
+export function getLevelByNumber(actId: number, levelNum: number): Level | undefined {
+	const act = getAct(actId);
+	if (!act) return undefined;
+	return act.levels.find((l) => l.levelNumber === levelNum);
+}
+
+/**
  * Get all levels across all acts
  */
 export function getAllLevels(): Level[] {

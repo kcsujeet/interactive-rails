@@ -1,0 +1,13 @@
+---
+import ActDetailApp from "@/components/pages/ActDetailApp";
+import GameLayout from "@/layouts/GameLayout.astro";
+
+const { actId } = Astro.params;
+const actIdNum = parseInt(actId || '1', 10);
+---
+
+<GameLayout title="Act">
+  <div class="p-6">
+    <ActDetailApp client:load actId={actIdNum} />
+  </div>
+</GameLayout>

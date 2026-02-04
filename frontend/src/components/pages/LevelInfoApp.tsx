@@ -9,7 +9,7 @@ import { getLevel, getActForLevel } from '../../content/acts';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { levelChallenges } from '../game';
-import { Play, Target, Code } from 'lucide-react';
+import { Play, Target, Code, ChevronRight } from 'lucide-react';
 import { CodeBlock } from '../ui/CodeBlock';
 
 interface LevelInfoAppProps {
@@ -18,6 +18,7 @@ interface LevelInfoAppProps {
 
 interface LevelInfo {
 	levelNumber: number;
+	actId: number;
 	actName: string;
 	name: string;
 	description: string;
@@ -47,6 +48,7 @@ export function LevelInfoApp({ levelId }: LevelInfoAppProps) {
 		const info: LevelInfo = level
 			? {
 					levelNumber: level.levelNumber,
+					actId: act?.id || 1,
 					actName: act?.name || '',
 					name: level.name,
 					description: level.trigger.description,
@@ -58,6 +60,7 @@ export function LevelInfoApp({ levelId }: LevelInfoAppProps) {
 			: challenge
 				? {
 						levelNumber: 0,
+						actId: 1,
 						actName: '',
 						name: challenge.name,
 						description: challenge.description,
@@ -69,6 +72,7 @@ export function LevelInfoApp({ levelId }: LevelInfoAppProps) {
 					}
 				: {
 						levelNumber: 0,
+						actId: 1,
 						actName: '',
 						name: 'Unknown Level',
 						description: '',
@@ -80,7 +84,7 @@ export function LevelInfoApp({ levelId }: LevelInfoAppProps) {
 	}
 
 	function startLevel() {
-		window.location.href = `/acts/${levelId}/play`;
+		window.location.href = `/acts/${levelInfo?.actId}/${levelId}/play`;
 	}
 
 	if (loading || !levelInfo) {
@@ -93,17 +97,27 @@ export function LevelInfoApp({ levelId }: LevelInfoAppProps) {
 
 	return (
 		<div className="max-w-3xl mx-auto">
+			{/* Breadcrumb */}
+			<nav className="flex items-center gap-1.5 text-sm mb-6">
+				<a href="/acts" className="text-muted-foreground hover:text-foreground transition-colors">
+					Acts
+				</a>
+				<ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50" />
+				<a href={`/acts/${levelInfo.actId}`} className="text-muted-foreground hover:text-foreground transition-colors">
+					{levelInfo.actName}
+				</a>
+				<ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50" />
+				<span className="text-foreground font-medium">
+					Level {levelInfo.levelNumber}
+				</span>
+			</nav>
+
 			{/* Header */}
 			<div className="flex items-start gap-5 mb-8">
 				<div className="w-14 h-14 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
 					<span className="text-xl font-bold text-primary">{levelInfo.levelNumber}</span>
 				</div>
 				<div className="flex-1 min-w-0">
-					<div className="flex items-center gap-2 mb-1">
-						{levelInfo.actName && (
-							<span className="text-xs text-muted-foreground">{levelInfo.actName}</span>
-						)}
-					</div>
 					<h1 className="text-2xl font-semibold text-foreground mb-2">
 						{levelInfo.name}
 					</h1>

@@ -230,7 +230,8 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 	}
 
 	function exitLevel() {
-		window.location.href = `/acts/${levelId}`;
+		const act = getActForLevel(levelId);
+		window.location.href = `/acts/${act?.id || 1}/${levelId}`;
 	}
 
 	function checkPipeline() {
@@ -321,6 +322,7 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 				learningContent={level?.learningContent}
 				levelName={levelData?.name || ''}
 				nextLevelId={nextLevel?.id}
+				nextLevelActId={nextLevel?.actId}
 				onExit={exitLevel}
 				stars={earnedStars}
 			/>

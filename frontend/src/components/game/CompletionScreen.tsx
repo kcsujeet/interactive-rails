@@ -17,6 +17,7 @@ interface CompletionScreenProps {
 		commonMistakes: string[];
 	};
 	nextLevelId?: string;
+	nextLevelActId?: number;
 	isCapstone?: boolean;
 }
 
@@ -36,6 +37,7 @@ export function CompletionScreen(
 	const learningContent =
 		'learningContent' in props ? props.learningContent : undefined;
 	const nextLevelId = 'nextLevelId' in props ? props.nextLevelId : undefined;
+	const nextLevelActId = 'nextLevelActId' in props ? props.nextLevelActId : undefined;
 	const isCapstone = 'isCapstone' in props ? props.isCapstone : false;
 
 	return (
@@ -151,7 +153,7 @@ export function CompletionScreen(
 						<Button
 							className="w-full"
 							onClick={() => {
-								window.location.href = `/acts/${nextLevelId}`;
+								window.location.href = `/acts/${nextLevelActId}/${nextLevelId}`;
 							}}
 						>
 							Next Level
