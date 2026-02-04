@@ -1,5 +1,6 @@
 ---
 // Header component - client-side interactivity handled by script
+import { Button } from "@/components/ui/Button";
 ---
 
 <header class="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-xl">
@@ -10,13 +11,21 @@
     </a>
 
     <nav class="hidden md:flex gap-0.5" id="main-nav">
-      <a href="/acts" class="text-[13px] font-medium text-muted-foreground no-underline px-3 py-1.5 rounded-md hover:text-foreground hover:bg-muted transition-all">Acts</a>
-      <a href="/sandbox" class="text-[13px] font-medium text-muted-foreground no-underline px-3 py-1.5 rounded-md hover:text-foreground hover:bg-muted transition-all">Sandbox</a>
-      <a href="/dashboard" class="text-[13px] font-medium text-muted-foreground no-underline px-3 py-1.5 rounded-md hover:text-foreground hover:bg-muted transition-all">Dashboard</a>
+      <Button variant="ghost" size="sm" asChild>
+        <a href="/acts">Acts</a>
+      </Button>
+      <Button variant="ghost" size="sm" asChild>
+        <a href="/sandbox">Sandbox</a>
+      </Button>
+      <Button variant="ghost" size="sm" asChild>
+        <a href="/dashboard">Dashboard</a>
+      </Button>
     </nav>
 
     <div class="flex items-center gap-3" id="header-auth">
-      <a href="/login" class="inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-secondary-foreground bg-secondary border border-border rounded-md no-underline hover:bg-muted transition-all">Login</a>
+      <Button variant="secondary" size="sm" asChild>
+        <a href="/login">Login</a>
+      </Button>
     </div>
   </div>
 </header>

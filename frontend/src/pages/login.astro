@@ -2,12 +2,15 @@
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import LoginForm from "@/components/auth/LoginForm";
 import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 ---
 
 <BaseLayout title="Login">
   <main class="min-h-screen flex items-center justify-center p-6 bg-background">
     <div class="w-full max-w-[400px]">
-      <a href="/" class="inline-block text-sm text-muted-foreground hover:text-foreground transition-colors mb-4">← Back to Home</a>
+      <Button variant="link" asChild className="mb-4 px-0">
+        <a href="/">← Back to Home</a>
+      </Button>
       <Card className="p-8 shadow-xl">
         <div class="text-center mb-8">
           <img src="/favicon.svg" alt="RailsExpert Logo" class="w-16 h-16 mx-auto mb-4" />

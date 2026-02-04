@@ -18,17 +18,17 @@ import { Badge } from "@/components/ui/Badge";
             <Badge className="mb-6">New Learning Experience</Badge>
             <h1 class="text-4xl lg:text-5xl font-bold mb-6 leading-tight">
               <span class="block text-foreground">Master Rails</span>
-              <span class="block bg-gradient-to-r from-primary to-cyan-400 bg-clip-text text-transparent">Performance</span>
+              <span class="block bg-linear-to-r from-primary to-cyan-400 bg-clip-text text-transparent">Performance</span>
             </h1>
             <p class="text-lg text-muted-foreground mb-8 leading-relaxed">
               Build, debug, and optimize Rails request pipelines in an interactive simulation.
               Watch N+1 queries spawn enemies and cache hits create shields in real-time.
             </p>
             <div class="flex flex-wrap gap-4" id="hero-cta">
-              <Button asChild size="xl">
+              <Button size="xl">
                 <a href="/dashboard" id="cta-primary">Start Learning</a>
               </Button>
-              <Button asChild variant="outline" size="xl">
+              <Button variant="secondary" size="xl">
                 <a href="#how-it-works">See How It Works</a>
               </Button>
             </div>
@@ -42,7 +42,7 @@ import { Badge } from "@/components/ui/Badge";
                 <span class="w-3 h-3 rounded-full bg-success"></span>
                 <span class="ml-auto text-xs text-muted-foreground uppercase tracking-wider">Pipeline Builder</span>
               </div>
-              <div class="p-6 bg-[linear-gradient(rgba(56,189,248,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(56,189,248,0.05)_1px,transparent_1px)] bg-[size:20px_20px]">
+              <div class="p-6 bg-[linear-gradient(rgba(56,189,248,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(56,189,248,0.05)_1px,transparent_1px)] bg-size-[20px_20px]">
                 <div class="flex flex-col items-center gap-2 mb-6">
                   <div class="px-4 py-2 rounded-md text-xs font-semibold bg-primary/20 border border-primary/40 text-foreground">Request</div>
                   <div class="w-0.5 h-4 bg-border"></div>
@@ -86,22 +86,22 @@ import { Badge } from "@/components/ui/Badge";
 
         <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card className="p-6 text-center">
-            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-cyan-400 flex items-center justify-center text-lg font-bold text-white mx-auto mb-4">1</div>
+            <div class="w-12 h-12 rounded-full bg-linear-to-br from-primary to-cyan-400 flex items-center justify-center text-lg font-bold text-white mx-auto mb-4">1</div>
             <h3 class="font-semibold text-foreground mb-2">Build Pipelines</h3>
             <p class="text-sm text-muted-foreground leading-relaxed">Drag and drop Rails components to construct request pipelines. Connect routes, controllers, models, and databases.</p>
           </Card>
           <Card className="p-6 text-center">
-            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-cyan-400 flex items-center justify-center text-lg font-bold text-white mx-auto mb-4">2</div>
+            <div class="w-12 h-12 rounded-full bg-linear-to-br from-primary to-cyan-400 flex items-center justify-center text-lg font-bold text-white mx-auto mb-4">2</div>
             <h3 class="font-semibold text-foreground mb-2">Watch the Simulation</h3>
             <p class="text-sm text-muted-foreground leading-relaxed">See requests flow through your pipeline in real-time. Misconfigurations spawn enemies that attack your system stability.</p>
           </Card>
           <Card className="p-6 text-center">
-            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-cyan-400 flex items-center justify-center text-lg font-bold text-white mx-auto mb-4">3</div>
+            <div class="w-12 h-12 rounded-full bg-linear-to-br from-primary to-cyan-400 flex items-center justify-center text-lg font-bold text-white mx-auto mb-4">3</div>
             <h3 class="font-semibold text-foreground mb-2">Debug & Optimize</h3>
             <p class="text-sm text-muted-foreground leading-relaxed">Use the inspector to find N+1 queries, add indexes, implement caching, and deploy defenses to stabilize your system.</p>
           </Card>
           <Card className="p-6 text-center">
-            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-cyan-400 flex items-center justify-center text-lg font-bold text-white mx-auto mb-4">4</div>
+            <div class="w-12 h-12 rounded-full bg-linear-to-br from-primary to-cyan-400 flex items-center justify-center text-lg font-bold text-white mx-auto mb-4">4</div>
             <h3 class="font-semibold text-foreground mb-2">Complete Acts</h3>
             <p class="text-sm text-muted-foreground leading-relaxed">Progress through 35 levels across 6 acts, each teaching core Rails performance concepts. Earn stars and unlock advanced techniques.</p>
           </Card>
@@ -172,7 +172,7 @@ import { Badge } from "@/components/ui/Badge";
         <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card className="p-6">
             <div class="flex justify-between items-center mb-3">
-              <Badge variant="success" className="text-[10px]">Act I</Badge>
+              <Badge variant="success" className="text-[10px] bg-green-500/15 text-green-400 border-transparent">Act I</Badge>
               <span class="text-sm text-warning">★☆☆☆☆</span>
             </div>
             <h3 class="font-semibold text-foreground mb-2">Birth of the App</h3>
@@ -211,7 +211,7 @@ import { Badge } from "@/components/ui/Badge";
 
           <Card className="p-6">
             <div class="flex justify-between items-center mb-3">
-              <Badge variant="destructive" className="text-[10px]">Act VI</Badge>
+              <Badge variant="destructive" className="text-[10px] bg-red-500/15 text-red-200 border-transparent">Act VI</Badge>
               <span class="text-sm text-warning">★★★★★</span>
             </div>
             <h3 class="font-semibold text-foreground mb-2">Platform & Expert</h3>
@@ -226,11 +226,11 @@ import { Badge } from "@/components/ui/Badge";
     </section>
 
     <!-- CTA -->
-    <section class="py-20 bg-gradient-to-r from-primary/10 to-cyan-500/10 border-y border-border">
+    <section class="py-20 bg-linear-to-r from-primary/10 to-cyan-500/10 border-y border-border">
       <div class="max-w-[1200px] mx-auto px-6 text-center">
         <h2 class="text-3xl font-bold text-foreground mb-3">Ready to Optimize?</h2>
         <p class="text-muted-foreground mb-8">Start building pipelines and mastering Rails performance today.</p>
-        <Button asChild size="xl">
+        <Button size="xl">
           <a href="/dashboard" id="cta-bottom">Start Learning</a>
         </Button>
       </div>
@@ -245,21 +245,3 @@ import { Badge } from "@/components/ui/Badge";
   </main>
 </BaseLayout>
 
-<script>
-  const USER_KEY = 'railsexpert_user';
-  const user = localStorage.getItem(USER_KEY);
-
-  if (user) {
-    const ctaPrimary = document.getElementById('cta-primary');
-    if (ctaPrimary) {
-      ctaPrimary.href = '/dashboard';
-      ctaPrimary.textContent = 'Open Dashboard';
-    }
-
-    const ctaBottom = document.getElementById('cta-bottom');
-    if (ctaBottom) {
-      ctaBottom.href = '/dashboard';
-      ctaBottom.textContent = 'Go to Dashboard';
-    }
-  }
-</script>
