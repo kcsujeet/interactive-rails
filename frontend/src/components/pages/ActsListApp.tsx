@@ -11,7 +11,7 @@ import {
 	getTotalLevelCount,
 	isLevelUnlocked,
 } from '../../content/acts';
-import { getProgress } from '../../lib/progress';
+import { getProgress } from "@/lib/progress";
 import type { Act, Level } from '../game/types';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';

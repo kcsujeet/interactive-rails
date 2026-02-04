@@ -5,7 +5,7 @@
  * From "rails new" to hyperscale architecture
  */
 
-import type { Act, Level } from '../../components/game/types';
+import type { Act, Level } from "@/components/game/types";
 
 // Import individual act definitions
 import { actOne } from './act1-foundation';

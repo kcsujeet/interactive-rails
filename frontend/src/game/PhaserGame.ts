@@ -11,7 +11,7 @@ import type {
 	DefenseType,
 	Enemy,
 	EnemyType,
-} from '../stores/simulation';
+} from "@/stores/simulation";
 
 // ============================================
 // Configuration

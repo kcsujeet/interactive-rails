@@ -6,7 +6,7 @@
 
 import { useEffect, useState } from 'react';
 import { getActForLevel, getLevel, getNextLevel } from '../../content/acts';
-import { completeLevel as completeLevelProgress } from '../../lib/progress';
+import { completeLevel as completeLevelProgress } from "@/lib/progress";
 import {
 	BriefingScreen,
 	CompletionScreen,

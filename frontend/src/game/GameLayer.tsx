@@ -10,7 +10,7 @@ import {
 	selectActiveDefenses,
 	selectActiveEnemies,
 	useSimulationStore,
-} from '../stores';
+} from "@/stores";
 import { PhaserGameManager } from './PhaserGame';
 
 interface GameLayerProps {

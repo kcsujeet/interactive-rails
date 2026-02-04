@@ -12,7 +12,7 @@ import type {
 	PlacedNode,
 	SuccessCondition,
 	ValidationResult,
-} from '../types';
+} from "@/types";
 
 export interface UsePipelineValidationReturn {
 	isPipelineBroken: boolean;

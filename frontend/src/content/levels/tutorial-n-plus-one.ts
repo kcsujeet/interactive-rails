@@ -4,7 +4,7 @@
  * Teaches players to identify and fix N+1 query patterns using Rails eager loading.
  */
 
-import type { BossRoom, Level, Room } from '../../types/level';
+import type { BossRoom, Level, Room } from "@/types/level";
 
 const room1: Room = {
 	id: 'nplusone-observe',

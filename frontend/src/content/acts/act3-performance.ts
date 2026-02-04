@@ -5,7 +5,7 @@
  * Levels 16-21: N+1 Problem, Eager Loading, Query Optimization, Pagination, Caching, Background Jobs
  */
 
-import type { Act, Level } from '../../components/game/types';
+import type { Act, Level } from "@/components/game/types";
 
 // ============================================
 // Level 16: N+1 Problem

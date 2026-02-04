@@ -5,7 +5,7 @@ import type {
 	Defense,
 	Enemy,
 	SimulationStoreState,
-} from '../../stores/simulation';
+} from "@/stores/simulation";
 import { Button } from '../ui/Button';
 import { MetricsDisplay } from './MetricsDisplay';
 import { QueryTraceViewer } from './QueryTraceViewer';

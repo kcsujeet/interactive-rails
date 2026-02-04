@@ -10,7 +10,7 @@ import {
 	useRef,
 	useState,
 } from 'react';
-import type { Connection, PendingConnection, PlacedNode } from '../types';
+import type { Connection, PendingConnection, PlacedNode } from "@/types";
 
 export interface UsePipelineStateReturn {
 	placedNodes: PlacedNode[];

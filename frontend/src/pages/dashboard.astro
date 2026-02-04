@@ -1,7 +1,7 @@
 ---
-import GameLayout from "../layouts/GameLayout.astro";
-import { Button } from "../components/ui/Button";
-import { Card } from "../components/ui/Card";
+import GameLayout from "@/layouts/GameLayout.astro";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 ---
 
 <GameLayout title="Dashboard">
@@ -22,14 +22,12 @@ import { Card } from "../components/ui/Card";
 </GameLayout>
 
 <script>
-  import { escapeHtml } from '../lib/utils';
-  import { cardVariants } from '../components/ui/Card';
-  import { buttonVariants } from '../components/ui/Button';
+  import { escapeHtml } from "../lib/utils";
 
-  // For dynamic innerHTML, we need the class strings
-  const cardClass = cardVariants({});
-  const primaryBtnClass = buttonVariants({ variant: 'default' });
-  const secondaryBtnClass = buttonVariants({ variant: 'outline' });
+  // Tailwind classes for dynamic innerHTML (matching UI components)
+  const cardClass = "bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm";
+  const primaryBtnClass = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-colors bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2";
+  const secondaryBtnClass = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-colors border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2";
 
   async function loadDashboard() {
     const container = document.getElementById('dashboard-content');

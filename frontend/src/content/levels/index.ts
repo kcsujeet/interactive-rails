@@ -4,7 +4,7 @@
  * Exports all level definitions for the game.
  */
 
-import type { Level } from '../../types/level';
+import type { Level } from "@/types/level";
 import { tutorialCaching } from './tutorial-caching';
 import { tutorialIndexing } from './tutorial-indexing';
 import { tutorialNPlusOne } from './tutorial-n-plus-one';

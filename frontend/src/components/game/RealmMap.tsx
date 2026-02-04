@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Realm } from '../../../../shared/types';
-import { getRealms } from '../../lib/api';
+import { getRealms } from "@/lib/api";
 import { Button } from '../ui/Button';
 
 interface RealmCardProps {

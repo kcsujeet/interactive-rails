@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { signup } from '../../lib/api';
-import { hasGuestProgress, importGuestProgress } from '../../lib/progress';
-import { setAuth } from '../../stores/authStore';
+import { signup } from "@/lib/api";
+import { hasGuestProgress, importGuestProgress } from "@/lib/progress";
+import { setAuth } from "@/stores/authStore";
 import { Button } from '../ui/Button';
 import {
 	Card,

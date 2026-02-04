@@ -1,7 +1,7 @@
 // Request timeline showing waterfall diagram of request flow
 
 import { Fragment, useMemo, useState } from 'react';
-import type { NodeType } from '../../stores/pipeline';
+import type { NodeType } from "@/stores/pipeline";
 import { Button } from '../ui/Button';
 import type { QueryTrace } from './QueryTraceViewer';
 

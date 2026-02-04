@@ -7,8 +7,8 @@
 
 import clsx from 'clsx';
 import { type DragEvent, memo, useCallback } from 'react';
-import type { NodeType } from '../../stores';
-import { selectNodeUnlockLevel, useGameStore } from '../../stores';
+import type { NodeType } from "@/stores";
+import { selectNodeUnlockLevel, useGameStore } from "@/stores";
 
 interface NodeDefinition {
 	type: NodeType;

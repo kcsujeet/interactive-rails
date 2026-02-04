@@ -1,7 +1,7 @@
 // Room component showing the current room state, objectives, and entities
 
-import type { Enemy } from '../../stores/simulation';
-import type { BossRoom, Room, RoomObjective } from '../../types/level';
+import type { Enemy } from "@/stores/simulation";
+import type { BossRoom, Room, RoomObjective } from "@/types/level";
 import { EnemySprite } from './EnemySprite';
 
 // Simplified simulation state for room display

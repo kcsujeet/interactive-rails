@@ -5,7 +5,7 @@
  * Levels 32-35: Message Queues, Distributed Caching, API Gateway, Microservices (Capstone)
  */
 
-import type { Act, Level } from '../../components/game/types';
+import type { Act, Level } from "@/components/game/types";
 
 // ============================================
 // Level 32: Message Queues

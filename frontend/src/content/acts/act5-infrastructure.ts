@@ -5,7 +5,7 @@
  * Levels 27-31: Load Balancing, CDN, Rate Limiting, Connection Pooling, Zero-Downtime Deployments
  */
 
-import type { Act, Level } from '../../components/game/types';
+import type { Act, Level } from "@/components/game/types";
 
 // ============================================
 // Level 27: Load Balancing

@@ -5,7 +5,7 @@
  * Levels 22-26: External APIs, Webhooks, File Storage, Idempotency, Health Checks
  */
 
-import type { Act, Level } from '../../components/game/types';
+import type { Act, Level } from "@/components/game/types";
 
 // ============================================
 // Level 22: External APIs

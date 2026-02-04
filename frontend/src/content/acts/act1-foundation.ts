@@ -5,7 +5,7 @@
  * Levels 1-8: Stack Choice, Model, CRUD, Controller, Views, MVC Pipeline, Persistence, Associations
  */
 
-import type { Act, Level } from '../../components/game/types';
+import type { Act, Level } from "@/components/game/types";
 
 // ============================================
 // Level 1: The Stack Choice

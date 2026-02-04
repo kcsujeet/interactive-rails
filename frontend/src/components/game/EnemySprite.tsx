@@ -1,8 +1,8 @@
 // Enemy sprite rendering with animations
 
 import { useMemo } from 'react';
-import type { Enemy, EnemyType } from '../../stores/simulation';
-import { ENEMY_DEFINITIONS } from '../../types/level';
+import type { Enemy, EnemyType } from "@/stores/simulation";
+import { ENEMY_DEFINITIONS } from "@/types/level";
 
 interface EnemySpriteProps {
 	enemy: Enemy;

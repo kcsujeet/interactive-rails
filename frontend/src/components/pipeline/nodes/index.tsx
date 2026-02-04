@@ -6,7 +6,7 @@
  */
 
 import { memo } from 'react';
-import type { PipelineNodeData } from '../../../stores';
+import type { PipelineNodeData } from "@/stores";
 import BaseNode from './BaseNode';
 
 // Custom node props that React Flow passes

@@ -22,7 +22,7 @@ import type {
 	LiveMetrics,
 	PlacedNode,
 	QueryParticle,
-} from '../types';
+} from "@/types";
 
 export interface UsePipelineSimulationReturn {
 	simulationRunning: boolean;

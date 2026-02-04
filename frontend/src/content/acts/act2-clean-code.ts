@@ -5,7 +5,7 @@
  * Levels 9-15: Security, Scopes, Separation of Concerns, Service Objects, Form Objects, Authorization, View Components
  */
 
-import type { Act, Level } from '../../components/game/types';
+import type { Act, Level } from "@/components/game/types";
 
 // ============================================
 // Level 9: Security

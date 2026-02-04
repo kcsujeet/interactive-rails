@@ -13,7 +13,7 @@ import type {
 	PipelineNode,
 	Position,
 	SimulationMetrics,
-} from '../stores';
+} from "@/stores";
 
 // ============================================
 // Types

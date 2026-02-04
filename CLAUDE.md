@@ -110,6 +110,30 @@ bun --hot ./index.ts
 
 For more information, read the Bun API docs in `node_modules/bun-types/docs/**.mdx`.
 
+## Import Alias
+
+Use `@/` alias for imports from `src/`:
+
+```tsx
+// ✅ CORRECT
+import { Button } from "@/components/ui/Button";
+import { cn } from "@/lib/utils";
+
+// ❌ WRONG
+import { Button } from "../../components/ui/Button";
+```
+
+Run `bun scripts/fix-imports.ts` to automatically convert relative imports to use the alias.
+
+**Note:** Astro client-side `<script>` tags do NOT support the `@/` alias. Use relative imports there:
+
+```astro
+<script>
+  // Must use relative imports in Astro scripts
+  import { escapeHtml } from "../lib/utils";
+</script>
+```
+
 ## UI Components (shadcn/ui Pattern)
 
 This project uses a shadcn/ui-style design system. Follow these strict guidelines:
