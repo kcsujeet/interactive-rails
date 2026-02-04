@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -131,39 +132,40 @@ end`;
           ]}
           goal="Form objects handle complex forms that don't map to a single model."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Available Fields
             </div>
             <div className="space-y-2">
               {fields.filter(f => !f.inForm).map(field => (
-                <button
+                <Button
                   key={field.id}
+                  variant="outline"
                   onClick={() => toggleField(field.id)}
-                  className="w-full p-3 rounded-lg text-left border transition-all hover:border-gray-500"
+                  className="w-full p-3 h-auto rounded-lg text-left border transition-all hover:opacity-80"
                   style={{ borderColor: getModelColor(field.model), backgroundColor: `${getModelColor(field.model)}10` }}
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between w-full">
                     <span className="font-mono text-sm" style={{ color: getModelColor(field.model) }}>{field.name}</span>
-                    <span className="text-xs text-gray-500">{field.model}</span>
+                    <span className="text-xs text-muted-foreground">{field.model}</span>
                   </div>
-                </button>
+                </Button>
               ))}
               {fields.filter(f => !f.inForm).length === 0 && (
-                <div className="text-green-400 text-sm text-center py-4">All fields added!</div>
+                <div className="text-success text-sm text-center py-4">All fields added!</div>
               )}
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
+          <div className="p-4 border-t border-border">
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-400">Fields in form</span>
-              <span className={fieldsInForm.length === fields.length ? 'text-green-400' : 'text-white'}>
+              <span className="text-muted-foreground">Fields in form</span>
+              <span className={fieldsInForm.length === fields.length ? 'text-success' : 'text-foreground'}>
                 {fieldsInForm.length} / {fields.length}
               </span>
             </div>
-            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-              <div className="h-full bg-green-500 transition-all" style={{ width: `${(fieldsInForm.length / fields.length) * 100}%` }} />
+            <div className="h-2 bg-secondary rounded-full overflow-hidden">
+              <div className="h-full bg-success transition-all" style={{ width: `${(fieldsInForm.length / fields.length) * 100}%` }} />
             </div>
           </div>
         </InstructionPanel>
@@ -180,24 +182,24 @@ end`;
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-8 overflow-auto">
+        <div className="flex-1 relative bg-background p-8 overflow-auto">
           <div className="max-w-xl mx-auto">
             {/* Form Preview */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Registration Form</div>
-                <div className="text-xs text-gray-500">Creates User + Company</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Registration Form</div>
+                <div className="text-xs text-muted-foreground">Creates User + Company</div>
               </div>
 
               <div className="p-6 space-y-4">
                 {fieldsInForm.map(field => (
                   <div key={field.id} className="group relative">
-                    <label className="block text-sm text-gray-400 mb-1" style={{ color: getModelColor(field.model) }}>
+                    <label className="block text-sm text-muted-foreground mb-1" style={{ color: getModelColor(field.model) }}>
                       {field.name.replace('_', ' ')}
                       <span className="text-xs ml-2 opacity-60">({field.model})</span>
                     </label>
                     {field.type === 'select' ? (
-                      <select className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white">
+                      <select className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-foreground">
                         <option>Small (1-10)</option>
                         <option>Medium (11-50)</option>
                         <option>Large (50+)</option>
@@ -205,34 +207,36 @@ end`;
                     ) : field.type === 'checkbox' ? (
                       <label className="flex items-center gap-2">
                         <input type="checkbox" className="w-4 h-4" />
-                        <span className="text-sm text-gray-400">I accept the terms</span>
+                        <span className="text-sm text-muted-foreground">I accept the terms</span>
                       </label>
                     ) : (
                       <input
                         type={field.type}
                         placeholder={field.name}
-                        className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white"
+                        className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-foreground"
                       />
                     )}
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => toggleField(field.id)}
-                      className="absolute top-0 right-0 text-red-400 opacity-0 group-hover:opacity-100 transition-opacity text-sm"
+                      className="absolute top-0 right-0 text-destructive opacity-0 group-hover:opacity-100 transition-opacity text-sm p-0 h-auto"
                     >
                       Remove
-                    </button>
+                    </Button>
                   </div>
                 ))}
 
                 {fieldsInForm.length === 0 && (
-                  <div className="text-center py-8 text-gray-600">
+                  <div className="text-center py-8 text-muted-foreground">
                     Click fields on the left to add them
                   </div>
                 )}
 
                 {fieldsInForm.length > 0 && (
-                  <button className="w-full py-3 bg-cyan-600 text-white rounded-lg font-medium mt-4">
+                  <Button className="w-full mt-4">
                     Create Account
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
@@ -241,15 +245,15 @@ end`;
             <div className="mt-6 flex justify-center gap-6">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded" style={{ backgroundColor: '#3b82f6' }} />
-                <span className="text-xs text-gray-400">User model</span>
+                <span className="text-xs text-muted-foreground">User model</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded" style={{ backgroundColor: '#22c55e' }} />
-                <span className="text-xs text-gray-400">Company model</span>
+                <span className="text-xs text-muted-foreground">Company model</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded" style={{ backgroundColor: '#f59e0b' }} />
-                <span className="text-xs text-gray-400">Form only</span>
+                <span className="text-xs text-muted-foreground">Form only</span>
               </div>
             </div>
           </div>
@@ -266,9 +270,9 @@ end`;
           }]}
           learningGoal="Form objects aggregate data from multiple models, handle cross-model validations, and keep controllers thin."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Benefits</div>
-            <ul className="text-xs text-gray-400 space-y-1">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Benefits</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>+ One form, multiple models</li>
               <li>+ Centralized validation logic</li>
               <li>+ Reusable across controllers</li>

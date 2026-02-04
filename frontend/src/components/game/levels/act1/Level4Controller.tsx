@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -169,8 +170,8 @@ end`;
           goal="Understand that Controllers are the traffic cops of Rails - they receive requests and decide what to do."
         >
           {/* Action Palette */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Controller Actions
             </div>
             <div className="space-y-2">
@@ -184,19 +185,19 @@ end`;
                     onDragEnd={handleDragEnd}
                     className={`p-3 rounded-lg border transition-all ${
                       isUsed
-                        ? 'bg-gray-800/50 border-gray-700 opacity-50 cursor-not-allowed'
-                        : 'bg-blue-900/30 border-blue-600 cursor-grab hover:border-blue-400 active:cursor-grabbing'
+                        ? 'bg-secondary/50 border-border opacity-50 cursor-not-allowed'
+                        : 'bg-primary/10 border-primary cursor-grab hover:border-primary/70 active:cursor-grabbing'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-mono text-sm text-blue-400">{action.name}</span>
+                      <span className="font-mono text-sm text-primary">{action.name}</span>
                       {isUsed && (
-                        <svg className="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                        <svg className="w-4 h-4 text-success" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                       )}
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">{action.description}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{action.description}</div>
                   </div>
                 );
               })}
@@ -204,19 +205,19 @@ end`;
           </div>
 
           {/* Progress */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
               Progress
             </div>
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-400">Correctly matched</span>
-              <span className={correctCount === routes.length ? 'text-green-400' : 'text-white'}>
+              <span className="text-muted-foreground">Correctly matched</span>
+              <span className={correctCount === routes.length ? 'text-success' : 'text-foreground'}>
                 {correctCount} / {routes.length}
               </span>
             </div>
-            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-2 bg-secondary rounded-full overflow-hidden">
               <div
-                className="h-full bg-green-500 transition-all duration-300"
+                className="h-full bg-success transition-all duration-300"
                 style={{ width: `${(correctCount / routes.length) * 100}%` }}
               />
             </div>
@@ -235,37 +236,37 @@ end`;
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-6 overflow-auto">
+        <div className="flex-1 relative bg-background p-6 overflow-auto">
           <div className="max-w-4xl mx-auto">
             {/* Header with file paths */}
             <div className="grid grid-cols-2 gap-4 mb-2">
               <div className="text-center">
-                <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-900/30 border border-amber-600/50 rounded-lg text-xs">
-                  <span className="text-amber-400 font-mono">config/routes.rb</span>
+                <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-warning/10 border border-warning/50 rounded-lg text-xs">
+                  <span className="text-warning font-mono">config/routes.rb</span>
                 </span>
               </div>
               <div className="text-center">
-                <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-900/30 border border-blue-600/50 rounded-lg text-xs">
-                  <span className="text-blue-400 font-mono">app/controllers/posts_controller.rb</span>
+                <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 border border-primary/50 rounded-lg text-xs">
+                  <span className="text-primary font-mono">app/controllers/posts_controller.rb</span>
                 </span>
               </div>
             </div>
 
             {/* Two-column route → controller mapping */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
               {/* Column Headers */}
-              <div className="grid grid-cols-2 bg-gray-800 border-b border-gray-700">
-                <div className="px-4 py-3 border-r border-gray-700">
-                  <span className="text-white font-semibold">HTTP Routes</span>
+              <div className="grid grid-cols-2 bg-secondary border-b border-border">
+                <div className="px-4 py-3 border-r border-border">
+                  <span className="text-foreground font-semibold">HTTP Routes</span>
                 </div>
                 <div className="px-4 py-3 flex items-center gap-2">
-                  <span className="w-6 h-6 rounded bg-blue-600 flex items-center justify-center text-white font-bold text-xs">C</span>
-                  <span className="text-white font-semibold">PostsController</span>
+                  <span className="w-6 h-6 rounded bg-primary flex items-center justify-center text-foreground font-bold text-xs">C</span>
+                  <span className="text-foreground font-semibold">PostsController</span>
                 </div>
               </div>
 
               {/* Route → Action rows */}
-              <div className="divide-y divide-gray-800">
+              <div className="divide-y divide-border">
                 {routes.map(route => {
                   const isCorrect = route.action === route.correctAction;
                   const assignedAction = ACTIONS.find(a => a.id === route.action);
@@ -283,8 +284,8 @@ end`;
                         }}
                         onDragLeave={() => setDragOverRoute(null)}
                         onDrop={() => handleDrop(route.id)}
-                        className={`p-4 flex items-center gap-3 border-r border-gray-700 transition-colors ${
-                          dragOverRoute === route.id ? 'bg-blue-900/20' : ''
+                        className={`p-4 flex items-center gap-3 border-r border-border transition-colors ${
+                          dragOverRoute === route.id ? 'bg-primary/10' : ''
                         }`}
                       >
                         {/* HTTP Method */}
@@ -299,10 +300,10 @@ end`;
                         </span>
 
                         {/* Path */}
-                        <span className="font-mono text-sm text-gray-300">{route.path}</span>
+                        <span className="font-mono text-sm text-muted-foreground">{route.path}</span>
 
                         {/* Arrow */}
-                        <svg className="w-5 h-5 text-gray-600 shrink-0 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5 text-muted-foreground shrink-0 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                         </svg>
 
@@ -311,27 +312,29 @@ end`;
                           <div
                             className={`flex items-center gap-2 px-2 py-1 rounded border shrink-0 ${
                               isCorrect
-                                ? 'bg-green-900/30 border-green-600'
-                                : 'bg-red-900/30 border-red-600'
+                                ? 'bg-success/10 border-success'
+                                : 'bg-destructive/10 border-destructive'
                             }`}
                           >
-                            <span className={`font-mono text-xs ${isCorrect ? 'text-green-400' : 'text-red-400'}`}>
+                            <span className={`font-mono text-xs ${isCorrect ? 'text-success' : 'text-destructive'}`}>
                               #{assignedAction?.name}
                             </span>
-                            <button
+                            <Button
                               onClick={() => clearRoute(route.id)}
-                              className="text-gray-400 hover:text-white transition-colors"
+                              variant="ghost"
+                              size="icon"
+                              className="w-4 h-4 p-0"
                             >
                               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                               </svg>
-                            </button>
+                            </Button>
                           </div>
                         ) : (
                           <div className={`px-3 py-1 rounded border-2 border-dashed text-xs shrink-0 ${
                             dragOverRoute === route.id
-                              ? 'border-blue-500 text-blue-400'
-                              : 'border-gray-600 text-gray-500'
+                              ? 'border-primary text-primary'
+                              : 'border-border text-muted-foreground'
                           }`}>
                             drop
                           </div>
@@ -342,29 +345,29 @@ end`;
                       <div className={`p-4 transition-all ${
                         route.action
                           ? isCorrect
-                            ? 'bg-green-900/10'
-                            : 'bg-red-900/10'
-                          : 'bg-gray-900/50'
+                            ? 'bg-success/5'
+                            : 'bg-destructive/5'
+                          : 'bg-card/50'
                       }`}>
                         {route.action && assignedAction ? (
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <span className={`font-mono text-sm font-semibold ${isCorrect ? 'text-green-400' : 'text-red-400'}`}>
+                              <span className={`font-mono text-sm font-semibold ${isCorrect ? 'text-success' : 'text-destructive'}`}>
                                 def {assignedAction.name}
                               </span>
                               {isCorrect && (
-                                <svg className="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                <svg className="w-4 h-4 text-success" fill="currentColor" viewBox="0 0 20 20">
                                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                 </svg>
                               )}
                             </div>
-                            <code className="text-xs text-gray-400 font-mono pl-4 block">
+                            <code className="text-xs text-muted-foreground font-mono pl-4 block">
                               {assignedAction.code}
                             </code>
-                            <span className="text-xs text-gray-600 font-mono pl-4 block">end</span>
+                            <span className="text-xs text-muted-foreground font-mono pl-4 block">end</span>
                           </div>
                         ) : (
-                          <div className="text-gray-600 text-sm italic">
+                          <div className="text-muted-foreground text-sm italic">
                             No action mapped
                           </div>
                         )}
@@ -376,7 +379,7 @@ end`;
             </div>
 
             {/* Hint */}
-            <div className="mt-4 text-center text-gray-500 text-sm">
+            <div className="mt-4 text-center text-muted-foreground text-sm">
               Drag actions from the left panel to map each route to its controller action
             </div>
           </div>
@@ -401,16 +404,16 @@ end`;
           ]}
           learningGoal="Controllers are the C in MVC. They receive HTTP requests, interact with models, and prepare data for views."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
               RESTful Actions
             </div>
-            <div className="text-xs text-gray-400 space-y-1">
-              <div><span className="text-green-400">index</span> - List all</div>
-              <div><span className="text-green-400">show</span> - Display one</div>
-              <div><span className="text-blue-400">create</span> - Make new</div>
-              <div><span className="text-amber-400">update</span> - Modify</div>
-              <div><span className="text-red-400">destroy</span> - Delete</div>
+            <div className="text-xs text-muted-foreground space-y-1">
+              <div><span className="text-success">index</span> - List all</div>
+              <div><span className="text-success">show</span> - Display one</div>
+              <div><span className="text-primary">create</span> - Make new</div>
+              <div><span className="text-warning">update</span> - Modify</div>
+              <div><span className="text-destructive">destroy</span> - Delete</div>
             </div>
           </div>
         </CodePreviewPanel>

@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -104,30 +105,30 @@ export function Level22Sharding({ onComplete, onExit }: LevelComponentProps) {
           ]}
           goal="Learn horizontal database sharding for massive scale."
         >
-          <div className="p-4 border-t border-gray-800">
-            <button
+          <div className="p-4 border-t border-border">
+            <Button
               onClick={() => setShardingEnabled(true)}
               disabled={shardingEnabled}
-              className={`w-full py-3 rounded-lg font-medium transition-colors ${
+              className={`w-full py-3 ${
                 shardingEnabled
-                  ? 'bg-green-600 text-white cursor-default'
-                  : 'bg-cyan-600 hover:bg-cyan-500 text-white'
+                  ? 'bg-success text-success-foreground cursor-default'
+                  : ''
               }`}
             >
               {shardingEnabled ? 'Sharding Enabled' : 'Enable Sharding'}
-            </button>
+            </Button>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Tenant Distribution
             </div>
             <div className="space-y-2 text-sm">
               {tenants.map(t => (
                 <div key={t.id} className="flex items-center justify-between">
-                  <span className="text-gray-300">{t.name}</span>
+                  <span className="text-foreground">{t.name}</span>
                   <span className={`text-xs px-2 py-0.5 rounded ${
-                    t.shard === 0 ? 'bg-purple-900/50 text-purple-400' : 'bg-teal-900/50 text-teal-400'
+                    t.shard === 0 ? 'bg-primary/30 text-primary' : 'bg-success/30 text-success'
                   }`}>
                     Shard {t.shard}
                   </span>
@@ -136,11 +137,11 @@ export function Level22Sharding({ onComplete, onExit }: LevelComponentProps) {
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
               Total Records
             </div>
-            <div className="text-2xl font-bold text-white">
+            <div className="text-2xl font-bold text-foreground">
               {(totalRecords / 1000000).toFixed(1)}M
             </div>
           </div>
@@ -162,19 +163,19 @@ export function Level22Sharding({ onComplete, onExit }: LevelComponentProps) {
           }}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-8">
+        <div className="flex-1 relative bg-background p-8">
           {/* Architecture */}
           <div className="flex justify-center gap-8 mb-8">
             {/* App + Router */}
             <div className="flex flex-col items-center gap-4">
-              <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 w-32 text-center">
+              <div className="bg-card border border-border rounded-xl p-4 w-32 text-center">
                 <div className="text-2xl mb-2">A</div>
-                <div className="text-gray-400 text-sm">App</div>
+                <div className="text-muted-foreground text-sm">App</div>
               </div>
               {shardingEnabled && (
-                <div className="bg-cyan-900/40 border border-cyan-600 rounded-lg px-4 py-2">
-                  <div className="text-cyan-400 text-xs">Shard Router</div>
-                  <div className="text-cyan-300 text-xs mt-1">tenant_id % 2</div>
+                <div className="bg-primary/20 border border-primary rounded-lg px-4 py-2">
+                  <div className="text-primary text-xs">Shard Router</div>
+                  <div className="text-primary/80 text-xs mt-1">tenant_id % 2</div>
                 </div>
               )}
             </div>
@@ -184,85 +185,85 @@ export function Level22Sharding({ onComplete, onExit }: LevelComponentProps) {
               <div className="flex gap-4">
                 {/* Shard 0 */}
                 <div className={`border rounded-xl p-4 w-44 transition-colors ${
-                  shard0Load > 80 ? 'bg-red-900/40 border-red-500' :
-                  shard0Load > 60 ? 'bg-yellow-900/40 border-yellow-500' :
-                  'bg-purple-900/30 border-purple-600'
+                  shard0Load > 80 ? 'bg-destructive/20 border-destructive' :
+                  shard0Load > 60 ? 'bg-warning/20 border-warning' :
+                  'bg-primary/20 border-primary'
                 }`}>
-                  <div className="text-purple-400 font-medium mb-2">Shard 0</div>
-                  <div className="text-xs text-gray-400 mb-2">7M records</div>
-                  <div className="bg-gray-700 rounded-full h-3 overflow-hidden">
+                  <div className="text-primary font-medium mb-2">Shard 0</div>
+                  <div className="text-xs text-muted-foreground mb-2">7M records</div>
+                  <div className="bg-secondary rounded-full h-3 overflow-hidden">
                     <div
                       className={`h-full transition-all ${
-                        shard0Load > 80 ? 'bg-red-500' :
-                        shard0Load > 60 ? 'bg-yellow-500' :
-                        'bg-purple-500'
+                        shard0Load > 80 ? 'bg-destructive' :
+                        shard0Load > 60 ? 'bg-warning' :
+                        'bg-primary'
                       }`}
                       style={{ width: `${shard0Load}%` }}
                     />
                   </div>
-                  <div className="text-xs text-gray-500 mt-1">CPU: {Math.round(shard0Load)}%</div>
+                  <div className="text-xs text-muted-foreground mt-1">CPU: {Math.round(shard0Load)}%</div>
                 </div>
 
                 {/* Shard 1 */}
                 <div className={`border rounded-xl p-4 w-44 transition-colors ${
-                  shard1Load > 80 ? 'bg-red-900/40 border-red-500' :
-                  shard1Load > 60 ? 'bg-yellow-900/40 border-yellow-500' :
-                  'bg-teal-900/30 border-teal-600'
+                  shard1Load > 80 ? 'bg-destructive/20 border-destructive' :
+                  shard1Load > 60 ? 'bg-warning/20 border-warning' :
+                  'bg-success/20 border-success'
                 }`}>
-                  <div className="text-teal-400 font-medium mb-2">Shard 1</div>
-                  <div className="text-xs text-gray-400 mb-2">7M records</div>
-                  <div className="bg-gray-700 rounded-full h-3 overflow-hidden">
+                  <div className="text-success font-medium mb-2">Shard 1</div>
+                  <div className="text-xs text-muted-foreground mb-2">7M records</div>
+                  <div className="bg-secondary rounded-full h-3 overflow-hidden">
                     <div
                       className={`h-full transition-all ${
-                        shard1Load > 80 ? 'bg-red-500' :
-                        shard1Load > 60 ? 'bg-yellow-500' :
-                        'bg-teal-500'
+                        shard1Load > 80 ? 'bg-destructive' :
+                        shard1Load > 60 ? 'bg-warning' :
+                        'bg-success'
                       }`}
                       style={{ width: `${shard1Load}%` }}
                     />
                   </div>
-                  <div className="text-xs text-gray-500 mt-1">CPU: {Math.round(shard1Load)}%</div>
+                  <div className="text-xs text-muted-foreground mt-1">CPU: {Math.round(shard1Load)}%</div>
                 </div>
               </div>
             ) : (
               <div className={`border rounded-xl p-6 w-56 transition-colors ${
-                singleDbLoad > 80 ? 'bg-red-900/40 border-red-500' :
-                singleDbLoad > 60 ? 'bg-yellow-900/40 border-yellow-500' :
-                'bg-gray-800 border-gray-700'
+                singleDbLoad > 80 ? 'bg-destructive/20 border-destructive' :
+                singleDbLoad > 60 ? 'bg-warning/20 border-warning' :
+                'bg-card border-border'
               }`}>
                 <div className={`font-medium mb-2 ${
-                  singleDbLoad > 80 ? 'text-red-400' : 'text-gray-300'
+                  singleDbLoad > 80 ? 'text-destructive' : 'text-foreground'
                 }`}>
                   Single Database
                 </div>
-                <div className="text-xs text-gray-400 mb-2">14M records</div>
-                <div className="bg-gray-700 rounded-full h-4 overflow-hidden">
+                <div className="text-xs text-muted-foreground mb-2">14M records</div>
+                <div className="bg-secondary rounded-full h-4 overflow-hidden">
                   <div
                     className={`h-full transition-all ${
-                      singleDbLoad > 80 ? 'bg-red-500' :
-                      singleDbLoad > 60 ? 'bg-yellow-500' :
-                      'bg-green-500'
+                      singleDbLoad > 80 ? 'bg-destructive' :
+                      singleDbLoad > 60 ? 'bg-warning' :
+                      'bg-success'
                     }`}
                     style={{ width: `${singleDbLoad}%` }}
                   />
                 </div>
-                <div className="text-xs text-gray-500 mt-1">CPU: {Math.round(singleDbLoad)}%</div>
+                <div className="text-xs text-muted-foreground mt-1">CPU: {Math.round(singleDbLoad)}%</div>
                 {singleDbLoad > 80 && (
-                  <div className="text-red-400 text-xs mt-2">Overloaded!</div>
+                  <div className="text-destructive text-xs mt-2">Overloaded!</div>
                 )}
               </div>
             )}
           </div>
 
           {/* Query Stream */}
-          <div className="bg-gray-900 rounded-xl p-4 max-w-xl mx-auto">
-            <div className="text-gray-400 text-xs uppercase tracking-wider mb-3">Query Routing</div>
+          <div className="bg-card rounded-xl p-4 max-w-xl mx-auto">
+            <div className="text-muted-foreground text-xs uppercase tracking-wider mb-3">Query Routing</div>
             <div className="space-y-2 max-h-40 overflow-y-auto">
               {queries.map(q => (
                 <div key={q.id} className="flex items-center justify-between text-sm">
-                  <span className="text-gray-300">{q.tenant}</span>
+                  <span className="text-foreground">{q.tenant}</span>
                   <span className={`text-xs px-2 py-0.5 rounded ${
-                    q.shard === 0 ? 'bg-purple-900/50 text-purple-400' : 'bg-teal-900/50 text-teal-400'
+                    q.shard === 0 ? 'bg-primary/30 text-primary' : 'bg-success/30 text-success'
                   }`}>
                     → Shard {q.shard}
                   </span>
@@ -274,12 +275,12 @@ export function Level22Sharding({ onComplete, onExit }: LevelComponentProps) {
           {/* Completion button */}
           {isComplete && (
             <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
-              <button
+              <Button
                 onClick={handleComplete}
-                className="px-8 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white font-bold rounded-lg shadow-lg"
+                className="px-8 py-3 bg-gradient-to-r from-success to-success/80 text-success-foreground font-bold shadow-lg"
               >
                 Complete Level
-              </button>
+              </Button>
             </div>
           )}
         </div>

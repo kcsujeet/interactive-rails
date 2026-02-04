@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -142,40 +143,37 @@ export function Level19EventDriven({ onComplete, onExit }: LevelComponentProps) 
           ]}
           goal="Learn event-driven architecture for loose coupling between services."
         >
-          <div className="p-4 border-t border-gray-800">
-            <button
+          <div className="p-4 border-t border-border">
+            <Button
               onClick={() => setEventBusEnabled(true)}
               disabled={eventBusEnabled}
-              className={`w-full py-3 rounded-lg font-medium transition-colors ${
+              className={`w-full py-3 ${
                 eventBusEnabled
-                  ? 'bg-green-600 text-white cursor-default'
-                  : 'bg-cyan-600 hover:bg-cyan-500 text-white'
+                  ? 'bg-success text-success-foreground cursor-default'
+                  : ''
               }`}
             >
               {eventBusEnabled ? 'Event Bus Enabled' : 'Enable Event Bus'}
-            </button>
+            </Button>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <button
+          <div className="p-4 border-t border-border">
+            <Button
               onClick={processOrder}
               disabled={isProcessing}
-              className={`w-full py-3 rounded-lg font-medium transition-colors ${
-                isProcessing
-                  ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                  : 'bg-purple-600 hover:bg-purple-500 text-white'
-              }`}
+              variant="secondary"
+              className="w-full py-3"
             >
               {isProcessing ? 'Processing...' : 'Place Order'}
-            </button>
+            </Button>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Architecture
             </div>
             <div className={`text-sm p-3 rounded-lg ${
-              eventBusEnabled ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'
+              eventBusEnabled ? 'bg-success/20 text-success' : 'bg-destructive/20 text-destructive'
             }`}>
               {eventBusEnabled ? (
                 <div>Pub/Sub - Loosely coupled</div>
@@ -212,24 +210,24 @@ export function Level19EventDriven({ onComplete, onExit }: LevelComponentProps) 
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-8">
+        <div className="flex-1 relative bg-background p-8">
           {/* Architecture Visualization */}
           <div className="flex flex-col items-center">
             {/* Checkout */}
-            <div className="bg-purple-900/40 border border-purple-600 rounded-xl p-4 w-48 text-center mb-6">
-              <div className="text-purple-400 font-medium">Checkout Service</div>
-              <div className="text-purple-300 text-xs mt-1">Orders #{orderCount}</div>
+            <div className="bg-secondary border border-border rounded-xl p-4 w-48 text-center mb-6">
+              <div className="text-primary font-medium">Checkout Service</div>
+              <div className="text-muted-foreground text-xs mt-1">Orders #{orderCount}</div>
             </div>
 
             {/* Connection visualization */}
             {eventBusEnabled ? (
               /* Event Bus */
               <div className="relative mb-6">
-                <div className="bg-cyan-900/40 border border-cyan-600 rounded-full px-6 py-2">
-                  <span className="text-cyan-400 text-sm">Event Bus</span>
+                <div className="bg-primary/20 border border-primary rounded-full px-6 py-2">
+                  <span className="text-primary text-sm">Event Bus</span>
                 </div>
                 {events.length > 0 && events[events.length - 1] && (
-                  <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-cyan-800 text-cyan-200 text-xs px-2 py-1 rounded whitespace-nowrap">
+                  <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-primary/30 text-primary text-xs px-2 py-1 rounded whitespace-nowrap">
                     {events[events.length - 1].type}
                   </div>
                 )}
@@ -237,10 +235,10 @@ export function Level19EventDriven({ onComplete, onExit }: LevelComponentProps) 
             ) : (
               /* Direct arrows */
               <div className="h-12 flex items-center">
-                <svg className="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-8 h-8 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                 </svg>
-                <span className="text-red-400 text-xs ml-2">Direct calls (sequential)</span>
+                <span className="text-destructive text-xs ml-2">Direct calls (sequential)</span>
               </div>
             )}
 
@@ -250,22 +248,22 @@ export function Level19EventDriven({ onComplete, onExit }: LevelComponentProps) 
                 <div
                   key={service.id}
                   className={`border rounded-xl p-4 w-40 text-center transition-all ${
-                    service.status === 'idle' ? 'bg-gray-800 border-gray-700' :
-                    service.status === 'processing' ? 'bg-yellow-900/40 border-yellow-500' :
-                    'bg-green-900/40 border-green-500'
+                    service.status === 'idle' ? 'bg-card border-border' :
+                    service.status === 'processing' ? 'bg-warning/20 border-warning' :
+                    'bg-success/20 border-success'
                   }`}
                 >
                   <div className={`text-sm font-medium ${
-                    service.status === 'idle' ? 'text-gray-400' :
-                    service.status === 'processing' ? 'text-yellow-400' :
-                    'text-green-400'
+                    service.status === 'idle' ? 'text-muted-foreground' :
+                    service.status === 'processing' ? 'text-warning' :
+                    'text-success'
                   }`}>
                     {service.name}
                   </div>
                   <div className="text-xs mt-1">
-                    {service.status === 'idle' && <span className="text-gray-500">Waiting</span>}
-                    {service.status === 'processing' && <span className="text-yellow-400">Processing...</span>}
-                    {service.status === 'done' && <span className="text-green-400">Done</span>}
+                    {service.status === 'idle' && <span className="text-muted-foreground">Waiting</span>}
+                    {service.status === 'processing' && <span className="text-warning">Processing...</span>}
+                    {service.status === 'done' && <span className="text-success">Done</span>}
                   </div>
                 </div>
               ))}

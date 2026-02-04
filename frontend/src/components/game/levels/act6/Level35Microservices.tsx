@@ -130,7 +130,7 @@ export function Level35Microservices({ onComplete, onExit }: LevelComponentProps
     <LevelLayout>
       <LeftPanel>
         <InstructionPanel
-          scenario="🎓 CAPSTONE LEVEL: Your monolith has grown into a beast. Different teams stepping on each other, deployments are risky, and scaling is impossible. Time for the Strangler Fig pattern!"
+          scenario="CAPSTONE LEVEL: Your monolith has grown into a beast. Different teams stepping on each other, deployments are risky, and scaling is impossible. Time for the Strangler Fig pattern!"
           instructions={[
             '1. Identify bounded contexts (domains)',
             '2. Extract services with no/few dependencies first',
@@ -140,12 +140,12 @@ export function Level35Microservices({ onComplete, onExit }: LevelComponentProps
           goal="Successfully decompose the monolith into microservices following proper extraction order."
         >
           {/* Extraction Order */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Extraction Order
             </div>
             {extractionOrder.length === 0 ? (
-              <div className="text-xs text-gray-600 text-center py-2">
+              <div className="text-xs text-muted-foreground text-center py-2">
                 No services extracted yet
               </div>
             ) : (
@@ -158,7 +158,7 @@ export function Level35Microservices({ onComplete, onExit }: LevelComponentProps
                       className="flex items-center gap-2 text-xs p-2 rounded"
                       style={{ backgroundColor: `${domain?.color}20` }}
                     >
-                      <span className="text-gray-500">{index + 1}.</span>
+                      <span className="text-muted-foreground">{index + 1}.</span>
                       <span>{domain?.icon}</span>
                       <span style={{ color: domain?.color }}>{domain?.name}</span>
                     </div>
@@ -168,8 +168,8 @@ export function Level35Microservices({ onComplete, onExit }: LevelComponentProps
             )}
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
+          <div className="p-4 border-t border-border">
+            <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
               <input
                 type="checkbox"
                 checked={showDependencies}
@@ -180,16 +180,16 @@ export function Level35Microservices({ onComplete, onExit }: LevelComponentProps
             </label>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
+          <div className="p-4 border-t border-border">
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-400">Services extracted</span>
-              <span className={extractedCount >= 3 ? 'text-green-400' : 'text-white'}>
+              <span className="text-muted-foreground">Services extracted</span>
+              <span className={extractedCount >= 3 ? 'text-success' : 'text-foreground'}>
                 {extractedCount} / {domains.length}
               </span>
             </div>
-            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-2 bg-secondary rounded-full overflow-hidden">
               <div
-                className="h-full bg-green-500 transition-all"
+                className="h-full bg-success transition-all"
                 style={{ width: `${(extractedCount / domains.length) * 100}%` }}
               />
             </div>
@@ -212,22 +212,22 @@ export function Level35Microservices({ onComplete, onExit }: LevelComponentProps
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-6 overflow-auto">
+        <div className="flex-1 relative bg-background p-6 overflow-auto">
           <div className="max-w-5xl mx-auto">
             <div className="grid grid-cols-2 gap-8">
               {/* Monolith */}
-              <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-                <div className="bg-red-900/30 px-4 py-3 border-b border-gray-700">
-                  <div className="text-red-400 font-semibold flex items-center gap-2">
+              <div className="bg-card rounded-xl border border-border overflow-hidden">
+                <div className="bg-destructive/30 px-4 py-3 border-b border-border">
+                  <div className="text-destructive font-semibold flex items-center gap-2">
                     <span className="text-2xl">🏔️</span>
                     Monolith
                   </div>
-                  <div className="text-xs text-gray-500">{monolithDomains.length} domains remaining</div>
+                  <div className="text-xs text-muted-foreground">{monolithDomains.length} domains remaining</div>
                 </div>
                 <div className="p-4">
                   {monolithDomains.length === 0 ? (
-                    <div className="text-center py-8 text-green-400">
-                      🎉 Monolith fully decomposed!
+                    <div className="text-center py-8 text-success">
+                      Monolith fully decomposed!
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -242,8 +242,8 @@ export function Level35Microservices({ onComplete, onExit }: LevelComponentProps
                             key={domain.id}
                             className={`p-4 rounded-lg border-2 transition-all ${
                               extractable
-                                ? 'border-green-500 bg-green-900/10 cursor-pointer hover:bg-green-900/20'
-                                : 'border-gray-700 bg-gray-800/50'
+                                ? 'border-success bg-success/10 cursor-pointer hover:bg-success/20'
+                                : 'border-border bg-secondary/50'
                             }`}
                             onClick={() => extractable && extractDomain(domain.id)}
                             style={{ borderColor: extractable ? '#22c55e' : undefined }}
@@ -255,21 +255,21 @@ export function Level35Microservices({ onComplete, onExit }: LevelComponentProps
                                   <div className="font-semibold" style={{ color: domain.color }}>
                                     {domain.name}
                                   </div>
-                                  <div className="text-xs text-gray-500">{domain.description}</div>
+                                  <div className="text-xs text-muted-foreground">{domain.description}</div>
                                 </div>
                               </div>
                               {extractable ? (
-                                <span className="text-green-400 text-xs px-2 py-1 bg-green-900/40 rounded">
-                                  ✂️ Extract
+                                <span className="text-success text-xs px-2 py-1 bg-success/40 rounded">
+                                  Extract
                                 </span>
                               ) : (
-                                <span className="text-gray-500 text-xs">
-                                  🔒 Blocked
+                                <span className="text-muted-foreground text-xs">
+                                  Blocked
                                 </span>
                               )}
                             </div>
                             {showDependencies && unmetDeps.length > 0 && (
-                              <div className="mt-2 text-xs text-orange-400">
+                              <div className="mt-2 text-xs text-warning">
                                 Needs: {unmetDeps.map(id => domains.find(d => d.id === id)?.name).join(', ')}
                               </div>
                             )}
@@ -282,20 +282,20 @@ export function Level35Microservices({ onComplete, onExit }: LevelComponentProps
               </div>
 
               {/* Microservices */}
-              <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-                <div className="bg-green-900/30 px-4 py-3 border-b border-gray-700">
-                  <div className="text-green-400 font-semibold flex items-center gap-2">
+              <div className="bg-card rounded-xl border border-border overflow-hidden">
+                <div className="bg-success/30 px-4 py-3 border-b border-border">
+                  <div className="text-success font-semibold flex items-center gap-2">
                     <span className="text-2xl">🔬</span>
                     Microservices
                   </div>
-                  <div className="text-xs text-gray-500">{extractedDomains.length} services deployed</div>
+                  <div className="text-xs text-muted-foreground">{extractedDomains.length} services deployed</div>
                 </div>
                 <div className="p-4">
                   {extractedDomains.length === 0 ? (
-                    <div className="text-center py-8 text-gray-600">
+                    <div className="text-center py-8 text-muted-foreground">
                       Click domains on the left to extract them as microservices.
                       <br /><br />
-                      <span className="text-cyan-400">Tip:</span> Start with services that have no dependencies!
+                      <span className="text-primary">Tip:</span> Start with services that have no dependencies!
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -313,15 +313,15 @@ export function Level35Microservices({ onComplete, onExit }: LevelComponentProps
                                 <div className="font-semibold" style={{ color: domain.color }}>
                                   {domain.name} Service
                                 </div>
-                                <div className="text-xs text-gray-500">{domain.description}</div>
+                                <div className="text-xs text-muted-foreground">{domain.description}</div>
                               </div>
                             </div>
-                            <span className="text-xs text-gray-500">
+                            <span className="text-xs text-muted-foreground">
                               Click to return
                             </span>
                           </div>
                           {showDependencies && domain.dependencies.length > 0 && (
-                            <div className="mt-2 text-xs text-gray-400">
+                            <div className="mt-2 text-xs text-muted-foreground">
                               Uses: {domain.dependencies.map(id => domains.find(d => d.id === id)?.name).join(', ')}
                             </div>
                           )}
@@ -335,13 +335,13 @@ export function Level35Microservices({ onComplete, onExit }: LevelComponentProps
 
             {/* Architecture Tips */}
             {extractedCount >= 3 && (
-              <div className="mt-6 bg-gradient-to-r from-cyan-900/30 to-purple-900/30 border border-cyan-600 rounded-xl p-6">
+              <div className="mt-6 bg-gradient-to-r from-primary/30 to-purple-900/30 border border-primary rounded-xl p-6">
                 <div className="text-center">
                   <div className="text-3xl mb-2">🎓</div>
-                  <div className="text-xl font-bold text-cyan-400 mb-2">
+                  <div className="text-xl font-bold text-primary mb-2">
                     Congratulations, Rails Expert!
                   </div>
-                  <div className="text-gray-300 max-w-lg mx-auto">
+                  <div className="text-muted-foreground max-w-lg mx-auto">
                     You've completed the journey from "Hello Rails" to microservices architecture.
                     You now understand how to build, scale, and maintain production Rails applications.
                   </div>
@@ -408,9 +408,9 @@ ${extractedDomains.map(d => `      - ${d.id}-service`).join('\n')}` :
           ]}
           learningGoal="Microservices enable independent deployment, scaling, and technology choices. But they add complexity - only extract when you have a good reason!"
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">When to Extract</div>
-            <ul className="text-xs text-gray-400 space-y-1">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">When to Extract</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>✓ Different scaling needs</li>
               <li>✓ Different team ownership</li>
               <li>✓ Different release cycles</li>
@@ -418,9 +418,9 @@ ${extractedDomains.map(d => `      - ${d.id}-service`).join('\n')}` :
             </ul>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-2">Common Mistakes</div>
-            <ul className="text-xs text-gray-400 space-y-1">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-destructive uppercase tracking-wider mb-2">Common Mistakes</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>✗ Too many services too soon</li>
               <li>✗ Distributed monolith</li>
               <li>✗ Ignoring data consistency</li>

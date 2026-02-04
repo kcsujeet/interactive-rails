@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -138,76 +139,79 @@ end`;
           goal="Understand that Models define the shape of your data. Each attribute becomes a database column."
         >
           {/* Model Name Input */}
-          <div className="p-4 border-t border-gray-800">
-            <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider block mb-2">
+          <div className="p-4 border-t border-border">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
               Model Name
             </label>
             <input
               type="text"
               value={modelName}
               onChange={e => setModelName(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:border-cyan-500 focus:outline-none"
+              className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-foreground focus:border-primary focus:outline-none"
               placeholder="Post"
             />
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="text-xs text-muted-foreground mt-1">
               Singular, capitalized (Post, not posts)
             </div>
           </div>
 
           {/* Attribute Selection */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Choose Attributes ({selectedAttributes.length} selected)
             </div>
             <div className="space-y-2">
               {attributes.map(attr => (
-                <button
+                <Button
                   key={attr.id}
                   onClick={() => toggleAttribute(attr.id)}
-                  className={`w-full p-3 rounded-lg text-left transition-all border-2 ${
+                  variant="outline"
+                  className={`w-full p-3 h-auto rounded-lg text-left transition-all border-2 ${
                     attr.selected
-                      ? 'bg-cyan-900/40 border-cyan-500 text-white'
-                      : 'bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-600'
+                      ? 'bg-primary/10 border-primary text-foreground'
+                      : 'bg-secondary border-border text-muted-foreground hover:border-muted-foreground'
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="font-mono text-sm">{attr.name}</span>
-                      <span className="text-xs text-gray-500 ml-2">:{attr.type}</span>
-                      {attr.required && (
-                        <span className="text-xs text-amber-400 ml-2">(required)</span>
-                      )}
+                  <div className="flex flex-col w-full">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="font-mono text-sm">{attr.name}</span>
+                        <span className="text-xs text-muted-foreground ml-2">:{attr.type}</span>
+                        {attr.required && (
+                          <span className="text-xs text-warning ml-2">(required)</span>
+                        )}
+                      </div>
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                        attr.selected ? 'bg-primary border-primary' : 'border-muted-foreground'
+                      }`}>
+                        {attr.selected && (
+                          <svg className="w-3 h-3 text-foreground" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
                     </div>
-                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                      attr.selected ? 'bg-cyan-500 border-cyan-500' : 'border-gray-600'
-                    }`}>
-                      {attr.selected && (
-                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      )}
-                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">{attr.description}</div>
                   </div>
-                  <div className="text-xs text-gray-500 mt-1">{attr.description}</div>
-                </button>
+                </Button>
               ))}
             </div>
           </div>
 
           {/* Progress */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
               Progress
             </div>
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-400">Required attributes</span>
-              <span className={requiredSelected === requiredTotal ? 'text-green-400' : 'text-white'}>
+              <span className="text-muted-foreground">Required attributes</span>
+              <span className={requiredSelected === requiredTotal ? 'text-success' : 'text-foreground'}>
                 {requiredSelected} / {requiredTotal}
               </span>
             </div>
-            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-2 bg-secondary rounded-full overflow-hidden">
               <div
-                className="h-full bg-green-500 transition-all duration-300"
+                className="h-full bg-success transition-all duration-300"
                 style={{ width: `${(requiredSelected / requiredTotal) * 100}%` }}
               />
             </div>
@@ -226,19 +230,19 @@ end`;
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-8 overflow-auto">
+        <div className="flex-1 relative bg-background p-8 overflow-auto">
           {/* Visual Model Representation */}
           <div className="max-w-lg mx-auto">
             {/* Model Card */}
-            <div className="bg-gray-900 rounded-xl border-2 border-purple-500 overflow-hidden">
+            <div className="bg-card rounded-xl border-2 border-purple-500 overflow-hidden">
               {/* Header */}
               <div className="bg-purple-900/40 px-4 py-3 border-b border-purple-500/50">
                 <div className="flex items-center gap-3">
-                  <span className="w-10 h-10 rounded-lg bg-purple-600 flex items-center justify-center text-white font-bold text-lg">
+                  <span className="w-10 h-10 rounded-lg bg-purple-600 flex items-center justify-center text-foreground font-bold text-lg">
                     M
                   </span>
                   <div>
-                    <div className="text-white font-semibold text-lg">{modelName || 'Model'}</div>
+                    <div className="text-foreground font-semibold text-lg">{modelName || 'Model'}</div>
                     <div className="text-purple-300 text-xs">ActiveRecord Model</div>
                   </div>
                 </div>
@@ -246,13 +250,13 @@ end`;
 
               {/* Attributes */}
               <div className="p-4">
-                <div className="text-xs text-gray-500 uppercase tracking-wider mb-3">Attributes</div>
+                <div className="text-xs text-muted-foreground uppercase tracking-wider mb-3">Attributes</div>
 
                 {/* Built-in attributes */}
                 <div className="space-y-2 mb-4">
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <span className="font-mono">id</span>
-                    <span className="text-xs px-2 py-0.5 bg-gray-800 rounded">integer</span>
+                    <span className="text-xs px-2 py-0.5 bg-secondary rounded">integer</span>
                     <span className="text-xs">(automatic)</span>
                   </div>
                 </div>
@@ -262,27 +266,27 @@ end`;
                   <div className="space-y-2">
                     {selectedAttributes.map(attr => (
                       <div key={attr.id} className="flex items-center gap-2 text-sm">
-                        <span className="font-mono text-cyan-400">{attr.name}</span>
-                        <span className="text-xs px-2 py-0.5 bg-cyan-900/40 text-cyan-300 rounded">{attr.type}</span>
+                        <span className="font-mono text-primary">{attr.name}</span>
+                        <span className="text-xs px-2 py-0.5 bg-primary/10 text-primary rounded">{attr.type}</span>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="text-gray-600 text-sm italic">
+                  <div className="text-muted-foreground text-sm italic">
                     Select attributes from the left panel
                   </div>
                 )}
 
                 {/* Timestamps */}
-                <div className="mt-4 pt-4 border-t border-gray-800 space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                <div className="mt-4 pt-4 border-t border-border space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <span className="font-mono">created_at</span>
-                    <span className="text-xs px-2 py-0.5 bg-gray-800 rounded">datetime</span>
+                    <span className="text-xs px-2 py-0.5 bg-secondary rounded">datetime</span>
                     <span className="text-xs">(automatic)</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <span className="font-mono">updated_at</span>
-                    <span className="text-xs px-2 py-0.5 bg-gray-800 rounded">datetime</span>
+                    <span className="text-xs px-2 py-0.5 bg-secondary rounded">datetime</span>
                     <span className="text-xs">(automatic)</span>
                   </div>
                 </div>
@@ -292,28 +296,28 @@ end`;
             {/* Arrow to Database */}
             {selectedAttributes.length >= 2 && (
               <div className="flex flex-col items-center my-6">
-                <svg className="w-6 h-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 48">
+                <svg className="w-6 h-12 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 48">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 0v40m0 0l-6-6m6 6l6-6" />
                 </svg>
-                <div className="text-xs text-gray-500 mt-1">maps to</div>
+                <div className="text-xs text-muted-foreground mt-1">maps to</div>
               </div>
             )}
 
             {/* Database Table Preview */}
             {selectedAttributes.length >= 2 && (
-              <div className="bg-gray-900 rounded-xl border-2 border-cyan-500 overflow-hidden">
-                <div className="bg-cyan-900/40 px-4 py-3 border-b border-cyan-500/50">
+              <div className="bg-card rounded-xl border-2 border-primary overflow-hidden">
+                <div className="bg-primary/10 px-4 py-3 border-b border-primary/50">
                   <div className="flex items-center gap-3">
-                    <span className="w-10 h-10 rounded-lg bg-cyan-600 flex items-center justify-center text-white font-bold text-lg">
+                    <span className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center text-foreground font-bold text-lg">
                       D
                     </span>
                     <div>
-                      <div className="text-white font-semibold">{modelName.toLowerCase()}s</div>
-                      <div className="text-cyan-300 text-xs">Database Table</div>
+                      <div className="text-foreground font-semibold">{modelName.toLowerCase()}s</div>
+                      <div className="text-primary text-xs">Database Table</div>
                     </div>
                   </div>
                 </div>
-                <div className="p-4 text-xs text-gray-500">
+                <div className="p-4 text-xs text-muted-foreground">
                   Rails automatically creates a database table with columns for each attribute.
                 </div>
               </div>
@@ -322,12 +326,13 @@ end`;
 
           {/* Toggle migration view */}
           <div className="mt-8 text-center">
-            <button
+            <Button
               onClick={() => setShowMigration(!showMigration)}
-              className="text-sm text-gray-400 hover:text-white transition-colors"
+              variant="ghost"
+              size="sm"
             >
               {showMigration ? 'Hide' : 'Show'} migration preview
-            </button>
+            </Button>
           </div>
         </div>
       </CenterPanel>
@@ -350,21 +355,21 @@ end`;
           ]}
           learningGoal="A Model is a Ruby class that inherits from ApplicationRecord. It represents a database table and gives you methods to query and manipulate data."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
               Key Concepts
             </div>
-            <ul className="text-xs text-gray-400 space-y-2">
+            <ul className="text-xs text-muted-foreground space-y-2">
               <li className="flex items-start gap-2">
                 <span className="text-purple-400">M</span>
                 <span>Model = Data + Behavior in one class</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-cyan-400">D</span>
+                <span className="text-primary">D</span>
                 <span>Each Model maps to a database table</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-green-400">+</span>
+                <span className="text-success">+</span>
                 <span>Attributes become columns automatically</span>
               </li>
             </ul>

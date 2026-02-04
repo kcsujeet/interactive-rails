@@ -294,7 +294,7 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 if (loading) {
   return (
       <div className="h-full flex items-center justify-center">
-        <div className="text-sm text-slate-500">Loading level...</div>
+        <div className="text-sm text-muted-foreground">Loading level...</div>
       </div>
     );
 }

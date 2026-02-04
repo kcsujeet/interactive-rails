@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import type { Incident, IncidentType } from '../game/types';
+import { Button } from '../ui/Button';
 
 interface IncidentFeedProps {
   incidents: Incident[];
@@ -16,23 +17,23 @@ interface IncidentFeedProps {
 
 // Incident type configurations
 const INCIDENT_CONFIG: Record<IncidentType, { icon: string; color: string; bgColor: string }> = {
-  n_plus_one_detected: { icon: '!', color: 'text-red-400', bgColor: 'bg-red-900/30' },
-  slow_query: { icon: '>', color: 'text-amber-400', bgColor: 'bg-amber-900/30' },
-  cache_miss: { icon: '$', color: 'text-blue-400', bgColor: 'bg-blue-900/30' },
-  high_memory: { icon: 'M', color: 'text-purple-400', bgColor: 'bg-purple-900/30' },
-  error_spike: { icon: 'X', color: 'text-red-400', bgColor: 'bg-red-900/30' },
-  timeout: { icon: 'T', color: 'text-orange-400', bgColor: 'bg-orange-900/30' },
-  rate_limit: { icon: '#', color: 'text-yellow-400', bgColor: 'bg-yellow-900/30' },
-  connection_blocked: { icon: '/', color: 'text-gray-400', bgColor: 'bg-gray-900/30' },
-  deadlock: { icon: 'D', color: 'text-red-400', bgColor: 'bg-red-900/30' },
-  circuit_open: { icon: '!', color: 'text-orange-400', bgColor: 'bg-orange-900/30' },
+  n_plus_one_detected: { icon: '!', color: 'text-destructive', bgColor: 'bg-destructive/30' },
+  slow_query: { icon: '>', color: 'text-warning', bgColor: 'bg-warning/30' },
+  cache_miss: { icon: '$', color: 'text-primary', bgColor: 'bg-primary/30' },
+  high_memory: { icon: 'M', color: 'text-primary', bgColor: 'bg-primary/30' },
+  error_spike: { icon: 'X', color: 'text-destructive', bgColor: 'bg-destructive/30' },
+  timeout: { icon: 'T', color: 'text-warning', bgColor: 'bg-warning/30' },
+  rate_limit: { icon: '#', color: 'text-warning', bgColor: 'bg-warning/30' },
+  connection_blocked: { icon: '/', color: 'text-muted-foreground', bgColor: 'bg-secondary/30' },
+  deadlock: { icon: 'D', color: 'text-destructive', bgColor: 'bg-destructive/30' },
+  circuit_open: { icon: '!', color: 'text-warning', bgColor: 'bg-warning/30' },
 };
 
 const SEVERITY_COLORS = {
-  info: 'border-l-blue-400',
-  warning: 'border-l-amber-400',
-  error: 'border-l-red-400',
-  critical: 'border-l-red-600',
+  info: 'border-l-primary',
+  warning: 'border-l-warning',
+  error: 'border-l-destructive',
+  critical: 'border-l-destructive',
 };
 
 function formatTimestamp(timestamp: number): string {
@@ -48,8 +49,8 @@ function formatTimestamp(timestamp: number): string {
 function IncidentItem({ incident }: { incident: Incident }) {
   const config = INCIDENT_CONFIG[incident.type] || {
     icon: '?',
-    color: 'text-gray-400',
-    bgColor: 'bg-gray-900/30',
+    color: 'text-muted-foreground',
+    bgColor: 'bg-secondary/30',
   };
   const severityBorder = SEVERITY_COLORS[incident.severity];
 
@@ -61,13 +62,13 @@ function IncidentItem({ incident }: { incident: Incident }) {
         <span className={`font-mono font-bold ${config.color}`}>[{config.icon}]</span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-gray-300 truncate">{incident.message}</span>
-            <span className="text-gray-500 text-[10px] shrink-0">
+            <span className="text-foreground truncate">{incident.message}</span>
+            <span className="text-muted-foreground text-[10px] shrink-0">
               {formatTimestamp(incident.timestamp)}
             </span>
           </div>
           {incident.nodeIds && incident.nodeIds.length > 0 && (
-            <div className="text-gray-500 text-[10px] mt-0.5">
+            <div className="text-muted-foreground text-[10px] mt-0.5">
               Nodes: {incident.nodeIds.join(', ')}
             </div>
           )}
@@ -115,19 +116,19 @@ export function IncidentFeed({
   return (
     <div className={`flex flex-col h-full ${className}`}>
       {/* Header with severity counts */}
-      <div className="flex items-center justify-between p-2 border-b border-gray-700 bg-gray-800/50">
-        <span className="text-xs font-semibold text-white">Incident Log</span>
+      <div className="flex items-center justify-between p-2 border-b border-border bg-card/50">
+        <span className="text-xs font-semibold text-foreground">Incident Log</span>
         <div className="flex gap-2 text-[10px]">
           {counts.critical > 0 && (
-            <span className="text-red-400">{counts.critical} crit</span>
+            <span className="text-destructive">{counts.critical} crit</span>
           )}
           {counts.error > 0 && (
-            <span className="text-red-300">{counts.error} err</span>
+            <span className="text-destructive">{counts.error} err</span>
           )}
           {counts.warning > 0 && (
-            <span className="text-amber-400">{counts.warning} warn</span>
+            <span className="text-warning">{counts.warning} warn</span>
           )}
-          <span className="text-gray-500">{incidents.length} total</span>
+          <span className="text-muted-foreground">{incidents.length} total</span>
         </div>
       </div>
 
@@ -138,12 +139,12 @@ export function IncidentFeed({
         className="flex-1 overflow-y-auto p-2 space-y-1 font-mono"
       >
         {hasMore && (
-          <div className="text-center text-gray-500 text-[10px] py-1">
+          <div className="text-center text-muted-foreground text-[10px] py-1">
             ... {incidents.length - maxVisible} earlier incidents hidden ...
           </div>
         )}
         {visibleIncidents.length === 0 ? (
-          <div className="text-gray-500 text-xs text-center py-4">
+          <div className="text-muted-foreground text-xs text-center py-4">
             No incidents recorded
           </div>
         ) : (
@@ -155,18 +156,18 @@ export function IncidentFeed({
 
       {/* Auto-scroll indicator */}
       {!autoScroll && (
-        <button
-          type="button"
+        <Button
           onClick={() => {
             setAutoScroll(true);
             if (feedRef.current) {
               feedRef.current.scrollTop = feedRef.current.scrollHeight;
             }
           }}
-          className="absolute bottom-2 right-2 px-2 py-1 bg-blue-600 text-white text-[10px] rounded hover:bg-blue-700"
+          size="sm"
+          className="absolute bottom-2 right-2 text-[10px]"
         >
           Resume auto-scroll
-        </button>
+        </Button>
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 // Query trace viewer showing executed queries with N+1 highlighting
 
 import { useState, useMemo } from 'react';
+import { Button } from '../ui/Button';
 
 // Query trace type for debugging
 export interface QueryTrace {
@@ -47,18 +48,18 @@ function QueryRow({ query, isNPlusOneTable }: { query: QueryTrace; isNPlusOneTab
   const [expanded, setExpanded] = useState(false);
 
   const typeColors: Record<string, string> = {
-    select: 'text-blue-400',
-    insert: 'text-green-400',
-    update: 'text-amber-400',
-    delete: 'text-red-400',
+    select: 'text-primary',
+    insert: 'text-success',
+    update: 'text-warning',
+    delete: 'text-destructive',
   };
 
   return (
     <div
       className={`
         border-l-2 pl-2 py-1
-        ${query.isNPlusOne ? 'border-red-500 bg-red-900/20' : 'border-gray-600'}
-        ${isNPlusOneTable && !query.isNPlusOne ? 'border-amber-500' : ''}
+        ${query.isNPlusOne ? 'border-destructive bg-destructive/20' : 'border-border'}
+        ${isNPlusOneTable && !query.isNPlusOne ? 'border-warning' : ''}
       `}
     >
       <div
@@ -67,18 +68,18 @@ function QueryRow({ query, isNPlusOneTable }: { query: QueryTrace; isNPlusOneTab
       >
         {/* Query type badge */}
         <span
-          className={`text-xs font-mono uppercase ${typeColors[query.type] || 'text-gray-400'}`}
+          className={`text-xs font-mono uppercase ${typeColors[query.type] || 'text-muted-foreground'}`}
         >
           {query.type}
         </span>
 
         {/* Table name */}
-        <span className="text-xs text-gray-400 font-mono">{query.tableName}</span>
+        <span className="text-xs text-muted-foreground font-mono">{query.tableName}</span>
 
         {/* Latency */}
         <span
           className={`text-xs font-mono ml-auto ${
-            query.latency > 50 ? 'text-amber-400' : 'text-gray-500'
+            query.latency > 50 ? 'text-warning' : 'text-muted-foreground'
           }`}
         >
           {query.latency.toFixed(1)}ms
@@ -86,31 +87,31 @@ function QueryRow({ query, isNPlusOneTable }: { query: QueryTrace; isNPlusOneTab
 
         {/* Index indicator */}
         {query.usedIndex ? (
-          <span className="text-xs text-green-400" title={`Index: ${query.indexName}`}>
+          <span className="text-xs text-success" title={`Index: ${query.indexName}`}>
             IDX
           </span>
         ) : (
-          <span className="text-xs text-red-400" title="No index used">
+          <span className="text-xs text-destructive" title="No index used">
             SCAN
           </span>
         )}
 
         {/* N+1 badge */}
         {query.isNPlusOne && (
-          <span className="text-xs bg-red-500 text-white px-1 rounded">N+1</span>
+          <span className="text-xs bg-destructive text-foreground px-1 rounded">N+1</span>
         )}
       </div>
 
       {/* Expanded details */}
       {expanded && (
         <div className="mt-2 pl-2 text-xs">
-          <div className="font-mono text-gray-300 bg-gray-900 p-2 rounded overflow-x-auto">
+          <div className="font-mono text-foreground bg-background p-2 rounded overflow-x-auto">
             {query.sql}
           </div>
-          <div className="flex gap-4 mt-1 text-gray-400">
+          <div className="flex gap-4 mt-1 text-muted-foreground">
             <span>Rows: {query.rowsAffected}</span>
             {query.loopIteration !== undefined && (
-              <span className="text-red-400">Loop iteration: {query.loopIteration}</span>
+              <span className="text-destructive">Loop iteration: {query.loopIteration}</span>
             )}
           </div>
         </div>
@@ -148,12 +149,12 @@ export function QueryTraceViewer({
   const noIndexCount = queries.filter((q) => !q.usedIndex && q.type === 'select').length;
 
   return (
-    <div className={`bg-gray-800 rounded-lg overflow-hidden ${className}`}>
+    <div className={`bg-card rounded-lg overflow-hidden ${className}`}>
       {/* Header */}
-      <div className="p-3 border-b border-gray-700">
+      <div className="p-3 border-b border-border">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="font-semibold text-white">Query Trace</h3>
-          <span className="text-xs text-gray-400">
+          <h3 className="font-semibold text-foreground">Query Trace</h3>
+          <span className="text-xs text-muted-foreground">
             {queries.length} queries ({totalTime.toFixed(0)}ms total)
           </span>
         </div>
@@ -161,12 +162,12 @@ export function QueryTraceViewer({
         {/* Stats row */}
         <div className="flex gap-4 text-xs">
           {nPlusOneCount > 0 && (
-            <span className="text-red-400">
+            <span className="text-destructive">
               {nPlusOneCount} N+1 queries
             </span>
           )}
           {noIndexCount > 0 && (
-            <span className="text-amber-400">
+            <span className="text-warning">
               {noIndexCount} table scans
             </span>
           )}
@@ -174,58 +175,55 @@ export function QueryTraceViewer({
 
         {/* Filter buttons */}
         <div className="flex gap-2 mt-2">
-          <button
+          <Button
             onClick={() => setFilter('all')}
-            className={`px-2 py-1 text-xs rounded ${
-              filter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'
-            }`}
+            variant={filter === 'all' ? 'default' : 'secondary'}
+            size="sm"
           >
             All
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setFilter('nplusone')}
-            className={`px-2 py-1 text-xs rounded ${
-              filter === 'nplusone' ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-300'
-            }`}
+            variant={filter === 'nplusone' ? 'destructive' : 'secondary'}
+            size="sm"
           >
             N+1 Only
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setFilter('slow')}
-            className={`px-2 py-1 text-xs rounded ${
-              filter === 'slow' ? 'bg-amber-600 text-white' : 'bg-gray-700 text-gray-300'
-            }`}
+            variant={filter === 'slow' ? 'default' : 'secondary'}
+            size="sm"
           >
             Slow (&gt;50ms)
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setGroupByTable(!groupByTable)}
-            className={`px-2 py-1 text-xs rounded ml-auto ${
-              groupByTable ? 'bg-purple-600 text-white' : 'bg-gray-700 text-gray-300'
-            }`}
+            variant={groupByTable ? 'default' : 'secondary'}
+            size="sm"
+            className="ml-auto"
           >
             Group by Table
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Query list */}
       <div className="max-h-96 overflow-y-auto p-2 space-y-1">
         {filteredQueries.length === 0 ? (
-          <p className="text-gray-400 text-center py-4 text-sm">No queries to display</p>
+          <p className="text-muted-foreground text-center py-4 text-sm">No queries to display</p>
         ) : groupByTable ? (
           // Grouped view
           Array.from(byTable.entries()).map(([tableName, tableQueries]) => (
             <div key={tableName} className="mb-3">
               <div
                 className={`text-xs font-semibold mb-1 flex items-center gap-2 ${
-                  nPlusOneGroups.includes(tableName) ? 'text-red-400' : 'text-gray-300'
+                  nPlusOneGroups.includes(tableName) ? 'text-destructive' : 'text-foreground'
                 }`}
               >
                 <span>{tableName}</span>
-                <span className="text-gray-500">({tableQueries.length})</span>
+                <span className="text-muted-foreground">({tableQueries.length})</span>
                 {nPlusOneGroups.includes(tableName) && (
-                  <span className="bg-red-500 text-white px-1 rounded text-xs">
+                  <span className="bg-destructive text-foreground px-1 rounded text-xs">
                     N+1 PATTERN
                   </span>
                 )}
@@ -262,14 +260,14 @@ export function QueryTraceViewer({
 
       {/* N+1 explanation */}
       {nPlusOneGroups.length > 0 && (
-        <div className="p-3 bg-red-900/30 border-t border-red-700">
-          <h4 className="text-sm font-semibold text-red-300 mb-1">N+1 Query Pattern Detected</h4>
-          <p className="text-xs text-red-200">
+        <div className="p-3 bg-destructive/30 border-t border-destructive">
+          <h4 className="text-sm font-semibold text-destructive mb-1">N+1 Query Pattern Detected</h4>
+          <p className="text-xs text-destructive">
             Tables affected: {nPlusOneGroups.join(', ')}
           </p>
-          <p className="text-xs text-gray-400 mt-1">
-            Fix: Use <code className="bg-gray-800 px-1 rounded">includes(:association)</code> or{' '}
-            <code className="bg-gray-800 px-1 rounded">preload(:association)</code> in your query.
+          <p className="text-xs text-muted-foreground mt-1">
+            Fix: Use <code className="bg-background px-1 rounded">includes(:association)</code> or{' '}
+            <code className="bg-background px-1 rounded">preload(:association)</code> in your query.
           </p>
         </div>
       )}

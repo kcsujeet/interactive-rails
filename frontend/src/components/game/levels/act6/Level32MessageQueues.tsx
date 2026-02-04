@@ -18,6 +18,7 @@ import {
   useLevelCompletion,
   type ValidationResult,
 } from '../shared';
+import { Button } from '../../../ui/Button';
 
 interface Message {
   id: number;
@@ -164,42 +165,39 @@ export function Level32MessageQueues({ onComplete, onExit }: LevelComponentProps
           goal="Decouple services with pub/sub messaging for scalability and resilience."
         >
           {/* Queue Control */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Message Queue
             </div>
-            <button
+            <Button
               onClick={() => setQueueEnabled(!queueEnabled)}
-              className={`w-full py-3 rounded-lg font-medium transition-all ${
-                queueEnabled
-                  ? 'bg-green-600 hover:bg-green-500 text-white'
-                  : 'bg-gray-700 hover:bg-gray-600 text-white'
-              }`}
+              variant={queueEnabled ? 'default' : 'secondary'}
+              className={`w-full ${queueEnabled ? 'bg-success hover:bg-success/90' : ''}`}
             >
               {queueEnabled ? '✓ Queue Active' : 'Enable Queue'}
-            </button>
+            </Button>
           </div>
 
           {/* Stats */}
-          <div className="p-4 border-t border-gray-800">
+          <div className="p-4 border-t border-border">
             <div className="grid grid-cols-2 gap-2">
-              <div className="bg-gray-800 p-2 rounded text-center">
-                <div className="text-xl font-bold text-white">{messages.length}</div>
-                <div className="text-xs text-gray-500">In Queue</div>
+              <div className="bg-card p-2 rounded text-center">
+                <div className="text-xl font-bold text-foreground">{messages.length}</div>
+                <div className="text-xs text-muted-foreground">In Queue</div>
               </div>
-              <div className="bg-gray-800 p-2 rounded text-center">
-                <div className={`text-xl font-bold ${deadLetterQueue.length > 0 ? 'text-red-400' : 'text-green-400'}`}>
+              <div className="bg-card p-2 rounded text-center">
+                <div className={`text-xl font-bold ${deadLetterQueue.length > 0 ? 'text-destructive' : 'text-success'}`}>
                   {deadLetterQueue.length}
                 </div>
-                <div className="text-xs text-gray-500">Dead Letter</div>
+                <div className="text-xs text-muted-foreground">Dead Letter</div>
               </div>
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
+          <div className="p-4 border-t border-border">
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-400">Consumers subscribed</span>
-              <span className={consumers.filter(c => c.subscribed).length >= 2 ? 'text-green-400' : 'text-white'}>
+              <span className="text-muted-foreground">Consumers subscribed</span>
+              <span className={consumers.filter(c => c.subscribed).length >= 2 ? 'text-success' : 'text-foreground'}>
                 {consumers.filter(c => c.subscribed).length} / {consumers.length}
               </span>
             </div>
@@ -223,43 +221,44 @@ export function Level32MessageQueues({ onComplete, onExit }: LevelComponentProps
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-6 overflow-auto">
+        <div className="flex-1 relative bg-background p-6 overflow-auto">
           <div className="max-w-4xl mx-auto">
             {/* Event Publishers */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Publish Events</div>
-                <div className="text-xs text-gray-500">Click to publish an event to the queue</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Publish Events</div>
+                <div className="text-xs text-muted-foreground">Click to publish an event to the queue</div>
               </div>
               <div className="p-4 grid grid-cols-4 gap-3">
                 {EVENT_TYPES.map(event => (
-                  <button
+                  <Button
                     key={event.type}
                     onClick={() => publishEvent(event.type)}
                     disabled={!queueEnabled}
-                    className={`p-3 rounded-lg border transition-all ${
+                    variant={queueEnabled ? 'default' : 'outline'}
+                    className={`p-3 h-auto rounded-lg border transition-all flex-col ${
                       queueEnabled
-                        ? 'border-cyan-600 bg-cyan-900/20 hover:bg-cyan-900/40'
-                        : 'border-gray-700 bg-gray-800 opacity-50 cursor-not-allowed'
+                        ? 'border-primary bg-primary/20 hover:bg-primary/40'
+                        : 'border-border bg-secondary opacity-50 cursor-not-allowed'
                     }`}
                   >
                     <div className="text-2xl mb-1">{event.icon}</div>
-                    <div className="text-xs text-cyan-400 font-mono">{event.type}</div>
-                    <div className="text-xs text-gray-500">{event.description}</div>
-                  </button>
+                    <div className="text-xs text-primary font-mono">{event.type}</div>
+                    <div className="text-xs text-muted-foreground">{event.description}</div>
+                  </Button>
                 ))}
               </div>
             </div>
 
             {/* Message Queue Visualization */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700 flex justify-between items-center">
-                <div className="text-white font-semibold">Message Queue</div>
-                <span className={`w-2 h-2 rounded-full ${queueEnabled ? 'bg-green-400 animate-pulse' : 'bg-gray-600'}`} />
+            <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+              <div className="bg-secondary px-4 py-3 border-b border-border flex justify-between items-center">
+                <div className="text-foreground font-semibold">Message Queue</div>
+                <span className={`w-2 h-2 rounded-full ${queueEnabled ? 'bg-success animate-pulse' : 'bg-muted-foreground'}`} />
               </div>
               <div className="p-4 min-h-[100px]">
                 {messages.length === 0 ? (
-                  <div className="text-center py-8 text-gray-600">
+                  <div className="text-center py-8 text-muted-foreground">
                     {queueEnabled ? 'Queue empty - publish some events!' : 'Enable queue to start'}
                   </div>
                 ) : (
@@ -268,9 +267,9 @@ export function Level32MessageQueues({ onComplete, onExit }: LevelComponentProps
                       <div
                         key={msg.id}
                         className={`px-3 py-2 rounded-lg text-xs transition-all ${
-                          msg.status === 'queued' ? 'bg-yellow-900/40 text-yellow-400 border border-yellow-600' :
+                          msg.status === 'queued' ? 'bg-warning/40 text-warning border border-warning' :
                           msg.status === 'processing' ? 'bg-blue-900/40 text-blue-400 border border-blue-600 animate-pulse' :
-                          'bg-gray-800 text-gray-400'
+                          'bg-secondary text-muted-foreground'
                         }`}
                       >
                         <div className="font-mono">{msg.type}</div>
@@ -285,34 +284,35 @@ export function Level32MessageQueues({ onComplete, onExit }: LevelComponentProps
             </div>
 
             {/* Consumers */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Consumers</div>
-                <div className="text-xs text-gray-500">Click to subscribe/unsubscribe</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Consumers</div>
+                <div className="text-xs text-muted-foreground">Click to subscribe/unsubscribe</div>
               </div>
               <div className="p-4 grid grid-cols-4 gap-4">
                 {consumers.map(consumer => (
-                  <button
+                  <Button
                     key={consumer.id}
                     onClick={() => toggleConsumer(consumer.id)}
-                    className={`p-4 rounded-lg border-2 transition-all ${
+                    variant={consumer.subscribed ? 'default' : 'outline'}
+                    className={`p-4 h-auto rounded-lg border-2 transition-all flex-col ${
                       consumer.subscribed
-                        ? 'border-green-500 bg-green-900/20'
-                        : 'border-gray-700 bg-gray-800 hover:border-gray-500'
+                        ? 'border-success bg-success/20'
+                        : 'border-border bg-secondary hover:border-muted-foreground'
                     }`}
                   >
                     <div className="text-3xl mb-2">{consumer.icon}</div>
-                    <div className={consumer.subscribed ? 'text-green-400' : 'text-white'}>
+                    <div className={consumer.subscribed ? 'text-success' : 'text-foreground'}>
                       {consumer.name}
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">
+                    <div className="text-xs text-muted-foreground mt-1">
                       {consumer.subscribed ? 'Subscribed' : 'Not subscribed'}
                     </div>
-                    <div className="text-lg font-bold text-cyan-400 mt-2">
+                    <div className="text-lg font-bold text-primary mt-2">
                       {consumer.messagesHandled}
                     </div>
-                    <div className="text-xs text-gray-500">messages</div>
-                  </button>
+                    <div className="text-xs text-muted-foreground">messages</div>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -360,9 +360,9 @@ OrderCreatedEvent.subscribe(InventoryService.new)`,
           ]}
           learningGoal="Message queues decouple services. Publishers don't wait for consumers. Failed messages are retried automatically."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Benefits</div>
-            <ul className="text-xs text-gray-400 space-y-1">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Benefits</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>+ Services are decoupled</li>
               <li>+ Handle spikes with queue buffering</li>
               <li>+ Failed messages retry automatically</li>
@@ -370,9 +370,9 @@ OrderCreatedEvent.subscribe(InventoryService.new)`,
             </ul>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Tools</div>
-            <ul className="text-xs text-gray-400 space-y-1">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Tools</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>• Sidekiq + Redis</li>
               <li>• RabbitMQ</li>
               <li>• AWS SQS/SNS</li>

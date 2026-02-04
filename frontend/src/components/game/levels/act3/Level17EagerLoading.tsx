@@ -18,6 +18,7 @@ import {
   useLevelCompletion,
   type ValidationResult,
 } from '../shared';
+import { Button } from '../../../ui/Button';
 
 interface LoadingStrategy {
   id: string;
@@ -144,43 +145,44 @@ export function Level17EagerLoading({ onComplete, onExit }: LevelComponentProps)
           goal="Choose the right eager loading strategy for each scenario."
         >
           {/* Scenario Tabs */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Scenarios
             </div>
             <div className="space-y-2">
               {scenarios.map(scenario => (
-                <button
+                <Button
                   key={scenario.id}
                   onClick={() => setActiveScenario(scenario.id)}
-                  className={`w-full p-3 rounded-lg text-left transition-all ${
+                  variant={activeScenario === scenario.id ? 'default' : 'outline'}
+                  className={`w-full p-3 h-auto rounded-lg text-left justify-start flex-col items-start ${
                     activeScenario === scenario.id
-                      ? 'bg-cyan-900/30 border border-cyan-500'
-                      : 'bg-gray-800 border border-gray-700 hover:border-gray-500'
+                      ? 'bg-primary/20 border border-primary'
+                      : 'bg-secondary border border-border hover:border-muted-foreground'
                   }`}
                 >
-                  <div className="flex justify-between items-center">
-                    <span className={`text-sm font-medium ${scenario.solved ? 'text-green-400' : 'text-white'}`}>
+                  <div className="flex justify-between items-center w-full">
+                    <span className={`text-sm font-medium ${scenario.solved ? 'text-success' : 'text-foreground'}`}>
                       {scenario.title}
                     </span>
-                    {scenario.solved && <span className="text-green-400 text-xs">✓</span>}
+                    {scenario.solved && <span className="text-success text-xs">✓</span>}
                   </div>
-                  <div className="text-xs text-gray-500">{scenario.description}</div>
-                </button>
+                  <div className="text-xs text-muted-foreground">{scenario.description}</div>
+                </Button>
               ))}
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
+          <div className="p-4 border-t border-border">
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-400">Scenarios optimized</span>
-              <span className={solvedCount === scenarios.length ? 'text-green-400' : 'text-white'}>
+              <span className="text-muted-foreground">Scenarios optimized</span>
+              <span className={solvedCount === scenarios.length ? 'text-success' : 'text-foreground'}>
                 {solvedCount} / {scenarios.length}
               </span>
             </div>
-            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-2 bg-secondary rounded-full overflow-hidden">
               <div
-                className="h-full bg-green-500 transition-all"
+                className="h-full bg-success transition-all"
                 style={{ width: `${(solvedCount / scenarios.length) * 100}%` }}
               />
             </div>
@@ -199,31 +201,31 @@ export function Level17EagerLoading({ onComplete, onExit }: LevelComponentProps)
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-6 overflow-auto">
+        <div className="flex-1 relative bg-background p-6 overflow-auto">
           <div className="max-w-3xl mx-auto">
             {/* Current Scenario */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">{currentScenario.title}</div>
-                <div className="text-xs text-gray-500">{currentScenario.description}</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">{currentScenario.title}</div>
+                <div className="text-xs text-muted-foreground">{currentScenario.description}</div>
               </div>
 
               <div className="p-4">
-                <div className="text-xs text-gray-500 mb-2">Current Code:</div>
-                <pre className="bg-gray-800 p-3 rounded-lg text-sm text-gray-300 overflow-x-auto">
+                <div className="text-xs text-muted-foreground mb-2">Current Code:</div>
+                <pre className="bg-secondary p-3 rounded-lg text-sm text-muted-foreground overflow-x-auto">
                   <code>{currentScenario.code}</code>
                 </pre>
               </div>
 
               {/* Query Counter */}
               <div className="px-4 pb-4">
-                <div className="flex items-center justify-between p-4 rounded-lg bg-gray-800/50">
+                <div className="flex items-center justify-between p-4 rounded-lg bg-secondary/50">
                   <div>
-                    <div className="text-xs text-gray-500">Database Queries</div>
-                    <div className="text-sm text-gray-400">for 100 posts</div>
+                    <div className="text-xs text-muted-foreground">Database Queries</div>
+                    <div className="text-sm text-muted-foreground">for 100 posts</div>
                   </div>
                   <div className={`text-4xl font-bold ${
-                    currentScenario.solved ? 'text-green-400' : 'text-red-400'
+                    currentScenario.solved ? 'text-success' : 'text-destructive'
                   }`}>
                     {typeof currentScenario.currentQueries === 'number'
                       ? currentScenario.currentQueries
@@ -234,10 +236,10 @@ export function Level17EagerLoading({ onComplete, onExit }: LevelComponentProps)
             </div>
 
             {/* Strategy Selection */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Choose Loading Strategy</div>
-                <div className="text-xs text-gray-500">Select the best approach for this scenario</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Choose Loading Strategy</div>
+                <div className="text-xs text-muted-foreground">Select the best approach for this scenario</div>
               </div>
 
               <div className="p-4 space-y-3">
@@ -247,45 +249,46 @@ export function Level17EagerLoading({ onComplete, onExit }: LevelComponentProps)
                   const showResult = isSelected;
 
                   return (
-                    <button
+                    <Button
                       key={strategy.id}
                       onClick={() => selectStrategy(currentScenario.id, strategy.id)}
-                      className={`w-full p-4 rounded-lg text-left transition-all border-2 ${
+                      variant={isSelected ? (isCorrect ? 'default' : 'destructive') : 'outline'}
+                      className={`w-full p-4 h-auto rounded-lg text-left justify-start flex-col items-start border-2 ${
                         isSelected
                           ? isCorrect
-                            ? 'border-green-500 bg-green-900/20'
-                            : 'border-red-500 bg-red-900/20'
-                          : 'border-gray-700 bg-gray-800/50 hover:border-gray-500'
+                            ? 'border-success bg-success/20'
+                            : 'border-destructive bg-destructive/20'
+                          : 'border-border bg-secondary/50 hover:border-muted-foreground'
                       }`}
                     >
-                      <div className="flex justify-between items-start mb-2">
+                      <div className="flex justify-between items-start mb-2 w-full">
                         <div>
                           <span className={`font-mono text-sm ${
                             isSelected
-                              ? isCorrect ? 'text-green-400' : 'text-red-400'
-                              : 'text-cyan-400'
+                              ? isCorrect ? 'text-success' : 'text-destructive'
+                              : 'text-primary'
                           }`}>
                             {strategy.name}
                           </span>
                         </div>
                         <div className={`text-sm font-bold ${
                           typeof strategy.queries === 'number'
-                            ? strategy.queries <= 3 ? 'text-green-400' : 'text-red-400'
-                            : 'text-red-400'
+                            ? strategy.queries <= 3 ? 'text-success' : 'text-destructive'
+                            : 'text-destructive'
                         }`}>
                           {strategy.queries} {typeof strategy.queries === 'number' ? 'queries' : ''}
                         </div>
                       </div>
-                      <div className="text-xs text-gray-500 mb-2">{strategy.description}</div>
-                      <pre className="text-xs bg-gray-900/50 p-2 rounded text-gray-400 overflow-x-auto">
+                      <div className="text-xs text-muted-foreground mb-2">{strategy.description}</div>
+                      <pre className="text-xs bg-card/50 p-2 rounded text-muted-foreground overflow-x-auto">
                         <code>{strategy.code}</code>
                       </pre>
                       {showResult && (
-                        <div className={`mt-2 text-xs ${isCorrect ? 'text-green-400' : 'text-red-400'}`}>
+                        <div className={`mt-2 text-xs ${isCorrect ? 'text-success' : 'text-destructive'}`}>
                           {isCorrect ? '✓ Optimal choice!' : '✗ Not the best option for this scenario'}
                         </div>
                       )}
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
@@ -325,27 +328,27 @@ Post.eager_load(:author)
           }]}
           learningGoal="includes is usually right. Use eager_load when filtering on associations. Use preload when you need separate queries."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Quick Reference</div>
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Quick Reference</div>
             <div className="space-y-2 text-xs">
-              <div className="flex justify-between text-gray-400">
-                <span className="text-cyan-400">includes</span>
+              <div className="flex justify-between text-muted-foreground">
+                <span className="text-primary">includes</span>
                 <span>Auto-picks best method</span>
               </div>
-              <div className="flex justify-between text-gray-400">
-                <span className="text-yellow-400">preload</span>
+              <div className="flex justify-between text-muted-foreground">
+                <span className="text-warning">preload</span>
                 <span>Separate queries only</span>
               </div>
-              <div className="flex justify-between text-gray-400">
+              <div className="flex justify-between text-muted-foreground">
                 <span className="text-purple-400">eager_load</span>
                 <span>LEFT OUTER JOIN only</span>
               </div>
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Nested Associations</div>
-            <pre className="text-xs text-gray-400 bg-gray-800 p-2 rounded overflow-x-auto">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Nested Associations</div>
+            <pre className="text-xs text-muted-foreground bg-secondary p-2 rounded overflow-x-auto">
 {`# Load multiple levels:
 Post.includes(comments: :user)
 

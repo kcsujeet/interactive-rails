@@ -6,6 +6,7 @@
  */
 
 import { useState } from 'react';
+import { Button } from '../../../ui/Button';
 
 export interface ValidationResult {
   valid: boolean;
@@ -44,34 +45,34 @@ export function SubmitButton({
 
   return (
     <div className="space-y-3">
-      <button
+      <Button
         onClick={handleClick}
         disabled={isCompleting}
-        className={`w-full py-3 rounded-lg font-bold transition-all shadow-lg ${
+        className={`w-full py-3 font-bold shadow-lg ${
           isCompleting
-            ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+            ? 'bg-secondary text-muted-foreground cursor-not-allowed'
             : lastResult?.valid
-              ? 'bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white shadow-green-900/30'
-              : 'bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-white shadow-cyan-900/30'
+              ? 'bg-success hover:bg-success/90 text-foreground shadow-success/30'
+              : 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/30'
         }`}
       >
         {isCompleting ? 'Completing...' : lastResult?.valid ? successLabel : label}
-      </button>
+      </Button>
 
       {/* Feedback message */}
       {lastResult && !lastResult.valid && (
-        <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-3 animate-shake">
-          <div className="text-red-400 text-sm font-medium flex items-center gap-2">
+        <div className="bg-destructive/10 border border-destructive/50 rounded-lg p-3 animate-shake">
+          <div className="text-destructive text-sm font-medium flex items-center gap-2">
             <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
             </svg>
             {lastResult.message}
           </div>
           {lastResult.details && lastResult.details.length > 0 && (
-            <ul className="mt-2 text-red-300 text-xs space-y-1">
+            <ul className="mt-2 text-destructive/80 text-xs space-y-1">
               {lastResult.details.map((detail, i) => (
                 <li key={i} className="flex items-start gap-1">
-                  <span className="text-red-500">-</span>
+                  <span className="text-destructive">-</span>
                   {detail}
                 </li>
               ))}
@@ -82,8 +83,8 @@ export function SubmitButton({
 
       {/* Success message */}
       {lastResult?.valid && (
-        <div className="bg-green-900/30 border border-green-500/50 rounded-lg p-3">
-          <div className="text-green-400 text-sm font-medium flex items-center gap-2">
+        <div className="bg-success/10 border border-success/50 rounded-lg p-3">
+          <div className="text-success text-sm font-medium flex items-center gap-2">
             <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
             </svg>

@@ -17,6 +17,7 @@ import {
   CodePreviewPanel,
   useLevelCompletion,
 } from '../shared';
+import { Button } from '../../../ui/Button';
 
 interface Payment {
   id: string;
@@ -104,37 +105,34 @@ export function Level17Webhooks({ onComplete, onExit }: LevelComponentProps) {
           ]}
           goal="Learn to use webhooks for async event notifications instead of polling."
         >
-          <div className="p-4 border-t border-gray-800">
-            <button
+          <div className="p-4 border-t border-border">
+            <Button
               onClick={() => {
                 setWebhookEnabled(true);
                 setPayments([]);
                 setApiCalls(0);
               }}
               disabled={webhookEnabled}
-              className={`w-full py-3 rounded-lg font-medium transition-colors ${
-                webhookEnabled
-                  ? 'bg-green-600 text-white cursor-default'
-                  : 'bg-cyan-600 hover:bg-cyan-500 text-white'
-              }`}
+              variant={webhookEnabled ? 'secondary' : 'default'}
+              className={`w-full py-3 ${webhookEnabled ? 'bg-success text-success-foreground cursor-default' : ''}`}
             >
               {webhookEnabled ? 'Webhook Enabled' : 'Enable Webhook Endpoint'}
-            </button>
+            </Button>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
+          <div className="p-4 border-t border-border">
             <div className="grid grid-cols-2 gap-3">
               <div className={`rounded-lg p-3 text-center ${
-                apiCalls > 10 ? 'bg-red-900/30' : 'bg-gray-800'
+                apiCalls > 10 ? 'bg-destructive/20' : 'bg-secondary'
               }`}>
-                <div className={`text-2xl font-bold ${apiCalls > 10 ? 'text-red-400' : 'text-white'}`}>
+                <div className={`text-2xl font-bold ${apiCalls > 10 ? 'text-destructive' : 'text-foreground'}`}>
                   {apiCalls}
                 </div>
-                <div className="text-xs text-gray-400">Polling Calls</div>
+                <div className="text-xs text-muted-foreground">Polling Calls</div>
               </div>
-              <div className="bg-green-900/30 rounded-lg p-3 text-center">
-                <div className="text-2xl font-bold text-green-400">{webhooksReceived}</div>
-                <div className="text-xs text-green-400/70">Webhooks</div>
+              <div className="bg-success/20 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-success">{webhooksReceived}</div>
+                <div className="text-xs text-success/70">Webhooks</div>
               </div>
             </div>
           </div>
@@ -155,15 +153,15 @@ export function Level17Webhooks({ onComplete, onExit }: LevelComponentProps) {
           }}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-8">
+        <div className="flex-1 relative bg-background p-8">
           {/* Architecture */}
           <div className="flex items-center justify-center gap-8 mb-8">
             {/* Your App */}
-            <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 w-40 text-center">
+            <div className="bg-card border border-border rounded-xl p-4 w-40 text-center">
               <div className="text-2xl mb-2">A</div>
-              <div className="text-gray-400 text-sm">Your App</div>
+              <div className="text-muted-foreground text-sm">Your App</div>
               {webhookEnabled && (
-                <div className="mt-2 text-xs text-cyan-400">/webhooks/stripe</div>
+                <div className="mt-2 text-xs text-primary">/webhooks/stripe</div>
               )}
             </div>
 
@@ -172,26 +170,26 @@ export function Level17Webhooks({ onComplete, onExit }: LevelComponentProps) {
               {webhookEnabled ? (
                 <>
                   <div className="flex items-center gap-2">
-                    <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                     </svg>
-                    <span className="text-xs text-gray-500">create payment</span>
+                    <span className="text-xs text-muted-foreground">create payment</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-6 h-6 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                     </svg>
-                    <span className="text-xs text-green-500">webhook callback</span>
+                    <span className="text-xs text-success">webhook callback</span>
                   </div>
                 </>
               ) : (
                 <div className="space-y-1">
                   {[1, 2, 3].map(i => (
                     <div key={i} className="flex items-center gap-2">
-                      <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                       </svg>
-                      <span className="text-xs text-red-400">poll #{i}</span>
+                      <span className="text-xs text-destructive">poll #{i}</span>
                     </div>
                   ))}
                 </div>
@@ -207,23 +205,23 @@ export function Level17Webhooks({ onComplete, onExit }: LevelComponentProps) {
           </div>
 
           {/* Payment Log */}
-          <div className="bg-gray-900 rounded-xl p-4 max-w-2xl mx-auto">
-            <div className="text-gray-400 text-xs uppercase tracking-wider mb-3">Payment Status</div>
+          <div className="bg-card rounded-xl p-4 max-w-2xl mx-auto">
+            <div className="text-muted-foreground text-xs uppercase tracking-wider mb-3">Payment Status</div>
             <div className="space-y-3">
               {payments.map(p => (
-                <div key={p.id} className="bg-gray-800 rounded-lg p-4">
+                <div key={p.id} className="bg-secondary rounded-lg p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-white font-mono text-sm">{p.id}</span>
+                    <span className="text-foreground font-mono text-sm">{p.id}</span>
                     <span className={`text-xs px-2 py-1 rounded ${
-                      p.status === 'completed' ? 'bg-green-900/50 text-green-400' :
-                      p.status === 'processing' ? 'bg-yellow-900/50 text-yellow-400' :
-                      p.status === 'failed' ? 'bg-red-900/50 text-red-400' :
-                      'bg-gray-700 text-gray-400'
+                      p.status === 'completed' ? 'bg-success/30 text-success' :
+                      p.status === 'processing' ? 'bg-warning/30 text-warning' :
+                      p.status === 'failed' ? 'bg-destructive/30 text-destructive' :
+                      'bg-secondary text-muted-foreground'
                     }`}>
                       {p.status}
                     </span>
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-muted-foreground">
                     {p.method === 'polling' ? (
                       <span>Method: Polling ({p.pollCount} API calls)</span>
                     ) : (
@@ -233,7 +231,7 @@ export function Level17Webhooks({ onComplete, onExit }: LevelComponentProps) {
                 </div>
               ))}
               {payments.length === 0 && (
-                <div className="text-gray-600 text-center py-4">Waiting for payments...</div>
+                <div className="text-muted-foreground text-center py-4">Waiting for payments...</div>
               )}
             </div>
           </div>
@@ -241,12 +239,13 @@ export function Level17Webhooks({ onComplete, onExit }: LevelComponentProps) {
           {/* Completion button */}
           {isComplete && (
             <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
-              <button
+              <Button
                 onClick={handleComplete}
-                className="px-8 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white font-bold rounded-lg shadow-lg"
+                size="lg"
+                className="bg-gradient-to-r from-success to-success/80 text-success-foreground font-bold shadow-lg"
               >
                 Complete Level
-              </button>
+              </Button>
             </div>
           )}
         </div>

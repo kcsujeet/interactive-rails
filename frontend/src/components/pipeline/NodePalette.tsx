@@ -124,7 +124,7 @@ const NodePaletteItem = memo(function NodePaletteItem({
         <div className="absolute inset-0 flex items-center justify-center bg-game-bg/80 rounded-lg z-10">
           <div className="text-center">
             <span className="text-lg">🔒</span>
-            <p className="text-xs text-gray-500 mt-1">Level {unlockLevel}</p>
+            <p className="text-xs text-muted-foreground mt-1">Level {unlockLevel}</p>
           </div>
         </div>
       )}
@@ -141,14 +141,14 @@ const NodePaletteItem = memo(function NodePaletteItem({
         {/* Text content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-sm text-gray-200">{node.label}</span>
+            <span className="font-medium text-sm text-foreground">{node.label}</span>
             {/* Color indicator */}
             <span
               className="w-2 h-2 rounded-full flex-shrink-0"
               style={{ backgroundColor: node.color }}
             />
           </div>
-          <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
+          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
             {node.description}
           </p>
         </div>
@@ -157,7 +157,7 @@ const NodePaletteItem = memo(function NodePaletteItem({
       {/* Drag hint */}
       {isUnlocked && (
         <div className="absolute -right-1 -bottom-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <span className="text-xs text-gray-500">Drag to add</span>
+          <span className="text-xs text-muted-foreground">Drag to add</span>
         </div>
       )}
     </div>
@@ -196,7 +196,7 @@ function NodePalette({ className }: NodePaletteProps) {
 
   const renderCategory = (title: string, nodes: NodeDefinition[]) => (
     <div className="space-y-2">
-      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-1">
+      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
         {title}
       </h4>
       <div className="space-y-2">
@@ -217,8 +217,8 @@ function NodePalette({ className }: NodePaletteProps) {
     <div className={clsx('flex flex-col h-full bg-game-surface border-r border-game-border', className)}>
       {/* Header */}
       <div className="px-4 py-3 border-b border-game-border">
-        <h3 className="font-semibold text-gray-200">Node Palette</h3>
-        <p className="text-xs text-gray-500 mt-1">
+        <h3 className="font-semibold text-foreground">Node Palette</h3>
+        <p className="text-xs text-muted-foreground mt-1">
           Drag nodes onto the canvas to build your pipeline
         </p>
       </div>
@@ -234,10 +234,10 @@ function NodePalette({ className }: NodePaletteProps) {
       {/* Footer with level info */}
       <div className="px-4 py-3 border-t border-game-border bg-game-bg/50">
         <div className="flex items-center justify-between text-xs">
-          <span className="text-gray-500">Your Level:</span>
-          <span className="font-medium text-blue-400">Level {playerLevel}</span>
+          <span className="text-muted-foreground">Your Level:</span>
+          <span className="font-medium text-primary">Level {playerLevel}</span>
         </div>
-        <div className="mt-1 text-xs text-gray-500">
+        <div className="mt-1 text-xs text-muted-foreground">
           Unlock more nodes by leveling up
         </div>
       </div>

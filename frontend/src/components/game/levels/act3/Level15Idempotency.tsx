@@ -18,6 +18,7 @@ import {
   useLevelCompletion,
   type ValidationResult,
 } from '../shared';
+import { Button } from '../../../ui/Button';
 
 interface WebhookDelivery {
   id: number;
@@ -139,41 +140,38 @@ export function Level15Idempotency({ onComplete, onExit }: LevelComponentProps) 
           ]}
           goal="Learn to use idempotency keys to prevent duplicate processing."
         >
-          <div className="p-4 border-t border-gray-800">
-            <button
+          <div className="p-4 border-t border-border">
+            <Button
               onClick={() => {
                 setIdempotencyEnabled(true);
                 setProcessedEventIds(new Set());
               }}
               disabled={idempotencyEnabled}
-              className={`w-full py-3 rounded-lg font-medium transition-colors ${
-                idempotencyEnabled
-                  ? 'bg-green-600 text-white cursor-default'
-                  : 'bg-cyan-600 hover:bg-cyan-500 text-white'
-              }`}
+              variant={idempotencyEnabled ? 'secondary' : 'default'}
+              className={`w-full py-3 ${idempotencyEnabled ? 'bg-success text-success-foreground cursor-default' : ''}`}
             >
               {idempotencyEnabled ? 'Idempotency Enabled' : 'Enable Idempotency'}
-            </button>
+            </Button>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
+          <div className="p-4 border-t border-border">
             <div className="grid grid-cols-2 gap-3">
               <div className={`rounded-lg p-3 text-center ${
-                !idempotencyEnabled && chargeCount > 3 ? 'bg-red-900/30' : 'bg-gray-800'
+                !idempotencyEnabled && chargeCount > 3 ? 'bg-destructive/20' : 'bg-secondary'
               }`}>
                 <div className={`text-2xl font-bold ${
-                  !idempotencyEnabled && chargeCount > 3 ? 'text-red-400' : 'text-white'
+                  !idempotencyEnabled && chargeCount > 3 ? 'text-destructive' : 'text-foreground'
                 }`}>
                   ${chargeCount * 99}
                 </div>
-                <div className="text-xs text-gray-400">Total Charged</div>
+                <div className="text-xs text-muted-foreground">Total Charged</div>
                 {!idempotencyEnabled && chargeCount > 3 && (
-                  <div className="text-red-400 text-xs mt-1">Customer overcharged!</div>
+                  <div className="text-destructive text-xs mt-1">Customer overcharged!</div>
                 )}
               </div>
-              <div className="bg-green-900/30 rounded-lg p-3 text-center">
-                <div className="text-2xl font-bold text-green-400">{duplicatesBlocked}</div>
-                <div className="text-xs text-green-400/70">Duplicates Blocked</div>
+              <div className="bg-success/20 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-success">{duplicatesBlocked}</div>
+                <div className="text-xs text-success/70">Duplicates Blocked</div>
               </div>
             </div>
           </div>
@@ -199,7 +197,7 @@ export function Level15Idempotency({ onComplete, onExit }: LevelComponentProps) 
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-8">
+        <div className="flex-1 relative bg-background p-8">
           {/* Architecture */}
           <div className="flex items-center justify-center gap-8 mb-8">
             {/* Stripe */}
@@ -209,74 +207,74 @@ export function Level15Idempotency({ onComplete, onExit }: LevelComponentProps) 
               <div className="text-purple-300 text-xs mt-1">Sends webhooks</div>
             </div>
 
-            <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
             </svg>
 
             {/* Idempotency Check */}
             {idempotencyEnabled && (
               <>
-                <div className="bg-cyan-900/40 border border-cyan-600 rounded-xl p-4 w-40 text-center">
+                <div className="bg-primary/20 border border-primary rounded-xl p-4 w-40 text-center">
                   <div className="text-2xl mb-2">K</div>
-                  <div className="text-cyan-400 text-sm">Idempotency</div>
-                  <div className="text-cyan-300 text-xs mt-1">Check event_id</div>
+                  <div className="text-primary text-sm">Idempotency</div>
+                  <div className="text-primary/80 text-xs mt-1">Check event_id</div>
                 </div>
 
-                <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
               </>
             )}
 
             {/* Your App */}
-            <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 w-40 text-center">
+            <div className="bg-card border border-border rounded-xl p-4 w-40 text-center">
               <div className="text-2xl mb-2">A</div>
-              <div className="text-gray-400 text-sm">Your App</div>
-              <div className="text-gray-500 text-xs mt-1">Charges customer</div>
+              <div className="text-muted-foreground text-sm">Your App</div>
+              <div className="text-muted-foreground text-xs mt-1">Charges customer</div>
             </div>
           </div>
 
           {/* Webhook Log */}
-          <div className="bg-gray-900 rounded-xl p-4 max-w-2xl mx-auto">
-            <div className="text-gray-400 text-xs uppercase tracking-wider mb-3">Webhook Deliveries</div>
+          <div className="bg-card rounded-xl p-4 max-w-2xl mx-auto">
+            <div className="text-muted-foreground text-xs uppercase tracking-wider mb-3">Webhook Deliveries</div>
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {deliveries.map(d => (
                 <div
                   key={d.id}
                   className={`flex items-center justify-between p-3 rounded-lg ${
-                    d.status === 'pending' ? 'bg-gray-800' :
-                    d.status === 'processed' ? 'bg-green-900/30' :
-                    d.status === 'duplicate' ? 'bg-yellow-900/30' :
-                    'bg-red-900/30'
+                    d.status === 'pending' ? 'bg-secondary' :
+                    d.status === 'processed' ? 'bg-success/20' :
+                    d.status === 'duplicate' ? 'bg-warning/20' :
+                    'bg-destructive/20'
                   }`}
                 >
                   <div className="flex items-center gap-3">
                     <div className={`w-2 h-2 rounded-full ${
-                      d.status === 'pending' ? 'bg-gray-500 animate-pulse' :
-                      d.status === 'processed' ? 'bg-green-500' :
-                      d.status === 'duplicate' ? 'bg-yellow-500' :
-                      'bg-red-500'
+                      d.status === 'pending' ? 'bg-muted-foreground animate-pulse' :
+                      d.status === 'processed' ? 'bg-success' :
+                      d.status === 'duplicate' ? 'bg-warning' :
+                      'bg-destructive'
                     }`} />
                     <div>
-                      <span className="text-gray-300 font-mono text-sm">{d.eventId}</span>
-                      <span className="text-gray-500 text-xs ml-2">Attempt #{d.attempt}</span>
+                      <span className="text-muted-foreground font-mono text-sm">{d.eventId}</span>
+                      <span className="text-muted-foreground text-xs ml-2">Attempt #{d.attempt}</span>
                     </div>
                   </div>
                   <div className="text-sm">
                     {d.status === 'pending' && (
-                      <span className="text-gray-500">Processing...</span>
+                      <span className="text-muted-foreground">Processing...</span>
                     )}
                     {d.status === 'processed' && (
-                      <span className="text-green-400">Charged $99</span>
+                      <span className="text-success">Charged $99</span>
                     )}
                     {d.status === 'duplicate' && (
-                      <span className="text-yellow-400">Skipped (duplicate)</span>
+                      <span className="text-warning">Skipped (duplicate)</span>
                     )}
                   </div>
                 </div>
               ))}
               {deliveries.length === 0 && (
-                <div className="text-gray-600 text-center py-4">Waiting for webhooks...</div>
+                <div className="text-muted-foreground text-center py-4">Waiting for webhooks...</div>
               )}
             </div>
           </div>

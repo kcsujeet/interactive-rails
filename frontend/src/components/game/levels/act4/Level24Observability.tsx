@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -92,54 +93,54 @@ export function Level24Observability({ onComplete, onExit }: LevelComponentProps
           ]}
           goal="Learn distributed tracing for debugging latency in microservices."
         >
-          <div className="p-4 border-t border-gray-800">
-            <button
+          <div className="p-4 border-t border-border">
+            <Button
               onClick={enableTracing}
               disabled={tracingEnabled}
-              className={`w-full py-3 rounded-lg font-medium transition-colors ${
+              className={`w-full py-3 ${
                 tracingEnabled
-                  ? 'bg-green-600 text-white cursor-default'
-                  : 'bg-cyan-600 hover:bg-cyan-500 text-white'
+                  ? 'bg-success text-success-foreground cursor-default'
+                  : ''
               }`}
             >
               {tracingEnabled ? 'Tracing Enabled' : 'Enable Distributed Tracing'}
-            </button>
+            </Button>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Request Metrics
             </div>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className="text-gray-400">Total Duration:</span>
-                <span className={`font-bold ${totalDuration > 1000 ? 'text-red-400' : 'text-green-400'}`}>
+                <span className="text-muted-foreground">Total Duration:</span>
+                <span className={`font-bold ${totalDuration > 1000 ? 'text-destructive' : 'text-success'}`}>
                   {totalDuration}ms
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-400">Services:</span>
-                <span className="text-white">{spans.length}</span>
+                <span className="text-muted-foreground">Services:</span>
+                <span className="text-foreground">{spans.length}</span>
               </div>
             </div>
           </div>
 
           {selectedSpan && (
-            <div className="p-4 border-t border-gray-800">
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+            <div className="p-4 border-t border-border">
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                 Selected Span
               </div>
               {spans.filter(s => s.id === selectedSpan).map(span => (
                 <div key={span.id} className={`p-3 rounded-lg ${
-                  span.id === 'billing' ? 'bg-red-900/30 border border-red-500' : 'bg-gray-800'
+                  span.id === 'billing' ? 'bg-destructive/20 border border-destructive' : 'bg-card'
                 }`}>
-                  <div className="text-white font-medium">{span.service}</div>
-                  <div className="text-gray-400 text-sm">{span.operation}</div>
-                  <div className={`text-sm mt-1 ${span.duration > 500 ? 'text-red-400' : 'text-green-400'}`}>
+                  <div className="text-foreground font-medium">{span.service}</div>
+                  <div className="text-muted-foreground text-sm">{span.operation}</div>
+                  <div className={`text-sm mt-1 ${span.duration > 500 ? 'text-destructive' : 'text-success'}`}>
                     {span.duration}ms
                   </div>
                   {span.id === 'billing' && (
-                    <div className="text-red-400 text-xs mt-2">
+                    <div className="text-destructive text-xs mt-2">
                       BOTTLENECK FOUND! This service is slow.
                     </div>
                   )}
@@ -169,18 +170,18 @@ export function Level24Observability({ onComplete, onExit }: LevelComponentProps
           }}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-8">
+        <div className="flex-1 relative bg-background p-8">
           {/* Flame Graph */}
-          <div className="bg-gray-900 rounded-xl p-6">
+          <div className="bg-card rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <div className="text-gray-400 text-xs uppercase tracking-wider">Trace: checkout-request</div>
-              <div className="text-gray-500 text-xs">Total: {totalDuration}ms</div>
+              <div className="text-muted-foreground text-xs uppercase tracking-wider">Trace: checkout-request</div>
+              <div className="text-muted-foreground text-xs">Total: {totalDuration}ms</div>
             </div>
 
             {/* Timeline */}
             <div className="relative mb-4">
-              <div className="absolute top-0 left-0 right-0 h-px bg-gray-700" />
-              <div className="flex justify-between text-xs text-gray-600">
+              <div className="absolute top-0 left-0 right-0 h-px bg-border" />
+              <div className="flex justify-between text-xs text-muted-foreground">
                 <span>0ms</span>
                 <span>{Math.round(totalDuration / 4)}ms</span>
                 <span>{Math.round(totalDuration / 2)}ms</span>
@@ -198,10 +199,11 @@ export function Level24Observability({ onComplete, onExit }: LevelComponentProps
                 return (
                   <div key={span.id} className="relative h-10">
                     {tracingEnabled && span.traced ? (
-                      <button
+                      <Button
                         onClick={() => handleSpanClick(span.id)}
-                        className={`absolute h-full rounded transition-all hover:opacity-90 ${
-                          selectedSpan === span.id ? 'ring-2 ring-white' : ''
+                        variant={selectedSpan === span.id ? 'default' : 'outline'}
+                        className={`absolute h-full p-0 rounded transition-all hover:opacity-90 ${
+                          selectedSpan === span.id ? 'ring-2 ring-foreground' : ''
                         }`}
                         style={{
                           left: `${left}%`,
@@ -210,21 +212,21 @@ export function Level24Observability({ onComplete, onExit }: LevelComponentProps
                           minWidth: '60px',
                         }}
                       >
-                        <div className="flex items-center justify-between px-2 h-full text-white text-xs">
+                        <div className="flex items-center justify-between px-2 h-full text-foreground text-xs w-full">
                           <span className="truncate">{span.service}</span>
                           <span>{span.duration}ms</span>
                         </div>
-                      </button>
+                      </Button>
                     ) : (
                       <div
-                        className="absolute h-full rounded bg-gray-700"
+                        className="absolute h-full rounded bg-secondary"
                         style={{
                           left: `${left}%`,
                           width: `${width}%`,
                           minWidth: '60px',
                         }}
                       >
-                        <div className="flex items-center justify-center h-full text-gray-500 text-xs">
+                        <div className="flex items-center justify-center h-full text-muted-foreground text-xs">
                           {tracingEnabled ? '...' : '???'}
                         </div>
                       </div>
@@ -242,7 +244,7 @@ export function Level24Observability({ onComplete, onExit }: LevelComponentProps
                     className="w-3 h-3 rounded"
                     style={{ backgroundColor: getSpanColor(service) }}
                   />
-                  <span className="text-gray-400">{service}</span>
+                  <span className="text-muted-foreground">{service}</span>
                 </div>
               ))}
             </div>
@@ -250,9 +252,9 @@ export function Level24Observability({ onComplete, onExit }: LevelComponentProps
 
           {/* Problem indicator */}
           {problemFound && (
-            <div className="mt-6 bg-red-900/30 border border-red-500 rounded-lg p-4 max-w-md mx-auto">
-              <div className="text-red-400 font-medium">Bottleneck Identified!</div>
-              <div className="text-red-300 text-sm mt-1">
+            <div className="mt-6 bg-destructive/20 border border-destructive rounded-lg p-4 max-w-md mx-auto">
+              <div className="text-destructive font-medium">Bottleneck Identified!</div>
+              <div className="text-destructive/80 text-sm mt-1">
                 The Billing service takes 1800ms (90% of total time).
                 Investigate database queries or cache the subscription data.
               </div>
@@ -262,12 +264,12 @@ export function Level24Observability({ onComplete, onExit }: LevelComponentProps
           {/* Completion button */}
           {isComplete && (
             <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
-              <button
+              <Button
                 onClick={handleComplete}
-                className="px-8 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white font-bold rounded-lg shadow-lg"
+                className="px-8 py-3 bg-gradient-to-r from-success to-success/80 text-success-foreground font-bold shadow-lg"
               >
                 Complete Level
-              </button>
+              </Button>
             </div>
           )}
         </div>

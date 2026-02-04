@@ -8,7 +8,53 @@
    THEME CONFIGURATION (Tailwind v4)
    ============================================ */
 @theme {
-  /* Brand Colors */
+  /* ========== Semantic Design Tokens ========== */
+  /* Base */
+  --color-background: #071423;
+  --color-foreground: #f3f4f6;
+
+  /* Card */
+  --color-card: #0b1f36;
+  --color-card-foreground: #f3f4f6;
+
+  /* Primary */
+  --color-primary: #38bdf8;
+  --color-primary-foreground: #05202f;
+
+  /* Secondary */
+  --color-secondary: #1c3650;
+  --color-secondary-foreground: #e5f4ff;
+
+  /* Muted */
+  --color-muted: #1c3650;
+  --color-muted-foreground: #94a3b8;
+
+  /* Accent */
+  --color-accent: #0b1f36;
+  --color-accent-foreground: #e5f4ff;
+
+  /* Destructive */
+  --color-destructive: #dc2626;
+  --color-destructive-foreground: #fef2f2;
+
+  /* Success */
+  --color-success: #22c55e;
+  --color-success-foreground: #052e16;
+
+  /* Warning */
+  --color-warning: #f59e0b;
+  --color-warning-foreground: #451a03;
+
+  /* Error */
+  --color-error: #ef4444;
+  --color-error-foreground: #fef2f2;
+
+  /* Border & Input */
+  --color-border: #1c3650;
+  --color-input: #1c3650;
+  --color-ring: #38bdf8;
+
+  /* ========== Brand Colors ========== */
   --color-brand-50: #e6f6ff;
   --color-brand-100: #c0e9ff;
   --color-brand-200: #8fd8ff;
@@ -20,7 +66,7 @@
   --color-brand-800: #003f5c;
   --color-brand-900: #02273d;
 
-  /* Game UI Colors */
+  /* ========== Game UI Colors ========== */
   --color-game-bg: #071423;
   --color-game-surface: #0b1f36;
   --color-game-border: #1c3650;

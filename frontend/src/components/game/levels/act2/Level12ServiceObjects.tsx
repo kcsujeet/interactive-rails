@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -135,8 +136,8 @@ end`;
           ]}
           goal="Service objects encapsulate business logic in a testable, reusable class."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Components ({paletteComponents.length} remaining)
             </div>
             <div className="space-y-2">
@@ -146,25 +147,25 @@ end`;
                   draggable
                   onDragStart={() => handleDragStart(comp.id)}
                   onDragEnd={handleDragEnd}
-                  className="p-2 rounded-lg cursor-grab active:cursor-grabbing border border-gray-700 hover:border-gray-500 transition-colors"
+                  className="p-2 rounded-lg cursor-grab active:cursor-grabbing border hover:opacity-80 transition-colors"
                   style={{ backgroundColor: `${comp.color}20`, borderColor: comp.color }}
                 >
                   <div className="text-sm font-medium" style={{ color: comp.color }}>{comp.name}</div>
-                  <div className="text-xs text-gray-500">{comp.description}</div>
+                  <div className="text-xs text-muted-foreground">{comp.description}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
+          <div className="p-4 border-t border-border">
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-400">Correctly Placed</span>
-              <span className={correctlyPlaced.length === components.length ? 'text-green-400' : 'text-white'}>
+              <span className="text-muted-foreground">Correctly Placed</span>
+              <span className={correctlyPlaced.length === components.length ? 'text-success' : 'text-foreground'}>
                 {correctlyPlaced.length} / {components.length}
               </span>
             </div>
-            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-              <div className="h-full bg-green-500 transition-all" style={{ width: `${(correctlyPlaced.length / components.length) * 100}%` }} />
+            <div className="h-2 bg-secondary rounded-full overflow-hidden">
+              <div className="h-full bg-success transition-all" style={{ width: `${(correctlyPlaced.length / components.length) * 100}%` }} />
             </div>
           </div>
         </InstructionPanel>
@@ -181,7 +182,7 @@ end`;
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-6 overflow-auto">
+        <div className="flex-1 relative bg-background p-6 overflow-auto">
           <div className="max-w-2xl mx-auto space-y-4">
             {SECTIONS.map(section => {
               const sectionComponents = getComponentsForSection(section.id);
@@ -193,12 +194,12 @@ end`;
                   onDragLeave={() => setDragOverSection(null)}
                   onDrop={() => handleDropOnSection(section.id)}
                   className={`rounded-xl border-2 transition-all ${
-                    dragOverSection === section.id ? 'border-cyan-500 bg-cyan-900/10' : 'border-gray-700 bg-gray-900'
+                    dragOverSection === section.id ? 'border-primary bg-primary/10' : 'border-border bg-card'
                   }`}
                 >
-                  <div className="px-4 py-2 border-b border-gray-800">
-                    <div className="font-semibold text-white">{section.name}</div>
-                    <div className="text-xs text-gray-500">{section.description}</div>
+                  <div className="px-4 py-2 border-b border-border">
+                    <div className="font-semibold text-foreground">{section.name}</div>
+                    <div className="text-xs text-muted-foreground">{section.description}</div>
                   </div>
                   <div className="p-4 min-h-[80px]">
                     {sectionComponents.length > 0 ? (
@@ -209,18 +210,18 @@ end`;
                             <div
                               key={comp.id}
                               className={`px-3 py-2 rounded-lg text-sm flex items-center gap-2 ${
-                                isCorrect ? 'ring-2 ring-green-500' : 'ring-2 ring-red-500'
+                                isCorrect ? 'ring-2 ring-success' : 'ring-2 ring-destructive'
                               }`}
                               style={{ backgroundColor: `${comp.color}30`, color: comp.color }}
                             >
                               {comp.name}
-                              <button onClick={() => handleRemove(comp.id)} className="text-white/50 hover:text-white">×</button>
+                              <Button variant="ghost" size="sm" onClick={() => handleRemove(comp.id)} className="text-foreground/50 hover:text-foreground p-0 h-auto">×</Button>
                             </div>
                           );
                         })}
                       </div>
                     ) : (
-                      <div className="text-gray-600 text-sm text-center py-4">Drop components here</div>
+                      <div className="text-muted-foreground text-sm text-center py-4">Drop components here</div>
                     )}
                   </div>
                 </div>
@@ -240,9 +241,9 @@ end`;
           }]}
           learningGoal="Service objects: initialize for setup, call for execution, private for helpers. Inject dependencies for testability."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Usage Pattern</div>
-            <pre className="text-xs text-gray-400 bg-gray-800 p-2 rounded">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Usage Pattern</div>
+            <pre className="text-xs text-muted-foreground bg-secondary p-2 rounded">
 {`# In controller:
 result = CheckoutService.new(
   order,

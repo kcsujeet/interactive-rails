@@ -18,6 +18,7 @@ import {
   useLevelCompletion,
   type ValidationResult,
 } from '../shared';
+import { Button } from '../../../ui/Button';
 
 interface PaginationStrategy {
   id: string;
@@ -186,8 +187,8 @@ export function Level19Pagination({ onComplete, onExit }: LevelComponentProps) {
           goal="Learn when to use each pagination strategy based on data size and access patterns."
         >
           {/* Scenario Tabs */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Scenarios
             </div>
             <div className="space-y-2">
@@ -196,41 +197,42 @@ export function Level19Pagination({ onComplete, onExit }: LevelComponentProps) {
                 const hasChoice = scenario.userChoice !== null;
 
                 return (
-                  <button
+                  <Button
                     key={scenario.id}
                     onClick={() => setActiveScenario(scenario.id)}
-                    className={`w-full p-2 rounded-lg text-left transition-all ${
+                    variant={activeScenario === scenario.id ? 'default' : 'outline'}
+                    className={`w-full p-2 h-auto rounded-lg text-left justify-start ${
                       activeScenario === scenario.id
-                        ? 'bg-cyan-900/30 border border-cyan-500'
-                        : 'bg-gray-800 border border-gray-700 hover:border-gray-500'
+                        ? 'bg-primary/20 border border-primary'
+                        : 'bg-secondary border border-border hover:border-muted-foreground'
                     }`}
                   >
-                    <div className="flex justify-between items-center">
-                      <span className={`text-sm ${hasChoice ? (isCorrect ? 'text-green-400' : 'text-yellow-400') : 'text-white'}`}>
+                    <div className="flex justify-between items-center w-full">
+                      <span className={`text-sm ${hasChoice ? (isCorrect ? 'text-success' : 'text-warning') : 'text-foreground'}`}>
                         {scenario.name}
                       </span>
                       {hasChoice && (
-                        <span className={isCorrect ? 'text-green-400 text-xs' : 'text-yellow-400 text-xs'}>
+                        <span className={isCorrect ? 'text-success text-xs' : 'text-warning text-xs'}>
                           {isCorrect ? '✓' : '?'}
                         </span>
                       )}
                     </div>
-                  </button>
+                  </Button>
                 );
               })}
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
+          <div className="p-4 border-t border-border">
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-400">Correct matches</span>
-              <span className={solvedCount === scenarios.length ? 'text-green-400' : 'text-white'}>
+              <span className="text-muted-foreground">Correct matches</span>
+              <span className={solvedCount === scenarios.length ? 'text-success' : 'text-foreground'}>
                 {solvedCount} / {scenarios.length}
               </span>
             </div>
-            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-2 bg-secondary rounded-full overflow-hidden">
               <div
-                className="h-full bg-green-500 transition-all"
+                className="h-full bg-success transition-all"
                 style={{ width: `${(solvedCount / scenarios.length) * 100}%` }}
               />
             </div>
@@ -249,27 +251,27 @@ export function Level19Pagination({ onComplete, onExit }: LevelComponentProps) {
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-6 overflow-auto">
+        <div className="flex-1 relative bg-background p-6 overflow-auto">
           <div className="max-w-4xl mx-auto">
             {/* Current Scenario */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold text-lg">{currentScenario.name}</div>
-                <div className="text-sm text-gray-400">{currentScenario.description}</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold text-lg">{currentScenario.name}</div>
+                <div className="text-sm text-muted-foreground">{currentScenario.description}</div>
               </div>
 
               <div className="p-4 grid grid-cols-3 gap-4">
-                <div className="bg-gray-800/50 p-3 rounded-lg">
-                  <div className="text-xs text-gray-500">Data Size</div>
-                  <div className="text-white font-semibold">{currentScenario.dataSize}</div>
+                <div className="bg-secondary/50 p-3 rounded-lg">
+                  <div className="text-xs text-muted-foreground">Data Size</div>
+                  <div className="text-foreground font-semibold">{currentScenario.dataSize}</div>
                 </div>
-                <div className="bg-gray-800/50 p-3 rounded-lg">
-                  <div className="text-xs text-gray-500">Traffic</div>
-                  <div className="text-white font-semibold">{currentScenario.traffic}</div>
+                <div className="bg-secondary/50 p-3 rounded-lg">
+                  <div className="text-xs text-muted-foreground">Traffic</div>
+                  <div className="text-foreground font-semibold">{currentScenario.traffic}</div>
                 </div>
-                <div className="bg-gray-800/50 p-3 rounded-lg">
-                  <div className="text-xs text-gray-500">Requirements</div>
-                  <div className="text-xs text-gray-300">{currentScenario.features.join(', ')}</div>
+                <div className="bg-secondary/50 p-3 rounded-lg">
+                  <div className="text-xs text-muted-foreground">Requirements</div>
+                  <div className="text-xs text-muted-foreground">{currentScenario.features.join(', ')}</div>
                 </div>
               </div>
             </div>
@@ -281,49 +283,50 @@ export function Level19Pagination({ onComplete, onExit }: LevelComponentProps) {
                 const isCorrect = currentScenario.correctStrategy === strategy.id;
 
                 return (
-                  <button
+                  <Button
                     key={strategy.id}
                     onClick={() => selectStrategy(currentScenario.id, strategy.id)}
-                    className={`p-4 rounded-xl border-2 text-left transition-all ${
+                    variant={isSelected ? (isCorrect ? 'default' : 'secondary') : 'outline'}
+                    className={`p-4 h-auto rounded-xl border-2 text-left justify-start flex-col items-start ${
                       isSelected
                         ? isCorrect
-                          ? 'border-green-500 bg-green-900/20'
-                          : 'border-yellow-500 bg-yellow-900/20'
-                        : 'border-gray-700 bg-gray-900 hover:border-gray-500'
+                          ? 'border-success bg-success/20'
+                          : 'border-warning bg-warning/20'
+                        : 'border-border bg-card hover:border-muted-foreground'
                     }`}
                   >
-                    <div className="text-white font-semibold mb-1">{strategy.name}</div>
-                    <div className="text-xs text-gray-400 mb-3">{strategy.description}</div>
+                    <div className="text-foreground font-semibold mb-1">{strategy.name}</div>
+                    <div className="text-xs text-muted-foreground mb-3">{strategy.description}</div>
 
-                    <div className="mb-2">
-                      <div className="text-xs text-green-400 font-semibold mb-1">Pros</div>
-                      <ul className="text-xs text-gray-400 space-y-0.5">
+                    <div className="mb-2 w-full">
+                      <div className="text-xs text-success font-semibold mb-1">Pros</div>
+                      <ul className="text-xs text-muted-foreground space-y-0.5">
                         {strategy.pros.map((pro, i) => (
                           <li key={i}>+ {pro}</li>
                         ))}
                       </ul>
                     </div>
 
-                    <div className="mb-2">
-                      <div className="text-xs text-red-400 font-semibold mb-1">Cons</div>
-                      <ul className="text-xs text-gray-400 space-y-0.5">
+                    <div className="mb-2 w-full">
+                      <div className="text-xs text-destructive font-semibold mb-1">Cons</div>
+                      <ul className="text-xs text-muted-foreground space-y-0.5">
                         {strategy.cons.map((con, i) => (
                           <li key={i}>- {con}</li>
                         ))}
                       </ul>
                     </div>
 
-                    <div className="text-xs bg-gray-800 p-2 rounded mt-2">
-                      <span className="text-cyan-400">Best for:</span>
-                      <span className="text-gray-400 ml-1">{strategy.bestFor}</span>
+                    <div className="text-xs bg-secondary p-2 rounded mt-2 w-full">
+                      <span className="text-primary">Best for:</span>
+                      <span className="text-muted-foreground ml-1">{strategy.bestFor}</span>
                     </div>
 
                     {isSelected && (
-                      <div className={`mt-2 text-xs text-center p-1 rounded ${isCorrect ? 'bg-green-900/40 text-green-400' : 'bg-yellow-900/40 text-yellow-400'}`}>
+                      <div className={`mt-2 text-xs text-center p-1 rounded w-full ${isCorrect ? 'bg-success/20 text-success' : 'bg-warning/20 text-warning'}`}>
                         {isCorrect ? '✓ Good choice!' : 'Consider the requirements...'}
                       </div>
                     )}
-                  </button>
+                  </Button>
                 );
               })}
             </div>
@@ -341,27 +344,27 @@ export function Level19Pagination({ onComplete, onExit }: LevelComponentProps) {
           }))}
           learningGoal="Offset for simplicity, cursor for consistency, keyset for scale. Choose based on your data and access patterns."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Decision Matrix</div>
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Decision Matrix</div>
             <div className="text-xs space-y-2">
-              <div className="flex justify-between text-gray-400">
+              <div className="flex justify-between text-muted-foreground">
                 <span>Small data + page numbers</span>
-                <span className="text-cyan-400">Offset</span>
+                <span className="text-primary">Offset</span>
               </div>
-              <div className="flex justify-between text-gray-400">
+              <div className="flex justify-between text-muted-foreground">
                 <span>Large data + infinite scroll</span>
-                <span className="text-cyan-400">Cursor</span>
+                <span className="text-primary">Cursor</span>
               </div>
-              <div className="flex justify-between text-gray-400">
+              <div className="flex justify-between text-muted-foreground">
                 <span>Massive data + API</span>
-                <span className="text-cyan-400">Keyset</span>
+                <span className="text-primary">Keyset</span>
               </div>
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Popular Gems</div>
-            <ul className="text-xs text-gray-400 space-y-1">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Popular Gems</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>• kaminari - Offset pagination</li>
               <li>• will_paginate - Classic offset</li>
               <li>• pagy - Fast, flexible</li>

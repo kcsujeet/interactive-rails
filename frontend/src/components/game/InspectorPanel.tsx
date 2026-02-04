@@ -5,6 +5,8 @@
 
 import { getNodeInfo } from './data';
 import type { LevelChallenge, PlacedNode, ValidationResult } from './types';
+import { Button } from '../ui/Button';
+import { Input } from '../ui/Input';
 
 interface InspectorPanelProps {
   isOpen: boolean;
@@ -44,10 +46,11 @@ export function InspectorPanel({
 }: InspectorPanelProps) {
   if (!isOpen) {
     return (
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="icon"
         onClick={onOpen}
-        className="absolute right-0 top-1/2 -translate-y-1/2 bg-game-surface text-slate-400 p-2 rounded-l-md border border-r-0 border-game-border hover:text-white z-10"
+        className="absolute right-0 top-1/2 -translate-y-1/2 bg-card text-muted-foreground rounded-l-md rounded-r-none border border-r-0 border-border hover:text-foreground z-10"
         aria-label="Open inspector"
       >
         <svg
@@ -59,7 +62,7 @@ export function InspectorPanel({
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
-      </button>
+      </Button>
     );
   }
 
@@ -67,17 +70,18 @@ export function InspectorPanel({
     placedNodes.length - (initialNodesCount ?? challenge?.initialNodes.length ?? 0);
 
   return (
-    <div className="w-80 bg-game-surface border-l border-game-border overflow-y-auto shrink-0">
+    <div className="w-80 bg-card border-l border-border overflow-y-auto shrink-0">
       <div className="p-4">
         <div className="flex items-center justify-between mb-5">
           <div>
-            <div className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Diagnostics</div>
-            <h2 className="text-sm font-semibold text-white -mt-0.5">Inspector</h2>
+            <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Diagnostics</div>
+            <h2 className="text-sm font-semibold text-foreground -mt-0.5">Inspector</h2>
           </div>
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onClose}
-            className="text-slate-500 hover:text-white transition-colors"
+            className="text-muted-foreground hover:text-foreground"
             aria-label="Close inspector"
           >
             <svg
@@ -94,26 +98,25 @@ export function InspectorPanel({
                 d="M6 18L18 6M6 6l12 12"
               />
             </svg>
-          </button>
+          </Button>
         </div>
 
         {/* Selected node info */}
         {selectedNodeId && (
-          <div className="mb-5 p-4 bg-game-bg border border-game-border rounded-lg">
-            <h3 className="text-[10px] font-medium text-slate-500 mb-2 uppercase tracking-wider">Selected Node</h3>
-            <p className="text-sm text-white font-medium mb-3">
+          <div className="mb-5 p-4 bg-background border border-border rounded-lg">
+            <h3 className="text-[10px] font-medium text-muted-foreground mb-2 uppercase tracking-wider">Selected Node</h3>
+            <p className="text-sm text-foreground font-medium mb-3">
               {getNodeInfo(placedNodes.find((n) => n.id === selectedNodeId)?.type || '').name}
             </p>
 
             {/* Label Editor */}
             <div className="mb-3">
-              <label htmlFor="node-label-input" className="block text-xs text-slate-500 mb-1.5">
+              <label htmlFor="node-label-input" className="block text-xs text-muted-foreground mb-1.5">
                 Label
               </label>
-              <input
+              <Input
                 id="node-label-input"
                 type="text"
-                className="w-full bg-slate-950 text-white text-sm border border-game-border rounded-md px-3 py-2 focus:border-sky-500 focus:outline-none transition-colors"
                 placeholder="Custom label..."
                 value={placedNodes.find((n) => n.id === selectedNodeId)?.config?.label || ''}
                 onChange={(e) =>
@@ -127,46 +130,47 @@ export function InspectorPanel({
               />
             </div>
 
-            <button
-              type="button"
+            <Button
+              variant="link"
+              size="sm"
               onClick={onDeleteSelected}
-              className="text-xs text-rose-400 hover:text-rose-300 transition-colors"
+              className="text-xs text-destructive hover:text-destructive/80 p-0 h-auto"
             >
               Delete this node
-            </button>
+            </Button>
           </div>
         )}
 
         <div className="space-y-5">
           <div>
-            <h3 className="text-[10px] font-medium text-slate-500 mb-2 uppercase tracking-wider">Pipeline</h3>
+            <h3 className="text-[10px] font-medium text-muted-foreground mb-2 uppercase tracking-wider">Pipeline</h3>
             <div className="grid grid-cols-2 gap-2">
-              <div className="bg-game-bg border border-game-border rounded-md p-3">
-                <div className="text-2xl font-semibold text-white tabular-nums">{placedNodes.length}</div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-wider">nodes</div>
+              <div className="bg-background border border-border rounded-md p-3">
+                <div className="text-2xl font-semibold text-foreground tabular-nums">{placedNodes.length}</div>
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wider">nodes</div>
               </div>
-              <div className="bg-game-bg border border-game-border rounded-md p-3">
-                <div className="text-2xl font-semibold text-white tabular-nums">{connectionsCount}</div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-wider">connections</div>
+              <div className="bg-background border border-border rounded-md p-3">
+                <div className="text-2xl font-semibold text-foreground tabular-nums">{connectionsCount}</div>
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wider">connections</div>
               </div>
             </div>
           </div>
 
           <div>
-            <h3 className="text-[10px] font-medium text-slate-500 mb-2 uppercase tracking-wider">Queries</h3>
-            <div className="bg-game-bg border border-game-border rounded-md p-3">
-              <div className="text-2xl font-semibold text-white tabular-nums">
+            <h3 className="text-[10px] font-medium text-muted-foreground mb-2 uppercase tracking-wider">Queries</h3>
+            <div className="bg-background border border-border rounded-md p-3">
+              <div className="text-2xl font-semibold text-foreground tabular-nums">
                 {placedNodes.filter((n) => n.type === 'database').length}
               </div>
-              <div className="text-[10px] text-slate-500 uppercase tracking-wider">database nodes</div>
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wider">database nodes</div>
             </div>
           </div>
 
           {/* Connection tips */}
           {placedNodes.length > 0 && connectionsCount === 0 && !showValidation && (
-            <div className="bg-amber-950/40 border border-amber-900 rounded-lg p-4">
-              <div className="text-sm text-amber-300 font-medium mb-1">Tip: Connect your nodes</div>
-              <div className="text-xs text-amber-200/70">
+            <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
+              <div className="text-sm text-warning font-medium mb-1">Tip: Connect your nodes</div>
+              <div className="text-xs text-warning-foreground/70">
                 Drag from a node&apos;s right port to another node&apos;s left port to create a
                 connection.
               </div>
@@ -175,81 +179,73 @@ export function InspectorPanel({
 
           {/* Check Pipeline button */}
           {placedNodes.length >= 2 && connectionsCount >= 1 && !showValidation && (
-            <button
-              type="button"
-              onClick={onCheckPipeline}
-              className="w-full px-4 py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-500 transition-colors"
-            >
+            <Button onClick={onCheckPipeline} className="w-full">
               Check Pipeline
-            </button>
+            </Button>
           )}
 
           {/* Validation results */}
           {showValidation && lastValidation && (
             <div>
-              <h3 className="text-[10px] font-medium text-slate-500 mb-2 uppercase tracking-wider">Pipeline Status</h3>
+              <h3 className="text-[10px] font-medium text-muted-foreground mb-2 uppercase tracking-wider">Pipeline Status</h3>
               <div
                 className={`rounded-lg p-4 border ${
                   lastValidation.valid
-                    ? 'bg-emerald-950/40 border-emerald-900'
-                    : 'bg-rose-950/40 border-rose-900'
+                    ? 'bg-success/10 border-success/20'
+                    : 'bg-destructive/10 border-destructive/20'
                 }`}
               >
                 <div className="flex items-center gap-2 mb-2">
                   <span
-                    className={`text-lg ${lastValidation.valid ? 'text-emerald-400' : 'text-rose-400'}`}
+                    className={`text-lg ${lastValidation.valid ? 'text-success' : 'text-destructive'}`}
                   >
                     {lastValidation.valid ? '✓' : '✗'}
                   </span>
                   <span
-                    className={`text-sm font-medium ${lastValidation.valid ? 'text-emerald-300' : 'text-rose-300'}`}
+                    className={`text-sm font-medium ${lastValidation.valid ? 'text-success' : 'text-destructive'}`}
                   >
                     {lastValidation.valid ? 'Valid Pipeline!' : 'Invalid Pipeline'}
                   </span>
-                  <span className="ml-auto text-xs text-slate-500 tabular-nums">
+                  <span className="ml-auto text-xs text-muted-foreground tabular-nums">
                     Score: {lastValidation.score}
                   </span>
                 </div>
                 {lastValidation.errors.length > 0 && (
-                  <ul className="text-xs text-rose-300/80 space-y-1.5 mb-3">
+                  <ul className="text-xs text-destructive/80 space-y-1.5 mb-3">
                     {lastValidation.errors.slice(0, 4).map((err) => (
                       <li key={err}>• {err}</li>
                     ))}
                     {lastValidation.errors.length > 4 && (
-                      <li className="text-slate-500">
+                      <li className="text-muted-foreground">
                         ...and {lastValidation.errors.length - 4} more
                       </li>
                     )}
                   </ul>
                 )}
                 {!lastValidation.valid && (
-                  <button
-                    type="button"
-                    onClick={onResetValidation}
-                    className="w-full px-3 py-2 bg-game-bg text-slate-300 text-sm font-medium rounded-md border border-game-border hover:bg-game-border/50 transition-colors"
-                  >
+                  <Button variant="outline" size="sm" onClick={onResetValidation} className="w-full">
                     Try Again
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
           )}
 
           <div>
-            <h3 className="text-[10px] font-medium text-slate-500 mb-2 uppercase tracking-wider">Pipeline Stats</h3>
-            <div className="bg-game-bg border border-game-border rounded-md p-4 space-y-2.5">
+            <h3 className="text-[10px] font-medium text-muted-foreground mb-2 uppercase tracking-wider">Pipeline Stats</h3>
+            <div className="bg-background border border-border rounded-md p-4 space-y-2.5">
               <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Nodes</span>
-                <span className="text-white font-medium tabular-nums">{placedNodes.length}</span>
+                <span className="text-muted-foreground">Nodes</span>
+                <span className="text-foreground font-medium tabular-nums">{placedNodes.length}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Connections</span>
-                <span className="text-white font-medium tabular-nums">{connectionsCount}</span>
+                <span className="text-muted-foreground">Connections</span>
+                <span className="text-foreground font-medium tabular-nums">{connectionsCount}</span>
               </div>
               {addedNodes > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Nodes Added</span>
-                  <span className="text-emerald-400 font-medium tabular-nums">+{addedNodes}</span>
+                  <span className="text-muted-foreground">Nodes Added</span>
+                  <span className="text-success font-medium tabular-nums">+{addedNodes}</span>
                 </div>
               )}
             </div>
@@ -257,16 +253,15 @@ export function InspectorPanel({
 
           {/* Complete button */}
           {showValidation && lastValidation?.valid && (
-            <button
-              type="button"
+            <Button
               onClick={() => {
                 const stars = lastValidation.score >= 80 ? 3 : lastValidation.score >= 50 ? 2 : 1;
                 onComplete(stars);
               }}
-              className="w-full px-4 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-500 transition-colors"
+              className="w-full bg-success text-success-foreground hover:bg-success/90"
             >
               Complete Challenge
-            </button>
+            </Button>
           )}
         </div>
       </div>

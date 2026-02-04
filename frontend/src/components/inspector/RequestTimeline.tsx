@@ -3,6 +3,7 @@
 import { Fragment, useState, useMemo } from 'react';
 import type { NodeType } from '../../stores/pipeline';
 import type { QueryTrace } from './QueryTraceViewer';
+import { Button } from '../ui/Button';
 
 // Simulated request for timeline visualization
 export interface SimulatedRequest {
@@ -54,21 +55,21 @@ function RequestBar({
   const segmentWidth = widthPercent / segmentCount;
 
   const statusColors = {
-    pending: 'bg-gray-500',
-    processing: 'bg-blue-500 animate-pulse',
-    completed: 'bg-green-500',
-    error: 'bg-red-500',
+    pending: 'bg-secondary',
+    processing: 'bg-primary animate-pulse',
+    completed: 'bg-success',
+    error: 'bg-destructive',
   };
 
   return (
     <div
       className={`flex items-center gap-2 p-1 rounded cursor-pointer transition-colors ${
-        isSelected ? 'bg-gray-700' : 'hover:bg-gray-750'
+        isSelected ? 'bg-card' : 'hover:bg-secondary'
       }`}
       onClick={onSelect}
     >
       {/* Request ID */}
-      <span className="text-xs text-gray-400 w-20 truncate font-mono">
+      <span className="text-xs text-muted-foreground w-20 truncate font-mono">
         {request.id.slice(0, 8)}
       </span>
 
@@ -76,7 +77,7 @@ function RequestBar({
       <div className={`w-2 h-2 rounded-full ${statusColors[request.status]}`} />
 
       {/* Timeline bar */}
-      <div className="flex-1 h-4 bg-gray-800 rounded overflow-hidden relative">
+      <div className="flex-1 h-4 bg-background rounded overflow-hidden relative">
         {/* Segments for each node type visited */}
         <div className="absolute inset-0 flex">
           {request.path.map((nodeType, index) => (
@@ -97,10 +98,10 @@ function RequestBar({
       <span
         className={`text-xs font-mono w-16 text-right ${
           request.totalLatency > 500
-            ? 'text-red-400'
+            ? 'text-destructive'
             : request.totalLatency > 200
-              ? 'text-amber-400'
-              : 'text-gray-300'
+              ? 'text-warning'
+              : 'text-foreground'
         }`}
       >
         {request.totalLatency.toFixed(0)}ms
@@ -109,7 +110,7 @@ function RequestBar({
       {/* Query count */}
       <span
         className={`text-xs font-mono w-8 text-right ${
-          request.queries.length > 10 ? 'text-red-400' : 'text-gray-400'
+          request.queries.length > 10 ? 'text-destructive' : 'text-muted-foreground'
         }`}
       >
         Q:{request.queries.length}
@@ -121,52 +122,52 @@ function RequestBar({
 // Request detail panel
 function RequestDetail({ request }: { request: SimulatedRequest }) {
   return (
-    <div className="bg-gray-700 rounded p-3 mt-2 text-sm">
+    <div className="bg-card rounded p-3 mt-2 text-sm">
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div>
-          <span className="text-gray-400">Status:</span>{' '}
+          <span className="text-muted-foreground">Status:</span>{' '}
           <span
             className={
               request.status === 'completed'
-                ? 'text-green-400'
+                ? 'text-success'
                 : request.status === 'error'
-                  ? 'text-red-400'
-                  : 'text-blue-400'
+                  ? 'text-destructive'
+                  : 'text-primary'
             }
           >
             {request.status}
           </span>
         </div>
         <div>
-          <span className="text-gray-400">Total latency:</span>{' '}
-          <span className="text-white">{request.totalLatency.toFixed(1)}ms</span>
+          <span className="text-muted-foreground">Total latency:</span>{' '}
+          <span className="text-foreground">{request.totalLatency.toFixed(1)}ms</span>
         </div>
         <div>
-          <span className="text-gray-400">Queries:</span>{' '}
-          <span className="text-white">{request.queries.length}</span>
+          <span className="text-muted-foreground">Queries:</span>{' '}
+          <span className="text-foreground">{request.queries.length}</span>
         </div>
         <div>
-          <span className="text-gray-400">Cache hits:</span>{' '}
-          <span className="text-green-400">{request.cacheHits}</span>
-          <span className="text-gray-400"> / misses:</span>{' '}
-          <span className="text-amber-400">{request.cacheMisses}</span>
+          <span className="text-muted-foreground">Cache hits:</span>{' '}
+          <span className="text-success">{request.cacheHits}</span>
+          <span className="text-muted-foreground"> / misses:</span>{' '}
+          <span className="text-warning">{request.cacheMisses}</span>
         </div>
       </div>
 
       {/* Path visualization */}
       <div className="mt-3">
-        <span className="text-gray-400 text-xs">Request path:</span>
+        <span className="text-muted-foreground text-xs">Request path:</span>
         <div className="flex flex-wrap gap-1 mt-1">
           {request.path.map((nodeType, index) => (
             <Fragment key={index}>
               <span
-                className="px-2 py-0.5 rounded text-xs text-white"
+                className="px-2 py-0.5 rounded text-xs text-foreground"
                 style={{ backgroundColor: NODE_COLORS[nodeType as NodeType] || '#6b7280' }}
               >
                 {nodeType}
               </span>
               {index < request.path.length - 1 && (
-                <span className="text-gray-500 self-center">-&gt;</span>
+                <span className="text-muted-foreground self-center">-&gt;</span>
               )}
             </Fragment>
           ))}
@@ -175,8 +176,8 @@ function RequestDetail({ request }: { request: SimulatedRequest }) {
 
       {/* Error message if present */}
       {request.errorMessage && (
-        <div className="mt-2 p-2 bg-red-900/30 rounded">
-          <span className="text-red-300 text-xs">Error: {request.errorMessage}</span>
+        <div className="mt-2 p-2 bg-destructive/30 rounded">
+          <span className="text-destructive text-xs">Error: {request.errorMessage}</span>
         </div>
       )}
     </div>
@@ -223,60 +224,56 @@ export function RequestTimeline({
   const errorCount = requests.filter((r) => r.status === 'error').length;
 
   return (
-    <div className={`bg-gray-800 rounded-lg overflow-hidden ${className}`}>
+    <div className={`bg-card rounded-lg overflow-hidden ${className}`}>
       {/* Header */}
-      <div className="p-3 border-b border-gray-700">
+      <div className="p-3 border-b border-border">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="font-semibold text-white">Request Timeline</h3>
+          <h3 className="font-semibold text-foreground">Request Timeline</h3>
           <div className="flex gap-2 text-xs">
-            <span className="text-blue-400">{activeCount} active</span>
-            {errorCount > 0 && <span className="text-red-400">{errorCount} errors</span>}
+            <span className="text-primary">{activeCount} active</span>
+            {errorCount > 0 && <span className="text-destructive">{errorCount} errors</span>}
           </div>
         </div>
 
         {/* Filter buttons */}
         <div className="flex gap-2">
-          <button
+          <Button
             onClick={() => setFilter('all')}
-            className={`px-2 py-1 text-xs rounded ${
-              filter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'
-            }`}
+            variant={filter === 'all' ? 'default' : 'secondary'}
+            size="sm"
           >
             All ({requests.length})
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setFilter('active')}
-            className={`px-2 py-1 text-xs rounded ${
-              filter === 'active' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-300'
-            }`}
+            variant={filter === 'active' ? 'default' : 'secondary'}
+            size="sm"
           >
             Active ({activeCount})
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setFilter('completed')}
-            className={`px-2 py-1 text-xs rounded ${
-              filter === 'completed' ? 'bg-green-600 text-white' : 'bg-gray-700 text-gray-300'
-            }`}
+            variant={filter === 'completed' ? 'default' : 'secondary'}
+            size="sm"
           >
             Completed
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setFilter('error')}
-            className={`px-2 py-1 text-xs rounded ${
-              filter === 'error' ? 'bg-red-600 text-white' : 'bg-gray-700 text-gray-300'
-            }`}
+            variant={filter === 'error' ? 'destructive' : 'secondary'}
+            size="sm"
           >
             Errors ({errorCount})
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Legend */}
-      <div className="px-3 py-2 border-b border-gray-700 flex flex-wrap gap-2">
+      <div className="px-3 py-2 border-b border-border flex flex-wrap gap-2">
         {Object.entries(NODE_COLORS).map(([nodeType, color]) => (
           <div key={nodeType} className="flex items-center gap-1">
             <div className="w-3 h-3 rounded" style={{ backgroundColor: color }} />
-            <span className="text-xs text-gray-400">{nodeType}</span>
+            <span className="text-xs text-muted-foreground">{nodeType}</span>
           </div>
         ))}
       </div>
@@ -284,7 +281,7 @@ export function RequestTimeline({
       {/* Request list */}
       <div className="max-h-64 overflow-y-auto p-2 space-y-1">
         {filteredRequests.length === 0 ? (
-          <p className="text-gray-400 text-center py-4 text-sm">No requests to display</p>
+          <p className="text-muted-foreground text-center py-4 text-sm">No requests to display</p>
         ) : (
           filteredRequests.map((request) => (
             <RequestBar
@@ -302,7 +299,7 @@ export function RequestTimeline({
 
       {/* Selected request detail */}
       {selectedRequest && (
-        <div className="p-3 border-t border-gray-700">
+        <div className="p-3 border-t border-border">
           <RequestDetail request={selectedRequest} />
         </div>
       )}

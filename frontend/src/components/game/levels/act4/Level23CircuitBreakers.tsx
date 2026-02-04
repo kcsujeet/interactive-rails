@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -182,36 +183,36 @@ export function Level23CircuitBreakers({ onComplete, onExit }: LevelComponentPro
           ]}
           goal="Learn advanced circuit breaker patterns for fault isolation."
         >
-          <div className="p-4 border-t border-gray-800">
-            <button
+          <div className="p-4 border-t border-border">
+            <Button
               onClick={() => setCircuitEnabled(true)}
               disabled={circuitEnabled}
-              className={`w-full py-3 rounded-lg font-medium transition-colors ${
+              className={`w-full py-3 ${
                 circuitEnabled
-                  ? 'bg-green-600 text-white cursor-default'
-                  : 'bg-cyan-600 hover:bg-cyan-500 text-white'
+                  ? 'bg-success text-success-foreground cursor-default'
+                  : ''
               }`}
             >
               {circuitEnabled ? 'Circuit Breakers Enabled' : 'Enable Circuit Breakers'}
-            </button>
+            </Button>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Feed Service Health
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-green-900/30 rounded-lg p-3 text-center">
-                <div className="text-2xl font-bold text-green-400">{feedSuccesses}</div>
-                <div className="text-xs text-green-400/70">Successes</div>
+              <div className="bg-success/20 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-success">{feedSuccesses}</div>
+                <div className="text-xs text-success/70">Successes</div>
               </div>
               <div className={`rounded-lg p-3 text-center ${
-                feedFailures > 0 ? 'bg-red-900/30' : 'bg-gray-800'
+                feedFailures > 0 ? 'bg-destructive/20' : 'bg-card'
               }`}>
-                <div className={`text-2xl font-bold ${feedFailures > 0 ? 'text-red-400' : 'text-gray-500'}`}>
+                <div className={`text-2xl font-bold ${feedFailures > 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
                   {feedFailures}
                 </div>
-                <div className="text-xs text-gray-400">Failures</div>
+                <div className="text-xs text-muted-foreground">Failures</div>
               </div>
             </div>
           </div>
@@ -245,71 +246,63 @@ export function Level23CircuitBreakers({ onComplete, onExit }: LevelComponentPro
           }}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-8">
+        <div className="flex-1 relative bg-background p-8">
           {/* Service Architecture */}
           <div className="flex items-center justify-center gap-8 mb-8">
             {/* Feed Service */}
             <div className={`border-2 rounded-xl p-6 w-48 transition-colors ${
-              feedService.lastError ? 'border-red-500 bg-red-900/20' : 'border-green-500 bg-green-900/20'
+              feedService.lastError ? 'border-destructive bg-destructive/10' : 'border-success bg-success/10'
             }`}>
               <div className={`font-medium mb-2 ${
-                feedService.lastError ? 'text-red-400' : 'text-green-400'
+                feedService.lastError ? 'text-destructive' : 'text-success'
               }`}>
                 Feed Service
               </div>
-              <div className="text-xs text-gray-400">
+              <div className="text-xs text-muted-foreground">
                 {feedService.lastError || 'Healthy'}
               </div>
             </div>
 
-            <div className="text-gray-600">→</div>
+            <div className="text-muted-foreground">→</div>
 
             {/* Circuit Breaker (if enabled) */}
             {circuitEnabled && (
               <>
-                <div className={`border-2 rounded-full p-4 w-24 h-24 flex flex-col items-center justify-center transition-colors`}
-                  style={{
-                    borderColor: getCircuitColor(recsService.circuit) === 'green' ? '#22c55e' :
-                                 getCircuitColor(recsService.circuit) === 'red' ? '#ef4444' : '#eab308',
-                    backgroundColor: getCircuitColor(recsService.circuit) === 'green' ? 'rgba(34, 197, 94, 0.1)' :
-                                     getCircuitColor(recsService.circuit) === 'red' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(234, 179, 8, 0.1)',
-                  }}
-                >
-                  <div className="text-xs font-medium mb-1"
-                    style={{
-                      color: getCircuitColor(recsService.circuit) === 'green' ? '#22c55e' :
-                             getCircuitColor(recsService.circuit) === 'red' ? '#ef4444' : '#eab308',
-                    }}
-                  >
+                <div className={`border-2 rounded-full p-4 w-24 h-24 flex flex-col items-center justify-center transition-colors ${
+                  getCircuitColor(recsService.circuit) === 'green' ? 'border-success bg-success/10' :
+                  getCircuitColor(recsService.circuit) === 'red' ? 'border-destructive bg-destructive/10' : 'border-warning bg-warning/10'
+                }`}>
+                  <div className={`text-xs font-medium mb-1 ${
+                    getCircuitColor(recsService.circuit) === 'green' ? 'text-success' :
+                    getCircuitColor(recsService.circuit) === 'red' ? 'text-destructive' : 'text-warning'
+                  }`}>
                     Circuit
                   </div>
-                  <div className="text-xs capitalize"
-                    style={{
-                      color: getCircuitColor(recsService.circuit) === 'green' ? '#22c55e' :
-                             getCircuitColor(recsService.circuit) === 'red' ? '#ef4444' : '#eab308',
-                    }}
-                  >
+                  <div className={`text-xs capitalize ${
+                    getCircuitColor(recsService.circuit) === 'green' ? 'text-success' :
+                    getCircuitColor(recsService.circuit) === 'red' ? 'text-destructive' : 'text-warning'
+                  }`}>
                     {recsService.circuit.replace('_', '-')}
                   </div>
                 </div>
 
-                <div className="text-gray-600">→</div>
+                <div className="text-muted-foreground">→</div>
               </>
             )}
 
             {/* Recommendations Service */}
             <div className={`border-2 rounded-xl p-6 w-48 transition-colors ${
-              recsService.lastError ? 'border-red-500 bg-red-900/20' : 'border-green-500 bg-green-900/20'
+              recsService.lastError ? 'border-destructive bg-destructive/10' : 'border-success bg-success/10'
             }`}>
               <div className={`font-medium mb-2 ${
-                recsService.lastError ? 'text-red-400' : 'text-green-400'
+                recsService.lastError ? 'text-destructive' : 'text-success'
               }`}>
                 Recommendations
               </div>
-              <div className="text-xs text-gray-400">
+              <div className="text-xs text-muted-foreground">
                 {recsService.lastError || 'Healthy'}
               </div>
-              <div className="text-xs text-gray-500 mt-1">
+              <div className="text-xs text-muted-foreground mt-1">
                 Failures: {recsService.failureCount}
               </div>
             </div>
@@ -317,25 +310,25 @@ export function Level23CircuitBreakers({ onComplete, onExit }: LevelComponentPro
 
           {/* Circuit State Machine */}
           {circuitEnabled && (
-            <div className="bg-gray-900 rounded-xl p-4 max-w-md mx-auto">
-              <div className="text-gray-400 text-xs uppercase tracking-wider mb-3">Circuit State Machine</div>
+            <div className="bg-card rounded-xl p-4 max-w-md mx-auto">
+              <div className="text-muted-foreground text-xs uppercase tracking-wider mb-3">Circuit State Machine</div>
               <div className="flex items-center justify-between">
                 <div className={`text-center p-2 rounded ${
-                  recsService.circuit === 'closed' ? 'bg-green-900/50 text-green-400' : 'text-gray-600'
+                  recsService.circuit === 'closed' ? 'bg-success/30 text-success' : 'text-muted-foreground'
                 }`}>
                   <div className="text-sm font-medium">Closed</div>
                   <div className="text-xs">Normal</div>
                 </div>
-                <div className="text-gray-600">→</div>
+                <div className="text-muted-foreground">→</div>
                 <div className={`text-center p-2 rounded ${
-                  recsService.circuit === 'open' ? 'bg-red-900/50 text-red-400' : 'text-gray-600'
+                  recsService.circuit === 'open' ? 'bg-destructive/30 text-destructive' : 'text-muted-foreground'
                 }`}>
                   <div className="text-sm font-medium">Open</div>
                   <div className="text-xs">Fail Fast</div>
                 </div>
-                <div className="text-gray-600">→</div>
+                <div className="text-muted-foreground">→</div>
                 <div className={`text-center p-2 rounded ${
-                  recsService.circuit === 'half_open' ? 'bg-yellow-900/50 text-yellow-400' : 'text-gray-600'
+                  recsService.circuit === 'half_open' ? 'bg-warning/30 text-warning' : 'text-muted-foreground'
                 }`}>
                   <div className="text-sm font-medium">Half-Open</div>
                   <div className="text-xs">Test</div>
@@ -347,12 +340,12 @@ export function Level23CircuitBreakers({ onComplete, onExit }: LevelComponentPro
           {/* Completion button */}
           {isComplete && (
             <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
-              <button
+              <Button
                 onClick={handleComplete}
-                className="px-8 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white font-bold rounded-lg shadow-lg"
+                className="px-8 py-3 bg-gradient-to-r from-success to-success/80 text-success-foreground font-bold shadow-lg"
               >
                 Complete Level
-              </button>
+              </Button>
             </div>
           )}
         </div>

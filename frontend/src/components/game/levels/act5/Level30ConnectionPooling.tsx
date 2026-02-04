@@ -18,6 +18,7 @@ import {
   useLevelCompletion,
   type ValidationResult,
 } from '../shared';
+import { Button } from '../../../ui/Button';
 
 interface PoolConfig {
   size: number;
@@ -166,15 +167,15 @@ export function Level30ConnectionPooling({ onComplete, onExit }: LevelComponentP
           goal="Configure connection pools to handle your traffic without exhausting database resources."
         >
           {/* Pool Settings */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Pool Configuration
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-xs text-gray-500 flex justify-between">
+                <label className="text-xs text-muted-foreground flex justify-between">
                   <span>Pool Size</span>
-                  <span className="text-cyan-400">{config.size}</span>
+                  <span className="text-primary">{config.size}</span>
                 </label>
                 <input
                   type="range"
@@ -186,9 +187,9 @@ export function Level30ConnectionPooling({ onComplete, onExit }: LevelComponentP
                 />
               </div>
               <div>
-                <label className="text-xs text-gray-500 flex justify-between">
+                <label className="text-xs text-muted-foreground flex justify-between">
                   <span>Checkout Timeout</span>
-                  <span className="text-cyan-400">{config.checkout_timeout}s</span>
+                  <span className="text-primary">{config.checkout_timeout}s</span>
                 </label>
                 <input
                   type="range"
@@ -200,9 +201,9 @@ export function Level30ConnectionPooling({ onComplete, onExit }: LevelComponentP
                 />
               </div>
               <div>
-                <label className="text-xs text-gray-500 flex justify-between">
+                <label className="text-xs text-muted-foreground flex justify-between">
                   <span>Concurrent Requests</span>
-                  <span className="text-cyan-400">{concurrentRequests}/sec</span>
+                  <span className="text-primary">{concurrentRequests}/sec</span>
                 </label>
                 <input
                   type="range"
@@ -216,33 +217,30 @@ export function Level30ConnectionPooling({ onComplete, onExit }: LevelComponentP
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <button
+          <div className="p-4 border-t border-border">
+            <Button
               onClick={() => setIsSimulating(!isSimulating)}
-              className={`w-full py-2 rounded-lg font-medium transition-all ${
-                isSimulating
-                  ? 'bg-red-600 hover:bg-red-500 text-white'
-                  : 'bg-cyan-600 hover:bg-cyan-500 text-white'
-              }`}
+              variant={isSimulating ? 'destructive' : 'default'}
+              className="w-full"
             >
               {isSimulating ? 'Stop Simulation' : 'Start Traffic'}
-            </button>
+            </Button>
           </div>
 
           {/* Metrics */}
-          <div className="p-4 border-t border-gray-800">
+          <div className="p-4 border-t border-border">
             <div className="grid grid-cols-2 gap-2">
-              <div className="bg-gray-800 p-2 rounded text-center">
-                <div className={`text-xl font-bold ${poolUtilization > 90 ? 'text-red-400' : poolUtilization > 70 ? 'text-yellow-400' : 'text-green-400'}`}>
+              <div className="bg-card p-2 rounded text-center">
+                <div className={`text-xl font-bold ${poolUtilization > 90 ? 'text-destructive' : poolUtilization > 70 ? 'text-warning' : 'text-success'}`}>
                   {poolUtilization}%
                 </div>
-                <div className="text-xs text-gray-500">Utilization</div>
+                <div className="text-xs text-muted-foreground">Utilization</div>
               </div>
-              <div className="bg-gray-800 p-2 rounded text-center">
-                <div className={`text-xl font-bold ${metrics.timeouts > 0 ? 'text-red-400' : 'text-green-400'}`}>
+              <div className="bg-card p-2 rounded text-center">
+                <div className={`text-xl font-bold ${metrics.timeouts > 0 ? 'text-destructive' : 'text-success'}`}>
                   {metrics.timeouts}
                 </div>
-                <div className="text-xs text-gray-500">Timeouts</div>
+                <div className="text-xs text-muted-foreground">Timeouts</div>
               </div>
             </div>
           </div>
@@ -266,13 +264,13 @@ export function Level30ConnectionPooling({ onComplete, onExit }: LevelComponentP
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-6 overflow-auto">
+        <div className="flex-1 relative bg-background p-6 overflow-auto">
           <div className="max-w-4xl mx-auto">
             {/* Connection Pool Visualization */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Connection Pool</div>
-                <div className="text-xs text-gray-500">{config.size} connections available</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Connection Pool</div>
+                <div className="text-xs text-muted-foreground">{config.size} connections available</div>
               </div>
               <div className="p-6">
                 <div className="grid grid-cols-10 gap-2">
@@ -281,38 +279,38 @@ export function Level30ConnectionPooling({ onComplete, onExit }: LevelComponentP
                       key={conn.id}
                       className={`aspect-square rounded-lg flex items-center justify-center transition-all ${
                         conn.status === 'active'
-                          ? 'bg-green-600 animate-pulse'
-                          : 'bg-gray-700'
+                          ? 'bg-success animate-pulse'
+                          : 'bg-secondary'
                       }`}
                     >
-                      <span className="text-xs text-white">{conn.id}</span>
+                      <span className="text-xs text-foreground">{conn.id}</span>
                     </div>
                   ))}
                 </div>
                 <div className="flex justify-center gap-4 mt-4 text-xs">
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded bg-gray-700" />
-                    <span className="text-gray-400">Idle ({metrics.idle})</span>
+                    <div className="w-3 h-3 rounded bg-secondary" />
+                    <span className="text-muted-foreground">Idle ({metrics.idle})</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded bg-green-600" />
-                    <span className="text-gray-400">Active ({metrics.active})</span>
+                    <div className="w-3 h-3 rounded bg-success" />
+                    <span className="text-muted-foreground">Active ({metrics.active})</span>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Waiting Queue */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700 flex justify-between items-center">
-                <div className="text-white font-semibold">Waiting Queue</div>
-                <span className={`text-sm ${waitingQueue.length > 10 ? 'text-red-400' : 'text-gray-400'}`}>
+            <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+              <div className="bg-secondary px-4 py-3 border-b border-border flex justify-between items-center">
+                <div className="text-foreground font-semibold">Waiting Queue</div>
+                <span className={`text-sm ${waitingQueue.length > 10 ? 'text-destructive' : 'text-muted-foreground'}`}>
                   {waitingQueue.length} waiting
                 </span>
               </div>
               <div className="p-4 h-20 overflow-hidden">
                 {waitingQueue.length === 0 ? (
-                  <div className="text-center text-gray-600 py-4">
+                  <div className="text-center text-muted-foreground py-4">
                     No requests waiting
                   </div>
                 ) : (
@@ -320,11 +318,11 @@ export function Level30ConnectionPooling({ onComplete, onExit }: LevelComponentP
                     {waitingQueue.slice(0, 50).map((_, i) => (
                       <div
                         key={i}
-                        className="w-3 h-3 rounded-full bg-yellow-500 animate-pulse"
+                        className="w-3 h-3 rounded-full bg-warning animate-pulse"
                       />
                     ))}
                     {waitingQueue.length > 50 && (
-                      <span className="text-yellow-400 text-xs">+{waitingQueue.length - 50} more</span>
+                      <span className="text-warning text-xs">+{waitingQueue.length - 50} more</span>
                     )}
                   </div>
                 )}
@@ -332,33 +330,33 @@ export function Level30ConnectionPooling({ onComplete, onExit }: LevelComponentP
             </div>
 
             {/* Sizing Formula */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Pool Sizing Formula</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Pool Sizing Formula</div>
               </div>
               <div className="p-4">
-                <div className="bg-gray-800 p-4 rounded-lg text-center">
-                  <div className="text-lg font-mono text-cyan-400 mb-2">
+                <div className="bg-secondary p-4 rounded-lg text-center">
+                  <div className="text-lg font-mono text-primary mb-2">
                     pool_size = workers × threads_per_worker
                   </div>
-                  <div className="text-sm text-gray-400">
+                  <div className="text-sm text-muted-foreground">
                     Example: 4 Puma workers × 5 threads = 20 connections
                   </div>
                 </div>
                 <div className="mt-4 grid grid-cols-3 gap-4 text-center text-sm">
                   <div>
-                    <div className="text-2xl font-bold text-white">{Math.ceil(concurrentRequests / 5)}</div>
-                    <div className="text-xs text-gray-500">Workers needed</div>
+                    <div className="text-2xl font-bold text-foreground">{Math.ceil(concurrentRequests / 5)}</div>
+                    <div className="text-xs text-muted-foreground">Workers needed</div>
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-white">5</div>
-                    <div className="text-xs text-gray-500">Threads/worker</div>
+                    <div className="text-2xl font-bold text-foreground">5</div>
+                    <div className="text-xs text-muted-foreground">Threads/worker</div>
                   </div>
                   <div>
-                    <div className={`text-2xl font-bold ${config.size >= Math.ceil(concurrentRequests / 5) * 5 ? 'text-green-400' : 'text-red-400'}`}>
+                    <div className={`text-2xl font-bold ${config.size >= Math.ceil(concurrentRequests / 5) * 5 ? 'text-success' : 'text-destructive'}`}>
                       {Math.ceil(concurrentRequests / 5) * 5}
                     </div>
-                    <div className="text-xs text-gray-500">Recommended pool</div>
+                    <div className="text-xs text-muted-foreground">Recommended pool</div>
                   </div>
                 </div>
               </div>
@@ -404,18 +402,18 @@ end`,
           ]}
           learningGoal="Connection pools prevent creating new DB connections per request. Size them based on your worker/thread configuration."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Common Errors</div>
-            <ul className="text-xs text-gray-400 space-y-1">
-              <li className="text-red-400">• ActiveRecord::ConnectionTimeoutError</li>
-              <li className="text-yellow-400">• Pool too small for load</li>
-              <li className="text-yellow-400">• Connections not returned</li>
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Common Errors</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
+              <li className="text-destructive">• ActiveRecord::ConnectionTimeoutError</li>
+              <li className="text-warning">• Pool too small for load</li>
+              <li className="text-warning">• Connections not returned</li>
             </ul>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Best Practices</div>
-            <ul className="text-xs text-gray-400 space-y-1">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Best Practices</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>• Pool = workers × threads</li>
               <li>• Monitor with PgBouncer</li>
               <li>• Use connection_pool gem for Redis</li>

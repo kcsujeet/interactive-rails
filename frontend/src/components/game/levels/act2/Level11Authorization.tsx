@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -162,50 +163,47 @@ export function Level11Authorization({ onComplete, onExit }: LevelComponentProps
           ]}
           goal="Learn Pundit-style authorization with Policy objects."
         >
-          <div className="p-4 border-t border-gray-800">
-            <button
+          <div className="p-4 border-t border-border">
+            <Button
               onClick={() => {
                 setPolicyAdded(true);
                 setBreachOccurred(false);
               }}
               disabled={policyAdded}
-              className={`w-full py-3 rounded-lg font-medium transition-colors ${
-                policyAdded
-                  ? 'bg-green-600 text-white cursor-default'
-                  : 'bg-cyan-600 hover:bg-cyan-500 text-white'
-              }`}
+              variant={policyAdded ? "secondary" : "default"}
+              className="w-full"
             >
               {policyAdded ? 'Policy Added' : 'Add Policy Node'}
-            </button>
+            </Button>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Request Legend</div>
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Request Legend</div>
             <div className="space-y-2 text-sm">
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full bg-green-500" />
-                <span className="text-gray-300">Admin (can delete)</span>
+                <div className="w-4 h-4 rounded-full bg-success" />
+                <span className="text-foreground">Admin (can delete)</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full bg-blue-500" />
-                <span className="text-gray-300">User (view only)</span>
+                <div className="w-4 h-4 rounded-full bg-primary" />
+                <span className="text-foreground">User (view only)</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full bg-red-500" />
-                <span className="text-gray-300">Hacker (unauthorized)</span>
+                <div className="w-4 h-4 rounded-full bg-destructive" />
+                <span className="text-foreground">Hacker (unauthorized)</span>
               </div>
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
+          <div className="p-4 border-t border-border">
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-green-900/30 rounded-lg p-3 text-center">
-                <div className="text-2xl font-bold text-green-400">{allowedCount}</div>
-                <div className="text-xs text-green-400/70">Allowed</div>
+              <div className="bg-success/20 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-success">{allowedCount}</div>
+                <div className="text-xs text-success/70">Allowed</div>
               </div>
-              <div className="bg-red-900/30 rounded-lg p-3 text-center">
-                <div className="text-2xl font-bold text-red-400">{blockedCount}</div>
-                <div className="text-xs text-red-400/70">Blocked</div>
+              <div className="bg-destructive/20 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-destructive">{blockedCount}</div>
+                <div className="text-xs text-destructive/70">Blocked</div>
               </div>
             </div>
           </div>
@@ -230,12 +228,12 @@ export function Level11Authorization({ onComplete, onExit }: LevelComponentProps
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 overflow-hidden">
+        <div className="flex-1 relative bg-background overflow-hidden">
           {/* Breach warning */}
           {breachOccurred && !policyAdded && (
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-red-900/90 border border-red-500 rounded-lg px-6 py-3 z-10">
-              <div className="text-red-400 font-bold">SECURITY BREACH!</div>
-              <div className="text-red-300 text-sm">Unauthorized delete succeeded!</div>
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-destructive/90 border border-destructive rounded-lg px-6 py-3 z-10">
+              <div className="text-destructive-foreground font-bold">SECURITY BREACH!</div>
+              <div className="text-destructive-foreground/80 text-sm">Unauthorized delete succeeded!</div>
             </div>
           )}
 
@@ -281,9 +279,10 @@ export function Level11Authorization({ onComplete, onExit }: LevelComponentProps
                     x={r.x}
                     y={r.y + 4}
                     textAnchor="middle"
-                    fill="white"
+                    fill="currentColor"
                     fontSize="10"
                     fontWeight="bold"
+                    className="text-foreground"
                   >
                     {getRequestIcon(r.type, r.action)}
                   </text>

@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -135,17 +136,17 @@ end`;
           goal="Authorization = who can do what. Use Pundit policies to centralize access control."
         >
           {/* Policy Tester */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Test Policy
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-xs text-gray-500 block mb-1">As role:</label>
+                <label className="text-xs text-muted-foreground block mb-1">As role:</label>
                 <select
                   value={testRole}
                   onChange={e => setTestRole(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm"
+                  className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-foreground text-sm"
                 >
                   {ROLES.map(role => (
                     <option key={role.id} value={role.id}>{role.icon} {role.name}</option>
@@ -153,11 +154,11 @@ end`;
                 </select>
               </div>
               <div>
-                <label className="text-xs text-gray-500 block mb-1">Try action:</label>
+                <label className="text-xs text-muted-foreground block mb-1">Try action:</label>
                 <select
                   value={testAction}
                   onChange={e => setTestAction(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm"
+                  className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-foreground text-sm"
                 >
                   {rules.map(rule => (
                     <option key={rule.id} value={rule.id}>{rule.action}</option>
@@ -166,23 +167,23 @@ end`;
               </div>
               <div className={`p-3 rounded-lg text-center font-medium ${
                 canPerformAction()
-                  ? 'bg-green-900/30 border border-green-600 text-green-400'
-                  : 'bg-red-900/30 border border-red-600 text-red-400'
+                  ? 'bg-success/20 border border-success text-success'
+                  : 'bg-destructive/20 border border-destructive text-destructive'
               }`}>
                 {canPerformAction() ? '✓ Allowed' : '✗ Denied'}
               </div>
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
+          <div className="p-4 border-t border-border">
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-400">Correct rules</span>
-              <span className={correctRules.length === rules.length ? 'text-green-400' : 'text-white'}>
+              <span className="text-muted-foreground">Correct rules</span>
+              <span className={correctRules.length === rules.length ? 'text-success' : 'text-foreground'}>
                 {correctRules.length} / {rules.length}
               </span>
             </div>
-            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-              <div className="h-full bg-green-500 transition-all" style={{ width: `${(correctRules.length / rules.length) * 100}%` }} />
+            <div className="h-2 bg-secondary rounded-full overflow-hidden">
+              <div className="h-full bg-success transition-all" style={{ width: `${(correctRules.length / rules.length) * 100}%` }} />
             </div>
           </div>
         </InstructionPanel>
@@ -199,7 +200,7 @@ end`;
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-6 overflow-auto">
+        <div className="flex-1 relative bg-background p-6 overflow-auto">
           <div className="max-w-3xl mx-auto">
             {/* Header */}
             <div className="flex justify-center gap-8 mb-8">
@@ -212,11 +213,11 @@ end`;
             </div>
 
             {/* Policy Matrix */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
               <table className="w-full">
                 <thead>
-                  <tr className="bg-gray-800">
-                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-400">Action</th>
+                  <tr className="bg-secondary">
+                    <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">Action</th>
                     {ROLES.map(role => (
                       <th key={role.id} className="px-4 py-3 text-center text-sm font-medium" style={{ color: role.color }}>
                         {role.icon} {role.name}
@@ -230,10 +231,10 @@ end`;
                       rule.selectedRoles.every(sr => rule.allowedRoles.includes(sr));
 
                     return (
-                      <tr key={rule.id} className="border-t border-gray-800">
+                      <tr key={rule.id} className="border-t border-border">
                         <td className="px-4 py-3">
-                          <div className="font-mono text-cyan-400 text-sm">{rule.action}</div>
-                          <div className="text-xs text-gray-500">{rule.description}</div>
+                          <div className="font-mono text-primary text-sm">{rule.action}</div>
+                          <div className="text-xs text-muted-foreground">{rule.description}</div>
                         </td>
                         {ROLES.map(role => {
                           const isSelected = rule.selectedRoles.includes(role.id);
@@ -241,18 +242,20 @@ end`;
 
                           return (
                             <td key={role.id} className="px-4 py-3 text-center">
-                              <button
+                              <Button
+                                variant="outline"
+                                size="icon"
                                 onClick={() => toggleRoleForRule(rule.id, role.id)}
                                 className={`w-10 h-10 rounded-lg border-2 transition-all ${
                                   isSelected
                                     ? isSelected === shouldBeSelected
-                                      ? 'bg-green-900/40 border-green-500 text-green-400'
-                                      : 'bg-red-900/40 border-red-500 text-red-400'
-                                    : 'border-gray-600 text-gray-600 hover:border-gray-500'
+                                      ? 'bg-success/20 border-success text-success'
+                                      : 'bg-destructive/20 border-destructive text-destructive'
+                                    : 'border-border text-muted-foreground hover:border-muted-foreground'
                                 }`}
                               >
                                 {isSelected ? '✓' : ''}
-                              </button>
+                              </Button>
                             </td>
                           );
                         })}
@@ -264,7 +267,7 @@ end`;
             </div>
 
             {/* Hint */}
-            <div className="mt-4 text-center text-xs text-gray-500">
+            <div className="mt-4 text-center text-xs text-muted-foreground">
               Click cells to toggle access. Green = correct, Red = wrong.
             </div>
           </div>
@@ -297,9 +300,9 @@ end`,
           ]}
           learningGoal="Pundit policies centralize authorization logic. Each model has a policy class that defines who can do what."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Pundit Pattern</div>
-            <pre className="text-xs text-gray-400 bg-gray-800 p-2 rounded overflow-x-auto">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Pundit Pattern</div>
+            <pre className="text-xs text-muted-foreground bg-secondary p-2 rounded overflow-x-auto">
 {`# Controller
 authorize @post
 

@@ -2,6 +2,7 @@
 
 import { Fragment } from 'react';
 import type { Level, Room, BossRoom } from '../../types/level';
+import { Button } from '../ui/Button';
 
 interface LevelMapProps {
   level: Level;
@@ -30,24 +31,25 @@ function MapRoom({
   onClick: () => void;
 }) {
   return (
-    <button
+    <Button
       onClick={onClick}
       disabled={isLocked}
+      variant="ghost"
       className={`
         relative w-16 h-16 rounded-lg border transition-all
         flex items-center justify-center
-        ${isCurrent ? 'border-sky-400 bg-sky-900/40 ring-2 ring-sky-300 ring-offset-2 ring-offset-slate-900' : ''}
-        ${isCompleted && !isCurrent ? 'border-emerald-400 bg-emerald-900/30' : ''}
-        ${!isCurrent && !isCompleted && !isLocked ? 'border-slate-700 bg-slate-900/60 hover:border-sky-400/60 hover:bg-slate-900' : ''}
-        ${isLocked ? 'border-slate-800 bg-slate-900/40 cursor-not-allowed' : 'cursor-pointer'}
-        ${isBoss ? 'border-rose-400 bg-rose-900/30' : ''}
+        ${isCurrent ? 'border-primary bg-primary/20 ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}
+        ${isCompleted && !isCurrent ? 'border-success bg-success/20' : ''}
+        ${!isCurrent && !isCompleted && !isLocked ? 'border-border bg-card hover:border-primary/60 hover:bg-card' : ''}
+        ${isLocked ? 'border-border bg-card/40 cursor-not-allowed' : 'cursor-pointer'}
+        ${isBoss ? 'border-destructive bg-destructive/20' : ''}
       `}
     >
       {/* Room number or boss indicator */}
       <span
         className={`
           text-xl font-bold
-          ${isBoss ? 'text-rose-300' : isCompleted ? 'text-emerald-300' : isCurrent ? 'text-sky-300' : 'text-slate-400'}
+          ${isBoss ? 'text-destructive' : isCompleted ? 'text-success' : isCurrent ? 'text-primary' : 'text-muted-foreground'}
           ${isLocked ? 'opacity-50' : ''}
         `}
       >
@@ -56,8 +58,8 @@ function MapRoom({
 
       {/* Completion checkmark */}
       {isCompleted && (
-        <div className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-400 rounded-full flex items-center justify-center">
-          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="absolute -top-1 -right-1 w-5 h-5 bg-success rounded-full flex items-center justify-center">
+          <svg className="w-3 h-3 text-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
           </svg>
         </div>
@@ -65,8 +67,8 @@ function MapRoom({
 
       {/* Lock indicator */}
       {isLocked && (
-        <div className="absolute inset-0 flex items-center justify-center bg-slate-900/50 rounded-lg">
-          <svg className="w-6 h-6 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+        <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-lg">
+          <svg className="w-6 h-6 text-muted-foreground" fill="currentColor" viewBox="0 0 20 20">
             <path
               fillRule="evenodd"
               d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
@@ -78,9 +80,9 @@ function MapRoom({
 
       {/* Current indicator pulse */}
       {isCurrent && (
-        <div className="absolute inset-0 rounded-lg border-2 border-sky-300 animate-ping opacity-30" />
+        <div className="absolute inset-0 rounded-lg border-2 border-primary animate-ping opacity-30" />
       )}
-    </button>
+    </Button>
   );
 }
 
@@ -97,11 +99,11 @@ function RoomConnection({
       <div
         className={`
           h-1 w-full rounded
-          ${isCompleted ? 'bg-green-500' : isActive ? 'bg-blue-500' : 'bg-gray-700'}
+          ${isCompleted ? 'bg-success' : isActive ? 'bg-primary' : 'bg-secondary'}
         `}
       >
         {isActive && !isCompleted && (
-          <div className="h-full w-2 bg-blue-400 rounded animate-pulse" />
+          <div className="h-full w-2 bg-primary rounded animate-pulse" />
         )}
       </div>
     </div>
@@ -122,13 +124,13 @@ export function LevelMap({
   const progressPercent = (completedRooms.length / totalRooms) * 100;
 
   return (
-    <div className={`bg-game-surface/80 border border-sky-900/50 rounded-lg p-4 ${className}`}>
+    <div className={`bg-game-surface/80 border border-border rounded-lg p-4 ${className}`}>
       {/* Level header */}
       <div className="mb-4">
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-[10px] uppercase tracking-[0.2em] text-sky-300/70">Level Map</div>
-            <h2 className="text-lg font-bold text-white">{level.name}</h2>
+            <div className="text-[10px] uppercase tracking-[0.2em] text-primary/70">Level Map</div>
+            <h2 className="text-lg font-bold text-foreground">{level.name}</h2>
           </div>
           <div className="flex items-center gap-2">
             {/* Difficulty stars */}
@@ -136,7 +138,7 @@ export function LevelMap({
               {Array.from({ length: 5 }).map((_, i) => (
                 <svg
                   key={i}
-                  className={`w-4 h-4 ${i < level.difficulty ? 'text-amber-300' : 'text-slate-600'}`}
+                  className={`w-4 h-4 ${i < level.difficulty ? 'text-warning' : 'text-muted-foreground'}`}
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
@@ -146,20 +148,20 @@ export function LevelMap({
             </div>
           </div>
         </div>
-        <p className="text-sm text-slate-300/70 mt-1">{level.description}</p>
+        <p className="text-sm text-muted-foreground mt-1">{level.description}</p>
       </div>
 
       {/* Progress bar */}
       <div className="mb-4">
-        <div className="flex justify-between text-xs text-slate-400 mb-1">
+        <div className="flex justify-between text-xs text-muted-foreground mb-1">
           <span>Progress</span>
           <span>
             {completedRooms.length} / {totalRooms} rooms
           </span>
         </div>
-        <div className="h-2 bg-slate-900/70 rounded-full overflow-hidden border border-sky-900/40">
+        <div className="h-2 bg-secondary rounded-full overflow-hidden border border-border">
           <div
-            className="h-full bg-emerald-400 transition-all duration-500"
+            className="h-full bg-success transition-all duration-500"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
@@ -196,17 +198,17 @@ export function LevelMap({
       </div>
 
       {/* Star thresholds */}
-      <div className="mt-4 pt-4 border-t border-gray-700">
+      <div className="mt-4 pt-4 border-t border-border">
         <div className="flex items-center justify-between text-xs">
-          <span className="text-slate-400">Star rewards:</span>
+          <span className="text-muted-foreground">Star rewards:</span>
           <div className="flex gap-3">
-            <span className="text-slate-300">
+            <span className="text-foreground">
               1 = {level.starThresholds.one}
             </span>
-            <span className="text-slate-300">
+            <span className="text-foreground">
               2 = {level.starThresholds.two}
             </span>
-            <span className="text-amber-300">
+            <span className="text-warning">
               3 = {level.starThresholds.three}
             </span>
           </div>
@@ -216,12 +218,12 @@ export function LevelMap({
       {/* Concepts taught */}
       {level.concepts.length > 0 && (
         <div className="mt-3">
-          <div className="text-xs text-slate-400 mb-1">Concepts:</div>
+          <div className="text-xs text-muted-foreground mb-1">Concepts:</div>
           <div className="flex flex-wrap gap-1">
             {level.concepts.map((concept) => (
               <span
                 key={concept}
-                className="px-2 py-0.5 bg-sky-900/30 text-sky-200 text-xs rounded border border-sky-700/40"
+                className="px-2 py-0.5 bg-primary/20 text-primary text-xs rounded border border-primary/30"
               >
                 {concept}
               </span>
@@ -250,21 +252,22 @@ export function LevelCard({
   const stars = progress?.stars || 0;
 
   return (
-    <button
+    <Button
       onClick={onSelect}
       disabled={!isUnlocked}
+      variant="ghost"
       className={`
-        w-full text-left p-4 rounded-lg border transition-all
-        ${isUnlocked ? 'bg-game-surface/80 border-sky-900/50 hover:border-sky-400/60 hover:bg-game-surface cursor-pointer' : 'bg-slate-900/60 border-slate-800 cursor-not-allowed opacity-60'}
+        w-full text-left p-4 rounded-lg border transition-all h-auto
+        ${isUnlocked ? 'bg-game-surface/80 border-border hover:border-primary/60 hover:bg-game-surface cursor-pointer' : 'bg-card/60 border-border cursor-not-allowed opacity-60'}
       `}
     >
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between w-full">
         <div>
-          <h3 className="font-bold text-white">{level.name}</h3>
-          <p className="text-sm text-slate-300/70 mt-1">{level.description}</p>
+          <h3 className="font-bold text-foreground">{level.name}</h3>
+          <p className="text-sm text-muted-foreground mt-1">{level.description}</p>
         </div>
         {!isUnlocked && (
-          <svg className="w-6 h-6 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+          <svg className="w-6 h-6 text-muted-foreground" fill="currentColor" viewBox="0 0 20 20">
             <path
               fillRule="evenodd"
               d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
@@ -274,13 +277,13 @@ export function LevelCard({
         )}
       </div>
 
-      <div className="mt-3 flex items-center justify-between">
+      <div className="mt-3 flex items-center justify-between w-full">
         {/* Difficulty */}
         <div className="flex gap-0.5">
           {Array.from({ length: 5 }).map((_, i) => (
             <svg
               key={i}
-              className={`w-4 h-4 ${i < level.difficulty ? 'text-amber-300' : 'text-slate-600'}`}
+              className={`w-4 h-4 ${i < level.difficulty ? 'text-warning' : 'text-muted-foreground'}`}
               fill="currentColor"
               viewBox="0 0 20 20"
             >
@@ -292,14 +295,14 @@ export function LevelCard({
         {/* Progress */}
         {progress && (
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-muted-foreground">
               {completedRooms}/{totalRooms}
             </span>
             <div className="flex gap-0.5">
               {Array.from({ length: 3 }).map((_, i) => (
                 <svg
                   key={i}
-                  className={`w-4 h-4 ${i < stars ? 'text-amber-300' : 'text-slate-600'}`}
+                  className={`w-4 h-4 ${i < stars ? 'text-warning' : 'text-muted-foreground'}`}
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
@@ -313,11 +316,11 @@ export function LevelCard({
 
       {/* Required level */}
       {!isUnlocked && (
-        <div className="mt-2 text-xs text-slate-500">
+        <div className="mt-2 text-xs text-muted-foreground">
           Requires level {level.requiredLevel}
         </div>
       )}
-    </button>
+    </Button>
   );
 }
 

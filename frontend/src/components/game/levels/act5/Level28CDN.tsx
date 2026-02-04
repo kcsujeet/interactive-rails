@@ -18,6 +18,7 @@ import {
   useLevelCompletion,
   type ValidationResult,
 } from '../shared';
+import { Button } from '../../../ui/Button';
 
 interface CDNConfig {
   enabled: boolean;
@@ -167,46 +168,47 @@ export function Level28CDN({ onComplete, onExit }: LevelComponentProps) {
           goal="Deliver fast experiences to users worldwide with CDN edge caching."
         >
           {/* Metrics */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Performance Metrics
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <div className="bg-gray-800 p-2 rounded text-center">
+              <div className="bg-card p-2 rounded text-center">
                 <div className={`text-xl font-bold ${
-                  avgLatency < 100 ? 'text-green-400' :
-                  avgLatency < 200 ? 'text-yellow-400' : 'text-red-400'
+                  avgLatency < 100 ? 'text-success' :
+                  avgLatency < 200 ? 'text-warning' : 'text-destructive'
                 }`}>
                   {avgLatency}ms
                 </div>
-                <div className="text-xs text-gray-500">Avg Latency</div>
+                <div className="text-xs text-muted-foreground">Avg Latency</div>
               </div>
-              <div className="bg-gray-800 p-2 rounded text-center">
+              <div className="bg-card p-2 rounded text-center">
                 <div className={`text-xl font-bold ${
-                  cacheHitRate > 70 ? 'text-green-400' :
-                  cacheHitRate > 30 ? 'text-yellow-400' : 'text-red-400'
+                  cacheHitRate > 70 ? 'text-success' :
+                  cacheHitRate > 30 ? 'text-warning' : 'text-destructive'
                 }`}>
                   {cacheHitRate}%
                 </div>
-                <div className="text-xs text-gray-500">Cache Hit Rate</div>
+                <div className="text-xs text-muted-foreground">Cache Hit Rate</div>
               </div>
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-800 space-y-2">
-            <button
+          <div className="p-4 border-t border-border space-y-2">
+            <Button
               onClick={simulateRequest}
-              className="w-full py-2 rounded-lg font-medium bg-cyan-600 hover:bg-cyan-500 text-white transition-all"
+              className="w-full"
             >
               Simulate Request
-            </button>
+            </Button>
             {config.enabled && (
-              <button
+              <Button
                 onClick={invalidateCache}
-                className="w-full py-2 rounded-lg font-medium bg-orange-600 hover:bg-orange-500 text-white transition-all"
+                variant="outline"
+                className="w-full bg-warning/20 border-warning text-warning hover:bg-warning/30"
               >
                 Invalidate Cache
-              </button>
+              </Button>
             )}
           </div>
         </InstructionPanel>
@@ -227,12 +229,12 @@ export function Level28CDN({ onComplete, onExit }: LevelComponentProps) {
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-6 overflow-auto">
+        <div className="flex-1 relative bg-background p-6 overflow-auto">
           <div className="max-w-4xl mx-auto">
             {/* CDN Configuration */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">CDN Configuration</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">CDN Configuration</div>
               </div>
               <div className="p-4 grid grid-cols-4 gap-3">
                 {[
@@ -241,31 +243,32 @@ export function Level28CDN({ onComplete, onExit }: LevelComponentProps) {
                   { key: 'imageOptimization', name: 'Image Optim', icon: '🖼️', desc: 'Auto-resize, WebP' },
                   { key: 'cacheControl', name: 'Cache Headers', icon: '⏱️', desc: 'max-age, s-maxage' },
                 ].map(item => (
-                  <button
+                  <Button
                     key={item.key}
                     onClick={() => toggleConfig(item.key as keyof CDNConfig)}
                     disabled={item.key !== 'enabled' && !config.enabled}
-                    className={`p-3 rounded-lg border-2 text-center transition-all ${
+                    variant={config[item.key as keyof CDNConfig] ? 'default' : 'outline'}
+                    className={`p-3 h-auto rounded-lg border-2 text-center transition-all flex-col ${
                       config[item.key as keyof CDNConfig]
-                        ? 'border-green-500 bg-green-900/20'
-                        : 'border-gray-700 bg-gray-800 hover:border-gray-500'
+                        ? 'border-success bg-success/20'
+                        : 'border-border bg-secondary hover:border-muted-foreground'
                     } ${item.key !== 'enabled' && !config.enabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <div className="text-2xl mb-1">{item.icon}</div>
-                    <div className={`text-xs font-semibold ${config[item.key as keyof CDNConfig] ? 'text-green-400' : 'text-white'}`}>
+                    <div className={`text-xs font-semibold ${config[item.key as keyof CDNConfig] ? 'text-success' : 'text-foreground'}`}>
                       {item.name}
                     </div>
-                    <div className="text-xs text-gray-500">{item.desc}</div>
-                  </button>
+                    <div className="text-xs text-muted-foreground">{item.desc}</div>
+                  </Button>
                 ))}
               </div>
             </div>
 
             {/* Global Map */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Edge Locations</div>
-                <div className="text-xs text-gray-500">Green = cached, Gray = empty</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Edge Locations</div>
+                <div className="text-xs text-muted-foreground">Green = cached, Gray = empty</div>
               </div>
               <div className="p-6">
                 <div className="flex justify-between items-center">
@@ -273,9 +276,9 @@ export function Level28CDN({ onComplete, onExit }: LevelComponentProps) {
                   <div className="text-center">
                     <div className="w-20 h-20 bg-purple-600 rounded-lg flex flex-col items-center justify-center mb-2">
                       <span className="text-2xl">🏠</span>
-                      <span className="text-xs text-white">Origin</span>
+                      <span className="text-xs text-foreground">Origin</span>
                     </div>
-                    <div className="text-xs text-gray-500">US East</div>
+                    <div className="text-xs text-muted-foreground">US East</div>
                   </div>
 
                   {/* CDN Cloud */}
@@ -285,12 +288,12 @@ export function Level28CDN({ onComplete, onExit }: LevelComponentProps) {
                         {locations.map(loc => (
                           <div key={loc.id} className="text-center">
                             <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-1 ${
-                              loc.cached ? 'bg-green-600' : 'bg-gray-700'
+                              loc.cached ? 'bg-success' : 'bg-secondary'
                             }`}>
                               <span className="text-lg">📍</span>
                             </div>
-                            <div className="text-xs text-gray-400">{loc.name}</div>
-                            <div className={`text-xs ${loc.cached ? 'text-green-400' : 'text-gray-600'}`}>
+                            <div className="text-xs text-muted-foreground">{loc.name}</div>
+                            <div className={`text-xs ${loc.cached ? 'text-success' : 'text-muted-foreground'}`}>
                               {loc.cached ? 'Cached' : 'Empty'}
                             </div>
                           </div>
@@ -303,39 +306,39 @@ export function Level28CDN({ onComplete, onExit }: LevelComponentProps) {
                   <div className="text-center">
                     <div className="w-20 h-20 bg-blue-600 rounded-lg flex flex-col items-center justify-center mb-2">
                       <span className="text-2xl">👥</span>
-                      <span className="text-xs text-white">Users</span>
+                      <span className="text-xs text-foreground">Users</span>
                     </div>
-                    <div className="text-xs text-gray-500">Worldwide</div>
+                    <div className="text-xs text-muted-foreground">Worldwide</div>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Request Log */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Request Log</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Request Log</div>
               </div>
               <div className="p-4 space-y-2 max-h-48 overflow-y-auto">
                 {requests.length === 0 ? (
-                  <div className="text-center py-4 text-gray-600">
+                  <div className="text-center py-4 text-muted-foreground">
                     Click "Simulate Request" to see traffic
                   </div>
                 ) : (
                   requests.map(req => (
-                    <div key={req.id} className="flex items-center justify-between p-2 bg-gray-800 rounded-lg">
+                    <div key={req.id} className="flex items-center justify-between p-2 bg-secondary rounded-lg">
                       <div className="flex items-center gap-3">
-                        <span className={`w-2 h-2 rounded-full ${req.source === 'edge' ? 'bg-green-400' : 'bg-orange-400'}`} />
-                        <span className="text-sm text-white">{req.asset}</span>
-                        <span className="text-xs text-gray-500">from {req.location}</span>
+                        <span className={`w-2 h-2 rounded-full ${req.source === 'edge' ? 'bg-success' : 'bg-warning'}`} />
+                        <span className="text-sm text-foreground">{req.asset}</span>
+                        <span className="text-xs text-muted-foreground">from {req.location}</span>
                       </div>
                       <div className="flex items-center gap-3">
                         <span className={`text-xs px-2 py-1 rounded ${
-                          req.source === 'edge' ? 'bg-green-900/40 text-green-400' : 'bg-orange-900/40 text-orange-400'
+                          req.source === 'edge' ? 'bg-success/40 text-success' : 'bg-warning/40 text-warning'
                         }`}>
                           {req.source === 'edge' ? 'CDN HIT' : 'ORIGIN'}
                         </span>
-                        <span className={`text-sm ${req.latency < 100 ? 'text-green-400' : 'text-orange-400'}`}>
+                        <span className={`text-sm ${req.latency < 100 ? 'text-success' : 'text-warning'}`}>
                           {req.latency}ms
                         </span>
                       </div>
@@ -385,9 +388,9 @@ location /images/ {
           ]}
           learningGoal="CDN caches at the edge for fast global delivery. Set long cache times for static assets, short for dynamic content."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">CDN Providers</div>
-            <ul className="text-xs text-gray-400 space-y-1">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">CDN Providers</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>• CloudFront - AWS native</li>
               <li>• Cloudflare - Easy setup, free tier</li>
               <li>• Fastly - Real-time purging</li>
@@ -395,9 +398,9 @@ location /images/ {
             </ul>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Cache Headers</div>
-            <pre className="text-xs text-gray-400 bg-gray-800 p-2 rounded overflow-x-auto">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Cache Headers</div>
+            <pre className="text-xs text-muted-foreground bg-secondary p-2 rounded overflow-x-auto">
 {`# Browser cache for 1 day
 Cache-Control: public, max-age=86400
 

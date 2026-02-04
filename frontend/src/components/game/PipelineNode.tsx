@@ -89,16 +89,16 @@ export function PipelineNode({
           data-port="input"
           className={`absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
             pendingConnection && !isConnectionSource
-              ? 'bg-emerald-400 border-emerald-200 scale-125 cursor-pointer'
+              ? 'bg-success border-success/50 scale-125 cursor-pointer'
               : hasInputConnection
-                ? 'bg-slate-700 border-slate-400'
-                : 'bg-slate-800 border-slate-600'
+                ? 'bg-secondary border-border'
+                : 'bg-card border-border'
           }`}
           onMouseUp={(e) => onCompleteConnection(e, node.id)}
         >
           <div
             className={`w-2 h-2 rounded-full ${
-              pendingConnection && !isConnectionSource ? 'bg-white' : 'bg-slate-300'
+              pendingConnection && !isConnectionSource ? 'bg-foreground' : 'bg-muted-foreground'
             }`}
           />
         </div>
@@ -110,22 +110,22 @@ export function PipelineNode({
           data-port="output"
           className={`absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all ${
             isConnectionSource
-              ? 'bg-sky-400 border-sky-200 scale-125'
+              ? 'bg-primary border-primary/50 scale-125'
               : hasOutputConnection
-                ? 'bg-slate-700 border-slate-400 hover:bg-sky-500 hover:border-sky-300'
-                : 'bg-slate-800 border-slate-600 hover:bg-sky-500 hover:border-sky-300'
+                ? 'bg-secondary border-border hover:bg-primary hover:border-primary/50'
+                : 'bg-card border-border hover:bg-primary hover:border-primary/50'
           }`}
           onMouseDown={(e) => onStartConnection(e, node.id)}
         >
           <div
-            className={`w-2 h-2 rounded-full ${isConnectionSource ? 'bg-white' : 'bg-slate-300'}`}
+            className={`w-2 h-2 rounded-full ${isConnectionSource ? 'bg-foreground' : 'bg-muted-foreground'}`}
           />
         </div>
       )}
 
       <div
         className={`w-32 rounded-lg border overflow-hidden ${
-          isSelected ? 'ring-2 ring-sky-400 ring-offset-2 ring-offset-slate-950' : ''
+          isSelected ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''
         }`}
         style={{
           borderColor: isPipelineBroken && node.type === 'database' ? '#475569' : `${nodeInfo.color}`,
@@ -133,22 +133,22 @@ export function PipelineNode({
         }}
       >
         <div
-          className="px-3 py-2 text-white text-sm font-medium text-center relative"
+          className="px-3 py-2 text-foreground text-sm font-medium text-center relative"
           style={{ backgroundColor: nodeInfo.color }}
         >
           {nodeInfo.name}
           {/* Activity indicator for database */}
           {node.type === 'database' && simulationRunning && !isPipelineBroken && (
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-warning animate-pulse" />
           )}
           {node.type === 'database' && isPipelineBroken && (
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-slate-500" />
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-muted-foreground" />
           )}
         </div>
-        <div className="bg-slate-950 px-3 py-2 border-t border-slate-800">
+        <div className="bg-background px-3 py-2 border-t border-border">
           <div
             className={`text-xs text-center font-mono ${
-              isPipelineBroken && node.type === 'database' ? 'text-slate-600' : 'text-slate-400'
+              isPipelineBroken && node.type === 'database' ? 'text-muted-foreground/50' : 'text-muted-foreground'
             }`}
           >
             {getNodeLabel()}

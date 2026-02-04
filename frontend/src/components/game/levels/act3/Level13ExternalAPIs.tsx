@@ -17,6 +17,7 @@ import {
   CodePreviewPanel,
   useLevelCompletion,
 } from '../shared';
+import { Button } from '../../../ui/Button';
 
 type CircuitState = 'closed' | 'open' | 'half-open';
 
@@ -113,46 +114,43 @@ export function Level13ExternalAPIs({ onComplete, onExit }: LevelComponentProps)
           ]}
           goal="Learn the Circuit Breaker pattern for resilient external API calls."
         >
-          <div className="p-4 border-t border-gray-800">
-            <button
+          <div className="p-4 border-t border-border">
+            <Button
               onClick={() => setCircuitBreakerEnabled(true)}
               disabled={circuitBreakerEnabled}
-              className={`w-full py-3 rounded-lg font-medium transition-colors ${
-                circuitBreakerEnabled
-                  ? 'bg-green-600 text-white cursor-default'
-                  : 'bg-cyan-600 hover:bg-cyan-500 text-white'
-              }`}
+              variant={circuitBreakerEnabled ? 'secondary' : 'default'}
+              className={`w-full py-3 ${circuitBreakerEnabled ? 'bg-success text-success-foreground cursor-default' : ''}`}
             >
               {circuitBreakerEnabled ? 'Circuit Breaker Enabled' : 'Enable Circuit Breaker'}
-            </button>
+            </Button>
           </div>
 
           {circuitBreakerEnabled && (
-            <div className="p-4 border-t border-gray-800">
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Circuit State</div>
+            <div className="p-4 border-t border-border">
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Circuit State</div>
               <div className="flex items-center gap-3">
                 <div
                   className="w-4 h-4 rounded-full"
                   style={{ backgroundColor: getStateColor(circuitState) }}
                 />
-                <span className="text-white font-medium capitalize">{circuitState}</span>
+                <span className="text-foreground font-medium capitalize">{circuitState}</span>
               </div>
-              <div className="text-gray-500 text-xs mt-2">
+              <div className="text-muted-foreground text-xs mt-2">
                 {circuitState === 'closed' && 'Normal operation - requests go through'}
                 {circuitState === 'open' && 'Failing fast - returning fallback immediately'}
                 {circuitState === 'half-open' && 'Testing - allowing one request through'}
               </div>
-              <div className="mt-3 text-gray-400 text-sm">
+              <div className="mt-3 text-muted-foreground text-sm">
                 Failures: {failureCount} / 3
               </div>
             </div>
           )}
 
-          <div className="p-4 border-t border-gray-800">
+          <div className="p-4 border-t border-border">
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-red-900/30 rounded-lg p-3 text-center">
-                <div className="text-2xl font-bold text-red-400">{timeoutsSeen}</div>
-                <div className="text-xs text-red-400/70">Timeouts</div>
+              <div className="bg-destructive/20 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-destructive">{timeoutsSeen}</div>
+                <div className="text-xs text-destructive/70">Timeouts</div>
               </div>
               <div className="bg-purple-900/30 rounded-lg p-3 text-center">
                 <div className="text-2xl font-bold text-purple-400">{fallbacksSeen}</div>
@@ -179,19 +177,19 @@ export function Level13ExternalAPIs({ onComplete, onExit }: LevelComponentProps)
           }}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-8">
+        <div className="flex-1 relative bg-background p-8">
           {/* Architecture diagram */}
           <div className="flex items-center justify-center gap-8 mb-8">
             {/* App */}
-            <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 w-40 text-center">
+            <div className="bg-card border border-border rounded-xl p-6 w-40 text-center">
               <div className="text-4xl mb-2">A</div>
-              <div className="text-gray-400 text-sm">Your App</div>
+              <div className="text-muted-foreground text-sm">Your App</div>
             </div>
 
             {/* Circuit Breaker */}
             {circuitBreakerEnabled && (
               <>
-                <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
 
@@ -207,52 +205,52 @@ export function Level13ExternalAPIs({ onComplete, onExit }: LevelComponentProps)
               </>
             )}
 
-            <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
             </svg>
 
             {/* GitHub API */}
-            <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 w-40 text-center">
+            <div className="bg-card border border-border rounded-xl p-6 w-40 text-center">
               <div className="text-4xl mb-2">GH</div>
-              <div className="text-gray-400 text-sm">GitHub API</div>
-              <div className="text-red-400 text-xs mt-1">Sometimes slow!</div>
+              <div className="text-muted-foreground text-sm">GitHub API</div>
+              <div className="text-destructive text-xs mt-1">Sometimes slow!</div>
             </div>
           </div>
 
           {/* API Call Log */}
-          <div className="bg-gray-900 rounded-xl p-4 max-w-2xl mx-auto">
-            <div className="text-gray-400 text-xs uppercase tracking-wider mb-3">API Call Log</div>
+          <div className="bg-card rounded-xl p-4 max-w-2xl mx-auto">
+            <div className="text-muted-foreground text-xs uppercase tracking-wider mb-3">API Call Log</div>
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {apiCalls.map(call => (
                 <div
                   key={call.id}
                   className={`flex items-center justify-between p-3 rounded-lg ${
-                    call.status === 'pending' ? 'bg-gray-800' :
-                    call.status === 'success' ? 'bg-green-900/30' :
-                    call.status === 'timeout' ? 'bg-red-900/30' :
+                    call.status === 'pending' ? 'bg-secondary' :
+                    call.status === 'success' ? 'bg-success/20' :
+                    call.status === 'timeout' ? 'bg-destructive/20' :
                     'bg-purple-900/30'
                   }`}
                 >
                   <div className="flex items-center gap-3">
                     <div className={`w-2 h-2 rounded-full ${
-                      call.status === 'pending' ? 'bg-gray-500 animate-pulse' :
-                      call.status === 'success' ? 'bg-green-500' :
-                      call.status === 'timeout' ? 'bg-red-500' :
+                      call.status === 'pending' ? 'bg-muted-foreground animate-pulse' :
+                      call.status === 'success' ? 'bg-success' :
+                      call.status === 'timeout' ? 'bg-destructive' :
                       'bg-purple-500'
                     }`} />
-                    <span className="text-gray-300 font-mono text-sm">
+                    <span className="text-muted-foreground font-mono text-sm">
                       GET /repos/rails/rails
                     </span>
                   </div>
                   <div className="text-sm">
                     {call.status === 'pending' && (
-                      <span className="text-gray-500">Loading...</span>
+                      <span className="text-muted-foreground">Loading...</span>
                     )}
                     {call.status === 'success' && (
-                      <span className="text-green-400">{Math.round(call.latency)}ms</span>
+                      <span className="text-success">{Math.round(call.latency)}ms</span>
                     )}
                     {call.status === 'timeout' && (
-                      <span className="text-red-400">5000ms TIMEOUT</span>
+                      <span className="text-destructive">5000ms TIMEOUT</span>
                     )}
                     {call.status === 'fallback' && (
                       <span className="text-purple-400">5ms (fallback)</span>
@@ -261,7 +259,7 @@ export function Level13ExternalAPIs({ onComplete, onExit }: LevelComponentProps)
                 </div>
               ))}
               {apiCalls.length === 0 && (
-                <div className="text-gray-600 text-center py-4">Waiting for API calls...</div>
+                <div className="text-muted-foreground text-center py-4">Waiting for API calls...</div>
               )}
             </div>
           </div>
@@ -269,12 +267,13 @@ export function Level13ExternalAPIs({ onComplete, onExit }: LevelComponentProps)
           {/* Completion button */}
           {isComplete && (
             <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
-              <button
+              <Button
                 onClick={handleComplete}
-                className="px-8 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white font-bold rounded-lg shadow-lg"
+                size="lg"
+                className="bg-gradient-to-r from-success to-success/80 text-success-foreground font-bold shadow-lg"
               >
                 Complete Level
-              </button>
+              </Button>
             </div>
           )}
         </div>

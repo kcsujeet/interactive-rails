@@ -18,6 +18,7 @@ import {
   useLevelCompletion,
   type ValidationResult,
 } from '../shared';
+import { Button } from '../../../ui/Button';
 
 interface CacheNode {
   id: string;
@@ -201,63 +202,52 @@ export function Level33DistributedCaching({ onComplete, onExit }: LevelComponent
           goal="Build a distributed cache that's scalable, consistent, and fault-tolerant."
         >
           {/* Cluster Settings */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Cluster Configuration
             </div>
             <div className="space-y-2">
-              <button
+              <Button
                 onClick={() => setClusterEnabled(!clusterEnabled)}
-                className={`w-full p-2 rounded-lg text-left transition-all border ${
-                  clusterEnabled ? 'border-green-500 bg-green-900/20' : 'border-gray-700 bg-gray-800'
-                }`}
+                variant={clusterEnabled ? 'default' : 'outline'}
+                className={`w-full justify-between ${clusterEnabled ? 'border-success bg-success/20' : ''}`}
               >
-                <div className="flex justify-between items-center">
-                  <span className={clusterEnabled ? 'text-green-400' : 'text-white'}>Enable Cluster</span>
-                  {clusterEnabled && <span className="text-green-400">✓</span>}
-                </div>
-              </button>
-              <button
+                <span className={clusterEnabled ? 'text-success' : 'text-foreground'}>Enable Cluster</span>
+                {clusterEnabled && <span className="text-success">✓</span>}
+              </Button>
+              <Button
                 onClick={() => setConsistentHashing(!consistentHashing)}
                 disabled={!clusterEnabled}
-                className={`w-full p-2 rounded-lg text-left transition-all border ${
-                  consistentHashing ? 'border-green-500 bg-green-900/20' :
-                  clusterEnabled ? 'border-gray-700 bg-gray-800' : 'border-gray-700 bg-gray-800 opacity-50'
-                }`}
+                variant={consistentHashing ? 'default' : 'outline'}
+                className={`w-full justify-between ${consistentHashing ? 'border-success bg-success/20' : ''}`}
               >
-                <div className="flex justify-between items-center">
-                  <span className={consistentHashing ? 'text-green-400' : 'text-white'}>Consistent Hashing</span>
-                  {consistentHashing && <span className="text-green-400">✓</span>}
-                </div>
-              </button>
-              <button
+                <span className={consistentHashing ? 'text-success' : 'text-foreground'}>Consistent Hashing</span>
+                {consistentHashing && <span className="text-success">✓</span>}
+              </Button>
+              <Button
                 onClick={() => setReplication(!replication)}
                 disabled={!clusterEnabled}
-                className={`w-full p-2 rounded-lg text-left transition-all border ${
-                  replication ? 'border-green-500 bg-green-900/20' :
-                  clusterEnabled ? 'border-gray-700 bg-gray-800' : 'border-gray-700 bg-gray-800 opacity-50'
-                }`}
+                variant={replication ? 'default' : 'outline'}
+                className={`w-full justify-between ${replication ? 'border-success bg-success/20' : ''}`}
               >
-                <div className="flex justify-between items-center">
-                  <span className={replication ? 'text-green-400' : 'text-white'}>Replication</span>
-                  {replication && <span className="text-green-400">✓</span>}
-                </div>
-              </button>
+                <span className={replication ? 'text-success' : 'text-foreground'}>Replication</span>
+                {replication && <span className="text-success">✓</span>}
+              </Button>
             </div>
           </div>
 
           {/* Stats */}
-          <div className="p-4 border-t border-gray-800">
+          <div className="p-4 border-t border-border">
             <div className="grid grid-cols-2 gap-2">
-              <div className="bg-gray-800 p-2 rounded text-center">
-                <div className="text-xl font-bold text-white">{totalKeys}</div>
-                <div className="text-xs text-gray-500">Total Keys</div>
+              <div className="bg-card p-2 rounded text-center">
+                <div className="text-xl font-bold text-foreground">{totalKeys}</div>
+                <div className="text-xs text-muted-foreground">Total Keys</div>
               </div>
-              <div className="bg-gray-800 p-2 rounded text-center">
-                <div className={`text-xl font-bold ${hitRate > 70 ? 'text-green-400' : hitRate > 40 ? 'text-yellow-400' : 'text-red-400'}`}>
+              <div className="bg-card p-2 rounded text-center">
+                <div className={`text-xl font-bold ${hitRate > 70 ? 'text-success' : hitRate > 40 ? 'text-warning' : 'text-destructive'}`}>
                   {hitRate}%
                 </div>
-                <div className="text-xs text-gray-500">Hit Rate</div>
+                <div className="text-xs text-muted-foreground">Hit Rate</div>
               </div>
             </div>
           </div>
@@ -282,63 +272,64 @@ export function Level33DistributedCaching({ onComplete, onExit }: LevelComponent
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-6 overflow-auto">
+        <div className="flex-1 relative bg-background p-6 overflow-auto">
           <div className="max-w-4xl mx-auto">
             {/* Cluster Nodes */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Redis Cluster</div>
-                <div className="text-xs text-gray-500">Click nodes to simulate failures</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Redis Cluster</div>
+                <div className="text-xs text-muted-foreground">Click nodes to simulate failures</div>
               </div>
               <div className="p-6">
                 <div className="flex justify-center gap-8">
                   {nodes.map(node => (
-                    <button
+                    <Button
                       key={node.id}
                       onClick={() => toggleNodeHealth(node.id)}
-                      className={`w-40 p-4 rounded-xl border-2 transition-all ${
+                      variant={node.status === 'healthy' ? 'default' : 'outline'}
+                      className={`w-40 p-4 h-auto rounded-xl border-2 transition-all flex-col ${
                         node.status === 'healthy'
-                          ? 'border-green-500 bg-green-900/20'
-                          : 'border-red-500 bg-red-900/20 opacity-60'
+                          ? 'border-success bg-success/20'
+                          : 'border-destructive bg-destructive/20 opacity-60'
                       }`}
                     >
-                      <div className="text-center">
+                      <div className="text-center w-full">
                         <div className="text-3xl mb-2">🗄️</div>
-                        <div className={node.status === 'healthy' ? 'text-green-400' : 'text-red-400'}>
+                        <div className={node.status === 'healthy' ? 'text-success' : 'text-destructive'}>
                           {node.name}
                         </div>
-                        <div className="text-xs text-gray-500">{node.status}</div>
+                        <div className="text-xs text-muted-foreground">{node.status}</div>
 
                         {/* Memory bar */}
-                        <div className="mt-3">
-                          <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                        <div className="mt-3 w-full">
+                          <div className="h-2 bg-secondary rounded-full overflow-hidden">
                             <div
                               className={`h-full transition-all ${
-                                node.memory > 80 ? 'bg-red-500' :
-                                node.memory > 50 ? 'bg-yellow-500' : 'bg-green-500'
+                                node.memory > 80 ? 'bg-destructive' :
+                                node.memory > 50 ? 'bg-warning' : 'bg-success'
                               }`}
                               style={{ width: `${(node.memory / node.maxMemory) * 100}%` }}
                             />
                           </div>
-                          <div className="text-xs text-gray-500 mt-1">
+                          <div className="text-xs text-muted-foreground mt-1">
                             {node.memory}/{node.maxMemory} MB
                           </div>
                         </div>
 
-                        <div className="text-lg font-bold text-cyan-400 mt-2">
+                        <div className="text-lg font-bold text-primary mt-2">
                           {node.keys}
                         </div>
-                        <div className="text-xs text-gray-500">keys</div>
+                        <div className="text-xs text-muted-foreground">keys</div>
                       </div>
-                    </button>
+                    </Button>
                   ))}
                 </div>
 
                 {/* Hash Ring Visualization */}
                 {consistentHashing && (
                   <div className="mt-6 text-center">
-                    <div className="text-xs text-gray-500 mb-2">Consistent Hash Ring</div>
-                    <div className="w-32 h-32 mx-auto rounded-full border-4 border-cyan-600 relative">
+                    <div className="text-xs text-muted-foreground mb-2">Consistent Hash Ring</div>
+                    <div className="w-32 h-32 mx-auto rounded-full border-4 border-primary relative">
                       {nodes.map((node, i) => {
                         const angle = (i * 120) - 90;
                         const x = 50 + 40 * Math.cos(angle * Math.PI / 180);
@@ -347,7 +338,7 @@ export function Level33DistributedCaching({ onComplete, onExit }: LevelComponent
                           <div
                             key={node.id}
                             className={`absolute w-6 h-6 rounded-full ${
-                              node.status === 'healthy' ? 'bg-green-500' : 'bg-red-500'
+                              node.status === 'healthy' ? 'bg-success' : 'bg-destructive'
                             }`}
                             style={{
                               left: `${x}%`,
@@ -364,13 +355,13 @@ export function Level33DistributedCaching({ onComplete, onExit }: LevelComponent
             </div>
 
             {/* Operations Log */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Cache Operations</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Cache Operations</div>
               </div>
               <div className="p-4 h-48 overflow-y-auto font-mono text-xs space-y-1">
                 {operations.length === 0 ? (
-                  <div className="text-center py-8 text-gray-600">
+                  <div className="text-center py-8 text-muted-foreground">
                     Enable cluster to see operations
                   </div>
                 ) : (
@@ -378,17 +369,17 @@ export function Level33DistributedCaching({ onComplete, onExit }: LevelComponent
                     <div key={op.id} className="flex items-center gap-3">
                       <span className={`px-2 py-1 rounded ${
                         op.type === 'GET' ? 'bg-blue-900/40 text-blue-400' :
-                        op.type === 'SET' ? 'bg-green-900/40 text-green-400' :
-                        'bg-red-900/40 text-red-400'
+                        op.type === 'SET' ? 'bg-success/40 text-success' :
+                        'bg-destructive/40 text-destructive'
                       }`}>
                         {op.type}
                       </span>
-                      <span className="text-gray-400">{op.key}</span>
-                      <span className="text-gray-600">→</span>
-                      <span className="text-cyan-400">{op.node}</span>
+                      <span className="text-muted-foreground">{op.key}</span>
+                      <span className="text-muted-foreground">→</span>
+                      <span className="text-primary">{op.node}</span>
                       <span className={
-                        op.result === 'HIT' ? 'text-green-400' :
-                        op.result === 'MISS' ? 'text-yellow-400' : 'text-gray-400'
+                        op.result === 'HIT' ? 'text-success' :
+                        op.result === 'MISS' ? 'text-warning' : 'text-muted-foreground'
                       }>
                         {op.result}
                       </span>
@@ -448,9 +439,9 @@ end`,
           ]}
           learningGoal="Distributed caching scales horizontally. Consistent hashing ensures key locality. Replication provides fault tolerance."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Key Concepts</div>
-            <ul className="text-xs text-gray-400 space-y-1">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Key Concepts</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>• Hash slot assignment (0-16383)</li>
               <li>• Replica failover</li>
               <li>• Cross-slot operations</li>
@@ -458,9 +449,9 @@ end`,
             </ul>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Invalidation</div>
-            <pre className="text-xs text-gray-400 bg-gray-800 p-2 rounded overflow-x-auto">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Invalidation</div>
+            <pre className="text-xs text-muted-foreground bg-secondary p-2 rounded overflow-x-auto">
 {`# Delete specific key
 redis.del("user:1")
 

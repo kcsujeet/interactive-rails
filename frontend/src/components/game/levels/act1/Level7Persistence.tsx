@@ -7,6 +7,7 @@
 
 import { useState, useRef } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -292,7 +293,7 @@ end`,
                 />
               </NodePaletteGroup>
             ) : (
-              <div className="text-sm text-gray-500 text-center py-4">
+              <div className="text-sm text-muted-foreground text-center py-4">
                 Database added!
                 {!isComplete && <div className="mt-2">Connect both models to it.</div>}
               </div>
@@ -300,33 +301,34 @@ end`,
           </NodePalette>
 
           {/* Data counter & restart */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Data Simulation</div>
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Data Simulation</div>
 
-            <div className="bg-gray-800 rounded-lg p-4 mb-3">
+            <div className="bg-secondary rounded-lg p-4 mb-3">
               <div className="text-2xl font-bold text-center mb-1" style={{ color: isComplete ? '#22c55e' : '#3b82f6' }}>
                 {dataCounter}
               </div>
-              <div className="text-xs text-gray-500 text-center">Records Created</div>
+              <div className="text-xs text-muted-foreground text-center">Records Created</div>
             </div>
 
             <div className="space-y-2">
-              <button
+              <Button
                 onClick={createData}
-                className="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-lg transition-colors"
+                className="w-full bg-primary hover:bg-primary/90 text-foreground"
               >
                 + Create Record
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={simulateRestart}
-                className="w-full py-2 bg-red-600 hover:bg-red-500 text-white text-sm rounded-lg transition-colors"
+                variant="destructive"
+                className="w-full"
               >
                 Simulate Restart
-              </button>
+              </Button>
             </div>
 
             {showRestartEffect && (
-              <div className={`mt-3 text-center text-sm ${isComplete ? 'text-green-400' : 'text-red-400'}`}>
+              <div className={`mt-3 text-center text-sm ${isComplete ? 'text-success' : 'text-destructive'}`}>
                 {isComplete ? 'Data survived restart!' : 'Data lost on restart!'}
               </div>
             )}
@@ -368,7 +370,7 @@ end`,
         {/* Canvas */}
         <div
           ref={canvasRef}
-          className="flex-1 relative bg-gray-950 overflow-hidden"
+          className="flex-1 relative bg-background overflow-hidden"
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleDrop}
           onMouseMove={handleCanvasMouseMove}
@@ -386,7 +388,7 @@ end`,
           {/* Restart effect overlay */}
           {showRestartEffect && (
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-40">
-              <div className="text-2xl font-bold text-yellow-400 animate-pulse">
+              <div className="text-2xl font-bold text-warning animate-pulse">
                 Restarting...
               </div>
             </div>
@@ -444,26 +446,27 @@ end`,
           })}
 
           {/* Legend */}
-          <div className="absolute bottom-4 left-4 bg-gray-900/80 rounded-lg p-3 text-xs space-y-2">
+          <div className="absolute bottom-4 left-4 bg-card/80 rounded-lg p-3 text-xs space-y-2">
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-blue-500/40 border border-blue-500" />
-              <span className="text-gray-400">Transient (memory only)</span>
+              <div className="w-4 h-4 rounded bg-primary/40 border border-primary" />
+              <span className="text-muted-foreground">Transient (memory only)</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-green-500/40 border border-green-500" />
-              <span className="text-gray-400">Persisted (database)</span>
+              <div className="w-4 h-4 rounded bg-success/40 border border-success" />
+              <span className="text-muted-foreground">Persisted (database)</span>
             </div>
           </div>
 
           {/* Completion button */}
           {isComplete && (
             <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
-              <button
+              <Button
                 onClick={handleComplete}
-                className="px-8 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white font-bold rounded-lg shadow-lg shadow-green-900/30 hover:from-green-500 hover:to-green-400 transition-all"
+                size="lg"
+                className="bg-success hover:bg-success/90 text-foreground font-bold shadow-lg shadow-success/30"
               >
                 Complete Level
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -475,14 +478,14 @@ end`,
           learningGoal="Without a database, data lives only in server memory. When the server restarts, everything is lost. ActiveRecord models that inherit from ApplicationRecord automatically persist to the database."
         >
           {/* Persistence status */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Persistence Status</div>
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Persistence Status</div>
             <div className="space-y-2 text-sm">
-              <div className={`flex items-center gap-2 ${modelsConnectedToDb.has('post-model') ? 'text-green-400' : 'text-blue-400'}`}>
+              <div className={`flex items-center gap-2 ${modelsConnectedToDb.has('post-model') ? 'text-success' : 'text-primary'}`}>
                 <span>{modelsConnectedToDb.has('post-model') ? '+' : '-'}</span>
                 <span>Post Model: {modelsConnectedToDb.has('post-model') ? 'Persisted' : 'Transient'}</span>
               </div>
-              <div className={`flex items-center gap-2 ${modelsConnectedToDb.has('comment-model') ? 'text-green-400' : 'text-blue-400'}`}>
+              <div className={`flex items-center gap-2 ${modelsConnectedToDb.has('comment-model') ? 'text-success' : 'text-primary'}`}>
                 <span>{modelsConnectedToDb.has('comment-model') ? '+' : '-'}</span>
                 <span>Comment Model: {modelsConnectedToDb.has('comment-model') ? 'Persisted' : 'Transient'}</span>
               </div>

@@ -26,6 +26,7 @@ import {
 } from '../../stores';
 import { nodeTypes } from './nodes';
 import { edgeTypes } from './DataFlowEdge';
+import { Button } from '../ui/Button';
 import clsx from 'clsx';
 
 interface PipelineCanvasProps {
@@ -227,36 +228,28 @@ export default function PipelineCanvas({ className, isReadOnly = false }: Pipeli
         {!isReadOnly && (
           <Panel position="top-left">
             <div className="flex gap-1">
-              <button
+              <Button
+                variant="outline"
+                size="icon"
                 onClick={undo}
                 disabled={!canUndo}
-                className={clsx(
-                  'p-2 rounded-lg border transition-all',
-                  canUndo
-                    ? 'bg-game-surface border-game-border hover:bg-game-border text-gray-200'
-                    : 'bg-game-bg/50 border-game-border/50 text-gray-600 cursor-not-allowed'
-                )}
                 title="Undo (Cmd/Ctrl+Z)"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                 </svg>
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
                 onClick={redo}
                 disabled={!canRedo}
-                className={clsx(
-                  'p-2 rounded-lg border transition-all',
-                  canRedo
-                    ? 'bg-game-surface border-game-border hover:bg-game-border text-gray-200'
-                    : 'bg-game-bg/50 border-game-border/50 text-gray-600 cursor-not-allowed'
-                )}
                 title="Redo (Cmd/Ctrl+Shift+Z)"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6" />
                 </svg>
-              </button>
+              </Button>
             </div>
           </Panel>
         )}

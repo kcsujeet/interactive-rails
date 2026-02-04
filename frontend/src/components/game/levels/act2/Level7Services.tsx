@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -355,8 +356,8 @@ end`;
           goal="Learn the Service Object pattern - a PORO with initialize + call interface."
         >
           {/* Component Palette */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Components ({paletteComponents.length} remaining)
             </div>
             <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -369,12 +370,12 @@ end`;
                   className="p-2 rounded-lg cursor-grab active:cursor-grabbing hover:opacity-90 transition-opacity"
                   style={{ backgroundColor: comp.color }}
                 >
-                  <div className="text-white text-sm font-medium">{comp.name}</div>
-                  <div className="text-white/60 text-xs">{comp.description}</div>
+                  <div className="text-foreground text-sm font-medium">{comp.name}</div>
+                  <div className="text-foreground/60 text-xs">{comp.description}</div>
                 </div>
               ))}
               {paletteComponents.length === 0 && (
-                <div className="text-gray-500 text-sm text-center py-4">
+                <div className="text-muted-foreground text-sm text-center py-4">
                   All components placed!
                 </div>
               )}
@@ -382,19 +383,19 @@ end`;
           </div>
 
           {/* Progress */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
               Progress
             </div>
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-400">Correctly Placed</span>
-              <span className={correctlyPlaced === totalRequired ? 'text-green-400' : 'text-white'}>
+              <span className="text-muted-foreground">Correctly Placed</span>
+              <span className={correctlyPlaced === totalRequired ? 'text-success' : 'text-foreground'}>
                 {correctlyPlaced} / {totalRequired}
               </span>
             </div>
-            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-2 bg-secondary rounded-full overflow-hidden">
               <div
-                className="h-full bg-green-500 transition-all duration-300"
+                className="h-full bg-success transition-all duration-300"
                 style={{ width: `${(correctlyPlaced / totalRequired) * 100}%` }}
               />
             </div>
@@ -421,13 +422,13 @@ end`;
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-6 overflow-auto">
+        <div className="flex-1 relative bg-background p-6 overflow-auto">
           {/* Service Builder */}
           <div className="max-w-2xl mx-auto">
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
               {/* Service Header */}
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-cyan-400 font-mono text-sm">class CheckoutService</div>
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-primary font-mono text-sm">class CheckoutService</div>
               </div>
 
               {/* Sections */}
@@ -439,8 +440,8 @@ end`;
                 return (
                   <div
                     key={section.id}
-                    className={`border-b border-gray-700 last:border-b-0 transition-colors ${
-                      dragOverSection === section.id ? 'bg-white/5' : ''
+                    className={`border-b border-border last:border-b-0 transition-colors ${
+                      dragOverSection === section.id ? 'bg-foreground/5' : ''
                     }`}
                     onDragOver={(e) => {
                       e.preventDefault();
@@ -450,15 +451,15 @@ end`;
                     onDrop={() => handleDropOnSection(section.id)}
                   >
                     {/* Section Header */}
-                    <div className="flex items-center justify-between px-4 py-2 bg-gray-800/50">
+                    <div className="flex items-center justify-between px-4 py-2 bg-secondary/50">
                       <div>
-                        <span className="text-gray-300 font-medium text-sm">{section.name}</span>
-                        <span className="text-gray-500 text-xs ml-2">({section.description})</span>
+                        <span className="text-foreground font-medium text-sm">{section.name}</span>
+                        <span className="text-muted-foreground text-xs ml-2">({section.description})</span>
                       </div>
                       <div className={`text-xs px-2 py-0.5 rounded ${
                         isComplete && allCorrect
-                          ? 'bg-green-900/50 text-green-400'
-                          : 'bg-gray-700 text-gray-400'
+                          ? 'bg-success/20 text-success'
+                          : 'bg-secondary text-muted-foreground'
                       }`}>
                         {sectionComponents.length} / {section.requiredCount}
                       </div>
@@ -474,21 +475,23 @@ end`;
                               <div
                                 key={comp.id}
                                 className={`p-2 rounded-lg relative group ${
-                                  isCorrectSection ? 'ring-1 ring-green-500/50' : 'ring-1 ring-red-500/50'
+                                  isCorrectSection ? 'ring-1 ring-success/50' : 'ring-1 ring-destructive/50'
                                 }`}
                                 style={{ backgroundColor: comp.color }}
                               >
                                 <div className="flex items-center justify-between">
                                   <div>
-                                    <div className="text-white text-sm font-medium">{comp.name}</div>
-                                    <div className="text-white/70 text-xs font-mono">{comp.code}</div>
+                                    <div className="text-foreground text-sm font-medium">{comp.name}</div>
+                                    <div className="text-foreground/70 text-xs font-mono">{comp.code}</div>
                                   </div>
-                                  <button
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
                                     onClick={() => handleRemoveFromSection(comp.id)}
-                                    className="w-6 h-6 rounded bg-black/30 text-white/70 hover:text-white hover:bg-black/50 flex items-center justify-center text-sm"
+                                    className="w-6 h-6 rounded bg-black/30 text-foreground/70 hover:text-foreground hover:bg-black/50 flex items-center justify-center text-sm"
                                   >
                                     ×
-                                  </button>
+                                  </Button>
                                 </div>
                               </div>
                             );
@@ -497,8 +500,8 @@ end`;
                       ) : (
                         <div className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
                           dragOverSection === section.id
-                            ? 'border-cyan-500/50 text-cyan-400/70'
-                            : 'border-gray-700 text-gray-500'
+                            ? 'border-primary/50 text-primary/70'
+                            : 'border-border text-muted-foreground'
                         }`}>
                           Drop {section.name.toLowerCase()} here
                         </div>
@@ -509,8 +512,8 @@ end`;
               })}
 
               {/* Service Footer */}
-              <div className="bg-gray-800 px-4 py-2">
-                <div className="text-cyan-400 font-mono text-sm">end</div>
+              <div className="bg-secondary px-4 py-2">
+                <div className="text-primary font-mono text-sm">end</div>
               </div>
             </div>
           </div>
@@ -527,11 +530,11 @@ end`;
           }]}
           learningGoal="Service Objects are POROs (Plain Old Ruby Objects) with a clear interface: initialize for setup, call for execution."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
               Service Object Benefits
             </div>
-            <ul className="text-xs text-gray-400 space-y-1">
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>+ Single responsibility (one job)</li>
               <li>+ Easy to test (inject mock dependencies)</li>
               <li>+ Explicit results (no exceptions for control flow)</li>
@@ -539,19 +542,19 @@ end`;
             </ul>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
               Common Patterns
             </div>
-            <div className="text-xs text-gray-500 space-y-2">
+            <div className="text-xs text-muted-foreground space-y-2">
               <div>
-                <span className="text-gray-400">initialize:</span> Receive dependencies
+                <span className="text-foreground">initialize:</span> Receive dependencies
               </div>
               <div>
-                <span className="text-gray-400">call:</span> Execute business logic
+                <span className="text-foreground">call:</span> Execute business logic
               </div>
               <div>
-                <span className="text-gray-400">Result:</span> Return Success/Failure
+                <span className="text-foreground">Result:</span> Return Success/Failure
               </div>
             </div>
           </div>

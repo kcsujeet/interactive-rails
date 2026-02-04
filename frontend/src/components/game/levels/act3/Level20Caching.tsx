@@ -18,6 +18,7 @@ import {
   useLevelCompletion,
   type ValidationResult,
 } from '../shared';
+import { Button } from '../../../ui/Button';
 
 interface CacheLayer {
   id: string;
@@ -216,49 +217,46 @@ export function Level20Caching({ onComplete, onExit }: LevelComponentProps) {
           goal="Build a multi-layer caching strategy to dramatically reduce database load."
         >
           {/* Live Metrics */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Live Metrics
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-gray-800 p-3 rounded-lg">
-                <div className="text-xs text-gray-500">Cache Hit Rate</div>
-                <div className={`text-2xl font-bold ${hitRate > 60 ? 'text-green-400' : hitRate > 30 ? 'text-yellow-400' : 'text-red-400'}`}>
+              <div className="bg-secondary p-3 rounded-lg">
+                <div className="text-xs text-muted-foreground">Cache Hit Rate</div>
+                <div className={`text-2xl font-bold ${hitRate > 60 ? 'text-success' : hitRate > 30 ? 'text-warning' : 'text-destructive'}`}>
                   {hitRate}%
                 </div>
               </div>
-              <div className="bg-gray-800 p-3 rounded-lg">
-                <div className="text-xs text-gray-500">Avg Latency</div>
-                <div className={`text-2xl font-bold ${avgLatency < 20 ? 'text-green-400' : avgLatency < 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+              <div className="bg-secondary p-3 rounded-lg">
+                <div className="text-xs text-muted-foreground">Avg Latency</div>
+                <div className={`text-2xl font-bold ${avgLatency < 20 ? 'text-success' : avgLatency < 50 ? 'text-warning' : 'text-destructive'}`}>
                   {avgLatency}ms
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <button
+          <div className="p-4 border-t border-border">
+            <Button
               onClick={() => setIsSimulating(!isSimulating)}
-              className={`w-full py-2 rounded-lg font-medium transition-all ${
-                isSimulating
-                  ? 'bg-red-600 hover:bg-red-500 text-white'
-                  : 'bg-cyan-600 hover:bg-cyan-500 text-white'
-              }`}
+              variant={isSimulating ? 'destructive' : 'default'}
+              className="w-full py-2"
             >
               {isSimulating ? 'Stop Simulation' : 'Start Traffic Simulation'}
-            </button>
+            </Button>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
+          <div className="p-4 border-t border-border">
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-400">Cache layers enabled</span>
-              <span className={enabledLayers.length >= 2 ? 'text-green-400' : 'text-white'}>
+              <span className="text-muted-foreground">Cache layers enabled</span>
+              <span className={enabledLayers.length >= 2 ? 'text-success' : 'text-foreground'}>
                 {enabledLayers.length} / {cacheLayers.length}
               </span>
             </div>
-            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-2 bg-secondary rounded-full overflow-hidden">
               <div
-                className="h-full bg-green-500 transition-all"
+                className="h-full bg-success transition-all"
                 style={{ width: `${(enabledLayers.length / cacheLayers.length) * 100}%` }}
               />
             </div>
@@ -283,13 +281,13 @@ export function Level20Caching({ onComplete, onExit }: LevelComponentProps) {
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-6 overflow-auto">
+        <div className="flex-1 relative bg-background p-6 overflow-auto">
           <div className="max-w-4xl mx-auto">
             {/* Cache Architecture Diagram */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Cache Architecture</div>
-                <div className="text-xs text-gray-500">Click layers to enable/disable</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Cache Architecture</div>
+                <div className="text-xs text-muted-foreground">Click layers to enable/disable</div>
               </div>
 
               <div className="p-6">
@@ -299,29 +297,30 @@ export function Level20Caching({ onComplete, onExit }: LevelComponentProps) {
                     <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mb-2">
                       <span className="text-2xl">👤</span>
                     </div>
-                    <div className="text-xs text-gray-400">User</div>
+                    <div className="text-xs text-muted-foreground">User</div>
                   </div>
 
                   <div className="flex-1 flex items-center justify-center gap-2">
                     {cacheLayers.map((layer, i) => (
                       <div key={layer.id} className="flex items-center">
                         {i > 0 && (
-                          <div className={`w-8 h-0.5 ${layer.enabled ? 'bg-green-500' : 'bg-gray-600'}`} />
+                          <div className={`w-8 h-0.5 ${layer.enabled ? 'bg-success' : 'bg-muted-foreground'}`} />
                         )}
-                        <button
+                        <Button
                           onClick={() => toggleCacheLayer(layer.id)}
-                          className={`w-16 h-16 rounded-lg flex flex-col items-center justify-center transition-all border-2 ${
+                          variant={layer.enabled ? 'default' : 'outline'}
+                          className={`w-16 h-16 p-0 rounded-lg flex flex-col items-center justify-center border-2 ${
                             layer.enabled
-                              ? 'bg-green-900/30 border-green-500 text-green-400'
-                              : 'bg-gray-800 border-gray-600 text-gray-400 hover:border-gray-500'
+                              ? 'bg-success/20 border-success text-success'
+                              : 'bg-secondary border-border text-muted-foreground hover:border-muted-foreground'
                           }`}
                         >
                           <span className="text-lg">
                             {layer.id === 'http' ? '🌐' : layer.id === 'fragment' ? '📄' : layer.id === 'lowlevel' ? '💾' : '🗄️'}
                           </span>
                           <span className="text-[10px] mt-1">{layer.latency}ms</span>
-                        </button>
-                        <div className={`w-8 h-0.5 ${layer.enabled ? 'bg-green-500' : 'bg-gray-600'}`} />
+                        </Button>
+                        <div className={`w-8 h-0.5 ${layer.enabled ? 'bg-success' : 'bg-muted-foreground'}`} />
                       </div>
                     ))}
                   </div>
@@ -330,8 +329,8 @@ export function Level20Caching({ onComplete, onExit }: LevelComponentProps) {
                     <div className="w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center mb-2">
                       <span className="text-2xl">🗃️</span>
                     </div>
-                    <div className="text-xs text-gray-400">Database</div>
-                    <div className="text-xs text-red-400">{dbLatency}ms</div>
+                    <div className="text-xs text-muted-foreground">Database</div>
+                    <div className="text-xs text-destructive">{dbLatency}ms</div>
                   </div>
                 </div>
 
@@ -342,14 +341,14 @@ export function Level20Caching({ onComplete, onExit }: LevelComponentProps) {
                       key={layer.id}
                       className={`p-3 rounded-lg border ${
                         layer.enabled
-                          ? 'border-green-600 bg-green-900/10'
-                          : 'border-gray-700 bg-gray-800/50'
+                          ? 'border-success bg-success/10'
+                          : 'border-border bg-secondary/50'
                       }`}
                     >
-                      <div className={`text-sm font-semibold mb-1 ${layer.enabled ? 'text-green-400' : 'text-gray-400'}`}>
+                      <div className={`text-sm font-semibold mb-1 ${layer.enabled ? 'text-success' : 'text-muted-foreground'}`}>
                         {layer.name}
                       </div>
-                      <div className="text-xs text-gray-500">{layer.description}</div>
+                      <div className="text-xs text-muted-foreground">{layer.description}</div>
                     </div>
                   ))}
                 </div>
@@ -357,28 +356,28 @@ export function Level20Caching({ onComplete, onExit }: LevelComponentProps) {
             </div>
 
             {/* Live Request Log */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700 flex justify-between items-center">
-                <div className="text-white font-semibold">Request Log</div>
-                <div className="text-xs text-gray-400">
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
+              <div className="bg-secondary px-4 py-3 border-b border-border flex justify-between items-center">
+                <div className="text-foreground font-semibold">Request Log</div>
+                <div className="text-xs text-muted-foreground">
                   {totalRequests} requests | {cacheHits} cache hits
                 </div>
               </div>
 
               <div className="p-4 h-48 overflow-y-auto font-mono text-xs space-y-1">
                 {requests.length === 0 ? (
-                  <div className="text-gray-600 text-center py-8">
+                  <div className="text-muted-foreground text-center py-8">
                     Start simulation to see requests...
                   </div>
                 ) : (
                   requests.map(req => (
                     <div key={req.id} className="flex items-center gap-3">
-                      <span className={`w-2 h-2 rounded-full ${req.cacheHit ? 'bg-green-400' : 'bg-red-400'}`} />
-                      <span className="text-gray-400">{req.path}</span>
-                      <span className={req.cacheHit ? 'text-green-400' : 'text-red-400'}>
+                      <span className={`w-2 h-2 rounded-full ${req.cacheHit ? 'bg-success' : 'bg-destructive'}`} />
+                      <span className="text-muted-foreground">{req.path}</span>
+                      <span className={req.cacheHit ? 'text-success' : 'text-destructive'}>
                         {req.cacheHit ? 'CACHE HIT' : 'DB QUERY'}
                       </span>
-                      <span className="text-gray-500">{req.latency}ms</span>
+                      <span className="text-muted-foreground">{req.latency}ms</span>
                     </div>
                   ))
                 )}
@@ -398,9 +397,9 @@ export function Level20Caching({ onComplete, onExit }: LevelComponentProps) {
           }))}
           learningGoal="Cache at multiple layers. Closest to user = fastest. Balance freshness vs performance."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Cache Invalidation</div>
-            <pre className="text-xs text-gray-400 bg-gray-800 p-2 rounded overflow-x-auto">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Cache Invalidation</div>
+            <pre className="text-xs text-muted-foreground bg-secondary p-2 rounded overflow-x-auto">
 {`# Touch parent when child changes
 class Comment < AR::Base
   belongs_to :post, touch: true
@@ -414,9 +413,9 @@ Rails.cache.delete_matched("posts/*")`}
             </pre>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Cache Stores</div>
-            <ul className="text-xs text-gray-400 space-y-1">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Cache Stores</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>• memory_store - Dev only</li>
               <li>• redis_cache_store - Production</li>
               <li>• memcache_store - Alternative</li>

@@ -8,6 +8,7 @@
 import { useState } from 'react';
 import type { PlacedNode, Connection, SimulatedRequest, QueryTrace } from '../game/types';
 import { getNodeInfo } from '../game/data';
+import { Button } from '../ui/Button';
 
 interface RequestTraceProps {
   request: SimulatedRequest | null;
@@ -56,7 +57,7 @@ function TraceStepItem({
     >
       {/* Connector line */}
       {!isLast && (
-        <div className="absolute left-3 top-8 bottom-0 w-0.5 bg-gray-600" />
+        <div className="absolute left-3 top-8 bottom-0 w-0.5 bg-border" />
       )}
 
       {/* Step content */}
@@ -72,26 +73,27 @@ function TraceStepItem({
         {/* Step details */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-white">{step.nodeName}</span>
-            <span className="text-gray-500 text-xs">{step.nodeType}</span>
+            <span className="font-medium text-foreground">{step.nodeName}</span>
+            <span className="text-muted-foreground text-xs">{step.nodeType}</span>
             {step.callCount > 1 && (
-              <span className="text-amber-400 text-xs">x{step.callCount}</span>
+              <span className="text-warning text-xs">x{step.callCount}</span>
             )}
             {hasNPlusOne && (
-              <span className="text-red-400 text-xs font-bold">N+1</span>
+              <span className="text-destructive text-xs font-bold">N+1</span>
             )}
           </div>
 
-          <div className="flex items-center gap-3 text-xs text-gray-400 mt-0.5">
+          <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
             <span>{formatDuration(step.duration)}</span>
             {hasQueries && (
-              <button
-                type="button"
+              <Button
+                variant="link"
+                size="sm"
                 onClick={() => setExpanded(!expanded)}
-                className="text-blue-400 hover:text-blue-300"
+                className="h-auto p-0 text-xs"
               >
                 {step.queries.length} queries {expanded ? '[-]' : '[+]'}
-              </button>
+              </Button>
             )}
           </div>
 
@@ -103,24 +105,24 @@ function TraceStepItem({
                   key={query.id}
                   className={`p-2 rounded text-xs font-mono ${
                     query.isNPlusOne
-                      ? 'bg-red-900/30 border border-red-800'
-                      : 'bg-gray-700/50'
+                      ? 'bg-destructive/30 border border-destructive'
+                      : 'bg-secondary/50'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-gray-400">
+                    <span className="text-muted-foreground">
                       {formatDuration(query.duration)}
                     </span>
                     {query.cached && (
-                      <span className="text-green-400">[cached]</span>
+                      <span className="text-success">[cached]</span>
                     )}
                     {query.isNPlusOne && (
-                      <span className="text-red-400">[N+1]</span>
+                      <span className="text-destructive">[N+1]</span>
                     )}
                   </div>
-                  <div className="text-gray-300 break-all">{query.sql}</div>
+                  <div className="text-foreground break-all">{query.sql}</div>
                   {query.rowCount !== undefined && (
-                    <div className="text-gray-500 mt-1">
+                    <div className="text-muted-foreground mt-1">
                       Rows: {query.rowCount}
                     </div>
                   )}
@@ -145,7 +147,7 @@ export function RequestTrace({
   if (!request) {
     return (
       <div className={`p-4 ${className}`}>
-        <p className="text-gray-500 text-sm text-center">
+        <p className="text-muted-foreground text-sm text-center">
           No request selected. Click on a request in the timeline to view its trace.
         </p>
       </div>
@@ -195,16 +197,16 @@ export function RequestTrace({
   return (
     <div className={`flex flex-col h-full ${className}`}>
       {/* Header with summary */}
-      <div className="p-3 border-b border-gray-700 bg-gray-800/50">
+      <div className="p-3 border-b border-border bg-card/50">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-semibold text-white">Request Trace</span>
+          <span className="text-sm font-semibold text-foreground">Request Trace</span>
           <span
             className={`text-xs px-2 py-0.5 rounded ${
               request.status === 'completed'
-                ? 'bg-green-900 text-green-300'
+                ? 'bg-success/20 text-success'
                 : request.status === 'failed'
-                  ? 'bg-red-900 text-red-300'
-                  : 'bg-blue-900 text-blue-300'
+                  ? 'bg-destructive/20 text-destructive'
+                  : 'bg-primary/20 text-primary'
             }`}
           >
             {request.status}
@@ -213,23 +215,23 @@ export function RequestTrace({
 
         {/* Stats */}
         <div className="grid grid-cols-4 gap-2 text-xs">
-          <div className="bg-gray-700/50 rounded p-2">
-            <div className="text-gray-400">Duration</div>
-            <div className="text-white font-medium">
+          <div className="bg-secondary/50 rounded p-2">
+            <div className="text-muted-foreground">Duration</div>
+            <div className="text-foreground font-medium">
               {formatDuration(request.latency || totalDuration)}
             </div>
           </div>
-          <div className="bg-gray-700/50 rounded p-2">
-            <div className="text-gray-400">Queries</div>
-            <div className="text-white font-medium">{totalQueries}</div>
+          <div className="bg-secondary/50 rounded p-2">
+            <div className="text-muted-foreground">Queries</div>
+            <div className="text-foreground font-medium">{totalQueries}</div>
           </div>
-          <div className="bg-gray-700/50 rounded p-2">
-            <div className="text-gray-400">Cached</div>
-            <div className="text-green-400 font-medium">{cachedQueries}</div>
+          <div className="bg-secondary/50 rounded p-2">
+            <div className="text-muted-foreground">Cached</div>
+            <div className="text-success font-medium">{cachedQueries}</div>
           </div>
-          <div className="bg-gray-700/50 rounded p-2">
-            <div className="text-gray-400">N+1</div>
-            <div className={nPlusOneCount > 0 ? 'text-red-400 font-bold' : 'text-white'}>
+          <div className="bg-secondary/50 rounded p-2">
+            <div className="text-muted-foreground">N+1</div>
+            <div className={nPlusOneCount > 0 ? 'text-destructive font-bold' : 'text-foreground'}>
               {nPlusOneCount}
             </div>
           </div>
@@ -239,7 +241,7 @@ export function RequestTrace({
       {/* Trace steps */}
       <div className="flex-1 overflow-y-auto p-3">
         {steps.length === 0 ? (
-          <p className="text-gray-500 text-sm text-center">No trace data available</p>
+          <p className="text-muted-foreground text-sm text-center">No trace data available</p>
         ) : (
           steps.map((step, index) => (
             <TraceStepItem
@@ -254,9 +256,9 @@ export function RequestTrace({
 
       {/* Error message if failed */}
       {request.status === 'failed' && request.error && (
-        <div className="p-3 border-t border-gray-700 bg-red-900/20">
-          <div className="text-xs text-red-400 font-medium mb-1">Error</div>
-          <div className="text-xs text-red-300">{request.error}</div>
+        <div className="p-3 border-t border-border bg-destructive/20">
+          <div className="text-xs text-destructive font-medium mb-1">Error</div>
+          <div className="text-xs text-destructive/80">{request.error}</div>
         </div>
       )}
     </div>

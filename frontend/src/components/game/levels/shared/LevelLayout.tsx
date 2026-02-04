@@ -13,7 +13,7 @@ interface LevelLayoutProps {
 
 export function LevelLayout({ children }: LevelLayoutProps) {
   return (
-    <div className="h-full flex bg-gray-950">
+    <div className="h-full flex bg-background">
       {children}
     </div>
   );
@@ -25,7 +25,7 @@ interface LeftPanelProps {
 
 export function LeftPanel({ children }: LeftPanelProps) {
   return (
-    <div className="w-72 bg-gray-900 border-r border-gray-800 flex flex-col overflow-hidden">
+    <div className="w-72 bg-card border-r border-border flex flex-col overflow-hidden">
       {children}
     </div>
   );
@@ -50,7 +50,7 @@ interface RightPanelProps {
 
 export function RightPanel({ children, width = 'w-80' }: RightPanelProps) {
   return (
-    <div className={`${width} bg-gray-900 border-l border-gray-800 flex flex-col overflow-hidden`}>
+    <div className={`${width} bg-card border-l border-border flex flex-col overflow-hidden`}>
       {children}
     </div>
   );

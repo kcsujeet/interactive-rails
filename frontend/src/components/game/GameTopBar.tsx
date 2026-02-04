@@ -4,6 +4,7 @@
  */
 
 import type { LevelData, GameState } from './types';
+import { Button } from '../ui/Button';
 
 interface GameTopBarProps {
   level: LevelData | null;
@@ -45,14 +46,14 @@ export function GameTopBar(props: GameTopBarProps | LegacyGameTopBarProps) {
   } = props;
 
   return (
-    <div className="h-14 bg-game-surface border-b border-game-border flex items-center justify-between px-5">
+    <div className="h-14 bg-card border-b border-border flex items-center justify-between px-5">
       <div className="flex items-center gap-6">
         <div>
-          <div className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Session</div>
-          <h2 className="text-sm font-semibold text-white -mt-0.5">{level?.name}</h2>
+          <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Session</div>
+          <h2 className="text-sm font-semibold text-foreground -mt-0.5">{level?.name}</h2>
         </div>
-        <div className="h-8 w-px bg-game-border" />
-        <div className="flex items-center gap-4 text-sm text-slate-500">
+        <div className="h-8 w-px bg-border" />
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
           <span>Room {currentRoom + 1}/{level?.rooms?.length || 1}</span>
           <span>{placedNodesCount} nodes</span>
           <span>{connectionsCount} connections</span>
@@ -62,15 +63,15 @@ export function GameTopBar(props: GameTopBarProps | LegacyGameTopBarProps) {
       <div className="flex items-center gap-5">
         {/* Stability indicator */}
         <div className="flex items-center gap-3">
-          <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Stability</span>
-          <div className="w-28 h-2 bg-game-bg rounded-full overflow-hidden border border-game-border">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Stability</span>
+          <div className="w-28 h-2 bg-background rounded-full overflow-hidden border border-border">
             <div
               className={`h-full transition-all duration-300 ${
                 stability >= 80
-                  ? 'bg-emerald-500'
+                  ? 'bg-success'
                   : stability >= 50
-                    ? 'bg-amber-500'
-                    : 'bg-rose-500'
+                    ? 'bg-warning'
+                    : 'bg-destructive'
               }`}
               style={{ width: `${stability}%` }}
             />
@@ -78,44 +79,32 @@ export function GameTopBar(props: GameTopBarProps | LegacyGameTopBarProps) {
           <span
             className={`text-sm font-semibold tabular-nums ${
               stability >= 80
-                ? 'text-emerald-400'
+                ? 'text-success'
                 : stability >= 50
-                  ? 'text-amber-400'
-                  : 'text-rose-400'
+                  ? 'text-warning'
+                  : 'text-destructive'
             }`}
           >
             {stability}
           </span>
         </div>
 
-        <div className="h-8 w-px bg-game-border" />
+        <div className="h-8 w-px bg-border" />
 
         {/* Controls */}
         <div className="flex items-center gap-2">
           {gameState === 'playing' ? (
-            <button
-              type="button"
-              onClick={onPause}
-              className="px-3.5 py-1.5 bg-amber-600 text-white text-sm font-medium rounded-md hover:bg-amber-500 transition-colors"
-            >
+            <Button size="sm" onClick={onPause} className="bg-warning text-warning-foreground hover:bg-warning/90">
               Pause
-            </button>
+            </Button>
           ) : (
-            <button
-              type="button"
-              onClick={onResume}
-              className="px-3.5 py-1.5 bg-emerald-600 text-white text-sm font-medium rounded-md hover:bg-emerald-500 transition-colors"
-            >
+            <Button size="sm" onClick={onResume} className="bg-success text-success-foreground hover:bg-success/90">
               Resume
-            </button>
+            </Button>
           )}
-          <button
-            type="button"
-            onClick={onExit}
-            className="px-3.5 py-1.5 bg-game-bg text-slate-400 text-sm font-medium rounded-md border border-game-border hover:bg-game-border/50 hover:text-slate-300 transition-colors"
-          >
+          <Button size="sm" variant="outline" onClick={onExit}>
             Exit
-          </button>
+          </Button>
         </div>
       </div>
     </div>

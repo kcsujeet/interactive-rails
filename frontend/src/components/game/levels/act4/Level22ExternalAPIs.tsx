@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -172,12 +173,12 @@ export function Level22ExternalAPIs({ onComplete, onExit }: LevelComponentProps)
 
   const getStatusColor = (status: APICall['status']) => {
     switch (status) {
-      case 'success': return 'text-green-400';
-      case 'fallback': return 'text-yellow-400';
-      case 'timeout': return 'text-red-400';
-      case 'error': return 'text-red-400';
-      case 'circuit-open': return 'text-orange-400';
-      default: return 'text-gray-400';
+      case 'success': return 'text-success';
+      case 'fallback': return 'text-warning';
+      case 'timeout': return 'text-destructive';
+      case 'error': return 'text-destructive';
+      case 'circuit-open': return 'text-warning';
+      default: return 'text-muted-foreground';
     }
   };
 
@@ -195,45 +196,42 @@ export function Level22ExternalAPIs({ onComplete, onExit }: LevelComponentProps)
           goal="Build resilient API integrations that handle failures gracefully."
         >
           {/* Circuit Breaker State */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Circuit Breaker State
             </div>
             <div className={`text-center p-4 rounded-lg border-2 ${
-              circuitState === 'closed' ? 'border-green-500 bg-green-900/20' :
-              circuitState === 'open' ? 'border-red-500 bg-red-900/20' :
-              'border-yellow-500 bg-yellow-900/20'
+              circuitState === 'closed' ? 'border-success bg-success/10' :
+              circuitState === 'open' ? 'border-destructive bg-destructive/10' :
+              'border-warning bg-warning/10'
             }`}>
               <div className={`text-2xl font-bold ${
-                circuitState === 'closed' ? 'text-green-400' :
-                circuitState === 'open' ? 'text-red-400' : 'text-yellow-400'
+                circuitState === 'closed' ? 'text-success' :
+                circuitState === 'open' ? 'text-destructive' : 'text-warning'
               }`}>
                 {circuitState.toUpperCase()}
               </div>
-              <div className="text-xs text-gray-500 mt-1">
+              <div className="text-xs text-muted-foreground mt-1">
                 {circuitState === 'closed' ? 'Requests flowing normally' :
                  circuitState === 'open' ? 'Requests blocked' : 'Testing if service recovered'}
               </div>
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <button
+          <div className="p-4 border-t border-border">
+            <Button
               onClick={() => setIsSimulating(!isSimulating)}
-              className={`w-full py-2 rounded-lg font-medium transition-all ${
-                isSimulating
-                  ? 'bg-red-600 hover:bg-red-500 text-white'
-                  : 'bg-cyan-600 hover:bg-cyan-500 text-white'
-              }`}
+              variant={isSimulating ? 'destructive' : 'default'}
+              className="w-full py-2"
             >
               {isSimulating ? 'Stop Simulation' : 'Start API Calls'}
-            </button>
+            </Button>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
+          <div className="p-4 border-t border-border">
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-400">Patterns enabled</span>
-              <span className={Object.values(config).filter(Boolean).length >= 3 ? 'text-green-400' : 'text-white'}>
+              <span className="text-muted-foreground">Patterns enabled</span>
+              <span className={Object.values(config).filter(Boolean).length >= 3 ? 'text-success' : 'text-foreground'}>
                 {Object.values(config).filter(Boolean).length} / 4
               </span>
             </div>
@@ -258,7 +256,7 @@ export function Level22ExternalAPIs({ onComplete, onExit }: LevelComponentProps)
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-6 overflow-auto">
+        <div className="flex-1 relative bg-background p-6 overflow-auto">
           <div className="max-w-4xl mx-auto">
             {/* Configuration Panel */}
             <div className="grid grid-cols-4 gap-4 mb-6">
@@ -268,100 +266,101 @@ export function Level22ExternalAPIs({ onComplete, onExit }: LevelComponentProps)
                 { key: 'circuitBreaker', name: 'Circuit Breaker', icon: '🔌', desc: 'Stop after 3 failures' },
                 { key: 'fallback', name: 'Fallback', icon: '🛡️', desc: 'Return cached/default' },
               ].map(item => (
-                <button
+                <Button
                   key={item.key}
                   onClick={() => toggleConfig(item.key as keyof APIConfig)}
-                  className={`p-4 rounded-xl border-2 transition-all ${
+                  variant="ghost"
+                  className={`p-4 h-auto flex-col rounded-xl border-2 transition-all ${
                     config[item.key as keyof APIConfig]
-                      ? 'border-green-500 bg-green-900/20'
-                      : 'border-gray-700 bg-gray-900 hover:border-gray-500'
+                      ? 'border-success bg-success/10'
+                      : 'border-border bg-card hover:border-muted-foreground'
                   }`}
                 >
                   <div className="text-2xl mb-2">{item.icon}</div>
-                  <div className={`font-semibold ${config[item.key as keyof APIConfig] ? 'text-green-400' : 'text-white'}`}>
+                  <div className={`font-semibold ${config[item.key as keyof APIConfig] ? 'text-success' : 'text-foreground'}`}>
                     {item.name}
                   </div>
-                  <div className="text-xs text-gray-500">{item.desc}</div>
-                </button>
+                  <div className="text-xs text-muted-foreground">{item.desc}</div>
+                </Button>
               ))}
             </div>
 
             {/* API Flow Diagram */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Request Flow</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Request Flow</div>
               </div>
               <div className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="text-center">
-                    <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mb-2">
+                    <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mb-2">
                       <span className="text-2xl">🖥️</span>
                     </div>
-                    <div className="text-xs text-gray-400">Your App</div>
+                    <div className="text-xs text-muted-foreground">Your App</div>
                   </div>
 
                   <div className="flex-1 flex items-center justify-center">
-                    <div className={`h-1 flex-1 ${config.timeout ? 'bg-green-500' : 'bg-gray-600'}`} />
+                    <div className={`h-1 flex-1 ${config.timeout ? 'bg-success' : 'bg-border'}`} />
                     {config.timeout && (
-                      <div className="px-2 py-1 bg-green-900/40 rounded text-xs text-green-400 mx-2">
+                      <div className="px-2 py-1 bg-success/20 rounded text-xs text-success mx-2">
                         ⏱️ 3s
                       </div>
                     )}
                     {config.retries && (
-                      <div className="px-2 py-1 bg-blue-900/40 rounded text-xs text-blue-400 mx-2">
+                      <div className="px-2 py-1 bg-primary/20 rounded text-xs text-primary mx-2">
                         🔄 x2
                       </div>
                     )}
                     {config.circuitBreaker && (
                       <div className={`px-2 py-1 rounded text-xs mx-2 ${
-                        circuitState === 'closed' ? 'bg-green-900/40 text-green-400' :
-                        circuitState === 'open' ? 'bg-red-900/40 text-red-400' :
-                        'bg-yellow-900/40 text-yellow-400'
+                        circuitState === 'closed' ? 'bg-success/20 text-success' :
+                        circuitState === 'open' ? 'bg-destructive/20 text-destructive' :
+                        'bg-warning/20 text-warning'
                       }`}>
                         🔌 {circuitState}
                       </div>
                     )}
-                    <div className={`h-1 flex-1 ${config.fallback ? 'bg-yellow-500' : 'bg-gray-600'}`} />
+                    <div className={`h-1 flex-1 ${config.fallback ? 'bg-warning' : 'bg-border'}`} />
                   </div>
 
                   <div className="text-center">
-                    <div className="w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center mb-2">
+                    <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mb-2">
                       <span className="text-2xl">💳</span>
                     </div>
-                    <div className="text-xs text-gray-400">Stripe API</div>
-                    <div className="text-xs text-red-400">50% unreliable</div>
+                    <div className="text-xs text-muted-foreground">Stripe API</div>
+                    <div className="text-xs text-destructive">50% unreliable</div>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Request Log */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700 flex justify-between items-center">
-                <div className="text-white font-semibold">API Call Log</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
+              <div className="bg-secondary px-4 py-3 border-b border-border flex justify-between items-center">
+                <div className="text-foreground font-semibold">API Call Log</div>
                 <div className="flex gap-4 text-xs">
-                  <span className="text-green-400">✓ {successfulCalls}</span>
-                  <span className="text-red-400">✗ {failedCalls}</span>
+                  <span className="text-success">✓ {successfulCalls}</span>
+                  <span className="text-destructive">✗ {failedCalls}</span>
                 </div>
               </div>
               <div className="p-4 h-48 overflow-y-auto font-mono text-xs space-y-1">
                 {calls.length === 0 ? (
-                  <div className="text-gray-600 text-center py-8">
+                  <div className="text-muted-foreground text-center py-8">
                     Start simulation to see API calls...
                   </div>
                 ) : (
                   calls.map(call => (
                     <div key={call.id} className="flex items-center gap-3">
                       <span className={`w-2 h-2 rounded-full ${
-                        call.status === 'success' ? 'bg-green-400' :
-                        call.status === 'fallback' ? 'bg-yellow-400' : 'bg-red-400'
+                        call.status === 'success' ? 'bg-success' :
+                        call.status === 'fallback' ? 'bg-warning' : 'bg-destructive'
                       }`} />
                       <span className={getStatusColor(call.status)}>
                         {call.status.toUpperCase()}
                       </span>
-                      <span className="text-gray-500">{call.duration}ms</span>
+                      <span className="text-muted-foreground">{call.duration}ms</span>
                       {call.retryCount > 0 && (
-                        <span className="text-blue-400">({call.retryCount} retries)</span>
+                        <span className="text-primary">({call.retryCount} retries)</span>
                       )}
                     </div>
                   ))
@@ -413,9 +412,9 @@ end`,
           ]}
           learningGoal="External APIs will fail. Design for failure with timeouts, retries, circuit breakers, and fallbacks."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Best Practices</div>
-            <ul className="text-xs text-gray-400 space-y-1">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Best Practices</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>• Always set timeouts (3-10s)</li>
               <li>• Retry with exponential backoff</li>
               <li>• Use circuit breakers for cascading failures</li>
@@ -423,9 +422,9 @@ end`,
             </ul>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Gems</div>
-            <ul className="text-xs text-gray-400 space-y-1">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Gems</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>• faraday - HTTP client</li>
               <li>• circuitbox - Circuit breaker</li>
               <li>• retriable - Retry logic</li>

@@ -5,8 +5,9 @@
  * Decision modal appears when connecting Model → Model.
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useRef } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -308,7 +309,7 @@ end`,
                 />
               </NodePaletteGroup>
             ) : (
-              <div className="text-sm text-gray-500 text-center py-4">
+              <div className="text-sm text-muted-foreground text-center py-4">
                 Comment model added!
                 {!relationshipType && <div className="mt-2">Now connect Post → Comment</div>}
               </div>
@@ -349,7 +350,7 @@ end`,
         {/* Canvas */}
         <div
           ref={canvasRef}
-          className="flex-1 relative bg-gray-950 overflow-hidden"
+          className="flex-1 relative bg-background overflow-hidden"
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleDrop}
           onMouseMove={handleCanvasMouseMove}
@@ -407,9 +408,9 @@ end`,
           {/* Decision Modal */}
           {showDecisionModal && (
             <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-50">
-              <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-md shadow-2xl">
-                <h3 className="text-xl font-bold text-white mb-2">Relationship Type?</h3>
-                <p className="text-gray-400 text-sm mb-6">
+              <div className="bg-card border border-border rounded-xl p-6 max-w-md shadow-2xl">
+                <h3 className="text-xl font-bold text-foreground mb-2">Relationship Type?</h3>
+                <p className="text-muted-foreground text-sm mb-6">
                   How should Post relate to Comment?
                 </p>
 
@@ -437,38 +438,42 @@ end`,
                       correct: false,
                     },
                   ].map(option => (
-                    <button
+                    <Button
                       key={option.value}
                       onClick={() => handleRelationshipChoice(option.value)}
-                      className={`w-full p-4 rounded-lg border text-left transition-all ${
+                      variant="outline"
+                      className={`w-full p-4 h-auto rounded-lg border text-left transition-all ${
                         option.correct
-                          ? 'border-gray-600 hover:border-green-500 hover:bg-green-900/20'
-                          : 'border-gray-600 hover:border-gray-500 hover:bg-gray-800'
+                          ? 'border-border hover:border-success hover:bg-success/10'
+                          : 'border-border hover:border-muted-foreground hover:bg-secondary'
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-mono text-cyan-400">{option.label}</span>
-                        {option.correct && (
-                          <span className="text-xs text-green-400 bg-green-900/30 px-2 py-0.5 rounded">
-                            Recommended
-                          </span>
-                        )}
+                      <div className="flex flex-col w-full">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-mono text-primary">{option.label}</span>
+                          {option.correct && (
+                            <span className="text-xs text-success bg-success/10 px-2 py-0.5 rounded">
+                              Recommended
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-sm text-muted-foreground">{option.preview}</div>
+                        <div className="text-xs text-muted-foreground mt-1">{option.consequence}</div>
                       </div>
-                      <div className="text-sm text-gray-300">{option.preview}</div>
-                      <div className="text-xs text-gray-500 mt-1">{option.consequence}</div>
-                    </button>
+                    </Button>
                   ))}
                 </div>
 
-                <button
+                <Button
                   onClick={() => {
                     setShowDecisionModal(false);
                     setPendingRelationship(null);
                   }}
-                  className="mt-4 text-gray-500 hover:text-gray-300 text-sm w-full text-center"
+                  variant="ghost"
+                  className="mt-4 w-full"
                 >
                   Cancel
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -476,18 +481,19 @@ end`,
           {/* Completion button */}
           {isComplete && (
             <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
-              <button
+              <Button
                 onClick={handleComplete}
-                className="px-8 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white font-bold rounded-lg shadow-lg shadow-green-900/30 hover:from-green-500 hover:to-green-400 transition-all"
+                size="lg"
+                className="bg-success hover:bg-success/90 text-foreground font-bold shadow-lg shadow-success/30"
               >
                 Complete Level
-              </button>
+              </Button>
             </div>
           )}
 
           {/* Wrong choice feedback */}
           {relationshipType && relationshipType !== 'has_many' && (
-            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-red-900/80 border border-red-700 text-red-200 px-6 py-3 rounded-lg">
+            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-destructive/80 border border-destructive text-destructive-foreground px-6 py-3 rounded-lg">
               Wrong relationship type! {relationshipType === 'has_one' ? 'Only one comment shows.' : 'Comments would be shared between posts.'}
             </div>
           )}
@@ -501,11 +507,11 @@ end`,
         >
           {/* Relationship explanation */}
           {relationshipType && (
-            <div className={`p-4 border-t ${relationshipType === 'has_many' ? 'border-green-800 bg-green-900/20' : 'border-red-800 bg-red-900/20'}`}>
-              <div className={`text-xs font-semibold uppercase tracking-wider mb-2 ${relationshipType === 'has_many' ? 'text-green-400' : 'text-red-400'}`}>
+            <div className={`p-4 border-t ${relationshipType === 'has_many' ? 'border-success bg-success/10' : 'border-destructive bg-destructive/10'}`}>
+              <div className={`text-xs font-semibold uppercase tracking-wider mb-2 ${relationshipType === 'has_many' ? 'text-success' : 'text-destructive'}`}>
                 {relationshipType === 'has_many' ? 'Correct!' : 'Not quite right'}
               </div>
-              <p className="text-sm text-gray-300">
+              <p className="text-sm text-muted-foreground">
                 {relationshipType === 'has_many' ? (
                   'A Post has_many Comments is the correct one-to-many relationship. Each post can have multiple comments.'
                 ) : relationshipType === 'has_one' ? (

@@ -211,7 +211,7 @@ export function EnemySprite({
       {/* Health bar */}
       {showHealthBar && (
         <div
-          className="w-full h-1 bg-gray-700 rounded-full overflow-hidden mt-1"
+          className="w-full h-1 bg-secondary rounded-full overflow-hidden mt-1"
           style={{ width: size }}
         >
           <div
@@ -227,7 +227,7 @@ export function EnemySprite({
 
       {/* Label */}
       {showLabel && (
-        <div className="text-xs text-white mt-1 whitespace-nowrap">
+        <div className="text-xs text-foreground mt-1 whitespace-nowrap">
           {definition.name}
         </div>
       )}
@@ -246,7 +246,7 @@ export function EnemyIndicator({
   const definition = ENEMY_DEFINITIONS[type];
 
   return (
-    <div className="flex items-center gap-2 p-2 bg-gray-700 rounded">
+    <div className="flex items-center gap-2 p-2 bg-secondary rounded">
       <svg
         width={20}
         height={20}
@@ -256,8 +256,8 @@ export function EnemyIndicator({
         {getEnemySprite(type)}
       </svg>
       <div className="flex-1">
-        <div className="text-xs font-medium text-white">{definition.name}</div>
-        <div className="text-xs text-gray-400">{count} active</div>
+        <div className="text-xs font-medium text-foreground">{definition.name}</div>
+        <div className="text-xs text-muted-foreground">{count} active</div>
       </div>
     </div>
   );

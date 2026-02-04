@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -150,38 +151,38 @@ export function Level24FileStorage({ onComplete, onExit }: LevelComponentProps) 
           goal="Configure scalable file storage with ActiveStorage for production."
         >
           {/* Server Load */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Server Memory Usage
             </div>
-            <div className="h-4 bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-4 bg-secondary rounded-full overflow-hidden">
               <div
                 className={`h-full transition-all ${
-                  serverLoad > 70 ? 'bg-red-500' :
-                  serverLoad > 40 ? 'bg-yellow-500' : 'bg-green-500'
+                  serverLoad > 70 ? 'bg-destructive' :
+                  serverLoad > 40 ? 'bg-warning' : 'bg-success'
                 }`}
                 style={{ width: `${serverLoad}%` }}
               />
             </div>
-            <div className="text-xs text-gray-500 mt-1 text-center">
+            <div className="text-xs text-muted-foreground mt-1 text-center">
               {serverLoad > 70 ? 'High load! Enable direct uploads' :
                serverLoad > 40 ? 'Moderate load' : 'Healthy'}
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <button
+          <div className="p-4 border-t border-border">
+            <Button
               onClick={simulateUpload}
-              className="w-full py-2 rounded-lg font-medium bg-cyan-600 hover:bg-cyan-500 text-white transition-all"
+              className="w-full py-2"
             >
               Simulate File Upload
-            </button>
+            </Button>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
+          <div className="p-4 border-t border-border">
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-400">Configuration</span>
-              <span className={config.provider && config.directUpload && config.cdn ? 'text-green-400' : 'text-white'}>
+              <span className="text-muted-foreground">Configuration</span>
+              <span className={config.provider && config.directUpload && config.cdn ? 'text-success' : 'text-foreground'}>
                 {[config.provider, config.directUpload, config.cdn].filter(Boolean).length} / 3 required
               </span>
             </div>
@@ -204,46 +205,47 @@ export function Level24FileStorage({ onComplete, onExit }: LevelComponentProps) 
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-6 overflow-auto">
+        <div className="flex-1 relative bg-background p-6 overflow-auto">
           <div className="max-w-4xl mx-auto">
             {/* Storage Provider Selection */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">1. Choose Storage Provider</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">1. Choose Storage Provider</div>
               </div>
               <div className="p-4 grid grid-cols-3 gap-4">
                 {PROVIDERS.map(provider => (
-                  <button
+                  <Button
                     key={provider.id}
                     onClick={() => selectProvider(provider.id)}
-                    className={`p-4 rounded-lg border-2 text-left transition-all ${
+                    variant="ghost"
+                    className={`p-4 h-auto rounded-lg border-2 text-left flex-col items-start transition-all ${
                       config.provider === provider.id
-                        ? 'border-green-500 bg-green-900/20'
-                        : 'border-gray-700 bg-gray-800 hover:border-gray-500'
+                        ? 'border-success bg-success/10'
+                        : 'border-border bg-card hover:border-muted-foreground'
                     }`}
                   >
                     <div className="text-2xl mb-2">{provider.icon}</div>
-                    <div className={`font-semibold ${config.provider === provider.id ? 'text-green-400' : 'text-white'}`}>
+                    <div className={`font-semibold ${config.provider === provider.id ? 'text-success' : 'text-foreground'}`}>
                       {provider.name}
                     </div>
-                    <div className="text-xs text-gray-500 mb-2">{provider.description}</div>
+                    <div className="text-xs text-muted-foreground mb-2">{provider.description}</div>
                     <div className="text-xs space-y-1">
                       {provider.pros.map(p => (
-                        <div key={p} className="text-green-400">+ {p}</div>
+                        <div key={p} className="text-success">+ {p}</div>
                       ))}
                       {provider.cons.map(c => (
-                        <div key={c} className="text-red-400">- {c}</div>
+                        <div key={c} className="text-destructive">- {c}</div>
                       ))}
                     </div>
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
 
             {/* Feature Toggles */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">2. Configure Features</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">2. Configure Features</div>
               </div>
               <div className="p-4 grid grid-cols-3 gap-4">
                 {[
@@ -251,95 +253,96 @@ export function Level24FileStorage({ onComplete, onExit }: LevelComponentProps) 
                   { key: 'variants', name: 'Image Variants', icon: '🖼️', desc: 'Auto-generate thumbnails and sizes' },
                   { key: 'cdn', name: 'CDN Delivery', icon: '🌍', desc: 'CloudFront/Cloudflare for fast global access' },
                 ].map(feature => (
-                  <button
+                  <Button
                     key={feature.key}
                     onClick={() => toggleFeature(feature.key as 'directUpload' | 'variants' | 'cdn')}
                     disabled={!config.provider || config.provider === 'local'}
-                    className={`p-4 rounded-lg border-2 text-left transition-all ${
+                    variant="ghost"
+                    className={`p-4 h-auto rounded-lg border-2 text-left flex-col items-start transition-all ${
                       config[feature.key as keyof StorageConfig]
-                        ? 'border-green-500 bg-green-900/20'
-                        : 'border-gray-700 bg-gray-800 hover:border-gray-500'
+                        ? 'border-success bg-success/10'
+                        : 'border-border bg-card hover:border-muted-foreground'
                     } ${(!config.provider || config.provider === 'local') ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <div className="text-2xl mb-2">{feature.icon}</div>
-                    <div className={`font-semibold ${config[feature.key as keyof StorageConfig] ? 'text-green-400' : 'text-white'}`}>
+                    <div className={`font-semibold ${config[feature.key as keyof StorageConfig] ? 'text-success' : 'text-foreground'}`}>
                       {feature.name}
                     </div>
-                    <div className="text-xs text-gray-500">{feature.desc}</div>
-                  </button>
+                    <div className="text-xs text-muted-foreground">{feature.desc}</div>
+                  </Button>
                 ))}
               </div>
             </div>
 
             {/* Upload Visualization */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Upload Flow</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Upload Flow</div>
               </div>
               <div className="p-6">
                 {/* Flow Diagram */}
                 <div className="flex items-center justify-between mb-6">
                   <div className="text-center">
-                    <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mb-2">
+                    <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mb-2">
                       <span className="text-2xl">👤</span>
                     </div>
-                    <div className="text-xs text-gray-400">Browser</div>
+                    <div className="text-xs text-muted-foreground">Browser</div>
                   </div>
 
                   <div className="flex-1 relative h-20">
                     {/* Server path */}
                     <div className={`absolute top-0 left-0 right-0 flex items-center ${config.directUpload ? 'opacity-30' : ''}`}>
-                      <div className="flex-1 h-0.5 bg-red-500" />
-                      <div className="w-16 h-16 bg-orange-600 rounded-full flex items-center justify-center mx-2">
+                      <div className="flex-1 h-0.5 bg-destructive" />
+                      <div className="w-16 h-16 bg-warning rounded-full flex items-center justify-center mx-2">
                         <span className="text-xl">🖥️</span>
                       </div>
-                      <div className="flex-1 h-0.5 bg-red-500" />
+                      <div className="flex-1 h-0.5 bg-destructive" />
                     </div>
-                    <div className={`absolute top-0 left-0 text-xs text-red-400 ${config.directUpload ? 'opacity-30' : ''}`}>
+                    <div className={`absolute top-0 left-0 text-xs text-destructive ${config.directUpload ? 'opacity-30' : ''}`}>
                       Through server (slow)
                     </div>
 
                     {/* Direct path */}
                     <div className={`absolute bottom-0 left-0 right-0 flex items-center ${!config.directUpload ? 'opacity-30' : ''}`}>
-                      <div className="flex-1 h-0.5 bg-green-500" style={{ marginTop: '2rem' }} />
+                      <div className="flex-1 h-0.5 bg-success" style={{ marginTop: '2rem' }} />
                     </div>
-                    <div className={`absolute bottom-0 right-0 text-xs text-green-400 ${!config.directUpload ? 'opacity-30' : ''}`}>
+                    <div className={`absolute bottom-0 right-0 text-xs text-success ${!config.directUpload ? 'opacity-30' : ''}`}>
                       Direct upload (fast)
                     </div>
                   </div>
 
                   <div className="text-center">
                     <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-2 ${
-                      config.provider === 's3' ? 'bg-orange-500' :
-                      config.provider === 'gcs' ? 'bg-blue-500' : 'bg-gray-600'
+                      config.provider === 's3' ? 'bg-warning' :
+                      config.provider === 'gcs' ? 'bg-primary' : 'bg-secondary'
                     }`}>
                       <span className="text-2xl">{config.provider === 's3' ? '☁️' : config.provider === 'gcs' ? '🌐' : '💾'}</span>
                     </div>
-                    <div className="text-xs text-gray-400">{config.provider || 'Storage'}</div>
+                    <div className="text-xs text-muted-foreground">{config.provider || 'Storage'}</div>
                   </div>
                 </div>
 
                 {/* Upload List */}
                 <div className="space-y-2">
                   {uploads.map(upload => (
-                    <div key={upload.id} className="flex items-center gap-3 p-2 bg-gray-800 rounded-lg">
-                      <span className="text-gray-400">📄</span>
-                      <span className="text-sm text-white flex-1">{upload.filename}</span>
-                      <span className="text-xs text-gray-500">{(upload.size / 1024 / 1024).toFixed(1)} MB</span>
+                    <div key={upload.id} className="flex items-center gap-3 p-2 bg-secondary rounded-lg">
+                      <span className="text-muted-foreground">📄</span>
+                      <span className="text-sm text-foreground flex-1">{upload.filename}</span>
+                      <span className="text-xs text-muted-foreground">{(upload.size / 1024 / 1024).toFixed(1)} MB</span>
                       <span className={`text-xs px-2 py-1 rounded ${
-                        upload.path === 'direct' ? 'bg-green-900/40 text-green-400' : 'bg-red-900/40 text-red-400'
+                        upload.path === 'direct' ? 'bg-success/20 text-success' : 'bg-destructive/20 text-destructive'
                       }`}>
                         {upload.path}
                       </span>
                       <div className="w-24">
                         {upload.status === 'done' ? (
-                          <span className="text-green-400 text-xs">✓ Complete</span>
+                          <span className="text-success text-xs">✓ Complete</span>
                         ) : upload.status === 'processing' ? (
-                          <span className="text-blue-400 text-xs">Processing variants...</span>
+                          <span className="text-primary text-xs">Processing variants...</span>
                         ) : (
-                          <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                          <div className="h-2 bg-secondary rounded-full overflow-hidden">
                             <div
-                              className="h-full bg-cyan-500 transition-all"
+                              className="h-full bg-primary transition-all"
                               style={{ width: `${upload.progress}%` }}
                             />
                           </div>
@@ -348,7 +351,7 @@ export function Level24FileStorage({ onComplete, onExit }: LevelComponentProps) 
                     </div>
                   ))}
                   {uploads.length === 0 && (
-                    <div className="text-center py-4 text-gray-600">
+                    <div className="text-center py-4 text-muted-foreground">
                       Click "Simulate File Upload" to test
                     </div>
                   )}
@@ -404,9 +407,9 @@ end${config.directUpload ? `
           ]}
           learningGoal="ActiveStorage abstracts cloud storage. Use direct uploads to scale, variants for images, CDN for delivery."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Best Practices</div>
-            <ul className="text-xs text-gray-400 space-y-1">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Best Practices</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>• Always use direct uploads in production</li>
               <li>• Generate variants lazily (on first request)</li>
               <li>• Use CDN for all file serving</li>
@@ -414,9 +417,9 @@ end${config.directUpload ? `
             </ul>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Variants</div>
-            <pre className="text-xs text-gray-400 bg-gray-800 p-2 rounded overflow-x-auto">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Variants</div>
+            <pre className="text-xs text-muted-foreground bg-secondary p-2 rounded overflow-x-auto">
 {`# On-demand processing
 image.variant(
   resize_to_limit: [100, 100],

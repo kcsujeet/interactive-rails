@@ -1,4 +1,5 @@
 import type { Challenge } from '../../../../shared/types';
+import { Button } from '../ui/Button';
 
 interface CodeChallengeProps {
   challenge: Challenge;
@@ -41,15 +42,16 @@ export default function CodeChallenge({
       {challenge.type === 'multiple_choice' && challenge.options && (
         <div className="challenge-options">
           {challenge.options.map((option) => (
-            <button
+            <Button
               key={option.id}
+              variant={selectedAnswer === option.id ? 'default' : 'outline'}
               className={`option-btn ${selectedAnswer === option.id ? 'selected' : ''}`}
               onClick={() => onSelect(option.id)}
               disabled={isSubmitting}
             >
               <span className="option-key">{option.id.toUpperCase()}</span>
               <span className="option-text">{option.text}</span>
-            </button>
+            </Button>
           ))}
         </div>
       )}
@@ -70,13 +72,12 @@ export default function CodeChallenge({
 
       {/* Submit Button */}
       <div className="challenge-submit">
-        <button
-          className="pixel-btn"
+        <Button
           onClick={onSubmit}
           disabled={!selectedAnswer || isSubmitting}
         >
-          {isSubmitting ? 'Attacking...' : '⚔️ ATTACK!'}
-        </button>
+          {isSubmitting ? 'Attacking...' : 'ATTACK!'}
+        </Button>
       </div>
 
       {/* Difficulty indicator */}

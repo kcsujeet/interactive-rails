@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -148,27 +149,29 @@ export function Level5Views({ onComplete, onExit }: LevelComponentProps) {
         className={`inline-flex items-center rounded font-mono text-sm transition-all ${
           slot.content
             ? isCorrect
-              ? 'bg-green-900/40 text-green-400'
-              : 'bg-red-900/40 text-red-400'
+              ? 'bg-success/10 text-success'
+              : 'bg-destructive/10 text-destructive'
             : dragOverSlot === slot.id
-            ? 'bg-amber-900/40 text-amber-400 border-2 border-dashed border-amber-500'
-            : 'bg-gray-700 text-gray-400 border-2 border-dashed border-gray-600'
+            ? 'bg-warning/10 text-warning border-2 border-dashed border-warning'
+            : 'bg-secondary text-muted-foreground border-2 border-dashed border-border'
         }`}
       >
-        <span className="text-amber-400 px-1">{tagType}</span>
+        <span className="text-warning px-1">{tagType}</span>
         {slot.content ? (
           <span className="px-1">{slot.content}</span>
         ) : (
           <span className="px-3 text-xs italic">{slot.hint}</span>
         )}
-        <span className="text-amber-400 px-1">{closeTag}</span>
+        <span className="text-warning px-1">{closeTag}</span>
         {slot.content && (
-          <button
+          <Button
             onClick={() => clearSlot(slot.id)}
-            className="px-1 hover:text-white"
+            variant="ghost"
+            size="icon"
+            className="px-1 h-auto w-auto"
           >
             ×
-          </button>
+          </Button>
         )}
       </div>
     );
@@ -187,10 +190,10 @@ export function Level5Views({ onComplete, onExit }: LevelComponentProps) {
 
       return (
         <div className="space-y-4">
-          <h1 className={`text-2xl font-bold ${showTitle ? 'text-white' : 'text-gray-600'}`}>
+          <h1 className={`text-2xl font-bold ${showTitle ? 'text-foreground' : 'text-muted-foreground'}`}>
             {showTitle ? SAMPLE_POST.title : '[title will appear here]'}
           </h1>
-          <p className={showBody ? 'text-gray-300' : 'text-gray-600'}>
+          <p className={showBody ? 'text-muted-foreground' : 'text-muted-foreground/50'}>
             {showBody ? SAMPLE_POST.body : '[body will appear here]'}
           </p>
         </div>
@@ -201,21 +204,21 @@ export function Level5Views({ onComplete, onExit }: LevelComponentProps) {
 
       return (
         <div className="space-y-2">
-          <h1 className="text-xl font-bold text-white mb-4">All Posts</h1>
+          <h1 className="text-xl font-bold text-foreground mb-4">All Posts</h1>
           {hasLoop ? (
             <ul className="space-y-2">
               {SAMPLE_POSTS.map(post => (
                 <li key={post.id}>
                   {hasLink ? (
-                    <a href="#" className="text-cyan-400 hover:underline">{post.title}</a>
+                    <a href="#" className="text-primary hover:underline">{post.title}</a>
                   ) : (
-                    <span className="text-gray-500">[link will appear here]</span>
+                    <span className="text-muted-foreground">[link will appear here]</span>
                   )}
                 </li>
               ))}
             </ul>
           ) : (
-            <div className="text-gray-600">[posts will loop here]</div>
+            <div className="text-muted-foreground">[posts will loop here]</div>
           )}
         </div>
       );
@@ -236,8 +239,8 @@ export function Level5Views({ onComplete, onExit }: LevelComponentProps) {
           goal="Views are the V in MVC. They take data from controllers and render it as HTML."
         >
           {/* ERB Tags Palette */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               ERB Tags
             </div>
             <div className="space-y-2">
@@ -251,23 +254,23 @@ export function Level5Views({ onComplete, onExit }: LevelComponentProps) {
                     onDragEnd={handleDragEnd}
                     className={`p-3 rounded-lg border font-mono text-sm transition-all ${
                       isUsed
-                        ? 'bg-gray-800/50 border-gray-700 opacity-50 cursor-not-allowed'
-                        : 'bg-amber-900/20 border-amber-600 cursor-grab hover:border-amber-400 active:cursor-grabbing'
+                        ? 'bg-secondary/50 border-border opacity-50 cursor-not-allowed'
+                        : 'bg-warning/10 border-warning cursor-grab hover:border-warning/70 active:cursor-grabbing'
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <span className="text-amber-400">{tag.type === 'output' ? '<%=' : '<%'}</span>
-                        <span className="text-cyan-400 mx-1">{tag.content}</span>
-                        <span className="text-amber-400">%&gt;</span>
+                        <span className="text-warning">{tag.type === 'output' ? '<%=' : '<%'}</span>
+                        <span className="text-primary mx-1">{tag.content}</span>
+                        <span className="text-warning">%&gt;</span>
                       </div>
                       {isUsed && (
-                        <svg className="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                        <svg className="w-4 h-4 text-success" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                       )}
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">{tag.description}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{tag.description}</div>
                   </div>
                 );
               })}
@@ -275,19 +278,19 @@ export function Level5Views({ onComplete, onExit }: LevelComponentProps) {
           </div>
 
           {/* Progress */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
               Progress
             </div>
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-400">Tags placed correctly</span>
-              <span className={correctCount === slots.length ? 'text-green-400' : 'text-white'}>
+              <span className="text-muted-foreground">Tags placed correctly</span>
+              <span className={correctCount === slots.length ? 'text-success' : 'text-foreground'}>
                 {correctCount} / {slots.length}
               </span>
             </div>
-            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-2 bg-secondary rounded-full overflow-hidden">
               <div
-                className="h-full bg-green-500 transition-all duration-300"
+                className="h-full bg-success transition-all duration-300"
                 style={{ width: `${(correctCount / slots.length) * 100}%` }}
               />
             </div>
@@ -306,41 +309,35 @@ export function Level5Views({ onComplete, onExit }: LevelComponentProps) {
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-8 overflow-auto">
+        <div className="flex-1 relative bg-background p-8 overflow-auto">
           <div className="max-w-3xl mx-auto">
             {/* View Tabs */}
             <div className="flex gap-2 mb-6">
-              <button
+              <Button
                 onClick={() => setActiveTab('show')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  activeTab === 'show'
-                    ? 'bg-pink-600 text-white'
-                    : 'bg-gray-800 text-gray-400 hover:text-white'
-                }`}
+                variant={activeTab === 'show' ? 'default' : 'secondary'}
+                size="sm"
               >
                 show.html.erb
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => setActiveTab('index')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  activeTab === 'index'
-                    ? 'bg-pink-600 text-white'
-                    : 'bg-gray-800 text-gray-400 hover:text-white'
-                }`}
+                variant={activeTab === 'index' ? 'default' : 'secondary'}
+                size="sm"
               >
                 index.html.erb
-              </button>
+              </Button>
             </div>
 
             <div className="grid grid-cols-2 gap-6">
               {/* ERB Template */}
-              <div className="bg-gray-900 rounded-xl border-2 border-pink-500 overflow-hidden">
+              <div className="bg-card rounded-xl border-2 border-pink-500 overflow-hidden">
                 <div className="bg-pink-900/40 px-4 py-3 border-b border-pink-500/50 flex items-center gap-3">
-                  <span className="w-10 h-10 rounded-lg bg-pink-600 flex items-center justify-center text-white font-bold text-lg">
+                  <span className="w-10 h-10 rounded-lg bg-pink-600 flex items-center justify-center text-foreground font-bold text-lg">
                     V
                   </span>
                   <div>
-                    <div className="text-white font-semibold">{activeTab}.html.erb</div>
+                    <div className="text-foreground font-semibold">{activeTab}.html.erb</div>
                     <div className="text-pink-300 text-xs">app/views/posts/{activeTab}.html.erb</div>
                   </div>
                 </div>
@@ -348,44 +345,44 @@ export function Level5Views({ onComplete, onExit }: LevelComponentProps) {
                   {activeTab === 'show' ? (
                     <div className="space-y-4">
                       <div>
-                        <span className="text-gray-500">&lt;h1&gt;</span>
+                        <span className="text-muted-foreground">&lt;h1&gt;</span>
                         {renderSlot(showSlots[0])}
-                        <span className="text-gray-500">&lt;/h1&gt;</span>
+                        <span className="text-muted-foreground">&lt;/h1&gt;</span>
                       </div>
                       <div>
-                        <span className="text-gray-500">&lt;p&gt;</span>
+                        <span className="text-muted-foreground">&lt;p&gt;</span>
                         {renderSlot(showSlots[1])}
-                        <span className="text-gray-500">&lt;/p&gt;</span>
+                        <span className="text-muted-foreground">&lt;/p&gt;</span>
                       </div>
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      <div className="text-gray-500">&lt;h1&gt;All Posts&lt;/h1&gt;</div>
-                      <div className="text-gray-500">&lt;ul&gt;</div>
+                      <div className="text-muted-foreground">&lt;h1&gt;All Posts&lt;/h1&gt;</div>
+                      <div className="text-muted-foreground">&lt;ul&gt;</div>
                       <div className="pl-4">
                         {renderSlot(indexSlots[0])}
                       </div>
                       <div className="pl-8">
-                        <span className="text-gray-500">&lt;li&gt;</span>
+                        <span className="text-muted-foreground">&lt;li&gt;</span>
                         {renderSlot(indexSlots[1])}
-                        <span className="text-gray-500">&lt;/li&gt;</span>
+                        <span className="text-muted-foreground">&lt;/li&gt;</span>
                       </div>
-                      <div className="pl-4 text-amber-400">&lt;% end %&gt;</div>
-                      <div className="text-gray-500">&lt;/ul&gt;</div>
+                      <div className="pl-4 text-warning">&lt;% end %&gt;</div>
+                      <div className="text-muted-foreground">&lt;/ul&gt;</div>
                     </div>
                   )}
                 </div>
               </div>
 
               {/* Browser Preview */}
-              <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-                <div className="bg-gray-800 px-4 py-2 flex items-center gap-2 border-b border-gray-700">
+              <div className="bg-card rounded-xl border border-border overflow-hidden">
+                <div className="bg-secondary px-4 py-2 flex items-center gap-2 border-b border-border">
                   <div className="flex gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-red-500" />
-                    <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                    <div className="w-3 h-3 rounded-full bg-green-500" />
+                    <div className="w-3 h-3 rounded-full bg-destructive" />
+                    <div className="w-3 h-3 rounded-full bg-warning" />
+                    <div className="w-3 h-3 rounded-full bg-success" />
                   </div>
-                  <span className="text-gray-400 text-sm ml-2">Browser Preview</span>
+                  <span className="text-muted-foreground text-sm ml-2">Browser Preview</span>
                 </div>
                 <div className="p-6 min-h-[200px]">
                   {getPreviewHTML()}
@@ -394,18 +391,18 @@ export function Level5Views({ onComplete, onExit }: LevelComponentProps) {
             </div>
 
             {/* ERB Syntax Explanation */}
-            <div className="mt-8 bg-gray-900 rounded-xl border border-gray-700 p-4">
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+            <div className="mt-8 bg-card rounded-xl border border-border p-4">
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                 ERB Syntax
               </div>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="flex items-center gap-3">
-                  <code className="bg-gray-800 px-2 py-1 rounded text-amber-400">&lt;%= ... %&gt;</code>
-                  <span className="text-gray-400">Output (prints value)</span>
+                  <code className="bg-secondary px-2 py-1 rounded text-warning">&lt;%= ... %&gt;</code>
+                  <span className="text-muted-foreground">Output (prints value)</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <code className="bg-gray-800 px-2 py-1 rounded text-amber-400">&lt;% ... %&gt;</code>
-                  <span className="text-gray-400">Execute (no output)</span>
+                  <code className="bg-secondary px-2 py-1 rounded text-warning">&lt;% ... %&gt;</code>
+                  <span className="text-muted-foreground">Execute (no output)</span>
                 </div>
               </div>
             </div>
@@ -444,15 +441,15 @@ export function Level5Views({ onComplete, onExit }: LevelComponentProps) {
           ]}
           learningGoal="ERB (Embedded Ruby) lets you mix Ruby code into HTML templates. Use <%= %> to output values, <% %> to execute code."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
               View Helpers
             </div>
-            <div className="text-xs text-gray-400 space-y-1">
-              <div><code className="text-cyan-400">link_to</code> - Create links</div>
-              <div><code className="text-cyan-400">image_tag</code> - Display images</div>
-              <div><code className="text-cyan-400">form_with</code> - Build forms</div>
-              <div><code className="text-cyan-400">render</code> - Include partials</div>
+            <div className="text-xs text-muted-foreground space-y-1">
+              <div><code className="text-primary">link_to</code> - Create links</div>
+              <div><code className="text-primary">image_tag</code> - Display images</div>
+              <div><code className="text-primary">form_with</code> - Build forms</div>
+              <div><code className="text-primary">render</code> - Include partials</div>
             </div>
           </div>
         </CodePreviewPanel>

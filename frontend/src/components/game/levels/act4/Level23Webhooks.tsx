@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -136,12 +137,12 @@ export function Level23Webhooks({ onComplete, onExit }: LevelComponentProps) {
 
   const getStatusColor = (status: WebhookEvent['status']) => {
     switch (status) {
-      case 'completed': return 'text-green-400 bg-green-900/20';
+      case 'completed': return 'text-success bg-success/10';
       case 'verified':
-      case 'processing': return 'text-blue-400 bg-blue-900/20';
-      case 'rejected': return 'text-red-400 bg-red-900/20';
-      case 'duplicate': return 'text-yellow-400 bg-yellow-900/20';
-      default: return 'text-gray-400 bg-gray-800';
+      case 'processing': return 'text-primary bg-primary/10';
+      case 'rejected': return 'text-destructive bg-destructive/10';
+      case 'duplicate': return 'text-warning bg-warning/10';
+      default: return 'text-muted-foreground bg-card';
     }
   };
 
@@ -159,8 +160,8 @@ export function Level23Webhooks({ onComplete, onExit }: LevelComponentProps) {
           goal="Handle webhooks securely and reliably for production systems."
         >
           {/* Configuration */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Security Features
             </div>
             <div className="space-y-2">
@@ -170,33 +171,34 @@ export function Level23Webhooks({ onComplete, onExit }: LevelComponentProps) {
                 { key: 'asyncProcessing', name: 'Async Processing', desc: 'Process in background' },
                 { key: 'logging', name: 'Event Logging', desc: 'Audit trail for debugging' },
               ].map(item => (
-                <button
+                <Button
                   key={item.key}
                   onClick={() => toggleConfig(item.key as keyof WebhookConfig)}
-                  className={`w-full p-2 rounded-lg text-left transition-all border ${
+                  variant="ghost"
+                  className={`w-full p-2 h-auto text-left justify-start flex-col items-start rounded-lg border ${
                     config[item.key as keyof WebhookConfig]
-                      ? 'border-green-500 bg-green-900/20'
-                      : 'border-gray-700 bg-gray-800 hover:border-gray-500'
+                      ? 'border-success bg-success/10'
+                      : 'border-border bg-card hover:border-muted-foreground'
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className={`text-sm ${config[item.key as keyof WebhookConfig] ? 'text-green-400' : 'text-white'}`}>
+                  <div className="flex items-center justify-between w-full">
+                    <span className={`text-sm ${config[item.key as keyof WebhookConfig] ? 'text-success' : 'text-foreground'}`}>
                       {item.name}
                     </span>
                     {config[item.key as keyof WebhookConfig] && (
-                      <span className="text-green-400 text-xs">✓</span>
+                      <span className="text-success text-xs">✓</span>
                     )}
                   </div>
-                  <div className="text-xs text-gray-500">{item.desc}</div>
-                </button>
+                  <div className="text-xs text-muted-foreground">{item.desc}</div>
+                </Button>
               ))}
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
+          <div className="p-4 border-t border-border">
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-400">Features enabled</span>
-              <span className={Object.values(config).filter(Boolean).length >= 3 ? 'text-green-400' : 'text-white'}>
+              <span className="text-muted-foreground">Features enabled</span>
+              <span className={Object.values(config).filter(Boolean).length >= 3 ? 'text-success' : 'text-foreground'}>
                 {Object.values(config).filter(Boolean).length} / 4
               </span>
             </div>
@@ -218,46 +220,48 @@ export function Level23Webhooks({ onComplete, onExit }: LevelComponentProps) {
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-6 overflow-auto">
+        <div className="flex-1 relative bg-background p-6 overflow-auto">
           <div className="max-w-4xl mx-auto">
             {/* Webhook Triggers */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Simulate Incoming Webhooks</div>
-                <div className="text-xs text-gray-500">Click to send webhook events from Stripe</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Simulate Incoming Webhooks</div>
+                <div className="text-xs text-muted-foreground">Click to send webhook events from Stripe</div>
               </div>
 
               <div className="p-4 grid grid-cols-3 gap-3">
                 {WEBHOOK_TYPES.map(wh => (
-                  <button
+                  <Button
                     key={wh.type}
                     onClick={() => simulateWebhook(wh.type)}
-                    className="p-3 rounded-lg bg-gray-800 border border-gray-700 hover:border-cyan-500 transition-all text-left"
+                    variant="ghost"
+                    className="p-3 h-auto rounded-lg bg-card border border-border hover:border-primary transition-all text-left flex-col items-start"
                   >
                     <div className="flex items-center gap-2 mb-1">
                       <span>{wh.icon}</span>
-                      <span className="text-cyan-400 text-xs font-mono">{wh.type}</span>
+                      <span className="text-primary text-xs font-mono">{wh.type}</span>
                     </div>
-                    <div className="text-xs text-gray-500">{wh.description}</div>
-                  </button>
+                    <div className="text-xs text-muted-foreground">{wh.description}</div>
+                  </Button>
                 ))}
-                <button
+                <Button
                   onClick={() => simulateWebhook(WEBHOOK_TYPES[0].type, true)}
-                  className="p-3 rounded-lg bg-yellow-900/20 border border-yellow-600 hover:border-yellow-500 transition-all text-left"
+                  variant="ghost"
+                  className="p-3 h-auto rounded-lg bg-warning/10 border border-warning hover:border-warning/80 transition-all text-left flex-col items-start"
                 >
                   <div className="flex items-center gap-2 mb-1">
                     <span>🔄</span>
-                    <span className="text-yellow-400 text-xs font-mono">duplicate</span>
+                    <span className="text-warning text-xs font-mono">duplicate</span>
                   </div>
-                  <div className="text-xs text-gray-500">Send duplicate event</div>
-                </button>
+                  <div className="text-xs text-muted-foreground">Send duplicate event</div>
+                </Button>
               </div>
             </div>
 
             {/* Processing Pipeline */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Processing Pipeline</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Processing Pipeline</div>
               </div>
               <div className="p-6">
                 <div className="flex items-center justify-between">
@@ -272,14 +276,14 @@ export function Level23Webhooks({ onComplete, onExit }: LevelComponentProps) {
                     <div key={step.name} className="flex items-center">
                       <div className={`flex flex-col items-center ${step.active ? '' : 'opacity-30'}`}>
                         <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                          step.active ? 'bg-cyan-600' : 'bg-gray-700'
+                          step.active ? 'bg-primary' : 'bg-secondary'
                         }`}>
                           <span className="text-xl">{step.icon}</span>
                         </div>
-                        <span className="text-xs text-gray-400 mt-2">{step.name}</span>
+                        <span className="text-xs text-muted-foreground mt-2">{step.name}</span>
                       </div>
                       {i < arr.length - 1 && (
-                        <div className={`w-8 h-0.5 mx-2 ${step.active ? 'bg-cyan-600' : 'bg-gray-700'}`} />
+                        <div className={`w-8 h-0.5 mx-2 ${step.active ? 'bg-primary' : 'bg-secondary'}`} />
                       )}
                     </div>
                   ))}
@@ -288,13 +292,13 @@ export function Level23Webhooks({ onComplete, onExit }: LevelComponentProps) {
             </div>
 
             {/* Event Log */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Event Log</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Event Log</div>
               </div>
               <div className="p-4 space-y-2 max-h-64 overflow-y-auto">
                 {events.length === 0 ? (
-                  <div className="text-center py-8 text-gray-600">
+                  <div className="text-center py-8 text-muted-foreground">
                     Click a webhook type above to simulate receiving events
                   </div>
                 ) : (
@@ -302,17 +306,17 @@ export function Level23Webhooks({ onComplete, onExit }: LevelComponentProps) {
                     <div
                       key={`${event.id}-${event.timestamp}`}
                       className={`p-3 rounded-lg border ${
-                        event.status === 'rejected' ? 'border-red-600' :
-                        event.status === 'duplicate' ? 'border-yellow-600' :
-                        'border-gray-700'
+                        event.status === 'rejected' ? 'border-destructive' :
+                        event.status === 'duplicate' ? 'border-warning' :
+                        'border-border'
                       }`}
                     >
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs text-gray-500">{event.id}</span>
-                          <span className="text-cyan-400 text-xs">{event.type}</span>
+                          <span className="font-mono text-xs text-muted-foreground">{event.id}</span>
+                          <span className="text-primary text-xs">{event.type}</span>
                           {event.isDuplicate && (
-                            <span className="text-xs px-1 bg-yellow-900/40 text-yellow-400 rounded">DUPLICATE</span>
+                            <span className="text-xs px-1 bg-warning/20 text-warning rounded">DUPLICATE</span>
                           )}
                         </div>
                         <span className={`text-xs px-2 py-1 rounded ${getStatusColor(event.status)}`}>
@@ -320,7 +324,7 @@ export function Level23Webhooks({ onComplete, onExit }: LevelComponentProps) {
                         </span>
                       </div>
                       {config.logging && (
-                        <div className="text-xs text-gray-500 font-mono">
+                        <div className="text-xs text-muted-foreground font-mono">
                           sig: {event.signature === 'valid_signature' ? '✓ valid' : '✗ invalid'}
                         </div>
                       )}
@@ -375,9 +379,9 @@ end`,
           ]}
           learningGoal="Webhooks need security (signatures), reliability (idempotency), and performance (async processing)."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Key Concepts</div>
-            <ul className="text-xs text-gray-400 space-y-1">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Key Concepts</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>• Always verify signatures</li>
               <li>• Handle duplicate deliveries</li>
               <li>• Return 200 quickly, process later</li>
@@ -385,9 +389,9 @@ end`,
             </ul>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Common Webhooks</div>
-            <ul className="text-xs text-gray-400 space-y-1">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Common Webhooks</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>• Stripe - Payments</li>
               <li>• GitHub - Code events</li>
               <li>• Twilio - SMS status</li>

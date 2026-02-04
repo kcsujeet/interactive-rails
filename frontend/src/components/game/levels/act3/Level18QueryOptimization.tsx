@@ -18,6 +18,7 @@ import {
   useLevelCompletion,
   type ValidationResult,
 } from '../shared';
+import { Button } from '../../../ui/Button';
 
 interface OptimizationTechnique {
   id: string;
@@ -183,42 +184,43 @@ export function Level18QueryOptimization({ onComplete, onExit }: LevelComponentP
           goal="Learn to write efficient queries that scale to millions of rows."
         >
           {/* Challenge List */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Optimization Challenges
             </div>
             <div className="space-y-2">
               {challenges.map(challenge => (
-                <button
+                <Button
                   key={challenge.id}
                   onClick={() => setActiveChallenge(challenge.id)}
-                  className={`w-full p-2 rounded-lg text-left transition-all ${
+                  variant={activeChallenge === challenge.id ? 'default' : 'outline'}
+                  className={`w-full p-2 h-auto rounded-lg text-left justify-start ${
                     activeChallenge === challenge.id
-                      ? 'bg-cyan-900/30 border border-cyan-500'
-                      : 'bg-gray-800 border border-gray-700 hover:border-gray-500'
+                      ? 'bg-primary/20 border border-primary'
+                      : 'bg-secondary border border-border hover:border-muted-foreground'
                   }`}
                 >
-                  <div className="flex justify-between items-center">
-                    <span className={`text-sm ${challenge.solved ? 'text-green-400' : 'text-white'}`}>
+                  <div className="flex justify-between items-center w-full">
+                    <span className={`text-sm ${challenge.solved ? 'text-success' : 'text-foreground'}`}>
                       {challenge.title}
                     </span>
-                    {challenge.solved && <span className="text-green-400 text-xs">✓</span>}
+                    {challenge.solved && <span className="text-success text-xs">✓</span>}
                   </div>
-                </button>
+                </Button>
               ))}
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
+          <div className="p-4 border-t border-border">
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-400">Optimizations applied</span>
-              <span className={solvedCount === challenges.length ? 'text-green-400' : 'text-white'}>
+              <span className="text-muted-foreground">Optimizations applied</span>
+              <span className={solvedCount === challenges.length ? 'text-success' : 'text-foreground'}>
                 {solvedCount} / {challenges.length}
               </span>
             </div>
-            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-2 bg-secondary rounded-full overflow-hidden">
               <div
-                className="h-full bg-green-500 transition-all"
+                className="h-full bg-success transition-all"
                 style={{ width: `${(solvedCount / challenges.length) * 100}%` }}
               />
             </div>
@@ -237,49 +239,49 @@ export function Level18QueryOptimization({ onComplete, onExit }: LevelComponentP
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-6 overflow-auto">
+        <div className="flex-1 relative bg-background p-6 overflow-auto">
           <div className="max-w-3xl mx-auto">
             {/* Challenge Header */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold text-lg">{currentChallenge.title}</div>
-                <div className="text-sm text-red-400">{currentChallenge.problem}</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold text-lg">{currentChallenge.title}</div>
+                <div className="text-sm text-destructive">{currentChallenge.problem}</div>
               </div>
 
               {/* Before/After Comparison */}
               <div className="grid grid-cols-2 gap-4 p-4">
                 {/* Before */}
-                <div className={`rounded-lg border-2 p-4 ${currentChallenge.solved ? 'border-gray-600 opacity-50' : 'border-red-500 bg-red-900/10'}`}>
-                  <div className="text-xs text-red-400 font-semibold uppercase mb-2">Before (Slow)</div>
-                  <pre className="text-sm text-gray-300 bg-gray-800 p-3 rounded mb-3 overflow-x-auto">
+                <div className={`rounded-lg border-2 p-4 ${currentChallenge.solved ? 'border-border opacity-50' : 'border-destructive bg-destructive/10'}`}>
+                  <div className="text-xs text-destructive font-semibold uppercase mb-2">Before (Slow)</div>
+                  <pre className="text-sm text-muted-foreground bg-secondary p-3 rounded mb-3 overflow-x-auto">
                     <code>{currentChallenge.badCode}</code>
                   </pre>
                   <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="bg-gray-800 p-2 rounded">
-                      <div className="text-gray-500">Memory</div>
-                      <div className="text-red-400 font-bold">{currentChallenge.memoryBefore} MB</div>
+                    <div className="bg-secondary p-2 rounded">
+                      <div className="text-muted-foreground">Memory</div>
+                      <div className="text-destructive font-bold">{currentChallenge.memoryBefore} MB</div>
                     </div>
-                    <div className="bg-gray-800 p-2 rounded">
-                      <div className="text-gray-500">Time</div>
-                      <div className="text-red-400 font-bold">{currentChallenge.timeBefore} ms</div>
+                    <div className="bg-secondary p-2 rounded">
+                      <div className="text-muted-foreground">Time</div>
+                      <div className="text-destructive font-bold">{currentChallenge.timeBefore} ms</div>
                     </div>
                   </div>
                 </div>
 
                 {/* After */}
-                <div className={`rounded-lg border-2 p-4 ${currentChallenge.solved ? 'border-green-500 bg-green-900/10' : 'border-gray-600 opacity-50'}`}>
-                  <div className="text-xs text-green-400 font-semibold uppercase mb-2">After (Optimized)</div>
-                  <pre className="text-sm text-gray-300 bg-gray-800 p-3 rounded mb-3 overflow-x-auto">
+                <div className={`rounded-lg border-2 p-4 ${currentChallenge.solved ? 'border-success bg-success/10' : 'border-border opacity-50'}`}>
+                  <div className="text-xs text-success font-semibold uppercase mb-2">After (Optimized)</div>
+                  <pre className="text-sm text-muted-foreground bg-secondary p-3 rounded mb-3 overflow-x-auto">
                     <code>{currentChallenge.goodCode}</code>
                   </pre>
                   <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="bg-gray-800 p-2 rounded">
-                      <div className="text-gray-500">Memory</div>
-                      <div className="text-green-400 font-bold">{currentChallenge.memoryAfter} MB</div>
+                    <div className="bg-secondary p-2 rounded">
+                      <div className="text-muted-foreground">Memory</div>
+                      <div className="text-success font-bold">{currentChallenge.memoryAfter} MB</div>
                     </div>
-                    <div className="bg-gray-800 p-2 rounded">
-                      <div className="text-gray-500">Time</div>
-                      <div className="text-green-400 font-bold">{currentChallenge.timeAfter} ms</div>
+                    <div className="bg-secondary p-2 rounded">
+                      <div className="text-muted-foreground">Time</div>
+                      <div className="text-success font-bold">{currentChallenge.timeAfter} ms</div>
                     </div>
                   </div>
                 </div>
@@ -287,8 +289,8 @@ export function Level18QueryOptimization({ onComplete, onExit }: LevelComponentP
 
               {/* Improvement Badge */}
               <div className="px-4 pb-4">
-                <div className={`text-center p-3 rounded-lg ${currentChallenge.solved ? 'bg-green-900/30' : 'bg-gray-800'}`}>
-                  <span className={`text-sm font-medium ${currentChallenge.solved ? 'text-green-400' : 'text-gray-400'}`}>
+                <div className={`text-center p-3 rounded-lg ${currentChallenge.solved ? 'bg-success/20' : 'bg-secondary'}`}>
+                  <span className={`text-sm font-medium ${currentChallenge.solved ? 'text-success' : 'text-muted-foreground'}`}>
                     Improvement: {currentChallenge.improvement}
                   </span>
                 </div>
@@ -296,40 +298,41 @@ export function Level18QueryOptimization({ onComplete, onExit }: LevelComponentP
             </div>
 
             {/* Technique Application */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Apply Optimization</div>
-                <div className="text-xs text-gray-500">Click to apply the technique</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Apply Optimization</div>
+                <div className="text-xs text-muted-foreground">Click to apply the technique</div>
               </div>
 
               <div className="p-4 space-y-3">
                 {currentChallenge.techniques.map(technique => (
-                  <button
+                  <Button
                     key={technique.id}
                     onClick={() => !technique.applied && applyTechnique(currentChallenge.id, technique.id)}
                     disabled={technique.applied}
-                    className={`w-full p-4 rounded-lg text-left transition-all border-2 ${
+                    variant={technique.applied ? 'default' : 'outline'}
+                    className={`w-full p-4 h-auto rounded-lg text-left justify-start flex-col items-start border-2 ${
                       technique.applied
-                        ? 'border-green-500 bg-green-900/20 cursor-default'
-                        : 'border-cyan-500 bg-cyan-900/20 hover:bg-cyan-900/30 cursor-pointer'
+                        ? 'border-success bg-success/20 cursor-default'
+                        : 'border-primary bg-primary/20 hover:bg-primary/30 cursor-pointer'
                     }`}
                   >
-                    <div className="flex justify-between items-center">
-                      <span className={`font-mono text-sm ${technique.applied ? 'text-green-400' : 'text-cyan-400'}`}>
+                    <div className="flex justify-between items-center w-full">
+                      <span className={`font-mono text-sm ${technique.applied ? 'text-success' : 'text-primary'}`}>
                         {technique.name}
                       </span>
-                      {technique.applied && <span className="text-green-400">✓ Applied</span>}
+                      {technique.applied && <span className="text-success">✓ Applied</span>}
                     </div>
-                    <div className="text-xs text-gray-400 mt-1">{technique.description}</div>
-                  </button>
+                    <div className="text-xs text-muted-foreground mt-1">{technique.description}</div>
+                  </Button>
                 ))}
               </div>
             </div>
 
             {currentChallenge.solved && (
-              <div className="mt-6 bg-green-900/20 border border-green-600 rounded-xl p-4 text-center">
-                <div className="text-green-400 font-semibold">Query Optimized!</div>
-                <div className="text-sm text-gray-300">
+              <div className="mt-6 bg-success/20 border border-success rounded-xl p-4 text-center">
+                <div className="text-success font-semibold">Query Optimized!</div>
+                <div className="text-sm text-muted-foreground">
                   Memory: {currentChallenge.memoryBefore} MB → {currentChallenge.memoryAfter} MB |
                   Time: {currentChallenge.timeBefore} ms → {currentChallenge.timeAfter} ms
                 </div>
@@ -375,9 +378,9 @@ add_index :posts, [:user_id, :published_at]`,
           }]}
           learningGoal="Let the database do the work. Load less data. Use indexes. Profile before optimizing."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Golden Rules</div>
-            <ul className="text-xs text-gray-400 space-y-1">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Golden Rules</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>1. Profile before optimizing</li>
               <li>2. Load only what you need</li>
               <li>3. Index your WHERE columns</li>
@@ -386,9 +389,9 @@ add_index :posts, [:user_id, :published_at]`,
             </ul>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">EXPLAIN ANALYZE</div>
-            <pre className="text-xs text-gray-400 bg-gray-800 p-2 rounded overflow-x-auto">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">EXPLAIN ANALYZE</div>
+            <pre className="text-xs text-muted-foreground bg-secondary p-2 rounded overflow-x-auto">
 {`# See query plan:
 User.where(email: "x")
     .explain

@@ -18,6 +18,7 @@ import {
   useLevelCompletion,
   type ValidationResult,
 } from '../shared';
+import { Button } from '../../../ui/Button';
 
 interface Post {
   id: number;
@@ -112,8 +113,8 @@ export function Level16N1Problem({ onComplete, onExit }: LevelComponentProps) {
   };
 
   const getQueryColor = (query: string) => {
-    if (query.includes('FROM posts')) return 'text-cyan-400';
-    return 'text-orange-400';
+    if (query.includes('FROM posts')) return 'text-primary';
+    return 'text-warning';
   };
 
   return (
@@ -129,43 +130,43 @@ export function Level16N1Problem({ onComplete, onExit }: LevelComponentProps) {
           ]}
           goal="Understand why N+1 queries destroy performance before learning how to fix them."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Query Counter
             </div>
             <div className="text-center py-4">
-              <div className={`text-5xl font-bold ${totalQueries > 2 ? 'text-red-400' : 'text-green-400'}`}>
+              <div className={`text-5xl font-bold ${totalQueries > 2 ? 'text-destructive' : 'text-success'}`}>
                 {totalQueries}
               </div>
-              <div className="text-xs text-gray-500 mt-1">
+              <div className="text-xs text-muted-foreground mt-1">
                 {totalQueries === 0 ? 'queries' : totalQueries === 1 ? 'query' : 'queries'}
               </div>
               {isN1Problem && (
-                <div className="mt-2 text-xs text-red-400">
+                <div className="mt-2 text-xs text-destructive">
                   N+1 detected! ({1} + {totalQueries - 1})
                 </div>
               )}
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
               Performance Impact
             </div>
             <div className="space-y-2 text-xs">
               <div className="flex justify-between">
-                <span className="text-gray-500">Latency per query</span>
-                <span className="text-white">~5ms</span>
+                <span className="text-muted-foreground">Latency per query</span>
+                <span className="text-foreground">~5ms</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Total latency</span>
-                <span className={totalQueries > 2 ? 'text-red-400' : 'text-green-400'}>
+                <span className="text-muted-foreground">Total latency</span>
+                <span className={totalQueries > 2 ? 'text-destructive' : 'text-success'}>
                   ~{totalQueries * 5}ms
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">With 1000 posts</span>
-                <span className="text-red-400">~5000ms (5 seconds!)</span>
+                <span className="text-muted-foreground">With 1000 posts</span>
+                <span className="text-destructive">~5000ms (5 seconds!)</span>
               </div>
             </div>
           </div>
@@ -183,51 +184,48 @@ export function Level16N1Problem({ onComplete, onExit }: LevelComponentProps) {
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-6 overflow-auto">
+        <div className="flex-1 relative bg-background p-6 overflow-auto">
           <div className="max-w-3xl mx-auto">
             {/* Code Display */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
-              <div className="bg-gray-800 px-4 py-2 border-b border-gray-700">
-                <span className="text-gray-400 text-sm">app/controllers/posts_controller.rb</span>
+            <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+              <div className="bg-secondary px-4 py-2 border-b border-border">
+                <span className="text-muted-foreground text-sm">app/controllers/posts_controller.rb</span>
               </div>
               <pre className="p-4 text-sm overflow-x-auto">
                 <code>
-                  <span className="text-purple-400">def</span> <span className="text-cyan-400">index</span>{'\n'}
-                  {'  '}<span className="text-gray-400"># This innocent-looking code...</span>{'\n'}
-                  {'  '}@posts = <span className="text-yellow-400">Post</span>.all{'\n'}
+                  <span className="text-purple-400">def</span> <span className="text-primary">index</span>{'\n'}
+                  {'  '}<span className="text-muted-foreground"># This innocent-looking code...</span>{'\n'}
+                  {'  '}@posts = <span className="text-warning">Post</span>.all{'\n'}
                   <span className="text-purple-400">end</span>
                 </code>
               </pre>
             </div>
 
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
-              <div className="bg-gray-800 px-4 py-2 border-b border-gray-700">
-                <span className="text-gray-400 text-sm">app/views/posts/index.html.erb</span>
+            <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+              <div className="bg-secondary px-4 py-2 border-b border-border">
+                <span className="text-muted-foreground text-sm">app/views/posts/index.html.erb</span>
               </div>
               <pre className="p-4 text-sm overflow-x-auto">
                 <code>
-                  <span className="text-gray-400">&lt;% @posts.each do |post| %&gt;</span>{'\n'}
-                  {'  '}<span className="text-cyan-400">&lt;h2&gt;</span>{'<%= post.title %>'}<span className="text-cyan-400">&lt;/h2&gt;</span>{'\n'}
-                  {'  '}<span className="text-gray-400">&lt;!-- This triggers a query EACH time! --&gt;</span>{'\n'}
-                  {'  '}<span className="text-orange-400">&lt;p&gt;</span>By: {'<%= '}<span className="text-red-400">post.author.name</span>{' %>'}<span className="text-orange-400">&lt;/p&gt;</span>{'\n'}
-                  <span className="text-gray-400">&lt;% end %&gt;</span>
+                  <span className="text-muted-foreground">&lt;% @posts.each do |post| %&gt;</span>{'\n'}
+                  {'  '}<span className="text-primary">&lt;h2&gt;</span>{'<%= post.title %>'}<span className="text-primary">&lt;/h2&gt;</span>{'\n'}
+                  {'  '}<span className="text-muted-foreground">&lt;!-- This triggers a query EACH time! --&gt;</span>{'\n'}
+                  {'  '}<span className="text-warning">&lt;p&gt;</span>By: {'<%= '}<span className="text-destructive">post.author.name</span>{' %>'}<span className="text-warning">&lt;/p&gt;</span>{'\n'}
+                  <span className="text-muted-foreground">&lt;% end %&gt;</span>
                 </code>
               </pre>
             </div>
 
             {/* Simulation Control */}
             <div className="flex justify-center mb-6">
-              <button
+              <Button
                 onClick={startSimulation}
                 disabled={isRunning && currentStep <= POSTS.length}
-                className={`px-6 py-3 rounded-lg font-medium transition-all ${
-                  isRunning && currentStep <= POSTS.length
-                    ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                    : 'bg-cyan-600 hover:bg-cyan-500 text-white'
-                }`}
+                variant={(isRunning && currentStep <= POSTS.length) ? 'secondary' : 'default'}
+                className={isRunning && currentStep <= POSTS.length ? 'cursor-not-allowed' : ''}
               >
                 {isRunning ? 'Running...' : 'Run Query'}
-              </button>
+              </Button>
             </div>
 
             {/* Posts Visualization */}
@@ -242,14 +240,14 @@ export function Level16N1Problem({ onComplete, onExit }: LevelComponentProps) {
                     key={post.id}
                     className={`p-3 rounded-lg border-2 transition-all ${
                       isLoading
-                        ? 'border-orange-500 bg-orange-900/20 animate-pulse'
+                        ? 'border-warning bg-warning/20 animate-pulse'
                         : isLoaded
-                        ? 'border-green-500 bg-green-900/20'
-                        : 'border-gray-700 bg-gray-800/50'
+                        ? 'border-success bg-success/20'
+                        : 'border-border bg-secondary/50'
                     }`}
                   >
-                    <div className="text-xs text-gray-400 truncate">{post.title}</div>
-                    <div className={`text-xs mt-1 ${isLoaded ? 'text-green-400' : 'text-gray-600'}`}>
+                    <div className="text-xs text-muted-foreground truncate">{post.title}</div>
+                    <div className={`text-xs mt-1 ${isLoaded ? 'text-success' : 'text-muted-foreground'}`}>
                       {isLoaded ? `By: ${author?.name}` : isLoading ? 'Loading...' : 'Author: ?'}
                     </div>
                   </div>
@@ -258,20 +256,20 @@ export function Level16N1Problem({ onComplete, onExit }: LevelComponentProps) {
             </div>
 
             {/* Query Log */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-              <div className="bg-gray-800 px-4 py-2 border-b border-gray-700 flex justify-between items-center">
-                <span className="text-gray-400 text-sm font-semibold">Database Query Log</span>
-                <span className={`text-xs px-2 py-1 rounded ${totalQueries > 2 ? 'bg-red-900/50 text-red-400' : 'bg-gray-700 text-gray-400'}`}>
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
+              <div className="bg-secondary px-4 py-2 border-b border-border flex justify-between items-center">
+                <span className="text-muted-foreground text-sm font-semibold">Database Query Log</span>
+                <span className={`text-xs px-2 py-1 rounded ${totalQueries > 2 ? 'bg-destructive/30 text-destructive' : 'bg-secondary text-muted-foreground'}`}>
                   {totalQueries} queries
                 </span>
               </div>
               <div className="p-4 h-48 overflow-y-auto font-mono text-xs space-y-1">
                 {queryLog.length === 0 ? (
-                  <div className="text-gray-600">Click "Run Query" to start...</div>
+                  <div className="text-muted-foreground">Click "Run Query" to start...</div>
                 ) : (
                   queryLog.map((query, i) => (
                     <div key={i} className={`${getQueryColor(query)} flex gap-2`}>
-                      <span className="text-gray-600">[{i + 1}]</span>
+                      <span className="text-muted-foreground">[{i + 1}]</span>
                       <span>{query}</span>
                     </div>
                   ))
@@ -281,26 +279,26 @@ export function Level16N1Problem({ onComplete, onExit }: LevelComponentProps) {
 
             {/* Understanding Confirmation */}
             {totalQueries > 2 && !understood && (
-              <div className="mt-6 bg-red-900/20 border border-red-600 rounded-xl p-4">
-                <div className="text-red-400 font-semibold mb-2">The N+1 Problem Revealed</div>
-                <div className="text-sm text-gray-300 mb-4">
-                  You loaded 5 posts but executed {totalQueries} queries. Each <code className="text-orange-400">post.author</code>
+              <div className="mt-6 bg-destructive/20 border border-destructive rounded-xl p-4">
+                <div className="text-destructive font-semibold mb-2">The N+1 Problem Revealed</div>
+                <div className="text-sm text-muted-foreground mb-4">
+                  You loaded 5 posts but executed {totalQueries} queries. Each <code className="text-warning">post.author</code>
                   call triggers a separate database query. With 1000 posts, that's 1001 queries!
                 </div>
-                <button
+                <Button
                   onClick={() => setUnderstood(true)}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-medium"
+                  variant="destructive"
                 >
                   I Understand the Problem
-                </button>
+                </Button>
               </div>
             )}
 
             {understood && (
-              <div className="mt-6 bg-green-900/20 border border-green-600 rounded-xl p-4">
-                <div className="text-green-400 font-semibold">Ready to Learn the Solution!</div>
-                <div className="text-sm text-gray-300">
-                  In the next level, you'll learn how to use <code className="text-cyan-400">includes</code> to
+              <div className="mt-6 bg-success/20 border border-success rounded-xl p-4">
+                <div className="text-success font-semibold">Ready to Learn the Solution!</div>
+                <div className="text-sm text-muted-foreground">
+                  In the next level, you'll learn how to use <code className="text-primary">includes</code> to
                   eager load associations and reduce these {totalQueries} queries down to just 2.
                 </div>
               </div>
@@ -321,9 +319,9 @@ export function Level16N1Problem({ onComplete, onExit }: LevelComponentProps) {
           }]}
           learningGoal="N+1 = 1 query for the collection + N queries for each item's association. This scales terribly."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-2">Why It's Bad</div>
-            <ul className="text-xs text-gray-400 space-y-1">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-destructive uppercase tracking-wider mb-2">Why It's Bad</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>- Each query has network latency</li>
               <li>- Database connections are limited</li>
               <li>- Scales linearly with data size</li>
@@ -331,9 +329,9 @@ export function Level16N1Problem({ onComplete, onExit }: LevelComponentProps) {
             </ul>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Coming Next</div>
-            <pre className="text-xs text-gray-400 bg-gray-800 p-2 rounded overflow-x-auto">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Coming Next</div>
+            <pre className="text-xs text-muted-foreground bg-secondary p-2 rounded overflow-x-auto">
 {`# The fix (Level 17):
 Post.includes(:author).all
 

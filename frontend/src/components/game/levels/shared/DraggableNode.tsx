@@ -41,8 +41,8 @@ export function DraggableNode({
         p-3 rounded-lg border transition-all
         ${
           disabled
-            ? 'bg-gray-800/50 border-gray-700 opacity-50 cursor-not-allowed'
-            : 'bg-gray-800 border-gray-700 hover:border-cyan-600 cursor-grab active:cursor-grabbing'
+            ? 'bg-card/50 border-border opacity-50 cursor-not-allowed'
+            : 'bg-card border-border hover:border-primary cursor-grab active:cursor-grabbing'
         }
       `}
       style={{ borderLeftColor: color, borderLeftWidth: 4 }}
@@ -50,12 +50,12 @@ export function DraggableNode({
       <div className="flex items-start justify-between mb-1">
         <div className="flex items-center gap-2">
           <span className="text-lg">{icon}</span>
-          <span className="font-medium text-white text-sm">{name}</span>
+          <span className="font-medium text-foreground text-sm">{name}</span>
         </div>
       </div>
-      <p className="text-xs text-gray-400 mb-1">{description}</p>
-      {warning && <p className="text-xs text-yellow-500">! {warning}</p>}
-      {benefit && <p className="text-xs text-green-500">* {benefit}</p>}
+      <p className="text-xs text-muted-foreground mb-1">{description}</p>
+      {warning && <p className="text-xs text-warning">! {warning}</p>}
+      {benefit && <p className="text-xs text-success">* {benefit}</p>}
     </div>
   );
 }
@@ -69,7 +69,7 @@ interface NodePaletteGroupProps {
 export function NodePaletteGroup({ title, children }: NodePaletteGroupProps) {
   return (
     <div className="mb-4">
-      <h4 className="text-xs font-medium text-gray-600 uppercase tracking-wider mb-2">{title}</h4>
+      <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">{title}</h4>
       <div className="space-y-2">{children}</div>
     </div>
   );
@@ -84,7 +84,7 @@ interface NodePaletteProps {
 export function NodePalette({ title = 'Component Palette', children }: NodePaletteProps) {
   return (
     <div className="p-4">
-      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">{title}</h3>
+      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{title}</h3>
       {children}
     </div>
   );

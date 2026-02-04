@@ -7,6 +7,7 @@
 
 import { useState, useRef } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -326,7 +327,7 @@ Hint: Configure environment variables or Rails credentials`
                 />
               </NodePaletteGroup>
             ) : (
-              <div className="text-sm text-gray-500 text-center py-4">
+              <div className="text-sm text-muted-foreground text-center py-4">
                 ENV node added!
                 {!credentialType && <div className="mt-2">Connect it to the Database.</div>}
               </div>
@@ -334,22 +335,22 @@ Hint: Configure environment variables or Rails credentials`
           </NodePalette>
 
           {/* Security status */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Security Status</div>
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Security Status</div>
 
             <div className={`rounded-lg p-4 ${
               credentialType === 'encrypted'
-                ? 'bg-green-900/30 border border-green-700'
+                ? 'bg-success/10 border border-success'
                 : credentialType === 'public'
-                ? 'bg-red-900/30 border border-red-700'
-                : 'bg-gray-800 border border-gray-700'
+                ? 'bg-destructive/10 border border-destructive'
+                : 'bg-secondary border border-border'
             }`}>
               <div className={`text-sm font-medium ${
                 credentialType === 'encrypted'
-                  ? 'text-green-400'
+                  ? 'text-success'
                   : credentialType === 'public'
-                  ? 'text-red-400'
-                  : 'text-gray-400'
+                  ? 'text-destructive'
+                  : 'text-muted-foreground'
               }`}>
                 {credentialType === 'encrypted'
                   ? 'SECURE'
@@ -357,7 +358,7 @@ Hint: Configure environment variables or Rails credentials`
                   ? 'DANGER: EXPOSED!'
                   : 'DISCONNECTED'}
               </div>
-              <div className="text-xs text-gray-500 mt-1">
+              <div className="text-xs text-muted-foreground mt-1">
                 {credentialType === 'encrypted'
                   ? 'Credentials encrypted with master key'
                   : credentialType === 'public'
@@ -405,7 +406,7 @@ Hint: Configure environment variables or Rails credentials`
         {/* Canvas */}
         <div
           ref={canvasRef}
-          className="flex-1 relative bg-gray-950 overflow-hidden"
+          className="flex-1 relative bg-background overflow-hidden"
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleDrop}
           onMouseMove={handleCanvasMouseMove}
@@ -422,11 +423,11 @@ Hint: Configure environment variables or Rails credentials`
 
           {/* Security leak warning overlay */}
           {showLeakWarning && (
-            <div className="absolute inset-0 bg-red-900/30 flex items-center justify-center z-30 pointer-events-none">
-              <div className="bg-red-900 border-2 border-red-500 rounded-xl p-6 text-center animate-pulse">
+            <div className="absolute inset-0 bg-destructive/30 flex items-center justify-center z-30 pointer-events-none">
+              <div className="bg-destructive border-2 border-destructive rounded-xl p-6 text-center animate-pulse">
                 <div className="text-4xl mb-2">!</div>
-                <div className="text-xl font-bold text-red-200">SECURITY LEAK DETECTED</div>
-                <div className="text-red-300 text-sm mt-2">Credentials exposed in repository!</div>
+                <div className="text-xl font-bold text-destructive-foreground">SECURITY LEAK DETECTED</div>
+                <div className="text-destructive-foreground text-sm mt-2">Credentials exposed in repository!</div>
               </div>
             </div>
           )}
@@ -490,44 +491,51 @@ Hint: Configure environment variables or Rails credentials`
           {/* Decision Modal */}
           {showDecisionModal && (
             <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-50">
-              <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-md shadow-2xl">
-                <h3 className="text-xl font-bold text-white mb-2">How should secrets be stored?</h3>
-                <p className="text-gray-400 text-sm mb-6">
+              <div className="bg-card border border-border rounded-xl p-6 max-w-md shadow-2xl">
+                <h3 className="text-xl font-bold text-foreground mb-2">How should secrets be stored?</h3>
+                <p className="text-muted-foreground text-sm mb-6">
                   Choose how to provide database credentials.
                 </p>
 
                 <div className="space-y-3">
-                  <button
+                  <Button
                     onClick={() => handleCredentialChoice('public')}
-                    className="w-full p-4 rounded-lg border border-gray-600 hover:border-red-500 hover:bg-red-900/20 text-left transition-all"
+                    variant="outline"
+                    className="w-full p-4 h-auto rounded-lg border border-border hover:border-destructive hover:bg-destructive/10 text-left transition-all"
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-medium text-white">Publicly Visible</span>
-                      <span className="text-xs text-red-400 bg-red-900/30 px-2 py-0.5 rounded">Dangerous</span>
+                    <div className="flex flex-col w-full">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-medium text-foreground">Publicly Visible</span>
+                        <span className="text-xs text-destructive bg-destructive/10 px-2 py-0.5 rounded">Dangerous</span>
+                      </div>
+                      <div className="text-sm text-muted-foreground">Hardcode credentials in database.yml</div>
+                      <div className="text-xs text-destructive mt-1">! Secrets visible in git history!</div>
                     </div>
-                    <div className="text-sm text-gray-300">Hardcode credentials in database.yml</div>
-                    <div className="text-xs text-red-400 mt-1">! Secrets visible in git history!</div>
-                  </button>
+                  </Button>
 
-                  <button
+                  <Button
                     onClick={() => handleCredentialChoice('encrypted')}
-                    className="w-full p-4 rounded-lg border border-gray-600 hover:border-green-500 hover:bg-green-900/20 text-left transition-all"
+                    variant="outline"
+                    className="w-full p-4 h-auto rounded-lg border border-border hover:border-success hover:bg-success/10 text-left transition-all"
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-medium text-white">Encrypted (credentials.yml.enc)</span>
-                      <span className="text-xs text-green-400 bg-green-900/30 px-2 py-0.5 rounded">Recommended</span>
+                    <div className="flex flex-col w-full">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-medium text-foreground">Encrypted (credentials.yml.enc)</span>
+                        <span className="text-xs text-success bg-success/10 px-2 py-0.5 rounded">Recommended</span>
+                      </div>
+                      <div className="text-sm text-muted-foreground">Encrypt secrets with RAILS_MASTER_KEY</div>
+                      <div className="text-xs text-success mt-1">+ Secure: only decrypted at runtime</div>
                     </div>
-                    <div className="text-sm text-gray-300">Encrypt secrets with RAILS_MASTER_KEY</div>
-                    <div className="text-xs text-green-400 mt-1">+ Secure: only decrypted at runtime</div>
-                  </button>
+                  </Button>
                 </div>
 
-                <button
+                <Button
                   onClick={() => setShowDecisionModal(false)}
-                  className="mt-4 text-gray-500 hover:text-gray-300 text-sm w-full text-center"
+                  variant="ghost"
+                  className="mt-4 w-full"
                 >
                   Cancel
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -535,18 +543,19 @@ Hint: Configure environment variables or Rails credentials`
           {/* Completion button */}
           {isComplete && (
             <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
-              <button
+              <Button
                 onClick={handleComplete}
-                className="px-8 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white font-bold rounded-lg shadow-lg shadow-green-900/30 hover:from-green-500 hover:to-green-400 transition-all"
+                size="lg"
+                className="bg-success hover:bg-success/90 text-foreground font-bold shadow-lg shadow-success/30"
               >
                 Complete Level
-              </button>
+              </Button>
             </div>
           )}
 
           {/* Wrong choice feedback */}
           {credentialType === 'public' && !showLeakWarning && (
-            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-red-900/80 border border-red-700 text-red-200 px-6 py-3 rounded-lg">
+            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-destructive/80 border border-destructive text-destructive-foreground px-6 py-3 rounded-lg">
               Security vulnerability! Use encrypted credentials instead.
             </div>
           )}

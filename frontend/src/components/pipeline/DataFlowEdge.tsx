@@ -97,16 +97,16 @@ function DataFlowEdge({
             )}
           >
             <div className="flex flex-col gap-0.5">
-              <span className="text-gray-400">
+              <span className="text-muted-foreground">
                 {dataFlow.requestsPerSecond} req/s
               </span>
               <span
                 className={clsx(
                   dataFlow.avgLatency > 500
-                    ? 'text-red-400'
+                    ? 'text-destructive'
                     : dataFlow.avgLatency > 200
-                      ? 'text-amber-400'
-                      : 'text-green-400'
+                      ? 'text-warning'
+                      : 'text-success'
                 )}
               >
                 {dataFlow.avgLatency}ms

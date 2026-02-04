@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -97,30 +98,27 @@ export function Level9Contracts({ onComplete, onExit }: LevelComponentProps) {
           ]}
           goal="Learn to validate input at system boundaries using data contracts."
         >
-          <div className="p-4 border-t border-gray-800">
-            <button
+          <div className="p-4 border-t border-border">
+            <Button
               onClick={() => setContractAdded(true)}
               disabled={contractAdded}
-              className={`w-full py-3 rounded-lg font-medium transition-colors ${
-                contractAdded
-                  ? 'bg-green-600 text-white cursor-default'
-                  : 'bg-cyan-600 hover:bg-cyan-500 text-white'
-              }`}
+              variant={contractAdded ? "secondary" : "default"}
+              className="w-full"
             >
               {contractAdded ? 'Contract Added' : 'Add Contract Node'}
-            </button>
+            </Button>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Statistics</div>
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Statistics</div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-green-900/30 rounded-lg p-3 text-center">
-                <div className="text-2xl font-bold text-green-400">{validatedCount}</div>
-                <div className="text-xs text-green-400/70">Validated</div>
+              <div className="bg-success/20 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-success">{validatedCount}</div>
+                <div className="text-xs text-success/70">Validated</div>
               </div>
-              <div className="bg-red-900/30 rounded-lg p-3 text-center">
-                <div className="text-2xl font-bold text-red-400">{rejectedCount}</div>
-                <div className="text-xs text-red-400/70">Rejected</div>
+              <div className="bg-destructive/20 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-destructive">{rejectedCount}</div>
+                <div className="text-xs text-destructive/70">Rejected</div>
               </div>
             </div>
           </div>
@@ -141,7 +139,7 @@ export function Level9Contracts({ onComplete, onExit }: LevelComponentProps) {
           }}
         />
 
-        <div className="flex-1 relative bg-gray-950 overflow-hidden">
+        <div className="flex-1 relative bg-background overflow-hidden">
           {/* Pipeline visualization */}
           <svg className="absolute inset-0 w-full h-full">
             {/* API boundary */}
@@ -197,26 +195,26 @@ export function Level9Contracts({ onComplete, onExit }: LevelComponentProps) {
           </svg>
 
           {/* Legend */}
-          <div className="absolute bottom-4 left-4 bg-gray-900/80 rounded-lg p-3 text-xs space-y-2">
+          <div className="absolute bottom-4 left-4 bg-card/80 rounded-lg p-3 text-xs space-y-2">
             <div className="flex items-center gap-2">
               <svg width="16" height="16"><polygon points="8,0 14,4 16,8 14,12 8,16 2,12 0,8 2,4" fill="#ef4444" transform="scale(0.5) translate(8,8)" /></svg>
-              <span className="text-gray-400">Dirty data (invalid)</span>
+              <span className="text-muted-foreground">Dirty data (invalid)</span>
             </div>
             <div className="flex items-center gap-2">
               <svg width="16" height="16"><circle cx="8" cy="8" r="6" fill="#22c55e" /></svg>
-              <span className="text-gray-400">Clean data (valid)</span>
+              <span className="text-muted-foreground">Clean data (valid)</span>
             </div>
           </div>
 
           {/* Completion button */}
           {isComplete && (
             <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
-              <button
+              <Button
                 onClick={handleComplete}
-                className="px-8 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white font-bold rounded-lg shadow-lg"
+                className="px-8 py-3 bg-gradient-to-r from-success to-success/80 text-foreground font-bold shadow-lg"
               >
                 Complete Level
-              </button>
+              </Button>
             </div>
           )}
         </div>

@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -84,23 +85,23 @@ export function Level20FeatureFlags({ onComplete, onExit }: LevelComponentProps)
           ]}
           goal="Learn to use feature flags for gradual rollouts and safe deployments."
         >
-          <div className="p-4 border-t border-gray-800">
-            <button
+          <div className="p-4 border-t border-border">
+            <Button
               onClick={() => setFlagEnabled(true)}
               disabled={flagEnabled}
-              className={`w-full py-3 rounded-lg font-medium transition-colors ${
+              className={`w-full py-3 ${
                 flagEnabled
-                  ? 'bg-green-600 text-white cursor-default'
-                  : 'bg-cyan-600 hover:bg-cyan-500 text-white'
+                  ? 'bg-success text-success-foreground cursor-default'
+                  : ''
               }`}
             >
               {flagEnabled ? 'Feature Flag Enabled' : 'Enable Feature Flag'}
-            </button>
+            </Button>
           </div>
 
           {flagEnabled && (
-            <div className="p-4 border-t border-gray-800">
-              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+            <div className="p-4 border-t border-border">
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
                 Rollout Percentage
               </div>
               <input
@@ -110,30 +111,30 @@ export function Level20FeatureFlags({ onComplete, onExit }: LevelComponentProps)
                 step="10"
                 value={rolloutPercentage}
                 onChange={(e) => setRolloutPercentage(Number(e.target.value))}
-                className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer"
               />
               <div className="flex justify-between text-sm mt-2">
-                <span className="text-gray-500">0%</span>
-                <span className="text-cyan-400 font-bold">{rolloutPercentage}%</span>
-                <span className="text-gray-500">100%</span>
+                <span className="text-muted-foreground">0%</span>
+                <span className="text-primary font-bold">{rolloutPercentage}%</span>
+                <span className="text-muted-foreground">100%</span>
               </div>
             </div>
           )}
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Error Rates
             </div>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-gray-400">Old Checkout:</span>
-                <span className={`font-bold ${oldErrorRate > 10 ? 'text-red-400' : 'text-green-400'}`}>
+                <span className="text-muted-foreground">Old Checkout:</span>
+                <span className={`font-bold ${oldErrorRate > 10 ? 'text-destructive' : 'text-success'}`}>
                   {oldErrorRate}% errors
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-gray-400">New Checkout:</span>
-                <span className={`font-bold ${newErrorRate > 10 ? 'text-red-400' : 'text-green-400'}`}>
+                <span className="text-muted-foreground">New Checkout:</span>
+                <span className={`font-bold ${newErrorRate > 10 ? 'text-destructive' : 'text-success'}`}>
                   {newTotal > 0 ? `${newErrorRate}% errors` : 'No data'}
                 </span>
               </div>
@@ -159,34 +160,34 @@ export function Level20FeatureFlags({ onComplete, onExit }: LevelComponentProps)
           }}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-8">
+        <div className="flex-1 relative bg-background p-8">
           {/* Traffic Split Visualization */}
           <div className="flex justify-center gap-8 mb-8">
             {/* Old Version */}
             <div className={`border rounded-xl p-4 w-48 text-center transition-colors ${
-              !flagEnabled || rolloutPercentage < 100 ? 'bg-gray-800 border-gray-600' : 'bg-gray-900 border-gray-800 opacity-50'
+              !flagEnabled || rolloutPercentage < 100 ? 'bg-card border-border' : 'bg-secondary border-border opacity-50'
             }`}>
-              <div className="text-gray-400 font-medium">Old Checkout</div>
-              <div className="text-3xl font-bold text-gray-300 mt-2">
+              <div className="text-muted-foreground font-medium">Old Checkout</div>
+              <div className="text-3xl font-bold text-foreground mt-2">
                 {flagEnabled ? 100 - rolloutPercentage : 100}%
               </div>
-              <div className="text-xs text-gray-500 mt-1">of traffic</div>
-              <div className={`mt-3 text-sm ${oldErrorRate > 10 ? 'text-red-400' : 'text-green-400'}`}>
+              <div className="text-xs text-muted-foreground mt-1">of traffic</div>
+              <div className={`mt-3 text-sm ${oldErrorRate > 10 ? 'text-destructive' : 'text-success'}`}>
                 {oldErrorRate}% error rate
               </div>
             </div>
 
             {/* New Version */}
             <div className={`border rounded-xl p-4 w-48 text-center transition-colors ${
-              flagEnabled ? 'bg-cyan-900/30 border-cyan-600' : 'bg-gray-900 border-gray-800 opacity-50'
+              flagEnabled ? 'bg-primary/20 border-primary' : 'bg-secondary border-border opacity-50'
             }`}>
-              <div className="text-cyan-400 font-medium">New Checkout</div>
-              <div className="text-3xl font-bold text-cyan-300 mt-2">
+              <div className="text-primary font-medium">New Checkout</div>
+              <div className="text-3xl font-bold text-primary mt-2">
                 {flagEnabled ? rolloutPercentage : 0}%
               </div>
-              <div className="text-xs text-cyan-400/70 mt-1">of traffic</div>
+              <div className="text-xs text-primary/70 mt-1">of traffic</div>
               {flagEnabled && newTotal > 0 && (
-                <div className={`mt-3 text-sm ${newErrorRate > 10 ? 'text-red-400' : 'text-green-400'}`}>
+                <div className={`mt-3 text-sm ${newErrorRate > 10 ? 'text-destructive' : 'text-success'}`}>
                   {newErrorRate}% error rate
                 </div>
               )}
@@ -194,16 +195,16 @@ export function Level20FeatureFlags({ onComplete, onExit }: LevelComponentProps)
           </div>
 
           {/* Live Traffic */}
-          <div className="bg-gray-900 rounded-xl p-4 max-w-2xl mx-auto">
-            <div className="text-gray-400 text-xs uppercase tracking-wider mb-3">Live Traffic</div>
+          <div className="bg-card rounded-xl p-4 max-w-2xl mx-auto">
+            <div className="text-muted-foreground text-xs uppercase tracking-wider mb-3">Live Traffic</div>
             <div className="flex flex-wrap gap-2 h-32 overflow-hidden">
               {requests.map(r => (
                 <div
                   key={r.id}
                   className={`w-4 h-4 rounded-sm ${
                     r.version === 'old'
-                      ? r.status === 'success' ? 'bg-gray-500' : 'bg-red-600'
-                      : r.status === 'success' ? 'bg-cyan-500' : 'bg-red-600'
+                      ? r.status === 'success' ? 'bg-muted-foreground' : 'bg-destructive'
+                      : r.status === 'success' ? 'bg-primary' : 'bg-destructive'
                   }`}
                   title={`${r.version} - ${r.status}`}
                 />
@@ -211,16 +212,16 @@ export function Level20FeatureFlags({ onComplete, onExit }: LevelComponentProps)
             </div>
             <div className="flex gap-4 mt-3 text-xs">
               <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-gray-500 rounded-sm" />
-                <span className="text-gray-400">Old OK</span>
+                <div className="w-3 h-3 bg-muted-foreground rounded-sm" />
+                <span className="text-muted-foreground">Old OK</span>
               </div>
               <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-cyan-500 rounded-sm" />
-                <span className="text-gray-400">New OK</span>
+                <div className="w-3 h-3 bg-primary rounded-sm" />
+                <span className="text-muted-foreground">New OK</span>
               </div>
               <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-red-600 rounded-sm" />
-                <span className="text-gray-400">Error</span>
+                <div className="w-3 h-3 bg-destructive rounded-sm" />
+                <span className="text-muted-foreground">Error</span>
               </div>
             </div>
           </div>
@@ -228,12 +229,12 @@ export function Level20FeatureFlags({ onComplete, onExit }: LevelComponentProps)
           {/* Completion button */}
           {isComplete && (
             <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
-              <button
+              <Button
                 onClick={handleComplete}
-                className="px-8 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white font-bold rounded-lg shadow-lg"
+                className="px-8 py-3 bg-gradient-to-r from-success to-success/80 text-success-foreground font-bold shadow-lg"
               >
                 Complete Level
-              </button>
+              </Button>
             </div>
           )}
         </div>

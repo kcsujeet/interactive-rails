@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -164,8 +165,8 @@ export function Level8Commands({ onComplete, onExit }: LevelComponentProps) {
           ]}
           goal="Learn the Command pattern with transaction rollback for atomic operations."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Transaction Control
             </div>
             <label className="flex items-center gap-3 cursor-pointer mb-4">
@@ -173,34 +174,28 @@ export function Level8Commands({ onComplete, onExit }: LevelComponentProps) {
                 type="checkbox"
                 checked={transactionWrapped}
                 onChange={(e) => setTransactionWrapped(e.target.checked)}
-                className="w-5 h-5 rounded border-gray-600 bg-gray-800 text-cyan-500 focus:ring-cyan-500"
+                className="w-5 h-5 rounded border-border bg-card text-primary focus:ring-primary"
               />
-              <span className="text-white">Wrap in Transaction</span>
+              <span className="text-foreground">Wrap in Transaction</span>
             </label>
 
             <div className="space-y-2">
-              <button
+              <Button
                 onClick={runSimulation}
                 disabled={transactionWrapped}
-                className={`w-full py-2 rounded-lg text-sm font-medium transition-colors ${
-                  transactionWrapped
-                    ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                    : 'bg-red-600 hover:bg-red-500 text-white'
-                }`}
+                variant={transactionWrapped ? "secondary" : "destructive"}
+                className="w-full"
               >
                 Run Without Transaction
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={runWithRollback}
                 disabled={!transactionWrapped}
-                className={`w-full py-2 rounded-lg text-sm font-medium transition-colors ${
-                  !transactionWrapped
-                    ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                    : 'bg-cyan-600 hover:bg-cyan-500 text-white'
-                }`}
+                variant={!transactionWrapped ? "secondary" : "default"}
+                className="w-full"
               >
                 Run With Transaction
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -229,15 +224,15 @@ export function Level8Commands({ onComplete, onExit }: LevelComponentProps) {
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 flex items-center justify-center p-8">
+        <div className="flex-1 relative bg-background flex items-center justify-center p-8">
           {/* Transaction wrapper visualization */}
           <div className={`relative p-8 rounded-xl border-2 transition-all ${
             transactionWrapped
-              ? 'border-cyan-500 bg-cyan-900/10'
-              : 'border-gray-700 bg-gray-800/30'
+              ? 'border-primary bg-primary/10'
+              : 'border-border bg-card/30'
           }`}>
             {transactionWrapped && (
-              <div className="absolute -top-3 left-4 px-2 bg-gray-950 text-cyan-400 text-sm font-mono">
+              <div className="absolute -top-3 left-4 px-2 bg-background text-primary text-sm font-mono">
                 ActiveRecord::Base.transaction do
               </div>
             )}
@@ -252,7 +247,7 @@ export function Level8Commands({ onComplete, onExit }: LevelComponentProps) {
                       backgroundColor: `${getStatusColor(cmd.status)}20`,
                     }}
                   >
-                    <div className="text-white font-medium">{cmd.name}</div>
+                    <div className="text-foreground font-medium">{cmd.name}</div>
                     <div className="text-xs mt-1" style={{ color: getStatusColor(cmd.status) }}>
                       {cmd.status === 'pending' && 'Waiting...'}
                       {cmd.status === 'running' && 'Executing...'}
@@ -262,7 +257,7 @@ export function Level8Commands({ onComplete, onExit }: LevelComponentProps) {
                     </div>
                   </div>
                   {idx < commands.length - 1 && (
-                    <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
                     </svg>
                   )}
@@ -271,7 +266,7 @@ export function Level8Commands({ onComplete, onExit }: LevelComponentProps) {
             </div>
 
             {transactionWrapped && (
-              <div className="absolute -bottom-3 left-4 px-2 bg-gray-950 text-cyan-400 text-sm font-mono">
+              <div className="absolute -bottom-3 left-4 px-2 bg-background text-primary text-sm font-mono">
                 end
               </div>
             )}
@@ -279,7 +274,7 @@ export function Level8Commands({ onComplete, onExit }: LevelComponentProps) {
 
           {/* Rollback animation */}
           {showRollback && (
-            <div className="absolute top-1/2 right-8 transform -translate-y-1/2 bg-purple-900/80 border border-purple-500 rounded-lg p-4 text-purple-200">
+            <div className="absolute top-1/2 right-8 transform -translate-y-1/2 bg-warning/20 border border-warning rounded-lg p-4 text-warning">
               <div className="text-lg font-bold mb-1">ROLLBACK</div>
               <div className="text-sm">All changes reverted</div>
             </div>
@@ -287,7 +282,7 @@ export function Level8Commands({ onComplete, onExit }: LevelComponentProps) {
 
           {/* Problem indicator */}
           {simulationRan && !transactionWrapped && commands.some(c => c.status === 'failed') && (
-            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-red-900/80 border border-red-500 rounded-lg px-6 py-3 text-red-200">
+            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-destructive/20 border border-destructive rounded-lg px-6 py-3 text-destructive">
               Problem: Payment charged but email failed. Data inconsistent!
             </div>
           )}

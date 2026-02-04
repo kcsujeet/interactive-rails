@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -90,29 +91,26 @@ export function Level12Components({ onComplete, onExit }: LevelComponentProps) {
           ]}
           goal="Learn ViewComponent pattern for reusable, testable view code."
         >
-          <div className="p-4 border-t border-gray-800">
-            <button
+          <div className="p-4 border-t border-border">
+            <Button
               onClick={() => setComponentCreated(true)}
               disabled={componentCreated}
-              className={`w-full py-3 rounded-lg font-medium transition-colors ${
-                componentCreated
-                  ? 'bg-green-600 text-white cursor-default'
-                  : 'bg-cyan-600 hover:bg-cyan-500 text-white'
-              }`}
+              variant={componentCreated ? "secondary" : "default"}
+              className="w-full"
             >
               {componentCreated ? 'Component Created' : 'Create ViewComponent'}
-            </button>
+            </Button>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Extraction Progress</div>
-            <div className="bg-gray-800 rounded-full h-3 overflow-hidden">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Extraction Progress</div>
+            <div className="bg-secondary rounded-full h-3 overflow-hidden">
               <div
-                className="bg-cyan-500 h-full transition-all duration-300"
+                className="bg-primary h-full transition-all duration-300"
                 style={{ width: `${(extractedCount / 3) * 100}%` }}
               />
             </div>
-            <div className="text-gray-400 text-sm mt-2">{extractedCount} / 3 views updated</div>
+            <div className="text-muted-foreground text-sm mt-2">{extractedCount} / 3 views updated</div>
           </div>
 
         </InstructionPanel>
@@ -136,37 +134,38 @@ export function Level12Components({ onComplete, onExit }: LevelComponentProps) {
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-8 overflow-auto">
+        <div className="flex-1 relative bg-background p-8 overflow-auto">
           <div className="flex gap-8 justify-center">
             {/* View files with duplicated code */}
             <div className="space-y-6">
               {blocks.map(block => (
                 <div
                   key={block.id}
-                  className={`bg-gray-900 border-2 rounded-xl p-4 w-64 transition-all ${
-                    block.extracted ? 'border-green-500' : 'border-gray-700'
+                  className={`bg-card border-2 rounded-xl p-4 w-64 transition-all ${
+                    block.extracted ? 'border-success' : 'border-border'
                   }`}
                 >
-                  <div className="text-gray-400 text-sm font-mono mb-3">
+                  <div className="text-muted-foreground text-sm font-mono mb-3">
                     app/views/{block.view}.html.erb
                   </div>
 
                   {block.extracted ? (
-                    <div className="bg-green-900/30 border border-green-600 rounded-lg p-3">
-                      <code className="text-green-400 text-sm">
+                    <div className="bg-success/20 border border-success rounded-lg p-3">
+                      <code className="text-success text-sm">
                         {'<%= render UserCardComponent.new(user: @user) %>'}
                       </code>
                     </div>
                   ) : (
-                    <button
+                    <Button
+                      variant="ghost"
                       onClick={() => handleExtract(block.id)}
                       disabled={!componentCreated}
-                      className={`w-full text-left ${componentCreated ? 'cursor-pointer hover:opacity-80' : 'cursor-not-allowed'}`}
+                      className={`w-full text-left h-auto p-0 ${componentCreated ? 'cursor-pointer hover:opacity-80' : 'cursor-not-allowed'}`}
                     >
-                      <div className={`rounded-lg p-3 ${
-                        componentCreated ? 'bg-yellow-900/40 border-2 border-yellow-500 border-dashed' : 'bg-gray-800 border border-gray-700'
+                      <div className={`rounded-lg p-3 w-full ${
+                        componentCreated ? 'bg-warning/20 border-2 border-warning border-dashed' : 'bg-secondary border border-border'
                       }`}>
-                        <pre className="text-xs text-gray-300 whitespace-pre-wrap">
+                        <pre className="text-xs text-foreground whitespace-pre-wrap">
 {`<div class="user-card">
   <img src="<%= @user.avatar %>">
   <h3><%= @user.name %></h3>
@@ -174,12 +173,12 @@ export function Level12Components({ onComplete, onExit }: LevelComponentProps) {
 </div>`}
                         </pre>
                         {componentCreated && (
-                          <div className="text-yellow-400 text-xs mt-2 text-center">
+                          <div className="text-warning text-xs mt-2 text-center">
                             Click to extract
                           </div>
                         )}
                       </div>
-                    </button>
+                    </Button>
                   )}
                 </div>
               ))}
@@ -187,22 +186,22 @@ export function Level12Components({ onComplete, onExit }: LevelComponentProps) {
 
             {/* Arrow */}
             <div className="flex items-center">
-              <svg className="w-12 h-12 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-12 h-12 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
               </svg>
             </div>
 
             {/* ViewComponent */}
-            <div className={`bg-gray-900 border-2 rounded-xl p-6 w-80 transition-all ${
-              componentCreated ? 'border-cyan-500' : 'border-gray-700 opacity-50'
+            <div className={`bg-card border-2 rounded-xl p-6 w-80 transition-all ${
+              componentCreated ? 'border-primary' : 'border-border opacity-50'
             }`}>
-              <div className="text-cyan-400 font-mono text-sm mb-4">
+              <div className="text-primary font-mono text-sm mb-4">
                 app/components/user_card_component.rb
               </div>
 
               {componentCreated ? (
                 <div className="space-y-4">
-                  <pre className="text-xs text-gray-300 bg-gray-800 rounded-lg p-3 overflow-x-auto">
+                  <pre className="text-xs text-foreground bg-secondary rounded-lg p-3 overflow-x-auto">
 {`class UserCardComponent < ViewComponent::Base
   def initialize(user:)
     @user = user
@@ -210,10 +209,10 @@ export function Level12Components({ onComplete, onExit }: LevelComponentProps) {
 end`}
                   </pre>
 
-                  <div className="text-gray-500 text-xs font-mono">
+                  <div className="text-muted-foreground text-xs font-mono">
                     user_card_component.html.erb
                   </div>
-                  <pre className="text-xs text-gray-300 bg-gray-800 rounded-lg p-3">
+                  <pre className="text-xs text-foreground bg-secondary rounded-lg p-3">
 {`<div class="user-card">
   <img src="<%= @user.avatar %>">
   <h3><%= @user.name %></h3>
@@ -221,9 +220,9 @@ end`}
 </div>`}
                   </pre>
 
-                  <div className="bg-cyan-900/30 rounded-lg p-3">
-                    <div className="text-cyan-400 text-sm font-medium">Benefits:</div>
-                    <ul className="text-cyan-300 text-xs mt-1 space-y-1">
+                  <div className="bg-primary/20 rounded-lg p-3">
+                    <div className="text-primary text-sm font-medium">Benefits:</div>
+                    <ul className="text-primary/80 text-xs mt-1 space-y-1">
                       <li>+ Single source of truth</li>
                       <li>+ Unit testable in isolation</li>
                       <li>+ Type-safe parameters</li>
@@ -231,13 +230,13 @@ end`}
                   </div>
                 </div>
               ) : (
-                <div className="text-gray-500 text-center py-8">
+                <div className="text-muted-foreground text-center py-8">
                   Create component to enable extraction
                 </div>
               )}
 
               {extractedCount === 3 && (
-                <div className="mt-4 p-3 bg-green-900/30 border border-green-500 rounded-lg text-green-400 text-sm text-center">
+                <div className="mt-4 p-3 bg-success/20 border border-success rounded-lg text-success text-sm text-center">
                   All duplications removed!
                 </div>
               )}

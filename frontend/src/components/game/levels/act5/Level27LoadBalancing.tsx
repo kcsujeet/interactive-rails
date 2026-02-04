@@ -18,6 +18,7 @@ import {
   useLevelCompletion,
   type ValidationResult,
 } from '../shared';
+import { Button } from '../../../ui/Button';
 
 interface Server {
   id: string;
@@ -149,12 +150,12 @@ export function Level27LoadBalancing({ onComplete, onExit }: LevelComponentProps
           goal="Distribute traffic across multiple servers for reliability and performance."
         >
           {/* Traffic Control */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Traffic Simulation
             </div>
             <div className="mb-3">
-              <label className="text-xs text-gray-500">Requests per second: {requestsPerSecond}</label>
+              <label className="text-xs text-muted-foreground">Requests per second: {requestsPerSecond}</label>
               <input
                 type="range"
                 min="1"
@@ -164,36 +165,31 @@ export function Level27LoadBalancing({ onComplete, onExit }: LevelComponentProps
                 className="w-full"
               />
             </div>
-            <button
+            <Button
               onClick={() => setIsSimulating(!isSimulating)}
               disabled={!strategy}
-              className={`w-full py-2 rounded-lg font-medium transition-all ${
-                !strategy
-                  ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                  : isSimulating
-                  ? 'bg-red-600 hover:bg-red-500 text-white'
-                  : 'bg-cyan-600 hover:bg-cyan-500 text-white'
-              }`}
+              variant={!strategy ? 'secondary' : isSimulating ? 'destructive' : 'default'}
+              className="w-full"
             >
               {isSimulating ? 'Stop Traffic' : 'Start Traffic'}
-            </button>
+            </Button>
           </div>
 
           {/* Stats */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Metrics
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <div className="bg-gray-800 p-2 rounded text-center">
-                <div className="text-xl font-bold text-white">{totalRequests}</div>
-                <div className="text-xs text-gray-500">Total Requests</div>
+              <div className="bg-card p-2 rounded text-center">
+                <div className="text-xl font-bold text-foreground">{totalRequests}</div>
+                <div className="text-xs text-muted-foreground">Total Requests</div>
               </div>
-              <div className="bg-gray-800 p-2 rounded text-center">
-                <div className={`text-xl font-bold ${avgResponseTime < 100 ? 'text-green-400' : avgResponseTime < 200 ? 'text-yellow-400' : 'text-red-400'}`}>
+              <div className="bg-card p-2 rounded text-center">
+                <div className={`text-xl font-bold ${avgResponseTime < 100 ? 'text-success' : avgResponseTime < 200 ? 'text-warning' : 'text-destructive'}`}>
                   {Math.round(avgResponseTime)}ms
                 </div>
-                <div className="text-xs text-gray-500">Avg Response</div>
+                <div className="text-xs text-muted-foreground">Avg Response</div>
               </div>
             </div>
           </div>
@@ -216,12 +212,12 @@ export function Level27LoadBalancing({ onComplete, onExit }: LevelComponentProps
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-6 overflow-auto">
+        <div className="flex-1 relative bg-background p-6 overflow-auto">
           <div className="max-w-4xl mx-auto">
             {/* Strategy Selection */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Load Balancing Strategy</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Load Balancing Strategy</div>
               </div>
               <div className="p-4 grid grid-cols-4 gap-3">
                 {[
@@ -230,40 +226,41 @@ export function Level27LoadBalancing({ onComplete, onExit }: LevelComponentProps
                   { id: 'ip-hash', name: 'IP Hash', icon: '🔗', desc: 'Sticky sessions' },
                   { id: 'weighted', name: 'Weighted', icon: '⚖️', desc: '50/30/20 split' },
                 ].map(s => (
-                  <button
+                  <Button
                     key={s.id}
                     onClick={() => setStrategy(s.id as LoadBalancingStrategy)}
-                    className={`p-3 rounded-lg border-2 text-center transition-all ${
+                    variant={strategy === s.id ? 'default' : 'outline'}
+                    className={`p-3 h-auto rounded-lg border-2 text-center transition-all flex-col ${
                       strategy === s.id
-                        ? 'border-cyan-500 bg-cyan-900/20'
-                        : 'border-gray-700 bg-gray-800 hover:border-gray-500'
+                        ? 'border-primary bg-primary/20'
+                        : 'border-border bg-secondary hover:border-muted-foreground'
                     }`}
                   >
                     <div className="text-2xl mb-1">{s.icon}</div>
-                    <div className={`text-sm font-semibold ${strategy === s.id ? 'text-cyan-400' : 'text-white'}`}>
+                    <div className={`text-sm font-semibold ${strategy === s.id ? 'text-primary' : 'text-foreground'}`}>
                       {s.name}
                     </div>
-                    <div className="text-xs text-gray-500">{s.desc}</div>
-                  </button>
+                    <div className="text-xs text-muted-foreground">{s.desc}</div>
+                  </Button>
                 ))}
               </div>
             </div>
 
             {/* Load Balancer Visualization */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Server Farm</div>
-                <div className="text-xs text-gray-500">Click servers to toggle health</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Server Farm</div>
+                <div className="text-xs text-muted-foreground">Click servers to toggle health</div>
               </div>
               <div className="p-8">
                 <div className="flex items-center justify-between">
                   {/* Load Balancer */}
                   <div className="text-center">
                     <div className={`w-24 h-24 rounded-lg flex flex-col items-center justify-center ${
-                      strategy ? 'bg-cyan-600' : 'bg-gray-700'
+                      strategy ? 'bg-primary' : 'bg-secondary'
                     }`}>
                       <span className="text-3xl">⚖️</span>
-                      <span className="text-xs text-white mt-1">Load Balancer</span>
+                      <span className="text-xs text-foreground mt-1">Load Balancer</span>
                     </div>
                   </div>
 
@@ -272,7 +269,7 @@ export function Level27LoadBalancing({ onComplete, onExit }: LevelComponentProps
                     {servers.map(server => (
                       <div
                         key={server.id}
-                        className={`h-1 ${server.healthy ? 'bg-green-500' : 'bg-red-500 opacity-30'}`}
+                        className={`h-1 ${server.healthy ? 'bg-success' : 'bg-destructive opacity-30'}`}
                       />
                     ))}
                   </div>
@@ -280,35 +277,36 @@ export function Level27LoadBalancing({ onComplete, onExit }: LevelComponentProps
                   {/* Servers */}
                   <div className="space-y-4">
                     {servers.map(server => (
-                      <button
+                      <Button
                         key={server.id}
                         onClick={() => toggleServerHealth(server.id)}
-                        className={`w-40 p-3 rounded-lg border-2 text-left transition-all ${
+                        variant="outline"
+                        className={`w-40 p-3 h-auto rounded-lg border-2 text-left transition-all flex-col items-stretch ${
                           server.healthy
-                            ? 'border-green-500 bg-green-900/20'
-                            : 'border-red-500 bg-red-900/20 opacity-50'
+                            ? 'border-success bg-success/20'
+                            : 'border-destructive bg-destructive/20 opacity-50'
                         }`}
                       >
                         <div className="flex items-center justify-between mb-2">
-                          <span className={server.healthy ? 'text-green-400' : 'text-red-400'}>
+                          <span className={server.healthy ? 'text-success' : 'text-destructive'}>
                             {server.name}
                           </span>
-                          <span className={`w-2 h-2 rounded-full ${server.healthy ? 'bg-green-400' : 'bg-red-400'}`} />
+                          <span className={`w-2 h-2 rounded-full ${server.healthy ? 'bg-success' : 'bg-destructive'}`} />
                         </div>
-                        <div className="h-2 bg-gray-700 rounded-full overflow-hidden mb-1">
+                        <div className="h-2 bg-secondary rounded-full overflow-hidden mb-1">
                           <div
                             className={`h-full transition-all ${
-                              server.load > 80 ? 'bg-red-500' :
-                              server.load > 50 ? 'bg-yellow-500' : 'bg-green-500'
+                              server.load > 80 ? 'bg-destructive' :
+                              server.load > 50 ? 'bg-warning' : 'bg-success'
                             }`}
                             style={{ width: `${server.load}%` }}
                           />
                         </div>
-                        <div className="flex justify-between text-xs text-gray-500">
+                        <div className="flex justify-between text-xs text-muted-foreground">
                           <span>{server.requestCount} reqs</span>
                           <span>{server.responseTime}ms</span>
                         </div>
-                      </button>
+                      </Button>
                     ))}
                   </div>
                 </div>
@@ -316,9 +314,9 @@ export function Level27LoadBalancing({ onComplete, onExit }: LevelComponentProps
             </div>
 
             {/* Request Distribution */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Request Distribution</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Request Distribution</div>
               </div>
               <div className="p-4">
                 <div className="flex gap-4">
@@ -329,12 +327,12 @@ export function Level27LoadBalancing({ onComplete, onExit }: LevelComponentProps
                     return (
                       <div key={server.id} className="flex-1">
                         <div className="text-center mb-2">
-                          <div className="text-2xl font-bold text-white">{percentage}%</div>
-                          <div className="text-xs text-gray-500">{server.name}</div>
+                          <div className="text-2xl font-bold text-foreground">{percentage}%</div>
+                          <div className="text-xs text-muted-foreground">{server.name}</div>
                         </div>
-                        <div className="h-24 bg-gray-800 rounded-lg overflow-hidden flex flex-col-reverse">
+                        <div className="h-24 bg-secondary rounded-lg overflow-hidden flex flex-col-reverse">
                           <div
-                            className="bg-cyan-500 transition-all"
+                            className="bg-primary transition-all"
                             style={{ height: `${percentage}%` }}
                           />
                         </div>
@@ -389,19 +387,19 @@ strategy === 'weighted' ? `upstream backend {
           ]}
           learningGoal="Load balancers distribute traffic and provide high availability. Choose strategy based on your app's needs."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">When to Use</div>
-            <ul className="text-xs text-gray-400 space-y-1">
-              <li><span className="text-cyan-400">Round Robin:</span> Equal servers</li>
-              <li><span className="text-cyan-400">Least Conn:</span> Varying load</li>
-              <li><span className="text-cyan-400">IP Hash:</span> Session state</li>
-              <li><span className="text-cyan-400">Weighted:</span> Different capacities</li>
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">When to Use</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
+              <li><span className="text-primary">Round Robin:</span> Equal servers</li>
+              <li><span className="text-primary">Least Conn:</span> Varying load</li>
+              <li><span className="text-primary">IP Hash:</span> Session state</li>
+              <li><span className="text-primary">Weighted:</span> Different capacities</li>
             </ul>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Tools</div>
-            <ul className="text-xs text-gray-400 space-y-1">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Tools</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>• NGINX - Software LB</li>
               <li>• HAProxy - High performance</li>
               <li>• AWS ALB - Managed</li>

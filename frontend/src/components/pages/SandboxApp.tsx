@@ -5,6 +5,7 @@
  */
 
 import { useState } from 'react';
+import { Button } from '../ui/Button';
 
 interface NodeData {
   id: string;
@@ -70,47 +71,45 @@ export function SandboxApp() {
   return (
     <div className="h-[calc(100vh-120px)] flex">
       {/* Left sidebar - Node Palette */}
-      <div className="w-72 bg-gray-800 border-r border-gray-700 overflow-y-auto flex-shrink-0">
+      <div className="w-72 bg-card border-r border-border overflow-y-auto flex-shrink-0">
         <div className="p-4">
-          <h2 className="text-lg font-bold text-white mb-2">Sandbox Mode</h2>
-          <p className="text-xs text-gray-400 mb-4">
+          <h2 className="text-lg font-bold text-foreground mb-2">Sandbox Mode</h2>
+          <p className="text-xs text-muted-foreground mb-4">
             Free-form pipeline builder for practice. No objectives, no time limits.
           </p>
 
           <div className="mb-4">
-            <a
-              href="/acts"
-              className="block w-full px-4 py-2 bg-blue-600 text-white text-center rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Back to Acts
-            </a>
+            <Button asChild className="w-full">
+              <a href="/acts">Back to Acts</a>
+            </Button>
           </div>
 
-          <h3 className="text-sm font-semibold text-gray-300 mb-2 uppercase tracking-wider">
+          <h3 className="text-sm font-semibold text-foreground mb-2 uppercase tracking-wider">
             Node Palette
           </h3>
-          <p className="text-xs text-gray-400 mb-3">Click to add to canvas</p>
+          <p className="text-xs text-muted-foreground mb-3">Click to add to canvas</p>
 
           <div className="space-y-2">
             {nodeTypes.map((nodeType) => (
-              <button
+              <Button
                 key={nodeType.type}
+                variant="ghost"
                 onClick={() => addNode(nodeType.type)}
-                className="w-full p-3 bg-gray-700 rounded-lg border border-gray-600 hover:border-gray-500 hover:bg-gray-650 transition-colors text-left"
+                className="w-full h-auto p-3 justify-start bg-secondary border border-border hover:border-muted-foreground hover:bg-secondary/80"
               >
                 <div className="flex items-center gap-3">
                   <div
-                    className="w-8 h-8 rounded flex items-center justify-center text-white font-bold text-xs"
-                    style={{ backgroundColor: nodeType.color }}
+                    className="w-8 h-8 rounded flex items-center justify-center font-bold text-xs"
+                    style={{ backgroundColor: nodeType.color, color: 'white' }}
                   >
                     {nodeType.name.slice(0, 2).toUpperCase()}
                   </div>
-                  <div>
-                    <div className="text-sm text-white font-medium">{nodeType.name}</div>
-                    <div className="text-xs text-gray-400">{nodeType.description}</div>
+                  <div className="text-left">
+                    <div className="text-sm text-foreground font-medium">{nodeType.name}</div>
+                    <div className="text-xs text-muted-foreground">{nodeType.description}</div>
                   </div>
                 </div>
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -119,46 +118,37 @@ export function SandboxApp() {
       {/* Main canvas area */}
       <div className="flex-1 flex flex-col">
         {/* Top toolbar */}
-        <div className="h-14 bg-gray-800 border-b border-gray-700 flex items-center justify-between px-4">
+        <div className="h-14 bg-card border-b border-border flex items-center justify-between px-4">
           <div className="flex items-center gap-2">
-            <button
-              onClick={clearCanvas}
-              className="px-3 py-1.5 bg-gray-700 text-gray-300 text-sm rounded hover:bg-gray-600"
-            >
+            <Button size="sm" variant="secondary" onClick={clearCanvas}>
               Clear All
-            </button>
-            <button
+            </Button>
+            <Button
+              size="sm"
+              variant={selectedNodeId ? 'destructive' : 'outline'}
               onClick={removeSelectedNode}
               disabled={!selectedNodeId}
-              className={`px-3 py-1.5 text-sm rounded ${
-                selectedNodeId
-                  ? 'bg-red-600 text-white hover:bg-red-700'
-                  : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-              }`}
             >
               Delete Selected
-            </button>
+            </Button>
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="text-sm text-gray-400">
+            <div className="text-sm text-muted-foreground">
               {nodes.length} nodes, {connections.length} connections
             </div>
-            <button
+            <Button
+              size="sm"
               onClick={toggleSimulation}
-              className={`px-4 py-1.5 text-sm rounded font-medium ${
-                isSimulating
-                  ? 'bg-red-600 text-white hover:bg-red-700'
-                  : 'bg-green-600 text-white hover:bg-green-700'
-              }`}
+              className={isSimulating ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : 'bg-success text-success-foreground hover:bg-success/90'}
             >
               {isSimulating ? 'Stop Simulation' : 'Start Simulation'}
-            </button>
+            </Button>
           </div>
         </div>
 
         {/* Canvas */}
-        <div className="flex-1 bg-gray-900 relative overflow-hidden">
+        <div className="flex-1 bg-background relative overflow-hidden">
           {/* Grid pattern */}
           <div
             className="absolute inset-0"
@@ -179,7 +169,7 @@ export function SandboxApp() {
                 key={node.id}
                 onClick={() => setSelectedNodeId(node.id)}
                 className={`absolute cursor-pointer transition-shadow ${
-                  isSelected ? 'ring-2 ring-amber-400 ring-offset-2 ring-offset-gray-900' : ''
+                  isSelected ? 'ring-2 ring-warning ring-offset-2 ring-offset-background' : ''
                 }`}
                 style={{
                   left: node.position.x,
@@ -197,8 +187,8 @@ export function SandboxApp() {
                   >
                     {nodeType?.name || node.type}
                   </div>
-                  <div className="bg-gray-800 px-3 py-2">
-                    <div className="text-xs text-gray-400">{nodeType?.description || ''}</div>
+                  <div className="bg-card px-3 py-2">
+                    <div className="text-xs text-muted-foreground">{nodeType?.description || ''}</div>
                   </div>
                 </div>
               </div>
@@ -209,16 +199,16 @@ export function SandboxApp() {
           {nodes.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center">
-                <p className="text-gray-500 text-lg mb-2">Sandbox Canvas</p>
-                <p className="text-gray-600 text-sm">Click nodes in the palette to add them</p>
-                <p className="text-gray-600 text-sm mt-1">Drag nodes to position them</p>
+                <p className="text-muted-foreground text-lg mb-2">Sandbox Canvas</p>
+                <p className="text-muted text-sm">Click nodes in the palette to add them</p>
+                <p className="text-muted text-sm mt-1">Drag nodes to position them</p>
               </div>
             </div>
           )}
 
           {/* Simulation overlay */}
           {isSimulating && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-green-900/90 text-green-300 px-4 py-2 rounded-full text-sm font-medium animate-pulse">
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-success/90 text-success-foreground px-4 py-2 rounded-full text-sm font-medium animate-pulse">
               Simulation Running...
             </div>
           )}
@@ -226,18 +216,18 @@ export function SandboxApp() {
       </div>
 
       {/* Right sidebar - Inspector/Metrics */}
-      <div className="w-80 bg-gray-800 border-l border-gray-700 overflow-y-auto flex-shrink-0">
+      <div className="w-80 bg-card border-l border-border overflow-y-auto flex-shrink-0">
         <div className="p-4">
-          <h2 className="text-lg font-bold text-white mb-4">Inspector</h2>
+          <h2 className="text-lg font-bold text-foreground mb-4">Inspector</h2>
 
           {selectedNodeId ? (
             <div>
-              <h3 className="text-sm font-semibold text-gray-300 mb-2">Selected Node</h3>
-              <div className="bg-gray-700 rounded-lg p-4">
-                <p className="text-white">
+              <h3 className="text-sm font-semibold text-foreground mb-2">Selected Node</h3>
+              <div className="bg-secondary rounded-lg p-4">
+                <p className="text-foreground">
                   {nodes.find((n) => n.id === selectedNodeId)?.type}
                 </p>
-                <p className="text-xs text-gray-400 mt-2">
+                <p className="text-xs text-muted-foreground mt-2">
                   Click on node ports to create connections
                 </p>
               </div>
@@ -245,34 +235,34 @@ export function SandboxApp() {
           ) : (
             <div className="space-y-4">
               <div>
-                <h3 className="text-sm font-semibold text-gray-300 mb-2">Metrics</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-2">Metrics</h3>
                 <div className="space-y-2">
-                  <div className="flex justify-between items-center p-2 bg-gray-700 rounded">
-                    <span className="text-xs text-gray-400">Latency p95</span>
-                    <span className="text-sm text-green-400 font-mono">--ms</span>
+                  <div className="flex justify-between items-center p-2 bg-secondary rounded">
+                    <span className="text-xs text-muted-foreground">Latency p95</span>
+                    <span className="text-sm text-success font-mono">--ms</span>
                   </div>
-                  <div className="flex justify-between items-center p-2 bg-gray-700 rounded">
-                    <span className="text-xs text-gray-400">Queries/Request</span>
-                    <span className="text-sm text-green-400 font-mono">--</span>
+                  <div className="flex justify-between items-center p-2 bg-secondary rounded">
+                    <span className="text-xs text-muted-foreground">Queries/Request</span>
+                    <span className="text-sm text-success font-mono">--</span>
                   </div>
-                  <div className="flex justify-between items-center p-2 bg-gray-700 rounded">
-                    <span className="text-xs text-gray-400">Cache Hit Rate</span>
-                    <span className="text-sm text-gray-400 font-mono">--%</span>
+                  <div className="flex justify-between items-center p-2 bg-secondary rounded">
+                    <span className="text-xs text-muted-foreground">Cache Hit Rate</span>
+                    <span className="text-sm text-muted-foreground font-mono">--%</span>
                   </div>
-                  <div className="flex justify-between items-center p-2 bg-gray-700 rounded">
-                    <span className="text-xs text-gray-400">Error Rate</span>
-                    <span className="text-sm text-green-400 font-mono">0%</span>
+                  <div className="flex justify-between items-center p-2 bg-secondary rounded">
+                    <span className="text-xs text-muted-foreground">Error Rate</span>
+                    <span className="text-sm text-success font-mono">0%</span>
                   </div>
                 </div>
               </div>
 
               <div>
-                <h3 className="text-sm font-semibold text-gray-300 mb-2">Tips</h3>
-                <div className="bg-blue-900/30 border border-blue-700 rounded p-3 text-xs text-blue-300">
+                <h3 className="text-sm font-semibold text-foreground mb-2">Tips</h3>
+                <div className="bg-primary/10 border border-primary/20 rounded p-3 text-xs text-primary">
                   <p className="mb-2">
                     <strong>Sandbox mode</strong> is for practice!
                   </p>
-                  <ul className="list-disc list-inside space-y-1 text-gray-400">
+                  <ul className="list-disc list-inside space-y-1 text-muted-foreground">
                     <li>Try building a complete request flow</li>
                     <li>Add caching to see hit rates improve</li>
                     <li>Configure models with eager loading</li>

@@ -18,6 +18,7 @@ import {
   useLevelCompletion,
   type ValidationResult,
 } from '../shared';
+import { Button } from '../../../ui/Button';
 
 type DeploymentStrategy = 'blue-green' | 'rolling' | 'canary' | null;
 
@@ -162,52 +163,48 @@ export function Level31Deployments({ onComplete, onExit }: LevelComponentProps) 
           goal="Deploy new code without any downtime or service interruption."
         >
           {/* Deployment Status */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Deployment Status
             </div>
             <div className="space-y-2">
               <div>
-                <div className="flex justify-between text-xs text-gray-500 mb-1">
+                <div className="flex justify-between text-xs text-muted-foreground mb-1">
                   <span>Progress</span>
                   <span>{deployProgress}%</span>
                 </div>
-                <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                <div className="h-2 bg-secondary rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-cyan-500 transition-all"
+                    className="h-full bg-primary transition-all"
                     style={{ width: `${deployProgress}%` }}
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2 mt-3">
-                <div className="bg-gray-800 p-2 rounded text-center">
-                  <div className={`text-lg font-bold ${downtime === 0 ? 'text-green-400' : 'text-red-400'}`}>
+                <div className="bg-card p-2 rounded text-center">
+                  <div className={`text-lg font-bold ${downtime === 0 ? 'text-success' : 'text-destructive'}`}>
                     {downtime}s
                   </div>
-                  <div className="text-xs text-gray-500">Downtime</div>
+                  <div className="text-xs text-muted-foreground">Downtime</div>
                 </div>
-                <div className="bg-gray-800 p-2 rounded text-center">
-                  <div className={`text-lg font-bold ${errorRate < 1 ? 'text-green-400' : 'text-red-400'}`}>
+                <div className="bg-card p-2 rounded text-center">
+                  <div className={`text-lg font-bold ${errorRate < 1 ? 'text-success' : 'text-destructive'}`}>
                     {errorRate}%
                   </div>
-                  <div className="text-xs text-gray-500">Error Rate</div>
+                  <div className="text-xs text-muted-foreground">Error Rate</div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <button
+          <div className="p-4 border-t border-border">
+            <Button
               onClick={executeDeployment}
               disabled={!strategy || isDeploying}
-              className={`w-full py-2 rounded-lg font-medium transition-all ${
-                !strategy || isDeploying
-                  ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                  : 'bg-cyan-600 hover:bg-cyan-500 text-white'
-              }`}
+              className="w-full"
             >
               {isDeploying ? 'Deploying...' : 'Deploy v2'}
-            </button>
+            </Button>
           </div>
         </InstructionPanel>
       </LeftPanel>
@@ -234,12 +231,12 @@ export function Level31Deployments({ onComplete, onExit }: LevelComponentProps) 
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-6 overflow-auto">
+        <div className="flex-1 relative bg-background p-6 overflow-auto">
           <div className="max-w-4xl mx-auto">
             {/* Strategy Selection */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Deployment Strategy</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Deployment Strategy</div>
               </div>
               <div className="p-4 grid grid-cols-3 gap-4">
                 {[
@@ -247,34 +244,35 @@ export function Level31Deployments({ onComplete, onExit }: LevelComponentProps) 
                   { id: 'rolling', name: 'Rolling', icon: '🔄', desc: 'Update one by one', pros: ['Resource efficient', 'Gradual'], cons: ['Mixed versions', 'Slower rollback'] },
                   { id: 'canary', name: 'Canary', icon: '🐤', desc: 'Test with small traffic', pros: ['Test in production', 'Catch issues early'], cons: ['Complex routing', 'Needs monitoring'] },
                 ].map(s => (
-                  <button
+                  <Button
                     key={s.id}
                     onClick={() => !isDeploying && setStrategy(s.id as DeploymentStrategy)}
                     disabled={isDeploying}
-                    className={`p-4 rounded-lg border-2 text-left transition-all ${
+                    variant={strategy === s.id ? 'default' : 'outline'}
+                    className={`p-4 h-auto rounded-lg border-2 text-left transition-all flex-col items-start ${
                       strategy === s.id
-                        ? 'border-cyan-500 bg-cyan-900/20'
-                        : 'border-gray-700 bg-gray-800 hover:border-gray-500'
+                        ? 'border-primary bg-primary/20'
+                        : 'border-border bg-secondary hover:border-muted-foreground'
                     } ${isDeploying ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <div className="text-2xl mb-2">{s.icon}</div>
-                    <div className={`font-semibold ${strategy === s.id ? 'text-cyan-400' : 'text-white'}`}>
+                    <div className={`font-semibold ${strategy === s.id ? 'text-primary' : 'text-foreground'}`}>
                       {s.name}
                     </div>
-                    <div className="text-xs text-gray-500 mb-2">{s.desc}</div>
+                    <div className="text-xs text-muted-foreground mb-2">{s.desc}</div>
                     <div className="text-xs space-y-1">
-                      {s.pros.map(p => <div key={p} className="text-green-400">+ {p}</div>)}
-                      {s.cons.map(c => <div key={c} className="text-red-400">- {c}</div>)}
+                      {s.pros.map(p => <div key={p} className="text-success">+ {p}</div>)}
+                      {s.cons.map(c => <div key={c} className="text-destructive">- {c}</div>)}
                     </div>
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
 
             {/* Server Visualization */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Server Fleet</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Server Fleet</div>
               </div>
               <div className="p-6">
                 <div className="flex justify-center gap-8">
@@ -283,30 +281,30 @@ export function Level31Deployments({ onComplete, onExit }: LevelComponentProps) 
                       key={server.id}
                       className={`w-32 p-4 rounded-xl border-2 transition-all ${
                         server.status === 'deploying'
-                          ? 'border-yellow-500 bg-yellow-900/20 animate-pulse'
+                          ? 'border-warning bg-warning/20 animate-pulse'
                           : server.version === 'v2'
-                          ? 'border-green-500 bg-green-900/20'
+                          ? 'border-success bg-success/20'
                           : 'border-blue-500 bg-blue-900/20'
                       }`}
                     >
                       <div className="text-center">
                         <div className="text-3xl mb-2">🖥️</div>
                         <div className={`font-bold ${
-                          server.version === 'v2' ? 'text-green-400' : 'text-blue-400'
+                          server.version === 'v2' ? 'text-success' : 'text-blue-400'
                         }`}>
                           {server.version}
                         </div>
-                        <div className="text-xs text-gray-500">{server.status}</div>
+                        <div className="text-xs text-muted-foreground">{server.status}</div>
                         <div className="mt-2">
-                          <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                          <div className="h-2 bg-secondary rounded-full overflow-hidden">
                             <div
                               className={`h-full transition-all ${
-                                server.version === 'v2' ? 'bg-green-500' : 'bg-blue-500'
+                                server.version === 'v2' ? 'bg-success' : 'bg-blue-500'
                               }`}
                               style={{ width: `${server.traffic}%` }}
                             />
                           </div>
-                          <div className="text-xs text-gray-500 mt-1">{server.traffic}% traffic</div>
+                          <div className="text-xs text-muted-foreground mt-1">{server.traffic}% traffic</div>
                         </div>
                       </div>
                     </div>
@@ -316,28 +314,28 @@ export function Level31Deployments({ onComplete, onExit }: LevelComponentProps) 
             </div>
 
             {/* Traffic Split */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Traffic Distribution</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Traffic Distribution</div>
               </div>
               <div className="p-4">
                 <div className="flex gap-2 mb-2">
                   <div
-                    className="h-8 bg-blue-500 transition-all rounded-l-lg flex items-center justify-center text-white text-sm"
+                    className="h-8 bg-blue-500 transition-all rounded-l-lg flex items-center justify-center text-foreground text-sm"
                     style={{ width: `${v1Traffic}%` }}
                   >
                     {v1Traffic > 10 && `v1: ${v1Traffic}%`}
                   </div>
                   <div
-                    className="h-8 bg-green-500 transition-all rounded-r-lg flex items-center justify-center text-white text-sm"
+                    className="h-8 bg-success transition-all rounded-r-lg flex items-center justify-center text-foreground text-sm"
                     style={{ width: `${v2Traffic}%` }}
                   >
                     {v2Traffic > 10 && `v2: ${v2Traffic}%`}
                   </div>
                 </div>
-                <div className="flex justify-between text-xs text-gray-500">
+                <div className="flex justify-between text-xs text-muted-foreground">
                   <span className="text-blue-400">v1: {v1Count} servers</span>
-                  <span className="text-green-400">v2: {v2Count} servers</span>
+                  <span className="text-success">v2: {v2Count} servers</span>
                 </div>
               </div>
             </div>
@@ -392,9 +390,9 @@ spec:
           ]}
           learningGoal="Zero-downtime deployments keep your service available during updates. Choose strategy based on risk tolerance and resources."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Key Concepts</div>
-            <ul className="text-xs text-gray-400 space-y-1">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Key Concepts</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>• Health checks before traffic</li>
               <li>• Graceful shutdown (drain connections)</li>
               <li>• Database migrations first</li>
@@ -402,9 +400,9 @@ spec:
             </ul>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Rollback Plan</div>
-            <ul className="text-xs text-gray-400 space-y-1">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Rollback Plan</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>Blue-Green: Switch back instantly</li>
               <li>Rolling: Deploy previous version</li>
               <li>Canary: Shift traffic back to v1</li>

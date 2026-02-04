@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -382,7 +383,7 @@ end`,
             </NodePaletteGroup>
 
             {availableNodes.length === 0 && (
-              <div className="text-sm text-gray-500 text-center py-4">
+              <div className="text-sm text-muted-foreground text-center py-4">
                 All nodes placed! Now connect them.
               </div>
             )}
@@ -405,7 +406,7 @@ end`,
         {/* Canvas */}
         <div
           ref={canvasRef}
-          className="flex-1 relative bg-gray-950 overflow-hidden"
+          className="flex-1 relative bg-background overflow-hidden"
           onDragOver={handleDragOver}
           onDrop={handleDrop}
           onMouseMove={handleCanvasMouseMove}
@@ -526,12 +527,13 @@ end`,
           {/* Completion overlay */}
           {isComplete() && (
             <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
-              <button
+              <Button
                 onClick={handleComplete}
-                className="px-8 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white font-bold rounded-lg shadow-lg shadow-green-900/30 hover:from-green-500 hover:to-green-400 transition-all"
+                size="lg"
+                className="bg-success hover:bg-success/90 text-foreground font-bold shadow-lg shadow-success/30"
               >
                 Complete Level
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -543,13 +545,13 @@ end`,
           learningGoal="Understanding the Rails MVC request/response cycle and how routes, controllers, models, and views work together."
         >
           {/* Status */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Pipeline Status</div>
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Pipeline Status</div>
             <div className="space-y-1 text-sm">
               {['router', 'controller', 'model', 'database', 'view', 'response'].map(type => {
                 const hasNode = placedNodes.some(n => n.type === type);
                 return (
-                  <div key={type} className={`flex items-center gap-2 ${hasNode ? 'text-green-400' : 'text-gray-600'}`}>
+                  <div key={type} className={`flex items-center gap-2 ${hasNode ? 'text-success' : 'text-muted-foreground'}`}>
                     <span>{hasNode ? '+' : '-'}</span>
                     <span>{NODE_DEFS[type].name}</span>
                   </div>

@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -132,46 +133,47 @@ export function Level9Security({ onComplete, onExit }: LevelComponentProps) {
           goal="Never commit secrets to version control. Use environment variables and encrypted credentials."
         >
           {/* Security Status */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Security Status
             </div>
-            <div className={`p-3 rounded-lg ${exposedSecrets.length > 0 ? 'bg-red-900/30 border border-red-600' : 'bg-green-900/30 border border-green-600'}`}>
+            <div className={`p-3 rounded-lg ${exposedSecrets.length > 0 ? 'bg-destructive/20 border border-destructive' : 'bg-success/20 border border-success'}`}>
               {exposedSecrets.length > 0 ? (
-                <div className="text-red-400 text-sm">
+                <div className="text-destructive text-sm">
                   {exposedSecrets.length} exposed secret(s)!
                 </div>
               ) : (
-                <div className="text-green-400 text-sm">
+                <div className="text-success text-sm">
                   All secrets secured
                 </div>
               )}
             </div>
 
             {exposedSecrets.length > 0 && (
-              <button
+              <Button
                 onClick={simulateBreach}
-                className="w-full mt-3 py-2 bg-red-600 hover:bg-red-500 text-white text-sm rounded-lg transition-colors"
+                variant="destructive"
+                className="w-full mt-3"
               >
                 Simulate Security Breach
-              </button>
+              </Button>
             )}
           </div>
 
           {/* Progress */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
               Progress
             </div>
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-400">Secrets secured</span>
-              <span className={securedSecrets.length === secrets.length ? 'text-green-400' : 'text-white'}>
+              <span className="text-muted-foreground">Secrets secured</span>
+              <span className={securedSecrets.length === secrets.length ? 'text-success' : 'text-foreground'}>
                 {securedSecrets.length} / {secrets.length}
               </span>
             </div>
-            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-2 bg-secondary rounded-full overflow-hidden">
               <div
-                className="h-full bg-green-500 transition-all duration-300"
+                className="h-full bg-success transition-all duration-300"
                 style={{ width: `${(securedSecrets.length / secrets.length) * 100}%` }}
               />
             </div>
@@ -190,42 +192,45 @@ export function Level9Security({ onComplete, onExit }: LevelComponentProps) {
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-8 overflow-auto">
+        <div className="flex-1 relative bg-background p-8 overflow-auto">
           {/* Security Breach Animation */}
           {showSecurityBreach && (
-            <div className="absolute inset-0 bg-red-900/80 flex items-center justify-center z-50 animate-pulse">
+            <div className="absolute inset-0 bg-destructive/80 flex items-center justify-center z-50 animate-pulse">
               <div className="text-center">
                 <div className="text-6xl mb-4">🚨</div>
-                <div className="text-2xl font-bold text-white">SECURITY BREACH!</div>
-                <div className="text-red-200 mt-2">Hackers found your exposed credentials</div>
+                <div className="text-2xl font-bold text-foreground">SECURITY BREACH!</div>
+                <div className="text-destructive-foreground mt-2">Hackers found your exposed credentials</div>
               </div>
             </div>
           )}
 
           <div className="max-w-4xl mx-auto grid grid-cols-3 gap-6">
             {/* Exposed Code */}
-            <div className="bg-gray-900 rounded-xl border-2 border-red-500 overflow-hidden">
-              <div className="bg-red-900/40 px-4 py-3 border-b border-red-500/50">
-                <div className="text-red-400 font-semibold">Exposed in Code</div>
-                <div className="text-red-300 text-xs">database.yml, config files</div>
+            <div className="bg-card rounded-xl border-2 border-destructive overflow-hidden">
+              <div className="bg-destructive/20 px-4 py-3 border-b border-destructive/50">
+                <div className="text-destructive font-semibold">Exposed in Code</div>
+                <div className="text-destructive/80 text-xs">database.yml, config files</div>
               </div>
               <div className="p-4 space-y-2 min-h-[300px]">
                 {secrets.filter(s => s.location === 'exposed').map(secret => (
-                  <button
+                  <Button
                     key={secret.id}
+                    variant="ghost"
                     onClick={() => setSelectedSecret(secret.id)}
-                    className={`w-full p-3 rounded-lg text-left transition-all ${
+                    className={`w-full p-3 h-auto rounded-lg text-left transition-all ${
                       selectedSecret === secret.id
-                        ? 'bg-red-800 border-2 border-red-400'
-                        : 'bg-red-900/30 border border-red-700 hover:border-red-500'
+                        ? 'bg-destructive/30 border-2 border-destructive'
+                        : 'bg-destructive/10 border border-destructive/50 hover:border-destructive'
                     }`}
                   >
-                    <div className="text-red-300 font-medium text-sm">{secret.name}</div>
-                    <div className="text-red-400 font-mono text-xs truncate">{secret.value}</div>
-                  </button>
+                    <div className="w-full">
+                      <div className="text-destructive/80 font-medium text-sm">{secret.name}</div>
+                      <div className="text-destructive font-mono text-xs truncate">{secret.value}</div>
+                    </div>
+                  </Button>
                 ))}
                 {secrets.filter(s => s.location === 'exposed').length === 0 && (
-                  <div className="text-gray-600 text-sm text-center py-8">
+                  <div className="text-muted-foreground text-sm text-center py-8">
                     No exposed secrets
                   </div>
                 )}
@@ -233,33 +238,34 @@ export function Level9Security({ onComplete, onExit }: LevelComponentProps) {
             </div>
 
             {/* ENV Variables */}
-            <div className="bg-gray-900 rounded-xl border-2 border-amber-500 overflow-hidden">
-              <div className="bg-amber-900/40 px-4 py-3 border-b border-amber-500/50">
-                <div className="text-amber-400 font-semibold">ENV Variables</div>
-                <div className="text-amber-300 text-xs">.env, server config</div>
+            <div className="bg-card rounded-xl border-2 border-warning overflow-hidden">
+              <div className="bg-warning/20 px-4 py-3 border-b border-warning/50">
+                <div className="text-warning font-semibold">ENV Variables</div>
+                <div className="text-warning/80 text-xs">.env, server config</div>
               </div>
               <div className="p-4 space-y-2 min-h-[300px]">
                 {selectedSecret && (
-                  <button
+                  <Button
+                    variant="outline"
                     onClick={() => moveSecret(selectedSecret, 'env')}
-                    className="w-full p-3 rounded-lg border-2 border-dashed border-amber-500 text-amber-400 text-sm hover:bg-amber-900/20 transition-colors"
+                    className="w-full p-3 h-auto border-2 border-dashed border-warning text-warning hover:bg-warning/10"
                   >
                     + Move here
-                  </button>
+                  </Button>
                 )}
                 {secrets.filter(s => s.location === 'env').map(secret => (
                   <div
                     key={secret.id}
                     className={`p-3 rounded-lg ${
                       secret.correctLocation === 'env'
-                        ? 'bg-green-900/30 border border-green-600'
-                        : 'bg-red-900/30 border border-red-600'
+                        ? 'bg-success/20 border border-success'
+                        : 'bg-destructive/20 border border-destructive'
                     }`}
                   >
-                    <div className={`font-medium text-sm ${secret.correctLocation === 'env' ? 'text-green-300' : 'text-red-300'}`}>
+                    <div className={`font-medium text-sm ${secret.correctLocation === 'env' ? 'text-success' : 'text-destructive'}`}>
                       {secret.name}
                     </div>
-                    <div className="text-gray-400 font-mono text-xs">
+                    <div className="text-muted-foreground font-mono text-xs">
                       {secret.correctLocation === 'env' ? '✓ Correct' : '✗ Should be in credentials'}
                     </div>
                   </div>
@@ -268,33 +274,34 @@ export function Level9Security({ onComplete, onExit }: LevelComponentProps) {
             </div>
 
             {/* Rails Credentials */}
-            <div className="bg-gray-900 rounded-xl border-2 border-green-500 overflow-hidden">
-              <div className="bg-green-900/40 px-4 py-3 border-b border-green-500/50">
-                <div className="text-green-400 font-semibold">Rails Credentials</div>
-                <div className="text-green-300 text-xs">credentials.yml.enc (encrypted)</div>
+            <div className="bg-card rounded-xl border-2 border-success overflow-hidden">
+              <div className="bg-success/20 px-4 py-3 border-b border-success/50">
+                <div className="text-success font-semibold">Rails Credentials</div>
+                <div className="text-success/80 text-xs">credentials.yml.enc (encrypted)</div>
               </div>
               <div className="p-4 space-y-2 min-h-[300px]">
                 {selectedSecret && (
-                  <button
+                  <Button
+                    variant="outline"
                     onClick={() => moveSecret(selectedSecret, 'credentials')}
-                    className="w-full p-3 rounded-lg border-2 border-dashed border-green-500 text-green-400 text-sm hover:bg-green-900/20 transition-colors"
+                    className="w-full p-3 h-auto border-2 border-dashed border-success text-success hover:bg-success/10"
                   >
                     + Move here
-                  </button>
+                  </Button>
                 )}
                 {secrets.filter(s => s.location === 'credentials').map(secret => (
                   <div
                     key={secret.id}
                     className={`p-3 rounded-lg ${
                       secret.correctLocation === 'credentials'
-                        ? 'bg-green-900/30 border border-green-600'
-                        : 'bg-red-900/30 border border-red-600'
+                        ? 'bg-success/20 border border-success'
+                        : 'bg-destructive/20 border border-destructive'
                     }`}
                   >
-                    <div className={`font-medium text-sm ${secret.correctLocation === 'credentials' ? 'text-green-300' : 'text-red-300'}`}>
+                    <div className={`font-medium text-sm ${secret.correctLocation === 'credentials' ? 'text-success' : 'text-destructive'}`}>
                       {secret.name}
                     </div>
-                    <div className="text-gray-400 font-mono text-xs">
+                    <div className="text-muted-foreground font-mono text-xs">
                       {secret.correctLocation === 'credentials' ? '✓ Encrypted' : '✗ Should be in ENV'}
                     </div>
                   </div>
@@ -339,18 +346,18 @@ stripe_key: [ENCRYPTED]
           ]}
           learningGoal="ENV variables for non-sensitive config, Rails credentials for secrets. Never commit passwords or API keys to git."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
               When to Use What
             </div>
             <div className="space-y-2 text-xs">
-              <div className="p-2 bg-amber-900/20 rounded border border-amber-700">
-                <div className="text-amber-400 font-semibold">ENV Variables</div>
-                <div className="text-gray-400">Environment, URLs, feature flags</div>
+              <div className="p-2 bg-warning/10 rounded border border-warning/50">
+                <div className="text-warning font-semibold">ENV Variables</div>
+                <div className="text-muted-foreground">Environment, URLs, feature flags</div>
               </div>
-              <div className="p-2 bg-green-900/20 rounded border border-green-700">
-                <div className="text-green-400 font-semibold">Credentials</div>
-                <div className="text-gray-400">Passwords, API keys, tokens</div>
+              <div className="p-2 bg-success/10 rounded border border-success/50">
+                <div className="text-success font-semibold">Credentials</div>
+                <div className="text-muted-foreground">Passwords, API keys, tokens</div>
               </div>
             </div>
           </div>

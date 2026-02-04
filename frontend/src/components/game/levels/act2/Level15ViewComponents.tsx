@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -87,28 +88,28 @@ end`;
           ]}
           goal="DRY up your views with ViewComponent. Testable, reusable UI pieces."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Duplication Score
             </div>
             <div className="text-center py-4">
-              <div className={`text-4xl font-bold ${remainingDuplication === 0 ? 'text-green-400' : 'text-red-400'}`}>
+              <div className={`text-4xl font-bold ${remainingDuplication === 0 ? 'text-success' : 'text-destructive'}`}>
                 {remainingDuplication}
               </div>
-              <div className="text-xs text-gray-500">duplicated elements remaining</div>
+              <div className="text-xs text-muted-foreground">duplicated elements remaining</div>
             </div>
-            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-2 bg-secondary rounded-full overflow-hidden">
               <div
-                className="h-full bg-green-500 transition-all"
+                className="h-full bg-success transition-all"
                 style={{ width: `${((totalDuplication - remainingDuplication) / totalDuplication) * 100}%` }}
               />
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
+          <div className="p-4 border-t border-border">
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-400">Components created</span>
-              <span className={extractedCount === elements.length ? 'text-green-400' : 'text-white'}>
+              <span className="text-muted-foreground">Components created</span>
+              <span className={extractedCount === elements.length ? 'text-success' : 'text-foreground'}>
                 {extractedCount} / {elements.length}
               </span>
             </div>
@@ -127,13 +128,13 @@ end`;
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-8 overflow-auto">
+        <div className="flex-1 relative bg-background p-8 overflow-auto">
           <div className="max-w-3xl mx-auto">
             {/* View Files Grid */}
             <div className="grid grid-cols-3 gap-4 mb-8">
               {['index.html.erb', 'show.html.erb', 'dashboard.html.erb', 'profile.html.erb', 'settings.html.erb', 'admin.html.erb'].map((file, i) => (
-                <div key={file} className="bg-gray-900 rounded-lg p-3 border border-gray-700">
-                  <div className="text-xs text-gray-500 mb-2">{file}</div>
+                <div key={file} className="bg-card rounded-lg p-3 border border-border">
+                  <div className="text-xs text-muted-foreground mb-2">{file}</div>
                   <div className="flex flex-wrap gap-1">
                     {elements.map(el => {
                       const showInFile = (i + el.instances) % 3 === 0 || el.instances > 10;
@@ -143,8 +144,8 @@ end`;
                           key={el.id}
                           className={`text-xs px-2 py-1 rounded ${
                             el.extracted
-                              ? 'bg-green-900/30 text-green-400 border border-green-600'
-                              : 'bg-red-900/30 text-red-400 border border-red-600'
+                              ? 'bg-success/20 text-success border border-success'
+                              : 'bg-destructive/20 text-destructive border border-destructive'
                           }`}
                         >
                           {el.extracted ? `<${el.name.replace(' ', '')} />` : el.name}
@@ -157,10 +158,10 @@ end`;
             </div>
 
             {/* Elements to Extract */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Duplicated Elements</div>
-                <div className="text-xs text-gray-500">Click to extract into a component</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Duplicated Elements</div>
+                <div className="text-xs text-muted-foreground">Click to extract into a component</div>
               </div>
               <div className="p-4 space-y-3">
                 {elements.map(element => (
@@ -169,27 +170,27 @@ end`;
                     onClick={() => !element.extracted && extractElement(element.id)}
                     className={`p-4 rounded-lg border-2 transition-all ${
                       element.extracted
-                        ? 'border-green-600 bg-green-900/10 cursor-default'
-                        : 'border-red-600 bg-red-900/10 cursor-pointer hover:bg-red-900/20'
+                        ? 'border-success bg-success/10 cursor-default'
+                        : 'border-destructive bg-destructive/10 cursor-pointer hover:bg-destructive/20'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-3">
-                        <span className={`text-lg font-semibold ${element.extracted ? 'text-green-400' : 'text-red-400'}`}>
+                        <span className={`text-lg font-semibold ${element.extracted ? 'text-success' : 'text-destructive'}`}>
                           {element.name}
                         </span>
                         {element.extracted && (
-                          <span className="text-xs bg-green-900/40 text-green-400 px-2 py-1 rounded">
+                          <span className="text-xs bg-success/20 text-success px-2 py-1 rounded">
                             ✓ Extracted
                           </span>
                         )}
                       </div>
-                      <div className={`text-sm ${element.extracted ? 'text-green-400' : 'text-red-400'}`}>
+                      <div className={`text-sm ${element.extracted ? 'text-success' : 'text-destructive'}`}>
                         {element.extracted ? '1 component' : `${element.instances} duplicates`}
                       </div>
                     </div>
-                    <pre className={`text-xs p-2 rounded ${element.extracted ? 'bg-green-900/20' : 'bg-red-900/20'}`}>
-                      <code className="text-gray-400">
+                    <pre className={`text-xs p-2 rounded ${element.extracted ? 'bg-success/10' : 'bg-destructive/10'}`}>
+                      <code className="text-muted-foreground">
                         {element.extracted
                           ? `<%= render ${element.name.replace(' ', '')}Component.new(...) %>`
                           : element.code}
@@ -213,9 +214,9 @@ end`;
           }))}
           learningGoal="ViewComponent extracts UI into testable Ruby classes. Each component has its own template and can be unit tested."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">ViewComponent Benefits</div>
-            <ul className="text-xs text-gray-400 space-y-1">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">ViewComponent Benefits</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>+ Unit testable UI</li>
               <li>+ Encapsulated logic & markup</li>
               <li>+ Better performance than partials</li>
@@ -223,9 +224,9 @@ end`;
             </ul>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Usage</div>
-            <pre className="text-xs text-gray-400 bg-gray-800 p-2 rounded overflow-x-auto">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Usage</div>
+            <pre className="text-xs text-muted-foreground bg-secondary p-2 rounded overflow-x-auto">
 {`<%# In any view %>
 <%= render AvatarComponent.new(
   user: @user

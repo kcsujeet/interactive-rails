@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { login } from '../../lib/api';
 import { hasGuestProgress, importGuestProgress } from '../../lib/progress';
 import { setAuth } from '../../stores/authStore';
+import { Button } from '../ui/Button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/Card';
+import { Input } from '../ui/Input';
 
 export default function LoginForm() {
   const [email, setEmail] = useState('');
@@ -37,61 +40,64 @@ export default function LoginForm() {
   }
 
   return (
-    <form className="w-full max-w-md mx-auto" onSubmit={handleSubmit}>
-      <div className="bg-game-surface rounded-xl border border-game-border p-8">
-        <h2 className="text-xl font-semibold text-white mb-6">Login</h2>
+    <Card className="w-full max-w-md">
+      <CardHeader>
+        <CardTitle className="text-xl">Login</CardTitle>
+        <CardDescription>Enter your credentials to access your account</CardDescription>
+      </CardHeader>
+      <form onSubmit={handleSubmit}>
+        <CardContent className="space-y-4">
+          {error && (
+            <div className="p-3 rounded-lg bg-destructive/15 border border-destructive/50 text-sm text-destructive">
+              {error}
+            </div>
+          )}
 
-        {error && (
-          <div className="mb-5 p-3 bg-rose-950/50 border border-rose-900 rounded-lg text-sm text-rose-400">
-            {error}
-          </div>
-        )}
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1.5" htmlFor="email">Email</label>
-            <input
-              className="w-full px-4 py-2.5 bg-game-bg text-white border border-game-border rounded-lg focus:border-sky-500 focus:outline-none transition-colors placeholder:text-slate-600"
-              type="email"
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground" htmlFor="email">
+              Email
+            </label>
+            <Input
               id="email"
+              type="email"
+              placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
               disabled={isLoading}
               autoComplete="email"
-              placeholder="you@example.com"
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1.5" htmlFor="password">Password</label>
-            <input
-              className="w-full px-4 py-2.5 bg-game-bg text-white border border-game-border rounded-lg focus:border-sky-500 focus:outline-none transition-colors placeholder:text-slate-600"
-              type="password"
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground" htmlFor="password">
+              Password
+            </label>
+            <Input
               id="password"
+              type="password"
+              placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               disabled={isLoading}
               autoComplete="current-password"
-              placeholder="••••••••"
             />
           </div>
-        </div>
+        </CardContent>
 
-        <button
-          type="submit"
-          className="w-full mt-6 px-4 py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          disabled={isLoading}
-        >
-          {isLoading ? 'Logging in...' : 'Sign In'}
-        </button>
-
-        <p className="mt-6 text-center text-sm text-slate-500">
-          New to RailsExpert?{' '}
-          <a href="/signup" className="text-sky-400 hover:text-sky-300 transition-colors">Create an account</a>
-        </p>
-      </div>
-    </form>
+        <CardFooter className="flex flex-col gap-4">
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? 'Signing in...' : 'Sign In'}
+          </Button>
+          <p className="text-center text-sm text-muted-foreground">
+            New to RailsExpert?{' '}
+            <a href="/signup" className="text-primary hover:underline">
+              Create an account
+            </a>
+          </p>
+        </CardFooter>
+      </form>
+    </Card>
   );
 }

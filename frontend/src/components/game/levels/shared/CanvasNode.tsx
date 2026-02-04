@@ -163,8 +163,8 @@ export function CanvasNode({
       <div
         className={`
           relative rounded-lg border-2 transition-all
-          ${selected ? 'border-cyan-400 shadow-lg shadow-cyan-900/50' : 'border-gray-600'}
-          ${locked ? 'opacity-75' : 'hover:border-gray-500'}
+          ${selected ? 'border-primary shadow-lg shadow-primary/30' : 'border-border'}
+          ${locked ? 'opacity-75' : 'hover:border-muted-foreground'}
         `}
         style={{ backgroundColor: `${color}20`, borderColor: selected ? undefined : color }}
       >
@@ -172,16 +172,16 @@ export function CanvasNode({
           <div className="flex items-center gap-2">
             <span className="text-xl">{icon}</span>
             <div>
-              <div className="text-sm font-semibold text-white">{name}</div>
-              {label && <div className="text-xs text-gray-400">{label}</div>}
+              <div className="text-sm font-semibold text-foreground">{name}</div>
+              {label && <div className="text-xs text-muted-foreground">{label}</div>}
             </div>
           </div>
         </div>
 
         {/* Lock icon */}
         {locked && (
-          <div className="absolute -top-2 -right-2 w-5 h-5 bg-gray-700 rounded-full flex items-center justify-center">
-            <svg className="w-3 h-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+          <div className="absolute -top-2 -right-2 w-5 h-5 bg-secondary rounded-full flex items-center justify-center">
+            <svg className="w-3 h-3 text-muted-foreground" fill="currentColor" viewBox="0 0 20 20">
               <path
                 fillRule="evenodd"
                 d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
@@ -194,7 +194,7 @@ export function CanvasNode({
         {/* Badge */}
         {badge && (
           <div
-            className="absolute -top-2 -left-2 px-1.5 py-0.5 rounded text-xs font-bold text-white"
+            className="absolute -top-2 -left-2 px-1.5 py-0.5 rounded text-xs font-bold text-foreground"
             style={{ backgroundColor: badgeColor }}
           >
             {badge}
@@ -206,7 +206,7 @@ export function CanvasNode({
           <>
             {/* Input point (left) */}
             <div
-              className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-600 border-2 border-cyan-500 hover:bg-cyan-800 hover:scale-125 transition-all cursor-crosshair z-20 flex items-center justify-center"
+              className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-secondary border-2 border-primary hover:bg-primary/20 hover:scale-125 transition-all cursor-crosshair z-20 flex items-center justify-center"
               onMouseUp={(e) => {
                 e.stopPropagation();
                 onCompleteConnection?.(id, 'input');
@@ -216,12 +216,12 @@ export function CanvasNode({
                 onStartConnection?.(id, 'input');
               }}
             >
-              <div className="w-2 h-2 rounded-full bg-cyan-400" />
+              <div className="w-2 h-2 rounded-full bg-primary" />
             </div>
 
             {/* Output point (right) */}
             <div
-              className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-600 border-2 border-cyan-500 hover:bg-cyan-800 hover:scale-125 transition-all cursor-crosshair z-20 flex items-center justify-center"
+              className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-secondary border-2 border-primary hover:bg-primary/20 hover:scale-125 transition-all cursor-crosshair z-20 flex items-center justify-center"
               onMouseUp={(e) => {
                 e.stopPropagation();
                 onCompleteConnection?.(id, 'output');
@@ -231,7 +231,7 @@ export function CanvasNode({
                 onStartConnection?.(id, 'output');
               }}
             >
-              <div className="w-2 h-2 rounded-full bg-cyan-400" />
+              <div className="w-2 h-2 rounded-full bg-primary" />
             </div>
           </>
         )}

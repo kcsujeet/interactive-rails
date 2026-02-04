@@ -6,6 +6,7 @@
  */
 
 import { useState } from 'react';
+import { Button } from '../../../ui/Button';
 import type { ValidationResult, ValidateFn } from './SubmitButton';
 
 interface LevelHeaderProps {
@@ -50,29 +51,33 @@ export function LevelHeader({
 
   return (
     <div className="relative">
-      <div className="h-14 border-b border-gray-800 flex items-center justify-between px-6 bg-gray-900/50">
-        <button
+      <div className="h-14 border-b border-border flex items-center justify-between px-6 bg-card/50">
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={onExit}
-          className="text-gray-400 hover:text-white text-sm flex items-center gap-2 transition-colors"
+          className="text-muted-foreground hover:text-foreground text-sm flex items-center gap-2"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
           Levels
-        </button>
+        </Button>
 
         <div className="text-center">
-          <div className="text-xs text-cyan-400 font-medium tracking-wider">
+          <div className="text-xs text-primary font-medium tracking-wider">
             ACT {actNumber} - LEVEL {levelNumber}
           </div>
-          <div className="text-lg font-bold text-white">{levelName}</div>
+          <div className="text-lg font-bold text-foreground">{levelName}</div>
         </div>
 
         <div className="flex items-center gap-3">
           {onReset && (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={onReset}
-              className="text-gray-400 hover:text-white text-sm flex items-center gap-2 transition-colors"
+              className="text-muted-foreground hover:text-foreground text-sm flex items-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -83,23 +88,25 @@ export function LevelHeader({
                 />
               </svg>
               Reset
-            </button>
+            </Button>
           )}
 
           {onValidate && onComplete && (
-            <button
+            <Button
               onClick={handleSubmit}
               disabled={isCompleting}
-              className={`px-5 py-1.5 rounded-lg font-semibold text-sm transition-all shadow-md ${
+              variant={lastResult?.valid ? 'default' : 'default'}
+              size="sm"
+              className={`px-5 font-semibold shadow-md ${
                 isCompleting
-                  ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                  ? 'bg-secondary text-muted-foreground cursor-not-allowed'
                   : lastResult?.valid
-                    ? 'bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white shadow-green-900/30'
-                    : 'bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-white shadow-cyan-900/30'
+                    ? 'bg-success hover:bg-success/90 text-foreground shadow-success/30'
+                    : 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/30'
               }`}
             >
               {isCompleting ? 'Completing...' : lastResult?.valid ? 'Complete Level' : 'Submit'}
-            </button>
+            </Button>
           )}
 
           {!onValidate && !onReset && <div className="w-16" />}
@@ -109,31 +116,33 @@ export function LevelHeader({
       {/* Feedback dropdown */}
       {showFeedback && lastResult && !lastResult.valid && (
         <div className="absolute top-14 right-6 z-50 w-80 animate-slideDown">
-          <div className="bg-gray-900 border border-red-500/50 rounded-lg shadow-xl p-4 mt-2">
-            <div className="text-red-400 text-sm font-medium flex items-center gap-2">
+          <div className="bg-card border border-destructive/50 rounded-lg shadow-xl p-4 mt-2">
+            <div className="text-destructive text-sm font-medium flex items-center gap-2">
               <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
               </svg>
               {lastResult.message}
             </div>
             {lastResult.details && lastResult.details.length > 0 && (
-              <ul className="mt-2 text-red-300 text-xs space-y-1">
+              <ul className="mt-2 text-destructive/80 text-xs space-y-1">
                 {lastResult.details.map((detail, i) => (
                   <li key={i} className="flex items-start gap-1">
-                    <span className="text-red-500">•</span>
+                    <span className="text-destructive">•</span>
                     {detail}
                   </li>
                 ))}
               </ul>
             )}
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => setShowFeedback(false)}
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-300"
+              className="absolute top-2 right-2 text-muted-foreground hover:text-foreground h-6 w-6"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -141,8 +150,8 @@ export function LevelHeader({
       {/* Success feedback */}
       {showFeedback && lastResult?.valid && (
         <div className="absolute top-14 right-6 z-50 w-72 animate-slideDown">
-          <div className="bg-gray-900 border border-green-500/50 rounded-lg shadow-xl p-4 mt-2">
-            <div className="text-green-400 text-sm font-medium flex items-center gap-2">
+          <div className="bg-card border border-success/50 rounded-lg shadow-xl p-4 mt-2">
+            <div className="text-success text-sm font-medium flex items-center gap-2">
               <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
               </svg>

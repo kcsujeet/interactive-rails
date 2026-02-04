@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getRealms } from '../../lib/api';
 import type { Realm } from '../../../../shared/types';
+import { Button } from '../ui/Button';
 
 interface RealmCardProps {
   realm: Realm;
@@ -76,9 +77,9 @@ export default function RealmMap() {
     return (
       <div className="error pixel-panel">
         <p>Error: {error}</p>
-        <button className="pixel-btn" onClick={() => window.location.reload()}>
+        <Button onClick={() => window.location.reload()}>
           Retry
-        </button>
+        </Button>
       </div>
     );
   }

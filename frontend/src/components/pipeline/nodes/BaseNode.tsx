@@ -30,10 +30,10 @@ function BaseNode({
   const { label, status, metrics } = data;
 
   const statusColor = {
-    idle: 'bg-gray-500',
-    processing: 'bg-blue-500 animate-pulse',
-    error: 'bg-red-500',
-    success: 'bg-green-500',
+    idle: 'bg-muted-foreground',
+    processing: 'bg-primary animate-pulse',
+    error: 'bg-destructive',
+    success: 'bg-success',
   }[status];
 
   return (
@@ -62,7 +62,7 @@ function BaseNode({
         <span className="text-lg" style={{ color }}>
           {icon}
         </span>
-        <span className="text-sm font-medium text-gray-200 truncate">{label}</span>
+        <span className="text-sm font-medium text-foreground truncate">{label}</span>
       </div>
 
       {/* Metrics (if available) */}
@@ -70,10 +70,10 @@ function BaseNode({
         <div className="px-3 py-2 text-xs space-y-1 border-t border-game-border">
           {metrics.processTime > 0 && (
             <div className="flex justify-between">
-              <span className="text-gray-500">Time:</span>
+              <span className="text-muted-foreground">Time:</span>
               <span
                 className={clsx(
-                  metrics.processTime > 100 ? 'text-red-400' : 'text-gray-300'
+                  metrics.processTime > 100 ? 'text-destructive' : 'text-foreground'
                 )}
               >
                 {metrics.processTime}ms
@@ -82,10 +82,10 @@ function BaseNode({
           )}
           {metrics.queryCount > 0 && (
             <div className="flex justify-between">
-              <span className="text-gray-500">Queries:</span>
+              <span className="text-muted-foreground">Queries:</span>
               <span
                 className={clsx(
-                  metrics.queryCount > 10 ? 'text-amber-400' : 'text-gray-300'
+                  metrics.queryCount > 10 ? 'text-warning' : 'text-foreground'
                 )}
               >
                 {metrics.queryCount}
@@ -94,14 +94,14 @@ function BaseNode({
           )}
           {metrics.cacheHits > 0 && (
             <div className="flex justify-between">
-              <span className="text-gray-500">Cache:</span>
-              <span className="text-green-400">{metrics.cacheHits} hits</span>
+              <span className="text-muted-foreground">Cache:</span>
+              <span className="text-success">{metrics.cacheHits} hits</span>
             </div>
           )}
           {metrics.errorCount > 0 && (
             <div className="flex justify-between">
-              <span className="text-gray-500">Errors:</span>
-              <span className="text-red-400">{metrics.errorCount}</span>
+              <span className="text-muted-foreground">Errors:</span>
+              <span className="text-destructive">{metrics.errorCount}</span>
             </div>
           )}
         </div>

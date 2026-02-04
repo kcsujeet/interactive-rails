@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -151,8 +152,8 @@ ${chainExample}`;
           goal="DRY up your queries with scopes. Change the logic in one place, update behavior everywhere."
         >
           {/* Available Scope Names */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Scope Names
             </div>
             <div className="flex flex-wrap gap-2">
@@ -160,46 +161,48 @@ ${chainExample}`;
                 const isUsed = queries.some(q => q.scopeName === scope);
                 const isCorrect = queries.some(q => q.scopeName === scope && q.correctScope === scope);
                 return (
-                  <button
+                  <Button
                     key={scope}
+                    variant="outline"
+                    size="sm"
                     onClick={() => selectedQuery && assignScope(selectedQuery, scope)}
                     disabled={!selectedQuery}
-                    className={`px-3 py-1.5 rounded-lg font-mono text-sm transition-all ${
+                    className={`px-3 py-1.5 font-mono text-sm transition-all ${
                       isCorrect
-                        ? 'bg-green-900/40 border border-green-600 text-green-400'
+                        ? 'bg-success/20 border-success text-success'
                         : isUsed
-                        ? 'bg-red-900/40 border border-red-600 text-red-400'
+                        ? 'bg-destructive/20 border-destructive text-destructive'
                         : selectedQuery
-                        ? 'bg-purple-900/40 border border-purple-500 text-purple-400 hover:bg-purple-800/40 cursor-pointer'
-                        : 'bg-gray-800 border border-gray-700 text-gray-500'
+                        ? 'bg-primary/20 border-primary text-primary hover:bg-primary/30 cursor-pointer'
+                        : 'bg-secondary border-border text-muted-foreground'
                     }`}
                   >
                     :{scope}
-                  </button>
+                  </Button>
                 );
               })}
             </div>
             {selectedQuery && (
-              <div className="mt-2 text-xs text-purple-400">
+              <div className="mt-2 text-xs text-primary">
                 Click a scope name to assign it
               </div>
             )}
           </div>
 
           {/* Progress */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
               Progress
             </div>
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-400">Scopes defined</span>
-              <span className={scopedQueries.length === queries.length ? 'text-green-400' : 'text-white'}>
+              <span className="text-muted-foreground">Scopes defined</span>
+              <span className={scopedQueries.length === queries.length ? 'text-success' : 'text-foreground'}>
                 {scopedQueries.length} / {queries.length}
               </span>
             </div>
-            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-2 bg-secondary rounded-full overflow-hidden">
               <div
-                className="h-full bg-green-500 transition-all duration-300"
+                className="h-full bg-success transition-all duration-300"
                 style={{ width: `${(scopedQueries.length / queries.length) * 100}%` }}
               />
             </div>
@@ -218,12 +221,12 @@ ${chainExample}`;
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-8 overflow-auto">
+        <div className="flex-1 relative bg-background p-8 overflow-auto">
           <div className="max-w-2xl mx-auto space-y-4">
             {/* Header */}
             <div className="text-center mb-8">
-              <div className="text-gray-400 text-sm mb-2">Transform raw queries into reusable scopes</div>
-              <div className="text-xs text-gray-600">Click a query, then click a scope name to assign</div>
+              <div className="text-muted-foreground text-sm mb-2">Transform raw queries into reusable scopes</div>
+              <div className="text-xs text-muted-foreground">Click a query, then click a scope name to assign</div>
             </div>
 
             {/* Query Blocks */}
@@ -237,18 +240,18 @@ ${chainExample}`;
                   onClick={() => setSelectedQuery(query.id)}
                   className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
                     selectedQuery === query.id
-                      ? 'border-purple-500 bg-purple-900/20'
+                      ? 'border-primary bg-primary/10'
                       : isScoped
-                      ? 'border-green-600 bg-green-900/10'
+                      ? 'border-success bg-success/10'
                       : hasWrongScope
-                      ? 'border-red-600 bg-red-900/10'
-                      : 'border-gray-700 bg-gray-900 hover:border-gray-600'
+                      ? 'border-destructive bg-destructive/10'
+                      : 'border-border bg-card hover:border-muted-foreground'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-gray-400 text-sm">{query.description}</span>
+                    <span className="text-muted-foreground text-sm">{query.description}</span>
                     {isScoped && (
-                      <span className="text-green-400 text-xs bg-green-900/40 px-2 py-1 rounded">
+                      <span className="text-success text-xs bg-success/20 px-2 py-1 rounded">
                         ✓ Scoped
                       </span>
                     )}
@@ -256,27 +259,27 @@ ${chainExample}`;
 
                   <div className="flex items-center gap-4">
                     {/* Before: raw query */}
-                    <div className="flex-1 p-3 bg-gray-800 rounded-lg">
-                      <div className="text-xs text-gray-500 mb-1">Raw query:</div>
-                      <code className="text-amber-400 text-sm">Post.{query.raw}</code>
+                    <div className="flex-1 p-3 bg-secondary rounded-lg">
+                      <div className="text-xs text-muted-foreground mb-1">Raw query:</div>
+                      <code className="text-warning text-sm">Post.{query.raw}</code>
                     </div>
 
                     {/* Arrow */}
-                    <div className="text-gray-600 text-2xl">→</div>
+                    <div className="text-muted-foreground text-2xl">→</div>
 
                     {/* After: scoped */}
                     <div className={`flex-1 p-3 rounded-lg ${
                       query.scopeName
-                        ? isScoped ? 'bg-green-900/30' : 'bg-red-900/30'
-                        : 'bg-gray-800 border-2 border-dashed border-gray-700'
+                        ? isScoped ? 'bg-success/20' : 'bg-destructive/20'
+                        : 'bg-secondary border-2 border-dashed border-border'
                     }`}>
-                      <div className="text-xs text-gray-500 mb-1">With scope:</div>
+                      <div className="text-xs text-muted-foreground mb-1">With scope:</div>
                       {query.scopeName ? (
-                        <code className={isScoped ? 'text-green-400 text-sm' : 'text-red-400 text-sm'}>
+                        <code className={isScoped ? 'text-success text-sm' : 'text-destructive text-sm'}>
                           Post.{query.scopeName}{query.id === 'by_author' ? '(author)' : ''}
                         </code>
                       ) : (
-                        <span className="text-gray-600 text-sm">Select scope name</span>
+                        <span className="text-muted-foreground text-sm">Select scope name</span>
                       )}
                     </div>
                   </div>
@@ -286,12 +289,12 @@ ${chainExample}`;
 
             {/* Chaining Example */}
             {scopedQueries.length >= 2 && (
-              <div className="mt-8 p-4 bg-purple-900/20 border border-purple-600 rounded-xl">
-                <div className="text-purple-400 font-semibold mb-2">Scope Chaining</div>
-                <code className="text-cyan-400">
+              <div className="mt-8 p-4 bg-primary/10 border border-primary rounded-xl">
+                <div className="text-primary font-semibold mb-2">Scope Chaining</div>
+                <code className="text-primary">
                   Post.{scopedQueries.map(q => q.scopeName).join('.')}
                 </code>
-                <div className="text-gray-400 text-xs mt-2">
+                <div className="text-muted-foreground text-xs mt-2">
                   Scopes can be chained for complex queries!
                 </div>
               </div>
@@ -318,11 +321,11 @@ ${chainExample}`;
           ]}
           learningGoal="Scopes encapsulate query logic in the model. They're chainable, reusable, and make your code more readable."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
               Scope Syntax
             </div>
-            <pre className="text-xs text-gray-400 bg-gray-800 p-2 rounded overflow-x-auto">
+            <pre className="text-xs text-muted-foreground bg-secondary p-2 rounded overflow-x-auto">
 {`# Simple scope
 scope :published, -> { where(published: true) }
 

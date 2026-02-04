@@ -18,6 +18,7 @@ import {
   useLevelCompletion,
   type ValidationResult,
 } from '../shared';
+import { Button } from '../../../ui/Button';
 
 interface RateLimitConfig {
   enabled: boolean;
@@ -164,32 +165,32 @@ export function Level29RateLimiting({ onComplete, onExit }: LevelComponentProps)
           goal="Protect your API from abuse while allowing legitimate traffic."
         >
           {/* Server Health */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Server Health
             </div>
-            <div className="h-4 bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-4 bg-secondary rounded-full overflow-hidden">
               <div
                 className={`h-full transition-all ${
-                  serverHealth > 70 ? 'bg-green-500' :
-                  serverHealth > 30 ? 'bg-yellow-500' : 'bg-red-500'
+                  serverHealth > 70 ? 'bg-success' :
+                  serverHealth > 30 ? 'bg-warning' : 'bg-destructive'
                 }`}
                 style={{ width: `${serverHealth}%` }}
               />
             </div>
-            <div className="text-xs text-gray-500 mt-1 text-center">
+            <div className="text-xs text-muted-foreground mt-1 text-center">
               {serverHealth > 70 ? 'Healthy' : serverHealth > 30 ? 'Under Load' : 'Critical!'}
             </div>
           </div>
 
           {/* Rate Limit Settings */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Limit Settings
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-xs text-gray-500">Requests: {config.limit}</label>
+                <label className="text-xs text-muted-foreground">Requests: {config.limit}</label>
                 <input
                   type="range"
                   min="10"
@@ -200,7 +201,7 @@ export function Level29RateLimiting({ onComplete, onExit }: LevelComponentProps)
                 />
               </div>
               <div>
-                <label className="text-xs text-gray-500">Window: {config.window}s</label>
+                <label className="text-xs text-muted-foreground">Window: {config.window}s</label>
                 <input
                   type="range"
                   min="10"
@@ -210,23 +211,20 @@ export function Level29RateLimiting({ onComplete, onExit }: LevelComponentProps)
                   className="w-full"
                 />
               </div>
-              <div className="text-center text-sm text-cyan-400">
+              <div className="text-center text-sm text-primary">
                 {config.limit} requests / {config.window} seconds
               </div>
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <button
+          <div className="p-4 border-t border-border">
+            <Button
               onClick={() => setIsSimulating(!isSimulating)}
-              className={`w-full py-2 rounded-lg font-medium transition-all ${
-                isSimulating
-                  ? 'bg-red-600 hover:bg-red-500 text-white'
-                  : 'bg-cyan-600 hover:bg-cyan-500 text-white'
-              }`}
+              variant={isSimulating ? 'destructive' : 'default'}
+              className="w-full"
             >
               {isSimulating ? 'Stop Traffic' : 'Start Traffic'}
-            </button>
+            </Button>
           </div>
         </InstructionPanel>
       </LeftPanel>
@@ -248,12 +246,12 @@ export function Level29RateLimiting({ onComplete, onExit }: LevelComponentProps)
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-6 overflow-auto">
+        <div className="flex-1 relative bg-background p-6 overflow-auto">
           <div className="max-w-4xl mx-auto">
             {/* Strategy Selection */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Rate Limiting Strategy</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Rate Limiting Strategy</div>
               </div>
               <div className="p-4 grid grid-cols-3 gap-3">
                 {[
@@ -261,82 +259,84 @@ export function Level29RateLimiting({ onComplete, onExit }: LevelComponentProps)
                   { id: 'sliding-window', name: 'Sliding Window', icon: '📏', desc: 'Rolling time window' },
                   { id: 'token-bucket', name: 'Token Bucket', icon: '🪣', desc: 'Tokens refill over time' },
                 ].map(s => (
-                  <button
+                  <Button
                     key={s.id}
                     onClick={() => setStrategy(s.id as RateLimitConfig['strategy'])}
-                    className={`p-4 rounded-lg border-2 text-center transition-all ${
+                    variant={config.strategy === s.id ? 'default' : 'outline'}
+                    className={`p-4 h-auto rounded-lg border-2 text-center transition-all flex-col ${
                       config.strategy === s.id
-                        ? 'border-green-500 bg-green-900/20'
-                        : 'border-gray-700 bg-gray-800 hover:border-gray-500'
+                        ? 'border-success bg-success/20'
+                        : 'border-border bg-secondary hover:border-muted-foreground'
                     }`}
                   >
                     <div className="text-2xl mb-2">{s.icon}</div>
-                    <div className={`font-semibold text-sm ${config.strategy === s.id ? 'text-green-400' : 'text-white'}`}>
+                    <div className={`font-semibold text-sm ${config.strategy === s.id ? 'text-success' : 'text-foreground'}`}>
                       {s.name}
                     </div>
-                    <div className="text-xs text-gray-500">{s.desc}</div>
-                  </button>
+                    <div className="text-xs text-muted-foreground">{s.desc}</div>
+                  </Button>
                 ))}
               </div>
             </div>
 
             {/* Client Traffic */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Incoming Traffic</div>
-                <div className="text-xs text-gray-500">Click to manually block/unblock</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Incoming Traffic</div>
+                <div className="text-xs text-muted-foreground">Click to manually block/unblock</div>
               </div>
               <div className="p-4 space-y-3">
                 {clients.map(client => (
-                  <button
+                  <Button
                     key={client.id}
                     onClick={() => toggleClient(client.id)}
-                    className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
+                    variant="outline"
+                    className={`w-full p-4 h-auto rounded-lg border-2 text-left transition-all ${
                       client.blocked
-                        ? 'border-red-500 bg-red-900/20'
+                        ? 'border-destructive bg-destructive/20'
                         : client.type === 'attacker'
-                        ? 'border-red-600 bg-red-900/10'
+                        ? 'border-destructive bg-destructive/10'
                         : client.type === 'bot'
-                        ? 'border-yellow-600 bg-yellow-900/10'
-                        : 'border-green-600 bg-green-900/10'
+                        ? 'border-warning bg-warning/10'
+                        : 'border-success bg-success/10'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between w-full">
                       <div className="flex items-center gap-3">
                         <span className="text-2xl">
                           {client.type === 'normal' ? '👤' :
                            client.type === 'bot' ? '🤖' : '☠️'}
                         </span>
                         <div>
-                          <div className={client.blocked ? 'text-red-400' : 'text-white'}>
+                          <div className={client.blocked ? 'text-destructive' : 'text-foreground'}>
                             {client.name}
                           </div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-muted-foreground">
                             {client.requestsPerSecond} req/sec
                           </div>
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className={`text-lg font-bold ${client.blocked ? 'text-red-400' : 'text-white'}`}>
+                        <div className={`text-lg font-bold ${client.blocked ? 'text-destructive' : 'text-foreground'}`}>
                           {requestCounts[client.id] || 0}
                         </div>
-                        <div className={`text-xs ${client.blocked ? 'text-red-400' : 'text-gray-500'}`}>
+                        <div className={`text-xs ${client.blocked ? 'text-destructive' : 'text-muted-foreground'}`}>
                           {client.blocked ? '429 BLOCKED' : 'requests'}
                         </div>
                       </div>
                     </div>
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
 
             {/* Response Codes */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Response Headers</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Response Headers</div>
               </div>
               <div className="p-4">
-                <pre className="text-sm text-gray-400 bg-gray-800 p-3 rounded">
+                <pre className="text-sm text-muted-foreground bg-secondary p-3 rounded">
                   <code>
                     {`HTTP/1.1 ${config.enabled && config.strategy ? '429 Too Many Requests' : '200 OK'}
 X-RateLimit-Limit: ${config.limit}
@@ -388,18 +388,18 @@ Rack::Attack.throttled_responder = -> (req) {
           ]}
           learningGoal="Rate limiting protects your API from abuse. Return 429 with Retry-After header to be a good API citizen."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Strategy Comparison</div>
-            <ul className="text-xs text-gray-400 space-y-1">
-              <li><span className="text-cyan-400">Fixed:</span> Simple, edge burst</li>
-              <li><span className="text-cyan-400">Sliding:</span> Smoother, more memory</li>
-              <li><span className="text-cyan-400">Token:</span> Allows bursts, refills</li>
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Strategy Comparison</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
+              <li><span className="text-primary">Fixed:</span> Simple, edge burst</li>
+              <li><span className="text-primary">Sliding:</span> Smoother, more memory</li>
+              <li><span className="text-primary">Token:</span> Allows bursts, refills</li>
             </ul>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Common Limits</div>
-            <ul className="text-xs text-gray-400 space-y-1">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Common Limits</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>• 60 req/min - Standard API</li>
               <li>• 1000 req/hour - Generous</li>
               <li>• 10 req/min - Auth endpoints</li>

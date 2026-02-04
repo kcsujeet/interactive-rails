@@ -18,6 +18,7 @@ import {
   useLevelCompletion,
   type ValidationResult,
 } from '../shared';
+import { Button } from '../../../ui/Button';
 
 interface Job {
   id: number;
@@ -144,36 +145,34 @@ export function Level14BackgroundJobs({ onComplete, onExit }: LevelComponentProp
           ]}
           goal="Learn to offload long-running tasks to background workers with Sidekiq."
         >
-          <div className="p-4 border-t border-gray-800">
-            <button
+          <div className="p-4 border-t border-border">
+            <Button
               onClick={() => setWorkerEnabled(true)}
               disabled={workerEnabled}
-              className={`w-full py-3 rounded-lg font-medium transition-colors ${
-                workerEnabled
-                  ? 'bg-green-600 text-white cursor-default'
-                  : 'bg-cyan-600 hover:bg-cyan-500 text-white'
-              }`}
+              variant={workerEnabled ? 'secondary' : 'default'}
+              className={`w-full py-3 ${workerEnabled ? 'bg-success text-success-foreground cursor-default' : ''}`}
             >
               {workerEnabled ? 'Worker Enabled' : 'Enable Background Worker'}
-            </button>
+            </Button>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <button
+          <div className="p-4 border-t border-border">
+            <Button
               onClick={workerEnabled ? triggerBackgroundJob : triggerBlockingRequest}
               disabled={isBlocking}
-              className={`w-full py-3 rounded-lg font-medium transition-colors ${
+              variant="secondary"
+              className={`w-full py-3 ${
                 isBlocking
-                  ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                  : 'bg-purple-600 hover:bg-purple-500 text-white'
+                  ? 'bg-secondary text-muted-foreground cursor-not-allowed'
+                  : 'bg-purple-600 hover:bg-purple-500 text-foreground'
               }`}
             >
               {isBlocking ? 'Generating...' : 'Generate PDF Report'}
-            </button>
+            </Button>
 
             {requestTime !== null && (
               <div className={`mt-3 p-2 rounded-lg text-center text-sm ${
-                requestTime > 1000 ? 'bg-red-900/30 text-red-400' : 'bg-green-900/30 text-green-400'
+                requestTime > 1000 ? 'bg-destructive/20 text-destructive' : 'bg-success/20 text-success'
               }`}>
                 Response time: {Math.round(requestTime)}ms
               </div>
@@ -202,39 +201,39 @@ export function Level14BackgroundJobs({ onComplete, onExit }: LevelComponentProp
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-8">
+        <div className="flex-1 relative bg-background p-8">
           {/* Architecture */}
           <div className="flex items-start justify-center gap-6 mb-8">
             {/* Web Server */}
-            <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 w-48">
-              <div className="text-cyan-400 font-mono text-sm mb-2">Web Server</div>
-              <div className="text-gray-400 text-xs mb-4">Handles HTTP requests</div>
+            <div className="bg-card border border-border rounded-xl p-4 w-48">
+              <div className="text-primary font-mono text-sm mb-2">Web Server</div>
+              <div className="text-muted-foreground text-xs mb-4">Handles HTTP requests</div>
 
               {isBlocking && (
-                <div className="bg-red-900/30 border border-red-500 rounded-lg p-3">
-                  <div className="text-red-400 text-xs mb-2">BLOCKING!</div>
-                  <div className="bg-gray-700 rounded-full h-2 overflow-hidden">
+                <div className="bg-destructive/20 border border-destructive rounded-lg p-3">
+                  <div className="text-destructive text-xs mb-2">BLOCKING!</div>
+                  <div className="bg-secondary rounded-full h-2 overflow-hidden">
                     <div
-                      className="bg-red-500 h-full transition-all"
+                      className="bg-destructive h-full transition-all"
                       style={{ width: `${blockingProgress}%` }}
                     />
                   </div>
-                  <div className="text-red-400 text-xs mt-1 text-center">
+                  <div className="text-destructive text-xs mt-1 text-center">
                     {Math.round(blockingProgress * 50)}ms
                   </div>
                 </div>
               )}
 
               {!isBlocking && !workerEnabled && (
-                <div className="text-gray-500 text-xs text-center py-4">
+                <div className="text-muted-foreground text-xs text-center py-4">
                   Click Generate PDF
                 </div>
               )}
 
               {workerEnabled && !isBlocking && (
-                <div className="bg-green-900/30 border border-green-500 rounded-lg p-3">
-                  <div className="text-green-400 text-xs">Responds immediately!</div>
-                  <div className="text-green-300 text-xs mt-1">Job queued in Redis</div>
+                <div className="bg-success/20 border border-success rounded-lg p-3">
+                  <div className="text-success text-xs">Responds immediately!</div>
+                  <div className="text-success/80 text-xs mt-1">Job queued in Redis</div>
                 </div>
               )}
             </div>
@@ -242,25 +241,25 @@ export function Level14BackgroundJobs({ onComplete, onExit }: LevelComponentProp
             {/* Redis Queue */}
             {workerEnabled && (
               <>
-                <svg className="w-8 h-8 text-gray-600 mt-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-8 h-8 text-muted-foreground mt-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
 
-                <div className="bg-red-900/40 border border-red-600 rounded-xl p-4 w-48">
-                  <div className="text-red-400 font-mono text-sm mb-2">Redis Queue</div>
+                <div className="bg-destructive/20 border border-destructive rounded-xl p-4 w-48">
+                  <div className="text-destructive font-mono text-sm mb-2">Redis Queue</div>
                   <div className="space-y-2 max-h-32 overflow-y-auto">
                     {jobs.filter(j => j.status === 'queued').map(job => (
-                      <div key={job.id} className="bg-red-900/40 rounded p-2 text-xs text-red-300">
+                      <div key={job.id} className="bg-destructive/20 rounded p-2 text-xs text-destructive/80">
                         {job.type}
                       </div>
                     ))}
                     {jobs.filter(j => j.status === 'queued').length === 0 && (
-                      <div className="text-gray-600 text-xs text-center py-2">Queue empty</div>
+                      <div className="text-muted-foreground text-xs text-center py-2">Queue empty</div>
                     )}
                   </div>
                 </div>
 
-                <svg className="w-8 h-8 text-gray-600 mt-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-8 h-8 text-muted-foreground mt-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
 
@@ -270,7 +269,7 @@ export function Level14BackgroundJobs({ onComplete, onExit }: LevelComponentProp
                     {jobs.filter(j => j.status === 'processing').map(job => (
                       <div key={job.id} className="bg-purple-900/40 rounded p-2">
                         <div className="text-xs text-purple-300 mb-1">{job.type}</div>
-                        <div className="bg-gray-700 rounded-full h-2 overflow-hidden">
+                        <div className="bg-secondary rounded-full h-2 overflow-hidden">
                           <div
                             className="bg-purple-500 h-full transition-all"
                             style={{ width: `${job.progress}%` }}
@@ -279,7 +278,7 @@ export function Level14BackgroundJobs({ onComplete, onExit }: LevelComponentProp
                       </div>
                     ))}
                     {jobs.filter(j => j.status === 'processing').length === 0 && (
-                      <div className="text-gray-600 text-xs text-center py-2">Waiting for jobs...</div>
+                      <div className="text-muted-foreground text-xs text-center py-2">Waiting for jobs...</div>
                     )}
                   </div>
                 </div>
@@ -289,11 +288,11 @@ export function Level14BackgroundJobs({ onComplete, onExit }: LevelComponentProp
 
           {/* Completed jobs */}
           {workerEnabled && completedJobs > 0 && (
-            <div className="max-w-md mx-auto bg-gray-900 rounded-xl p-4">
-              <div className="text-gray-400 text-xs uppercase tracking-wider mb-3">Completed Jobs</div>
+            <div className="max-w-md mx-auto bg-card rounded-xl p-4">
+              <div className="text-muted-foreground text-xs uppercase tracking-wider mb-3">Completed Jobs</div>
               <div className="flex flex-wrap gap-2">
                 {jobs.filter(j => j.status === 'completed').map(job => (
-                  <div key={job.id} className="bg-green-900/30 border border-green-600 rounded px-3 py-1 text-green-400 text-sm">
+                  <div key={job.id} className="bg-success/20 border border-success rounded px-3 py-1 text-success text-sm">
                     PDF Generated
                   </div>
                 ))}

@@ -48,7 +48,7 @@ export function SlotContainer({
       style={{ left: slot.position.x, top: slot.position.y }}
     >
       <div className="text-center mb-2">
-        <span className="text-xs text-gray-400 uppercase tracking-wider">
+        <span className="text-xs text-muted-foreground uppercase tracking-wider">
           {slot.label}
         </span>
       </div>
@@ -58,10 +58,10 @@ export function SlotContainer({
           flex items-center justify-center
           transition-all duration-200
           ${slot.filled
-            ? 'border-green-500 bg-green-500/10'
+            ? 'border-success bg-success/10'
             : isDragOver
-              ? 'border-blue-500 bg-blue-500/20 scale-105'
-              : 'border-gray-600 bg-gray-800/50 hover:border-gray-500'
+              ? 'border-primary bg-primary/20 scale-105'
+              : 'border-border bg-card/50 hover:border-muted-foreground'
           }
         `}
         onDrop={handleDrop}
@@ -92,8 +92,8 @@ function FilledSlot({ node }: FilledSlotProps) {
       >
         {node.icon}
       </div>
-      <div className="text-sm font-medium text-white">{node.name}</div>
-      <div className="text-xs text-green-400 mt-1">Selected</div>
+      <div className="text-sm font-medium text-foreground">{node.name}</div>
+      <div className="text-xs text-success mt-1">Selected</div>
     </div>
   );
 }
@@ -104,7 +104,7 @@ interface EmptySlotProps {
 
 function EmptySlot({ acceptTypes }: EmptySlotProps) {
   return (
-    <div className="text-center text-gray-500">
+    <div className="text-center text-muted-foreground">
       <div className="text-2xl mb-1">+</div>
       <div className="text-xs">
         Drop {acceptTypes.map(t => getNodeInfo(t).name).join(' or ')}

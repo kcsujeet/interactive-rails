@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -145,35 +146,35 @@ export function Level25Idempotency({ onComplete, onExit }: LevelComponentProps) 
           goal="Make payment processing safe for retries with idempotency."
         >
           {/* Charge Counter */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Actual Charges Created
             </div>
             <div className={`text-center p-4 rounded-lg border-2 ${
-              duplicateCharges ? 'border-red-500 bg-red-900/20' : 'border-green-500 bg-green-900/20'
+              duplicateCharges ? 'border-destructive bg-destructive/10' : 'border-success bg-success/10'
             }`}>
-              <div className={`text-4xl font-bold ${duplicateCharges ? 'text-red-400' : 'text-green-400'}`}>
+              <div className={`text-4xl font-bold ${duplicateCharges ? 'text-destructive' : 'text-success'}`}>
                 {totalCharges}
               </div>
-              <div className="text-xs text-gray-500 mt-1">
+              <div className="text-xs text-muted-foreground mt-1">
                 {duplicateCharges ? '⚠️ Duplicate charges detected!' : 'No duplicates'}
               </div>
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Current Idempotency Key
             </div>
-            <div className="font-mono text-xs text-cyan-400 bg-gray-800 p-2 rounded break-all">
+            <div className="font-mono text-xs text-primary bg-card p-2 rounded break-all">
               {config.useIdempotencyKey ? currentKey : 'None (unsafe!)'}
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
+          <div className="p-4 border-t border-border">
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-400">Safety features</span>
-              <span className={Object.values(config).filter(Boolean).length === 3 ? 'text-green-400' : 'text-white'}>
+              <span className="text-muted-foreground">Safety features</span>
+              <span className={Object.values(config).filter(Boolean).length === 3 ? 'text-success' : 'text-foreground'}>
                 {Object.values(config).filter(Boolean).length} / 3
               </span>
             </div>
@@ -197,12 +198,12 @@ export function Level25Idempotency({ onComplete, onExit }: LevelComponentProps) 
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-6 overflow-auto">
+        <div className="flex-1 relative bg-background p-6 overflow-auto">
           <div className="max-w-4xl mx-auto">
             {/* Configuration */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Idempotency Configuration</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Idempotency Configuration</div>
               </div>
               <div className="p-4 grid grid-cols-3 gap-4">
                 {[
@@ -210,62 +211,64 @@ export function Level25Idempotency({ onComplete, onExit }: LevelComponentProps) 
                   { key: 'storeResults', name: 'Store Results', icon: '💾', desc: 'Save result with idempotency key' },
                   { key: 'returnCached', name: 'Return Cached', icon: '📦', desc: 'Return stored result for duplicate key' },
                 ].map(item => (
-                  <button
+                  <Button
                     key={item.key}
                     onClick={() => toggleConfig(item.key as keyof Config)}
-                    className={`p-4 rounded-lg border-2 text-left transition-all ${
+                    variant="ghost"
+                    className={`p-4 h-auto rounded-lg border-2 text-left flex-col items-start transition-all ${
                       config[item.key as keyof Config]
-                        ? 'border-green-500 bg-green-900/20'
-                        : 'border-gray-700 bg-gray-800 hover:border-gray-500'
+                        ? 'border-success bg-success/10'
+                        : 'border-border bg-card hover:border-muted-foreground'
                     }`}
                   >
                     <div className="text-2xl mb-2">{item.icon}</div>
-                    <div className={`font-semibold text-sm ${config[item.key as keyof Config] ? 'text-green-400' : 'text-white'}`}>
+                    <div className={`font-semibold text-sm ${config[item.key as keyof Config] ? 'text-success' : 'text-foreground'}`}>
                       {item.name}
                     </div>
-                    <div className="text-xs text-gray-500">{item.desc}</div>
-                  </button>
+                    <div className="text-xs text-muted-foreground">{item.desc}</div>
+                  </Button>
                 ))}
               </div>
             </div>
 
             {/* Payment Simulation */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden mb-6">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Payment Simulation</div>
-                <div className="text-xs text-gray-500">Simulate a user making a payment with potential retries</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Payment Simulation</div>
+                <div className="text-xs text-muted-foreground">Simulate a user making a payment with potential retries</div>
               </div>
               <div className="p-6">
                 <div className="flex items-center justify-center gap-4 mb-6">
-                  <div className="text-center p-6 bg-gray-800 rounded-xl">
+                  <div className="text-center p-6 bg-secondary rounded-xl">
                     <div className="text-3xl mb-2">💳</div>
-                    <div className="text-white font-semibold">${chargeAmount}</div>
-                    <div className="text-xs text-gray-500">Purchase</div>
+                    <div className="text-foreground font-semibold">${chargeAmount}</div>
+                    <div className="text-xs text-muted-foreground">Purchase</div>
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    <button
+                    <Button
                       onClick={newPayment}
-                      className="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-medium transition-all"
+                      className="px-6 py-3"
                     >
                       New Payment
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={retryPayment}
-                      className="px-6 py-3 bg-yellow-600 hover:bg-yellow-500 text-white rounded-lg font-medium transition-all"
+                      variant="secondary"
+                      className="px-6 py-3 bg-warning text-warning-foreground hover:bg-warning/90"
                     >
                       Retry (Same Key)
-                    </button>
+                    </Button>
                   </div>
                 </div>
 
                 {/* Scenario Explanation */}
-                <div className="bg-gray-800 rounded-lg p-4 text-sm">
-                  <div className="text-yellow-400 font-semibold mb-2">Scenario:</div>
-                  <div className="text-gray-400">
+                <div className="bg-secondary rounded-lg p-4 text-sm">
+                  <div className="text-warning font-semibold mb-2">Scenario:</div>
+                  <div className="text-muted-foreground">
                     User clicks "Pay" → Request times out → User clicks "Retry"
                     <br />
-                    <span className={config.useIdempotencyKey ? 'text-green-400' : 'text-red-400'}>
+                    <span className={config.useIdempotencyKey ? 'text-success' : 'text-destructive'}>
                       {config.useIdempotencyKey
                         ? '✓ Same idempotency key = safe to retry'
                         : '✗ No idempotency key = potential double charge!'}
@@ -276,13 +279,13 @@ export function Level25Idempotency({ onComplete, onExit }: LevelComponentProps) 
             </div>
 
             {/* Attempt Log */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700">
-                <div className="text-white font-semibold">Payment Attempts</div>
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
+              <div className="bg-secondary px-4 py-3 border-b border-border">
+                <div className="text-foreground font-semibold">Payment Attempts</div>
               </div>
               <div className="p-4 space-y-2 max-h-48 overflow-y-auto">
                 {attempts.length === 0 ? (
-                  <div className="text-center py-4 text-gray-600">
+                  <div className="text-center py-4 text-muted-foreground">
                     Click "New Payment" or "Retry" to simulate payments
                   </div>
                 ) : (
@@ -290,10 +293,10 @@ export function Level25Idempotency({ onComplete, onExit }: LevelComponentProps) 
                     <div
                       key={attempt.id}
                       className={`p-3 rounded-lg border ${
-                        attempt.status === 'success' ? 'border-green-600 bg-green-900/10' :
-                        attempt.status === 'duplicate' ? 'border-yellow-600 bg-yellow-900/10' :
-                        attempt.status === 'error' ? 'border-red-600 bg-red-900/10' :
-                        'border-gray-700 bg-gray-800'
+                        attempt.status === 'success' ? 'border-success bg-success/5' :
+                        attempt.status === 'duplicate' ? 'border-warning bg-warning/5' :
+                        attempt.status === 'error' ? 'border-destructive bg-destructive/5' :
+                        'border-border bg-card'
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -308,21 +311,21 @@ export function Level25Idempotency({ onComplete, onExit }: LevelComponentProps) 
                              attempt.status === 'error' ? '✗' : '⏳'}
                           </span>
                           <div>
-                            <div className="text-white text-sm">${attempt.amount}</div>
-                            <div className="text-xs text-gray-500 font-mono">
+                            <div className="text-foreground text-sm">${attempt.amount}</div>
+                            <div className="text-xs text-muted-foreground font-mono">
                               {attempt.idempotencyKey || 'no key'}
                             </div>
                           </div>
                         </div>
                         <div className="text-right">
                           <div className={`text-sm ${
-                            attempt.status === 'success' ? 'text-green-400' :
-                            attempt.status === 'duplicate' ? 'text-yellow-400' :
-                            attempt.status === 'error' ? 'text-red-400' : 'text-gray-400'
+                            attempt.status === 'success' ? 'text-success' :
+                            attempt.status === 'duplicate' ? 'text-warning' :
+                            attempt.status === 'error' ? 'text-destructive' : 'text-muted-foreground'
                           }`}>
                             {attempt.status}
                           </div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-muted-foreground">
                             {attempt.chargeCreated ? 'Charge created' : 'No charge'}
                           </div>
                         </div>
@@ -370,9 +373,9 @@ end`,
           ]}
           learningGoal="Idempotency ensures the same request produces the same result, no matter how many times it's sent. Critical for payments!"
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Key Principles</div>
-            <ul className="text-xs text-gray-400 space-y-1">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Key Principles</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>• Client generates unique key</li>
               <li>• Server stores result with key</li>
               <li>• Same key = same result returned</li>
@@ -380,9 +383,9 @@ end`,
             </ul>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Use Cases</div>
-            <ul className="text-xs text-gray-400 space-y-1">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Use Cases</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>• Payment processing</li>
               <li>• Order creation</li>
               <li>• Account creation</li>

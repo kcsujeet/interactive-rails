@@ -18,6 +18,7 @@ import {
   useLevelCompletion,
   type ValidationResult,
 } from '../shared';
+import { Button } from '../../../ui/Button';
 
 interface SlowOperation {
   id: string;
@@ -161,48 +162,45 @@ export function Level21BackgroundJobs({ onComplete, onExit }: LevelComponentProp
           goal="Keep requests fast by moving slow operations to background workers."
         >
           {/* Request Time Display */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Estimated Request Time
             </div>
             <div className="text-center py-4">
               <div className={`text-4xl font-bold ${
-                totalSyncTime < 500 ? 'text-green-400' :
-                totalSyncTime < 2000 ? 'text-yellow-400' : 'text-red-400'
+                totalSyncTime < 500 ? 'text-success' :
+                totalSyncTime < 2000 ? 'text-warning' : 'text-destructive'
               }`}>
                 {(totalSyncTime / 1000).toFixed(1)}s
               </div>
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-muted-foreground">
                 {totalSyncTime < 500 ? 'Fast!' :
                  totalSyncTime < 2000 ? 'Acceptable' : 'Too slow!'}
               </div>
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <button
+          <div className="p-4 border-t border-border">
+            <Button
               onClick={simulateRequest}
               disabled={isProcessing}
-              className={`w-full py-2 rounded-lg font-medium transition-all ${
-                isProcessing
-                  ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                  : 'bg-cyan-600 hover:bg-cyan-500 text-white'
-              }`}
+              variant={isProcessing ? 'secondary' : 'default'}
+              className={`w-full py-2 ${isProcessing ? 'cursor-not-allowed' : ''}`}
             >
               {isProcessing ? `Processing... ${requestTime}ms` : 'Simulate Request'}
-            </button>
+            </Button>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
+          <div className="p-4 border-t border-border">
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-400">Operations backgrounded</span>
-              <span className={backgroundOps.length >= 3 ? 'text-green-400' : 'text-white'}>
+              <span className="text-muted-foreground">Operations backgrounded</span>
+              <span className={backgroundOps.length >= 3 ? 'text-success' : 'text-foreground'}>
                 {backgroundOps.length} / {operations.length}
               </span>
             </div>
-            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-2 bg-secondary rounded-full overflow-hidden">
               <div
-                className="h-full bg-green-500 transition-all"
+                className="h-full bg-success transition-all"
                 style={{ width: `${(backgroundOps.length / operations.length) * 100}%` }}
               />
             </div>
@@ -225,35 +223,36 @@ export function Level21BackgroundJobs({ onComplete, onExit }: LevelComponentProp
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-6 overflow-auto">
+        <div className="flex-1 relative bg-background p-6 overflow-auto">
           <div className="max-w-4xl mx-auto">
             {/* Operations List */}
             <div className="grid grid-cols-2 gap-6 mb-6">
               {/* Synchronous */}
-              <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-                <div className="bg-red-900/30 px-4 py-3 border-b border-gray-700">
-                  <div className="text-red-400 font-semibold">Synchronous (Blocking)</div>
-                  <div className="text-xs text-gray-500">Runs during request, user waits</div>
+              <div className="bg-card rounded-xl border border-border overflow-hidden">
+                <div className="bg-destructive/20 px-4 py-3 border-b border-border">
+                  <div className="text-destructive font-semibold">Synchronous (Blocking)</div>
+                  <div className="text-xs text-muted-foreground">Runs during request, user waits</div>
                 </div>
                 <div className="p-4 space-y-2 min-h-[200px]">
                   {syncOps.map(op => (
-                    <button
+                    <Button
                       key={op.id}
                       onClick={() => toggleBackground(op.id)}
-                      className="w-full p-3 rounded-lg bg-red-900/20 border border-red-600 hover:bg-red-900/30 transition-all text-left"
+                      variant="outline"
+                      className="w-full p-3 h-auto rounded-lg bg-destructive/10 border border-destructive hover:bg-destructive/20 text-left justify-start"
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 w-full">
                         <span className="text-xl">{op.icon}</span>
                         <div className="flex-1">
-                          <div className="text-white text-sm font-medium">{op.name}</div>
-                          <div className="text-xs text-gray-500">{op.description}</div>
+                          <div className="text-foreground text-sm font-medium">{op.name}</div>
+                          <div className="text-xs text-muted-foreground">{op.description}</div>
                         </div>
-                        <div className="text-red-400 text-sm font-bold">{(op.duration / 1000).toFixed(1)}s</div>
+                        <div className="text-destructive text-sm font-bold">{(op.duration / 1000).toFixed(1)}s</div>
                       </div>
-                    </button>
+                    </Button>
                   ))}
                   {syncOps.length === 0 && (
-                    <div className="text-center py-8 text-gray-600">
+                    <div className="text-center py-8 text-muted-foreground">
                       All operations moved to background!
                     </div>
                   )}
@@ -261,30 +260,31 @@ export function Level21BackgroundJobs({ onComplete, onExit }: LevelComponentProp
               </div>
 
               {/* Background */}
-              <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-                <div className="bg-green-900/30 px-4 py-3 border-b border-gray-700">
-                  <div className="text-green-400 font-semibold">Background (Async)</div>
-                  <div className="text-xs text-gray-500">Runs after response, user doesn't wait</div>
+              <div className="bg-card rounded-xl border border-border overflow-hidden">
+                <div className="bg-success/20 px-4 py-3 border-b border-border">
+                  <div className="text-success font-semibold">Background (Async)</div>
+                  <div className="text-xs text-muted-foreground">Runs after response, user doesn't wait</div>
                 </div>
                 <div className="p-4 space-y-2 min-h-[200px]">
                   {backgroundOps.map(op => (
-                    <button
+                    <Button
                       key={op.id}
                       onClick={() => toggleBackground(op.id)}
-                      className="w-full p-3 rounded-lg bg-green-900/20 border border-green-600 hover:bg-green-900/30 transition-all text-left"
+                      variant="default"
+                      className="w-full p-3 h-auto rounded-lg bg-success/10 border border-success hover:bg-success/20 text-left justify-start"
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 w-full">
                         <span className="text-xl">{op.icon}</span>
                         <div className="flex-1">
-                          <div className="text-white text-sm font-medium">{op.name}</div>
-                          <div className="text-xs text-gray-500">{op.description}</div>
+                          <div className="text-foreground text-sm font-medium">{op.name}</div>
+                          <div className="text-xs text-muted-foreground">{op.description}</div>
                         </div>
-                        <div className="text-green-400 text-sm font-bold">{(op.duration / 1000).toFixed(1)}s</div>
+                        <div className="text-success text-sm font-bold">{(op.duration / 1000).toFixed(1)}s</div>
                       </div>
-                    </button>
+                    </Button>
                   ))}
                   {backgroundOps.length === 0 && (
-                    <div className="text-center py-8 text-gray-600">
+                    <div className="text-center py-8 text-muted-foreground">
                       Click operations to move them here
                     </div>
                   )}
@@ -293,20 +293,20 @@ export function Level21BackgroundJobs({ onComplete, onExit }: LevelComponentProp
             </div>
 
             {/* Job Queue */}
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
-              <div className="bg-gray-800 px-4 py-3 border-b border-gray-700 flex justify-between items-center">
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
+              <div className="bg-secondary px-4 py-3 border-b border-border flex justify-between items-center">
                 <div>
-                  <div className="text-white font-semibold">Sidekiq Job Queue</div>
-                  <div className="text-xs text-gray-500">Background jobs processing asynchronously</div>
+                  <div className="text-foreground font-semibold">Sidekiq Job Queue</div>
+                  <div className="text-xs text-muted-foreground">Background jobs processing asynchronously</div>
                 </div>
                 <div className="flex gap-2">
-                  <span className="text-xs px-2 py-1 rounded bg-yellow-900/40 text-yellow-400">
+                  <span className="text-xs px-2 py-1 rounded bg-warning/20 text-warning">
                     Queued: {queuedJobs.filter(j => j.status === 'queued').length}
                   </span>
-                  <span className="text-xs px-2 py-1 rounded bg-blue-900/40 text-blue-400">
+                  <span className="text-xs px-2 py-1 rounded bg-primary/20 text-primary">
                     Running: {queuedJobs.filter(j => j.status === 'running').length}
                   </span>
-                  <span className="text-xs px-2 py-1 rounded bg-green-900/40 text-green-400">
+                  <span className="text-xs px-2 py-1 rounded bg-success/20 text-success">
                     Done: {queuedJobs.filter(j => j.status === 'completed').length}
                   </span>
                 </div>
@@ -314,29 +314,29 @@ export function Level21BackgroundJobs({ onComplete, onExit }: LevelComponentProp
 
               <div className="p-4 h-32 overflow-y-auto space-y-2">
                 {queuedJobs.length === 0 ? (
-                  <div className="text-center py-4 text-gray-600">
+                  <div className="text-center py-4 text-muted-foreground">
                     No jobs in queue. Simulate a request to enqueue background jobs.
                   </div>
                 ) : (
                   queuedJobs.slice(-10).reverse().map(job => (
                     <div key={job.id} className="flex items-center gap-3 text-sm">
                       <span className={`w-2 h-2 rounded-full ${
-                        job.status === 'queued' ? 'bg-yellow-400' :
-                        job.status === 'running' ? 'bg-blue-400 animate-pulse' : 'bg-green-400'
+                        job.status === 'queued' ? 'bg-warning' :
+                        job.status === 'running' ? 'bg-primary animate-pulse' : 'bg-success'
                       }`} />
-                      <span className="text-gray-400 font-mono">#{job.id}</span>
-                      <span className="text-white">{job.operationName}</span>
+                      <span className="text-muted-foreground font-mono">#{job.id}</span>
+                      <span className="text-foreground">{job.operationName}</span>
                       {job.status === 'running' && (
-                        <div className="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden">
+                        <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-blue-500 transition-all"
+                            className="h-full bg-primary transition-all"
                             style={{ width: `${job.progress}%` }}
                           />
                         </div>
                       )}
                       <span className={`text-xs ${
-                        job.status === 'queued' ? 'text-yellow-400' :
-                        job.status === 'running' ? 'text-blue-400' : 'text-green-400'
+                        job.status === 'queued' ? 'text-warning' :
+                        job.status === 'running' ? 'text-primary' : 'text-success'
                       }`}>
                         {job.status}
                       </span>
@@ -385,9 +385,9 @@ SendEmailJob.perform_later(user.id)
           ]}
           learningGoal="Background jobs let you respond fast and process slow work later. Essential for good UX."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">When to Background</div>
-            <ul className="text-xs text-gray-400 space-y-1">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">When to Background</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>✓ Sending emails</li>
               <li>✓ Processing uploads</li>
               <li>✓ External API calls</li>
@@ -396,9 +396,9 @@ SendEmailJob.perform_later(user.id)
             </ul>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">Job Runners</div>
-            <ul className="text-xs text-gray-400 space-y-1">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">Job Runners</div>
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>• Sidekiq - Most popular, Redis</li>
               <li>• Solid Queue - Rails 8 default</li>
               <li>• Good Job - Postgres-backed</li>

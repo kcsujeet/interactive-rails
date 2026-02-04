@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -87,32 +88,32 @@ export function Level21ReadWriteSplit({ onComplete, onExit }: LevelComponentProp
           ]}
           goal="Learn to scale reads with database replicas using Rails multi-database support."
         >
-          <div className="p-4 border-t border-gray-800">
-            <button
+          <div className="p-4 border-t border-border">
+            <Button
               onClick={() => setReplicaEnabled(true)}
               disabled={replicaEnabled}
-              className={`w-full py-3 rounded-lg font-medium transition-colors ${
+              className={`w-full py-3 ${
                 replicaEnabled
-                  ? 'bg-green-600 text-white cursor-default'
-                  : 'bg-cyan-600 hover:bg-cyan-500 text-white'
+                  ? 'bg-success text-success-foreground cursor-default'
+                  : ''
               }`}
             >
               {replicaEnabled ? 'Replica Enabled' : 'Enable Read Replica'}
-            </button>
+            </Button>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Query Distribution
             </div>
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-blue-500" />
-                <span className="text-gray-300 text-sm">Reads: {readCount}</span>
+                <div className="w-4 h-4 rounded bg-primary" />
+                <span className="text-foreground text-sm">Reads: {readCount}</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-orange-500" />
-                <span className="text-gray-300 text-sm">Writes: {writeCount}</span>
+                <div className="w-4 h-4 rounded bg-warning" />
+                <span className="text-foreground text-sm">Writes: {writeCount}</span>
               </div>
             </div>
           </div>
@@ -135,14 +136,14 @@ export function Level21ReadWriteSplit({ onComplete, onExit }: LevelComponentProp
           }}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-8">
+        <div className="flex-1 relative bg-background p-8">
           {/* Architecture */}
           <div className="flex justify-center gap-16 mb-8">
             {/* App */}
             <div className="flex flex-col items-center">
-              <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 w-32 text-center">
+              <div className="bg-card border border-border rounded-xl p-4 w-32 text-center">
                 <div className="text-2xl mb-2">A</div>
-                <div className="text-gray-400 text-sm">App</div>
+                <div className="text-muted-foreground text-sm">App</div>
               </div>
             </div>
 
@@ -150,67 +151,67 @@ export function Level21ReadWriteSplit({ onComplete, onExit }: LevelComponentProp
             <div className="flex flex-col gap-4">
               {/* Primary */}
               <div className={`border rounded-xl p-4 w-48 transition-colors ${
-                primaryLoad > 80 ? 'bg-red-900/40 border-red-500' :
-                primaryLoad > 50 ? 'bg-yellow-900/40 border-yellow-500' :
-                'bg-gray-800 border-gray-700'
+                primaryLoad > 80 ? 'bg-destructive/20 border-destructive' :
+                primaryLoad > 50 ? 'bg-warning/20 border-warning' :
+                'bg-card border-border'
               }`}>
                 <div className="flex items-center justify-between mb-2">
                   <span className={`font-medium ${
-                    primaryLoad > 80 ? 'text-red-400' :
-                    primaryLoad > 50 ? 'text-yellow-400' :
-                    'text-gray-300'
+                    primaryLoad > 80 ? 'text-destructive' :
+                    primaryLoad > 50 ? 'text-warning' :
+                    'text-foreground'
                   }`}>
                     Primary DB
                   </span>
-                  <span className="text-xs text-orange-400">writes</span>
+                  <span className="text-xs text-warning">writes</span>
                 </div>
-                <div className="bg-gray-700 rounded-full h-3 overflow-hidden">
+                <div className="bg-secondary rounded-full h-3 overflow-hidden">
                   <div
                     className={`h-full transition-all ${
-                      primaryLoad > 80 ? 'bg-red-500' :
-                      primaryLoad > 50 ? 'bg-yellow-500' :
-                      'bg-green-500'
+                      primaryLoad > 80 ? 'bg-destructive' :
+                      primaryLoad > 50 ? 'bg-warning' :
+                      'bg-success'
                     }`}
                     style={{ width: `${primaryLoad}%` }}
                   />
                 </div>
-                <div className="text-xs text-gray-500 mt-1">CPU: {Math.round(primaryLoad)}%</div>
+                <div className="text-xs text-muted-foreground mt-1">CPU: {Math.round(primaryLoad)}%</div>
               </div>
 
               {/* Replica */}
               {replicaEnabled && (
-                <div className="bg-blue-900/30 border border-blue-600 rounded-xl p-4 w-48">
+                <div className="bg-primary/20 border border-primary rounded-xl p-4 w-48">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-blue-400 font-medium">Replica DB</span>
-                    <span className="text-xs text-blue-400">reads</span>
+                    <span className="text-primary font-medium">Replica DB</span>
+                    <span className="text-xs text-primary">reads</span>
                   </div>
-                  <div className="bg-gray-700 rounded-full h-3 overflow-hidden">
+                  <div className="bg-secondary rounded-full h-3 overflow-hidden">
                     <div
-                      className="h-full transition-all bg-blue-500"
+                      className="h-full transition-all bg-primary"
                       style={{ width: `${replicaLoad}%` }}
                     />
                   </div>
-                  <div className="text-xs text-gray-500 mt-1">CPU: {Math.round(replicaLoad)}%</div>
+                  <div className="text-xs text-muted-foreground mt-1">CPU: {Math.round(replicaLoad)}%</div>
                 </div>
               )}
             </div>
           </div>
 
           {/* Query Stream */}
-          <div className="bg-gray-900 rounded-xl p-4 max-w-xl mx-auto">
-            <div className="text-gray-400 text-xs uppercase tracking-wider mb-3">Query Stream</div>
+          <div className="bg-card rounded-xl p-4 max-w-xl mx-auto">
+            <div className="text-muted-foreground text-xs uppercase tracking-wider mb-3">Query Stream</div>
             <div className="flex flex-wrap gap-2 h-24 overflow-hidden">
               {queries.map(q => (
                 <div
                   key={q.id}
                   className={`px-2 py-1 rounded text-xs font-medium ${
                     q.type === 'read'
-                      ? 'bg-blue-900/50 text-blue-400'
-                      : 'bg-orange-900/50 text-orange-400'
+                      ? 'bg-primary/30 text-primary'
+                      : 'bg-warning/30 text-warning'
                   }`}
                 >
                   {q.type === 'read' ? 'SELECT' : 'INSERT'}
-                  <span className="text-gray-500 ml-1">→ {q.target}</span>
+                  <span className="text-muted-foreground ml-1">→ {q.target}</span>
                 </div>
               ))}
             </div>
@@ -218,7 +219,7 @@ export function Level21ReadWriteSplit({ onComplete, onExit }: LevelComponentProp
 
           {/* Replication lag warning */}
           {replicaEnabled && (
-            <div className="mt-4 max-w-xl mx-auto bg-yellow-900/20 border border-yellow-600/50 rounded-lg p-3 text-yellow-400 text-sm">
+            <div className="mt-4 max-w-xl mx-auto bg-warning/10 border border-warning/50 rounded-lg p-3 text-warning text-sm">
               Note: Replicas may have slight lag (~100ms). Reads after writes should use primary.
             </div>
           )}
@@ -226,12 +227,12 @@ export function Level21ReadWriteSplit({ onComplete, onExit }: LevelComponentProp
           {/* Completion button */}
           {isComplete && (
             <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
-              <button
+              <Button
                 onClick={handleComplete}
-                className="px-8 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white font-bold rounded-lg shadow-lg"
+                className="px-8 py-3 bg-gradient-to-r from-success to-success/80 text-success-foreground font-bold shadow-lg"
               >
                 Complete Level
-              </button>
+              </Button>
             </div>
           )}
         </div>

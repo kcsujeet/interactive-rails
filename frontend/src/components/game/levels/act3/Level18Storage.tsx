@@ -17,6 +17,7 @@ import {
   CodePreviewPanel,
   useLevelCompletion,
 } from '../shared';
+import { Button } from '../../../ui/Button';
 
 interface Upload {
   id: number;
@@ -112,56 +113,54 @@ export function Level18Storage({ onComplete, onExit }: LevelComponentProps) {
           ]}
           goal="Learn ActiveStorage direct upload to bypass your app server for large files."
         >
-          <div className="p-4 border-t border-gray-800">
-            <button
+          <div className="p-4 border-t border-border">
+            <Button
               onClick={() => {
                 setDirectUploadEnabled(true);
                 setMemoryPeak(memoryUsage);
               }}
               disabled={directUploadEnabled}
-              className={`w-full py-3 rounded-lg font-medium transition-colors ${
-                directUploadEnabled
-                  ? 'bg-green-600 text-white cursor-default'
-                  : 'bg-cyan-600 hover:bg-cyan-500 text-white'
-              }`}
+              variant={directUploadEnabled ? 'secondary' : 'default'}
+              className={`w-full py-3 ${directUploadEnabled ? 'bg-success text-success-foreground cursor-default' : ''}`}
             >
               {directUploadEnabled ? 'Direct Upload Enabled' : 'Enable Direct Upload'}
-            </button>
+            </Button>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <button
+          <div className="p-4 border-t border-border">
+            <Button
               onClick={startUpload}
-              className="w-full py-3 rounded-lg font-medium bg-purple-600 hover:bg-purple-500 text-white transition-colors"
+              variant="secondary"
+              className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-foreground"
             >
               Upload Video File
-            </button>
+            </Button>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Server Memory
             </div>
             <div className={`text-3xl font-bold mb-2 ${
-              memoryUsage > 150 ? 'text-red-400' :
-              memoryUsage > 100 ? 'text-yellow-400' :
-              'text-green-400'
+              memoryUsage > 150 ? 'text-destructive' :
+              memoryUsage > 100 ? 'text-warning' :
+              'text-success'
             }`}>
               {Math.round(memoryUsage)} MB
             </div>
-            <div className="bg-gray-700 rounded-full h-4 overflow-hidden">
+            <div className="bg-secondary rounded-full h-4 overflow-hidden">
               <div
                 className={`h-full transition-all ${
-                  memoryUsage > 150 ? 'bg-red-500' :
-                  memoryUsage > 100 ? 'bg-yellow-500' :
-                  'bg-green-500'
+                  memoryUsage > 150 ? 'bg-destructive' :
+                  memoryUsage > 100 ? 'bg-warning' :
+                  'bg-success'
                 }`}
                 style={{ width: `${Math.min(100, memoryUsage / 2)}%` }}
               />
             </div>
-            <div className="text-xs text-gray-500 mt-2">
+            <div className="text-xs text-muted-foreground mt-2">
               Peak: {Math.round(memoryPeak)} MB
-              {memoryPeak > 150 && <span className="text-red-400 ml-2">Danger zone!</span>}
+              {memoryPeak > 150 && <span className="text-destructive ml-2">Danger zone!</span>}
             </div>
           </div>
         </InstructionPanel>
@@ -182,13 +181,13 @@ export function Level18Storage({ onComplete, onExit }: LevelComponentProps) {
           }}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-8">
+        <div className="flex-1 relative bg-background p-8">
           {/* Architecture */}
           <div className="flex items-center justify-center gap-4 mb-8">
             {/* Browser */}
-            <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 w-32 text-center">
+            <div className="bg-card border border-border rounded-xl p-4 w-32 text-center">
               <div className="text-2xl mb-2">B</div>
-              <div className="text-gray-400 text-sm">Browser</div>
+              <div className="text-muted-foreground text-sm">Browser</div>
             </div>
 
             {directUploadEnabled ? (
@@ -196,90 +195,90 @@ export function Level18Storage({ onComplete, onExit }: LevelComponentProps) {
                 {/* Direct to S3 */}
                 <div className="flex flex-col items-center gap-2">
                   <div className="flex items-center">
-                    <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                     </svg>
-                    <span className="text-xs text-gray-500 ml-1">presigned URL</span>
+                    <span className="text-xs text-muted-foreground ml-1">presigned URL</span>
                   </div>
                 </div>
 
-                <div className="bg-gray-800 border border-gray-700 rounded-xl p-3 w-28 text-center">
+                <div className="bg-card border border-border rounded-xl p-3 w-28 text-center">
                   <div className="text-lg mb-1">A</div>
-                  <div className="text-gray-400 text-xs">App</div>
-                  <div className="text-green-400 text-xs mt-1">Low mem</div>
+                  <div className="text-muted-foreground text-xs">App</div>
+                  <div className="text-success text-xs mt-1">Low mem</div>
                 </div>
 
                 <div className="flex flex-col items-center gap-2">
                   <div className="flex items-center">
-                    <svg className="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-10 h-10 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                     </svg>
-                    <span className="text-xs text-green-500 ml-1">direct upload</span>
+                    <span className="text-xs text-success ml-1">direct upload</span>
                   </div>
                 </div>
               </>
             ) : (
               <>
                 {/* Through app */}
-                <svg className="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-8 h-8 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
 
                 <div className={`border rounded-xl p-4 w-32 text-center transition-colors ${
-                  memoryUsage > 100 ? 'bg-red-900/40 border-red-500' : 'bg-gray-800 border-gray-700'
+                  memoryUsage > 100 ? 'bg-destructive/20 border-destructive' : 'bg-card border-border'
                 }`}>
                   <div className="text-2xl mb-2">A</div>
-                  <div className={`text-sm ${memoryUsage > 100 ? 'text-red-400' : 'text-gray-400'}`}>
+                  <div className={`text-sm ${memoryUsage > 100 ? 'text-destructive' : 'text-muted-foreground'}`}>
                     App Server
                   </div>
                   {memoryUsage > 100 && (
-                    <div className="text-red-400 text-xs mt-1">Memory spike!</div>
+                    <div className="text-destructive text-xs mt-1">Memory spike!</div>
                   )}
                 </div>
 
-                <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                 </svg>
               </>
             )}
 
             {/* S3 */}
-            <div className="bg-orange-900/40 border border-orange-600 rounded-xl p-4 w-32 text-center">
+            <div className="bg-warning/20 border border-warning rounded-xl p-4 w-32 text-center">
               <div className="text-2xl mb-2">S3</div>
-              <div className="text-orange-400 text-sm">Storage</div>
+              <div className="text-warning text-sm">Storage</div>
             </div>
           </div>
 
           {/* Upload List */}
-          <div className="bg-gray-900 rounded-xl p-4 max-w-xl mx-auto">
-            <div className="text-gray-400 text-xs uppercase tracking-wider mb-3">Uploads</div>
+          <div className="bg-card rounded-xl p-4 max-w-xl mx-auto">
+            <div className="text-muted-foreground text-xs uppercase tracking-wider mb-3">Uploads</div>
             <div className="space-y-3">
               {uploads.map(u => (
-                <div key={u.id} className="bg-gray-800 rounded-lg p-3">
+                <div key={u.id} className="bg-secondary rounded-lg p-3">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-white text-sm">{u.filename}</span>
-                    <span className="text-gray-400 text-xs">{u.size} MB</span>
+                    <span className="text-foreground text-sm">{u.filename}</span>
+                    <span className="text-muted-foreground text-xs">{u.size} MB</span>
                   </div>
-                  <div className="bg-gray-700 rounded-full h-2 overflow-hidden mb-2">
+                  <div className="bg-background rounded-full h-2 overflow-hidden mb-2">
                     <div
                       className={`h-full transition-all ${
-                        u.method === 'direct' ? 'bg-green-500' : 'bg-yellow-500'
+                        u.method === 'direct' ? 'bg-success' : 'bg-warning'
                       }`}
                       style={{ width: `${u.progress}%` }}
                     />
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className={u.method === 'direct' ? 'text-green-400' : 'text-yellow-400'}>
+                    <span className={u.method === 'direct' ? 'text-success' : 'text-warning'}>
                       {u.method === 'direct' ? 'Direct to S3' : 'Via App Server'}
                     </span>
-                    <span className={u.status === 'completed' ? 'text-green-400' : 'text-gray-400'}>
+                    <span className={u.status === 'completed' ? 'text-success' : 'text-muted-foreground'}>
                       {u.status === 'completed' ? 'Done' : `${u.progress}%`}
                     </span>
                   </div>
                 </div>
               ))}
               {uploads.length === 0 && (
-                <div className="text-gray-600 text-center py-4">Click "Upload Video" to start</div>
+                <div className="text-muted-foreground text-center py-4">Click "Upload Video" to start</div>
               )}
             </div>
           </div>
@@ -287,12 +286,13 @@ export function Level18Storage({ onComplete, onExit }: LevelComponentProps) {
           {/* Completion button */}
           {isComplete && (
             <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
-              <button
+              <Button
                 onClick={handleComplete}
-                className="px-8 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white font-bold rounded-lg shadow-lg"
+                size="lg"
+                className="bg-gradient-to-r from-success to-success/80 text-success-foreground font-bold shadow-lg"
               >
                 Complete Level
-              </button>
+              </Button>
             </div>
           )}
         </div>

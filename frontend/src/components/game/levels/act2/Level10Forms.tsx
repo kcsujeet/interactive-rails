@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -91,18 +92,15 @@ export function Level10Forms({ onComplete, onExit }: LevelComponentProps) {
           ]}
           goal="Learn to use Form Objects for multi-model forms with unified validation."
         >
-          <div className="p-4 border-t border-gray-800">
-            <button
+          <div className="p-4 border-t border-border">
+            <Button
               onClick={() => setFormObjectAdded(true)}
               disabled={formObjectAdded}
-              className={`w-full py-3 rounded-lg font-medium transition-colors ${
-                formObjectAdded
-                  ? 'bg-green-600 text-white cursor-default'
-                  : 'bg-cyan-600 hover:bg-cyan-500 text-white'
-              }`}
+              variant={formObjectAdded ? "secondary" : "default"}
+              className="w-full"
             >
               {formObjectAdded ? 'Form Object Added' : 'Add Form Object'}
-            </button>
+            </Button>
           </div>
         </InstructionPanel>
       </LeftPanel>
@@ -125,45 +123,45 @@ export function Level10Forms({ onComplete, onExit }: LevelComponentProps) {
           }}
         />
 
-        <div className="flex-1 relative bg-gray-950 flex items-center justify-center p-8">
+        <div className="flex-1 relative bg-background flex items-center justify-center p-8">
           {/* Form visualization */}
           <div className="w-full max-w-lg">
             {formObjectAdded ? (
               /* Unified form with Form Object */
-              <div className="bg-gray-900 border-2 border-cyan-500 rounded-xl p-6">
-                <div className="text-cyan-400 font-mono text-sm mb-4">SignupForm</div>
+              <div className="bg-card border-2 border-primary rounded-xl p-6">
+                <div className="text-primary font-mono text-sm mb-4">SignupForm</div>
                 <div className="space-y-4">
                   {fields.map(field => (
                     <div key={field.id}>
-                      <label className="block text-gray-400 text-sm mb-1">{field.name}</label>
+                      <label className="block text-muted-foreground text-sm mb-1">{field.name}</label>
                       <input
                         type="text"
                         value={field.value}
                         onChange={(e) => handleFieldChange(field.id, e.target.value)}
-                        className={`w-full bg-gray-800 border rounded-lg px-3 py-2 text-white ${
-                          submitted && field.error ? 'border-red-500' : 'border-gray-700'
+                        className={`w-full bg-secondary border rounded-lg px-3 py-2 text-foreground ${
+                          submitted && field.error ? 'border-destructive' : 'border-border'
                         }`}
                         placeholder={`Enter ${field.name.toLowerCase()}`}
                       />
                       {submitted && field.error && (
-                        <div className="text-red-400 text-xs mt-1">{field.error}</div>
+                        <div className="text-destructive text-xs mt-1">{field.error}</div>
                       )}
                       {submitted && field.valid && (
-                        <div className="text-green-400 text-xs mt-1">Valid</div>
+                        <div className="text-success text-xs mt-1">Valid</div>
                       )}
                     </div>
                   ))}
                 </div>
 
-                <button
+                <Button
                   onClick={handleSubmit}
-                  className="w-full mt-6 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-medium transition-colors"
+                  className="w-full mt-6"
                 >
                   Submit
-                </button>
+                </Button>
 
                 {submitted && fields.every(f => f.valid) && (
-                  <div className="mt-4 p-3 bg-green-900/30 border border-green-500 rounded-lg text-green-400 text-sm text-center">
+                  <div className="mt-4 p-3 bg-success/20 border border-success rounded-lg text-success text-sm text-center">
                     Form submitted successfully! User and Company created.
                   </div>
                 )}
@@ -172,22 +170,22 @@ export function Level10Forms({ onComplete, onExit }: LevelComponentProps) {
               /* Scattered form without Form Object */
               <div className="space-y-6">
                 {/* User Model Form */}
-                <div className="bg-gray-900 border-2 border-gray-600 rounded-xl p-4">
-                  <div className="text-gray-500 font-mono text-sm mb-3">User Model</div>
+                <div className="bg-card border-2 border-border rounded-xl p-4">
+                  <div className="text-muted-foreground font-mono text-sm mb-3">User Model</div>
                   <div className="space-y-3">
                     {userFields.map(field => (
                       <div key={field.id}>
-                        <label className="block text-gray-400 text-sm mb-1">{field.name}</label>
+                        <label className="block text-muted-foreground text-sm mb-1">{field.name}</label>
                         <input
                           type="text"
                           value={field.value}
                           onChange={(e) => handleFieldChange(field.id, e.target.value)}
-                          className={`w-full bg-gray-800 border rounded-lg px-3 py-2 text-white ${
-                            submitted && field.error ? 'border-red-500' : 'border-gray-700'
+                          className={`w-full bg-secondary border rounded-lg px-3 py-2 text-foreground ${
+                            submitted && field.error ? 'border-destructive' : 'border-border'
                           }`}
                         />
                         {submitted && field.error && (
-                          <div className="text-red-400 text-xs mt-1">User: {field.error}</div>
+                          <div className="text-destructive text-xs mt-1">User: {field.error}</div>
                         )}
                       </div>
                     ))}
@@ -195,37 +193,38 @@ export function Level10Forms({ onComplete, onExit }: LevelComponentProps) {
                 </div>
 
                 {/* Company Model Form */}
-                <div className="bg-gray-900 border-2 border-gray-600 rounded-xl p-4">
-                  <div className="text-gray-500 font-mono text-sm mb-3">Company Model</div>
+                <div className="bg-card border-2 border-border rounded-xl p-4">
+                  <div className="text-muted-foreground font-mono text-sm mb-3">Company Model</div>
                   <div className="space-y-3">
                     {companyFields.map(field => (
                       <div key={field.id}>
-                        <label className="block text-gray-400 text-sm mb-1">{field.name}</label>
+                        <label className="block text-muted-foreground text-sm mb-1">{field.name}</label>
                         <input
                           type="text"
                           value={field.value}
                           onChange={(e) => handleFieldChange(field.id, e.target.value)}
-                          className={`w-full bg-gray-800 border rounded-lg px-3 py-2 text-white ${
-                            submitted && field.error ? 'border-red-500' : 'border-gray-700'
+                          className={`w-full bg-secondary border rounded-lg px-3 py-2 text-foreground ${
+                            submitted && field.error ? 'border-destructive' : 'border-border'
                           }`}
                         />
                         {submitted && field.error && (
-                          <div className="text-red-400 text-xs mt-1">Company: {field.error}</div>
+                          <div className="text-destructive text-xs mt-1">Company: {field.error}</div>
                         )}
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <button
+                <Button
                   onClick={handleSubmit}
-                  className="w-full py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors"
+                  variant="secondary"
+                  className="w-full"
                 >
                   Submit (Scattered)
-                </button>
+                </Button>
 
                 {submitted && fields.some(f => f.error) && (
-                  <div className="p-3 bg-red-900/30 border border-red-500 rounded-lg text-red-400 text-sm">
+                  <div className="p-3 bg-destructive/20 border border-destructive rounded-lg text-destructive text-sm">
                     Errors from multiple sources - confusing UX!
                   </div>
                 )}
@@ -236,12 +235,12 @@ export function Level10Forms({ onComplete, onExit }: LevelComponentProps) {
           {/* Completion button */}
           {isComplete && (
             <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
-              <button
+              <Button
                 onClick={handleComplete}
-                className="px-8 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white font-bold rounded-lg shadow-lg"
+                className="px-8 py-3 bg-gradient-to-r from-success to-success/80 text-foreground font-bold shadow-lg"
               >
                 Complete Level
-              </button>
+              </Button>
             </div>
           )}
         </div>

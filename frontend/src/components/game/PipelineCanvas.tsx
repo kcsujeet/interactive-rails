@@ -59,7 +59,7 @@ export function PipelineCanvas({
       ref={canvasRef}
       data-canvas-bg
       className={`flex-1 bg-game-bg relative overflow-hidden ${
-        draggedNodeType ? 'ring-2 ring-sky-500 ring-inset' : ''
+        draggedNodeType ? 'ring-2 ring-primary ring-inset' : ''
       } ${pendingConnection ? 'cursor-crosshair' : ''}`}
       onDragOver={onDragOver}
       onDrop={onDrop}
@@ -203,12 +203,12 @@ export function PipelineCanvas({
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="text-center max-w-sm">
             <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-game-surface border border-game-border mb-4">
-              <svg className="w-6 h-6 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-6 h-6 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
               </svg>
             </div>
-            <p className="text-white font-medium mb-2">Blueprint Canvas</p>
-            <p className="text-slate-500 text-sm">Drag nodes from the palette to build your pipeline, then connect them.</p>
+            <p className="text-foreground font-medium mb-2">Blueprint Canvas</p>
+            <p className="text-muted-foreground text-sm">Drag nodes from the palette to build your pipeline, then connect them.</p>
           </div>
         </div>
       )}
@@ -216,8 +216,8 @@ export function PipelineCanvas({
       {/* Drop indicator */}
       {draggedNodeType && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="text-center bg-sky-950/80 px-8 py-5 rounded-lg border border-sky-700">
-            <p className="text-sky-300 font-medium">Drop here to place node</p>
+          <div className="text-center bg-primary/20 px-8 py-5 rounded-lg border border-primary/50">
+            <p className="text-primary font-medium">Drop here to place node</p>
           </div>
         </div>
       )}

@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -112,57 +113,57 @@ export function Level25Microservices({ onComplete, onExit }: LevelComponentProps
           ]}
           goal="Learn to extract microservices from a monolith using bounded contexts."
         >
-          <div className="p-4 border-t border-gray-800">
-            <button
+          <div className="p-4 border-t border-border">
+            <Button
               onClick={() => setScalpelActive(true)}
               disabled={scalpelActive}
-              className={`w-full py-3 rounded-lg font-medium transition-colors ${
+              className={`w-full py-3 ${
                 scalpelActive
-                  ? 'bg-purple-600 text-white cursor-default'
-                  : 'bg-cyan-600 hover:bg-cyan-500 text-white'
+                  ? 'bg-secondary text-secondary-foreground cursor-default'
+                  : ''
               }`}
             >
               {scalpelActive ? 'Scalpel Active' : 'Activate Scalpel Tool'}
-            </button>
+            </Button>
           </div>
 
           {extractedCount >= 2 && !gateway && (
-            <div className="p-4 border-t border-gray-800">
-              <button
+            <div className="p-4 border-t border-border">
+              <Button
                 onClick={() => setGateway(true)}
-                className="w-full py-3 rounded-lg font-medium bg-cyan-600 hover:bg-cyan-500 text-white transition-colors"
+                className="w-full py-3"
               >
                 Add API Gateway
-              </button>
+              </Button>
             </div>
           )}
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Extraction Progress
             </div>
-            <div className="bg-gray-700 rounded-full h-3 overflow-hidden">
+            <div className="bg-secondary rounded-full h-3 overflow-hidden">
               <div
-                className="bg-purple-500 h-full transition-all"
+                className="bg-primary h-full transition-all"
                 style={{ width: `${(extractedCount / domains.length) * 100}%` }}
               />
             </div>
-            <div className="text-gray-400 text-sm mt-2">
+            <div className="text-muted-foreground text-sm mt-2">
               {extractedCount} / {domains.length} domains extracted
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Domain Dependencies
             </div>
             <div className="space-y-2 text-sm">
               {domains.map(d => (
                 <div key={d.id} className="flex items-center justify-between">
-                  <span className={d.extracted ? 'text-green-400' : 'text-gray-300'}>
+                  <span className={d.extracted ? 'text-success' : 'text-foreground'}>
                     {d.name}
                   </span>
-                  <span className="text-gray-500 text-xs">
+                  <span className="text-muted-foreground text-xs">
                     {d.dependencies.length > 0
                       ? `needs: ${d.dependencies.join(', ')}`
                       : 'no deps'
@@ -196,25 +197,26 @@ export function Level25Microservices({ onComplete, onExit }: LevelComponentProps
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-8 overflow-auto">
+        <div className="flex-1 relative bg-background p-8 overflow-auto">
           <div className="flex gap-8 justify-center items-start">
             {/* Monolith */}
             <div className={`border-2 rounded-xl p-6 transition-all ${
               extractedCount === domains.length
-                ? 'border-gray-800 bg-gray-900/30 opacity-50'
-                : 'border-gray-600 bg-gray-900'
+                ? 'border-border bg-card/30 opacity-50'
+                : 'border-border bg-card'
             }`}>
-              <div className="text-gray-400 text-sm mb-4 text-center">Monolith</div>
+              <div className="text-muted-foreground text-sm mb-4 text-center">Monolith</div>
               <div className="grid grid-cols-2 gap-3">
                 {domains.filter(d => !d.extracted).map(domain => (
-                  <button
+                  <Button
                     key={domain.id}
                     onClick={() => extractDomain(domain.id)}
                     disabled={!scalpelActive}
-                    className={`p-4 rounded-lg border-2 transition-all ${
+                    variant="ghost"
+                    className={`p-4 h-auto rounded-lg border-2 transition-all flex-col items-start ${
                       scalpelActive
-                        ? 'border-dashed border-purple-500 hover:bg-purple-900/30 cursor-crosshair'
-                        : 'border-gray-700 cursor-not-allowed'
+                        ? 'border-dashed hover:bg-primary/20 cursor-crosshair'
+                        : 'border-border cursor-not-allowed'
                     }`}
                     style={{
                       borderColor: scalpelActive ? domain.color : undefined,
@@ -226,16 +228,16 @@ export function Level25Microservices({ onComplete, onExit }: LevelComponentProps
                     >
                       {domain.name}
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">Domain</div>
+                    <div className="text-xs text-muted-foreground mt-1">Domain</div>
                     {scalpelActive && (
-                      <div className="text-xs text-purple-400 mt-2">
+                      <div className="text-xs text-primary mt-2">
                         Click to extract
                       </div>
                     )}
-                  </button>
+                  </Button>
                 ))}
                 {domains.filter(d => !d.extracted).length === 0 && (
-                  <div className="col-span-2 text-gray-600 text-center py-4">
+                  <div className="col-span-2 text-muted-foreground text-center py-4">
                     Monolith dismantled!
                   </div>
                 )}
@@ -246,12 +248,12 @@ export function Level25Microservices({ onComplete, onExit }: LevelComponentProps
             {extractedCount > 0 && (
               <div className="flex flex-col items-center gap-4">
                 {gateway ? (
-                  <div className="bg-cyan-900/40 border border-cyan-600 rounded-xl p-4 text-center">
-                    <div className="text-cyan-400 font-medium">API Gateway</div>
-                    <div className="text-cyan-300 text-xs mt-1">Routes requests</div>
+                  <div className="bg-primary/20 border border-primary rounded-xl p-4 text-center">
+                    <div className="text-primary font-medium">API Gateway</div>
+                    <div className="text-primary/80 text-xs mt-1">Routes requests</div>
                   </div>
                 ) : (
-                  <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                   </svg>
                 )}
@@ -261,7 +263,7 @@ export function Level25Microservices({ onComplete, onExit }: LevelComponentProps
             {/* Extracted Services */}
             {extractedCount > 0 && (
               <div className="space-y-4">
-                <div className="text-gray-400 text-sm text-center mb-2">Microservices</div>
+                <div className="text-muted-foreground text-sm text-center mb-2">Microservices</div>
                 {domains.filter(d => d.extracted).map(domain => (
                   <div
                     key={domain.id}
@@ -277,8 +279,8 @@ export function Level25Microservices({ onComplete, onExit }: LevelComponentProps
                     >
                       {domain.name}
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">Service</div>
-                    <div className="text-xs text-green-400 mt-2">Independent</div>
+                    <div className="text-xs text-muted-foreground mt-1">Service</div>
+                    <div className="text-xs text-success mt-2">Independent</div>
                   </div>
                 ))}
               </div>
@@ -287,24 +289,24 @@ export function Level25Microservices({ onComplete, onExit }: LevelComponentProps
 
           {/* Benefits panel */}
           {extractedCount >= 2 && (
-            <div className="mt-8 bg-gray-900 rounded-xl p-4 max-w-lg mx-auto">
-              <div className="text-gray-400 text-xs uppercase tracking-wider mb-3">Benefits Achieved</div>
+            <div className="mt-8 bg-card rounded-xl p-4 max-w-lg mx-auto">
+              <div className="text-muted-foreground text-xs uppercase tracking-wider mb-3">Benefits Achieved</div>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full" />
-                  <span className="text-gray-300">Independent deploys</span>
+                  <div className="w-2 h-2 bg-success rounded-full" />
+                  <span className="text-foreground">Independent deploys</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full" />
-                  <span className="text-gray-300">Fault isolation</span>
+                  <div className="w-2 h-2 bg-success rounded-full" />
+                  <span className="text-foreground">Fault isolation</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full" />
-                  <span className="text-gray-300">Tech flexibility</span>
+                  <div className="w-2 h-2 bg-success rounded-full" />
+                  <span className="text-foreground">Tech flexibility</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full" />
-                  <span className="text-gray-300">Team autonomy</span>
+                  <div className="w-2 h-2 bg-success rounded-full" />
+                  <span className="text-foreground">Team autonomy</span>
                 </div>
               </div>
             </div>

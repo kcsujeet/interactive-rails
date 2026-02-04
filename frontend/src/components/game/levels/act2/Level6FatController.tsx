@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -285,8 +286,8 @@ end`,
           goal="Learn the Single Responsibility Principle - each layer should have one job."
         >
           {/* Code Block Palette */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Code Blocks ({paletteBlocks.length} remaining)
             </div>
             <div className="space-y-2">
@@ -296,15 +297,15 @@ end`,
                   draggable
                   onDragStart={() => handleDragStart(block.id)}
                   onDragEnd={handleDragEnd}
-                  className="p-3 rounded-lg cursor-grab active:cursor-grabbing hover:opacity-90 transition-opacity border-2 border-transparent hover:border-white/20"
+                  className="p-3 rounded-lg cursor-grab active:cursor-grabbing hover:opacity-90 transition-opacity border-2 border-transparent hover:border-foreground/20"
                   style={{ backgroundColor: block.color }}
                 >
-                  <div className="text-white text-sm font-medium">{block.name}</div>
-                  <div className="text-white/60 text-xs mt-1">{block.description}</div>
+                  <div className="text-foreground text-sm font-medium">{block.name}</div>
+                  <div className="text-foreground/60 text-xs mt-1">{block.description}</div>
                 </div>
               ))}
               {paletteBlocks.length === 0 && (
-                <div className="text-gray-500 text-sm text-center py-4">
+                <div className="text-muted-foreground text-sm text-center py-4">
                   All blocks placed!
                 </div>
               )}
@@ -312,19 +313,19 @@ end`,
           </div>
 
           {/* Progress */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
               Progress
             </div>
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-400">Correctly Placed</span>
-              <span className={correctlyPlaced.length === blocks.length ? 'text-green-400' : 'text-white'}>
+              <span className="text-muted-foreground">Correctly Placed</span>
+              <span className={correctlyPlaced.length === blocks.length ? 'text-success' : 'text-foreground'}>
                 {correctlyPlaced.length} / {blocks.length}
               </span>
             </div>
-            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-2 bg-secondary rounded-full overflow-hidden">
               <div
-                className="h-full bg-green-500 transition-all duration-300"
+                className="h-full bg-success transition-all duration-300"
                 style={{ width: `${(correctlyPlaced.length / blocks.length) * 100}%` }}
               />
             </div>
@@ -343,7 +344,7 @@ end`,
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-8">
+        <div className="flex-1 relative bg-background p-8">
           {/* Grid background */}
           <div
             className="absolute inset-0 opacity-10"
@@ -375,21 +376,21 @@ end`,
                   <div
                     className={`rounded-xl border-2 p-4 min-h-[300px] transition-all ${
                       dragOverNode === node.id
-                        ? 'border-white bg-white/10'
-                        : 'border-gray-700 bg-gray-800/50'
+                        ? 'border-foreground bg-foreground/10'
+                        : 'border-border bg-card/50'
                     }`}
                   >
                     {/* Node Header */}
                     <div className="flex items-center gap-3 mb-4">
                       <span
-                        className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-lg"
+                        className="w-10 h-10 rounded-lg flex items-center justify-center text-foreground font-bold text-lg"
                         style={{ backgroundColor: node.color }}
                       >
                         {node.icon}
                       </span>
                       <div>
-                        <div className="text-white font-semibold">{node.name}</div>
-                        <div className="text-xs text-gray-400">{node.description}</div>
+                        <div className="text-foreground font-semibold">{node.name}</div>
+                        <div className="text-xs text-muted-foreground">{node.description}</div>
                       </div>
                     </div>
 
@@ -402,23 +403,25 @@ end`,
                             <div
                               key={block.id}
                               className={`p-3 rounded-lg relative group ${
-                                isCorrect ? 'ring-2 ring-green-500' : ''
+                                isCorrect ? 'ring-2 ring-success' : ''
                               }`}
                               style={{ backgroundColor: block.color }}
                             >
-                              <div className="text-white text-sm font-medium">{block.name}</div>
-                              <div className="text-white/60 text-xs font-mono mt-1 truncate">
+                              <div className="text-foreground text-sm font-medium">{block.name}</div>
+                              <div className="text-foreground/60 text-xs font-mono mt-1 truncate">
                                 {block.code.split('\n')[0]}
                               </div>
-                              <button
+                              <Button
+                                variant="ghost"
+                                size="icon"
                                 onClick={() => handleRemoveFromNode(block.id)}
-                                className="absolute top-1 right-1 w-5 h-5 rounded bg-black/30 text-white/70 hover:text-white hover:bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-xs"
+                                className="absolute top-1 right-1 w-5 h-5 rounded bg-black/30 text-foreground/70 hover:text-foreground hover:bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-xs"
                               >
                                 ×
-                              </button>
+                              </Button>
                               {isCorrect && (
-                                <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                                  <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <div className="absolute -top-1 -right-1 w-4 h-4 bg-success rounded-full flex items-center justify-center">
+                                  <svg className="w-3 h-3 text-foreground" fill="currentColor" viewBox="0 0 20 20">
                                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                   </svg>
                                 </div>
@@ -429,8 +432,8 @@ end`,
                       ) : (
                         <div className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
                           dragOverNode === node.id
-                            ? 'border-white/50 text-white/70'
-                            : 'border-gray-600 text-gray-500'
+                            ? 'border-foreground/50 text-foreground/70'
+                            : 'border-border text-muted-foreground'
                         }`}>
                           {isValidTarget ? 'Drop code here' : 'Drag code blocks here'}
                         </div>
@@ -449,11 +452,11 @@ end`,
           files={generateCodePreview()}
           learningGoal="Single Responsibility Principle: Controllers handle HTTP, Models handle data, Services handle business logic."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
               Why Separate Concerns?
             </div>
-            <ul className="text-xs text-gray-400 space-y-1">
+            <ul className="text-xs text-muted-foreground space-y-1">
               <li>+ Easier to test each layer independently</li>
               <li>+ Changes in one layer don't break others</li>
               <li>+ New team members understand faster</li>

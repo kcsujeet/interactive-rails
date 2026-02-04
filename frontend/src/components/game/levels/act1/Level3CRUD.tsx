@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import type { LevelComponentProps } from '../index';
+import { Button } from '../../../ui/Button';
 import {
   LevelLayout,
   LeftPanel,
@@ -179,55 +180,58 @@ export function Level3CRUD({ onComplete, onExit }: LevelComponentProps) {
           goal="CRUD operations are the foundation of all database work. Every web app uses them constantly."
         >
           {/* Command Palette */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Available Commands
             </div>
             <div className="space-y-2">
               {COMMANDS.map(({ cmd, operation, description }) => {
                 const isCompleted = completedOperations.has(operation);
                 return (
-                  <button
+                  <Button
                     key={operation}
                     onClick={() => executeCommand(cmd, operation)}
-                    className={`w-full p-3 rounded-lg text-left transition-all border ${
+                    variant="outline"
+                    className={`w-full p-3 h-auto rounded-lg text-left transition-all border ${
                       isCompleted
-                        ? 'bg-green-900/20 border-green-600 text-green-400'
-                        : 'bg-gray-800 border-gray-700 text-gray-300 hover:border-cyan-500 hover:text-white'
+                        ? 'bg-success/10 border-success text-success'
+                        : 'bg-secondary border-border text-muted-foreground hover:border-primary hover:text-foreground'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium uppercase tracking-wider">
-                        {operation.split('-')[0]}
-                      </span>
-                      {isCompleted && (
-                        <svg className="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      )}
+                    <div className="flex flex-col w-full">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium uppercase tracking-wider">
+                          {operation.split('-')[0]}
+                        </span>
+                        {isCompleted && (
+                          <svg className="w-4 h-4 text-success" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="font-mono text-xs mt-1 text-primary">{cmd}</div>
+                      <div className="text-xs text-muted-foreground mt-1">{description}</div>
                     </div>
-                    <div className="font-mono text-xs mt-1 text-cyan-400">{cmd}</div>
-                    <div className="text-xs text-gray-500 mt-1">{description}</div>
-                  </button>
+                  </Button>
                 );
               })}
             </div>
           </div>
 
           {/* Progress */}
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
               Progress
             </div>
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-400">Operations completed</span>
-              <span className={completedOperations.size === 5 ? 'text-green-400' : 'text-white'}>
+              <span className="text-muted-foreground">Operations completed</span>
+              <span className={completedOperations.size === 5 ? 'text-success' : 'text-foreground'}>
                 {completedOperations.size} / 5
               </span>
             </div>
-            <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-2 bg-secondary rounded-full overflow-hidden">
               <div
-                className="h-full bg-green-500 transition-all duration-300"
+                className="h-full bg-success transition-all duration-300"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -253,18 +257,18 @@ export function Level3CRUD({ onComplete, onExit }: LevelComponentProps) {
           onComplete={handleComplete}
         />
 
-        <div className="flex-1 relative bg-gray-950 p-8 overflow-auto">
+        <div className="flex-1 relative bg-background p-8 overflow-auto">
           {/* Rails Console */}
           <div className="max-w-2xl mx-auto">
-            <div className="bg-gray-900 rounded-xl border border-gray-700 overflow-hidden">
+            <div className="bg-card rounded-xl border border-border overflow-hidden">
               {/* Console Header */}
-              <div className="bg-gray-800 px-4 py-2 flex items-center gap-2 border-b border-gray-700">
+              <div className="bg-secondary px-4 py-2 flex items-center gap-2 border-b border-border">
                 <div className="flex gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-red-500" />
-                  <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                  <div className="w-3 h-3 rounded-full bg-green-500" />
+                  <div className="w-3 h-3 rounded-full bg-destructive" />
+                  <div className="w-3 h-3 rounded-full bg-warning" />
+                  <div className="w-3 h-3 rounded-full bg-success" />
                 </div>
-                <span className="text-gray-400 text-sm ml-2">Rails Console</span>
+                <span className="text-muted-foreground text-sm ml-2">Rails Console</span>
               </div>
 
               {/* Console Output */}
@@ -272,39 +276,39 @@ export function Level3CRUD({ onComplete, onExit }: LevelComponentProps) {
                 {consoleHistory.map(entry => (
                   <div key={entry.id} className="mb-3">
                     <div className="flex">
-                      <span className="text-green-400 mr-2">irb&gt;</span>
-                      <span className="text-white">{entry.input}</span>
+                      <span className="text-success mr-2">irb&gt;</span>
+                      <span className="text-foreground">{entry.input}</span>
                     </div>
                     <div className={`ml-6 whitespace-pre-wrap ${
-                      entry.type === 'error' ? 'text-red-400' :
-                      entry.type === 'info' ? 'text-gray-500' :
-                      'text-cyan-300'
+                      entry.type === 'error' ? 'text-destructive' :
+                      entry.type === 'info' ? 'text-muted-foreground' :
+                      'text-primary'
                     }`}>
                       {entry.output}
                     </div>
                   </div>
                 ))}
                 <div className="flex items-center">
-                  <span className="text-green-400 mr-2">irb&gt;</span>
-                  <span className="w-2 h-4 bg-white animate-pulse" />
+                  <span className="text-success mr-2">irb&gt;</span>
+                  <span className="w-2 h-4 bg-foreground animate-pulse" />
                 </div>
               </div>
             </div>
 
             {/* Current Database State */}
-            <div className="mt-6 bg-gray-900 rounded-xl border border-cyan-700 overflow-hidden">
-              <div className="bg-cyan-900/40 px-4 py-2 border-b border-cyan-700/50">
-                <span className="text-cyan-400 text-sm font-semibold">Database: posts table</span>
+            <div className="mt-6 bg-card rounded-xl border border-primary overflow-hidden">
+              <div className="bg-primary/10 px-4 py-2 border-b border-primary/50">
+                <span className="text-primary text-sm font-semibold">Database: posts table</span>
               </div>
               <div className="p-4">
                 {posts.length === 0 ? (
-                  <div className="text-gray-500 text-sm text-center py-4">
+                  <div className="text-muted-foreground text-sm text-center py-4">
                     No records yet. Try Post.create!
                   </div>
                 ) : (
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="text-gray-400 text-left">
+                      <tr className="text-muted-foreground text-left">
                         <th className="pb-2">id</th>
                         <th className="pb-2">title</th>
                         <th className="pb-2">body</th>
@@ -312,10 +316,10 @@ export function Level3CRUD({ onComplete, onExit }: LevelComponentProps) {
                     </thead>
                     <tbody>
                       {posts.map(post => (
-                        <tr key={post.id} className="text-gray-300 border-t border-gray-800">
+                        <tr key={post.id} className="text-muted-foreground border-t border-border">
                           <td className="py-2 text-purple-400">{post.id}</td>
                           <td className="py-2">{post.title}</td>
-                          <td className="py-2 text-gray-500 truncate max-w-[200px]">{post.body}</td>
+                          <td className="py-2 text-muted-foreground truncate max-w-[200px]">{post.body}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -360,21 +364,21 @@ Post.destroy_all   # Delete all`,
           }]}
           learningGoal="CRUD = Create, Read, Update, Delete. These four operations are how you interact with database records in Rails."
         >
-          <div className="p-4 border-t border-gray-800">
-            <div className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">
+          <div className="p-4 border-t border-border">
+            <div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
               CRUD Operations
             </div>
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className={`p-2 rounded ${completedOperations.has('create') ? 'bg-green-900/30 text-green-400' : 'bg-gray-800 text-gray-500'}`}>
+              <div className={`p-2 rounded ${completedOperations.has('create') ? 'bg-success/10 text-success' : 'bg-secondary text-muted-foreground'}`}>
                 <span className="font-bold">C</span>reate
               </div>
-              <div className={`p-2 rounded ${completedOperations.has('read-all') || completedOperations.has('read-one') ? 'bg-green-900/30 text-green-400' : 'bg-gray-800 text-gray-500'}`}>
+              <div className={`p-2 rounded ${completedOperations.has('read-all') || completedOperations.has('read-one') ? 'bg-success/10 text-success' : 'bg-secondary text-muted-foreground'}`}>
                 <span className="font-bold">R</span>ead
               </div>
-              <div className={`p-2 rounded ${completedOperations.has('update') ? 'bg-green-900/30 text-green-400' : 'bg-gray-800 text-gray-500'}`}>
+              <div className={`p-2 rounded ${completedOperations.has('update') ? 'bg-success/10 text-success' : 'bg-secondary text-muted-foreground'}`}>
                 <span className="font-bold">U</span>pdate
               </div>
-              <div className={`p-2 rounded ${completedOperations.has('destroy') ? 'bg-green-900/30 text-green-400' : 'bg-gray-800 text-gray-500'}`}>
+              <div className={`p-2 rounded ${completedOperations.has('destroy') ? 'bg-success/10 text-success' : 'bg-secondary text-muted-foreground'}`}>
                 <span className="font-bold">D</span>elete
               </div>
             </div>

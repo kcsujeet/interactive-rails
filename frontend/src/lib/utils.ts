@@ -3,6 +3,16 @@
  * Common utility functions for the frontend
  */
 
+import { type ClassValue, clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+/**
+ * Merges Tailwind CSS classes with proper precedence
+ */
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
 /**
  * Escapes HTML special characters to prevent XSS attacks
  * Use this when inserting dynamic content into innerHTML

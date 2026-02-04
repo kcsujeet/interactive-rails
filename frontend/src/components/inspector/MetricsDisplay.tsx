@@ -59,27 +59,32 @@ function LatencyGauge({
   thresholds: { good: number; warning: number };
 }) {
   const percentage = Math.min(100, (value / max) * 100);
-  const color =
+  const colorClass =
     value < thresholds.good
-      ? '#22c55e'
+      ? 'text-success'
       : value < thresholds.warning
-        ? '#f59e0b'
-        : '#ef4444';
+        ? 'text-warning'
+        : 'text-destructive';
+  const bgColorClass =
+    value < thresholds.good
+      ? 'bg-success'
+      : value < thresholds.warning
+        ? 'bg-warning'
+        : 'bg-destructive';
 
   return (
     <div className="flex flex-col">
       <div className="flex justify-between text-xs mb-1">
-        <span className="text-gray-400">{label}</span>
-        <span className="font-mono" style={{ color }}>
+        <span className="text-muted-foreground">{label}</span>
+        <span className={`font-mono ${colorClass}`}>
           {value.toFixed(0)}ms
         </span>
       </div>
-      <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+      <div className="h-2 bg-secondary rounded-full overflow-hidden">
         <div
-          className="h-full transition-all duration-300"
+          className={`h-full transition-all duration-300 ${bgColorClass}`}
           style={{
             width: `${percentage}%`,
-            backgroundColor: color,
           }}
         />
       </div>
@@ -98,22 +103,22 @@ function PercentageBar({
   inverted?: boolean;
 }) {
   const displayValue = inverted ? 100 - value : value;
-  const color = displayValue > 80 ? '#22c55e' : displayValue > 50 ? '#f59e0b' : '#ef4444';
+  const colorClass = displayValue > 80 ? 'text-success' : displayValue > 50 ? 'text-warning' : 'text-destructive';
+  const bgColorClass = displayValue > 80 ? 'bg-success' : displayValue > 50 ? 'bg-warning' : 'bg-destructive';
 
   return (
     <div className="flex flex-col">
       <div className="flex justify-between text-xs mb-1">
-        <span className="text-gray-400">{label}</span>
-        <span className="font-mono" style={{ color }}>
+        <span className="text-muted-foreground">{label}</span>
+        <span className={`font-mono ${colorClass}`}>
           {value.toFixed(1)}%
         </span>
       </div>
-      <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+      <div className="h-2 bg-secondary rounded-full overflow-hidden">
         <div
-          className="h-full transition-all duration-300"
+          className={`h-full transition-all duration-300 ${bgColorClass}`}
           style={{
             width: `${Math.min(100, value)}%`,
-            backgroundColor: color,
           }}
         />
       </div>
@@ -127,7 +132,7 @@ function StatCard({
   label,
   value,
   suffix,
-  color = 'text-white',
+  color = 'text-foreground',
   warning,
 }: {
   icon: string;
@@ -139,15 +144,15 @@ function StatCard({
 }) {
   return (
     <div
-      className={`bg-gray-700 rounded-lg p-3 ${warning ? 'border-2 border-amber-500' : ''}`}
+      className={`bg-secondary rounded-lg p-3 ${warning ? 'border-2 border-warning' : ''}`}
     >
       <div className="flex items-center gap-2 mb-1">
         <span className="text-lg">{icon}</span>
-        <span className="text-xs text-gray-400">{label}</span>
+        <span className="text-xs text-muted-foreground">{label}</span>
       </div>
       <div className={`text-xl font-bold ${color}`}>
         {value}
-        {suffix && <span className="text-sm font-normal text-gray-400">{suffix}</span>}
+        {suffix && <span className="text-sm font-normal text-muted-foreground">{suffix}</span>}
       </div>
     </div>
   );
@@ -157,7 +162,7 @@ export function MetricsDisplay({ metrics, className = '' }: MetricsDisplayProps)
   if (!metrics) {
     return (
       <div className={`p-4 ${className}`}>
-        <p className="text-gray-400 text-center">No simulation data</p>
+        <p className="text-muted-foreground text-center">No simulation data</p>
       </div>
     );
   }
@@ -194,10 +199,10 @@ export function MetricsDisplay({ metrics, className = '' }: MetricsDisplayProps)
     <div className={`p-4 space-y-4 ${className}`}>
       {/* Latency Section */}
       <div>
-        <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
           <span>Latency</span>
           {hasHighLatency && (
-            <span className="text-xs bg-red-500 text-white px-2 py-0.5 rounded">
+            <span className="text-xs bg-destructive text-foreground px-2 py-0.5 rounded">
               HIGH
             </span>
           )}
@@ -226,7 +231,7 @@ export function MetricsDisplay({ metrics, className = '' }: MetricsDisplayProps)
 
       {/* Throughput Section */}
       <div>
-        <h3 className="text-sm font-semibold text-white mb-3">Throughput</h3>
+        <h3 className="text-sm font-semibold text-foreground mb-3">Throughput</h3>
         <div className="grid grid-cols-2 gap-2">
           <StatCard
             icon="/"
@@ -243,10 +248,10 @@ export function MetricsDisplay({ metrics, className = '' }: MetricsDisplayProps)
 
       {/* Database Section */}
       <div>
-        <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
           <span>Database</span>
           {hasNPlusOne && (
-            <span className="text-xs bg-red-500 text-white px-2 py-0.5 rounded animate-pulse">
+            <span className="text-xs bg-destructive text-foreground px-2 py-0.5 rounded animate-pulse">
               N+1 DETECTED
             </span>
           )}
@@ -262,11 +267,11 @@ export function MetricsDisplay({ metrics, className = '' }: MetricsDisplayProps)
             icon="Q/R"
             label="Queries/Request"
             value={(queriesPerRequest || 0).toFixed(1)}
-            color={queriesPerRequest > 10 ? 'text-red-400' : 'text-white'}
+            color={queriesPerRequest > 10 ? 'text-destructive' : 'text-foreground'}
           />
         </div>
         {hasNPlusOne && (
-          <div className="mt-2 p-2 bg-red-900/30 rounded text-xs text-red-300">
+          <div className="mt-2 p-2 bg-destructive/30 rounded text-xs text-destructive">
             {nPlusOneCount} N+1 query patterns detected. Use eager loading!
           </div>
         )}
@@ -274,10 +279,10 @@ export function MetricsDisplay({ metrics, className = '' }: MetricsDisplayProps)
 
       {/* Cache Section */}
       <div>
-        <h3 className="text-sm font-semibold text-white mb-3">Cache</h3>
+        <h3 className="text-sm font-semibold text-foreground mb-3">Cache</h3>
         <PercentageBar label="Cache Hit Rate" value={cacheHitRate || 0} />
         {cacheHitRate < 50 && cacheSize > 0 && (
-          <p className="text-xs text-amber-400 mt-1">
+          <p className="text-xs text-warning mt-1">
             Low cache hit rate. Consider cache warming or adjusting TTL.
           </p>
         )}
@@ -285,16 +290,16 @@ export function MetricsDisplay({ metrics, className = '' }: MetricsDisplayProps)
 
       {/* Memory Section */}
       <div>
-        <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
           <span>Memory</span>
           {hasMemoryPressure && (
             <span
               className={`text-xs px-2 py-0.5 rounded ${
                 memoryPressure === 'critical'
-                  ? 'bg-red-500 text-white'
+                  ? 'bg-destructive text-foreground'
                   : memoryPressure === 'high'
-                    ? 'bg-amber-500 text-black'
-                    : 'bg-yellow-500 text-black'
+                    ? 'bg-warning text-background'
+                    : 'bg-warning text-background'
               }`}
             >
               {memoryPressure.toUpperCase()}
@@ -310,10 +315,10 @@ export function MetricsDisplay({ metrics, className = '' }: MetricsDisplayProps)
 
       {/* Errors Section */}
       <div>
-        <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
           <span>Errors</span>
           {hasHighErrorRate && (
-            <span className="text-xs bg-red-500 text-white px-2 py-0.5 rounded">
+            <span className="text-xs bg-destructive text-foreground px-2 py-0.5 rounded">
               {errorRate.toFixed(1)}%
             </span>
           )}
@@ -323,22 +328,22 @@ export function MetricsDisplay({ metrics, className = '' }: MetricsDisplayProps)
             icon="X"
             label="Failed"
             value={failedRequests}
-            color={hasHighErrorRate ? 'text-red-400' : 'text-white'}
+            color={hasHighErrorRate ? 'text-destructive' : 'text-foreground'}
           />
           <StatCard
             icon="%"
             label="Error Rate"
             value={errorRate.toFixed(1)}
             suffix="%"
-            color={hasHighErrorRate ? 'text-red-400' : 'text-white'}
+            color={hasHighErrorRate ? 'text-destructive' : 'text-foreground'}
           />
         </div>
         {Object.keys(errorTypes).length > 0 && (
           <div className="mt-2 text-xs">
-            <span className="text-gray-400">Error types:</span>
+            <span className="text-muted-foreground">Error types:</span>
             <ul className="mt-1">
               {Object.entries(errorTypes).map(([type, count]) => (
-                <li key={type} className="text-red-300">
+                <li key={type} className="text-destructive">
                   {type}: {count}
                 </li>
               ))}
