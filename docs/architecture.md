@@ -30,176 +30,279 @@ RailsExpert uses a modern JAMstack architecture optimized for Cloudflare's edge 
 
 ### Runtime & Package Manager
 - **Bun** - Fast JavaScript runtime, package manager, and test runner
-- Why Bun: 3-5x faster than npm, native TypeScript support
 
 ### Frontend
 - **Astro** (v5.x) - Static site generator with islands architecture
-- **React** - Interactive components (Battle screen, forms)
+- **React** (v19.x) - Interactive components (game canvas, forms)
+- **Zustand** - State management with Immer middleware
+- **React Flow** (@xyflow/react) - Node-based pipeline visualization
+- **Phaser 3** - Game engine for enemy/defense animations
+- **Tailwind CSS** (v4.x) - Utility-first styling
+- **Lucide React** - Icon library
 - **TypeScript** - Type safety throughout
-- Why Astro: Zero JS by default, perfect for content-heavy pages
 
 ### Backend API
 - **Cloudflare Workers** - Serverless edge functions
 - **Hono** (v4.x) - Lightweight web framework for Workers
 - **Zod** - Runtime validation
-- Why Hono: Built for Workers, tiny bundle, Express-like API
 
 ### Database
 - **Cloudflare D1** - SQLite at the edge
-- Why D1: Zero latency from Workers, SQL familiarity, no cold starts
 
 ### Authentication
-- **Custom JWT** - JSON Web Tokens
+- **Custom JWT** - JSON Web Tokens with 7-day expiration
 - Password hashing via Web Crypto API (PBKDF2)
-- 7-day token expiration
 
 ## Project Structure
 
 ```
 railsexpert/
 ├── package.json              # Root workspace config
-├── bun.lockb                 # Bun lockfile
+├── bun.lock                  # Bun lockfile
+├── biome.json                # Linter/formatter config
 │
 ├── frontend/                 # Astro application
-│   ├── astro.config.mjs      # Astro + Cloudflare adapter config
+│   ├── astro.config.mjs      # Astro + Cloudflare adapter
 │   ├── package.json
 │   ├── tsconfig.json
 │   └── src/
-│       ├── components/       # React/Astro components
-│       │   ├── game/         # BattleScreen, Monster, HealthBar, etc.
-│       │   ├── ui/           # Button, Modal, Card
-│       │   └── auth/         # LoginForm, SignupForm
-│       ├── layouts/          # BaseLayout, GameLayout
-│       ├── pages/            # Astro pages (file-based routing)
-│       │   ├── index.astro
+│       ├── components/
+│       │   ├── game/         # Game components
+│       │   │   ├── BriefingScreen.tsx
+│       │   │   ├── CompletionScreen.tsx
+│       │   │   ├── GameTopBar.tsx
+│       │   │   ├── PipelineCanvas.tsx
+│       │   │   ├── NodePalette.tsx
+│       │   │   ├── InspectorPanel.tsx
+│       │   │   ├── levels/   # Level-specific components (35 levels)
+│       │   │   │   ├── act1/ # Rails Fundamentals (8 levels)
+│       │   │   │   ├── act2/ # Clean Code (10 levels)
+│       │   │   │   ├── act3/ # Performance (12 levels)
+│       │   │   │   ├── act4/ # Production (12 levels)
+│       │   │   │   ├── act5/ # Infrastructure (5 levels)
+│       │   │   │   └── act6/ # System Design (4 levels)
+│       │   │   └── reactflow/ # React Flow POC components
+│       │   ├── pipeline/     # Pipeline editor components
+│       │   │   ├── PipelineCanvas.tsx
+│       │   │   ├── PipelineEditor.tsx
+│       │   │   ├── NodePalette.tsx
+│       │   │   └── DataFlowEdge.tsx
+│       │   ├── inspector/    # Metrics inspector
+│       │   │   ├── InspectorPanel.tsx
+│       │   │   ├── MetricsDisplay.tsx
+│       │   │   └── QueryTraceViewer.tsx
+│       │   ├── pages/        # Page-level app components
+│       │   │   ├── ActsListApp.tsx
+│       │   │   ├── ActDetailApp.tsx
+│       │   │   ├── LevelInfoApp.tsx
+│       │   │   ├── LevelPlayApp.tsx
+│       │   │   └── SandboxApp.tsx
+│       │   ├── ui/           # Reusable UI components
+│       │   │   ├── Button.tsx
+│       │   │   ├── Card.tsx
+│       │   │   ├── Badge.tsx
+│       │   │   ├── Input.tsx
+│       │   │   ├── CodeBlock.tsx
+│       │   │   └── Header.astro
+│       │   └── auth/         # Auth components
+│       │       ├── LoginForm.tsx
+│       │       └── SignupForm.tsx
+│       ├── layouts/
+│       │   ├── BaseLayout.astro
+│       │   └── GameLayout.astro
+│       ├── pages/
+│       │   ├── index.astro           # Homepage
 │       │   ├── login.astro
+│       │   ├── signup.astro
 │       │   ├── dashboard.astro
-│       │   ├── realms/
-│       │   └── battle/
-│       ├── stores/           # State management (nanostores)
+│       │   ├── sandbox.astro
+│       │   └── acts/
+│       │       ├── index.astro       # Acts list
+│       │       └── [actId]/
+│       │           ├── index.astro   # Act detail
+│       │           └── [levelId]/
+│       │               ├── index.astro   # Level info
+│       │               ├── play.astro    # Gameplay
+│       │               └── complete.astro
+│       ├── stores/           # Zustand state management
+│       │   ├── game.ts       # Player progression
+│       │   ├── pipeline.ts   # Pipeline editor state
+│       │   ├── simulation.ts # Simulation state
+│       │   ├── authStore.ts  # Authentication
+│       │   └── ui.ts         # UI state
+│       ├── engine/           # Game engine
+│       │   ├── SimulationEngine.ts
+│       │   ├── nodeBehavior.ts
+│       │   └── metrics.ts
+│       ├── game/             # Phaser game layer
+│       │   ├── PhaserGame.ts
+│       │   └── GameLayer.tsx
+│       ├── content/          # Acts and levels data
+│       │   └── acts.ts
+│       ├── lib/              # Utilities
+│       │   ├── api.ts
+│       │   ├── progress.ts
+│       │   └── utils.ts
+│       ├── types/            # TypeScript definitions
 │       └── styles/           # Global CSS
+│           └── global.css
 │
 ├── worker/                   # Cloudflare Worker API
-│   ├── wrangler.toml         # Wrangler config (D1 bindings)
+│   ├── wrangler.toml
 │   ├── package.json
-│   ├── tsconfig.json
 │   └── src/
 │       ├── index.ts          # Main entry, Hono app
-│       ├── types.ts          # TypeScript types
+│       ├── types.ts
 │       ├── routes/
-│       │   ├── auth.ts       # /api/auth/* endpoints
-│       │   ├── game.ts       # /api/game/* endpoints
-│       │   └── progress.ts   # /api/progress/* endpoints
+│       │   ├── auth.ts       # /api/auth/*
+│       │   ├── progress.ts   # /api/progress/*
+│       │   └── game.ts       # /api/game/*
 │       ├── middleware/
-│       │   └── auth.ts       # JWT validation middleware
+│       │   └── auth.ts       # JWT validation
 │       ├── services/
-│       │   ├── auth.ts       # Password hashing, JWT
-│       │   ├── game.ts       # XP calculation, damage
-│       │   └── content.ts    # CRITICAL: All 150 challenges embedded here
-│       ├── db/
-│       │   └── schema.sql    # D1 table definitions
-│       └── utils/
-│           └── crypto.ts     # Password utilities
+│       │   ├── auth.ts
+│       │   └── progress.ts
+│       └── db/
+│           └── schema.sql
 │
-└── docs/                     # This documentation
+└── docs/                     # Documentation
 ```
 
 ## Key Architectural Decisions
 
-### 1. Embedded Content in Worker
+### 1. Astro Islands Architecture
 
-**Problem**: Cloudflare Workers cannot read filesystem at runtime.
-
-**Solution**: All 150 challenges are embedded directly in `worker/src/services/content.ts` as a TypeScript array.
-
-```typescript
-// worker/src/services/content.ts
-const allChallenges: Challenge[] = [
-  {
-    id: "foundation-mvc-001",
-    type: "multiple_choice",
-    // ... challenge data
-  },
-  // ... 149 more challenges
-];
-
-export function getDungeonChallenges(dungeonId: string): Challenge[] {
-  const prefix = dungeonToPrefix[dungeonId];
-  return allChallenges.filter(c => c.id.startsWith(prefix));
-}
-```
-
-### 2. Monorepo with Bun Workspaces
-
-**Why**: Shared development experience, single `bun install`, coordinated builds.
-
-```json
-// root package.json
-{
-  "workspaces": ["frontend", "worker"]
-}
-```
-
-### 3. Astro Islands for Interactivity
-
-**Why**: Most pages are static (realm map, landing). Only battle screen needs React.
+Interactive components (game canvas, forms) are React "islands" in otherwise static pages.
 
 ```astro
 ---
-// Battle page - static shell with React island
-import BattleScreen from '../components/game/BattleScreen';
+import LevelPlayApp from '@/components/pages/LevelPlayApp';
 ---
-<Layout>
-  <BattleScreen client:load challengeId={id} />
-</Layout>
+<GameLayout>
+  <LevelPlayApp client:load actId={actId} levelId={levelId} />
+</GameLayout>
 ```
 
-### 4. Hono Framework for API
+### 2. Zustand for State Management
 
-**Why**: Purpose-built for Cloudflare Workers, tiny bundle (~14kb), familiar Express-like API.
+Three separate stores for different concerns:
 
 ```typescript
-const app = new Hono<{ Bindings: Env }>();
-app.use('*', cors({ origin: [...], credentials: true }));
-app.route('/api/auth', authRoutes);
-app.route('/api/game', gameRoutes);
+// game.ts - Player progression
+const useGameStore = create<GameState>()(
+  persist(immer((set) => ({
+    playerLevel: 1,
+    completedLevels: [],
+    achievements: [],
+    // ...
+  })), { name: 'game-storage' })
+);
+
+// pipeline.ts - Editor state
+const usePipelineStore = create<PipelineState>()(
+  immer((set) => ({
+    nodes: [],
+    connections: [],
+    selectedNodeId: null,
+    // ...
+  }))
+);
+
+// simulation.ts - Runtime simulation
+const useSimulationStore = create<SimulationState>()(
+  immer((set) => ({
+    isRunning: false,
+    metrics: { latency: [], throughput: 0, ... },
+    enemies: [],
+    defenses: [],
+    // ...
+  }))
+);
 ```
 
-### 5. D1 for Database
+### 3. Tick-Based Simulation Engine
 
-**Why**: Native Cloudflare integration, SQLite simplicity, zero network latency from Workers.
+The simulation runs at ~30 FPS, calculating metrics in real-time:
 
 ```typescript
-const db = c.env.DB;
-const result = await db
-  .prepare('SELECT * FROM users WHERE email = ?')
-  .bind(email)
-  .first();
+class SimulationEngine {
+  private tickInterval: number | null = null;
+
+  start() {
+    this.tickInterval = setInterval(() => {
+      this.tick();
+    }, 1000 / 30); // 30 FPS
+  }
+
+  tick() {
+    // Process requests through pipeline nodes
+    // Calculate metrics (latency, throughput, queries)
+    // Spawn/update enemies
+    // Activate defenses
+    // Update stability score
+  }
+}
+```
+
+### 4. Phaser for Game Visualization
+
+Phaser 3 renders animated enemies and defenses as an overlay on the pipeline canvas:
+
+```typescript
+// GameLayer.tsx wraps Phaser game
+<div className="absolute inset-0 pointer-events-none">
+  <GameLayer enemies={enemies} defenses={defenses} />
+</div>
+```
+
+### 5. Level-Specific Components
+
+Each level has its own component defining:
+- Initial pipeline configuration
+- Available nodes
+- Success conditions
+- Learning content
+
+```typescript
+// levels/act1/Level1StackChoice.tsx
+export function Level1StackChoice() {
+  return (
+    <LevelLayout
+      levelId="1-1"
+      title="Choose Your Stack"
+      availableNodes={['request', 'router', 'controller']}
+      successCondition={(metrics) => metrics.throughput > 100}
+    >
+      <InstructionPanel content={learningContent} />
+      <PipelineCanvas initialNodes={startingPipeline} />
+    </LevelLayout>
+  );
+}
 ```
 
 ## Data Flow
+
+### Game Flow
+```
+1. User selects level from Acts page
+2. LevelPlayApp loads level-specific component
+3. Player builds pipeline using drag-drop
+4. Simulation engine processes requests
+5. Metrics update in real-time
+6. Success conditions checked each tick
+7. Completion screen shows stars/rewards
+8. Progress saved to localStorage (and server if logged in)
+```
 
 ### Authentication Flow
 ```
 1. User submits login form
 2. POST /api/auth/login with { email, password }
-3. Worker verifies password hash
+3. Worker verifies password hash (PBKDF2)
 4. Worker generates JWT with userId
 5. Frontend stores JWT in localStorage
-6. Subsequent requests include Authorization: Bearer <jwt>
-7. authMiddleware validates JWT, sets c.set('userId', ...)
-```
-
-### Game Flow
-```
-1. GET /api/game/realms → Returns all realms with unlock status
-2. GET /api/game/realms/:realmId/dungeons → Returns dungeons for realm
-3. GET /api/game/dungeons/:dungeonId/challenges → Returns 10 challenges
-4. User answers challenge in BattleScreen
-5. POST /api/game/challenges/:id/attempt → Validates answer
-6. Worker calculates XP, damage, level ups
-7. Updates user_progress and challenge_attempts in D1
-8. Returns result with XP gained, new HP, explanation
+6. Guest progress imported to account
+7. Subsequent requests include Authorization header
 ```
 
 ## Environment Configuration
@@ -207,8 +310,9 @@ const result = await db
 ### Frontend (astro.config.mjs)
 ```javascript
 export default defineConfig({
-  output: 'static', // or 'server' for SSR
+  output: 'static',
   adapter: cloudflare(),
+  integrations: [react(), tailwind()],
 });
 ```
 
@@ -221,15 +325,6 @@ compatibility_date = "2024-01-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "railsexpert-db"
-database_id = "<your-database-id>"
-```
-
-### Environment Variables (Worker)
-```typescript
-interface Env {
-  DB: D1Database;        // D1 binding
-  JWT_SECRET: string;    // For token signing
-}
 ```
 
 ## Security Considerations
@@ -239,3 +334,20 @@ interface Env {
 3. **CORS**: Restricted to specific origins
 4. **Input Validation**: Zod schemas on all endpoints
 5. **SQL Injection**: Parameterized queries via D1 prepare/bind
+
+## Planned Improvements
+
+### React Flow Migration for Pipeline Canvas
+
+**Status**: Planned (POC created)
+
+Migrate the custom pipeline canvas to React Flow (@xyflow/react) for improved visualization.
+
+**POC files:**
+- `src/components/game/reactflow/` - PipelineNode, AnimatedEdge, ReactFlowCanvas
+- `src/pages/sandbox-rf.astro` - Test page
+
+**Challenges to resolve:**
+- Sequential particle animation timing
+- Edge routing for branching MVC layouts
+- Handle positioning for vertical connections

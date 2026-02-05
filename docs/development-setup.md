@@ -28,7 +28,6 @@ bun --version
 |------|---------|
 | VS Code | Recommended IDE |
 | SQLite Viewer | Inspect local D1 database |
-| Postman/Insomnia | API testing |
 
 ---
 
@@ -42,12 +41,7 @@ cd railsexpert
 # 2. Install dependencies
 bun install
 
-# 3. Set up local database
-cd worker
-bunx wrangler d1 execute railsexpert-db --file=src/db/schema.sql --local
-cd ..
-
-# 4. Start development servers
+# 3. Start development servers
 bun run dev
 ```
 
@@ -73,12 +67,12 @@ cd railsexpert
 bun install
 
 # This installs:
-# - Root devDependencies (TypeScript)
-# - frontend/ dependencies (Astro, React)
+# - Root devDependencies
+# - frontend/ dependencies (Astro, React, Zustand, Phaser)
 # - worker/ dependencies (Hono, Zod, Wrangler)
 ```
 
-### 3. Database Setup
+### 3. Database Setup (Optional)
 
 The worker uses Cloudflare D1 (SQLite). For local development, Wrangler emulates D1.
 
@@ -88,7 +82,6 @@ cd worker
 # Create tables in local D1 emulator
 bunx wrangler d1 execute railsexpert-db --file=src/db/schema.sql --local
 
-# Verify (optional - view the SQLite file)
 # Database is stored in: worker/.wrangler/state/v3/d1/
 ```
 
@@ -96,20 +89,18 @@ bunx wrangler d1 execute railsexpert-db --file=src/db/schema.sql --local
 
 ### 4. Environment Configuration
 
-#### Worker Environment
+#### Frontend Environment
 
-The worker needs a JWT secret. For local development, Wrangler provides defaults.
-
-For production, set secrets in Cloudflare dashboard or via CLI:
+Create `frontend/.env` if needed:
 ```bash
-bunx wrangler secret put JWT_SECRET
+NODE_ENV=development
 ```
 
-#### Frontend Environment (if needed)
+#### Worker Environment
 
-Create `frontend/.env` for API URL configuration:
+For production, set secrets in Cloudflare:
 ```bash
-PUBLIC_API_URL=http://localhost:8787
+bunx wrangler secret put JWT_SECRET
 ```
 
 ### 5. Start Development Servers
@@ -139,69 +130,30 @@ bun run dev:worker
 
 ### Root Package.json
 
-| Script | Command | Description |
-|--------|---------|-------------|
-| `dev` | `bun run --parallel dev:frontend dev:worker` | Start both servers |
-| `dev:frontend` | `cd frontend && bun run dev` | Start Astro dev server |
-| `dev:worker` | `cd worker && bun run dev` | Start Wrangler dev server |
-| `build` | `bun run build:frontend && bun run build:worker` | Build both |
-| `typecheck` | `bun run --parallel typecheck:frontend typecheck:worker` | Type check both |
-| `test` | `bun test` | Run all tests |
-| `db:migrate` | `cd worker && wrangler d1 execute...` | Run local DB migration |
-| `db:migrate:prod` | `cd worker && wrangler d1 execute...` | Run production migration |
-
-### Worker Package.json
-
-| Script | Command | Description |
-|--------|---------|-------------|
-| `dev` | `wrangler dev` | Start local worker |
-| `build` | `wrangler deploy --dry-run` | Build without deploying |
-| `deploy` | `wrangler deploy` | Deploy to Cloudflare |
-| `test` | `bun test` | Run worker tests |
+| Script | Description |
+|--------|-------------|
+| `dev` | Start both frontend and worker |
+| `dev:frontend` | Start Astro dev server only |
+| `dev:worker` | Start Wrangler dev server only |
+| `build` | Build both for production |
+| `lint` | Run Biome linter |
+| `lint:fix` | Fix linting issues |
+| `typecheck` | Type check both packages |
 
 ### Frontend Package.json
 
-| Script | Command | Description |
-|--------|---------|-------------|
-| `dev` | `astro dev` | Start dev server |
-| `build` | `astro build` | Production build |
-| `preview` | `astro preview` | Preview build locally |
+| Script | Description |
+|--------|-------------|
+| `dev` | Start dev server (port 4321) |
+| `build` | Production build to `/dist/` |
+| `preview` | Preview production build |
 
----
+### Worker Package.json
 
-## Testing the Setup
-
-### 1. Health Check
-
-```bash
-curl http://localhost:8787/
-# Expected: {"status":"ok","name":"RailsExpert API"}
-```
-
-### 2. Create Test User
-
-```bash
-curl -X POST http://localhost:8787/api/auth/signup \
-  -H "Content-Type: application/json" \
-  -d '{"email":"dev@test.com","password":"test123","username":"devuser"}'
-```
-
-### 3. Get Realms
-
-```bash
-# Use token from signup response
-TOKEN="your-jwt-token"
-curl http://localhost:8787/api/game/realms \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-### 4. Get Challenges
-
-```bash
-curl http://localhost:8787/api/game/dungeons/mvc/challenges \
-  -H "Authorization: Bearer $TOKEN" | jq '.challenges | length'
-# Expected: 10
-```
+| Script | Description |
+|--------|-------------|
+| `dev` | Start local worker (port 8787) |
+| `deploy` | Deploy to Cloudflare |
 
 ---
 
@@ -209,16 +161,14 @@ curl http://localhost:8787/api/game/dungeons/mvc/challenges \
 
 ### VS Code Extensions
 
-Recommended extensions for this project:
+Recommended extensions:
 
 ```json
 {
   "recommendations": [
     "astro-build.astro-vscode",
-    "dbaeumer.vscode-eslint",
-    "esbenp.prettier-vscode",
-    "bradlc.vscode-tailwindcss",
-    "prisma.prisma"
+    "biomejs.biome",
+    "bradlc.vscode-tailwindcss"
   ]
 }
 ```
@@ -230,7 +180,7 @@ Add to `.vscode/settings.json`:
 ```json
 {
   "editor.formatOnSave": true,
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.defaultFormatter": "biomejs.biome",
   "[astro]": {
     "editor.defaultFormatter": "astro-build.astro-vscode"
   },
@@ -261,29 +211,20 @@ ls worker/.wrangler/state/v3/d1/miniflare-D1DatabaseObject/
 
 # Open with SQLite CLI
 sqlite3 worker/.wrangler/state/v3/d1/miniflare-D1DatabaseObject/<hash>.sqlite
-
-# Or use a GUI tool like DB Browser for SQLite
 ```
 
-### Add a New Challenge
+### Add a New Level
 
-1. Edit `worker/src/services/content.ts`
-2. Add challenge to `allChallenges` array
-3. Save - Wrangler hot-reloads automatically
+1. Update `frontend/src/content/acts.ts` with level definition
+2. Create component in `frontend/src/components/game/levels/actN/`
+3. Register component in level registry
+4. Test via acts page
 
-### Test API Endpoints
+### Test in Sandbox
 
-```bash
-# Full flow test
-TOKEN=$(curl -s -X POST http://localhost:8787/api/auth/signup \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test'$(date +%s)'@test.com","password":"test123","username":"test'$(date +%s)'"}' \
-  | jq -r '.token')
-
-curl -s http://localhost:8787/api/game/realms \
-  -H "Authorization: Bearer $TOKEN" | jq '.realms[0].name'
-# Expected: "Foundation Fortress"
-```
+1. Navigate to http://localhost:4321/sandbox
+2. All nodes available for experimentation
+3. No success conditions - free exploration
 
 ---
 
@@ -292,33 +233,34 @@ curl -s http://localhost:8787/api/game/realms \
 ### Port Already in Use
 
 ```bash
-# Find process using port 8787
+# Find process using port
+lsof -i :4321
 lsof -i :8787
+
 # Kill it
 kill -9 <PID>
-
-# Or use a different port
-cd worker && wrangler dev --port 8788
 ```
 
 ### Wrangler Not Found
 
 ```bash
-# Use bunx instead of direct wrangler command
+# Use bunx instead
 bunx wrangler dev
 
 # Or install globally
 bun add -g wrangler
 ```
 
-### Database Not Found
+### jsxDEV Error
+
+If you see `jsxDEV is not a function`:
 
 ```bash
-# Ensure you're in worker directory
-cd worker
+# Ensure NODE_ENV is set
+echo "NODE_ENV=development" > frontend/.env
 
-# Ensure --local flag is used
-bunx wrangler d1 execute railsexpert-db --file=src/db/schema.sql --local
+# Restart dev server
+bun run dev
 ```
 
 ### CORS Errors
@@ -327,36 +269,39 @@ Check `worker/src/index.ts` CORS configuration:
 
 ```typescript
 app.use('*', cors({
-  origin: ['http://localhost:4321', 'http://localhost:4322'],
+  origin: ['http://localhost:4321'],
   credentials: true,
 }));
 ```
 
-Add your frontend port if different.
-
 ### Type Errors
 
 ```bash
-# Run type check to see all errors
+# Run type check
 bun run typecheck
 
-# Fix TypeScript configuration
-# Check tsconfig.json in both frontend/ and worker/
+# Fix issues in tsconfig.json or source files
 ```
+
+### React Flow Issues
+
+If React Flow canvas is blank:
+- Ensure container has explicit height
+- Check that NODE_ENV=development is set
+- Verify @xyflow/react is installed
 
 ---
 
 ## Development Workflow
 
-### Typical Development Cycle
+### Typical Cycle
 
 1. **Start servers**: `bun run dev`
-2. **Make changes** to frontend or worker
-3. **Hot reload** happens automatically
-4. **Test API** with curl or browser
-5. **Check types**: `bun run typecheck`
-6. **Run tests**: `bun test`
-7. **Commit** changes
+2. **Make changes** - Hot reload happens automatically
+3. **Test in browser** - http://localhost:4321
+4. **Check types**: `bun run typecheck`
+5. **Lint code**: `bun run lint`
+6. **Commit changes**
 
 ### Before Committing
 
@@ -364,9 +309,65 @@ bun run typecheck
 # Type check
 bun run typecheck
 
-# Run tests
-bun test
+# Lint
+bun run lint
 
 # Build to ensure no errors
 bun run build
 ```
+
+### Working on Levels
+
+1. Navigate to the level: `/acts/act-1/1-1/play`
+2. Open browser DevTools console for metrics
+3. Edit level component - changes hot reload
+4. Test success conditions
+5. Verify star thresholds
+
+### Working on Pipeline Editor
+
+1. Use Sandbox mode for unrestricted testing
+2. Check Zustand stores in React DevTools
+3. Monitor simulation store for metrics
+4. Test node connections and validation
+
+---
+
+## Architecture Overview
+
+```
+User Browser
+     │
+     ▼
+┌─────────────┐     ┌─────────────┐
+│   Astro     │────▶│   Worker    │
+│  Frontend   │     │    API      │
+│  :4321      │     │   :8787     │
+└─────────────┘     └─────────────┘
+                          │
+                          ▼
+                    ┌─────────────┐
+                    │     D1      │
+                    │  (SQLite)   │
+                    └─────────────┘
+```
+
+### Key Frontend Locations
+
+| Feature | Location |
+|---------|----------|
+| Pages | `frontend/src/pages/` |
+| Game components | `frontend/src/components/game/` |
+| Level components | `frontend/src/components/game/levels/` |
+| Stores | `frontend/src/stores/` |
+| Simulation engine | `frontend/src/engine/` |
+| Styles | `frontend/src/styles/` |
+
+### Key Worker Locations
+
+| Feature | Location |
+|---------|----------|
+| Routes | `worker/src/routes/` |
+| Services | `worker/src/services/` |
+| Middleware | `worker/src/middleware/` |
+| Database schema | `worker/src/db/schema.sql` |

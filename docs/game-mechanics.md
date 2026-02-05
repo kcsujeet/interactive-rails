@@ -4,348 +4,401 @@ This document details the gameplay systems in RailsExpert.
 
 ## Overview
 
-RailsExpert uses RPG mechanics to make learning Rails engaging:
-- **XP & Levels** - Progress through correct answers
-- **HP System** - Lose health on wrong answers
-- **Time Bonuses** - Faster answers earn more XP
-- **Damage System** - Deal damage to monsters on correct answers
-- **Progression** - Unlock new realms and dungeons
+RailsExpert teaches Rails optimization through pipeline-building gameplay:
+- **Pipeline Building** - Drag-drop nodes to create request flows
+- **Real-time Simulation** - Watch metrics as requests process
+- **Enemy/Defense System** - Combat performance threats
+- **Star Ratings** - Earn 1-3 stars based on stability
+- **Progressive Unlocks** - Complete levels to unlock new content
 
 ---
 
-## XP (Experience Points)
+## Core Gameplay Loop
 
-### Earning XP
+```
+1. Read Briefing
+   └─> Understand the problem scenario
 
-XP is awarded for correct answers. Base XP comes from challenge difficulty.
+2. Build Pipeline
+   └─> Drag nodes from palette to canvas
+   └─> Connect nodes to create request flow
 
-**Base XP by Difficulty:**
-| Difficulty | Base XP |
-|------------|---------|
-| 1 (Easy) | 20 |
-| 2 (Medium) | 25 |
-| 3 (Hard) | 35 |
-| 4 (Expert) | 50 |
+3. Run Simulation
+   └─> Requests flow through your pipeline
+   └─> Metrics update in real-time
 
-### Time Bonus
+4. Optimize
+   └─> Identify bottlenecks
+   └─> Add optimizations (caching, indexing)
+   └─> Deploy defenses against enemies
 
-Answer faster to earn bonus XP multipliers.
+5. Complete Level
+   └─> Meet success conditions
+   └─> Earn stars based on stability score
+```
+
+---
+
+## Pipeline Building
+
+### Node Types
+
+| Node | Color | Purpose |
+|------|-------|---------|
+| Request | Blue (#3b82f6) | Incoming HTTP request |
+| Router | Purple (#a78bfa) | Rails routes.rb dispatcher |
+| Controller | Green (#10b981) | ActionController handler |
+| Model | Orange (#f59e0b) | ActiveRecord model |
+| Database | Red (#ef4444) | PostgreSQL database |
+| View | Purple (#a855f7) | ERB template renderer |
+| Response | Green (#10b981) | HTTP response |
+| Cache | Cyan (#06b6d4) | Redis cache layer |
+| Job | Violet (#8b5cf6) | Background job (Sidekiq) |
+
+### Connection Rules
+
+Valid connections follow Rails MVC patterns:
+
+```
+Request → Router → Controller → Model → Database
+                       ↓
+                     View → Response
+```
+
+**Valid connections:**
+- Request → Router
+- Router → Controller
+- Controller → Model
+- Controller → View
+- Model → Database
+- Model ↔ Cache
+- View → Response
+- Controller → Job (async)
+
+**Invalid connections shown with red dashed line.**
+
+### Node Palette
+
+Nodes available depend on the level:
+- Early levels: Basic MVC nodes only
+- Later levels: Cache, Job, advanced nodes
+- Sandbox: All nodes available
+
+---
+
+## Simulation Engine
+
+### Tick-Based Processing
+
+The simulation runs at ~30 FPS:
 
 ```typescript
-// worker/src/routes/game.ts
-const timeBonus = timeTakenMs < 10000 ? 1.5 :  // Under 10 seconds: 50% bonus
-                  timeTakenMs < 20000 ? 1.2 :  // Under 20 seconds: 20% bonus
-                  1;                            // Over 20 seconds: no bonus
-
-xpGained = Math.floor(challenge.xp_reward * timeBonus);
+class SimulationEngine {
+  tick() {
+    this.generateRequests();      // Spawn new requests
+    this.processRequests();       // Move through pipeline
+    this.calculateMetrics();      // Update latency, throughput
+    this.spawnEnemies();          // Based on metrics
+    this.activateDefenses();      // Counter enemies
+    this.updateStability();       // Calculate score
+  }
+}
 ```
 
-**Example:**
-- Difficulty 2 challenge (25 base XP)
-- Answered in 8 seconds
-- XP earned: 25 × 1.5 = 37 XP
+### Request Flow
 
-### Wrong Answers
+1. **Request spawns** at Request node
+2. **Travels through connections** (visualized as particle)
+3. **Processed by each node** (adds latency)
+4. **Reaches Response node** (request complete)
+5. **Metrics updated** (latency recorded)
 
-Wrong answers award 0 XP. No partial credit.
+### Processing Time by Node
+
+| Node | Base Latency | Notes |
+|------|--------------|-------|
+| Router | 1-2ms | Fast dispatch |
+| Controller | 5-10ms | Action processing |
+| Model | 10-50ms | Depends on query |
+| Database | 20-100ms | Query execution |
+| View | 5-20ms | Template rendering |
+| Cache | 1-5ms | Cache hit |
+| Cache Miss | +50ms | Falls through to DB |
 
 ---
 
-## Leveling System
+## Metrics
 
-### XP Required per Level
+### Inspector Panel Metrics
 
-XP requirements increase exponentially.
+| Metric | Description | Good | Bad |
+|--------|-------------|------|-----|
+| Latency p50 | Median response time | < 50ms | > 200ms |
+| Latency p95 | 95th percentile | < 100ms | > 500ms |
+| Latency p99 | 99th percentile | < 200ms | > 1000ms |
+| Throughput | Requests/second | Level target | Below target |
+| Queries/Request | DB queries per request | 1-3 | > 10 (N+1) |
+| Cache Hit Rate | % served from cache | > 80% | < 50% |
+| Memory Usage | Application memory | < 70% | > 90% |
+| Error Rate | Failed requests | < 1% | > 5% |
+
+### N+1 Query Detection
+
+The engine detects N+1 patterns:
 
 ```typescript
-// worker/src/services/game.ts
-export function calculateXpForLevel(level: number): number {
-  // Base 100 XP, increasing by 50% each level
-  return Math.floor(100 * Math.pow(1.5, level - 1));
+// Triggers N+1 warning when:
+// - Multiple identical queries in one request
+// - Query count scales with data size
+if (queriesPerRequest > 10 && hasRepeatedPattern) {
+  spawnEnemy('query_swarm');
 }
 ```
 
-**XP Requirements:**
-| Level | XP Required | Cumulative |
-|-------|-------------|------------|
-| 1 → 2 | 100 | 100 |
-| 2 → 3 | 150 | 250 |
-| 3 → 4 | 225 | 475 |
-| 4 → 5 | 337 | 812 |
-| 5 → 6 | 506 | 1,318 |
-| 10 | 3,844 | ~7,600 |
-| 20 | 221,851 | ~440,000 |
-| 50 | ~637M | - |
-| 100 | ~4.0E14 | - |
+---
 
-### Level Up Rewards
+## Stability Score
 
-When leveling up:
-1. **Full HP Restore** - HP resets to max
-2. **Max HP Increase** - +10 max HP per level
-3. **Realm Unlocks** - Some realms require minimum level
+### Calculation
 
 ```typescript
-if (newXp >= xpForNextLevel) {
-  newLevel = progress.level + 1;
-  // Heal on level up
-  newHp = 100 + (newLevel - 1) * 10; // Max HP formula
-}
+stabilityScore = weighted_average([
+  { metric: 'latency',    weight: 0.30, score: latencyScore },
+  { metric: 'throughput', weight: 0.25, score: throughputScore },
+  { metric: 'queries',    weight: 0.20, score: queryScore },
+  { metric: 'cache',      weight: 0.15, score: cacheScore },
+  { metric: 'errors',     weight: 0.10, score: errorScore },
+]);
 ```
 
-**Max HP by Level:**
-| Level | Max HP |
-|-------|--------|
-| 1 | 100 |
-| 5 | 140 |
-| 10 | 190 |
-| 20 | 290 |
-
----
-
-## HP (Health Points)
-
-### Starting HP
-
-All new players start with:
-- Current HP: 100
-- Max HP: 100
-
-### Taking Damage (Wrong Answers)
-
-When you answer incorrectly, the monster attacks.
+### Scoring Functions
 
 ```typescript
-// HP lost = base 10 + (difficulty * 5)
-const hpLost = 10 + challenge.difficulty * 5;
-newHp = Math.max(0, progress.current_hp - hpLost);
+// Latency score (lower is better)
+latencyScore = Math.max(0, 100 - (p95Latency / targetLatency) * 100);
+
+// Throughput score (higher is better)
+throughputScore = Math.min(100, (throughput / targetThroughput) * 100);
+
+// Query score (fewer is better)
+queryScore = Math.max(0, 100 - (queriesPerRequest - 1) * 10);
+
+// Cache score (higher hit rate is better)
+cacheScore = cacheHitRate; // 0-100
+
+// Error score (lower is better)
+errorScore = Math.max(0, 100 - errorRate * 20);
 ```
 
-**Damage Taken by Difficulty:**
-| Difficulty | HP Lost |
-|------------|---------|
-| 1 | 15 |
-| 2 | 20 |
-| 3 | 25 |
-| 4 | 30 |
+### Star Ratings
 
-### HP = 0 (Defeat)
-
-When HP reaches 0:
-- Battle ends
-- Player must restart dungeon
-- No XP penalty (keep what you earned)
-
-### Healing
-
-HP is restored:
-1. **Level Up** - Full heal to new max HP
-2. **Complete Dungeon** - Partial heal (planned)
-3. **Daily Login** - Heal 20 HP (planned)
+| Stars | Stability Score | Achievement |
+|-------|-----------------|-------------|
+| ⭐⭐⭐ | >= 90 | Excellent |
+| ⭐⭐ | >= 70 | Good |
+| ⭐ | >= 50 | Passed |
+| 0 | < 50 | Failed |
 
 ---
 
-## Damage System (Player → Monster)
+## Enemy System
 
-### Monster HP
+### Enemy Types
 
-Each challenge has an associated monster with HP.
+| Enemy | Visual | Trigger | Effect |
+|-------|--------|---------|--------|
+| Query Swarm | Buzzing particles | N+1 queries | +50ms latency |
+| Memory Blob | Growing sphere | Memory > 80% | Slows all nodes |
+| Callback Chain | Chain links | Deep nesting | Blocks pipeline |
+| Timeout Wraith | Ghost | p99 > 500ms | Random timeouts |
+| Error Spike | Red lightning | Errors > 5% | Drops requests |
+| Cache Phantom | Fading ghost | Cache < 50% | DB overload |
 
-**Monster HP by Difficulty:**
-| Difficulty | Monster HP |
-|------------|------------|
-| 1 | 30 |
-| 2 | 50 |
-| 3 | 70 |
-| 4 | 100 |
-
-### Dealing Damage
-
-Correct answers deal damage to the monster.
+### Enemy Spawning
 
 ```typescript
-// worker/src/services/game.ts
-export function calculateDamage(difficulty: number, timeTakenMs: number): number {
-  const baseDamage = 10 + difficulty * 5;
-  const timeMultiplier = timeTakenMs < 10000 ? 1.5 :
-                         timeTakenMs < 20000 ? 1.2 : 1;
-  return Math.floor(baseDamage * timeMultiplier);
+function checkEnemySpawns(metrics: Metrics) {
+  if (metrics.queriesPerRequest > 10) {
+    spawn('query_swarm', { strength: metrics.queriesPerRequest });
+  }
+  if (metrics.memoryUsage > 0.8) {
+    spawn('memory_blob', { size: metrics.memoryUsage });
+  }
+  if (metrics.p99Latency > 500) {
+    spawn('timeout_wraith');
+  }
+  // ... etc
 }
 ```
 
-**Damage Dealt:**
-| Difficulty | Base | Fast (<10s) | Medium (<20s) |
-|------------|------|-------------|---------------|
-| 1 | 15 | 22 | 18 |
-| 2 | 20 | 30 | 24 |
-| 3 | 25 | 37 | 30 |
-| 4 | 30 | 45 | 36 |
+### Enemy Behavior
 
-### Monster Defeat
-
-When monster HP reaches 0:
-- Challenge is marked complete
-- Move to next challenge
-- (Animation plays on frontend)
+Enemies attack specific nodes:
+- Query Swarm → Database node
+- Memory Blob → All nodes (global debuff)
+- Timeout Wraith → Slowest node
+- Cache Phantom → Cache node
 
 ---
 
-## Realm Progression
+## Defense System
 
-### Realm Structure
+### Defense Types
 
-```
-Realm (e.g., "Foundation Fortress")
-├── Dungeon 1 (e.g., "MVC Architecture") - 10 challenges
-├── Dungeon 2 (e.g., "Directory Structure") - 10 challenges
-├── Dungeon 3 (e.g., "Basic Routing") - 10 challenges
-├── Dungeon 4 (e.g., "Controllers 101") - 10 challenges
-└── Dungeon 5 (e.g., "Views & ERB") - 10 challenges
-```
+| Defense | Placement | Counters | Effect |
+|---------|-----------|----------|--------|
+| Index Turret | Database | Query Swarm | -50% query time |
+| Cache Shield | Cache | Cache Phantom | +30% hit rate |
+| Eager Loader | Model | Query Swarm | Prevents N+1 |
+| Rate Limiter | Router | Error Spike | Throttles overflow |
+| Worker Drone | Controller | Timeout Wraith | Async processing |
+| Validator Wall | Router | Error Spike | Early validation |
 
-### Unlock Requirements
+### Defense Placement
 
-| Realm | Requirement |
-|-------|-------------|
-| Foundation Fortress | Always unlocked |
-| ActiveRecord Depths | Complete Foundation OR Level 3 |
-| Routing Labyrinth | Complete ActiveRecord OR Level 5 |
-| Controller Citadel | Complete Routing |
-| View Valley | Complete Controllers |
-| Database Dungeons | Level 10 |
-| Performance Peaks | Level 15 |
-| Email & Notifications | Level 20 |
-| Database Mastery | Level 25 |
-| DevOps & Deployment | Level 30 |
-| Architecture Apex | Level 40 |
-
-### Dungeon Unlocks
-
-Within a realm:
-- **Dungeon 1** - Always unlocked when realm is unlocked
-- **Dungeon 2+** - Requires previous dungeon completed
-
----
-
-## Challenge Types
-
-### Multiple Choice
-
-Select the correct answer from 4 options.
-
-```json
-{
-  "type": "multiple_choice",
-  "question": "Which command generates a new Rails model?",
-  "options": [
-    { "id": "a", "text": "rails generate model" },
-    { "id": "b", "text": "rails create model" },
-    { "id": "c", "text": "rails new model" },
-    { "id": "d", "text": "rails make model" }
-  ],
-  "correct_answer": "a"
-}
+```typescript
+// Defenses attach to specific node types
+const validPlacements = {
+  index_turret: ['database'],
+  cache_shield: ['cache'],
+  eager_loader: ['model'],
+  rate_limiter: ['router'],
+  worker_drone: ['controller'],
+  validator_wall: ['router'],
+};
 ```
 
-**Answer format:** Single letter (a, b, c, or d)
+### Defense Activation
 
-### Fill in the Blank
+Defenses activate automatically when enemies approach:
 
-Type the missing code or term.
-
-```json
-{
-  "type": "fill_in_blank",
-  "question": "Complete the association",
-  "code_snippet": "class Post < ApplicationRecord\n  has_many :____\nend",
-  "correct_answer": "comments"
-}
-```
-
-**Answer format:** Text (case-insensitive comparison)
-
-### Code Analysis
-
-Analyze a code snippet and answer a question.
-
-```json
-{
-  "type": "code_analysis",
-  "question": "What will this code output?",
-  "code_snippet": "User.where(active: true).pluck(:email)",
-  "options": [
-    { "id": "a", "text": "Array of User objects" },
-    { "id": "b", "text": "Array of email strings" },
-    { "id": "c", "text": "ActiveRecord::Relation" },
-    { "id": "d", "text": "Single email string" }
-  ],
-  "correct_answer": "b"
+```typescript
+function activateDefenses() {
+  for (const defense of activeDefenses) {
+    const nearbyEnemies = findEnemiesInRange(defense);
+    for (const enemy of nearbyEnemies) {
+      if (defense.counters.includes(enemy.type)) {
+        applyDefenseEffect(defense, enemy);
+      }
+    }
+  }
 }
 ```
 
 ---
 
-## Scoring
+## Progression System
 
-### Dungeon Score
+### Level Structure
 
-Score is calculated per dungeon run:
+6 Acts with 35 total levels:
 
+| Act | Name | Levels | Focus |
+|-----|------|--------|-------|
+| 1 | Rails Fundamentals | 8 | MVC, CRUD, associations |
+| 2 | Clean Code | 10 | Security, service objects |
+| 3 | Performance | 12 | N+1, caching, background jobs |
+| 4 | Production | 12 | Feature flags, circuit breakers |
+| 5 | Infrastructure | 5 | Load balancing, CDN |
+| 6 | System Design | 4 | Queues, microservices |
+
+### Unlocking
+
+- **Levels**: Complete previous level to unlock next
+- **Acts**: Complete final level of previous act
+- **Nodes**: Some levels unlock new node types
+- **Defenses**: Some levels unlock new defenses
+
+### XP System
+
+```typescript
+// XP earned per level completion
+baseXP = level.difficulty * 100;
+
+starMultiplier = {
+  3: 1.5,
+  2: 1.2,
+  1: 1.0,
+};
+
+firstTimeBonus = isFirstCompletion ? 2.0 : 1.0;
+
+totalXP = baseXP * starMultiplier[stars] * firstTimeBonus;
 ```
-Score = Σ (XP gained per challenge)
-```
 
-Best score is saved for leaderboard purposes.
-
-### Accuracy
-
-```
-Accuracy = (Correct Answers / Total Attempts) × 100
-```
-
----
-
-## Daily Streak (Planned)
-
-### How It Works
-
-1. Play at least one challenge per day
-2. Streak counter increases
-3. Miss a day = streak resets to 0
-
-### Streak Bonuses (Planned)
-
-| Streak | Bonus |
-|--------|-------|
-| 3 days | +10% XP |
-| 7 days | +20% XP |
-| 14 days | +30% XP |
-| 30 days | +50% XP |
-
----
-
-## Achievements (Planned)
-
-Example achievements:
+### Achievements
 
 | Achievement | Requirement |
 |-------------|-------------|
-| First Blood | Complete first challenge |
-| Perfect Run | Complete a dungeon with no wrong answers |
-| Speed Demon | Answer 10 challenges under 10 seconds each |
-| Streak Master | Reach 30-day streak |
-| Rails Warrior | Reach level 50 |
-| Realm Conqueror | Complete all dungeons in a realm |
-| Bug Squasher | Answer 100 challenges correctly |
+| First Pipeline | Complete Level 1 |
+| Three Star | Get 3 stars on any level |
+| Perfect Act | 3-star all levels in an act |
+| Speed Runner | Complete level under 60 seconds |
+| Query Master | 0 N+1 queries in entire act |
+| Cache Champion | 95%+ cache hit rate |
+| Zero Downtime | 0% error rate |
+| Defender | Use all defense types |
+
+---
+
+## Sandbox Mode
+
+### Features
+
+- All node types available
+- All defense types available
+- No success conditions
+- No time limits
+- Enemies can be toggled on/off
+- Metrics still tracked
+- Great for experimentation
+
+### Use Cases
+
+1. **Practice concepts** before attempting levels
+2. **Experiment** with different pipeline architectures
+3. **Test optimizations** without pressure
+4. **Understand metrics** in a safe environment
+
+---
+
+## Controls
+
+### Pipeline Editor
+
+| Action | Input |
+|--------|-------|
+| Add node | Drag from palette |
+| Select node | Click node |
+| Move node | Drag selected node |
+| Connect | Drag from handle to handle |
+| Delete | Select + Delete/Backspace |
+| Pan canvas | Middle-click drag |
+| Zoom | Scroll wheel |
+| Undo | Ctrl/Cmd + Z |
+| Redo | Ctrl/Cmd + Shift + Z |
+
+### Simulation
+
+| Action | Input |
+|--------|-------|
+| Start/Pause | Space or Play button |
+| Reset | R key or Reset button |
+| Speed 1x | 1 key |
+| Speed 2x | 2 key |
+| Speed 3x | 3 key |
 
 ---
 
 ## Implementation Files
 
-| Mechanic | File Location |
-|----------|---------------|
-| XP calculation | `worker/src/services/game.ts` |
-| Damage calculation | `worker/src/services/game.ts` |
-| Challenge submission | `worker/src/routes/game.ts` |
-| Progress tracking | `worker/src/routes/progress.ts` |
-| Level requirements | `worker/src/services/game.ts` |
+| System | Location |
+|--------|----------|
+| Simulation Engine | `frontend/src/engine/SimulationEngine.ts` |
+| Metrics Calculation | `frontend/src/engine/metrics.ts` |
+| Node Behavior | `frontend/src/engine/nodeBehavior.ts` |
+| Game Store | `frontend/src/stores/game.ts` |
+| Pipeline Store | `frontend/src/stores/pipeline.ts` |
+| Simulation Store | `frontend/src/stores/simulation.ts` |
+| Phaser Game Layer | `frontend/src/game/PhaserGame.ts` |
+| Level Components | `frontend/src/components/game/levels/` |

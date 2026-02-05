@@ -4,6 +4,15 @@ Base URL: `http://localhost:8787` (development) or `https://api.railsexpert.com`
 
 All API endpoints are prefixed with `/api`.
 
+## Overview
+
+The RailsExpert API handles:
+- **Authentication** - User signup, login, session management
+- **Progress** - Level completion tracking, star ratings, achievements
+- **Leaderboards** - Per-level rankings
+
+**Note:** Game simulation runs entirely client-side. The API only stores completion results.
+
 ## Authentication
 
 All protected endpoints require the `Authorization` header:
@@ -64,7 +73,8 @@ Authenticate and receive JWT token.
   "user": {
     "id": "uuid-here",
     "email": "user@example.com",
-    "username": "railswarrior"
+    "username": "railswarrior",
+    "level": 5
   },
   "token": "eyJhbGciOiJIUzI1NiIs..."
 }
@@ -88,6 +98,7 @@ Get current authenticated user.
     "id": "uuid-here",
     "email": "user@example.com",
     "username": "railswarrior",
+    "level": 5,
     "created_at": "2024-01-15T10:30:00Z"
   }
 }
@@ -110,206 +121,11 @@ Invalidate current session.
 
 ---
 
-## Game Endpoints
-
-### GET /api/game/realms
-
-Get all realms with user's unlock status.
-
-**Headers:** `Authorization: Bearer <token>` (required)
-
-**Response (200 OK):**
-```json
-{
-  "realms": [
-    {
-      "id": "foundation",
-      "name": "Foundation Fortress",
-      "description": "Master the basics of Ruby on Rails",
-      "difficulty": "beginner",
-      "dungeons": ["mvc", "directory", "routing-basics", "controllers-101", "views-erb"],
-      "isUnlocked": true,
-      "dungeonsCompleted": 2,
-      "totalDungeons": 5,
-      "unlockRequirement": null
-    },
-    {
-      "id": "activerecord",
-      "name": "ActiveRecord Depths",
-      "description": "Dive deep into database interactions",
-      "difficulty": "beginner",
-      "dungeons": ["models", "associations", "validations", "callbacks", "queries"],
-      "isUnlocked": true,
-      "dungeonsCompleted": 0,
-      "totalDungeons": 5,
-      "unlockRequirement": {
-        "realm": "foundation"
-      }
-    }
-    // ... more realms
-  ]
-}
-```
-
-**Realm Object Fields:**
-| Field | Type | Description |
-|-------|------|-------------|
-| id | string | Unique realm identifier |
-| name | string | Display name |
-| description | string | Realm description |
-| difficulty | string | "beginner", "intermediate", "advanced", "expert" |
-| dungeons | string[] | Array of dungeon IDs |
-| isUnlocked | boolean | Whether user can access this realm |
-| dungeonsCompleted | number | How many dungeons user has completed |
-| totalDungeons | number | Total dungeons in realm |
-| unlockRequirement | object | null | Requirements to unlock |
-
----
-
-### GET /api/game/realms/:realmId/dungeons
-
-Get dungeons for a specific realm with progress.
-
-**Headers:** `Authorization: Bearer <token>` (required)
-
-**URL Parameters:**
-- `realmId` - Realm identifier (e.g., "foundation", "activerecord")
-
-**Response (200 OK):**
-```json
-{
-  "dungeons": [
-    {
-      "id": "mvc",
-      "name": "Dungeon 1",
-      "isUnlocked": true,
-      "isCompleted": true,
-      "challengesCompleted": 10,
-      "totalChallenges": 10,
-      "bestScore": 950
-    },
-    {
-      "id": "directory",
-      "name": "Dungeon 2",
-      "isUnlocked": true,
-      "isCompleted": false,
-      "challengesCompleted": 3,
-      "totalChallenges": 10,
-      "bestScore": 280
-    }
-    // ... more dungeons
-  ]
-}
-```
-
-**Errors:**
-- `404` - Realm not found
-
----
-
-### GET /api/game/dungeons/:dungeonId/challenges
-
-Get all challenges for a dungeon (starts a battle session).
-
-**Headers:** `Authorization: Bearer <token>` (required)
-
-**URL Parameters:**
-- `dungeonId` - Dungeon identifier (e.g., "mvc", "associations")
-
-**Response (200 OK):**
-```json
-{
-  "challenges": [
-    {
-      "id": "foundation-mvc-001",
-      "type": "multiple_choice",
-      "difficulty": 1,
-      "xp_reward": 20,
-      "question": "What does MVC stand for in Ruby on Rails?",
-      "options": [
-        { "id": "a", "text": "Model-View-Controller" },
-        { "id": "b", "text": "Module-Variable-Class" },
-        { "id": "c", "text": "Main-Visual-Component" },
-        { "id": "d", "text": "Method-Value-Constant" }
-      ],
-      "code_snippet": null,
-      "monster": {
-        "name": "Architecture Gremlin",
-        "hp": 30
-      }
-    }
-    // ... 9 more challenges (10 total per dungeon)
-  ]
-}
-```
-
-**Note:** `correct_answer` and `explanation` are NOT included in this response to prevent cheating.
-
-**Challenge Types:**
-- `multiple_choice` - Select one option (a, b, c, or d)
-- `fill_in_blank` - Type the answer (case-insensitive)
-- `code_analysis` - Analyze code snippet and answer
-
-**Errors:**
-- `404` - Dungeon not found or has no challenges
-
----
-
-### POST /api/game/challenges/:challengeId/attempt
-
-Submit an answer to a challenge.
-
-**Headers:** `Authorization: Bearer <token>` (required)
-
-**URL Parameters:**
-- `challengeId` - Challenge identifier (e.g., "foundation-mvc-001")
-
-**Request Body:**
-```json
-{
-  "answer": "a",
-  "timeTakenMs": 8500
-}
-```
-
-**Response (200 OK):**
-```json
-{
-  "isCorrect": true,
-  "correctAnswer": "a",
-  "explanation": "MVC stands for Model-View-Controller, a software design pattern that Rails is built upon.",
-  "xpGained": 30,
-  "newLevel": 2,
-  "currentHp": 100,
-  "damage": 15,
-  "leveledUp": true
-}
-```
-
-**Response Fields:**
-| Field | Type | Description |
-|-------|------|-------------|
-| isCorrect | boolean | Whether answer was correct |
-| correctAnswer | string | The correct answer |
-| explanation | string | Explanation of the answer |
-| xpGained | number | XP earned (0 if incorrect) |
-| newLevel | number | User's current level |
-| currentHp | number | User's current HP |
-| damage | number | Damage dealt to monster (if correct) |
-| leveledUp | boolean | Whether user leveled up |
-
-**Errors:**
-- `404` - Challenge not found
-- `400` - Invalid request body
-- `500` - User progress not found
-
----
-
 ## Progress Endpoints
 
 ### GET /api/progress
 
-Get user's full progress data.
+Get user's full progress data including level completions.
 
 **Headers:** `Authorization: Bearer <token>` (required)
 
@@ -318,13 +134,117 @@ Get user's full progress data.
 {
   "progress": {
     "user_id": "uuid-here",
-    "xp": 450,
-    "level": 3,
-    "current_hp": 85,
-    "max_hp": 120,
-    "current_realm": "activerecord",
-    "daily_streak": 5,
+    "level": 5,
+    "xp": 1250,
+    "unlocked_nodes": ["request", "router", "controller", "model", "database", "view", "response", "cache"],
+    "unlocked_defenses": ["index_turret", "cache_shield", "eager_loader"],
+    "stack_choices": {
+      "database": "postgresql",
+      "frontend": "hotwire"
+    },
+    "total_stars_earned": 24,
+    "dungeons_completed": 10,
     "last_played_at": "2024-01-15T18:30:00Z"
+  },
+  "completions": [
+    {
+      "dungeon_id": "1-1",
+      "stars_earned": 3,
+      "best_stability": 95,
+      "best_time_seconds": 45,
+      "attempts": 2
+    },
+    {
+      "dungeon_id": "1-2",
+      "stars_earned": 2,
+      "best_stability": 78,
+      "best_time_seconds": 120,
+      "attempts": 5
+    }
+  ]
+}
+```
+
+---
+
+### POST /api/progress/complete
+
+Record a level completion.
+
+**Headers:** `Authorization: Bearer <token>` (required)
+
+**Request Body:**
+```json
+{
+  "levelId": "1-5",
+  "stars": 3,
+  "stability": 92,
+  "timeSeconds": 85,
+  "metrics": {
+    "latencyP50": 25,
+    "latencyP95": 48,
+    "latencyP99": 89,
+    "throughput": 150,
+    "queriesPerRequest": 2,
+    "cacheHitRate": 85,
+    "errorRate": 0
+  }
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "isNewBest": true,
+  "xpGained": 300,
+  "newLevel": 6,
+  "leveledUp": true,
+  "unlockedNodes": ["job"],
+  "unlockedDefenses": ["worker_drone"]
+}
+```
+
+**Response Fields:**
+| Field | Type | Description |
+|-------|------|-------------|
+| success | boolean | Whether completion was recorded |
+| isNewBest | boolean | Whether this beat previous best |
+| xpGained | number | XP earned from completion |
+| newLevel | number | Player's new level |
+| leveledUp | boolean | Whether player leveled up |
+| unlockedNodes | string[] | Newly unlocked node types |
+| unlockedDefenses | string[] | Newly unlocked defenses |
+
+---
+
+### POST /api/progress/import-guest
+
+Import guest progress to authenticated account.
+
+**Headers:** `Authorization: Bearer <token>` (required)
+
+**Request Body:**
+```json
+{
+  "guestProgress": {
+    "completedLevels": [
+      { "levelId": "1-1", "stars": 2, "stability": 75 },
+      { "levelId": "1-2", "stars": 1, "stability": 55 }
+    ],
+    "xp": 500,
+    "stackChoices": { "database": "postgresql" }
+  }
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "imported": {
+    "levels": 2,
+    "xp": 500
   }
 }
 ```
@@ -341,16 +261,100 @@ Get user's gameplay statistics.
 ```json
 {
   "stats": {
-    "totalXp": 450,
-    "level": 3,
-    "challengesCompleted": 28,
-    "challengesCorrect": 24,
-    "accuracy": 85.7,
-    "dungeonsCompleted": 2,
-    "realmsCompleted": 0,
-    "dailyStreak": 5,
-    "longestStreak": 12
+    "totalXp": 1250,
+    "level": 5,
+    "levelsCompleted": 10,
+    "totalStars": 24,
+    "threeStarCount": 6,
+    "totalPlayTimeSeconds": 3600,
+    "averageStability": 82,
+    "bestStability": 98,
+    "achievementsUnlocked": 5
   }
+}
+```
+
+---
+
+## Leaderboard Endpoints
+
+### GET /api/leaderboard/:levelId
+
+Get leaderboard for a specific level.
+
+**URL Parameters:**
+- `levelId` - Level identifier (e.g., "1-5", "3-2")
+
+**Query Parameters:**
+- `sort` - Sort by "stability" (default) or "time"
+- `limit` - Number of entries (default: 100, max: 500)
+
+**Response (200 OK):**
+```json
+{
+  "leaderboard": [
+    {
+      "rank": 1,
+      "username": "speedrunner",
+      "stability": 98,
+      "timeSeconds": 32,
+      "stars": 3,
+      "achievedAt": "2024-01-14T12:00:00Z"
+    },
+    {
+      "rank": 2,
+      "username": "railsmaster",
+      "stability": 96,
+      "timeSeconds": 45,
+      "stars": 3,
+      "achievedAt": "2024-01-15T09:30:00Z"
+    }
+  ],
+  "userRank": 15,
+  "userEntry": {
+    "stability": 82,
+    "timeSeconds": 120,
+    "stars": 2
+  }
+}
+```
+
+---
+
+## Achievement Endpoints
+
+### GET /api/achievements
+
+Get user's achievements.
+
+**Headers:** `Authorization: Bearer <token>` (required)
+
+**Response (200 OK):**
+```json
+{
+  "achievements": [
+    {
+      "id": "first_pipeline",
+      "name": "First Pipeline",
+      "description": "Complete your first level",
+      "isComplete": true,
+      "completedAt": "2024-01-10T10:00:00Z"
+    },
+    {
+      "id": "three_star",
+      "name": "Perfectionist",
+      "description": "Get 3 stars on any level",
+      "isComplete": true,
+      "completedAt": "2024-01-12T15:30:00Z"
+    },
+    {
+      "id": "speed_runner",
+      "name": "Speed Runner",
+      "description": "Complete a level in under 60 seconds",
+      "isComplete": false,
+      "progress": 0
+    }
+  ]
 }
 ```
 
@@ -393,23 +397,28 @@ curl -X POST http://localhost:8787/api/auth/login \
   -d '{"email":"test@example.com","password":"test123"}'
 ```
 
-### Get Realms (with token)
+### Get Progress
 ```bash
 TOKEN="your-jwt-token"
-curl http://localhost:8787/api/game/realms \
+curl http://localhost:8787/api/progress \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-### Get Challenges
+### Record Completion
 ```bash
-curl http://localhost:8787/api/game/dungeons/mvc/challenges \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-### Submit Answer
-```bash
-curl -X POST http://localhost:8787/api/game/challenges/foundation-mvc-001/attempt \
+curl -X POST http://localhost:8787/api/progress/complete \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"answer":"a","timeTakenMs":5000}'
+  -d '{
+    "levelId": "1-1",
+    "stars": 3,
+    "stability": 92,
+    "timeSeconds": 45,
+    "metrics": {"latencyP50": 25, "throughput": 150}
+  }'
+```
+
+### Get Leaderboard
+```bash
+curl "http://localhost:8787/api/leaderboard/1-5?sort=stability&limit=50"
 ```
