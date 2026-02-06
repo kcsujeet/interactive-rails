@@ -248,7 +248,7 @@ export function Level1StackChoice({
 
 						{/* Terminal Node */}
 						<div className="flex justify-center mb-8">
-							<div className="bg-gradient-to-br from-primary/30 to-primary/10 border border-primary/50 rounded-lg px-8 py-4 shadow-lg shadow-primary/20">
+							<div className="bg-linear-to-br from-primary/30 to-primary/10 border border-primary/50 rounded-lg px-8 py-4 shadow-lg shadow-primary/20">
 								<div className="flex items-center gap-3">
 									<span className="text-2xl">{'>'}_</span>
 									<div>

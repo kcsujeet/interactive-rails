@@ -328,7 +328,7 @@ export function Level22Sharding({ onComplete, onExit }: LevelComponentProps) {
 					{isComplete && (
 						<div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
 							<Button
-								className="px-8 py-3 bg-gradient-to-r from-success to-success/80 text-success-foreground font-bold shadow-lg"
+								className="px-8 py-3 bg-linear-to-r from-success to-success/80 text-success-foreground font-bold shadow-lg"
 								onClick={handleComplete}
 							>
 								Complete Level

@@ -446,7 +446,7 @@ export function Level35Microservices({
 
 						{/* Architecture Tips */}
 						{extractedCount >= 3 && (
-							<div className="mt-6 bg-gradient-to-r from-primary/30 to-purple-900/30 border border-primary rounded-xl p-6">
+							<div className="mt-6 bg-linear-to-r from-primary/30 to-purple-900/30 border border-primary rounded-xl p-6">
 								<div className="text-center">
 									<div className="text-3xl mb-2">🎓</div>
 									<div className="text-xl font-bold text-primary mb-2">

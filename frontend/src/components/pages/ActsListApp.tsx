@@ -66,7 +66,7 @@ export function ActsListApp() {
 				</div>
 				<div className="h-2 bg-secondary rounded-full overflow-hidden">
 					<div
-						className="h-full bg-gradient-to-r from-primary to-cyan-400 transition-all duration-500"
+						className="h-full bg-linear-to-r from-primary to-amber-400 transition-all duration-500"
 						style={{ width: `${Math.round((totalCompleted / totalLevels) * 100)}%` }}
 					/>
 				</div>
@@ -104,7 +104,7 @@ export function ActsListApp() {
 								w-full h-auto p-5 rounded-xl border text-left justify-start
 								transition-all duration-200 animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-both
 								${actUnlocked
-									? 'border-border hover:border-primary/40 hover:shadow-[0_0_20px_oklch(0.75_0.15_200_/_0.08)] hover:-translate-y-0.5'
+									? 'border-border hover:border-primary/40 hover:shadow-[0_0_20px_oklch(0.75_0.16_55_/_0.08)] hover:-translate-y-0.5'
 									: 'border-transparent opacity-50'
 								}
 							`}
@@ -134,7 +134,7 @@ export function ActsListApp() {
 										<div className="flex items-center gap-2 mt-2">
 											<div className="w-24 h-1.5 bg-secondary rounded-full overflow-hidden">
 												<div
-													className="h-full bg-gradient-to-r from-primary to-cyan-400 transition-all"
+													className="h-full bg-linear-to-r from-primary to-amber-400 transition-all"
 													style={{ width: `${Math.round((completedCount / act.levels.length) * 100)}%` }}
 												/>
 											</div>
