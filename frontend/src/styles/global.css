@@ -44,6 +44,9 @@
   --warning: oklch(0.75 0.15 70);
   --warning-foreground: oklch(0.145 0 0);
 
+  --info: oklch(0.577 0.245 243);
+  --info-foreground: oklch(0.985 0 0);
+
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
@@ -89,8 +92,8 @@
   --accent: oklch(0.20 0.03 30);
   --accent-foreground: oklch(0.90 0.01 60);
 
-  --destructive: oklch(0.60 0.20 25);
-  --destructive-foreground: oklch(0.95 0.01 25);
+  --destructive: oklch(0.63 0.25 15);
+  --destructive-foreground: oklch(0.95 0.01 15);
 
   --success: oklch(0.65 0.17 160);
   --success-foreground: oklch(0.95 0.01 160);
@@ -98,8 +101,11 @@
   --warning: oklch(0.75 0.15 70);
   --warning-foreground: oklch(0.20 0.05 70);
 
-  --border: oklch(0.45 0.02 40 / 20%);
-  --input: oklch(0.45 0.02 40 / 20%);
+  --info: oklch(0.65 0.20 250);
+  --info-foreground: oklch(0.95 0.01 250);
+
+  --border: oklch(0.50 0.02 40 / 40%);
+  --input: oklch(0.50 0.02 40 / 40%);
   --ring: oklch(0.75 0.16 55);
 
   /* Layered shadows for depth */
@@ -156,6 +162,8 @@
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -200,7 +208,7 @@
   --animate-pulse-slow: pulse 3s ease-in-out infinite;
 
   /* UI Animations */
-  --animate-shimmer: shimmer 2s linear infinite;
+  --animate-shimmer: shimmer 5s linear infinite;
 }
 
 /* ============================================
@@ -368,10 +376,11 @@ body {
 /* Hover card: lift + glow on hover */
 .hover-card {
   transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  border-width: 1px;
+  border-color: color-mix(in oklch, var(--primary) 25%, transparent);
 }
 .hover-card:hover {
-  border-color: oklch(0.75 0.16 55 / 25%);
-  box-shadow: var(--shadow-lg), 0 0 30px oklch(0.75 0.16 55 / 8%);
+  box-shadow: var(--shadow-lg), 0 0 30px color-mix(in oklch, var(--primary) 8%, transparent);
   transform: translateY(-2px);
 }
 
