@@ -164,7 +164,7 @@ export function Level9Security({ onComplete, onExit }: LevelComponentProps) {
 							<Button
 								className="w-full mt-3"
 								onClick={simulateBreach}
-								variant="destructive"
+								color="destructive"
 							>
 								Simulate Security Breach
 							</Button>

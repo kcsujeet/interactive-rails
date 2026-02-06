@@ -388,7 +388,7 @@ end`,
 							<Button
 								className="w-full"
 								onClick={simulateRestart}
-								variant="destructive"
+								color="destructive"
 							>
 								Simulate Restart
 							</Button>

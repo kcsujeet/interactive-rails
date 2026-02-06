@@ -363,7 +363,7 @@ export function Level16N1Problem({ onComplete, onExit }: LevelComponentProps) {
 								</div>
 								<Button
 									onClick={() => setUnderstood(true)}
-									variant="destructive"
+									color="destructive"
 								>
 									I Understand the Problem
 								</Button>
