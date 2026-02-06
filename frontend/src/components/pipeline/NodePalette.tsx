@@ -146,7 +146,7 @@ const NodePaletteItem = memo(function NodePaletteItem({
 			<div className="flex items-start gap-3">
 				{/* Icon with colored background */}
 				<div
-					className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center"
+					className="shrink-0 w-10 h-10 rounded-lg flex items-center justify-center"
 					style={{ backgroundColor: `${node.color}20`, color: node.color }}
 				>
 					{node.icon}
@@ -160,7 +160,7 @@ const NodePaletteItem = memo(function NodePaletteItem({
 						</span>
 						{/* Color indicator */}
 						<span
-							className="w-2 h-2 rounded-full flex-shrink-0"
+							className="w-2 h-2 rounded-full shrink-0"
 							style={{ backgroundColor: node.color }}
 						/>
 					</div>

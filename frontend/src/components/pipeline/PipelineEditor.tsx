@@ -26,7 +26,7 @@ export default function PipelineEditor({
 			<div className={clsx('flex h-full w-full', className)}>
 				{/* Node Palette (left sidebar) */}
 				{showPalette && !isReadOnly && (
-					<NodePalette className="w-72 flex-shrink-0" />
+					<NodePalette className="w-72 shrink-0" />
 				)}
 
 				{/* Pipeline Canvas (main area) */}

@@ -92,7 +92,7 @@ export function CompletionScreen(
 					{/* Stars */}
 					<div className="relative flex justify-center gap-1 mt-5">
 						{stars === 3 && (
-							<div className="absolute -inset-4 bg-[radial-gradient(ellipse,oklch(0.75_0.15_70_/_0.15)_0%,transparent_70%)] animate-in fade-in duration-500" aria-hidden="true"></div>
+							<div className="absolute -inset-4 bg-[radial-gradient(ellipse,oklch(0.75_0.15_70/0.15)_0%,transparent_70%)] animate-in fade-in duration-500" aria-hidden="true"></div>
 						)}
 						{[1, 2, 3].map((i) => (
 							<svg
@@ -123,7 +123,7 @@ export function CompletionScreen(
 							</p>
 						</div>
 
-						<div className="bg-card rounded-xl overflow-hidden border border-success/20 shadow-[0_0_20px_oklch(0.65_0.17_160_/_0.08)]">
+						<div className="bg-card rounded-xl overflow-hidden border border-success/20 shadow-[0_0_20px_oklch(0.65_0.17_160/0.08)]">
 							<div className="px-4 py-2 border-b border-border flex items-center gap-2">
 								<div className="w-2 h-2 rounded-full bg-success" />
 								<span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">

@@ -68,7 +68,7 @@ export function SubmitButton({
 				<div className="bg-destructive/10 border border-destructive/50 rounded-lg p-3 animate-shake">
 					<div className="text-destructive text-sm font-medium flex items-center gap-2">
 						<svg
-							className="w-4 h-4 flex-shrink-0"
+							className="w-4 h-4 shrink-0"
 							fill="currentColor"
 							viewBox="0 0 20 20"
 						>
@@ -98,7 +98,7 @@ export function SubmitButton({
 				<div className="bg-success/10 border border-success/50 rounded-lg p-3">
 					<div className="text-success text-sm font-medium flex items-center gap-2">
 						<svg
-							className="w-4 h-4 flex-shrink-0"
+							className="w-4 h-4 shrink-0"
 							fill="currentColor"
 							viewBox="0 0 20 20"
 						>

@@ -194,7 +194,7 @@ export default function PipelineCanvas({
 
 				{/* Controls */}
 				<Controls
-					className="!bg-card !border-border !shadow-lg"
+					className="bg-card! border-border! shadow-lg!"
 					position="bottom-left"
 					showFitView
 					showInteractive={!isReadOnly}
@@ -203,7 +203,7 @@ export default function PipelineCanvas({
 
 				{/* Minimap */}
 				<MiniMap
-					className="!bg-card !border-border"
+					className="bg-card! border-border!"
 					nodeColor={nodeColor}
 					nodeStrokeWidth={3}
 					pannable

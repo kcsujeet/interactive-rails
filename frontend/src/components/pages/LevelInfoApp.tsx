@@ -138,7 +138,7 @@ export function LevelInfoApp({ levelId }: LevelInfoAppProps) {
 
 				{/* Problem Card - Prominent (red = something to fix) */}
 				{levelInfo.problem && (
-					<div className="rounded-xl border-2 border-destructive/20 overflow-hidden bg-destructive/[0.02]">
+					<div className="rounded-xl border-2 border-destructive/20 overflow-hidden bg-destructive/2">
 						<div className="px-5 py-3 bg-destructive/5 border-b border-destructive/10 flex items-center gap-2">
 							<Code className="w-4 h-4 text-destructive" />
 							<span className="text-xs font-semibold text-destructive uppercase tracking-wider">

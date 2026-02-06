@@ -104,7 +104,7 @@ export function ActsListApp() {
 								w-full h-auto p-5 rounded-xl border text-left justify-start
 								transition-all duration-200 animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-both
 								${actUnlocked
-									? 'border-border hover:border-primary/40 hover:shadow-[0_0_20px_oklch(0.75_0.16_55_/_0.08)] hover:-translate-y-0.5'
+									? 'border-border hover:border-primary/40 hover:shadow-[0_0_20px_oklch(0.75_0.16_55/0.08)] hover:-translate-y-0.5'
 									: 'border-transparent opacity-50'
 								}
 							`}
