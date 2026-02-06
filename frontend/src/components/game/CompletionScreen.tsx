@@ -3,6 +3,7 @@
  * Post-game screen showing results
  */
 
+import { ArrowRight } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 
@@ -68,7 +69,7 @@ export function CompletionScreen(
 
 				{/* Success Header */}
 				<div className="text-center mb-8">
-					<div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-success/15 mb-4">
+					<div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-success/15 mb-4 animate-in zoom-in-95 fade-in duration-300">
 						<svg
 							className="w-7 h-7 text-success"
 							fill="none"
@@ -89,11 +90,14 @@ export function CompletionScreen(
 					<p className="text-muted-foreground">{levelName}</p>
 
 					{/* Stars */}
-					<div className="flex justify-center gap-1 mt-5">
+					<div className="relative flex justify-center gap-1 mt-5">
+						{stars === 3 && (
+							<div className="absolute -inset-4 bg-[radial-gradient(ellipse,oklch(0.75_0.15_70_/_0.15)_0%,transparent_70%)] animate-in fade-in duration-500" aria-hidden="true"></div>
+						)}
 						{[1, 2, 3].map((i) => (
 							<svg
 								aria-label={i <= stars ? 'Earned star' : 'Empty star'}
-								className={`w-7 h-7 ${i <= stars ? 'text-warning' : 'text-muted'}`}
+								className={`relative w-7 h-7 animate-in zoom-in-95 fade-in duration-300 fill-mode-both ${i === 1 ? 'delay-[450ms]' : i === 2 ? 'delay-[600ms]' : 'delay-[750ms]'} ${i <= stars ? 'text-warning' : 'text-muted'}`}
 								fill="currentColor"
 								key={`star-${i}`}
 								viewBox="0 0 20 20"
@@ -119,7 +123,7 @@ export function CompletionScreen(
 							</p>
 						</div>
 
-						<div className="bg-card rounded-lg overflow-hidden border border-border">
+						<div className="bg-card rounded-xl overflow-hidden border border-success/20 shadow-[0_0_20px_oklch(0.65_0.17_160_/_0.08)]">
 							<div className="px-4 py-2 border-b border-border flex items-center gap-2">
 								<div className="w-2 h-2 rounded-full bg-success" />
 								<span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
@@ -151,12 +155,13 @@ export function CompletionScreen(
 				{nextLevelId && (
 					<div className="mt-8">
 						<Button
-							className="w-full"
+							className="w-full group"
 							onClick={() => {
 								window.location.href = `/acts/${nextLevelActId}/${nextLevelId}`;
 							}}
 						>
 							Next Level
+							<ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
 						</Button>
 					</div>
 				)}

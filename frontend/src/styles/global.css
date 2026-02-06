@@ -98,9 +98,15 @@
   --warning: oklch(0.75 0.15 70);
   --warning-foreground: oklch(0.20 0.05 70);
 
-  --border: oklch(0.40 0.02 260 / 15%);
-  --input: oklch(0.40 0.02 260 / 15%);
+  --border: oklch(0.45 0.02 260 / 20%);
+  --input: oklch(0.45 0.02 260 / 20%);
   --ring: oklch(0.75 0.15 200);
+
+  /* Layered shadows for depth */
+  --shadow-sm: 0 1px 2px oklch(0 0 0 / 20%), 0 0 1px oklch(0 0 0 / 10%);
+  --shadow-md: 0 4px 12px oklch(0 0 0 / 30%), 0 0 1px oklch(0 0 0 / 10%);
+  --shadow-lg: 0 8px 30px oklch(0 0 0 / 40%), 0 0 1px oklch(0 0 0 / 10%);
+  --shadow-glow: 0 0 20px oklch(0.75 0.15 200 / 15%);
 
   /* Chart colors */
   --chart-1: oklch(0.75 0.15 200);
@@ -182,11 +188,19 @@
   --font-sans: "Space Grotesk", system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", monospace;
 
+  /* Shadows */
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+
   /* Game Animations */
   --animate-shake: shake 0.3s ease-in-out;
   --animate-glow: glow 2s ease-in-out infinite;
   --animate-damage: damage 0.5s ease-out forwards;
   --animate-pulse-slow: pulse 3s ease-in-out infinite;
+
+  /* UI Animations */
+  --animate-shimmer: shimmer 2s linear infinite;
 }
 
 /* ============================================
@@ -225,6 +239,11 @@
   100% { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
 /* ============================================
    ADDITIONAL BASE STYLES
    ============================================ */
@@ -237,6 +256,8 @@ html {
 body {
   min-height: 100vh;
   font-family: var(--font-sans);
+  background-image: radial-gradient(oklch(0.40 0.02 260 / 8%) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
 /* Scrollbar */
@@ -338,6 +359,32 @@ body {
 .react-flow__handle-valid {
   border-color: var(--success);
   background-color: var(--success);
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+/* Hover card: lift + glow on hover */
+.hover-card {
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+.hover-card:hover {
+  border-color: oklch(0.75 0.15 200 / 25%);
+  box-shadow: var(--shadow-lg), 0 0 30px oklch(0.75 0.15 200 / 8%);
+  transform: translateY(-2px);
+}
+
+/* Shimmer loading skeleton */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    oklch(0.20 0.02 260) 25%,
+    oklch(0.25 0.02 260) 50%,
+    oklch(0.20 0.02 260) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
 }
 
 /* ============================================

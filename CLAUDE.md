@@ -205,6 +205,7 @@ container.innerHTML = `<div class="${cardClass}">Dynamic content</div>`;
 
 ### Styling Guidelines
 
+- **Never use inline `style` attributes.** Always use Tailwind utility classes instead. For animations, use `tw-animate-css` classes (`animate-in`, `fade-in`, `slide-in-from-bottom-3`, `zoom-in-95`, `duration-*`, `delay-*`). Use arbitrary value classes (e.g., `delay-[400ms]`) when no standard utility exists.
 - Use semantic color tokens: `text-foreground`, `bg-card`, `border-border`, `text-muted-foreground`
 - Use Tailwind classes directly, not custom CSS classes in `<style>` blocks
 - For Astro pages, import and use React components directly (they render statically without hydration for presentational use)
