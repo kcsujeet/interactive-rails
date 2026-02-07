@@ -36,7 +36,6 @@ RailsExpert uses a modern JAMstack architecture optimized for Cloudflare's edge 
 - **React** (v19.x) - Interactive components (game canvas, forms)
 - **Zustand** - State management with Immer middleware
 - **React Flow** (@xyflow/react) - Node-based pipeline visualization
-- **Phaser 3** - Game engine for enemy/defense animations
 - **Tailwind CSS** (v4.x) - Utility-first styling
 - **Lucide React** - Icon library
 - **TypeScript** - Type safety throughout
@@ -74,13 +73,15 @@ railsexpert/
 │       │   │   ├── PipelineCanvas.tsx
 │       │   │   ├── NodePalette.tsx
 │       │   │   ├── InspectorPanel.tsx
-│       │   │   ├── levels/   # Level-specific components (35 levels)
-│       │   │   │   ├── act1/ # Rails Fundamentals (8 levels)
-│       │   │   │   ├── act2/ # Clean Code (10 levels)
-│       │   │   │   ├── act3/ # Performance (12 levels)
-│       │   │   │   ├── act4/ # Production (12 levels)
-│       │   │   │   ├── act5/ # Infrastructure (5 levels)
-│       │   │   │   └── act6/ # System Design (4 levels)
+│       │   │   ├── levels/   # Level-specific components (50 levels)
+│       │   │   │   ├── act1/ # The Foundation (7 levels)
+│       │   │   │   ├── act2/ # Users & Security (7 levels)
+│       │   │   │   ├── act3/ # Clean Architecture (7 levels)
+│       │   │   │   ├── act4/ # Performance (7 levels)
+│       │   │   │   ├── act5/ # Production Features (8 levels)
+│       │   │   │   ├── act6/ # Reliability (6 levels)
+│       │   │   │   ├── act7/ # Scale (5 levels)
+│       │   │   │   └── act8/ # Mastery (3 levels)
 │       │   │   └── reactflow/ # React Flow POC components
 │       │   ├── pipeline/     # Pipeline editor components
 │       │   │   ├── PipelineCanvas.tsx
@@ -134,11 +135,17 @@ railsexpert/
 │       │   ├── SimulationEngine.ts
 │       │   ├── nodeBehavior.ts
 │       │   └── metrics.ts
-│       ├── game/             # Phaser game layer
-│       │   ├── PhaserGame.ts
-│       │   └── GameLayer.tsx
 │       ├── content/          # Acts and levels data
-│       │   └── acts.ts
+│       │   └── acts/         # Individual act files
+│       │       ├── index.ts
+│       │       ├── act1-foundation.ts
+│       │       ├── act2-security.ts
+│       │       ├── act3-architecture.ts
+│       │       ├── act4-performance.ts
+│       │       ├── act5-production.ts
+│       │       ├── act6-reliability.ts
+│       │       ├── act7-scale.ts
+│       │       └── act8-mastery.ts
 │       ├── lib/              # Utilities
 │       │   ├── api.ts
 │       │   ├── progress.ts
@@ -244,18 +251,7 @@ class SimulationEngine {
 }
 ```
 
-### 4. Phaser for Game Visualization
-
-Phaser 3 renders animated enemies and defenses as an overlay on the pipeline canvas:
-
-```typescript
-// GameLayer.tsx wraps Phaser game
-<div className="absolute inset-0 pointer-events-none">
-  <GameLayer enemies={enemies} defenses={defenses} />
-</div>
-```
-
-### 5. Level-Specific Components
+### 4. Level-Specific Components
 
 Each level has its own component defining:
 - Initial pipeline configuration

@@ -166,6 +166,21 @@ bun run dev:frontend
 
 ---
 
+### Astro Hydration Errors
+
+**Symptom:** Console shows "Hydration failed" or "Text content does not match"
+
+**Solution:**
+```bash
+# Clear Astro cache
+rm -rf frontend/node_modules/.astro
+
+# Restart dev server
+bun run dev:frontend
+```
+
+---
+
 ## API Issues
 
 ### 401 Unauthorized
@@ -191,40 +206,33 @@ echo $TOKEN
 
 ---
 
-### 404 Not Found - Dungeon
+### 404 Not Found - Level
 
 **Symptom:**
 ```json
-{"error": "Dungeon not found"}
+{"error": "Level not found"}
 ```
 
 **Causes:**
 
-1. **Invalid dungeon ID** - Check valid IDs:
-   - `mvc`, `directory`, `routing-basics`, `controllers-101`, `views-erb`
-   - `models`, `associations`, `validations`, `callbacks`, `queries`
-   - `restful`, `nested`, `custom`, `constraints`, `url-helpers`
+1. **Invalid level ID** - Level IDs follow the pattern: `actN-levelN-slug`
+   - Example valid IDs: `act1-level1-stack-choice`, `act2-level12-testing`, `act4-level22-n-plus-one`
 
-2. **Missing prefix mapping** - Check `dungeonToPrefix` in content.ts
+2. **Level definition missing** - Check `frontend/src/content/acts/` for valid level definitions
 
 ---
 
-### 404 Not Found - Challenge
+### Level Not Found
 
-**Symptom:**
-```json
-{"error": "Challenge not found"}
-```
+**Symptom:** Navigating to a level URL returns a 404 page.
 
 **Solutions:**
 
-1. Verify challenge ID format: `{realm}-{dungeon}-{number}`
-   - Example: `foundation-mvc-001`
+1. Verify the level ID exists in the act content files at `frontend/src/content/acts/act{N}-*.ts`
 
-2. Check challenge exists in content.ts:
-```bash
-grep "foundation-mvc-001" worker/src/services/content.ts
-```
+2. Level IDs are defined in the act content files and follow the `actN-levelN-slug` format
+
+3. Use the acts index page to find correct level URLs
 
 ---
 

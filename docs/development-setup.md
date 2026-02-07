@@ -68,7 +68,7 @@ bun install
 
 # This installs:
 # - Root devDependencies
-# - frontend/ dependencies (Astro, React, Zustand, Phaser)
+# - frontend/ dependencies (Astro, React, Zustand, Tailwind)
 # - worker/ dependencies (Hono, Zod, Wrangler)
 ```
 
@@ -215,7 +215,7 @@ sqlite3 worker/.wrangler/state/v3/d1/miniflare-D1DatabaseObject/<hash>.sqlite
 
 ### Add a New Level
 
-1. Update `frontend/src/content/acts.ts` with level definition
+1. Update the appropriate act file in `frontend/src/content/acts/` (e.g., `act1-foundation.ts`)
 2. Create component in `frontend/src/components/game/levels/actN/`
 3. Register component in level registry
 4. Test via acts page
@@ -318,7 +318,7 @@ bun run build
 
 ### Working on Levels
 
-1. Navigate to the level: `/acts/act-1/1-1/play`
+1. Navigate to the level: `/acts/1/act1-level1-stack-choice`
 2. Open browser DevTools console for metrics
 3. Edit level component - changes hot reload
 4. Test success conditions

@@ -50,38 +50,46 @@ RailsExpert teaches Rails optimization through pipeline-building gameplay:
 | Controller | Green (#10b981) | ActionController handler |
 | Model | Orange (#f59e0b) | ActiveRecord model |
 | Database | Red (#ef4444) | PostgreSQL database |
-| View | Purple (#a855f7) | ERB template renderer |
+| Serializer | Teal (#14b8a6) | JSON serialization layer |
 | Response | Green (#10b981) | HTTP response |
+| Service | Indigo (#6366f1) | Service object (business logic) |
+| Mailer | Pink (#ec4899) | ActionMailer email delivery |
+| Middleware | Slate (#64748b) | Rack middleware layer |
 | Cache | Cyan (#06b6d4) | Redis cache layer |
-| Job | Violet (#8b5cf6) | Background job (Sidekiq) |
+| Job | Violet (#8b5cf6) | Background job (Solid Queue) |
 
 ### Connection Rules
 
-Valid connections follow Rails MVC patterns:
+Valid connections follow Rails API patterns:
 
 ```
 Request → Router → Controller → Model → Database
                        ↓
-                     View → Response
+                   Serializer → Response
 ```
 
 **Valid connections:**
 - Request → Router
 - Router → Controller
 - Controller → Model
-- Controller → View
+- Controller → Serializer
+- Controller → Service
+- Controller → Job (async)
 - Model → Database
 - Model ↔ Cache
-- View → Response
-- Controller → Job (async)
+- Serializer → Response
+- Service → Model
+- Service → Mailer
+- Middleware → Router
 
 **Invalid connections shown with red dashed line.**
 
 ### Node Palette
 
 Nodes available depend on the level:
-- Early levels: Basic MVC nodes only
-- Later levels: Cache, Job, advanced nodes
+- Node availability is defined per-level in the act content files (`src/components/game/levels/act*/`)
+- Early levels: Basic MVC nodes only (Request, Router, Controller, Model, Database, Response)
+- Later levels: Serializer, Service, Cache, Job, Mailer, Middleware
 - Sandbox: All nodes available
 
 ---
@@ -121,7 +129,7 @@ class SimulationEngine {
 | Controller | 5-10ms | Action processing |
 | Model | 10-50ms | Depends on query |
 | Database | 20-100ms | Query execution |
-| View | 5-20ms | Template rendering |
+| Serializer | 2-10ms | JSON serialization |
 | Cache | 1-5ms | Cache hit |
 | Cache Miss | +50ms | Falls through to DB |
 
@@ -291,16 +299,18 @@ function activateDefenses() {
 
 ### Level Structure
 
-6 Acts with 35 total levels:
+8 Acts with 50 total levels:
 
 | Act | Name | Levels | Focus |
 |-----|------|--------|-------|
-| 1 | Rails Fundamentals | 8 | MVC, CRUD, associations |
-| 2 | Clean Code | 10 | Security, service objects |
-| 3 | Performance | 12 | N+1, caching, background jobs |
-| 4 | Production | 12 | Feature flags, circuit breakers |
-| 5 | Infrastructure | 5 | Load balancing, CDN |
-| 6 | System Design | 4 | Queues, microservices |
+| 1 | The Foundation | 7 | MVC, CRUD, Controllers, Serializers, Routes, Associations |
+| 2 | Users & Security | 7 | Authentication, Validations, Callbacks, Authorization, Testing |
+| 3 | Clean Architecture | 7 | Service Objects, Concerns, Form Objects, Error Handling, Background Jobs |
+| 4 | Performance | 7 | N+1 Queries, Eager Loading, Indexing, Caching, Search |
+| 5 | Production Features | 8 | Polymorphic, Transactions, Active Storage, Real-Time, API Versioning |
+| 6 | Reliability | 6 | Middleware, Rate Limiting, Soft Deletes, Safe Migrations |
+| 7 | Scale | 5 | Multi-Database, State Machines, Multi-Tenancy, Observability |
+| 8 | Mastery | 3 | API Gateway, Database Sharding, The Architect |
 
 ### Unlocking
 

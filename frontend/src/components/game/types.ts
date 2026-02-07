@@ -70,6 +70,8 @@ export interface Level {
 	simulationEvents?: SimulationEvent[];
 	/** Whether this level shows the canvas in "dark mode" (Level 1) */
 	darkCanvas?: boolean;
+	/** Whether this level requires writing tests (from Level 12 onward) */
+	requiresTests?: boolean;
 }
 
 export interface LevelTrigger {
@@ -137,6 +139,32 @@ export interface SuccessCondition {
 		| 'form_object_created'
 		| 'authorization_configured'
 		| 'view_component_created'
+		| 'validations_configured'
+		| 'callbacks_configured'
+		| 'authentication_configured'
+		| 'testing_configured'
+		| 'concerns_configured'
+		| 'custom_validator_created'
+		| 'error_handling_configured'
+		| 'mailer_configured'
+		| 'encryption_configured'
+		| 'realtime_configured'
+		| 'search_configured'
+		| 'counter_cache_configured'
+		| 'polymorphic_configured'
+		| 'transactions_configured'
+		| 'versioning_configured'
+		| 'middleware_configured'
+		| 'soft_deletes_configured'
+		| 'safe_migrations_configured'
+		| 'recurring_jobs_configured'
+		| 'error_monitoring_configured'
+		| 'multi_database_configured'
+		| 'state_machine_configured'
+		| 'multi_tenancy_configured'
+		| 'observability_configured'
+		| 'domain_events_configured'
+		| 'sharding_configured'
 		| 'n1_identified'
 		| 'eager_loading_applied'
 		| 'queries_optimized'

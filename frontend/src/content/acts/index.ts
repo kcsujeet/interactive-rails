@@ -1,25 +1,27 @@
 /**
  * Acts & Levels Content Index
  *
- * Rails Expert: 35 levels across 6 acts
- * From "rails new" to hyperscale architecture
+ * Rails Expert: 50 levels across 8 acts
+ * Build a production-grade SaaS while mastering Rails 8
  */
 
 import type { Act, Level } from "@/components/game/types";
 
 // Import individual act definitions
 import { actOne } from './act1-foundation';
-import { actTwo } from './act2-clean-code';
-import { actThree } from './act3-performance';
-import { actFour } from './act4-production';
-import { actFive } from './act5-infrastructure';
-import { actSix } from './act6-system-design';
+import { actTwo } from './act2-users-security';
+import { actThree } from './act3-clean-architecture';
+import { actFour } from './act4-performance';
+import { actFive } from './act5-production';
+import { actSix } from './act6-reliability';
+import { actSeven } from './act7-scale';
+import { actEight } from './act8-mastery';
 
 // ============================================
 // All Acts
 // ============================================
 
-export const ACTS: Act[] = [actOne, actTwo, actThree, actFour, actFive, actSix];
+export const ACTS: Act[] = [actOne, actTwo, actThree, actFour, actFive, actSix, actSeven, actEight];
 
 // ============================================
 // Helper Functions
@@ -112,7 +114,7 @@ export function isLevelUnlocked(
 }
 
 /**
- * Get level number within the game (1-35)
+ * Get level number within the game (1-50)
  */
 export function getGlobalLevelNumber(levelId: string): number {
 	const allLevels = getAllLevels();
@@ -137,4 +139,4 @@ export function isActUnlocked(
 }
 
 // Re-export individual acts for direct access
-export { actOne, actTwo, actThree, actFour, actFive, actSix };
+export { actOne, actTwo, actThree, actFour, actFive, actSix, actSeven, actEight };

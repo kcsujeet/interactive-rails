@@ -8,8 +8,8 @@ Game content is defined in the frontend as TypeScript data structures and React 
 
 **Content Locations:**
 ```
-frontend/src/content/acts.ts          # Act and level definitions
-frontend/src/components/game/levels/  # Level-specific components
+frontend/src/content/acts/           # Act and level definitions (8 files + index)
+frontend/src/components/game/levels/ # Level-specific components
 ```
 
 ---
@@ -17,59 +17,79 @@ frontend/src/components/game/levels/  # Level-specific components
 ## Content Hierarchy
 
 ```
-RailsExpert
-├── Act 1: Rails Fundamentals (8 levels)
-│   ├── Level 1: Choose Your Stack
-│   ├── Level 2: First Request
-│   ├── Level 3: Model Introduction
-│   ├── Level 4: CRUD Operations
-│   ├── Level 5: Controller Actions
-│   ├── Level 6: Views & Templates
-│   ├── Level 7: MVC Pipeline
-│   └── Level 8: Database Persistence
+RailsExpert (50 levels, 8 acts)
+├── Act 1: The Foundation (7 levels)
+│   ├── Level 1: The Stack Choice
+│   ├── Level 2: The Model
+│   ├── Level 3: CRUD Operations
+│   ├── Level 4: The Controller
+│   ├── Level 5: Serializers
+│   ├── Level 6: Routes & Request Lifecycle
+│   └── Level 7: Associations
 │
-├── Act 2: Clean Code (10 levels)
-│   ├── Level 9: Security Basics
-│   ├── Level 10: Scopes
-│   ├── Level 11: Service Objects
-│   ├── Level 12: Form Objects
-│   ├── Level 13: Authorization
-│   ├── Level 14: View Components
-│   └── ... (10 total)
+├── Act 2: Users & Security (7 levels)
+│   ├── Level 8: Authentication
+│   ├── Level 9: Validations
+│   ├── Level 10: Callbacks & Normalizations
+│   ├── Level 11: Authorization
+│   ├── Level 12: Testing
+│   ├── Level 13: Security
+│   └── Level 14: Scopes & Enums
 │
-├── Act 3: Performance (12 levels)
-│   ├── Level 19: N+1 Query Problem
-│   ├── Level 20: Eager Loading
-│   ├── Level 21: Query Optimization
-│   ├── Level 22: Caching Strategies
-│   ├── Level 23: Background Jobs
-│   └── ... (12 total)
+├── Act 3: Clean Architecture (7 levels)
+│   ├── Level 15: Service Objects
+│   ├── Level 16: Concerns & Modules
+│   ├── Level 17: Form Objects
+│   ├── Level 18: Custom Validators
+│   ├── Level 19: Error Handling
+│   ├── Level 20: Action Mailer
+│   └── Level 21: Background Jobs
 │
-├── Act 4: Production (12 levels)
-│   ├── Event-Driven Architecture
-│   ├── Feature Flags
-│   ├── Read/Write Split
-│   ├── Circuit Breakers
-│   └── ... (12 total)
+├── Act 4: Performance (7 levels)
+│   ├── Level 22: The N+1 Problem
+│   ├── Level 23: Eager Loading
+│   ├── Level 24: Database Indexing
+│   ├── Level 25: Counter Caches
+│   ├── Level 26: Pagination
+│   ├── Level 27: Search
+│   └── Level 28: Caching
 │
-├── Act 5: Infrastructure (5 levels)
-│   ├── Load Balancing
-│   ├── CDN Configuration
-│   ├── Rate Limiting
-│   ├── Connection Pooling
-│   └── Deployments
+├── Act 5: Production Features (8 levels)
+│   ├── Level 29: Polymorphic Associations
+│   ├── Level 30: Transactions & Locking
+│   ├── Level 31: Active Storage
+│   ├── Level 32: Encrypted Attributes
+│   ├── Level 33: Real-Time
+│   ├── Level 34: External APIs
+│   ├── Level 35: Webhooks & Idempotency
+│   └── Level 36: API Versioning
 │
-└── Act 6: System Design (4 levels)
-    ├── Message Queues
-    ├── Distributed Caching
-    ├── API Gateway
-    └── Microservices
+├── Act 6: Reliability (6 levels)
+│   ├── Level 37: Middleware & Rack
+│   ├── Level 38: Rate Limiting
+│   ├── Level 39: Soft Deletes & Audit Trails
+│   ├── Level 40: Safe Migrations
+│   ├── Level 41: Recurring Jobs & Scheduling
+│   └── Level 42: Structured Error Monitoring
+│
+├── Act 7: Scale (5 levels)
+│   ├── Level 43: Multi-Database
+│   ├── Level 44: State Machines
+│   ├── Level 45: Multi-Tenancy
+│   ├── Level 46: Observability
+│   └── Level 47: Domain Events & Decoupling
+│
+└── Act 8: Mastery (3 levels)
+    ├── Level 48: API Gateway
+    ├── Level 49: Database Sharding
+    └── Level 50: The Architect (Capstone)
 ```
 
 **Current Status:**
-- 6 acts implemented
-- 35 total levels
-- All with pipeline-building gameplay
+- 8 acts implemented
+- 50 total levels
+- Rails 8 API-only focused
+- Testing required from Level 12 onward
 
 ---
 
@@ -77,83 +97,125 @@ RailsExpert
 
 ### TypeScript Interface
 
+The following interfaces are simplified versions of the actual types defined in `frontend/src/components/game/types.ts`. See that file for the full definitions.
+
 ```typescript
 interface Act {
-  id: string;
-  number: number;
-  title: string;
-  subtitle: string;
+  id: number;
+  name: string;
+  tagline: string;
   description: string;
   levels: Level[];
-  unlockRequirement?: {
-    actId?: string;
-    levelId?: string;
-  };
+  /** Nodes that become available after completing this act */
+  unlockedNodes: string[];
+  /** Whether metrics are visible during this act */
+  metricsVisible: boolean;
+  /** Which metrics are visible (if metricsVisible is true) */
+  visibleMetrics?: string[];
 }
 
 interface Level {
-  id: string;
-  number: number;
-  title: string;
-  subtitle: string;
-  description: string;
-  difficulty: 1 | 2 | 3 | 4 | 5;
-  concepts: string[];
-  objectives: string[];
-  availableNodes: string[];
-  availableDefenses?: string[];
+  id: string;                           // e.g. 'act1-level1-stack-choice'
+  actId: number;
+  levelNumber: number;
+  name: string;
+  isCapstone?: boolean;
+  trigger: LevelTrigger;
+  startingPipeline: PipelineState;
+  problem: LevelProblem;
   successConditions: SuccessCondition[];
-  starThresholds: {
-    one: number;
-    two: number;
-    three: number;
-  };
+  availableNodes: string[];
+  unlockedNodes: string[];
+  learningContent: LearningContent;
+  hint?: { delay: number; text: string };
+  slots?: SlotConfig[];
+  decisionModals?: DecisionModalConfig[];
+  logicBlocks?: LogicBlock[];
+  simulationEvents?: SimulationEvent[];
+  darkCanvas?: boolean;
+  requiresTests?: boolean;             // from Level 12 onward
 }
 
 interface SuccessCondition {
-  type: 'throughput' | 'latency' | 'queries' | 'cache' | 'errors';
-  operator: 'gt' | 'lt' | 'eq' | 'gte' | 'lte';
-  value: number;
-  label: string;
+  type:
+    | 'pipeline_complete'
+    | 'node_present'
+    | 'connection'
+    | 'node_absent'
+    | 'slot_filled'
+    | 'logic_block_moved'
+    | 'complexity_under'
+    | 'decision_made'
+    | 'path_exists'
+    | 'node_count'
+    | 'crud_complete'
+    | 'metric'
+    | 'code_valid'
+    | 'security_configured'
+    | 'testing_configured'
+    // ... many more domain-specific types
+    ;
+  /** For metric conditions */
+  metric?: string;
+  operator?: 'lt' | 'lte' | 'gt' | 'gte' | 'eq';
+  value?: number;
+  /** For node_present/absent conditions */
+  nodeType?: string;
+  /** For slot_filled conditions */
+  slotId?: string;
+  // ... additional fields depending on type
 }
 ```
 
 ### Example Act Definition
 
 ```typescript
-// frontend/src/content/acts.ts
-export const acts: Act[] = [
-  {
-    id: 'act-1',
-    number: 1,
-    title: 'Rails Fundamentals',
-    subtitle: 'Building the Foundation',
-    description: 'Learn the core concepts of Ruby on Rails through hands-on pipeline building.',
-    levels: [
-      {
-        id: '1-1',
-        number: 1,
-        title: 'Choose Your Stack',
-        subtitle: 'Your First Pipeline',
-        description: 'Set up a basic request-response pipeline.',
-        difficulty: 1,
-        concepts: ['MVC', 'Request Lifecycle', 'HTTP'],
-        objectives: [
-          'Connect Request to Router',
-          'Route to Controller',
-          'Return Response'
-        ],
-        availableNodes: ['request', 'router', 'controller', 'response'],
-        successConditions: [
-          { type: 'throughput', operator: 'gte', value: 10, label: '10+ RPS' }
-        ],
-        starThresholds: { one: 50, two: 70, three: 90 }
-      },
-      // ... more levels
-    ]
+// frontend/src/content/acts/act1-foundation.ts
+import type { Act, Level } from "@/components/game/types";
+
+const level1StackChoice: Level = {
+  id: 'act1-level1-stack-choice',
+  actId: 1,
+  levelNumber: 1,
+  name: 'The Stack Choice',
+  trigger: {
+    type: 'initialization',
+    description: 'Day 1. You are initializing the repository...',
   },
-  // ... more acts
-];
+  startingPipeline: {
+    nodes: [{ id: 'terminal', type: 'terminal', x: 500, y: 300, locked: true }],
+    connections: [],
+  },
+  problem: {
+    observation: 'A dark canvas with a blinking Terminal node...',
+    rootCause: 'No application exists yet.',
+    codeExample: `# Day 1: Initialize your Rails 8 API application
+rails new myapp --api --database=postgresql`,
+    goal: 'Choose your database. Drag the node to the slot.',
+    thresholds: {},
+  },
+  successConditions: [
+    { type: 'slot_filled', slotId: 'database-slot' },
+  ],
+  availableNodes: ['postgresql', 'sqlite'],
+  unlockedNodes: ['request', 'router', 'controller', 'model', 'database', 'response', 'serializer'],
+  learningContent: {
+    title: 'Rails 8 API Application',
+    conceptExplanation: '...',
+    railsCodeExample: '...',
+  },
+  darkCanvas: true,
+};
+
+export const actOne: Act = {
+  id: 1,
+  name: 'The Foundation',
+  tagline: 'Build a working API from nothing',
+  description: 'Build a Rails 8 API from scratch...',
+  levels: [level1StackChoice, /* ...more levels */],
+  unlockedNodes: ['request', 'router', 'controller', 'model', 'database', 'response'],
+  metricsVisible: false,
+};
 ```
 
 ---
@@ -168,16 +230,30 @@ Each level has a corresponding React component that defines its specific behavio
 frontend/src/components/game/levels/
 ├── act1/
 │   ├── Level1StackChoice.tsx
-│   ├── Level2FirstRequest.tsx
-│   ├── Level3Model.tsx
+│   ├── Level2Model.tsx
+│   ├── Level3CRUD.tsx
 │   └── ...
 ├── act2/
-│   ├── Level9Security.tsx
+│   ├── Level8Authentication.tsx
 │   └── ...
 ├── act3/
-│   ├── Level19N1Query.tsx
+│   ├── Level15ServiceObjects.tsx
 │   └── ...
-└── ...
+├── act4/
+│   ├── Level22N1Problem.tsx
+│   └── ...
+├── act5/
+│   ├── Level29Polymorphic.tsx
+│   └── ...
+├── act6/
+│   ├── Level37Middleware.tsx
+│   └── ...
+├── act7/
+│   ├── Level43MultiDatabase.tsx
+│   └── ...
+└── act8/
+    ├── Level48APIGateway.tsx
+    └── ...
 ```
 
 ### Level Component Structure
@@ -210,7 +286,7 @@ end
   };
 
   return (
-    <LevelLayout levelId="1-1">
+    <LevelLayout levelId="act1-level1-stack-choice">
       <InstructionPanel content={learningContent} />
       <PipelineCanvas initialNodes={initialNodes} />
     </LevelLayout>
@@ -229,15 +305,10 @@ Each level includes educational content displayed in the instruction panel.
 ```typescript
 interface LearningContent {
   title: string;
-  sections: ContentSection[];
-}
-
-interface ContentSection {
-  heading: string;
-  content: string;       // Markdown supported
-  codeExample?: string;  // Syntax highlighted
-  tips?: string[];
-  warnings?: string[];
+  /** What the concept is */
+  conceptExplanation: string;
+  /** Real Rails code showing the solution */
+  railsCodeExample: string;
 }
 ```
 
@@ -246,15 +317,12 @@ interface ContentSection {
 ```typescript
 const learningContent: LearningContent = {
   title: 'N+1 Query Problem',
-  sections: [
-    {
-      heading: 'What is N+1?',
-      content: `
+  conceptExplanation: `
 The N+1 query problem occurs when your code executes one query to fetch
 a list of records, then N additional queries to fetch associated records
 for each item in the list.
-      `,
-      codeExample: `
+  `,
+  railsCodeExample: `
 # Bad - N+1 queries
 posts = Post.all
 posts.each do |post|
@@ -266,14 +334,7 @@ posts = Post.includes(:author).all
 posts.each do |post|
   puts post.author.name  # No additional queries
 end
-      `,
-      tips: [
-        'Use includes() to eager load associations',
-        'Check Rails logs for repeated queries',
-        'Use bullet gem to detect N+1 in development'
-      ]
-    }
-  ]
+  `,
 };
 ```
 
@@ -283,15 +344,17 @@ end
 
 ### Initial Nodes
 
-Levels define starting pipeline nodes:
+Levels define starting pipeline nodes via `startingPipeline`:
 
 ```typescript
-const initialNodes: PlacedNode[] = [
-  { id: 'request-1', type: 'request', x: 100, y: 200, locked: true },
-  { id: 'router-1', type: 'router', x: 300, y: 200, locked: true },
-  { id: 'controller-1', type: 'controller', x: 500, y: 200 },
-  // User can move/configure controller
-];
+const startingPipeline: PipelineState = {
+  nodes: [
+    { id: 'request-1', type: 'request', x: 100, y: 200, locked: true },
+    { id: 'router-1', type: 'router', x: 300, y: 200, locked: true },
+    { id: 'controller-1', type: 'controller', x: 500, y: 200 },
+  ],
+  connections: [],
+};
 ```
 
 ### Available Nodes
@@ -313,13 +376,16 @@ const availableNodes = [
 
 ### Success Conditions
 
-Define what metrics must be achieved:
+Define what must be achieved to complete a level:
 
 ```typescript
 const successConditions: SuccessCondition[] = [
-  { type: 'throughput', operator: 'gte', value: 100, label: 'Handle 100+ RPS' },
-  { type: 'latency', operator: 'lte', value: 50, label: 'p95 latency < 50ms' },
-  { type: 'queries', operator: 'lte', value: 3, label: 'Max 3 queries/request' },
+  { type: 'slot_filled', slotId: 'database-slot' },
+  { type: 'pipeline_complete' },
+  { type: 'node_present', nodeType: 'model' },
+  { type: 'connection', sourceType: 'controller', targetType: 'model' },
+  { type: 'node_count', nodeType: 'service', count: 1 },
+  { type: 'crud_complete', modelType: 'Post' },
 ];
 ```
 
@@ -329,18 +395,18 @@ const successConditions: SuccessCondition[] = [
 
 ### Adding a New Level
 
-1. **Update acts.ts** - Add level definition to the appropriate act
+1. **Update the appropriate act file in `frontend/src/content/acts/`** - Add level definition to the act
 2. **Create component** - Add `LevelXXName.tsx` in the act folder
 3. **Add to level registry** - Update the level component map
 4. **Test** - Verify level loads and completes correctly
 
 ### Adding a New Act
 
-1. **Update acts.ts** - Add new act object with levels array
-2. **Create folder** - `frontend/src/components/game/levels/actN/`
-3. **Create components** - Add component for each level
-4. **Update navigation** - Ensure acts list shows new act
-5. **Set unlock requirements** - Define what unlocks this act
+1. **Create act file** - Add `frontend/src/content/acts/actN-name.ts`
+2. **Update index** - Import and add the new act in `frontend/src/content/acts/index.ts`
+3. **Create folder** - `frontend/src/components/game/levels/actN/`
+4. **Create components** - Add component for each level
+5. **Update navigation** - Ensure acts list shows new act
 
 ### Level Component Template
 
@@ -366,11 +432,11 @@ export function LevelXXName() {
 
   return (
     <LevelLayout
-      levelId="X-X"
+      levelId="actX-levelXX-name"
       title="Level Title"
       availableNodes={['request', 'router', 'controller']}
       successConditions={[
-        { type: 'throughput', operator: 'gte', value: 50, label: '50+ RPS' }
+        { type: 'pipeline_complete' }
       ]}
     >
       <InstructionPanel content={learningContent} />
@@ -403,50 +469,71 @@ export function LevelXXName() {
 
 ### Topics by Act
 
-**Act 1 - Rails Fundamentals:**
-- MVC pattern
-- Request lifecycle
-- Basic routing
+**Act 1 - The Foundation:**
+- Stack choice (PostgreSQL vs SQLite)
+- Models and migrations
+- CRUD operations
 - Controllers and actions
-- Views and templates
-- Database basics
+- Serializers (JSON output)
+- Routes and request lifecycle
+- Associations (has_many, belongs_to)
 
-**Act 2 - Clean Code:**
-- Security best practices
-- Query scopes
+**Act 2 - Users & Security:**
+- Authentication (Bearer tokens)
+- Validations
+- Callbacks and normalizations
+- Authorization (Pundit)
+- Testing (RSpec/Minitest)
+- Security (CORS, rate limiting)
+- Scopes and enums
+
+**Act 3 - Clean Architecture:**
 - Service objects
+- Concerns and modules
 - Form objects
-- Authorization patterns
-- View components
+- Custom validators
+- Error handling
+- Action Mailer
+- Background jobs (Solid Queue)
 
-**Act 3 - Performance:**
+**Act 4 - Performance:**
 - N+1 query detection
-- Eager loading
-- Query optimization
-- Caching strategies
-- Background jobs
+- Eager loading (includes, preload)
+- Database indexing
+- Counter caches
 - Pagination
+- Search (full-text)
+- Caching (Solid Cache)
 
-**Act 4 - Production:**
-- Event-driven architecture
-- Feature flags
-- Database scaling
-- Circuit breakers
-- Health checks
+**Act 5 - Production Features:**
+- Polymorphic associations
+- Transactions and locking
+- Active Storage (file uploads)
+- Encrypted attributes
+- Real-time (Action Cable / Solid Cable)
+- External API integrations
+- Webhooks and idempotency
+- API versioning
+
+**Act 6 - Reliability:**
+- Middleware and Rack
+- Rate limiting (Rails 8 built-in)
+- Soft deletes and audit trails
+- Safe migrations (zero-downtime)
+- Recurring jobs and scheduling (Solid Queue)
+- Structured error monitoring
+
+**Act 7 - Scale:**
+- Multi-database (read replicas)
+- State machines
+- Multi-tenancy
 - Observability
+- Domain events and decoupling
 
-**Act 5 - Infrastructure:**
-- Load balancing
-- CDN configuration
-- Rate limiting
-- Connection pooling
-- Deployment strategies
-
-**Act 6 - System Design:**
-- Message queues
-- Distributed caching
-- API gateways
-- Microservices patterns
+**Act 8 - Mastery:**
+- API gateway design
+- Database sharding
+- Service extraction (capstone)
 
 ---
 
@@ -454,7 +541,7 @@ export function LevelXXName() {
 
 | Content Type | Location |
 |--------------|----------|
-| Act definitions | `frontend/src/content/acts.ts` |
+| Act definitions | `frontend/src/content/acts/` (directory with individual files) |
 | Level components | `frontend/src/components/game/levels/` |
 | Node types | `frontend/src/components/game/data.ts` |
 | Pipeline types | `frontend/src/components/game/types.ts` |
