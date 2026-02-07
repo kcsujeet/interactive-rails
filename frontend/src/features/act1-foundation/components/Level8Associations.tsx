@@ -119,7 +119,7 @@ export function Level8Associations({
 
 	// Handle completing the level
 	const handleComplete = async () => {
-		const success = await completeLevel('act1-level8-associations', {
+		const success = await completeLevel('act1-level7-associations', {
 			stars: 3,
 			decisions: { relationship: relationshipType! },
 		});
@@ -246,7 +246,7 @@ end`,
 				<LevelHeader
 					actNumber={1}
 					levelName="Semantic Associations"
-					levelNumber={8}
+					levelNumber={7}
 					onExit={onExit}
 					onReset={() => {
 						pipeline.setPlacedNodes([

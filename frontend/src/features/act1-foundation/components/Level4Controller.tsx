@@ -188,7 +188,7 @@ export function Level4Controller({ onComplete, onExit }: LevelComponentProps) {
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act1-level4-your-first-controller', {
+		const success = await completeLevel('act1-level4-controller', {
 			stars: 3,
 		});
 		if (success) {

@@ -131,7 +131,7 @@ export function Level2Model({ onComplete, onExit }: LevelComponentProps) {
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act1-level2-your-first-model', {
+		const success = await completeLevel('act1-level2-model', {
 			stars: 3,
 		});
 		if (success) {

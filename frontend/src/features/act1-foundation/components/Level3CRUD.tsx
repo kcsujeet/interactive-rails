@@ -185,7 +185,7 @@ export function Level3CRUD({ onComplete, onExit }: LevelComponentProps) {
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act1-level3-crud-operations', {
+		const success = await completeLevel('act1-level3-crud', {
 			stars: 3,
 		});
 		if (success) {
