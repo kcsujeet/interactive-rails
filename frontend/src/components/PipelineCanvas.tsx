@@ -106,15 +106,30 @@ export function PipelineCanvas({
 					const strokeColor = showInvalid
 						? '#ef4444'
 						: getNodeInfo(sourceNode.type).color;
+
+					// Check if this is a bidirectional pair
+					const isBidirectional =
+						(sourceNode.type === 'controller' && targetNode.type === 'model') ||
+						(sourceNode.type === 'model' && targetNode.type === 'database') ||
+						(sourceNode.type === 'model' && targetNode.type === 'controller') ||
+						(sourceNode.type === 'database' && targetNode.type === 'model');
+
+					// Offset bidirectional connections so forward and return lines don't overlap
+					const offset = isBidirectional ? 8 : 0;
 					const dx = targetNode.x - sourceNode.x;
 					const cx = Math.abs(dx) * 0.5;
+					const forwardPath = `M ${sourceNode.x} ${sourceNode.y - offset} C ${sourceNode.x + cx} ${sourceNode.y - offset}, ${targetNode.x - cx} ${targetNode.y - offset}, ${targetNode.x} ${targetNode.y - offset}`;
+
+					const returnColor = getNodeInfo(targetNode.type).color;
+					const returnPath = `M ${targetNode.x} ${targetNode.y + offset} C ${targetNode.x - cx} ${targetNode.y + offset}, ${sourceNode.x + cx} ${sourceNode.y + offset}, ${sourceNode.x} ${sourceNode.y + offset}`;
 
 					return (
 						<g key={conn.id}>
+							{/* Forward connection */}
 							<path
 								aria-label="Delete connection"
 								className="pointer-events-auto cursor-pointer hover:stroke-opacity-100"
-								d={`M ${sourceNode.x} ${sourceNode.y} C ${sourceNode.x + cx} ${sourceNode.y}, ${targetNode.x - cx} ${targetNode.y}, ${targetNode.x} ${targetNode.y}`}
+								d={forwardPath}
 								fill="none"
 								onClick={(e) => {
 									e.stopPropagation();
@@ -152,10 +167,35 @@ export function PipelineCanvas({
 							<circle fill={strokeColor} r="4">
 								<animateMotion
 									dur="2s"
-									path={`M ${sourceNode.x} ${sourceNode.y} C ${sourceNode.x + cx} ${sourceNode.y}, ${targetNode.x - cx} ${targetNode.y}, ${targetNode.x} ${targetNode.y}`}
+									path={forwardPath}
 									repeatCount="indefinite"
 								/>
 							</circle>
+							{/* Return connection line for bidirectional pairs */}
+							{isBidirectional && (
+								<>
+									<path
+										className="pointer-events-auto cursor-pointer hover:stroke-opacity-100"
+										d={returnPath}
+										fill="none"
+										onClick={(e) => {
+											e.stopPropagation();
+											onDeleteConnection(conn.id);
+										}}
+										stroke={returnColor}
+										strokeOpacity={0.6}
+										strokeWidth="3"
+									/>
+									<circle fill={returnColor} r="4">
+										<animateMotion
+											begin="1s"
+											dur="2s"
+											path={returnPath}
+											repeatCount="indefinite"
+										/>
+									</circle>
+								</>
+							)}
 						</g>
 					);
 				})}
