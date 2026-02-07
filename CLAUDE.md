@@ -229,3 +229,8 @@ import { Database, Zap, Search, Settings } from "lucide-react";
 ```
 
 This ensures consistent styling, proper sizing, and accessibility across the application.
+
+
+## Project Structure
+
+- Always follow bulletproof-react project structure. https://github.com/alan2207/bulletproof-react/blob/master/docs/project-structure.md

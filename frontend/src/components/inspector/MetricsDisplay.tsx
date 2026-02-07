@@ -6,7 +6,7 @@
  */
 
 import type { SimulationMetrics } from "@/stores/simulation";
-import type { LiveMetrics } from '../game/types';
+import type { LiveMetrics } from '@/types/game';
 
 // Unified metrics type that handles both formats
 type MetricsInput = SimulationMetrics | LiveMetrics | null;

@@ -6,13 +6,13 @@
  */
 
 import { useState } from 'react';
-import { getNodeInfo } from '../game/data';
+import { getNodeInfo } from '@/utils/gameData';
 import type {
 	Connection,
 	PlacedNode,
 	QueryTrace,
 	SimulatedRequest,
-} from '../game/types';
+} from '@/types/game';
 import { Button } from '../ui/Button';
 
 interface RequestTraceProps {

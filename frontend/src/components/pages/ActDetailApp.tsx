@@ -5,9 +5,9 @@
  */
 
 import { useEffect, useState } from 'react';
-import { ACTS, isLevelUnlocked } from '../../content/acts';
+import { ACTS, isLevelUnlocked } from '@/features/acts-registry';
 import { getProgress } from '@/lib/progress';
-import type { Level } from '../game/types';
+import type { Level } from '@/types/game';
 import { Button } from '../ui/Button';
 import { Check, ChevronRight, Lock, Star } from 'lucide-react';
 

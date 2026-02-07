@@ -3,7 +3,7 @@
  */
 
 // Re-export all game types
-export * from '@/components/game/types';
+export * from './game';
 
 // Re-export level types (with alias for conflicting names)
 export {

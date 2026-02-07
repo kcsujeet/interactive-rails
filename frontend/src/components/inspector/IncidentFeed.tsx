@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import type { Incident, IncidentType } from '../game/types';
+import type { Incident, IncidentType } from '@/types/game';
 import { Button } from '../ui/Button';
 
 interface IncidentFeedProps {

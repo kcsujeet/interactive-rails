@@ -5,10 +5,10 @@
  */
 
 import { useEffect, useState } from 'react';
-import { getLevel, getActForLevel } from '../../content/acts';
+import { getLevel, getActForLevel } from '@/features/acts-registry';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
-import { levelChallenges } from '../game';
+import { levelChallenges } from '../game-barrel';
 import { Play, Target, Code } from 'lucide-react';
 import { CodeBlock } from '../ui/CodeBlock';
 import { LevelBreadcrumb } from '../ui/LevelBreadcrumb';

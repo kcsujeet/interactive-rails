@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { getActForLevel, getLevel } from '@/content/acts';
+import { getActForLevel, getLevel } from '@/features/acts-registry';
 import { completeLevel as completeLevelProgress } from '@/lib/progress';
 import {
 	type Connection,
@@ -21,8 +21,8 @@ import {
 	usePipelineState,
 	usePipelineValidation,
 	type ValidationResult,
-} from '../game';
-import { getLevelComponent } from '../game/levels';
+} from '../game-barrel';
+import { getLevelComponent } from '@/features/levels-registry';
 
 interface LevelPlayAppProps {
 	levelId: string;
@@ -83,7 +83,7 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 		connections,
 		isPipelineBroken,
 		hasSolutionNode,
-		challenge?.solutionNodeType || 'eager_load',
+		challenge?.solutionNodeType,
 	);
 	const { liveMetrics, setLiveMetrics, queryParticles } = simulation;
 

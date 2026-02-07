@@ -9,7 +9,7 @@ import {
 	ACTS,
 	getTotalLevelCount,
 	isLevelUnlocked,
-} from '../../content/acts';
+} from '@/features/acts-registry';
 import { getProgress } from '@/lib/progress';
 import { Button } from '../ui/Button';
 import { Check, ChevronRight, Lock } from 'lucide-react';
