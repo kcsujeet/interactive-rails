@@ -183,12 +183,6 @@ export function usePipelineValidation(
 					};
 				}
 				case 'connection': {
-					// Supports "OR" logic if targetType is an array (not yet typed, but we can check loosely or update types)
-					// For now, let's assume strict single types as per interface,
-					// BUT for Level 1 we hardcoded successConditions in act1.ts to be specific.
-					// Wait, Level 1 needs "Postgres OR SQLite".
-					// The cleanest way is to check if the connection exists matching specific types.
-
 					const hasConnection = connections.some((conn) => {
 						const source = placedNodes.find((n) => n.id === conn.sourceNodeId);
 						const target = placedNodes.find((n) => n.id === conn.targetNodeId);
@@ -198,18 +192,46 @@ export function usePipelineValidation(
 						);
 					});
 
-					// Special handling for Level 1 Stack Choice if we want flexible validation
-					// But actually, in act1-birth.ts I defined:
-					// { type: 'connection', sourceType: 'terminal', targetType: 'postgres' }
-					// This implies STRICT checking.
-					// I need to update act1-birth.ts first to allow OR, or update this validator to handle strict + alternative.
-
 					return {
 						passed: hasConnection,
 						message: hasConnection
 							? ''
 							: `Connect ${condition.sourceType} → ${condition.targetType}`,
 					};
+				}
+				case 'pipeline_complete': {
+					// Every node must be part of a connected path from request to response
+					const reqNode = placedNodes.find((n) => n.type === 'request');
+					const resNode = placedNodes.find((n) => n.type === 'response');
+					if (!reqNode || !resNode) {
+						return { passed: false, message: 'Missing Request or Response node' };
+					}
+
+					// BFS from request to find all reachable nodes
+					const reachable = new Set<string>();
+					const bfsQueue = [reqNode.id];
+					while (bfsQueue.length > 0) {
+						const id = bfsQueue.shift()!;
+						if (reachable.has(id)) continue;
+						reachable.add(id);
+						for (const conn of connections) {
+							if (conn.sourceNodeId === id && !reachable.has(conn.targetNodeId)) {
+								bfsQueue.push(conn.targetNodeId);
+							}
+						}
+					}
+
+					if (!reachable.has(resNode.id)) {
+						return { passed: false, message: 'No complete path from Request to Response' };
+					}
+
+					// Every placed node must be reachable from request
+					const disconnected = placedNodes.filter((n) => !reachable.has(n.id));
+					if (disconnected.length > 0) {
+						return { passed: false, message: 'All nodes must be connected in the pipeline' };
+					}
+
+					return { passed: true, message: '' };
 				}
 				case 'metric': {
 					// Metric conditions would be checked during simulation

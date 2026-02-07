@@ -643,7 +643,7 @@ end
 # GET    /api/v1/posts/:id => api/v1/posts#show
 # PATCH  /api/v1/posts/:id => api/v1/posts#update
 # DELETE /api/v1/posts/:id => api/v1/posts#destroy`,
-		goal: 'Wire the full request cycle: Request → Router → Controller → Model → DB → Serializer → Response.',
+		goal: 'Wire the full request cycle: Request → Router → Controller → Model → DB, and Controller → Serializer → Response.',
 		thresholds: {},
 	},
 	successConditions: [
@@ -658,11 +658,13 @@ end
 
 1. **Request** arrives (GET /api/v1/posts)
 2. **Router** maps URL to controller action
-3. **Controller** processes the request
-4. **Model** queries/writes the database
-5. **Database** returns data
-6. **Serializer** shapes the JSON response
-7. **Response** sent back to client
+3. **Controller** processes the request:
+   - Calls **Model** to query/write the database
+   - **Database** returns data to the model, which returns it to the controller
+   - Controller passes data to **Serializer** to shape the JSON
+4. **Response** sent back to client
+
+The **Controller** is the orchestrator — it talks to the Model for data AND to the Serializer for output.
 
 **\`resources :posts\`** generates all 5 RESTful routes at once.
 **Namespacing** under \`/api/v1/\` keeps API routes organized and versioned.`,
@@ -688,9 +690,9 @@ rails routes
 # The request lifecycle:
 # 1. Client sends: GET /api/v1/posts
 # 2. Router matches: Api::V1::PostsController#index
-# 3. Controller: @posts = Post.all
-# 4. Model: SELECT * FROM posts
-# 5. Serializer: PostBlueprint.render(@posts)
+# 3. Controller calls Model: @posts = Post.all
+# 4. Model queries DB: SELECT * FROM posts
+# 5. Controller calls Serializer: PostBlueprint.render(@posts)
 # 6. Response: 200 OK with JSON body`,
 		commonMistakes: [
 			'Not namespacing API routes under /api/v1',

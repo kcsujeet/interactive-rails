@@ -97,7 +97,7 @@ export const NODE_BEHAVIORS: Record<string, NodeBehavior> = {
 		blocking: true,
 		failureModes: ['soft', 'hard'],
 		sideEffects: ['session_write', 'log'],
-		allowedConnections: ['model', 'view', 'service', 'cache', 'job_queue'],
+		allowedConnections: ['model', 'view', 'serializer', 'service', 'cache', 'job_queue'],
 		blockedConnections: [
 			{
 				target: 'database',
@@ -159,6 +159,23 @@ export const NODE_BEHAVIORS: Record<string, NodeBehavior> = {
 		],
 		description: 'ERB/HTML template rendering the response',
 		railsConcept: 'ActionView::Base',
+		unlocksInAct: 1,
+	},
+
+	serializer: {
+		latencyCost: 3,
+		memoryCost: 5,
+		callMultiplier: 1,
+		blocking: true,
+		failureModes: ['soft'],
+		sideEffects: ['serialize'],
+		allowedConnections: ['response'],
+		blockedConnections: [
+			{ target: 'database', reason: 'Serializers should not query the database' },
+			{ target: 'model', reason: 'Serializers receive data, they do not fetch it' },
+		],
+		description: 'Shapes model data into JSON for the API response',
+		railsConcept: 'Blueprinter / ActiveModel::Serializer',
 		unlocksInAct: 1,
 	},
 
