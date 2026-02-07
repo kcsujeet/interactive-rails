@@ -4,15 +4,12 @@
  */
 
 import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
-import { getNodeInfo } from './data';
 import type { LevelChallenge, PlacedNode, ValidationResult } from './types';
 
 interface InspectorPanelProps {
 	isOpen: boolean;
 	onClose: () => void;
 	onOpen: () => void;
-	selectedNodeId: string | null;
 	placedNodes: PlacedNode[];
 	connectionsCount: number;
 	showValidation: boolean;
@@ -20,8 +17,6 @@ interface InspectorPanelProps {
 	challenge: LevelChallenge | undefined;
 	/** Initial nodes count - overrides challenge.initialNodes.length if provided */
 	initialNodesCount?: number;
-	onDeleteSelected: () => void;
-	onUpdateNode?: (nodeId: string, updates: Partial<PlacedNode>) => void;
 	onCheckPipeline: () => void;
 	onResetValidation: () => void;
 	onComplete: (stars: number) => void;
@@ -31,15 +26,12 @@ export function InspectorPanel({
 	isOpen,
 	onClose,
 	onOpen,
-	selectedNodeId,
 	placedNodes,
 	connectionsCount,
 	showValidation,
 	lastValidation,
 	challenge,
 	initialNodesCount,
-	onDeleteSelected,
-	onUpdateNode,
 	onCheckPipeline,
 	onResetValidation,
 	onComplete,
@@ -110,59 +102,6 @@ export function InspectorPanel({
 						</svg>
 					</Button>
 				</div>
-
-				{/* Selected node info */}
-				{selectedNodeId && (
-					<div className="mb-5 p-4 bg-background border border-border rounded-lg">
-						<h3 className="text-[10px] font-medium text-muted-foreground mb-2 uppercase tracking-wider">
-							Selected Node
-						</h3>
-						<p className="text-sm text-foreground font-medium mb-3">
-							{
-								getNodeInfo(
-									placedNodes.find((n) => n.id === selectedNodeId)?.type || '',
-								).name
-							}
-						</p>
-
-						{/* Label Editor */}
-						<div className="mb-3">
-							<label
-								className="block text-xs text-muted-foreground mb-1.5"
-								htmlFor="node-label-input"
-							>
-								Label
-							</label>
-							<Input
-								id="node-label-input"
-								onChange={(e) =>
-									onUpdateNode?.(selectedNodeId, {
-										config: {
-											...placedNodes.find((n) => n.id === selectedNodeId)
-												?.config,
-											label: e.target.value,
-										},
-									})
-								}
-								placeholder="Custom label..."
-								type="text"
-								value={
-									placedNodes.find((n) => n.id === selectedNodeId)?.config
-										?.label || ''
-								}
-							/>
-						</div>
-
-						<Button
-							className="text-xs text-destructive hover:text-destructive/80 p-0 h-auto"
-							onClick={onDeleteSelected}
-							size="sm"
-							variant="link"
-						>
-							Delete this node
-						</Button>
-					</div>
-				)}
 
 				<div className="space-y-5">
 					<div>

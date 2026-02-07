@@ -63,7 +63,6 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 		handleNodeMouseDown,
 		startConnection,
 		completeConnection,
-		updateNode,
 		deleteConnection,
 		deleteSelectedNode,
 	} = pipelineState;
@@ -430,12 +429,9 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 					onCheckPipeline={checkPipeline}
 					onClose={() => setIsInspectorOpen(false)}
 					onComplete={completeLevel}
-					onDeleteSelected={deleteSelectedNode}
 					onOpen={() => setIsInspectorOpen(true)}
 					onResetValidation={resetValidation}
-					onUpdateNode={updateNode}
 					placedNodes={placedNodes}
-					selectedNodeId={selectedNodeId}
 					showValidation={showValidation}
 				/>
 			</div>
