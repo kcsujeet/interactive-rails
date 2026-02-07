@@ -15,9 +15,23 @@ export const $user = atom<User | null>(
 );
 export const $isAuthenticated = computed($user, (user) => !!user);
 
-// Initialize stores on client (call after checking auth with server)
+// Initialize stores on client, verify session is still valid
 export function initAuth() {
-	$user.set(getInitialUser());
+	const cached = getInitialUser();
+	$user.set(cached);
+
+	// Verify session with server — clear stale state on 401
+	if (cached) {
+		fetch('/api/auth/me', { credentials: 'include' })
+			.then((res) => {
+				if (res.status === 401) {
+					clearAuth();
+				}
+			})
+			.catch(() => {
+				// Network error — keep cached state
+			});
+	}
 }
 
 export function setAuth(user: User) {
