@@ -39,14 +39,14 @@ export function Level5Security({ onComplete, onExit }: LevelComponentProps) {
 	// Pre-built pipeline with locked nodes
 	const pipeline = usePipelineState({
 		initialNodes: [
-			{ id: 'request-1', type: 'request', x: 80, y: 250 },
-			{ id: 'router-1', type: 'router', x: 200, y: 250 },
-			{ id: 'controller-1', type: 'controller', x: 340, y: 250 },
-			{ id: 'post-model', type: 'model', x: 500, y: 180, label: 'Post' },
-			{ id: 'comment-model', type: 'model', x: 500, y: 320, label: 'Comment' },
-			{ id: 'database-1', type: 'database', x: 680, y: 250 },
-			{ id: 'view-1', type: 'view', x: 840, y: 250 },
-			{ id: 'response-1', type: 'response', x: 980, y: 250 },
+			{ id: 'request-1', type: 'request', x: 130, y: 280 },
+			{ id: 'router-1', type: 'router', x: 350, y: 280 },
+			{ id: 'controller-1', type: 'controller', x: 570, y: 280 },
+			{ id: 'post-model', type: 'model', x: 810, y: 110, label: 'Post' },
+			{ id: 'comment-model', type: 'model', x: 810, y: 260, label: 'Comment' },
+			{ id: 'database-1', type: 'database', x: 1060, y: 185 },
+			{ id: 'view-1', type: 'view', x: 810, y: 420 },
+			{ id: 'response-1', type: 'response', x: 1060, y: 420 },
 		],
 		initialConnections: [
 			{ sourceNodeId: 'request-1', targetNodeId: 'router-1' },
@@ -55,7 +55,7 @@ export function Level5Security({ onComplete, onExit }: LevelComponentProps) {
 			{ sourceNodeId: 'post-model', targetNodeId: 'comment-model' },
 			{ sourceNodeId: 'post-model', targetNodeId: 'database-1' },
 			{ sourceNodeId: 'comment-model', targetNodeId: 'database-1' },
-			{ sourceNodeId: 'database-1', targetNodeId: 'view-1' },
+			{ sourceNodeId: 'controller-1', targetNodeId: 'view-1' },
 			{ sourceNodeId: 'view-1', targetNodeId: 'response-1' },
 		],
 		// Only allow dropping ENV node if not already added
@@ -115,14 +115,14 @@ export function Level5Security({ onComplete, onExit }: LevelComponentProps) {
 	// Handle reset
 	const handleReset = useCallback(() => {
 		pipeline.setPlacedNodes([
-			{ id: 'request-1', type: 'request', x: 80, y: 250 },
-			{ id: 'router-1', type: 'router', x: 200, y: 250 },
-			{ id: 'controller-1', type: 'controller', x: 340, y: 250 },
-			{ id: 'post-model', type: 'model', x: 500, y: 180, label: 'Post' },
-			{ id: 'comment-model', type: 'model', x: 500, y: 320, label: 'Comment' },
-			{ id: 'database-1', type: 'database', x: 680, y: 250 },
-			{ id: 'view-1', type: 'view', x: 840, y: 250 },
-			{ id: 'response-1', type: 'response', x: 980, y: 250 },
+			{ id: 'request-1', type: 'request', x: 130, y: 280 },
+			{ id: 'router-1', type: 'router', x: 350, y: 280 },
+			{ id: 'controller-1', type: 'controller', x: 570, y: 280 },
+			{ id: 'post-model', type: 'model', x: 810, y: 110, label: 'Post' },
+			{ id: 'comment-model', type: 'model', x: 810, y: 260, label: 'Comment' },
+			{ id: 'database-1', type: 'database', x: 1060, y: 185 },
+			{ id: 'view-1', type: 'view', x: 810, y: 420 },
+			{ id: 'response-1', type: 'response', x: 1060, y: 420 },
 		]);
 		pipeline.setConnections([
 			{ sourceNodeId: 'request-1', targetNodeId: 'router-1' },
@@ -131,7 +131,7 @@ export function Level5Security({ onComplete, onExit }: LevelComponentProps) {
 			{ sourceNodeId: 'post-model', targetNodeId: 'comment-model' },
 			{ sourceNodeId: 'post-model', targetNodeId: 'database-1' },
 			{ sourceNodeId: 'comment-model', targetNodeId: 'database-1' },
-			{ sourceNodeId: 'database-1', targetNodeId: 'view-1' },
+			{ sourceNodeId: 'controller-1', targetNodeId: 'view-1' },
 			{ sourceNodeId: 'view-1', targetNodeId: 'response-1' },
 		]);
 		setEnvAdded(false);

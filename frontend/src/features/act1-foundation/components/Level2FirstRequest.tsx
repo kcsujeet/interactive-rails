@@ -31,7 +31,7 @@ const EXPECTED_PATH = [
 	{ from: 'router', to: 'controller' },
 	{ from: 'controller', to: 'model' },
 	{ from: 'model', to: 'database' },
-	{ from: 'database', to: 'view' },
+	{ from: 'controller', to: 'view' },
 	{ from: 'view', to: 'response' },
 ];
 
@@ -210,7 +210,7 @@ end`,
 					instructions={[
 						'Drag nodes from the palette to the canvas',
 						'Connect nodes by clicking the connection points',
-						'Build the complete MVC path: Request → Router → Controller → Model → Database → View → Response',
+						'Build the MVC path: Request → Router → Controller, then Controller → Model → Database AND Controller → View → Response',
 					]}
 					scenario="The server is booting, but localhost:3000 is hitting a 404 Error. Requests are going into the void."
 				>

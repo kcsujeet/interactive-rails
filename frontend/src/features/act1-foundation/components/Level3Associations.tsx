@@ -37,20 +37,20 @@ export function Level3Associations({
 	// Pre-built pipeline with Post model
 	const pipeline = usePipelineState({
 		initialNodes: [
-			{ id: 'request-1', type: 'request', x: 80, y: 250, config: { locked: true } },
-			{ id: 'router-1', type: 'router', x: 200, y: 250, config: { locked: true } },
-			{ id: 'controller-1', type: 'controller', x: 340, y: 250, config: { locked: true } },
-			{ id: 'post-model', type: 'model', x: 500, y: 250, config: { label: 'Post', locked: true } },
-			{ id: 'database-1', type: 'database', x: 680, y: 250, config: { locked: true } },
-			{ id: 'view-1', type: 'view', x: 840, y: 250, config: { locked: true } },
-			{ id: 'response-1', type: 'response', x: 980, y: 250, config: { locked: true } },
+			{ id: 'request-1', type: 'request', x: 130, y: 280, config: { locked: true } },
+			{ id: 'router-1', type: 'router', x: 350, y: 280, config: { locked: true } },
+			{ id: 'controller-1', type: 'controller', x: 570, y: 280, config: { locked: true } },
+			{ id: 'post-model', type: 'model', x: 810, y: 150, config: { label: 'Post', locked: true } },
+			{ id: 'database-1', type: 'database', x: 1060, y: 150, config: { locked: true } },
+			{ id: 'view-1', type: 'view', x: 810, y: 410, config: { locked: true } },
+			{ id: 'response-1', type: 'response', x: 1060, y: 410, config: { locked: true } },
 		],
 		initialConnections: [
 			{ id: 'c1', sourceNodeId: 'request-1', targetNodeId: 'router-1' },
 			{ id: 'c2', sourceNodeId: 'router-1', targetNodeId: 'controller-1' },
 			{ id: 'c3', sourceNodeId: 'controller-1', targetNodeId: 'post-model' },
 			{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'database-1' },
-			{ id: 'c5', sourceNodeId: 'database-1', targetNodeId: 'view-1' },
+			{ id: 'c5', sourceNodeId: 'controller-1', targetNodeId: 'view-1' },
 			{ id: 'c6', sourceNodeId: 'view-1', targetNodeId: 'response-1' },
 		],
 		onBeforeDrop: (type, nodes) => type === 'model' && !commentAdded,
@@ -233,20 +233,20 @@ end`,
 					onExit={onExit}
 					onReset={() => {
 						pipeline.setPlacedNodes([
-							{ id: 'request-1', type: 'request', x: 80, y: 250, config: { locked: true } },
-							{ id: 'router-1', type: 'router', x: 200, y: 250, config: { locked: true } },
-							{ id: 'controller-1', type: 'controller', x: 340, y: 250, config: { locked: true } },
-							{ id: 'post-model', type: 'model', x: 500, y: 250, config: { label: 'Post', locked: true } },
-							{ id: 'database-1', type: 'database', x: 680, y: 250, config: { locked: true } },
-							{ id: 'view-1', type: 'view', x: 840, y: 250, config: { locked: true } },
-							{ id: 'response-1', type: 'response', x: 980, y: 250, config: { locked: true } },
+							{ id: 'request-1', type: 'request', x: 130, y: 280, config: { locked: true } },
+							{ id: 'router-1', type: 'router', x: 350, y: 280, config: { locked: true } },
+							{ id: 'controller-1', type: 'controller', x: 570, y: 280, config: { locked: true } },
+							{ id: 'post-model', type: 'model', x: 810, y: 150, config: { label: 'Post', locked: true } },
+							{ id: 'database-1', type: 'database', x: 1060, y: 150, config: { locked: true } },
+							{ id: 'view-1', type: 'view', x: 810, y: 410, config: { locked: true } },
+							{ id: 'response-1', type: 'response', x: 1060, y: 410, config: { locked: true } },
 						]);
 						pipeline.setConnections([
 							{ id: 'c1', sourceNodeId: 'request-1', targetNodeId: 'router-1' },
 							{ id: 'c2', sourceNodeId: 'router-1', targetNodeId: 'controller-1' },
 							{ id: 'c3', sourceNodeId: 'controller-1', targetNodeId: 'post-model' },
 							{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'database-1' },
-							{ id: 'c5', sourceNodeId: 'database-1', targetNodeId: 'view-1' },
+							{ id: 'c5', sourceNodeId: 'controller-1', targetNodeId: 'view-1' },
 							{ id: 'c6', sourceNodeId: 'view-1', targetNodeId: 'response-1' },
 						]);
 						setCommentAdded(false);

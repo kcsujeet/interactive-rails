@@ -21,7 +21,7 @@ interface LeftPanelProps {
 
 export function LeftPanel({ children }: LeftPanelProps) {
 	return (
-		<div className="w-72 bg-card border-r border-border flex flex-col overflow-hidden">
+		<div className="w-64 bg-card border-r border-border flex flex-col overflow-hidden">
 			{children}
 		</div>
 	);
@@ -40,7 +40,7 @@ interface RightPanelProps {
 	width?: string;
 }
 
-export function RightPanel({ children, width = 'w-80' }: RightPanelProps) {
+export function RightPanel({ children, width = 'w-72' }: RightPanelProps) {
 	return (
 		<div
 			className={`${width} bg-card border-l border-border flex flex-col overflow-hidden`}

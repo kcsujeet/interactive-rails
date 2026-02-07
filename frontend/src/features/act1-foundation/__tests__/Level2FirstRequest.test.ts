@@ -42,7 +42,7 @@ const EXPECTED_PATH = [
 	{ from: 'router', to: 'controller' },
 	{ from: 'controller', to: 'model' },
 	{ from: 'model', to: 'database' },
-	{ from: 'database', to: 'view' },
+	{ from: 'controller', to: 'view' },
 	{ from: 'view', to: 'response' },
 ];
 
@@ -158,7 +158,7 @@ describe('Level 2: First Request', () => {
 				{ sourceId: 'router-1', targetId: 'controller-1' },
 				{ sourceId: 'controller-1', targetId: 'model-1' },
 				{ sourceId: 'model-1', targetId: 'database-1' },
-				{ sourceId: 'database-1', targetId: 'view-1' },
+				{ sourceId: 'controller-1', targetId: 'view-1' },
 				{ sourceId: 'view-1', targetId: 'response-1' },
 			],
 		};
@@ -191,8 +191,8 @@ describe('Level 2: First Request', () => {
 			expect(EXPECTED_PATH[3]).toEqual({ from: 'model', to: 'database' });
 		});
 
-		test('database connects to view', () => {
-			expect(EXPECTED_PATH[4]).toEqual({ from: 'database', to: 'view' });
+		test('controller connects to view', () => {
+			expect(EXPECTED_PATH[4]).toEqual({ from: 'controller', to: 'view' });
 		});
 
 		test('view connects to response', () => {

@@ -55,22 +55,21 @@ export function Level4Persistence({ onComplete, onExit }: LevelComponentProps) {
 	// Pre-built pipeline (initialNodes with 7 nodes, initialConnections with 7 connections)
 	const pipeline = usePipelineState({
 		initialNodes: [
-			{ id: 'request-1', type: 'request', x: 80, y: 250, locked: true },
-			{ id: 'router-1', type: 'router', x: 200, y: 250, locked: true },
-			{ id: 'controller-1', type: 'controller', x: 340, y: 250, locked: true },
-			{ id: 'post-model', type: 'model', x: 500, y: 180, label: 'Post', locked: true },
-			{ id: 'comment-model', type: 'model', x: 500, y: 320, label: 'Comment', locked: true },
-			{ id: 'view-1', type: 'view', x: 700, y: 250, locked: true },
-			{ id: 'response-1', type: 'response', x: 860, y: 250, locked: true },
+			{ id: 'request-1', type: 'request', x: 130, y: 280, locked: true },
+			{ id: 'router-1', type: 'router', x: 350, y: 280, locked: true },
+			{ id: 'controller-1', type: 'controller', x: 570, y: 280, locked: true },
+			{ id: 'post-model', type: 'model', x: 810, y: 150, label: 'Post', locked: true },
+			{ id: 'comment-model', type: 'model', x: 810, y: 280, label: 'Comment', locked: true },
+			{ id: 'view-1', type: 'view', x: 810, y: 410, locked: true },
+			{ id: 'response-1', type: 'response', x: 1060, y: 410, locked: true },
 		],
 		initialConnections: [
 			{ id: 'c1', sourceNodeId: 'request-1', targetNodeId: 'router-1' },
 			{ id: 'c2', sourceNodeId: 'router-1', targetNodeId: 'controller-1' },
 			{ id: 'c3', sourceNodeId: 'controller-1', targetNodeId: 'post-model' },
 			{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'comment-model' },
-			{ id: 'c5', sourceNodeId: 'post-model', targetNodeId: 'view-1' },
-			{ id: 'c6', sourceNodeId: 'comment-model', targetNodeId: 'view-1' },
-			{ id: 'c7', sourceNodeId: 'view-1', targetNodeId: 'response-1' },
+			{ id: 'c5', sourceNodeId: 'controller-1', targetNodeId: 'view-1' },
+			{ id: 'c6', sourceNodeId: 'view-1', targetNodeId: 'response-1' },
 		],
 		onBeforeDrop: (type) => type === 'database' && !databaseAdded,
 		onConnectionCreated: handleConnectionCreated,
@@ -111,22 +110,21 @@ export function Level4Persistence({ onComplete, onExit }: LevelComponentProps) {
 	// Reset function
 	const handleReset = () => {
 		pipeline.setPlacedNodes([
-			{ id: 'request-1', type: 'request', x: 80, y: 250, locked: true },
-			{ id: 'router-1', type: 'router', x: 200, y: 250, locked: true },
-			{ id: 'controller-1', type: 'controller', x: 340, y: 250, locked: true },
-			{ id: 'post-model', type: 'model', x: 500, y: 180, label: 'Post', locked: true },
-			{ id: 'comment-model', type: 'model', x: 500, y: 320, label: 'Comment', locked: true },
-			{ id: 'view-1', type: 'view', x: 700, y: 250, locked: true },
-			{ id: 'response-1', type: 'response', x: 860, y: 250, locked: true },
+			{ id: 'request-1', type: 'request', x: 130, y: 280, locked: true },
+			{ id: 'router-1', type: 'router', x: 350, y: 280, locked: true },
+			{ id: 'controller-1', type: 'controller', x: 570, y: 280, locked: true },
+			{ id: 'post-model', type: 'model', x: 810, y: 150, label: 'Post', locked: true },
+			{ id: 'comment-model', type: 'model', x: 810, y: 280, label: 'Comment', locked: true },
+			{ id: 'view-1', type: 'view', x: 810, y: 410, locked: true },
+			{ id: 'response-1', type: 'response', x: 1060, y: 410, locked: true },
 		]);
 		pipeline.setConnections([
 			{ id: 'c1', sourceNodeId: 'request-1', targetNodeId: 'router-1' },
 			{ id: 'c2', sourceNodeId: 'router-1', targetNodeId: 'controller-1' },
 			{ id: 'c3', sourceNodeId: 'controller-1', targetNodeId: 'post-model' },
 			{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'comment-model' },
-			{ id: 'c5', sourceNodeId: 'post-model', targetNodeId: 'view-1' },
-			{ id: 'c6', sourceNodeId: 'comment-model', targetNodeId: 'view-1' },
-			{ id: 'c7', sourceNodeId: 'view-1', targetNodeId: 'response-1' },
+			{ id: 'c5', sourceNodeId: 'controller-1', targetNodeId: 'view-1' },
+			{ id: 'c6', sourceNodeId: 'view-1', targetNodeId: 'response-1' },
 		]);
 		setDatabaseAdded(false);
 		setModelsConnectedToDb(new Set());

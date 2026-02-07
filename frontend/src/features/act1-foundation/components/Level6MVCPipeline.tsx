@@ -33,7 +33,7 @@ const EXPECTED_PATH = [
 	{ from: 'router', to: 'controller' },
 	{ from: 'controller', to: 'model' },
 	{ from: 'model', to: 'database' },
-	{ from: 'database', to: 'view' },
+	{ from: 'controller', to: 'view' },
 	{ from: 'view', to: 'response' },
 ];
 
@@ -212,7 +212,7 @@ end`,
 					instructions={[
 						'Drag nodes from the palette to the canvas',
 						'Connect nodes by clicking the connection points',
-						'Build: Request → Router → Controller → Model → Database → View → Response',
+						'Build: Request → Router → Controller, then Controller → Model → Database AND Controller → View → Response',
 						'Watch particles flow through your complete pipeline!',
 					]}
 					scenario="Time to put it all together! Build the complete Rails MVC request/response cycle. You've learned each piece - now connect them."
@@ -346,7 +346,7 @@ end`,
 			<RightPanel>
 				<CodePreviewPanel
 					files={getCodeFiles()}
-					learningGoal="The complete Rails MVC cycle: Request → Router → Controller → Model → Database → View → Response. This is the foundation of every Rails app."
+					learningGoal="The complete Rails MVC cycle: Controller dispatches to both Model (data) and View (rendering). This is the foundation of every Rails app."
 				>
 					{/* Status */}
 					<div className="p-4 border-t border-border">
