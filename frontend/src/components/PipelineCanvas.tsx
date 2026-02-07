@@ -3,7 +3,7 @@
  * Main canvas with nodes, connections, and particles
  */
 
-import type { DragEvent, MouseEvent, RefObject } from 'react';
+import type { DragEvent, MouseEvent, ReactNode, RefObject } from 'react';
 import { getNodeInfo, isValidConnection } from '@/utils/gameData';
 import { PipelineNode } from './PipelineNode';
 import type {
@@ -13,18 +13,24 @@ import type {
 	QueryParticle,
 } from '@/types/game';
 
+interface NodeOverride {
+	badge?: string;
+	badgeColor?: string;
+	glowColor?: string;
+}
+
 interface PipelineCanvasProps {
 	canvasRef: RefObject<HTMLDivElement | null>;
 	placedNodes: PlacedNode[];
 	connections: Connection[];
 	pendingConnection: PendingConnection | null;
-	queryParticles: QueryParticle[];
+	queryParticles?: QueryParticle[];
 	selectedNodeId: string | null;
 	draggingNodeId: string | null;
 	draggedNodeType: string | null;
-	isPipelineBroken: boolean;
-	simulationRunning: boolean;
-	showValidation: boolean;
+	isPipelineBroken?: boolean;
+	simulationRunning?: boolean;
+	showValidation?: boolean;
 	onDragOver: (e: DragEvent<HTMLDivElement>) => void;
 	onDrop: (e: DragEvent<HTMLDivElement>) => void;
 	onMouseMove: (e: MouseEvent) => void;
@@ -35,6 +41,8 @@ interface PipelineCanvasProps {
 	onCompleteConnection: (e: MouseEvent, nodeId: string) => void;
 	onDeleteConnection: (connectionId: string) => void;
 	onDeleteNode: () => void;
+	children?: ReactNode;
+	nodeOverrides?: Record<string, NodeOverride>;
 }
 
 export function PipelineCanvas({
@@ -42,13 +50,13 @@ export function PipelineCanvas({
 	placedNodes,
 	connections,
 	pendingConnection,
-	queryParticles,
+	queryParticles = [],
 	selectedNodeId,
 	draggingNodeId,
 	draggedNodeType,
-	isPipelineBroken,
-	simulationRunning,
-	showValidation,
+	isPipelineBroken = false,
+	simulationRunning = false,
+	showValidation = false,
 	onDragOver,
 	onDrop,
 	onMouseMove,
@@ -59,6 +67,8 @@ export function PipelineCanvas({
 	onCompleteConnection,
 	onDeleteConnection,
 	onDeleteNode,
+	children,
+	nodeOverrides,
 }: PipelineCanvasProps) {
 	return (
 		// biome-ignore lint/a11y/useKeyWithClickEvents: Canvas uses mouse interactions
@@ -245,22 +255,28 @@ export function PipelineCanvas({
 			</svg>
 
 			{/* Placed nodes */}
-			{placedNodes.map((node) => (
-				<PipelineNode
-					connections={connections}
-					isDragging={node.id === draggingNodeId}
-					isPipelineBroken={isPipelineBroken}
-					isSelected={node.id === selectedNodeId}
-					key={node.id}
-					node={node}
-					onCompleteConnection={onCompleteConnection}
-					onDelete={node.id === selectedNodeId ? onDeleteNode : undefined}
-					onMouseDown={onNodeMouseDown}
-					onStartConnection={onStartConnection}
-					pendingConnection={pendingConnection}
-					simulationRunning={simulationRunning}
-				/>
-			))}
+			{placedNodes.map((node) => {
+				const overrides = nodeOverrides?.[node.id];
+				return (
+					<PipelineNode
+						badge={overrides?.badge}
+						badgeColor={overrides?.badgeColor}
+						connections={connections}
+						glowColor={overrides?.glowColor}
+						isDragging={node.id === draggingNodeId}
+						isPipelineBroken={isPipelineBroken}
+						isSelected={node.id === selectedNodeId}
+						key={node.id}
+						node={node}
+						onCompleteConnection={onCompleteConnection}
+						onDelete={node.id === selectedNodeId ? onDeleteNode : undefined}
+						onMouseDown={onNodeMouseDown}
+						onStartConnection={onStartConnection}
+						pendingConnection={pendingConnection}
+						simulationRunning={simulationRunning}
+					/>
+				);
+			})}
 
 			{/* Empty state */}
 			{placedNodes.length === 0 && !draggedNodeType && (
@@ -298,6 +314,9 @@ export function PipelineCanvas({
 					</div>
 				</div>
 			)}
+
+			{/* Level-specific children (overlays, modals, completion buttons) */}
+			{children}
 		</div>
 	);
 }

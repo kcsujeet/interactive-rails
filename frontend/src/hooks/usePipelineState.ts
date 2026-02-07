@@ -40,9 +40,18 @@ export interface UsePipelineStateReturn {
 	deleteSelectedNode: () => void;
 }
 
-export function usePipelineState(): UsePipelineStateReturn {
-	const [placedNodes, setPlacedNodes] = useState<PlacedNode[]>([]);
-	const [connections, setConnections] = useState<Connection[]>([]);
+export interface PipelineStateConfig {
+	initialNodes?: PlacedNode[];
+	initialConnections?: Connection[];
+	/** Return false to prevent a drop */
+	onBeforeDrop?: (nodeType: string, placedNodes: PlacedNode[]) => boolean;
+	/** Called after a connection is created */
+	onConnectionCreated?: (conn: Connection, source: PlacedNode, target: PlacedNode) => void;
+}
+
+export function usePipelineState(config?: PipelineStateConfig): UsePipelineStateReturn {
+	const [placedNodes, setPlacedNodes] = useState<PlacedNode[]>(config?.initialNodes ?? []);
+	const [connections, setConnections] = useState<Connection[]>(config?.initialConnections ?? []);
 	const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 	const [pendingConnection, setPendingConnection] =
 		useState<PendingConnection | null>(null);
@@ -75,6 +84,12 @@ export function usePipelineState(): UsePipelineStateReturn {
 		const nodeType = e.dataTransfer.getData('text/plain');
 
 		if (!nodeType || !canvasRef.current) return;
+
+		// Check onBeforeDrop callback
+		if (config?.onBeforeDrop && !config.onBeforeDrop(nodeType, placedNodes)) {
+			setDraggedNodeType(null);
+			return;
+		}
 
 		const rect = canvasRef.current.getBoundingClientRect();
 		const x = e.clientX - rect.left;
@@ -186,22 +201,14 @@ export function usePipelineState(): UsePipelineStateReturn {
 
 			setConnections((prev) => [...prev, newConnection]);
 
-			// NEW: Stack Choice Logic (Level 1)
-			// Check if we just connected the Terminal to a Tech Choice
+			// Call onConnectionCreated callback
 			const sourceNode = placedNodes.find(
 				(n) => n.id === pendingConnection.sourceNodeId,
 			);
 			const targetNode = placedNodes.find((n) => n.id === targetNodeId);
 
-			if (sourceNode?.type === 'terminal' || targetNode?.type === 'terminal') {
-				const otherNode =
-					sourceNode?.type === 'terminal' ? targetNode : sourceNode;
-				if (otherNode) {
-					// We need to persist this choice.
-					// Ideally, we'd emit an event here, but for now we'll let the LevelPlayApp scan the graph on submit.
-					// However, we can enforce "Only 1 DB" here if we wanted.
-					// For now, let's keep it simple and just allow the connection.
-				}
+			if (config?.onConnectionCreated && sourceNode && targetNode) {
+				config.onConnectionCreated(newConnection, sourceNode, targetNode);
 			}
 		}
 

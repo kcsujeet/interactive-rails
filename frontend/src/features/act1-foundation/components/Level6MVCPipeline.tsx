@@ -7,14 +7,15 @@
  * This is the capstone of Act 1 - combining everything learned in levels 2-5.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { PipelineCanvas } from '@/components/PipelineCanvas';
+import { usePipelineState } from '@/hooks/usePipelineState';
+import { getNodeInfo } from '@/utils/gameData';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import {
-	CanvasNode,
 	CenterPanel,
 	CodePreviewPanel,
-	ConnectionLayer,
 	DraggableNode,
 	InstructionPanel,
 	LeftPanel,
@@ -26,68 +27,6 @@ import {
 	useLevelCompletion,
 } from '@/components/levels';
 
-interface PlacedNode {
-	id: string;
-	type: string;
-	x: number;
-	y: number;
-}
-
-interface Connection {
-	id: string;
-	sourceId: string;
-	targetId: string;
-}
-
-// Node definitions for this level
-const NODE_DEFS: Record<
-	string,
-	{ name: string; icon: string; color: string; description: string }
-> = {
-	request: {
-		name: 'Request',
-		icon: 'R',
-		color: '#22c55e',
-		description: 'HTTP request from browser',
-	},
-	router: {
-		name: 'Router',
-		icon: '/',
-		color: '#f59e0b',
-		description: 'routes.rb - URL mapping',
-	},
-	controller: {
-		name: 'Controller',
-		icon: 'C',
-		color: '#3b82f6',
-		description: 'Handles request logic',
-	},
-	model: {
-		name: 'Model',
-		icon: 'M',
-		color: '#8b5cf6',
-		description: 'ActiveRecord data layer',
-	},
-	database: {
-		name: 'Database',
-		icon: 'D',
-		color: '#06b6d4',
-		description: 'PostgreSQL/SQLite storage',
-	},
-	view: {
-		name: 'View',
-		icon: 'V',
-		color: '#ec4899',
-		description: 'ERB template rendering',
-	},
-	response: {
-		name: 'Response',
-		icon: 'R',
-		color: '#10b981',
-		description: 'HTML sent to browser',
-	},
-};
-
 // Expected connections for validation
 const EXPECTED_PATH = [
 	{ from: 'request', to: 'router' },
@@ -98,22 +37,18 @@ const EXPECTED_PATH = [
 	{ from: 'view', to: 'response' },
 ];
 
-export function Level6MVCPipeline({ onComplete, onExit }: LevelComponentProps) {
+const AVAILABLE_TYPES = ['router', 'controller', 'model', 'database', 'view', 'response'];
+
+export function Level6MVCPipeline({
+	onComplete,
+	onExit,
+}: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 
-	// Nodes and connections state
-	const [placedNodes, setPlacedNodes] = useState<PlacedNode[]>([
-		{ id: 'request-1', type: 'request', x: 100, y: 300 },
-	]);
-	const [connections, setConnections] = useState<Connection[]>([]);
-	const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-	const [pendingConnection, setPendingConnection] = useState<{
-		sourceId: string;
-		x: number;
-		y: number;
-	} | null>(null);
-	const [draggedNodeType, setDraggedNodeType] = useState<string | null>(null);
-	const canvasRef = useRef<HTMLDivElement>(null);
+	const pipeline = usePipelineState({
+		initialNodes: [{ id: 'request-1', type: 'request', x: 100, y: 300 }],
+		onBeforeDrop: (type, nodes) => !nodes.some((n) => n.type === type),
+	});
 
 	// Particle state for ghost particles
 	const [particles, setParticles] = useState<
@@ -130,44 +65,32 @@ export function Level6MVCPipeline({ onComplete, onExit }: LevelComponentProps) {
 
 	// Check if level is complete
 	const isComplete = useCallback(() => {
-		// Check if all required node types are present
-		const nodeTypes = new Set(placedNodes.map((n) => n.type));
-		const requiredTypes = [
-			'request',
-			'router',
-			'controller',
-			'model',
-			'database',
-			'view',
-			'response',
-		];
+		const nodeTypes = new Set(pipeline.placedNodes.map((n) => n.type));
+		const requiredTypes = ['request', 'router', 'controller', 'model', 'database', 'view', 'response'];
 		if (!requiredTypes.every((t) => nodeTypes.has(t))) return false;
 
-		// Check if all required connections exist
 		for (const expected of EXPECTED_PATH) {
-			const sourceNode = placedNodes.find((n) => n.type === expected.from);
-			const targetNode = placedNodes.find((n) => n.type === expected.to);
+			const sourceNode = pipeline.placedNodes.find((n) => n.type === expected.from);
+			const targetNode = pipeline.placedNodes.find((n) => n.type === expected.to);
 			if (!sourceNode || !targetNode) return false;
 
-			const hasConnection = connections.some(
-				(c) => c.sourceId === sourceNode.id && c.targetId === targetNode.id,
+			const hasConnection = pipeline.connections.some(
+				(c) => c.sourceNodeId === sourceNode.id && c.targetNodeId === targetNode.id,
 			);
 			if (!hasConnection) return false;
 		}
 
 		return true;
-	}, [placedNodes, connections]);
+	}, [pipeline.placedNodes, pipeline.connections]);
 
 	// Spawn particles from request node
 	useEffect(() => {
 		const interval = setInterval(() => {
-			const requestNode = placedNodes.find((n) => n.type === 'request');
+			const requestNode = pipeline.placedNodes.find((n) => n.type === 'request');
 			if (!requestNode) return;
 
-			// Find next node in path
-			const conn = connections.find((c) => c.sourceId === requestNode.id);
+			const conn = pipeline.connections.find((c) => c.sourceNodeId === requestNode.id);
 			if (!conn) {
-				// No connection - spawn poof particle
 				const id = `particle-${Date.now()}`;
 				setParticles((prev) => [
 					...prev,
@@ -182,8 +105,7 @@ export function Level6MVCPipeline({ onComplete, onExit }: LevelComponentProps) {
 					},
 				]);
 			} else {
-				// Has connection - trace the path
-				const targetNode = placedNodes.find((n) => n.id === conn.targetId);
+				const targetNode = pipeline.placedNodes.find((n) => n.id === conn.targetNodeId);
 				if (targetNode) {
 					const id = `particle-${Date.now()}`;
 					setParticles((prev) => [
@@ -203,144 +125,38 @@ export function Level6MVCPipeline({ onComplete, onExit }: LevelComponentProps) {
 		}, 1500);
 
 		return () => clearInterval(interval);
-	}, [placedNodes, connections, isComplete]);
+	}, [pipeline.placedNodes, pipeline.connections, isComplete]);
 
 	// Animate particles
 	useEffect(() => {
 		const interval = setInterval(() => {
 			setParticles((prev) =>
 				prev
-					.map((p) => ({
-						...p,
-						progress: Math.min(1, p.progress + 0.05),
-					}))
-					.filter(
-						(p) => p.progress < 1 || (p.state === 'poof' && p.progress < 1.5),
-					),
+					.map((p) => ({ ...p, progress: Math.min(1, p.progress + 0.05) }))
+					.filter((p) => p.progress < 1 || (p.state === 'poof' && p.progress < 1.5)),
 			);
 		}, 50);
 
 		return () => clearInterval(interval);
 	}, []);
 
-	// Handle completing the level
 	const handleComplete = async () => {
-		const success = await completeLevel('act1-level6-mvc-pipeline', {
-			stars: 3,
-		});
+		const success = await completeLevel('act1-level6-mvc-pipeline', { stars: 3 });
 		if (success) {
 			onComplete({ stars: 3 });
 		}
 	};
 
-	// Drag handlers
-	const handleDragStart = (e: React.DragEvent, type: string) => {
-		e.dataTransfer.setData('nodeType', type);
-		setDraggedNodeType(type);
-	};
-
-	const handleDragEnd = () => {
-		setDraggedNodeType(null);
-	};
-
-	const handleDragOver = (e: React.DragEvent) => {
-		e.preventDefault();
-	};
-
-	const handleDrop = (e: React.DragEvent) => {
-		e.preventDefault();
-		const nodeType = e.dataTransfer.getData('nodeType');
-		if (!nodeType || !canvasRef.current) return;
-
-		// Check if this node type is already placed (only allow one of each)
-		if (placedNodes.some((n) => n.type === nodeType)) return;
-
-		const rect = canvasRef.current.getBoundingClientRect();
-		const x = e.clientX - rect.left;
-		const y = e.clientY - rect.top;
-
-		const newNode: PlacedNode = {
-			id: `${nodeType}-${Date.now()}`,
-			type: nodeType,
-			x,
-			y,
-		};
-
-		setPlacedNodes((prev) => [...prev, newNode]);
-		setDraggedNodeType(null);
-	};
-
-	// Connection handlers
-	const handleStartConnection = (nodeId: string, point: 'input' | 'output') => {
-		// Only allow starting connections from output points
-		if (point !== 'output') return;
-
-		const node = placedNodes.find((n) => n.id === nodeId);
-		if (node) {
-			setPendingConnection({ sourceId: nodeId, x: node.x + 60, y: node.y });
-		}
-	};
-
-	const handleCompleteConnection = (
-		targetId: string,
-		point: 'input' | 'output',
-	) => {
-		// Only allow completing connections to input points
-		if (point !== 'input') return;
-
-		if (pendingConnection && pendingConnection.sourceId !== targetId) {
-			// Check if connection already exists
-			const exists = connections.some(
-				(c) =>
-					c.sourceId === pendingConnection.sourceId && c.targetId === targetId,
-			);
-			if (!exists) {
-				setConnections((prev) => [
-					...prev,
-					{
-						id: `conn-${Date.now()}`,
-						sourceId: pendingConnection.sourceId,
-						targetId,
-					},
-				]);
-			}
-		}
-		setPendingConnection(null);
-	};
-
-	const handleCanvasMouseMove = (e: React.MouseEvent) => {
-		if (pendingConnection && canvasRef.current) {
-			const rect = canvasRef.current.getBoundingClientRect();
-			setPendingConnection({
-				...pendingConnection,
-				x: e.clientX - rect.left,
-				y: e.clientY - rect.top,
-			});
-		}
-	};
-
-	const handleCanvasClick = () => {
-		setSelectedNodeId(null);
-		setPendingConnection(null);
-	};
-
-	const handleNodeDrag = (id: string, x: number, y: number) => {
-		setPlacedNodes((prev) =>
-			prev.map((n) => (n.id === id ? { ...n, x, y } : n)),
-		);
-	};
-
-	// Delete connection
-	const deleteConnection = (connId: string) => {
-		setConnections((prev) => prev.filter((c) => c.id !== connId));
-	};
+	// Available nodes (not yet placed)
+	const availableNodes = AVAILABLE_TYPES.filter(
+		(type) => !pipeline.placedNodes.some((n) => n.type === type),
+	);
 
 	// Generate code preview
 	const getCodeFiles = () => {
 		const files = [];
 
-		// Routes file
-		const hasRouter = placedNodes.some((n) => n.type === 'router');
+		const hasRouter = pipeline.placedNodes.some((n) => n.type === 'router');
 		files.push({
 			filename: 'config/routes.rb',
 			language: 'ruby',
@@ -354,9 +170,8 @@ end`
 			highlight: hasRouter ? [2, 3] : [],
 		});
 
-		// Controller file
-		const hasController = placedNodes.some((n) => n.type === 'controller');
-		const hasModel = placedNodes.some((n) => n.type === 'model');
+		const hasController = pipeline.placedNodes.some((n) => n.type === 'controller');
+		const hasModel = pipeline.placedNodes.some((n) => n.type === 'model');
 		if (hasController) {
 			files.push({
 				filename: 'app/controllers/posts_controller.rb',
@@ -370,8 +185,7 @@ end`,
 			});
 		}
 
-		// View file
-		const hasView = placedNodes.some((n) => n.type === 'view');
+		const hasView = pipeline.placedNodes.some((n) => n.type === 'view');
 		if (hasView) {
 			files.push({
 				filename: 'app/views/posts/index.html.erb',
@@ -390,44 +204,6 @@ end`,
 		return files;
 	};
 
-	// Get connection coordinates
-	const getConnectionCoords = () => {
-		return connections
-			.map((conn) => {
-				const source = placedNodes.find((n) => n.id === conn.sourceId);
-				const target = placedNodes.find((n) => n.id === conn.targetId);
-				if (!source || !target) return null;
-				return {
-					id: conn.id,
-					startX: source.x + 60,
-					startY: source.y,
-					endX: target.x - 60,
-					endY: target.y,
-					color: isComplete() ? '#22c55e' : '#6b7280',
-					animated: true,
-				};
-			})
-			.filter(Boolean) as Array<{
-			id: string;
-			startX: number;
-			startY: number;
-			endX: number;
-			endY: number;
-			color: string;
-			animated: boolean;
-		}>;
-	};
-
-	// Available nodes (not yet placed)
-	const availableNodes = [
-		'router',
-		'controller',
-		'model',
-		'database',
-		'view',
-		'response',
-	].filter((type) => !placedNodes.some((n) => n.type === type));
-
 	return (
 		<LevelLayout>
 			<LeftPanel>
@@ -444,16 +220,16 @@ end`,
 					<NodePalette title="MVC Components">
 						<NodePaletteGroup title="Pipeline Nodes">
 							{availableNodes.map((type) => {
-								const def = NODE_DEFS[type];
+								const info = getNodeInfo(type);
 								return (
 									<DraggableNode
-										color={def.color}
-										description={def.description}
-										icon={def.icon}
+										color={info.color}
+										description={info.description || ''}
+										icon={info.icon || type[0].toUpperCase()}
 										key={type}
-										name={def.name}
-										onDragEnd={handleDragEnd}
-										onDragStart={handleDragStart}
+										name={info.name}
+										onDragEnd={pipeline.handleDragEnd}
+										onDragStart={pipeline.handleDragStart}
 										type={type}
 									/>
 								);
@@ -476,64 +252,40 @@ end`,
 					levelNumber={6}
 					onExit={onExit}
 					onReset={() => {
-						setPlacedNodes([
+						pipeline.setPlacedNodes([
 							{ id: 'request-1', type: 'request', x: 100, y: 300 },
 						]);
-						setConnections([]);
+						pipeline.setConnections([]);
 					}}
 				/>
 
-				{/* Canvas */}
-				<div
-					className="flex-1 relative bg-background overflow-hidden"
-					onClick={handleCanvasClick}
-					onDragOver={handleDragOver}
-					onDrop={handleDrop}
-					onMouseMove={handleCanvasMouseMove}
-					ref={canvasRef}
+				<PipelineCanvas
+					canvasRef={pipeline.canvasRef}
+					connections={pipeline.connections}
+					draggedNodeType={pipeline.draggedNodeType}
+					draggingNodeId={pipeline.draggingNodeId}
+					onClick={pipeline.handleCanvasClick}
+					onCompleteConnection={pipeline.completeConnection}
+					onDeleteConnection={pipeline.deleteConnection}
+					onDeleteNode={pipeline.deleteSelectedNode}
+					onDragOver={pipeline.handleDragOver}
+					onDrop={pipeline.handleDrop}
+					onMouseMove={pipeline.handleCanvasMouseMove}
+					onMouseUp={pipeline.handleCanvasMouseUp}
+					onNodeMouseDown={pipeline.handleNodeMouseDown}
+					onStartConnection={pipeline.startConnection}
+					pendingConnection={pipeline.pendingConnection}
+					placedNodes={pipeline.placedNodes}
+					selectedNodeId={pipeline.selectedNodeId}
 				>
-					{/* Grid background */}
-					<div
-						className="absolute inset-0 opacity-10"
-						style={{
-							backgroundImage:
-								'radial-gradient(circle, #374151 1px, transparent 1px)',
-							backgroundSize: '30px 30px',
-						}}
-					/>
-
-					{/* Connections SVG layer */}
-					<ConnectionLayer
-						connections={getConnectionCoords()}
-						onConnectionClick={deleteConnection}
-						pendingConnection={
-							pendingConnection
-								? {
-										startX:
-											placedNodes.find(
-												(n) => n.id === pendingConnection.sourceId,
-											)!.x + 60,
-										startY: placedNodes.find(
-											(n) => n.id === pendingConnection.sourceId,
-										)!.y,
-										endX: pendingConnection.x,
-										endY: pendingConnection.y,
-									}
-								: null
-						}
-						selectedConnectionId={null}
-					/>
-
 					{/* Particles */}
-					<svg className="absolute inset-0 pointer-events-none overflow-visible">
+					<svg className="absolute inset-0 pointer-events-none overflow-visible" style={{ zIndex: 2 }}>
 						{particles.map((p) => {
 							const currentX = p.x + (p.targetX - p.x) * p.progress;
 							const currentY = p.y + (p.targetY - p.y) * p.progress;
-							const opacity =
-								p.state === 'poof' ? Math.max(0, 1 - p.progress) : 1;
+							const opacity = p.state === 'poof' ? Math.max(0, 1 - p.progress) : 1;
 
 							if (p.state === 'poof') {
-								// Poof effect - expanding red circles
 								return (
 									<g key={p.id}>
 										{[0, 1, 2, 3, 4].map((i) => {
@@ -566,49 +318,19 @@ end`,
 								);
 							}
 
-							// Normal particle
 							const color = p.state === 'success' ? '#22c55e' : '#f59e0b';
 							return (
 								<g key={p.id}>
 									<circle cx={currentX} cy={currentY} fill={color} r="6" />
-									<circle
-										cx={currentX}
-										cy={currentY}
-										fill={color}
-										opacity="0.3"
-										r="10"
-									/>
+									<circle cx={currentX} cy={currentY} fill={color} opacity="0.3" r="10" />
 								</g>
 							);
 						})}
 					</svg>
 
-					{/* Placed nodes */}
-					{placedNodes.map((node) => {
-						const def = NODE_DEFS[node.type];
-						return (
-							<CanvasNode
-								color={def.color}
-								icon={def.icon}
-								id={node.id}
-								key={node.id}
-								locked={node.type === 'request'}
-								name={def.name}
-								onCompleteConnection={handleCompleteConnection}
-								onDrag={handleNodeDrag}
-								onSelect={setSelectedNodeId}
-								onStartConnection={handleStartConnection}
-								selected={selectedNodeId === node.id}
-								type={node.type}
-								x={node.x}
-								y={node.y}
-							/>
-						);
-					})}
-
 					{/* Completion overlay */}
 					{isComplete() && (
-						<div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
+						<div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10">
 							<Button
 								className="bg-success hover:bg-success/90 text-foreground font-bold shadow-lg shadow-success/30"
 								onClick={handleComplete}
@@ -618,7 +340,7 @@ end`,
 							</Button>
 						</div>
 					)}
-				</div>
+				</PipelineCanvas>
 			</CenterPanel>
 
 			<RightPanel>
@@ -632,22 +354,16 @@ end`,
 							Pipeline Status
 						</div>
 						<div className="space-y-1 text-sm">
-							{[
-								'router',
-								'controller',
-								'model',
-								'database',
-								'view',
-								'response',
-							].map((type) => {
-								const hasNode = placedNodes.some((n) => n.type === type);
+							{AVAILABLE_TYPES.map((type) => {
+								const hasNode = pipeline.placedNodes.some((n) => n.type === type);
+								const info = getNodeInfo(type);
 								return (
 									<div
 										className={`flex items-center gap-2 ${hasNode ? 'text-success' : 'text-muted-foreground'}`}
 										key={type}
 									>
 										<span>{hasNode ? '+' : '-'}</span>
-										<span>{NODE_DEFS[type].name}</span>
+										<span>{info.name}</span>
 									</div>
 								);
 							})}

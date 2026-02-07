@@ -5,14 +5,15 @@
  * Decision modal appears when connecting Model → Model.
  */
 
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { PipelineCanvas } from '@/components/PipelineCanvas';
+import { usePipelineState } from '@/hooks/usePipelineState';
+import { getNodeInfo } from '@/utils/gameData';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import {
-	CanvasNode,
 	CenterPanel,
 	CodePreviewPanel,
-	ConnectionLayer,
 	DraggableNode,
 	InstructionPanel,
 	LeftPanel,
@@ -24,107 +25,69 @@ import {
 	useLevelCompletion,
 } from '@/components/levels';
 
-interface PlacedNode {
-	id: string;
-	type: string;
-	x: number;
-	y: number;
-	label?: string;
-}
-
-interface Connection {
-	id: string;
-	sourceId: string;
-	targetId: string;
-	relationshipType?: string;
-}
-
-// Node definitions
-const NODE_DEFS: Record<
-	string,
-	{ name: string; icon: string; color: string; description: string }
-> = {
-	request: {
-		name: 'Request',
-		icon: 'R',
-		color: '#22c55e',
-		description: 'HTTP request',
-	},
-	router: {
-		name: 'Router',
-		icon: '/',
-		color: '#f59e0b',
-		description: 'routes.rb',
-	},
-	controller: {
-		name: 'Controller',
-		icon: 'C',
-		color: '#3b82f6',
-		description: 'PostsController',
-	},
-	model: {
-		name: 'Model',
-		icon: 'M',
-		color: '#8b5cf6',
-		description: 'ActiveRecord model',
-	},
-	database: {
-		name: 'Database',
-		icon: 'D',
-		color: '#06b6d4',
-		description: 'PostgreSQL',
-	},
-	view: {
-		name: 'View',
-		icon: 'V',
-		color: '#ec4899',
-		description: 'ERB template',
-	},
-	response: {
-		name: 'Response',
-		icon: 'R',
-		color: '#10b981',
-		description: 'HTML response',
-	},
-};
-
 export function Level3Associations({
 	onComplete,
 	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
-	const canvasRef = useRef<HTMLDivElement>(null);
+
+	// Track whether comment has been added
+	const [commentAdded, setCommentAdded] = useState(false);
 
 	// Pre-built pipeline with Post model
-	const [placedNodes, setPlacedNodes] = useState<PlacedNode[]>([
-		{ id: 'request-1', type: 'request', x: 80, y: 250 },
-		{ id: 'router-1', type: 'router', x: 200, y: 250 },
-		{ id: 'controller-1', type: 'controller', x: 340, y: 250 },
-		{ id: 'post-model', type: 'model', x: 500, y: 250, label: 'Post' },
-		{ id: 'database-1', type: 'database', x: 680, y: 250 },
-		{ id: 'view-1', type: 'view', x: 840, y: 250 },
-		{ id: 'response-1', type: 'response', x: 980, y: 250 },
-	]);
+	const pipeline = usePipelineState({
+		initialNodes: [
+			{ id: 'request-1', type: 'request', x: 80, y: 250, config: { locked: true } },
+			{ id: 'router-1', type: 'router', x: 200, y: 250, config: { locked: true } },
+			{ id: 'controller-1', type: 'controller', x: 340, y: 250, config: { locked: true } },
+			{ id: 'post-model', type: 'model', x: 500, y: 250, config: { label: 'Post', locked: true } },
+			{ id: 'database-1', type: 'database', x: 680, y: 250, config: { locked: true } },
+			{ id: 'view-1', type: 'view', x: 840, y: 250, config: { locked: true } },
+			{ id: 'response-1', type: 'response', x: 980, y: 250, config: { locked: true } },
+		],
+		initialConnections: [
+			{ id: 'c1', sourceNodeId: 'request-1', targetNodeId: 'router-1' },
+			{ id: 'c2', sourceNodeId: 'router-1', targetNodeId: 'controller-1' },
+			{ id: 'c3', sourceNodeId: 'controller-1', targetNodeId: 'post-model' },
+			{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'database-1' },
+			{ id: 'c5', sourceNodeId: 'database-1', targetNodeId: 'view-1' },
+			{ id: 'c6', sourceNodeId: 'view-1', targetNodeId: 'response-1' },
+		],
+		onBeforeDrop: (type, nodes) => type === 'model' && !commentAdded,
+		onNodeDropped: (node) => {
+			if (node.type === 'model') {
+				setCommentAdded(true);
+				// Update the node config to set the label to 'Comment'
+				pipeline.setPlacedNodes((prev) =>
+					prev.map((n) =>
+						n.id === node.id
+							? { ...n, config: { ...n.config, label: 'Comment' } }
+							: n,
+					),
+				);
+			}
+		},
+		onConnectionCreated: (conn) => {
+			// Check if both nodes are models
+			const sourceNode = pipeline.placedNodes.find((n) => n.id === conn.sourceNodeId);
+			const targetNode = pipeline.placedNodes.find((n) => n.id === conn.targetNodeId);
+			if (sourceNode?.type === 'model' && targetNode?.type === 'model') {
+				// Show decision modal for relationship type
+				setPendingRelationship({
+					connectionId: conn.id,
+					sourceId: conn.sourceNodeId,
+					targetId: conn.targetNodeId,
+				});
+				setShowDecisionModal(true);
+			}
+		},
+	});
 
-	const [connections, setConnections] = useState<Connection[]>([
-		{ id: 'c1', sourceId: 'request-1', targetId: 'router-1' },
-		{ id: 'c2', sourceId: 'router-1', targetId: 'controller-1' },
-		{ id: 'c3', sourceId: 'controller-1', targetId: 'post-model' },
-		{ id: 'c4', sourceId: 'post-model', targetId: 'database-1' },
-		{ id: 'c5', sourceId: 'database-1', targetId: 'view-1' },
-		{ id: 'c6', sourceId: 'view-1', targetId: 'response-1' },
-	]);
-
-	const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-	const [pendingConnection, setPendingConnection] = useState<{
-		sourceId: string;
-		x: number;
-		y: number;
-	} | null>(null);
-	const [commentAdded, setCommentAdded] = useState(false);
+	// Relationship type state
 	const [relationshipType, setRelationshipType] = useState<string | null>(null);
 	const [showDecisionModal, setShowDecisionModal] = useState(false);
 	const [pendingRelationship, setPendingRelationship] = useState<{
+		connectionId: string;
 		sourceId: string;
 		targetId: string;
 	} | null>(null);
@@ -132,75 +95,9 @@ export function Level3Associations({
 	// Check if level is complete
 	const isComplete = relationshipType === 'has_many';
 
-	// Handle dropping Comment model
-	const handleDrop = (e: React.DragEvent) => {
-		e.preventDefault();
-		const nodeType = e.dataTransfer.getData('nodeType');
-		if (nodeType !== 'model' || commentAdded || !canvasRef.current) return;
-
-		const rect = canvasRef.current.getBoundingClientRect();
-		const x = e.clientX - rect.left;
-		const y = e.clientY - rect.top;
-
-		const commentNode: PlacedNode = {
-			id: 'comment-model',
-			type: 'model',
-			x,
-			y,
-			label: 'Comment',
-		};
-
-		setPlacedNodes((prev) => [...prev, commentNode]);
-		setCommentAdded(true);
-	};
-
-	// Handle starting a connection
-	const handleStartConnection = (nodeId: string) => {
-		const node = placedNodes.find((n) => n.id === nodeId);
-		if (node) {
-			setPendingConnection({ sourceId: nodeId, x: node.x + 60, y: node.y });
-		}
-	};
-
-	// Handle completing a connection
-	const handleCompleteConnection = (targetId: string) => {
-		if (!pendingConnection || pendingConnection.sourceId === targetId) {
-			setPendingConnection(null);
-			return;
-		}
-
-		const sourceNode = placedNodes.find(
-			(n) => n.id === pendingConnection.sourceId,
-		);
-		const targetNode = placedNodes.find((n) => n.id === targetId);
-
-		// Check if connecting two models
-		if (sourceNode?.type === 'model' && targetNode?.type === 'model') {
-			// Show decision modal
-			setPendingRelationship({
-				sourceId: pendingConnection.sourceId,
-				targetId,
-			});
-			setShowDecisionModal(true);
-		}
-
-		setPendingConnection(null);
-	};
-
 	// Handle decision modal choice
 	const handleRelationshipChoice = (choice: string) => {
-		if (pendingRelationship) {
-			setConnections((prev) => [
-				...prev,
-				{
-					id: `conn-${Date.now()}`,
-					sourceId: pendingRelationship.sourceId,
-					targetId: pendingRelationship.targetId,
-					relationshipType: choice,
-				},
-			]);
-			setRelationshipType(choice);
-		}
+		setRelationshipType(choice);
 		setShowDecisionModal(false);
 		setPendingRelationship(null);
 	};
@@ -214,72 +111,6 @@ export function Level3Associations({
 		if (success) {
 			onComplete({ stars: 3, decisions: { relationship: relationshipType! } });
 		}
-	};
-
-	// Canvas event handlers
-	const handleCanvasMouseMove = (e: React.MouseEvent) => {
-		if (pendingConnection && canvasRef.current) {
-			const rect = canvasRef.current.getBoundingClientRect();
-			setPendingConnection({
-				...pendingConnection,
-				x: e.clientX - rect.left,
-				y: e.clientY - rect.top,
-			});
-		}
-	};
-
-	const handleCanvasClick = () => {
-		setSelectedNodeId(null);
-		setPendingConnection(null);
-	};
-
-	const handleNodeDrag = (id: string, x: number, y: number) => {
-		// Only allow dragging the Comment model
-		if (id === 'comment-model') {
-			setPlacedNodes((prev) =>
-				prev.map((n) => (n.id === id ? { ...n, x, y } : n)),
-			);
-		}
-	};
-
-	// Get connection coordinates
-	const getConnectionCoords = () => {
-		return connections
-			.map((conn) => {
-				const source = placedNodes.find((n) => n.id === conn.sourceId);
-				const target = placedNodes.find((n) => n.id === conn.targetId);
-				if (!source || !target) return null;
-
-				// Model-to-model connections are special
-				const isModelConnection =
-					source.type === 'model' && target.type === 'model';
-				const color = isModelConnection
-					? conn.relationshipType === 'has_many'
-						? '#22c55e'
-						: conn.relationshipType
-							? '#ef4444'
-							: '#8b5cf6'
-					: '#6b7280';
-
-				return {
-					id: conn.id,
-					startX: source.x + 60,
-					startY: source.y,
-					endX: target.x - 60,
-					endY: target.y,
-					color,
-					animated: true,
-				};
-			})
-			.filter(Boolean) as Array<{
-			id: string;
-			startX: number;
-			startY: number;
-			endX: number;
-			endY: number;
-			color: string;
-			animated: boolean;
-		}>;
 	};
 
 	// Generate code preview
@@ -343,6 +174,20 @@ end`,
 		return files;
 	};
 
+	// Get connection color based on relationship type
+	const getConnectionColor = (conn: typeof pipeline.connections[0]) => {
+		const sourceNode = pipeline.placedNodes.find((n) => n.id === conn.sourceNodeId);
+		const targetNode = pipeline.placedNodes.find((n) => n.id === conn.targetNodeId);
+		const isModelConnection = sourceNode?.type === 'model' && targetNode?.type === 'model';
+
+		if (isModelConnection) {
+			if (relationshipType === 'has_many') return '#22c55e';
+			if (relationshipType) return '#ef4444';
+			return '#8b5cf6';
+		}
+		return '#6b7280';
+	};
+
 	return (
 		<LevelLayout>
 			<LeftPanel>
@@ -363,9 +208,8 @@ end`,
 									description="Comment model for posts"
 									icon="M"
 									name="Comment"
-									onDragStart={(e, type) =>
-										e.dataTransfer.setData('nodeType', type)
-									}
+									onDragEnd={pipeline.handleDragEnd}
+									onDragStart={pipeline.handleDragStart}
 									type="model"
 								/>
 							</NodePaletteGroup>
@@ -388,98 +232,48 @@ end`,
 					levelNumber={3}
 					onExit={onExit}
 					onReset={() => {
-						setPlacedNodes([
-							{ id: 'request-1', type: 'request', x: 80, y: 250 },
-							{ id: 'router-1', type: 'router', x: 200, y: 250 },
-							{ id: 'controller-1', type: 'controller', x: 340, y: 250 },
-							{
-								id: 'post-model',
-								type: 'model',
-								x: 500,
-								y: 250,
-								label: 'Post',
-							},
-							{ id: 'database-1', type: 'database', x: 680, y: 250 },
-							{ id: 'view-1', type: 'view', x: 840, y: 250 },
-							{ id: 'response-1', type: 'response', x: 980, y: 250 },
+						pipeline.setPlacedNodes([
+							{ id: 'request-1', type: 'request', x: 80, y: 250, config: { locked: true } },
+							{ id: 'router-1', type: 'router', x: 200, y: 250, config: { locked: true } },
+							{ id: 'controller-1', type: 'controller', x: 340, y: 250, config: { locked: true } },
+							{ id: 'post-model', type: 'model', x: 500, y: 250, config: { label: 'Post', locked: true } },
+							{ id: 'database-1', type: 'database', x: 680, y: 250, config: { locked: true } },
+							{ id: 'view-1', type: 'view', x: 840, y: 250, config: { locked: true } },
+							{ id: 'response-1', type: 'response', x: 980, y: 250, config: { locked: true } },
 						]);
-						setConnections([
-							{ id: 'c1', sourceId: 'request-1', targetId: 'router-1' },
-							{ id: 'c2', sourceId: 'router-1', targetId: 'controller-1' },
-							{ id: 'c3', sourceId: 'controller-1', targetId: 'post-model' },
-							{ id: 'c4', sourceId: 'post-model', targetId: 'database-1' },
-							{ id: 'c5', sourceId: 'database-1', targetId: 'view-1' },
-							{ id: 'c6', sourceId: 'view-1', targetId: 'response-1' },
+						pipeline.setConnections([
+							{ id: 'c1', sourceNodeId: 'request-1', targetNodeId: 'router-1' },
+							{ id: 'c2', sourceNodeId: 'router-1', targetNodeId: 'controller-1' },
+							{ id: 'c3', sourceNodeId: 'controller-1', targetNodeId: 'post-model' },
+							{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'database-1' },
+							{ id: 'c5', sourceNodeId: 'database-1', targetNodeId: 'view-1' },
+							{ id: 'c6', sourceNodeId: 'view-1', targetNodeId: 'response-1' },
 						]);
 						setCommentAdded(false);
 						setRelationshipType(null);
 					}}
 				/>
 
-				{/* Canvas */}
-				<div
-					className="flex-1 relative bg-background overflow-hidden"
-					onClick={handleCanvasClick}
-					onDragOver={(e) => e.preventDefault()}
-					onDrop={handleDrop}
-					onMouseMove={handleCanvasMouseMove}
-					ref={canvasRef}
+				<PipelineCanvas
+					canvasRef={pipeline.canvasRef}
+					connections={pipeline.connections}
+					connectionColorOverride={getConnectionColor}
+					draggedNodeType={pipeline.draggedNodeType}
+					draggingNodeId={pipeline.draggingNodeId}
+					onClick={pipeline.handleCanvasClick}
+					onCompleteConnection={pipeline.completeConnection}
+					onDeleteConnection={pipeline.deleteConnection}
+					onDeleteNode={pipeline.deleteSelectedNode}
+					onDragOver={pipeline.handleDragOver}
+					onDrop={pipeline.handleDrop}
+					onMouseMove={pipeline.handleCanvasMouseMove}
+					onMouseUp={pipeline.handleCanvasMouseUp}
+					onNodeMouseDown={pipeline.handleNodeMouseDown}
+					onStartConnection={pipeline.startConnection}
+					pendingConnection={pipeline.pendingConnection}
+					placedNodes={pipeline.placedNodes}
+					selectedNodeId={pipeline.selectedNodeId}
 				>
-					{/* Grid background */}
-					<div
-						className="absolute inset-0 opacity-10"
-						style={{
-							backgroundImage:
-								'radial-gradient(circle, #374151 1px, transparent 1px)',
-							backgroundSize: '30px 30px',
-						}}
-					/>
-
-					{/* Connections */}
-					<ConnectionLayer
-						connections={getConnectionCoords()}
-						pendingConnection={
-							pendingConnection
-								? {
-										startX:
-											placedNodes.find(
-												(n) => n.id === pendingConnection.sourceId,
-											)!.x + 60,
-										startY: placedNodes.find(
-											(n) => n.id === pendingConnection.sourceId,
-										)!.y,
-										endX: pendingConnection.x,
-										endY: pendingConnection.y,
-									}
-								: null
-						}
-						selectedConnectionId={null}
-					/>
-
-					{/* Nodes */}
-					{placedNodes.map((node) => {
-						const def = NODE_DEFS[node.type];
-						const isLocked = node.id !== 'comment-model';
-						return (
-							<CanvasNode
-								color={def.color}
-								icon={def.icon}
-								id={node.id}
-								key={node.id}
-								locked={isLocked}
-								name={node.label || def.name}
-								onCompleteConnection={() => handleCompleteConnection(node.id)}
-								onDrag={handleNodeDrag}
-								onSelect={setSelectedNodeId}
-								onStartConnection={() => handleStartConnection(node.id)}
-								selected={selectedNodeId === node.id}
-								type={node.type}
-								x={node.x}
-								y={node.y}
-							/>
-						);
-					})}
-
 					{/* Decision Modal */}
 					{showDecisionModal && (
 						<div className="absolute inset-0 bg-black/70 flex items-center justify-center z-50">
@@ -563,7 +357,7 @@ end`,
 
 					{/* Completion button */}
 					{isComplete && (
-						<div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
+						<div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10">
 							<Button
 								className="bg-success hover:bg-success/90 text-foreground font-bold shadow-lg shadow-success/30"
 								onClick={handleComplete}
@@ -576,14 +370,14 @@ end`,
 
 					{/* Wrong choice feedback */}
 					{relationshipType && relationshipType !== 'has_many' && (
-						<div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-destructive/80 border border-destructive text-destructive-foreground px-6 py-3 rounded-lg">
+						<div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-destructive/80 border border-destructive text-destructive-foreground px-6 py-3 rounded-lg z-10">
 							Wrong relationship type!{' '}
 							{relationshipType === 'has_one'
 								? 'Only one comment shows.'
 								: 'Comments would be shared between posts.'}
 						</div>
 					)}
-				</div>
+				</PipelineCanvas>
 			</CenterPanel>
 
 			<RightPanel>

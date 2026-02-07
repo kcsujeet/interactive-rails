@@ -2,9 +2,7 @@
  * Shared Level Components Index
  */
 
-export { CanvasNode, getNodeConnectionPoint } from './CanvasNode';
 export { CodePreviewPanel } from './CodePreviewPanel';
-export { ConnectionLayer, ConnectionLine } from './ConnectionLine';
 export { DraggableNode, NodePalette, NodePaletteGroup } from './DraggableNode';
 export { InstructionPanel } from './InstructionPanel';
 export { LevelHeader } from './LevelHeader';

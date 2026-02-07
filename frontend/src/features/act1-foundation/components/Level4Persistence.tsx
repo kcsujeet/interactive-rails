@@ -5,14 +5,16 @@
  * "Simulate Restart" clears transient data.
  */
 
-import { useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { PipelineCanvas } from '@/components/PipelineCanvas';
+import type { NodeOverride } from '@/components/PipelineCanvas';
+import { usePipelineState } from '@/hooks/usePipelineState';
+import { getNodeInfo } from '@/utils/gameData';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import {
-	CanvasNode,
 	CenterPanel,
 	CodePreviewPanel,
-	ConnectionLayer,
 	DraggableNode,
 	InstructionPanel,
 	LeftPanel,
@@ -24,93 +26,8 @@ import {
 	useLevelCompletion,
 } from '@/components/levels';
 
-interface PlacedNode {
-	id: string;
-	type: string;
-	x: number;
-	y: number;
-	label?: string;
-}
-
-interface Connection {
-	id: string;
-	sourceId: string;
-	targetId: string;
-}
-
-// Node definitions
-const NODE_DEFS: Record<
-	string,
-	{ name: string; icon: string; color: string; description: string }
-> = {
-	request: {
-		name: 'Request',
-		icon: 'R',
-		color: '#22c55e',
-		description: 'HTTP request',
-	},
-	router: {
-		name: 'Router',
-		icon: '/',
-		color: '#f59e0b',
-		description: 'routes.rb',
-	},
-	controller: {
-		name: 'Controller',
-		icon: 'C',
-		color: '#3b82f6',
-		description: 'PostsController',
-	},
-	model: {
-		name: 'Model',
-		icon: 'M',
-		color: '#8b5cf6',
-		description: 'ActiveRecord model',
-	},
-	database: {
-		name: 'Database',
-		icon: 'D',
-		color: '#06b6d4',
-		description: 'PostgreSQL',
-	},
-	view: {
-		name: 'View',
-		icon: 'V',
-		color: '#ec4899',
-		description: 'ERB template',
-	},
-	response: {
-		name: 'Response',
-		icon: 'R',
-		color: '#10b981',
-		description: 'HTML response',
-	},
-};
-
 export function Level4Persistence({ onComplete, onExit }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
-	const canvasRef = useRef<HTMLDivElement>(null);
-
-	// Pre-built pipeline WITHOUT database connection to models
-	const [placedNodes, setPlacedNodes] = useState<PlacedNode[]>([
-		{ id: 'request-1', type: 'request', x: 80, y: 250 },
-		{ id: 'router-1', type: 'router', x: 200, y: 250 },
-		{ id: 'controller-1', type: 'controller', x: 340, y: 250 },
-		{ id: 'post-model', type: 'model', x: 500, y: 180, label: 'Post' },
-		{ id: 'comment-model', type: 'model', x: 500, y: 320, label: 'Comment' },
-		{ id: 'view-1', type: 'view', x: 700, y: 250 },
-		{ id: 'response-1', type: 'response', x: 860, y: 250 },
-	]);
-
-	const [connections, setConnections] = useState<Connection[]>([
-		{ id: 'c1', sourceId: 'request-1', targetId: 'router-1' },
-		{ id: 'c2', sourceId: 'router-1', targetId: 'controller-1' },
-		{ id: 'c3', sourceId: 'controller-1', targetId: 'post-model' },
-		{ id: 'c4', sourceId: 'post-model', targetId: 'comment-model' },
-		{ id: 'c5', sourceId: 'post-model', targetId: 'view-1' },
-		{ id: 'c6', sourceId: 'comment-model', targetId: 'view-1' },
-		{ id: 'c7', sourceId: 'view-1', targetId: 'response-1' },
-	]);
 
 	const [databaseAdded, setDatabaseAdded] = useState(false);
 	const [modelsConnectedToDb, setModelsConnectedToDb] = useState<Set<string>>(
@@ -118,12 +35,46 @@ export function Level4Persistence({ onComplete, onExit }: LevelComponentProps) {
 	);
 	const [dataCounter, setDataCounter] = useState(0);
 	const [showRestartEffect, setShowRestartEffect] = useState(false);
-	const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-	const [pendingConnection, setPendingConnection] = useState<{
-		sourceId: string;
-		x: number;
-		y: number;
-	} | null>(null);
+
+	// Track model→database connections
+	const handleConnectionCreated = useCallback(
+		(conn: { id: string; sourceNodeId: string; targetNodeId: string }, sourceNode: any, targetNode: any) => {
+			// Check if connecting model to database
+			if (
+				(sourceNode?.type === 'model' && targetNode?.type === 'database') ||
+				(sourceNode?.type === 'database' && targetNode?.type === 'model')
+			) {
+				const modelId =
+					sourceNode?.type === 'model' ? sourceNode.id : targetNode.id;
+				setModelsConnectedToDb((prev) => new Set([...prev, modelId]));
+			}
+		},
+		[],
+	);
+
+	// Pre-built pipeline (initialNodes with 7 nodes, initialConnections with 7 connections)
+	const pipeline = usePipelineState({
+		initialNodes: [
+			{ id: 'request-1', type: 'request', x: 80, y: 250, locked: true },
+			{ id: 'router-1', type: 'router', x: 200, y: 250, locked: true },
+			{ id: 'controller-1', type: 'controller', x: 340, y: 250, locked: true },
+			{ id: 'post-model', type: 'model', x: 500, y: 180, label: 'Post', locked: true },
+			{ id: 'comment-model', type: 'model', x: 500, y: 320, label: 'Comment', locked: true },
+			{ id: 'view-1', type: 'view', x: 700, y: 250, locked: true },
+			{ id: 'response-1', type: 'response', x: 860, y: 250, locked: true },
+		],
+		initialConnections: [
+			{ id: 'c1', sourceNodeId: 'request-1', targetNodeId: 'router-1' },
+			{ id: 'c2', sourceNodeId: 'router-1', targetNodeId: 'controller-1' },
+			{ id: 'c3', sourceNodeId: 'controller-1', targetNodeId: 'post-model' },
+			{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'comment-model' },
+			{ id: 'c5', sourceNodeId: 'post-model', targetNodeId: 'view-1' },
+			{ id: 'c6', sourceNodeId: 'comment-model', targetNodeId: 'view-1' },
+			{ id: 'c7', sourceNodeId: 'view-1', targetNodeId: 'response-1' },
+		],
+		onBeforeDrop: (type) => type === 'database' && !databaseAdded,
+		onConnectionCreated: handleConnectionCreated,
+	});
 
 	// Check if level is complete - both models connected to database
 	const isComplete =
@@ -147,68 +98,6 @@ export function Level4Persistence({ onComplete, onExit }: LevelComponentProps) {
 		}, 1000);
 	};
 
-	// Handle dropping database node
-	const handleDrop = (e: React.DragEvent) => {
-		e.preventDefault();
-		const nodeType = e.dataTransfer.getData('nodeType');
-		if (nodeType !== 'database' || databaseAdded || !canvasRef.current) return;
-
-		const rect = canvasRef.current.getBoundingClientRect();
-		const x = e.clientX - rect.left;
-		const y = e.clientY - rect.top;
-
-		const dbNode: PlacedNode = {
-			id: 'database-1',
-			type: 'database',
-			x,
-			y,
-		};
-
-		setPlacedNodes((prev) => [...prev, dbNode]);
-		setDatabaseAdded(true);
-	};
-
-	// Handle connection
-	const handleStartConnection = (nodeId: string) => {
-		const node = placedNodes.find((n) => n.id === nodeId);
-		if (node) {
-			setPendingConnection({ sourceId: nodeId, x: node.x + 60, y: node.y });
-		}
-	};
-
-	const handleCompleteConnection = (targetId: string) => {
-		if (!pendingConnection || pendingConnection.sourceId === targetId) {
-			setPendingConnection(null);
-			return;
-		}
-
-		const sourceNode = placedNodes.find(
-			(n) => n.id === pendingConnection.sourceId,
-		);
-		const targetNode = placedNodes.find((n) => n.id === targetId);
-
-		// Check if connecting model to database
-		if (
-			(sourceNode?.type === 'model' && targetNode?.type === 'database') ||
-			(sourceNode?.type === 'database' && targetNode?.type === 'model')
-		) {
-			const modelId =
-				sourceNode?.type === 'model' ? sourceNode.id : targetNode!.id;
-			setModelsConnectedToDb((prev) => new Set([...prev, modelId]));
-
-			setConnections((prev) => [
-				...prev,
-				{
-					id: `conn-${Date.now()}`,
-					sourceId: pendingConnection.sourceId,
-					targetId,
-				},
-			]);
-		}
-
-		setPendingConnection(null);
-	};
-
 	// Handle completing the level
 	const handleComplete = async () => {
 		const success = await completeLevel('act1-level4-persistence', {
@@ -219,64 +108,64 @@ export function Level4Persistence({ onComplete, onExit }: LevelComponentProps) {
 		}
 	};
 
-	// Canvas handlers
-	const handleCanvasMouseMove = (e: React.MouseEvent) => {
-		if (pendingConnection && canvasRef.current) {
-			const rect = canvasRef.current.getBoundingClientRect();
-			setPendingConnection({
-				...pendingConnection,
-				x: e.clientX - rect.left,
-				y: e.clientY - rect.top,
-			});
-		}
+	// Reset function
+	const handleReset = () => {
+		pipeline.setPlacedNodes([
+			{ id: 'request-1', type: 'request', x: 80, y: 250, locked: true },
+			{ id: 'router-1', type: 'router', x: 200, y: 250, locked: true },
+			{ id: 'controller-1', type: 'controller', x: 340, y: 250, locked: true },
+			{ id: 'post-model', type: 'model', x: 500, y: 180, label: 'Post', locked: true },
+			{ id: 'comment-model', type: 'model', x: 500, y: 320, label: 'Comment', locked: true },
+			{ id: 'view-1', type: 'view', x: 700, y: 250, locked: true },
+			{ id: 'response-1', type: 'response', x: 860, y: 250, locked: true },
+		]);
+		pipeline.setConnections([
+			{ id: 'c1', sourceNodeId: 'request-1', targetNodeId: 'router-1' },
+			{ id: 'c2', sourceNodeId: 'router-1', targetNodeId: 'controller-1' },
+			{ id: 'c3', sourceNodeId: 'controller-1', targetNodeId: 'post-model' },
+			{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'comment-model' },
+			{ id: 'c5', sourceNodeId: 'post-model', targetNodeId: 'view-1' },
+			{ id: 'c6', sourceNodeId: 'comment-model', targetNodeId: 'view-1' },
+			{ id: 'c7', sourceNodeId: 'view-1', targetNodeId: 'response-1' },
+		]);
+		setDatabaseAdded(false);
+		setModelsConnectedToDb(new Set());
+		setDataCounter(0);
 	};
 
-	const handleCanvasClick = () => {
-		setSelectedNodeId(null);
-		setPendingConnection(null);
-	};
+	// Track when database is dropped
+	const handleAfterDrop = useCallback(() => {
+		setDatabaseAdded(true);
+	}, []);
 
-	const handleNodeDrag = (id: string, x: number, y: number) => {
-		if (id === 'database-1') {
-			setPlacedNodes((prev) =>
-				prev.map((n) => (n.id === id ? { ...n, x, y } : n)),
-			);
-		}
-	};
+	// Node overrides for badge/glow per model node
+	const nodeOverrides: NodeOverride[] = pipeline.placedNodes
+		.filter((node) => node.type === 'model')
+		.map((node) => {
+			const isPersisted = modelsConnectedToDb.has(node.id);
+			return {
+				id: node.id,
+				badge: isPersisted ? 'DB' : 'MEM',
+				badgeColor: isPersisted ? '#22c55e' : '#3b82f6',
+				glowColor: isPersisted
+					? 'rgba(34, 197, 94, 0.4)'
+					: 'rgba(59, 130, 246, 0.4)',
+			};
+		});
 
-	// Get connection coordinates
-	const getConnectionCoords = () => {
-		return connections
-			.map((conn) => {
-				const source = placedNodes.find((n) => n.id === conn.sourceId);
-				const target = placedNodes.find((n) => n.id === conn.targetId);
-				if (!source || !target) return null;
+	// Connection color overrides - model to database connections are green
+	const connectionOverrides = pipeline.connections.map((conn) => {
+		const sourceNode = pipeline.placedNodes.find((n) => n.id === conn.sourceNodeId);
+		const targetNode = pipeline.placedNodes.find((n) => n.id === conn.targetNodeId);
+		const isDbConnection =
+			(sourceNode?.type === 'model' && targetNode?.type === 'database') ||
+			(sourceNode?.type === 'database' && targetNode?.type === 'model');
 
-				// Model to database connections are green
-				const isDbConnection =
-					(source.type === 'model' && target.type === 'database') ||
-					(source.type === 'database' && target.type === 'model');
-
-				return {
-					id: conn.id,
-					startX: source.x + 60,
-					startY: source.y,
-					endX: target.x - 60,
-					endY: target.y,
-					color: isDbConnection ? '#22c55e' : '#6b7280',
-					animated: true,
-				};
-			})
-			.filter(Boolean) as Array<{
-			id: string;
-			startX: number;
-			startY: number;
-			endX: number;
-			endY: number;
-			color: string;
-			animated: boolean;
-		}>;
-	};
+		return {
+			...conn,
+			color: isDbConnection ? '#22c55e' : '#6b7280',
+		};
+	});
 
 	// Generate code preview
 	const getCodeFiles = () => {
@@ -343,9 +232,11 @@ end`,
 									description="PostgreSQL persistent storage"
 									icon="D"
 									name="Database"
-									onDragStart={(e, type) =>
-										e.dataTransfer.setData('nodeType', type)
-									}
+									onDragEnd={pipeline.handleDragEnd}
+									onDragStart={(e, type) => {
+										pipeline.handleDragStart(e, type);
+										handleAfterDrop();
+									}}
 									type="database"
 								/>
 							</NodePaletteGroup>
@@ -388,7 +279,7 @@ end`,
 							<Button
 								className="w-full"
 								onClick={simulateRestart}
-								color="destructive"
+								variant="destructive"
 							>
 								Simulate Restart
 							</Button>
@@ -413,131 +304,40 @@ end`,
 					levelName="Persistence Layer"
 					levelNumber={4}
 					onExit={onExit}
-					onReset={() => {
-						setPlacedNodes([
-							{ id: 'request-1', type: 'request', x: 80, y: 250 },
-							{ id: 'router-1', type: 'router', x: 200, y: 250 },
-							{ id: 'controller-1', type: 'controller', x: 340, y: 250 },
-							{
-								id: 'post-model',
-								type: 'model',
-								x: 500,
-								y: 180,
-								label: 'Post',
-							},
-							{
-								id: 'comment-model',
-								type: 'model',
-								x: 500,
-								y: 320,
-								label: 'Comment',
-							},
-							{ id: 'view-1', type: 'view', x: 700, y: 250 },
-							{ id: 'response-1', type: 'response', x: 860, y: 250 },
-						]);
-						setConnections([
-							{ id: 'c1', sourceId: 'request-1', targetId: 'router-1' },
-							{ id: 'c2', sourceId: 'router-1', targetId: 'controller-1' },
-							{ id: 'c3', sourceId: 'controller-1', targetId: 'post-model' },
-							{ id: 'c4', sourceId: 'post-model', targetId: 'comment-model' },
-							{ id: 'c5', sourceId: 'post-model', targetId: 'view-1' },
-							{ id: 'c6', sourceId: 'comment-model', targetId: 'view-1' },
-							{ id: 'c7', sourceId: 'view-1', targetId: 'response-1' },
-						]);
-						setDatabaseAdded(false);
-						setModelsConnectedToDb(new Set());
-						setDataCounter(0);
-					}}
+					onReset={handleReset}
 				/>
 
-				{/* Canvas */}
-				<div
-					className="flex-1 relative bg-background overflow-hidden"
-					onClick={handleCanvasClick}
-					onDragOver={(e) => e.preventDefault()}
-					onDrop={handleDrop}
-					onMouseMove={handleCanvasMouseMove}
-					ref={canvasRef}
+				<PipelineCanvas
+					canvasRef={pipeline.canvasRef}
+					connections={connectionOverrides}
+					draggedNodeType={pipeline.draggedNodeType}
+					draggingNodeId={pipeline.draggingNodeId}
+					nodeOverrides={nodeOverrides}
+					onClick={pipeline.handleCanvasClick}
+					onCompleteConnection={pipeline.completeConnection}
+					onDeleteConnection={pipeline.deleteConnection}
+					onDeleteNode={pipeline.deleteSelectedNode}
+					onDragOver={pipeline.handleDragOver}
+					onDrop={pipeline.handleDrop}
+					onMouseMove={pipeline.handleCanvasMouseMove}
+					onMouseUp={pipeline.handleCanvasMouseUp}
+					onNodeMouseDown={pipeline.handleNodeMouseDown}
+					onStartConnection={pipeline.startConnection}
+					pendingConnection={pipeline.pendingConnection}
+					placedNodes={pipeline.placedNodes}
+					selectedNodeId={pipeline.selectedNodeId}
 				>
-					{/* Grid background */}
-					<div
-						className="absolute inset-0 opacity-10"
-						style={{
-							backgroundImage:
-								'radial-gradient(circle, #374151 1px, transparent 1px)',
-							backgroundSize: '30px 30px',
-						}}
-					/>
-
 					{/* Restart effect overlay */}
 					{showRestartEffect && (
-						<div className="absolute inset-0 bg-black/50 flex items-center justify-center z-40">
+						<div className="absolute inset-0 bg-black/50 flex items-center justify-center z-40 pointer-events-none">
 							<div className="text-2xl font-bold text-warning animate-pulse">
 								Restarting...
 							</div>
 						</div>
 					)}
 
-					{/* Connections */}
-					<ConnectionLayer
-						connections={getConnectionCoords()}
-						pendingConnection={
-							pendingConnection
-								? {
-										startX:
-											placedNodes.find(
-												(n) => n.id === pendingConnection.sourceId,
-											)!.x + 60,
-										startY: placedNodes.find(
-											(n) => n.id === pendingConnection.sourceId,
-										)!.y,
-										endX: pendingConnection.x,
-										endY: pendingConnection.y,
-									}
-								: null
-						}
-						selectedConnectionId={null}
-					/>
-
-					{/* Nodes */}
-					{placedNodes.map((node) => {
-						const def = NODE_DEFS[node.type];
-						const isModel = node.type === 'model';
-						const isPersisted = isModel && modelsConnectedToDb.has(node.id);
-
-						// Determine glow color based on persistence state
-						let glowColor: string | undefined;
-						if (isModel) {
-							glowColor = isPersisted
-								? 'rgba(34, 197, 94, 0.4)'
-								: 'rgba(59, 130, 246, 0.4)';
-						}
-
-						return (
-							<CanvasNode
-								badge={isModel ? (isPersisted ? 'DB' : 'MEM') : undefined}
-								badgeColor={isPersisted ? '#22c55e' : '#3b82f6'}
-								color={def.color}
-								glowColor={glowColor}
-								icon={def.icon}
-								id={node.id}
-								key={node.id}
-								locked={node.id !== 'database-1'}
-								name={node.label || def.name}
-								onCompleteConnection={() => handleCompleteConnection(node.id)}
-								onDrag={handleNodeDrag}
-								onSelect={setSelectedNodeId}
-								onStartConnection={() => handleStartConnection(node.id)}
-								selected={selectedNodeId === node.id}
-								type={node.type}
-								x={node.x}
-								y={node.y}
-							/>
-						);
-					})}
-
 					{/* Legend */}
-					<div className="absolute bottom-4 left-4 bg-card/80 rounded-lg p-3 text-xs space-y-2">
+					<div className="absolute bottom-4 left-4 bg-card/80 backdrop-blur-sm rounded-lg p-3 text-xs space-y-2 z-10 pointer-events-none">
 						<div className="flex items-center gap-2">
 							<div className="w-4 h-4 rounded bg-primary/40 border border-primary" />
 							<span className="text-muted-foreground">
@@ -554,7 +354,7 @@ end`,
 
 					{/* Completion button */}
 					{isComplete && (
-						<div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
+						<div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10">
 							<Button
 								className="bg-success hover:bg-success/90 text-foreground font-bold shadow-lg shadow-success/30"
 								onClick={handleComplete}
@@ -564,7 +364,7 @@ end`,
 							</Button>
 						</div>
 					)}
-				</div>
+				</PipelineCanvas>
 			</CenterPanel>
 
 			<RightPanel>

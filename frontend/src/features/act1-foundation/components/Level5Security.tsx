@@ -5,14 +5,16 @@
  * Decision modal for "Public" vs "Encrypted" credentials.
  */
 
-import { useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { PipelineCanvas } from '@/components/PipelineCanvas';
+import { usePipelineState } from '@/hooks/usePipelineState';
+import { getNodeInfo } from '@/utils/gameData';
 import type { LevelComponentProps } from '@/features/levels-registry';
+import type { NodeOverride } from '@/hooks/usePipelineState';
 import {
-	CanvasNode,
 	CenterPanel,
 	CodePreviewPanel,
-	ConnectionLayer,
 	DraggableNode,
 	InstructionPanel,
 	LeftPanel,
@@ -24,91 +26,8 @@ import {
 	useLevelCompletion,
 } from '@/components/levels';
 
-interface PlacedNode {
-	id: string;
-	type: string;
-	x: number;
-	y: number;
-	label?: string;
-}
-
-interface Connection {
-	id: string;
-	sourceId: string;
-	targetId: string;
-}
-
-// Node definitions
-const NODE_DEFS: Record<
-	string,
-	{ name: string; icon: string; color: string; description: string }
-> = {
-	request: {
-		name: 'Request',
-		icon: 'R',
-		color: '#22c55e',
-		description: 'HTTP request',
-	},
-	router: {
-		name: 'Router',
-		icon: '/',
-		color: '#f59e0b',
-		description: 'routes.rb',
-	},
-	controller: {
-		name: 'Controller',
-		icon: 'C',
-		color: '#3b82f6',
-		description: 'Controller',
-	},
-	model: { name: 'Model', icon: 'M', color: '#8b5cf6', description: 'Model' },
-	database: {
-		name: 'Database',
-		icon: 'D',
-		color: '#06b6d4',
-		description: 'PostgreSQL',
-	},
-	view: { name: 'View', icon: 'V', color: '#ec4899', description: 'View' },
-	response: {
-		name: 'Response',
-		icon: 'R',
-		color: '#10b981',
-		description: 'Response',
-	},
-	env: {
-		name: 'ENV',
-		icon: 'E',
-		color: '#eab308',
-		description: 'Environment variables',
-	},
-};
-
 export function Level5Security({ onComplete, onExit }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
-	const canvasRef = useRef<HTMLDivElement>(null);
-
-	// Pre-built pipeline with locked database
-	const [placedNodes, setPlacedNodes] = useState<PlacedNode[]>([
-		{ id: 'request-1', type: 'request', x: 80, y: 250 },
-		{ id: 'router-1', type: 'router', x: 200, y: 250 },
-		{ id: 'controller-1', type: 'controller', x: 340, y: 250 },
-		{ id: 'post-model', type: 'model', x: 500, y: 180, label: 'Post' },
-		{ id: 'comment-model', type: 'model', x: 500, y: 320, label: 'Comment' },
-		{ id: 'database-1', type: 'database', x: 680, y: 250 },
-		{ id: 'view-1', type: 'view', x: 840, y: 250 },
-		{ id: 'response-1', type: 'response', x: 980, y: 250 },
-	]);
-
-	const [connections, setConnections] = useState<Connection[]>([
-		{ id: 'c1', sourceId: 'request-1', targetId: 'router-1' },
-		{ id: 'c2', sourceId: 'router-1', targetId: 'controller-1' },
-		{ id: 'c3', sourceId: 'controller-1', targetId: 'post-model' },
-		{ id: 'c4', sourceId: 'post-model', targetId: 'comment-model' },
-		{ id: 'c5', sourceId: 'post-model', targetId: 'database-1' },
-		{ id: 'c6', sourceId: 'comment-model', targetId: 'database-1' },
-		{ id: 'c7', sourceId: 'database-1', targetId: 'view-1' },
-		{ id: 'c8', sourceId: 'view-1', targetId: 'response-1' },
-	]);
 
 	const [envAdded, setEnvAdded] = useState(false);
 	const [credentialType, setCredentialType] = useState<
@@ -116,83 +35,64 @@ export function Level5Security({ onComplete, onExit }: LevelComponentProps) {
 	>(null);
 	const [showDecisionModal, setShowDecisionModal] = useState(false);
 	const [showLeakWarning, setShowLeakWarning] = useState(false);
-	const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-	const [pendingConnection, setPendingConnection] = useState<{
-		sourceId: string;
-		x: number;
-		y: number;
-	} | null>(null);
+
+	// Pre-built pipeline with locked nodes
+	const pipeline = usePipelineState({
+		initialNodes: [
+			{ id: 'request-1', type: 'request', x: 80, y: 250 },
+			{ id: 'router-1', type: 'router', x: 200, y: 250 },
+			{ id: 'controller-1', type: 'controller', x: 340, y: 250 },
+			{ id: 'post-model', type: 'model', x: 500, y: 180, label: 'Post' },
+			{ id: 'comment-model', type: 'model', x: 500, y: 320, label: 'Comment' },
+			{ id: 'database-1', type: 'database', x: 680, y: 250 },
+			{ id: 'view-1', type: 'view', x: 840, y: 250 },
+			{ id: 'response-1', type: 'response', x: 980, y: 250 },
+		],
+		initialConnections: [
+			{ sourceNodeId: 'request-1', targetNodeId: 'router-1' },
+			{ sourceNodeId: 'router-1', targetNodeId: 'controller-1' },
+			{ sourceNodeId: 'controller-1', targetNodeId: 'post-model' },
+			{ sourceNodeId: 'post-model', targetNodeId: 'comment-model' },
+			{ sourceNodeId: 'post-model', targetNodeId: 'database-1' },
+			{ sourceNodeId: 'comment-model', targetNodeId: 'database-1' },
+			{ sourceNodeId: 'database-1', targetNodeId: 'view-1' },
+			{ sourceNodeId: 'view-1', targetNodeId: 'response-1' },
+		],
+		// Only allow dropping ENV node if not already added
+		onBeforeDrop: (type) => type === 'env' && !envAdded,
+		// Track when ENV node is dropped
+		onNodeDropped: (node) => {
+			if (node.type === 'env') {
+				setEnvAdded(true);
+			}
+		},
+		// Handle connection between ENV and Database - show modal
+		onConnectionCreated: (connection) => {
+			const sourceNode = pipeline.placedNodes.find(
+				(n) => n.id === connection.sourceNodeId,
+			);
+			const targetNode = pipeline.placedNodes.find(
+				(n) => n.id === connection.targetNodeId,
+			);
+
+			// Check if connecting ENV to database
+			if (
+				(sourceNode?.type === 'env' && targetNode?.type === 'database') ||
+				(sourceNode?.type === 'database' && targetNode?.type === 'env')
+			) {
+				setShowDecisionModal(true);
+			}
+		},
+	});
 
 	// Level is complete when ENV is connected with encrypted credentials
 	const isComplete = credentialType === 'encrypted';
 	const databaseUnlocked = credentialType !== null;
 
-	// Handle dropping ENV node
-	const handleDrop = (e: React.DragEvent) => {
-		e.preventDefault();
-		const nodeType = e.dataTransfer.getData('nodeType');
-		if (nodeType !== 'env' || envAdded || !canvasRef.current) return;
-
-		const rect = canvasRef.current.getBoundingClientRect();
-		const x = e.clientX - rect.left;
-		const y = e.clientY - rect.top;
-
-		const envNode: PlacedNode = {
-			id: 'env-1',
-			type: 'env',
-			x,
-			y,
-		};
-
-		setPlacedNodes((prev) => [...prev, envNode]);
-		setEnvAdded(true);
-	};
-
-	// Handle connection
-	const handleStartConnection = (nodeId: string) => {
-		const node = placedNodes.find((n) => n.id === nodeId);
-		if (node) {
-			setPendingConnection({ sourceId: nodeId, x: node.x + 60, y: node.y });
-		}
-	};
-
-	const handleCompleteConnection = (targetId: string) => {
-		if (!pendingConnection || pendingConnection.sourceId === targetId) {
-			setPendingConnection(null);
-			return;
-		}
-
-		const sourceNode = placedNodes.find(
-			(n) => n.id === pendingConnection.sourceId,
-		);
-		const targetNode = placedNodes.find((n) => n.id === targetId);
-
-		// Check if connecting ENV to database
-		if (
-			(sourceNode?.type === 'env' && targetNode?.type === 'database') ||
-			(sourceNode?.type === 'database' && targetNode?.type === 'env')
-		) {
-			// Show decision modal for credential type
-			setShowDecisionModal(true);
-		}
-
-		setPendingConnection(null);
-	};
-
 	// Handle credential choice
 	const handleCredentialChoice = (choice: 'public' | 'encrypted') => {
 		setCredentialType(choice);
 		setShowDecisionModal(false);
-
-		// Add connection
-		setConnections((prev) => [
-			...prev,
-			{
-				id: `conn-env-db`,
-				sourceId: 'env-1',
-				targetId: 'database-1',
-			},
-		]);
 
 		// Show leak warning if public
 		if (choice === 'public') {
@@ -212,68 +112,88 @@ export function Level5Security({ onComplete, onExit }: LevelComponentProps) {
 		}
 	};
 
-	// Canvas handlers
-	const handleCanvasMouseMove = (e: React.MouseEvent) => {
-		if (pendingConnection && canvasRef.current) {
-			const rect = canvasRef.current.getBoundingClientRect();
-			setPendingConnection({
-				...pendingConnection,
-				x: e.clientX - rect.left,
-				y: e.clientY - rect.top,
-			});
-		}
+	// Handle reset
+	const handleReset = useCallback(() => {
+		pipeline.setPlacedNodes([
+			{ id: 'request-1', type: 'request', x: 80, y: 250 },
+			{ id: 'router-1', type: 'router', x: 200, y: 250 },
+			{ id: 'controller-1', type: 'controller', x: 340, y: 250 },
+			{ id: 'post-model', type: 'model', x: 500, y: 180, label: 'Post' },
+			{ id: 'comment-model', type: 'model', x: 500, y: 320, label: 'Comment' },
+			{ id: 'database-1', type: 'database', x: 680, y: 250 },
+			{ id: 'view-1', type: 'view', x: 840, y: 250 },
+			{ id: 'response-1', type: 'response', x: 980, y: 250 },
+		]);
+		pipeline.setConnections([
+			{ sourceNodeId: 'request-1', targetNodeId: 'router-1' },
+			{ sourceNodeId: 'router-1', targetNodeId: 'controller-1' },
+			{ sourceNodeId: 'controller-1', targetNodeId: 'post-model' },
+			{ sourceNodeId: 'post-model', targetNodeId: 'comment-model' },
+			{ sourceNodeId: 'post-model', targetNodeId: 'database-1' },
+			{ sourceNodeId: 'comment-model', targetNodeId: 'database-1' },
+			{ sourceNodeId: 'database-1', targetNodeId: 'view-1' },
+			{ sourceNodeId: 'view-1', targetNodeId: 'response-1' },
+		]);
+		setEnvAdded(false);
+		setCredentialType(null);
+		setShowLeakWarning(false);
+		setShowDecisionModal(false);
+	}, [pipeline]);
+
+	// Node overrides - database gets special visual treatment
+	const nodeOverrides: Record<string, NodeOverride> = {
+		'database-1': {
+			glowColor: !databaseUnlocked
+				? 'rgba(239, 68, 68, 0.3)' // red when disconnected
+				: credentialType === 'encrypted'
+					? 'rgba(34, 197, 94, 0.3)' // green when encrypted
+					: 'rgba(239, 68, 68, 0.3)', // red when public
+			badge: !databaseUnlocked ? 'X' : undefined,
+			badgeColor: !databaseUnlocked ? '#ef4444' : undefined,
+		},
 	};
 
-	const handleCanvasClick = () => {
-		setSelectedNodeId(null);
-		setPendingConnection(null);
-	};
+	// Locked nodes - all except env-1
+	const lockedNodeIds = [
+		'request-1',
+		'router-1',
+		'controller-1',
+		'post-model',
+		'comment-model',
+		'database-1',
+		'view-1',
+		'response-1',
+	];
 
-	const handleNodeDrag = (id: string, x: number, y: number) => {
-		if (id === 'env-1') {
-			setPlacedNodes((prev) =>
-				prev.map((n) => (n.id === id ? { ...n, x, y } : n)),
+	// Connection color overrides
+	const connectionOverrides = pipeline.connections.reduce(
+		(acc, conn) => {
+			const sourceNode = pipeline.placedNodes.find(
+				(n) => n.id === conn.sourceNodeId,
 			);
-		}
-	};
+			const targetNode = pipeline.placedNodes.find(
+				(n) => n.id === conn.targetNodeId,
+			);
 
-	// Get connection coordinates
-	const getConnectionCoords = () => {
-		return connections
-			.map((conn) => {
-				const source = placedNodes.find((n) => n.id === conn.sourceId);
-				const target = placedNodes.find((n) => n.id === conn.targetId);
-				if (!source || !target) return null;
+			const isEnvConnection =
+				sourceNode?.type === 'env' || targetNode?.type === 'env';
 
-				const isEnvConnection = source.type === 'env' || target.type === 'env';
-				const color = isEnvConnection
-					? credentialType === 'encrypted'
-						? '#22c55e'
-						: credentialType === 'public'
-							? '#ef4444'
-							: '#eab308'
-					: '#6b7280';
+			if (isEnvConnection) {
+				const color = credentialType === 'encrypted'
+					? '#22c55e'
+					: credentialType === 'public'
+						? '#ef4444'
+						: '#eab308';
 
-				return {
-					id: conn.id,
-					startX: source.x + 60,
-					startY: source.y,
-					endX: target.x - 60,
-					endY: target.y,
+				acc[`${conn.sourceNodeId}-${conn.targetNodeId}`] = {
 					color,
-					animated: true,
 				};
-			})
-			.filter(Boolean) as Array<{
-			id: string;
-			startX: number;
-			startY: number;
-			endX: number;
-			endY: number;
-			color: string;
-			animated: boolean;
-		}>;
-	};
+			}
+
+			return acc;
+		},
+		{} as Record<string, { color: string }>,
+	);
 
 	// Generate code preview
 	const getCodeFiles = () => {
@@ -377,9 +297,8 @@ Hint: Configure environment variables or Rails credentials`
 									description="Environment variables & secrets"
 									icon="E"
 									name="ENV"
-									onDragStart={(e, type) =>
-										e.dataTransfer.setData('nodeType', type)
-									}
+									onDragEnd={pipeline.handleDragEnd}
+									onDragStart={pipeline.handleDragStart}
 									type="env"
 								/>
 							</NodePaletteGroup>
@@ -441,64 +360,31 @@ Hint: Configure environment variables or Rails credentials`
 					levelName="Environment Security"
 					levelNumber={5}
 					onExit={onExit}
-					onReset={() => {
-						setPlacedNodes([
-							{ id: 'request-1', type: 'request', x: 80, y: 250 },
-							{ id: 'router-1', type: 'router', x: 200, y: 250 },
-							{ id: 'controller-1', type: 'controller', x: 340, y: 250 },
-							{
-								id: 'post-model',
-								type: 'model',
-								x: 500,
-								y: 180,
-								label: 'Post',
-							},
-							{
-								id: 'comment-model',
-								type: 'model',
-								x: 500,
-								y: 320,
-								label: 'Comment',
-							},
-							{ id: 'database-1', type: 'database', x: 680, y: 250 },
-							{ id: 'view-1', type: 'view', x: 840, y: 250 },
-							{ id: 'response-1', type: 'response', x: 980, y: 250 },
-						]);
-						setConnections([
-							{ id: 'c1', sourceId: 'request-1', targetId: 'router-1' },
-							{ id: 'c2', sourceId: 'router-1', targetId: 'controller-1' },
-							{ id: 'c3', sourceId: 'controller-1', targetId: 'post-model' },
-							{ id: 'c4', sourceId: 'post-model', targetId: 'comment-model' },
-							{ id: 'c5', sourceId: 'post-model', targetId: 'database-1' },
-							{ id: 'c6', sourceId: 'comment-model', targetId: 'database-1' },
-							{ id: 'c7', sourceId: 'database-1', targetId: 'view-1' },
-							{ id: 'c8', sourceId: 'view-1', targetId: 'response-1' },
-						]);
-						setEnvAdded(false);
-						setCredentialType(null);
-						setShowLeakWarning(false);
-					}}
+					onReset={handleReset}
 				/>
 
-				{/* Canvas */}
-				<div
-					className="flex-1 relative bg-background overflow-hidden"
-					onClick={handleCanvasClick}
-					onDragOver={(e) => e.preventDefault()}
-					onDrop={handleDrop}
-					onMouseMove={handleCanvasMouseMove}
-					ref={canvasRef}
+				<PipelineCanvas
+					canvasRef={pipeline.canvasRef}
+					connectionOverrides={connectionOverrides}
+					connections={pipeline.connections}
+					draggedNodeType={pipeline.draggedNodeType}
+					draggingNodeId={pipeline.draggingNodeId}
+					lockedNodeIds={lockedNodeIds}
+					nodeOverrides={nodeOverrides}
+					onClick={pipeline.handleCanvasClick}
+					onCompleteConnection={pipeline.completeConnection}
+					onDeleteConnection={pipeline.deleteConnection}
+					onDeleteNode={pipeline.deleteSelectedNode}
+					onDragOver={pipeline.handleDragOver}
+					onDrop={pipeline.handleDrop}
+					onMouseMove={pipeline.handleCanvasMouseMove}
+					onMouseUp={pipeline.handleCanvasMouseUp}
+					onNodeMouseDown={pipeline.handleNodeMouseDown}
+					onStartConnection={pipeline.startConnection}
+					pendingConnection={pipeline.pendingConnection}
+					placedNodes={pipeline.placedNodes}
+					selectedNodeId={pipeline.selectedNodeId}
 				>
-					{/* Grid background */}
-					<div
-						className="absolute inset-0 opacity-10"
-						style={{
-							backgroundImage:
-								'radial-gradient(circle, #374151 1px, transparent 1px)',
-							backgroundSize: '30px 30px',
-						}}
-					/>
-
 					{/* Security leak warning overlay */}
 					{showLeakWarning && (
 						<div className="absolute inset-0 bg-destructive/30 flex items-center justify-center z-30 pointer-events-none">
@@ -513,69 +399,6 @@ Hint: Configure environment variables or Rails credentials`
 							</div>
 						</div>
 					)}
-
-					{/* Connections */}
-					<ConnectionLayer
-						connections={getConnectionCoords()}
-						pendingConnection={
-							pendingConnection
-								? {
-										startX:
-											placedNodes.find(
-												(n) => n.id === pendingConnection.sourceId,
-											)!.x + 60,
-										startY: placedNodes.find(
-											(n) => n.id === pendingConnection.sourceId,
-										)!.y,
-										endX: pendingConnection.x,
-										endY: pendingConnection.y,
-									}
-								: null
-						}
-						selectedConnectionId={null}
-					/>
-
-					{/* Nodes */}
-					{placedNodes.map((node) => {
-						const def = NODE_DEFS[node.type];
-						const isDatabase = node.type === 'database';
-						const isLocked =
-							node.id !== 'env-1' &&
-							!(isDatabase && envAdded && !credentialType);
-
-						// Database shows lock icon when not connected to ENV
-						const showLockBadge = isDatabase && !databaseUnlocked;
-
-						return (
-							<CanvasNode
-								badge={showLockBadge ? 'X' : undefined}
-								badgeColor={showLockBadge ? '#ef4444' : undefined}
-								color={def.color}
-								glowColor={
-									isDatabase
-										? !databaseUnlocked
-											? 'rgba(239, 68, 68, 0.3)'
-											: credentialType === 'encrypted'
-												? 'rgba(34, 197, 94, 0.3)'
-												: 'rgba(239, 68, 68, 0.3)'
-										: undefined
-								}
-								icon={def.icon}
-								id={node.id}
-								key={node.id}
-								locked={isLocked}
-								name={node.label || def.name}
-								onCompleteConnection={() => handleCompleteConnection(node.id)}
-								onDrag={handleNodeDrag}
-								onSelect={setSelectedNodeId}
-								onStartConnection={() => handleStartConnection(node.id)}
-								selected={selectedNodeId === node.id}
-								type={node.type}
-								x={node.x}
-								y={node.y}
-							/>
-						);
-					})}
 
 					{/* Decision Modal */}
 					{showDecisionModal && (
@@ -649,7 +472,7 @@ Hint: Configure environment variables or Rails credentials`
 
 					{/* Completion button */}
 					{isComplete && (
-						<div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
+						<div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10">
 							<Button
 								className="bg-success hover:bg-success/90 text-foreground font-bold shadow-lg shadow-success/30"
 								onClick={handleComplete}
@@ -662,11 +485,11 @@ Hint: Configure environment variables or Rails credentials`
 
 					{/* Wrong choice feedback */}
 					{credentialType === 'public' && !showLeakWarning && (
-						<div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-destructive/80 border border-destructive text-destructive-foreground px-6 py-3 rounded-lg">
+						<div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-destructive/80 border border-destructive text-destructive-foreground px-6 py-3 rounded-lg z-10">
 							Security vulnerability! Use encrypted credentials instead.
 						</div>
 					)}
-				</div>
+				</PipelineCanvas>
 			</CenterPanel>
 
 			<RightPanel>

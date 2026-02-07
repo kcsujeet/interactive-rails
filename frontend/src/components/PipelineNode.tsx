@@ -11,28 +11,34 @@ interface PipelineNodeProps {
 	node: PlacedNode;
 	isSelected: boolean;
 	isDragging: boolean;
-	isPipelineBroken: boolean;
-	simulationRunning: boolean;
+	isPipelineBroken?: boolean;
+	simulationRunning?: boolean;
 	pendingConnection: PendingConnection | null;
 	connections: Connection[];
 	onMouseDown: (e: MouseEvent, nodeId: string) => void;
 	onStartConnection: (e: MouseEvent, nodeId: string) => void;
 	onCompleteConnection: (e: MouseEvent, nodeId: string) => void;
 	onDelete?: () => void;
+	badge?: string;
+	badgeColor?: string;
+	glowColor?: string;
 }
 
 export function PipelineNode({
 	node,
 	isSelected,
 	isDragging,
-	isPipelineBroken,
-	simulationRunning,
+	isPipelineBroken = false,
+	simulationRunning = false,
 	pendingConnection,
 	connections,
 	onMouseDown,
 	onStartConnection,
 	onCompleteConnection,
 	onDelete,
+	badge,
+	badgeColor,
+	glowColor,
 }: PipelineNodeProps) {
 	const nodeInfo = getNodeInfo(node.type);
 	const isConnectionSource = pendingConnection?.sourceNodeId === node.id;
@@ -89,6 +95,24 @@ export function PipelineNode({
 				filter: node.locked ? 'grayscale(100%)' : 'none',
 			}}
 		>
+			{/* Glow effect */}
+			{glowColor && (
+				<div
+					className="absolute inset-0 rounded-lg blur-md animate-pulse"
+					style={{ backgroundColor: glowColor, transform: 'scale(1.2)' }}
+				/>
+			)}
+
+			{/* Badge */}
+			{badge && (
+				<div
+					className="absolute -top-2 -left-2 px-1.5 py-0.5 rounded text-xs font-bold text-foreground z-30"
+					style={{ backgroundColor: badgeColor || '#6b7280' }}
+				>
+					{badge}
+				</div>
+			)}
+
 			{/* Delete button - shown when selected and not locked */}
 			{isSelected && !node.locked && onDelete && (
 				<button
