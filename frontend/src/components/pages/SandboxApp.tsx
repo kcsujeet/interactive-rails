@@ -92,23 +92,18 @@ export function SandboxApp() {
 		setNodes([...nodes, newNode]);
 	}
 
-	function removeSelectedNode() {
-		if (!selectedNodeId) return;
-		setNodes(nodes.filter((n) => n.id !== selectedNodeId));
+	function removeNode(nodeId: string) {
+		setNodes(nodes.filter((n) => n.id !== nodeId));
 		setConnections(
 			connections.filter(
 				(c) =>
-					c.sourceNodeId !== selectedNodeId &&
-					c.targetNodeId !== selectedNodeId,
+					c.sourceNodeId !== nodeId &&
+					c.targetNodeId !== nodeId,
 			),
 		);
-		setSelectedNodeId(null);
-	}
-
-	function clearCanvas() {
-		setNodes([]);
-		setConnections([]);
-		setSelectedNodeId(null);
+		if (selectedNodeId === nodeId) {
+			setSelectedNodeId(null);
+		}
 	}
 
 	function toggleSimulation() {
@@ -174,21 +169,7 @@ export function SandboxApp() {
 			{/* Main canvas area */}
 			<div className="flex-1 flex flex-col">
 				{/* Top toolbar */}
-				<div className="h-14 bg-card border-b border-border flex items-center justify-between px-4">
-					<div className="flex items-center gap-2">
-						<Button onClick={clearCanvas} size="sm" variant="secondary">
-							Clear All
-						</Button>
-						<Button
-							disabled={!selectedNodeId}
-							onClick={removeSelectedNode}
-							size="sm"
-							variant={selectedNodeId ? 'destructive' : 'outline'}
-						>
-							Delete Selected
-						</Button>
-					</div>
-
+				<div className="h-14 bg-card border-b border-border flex items-center justify-end px-4">
 					<div className="flex items-center gap-4">
 						<div className="text-sm text-muted-foreground">
 							{nodes.length} nodes, {connections.length} connections
@@ -239,6 +220,21 @@ export function SandboxApp() {
 									transform: 'translate(-50%, -50%)',
 								}}
 							>
+								{isSelected && (
+									<button
+										className="absolute -top-3 -right-3 w-6 h-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center z-30 hover:bg-destructive/80 transition-colors"
+										onClick={(e) => {
+											e.stopPropagation();
+											removeNode(node.id);
+										}}
+										title="Delete node"
+										type="button"
+									>
+										<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+											<path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+										</svg>
+									</button>
+								)}
 								<div
 									className="w-40 rounded-lg border-2 overflow-hidden"
 									style={{ borderColor: nodeType?.color || '#6b7280' }}

@@ -66,7 +66,6 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 		updateNode,
 		deleteConnection,
 		deleteSelectedNode,
-		clearAllNodes,
 	} = pipelineState;
 
 	// Validation hook
@@ -366,18 +365,12 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 					availableNodes={level?.availableNodes || challenge?.availableNodes}
 					breakReason={breakReason}
 					challenge={challenge}
-					connectionsCount={connections.length}
 					draggedNodeType={draggedNodeType}
 					goal={levelData?.goal || challenge?.goal}
 					isPipelineBroken={isPipelineBroken}
 					liveMetrics={liveMetrics}
-					onClearAll={clearAllNodes}
-					onClearConnections={() => setConnections([])}
-					onDeleteSelected={deleteSelectedNode}
 					onDragEnd={handleDragEnd}
 					onDragStart={handleDragStart}
-					placedNodesCount={placedNodes.length}
-					selectedNodeId={selectedNodeId}
 					showMetrics={
 						!!challenge?.initialMetrics ||
 						(!!level && !!getActForLevel(levelId)?.metricsVisible)
@@ -407,6 +400,7 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 							onClick={handleCanvasClick}
 							onCompleteConnection={completeConnection}
 							onDeleteConnection={deleteConnection}
+							onDeleteNode={deleteSelectedNode}
 							onDragOver={handleDragOver}
 							onDrop={handleDrop}
 							onMouseMove={handleCanvasMouseMove}

@@ -34,6 +34,7 @@ interface PipelineCanvasProps {
 	onStartConnection: (e: MouseEvent, nodeId: string) => void;
 	onCompleteConnection: (e: MouseEvent, nodeId: string) => void;
 	onDeleteConnection: (connectionId: string) => void;
+	onDeleteNode: () => void;
 }
 
 export function PipelineCanvas({
@@ -57,6 +58,7 @@ export function PipelineCanvas({
 	onStartConnection,
 	onCompleteConnection,
 	onDeleteConnection,
+	onDeleteNode,
 }: PipelineCanvasProps) {
 	return (
 		// biome-ignore lint/a11y/useKeyWithClickEvents: Canvas uses mouse interactions
@@ -212,6 +214,7 @@ export function PipelineCanvas({
 					key={node.id}
 					node={node}
 					onCompleteConnection={onCompleteConnection}
+					onDelete={node.id === selectedNodeId ? onDeleteNode : undefined}
 					onMouseDown={onNodeMouseDown}
 					onStartConnection={onStartConnection}
 					pendingConnection={pendingConnection}

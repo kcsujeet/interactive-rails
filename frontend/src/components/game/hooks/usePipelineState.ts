@@ -38,7 +38,6 @@ export interface UsePipelineStateReturn {
 	updateNode: (nodeId: string, updates: Partial<PlacedNode>) => void;
 	deleteConnection: (connectionId: string) => void;
 	deleteSelectedNode: () => void;
-	clearAllNodes: () => void;
 }
 
 export function usePipelineState(): UsePipelineStateReturn {
@@ -232,12 +231,6 @@ export function usePipelineState(): UsePipelineStateReturn {
 		setSelectedNodeId(null);
 	}
 
-	function clearAllNodes() {
-		setPlacedNodes([]);
-		setConnections([]);
-		setSelectedNodeId(null);
-	}
-
 	return {
 		placedNodes,
 		setPlacedNodes,
@@ -262,6 +255,5 @@ export function usePipelineState(): UsePipelineStateReturn {
 		updateNode,
 		deleteConnection,
 		deleteSelectedNode,
-		clearAllNodes,
 	};
 }

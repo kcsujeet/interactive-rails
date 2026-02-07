@@ -18,6 +18,7 @@ interface PipelineNodeProps {
 	onMouseDown: (e: MouseEvent, nodeId: string) => void;
 	onStartConnection: (e: MouseEvent, nodeId: string) => void;
 	onCompleteConnection: (e: MouseEvent, nodeId: string) => void;
+	onDelete?: () => void;
 }
 
 export function PipelineNode({
@@ -31,6 +32,7 @@ export function PipelineNode({
 	onMouseDown,
 	onStartConnection,
 	onCompleteConnection,
+	onDelete,
 }: PipelineNodeProps) {
 	const nodeInfo = getNodeInfo(node.type);
 	const isConnectionSource = pendingConnection?.sourceNodeId === node.id;
@@ -87,6 +89,23 @@ export function PipelineNode({
 				filter: node.locked ? 'grayscale(100%)' : 'none',
 			}}
 		>
+			{/* Delete button - shown when selected and not locked */}
+			{isSelected && !node.locked && onDelete && (
+				<button
+					className="absolute -top-3 -right-3 w-6 h-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center z-30 hover:bg-destructive/80 transition-colors"
+					onClick={(e) => {
+						e.stopPropagation();
+						onDelete();
+					}}
+					title="Delete node"
+					type="button"
+				>
+					<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+						<path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+					</svg>
+				</button>
+			)}
+
 			{/* Input port (left side) - Hide for locked nodes unless it's a specific educational case? Keeping hidden for now */}
 			{!node.locked && node.type !== 'request' && (
 				<div

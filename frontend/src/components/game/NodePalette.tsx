@@ -4,7 +4,6 @@
  */
 
 import type { DragEvent } from 'react';
-import { Button } from '../ui/Button';
 import { nodeTypes } from './data';
 import type { LevelChallenge, LiveMetrics } from './types';
 
@@ -19,15 +18,9 @@ interface NodePaletteProps {
 	liveMetrics: LiveMetrics;
 	isPipelineBroken: boolean;
 	breakReason: string | null;
-	selectedNodeId: string | null;
-	placedNodesCount: number;
-	connectionsCount: number;
 	draggedNodeType: string | null;
 	onDragStart: (e: DragEvent<HTMLDivElement>, nodeType: string) => void;
 	onDragEnd: () => void;
-	onDeleteSelected: () => void;
-	onClearConnections: () => void;
-	onClearAll: () => void;
 }
 
 export function NodePalette({
@@ -38,15 +31,9 @@ export function NodePalette({
 	liveMetrics,
 	isPipelineBroken,
 	breakReason,
-	selectedNodeId,
-	placedNodesCount,
-	connectionsCount,
 	draggedNodeType,
 	onDragStart,
 	onDragEnd,
-	onDeleteSelected,
-	onClearConnections,
-	onClearAll,
 }: NodePaletteProps) {
 	const availableNodeTypes = availableNodes || challenge?.availableNodes || [];
 	const goalText = goal || challenge?.goal;
@@ -202,41 +189,6 @@ export function NodePalette({
 						</div>
 					</>
 				)}
-
-				<div className="mt-6 pt-5 border-t border-border">
-					<h3 className="text-[10px] font-medium text-muted-foreground mb-3 uppercase tracking-wider">
-						Actions
-					</h3>
-					<div className="space-y-2">
-						<Button
-							className={`w-full ${selectedNodeId ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}`}
-							disabled={!selectedNodeId}
-							onClick={onDeleteSelected}
-							size="sm"
-							variant={selectedNodeId ? 'default' : 'outline'}
-						>
-							Delete Selected
-						</Button>
-						<Button
-							className={`w-full ${connectionsCount > 0 ? 'bg-warning text-warning-foreground hover:bg-warning/90' : ''}`}
-							disabled={connectionsCount === 0}
-							onClick={onClearConnections}
-							size="sm"
-							variant={connectionsCount > 0 ? 'default' : 'outline'}
-						>
-							Clear Connections
-						</Button>
-						<Button
-							className="w-full"
-							disabled={placedNodesCount === 0}
-							onClick={onClearAll}
-							size="sm"
-							variant="secondary"
-						>
-							Clear All
-						</Button>
-					</div>
-				</div>
 
 				<div className="mt-6 pt-5 border-t border-border">
 					<h3 className="text-[10px] font-medium text-muted-foreground mb-2 uppercase tracking-wider">
