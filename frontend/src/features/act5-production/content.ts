@@ -8,6 +8,7 @@
  */
 
 import type { Act, Level } from "@/types";
+import { standardPipeline } from "@/utils/pipelineTemplates";
 
 // ============================================
 // Level 29: Polymorphic Associations
@@ -351,21 +352,7 @@ const level31ActiveStorage: Level = {
 		description:
 			'Users want profile photos. The product team wants image uploads with automatic thumbnail generation.',
 	},
-	startingPipeline: {
-		nodes: [
-			{ id: 'request-node', type: 'request', x: 80, y: 250, locked: true },
-			{ id: 'controller-node', type: 'controller', x: 280, y: 250, locked: true },
-			{ id: 'model-node', type: 'model', x: 480, y: 250, locked: true, config: { label: 'User' } },
-			{ id: 'database-node', type: 'database', x: 680, y: 250, locked: true },
-			{ id: 'response-node', type: 'response', x: 880, y: 250, locked: true },
-		],
-		connections: [
-			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'controller-node' },
-			{ id: 'c2', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
-			{ id: 'c3', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-			{ id: 'c4', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
-		],
-	},
+	startingPipeline: standardPipeline({ modelLabel: 'User' }),
 	problem: {
 		observation:
 			'Users upload 5MB profile photos through the Rails server. Memory spikes on every upload. No thumbnails generated. Serving originals costs bandwidth.',
@@ -521,21 +508,7 @@ const level32Encryption: Level = {
 		description:
 			'GDPR audit flagged: user PII (emails, phone numbers, addresses) is stored in plaintext. Encrypt at rest immediately.',
 	},
-	startingPipeline: {
-		nodes: [
-			{ id: 'request-node', type: 'request', x: 80, y: 250, locked: true },
-			{ id: 'controller-node', type: 'controller', x: 280, y: 250, locked: true },
-			{ id: 'model-node', type: 'model', x: 480, y: 250, locked: true, config: { label: 'User' } },
-			{ id: 'database-node', type: 'database', x: 680, y: 250, locked: true },
-			{ id: 'response-node', type: 'response', x: 880, y: 250, locked: true },
-		],
-		connections: [
-			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'controller-node' },
-			{ id: 'c2', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
-			{ id: 'c3', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-			{ id: 'c4', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
-		],
-	},
+	startingPipeline: standardPipeline({ modelLabel: 'User' }),
 	problem: {
 		observation:
 			'Security audit reveals user emails, phone numbers, and addresses are stored as plaintext in the database. A database breach would expose all PII. Email lookups must still work for login.',

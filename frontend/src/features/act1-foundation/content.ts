@@ -494,7 +494,7 @@ const level5Serializers: Level = {
 			{ id: 'c2', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
 			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
 			{ id: 'c4', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-			{ id: 'c5', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
+			{ id: 'c5', sourceNodeId: 'controller-node', targetNodeId: 'response-node' },
 		],
 	},
 	problem: {

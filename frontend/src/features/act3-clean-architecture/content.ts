@@ -8,6 +8,7 @@
  */
 
 import type { Act, Level } from "@/types";
+import { standardPipeline } from "@/utils/pipelineTemplates";
 
 // ============================================
 // Level 15: Service Objects
@@ -24,23 +25,7 @@ const level15ServiceObjects: Level = {
 		description:
 			'The RegistrationsController#create action is 80 lines long. It creates a user, sends a welcome email, and creates a Stripe customer. Too much logic in one controller action.',
 	},
-	startingPipeline: {
-		nodes: [
-			{ id: 'request-node', type: 'request', x: 100, y: 250, locked: true },
-			{ id: 'router-node', type: 'router', x: 280, y: 250, locked: true },
-			{ id: 'controller-node', type: 'controller', x: 460, y: 250, locked: true, config: { label: 'RegistrationsController' } },
-			{ id: 'model-node', type: 'model', x: 680, y: 250, locked: true, config: { label: 'User' } },
-			{ id: 'database-node', type: 'database', x: 880, y: 250, locked: true },
-			{ id: 'response-node', type: 'response', x: 460, y: 420, locked: true },
-		],
-		connections: [
-			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'router-node' },
-			{ id: 'c2', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
-			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
-			{ id: 'c4', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-			{ id: 'c5', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
-		],
-	},
+	startingPipeline: standardPipeline(),
 	problem: {
 		observation:
 			'The create action handles user creation, email delivery, and Stripe customer creation all inline. It is 80 lines, untestable, and breaks when any step fails.',
@@ -901,23 +886,7 @@ const level19ErrorHandling: Level = {
 		description:
 			'A client reports that the API returns raw 500 errors with Ruby stack traces in production. Another endpoint returns a 404 as plain text. The error format is different on every endpoint.',
 	},
-	startingPipeline: {
-		nodes: [
-			{ id: 'request-node', type: 'request', x: 80, y: 250, locked: true },
-			{ id: 'router-node', type: 'router', x: 200, y: 250, locked: true },
-			{ id: 'controller-node', type: 'controller', x: 400, y: 250, locked: true },
-			{ id: 'model-node', type: 'model', x: 560, y: 250, locked: true, config: { label: 'Post' } },
-			{ id: 'database-node', type: 'database', x: 720, y: 250, locked: true },
-			{ id: 'response-node', type: 'response', x: 880, y: 250, locked: true },
-		],
-		connections: [
-			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'router-node' },
-			{ id: 'c2', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
-			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
-			{ id: 'c4', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-			{ id: 'c5', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
-		],
-	},
+	startingPipeline: standardPipeline({ modelLabel: 'Post' }),
 	problem: {
 		observation:
 			'API returns inconsistent error formats: sometimes HTML stack traces, sometimes plain text, sometimes JSON with different shapes. Clients cannot reliably parse error responses.',
@@ -1181,23 +1150,7 @@ const level20ActionMailer: Level = {
 		description:
 			'Users forget their passwords and have no way to reset them. Build a password reset flow with secure token generation and email delivery.',
 	},
-	startingPipeline: {
-		nodes: [
-			{ id: 'request-node', type: 'request', x: 100, y: 250, locked: true },
-			{ id: 'router-node', type: 'router', x: 280, y: 250, locked: true },
-			{ id: 'controller-node', type: 'controller', x: 460, y: 250, locked: true, config: { label: 'PasswordResetsController' } },
-			{ id: 'user-model', type: 'model', x: 680, y: 250, locked: true, config: { label: 'User' } },
-			{ id: 'database-node', type: 'database', x: 880, y: 250, locked: true },
-			{ id: 'response-node', type: 'response', x: 680, y: 420, locked: true },
-		],
-		connections: [
-			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'router-node' },
-			{ id: 'c2', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
-			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'user-model' },
-			{ id: 'c4', sourceNodeId: 'user-model', targetNodeId: 'database-node' },
-			{ id: 'c5', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
-		],
-	},
+	startingPipeline: standardPipeline({ modelId: 'user-model', modelLabel: 'User' }),
 	problem: {
 		observation:
 			'Users who forget their passwords are locked out permanently. Support tickets are piling up asking for manual password resets. There is no self-service flow.',
@@ -1441,10 +1394,10 @@ const level21BackgroundJobs: Level = {
 	},
 	startingPipeline: {
 		nodes: [
-			{ id: 'request-node', type: 'request', x: 80, y: 250, locked: true },
-			{ id: 'router-node', type: 'router', x: 240, y: 250, locked: true },
-			{ id: 'controller-node', type: 'controller', x: 400, y: 250, locked: true, config: { label: 'RegistrationsController' } },
-			{ id: 'service-node', type: 'service', x: 600, y: 250, locked: true, config: { label: 'UserRegistration' } },
+			{ id: 'request-node', type: 'request', x: 80, y: 220, locked: true },
+			{ id: 'router-node', type: 'router', x: 240, y: 220, locked: true },
+			{ id: 'controller-node', type: 'controller', x: 400, y: 220, locked: true, config: { label: 'RegistrationsController' } },
+			{ id: 'service-node', type: 'service', x: 600, y: 220, locked: true, config: { label: 'UserRegistration' } },
 			{ id: 'user-model', type: 'model', x: 800, y: 140, locked: true, config: { label: 'User' } },
 			{ id: 'mailer-node', type: 'mailer', x: 800, y: 380, locked: true, config: { label: 'UserMailer' } },
 			{ id: 'database-node', type: 'database', x: 980, y: 140, locked: true },
@@ -1457,7 +1410,7 @@ const level21BackgroundJobs: Level = {
 			{ id: 'c4', sourceNodeId: 'service-node', targetNodeId: 'user-model' },
 			{ id: 'c5', sourceNodeId: 'service-node', targetNodeId: 'mailer-node' },
 			{ id: 'c6', sourceNodeId: 'user-model', targetNodeId: 'database-node' },
-			{ id: 'c7', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
+			{ id: 'c7', sourceNodeId: 'controller-node', targetNodeId: 'response-node' },
 		],
 	},
 	problem: {

@@ -131,21 +131,26 @@ railsexpert/
 │       │   ├── simulation.ts # Simulation state
 │       │   ├── authStore.ts  # Authentication
 │       │   └── ui.ts         # UI state
-│       ├── engine/           # Game engine
+│       ├── features/          # Feature modules (bulletproof-react)
+│       │   ├── acts-registry.ts        # All acts registry
+│       │   ├── levels-registry.ts      # Level component registry
+│       │   ├── act1-foundation/        # Act content + components
+│       │   │   ├── content.ts
+│       │   │   └── components/
+│       │   ├── act2-users-security/
+│       │   ├── act3-clean-architecture/
+│       │   ├── act4-performance/
+│       │   ├── act5-production/
+│       │   ├── act6-reliability/
+│       │   ├── act7-scale/
+│       │   └── act8-mastery/
+│       ├── hooks/             # Shared hooks
+│       ├── utils/             # Shared utilities
 │       │   ├── SimulationEngine.ts
 │       │   ├── nodeBehavior.ts
-│       │   └── metrics.ts
-│       ├── content/          # Acts and levels data
-│       │   └── acts/         # Individual act files
-│       │       ├── index.ts
-│       │       ├── act1-foundation.ts
-│       │       ├── act2-security.ts
-│       │       ├── act3-architecture.ts
-│       │       ├── act4-performance.ts
-│       │       ├── act5-production.ts
-│       │       ├── act6-reliability.ts
-│       │       ├── act7-scale.ts
-│       │       └── act8-mastery.ts
+│       │   ├── metrics.ts
+│       │   ├── gameData.ts
+│       │   └── pipelineTemplates.ts  # Reusable pipeline layouts
 │       ├── lib/              # Utilities
 │       │   ├── api.ts
 │       │   ├── progress.ts

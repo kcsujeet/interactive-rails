@@ -8,6 +8,7 @@
  */
 
 import type { Act, Level } from "@/types";
+import { standardPipeline, middlewarePipeline } from "@/utils/pipelineTemplates";
 
 // ============================================
 // Level 37: Middleware & Rack
@@ -23,23 +24,7 @@ const level37Middleware: Level = {
 		description:
 			'Need request logging, bot detection, and request ID tracking before requests hit Rails. The default middleware stack is not enough.',
 	},
-	startingPipeline: {
-		nodes: [
-			{ id: 'request-node', type: 'request', x: 100, y: 250, locked: true },
-			{ id: 'router-node', type: 'router', x: 300, y: 250, locked: true },
-			{ id: 'controller-node', type: 'controller', x: 500, y: 250, locked: true },
-			{ id: 'model-node', type: 'model', x: 700, y: 250, locked: true, config: { label: 'User' } },
-			{ id: 'database-node', type: 'database', x: 900, y: 250, locked: true },
-			{ id: 'response-node', type: 'response', x: 700, y: 420, locked: true },
-		],
-		connections: [
-			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'router-node' },
-			{ id: 'c2', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
-			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
-			{ id: 'c4', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-			{ id: 'c5', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
-		],
-	},
+	startingPipeline: standardPipeline({ modelLabel: 'User' }),
 	problem: {
 		observation:
 			'Requests arrive with no tracking ID, no logging, and bots slip through undetected. Debugging production issues is a nightmare without request correlation.',
@@ -226,25 +211,7 @@ const level38RateLimiting: Level = {
 		description:
 			'Bots hammer the API. 10K req/sec from one IP. The login endpoint is getting brute-forced. Need to throttle by IP and by user.',
 	},
-	startingPipeline: {
-		nodes: [
-			{ id: 'request-node', type: 'request', x: 80, y: 250, locked: true },
-			{ id: 'middleware-node', type: 'middleware', x: 240, y: 250, locked: true },
-			{ id: 'router-node', type: 'router', x: 400, y: 250, locked: true },
-			{ id: 'controller-node', type: 'controller', x: 560, y: 250, locked: true },
-			{ id: 'model-node', type: 'model', x: 740, y: 250, locked: true, config: { label: 'User' } },
-			{ id: 'database-node', type: 'database', x: 920, y: 250, locked: true },
-			{ id: 'response-node', type: 'response', x: 740, y: 420, locked: true },
-		],
-		connections: [
-			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'middleware-node' },
-			{ id: 'c2', sourceNodeId: 'middleware-node', targetNodeId: 'router-node' },
-			{ id: 'c3', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
-			{ id: 'c4', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
-			{ id: 'c5', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-			{ id: 'c6', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
-		],
-	},
+	startingPipeline: middlewarePipeline({ modelLabel: 'User' }),
 	problem: {
 		observation:
 			'10,000 requests per second from a single IP. Login endpoint returns 500s under load. Legitimate users are locked out.',
@@ -452,23 +419,7 @@ const level39SoftDeletes: Level = {
 		description:
 			'Admin accidentally deletes a user. No undo. No record of who changed what. Customer data is gone forever.',
 	},
-	startingPipeline: {
-		nodes: [
-			{ id: 'request-node', type: 'request', x: 100, y: 250, locked: true },
-			{ id: 'router-node', type: 'router', x: 280, y: 250, locked: true },
-			{ id: 'controller-node', type: 'controller', x: 460, y: 250, locked: true },
-			{ id: 'model-node', type: 'model', x: 660, y: 250, locked: true, config: { label: 'User' } },
-			{ id: 'database-node', type: 'database', x: 860, y: 250, locked: true },
-			{ id: 'response-node', type: 'response', x: 660, y: 420, locked: true },
-		],
-		connections: [
-			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'router-node' },
-			{ id: 'c2', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
-			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
-			{ id: 'c4', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-			{ id: 'c5', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
-		],
-	},
+	startingPipeline: standardPipeline({ modelLabel: 'User' }),
 	problem: {
 		observation:
 			'A support admin ran User.find(42).destroy and the user is gone. No way to recover the data. No log of who did it or when. This is the third time this month.',
@@ -715,23 +666,7 @@ const level40SafeMigrations: Level = {
 		description:
 			'Deploy adds a column with a default value. Locks the users table for 30 seconds. API returns 500s. 100K users affected.',
 	},
-	startingPipeline: {
-		nodes: [
-			{ id: 'request-node', type: 'request', x: 100, y: 250, locked: true },
-			{ id: 'router-node', type: 'router', x: 280, y: 250, locked: true },
-			{ id: 'controller-node', type: 'controller', x: 460, y: 250, locked: true },
-			{ id: 'model-node', type: 'model', x: 660, y: 250, locked: true, config: { label: 'User' } },
-			{ id: 'database-node', type: 'database', x: 860, y: 250, locked: true },
-			{ id: 'response-node', type: 'response', x: 660, y: 420, locked: true },
-		],
-		connections: [
-			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'router-node' },
-			{ id: 'c2', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
-			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
-			{ id: 'c4', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-			{ id: 'c5', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
-		],
-	},
+	startingPipeline: standardPipeline({ modelLabel: 'User' }),
 	problem: {
 		observation:
 			'Deploy ran a migration that added a column with a default to a 5M row table. The table was locked for 30 seconds. All API requests to that table returned 500. Monitoring lit up.',
@@ -1228,25 +1163,7 @@ const level42ErrorMonitoring: Level = {
 		description:
 			'500 errors in production but nobody notices until users complain on Twitter. Need structured error tracking with context, grouping, and alerting.',
 	},
-	startingPipeline: {
-		nodes: [
-			{ id: 'request-node', type: 'request', x: 80, y: 250, locked: true },
-			{ id: 'middleware-node', type: 'middleware', x: 240, y: 250, locked: true },
-			{ id: 'router-node', type: 'router', x: 400, y: 250, locked: true },
-			{ id: 'controller-node', type: 'controller', x: 560, y: 250, locked: true },
-			{ id: 'model-node', type: 'model', x: 740, y: 250, locked: true, config: { label: 'User' } },
-			{ id: 'database-node', type: 'database', x: 920, y: 250, locked: true },
-			{ id: 'response-node', type: 'response', x: 740, y: 420, locked: true },
-		],
-		connections: [
-			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'middleware-node' },
-			{ id: 'c2', sourceNodeId: 'middleware-node', targetNodeId: 'router-node' },
-			{ id: 'c3', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
-			{ id: 'c4', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
-			{ id: 'c5', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-			{ id: 'c6', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
-		],
-	},
+	startingPipeline: middlewarePipeline({ modelLabel: 'User' }),
 	problem: {
 		observation:
 			'Production logs show intermittent 500 errors but the team only finds out when users tweet about it. Errors lack context: no user ID, no request params, no breadcrumbs showing what led to the failure.',

@@ -63,13 +63,15 @@ RailsExpert teaches Rails optimization through pipeline-building gameplay:
 Valid connections follow Rails API patterns:
 
 ```
-Request → Router → Controller → Model → Database
-                       ↓
-                   Serializer → Response
+Top row:    Request → Router → Controller → Model → Database
+                                    ↓
+Bottom row:                    Serializer → Response
 ```
 
+The controller orchestrates both the query path (right to Model/Database) and the response path (down to Serializer/Response). Data never flows directly from Database to Response.
+
 **Valid connections:**
-- Request → Router
+- Request → Router (or Request → Middleware → Router)
 - Router → Controller
 - Controller → Model
 - Controller → Serializer
@@ -83,6 +85,23 @@ Request → Router → Controller → Model → Database
 - Middleware → Router
 
 **Invalid connections shown with red dashed line.**
+
+### Pipeline Templates
+
+Most levels with a standard request cycle use reusable templates from `frontend/src/utils/pipelineTemplates.ts` instead of defining nodes inline:
+
+```typescript
+import { standardPipeline, middlewarePipeline } from "@/utils/pipelineTemplates";
+
+// Standard 7-node layout (Request, Router, Controller, Model, Database, Serializer, Response)
+startingPipeline: standardPipeline()
+startingPipeline: standardPipeline({ modelLabel: 'User' })
+
+// With middleware (8-node: adds Middleware between Request and Router)
+startingPipeline: middlewarePipeline()
+```
+
+See [Content Structure](./content-structure.md#pipeline-templates) for full details on which levels use templates vs custom topologies.
 
 ### Node Palette
 

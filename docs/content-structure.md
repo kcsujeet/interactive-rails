@@ -342,9 +342,60 @@ end
 
 ## Pipeline Configuration
 
-### Initial Nodes
+### Pipeline Templates
 
-Levels define starting pipeline nodes via `startingPipeline`:
+Most levels use a standard Rails request cycle layout. Rather than duplicating inline node/connection definitions, use the reusable templates from `frontend/src/utils/pipelineTemplates.ts`:
+
+```typescript
+import { standardPipeline, middlewarePipeline } from "@/utils/pipelineTemplates";
+
+// 7-node layout: Request → Router → Controller → Model → Database (top row)
+//                                    Serializer → Response (bottom row)
+startingPipeline: standardPipeline()
+startingPipeline: standardPipeline({ modelLabel: 'User' })
+startingPipeline: standardPipeline({ modelId: 'user-model', modelLabel: 'User' })
+
+// 8-node layout: adds Middleware between Request and Router
+startingPipeline: middlewarePipeline()
+startingPipeline: middlewarePipeline({ modelLabel: 'User' })
+```
+
+**Gold-standard layout (2-row design):**
+```
+Top row (y:220):    Request(100) → Router(280) → Controller(460) → Model(660) → Database(860)
+Bottom row (y:400):                               Serializer(460) → Response(660)
+
+Connections:
+  request → router → controller → model → database   (horizontal, top row)
+  controller → serializer → response                  (vertical drop + horizontal, bottom row)
+```
+
+**Data flow rules:**
+- Controller feeds both Model (right) and Serializer (down)
+- Never use `database → response` — the controller orchestrates both paths
+- Never skip the serializer (controller → response) in levels that have one
+- The only exception is Level 5 (Serializers) where the puzzle IS to add a serializer
+
+**Currently using templates:**
+- `standardPipeline()`: Act 3 (L15, 19, 20), Act 5 (L31, 32), Act 6 (L37, 39, 40)
+- `middlewarePipeline()`: Act 6 (L38, 42)
+
+**Levels with unique topologies (do NOT use templates):**
+- L1-4, L6-7 (Act 1): Progressively building the pipeline
+- L5 (Act 1): No serializer yet (that's the puzzle)
+- L16, L18 (Act 3): Multiple models → DB, no request cycle
+- L17 (Act 3): Multi-model form pattern
+- L21 (Act 3): Service + mailer branching
+- L29 (Act 5): 3 diverging models
+- L30 (Act 5): 2 concurrent requests
+- L33 (Act 5): Polling with 2 requests
+- L34-35 (Act 5): External API / webhook integration
+- L36 (Act 5): 2 client versions
+- L41 (Act 6): Minimal job pipeline (no response node)
+
+### Custom Initial Nodes
+
+For levels with unique topologies, define starting pipeline nodes inline:
 
 ```typescript
 const startingPipeline: PipelineState = {
@@ -395,10 +446,11 @@ const successConditions: SuccessCondition[] = [
 
 ### Adding a New Level
 
-1. **Update the appropriate act file in `frontend/src/content/acts/`** - Add level definition to the act
-2. **Create component** - Add `LevelXXName.tsx` in the act folder
-3. **Add to level registry** - Update the level component map
-4. **Test** - Verify level loads and completes correctly
+1. **Update the appropriate act file in `frontend/src/features/actN-*/content.ts`** - Add level definition to the act
+2. **Use pipeline templates** - For standard request-cycle levels, use `standardPipeline()` or `middlewarePipeline()` from `@/utils/pipelineTemplates` instead of inline node definitions
+3. **Create component** - Add `LevelXXName.tsx` in the act's `components/` folder
+4. **Add to level registry** - Update `frontend/src/features/levels-registry.ts`
+5. **Test** - Verify level loads and completes correctly
 
 ### Adding a New Act
 
@@ -541,8 +593,11 @@ export function LevelXXName() {
 
 | Content Type | Location |
 |--------------|----------|
-| Act definitions | `frontend/src/content/acts/` (directory with individual files) |
-| Level components | `frontend/src/components/game/levels/` |
-| Node types | `frontend/src/components/game/data.ts` |
-| Pipeline types | `frontend/src/components/game/types.ts` |
+| Act definitions | `frontend/src/features/act*-*/content.ts` |
+| Level components | `frontend/src/features/act*-*/components/` |
+| Pipeline templates | `frontend/src/utils/pipelineTemplates.ts` |
+| Acts registry | `frontend/src/features/acts-registry.ts` |
+| Level registry | `frontend/src/features/levels-registry.ts` |
+| Node types | `frontend/src/utils/gameData.ts` |
+| Pipeline types | `frontend/src/types/game.ts` |
 | Game store | `frontend/src/stores/game.ts` |
