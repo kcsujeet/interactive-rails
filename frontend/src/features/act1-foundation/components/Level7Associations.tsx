@@ -21,6 +21,7 @@ import {
 	RightPanel,
 	useLevelCompletion,
 } from '@/components/levels';
+import type { ValidationResult } from '@/components/levels';
 import { PipelineCanvas } from '@/components/PipelineCanvas';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
@@ -82,9 +83,6 @@ export function Level7Associations({
 		targetNodeId: string;
 	} | null>(null);
 
-	// Check if level is complete
-	const isComplete = relationshipType === 'has_many';
-
 	// Detect when Comment model is added and update its label
 	useEffect(() => {
 		const commentNode = findCommentNode(pipeline.placedNodes);
@@ -143,6 +141,35 @@ export function Level7Associations({
 			onComplete({ stars: 3, decisions: { relationship: relationshipType! } });
 		}
 	};
+
+	// Validate the current pipeline state for the Submit button
+	const handleValidate = useCallback((): ValidationResult => {
+		if (!commentAdded) {
+			return {
+				valid: false,
+				message: 'Add the Comment model',
+				details: ['Drag the Comment model onto the canvas'],
+			};
+		}
+		if (!relationshipType) {
+			return {
+				valid: false,
+				message: 'Connect the models',
+				details: ['Draw a connection from Post to Comment'],
+			};
+		}
+		if (relationshipType !== 'has_many') {
+			return {
+				valid: false,
+				message: 'Wrong relationship type',
+				details: ['Think about how many comments a post can have'],
+			};
+		}
+		return {
+			valid: true,
+			message: 'Correct! has_many is the right relationship.',
+		};
+	}, [commentAdded, relationshipType]);
 
 	// Generate code preview
 	const getCodeFiles = () => {
@@ -263,6 +290,7 @@ end
 					actNumber={1}
 					levelName="Semantic Associations"
 					levelNumber={7}
+					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {
 						pipeline.setPlacedNodes([...INITIAL_NODES]);
@@ -270,6 +298,7 @@ end
 						setCommentAdded(false);
 						setRelationshipType(null);
 					}}
+					onValidate={handleValidate}
 				/>
 
 				<PipelineCanvas
@@ -365,29 +394,6 @@ end
 							</div>
 						</div>
 					)}
-
-					{/* Completion button */}
-					{isComplete && (
-						<div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10">
-							<Button
-								className="bg-success hover:bg-success/90 text-foreground font-bold shadow-lg shadow-success/30"
-								onClick={handleComplete}
-								size="lg"
-							>
-								Complete Level
-							</Button>
-						</div>
-					)}
-
-					{/* Wrong choice feedback */}
-					{relationshipType && relationshipType !== 'has_many' && (
-						<div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-destructive/80 border border-destructive text-foreground px-6 py-3 rounded-lg z-10">
-							Wrong relationship type!{' '}
-							{relationshipType === 'has_one'
-								? 'Only one comment shows.'
-								: 'Comments would be shared between posts.'}
-						</div>
-					)}
 				</PipelineCanvas>
 			</CenterPanel>
 
@@ -395,29 +401,7 @@ end
 				<CodePreviewPanel
 					files={getCodeFiles()}
 					learningGoal="ActiveRecord associations define relationships between models: has_many, has_one, belongs_to. Choose the right one based on the real-world relationship."
-				>
-					{/* Relationship explanation */}
-					{relationshipType && (
-						<div
-							className={`p-4 border-t ${relationshipType === 'has_many' ? 'border-success bg-success/10' : 'border-destructive bg-destructive/10'}`}
-						>
-							<div
-								className={`text-xs font-semibold uppercase tracking-wider mb-2 ${relationshipType === 'has_many' ? 'text-success' : 'text-destructive'}`}
-							>
-								{relationshipType === 'has_many'
-									? 'Correct!'
-									: 'Not quite right'}
-							</div>
-							<p className="text-sm text-foreground">
-								{relationshipType === 'has_many'
-									? 'A Post has_many Comments is the correct one-to-many relationship. Each post can have multiple comments.'
-									: relationshipType === 'has_one'
-										? 'has_one limits each post to a single comment. Posts typically have many comments!'
-										: 'has_and_belongs_to_many creates a many-to-many relationship. Comments belong to specific posts, not shared between them.'}
-							</p>
-						</div>
-					)}
-				</CodePreviewPanel>
+				/>
 			</RightPanel>
 		</LevelLayout>
 	);

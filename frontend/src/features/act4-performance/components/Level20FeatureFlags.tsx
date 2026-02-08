@@ -5,7 +5,7 @@
  * Shows A/B testing and kill switch patterns.
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import {
@@ -18,6 +18,7 @@ import {
 	RightPanel,
 	useLevelCompletion,
 } from '@/components/levels';
+import type { ValidationResult } from '@/components/levels';
 
 interface Request {
 	id: number;
@@ -38,8 +39,18 @@ export function Level20FeatureFlags({
 	const [oldSuccesses, setOldSuccesses] = useState(0);
 	const [newSuccesses, setNewSuccesses] = useState(0);
 
-	const isComplete =
-		flagEnabled && rolloutPercentage === 100 && newSuccesses >= 5;
+	const handleValidate = useCallback((): ValidationResult => {
+		if (!flagEnabled) {
+			return { valid: false, message: 'Enable the feature flag', details: ['Click "Enable Feature Flag" to start gradual rollout'] };
+		}
+		if (rolloutPercentage < 100) {
+			return { valid: false, message: 'Increase rollout', details: [`Slide the rollout percentage to 100% (currently ${rolloutPercentage}%)`] };
+		}
+		if (newSuccesses < 5) {
+			return { valid: false, message: 'Wait for traffic', details: [`Let the new checkout handle more requests (${newSuccesses}/5 successes)`] };
+		}
+		return { valid: true, message: 'Full rollout complete with low error rate!' };
+	}, [flagEnabled, rolloutPercentage, newSuccesses]);
 
 	// Simulate traffic
 	useEffect(() => {
@@ -163,6 +174,7 @@ export function Level20FeatureFlags({
 					actNumber={4}
 					levelName="Feature Flags"
 					levelNumber={20}
+					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {
 						setFlagEnabled(false);
@@ -173,6 +185,7 @@ export function Level20FeatureFlags({
 						setOldSuccesses(0);
 						setNewSuccesses(0);
 					}}
+					onValidate={handleValidate}
 				/>
 
 				<div className="flex-1 relative bg-background p-8">
@@ -263,17 +276,6 @@ export function Level20FeatureFlags({
 						</div>
 					</div>
 
-					{/* Completion button */}
-					{isComplete && (
-						<div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
-							<Button
-								className="px-8 py-3 bg-linear-to-r from-success to-success/80 text-success-foreground font-bold shadow-lg"
-								onClick={handleComplete}
-							>
-								Complete Level
-							</Button>
-						</div>
-					)}
 				</div>
 			</CenterPanel>
 

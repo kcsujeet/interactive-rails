@@ -18,6 +18,7 @@ import {
 	RightPanel,
 	useLevelCompletion,
 } from '@/components/levels';
+import type { ValidationResult } from '@/components/levels';
 
 type CircuitState = 'closed' | 'open' | 'half-open';
 
@@ -39,7 +40,15 @@ export function Level13ExternalAPIs({
 	const [timeoutsSeen, setTimeoutsSeen] = useState(0);
 	const [fallbacksSeen, setFallbacksSeen] = useState(0);
 
-	const isComplete = circuitBreakerEnabled && fallbacksSeen >= 3;
+	const handleValidate = useCallback((): ValidationResult => {
+		if (!circuitBreakerEnabled) {
+			return { valid: false, message: 'Enable the Circuit Breaker', details: ['Click "Enable Circuit Breaker" to protect against timeouts'] };
+		}
+		if (fallbacksSeen < 3) {
+			return { valid: false, message: 'Wait for fallbacks', details: [`The circuit needs to open and trigger fallback responses (${fallbacksSeen}/3)`] };
+		}
+		return { valid: true, message: 'Circuit Breaker is working! Fallbacks return instantly.' };
+	}, [circuitBreakerEnabled, fallbacksSeen]);
 
 	const simulateAPICall = useCallback(() => {
 		const id = Date.now();
@@ -199,6 +208,7 @@ export function Level13ExternalAPIs({
 					actNumber={3}
 					levelName="External APIs"
 					levelNumber={13}
+					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {
 						setCircuitBreakerEnabled(false);
@@ -208,6 +218,7 @@ export function Level13ExternalAPIs({
 						setTimeoutsSeen(0);
 						setFallbacksSeen(0);
 					}}
+					onValidate={handleValidate}
 				/>
 
 				<div className="flex-1 relative bg-background p-8">
@@ -339,18 +350,6 @@ export function Level13ExternalAPIs({
 						</div>
 					</div>
 
-					{/* Completion button */}
-					{isComplete && (
-						<div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
-							<Button
-								className="bg-linear-to-r from-success to-success/80 text-success-foreground font-bold shadow-lg"
-								onClick={handleComplete}
-								size="lg"
-							>
-								Complete Level
-							</Button>
-						</div>
-					)}
 				</div>
 			</CenterPanel>
 

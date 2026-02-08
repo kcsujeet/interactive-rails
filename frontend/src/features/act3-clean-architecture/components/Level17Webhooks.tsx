@@ -5,7 +5,7 @@
  * Shows fire-and-forget pattern with status updates.
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import {
@@ -18,6 +18,7 @@ import {
 	RightPanel,
 	useLevelCompletion,
 } from '@/components/levels';
+import type { ValidationResult } from '@/components/levels';
 
 interface Payment {
 	id: string;
@@ -33,7 +34,15 @@ export function Level17Webhooks({ onComplete, onExit }: LevelComponentProps) {
 	const [apiCalls, setApiCalls] = useState(0);
 	const [webhooksReceived, setWebhooksReceived] = useState(0);
 
-	const isComplete = webhookEnabled && webhooksReceived >= 2;
+	const handleValidate = useCallback((): ValidationResult => {
+		if (!webhookEnabled) {
+			return { valid: false, message: 'Enable webhooks', details: ['Click "Enable Webhook Endpoint" to replace polling'] };
+		}
+		if (webhooksReceived < 2) {
+			return { valid: false, message: 'Wait for webhooks', details: [`Let webhook callbacks complete (${webhooksReceived}/2)`] };
+		}
+		return { valid: true, message: 'Webhooks eliminate wasteful polling!' };
+	}, [webhookEnabled, webhooksReceived]);
 
 	// Simulate payment processing with polling or webhooks
 	useEffect(() => {
@@ -162,6 +171,7 @@ export function Level17Webhooks({ onComplete, onExit }: LevelComponentProps) {
 					actNumber={3}
 					levelName="Webhooks"
 					levelNumber={17}
+					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {
 						setWebhookEnabled(false);
@@ -169,6 +179,7 @@ export function Level17Webhooks({ onComplete, onExit }: LevelComponentProps) {
 						setApiCalls(0);
 						setWebhooksReceived(0);
 					}}
+					onValidate={handleValidate}
 				/>
 
 				<div className="flex-1 relative bg-background p-8">
@@ -305,18 +316,6 @@ export function Level17Webhooks({ onComplete, onExit }: LevelComponentProps) {
 						</div>
 					</div>
 
-					{/* Completion button */}
-					{isComplete && (
-						<div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
-							<Button
-								className="bg-linear-to-r from-success to-success/80 text-success-foreground font-bold shadow-lg"
-								onClick={handleComplete}
-								size="lg"
-							>
-								Complete Level
-							</Button>
-						</div>
-					)}
 				</div>
 			</CenterPanel>
 

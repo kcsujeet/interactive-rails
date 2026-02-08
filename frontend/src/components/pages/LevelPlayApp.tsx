@@ -240,7 +240,6 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 		};
 	}, [checkChallenge, liveMetrics]);
 
-	// Complete level via LevelHeader's Submit button
 	const handleComplete = useCallback(async () => {
 		const result = checkChallenge(liveMetrics);
 		const stars = result.score >= 80 ? 3 : result.score >= 50 ? 2 : 1;

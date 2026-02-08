@@ -5,7 +5,7 @@
  * Shows consolidated validation and error handling.
  */
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import {
@@ -18,6 +18,7 @@ import {
 	RightPanel,
 	useLevelCompletion,
 } from '@/components/levels';
+import type { ValidationResult } from '@/components/levels';
 
 interface FormField {
 	id: string;
@@ -67,8 +68,18 @@ export function Level10Forms({ onComplete, onExit }: LevelComponentProps) {
 		},
 	]);
 
-	const isComplete =
-		formObjectAdded && submitted && fields.every((f) => f.valid);
+	const handleValidate = useCallback((): ValidationResult => {
+		if (!formObjectAdded) {
+			return { valid: false, message: 'Add the Form Object', details: ['Click "Add Form Object" to consolidate validations'] };
+		}
+		if (!submitted) {
+			return { valid: false, message: 'Submit the form', details: ['Fill in valid data and click Submit'] };
+		}
+		if (!fields.every((f) => f.valid)) {
+			return { valid: false, message: 'Fix form errors', details: ['Ensure all fields have valid values'] };
+		}
+		return { valid: true, message: 'Form Object consolidates validations perfectly!' };
+	}, [formObjectAdded, submitted, fields]);
 
 	const validateField = (field: FormField): FormField => {
 		let error: string | null = null;
@@ -143,6 +154,7 @@ export function Level10Forms({ onComplete, onExit }: LevelComponentProps) {
 					actNumber={2}
 					levelName="Form Objects"
 					levelNumber={10}
+					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {
 						setFormObjectAdded(false);
@@ -182,6 +194,7 @@ export function Level10Forms({ onComplete, onExit }: LevelComponentProps) {
 							},
 						]);
 					}}
+					onValidate={handleValidate}
 				/>
 
 				<div className="flex-1 relative bg-background flex items-center justify-center p-8">
@@ -320,17 +333,6 @@ export function Level10Forms({ onComplete, onExit }: LevelComponentProps) {
 						)}
 					</div>
 
-					{/* Completion button */}
-					{isComplete && (
-						<div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
-							<Button
-								className="px-8 py-3 bg-linear-to-r from-success to-success/80 text-foreground font-bold shadow-lg"
-								onClick={handleComplete}
-							>
-								Complete Level
-							</Button>
-						</div>
-					)}
 				</div>
 			</CenterPanel>
 

@@ -5,7 +5,7 @@
  * Dirty (jagged) particles become clean (smooth) after validation.
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import {
@@ -18,6 +18,7 @@ import {
 	RightPanel,
 	useLevelCompletion,
 } from '@/components/levels';
+import type { ValidationResult } from '@/components/levels';
 
 interface Particle {
 	id: number;
@@ -34,7 +35,15 @@ export function Level9Contracts({ onComplete, onExit }: LevelComponentProps) {
 	const [validatedCount, setValidatedCount] = useState(0);
 	const [rejectedCount, setRejectedCount] = useState(0);
 
-	const isComplete = contractAdded && validatedCount >= 5;
+	const handleValidate = useCallback((): ValidationResult => {
+		if (!contractAdded) {
+			return { valid: false, message: 'Add the Contract', details: ['Click "Add Contract Node" to validate at the boundary'] };
+		}
+		if (validatedCount < 5) {
+			return { valid: false, message: 'Wait for validations', details: [`Let more clean data pass through the contract (${validatedCount}/5)`] };
+		}
+		return { valid: true, message: 'Contract is working! Invalid data is being rejected.' };
+	}, [contractAdded, validatedCount]);
 
 	// Spawn particles
 	useEffect(() => {
@@ -145,6 +154,7 @@ export function Level9Contracts({ onComplete, onExit }: LevelComponentProps) {
 					actNumber={2}
 					levelName="Data Contracts"
 					levelNumber={9}
+					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {
 						setContractAdded(false);
@@ -152,6 +162,7 @@ export function Level9Contracts({ onComplete, onExit }: LevelComponentProps) {
 						setValidatedCount(0);
 						setRejectedCount(0);
 					}}
+					onValidate={handleValidate}
 				/>
 
 				<div className="flex-1 relative bg-background overflow-hidden">
@@ -316,17 +327,6 @@ export function Level9Contracts({ onComplete, onExit }: LevelComponentProps) {
 						</div>
 					</div>
 
-					{/* Completion button */}
-					{isComplete && (
-						<div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
-							<Button
-								className="px-8 py-3 bg-linear-to-r from-success to-success/80 text-foreground font-bold shadow-lg"
-								onClick={handleComplete}
-							>
-								Complete Level
-							</Button>
-						</div>
-					)}
 				</div>
 			</CenterPanel>
 

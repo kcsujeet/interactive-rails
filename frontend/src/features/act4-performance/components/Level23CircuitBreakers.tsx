@@ -18,6 +18,7 @@ import {
 	RightPanel,
 	useLevelCompletion,
 } from '@/components/levels';
+import type { ValidationResult } from '@/components/levels';
 
 type CircuitState = 'closed' | 'open' | 'half_open';
 
@@ -53,11 +54,21 @@ export function Level23CircuitBreakers({
 	const [feedSuccesses, setFeedSuccesses] = useState(0);
 	const [isRecsFlaky, setIsRecsFlaky] = useState(true);
 
-	const isComplete =
-		circuitEnabled &&
-		recsService.circuit === 'open' &&
-		feedFailures === 0 &&
-		feedSuccesses >= 5;
+	const handleValidate = useCallback((): ValidationResult => {
+		if (!circuitEnabled) {
+			return { valid: false, message: 'Enable circuit breakers', details: ['Click "Enable Circuit Breakers" to isolate failures'] };
+		}
+		if (recsService.circuit !== 'open') {
+			return { valid: false, message: 'Wait for circuit to open', details: ['The circuit needs to detect Recommendations failures and open'] };
+		}
+		if (feedFailures > 0) {
+			return { valid: false, message: 'Feed has failures', details: ['Reset and try again — Feed should have zero failures with circuit breakers'] };
+		}
+		if (feedSuccesses < 5) {
+			return { valid: false, message: 'Need more successes', details: [`Wait for Feed to handle more requests (${feedSuccesses}/5)`] };
+		}
+		return { valid: true, message: 'Circuit breakers isolate the failure! Feed stays healthy.' };
+	}, [circuitEnabled, recsService.circuit, feedFailures, feedSuccesses]);
 
 	// Simulate requests to the services
 	const makeRequest = useCallback(() => {
@@ -244,6 +255,7 @@ export function Level23CircuitBreakers({
 					actNumber={4}
 					levelName="Circuit Breakers"
 					levelNumber={23}
+					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {
 						setCircuitEnabled(false);
@@ -264,6 +276,7 @@ export function Level23CircuitBreakers({
 						setFeedFailures(0);
 						setFeedSuccesses(0);
 					}}
+					onValidate={handleValidate}
 				/>
 
 				<div className="flex-1 relative bg-background p-8">
@@ -398,17 +411,6 @@ export function Level23CircuitBreakers({
 						</div>
 					)}
 
-					{/* Completion button */}
-					{isComplete && (
-						<div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
-							<Button
-								className="px-8 py-3 bg-linear-to-r from-success to-success/80 text-success-foreground font-bold shadow-lg"
-								onClick={handleComplete}
-							>
-								Complete Level
-							</Button>
-						</div>
-					)}
 				</div>
 			</CenterPanel>
 

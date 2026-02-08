@@ -5,7 +5,7 @@
  * Shows blue (read) and orange (write) traffic separation.
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import {
@@ -18,6 +18,7 @@ import {
 	RightPanel,
 	useLevelCompletion,
 } from '@/components/levels';
+import type { ValidationResult } from '@/components/levels';
 
 interface Query {
 	id: number;
@@ -37,7 +38,18 @@ export function Level21ReadWriteSplit({
 	const [readCount, setReadCount] = useState(0);
 	const [writeCount, setWriteCount] = useState(0);
 
-	const isComplete = replicaEnabled && primaryLoad < 50 && readCount >= 10;
+	const handleValidate = useCallback((): ValidationResult => {
+		if (!replicaEnabled) {
+			return { valid: false, message: 'Enable the replica', details: ['Click "Enable Read Replica" to split read traffic'] };
+		}
+		if (readCount < 10) {
+			return { valid: false, message: 'Need more reads', details: [`Let more read queries route to the replica (${readCount}/10)`] };
+		}
+		if (primaryLoad >= 50) {
+			return { valid: false, message: 'Primary still loaded', details: [`Wait for primary load to drop below 50% (currently ${Math.round(primaryLoad)}%)`] };
+		}
+		return { valid: true, message: 'Reads routed to replica, primary load reduced!' };
+	}, [replicaEnabled, primaryLoad, readCount]);
 
 	// Simulate queries
 	useEffect(() => {
@@ -134,6 +146,7 @@ export function Level21ReadWriteSplit({
 					actNumber={4}
 					levelName="Read/Write Split"
 					levelNumber={21}
+					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {
 						setReplicaEnabled(false);
@@ -143,6 +156,7 @@ export function Level21ReadWriteSplit({
 						setReadCount(0);
 						setWriteCount(0);
 					}}
+					onValidate={handleValidate}
 				/>
 
 				<div className="flex-1 relative bg-background p-8">
@@ -252,17 +266,6 @@ export function Level21ReadWriteSplit({
 						</div>
 					)}
 
-					{/* Completion button */}
-					{isComplete && (
-						<div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
-							<Button
-								className="px-8 py-3 bg-linear-to-r from-success to-success/80 text-success-foreground font-bold shadow-lg"
-								onClick={handleComplete}
-							>
-								Complete Level
-							</Button>
-						</div>
-					)}
 				</div>
 			</CenterPanel>
 

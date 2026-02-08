@@ -5,7 +5,7 @@
  * Shows memory usage difference between traditional and direct upload.
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import {
@@ -18,6 +18,7 @@ import {
 	RightPanel,
 	useLevelCompletion,
 } from '@/components/levels';
+import type { ValidationResult } from '@/components/levels';
 
 interface Upload {
 	id: number;
@@ -36,8 +37,18 @@ export function Level18Storage({ onComplete, onExit }: LevelComponentProps) {
 	const [memoryPeak, setMemoryPeak] = useState(0);
 	const [directUploadsCompleted, setDirectUploadsCompleted] = useState(0);
 
-	const isComplete =
-		directUploadEnabled && directUploadsCompleted >= 2 && memoryPeak < 100;
+	const handleValidate = useCallback((): ValidationResult => {
+		if (!directUploadEnabled) {
+			return { valid: false, message: 'Enable direct upload', details: ['Click "Enable Direct Upload" to bypass the app server'] };
+		}
+		if (directUploadsCompleted < 2) {
+			return { valid: false, message: 'Upload more files', details: [`Upload video files using direct upload (${directUploadsCompleted}/2)`] };
+		}
+		if (memoryPeak >= 100) {
+			return { valid: false, message: 'Memory too high', details: ['Peak memory must stay below 100MB with direct uploads'] };
+		}
+		return { valid: true, message: 'Direct upload keeps memory flat!' };
+	}, [directUploadEnabled, directUploadsCompleted, memoryPeak]);
 
 	const startUpload = () => {
 		const id = Date.now();
@@ -186,6 +197,7 @@ export function Level18Storage({ onComplete, onExit }: LevelComponentProps) {
 					actNumber={3}
 					levelName="Cloud Storage"
 					levelNumber={18}
+					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {
 						setDirectUploadEnabled(false);
@@ -194,6 +206,7 @@ export function Level18Storage({ onComplete, onExit }: LevelComponentProps) {
 						setMemoryPeak(0);
 						setDirectUploadsCompleted(0);
 					}}
+					onValidate={handleValidate}
 				/>
 
 				<div className="flex-1 relative bg-background p-8">
@@ -370,18 +383,6 @@ export function Level18Storage({ onComplete, onExit }: LevelComponentProps) {
 						</div>
 					</div>
 
-					{/* Completion button */}
-					{isComplete && (
-						<div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
-							<Button
-								className="bg-linear-to-r from-success to-success/80 text-success-foreground font-bold shadow-lg"
-								onClick={handleComplete}
-								size="lg"
-							>
-								Complete Level
-							</Button>
-						</div>
-					)}
 				</div>
 			</CenterPanel>
 

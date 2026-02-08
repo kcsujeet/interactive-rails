@@ -26,8 +26,8 @@ interface LevelHeaderProps {
 	subtitle?: string;
 	onExit: () => void;
 	onReset?: () => void;
-	onValidate?: ValidateFn;
-	onComplete?: () => void;
+	onValidate: ValidateFn;
+	onComplete: () => void;
 }
 
 export function LevelHeader({
@@ -50,8 +50,6 @@ export function LevelHeader({
 	const learningGoal = level?.learningContent?.conceptExplanation;
 
 	const handleSubmit = async () => {
-		if (!onValidate || !onComplete) return;
-
 		const result = onValidate();
 		setLastResult(result);
 		setShowFeedback(true);
@@ -109,8 +107,7 @@ export function LevelHeader({
 						</Button>
 					)}
 
-					{onValidate && onComplete && (
-						<Button
+					<Button
 							className={`px-5 font-semibold shadow-md ${
 								isCompleting
 									? 'bg-secondary text-muted-foreground cursor-not-allowed'
@@ -128,8 +125,7 @@ export function LevelHeader({
 								: lastResult?.valid
 									? 'Complete Level'
 									: 'Submit'}
-						</Button>
-					)}
+					</Button>
 				</div>
 			</div>
 

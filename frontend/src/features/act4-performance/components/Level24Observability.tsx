@@ -5,7 +5,7 @@
  * Find the slow service causing latency issues.
  */
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import {
@@ -18,6 +18,7 @@ import {
 	RightPanel,
 	useLevelCompletion,
 } from '@/components/levels';
+import type { ValidationResult } from '@/components/levels';
 
 interface Span {
 	id: string;
@@ -75,7 +76,15 @@ export function Level24Observability({
 		(max, s) => Math.max(max, s.start + s.duration),
 		0,
 	);
-	const isComplete = tracingEnabled && problemFound;
+	const handleValidate = useCallback((): ValidationResult => {
+		if (!tracingEnabled) {
+			return { valid: false, message: 'Enable tracing', details: ['Click "Enable Distributed Tracing" to instrument services'] };
+		}
+		if (!problemFound) {
+			return { valid: false, message: 'Find the bottleneck', details: ['Click on spans in the flame graph to identify the slow service'] };
+		}
+		return { valid: true, message: 'Bottleneck identified! Billing service is the culprit.' };
+	}, [tracingEnabled, problemFound]);
 
 	const enableTracing = () => {
 		setTracingEnabled(true);
@@ -211,6 +220,7 @@ export function Level24Observability({
 					actNumber={4}
 					levelName="Observability"
 					levelNumber={24}
+					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {
 						setTracingEnabled(false);
@@ -251,6 +261,7 @@ export function Level24Observability({
 						setSelectedSpan(null);
 						setProblemFound(false);
 					}}
+					onValidate={handleValidate}
 				/>
 
 				<div className="flex-1 relative bg-background p-8">
@@ -359,17 +370,6 @@ export function Level24Observability({
 						</div>
 					)}
 
-					{/* Completion button */}
-					{isComplete && (
-						<div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
-							<Button
-								className="px-8 py-3 bg-linear-to-r from-success to-success/80 text-success-foreground font-bold shadow-lg"
-								onClick={handleComplete}
-							>
-								Complete Level
-							</Button>
-						</div>
-					)}
 				</div>
 			</CenterPanel>
 

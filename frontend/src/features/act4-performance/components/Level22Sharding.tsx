@@ -5,7 +5,7 @@
  * Shows tenant-based sharding strategy.
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import {
@@ -18,6 +18,7 @@ import {
 	RightPanel,
 	useLevelCompletion,
 } from '@/components/levels';
+import type { ValidationResult } from '@/components/levels';
 
 interface Tenant {
 	id: number;
@@ -46,7 +47,15 @@ export function Level22Sharding({ onComplete, onExit }: LevelComponentProps) {
 	const [shard1Load, setShard1Load] = useState(0);
 	const [singleDbLoad, setSingleDbLoad] = useState(0);
 
-	const isComplete = shardingEnabled && shard0Load < 60 && shard1Load < 60;
+	const handleValidate = useCallback((): ValidationResult => {
+		if (!shardingEnabled) {
+			return { valid: false, message: 'Enable sharding', details: ['Click "Enable Sharding" to distribute data across databases'] };
+		}
+		if (shard0Load >= 60 || shard1Load >= 60) {
+			return { valid: false, message: 'Shards still loaded', details: ['Wait for load to balance across shards (both need < 60%)'] };
+		}
+		return { valid: true, message: 'Sharding distributes load across databases!' };
+	}, [shardingEnabled, shard0Load, shard1Load]);
 
 	// Simulate queries
 	useEffect(() => {
@@ -160,6 +169,7 @@ export function Level22Sharding({ onComplete, onExit }: LevelComponentProps) {
 					actNumber={4}
 					levelName="Database Sharding"
 					levelNumber={22}
+					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {
 						setShardingEnabled(false);
@@ -168,6 +178,7 @@ export function Level22Sharding({ onComplete, onExit }: LevelComponentProps) {
 						setShard1Load(0);
 						setSingleDbLoad(0);
 					}}
+					onValidate={handleValidate}
 				/>
 
 				<div className="flex-1 relative bg-background p-8">
@@ -324,17 +335,6 @@ export function Level22Sharding({ onComplete, onExit }: LevelComponentProps) {
 						</div>
 					</div>
 
-					{/* Completion button */}
-					{isComplete && (
-						<div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
-							<Button
-								className="px-8 py-3 bg-linear-to-r from-success to-success/80 text-success-foreground font-bold shadow-lg"
-								onClick={handleComplete}
-							>
-								Complete Level
-							</Button>
-						</div>
-					)}
 				</div>
 			</CenterPanel>
 
