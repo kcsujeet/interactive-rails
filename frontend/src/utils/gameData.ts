@@ -6,8 +6,8 @@
  * 2. New Acts/Levels structure (imported from content/acts)
  */
 
-import { isConnectionAllowed, NODE_BEHAVIORS } from './nodeBehavior';
 import type { LevelChallenge, NodeTypeInfo } from '@/types/game';
+import { isConnectionAllowed, NODE_BEHAVIORS } from './nodeBehavior';
 
 // ============================================
 // Node Type Definitions
@@ -403,6 +403,186 @@ export const nodeTypes: NodeTypeInfo[] = [
 		color: '#374151',
 		icon: 't',
 		description: 'Distributed tracing',
+	},
+
+	// Act III - Additional
+	{
+		type: 'concern',
+		name: 'Concern',
+		color: '#818cf8',
+		icon: 'Cn',
+		description: 'Rails concern module',
+	},
+	{
+		type: 'form_object',
+		name: 'Form Object',
+		color: '#2dd4bf',
+		icon: 'FO',
+		description: 'Multi-model form object',
+	},
+	{
+		type: 'validator',
+		name: 'Validator',
+		color: '#38bdf8',
+		icon: 'Va',
+		description: 'Custom validator',
+	},
+	{
+		type: 'error_handler',
+		name: 'Error Handler',
+		color: '#fb7185',
+		icon: 'Eh',
+		description: 'Error handling middleware',
+	},
+	{
+		type: 'background_job',
+		name: 'Background Job',
+		color: '#a78bfa',
+		icon: 'BJ',
+		description: 'Async background job',
+	},
+	{
+		type: 'counter_cache',
+		name: 'Counter Cache',
+		color: '#fbbf24',
+		icon: 'CC',
+		description: 'Cached association count',
+	},
+	{
+		type: 'search',
+		name: 'Search',
+		color: '#facc15',
+		icon: 'Se',
+		description: 'Full-text search',
+	},
+
+	// Act II - Additional
+	{
+		type: 'authentication',
+		name: 'Authentication',
+		color: '#f472b6',
+		icon: 'Au',
+		description: 'User authentication',
+	},
+	{
+		type: 'validation',
+		name: 'Validation',
+		color: '#34d399',
+		icon: 'Vl',
+		description: 'Model validations',
+	},
+	{
+		type: 'callback',
+		name: 'Callback',
+		color: '#c084fc',
+		icon: 'Cb',
+		description: 'ActiveRecord callback',
+	},
+	{
+		type: 'cors',
+		name: 'CORS',
+		color: '#67e8f9',
+		icon: 'CO',
+		description: 'Cross-origin resource sharing',
+	},
+	{
+		type: 'credentials',
+		name: 'Credentials',
+		color: '#475569',
+		icon: 'Cr',
+		description: 'Rails encrypted credentials',
+	},
+	{
+		type: 'test',
+		name: 'Test',
+		color: '#4ade80',
+		icon: 'Te',
+		description: 'RSpec/Minitest tests',
+	},
+
+	// Act V - Additional
+	{
+		type: 's3',
+		name: 'S3',
+		color: '#f97316',
+		icon: 'S3',
+		description: 'AWS S3 storage',
+	},
+
+	// Act VI - Additional
+	{
+		type: 'middleware',
+		name: 'Middleware',
+		color: '#94a3b8',
+		icon: 'Mw',
+		description: 'Rack middleware',
+	},
+	{
+		type: 'soft_delete',
+		name: 'Soft Delete',
+		color: '#f87171',
+		icon: 'SD',
+		description: 'Paranoia/Discard soft delete',
+	},
+	{
+		type: 'audit_trail',
+		name: 'Audit Trail',
+		color: '#a3a3a3',
+		icon: 'AT',
+		description: 'Change tracking audit log',
+	},
+	{
+		type: 'scheduler',
+		name: 'Scheduler',
+		color: '#c084fc',
+		icon: 'Sc',
+		description: 'Recurring job scheduler',
+	},
+	{
+		type: 'error_monitor',
+		name: 'Error Monitor',
+		color: '#ef4444',
+		icon: 'EM',
+		description: 'Error tracking service',
+	},
+
+	// Act VII - Additional
+	{
+		type: 'state_machine',
+		name: 'State Machine',
+		color: '#8b5cf6',
+		icon: 'SM',
+		description: 'State transitions (AASM)',
+	},
+	{
+		type: 'tenant_scope',
+		name: 'Tenant Scope',
+		color: '#6366f1',
+		icon: 'TS',
+		description: 'Multi-tenancy scoping',
+	},
+	{
+		type: 'observability',
+		name: 'Observability',
+		color: '#64748b',
+		icon: 'Ob',
+		description: 'Metrics, logs & traces',
+	},
+	{
+		type: 'message_queue',
+		name: 'Message Queue',
+		color: '#e879f9',
+		icon: 'MQ',
+		description: 'Async message queue',
+	},
+
+	// Act VIII - Additional
+	{
+		type: 'shard',
+		name: 'Shard',
+		color: '#b91c1c',
+		icon: 'Sh',
+		description: 'Database shard',
 	},
 
 	// Act VII - Expert

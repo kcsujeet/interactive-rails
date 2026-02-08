@@ -39,6 +39,9 @@ export function NodePalette({
 }: NodePaletteProps) {
 	const availableNodeTypes = availableNodes || challenge?.availableNodes || [];
 	const shouldShowMetrics = showMetrics ?? !!challenge?.initialMetrics;
+	const renderableNodes = nodeTypes.filter((node) =>
+		availableNodeTypes.includes(node.type),
+	);
 
 	return (
 		<div className="p-4 overflow-y-auto flex-1">
@@ -52,7 +55,7 @@ export function NodePalette({
 				</div>
 			)}
 
-			{availableNodeTypes.length > 0 && (
+			{renderableNodes.length > 0 && (
 				<>
 					<h2 className="text-sm font-semibold text-foreground mb-1">
 						Pipeline Nodes
@@ -61,21 +64,19 @@ export function NodePalette({
 						Drag components onto the canvas
 					</p>
 					<div className="space-y-2">
-						{nodeTypes
-							.filter((node) => availableNodeTypes.includes(node.type))
-							.map((node) => (
-								<DraggableNode
-									color={node.color}
-									description={node.description || ''}
-									icon={node.icon || ''}
-									isDragging={draggedNodeType === node.type}
-									key={node.type}
-									name={node.name}
-									onDragEnd={onDragEnd}
-									onDragStart={onDragStart}
-									type={node.type}
-								/>
-							))}
+						{renderableNodes.map((node) => (
+							<DraggableNode
+								color={node.color}
+								description={node.description || ''}
+								icon={node.icon || ''}
+								isDragging={draggedNodeType === node.type}
+								key={node.type}
+								name={node.name}
+								onDragEnd={onDragEnd}
+								onDragStart={onDragStart}
+								type={node.type}
+							/>
+						))}
 					</div>
 				</>
 			)}

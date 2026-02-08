@@ -6,7 +6,7 @@
  * App context: Blog API
  */
 
-import type { Act, Level } from "@/types";
+import type { Act, Level } from '@/types';
 
 // ============================================
 // Level 1: The Stack Choice
@@ -47,10 +47,8 @@ rails new myapp --api --database=sqlite3
 		goal: 'Choose your database. Drag the node to the slot.',
 		thresholds: {},
 	},
-	successConditions: [
-		{ type: 'slot_filled', slotId: 'database-slot' },
-	],
-	availableNodes: ['postgresql', 'sqlite'],
+	successConditions: [{ type: 'slot_filled', slotId: 'database-slot' }],
+	availableNodes: ['postgres', 'sqlite'],
 	unlockedNodes: [
 		'request',
 		'router',
@@ -64,7 +62,7 @@ rails new myapp --api --database=sqlite3
 		{
 			id: 'database-slot',
 			label: 'Database System',
-			acceptTypes: ['postgresql', 'sqlite'],
+			acceptTypes: ['postgres', 'sqlite'],
 			required: true,
 			position: { x: 500, y: 200 },
 		},
@@ -239,7 +237,14 @@ const level3CRUD: Level = {
 	},
 	startingPipeline: {
 		nodes: [
-			{ id: 'model-node', type: 'model', x: 400, y: 250, locked: true, config: { label: 'Post' } },
+			{
+				id: 'model-node',
+				type: 'model',
+				x: 400,
+				y: 250,
+				locked: true,
+				config: { label: 'Post' },
+			},
 			{ id: 'database-node', type: 'database', x: 600, y: 250, locked: true },
 		],
 		connections: [
@@ -339,7 +344,14 @@ const level4Controller: Level = {
 	startingPipeline: {
 		nodes: [
 			{ id: 'request-node', type: 'request', x: 100, y: 250, locked: true },
-			{ id: 'model-node', type: 'model', x: 500, y: 250, locked: true, config: { label: 'Post' } },
+			{
+				id: 'model-node',
+				type: 'model',
+				x: 500,
+				y: 250,
+				locked: true,
+				config: { label: 'Post' },
+			},
 			{ id: 'database-node', type: 'database', x: 700, y: 250, locked: true },
 		],
 		connections: [
@@ -484,17 +496,38 @@ const level5Serializers: Level = {
 		nodes: [
 			{ id: 'request-node', type: 'request', x: 100, y: 220, locked: true },
 			{ id: 'router-node', type: 'router', x: 280, y: 220, locked: true },
-			{ id: 'controller-node', type: 'controller', x: 460, y: 220, locked: true },
-			{ id: 'model-node', type: 'model', x: 660, y: 220, locked: true, config: { label: 'Post' } },
+			{
+				id: 'controller-node',
+				type: 'controller',
+				x: 460,
+				y: 220,
+				locked: true,
+			},
+			{
+				id: 'model-node',
+				type: 'model',
+				x: 660,
+				y: 220,
+				locked: true,
+				config: { label: 'Post' },
+			},
 			{ id: 'database-node', type: 'database', x: 860, y: 220, locked: true },
 			{ id: 'response-node', type: 'response', x: 660, y: 400, locked: true },
 		],
 		connections: [
 			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'router-node' },
-			{ id: 'c2', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
+			{
+				id: 'c2',
+				sourceNodeId: 'router-node',
+				targetNodeId: 'controller-node',
+			},
 			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
 			{ id: 'c4', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-			{ id: 'c5', sourceNodeId: 'controller-node', targetNodeId: 'response-node' },
+			{
+				id: 'c5',
+				sourceNodeId: 'controller-node',
+				targetNodeId: 'response-node',
+			},
 		],
 	},
 	problem: {
@@ -612,7 +645,8 @@ end
 			'Over-serializing (returning too much data)',
 			'Different shapes for list vs detail endpoints',
 		],
-		whenToUse: 'Every API endpoint should use a serializer. Use JSON:API format for public APIs.',
+		whenToUse:
+			'Every API endpoint should use a serializer. Use JSON:API format for public APIs.',
 		furtherReading: [
 			{
 				title: 'jsonapi-serializer',
@@ -647,10 +681,29 @@ const level6Routes: Level = {
 	startingPipeline: {
 		nodes: [
 			{ id: 'request-node', type: 'request', x: 100, y: 220, locked: true },
-			{ id: 'controller-node', type: 'controller', x: 420, y: 220, locked: true },
-			{ id: 'model-node', type: 'model', x: 640, y: 220, locked: true, config: { label: 'Post' } },
+			{
+				id: 'controller-node',
+				type: 'controller',
+				x: 420,
+				y: 220,
+				locked: true,
+			},
+			{
+				id: 'model-node',
+				type: 'model',
+				x: 640,
+				y: 220,
+				locked: true,
+				config: { label: 'Post' },
+			},
 			{ id: 'database-node', type: 'database', x: 860, y: 220, locked: true },
-			{ id: 'serializer-node', type: 'serializer', x: 420, y: 420, locked: true },
+			{
+				id: 'serializer-node',
+				type: 'serializer',
+				x: 420,
+				y: 420,
+				locked: true,
+			},
 			{ id: 'response-node', type: 'response', x: 640, y: 420, locked: true },
 		],
 		connections: [
@@ -738,7 +791,8 @@ rails routes
 			'Forgetting to nest controllers in matching module paths',
 			'Not checking routes with `rails routes`',
 		],
-		whenToUse: 'Every controller needs routes. Use resources for standard CRUD.',
+		whenToUse:
+			'Every controller needs routes. Use resources for standard CRUD.',
 		furtherReading: [
 			{
 				title: 'Rails Routing',
@@ -770,23 +824,55 @@ const level7Associations: Level = {
 		nodes: [
 			{ id: 'request-node', type: 'request', x: 100, y: 220, locked: true },
 			{ id: 'router-node', type: 'router', x: 280, y: 220, locked: true },
-			{ id: 'controller-node', type: 'controller', x: 460, y: 220, locked: true },
-			{ id: 'post-model', type: 'model', x: 660, y: 220, locked: true, config: { label: 'Post' } },
+			{
+				id: 'controller-node',
+				type: 'controller',
+				x: 460,
+				y: 220,
+				locked: true,
+			},
+			{
+				id: 'post-model',
+				type: 'model',
+				x: 660,
+				y: 220,
+				locked: true,
+				config: { label: 'Post' },
+			},
 			{ id: 'database-node', type: 'database', x: 860, y: 220, locked: true },
-			{ id: 'serializer-node', type: 'serializer', x: 460, y: 420, locked: true },
+			{
+				id: 'serializer-node',
+				type: 'serializer',
+				x: 460,
+				y: 420,
+				locked: true,
+			},
 			{ id: 'response-node', type: 'response', x: 660, y: 420, locked: true },
 		],
 		connections: [
 			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'router-node' },
-			{ id: 'c2', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
+			{
+				id: 'c2',
+				sourceNodeId: 'router-node',
+				targetNodeId: 'controller-node',
+			},
 			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
 			{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
-			{ id: 'c5', sourceNodeId: 'controller-node', targetNodeId: 'serializer-node' },
-			{ id: 'c6', sourceNodeId: 'serializer-node', targetNodeId: 'response-node' },
+			{
+				id: 'c5',
+				sourceNodeId: 'controller-node',
+				targetNodeId: 'serializer-node',
+			},
+			{
+				id: 'c6',
+				sourceNodeId: 'serializer-node',
+				targetNodeId: 'response-node',
+			},
 		],
 	},
 	problem: {
-		observation: 'Posts load correctly, but there is no way to include comments in the API response.',
+		observation:
+			'Posts load correctly, but there is no way to include comments in the API response.',
 		rootCause:
 			'No Comment model exists and no association is defined between Post and Comment.',
 		codeExample: `# Current state:
@@ -839,7 +925,8 @@ end`,
 					label: 'has_and_belongs_to_many',
 					value: 'habtm',
 					preview: 'Comments shared between posts',
-					consequence: 'Creates a many-to-many relationship — wrong for comments',
+					consequence:
+						'Creates a many-to-many relationship — wrong for comments',
 					correct: false,
 				},
 			],
@@ -924,6 +1011,6 @@ export const actOne: Act = {
 		level6Routes,
 		level7Associations,
 	],
-	unlockedNodes: ['terminal', 'postgresql', 'sqlite'],
+	unlockedNodes: ['terminal', 'postgres', 'sqlite'],
 	metricsVisible: false,
 };
