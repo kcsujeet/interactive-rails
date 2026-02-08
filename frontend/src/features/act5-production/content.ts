@@ -363,7 +363,7 @@ const level31ActiveStorage: Level = {
 			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'controller-node' },
 			{ id: 'c2', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
 			{ id: 'c3', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-			{ id: 'c4', sourceNodeId: 'controller-node', targetNodeId: 'response-node' },
+			{ id: 'c4', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
 		],
 	},
 	problem: {
@@ -533,7 +533,7 @@ const level32Encryption: Level = {
 			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'controller-node' },
 			{ id: 'c2', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
 			{ id: 'c3', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-			{ id: 'c4', sourceNodeId: 'controller-node', targetNodeId: 'response-node' },
+			{ id: 'c4', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
 		],
 	},
 	problem: {
@@ -703,7 +703,7 @@ const level33Realtime: Level = {
 			{ id: 'c2', sourceNodeId: 'poll-request', targetNodeId: 'controller-node' },
 			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
 			{ id: 'c4', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-			{ id: 'c5', sourceNodeId: 'controller-node', targetNodeId: 'response-node' },
+			{ id: 'c5', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
 		],
 	},
 	problem: {
@@ -907,7 +907,7 @@ const level34ExternalAPIs: Level = {
 			{ id: 'c2', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
 			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'external-api' },
 			{ id: 'c4', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-			{ id: 'c5', sourceNodeId: 'controller-node', targetNodeId: 'response-node' },
+			{ id: 'c5', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
 		],
 	},
 	problem: {
@@ -1109,7 +1109,7 @@ const level35Webhooks: Level = {
 			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'credit-model' },
 			{ id: 'c4', sourceNodeId: 'payment-model', targetNodeId: 'database-node' },
 			{ id: 'c5', sourceNodeId: 'credit-model', targetNodeId: 'database-node' },
-			{ id: 'c6', sourceNodeId: 'controller-node', targetNodeId: 'response-node' },
+			{ id: 'c6', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
 		],
 	},
 	problem: {
