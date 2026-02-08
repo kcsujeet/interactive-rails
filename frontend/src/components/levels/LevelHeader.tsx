@@ -68,20 +68,22 @@ export function LevelHeader({
 
 	return (
 		<div className="relative">
-			<div className="min-h-14 py-2 border-b border-border flex items-center justify-between px-6 bg-card/50">
-				<Button
-					className="text-muted-foreground hover:text-foreground text-sm flex items-center gap-2"
-					onClick={onExit}
-					size="sm"
-					variant="ghost"
-				>
-					<ChevronLeft className="w-4 h-4" />
-					Levels
-				</Button>
+			<div className="min-h-14 py-2 border-b border-border grid grid-cols-[1fr_auto_1fr] items-center px-6 bg-card/50">
+				<div className="justify-self-start">
+					<Button
+						className="text-muted-foreground hover:text-foreground text-sm flex items-center gap-2"
+						onClick={onExit}
+						size="sm"
+						variant="ghost"
+					>
+						<ChevronLeft className="w-4 h-4" />
+						Levels
+					</Button>
+				</div>
 
 				<div className="text-center">
 					<div className="text-xs text-primary font-medium tracking-wider">
-						ACT {actNumber} - LEVEL {levelNumber}
+						ACT {actNumber} · LEVEL {levelNumber}
 					</div>
 					<div className="text-lg font-bold text-foreground leading-tight">
 						{levelName}
@@ -91,7 +93,7 @@ export function LevelHeader({
 					)}
 				</div>
 
-				<div className="flex items-center gap-3">
+				<div className="justify-self-end flex items-center gap-1">
 					<LearningGoalDialog learningGoal={learningGoal} />
 					<HelpDialog scenario={scenario} />
 
@@ -128,8 +130,6 @@ export function LevelHeader({
 									: 'Submit'}
 						</Button>
 					)}
-
-					{!onValidate && !onReset && <div className="w-16" />}
 				</div>
 			</div>
 
