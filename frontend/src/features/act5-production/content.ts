@@ -457,8 +457,8 @@ url_for(user.avatar.variant(:thumb))
 # Subsequent: serves cached variant
 
 # In serializer / API response
-class UserBlueprint < Blueprinter::Base
-  field :avatar_url do |user|
+class UserSerializer < BaseSerializer
+  attribute :avatar_url do |user|
     if user.avatar.attached?
       Rails.application.routes.url_helpers
         .rails_representation_url(
@@ -1417,7 +1417,7 @@ module Api
 
       def show
         order = Order.find(params[:id])
-        render json: Api::V1::OrderBlueprint.render(order)
+        render json: Api::V1::OrderSerializer.new(order).serializable_hash.to_json
       end
 
       private
@@ -1438,46 +1438,45 @@ module Api
     class OrdersController < Api::BaseController
       def show
         order = Order.find(params[:id])
-        render json: Api::V2::OrderBlueprint.render(order)
+        render json: Api::V2::OrderSerializer.new(order).serializable_hash.to_json
       end
     end
   end
 end
 
 # V1 serializer (frozen output shape)
-# app/blueprints/api/v1/order_blueprint.rb
+# app/serializers/api/v1/order_serializer.rb
 module Api
   module V1
-    class OrderBlueprint < Blueprinter::Base
-      identifier :id
-      field :total do |order|
+    class OrderSerializer < BaseSerializer
+      attribute :total do |order|
         order.total_cents  # Integer cents
       end
-      field :status
-      field :created_at
+      attribute :status
+      attribute :created_at
     end
   end
 end
 
 # V2 serializer (new output shape)
-# app/blueprints/api/v2/order_blueprint.rb
+# app/serializers/api/v2/order_serializer.rb
 module Api
   module V2
-    class OrderBlueprint < Blueprinter::Base
-      identifier :id
-      field :total do |order|
+    class OrderSerializer < BaseSerializer
+      attribute :total do |order|
         {
           amount: (order.total_cents / 100.0).to_s,
           currency: order.currency
         }
       end
-      field :status
-      field :line_items do |order|
+      attribute :status
+      attribute :created_at
+
+      attribute :line_items do |order|
         order.line_items.map do |li|
           { product_id: li.product_id, quantity: li.quantity }
         end
       end
-      field :created_at
     end
   end
 end

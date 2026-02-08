@@ -52,15 +52,15 @@ const level22N1Problem: Level = {
 		codeExample: `# app/controllers/api/v1/posts_controller.rb
 def index
   @posts = Post.all
-  render json: PostBlueprint.render(@posts)
+  render json: PostSerializer.new(@posts).serializable_hash.to_json
 end
 
-# app/blueprints/post_blueprint.rb
-class PostBlueprint < Blueprinter::Base
-  identifier :id
-  fields :title, :body
+# app/serializers/post_serializer.rb
+class PostSerializer < BaseSerializer
+  attribute :title
+  attribute :body
 
-  field :author_name do |post|
+  attribute :author_name do |post|
     post.user.name  # <-- triggers a query PER POST
   end
 end
@@ -355,7 +355,7 @@ const level24DatabaseIndexing: Level = {
 		codeExample: `# app/controllers/api/v1/users_controller.rb
 def show
   @user = User.find_by!(email: params[:email])
-  render json: UserBlueprint.render(@user)
+  render json: UserSerializer.new(@user).serializable_hash.to_json
 end
 
 # EXPLAIN ANALYZE output:
@@ -509,12 +509,12 @@ const level25CounterCaches: Level = {
 			'`post.comments.count` runs a COUNT(*) query for every post on the index page. 100 posts = 100 extra COUNT queries.',
 		rootCause:
 			'No denormalized count column. Rails must query the comments table for every post to get the count.',
-		codeExample: `# app/blueprints/post_blueprint.rb
-class PostBlueprint < Blueprinter::Base
-  identifier :id
-  fields :title, :body
+		codeExample: `# app/serializers/post_serializer.rb
+class PostSerializer < BaseSerializer
+  attribute :title
+  attribute :body
 
-  field :comments_count do |post|
+  attribute :comments_count do |post|
     post.comments.count  # <-- COUNT(*) query per post!
   end
 end
@@ -594,9 +594,10 @@ Post.reset_counters(post_id, :comments)
 Post.find_each { |p| Post.reset_counters(p.id, :comments) }
 
 # In serializer — no query needed:
-class PostBlueprint < Blueprinter::Base
-  identifier :id
-  fields :title, :body, :comments_count
+class PostSerializer < BaseSerializer
+  attribute :title
+  attribute :body
+  attribute :comments_count
 end`,
 		commonMistakes: [
 			'Using .length instead of .count (.length loads all records into memory)',
@@ -665,7 +666,7 @@ const level26Pagination: Level = {
 		codeExample: `# app/controllers/api/v1/posts_controller.rb
 def index
   @posts = Post.includes(:user).all  # ALL 50,000 posts!
-  render json: PostBlueprint.render(@posts)
+  render json: PostSerializer.new(@posts).serializable_hash.to_json
 end
 
 # Response:
@@ -739,7 +740,7 @@ class Api::V1::PostsController < ApplicationController
   def index
     @pagy, @posts = pagy(Post.includes(:user), items: 25)
     pagy_headers(@pagy)
-    render json: PostBlueprint.render(@posts)
+    render json: PostSerializer.new(@posts).serializable_hash.to_json
   end
 end
 
@@ -765,7 +766,7 @@ class Api::V1::FeedController < ApplicationController
     end
 
     @posts = scope.limit(25)
-    render json: PostBlueprint.render(@posts)
+    render json: PostSerializer.new(@posts).serializable_hash.to_json
   end
 end`,
 		commonMistakes: [
@@ -840,7 +841,7 @@ def index
   else
     @posts = Post.all
   end
-  render json: PostBlueprint.render(@posts)
+  render json: PostSerializer.new(@posts).serializable_hash.to_json
 end
 
 # EXPLAIN for LIKE '%rails%':
@@ -944,7 +945,7 @@ def index
     Post.includes(:user).order(created_at: :desc)
   end
   @pagy, @posts = pagy(@posts, items: 25)
-  render json: PostBlueprint.render(@posts)
+  render json: PostSerializer.new(@posts).serializable_hash.to_json
 end
 
 # === SQLite FTS5 (for SQLite databases) ===
@@ -1041,7 +1042,7 @@ def trending
     .limit(20)
     .includes(:user)
 
-  render json: PostBlueprint.render(@posts)
+  render json: PostSerializer.new(@posts).serializable_hash.to_json
 end
 
 # This query:
@@ -1117,12 +1118,12 @@ def trending
       .to_a  # Important: materialize the query before caching
   end
 
-  render json: PostBlueprint.render(@posts)
+  render json: PostSerializer.new(@posts).serializable_hash.to_json
 end
 
 # Cache key with record versioning:
 Rails.cache.fetch(["post", post.id, post.updated_at]) do
-  PostBlueprint.render_as_json(post)
+  PostSerializer.new(post).serializable_hash
 end
 
 # === HTTP Caching (ETags) ===
@@ -1132,7 +1133,7 @@ def show
 
   # Returns 304 Not Modified if post hasn't changed
   if stale?(@post)
-    render json: PostBlueprint.render(@post)
+    render json: PostSerializer.new(@post).serializable_hash.to_json
   end
 end
 
@@ -1142,7 +1143,7 @@ def index
 
   # Use the most recently updated post as the ETag
   if stale?(etag: @posts, last_modified: @posts.first&.updated_at)
-    render json: PostBlueprint.render(@posts)
+    render json: PostSerializer.new(@posts).serializable_hash.to_json
   end
 end
 

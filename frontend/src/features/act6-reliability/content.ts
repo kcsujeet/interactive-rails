@@ -563,7 +563,7 @@ class Admin::UsersController < ApplicationController
   def restore
     user = User.with_discarded.find(params[:id])
     user.undiscard
-    render json: UserBlueprint.render(user)
+    render json: UserSerializer.new(user).serializable_hash.to_json
   end
 
   def audit_log
@@ -1173,7 +1173,7 @@ const level42ErrorMonitoring: Level = {
 class Api::V1::PostsController < ApplicationController
   def show
     post = Post.find(params[:id])
-    render json: PostBlueprint.render(post)
+    render json: PostSerializer.new(post).serializable_hash.to_json
   end
   # ActiveRecord::RecordNotFound => 500 Internal Server Error
   # No context, no alert, no grouping
@@ -1294,7 +1294,7 @@ class Api::V1::PostsController < ApplicationController
     end
 
     if post.save
-      render json: PostBlueprint.render(post), status: :created
+      render json: PostSerializer.new(post).serializable_hash.to_json, status: :created
     else
       render json: { errors: post.errors }, status: :unprocessable_entity
     end

@@ -3302,17 +3302,17 @@ const allChallenges: Challenge[] = [
 		type: 'code_analysis',
 		difficulty: 4,
 		xp_reward: 50,
-		monster: { name: 'Jbuilder Jaguar', sprite: 'jbuilder-jaguar', hp: 85 },
-		question: 'When use Jbuilder vs render json:?',
+		monster: { name: 'Serializer Serpent', sprite: 'serializer-serpent', hp: 85 },
+		question: 'Why use jsonapi-serializer over plain render json:?',
 		options: [
-			{ id: 'a', text: 'Jbuilder for complex nested JSON' },
+			{ id: 'a', text: 'JSON:API standard format with consistent envelope structure' },
 			{ id: 'b', text: 'render json: for everything' },
-			{ id: 'c', text: 'Jbuilder is deprecated' },
+			{ id: 'c', text: 'Serializers are deprecated' },
 			{ id: 'd', text: 'No difference' },
 		],
 		correct_answer: 'a',
 		explanation:
-			'Jbuilder excels at complex JSON with conditionals and nesting.',
+			'jsonapi-serializer provides standardized JSON:API output with data/attributes envelope, relationships, and built-in pagination support.',
 	},
 	{
 		id: 'controllers-rendering-009',
@@ -8760,7 +8760,7 @@ const allChallenges: Challenge[] = [
 			{ id: 'a', text: 'render json: only' },
 			{
 				id: 'b',
-				text: 'Jbuilder, ActiveModel::Serializers, Alba, Blueprinter',
+				text: 'jsonapi-serializer, Alba, Blueprinter, Jbuilder',
 			},
 			{ id: 'c', text: 'XML only' },
 			{ id: 'd', text: 'Manual string building' },

@@ -297,7 +297,7 @@ export function PipelineCanvas({
 								/>
 							</svg>
 						</div>
-						<p className="text-foreground font-medium mb-2">Blueprint Canvas</p>
+						<p className="text-foreground font-medium mb-2">Pipeline Canvas</p>
 						<p className="text-muted-foreground text-sm">
 							Drag nodes from the palette to build your pipeline, then connect
 							them.

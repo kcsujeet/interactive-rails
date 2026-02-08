@@ -511,12 +511,17 @@ const level5Serializers: Level = {
   "updated_at": "2024-01-01"
 }
 
-# We want:
+# We want (JSON:API standard):
 {
-  "id": 1,
-  "title": "Hello",
-  "body": "World",
-  "published_at": "January 1, 2024"
+  "data": {
+    "id": "1",
+    "type": "posts",
+    "attributes": {
+      "title": "Hello",
+      "body": "World",
+      "published_at": "January 1, 2024"
+    }
+  }
 }`,
 		goal: 'Add a serializer to control exactly what the API returns.',
 		thresholds: {},
@@ -528,7 +533,7 @@ const level5Serializers: Level = {
 	availableNodes: ['serializer'],
 	unlockedNodes: [],
 	learningContent: {
-		title: 'JSON Serialization',
+		title: 'JSON:API Serialization',
 		conceptExplanation: `Serializers control what data your API exposes. Without them, \`render json: post\` dumps everything.
 
 **Why serialize?**
@@ -537,52 +542,85 @@ const level5Serializers: Level = {
 - Include computed fields (full_name, time_ago)
 - Nest related data (post with comments)
 
-**Options:**
-- \`as_json\` / \`to_json\` — built-in but limited
-- Blueprinter — fast, simple, declarative
-- Alba — flexible, fast
-- Jbuilder — template-based (JSON views)`,
-		railsCodeExample: `# Using Blueprinter (popular for APIs):
-# app/blueprints/post_blueprint.rb
-class PostBlueprint < Blueprinter::Base
-  identifier :id
+**The JSON:API standard:**
+The industry-standard response format for REST APIs. Used by Stripe, Ember, and thousands of production APIs. It provides:
+- Standardized envelope: \`data\`, \`type\`, \`attributes\`, \`relationships\`
+- Built-in pagination via \`links\`
+- Sparse fieldsets: \`fields[posts]=title,body\`
+- Compound documents: \`include=comments\`
+- Standardized error format
 
-  fields :title, :body
+**Why jsonapi-serializer?**
+- Implements the JSON:API spec out of the box
+- 100x faster than ActiveModelSerializers (AMS)
+- Production-proven, actively maintained
+- Clean DSL: \`attributes\`, \`has_many\`, \`belongs_to\`
 
-  field :published_at do |post|
+**Alternatives and trade-offs:**
+- Blueprinter — simpler flat JSON, not standards-compliant, good for internal APIs
+- Alba — flexible, supports multiple formats, newer
+- Jbuilder — template-based, good for complex views, slower
+- ActiveModelSerializers (AMS) — legacy, unmaintained — avoid`,
+		railsCodeExample: `# Gemfile
+gem "jsonapi-serializer"
+
+# app/serializers/base_serializer.rb
+class BaseSerializer
+  include JSONAPI::Serializer
+end
+
+# app/serializers/post_serializer.rb
+class PostSerializer < BaseSerializer
+  attribute :title
+  attribute :body
+
+  attribute :published_at do |post|
     post.published_at&.strftime("%B %d, %Y")
   end
 
-  # Nested association
-  association :comments, blueprint: CommentBlueprint
+  has_many :comments, serializer: CommentSerializer
 end
 
 # In controller:
 class Api::V1::PostsController < ApplicationController
   def index
     posts = Post.all
-    render json: PostBlueprint.render(posts)
+    render json: PostSerializer.new(posts).serializable_hash.to_json
   end
 
   def show
     post = Post.find(params[:id])
-    render json: PostBlueprint.render(post)
+    render json: PostSerializer.new(post).serializable_hash.to_json
   end
 end
 
-# Output:
-# { "id": 1, "title": "Hello", "body": "World", "published_at": "January 01, 2024" }`,
+# JSON:API output:
+# {
+#   "data": {
+#     "id": "1",
+#     "type": "posts",
+#     "attributes": {
+#       "title": "Hello",
+#       "body": "World",
+#       "published_at": "January 01, 2024"
+#     }
+#   }
+# }`,
 		commonMistakes: [
 			'Leaking sensitive attributes (password_digest, tokens)',
 			'Not serializing nested associations (N+1 in serializer)',
 			'Over-serializing (returning too much data)',
 			'Different shapes for list vs detail endpoints',
 		],
-		whenToUse: 'Every API endpoint should use a serializer.',
+		whenToUse: 'Every API endpoint should use a serializer. Use JSON:API format for public APIs.',
 		furtherReading: [
 			{
-				title: 'Blueprinter Gem',
-				url: 'https://github.com/procore/blueprinter',
+				title: 'jsonapi-serializer',
+				url: 'https://github.com/jsonapi-serializer/jsonapi-serializer',
+			},
+			{
+				title: 'JSON:API Specification',
+				url: 'https://jsonapi.org/',
 			},
 		],
 	},
@@ -692,7 +730,7 @@ rails routes
 # 2. Router matches: Api::V1::PostsController#index
 # 3. Controller calls Model: @posts = Post.all
 # 4. Model queries DB: SELECT * FROM posts
-# 5. Controller calls Serializer: PostBlueprint.render(@posts)
+# 5. Controller calls Serializer: PostSerializer.new(@posts).serializable_hash.to_json
 # 6. Response: 200 OK with JSON body`,
 		commonMistakes: [
 			'Not namespacing API routes under /api/v1',
@@ -842,10 +880,10 @@ post.comments                    # All comments for this post
 post.comments.create(body: "Nice post!")
 
 # In serializer:
-class PostBlueprint < Blueprinter::Base
-  identifier :id
-  fields :title, :body
-  association :comments, blueprint: CommentBlueprint
+class PostSerializer < BaseSerializer
+  attribute :title
+  attribute :body
+  has_many :comments, serializer: CommentSerializer
 end`,
 		commonMistakes: [
 			'Using has_one when you need has_many',

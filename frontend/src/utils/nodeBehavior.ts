@@ -175,7 +175,7 @@ export const NODE_BEHAVIORS: Record<string, NodeBehavior> = {
 			{ target: 'model', reason: 'Serializers receive data, they do not fetch it' },
 		],
 		description: 'Shapes model data into JSON for the API response',
-		railsConcept: 'Blueprinter / ActiveModel::Serializer',
+		railsConcept: 'jsonapi-serializer (JSON:API standard)',
 		unlocksInAct: 1,
 	},
 

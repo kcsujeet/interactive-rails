@@ -135,7 +135,7 @@ export function NodePalette({
 			)}
 
 			<h2 className="text-sm font-semibold text-foreground mb-1">
-				Blueprint Nodes
+				Pipeline Nodes
 			</h2>
 
 			{availableNodeTypes.length === 0 ? (

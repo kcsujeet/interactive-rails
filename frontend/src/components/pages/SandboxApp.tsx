@@ -60,7 +60,7 @@ const nodeTypes = [
 		type: 'view',
 		name: 'View',
 		color: '#a855f7',
-		description: 'ERB/Jbuilder templates',
+		description: 'ERB/JSON templates',
 	},
 	{
 		type: 'response',

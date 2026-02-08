@@ -168,42 +168,44 @@ end`,
 		// Show serializer output
 		if (relationshipType) {
 			files.push({
-				filename: 'app/blueprints/post_blueprint.rb',
+				filename: 'app/serializers/post_serializer.rb',
 				language: 'ruby',
 				code:
 					relationshipType === 'has_many'
-						? `class PostBlueprint < Blueprinter::Base
-  identifier :id
-  fields :title, :body
+						? `class PostSerializer < BaseSerializer
+  attribute :title
+  attribute :body
 
-  association :comments, blueprint: CommentBlueprint
+  has_many :comments, serializer: CommentSerializer
 end
 
 # GET /api/v1/posts/1
-# => { "id": 1, "title": "Hello",
-#      "comments": [{ "id": 1, "body": "Nice!" }, ...] }`
+# => { "data": { "id": "1", "type": "posts",
+#      "attributes": { "title": "Hello" },
+#      "relationships": { "comments": { "data": [...] } } } }`
 						: relationshipType === 'has_one'
-							? `class PostBlueprint < Blueprinter::Base
-  identifier :id
-  fields :title, :body
+							? `class PostSerializer < BaseSerializer
+  attribute :title
+  attribute :body
 
-  association :comment, blueprint: CommentBlueprint
+  has_one :comment, serializer: CommentSerializer
 end
 
 # GET /api/v1/posts/1
-# => { "id": 1, "title": "Hello",
-#      "comment": { "id": 1, "body": "Nice!" } }
+# => { "data": { "id": "1", "type": "posts",
+#      "attributes": { "title": "Hello" },
+#      "relationships": { "comment": { "data": {...} } } } }
 # Only ONE comment per post!`
-							: `class PostBlueprint < Blueprinter::Base
-  identifier :id
-  fields :title, :body
+							: `class PostSerializer < BaseSerializer
+  attribute :title
+  attribute :body
 
-  association :comments, blueprint: CommentBlueprint
+  has_many :comments, serializer: CommentSerializer
 end
 
 # has_and_belongs_to_many means comments are
 # shared between posts — not what you want here!`,
-				highlight: relationshipType === 'has_many' ? [5] : [10, 11],
+				highlight: relationshipType === 'has_many' ? [5] : [12, 13],
 			});
 		}
 

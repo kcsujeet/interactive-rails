@@ -302,7 +302,7 @@ end
 def create
   post = current_user.posts.build(post_params)
   if post.save
-    render json: PostBlueprint.render(post), status: :created
+    render json: PostSerializer.new(post).serializable_hash.to_json.serializable_hash.to_json, status: :created
   else
     render json: { errors: post.errors.full_messages }, status: :unprocessable_entity
   end
@@ -557,7 +557,7 @@ class Api::V1::PostsController < ApplicationController
   def update
     post = Post.find(params[:id])
     post.update(post_params)  # Any user can update ANY post!
-    render json: PostBlueprint.render(post)
+    render json: PostSerializer.new(post).serializable_hash.to_json
   end
 
   def destroy
@@ -662,14 +662,14 @@ class Api::V1::PostsController < ApplicationController
 
   def index
     posts = policy_scope(Post)
-    render json: PostBlueprint.render(posts)
+    render json: PostSerializer.new(posts).serializable_hash.to_json
   end
 
   def update
     post = Post.find(params[:id])
     authorize post  # Raises Pundit::NotAuthorizedError if denied
     if post.update(post_params)
-      render json: PostBlueprint.render(post)
+      render json: PostSerializer.new(post).serializable_hash.to_json
     else
       render json: { errors: post.errors.full_messages }, status: :unprocessable_entity
     end
@@ -1169,7 +1169,7 @@ end
 # In the controller:
 def index
   posts = Post.all  # Returns EVERYTHING
-  render json: PostBlueprint.render(posts)
+  render json: PostSerializer.new(posts).serializable_hash.to_json
 end
 
 # Database contains:
@@ -1260,7 +1260,7 @@ class Api::V1::PostsController < ApplicationController
               .recent
               .page(params[:page])
 
-    render json: PostBlueprint.render(posts)
+    render json: PostSerializer.new(posts).serializable_hash.to_json
   end
 end
 

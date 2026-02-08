@@ -22,7 +22,7 @@ Every level exists because the app **needs** it at that stage — not because Ra
 | 2 | The Model | ActiveRecord, migrations, schema | Need a blog API. Define what a Post looks like — attributes, types, constraints. |
 | 3 | CRUD Operations | ActiveRecord CRUD, Rails console | Model exists but DB is empty. Create, read, update, destroy records. |
 | 4 | The Controller | API controllers, `render json:`, `params.expect()` | HTTP requests arrive but nothing responds. Build a controller that accepts params and returns JSON. |
-| 5 | Serializers | JSON shaping, Blueprinter / jbuilder | API dumps raw `to_json` with internal columns. Control exactly what the client sees. |
+| 5 | Serializers | JSON shaping, jsonapi-serializer (JSON:API standard) | API dumps raw `to_json` with internal columns. Control exactly what the client sees. |
 | 6 | Routes & Request Lifecycle | `resources`, middleware stack, request flow | Wire the full cycle: Route → Controller → Model → DB → Serializer → JSON. |
 | 7 | Associations | `has_many`, `belongs_to`, nested JSON | Posts need comments. Users need posts. Model relationships and include them in responses. |
 

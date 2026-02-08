@@ -125,7 +125,7 @@ class Api::V1::RegistrationsController < ApplicationController
     result = UserRegistration.call(registration_params)
 
     if result.success?
-      render json: UserBlueprint.render(result.user), status: :created
+      render json: UserSerializer.new(result.user).serializable_hash.to_json, status: :created
     else
       render json: { errors: result.errors }, status: :unprocessable_entity
     end
@@ -566,7 +566,7 @@ class Api::V1::OnboardingController < ApplicationController
     form = OnboardingForm.new(onboarding_params)
 
     if form.save
-      render json: UserBlueprint.render(form.user), status: :created
+      render json: UserSerializer.new(form.user).serializable_hash.to_json, status: :created
     else
       render json: { errors: form.errors.full_messages }, status: :unprocessable_entity
     end
@@ -1036,20 +1036,20 @@ end
 class Api::V1::PostsController < ApplicationController
   def show
     post = Post.find(params[:id])  # RecordNotFound -> 404 JSON
-    render json: PostBlueprint.render(post)
+    render json: PostSerializer.new(post).serializable_hash.to_json
   end
 
   def create
     post = current_user.posts.new(post_params)
     post.save!  # RecordInvalid -> 422 JSON
-    render json: PostBlueprint.render(post), status: :created
+    render json: PostSerializer.new(post).serializable_hash.to_json.serializable_hash.to_json, status: :created
   end
 
   def update
     post = Post.find(params[:id])
     authorize post  # NotAuthorizedError -> 403 JSON
     post.update!(post_params)
-    render json: PostBlueprint.render(post)
+    render json: PostSerializer.new(post).serializable_hash.to_json
   end
 
   private
