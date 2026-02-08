@@ -1,11 +1,13 @@
 /**
- * Level 8: Semantic Associations
+ * Level 7: Semantic Associations
  *
  * Add a Comment model and choose the correct relationship type.
  * Decision modal appears when connecting Model → Model.
  */
 
+import type { MouseEvent } from 'react';
 import { useCallback, useEffect, useState } from 'react';
+
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -24,6 +26,38 @@ import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { usePipelineState } from '@/hooks/usePipelineState';
 
+const INITIAL_NODES = [
+	{ id: 'request-1', type: 'request', x: 130, y: 280 },
+	{ id: 'router-1', type: 'router', x: 350, y: 280 },
+	{ id: 'controller-1', type: 'controller', x: 570, y: 280 },
+	{
+		id: 'post-model',
+		type: 'model',
+		x: 810,
+		y: 150,
+		config: { label: 'Post' },
+	},
+	{ id: 'database-1', type: 'database', x: 1060, y: 150 },
+	{ id: 'serializer-1', type: 'serializer', x: 810, y: 410 },
+	{ id: 'response-1', type: 'response', x: 1060, y: 410 },
+] as const;
+
+const INITIAL_CONNECTIONS = [
+	{ id: 'c1', sourceNodeId: 'request-1', targetNodeId: 'router-1' },
+	{ id: 'c2', sourceNodeId: 'router-1', targetNodeId: 'controller-1' },
+	{ id: 'c3', sourceNodeId: 'controller-1', targetNodeId: 'post-model' },
+	{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'database-1' },
+	{ id: 'c5', sourceNodeId: 'controller-1', targetNodeId: 'serializer-1' },
+	{ id: 'c6', sourceNodeId: 'serializer-1', targetNodeId: 'response-1' },
+] as const;
+
+/** Find the comment model node (any model that isn't the initial post-model) */
+function findCommentNode(
+	nodes: { id: string; type: string; config?: { label?: string } }[],
+) {
+	return nodes.find((n) => n.type === 'model' && n.id !== 'post-model');
+}
+
 export function Level7Associations({
 	onComplete,
 	onExit,
@@ -32,26 +66,11 @@ export function Level7Associations({
 
 	// Pre-built pipeline with Post model
 	const pipeline = usePipelineState({
-		initialNodes: [
-			{ id: 'request-1', type: 'request', x: 130, y: 280 },
-			{ id: 'router-1', type: 'router', x: 350, y: 280 },
-			{ id: 'controller-1', type: 'controller', x: 570, y: 280 },
-			{ id: 'post-model', type: 'model', x: 810, y: 150, label: 'Post' },
-			{ id: 'database-1', type: 'database', x: 1060, y: 150 },
-			{ id: 'serializer-1', type: 'serializer', x: 810, y: 410 },
-			{ id: 'response-1', type: 'response', x: 1060, y: 410 },
-		],
-		initialConnections: [
-			{ id: 'c1', sourceNodeId: 'request-1', targetNodeId: 'router-1' },
-			{ id: 'c2', sourceNodeId: 'router-1', targetNodeId: 'controller-1' },
-			{ id: 'c3', sourceNodeId: 'controller-1', targetNodeId: 'post-model' },
-			{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'database-1' },
-			{ id: 'c5', sourceNodeId: 'controller-1', targetNodeId: 'serializer-1' },
-			{ id: 'c6', sourceNodeId: 'serializer-1', targetNodeId: 'response-1' },
-		],
+		initialNodes: [...INITIAL_NODES],
+		initialConnections: [...INITIAL_CONNECTIONS],
 		onBeforeDrop: (type, nodes) => {
-			// Only allow dropping model if comment not yet added
-			return type === 'model' && !nodes.some((n) => n.id === 'comment-model');
+			// Only allow dropping a model if no comment model exists yet
+			return type === 'model' && !findCommentNode(nodes);
 		},
 	});
 
@@ -68,11 +87,9 @@ export function Level7Associations({
 
 	// Detect when Comment model is added and update its label
 	useEffect(() => {
-		const commentNode = pipeline.placedNodes.find(
-			(n) => n.id === 'comment-model',
-		);
-		if (commentNode && !commentNode.label) {
-			pipeline.updateNode('comment-model', { label: 'Comment' });
+		const commentNode = findCommentNode(pipeline.placedNodes);
+		if (commentNode && !commentNode.config?.label) {
+			pipeline.updateNode(commentNode.id, { config: { label: 'Comment' } });
 			setCommentAdded(true);
 		}
 	}, [pipeline]);
@@ -108,7 +125,6 @@ export function Level7Associations({
 				id: `conn-${Date.now()}`,
 				sourceNodeId: pendingRelationship.sourceNodeId,
 				targetNodeId: pendingRelationship.targetNodeId,
-				relationshipType: choice,
 			};
 			pipeline.setConnections((prev) => [...prev, newConnection]);
 			setRelationshipType(choice);
@@ -125,13 +141,6 @@ export function Level7Associations({
 		});
 		if (success) {
 			onComplete({ stars: 3, decisions: { relationship: relationshipType! } });
-		}
-	};
-
-	// Override node drag behavior - only allow dragging comment model
-	const handleNodeMouseDown = (nodeId: string, e: React.MouseEvent) => {
-		if (nodeId === 'comment-model') {
-			pipeline.handleNodeMouseDown(nodeId, e);
 		}
 	};
 
@@ -212,15 +221,6 @@ end
 		return files;
 	};
 
-	// Custom connection color logic for model-to-model connections
-	const getConnectionColor = useCallback((connection: any) => {
-		if (connection.relationshipType) {
-			// Color based on correctness
-			return connection.relationshipType === 'has_many' ? '#22c55e' : '#ef4444';
-		}
-		return undefined; // Use default color
-	}, []);
-
 	return (
 		<LevelLayout>
 			<LeftPanel>
@@ -265,23 +265,8 @@ end
 					levelNumber={7}
 					onExit={onExit}
 					onReset={() => {
-						pipeline.setPlacedNodes([
-							{ id: 'request-1', type: 'request', x: 130, y: 280 },
-							{ id: 'router-1', type: 'router', x: 350, y: 280 },
-							{ id: 'controller-1', type: 'controller', x: 570, y: 280 },
-							{ id: 'post-model', type: 'model', x: 810, y: 150, label: 'Post' },
-							{ id: 'database-1', type: 'database', x: 1060, y: 150 },
-							{ id: 'serializer-1', type: 'serializer', x: 810, y: 410 },
-							{ id: 'response-1', type: 'response', x: 1060, y: 410 },
-						]);
-						pipeline.setConnections([
-							{ id: 'c1', sourceNodeId: 'request-1', targetNodeId: 'router-1' },
-							{ id: 'c2', sourceNodeId: 'router-1', targetNodeId: 'controller-1' },
-							{ id: 'c3', sourceNodeId: 'controller-1', targetNodeId: 'post-model' },
-							{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'database-1' },
-							{ id: 'c5', sourceNodeId: 'controller-1', targetNodeId: 'serializer-1' },
-							{ id: 'c6', sourceNodeId: 'serializer-1', targetNodeId: 'response-1' },
-						]);
+						pipeline.setPlacedNodes([...INITIAL_NODES]);
+						pipeline.setConnections([...INITIAL_CONNECTIONS]);
 						setCommentAdded(false);
 						setRelationshipType(null);
 					}}
@@ -289,19 +274,18 @@ end
 
 				<PipelineCanvas
 					canvasRef={pipeline.canvasRef}
-					connectionColorFn={getConnectionColor}
 					connections={pipeline.connections}
 					draggedNodeType={pipeline.draggedNodeType}
 					draggingNodeId={pipeline.draggingNodeId}
 					onClick={pipeline.handleCanvasClick}
-					onCompleteConnection={(targetNodeId) => {
+					onCompleteConnection={(e: MouseEvent, targetNodeId: string) => {
 						if (pipeline.pendingConnection) {
 							const allowed = handleConnectionCreated(
 								pipeline.pendingConnection.sourceNodeId,
 								targetNodeId,
 							);
 							if (allowed) {
-								pipeline.completeConnection(targetNodeId);
+								pipeline.completeConnection(e, targetNodeId);
 							} else {
 								// Clear pending connection without creating it
 								pipeline.setPendingConnection(null);
@@ -314,7 +298,7 @@ end
 					onDrop={pipeline.handleDrop}
 					onMouseMove={pipeline.handleCanvasMouseMove}
 					onMouseUp={pipeline.handleCanvasMouseUp}
-					onNodeMouseDown={handleNodeMouseDown}
+					onNodeMouseDown={pipeline.handleNodeMouseDown}
 					onStartConnection={pipeline.startConnection}
 					pendingConnection={pipeline.pendingConnection}
 					placedNodes={pipeline.placedNodes}

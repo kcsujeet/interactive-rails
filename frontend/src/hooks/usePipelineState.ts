@@ -20,6 +20,7 @@ export interface UsePipelineStateReturn {
 	selectedNodeId: string | null;
 	setSelectedNodeId: React.Dispatch<React.SetStateAction<string | null>>;
 	pendingConnection: PendingConnection | null;
+	setPendingConnection: React.Dispatch<React.SetStateAction<PendingConnection | null>>;
 	draggingNodeId: string | null;
 	draggedNodeType: string | null;
 	canvasRef: RefObject<HTMLDivElement | null>;
@@ -246,6 +247,7 @@ export function usePipelineState(config?: PipelineStateConfig): UsePipelineState
 		selectedNodeId,
 		setSelectedNodeId,
 		pendingConnection,
+		setPendingConnection,
 		draggingNodeId,
 		draggedNodeType,
 		canvasRef,
