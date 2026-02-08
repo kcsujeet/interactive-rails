@@ -4,6 +4,7 @@ import { getLevel, getActForLevel, getNextLevel } from "@/features/acts-registry
 import { Button } from "@/components/ui/Button";
 import { CodeBlock } from "@/components/ui/CodeBlock";
 import { LevelBreadcrumb } from "@/components/ui/LevelBreadcrumb";
+import { MarkdownContent } from "@/components/ui/MarkdownContent";
 import { Star, CheckCircle, ArrowRight, AlertTriangle, BookOpen } from "lucide-react";
 
 const { actId, levelId } = Astro.params;
@@ -83,9 +84,7 @@ const scoreMessage = stars === 3
 
           {/* Concept Explanation */}
           <div class="bg-card rounded-xl border border-border p-6">
-            <p class="text-foreground leading-relaxed whitespace-pre-line">
-              {learningContent.conceptExplanation}
-            </p>
+            <MarkdownContent client:load content={learningContent.conceptExplanation} />
           </div>
 
           {/* Code Example */}

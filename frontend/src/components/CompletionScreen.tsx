@@ -6,6 +6,7 @@
 import { ArrowRight } from 'lucide-react';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
+import { MarkdownContent } from './ui/MarkdownContent';
 
 interface CompletionScreenProps {
 	levelName: string;
@@ -118,9 +119,7 @@ export function CompletionScreen(
 									{learningContent.title}
 								</span>
 							</div>
-							<p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
-								{learningContent.conceptExplanation}
-							</p>
+							<MarkdownContent className="text-sm" content={learningContent.conceptExplanation} />
 						</div>
 
 						<div className="bg-card rounded-xl overflow-hidden border border-success/20 shadow-[0_0_20px_oklch(0.65_0.17_160/0.08)]">
