@@ -24,7 +24,7 @@ import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { usePipelineState } from '@/hooks/usePipelineState';
 
-export function Level8Associations({
+export function Level7Associations({
 	onComplete,
 	onExit,
 }: LevelComponentProps) {
@@ -38,7 +38,7 @@ export function Level8Associations({
 			{ id: 'controller-1', type: 'controller', x: 570, y: 280 },
 			{ id: 'post-model', type: 'model', x: 810, y: 150, label: 'Post' },
 			{ id: 'database-1', type: 'database', x: 1060, y: 150 },
-			{ id: 'view-1', type: 'view', x: 810, y: 410 },
+			{ id: 'serializer-1', type: 'serializer', x: 810, y: 410 },
 			{ id: 'response-1', type: 'response', x: 1060, y: 410 },
 		],
 		initialConnections: [
@@ -46,8 +46,8 @@ export function Level8Associations({
 			{ id: 'c2', sourceNodeId: 'router-1', targetNodeId: 'controller-1' },
 			{ id: 'c3', sourceNodeId: 'controller-1', targetNodeId: 'post-model' },
 			{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'database-1' },
-			{ id: 'c5', sourceNodeId: 'controller-1', targetNodeId: 'view-1' },
-			{ id: 'c6', sourceNodeId: 'view-1', targetNodeId: 'response-1' },
+			{ id: 'c5', sourceNodeId: 'controller-1', targetNodeId: 'serializer-1' },
+			{ id: 'c6', sourceNodeId: 'serializer-1', targetNodeId: 'response-1' },
 		],
 		onBeforeDrop: (type, nodes) => {
 			// Only allow dropping model if comment not yet added
@@ -165,31 +165,45 @@ end`,
 			});
 		}
 
-		// Show what happens in view
+		// Show serializer output
 		if (relationshipType) {
 			files.push({
-				filename: 'app/views/posts/show.html.erb',
+				filename: 'app/blueprints/post_blueprint.rb',
 				language: 'ruby',
 				code:
 					relationshipType === 'has_many'
-						? `<h1><%= @post.title %></h1>
+						? `class PostBlueprint < Blueprinter::Base
+  identifier :id
+  fields :title, :body
 
-<h2>Comments (<%= @post.comments.count %>)</h2>
-<% @post.comments.each do |comment| %>
-  <div class="comment">
-    <%= comment.body %>
-  </div>
-<% end %>`
-						: `<h1><%= @post.title %></h1>
+  association :comments, blueprint: CommentBlueprint
+end
 
-<h2>Comment</h2>
-<% if @post.comment %>
-  <div class="comment">
-    <%= @post.comment.body %>
-  </div>
-<% end %>
-<!-- Only showing ONE comment! -->`,
-				highlight: relationshipType === 'has_many' ? [3, 4, 5] : [8],
+# GET /api/v1/posts/1
+# => { "id": 1, "title": "Hello",
+#      "comments": [{ "id": 1, "body": "Nice!" }, ...] }`
+						: relationshipType === 'has_one'
+							? `class PostBlueprint < Blueprinter::Base
+  identifier :id
+  fields :title, :body
+
+  association :comment, blueprint: CommentBlueprint
+end
+
+# GET /api/v1/posts/1
+# => { "id": 1, "title": "Hello",
+#      "comment": { "id": 1, "body": "Nice!" } }
+# Only ONE comment per post!`
+							: `class PostBlueprint < Blueprinter::Base
+  identifier :id
+  fields :title, :body
+
+  association :comments, blueprint: CommentBlueprint
+end
+
+# has_and_belongs_to_many means comments are
+# shared between posts — not what you want here!`,
+				highlight: relationshipType === 'has_many' ? [5] : [10, 11],
 			});
 		}
 
@@ -255,7 +269,7 @@ end`,
 							{ id: 'controller-1', type: 'controller', x: 570, y: 280 },
 							{ id: 'post-model', type: 'model', x: 810, y: 150, label: 'Post' },
 							{ id: 'database-1', type: 'database', x: 1060, y: 150 },
-							{ id: 'view-1', type: 'view', x: 810, y: 410 },
+							{ id: 'serializer-1', type: 'serializer', x: 810, y: 410 },
 							{ id: 'response-1', type: 'response', x: 1060, y: 410 },
 						]);
 						pipeline.setConnections([
@@ -263,8 +277,8 @@ end`,
 							{ id: 'c2', sourceNodeId: 'router-1', targetNodeId: 'controller-1' },
 							{ id: 'c3', sourceNodeId: 'controller-1', targetNodeId: 'post-model' },
 							{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'database-1' },
-							{ id: 'c5', sourceNodeId: 'controller-1', targetNodeId: 'view-1' },
-							{ id: 'c6', sourceNodeId: 'view-1', targetNodeId: 'response-1' },
+							{ id: 'c5', sourceNodeId: 'controller-1', targetNodeId: 'serializer-1' },
+							{ id: 'c6', sourceNodeId: 'serializer-1', targetNodeId: 'response-1' },
 						]);
 						setCommentAdded(false);
 						setRelationshipType(null);
@@ -442,4 +456,4 @@ end`,
 	);
 }
 
-export default Level8Associations;
+export default Level7Associations;

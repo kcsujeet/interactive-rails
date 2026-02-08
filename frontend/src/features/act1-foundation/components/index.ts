@@ -14,4 +14,4 @@ export { Level1StackChoice } from './Level1StackChoice';
 export { Level2Model } from './Level2Model';
 export { Level3CRUD } from './Level3CRUD';
 export { Level4Controller } from './Level4Controller';
-export { Level8Associations } from './Level8Associations';
+export { Level7Associations } from './Level7Associations';

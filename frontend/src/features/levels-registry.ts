@@ -52,7 +52,7 @@ import { Level1StackChoice } from './act1-foundation/components/Level1StackChoic
 import { Level2Model } from './act1-foundation/components/Level2Model';
 import { Level3CRUD } from './act1-foundation/components/Level3CRUD';
 import { Level4Controller } from './act1-foundation/components/Level4Controller';
-import { Level8Associations as Level7Associations } from './act1-foundation/components/Level8Associations';
+import { Level7Associations } from './act1-foundation/components/Level7Associations';
 
 // Level component registry
 // Levels not listed here use the generic pipeline builder view
@@ -93,4 +93,4 @@ export { Level1StackChoice } from './act1-foundation/components/Level1StackChoic
 export { Level2Model } from './act1-foundation/components/Level2Model';
 export { Level3CRUD } from './act1-foundation/components/Level3CRUD';
 export { Level4Controller } from './act1-foundation/components/Level4Controller';
-export { Level8Associations as Level7Associations } from './act1-foundation/components/Level8Associations';
+export { Level7Associations } from './act1-foundation/components/Level7Associations';
