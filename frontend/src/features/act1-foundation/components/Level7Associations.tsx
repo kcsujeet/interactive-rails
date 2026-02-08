@@ -233,7 +233,7 @@ end
 					]}
 					scenario="Your blog needs comments! Each Post can have multiple Comments. But how do you tell Rails about this relationship?"
 				>
-					<NodePalette title="Available Components">
+					<NodePalette>
 						{!commentAdded ? (
 							<NodePaletteGroup title="Models">
 								<DraggableNode

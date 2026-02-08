@@ -11,6 +11,7 @@ interface DraggableNodeProps {
 	icon: string;
 	color: string;
 	disabled?: boolean;
+	isDragging?: boolean;
 	warning?: string;
 	benefit?: string;
 	onDragStart: (e: React.DragEvent, type: string) => void;
@@ -24,6 +25,7 @@ export function DraggableNode({
 	icon,
 	color,
 	disabled = false,
+	isDragging = false,
 	warning,
 	benefit,
 	onDragStart,
@@ -36,7 +38,9 @@ export function DraggableNode({
         ${
 					disabled
 						? 'bg-card/50 border-border opacity-50 cursor-not-allowed'
-						: 'bg-card border-border hover:border-primary cursor-grab active:cursor-grabbing'
+						: isDragging
+							? 'opacity-50 border-dashed cursor-grabbing'
+							: 'bg-card border-border hover:border-primary cursor-grab active:cursor-grabbing'
 				}
       `}
 			draggable={!disabled}
@@ -84,14 +88,17 @@ interface NodePaletteProps {
 }
 
 export function NodePalette({
-	title = 'Component Palette',
+	title = 'Pipeline Nodes',
 	children,
 }: NodePaletteProps) {
 	return (
 		<div className="p-4">
-			<h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+			<h3 className="text-sm font-semibold text-foreground mb-1">
 				{title}
 			</h3>
+			<p className="text-xs text-muted-foreground mb-3">
+				Drag components onto the canvas
+			</p>
 			{children}
 		</div>
 	);

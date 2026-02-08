@@ -5,9 +5,11 @@
  * Uses the shared LevelLayout shell for consistent chrome across all levels.
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { getActForLevel, getLevel } from '@/features/acts-registry';
+import { getLevelComponent } from '@/features/levels-registry';
 import { completeLevel as completeLevelProgress } from '@/lib/progress';
+import { generateCodeFiles, getLearningGoal } from '@/utils/codeGeneration';
 import {
 	type Connection,
 	type GameState,
@@ -18,11 +20,7 @@ import {
 	usePipelineSimulation,
 	usePipelineState,
 	usePipelineValidation,
-	type ValidationResult,
 } from '../game-barrel';
-import { NodePalette } from '../NodePalette';
-import { InspectorPanel } from '../InspectorPanel';
-import { CodePreviewPanel } from '../levels/CodePreviewPanel';
 import {
 	CenterPanel,
 	LeftPanel,
@@ -30,8 +28,8 @@ import {
 	LevelLayout,
 	RightPanel,
 } from '../levels';
-import { getLevelComponent } from '@/features/levels-registry';
-import { generateCodeFiles, getLearningGoal } from '@/utils/codeGeneration';
+import { CodePreviewPanel } from '../levels/CodePreviewPanel';
+import { NodePalette } from '../NodePalette';
 
 interface LevelPlayAppProps {
 	levelId: string;
@@ -42,11 +40,6 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 	const [gameState, setGameState] = useState<GameState>('playing');
 	const [stability] = useState(100);
 	const [levelData, setLevelData] = useState<LevelData | null>(null);
-	const [showValidation, setShowValidation] = useState(false);
-	const [lastValidation, setLastValidation] = useState<ValidationResult | null>(
-		null,
-	);
-	const [, setEarnedStars] = useState(0);
 
 	// Pipeline state hook
 	const pipelineState = usePipelineState();
@@ -225,33 +218,33 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 			});
 		}
 		setGameState('playing');
-		setShowValidation(false);
-		setLastValidation(null);
 	}
 
 	function exitLevel() {
 		window.location.href = `/acts/${act?.id || 1}/${levelId}`;
 	}
 
-	function checkPipeline() {
+	// Validate pipeline for LevelHeader's Submit button
+	const handleValidate = useCallback(() => {
 		const result = checkChallenge(liveMetrics);
-		setLastValidation(result);
-		setShowValidation(true);
-	}
+		if (result.valid) {
+			return {
+				valid: true,
+				message: `Pipeline valid! Score: ${result.score}`,
+			};
+		}
+		return {
+			valid: false,
+			message: 'Invalid Pipeline',
+			details: result.errors.slice(0, 4),
+		};
+	}, [checkChallenge, liveMetrics]);
 
-	function resetValidation() {
-		setShowValidation(false);
-		setLastValidation(null);
-	}
+	// Complete level via LevelHeader's Submit button
+	const handleComplete = useCallback(async () => {
+		const result = checkChallenge(liveMetrics);
+		const stars = result.score >= 80 ? 3 : result.score >= 50 ? 2 : 1;
 
-	// Reset validation when pipeline changes
-	useEffect(() => {
-		setShowValidation(false);
-		setLastValidation(null);
-	}, []);
-
-	async function completeLevel(stars: number) {
-		setEarnedStars(stars);
 		try {
 			// Scan for Stack Choices (Level 1)
 			const terminals = placedNodes.filter((n) => n.type === 'terminal');
@@ -263,14 +256,13 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 				| undefined;
 
 			if (terminals.length > 0) {
-				// Find what's connected to the terminal
 				const connectedIds = new Set<string>();
-				connections.forEach((c) => {
+				for (const c of connections) {
 					if (c.sourceNodeId === terminals[0].id)
 						connectedIds.add(c.targetNodeId);
 					if (c.targetNodeId === terminals[0].id)
 						connectedIds.add(c.sourceNodeId);
-				});
+				}
 
 				const connectedNodes = placedNodes.filter((n) =>
 					connectedIds.has(n.id),
@@ -284,11 +276,10 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 
 				if (dbChoice && feChoice) {
 					stackChoices = { database: dbChoice, frontend: feChoice };
-					console.log('Stack Choice Captured:', stackChoices);
 				}
 			}
 
-			const result = await completeLevelProgress({
+			const saveResult = await completeLevelProgress({
 				levelId,
 				stars,
 				finalStability: stability,
@@ -302,14 +293,21 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 				},
 			});
 
-			if (result.success) {
-				// Redirect to completion page
+			if (saveResult.success) {
 				window.location.href = `/acts/${act?.id || 1}/${levelId}/complete?stars=${stars}`;
 			}
 		} catch (err) {
 			console.error('Failed to save completion:', err);
 		}
-	}
+	}, [
+		checkChallenge,
+		liveMetrics,
+		placedNodes,
+		connections,
+		stability,
+		levelId,
+		act,
+	]);
 
 	if (loading) {
 		return (
@@ -369,14 +367,12 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 						breakReason={breakReason}
 						challenge={challenge}
 						draggedNodeType={draggedNodeType}
-						goal={levelData?.goal || challenge?.goal}
 						isPipelineBroken={isPipelineBroken}
 						liveMetrics={liveMetrics}
 						onDragEnd={handleDragEnd}
 						onDragStart={handleDragStart}
 						showMetrics={
-							!!challenge?.initialMetrics ||
-							(!!level && !!act?.metricsVisible)
+							!!challenge?.initialMetrics || (!!level && !!act?.metricsVisible)
 						}
 					/>
 				</LeftPanel>
@@ -386,8 +382,10 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 						actNumber={act?.id}
 						levelName={levelData?.name || ''}
 						levelNumber={level?.levelNumber || 0}
+						onComplete={handleComplete}
 						onExit={exitLevel}
 						onReset={initializeLevel}
+						onValidate={handleValidate}
 					/>
 
 					<div className="flex-1 relative flex flex-col">
@@ -411,7 +409,6 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 							placedNodes={placedNodes}
 							queryParticles={queryParticles}
 							selectedNodeId={selectedNodeId}
-							showValidation={showValidation}
 							simulationRunning={gameState === 'playing'}
 						/>
 
@@ -425,23 +422,7 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 				</CenterPanel>
 
 				<RightPanel>
-					{codeFiles.length > 0 && (
-						<CodePreviewPanel
-							files={codeFiles}
-							learningGoal={learningGoal}
-						/>
-					)}
-					<InspectorPanel
-						challenge={challenge}
-						connectionsCount={connections.length}
-						initialNodesCount={level?.startingPipeline.nodes.length}
-						lastValidation={lastValidation}
-						onCheckPipeline={checkPipeline}
-						onComplete={completeLevel}
-						onResetValidation={resetValidation}
-						placedNodes={placedNodes}
-						showValidation={showValidation}
-					/>
+					<CodePreviewPanel files={codeFiles} learningGoal={learningGoal} />
 				</RightPanel>
 			</LevelLayout>
 		);

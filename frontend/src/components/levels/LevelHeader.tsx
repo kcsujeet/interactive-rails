@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { HelpDialog } from './HelpDialog';
 import type { ValidateFn, ValidationResult } from './SubmitButton';
 
 interface LevelHeaderProps {
@@ -91,6 +92,8 @@ export function LevelHeader({
 				</div>
 
 				<div className="flex items-center gap-3">
+					<HelpDialog />
+
 					{onReset && (
 						<Button
 							className="text-muted-foreground hover:text-foreground text-sm flex items-center gap-2"
