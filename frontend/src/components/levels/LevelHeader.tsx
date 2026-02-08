@@ -13,6 +13,7 @@ interface LevelHeaderProps {
 	levelNumber: number;
 	levelName: string;
 	actNumber?: number;
+	subtitle?: string;
 	onExit: () => void;
 	onReset?: () => void;
 	onValidate?: ValidateFn;
@@ -23,6 +24,7 @@ export function LevelHeader({
 	levelNumber,
 	levelName,
 	actNumber = 1,
+	subtitle,
 	onExit,
 	onReset,
 	onValidate,
@@ -51,7 +53,7 @@ export function LevelHeader({
 
 	return (
 		<div className="relative">
-			<div className="h-14 border-b border-border flex items-center justify-between px-6 bg-card/50">
+			<div className="min-h-14 py-2 border-b border-border flex items-center justify-between px-6 bg-card/50">
 				<Button
 					className="text-muted-foreground hover:text-foreground text-sm flex items-center gap-2"
 					onClick={onExit}
@@ -78,7 +80,14 @@ export function LevelHeader({
 					<div className="text-xs text-primary font-medium tracking-wider">
 						ACT {actNumber} - LEVEL {levelNumber}
 					</div>
-					<div className="text-lg font-bold text-foreground">{levelName}</div>
+					<div className="text-lg font-bold text-foreground leading-tight">
+						{levelName}
+					</div>
+					{subtitle && (
+						<div className="text-xs text-muted-foreground">
+							{subtitle}
+						</div>
+					)}
 				</div>
 
 				<div className="flex items-center gap-3">
@@ -134,7 +143,7 @@ export function LevelHeader({
 
 			{/* Feedback dropdown */}
 			{showFeedback && lastResult && !lastResult.valid && (
-				<div className="absolute top-14 right-6 z-50 w-80 animate-slideDown">
+				<div className="absolute top-full right-6 z-50 w-80 animate-slideDown">
 					<div className="bg-card border border-destructive/50 rounded-lg shadow-xl p-4 mt-2">
 						<div className="text-destructive text-sm font-medium flex items-center gap-2">
 							<svg
@@ -186,7 +195,7 @@ export function LevelHeader({
 
 			{/* Success feedback */}
 			{showFeedback && lastResult?.valid && (
-				<div className="absolute top-14 right-6 z-50 w-72 animate-slideDown">
+				<div className="absolute top-full right-6 z-50 w-72 animate-slideDown">
 					<div className="bg-card border border-success/50 rounded-lg shadow-xl p-4 mt-2">
 						<div className="text-success text-sm font-medium flex items-center gap-2">
 							<svg

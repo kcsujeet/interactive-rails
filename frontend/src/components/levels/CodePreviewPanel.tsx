@@ -25,54 +25,51 @@ export function CodePreviewPanel({
 	children,
 }: CodePreviewPanelProps) {
 	return (
-		<div className="flex flex-col h-full overflow-hidden">
-			{/* Code Files */}
-			<div className="flex-1 overflow-y-auto p-4 space-y-4">
-				<h3 className="text-sm font-semibold text-foreground">
-					Generated Rails Code
-				</h3>
+		<div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+			<h3 className="text-sm font-semibold text-foreground">
+				Generated Rails Code
+			</h3>
 
-				{files.map((file, index) => (
-					<div
-						className="bg-background rounded-lg border border-border overflow-hidden"
-						key={index}
-					>
-						{/* File header */}
-						<div className="flex items-center gap-2 px-3 py-2 bg-card border-b border-border">
-							<div className="flex gap-1.5">
-								<div className="w-3 h-3 rounded-full bg-destructive" />
-								<div className="w-3 h-3 rounded-full bg-warning" />
-								<div className="w-3 h-3 rounded-full bg-success" />
-							</div>
-							<span className="text-xs text-muted-foreground ml-2 font-mono">
-								{file.filename}
-							</span>
+			{files.map((file, index) => (
+				<div
+					className="bg-background rounded-lg border border-border overflow-hidden"
+					key={index}
+				>
+					{/* File header */}
+					<div className="flex items-center gap-2 px-3 py-2 bg-card border-b border-border">
+						<div className="flex gap-1.5">
+							<div className="w-3 h-3 rounded-full bg-destructive" />
+							<div className="w-3 h-3 rounded-full bg-warning" />
+							<div className="w-3 h-3 rounded-full bg-success" />
 						</div>
-
-						{/* Code content */}
-						<pre className="p-3 text-sm font-mono overflow-x-auto">
-							{file.code.split('\n').map((line, lineIndex) => {
-								const isHighlighted = file.highlight?.includes(lineIndex + 1);
-								return (
-									<div
-										className={`${isHighlighted ? 'bg-primary/10 -mx-3 px-3' : ''}`}
-										key={lineIndex}
-									>
-										<span className="text-muted-foreground select-none w-8 inline-block text-right mr-4">
-											{lineIndex + 1}
-										</span>
-										<CodeLine code={line} language={file.language} />
-									</div>
-								);
-							})}
-						</pre>
+						<span className="text-xs text-muted-foreground ml-2 font-mono">
+							{file.filename}
+						</span>
 					</div>
-				))}
-			</div>
+
+					{/* Code content */}
+					<pre className="p-3 text-sm font-mono overflow-x-auto">
+						{file.code.split('\n').map((line, lineIndex) => {
+							const isHighlighted = file.highlight?.includes(lineIndex + 1);
+							return (
+								<div
+									className={`${isHighlighted ? 'bg-primary/10 -mx-3 px-3' : ''}`}
+									key={lineIndex}
+								>
+									<span className="text-muted-foreground select-none w-8 inline-block text-right mr-4">
+										{lineIndex + 1}
+									</span>
+									<CodeLine code={line} language={file.language} />
+								</div>
+							);
+						})}
+					</pre>
+				</div>
+			))}
 
 			{/* Learning Goal */}
 			{learningGoal && (
-				<div className="p-4 border-t border-border">
+				<div className="bg-success/5 border border-success/20 rounded-lg p-4">
 					<div className="text-xs font-semibold text-success uppercase tracking-wider mb-2">
 						Learning Goal
 					</div>
