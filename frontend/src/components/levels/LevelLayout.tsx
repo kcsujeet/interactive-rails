@@ -6,18 +6,13 @@
  */
 
 import type { ReactNode } from 'react';
-import { LevelHelpProvider } from './LevelHelpContext';
 
 interface LevelLayoutProps {
 	children: ReactNode;
 }
 
 export function LevelLayout({ children }: LevelLayoutProps) {
-	return (
-		<LevelHelpProvider>
-			<div className="h-full flex bg-background">{children}</div>
-		</LevelHelpProvider>
-	);
+	return <div className="h-full flex bg-background">{children}</div>;
 }
 
 interface LeftPanelProps {

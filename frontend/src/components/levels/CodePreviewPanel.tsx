@@ -19,21 +19,17 @@ interface CodePreviewPanelProps {
 	children?: ReactNode; // For additional content below code
 }
 
-export function CodePreviewPanel({
-	files,
-	learningGoal,
-	children,
-}: CodePreviewPanelProps) {
+export function CodePreviewPanel({ files, children }: CodePreviewPanelProps) {
 	return (
 		<div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
 			<h3 className="text-sm font-semibold text-foreground">
 				Generated Rails Code
 			</h3>
 
-			{files.map((file, index) => (
+			{files.map((file) => (
 				<div
 					className="bg-background rounded-lg border border-border overflow-hidden"
-					key={index}
+					key={file.filename}
 				>
 					{/* File header */}
 					<div className="flex items-center gap-2 px-3 py-2 bg-card border-b border-border">
@@ -51,10 +47,11 @@ export function CodePreviewPanel({
 					<pre className="p-3 text-sm font-mono overflow-x-auto">
 						{file.code.split('\n').map((line, lineIndex) => {
 							const isHighlighted = file.highlight?.includes(lineIndex + 1);
+							const lineKey = `${lineIndex}-${line.length}`;
 							return (
 								<div
 									className={`${isHighlighted ? 'bg-primary/10 -mx-3 px-3' : ''}`}
-									key={lineIndex}
+									key={lineKey}
 								>
 									<span className="text-muted-foreground select-none w-8 inline-block text-right mr-4">
 										{lineIndex + 1}
@@ -66,16 +63,6 @@ export function CodePreviewPanel({
 					</pre>
 				</div>
 			))}
-
-			{/* Learning Goal */}
-			{learningGoal && (
-				<div className="bg-success/5 border border-success/20 rounded-lg p-4">
-					<div className="text-xs font-semibold text-success uppercase tracking-wider mb-2">
-						Learning Goal
-					</div>
-					<p className="text-sm text-muted-foreground">{learningGoal}</p>
-				</div>
-			)}
 
 			{/* Additional content */}
 			{children}
@@ -94,7 +81,7 @@ function CodeLine({ code, language }: { code: string; language: string }) {
 	return (
 		<>
 			{tokens.map((token, i) => (
-				<span className={token.className} key={i}>
+				<span className={token.className} key={`${i}-${token.text}`}>
 					{token.text}
 				</span>
 			))}

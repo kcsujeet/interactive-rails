@@ -2,7 +2,7 @@
  * Help Dialog Component
  *
  * "?" button that opens a dialog with level-specific scenario/instructions
- * (from context) and generic pipeline connection tips.
+ * (passed as props) and generic pipeline connection tips.
  */
 
 import {
@@ -22,11 +22,13 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from '@/components/ui/dialog';
-import { useLevelHelp } from './LevelHelpContext';
 
-export function HelpDialog() {
-	const { scenario, instructions } = useLevelHelp();
+interface HelpDialogProps {
+	scenario?: string;
+	instructions?: string[];
+}
 
+export function HelpDialog({ scenario, instructions }: HelpDialogProps) {
 	return (
 		<Dialog>
 			<DialogTrigger asChild>
@@ -66,7 +68,7 @@ export function HelpDialog() {
 								Instructions
 							</h4>
 							<ol className="text-sm text-muted-foreground space-y-1.5 ml-6 list-decimal list-inside">
-								{instructions.map((instruction, i) => (
+								{instructions.map((instruction) => (
 									<li key={instruction}>{instruction}</li>
 								))}
 							</ol>
@@ -119,7 +121,10 @@ export function HelpDialog() {
 						<ul className="text-sm text-muted-foreground space-y-1.5 ml-6">
 							<li>Use the Reset button to restore the initial pipeline</li>
 							<li>Submit your solution when the pipeline is complete</li>
-							<li>Watch the live metrics to see how your changes affect performance</li>
+							<li>
+								Watch the live metrics to see how your changes affect
+								performance
+							</li>
 						</ul>
 					</section>
 				</div>

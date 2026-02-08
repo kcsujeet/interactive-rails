@@ -1,31 +1,20 @@
 /**
  * Instruction Panel Component
  *
- * Passes scenario/instructions to the HelpDialog via context.
- * Renders only children (node palette, etc.) in the left panel.
+ * Simple wrapper for the left panel content in custom levels.
+ * Scenario/instructions are now shown via the Help dialog in the header.
  */
 
-import { useEffect, type ReactNode } from 'react';
-import { useLevelHelp } from './LevelHelpContext';
+import type { ReactNode } from 'react';
 
 interface InstructionPanelProps {
-	scenario: string;
-	instructions: string[];
+	scenario?: string;
+	instructions?: string[];
 	goal?: string;
 	children?: ReactNode;
 }
 
-export function InstructionPanel({
-	scenario,
-	instructions,
-	children,
-}: InstructionPanelProps) {
-	const { setHelp } = useLevelHelp();
-
-	useEffect(() => {
-		setHelp({ scenario, instructions });
-	}, [scenario, instructions, setHelp]);
-
+export function InstructionPanel({ children }: InstructionPanelProps) {
 	return (
 		<div className="flex flex-col h-full overflow-hidden">
 			{children && <div className="flex-1 overflow-y-auto">{children}</div>}
