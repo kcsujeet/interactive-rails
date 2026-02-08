@@ -306,15 +306,6 @@ export function PipelineCanvas({
 				</div>
 			)}
 
-			{/* Drop indicator */}
-			{draggedNodeType && (
-				<div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-					<div className="text-center bg-primary/20 px-8 py-5 rounded-lg border border-primary/50">
-						<p className="text-primary font-medium">Drop here to place node</p>
-					</div>
-				</div>
-			)}
-
 			{/* Level-specific children (overlays, modals, completion buttons) */}
 			{children}
 		</div>

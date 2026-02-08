@@ -49,7 +49,7 @@ const PROVIDERS = [
 		id: 's3',
 		name: 'Amazon S3',
 		icon: '☁️',
-		description: 'Most popular choice',
+		description: 'Cloud object storage',
 		pros: ['Scalable', 'Cheap storage', 'Global CDN'],
 		cons: ['AWS lock-in', 'Complex pricing'],
 	},

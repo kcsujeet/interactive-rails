@@ -430,13 +430,11 @@ export function Level30ConnectionPooling({
 										</div>
 									</div>
 									<div>
-										<div
-											className={`text-2xl font-bold ${config.size >= Math.ceil(concurrentRequests / 5) * 5 ? 'text-success' : 'text-destructive'}`}
-										>
-											{Math.ceil(concurrentRequests / 5) * 5}
+										<div className="text-2xl font-bold text-foreground">
+											?
 										</div>
 										<div className="text-xs text-muted-foreground">
-											Recommended pool
+											Pool size
 										</div>
 									</div>
 								</div>

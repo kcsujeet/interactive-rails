@@ -525,7 +525,7 @@ SendEmailJob.perform_later(user.id)
 							Job Runners
 						</div>
 						<ul className="text-xs text-muted-foreground space-y-1">
-							<li>• Sidekiq - Most popular, Redis</li>
+							<li>• Sidekiq - Redis-backed</li>
 							<li>• Solid Queue - Rails 8 default</li>
 							<li>• Good Job - Postgres-backed</li>
 							<li>• Delayed Job - Classic, simple</li>

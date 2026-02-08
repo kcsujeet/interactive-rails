@@ -320,49 +320,30 @@ end
 										{
 											value: 'has_one',
 											label: 'has_one',
-											preview: 'Only ONE comment per post',
 											consequence: 'Limits posts to a single comment',
-											correct: false,
 										},
 										{
 											value: 'has_many',
 											label: 'has_many',
-											preview: 'ALL comments for a post',
 											consequence: 'Posts can have unlimited comments',
-											correct: true,
 										},
 										{
 											value: 'has_and_belongs_to_many',
 											label: 'has_and_belongs_to_many',
-											preview: 'Comments shared between posts',
-											consequence: 'Creates many-to-many relationship',
-											correct: false,
+											consequence:
+												'Comments are shared between posts via a join table',
 										},
 									].map((option) => (
 										<Button
-											className={`w-full p-4 h-auto rounded-lg text-left transition-all ${
-												option.correct
-													? 'border-border hover:border-success hover:bg-success/10'
-													: 'border-border hover:border-muted-foreground hover:bg-secondary'
-											}`}
+											className="w-full p-4 h-auto rounded-lg text-left transition-all border-border hover:border-primary hover:bg-primary/5"
 											key={option.value}
 											onClick={() => handleRelationshipChoice(option.value)}
 											variant="outline"
 										>
 											<div className="w-full">
-												<div className="flex items-center justify-between mb-1">
-													<span className="font-mono text-primary">
-														{option.label}
-													</span>
-													{option.correct && (
-														<span className="text-xs text-success bg-success/20 px-2 py-0.5 rounded">
-															Recommended
-														</span>
-													)}
-												</div>
-												<div className="text-sm text-foreground">
-													{option.preview}
-												</div>
+												<span className="font-mono text-primary">
+													{option.label}
+												</span>
 												<div className="text-xs text-muted-foreground mt-1">
 													{option.consequence}
 												</div>
