@@ -1347,7 +1347,7 @@ const level36APIVersioning: Level = {
 			{ id: 'c3', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
 			{ id: 'c4', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
 			{ id: 'c5', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-			{ id: 'c6', sourceNodeId: 'controller-node', targetNodeId: 'response-node' },
+			{ id: 'c6', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
 		],
 	},
 	problem: {

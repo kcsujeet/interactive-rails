@@ -37,7 +37,7 @@ const level37Middleware: Level = {
 			{ id: 'c2', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
 			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
 			{ id: 'c4', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-			{ id: 'c5', sourceNodeId: 'controller-node', targetNodeId: 'response-node' },
+			{ id: 'c5', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
 		],
 	},
 	problem: {
@@ -242,7 +242,7 @@ const level38RateLimiting: Level = {
 			{ id: 'c3', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
 			{ id: 'c4', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
 			{ id: 'c5', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-			{ id: 'c6', sourceNodeId: 'controller-node', targetNodeId: 'response-node' },
+			{ id: 'c6', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
 		],
 	},
 	problem: {
@@ -466,7 +466,7 @@ const level39SoftDeletes: Level = {
 			{ id: 'c2', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
 			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
 			{ id: 'c4', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-			{ id: 'c5', sourceNodeId: 'controller-node', targetNodeId: 'response-node' },
+			{ id: 'c5', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
 		],
 	},
 	problem: {
@@ -729,7 +729,7 @@ const level40SafeMigrations: Level = {
 			{ id: 'c2', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
 			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
 			{ id: 'c4', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-			{ id: 'c5', sourceNodeId: 'controller-node', targetNodeId: 'response-node' },
+			{ id: 'c5', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
 		],
 	},
 	problem: {
@@ -1244,7 +1244,7 @@ const level42ErrorMonitoring: Level = {
 			{ id: 'c3', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
 			{ id: 'c4', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
 			{ id: 'c5', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-			{ id: 'c6', sourceNodeId: 'controller-node', targetNodeId: 'response-node' },
+			{ id: 'c6', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
 		],
 	},
 	problem: {

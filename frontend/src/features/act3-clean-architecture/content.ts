@@ -38,7 +38,7 @@ const level15ServiceObjects: Level = {
 			{ id: 'c2', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
 			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
 			{ id: 'c4', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-			{ id: 'c5', sourceNodeId: 'controller-node', targetNodeId: 'response-node' },
+			{ id: 'c5', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
 		],
 	},
 	problem: {
@@ -1195,7 +1195,7 @@ const level20ActionMailer: Level = {
 			{ id: 'c2', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
 			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'user-model' },
 			{ id: 'c4', sourceNodeId: 'user-model', targetNodeId: 'database-node' },
-			{ id: 'c5', sourceNodeId: 'controller-node', targetNodeId: 'response-node' },
+			{ id: 'c5', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
 		],
 	},
 	problem: {
@@ -1457,7 +1457,7 @@ const level21BackgroundJobs: Level = {
 			{ id: 'c4', sourceNodeId: 'service-node', targetNodeId: 'user-model' },
 			{ id: 'c5', sourceNodeId: 'service-node', targetNodeId: 'mailer-node' },
 			{ id: 'c6', sourceNodeId: 'user-model', targetNodeId: 'database-node' },
-			{ id: 'c7', sourceNodeId: 'controller-node', targetNodeId: 'response-node' },
+			{ id: 'c7', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
 		],
 	},
 	problem: {
