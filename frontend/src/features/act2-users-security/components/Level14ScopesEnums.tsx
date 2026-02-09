@@ -6,10 +6,8 @@
  * Teaches: Rails 8 enum syntax, named scopes, chaining, query interface
  */
 
-import { useState } from 'react';
 import { Check, Filter, Hash, List } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import { useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -21,6 +19,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 interface QueryBlock {
 	id: string;
@@ -224,8 +224,7 @@ end
 							{AVAILABLE_SCOPES.map((scope) => {
 								const isUsed = queries.some((q) => q.scopeName === scope);
 								const isCorrect = queries.some(
-									(q) =>
-										q.scopeName === scope && q.correctScope === scope,
+									(q) => q.scopeName === scope && q.correctScope === scope,
 								);
 								return (
 									<Button
@@ -342,8 +341,7 @@ end
 						{queries.map((query) => {
 							const isScoped = query.scopeName === query.correctScope;
 							const hasWrongScope =
-								query.scopeName &&
-								query.scopeName !== query.correctScope;
+								query.scopeName && query.scopeName !== query.correctScope;
 
 							return (
 								<button
@@ -357,9 +355,7 @@ end
 													: 'border-border bg-card hover:border-muted-foreground'
 									}`}
 									key={query.id}
-									onClick={() =>
-										!isScoped && setSelectedQuery(query.id)
-									}
+									onClick={() => !isScoped && setSelectedQuery(query.id)}
 									type="button"
 								>
 									<div className="flex items-center justify-between mb-2">
@@ -407,9 +403,7 @@ end
 													}
 												>
 													Post.{query.scopeName}
-													{query.id === 'by_author'
-														? '(current_user)'
-														: ''}
+													{query.id === 'by_author' ? '(current_user)' : ''}
 												</code>
 											) : (
 												<span className="text-muted-foreground text-sm">
@@ -454,16 +448,13 @@ end
 							filename: 'app/models/post.rb',
 							language: 'ruby',
 							code: generateModelCode(),
-							highlight: enumAdded
-								? [4, 5, 6, 7, 8, 9]
-								: [],
+							highlight: enumAdded ? [4, 5, 6, 7, 8, 9] : [],
 						},
 						{
 							filename: 'app/controllers/api/v1/posts_controller.rb',
 							language: 'ruby',
 							code: generateControllerCode(),
-							highlight:
-								scopedQueries.length >= 2 ? [4, 5, 6] : [],
+							highlight: scopedQueries.length >= 2 ? [4, 5, 6] : [],
 						},
 					]}
 				>

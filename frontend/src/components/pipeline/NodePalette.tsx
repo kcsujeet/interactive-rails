@@ -6,21 +6,21 @@
  */
 
 import clsx from 'clsx';
-import { type DragEvent, memo, useCallback, type ReactNode } from 'react';
-import type { NodeType } from "@/stores";
-import { selectNodeUnlockLevel, useGameStore } from "@/stores";
 import {
-	Zap,
-	GitBranch,
-	Settings,
-	Package,
-	Database,
-	HardDrive,
-	Eye,
 	CheckCircle,
 	Clock,
+	Database,
+	Eye,
+	GitBranch,
+	HardDrive,
 	Lock,
+	Package,
+	Settings,
+	Zap,
 } from 'lucide-react';
+import { type DragEvent, memo, type ReactNode, useCallback } from 'react';
+import type { NodeType } from '@/stores';
+import { selectNodeUnlockLevel, useGameStore } from '@/stores';
 
 interface NodeDefinition {
 	type: NodeType;

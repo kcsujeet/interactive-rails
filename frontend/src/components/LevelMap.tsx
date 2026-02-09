@@ -1,7 +1,7 @@
 // Level map showing room grid with progress
 
 import { Fragment } from 'react';
-import type { BossRoom, Level, Room } from "@/types/level";
+import type { BossRoom, Level, Room } from '@/types/level';
 import { Button } from './ui/Button';
 
 interface LevelMapProps {

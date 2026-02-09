@@ -89,12 +89,18 @@ function evaluateCondition(
 			}
 
 			if (!reachable.has(resNode.id)) {
-				return { passed: false, message: 'No complete path from Request to Response' };
+				return {
+					passed: false,
+					message: 'No complete path from Request to Response',
+				};
 			}
 
 			const disconnected = placedNodes.filter((n) => !reachable.has(n.id));
 			if (disconnected.length > 0) {
-				return { passed: false, message: 'All nodes must be connected in the pipeline' };
+				return {
+					passed: false,
+					message: 'All nodes must be connected in the pipeline',
+				};
 			}
 
 			return { passed: true, message: '' };
@@ -113,7 +119,11 @@ function node(id: string, type: string): PlacedNode {
 }
 
 function conn(sourceNodeId: string, targetNodeId: string): Connection {
-	return { id: `c-${sourceNodeId}-${targetNodeId}`, sourceNodeId, targetNodeId };
+	return {
+		id: `c-${sourceNodeId}-${targetNodeId}`,
+		sourceNodeId,
+		targetNodeId,
+	};
 }
 
 // ============================================
@@ -124,20 +134,32 @@ describe('evaluateCondition', () => {
 	describe('node_present', () => {
 		test('passes when node type exists', () => {
 			const nodes = [node('r', 'router')];
-			const result = evaluateCondition({ type: 'node_present', nodeType: 'router' }, nodes, []);
+			const result = evaluateCondition(
+				{ type: 'node_present', nodeType: 'router' },
+				nodes,
+				[],
+			);
 			expect(result.passed).toBe(true);
 			expect(result.message).toBe('');
 		});
 
 		test('fails when node type is missing', () => {
 			const nodes = [node('c', 'controller')];
-			const result = evaluateCondition({ type: 'node_present', nodeType: 'router' }, nodes, []);
+			const result = evaluateCondition(
+				{ type: 'node_present', nodeType: 'router' },
+				nodes,
+				[],
+			);
 			expect(result.passed).toBe(false);
 			expect(result.message).toContain('router');
 		});
 
 		test('fails with empty nodes', () => {
-			const result = evaluateCondition({ type: 'node_present', nodeType: 'router' }, [], []);
+			const result = evaluateCondition(
+				{ type: 'node_present', nodeType: 'router' },
+				[],
+				[],
+			);
 			expect(result.passed).toBe(false);
 		});
 	});
@@ -145,14 +167,22 @@ describe('evaluateCondition', () => {
 	describe('node_absent', () => {
 		test('passes when node type is missing', () => {
 			const nodes = [node('c', 'controller')];
-			const result = evaluateCondition({ type: 'node_absent', nodeType: 'cache' }, nodes, []);
+			const result = evaluateCondition(
+				{ type: 'node_absent', nodeType: 'cache' },
+				nodes,
+				[],
+			);
 			expect(result.passed).toBe(true);
 			expect(result.message).toBe('');
 		});
 
 		test('fails when node type exists', () => {
 			const nodes = [node('c', 'cache')];
-			const result = evaluateCondition({ type: 'node_absent', nodeType: 'cache' }, nodes, []);
+			const result = evaluateCondition(
+				{ type: 'node_absent', nodeType: 'cache' },
+				nodes,
+				[],
+			);
 			expect(result.passed).toBe(false);
 			expect(result.message).toContain('Remove');
 		});
@@ -194,7 +224,11 @@ describe('evaluateCondition', () => {
 		});
 
 		test('fails when connection exists but between wrong node types', () => {
-			const nodes = [node('req', 'request'), node('rtr', 'router'), node('ctrl', 'controller')];
+			const nodes = [
+				node('req', 'request'),
+				node('rtr', 'router'),
+				node('ctrl', 'controller'),
+			];
 			const connections = [conn('req', 'ctrl')]; // request→controller, not request→router
 			const result = evaluateCondition(
 				{ type: 'connection', sourceType: 'request', targetType: 'router' },
@@ -267,10 +301,7 @@ describe('evaluateCondition', () => {
 				node('res', 'response'),
 			];
 			// router is not connected — req→ctrl→res, router floats
-			const connections = [
-				conn('req', 'ctrl'),
-				conn('ctrl', 'res'),
-			];
+			const connections = [conn('req', 'ctrl'), conn('ctrl', 'res')];
 			const result = evaluateCondition(condition, nodes, connections);
 			expect(result.passed).toBe(false);
 			expect(result.message).toContain('All nodes must be connected');
@@ -284,10 +315,7 @@ describe('evaluateCondition', () => {
 				node('res', 'response'),
 			];
 			// req→rtr→ctrl, but ctrl not connected to res
-			const connections = [
-				conn('req', 'rtr'),
-				conn('rtr', 'ctrl'),
-			];
+			const connections = [conn('req', 'rtr'), conn('rtr', 'ctrl')];
 			const result = evaluateCondition(condition, nodes, connections);
 			expect(result.passed).toBe(false);
 			expect(result.message).toContain('No complete path');

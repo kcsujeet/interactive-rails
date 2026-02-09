@@ -3,8 +3,8 @@
  * Header with level info and controls
  */
 
-import { Button } from './ui/Button';
 import type { GameState, LevelData } from '@/types/game';
+import { Button } from './ui/Button';
 
 interface GameTopBarProps {
 	level: LevelData | null;

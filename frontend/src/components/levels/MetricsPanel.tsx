@@ -30,9 +30,7 @@ export function MetricsPanel({
 					isPipelineBroken ? 'text-muted-foreground' : 'text-primary'
 				}`}
 			>
-				{isPipelineBroken
-					? `Pipeline Broken - ${breakReason}`
-					: 'Live Metrics'}
+				{isPipelineBroken ? `Pipeline Broken - ${breakReason}` : 'Live Metrics'}
 			</div>
 
 			<div className="mb-3">

@@ -8,7 +8,7 @@
 import { Handle, Position } from '@xyflow/react';
 import clsx from 'clsx';
 import { memo, type ReactNode } from 'react';
-import type { PipelineNodeData } from "@/stores";
+import type { PipelineNodeData } from '@/stores';
 
 interface BaseNodeProps {
 	data: PipelineNodeData;

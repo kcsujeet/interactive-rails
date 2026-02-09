@@ -5,7 +5,6 @@
  * Player observes the COUNT(*) explosion, adds a counter cache, then sees queries drop to one.
  */
 
-import { useEffect, useRef, useState } from 'react';
 import {
 	ArrowDown,
 	ArrowRight,
@@ -16,8 +15,7 @@ import {
 	TrendingDown,
 	Zap,
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import { useEffect, useRef, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -29,6 +27,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 type Step = 'before' | 'adding' | 'after';
 
@@ -52,7 +52,10 @@ const AFTER_QUERIES: QueryLogEntry[] = [
 const STEP_LABELS = ['Observe', 'Add Column', 'Enable', 'Verify'] as const;
 const TOTAL_BEFORE_TIME = BEFORE_QUERIES.reduce((s, q) => s + q.time, 0);
 
-export function Level25CounterCaches({ onComplete, onExit }: LevelComponentProps) {
+export function Level25CounterCaches({
+	onComplete,
+	onExit,
+}: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [counterCacheEnabled, setCounterCacheEnabled] = useState(false);
 	const [isSimulating, setIsSimulating] = useState(false);
@@ -66,7 +69,8 @@ export function Level25CounterCaches({ onComplete, onExit }: LevelComponentProps
 	const logRef = useRef<HTMLDivElement>(null);
 	const simulationRef = useRef<number | null>(null);
 
-	const stepIndex = step === 'before' ? (viewedBefore ? 1 : 0) : step === 'adding' ? 2 : 3;
+	const stepIndex =
+		step === 'before' ? (viewedBefore ? 1 : 0) : step === 'adding' ? 2 : 3;
 
 	// Auto-scroll the query log
 	useEffect(() => {
@@ -75,7 +79,9 @@ export function Level25CounterCaches({ onComplete, onExit }: LevelComponentProps
 
 	// Cleanup on unmount
 	useEffect(() => {
-		return () => { if (simulationRef.current) clearInterval(simulationRef.current); };
+		return () => {
+			if (simulationRef.current) clearInterval(simulationRef.current);
+		};
 	}, []);
 
 	const runBeforeSimulation = () => {
@@ -149,11 +155,16 @@ export function Level25CounterCaches({ onComplete, onExit }: LevelComponentProps
 				details: ['Click "Add Counter Cache" to apply the optimization'],
 			};
 		}
-		return { valid: true, message: 'Counter cache eliminates N COUNT queries!' };
+		return {
+			valid: true,
+			message: 'Counter cache eliminates N COUNT queries!',
+		};
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act4-level25-counter-caches', { stars: 3 });
+		const success = await completeLevel('act4-level25-counter-caches', {
+			stars: 3,
+		});
 		if (success) onComplete({ stars: 3 });
 	};
 
@@ -171,9 +182,17 @@ export function Level25CounterCaches({ onComplete, onExit }: LevelComponentProps
 	};
 
 	const qColor = (n: number) =>
-		n === 0 ? 'text-muted-foreground' : n <= 1 ? 'text-success' : 'text-destructive';
+		n === 0
+			? 'text-muted-foreground'
+			: n <= 1
+				? 'text-success'
+				: 'text-destructive';
 	const tColor = (t: number) =>
-		t === 0 ? 'text-muted-foreground' : t <= 2 ? 'text-success' : 'text-destructive';
+		t === 0
+			? 'text-muted-foreground'
+			: t <= 2
+				? 'text-success'
+				: 'text-destructive';
 
 	return (
 		<LevelLayout>
@@ -196,17 +215,26 @@ export function Level25CounterCaches({ onComplete, onExit }: LevelComponentProps
 						<div className="space-y-2">
 							{STEP_LABELS.map((label, i) => (
 								<div className="flex items-center gap-2" key={label}>
-									<div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-										i < stepIndex ? 'bg-success text-success-foreground'
-											: i === stepIndex ? 'bg-primary text-primary-foreground'
-												: 'bg-secondary text-muted-foreground'
-									}`}>
+									<div
+										className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+											i < stepIndex
+												? 'bg-success text-success-foreground'
+												: i === stepIndex
+													? 'bg-primary text-primary-foreground'
+													: 'bg-secondary text-muted-foreground'
+										}`}
+									>
 										{i < stepIndex ? <Check className="w-3 h-3" /> : i + 1}
 									</div>
-									<span className={`text-sm ${
-										i === stepIndex ? 'text-foreground font-medium'
-											: i < stepIndex ? 'text-success' : 'text-muted-foreground'
-									}`}>
+									<span
+										className={`text-sm ${
+											i === stepIndex
+												? 'text-foreground font-medium'
+												: i < stepIndex
+													? 'text-success'
+													: 'text-muted-foreground'
+										}`}
+									>
 										{label}
 									</span>
 									{i < STEP_LABELS.length - 1 && (
@@ -228,7 +256,9 @@ export function Level25CounterCaches({ onComplete, onExit }: LevelComponentProps
 									<Database className="w-4 h-4" />
 									<span>Queries</span>
 								</div>
-								<span className={`text-sm font-bold ${qColor(queryCount)}`}>{queryCount}</span>
+								<span className={`text-sm font-bold ${qColor(queryCount)}`}>
+									{queryCount}
+								</span>
 							</div>
 							<div className="flex items-center justify-between">
 								<div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -251,19 +281,25 @@ export function Level25CounterCaches({ onComplete, onExit }: LevelComponentProps
 							</div>
 							<div className="grid grid-cols-2 gap-3">
 								<div className="bg-destructive/10 rounded-lg p-3 text-center">
-									<div className="text-xs text-muted-foreground mb-1">Before</div>
+									<div className="text-xs text-muted-foreground mb-1">
+										Before
+									</div>
 									<div className="text-lg font-bold text-destructive">101</div>
 									<div className="text-xs text-muted-foreground">queries</div>
 								</div>
 								<div className="bg-success/10 rounded-lg p-3 text-center">
-									<div className="text-xs text-muted-foreground mb-1">After</div>
+									<div className="text-xs text-muted-foreground mb-1">
+										After
+									</div>
 									<div className="text-lg font-bold text-success">1</div>
 									<div className="text-xs text-muted-foreground">query</div>
 								</div>
 							</div>
 							<div className="grid grid-cols-2 gap-3 mt-2">
 								<div className="bg-destructive/10 rounded-lg p-3 text-center">
-									<div className="text-lg font-bold text-destructive">{TOTAL_BEFORE_TIME.toFixed(1)}ms</div>
+									<div className="text-lg font-bold text-destructive">
+										{TOTAL_BEFORE_TIME.toFixed(1)}ms
+									</div>
 								</div>
 								<div className="bg-success/10 rounded-lg p-3 text-center">
 									<div className="text-lg font-bold text-success">1.2ms</div>
@@ -291,22 +327,31 @@ export function Level25CounterCaches({ onComplete, onExit }: LevelComponentProps
 						<div className="flex gap-1 mb-6 bg-secondary rounded-lg p-1">
 							<button
 								className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-									activeTab === 'before' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+									activeTab === 'before'
+										? 'bg-card text-foreground shadow-sm'
+										: 'text-muted-foreground hover:text-foreground'
 								}`}
 								onClick={() => {
 									setActiveTab('before');
-									if (step === 'after') { setVisibleQueries([]); setQueryCount(0); setSimulationTime(0); }
+									if (step === 'after') {
+										setVisibleQueries([]);
+										setQueryCount(0);
+										setSimulationTime(0);
+									}
 								}}
 								type="button"
 							>
 								<div className="flex items-center justify-center gap-2">
-									<Database className="w-4 h-4" />Before
+									<Database className="w-4 h-4" />
+									Before
 								</div>
 							</button>
 							<button
 								className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-									activeTab === 'after' ? 'bg-card text-foreground shadow-sm'
-										: counterCacheEnabled ? 'text-muted-foreground hover:text-foreground'
+									activeTab === 'after'
+										? 'bg-card text-foreground shadow-sm'
+										: counterCacheEnabled
+											? 'text-muted-foreground hover:text-foreground'
 											: 'text-muted-foreground/50 cursor-not-allowed'
 								}`}
 								disabled={!counterCacheEnabled}
@@ -320,8 +365,11 @@ export function Level25CounterCaches({ onComplete, onExit }: LevelComponentProps
 								type="button"
 							>
 								<div className="flex items-center justify-center gap-2">
-									<Zap className="w-4 h-4" />After
-									{!counterCacheEnabled && <span className="text-xs opacity-50">(locked)</span>}
+									<Zap className="w-4 h-4" />
+									After
+									{!counterCacheEnabled && (
+										<span className="text-xs opacity-50">(locked)</span>
+									)}
 								</div>
 							</button>
 						</div>
@@ -331,14 +379,19 @@ export function Level25CounterCaches({ onComplete, onExit }: LevelComponentProps
 							<div className="bg-card rounded-xl border border-primary overflow-hidden mb-6 animate-in fade-in duration-300">
 								<div className="bg-primary/10 px-4 py-3 border-b border-primary/30">
 									<div className="flex items-center gap-2 text-primary font-semibold">
-										<Hash className="w-4 h-4" />Running Migration...
+										<Hash className="w-4 h-4" />
+										Running Migration...
 									</div>
 								</div>
 								<div className="p-6">
 									<pre className="text-sm text-muted-foreground bg-secondary p-4 rounded-lg mb-4 overflow-x-auto font-mono">
 										<code>
-											<span className="text-primary">rails</span> db:migrate{'\n\n'}
-											<span className="text-success">== AddCommentsCountToPosts: migrating ==</span>{'\n'}
+											<span className="text-primary">rails</span> db:migrate
+											{'\n\n'}
+											<span className="text-success">
+												== AddCommentsCountToPosts: migrating ==
+											</span>
+											{'\n'}
 											{'-- '}add_column(:posts, :comments_count, :integer,{'\n'}
 											{'   '}default: 0, null: false)
 										</code>
@@ -348,196 +401,329 @@ export function Level25CounterCaches({ onComplete, onExit }: LevelComponentProps
 										<span>{migrationProgress}%</span>
 									</div>
 									<div className="h-2 bg-secondary rounded-full overflow-hidden">
-										<div className="h-full bg-primary transition-all duration-75 rounded-full" style={{ width: `${migrationProgress}%` }} />
+										<div
+											className="h-full bg-primary transition-all duration-75 rounded-full"
+											style={{ width: `${migrationProgress}%` }}
+										/>
 									</div>
 								</div>
 							</div>
 						)}
 
 						{/* Before Mode */}
-						{step !== 'adding' && activeTab === 'before' && (<>
-							<div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
-								<div className="bg-secondary px-4 py-3 border-b border-border">
-									<div className="text-foreground font-semibold flex items-center gap-2">
-										<Database className="w-4 h-4 text-destructive" />Without Counter Cache
-									</div>
-									<div className="text-xs text-muted-foreground mt-1">
-										Each post.comments.count fires a separate COUNT(*) query
-									</div>
-								</div>
-								<div className="p-4">
-									<pre className="bg-secondary p-3 rounded-lg text-sm text-muted-foreground overflow-x-auto">
-										<code>
-											<span className="text-muted-foreground"># app/views/posts/index.html.erb</span>{'\n'}
-											{'<% @posts.each do |post| %>'}{'\n'}
-											{'  <span>'}<span className="text-destructive">{'<%= post.comments.count %>'}</span>{' comments</span>'}{'\n'}
-											{'<% end %>'}
-										</code>
-									</pre>
-								</div>
-							</div>
-
-							{/* Query Counter + Timer */}
-							<div className="grid grid-cols-2 gap-4 mb-6">
-								<div className="bg-card rounded-xl border border-border p-4 text-center">
-									<div className="text-xs text-muted-foreground mb-1">Database Queries</div>
-									<div className={`text-4xl font-bold tabular-nums ${qColor(queryCount)}`}>{queryCount}</div>
-									{queryCount > 10 && (
-										<div className="text-xs text-destructive mt-1 flex items-center justify-center gap-1">
-											<ArrowDown className="w-3 h-3" />N+1 COUNT explosion
+						{step !== 'adding' && activeTab === 'before' && (
+							<>
+								<div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+									<div className="bg-secondary px-4 py-3 border-b border-border">
+										<div className="text-foreground font-semibold flex items-center gap-2">
+											<Database className="w-4 h-4 text-destructive" />
+											Without Counter Cache
 										</div>
-									)}
+										<div className="text-xs text-muted-foreground mt-1">
+											Each post.comments.count fires a separate COUNT(*) query
+										</div>
+									</div>
+									<div className="p-4">
+										<pre className="bg-secondary p-3 rounded-lg text-sm text-muted-foreground overflow-x-auto">
+											<code>
+												<span className="text-muted-foreground">
+													# app/views/posts/index.html.erb
+												</span>
+												{'\n'}
+												{'<% @posts.each do |post| %>'}
+												{'\n'}
+												{'  <span>'}
+												<span className="text-destructive">
+													{'<%= post.comments.count %>'}
+												</span>
+												{' comments</span>'}
+												{'\n'}
+												{'<% end %>'}
+											</code>
+										</pre>
+									</div>
 								</div>
-								<div className="bg-card rounded-xl border border-border p-4 text-center">
-									<div className="text-xs text-muted-foreground mb-1">Total Time</div>
-									<div className={`text-4xl font-bold tabular-nums ${tColor(simulationTime)}`}>{simulationTime.toFixed(1)}</div>
-									<div className="text-xs text-muted-foreground">ms</div>
-								</div>
-							</div>
 
-							{/* Database Query Log */}
-							<div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
-								<div className="bg-secondary px-4 py-2 border-b border-border flex justify-between items-center">
-									<span className="text-muted-foreground text-sm font-semibold flex items-center gap-2">
-										<Database className="w-3 h-3" />Database Log
-									</span>
-									<span className={`text-xs px-2 py-1 rounded ${queryCount > 2 ? 'bg-destructive/20 text-destructive' : 'bg-secondary text-muted-foreground'}`}>
-										{queryCount} {queryCount === 1 ? 'query' : 'queries'}
-									</span>
-								</div>
-								<div className="p-3 h-56 overflow-y-auto font-mono text-xs space-y-0.5" ref={logRef}>
-									{visibleQueries.length === 0 ? (
-										<div className="text-muted-foreground text-center py-8">Click "Run Simulation" to see the queries...</div>
-									) : (
-										visibleQueries.map((entry, i) => (
-											<div className={entry.text.includes('COUNT') ? 'text-destructive/80' : 'text-primary'} key={i}>
-												{entry.text}
+								{/* Query Counter + Timer */}
+								<div className="grid grid-cols-2 gap-4 mb-6">
+									<div className="bg-card rounded-xl border border-border p-4 text-center">
+										<div className="text-xs text-muted-foreground mb-1">
+											Database Queries
+										</div>
+										<div
+											className={`text-4xl font-bold tabular-nums ${qColor(queryCount)}`}
+										>
+											{queryCount}
+										</div>
+										{queryCount > 10 && (
+											<div className="text-xs text-destructive mt-1 flex items-center justify-center gap-1">
+												<ArrowDown className="w-3 h-3" />
+												N+1 COUNT explosion
 											</div>
-										))
+										)}
+									</div>
+									<div className="bg-card rounded-xl border border-border p-4 text-center">
+										<div className="text-xs text-muted-foreground mb-1">
+											Total Time
+										</div>
+										<div
+											className={`text-4xl font-bold tabular-nums ${tColor(simulationTime)}`}
+										>
+											{simulationTime.toFixed(1)}
+										</div>
+										<div className="text-xs text-muted-foreground">ms</div>
+									</div>
+								</div>
+
+								{/* Database Query Log */}
+								<div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+									<div className="bg-secondary px-4 py-2 border-b border-border flex justify-between items-center">
+										<span className="text-muted-foreground text-sm font-semibold flex items-center gap-2">
+											<Database className="w-3 h-3" />
+											Database Log
+										</span>
+										<span
+											className={`text-xs px-2 py-1 rounded ${queryCount > 2 ? 'bg-destructive/20 text-destructive' : 'bg-secondary text-muted-foreground'}`}
+										>
+											{queryCount} {queryCount === 1 ? 'query' : 'queries'}
+										</span>
+									</div>
+									<div
+										className="p-3 h-56 overflow-y-auto font-mono text-xs space-y-0.5"
+										ref={logRef}
+									>
+										{visibleQueries.length === 0 ? (
+											<div className="text-muted-foreground text-center py-8">
+												Click "Run Simulation" to see the queries...
+											</div>
+										) : (
+											visibleQueries.map((entry, i) => (
+												<div
+													className={
+														entry.text.includes('COUNT')
+															? 'text-destructive/80'
+															: 'text-primary'
+													}
+													key={i}
+												>
+													{entry.text}
+												</div>
+											))
+										)}
+									</div>
+								</div>
+
+								{/* Action Button */}
+								<div className="flex justify-center">
+									{!viewedBefore ? (
+										<Button
+											disabled={isSimulating}
+											onClick={runBeforeSimulation}
+											size="lg"
+											variant={isSimulating ? 'secondary' : 'default'}
+										>
+											<Database
+												className={`w-4 h-4 mr-2 ${isSimulating ? 'animate-pulse' : ''}`}
+											/>
+											{isSimulating
+												? `Simulating... (${queryCount}/101)`
+												: 'Run Simulation'}
+										</Button>
+									) : (
+										<Button
+											className="text-base px-8 py-4 h-auto"
+											onClick={runMigration}
+											size="lg"
+										>
+											<Zap className="w-5 h-5 mr-2" />
+											Add Counter Cache
+										</Button>
 									)}
 								</div>
-							</div>
-
-							{/* Action Button */}
-							<div className="flex justify-center">
-								{!viewedBefore ? (
-									<Button disabled={isSimulating} onClick={runBeforeSimulation} size="lg" variant={isSimulating ? 'secondary' : 'default'}>
-										<Database className={`w-4 h-4 mr-2 ${isSimulating ? 'animate-pulse' : ''}`} />
-										{isSimulating ? `Simulating... (${queryCount}/101)` : 'Run Simulation'}
-									</Button>
-								) : (
-									<Button className="text-base px-8 py-4 h-auto" onClick={runMigration} size="lg">
-										<Zap className="w-5 h-5 mr-2" />Add Counter Cache
-									</Button>
-								)}
-							</div>
-						</>)}
+							</>
+						)}
 
 						{/* After Mode */}
-						{step === 'after' && activeTab === 'after' && (<>
-							<div className="bg-card rounded-xl border border-success/30 overflow-hidden mb-6">
-								<div className="bg-success/10 px-4 py-3 border-b border-success/20">
-									<div className="text-foreground font-semibold flex items-center gap-2">
-										<Zap className="w-4 h-4 text-success" />With Counter Cache
-									</div>
-									<div className="text-xs text-muted-foreground mt-1">
-										comments_count is stored on the posts table -- zero extra queries
-									</div>
-								</div>
-								<div className="p-4">
-									<pre className="bg-secondary p-3 rounded-lg text-sm text-muted-foreground overflow-x-auto">
-										<code>
-											<span className="text-muted-foreground"># app/views/posts/index.html.erb</span>{'\n'}
-											{'<% @posts.each do |post| %>'}{'\n'}
-											{'  <span>'}<span className="text-success">{'<%= post.comments_count %>'}</span>{' comments</span>'}{'\n'}
-											{'<% end %>'}
-										</code>
-									</pre>
-								</div>
-							</div>
-
-							{/* Query Counter + Timer (After) */}
-							<div className="grid grid-cols-2 gap-4 mb-6">
-								<div className="bg-card rounded-xl border border-success/30 p-4 text-center">
-									<div className="text-xs text-muted-foreground mb-1">Database Queries</div>
-									<div className={`text-4xl font-bold tabular-nums ${queryCount === 0 ? 'text-muted-foreground' : 'text-success'}`}>
-										{queryCount}
-									</div>
-									{queryCount === 1 && (
-										<div className="text-xs text-success mt-1 flex items-center justify-center gap-1">
-											<Check className="w-3 h-3" />Just one query
+						{step === 'after' && activeTab === 'after' && (
+							<>
+								<div className="bg-card rounded-xl border border-success/30 overflow-hidden mb-6">
+									<div className="bg-success/10 px-4 py-3 border-b border-success/20">
+										<div className="text-foreground font-semibold flex items-center gap-2">
+											<Zap className="w-4 h-4 text-success" />
+											With Counter Cache
 										</div>
-									)}
-								</div>
-								<div className="bg-card rounded-xl border border-success/30 p-4 text-center">
-									<div className="text-xs text-muted-foreground mb-1">Total Time</div>
-									<div className={`text-4xl font-bold tabular-nums ${simulationTime === 0 ? 'text-muted-foreground' : 'text-success'}`}>
-										{simulationTime.toFixed(1)}
-									</div>
-									<div className="text-xs text-muted-foreground">ms</div>
-								</div>
-							</div>
-
-							{/* Database Query Log (After) */}
-							<div className="bg-card rounded-xl border border-success/30 overflow-hidden mb-6">
-								<div className="bg-success/10 px-4 py-2 border-b border-success/20 flex justify-between items-center">
-									<span className="text-muted-foreground text-sm font-semibold flex items-center gap-2">
-										<Database className="w-3 h-3" />Database Log
-									</span>
-									<span className="text-xs px-2 py-1 rounded bg-success/20 text-success">
-										{queryCount} {queryCount === 1 ? 'query' : 'queries'}
-									</span>
-								</div>
-								<div className="p-3 h-56 overflow-y-auto font-mono text-xs space-y-0.5">
-									{visibleQueries.length === 0 ? (
-										<div className="text-muted-foreground text-center py-8">Click "Run Simulation" to see the optimized query...</div>
-									) : (
-										visibleQueries.map((entry, i) => (
-											<div className="text-success" key={i}>{entry.text}</div>
-										))
-									)}
-									{queryCount === 1 && (
-										<div className="text-muted-foreground mt-4 text-center">
-											No COUNT(*) queries needed -- the count is already on the posts row.
+										<div className="text-xs text-muted-foreground mt-1">
+											comments_count is stored on the posts table -- zero extra
+											queries
 										</div>
-									)}
-								</div>
-							</div>
-
-							{/* Before vs After Comparison Table */}
-							<div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
-								<div className="bg-secondary px-4 py-3 border-b border-border">
-									<div className="text-foreground font-semibold flex items-center gap-2">
-										<TrendingDown className="w-4 h-4 text-success" />Before vs After
+									</div>
+									<div className="p-4">
+										<pre className="bg-secondary p-3 rounded-lg text-sm text-muted-foreground overflow-x-auto">
+											<code>
+												<span className="text-muted-foreground">
+													# app/views/posts/index.html.erb
+												</span>
+												{'\n'}
+												{'<% @posts.each do |post| %>'}
+												{'\n'}
+												{'  <span>'}
+												<span className="text-success">
+													{'<%= post.comments_count %>'}
+												</span>
+												{' comments</span>'}
+												{'\n'}
+												{'<% end %>'}
+											</code>
+										</pre>
 									</div>
 								</div>
-								<div className="grid grid-cols-3 gap-0 divide-x divide-border text-center">
-									<div className="p-3"><div className="text-xs text-muted-foreground">Metric</div></div>
-									<div className="p-3 bg-destructive/5"><div className="text-xs text-destructive">Before</div></div>
-									<div className="p-3 bg-success/5"><div className="text-xs text-success">After</div></div>
 
-									<div className="p-3 border-t border-border"><div className="text-sm text-muted-foreground">Queries</div></div>
-									<div className="p-3 bg-destructive/5 border-t border-border"><div className="text-2xl font-bold text-destructive">101</div></div>
-									<div className="p-3 bg-success/5 border-t border-border"><div className="text-2xl font-bold text-success">1</div></div>
-
-									<div className="p-3 border-t border-border"><div className="text-sm text-muted-foreground">Time</div></div>
-									<div className="p-3 bg-destructive/5 border-t border-border"><div className="text-2xl font-bold text-destructive">{TOTAL_BEFORE_TIME.toFixed(1)}ms</div></div>
-									<div className="p-3 bg-success/5 border-t border-border"><div className="text-2xl font-bold text-success">1.2ms</div></div>
-
-									<div className="p-3 border-t border-border"><div className="text-sm text-muted-foreground">Reduction</div></div>
-									<div className="p-3 bg-destructive/5 border-t border-border"><div className="text-sm text-muted-foreground">--</div></div>
-									<div className="p-3 bg-success/5 border-t border-border"><div className="text-lg font-bold text-success">99%</div></div>
+								{/* Query Counter + Timer (After) */}
+								<div className="grid grid-cols-2 gap-4 mb-6">
+									<div className="bg-card rounded-xl border border-success/30 p-4 text-center">
+										<div className="text-xs text-muted-foreground mb-1">
+											Database Queries
+										</div>
+										<div
+											className={`text-4xl font-bold tabular-nums ${queryCount === 0 ? 'text-muted-foreground' : 'text-success'}`}
+										>
+											{queryCount}
+										</div>
+										{queryCount === 1 && (
+											<div className="text-xs text-success mt-1 flex items-center justify-center gap-1">
+												<Check className="w-3 h-3" />
+												Just one query
+											</div>
+										)}
+									</div>
+									<div className="bg-card rounded-xl border border-success/30 p-4 text-center">
+										<div className="text-xs text-muted-foreground mb-1">
+											Total Time
+										</div>
+										<div
+											className={`text-4xl font-bold tabular-nums ${simulationTime === 0 ? 'text-muted-foreground' : 'text-success'}`}
+										>
+											{simulationTime.toFixed(1)}
+										</div>
+										<div className="text-xs text-muted-foreground">ms</div>
+									</div>
 								</div>
-							</div>
 
-							{/* Run After Simulation */}
-							<div className="flex justify-center">
-								<Button disabled={isSimulating} onClick={runAfterSimulation} size="lg" variant={queryCount > 0 ? 'secondary' : 'default'}>
-									<Zap className={`w-4 h-4 mr-2 ${isSimulating ? 'animate-pulse' : ''}`} />
-									{isSimulating ? 'Running...' : queryCount > 0 ? 'Run Again' : 'Run Simulation'}
-								</Button>
-							</div>
-						</>)}
+								{/* Database Query Log (After) */}
+								<div className="bg-card rounded-xl border border-success/30 overflow-hidden mb-6">
+									<div className="bg-success/10 px-4 py-2 border-b border-success/20 flex justify-between items-center">
+										<span className="text-muted-foreground text-sm font-semibold flex items-center gap-2">
+											<Database className="w-3 h-3" />
+											Database Log
+										</span>
+										<span className="text-xs px-2 py-1 rounded bg-success/20 text-success">
+											{queryCount} {queryCount === 1 ? 'query' : 'queries'}
+										</span>
+									</div>
+									<div className="p-3 h-56 overflow-y-auto font-mono text-xs space-y-0.5">
+										{visibleQueries.length === 0 ? (
+											<div className="text-muted-foreground text-center py-8">
+												Click "Run Simulation" to see the optimized query...
+											</div>
+										) : (
+											visibleQueries.map((entry, i) => (
+												<div className="text-success" key={i}>
+													{entry.text}
+												</div>
+											))
+										)}
+										{queryCount === 1 && (
+											<div className="text-muted-foreground mt-4 text-center">
+												No COUNT(*) queries needed -- the count is already on
+												the posts row.
+											</div>
+										)}
+									</div>
+								</div>
+
+								{/* Before vs After Comparison Table */}
+								<div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
+									<div className="bg-secondary px-4 py-3 border-b border-border">
+										<div className="text-foreground font-semibold flex items-center gap-2">
+											<TrendingDown className="w-4 h-4 text-success" />
+											Before vs After
+										</div>
+									</div>
+									<div className="grid grid-cols-3 gap-0 divide-x divide-border text-center">
+										<div className="p-3">
+											<div className="text-xs text-muted-foreground">
+												Metric
+											</div>
+										</div>
+										<div className="p-3 bg-destructive/5">
+											<div className="text-xs text-destructive">Before</div>
+										</div>
+										<div className="p-3 bg-success/5">
+											<div className="text-xs text-success">After</div>
+										</div>
+
+										<div className="p-3 border-t border-border">
+											<div className="text-sm text-muted-foreground">
+												Queries
+											</div>
+										</div>
+										<div className="p-3 bg-destructive/5 border-t border-border">
+											<div className="text-2xl font-bold text-destructive">
+												101
+											</div>
+										</div>
+										<div className="p-3 bg-success/5 border-t border-border">
+											<div className="text-2xl font-bold text-success">1</div>
+										</div>
+
+										<div className="p-3 border-t border-border">
+											<div className="text-sm text-muted-foreground">Time</div>
+										</div>
+										<div className="p-3 bg-destructive/5 border-t border-border">
+											<div className="text-2xl font-bold text-destructive">
+												{TOTAL_BEFORE_TIME.toFixed(1)}ms
+											</div>
+										</div>
+										<div className="p-3 bg-success/5 border-t border-border">
+											<div className="text-2xl font-bold text-success">
+												1.2ms
+											</div>
+										</div>
+
+										<div className="p-3 border-t border-border">
+											<div className="text-sm text-muted-foreground">
+												Reduction
+											</div>
+										</div>
+										<div className="p-3 bg-destructive/5 border-t border-border">
+											<div className="text-sm text-muted-foreground">--</div>
+										</div>
+										<div className="p-3 bg-success/5 border-t border-border">
+											<div className="text-lg font-bold text-success">99%</div>
+										</div>
+									</div>
+								</div>
+
+								{/* Run After Simulation */}
+								<div className="flex justify-center">
+									<Button
+										disabled={isSimulating}
+										onClick={runAfterSimulation}
+										size="lg"
+										variant={queryCount > 0 ? 'secondary' : 'default'}
+									>
+										<Zap
+											className={`w-4 h-4 mr-2 ${isSimulating ? 'animate-pulse' : ''}`}
+										/>
+										{isSimulating
+											? 'Running...'
+											: queryCount > 0
+												? 'Run Again'
+												: 'Run Simulation'}
+									</Button>
+								</div>
+							</>
+						)}
 					</div>
 				</div>
 			</CenterPanel>
@@ -574,29 +760,45 @@ export function Level25CounterCaches({ onComplete, onExit }: LevelComponentProps
 							<div className="flex items-start gap-2">
 								<Hash className="w-3 h-3 text-primary mt-0.5 shrink-0" />
 								<div>
-									<span className="text-foreground font-medium">counter_cache: true</span>
-									<div className="text-muted-foreground">Add to belongs_to to auto-track count</div>
+									<span className="text-foreground font-medium">
+										counter_cache: true
+									</span>
+									<div className="text-muted-foreground">
+										Add to belongs_to to auto-track count
+									</div>
 								</div>
 							</div>
 							<div className="flex items-start gap-2">
 								<Database className="w-3 h-3 text-primary mt-0.5 shrink-0" />
 								<div>
-									<span className="text-foreground font-medium">default: 0, null: false</span>
-									<div className="text-muted-foreground">Always set defaults on the column</div>
+									<span className="text-foreground font-medium">
+										default: 0, null: false
+									</span>
+									<div className="text-muted-foreground">
+										Always set defaults on the column
+									</div>
 								</div>
 							</div>
 							<div className="flex items-start gap-2">
 								<TrendingDown className="w-3 h-3 text-primary mt-0.5 shrink-0" />
 								<div>
-									<span className="text-foreground font-medium">reset_counters</span>
-									<div className="text-muted-foreground">Fix out-of-sync data after migration</div>
+									<span className="text-foreground font-medium">
+										reset_counters
+									</span>
+									<div className="text-muted-foreground">
+										Fix out-of-sync data after migration
+									</div>
 								</div>
 							</div>
 							<div className="flex items-start gap-2">
 								<Zap className="w-3 h-3 text-primary mt-0.5 shrink-0" />
 								<div>
-									<span className="text-foreground font-medium">.size vs .count vs .length</span>
-									<div className="text-muted-foreground">.size uses cache; .count always queries</div>
+									<span className="text-foreground font-medium">
+										.size vs .count vs .length
+									</span>
+									<div className="text-muted-foreground">
+										.size uses cache; .count always queries
+									</div>
 								</div>
 							</div>
 						</div>

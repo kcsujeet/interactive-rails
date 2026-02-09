@@ -4,14 +4,14 @@
  */
 
 import type { DragEvent, MouseEvent, ReactNode, RefObject } from 'react';
-import { getNodeInfo, isValidConnection } from '@/utils/gameData';
-import { PipelineNode } from './PipelineNode';
 import type {
 	Connection,
 	PendingConnection,
 	PlacedNode,
 	QueryParticle,
 } from '@/types/game';
+import { getNodeInfo, isValidConnection } from '@/utils/gameData';
+import { PipelineNode } from './PipelineNode';
 
 interface NodeOverride {
 	badge?: string;

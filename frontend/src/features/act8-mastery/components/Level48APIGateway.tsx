@@ -1,15 +1,25 @@
 /**
- * Level 34: API Gateway
+ * Level 48: API Gateway
  *
  * Central entry point for microservices architecture.
  * Player learns routing, auth, rate limiting, and aggregation.
  */
 
-import { useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { ArrowRight, BarChart3, CreditCard, DoorOpen, Lock, Package, Shuffle, Smartphone, ShoppingCart, TrafficCone, User } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import {
+	ArrowRight,
+	BarChart3,
+	CreditCard,
+	DoorOpen,
+	Lock,
+	Package,
+	ShoppingCart,
+	Shuffle,
+	Smartphone,
+	TrafficCone,
+	User,
+} from 'lucide-react';
+import { useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -21,6 +31,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 interface GatewayFeature {
 	id: string;

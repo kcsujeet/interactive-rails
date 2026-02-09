@@ -1,13 +1,11 @@
 /**
- * Level 19: Event-Driven Architecture
+ * Level 47: Domain Events
  *
  * Decouple services using event bus pub/sub.
  * Shows domain events pattern.
  */
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -19,6 +17,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 interface Service {
 	id: string;

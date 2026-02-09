@@ -5,17 +5,15 @@
  * Teaches: Solid Queue (Rails 8 default), perform_later, queue_as
  */
 
-import { useEffect, useState } from 'react';
 import {
 	BarChart3,
 	FileText,
 	Image,
 	Link2,
-	Mail,
 	type LucideIcon,
+	Mail,
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import { useEffect, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -27,6 +25,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 interface SlowOperation {
 	id: string;
@@ -328,7 +328,10 @@ export function Level21BackgroundJobs({
 											variant="outline"
 										>
 											<div className="flex items-center gap-3 w-full">
-												{(() => { const Icon = op.icon; return <Icon className="w-5 h-5 shrink-0" />; })()}
+												{(() => {
+													const Icon = op.icon;
+													return <Icon className="w-5 h-5 shrink-0" />;
+												})()}
 												<div className="flex-1">
 													<div className="text-foreground text-sm font-medium">
 														{op.name}
@@ -370,7 +373,10 @@ export function Level21BackgroundJobs({
 											variant="default"
 										>
 											<div className="flex items-center gap-3 w-full">
-												{(() => { const Icon = op.icon; return <Icon className="w-5 h-5 shrink-0" />; })()}
+												{(() => {
+													const Icon = op.icon;
+													return <Icon className="w-5 h-5 shrink-0" />;
+												})()}
 												<div className="flex-1">
 													<div className="text-foreground text-sm font-medium">
 														{op.name}

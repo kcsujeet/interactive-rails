@@ -6,10 +6,15 @@
  * Teaches: Solid Cache, ETags, fragment caching, low-level caching
  */
 
+import {
+	Database,
+	FileText,
+	Globe,
+	HardDrive,
+	Server,
+	User,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Database, FileText, Globe, HardDrive, Server, User } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -21,6 +26,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 interface CacheLayer {
 	id: string;
@@ -256,8 +263,8 @@ export function Level28Caching({ onComplete, onExit }: LevelComponentProps) {
 					<div className="p-4 border-t border-border">
 						<Button
 							className="w-full py-2"
-							onClick={() => setIsSimulating(!isSimulating)}
 							color={isSimulating ? 'destructive' : 'primary'}
+							onClick={() => setIsSimulating(!isSimulating)}
 						>
 							{isSimulating ? 'Stop Simulation' : 'Start Traffic Simulation'}
 						</Button>
@@ -290,7 +297,7 @@ export function Level28Caching({ onComplete, onExit }: LevelComponentProps) {
 
 			<CenterPanel>
 				<LevelHeader
-					actNumber={3}
+					actNumber={4}
 					levelName="Caching"
 					levelNumber={28}
 					onComplete={handleComplete}
@@ -346,13 +353,15 @@ export function Level28Caching({ onComplete, onExit }: LevelComponentProps) {
 													variant={layer.enabled ? 'default' : 'outline'}
 												>
 													<span className="text-lg flex items-center justify-center">
-														{layer.id === 'http'
-															? <Globe className="w-5 h-5" />
-															: layer.id === 'fragment'
-																? <FileText className="w-5 h-5" />
-																: layer.id === 'lowlevel'
-																	? <HardDrive className="w-5 h-5" />
-																	: <Server className="w-5 h-5" />}
+														{layer.id === 'http' ? (
+															<Globe className="w-5 h-5" />
+														) : layer.id === 'fragment' ? (
+															<FileText className="w-5 h-5" />
+														) : layer.id === 'lowlevel' ? (
+															<HardDrive className="w-5 h-5" />
+														) : (
+															<Server className="w-5 h-5" />
+														)}
 													</span>
 													<span className="text-[10px] mt-1">
 														{layer.latency}ms

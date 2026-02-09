@@ -6,7 +6,6 @@
  * grouped, contextual, alerting errors improve observability.
  */
 
-import { useCallback, useRef, useState } from 'react';
 import {
 	Activity,
 	AlertTriangle,
@@ -22,8 +21,7 @@ import {
 	Trash2,
 	User,
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import { useCallback, useRef, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -35,6 +33,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 // --- Types ---
 
@@ -131,7 +131,8 @@ export function Level42ErrorMonitoring({
 
 	// Derived state
 	const totalRequests = 1000; // Simulated total requests in window
-	const errorRate = errors.length > 0 ? (errors.length / totalRequests) * 100 : 0;
+	const errorRate =
+		errors.length > 0 ? (errors.length / totalRequests) * 100 : 0;
 	const budgetRemaining = Math.max(0, 0.1 - errorRate); // SLO: 99.9% => 0.1% error budget
 	const overBudget = errorRate > 0.1;
 
@@ -143,22 +144,27 @@ export function Level42ErrorMonitoring({
 	].filter(Boolean).length;
 
 	// Group errors by exception class
-	const errorGroups: ErrorGroup[] = errors.reduce<ErrorGroup[]>((groups, err) => {
-		const existing = groups.find((g) => g.exceptionClass === err.exceptionClass);
-		if (existing) {
-			existing.count += 1;
-			existing.lastSeen = Math.max(existing.lastSeen, err.timestamp);
-		} else {
-			groups.push({
-				key: err.exceptionClass,
-				exceptionClass: err.exceptionClass,
-				count: 1,
-				lastSeen: err.timestamp,
-				controller: err.controller,
-			});
-		}
-		return groups;
-	}, []);
+	const errorGroups: ErrorGroup[] = errors.reduce<ErrorGroup[]>(
+		(groups, err) => {
+			const existing = groups.find(
+				(g) => g.exceptionClass === err.exceptionClass,
+			);
+			if (existing) {
+				existing.count += 1;
+				existing.lastSeen = Math.max(existing.lastSeen, err.timestamp);
+			} else {
+				groups.push({
+					key: err.exceptionClass,
+					exceptionClass: err.exceptionClass,
+					count: 1,
+					lastSeen: err.timestamp,
+					controller: err.controller,
+				});
+			}
+			return groups;
+		},
+		[],
+	);
 
 	// Generate errors in bursts
 	const generateErrors = () => {
@@ -251,7 +257,12 @@ export function Level42ErrorMonitoring({
 
 	const handleReset = () => {
 		clearErrors();
-		setConfig({ grouping: false, context: false, alerts: false, budgets: false });
+		setConfig({
+			grouping: false,
+			context: false,
+			alerts: false,
+			budgets: false,
+		});
 		errorIdCounter = 0;
 	};
 
@@ -384,8 +395,8 @@ export function Level42ErrorMonitoring({
 					<div className="p-4 border-t border-border space-y-2">
 						<Button
 							className="w-full"
-							onClick={generateErrors}
 							color={isGenerating ? 'destructive' : 'primary'}
+							onClick={generateErrors}
 						>
 							{isGenerating ? (
 								<>
@@ -811,8 +822,8 @@ end`,
 								re-raise
 							</li>
 							<li>
-								<code className="text-primary">.set_context</code> - Enrich error
-								data
+								<code className="text-primary">.set_context</code> - Enrich
+								error data
 							</li>
 							<li>
 								<code className="text-primary">.subscribe</code> - Add error

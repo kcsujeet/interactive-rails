@@ -1,13 +1,12 @@
 /**
- * Level 18: Cloud Storage
+ * Level 31: Active Storage
  *
  * Direct upload to S3 bypasses app server.
  * Shows memory usage difference between traditional and direct upload.
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import type { ValidationResult } from '@/components/levels';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -18,7 +17,8 @@ import {
 	RightPanel,
 	useLevelCompletion,
 } from '@/components/levels';
-import type { ValidationResult } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 interface Upload {
 	id: number;
@@ -29,7 +29,10 @@ interface Upload {
 	status: 'uploading' | 'completed' | 'failed';
 }
 
-export function Level31ActiveStorage({ onComplete, onExit }: LevelComponentProps) {
+export function Level31ActiveStorage({
+	onComplete,
+	onExit,
+}: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [directUploadEnabled, setDirectUploadEnabled] = useState(false);
 	const [uploads, setUploads] = useState<Upload[]>([]);
@@ -39,13 +42,27 @@ export function Level31ActiveStorage({ onComplete, onExit }: LevelComponentProps
 
 	const handleValidate = useCallback((): ValidationResult => {
 		if (!directUploadEnabled) {
-			return { valid: false, message: 'Enable direct upload', details: ['Click "Enable Direct Upload" to bypass the app server'] };
+			return {
+				valid: false,
+				message: 'Enable direct upload',
+				details: ['Click "Enable Direct Upload" to bypass the app server'],
+			};
 		}
 		if (directUploadsCompleted < 2) {
-			return { valid: false, message: 'Upload more files', details: [`Upload video files using direct upload (${directUploadsCompleted}/2)`] };
+			return {
+				valid: false,
+				message: 'Upload more files',
+				details: [
+					`Upload video files using direct upload (${directUploadsCompleted}/2)`,
+				],
+			};
 		}
 		if (memoryPeak >= 100) {
-			return { valid: false, message: 'Memory too high', details: ['Peak memory must stay below 100MB with direct uploads'] };
+			return {
+				valid: false,
+				message: 'Memory too high',
+				details: ['Peak memory must stay below 100MB with direct uploads'],
+			};
 		}
 		return { valid: true, message: 'Direct upload keeps memory flat!' };
 	}, [directUploadEnabled, directUploadsCompleted, memoryPeak]);
@@ -109,7 +126,7 @@ export function Level31ActiveStorage({ onComplete, onExit }: LevelComponentProps
 	}, []);
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act3-level18-file-storage', {
+		const success = await completeLevel('act5-level31-active-storage', {
 			stars: 3,
 		});
 		if (success) {
@@ -382,7 +399,6 @@ export function Level31ActiveStorage({ onComplete, onExit }: LevelComponentProps
 							)}
 						</div>
 					</div>
-
 				</div>
 			</CenterPanel>
 

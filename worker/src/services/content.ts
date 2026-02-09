@@ -3302,10 +3302,17 @@ const allChallenges: Challenge[] = [
 		type: 'code_analysis',
 		difficulty: 4,
 		xp_reward: 50,
-		monster: { name: 'Serializer Serpent', sprite: 'serializer-serpent', hp: 85 },
+		monster: {
+			name: 'Serializer Serpent',
+			sprite: 'serializer-serpent',
+			hp: 85,
+		},
 		question: 'Why use jsonapi-serializer over plain render json:?',
 		options: [
-			{ id: 'a', text: 'JSON:API standard format with consistent envelope structure' },
+			{
+				id: 'a',
+				text: 'JSON:API standard format with consistent envelope structure',
+			},
 			{ id: 'b', text: 'render json: for everything' },
 			{ id: 'c', text: 'Serializers are deprecated' },
 			{ id: 'd', text: 'No difference' },

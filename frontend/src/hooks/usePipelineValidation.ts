@@ -5,14 +5,14 @@
 
 import { useCallback, useMemo } from 'react';
 import { getLevel } from '@/features/acts-registry';
-import { isValidConnection, levelChallenges } from '@/utils/gameData';
 import type {
 	Connection,
 	LiveMetrics,
 	PlacedNode,
 	SuccessCondition,
 	ValidationResult,
-} from "@/types";
+} from '@/types';
+import { isValidConnection, levelChallenges } from '@/utils/gameData';
 
 export interface UsePipelineValidationReturn {
 	isPipelineBroken: boolean;
@@ -204,7 +204,10 @@ export function usePipelineValidation(
 					const reqNode = placedNodes.find((n) => n.type === 'request');
 					const resNode = placedNodes.find((n) => n.type === 'response');
 					if (!reqNode || !resNode) {
-						return { passed: false, message: 'Missing Request or Response node' };
+						return {
+							passed: false,
+							message: 'Missing Request or Response node',
+						};
 					}
 
 					// BFS from request to find all reachable nodes
@@ -215,20 +218,29 @@ export function usePipelineValidation(
 						if (reachable.has(id)) continue;
 						reachable.add(id);
 						for (const conn of connections) {
-							if (conn.sourceNodeId === id && !reachable.has(conn.targetNodeId)) {
+							if (
+								conn.sourceNodeId === id &&
+								!reachable.has(conn.targetNodeId)
+							) {
 								bfsQueue.push(conn.targetNodeId);
 							}
 						}
 					}
 
 					if (!reachable.has(resNode.id)) {
-						return { passed: false, message: 'No complete path from Request to Response' };
+						return {
+							passed: false,
+							message: 'No complete path from Request to Response',
+						};
 					}
 
 					// Every placed node must be reachable from request
 					const disconnected = placedNodes.filter((n) => !reachable.has(n.id));
 					if (disconnected.length > 0) {
-						return { passed: false, message: 'All nodes must be connected in the pipeline' };
+						return {
+							passed: false,
+							message: 'All nodes must be connected in the pipeline',
+						};
 					}
 
 					return { passed: true, message: '' };

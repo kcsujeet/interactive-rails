@@ -39,7 +39,8 @@ export function CompletionScreen(
 	const learningContent =
 		'learningContent' in props ? props.learningContent : undefined;
 	const nextLevelId = 'nextLevelId' in props ? props.nextLevelId : undefined;
-	const nextLevelActId = 'nextLevelActId' in props ? props.nextLevelActId : undefined;
+	const nextLevelActId =
+		'nextLevelActId' in props ? props.nextLevelActId : undefined;
 	const isCapstone = 'isCapstone' in props ? props.isCapstone : false;
 
 	return (
@@ -93,7 +94,10 @@ export function CompletionScreen(
 					{/* Stars */}
 					<div className="relative flex justify-center gap-1 mt-5">
 						{stars === 3 && (
-							<div className="absolute -inset-4 bg-[radial-gradient(ellipse,oklch(0.75_0.15_70/0.15)_0%,transparent_70%)] animate-in fade-in duration-500" aria-hidden="true"></div>
+							<div
+								aria-hidden="true"
+								className="absolute -inset-4 bg-[radial-gradient(ellipse,oklch(0.75_0.15_70/0.15)_0%,transparent_70%)] animate-in fade-in duration-500"
+							></div>
 						)}
 						{[1, 2, 3].map((i) => (
 							<svg
@@ -119,7 +123,10 @@ export function CompletionScreen(
 									{learningContent.title}
 								</span>
 							</div>
-							<MarkdownContent className="text-sm" content={learningContent.conceptExplanation} />
+							<MarkdownContent
+								className="text-sm"
+								content={learningContent.conceptExplanation}
+							/>
 						</div>
 
 						<div className="bg-card rounded-xl overflow-hidden border border-success/20 shadow-[0_0_20px_oklch(0.65_0.17_160/0.08)]">

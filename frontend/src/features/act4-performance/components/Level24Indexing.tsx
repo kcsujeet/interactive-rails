@@ -5,7 +5,6 @@
  * Player adds indexes to eliminate sequential scans and speed up queries.
  */
 
-import { useState } from 'react';
 import {
 	ArrowDown,
 	Database,
@@ -16,8 +15,7 @@ import {
 	TrendingDown,
 	Zap,
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import { useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -29,6 +27,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 // --- Types ---
 
@@ -72,7 +72,8 @@ const INITIAL_INDEXES: IndexOption[] = [
 		label: 'Unique index on users.email',
 		description: 'Enforces uniqueness and enables fast lookups by email',
 		indexName: 'index_users_on_email',
-		migrationCode: 'add_index :users, :email, unique: true, algorithm: :concurrently',
+		migrationCode:
+			'add_index :users, :email, unique: true, algorithm: :concurrently',
 	},
 	{
 		id: 'btree-user-id',
@@ -208,16 +209,12 @@ function getScanTypeForQuery(
 	query: QueryConfig,
 	indexes: IndexOption[],
 ): ScanType {
-	const matchingIndex = indexes.find(
-		(idx) => idx.id === query.matchingIndexId,
-	);
+	const matchingIndex = indexes.find((idx) => idx.id === query.matchingIndexId);
 	return matchingIndex?.added ? 'index_scan' : 'seq_scan';
 }
 
 function getQueryTime(query: QueryConfig, indexes: IndexOption[]): number {
-	const matchingIndex = indexes.find(
-		(idx) => idx.id === query.matchingIndexId,
-	);
+	const matchingIndex = indexes.find((idx) => idx.id === query.matchingIndexId);
 	return matchingIndex?.added ? query.optimizedTime : query.baseTime;
 }
 
@@ -251,10 +248,7 @@ end
 
 // --- Component ---
 
-export function Level24Indexing({
-	onComplete,
-	onExit,
-}: LevelComponentProps) {
+export function Level24Indexing({ onComplete, onExit }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [indexes, setIndexes] = useState<IndexOption[]>(INITIAL_INDEXES);
 	const [selectedQuery, setSelectedQuery] = useState(0);
@@ -340,7 +334,7 @@ export function Level24Indexing({
 						'Add indexes to speed up lookups',
 						'Verify with EXPLAIN (Index Scan)',
 					]}
-					scenario='GET /api/users?email=alice@example.com takes 820ms. EXPLAIN shows a sequential scan across 10,000 rows. Time to index.'
+					scenario="GET /api/users?email=alice@example.com takes 820ms. EXPLAIN shows a sequential scan across 10,000 rows. Time to index."
 				>
 					{/* Query Selector */}
 					<div className="p-4 border-t border-border">
@@ -390,9 +384,7 @@ export function Level24Indexing({
 														: 'bg-destructive/20 text-destructive'
 												}`}
 											>
-												{scanType === 'index_scan'
-													? 'Index Scan'
-													: 'Seq Scan'}
+												{scanType === 'index_scan' ? 'Index Scan' : 'Seq Scan'}
 											</span>
 										</div>
 									</Button>
@@ -610,9 +602,7 @@ export function Level24Indexing({
 												</span>
 											)}
 										</span>
-										<span>
-											Row {currentQuery.totalRows.toLocaleString()}
-										</span>
+										<span>Row {currentQuery.totalRows.toLocaleString()}</span>
 									</div>
 								</div>
 
@@ -624,9 +614,7 @@ export function Level24Indexing({
 									<div className="relative h-8 bg-secondary rounded-lg overflow-hidden">
 										<div
 											className={`h-full transition-all duration-700 ease-out rounded-lg ${
-												isOptimized
-													? 'bg-success'
-													: 'bg-destructive'
+												isOptimized ? 'bg-success' : 'bg-destructive'
 											}`}
 											style={{
 												width: isOptimized
@@ -645,7 +633,12 @@ export function Level24Indexing({
 												{currentQueryTime}ms
 												{isOptimized && (
 													<span className="ml-2 text-success">
-														({Math.round(currentQuery.baseTime / currentQuery.optimizedTime)}x faster)
+														(
+														{Math.round(
+															currentQuery.baseTime /
+																currentQuery.optimizedTime,
+														)}
+														x faster)
 													</span>
 												)}
 											</span>
@@ -670,9 +663,7 @@ export function Level24Indexing({
 											(idx) =>
 												idx.added &&
 												(idx.column.includes(col) ||
-													idx.column.includes(
-														`${currentQuery.table}.${col}`,
-													)),
+													idx.column.includes(`${currentQuery.table}.${col}`)),
 										);
 										return (
 											<div
@@ -683,9 +674,7 @@ export function Level24Indexing({
 												}`}
 												key={col}
 											>
-												{hasIndex && (
-													<Key className="w-3.5 h-3.5" />
-												)}
+												{hasIndex && <Key className="w-3.5 h-3.5" />}
 												<span className="font-mono">{col}</span>
 											</div>
 										);
@@ -716,9 +705,7 @@ export function Level24Indexing({
 												<div className="h-6 bg-secondary rounded overflow-hidden">
 													<div
 														className={`h-full transition-all duration-500 rounded ${
-															isGood
-																? 'bg-success'
-																: 'bg-destructive'
+															isGood ? 'bg-success' : 'bg-destructive'
 														}`}
 														style={{
 															width: isGood

@@ -3,9 +3,9 @@
  * Pre-game screen showing challenge info
  */
 
+import type { LevelChallenge, LevelData } from '@/types/game';
 import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
-import type { LevelChallenge, LevelData } from '@/types/game';
 
 interface BriefingScreenProps {
 	level: LevelData;

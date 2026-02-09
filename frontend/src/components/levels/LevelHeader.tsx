@@ -108,23 +108,23 @@ export function LevelHeader({
 					)}
 
 					<Button
-							className={`px-5 font-semibold shadow-md ${
-								isCompleting
-									? 'bg-secondary text-muted-foreground cursor-not-allowed'
-									: lastResult?.valid
-										? 'bg-success hover:bg-success/90 text-foreground shadow-success/30'
-										: 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/30'
-							}`}
-							disabled={isCompleting}
-							onClick={handleSubmit}
-							size="sm"
-							variant={lastResult?.valid ? 'default' : 'default'}
-						>
-							{isCompleting
-								? 'Completing...'
+						className={`px-5 font-semibold shadow-md ${
+							isCompleting
+								? 'bg-secondary text-muted-foreground cursor-not-allowed'
 								: lastResult?.valid
-									? 'Complete Level'
-									: 'Submit'}
+									? 'bg-success hover:bg-success/90 text-foreground shadow-success/30'
+									: 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/30'
+						}`}
+						disabled={isCompleting}
+						onClick={handleSubmit}
+						size="sm"
+						variant={lastResult?.valid ? 'default' : 'default'}
+					>
+						{isCompleting
+							? 'Completing...'
+							: lastResult?.valid
+								? 'Complete Level'
+								: 'Submit'}
 					</Button>
 				</div>
 			</div>

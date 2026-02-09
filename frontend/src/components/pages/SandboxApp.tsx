@@ -96,9 +96,7 @@ export function SandboxApp() {
 		setNodes(nodes.filter((n) => n.id !== nodeId));
 		setConnections(
 			connections.filter(
-				(c) =>
-					c.sourceNodeId !== nodeId &&
-					c.targetNodeId !== nodeId,
+				(c) => c.sourceNodeId !== nodeId && c.targetNodeId !== nodeId,
 			),
 		);
 		if (selectedNodeId === nodeId) {
@@ -230,8 +228,18 @@ export function SandboxApp() {
 										title="Delete node"
 										type="button"
 									>
-										<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-											<path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+										<svg
+											className="w-3.5 h-3.5"
+											fill="none"
+											stroke="currentColor"
+											strokeWidth={2}
+											viewBox="0 0 24 24"
+										>
+											<path
+												d="M18 6L6 18M6 6l12 12"
+												strokeLinecap="round"
+												strokeLinejoin="round"
+											/>
 										</svg>
 									</button>
 								)}

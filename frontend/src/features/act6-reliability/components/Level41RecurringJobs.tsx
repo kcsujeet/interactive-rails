@@ -5,7 +5,6 @@
  * Teaches: Solid Queue recurring.yml, queue_as, cron scheduling
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	Calendar,
 	CheckCircle,
@@ -18,8 +17,7 @@ import {
 	Timer,
 	Trash2,
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -31,6 +29,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -136,7 +136,9 @@ const CLEANUP_JOB_IDS = new Set([
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
-function getScheduleFireTimes(schedule: Schedule): { hour: number; minute: number }[] {
+function getScheduleFireTimes(
+	schedule: Schedule,
+): { hour: number; minute: number }[] {
 	const times: { hour: number; minute: number }[] = [];
 	switch (schedule) {
 		case 'every 15 minutes':
@@ -340,9 +342,7 @@ production:
 		for (const sj of scheduledJobs) {
 			const def = JOB_DEFINITIONS.find((j) => j.id === sj.jobId);
 			if (!def) continue;
-			const cronInfo = SCHEDULE_OPTIONS.find(
-				(s) => s.value === sj.schedule,
-			);
+			const cronInfo = SCHEDULE_OPTIONS.find((s) => s.value === sj.schedule);
 			yml += `\n  ${sj.jobId}:`;
 			yml += `\n    class: ${def.className}`;
 			yml += `\n    schedule: "${cronInfo?.cron || sj.schedule}"`;
@@ -458,28 +458,20 @@ end`;
 						</div>
 						<div className="space-y-2">
 							<div className="flex justify-between text-sm">
-								<span className="text-muted-foreground">
-									Expired sessions
-								</span>
+								<span className="text-muted-foreground">Expired sessions</span>
 								<span className="text-destructive font-mono font-semibold">
 									2,000,000
 								</span>
 							</div>
 							<div className="flex justify-between text-sm">
-								<span className="text-muted-foreground">
-									Orphaned tokens
-								</span>
+								<span className="text-muted-foreground">Orphaned tokens</span>
 								<span className="text-destructive font-mono font-semibold">
 									500,000
 								</span>
 							</div>
 							<div className="flex justify-between text-sm">
-								<span className="text-muted-foreground">
-									Automated cleanup
-								</span>
-								<span className="text-destructive font-semibold">
-									None
-								</span>
+								<span className="text-muted-foreground">Automated cleanup</span>
+								<span className="text-destructive font-semibold">None</span>
 							</div>
 						</div>
 					</div>
@@ -492,9 +484,7 @@ end`;
 						<div className="space-y-3">
 							<div>
 								<div className="flex justify-between text-sm mb-1">
-									<span className="text-muted-foreground">
-										Records cleaned
-									</span>
+									<span className="text-muted-foreground">Records cleaned</span>
 									<span
 										className={
 											totalRecordsCleaned > 0
@@ -508,9 +498,7 @@ end`;
 							</div>
 							<div>
 								<div className="flex justify-between text-sm mb-1">
-									<span className="text-muted-foreground">
-										DB size reduced
-									</span>
+									<span className="text-muted-foreground">DB size reduced</span>
 									<span
 										className={
 											dbSizeReduction > 0
@@ -529,9 +517,7 @@ end`;
 								</div>
 							</div>
 							<div className="flex justify-between text-sm">
-								<span className="text-muted-foreground">
-									Jobs scheduled
-								</span>
+								<span className="text-muted-foreground">Jobs scheduled</span>
 								<span
 									className={
 										scheduledJobs.length >= 3
@@ -623,21 +609,16 @@ end`;
 								</div>
 								<Button
 									className="flex items-center gap-2"
-									disabled={
-										scheduledJobs.length === 0 || isSimulating
-									}
-									onClick={
-										isSimulating ? stopSimulation : startSimulation
-									}
-									size="sm"
 									color={isSimulating ? 'destructive' : 'primary'}
+									disabled={scheduledJobs.length === 0 || isSimulating}
+									onClick={isSimulating ? stopSimulation : startSimulation}
+									size="sm"
 									variant="default"
 								>
 									{isSimulating ? (
 										<>
 											<Timer className="w-4 h-4 animate-spin" />
-											{formatHour(simHour)}:
-											{String(simMinute).padStart(2, '0')}
+											{formatHour(simHour)}:{String(simMinute).padStart(2, '0')}
 										</>
 									) : (
 										<>
@@ -651,19 +632,14 @@ end`;
 							<div className="p-4 space-y-3">
 								{scheduledJobs.length === 0 ? (
 									<div className="text-center py-8 text-muted-foreground">
-										No jobs scheduled yet. Click a job above to add
-										it.
+										No jobs scheduled yet. Click a job above to add it.
 									</div>
 								) : (
 									scheduledJobs.map((sj) => {
-										const def = JOB_DEFINITIONS.find(
-											(j) => j.id === sj.jobId,
-										);
+										const def = JOB_DEFINITIONS.find((j) => j.id === sj.jobId);
 										if (!def) return null;
 										const Icon = def.icon;
-										const isCleanupJob = CLEANUP_JOB_IDS.has(
-											sj.jobId,
-										);
+										const isCleanupJob = CLEANUP_JOB_IDS.has(sj.jobId);
 										const wrongQueue =
 											isCleanupJob && sj.queue !== 'maintenance';
 
@@ -680,9 +656,7 @@ end`;
 													<div className="flex items-center gap-3 flex-1">
 														<Icon
 															className={`w-5 h-5 shrink-0 ${
-																wrongQueue
-																	? 'text-destructive'
-																	: 'text-primary'
+																wrongQueue ? 'text-destructive' : 'text-primary'
 															}`}
 														/>
 														<div className="flex-1 min-w-0">
@@ -694,8 +668,7 @@ end`;
 															</div>
 															{wrongQueue && (
 																<div className="text-xs text-destructive mt-1 flex items-center gap-1">
-																	Cleanup jobs should use
-																	the maintenance queue
+																	Cleanup jobs should use the maintenance queue
 																</div>
 															)}
 														</div>
@@ -703,9 +676,7 @@ end`;
 
 													<Button
 														className="text-muted-foreground hover:text-destructive shrink-0"
-														onClick={() =>
-															removeJob(sj.jobId)
-														}
+														onClick={() => removeJob(sj.jobId)}
 														size="icon"
 														variant="ghost"
 													>
@@ -722,23 +693,16 @@ end`;
 															onChange={(e) =>
 																updateSchedule(
 																	sj.jobId,
-																	e.target
-																		.value as Schedule,
+																	e.target.value as Schedule,
 																)
 															}
 															value={sj.schedule}
 														>
-															{SCHEDULE_OPTIONS.map(
-																(opt) => (
-																	<option
-																		key={opt.value}
-																		value={opt.value}
-																	>
-																		{opt.label} (
-																		{opt.cron})
-																	</option>
-																),
-															)}
+															{SCHEDULE_OPTIONS.map((opt) => (
+																<option key={opt.value} value={opt.value}>
+																	{opt.label} ({opt.cron})
+																</option>
+															))}
 														</select>
 													</div>
 
@@ -753,15 +717,12 @@ end`;
 															onChange={(e) =>
 																updateQueue(
 																	sj.jobId,
-																	e.target
-																		.value as QueueName,
+																	e.target.value as QueueName,
 																)
 															}
 															value={sj.queue}
 														>
-															<option value="default">
-																default queue
-															</option>
+															<option value="default">default queue</option>
 															<option value="maintenance">
 																maintenance queue
 															</option>
@@ -770,8 +731,7 @@ end`;
 
 													{def.recordsPerRun > 0 && (
 														<span className="text-xs text-muted-foreground ml-auto">
-															~{def.recordsPerRun.toLocaleString()}{' '}
-															records/run
+															~{def.recordsPerRun.toLocaleString()} records/run
 														</span>
 													)}
 												</div>
@@ -810,10 +770,7 @@ end`;
 									{/* Hour labels */}
 									<div className="flex text-xs text-muted-foreground mb-2">
 										{Array.from({ length: 24 }).map((_, i) => (
-											<div
-												className="flex-1 text-center"
-												key={`hour-${i}`}
-											>
+											<div className="flex-1 text-center" key={`hour-${i}`}>
 												{i % 3 === 0 ? formatHour(i) : ''}
 											</div>
 										))}
@@ -831,9 +788,7 @@ end`;
 													(j) => j.id === sj.jobId,
 												);
 												if (!def) return null;
-												const fires = getScheduleFireTimes(
-													sj.schedule,
-												);
+												const fires = getScheduleFireTimes(sj.schedule);
 												const Icon = def.icon;
 
 												return (
@@ -843,33 +798,23 @@ end`;
 													>
 														<div className="w-24 shrink-0 flex items-center gap-1.5 text-xs text-muted-foreground truncate">
 															<Icon className="w-3.5 h-3.5 shrink-0" />
-															<span className="truncate">
-																{def.name}
-															</span>
+															<span className="truncate">{def.name}</span>
 														</div>
 														<div className="flex-1 relative h-6 bg-secondary/50 rounded border border-border">
 															{fires.map((fire) => {
 																const pos =
-																	((fire.hour * 60 +
-																		fire.minute) /
-																		(24 * 60)) *
+																	((fire.hour * 60 + fire.minute) / (24 * 60)) *
 																	100;
-																const ev =
-																	timelineEvents.find(
-																		(e) =>
-																			e.jobId ===
-																				sj.jobId &&
-																			e.hour ===
-																				fire.hour &&
-																			e.minute ===
-																				fire.minute,
-																	);
+																const ev = timelineEvents.find(
+																	(e) =>
+																		e.jobId === sj.jobId &&
+																		e.hour === fire.hour &&
+																		e.minute === fire.minute,
+																);
 																const statusColor =
-																	ev?.status ===
-																	'completed'
+																	ev?.status === 'completed'
 																		? 'bg-success'
-																		: ev?.status ===
-																			  'running'
+																		: ev?.status === 'running'
 																			? 'bg-primary animate-pulse'
 																			: 'bg-muted-foreground/40';
 																return (
@@ -922,8 +867,7 @@ end`;
 							highlight: [],
 						},
 						{
-							filename:
-								'app/jobs/cleanup_expired_sessions_job.rb',
+							filename: 'app/jobs/cleanup_expired_sessions_job.rb',
 							language: 'ruby',
 							code: generateJobClass(),
 							highlight: [3, 6, 7, 10],
@@ -937,14 +881,9 @@ end`;
 						</div>
 						<ul className="text-xs text-muted-foreground space-y-1.5">
 							{SCHEDULE_OPTIONS.map((opt) => (
-								<li
-									className="flex justify-between"
-									key={opt.value}
-								>
+								<li className="flex justify-between" key={opt.value}>
 									<span>{opt.label}</span>
-									<code className="text-primary/80 font-mono">
-										{opt.cron}
-									</code>
+									<code className="text-primary/80 font-mono">{opt.cron}</code>
 								</li>
 							))}
 						</ul>
@@ -957,28 +896,19 @@ end`;
 						<ul className="text-xs text-muted-foreground space-y-1">
 							<li className="flex items-start gap-1.5">
 								<CheckCircle className="w-3 h-3 text-success mt-0.5 shrink-0" />
-								<span>
-									Use maintenance queue for cleanup jobs
-								</span>
+								<span>Use maintenance queue for cleanup jobs</span>
 							</li>
 							<li className="flex items-start gap-1.5">
 								<CheckCircle className="w-3 h-3 text-success mt-0.5 shrink-0" />
-								<span>
-									Delete in batches (in_batches) for large
-									datasets
-								</span>
+								<span>Delete in batches (in_batches) for large datasets</span>
 							</li>
 							<li className="flex items-start gap-1.5">
 								<CheckCircle className="w-3 h-3 text-success mt-0.5 shrink-0" />
-								<span>
-									Schedule heavy jobs during off-peak hours
-								</span>
+								<span>Schedule heavy jobs during off-peak hours</span>
 							</li>
 							<li className="flex items-start gap-1.5">
 								<CheckCircle className="w-3 h-3 text-success mt-0.5 shrink-0" />
-								<span>
-									Log cleanup metrics for monitoring
-								</span>
+								<span>Log cleanup metrics for monitoring</span>
 							</li>
 						</ul>
 					</div>

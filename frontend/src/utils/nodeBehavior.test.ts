@@ -33,7 +33,10 @@ describe('findCriticalPath', () => {
 
 	test('finds direct request to response path', () => {
 		const nodes = [node('req', 'request'), node('res', 'response')];
-		expect(findCriticalPath(nodes, [conn('req', 'res')])).toEqual(['req', 'res']);
+		expect(findCriticalPath(nodes, [conn('req', 'res')])).toEqual([
+			'req',
+			'res',
+		]);
 	});
 
 	test('finds path through linear pipeline', () => {
@@ -43,8 +46,17 @@ describe('findCriticalPath', () => {
 			node('ctrl', 'controller'),
 			node('res', 'response'),
 		];
-		const connections = [conn('req', 'rtr'), conn('rtr', 'ctrl'), conn('ctrl', 'res')];
-		expect(findCriticalPath(nodes, connections)).toEqual(['req', 'rtr', 'ctrl', 'res']);
+		const connections = [
+			conn('req', 'rtr'),
+			conn('rtr', 'ctrl'),
+			conn('ctrl', 'res'),
+		];
+		expect(findCriticalPath(nodes, connections)).toEqual([
+			'req',
+			'rtr',
+			'ctrl',
+			'res',
+		]);
 	});
 
 	test('finds path through branching pipeline', () => {

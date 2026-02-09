@@ -4,8 +4,8 @@
  */
 
 import type { MouseEvent } from 'react';
-import { getNodeInfo } from '@/utils/gameData';
 import type { Connection, PendingConnection, PlacedNode } from '@/types/game';
+import { getNodeInfo } from '@/utils/gameData';
 
 interface PipelineNodeProps {
 	node: PlacedNode;
@@ -124,8 +124,18 @@ export function PipelineNode({
 					title="Delete node"
 					type="button"
 				>
-					<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-						<path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+					<svg
+						className="w-3.5 h-3.5"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth={2}
+						viewBox="0 0 24 24"
+					>
+						<path
+							d="M18 6L6 18M6 6l12 12"
+							strokeLinecap="round"
+							strokeLinejoin="round"
+						/>
 					</svg>
 				</button>
 			)}

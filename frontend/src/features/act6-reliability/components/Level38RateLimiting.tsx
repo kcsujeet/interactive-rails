@@ -1,14 +1,12 @@
 /**
- * Level 29: Rate Limiting
+ * Level 38: Rate Limiting
  *
  * Protect your API from abuse with rate limiting.
  * Player learns different rate limiting strategies.
  */
 
+import { AppWindow, Bot, Droplets, Ruler, Skull, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { AppWindow, Bot, Ruler, Skull, Droplets, User } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -20,6 +18,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 interface RateLimitConfig {
 	enabled: boolean;
@@ -283,8 +283,8 @@ export function Level38RateLimiting({
 					<div className="p-4 border-t border-border">
 						<Button
 							className="w-full"
-							onClick={() => setIsSimulating(!isSimulating)}
 							color={isSimulating ? 'destructive' : 'primary'}
+							onClick={() => setIsSimulating(!isSimulating)}
 						>
 							{isSimulating ? 'Stop Traffic' : 'Start Traffic'}
 						</Button>
@@ -324,26 +324,28 @@ export function Level38RateLimiting({
 								</div>
 							</div>
 							<div className="p-4 grid grid-cols-3 gap-3">
-								{([
-									{
-										id: 'fixed-window',
-										name: 'Fixed Window',
-										Icon: AppWindow,
-										desc: 'Reset counter each minute',
-									},
-									{
-										id: 'sliding-window',
-										name: 'Sliding Window',
-										Icon: Ruler,
-										desc: 'Rolling time window',
-									},
-									{
-										id: 'token-bucket',
-										name: 'Token Bucket',
-										Icon: Droplets,
-										desc: 'Tokens refill over time',
-									},
-								] as const).map((s) => (
+								{(
+									[
+										{
+											id: 'fixed-window',
+											name: 'Fixed Window',
+											Icon: AppWindow,
+											desc: 'Reset counter each minute',
+										},
+										{
+											id: 'sliding-window',
+											name: 'Sliding Window',
+											Icon: Ruler,
+											desc: 'Rolling time window',
+										},
+										{
+											id: 'token-bucket',
+											name: 'Token Bucket',
+											Icon: Droplets,
+											desc: 'Tokens refill over time',
+										},
+									] as const
+								).map((s) => (
 									<Button
 										className={`p-4 h-auto rounded-lg border-2 text-center transition-all flex-col ${
 											config.strategy === s.id
@@ -399,11 +401,13 @@ export function Level38RateLimiting({
 										<div className="flex items-center justify-between w-full">
 											<div className="flex items-center gap-3">
 												<span className="flex items-center justify-center">
-													{client.type === 'normal'
-														? <User className="w-6 h-6" />
-														: client.type === 'bot'
-															? <Bot className="w-6 h-6" />
-															: <Skull className="w-6 h-6" />}
+													{client.type === 'normal' ? (
+														<User className="w-6 h-6" />
+													) : client.type === 'bot' ? (
+														<Bot className="w-6 h-6" />
+													) : (
+														<Skull className="w-6 h-6" />
+													)}
 												</span>
 												<div>
 													<div

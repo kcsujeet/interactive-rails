@@ -7,7 +7,7 @@
  * App context: Blog API (continued from Act 1)
  */
 
-import type { Act, Level } from "@/types";
+import type { Act, Level } from '@/types';
 
 // ============================================
 // Level 8: Authentication
@@ -27,23 +27,55 @@ const level8Authentication: Level = {
 		nodes: [
 			{ id: 'request-node', type: 'request', x: 100, y: 220, locked: true },
 			{ id: 'router-node', type: 'router', x: 280, y: 220, locked: true },
-			{ id: 'controller-node', type: 'controller', x: 460, y: 220, locked: true },
-			{ id: 'post-model', type: 'model', x: 660, y: 220, locked: true, config: { label: 'Post' } },
+			{
+				id: 'controller-node',
+				type: 'controller',
+				x: 460,
+				y: 220,
+				locked: true,
+			},
+			{
+				id: 'post-model',
+				type: 'model',
+				x: 660,
+				y: 220,
+				locked: true,
+				config: { label: 'Post' },
+			},
 			{ id: 'database-node', type: 'database', x: 860, y: 220, locked: true },
-			{ id: 'serializer-node', type: 'serializer', x: 460, y: 400, locked: true },
+			{
+				id: 'serializer-node',
+				type: 'serializer',
+				x: 460,
+				y: 400,
+				locked: true,
+			},
 			{ id: 'response-node', type: 'response', x: 660, y: 400, locked: true },
 		],
 		connections: [
 			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'router-node' },
-			{ id: 'c2', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
+			{
+				id: 'c2',
+				sourceNodeId: 'router-node',
+				targetNodeId: 'controller-node',
+			},
 			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
 			{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
-			{ id: 'c5', sourceNodeId: 'controller-node', targetNodeId: 'serializer-node' },
-			{ id: 'c6', sourceNodeId: 'serializer-node', targetNodeId: 'response-node' },
+			{
+				id: 'c5',
+				sourceNodeId: 'controller-node',
+				targetNodeId: 'serializer-node',
+			},
+			{
+				id: 'c6',
+				sourceNodeId: 'serializer-node',
+				targetNodeId: 'response-node',
+			},
 		],
 	},
 	problem: {
-		observation: 'Every endpoint is wide open. GET /api/v1/posts, DELETE /api/v1/posts/1 -- anyone can do anything.',
+		observation:
+			'Every endpoint is wide open. GET /api/v1/posts, DELETE /api/v1/posts/1 -- anyone can do anything.',
 		rootCause: 'No authentication layer. No User model. No token verification.',
 		codeExample: `# Current state: ZERO authentication
 # Anyone can hit any endpoint:
@@ -207,25 +239,58 @@ const level9Validations: Level = {
 			{ id: 'request-node', type: 'request', x: 80, y: 220, locked: true },
 			{ id: 'auth-node', type: 'authentication', x: 280, y: 220, locked: true },
 			{ id: 'router-node', type: 'router', x: 480, y: 220, locked: true },
-			{ id: 'controller-node', type: 'controller', x: 680, y: 220, locked: true },
-			{ id: 'post-model', type: 'model', x: 880, y: 220, locked: true, config: { label: 'Post' } },
+			{
+				id: 'controller-node',
+				type: 'controller',
+				x: 680,
+				y: 220,
+				locked: true,
+			},
+			{
+				id: 'post-model',
+				type: 'model',
+				x: 880,
+				y: 220,
+				locked: true,
+				config: { label: 'Post' },
+			},
 			{ id: 'database-node', type: 'database', x: 1080, y: 220, locked: true },
-			{ id: 'serializer-node', type: 'serializer', x: 680, y: 420, locked: true },
+			{
+				id: 'serializer-node',
+				type: 'serializer',
+				x: 680,
+				y: 420,
+				locked: true,
+			},
 			{ id: 'response-node', type: 'response', x: 880, y: 420, locked: true },
 		],
 		connections: [
 			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'auth-node' },
 			{ id: 'c2', sourceNodeId: 'auth-node', targetNodeId: 'router-node' },
-			{ id: 'c3', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
+			{
+				id: 'c3',
+				sourceNodeId: 'router-node',
+				targetNodeId: 'controller-node',
+			},
 			{ id: 'c4', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
 			{ id: 'c5', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
-			{ id: 'c6', sourceNodeId: 'controller-node', targetNodeId: 'serializer-node' },
-			{ id: 'c7', sourceNodeId: 'serializer-node', targetNodeId: 'response-node' },
+			{
+				id: 'c6',
+				sourceNodeId: 'controller-node',
+				targetNodeId: 'serializer-node',
+			},
+			{
+				id: 'c7',
+				sourceNodeId: 'serializer-node',
+				targetNodeId: 'response-node',
+			},
 		],
 	},
 	problem: {
-		observation: 'The database contains posts with blank titles, users with duplicate emails, and body text that is a single character. No data integrity.',
-		rootCause: 'No model validations. Data flows straight through to the database without any checks.',
+		observation:
+			'The database contains posts with blank titles, users with duplicate emails, and body text that is a single character. No data integrity.',
+		rootCause:
+			'No model validations. Data flows straight through to the database without any checks.',
 		codeExample: `# Current state: NO validations
 class Post < ApplicationRecord
   # Nothing here -- accepts anything!
@@ -367,16 +432,40 @@ const level10Callbacks: Level = {
 			{ id: 'request-node', type: 'request', x: 80, y: 250, locked: true },
 			{ id: 'auth-node', type: 'authentication', x: 280, y: 250, locked: true },
 			{ id: 'router-node', type: 'router', x: 480, y: 250, locked: true },
-			{ id: 'controller-node', type: 'controller', x: 680, y: 250, locked: true },
-			{ id: 'user-model', type: 'model', x: 900, y: 140, locked: true, config: { label: 'User' } },
-			{ id: 'post-model', type: 'model', x: 900, y: 360, locked: true, config: { label: 'Post' } },
+			{
+				id: 'controller-node',
+				type: 'controller',
+				x: 680,
+				y: 250,
+				locked: true,
+			},
+			{
+				id: 'user-model',
+				type: 'model',
+				x: 900,
+				y: 140,
+				locked: true,
+				config: { label: 'User' },
+			},
+			{
+				id: 'post-model',
+				type: 'model',
+				x: 900,
+				y: 360,
+				locked: true,
+				config: { label: 'Post' },
+			},
 			{ id: 'database-node', type: 'database', x: 1100, y: 250, locked: true },
 			{ id: 'response-node', type: 'response', x: 680, y: 450, locked: true },
 		],
 		connections: [
 			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'auth-node' },
 			{ id: 'c2', sourceNodeId: 'auth-node', targetNodeId: 'router-node' },
-			{ id: 'c3', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
+			{
+				id: 'c3',
+				sourceNodeId: 'router-node',
+				targetNodeId: 'controller-node',
+			},
 			{ id: 'c4', sourceNodeId: 'controller-node', targetNodeId: 'user-model' },
 			{ id: 'c5', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
 			{ id: 'c6', sourceNodeId: 'user-model', targetNodeId: 'database-node' },
@@ -384,8 +473,10 @@ const level10Callbacks: Level = {
 		],
 	},
 	problem: {
-		observation: 'User.find_by(email: "joe@gmail.com") returns nil even though the user exists. The DB has " JOE@GMAIL.COM " stored. New users sign up but never receive a welcome email.',
-		rootCause: 'No data normalization before save. No after_create callback to trigger side effects.',
+		observation:
+			'User.find_by(email: "joe@gmail.com") returns nil even though the user exists. The DB has " JOE@GMAIL.COM " stored. New users sign up but never receive a welcome email.',
+		rootCause:
+			'No data normalization before save. No after_create callback to trigger side effects.',
 		codeExample: `# Current state: raw data goes straight to DB
 class User < ApplicationRecord
   has_secure_password
@@ -526,32 +617,65 @@ const level11Authorization: Level = {
 	trigger: {
 		type: 'security_incident',
 		description:
-			'User A can edit User B\'s posts. Authentication tells us WHO is making the request, but nothing checks whether they are ALLOWED to do what they are asking.',
+			"User A can edit User B's posts. Authentication tells us WHO is making the request, but nothing checks whether they are ALLOWED to do what they are asking.",
 	},
 	startingPipeline: {
 		nodes: [
 			{ id: 'request-node', type: 'request', x: 80, y: 250, locked: true },
 			{ id: 'auth-node', type: 'authentication', x: 280, y: 250, locked: true },
 			{ id: 'router-node', type: 'router', x: 480, y: 250, locked: true },
-			{ id: 'controller-node', type: 'controller', x: 680, y: 250, locked: true },
-			{ id: 'post-model', type: 'model', x: 880, y: 250, locked: true, config: { label: 'Post' } },
+			{
+				id: 'controller-node',
+				type: 'controller',
+				x: 680,
+				y: 250,
+				locked: true,
+			},
+			{
+				id: 'post-model',
+				type: 'model',
+				x: 880,
+				y: 250,
+				locked: true,
+				config: { label: 'Post' },
+			},
 			{ id: 'database-node', type: 'database', x: 1080, y: 250, locked: true },
-			{ id: 'serializer-node', type: 'serializer', x: 680, y: 420, locked: true },
+			{
+				id: 'serializer-node',
+				type: 'serializer',
+				x: 680,
+				y: 420,
+				locked: true,
+			},
 			{ id: 'response-node', type: 'response', x: 880, y: 420, locked: true },
 		],
 		connections: [
 			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'auth-node' },
 			{ id: 'c2', sourceNodeId: 'auth-node', targetNodeId: 'router-node' },
-			{ id: 'c3', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
+			{
+				id: 'c3',
+				sourceNodeId: 'router-node',
+				targetNodeId: 'controller-node',
+			},
 			{ id: 'c4', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
 			{ id: 'c5', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
-			{ id: 'c6', sourceNodeId: 'controller-node', targetNodeId: 'serializer-node' },
-			{ id: 'c7', sourceNodeId: 'serializer-node', targetNodeId: 'response-node' },
+			{
+				id: 'c6',
+				sourceNodeId: 'controller-node',
+				targetNodeId: 'serializer-node',
+			},
+			{
+				id: 'c7',
+				sourceNodeId: 'serializer-node',
+				targetNodeId: 'response-node',
+			},
 		],
 	},
 	problem: {
-		observation: 'User A logs in and sends DELETE /api/v1/posts/42 -- a post owned by User B. It succeeds. Any authenticated user can modify or destroy any post.',
-		rootCause: 'Authentication verifies identity but there is no authorization layer checking ownership or permissions.',
+		observation:
+			'User A logs in and sends DELETE /api/v1/posts/42 -- a post owned by User B. It succeeds. Any authenticated user can modify or destroy any post.',
+		rootCause:
+			'Authentication verifies identity but there is no authorization layer checking ownership or permissions.',
 		codeExample: `# Current state: no authorization
 class Api::V1::PostsController < ApplicationController
   def update
@@ -737,27 +861,64 @@ const level12Testing: Level = {
 			{ id: 'request-node', type: 'request', x: 80, y: 220, locked: true },
 			{ id: 'auth-node', type: 'authentication', x: 280, y: 220, locked: true },
 			{ id: 'router-node', type: 'router', x: 480, y: 220, locked: true },
-			{ id: 'controller-node', type: 'controller', x: 680, y: 220, locked: true },
+			{
+				id: 'controller-node',
+				type: 'controller',
+				x: 680,
+				y: 220,
+				locked: true,
+			},
 			{ id: 'policy-node', type: 'policy', x: 680, y: 80, locked: true },
-			{ id: 'post-model', type: 'model', x: 900, y: 220, locked: true, config: { label: 'Post' } },
+			{
+				id: 'post-model',
+				type: 'model',
+				x: 900,
+				y: 220,
+				locked: true,
+				config: { label: 'Post' },
+			},
 			{ id: 'database-node', type: 'database', x: 1100, y: 220, locked: true },
-			{ id: 'serializer-node', type: 'serializer', x: 680, y: 420, locked: true },
+			{
+				id: 'serializer-node',
+				type: 'serializer',
+				x: 680,
+				y: 420,
+				locked: true,
+			},
 			{ id: 'response-node', type: 'response', x: 900, y: 420, locked: true },
 		],
 		connections: [
 			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'auth-node' },
 			{ id: 'c2', sourceNodeId: 'auth-node', targetNodeId: 'router-node' },
-			{ id: 'c3', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
-			{ id: 'c4', sourceNodeId: 'controller-node', targetNodeId: 'policy-node' },
+			{
+				id: 'c3',
+				sourceNodeId: 'router-node',
+				targetNodeId: 'controller-node',
+			},
+			{
+				id: 'c4',
+				sourceNodeId: 'controller-node',
+				targetNodeId: 'policy-node',
+			},
 			{ id: 'c5', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
 			{ id: 'c6', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
-			{ id: 'c7', sourceNodeId: 'controller-node', targetNodeId: 'serializer-node' },
-			{ id: 'c8', sourceNodeId: 'serializer-node', targetNodeId: 'response-node' },
+			{
+				id: 'c7',
+				sourceNodeId: 'controller-node',
+				targetNodeId: 'serializer-node',
+			},
+			{
+				id: 'c8',
+				sourceNodeId: 'serializer-node',
+				targetNodeId: 'response-node',
+			},
 		],
 	},
 	problem: {
-		observation: 'Zero test coverage. Deploys break features silently. The login endpoint was returning 500 for 3 hours and nobody knew until a user complained.',
-		rootCause: 'No automated tests. No CI. Manual testing is the only safety net.',
+		observation:
+			'Zero test coverage. Deploys break features silently. The login endpoint was returning 500 for 3 hours and nobody knew until a user complained.',
+		rootCause:
+			'No automated tests. No CI. Manual testing is the only safety net.',
 		codeExample: `# Current state:
 # spec/ directory is empty
 # No test framework configured
@@ -848,7 +1009,7 @@ end
 RSpec.describe "Posts API", type: :request do
   let(:user) { create(:user) }
   let(:token) { user.sessions.create!.token }
-  let(:headers) { { "Authorization" => "Bearer \#{token}" } }
+  let(:headers) { { "Authorization" => "Bearer #{token}" } }
 
   describe "GET /api/v1/posts" do
     it "returns published posts" do
@@ -887,7 +1048,7 @@ RSpec.describe "Posts API", type: :request do
   describe "PATCH /api/v1/posts/:id" do
     it "forbids updating another user's post" do
       other_post = create(:post)  # belongs to another user
-      patch "/api/v1/posts/\#{other_post.id}",
+      patch "/api/v1/posts/#{other_post.id}",
             params: { post: { title: "Hacked" } },
             headers: headers
       expect(response).to have_http_status(:forbidden)
@@ -954,27 +1115,64 @@ const level13Security: Level = {
 			{ id: 'request-node', type: 'request', x: 80, y: 220, locked: true },
 			{ id: 'auth-node', type: 'authentication', x: 280, y: 220, locked: true },
 			{ id: 'router-node', type: 'router', x: 480, y: 220, locked: true },
-			{ id: 'controller-node', type: 'controller', x: 680, y: 220, locked: true },
+			{
+				id: 'controller-node',
+				type: 'controller',
+				x: 680,
+				y: 220,
+				locked: true,
+			},
 			{ id: 'policy-node', type: 'policy', x: 680, y: 80, locked: true },
-			{ id: 'post-model', type: 'model', x: 900, y: 220, locked: true, config: { label: 'Post' } },
+			{
+				id: 'post-model',
+				type: 'model',
+				x: 900,
+				y: 220,
+				locked: true,
+				config: { label: 'Post' },
+			},
 			{ id: 'database-node', type: 'database', x: 1100, y: 220, locked: true },
-			{ id: 'serializer-node', type: 'serializer', x: 680, y: 420, locked: true },
+			{
+				id: 'serializer-node',
+				type: 'serializer',
+				x: 680,
+				y: 420,
+				locked: true,
+			},
 			{ id: 'response-node', type: 'response', x: 900, y: 420, locked: true },
 		],
 		connections: [
 			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'auth-node' },
 			{ id: 'c2', sourceNodeId: 'auth-node', targetNodeId: 'router-node' },
-			{ id: 'c3', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
-			{ id: 'c4', sourceNodeId: 'controller-node', targetNodeId: 'policy-node' },
+			{
+				id: 'c3',
+				sourceNodeId: 'router-node',
+				targetNodeId: 'controller-node',
+			},
+			{
+				id: 'c4',
+				sourceNodeId: 'controller-node',
+				targetNodeId: 'policy-node',
+			},
 			{ id: 'c5', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
 			{ id: 'c6', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
-			{ id: 'c7', sourceNodeId: 'controller-node', targetNodeId: 'serializer-node' },
-			{ id: 'c8', sourceNodeId: 'serializer-node', targetNodeId: 'response-node' },
+			{
+				id: 'c7',
+				sourceNodeId: 'controller-node',
+				targetNodeId: 'serializer-node',
+			},
+			{
+				id: 'c8',
+				sourceNodeId: 'serializer-node',
+				targetNodeId: 'response-node',
+			},
 		],
 	},
 	problem: {
-		observation: 'Four critical findings: (1) No CORS -- browser requests from the React frontend fail with "blocked by CORS policy." (2) API keys for Stripe and SendGrid are hardcoded in initializers. (3) The login endpoint can be brute-forced with no rate limit. (4) Some controllers accept unfiltered params.',
-		rootCause: 'Security fundamentals were never configured. CORS, credentials, rate limiting, and strong params are all missing or incomplete.',
+		observation:
+			'Four critical findings: (1) No CORS -- browser requests from the React frontend fail with "blocked by CORS policy." (2) API keys for Stripe and SendGrid are hardcoded in initializers. (3) The login endpoint can be brute-forced with no rate limit. (4) Some controllers accept unfiltered params.',
+		rootCause:
+			'Security fundamentals were never configured. CORS, credentials, rate limiting, and strong params are all missing or incomplete.',
 		codeExample: `# Finding 1: No CORS headers
 # Browser console: "Access to XMLHttpRequest has been blocked by CORS policy"
 # The React frontend at localhost:3001 cannot talk to the API at localhost:3000
@@ -1139,28 +1337,65 @@ const level14ScopesEnums: Level = {
 			{ id: 'cors-node', type: 'cors', x: 280, y: 220, locked: true },
 			{ id: 'auth-node', type: 'authentication', x: 480, y: 220, locked: true },
 			{ id: 'router-node', type: 'router', x: 680, y: 220, locked: true },
-			{ id: 'controller-node', type: 'controller', x: 880, y: 220, locked: true },
+			{
+				id: 'controller-node',
+				type: 'controller',
+				x: 880,
+				y: 220,
+				locked: true,
+			},
 			{ id: 'policy-node', type: 'policy', x: 880, y: 80, locked: true },
-			{ id: 'post-model', type: 'model', x: 1080, y: 220, locked: true, config: { label: 'Post' } },
+			{
+				id: 'post-model',
+				type: 'model',
+				x: 1080,
+				y: 220,
+				locked: true,
+				config: { label: 'Post' },
+			},
 			{ id: 'database-node', type: 'database', x: 1280, y: 220, locked: true },
-			{ id: 'serializer-node', type: 'serializer', x: 880, y: 420, locked: true },
+			{
+				id: 'serializer-node',
+				type: 'serializer',
+				x: 880,
+				y: 420,
+				locked: true,
+			},
 			{ id: 'response-node', type: 'response', x: 1080, y: 420, locked: true },
 		],
 		connections: [
 			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'cors-node' },
 			{ id: 'c2', sourceNodeId: 'cors-node', targetNodeId: 'auth-node' },
 			{ id: 'c3', sourceNodeId: 'auth-node', targetNodeId: 'router-node' },
-			{ id: 'c4', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
-			{ id: 'c5', sourceNodeId: 'controller-node', targetNodeId: 'policy-node' },
+			{
+				id: 'c4',
+				sourceNodeId: 'router-node',
+				targetNodeId: 'controller-node',
+			},
+			{
+				id: 'c5',
+				sourceNodeId: 'controller-node',
+				targetNodeId: 'policy-node',
+			},
 			{ id: 'c6', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
 			{ id: 'c7', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
-			{ id: 'c8', sourceNodeId: 'controller-node', targetNodeId: 'serializer-node' },
-			{ id: 'c9', sourceNodeId: 'serializer-node', targetNodeId: 'response-node' },
+			{
+				id: 'c8',
+				sourceNodeId: 'controller-node',
+				targetNodeId: 'serializer-node',
+			},
+			{
+				id: 'c9',
+				sourceNodeId: 'serializer-node',
+				targetNodeId: 'response-node',
+			},
 		],
 	},
 	problem: {
-		observation: 'GET /api/v1/posts returns everything: published posts, drafts, even archived ones. Users see half-written drafts from other authors. There is no way to filter by status, and the status field accepts any string including typos like "pubished."',
-		rootCause: 'No enum to constrain status values. No scopes to filter posts by status. The controller just does Post.all.',
+		observation:
+			'GET /api/v1/posts returns everything: published posts, drafts, even archived ones. Users see half-written drafts from other authors. There is no way to filter by status, and the status field accepts any string including typos like "pubished."',
+		rootCause:
+			'No enum to constrain status values. No scopes to filter posts by status. The controller just does Post.all.',
 		codeExample: `# Current state:
 class Post < ApplicationRecord
   # status is a plain string column -- accepts anything
@@ -1233,7 +1468,7 @@ class Post < ApplicationRecord
   scope :by_author, ->(user) { where(user: user) }
   scope :created_after, ->(date) { where("created_at >= ?", date) }
   scope :search, ->(query) {
-    where("title ILIKE :q OR body ILIKE :q", q: "%\#{query}%")
+    where("title ILIKE :q OR body ILIKE :q", q: "%#{query}%")
   }
 
   # Default scope (use sparingly -- affects ALL queries)
@@ -1321,6 +1556,16 @@ export const actTwo: Act = {
 		level13Security,
 		level14ScopesEnums,
 	],
-	unlockedNodes: ['authentication', 'validation', 'callback', 'policy', 'test', 'cors', 'rate_limiter', 'credentials', 'scope'],
+	unlockedNodes: [
+		'authentication',
+		'validation',
+		'callback',
+		'policy',
+		'test',
+		'cors',
+		'rate_limiter',
+		'credentials',
+		'scope',
+	],
 	metricsVisible: false,
 };

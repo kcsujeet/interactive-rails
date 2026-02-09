@@ -6,7 +6,6 @@
  * Teaches: ActiveSupport::Concern, DRY, included block, class_methods
  */
 
-import { useState, useMemo } from 'react';
 import {
 	Check,
 	Copy,
@@ -15,8 +14,7 @@ import {
 	PackagePlus,
 	Scissors,
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import { useMemo, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -28,6 +26,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 // --- Data definitions ---
 
@@ -106,10 +106,7 @@ const INITIAL_INCLUDED: Set<string> = new Set();
 
 // --- Component ---
 
-export function Level16Concerns({
-	onComplete,
-	onExit,
-}: LevelComponentProps) {
+export function Level16Concerns({ onComplete, onExit }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 
 	const [extractedLines, setExtractedLines] = useState<Set<string>>(
@@ -174,9 +171,7 @@ export function Level16Concerns({
 		const errors: string[] = [];
 
 		if (selectedCount < 4) {
-			errors.push(
-				`Select at least 4 shared lines (${selectedCount} selected)`,
-			);
+			errors.push(`Select at least 4 shared lines (${selectedCount} selected)`);
 		}
 
 		if (!concernCreated) {
@@ -185,9 +180,7 @@ export function Level16Concerns({
 
 		const missingModels = MODEL_NAMES.filter((m) => !includedModels.has(m));
 		if (missingModels.length > 0) {
-			errors.push(
-				`Include concern in: ${missingModels.join(', ')}`,
-			);
+			errors.push(`Include concern in: ${missingModels.join(', ')}`);
 		}
 
 		if (errors.length > 0) {
@@ -216,13 +209,14 @@ export function Level16Concerns({
 	// Code generation
 	const generateConcernCode = () => {
 		const extracted = SHARED_LINES.filter((l) => extractedLines.has(l.id));
-		const associations = extracted.filter((l) =>
-			l.code.startsWith('has_many') || l.code.startsWith('has_one') || l.code.startsWith('belongs_to'),
+		const associations = extracted.filter(
+			(l) =>
+				l.code.startsWith('has_many') ||
+				l.code.startsWith('has_one') ||
+				l.code.startsWith('belongs_to'),
 		);
 		const scopes = extracted.filter((l) => l.code.startsWith('scope'));
-		const methods = extracted.filter(
-			(l) => l.code.startsWith('def '),
-		);
+		const methods = extracted.filter((l) => l.code.startsWith('def '));
 
 		if (extracted.length === 0) {
 			return `# Select shared lines to preview the concern
@@ -237,25 +231,33 @@ module Taggable
 end`;
 		}
 
-		const includedBlock = associations.length > 0 || scopes.length > 0
-			? `  included do
+		const includedBlock =
+			associations.length > 0 || scopes.length > 0
+				? `  included do
 ${associations.map((l) => `    ${l.code}`).join('\n')}
 ${scopes.length > 0 ? `\n${scopes.map((l) => `    ${l.code}`).join('\n')}` : ''}
   end`
-			: '';
+				: '';
 
-		const methodBlock = methods.length > 0
-			? methods
-					.map((l) => {
-						const parts = l.code.split(';').map((p) => p.trim()).filter(Boolean);
-						if (parts.length <= 1) return `  ${l.code}`;
-						const defLine = parts[0];
-						const body = parts.slice(1, -1).join('\n    ');
-						const endLine = parts[parts.length - 1] === 'end' ? '' : parts[parts.length - 1];
-						return `  ${defLine}\n    ${body}${endLine ? `\n    ${endLine}` : ''}\n  end`;
-					})
-					.join('\n\n')
-			: '';
+		const methodBlock =
+			methods.length > 0
+				? methods
+						.map((l) => {
+							const parts = l.code
+								.split(';')
+								.map((p) => p.trim())
+								.filter(Boolean);
+							if (parts.length <= 1) return `  ${l.code}`;
+							const defLine = parts[0];
+							const body = parts.slice(1, -1).join('\n    ');
+							const endLine =
+								parts[parts.length - 1] === 'end'
+									? ''
+									: parts[parts.length - 1];
+							return `  ${defLine}\n    ${body}${endLine ? `\n    ${endLine}` : ''}\n  end`;
+						})
+						.join('\n\n')
+				: '';
 
 		return `module Taggable
   extend ActiveSupport::Concern
@@ -325,10 +327,7 @@ end`;
 									icon: Check,
 								},
 							].map((step) => (
-								<div
-									className="flex items-center gap-2"
-									key={step.label}
-								>
+								<div className="flex items-center gap-2" key={step.label}>
 									<div
 										className={`w-5 h-5 rounded-full flex items-center justify-center ${
 											step.done
@@ -476,9 +475,7 @@ end`;
 															) : (
 																<Copy className="w-3 h-3 text-destructive/50 shrink-0" />
 															)}
-															<span className="truncate">
-																{line.code}
-															</span>
+															<span className="truncate">{line.code}</span>
 														</div>
 													</button>
 												);
@@ -553,9 +550,7 @@ end`;
 									return (
 										<div
 											className={`rounded-xl border-2 bg-card overflow-hidden transition-all ${
-												isIncluded
-													? 'ring-2 ring-success/50'
-													: ''
+												isIncluded ? 'ring-2 ring-success/50' : ''
 											}`}
 											key={model.name}
 											style={{ borderColor: `${model.color}40` }}

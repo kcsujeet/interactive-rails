@@ -6,7 +6,6 @@
  * latency improvements when reads are offloaded from the primary DB.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	Activity,
 	ArrowRight,
@@ -17,8 +16,7 @@ import {
 	Server,
 	Zap,
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -30,6 +28,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 // --- Types ---
 
@@ -48,7 +48,10 @@ interface TrafficRequest {
 
 // --- Constants ---
 
-const SAMPLE_REQUESTS: Array<{ method: TrafficRequest['method']; path: string }> = [
+const SAMPLE_REQUESTS: Array<{
+	method: TrafficRequest['method'];
+	path: string;
+}> = [
 	{ method: 'GET', path: '/api/posts' },
 	{ method: 'GET', path: '/api/users/42' },
 	{ method: 'GET', path: '/api/comments' },
@@ -83,14 +86,18 @@ export function Level43MultiDatabase({
 	// Refs
 	const nextReplicaId = useRef(1);
 	const requestIdCounter = useRef(0);
-	const simulationInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+	const simulationInterval = useRef<ReturnType<typeof setInterval> | null>(
+		null,
+	);
 
 	// Derived state
 	const hasReplicas = replicas.length > 0;
 	const isConfigured = hasReplicas && connectsToEnabled;
 
 	// Compute current latency based on configuration
-	const currentLatency = isConfigured ? LATENCY_WITH_REPLICAS : LATENCY_SINGLE_DB;
+	const currentLatency = isConfigured
+		? LATENCY_WITH_REPLICAS
+		: LATENCY_SINGLE_DB;
 	const latencyPercent = isConfigured
 		? Math.max(5, (currentLatency.p99 / LATENCY_SINGLE_DB.p99) * 100)
 		: 100;
@@ -98,10 +105,18 @@ export function Level43MultiDatabase({
 	const latencyBarColor = isConfigured ? 'bg-success' : 'bg-destructive';
 
 	// Traffic counts
-	const readCount = trafficLog.filter((r) => r.method === 'GET' && r.status === 'done').length;
-	const writeCount = trafficLog.filter((r) => r.method !== 'GET' && r.status === 'done').length;
-	const replicaHits = trafficLog.filter((r) => r.target === 'replica' && r.status === 'done').length;
-	const primaryHits = trafficLog.filter((r) => r.target === 'primary' && r.status === 'done').length;
+	const readCount = trafficLog.filter(
+		(r) => r.method === 'GET' && r.status === 'done',
+	).length;
+	const writeCount = trafficLog.filter(
+		(r) => r.method !== 'GET' && r.status === 'done',
+	).length;
+	const replicaHits = trafficLog.filter(
+		(r) => r.target === 'replica' && r.status === 'done',
+	).length;
+	const primaryHits = trafficLog.filter(
+		(r) => r.target === 'primary' && r.status === 'done',
+	).length;
 
 	// --- Handlers ---
 
@@ -476,16 +491,12 @@ config.active_record.database_resolver_context =
 									>
 										<Database
 											className={`w-6 h-6 mx-auto mb-2 ${
-												!isConfigured
-													? 'text-destructive'
-													: 'text-warning'
+												!isConfigured ? 'text-destructive' : 'text-warning'
 											}`}
 										/>
 										<div
 											className={`font-medium text-sm ${
-												!isConfigured
-													? 'text-destructive'
-													: 'text-warning'
+												!isConfigured ? 'text-destructive' : 'text-warning'
 											}`}
 										>
 											Primary DB
@@ -520,7 +531,9 @@ config.active_record.database_resolver_context =
 												{replica.label}
 											</div>
 											<div className="text-xs text-muted-foreground mt-1">
-												{connectsToEnabled ? 'Reads routed here' : 'Not connected'}
+												{connectsToEnabled
+													? 'Reads routed here'
+													: 'Not connected'}
 											</div>
 										</div>
 									))}
@@ -574,7 +587,9 @@ config.active_record.database_resolver_context =
 											</div>
 											<div className="flex items-center gap-2">
 												<span className="text-success">reading:</span>
-												<span className="text-muted-foreground">:primary_replica</span>
+												<span className="text-muted-foreground">
+													:primary_replica
+												</span>
 											</div>
 										</div>
 									</div>
@@ -591,12 +606,8 @@ config.active_record.database_resolver_context =
 								</div>
 								{trafficLog.length > 0 && (
 									<div className="flex items-center gap-3 text-xs">
-										<span className="text-success">
-											Replica: {replicaHits}
-										</span>
-										<span className="text-warning">
-											Primary: {primaryHits}
-										</span>
+										<span className="text-success">Replica: {replicaHits}</span>
+										<span className="text-warning">Primary: {primaryHits}</span>
 									</div>
 								)}
 							</div>
@@ -678,25 +689,33 @@ config.active_record.database_resolver_context =
 										</div>
 										<div className="grid grid-cols-2 gap-3 text-sm">
 											<div>
-												<span className="text-muted-foreground">Total reads:</span>
+												<span className="text-muted-foreground">
+													Total reads:
+												</span>
 												<span className="ml-2 text-foreground font-medium">
 													{readCount}
 												</span>
 											</div>
 											<div>
-												<span className="text-muted-foreground">Total writes:</span>
+												<span className="text-muted-foreground">
+													Total writes:
+												</span>
 												<span className="ml-2 text-foreground font-medium">
 													{writeCount}
 												</span>
 											</div>
 											<div>
-												<span className="text-muted-foreground">To replica:</span>
+												<span className="text-muted-foreground">
+													To replica:
+												</span>
 												<span className="ml-2 text-success font-medium">
 													{replicaHits}
 												</span>
 											</div>
 											<div>
-												<span className="text-muted-foreground">To primary:</span>
+												<span className="text-muted-foreground">
+													To primary:
+												</span>
 												<span className="ml-2 text-warning font-medium">
 													{primaryHits}
 												</span>
@@ -704,8 +723,10 @@ config.active_record.database_resolver_context =
 										</div>
 										{isConfigured && replicaHits > 0 && (
 											<div className="mt-2 text-xs text-success">
-												{Math.round((replicaHits / (replicaHits + primaryHits)) * 100)}%
-												of traffic offloaded to replicas
+												{Math.round(
+													(replicaHits / (replicaHits + primaryHits)) * 100,
+												)}
+												% of traffic offloaded to replicas
 											</div>
 										)}
 									</div>

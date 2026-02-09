@@ -1,4 +1,4 @@
-import { selectLevelProgress, useGameStore } from "@/stores";
+import { selectLevelProgress, useGameStore } from '@/stores';
 
 export default function XPBar() {
 	const level = useGameStore((state) => state.level);

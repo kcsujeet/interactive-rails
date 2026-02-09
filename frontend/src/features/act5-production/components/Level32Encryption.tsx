@@ -5,7 +5,6 @@
  * Shows deterministic vs non-deterministic encryption and query behavior.
  */
 
-import { useCallback, useMemo, useState } from 'react';
 import {
 	Database,
 	Eye,
@@ -15,8 +14,7 @@ import {
 	Search,
 	ShieldCheck,
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import { useCallback, useMemo, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -28,6 +26,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 type EncryptionMode = 'plaintext' | 'deterministic' | 'non-deterministic';
 
@@ -87,10 +87,7 @@ interface QueryResult {
 	detail: string;
 }
 
-export function Level32Encryption({
-	onComplete,
-	onExit,
-}: LevelComponentProps) {
+export function Level32Encryption({ onComplete, onExit }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 
 	const [columns, setColumns] = useState<ColumnConfig[]>([
@@ -211,9 +208,7 @@ export function Level32Encryption({
 			);
 		}
 		if (nameCol.mode !== 'plaintext') {
-			errors.push(
-				'Name is not PII in this context -- leave it as plaintext',
-			);
+			errors.push('Name is not PII in this context -- leave it as plaintext');
 		}
 
 		if (errors.length > 0) {
@@ -251,9 +246,7 @@ export function Level32Encryption({
 		setAnimatingColumn(null);
 	};
 
-	const encryptedCount = columns.filter(
-		(c) => c.mode !== 'plaintext',
-	).length;
+	const encryptedCount = columns.filter((c) => c.mode !== 'plaintext').length;
 	const piiEncrypted = columns.filter(
 		(c) => c.isPII && c.mode !== 'plaintext',
 	).length;
@@ -287,10 +280,8 @@ export function Level32Encryption({
 					? '  encrypts :name'
 					: '  # name: plaintext (not PII)';
 
-		const emailQueryable =
-			getColumnConfig('email').mode === 'deterministic';
-		const phoneQueryable =
-			getColumnConfig('phone').mode === 'deterministic';
+		const emailQueryable = getColumnConfig('email').mode === 'deterministic';
+		const phoneQueryable = getColumnConfig('phone').mode === 'deterministic';
 
 		return `class User < ApplicationRecord
 ${emailLine}
@@ -418,9 +409,7 @@ ${phoneQueryable ? 'User.find_by(phone: "+1-555-0123")        # Works!' : '# Use
 							</span>
 							<span
 								className={
-									piiEncrypted === 3
-										? 'text-success'
-										: 'text-foreground'
+									piiEncrypted === 3 ? 'text-success' : 'text-foreground'
 								}
 							>
 								{piiEncrypted} / 3
@@ -449,9 +438,7 @@ ${phoneQueryable ? 'User.find_by(phone: "+1-555-0123")        # Works!' : '# Use
 								variant="outline"
 							>
 								<Search className="w-3.5 h-3.5" />
-								<span className="font-mono text-xs">
-									find_by(email: ...)
-								</span>
+								<span className="font-mono text-xs">find_by(email: ...)</span>
 							</Button>
 							<Button
 								className="w-full justify-start gap-2"
@@ -460,9 +447,7 @@ ${phoneQueryable ? 'User.find_by(phone: "+1-555-0123")        # Works!' : '# Use
 								variant="outline"
 							>
 								<Search className="w-3.5 h-3.5" />
-								<span className="font-mono text-xs">
-									find_by(phone: ...)
-								</span>
+								<span className="font-mono text-xs">find_by(phone: ...)</span>
 							</Button>
 						</div>
 						{queryResult && (
@@ -474,9 +459,7 @@ ${phoneQueryable ? 'User.find_by(phone: "+1-555-0123")        # Works!' : '# Use
 								}`}
 							>
 								<div className="font-semibold mb-1">
-									{queryResult.type === 'success'
-										? '> '
-										: '! '}
+									{queryResult.type === 'success' ? '> ' : '! '}
 									{queryResult.message}
 								</div>
 								<div className="text-[11px] opacity-80">
@@ -516,9 +499,7 @@ ${phoneQueryable ? 'User.find_by(phone: "+1-555-0123")        # Works!' : '# Use
 								className={`gap-2 ${view === 'dbdump' ? '' : 'text-muted-foreground'}`}
 								onClick={() => setView('dbdump')}
 								size="sm"
-								variant={
-									view === 'dbdump' ? 'default' : 'ghost'
-								}
+								variant={view === 'dbdump' ? 'default' : 'ghost'}
 							>
 								<ShieldCheck className="w-4 h-4" />
 								DB Dump (Attacker View)
@@ -534,8 +515,7 @@ ${phoneQueryable ? 'User.find_by(phone: "+1-555-0123")        # Works!' : '# Use
 										users
 									</span>
 									<span className="text-muted-foreground text-xs ml-2">
-										Click column headers to toggle encryption
-										mode
+										Click column headers to toggle encryption mode
 									</span>
 								</div>
 
@@ -547,22 +527,13 @@ ${phoneQueryable ? 'User.find_by(phone: "+1-555-0123")        # Works!' : '# Use
 													id
 												</th>
 												{columns.map((col) => (
-													<th
-														className="px-4 py-3 text-left"
-														key={col.name}
-													>
+													<th className="px-4 py-3 text-left" key={col.name}>
 														<button
 															className={`flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider transition-colors hover:opacity-80 ${getModeColor(col.mode)}`}
-															onClick={() =>
-																cycleEncryptionMode(
-																	col.name,
-																)
-															}
+															onClick={() => cycleEncryptionMode(col.name)}
 															type="button"
 														>
-															{getModeIcon(
-																col.mode,
-															)}
+															{getModeIcon(col.mode)}
 															{col.name}
 															{col.isPII && (
 																<span className="text-[9px] bg-warning/10 text-warning px-1 py-0.5 rounded normal-case tracking-normal">
@@ -573,9 +544,7 @@ ${phoneQueryable ? 'User.find_by(phone: "+1-555-0123")        # Works!' : '# Use
 														<div
 															className={`text-[10px] font-normal mt-1 ${getModeColor(col.mode)}`}
 														>
-															{getModeLabel(
-																col.mode,
-															)}
+															{getModeLabel(col.mode)}
 														</div>
 													</th>
 												))}
@@ -591,30 +560,19 @@ ${phoneQueryable ? 'User.find_by(phone: "+1-555-0123")        # Works!' : '# Use
 														{user.id}
 													</td>
 													{columns.map((col) => {
-														const rawValue =
-															user[
-																col.name as keyof UserRow
-															] as string;
-														const isEncrypted =
-															col.mode !==
-															'plaintext';
-														const displayValue =
-															isEncrypted
-																? (CIPHERTEXT_MAP[
-																		rawValue
-																	] ??
-																	rawValue)
-																: rawValue;
-														const isAnimating =
-															animatingColumn ===
-															col.name;
+														const rawValue = user[
+															col.name as keyof UserRow
+														] as string;
+														const isEncrypted = col.mode !== 'plaintext';
+														const displayValue = isEncrypted
+															? (CIPHERTEXT_MAP[rawValue] ?? rawValue)
+															: rawValue;
+														const isAnimating = animatingColumn === col.name;
 
 														return (
 															<td
 																className={`px-4 py-3 font-mono text-xs transition-all duration-300 ${
-																	isAnimating
-																		? 'bg-primary/10'
-																		: ''
+																	isAnimating ? 'bg-primary/10' : ''
 																} ${
 																	isEncrypted
 																		? 'text-success/70'
@@ -628,17 +586,11 @@ ${phoneQueryable ? 'User.find_by(phone: "+1-555-0123")        # Works!' : '# Use
 																	)}
 																	<span
 																		className={`truncate max-w-[180px] ${
-																			isEncrypted
-																				? 'text-[11px]'
-																				: ''
+																			isEncrypted ? 'text-[11px]' : ''
 																		}`}
-																		title={
-																			displayValue
-																		}
+																		title={displayValue}
 																	>
-																		{
-																			displayValue
-																		}
+																		{displayValue}
 																	</span>
 																</div>
 															</td>
@@ -669,24 +621,16 @@ ${phoneQueryable ? 'User.find_by(phone: "+1-555-0123")        # Works!' : '# Use
 											key={user.id}
 										>
 											<div className="text-muted-foreground">
-												<span className="text-foreground">
-													id:
-												</span>{' '}
-												{user.id}
+												<span className="text-foreground">id:</span> {user.id}
 											</div>
 											{columns.map((col) => {
-												const rawValue =
-													user[
-														col.name as keyof UserRow
-													] as string;
-												const isEncrypted =
-													col.mode !== 'plaintext';
-												const displayValue =
-													isEncrypted
-														? (CIPHERTEXT_MAP[
-																rawValue
-															] ?? rawValue)
-														: rawValue;
+												const rawValue = user[
+													col.name as keyof UserRow
+												] as string;
+												const isEncrypted = col.mode !== 'plaintext';
+												const displayValue = isEncrypted
+													? (CIPHERTEXT_MAP[rawValue] ?? rawValue)
+													: rawValue;
 
 												return (
 													<div
@@ -697,13 +641,9 @@ ${phoneQueryable ? 'User.find_by(phone: "+1-555-0123")        # Works!' : '# Use
 														}
 														key={col.name}
 													>
-														<span className="text-foreground">
-															{col.name}:
-														</span>{' '}
+														<span className="text-foreground">{col.name}:</span>{' '}
 														{isEncrypted ? (
-															<span className="break-all">
-																{displayValue}
-															</span>
+															<span className="break-all">{displayValue}</span>
 														) : (
 															<span>
 																{displayValue}
@@ -726,8 +666,7 @@ ${phoneQueryable ? 'User.find_by(phone: "+1-555-0123")        # Works!' : '# Use
 									)}
 									{encryptedCount === 0 && (
 										<div className="text-center text-destructive py-2 border-t border-border">
-											All data exposed in plaintext.
-											Encrypt PII fields!
+											All data exposed in plaintext. Encrypt PII fields!
 										</div>
 									)}
 								</div>
@@ -747,8 +686,7 @@ ${phoneQueryable ? 'User.find_by(phone: "+1-555-0123")        # Works!' : '# Use
 											Plaintext
 										</div>
 										<div className="text-[11px] text-muted-foreground">
-											No encryption. Data visible to
-											anyone with DB access.
+											No encryption. Data visible to anyone with DB access.
 										</div>
 									</div>
 								</div>
@@ -759,8 +697,8 @@ ${phoneQueryable ? 'User.find_by(phone: "+1-555-0123")        # Works!' : '# Use
 											Deterministic
 										</div>
 										<div className="text-[11px] text-muted-foreground">
-											Same input = same ciphertext.
-											Allows find_by, where, uniqueness.
+											Same input = same ciphertext. Allows find_by, where,
+											uniqueness.
 										</div>
 									</div>
 								</div>
@@ -771,8 +709,8 @@ ${phoneQueryable ? 'User.find_by(phone: "+1-555-0123")        # Works!' : '# Use
 											Non-deterministic
 										</div>
 										<div className="text-[11px] text-muted-foreground">
-											Same input = different ciphertext.
-											Max security, no querying.
+											Same input = different ciphertext. Max security, no
+											querying.
 										</div>
 									</div>
 								</div>
@@ -813,13 +751,11 @@ ${phoneQueryable ? 'User.find_by(phone: "+1-555-0123")        # Works!' : '# Use
 						<ul className="text-xs text-muted-foreground space-y-1">
 							<li className="flex items-start gap-1.5">
 								<Key className="w-3 h-3 text-warning mt-0.5 shrink-0" />
-								Deterministic: same input = same ciphertext
-								(queryable)
+								Deterministic: same input = same ciphertext (queryable)
 							</li>
 							<li className="flex items-start gap-1.5">
 								<Lock className="w-3 h-3 text-success mt-0.5 shrink-0" />
-								Non-deterministic: same input = different
-								ciphertext (secure)
+								Non-deterministic: same input = different ciphertext (secure)
 							</li>
 							<li className="flex items-start gap-1.5">
 								<ShieldCheck className="w-3 h-3 text-primary mt-0.5 shrink-0" />
@@ -833,18 +769,11 @@ ${phoneQueryable ? 'User.find_by(phone: "+1-555-0123")        # Works!' : '# Use
 							When to Use Each
 						</div>
 						<ul className="text-xs text-muted-foreground space-y-1">
+							<li>Deterministic: email (find_by, uniqueness validation)</li>
 							<li>
-								Deterministic: email (find_by, uniqueness
-								validation)
+								Non-deterministic: phone, address, SSN (no querying needed)
 							</li>
-							<li>
-								Non-deterministic: phone, address, SSN (no
-								querying needed)
-							</li>
-							<li>
-								Plaintext: non-sensitive data (name,
-								preferences)
-							</li>
+							<li>Plaintext: non-sensitive data (name, preferences)</li>
 						</ul>
 					</div>
 				</CodePreviewPanel>

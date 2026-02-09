@@ -5,7 +5,6 @@
  * with audit trails (PaperTrail gem). Delete records safely and restore them.
  */
 
-import { useState } from 'react';
 import {
 	Eye,
 	EyeOff,
@@ -16,8 +15,7 @@ import {
 	UserCheck,
 	UserX,
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import { useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -29,6 +27,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -129,9 +129,7 @@ export function Level39SoftDeletes({
 		paperTrailEnabled: false,
 		auditLoggingEnabled: false,
 	});
-	const [hardDeletedIds, setHardDeletedIds] = useState<Set<number>>(
-		new Set(),
-	);
+	const [hardDeletedIds, setHardDeletedIds] = useState<Set<number>>(new Set());
 	const [hasRestoredRecord, setHasRestoredRecord] = useState(false);
 	const [showDiscarded, setShowDiscarded] = useState(true);
 
@@ -188,9 +186,7 @@ export function Level39SoftDeletes({
 	const handleRestore = (userId: number) => {
 		if (!config.discardEnabled) return;
 		setUsers((prev) =>
-			prev.map((u) =>
-				u.id === userId ? { ...u, discardedAt: null } : u,
-			),
+			prev.map((u) => (u.id === userId ? { ...u, discardedAt: null } : u)),
 		);
 		setHasRestoredRecord(true);
 		addAuditEntry('undiscard', userId, {
@@ -229,9 +225,7 @@ export function Level39SoftDeletes({
 			return {
 				valid: false,
 				message: 'Audit trail not enabled!',
-				details: [
-					'Enable PaperTrail to track who changed what and when',
-				],
+				details: ['Enable PaperTrail to track who changed what and when'],
 			};
 		}
 		if (!config.auditLoggingEnabled) {
@@ -431,9 +425,7 @@ PaperTrail.request.whodunnit = -> {
 										? 'border-success bg-success/10'
 										: 'border-border bg-secondary hover:border-muted-foreground'
 								}`}
-								onClick={() =>
-									toggleConfig('auditLoggingEnabled')
-								}
+								onClick={() => toggleConfig('auditLoggingEnabled')}
 								type="button"
 							>
 								<Eye
@@ -469,14 +461,11 @@ PaperTrail.request.whodunnit = -> {
 								variant="outline"
 							>
 								<Trash2 className="w-4 h-4" />
-								<span className="text-xs font-medium">
-									Hard Delete
-								</span>
+								<span className="text-xs font-medium">Hard Delete</span>
 							</Button>
 							<Button
 								className={`h-auto py-3 flex-col gap-1 ${
-									deleteMode === 'soft' &&
-									config.discardEnabled
+									deleteMode === 'soft' && config.discardEnabled
 										? 'border-success bg-success/15 text-success'
 										: deleteMode === 'soft'
 											? 'border-warning bg-warning/15 text-warning'
@@ -487,9 +476,7 @@ PaperTrail.request.whodunnit = -> {
 								variant="outline"
 							>
 								<ShieldCheck className="w-4 h-4" />
-								<span className="text-xs font-medium">
-									Soft Delete
-								</span>
+								<span className="text-xs font-medium">Soft Delete</span>
 							</Button>
 						</div>
 						{!config.discardEnabled && deleteMode === 'hard' && (
@@ -509,25 +496,19 @@ PaperTrail.request.whodunnit = -> {
 								<div className="text-lg font-bold text-success">
 									{activeUsers.length}
 								</div>
-								<div className="text-xs text-muted-foreground">
-									Active
-								</div>
+								<div className="text-xs text-muted-foreground">Active</div>
 							</div>
 							<div className="bg-secondary rounded-lg p-2">
 								<div className="text-lg font-bold text-warning">
 									{discardedUsers.length}
 								</div>
-								<div className="text-xs text-muted-foreground">
-									Discarded
-								</div>
+								<div className="text-xs text-muted-foreground">Discarded</div>
 							</div>
 							<div className="bg-secondary rounded-lg p-2">
 								<div className="text-lg font-bold text-destructive">
 									{hardDeletedIds.size}
 								</div>
-								<div className="text-xs text-muted-foreground">
-									Destroyed
-								</div>
+								<div className="text-xs text-muted-foreground">Destroyed</div>
 							</div>
 						</div>
 					</div>
@@ -563,9 +544,7 @@ PaperTrail.request.whodunnit = -> {
 								{config.discardEnabled && (
 									<Button
 										className="text-xs gap-1.5"
-										onClick={() =>
-											setShowDiscarded(!showDiscarded)
-										}
+										onClick={() => setShowDiscarded(!showDiscarded)}
 										size="sm"
 										variant="ghost"
 									>
@@ -588,24 +567,18 @@ PaperTrail.request.whodunnit = -> {
 								{displayUsers.length === 0 ? (
 									<div className="p-8 text-center text-muted-foreground">
 										<UserX className="w-10 h-10 mx-auto mb-2 opacity-40" />
-										<div className="text-sm">
-											No records to display
-										</div>
-										{!showDiscarded &&
-											discardedUsers.length > 0 && (
-												<div className="text-xs mt-1">
-													{discardedUsers.length}{' '}
-													discarded record(s) hidden
-												</div>
-											)}
+										<div className="text-sm">No records to display</div>
+										{!showDiscarded && discardedUsers.length > 0 && (
+											<div className="text-xs mt-1">
+												{discardedUsers.length} discarded record(s) hidden
+											</div>
+										)}
 									</div>
 								) : (
 									<table className="w-full">
 										<thead>
 											<tr className="text-xs text-muted-foreground uppercase tracking-wider">
-												<th className="text-left px-4 py-2 font-medium">
-													ID
-												</th>
+												<th className="text-left px-4 py-2 font-medium">ID</th>
 												<th className="text-left px-4 py-2 font-medium">
 													Name
 												</th>
@@ -625,8 +598,7 @@ PaperTrail.request.whodunnit = -> {
 										</thead>
 										<tbody className="divide-y divide-border">
 											{displayUsers.map((user) => {
-												const isDiscarded =
-													user.discardedAt !== null;
+												const isDiscarded = user.discardedAt !== null;
 												return (
 													<tr
 														className={`transition-colors ${
@@ -656,11 +628,9 @@ PaperTrail.request.whodunnit = -> {
 																className={`text-xs px-2 py-0.5 rounded-full font-medium ${
 																	isDiscarded
 																		? 'bg-muted text-muted-foreground/50'
-																		: user.role ===
-																			  'admin'
+																		: user.role === 'admin'
 																			? 'bg-primary/15 text-primary'
-																			: user.role ===
-																				  'editor'
+																			: user.role === 'editor'
 																				? 'bg-warning/15 text-warning'
 																				: 'bg-secondary text-muted-foreground'
 																}`}
@@ -685,11 +655,7 @@ PaperTrail.request.whodunnit = -> {
 															{isDiscarded ? (
 																<Button
 																	className="text-xs gap-1.5 text-success hover:text-success"
-																	onClick={() =>
-																		handleRestore(
-																			user.id,
-																		)
-																	}
+																	onClick={() => handleRestore(user.id)}
 																	size="sm"
 																	variant="ghost"
 																>
@@ -699,22 +665,16 @@ PaperTrail.request.whodunnit = -> {
 															) : (
 																<Button
 																	className={`text-xs gap-1.5 ${
-																		deleteMode ===
-																		'hard'
+																		deleteMode === 'hard'
 																			? 'text-destructive hover:text-destructive hover:bg-destructive/10'
 																			: 'text-warning hover:text-warning hover:bg-warning/10'
 																	}`}
-																	onClick={() =>
-																		handleDelete(
-																			user.id,
-																		)
-																	}
+																	onClick={() => handleDelete(user.id)}
 																	size="sm"
 																	variant="ghost"
 																>
 																	<Trash2 className="w-3.5 h-3.5" />
-																	{deleteMode ===
-																	'hard'
+																	{deleteMode === 'hard'
 																		? 'Destroy'
 																		: 'Discard'}
 																</Button>
@@ -736,13 +696,11 @@ PaperTrail.request.whodunnit = -> {
 									<Trash2 className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
 									<div>
 										<div className="text-sm font-medium text-destructive">
-											{hardDeletedIds.size} record(s)
-											permanently destroyed
+											{hardDeletedIds.size} record(s) permanently destroyed
 										</div>
 										<div className="text-xs text-destructive/70 mt-1">
-											These records used hard delete
-											(destroy) and cannot be recovered.
-											This is why soft deletes matter!
+											These records used hard delete (destroy) and cannot be
+											recovered. This is why soft deletes matter!
 										</div>
 									</div>
 								</div>
@@ -768,23 +726,17 @@ PaperTrail.request.whodunnit = -> {
 							{!config.paperTrailEnabled ? (
 								<div className="p-8 text-center text-muted-foreground">
 									<History className="w-10 h-10 mx-auto mb-2 opacity-20" />
-									<div className="text-sm">
-										Audit trail disabled
-									</div>
+									<div className="text-sm">Audit trail disabled</div>
 									<div className="text-xs mt-1">
-										Enable PaperTrail in the configuration
-										panel
+										Enable PaperTrail in the configuration panel
 									</div>
 								</div>
 							) : auditTrail.length === 0 ? (
 								<div className="p-8 text-center text-muted-foreground">
 									<History className="w-10 h-10 mx-auto mb-2 opacity-20" />
-									<div className="text-sm">
-										No changes recorded yet
-									</div>
+									<div className="text-sm">No changes recorded yet</div>
 									<div className="text-xs mt-1">
-										Delete or restore a record to see the
-										audit trail
+										Delete or restore a record to see the audit trail
 									</div>
 								</div>
 							) : (
@@ -797,11 +749,9 @@ PaperTrail.request.whodunnit = -> {
 											<div className="mt-0.5">
 												{entry.event === 'discard' ? (
 													<UserX className="w-4 h-4 text-warning" />
-												) : entry.event ===
-												  'undiscard' ? (
+												) : entry.event === 'undiscard' ? (
 													<RotateCcw className="w-4 h-4 text-success" />
-												) : entry.event ===
-												  'destroy' ? (
+												) : entry.event === 'destroy' ? (
 													<Trash2 className="w-4 h-4 text-destructive" />
 												) : (
 													<History className="w-4 h-4 text-muted-foreground" />
@@ -811,14 +761,11 @@ PaperTrail.request.whodunnit = -> {
 												<div className="flex items-center gap-2">
 													<span
 														className={`text-xs font-medium px-1.5 py-0.5 rounded ${
-															entry.event ===
-															'discard'
+															entry.event === 'discard'
 																? 'bg-warning/15 text-warning'
-																: entry.event ===
-																	  'undiscard'
+																: entry.event === 'undiscard'
 																	? 'bg-success/15 text-success'
-																	: entry.event ===
-																		  'destroy'
+																	: entry.event === 'destroy'
 																		? 'bg-destructive/15 text-destructive'
 																		: 'bg-secondary text-muted-foreground'
 														}`}
@@ -826,35 +773,25 @@ PaperTrail.request.whodunnit = -> {
 														{entry.event}
 													</span>
 													<span className="text-xs text-muted-foreground">
-														{entry.itemType} #
-														{entry.itemId}
+														{entry.itemType} #{entry.itemId}
 													</span>
 												</div>
 												<div className="text-xs text-muted-foreground mt-1">
-													<span className="text-primary">
-														whodunnit:
-													</span>{' '}
+													<span className="text-primary">whodunnit:</span>{' '}
 													{entry.whodunnit}
 												</div>
-												{Object.keys(entry.changeset)
-													.length > 0 && (
+												{Object.keys(entry.changeset).length > 0 && (
 													<div className="text-xs text-muted-foreground mt-1 font-mono bg-secondary/50 rounded px-2 py-1">
-														{Object.entries(
-															entry.changeset,
-														).map(
+														{Object.entries(entry.changeset).map(
 															([key, [from, to]]) => (
-																<div
-																	key={key}
-																>
+																<div key={key}>
 																	{key}:{' '}
 																	<span className="text-destructive/70">
-																		{from ??
-																			'nil'}
+																		{from ?? 'nil'}
 																	</span>{' '}
 																	{'->'}{' '}
 																	<span className="text-success/70">
-																		{to ??
-																			'nil'}
+																		{to ?? 'nil'}
 																	</span>
 																</div>
 															),
@@ -885,33 +822,23 @@ PaperTrail.request.whodunnit = -> {
 						</div>
 						<ul className="text-xs text-muted-foreground space-y-1">
 							<li>
-								<span className="text-primary font-mono">
-									.discard
-								</span>{' '}
-								- Soft delete (set discarded_at)
+								<span className="text-primary font-mono">.discard</span> - Soft
+								delete (set discarded_at)
 							</li>
 							<li>
-								<span className="text-primary font-mono">
-									.undiscard
-								</span>{' '}
-								- Restore a record
+								<span className="text-primary font-mono">.undiscard</span> -
+								Restore a record
 							</li>
 							<li>
-								<span className="text-primary font-mono">
-									.discarded?
-								</span>{' '}
-								- Check if soft-deleted
+								<span className="text-primary font-mono">.discarded?</span> -
+								Check if soft-deleted
 							</li>
 							<li>
-								<span className="text-primary font-mono">
-									.kept
-								</span>{' '}
-								- Scope for active records
+								<span className="text-primary font-mono">.kept</span> - Scope
+								for active records
 							</li>
 							<li>
-								<span className="text-primary font-mono">
-									.with_discarded
-								</span>{' '}
+								<span className="text-primary font-mono">.with_discarded</span>{' '}
 								- Include deleted
 							</li>
 						</ul>
@@ -923,28 +850,20 @@ PaperTrail.request.whodunnit = -> {
 						</div>
 						<ul className="text-xs text-muted-foreground space-y-1">
 							<li>
-								<span className="text-primary font-mono">
-									.versions
-								</span>{' '}
-								- All change history
+								<span className="text-primary font-mono">.versions</span> - All
+								change history
 							</li>
 							<li>
-								<span className="text-primary font-mono">
-									.whodunnit
-								</span>{' '}
-								- Who made the change
+								<span className="text-primary font-mono">.whodunnit</span> - Who
+								made the change
 							</li>
 							<li>
-								<span className="text-primary font-mono">
-									.changeset
-								</span>{' '}
-								- What changed
+								<span className="text-primary font-mono">.changeset</span> -
+								What changed
 							</li>
 							<li>
-								<span className="text-primary font-mono">
-									.event
-								</span>{' '}
-								- create/update/destroy
+								<span className="text-primary font-mono">.event</span> -
+								create/update/destroy
 							</li>
 						</ul>
 					</div>
@@ -955,28 +874,22 @@ PaperTrail.request.whodunnit = -> {
 						</div>
 						<ul className="text-xs text-muted-foreground space-y-1">
 							<li>
-								<span className="text-success">+</span>{' '}
-								Recoverable mistakes
+								<span className="text-success">+</span> Recoverable mistakes
 							</li>
 							<li>
-								<span className="text-success">+</span>{' '}
-								Regulatory compliance
+								<span className="text-success">+</span> Regulatory compliance
 							</li>
 							<li>
-								<span className="text-success">+</span>{' '}
-								Referential integrity
+								<span className="text-success">+</span> Referential integrity
 							</li>
 							<li>
-								<span className="text-success">+</span> Audit
-								trail support
+								<span className="text-success">+</span> Audit trail support
 							</li>
 							<li>
-								<span className="text-warning">-</span> Must
-								filter queries
+								<span className="text-warning">-</span> Must filter queries
 							</li>
 							<li>
-								<span className="text-warning">-</span> Storage
-								grows over time
+								<span className="text-warning">-</span> Storage grows over time
 							</li>
 						</ul>
 					</div>

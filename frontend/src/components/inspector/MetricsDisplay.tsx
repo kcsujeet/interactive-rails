@@ -5,7 +5,7 @@
  * Supports both nested SimulationMetrics format and flat LiveMetrics format.
  */
 
-import type { SimulationMetrics } from "@/stores/simulation";
+import type { SimulationMetrics } from '@/stores/simulation';
 import type { LiveMetrics } from '@/types/game';
 
 // Unified metrics type that handles both formats

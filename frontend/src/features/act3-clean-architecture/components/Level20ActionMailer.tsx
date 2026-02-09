@@ -5,7 +5,6 @@
  * Teaches: Action Mailer, generates_token_for, deliver_later, stateless tokens
  */
 
-import { useEffect, useRef, useState } from 'react';
 import {
 	Check,
 	Clock,
@@ -16,8 +15,7 @@ import {
 	ShieldCheck,
 	Timer,
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import { useEffect, useRef, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -29,6 +27,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 interface EmailComponent {
 	id: string;
@@ -151,9 +151,7 @@ export function Level20ActionMailer({
 		const errors: string[] = [];
 
 		if (enabledCount < 5) {
-			errors.push(
-				`Configure at least 5 email components (${enabledCount}/5)`,
-			);
+			errors.push(`Configure at least 5 email components (${enabledCount}/5)`);
 		}
 
 		if (!emailSent) {
@@ -216,9 +214,7 @@ export function Level20ActionMailer({
 		lines.push('    @user = user');
 
 		if (emailComponents.tokenGeneration) {
-			lines.push(
-				'    @token = user.generate_token_for(:password_reset)',
-			);
+			lines.push('    @token = user.generate_token_for(:password_reset)');
 		}
 
 		if (emailComponents.resetLink) {
@@ -309,9 +305,7 @@ export function Level20ActionMailer({
 										<div className="flex items-center gap-3">
 											<div
 												className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-													isEnabled
-														? 'bg-success/20'
-														: 'bg-secondary'
+													isEnabled ? 'bg-success/20' : 'bg-secondary'
 												}`}
 											>
 												{isEnabled ? (
@@ -326,9 +320,7 @@ export function Level20ActionMailer({
 											<div className="flex-1 min-w-0">
 												<div
 													className={`text-sm font-medium ${
-														isEnabled
-															? 'text-success'
-															: 'text-foreground'
+														isEnabled ? 'text-success' : 'text-foreground'
 													}`}
 												>
 													{comp.label}
@@ -351,9 +343,7 @@ export function Level20ActionMailer({
 							</span>
 							<span
 								className={
-									enabledCount >= 5
-										? 'text-success'
-										: 'text-foreground'
+									enabledCount >= 5 ? 'text-success' : 'text-foreground'
 								}
 							>
 								{enabledCount} / 6
@@ -392,14 +382,10 @@ export function Level20ActionMailer({
 										? 'bg-primary text-primary-foreground'
 										: ''
 								}`}
-								onClick={() =>
-									setSelectedMailer('password_reset')
-								}
+								onClick={() => setSelectedMailer('password_reset')}
 								size="sm"
 								variant={
-									selectedMailer === 'password_reset'
-										? 'default'
-										: 'outline'
+									selectedMailer === 'password_reset' ? 'default' : 'outline'
 								}
 							>
 								<Key className="w-3.5 h-3.5 mr-1.5" />
@@ -413,11 +399,7 @@ export function Level20ActionMailer({
 								}`}
 								onClick={() => setSelectedMailer('welcome')}
 								size="sm"
-								variant={
-									selectedMailer === 'welcome'
-										? 'default'
-										: 'outline'
-								}
+								variant={selectedMailer === 'welcome' ? 'default' : 'outline'}
 							>
 								<Mail className="w-3.5 h-3.5 mr-1.5" />
 								Welcome Email
@@ -434,9 +416,7 @@ export function Level20ActionMailer({
 											? 'Password Reset Email'
 											: 'Welcome Email'}
 									</div>
-									<div className="text-xs text-muted-foreground">
-										Preview
-									</div>
+									<div className="text-xs text-muted-foreground">Preview</div>
 								</div>
 							</div>
 
@@ -483,9 +463,7 @@ export function Level20ActionMailer({
 
 								{/* Email body */}
 								<div className="space-y-3">
-									<p className="text-sm text-muted-foreground">
-										Hi there,
-									</p>
+									<p className="text-sm text-muted-foreground">Hi there,</p>
 									<p className="text-sm text-muted-foreground">
 										{selectedMailer === 'password_reset'
 											? 'Someone requested a password reset for your account.'
@@ -503,8 +481,7 @@ export function Level20ActionMailer({
 															Secure Token
 														</div>
 														<code className="text-xs text-muted-foreground font-mono">
-															generates_token_for
-															:password_reset
+															generates_token_for :password_reset
 														</code>
 													</div>
 												</div>
@@ -542,10 +519,8 @@ export function Level20ActionMailer({
 												<div className="bg-destructive/10 border border-destructive/30 rounded-lg px-4 py-3 flex items-center gap-3">
 													<Clock className="w-4 h-4 text-destructive shrink-0" />
 													<span className="text-xs text-destructive">
-														This link expires in 15
-														minutes. If you did not
-														request this, ignore
-														this email.
+														This link expires in 15 minutes. If you did not
+														request this, ignore this email.
 													</span>
 												</div>
 											) : (
@@ -620,26 +595,19 @@ export function Level20ActionMailer({
 															isActive
 																? 'border-transparent'
 																: 'border-border bg-secondary'
-														} ${
-															isCurrent
-																? 'animate-pulse'
-																: ''
-														}`}
+														} ${isCurrent ? 'animate-pulse' : ''}`}
 														style={
 															isActive
 																? {
 																		backgroundColor: `${step.color}20`,
-																		borderColor:
-																			step.color,
+																		borderColor: step.color,
 																	}
 																: undefined
 														}
 													>
 														<Icon
 															className={`w-5 h-5 transition-colors ${
-																isActive
-																	? ''
-																	: 'text-muted-foreground'
+																isActive ? '' : 'text-muted-foreground'
 															}`}
 															style={
 																isActive
@@ -688,15 +656,10 @@ export function Level20ActionMailer({
 							</div>
 							<div className="p-4 space-y-3">
 								{securityChecks.map((check) => (
-									<div
-										className="flex items-center gap-3"
-										key={check.label}
-									>
+									<div className="flex items-center gap-3" key={check.label}>
 										<div
 											className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
-												check.met
-													? 'bg-success/20'
-													: 'bg-secondary'
+												check.met ? 'bg-success/20' : 'bg-secondary'
 											}`}
 										>
 											{check.met ? (
@@ -707,9 +670,7 @@ export function Level20ActionMailer({
 										</div>
 										<span
 											className={`text-sm ${
-												check.met
-													? 'text-foreground'
-													: 'text-muted-foreground'
+												check.met ? 'text-foreground' : 'text-muted-foreground'
 											}`}
 										>
 											{check.label}
@@ -729,17 +690,13 @@ export function Level20ActionMailer({
 							filename: 'app/mailers/user_mailer.rb',
 							language: 'ruby',
 							code: generateMailerCode(),
-							highlight: emailComponents.deliverLater
-								? []
-								: [],
+							highlight: emailComponents.deliverLater ? [] : [],
 						},
 						{
 							filename: 'app/models/user.rb',
 							language: 'ruby',
 							code: generateModelCode(),
-							highlight: emailComponents.tokenGeneration
-								? [4, 5, 6, 7]
-								: [],
+							highlight: emailComponents.tokenGeneration ? [4, 5, 6, 7] : [],
 						},
 					]}
 					learningGoal="Action Mailer + generates_token_for gives you secure, stateless password resets. No token column needed — the token auto-expires when the password changes."
@@ -751,28 +708,19 @@ export function Level20ActionMailer({
 						<ul className="text-xs text-muted-foreground space-y-1.5">
 							<li className="flex items-start gap-2">
 								<Key className="w-3 h-3 text-warning shrink-0 mt-0.5" />
-								<span>
-									generates_token_for: stateless, expiring
-									tokens
-								</span>
+								<span>generates_token_for: stateless, expiring tokens</span>
 							</li>
 							<li className="flex items-start gap-2">
 								<Timer className="w-3 h-3 text-primary shrink-0 mt-0.5" />
-								<span>
-									deliver_later: always use background jobs
-								</span>
+								<span>deliver_later: always use background jobs</span>
 							</li>
 							<li className="flex items-start gap-2">
 								<Mail className="w-3 h-3 text-success shrink-0 mt-0.5" />
-								<span>
-									Mailers are like controllers for email
-								</span>
+								<span>Mailers are like controllers for email</span>
 							</li>
 							<li className="flex items-start gap-2">
 								<Server className="w-3 h-3 text-muted-foreground shrink-0 mt-0.5" />
-								<span>
-									Preview at /rails/mailers in development
-								</span>
+								<span>Preview at /rails/mailers in development</span>
 							</li>
 						</ul>
 					</div>

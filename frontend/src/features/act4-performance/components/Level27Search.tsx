@@ -6,7 +6,6 @@
  * Teaches: tsvector, tsquery, GIN indexes, pg_search gem
  */
 
-import { useState } from 'react';
 import {
 	ArrowRight,
 	Database,
@@ -17,8 +16,7 @@ import {
 	TrendingDown,
 	Zap,
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import { useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -30,6 +28,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 interface Post {
 	id: number;
@@ -292,7 +292,7 @@ export function Level27Search({ onComplete, onExit }: LevelComponentProps) {
   scope :search, ->(query) {
     where(
       "title LIKE :q OR body LIKE :q",
-      q: "%\#{query}%"
+      q: "%#{query}%"
     )
   }
 end
@@ -303,7 +303,7 @@ end
 # Problems:
 # - Cannot use indexes (always Seq Scan)
 # - No relevance ranking
-# - No stemming (\"run\" != \"running\")
+# - No stemming ("run" != "running")
 # - Case-sensitive by default`;
 		}
 
@@ -322,7 +322,7 @@ end
 end
 
 # Results are ranked by relevance
-# Stemming: \"run\" matches \"running\"
+# Stemming: "run" matches "running"
 # GIN index: 2ms instead of 3,200ms`;
 		}
 
@@ -486,9 +486,7 @@ end`;
 								</div>
 								<span
 									className={
-										hasSearchedLike
-											? 'text-success'
-											: 'text-muted-foreground'
+										hasSearchedLike ? 'text-success' : 'text-muted-foreground'
 									}
 								>
 									Tried LIKE search
@@ -729,8 +727,8 @@ end`;
 										No results found for &quot;{searchQuery}&quot;
 										{searchMode === 'like' && (
 											<div className="mt-2 text-xs">
-												LIKE is case-sensitive by default. Try
-												switching to full-text search for stemming support.
+												LIKE is case-sensitive by default. Try switching to
+												full-text search for stemming support.
 											</div>
 										)}
 									</div>
@@ -781,9 +779,7 @@ end`;
 										<div className="text-xs text-muted-foreground space-y-1">
 											<div className="flex items-center gap-1.5 text-destructive">
 												<TrendingDown className="w-3 h-3" />
-												<span className="font-semibold">
-													LIKE Limitations:
-												</span>
+												<span className="font-semibold">LIKE Limitations:</span>
 											</div>
 											<ul className="ml-5 space-y-0.5">
 												<li>

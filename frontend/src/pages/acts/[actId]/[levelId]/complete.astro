@@ -1,11 +1,21 @@
 ---
-import GameLayout from "@/layouts/GameLayout.astro";
-import { getLevel, getActForLevel, getNextLevel } from "@/features/acts-registry";
-import { Button } from "@/components/ui/Button";
-import { CodeBlock } from "@/components/ui/CodeBlock";
-import { LevelBreadcrumb } from "@/components/ui/LevelBreadcrumb";
-import { MarkdownContent } from "@/components/ui/MarkdownContent";
-import { Star, CheckCircle, ArrowRight, AlertTriangle, BookOpen } from "lucide-react";
+import GameLayout from '@/layouts/GameLayout.astro';
+import {
+	getLevel,
+	getActForLevel,
+	getNextLevel,
+} from '@/features/acts-registry';
+import { Button } from '@/components/ui/Button';
+import { CodeBlock } from '@/components/ui/CodeBlock';
+import { LevelBreadcrumb } from '@/components/ui/LevelBreadcrumb';
+import { MarkdownContent } from '@/components/ui/MarkdownContent';
+import {
+	Star,
+	CheckCircle,
+	ArrowRight,
+	AlertTriangle,
+	BookOpen,
+} from 'lucide-react';
 
 const { actId, levelId } = Astro.params;
 const starsParam = Astro.url.searchParams.get('stars');
@@ -16,17 +26,18 @@ const act = getActForLevel(levelId || '');
 const nextLevel = getNextLevel(levelId || '');
 
 if (!level || !act) {
-  return Astro.redirect('/acts');
+	return Astro.redirect('/acts');
 }
 
 const { learningContent, isCapstone } = level;
 
 // Score messaging based on stars
-const scoreMessage = stars === 3
-  ? "Perfect! You've mastered this concept."
-  : stars === 2
-    ? "Great job! You've got the basics down."
-    : "Good start! Consider revisiting this level later.";
+const scoreMessage =
+	stars === 3
+		? "Perfect! You've mastered this concept."
+		: stars === 2
+			? "Great job! You've got the basics down."
+			: 'Good start! Consider revisiting this level later.';
 ---
 
 <GameLayout title="Level Complete">

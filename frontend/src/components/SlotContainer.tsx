@@ -1,5 +1,5 @@
-import { getNodeInfo } from '@/utils/gameData';
 import type { SlotConfig } from '@/types/game';
+import { getNodeInfo } from '@/utils/gameData';
 
 interface SlotContainerProps {
 	slot: SlotConfig;

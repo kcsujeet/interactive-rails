@@ -6,8 +6,8 @@
  */
 
 import { useState } from 'react';
-import { Button } from './ui/Button';
 import type { DecisionModalConfig, DecisionOption } from '@/types/game';
+import { Button } from './ui/Button';
 
 interface DecisionModalProps {
 	config: DecisionModalConfig;

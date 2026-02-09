@@ -1,8 +1,9 @@
 ---
-import { Button } from "@/components/ui/Button";
+import { Button } from '@/components/ui/Button';
 
 const pathname = Astro.url.pathname;
-const isActive = (href: string) => pathname === href || pathname.startsWith(href);
+const isActive = (href: string) =>
+	pathname === href || pathname.startsWith(href);
 ---
 
 <header class="sticky top-0 z-50 border-b border-border/50 bg-card/80 backdrop-blur-xl">

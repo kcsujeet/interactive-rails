@@ -1,13 +1,12 @@
 /**
- * Level 22: Database Sharding
+ * Level 49: Database Sharding
  *
  * Horizontal partitioning across multiple databases.
  * Shows tenant-based sharding strategy.
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import type { ValidationResult } from '@/components/levels';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -18,7 +17,8 @@ import {
 	RightPanel,
 	useLevelCompletion,
 } from '@/components/levels';
-import type { ValidationResult } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 interface Tenant {
 	id: number;
@@ -49,12 +49,25 @@ export function Level49Sharding({ onComplete, onExit }: LevelComponentProps) {
 
 	const handleValidate = useCallback((): ValidationResult => {
 		if (!shardingEnabled) {
-			return { valid: false, message: 'Enable sharding', details: ['Click "Enable Sharding" to distribute data across databases'] };
+			return {
+				valid: false,
+				message: 'Enable sharding',
+				details: [
+					'Click "Enable Sharding" to distribute data across databases',
+				],
+			};
 		}
 		if (shard0Load >= 60 || shard1Load >= 60) {
-			return { valid: false, message: 'Shards still loaded', details: ['Wait for load to balance across shards (both need < 60%)'] };
+			return {
+				valid: false,
+				message: 'Shards still loaded',
+				details: ['Wait for load to balance across shards (both need < 60%)'],
+			};
 		}
-		return { valid: true, message: 'Sharding distributes load across databases!' };
+		return {
+			valid: true,
+			message: 'Sharding distributes load across databases!',
+		};
 	}, [shardingEnabled, shard0Load, shard1Load]);
 
 	// Simulate queries
@@ -334,7 +347,6 @@ export function Level49Sharding({ onComplete, onExit }: LevelComponentProps) {
 							))}
 						</div>
 					</div>
-
 				</div>
 			</CenterPanel>
 

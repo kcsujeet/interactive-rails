@@ -5,19 +5,19 @@
  * Features slots for database and frontend choices with live code preview.
  */
 
-import { useState, type ReactNode } from 'react';
-import { Button } from './ui/Button';
-import type { GameChoices } from '@/types/game';
 import {
-	Lightbulb,
-	Database,
-	Feather,
-	Zap,
+	AlertTriangle,
 	Atom,
 	Cog,
-	AlertTriangle,
+	Database,
+	Feather,
 	Hexagon,
+	Lightbulb,
+	Zap,
 } from 'lucide-react';
+import { type ReactNode, useState } from 'react';
+import type { GameChoices } from '@/types/game';
+import { Button } from './ui/Button';
 
 interface Level1StackChoiceProps {
 	onComplete: (choices: GameChoices) => void;
@@ -477,8 +477,16 @@ function PaletteItem({
 				</span>
 			</div>
 			<p className="text-xs text-muted-foreground mb-1">{description}</p>
-			{warning && <p className="text-xs text-warning flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> {warning}</p>}
-			{benefit && <p className="text-xs text-success flex items-center gap-1"><Zap className="w-3 h-3" /> {benefit}</p>}
+			{warning && (
+				<p className="text-xs text-warning flex items-center gap-1">
+					<AlertTriangle className="w-3 h-3" /> {warning}
+				</p>
+			)}
+			{benefit && (
+				<p className="text-xs text-success flex items-center gap-1">
+					<Zap className="w-3 h-3" /> {benefit}
+				</p>
+			)}
 		</div>
 	);
 }

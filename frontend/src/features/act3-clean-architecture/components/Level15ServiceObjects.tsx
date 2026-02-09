@@ -5,10 +5,8 @@
  * Teaches: Service object pattern with initialize + call, Result pattern, Data.define
  */
 
-import { useState } from 'react';
 import { Boxes, Check, GripVertical, X } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import { useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -20,6 +18,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 interface ServiceComponent {
 	id: string;
@@ -207,9 +207,10 @@ export function Level15ServiceObjects({
 		const callSteps = getComponentsForSection('call');
 		const privates = getComponentsForSection('private');
 
-		const initBlock = init.length > 0
-			? `  ${init[0].code}\n    @params = params\n  end`
-			: '  def initialize(params)\n    # Setup here\n  end';
+		const initBlock =
+			init.length > 0
+				? `  ${init[0].code}\n    @params = params\n  end`
+				: '  def initialize(params)\n    # Setup here\n  end';
 
 		return `class UserRegistration < ApplicationService
   Result = Data.define(:success?, :user, :errors)
@@ -345,8 +346,7 @@ end`;
 										{sectionComponents.length > 0 ? (
 											<div className="flex flex-wrap gap-2">
 												{sectionComponents.map((comp) => {
-													const isCorrect =
-														comp.correctSection === section.id;
+													const isCorrect = comp.correctSection === section.id;
 													return (
 														<div
 															className={`px-3 py-2 rounded-lg text-sm flex items-center gap-2 ${
@@ -360,9 +360,7 @@ end`;
 																color: comp.color,
 															}}
 														>
-															{isCorrect && (
-																<Check className="w-3 h-3" />
-															)}
+															{isCorrect && <Check className="w-3 h-3" />}
 															{comp.name}
 															<button
 																className="text-foreground/50 hover:text-foreground"

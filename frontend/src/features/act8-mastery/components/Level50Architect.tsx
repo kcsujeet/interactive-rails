@@ -7,7 +7,6 @@
  * background jobs, and circuit breakers.
  */
 
-import { useCallback, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import {
 	Activity,
@@ -24,8 +23,7 @@ import {
 	ShieldCheck,
 	Zap,
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import { useCallback, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -37,6 +35,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -62,7 +62,12 @@ interface SimulationStep {
 // Constants
 // ---------------------------------------------------------------------------
 
-const REQUIRED_IDS = ['state-machine', 'domain-events', 'api-gateway', 'observability'];
+const REQUIRED_IDS = [
+	'state-machine',
+	'domain-events',
+	'api-gateway',
+	'observability',
+];
 
 const INITIAL_COMPONENTS: ArchComponent[] = [
 	{
@@ -143,28 +148,60 @@ function buildSimulationSteps(enabled: string[]): SimulationStep[] {
 	const steps: SimulationStep[] = [];
 
 	if (enabled.includes('api-gateway')) {
-		steps.push({ label: 'API Gateway authenticates request', component: 'api-gateway', status: 'pending' });
+		steps.push({
+			label: 'API Gateway authenticates request',
+			component: 'api-gateway',
+			status: 'pending',
+		});
 	}
 	if (enabled.includes('circuit-breaker')) {
-		steps.push({ label: 'Circuit breaker checks service health', component: 'circuit-breaker', status: 'pending' });
+		steps.push({
+			label: 'Circuit breaker checks service health',
+			component: 'circuit-breaker',
+			status: 'pending',
+		});
 	}
 	if (enabled.includes('tenant-isolation')) {
-		steps.push({ label: 'Tenant scope applied (company_id)', component: 'tenant-isolation', status: 'pending' });
+		steps.push({
+			label: 'Tenant scope applied (company_id)',
+			component: 'tenant-isolation',
+			status: 'pending',
+		});
 	}
 	if (enabled.includes('state-machine')) {
-		steps.push({ label: 'Payment transitions pending → processing → completed', component: 'state-machine', status: 'pending' });
+		steps.push({
+			label: 'Payment transitions pending → processing → completed',
+			component: 'state-machine',
+			status: 'pending',
+		});
 	}
 	if (enabled.includes('multi-database')) {
-		steps.push({ label: 'Write to billing DB, replicate for reporting', component: 'multi-database', status: 'pending' });
+		steps.push({
+			label: 'Write to billing DB, replicate for reporting',
+			component: 'multi-database',
+			status: 'pending',
+		});
 	}
 	if (enabled.includes('domain-events')) {
-		steps.push({ label: 'Publish payment.completed event to bus', component: 'domain-events', status: 'pending' });
+		steps.push({
+			label: 'Publish payment.completed event to bus',
+			component: 'domain-events',
+			status: 'pending',
+		});
 	}
 	if (enabled.includes('background-jobs')) {
-		steps.push({ label: 'Enqueue NotificationJob, InventoryJob, AnalyticsJob', component: 'background-jobs', status: 'pending' });
+		steps.push({
+			label: 'Enqueue NotificationJob, InventoryJob, AnalyticsJob',
+			component: 'background-jobs',
+			status: 'pending',
+		});
 	}
 	if (enabled.includes('observability')) {
-		steps.push({ label: 'Log structured trace, emit metrics', component: 'observability', status: 'pending' });
+		steps.push({
+			label: 'Log structured trace, emit metrics',
+			component: 'observability',
+			status: 'pending',
+		});
 	}
 
 	return steps;
@@ -176,7 +213,8 @@ function buildSimulationSteps(enabled: string[]): SimulationStep[] {
 
 export function Level50Architect({ onComplete, onExit }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
-	const [components, setComponents] = useState<ArchComponent[]>(INITIAL_COMPONENTS);
+	const [components, setComponents] =
+		useState<ArchComponent[]>(INITIAL_COMPONENTS);
 	const [simulationSteps, setSimulationSteps] = useState<SimulationStep[]>([]);
 	const [isSimulating, setIsSimulating] = useState(false);
 
@@ -187,7 +225,9 @@ export function Level50Architect({ onComplete, onExit }: LevelComponentProps) {
 	const toggleComponent = (componentId: string) => {
 		if (isSimulating) return;
 		setComponents((prev) =>
-			prev.map((c) => (c.id === componentId ? { ...c, enabled: !c.enabled } : c)),
+			prev.map((c) =>
+				c.id === componentId ? { ...c, enabled: !c.enabled } : c,
+			),
 		);
 		// Clear previous simulation when architecture changes
 		setSimulationSteps([]);
@@ -212,21 +252,26 @@ export function Level50Architect({ onComplete, onExit }: LevelComponentProps) {
 			}, index * 600);
 
 			// Set step to done
-			setTimeout(() => {
-				setSimulationSteps((prev) =>
-					prev.map((s, i) => (i === index ? { ...s, status: 'done' } : s)),
-				);
+			setTimeout(
+				() => {
+					setSimulationSteps((prev) =>
+						prev.map((s, i) => (i === index ? { ...s, status: 'done' } : s)),
+					);
 
-				// Finish simulation after the last step
-				if (index === steps.length - 1) {
-					setTimeout(() => setIsSimulating(false), 400);
-				}
-			}, index * 600 + 400);
+					// Finish simulation after the last step
+					if (index === steps.length - 1) {
+						setTimeout(() => setIsSimulating(false), 400);
+					}
+				},
+				index * 600 + 400,
+			);
 		});
 	}, [isSimulating, enabledCount, enabledIds]);
 
 	const validateSolution = (): ValidationResult => {
-		const missingRequired = REQUIRED_IDS.filter((id) => !enabledIds.includes(id));
+		const missingRequired = REQUIRED_IDS.filter(
+			(id) => !enabledIds.includes(id),
+		);
 		if (missingRequired.length > 0) {
 			const names = missingRequired.map(
 				(id) => components.find((c) => c.id === id)?.name ?? id,
@@ -244,7 +289,10 @@ export function Level50Architect({ onComplete, onExit }: LevelComponentProps) {
 				details: ['A complete extracted service needs most of these patterns'],
 			};
 		}
-		return { valid: true, message: 'Architecture complete! You are The Architect.' };
+		return {
+			valid: true,
+			message: 'Architecture complete! You are The Architect.',
+		};
 	};
 
 	const handleComplete = async () => {
@@ -288,10 +336,14 @@ export function Level50Architect({ onComplete, onExit }: LevelComponentProps) {
 									type="button"
 								>
 									<div className="flex items-center gap-2">
-										<comp.Icon className={`w-4 h-4 shrink-0 ${comp.enabled ? 'text-success' : comp.color}`} />
+										<comp.Icon
+											className={`w-4 h-4 shrink-0 ${comp.enabled ? 'text-success' : comp.color}`}
+										/>
 										<div className="flex-1 min-w-0">
 											<div className="flex items-center gap-1.5">
-												<span className={`text-sm font-medium ${comp.enabled ? 'text-success' : 'text-foreground'}`}>
+												<span
+													className={`text-sm font-medium ${comp.enabled ? 'text-success' : 'text-foreground'}`}
+												>
 													{comp.name}
 												</span>
 												{comp.required && (
@@ -304,7 +356,9 @@ export function Level50Architect({ onComplete, onExit }: LevelComponentProps) {
 												{comp.description}
 											</div>
 										</div>
-										{comp.enabled && <Check className="w-4 h-4 text-success shrink-0" />}
+										{comp.enabled && (
+											<Check className="w-4 h-4 text-success shrink-0" />
+										)}
 									</div>
 								</button>
 							))}
@@ -314,8 +368,16 @@ export function Level50Architect({ onComplete, onExit }: LevelComponentProps) {
 					{/* Progress */}
 					<div className="p-4 border-t border-border">
 						<div className="flex justify-between text-sm mb-2">
-							<span className="text-muted-foreground">Components configured</span>
-							<span className={enabledCount >= 6 ? 'text-success font-semibold' : 'text-foreground'}>
+							<span className="text-muted-foreground">
+								Components configured
+							</span>
+							<span
+								className={
+									enabledCount >= 6
+										? 'text-success font-semibold'
+										: 'text-foreground'
+								}
+							>
 								{enabledCount} / 8
 							</span>
 						</div>
@@ -327,10 +389,13 @@ export function Level50Architect({ onComplete, onExit }: LevelComponentProps) {
 						</div>
 						<div className="flex justify-between mt-2">
 							<span className="text-xs text-muted-foreground">
-								{REQUIRED_IDS.filter((id) => enabledIds.includes(id)).length}/4 required
+								{REQUIRED_IDS.filter((id) => enabledIds.includes(id)).length}/4
+								required
 							</span>
 							<span className="text-xs text-muted-foreground">
-								{enabledCount >= 6 ? 'Ready' : `${6 - enabledCount} more needed`}
+								{enabledCount >= 6
+									? 'Ready'
+									: `${6 - enabledCount} more needed`}
 							</span>
 						</div>
 					</div>
@@ -359,12 +424,22 @@ export function Level50Architect({ onComplete, onExit }: LevelComponentProps) {
 							<div className="bg-secondary px-4 py-3 border-b border-border flex items-center justify-between">
 								<div className="flex items-center gap-2">
 									<Building2 className="w-4 h-4 text-primary" />
-									<span className="text-foreground font-semibold">Billing Service Architecture</span>
+									<span className="text-foreground font-semibold">
+										Billing Service Architecture
+									</span>
 								</div>
 								<div className="flex items-center gap-2">
-									<Award className={`w-4 h-4 ${enabledCount >= 6 ? 'text-yellow-400' : 'text-muted-foreground'}`} />
-									<span className={`text-xs ${enabledCount >= 6 ? 'text-yellow-400' : 'text-muted-foreground'}`}>
-										{enabledCount >= 8 ? 'Perfect Architecture' : enabledCount >= 6 ? 'Solid Architecture' : 'In Progress'}
+									<Award
+										className={`w-4 h-4 ${enabledCount >= 6 ? 'text-yellow-400' : 'text-muted-foreground'}`}
+									/>
+									<span
+										className={`text-xs ${enabledCount >= 6 ? 'text-yellow-400' : 'text-muted-foreground'}`}
+									>
+										{enabledCount >= 8
+											? 'Perfect Architecture'
+											: enabledCount >= 6
+												? 'Solid Architecture'
+												: 'In Progress'}
 									</span>
 								</div>
 							</div>
@@ -373,7 +448,10 @@ export function Level50Architect({ onComplete, onExit }: LevelComponentProps) {
 								{enabledCount === 0 ? (
 									<div className="text-center py-12 text-muted-foreground">
 										<Building2 className="w-12 h-12 mx-auto mb-3 opacity-30" />
-										<p className="text-sm">Enable components from the left panel to build the architecture</p>
+										<p className="text-sm">
+											Enable components from the left panel to build the
+											architecture
+										</p>
 									</div>
 								) : (
 									<div className="space-y-4">
@@ -382,8 +460,8 @@ export function Level50Architect({ onComplete, onExit }: LevelComponentProps) {
 											{/* API Gateway */}
 											{enabledIds.includes('api-gateway') && (
 												<ArchNode
-													Icon={Server}
 													color="bg-purple-600"
+													Icon={Server}
 													label="API Gateway"
 													sublabel="Auth + Routing"
 												/>
@@ -397,8 +475,8 @@ export function Level50Architect({ onComplete, onExit }: LevelComponentProps) {
 											{enabledIds.includes('circuit-breaker') && (
 												<>
 													<ArchNode
-														Icon={Activity}
 														color="bg-red-600"
+														Icon={Activity}
 														label="Circuit Breaker"
 														sublabel="Failure protection"
 													/>
@@ -409,7 +487,9 @@ export function Level50Architect({ onComplete, onExit }: LevelComponentProps) {
 											{/* Billing Service (always shown when at least 1 component is enabled) */}
 											<div className="bg-blue-600 rounded-xl p-4 text-center min-w-[160px]">
 												<Building2 className="w-6 h-6 text-white mx-auto mb-1" />
-												<div className="text-sm font-semibold text-white">Billing Service</div>
+												<div className="text-sm font-semibold text-white">
+													Billing Service
+												</div>
 												<div className="flex flex-wrap justify-center gap-1 mt-2">
 													{enabledIds.includes('state-machine') && (
 														<span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-400/30 text-blue-200">
@@ -438,22 +518,22 @@ export function Level50Architect({ onComplete, onExit }: LevelComponentProps) {
 											{enabledIds.includes('multi-database') ? (
 												<div className="flex flex-col gap-2">
 													<ArchNode
-														Icon={Database}
 														color="bg-green-600"
+														Icon={Database}
 														label="Primary DB"
 														sublabel="Writes"
 													/>
 													<ArchNode
-														Icon={Database}
 														color="bg-green-800"
+														Icon={Database}
 														label="Replica DB"
 														sublabel="Reads / Reporting"
 													/>
 												</div>
 											) : (
 												<ArchNode
-													Icon={Database}
 													color="bg-green-600"
+													Icon={Database}
 													label="Database"
 													sublabel="Billing data"
 												/>
@@ -461,40 +541,44 @@ export function Level50Architect({ onComplete, onExit }: LevelComponentProps) {
 										</div>
 
 										{/* Bottom row: Event Bus + Background Jobs */}
-										{(enabledIds.includes('domain-events') || enabledIds.includes('background-jobs')) && (
+										{(enabledIds.includes('domain-events') ||
+											enabledIds.includes('background-jobs')) && (
 											<div className="flex items-center justify-center gap-3 pt-2 border-t border-border/50 flex-wrap">
-												<div className="text-xs text-muted-foreground mr-2">Side effects:</div>
+												<div className="text-xs text-muted-foreground mr-2">
+													Side effects:
+												</div>
 
 												{enabledIds.includes('domain-events') && (
 													<ArchNode
-														Icon={Zap}
 														color="bg-yellow-600"
+														Icon={Zap}
 														label="Event Bus"
 														sublabel="payment.completed"
 													/>
 												)}
 
-												{enabledIds.includes('domain-events') && enabledIds.includes('background-jobs') && (
-													<ArrowRight className="w-5 h-5 text-muted-foreground shrink-0" />
-												)}
+												{enabledIds.includes('domain-events') &&
+													enabledIds.includes('background-jobs') && (
+														<ArrowRight className="w-5 h-5 text-muted-foreground shrink-0" />
+													)}
 
 												{enabledIds.includes('background-jobs') && (
 													<div className="flex gap-2">
 														<ArchNode
-															Icon={Radio}
 															color="bg-pink-600"
+															Icon={Radio}
 															label="NotificationJob"
 															sublabel=""
 														/>
 														<ArchNode
-															Icon={Radio}
 															color="bg-pink-600"
+															Icon={Radio}
 															label="InventoryJob"
 															sublabel=""
 														/>
 														<ArchNode
-															Icon={Radio}
 															color="bg-pink-600"
+															Icon={Radio}
 															label="AnalyticsJob"
 															sublabel=""
 														/>
@@ -512,7 +596,9 @@ export function Level50Architect({ onComplete, onExit }: LevelComponentProps) {
 							<div className="bg-secondary px-4 py-3 border-b border-border flex items-center justify-between">
 								<div className="flex items-center gap-2">
 									<Zap className="w-4 h-4 text-warning" />
-									<span className="text-foreground font-semibold">Simulate Billing Request</span>
+									<span className="text-foreground font-semibold">
+										Simulate Billing Request
+									</span>
 								</div>
 								<Button
 									className="text-sm"
@@ -535,7 +621,9 @@ export function Level50Architect({ onComplete, onExit }: LevelComponentProps) {
 								) : (
 									<div className="space-y-2">
 										{simulationSteps.map((step, index) => {
-											const comp = components.find((c) => c.id === step.component);
+											const comp = components.find(
+												(c) => c.id === step.component,
+											);
 											const StepIcon = comp?.Icon ?? ChevronRight;
 											return (
 												<div
@@ -574,7 +662,9 @@ export function Level50Architect({ onComplete, onExit }: LevelComponentProps) {
 														) : step.status === 'active' ? (
 															<span className="inline-block w-2 h-2 rounded-full bg-primary animate-pulse" />
 														) : (
-															<span className="text-muted-foreground">{index + 1}</span>
+															<span className="text-muted-foreground">
+																{index + 1}
+															</span>
 														)}
 													</span>
 												</div>
@@ -721,11 +811,16 @@ function buildCodeFiles(enabledIds: string[]) {
 			filename: 'billing-service/app/models/payment.rb',
 			language: 'ruby',
 			code: paymentModelLines.join('\n'),
-			highlight: enabledIds.includes('state-machine') ? [3, 7, 8, 9, 14, 15] : [],
+			highlight: enabledIds.includes('state-machine')
+				? [3, 7, 8, 9, 14, 15]
+				: [],
 		},
 	];
 
-	if (enabledIds.includes('domain-events') || enabledIds.includes('background-jobs')) {
+	if (
+		enabledIds.includes('domain-events') ||
+		enabledIds.includes('background-jobs')
+	) {
 		const eventLines: string[] = [
 			'# Event-driven side effects',
 			"EventBus.subscribe('payment.completed') do |payload|",

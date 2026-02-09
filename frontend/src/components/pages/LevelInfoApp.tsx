@@ -4,12 +4,12 @@
  * Displays level briefing information before starting the challenge.
  */
 
+import { Code, Play, Target } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { getLevel, getActForLevel } from '@/features/acts-registry';
+import { getActForLevel, getLevel } from '@/features/acts-registry';
+import { levelChallenges } from '../game-barrel';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
-import { levelChallenges } from '../game-barrel';
-import { Play, Target, Code } from 'lucide-react';
 import { CodeBlock } from '../ui/CodeBlock';
 import { LevelBreadcrumb } from '../ui/LevelBreadcrumb';
 
@@ -56,7 +56,8 @@ export function LevelInfoApp({ levelId }: LevelInfoAppProps) {
 					concepts: [level.learningContent.title],
 					scenario: level.problem.observation,
 					problem: level.problem.codeExample,
-					goal: level.problem.goal || 'Fix the pipeline to complete this level.',
+					goal:
+						level.problem.goal || 'Fix the pipeline to complete this level.',
 				}
 			: challenge
 				? {
@@ -108,7 +109,9 @@ export function LevelInfoApp({ levelId }: LevelInfoAppProps) {
 			{/* Header */}
 			<div className="flex items-start gap-5 mb-8">
 				<div className="w-14 h-14 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-					<span className="text-xl font-bold text-primary">{levelInfo.levelNumber}</span>
+					<span className="text-xl font-bold text-primary">
+						{levelInfo.levelNumber}
+					</span>
 				</div>
 				<div className="flex-1 min-w-0">
 					<h1 className="text-2xl font-semibold text-foreground mb-2">

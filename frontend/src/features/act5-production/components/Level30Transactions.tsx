@@ -5,7 +5,6 @@
  * Step-by-step simulation showing concurrent access with and without locks.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	AlertTriangle,
 	ArrowRight,
@@ -16,8 +15,7 @@ import {
 	Unlock,
 	Users,
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -29,6 +27,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 type LockingStrategy = 'none' | 'optimistic' | 'pessimistic';
 
@@ -64,10 +64,34 @@ function buildSimulation(strategy: LockingStrategy): SimulationState {
 				balance: 100,
 				lockHolder: null,
 				steps: [
-					{ actor: 'A', action: 'Reads balance', balanceRead: 100, balanceWrite: null, locked: false },
-					{ actor: 'B', action: 'Reads balance', balanceRead: 100, balanceWrite: null, locked: false },
-					{ actor: 'A', action: 'Deducts $30, saves $70', balanceRead: null, balanceWrite: 70, locked: false },
-					{ actor: 'B', action: 'Deducts $50, saves $50', balanceRead: null, balanceWrite: 50, locked: false },
+					{
+						actor: 'A',
+						action: 'Reads balance',
+						balanceRead: 100,
+						balanceWrite: null,
+						locked: false,
+					},
+					{
+						actor: 'B',
+						action: 'Reads balance',
+						balanceRead: 100,
+						balanceWrite: null,
+						locked: false,
+					},
+					{
+						actor: 'A',
+						action: 'Deducts $30, saves $70',
+						balanceRead: null,
+						balanceWrite: 70,
+						locked: false,
+					},
+					{
+						actor: 'B',
+						action: 'Deducts $50, saves $50',
+						balanceRead: null,
+						balanceWrite: 50,
+						locked: false,
+					},
 				],
 				finalBalance: 50,
 				isCorrect: false,
@@ -78,12 +102,49 @@ function buildSimulation(strategy: LockingStrategy): SimulationState {
 				balance: 100,
 				lockHolder: null,
 				steps: [
-					{ actor: 'A', action: 'Reads balance (v1)', balanceRead: 100, balanceWrite: null, locked: false },
-					{ actor: 'B', action: 'Reads balance (v1)', balanceRead: 100, balanceWrite: null, locked: false },
-					{ actor: 'A', action: 'Saves $70 (v1 -> v2)', balanceRead: null, balanceWrite: 70, locked: false },
-					{ actor: 'B', action: 'Saves $50 -- StaleObjectError!', balanceRead: null, balanceWrite: null, locked: false, error: 'StaleObjectError: lock_version mismatch' },
-					{ actor: 'B', action: 'Retries: reads $70 (v2)', balanceRead: 70, balanceWrite: null, locked: false },
-					{ actor: 'B', action: 'Saves $20 (v2 -> v3)', balanceRead: null, balanceWrite: 20, locked: false },
+					{
+						actor: 'A',
+						action: 'Reads balance (v1)',
+						balanceRead: 100,
+						balanceWrite: null,
+						locked: false,
+					},
+					{
+						actor: 'B',
+						action: 'Reads balance (v1)',
+						balanceRead: 100,
+						balanceWrite: null,
+						locked: false,
+					},
+					{
+						actor: 'A',
+						action: 'Saves $70 (v1 -> v2)',
+						balanceRead: null,
+						balanceWrite: 70,
+						locked: false,
+					},
+					{
+						actor: 'B',
+						action: 'Saves $50 -- StaleObjectError!',
+						balanceRead: null,
+						balanceWrite: null,
+						locked: false,
+						error: 'StaleObjectError: lock_version mismatch',
+					},
+					{
+						actor: 'B',
+						action: 'Retries: reads $70 (v2)',
+						balanceRead: 70,
+						balanceWrite: null,
+						locked: false,
+					},
+					{
+						actor: 'B',
+						action: 'Saves $20 (v2 -> v3)',
+						balanceRead: null,
+						balanceWrite: 20,
+						locked: false,
+					},
 				],
 				finalBalance: 20,
 				isCorrect: true,
@@ -94,12 +155,48 @@ function buildSimulation(strategy: LockingStrategy): SimulationState {
 				balance: 100,
 				lockHolder: null,
 				steps: [
-					{ actor: 'A', action: 'BEGIN + locks row', balanceRead: null, balanceWrite: null, locked: true },
-					{ actor: 'A', action: 'Reads $100', balanceRead: 100, balanceWrite: null, locked: true },
-					{ actor: 'B', action: 'Waits for lock...', balanceRead: null, balanceWrite: null, locked: false },
-					{ actor: 'A', action: 'Saves $70, COMMIT', balanceRead: null, balanceWrite: 70, locked: false },
-					{ actor: 'B', action: 'Acquires lock, reads $70', balanceRead: 70, balanceWrite: null, locked: true },
-					{ actor: 'B', action: 'Saves $20, COMMIT', balanceRead: null, balanceWrite: 20, locked: false },
+					{
+						actor: 'A',
+						action: 'BEGIN + locks row',
+						balanceRead: null,
+						balanceWrite: null,
+						locked: true,
+					},
+					{
+						actor: 'A',
+						action: 'Reads $100',
+						balanceRead: 100,
+						balanceWrite: null,
+						locked: true,
+					},
+					{
+						actor: 'B',
+						action: 'Waits for lock...',
+						balanceRead: null,
+						balanceWrite: null,
+						locked: false,
+					},
+					{
+						actor: 'A',
+						action: 'Saves $70, COMMIT',
+						balanceRead: null,
+						balanceWrite: 70,
+						locked: false,
+					},
+					{
+						actor: 'B',
+						action: 'Acquires lock, reads $70',
+						balanceRead: 70,
+						balanceWrite: null,
+						locked: true,
+					},
+					{
+						actor: 'B',
+						action: 'Saves $20, COMMIT',
+						balanceRead: null,
+						balanceWrite: 20,
+						locked: false,
+					},
 				],
 				finalBalance: 20,
 				isCorrect: true,
@@ -107,13 +204,20 @@ function buildSimulation(strategy: LockingStrategy): SimulationState {
 	}
 }
 
-export function Level30Transactions({ onComplete, onExit }: LevelComponentProps) {
+export function Level30Transactions({
+	onComplete,
+	onExit,
+}: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [strategy, setStrategy] = useState<LockingStrategy>('none');
-	const [simulation, setSimulation] = useState<SimulationState>(buildSimulation('none'));
+	const [simulation, setSimulation] = useState<SimulationState>(
+		buildSimulation('none'),
+	);
 	const [isPlaying, setIsPlaying] = useState(false);
 	const [hasRunSimulation, setHasRunSimulation] = useState(false);
-	const [strategiesViewed, setStrategiesViewed] = useState<Set<LockingStrategy>>(new Set());
+	const [strategiesViewed, setStrategiesViewed] = useState<
+		Set<LockingStrategy>
+	>(new Set());
 	const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	// Auto-play simulation
@@ -181,28 +285,38 @@ export function Level30Transactions({ onComplete, onExit }: LevelComponentProps)
 			return {
 				valid: false,
 				message: 'Select a locking strategy',
-				details: ['Choose either "Optimistic Lock" or "Pessimistic Lock" to prevent race conditions'],
+				details: [
+					'Choose either "Optimistic Lock" or "Pessimistic Lock" to prevent race conditions',
+				],
 			};
 		}
 		if (!strategiesViewed.has(strategy)) {
 			return {
 				valid: false,
 				message: 'Run the simulation with your chosen strategy',
-				details: ['Click "Run Simulation" to see how the lock protects the data'],
+				details: [
+					'Click "Run Simulation" to see how the lock protects the data',
+				],
 			};
 		}
 		return { valid: true, message: 'Race condition prevented with locking!' };
 	}, [hasRunSimulation, strategy, strategiesViewed]);
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act5-level30-transactions', { stars: 3 });
+		const success = await completeLevel('act5-level30-transactions', {
+			stars: 3,
+		});
 		if (success) {
 			onComplete({ stars: 3 });
 		}
 	};
 
-	const getActorColor = (actor: 'A' | 'B') => actor === 'A' ? 'text-primary' : 'text-purple-400';
-	const getActorBg = (actor: 'A' | 'B') => actor === 'A' ? 'bg-primary/10 border-primary/30' : 'bg-purple-500/10 border-purple-500/30';
+	const getActorColor = (actor: 'A' | 'B') =>
+		actor === 'A' ? 'text-primary' : 'text-purple-400';
+	const getActorBg = (actor: 'A' | 'B') =>
+		actor === 'A'
+			? 'bg-primary/10 border-primary/30'
+			: 'bg-purple-500/10 border-purple-500/30';
 
 	const isSimComplete = simulation.currentStep >= simulation.steps.length - 1;
 
@@ -225,11 +339,27 @@ export function Level30Transactions({ onComplete, onExit }: LevelComponentProps)
 							Locking Strategy
 						</div>
 						<div className="space-y-2">
-							{([
-								{ key: 'none' as const, name: 'No Protection', Icon: Unlock, desc: 'No locking at all', danger: true },
-								{ key: 'optimistic' as const, name: 'Optimistic Lock', Icon: ShieldCheck, desc: 'Detect conflicts via version column' },
-								{ key: 'pessimistic' as const, name: 'Pessimistic Lock', Icon: Lock, desc: 'SELECT FOR UPDATE locks the row' },
-							]).map((item) => (
+							{[
+								{
+									key: 'none' as const,
+									name: 'No Protection',
+									Icon: Unlock,
+									desc: 'No locking at all',
+									danger: true,
+								},
+								{
+									key: 'optimistic' as const,
+									name: 'Optimistic Lock',
+									Icon: ShieldCheck,
+									desc: 'Detect conflicts via version column',
+								},
+								{
+									key: 'pessimistic' as const,
+									name: 'Pessimistic Lock',
+									Icon: Lock,
+									desc: 'SELECT FOR UPDATE locks the row',
+								},
+							].map((item) => (
 								<Button
 									className={`w-full p-3 h-auto text-left justify-start flex-col items-start rounded-lg border transition-all ${
 										strategy === item.key
@@ -243,16 +373,24 @@ export function Level30Transactions({ onComplete, onExit }: LevelComponentProps)
 									variant="ghost"
 								>
 									<div className="flex items-center gap-2 w-full">
-										<item.Icon className={`w-4 h-4 ${
-											strategy === item.key
-												? item.danger ? 'text-destructive' : 'text-success'
-												: 'text-muted-foreground'
-										}`} />
-										<span className={`text-sm font-medium ${
-											strategy === item.key
-												? item.danger ? 'text-destructive' : 'text-success'
-												: 'text-foreground'
-										}`}>
+										<item.Icon
+											className={`w-4 h-4 ${
+												strategy === item.key
+													? item.danger
+														? 'text-destructive'
+														: 'text-success'
+													: 'text-muted-foreground'
+											}`}
+										/>
+										<span
+											className={`text-sm font-medium ${
+												strategy === item.key
+													? item.danger
+														? 'text-destructive'
+														: 'text-success'
+													: 'text-foreground'
+											}`}
+										>
 											{item.name}
 										</span>
 										{strategy === item.key && (
@@ -281,27 +419,38 @@ export function Level30Transactions({ onComplete, onExit }: LevelComponentProps)
 					{/* Result Summary */}
 					{isSimComplete && (
 						<div className="p-4 border-t border-border">
-							<div className={`p-4 rounded-lg border-2 ${
-								simulation.isCorrect
-									? 'border-success bg-success/10'
-									: 'border-destructive bg-destructive/10'
-							}`}>
+							<div
+								className={`p-4 rounded-lg border-2 ${
+									simulation.isCorrect
+										? 'border-success bg-success/10'
+										: 'border-destructive bg-destructive/10'
+								}`}
+							>
 								<div className="flex items-center gap-2 mb-2">
 									{simulation.isCorrect ? (
 										<ShieldCheck className="w-5 h-5 text-success" />
 									) : (
 										<AlertTriangle className="w-5 h-5 text-destructive" />
 									)}
-									<span className={`font-semibold ${
-										simulation.isCorrect ? 'text-success' : 'text-destructive'
-									}`}>
-										{simulation.isCorrect ? 'Correct Result' : 'Lost Update Bug!'}
+									<span
+										className={`font-semibold ${
+											simulation.isCorrect ? 'text-success' : 'text-destructive'
+										}`}
+									>
+										{simulation.isCorrect
+											? 'Correct Result'
+											: 'Lost Update Bug!'}
 									</span>
 								</div>
 								<div className="text-sm text-muted-foreground">
-									Final balance: <span className="font-bold text-foreground">${simulation.finalBalance}</span>
+									Final balance:{' '}
+									<span className="font-bold text-foreground">
+										${simulation.finalBalance}
+									</span>
 									{!simulation.isCorrect && (
-										<span className="text-destructive ml-1">(should be $20)</span>
+										<span className="text-destructive ml-1">
+											(should be $20)
+										</span>
 									)}
 								</div>
 							</div>
@@ -335,7 +484,9 @@ export function Level30Transactions({ onComplete, onExit }: LevelComponentProps)
 							<div className="bg-secondary px-4 py-3 border-b border-border flex items-center justify-between">
 								<div className="flex items-center gap-2">
 									<DollarSign className="w-5 h-5 text-foreground" />
-									<span className="text-foreground font-semibold">Account Balance</span>
+									<span className="text-foreground font-semibold">
+										Account Balance
+									</span>
 								</div>
 								{simulation.lockHolder && (
 									<div className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-warning/20 text-warning">
@@ -345,18 +496,24 @@ export function Level30Transactions({ onComplete, onExit }: LevelComponentProps)
 								)}
 							</div>
 							<div className="p-6 flex items-center justify-center">
-								<div className={`text-6xl font-bold transition-colors ${
-									isSimComplete
-										? simulation.isCorrect ? 'text-success' : 'text-destructive'
-										: 'text-foreground'
-								}`}>
+								<div
+									className={`text-6xl font-bold transition-colors ${
+										isSimComplete
+											? simulation.isCorrect
+												? 'text-success'
+												: 'text-destructive'
+											: 'text-foreground'
+									}`}
+								>
 									${simulation.balance}
 								</div>
 							</div>
 							<div className="px-6 pb-4 flex items-center justify-center gap-6 text-sm text-muted-foreground">
 								<span>User A: deduct $30</span>
 								<span>User B: deduct $50</span>
-								<span className="text-foreground font-medium">Expected: $20</span>
+								<span className="text-foreground font-medium">
+									Expected: $20
+								</span>
 							</div>
 						</div>
 
@@ -365,7 +522,9 @@ export function Level30Transactions({ onComplete, onExit }: LevelComponentProps)
 							<div className="bg-secondary px-4 py-3 border-b border-border flex items-center justify-between">
 								<div className="flex items-center gap-2">
 									<Users className="w-5 h-5 text-foreground" />
-									<span className="text-foreground font-semibold">Concurrent Operations Timeline</span>
+									<span className="text-foreground font-semibold">
+										Concurrent Operations Timeline
+									</span>
 								</div>
 								<div className="flex items-center gap-3 text-xs">
 									<span className="flex items-center gap-1">
@@ -395,27 +554,39 @@ export function Level30Transactions({ onComplete, onExit }: LevelComponentProps)
 											key={i}
 										>
 											{/* Step number */}
-											<div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-												isActive
-													? step.actor === 'A' ? 'bg-primary text-white' : 'bg-purple-500 text-white'
-													: 'bg-secondary text-muted-foreground'
-											}`}>
+											<div
+												className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+													isActive
+														? step.actor === 'A'
+															? 'bg-primary text-white'
+															: 'bg-purple-500 text-white'
+														: 'bg-secondary text-muted-foreground'
+												}`}
+											>
 												{i + 1}
 											</div>
 
 											{/* Actor label */}
-											<div className={`w-16 text-sm font-semibold shrink-0 ${
-												isActive ? getActorColor(step.actor) : 'text-muted-foreground'
-											}`}>
+											<div
+												className={`w-16 text-sm font-semibold shrink-0 ${
+													isActive
+														? getActorColor(step.actor)
+														: 'text-muted-foreground'
+												}`}
+											>
 												User {step.actor}
 											</div>
 
 											{/* Arrow */}
-											<ArrowRight className={`w-4 h-4 shrink-0 ${isActive ? 'text-muted-foreground' : 'text-border'}`} />
+											<ArrowRight
+												className={`w-4 h-4 shrink-0 ${isActive ? 'text-muted-foreground' : 'text-border'}`}
+											/>
 
 											{/* Action */}
 											<div className="flex-1 min-w-0">
-												<span className={`text-sm ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>
+												<span
+													className={`text-sm ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}
+												>
 													{step.action}
 												</span>
 												{step.error && isActive && (
@@ -450,28 +621,36 @@ export function Level30Transactions({ onComplete, onExit }: LevelComponentProps)
 
 							{/* Final Result Bar */}
 							{isSimComplete && (
-								<div className={`px-4 py-3 border-t flex items-center justify-between ${
-									simulation.isCorrect
-										? 'bg-success/10 border-success/30'
-										: 'bg-destructive/10 border-destructive/30'
-								}`}>
+								<div
+									className={`px-4 py-3 border-t flex items-center justify-between ${
+										simulation.isCorrect
+											? 'bg-success/10 border-success/30'
+											: 'bg-destructive/10 border-destructive/30'
+									}`}
+								>
 									<div className="flex items-center gap-2">
 										{simulation.isCorrect ? (
 											<ShieldCheck className="w-5 h-5 text-success" />
 										) : (
 											<AlertTriangle className="w-5 h-5 text-destructive" />
 										)}
-										<span className={`text-sm font-semibold ${
-											simulation.isCorrect ? 'text-success' : 'text-destructive'
-										}`}>
+										<span
+											className={`text-sm font-semibold ${
+												simulation.isCorrect
+													? 'text-success'
+													: 'text-destructive'
+											}`}
+										>
 											{simulation.isCorrect
 												? 'Both deductions applied correctly!'
 												: "User A's $30 deduction was lost!"}
 										</span>
 									</div>
-									<span className={`text-lg font-bold ${
-										simulation.isCorrect ? 'text-success' : 'text-destructive'
-									}`}>
+									<span
+										className={`text-lg font-bold ${
+											simulation.isCorrect ? 'text-success' : 'text-destructive'
+										}`}
+									>
 										Final: ${simulation.finalBalance}
 									</span>
 								</div>
@@ -487,8 +666,9 @@ export function Level30Transactions({ onComplete, onExit }: LevelComponentProps)
 						{
 							filename: 'app/models/account.rb',
 							language: 'ruby',
-							code: strategy === 'pessimistic'
-								? `# PESSIMISTIC LOCKING
+							code:
+								strategy === 'pessimistic'
+									? `# PESSIMISTIC LOCKING
 # Locks the database row until transaction completes.
 # Other queries wait until the lock is released.
 
@@ -510,8 +690,8 @@ end
 # - Financial data (money, credits)
 # - High contention (many concurrent writes)
 # - Short-lived transactions`
-								: strategy === 'optimistic'
-									? `# OPTIMISTIC LOCKING
+									: strategy === 'optimistic'
+										? `# OPTIMISTIC LOCKING
 # Uses a lock_version column to detect conflicts.
 # No database locks -- checks version on save.
 
@@ -536,7 +716,7 @@ end
 # - Low contention (rare conflicts)
 # - Read-heavy workloads
 # - CMS content, user profiles`
-									: `# NO PROTECTION -- RACE CONDITION!
+										: `# NO PROTECTION -- RACE CONDITION!
 # Both users read the same stale balance.
 
 def deduct(amount)
@@ -558,11 +738,12 @@ end
 Account.transaction do
   # ... atomic operations here
 end`,
-							highlight: strategy === 'pessimistic'
-								? [6, 7, 14, 15]
-								: strategy === 'optimistic'
-									? [11, 12, 18, 19]
-									: [12, 13],
+							highlight:
+								strategy === 'pessimistic'
+									? [6, 7, 14, 15]
+									: strategy === 'optimistic'
+										? [11, 12, 18, 19]
+										: [12, 13],
 						},
 					]}
 					learningGoal="Transactions + locking prevent race conditions. Use pessimistic locks for financial data, optimistic locks for low-contention edits."
@@ -573,7 +754,9 @@ end`,
 						</div>
 						<ul className="text-xs text-muted-foreground space-y-2">
 							<li>
-								<span className="text-foreground font-medium">Pessimistic:</span>{' '}
+								<span className="text-foreground font-medium">
+									Pessimistic:
+								</span>{' '}
 								Financial data, inventory, high-contention writes
 							</li>
 							<li>
@@ -591,7 +774,7 @@ end`,
 							<li className="font-mono">Account.transaction do ... end</li>
 							<li className="font-mono">Account.lock.find(id)</li>
 							<li className="font-mono">lock_version column (optimistic)</li>
-							<li className="font-mono">{"with_lock { ... } (shorthand)"}</li>
+							<li className="font-mono">{'with_lock { ... } (shorthand)'}</li>
 						</ul>
 					</div>
 				</CodePreviewPanel>

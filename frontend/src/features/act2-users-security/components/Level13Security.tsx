@@ -6,7 +6,6 @@
  * Teaches: rack-cors, Rails credentials, Rails 8 rate_limit, params.expect
  */
 
-import { useState } from 'react';
 import {
 	AlertTriangle,
 	Check,
@@ -16,8 +15,7 @@ import {
 	Shield,
 	Timer,
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import { useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -29,6 +27,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 interface SecurityFinding {
 	id: string;
@@ -92,8 +92,7 @@ const ICON_MAP = {
 
 export function Level13Security({ onComplete, onExit }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
-	const [findings, setFindings] =
-		useState<SecurityFinding[]>(INITIAL_FINDINGS);
+	const [findings, setFindings] = useState<SecurityFinding[]>(INITIAL_FINDINGS);
 	const [selectedFinding, setSelectedFinding] = useState<string | null>(null);
 
 	const fixedCount = findings.filter((f) => f.status === 'fixed').length;
@@ -104,9 +103,7 @@ export function Level13Security({ onComplete, onExit }: LevelComponentProps) {
 
 		const openFindings = findings.filter((f) => f.status === 'open');
 		if (openFindings.length > 0) {
-			errors.push(
-				`${openFindings.length} security finding(s) still unfixed`,
-			);
+			errors.push(`${openFindings.length} security finding(s) still unfixed`);
 			for (const f of openFindings) {
 				errors.push(`  - ${f.name}: ${f.fix}`);
 			}
@@ -388,9 +385,7 @@ end`,
 									<div className="flex items-center gap-3">
 										{(() => {
 											const Icon = ICON_MAP[selected.icon];
-											return (
-												<Icon className="w-6 h-6 text-destructive" />
-											);
+											return <Icon className="w-6 h-6 text-destructive" />;
 										})()}
 										<div>
 											<div className="text-foreground font-semibold text-lg">

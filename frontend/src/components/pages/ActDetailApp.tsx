@@ -4,12 +4,12 @@
  * Displays levels for a specific act.
  */
 
+import { Check, ChevronRight, Lock, Star } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ACTS, isLevelUnlocked } from '@/features/acts-registry';
 import { getProgress } from '@/lib/progress';
 import type { Level } from '@/types/game';
 import { Button } from '../ui/Button';
-import { Check, ChevronRight, Lock, Star } from 'lucide-react';
 
 interface ActDetailAppProps {
 	actId: number;
@@ -38,16 +38,17 @@ function LevelCard({
 
 	return (
 		<Button
-			variant="ghost"
 			className={`
 				w-full h-auto text-left p-4 justify-start rounded-lg border transition-all
-				${isUnlocked
-					? 'border-border hover:border-primary/50'
-					: 'border-transparent opacity-50'
+				${
+					isUnlocked
+						? 'border-border hover:border-primary/50'
+						: 'border-transparent opacity-50'
 				}
 			`}
 			disabled={!isUnlocked}
 			onClick={onSelect}
+			variant="ghost"
 		>
 			<div className="flex items-center justify-between w-full">
 				<div className="flex items-center gap-3 min-w-0">
@@ -59,7 +60,9 @@ function LevelCard({
 							<h4 className="text-sm font-medium text-foreground truncate">
 								{level.name}
 							</h4>
-							{isCompleted && <Check className="w-4 h-4 text-success shrink-0" />}
+							{isCompleted && (
+								<Check className="w-4 h-4 text-success shrink-0" />
+							)}
 						</div>
 						<p className="text-xs text-muted-foreground truncate mt-0.5">
 							{level.learningContent.title}
@@ -71,8 +74,8 @@ function LevelCard({
 						<div className="flex items-center gap-0.5">
 							{Array.from({ length: 3 }).map((_, i) => (
 								<Star
-									key={i}
 									className={`w-3.5 h-3.5 ${i < stars ? 'text-warning fill-warning' : 'text-muted'}`}
+									key={i}
 								/>
 							))}
 						</div>
@@ -89,7 +92,9 @@ function LevelCard({
 
 export function ActDetailApp({ actId }: ActDetailAppProps) {
 	const [completedLevels, setCompletedLevels] = useState<string[]>([]);
-	const [levelProgress, setLevelProgress] = useState<Map<string, LevelProgress>>(new Map());
+	const [levelProgress, setLevelProgress] = useState<
+		Map<string, LevelProgress>
+	>(new Map());
 	const [loading, setLoading] = useState(true);
 
 	const act = ACTS.find((a) => a.id === actId);
@@ -136,19 +141,22 @@ export function ActDetailApp({ actId }: ActDetailAppProps) {
 		);
 	}
 
-	const completedCount = act.levels.filter((l) => completedLevels.includes(l.id)).length;
+	const completedCount = act.levels.filter((l) =>
+		completedLevels.includes(l.id),
+	).length;
 
 	return (
 		<div className="max-w-2xl mx-auto">
 			{/* Breadcrumb */}
 			<nav className="flex items-center gap-1.5 text-sm mb-6">
-				<a href="/acts" className="text-muted-foreground hover:text-foreground transition-colors">
+				<a
+					className="text-muted-foreground hover:text-foreground transition-colors"
+					href="/acts"
+				>
 					Acts
 				</a>
 				<ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50" />
-				<span className="text-foreground font-medium">
-					{act.name}
-				</span>
+				<span className="text-foreground font-medium">{act.name}</span>
 			</nav>
 
 			{/* Header */}
@@ -158,7 +166,9 @@ export function ActDetailApp({ actId }: ActDetailAppProps) {
 						<span className="text-lg font-bold text-primary">{act.id}</span>
 					</div>
 					<div>
-						<h1 className="text-2xl font-semibold text-foreground">{act.name}</h1>
+						<h1 className="text-2xl font-semibold text-foreground">
+							{act.name}
+						</h1>
 						<p className="text-sm text-muted-foreground">{act.tagline}</p>
 					</div>
 				</div>
@@ -166,7 +176,9 @@ export function ActDetailApp({ actId }: ActDetailAppProps) {
 					<div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
 						<div
 							className="h-full bg-primary transition-all"
-							style={{ width: `${Math.round((completedCount / act.levels.length) * 100)}%` }}
+							style={{
+								width: `${Math.round((completedCount / act.levels.length) * 100)}%`,
+							}}
 						/>
 					</div>
 					<span className="text-xs text-muted-foreground tabular-nums">
@@ -179,15 +191,15 @@ export function ActDetailApp({ actId }: ActDetailAppProps) {
 			<div className="space-y-2">
 				{act.levels.map((level) => (
 					<LevelCard
+						isUnlocked={isLevelUnlocked(level.id, completedLevels)}
 						key={level.id}
 						level={level}
-						isUnlocked={isLevelUnlocked(level.id, completedLevels)}
-						progress={levelProgress.get(level.id)}
 						onSelect={() => {
 							if (isLevelUnlocked(level.id, completedLevels)) {
 								window.location.href = `/acts/${actId}/${level.id}`;
 							}
 						}}
+						progress={levelProgress.get(level.id)}
 					/>
 				))}
 			</div>

@@ -5,7 +5,6 @@
  * Teaches: EachValidator, validate_each, naming conventions, custom error messages
  */
 
-import { useState, useMemo } from 'react';
 import {
 	AlertTriangle,
 	Calendar,
@@ -15,8 +14,7 @@ import {
 	Wrench,
 	X,
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import { useMemo, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -28,6 +26,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 // --- Types ---
 
@@ -341,10 +341,9 @@ export function Level18CustomValidators({
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel(
-			'act3-level18-custom-validators',
-			{ stars: 3 },
-		);
+		const success = await completeLevel('act3-level18-custom-validators', {
+			stars: 3,
+		});
 		if (success) {
 			onComplete({ stars: 3 });
 		}
@@ -421,14 +420,8 @@ export function Level18CustomValidators({
 									>
 										<div className="flex items-center justify-between w-full">
 											<div className="flex items-center gap-2">
-												<Icon
-													className="w-3 h-3"
-													style={{ color }}
-												/>
-												<span
-													className="font-mono text-sm"
-													style={{ color }}
-												>
+												<Icon className="w-3 h-3" style={{ color }} />
+												<span className="font-mono text-sm" style={{ color }}>
 													{v.name}
 												</span>
 											</div>
@@ -511,9 +504,7 @@ export function Level18CustomValidators({
 											const isCompleted = completedSteps.includes(step.id);
 											const previousCompleted =
 												index === 0 ||
-												completedSteps.includes(
-													VALIDATOR_STEPS[index - 1].id,
-												);
+												completedSteps.includes(VALIDATOR_STEPS[index - 1].id);
 											const isAvailable = !isCompleted && previousCompleted;
 
 											return (
@@ -621,8 +612,7 @@ export function Level18CustomValidators({
 									<tbody>
 										{testResults.map((record) => {
 											const hasValidator = record.status === 'validated';
-											const color =
-												VALIDATOR_COLORS[record.validatorType];
+											const color = VALIDATOR_COLORS[record.validatorType];
 
 											return (
 												<tr
@@ -635,10 +625,7 @@ export function Level18CustomValidators({
 														</span>
 													</td>
 													<td className="px-4 py-3">
-														<span
-															className="font-mono"
-															style={{ color }}
-														>
+														<span className="font-mono" style={{ color }}>
 															{record.field}
 														</span>
 													</td>
@@ -716,27 +703,19 @@ export function Level18CustomValidators({
 						<ul className="text-xs text-muted-foreground space-y-1.5">
 							<li className="flex items-start gap-2">
 								<ShieldCheck className="w-3 h-3 mt-0.5 text-primary shrink-0" />
-								<span>
-									EachValidator for single attribute validation
-								</span>
+								<span>EachValidator for single attribute validation</span>
 							</li>
 							<li className="flex items-start gap-2">
 								<ShieldCheck className="w-3 h-3 mt-0.5 text-primary shrink-0" />
-								<span>
-									Validator (no Each) for whole-record validation
-								</span>
+								<span>Validator (no Each) for whole-record validation</span>
 							</li>
 							<li className="flex items-start gap-2">
 								<ShieldCheck className="w-3 h-3 mt-0.5 text-primary shrink-0" />
-								<span>
-									Naming: UrlValidator = url: true
-								</span>
+								<span>Naming: UrlValidator = url: true</span>
 							</li>
 							<li className="flex items-start gap-2">
 								<ShieldCheck className="w-3 h-3 mt-0.5 text-primary shrink-0" />
-								<span>
-									options[:message] for custom error messages
-								</span>
+								<span>options[:message] for custom error messages</span>
 							</li>
 						</ul>
 					</div>

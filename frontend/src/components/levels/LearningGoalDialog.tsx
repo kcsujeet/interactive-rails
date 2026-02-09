@@ -6,7 +6,6 @@
 
 import { GraduationCap } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import {
 	Dialog,
 	DialogContent,
@@ -14,6 +13,7 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from '@/components/ui/dialog';
+import { MarkdownContent } from '@/components/ui/MarkdownContent';
 
 interface LearningGoalDialogProps {
 	learningGoal?: string;

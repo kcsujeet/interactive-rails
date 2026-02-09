@@ -1,2 +1,2 @@
-export { actOne } from './content';
 export * from './components';
+export { actOne } from './content';

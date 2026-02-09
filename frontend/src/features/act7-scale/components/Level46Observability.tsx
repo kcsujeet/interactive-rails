@@ -1,13 +1,12 @@
 /**
- * Level 24: Observability
+ * Level 46: Observability
  *
  * Distributed tracing with flame graph visualization.
  * Find the slow service causing latency issues.
  */
 
 import { useCallback, useState } from 'react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import type { ValidationResult } from '@/components/levels';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -18,7 +17,8 @@ import {
 	RightPanel,
 	useLevelCompletion,
 } from '@/components/levels';
-import type { ValidationResult } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 interface Span {
 	id: string;
@@ -78,12 +78,25 @@ export function Level46Observability({
 	);
 	const handleValidate = useCallback((): ValidationResult => {
 		if (!tracingEnabled) {
-			return { valid: false, message: 'Enable tracing', details: ['Click "Enable Distributed Tracing" to instrument services'] };
+			return {
+				valid: false,
+				message: 'Enable tracing',
+				details: ['Click "Enable Distributed Tracing" to instrument services'],
+			};
 		}
 		if (!problemFound) {
-			return { valid: false, message: 'Find the bottleneck', details: ['Click on spans in the flame graph to identify the slow service'] };
+			return {
+				valid: false,
+				message: 'Find the bottleneck',
+				details: [
+					'Click on spans in the flame graph to identify the slow service',
+				],
+			};
 		}
-		return { valid: true, message: 'Bottleneck identified! Billing service is the culprit.' };
+		return {
+			valid: true,
+			message: 'Bottleneck identified! Billing service is the culprit.',
+		};
 	}, [tracingEnabled, problemFound]);
 
 	const enableTracing = () => {
@@ -369,7 +382,6 @@ export function Level46Observability({
 							</div>
 						</div>
 					)}
-
 				</div>
 			</CenterPanel>
 

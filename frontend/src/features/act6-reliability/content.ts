@@ -7,8 +7,11 @@
  * App context: Production SaaS
  */
 
-import type { Act, Level } from "@/types";
-import { standardPipeline, middlewarePipeline } from "@/utils/pipelineTemplates";
+import type { Act, Level } from '@/types';
+import {
+	middlewarePipeline,
+	standardPipeline,
+} from '@/utils/pipelineTemplates';
 
 // ============================================
 // Level 37: Middleware & Rack
@@ -53,9 +56,7 @@ $ bin/rails middleware
 		goal: 'Add custom Rack middleware for request tracking, logging, and bot detection.',
 		thresholds: {},
 	},
-	successConditions: [
-		{ type: 'middleware_configured' },
-	],
+	successConditions: [{ type: 'middleware_configured' }],
 	availableNodes: ['middleware'],
 	unlockedNodes: ['middleware'],
 	learningContent: {
@@ -237,9 +238,7 @@ end
 		goal: 'Configure rate limiting at both the controller level (Rails 8 rate_limit) and the Rack level.',
 		thresholds: { maxErrorRate: 0.01 },
 	},
-	successConditions: [
-		{ type: 'rate_limiting_configured' },
-	],
+	successConditions: [{ type: 'rate_limiting_configured' }],
 	availableNodes: ['rate_limiter'],
 	unlockedNodes: ['rate_limiter'],
 	learningContent: {
@@ -450,9 +449,7 @@ end
 		goal: 'Implement soft deletes with the discard gem and audit trails with PaperTrail.',
 		thresholds: {},
 	},
-	successConditions: [
-		{ type: 'soft_deletes_configured' },
-	],
+	successConditions: [{ type: 'soft_deletes_configured' }],
 	availableNodes: ['soft_delete', 'audit_trail'],
 	unlockedNodes: ['audit_trail'],
 	learningContent: {
@@ -693,9 +690,7 @@ remove_column :users, :legacy_field         # Breaks running app code`,
 		goal: 'Configure strong_migrations and apply zero-downtime migration patterns.',
 		thresholds: {},
 	},
-	successConditions: [
-		{ type: 'safe_migrations_configured' },
-	],
+	successConditions: [{ type: 'safe_migrations_configured' }],
 	availableNodes: [],
 	unlockedNodes: [],
 	learningContent: {
@@ -889,8 +884,21 @@ const level41RecurringJobs: Level = {
 	},
 	startingPipeline: {
 		nodes: [
-			{ id: 'controller-node', type: 'controller', x: 200, y: 250, locked: true },
-			{ id: 'model-node', type: 'model', x: 400, y: 250, locked: true, config: { label: 'User' } },
+			{
+				id: 'controller-node',
+				type: 'controller',
+				x: 200,
+				y: 250,
+				locked: true,
+			},
+			{
+				id: 'model-node',
+				type: 'model',
+				x: 400,
+				y: 250,
+				locked: true,
+				config: { label: 'User' },
+			},
 			{ id: 'database-node', type: 'database', x: 600, y: 250, locked: true },
 		],
 		connections: [
@@ -923,9 +931,7 @@ AuditLog.where("created_at < ?", 1.year.ago).count
 		goal: 'Configure Solid Queue recurring tasks for automated data maintenance.',
 		thresholds: {},
 	},
-	successConditions: [
-		{ type: 'recurring_jobs_configured' },
-	],
+	successConditions: [{ type: 'recurring_jobs_configured' }],
 	availableNodes: ['background_job', 'scheduler'],
 	unlockedNodes: ['scheduler'],
 	learningContent: {
@@ -1192,9 +1198,7 @@ end
 		goal: 'Implement structured error monitoring with context, grouping, alerting, and error budgets.',
 		thresholds: { maxErrorRate: 0.005 },
 	},
-	successConditions: [
-		{ type: 'error_monitoring_configured' },
-	],
+	successConditions: [{ type: 'error_monitoring_configured' }],
 	availableNodes: ['error_monitor'],
 	unlockedNodes: ['error_monitor'],
 	learningContent: {

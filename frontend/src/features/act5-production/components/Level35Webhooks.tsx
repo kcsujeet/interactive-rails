@@ -1,15 +1,25 @@
 /**
- * Level 23: Webhooks
+ * Level 35: Webhooks
  *
  * Receive and process webhooks from external services.
  * Player learns webhook verification, idempotency, and async processing.
  */
 
-import { useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { Ban, ClipboardList, CreditCard, FileText, Inbox, Lock, RefreshCw, Search, Settings, User, XCircle } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import {
+	Ban,
+	ClipboardList,
+	CreditCard,
+	FileText,
+	Inbox,
+	Lock,
+	RefreshCw,
+	Search,
+	Settings,
+	User,
+	XCircle,
+} from 'lucide-react';
+import { useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -21,6 +31,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 interface WebhookConfig {
 	signatureVerification: boolean;
@@ -44,21 +56,30 @@ interface WebhookEvent {
 	timestamp: number;
 }
 
-const WEBHOOK_TYPES: { type: string; Icon: LucideIcon; description: string }[] = [
-	{ type: 'payment.completed', Icon: CreditCard, description: 'Payment successful' },
-	{ type: 'payment.failed', Icon: XCircle, description: 'Payment declined' },
-	{ type: 'subscription.created', Icon: ClipboardList, description: 'New subscription' },
-	{
-		type: 'subscription.canceled',
-		Icon: Ban,
-		description: 'Subscription ended',
-	},
-	{
-		type: 'customer.updated',
-		Icon: User,
-		description: 'Customer info changed',
-	},
-];
+const WEBHOOK_TYPES: { type: string; Icon: LucideIcon; description: string }[] =
+	[
+		{
+			type: 'payment.completed',
+			Icon: CreditCard,
+			description: 'Payment successful',
+		},
+		{ type: 'payment.failed', Icon: XCircle, description: 'Payment declined' },
+		{
+			type: 'subscription.created',
+			Icon: ClipboardList,
+			description: 'New subscription',
+		},
+		{
+			type: 'subscription.canceled',
+			Icon: Ban,
+			description: 'Subscription ended',
+		},
+		{
+			type: 'customer.updated',
+			Icon: User,
+			description: 'Customer info changed',
+		},
+	];
 
 export function Level35Webhooks({ onComplete, onExit }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
@@ -345,26 +366,28 @@ export function Level35Webhooks({ onComplete, onExit }: LevelComponentProps) {
 							</div>
 							<div className="p-6">
 								<div className="flex items-center justify-between">
-									{([
-										{ name: 'Receive', Icon: Inbox, active: true },
-										{
-											name: 'Verify',
-											Icon: Lock,
-											active: config.signatureVerification,
-										},
-										{
-											name: 'Dedupe',
-											Icon: Search,
-											active: config.idempotencyCheck,
-										},
-										{
-											name: 'Queue',
-											Icon: ClipboardList,
-											active: config.asyncProcessing,
-										},
-										{ name: 'Process', Icon: Settings, active: true },
-										{ name: 'Log', Icon: FileText, active: config.logging },
-									] as const).map((step, i, arr) => (
+									{(
+										[
+											{ name: 'Receive', Icon: Inbox, active: true },
+											{
+												name: 'Verify',
+												Icon: Lock,
+												active: config.signatureVerification,
+											},
+											{
+												name: 'Dedupe',
+												Icon: Search,
+												active: config.idempotencyCheck,
+											},
+											{
+												name: 'Queue',
+												Icon: ClipboardList,
+												active: config.asyncProcessing,
+											},
+											{ name: 'Process', Icon: Settings, active: true },
+											{ name: 'Log', Icon: FileText, active: config.logging },
+										] as const
+									).map((step, i, arr) => (
 										<div className="flex items-center" key={step.name}>
 											<div
 												className={`flex flex-col items-center ${step.active ? '' : 'opacity-30'}`}

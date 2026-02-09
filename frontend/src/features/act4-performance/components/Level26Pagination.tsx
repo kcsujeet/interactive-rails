@@ -1,13 +1,11 @@
 /**
- * Level 19: Pagination
+ * Level 26: Pagination
  *
  * Handle large datasets with pagination strategies.
  * Player implements different pagination approaches.
  */
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -19,6 +17,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 interface PaginationStrategy {
 	id: string;
@@ -283,7 +283,7 @@ export function Level26Pagination({ onComplete, onExit }: LevelComponentProps) {
 
 			<CenterPanel>
 				<LevelHeader
-					actNumber={3}
+					actNumber={4}
 					levelName="Pagination"
 					levelNumber={26}
 					onComplete={handleComplete}

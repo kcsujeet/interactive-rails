@@ -7,8 +7,8 @@
  * App context: SaaS API with payments
  */
 
-import type { Act, Level } from "@/types";
-import { standardPipeline } from "@/utils/pipelineTemplates";
+import type { Act, Level } from '@/types';
+import { standardPipeline } from '@/utils/pipelineTemplates';
 
 // ============================================
 // Level 29: Polymorphic Associations
@@ -28,19 +28,58 @@ const level29Polymorphic: Level = {
 		nodes: [
 			{ id: 'request-node', type: 'request', x: 80, y: 250, locked: true },
 			{ id: 'router-node', type: 'router', x: 260, y: 250, locked: true },
-			{ id: 'controller-node', type: 'controller', x: 440, y: 250, locked: true },
-			{ id: 'post-model', type: 'model', x: 640, y: 150, locked: true, config: { label: 'Post' } },
-			{ id: 'photo-model', type: 'model', x: 640, y: 250, locked: true, config: { label: 'Photo' } },
-			{ id: 'video-model', type: 'model', x: 640, y: 350, locked: true, config: { label: 'Video' } },
+			{
+				id: 'controller-node',
+				type: 'controller',
+				x: 440,
+				y: 250,
+				locked: true,
+			},
+			{
+				id: 'post-model',
+				type: 'model',
+				x: 640,
+				y: 150,
+				locked: true,
+				config: { label: 'Post' },
+			},
+			{
+				id: 'photo-model',
+				type: 'model',
+				x: 640,
+				y: 250,
+				locked: true,
+				config: { label: 'Photo' },
+			},
+			{
+				id: 'video-model',
+				type: 'model',
+				x: 640,
+				y: 350,
+				locked: true,
+				config: { label: 'Video' },
+			},
 			{ id: 'database-node', type: 'database', x: 860, y: 250, locked: true },
 			{ id: 'response-node', type: 'response', x: 1040, y: 250, locked: true },
 		],
 		connections: [
 			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'router-node' },
-			{ id: 'c2', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
+			{
+				id: 'c2',
+				sourceNodeId: 'router-node',
+				targetNodeId: 'controller-node',
+			},
 			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
-			{ id: 'c4', sourceNodeId: 'controller-node', targetNodeId: 'photo-model' },
-			{ id: 'c5', sourceNodeId: 'controller-node', targetNodeId: 'video-model' },
+			{
+				id: 'c4',
+				sourceNodeId: 'controller-node',
+				targetNodeId: 'photo-model',
+			},
+			{
+				id: 'c5',
+				sourceNodeId: 'controller-node',
+				targetNodeId: 'video-model',
+			},
 			{ id: 'c6', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
 			{ id: 'c7', sourceNodeId: 'photo-model', targetNodeId: 'database-node' },
 			{ id: 'c8', sourceNodeId: 'video-model', targetNodeId: 'database-node' },
@@ -198,10 +237,37 @@ const level30Transactions: Level = {
 	},
 	startingPipeline: {
 		nodes: [
-			{ id: 'request-a', type: 'request', x: 80, y: 150, locked: true, config: { label: 'User A' } },
-			{ id: 'request-b', type: 'request', x: 80, y: 350, locked: true, config: { label: 'User B' } },
-			{ id: 'controller-node', type: 'controller', x: 300, y: 250, locked: true },
-			{ id: 'model-node', type: 'model', x: 500, y: 250, locked: true, config: { label: 'Account' } },
+			{
+				id: 'request-a',
+				type: 'request',
+				x: 80,
+				y: 150,
+				locked: true,
+				config: { label: 'User A' },
+			},
+			{
+				id: 'request-b',
+				type: 'request',
+				x: 80,
+				y: 350,
+				locked: true,
+				config: { label: 'User B' },
+			},
+			{
+				id: 'controller-node',
+				type: 'controller',
+				x: 300,
+				y: 250,
+				locked: true,
+			},
+			{
+				id: 'model-node',
+				type: 'model',
+				x: 500,
+				y: 250,
+				locked: true,
+				config: { label: 'Account' },
+			},
 			{ id: 'database-node', type: 'database', x: 700, y: 250, locked: true },
 		],
 		connections: [
@@ -607,7 +673,7 @@ User.find_by(phone: "+1-555-0123")  # Raises ActiveRecord::Encryption::Errors::C
 
 # In the database, all values are ciphertext:
 # SELECT email FROM users LIMIT 1;
-# => "{\"p\":\"dB3dhj...\",\"h\":{\"iv\":\"f9w...\",\"at\":\"Ij...\"}}"
+# => "{"p":"dB3dhj...","h":{"iv":"f9w...","at":"Ij..."}}"
 
 # Migrating existing plaintext data
 class EncryptExistingUsers < ActiveRecord::Migration[8.0]
@@ -665,18 +731,50 @@ const level33Realtime: Level = {
 	startingPipeline: {
 		nodes: [
 			{ id: 'request-node', type: 'request', x: 80, y: 150, locked: true },
-			{ id: 'poll-request', type: 'request', x: 80, y: 350, locked: true, config: { label: 'Polling' } },
-			{ id: 'controller-node', type: 'controller', x: 300, y: 250, locked: true },
-			{ id: 'model-node', type: 'model', x: 500, y: 250, locked: true, config: { label: 'Notification' } },
+			{
+				id: 'poll-request',
+				type: 'request',
+				x: 80,
+				y: 350,
+				locked: true,
+				config: { label: 'Polling' },
+			},
+			{
+				id: 'controller-node',
+				type: 'controller',
+				x: 300,
+				y: 250,
+				locked: true,
+			},
+			{
+				id: 'model-node',
+				type: 'model',
+				x: 500,
+				y: 250,
+				locked: true,
+				config: { label: 'Notification' },
+			},
 			{ id: 'database-node', type: 'database', x: 700, y: 250, locked: true },
 			{ id: 'response-node', type: 'response', x: 900, y: 250, locked: true },
 		],
 		connections: [
-			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'controller-node' },
-			{ id: 'c2', sourceNodeId: 'poll-request', targetNodeId: 'controller-node' },
+			{
+				id: 'c1',
+				sourceNodeId: 'request-node',
+				targetNodeId: 'controller-node',
+			},
+			{
+				id: 'c2',
+				sourceNodeId: 'poll-request',
+				targetNodeId: 'controller-node',
+			},
 			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
 			{ id: 'c4', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-			{ id: 'c5', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
+			{
+				id: 'c5',
+				sourceNodeId: 'database-node',
+				targetNodeId: 'response-node',
+			},
 		],
 	},
 	problem: {
@@ -869,18 +967,50 @@ const level34ExternalAPIs: Level = {
 	startingPipeline: {
 		nodes: [
 			{ id: 'request-node', type: 'request', x: 80, y: 250, locked: true },
-			{ id: 'controller-node', type: 'controller', x: 280, y: 250, locked: true },
-			{ id: 'model-node', type: 'model', x: 500, y: 150, locked: true, config: { label: 'Order' } },
-			{ id: 'external-api', type: 'model', x: 500, y: 350, locked: true, config: { label: 'Stripe API' } },
+			{
+				id: 'controller-node',
+				type: 'controller',
+				x: 280,
+				y: 250,
+				locked: true,
+			},
+			{
+				id: 'model-node',
+				type: 'model',
+				x: 500,
+				y: 150,
+				locked: true,
+				config: { label: 'Order' },
+			},
+			{
+				id: 'external-api',
+				type: 'model',
+				x: 500,
+				y: 350,
+				locked: true,
+				config: { label: 'Stripe API' },
+			},
 			{ id: 'database-node', type: 'database', x: 720, y: 150, locked: true },
 			{ id: 'response-node', type: 'response', x: 920, y: 250, locked: true },
 		],
 		connections: [
-			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'controller-node' },
+			{
+				id: 'c1',
+				sourceNodeId: 'request-node',
+				targetNodeId: 'controller-node',
+			},
 			{ id: 'c2', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
-			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'external-api' },
+			{
+				id: 'c3',
+				sourceNodeId: 'controller-node',
+				targetNodeId: 'external-api',
+			},
 			{ id: 'c4', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-			{ id: 'c5', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
+			{
+				id: 'c5',
+				sourceNodeId: 'database-node',
+				targetNodeId: 'response-node',
+			},
 		],
 	},
 	problem: {
@@ -909,9 +1039,7 @@ end
 		goal: 'Build a resilient Stripe integration with timeouts, retries with exponential backoff, and a circuit breaker that fails fast when Stripe is down.',
 		thresholds: {},
 	},
-	successConditions: [
-		{ type: 'api_resilience_configured' },
-	],
+	successConditions: [{ type: 'api_resilience_configured' }],
 	availableNodes: ['circuit_breaker'],
 	unlockedNodes: ['circuit_breaker'],
 	learningContent: {
@@ -1069,20 +1197,67 @@ const level35Webhooks: Level = {
 	},
 	startingPipeline: {
 		nodes: [
-			{ id: 'webhook-request', type: 'request', x: 80, y: 250, locked: true, config: { label: 'Stripe Webhook' } },
-			{ id: 'controller-node', type: 'controller', x: 300, y: 250, locked: true },
-			{ id: 'payment-model', type: 'model', x: 500, y: 150, locked: true, config: { label: 'Payment' } },
-			{ id: 'credit-model', type: 'model', x: 500, y: 350, locked: true, config: { label: 'Credit' } },
+			{
+				id: 'webhook-request',
+				type: 'request',
+				x: 80,
+				y: 250,
+				locked: true,
+				config: { label: 'Stripe Webhook' },
+			},
+			{
+				id: 'controller-node',
+				type: 'controller',
+				x: 300,
+				y: 250,
+				locked: true,
+			},
+			{
+				id: 'payment-model',
+				type: 'model',
+				x: 500,
+				y: 150,
+				locked: true,
+				config: { label: 'Payment' },
+			},
+			{
+				id: 'credit-model',
+				type: 'model',
+				x: 500,
+				y: 350,
+				locked: true,
+				config: { label: 'Credit' },
+			},
 			{ id: 'database-node', type: 'database', x: 700, y: 250, locked: true },
 			{ id: 'response-node', type: 'response', x: 860, y: 250, locked: true },
 		],
 		connections: [
-			{ id: 'c1', sourceNodeId: 'webhook-request', targetNodeId: 'controller-node' },
-			{ id: 'c2', sourceNodeId: 'controller-node', targetNodeId: 'payment-model' },
-			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'credit-model' },
-			{ id: 'c4', sourceNodeId: 'payment-model', targetNodeId: 'database-node' },
+			{
+				id: 'c1',
+				sourceNodeId: 'webhook-request',
+				targetNodeId: 'controller-node',
+			},
+			{
+				id: 'c2',
+				sourceNodeId: 'controller-node',
+				targetNodeId: 'payment-model',
+			},
+			{
+				id: 'c3',
+				sourceNodeId: 'controller-node',
+				targetNodeId: 'credit-model',
+			},
+			{
+				id: 'c4',
+				sourceNodeId: 'payment-model',
+				targetNodeId: 'database-node',
+			},
 			{ id: 'c5', sourceNodeId: 'credit-model', targetNodeId: 'database-node' },
-			{ id: 'c6', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
+			{
+				id: 'c6',
+				sourceNodeId: 'database-node',
+				targetNodeId: 'response-node',
+			},
 		],
 	},
 	problem: {
@@ -1306,21 +1481,56 @@ const level36APIVersioning: Level = {
 	},
 	startingPipeline: {
 		nodes: [
-			{ id: 'request-v1', type: 'request', x: 80, y: 150, locked: true, config: { label: 'v1 Client' } },
-			{ id: 'request-v2', type: 'request', x: 80, y: 350, locked: true, config: { label: 'v2 Client' } },
+			{
+				id: 'request-v1',
+				type: 'request',
+				x: 80,
+				y: 150,
+				locked: true,
+				config: { label: 'v1 Client' },
+			},
+			{
+				id: 'request-v2',
+				type: 'request',
+				x: 80,
+				y: 350,
+				locked: true,
+				config: { label: 'v2 Client' },
+			},
 			{ id: 'router-node', type: 'router', x: 260, y: 250, locked: true },
-			{ id: 'controller-node', type: 'controller', x: 440, y: 250, locked: true },
-			{ id: 'model-node', type: 'model', x: 620, y: 250, locked: true, config: { label: 'Order' } },
+			{
+				id: 'controller-node',
+				type: 'controller',
+				x: 440,
+				y: 250,
+				locked: true,
+			},
+			{
+				id: 'model-node',
+				type: 'model',
+				x: 620,
+				y: 250,
+				locked: true,
+				config: { label: 'Order' },
+			},
 			{ id: 'database-node', type: 'database', x: 800, y: 250, locked: true },
 			{ id: 'response-node', type: 'response', x: 620, y: 400, locked: true },
 		],
 		connections: [
 			{ id: 'c1', sourceNodeId: 'request-v1', targetNodeId: 'router-node' },
 			{ id: 'c2', sourceNodeId: 'request-v2', targetNodeId: 'router-node' },
-			{ id: 'c3', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
+			{
+				id: 'c3',
+				sourceNodeId: 'router-node',
+				targetNodeId: 'controller-node',
+			},
 			{ id: 'c4', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
 			{ id: 'c5', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-			{ id: 'c6', sourceNodeId: 'database-node', targetNodeId: 'response-node' },
+			{
+				id: 'c6',
+				sourceNodeId: 'database-node',
+				targetNodeId: 'response-node',
+			},
 		],
 	},
 	problem: {

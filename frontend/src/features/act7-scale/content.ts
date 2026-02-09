@@ -6,7 +6,7 @@
  * App context: Enterprise SaaS
  */
 
-import type { Act, Level } from "@/types";
+import type { Act, Level } from '@/types';
 
 // ============================================
 // Level 43: Multi-Database
@@ -24,8 +24,10 @@ const level43MultiDatabase: Level = {
 	},
 	startingPipeline: { nodes: [], connections: [] },
 	problem: {
-		observation: 'Write latency spikes during peak read traffic. Read queries hold locks that block inserts and updates.',
-		rootCause: 'All reads and writes hit a single database. No read/write splitting configured.',
+		observation:
+			'Write latency spikes during peak read traffic. Read queries hold locks that block inserts and updates.',
+		rootCause:
+			'All reads and writes hit a single database. No read/write splitting configured.',
 		codeExample: `# Current: Every query hits the primary database
 class ApplicationRecord < ActiveRecord::Base
   primary_abstract_class
@@ -44,9 +46,7 @@ Post.create!(title: "New Post", body: "...")          # INSERT ... (blocked by r
 			maxLatency: 200,
 		},
 	},
-	successConditions: [
-		{ type: 'multi_database_configured' },
-	],
+	successConditions: [{ type: 'multi_database_configured' }],
 	availableNodes: ['database', 'read_replica'],
 	unlockedNodes: ['read_replica'],
 	learningContent: {
@@ -110,7 +110,8 @@ end
 			'Running migrations against replicas instead of primary only',
 			'Not configuring the delay parameter for automatic switching',
 		],
-		whenToUse: 'When read traffic dominates and a single DB cannot handle the mixed workload.',
+		whenToUse:
+			'When read traffic dominates and a single DB cannot handle the mixed workload.',
 		furtherReading: [
 			{
 				title: 'Multiple Databases with Active Record',
@@ -141,8 +142,10 @@ const level44StateMachines: Level = {
 	},
 	startingPipeline: { nodes: [], connections: [] },
 	problem: {
-		observation: 'Orders have invalid statuses. "shipped" orders are reverting to "pending". No audit trail exists for status changes.',
-		rootCause: 'Order status is a plain string with no transition guards. Any code can set any status at any time.',
+		observation:
+			'Orders have invalid statuses. "shipped" orders are reverting to "pending". No audit trail exists for status changes.',
+		rootCause:
+			'Order status is a plain string with no transition guards. Any code can set any status at any time.',
 		codeExample: `# Current: Status is just a string — no guards
 class Order < ApplicationRecord
   # status is a string column: pending, confirmed, shipped, delivered, cancelled
@@ -166,9 +169,7 @@ order.update!(status: "pending")  # Oops — no error raised!
 		goal: 'Implement a state machine with guarded transitions and an audit trail.',
 		thresholds: {},
 	},
-	successConditions: [
-		{ type: 'state_machine_configured' },
-	],
+	successConditions: [{ type: 'state_machine_configured' }],
 	availableNodes: ['state_machine'],
 	unlockedNodes: ['state_machine'],
 	decisionModals: [
@@ -287,7 +288,8 @@ Order.pending.count     # SELECT COUNT(*) FROM orders WHERE status = 'pending'`,
 			'Not logging state transitions for audit purposes',
 			'Allowing direct status column updates that bypass the state machine',
 		],
-		whenToUse: 'Whenever a model has a status/state field with specific valid transitions.',
+		whenToUse:
+			'Whenever a model has a status/state field with specific valid transitions.',
 		furtherReading: [
 			{
 				title: 'AASM Gem',
@@ -318,12 +320,14 @@ const level45MultiTenancy: Level = {
 	trigger: {
 		type: 'new_feature',
 		description:
-			'B2B SaaS launch: each company must only see their own data. One codebase, many tenants. A single leaked query could expose another company\'s data.',
+			"B2B SaaS launch: each company must only see their own data. One codebase, many tenants. A single leaked query could expose another company's data.",
 	},
 	startingPipeline: { nodes: [], connections: [] },
 	problem: {
-		observation: 'Company A can see Company B\'s records. Every query must be scoped to the current tenant, but developers keep forgetting.',
-		rootCause: 'No tenant isolation. Queries are unscoped and return all records across all tenants.',
+		observation:
+			"Company A can see Company B's records. Every query must be scoped to the current tenant, but developers keep forgetting.",
+		rootCause:
+			'No tenant isolation. Queries are unscoped and return all records across all tenants.',
 		codeExample: `# Current: No tenant scoping — data leaks!
 class Project < ApplicationRecord
   belongs_to :company
@@ -343,9 +347,7 @@ Project.where(company_id: current_company.id, status: 'active')
 		goal: 'Implement automatic tenant isolation so every query is scoped by default.',
 		thresholds: {},
 	},
-	successConditions: [
-		{ type: 'multi_tenancy_configured' },
-	],
+	successConditions: [{ type: 'multi_tenancy_configured' }],
 	availableNodes: ['tenant_scope'],
 	unlockedNodes: ['tenant_scope'],
 	learningContent: {
@@ -445,7 +447,8 @@ end`,
 			'Not testing tenant isolation in your test suite',
 			'Not adding a unique index scoped to tenant_id',
 		],
-		whenToUse: 'Any B2B SaaS where multiple companies share one codebase and database.',
+		whenToUse:
+			'Any B2B SaaS where multiple companies share one codebase and database.',
 		furtherReading: [
 			{
 				title: 'ActsAsTenant Gem',
@@ -479,8 +482,10 @@ const level46Observability: Level = {
 	},
 	startingPipeline: { nodes: [], connections: [] },
 	problem: {
-		observation: 'Alerts fire but the team cannot diagnose the root cause. Logs are unstructured, no metrics are tracked, and there is no distributed tracing.',
-		rootCause: 'No observability stack. Logging is puts-style strings. No APM, no tracing, no dashboards.',
+		observation:
+			'Alerts fire but the team cannot diagnose the root cause. Logs are unstructured, no metrics are tracked, and there is no distributed tracing.',
+		rootCause:
+			'No observability stack. Logging is puts-style strings. No APM, no tracing, no dashboards.',
 		codeExample: `# Current: Unstructured logging — impossible to search or aggregate
 Rails.logger.info "User #{user.id} placed order #{order.id}"
 Rails.logger.error "Payment failed for order #{order.id}"
@@ -499,9 +504,7 @@ Rails.logger.error "Payment failed for order #{order.id}"
 		goal: 'Implement structured logging, APM metrics, and distributed tracing.',
 		thresholds: {},
 	},
-	successConditions: [
-		{ type: 'observability_configured' },
-	],
+	successConditions: [{ type: 'observability_configured' }],
 	availableNodes: ['observability', 'health_check'],
 	unlockedNodes: ['observability'],
 	learningContent: {
@@ -654,8 +657,10 @@ const level47DomainEvents: Level = {
 	},
 	startingPipeline: { nodes: [], connections: [] },
 	problem: {
-		observation: 'When payment processing fails, the notification service also raises an error, preventing the payment failure from being logged. A bug in one subsystem breaks an unrelated subsystem.',
-		rootCause: 'Services are tightly coupled through synchronous method calls. Each service directly calls the next, creating a failure cascade.',
+		observation:
+			'When payment processing fails, the notification service also raises an error, preventing the payment failure from being logged. A bug in one subsystem breaks an unrelated subsystem.',
+		rootCause:
+			'Services are tightly coupled through synchronous method calls. Each service directly calls the next, creating a failure cascade.',
 		codeExample: `# Current: Tight coupling — failure cascades
 class PaymentService
   def process(order)
@@ -680,9 +685,7 @@ end
 		goal: 'Decouple services using domain events and pub/sub so failures are isolated.',
 		thresholds: {},
 	},
-	successConditions: [
-		{ type: 'domain_events_configured' },
-	],
+	successConditions: [{ type: 'domain_events_configured' }],
 	availableNodes: ['event_bus', 'message_queue'],
 	unlockedNodes: ['event_bus'],
 	learningContent: {
@@ -795,7 +798,8 @@ end`,
 			'Events that are too fine-grained (event storm)',
 			'Circular event chains (A publishes event, B handles it and publishes event that triggers A)',
 		],
-		whenToUse: 'When multiple subsystems need to react to the same business event independently.',
+		whenToUse:
+			'When multiple subsystems need to react to the same business event independently.',
 		furtherReading: [
 			{
 				title: 'Wisper Gem',

@@ -91,9 +91,7 @@ export function NodePalette({
 }: NodePaletteProps) {
 	return (
 		<div className="p-4">
-			<h3 className="text-sm font-semibold text-foreground mb-1">
-				{title}
-			</h3>
+			<h3 className="text-sm font-semibold text-foreground mb-1">{title}</h3>
 			<p className="text-xs text-muted-foreground mb-3">
 				Drag components onto the canvas
 			</p>

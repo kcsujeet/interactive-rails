@@ -6,10 +6,8 @@
  * Teaches: Pundit policies, Current.user, policy_scope, rescue_from
  */
 
-import { useEffect, useState } from 'react';
 import { Shield, ShieldAlert, ShieldCheck } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import { useEffect, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -21,6 +19,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 interface Request {
 	id: number;

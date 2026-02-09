@@ -5,7 +5,6 @@
  * Shows how acts_as_tenant scopes queries to prevent data leaks.
  */
 
-import { useCallback, useState } from 'react';
 import {
 	Building2,
 	Database,
@@ -15,8 +14,7 @@ import {
 	ShieldCheck,
 	Users,
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import { useCallback, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -28,6 +26,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 // --- Types ---
 
@@ -95,8 +95,7 @@ const STRATEGIES: StrategyInfo[] = [
 	{
 		id: 'db-per-tenant',
 		name: 'DB-per-Tenant',
-		description:
-			'Each tenant gets a completely separate database instance.',
+		description: 'Each tenant gets a completely separate database instance.',
 		isolation: 'Full',
 		isolationLevel: 3,
 		complexity: 'High',
@@ -238,9 +237,7 @@ export function Level45MultiTenancy({
 		}
 
 		if (!isolationTested) {
-			errors.push(
-				'Run the isolation test to verify data is properly scoped',
-			);
+			errors.push('Run the isolation test to verify data is properly scoped');
 		} else if (!isolationPassed) {
 			errors.push(
 				'Isolation test failed -- make sure you selected the shared DB strategy and enabled acts_as_tenant on 2+ models',
@@ -284,8 +281,7 @@ export function Level45MultiTenancy({
 	};
 
 	// Determine current scoping status
-	const hasScoping =
-		selectedStrategy === 'shared-db' && enabledModelCount > 0;
+	const hasScoping = selectedStrategy === 'shared-db' && enabledModelCount > 0;
 	const scopedRecords = getVisibleRecords(currentTenant, hasScoping);
 	const unscopedRecords = getVisibleRecords(null, false);
 
@@ -405,7 +401,7 @@ export function Level45MultiTenancy({
 							>
 								{isolationPassed
 									? 'Logged in as Acme Corp -- Globex and Initech data invisible.'
-									: 'Data leak detected! Other companies\' records are visible.'}
+									: "Data leak detected! Other companies' records are visible."}
 							</div>
 						)}
 					</div>
@@ -430,17 +426,11 @@ export function Level45MultiTenancy({
 							<div className="flex items-center gap-2 mb-4">
 								<Database className="w-5 h-5 text-primary" />
 								<h3 className="text-foreground font-semibold">
-									{
-										STRATEGIES.find((s) => s.id === selectedStrategy)
-											?.name
-									}
+									{STRATEGIES.find((s) => s.id === selectedStrategy)?.name}
 								</h3>
 							</div>
 							<p className="text-muted-foreground text-sm mb-4">
-								{
-									STRATEGIES.find((s) => s.id === selectedStrategy)
-										?.description
-								}
+								{STRATEGIES.find((s) => s.id === selectedStrategy)?.description}
 							</p>
 
 							{/* Metrics */}
@@ -484,18 +474,14 @@ export function Level45MultiTenancy({
 												{metric.value}
 											</div>
 											<div className="flex justify-center gap-1 mt-1.5">
-												{getLevelDots(metric.level, 3).map(
-													(filled, i) => (
-														<div
-															className={`w-2 h-2 rounded-full ${
-																filled
-																	? 'bg-primary'
-																	: 'bg-border'
-															}`}
-															key={i}
-														/>
-													),
-												)}
+												{getLevelDots(metric.level, 3).map((filled, i) => (
+													<div
+														className={`w-2 h-2 rounded-full ${
+															filled ? 'bg-primary' : 'bg-border'
+														}`}
+														key={i}
+													/>
+												))}
 											</div>
 										</div>
 									));
@@ -523,9 +509,7 @@ export function Level45MultiTenancy({
 										className="flex items-center justify-between text-xs p-2 rounded bg-destructive/5 border border-destructive/20"
 										key={record.id}
 									>
-										<span className="text-foreground">
-											{record.name}
-										</span>
+										<span className="text-foreground">{record.name}</span>
 										<span className="text-destructive flex items-center gap-1">
 											<Building2 className="w-3 h-3" />
 											{record.companyName}
@@ -535,17 +519,14 @@ export function Level45MultiTenancy({
 							</div>
 							<div className="mt-3 text-xs text-destructive flex items-center gap-1">
 								<Eye className="w-3 h-3" />
-								Data leak: {unscopedRecords.length} records from all
-								companies
+								Data leak: {unscopedRecords.length} records from all companies
 							</div>
 						</div>
 
 						{/* With Tenancy */}
 						<div
 							className={`bg-card rounded-xl border p-5 ${
-								hasScoping
-									? 'border-success/30'
-									: 'border-border'
+								hasScoping ? 'border-success/30' : 'border-border'
 							}`}
 						>
 							<div className="flex items-center gap-2 mb-3">
@@ -572,9 +553,7 @@ export function Level45MultiTenancy({
 												className="flex items-center justify-between text-xs p-2 rounded bg-success/5 border border-success/20"
 												key={record.id}
 											>
-												<span className="text-foreground">
-													{record.name}
-												</span>
+												<span className="text-foreground">{record.name}</span>
 												<span className="text-success flex items-center gap-1">
 													<Building2 className="w-3 h-3" />
 													{record.companyName}
@@ -584,9 +563,8 @@ export function Level45MultiTenancy({
 									</div>
 									<div className="mt-3 text-xs text-success flex items-center gap-1">
 										<ShieldCheck className="w-3 h-3" />
-										Isolated:{' '}
-										{getVisibleRecords(1, true).length} records
-										from Acme Corp only
+										Isolated: {getVisibleRecords(1, true).length} records from
+										Acme Corp only
 									</div>
 								</>
 							) : (
@@ -707,43 +685,38 @@ export function Level45MultiTenancy({
 								{queryInput === 'Project.all' && (
 									<div className="mt-3">
 										<div className="text-xs text-muted-foreground mb-2">
-											Returns {hasScoping ? scopedRecords.length : unscopedRecords.length} record(s):
+											Returns{' '}
+											{hasScoping
+												? scopedRecords.length
+												: unscopedRecords.length}{' '}
+											record(s):
 										</div>
 										<div className="space-y-1">
 											{(hasScoping
-												? getVisibleRecords(
-														currentTenant,
-														true,
-													)
+												? getVisibleRecords(currentTenant, true)
 												: unscopedRecords
 											).map((record) => (
 												<div
 													className={`flex items-center justify-between text-xs p-2 rounded ${
 														hasScoping
 															? 'bg-success/5 border border-success/20'
-															: record.companyId ===
-																  currentTenant
+															: record.companyId === currentTenant
 																? 'bg-success/5 border border-success/20'
 																: 'bg-destructive/5 border border-destructive/20'
 													}`}
 													key={record.id}
 												>
-													<span className="text-foreground">
-														{record.name}
-													</span>
+													<span className="text-foreground">{record.name}</span>
 													<span
 														className={
-															hasScoping ||
-															record.companyId ===
-																currentTenant
+															hasScoping || record.companyId === currentTenant
 																? 'text-success'
 																: 'text-destructive'
 														}
 													>
 														{record.companyName}
 														{!hasScoping &&
-															record.companyId !==
-																currentTenant && (
+															record.companyId !== currentTenant && (
 																<Eye className="w-3 h-3 inline ml-1" />
 															)}
 													</span>

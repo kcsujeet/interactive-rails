@@ -1,23 +1,23 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import type { Realm } from '../../../shared/types';
-import { getRealms } from "@/lib/api";
-import { Button } from './ui/Button';
 import {
-	Castle,
 	BookOpen,
-	Map,
-	Settings,
-	Palette,
-	Database,
-	Zap,
-	Mail,
-	Gem,
-	Rocket,
-	Crown,
-	Lock,
-	Sword,
+	Castle,
 	Check,
+	Crown,
+	Database,
+	Gem,
+	Lock,
+	Mail,
+	Map,
+	Palette,
+	Rocket,
+	Settings,
+	Sword,
+	Zap,
 } from 'lucide-react';
+import { type ReactNode, useEffect, useState } from 'react';
+import { getRealms } from '@/lib/api';
+import type { Realm } from '../../../shared/types';
+import { Button } from './ui/Button';
 
 interface RealmCardProps {
 	realm: Realm;
@@ -33,17 +33,17 @@ function RealmCard({ realm, index }: RealmCardProps) {
 
 	// Different icons for different realms
 	const icons: ReactNode[] = [
-		<Castle key="castle" className="w-6 h-6" />,
-		<BookOpen key="book" className="w-6 h-6" />,
-		<Map key="map" className="w-6 h-6" />,
-		<Settings key="settings" className="w-6 h-6" />,
-		<Palette key="palette" className="w-6 h-6" />,
-		<Database key="database" className="w-6 h-6" />,
-		<Zap key="zap" className="w-6 h-6" />,
-		<Mail key="mail" className="w-6 h-6" />,
-		<Gem key="gem" className="w-6 h-6" />,
-		<Rocket key="rocket" className="w-6 h-6" />,
-		<Crown key="crown" className="w-6 h-6" />,
+		<Castle className="w-6 h-6" key="castle" />,
+		<BookOpen className="w-6 h-6" key="book" />,
+		<Map className="w-6 h-6" key="map" />,
+		<Settings className="w-6 h-6" key="settings" />,
+		<Palette className="w-6 h-6" key="palette" />,
+		<Database className="w-6 h-6" key="database" />,
+		<Zap className="w-6 h-6" key="zap" />,
+		<Mail className="w-6 h-6" key="mail" />,
+		<Gem className="w-6 h-6" key="gem" />,
+		<Rocket className="w-6 h-6" key="rocket" />,
+		<Crown className="w-6 h-6" key="crown" />,
 	];
 
 	return (
@@ -52,7 +52,13 @@ function RealmCard({ realm, index }: RealmCardProps) {
 			href={isLocked ? '#' : `/realms/${realm.id}`}
 			onClick={(e) => isLocked && e.preventDefault()}
 		>
-			<div className="realm-icon">{isLocked ? <Lock className="w-6 h-6" /> : icons[index] || <Sword className="w-6 h-6" />}</div>
+			<div className="realm-icon">
+				{isLocked ? (
+					<Lock className="w-6 h-6" />
+				) : (
+					icons[index] || <Sword className="w-6 h-6" />
+				)}
+			</div>
 			<div className="realm-info">
 				<h3 className="realm-name">{realm.name}</h3>
 				<p className="realm-desc">{realm.description}</p>
@@ -71,7 +77,11 @@ function RealmCard({ realm, index }: RealmCardProps) {
 				)}
 			</div>
 			{realm.dungeonsCompleted === realm.totalDungeons &&
-				realm.totalDungeons > 0 && <div className="realm-complete"><Check className="w-5 h-5" /></div>}
+				realm.totalDungeons > 0 && (
+					<div className="realm-complete">
+						<Check className="w-5 h-5" />
+					</div>
+				)}
 		</a>
 	);
 }

@@ -6,8 +6,6 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -19,6 +17,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 interface Post {
 	id: number;
@@ -361,10 +361,7 @@ export function Level22N1Problem({ onComplete, onExit }: LevelComponentProps) {
 									call triggers a separate database query. With 1000 posts,
 									that's 1001 queries!
 								</div>
-								<Button
-									onClick={() => setUnderstood(true)}
-									color="destructive"
-								>
+								<Button color="destructive" onClick={() => setUnderstood(true)}>
 									I Understand the Problem
 								</Button>
 							</div>
@@ -421,7 +418,7 @@ export function Level22N1Problem({ onComplete, onExit }: LevelComponentProps) {
 							Coming Next
 						</div>
 						<pre className="text-xs text-muted-foreground bg-secondary p-2 rounded overflow-x-auto">
-							{`# The fix (Level 17):
+							{`# The fix (Level 23):
 Post.includes(:author).all
 
 # Result: Only 2 queries!

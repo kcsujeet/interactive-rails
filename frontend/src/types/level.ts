@@ -4,8 +4,8 @@
  * Type definitions for the level system including rooms, objectives, and bosses.
  */
 
-import type { NodeType } from "@/stores/pipeline";
-import type { DefenseType, EnemyType } from "@/stores/simulation";
+import type { NodeType } from '@/stores/pipeline';
+import type { DefenseType, EnemyType } from '@/stores/simulation';
 
 // ============================================
 // Room Objectives

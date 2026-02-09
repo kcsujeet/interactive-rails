@@ -4,8 +4,12 @@
  * Renders content only — wrap in RightPanel for layout chrome.
  */
 
+import type {
+	LevelChallenge,
+	PlacedNode,
+	ValidationResult,
+} from '@/types/game';
 import { Button } from './ui/Button';
-import type { LevelChallenge, PlacedNode, ValidationResult } from '@/types/game';
 
 interface InspectorPanelProps {
 	placedNodes: PlacedNode[];

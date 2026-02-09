@@ -7,7 +7,7 @@
 
 import type { MouseEvent } from 'react';
 import { useCallback, useEffect, useState } from 'react';
-
+import type { ValidationResult } from '@/components/levels';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -21,7 +21,6 @@ import {
 	RightPanel,
 	useLevelCompletion,
 } from '@/components/levels';
-import type { ValidationResult } from '@/components/levels';
 import { PipelineCanvas } from '@/components/PipelineCanvas';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';

@@ -5,7 +5,7 @@
  * Build a production-grade SaaS while mastering Rails 8
  */
 
-import type { Act, Level } from "@/types";
+import type { Act, Level } from '@/types';
 
 // Import individual act definitions
 import { actOne } from './act1-foundation/content';
@@ -21,7 +21,16 @@ import { actEight } from './act8-mastery/content';
 // All Acts
 // ============================================
 
-export const ACTS: Act[] = [actOne, actTwo, actThree, actFour, actFive, actSix, actSeven, actEight];
+export const ACTS: Act[] = [
+	actOne,
+	actTwo,
+	actThree,
+	actFour,
+	actFive,
+	actSix,
+	actSeven,
+	actEight,
+];
 
 // ============================================
 // Helper Functions
@@ -48,7 +57,10 @@ export function getLevel(levelId: string): Level | undefined {
 /**
  * Get a level by act ID and level number
  */
-export function getLevelByNumber(actId: number, levelNum: number): Level | undefined {
+export function getLevelByNumber(
+	actId: number,
+	levelNum: number,
+): Level | undefined {
 	const act = getAct(actId);
 	if (!act) return undefined;
 	return act.levels.find((l) => l.levelNumber === levelNum);
@@ -139,4 +151,13 @@ export function isActUnlocked(
 }
 
 // Re-export individual acts for direct access
-export { actOne, actTwo, actThree, actFour, actFive, actSix, actSeven, actEight };
+export {
+	actOne,
+	actTwo,
+	actThree,
+	actFour,
+	actFive,
+	actSix,
+	actSeven,
+	actEight,
+};

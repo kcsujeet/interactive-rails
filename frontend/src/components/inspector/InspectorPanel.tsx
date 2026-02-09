@@ -1,11 +1,7 @@
 // Main inspector panel component that combines all inspection tools
 
 import { useState } from 'react';
-import type {
-	Defense,
-	Enemy,
-	SimulationStoreState,
-} from "@/stores/simulation";
+import type { Defense, Enemy, SimulationStoreState } from '@/stores/simulation';
 import { Button } from '../ui/Button';
 import { MetricsDisplay } from './MetricsDisplay';
 import { QueryTraceViewer } from './QueryTraceViewer';

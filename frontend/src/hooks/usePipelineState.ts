@@ -10,7 +10,7 @@ import {
 	useRef,
 	useState,
 } from 'react';
-import type { Connection, PendingConnection, PlacedNode } from "@/types";
+import type { Connection, PendingConnection, PlacedNode } from '@/types';
 
 export interface UsePipelineStateReturn {
 	placedNodes: PlacedNode[];
@@ -20,7 +20,9 @@ export interface UsePipelineStateReturn {
 	selectedNodeId: string | null;
 	setSelectedNodeId: React.Dispatch<React.SetStateAction<string | null>>;
 	pendingConnection: PendingConnection | null;
-	setPendingConnection: React.Dispatch<React.SetStateAction<PendingConnection | null>>;
+	setPendingConnection: React.Dispatch<
+		React.SetStateAction<PendingConnection | null>
+	>;
 	draggingNodeId: string | null;
 	draggedNodeType: string | null;
 	canvasRef: RefObject<HTMLDivElement | null>;
@@ -47,12 +49,22 @@ export interface PipelineStateConfig {
 	/** Return false to prevent a drop */
 	onBeforeDrop?: (nodeType: string, placedNodes: PlacedNode[]) => boolean;
 	/** Called after a connection is created */
-	onConnectionCreated?: (conn: Connection, source: PlacedNode, target: PlacedNode) => void;
+	onConnectionCreated?: (
+		conn: Connection,
+		source: PlacedNode,
+		target: PlacedNode,
+	) => void;
 }
 
-export function usePipelineState(config?: PipelineStateConfig): UsePipelineStateReturn {
-	const [placedNodes, setPlacedNodes] = useState<PlacedNode[]>(config?.initialNodes ?? []);
-	const [connections, setConnections] = useState<Connection[]>(config?.initialConnections ?? []);
+export function usePipelineState(
+	config?: PipelineStateConfig,
+): UsePipelineStateReturn {
+	const [placedNodes, setPlacedNodes] = useState<PlacedNode[]>(
+		config?.initialNodes ?? [],
+	);
+	const [connections, setConnections] = useState<Connection[]>(
+		config?.initialConnections ?? [],
+	);
 	const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 	const [pendingConnection, setPendingConnection] =
 		useState<PendingConnection | null>(null);

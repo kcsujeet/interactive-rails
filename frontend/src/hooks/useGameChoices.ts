@@ -6,7 +6,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import type { GameChoices } from "@/types";
+import type { GameChoices } from '@/types';
 
 const STORAGE_KEY = 'rails-expert-game-choices';
 

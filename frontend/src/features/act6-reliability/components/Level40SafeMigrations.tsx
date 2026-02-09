@@ -5,7 +5,6 @@
  * database migrations into safe, zero-downtime alternatives.
  */
 
-import { useState } from 'react';
 import {
 	AlertTriangle,
 	ArrowRight,
@@ -18,8 +17,7 @@ import {
 	ToggleRight,
 	Unlock,
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import { useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -31,6 +29,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 // --- Types ---
 
@@ -310,11 +310,7 @@ export function Level40SafeMigrations({
 									Total Lock Time (unsafe)
 								</span>
 								<span className="font-mono text-destructive font-semibold">
-									{operations.reduce(
-										(sum, op) => sum + op.lockDuration,
-										0,
-									)}
-									s
+									{operations.reduce((sum, op) => sum + op.lockDuration, 0)}s
 								</span>
 							</div>
 							<div className="flex items-center justify-between text-xs">
@@ -325,10 +321,7 @@ export function Level40SafeMigrations({
 								<span className="font-mono text-success font-semibold">
 									{operations.reduce(
 										(sum, op) =>
-											sum +
-											(op.fixed
-												? op.safeLockDuration
-												: op.lockDuration),
+											sum + (op.fixed ? op.safeLockDuration : op.lockDuration),
 										0,
 									)}
 									s
@@ -413,11 +406,7 @@ export function Level40SafeMigrations({
 													: `border-border hover:${style.border} hover:${style.bg}`
 											}`}
 											key={op.id}
-											onClick={() =>
-												setSelectedOp(
-													isSelected ? null : op.id,
-												)
-											}
+											onClick={() => setSelectedOp(isSelected ? null : op.id)}
 											type="button"
 										>
 											<div className="flex items-center justify-between">
@@ -430,9 +419,7 @@ export function Level40SafeMigrations({
 														<div
 															className={`w-8 h-8 rounded-full ${style.bg} flex items-center justify-center`}
 														>
-															{getRiskIcon(
-																op.risk,
-															)}
+															{getRiskIcon(op.risk)}
 														</div>
 													)}
 													<div>
@@ -449,20 +436,15 @@ export function Level40SafeMigrations({
 													<span
 														className={`text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 ${style.badge}`}
 													>
-														{getRiskIcon(
-															displayRisk,
-														)}
-														{getRiskLabel(
-															displayRisk,
-														)}
+														{getRiskIcon(displayRisk)}
+														{getRiskLabel(displayRisk)}
 													</span>
 													{/* strong_migrations warning */}
-													{strongMigrations &&
-														!op.fixed && (
-															<span className="text-xs font-medium text-warning bg-warning/10 px-2 py-0.5 rounded border border-warning/20">
-																blocked
-															</span>
-														)}
+													{strongMigrations && !op.fixed && (
+														<span className="text-xs font-medium text-warning bg-warning/10 px-2 py-0.5 rounded border border-warning/20">
+															blocked
+														</span>
+													)}
 												</div>
 											</div>
 
@@ -475,9 +457,7 @@ export function Level40SafeMigrations({
 														<div className="h-2 bg-secondary rounded-full overflow-hidden">
 															<div
 																className={`h-full rounded-full transition-all duration-500 ${
-																	op.fixed
-																		? 'bg-muted'
-																		: 'bg-destructive'
+																	op.fixed ? 'bg-muted' : 'bg-destructive'
 																}`}
 																style={{
 																	width: `${Math.min(100, (op.lockDuration / 50) * 100)}%`,
@@ -487,17 +467,11 @@ export function Level40SafeMigrations({
 														<div className="text-[10px] text-muted-foreground mt-0.5">
 															{op.fixed ? (
 																<span className="line-through">
-																	{
-																		op.lockDuration
-																	}
-																	s lock
+																	{op.lockDuration}s lock
 																</span>
 															) : (
 																<span className="text-destructive">
-																	{
-																		op.lockDuration
-																	}
-																	s lock
+																	{op.lockDuration}s lock
 																</span>
 															)}
 														</div>
@@ -518,8 +492,7 @@ export function Level40SafeMigrations({
 														<div className="text-[10px] mt-0.5">
 															{op.fixed ? (
 																<span className="text-success">
-																	{op.safeLockDuration ===
-																	0
+																	{op.safeLockDuration === 0
 																		? 'No lock'
 																		: `${op.safeLockDuration}s lock`}
 																</span>
@@ -559,8 +532,7 @@ export function Level40SafeMigrations({
 											</span>
 											<span className="text-xs text-muted-foreground ml-auto flex items-center gap-1">
 												<Timer className="w-3 h-3" />
-												{currentOp.lockDuration}s table
-												lock
+												{currentOp.lockDuration}s table lock
 											</span>
 										</div>
 										<pre className="bg-destructive/5 border border-destructive/20 rounded-lg p-3 text-sm font-mono text-foreground overflow-x-auto">
@@ -592,30 +564,26 @@ export function Level40SafeMigrations({
 											</span>
 										</div>
 										<div className="space-y-2">
-											{currentOp.safeSteps.map(
-												(step, i) => (
-													<div
-														className="flex items-start gap-3"
-														key={step.label}
-													>
-														<div className="w-6 h-6 rounded-full bg-success/20 flex items-center justify-center shrink-0 mt-0.5">
-															<span className="text-xs font-bold text-success">
-																{i + 1}
-															</span>
-														</div>
-														<div className="flex-1">
-															<div className="text-xs font-medium text-muted-foreground mb-1">
-																{step.label}
-															</div>
-															<pre className="bg-success/5 border border-success/20 rounded-lg p-2.5 text-sm font-mono text-foreground overflow-x-auto">
-																<code>
-																	{step.code}
-																</code>
-															</pre>
-														</div>
+											{currentOp.safeSteps.map((step, i) => (
+												<div
+													className="flex items-start gap-3"
+													key={step.label}
+												>
+													<div className="w-6 h-6 rounded-full bg-success/20 flex items-center justify-center shrink-0 mt-0.5">
+														<span className="text-xs font-bold text-success">
+															{i + 1}
+														</span>
 													</div>
-												),
-											)}
+													<div className="flex-1">
+														<div className="text-xs font-medium text-muted-foreground mb-1">
+															{step.label}
+														</div>
+														<pre className="bg-success/5 border border-success/20 rounded-lg p-2.5 text-sm font-mono text-foreground overflow-x-auto">
+															<code>{step.code}</code>
+														</pre>
+													</div>
+												</div>
+											))}
 										</div>
 									</div>
 
@@ -623,9 +591,7 @@ export function Level40SafeMigrations({
 									{!currentOp.fixed ? (
 										<Button
 											className="w-full gap-2"
-											onClick={() =>
-												handleFix(currentOp.id)
-											}
+											onClick={() => handleFix(currentOp.id)}
 											variant="default"
 										>
 											<ShieldCheck className="w-4 h-4" />
@@ -651,8 +617,8 @@ export function Level40SafeMigrations({
 									All Migrations Safe!
 								</div>
 								<div className="text-sm text-muted-foreground">
-									Zero-downtime deploys are now possible. Submit
-									to complete the level.
+									Zero-downtime deploys are now possible. Submit to complete the
+									level.
 								</div>
 							</div>
 						)}
@@ -707,9 +673,7 @@ export function Level40SafeMigrations({
 								- Helpers for safe ops
 							</li>
 							<li>
-								<span className="text-primary font-mono">
-									pg_lock_timeout
-								</span>{' '}
+								<span className="text-primary font-mono">pg_lock_timeout</span>{' '}
 								- Prevent long locks
 							</li>
 						</ul>

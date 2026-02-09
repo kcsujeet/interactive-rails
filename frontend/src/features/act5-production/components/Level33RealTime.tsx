@@ -5,18 +5,8 @@
  * Player compares polling vs WebSocket performance and configures the WebSocket approach.
  */
 
+import { Activity, Bell, Clock, Radio, Server, Wifi, Zap } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import {
-	Activity,
-	Bell,
-	Clock,
-	Radio,
-	Server,
-	Wifi,
-	Zap,
-} from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -28,6 +18,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 type Adapter = 'solid_cable' | 'redis' | 'polling' | null;
 
@@ -51,16 +43,18 @@ interface WebSocketMessage {
 }
 
 const INITIAL_SUBSCRIPTIONS: EventSubscription[] = [
-	{ id: 'notifications', label: 'Notifications', icon: Bell, subscribed: false },
+	{
+		id: 'notifications',
+		label: 'Notifications',
+		icon: Bell,
+		subscribed: false,
+	},
 	{ id: 'messages', label: 'Messages', icon: Radio, subscribed: false },
 	{ id: 'activity', label: 'Activity Feed', icon: Activity, subscribed: false },
 	{ id: 'status', label: 'Status Updates', icon: Wifi, subscribed: false },
 ];
 
-export function Level33RealTime({
-	onComplete,
-	onExit,
-}: LevelComponentProps) {
+export function Level33RealTime({ onComplete, onExit }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 
 	// Configuration state
@@ -82,7 +76,9 @@ export function Level33RealTime({
 	const [pollingLatency, setPollingLatency] = useState(0);
 	const [wsLatency, setWsLatency] = useState(0);
 
-	const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+	const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
+		null,
+	);
 	const simulationTickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
 	const subscribedCount = subscriptions.filter((s) => s.subscribed).length;
@@ -143,9 +139,7 @@ export function Level33RealTime({
 				return prev + (target - prev) * 0.1;
 			});
 			// Polling latency increases with load
-			setPollingLatency((prev) =>
-				Math.min(2000, prev + (2000 - prev) * 0.05),
-			);
+			setPollingLatency((prev) => Math.min(2000, prev + (2000 - prev) * 0.05));
 			// WebSocket latency stays low
 			setWsLatency((prev) => {
 				const target = 15 + Math.random() * 10;
@@ -224,7 +218,9 @@ export function Level33RealTime({
 		}
 
 		if (!authEnabled) {
-			errors.push('Authentication must be enabled to secure WebSocket connections');
+			errors.push(
+				'Authentication must be enabled to secure WebSocket connections',
+			);
 		}
 
 		if (subscribedCount === 0) {
@@ -271,7 +267,13 @@ export function Level33RealTime({
 	};
 
 	const reqPerSec = isSimulating
-		? Math.round(pollingRequestCount / Math.max(1, (Date.now() - (pollingRequests[0]?.timestamp ?? Date.now())) / 1000))
+		? Math.round(
+				pollingRequestCount /
+					Math.max(
+						1,
+						(Date.now() - (pollingRequests[0]?.timestamp ?? Date.now())) / 1000,
+					),
+			)
 		: 0;
 
 	return (
@@ -312,14 +314,18 @@ export function Level33RealTime({
 									<Activity className="w-3.5 h-3.5" />
 									Requests/sec
 								</span>
-								<span className="text-destructive font-mono font-semibold">25,000</span>
+								<span className="text-destructive font-mono font-semibold">
+									25,000
+								</span>
 							</div>
 							<div className="flex items-center justify-between text-sm">
 								<span className="text-muted-foreground flex items-center gap-1.5">
 									<Zap className="w-3.5 h-3.5" />
 									Empty responses
 								</span>
-								<span className="text-destructive font-mono font-semibold">99%</span>
+								<span className="text-destructive font-mono font-semibold">
+									99%
+								</span>
 							</div>
 						</div>
 					</div>
@@ -334,7 +340,7 @@ export function Level33RealTime({
 						<div className="mb-3">
 							<div className="text-xs text-muted-foreground mb-2">Adapter</div>
 							<div className="space-y-1.5">
-								{([
+								{[
 									{
 										value: 'solid_cable' as Adapter,
 										label: 'Solid Cable',
@@ -350,7 +356,7 @@ export function Level33RealTime({
 										label: 'Polling',
 										desc: 'Not real WebSockets',
 									},
-								]).map((opt) => (
+								].map((opt) => (
 									<Button
 										className={`w-full p-2 h-auto text-left justify-start rounded-lg border transition-all ${
 											adapter === opt.value
@@ -479,7 +485,9 @@ export function Level33RealTime({
 							<span className="text-muted-foreground">Config progress</span>
 							<span
 								className={
-									adapter === 'solid_cable' && authEnabled && subscribedCount > 0
+									adapter === 'solid_cable' &&
+									authEnabled &&
+									subscribedCount > 0
 										? 'text-success'
 										: 'text-foreground'
 								}
@@ -554,15 +562,10 @@ export function Level33RealTime({
 												</div>
 											) : (
 												pollingRequests.map((req) => (
-													<div
-														className="flex items-center gap-2"
-														key={req.id}
-													>
+													<div className="flex items-center gap-2" key={req.id}>
 														<span
 															className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-																req.hasData
-																	? 'bg-success'
-																	: 'bg-destructive/40'
+																req.hasData ? 'bg-success' : 'bg-destructive/40'
 															}`}
 														/>
 														<span className="text-muted-foreground">
@@ -688,9 +691,7 @@ export function Level33RealTime({
 															key={msg.id}
 														>
 															<span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-															<span className="text-primary">
-																PUSH
-															</span>
+															<span className="text-primary">PUSH</span>
 															<span className="text-foreground">
 																{msg.event}
 															</span>
@@ -756,9 +757,7 @@ export function Level33RealTime({
 										<div className="flex items-end justify-center gap-4">
 											<div>
 												<div className="text-destructive font-mono font-bold text-lg">
-													{isSimulating
-														? `~${Math.max(reqPerSec, 1)}`
-														: '0'}
+													{isSimulating ? `~${Math.max(reqPerSec, 1)}` : '0'}
 												</div>
 												<div className="text-xs text-muted-foreground">
 													Polling
@@ -797,9 +796,7 @@ export function Level33RealTime({
 											</div>
 											<div>
 												<div className="text-success font-mono font-bold text-lg">
-													{isSimulating
-														? `${Math.round(wsLatency)}ms`
-														: '0ms'}
+													{isSimulating ? `${Math.round(wsLatency)}ms` : '0ms'}
 												</div>
 												<div className="text-xs text-muted-foreground">
 													WebSocket
@@ -923,9 +920,7 @@ end`,
 							Key Concepts
 						</div>
 						<ul className="text-xs text-muted-foreground space-y-1">
-							<li>
-								• Solid Cable is the Rails 8 default adapter
-							</li>
+							<li>• Solid Cable is the Rails 8 default adapter</li>
 							<li>• No Redis dependency required</li>
 							<li>• Push data only when events occur</li>
 							<li>• Authenticate connections in ApplicationCable</li>
@@ -938,15 +933,9 @@ end`,
 							Polling vs WebSocket
 						</div>
 						<ul className="text-xs text-muted-foreground space-y-1">
-							<li>
-								• Polling: client asks repeatedly (wasteful)
-							</li>
-							<li>
-								• WebSocket: server pushes when ready (efficient)
-							</li>
-							<li>
-								• 99% fewer requests with WebSockets
-							</li>
+							<li>• Polling: client asks repeatedly (wasteful)</li>
+							<li>• WebSocket: server pushes when ready (efficient)</li>
+							<li>• 99% fewer requests with WebSockets</li>
 							<li>• Near-zero latency for notifications</li>
 						</ul>
 					</div>

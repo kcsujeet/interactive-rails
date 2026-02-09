@@ -6,7 +6,6 @@
  * Teaches: Request specs, model specs, policy specs, FactoryBot, assertions.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	Check,
 	ChevronRight,
@@ -17,8 +16,7 @@ import {
 	Terminal,
 	X,
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -30,6 +28,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 // --- Types ---
 
@@ -360,24 +360,21 @@ export function Level12Testing({ onComplete, onExit }: LevelComponentProps) {
 	}, [visibleLines]);
 
 	// Toggle an assertion on/off
-	const toggleAssertion = useCallback(
-		(assertion: string) => {
-			setSelectedAssertions((prev) => {
-				const next = new Set(prev);
-				if (next.has(assertion)) {
-					next.delete(assertion);
-				} else {
-					next.add(assertion);
-				}
-				return next;
-			});
-			// Reset run state when assertions change
-			setHasRun(false);
-			setTestResults([]);
-			setVisibleLines(0);
-		},
-		[],
-	);
+	const toggleAssertion = useCallback((assertion: string) => {
+		setSelectedAssertions((prev) => {
+			const next = new Set(prev);
+			if (next.has(assertion)) {
+				next.delete(assertion);
+			} else {
+				next.add(assertion);
+			}
+			return next;
+		});
+		// Reset run state when assertions change
+		setHasRun(false);
+		setTestResults([]);
+		setVisibleLines(0);
+	}, []);
 
 	// Switch test type, clear assertions for that type
 	const switchTestType = useCallback((type: TestType) => {
@@ -410,9 +407,7 @@ export function Level12Testing({ onComplete, onExit }: LevelComponentProps) {
 			return {
 				name: info.name,
 				passed,
-				output: passed
-					? info.output
-					: info.output.replace('PASSED', 'FAILED'),
+				output: passed ? info.output : info.output.replace('PASSED', 'FAILED'),
 			};
 		});
 
@@ -828,9 +823,7 @@ end`,
 							</li>
 							<li className="flex items-start gap-2">
 								<ShieldCheck className="w-3 h-3 mt-0.5 text-warning shrink-0" />
-								<span>
-									One happy path + edge cases per endpoint
-								</span>
+								<span>One happy path + edge cases per endpoint</span>
 							</li>
 						</ul>
 					</div>

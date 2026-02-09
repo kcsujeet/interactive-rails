@@ -4,6 +4,7 @@
  * Displays the list of Acts as cards linking to act detail pages.
  */
 
+import { Check, ChevronRight, Lock } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import {
 	ACTS,
@@ -12,7 +13,6 @@ import {
 } from '@/features/acts-registry';
 import { getProgress } from '@/lib/progress';
 import { Button } from '../ui/Button';
-import { Check, ChevronRight, Lock } from 'lucide-react';
 
 export function ActsListApp() {
 	const [completedLevels, setCompletedLevels] = useState<string[]>([]);
@@ -59,7 +59,9 @@ export function ActsListApp() {
 			{/* Progress bar */}
 			<div className="mb-8">
 				<div className="flex items-center justify-between mb-2">
-					<span className="text-sm text-muted-foreground">Overall Progress</span>
+					<span className="text-sm text-muted-foreground">
+						Overall Progress
+					</span>
 					<span className="text-sm font-medium text-foreground tabular-nums">
 						{totalCompleted} / {totalLevels}
 					</span>
@@ -67,7 +69,9 @@ export function ActsListApp() {
 				<div className="h-2 bg-secondary rounded-full overflow-hidden">
 					<div
 						className="h-full bg-linear-to-r from-primary to-amber-400 transition-all duration-500"
-						style={{ width: `${Math.round((totalCompleted / totalLevels) * 100)}%` }}
+						style={{
+							width: `${Math.round((totalCompleted / totalLevels) * 100)}%`,
+						}}
 					/>
 				</div>
 			</div>
@@ -77,7 +81,7 @@ export function ActsListApp() {
 					<span className="text-sm text-foreground">
 						Playing as guest — progress won't sync
 					</span>
-					<Button variant="link" size="sm" asChild className="px-0">
+					<Button asChild className="px-0" size="sm" variant="link">
 						<a href="/signup">Create account</a>
 					</Button>
 				</div>
@@ -86,39 +90,47 @@ export function ActsListApp() {
 			{/* Acts list */}
 			<div className="space-y-3">
 				{ACTS.map((act) => {
-					const actCompleted = act.levels.every((l) => completedLevels.includes(l.id));
-					const actUnlocked = act.levels.some((l) => isLevelUnlocked(l.id, completedLevels));
-					const completedCount = act.levels.filter((l) => completedLevels.includes(l.id)).length;
+					const actCompleted = act.levels.every((l) =>
+						completedLevels.includes(l.id),
+					);
+					const actUnlocked = act.levels.some((l) =>
+						isLevelUnlocked(l.id, completedLevels),
+					);
+					const completedCount = act.levels.filter((l) =>
+						completedLevels.includes(l.id),
+					).length;
 
 					return (
 						<Button
+							className={`
+								w-full h-auto p-5 rounded-xl border text-left justify-start
+								transition-all duration-200 animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-both
+								${
+									actUnlocked
+										? 'border-border hover:border-primary/40 hover:shadow-[0_0_20px_oklch(0.75_0.16_55/0.08)] hover:-translate-y-0.5'
+										: 'border-transparent opacity-50'
+								}
+							`}
+							disabled={!actUnlocked}
 							key={act.id}
-							variant="ghost"
 							onClick={() => {
 								if (actUnlocked) {
 									window.location.href = `/acts/${act.id}`;
 								}
 							}}
-							disabled={!actUnlocked}
-							className={`
-								w-full h-auto p-5 rounded-xl border text-left justify-start
-								transition-all duration-200 animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-both
-								${actUnlocked
-									? 'border-border hover:border-primary/40 hover:shadow-[0_0_20px_oklch(0.75_0.16_55/0.08)] hover:-translate-y-0.5'
-									: 'border-transparent opacity-50'
-								}
-							`}
+							variant="ghost"
 						>
 							<div className="flex items-center justify-between w-full">
 								<div className="flex items-center gap-4">
 									<div
 										className={`
 											w-12 h-12 rounded-lg flex items-center justify-center text-lg font-bold
-											${actCompleted
-												? 'bg-success/15 text-success'
-												: actUnlocked
-													? 'bg-primary/10 text-primary border border-primary/20'
-													: 'bg-secondary text-muted-foreground'
+											${
+												actCompleted
+													? 'bg-success/15 text-success'
+													: actUnlocked
+														? 'bg-primary/10 text-primary border border-primary/20'
+														: 'bg-secondary text-muted-foreground'
 											}
 										`}
 									>
@@ -135,7 +147,9 @@ export function ActsListApp() {
 											<div className="w-24 h-1.5 bg-secondary rounded-full overflow-hidden">
 												<div
 													className="h-full bg-linear-to-r from-primary to-amber-400 transition-all"
-													style={{ width: `${Math.round((completedCount / act.levels.length) * 100)}%` }}
+													style={{
+														width: `${Math.round((completedCount / act.levels.length) * 100)}%`,
+													}}
 												/>
 											</div>
 											<span className="text-xs text-muted-foreground tabular-nums">
@@ -145,8 +159,12 @@ export function ActsListApp() {
 									</div>
 								</div>
 								<div className="shrink-0">
-									{!actUnlocked && <Lock className="w-5 h-5 text-muted-foreground" />}
-									{actUnlocked && <ChevronRight className="w-5 h-5 text-muted-foreground" />}
+									{!actUnlocked && (
+										<Lock className="w-5 h-5 text-muted-foreground" />
+									)}
+									{actUnlocked && (
+										<ChevronRight className="w-5 h-5 text-muted-foreground" />
+									)}
 								</div>
 							</div>
 						</Button>

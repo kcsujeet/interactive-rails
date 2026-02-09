@@ -6,7 +6,6 @@
  * and test invalid transitions to learn state machine patterns.
  */
 
-import { useCallback, useState } from 'react';
 import {
 	ArrowRight,
 	CheckCircle,
@@ -15,8 +14,7 @@ import {
 	ShieldCheck,
 	XCircle,
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import { useCallback, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -28,12 +26,19 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type StateName = 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
+type StateName =
+	| 'pending'
+	| 'confirmed'
+	| 'shipped'
+	| 'delivered'
+	| 'cancelled';
 
 interface StateNode {
 	id: StateName;
@@ -70,11 +75,46 @@ const VALID_TRANSITIONS: Record<string, string | undefined> = {
 };
 
 const STATES: StateNode[] = [
-	{ id: 'pending', label: 'Pending', x: 100, y: 200, isInitial: true, isFinal: false },
-	{ id: 'confirmed', label: 'Confirmed', x: 300, y: 100, isInitial: false, isFinal: false },
-	{ id: 'shipped', label: 'Shipped', x: 500, y: 100, isInitial: false, isFinal: false },
-	{ id: 'delivered', label: 'Delivered', x: 700, y: 100, isInitial: false, isFinal: true },
-	{ id: 'cancelled', label: 'Cancelled', x: 400, y: 340, isInitial: false, isFinal: true },
+	{
+		id: 'pending',
+		label: 'Pending',
+		x: 100,
+		y: 200,
+		isInitial: true,
+		isFinal: false,
+	},
+	{
+		id: 'confirmed',
+		label: 'Confirmed',
+		x: 300,
+		y: 100,
+		isInitial: false,
+		isFinal: false,
+	},
+	{
+		id: 'shipped',
+		label: 'Shipped',
+		x: 500,
+		y: 100,
+		isInitial: false,
+		isFinal: false,
+	},
+	{
+		id: 'delivered',
+		label: 'Delivered',
+		x: 700,
+		y: 100,
+		isInitial: false,
+		isFinal: true,
+	},
+	{
+		id: 'cancelled',
+		label: 'Cancelled',
+		x: 400,
+		y: 340,
+		isInitial: false,
+		isFinal: true,
+	},
 ];
 
 const STATE_COLORS: Record<StateName, string> = {
@@ -95,7 +135,11 @@ const STATE_BG: Record<StateName, string> = {
 
 const GUARD_OPTIONS: Record<string, string[]> = {
 	'pending->confirmed': ['payment_received?', 'items_available?', 'no guard'],
-	'confirmed->shipped': ['tracking_number_set?', 'warehouse_confirmed?', 'no guard'],
+	'confirmed->shipped': [
+		'tracking_number_set?',
+		'warehouse_confirmed?',
+		'no guard',
+	],
 	'shipped->delivered': ['signature_confirmed?', 'no guard'],
 	'pending->cancelled': ['within_cancellation_window?', 'no guard'],
 	'confirmed->cancelled': ['not_yet_shipped?', 'no guard'],
@@ -105,7 +149,10 @@ const GUARD_OPTIONS: Record<string, string[]> = {
 // Helper: compute arrow path between two state nodes
 // ---------------------------------------------------------------------------
 
-function getArrowPath(from: StateNode, to: StateNode): { d: string; labelX: number; labelY: number; angle: number } {
+function getArrowPath(
+	from: StateNode,
+	to: StateNode,
+): { d: string; labelX: number; labelY: number; angle: number } {
 	const r = 44; // radius of state circles
 	const dx = to.x - from.x;
 	const dy = to.y - from.y;
@@ -141,12 +188,18 @@ function getArrowPath(from: StateNode, to: StateNode): { d: string; labelX: numb
 // Component
 // ---------------------------------------------------------------------------
 
-export function Level44StateMachines({ onComplete, onExit }: LevelComponentProps) {
+export function Level44StateMachines({
+	onComplete,
+	onExit,
+}: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 
 	const [transitions, setTransitions] = useState<Transition[]>([]);
 	const [drawingFrom, setDrawingFrom] = useState<StateName | null>(null);
-	const [rejectedArrow, setRejectedArrow] = useState<{ from: StateName; to: StateName } | null>(null);
+	const [rejectedArrow, setRejectedArrow] = useState<{
+		from: StateName;
+		to: StateName;
+	} | null>(null);
 	const [testResults, setTestResults] = useState<TestResult[]>([]);
 	const [isTesting, setIsTesting] = useState(false);
 	const [guardEditing, setGuardEditing] = useState<string | null>(null);
@@ -211,7 +264,9 @@ export function Level44StateMachines({ onComplete, onExit }: LevelComponentProps
 	// ----- Remove transition --------------------------------------------------
 
 	const handleRemoveTransition = (from: StateName, to: StateName) => {
-		setTransitions((prev) => prev.filter((t) => !(t.from === from && t.to === to)));
+		setTransitions((prev) =>
+			prev.filter((t) => !(t.from === from && t.to === to)),
+		);
 	};
 
 	// ----- Test button --------------------------------------------------------
@@ -288,9 +343,21 @@ export function Level44StateMachines({ onComplete, onExit }: LevelComponentProps
 
 		// Check that core transitions exist
 		const coreTransitions = [
-			{ from: 'pending' as StateName, to: 'confirmed' as StateName, label: 'pending -> confirmed' },
-			{ from: 'confirmed' as StateName, to: 'shipped' as StateName, label: 'confirmed -> shipped' },
-			{ from: 'shipped' as StateName, to: 'delivered' as StateName, label: 'shipped -> delivered' },
+			{
+				from: 'pending' as StateName,
+				to: 'confirmed' as StateName,
+				label: 'pending -> confirmed',
+			},
+			{
+				from: 'confirmed' as StateName,
+				to: 'shipped' as StateName,
+				label: 'confirmed -> shipped',
+			},
+			{
+				from: 'shipped' as StateName,
+				to: 'delivered' as StateName,
+				label: 'shipped -> delivered',
+			},
 		];
 
 		for (const core of coreTransitions) {
@@ -503,26 +570,27 @@ end
 								Set Guard Condition
 							</div>
 							<div className="space-y-1">
-								{(GUARD_OPTIONS[guardEditing] || ['no guard']).map(
-									(option) => (
-										<Button
-											className="w-full justify-start text-sm"
-											key={option}
-											onClick={() => {
-												const [from, to] = guardEditing.split('->') as [StateName, StateName];
-												handleSetGuard(from, to, option);
-											}}
-											size="sm"
-											variant="outline"
-										>
-											{option === 'no guard' ? (
-												<span className="text-muted-foreground">No guard</span>
-											) : (
-												<span className="font-mono text-primary">{option}</span>
-											)}
-										</Button>
-									),
-								)}
+								{(GUARD_OPTIONS[guardEditing] || ['no guard']).map((option) => (
+									<Button
+										className="w-full justify-start text-sm"
+										key={option}
+										onClick={() => {
+											const [from, to] = guardEditing.split('->') as [
+												StateName,
+												StateName,
+											];
+											handleSetGuard(from, to, option);
+										}}
+										size="sm"
+										variant="outline"
+									>
+										{option === 'no guard' ? (
+											<span className="text-muted-foreground">No guard</span>
+										) : (
+											<span className="font-mono text-primary">{option}</span>
+										)}
+									</Button>
+								))}
 							</div>
 							<Button
 								className="w-full"
@@ -591,8 +659,8 @@ end
 					<div className="flex items-center gap-2 px-6 py-3 bg-card/50 border-b border-border">
 						<GitBranch className="w-4 h-4 text-primary" />
 						<span className="text-sm text-muted-foreground">
-							Click a state to start drawing, then click another state to create a transition.
-							Invalid transitions are rejected.
+							Click a state to start drawing, then click another state to create
+							a transition. Invalid transitions are rejected.
 						</span>
 					</div>
 
@@ -604,8 +672,8 @@ end
 					>
 						<defs>
 							<marker
-								id="arrowhead-valid"
 								fill="currentColor"
+								id="arrowhead-valid"
 								markerHeight="7"
 								markerUnits="strokeWidth"
 								markerWidth="10"
@@ -621,8 +689,8 @@ end
 								/>
 							</marker>
 							<marker
-								id="arrowhead-rejected"
 								fill="currentColor"
+								id="arrowhead-rejected"
 								markerHeight="7"
 								markerUnits="strokeWidth"
 								markerWidth="10"
@@ -686,54 +754,56 @@ end
 						})}
 
 						{/* Rejected arrow animation */}
-						{rejectedArrow && (() => {
-							const fromNode = stateMap[rejectedArrow.from];
-							const toNode = stateMap[rejectedArrow.to];
-							if (!fromNode || !toNode) return null;
-							const { d, labelX, labelY } = getArrowPath(fromNode, toNode);
-							return (
-								<g className="animate-pulse">
-									<path
-										className="text-destructive"
-										d={d}
-										fill="none"
-										markerEnd="url(#arrowhead-rejected)"
-										opacity="0.8"
-										stroke="currentColor"
-										strokeDasharray="6 3"
-										strokeWidth="2.5"
-									/>
-									<text
-										className="text-destructive"
-										dominantBaseline="central"
-										fill="currentColor"
-										fontSize="11"
-										fontWeight="bold"
-										textAnchor="middle"
-										x={labelX}
-										y={labelY - 12}
-									>
-										INVALID
-									</text>
-									<text
-										className="text-destructive"
-										dominantBaseline="central"
-										fill="currentColor"
-										fontSize="9"
-										textAnchor="middle"
-										x={labelX}
-										y={labelY + 4}
-									>
-										AASM::InvalidTransition
-									</text>
-								</g>
-							);
-						})()}
+						{rejectedArrow &&
+							(() => {
+								const fromNode = stateMap[rejectedArrow.from];
+								const toNode = stateMap[rejectedArrow.to];
+								if (!fromNode || !toNode) return null;
+								const { d, labelX, labelY } = getArrowPath(fromNode, toNode);
+								return (
+									<g className="animate-pulse">
+										<path
+											className="text-destructive"
+											d={d}
+											fill="none"
+											markerEnd="url(#arrowhead-rejected)"
+											opacity="0.8"
+											stroke="currentColor"
+											strokeDasharray="6 3"
+											strokeWidth="2.5"
+										/>
+										<text
+											className="text-destructive"
+											dominantBaseline="central"
+											fill="currentColor"
+											fontSize="11"
+											fontWeight="bold"
+											textAnchor="middle"
+											x={labelX}
+											y={labelY - 12}
+										>
+											INVALID
+										</text>
+										<text
+											className="text-destructive"
+											dominantBaseline="central"
+											fill="currentColor"
+											fontSize="9"
+											textAnchor="middle"
+											x={labelX}
+											y={labelY + 4}
+										>
+											AASM::InvalidTransition
+										</text>
+									</g>
+								);
+							})()}
 
 						{/* State nodes */}
 						{STATES.map((state) => {
 							const isActive = drawingFrom === state.id;
-							const isDrawTarget = drawingFrom !== null && drawingFrom !== state.id;
+							const isDrawTarget =
+								drawingFrom !== null && drawingFrom !== state.id;
 
 							return (
 								<g
@@ -791,7 +861,11 @@ end
 										}`}
 										cx={state.x}
 										cy={state.y}
-										fill={isActive ? 'hsl(var(--primary) / 0.15)' : 'hsl(var(--card))'}
+										fill={
+											isActive
+												? 'hsl(var(--primary) / 0.15)'
+												: 'hsl(var(--card))'
+										}
 										r="42"
 										stroke="currentColor"
 										strokeWidth={isActive ? 3 : 2}
@@ -875,7 +949,8 @@ end
 						<div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-destructive/90 text-destructive-foreground px-6 py-3 rounded-lg shadow-lg flex items-center gap-3 animate-bounce">
 							<XCircle className="w-5 h-5" />
 							<span className="font-medium">
-								Cannot transition from {rejectedArrow.from} to {rejectedArrow.to}!
+								Cannot transition from {rejectedArrow.from} to{' '}
+								{rejectedArrow.to}!
 							</span>
 						</div>
 					)}
@@ -903,7 +978,10 @@ end
 						<div className="space-y-1.5">
 							{Object.entries(VALID_TRANSITIONS).map(([key, guard]) => {
 								const [from, to] = key.split('->');
-								const defined = hasTransition(from as StateName, to as StateName);
+								const defined = hasTransition(
+									from as StateName,
+									to as StateName,
+								);
 								return (
 									<div
 										className={`flex items-center gap-2 text-xs ${
@@ -920,9 +998,7 @@ end
 											{from} {'->'} {to}
 										</span>
 										{guard && (
-											<span className="text-primary/70 ml-auto">
-												{guard}
-											</span>
+											<span className="text-primary/70 ml-auto">{guard}</span>
 										)}
 									</div>
 								);

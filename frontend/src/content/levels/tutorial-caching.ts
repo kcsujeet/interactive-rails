@@ -4,7 +4,7 @@
  * Teaches players to implement various caching strategies.
  */
 
-import type { Level, Room } from "@/types/level";
+import type { Level, Room } from '@/types/level';
 
 const room1: Room = {
 	id: 'caching-fragment',

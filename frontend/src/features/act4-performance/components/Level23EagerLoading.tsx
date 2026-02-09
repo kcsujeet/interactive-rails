@@ -1,13 +1,11 @@
 /**
- * Level 17: Eager Loading
+ * Level 23: Eager Loading
  *
  * Fix N+1 with includes, preload, and eager_load.
  * Player applies eager loading strategies to reduce queries.
  */
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -19,6 +17,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 interface LoadingStrategy {
 	id: string;
@@ -292,7 +292,7 @@ export function Level23EagerLoading({
 
 			<CenterPanel>
 				<LevelHeader
-					actNumber={3}
+					actNumber={4}
 					levelName="Eager Loading"
 					levelNumber={23}
 					onComplete={handleComplete}
@@ -375,18 +375,14 @@ export function Level23EagerLoading({
 														: 'border-destructive bg-destructive/20'
 													: 'border-border bg-secondary/50 hover:border-muted-foreground'
 											}`}
+											color={
+												isSelected && !isCorrect ? 'destructive' : 'primary'
+											}
 											key={strategy.id}
 											onClick={() =>
 												selectStrategy(currentScenario.id, strategy.id)
 											}
-											color={
-												isSelected && !isCorrect
-													? 'destructive'
-													: 'primary'
-											}
-											variant={
-												isSelected ? 'default' : 'outline'
-											}
+											variant={isSelected ? 'default' : 'outline'}
 										>
 											<div className="flex justify-between items-start mb-2 w-full">
 												<div>

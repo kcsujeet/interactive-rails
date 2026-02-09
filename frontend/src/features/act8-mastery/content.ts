@@ -6,7 +6,7 @@
  * The final act — system-level architecture
  */
 
-import type { Act, Level } from "@/types";
+import type { Act, Level } from '@/types';
 
 // ============================================
 // Level 48: API Gateway
@@ -24,8 +24,10 @@ const level48APIGateway: Level = {
 	},
 	startingPipeline: { nodes: [], connections: [] },
 	problem: {
-		observation: 'Mobile app makes 6 HTTP calls to 3 different services to render one screen. Each service has its own auth scheme. Latency compounds with each sequential call.',
-		rootCause: 'No API gateway. Clients connect directly to internal services with no aggregation, no unified authentication, and no request routing.',
+		observation:
+			'Mobile app makes 6 HTTP calls to 3 different services to render one screen. Each service has its own auth scheme. Latency compounds with each sequential call.',
+		rootCause:
+			'No API gateway. Clients connect directly to internal services with no aggregation, no unified authentication, and no request routing.',
 		codeExample: `# Current: Client calls each service directly
 # Mobile app does 6 calls for the dashboard screen:
 
@@ -53,9 +55,7 @@ const level48APIGateway: Level = {
 			maxLatency: 150,
 		},
 	},
-	successConditions: [
-		{ type: 'api_gateway_configured' },
-	],
+	successConditions: [{ type: 'api_gateway_configured' }],
 	availableNodes: ['api_gateway', 'rate_limiter'],
 	unlockedNodes: ['api_gateway'],
 	learningContent: {
@@ -173,7 +173,8 @@ end`,
 			'Single point of failure (deploy multiple gateway instances)',
 			'Not propagating request IDs for distributed tracing',
 		],
-		whenToUse: 'When clients need a single entry point to multiple internal services.',
+		whenToUse:
+			'When clients need a single entry point to multiple internal services.',
 		furtherReading: [
 			{
 				title: 'API Gateway Pattern',
@@ -207,8 +208,10 @@ const level49Sharding: Level = {
 	},
 	startingPipeline: { nodes: [], connections: [] },
 	problem: {
-		observation: 'Write throughput plateaued. Largest table has 2 billion rows. Migrations take hours. Backups are failing. Single PostgreSQL instance at maximum IOPS.',
-		rootCause: 'Single database cannot handle the write volume. Vertical scaling is maxed out. Data must be horizontally partitioned across multiple database servers.',
+		observation:
+			'Write throughput plateaued. Largest table has 2 billion rows. Migrations take hours. Backups are failing. Single PostgreSQL instance at maximum IOPS.',
+		rootCause:
+			'Single database cannot handle the write volume. Vertical scaling is maxed out. Data must be horizontally partitioned across multiple database servers.',
 		codeExample: `# Current: Single database, 2B rows, write bottleneck
 class ApplicationRecord < ActiveRecord::Base
   primary_abstract_class
@@ -232,9 +235,7 @@ end
 			maxLatency: 100,
 		},
 	},
-	successConditions: [
-		{ type: 'sharding_configured' },
-	],
+	successConditions: [{ type: 'sharding_configured' }],
 	availableNodes: ['shard', 'shard_router'],
 	unlockedNodes: ['shard', 'shard_router'],
 	learningContent: {
@@ -362,7 +363,8 @@ end`,
 			'Forgetting to run migrations on all shards',
 			'Not planning for shard rebalancing when adding new shards',
 		],
-		whenToUse: 'When a single database cannot handle write throughput even with vertical scaling maxed out.',
+		whenToUse:
+			'When a single database cannot handle write throughput even with vertical scaling maxed out.',
 		furtherReading: [
 			{
 				title: 'Rails Horizontal Sharding',
@@ -401,8 +403,10 @@ const level50Architect: Level = {
 	},
 	startingPipeline: { nodes: [], connections: [] },
 	problem: {
-		observation: 'Billing code is entangled with order processing, user management, and notifications. Deploying a billing fix requires a full monolith deployment (2 hours). Payment processing latency is 3x higher than it should be because billing queries compete with unrelated traffic on the same database.',
-		rootCause: 'The billing domain is not isolated. It shares the database, the deployment pipeline, and the runtime with every other feature. Extracting it requires applying multi-database routing, domain events, API gateway patterns, state machines, observability, and tenant isolation — all at once.',
+		observation:
+			'Billing code is entangled with order processing, user management, and notifications. Deploying a billing fix requires a full monolith deployment (2 hours). Payment processing latency is 3x higher than it should be because billing queries compete with unrelated traffic on the same database.',
+		rootCause:
+			'The billing domain is not isolated. It shares the database, the deployment pipeline, and the runtime with every other feature. Extracting it requires applying multi-database routing, domain events, API gateway patterns, state machines, observability, and tenant isolation — all at once.',
 		codeExample: `# The monolith today: everything coupled
 class Order < ApplicationRecord
   belongs_to :user
@@ -589,7 +593,7 @@ class Api::ProxyController < ApplicationController
     service_url = ServiceRegistry.url_for(params[:service])
 
     response = HttpClient.forward(
-      url: "\#{service_url}/\#{params[:path]}",
+      url: "#{service_url}/#{params[:path]}",
       method: request.method,
       headers: forwarded_headers,
       body: request.body.read,
@@ -634,7 +638,8 @@ Flipper.enable_percentage_of_actors(:billing_v2, 5)`,
 			'Tight coupling between gateway and billing service (gateway should be thin)',
 			'Not testing tenant isolation in the extracted service',
 		],
-		whenToUse: 'When a domain within the monolith has different scaling, deployment, or team ownership needs.',
+		whenToUse:
+			'When a domain within the monolith has different scaling, deployment, or team ownership needs.',
 		furtherReading: [
 			{
 				title: 'Strangler Fig Pattern',
@@ -666,11 +671,7 @@ export const actEight: Act = {
 	tagline: 'Architect entire systems.',
 	description:
 		'The final challenge: design API gateways, implement database sharding, and architect a complete service extraction using everything you have learned.',
-	levels: [
-		level48APIGateway,
-		level49Sharding,
-		level50Architect,
-	],
+	levels: [level48APIGateway, level49Sharding, level50Architect],
 	unlockedNodes: ['api_gateway', 'shard', 'service_mesh'],
 	metricsVisible: true,
 	visibleMetrics: ['latency', 'errorRate', 'queryCount', 'memoryUsage'],

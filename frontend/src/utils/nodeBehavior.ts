@@ -97,7 +97,14 @@ export const NODE_BEHAVIORS: Record<string, NodeBehavior> = {
 		blocking: true,
 		failureModes: ['soft', 'hard'],
 		sideEffects: ['session_write', 'log'],
-		allowedConnections: ['model', 'view', 'serializer', 'service', 'cache', 'job_queue'],
+		allowedConnections: [
+			'model',
+			'view',
+			'serializer',
+			'service',
+			'cache',
+			'job_queue',
+		],
 		blockedConnections: [
 			{
 				target: 'database',
@@ -171,8 +178,14 @@ export const NODE_BEHAVIORS: Record<string, NodeBehavior> = {
 		sideEffects: ['serialize'],
 		allowedConnections: ['response'],
 		blockedConnections: [
-			{ target: 'database', reason: 'Serializers should not query the database' },
-			{ target: 'model', reason: 'Serializers receive data, they do not fetch it' },
+			{
+				target: 'database',
+				reason: 'Serializers should not query the database',
+			},
+			{
+				target: 'model',
+				reason: 'Serializers receive data, they do not fetch it',
+			},
 		],
 		description: 'Shapes model data into JSON for the API response',
 		railsConcept: 'jsonapi-serializer (JSON:API standard)',

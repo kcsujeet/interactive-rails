@@ -1,14 +1,19 @@
 /**
- * Level 22: External APIs
+ * Level 34: External APIs
  *
  * Handle third-party API integrations with proper error handling.
  * Player learns timeouts, retries, and circuit breakers.
  */
 
+import {
+	CreditCard,
+	Monitor,
+	RefreshCw,
+	Shield,
+	Timer,
+	Unplug,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { CreditCard, Monitor, RefreshCw, Shield, Timer, Unplug } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -20,6 +25,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 interface APIConfig {
 	timeout: boolean;
@@ -262,8 +269,8 @@ export function Level34ExternalAPIs({
 					<div className="p-4 border-t border-border">
 						<Button
 							className="w-full py-2"
-							onClick={() => setIsSimulating(!isSimulating)}
 							color={isSimulating ? 'destructive' : 'primary'}
+							onClick={() => setIsSimulating(!isSimulating)}
 						>
 							{isSimulating ? 'Stop Simulation' : 'Start API Calls'}
 						</Button>
@@ -312,32 +319,34 @@ export function Level34ExternalAPIs({
 					<div className="max-w-4xl mx-auto">
 						{/* Configuration Panel */}
 						<div className="grid grid-cols-4 gap-4 mb-6">
-							{([
-								{
-									key: 'timeout',
-									name: 'Timeout',
-									Icon: Timer,
-									desc: '3 second limit',
-								},
-								{
-									key: 'retries',
-									name: 'Retries',
-									Icon: RefreshCw,
-									desc: 'Retry 2x on failure',
-								},
-								{
-									key: 'circuitBreaker',
-									name: 'Circuit Breaker',
-									Icon: Unplug,
-									desc: 'Stop after 3 failures',
-								},
-								{
-									key: 'fallback',
-									name: 'Fallback',
-									Icon: Shield,
-									desc: 'Return cached/default',
-								},
-							] as const).map((item) => (
+							{(
+								[
+									{
+										key: 'timeout',
+										name: 'Timeout',
+										Icon: Timer,
+										desc: '3 second limit',
+									},
+									{
+										key: 'retries',
+										name: 'Retries',
+										Icon: RefreshCw,
+										desc: 'Retry 2x on failure',
+									},
+									{
+										key: 'circuitBreaker',
+										name: 'Circuit Breaker',
+										Icon: Unplug,
+										desc: 'Stop after 3 failures',
+									},
+									{
+										key: 'fallback',
+										name: 'Fallback',
+										Icon: Shield,
+										desc: 'Return cached/default',
+									},
+								] as const
+							).map((item) => (
 								<Button
 									className={`p-4 h-auto flex-col rounded-xl border-2 transition-all ${
 										config[item.key as keyof APIConfig]

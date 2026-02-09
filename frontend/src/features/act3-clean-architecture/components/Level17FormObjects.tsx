@@ -6,10 +6,8 @@
  * Teaches: ActiveModel::Model, multi-model forms, form-level validations
  */
 
+import { Building2, FileText, Plus, User } from 'lucide-react';
 import { useState } from 'react';
-import { FileText, Plus, User, Building2 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -21,6 +19,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 interface FormField {
 	id: string;

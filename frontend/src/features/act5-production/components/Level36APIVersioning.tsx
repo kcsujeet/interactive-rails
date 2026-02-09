@@ -6,7 +6,6 @@
  * headers, and sunset dates.
  */
 
-import { useState } from 'react';
 import {
 	ArrowLeftRight,
 	ArrowRight,
@@ -18,8 +17,7 @@ import {
 	Send,
 	Tag,
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import { useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -31,6 +29,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 type VersioningStrategy = 'url-path' | 'header' | 'query-param' | null;
 
@@ -265,29 +265,31 @@ export function Level36APIVersioning({
 							Configuration
 						</div>
 						<div className="space-y-2">
-							{([
-								{
-									key: 'deprecationHeaders' as const,
-									name: 'Deprecation Headers',
-									desc: 'Add Deprecation + Link headers to v1',
-									Icon: Clock,
-									required: true,
-								},
-								{
-									key: 'sunsetDate' as const,
-									name: 'Sunset Date',
-									desc: 'Add Sunset header with retirement date',
-									Icon: Tag,
-									required: false,
-								},
-								{
-									key: 'v2Enabled' as const,
-									name: 'Enable v2 Endpoint',
-									desc: 'Deploy the new v2 controller',
-									Icon: FileCode,
-									required: true,
-								},
-							] as const).map((item) => (
+							{(
+								[
+									{
+										key: 'deprecationHeaders' as const,
+										name: 'Deprecation Headers',
+										desc: 'Add Deprecation + Link headers to v1',
+										Icon: Clock,
+										required: true,
+									},
+									{
+										key: 'sunsetDate' as const,
+										name: 'Sunset Date',
+										desc: 'Add Sunset header with retirement date',
+										Icon: Tag,
+										required: false,
+									},
+									{
+										key: 'v2Enabled' as const,
+										name: 'Enable v2 Endpoint',
+										desc: 'Deploy the new v2 controller',
+										Icon: FileCode,
+										required: true,
+									},
+								] as const
+							).map((item) => (
 								<Button
 									className={`w-full p-2 h-auto text-left justify-start flex-col items-start rounded-lg border ${
 										config[item.key]
@@ -407,9 +409,7 @@ export function Level36APIVersioning({
 											<div className="text-success mb-1">200 OK</div>
 											{config.deprecationHeaders && (
 												<>
-													<div className="text-warning">
-														Deprecation: true
-													</div>
+													<div className="text-warning">Deprecation: true</div>
 													<div className="text-warning">
 														Link: &lt;/api/v2/orders&gt;;
 														rel="successor-version"

@@ -7,8 +7,8 @@
  * App context: Social platform API with code quality problems
  */
 
-import type { Act, Level } from "@/types";
-import { standardPipeline } from "@/utils/pipelineTemplates";
+import type { Act, Level } from '@/types';
+import { standardPipeline } from '@/utils/pipelineTemplates';
 
 // ============================================
 // Level 15: Service Objects
@@ -209,14 +209,39 @@ const level16Concerns: Level = {
 	},
 	startingPipeline: {
 		nodes: [
-			{ id: 'post-model', type: 'model', x: 200, y: 150, locked: true, config: { label: 'Post' } },
-			{ id: 'comment-model', type: 'model', x: 200, y: 300, locked: true, config: { label: 'Comment' } },
-			{ id: 'photo-model', type: 'model', x: 200, y: 450, locked: true, config: { label: 'Photo' } },
+			{
+				id: 'post-model',
+				type: 'model',
+				x: 200,
+				y: 150,
+				locked: true,
+				config: { label: 'Post' },
+			},
+			{
+				id: 'comment-model',
+				type: 'model',
+				x: 200,
+				y: 300,
+				locked: true,
+				config: { label: 'Comment' },
+			},
+			{
+				id: 'photo-model',
+				type: 'model',
+				x: 200,
+				y: 450,
+				locked: true,
+				config: { label: 'Photo' },
+			},
 			{ id: 'database-node', type: 'database', x: 500, y: 300, locked: true },
 		],
 		connections: [
 			{ id: 'c1', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
-			{ id: 'c2', sourceNodeId: 'comment-model', targetNodeId: 'database-node' },
+			{
+				id: 'c2',
+				sourceNodeId: 'comment-model',
+				targetNodeId: 'database-node',
+			},
 			{ id: 'c3', sourceNodeId: 'photo-model', targetNodeId: 'database-node' },
 		],
 	},
@@ -370,7 +395,7 @@ end`,
 			'Creating "god concerns" that bundle unrelated behaviors (Searchable + Publishable + Notifiable all in one)',
 			'Using concerns to hide complexity instead of reducing it',
 			'Not testing concerns independently from the host model',
-			'Concerns with dependencies on the host model\'s specific attributes (breaks when included elsewhere)',
+			"Concerns with dependencies on the host model's specific attributes (breaks when included elsewhere)",
 			'Forgetting the `extend ActiveSupport::Concern` line (included block silently breaks)',
 		],
 		whenToUse:
@@ -411,21 +436,69 @@ const level17FormObjects: Level = {
 		nodes: [
 			{ id: 'request-node', type: 'request', x: 100, y: 250, locked: true },
 			{ id: 'router-node', type: 'router', x: 280, y: 250, locked: true },
-			{ id: 'controller-node', type: 'controller', x: 460, y: 250, locked: true, config: { label: 'OnboardingController' } },
-			{ id: 'user-model', type: 'model', x: 680, y: 120, locked: true, config: { label: 'User' } },
-			{ id: 'company-model', type: 'model', x: 680, y: 250, locked: true, config: { label: 'Company' } },
-			{ id: 'address-model', type: 'model', x: 680, y: 380, locked: true, config: { label: 'Address' } },
+			{
+				id: 'controller-node',
+				type: 'controller',
+				x: 460,
+				y: 250,
+				locked: true,
+				config: { label: 'OnboardingController' },
+			},
+			{
+				id: 'user-model',
+				type: 'model',
+				x: 680,
+				y: 120,
+				locked: true,
+				config: { label: 'User' },
+			},
+			{
+				id: 'company-model',
+				type: 'model',
+				x: 680,
+				y: 250,
+				locked: true,
+				config: { label: 'Company' },
+			},
+			{
+				id: 'address-model',
+				type: 'model',
+				x: 680,
+				y: 380,
+				locked: true,
+				config: { label: 'Address' },
+			},
 			{ id: 'database-node', type: 'database', x: 880, y: 250, locked: true },
 		],
 		connections: [
 			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'router-node' },
-			{ id: 'c2', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
+			{
+				id: 'c2',
+				sourceNodeId: 'router-node',
+				targetNodeId: 'controller-node',
+			},
 			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'user-model' },
-			{ id: 'c4', sourceNodeId: 'controller-node', targetNodeId: 'company-model' },
-			{ id: 'c5', sourceNodeId: 'controller-node', targetNodeId: 'address-model' },
+			{
+				id: 'c4',
+				sourceNodeId: 'controller-node',
+				targetNodeId: 'company-model',
+			},
+			{
+				id: 'c5',
+				sourceNodeId: 'controller-node',
+				targetNodeId: 'address-model',
+			},
 			{ id: 'c6', sourceNodeId: 'user-model', targetNodeId: 'database-node' },
-			{ id: 'c7', sourceNodeId: 'company-model', targetNodeId: 'database-node' },
-			{ id: 'c8', sourceNodeId: 'address-model', targetNodeId: 'database-node' },
+			{
+				id: 'c7',
+				sourceNodeId: 'company-model',
+				targetNodeId: 'database-node',
+			},
+			{
+				id: 'c8',
+				sourceNodeId: 'address-model',
+				targetNodeId: 'database-node',
+			},
 		],
 	},
 	problem: {
@@ -665,14 +738,39 @@ const level18CustomValidators: Level = {
 	},
 	startingPipeline: {
 		nodes: [
-			{ id: 'user-model', type: 'model', x: 200, y: 150, locked: true, config: { label: 'User' } },
-			{ id: 'company-model', type: 'model', x: 200, y: 300, locked: true, config: { label: 'Company' } },
-			{ id: 'event-model', type: 'model', x: 200, y: 450, locked: true, config: { label: 'Event' } },
+			{
+				id: 'user-model',
+				type: 'model',
+				x: 200,
+				y: 150,
+				locked: true,
+				config: { label: 'User' },
+			},
+			{
+				id: 'company-model',
+				type: 'model',
+				x: 200,
+				y: 300,
+				locked: true,
+				config: { label: 'Company' },
+			},
+			{
+				id: 'event-model',
+				type: 'model',
+				x: 200,
+				y: 450,
+				locked: true,
+				config: { label: 'Event' },
+			},
 			{ id: 'database-node', type: 'database', x: 500, y: 300, locked: true },
 		],
 		connections: [
 			{ id: 'c1', sourceNodeId: 'user-model', targetNodeId: 'database-node' },
-			{ id: 'c2', sourceNodeId: 'company-model', targetNodeId: 'database-node' },
+			{
+				id: 'c2',
+				sourceNodeId: 'company-model',
+				targetNodeId: 'database-node',
+			},
 			{ id: 'c3', sourceNodeId: 'event-model', targetNodeId: 'database-node' },
 		],
 	},
@@ -974,7 +1072,7 @@ class ApplicationController < ActionController::API
     render json: {
       error: {
         code: "not_found",
-        message: "\#{exception.model || 'Resource'} not found"
+        message: "#{exception.model || 'Resource'} not found"
       }
     }, status: :not_found
   end
@@ -993,7 +1091,7 @@ class ApplicationController < ActionController::API
     render json: {
       error: {
         code: "bad_request",
-        message: "Missing parameter: \#{exception.param}"
+        message: "Missing parameter: #{exception.param}"
       }
     }, status: :bad_request
   end
@@ -1150,7 +1248,10 @@ const level20ActionMailer: Level = {
 		description:
 			'Users forget their passwords and have no way to reset them. Build a password reset flow with secure token generation and email delivery.',
 	},
-	startingPipeline: standardPipeline({ modelId: 'user-model', modelLabel: 'User' }),
+	startingPipeline: standardPipeline({
+		modelId: 'user-model',
+		modelLabel: 'User',
+	}),
 	problem: {
 		observation:
 			'Users who forget their passwords are locked out permanently. Support tickets are piling up asking for manual password resets. There is no self-service flow.',
@@ -1224,7 +1325,7 @@ class UserMailer < ApplicationMailer
   def password_reset(user)
     @user = user
     @token = user.generate_token_for(:password_reset)
-    @reset_url = "https://socialplatform.com/reset-password?token=\#{@token}"
+    @reset_url = "https://socialplatform.com/reset-password?token=#{@token}"
 
     mail(
       to: @user.email,
@@ -1396,21 +1497,61 @@ const level21BackgroundJobs: Level = {
 		nodes: [
 			{ id: 'request-node', type: 'request', x: 80, y: 220, locked: true },
 			{ id: 'router-node', type: 'router', x: 240, y: 220, locked: true },
-			{ id: 'controller-node', type: 'controller', x: 400, y: 220, locked: true, config: { label: 'RegistrationsController' } },
-			{ id: 'service-node', type: 'service', x: 600, y: 220, locked: true, config: { label: 'UserRegistration' } },
-			{ id: 'user-model', type: 'model', x: 800, y: 140, locked: true, config: { label: 'User' } },
-			{ id: 'mailer-node', type: 'mailer', x: 800, y: 380, locked: true, config: { label: 'UserMailer' } },
+			{
+				id: 'controller-node',
+				type: 'controller',
+				x: 400,
+				y: 220,
+				locked: true,
+				config: { label: 'RegistrationsController' },
+			},
+			{
+				id: 'service-node',
+				type: 'service',
+				x: 600,
+				y: 220,
+				locked: true,
+				config: { label: 'UserRegistration' },
+			},
+			{
+				id: 'user-model',
+				type: 'model',
+				x: 800,
+				y: 140,
+				locked: true,
+				config: { label: 'User' },
+			},
+			{
+				id: 'mailer-node',
+				type: 'mailer',
+				x: 800,
+				y: 380,
+				locked: true,
+				config: { label: 'UserMailer' },
+			},
 			{ id: 'database-node', type: 'database', x: 980, y: 140, locked: true },
 			{ id: 'response-node', type: 'response', x: 980, y: 380, locked: true },
 		],
 		connections: [
 			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'router-node' },
-			{ id: 'c2', sourceNodeId: 'router-node', targetNodeId: 'controller-node' },
-			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'service-node' },
+			{
+				id: 'c2',
+				sourceNodeId: 'router-node',
+				targetNodeId: 'controller-node',
+			},
+			{
+				id: 'c3',
+				sourceNodeId: 'controller-node',
+				targetNodeId: 'service-node',
+			},
 			{ id: 'c4', sourceNodeId: 'service-node', targetNodeId: 'user-model' },
 			{ id: 'c5', sourceNodeId: 'service-node', targetNodeId: 'mailer-node' },
 			{ id: 'c6', sourceNodeId: 'user-model', targetNodeId: 'database-node' },
-			{ id: 'c7', sourceNodeId: 'controller-node', targetNodeId: 'response-node' },
+			{
+				id: 'c7',
+				sourceNodeId: 'controller-node',
+				targetNodeId: 'response-node',
+			},
 		],
 	},
 	problem: {

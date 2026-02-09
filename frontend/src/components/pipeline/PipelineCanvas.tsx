@@ -24,7 +24,7 @@ import {
 	selectCanRedo,
 	selectCanUndo,
 	usePipelineStore,
-} from "@/stores";
+} from '@/stores';
 import { Button } from '../ui/Button';
 import { edgeTypes } from './DataFlowEdge';
 import { nodeTypes } from './nodes';

@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
 import hljs from 'highlight.js/lib/core';
 import ruby from 'highlight.js/lib/languages/ruby';
+import { useMemo } from 'react';
 import 'highlight.js/styles/night-owl.css';
 
 hljs.registerLanguage('ruby', ruby);

@@ -148,7 +148,7 @@ export function Level1StackChoice({ onComplete, onExit }: LevelComponentProps) {
 								name="SQLite"
 								onDragStart={handleDragStart}
 								type="sqlite"
-								warning="Cannot support Sharding (Level 22)"
+								warning="Cannot support Sharding (Level 49)"
 							/>
 						</div>
 					</div>

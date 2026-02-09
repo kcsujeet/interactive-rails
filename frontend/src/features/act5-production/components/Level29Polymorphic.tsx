@@ -5,18 +5,16 @@
  * Shows the ER diagram transition from fragmented tables to a unified polymorphic approach.
  */
 
-import { useCallback, useState } from 'react';
 import {
 	ArrowRight,
 	Check,
 	Database,
 	Link,
-	Table2,
 	Merge,
+	Table2,
 	X,
 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import { useCallback, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -28,6 +26,8 @@ import {
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
 type ViewMode = 'before' | 'after';
 
@@ -38,12 +38,33 @@ interface ModelConnection {
 }
 
 const PARENT_MODELS = [
-	{ key: 'post' as const, label: 'Post', color: 'text-blue-400', bgColor: 'bg-blue-400/10', borderColor: 'border-blue-400/40' },
-	{ key: 'photo' as const, label: 'Photo', color: 'text-purple-400', bgColor: 'bg-purple-400/10', borderColor: 'border-purple-400/40' },
-	{ key: 'video' as const, label: 'Video', color: 'text-amber-400', bgColor: 'bg-amber-400/10', borderColor: 'border-amber-400/40' },
+	{
+		key: 'post' as const,
+		label: 'Post',
+		color: 'text-blue-400',
+		bgColor: 'bg-blue-400/10',
+		borderColor: 'border-blue-400/40',
+	},
+	{
+		key: 'photo' as const,
+		label: 'Photo',
+		color: 'text-purple-400',
+		bgColor: 'bg-purple-400/10',
+		borderColor: 'border-purple-400/40',
+	},
+	{
+		key: 'video' as const,
+		label: 'Video',
+		color: 'text-amber-400',
+		bgColor: 'bg-amber-400/10',
+		borderColor: 'border-amber-400/40',
+	},
 ] as const;
 
-export function Level29Polymorphic({ onComplete, onExit }: LevelComponentProps) {
+export function Level29Polymorphic({
+	onComplete,
+	onExit,
+}: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [viewMode, setViewMode] = useState<ViewMode>('before');
 	const [hasUnified, setHasUnified] = useState(false);
@@ -53,7 +74,8 @@ export function Level29Polymorphic({ onComplete, onExit }: LevelComponentProps) 
 		video: false,
 	});
 
-	const allConnected = connections.post && connections.photo && connections.video;
+	const allConnected =
+		connections.post && connections.photo && connections.video;
 	const connectedCount = Object.values(connections).filter(Boolean).length;
 
 	const toggleConnection = (model: keyof ModelConnection) => {
@@ -71,7 +93,9 @@ export function Level29Polymorphic({ onComplete, onExit }: LevelComponentProps) 
 			return {
 				valid: false,
 				message: 'Create the polymorphic Comment model',
-				details: ['Click "Unify into Polymorphic Comment" to replace the three separate tables'],
+				details: [
+					'Click "Unify into Polymorphic Comment" to replace the three separate tables',
+				],
 			};
 		}
 		if (!allConnected) {
@@ -85,7 +109,10 @@ export function Level29Polymorphic({ onComplete, onExit }: LevelComponentProps) 
 				details: missing.map((m) => `Click on ${m} to connect it to Comment`),
 			};
 		}
-		return { valid: true, message: 'Polymorphic association configured correctly!' };
+		return {
+			valid: true,
+			message: 'Polymorphic association configured correctly!',
+		};
 	}, [hasUnified, allConnected, connections, connectedCount]);
 
 	const handleComplete = async () => {
@@ -128,7 +155,11 @@ export function Level29Polymorphic({ onComplete, onExit }: LevelComponentProps) 
 								) : (
 									<div className="w-4 h-4 rounded-full border border-muted-foreground" />
 								)}
-								<span className={hasUnified ? 'text-success' : 'text-muted-foreground'}>
+								<span
+									className={
+										hasUnified ? 'text-success' : 'text-muted-foreground'
+									}
+								>
 									Create polymorphic Comment
 								</span>
 							</div>
@@ -138,7 +169,11 @@ export function Level29Polymorphic({ onComplete, onExit }: LevelComponentProps) 
 								) : (
 									<div className="w-4 h-4 rounded-full border border-muted-foreground" />
 								)}
-								<span className={allConnected ? 'text-success' : 'text-muted-foreground'}>
+								<span
+									className={
+										allConnected ? 'text-success' : 'text-muted-foreground'
+									}
+								>
 									Connect all 3 models ({connectedCount}/3)
 								</span>
 							</div>
@@ -290,7 +325,9 @@ end`,
 						<ul className="text-xs text-muted-foreground space-y-1.5">
 							<li className="flex items-start gap-1.5">
 								<Database className="w-3 h-3 mt-0.5 shrink-0 text-primary" />
-								<span>commentable_type stores the model name (e.g. "Post")</span>
+								<span>
+									commentable_type stores the model name (e.g. "Post")
+								</span>
 							</li>
 							<li className="flex items-start gap-1.5">
 								<Link className="w-3 h-3 mt-0.5 shrink-0 text-primary" />
@@ -308,7 +345,7 @@ end`,
 							Usage Example
 						</div>
 						<pre className="text-xs text-muted-foreground font-mono bg-background rounded p-2">
-{`post.comments.create(body: "Great!")
+							{`post.comments.create(body: "Great!")
 photo.comments.create(body: "Nice!")
 # Both stored in comments table
 # with different commentable_type`}
@@ -333,7 +370,8 @@ function BeforeView() {
 					</span>
 				</div>
 				<p className="text-xs text-muted-foreground mt-2">
-					Each model has its own comment table with identical columns - a DRY violation
+					Each model has its own comment table with identical columns - a DRY
+					violation
 				</p>
 			</div>
 
@@ -342,10 +380,16 @@ function BeforeView() {
 				{PARENT_MODELS.map((model) => (
 					<div className="space-y-3" key={model.key}>
 						{/* Parent model */}
-						<div className={`rounded-xl border-2 ${model.borderColor} ${model.bgColor} p-4 text-center`}>
+						<div
+							className={`rounded-xl border-2 ${model.borderColor} ${model.bgColor} p-4 text-center`}
+						>
 							<Database className={`w-6 h-6 mx-auto mb-2 ${model.color}`} />
-							<div className={`font-bold text-sm ${model.color}`}>{model.label}</div>
-							<div className="text-xs text-muted-foreground mt-1">id, title, ...</div>
+							<div className={`font-bold text-sm ${model.color}`}>
+								{model.label}
+							</div>
+							<div className="text-xs text-muted-foreground mt-1">
+								id, title, ...
+							</div>
 						</div>
 
 						{/* Arrow */}
@@ -360,14 +404,16 @@ function BeforeView() {
 								{model.label}Comment
 							</div>
 							<div className="mt-2 space-y-1">
-								{['id', 'body', `${model.key}_id`, 'user_id', 'timestamps'].map((col) => (
-									<div
-										className="text-xs text-muted-foreground bg-background/50 rounded px-2 py-0.5 font-mono"
-										key={col}
-									>
-										{col}
-									</div>
-								))}
+								{['id', 'body', `${model.key}_id`, 'user_id', 'timestamps'].map(
+									(col) => (
+										<div
+											className="text-xs text-muted-foreground bg-background/50 rounded px-2 py-0.5 font-mono"
+											key={col}
+										>
+											{col}
+										</div>
+									),
+								)}
 							</div>
 						</div>
 					</div>
@@ -382,12 +428,12 @@ function BeforeView() {
 				</div>
 				<ul className="text-xs text-muted-foreground space-y-1">
 					<li className="flex items-start gap-2">
-						<span className="text-destructive mt-0.5">-</span>
-						3 tables with identical columns (body, user_id, timestamps)
+						<span className="text-destructive mt-0.5">-</span>3 tables with
+						identical columns (body, user_id, timestamps)
 					</li>
 					<li className="flex items-start gap-2">
-						<span className="text-destructive mt-0.5">-</span>
-						3 separate models with duplicate logic
+						<span className="text-destructive mt-0.5">-</span>3 separate models
+						with duplicate logic
 					</li>
 					<li className="flex items-start gap-2">
 						<span className="text-destructive mt-0.5">-</span>
@@ -411,23 +457,28 @@ function AfterView({
 	connections: ModelConnection;
 	onToggleConnection: (model: keyof ModelConnection) => void;
 }) {
-	const allConnected = connections.post && connections.photo && connections.video;
+	const allConnected =
+		connections.post && connections.photo && connections.video;
 
 	return (
 		<div className="space-y-6">
 			{/* Header */}
 			<div className="text-center">
-				<div className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 ${
-					allConnected
-						? 'bg-success/10 border border-success/30'
-						: 'bg-primary/10 border border-primary/30'
-				}`}>
+				<div
+					className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 ${
+						allConnected
+							? 'bg-success/10 border border-success/30'
+							: 'bg-primary/10 border border-primary/30'
+					}`}
+				>
 					{allConnected ? (
 						<Check className="w-4 h-4 text-success" />
 					) : (
 						<Link className="w-4 h-4 text-primary" />
 					)}
-					<span className={`text-sm font-semibold ${allConnected ? 'text-success' : 'text-primary'}`}>
+					<span
+						className={`text-sm font-semibold ${allConnected ? 'text-success' : 'text-primary'}`}
+					>
 						{allConnected
 							? 'Polymorphic Association Complete!'
 							: 'Click each model to connect it to Comment'}
@@ -450,8 +501,12 @@ function AfterView({
 							onClick={() => onToggleConnection(model.key)}
 							type="button"
 						>
-							<Database className={`w-6 h-6 mx-auto mb-2 ${isConnected ? model.color : 'text-muted-foreground'}`} />
-							<div className={`font-bold text-sm ${isConnected ? model.color : 'text-foreground'}`}>
+							<Database
+								className={`w-6 h-6 mx-auto mb-2 ${isConnected ? model.color : 'text-muted-foreground'}`}
+							/>
+							<div
+								className={`font-bold text-sm ${isConnected ? model.color : 'text-foreground'}`}
+							>
 								{model.label}
 							</div>
 							<div className="text-xs text-muted-foreground mt-1">
@@ -479,9 +534,11 @@ function AfterView({
 					const isConnected = connections[model.key];
 					return (
 						<div className="flex flex-col items-center" key={model.key}>
-							<div className={`w-0.5 h-8 transition-colors ${
-								isConnected ? 'bg-success' : 'bg-border'
-							}`} />
+							<div
+								className={`w-0.5 h-8 transition-colors ${
+									isConnected ? 'bg-success' : 'bg-border'
+								}`}
+							/>
 							{isConnected && (
 								<ArrowRight className="w-4 h-4 text-success rotate-90" />
 							)}
@@ -494,14 +551,20 @@ function AfterView({
 			</div>
 
 			{/* Unified Comment table */}
-			<div className={`rounded-xl border-2 p-6 transition-all ${
-				allConnected
-					? 'border-success bg-success/5'
-					: 'border-primary/40 bg-primary/5'
-			}`}>
+			<div
+				className={`rounded-xl border-2 p-6 transition-all ${
+					allConnected
+						? 'border-success bg-success/5'
+						: 'border-primary/40 bg-primary/5'
+				}`}
+			>
 				<div className="flex items-center justify-center gap-3 mb-4">
-					<Table2 className={`w-6 h-6 ${allConnected ? 'text-success' : 'text-primary'}`} />
-					<div className={`font-bold text-lg ${allConnected ? 'text-success' : 'text-primary'}`}>
+					<Table2
+						className={`w-6 h-6 ${allConnected ? 'text-success' : 'text-primary'}`}
+					/>
+					<div
+						className={`font-bold text-lg ${allConnected ? 'text-success' : 'text-primary'}`}
+					>
 						Comment
 					</div>
 					<span className="text-xs bg-primary/20 text-primary rounded-full px-2 py-0.5">
@@ -513,8 +576,16 @@ function AfterView({
 					{[
 						{ col: 'id', desc: 'primary key' },
 						{ col: 'body', desc: 'text, not null' },
-						{ col: 'commentable_type', desc: '"Post" | "Photo" | "Video"', highlight: true },
-						{ col: 'commentable_id', desc: 'references parent record', highlight: true },
+						{
+							col: 'commentable_type',
+							desc: '"Post" | "Photo" | "Video"',
+							highlight: true,
+						},
+						{
+							col: 'commentable_id',
+							desc: 'references parent record',
+							highlight: true,
+						},
 						{ col: 'user_id', desc: 'foreign key' },
 						{ col: 'created_at', desc: 'timestamp' },
 					].map((item) => (
@@ -529,7 +600,9 @@ function AfterView({
 							key={item.col}
 						>
 							<span className="font-semibold">{item.col}</span>
-							<span className="text-muted-foreground text-[10px]">{item.desc}</span>
+							<span className="text-muted-foreground text-[10px]">
+								{item.desc}
+							</span>
 						</div>
 					))}
 				</div>
@@ -550,7 +623,9 @@ function AfterView({
 									className="flex items-center gap-3 text-xs font-mono bg-background/50 rounded px-3 py-1.5"
 									key={row.type}
 								>
-									<span className="text-muted-foreground w-20 truncate">"{row.body}"</span>
+									<span className="text-muted-foreground w-20 truncate">
+										"{row.body}"
+									</span>
 									<span className="text-primary font-semibold">{row.type}</span>
 									<span className="text-muted-foreground">id: {row.id}</span>
 								</div>
@@ -561,14 +636,18 @@ function AfterView({
 			</div>
 
 			{/* Benefits callout */}
-			<div className={`rounded-xl p-4 transition-all ${
-				allConnected
-					? 'bg-success/5 border border-success/20'
-					: 'bg-card border border-border'
-			}`}>
-				<div className={`text-sm font-semibold mb-2 flex items-center gap-2 ${
-					allConnected ? 'text-success' : 'text-foreground'
-				}`}>
+			<div
+				className={`rounded-xl p-4 transition-all ${
+					allConnected
+						? 'bg-success/5 border border-success/20'
+						: 'bg-card border border-border'
+				}`}
+			>
+				<div
+					className={`text-sm font-semibold mb-2 flex items-center gap-2 ${
+						allConnected ? 'text-success' : 'text-foreground'
+					}`}
+				>
 					<Check className="w-4 h-4" />
 					Why This Is Better
 				</div>

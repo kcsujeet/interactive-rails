@@ -7,13 +7,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-	calculateMemoryUsage,
-	calculatePathLatency,
-	detectNPlusOnePattern,
-	findCriticalPath,
-	getParticleConfig,
-} from '@/utils/nodeBehavior';
-import {
 	createIncident,
 	generateRandomIncident,
 } from '@/components/inspector/IncidentFeed';
@@ -25,6 +18,13 @@ import type {
 	PlacedNode,
 	QueryParticle,
 } from '@/types';
+import {
+	calculateMemoryUsage,
+	calculatePathLatency,
+	detectNPlusOnePattern,
+	findCriticalPath,
+	getParticleConfig,
+} from '@/utils/nodeBehavior';
 
 export interface UsePipelineSimulationReturn {
 	simulationRunning: boolean;
@@ -126,11 +126,7 @@ export function usePipelineSimulation(
 	connections: Connection[],
 	isPipelineBroken: boolean,
 	hasSolutionNode: boolean,
-	solutionNodeType?:
-		| 'eager_load'
-		| 'index'
-		| 'cache'
-		| 'multiple',
+	solutionNodeType?: 'eager_load' | 'index' | 'cache' | 'multiple',
 ): UsePipelineSimulationReturn {
 	const [simulationRunning, setSimulationRunning] = useState(true);
 	const [liveMetrics, setLiveMetrics] = useState<LiveMetrics>({
