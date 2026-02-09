@@ -215,9 +215,9 @@ sqlite3 worker/.wrangler/state/v3/d1/miniflare-D1DatabaseObject/<hash>.sqlite
 
 ### Add a New Level
 
-1. Update the appropriate act file in `frontend/src/content/acts/` (e.g., `act1-foundation.ts`)
-2. Create component in `frontend/src/components/game/levels/actN/`
-3. Register component in level registry
+1. Update the appropriate content file in `frontend/src/features/actN-*/content.ts`
+2. Create component in `frontend/src/features/actN-*/components/LevelXXName.tsx`
+3. Import and register in `frontend/src/features/levels-registry.ts`
 4. Test via acts page
 
 ### Test in Sandbox
@@ -357,10 +357,16 @@ User Browser
 | Feature | Location |
 |---------|----------|
 | Pages | `frontend/src/pages/` |
-| Game components | `frontend/src/components/game/` |
-| Level components | `frontend/src/components/game/levels/` |
+| Act content & level definitions | `frontend/src/features/act*-*/content.ts` |
+| Level components (43 custom) | `frontend/src/features/act*-*/components/` |
+| Level component registry | `frontend/src/features/levels-registry.ts` |
+| Acts registry | `frontend/src/features/acts-registry.ts` |
+| Shared level components | `frontend/src/components/levels/` |
+| Pipeline editor | `frontend/src/components/pipeline/` |
+| UI components (shadcn/ui) | `frontend/src/components/ui/` |
+| Shared hooks | `frontend/src/hooks/` |
+| Utilities & simulation | `frontend/src/utils/` |
 | Stores | `frontend/src/stores/` |
-| Simulation engine | `frontend/src/engine/` |
 | Styles | `frontend/src/styles/` |
 
 ### Key Worker Locations

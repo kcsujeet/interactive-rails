@@ -106,7 +106,7 @@ See [Content Structure](./content-structure.md#pipeline-templates) for full deta
 ### Node Palette
 
 Nodes available depend on the level:
-- Node availability is defined per-level in the act content files (`src/components/game/levels/act*/`)
+- Node availability is defined per-level in the act content files (`src/features/act*-*/content.ts`)
 - Early levels: Basic MVC nodes only (Request, Router, Controller, Model, Database, Response)
 - Later levels: Serializer, Service, Cache, Job, Mailer, Middleware
 - Sandbox: All nodes available
@@ -423,11 +423,15 @@ totalXP = baseXP * starMultiplier[stars] * firstTimeBonus;
 
 | System | Location |
 |--------|----------|
-| Simulation Engine | `frontend/src/engine/SimulationEngine.ts` |
-| Metrics Calculation | `frontend/src/engine/metrics.ts` |
-| Node Behavior | `frontend/src/engine/nodeBehavior.ts` |
+| Simulation Engine | `frontend/src/utils/SimulationEngine.ts` |
+| Metrics Calculation | `frontend/src/utils/metrics.ts` |
+| Node Behavior | `frontend/src/utils/nodeBehavior.ts` |
+| Pipeline Templates | `frontend/src/utils/pipelineTemplates.ts` |
+| Game Data (node types) | `frontend/src/utils/gameData.ts` |
 | Game Store | `frontend/src/stores/game.ts` |
-| Pipeline Store | `frontend/src/stores/pipeline.ts` |
-| Simulation Store | `frontend/src/stores/simulation.ts` |
-| Phaser Game Layer | `frontend/src/game/PhaserGame.ts` |
-| Level Components | `frontend/src/components/game/levels/` |
+| Pipeline Hooks | `frontend/src/hooks/usePipelineState.ts` |
+| Simulation Hook | `frontend/src/hooks/usePipelineSimulation.ts` |
+| Level Components | `frontend/src/features/act*-*/components/` |
+| Level Registry | `frontend/src/features/levels-registry.ts` |
+| Acts Registry | `frontend/src/features/acts-registry.ts` |
+| Shared Level Layout | `frontend/src/components/levels/` |

@@ -65,78 +65,16 @@ railsexpert/
 │   ├── package.json
 │   ├── tsconfig.json
 │   └── src/
-│       ├── components/
-│       │   ├── game/         # Game components
-│       │   │   ├── BriefingScreen.tsx
-│       │   │   ├── CompletionScreen.tsx
-│       │   │   ├── GameTopBar.tsx
-│       │   │   ├── PipelineCanvas.tsx
-│       │   │   ├── NodePalette.tsx
-│       │   │   ├── InspectorPanel.tsx
-│       │   │   ├── levels/   # Level-specific components (50 levels)
-│       │   │   │   ├── act1/ # The Foundation (7 levels)
-│       │   │   │   ├── act2/ # Users & Security (7 levels)
-│       │   │   │   ├── act3/ # Clean Architecture (7 levels)
-│       │   │   │   ├── act4/ # Performance (7 levels)
-│       │   │   │   ├── act5/ # Production Features (8 levels)
-│       │   │   │   ├── act6/ # Reliability (6 levels)
-│       │   │   │   ├── act7/ # Scale (5 levels)
-│       │   │   │   └── act8/ # Mastery (3 levels)
-│       │   │   └── reactflow/ # React Flow POC components
-│       │   ├── pipeline/     # Pipeline editor components
-│       │   │   ├── PipelineCanvas.tsx
-│       │   │   ├── PipelineEditor.tsx
-│       │   │   ├── NodePalette.tsx
-│       │   │   └── DataFlowEdge.tsx
-│       │   ├── inspector/    # Metrics inspector
-│       │   │   ├── InspectorPanel.tsx
-│       │   │   ├── MetricsDisplay.tsx
-│       │   │   └── QueryTraceViewer.tsx
-│       │   ├── pages/        # Page-level app components
-│       │   │   ├── ActsListApp.tsx
-│       │   │   ├── ActDetailApp.tsx
-│       │   │   ├── LevelInfoApp.tsx
-│       │   │   ├── LevelPlayApp.tsx
-│       │   │   └── SandboxApp.tsx
-│       │   ├── ui/           # Reusable UI components
-│       │   │   ├── Button.tsx
-│       │   │   ├── Card.tsx
-│       │   │   ├── Badge.tsx
-│       │   │   ├── Input.tsx
-│       │   │   ├── CodeBlock.tsx
-│       │   │   └── Header.astro
-│       │   └── auth/         # Auth components
-│       │       ├── LoginForm.tsx
-│       │       └── SignupForm.tsx
-│       ├── layouts/
-│       │   ├── BaseLayout.astro
-│       │   └── GameLayout.astro
-│       ├── pages/
-│       │   ├── index.astro           # Homepage
-│       │   ├── login.astro
-│       │   ├── signup.astro
-│       │   ├── dashboard.astro
-│       │   ├── sandbox.astro
-│       │   └── acts/
-│       │       ├── index.astro       # Acts list
-│       │       └── [actId]/
-│       │           ├── index.astro   # Act detail
-│       │           └── [levelId]/
-│       │               ├── index.astro   # Level info
-│       │               ├── play.astro    # Gameplay
-│       │               └── complete.astro
-│       ├── stores/           # Zustand state management
-│       │   ├── game.ts       # Player progression
-│       │   ├── pipeline.ts   # Pipeline editor state
-│       │   ├── simulation.ts # Simulation state
-│       │   ├── authStore.ts  # Authentication
-│       │   └── ui.ts         # UI state
 │       ├── features/          # Feature modules (bulletproof-react)
 │       │   ├── acts-registry.ts        # All acts registry
-│       │   ├── levels-registry.ts      # Level component registry
+│       │   ├── levels-registry.ts      # Level component registry (43 custom)
 │       │   ├── act1-foundation/        # Act content + components
-│       │   │   ├── content.ts
-│       │   │   └── components/
+│       │   │   ├── content.ts          # Level definitions
+│       │   │   ├── index.ts            # Public exports
+│       │   │   └── components/         # Level-specific React components
+│       │   │       ├── Level1StackChoice.tsx
+│       │   │       ├── Level2Model.tsx
+│       │   │       └── ...
 │       │   ├── act2-users-security/
 │       │   ├── act3-clean-architecture/
 │       │   ├── act4-performance/
@@ -144,20 +82,45 @@ railsexpert/
 │       │   ├── act6-reliability/
 │       │   ├── act7-scale/
 │       │   └── act8-mastery/
+│       ├── components/
+│       │   ├── levels/       # Shared level components
+│       │   │   ├── LevelLayout.tsx     # 3-panel layout
+│       │   │   ├── InstructionPanel.tsx # Left panel
+│       │   │   ├── CodePreviewPanel.tsx # Right panel
+│       │   │   ├── LevelHeader.tsx     # Header with submit
+│       │   │   ├── DraggableNode.tsx
+│       │   │   └── useLevelCompletion.ts
+│       │   ├── pipeline/     # Pipeline editor (React Flow)
+│       │   ├── inspector/    # Metrics inspector
+│       │   ├── pages/        # Page-level app components
+│       │   │   ├── ActsListApp.tsx
+│       │   │   ├── ActDetailApp.tsx
+│       │   │   ├── LevelInfoApp.tsx
+│       │   │   ├── LevelPlayApp.tsx
+│       │   │   └── SandboxApp.tsx
+│       │   ├── ui/           # Reusable UI components (shadcn/ui)
+│       │   └── auth/         # Auth components
 │       ├── hooks/             # Shared hooks
+│       │   ├── usePipelineState.ts
+│       │   ├── usePipelineSimulation.ts
+│       │   └── usePipelineValidation.ts
 │       ├── utils/             # Shared utilities
 │       │   ├── SimulationEngine.ts
 │       │   ├── nodeBehavior.ts
 │       │   ├── metrics.ts
 │       │   ├── gameData.ts
 │       │   └── pipelineTemplates.ts  # Reusable pipeline layouts
-│       ├── lib/              # Utilities
-│       │   ├── api.ts
-│       │   ├── progress.ts
-│       │   └── utils.ts
-│       ├── types/            # TypeScript definitions
+│       ├── lib/              # Utilities (api, progress, utils)
+│       ├── types/            # TypeScript definitions (game.ts, level.ts)
+│       ├── stores/           # Zustand state management
+│       ├── layouts/          # Astro layouts
+│       ├── pages/            # Astro routes
+│       │   ├── index.astro
+│       │   └── acts/[actId]/[levelId]/
+│       │       ├── index.astro     # Level info
+│       │       ├── play.astro      # Gameplay
+│       │       └── complete.astro
 │       └── styles/           # Global CSS
-│           └── global.css
 │
 ├── worker/                   # Cloudflare Worker API
 │   ├── wrangler.toml
@@ -256,30 +219,31 @@ class SimulationEngine {
 }
 ```
 
-### 4. Level-Specific Components
+### 4. Two-Tier Level Component System
 
-Each level has its own component defining:
-- Initial pipeline configuration
-- Available nodes
-- Success conditions
-- Learning content
+Levels use one of two patterns:
+
+**Custom Interactive Components (43 levels):** Each has a concept-specific interaction (selection, drag-and-drop, simulation, visualization) registered in `levels-registry.ts`. These follow a 3-panel layout: `InstructionPanel (left) + concept interaction (center) + CodePreviewPanel (right)`.
 
 ```typescript
-// levels/act1/Level1StackChoice.tsx
-export function Level1StackChoice() {
+// features/act4-performance/components/Level24Indexing.tsx
+export function Level24Indexing({ onComplete }: LevelComponentProps) {
+  const { completeLevel } = useLevelCompletion();
+  // ... concept-specific state and interaction logic
   return (
-    <LevelLayout
-      levelId="1-1"
-      title="Choose Your Stack"
-      availableNodes={['request', 'router', 'controller']}
-      successCondition={(metrics) => metrics.throughput > 100}
-    >
-      <InstructionPanel content={learningContent} />
-      <PipelineCanvas initialNodes={startingPipeline} />
+    <LevelLayout>
+      <LeftPanel><InstructionPanel steps={steps} /></LeftPanel>
+      <CenterPanel>
+        <LevelHeader title="Database Indexing" validate={validate} />
+        {/* Custom interactive visualization */}
+      </CenterPanel>
+      <RightPanel><CodePreviewPanel code={migrationCode} /></RightPanel>
     </LevelLayout>
   );
 }
 ```
+
+**Generic Pipeline Builder (7 levels: L5, L6, L8, L9, L10, L19, L37):** Used when the pipeline architecture IS the concept being taught. Drag nodes from palette, connect on canvas.
 
 ## Data Flow
 
@@ -340,13 +304,13 @@ database_name = "railsexpert-db"
 
 ### React Flow Migration for Pipeline Canvas
 
-**Status**: Planned (POC created)
+**Status**: POC created
 
 Migrate the custom pipeline canvas to React Flow (@xyflow/react) for improved visualization.
 
 **POC files:**
-- `src/components/game/reactflow/` - PipelineNode, AnimatedEdge, ReactFlowCanvas
-- `src/pages/sandbox-rf.astro` - Test page
+- `src/components/pipeline/` - Production React Flow components
+- Old custom canvas at `src/components/PipelineCanvas.tsx` and `src/components/PipelineNode.tsx`
 
 **Challenges to resolve:**
 - Sequential particle animation timing

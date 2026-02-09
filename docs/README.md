@@ -34,8 +34,8 @@ RailsExpert is an educational game where players learn **Rails 8 API-only** deve
 
 The narrative arc takes players from a simple Blog API through a social platform, into a SaaS with payments, and ultimately to enterprise scale. Rails 8 features like Solid Queue, Solid Cache, Solid Cable, built-in auth, `params.expect()`, and `rate_limit` appear naturally as players progress. Testing is integrated from Level 12 onward.
 
-1. **Building pipelines** - Drag-and-drop nodes to create request processing flows
-2. **Running simulations** - Watch real-time metrics as requests flow through your pipeline
+1. **Concept-specific interactions** - Each level teaches through a unique interactive mechanic (selection, drag-and-drop, simulation, visualization)
+2. **Pipeline building** - 7 levels use a visual pipeline builder where architecture IS the lesson
 3. **Progressing through acts** - 8 acts covering Rails fundamentals to system design mastery
 
 ### Current Status
@@ -81,24 +81,28 @@ railsexpert/
 ├── frontend/              # Astro app with React components
 │   └── src/
 │       ├── pages/         # Astro routes (acts, levels, sandbox)
-│       ├── components/    # React components
-│       │   ├── game/      # Game UI (BriefingScreen, Canvas, etc.)
-│       │   │   └── levels/
-│       │   │       ├── act1/  # The Foundation (Levels 1-7)
-│       │   │       ├── act2/  # Users & Security (Levels 8-14)
-│       │   │       ├── act3/  # Clean Architecture (Levels 15-21)
-│       │   │       ├── act4/  # Performance (Levels 22-28)
-│       │   │       ├── act5/  # Production Features (Levels 29-36)
-│       │   │       ├── act6/  # Reliability (Levels 37-42)
-│       │   │       ├── act7/  # Scale (Levels 43-47)
-│       │   │       └── act8/  # Mastery (Levels 48-50)
-│       │   ├── pipeline/  # Pipeline editor components
+│       ├── features/      # Feature modules (bulletproof-react pattern)
+│       │   ├── acts-registry.ts      # All acts registry
+│       │   ├── levels-registry.ts    # Level component registry (43 custom)
+│       │   ├── act1-foundation/      # Act 1 content + components
+│       │   │   ├── content.ts        # Level definitions
+│       │   │   └── components/       # Level-specific React components
+│       │   ├── act2-users-security/
+│       │   ├── act3-clean-architecture/
+│       │   ├── act4-performance/
+│       │   ├── act5-production/
+│       │   ├── act6-reliability/
+│       │   ├── act7-scale/
+│       │   └── act8-mastery/
+│       ├── components/    # Shared components
+│       │   ├── levels/    # Shared level components (LevelLayout, InstructionPanel, etc.)
+│       │   ├── pipeline/  # Pipeline editor components (React Flow)
 │       │   ├── inspector/ # Metrics inspector panel
-│       │   └── ui/        # Reusable UI components
+│       │   └── ui/        # Reusable UI components (shadcn/ui)
+│       ├── hooks/         # Shared hooks
+│       ├── utils/         # Utilities (SimulationEngine, gameData, pipelineTemplates)
+│       ├── types/         # TypeScript definitions
 │       ├── stores/        # Zustand state (game, pipeline, simulation)
-│       ├── engine/        # Simulation engine
-│       ├── content/       # Content definitions
-│       │   └── acts/      # Act files (act1-foundation.ts ... act8-mastery.ts, index.ts)
 │       └── styles/        # Global CSS
 ├── worker/                # Cloudflare Worker API
 │   └── src/

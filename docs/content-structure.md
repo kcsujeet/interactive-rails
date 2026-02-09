@@ -6,10 +6,12 @@ This document explains how game content (acts, levels) is organized and managed.
 
 Game content is defined in the frontend as TypeScript data structures and React components.
 
-**Content Locations:**
+**Content Locations (bulletproof-react pattern):**
 ```
-frontend/src/content/acts/           # Act and level definitions (8 files + index)
-frontend/src/components/game/levels/ # Level-specific components
+frontend/src/features/act*-*/content.ts      # Act and level definitions (8 files)
+frontend/src/features/act*-*/components/     # Level-specific React components
+frontend/src/features/acts-registry.ts       # All acts registry
+frontend/src/features/levels-registry.ts     # Level component registry (43 custom)
 ```
 
 ---
@@ -97,7 +99,7 @@ RailsExpert (50 levels, 8 acts)
 
 ### TypeScript Interface
 
-The following interfaces are simplified versions of the actual types defined in `frontend/src/components/game/types.ts`. See that file for the full definitions.
+The following interfaces are simplified versions of the actual types defined in `frontend/src/types/game.ts` and `frontend/src/types/level.ts`. See those files for the full definitions.
 
 ```typescript
 interface Act {
@@ -170,8 +172,8 @@ interface SuccessCondition {
 ### Example Act Definition
 
 ```typescript
-// frontend/src/content/acts/act1-foundation.ts
-import type { Act, Level } from "@/components/game/types";
+// frontend/src/features/act1-foundation/content.ts
+import type { Act, Level } from "@/types";
 
 const level1StackChoice: Level = {
   id: 'act1-level1-stack-choice',
@@ -222,77 +224,68 @@ export const actOne: Act = {
 
 ## Level Components
 
-Each level has a corresponding React component that defines its specific behavior.
+Each level has a corresponding React component registered in `frontend/src/features/levels-registry.ts`. 43 of 50 levels have custom interactive components; the remaining 7 use the generic pipeline builder.
 
 ### Component Location
 
 ```
-frontend/src/components/game/levels/
-├── act1/
+frontend/src/features/
+├── act1-foundation/components/
 │   ├── Level1StackChoice.tsx
 │   ├── Level2Model.tsx
 │   ├── Level3CRUD.tsx
-│   └── ...
-├── act2/
-│   ├── Level8Authentication.tsx
-│   └── ...
-├── act3/
-│   ├── Level15ServiceObjects.tsx
-│   └── ...
-├── act4/
-│   ├── Level22N1Problem.tsx
-│   └── ...
-├── act5/
-│   ├── Level29Polymorphic.tsx
-│   └── ...
-├── act6/
-│   ├── Level37Middleware.tsx
-│   └── ...
-├── act7/
-│   ├── Level43MultiDatabase.tsx
-│   └── ...
-└── act8/
+│   ├── Level4Controller.tsx
+│   └── Level7Associations.tsx
+├── act2-users-security/components/
+│   ├── Level11Authorization.tsx
+│   ├── Level12Testing.tsx
+│   ├── Level13Security.tsx
+│   └── Level14ScopesEnums.tsx
+├── act3-clean-architecture/components/
+│   ├── Level15ServiceObjects.tsx ... Level21BackgroundJobs.tsx
+├── act4-performance/components/
+│   ├── Level22N1Problem.tsx ... Level28Caching.tsx
+├── act5-production/components/
+│   ├── Level29Polymorphic.tsx ... Level36APIVersioning.tsx
+├── act6-reliability/components/
+│   ├── Level38RateLimiting.tsx ... Level42ErrorMonitoring.tsx
+├── act7-scale/components/
+│   ├── Level43MultiDatabase.tsx ... Level47DomainEvents.tsx
+└── act8-mastery/components/
     ├── Level48APIGateway.tsx
-    └── ...
+    ├── Level49Sharding.tsx
+    └── Level50Architect.tsx
 ```
 
-### Level Component Structure
+### Level Component Patterns
+
+**Custom Interactive (43 levels):** 3-panel layout with concept-specific interaction.
 
 ```typescript
-// Level1StackChoice.tsx
-import { LevelLayout } from '../LevelLayout';
-import { InstructionPanel } from '../InstructionPanel';
-import { PipelineCanvas } from '../../pipeline/PipelineCanvas';
+// features/act4-performance/components/Level24Indexing.tsx
+import { LevelLayout, LeftPanel, CenterPanel, RightPanel } from '@/components/levels';
+import { InstructionPanel, CodePreviewPanel, LevelHeader } from '@/components/levels';
+import { useLevelCompletion } from '@/components/levels';
+import type { LevelComponentProps } from '@/features/levels-registry';
 
-export function Level1StackChoice() {
-  const initialNodes = [
-    { id: 'request-1', type: 'request', x: 100, y: 200 },
-  ];
-
-  const learningContent = {
-    title: 'The Request Lifecycle',
-    sections: [
-      {
-        heading: 'How Rails Handles Requests',
-        content: 'Every Rails application follows the MVC pattern...',
-        codeExample: `
-# config/routes.rb
-Rails.application.routes.draw do
-  get '/posts', to: 'posts#index'
-end
-        `
-      }
-    ]
-  };
+export function Level24Indexing({ onComplete }: LevelComponentProps) {
+  const { completeLevel } = useLevelCompletion();
+  // ... concept-specific state
 
   return (
-    <LevelLayout levelId="act1-level1-stack-choice">
-      <InstructionPanel content={learningContent} />
-      <PipelineCanvas initialNodes={initialNodes} />
+    <LevelLayout>
+      <LeftPanel><InstructionPanel steps={steps} currentStep={step} /></LeftPanel>
+      <CenterPanel>
+        <LevelHeader levelNumber={24} actNumber={4} title="Database Indexing" validate={validate} />
+        {/* Custom interactive visualization */}
+      </CenterPanel>
+      <RightPanel><CodePreviewPanel code={migrationCode} language="ruby" /></RightPanel>
     </LevelLayout>
   );
 }
 ```
+
+**Pipeline Builder (7 levels: L5, L6, L8, L9, L10, L19, L37):** Used when the pipeline position IS the lesson. These levels are NOT registered in `levels-registry.ts` and fall through to the generic pipeline builder view.
 
 ---
 
@@ -454,45 +447,49 @@ const successConditions: SuccessCondition[] = [
 
 ### Adding a New Act
 
-1. **Create act file** - Add `frontend/src/content/acts/actN-name.ts`
-2. **Update index** - Import and add the new act in `frontend/src/content/acts/index.ts`
-3. **Create folder** - `frontend/src/components/game/levels/actN/`
-4. **Create components** - Add component for each level
-5. **Update navigation** - Ensure acts list shows new act
+1. **Create feature directory** - `frontend/src/features/actN-name/`
+2. **Create content file** - `frontend/src/features/actN-name/content.ts`
+3. **Create index** - `frontend/src/features/actN-name/index.ts` exporting content
+4. **Update acts registry** - Import and add in `frontend/src/features/acts-registry.ts`
+5. **Create components** - Add `components/LevelXXName.tsx` for each level
+6. **Register components** - Import and add in `frontend/src/features/levels-registry.ts`
 
 ### Level Component Template
 
 ```typescript
 import { useState } from 'react';
-import { LevelLayout } from '../LevelLayout';
-import { InstructionPanel } from '../InstructionPanel';
-import { PipelineCanvas } from '../../pipeline/PipelineCanvas';
-import { useSimulationStore } from '@/stores/simulation';
-import type { PlacedNode } from '../../types';
+import {
+  LevelLayout, LeftPanel, CenterPanel, RightPanel,
+  InstructionPanel, CodePreviewPanel, LevelHeader,
+  useLevelCompletion,
+} from '@/components/levels';
+import type { LevelComponentProps, ValidationResult } from '@/features/levels-registry';
 
-export function LevelXXName() {
-  const initialNodes: PlacedNode[] = [
-    // Define starting nodes
-  ];
+export function LevelXXName({ onComplete }: LevelComponentProps) {
+  const { completeLevel } = useLevelCompletion();
 
-  const learningContent = {
-    title: 'Level Title',
-    sections: [
-      // Define learning content
-    ]
+  const validate = (): ValidationResult => {
+    // Check if level objectives are met
+    return { valid: true, message: 'Level complete!' };
   };
 
   return (
-    <LevelLayout
-      levelId="actX-levelXX-name"
-      title="Level Title"
-      availableNodes={['request', 'router', 'controller']}
-      successConditions={[
-        { type: 'pipeline_complete' }
-      ]}
-    >
-      <InstructionPanel content={learningContent} />
-      <PipelineCanvas initialNodes={initialNodes} />
+    <LevelLayout>
+      <LeftPanel>
+        <InstructionPanel steps={steps} currentStep={currentStep} />
+      </LeftPanel>
+      <CenterPanel>
+        <LevelHeader
+          levelNumber={XX}
+          actNumber={N}
+          title="Level Title"
+          validate={validate}
+        />
+        {/* Concept-specific interactive content */}
+      </CenterPanel>
+      <RightPanel>
+        <CodePreviewPanel code={railsCode} language="ruby" />
+      </RightPanel>
     </LevelLayout>
   );
 }
