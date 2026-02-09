@@ -2,7 +2,7 @@
  * Act 1: The Foundation
  * "Build a working API from nothing"
  *
- * Levels 1-7: Stack Choice, Model, CRUD, Controller, Serializers, Routes & Request Lifecycle, Associations
+ * Levels 1-7: Stack Choice, Model, CRUD, Controller, Routes & Request Lifecycle, Serializers, Associations
  * App context: Blog API
  */
 
@@ -479,13 +479,149 @@ end`,
 };
 
 // ============================================
-// Level 5: Serializers
+// Level 5: Routes & Request Lifecycle
 // ============================================
 
-const level5Serializers: Level = {
-	id: 'act1-level5-serializers',
+const level5Routes: Level = {
+	id: 'act1-level5-routes',
 	actId: 1,
 	levelNumber: 5,
+	name: 'Routes & Request Lifecycle',
+	trigger: {
+		type: 'new_feature',
+		description:
+			'The controller exists but clients cannot reach it. No routes are defined. The full request cycle needs to be wired end-to-end.',
+	},
+	startingPipeline: {
+		nodes: [
+			{ id: 'request-node', type: 'request', x: 100, y: 220, locked: true },
+			{
+				id: 'controller-node',
+				type: 'controller',
+				x: 460,
+				y: 220,
+				locked: true,
+			},
+			{
+				id: 'model-node',
+				type: 'model',
+				x: 660,
+				y: 220,
+				locked: true,
+				config: { label: 'Post' },
+			},
+			{ id: 'database-node', type: 'database', x: 860, y: 220, locked: true },
+			{ id: 'response-node', type: 'response', x: 660, y: 400, locked: true },
+		],
+		connections: [
+			{ id: 'c1', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
+			{ id: 'c2', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
+		],
+	},
+	problem: {
+		observation: 'GET /api/v1/posts returns 404. No routes mapped.',
+		rootCause: 'Routes not configured; request lifecycle not wired.',
+		codeExample: `# config/routes.rb — currently empty!
+Rails.application.routes.draw do
+  # Nothing here...
+end
+
+# We need:
+Rails.application.routes.draw do
+  namespace :api do
+    namespace :v1 do
+      resources :posts
+    end
+  end
+end
+
+# This creates:
+# GET    /api/v1/posts     => api/v1/posts#index
+# POST   /api/v1/posts     => api/v1/posts#create
+# GET    /api/v1/posts/:id => api/v1/posts#show
+# PATCH  /api/v1/posts/:id => api/v1/posts#update
+# DELETE /api/v1/posts/:id => api/v1/posts#destroy`,
+		goal: 'Wire the request cycle: Request → Router → Controller → Model → DB, and Controller → Response.',
+		thresholds: {},
+	},
+	successConditions: [
+		{ type: 'node_present', nodeType: 'router' },
+		{ type: 'connection', sourceType: 'request', targetType: 'router' },
+		{ type: 'connection', sourceType: 'router', targetType: 'controller' },
+		{ type: 'connection', sourceType: 'controller', targetType: 'response' },
+	],
+	availableNodes: ['router'],
+	unlockedNodes: [],
+	learningContent: {
+		title: 'RESTful Routes & the Request Lifecycle',
+		conceptExplanation: `Every HTTP request follows this path:
+
+1. **Request** arrives (GET /api/v1/posts)
+2. **Router** maps URL to controller action (\`routes.rb\`)
+3. **Controller** processes the request:
+   - Calls **Model** to query/write the database
+   - **Database** returns data to the model, which returns it to the controller
+4. **Response** sent back to client
+
+The **Router** is the gateway — without it, requests have no way to reach your controller.
+
+**\`resources :posts\`** generates all 5 RESTful routes at once.
+**Namespacing** under \`/api/v1/\` keeps API routes organized and versioned.`,
+		railsCodeExample: `# config/routes.rb
+Rails.application.routes.draw do
+  namespace :api do
+    namespace :v1 do
+      resources :posts
+      # Generates:
+      # GET    /api/v1/posts          => api/v1/posts#index
+      # POST   /api/v1/posts          => api/v1/posts#create
+      # GET    /api/v1/posts/:id      => api/v1/posts#show
+      # PATCH  /api/v1/posts/:id      => api/v1/posts#update
+      # PUT    /api/v1/posts/:id      => api/v1/posts#update
+      # DELETE /api/v1/posts/:id      => api/v1/posts#destroy
+    end
+  end
+end
+
+# Check your routes:
+rails routes
+
+# The request lifecycle:
+# 1. Client sends: GET /api/v1/posts
+# 2. Router matches: Api::V1::PostsController#index
+# 3. Controller calls Model: @posts = Post.all
+# 4. Model queries DB: SELECT * FROM posts
+# 5. Controller renders: render json: @posts
+# 6. Response: 200 OK with JSON body`,
+		commonMistakes: [
+			'Not namespacing API routes under /api/v1',
+			'Defining routes manually instead of using resources',
+			'Forgetting to nest controllers in matching module paths',
+			'Not checking routes with `rails routes`',
+		],
+		whenToUse:
+			'Every controller needs routes. Use resources for standard CRUD.',
+		furtherReading: [
+			{
+				title: 'Rails Routing',
+				url: 'https://guides.rubyonrails.org/routing.html',
+			},
+		],
+	},
+	hint: {
+		delay: 30,
+		text: 'Add a Router node between Request and Controller. Connect: Request → Router → Controller, and Controller → Response.',
+	},
+};
+
+// ============================================
+// Level 6: Serializers
+// ============================================
+
+const level6Serializers: Level = {
+	id: 'act1-level6-serializers',
+	actId: 1,
+	levelNumber: 6,
 	name: 'Serializers',
 	trigger: {
 		type: 'user_complaint',
@@ -562,6 +698,7 @@ const level5Serializers: Level = {
 	successConditions: [
 		{ type: 'node_present', nodeType: 'serializer' },
 		{ type: 'connection', sourceType: 'controller', targetType: 'serializer' },
+		{ type: 'connection', sourceType: 'serializer', targetType: 'response' },
 	],
 	availableNodes: ['serializer'],
 	unlockedNodes: [],
@@ -661,148 +798,6 @@ end
 	hint: {
 		delay: 20,
 		text: 'Add a Serializer node between the Controller and Response.',
-	},
-};
-
-// ============================================
-// Level 6: Routes & Request Lifecycle
-// ============================================
-
-const level6Routes: Level = {
-	id: 'act1-level6-routes',
-	actId: 1,
-	levelNumber: 6,
-	name: 'Routes & Request Lifecycle',
-	trigger: {
-		type: 'new_feature',
-		description:
-			'The controller exists but clients cannot reach it. No routes are defined. The full request cycle needs to be wired end-to-end.',
-	},
-	startingPipeline: {
-		nodes: [
-			{ id: 'request-node', type: 'request', x: 100, y: 220, locked: true },
-			{
-				id: 'controller-node',
-				type: 'controller',
-				x: 420,
-				y: 220,
-				locked: true,
-			},
-			{
-				id: 'model-node',
-				type: 'model',
-				x: 640,
-				y: 220,
-				locked: true,
-				config: { label: 'Post' },
-			},
-			{ id: 'database-node', type: 'database', x: 860, y: 220, locked: true },
-			{
-				id: 'serializer-node',
-				type: 'serializer',
-				x: 420,
-				y: 420,
-				locked: true,
-			},
-			{ id: 'response-node', type: 'response', x: 640, y: 420, locked: true },
-		],
-		connections: [
-			{ id: 'c1', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
-			{ id: 'c2', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-		],
-	},
-	problem: {
-		observation: 'GET /api/v1/posts returns 404. No routes mapped.',
-		rootCause: 'Routes not configured; request lifecycle not wired.',
-		codeExample: `# config/routes.rb — currently empty!
-Rails.application.routes.draw do
-  # Nothing here...
-end
-
-# We need:
-Rails.application.routes.draw do
-  namespace :api do
-    namespace :v1 do
-      resources :posts
-    end
-  end
-end
-
-# This creates:
-# GET    /api/v1/posts     => api/v1/posts#index
-# POST   /api/v1/posts     => api/v1/posts#create
-# GET    /api/v1/posts/:id => api/v1/posts#show
-# PATCH  /api/v1/posts/:id => api/v1/posts#update
-# DELETE /api/v1/posts/:id => api/v1/posts#destroy`,
-		goal: 'Wire the full request cycle: Request → Router → Controller → Model → DB, and Controller → Serializer → Response.',
-		thresholds: {},
-	},
-	successConditions: [
-		{ type: 'node_present', nodeType: 'router' },
-		{ type: 'pipeline_complete' },
-	],
-	availableNodes: ['router'],
-	unlockedNodes: [],
-	learningContent: {
-		title: 'RESTful Routes & the Request Lifecycle',
-		conceptExplanation: `Every HTTP request follows this path:
-
-1. **Request** arrives (GET /api/v1/posts)
-2. **Router** maps URL to controller action
-3. **Controller** processes the request:
-   - Calls **Model** to query/write the database
-   - **Database** returns data to the model, which returns it to the controller
-   - Controller passes data to **Serializer** to shape the JSON
-4. **Response** sent back to client
-
-The **Controller** is the orchestrator — it talks to the Model for data AND to the Serializer for output.
-
-**\`resources :posts\`** generates all 5 RESTful routes at once.
-**Namespacing** under \`/api/v1/\` keeps API routes organized and versioned.`,
-		railsCodeExample: `# config/routes.rb
-Rails.application.routes.draw do
-  namespace :api do
-    namespace :v1 do
-      resources :posts
-      # Generates:
-      # GET    /api/v1/posts          => api/v1/posts#index
-      # POST   /api/v1/posts          => api/v1/posts#create
-      # GET    /api/v1/posts/:id      => api/v1/posts#show
-      # PATCH  /api/v1/posts/:id      => api/v1/posts#update
-      # PUT    /api/v1/posts/:id      => api/v1/posts#update
-      # DELETE /api/v1/posts/:id      => api/v1/posts#destroy
-    end
-  end
-end
-
-# Check your routes:
-rails routes
-
-# The request lifecycle:
-# 1. Client sends: GET /api/v1/posts
-# 2. Router matches: Api::V1::PostsController#index
-# 3. Controller calls Model: @posts = Post.all
-# 4. Model queries DB: SELECT * FROM posts
-# 5. Controller calls Serializer: PostSerializer.new(@posts).serializable_hash.to_json
-# 6. Response: 200 OK with JSON body`,
-		commonMistakes: [
-			'Not namespacing API routes under /api/v1',
-			'Defining routes manually instead of using resources',
-			'Forgetting to nest controllers in matching module paths',
-			'Not checking routes with `rails routes`',
-		],
-		whenToUse:
-			'Every controller needs routes. Use resources for standard CRUD.',
-		furtherReading: [
-			{
-				title: 'Rails Routing',
-				url: 'https://guides.rubyonrails.org/routing.html',
-			},
-		],
-	},
-	hint: {
-		delay: 30,
-		text: 'Add a Router node and connect the full pipeline: Request → Router → Controller → Model → DB, Controller → Serializer → Response.',
 	},
 };
 
@@ -1000,14 +995,14 @@ export const actOne: Act = {
 	name: 'The Foundation',
 	tagline: 'Build a working API from nothing',
 	description:
-		'Build a Rails 8 API from scratch: models, controllers, serializers, routes, and associations. By the end, you have a working blog API.',
+		'Build a Rails 8 API from scratch: models, controllers, routes, serializers, and associations. By the end, you have a working blog API.',
 	levels: [
 		level1StackChoice,
 		level2Model,
 		level3CRUD,
 		level4Controller,
-		level5Serializers,
-		level6Routes,
+		level5Routes,
+		level6Serializers,
 		level7Associations,
 	],
 	unlockedNodes: ['terminal', 'postgres', 'sqlite'],

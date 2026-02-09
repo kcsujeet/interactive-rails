@@ -418,7 +418,7 @@ const level39SoftDeletes: Level = {
 		description:
 			'Admin accidentally deletes a user. No undo. No record of who changed what. Customer data is gone forever.',
 	},
-	startingPipeline: standardPipeline({ modelLabel: 'User' }),
+	startingPipeline: middlewarePipeline({ modelLabel: 'User' }),
 	problem: {
 		observation:
 			'A support admin ran User.find(42).destroy and the user is gone. No way to recover the data. No log of who did it or when. This is the third time this month.',
