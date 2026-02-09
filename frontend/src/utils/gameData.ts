@@ -421,11 +421,11 @@ export const nodeTypes: NodeTypeInfo[] = [
 		description: 'Dry::Validation contract',
 	},
 	{
-		type: 'validator',
-		name: 'Validator',
+		type: 'query_object',
+		name: 'Query',
 		color: '#38bdf8',
-		icon: 'Va',
-		description: 'Custom validator',
+		icon: 'Qo',
+		description: 'Composable query PORO',
 	},
 	{
 		type: 'error_handler',

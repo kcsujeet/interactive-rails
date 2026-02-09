@@ -42,7 +42,7 @@ RailsExpert (50 levels, 8 acts)
 │   ├── Level 15: Service Objects
 │   ├── Level 16: Concerns & Modules
 │   ├── Level 17: Validation Contracts
-│   ├── Level 18: Custom Validators
+│   ├── Level 18: Query Objects
 │   ├── Level 19: Error Handling
 │   ├── Level 20: Action Mailer
 │   └── Level 21: Background Jobs
@@ -540,7 +540,7 @@ export function LevelXXName({ onComplete }: LevelComponentProps) {
 - Service objects
 - Concerns and modules
 - Validation contracts (dry-validation)
-- Custom validators
+- Query objects
 - Error handling
 - Action Mailer
 - Background jobs (Solid Queue)

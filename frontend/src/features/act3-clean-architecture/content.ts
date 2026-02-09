@@ -2,7 +2,7 @@
  * Act 3: Clean Architecture
  * "Codebase doubles. Fat controllers, duplicated logic. Time to refactor."
  *
- * Levels 15-21: Service Objects, Concerns & Modules, Validation Contracts, Custom Validators,
+ * Levels 15-21: Service Objects, Concerns & Modules, Validation Contracts, Query Objects,
  * Error Handling, Action Mailer, Background Jobs
  * App context: Social platform API with code quality problems
  */
@@ -725,250 +725,304 @@ end`,
 };
 
 // ============================================
-// Level 18: Custom Validators
+// Level 18: Query Objects
 // ============================================
 
-const level18CustomValidators: Level = {
-	id: 'act3-level18-custom-validators',
+const level18QueryObjects: Level = {
+	id: 'act3-level18-query-objects',
 	actId: 3,
 	levelNumber: 18,
-	name: 'Custom Validators',
+	name: 'Query Objects',
 	requiresTests: true,
 	trigger: {
-		type: 'user_complaint',
+		type: 'code_review',
 		description:
-			'Users submit "not a url" for their website field and future dates for birthdays. The same bad-data patterns appear across User, Company, and Event models with duplicated inline validations.',
+			'Code review finds a 60-line admin controller action with inline .where().joins().group().order() chains. The same filtering logic is duplicated in the API controller and CSV export job.',
 	},
 	startingPipeline: {
 		nodes: [
+			{ id: 'request-node', type: 'request', x: 100, y: 250, locked: true },
+			{ id: 'router-node', type: 'router', x: 280, y: 250, locked: true },
 			{
-				id: 'user-model',
-				type: 'model',
-				x: 200,
-				y: 150,
+				id: 'controller-node',
+				type: 'controller',
+				x: 460,
+				y: 250,
 				locked: true,
-				config: { label: 'User' },
+				config: { label: 'Admin::PostsController' },
 			},
 			{
-				id: 'company-model',
+				id: 'post-model',
 				type: 'model',
-				x: 200,
-				y: 300,
+				x: 680,
+				y: 250,
 				locked: true,
-				config: { label: 'Company' },
+				config: { label: 'Post' },
 			},
-			{
-				id: 'event-model',
-				type: 'model',
-				x: 200,
-				y: 450,
-				locked: true,
-				config: { label: 'Event' },
-			},
-			{ id: 'database-node', type: 'database', x: 500, y: 300, locked: true },
+			{ id: 'database-node', type: 'database', x: 880, y: 250, locked: true },
 		],
 		connections: [
-			{ id: 'c1', sourceNodeId: 'user-model', targetNodeId: 'database-node' },
+			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'router-node' },
 			{
 				id: 'c2',
-				sourceNodeId: 'company-model',
-				targetNodeId: 'database-node',
+				sourceNodeId: 'router-node',
+				targetNodeId: 'controller-node',
 			},
-			{ id: 'c3', sourceNodeId: 'event-model', targetNodeId: 'database-node' },
+			{
+				id: 'c3',
+				sourceNodeId: 'controller-node',
+				targetNodeId: 'post-model',
+			},
+			{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
 		],
 	},
 	problem: {
 		observation:
-			'Invalid URLs and future birthdates are stored in the database. The same regex validations are copy-pasted across multiple models with slight inconsistencies.',
+			'The admin dashboard controller has a 60-line index action with inline .where().joins().group().order() chains. The same filtering logic is copy-pasted in the API controller and CSV export job with slight inconsistencies.',
 		rootCause:
-			'No reusable custom validator classes. Inline validation logic is duplicated and inconsistent across models.',
-		codeExample: `# app/models/user.rb -- inline regex, duplicated
-class User < ApplicationRecord
-  validate :website_must_be_valid_url
-  validate :birthday_must_be_in_past
+			'Complex query logic is embedded in the controller instead of being extracted into a composable query object in app/queries/.',
+		codeExample: `# app/controllers/api/v1/admin/posts_controller.rb
+class Api::V1::Admin::PostsController < ApplicationController
+  def index
+    @posts = Post.all
 
-  private
-
-  def website_must_be_valid_url
-    return if website.blank?
-    unless website.match?(/\\Ahttps?:\\/\\/[\\S]+\\z/)
-      errors.add(:website, "is not a valid URL")
+    # 60 lines of inline query chains!
+    if params[:status].present?
+      @posts = @posts.where(status: params[:status])
     end
-  end
 
-  def birthday_must_be_in_past
-    return if birthday.blank?
-    if birthday > Date.today
-      errors.add(:birthday, "can't be in the future")
+    if params[:author_id].present?
+      @posts = @posts.where(author_id: params[:author_id])
     end
+
+    if params[:since].present?
+      @posts = @posts.where("published_at >= ?", params[:since])
+    end
+
+    if params[:min_comments].present?
+      @posts = @posts
+        .left_joins(:comments)
+        .group(:id)
+        .having("COUNT(comments.id) >= ?", params[:min_comments])
+    end
+
+    if params[:tag].present?
+      @posts = @posts.joins(:tags).where(tags: { name: params[:tag] })
+    end
+
+    @posts = @posts.order(params[:sort] || :published_at => :desc)
+
+    render json: @posts
   end
 end
 
-# app/models/company.rb -- SAME validation copy-pasted!
-class Company < ApplicationRecord
-  validate :website_must_be_valid_url
-
-  private
-
-  def website_must_be_valid_url
-    return if website.blank?
-    unless website.match?(/\\Ahttps?:\\/\\/[\\S]+\\z/)  # same regex
-      errors.add(:website, "is not a valid URL")
-    end
-  end
-end
-
-# app/models/event.rb -- AND AGAIN with slight differences
-class Event < ApplicationRecord
-  validate :start_date_must_be_in_future
-  validate :website_must_be_valid_url
-  # ... same code repeated but with different field names
-end`,
-		goal: 'Build reusable custom validator classes (UrlValidator, PastDateValidator) that can be used with a one-liner in any model.',
+# app/controllers/api/v1/posts_controller.rb -- SAME LOGIC COPY-PASTED
+# app/jobs/csv_export_job.rb -- AND AGAIN with slight differences`,
+		goal: 'Extract query logic into a composable PostQuery object with chainable filter methods that returns ActiveRecord::Relation.',
 		thresholds: {},
 	},
-	successConditions: [{ type: 'custom_validator_created' }],
-	availableNodes: ['validator'],
-	unlockedNodes: ['validator'],
+	successConditions: [{ type: 'query_object_created' }],
+	availableNodes: ['query_object'],
+	unlockedNodes: ['query_object'],
 	learningContent: {
-		title: 'Custom Validator Classes',
-		conceptExplanation: `Rails supports two types of custom validators:
+		title: 'Query Objects — Composable PORO Queries',
+		conceptExplanation: `Query objects extract complex query chains from controllers into reusable POROs in \`app/queries/\`.
 
-**EachValidator** (validates individual attributes):
-- Subclass \`ActiveModel::EachValidator\`
-- Override \`validate_each(record, attribute, value)\`
-- Use with \`validates :field, your_validator: true\`
-- Naming convention: \`UrlValidator\` -> \`validates :field, url: true\`
+**Why use query objects?**
+- Controllers stay thin (just HTTP concerns)
+- Query logic is testable in isolation
+- Filters are composable and reusable across controllers, jobs, and rake tasks
+- Each method returns \`self\` for chaining, and \`#results\` returns the final \`ActiveRecord::Relation\`
 
-**Validator** (validates the whole record):
-- Subclass \`ActiveModel::Validator\`
-- Override \`validate(record)\`
-- Use with \`validates_with YourValidator\`
+**Structure:**
+1. \`ApplicationQuery\` base class with \`#initialize(scope)\` and \`#results\`
+2. Concrete query classes (e.g., \`PostQuery\`) with filter methods
+3. Each method guards blank params: \`return self if param.blank?\`
+4. \`#results\` returns \`ActiveRecord::Relation\` (not Array!) so pagination, further scopes, and eager loading still work
 
-**Conditional validations:**
-- \`validates :field, presence: true, if: :published?\`
-- \`validates :field, presence: true, unless: -> { draft? }\`
-- \`on: :create\` / \`on: :update\` for lifecycle-specific rules
+**When to extract:**
+- Controller has >15 lines of query logic
+- Same filters are needed in multiple controllers, jobs, or rake tasks
+- Query involves JOINs, GROUP BY, HAVING, or subqueries
 
-**Custom options:**
-- Validators receive \`options\` hash for configuration
-- \`options[:message]\` allows custom error messages
-- \`options[:allow_blank]\` skips validation for blank values
+**Key principle:** Always return \`ActiveRecord::Relation\`, never \`.to_a\` or \`.map\`. This preserves lazy loading and lets callers add pagination, includes, or further scopes.`,
+		railsCodeExample: `# app/queries/application_query.rb
+class ApplicationQuery
+  attr_reader :scope
 
-Custom validators are reusable across any model that has the validated attribute.`,
-		railsCodeExample: `# app/validators/url_validator.rb
-class UrlValidator < ActiveModel::EachValidator
-  def validate_each(record, attribute, value)
-    return if value.blank? && options[:allow_blank]
+  def initialize(scope = default_scope)
+    @scope = scope
+  end
 
-    uri = URI.parse(value)
-    unless uri.is_a?(URI::HTTP) || uri.is_a?(URI::HTTPS)
-      record.errors.add(attribute, options[:message] || "is not a valid URL")
-    end
-  rescue URI::InvalidURIError
-    record.errors.add(attribute, options[:message] || "is not a valid URL")
+  def results
+    scope
+  end
+
+  private
+
+  def default_scope
+    raise NotImplementedError
   end
 end
 
-# app/validators/past_date_validator.rb
-class PastDateValidator < ActiveModel::EachValidator
-  def validate_each(record, attribute, value)
-    return if value.blank?
+# app/queries/post_query.rb
+class PostQuery < ApplicationQuery
+  def by_status(status)
+    return self if status.blank?
 
-    if value > Date.today
-      record.errors.add(attribute, options[:message] || "must be in the past")
-    end
+    @scope = @scope.where(status: status)
+    self
+  end
+
+  def by_author(author_id)
+    return self if author_id.blank?
+
+    @scope = @scope.where(author_id: author_id)
+    self
+  end
+
+  def since(date)
+    return self if date.blank?
+
+    @scope = @scope.where("published_at >= ?", date)
+    self
+  end
+
+  def with_min_comments(count)
+    return self if count.blank?
+
+    @scope = @scope
+      .left_joins(:comments)
+      .group(:id)
+      .having("COUNT(comments.id) >= ?", count)
+    self
+  end
+
+  def by_tag(tag_name)
+    return self if tag_name.blank?
+
+    @scope = @scope.joins(:tags).where(tags: { name: tag_name })
+    self
+  end
+
+  def sorted(column = :published_at, direction = :desc)
+    @scope = @scope.order(column => direction)
+    self
+  end
+
+  private
+
+  def default_scope
+    Post.all
   end
 end
 
-# app/validators/future_date_validator.rb
-class FutureDateValidator < ActiveModel::EachValidator
-  def validate_each(record, attribute, value)
-    return if value.blank?
+# app/controllers/api/v1/admin/posts_controller.rb -- clean!
+class Api::V1::Admin::PostsController < ApplicationController
+  def index
+    posts = PostQuery.new
+      .by_status(params[:status])
+      .by_author(params[:author_id])
+      .since(params[:since])
+      .with_min_comments(params[:min_comments])
+      .by_tag(params[:tag])
+      .sorted(params[:sort], params[:direction])
+      .results
 
-    if value <= Date.today
-      record.errors.add(attribute, options[:message] || "must be in the future")
-    end
+    render json: PostSerializer.new(posts).serializable_hash.to_json
   end
 end
 
-# Now models are clean one-liners:
-# app/models/user.rb
-class User < ApplicationRecord
-  validates :website, url: true, allow_blank: true
-  validates :birthday, past_date: true
-  validates :email, presence: true
+# Reuse in API controller with different base scope:
+class Api::V1::PostsController < ApplicationController
+  def index
+    posts = PostQuery.new(Post.published)
+      .by_author(params[:author_id])
+      .by_tag(params[:tag])
+      .sorted
+      .results
+
+    render json: PostSerializer.new(posts).serializable_hash.to_json
+  end
 end
 
-# app/models/company.rb
-class Company < ApplicationRecord
-  validates :website, url: true
-  validates :founded_on, past_date: { message: "founding date must be in the past" }
+# Reuse in background job:
+class CsvExportJob < ApplicationJob
+  def perform(filters)
+    posts = PostQuery.new
+      .by_status(filters[:status])
+      .since(filters[:since])
+      .sorted(:created_at, :asc)
+      .results
+
+    CsvGenerator.new(posts).generate
+  end
 end
 
-# app/models/event.rb
-class Event < ApplicationRecord
-  validates :url, url: true
-  validates :start_date, future_date: true
-  validates :title, presence: true, if: :published?
-end
+# test/queries/post_query_test.rb
+class PostQueryTest < ActiveSupport::TestCase
+  test "by_status filters published posts" do
+    published = posts(:published)
+    draft = posts(:draft)
 
-# Conditional validations:
-class Post < ApplicationRecord
-  validates :body, presence: true, on: :publish
-  validates :slug, uniqueness: true, if: -> { slug.present? }
-  validates :featured_image, presence: true, unless: :draft?
-end
+    results = PostQuery.new.by_status("published").results
 
-# test/validators/url_validator_test.rb
-class UrlValidatorTest < ActiveSupport::TestCase
-  test "rejects invalid URLs" do
-    user = User.new(website: "not a url", email: "a@b.com", password: "x")
-    user.valid?
-    assert_includes user.errors[:website], "is not a valid URL"
+    assert_includes results, published
+    refute_includes results, draft
   end
 
-  test "accepts valid HTTPS URLs" do
-    user = User.new(website: "https://example.com", email: "a@b.com", password: "x")
-    user.valid?
-    assert_empty user.errors[:website]
+  test "blank params are skipped" do
+    all_posts = Post.count
+    results = PostQuery.new.by_status(nil).by_author("").results
+
+    assert_equal all_posts, results.count
   end
 
-  test "allows blank when configured" do
-    user = User.new(website: "", email: "a@b.com", password: "x")
-    user.valid?
-    assert_empty user.errors[:website]  # allow_blank: true
+  test "methods are chainable" do
+    results = PostQuery.new
+      .by_status("published")
+      .by_author(users(:alice).id)
+      .sorted
+      .results
+
+    assert results.is_a?(ActiveRecord::Relation)
   end
 
-  test "supports custom error messages" do
-    company = Company.new(founded_on: 1.year.from_now)
-    company.valid?
-    assert_includes company.errors[:founded_on], "founding date must be in the past"
+  test "with_min_comments uses GROUP + HAVING" do
+    popular = posts(:popular)  # has 5 comments
+    results = PostQuery.new.with_min_comments(3).results
+
+    assert_includes results, popular
+  end
+
+  test "custom base scope narrows results" do
+    results = PostQuery.new(Post.published).results
+    assert results.all? { |p| p.status == "published" }
   end
 end`,
 		commonMistakes: [
-			'Putting complex regex in models instead of extracting to a validator class',
-			'Not handling nil/blank values in custom validators (causes NoMethodError)',
-			'Forgetting to test edge cases (empty strings, nil, unicode, very long strings)',
-			'Not allowing custom error messages via options[:message]',
-			'Using validate (method) when validates (declarative) is cleaner and more consistent',
+			'Returning Array instead of ActiveRecord::Relation (breaks pagination, eager loading, and further chaining)',
+			'Not guarding blank params with `return self if param.blank?` (causes spurious WHERE clauses)',
+			'One giant method instead of composable filters (defeats the purpose of query objects)',
+			'Putting query object logic in model scopes instead (scopes are fine for simple single-purpose filters, but query objects compose better for multi-filter scenarios)',
+			'Forgetting to pass IDs instead of ActiveRecord objects for serialization-safe job arguments',
 		],
 		whenToUse:
-			'When the same validation logic is needed in 2+ models, or when built-in validators (presence, uniqueness, format) are not sufficient for the business rule.',
+			'When a controller has >15 lines of query logic, when the same filters are needed in multiple controllers or jobs, or when queries involve complex JOINs, GROUP BY, or subqueries.',
 		furtherReading: [
 			{
-				title: 'Active Record Validations',
-				url: 'https://guides.rubyonrails.org/active_record_validations.html',
+				title: 'Thoughtbot: A Case for Query Objects',
+				url: 'https://thoughtbot.com/blog/a-case-for-query-objects-in-rails',
 			},
 			{
-				title: 'Custom Validators Guide',
-				url: 'https://guides.rubyonrails.org/active_record_validations.html#custom-validators',
+				title: 'Ransack Gem (alternative for simple search/filter UIs)',
+				url: 'https://github.com/activerecord-hackery/ransack',
 			},
 		],
 	},
 	hint: {
 		delay: 25,
-		text: 'Add Validator nodes and connect them to the models that need reusable validation rules. Each validator is a class in app/validators/.',
+		text: 'Add a Query Object node between the Controller and Model. Each filter method returns self for chaining, and #results returns the final ActiveRecord::Relation.',
 	},
 };
 
@@ -1774,17 +1828,17 @@ export const actThree: Act = {
 	name: 'Clean Architecture',
 	tagline: 'Codebase doubles. Time to refactor.',
 	description:
-		'Extract fat controllers into service objects, concerns, validation contracts, and mailers. Set up proper error handling and move slow work to Solid Queue background jobs.',
+		'Extract fat controllers into service objects, concerns, validation contracts, query objects, and mailers. Set up proper error handling and move slow work to Solid Queue background jobs.',
 	levels: [
 		level15ServiceObjects,
 		level16Concerns,
 		level17FormObjects,
-		level18CustomValidators,
+		level18QueryObjects,
 		level19ErrorHandling,
 		level20ActionMailer,
 		level21BackgroundJobs,
 	],
-	unlockedNodes: ['service', 'concern', 'form_object', 'mailer', 'job'],
+	unlockedNodes: ['service', 'concern', 'form_object', 'query_object', 'mailer', 'job'],
 	metricsVisible: true,
 	visibleMetrics: ['latency', 'errorRate'],
 };

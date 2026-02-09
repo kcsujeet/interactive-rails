@@ -144,7 +144,7 @@ export interface SuccessCondition {
 		| 'authentication_configured'
 		| 'testing_configured'
 		| 'concerns_configured'
-		| 'custom_validator_created'
+		| 'query_object_created'
 		| 'error_handling_configured'
 		| 'mailer_configured'
 		| 'encryption_configured'

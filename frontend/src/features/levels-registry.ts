@@ -13,7 +13,7 @@
  * - Authentication, Validations, Callbacks, Authorization, Testing, Security, Scopes & Enums
  *
  * Act 3: Clean Architecture (7 levels)
- * - Service Objects, Concerns, Validation Contracts, Custom Validators, Error Handling, Action Mailer, Background Jobs
+ * - Service Objects, Concerns, Validation Contracts, Query Objects, Error Handling, Action Mailer, Background Jobs
  *
  * Act 4: Performance (7 levels)
  * - N+1 Problem, Eager Loading, Indexing, Counter Caches, Pagination, Search, Caching
@@ -68,7 +68,7 @@ import { Level14ScopesEnums } from './act2-users-security/components/Level14Scop
 import { Level15ServiceObjects } from './act3-clean-architecture/components/Level15ServiceObjects';
 import { Level16Concerns } from './act3-clean-architecture/components/Level16Concerns';
 import { Level17FormObjects } from './act3-clean-architecture/components/Level17FormObjects';
-import { Level18CustomValidators } from './act3-clean-architecture/components/Level18CustomValidators';
+import { Level18QueryObjects } from './act3-clean-architecture/components/Level18QueryObjects';
 import { Level20ActionMailer } from './act3-clean-architecture/components/Level20ActionMailer';
 import { Level21BackgroundJobs } from './act3-clean-architecture/components/Level21BackgroundJobs';
 
@@ -146,7 +146,7 @@ const LEVEL_COMPONENTS: Record<string, ComponentType<LevelComponentProps>> = {
 	'act3-level15-service-objects': Level15ServiceObjects,
 	'act3-level16-concerns': Level16Concerns,
 	'act3-level17-form-objects': Level17FormObjects,
-	'act3-level18-custom-validators': Level18CustomValidators,
+	'act3-level18-query-objects': Level18QueryObjects,
 	'act3-level20-action-mailer': Level20ActionMailer,
 	'act3-level21-background-jobs': Level21BackgroundJobs,
 
