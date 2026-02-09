@@ -219,7 +219,7 @@ export function Level3CRUD({ onComplete, onExit }: LevelComponentProps) {
 								const isCompleted = completedOperations.has(operation);
 								return (
 									<Button
-										className={`w-full p-3 h-auto rounded-lg text-left transition-all border ${
+										className={`w-full p-3 h-auto rounded-lg text-left transition-all border whitespace-normal ${
 											isCompleted
 												? 'bg-success/10 border-success text-success'
 												: 'bg-secondary border-border text-muted-foreground hover:border-primary hover:text-foreground'
@@ -247,7 +247,7 @@ export function Level3CRUD({ onComplete, onExit }: LevelComponentProps) {
 													</svg>
 												)}
 											</div>
-											<div className="font-mono text-xs mt-1 text-primary">
+											<div className="font-mono text-xs mt-1 text-primary break-all">
 												{cmd}
 											</div>
 											<div className="text-xs text-muted-foreground mt-1">
