@@ -1,11 +1,14 @@
 ---
 import LevelInfoApp from '@/components/pages/LevelInfoApp';
 import GameLayout from '@/layouts/GameLayout.astro';
+import { getLevel } from '@/features/acts-registry';
 
 const { actId, levelId } = Astro.params;
+const level = getLevel(levelId || '');
+const title = level ? `L${level.levelNumber}: ${level.name}` : 'Level Info';
 ---
 
-<GameLayout title="Level Info">
+<GameLayout title={title}>
   <div class="p-6">
     <LevelInfoApp client:load levelId={levelId || ''} />
   </div>

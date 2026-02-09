@@ -1,10 +1,13 @@
 ---
 import LevelPlayApp from '@/components/pages/LevelPlayApp';
 import GameLayout from '@/layouts/GameLayout.astro';
+import { getLevel } from '@/features/acts-registry';
 
 const { actId, levelId } = Astro.params;
+const level = getLevel(levelId || '');
+const title = level ? `L${level.levelNumber}: ${level.name}` : 'Level';
 ---
 
-<GameLayout title="Level" fullscreen={true}>
+<GameLayout title={title} fullscreen={true}>
   <LevelPlayApp client:load levelId={levelId || ''} />
 </GameLayout>
