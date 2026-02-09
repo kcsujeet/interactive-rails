@@ -169,7 +169,7 @@ export function usePipelineSimulation(
 			placedNodes,
 			connections,
 			hasSolutionNode,
-			solutionNodeType,
+			solutionNodeType ?? '',
 		);
 
 		// Non-performance levels: no particles, just metrics

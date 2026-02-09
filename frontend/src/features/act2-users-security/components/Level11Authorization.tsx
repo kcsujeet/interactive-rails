@@ -3,9 +3,11 @@
  *
  * Policy node blocks unauthorized requests.
  * Shows Pundit-style authorization with visual filtering.
+ * Teaches: Pundit policies, Current.user, policy_scope, rescue_from
  */
 
 import { useEffect, useState } from 'react';
+import { Shield, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import {
@@ -209,15 +211,15 @@ export function Level11Authorization({
 						</div>
 						<div className="space-y-2 text-sm">
 							<div className="flex items-center gap-2">
-								<div className="w-4 h-4 rounded-full bg-success" />
+								<ShieldCheck className="w-4 h-4 text-success" />
 								<span className="text-foreground">Admin (can delete)</span>
 							</div>
 							<div className="flex items-center gap-2">
-								<div className="w-4 h-4 rounded-full bg-primary" />
+								<Shield className="w-4 h-4 text-primary" />
 								<span className="text-foreground">User (view only)</span>
 							</div>
 							<div className="flex items-center gap-2">
-								<div className="w-4 h-4 rounded-full bg-destructive" />
+								<ShieldAlert className="w-4 h-4 text-destructive" />
 								<span className="text-foreground">Hacker (unauthorized)</span>
 							</div>
 						</div>
@@ -325,7 +327,7 @@ export function Level11Authorization({
 							</>
 						)}
 
-						{/* Service */}
+						{/* Model */}
 						<rect
 							fill="#374151"
 							height="200"
@@ -341,7 +343,7 @@ export function Level11Authorization({
 							x="500"
 							y="255"
 						>
-							Service
+							Model
 						</text>
 
 						{/* Connection lines */}
@@ -420,30 +422,91 @@ export function Level11Authorization({
 						{
 							filename: 'app/policies/post_policy.rb',
 							language: 'ruby',
-							code: `class PostPolicy < ApplicationPolicy
+							code: policyAdded
+								? `class PostPolicy < ApplicationPolicy
   def show?
-    true  # Anyone can view
+    true  # Anyone can view published posts
+  end
+
+  def create?
+    user.present?  # Any authenticated user
+  end
+
+  def update?
+    owner_or_admin?
   end
 
   def destroy?
-    user.admin? || record.author == user
+    owner_or_admin?
   end
-end
 
-# In controller:
-class PostsController < ApplicationController
+  private
+
+  def owner_or_admin?
+    record.user == user || user.admin?
+  end
+
+  class Scope < Scope
+    def resolve
+      if user&.admin?
+        scope.all
+      else
+        scope.where(user: user)
+          .or(scope.where(status: "published"))
+      end
+    end
+  end
+end`
+								: `# No policy yet -- anyone can do anything!
+# POST /api/v1/posts => Created! By who? Who cares.
+# DELETE /api/v1/posts/42 => Deleted! Not yours? Too bad.`,
+							highlight: policyAdded ? [10, 11, 14, 15, 20, 21] : [],
+						},
+						{
+							filename: 'app/controllers/api/v1/posts_controller.rb',
+							language: 'ruby',
+							code: policyAdded
+								? `class Api::V1::PostsController < ApplicationController
+  include Pundit::Authorization
+
+  def index
+    posts = policy_scope(Post)
+    render json: PostSerializer.new(posts)
+  end
+
+  def update
+    post = Post.find(params[:id])
+    authorize post  # Checks PostPolicy#update?
+    if post.update(post_params)
+      render json: PostSerializer.new(post)
+    else
+      render json: { errors: post.errors }, status: :unprocessable_entity
+    end
+  end
+
   def destroy
-    @post = Post.find(params[:id])
-    authorize @post  # Raises Pundit::NotAuthorizedError
+    post = Post.find(params[:id])
+    authorize post  # Checks PostPolicy#destroy?
+    post.destroy
+    head :no_content
+  end
+end`
+								: `class Api::V1::PostsController < ApplicationController
+  def update
+    post = Post.find(params[:id])
+    post.update(post_params)  # Any user can update ANY post!
+    render json: PostSerializer.new(post)
+  end
 
-    @post.destroy
-    redirect_to posts_path
+  def destroy
+    post = Post.find(params[:id])
+    post.destroy  # Any user can delete ANY post!
+    head :no_content
   end
 end`,
-							highlight: [6, 7, 14],
+							highlight: policyAdded ? [5, 11, 21] : [4, 10],
 						},
 					]}
-					learningGoal="Authorization policies centralize access control logic. Use Pundit to keep authorization rules testable and maintainable."
 				/>
 			</RightPanel>
 		</LevelLayout>

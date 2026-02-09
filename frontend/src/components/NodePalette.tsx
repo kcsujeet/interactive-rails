@@ -22,7 +22,7 @@ interface NodePaletteProps {
 	isPipelineBroken: boolean;
 	breakReason: string | null;
 	draggedNodeType: string | null;
-	onDragStart: (e: DragEvent<HTMLDivElement>, nodeType: string) => void;
+	onDragStart: (e: DragEvent<Element>, nodeType: string) => void;
 	onDragEnd: () => void;
 }
 

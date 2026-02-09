@@ -203,7 +203,8 @@ export function QueryTraceViewer({
 					<Button
 						onClick={() => setFilter('nplusone')}
 						size="sm"
-						variant={filter === 'nplusone' ? 'destructive' : 'secondary'}
+						color={filter === 'nplusone' ? 'destructive' : undefined}
+						variant={filter === 'nplusone' ? 'default' : 'secondary'}
 					>
 						N+1 Only
 					</Button>

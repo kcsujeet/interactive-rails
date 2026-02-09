@@ -20,7 +20,7 @@ function getTextContent(children: React.ReactNode): string {
 		children !== null &&
 		'props' in children
 	) {
-		return getTextContent(children.props?.children);
+		return getTextContent((children as { props?: { children?: React.ReactNode } }).props?.children);
 	}
 	return '';
 }

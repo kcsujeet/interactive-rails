@@ -2,10 +2,18 @@
  * Level 21: Background Jobs
  *
  * Move slow operations to background workers.
- * Player learns to use Sidekiq for async processing.
+ * Teaches: Solid Queue (Rails 8 default), perform_later, queue_as
  */
 
 import { useEffect, useState } from 'react';
+import {
+	BarChart3,
+	FileText,
+	Image,
+	Link2,
+	Mail,
+	type LucideIcon,
+} from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import {
@@ -25,7 +33,7 @@ interface SlowOperation {
 	name: string;
 	description: string;
 	duration: number;
-	icon: string;
+	icon: LucideIcon;
 	isBackground: boolean;
 	isRunning: boolean;
 	progress: number;
@@ -37,7 +45,7 @@ const INITIAL_OPERATIONS: SlowOperation[] = [
 		name: 'Send Email',
 		description: 'Send welcome email to user',
 		duration: 2000,
-		icon: '📧',
+		icon: Mail,
 		isBackground: false,
 		isRunning: false,
 		progress: 0,
@@ -47,7 +55,7 @@ const INITIAL_OPERATIONS: SlowOperation[] = [
 		name: 'Generate PDF',
 		description: 'Create invoice PDF',
 		duration: 5000,
-		icon: '📄',
+		icon: FileText,
 		isBackground: false,
 		isRunning: false,
 		progress: 0,
@@ -57,7 +65,7 @@ const INITIAL_OPERATIONS: SlowOperation[] = [
 		name: 'Process Image',
 		description: 'Resize and optimize avatar',
 		duration: 3000,
-		icon: '🖼️',
+		icon: Image,
 		isBackground: false,
 		isRunning: false,
 		progress: 0,
@@ -67,7 +75,7 @@ const INITIAL_OPERATIONS: SlowOperation[] = [
 		name: 'Call Webhook',
 		description: 'Notify external service',
 		duration: 1500,
-		icon: '🔗',
+		icon: Link2,
 		isBackground: false,
 		isRunning: false,
 		progress: 0,
@@ -77,7 +85,7 @@ const INITIAL_OPERATIONS: SlowOperation[] = [
 		name: 'Import CSV',
 		description: 'Process uploaded data file',
 		duration: 8000,
-		icon: '📊',
+		icon: BarChart3,
 		isBackground: false,
 		isRunning: false,
 		progress: 0,
@@ -320,7 +328,7 @@ export function Level21BackgroundJobs({
 											variant="outline"
 										>
 											<div className="flex items-center gap-3 w-full">
-												<span className="text-xl">{op.icon}</span>
+												{(() => { const Icon = op.icon; return <Icon className="w-5 h-5 shrink-0" />; })()}
 												<div className="flex-1">
 													<div className="text-foreground text-sm font-medium">
 														{op.name}
@@ -362,7 +370,7 @@ export function Level21BackgroundJobs({
 											variant="default"
 										>
 											<div className="flex items-center gap-3 w-full">
-												<span className="text-xl">{op.icon}</span>
+												{(() => { const Icon = op.icon; return <Icon className="w-5 h-5 shrink-0" />; })()}
 												<div className="flex-1">
 													<div className="text-foreground text-sm font-medium">
 														{op.name}
@@ -391,10 +399,10 @@ export function Level21BackgroundJobs({
 							<div className="bg-secondary px-4 py-3 border-b border-border flex justify-between items-center">
 								<div>
 									<div className="text-foreground font-semibold">
-										Sidekiq Job Queue
+										Solid Queue
 									</div>
 									<div className="text-xs text-muted-foreground">
-										Background jobs processing asynchronously
+										Rails 8 default — DB-backed job queue
 									</div>
 								</div>
 								<div className="flex gap-2">
@@ -489,46 +497,51 @@ end
 # Enqueue from controller:
 SendEmailJob.perform_later(user.id)
 
-# Runs async in Sidekiq worker!`,
+# Runs async via Solid Queue!`,
 							highlight: [2, 11],
 						},
 						{
-							filename: 'config/sidekiq.yml',
+							filename: 'config/queue.yml',
 							language: 'yaml',
-							code: `:concurrency: 10
-:queues:
-  - critical
-  - default
-  - low
+							code: `# Rails 8 uses Solid Queue by default
+# DB-backed: no Redis needed
 
-# Run with: bundle exec sidekiq`,
+production:
+  dispatchers:
+    - polling_interval: 1
+      batch_size: 500
+  workers:
+    - queues: "*"
+      threads: 5
+      processes: 2
+
+# Run with: bin/jobs`,
 							highlight: [],
 						},
 					]}
-					learningGoal="Background jobs let you respond fast and process slow work later. Essential for good UX."
 				>
 					<div className="p-4 border-t border-border">
 						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
 							When to Background
 						</div>
 						<ul className="text-xs text-muted-foreground space-y-1">
-							<li>✓ Sending emails</li>
-							<li>✓ Processing uploads</li>
-							<li>✓ External API calls</li>
-							<li>✓ Report generation</li>
-							<li>✓ Data imports/exports</li>
+							<li>+ Sending emails</li>
+							<li>+ Processing uploads</li>
+							<li>+ External API calls</li>
+							<li>+ Report generation</li>
+							<li>+ Data imports/exports</li>
 						</ul>
 					</div>
 
 					<div className="p-4 border-t border-border">
 						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-							Job Runners
+							Solid Queue (Rails 8)
 						</div>
 						<ul className="text-xs text-muted-foreground space-y-1">
-							<li>• Sidekiq - Redis-backed</li>
-							<li>• Solid Queue - Rails 8 default</li>
-							<li>• Good Job - Postgres-backed</li>
-							<li>• Delayed Job - Classic, simple</li>
+							<li>+ DB-backed (no Redis needed)</li>
+							<li>+ Built into Rails 8</li>
+							<li>+ Recurring jobs via YAML</li>
+							<li>+ Mission Queue for Mission Critical</li>
 						</ul>
 					</div>
 				</CodePreviewPanel>

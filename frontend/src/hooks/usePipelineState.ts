@@ -26,7 +26,7 @@ export interface UsePipelineStateReturn {
 	canvasRef: RefObject<HTMLDivElement | null>;
 
 	// Actions
-	handleDragStart: (e: DragEvent<HTMLDivElement>, nodeType: string) => void;
+	handleDragStart: (e: DragEvent<Element>, nodeType: string) => void;
 	handleDragEnd: () => void;
 	handleDragOver: (e: DragEvent<HTMLDivElement>) => void;
 	handleDrop: (e: DragEvent<HTMLDivElement>) => void;
@@ -65,7 +65,7 @@ export function usePipelineState(config?: PipelineStateConfig): UsePipelineState
 	const canvasRef = useRef<HTMLDivElement>(null);
 
 	// Drag handlers for palette nodes
-	function handleDragStart(e: DragEvent<HTMLDivElement>, nodeType: string) {
+	function handleDragStart(e: DragEvent<Element>, nodeType: string) {
 		setDraggedNodeType(nodeType);
 		e.dataTransfer.setData('text/plain', nodeType);
 		e.dataTransfer.effectAllowed = 'copy';

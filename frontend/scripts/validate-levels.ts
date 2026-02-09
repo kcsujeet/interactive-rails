@@ -1,9 +1,9 @@
-import { nodeTypes } from '../src/components/game/data';
-import { ACTS, getAllLevels } from '../src/content/acts';
+import { nodeTypes } from '../src/utils/gameData';
+import { ACTS, getAllLevels } from '../src/features/acts-registry';
 
 const errors: string[] = [];
 const allLevels = getAllLevels();
-const nodeTypeSet = new Set(nodeTypes.map((n) => n.type));
+const nodeTypeSet = new Set(nodeTypes.map((n: { type: string }) => n.type));
 
 const levelIds = new Set<string>();
 const levelNumbers = new Set<number>();
@@ -59,7 +59,7 @@ for (const act of ACTS) {
 	}
 }
 
-const expectedCount = 35;
+const expectedCount = 50;
 if (allLevels.length !== expectedCount) {
 	errors.push(
 		`Expected ${expectedCount} total levels, found ${allLevels.length}`,
