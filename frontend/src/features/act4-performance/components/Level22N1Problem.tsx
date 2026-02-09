@@ -228,32 +228,37 @@ export function Level22N1Problem({ onComplete, onExit }: LevelComponentProps) {
 						<div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
 							<div className="bg-secondary px-4 py-2 border-b border-border">
 								<span className="text-muted-foreground text-sm">
-									app/views/posts/index.html.erb
+									app/serializers/post_serializer.rb
 								</span>
 							</div>
 							<pre className="p-4 text-sm overflow-x-auto">
 								<code>
+									<span className="text-purple-400">class</span>{' '}
+									<span className="text-primary">PostSerializer</span>
+									{' < BaseSerializer'}
+									{'\n'}
+									{'  '}
+									<span className="text-purple-400">attributes</span>
+									{' :title, :body'}
+									{'\n\n'}
+									{'  '}
 									<span className="text-muted-foreground">
-										&lt;% @posts.each do |post| %&gt;
+										# This triggers a query EACH time!
 									</span>
 									{'\n'}
 									{'  '}
-									<span className="text-primary">&lt;h2&gt;</span>
-									{'<%= post.title %>'}
-									<span className="text-primary">&lt;/h2&gt;</span>
+									<span className="text-purple-400">attribute</span>
+									{' :author_name '}
+									<span className="text-purple-400">do</span>
+									{' |post|'}
 									{'\n'}
-									{'  '}
-									<span className="text-muted-foreground">
-										&lt;!-- This triggers a query EACH time! --&gt;
-									</span>
-									{'\n'}
-									{'  '}
-									<span className="text-warning">&lt;p&gt;</span>By: {'<%= '}
+									{'    '}
 									<span className="text-destructive">post.author.name</span>
-									{' %>'}
-									<span className="text-warning">&lt;/p&gt;</span>
 									{'\n'}
-									<span className="text-muted-foreground">&lt;% end %&gt;</span>
+									{'  '}
+									<span className="text-purple-400">end</span>
+									{'\n'}
+									<span className="text-purple-400">end</span>
 								</code>
 							</pre>
 						</div>

@@ -427,18 +427,17 @@ export function Level25CounterCaches({
 										<pre className="bg-secondary p-3 rounded-lg text-sm text-muted-foreground overflow-x-auto">
 											<code>
 												<span className="text-muted-foreground">
-													# app/views/posts/index.html.erb
+													# app/serializers/post_serializer.rb
 												</span>
 												{'\n'}
-												{'<% @posts.each do |post| %>'}
+												{'attribute :comment_count do |post|'}
 												{'\n'}
-												{'  <span>'}
+												{'  '}
 												<span className="text-destructive">
-													{'<%= post.comments.count %>'}
+													{'post.comments.count'}
 												</span>
-												{' comments</span>'}
 												{'\n'}
-												{'<% end %>'}
+												{'end'}
 											</code>
 										</pre>
 									</div>
@@ -561,18 +560,17 @@ export function Level25CounterCaches({
 										<pre className="bg-secondary p-3 rounded-lg text-sm text-muted-foreground overflow-x-auto">
 											<code>
 												<span className="text-muted-foreground">
-													# app/views/posts/index.html.erb
+													# app/serializers/post_serializer.rb
 												</span>
 												{'\n'}
-												{'<% @posts.each do |post| %>'}
+												{'attribute :comment_count do |post|'}
 												{'\n'}
-												{'  <span>'}
+												{'  '}
 												<span className="text-success">
-													{'<%= post.comments_count %>'}
+													{'post.comments_count'}
 												</span>
-												{' comments</span>'}
 												{'\n'}
-												{'<% end %>'}
+												{'end'}
 											</code>
 										</pre>
 									</div>
