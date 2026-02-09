@@ -1,9 +1,9 @@
 /**
- * Level 17: Form Objects
+ * Level 17: Validation Contracts
  *
- * Handle complex forms that span multiple models.
- * Player builds a registration form that creates User + Company.
- * Teaches: ActiveModel::Model, multi-model forms, form-level validations
+ * Handle complex multi-model operations with Dry::Validation.
+ * Player builds a registration contract that validates User + Company inputs.
+ * Teaches: Dry::Validation contracts, schema + rules, service objects
  */
 
 import { Building2, FileText, Plus, User } from 'lucide-react';
@@ -39,7 +39,7 @@ const FORM_FIELDS: FormField[] = [
 		type: 'email',
 		inForm: false,
 		validation:
-			'validates :email, presence: true, format: { with: URI::MailTo::EMAIL_REGEXP }',
+			"required(:email).filled(:string, format?: URI::MailTo::EMAIL_REGEXP)",
 	},
 	{
 		id: 'password',
@@ -47,7 +47,7 @@ const FORM_FIELDS: FormField[] = [
 		model: 'user',
 		type: 'password',
 		inForm: false,
-		validation: 'validates :password, length: { minimum: 8 }',
+		validation: "required(:password).filled(:string, min_size?: 8)",
 	},
 	{
 		id: 'company_name',
@@ -55,7 +55,7 @@ const FORM_FIELDS: FormField[] = [
 		model: 'company',
 		type: 'text',
 		inForm: false,
-		validation: 'validates :company_name, presence: true',
+		validation: "required(:company_name).filled(:string)",
 	},
 	{
 		id: 'company_size',
@@ -64,7 +64,7 @@ const FORM_FIELDS: FormField[] = [
 		type: 'select',
 		inForm: false,
 		validation:
-			'validates :company_size, inclusion: { in: %w[small medium large] }',
+			"required(:company_size).filled(:string, included_in?: %w[small medium large])",
 	},
 	{
 		id: 'terms',
@@ -72,7 +72,7 @@ const FORM_FIELDS: FormField[] = [
 		model: 'form',
 		type: 'checkbox',
 		inForm: false,
-		validation: 'validates :terms_accepted, acceptance: true',
+		validation: "required(:terms_accepted).filled(:bool, eql?: true)",
 	},
 ];
 
@@ -112,7 +112,7 @@ export function Level17FormObjects({
 
 		return {
 			valid: true,
-			message: 'Form object handles multiple models cleanly!',
+			message: 'Validation contract composes schemas cleanly!',
 		};
 	};
 
@@ -132,44 +132,89 @@ export function Level17FormObjects({
 	};
 
 	const generateFormCode = () => {
-		const validations = fieldsInForm
-			.map((f) => (f.validation ? `  ${f.validation}` : null))
-			.filter(Boolean)
-			.join('\n');
+		const userFields = fieldsInForm.filter((f) => f.model === 'user');
+		const companyFields = fieldsInForm.filter((f) => f.model === 'company');
+		const formFields = fieldsInForm.filter((f) => f.model === 'form');
 
-		return `class RegistrationForm
-  include ActiveModel::Model
-  include ActiveModel::Attributes
+		const sections: string[] = [];
 
-  attribute :email, :string
-  attribute :password, :string
-  attribute :company_name, :string
-  attribute :company_size, :string
-  attribute :terms_accepted, :boolean
+		if (userFields.length > 0) {
+			const validations = userFields
+				.map((f) => (f.validation ? `  ${f.validation}` : null))
+				.filter(Boolean)
+				.join('\n');
+			sections.push(`# app/schemas/user_schema.rb
+UserSchema = Dry::Schema.Params do
+${validations}
+end`);
+		}
 
-${validations || '  # Add validations here'}
+		if (companyFields.length > 0) {
+			const validations = companyFields
+				.map((f) => (f.validation ? `  ${f.validation}` : null))
+				.filter(Boolean)
+				.join('\n');
+			sections.push(`# app/schemas/company_schema.rb
+CompanySchema = Dry::Schema.Params do
+${validations}
+end`);
+		}
 
-  def save
-    return false unless valid?
+		if (formFields.length > 0) {
+			const validations = formFields
+				.map((f) => (f.validation ? `  ${f.validation}` : null))
+				.filter(Boolean)
+				.join('\n');
+			sections.push(`# app/schemas/registration_schema.rb
+RegistrationSchema = Dry::Schema.Params do
+${validations}
+end`);
+		}
+
+		const schemaNames = [
+			userFields.length > 0 ? 'UserSchema' : null,
+			companyFields.length > 0 ? 'CompanySchema' : null,
+			formFields.length > 0 ? 'RegistrationSchema' : null,
+		].filter(Boolean);
+
+		const paramsLine =
+			schemaNames.length > 0
+				? `  params(${schemaNames.join(' & ')})`
+				: '  # Add fields to compose schemas';
+
+		sections.push(`# app/contracts/registration_contract.rb
+class RegistrationContract < Dry::Validation::Contract
+${paramsLine}
+
+  rule(:terms_accepted) do
+    key.failure("must be accepted") unless values[:terms_accepted]
+  end
+end`);
+
+		sections.push(`# app/services/registration_service.rb
+class RegistrationService
+  def call(params)
+    result = RegistrationContract.new.call(params)
+    return result if result.failure?
+
+    attrs = result.to_h
 
     ActiveRecord::Base.transaction do
       company = Company.create!(
-        name: company_name,
-        size: company_size
+        name: attrs[:company_name],
+        size: attrs[:company_size]
       )
 
       User.create!(
-        email: email,
-        password: password,
+        email: attrs[:email],
+        password: attrs[:password],
         company: company
       )
     end
-
-    true
-  rescue ActiveRecord::RecordInvalid
-    false
   end
-end`;
+end`);
+
+		return sections.join('\n\n');
 	};
 
 	return (
@@ -275,7 +320,7 @@ end`;
 			<CenterPanel>
 				<LevelHeader
 					actNumber={3}
-					levelName="Form Objects"
+					levelName="Validation Contracts"
 					levelNumber={17}
 					onComplete={handleComplete}
 					onExit={onExit}
@@ -362,25 +407,21 @@ end`;
 				<CodePreviewPanel
 					files={[
 						{
-							filename: 'app/forms/registration_form.rb',
+							filename: 'app/schemas/ & app/contracts/',
 							language: 'ruby',
 							code: generateFormCode(),
-							highlight:
-								fieldsInForm.length === fields.length
-									? [17, 18, 19, 20, 21, 23, 24, 25, 26]
-									: [],
 						},
 					]}
 				>
 					<div className="p-4 border-t border-border">
 						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-							Why Form Objects?
+							Why Dry::Validation?
 						</div>
 						<ul className="text-xs text-muted-foreground space-y-1">
-							<li>+ One form, multiple models</li>
-							<li>+ Centralized cross-model validation</li>
-							<li>+ Atomic transaction (all or nothing)</li>
-							<li>+ Easy to test in isolation</li>
+							<li>+ Schema checks types &amp; shape first</li>
+							<li>+ Rules handle cross-field logic</li>
+							<li>+ Schemas are reusable across contracts</li>
+							<li>+ Works anywhere (not Rails-coupled)</li>
 						</ul>
 					</div>
 				</CodePreviewPanel>

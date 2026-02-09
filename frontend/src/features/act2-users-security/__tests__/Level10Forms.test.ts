@@ -1,7 +1,7 @@
 /**
- * Tests for Level 10: Form Objects
+ * Tests for Level 10: Validation Contracts
  *
- * Validates form object is added and all fields pass validation.
+ * Validates validation contract is added and all fields pass validation.
  */
 
 import { describe, expect, test } from 'bun:test';
@@ -31,7 +31,7 @@ function validateLevel10Solution(state: Level10State): ValidationResult {
 	const errors: string[] = [];
 
 	if (!state.formObjectAdded) {
-		errors.push('Add a Form Object to consolidate validations');
+		errors.push('Add a Validation Contract to consolidate validations');
 	}
 
 	if (!state.submitted) {
@@ -55,7 +55,7 @@ function validateLevel10Solution(state: Level10State): ValidationResult {
 
 	return {
 		valid: true,
-		message: 'Form Object consolidates multi-model validation!',
+		message: 'Validation Contract consolidates multi-model validation!',
 	};
 }
 
@@ -78,7 +78,7 @@ const INITIAL_FIELDS: FormField[] = [
 	},
 ];
 
-describe('Level 10: Form Objects', () => {
+describe('Level 10: Validation Contracts', () => {
 	describe('Initial State', () => {
 		test('should be invalid when nothing done', () => {
 			const result = validateLevel10Solution({
@@ -90,14 +90,14 @@ describe('Level 10: Form Objects', () => {
 			expect(result.valid).toBe(false);
 		});
 
-		test('should require adding form object', () => {
+		test('should require adding validation contract', () => {
 			const result = validateLevel10Solution({
 				formObjectAdded: false,
 				submitted: false,
 				fields: INITIAL_FIELDS,
 			});
 
-			expect(result.details!.some((d) => d.includes('Form Object'))).toBe(true);
+			expect(result.details!.some((d) => d.includes('Validation Contract'))).toBe(true);
 		});
 
 		test('should require submitting form', () => {

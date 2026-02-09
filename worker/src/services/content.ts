@@ -3152,7 +3152,7 @@ const allChallenges: Challenge[] = [
 		],
 		correct_answer: 'd',
 		explanation:
-			'to_i converts safely. For complex validation, use form objects.',
+			'to_i converts safely. For complex validation, use validation contracts (dry-validation).',
 	},
 	{
 		id: 'controllers-params-009',
@@ -3180,13 +3180,13 @@ const allChallenges: Challenge[] = [
 		question: 'Best practice for complex parameter handling?',
 		options: [
 			{ id: 'a', text: 'Long permit lists in controller' },
-			{ id: 'b', text: 'Form objects or parameter objects' },
+			{ id: 'b', text: 'Validation contracts or parameter objects' },
 			{ id: 'c', text: 'Skip strong params' },
 			{ id: 'd', text: 'Permit everything' },
 		],
 		correct_answer: 'b',
 		explanation:
-			'Form objects encapsulate complex validation and transformation.',
+			'Validation contracts encapsulate complex validation and transformation.',
 	},
 
 	// === CONTROLLERS - RENDERING (10) ===
@@ -4129,12 +4129,12 @@ const allChallenges: Challenge[] = [
 		question: 'Best practice for complex forms?',
 		options: [
 			{ id: 'a', text: 'All logic in view' },
-			{ id: 'b', text: 'Form objects for validation and processing' },
+			{ id: 'b', text: 'Validation contracts for validation and processing' },
 			{ id: 'c', text: 'JavaScript only' },
 			{ id: 'd', text: 'Multiple submit buttons' },
 		],
 		correct_answer: 'b',
-		explanation: 'Form objects encapsulate complex form logic outside models.',
+		explanation: 'Validation contracts encapsulate complex validation logic outside models.',
 	},
 
 	// === VIEWS - ASSETS (10) ===

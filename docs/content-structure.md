@@ -41,7 +41,7 @@ RailsExpert (50 levels, 8 acts)
 ├── Act 3: Clean Architecture (7 levels)
 │   ├── Level 15: Service Objects
 │   ├── Level 16: Concerns & Modules
-│   ├── Level 17: Form Objects
+│   ├── Level 17: Validation Contracts
 │   ├── Level 18: Custom Validators
 │   ├── Level 19: Error Handling
 │   ├── Level 20: Action Mailer
@@ -539,7 +539,7 @@ export function LevelXXName({ onComplete }: LevelComponentProps) {
 **Act 3 - Clean Architecture:**
 - Service objects
 - Concerns and modules
-- Form objects
+- Validation contracts (dry-validation)
 - Custom validators
 - Error handling
 - Action Mailer

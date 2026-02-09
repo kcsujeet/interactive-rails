@@ -170,7 +170,7 @@ export const nodeTypes: NodeTypeInfo[] = [
 		name: 'Form',
 		color: '#14b8a6',
 		icon: '📝',
-		description: 'Form object (multi-model)',
+		description: 'Validation contract (multi-model)',
 	},
 	{
 		type: 'component',
@@ -415,10 +415,10 @@ export const nodeTypes: NodeTypeInfo[] = [
 	},
 	{
 		type: 'form_object',
-		name: 'Form Object',
+		name: 'Contract',
 		color: '#2dd4bf',
-		icon: 'FO',
-		description: 'Multi-model form object',
+		icon: 'VC',
+		description: 'Dry::Validation contract',
 	},
 	{
 		type: 'validator',

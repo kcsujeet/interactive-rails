@@ -52,7 +52,7 @@ Every level exists because the app **needs** it at that stage — not because Ra
 |---|------|---------|----------|--------|
 | 15 | Service Objects | PORO services, Result pattern | Registration does too much in one controller action. | Yes |
 | 16 | Concerns & Modules | `ActiveSupport::Concern`, shared behavior | Tagging logic duplicated across Post, Comment, Photo. | Yes |
-| 17 | Form Objects | `ActiveModel::Model`, multi-model validation | Onboarding creates User + Company + Address. Cross-model validations. | Yes |
+| 17 | Validation Contracts | `Dry::Validation`, `Dry::Schema`, multi-model validation | Onboarding creates User + Company + Address. Cross-model validations. | Yes |
 | 18 | Custom Validators | Validator classes, conditional validations | Users submit invalid URLs and future dates. Build reusable validators. | Yes |
 | 19 | Error Handling | `rescue_from`, structured JSON errors | API returns raw 500s with stack traces. Build consistent error responses. | Yes |
 | 20 | Action Mailer | Mailers, `generates_token_for`, password resets | Users forget passwords. Build a password reset flow. | Yes |

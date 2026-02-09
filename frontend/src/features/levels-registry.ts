@@ -13,7 +13,7 @@
  * - Authentication, Validations, Callbacks, Authorization, Testing, Security, Scopes & Enums
  *
  * Act 3: Clean Architecture (7 levels)
- * - Service Objects, Concerns, Form Objects, Custom Validators, Error Handling, Action Mailer, Background Jobs
+ * - Service Objects, Concerns, Validation Contracts, Custom Validators, Error Handling, Action Mailer, Background Jobs
  *
  * Act 4: Performance (7 levels)
  * - N+1 Problem, Eager Loading, Indexing, Counter Caches, Pagination, Search, Caching

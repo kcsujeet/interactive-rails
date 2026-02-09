@@ -2,7 +2,7 @@
  * Act 3: Clean Architecture
  * "Codebase doubles. Fat controllers, duplicated logic. Time to refactor."
  *
- * Levels 15-21: Service Objects, Concerns & Modules, Form Objects, Custom Validators,
+ * Levels 15-21: Service Objects, Concerns & Modules, Validation Contracts, Custom Validators,
  * Error Handling, Action Mailer, Background Jobs
  * App context: Social platform API with code quality problems
  */
@@ -418,14 +418,14 @@ end`,
 };
 
 // ============================================
-// Level 17: Form Objects
+// Level 17: Validation Contracts
 // ============================================
 
 const level17FormObjects: Level = {
 	id: 'act3-level17-form-objects',
 	actId: 3,
 	levelNumber: 17,
-	name: 'Form Objects',
+	name: 'Validation Contracts',
 	requiresTests: true,
 	trigger: {
 		type: 'new_feature',
@@ -505,7 +505,7 @@ const level17FormObjects: Level = {
 		observation:
 			'The controller manually validates and creates three models. Cross-model rules like "company name is required if role is admin" live in the controller. Partial failures leave orphaned records because there is no transaction.',
 		rootCause:
-			'No form object to encapsulate multi-model validation and creation in a single transactional unit.',
+			'No validation contract to encapsulate multi-model validation and creation in a single transactional unit.',
 		codeExample: `# app/controllers/api/v1/onboarding_controller.rb
 class Api::V1::OnboardingController < ApplicationController
   def create
@@ -541,94 +541,100 @@ class Api::V1::OnboardingController < ApplicationController
     render json: { error: e.message }, status: 422
   end
 end`,
-		goal: 'Create a form object using ActiveModel::Model that validates all inputs and persists them in a single transaction.',
+		goal: 'Create a Dry::Validation contract that validates all inputs with schema + rules, then a service to persist them in a single transaction.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'form_object_created' }],
 	availableNodes: ['form_object'],
 	unlockedNodes: ['form_object'],
 	learningContent: {
-		title: 'Form Objects with ActiveModel::Model',
-		conceptExplanation: `Form objects act as a single entry point for multi-model forms. They include \`ActiveModel::Model\` to get validations, attribute assignment, and error handling without a database table.
+		title: 'Validation Contracts with Dry::Validation',
+		conceptExplanation: `Validation contracts act as a single entry point for multi-model operations. Using \`dry-validation\` and \`dry-schema\`, you get a clean separation between **schema** (shape & types) and **rules** (business logic).
 
-**Key benefits:**
-- All validations in one place (including cross-model rules)
-- Single transaction wraps all creates/updates
-- Works with \`params.expect()\` just like a model
-- Testable without hitting multiple models
+**Why dry-validation over ActiveModel::Model?**
+- **Two-layer validation:** Schema checks structure/types first, rules check business logic second
+- **Composable:** Contracts can reuse shared schemas and rule sets
+- **Immutable:** No mutation, no state — easier to reason about
+- **Better errors:** Structured error objects with paths, not just flat strings
+- **No Rails coupling:** Works in service objects, CLI tools, anywhere
 
 **Structure:**
-1. Include \`ActiveModel::Model\` and \`ActiveModel::Attributes\`
-2. Define attributes with types
-3. Add validations (including cross-model rules)
-4. Implement \`#save\` that wraps everything in a transaction
+1. Define reusable \`Dry::Schema.Params\` in \`app/schemas/\` (one per model or concern)
+2. Create a \`Dry::Validation::Contract\` in \`app/contracts/\` that composes schemas with \`&\`
+3. \`rule\` blocks define cross-field business logic (runs after all schemas pass)
+4. A separate service wraps persistence in a transaction
 
-**ActiveModel::Model gives you:**
-- \`initialize(attributes = {})\` with mass assignment
-- \`valid?\`, \`invalid?\`, \`errors\`
-- Naming conventions for form helpers and JSON serialization
-- Works exactly like an ActiveRecord model from the controller's perspective`,
-		railsCodeExample: `# app/forms/onboarding_form.rb
-class OnboardingForm
-  include ActiveModel::Model
-  include ActiveModel::Attributes
+**Key concepts:**
+- \`Dry::Schema.Params { required(:email).filled(:string) }\` — reusable schema (shape + types)
+- \`params(UserSchema & CompanySchema)\` — compose schemas in a contract
+- \`rule(:role, :plan) { ... }\` — business rules that span multiple fields
+- \`key.failure("message")\` — attach errors to specific fields
+- \`contract.call(params)\` returns a \`Result\` (success or failure with errors)`,
+		railsCodeExample: `# Gemfile
+gem "dry-validation"
+gem "dry-schema"
 
-  # User attributes
-  attribute :email, :string
-  attribute :password, :string
-  attribute :role, :string, default: "member"
+# app/schemas/user_schema.rb
+UserSchema = Dry::Schema.Params do
+  required(:email).filled(:string, format?: URI::MailTo::EMAIL_REGEXP)
+  required(:password).filled(:string, min_size?: 8)
+  required(:role).filled(:string)
+end
 
-  # Company attributes
-  attribute :company_name, :string
-  attribute :plan, :string, default: "starter"
+# app/schemas/company_schema.rb
+CompanySchema = Dry::Schema.Params do
+  required(:company_name).filled(:string)
+  required(:plan).filled(:string)
+end
 
-  # Address attributes
-  attribute :street, :string
-  attribute :city, :string
-  attribute :country, :string
+# app/schemas/address_schema.rb
+AddressSchema = Dry::Schema.Params do
+  required(:city).filled(:string)
+  required(:country).filled(:string)
+  optional(:street).maybe(:string)
+end
 
-  # Standard validations
-  validates :email, presence: true, format: { with: URI::MailTo::EMAIL_REGEXP }
-  validates :password, presence: true, length: { minimum: 8 }
-  validates :company_name, presence: true
-  validates :city, presence: true
-  validates :country, presence: true
+# app/contracts/onboarding_contract.rb
+class OnboardingContract < Dry::Validation::Contract
+  # Compose reusable schemas — each can be shared across contracts
+  params(UserSchema & CompanySchema & AddressSchema)
 
-  # Cross-model validation: only form objects can do this cleanly
-  validate :admin_requires_paid_plan
-
-  attr_reader :user, :company
-
-  def save
-    return false unless valid?
-
-    ActiveRecord::Base.transaction do
-      @company = Company.create!(name: company_name, plan: plan)
-      @user = User.create!(
-        email: email,
-        password: password,
-        role: role,
-        company: @company
-      )
-      Address.create!(
-        addressable: @company,
-        street: street,
-        city: city,
-        country: country
-      )
+  # Rules: cross-field business logic (runs after all schemas pass)
+  rule(:role, :plan) do
+    if values[:role] == "admin" && values[:plan] == "starter"
+      key(:plan).failure("must be a paid plan for admin users")
     end
+  end
+end
 
-    true
-  rescue ActiveRecord::RecordInvalid => e
-    errors.add(:base, e.message)
-    false
+# app/services/onboarding_service.rb
+class OnboardingService
+  def initialize(contract: OnboardingContract.new)
+    @contract = contract
   end
 
-  private
+  def call(params)
+    result = @contract.call(params)
+    return result if result.failure?
 
-  def admin_requires_paid_plan
-    if role == "admin" && plan == "starter"
-      errors.add(:plan, "must be a paid plan for admin users")
+    attrs = result.to_h
+
+    ActiveRecord::Base.transaction do
+      company = Company.create!(name: attrs[:company_name], plan: attrs[:plan])
+      user = User.create!(
+        email: attrs[:email],
+        password: attrs[:password],
+        role: attrs[:role],
+        company: company
+      )
+      Address.create!(
+        addressable: company,
+        street: attrs[:street],
+        city: attrs[:city],
+        country: attrs[:country]
+      )
+
+      { user: user, company: company }
     end
   end
 end
@@ -636,12 +642,12 @@ end
 # app/controllers/api/v1/onboarding_controller.rb
 class Api::V1::OnboardingController < ApplicationController
   def create
-    form = OnboardingForm.new(onboarding_params)
+    result = OnboardingService.new.call(onboarding_params)
 
-    if form.save
-      render json: UserSerializer.new(form.user).serializable_hash.to_json, status: :created
+    if result.is_a?(Dry::Validation::Result)
+      render json: { errors: result.errors.to_h }, status: :unprocessable_entity
     else
-      render json: { errors: form.errors.full_messages }, status: :unprocessable_entity
+      render json: UserSerializer.new(result[:user]).serializable_hash.to_json, status: :created
     end
   end
 
@@ -656,68 +662,65 @@ class Api::V1::OnboardingController < ApplicationController
   end
 end
 
-# test/forms/onboarding_form_test.rb
-class OnboardingFormTest < ActiveSupport::TestCase
-  test "valid onboarding creates user, company, and address" do
-    form = OnboardingForm.new(
+# test/contracts/onboarding_contract_test.rb
+class OnboardingContractTest < ActiveSupport::TestCase
+  setup { @contract = OnboardingContract.new }
+
+  test "valid params pass" do
+    result = @contract.call(
       email: "alice@example.com", password: "secure1234",
-      company_name: "Acme", plan: "pro",
+      role: "member", company_name: "Acme", plan: "pro",
       city: "Portland", country: "US"
     )
 
-    assert form.save
-    assert_equal "Acme", form.company.name
-    assert_equal "alice@example.com", form.user.email
+    assert result.success?
   end
 
-  test "admin with starter plan is invalid" do
-    form = OnboardingForm.new(
+  test "admin with starter plan fails" do
+    result = @contract.call(
       email: "admin@example.com", password: "secure1234",
       role: "admin", plan: "starter",
       company_name: "Acme", city: "Portland", country: "US"
     )
 
-    refute form.save
-    assert_includes form.errors[:plan], "must be a paid plan for admin users"
+    assert result.failure?
+    assert_includes result.errors[:plan], "must be a paid plan for admin users"
   end
 
-  test "rolls back everything on partial failure" do
-    # Company name triggers DB uniqueness violation
-    Company.create!(name: "Acme", plan: "pro")
-
-    form = OnboardingForm.new(
-      email: "alice@example.com", password: "secure1234",
+  test "missing email fails schema check" do
+    result = @contract.call(
+      password: "secure1234", role: "member",
       company_name: "Acme", plan: "pro",
       city: "Portland", country: "US"
     )
 
-    refute form.save
-    assert_nil User.find_by(email: "alice@example.com")  # Rolled back!
+    assert result.failure?
+    assert result.errors[:email].any?
   end
 end`,
 		commonMistakes: [
 			'Forgetting to wrap persistence in a transaction (partial failures leave orphaned records)',
-			'Using accepts_nested_attributes_for instead of a form object (hard to validate, hard to test)',
-			'Not including ActiveModel::Attributes (relying on bare attr_accessor loses type casting)',
-			'Putting cross-model validations in a callback instead of the form object',
-			'Not testing the form object in isolation from the controller',
+			'Inlining all validations in the contract params block instead of extracting reusable schemas to app/schemas/',
+			'Mixing schema checks and business rules in the same layer (dry-validation separates them)',
+			'Not checking result.failure? before using the validated data',
+			'Putting cross-model validations in a model callback instead of a contract rule',
 		],
 		whenToUse:
-			'Any endpoint that creates or updates multiple models, or where cross-model validations are needed that do not belong on any single model.',
+			'Any endpoint that creates or updates multiple models, or where cross-field validations are needed that do not belong on any single model.',
 		furtherReading: [
 			{
-				title: 'ActiveModel::Model',
-				url: 'https://api.rubyonrails.org/classes/ActiveModel/Model.html',
+				title: 'dry-validation',
+				url: 'https://dry-rb.org/gems/dry-validation/',
 			},
 			{
-				title: 'Form Objects in Rails',
-				url: 'https://thoughtbot.com/blog/activemodel-form-objects',
+				title: 'dry-schema',
+				url: 'https://dry-rb.org/gems/dry-schema/',
 			},
 		],
 	},
 	hint: {
 		delay: 25,
-		text: 'Add a Form Object node between the Controller and the models. It validates all inputs together and persists them in a single transaction.',
+		text: 'Add a Validation Contract node between the Controller and the models. The contract validates all inputs, then a service persists them in a single transaction.',
 	},
 };
 
@@ -1771,7 +1774,7 @@ export const actThree: Act = {
 	name: 'Clean Architecture',
 	tagline: 'Codebase doubles. Time to refactor.',
 	description:
-		'Extract fat controllers into service objects, concerns, form objects, and mailers. Set up proper error handling and move slow work to Solid Queue background jobs.',
+		'Extract fat controllers into service objects, concerns, validation contracts, and mailers. Set up proper error handling and move slow work to Solid Queue background jobs.',
 	levels: [
 		level15ServiceObjects,
 		level16Concerns,

@@ -324,7 +324,7 @@ function activateDefenses() {
 |-----|------|--------|-------|
 | 1 | The Foundation | 7 | MVC, CRUD, Controllers, Serializers, Routes, Associations |
 | 2 | Users & Security | 7 | Authentication, Validations, Callbacks, Authorization, Testing |
-| 3 | Clean Architecture | 7 | Service Objects, Concerns, Form Objects, Error Handling, Background Jobs |
+| 3 | Clean Architecture | 7 | Service Objects, Concerns, Validation Contracts, Error Handling, Background Jobs |
 | 4 | Performance | 7 | N+1 Queries, Eager Loading, Indexing, Caching, Search |
 | 5 | Production Features | 8 | Polymorphic, Transactions, Active Storage, Real-Time, API Versioning |
 | 6 | Reliability | 6 | Middleware, Rate Limiting, Soft Deletes, Safe Migrations |
