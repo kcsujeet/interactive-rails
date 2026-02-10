@@ -421,8 +421,8 @@ end`,
 // Level 17: Validation Contracts
 // ============================================
 
-const level17FormObjects: Level = {
-	id: 'act3-level17-form-objects',
+const level17ValidationContracts: Level = {
+	id: 'act3-level17-validation-contracts',
 	actId: 3,
 	levelNumber: 17,
 	name: 'Validation Contracts',
@@ -1832,7 +1832,7 @@ export const actThree: Act = {
 	levels: [
 		level15ServiceObjects,
 		level16Concerns,
-		level17FormObjects,
+		level17ValidationContracts,
 		level18QueryObjects,
 		level19ErrorHandling,
 		level20ActionMailer,

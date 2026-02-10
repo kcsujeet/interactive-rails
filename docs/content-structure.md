@@ -501,6 +501,16 @@ export function LevelXXName({ onComplete }: LevelComponentProps) {
 
 ### Level Design Tips
 
+Every level component must teach through three phases: **WHY -> HOW -> ADVANTAGE**.
+
+1. **WHY** -- Show the problem first. The player must feel the pain before seeing the solution. Start with broken/ugly/slow code and make the player experience why the current approach fails (e.g., fat controller, N+1 queries, duplicated logic).
+2. **HOW** -- Teach the pattern through interaction. The player actively builds or transforms code using the Rails pattern (e.g., extracting a service object, adding eager loading, composing query methods). The interaction should involve meaningful choices, not just "click all items."
+3. **ADVANTAGE** -- Show the concrete improvement. Before/after comparison, line count reduction, query count drop, or side-by-side code clarity. The player should see measurable proof that the pattern is better than the alternative.
+
+Levels within an act must form a **linear progression** -- each level builds on skills and concepts from earlier levels so the player feels cumulative mastery, not disconnected lessons. When designing a level, explicitly connect it to what came before (e.g., reference mechanics the player already knows, reuse interaction patterns from earlier levels, introduce only one new core concept per level anchored to prior knowledge).
+
+Additional tips:
+
 1. **Clear Objectives** - State exactly what players need to achieve
 2. **Progressive Difficulty** - Build on previous levels
 3. **Realistic Scenarios** - Use production-relevant examples

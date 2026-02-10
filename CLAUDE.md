@@ -61,6 +61,14 @@ Every level component must teach through three phases: **WHY → HOW → ADVANTA
 
 When creating or redesigning a level component, ensure all three phases are present in the gameplay. Reference `docs/spec.md` for each level's scenario and concept.
 
+### Level Design: Linear Progression
+
+Levels within an act must form a coherent learning path. Each level should build on skills and concepts from earlier levels so the player feels cumulative mastery, not disconnected lessons. When designing a level, explicitly connect it to what came before:
+
+- Reference mechanics the player already knows (e.g., "You extracted a concern in L16 — now extract validations the same way")
+- Reuse interaction patterns from earlier levels so new concepts feel familiar (e.g., L17 reuses L16's step-unlock gating and L18's before/after grid)
+- Introduce only one new core concept per level — anchor it to prior knowledge
+
 ---
 
 ## Code Conventions
