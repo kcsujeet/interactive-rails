@@ -4,130 +4,37 @@ globs: "*.ts, *.tsx, *.html, *.css, *.js, *.jsx, package.json"
 alwaysApply: false
 ---
 
-## IMPORTANT: Git Commits
+## Critical Rules
 
 **Always ask for permission before committing changes. This is non-negotiable.**
-
 Do NOT run `git commit` without explicit user approval.
+
+Default to using Bun instead of Node.js:
+
+- `bun <file>` (not `node` / `ts-node`)
+- `bun test` (not `jest` / `vitest`)
+- `bun build <file>` (not `webpack` / `esbuild`)
+- `bun install` (not `npm` / `yarn` / `pnpm install`)
+- `bun run <script>` (not `npm` / `yarn` / `pnpm run`)
+- `bunx <pkg>` (not `npx`)
+- Bun automatically loads .env — don't use dotenv.
 
 ---
 
-Default to using Bun instead of Node.js.
+## Project Architecture
 
-- Use `bun <file>` instead of `node <file>` or `ts-node <file>`
-- Use `bun test` instead of `jest` or `vitest`
-- Use `bun build <file.html|file.ts|file.css>` instead of `webpack` or `esbuild`
-- Use `bun install` instead of `npm install` or `yarn install` or `pnpm install`
-- Use `bun run <script>` instead of `npm run <script>` or `yarn run <script>` or `pnpm run <script>`
-- Use `bunx <package> <command>` instead of `npx <package> <command>`
-- Bun automatically loads .env, so don't use dotenv.
+- Always follow bulletproof-react project structure. https://github.com/alan2207/bulletproof-react/blob/master/docs/project-structure.md
 
-## APIs
-
-- `Bun.serve()` supports WebSockets, HTTPS, and routes. Don't use `express`.
-- `bun:sqlite` for SQLite. Don't use `better-sqlite3`.
-- `Bun.redis` for Redis. Don't use `ioredis`.
-- `Bun.sql` for Postgres. Don't use `pg` or `postgres.js`.
-- `WebSocket` is built-in. Don't use `ws`.
-- Prefer `Bun.file` over `node:fs`'s readFile/writeFile
-- Bun.$`ls` instead of execa.
-
-## Testing
-
-Use `bun test` to run tests.
-
-```ts#index.test.ts
-import { test, expect } from "bun:test";
-
-test("hello world", () => {
-  expect(1).toBe(1);
-});
-```
-
-## Frontend
-
-Use HTML imports with `Bun.serve()`. Don't use `vite`. HTML imports fully support React, CSS, Tailwind.
-
-Server:
-
-```ts#index.ts
-import index from "./index.html"
-
-Bun.serve({
-  routes: {
-    "/": index,
-    "/api/users/:id": {
-      GET: (req) => {
-        return new Response(JSON.stringify({ id: req.params.id }));
-      },
-    },
-  },
-  // optional websocket support
-  websocket: {
-    open: (ws) => {
-      ws.send("Hello, world!");
-    },
-    message: (ws, message) => {
-      ws.send(message);
-    },
-    close: (ws) => {
-      // handle close
-    }
-  },
-  development: {
-    hmr: true,
-    console: true,
-  }
-})
-```
-
-HTML files can import .tsx, .jsx or .js files directly and Bun's bundler will transpile & bundle automatically. `<link>` tags can point to stylesheets and Bun's CSS bundler will bundle.
-
-```html#index.html
-<html>
-  <body>
-    <h1>Hello, world!</h1>
-    <script type="module" src="./frontend.tsx"></script>
-  </body>
-</html>
-```
-
-With the following `frontend.tsx`:
-
-```tsx#frontend.tsx
-import React from "react";
-import { createRoot } from "react-dom/client";
-
-// import .css files directly and it works
-import './index.css';
-
-const root = createRoot(document.body);
-
-export default function Frontend() {
-  return <h1>Hello, world!</h1>;
-}
-
-root.render(<Frontend />);
-```
-
-Then, run index.ts
-
-```sh
-bun --hot ./index.ts
-```
-
-For more information, read the Bun API docs in `node_modules/bun-types/docs/**.mdx`.
-
-## Import Alias
+### Import Alias
 
 Use `@/` alias for imports from `src/`:
 
 ```tsx
-// ✅ CORRECT
+// CORRECT
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 
-// ❌ WRONG
+// WRONG — no relative paths
 import { Button } from "../../components/ui/Button";
 ```
 
@@ -142,95 +49,66 @@ Run `bun scripts/fix-imports.ts` to automatically convert relative imports to us
 </script>
 ```
 
-## UI Components (shadcn/ui Pattern)
+### Level Design: Three-Phase Pedagogy
 
-This project uses a shadcn/ui-style design system. Follow these strict guidelines:
+Every level component must teach through three phases: **WHY → HOW → ADVANTAGE**.
 
-### Installing New Components
+1. **WHY** — Show the problem first. The player must feel the pain before seeing the solution. Start with broken/ugly/slow code and make the player experience why the current approach fails (e.g., fat controller, N+1 queries, duplicated logic).
 
-Always use the shadcn CLI to add new UI components:
+2. **HOW** — Teach the pattern through interaction. The player actively builds or transforms code using the Rails pattern (e.g., extracting a service object, adding eager loading, composing query methods). The interaction should involve meaningful choices, not just "click all items."
 
-```sh
-bunx shadcn@latest add button
-bunx shadcn@latest add card
-bunx shadcn@latest add badge
-bunx shadcn@latest add input
-```
+3. **ADVANTAGE** — Show the concrete improvement. Before/after comparison, line count reduction, query count drop, or side-by-side code clarity. The player should see measurable proof that the pattern is better than the alternative.
 
-Never manually create UI components - use the CLI to ensure consistency with the design system.
+When creating or redesigning a level component, ensure all three phases are present in the gameplay. Reference `docs/spec.md` for each level's scenario and concept.
 
-### Use Actual Components, Not Variant Functions
+---
 
-Always use the actual UI components (`Button`, `Card`, `Badge`, etc.) instead of just the variant functions:
+## Code Conventions
 
-```tsx
-// ✅ CORRECT - Use actual components
-import { Button } from "../components/ui/Button";
-import { Card } from "../components/ui/Card";
-import { Badge } from "../components/ui/Badge";
-
-<Button asChild size="xl">
-  <a href="/dashboard">Start Learning</a>
-</Button>
-
-<Card className="p-6">
-  <h3>Card content</h3>
-</Card>
-
-<Badge variant="success">Active</Badge>
-```
-
-```tsx
-// ❌ WRONG - Don't use variant functions for static markup
-import { buttonVariants } from "../components/ui/Button";
-
-<a href="/dashboard" class={buttonVariants({ size: "xl" })}>Start Learning</a>
-```
-
-### When to Use Variant Functions
-
-Only use `buttonVariants`, `cardVariants`, etc. when generating dynamic HTML via JavaScript (e.g., `innerHTML`):
-
-```tsx
-// ✅ CORRECT - Variant functions for dynamic innerHTML
-const cardClass = cardVariants({});
-container.innerHTML = `<div class="${cardClass}">Dynamic content</div>`;
-```
-
-### No Custom CSS Utility Classes
-
-- Never create custom utility classes like `.btn`, `.card`, `.input`, `.auth-card`, `.cta-btn`
-- Use Tailwind classes directly on elements or use the UI components
-- Keep `global.css` minimal: only design tokens (`@theme`), keyframes, base styles, and third-party library styles
-
-### Styling Guidelines
-
-- **Never use inline `style` attributes.** Always use Tailwind utility classes instead. For animations, use `tw-animate-css` classes (`animate-in`, `fade-in`, `slide-in-from-bottom-3`, `zoom-in-95`, `duration-*`, `delay-*`). Use arbitrary value classes (e.g., `delay-[400ms]`) when no standard utility exists.
-- Use semantic color tokens: `text-foreground`, `bg-card`, `border-border`, `text-muted-foreground`
-- Use Tailwind classes directly, not custom CSS classes in `<style>` blocks
-- For Astro pages, import and use React components directly (they render statically without hydration for presentational use)
-
-## Icons
+### Icons
 
 **Use Lucide React icons instead of emojis throughout the codebase.**
 
 ```tsx
-// ✅ CORRECT - Use Lucide icons
 import { Database, Zap, Search, Settings } from "lucide-react";
-
 <Database className="w-5 h-5 text-primary" />
-<Zap className="w-4 h-4" />
 ```
 
-```tsx
-// ❌ WRONG - Don't use emojis
-<span>🗄️</span>
-<span>⚡</span>
-```
+### UI Components (shadcn/ui)
 
-This ensures consistent styling, proper sizing, and accessibility across the application.
+- Always use the shadcn CLI to add new components: `bunx shadcn@latest add <component>`
+- Never manually create UI components.
+- Use actual components (`Button`, `Card`, `Badge`), not variant functions (`buttonVariants`). Only use variant functions when generating dynamic `innerHTML`.
+- No custom CSS utility classes (`.btn`, `.card`, `.cta-btn`, etc.) — use Tailwind or shadcn components.
+- Keep `global.css` minimal: only design tokens (`@theme`), keyframes, base styles, and third-party library styles.
 
+### Styling
 
-## Project Structure
+- **Never use inline `style` attributes.** Use Tailwind utility classes. For animations, use `tw-animate-css` classes (`animate-in`, `fade-in`, `slide-in-from-bottom-3`, `zoom-in-95`, `duration-*`, `delay-*`). Use arbitrary value classes (e.g., `delay-[400ms]`) when no standard utility exists.
+- Use semantic color tokens: `text-foreground`, `bg-card`, `border-border`, `text-muted-foreground`
+- Use Tailwind classes directly, not custom CSS classes in `<style>` blocks.
+- For Astro pages, import and use React components directly (they render statically without hydration for presentational use).
 
-- Always follow bulletproof-react project structure. https://github.com/alan2207/bulletproof-react/blob/master/docs/project-structure.md
+---
+
+## Bun Reference
+
+### Preferred APIs
+
+- `Bun.serve()` for HTTP/WebSocket/routes (not `express`)
+- `bun:sqlite` for SQLite (not `better-sqlite3`)
+- `Bun.redis` for Redis (not `ioredis`)
+- `Bun.sql` for Postgres (not `pg` / `postgres.js`)
+- `WebSocket` built-in (not `ws`)
+- `Bun.file` over `node:fs` readFile/writeFile
+- `Bun.$\`cmd\`` instead of `execa`
+
+### Testing
+
+Use `bun test` with imports from `"bun:test"` (`test`, `expect`, `describe`, etc.).
+
+### Frontend
+
+Use HTML imports with `Bun.serve()` — not Vite. HTML files can import `.tsx`/`.jsx`/`.js` directly; `<link>` tags bundle CSS automatically.
+
+For more information, read the Bun API docs in `node_modules/bun-types/docs/**.mdx`.
