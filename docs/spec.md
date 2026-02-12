@@ -52,7 +52,7 @@ Every level exists because the app **needs** it at that stage — not because Ra
 |---|------|---------|----------|--------|
 | 15 | Service Objects | PORO services, Result pattern | Registration does too much in one controller action. | Yes |
 | 16 | Concerns & Modules | `ActiveSupport::Concern`, shared behavior | Tagging logic duplicated across Post, Comment, Photo. | Yes |
-| 17 | Validation Contracts | `Dry::Validation`, `Dry::Schema`, multi-model validation | Onboarding creates User + Company + Address. Extract scattered validations into composable Dry::Schema + Contract, then wrap in transactional service. Stepped: schemas -> contract rules -> service. | Yes |
+| 17 | Validation Contracts | `Dry::Validation`, `Dry::Schema`, multi-model validation | Registration creates User + Profile + NotificationPrefs. Extract scattered validations into composable Dry::Schema + Contract with cross-field rules. Stepped: schemas -> contract composition + rules. | Yes |
 | 18 | Query Objects | PORO queries, composable filters | Admin dashboard has 60-line controller. Extract into PostQuery with chainable methods. | Yes |
 | 19 | Error Handling | `rescue_from`, structured JSON errors | API returns raw 500s with stack traces. Build consistent error responses. | Yes |
 | 20 | Action Mailer | Mailers, `generates_token_for`, password resets | Users forget passwords. Build a password reset flow. | Yes |

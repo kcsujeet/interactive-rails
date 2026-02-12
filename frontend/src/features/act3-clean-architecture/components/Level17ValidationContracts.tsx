@@ -1,9 +1,12 @@
 /**
  * Level 17: Validation Contracts
  *
- * Extract scattered validations from a fat onboarding controller into
+ * Extract scattered validations from a fat registration controller into
  * composable Dry::Schema definitions + a Dry::Validation::Contract.
  * Teaches: Dry::Schema, Dry::Validation::Contract, schema composition, cross-field rules
+ *
+ * Social platform context: Registration creates User + Profile + NotificationPrefs.
+ * Cross-field rule: creator accounts must enable weekly digest.
  *
  * Three-phase pedagogy:
  *   WHY   -- fat controller with inline validations and cross-field checks
@@ -73,31 +76,31 @@ const INITIAL_EXTRACTIONS: Extraction[] = [
 	{
 		id: 'user_schema',
 		name: 'UserSchema',
-		description: 'Email format + password length validations',
+		description: 'Email format + password length + username validations',
 		category: 'schema',
 		added: false,
 		step: 1,
 	},
 	{
-		id: 'company_schema',
-		name: 'CompanySchema',
-		description: 'Company name + size enum validations',
+		id: 'profile_schema',
+		name: 'ProfileSchema',
+		description: 'Display name + bio length + location validations',
 		category: 'schema',
 		added: false,
 		step: 1,
 	},
 	{
-		id: 'address_schema',
-		name: 'AddressSchema',
-		description: 'Street, city, zip format validations',
+		id: 'notif_prefs_schema',
+		name: 'NotifPrefsSchema',
+		description: 'Email digest + push + mentions preferences',
 		category: 'schema',
 		added: false,
 		step: 1,
 	},
 	{
-		id: 'admin_plan_rule',
-		name: 'Admin plan rule',
-		description: 'Cross-field: admin role requires enterprise plan',
+		id: 'creator_digest_rule',
+		name: 'Creator digest rule',
+		description: 'Cross-field: creator role requires weekly digest',
 		category: 'rule',
 		added: false,
 		step: 2,
@@ -105,7 +108,7 @@ const INITIAL_EXTRACTIONS: Extraction[] = [
 ];
 
 const CONTROLLER_LINES: ControllerLine[] = [
-	{ code: 'class OnboardingController', indent: 0, extractionId: null },
+	{ code: 'class RegistrationController', indent: 0, extractionId: null },
 	{ code: 'def create', indent: 1, extractionId: null },
 	{ code: '# User validations', indent: 2, extractionId: 'user_schema' },
 	{ code: 'if params[:email].blank?', indent: 2, extractionId: 'user_schema' },
@@ -115,32 +118,29 @@ const CONTROLLER_LINES: ControllerLine[] = [
 	{ code: 'render json: {error: "..."}, status: 422', indent: 3, extractionId: 'user_schema' },
 	{ code: 'end', indent: 2, extractionId: 'user_schema' },
 	{ code: '', indent: 0, extractionId: 'user_schema' },
-	{ code: '# Company validations', indent: 2, extractionId: 'company_schema' },
-	{ code: 'if params[:company_name].blank?', indent: 2, extractionId: 'company_schema' },
-	{ code: 'render json: {error: "..."}, status: 422', indent: 3, extractionId: 'company_schema' },
-	{ code: 'end', indent: 2, extractionId: 'company_schema' },
-	{ code: 'sizes = %w[small medium large enterprise]', indent: 2, extractionId: 'company_schema' },
-	{ code: 'unless sizes.include?(params[:size])', indent: 2, extractionId: 'company_schema' },
-	{ code: 'render json: {error: "..."}, status: 422', indent: 3, extractionId: 'company_schema' },
-	{ code: 'end', indent: 2, extractionId: 'company_schema' },
-	{ code: '', indent: 0, extractionId: 'company_schema' },
-	{ code: '# Address validations', indent: 2, extractionId: 'address_schema' },
-	{ code: 'if params[:street].blank?', indent: 2, extractionId: 'address_schema' },
-	{ code: 'render json: {error: "..."}, status: 422', indent: 3, extractionId: 'address_schema' },
-	{ code: 'end', indent: 2, extractionId: 'address_schema' },
-	{ code: 'unless params[:zip].match?(/\\d{5}/)', indent: 2, extractionId: 'address_schema' },
-	{ code: 'render json: {error: "..."}, status: 422', indent: 3, extractionId: 'address_schema' },
-	{ code: 'end', indent: 2, extractionId: 'address_schema' },
-	{ code: '', indent: 0, extractionId: 'address_schema' },
-	{ code: '# Cross-field business rule', indent: 2, extractionId: 'admin_plan_rule' },
-	{ code: 'if params[:role] == "admin"', indent: 2, extractionId: 'admin_plan_rule' },
-	{ code: '&& params[:size] != "enterprise"', indent: 3, extractionId: 'admin_plan_rule' },
-	{ code: 'render json: {error: "..."}, status: 422', indent: 3, extractionId: 'admin_plan_rule' },
-	{ code: 'end', indent: 2, extractionId: 'admin_plan_rule' },
-	{ code: '', indent: 0, extractionId: 'admin_plan_rule' },
-	{ code: 'company = Company.create!(...)', indent: 2, extractionId: null },
-	{ code: 'address = Address.create!(...)', indent: 2, extractionId: null },
+	{ code: '# Profile validations', indent: 2, extractionId: 'profile_schema' },
+	{ code: 'if params[:display_name].blank?', indent: 2, extractionId: 'profile_schema' },
+	{ code: 'render json: {error: "..."}, status: 422', indent: 3, extractionId: 'profile_schema' },
+	{ code: 'end', indent: 2, extractionId: 'profile_schema' },
+	{ code: 'if params[:bio].length > 500', indent: 2, extractionId: 'profile_schema' },
+	{ code: 'render json: {error: "..."}, status: 422', indent: 3, extractionId: 'profile_schema' },
+	{ code: 'end', indent: 2, extractionId: 'profile_schema' },
+	{ code: '', indent: 0, extractionId: 'profile_schema' },
+	{ code: '# Notification prefs validations', indent: 2, extractionId: 'notif_prefs_schema' },
+	{ code: 'digests = %w[daily weekly monthly never]', indent: 2, extractionId: 'notif_prefs_schema' },
+	{ code: 'unless digests.include?(params[:digest])', indent: 2, extractionId: 'notif_prefs_schema' },
+	{ code: 'render json: {error: "..."}, status: 422', indent: 3, extractionId: 'notif_prefs_schema' },
+	{ code: 'end', indent: 2, extractionId: 'notif_prefs_schema' },
+	{ code: '', indent: 0, extractionId: 'notif_prefs_schema' },
+	{ code: '# Cross-field business rule', indent: 2, extractionId: 'creator_digest_rule' },
+	{ code: 'if params[:role] == "creator"', indent: 2, extractionId: 'creator_digest_rule' },
+	{ code: '&& params[:digest] != "weekly"', indent: 3, extractionId: 'creator_digest_rule' },
+	{ code: 'render json: {error: "..."}, status: 422', indent: 3, extractionId: 'creator_digest_rule' },
+	{ code: 'end', indent: 2, extractionId: 'creator_digest_rule' },
+	{ code: '', indent: 0, extractionId: 'creator_digest_rule' },
 	{ code: 'user = User.create!(...)', indent: 2, extractionId: null },
+	{ code: 'Profile.create!(user: user, ...)', indent: 2, extractionId: null },
+	{ code: 'NotificationPref.create!(user: user, ...)', indent: 2, extractionId: null },
 	{ code: '', indent: 0, extractionId: null },
 	{ code: 'render json: user, status: :created', indent: 2, extractionId: null },
 	{ code: 'end', indent: 1, extractionId: null },
@@ -159,10 +159,10 @@ function generateCodeFiles(extractions: Extraction[]): CodeFile[] {
 	const files: CodeFile[] = [];
 
 	const hasUser = extractions.find((e) => e.id === 'user_schema')?.added;
-	const hasCompany = extractions.find((e) => e.id === 'company_schema')?.added;
-	const hasAddress = extractions.find((e) => e.id === 'address_schema')?.added;
-	const allSchemas = hasUser && hasCompany && hasAddress;
-	const hasRule = extractions.find((e) => e.id === 'admin_plan_rule')?.added;
+	const hasProfile = extractions.find((e) => e.id === 'profile_schema')?.added;
+	const hasNotifPrefs = extractions.find((e) => e.id === 'notif_prefs_schema')?.added;
+	const allSchemas = hasUser && hasProfile && hasNotifPrefs;
+	const hasRule = extractions.find((e) => e.id === 'creator_digest_rule')?.added;
 
 	if (hasUser) {
 		files.push({
@@ -172,31 +172,33 @@ function generateCodeFiles(extractions: Extraction[]): CodeFile[] {
   required(:email).filled(:string,
     format?: URI::MailTo::EMAIL_REGEXP)
   required(:password).filled(:string, min_size?: 8)
+  required(:username).filled(:string, min_size?: 3)
   optional(:role).filled(:string)
 end`,
 		});
 	}
 
-	if (hasCompany) {
+	if (hasProfile) {
 		files.push({
-			filename: 'app/schemas/company_schema.rb',
+			filename: 'app/schemas/profile_schema.rb',
 			language: 'ruby',
-			code: `CompanySchema = Dry::Schema.Params do
-  required(:company_name).filled(:string)
-  required(:company_size).filled(:string,
-    included_in?: %w[small medium large enterprise])
+			code: `ProfileSchema = Dry::Schema.Params do
+  required(:display_name).filled(:string)
+  optional(:bio).filled(:string, max_size?: 500)
+  optional(:location).filled(:string)
 end`,
 		});
 	}
 
-	if (hasAddress) {
+	if (hasNotifPrefs) {
 		files.push({
-			filename: 'app/schemas/address_schema.rb',
+			filename: 'app/schemas/notif_prefs_schema.rb',
 			language: 'ruby',
-			code: `AddressSchema = Dry::Schema.Params do
-  required(:street).filled(:string)
-  required(:city).filled(:string)
-  required(:zip).filled(:string, format?: /\\A\\d{5}\\z/)
+			code: `NotifPrefsSchema = Dry::Schema.Params do
+  required(:email_digest).filled(:string,
+    included_in?: %w[daily weekly monthly never])
+  optional(:push_enabled).filled(:bool)
+  optional(:mentions_only).filled(:bool)
 end`,
 		});
 	}
@@ -204,10 +206,10 @@ end`,
 	// Show contract shell once all schemas done, even before rule
 	if (allSchemas && !hasRule) {
 		files.push({
-			filename: 'app/contracts/onboarding_contract.rb',
+			filename: 'app/contracts/registration_contract.rb',
 			language: 'ruby',
-			code: `class OnboardingContract < Dry::Validation::Contract
-  params(UserSchema & CompanySchema & AddressSchema)
+			code: `class RegistrationContract < Dry::Validation::Contract
+  params(UserSchema & ProfileSchema & NotifPrefsSchema)
 
   # Add cross-field rules here...
 end`,
@@ -216,15 +218,15 @@ end`,
 
 	if (hasRule) {
 		files.push({
-			filename: 'app/contracts/onboarding_contract.rb',
+			filename: 'app/contracts/registration_contract.rb',
 			language: 'ruby',
-			code: `class OnboardingContract < Dry::Validation::Contract
-  params(UserSchema & CompanySchema & AddressSchema)
+			code: `class RegistrationContract < Dry::Validation::Contract
+  params(UserSchema & ProfileSchema & NotifPrefsSchema)
 
-  rule(:role, :company_size) do
-    if values[:role] == "admin" &&
-       values[:company_size] != "enterprise"
-      key(:role).failure("admin requires enterprise")
+  rule(:role, :email_digest) do
+    if values[:role] == "creator" &&
+       values[:email_digest] != "weekly"
+      key(:role).failure("creators need weekly digest")
     end
   end
 end`,
@@ -263,19 +265,19 @@ function getAfterController(extractions: Extraction[]): {
 	}
 
 	return {
-		label: '12 lines',
+		label: '13 lines',
 		lines: [
-			{ code: 'class OnboardingController', indent: 0 },
+			{ code: 'class RegistrationController', indent: 0 },
 			{ code: 'def create', indent: 1 },
-			{ code: 'result = OnboardingContract.new.call(params)', indent: 2, color: CATEGORY_COLORS.rule },
+			{ code: 'result = RegistrationContract.new.call(params)', indent: 2, color: CATEGORY_COLORS.rule },
 			{ code: 'if result.failure?', indent: 2 },
 			{ code: 'render json: {errors: result.errors}, status: 422', indent: 3 },
 			{ code: 'end', indent: 2 },
 			{ code: '', indent: 0 },
 			{ code: 'attrs = result.to_h', indent: 2 },
-			{ code: 'company = Company.create!(...)', indent: 2 },
-			{ code: 'address = Address.create!(...)', indent: 2 },
 			{ code: 'user = User.create!(...)', indent: 2 },
+			{ code: 'Profile.create!(user: user, ...)', indent: 2 },
+			{ code: 'NotificationPref.create!(user: user, ...)', indent: 2 },
 			{ code: '', indent: 0 },
 			{ code: 'render json: user, status: :created', indent: 2 },
 			{ code: 'end', indent: 1 },
@@ -301,7 +303,7 @@ export function Level17ValidationContracts({
 		.filter((e) => e.step === 1)
 		.every((e) => e.added);
 	const ruleComplete = extractions.find(
-		(e) => e.id === 'admin_plan_rule',
+		(e) => e.id === 'creator_digest_rule',
 	)?.added;
 	const step2Unlocked = schemasComplete;
 
@@ -381,7 +383,7 @@ export function Level17ValidationContracts({
 							</div>
 						</div>
 						<p className="text-xs text-muted-foreground">
-							The onboarding controller creates User + Company + Address in one action. Validations are scattered inline with no cross-field rule check. Every model validates independently with duplicated render calls.
+							The registration controller creates User + Profile + NotificationPrefs in one action. Validations are scattered inline with no cross-field rule check. Every model validates independently with duplicated render calls.
 						</p>
 					</div>
 
@@ -815,11 +817,11 @@ export function Level17ValidationContracts({
 						</div>
 						<pre className="text-xs text-muted-foreground bg-secondary p-2 rounded overflow-x-auto">
 							{`# Schemas compose with &
-params(UserSchema & CompanySchema & AddressSchema)
+params(UserSchema & ProfileSchema & NotifPrefsSchema)
 
 # Rules add cross-field logic
-rule(:role, :plan) do
-  key.failure("...") if values[:role] == "admin"
+rule(:role, :email_digest) do
+  key.failure("...") if values[:role] == "creator"
 end
 
 # Not coupled to Rails -- works anywhere`}

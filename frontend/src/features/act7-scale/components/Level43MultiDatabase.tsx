@@ -52,16 +52,16 @@ const SAMPLE_REQUESTS: Array<{
 	method: TrafficRequest['method'];
 	path: string;
 }> = [
-	{ method: 'GET', path: '/api/posts' },
-	{ method: 'GET', path: '/api/users/42' },
-	{ method: 'GET', path: '/api/comments' },
-	{ method: 'POST', path: '/api/posts' },
-	{ method: 'GET', path: '/api/posts/7' },
-	{ method: 'PUT', path: '/api/posts/3' },
-	{ method: 'GET', path: '/api/users' },
-	{ method: 'GET', path: '/api/tags' },
-	{ method: 'DELETE', path: '/api/posts/5' },
-	{ method: 'GET', path: '/api/search?q=rails' },
+	{ method: 'GET', path: '/api/orders' },
+	{ method: 'GET', path: '/api/customers/42' },
+	{ method: 'GET', path: '/api/invoices' },
+	{ method: 'POST', path: '/api/orders' },
+	{ method: 'GET', path: '/api/orders/7' },
+	{ method: 'PUT', path: '/api/subscriptions/3' },
+	{ method: 'GET', path: '/api/subscriptions' },
+	{ method: 'GET', path: '/api/projects' },
+	{ method: 'DELETE', path: '/api/orders/5' },
+	{ method: 'GET', path: '/api/invoices?status=due' },
 ];
 
 const LATENCY_SINGLE_DB = { p50: 320, p95: 620, p99: 800 };

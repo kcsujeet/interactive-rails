@@ -34,8 +34,8 @@ class ApplicationRecord < ActiveRecord::Base
 end
 
 # All reads compete with writes on the same connection:
-Post.where(published: true).order(created_at: :desc) # SELECT ... (blocking writes)
-Post.create!(title: "New Post", body: "...")          # INSERT ... (blocked by reads)
+Order.where(status: "shipped").order(created_at: :desc) # SELECT ... (blocking writes)
+Order.create!(customer_id: 42, total: 99_00)            # INSERT ... (blocked by reads)
 
 # Under load:
 # - Read queries hold shared locks
@@ -95,11 +95,11 @@ config.active_record.database_resolver_context =
 
 # Manual switching when needed
 ActiveRecord::Base.connected_to(role: :reading) do
-  Post.where(published: true).to_a  # Hits replica
+  Order.where(status: "shipped").to_a  # Hits replica
 end
 
 ActiveRecord::Base.connected_to(role: :writing) do
-  Post.create!(title: "New Post")    # Hits primary
+  Order.create!(customer_id: 42, total: 99_00)  # Hits primary
 end
 
 # In controllers — automatic: GET requests read from replica,
