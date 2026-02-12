@@ -2,7 +2,8 @@
  * Level 1: The Stack Choice
  *
  * Custom UI for Level 1 - different from the regular pipeline canvas.
- * Features slots for database and frontend choices with live code preview.
+ * Features a single slot for database choice with live code preview.
+ * The game is API-only, so --api is always included.
  */
 
 import { useState } from 'react';
@@ -10,16 +11,12 @@ import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 
 type DatabaseChoice = 'postgresql' | 'sqlite' | null;
-type FrontendChoice = 'react' | 'hotwire' | null;
 
 export function Level1StackChoice({ onComplete, onExit }: LevelComponentProps) {
 	const [database, setDatabase] = useState<DatabaseChoice>(null);
-	const [frontend, setFrontend] = useState<FrontendChoice>(null);
-	const [dragOverSlot, setDragOverSlot] = useState<
-		'database' | 'frontend' | null
-	>(null);
+	const [dragOverSlot, setDragOverSlot] = useState(false);
 
-	const canGenerate = database !== null && frontend !== null;
+	const canGenerate = database !== null;
 
 	function handleDragStart(e: React.DragEvent, type: string) {
 		e.dataTransfer.setData('nodeType', type);
@@ -35,16 +32,7 @@ export function Level1StackChoice({ onComplete, onExit }: LevelComponentProps) {
 		if (nodeType === 'postgresql' || nodeType === 'sqlite') {
 			setDatabase(nodeType);
 		}
-		setDragOverSlot(null);
-	}
-
-	function handleDropFrontend(e: React.DragEvent) {
-		e.preventDefault();
-		const nodeType = e.dataTransfer.getData('nodeType');
-		if (nodeType === 'react' || nodeType === 'hotwire') {
-			setFrontend(nodeType);
-		}
-		setDragOverSlot(null);
+		setDragOverSlot(false);
 	}
 
 	function handleGenerate() {
@@ -52,9 +40,8 @@ export function Level1StackChoice({ onComplete, onExit }: LevelComponentProps) {
 
 		const choices = {
 			database,
-			frontend,
 			constraints: {
-				apiOnly: frontend === 'react',
+				apiOnly: true,
 				canShard: database === 'postgresql',
 			},
 		};
@@ -76,10 +63,6 @@ export function Level1StackChoice({ onComplete, onExit }: LevelComponentProps) {
 		setDatabase(null);
 	}
 
-	function clearFrontend() {
-		setFrontend(null);
-	}
-
 	return (
 		<div className="h-full flex bg-background">
 			{/* Left Panel - Scenario & Instructions & Palette */}
@@ -91,8 +74,8 @@ export function Level1StackChoice({ onComplete, onExit }: LevelComponentProps) {
 						<span>Scenario</span>
 					</div>
 					<p className="text-sm text-muted-foreground leading-relaxed">
-						Day 1. You are initializing the repository. Your architectural
-						choices today will determine your scaling limits in Act IV.
+						Day 1. You are initializing the repository. Your database
+						choice today will determine your scaling limits in Act IV.
 					</p>
 				</div>
 
@@ -104,16 +87,12 @@ export function Level1StackChoice({ onComplete, onExit }: LevelComponentProps) {
 					<ol className="space-y-2 text-sm text-muted-foreground">
 						<li className="flex gap-2">
 							<span className="text-primary">1.</span>
-							<span>Drag a Database System to the Database slot</span>
+							<span>Drag a Database System to the slot</span>
 						</li>
 						<li className="flex gap-2">
 							<span className="text-primary">2.</span>
-							<span>Drag a Frontend Architecture to the Frontend slot</span>
-						</li>
-						<li className="flex gap-2">
-							<span className="text-primary">3.</span>
 							<span>
-								Click 'Generate App' to initialize your Rails application
+								Click 'Generate App' to initialize your Rails API
 							</span>
 						</li>
 					</ol>
@@ -126,7 +105,7 @@ export function Level1StackChoice({ onComplete, onExit }: LevelComponentProps) {
 					</h3>
 
 					{/* Databases */}
-					<div className="mb-4">
+					<div>
 						<h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
 							Databases
 						</h4>
@@ -152,35 +131,6 @@ export function Level1StackChoice({ onComplete, onExit }: LevelComponentProps) {
 							/>
 						</div>
 					</div>
-
-					{/* Frontend */}
-					<div>
-						<h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-							Frontend
-						</h4>
-						<div className="space-y-2">
-							<PaletteItem
-								benefit="Monolithic, fast development"
-								color="#ff6b6b"
-								description="Rails-native frontend with Turbo"
-								disabled={frontend === 'hotwire'}
-								icon="H"
-								name="Hotwire/ERB"
-								onDragStart={handleDragStart}
-								type="hotwire"
-							/>
-							<PaletteItem
-								color="#61dafb"
-								description="Modern SPA with API backend"
-								disabled={frontend === 'react'}
-								icon="R"
-								name="React"
-								onDragStart={handleDragStart}
-								type="react"
-								warning="Requires separate API layer"
-							/>
-						</div>
-					</div>
 				</div>
 			</div>
 
@@ -198,10 +148,7 @@ export function Level1StackChoice({ onComplete, onExit }: LevelComponentProps) {
 						</div>
 					</div>
 					<Button
-						onClick={() => {
-							setDatabase(null);
-							setFrontend(null);
-						}}
+						onClick={() => setDatabase(null)}
 						size="sm"
 						variant="ghost"
 					>
@@ -224,25 +171,18 @@ export function Level1StackChoice({ onComplete, onExit }: LevelComponentProps) {
 									<div>
 										<div className="text-primary font-semibold">Terminal</div>
 										<div className="text-primary/70 text-sm font-mono">
-											$ rails new
+											$ rails new --api
 										</div>
 									</div>
 								</div>
 							</div>
 						</div>
 
-						{/* Connection Lines */}
+						{/* Connection Line */}
 						<div className="flex justify-center mb-4">
 							<svg className="text-primary/50" height="40" width="200">
 								<path
-									d="M 100 0 L 50 40"
-									fill="none"
-									stroke="currentColor"
-									strokeDasharray="4"
-									strokeWidth="2"
-								/>
-								<path
-									d="M 100 0 L 150 40"
+									d="M 100 0 L 100 40"
 									fill="none"
 									stroke="currentColor"
 									strokeDasharray="4"
@@ -251,34 +191,19 @@ export function Level1StackChoice({ onComplete, onExit }: LevelComponentProps) {
 							</svg>
 						</div>
 
-						{/* Slots */}
-						<div className="flex justify-center gap-8 mb-8">
-							{/* Database Slot */}
+						{/* Database Slot */}
+						<div className="flex justify-center mb-8">
 							<Slot
 								filled={database}
 								filledInfo={database ? getDatabaseInfo(database) : null}
-								isDragOver={dragOverSlot === 'database'}
+								isDragOver={dragOverSlot}
 								label="Database System"
 								onClear={clearDatabase}
-								onDragEnter={() => setDragOverSlot('database')}
-								onDragLeave={() => setDragOverSlot(null)}
+								onDragEnter={() => setDragOverSlot(true)}
+								onDragLeave={() => setDragOverSlot(false)}
 								onDragOver={handleDragOver}
 								onDrop={handleDropDatabase}
 								sublabel="DATABASE SYSTEM"
-							/>
-
-							{/* Frontend Slot */}
-							<Slot
-								filled={frontend}
-								filledInfo={frontend ? getFrontendInfo(frontend) : null}
-								isDragOver={dragOverSlot === 'frontend'}
-								label="Frontend Architecture"
-								onClear={clearFrontend}
-								onDragEnter={() => setDragOverSlot('frontend')}
-								onDragLeave={() => setDragOverSlot(null)}
-								onDragOver={handleDragOver}
-								onDrop={handleDropFrontend}
-								sublabel="Choose your UI approach"
 							/>
 						</div>
 
@@ -296,7 +221,7 @@ export function Level1StackChoice({ onComplete, onExit }: LevelComponentProps) {
 						</div>
 						{!canGenerate && (
 							<div className="text-center mt-2 text-xs text-muted-foreground">
-								Fill all slots to generate
+								Drag a database to the slot to generate
 							</div>
 						)}
 					</div>
@@ -333,16 +258,12 @@ export function Level1StackChoice({ onComplete, onExit }: LevelComponentProps) {
 									<span className="text-success">{database}</span>
 								</>
 							)}
-							{frontend === 'react' && (
+							{' \\\n  '}
+							<span className="text-warning">--api</span>
+							{!database && (
 								<>
 									{' \\\n  '}
-									<span className="text-warning">--api</span>
-								</>
-							)}
-							{!database && !frontend && (
-								<>
-									{' \\\n  '}
-									<span className="text-muted-foreground">{'<options>'}</span>
+									<span className="text-muted-foreground">{'<database>'}</span>
 								</>
 							)}
 						</pre>
@@ -355,12 +276,14 @@ export function Level1StackChoice({ onComplete, onExit }: LevelComponentProps) {
 						Learning Goal
 					</div>
 					<p className="text-sm text-muted-foreground">
-						Understanding rails new flags and database trade-offs.
+						Understanding rails new flags and database trade-offs. The
+						<span className="text-warning font-mono"> --api</span> flag creates a
+						lean Rails app with only JSON endpoints.
 					</p>
 				</div>
 
 				{/* Trade-offs Info */}
-				{(database || frontend) && (
+				{database && (
 					<div className="p-4 border-t border-border">
 						<div className="text-xs font-semibold text-warning uppercase tracking-wider mb-2">
 							Your Choices
@@ -375,21 +298,13 @@ export function Level1StackChoice({ onComplete, onExit }: LevelComponentProps) {
 							{database === 'sqlite' && (
 								<div className="text-muted-foreground">
 									! <span className="text-warning">SQLite</span> - Cannot shard
-									(Level 22 blocked)
+									(Level 49 blocked)
 								</div>
 							)}
-							{frontend === 'hotwire' && (
-								<div className="text-muted-foreground">
-									+ <span className="text-success">Hotwire</span> - Monolithic,
-									simpler architecture
-								</div>
-							)}
-							{frontend === 'react' && (
-								<div className="text-muted-foreground">
-									! <span className="text-warning">React</span> - Requires
-									API-only mode
-								</div>
-							)}
+							<div className="text-muted-foreground">
+								+ <span className="text-success">API-only</span> - Lean JSON
+								endpoints, no view layer
+							</div>
 						</div>
 					</div>
 				)}
@@ -407,7 +322,6 @@ interface PaletteItemProps {
 	color: string;
 	icon: string;
 	warning?: string;
-	benefit?: string;
 	disabled?: boolean;
 	onDragStart: (e: React.DragEvent, type: string) => void;
 }
@@ -419,7 +333,6 @@ function PaletteItem({
 	color,
 	icon,
 	warning,
-	benefit,
 	disabled,
 	onDragStart,
 }: PaletteItemProps) {
@@ -450,7 +363,6 @@ function PaletteItem({
 			</div>
 			<p className="text-xs text-muted-foreground mb-1">{description}</p>
 			{warning && <p className="text-xs text-warning">! {warning}</p>}
-			{benefit && <p className="text-xs text-success">+ {benefit}</p>}
 		</div>
 	);
 }
@@ -566,26 +478,6 @@ function getDatabaseInfo(db: 'postgresql' | 'sqlite' | null) {
 			description: 'Simple file-based database',
 			icon: 'S',
 			color: '#003b57',
-		};
-	}
-	return null;
-}
-
-function getFrontendInfo(fe: 'react' | 'hotwire' | null) {
-	if (fe === 'hotwire') {
-		return {
-			name: 'Hotwire/ERB',
-			description: 'Rails-native frontend with Turbo',
-			icon: 'H',
-			color: '#ff6b6b',
-		};
-	}
-	if (fe === 'react') {
-		return {
-			name: 'React',
-			description: 'Modern SPA with API backend',
-			icon: 'R',
-			color: '#61dafb',
 		};
 	}
 	return null;

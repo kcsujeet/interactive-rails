@@ -12,7 +12,6 @@ interface CompletionData {
 	timeToComplete?: number;
 	stackChoices?: {
 		database?: 'postgresql' | 'sqlite';
-		frontend?: 'react' | 'hotwire';
 	};
 	finalMetrics?: {
 		avgLatency?: number;
@@ -49,10 +48,7 @@ export function useLevelCompletion(): UseLevelCompletionReturn {
 					const updatedChoices = {
 						...choices,
 						database: data.stackChoices.database || choices.database,
-						frontend: data.stackChoices.frontend || choices.frontend,
 						constraints: {
-							apiOnly:
-								(data.stackChoices.frontend || choices.frontend) === 'react',
 							canShard:
 								(data.stackChoices.database || choices.database) ===
 								'postgresql',
@@ -144,9 +140,7 @@ export function getGameChoices() {
 	}
 	return {
 		database: null,
-		frontend: null,
 		constraints: {
-			apiOnly: false,
 			canShard: false,
 		},
 	};
@@ -167,7 +161,7 @@ export function getLevelDecisions(levelId: string): Record<string, string> {
 }
 
 // Helper to check if a level constraint is met
-export function checkConstraint(constraint: 'canShard' | 'apiOnly'): boolean {
+export function checkConstraint(constraint: 'canShard'): boolean {
 	const choices = getGameChoices();
 	return choices.constraints?.[constraint] ?? false;
 }

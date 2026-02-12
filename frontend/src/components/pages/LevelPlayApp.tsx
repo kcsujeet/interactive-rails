@@ -94,10 +94,6 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 	}, []);
 
 	function loadLevel() {
-		// 1. Fetch previous choices (Mocked for now - eventually from backend/context)
-		// In a real implementation, we'd fetch this from the API or a global context
-		const _stackChoice = { frontend: 'react' }; // Default/Mock for testing dynamic logic
-
 		const activeLevel = level;
 
 		// 2. DYNAMIC PATCHING based on L1 Choices
@@ -245,45 +241,11 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 		const stars = result.score >= 80 ? 3 : result.score >= 50 ? 2 : 1;
 
 		try {
-			// Scan for Stack Choices (Level 1)
-			const terminals = placedNodes.filter((n) => n.type === 'terminal');
-			let stackChoices:
-				| {
-						database: 'postgres' | 'sqlite';
-						frontend: 'react' | 'erb' | 'hotwire';
-				  }
-				| undefined;
-
-			if (terminals.length > 0) {
-				const connectedIds = new Set<string>();
-				for (const c of connections) {
-					if (c.sourceNodeId === terminals[0].id)
-						connectedIds.add(c.targetNodeId);
-					if (c.targetNodeId === terminals[0].id)
-						connectedIds.add(c.sourceNodeId);
-				}
-
-				const connectedNodes = placedNodes.filter((n) =>
-					connectedIds.has(n.id),
-				);
-				const dbChoice = connectedNodes.find(
-					(n) => n.type === 'postgres' || n.type === 'sqlite',
-				)?.type as 'postgres' | 'sqlite';
-				const feChoice = connectedNodes.find(
-					(n) => n.type === 'react' || n.type === 'erb' || n.type === 'hotwire',
-				)?.type as 'react' | 'erb' | 'hotwire';
-
-				if (dbChoice && feChoice) {
-					stackChoices = { database: dbChoice, frontend: feChoice };
-				}
-			}
-
 			const saveResult = await completeLevelProgress({
 				levelId,
 				stars,
 				finalStability: stability,
 				timeToComplete: 300,
-				stackChoices,
 				finalMetrics: {
 					avgLatency: 50,
 					queriesPerRequest: 3,
@@ -301,8 +263,6 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 	}, [
 		checkChallenge,
 		liveMetrics,
-		placedNodes,
-		connections,
 		stability,
 		levelId,
 		act,

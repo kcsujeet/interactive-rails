@@ -1,6 +1,5 @@
 export type StackChoices = {
 	database: 'postgres' | 'sqlite';
-	frontend: 'react' | 'erb' | 'hotwire';
 };
 
 export type LevelProgressEntry = {

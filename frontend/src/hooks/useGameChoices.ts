@@ -1,8 +1,9 @@
 /**
  * Game Choices Hook
  *
- * Persists Level 1 technology choices (database, frontend)
+ * Persists Level 1 technology choices (database)
  * and tracks constraints that affect future levels.
+ * The game is always API-only.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -12,9 +13,7 @@ const STORAGE_KEY = 'rails-expert-game-choices';
 
 const DEFAULT_CHOICES: GameChoices = {
 	database: null,
-	frontend: null,
 	constraints: {
-		apiOnly: false,
 		canShard: false,
 	},
 };
@@ -22,10 +21,8 @@ const DEFAULT_CHOICES: GameChoices = {
 export interface UseGameChoicesReturn {
 	choices: GameChoices;
 	setDatabase: (db: 'postgresql' | 'sqlite') => void;
-	setFrontend: (fe: 'react' | 'hotwire') => void;
 	isChoicesComplete: boolean;
 	canShard: boolean;
-	isApiOnly: boolean;
 	resetChoices: () => void;
 }
 
@@ -65,32 +62,18 @@ export function useGameChoices(): UseGameChoicesReturn {
 		}));
 	}, []);
 
-	const setFrontend = useCallback((fe: 'react' | 'hotwire') => {
-		setChoices((prev) => ({
-			...prev,
-			frontend: fe,
-			constraints: {
-				...prev.constraints,
-				apiOnly: fe === 'react', // React requires API-only mode
-			},
-		}));
-	}, []);
-
 	const resetChoices = useCallback(() => {
 		setChoices(DEFAULT_CHOICES);
 		localStorage.removeItem(STORAGE_KEY);
 	}, []);
 
-	const isChoicesComplete =
-		choices.database !== null && choices.frontend !== null;
+	const isChoicesComplete = choices.database !== null;
 
 	return {
 		choices,
 		setDatabase,
-		setFrontend,
 		isChoicesComplete,
 		canShard: choices.constraints.canShard,
-		isApiOnly: choices.constraints.apiOnly,
 		resetChoices,
 	};
 }

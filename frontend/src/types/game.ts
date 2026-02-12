@@ -491,7 +491,6 @@ export interface AppState {
 
 export interface StackChoices {
 	database: 'sqlite' | 'postgres' | null;
-	frontend: 'erb' | 'react' | null;
 }
 
 // ============================================
@@ -546,10 +545,8 @@ export type ParticleVisualType =
 
 export interface GameChoices {
 	database: 'postgresql' | 'sqlite' | null;
-	frontend: 'react' | 'hotwire' | null;
 	/** Constraints that affect future levels */
 	constraints: {
-		apiOnly: boolean; // React choice - requires API layer
 		canShard: boolean; // PostgreSQL choice - enables Level 22
 	};
 }

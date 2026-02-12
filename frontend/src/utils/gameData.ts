@@ -37,27 +37,6 @@ export const nodeTypes: NodeTypeInfo[] = [
 		description: 'SQLite File Database',
 	},
 	{
-		type: 'react',
-		name: 'React',
-		color: '#61dafb',
-		icon: '⚛️',
-		description: 'React Frontend (API mode)',
-	},
-	{
-		type: 'hotwire',
-		name: 'Hotwire',
-		color: '#ff6b6b',
-		icon: '⚡',
-		description: 'Hotwire/Turbo (monolithic)',
-	},
-	{
-		type: 'erb',
-		name: 'ERB',
-		color: '#cc0000',
-		icon: '💎',
-		description: 'Rails ERB Views',
-	},
-	{
 		type: 'request',
 		name: 'Request',
 		color: '#3b82f6',
@@ -97,7 +76,7 @@ export const nodeTypes: NodeTypeInfo[] = [
 		name: 'View',
 		color: '#a855f7',
 		icon: 'V',
-		description: 'ERB template',
+		description: 'View template',
 	},
 	{
 		type: 'response',
@@ -112,7 +91,7 @@ export const nodeTypes: NodeTypeInfo[] = [
 		name: 'View',
 		color: '#a855f7',
 		icon: 'V',
-		description: 'ERB template',
+		description: 'View template',
 	},
 	{
 		type: 'serializer',
