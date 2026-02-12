@@ -283,7 +283,31 @@ class ApplicationRecord < ActiveRecord::Base
   }
 end
 
-# Shard resolver: maps tenant to shard
+# === ShardRecord abstract class pattern ===
+# Only sharded models inherit from ShardRecord.
+# Global models (users, tenants) stay on ApplicationRecord.
+class ShardRecord < ActiveRecord::Base
+  self.abstract_class = true
+
+  connects_to shards: {
+    shard_one: { writing: :primary_shard_one, reading: :primary_shard_one_replica },
+    shard_two: { writing: :primary_shard_two, reading: :primary_shard_two_replica },
+    shard_three: { writing: :primary_shard_three, reading: :primary_shard_three_replica }
+  }
+end
+
+# Sharded models:
+class Order < ShardRecord
+  acts_as_tenant :company
+end
+
+# Global models stay on ApplicationRecord (single DB):
+class User < ApplicationRecord
+  # NOT sharded — lives in the global database
+end
+
+# === Middleware shard switching ===
+# Resolves the shard at the Rack level, before controllers run.
 # app/middleware/shard_resolver.rb
 class ShardResolver
   SHARD_MAP = {
@@ -292,27 +316,34 @@ class ShardResolver
     2 => :shard_three
   }.freeze
 
+  def initialize(app)
+    @app = app
+  end
+
+  def call(env)
+    tenant_id = extract_tenant_id(env)
+    shard = self.class.shard_for(tenant_id)
+
+    ActiveRecord::Base.connected_to(shard: shard) do
+      @app.call(env)
+    end
+  end
+
   def self.shard_for(tenant_id)
-    # Consistent hashing: tenant_id mod shard count
     shard_index = tenant_id % SHARD_MAP.size
     SHARD_MAP[shard_index]
   end
-end
-
-# app/controllers/application_controller.rb
-class ApplicationController < ActionController::API
-  around_action :set_shard
 
   private
 
-  def set_shard
-    shard = ShardResolver.shard_for(current_tenant.id)
-
-    ActiveRecord::Base.connected_to(shard: shard) do
-      yield
-    end
+  def extract_tenant_id(env)
+    # From JWT, subdomain, or header — depends on your auth strategy
+    env['current_tenant_id'] || 0
   end
 end
+
+# config/application.rb
+config.middleware.use ShardResolver
 
 # Migrations run on ALL shards:
 # lib/tasks/db.rake
@@ -508,12 +539,18 @@ The gateway routes billing requests, handles auth at the edge, and provides circ
 **7. Sharding (Act 8, Level 49):**
 Billing data is sharded by tenant for write scalability.
 
+**Modular monolith with Packwerk (before extracting):**
+Before extracting a service, enforce domain boundaries within the monolith using Shopify's Packwerk gem. Define packages (billing/, orders/, notifications/) with explicit public APIs and dependency rules. Packwerk statically analyzes your code and flags unauthorized cross-package references — catching coupling at CI time, not at extraction time.
+
+**Gradual rollout with Flipper feature flags:**
+Flipper lets you control the extraction rollout with surgical precision: enable for specific tenants (\`Flipper.enable(:billing_v2, company)\`), by percentage (\`Flipper.enable_percentage_of_actors(:billing_v2, 5)\`), by group (\`Flipper.enable_group(:billing_v2, :beta_testers)\`), or with expressions for complex rules. If anything goes wrong, disable instantly — no deploy required.
+
 **Extraction Strategy: Strangler Fig**
-1. Define the billing bounded context
+1. Define the billing bounded context (use Packwerk to enforce it)
 2. Create the billing service with its own database
 3. Dual-write during migration
-4. Route traffic through the gateway with feature flags
-5. Gradually increase traffic to the new service
+4. Route traffic through the gateway with Flipper feature flags
+5. Gradually increase traffic: 5% → 25% → 50% → 100%
 6. Remove billing code from the monolith`,
 		railsCodeExample: `# === STEP 1: Define the bounded context ===
 # Billing domain: Payment, Invoice, Subscription, Refund

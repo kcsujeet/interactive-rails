@@ -263,7 +263,10 @@ end
 - Token bucket: Allows controlled bursts
 - Leaky bucket: Constant drain rate
 
-**Defense in depth:** Use both Rails 8 \`rate_limit\` for controller-specific limits AND Rack::Attack for IP-level protection.`,
+**Defense in depth — three layers for production:**
+1. **Rack::Attack** at the Rack level: Catches abuse before Rails even boots. IP throttling, blocklists, and Allow2Ban for repeat offenders. This is your first line of defense
+2. **Rails 8 \`rate_limit\`** at the controller level: Per-action, per-user limits with business context (e.g., 10 login attempts per 3 minutes per IP)
+3. **CDN/Load balancer** at the edge: Cloudflare, AWS WAF, or nginx rate limiting. Cheapest place to drop bad traffic — it never even reaches your servers`,
 		railsCodeExample: `# ============================
 # Layer 1: Rails 8 rate_limit
 # ============================
@@ -1211,6 +1214,12 @@ end
 - **Alerting:** Slack/PagerDuty notifications when error rate spikes
 - **Trends:** Is this error getting worse or better over time?
 - **Error budgets:** "We allow 0.1% error rate. Currently at 0.05%."
+
+**Latency percentiles — measure what matters:**
+- **p50 (median):** Half of requests are faster than this. Your "typical" experience
+- **p95:** 95% of requests are faster. This is what most of your users see — alert on this, not averages
+- **p99:** 99% of requests are faster. Your worst-case for non-outlier traffic. If p99 is 2 seconds, 1 in 100 users waits 2+ seconds
+- **Why not averages?** A 200ms average can hide a p99 of 5 seconds. Averages lie; percentiles reveal the tail
 
 **Layers of error handling:**
 1. **Rescue + respond:** Handle known errors gracefully (404, 422)

@@ -521,6 +521,7 @@ Rails.logger.error "Payment failed for order #{order.id}"
 - Error rates by endpoint
 - Database query counts and durations
 - Background job queue depth
+- **Datadog APM** is a common production choice: auto-instruments Rails controllers, ActiveRecord, and Sidekiq. For custom business metrics (e.g., orders per minute, revenue), use DogStatsD: \`StatsD.increment('orders.completed', tags: ['plan:enterprise'])\`
 
 **3. Distributed Tracing:**
 - Follow a request across services
@@ -701,9 +702,9 @@ end
 - Audit trail: events are a log of everything that happened
 
 **Patterns:**
-- In-process: ActiveSupport::Notifications or Wisper
-- Out-of-process: Sidekiq, Kafka, RabbitMQ
-- Hybrid: Publish in-process, fan out to background jobs`,
+- **In-process (Wisper):** Events stay within the Rails process. Simple, no infrastructure. Best for decoupling within a monolith
+- **Out-of-process (Karafka + Kafka):** Events are published to Kafka topics and consumed by independent worker processes. Karafka is the Ruby/Rails framework for Kafka — it gives you a familiar Rails-like DSL for consumers. Choose this when subscribers live in separate services or when you need guaranteed delivery, replay, and ordering
+- **Hybrid:** Publish in-process with Wisper, fan out to Sidekiq jobs. Good middle ground before going full Kafka`,
 		railsCodeExample: `# Using Wisper for in-process domain events
 # Gemfile
 gem 'wisper'

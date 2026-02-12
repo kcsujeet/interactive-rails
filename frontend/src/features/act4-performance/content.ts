@@ -141,11 +141,10 @@ end`,
 
 It scales linearly with data size. What works in development with 10 records becomes a disaster in production with 10,000.
 
-**Detection with bullet gem:**
-- Automatically detects N+1 queries in development
-- Shows browser alerts, console warnings, and log entries
-- Also detects unused eager loading (loading associations you never use)
-- Essential for any Rails project
+**Detection tools:**
+- **Bullet gem**: Automatically detects N+1 queries in development. Shows browser alerts, console warnings, and log entries. Also detects unused eager loading
+- **Prosopite gem**: A complementary detector that catches N+1 queries Bullet misses — it works by monitoring SQL patterns rather than association access, so it catches N+1 through raw SQL and \`find_each\` blocks
+- Use both in development. Bullet is the first line; Prosopite is the safety net
 
 **Where N+1 hides:**
 - Serializers (accessing associations during rendering)
@@ -192,6 +191,10 @@ end
 			{
 				title: 'Bullet Gem',
 				url: 'https://github.com/flyerhzm/bullet',
+			},
+			{
+				title: 'Prosopite Gem (Catches N+1 Bullet Misses)',
+				url: 'https://github.com/charkost/prosopite',
 			},
 			{
 				title: 'ActiveRecord Query Interface - Eager Loading',
@@ -364,7 +367,19 @@ Post.strict_loading.all
 # Per-model strict loading
 class Post < ApplicationRecord
   self.strict_loading_by_default = true
-end`,
+end
+
+# === Narrow fetching: select/pluck ===
+# Even with eager loading, SELECT * fetches every column.
+# If you only need title and author_name, fetch only those:
+Post.includes(:user).select(:id, :title, :user_id)
+# SELECT id, title, user_id FROM posts (not SELECT *)
+# 12x faster, 290x less memory on wide tables
+
+# pluck returns raw arrays (no ActiveRecord objects):
+Post.where(published: true).pluck(:title)
+# => ["First Post", "Second Post", ...]
+# Ideal for dropdowns, exports, and reports`,
 		commonMistakes: [
 			'Using eager_load when includes would be faster (JOIN on large tables is expensive)',
 			'Eager loading associations you never access (wastes memory)',
@@ -567,6 +582,10 @@ add_index :users, :email, algorithm: :concurrently`,
 				title: 'Use the Index, Luke',
 				url: 'https://use-the-index-luke.com/',
 			},
+			{
+				title: 'activerecord-analyze (Prettier EXPLAIN Output)',
+				url: 'https://github.com/pawurb/activerecord-analyze',
+			},
 		],
 	},
 	hint: {
@@ -698,6 +717,8 @@ end
 - Reads are instant (no COUNT query)
 - Writes are slightly slower (must update the counter)
 - Data can get out of sync (use \`reset_counters\` to fix)
+
+**Production benchmark:** Displaying comment counts for 1,000 posts — without counter cache: 1,551ms (1,011 queries). With counter cache: 27ms (1 query). That is a 57x speedup from a single column addition.
 
 **When to use counter_cache vs other approaches:**
 - Counter cache: Simple count, frequently displayed
@@ -883,6 +904,7 @@ end
 - Consistent performance regardless of page depth
 - No "page 5" — only "next" and "previous"
 - Best for infinite scroll, real-time feeds
+- **Production benchmark:** 2.4x faster than offset on deep pages (0.327s vs 1.097s over 1,000 sequential page requests). The gap widens with table size — offset gets slower on every page, cursor stays constant
 
 **API pagination with Link headers:**
 - Follow RFC 5988 — pagination info in response headers, not body
@@ -1310,8 +1332,8 @@ end
 **Caching layers (from fastest to slowest):**
 
 1. **HTTP Caching (ETags/304)** — Client never even makes a request
-   - \`stale?\` checks if the resource changed
-   - Returns 304 Not Modified if unchanged (no body, no computation)
+   - \`stale?\` checks if the resource changed; \`fresh_when\` is the shorthand for render-only responses
+   - Returns 304 Not Modified if unchanged (no body, no computation — 21ms response vs 6ms for a 304)
    - CDNs and browsers cache the response
 
 2. **Low-level cache (Rails.cache)** — Cached in your cache store
@@ -1323,12 +1345,10 @@ end
    - Rails caches identical SQL queries within the same request
    - Zero configuration, but only helps within a single request
 
-**Solid Cache (Rails 8 default):**
-- Database-backed — no Redis server to manage
-- Survives restarts (unlike in-memory cache)
-- Supports automatic cleanup of expired entries
-- Perfect for most applications
-- For extreme scale, add Redis or Memcached later
+**Cache store comparison:**
+- **Solid Cache** (Rails 8 default): Database-backed, no Redis to manage, survives restarts, ~80% cheaper than a managed Redis instance. Perfect for most applications
+- **Redis**: In-memory, sub-millisecond reads, battle-tested. Choose when you need pub/sub or extreme throughput (>100K ops/sec)
+- **Memcached**: Pure key-value cache, slightly faster than Redis for simple gets, no persistence. Choose for simple caching at massive scale
 
 **Cache invalidation strategies:**
 - Time-based: \`expires_in: 5.minutes\`
