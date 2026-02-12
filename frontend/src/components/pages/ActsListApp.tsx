@@ -137,9 +137,14 @@ export function ActsListApp() {
 										{actCompleted ? <Check className="w-5 h-5" /> : act.id}
 									</div>
 									<div>
-										<h3 className="text-base font-medium text-foreground">
-											{act.name}
-										</h3>
+										<div className="flex items-baseline gap-2">
+											<h3 className="text-base font-medium text-foreground">
+												{act.name}
+											</h3>
+											<span className="text-xs text-muted-foreground">
+												L{act.levels[0].levelNumber}–{act.levels[act.levels.length - 1].levelNumber}
+											</span>
+										</div>
 										<p className="text-sm text-muted-foreground mt-0.5">
 											{act.tagline}
 										</p>
