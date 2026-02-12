@@ -34,7 +34,7 @@ export type NodeType =
 	| 'model'
 	| 'database'
 	| 'cache'
-	| 'view'
+	| 'serializer'
 	| 'response'
 	| 'background_job';
 
@@ -138,7 +138,7 @@ const NODE_DEFAULTS: Record<NodeType, { label: string; color: string }> = {
 	model: { label: 'Model', color: '#f59e0b' },
 	database: { label: 'Database', color: '#ef4444' },
 	cache: { label: 'Cache', color: '#06b6d4' },
-	view: { label: 'View', color: '#a855f7' },
+	serializer: { label: 'Serializer', color: '#8b5cf6' },
 	response: { label: 'Response', color: '#22c55e' },
 	background_job: { label: 'Background Job', color: '#9333ea' },
 };

@@ -72,13 +72,6 @@ export const nodeTypes: NodeTypeInfo[] = [
 		description: 'PostgreSQL database',
 	},
 	{
-		type: 'view',
-		name: 'View',
-		color: '#a855f7',
-		icon: 'V',
-		description: 'View template',
-	},
-	{
 		type: 'response',
 		name: 'Response',
 		color: '#22c55e',
@@ -87,25 +80,11 @@ export const nodeTypes: NodeTypeInfo[] = [
 	},
 
 	{
-		type: 'view',
-		name: 'View',
-		color: '#a855f7',
-		icon: 'V',
-		description: 'View template',
-	},
-	{
 		type: 'serializer',
 		name: 'Serializer',
 		color: '#8b5cf6',
 		icon: '{}',
 		description: 'JSON Serializer',
-	},
-	{
-		type: 'response',
-		name: 'Response',
-		color: '#22c55e',
-		icon: '<',
-		description: 'HTTP response',
 	},
 
 	// Act II - Performance
@@ -654,7 +633,7 @@ export const levelChallenges: Record<string, LevelChallenge> = {
 			{ id: 'node-3', type: 'controller', x: 480, y: 200 },
 			{ id: 'node-4', type: 'model', x: 660, y: 200 },
 			{ id: 'node-5', type: 'database', x: 660, y: 380 },
-			{ id: 'node-6', type: 'view', x: 840, y: 200 },
+			{ id: 'node-6', type: 'serializer', x: 840, y: 200 },
 			{ id: 'node-7', type: 'response', x: 1020, y: 200 },
 		],
 		initialConnections: [
@@ -662,8 +641,8 @@ export const levelChallenges: Record<string, LevelChallenge> = {
 			{ sourceType: 'router', targetType: 'controller' },
 			{ sourceType: 'controller', targetType: 'model' },
 			{ sourceType: 'model', targetType: 'database' },
-			{ sourceType: 'database', targetType: 'view' },
-			{ sourceType: 'view', targetType: 'response' },
+			{ sourceType: 'database', targetType: 'serializer' },
+			{ sourceType: 'serializer', targetType: 'response' },
 		],
 		initialMetrics: {
 			queries: 101,
@@ -765,7 +744,7 @@ export const levelChallenges: Record<string, LevelChallenge> = {
 			{ id: 'node-3', type: 'controller', x: 480, y: 200 },
 			{ id: 'node-4', type: 'model', x: 660, y: 200 },
 			{ id: 'node-5', type: 'database', x: 660, y: 380 },
-			{ id: 'node-6', type: 'view', x: 840, y: 200 },
+			{ id: 'node-6', type: 'serializer', x: 840, y: 200 },
 			{ id: 'node-7', type: 'response', x: 1020, y: 200 },
 		],
 		initialConnections: [
@@ -773,8 +752,8 @@ export const levelChallenges: Record<string, LevelChallenge> = {
 			{ sourceType: 'router', targetType: 'controller' },
 			{ sourceType: 'controller', targetType: 'model' },
 			{ sourceType: 'model', targetType: 'database' },
-			{ sourceType: 'database', targetType: 'view' },
-			{ sourceType: 'view', targetType: 'response' },
+			{ sourceType: 'database', targetType: 'serializer' },
+			{ sourceType: 'serializer', targetType: 'response' },
 		],
 		initialMetrics: {
 			queries: 5,
@@ -816,7 +795,7 @@ export const levelChallenges: Record<string, LevelChallenge> = {
 			{ id: 'node-4', type: 'model', x: 600, y: 150 },
 			{ id: 'node-5', type: 'model', x: 600, y: 350 },
 			{ id: 'node-6', type: 'database', x: 760, y: 250 },
-			{ id: 'node-7', type: 'view', x: 920, y: 250 },
+			{ id: 'node-7', type: 'serializer', x: 920, y: 250 },
 			{ id: 'node-8', type: 'response', x: 1080, y: 250 },
 		],
 		initialConnections: [

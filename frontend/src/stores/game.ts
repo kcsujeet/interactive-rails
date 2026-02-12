@@ -220,7 +220,7 @@ const NODE_UNLOCK_LEVELS: Record<NodeType, number> = {
 	model: 5,
 	database: 7,
 	cache: 10,
-	view: 12,
+	serializer: 12,
 	background_job: 15,
 };
 

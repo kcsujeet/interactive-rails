@@ -31,7 +31,7 @@ const NODE_COLORS: Record<NodeType, string> = {
 	model: '#f59e0b',
 	database: '#ef4444',
 	cache: '#06b6d4',
-	view: '#a855f7',
+	serializer: '#8b5cf6',
 	response: '#22c55e',
 	background_job: '#9333ea',
 };

@@ -74,10 +74,10 @@ const NODE_DEFINITIONS: NodeDefinition[] = [
 		icon: <HardDrive className="w-5 h-5" />,
 	},
 	{
-		type: 'view',
-		label: 'View',
-		description: 'Renders HTML/JSON responses',
-		color: '#a855f7',
+		type: 'serializer',
+		label: 'Serializer',
+		description: 'Serializes JSON responses',
+		color: '#8b5cf6',
 		icon: <Eye className="w-5 h-5" />,
 	},
 	{
@@ -207,7 +207,7 @@ function NodePalette({ className }: NodePaletteProps) {
 		['database', 'cache'].includes(n.type),
 	);
 	const otherNodes = NODE_DEFINITIONS.filter((n) =>
-		['view', 'background_job'].includes(n.type),
+		['serializer', 'background_job'].includes(n.type),
 	);
 
 	const renderCategory = (title: string, nodes: NodeDefinition[]) => (

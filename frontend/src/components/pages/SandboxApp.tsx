@@ -57,10 +57,10 @@ const nodeTypes = [
 		description: 'Redis/Memcached',
 	},
 	{
-		type: 'view',
-		name: 'View',
-		color: '#a855f7',
-		description: 'ERB/JSON templates',
+		type: 'serializer',
+		name: 'Serializer',
+		color: '#8b5cf6',
+		description: 'JSON serializer',
 	},
 	{
 		type: 'response',

@@ -83,7 +83,7 @@ export const NODE_BEHAVIORS: Record<string, NodeBehavior> = {
 		blockedConnections: [
 			{ target: 'database', reason: 'Router cannot access database directly' },
 			{ target: 'model', reason: 'Router must dispatch to a controller' },
-			{ target: 'view', reason: 'Router cannot render views directly' },
+			{ target: 'serializer', reason: 'Router cannot serialize directly' },
 		],
 		description: 'Routes requests to the appropriate controller action',
 		railsConcept: 'config/routes.rb',
@@ -99,7 +99,6 @@ export const NODE_BEHAVIORS: Record<string, NodeBehavior> = {
 		sideEffects: ['session_write', 'log'],
 		allowedConnections: [
 			'model',
-			'view',
 			'serializer',
 			'service',
 			'cache',
@@ -112,7 +111,7 @@ export const NODE_BEHAVIORS: Record<string, NodeBehavior> = {
 					'Controllers should not query the database directly - use a Model',
 			},
 		],
-		description: 'Handles request logic and coordinates models/views',
+		description: 'Handles request logic and coordinates models/serializers',
 		railsConcept: 'ActionController::Base',
 		unlocksInAct: 1,
 	},
@@ -126,7 +125,7 @@ export const NODE_BEHAVIORS: Record<string, NodeBehavior> = {
 		sideEffects: ['callback', 'validation'],
 		allowedConnections: ['database', 'cache', 'eager_load', 'model'],
 		blockedConnections: [
-			{ target: 'view', reason: 'Models should not render views directly' },
+			{ target: 'serializer', reason: 'Models should not serialize directly' },
 			{ target: 'controller', reason: 'Models should not call controllers' },
 		],
 		description: 'ActiveRecord model representing a database table',
@@ -141,31 +140,10 @@ export const NODE_BEHAVIORS: Record<string, NodeBehavior> = {
 		blocking: true,
 		failureModes: ['hard', 'cascade'],
 		sideEffects: ['query', 'write', 'lock'],
-		allowedConnections: ['model', 'view', 'response', 'cache'],
+		allowedConnections: ['model', 'serializer', 'response', 'cache'],
 		blockedConnections: [],
 		description: 'PostgreSQL database executing queries',
 		railsConcept: 'ActiveRecord::ConnectionAdapters',
-		unlocksInAct: 1,
-	},
-
-	view: {
-		latencyCost: 10,
-		memoryCost: 15,
-		callMultiplier: 1,
-		blocking: true,
-		failureModes: ['soft'],
-		sideEffects: ['render'],
-		allowedConnections: ['response', 'cache'],
-		blockedConnections: [
-			{
-				target: 'database',
-				reason:
-					'Views should not query the database directly - this causes hidden N+1s',
-			},
-			{ target: 'model', reason: 'Views should receive data, not fetch it' },
-		],
-		description: 'ERB/HTML template rendering the response',
-		railsConcept: 'ActionView::Base',
 		unlocksInAct: 1,
 	},
 
@@ -246,8 +224,8 @@ export const NODE_BEHAVIORS: Record<string, NodeBehavior> = {
 		allowedConnections: ['model', 'cache', 'job_queue', 'external_api'],
 		blockedConnections: [
 			{
-				target: 'view',
-				reason: 'Services should return data, not render views',
+				target: 'serializer',
+				reason: 'Services should return data, not serialize directly',
 			},
 		],
 		description: 'Service object encapsulating business logic',
@@ -292,7 +270,7 @@ export const NODE_BEHAVIORS: Record<string, NodeBehavior> = {
 		blocking: false,
 		failureModes: ['silent', 'soft'],
 		sideEffects: ['cache_write', 'cache_invalidate'],
-		allowedConnections: ['database', 'model', 'view', 'response'],
+		allowedConnections: ['database', 'model', 'serializer', 'response'],
 		blockedConnections: [],
 		description: 'Rails cache for storing computed/fetched data',
 		railsConcept: 'Rails.cache.fetch',
@@ -306,10 +284,10 @@ export const NODE_BEHAVIORS: Record<string, NodeBehavior> = {
 		blocking: false,
 		failureModes: ['silent'],
 		sideEffects: ['cache_write'],
-		allowedConnections: ['view', 'response'],
+		allowedConnections: ['serializer', 'response'],
 		blockedConnections: [],
-		description: 'Fragment caching for view partials',
-		railsConcept: 'cache do ... end in views',
+		description: 'Fragment caching for JSON responses',
+		railsConcept: 'Rails.cache.fetch in serializers',
 		unlocksInAct: 3,
 	},
 
@@ -362,7 +340,7 @@ export const NODE_BEHAVIORS: Record<string, NodeBehavior> = {
 		],
 		blockedConnections: [
 			{ target: 'response', reason: 'Workers run asynchronously' },
-			{ target: 'view', reason: 'Workers do not render views' },
+			{ target: 'serializer', reason: 'Workers do not serialize responses' },
 		],
 		description: 'Sidekiq worker processing background jobs',
 		railsConcept: 'Sidekiq::Worker',
@@ -756,16 +734,16 @@ export const CONNECTION_COSTS: Record<
 			canCauseNPlusOne: false,
 			async: false,
 		},
-		view: {
-			latency: 10,
+		serializer: {
+			latency: 3,
 			canCauseNPlusOne: false,
 			async: false,
 		},
 	},
-	view: {
-		database: {
-			latency: 50,
-			canCauseNPlusOne: true,
+	serializer: {
+		response: {
+			latency: 1,
+			canCauseNPlusOne: false,
 			async: false,
 		},
 	},

@@ -65,8 +65,8 @@ export function PipelineNode({
 				return 'ActiveRecord';
 			case 'controller':
 				return 'ActionController';
-			case 'view':
-				return 'ERB Template';
+			case 'serializer':
+				return 'Serializer';
 			case 'router':
 				return 'routes.rb';
 			case 'request':
