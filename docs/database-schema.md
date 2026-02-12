@@ -140,7 +140,7 @@ CREATE TABLE IF NOT EXISTS player_progress (
   level INTEGER DEFAULT 1,
   xp INTEGER DEFAULT 0,
   unlocked_actions TEXT DEFAULT '[]',
-  unlocked_nodes TEXT DEFAULT '["request","router","controller","view","response"]',
+  unlocked_nodes TEXT DEFAULT '["request","router","controller","serializer","response"]',
   unlocked_defenses TEXT DEFAULT '["index_turret"]',
   stack_choices TEXT DEFAULT NULL,
   guest_imported_at DATETIME DEFAULT NULL,

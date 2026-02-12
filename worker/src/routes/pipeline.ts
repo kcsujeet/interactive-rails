@@ -440,7 +440,7 @@ pipelineRoutes.get('/progress', authMiddleware, async (c) => {
 		await db
 			.prepare(
 				`INSERT INTO player_progress (user_id, level, xp, unlocked_nodes, unlocked_defenses)
-        VALUES (?, 1, 0, '["request","router","controller","view","response"]', '["index_turret"]')`,
+        VALUES (?, 1, 0, '["request","router","controller","serializer","response"]', '["index_turret"]')`,
 			)
 			.bind(userId)
 			.run();
@@ -793,7 +793,7 @@ pipelineRoutes.post(
 			await db
 				.prepare(
 					`INSERT INTO player_progress (user_id, level, xp, unlocked_nodes, unlocked_defenses, guest_imported_at, stack_choices, last_played_at)
-          VALUES (?, 1, 0, '["request","router","controller","view","response"]', '["index_turret"]', CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)`,
+          VALUES (?, 1, 0, '["request","router","controller","serializer","response"]', '["index_turret"]', CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)`,
 				)
 				.bind(userId, stackChoices ? JSON.stringify(stackChoices) : null)
 				.run();

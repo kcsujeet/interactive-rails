@@ -412,7 +412,7 @@ const availableNodes = [
   'controller',   // Basic MVC
   'model',        // After Act 1
   'database',     // After Act 1
-  'view',         // After Act 1
+  'serializer',   // After Act 1
   'cache',        // After Act 3
   'job',          // After Act 3
 ];

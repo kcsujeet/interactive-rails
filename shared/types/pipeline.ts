@@ -7,7 +7,7 @@ export type NodeType =
 	| 'model'
 	| 'database'
 	| 'cache'
-	| 'view'
+	| 'serializer'
 	| 'response'
 	| 'background_job';
 
@@ -21,7 +21,7 @@ export interface Position {
 export interface Port {
 	id: string;
 	type: 'input' | 'output';
-	dataType: 'request' | 'data' | 'query' | 'html' | 'any';
+	dataType: 'request' | 'data' | 'query' | 'json' | 'any';
 	label?: string;
 }
 
@@ -116,12 +116,11 @@ export interface CacheConfig extends BaseNodeConfig {
 	nestedCaching?: boolean;
 }
 
-// View configuration
-export interface ViewConfig extends BaseNodeConfig {
-	template: string;
-	layout?: string;
-	partials?: string[];
-	// N+1 detection: tracks which associations are accessed in view
+// Serializer configuration
+export interface SerializerConfig extends BaseNodeConfig {
+	format: 'json' | 'jsonapi';
+	fields?: string[];
+	// N+1 detection: tracks which associations are accessed in serializer
 	accessedAssociations?: string[];
 	// Caching
 	cacheKey?: string;
@@ -157,7 +156,7 @@ export type NodeConfig =
 	| ModelConfig
 	| DatabaseConfig
 	| CacheConfig
-	| ViewConfig
+	| SerializerConfig
 	| BackgroundJobConfig
 	| RequestConfig
 	| ResponseConfig;
@@ -227,7 +226,7 @@ export const NODE_DEFAULTS: Record<NodeType, Partial<BaseNode>> = {
 		ports: [
 			{ id: 'in', type: 'input', dataType: 'request', label: 'Action' },
 			{ id: 'model', type: 'output', dataType: 'query', label: 'Query' },
-			{ id: 'view', type: 'output', dataType: 'data', label: 'Data' },
+			{ id: 'serializer', type: 'output', dataType: 'data', label: 'Data' },
 			{ id: 'job', type: 'output', dataType: 'data', label: 'Job' },
 		],
 		config: { name: 'Controller', actions: [] } as ControllerConfig,
@@ -260,16 +259,16 @@ export const NODE_DEFAULTS: Record<NodeType, Partial<BaseNode>> = {
 			ttl: 3600,
 		} as CacheConfig,
 	},
-	view: {
+	serializer: {
 		ports: [
 			{ id: 'in', type: 'input', dataType: 'data', label: 'Data' },
-			{ id: 'out', type: 'output', dataType: 'html', label: 'HTML' },
+			{ id: 'out', type: 'output', dataType: 'json', label: 'JSON' },
 		],
-		config: { template: '' } as ViewConfig,
+		config: { format: 'json' } as SerializerConfig,
 	},
 	response: {
 		ports: [{ id: 'in', type: 'input', dataType: 'any', label: 'Response' }],
-		config: { format: 'html' } as ResponseConfig,
+		config: { format: 'json' } as ResponseConfig,
 	},
 	background_job: {
 		ports: [

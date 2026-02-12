@@ -136,11 +136,10 @@ Get user's full progress data including level completions.
     "user_id": "uuid-here",
     "level": 5,
     "xp": 1250,
-    "unlocked_nodes": ["request", "router", "controller", "model", "database", "view", "response", "cache"],
+    "unlocked_nodes": ["request", "router", "controller", "model", "database", "serializer", "response", "cache"],
     "unlocked_defenses": ["index_turret", "cache_shield", "eager_loader"],
     "stack_choices": {
-      "database": "postgresql",
-      "frontend": "hotwire"
+      "database": "postgresql"
     },
     "total_stars_earned": 24,
     "dungeons_completed": 10,

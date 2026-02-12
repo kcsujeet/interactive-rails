@@ -24,7 +24,7 @@ export class PipelineProgressRepository {
 		await this.db
 			.prepare(
 				`INSERT INTO player_progress (user_id, level, xp, unlocked_actions, unlocked_nodes, unlocked_defenses)
-         VALUES (?, 1, 0, '[]', '["request","router","controller","view","response"]', '["index_turret"]')`,
+         VALUES (?, 1, 0, '[]', '["request","router","controller","serializer","response"]', '["index_turret"]')`,
 			)
 			.bind(data.userId)
 			.run();
