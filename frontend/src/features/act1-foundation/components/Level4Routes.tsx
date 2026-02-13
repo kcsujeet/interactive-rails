@@ -260,7 +260,7 @@ end`,
 				<LevelHeader
 					actNumber={1}
 					levelName="Routes & Request Lifecycle"
-					levelNumber={4}
+					levelNumber={5}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => window.location.reload()}

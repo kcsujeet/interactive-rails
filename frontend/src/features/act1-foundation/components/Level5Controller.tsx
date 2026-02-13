@@ -324,7 +324,7 @@ end`,
 				<LevelHeader
 					actNumber={1}
 					levelName="The Controller"
-					levelNumber={5}
+					levelNumber={6}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => window.location.reload()}

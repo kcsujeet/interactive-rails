@@ -97,7 +97,7 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 		const activeLevel = level;
 
 		// 2. DYNAMIC PATCHING based on L1 Choices
-		if (activeLevel && activeLevel.levelNumber === 2) {
+		if (activeLevel && activeLevel.levelNumber === 3) {
 			// Patch Level 2: If React, ask for Serializer instead of View
 			// Note: We need to clone the level to avoid mutating the global constant
 			const _patchedLevel = JSON.parse(JSON.stringify(activeLevel));

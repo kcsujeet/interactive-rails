@@ -2,25 +2,25 @@
  * Act 1: The Foundation
  * "Build a working API from nothing"
  *
- * Levels 1-7: Stack Choice, Model, CRUD, Routes, Controller, Serializers, Associations
+ * Levels 1-8: Environment, Hello Rails, Model, CRUD, Routes, Controller, Serializers, Associations
  * App context: Blog API
  */
 
 import type { Act, Level } from '@/types';
 
 // ============================================
-// Level 1: The Stack Choice
+// Level 1: The Environment (NEW)
 // ============================================
 
-const level1StackChoice: Level = {
-	id: 'act1-level1-stack-choice',
+const level1Environment: Level = {
+	id: 'act1-level1-environment',
 	actId: 1,
 	levelNumber: 1,
-	name: 'The Stack Choice',
+	name: 'The Environment',
 	trigger: {
 		type: 'initialization',
 		description:
-			'Day 1. Set up your Rails 8 API from scratch — pick a database, generate the project, create the database, and boot the server.',
+			'Before writing any code, set up your dev environment — install asdf for version management, pin Ruby in .tool-versions, install Ruby, and install Rails.',
 	},
 	startingPipeline: {
 		nodes: [{ id: 'terminal', type: 'terminal', x: 500, y: 300, locked: true }],
@@ -28,20 +28,127 @@ const level1StackChoice: Level = {
 	},
 	problem: {
 		observation:
-			'No application exists yet. You need to choose a database, generate the project, create the database, and boot the server.',
-		rootCause: 'No application exists yet.',
-		codeExample: `# Rails 8 has two production-ready databases:
-# PostgreSQL — sharding, read replicas, advanced queries
-# SQLite — WAL mode, IMMEDIATE transactions, zero config
+			'No Ruby or Rails installed. You need a version manager and the right tools before creating any project.',
+		rootCause: 'No development environment configured.',
+		codeExample: `# A Rails project needs:
+# 1. A version manager (asdf) — so every project
+#    uses the exact Ruby version it was built with
+# 2. Ruby — the language
+# 3. Rails — the framework (installed as a Ruby gem)
+#
+# .tool-versions pins the version per-project:
+#   ruby 3.3.6
+#
+# asdf reads this file and installs/switches
+# to the correct version automatically.`,
+		goal: 'Install asdf, configure .tool-versions with the correct format, install Ruby via asdf, and install Rails via gem.',
+		thresholds: {},
+	},
+	successConditions: [{ type: 'slot_filled', slotId: 'environment-ready' }],
+	availableNodes: [],
+	unlockedNodes: [],
+	darkCanvas: true,
+	learningContent: {
+		title: 'Ruby/Rails Development Environment',
+		conceptExplanation: `Setting up a consistent dev environment is the first step in any Rails project.
 
+**Why asdf?**
+- Manages multiple runtime versions (Ruby, Node, Python, etc.)
+- Per-project version pinning via \`.tool-versions\`
+- Team members always use the same Ruby version
+- No conflicts between projects needing different versions
+
+**The .tool-versions file:**
+- Lives in your project root
+- Space-separated format: \`ruby 3.3.6\`
+- asdf reads it automatically when you \`cd\` into the directory
+
+**Ruby gems:**
+- Rails is distributed as a Ruby gem
+- \`gem install rails\` installs the Rails CLI
+- The \`rails new\` command then generates project scaffolding`,
+		railsCodeExample: `# Install asdf (macOS)
+brew install asdf
+
+# Add Ruby plugin
+asdf plugin add ruby
+
+# Create .tool-versions in project root
+echo "ruby 3.3.6" > .tool-versions
+
+# Install the pinned Ruby version
+asdf install ruby
+
+# Verify
+ruby --version  # => ruby 3.3.6
+
+# Install Rails
+gem install rails
+rails --version  # => Rails 8.0.0`,
+		commonMistakes: [
+			'Installing Ruby via Homebrew instead of asdf (version conflicts)',
+			'Using wrong .tool-versions format (YAML colons, hyphens)',
+			'Forgetting to run asdf install after creating .tool-versions',
+		],
+		whenToUse:
+			'Always set up asdf and .tool-versions at the start of a new Rails project.',
+		furtherReading: [
+			{
+				title: 'asdf Version Manager',
+				url: 'https://asdf-vm.com/',
+			},
+			{
+				title: 'Rails Getting Started',
+				url: 'https://guides.rubyonrails.org/getting_started.html',
+			},
+		],
+	},
+	hint: {
+		delay: 30,
+		text: 'Install asdf with Homebrew, then configure .tool-versions using space-separated format: "ruby 3.3.6".',
+	},
+};
+
+// ============================================
+// Level 2: Hello, Rails (was "The Stack Choice")
+// ============================================
+
+const level2HelloRails: Level = {
+	id: 'act1-level1-stack-choice',
+	actId: 1,
+	levelNumber: 2,
+	name: 'Hello, Rails',
+	trigger: {
+		type: 'initialization',
+		description:
+			'Ruby and Rails are installed. Now create your first application — choose PostgreSQL over SQLite, install it, generate an API-only project, create the database, and boot the server.',
+	},
+	startingPipeline: {
+		nodes: [{ id: 'terminal', type: 'terminal', x: 500, y: 300, locked: true }],
+		connections: [],
+	},
+	problem: {
+		observation:
+			'No application exists yet. You have Ruby and Rails but no project.',
+		rootCause: 'No application created yet.',
+		codeExample: `# Rails 8 supports two databases out of the box:
+#
+# PostgreSQL:
+#   - Multi-user, concurrent writes
+#   - Sharding, read replicas, advanced queries
+#   - The production standard for web APIs
+#
+# SQLite:
+#   - Single-writer, file-based
+#   - Great for prototypes and embedded apps
+#   - Not ideal for concurrent API requests
+#
 # The --api flag creates a lean app:
-# - ActionController::API (no cookies, sessions, flash)
-# - Solid Queue for background jobs
-# - Solid Cache for caching
-# - Solid Cable for WebSockets
-
-# Your job: pick a database and get the server running.`,
-		goal: 'Set up a new Rails 8 API project in 4 steps: choose database, generate project, create database, and boot the server.',
+#   ActionController::API (no cookies, sessions, flash)
+#
+# Your job: pick the right database, install it,
+# generate the project, and get the server running.`,
+		goal: 'Choose PostgreSQL as the database, install it, generate an API-only Rails project, create the database, and boot the server.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'slot_filled', slotId: 'database-slot' }],
@@ -70,8 +177,8 @@ const level1StackChoice: Level = {
 		conceptExplanation: `Rails 8 introduces major changes to the default stack:
 
 **PostgreSQL vs SQLite:**
-- PostgreSQL: Battle-tested, supports sharding, read replicas, advanced queries
-- SQLite: Rails 8 enables WAL mode and IMMEDIATE transactions by default, making it production-viable for many apps
+- PostgreSQL: Battle-tested, supports sharding, read replicas, advanced queries, concurrent writes
+- SQLite: Rails 8 enables WAL mode and IMMEDIATE transactions by default, but it's still single-writer
 
 **API-only mode (\`--api\`):**
 - Inherits from \`ActionController::API\` instead of \`ActionController::Base\`
@@ -83,26 +190,30 @@ const level1StackChoice: Level = {
 - Solid Queue for background jobs
 - Solid Cache for caching
 - Solid Cable for WebSockets`,
-		railsCodeExample: `# Create a new Rails 8 API app
+		railsCodeExample: `# Install PostgreSQL
+brew install postgresql@17
+
+# Create a new Rails 8 API app
 rails new myapp --api --database=postgresql
 
-# config/database.yml
-production:
-  adapter: postgresql
-  encoding: unicode
-  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
-  url: <%= ENV['DATABASE_URL'] %>
+# Create the database
+cd myapp
+rails db:create
 
-# SQLite in Rails 8 (production-ready)
-# Automatic WAL mode, IMMEDIATE transactions
-# No separate DB server needed`,
+# Boot the server
+rails server
+
+# Test it
+curl http://localhost:3000/up
+# => {"status":"ok"}`,
 		commonMistakes: [
-			'Not considering future scaling needs when choosing SQLite',
-			'Using full Rails when you only need an API',
-			'Not understanding API-only middleware differences',
+			'Choosing SQLite for a multi-user API (single-writer limitation)',
+			'Forgetting --api flag (includes unnecessary browser middleware)',
+			'Running db:migrate before db:create',
+			'Using "rails start" instead of "rails server"',
 		],
 		whenToUse:
-			'PostgreSQL for apps that will need sharding or read replicas. SQLite for simpler apps or prototypes.',
+			'PostgreSQL for any app serving concurrent users. SQLite only for single-user or embedded apps.',
 		furtherReading: [
 			{
 				title: 'Rails Getting Started',
@@ -116,18 +227,18 @@ production:
 	},
 	hint: {
 		delay: 30,
-		text: 'Start by dragging PostgreSQL or SQLite into the database slot, then follow the terminal commands.',
+		text: 'PostgreSQL handles concurrent writes — pick it for a multi-user API. Install the server with Homebrew before generating the project.',
 	},
 };
 
 // ============================================
-// Level 2: The Model
+// Level 3: The Model (was Level 2)
 // ============================================
 
-const level2Model: Level = {
+const level3Model: Level = {
 	id: 'act1-level2-model',
 	actId: 1,
-	levelNumber: 2,
+	levelNumber: 3,
 	name: 'The Model',
 	trigger: {
 		type: 'new_feature',
@@ -216,13 +327,13 @@ rails db:schema:dump`,
 };
 
 // ============================================
-// Level 3: CRUD Operations
+// Level 4: CRUD Operations (was Level 3)
 // ============================================
 
-const level3CRUD: Level = {
+const level4CRUD: Level = {
 	id: 'act1-level3-crud',
 	actId: 1,
-	levelNumber: 3,
+	levelNumber: 4,
 	name: 'CRUD Operations',
 	trigger: {
 		type: 'new_feature',
@@ -322,13 +433,13 @@ Post.destroy_all                  # DELETE FROM posts (careful!)`,
 };
 
 // ============================================
-// Level 4: Routes & Request Lifecycle
+// Level 5: Routes & Request Lifecycle (was Level 4)
 // ============================================
 
-const level4Routes: Level = {
+const level5Routes: Level = {
 	id: 'act1-level4-routes',
 	actId: 1,
-	levelNumber: 4,
+	levelNumber: 5,
 	name: 'Routes & Request Lifecycle',
 	trigger: {
 		type: 'new_feature',
@@ -425,13 +536,13 @@ rails routes
 };
 
 // ============================================
-// Level 5: The Controller
+// Level 6: The Controller (was Level 5)
 // ============================================
 
-const level5Controller: Level = {
+const level6Controller: Level = {
 	id: 'act1-level5-controller',
 	actId: 1,
-	levelNumber: 5,
+	levelNumber: 6,
 	name: 'The Controller',
 	trigger: {
 		type: 'new_feature',
@@ -546,13 +657,13 @@ end`,
 };
 
 // ============================================
-// Level 6: Serializers
+// Level 7: Serializers (was Level 6)
 // ============================================
 
-const level6Serializers: Level = {
+const level7Serializers: Level = {
 	id: 'act1-level6-serializers',
 	actId: 1,
-	levelNumber: 6,
+	levelNumber: 7,
 	name: 'Serializers',
 	trigger: {
 		type: 'user_complaint',
@@ -733,13 +844,13 @@ end
 };
 
 // ============================================
-// Level 7: Associations
+// Level 8: Associations (was Level 7)
 // ============================================
 
-const level7Associations: Level = {
+const level8Associations: Level = {
 	id: 'act1-level7-associations',
 	actId: 1,
-	levelNumber: 7,
+	levelNumber: 8,
 	name: 'Associations',
 	trigger: {
 		type: 'new_feature',
@@ -926,15 +1037,16 @@ export const actOne: Act = {
 	name: 'The Foundation',
 	tagline: 'Build a working API from nothing',
 	description:
-		'Build a Rails 8 API from scratch: models, controllers, routes, serializers, and associations. By the end, you have a working blog API.',
+		'Build a Rails 8 API from scratch: environment setup, project creation, models, controllers, routes, serializers, and associations. By the end, you have a working blog API.',
 	levels: [
-		level1StackChoice,
-		level2Model,
-		level3CRUD,
-		level4Routes,
-		level5Controller,
-		level6Serializers,
-		level7Associations,
+		level1Environment,
+		level2HelloRails,
+		level3Model,
+		level4CRUD,
+		level5Routes,
+		level6Controller,
+		level7Serializers,
+		level8Associations,
 	],
 	unlockedNodes: ['terminal', 'postgres', 'sqlite'],
 	metricsVisible: false,

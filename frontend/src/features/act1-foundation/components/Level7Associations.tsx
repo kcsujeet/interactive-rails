@@ -273,7 +273,7 @@ end`,
 				<LevelHeader
 					actNumber={1}
 					levelName="Associations"
-					levelNumber={7}
+					levelNumber={8}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => window.location.reload()}

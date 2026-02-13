@@ -333,7 +333,7 @@ end`,
 				<LevelHeader
 					actNumber={1}
 					levelName="The Model"
-					levelNumber={2}
+					levelNumber={3}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => window.location.reload()}

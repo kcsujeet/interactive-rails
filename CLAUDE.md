@@ -71,6 +71,36 @@ Every level teaches through three phases: **WHY → HOW → ADVANTAGE**.
 
 When creating or redesigning a level component, ensure all three phases are present in the gameplay. Reference `docs/spec.md` for each level's scenario and concept.
 
+### Wrong-Answer Feedback: Never Reveal Answers
+
+**Error feedback must NEVER contain the correct answer.** This is non-negotiable. Feedback should explain *why the chosen option is wrong* — not what the right one is. The player must figure out the answer themselves.
+
+**The correct answer must NEVER be the first option.** Vary its position across steps so there is no predictable pattern.
+
+```tsx
+// BAD — gives away the answer
+feedback: 'Rails is a Ruby gem — use `gem install rails`.'
+feedback: 'Add --api and --database=postgresql.'
+feedback: "Database doesn't exist yet — run db:create first."
+
+// GOOD — explains why wrong, doesn't reveal answer
+feedback: "Rails isn't a system package — it's distributed through Ruby's own ecosystem."
+feedback: 'Missing flags — you need API-only mode and a database adapter.'
+feedback: "Database doesn't exist yet — migrations need an existing database."
+
+// BAD — correct answer is always first
+const commands = [
+  { label: 'brew install asdf', correct: true },   // always first = dead giveaway
+  { label: 'apt-get install asdf', correct: false },
+];
+
+// GOOD — correct answer in varied position
+const commands = [
+  { label: 'apt-get install asdf', correct: false },
+  { label: 'brew install asdf', correct: true },    // not first
+];
+```
+
 ### Level Checklist: What to Update
 
 When creating or modifying a level, update **both** the component AND its content definition. A level has two halves:

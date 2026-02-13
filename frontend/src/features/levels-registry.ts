@@ -6,8 +6,8 @@
  *
  * CURRICULUM STRUCTURE (50 levels, 8 acts):
  *
- * Act 1: The Foundation (7 levels)
- * - Stack Choice, Model, CRUD, Routes, Controller, Serializers, Associations
+ * Act 1: The Foundation (8 levels)
+ * - Environment, Hello Rails, Model, CRUD, Routes, Controller, Serializers, Associations
  *
  * Act 2: Users & Security (7 levels)
  * - Authentication, Validations, Callbacks, Authorization, Testing, Security, Scopes & Enums
@@ -46,8 +46,9 @@ export interface LevelComponentProps {
 }
 
 // ===========================================
-// Act 1: The Foundation (Levels 1-7)
+// Act 1: The Foundation (Levels 1-8)
 // ===========================================
+import { Level1Environment } from './act1-foundation/components/Level1Environment';
 import { Level1StackChoice } from './act1-foundation/components/Level1StackChoice';
 import { Level2Model } from './act1-foundation/components/Level2Model';
 import { Level3CRUD } from './act1-foundation/components/Level3CRUD';
@@ -127,6 +128,7 @@ const LEVEL_COMPONENTS: Record<string, ComponentType<LevelComponentProps>> = {
 	// ============================================
 	// Act 1: The Foundation
 	// ============================================
+	'act1-level1-environment': Level1Environment,
 	'act1-level1-stack-choice': Level1StackChoice,
 	'act1-level2-model': Level2Model,
 	'act1-level3-crud': Level3CRUD,
@@ -218,6 +220,7 @@ export function hasCustomComponent(levelId: string): boolean {
 }
 
 // Re-export Act 1 level components for direct import
+export { Level1Environment } from './act1-foundation/components/Level1Environment';
 export { Level1StackChoice } from './act1-foundation/components/Level1StackChoice';
 export { Level2Model } from './act1-foundation/components/Level2Model';
 export { Level3CRUD } from './act1-foundation/components/Level3CRUD';
