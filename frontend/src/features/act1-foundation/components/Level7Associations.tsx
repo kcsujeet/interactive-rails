@@ -1,195 +1,222 @@
 /**
- * Level 7: Semantic Associations
+ * Level 7: Associations
  *
- * Add a Comment model and choose the correct relationship type.
- * Decision modal appears when connecting Model → Model.
+ * 5-step progression to create the Comment model and associate it with Post.
+ * Steps: Generate Comment → Choose Relationship → Auto belongs_to → Set Dependent → Test It
  */
 
-import type { MouseEvent } from 'react';
-import { useCallback, useEffect, useState } from 'react';
-import type { ValidationResult } from '@/components/levels';
+import { useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
-	DraggableNode,
+	ErrorFeedback,
 	InstructionPanel,
 	LeftPanel,
 	LevelHeader,
 	LevelLayout,
-	NodePalette,
-	NodePaletteGroup,
 	RightPanel,
+	SimulatedTerminal,
+	StepProgress,
 	useLevelCompletion,
+	type TerminalOutputLine,
+	type ValidationResult,
 } from '@/components/levels';
-import { PipelineCanvas } from '@/components/PipelineCanvas';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
-import { usePipelineState } from '@/hooks/usePipelineState';
+import { useStepGating, type StepDef } from '@/hooks/useStepGating';
 
-const INITIAL_NODES = [
-	{ id: 'request-1', type: 'request', x: 130, y: 280 },
-	{ id: 'router-1', type: 'router', x: 350, y: 280 },
-	{ id: 'controller-1', type: 'controller', x: 570, y: 280 },
-	{
-		id: 'post-model',
-		type: 'model',
-		x: 810,
-		y: 150,
-		config: { label: 'Post' },
-	},
-	{ id: 'database-1', type: 'database', x: 1060, y: 150 },
-	{ id: 'serializer-1', type: 'serializer', x: 810, y: 410 },
-	{ id: 'response-1', type: 'response', x: 1060, y: 410 },
-] as const;
-
-const INITIAL_CONNECTIONS = [
-	{ id: 'c1', sourceNodeId: 'request-1', targetNodeId: 'router-1' },
-	{ id: 'c2', sourceNodeId: 'router-1', targetNodeId: 'controller-1' },
-	{ id: 'c3', sourceNodeId: 'controller-1', targetNodeId: 'post-model' },
-	{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'database-1' },
-	{ id: 'c5', sourceNodeId: 'controller-1', targetNodeId: 'serializer-1' },
-	{ id: 'c6', sourceNodeId: 'serializer-1', targetNodeId: 'response-1' },
-] as const;
-
-/** Find the comment model node (any model that isn't the initial post-model) */
-function findCommentNode(
-	nodes: { id: string; type: string; config?: { label?: string } }[],
-) {
-	return nodes.find((n) => n.type === 'model' && n.id !== 'post-model');
-}
+const STEP_DEFS: StepDef[] = [
+	{ id: 'generate-comment', title: 'Generate Comment' },
+	{ id: 'choose-relationship', title: 'Choose Relationship' },
+	{ id: 'auto-belongs-to', title: 'Auto belongs_to' },
+	{ id: 'set-dependent', title: 'Set Dependent' },
+	{ id: 'test-it', title: 'Test It' },
+];
 
 export function Level7Associations({
 	onComplete,
 	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
-
-	// Pre-built pipeline with Post model
-	const pipeline = usePipelineState({
-		initialNodes: [...INITIAL_NODES],
-		initialConnections: [...INITIAL_CONNECTIONS],
-		onBeforeDrop: (type, nodes) => {
-			// Only allow dropping a model if no comment model exists yet
-			return type === 'model' && !findCommentNode(nodes);
-		},
-	});
-
-	const [commentAdded, setCommentAdded] = useState(false);
+	const stepper = useStepGating(STEP_DEFS);
 	const [relationshipType, setRelationshipType] = useState<string | null>(null);
-	const [showDecisionModal, setShowDecisionModal] = useState(false);
-	const [pendingRelationship, setPendingRelationship] = useState<{
-		sourceNodeId: string;
-		targetNodeId: string;
-	} | null>(null);
+	const [dependentOption, setDependentOption] = useState<string | null>(null);
 
-	// Detect when Comment model is added and update its label
-	useEffect(() => {
-		const commentNode = findCommentNode(pipeline.placedNodes);
-		if (commentNode && !commentNode.config?.label) {
-			pipeline.updateNode(commentNode.id, { config: { label: 'Comment' } });
-			setCommentAdded(true);
-		}
-	}, [pipeline]);
-
-	// Handle connection creation - intercept model-to-model connections
-	const handleConnectionCreated = useCallback(
-		(sourceNodeId: string, targetNodeId: string) => {
-			const sourceNode = pipeline.placedNodes.find(
-				(n) => n.id === sourceNodeId,
-			);
-			const targetNode = pipeline.placedNodes.find(
-				(n) => n.id === targetNodeId,
-			);
-
-			// Check if connecting two models
-			if (sourceNode?.type === 'model' && targetNode?.type === 'model') {
-				// Show decision modal
-				setPendingRelationship({ sourceNodeId, targetNodeId });
-				setShowDecisionModal(true);
-				return false; // Don't create connection yet
-			}
-
-			return true; // Allow other connections
+	// Step 1: Generate Comment model
+	const generateCommands = [
+		{
+			id: 'correct',
+			label: 'rails generate model Comment body:text post:references',
+			command: 'rails generate model Comment body:text post:references',
+			correct: true,
 		},
-		[pipeline.placedNodes],
-	);
+		{
+			id: 'wrong-integer',
+			label: 'rails generate model Comment body:text post_id:integer',
+			command: 'rails generate model Comment body:text post_id:integer',
+			correct: false,
+			feedback:
+				'"post:references" adds the foreign key, index, AND the belongs_to association automatically. "post_id:integer" only adds the column.',
+		},
+		{
+			id: 'wrong-missing-post',
+			label: 'rails generate model Comment body:text',
+			command: 'rails generate model Comment body:text',
+			correct: false,
+			feedback:
+				'Comment needs a "post:references" to link to Post — otherwise there\'s no relationship.',
+		},
+	];
 
-	// Handle decision modal choice
-	const handleRelationshipChoice = (choice: string) => {
-		if (pendingRelationship) {
-			// Create connection with relationship type metadata
-			const newConnection = {
-				id: `conn-${Date.now()}`,
-				sourceNodeId: pendingRelationship.sourceNodeId,
-				targetNodeId: pendingRelationship.targetNodeId,
-			};
-			pipeline.setConnections((prev) => [...prev, newConnection]);
-			setRelationshipType(choice);
-		}
-		setShowDecisionModal(false);
-		setPendingRelationship(null);
-	};
+	const generateOutput: TerminalOutputLine[] = [
+		{ text: '      invoke  active_record', color: 'green' },
+		{ text: '      create    db/migrate/20240101000001_create_comments.rb', color: 'green' },
+		{ text: '      create    app/models/comment.rb', color: 'green' },
+		{ text: '      invoke    test_unit', color: 'muted' },
+	];
 
-	// Handle completing the level
+	// Step 2: Relationship options
+	const RELATIONSHIP_OPTIONS = [
+		{
+			id: 'has_one',
+			label: 'has_one',
+			description: 'Only one comment per post',
+			correct: false,
+			feedback:
+				'"has_one" means only one comment per post — use "has_many" so posts can have unlimited comments.',
+		},
+		{
+			id: 'has_many',
+			label: 'has_many',
+			description: 'Posts can have unlimited comments',
+			correct: true,
+			feedback: '',
+		},
+		{
+			id: 'belongs_to',
+			label: 'belongs_to',
+			description: 'Post belongs to a Comment',
+			correct: false,
+			feedback:
+				'"belongs_to" goes on the child side (Comment) — Post is the parent and "has_many" comments.',
+		},
+		{
+			id: 'habtm',
+			label: 'has_and_belongs_to_many',
+			description: 'Comments shared between posts',
+			correct: false,
+			feedback:
+				'"has_and_belongs_to_many" creates a many-to-many relationship — comments belong to one post, not shared across many.',
+		},
+	];
+
+	// Step 4: Dependent options
+	const DEPENDENT_OPTIONS = [
+		{
+			id: 'destroy',
+			label: 'dependent: :destroy',
+			description: 'Delete all comments when the post is deleted',
+			correct: true,
+			feedback: '',
+		},
+		{
+			id: 'nullify',
+			label: 'dependent: :nullify',
+			description: 'Set post_id to NULL on comments',
+			correct: false,
+			feedback:
+				'Orphaned comments with NULL post_id would break your API — use :destroy to clean them up.',
+		},
+		{
+			id: 'restrict',
+			label: 'dependent: :restrict_with_error',
+			description: 'Prevent deleting posts that have comments',
+			correct: false,
+			feedback:
+				'For a blog API, cleaning up comments on delete is better than preventing deletion.',
+		},
+		{
+			id: 'nothing',
+			label: 'No dependent option',
+			description: 'Do nothing when post is deleted',
+			correct: false,
+			feedback:
+				'Orphaned comments would break your API — add "dependent: :destroy" to clean up.',
+		},
+	];
+
+	// Step 5: Test
+	const testCommands = [
+		{
+			id: 'create-comment',
+			label: 'post.comments.create(body: "Nice!")',
+			command: 'post.comments.create(body: "Nice!")',
+			correct: true,
+		},
+	];
+
+	const testOutput: TerminalOutputLine[] = [
+		{ text: '=> #<Comment id: 1, body: "Nice!", post_id: 1>', color: 'green' },
+		{ text: '', color: 'muted' },
+		{ text: '> post.comments.count', color: 'yellow' },
+		{ text: '=> 1', color: 'cyan' },
+		{ text: '', color: 'muted' },
+		{ text: '> post.destroy', color: 'yellow' },
+		{ text: '  Comment Destroy (0.1ms)  DELETE FROM "comments" WHERE "comments"."post_id" = 1', color: 'red' },
+		{ text: '  Post Destroy (0.1ms)  DELETE FROM "posts" WHERE "posts"."id" = 1', color: 'red' },
+		{ text: '=> #<Post id: 1> (destroyed with 1 comment)', color: 'green' },
+	];
+
 	const handleComplete = async () => {
 		const success = await completeLevel('act1-level7-associations', {
-			stars: 3,
-			decisions: { relationship: relationshipType! },
+			stars: stepper.starRating,
+			decisions: { relationship: 'has_many', dependent: 'destroy' },
 		});
 		if (success) {
-			onComplete({ stars: 3, decisions: { relationship: relationshipType! } });
+			onComplete({
+				stars: stepper.starRating,
+				decisions: { relationship: 'has_many', dependent: 'destroy' },
+			});
 		}
 	};
 
-	// Validate the current pipeline state for the Submit button
-	const handleValidate = useCallback((): ValidationResult => {
-		if (!commentAdded) {
+	const validateSolution = (): ValidationResult => {
+		if (!stepper.isComplete) {
 			return {
 				valid: false,
-				message: 'Add the Comment model',
-				details: ['Drag the Comment model onto the canvas'],
+				message: 'Complete all steps',
+				details: stepper.steps
+					.filter((s) => s.status !== 'completed')
+					.map((s) => s.title),
 			};
 		}
-		if (!relationshipType) {
-			return {
-				valid: false,
-				message: 'Connect the models',
-				details: ['Draw a connection from Post to Comment'],
-			};
-		}
-		if (relationshipType !== 'has_many') {
-			return {
-				valid: false,
-				message: 'Wrong relationship type',
-				details: ['Think about how many comments a post can have'],
-			};
-		}
-		return {
-			valid: true,
-			message: 'Correct! has_many is the right relationship.',
-		};
-	}, [commentAdded, relationshipType]);
+		return { valid: true, message: 'Associations configured correctly!' };
+	};
 
-	// Generate code preview
 	const getCodeFiles = () => {
 		const files = [];
 
 		// Post model
+		const postHasMany = relationshipType === 'has_many';
+		const depLine = dependentOption
+			? `, dependent: :${dependentOption}`
+			: '';
 		files.push({
 			filename: 'app/models/post.rb',
 			language: 'ruby',
-			code: relationshipType
-				? `class Post < ApplicationRecord
-  ${relationshipType} :comments${relationshipType === 'has_many' ? ', dependent: :destroy' : ''}
+			code:
+				stepper.currentStep >= 2
+					? `class Post < ApplicationRecord
+  ${relationshipType || 'has_many'} :comments${postHasMany ? depLine : ''}
 end`
-				: `class Post < ApplicationRecord
-  # No associations defined yet
+					: `class Post < ApplicationRecord
+  # No associations yet
 end`,
-			highlight: relationshipType ? [2] : [],
+			highlight: stepper.currentStep >= 2 ? [2] : [],
 		});
 
-		// Comment model (if added)
-		if (commentAdded) {
+		// Comment model (after step 1)
+		if (stepper.currentStep >= 1) {
 			files.push({
 				filename: 'app/models/comment.rb',
 				language: 'ruby',
@@ -200,47 +227,22 @@ end`,
 			});
 		}
 
-		// Show serializer output
-		if (relationshipType) {
+		// Migration (after step 1)
+		if (stepper.currentStep >= 1) {
 			files.push({
-				filename: 'app/serializers/post_serializer.rb',
+				filename: 'db/migrate/create_comments.rb',
 				language: 'ruby',
-				code:
-					relationshipType === 'has_many'
-						? `class PostSerializer < BaseSerializer
-  attribute :title
-  attribute :body
+				code: `class CreateComments < ActiveRecord::Migration[8.0]
+  def change
+    create_table :comments do |t|
+      t.text :body
+      t.references :post, null: false, foreign_key: true
 
-  has_many :comments, serializer: CommentSerializer
-end
-
-# GET /api/v1/posts/1
-# => { "data": { "id": "1", "type": "posts",
-#      "attributes": { "title": "Hello" },
-#      "relationships": { "comments": { "data": [...] } } } }`
-						: relationshipType === 'has_one'
-							? `class PostSerializer < BaseSerializer
-  attribute :title
-  attribute :body
-
-  has_one :comment, serializer: CommentSerializer
-end
-
-# GET /api/v1/posts/1
-# => { "data": { "id": "1", "type": "posts",
-#      "attributes": { "title": "Hello" },
-#      "relationships": { "comment": { "data": {...} } } } }
-# Only ONE comment per post!`
-							: `class PostSerializer < BaseSerializer
-  attribute :title
-  attribute :body
-
-  has_many :comments, serializer: CommentSerializer
-end
-
-# has_and_belongs_to_many means comments are
-# shared between posts — not what you want here!`,
-				highlight: relationshipType === 'has_many' ? [5] : [12, 13],
+      t.timestamps
+    end
+  end
+end`,
+				highlight: [5],
 			});
 		}
 
@@ -250,157 +252,246 @@ end
 	return (
 		<LevelLayout>
 			<LeftPanel>
-				<InstructionPanel
-					goal="Learn ActiveRecord associations. The relationship type determines how models connect to each other."
-					instructions={[
-						'Drag the Comment Model to the canvas',
-						'Connect the Post Model to the Comment Model',
-						'Choose the correct relationship type in the dialog',
-					]}
-					scenario="Your blog needs comments! Each Post can have multiple Comments. But how do you tell Rails about this relationship?"
-				>
-					<NodePalette>
-						{!commentAdded ? (
-							<NodePaletteGroup title="Models">
-								<DraggableNode
-									color="#8b5cf6"
-									description="Comment model for posts"
-									icon="M"
-									name="Comment"
-									onDragEnd={pipeline.handleDragEnd}
-									onDragStart={pipeline.handleDragStart}
-									type="model"
-								/>
-							</NodePaletteGroup>
-						) : (
-							<div className="text-sm text-muted-foreground text-center py-4">
-								Comment model added!
-								{!relationshipType && (
-									<div className="mt-2">Now connect Post → Comment</div>
-								)}
-							</div>
-						)}
-					</NodePalette>
+				<InstructionPanel>
+					<div className="p-4 border-b border-border">
+						<p className="text-sm text-muted-foreground leading-relaxed">
+							Posts need comments! Add a Comment model and connect it to Post
+							with the correct relationship.
+						</p>
+					</div>
+
+					<div className="p-4 border-b border-border">
+						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+							Steps
+						</div>
+						<StepProgress steps={stepper.steps} />
+					</div>
 				</InstructionPanel>
 			</LeftPanel>
 
 			<CenterPanel>
 				<LevelHeader
 					actNumber={1}
-					levelName="Semantic Associations"
+					levelName="Associations"
 					levelNumber={7}
 					onComplete={handleComplete}
 					onExit={onExit}
-					onReset={() => {
-						pipeline.setPlacedNodes([...INITIAL_NODES]);
-						pipeline.setConnections([...INITIAL_CONNECTIONS]);
-						setCommentAdded(false);
-						setRelationshipType(null);
-					}}
-					onValidate={handleValidate}
+					onReset={() => window.location.reload()}
+					onValidate={validateSolution}
 				/>
 
-				<PipelineCanvas
-					canvasRef={pipeline.canvasRef}
-					connections={pipeline.connections}
-					draggedNodeType={pipeline.draggedNodeType}
-					draggingNodeId={pipeline.draggingNodeId}
-					onClick={pipeline.handleCanvasClick}
-					onCompleteConnection={(e: MouseEvent, targetNodeId: string) => {
-						if (pipeline.pendingConnection) {
-							const allowed = handleConnectionCreated(
-								pipeline.pendingConnection.sourceNodeId,
-								targetNodeId,
-							);
-							if (allowed) {
-								pipeline.completeConnection(e, targetNodeId);
-							} else {
-								// Clear pending connection without creating it
-								pipeline.setPendingConnection(null);
-							}
-						}
-					}}
-					onDeleteConnection={pipeline.deleteConnection}
-					onDeleteNode={pipeline.deleteSelectedNode}
-					onDragOver={pipeline.handleDragOver}
-					onDrop={pipeline.handleDrop}
-					onMouseMove={pipeline.handleCanvasMouseMove}
-					onMouseUp={pipeline.handleCanvasMouseUp}
-					onNodeMouseDown={pipeline.handleNodeMouseDown}
-					onStartConnection={pipeline.startConnection}
-					pendingConnection={pipeline.pendingConnection}
-					placedNodes={pipeline.placedNodes}
-					selectedNodeId={pipeline.selectedNodeId}
-				>
-					{/* Decision Modal */}
-					{showDecisionModal && (
-						<div className="absolute inset-0 bg-black/70 flex items-center justify-center z-50">
-							<div className="bg-card border border-border rounded-xl p-6 max-w-md shadow-2xl">
-								<h3 className="text-xl font-bold text-foreground mb-2">
-									Relationship Type?
+				<div className="flex-1 relative bg-background p-6 overflow-auto">
+					<div className="max-w-2xl mx-auto space-y-6">
+						{/* Step 1: Generate Comment */}
+						{stepper.currentStep === 0 && (
+							<div className="space-y-4">
+								<h3 className="text-lg font-semibold text-foreground">
+									Generate Comment Model
 								</h3>
-								<p className="text-muted-foreground text-sm mb-6">
-									How should Post relate to Comment?
+								<p className="text-sm text-muted-foreground">
+									Generate the Comment model with a body and a link to Post.
 								</p>
+								<SimulatedTerminal
+									commands={generateCommands}
+									onCorrect={() => stepper.completeStep()}
+									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+									outputLines={generateOutput}
+								/>
+								<ErrorFeedback
+									message={stepper.lastFeedback}
+									onDismiss={stepper.clearFeedback}
+								/>
+							</div>
+						)}
 
+						{/* Step 2: Choose Relationship */}
+						{stepper.currentStep === 1 && (
+							<div className="space-y-4">
+								<h3 className="text-lg font-semibold text-foreground">
+									Choose Relationship
+								</h3>
+								<p className="text-sm text-muted-foreground">
+									A Post _____ Comments. What relationship type?
+								</p>
 								<div className="space-y-3">
-									{[
-										{
-											value: 'has_one',
-											label: 'has_one',
-											consequence: 'Limits posts to a single comment',
-										},
-										{
-											value: 'has_many',
-											label: 'has_many',
-											consequence: 'Posts can have unlimited comments',
-										},
-										{
-											value: 'has_and_belongs_to_many',
-											label: 'has_and_belongs_to_many',
-											consequence:
-												'Comments are shared between posts via a join table',
-										},
-									].map((option) => (
+									{RELATIONSHIP_OPTIONS.map((opt) => (
 										<Button
-											className="w-full p-4 h-auto rounded-lg text-left transition-all border-border hover:border-primary hover:bg-primary/5"
-											key={option.value}
-											onClick={() => handleRelationshipChoice(option.value)}
+											className="w-full h-auto py-3 text-left"
+											key={opt.id}
+											onClick={() => {
+												if (opt.correct) {
+													setRelationshipType(opt.id);
+													stepper.completeStep();
+												} else {
+													stepper.recordWrongAttempt(opt.feedback);
+												}
+											}}
 											variant="outline"
 										>
 											<div className="w-full">
 												<span className="font-mono text-primary">
-													{option.label}
+													{opt.label}
 												</span>
 												<div className="text-xs text-muted-foreground mt-1">
-													{option.consequence}
+													{opt.description}
 												</div>
 											</div>
 										</Button>
 									))}
 								</div>
-
-								<Button
-									className="mt-4 text-muted-foreground hover:text-foreground text-sm w-full text-center"
-									onClick={() => {
-										setShowDecisionModal(false);
-										setPendingRelationship(null);
-									}}
-									variant="ghost"
-								>
-									Cancel
-								</Button>
+								<ErrorFeedback
+									message={stepper.lastFeedback}
+									onDismiss={stepper.clearFeedback}
+								/>
 							</div>
-						</div>
-					)}
-				</PipelineCanvas>
+						)}
+
+						{/* Step 3: Auto belongs_to (informational) */}
+						{stepper.currentStep === 2 && (
+							<div className="space-y-4">
+								<h3 className="text-lg font-semibold text-foreground">
+									Auto belongs_to
+								</h3>
+								<div className="bg-card rounded-lg border border-border p-6 space-y-3">
+									<p className="text-sm text-foreground">
+										Because you used{' '}
+										<span className="font-mono text-primary">
+											post:references
+										</span>{' '}
+										in the generator, Rails automatically added:
+									</p>
+									<div className="bg-zinc-900 rounded-lg p-4 font-mono text-sm">
+										<div className="text-zinc-400">
+											class Comment {'<'} ApplicationRecord
+										</div>
+										<div className="text-emerald-400 ml-4">
+											belongs_to :post
+										</div>
+										<div className="text-zinc-400">end</div>
+									</div>
+									<p className="text-sm text-muted-foreground">
+										The inverse relationship is set up for free. Every Comment
+										knows which Post it belongs to.
+									</p>
+								</div>
+								<div className="flex justify-center">
+									<Button onClick={() => stepper.completeStep()}>
+										Got It
+									</Button>
+								</div>
+							</div>
+						)}
+
+						{/* Step 4: Set Dependent */}
+						{stepper.currentStep === 3 && (
+							<div className="space-y-4">
+								<h3 className="text-lg font-semibold text-foreground">
+									Set Dependent
+								</h3>
+								<p className="text-sm text-muted-foreground">
+									When a Post is destroyed, what should happen to its comments?
+								</p>
+								<div className="space-y-3">
+									{DEPENDENT_OPTIONS.map((opt) => (
+										<Button
+											className="w-full h-auto py-3 text-left"
+											key={opt.id}
+											onClick={() => {
+												if (opt.correct) {
+													setDependentOption(opt.id);
+													stepper.completeStep();
+												} else {
+													stepper.recordWrongAttempt(opt.feedback);
+												}
+											}}
+											variant="outline"
+										>
+											<div className="w-full">
+												<span className="font-mono text-primary">
+													{opt.label}
+												</span>
+												<div className="text-xs text-muted-foreground mt-1">
+													{opt.description}
+												</div>
+											</div>
+										</Button>
+									))}
+								</div>
+								<ErrorFeedback
+									message={stepper.lastFeedback}
+									onDismiss={stepper.clearFeedback}
+								/>
+							</div>
+						)}
+
+						{/* Step 5: Test It */}
+						{stepper.currentStep === 4 && (
+							<div className="space-y-4">
+								<h3 className="text-lg font-semibold text-foreground">
+									Test It
+								</h3>
+								<p className="text-sm text-muted-foreground">
+									Create a comment through the association, then destroy the
+									post to verify cascade.
+								</p>
+								<SimulatedTerminal
+									commands={testCommands}
+									onCorrect={() => stepper.completeStep()}
+									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+									outputLines={testOutput}
+								/>
+							</div>
+						)}
+
+						{/* Complete */}
+						{stepper.isComplete && (
+							<div className="text-center py-12 space-y-4">
+								<div className="text-4xl">
+									{'★'.repeat(stepper.starRating)}
+									{'☆'.repeat(3 - stepper.starRating)}
+								</div>
+								<h3 className="text-xl font-bold text-foreground">
+									Associations Configured!
+								</h3>
+								<p className="text-muted-foreground">
+									Post has_many :comments, dependent: :destroy. Comment
+									belongs_to :post.
+								</p>
+								<Button onClick={handleComplete}>Complete Level</Button>
+							</div>
+						)}
+					</div>
+				</div>
 			</CenterPanel>
 
 			<RightPanel>
-				<CodePreviewPanel
-					files={getCodeFiles()}
-					learningGoal="ActiveRecord associations define relationships between models: has_many, has_one, belongs_to. Choose the right one based on the real-world relationship."
-				/>
+				<CodePreviewPanel files={getCodeFiles()}>
+					<div className="p-4 border-t border-border">
+						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
+							Key Concepts
+						</div>
+						<ul className="text-xs text-muted-foreground space-y-2">
+							<li>
+								<span className="font-mono text-primary">has_many</span> — one
+								Post has many Comments
+							</li>
+							<li>
+								<span className="font-mono text-primary">belongs_to</span> — one
+								Comment belongs to one Post
+							</li>
+							<li>
+								<span className="font-mono text-primary">
+									dependent: :destroy
+								</span>{' '}
+								— cascade delete
+							</li>
+							<li>
+								<span className="font-mono text-primary">post:references</span>{' '}
+								— auto FK + index + belongs_to
+							</li>
+						</ul>
+					</div>
+				</CodePreviewPanel>
 			</RightPanel>
 		</LevelLayout>
 	);

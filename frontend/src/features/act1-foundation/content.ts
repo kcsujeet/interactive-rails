@@ -2,7 +2,7 @@
  * Act 1: The Foundation
  * "Build a working API from nothing"
  *
- * Levels 1-7: Stack Choice, Model, CRUD, Controller, Routes & Request Lifecycle, Serializers, Associations
+ * Levels 1-7: Stack Choice, Model, CRUD, Routes, Controller, Serializers, Associations
  * App context: Blog API
  */
 
@@ -20,7 +20,7 @@ const level1StackChoice: Level = {
 	trigger: {
 		type: 'initialization',
 		description:
-			'Day 1. You are initializing the repository. Your database choice today will determine your scaling limits later.',
+			'Day 1. Set up your Rails 8 API from scratch — pick a database, generate the project, create the database, and boot the server.',
 	},
 	startingPipeline: {
 		nodes: [{ id: 'terminal', type: 'terminal', x: 500, y: 300, locked: true }],
@@ -28,23 +28,21 @@ const level1StackChoice: Level = {
 	},
 	problem: {
 		observation:
-			'A dark canvas with a blinking Terminal node. An empty infrastructure slot awaits your decision.',
+			'No application exists yet. You need to choose a database, generate the project, create the database, and boot the server.',
 		rootCause: 'No application exists yet.',
-		codeExample: `# Day 1: Initialize your Rails 8 API application
-# Your database choice will have long-term consequences...
-
-# PostgreSQL: Production-proven, supports sharding & read replicas
+		codeExample: `# Step 1: Choose your database (PostgreSQL or SQLite)
+# Step 2: Generate the project
 rails new myapp --api --database=postgresql
 
-# SQLite: Rails 8 makes it production-ready (WAL mode, IMMEDIATE transactions)
-rails new myapp --api --database=sqlite3
+# Step 3: Create the database
+rails db:create
 
-# Both generate an API-only app with:
-# - ActionController::API (no cookies, sessions, flash)
-# - Solid Queue for background jobs
-# - Solid Cache for caching
-# - Solid Cable for WebSockets`,
-		goal: 'Choose your database. Drag the node to the slot.',
+# Step 4: Boot the server
+rails server
+# => Booting Puma
+# => Rails 8.0.0 application starting in development
+# => Listening on http://127.0.0.1:3000`,
+		goal: 'Set up a new Rails 8 API project in 4 steps: choose database, generate project, create database, and boot the server.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'slot_filled', slotId: 'database-slot' }],
@@ -119,7 +117,7 @@ production:
 	},
 	hint: {
 		delay: 30,
-		text: 'Drag PostgreSQL or SQLite to the Database slot.',
+		text: 'Start by dragging PostgreSQL or SQLite into the database slot, then follow the terminal commands.',
 	},
 };
 
@@ -135,31 +133,28 @@ const level2Model: Level = {
 	trigger: {
 		type: 'new_feature',
 		description:
-			"You're building a blog API. Before writing endpoints, you need to define what a Post looks like in the database.",
+			'Your app is running but has no data. Define the Post model — name it, choose attribute types, run the generator, and migrate.',
 	},
 	startingPipeline: {
 		nodes: [],
 		connections: [],
 	},
 	problem: {
-		observation: 'Empty application with no data structure.',
+		observation: 'Empty application with no data structure. You need to define what a Post looks like.',
 		rootCause: 'No models defined yet.',
-		codeExample: `# We need to define what data looks like
-# rails generate model Post title:string body:text published:boolean
+		codeExample: `# Step 1: Name the model (singular PascalCase)
+# Post => posts table
 
-class Post < ApplicationRecord
-  # What attributes does it have?
-  # title, body, published_at, author...
-end
+# Step 2: Define attributes with correct types
+# title: string, body: text, published: boolean
 
-# The migration creates the table:
-create_table :posts do |t|
-  t.string :title
-  t.text :body
-  t.boolean :published
-  t.timestamps
-end`,
-		goal: 'Select the attributes your Post model needs.',
+# Step 3: Run the generator
+rails generate model Post title:string body:text published:boolean
+
+# Step 4: Migrate the database
+rails db:migrate
+# => CreatePosts: migrated`,
+		goal: 'Create the Post model: name it correctly, define attributes with proper types, run the generator, and migrate the database.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'node_present', nodeType: 'model' }],
@@ -217,7 +212,7 @@ rails db:schema:dump`,
 	},
 	hint: {
 		delay: 20,
-		text: 'Select at least title and body as attributes for your Post.',
+		text: 'Rails models use singular PascalCase names. For attributes, think about what type of content each field stores.',
 	},
 };
 
@@ -233,7 +228,7 @@ const level3CRUD: Level = {
 	trigger: {
 		type: 'new_feature',
 		description:
-			'The Post model exists, but the database is empty. You need to create, read, update, and destroy records.',
+			'The Post model exists but the database is empty. Use the Rails console to create, read, update, and destroy your first records.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -254,23 +249,21 @@ const level3CRUD: Level = {
 	problem: {
 		observation: 'Model exists but no data. The console shows Post.count => 0.',
 		rootCause: 'No records have been created yet.',
-		codeExample: `# The four operations every model needs:
+		codeExample: `# Step 1: Create
+Post.create(title: "Hello", body: "My first post")
 
-# CREATE
-Post.create(title: "Hello World", body: "My first post")
+# Step 2: Read
+Post.find(1)
 
-# READ
-Post.all          # All posts
-Post.find(1)      # By ID
-Post.find_by(title: "Hello World")  # By attribute
+# Step 3: Update
+post.update(title: "Updated")
 
-# UPDATE
-post = Post.find(1)
-post.update(title: "Updated Title")
+# Step 4: Destroy
+post.destroy
 
-# DESTROY
-post.destroy`,
-		goal: 'Perform all four CRUD operations on the Post model.',
+# Step 5: Verify
+Post.count  # => 0`,
+		goal: 'Run each CRUD operation in the Rails console: create a post, read it back, update it, destroy it, and verify it is gone.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'crud_complete', modelType: 'Post' }],
@@ -323,80 +316,160 @@ Post.destroy_all                  # DELETE FROM posts (careful!)`,
 	},
 	hint: {
 		delay: 15,
-		text: 'Use the Rails console to create a post, read it back, update it, and destroy it.',
+		text: 'Pick the right ActiveRecord method for each operation. Watch for methods that skip callbacks or only work in memory.',
 	},
 };
 
 // ============================================
-// Level 4: The Controller
+// Level 4: Routes & Request Lifecycle
 // ============================================
 
-const level4Controller: Level = {
-	id: 'act1-level4-controller',
+const level4Routes: Level = {
+	id: 'act1-level4-routes',
 	actId: 1,
 	levelNumber: 4,
+	name: 'Routes & Request Lifecycle',
+	trigger: {
+		type: 'new_feature',
+		description:
+			'CRUD works in the console, but the outside world can\'t reach your app. Define RESTful routes under /api/v1/ and trace how requests map to controller actions.',
+	},
+	startingPipeline: {
+		nodes: [],
+		connections: [],
+	},
+	problem: {
+		observation: 'GET /posts returns 404. No routes are defined.',
+		rootCause: 'No routes defined — the outside world cannot reach your app.',
+		codeExample: `# Step 1: Define the resource
+resources :posts
+
+# Step 2: Wrap in API namespaces
+Rails.application.routes.draw do
+  namespace :api do
+    namespace :v1 do
+      resources :posts
+    end
+  end
+end
+
+# Step 3: View generated routes
+rails routes
+
+# Step 4: Trace each route to its action
+# GET    /api/v1/posts     => posts#index
+# POST   /api/v1/posts     => posts#create
+# GET    /api/v1/posts/:id => posts#show
+# PATCH  /api/v1/posts/:id => posts#update
+# DELETE /api/v1/posts/:id => posts#destroy`,
+		goal: 'Define a resource, wrap it in API namespaces, view the generated routes, and trace each one to its controller action.',
+		thresholds: {},
+	},
+	successConditions: [{ type: 'pipeline_complete' }],
+	availableNodes: ['router'],
+	unlockedNodes: [],
+	learningContent: {
+		title: 'RESTful Routes & the Request Lifecycle',
+		conceptExplanation: `Every HTTP request follows this path:
+
+1. **Request** arrives (GET /api/v1/posts)
+2. **Router** maps URL to controller action (\`routes.rb\`)
+3. **Controller** processes the request:
+   - Calls **Model** to query/write the database
+   - **Database** returns data to the model, which returns it to the controller
+4. **Response** sent back to client
+
+The **Router** is the gateway — without it, requests have no way to reach your controller.
+
+**\`resources :posts\`** generates all 5 RESTful routes at once.
+**Namespacing** under \`/api/v1/\` keeps API routes organized and versioned.`,
+		railsCodeExample: `# config/routes.rb
+Rails.application.routes.draw do
+  namespace :api do
+    namespace :v1 do
+      resources :posts
+      # Generates:
+      # GET    /api/v1/posts          => api/v1/posts#index
+      # POST   /api/v1/posts          => api/v1/posts#create
+      # GET    /api/v1/posts/:id      => api/v1/posts#show
+      # PATCH  /api/v1/posts/:id      => api/v1/posts#update
+      # PUT    /api/v1/posts/:id      => api/v1/posts#update
+      # DELETE /api/v1/posts/:id      => api/v1/posts#destroy
+    end
+  end
+end
+
+# Check your routes:
+rails routes
+
+# The request lifecycle:
+# 1. Client sends: GET /api/v1/posts
+# 2. Router matches: Api::V1::PostsController#index
+# 3. Controller calls Model: @posts = Post.all
+# 4. Model queries DB: SELECT * FROM posts
+# 5. Controller renders: render json: @posts
+# 6. Response: 200 OK with JSON body`,
+		commonMistakes: [
+			'Not namespacing API routes under /api/v1',
+			'Defining routes manually instead of using resources',
+			'Forgetting to nest controllers in matching module paths',
+			'Not checking routes with `rails routes`',
+		],
+		whenToUse:
+			'Every controller needs routes. Use resources for standard CRUD.',
+		furtherReading: [
+			{
+				title: 'Rails Routing',
+				url: 'https://guides.rubyonrails.org/routing.html',
+			},
+		],
+	},
+	hint: {
+		delay: 30,
+		text: 'Start with resources :posts, then wrap it in namespace :api and namespace :v1 (outermost first).',
+	},
+};
+
+// ============================================
+// Level 5: The Controller
+// ============================================
+
+const level5Controller: Level = {
+	id: 'act1-level5-controller',
+	actId: 1,
+	levelNumber: 5,
 	name: 'The Controller',
 	trigger: {
 		type: 'new_feature',
 		description:
-			'HTTP requests arrive at your API, but nothing responds. You need a controller to handle requests and return JSON.',
+			'Routes are defined but return "uninitialized constant". Generate a controller, add the 5 RESTful actions, wire up strong params, and test with curl.',
 	},
 	startingPipeline: {
-		nodes: [
-			{ id: 'request-node', type: 'request', x: 100, y: 250, locked: true },
-			{
-				id: 'model-node',
-				type: 'model',
-				x: 500,
-				y: 250,
-				locked: true,
-				config: { label: 'Post' },
-			},
-			{ id: 'database-node', type: 'database', x: 700, y: 250, locked: true },
-		],
-		connections: [
-			{ id: 'c1', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-		],
+		nodes: [],
+		connections: [],
 	},
 	problem: {
-		observation: 'Requests arrive but get no response. No controller exists.',
-		rootCause: 'No controller to handle the request and render JSON.',
-		codeExample: `# We need a controller to:
-# 1. Receive HTTP requests
-# 2. Use the model to get/save data
-# 3. Return JSON responses
+		observation: 'Routes exist but return "uninitialized constant Api::V1::PostsController".',
+		rootCause: 'No controller exists to handle the routed requests.',
+		codeExample: `# Step 1: Generate the controller
+rails generate controller Api::V1::Posts
 
-# Rails 8 API controller:
-class Api::V1::PostsController < ApplicationController
-  # ApplicationController inherits from ActionController::API
-  # (not ActionController::Base — no cookies, sessions, or views)
+# Step 2: Add the 5 RESTful actions
+# index, show, create, update, destroy
 
-  def index
-    posts = Post.all
-    render json: posts
-  end
+# Step 3: Configure strong params
+def post_params
+  params.expect(post: [:title, :body, :published])
+end
 
-  def create
-    post = Post.new(post_params)
-    # ...
-  end
-
-  private
-
-  def post_params
-    # Rails 8: params.expect replaces params.require.permit
-    params.expect(post: [:title, :body, :published])
-  end
-end`,
-		goal: 'Add a controller that connects requests to the model and returns JSON.',
+# Step 4: Test with curl
+curl localhost:3000/api/v1/posts
+# => [{"id":1,"title":"Hello"}]`,
+		goal: 'Generate the controller, add the 5 RESTful actions, configure strong params with params.expect, and test with curl.',
 		thresholds: {},
 	},
-	successConditions: [
-		{ type: 'node_present', nodeType: 'controller' },
-		{ type: 'connection', sourceType: 'request', targetType: 'controller' },
-		{ type: 'connection', sourceType: 'controller', targetType: 'model' },
-	],
-	availableNodes: ['controller', 'router'],
+	successConditions: [{ type: 'pipeline_complete' }],
+	availableNodes: ['controller'],
 	unlockedNodes: [],
 	learningContent: {
 		title: 'API Controllers & params.expect()',
@@ -474,143 +547,7 @@ end`,
 	},
 	hint: {
 		delay: 20,
-		text: 'Add a Controller node between the Request and Model. Connect Request → Controller → Model.',
-	},
-};
-
-// ============================================
-// Level 5: Routes & Request Lifecycle
-// ============================================
-
-const level5Routes: Level = {
-	id: 'act1-level5-routes',
-	actId: 1,
-	levelNumber: 5,
-	name: 'Routes & Request Lifecycle',
-	trigger: {
-		type: 'new_feature',
-		description:
-			'The controller exists but clients cannot reach it. No routes are defined. The full request cycle needs to be wired end-to-end.',
-	},
-	startingPipeline: {
-		nodes: [
-			{ id: 'request-node', type: 'request', x: 100, y: 220, locked: true },
-			{
-				id: 'controller-node',
-				type: 'controller',
-				x: 460,
-				y: 220,
-				locked: true,
-			},
-			{
-				id: 'model-node',
-				type: 'model',
-				x: 660,
-				y: 220,
-				locked: true,
-				config: { label: 'Post' },
-			},
-			{ id: 'database-node', type: 'database', x: 860, y: 220, locked: true },
-			{ id: 'response-node', type: 'response', x: 660, y: 400, locked: true },
-		],
-		connections: [
-			{ id: 'c1', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
-			{ id: 'c2', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-		],
-	},
-	problem: {
-		observation: 'GET /api/v1/posts returns 404. No routes mapped.',
-		rootCause: 'Routes not configured; request lifecycle not wired.',
-		codeExample: `# config/routes.rb — currently empty!
-Rails.application.routes.draw do
-  # Nothing here...
-end
-
-# We need:
-Rails.application.routes.draw do
-  namespace :api do
-    namespace :v1 do
-      resources :posts
-    end
-  end
-end
-
-# This creates:
-# GET    /api/v1/posts     => api/v1/posts#index
-# POST   /api/v1/posts     => api/v1/posts#create
-# GET    /api/v1/posts/:id => api/v1/posts#show
-# PATCH  /api/v1/posts/:id => api/v1/posts#update
-# DELETE /api/v1/posts/:id => api/v1/posts#destroy`,
-		goal: 'Wire the request cycle: Request → Router → Controller → Model → DB, and Controller → Response.',
-		thresholds: {},
-	},
-	successConditions: [
-		{ type: 'node_present', nodeType: 'router' },
-		{ type: 'connection', sourceType: 'request', targetType: 'router' },
-		{ type: 'connection', sourceType: 'router', targetType: 'controller' },
-		{ type: 'connection', sourceType: 'controller', targetType: 'response' },
-	],
-	availableNodes: ['router'],
-	unlockedNodes: [],
-	learningContent: {
-		title: 'RESTful Routes & the Request Lifecycle',
-		conceptExplanation: `Every HTTP request follows this path:
-
-1. **Request** arrives (GET /api/v1/posts)
-2. **Router** maps URL to controller action (\`routes.rb\`)
-3. **Controller** processes the request:
-   - Calls **Model** to query/write the database
-   - **Database** returns data to the model, which returns it to the controller
-4. **Response** sent back to client
-
-The **Router** is the gateway — without it, requests have no way to reach your controller.
-
-**\`resources :posts\`** generates all 5 RESTful routes at once.
-**Namespacing** under \`/api/v1/\` keeps API routes organized and versioned.`,
-		railsCodeExample: `# config/routes.rb
-Rails.application.routes.draw do
-  namespace :api do
-    namespace :v1 do
-      resources :posts
-      # Generates:
-      # GET    /api/v1/posts          => api/v1/posts#index
-      # POST   /api/v1/posts          => api/v1/posts#create
-      # GET    /api/v1/posts/:id      => api/v1/posts#show
-      # PATCH  /api/v1/posts/:id      => api/v1/posts#update
-      # PUT    /api/v1/posts/:id      => api/v1/posts#update
-      # DELETE /api/v1/posts/:id      => api/v1/posts#destroy
-    end
-  end
-end
-
-# Check your routes:
-rails routes
-
-# The request lifecycle:
-# 1. Client sends: GET /api/v1/posts
-# 2. Router matches: Api::V1::PostsController#index
-# 3. Controller calls Model: @posts = Post.all
-# 4. Model queries DB: SELECT * FROM posts
-# 5. Controller renders: render json: @posts
-# 6. Response: 200 OK with JSON body`,
-		commonMistakes: [
-			'Not namespacing API routes under /api/v1',
-			'Defining routes manually instead of using resources',
-			'Forgetting to nest controllers in matching module paths',
-			'Not checking routes with `rails routes`',
-		],
-		whenToUse:
-			'Every controller needs routes. Use resources for standard CRUD.',
-		furtherReading: [
-			{
-				title: 'Rails Routing',
-				url: 'https://guides.rubyonrails.org/routing.html',
-			},
-		],
-	},
-	hint: {
-		delay: 30,
-		text: 'Add a Router node between Request and Controller. Connect: Request → Router → Controller, and Controller → Response.',
+		text: 'Controller names are plural and must match the route namespace: Api::V1::Posts. Actions use Rails conventions like index, show, create.',
 	},
 };
 
@@ -813,7 +750,7 @@ const level7Associations: Level = {
 	trigger: {
 		type: 'new_feature',
 		description:
-			'Posts need comments. Users need posts. How do you relate models together and include them in API responses?',
+			'Posts need comments! Generate the Comment model, choose the right association type, configure cascade deletion, and test the relationship.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -870,24 +807,21 @@ const level7Associations: Level = {
 			'Posts load correctly, but there is no way to include comments in the API response.',
 		rootCause:
 			'No Comment model exists and no association is defined between Post and Comment.',
-		codeExample: `# Current state:
-class Post < ApplicationRecord
-  # No associations defined!
-end
+		codeExample: `# Step 1: Generate Comment model
+rails generate model Comment body:text post:references
 
-# API returns:
-# { "id": 1, "title": "Hello", "body": "World" }
-# No comments!
+# Step 2: Choose the relationship
+# Post has_many :comments
 
-# We need:
-class Post < ApplicationRecord
-  has_many :comments, dependent: :destroy
-end
+# Step 3: belongs_to is auto-added by post:references
 
-class Comment < ApplicationRecord
-  belongs_to :post
-end`,
-		goal: 'Add a Comment model and connect it to Post with the correct relationship.',
+# Step 4: Set dependent option
+has_many :comments, dependent: :destroy
+
+# Step 5: Test it
+post.comments.create(body: "Nice!")
+post.destroy  # => cascades to comments`,
+		goal: 'Generate the Comment model with post:references, choose the right relationship type, configure dependent destruction, and test the association.',
 		thresholds: {},
 	},
 	successConditions: [
@@ -982,7 +916,7 @@ end`,
 	},
 	hint: {
 		delay: 25,
-		text: 'Add a Comment model. Connect Post → Comment and choose "has_many".',
+		text: 'Use post:references in the generator to automatically add the foreign key, index, and belongs_to. Posts have many comments, not just one.',
 	},
 };
 
@@ -1000,8 +934,8 @@ export const actOne: Act = {
 		level1StackChoice,
 		level2Model,
 		level3CRUD,
-		level4Controller,
-		level5Routes,
+		level4Routes,
+		level5Controller,
 		level6Serializers,
 		level7Associations,
 	],

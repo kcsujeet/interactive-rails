@@ -322,7 +322,7 @@ function activateDefenses() {
 
 | Act | Name | Levels | Focus |
 |-----|------|--------|-------|
-| 1 | The Foundation | 7 | MVC, CRUD, Controllers, Serializers, Routes, Associations |
+| 1 | The Foundation | 7 | MVC, CRUD, Routes, Controllers, Serializers, Associations |
 | 2 | Users & Security | 7 | Authentication, Validations, Callbacks, Authorization, Testing |
 | 3 | Clean Architecture | 7 | Service Objects, Concerns, Validation Contracts, Error Handling, Background Jobs |
 | 4 | Performance | 7 | N+1 Queries, Eager Loading, Indexing, Caching, Search |

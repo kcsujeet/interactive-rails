@@ -51,15 +51,45 @@ Run `bun scripts/fix-imports.ts` to automatically convert relative imports to us
 
 ### Level Design: Three-Phase Pedagogy
 
-Every level component must teach through three phases: **WHY → HOW → ADVANTAGE**.
+Every level teaches through three phases: **WHY → HOW → ADVANTAGE**.
 
-1. **WHY** — Show the problem first. The player must feel the pain before seeing the solution. Start with broken/ugly/slow code and make the player experience why the current approach fails (e.g., fat controller, N+1 queries, duplicated logic).
+1. **WHY** — Context for why this concept matters. Delivered as **readable notes** (in InstructionPanel or a pre-level briefing), not as quiz questions. The player can read it, but it doesn't block gameplay.
 
-2. **HOW** — Teach the pattern through interaction. The player actively builds or transforms code using the Rails pattern (e.g., extracting a service object, adding eager loading, composing query methods). The interaction should involve meaningful choices, not just "click all items."
+2. **HOW** — The core gameplay. **Players learn by doing, not by answering trivia.** The player runs commands, drags pieces, builds code, and configures files. Wrong choices get immediate feedback that teaches Rails conventions (e.g., "Rails models are singular PascalCase — `Post`, not `Posts`"). Never ask "what's wrong with this?" — instead, let the player try and learn from mistakes.
 
-3. **ADVANTAGE** — Show the concrete improvement. Before/after comparison, line count reduction, query count drop, or side-by-side code clarity. The player should see measurable proof that the pattern is better than the alternative.
+   **Interaction types (pick per step):**
+   - **SimulatedTerminal** — click the right command from options
+   - **Drag-and-drop** — drag pieces into the correct positions
+   - **Click-to-select** — pick the correct option from 2-4 choices
+
+3. **ADVANTAGE** — Show the concrete improvement after completing the level. Delivered as **post-completion notes** or a summary card (before/after comparison, line count reduction, etc.). Not a quiz.
+
+**Act calibration:**
+- Acts 1-2: Pure fundamentals. No anti-patterns, no debugging. Happy path.
+- Acts 3-4: First refactoring and performance problems appear.
+- Acts 5-8: Production, reliability, scale, architecture.
 
 When creating or redesigning a level component, ensure all three phases are present in the gameplay. Reference `docs/spec.md` for each level's scenario and concept.
+
+### Level Checklist: What to Update
+
+When creating or modifying a level, update **both** the component AND its content definition. A level has two halves:
+
+1. **Component** (`features/actN-*/components/LevelXXName.tsx`) — the interactive gameplay
+2. **Content** (`features/actN-*/content.ts`) — the briefing screen text shown before gameplay
+
+The content definition has these player-facing fields that **must match the gameplay**:
+
+| Field | Where it appears | What to write |
+|-------|-----------------|---------------|
+| `trigger.description` | Top of briefing screen | 1-2 sentences: what the player will do in this level |
+| `problem.observation` | Below trigger | What's wrong / what's missing right now |
+| `problem.codeExample` | "THE PROBLEM" code block | Show the steps the player will take (not generic reference code) |
+| `problem.goal` | "YOUR GOAL" section | Describe all steps, not just the first one |
+| `hint.text` | Hint popup (after delay) | Actionable tip for the current interaction |
+| `learningContent.*` | Learning panel | Concept explanation and Rails code examples |
+
+**Common mistake:** Updating the component but leaving old descriptions like "Drag the node to the slot" when the level now uses SimulatedTerminal steps. Always update content.ts in the same pass.
 
 ### Level Design: Linear Progression
 

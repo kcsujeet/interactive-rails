@@ -7,7 +7,7 @@
  * CURRICULUM STRUCTURE (50 levels, 8 acts):
  *
  * Act 1: The Foundation (7 levels)
- * - Stack Choice, Model, CRUD, Controller, Serializers, Routes, Associations
+ * - Stack Choice, Model, CRUD, Routes, Controller, Serializers, Associations
  *
  * Act 2: Users & Security (7 levels)
  * - Authentication, Validations, Callbacks, Authorization, Testing, Security, Scopes & Enums
@@ -51,7 +51,8 @@ export interface LevelComponentProps {
 import { Level1StackChoice } from './act1-foundation/components/Level1StackChoice';
 import { Level2Model } from './act1-foundation/components/Level2Model';
 import { Level3CRUD } from './act1-foundation/components/Level3CRUD';
-import { Level4Controller } from './act1-foundation/components/Level4Controller';
+import { Level4Routes } from './act1-foundation/components/Level4Routes';
+import { Level5Controller } from './act1-foundation/components/Level5Controller';
 import { Level7Associations } from './act1-foundation/components/Level7Associations';
 
 // ===========================================
@@ -129,7 +130,8 @@ const LEVEL_COMPONENTS: Record<string, ComponentType<LevelComponentProps>> = {
 	'act1-level1-stack-choice': Level1StackChoice,
 	'act1-level2-model': Level2Model,
 	'act1-level3-crud': Level3CRUD,
-	'act1-level4-controller': Level4Controller,
+	'act1-level4-routes': Level4Routes,
+	'act1-level5-controller': Level5Controller,
 	'act1-level7-associations': Level7Associations,
 
 	// ============================================
@@ -219,5 +221,6 @@ export function hasCustomComponent(levelId: string): boolean {
 export { Level1StackChoice } from './act1-foundation/components/Level1StackChoice';
 export { Level2Model } from './act1-foundation/components/Level2Model';
 export { Level3CRUD } from './act1-foundation/components/Level3CRUD';
-export { Level4Controller } from './act1-foundation/components/Level4Controller';
+export { Level4Routes } from './act1-foundation/components/Level4Routes';
+export { Level5Controller } from './act1-foundation/components/Level5Controller';
 export { Level7Associations } from './act1-foundation/components/Level7Associations';

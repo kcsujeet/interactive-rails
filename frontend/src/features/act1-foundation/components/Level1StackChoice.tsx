@@ -1,29 +1,52 @@
 /**
  * Level 1: The Stack Choice
  *
- * Custom UI for Level 1 - different from the regular pipeline canvas.
- * Features a single slot for database choice with live code preview.
- * The game is API-only, so --api is always included.
+ * 4-step progression to set up a new Rails API project.
+ * Steps: Choose Database → Generate Project → Create Database → Boot Server
  */
 
 import { useState } from 'react';
+import {
+	CenterPanel,
+	CodePreviewPanel,
+	ErrorFeedback,
+	InstructionPanel,
+	LeftPanel,
+	LevelHeader,
+	LevelLayout,
+	RightPanel,
+	SimulatedTerminal,
+	StepProgress,
+	useLevelCompletion,
+	type TerminalCommand,
+	type TerminalOutputLine,
+	type ValidationResult,
+} from '@/components/levels';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
+import { useStepGating, type StepDef } from '@/hooks/useStepGating';
 
 type DatabaseChoice = 'postgresql' | 'sqlite' | null;
 
-export function Level1StackChoice({ onComplete, onExit }: LevelComponentProps) {
+const STEP_DEFS: StepDef[] = [
+	{ id: 'choose-db', title: 'Choose Database' },
+	{ id: 'generate-project', title: 'Generate Project' },
+	{ id: 'create-db', title: 'Create Database' },
+	{ id: 'boot-server', title: 'Boot Server' },
+];
+
+export function Level1StackChoice({
+	onComplete,
+	onExit,
+}: LevelComponentProps) {
+	const { completeLevel } = useLevelCompletion();
+	const stepper = useStepGating(STEP_DEFS);
 	const [database, setDatabase] = useState<DatabaseChoice>(null);
 	const [dragOverSlot, setDragOverSlot] = useState(false);
 
-	const canGenerate = database !== null;
-
+	// Step 1: Choose Database
 	function handleDragStart(e: React.DragEvent, type: string) {
 		e.dataTransfer.setData('nodeType', type);
-	}
-
-	function handleDragOver(e: React.DragEvent) {
-		e.preventDefault();
 	}
 
 	function handleDropDatabase(e: React.DragEvent) {
@@ -31,13 +54,102 @@ export function Level1StackChoice({ onComplete, onExit }: LevelComponentProps) {
 		const nodeType = e.dataTransfer.getData('nodeType');
 		if (nodeType === 'postgresql' || nodeType === 'sqlite') {
 			setDatabase(nodeType);
+			stepper.completeStep();
 		}
 		setDragOverSlot(false);
 	}
 
-	function handleGenerate() {
-		if (!canGenerate) return;
+	// Step 2: Generate Project commands
+	const generateCommands: TerminalCommand[] = database
+		? [
+				{
+					id: 'correct',
+					label: `rails new myapp --api --database=${database}`,
+					command: `rails new myapp --api --database=${database}`,
+					correct: true,
+				},
+				{
+					id: 'wrong-no-flags',
+					label: 'rails new myapp',
+					command: 'rails new myapp',
+					correct: false,
+					feedback:
+						'Add --api for API-only mode and --database for your database choice.',
+				},
+				{
+					id: 'wrong-generate',
+					label: 'rails generate app myapp',
+					command: 'rails generate app myapp',
+					correct: false,
+					feedback:
+						'Not a real command — use "rails new" to create a new application.',
+				},
+			]
+		: [];
 
+	const generateOutput: TerminalOutputLine[] = [
+		{ text: '      create  .', color: 'green' },
+		{ text: '      create  Gemfile', color: 'green' },
+		{ text: '      create  Rakefile', color: 'green' },
+		{ text: '      create  config.ru', color: 'green' },
+		{ text: '      create  app/controllers/application_controller.rb', color: 'green' },
+		{ text: '      create  app/models/application_record.rb', color: 'green' },
+		{ text: `      create  config/database.yml  (${database || 'postgresql'})`, color: 'cyan' },
+		{ text: '      create  config/application.rb', color: 'green' },
+		{ text: '         run  bundle install', color: 'yellow' },
+		{ text: 'Bundle complete! 12 Gemfile dependencies.', color: 'green' },
+	];
+
+	// Step 3: Create Database commands
+	const createDbCommands: TerminalCommand[] = [
+		{
+			id: 'correct',
+			label: 'rails db:create',
+			command: 'rails db:create',
+			correct: true,
+		},
+		{
+			id: 'wrong-migrate',
+			label: 'rails db:migrate',
+			command: 'rails db:migrate',
+			correct: false,
+			feedback:
+				'The database does not exist yet — run db:create first, then migrate later.',
+		},
+	];
+
+	const createDbOutput: TerminalOutputLine[] = [
+		{ text: `Created database 'myapp_development'`, color: 'green' },
+		{ text: `Created database 'myapp_test'`, color: 'green' },
+	];
+
+	// Step 4: Boot Server commands
+	const bootCommands: TerminalCommand[] = [
+		{
+			id: 'correct',
+			label: 'rails server',
+			command: 'rails server',
+			correct: true,
+		},
+		{
+			id: 'wrong-start',
+			label: 'rails start',
+			command: 'rails start',
+			correct: false,
+			feedback: 'The command is "rails server" (or "rails s" for short).',
+		},
+	];
+
+	const bootOutput: TerminalOutputLine[] = [
+		{ text: '=> Booting Puma', color: 'cyan' },
+		{ text: '=> Rails 8.0.0 application starting in development', color: 'cyan' },
+		{ text: '* Listening on http://127.0.0.1:3000', color: 'green' },
+		{ text: '', color: 'muted' },
+		{ text: '$ curl http://localhost:3000/up', color: 'yellow' },
+		{ text: '{"status":"ok"}', color: 'green' },
+	];
+
+	const handleComplete = async () => {
 		const choices = {
 			database,
 			constraints: {
@@ -46,7 +158,6 @@ export function Level1StackChoice({ onComplete, onExit }: LevelComponentProps) {
 			},
 		};
 
-		// Persist choices to localStorage for future levels
 		try {
 			localStorage.setItem(
 				'rails-expert-game-choices',
@@ -56,431 +167,378 @@ export function Level1StackChoice({ onComplete, onExit }: LevelComponentProps) {
 			console.error('Failed to save game choices:', e);
 		}
 
-		onComplete({ stars: 3 });
-	}
+		const success = await completeLevel('act1-level1-stack-choice', {
+			stars: stepper.starRating,
+			stackChoices: { database: database! },
+		});
+		if (success) {
+			onComplete({ stars: stepper.starRating });
+		}
+	};
 
-	function clearDatabase() {
-		setDatabase(null);
-	}
+	const validateSolution = (): ValidationResult => {
+		if (!stepper.isComplete) {
+			return {
+				valid: false,
+				message: 'Complete all steps first',
+				details: stepper.steps
+					.filter((s) => s.status !== 'completed')
+					.map((s) => s.title),
+			};
+		}
+		return { valid: true, message: 'Rails app is ready!' };
+	};
+
+	// Code preview updates per step
+	const getCodeFiles = () => {
+		const files = [];
+
+		if (stepper.currentStep >= 1 && database) {
+			files.push({
+				filename: 'Gemfile',
+				language: 'ruby',
+				code: `source "https://rubygems.org"
+
+gem "rails", "~> 8.0"
+gem "${database === 'postgresql' ? 'pg' : 'sqlite3'}"
+gem "puma", ">= 5.0"
+
+# Rails 8 defaults (no Redis needed)
+gem "solid_queue"
+gem "solid_cache"
+gem "solid_cable"`,
+				highlight: [4],
+			});
+		}
+
+		if (stepper.currentStep >= 2) {
+			files.push({
+				filename: 'config/database.yml',
+				language: 'ruby',
+				code:
+					database === 'postgresql'
+						? `default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+
+development:
+  <<: *default
+  database: myapp_development
+
+test:
+  <<: *default
+  database: myapp_test`
+						: `default: &default
+  adapter: sqlite3
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  timeout: 5000
+
+development:
+  <<: *default
+  database: storage/development.sqlite3
+
+test:
+  <<: *default
+  database: storage/test.sqlite3`,
+				highlight: [2],
+			});
+		}
+
+		if (stepper.currentStep >= 3) {
+			files.push({
+				filename: 'config/application.rb',
+				language: 'ruby',
+				code: `module Myapp
+  class Application < Rails::Application
+    config.load_defaults 8.0
+
+    # API-only mode: no cookies, sessions, flash
+    config.api_only = true
+  end
+end`,
+				highlight: [6],
+			});
+		}
+
+		if (stepper.currentStep >= 4) {
+			files.push({
+				filename: 'Server Output',
+				language: 'ruby',
+				code: `# Puma starting in single mode...
+# * Listening on http://127.0.0.1:3000
+#
+# GET http://localhost:3000/up
+# => {"status":"ok"}
+#
+# Your Rails API is running!`,
+				highlight: [5, 7],
+			});
+		}
+
+		if (files.length === 0) {
+			files.push({
+				filename: 'rails_generator.sh',
+				language: 'ruby',
+				code: `# Choose a database to get started
+# Drag PostgreSQL or SQLite to the slot`,
+				highlight: [],
+			});
+		}
+
+		return files;
+	};
 
 	return (
-		<div className="h-full flex bg-background">
-			{/* Left Panel - Scenario & Instructions & Palette */}
-			<div className="w-72 bg-card border-r border-border flex flex-col">
-				{/* Scenario */}
-				<div className="p-4 border-b border-border">
-					<div className="flex items-center gap-2 text-warning text-sm font-medium mb-2">
-						<span>!</span>
-						<span>Scenario</span>
+		<LevelLayout>
+			<LeftPanel>
+				<InstructionPanel>
+					{/* Scenario */}
+					<div className="p-4 border-b border-border">
+						<p className="text-sm text-muted-foreground leading-relaxed">
+							Day 1. Set up your Rails API project from scratch. Your
+							database choice will determine your scaling limits later.
+						</p>
 					</div>
-					<p className="text-sm text-muted-foreground leading-relaxed">
-						Day 1. You are initializing the repository. Your database
-						choice today will determine your scaling limits in Act IV.
-					</p>
-				</div>
 
-				{/* Instructions */}
-				<div className="p-4 border-b border-border">
-					<h3 className="text-sm font-semibold text-foreground mb-3">
-						Instructions
-					</h3>
-					<ol className="space-y-2 text-sm text-muted-foreground">
-						<li className="flex gap-2">
-							<span className="text-primary">1.</span>
-							<span>Drag a Database System to the slot</span>
-						</li>
-						<li className="flex gap-2">
-							<span className="text-primary">2.</span>
-							<span>
-								Click 'Generate App' to initialize your Rails API
-							</span>
-						</li>
-					</ol>
-				</div>
-
-				{/* Component Palette */}
-				<div className="flex-1 p-4 overflow-y-auto">
-					<h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-						Component Palette
-					</h3>
-
-					{/* Databases */}
-					<div>
-						<h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-							Databases
-						</h4>
-						<div className="space-y-2">
-							<PaletteItem
-								color="#336791"
-								description="Production-ready relational database"
-								disabled={database === 'postgresql'}
-								icon="P"
-								name="PostgreSQL"
-								onDragStart={handleDragStart}
-								type="postgresql"
-							/>
-							<PaletteItem
-								color="#003b57"
-								description="Simple file-based database"
-								disabled={database === 'sqlite'}
-								icon="S"
-								name="SQLite"
-								onDragStart={handleDragStart}
-								type="sqlite"
-								warning="Cannot support Sharding (Level 49)"
-							/>
+					{/* Step Progress */}
+					<div className="p-4 border-b border-border">
+						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+							Steps
 						</div>
+						<StepProgress steps={stepper.steps} />
 					</div>
-				</div>
-			</div>
 
-			{/* Center - Architecture Canvas */}
-			<div className="flex-1 flex flex-col">
-				{/* Header */}
-				<div className="h-14 border-b border-border flex items-center justify-between px-6">
-					<Button onClick={onExit} size="sm" variant="ghost">
-						&larr; Levels
-					</Button>
-					<div className="text-center">
-						<div className="text-xs text-primary font-medium">LEVEL 1</div>
-						<div className="text-lg font-bold text-foreground">
-							The Stack Choice
+					{/* Database Palette (step 1 only) */}
+					{stepper.currentStep === 0 && (
+						<div className="p-4">
+							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+								Databases
+							</div>
+							<div className="space-y-2">
+								<div
+									className="p-3 rounded-lg border bg-secondary border-border hover:border-primary cursor-grab active:cursor-grabbing transition-all"
+									draggable
+									onDragStart={(e) => handleDragStart(e, 'postgresql')}
+								>
+									<div className="flex items-center gap-2 mb-1">
+										<span className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold text-white bg-[#336791]">
+											P
+										</span>
+										<span className="font-medium text-foreground text-sm">
+											PostgreSQL
+										</span>
+									</div>
+									<p className="text-xs text-muted-foreground">
+										Production-ready. Supports sharding & read replicas.
+									</p>
+								</div>
+								<div
+									className="p-3 rounded-lg border bg-secondary border-border hover:border-primary cursor-grab active:cursor-grabbing transition-all"
+									draggable
+									onDragStart={(e) => handleDragStart(e, 'sqlite')}
+								>
+									<div className="flex items-center gap-2 mb-1">
+										<span className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold text-white bg-[#003b57]">
+											S
+										</span>
+										<span className="font-medium text-foreground text-sm">
+											SQLite
+										</span>
+									</div>
+									<p className="text-xs text-muted-foreground">
+										Simple, file-based. Rails 8 makes it production-ready.
+									</p>
+									<p className="text-xs text-warning mt-1">
+										Cannot support Sharding (Level 49)
+									</p>
+								</div>
+							</div>
 						</div>
-					</div>
-					<Button
-						onClick={() => setDatabase(null)}
-						size="sm"
-						variant="ghost"
-					>
-						Reset
-					</Button>
-				</div>
+					)}
+				</InstructionPanel>
+			</LeftPanel>
 
-				{/* Canvas */}
-				<div className="flex-1 flex items-center justify-center p-8">
-					<div className="w-full max-w-2xl">
-						<h3 className="text-center text-sm font-medium text-muted-foreground mb-8">
-							Architecture Canvas
-						</h3>
+			<CenterPanel>
+				<LevelHeader
+					actNumber={1}
+					levelName="The Stack Choice"
+					levelNumber={1}
+					onComplete={handleComplete}
+					onExit={onExit}
+					onReset={() => {
+						window.location.reload();
+					}}
+					onValidate={validateSolution}
+				/>
 
-						{/* Terminal Node */}
-						<div className="flex justify-center mb-8">
-							<div className="bg-linear-to-br from-primary/20 to-primary/10 border border-primary rounded-lg px-8 py-4 shadow-lg shadow-primary/20">
-								<div className="flex items-center gap-3">
-									<span className="text-2xl font-mono">&gt;_</span>
-									<div>
-										<div className="text-primary font-semibold">Terminal</div>
-										<div className="text-primary/70 text-sm font-mono">
-											$ rails new --api
+				<div className="flex-1 relative bg-background p-6 overflow-auto">
+					<div className="max-w-2xl mx-auto space-y-6">
+						{/* Step 1: Database Slot */}
+						{stepper.currentStep === 0 && (
+							<div className="space-y-4">
+								<h3 className="text-lg font-semibold text-foreground">
+									Choose Your Database
+								</h3>
+								<p className="text-sm text-muted-foreground">
+									Drag a database from the left panel into the slot below.
+								</p>
+								<div className="flex justify-center py-8">
+									<div
+										className={`w-64 h-32 rounded-lg border-2 border-dashed flex flex-col items-center justify-center transition-all ${
+											dragOverSlot
+												? 'border-primary bg-primary/10 scale-105'
+												: 'border-border bg-card/50 hover:border-muted-foreground'
+										}`}
+										onDragEnter={() => setDragOverSlot(true)}
+										onDragLeave={() => setDragOverSlot(false)}
+										onDragOver={(e) => e.preventDefault()}
+										onDrop={handleDropDatabase}
+									>
+										<div className="text-3xl text-muted-foreground mb-2">
+											+
+										</div>
+										<div className="text-sm font-medium text-muted-foreground">
+											Database System
+										</div>
+										<div className="text-xs text-primary mt-2">
+											Drag & drop here
 										</div>
 									</div>
 								</div>
 							</div>
-						</div>
+						)}
 
-						{/* Connection Line */}
-						<div className="flex justify-center mb-4">
-							<svg className="text-primary/50" height="40" width="200">
-								<path
-									d="M 100 0 L 100 40"
-									fill="none"
-									stroke="currentColor"
-									strokeDasharray="4"
-									strokeWidth="2"
+						{/* Step 2: Generate Project */}
+						{stepper.currentStep === 1 && (
+							<div className="space-y-4">
+								<h3 className="text-lg font-semibold text-foreground">
+									Generate Project
+								</h3>
+								<p className="text-sm text-muted-foreground">
+									Pick the correct{' '}
+									<span className="font-mono text-primary">rails new</span>{' '}
+									command to create your API app with{' '}
+									<span className="font-mono text-primary">
+										{database === 'postgresql' ? 'PostgreSQL' : 'SQLite'}
+									</span>
+									.
+								</p>
+								<SimulatedTerminal
+									commands={generateCommands}
+									onCorrect={() => stepper.completeStep()}
+									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+									outputLines={generateOutput}
 								/>
-							</svg>
-						</div>
+								<ErrorFeedback
+									message={stepper.lastFeedback}
+									onDismiss={stepper.clearFeedback}
+								/>
+							</div>
+						)}
 
-						{/* Database Slot */}
-						<div className="flex justify-center mb-8">
-							<Slot
-								filled={database}
-								filledInfo={database ? getDatabaseInfo(database) : null}
-								isDragOver={dragOverSlot}
-								label="Database System"
-								onClear={clearDatabase}
-								onDragEnter={() => setDragOverSlot(true)}
-								onDragLeave={() => setDragOverSlot(false)}
-								onDragOver={handleDragOver}
-								onDrop={handleDropDatabase}
-								sublabel="DATABASE SYSTEM"
-							/>
-						</div>
+						{/* Step 3: Create Database */}
+						{stepper.currentStep === 2 && (
+							<div className="space-y-4">
+								<h3 className="text-lg font-semibold text-foreground">
+									Create Database
+								</h3>
+								<p className="text-sm text-muted-foreground">
+									The project is generated. Now create the development and test
+									databases.
+								</p>
+								<SimulatedTerminal
+									commands={createDbCommands}
+									onCorrect={() => stepper.completeStep()}
+									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+									outputLines={createDbOutput}
+								/>
+								<ErrorFeedback
+									message={stepper.lastFeedback}
+									onDismiss={stepper.clearFeedback}
+								/>
+							</div>
+						)}
 
-						{/* Generate Button */}
-						<div className="flex justify-center">
-							<Button
-								className={canGenerate ? 'shadow-lg shadow-primary/30' : ''}
-								disabled={!canGenerate}
-								onClick={handleGenerate}
-								size="lg"
-							>
-								<span>*</span>
-								<span>GENERATE APP</span>
-							</Button>
-						</div>
-						{!canGenerate && (
-							<div className="text-center mt-2 text-xs text-muted-foreground">
-								Drag a database to the slot to generate
+						{/* Step 4: Boot Server */}
+						{stepper.currentStep === 3 && (
+							<div className="space-y-4">
+								<h3 className="text-lg font-semibold text-foreground">
+									Boot Server
+								</h3>
+								<p className="text-sm text-muted-foreground">
+									Database created. Start the Rails server and verify it
+									responds.
+								</p>
+								<SimulatedTerminal
+									commands={bootCommands}
+									onCorrect={() => stepper.completeStep()}
+									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+									outputLines={bootOutput}
+								/>
+								<ErrorFeedback
+									message={stepper.lastFeedback}
+									onDismiss={stepper.clearFeedback}
+								/>
+							</div>
+						)}
+
+						{/* Complete */}
+						{stepper.isComplete && (
+							<div className="text-center py-12 space-y-4">
+								<div className="text-4xl">
+									{'★'.repeat(stepper.starRating)}
+									{'☆'.repeat(3 - stepper.starRating)}
+								</div>
+								<h3 className="text-xl font-bold text-foreground">
+									Rails App is Running!
+								</h3>
+								<p className="text-muted-foreground">
+									Your API-only Rails 8 app is up on localhost:3000.
+								</p>
+								<Button onClick={handleComplete}>
+									Complete Level
+								</Button>
 							</div>
 						)}
 					</div>
 				</div>
-			</div>
+			</CenterPanel>
 
-			{/* Right Panel - Code Preview & Learning */}
-			<div className="w-80 bg-card border-l border-border flex flex-col">
-				{/* Generated Code */}
-				<div className="p-4 border-b border-border">
-					<h3 className="text-sm font-semibold text-foreground mb-3">
-						Generated Rails Code
-					</h3>
-					<div className="bg-background rounded-lg p-4 border border-border">
-						<div className="flex items-center gap-2 mb-3">
-							<div className="w-3 h-3 rounded-full bg-destructive" />
-							<div className="w-3 h-3 rounded-full bg-warning" />
-							<div className="w-3 h-3 rounded-full bg-success" />
-							<span className="text-xs text-muted-foreground ml-2">
-								rails_generator.sh
-							</span>
-						</div>
-						<pre className="text-sm font-mono">
-							<span className="text-muted-foreground">
-								# Your generated command:
-							</span>
-							{'\n'}
-							<span className="text-primary">rails new</span>
-							<span className="text-foreground"> myapp</span>
-							{database && (
-								<>
-									{' \\\n  '}
-									<span className="text-muted-foreground">--database=</span>
-									<span className="text-success">{database}</span>
-								</>
-							)}
-							{' \\\n  '}
-							<span className="text-warning">--api</span>
-							{!database && (
-								<>
-									{' \\\n  '}
-									<span className="text-muted-foreground">{'<database>'}</span>
-								</>
-							)}
-						</pre>
-					</div>
-				</div>
-
-				{/* Learning Goal */}
-				<div className="p-4">
-					<div className="text-xs font-semibold text-success uppercase tracking-wider mb-2">
-						Learning Goal
-					</div>
-					<p className="text-sm text-muted-foreground">
-						Understanding rails new flags and database trade-offs. The
-						<span className="text-warning font-mono"> --api</span> flag creates a
-						lean Rails app with only JSON endpoints.
-					</p>
-				</div>
-
-				{/* Trade-offs Info */}
-				{database && (
+			<RightPanel>
+				<CodePreviewPanel files={getCodeFiles()}>
 					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-warning uppercase tracking-wider mb-2">
+						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
 							Your Choices
 						</div>
-						<div className="space-y-2 text-sm">
-							{database === 'postgresql' && (
+						{database ? (
+							<div className="space-y-2 text-sm">
+								{database === 'postgresql' ? (
+									<div className="text-muted-foreground">
+										<span className="text-success font-medium">PostgreSQL</span>{' '}
+										— Can scale to sharding in Act VII
+									</div>
+								) : (
+									<div className="text-muted-foreground">
+										<span className="text-warning font-medium">SQLite</span> —
+										Cannot shard (Level 49 blocked)
+									</div>
+								)}
 								<div className="text-muted-foreground">
-									+ <span className="text-success">PostgreSQL</span> - Can scale
-									to sharding in Act IV
+									<span className="text-success font-medium">API-only</span> —
+									Lean JSON endpoints, no view layer
 								</div>
-							)}
-							{database === 'sqlite' && (
-								<div className="text-muted-foreground">
-									! <span className="text-warning">SQLite</span> - Cannot shard
-									(Level 49 blocked)
-								</div>
-							)}
-							<div className="text-muted-foreground">
-								+ <span className="text-success">API-only</span> - Lean JSON
-								endpoints, no view layer
 							</div>
-						</div>
+						) : (
+							<p className="text-xs text-muted-foreground">
+								Drag a database to see your choices
+							</p>
+						)}
 					</div>
-				)}
-			</div>
-		</div>
+				</CodePreviewPanel>
+			</RightPanel>
+		</LevelLayout>
 	);
-}
-
-// Helper components
-
-interface PaletteItemProps {
-	type: string;
-	name: string;
-	description: string;
-	color: string;
-	icon: string;
-	warning?: string;
-	disabled?: boolean;
-	onDragStart: (e: React.DragEvent, type: string) => void;
-}
-
-function PaletteItem({
-	type,
-	name,
-	description,
-	color,
-	icon,
-	warning,
-	disabled,
-	onDragStart,
-}: PaletteItemProps) {
-	return (
-		<div
-			className={`
-        p-3 rounded-lg border transition-all
-        ${
-					disabled
-						? 'bg-secondary/50 border-border opacity-50 cursor-not-allowed'
-						: 'bg-secondary border-border hover:border-primary cursor-grab active:cursor-grabbing'
-				}
-      `}
-			draggable={!disabled}
-			onDragStart={(e) => onDragStart(e, type)}
-			style={{ borderLeftColor: color, borderLeftWidth: 4 }}
-		>
-			<div className="flex items-start justify-between mb-1">
-				<div className="flex items-center gap-2">
-					<span
-						className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold text-foreground"
-						style={{ backgroundColor: color }}
-					>
-						{icon}
-					</span>
-					<span className="font-medium text-foreground">{name}</span>
-				</div>
-			</div>
-			<p className="text-xs text-muted-foreground mb-1">{description}</p>
-			{warning && <p className="text-xs text-warning">! {warning}</p>}
-		</div>
-	);
-}
-
-interface SlotProps {
-	label: string;
-	sublabel: string;
-	filled: string | null;
-	filledInfo: {
-		name: string;
-		description: string;
-		icon: string;
-		color: string;
-	} | null;
-	onDrop: (e: React.DragEvent) => void;
-	onDragOver: (e: React.DragEvent) => void;
-	onDragEnter: () => void;
-	onDragLeave: () => void;
-	isDragOver: boolean;
-	onClear: () => void;
-}
-
-function Slot({
-	label,
-	sublabel,
-	filled,
-	filledInfo,
-	onDrop,
-	onDragOver,
-	onDragEnter,
-	onDragLeave,
-	isDragOver,
-	onClear,
-}: SlotProps) {
-	if (filled && filledInfo) {
-		return (
-			<div className="relative">
-				<Button
-					className="absolute -top-2 -right-2 w-5 h-5 rounded-full text-xs z-10"
-					onClick={onClear}
-					size="icon"
-					variant="secondary"
-				>
-					x
-				</Button>
-				<div
-					className="w-56 p-4 rounded-lg border-2 transition-all"
-					style={{
-						borderColor: filledInfo.color,
-						backgroundColor: `${filledInfo.color}15`,
-					}}
-				>
-					<div className="flex items-center gap-3 mb-2">
-						<span
-							className="w-10 h-10 rounded-lg flex items-center justify-center text-lg font-bold text-foreground"
-							style={{ backgroundColor: filledInfo.color }}
-						>
-							{filledInfo.icon}
-						</span>
-						<div>
-							<div className="font-semibold text-foreground">
-								{filledInfo.name}
-							</div>
-							<div className="text-xs text-muted-foreground">
-								{filledInfo.description}
-							</div>
-						</div>
-					</div>
-					<div className="text-xs text-muted-foreground uppercase tracking-wider">
-						{sublabel}
-					</div>
-				</div>
-			</div>
-		);
-	}
-
-	return (
-		<div
-			className={`
-        w-56 h-32 rounded-lg border-2 border-dashed flex flex-col items-center justify-center transition-all
-        ${
-					isDragOver
-						? 'border-primary bg-primary/10 scale-105'
-						: 'border-border bg-card/50 hover:border-muted-foreground'
-				}
-      `}
-			onDragEnter={onDragEnter}
-			onDragLeave={onDragLeave}
-			onDragOver={onDragOver}
-			onDrop={onDrop}
-		>
-			<div className="text-3xl text-muted-foreground mb-2">+</div>
-			<div className="text-sm font-medium text-muted-foreground">{label}</div>
-			<div className="text-xs text-muted-foreground">{sublabel}</div>
-			<div className="text-xs text-primary mt-2">Drag & drop here</div>
-		</div>
-	);
-}
-
-// Helper functions
-function getDatabaseInfo(db: 'postgresql' | 'sqlite' | null) {
-	if (db === 'postgresql') {
-		return {
-			name: 'PostgreSQL',
-			description: 'Production-ready relational database',
-			icon: 'P',
-			color: '#336791',
-		};
-	}
-	if (db === 'sqlite') {
-		return {
-			name: 'SQLite',
-			description: 'Simple file-based database',
-			icon: 'S',
-			color: '#003b57',
-		};
-	}
-	return null;
 }
 
 export default Level1StackChoice;

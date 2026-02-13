@@ -1,290 +1,334 @@
 /**
  * Level 3: CRUD Operations
  *
- * Learn Create, Read, Update, Delete with ActiveRecord.
- * Player executes commands in a simulated Rails console.
+ * 5-step progression through Create, Read, Update, Destroy, Verify.
+ * Each step presents choices with wrong-choice feedback.
  */
 
 import { useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
+	ErrorFeedback,
 	InstructionPanel,
 	LeftPanel,
 	LevelHeader,
 	LevelLayout,
 	RightPanel,
+	StepProgress,
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { SimulatedTerminal, type TerminalOutputLine } from '@/components/levels';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
-
-interface ConsoleEntry {
-	id: number;
-	input: string;
-	output: string;
-	type: 'success' | 'error' | 'info';
-}
+import { useStepGating, type StepDef } from '@/hooks/useStepGating';
 
 interface Post {
 	id: number;
 	title: string;
 	body: string;
-	created_at: string;
 }
 
-// Available commands for this level
-const COMMANDS = [
+const STEP_DEFS: StepDef[] = [
+	{ id: 'create', title: 'Create' },
+	{ id: 'read', title: 'Read' },
+	{ id: 'update', title: 'Update' },
+	{ id: 'destroy', title: 'Destroy' },
+	{ id: 'verify', title: 'Verify' },
+];
+
+// Step 1: Create options
+const CREATE_OPTIONS = [
 	{
-		cmd: 'Post.create(title: "Hello World", body: "My first post!")',
-		operation: 'create',
-		description: 'Create a new post',
-	},
-	{ cmd: 'Post.all', operation: 'read-all', description: 'Get all posts' },
-	{
-		cmd: 'Post.find(1)',
-		operation: 'read-one',
-		description: 'Find post by ID',
-	},
-	{
-		cmd: 'Post.first.update(title: "Updated Title")',
-		operation: 'update',
-		description: 'Update a post',
+		id: 'create',
+		label: 'Post.create(title: "Hello", body: "My first post")',
+		correct: true,
 	},
 	{
-		cmd: 'Post.last.destroy',
-		operation: 'destroy',
-		description: 'Delete a post',
+		id: 'new',
+		label: 'Post.new(title: "Hello", body: "My first post")',
+		correct: false,
+		feedback:
+			'"new" builds the object in memory but doesn\'t save it to the database — use "create" to persist immediately.',
+	},
+	{
+		id: 'insert',
+		label: 'Post.insert(title: "Hello", body: "My first post")',
+		correct: false,
+		feedback:
+			'"insert" is not an ActiveRecord method — use "create" to build and save in one step.',
+	},
+];
+
+// Step 2: Read options
+const READ_OPTIONS = [
+	{
+		id: 'find',
+		label: 'Post.find(1)',
+		correct: true,
+	},
+	{
+		id: 'select',
+		label: 'Post.select(1)',
+		correct: false,
+		feedback:
+			'"select" filters columns (like SQL SELECT columns), not records — use "find" to fetch by ID.',
+	},
+	{
+		id: 'where',
+		label: 'Post.where(1)',
+		correct: false,
+		feedback:
+			'"where" takes conditions like where(title: "Hello") — use "find(1)" to fetch by primary key.',
+	},
+];
+
+// Step 3: Update options
+const UPDATE_OPTIONS = [
+	{
+		id: 'update',
+		label: 'post.update(title: "Updated")',
+		correct: true,
+	},
+	{
+		id: 'assign',
+		label: 'post.title = "Updated"',
+		correct: false,
+		feedback:
+			'Assignment only changes the Ruby object in memory — "update" validates and persists to the DB in one call.',
+	},
+	{
+		id: 'update_column',
+		label: 'post.update_column(:title, "Updated")',
+		correct: false,
+		feedback:
+			'"update_column" skips validations and callbacks — use "update" to go through the full Rails lifecycle.',
+	},
+];
+
+// Step 4: Destroy options
+const DESTROY_OPTIONS = [
+	{
+		id: 'destroy',
+		label: 'post.destroy',
+		correct: true,
+	},
+	{
+		id: 'delete',
+		label: 'post.delete',
+		correct: false,
+		feedback:
+			'"delete" runs SQL directly, skipping callbacks — "destroy" runs lifecycle hooks like dependent: :destroy.',
 	},
 ];
 
 export function Level3CRUD({ onComplete, onExit }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
-	const [consoleHistory, setConsoleHistory] = useState<ConsoleEntry[]>([
-		{
-			id: 0,
-			input: 'rails console',
-			output: 'Loading development environment (Rails 7.1.0)',
-			type: 'info',
-		},
-	]);
+	const stepper = useStepGating(STEP_DEFS);
 	const [posts, setPosts] = useState<Post[]>([]);
-	const [completedOperations, setCompletedOperations] = useState<Set<string>>(
-		new Set(),
-	);
-	const [nextId, setNextId] = useState(1);
+	const [consoleHistory, setConsoleHistory] = useState<
+		{ input: string; output: string; type: 'success' | 'error' | 'info' }[]
+	>([{ input: 'rails console', output: 'Loading development environment (Rails 8.0.0)', type: 'info' }]);
 
-	// Validation function
-	const validateSolution = (): ValidationResult => {
-		const errors: string[] = [];
-		const required = ['create', 'read-all', 'read-one', 'update', 'destroy'];
-		const missing = required.filter((op) => !completedOperations.has(op));
-
-		if (missing.length > 0) {
-			const opNames: Record<string, string> = {
-				create: 'Create (Post.create)',
-				'read-all': 'Read All (Post.all)',
-				'read-one': 'Read One (Post.find)',
-				update: 'Update (Post.first.update)',
-				destroy: 'Delete (Post.last.destroy)',
-			};
-			errors.push(
-				`Try these operations: ${missing.map((m) => opNames[m]).join(', ')}`,
-			);
-		}
-
-		if (errors.length > 0) {
-			return {
-				valid: false,
-				message: 'Complete all CRUD operations!',
-				details: errors,
-			};
-		}
-
-		return {
-			valid: true,
-			message: "You've mastered CRUD operations!",
-		};
+	const addConsoleEntry = (
+		input: string,
+		output: string,
+		type: 'success' | 'error' | 'info' = 'success',
+	) => {
+		setConsoleHistory((prev) => [...prev, { input, output, type }]);
 	};
 
-	const executeCommand = (cmd: string, operation: string) => {
-		const entryId = consoleHistory.length;
-		let output = '';
-		let type: 'success' | 'error' | 'info' = 'success';
-
-		switch (operation) {
-			case 'create': {
-				const newPost: Post = {
-					id: nextId,
-					title: 'Hello World',
-					body: 'My first post!',
-					created_at: new Date().toISOString(),
-				};
-				setPosts((prev) => [...prev, newPost]);
-				setNextId((prev) => prev + 1);
-				output = `=> #<Post id: ${newPost.id}, title: "${newPost.title}", body: "${newPost.body}">`;
-				break;
-			}
-			case 'read-all': {
-				if (posts.length === 0) {
-					output = '=> []';
-				} else {
-					output = `=> [\n${posts.map((p) => `  #<Post id: ${p.id}, title: "${p.title}">`).join(',\n')}\n]`;
-				}
-				break;
-			}
-			case 'read-one': {
-				const post = posts.find((p) => p.id === 1);
-				if (post) {
-					output = `=> #<Post id: ${post.id}, title: "${post.title}", body: "${post.body}">`;
-				} else {
-					output = "ActiveRecord::RecordNotFound: Couldn't find Post with id=1";
-					type = 'error';
-				}
-				break;
-			}
-			case 'update': {
-				if (posts.length === 0) {
-					output = "NoMethodError: undefined method `update' for nil:NilClass";
-					type = 'error';
-				} else {
-					setPosts((prev) => {
-						const updated = [...prev];
-						updated[0] = { ...updated[0], title: 'Updated Title' };
-						return updated;
-					});
-					output = `=> true`;
-				}
-				break;
-			}
-			case 'destroy': {
-				if (posts.length === 0) {
-					output = "NoMethodError: undefined method `destroy' for nil:NilClass";
-					type = 'error';
-				} else {
-					const lastPost = posts[posts.length - 1];
-					setPosts((prev) => prev.slice(0, -1));
-					output = `=> #<Post id: ${lastPost.id}, title: "${lastPost.title}"> (destroyed)`;
-				}
-				break;
-			}
-			default:
-				output = '=> nil';
-		}
-
-		setConsoleHistory((prev) => [
-			...prev,
-			{ id: entryId, input: cmd, output, type },
-		]);
-
-		// Track completed operations (only if successful)
-		if (type === 'success') {
-			setCompletedOperations((prev) => new Set([...prev, operation]));
+	// Step handlers
+	const handleChoice = (
+		options: typeof CREATE_OPTIONS,
+		choiceId: string,
+		onCorrect: () => void,
+	) => {
+		const opt = options.find((o) => o.id === choiceId)!;
+		if (opt.correct) {
+			onCorrect();
+		} else {
+			stepper.recordWrongAttempt(opt.feedback!);
 		}
 	};
+
+	const handleCreate = () => {
+		const newPost: Post = { id: 1, title: 'Hello', body: 'My first post' };
+		setPosts([newPost]);
+		addConsoleEntry(
+			'Post.create(title: "Hello", body: "My first post")',
+			`=> #<Post id: 1, title: "Hello", body: "My first post">`,
+		);
+		stepper.completeStep();
+	};
+
+	const handleRead = () => {
+		addConsoleEntry(
+			'Post.find(1)',
+			`=> #<Post id: 1, title: "Hello", body: "My first post">`,
+		);
+		stepper.completeStep();
+	};
+
+	const handleUpdate = () => {
+		setPosts((prev) =>
+			prev.map((p) => (p.id === 1 ? { ...p, title: 'Updated' } : p)),
+		);
+		addConsoleEntry(
+			'post.update(title: "Updated")',
+			'=> true',
+		);
+		stepper.completeStep();
+	};
+
+	const handleDestroy = () => {
+		addConsoleEntry(
+			'post.destroy',
+			`=> #<Post id: 1, title: "Updated"> (destroyed)`,
+		);
+		setPosts([]);
+		stepper.completeStep();
+	};
+
+	// Step 5: Verify with terminal
+	const verifyCommands = [
+		{
+			id: 'correct',
+			label: 'Post.count',
+			command: 'Post.count',
+			correct: true,
+		},
+	];
+
+	const verifyOutput: TerminalOutputLine[] = [
+		{ text: '=> 0', color: 'cyan' },
+		{ text: '', color: 'muted' },
+		{ text: '# All CRUD operations complete!', color: 'green' },
+	];
 
 	const handleComplete = async () => {
 		const success = await completeLevel('act1-level3-crud', {
-			stars: 3,
+			stars: stepper.starRating,
 		});
 		if (success) {
-			onComplete({ stars: 3 });
+			onComplete({ stars: stepper.starRating });
 		}
 	};
 
-	const progress = (completedOperations.size / 5) * 100;
+	const validateSolution = (): ValidationResult => {
+		if (!stepper.isComplete) {
+			return {
+				valid: false,
+				message: 'Complete all CRUD operations',
+				details: stepper.steps
+					.filter((s) => s.status !== 'completed')
+					.map((s) => s.title),
+			};
+		}
+		return { valid: true, message: "You've mastered CRUD operations!" };
+	};
+
+	const renderChoiceStep = (
+		title: string,
+		description: string,
+		options: typeof CREATE_OPTIONS,
+		onCorrect: () => void,
+	) => (
+		<div className="space-y-4">
+			<h3 className="text-lg font-semibold text-foreground">{title}</h3>
+			<p className="text-sm text-muted-foreground">{description}</p>
+			<div className="space-y-3">
+				{options.map((opt) => (
+					<Button
+						className="w-full h-auto py-3 text-left font-mono text-xs whitespace-normal"
+						key={opt.id}
+						onClick={() =>
+							handleChoice(options, opt.id, onCorrect)
+						}
+						variant="outline"
+					>
+						{opt.label}
+					</Button>
+				))}
+			</div>
+			<ErrorFeedback
+				message={stepper.lastFeedback}
+				onDismiss={stepper.clearFeedback}
+			/>
+		</div>
+	);
+
+	const getCodeFiles = () => {
+		const highlightLines: number[] = [];
+		if (stepper.currentStep >= 1) highlightLines.push(2, 3);
+		if (stepper.currentStep >= 2) highlightLines.push(6, 7, 8);
+		if (stepper.currentStep >= 3) highlightLines.push(11, 12);
+		if (stepper.currentStep >= 4) highlightLines.push(15);
+
+		return [
+			{
+				filename: 'CRUD_cheatsheet.rb',
+				language: 'ruby',
+				code: `# CREATE - Make new records
+Post.create(title: "Hello", body: "World")
+Post.new(title: "Draft").save
+
+# READ - Fetch records
+Post.all                    # All posts
+Post.find(1)               # By ID
+Post.find_by(title: "Hi")  # By attribute
+
+# UPDATE - Modify records
+post = Post.find(1)
+post.update(title: "New Title")
+
+# DELETE - Remove records
+post.destroy       # Runs callbacks
+post.delete        # Skips callbacks (avoid)`,
+				highlight: highlightLines,
+			},
+		];
+	};
 
 	return (
 		<LevelLayout>
 			<LeftPanel>
-				<InstructionPanel
-					goal="CRUD operations are the foundation of all database work. Every web app uses them constantly."
-					instructions={[
-						'Click commands to execute them in the console',
-						'Create: Make new records',
-						'Read: Fetch existing records',
-						'Update: Modify existing records',
-						'Delete: Remove records',
-					]}
-					scenario="Your Post model exists, but the database is empty. Time to learn the four fundamental operations: Create, Read, Update, Delete."
-				>
-					{/* Command Palette */}
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-							Available Commands
-						</div>
-						<div className="space-y-2">
-							{COMMANDS.map(({ cmd, operation, description }) => {
-								const isCompleted = completedOperations.has(operation);
-								return (
-									<Button
-										className={`w-full p-3 h-auto rounded-lg text-left transition-all border whitespace-normal ${
-											isCompleted
-												? 'bg-success/10 border-success text-success'
-												: 'bg-secondary border-border text-muted-foreground hover:border-primary hover:text-foreground'
-										}`}
-										key={operation}
-										onClick={() => executeCommand(cmd, operation)}
-										variant="outline"
-									>
-										<div className="flex flex-col w-full">
-											<div className="flex items-center justify-between">
-												<span className="text-xs font-medium uppercase tracking-wider">
-													{operation.split('-')[0]}
-												</span>
-												{isCompleted && (
-													<svg
-														className="w-4 h-4 text-success"
-														fill="currentColor"
-														viewBox="0 0 20 20"
-													>
-														<path
-															clipRule="evenodd"
-															d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-															fillRule="evenodd"
-														/>
-													</svg>
-												)}
-											</div>
-											<div className="font-mono text-xs mt-1 text-primary break-all">
-												{cmd}
-											</div>
-											<div className="text-xs text-muted-foreground mt-1">
-												{description}
-											</div>
-										</div>
-									</Button>
-								);
-							})}
-						</div>
+				<InstructionPanel>
+					<div className="p-4 border-b border-border">
+						<p className="text-sm text-muted-foreground leading-relaxed">
+							Your Post model exists, but the database is empty. Learn the four
+							fundamental operations: Create, Read, Update, Delete.
+						</p>
 					</div>
 
-					{/* Progress */}
-					<div className="p-4 border-t border-border">
+					<div className="p-4 border-b border-border">
+						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+							Steps
+						</div>
+						<StepProgress steps={stepper.steps} />
+					</div>
+
+					{/* Live database state */}
+					<div className="p-4">
 						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-							Progress
+							Database: posts
 						</div>
-						<div className="flex justify-between text-sm mb-2">
-							<span className="text-muted-foreground">
-								Operations completed
-							</span>
-							<span
-								className={
-									completedOperations.size === 5
-										? 'text-success'
-										: 'text-foreground'
-								}
-							>
-								{completedOperations.size} / 5
-							</span>
-						</div>
-						<div className="h-2 bg-secondary rounded-full overflow-hidden">
-							<div
-								className="h-full bg-success transition-all duration-300"
-								style={{ width: `${progress}%` }}
-							/>
-						</div>
+						{posts.length === 0 ? (
+							<p className="text-xs text-muted-foreground">
+								{stepper.currentStep === 0
+									? 'No records yet'
+									: 'Table is empty (Post.count => 0)'}
+							</p>
+						) : (
+							<div className="text-xs font-mono space-y-1">
+								{posts.map((p) => (
+									<div className="text-muted-foreground" key={p.id}>
+										#{p.id} "{p.title}"
+									</div>
+								))}
+							</div>
+						)}
 					</div>
 				</InstructionPanel>
 			</LeftPanel>
@@ -296,175 +340,144 @@ export function Level3CRUD({ onComplete, onExit }: LevelComponentProps) {
 					levelNumber={3}
 					onComplete={handleComplete}
 					onExit={onExit}
-					onReset={() => {
-						setConsoleHistory([
-							{
-								id: 0,
-								input: 'rails console',
-								output: 'Loading development environment (Rails 7.1.0)',
-								type: 'info',
-							},
-						]);
-						setPosts([]);
-						setCompletedOperations(new Set());
-						setNextId(1);
-					}}
+					onReset={() => window.location.reload()}
 					onValidate={validateSolution}
 				/>
 
-				<div className="flex-1 relative bg-background p-8 overflow-auto">
-					{/* Rails Console */}
-					<div className="max-w-2xl mx-auto">
-						<div className="bg-card rounded-xl border border-border overflow-hidden">
-							{/* Console Header */}
-							<div className="bg-secondary px-4 py-2 flex items-center gap-2 border-b border-border">
+				<div className="flex-1 relative bg-background p-6 overflow-auto">
+					<div className="max-w-2xl mx-auto space-y-6">
+						{/* Console history */}
+						<div className="bg-zinc-900 rounded-lg border border-zinc-700 overflow-hidden">
+							<div className="flex items-center gap-2 px-3 py-2 bg-zinc-800 border-b border-zinc-700">
 								<div className="flex gap-1.5">
-									<div className="w-3 h-3 rounded-full bg-destructive" />
-									<div className="w-3 h-3 rounded-full bg-warning" />
-									<div className="w-3 h-3 rounded-full bg-success" />
+									<div className="w-3 h-3 rounded-full bg-red-500" />
+									<div className="w-3 h-3 rounded-full bg-yellow-500" />
+									<div className="w-3 h-3 rounded-full bg-green-500" />
 								</div>
-								<span className="text-muted-foreground text-sm ml-2">
+								<span className="text-xs text-zinc-400 font-mono ml-1">
 									Rails Console
 								</span>
 							</div>
-
-							{/* Console Output */}
-							<div className="p-4 font-mono text-sm max-h-[400px] overflow-y-auto">
-								{consoleHistory.map((entry) => (
-									<div className="mb-3" key={entry.id}>
-										<div className="flex">
-											<span className="text-success mr-2">irb&gt;</span>
-											<span className="text-foreground">{entry.input}</span>
+							<div className="p-3 font-mono text-sm max-h-48 overflow-y-auto">
+								{consoleHistory.map((entry, i) => (
+									<div className="mb-2" key={`console-${i}-${entry.input.slice(0, 15)}`}>
+										<div className="flex gap-2">
+											<span className="text-emerald-400 shrink-0">
+												irb&gt;
+											</span>
+											<span className="text-zinc-200">{entry.input}</span>
 										</div>
 										<div
-											className={`ml-6 whitespace-pre-wrap ${
+											className={`ml-6 ${
 												entry.type === 'error'
-													? 'text-destructive'
+													? 'text-red-400'
 													: entry.type === 'info'
-														? 'text-muted-foreground'
-														: 'text-primary'
+														? 'text-zinc-500'
+														: 'text-cyan-400'
 											}`}
 										>
 											{entry.output}
 										</div>
 									</div>
 								))}
-								<div className="flex items-center">
-									<span className="text-success mr-2">irb&gt;</span>
-									<span className="w-2 h-4 bg-foreground animate-pulse" />
+								<div className="flex items-center gap-2">
+									<span className="text-emerald-400">irb&gt;</span>
+									<span className="w-2 h-4 bg-zinc-300 animate-pulse" />
 								</div>
 							</div>
 						</div>
 
-						{/* Current Database State */}
-						<div className="mt-6 bg-card rounded-xl border border-primary overflow-hidden">
-							<div className="bg-primary/10 px-4 py-2 border-b border-primary/50">
-								<span className="text-primary text-sm font-semibold">
-									Database: posts table
-								</span>
+						{/* Step content */}
+						{stepper.currentStep === 0 &&
+							renderChoiceStep(
+								'Create',
+								'Which command creates a new Post and saves it to the database?',
+								CREATE_OPTIONS,
+								handleCreate,
+							)}
+
+						{stepper.currentStep === 1 &&
+							renderChoiceStep(
+								'Read',
+								'Which command finds a post by its ID?',
+								READ_OPTIONS,
+								handleRead,
+							)}
+
+						{stepper.currentStep === 2 &&
+							renderChoiceStep(
+								'Update',
+								'Which command changes the title and saves to the database?',
+								UPDATE_OPTIONS,
+								handleUpdate,
+							)}
+
+						{stepper.currentStep === 3 &&
+							renderChoiceStep(
+								'Destroy',
+								'Which command removes the post and runs lifecycle callbacks?',
+								DESTROY_OPTIONS,
+								handleDestroy,
+							)}
+
+						{stepper.currentStep === 4 && (
+							<div className="space-y-4">
+								<h3 className="text-lg font-semibold text-foreground">
+									Verify
+								</h3>
+								<p className="text-sm text-muted-foreground">
+									Confirm the post was destroyed. Check the count.
+								</p>
+								<SimulatedTerminal
+									commands={verifyCommands}
+									onCorrect={() => stepper.completeStep()}
+									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+									outputLines={verifyOutput}
+								/>
 							</div>
-							<div className="p-4">
-								{posts.length === 0 ? (
-									<div className="text-muted-foreground text-sm text-center py-4">
-										No records yet. Try Post.create!
-									</div>
-								) : (
-									<table className="w-full text-sm">
-										<thead>
-											<tr className="text-muted-foreground text-left">
-												<th className="pb-2">id</th>
-												<th className="pb-2">title</th>
-												<th className="pb-2">body</th>
-											</tr>
-										</thead>
-										<tbody>
-											{posts.map((post) => (
-												<tr
-													className="text-muted-foreground border-t border-border"
-													key={post.id}
-												>
-													<td className="py-2 text-purple-400">{post.id}</td>
-													<td className="py-2">{post.title}</td>
-													<td className="py-2 text-muted-foreground truncate max-w-[200px]">
-														{post.body}
-													</td>
-												</tr>
-											))}
-										</tbody>
-									</table>
-								)}
+						)}
+
+						{stepper.isComplete && (
+							<div className="text-center py-12 space-y-4">
+								<div className="text-4xl">
+									{'★'.repeat(stepper.starRating)}
+									{'☆'.repeat(3 - stepper.starRating)}
+								</div>
+								<h3 className="text-xl font-bold text-foreground">
+									CRUD Master!
+								</h3>
+								<p className="text-muted-foreground">
+									You can Create, Read, Update, and Destroy records.
+								</p>
+								<Button onClick={handleComplete}>Complete Level</Button>
 							</div>
-						</div>
+						)}
 					</div>
 				</div>
 			</CenterPanel>
 
 			<RightPanel>
-				<CodePreviewPanel
-					files={[
-						{
-							filename: 'CRUD_cheatsheet.rb',
-							language: 'ruby',
-							code: `# CREATE - Make new records
-Post.create(title: "Hello", body: "World")
-Post.new(title: "Draft").save
-
-# READ - Fetch records
-Post.all                    # All posts
-Post.find(1)               # By ID
-Post.find_by(title: "Hi")  # By attribute
-Post.first / Post.last     # First/last record
-Post.where(published: true) # Filter
-
-# UPDATE - Modify records
-post = Post.find(1)
-post.update(title: "New Title")
-post.title = "Another"
-post.save
-
-# DELETE - Remove records
-post.destroy       # Delete one
-Post.destroy_all   # Delete all`,
-							highlight: completedOperations.has('create')
-								? [2, 3]
-								: completedOperations.has('read-all')
-									? [6]
-									: completedOperations.has('read-one')
-										? [7]
-										: completedOperations.has('update')
-											? [14, 15, 16, 17]
-											: completedOperations.has('destroy')
-												? [20, 21]
-												: [],
-						},
-					]}
-					learningGoal="CRUD = Create, Read, Update, Delete. These four operations are how you interact with database records in Rails."
-				>
+				<CodePreviewPanel files={getCodeFiles()}>
 					<div className="p-4 border-t border-border">
 						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
 							CRUD Operations
 						</div>
 						<div className="grid grid-cols-2 gap-2 text-xs">
-							<div
-								className={`p-2 rounded ${completedOperations.has('create') ? 'bg-success/10 text-success' : 'bg-secondary text-muted-foreground'}`}
-							>
-								<span className="font-bold">C</span>reate
-							</div>
-							<div
-								className={`p-2 rounded ${completedOperations.has('read-all') || completedOperations.has('read-one') ? 'bg-success/10 text-success' : 'bg-secondary text-muted-foreground'}`}
-							>
-								<span className="font-bold">R</span>ead
-							</div>
-							<div
-								className={`p-2 rounded ${completedOperations.has('update') ? 'bg-success/10 text-success' : 'bg-secondary text-muted-foreground'}`}
-							>
-								<span className="font-bold">U</span>pdate
-							</div>
-							<div
-								className={`p-2 rounded ${completedOperations.has('destroy') ? 'bg-success/10 text-success' : 'bg-secondary text-muted-foreground'}`}
-							>
-								<span className="font-bold">D</span>elete
-							</div>
+							{['create', 'read', 'update', 'destroy'].map((op, i) => (
+								<div
+									className={`p-2 rounded ${
+										stepper.currentStep > i
+											? 'bg-success/10 text-success'
+											: 'bg-secondary text-muted-foreground'
+									}`}
+									key={op}
+								>
+									<span className="font-bold uppercase">
+										{op[0]}
+									</span>
+									{op.slice(1)}
+								</div>
+							))}
 						</div>
 					</div>
 				</CodePreviewPanel>

@@ -24,9 +24,9 @@ RailsExpert (50 levels, 8 acts)
 │   ├── Level 1: The Stack Choice
 │   ├── Level 2: The Model
 │   ├── Level 3: CRUD Operations
-│   ├── Level 4: The Controller
-│   ├── Level 5: Serializers
-│   ├── Level 6: Routes & Request Lifecycle
+│   ├── Level 4: Routes & Request Lifecycle
+│   ├── Level 5: The Controller
+│   ├── Level 6: Serializers
 │   └── Level 7: Associations
 │
 ├── Act 2: Users & Security (7 levels)
@@ -234,7 +234,8 @@ frontend/src/features/
 │   ├── Level1StackChoice.tsx
 │   ├── Level2Model.tsx
 │   ├── Level3CRUD.tsx
-│   ├── Level4Controller.tsx
+│   ├── Level4Routes.tsx
+│   ├── Level5Controller.tsx
 │   └── Level7Associations.tsx
 ├── act2-users-security/components/
 │   ├── Level11Authorization.tsx
@@ -501,13 +502,24 @@ export function LevelXXName({ onComplete }: LevelComponentProps) {
 
 ### Level Design Tips
 
-Every level component must teach through three phases: **WHY -> HOW -> ADVANTAGE**.
+Every level teaches through three phases: **WHY -> HOW -> ADVANTAGE**.
 
-1. **WHY** -- Show the problem first. The player must feel the pain before seeing the solution. Start with broken/ugly/slow code and make the player experience why the current approach fails (e.g., fat controller, N+1 queries, duplicated logic).
-2. **HOW** -- Teach the pattern through interaction. The player actively builds or transforms code using the Rails pattern (e.g., extracting a service object, adding eager loading, composing query methods). The interaction should involve meaningful choices, not just "click all items."
-3. **ADVANTAGE** -- Show the concrete improvement. Before/after comparison, line count reduction, query count drop, or side-by-side code clarity. The player should see measurable proof that the pattern is better than the alternative.
+1. **WHY** -- Context for why this concept matters. Delivered as readable notes (InstructionPanel or pre-level briefing), not quiz questions.
+2. **HOW** -- The core gameplay. Players learn by doing, not by answering trivia. Wrong choices get immediate feedback teaching Rails conventions. Interaction types: SimulatedTerminal (click commands), drag-and-drop (assemble pieces), click-to-select (pick from options).
+3. **ADVANTAGE** -- Post-completion notes or summary card showing the concrete improvement (before/after, line count reduction, etc.).
 
-Levels within an act must form a **linear progression** -- each level builds on skills and concepts from earlier levels so the player feels cumulative mastery, not disconnected lessons. When designing a level, explicitly connect it to what came before (e.g., reference mechanics the player already knows, reuse interaction patterns from earlier levels, introduce only one new core concept per level anchored to prior knowledge).
+Act calibration: Acts 1-2 are pure fundamentals (happy path). Acts 3-4 introduce refactoring and performance. Acts 5-8 cover production, reliability, scale, architecture.
+
+Levels within an act must form a **linear progression** -- each level builds on skills and concepts from earlier levels so the player feels cumulative mastery, not disconnected lessons.
+
+### Shared Level Components
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| `useStepGating` | `src/hooks/useStepGating.ts` | Multi-step level progression with star ratings (3=0 wrong, 2=1-2 wrong, 1=3+ wrong) |
+| `SimulatedTerminal` | `src/components/levels/SimulatedTerminal.tsx` | Clickable terminal commands with animated line-by-line output |
+| `StepProgress` | `src/components/levels/StepProgress.tsx` | Vertical stepper (lock/pulse/check icons) |
+| `ErrorFeedback` | `src/components/levels/ErrorFeedback.tsx` | Auto-dismissing error card (3s timeout) |
 
 Additional tips:
 
@@ -532,9 +544,9 @@ Additional tips:
 - Stack choice (PostgreSQL vs SQLite)
 - Models and migrations
 - CRUD operations
+- Routes and request lifecycle
 - Controllers and actions
 - Serializers (JSON output)
-- Routes and request lifecycle
 - Associations (has_many, belongs_to)
 
 **Act 2 - Users & Security:**

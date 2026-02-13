@@ -1,484 +1,530 @@
 /**
- * Level 2: Your First Model
+ * Level 2: The Model
  *
- * Learn what a Model is: data + behavior in one place.
- * Player creates their first ActiveRecord model by choosing attributes.
+ * 4-step progression to create the Post model.
+ * Steps: Name the Model → Define Attributes → Run Generator → Run Migration
  */
 
 import { useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
+	ErrorFeedback,
 	InstructionPanel,
 	LeftPanel,
 	LevelHeader,
 	LevelLayout,
 	RightPanel,
+	SimulatedTerminal,
+	StepProgress,
 	useLevelCompletion,
+	type TerminalOutputLine,
 	type ValidationResult,
 } from '@/components/levels';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
+import { useStepGating, type StepDef } from '@/hooks/useStepGating';
 
-interface ModelAttribute {
-	id: string;
-	name: string;
-	type: string;
+const STEP_DEFS: StepDef[] = [
+	{ id: 'name-model', title: 'Name the Model' },
+	{ id: 'define-attrs', title: 'Define Attributes' },
+	{ id: 'run-generator', title: 'Run Generator' },
+	{ id: 'run-migration', title: 'Run Migration' },
+];
+
+interface AttributeSlot {
+	field: string;
 	description: string;
-	selected: boolean;
-	required: boolean;
+	correctType: string;
+	assignedType: string | null;
 }
 
-const AVAILABLE_ATTRIBUTES: ModelAttribute[] = [
+const ATTRIBUTE_SLOTS: AttributeSlot[] = [
 	{
-		id: 'title',
-		name: 'title',
-		type: 'string',
-		description: 'The title of the post',
-		selected: false,
-		required: true,
+		field: 'title',
+		description: 'Short post title',
+		correctType: 'string',
+		assignedType: null,
 	},
 	{
-		id: 'body',
-		name: 'body',
-		type: 'text',
-		description: 'The main content',
-		selected: false,
-		required: true,
+		field: 'body',
+		description: 'Long-form content',
+		correctType: 'text',
+		assignedType: null,
 	},
 	{
-		id: 'published',
-		name: 'published',
-		type: 'boolean',
-		description: 'Is the post visible?',
-		selected: false,
-		required: false,
+		field: 'published',
+		description: 'Visibility flag',
+		correctType: 'boolean',
+		assignedType: null,
 	},
-	{
-		id: 'views_count',
-		name: 'views_count',
-		type: 'integer',
-		description: 'How many times viewed',
-		selected: false,
-		required: false,
-	},
-	{
-		id: 'published_at',
-		name: 'published_at',
-		type: 'datetime',
-		description: 'When it was published',
-		selected: false,
-		required: false,
-	},
+];
+
+const AVAILABLE_TYPES = ['string', 'text', 'boolean', 'integer', 'datetime'];
+
+const MODEL_NAME_OPTIONS = [
+	{ label: 'Post', correct: true },
+	{ label: 'Posts', correct: false, feedback: 'Rails models are singular PascalCase — "Post" maps to the "posts" table automatically.' },
+	{ label: 'post', correct: false, feedback: 'Rails models use PascalCase — "Post", not "post".' },
+	{ label: 'posts_table', correct: false, feedback: 'Just use the model name "Post" — Rails infers the table name "posts" automatically.' },
 ];
 
 export function Level2Model({ onComplete, onExit }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
-	const [attributes, setAttributes] =
-		useState<ModelAttribute[]>(AVAILABLE_ATTRIBUTES);
-	const [modelName, setModelName] = useState('Post');
-	const [showMigration, setShowMigration] = useState(false);
+	const stepper = useStepGating(STEP_DEFS);
+	const [slots, setSlots] = useState<AttributeSlot[]>(ATTRIBUTE_SLOTS);
+	const [draggedType, setDraggedType] = useState<string | null>(null);
 
-	const selectedAttributes = attributes.filter((a) => a.selected);
-	const requiredSelected = attributes.filter(
-		(a) => a.required && a.selected,
-	).length;
-	const requiredTotal = attributes.filter((a) => a.required).length;
+	// Step 2: Drag types onto field slots
+	const allSlotsCorrect = slots.every(
+		(s) => s.assignedType === s.correctType,
+	);
 
-	// Validation function
-	const validateSolution = (): ValidationResult => {
-		const errors: string[] = [];
+	const handleTypeDragStart = (e: React.DragEvent, type: string) => {
+		e.dataTransfer.setData('attrType', type);
+		setDraggedType(type);
+	};
 
-		if (!modelName.trim()) {
-			errors.push('Enter a model name');
-		}
+	const handleTypeDrop = (field: string, e: React.DragEvent) => {
+		e.preventDefault();
+		const type = e.dataTransfer.getData('attrType');
+		setDraggedType(null);
 
-		if (modelName.trim() && !/^[A-Z][a-zA-Z]*$/.test(modelName.trim())) {
-			errors.push(
-				'Model name should be singular and capitalized (e.g., Post, User)',
+		const slot = slots.find((s) => s.field === field);
+		if (!slot) return;
+
+		if (type === slot.correctType) {
+			setSlots((prev) =>
+				prev.map((s) =>
+					s.field === field ? { ...s, assignedType: type } : s,
+				),
 			);
-		}
-
-		const missingRequired = attributes.filter((a) => a.required && !a.selected);
-		if (missingRequired.length > 0) {
-			errors.push(
-				`Select required attributes: ${missingRequired.map((a) => a.name).join(', ')}`,
-			);
-		}
-
-		if (selectedAttributes.length < 2) {
-			errors.push('Select at least 2 attributes for your model');
-		}
-
-		if (errors.length > 0) {
-			return {
-				valid: false,
-				message: 'Model needs more work!',
-				details: errors,
+		} else {
+			// Wrong type feedback
+			const feedbackMap: Record<string, Record<string, string>> = {
+				title: {
+					text: '"title" is short — use "string", not "text".',
+					boolean: '"title" stores text, not true/false.',
+					integer: '"title" stores text, not numbers.',
+					datetime: '"title" stores text, not timestamps.',
+				},
+				body: {
+					string: '"body" stores long content — use "text", not "string". "string" is limited to 255 characters.',
+					boolean: '"body" stores content, not true/false.',
+					integer: '"body" stores content, not numbers.',
+					datetime: '"body" stores content, not timestamps.',
+				},
+				published: {
+					string: '"published" is true/false — use "boolean".',
+					text: '"published" is true/false — use "boolean".',
+					integer: '"published" is true/false — use "boolean".',
+					datetime: '"published" is true/false — use "boolean".',
+				},
 			};
+			const fb = feedbackMap[field]?.[type] || `Wrong type for ${field}.`;
+			stepper.recordWrongAttempt(fb);
 		}
-
-		return {
-			valid: true,
-			message: 'Your first ActiveRecord model is ready!',
-		};
 	};
 
-	const toggleAttribute = (id: string) => {
-		setAttributes((prev) =>
-			prev.map((a) => (a.id === id ? { ...a, selected: !a.selected } : a)),
-		);
-	};
+	// Step 3: Generator commands
+	const generatorCommands = [
+		{
+			id: 'correct',
+			label: 'rails generate model Post title:string body:text published:boolean',
+			command: 'rails generate model Post title:string body:text published:boolean',
+			correct: true,
+		},
+		{
+			id: 'wrong-types',
+			label: 'rails generate model Post title:text body:string published:integer',
+			command: 'rails generate model Post title:text body:string published:integer',
+			correct: false,
+			feedback: 'Wrong types — title is string (short text), body is text (long content), published is boolean.',
+		},
+		{
+			id: 'wrong-missing',
+			label: 'rails generate model Post title:string body:text',
+			command: 'rails generate model Post title:string body:text',
+			correct: false,
+			feedback: 'Missing the "published" field — include all three attributes.',
+		},
+	];
+
+	const generatorOutput: TerminalOutputLine[] = [
+		{ text: '      invoke  active_record', color: 'green' },
+		{ text: '      create    db/migrate/20240101000000_create_posts.rb', color: 'green' },
+		{ text: '      create    app/models/post.rb', color: 'green' },
+		{ text: '      invoke    test_unit', color: 'muted' },
+		{ text: '      create      test/models/post_test.rb', color: 'muted' },
+	];
+
+	// Step 4: Migration command
+	const migrationCommands = [
+		{
+			id: 'correct',
+			label: 'rails db:migrate',
+			command: 'rails db:migrate',
+			correct: true,
+		},
+		{
+			id: 'wrong-rollback',
+			label: 'rails db:rollback',
+			command: 'rails db:rollback',
+			correct: false,
+			feedback: 'Rollback undoes migrations — you want to run them with db:migrate.',
+		},
+	];
+
+	const migrationOutput: TerminalOutputLine[] = [
+		{ text: '== CreatePosts: migrating ====================================', color: 'green' },
+		{ text: '-- create_table(:posts)', color: 'cyan' },
+		{ text: '   -> 0.0012s', color: 'muted' },
+		{ text: '== CreatePosts: migrated (0.0013s) ===========================', color: 'green' },
+	];
 
 	const handleComplete = async () => {
 		const success = await completeLevel('act1-level2-model', {
-			stars: 3,
+			stars: stepper.starRating,
 		});
 		if (success) {
-			onComplete({ stars: 3 });
+			onComplete({ stars: stepper.starRating });
 		}
 	};
 
-	// Generate migration code
-	const generateMigrationCode = () => {
-		const tableName = modelName.toLowerCase() + 's';
-		const attrLines = selectedAttributes
-			.map((a) => `      t.${a.type} :${a.name}`)
-			.join('\n');
+	const validateSolution = (): ValidationResult => {
+		if (!stepper.isComplete) {
+			return {
+				valid: false,
+				message: 'Complete all steps first',
+				details: stepper.steps
+					.filter((s) => s.status !== 'completed')
+					.map((s) => s.title),
+			};
+		}
+		return { valid: true, message: 'Your Post model is ready!' };
+	};
 
-		return `class Create${modelName}s < ActiveRecord::Migration[7.1]
+	// Code preview updates per step
+	const getCodeFiles = () => {
+		const files = [];
+
+		if (stepper.currentStep >= 1) {
+			files.push({
+				filename: 'app/models/post.rb',
+				language: 'ruby',
+				code: `class Post < ApplicationRecord
+  # Attributes:
+  # - title   (string)
+  # - body    (text)
+  # - published (boolean)
+  #
+  # Auto-generated:
+  # - id         (integer, primary key)
+  # - created_at (datetime)
+  # - updated_at (datetime)
+end`,
+				highlight: [1],
+			});
+		}
+
+		if (stepper.currentStep >= 3) {
+			files.push({
+				filename: 'db/migrate/create_posts.rb',
+				language: 'ruby',
+				code: `class CreatePosts < ActiveRecord::Migration[8.0]
   def change
-    create_table :${tableName} do |t|
-${attrLines}
+    create_table :posts do |t|
+      t.string :title
+      t.text :body
+      t.boolean :published
 
       t.timestamps
     end
   end
-end`;
-	};
+end`,
+				highlight: [4, 5, 6],
+			});
+		}
 
-	// Generate model code
-	const generateModelCode = () => {
-		return `class ${modelName} < ApplicationRecord
-  # Your ${modelName} model is ready!
-  # It automatically gets:
-  # - id (primary key)
-  # - created_at (when created)
-  # - updated_at (when modified)
-${selectedAttributes.map((a) => `  # - ${a.name} (${a.type})`).join('\n')}
-end`;
+		if (stepper.currentStep >= 4) {
+			files.push({
+				filename: 'db/schema.rb',
+				language: 'ruby',
+				code: `ActiveRecord::Schema[8.0].define(version: 2024_01_01_000000) do
+  create_table "posts", force: :cascade do |t|
+    t.string "title"
+    t.text "body"
+    t.boolean "published"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+end`,
+				highlight: [3, 4, 5],
+			});
+		}
+
+		if (files.length === 0) {
+			files.push({
+				filename: 'app/models/post.rb',
+				language: 'ruby',
+				code: `# Choose the correct model name first`,
+				highlight: [],
+			});
+		}
+
+		return files;
 	};
 
 	return (
 		<LevelLayout>
 			<LeftPanel>
-				<InstructionPanel
-					goal="Understand that Models define the shape of your data. Each attribute becomes a database column."
-					instructions={[
-						'A Model represents data in your app',
-						'Choose attributes (columns) for your Post',
-						'Required: title and body are essential',
-						'Optional: add more to track extra info',
-					]}
-					scenario="You're starting a blog. Before writing any code, you need to decide what a 'Post' looks like. In Rails, this is called a Model."
-				>
-					{/* Model Name Input */}
-					<div className="p-4 border-t border-border">
-						<label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
-							Model Name
-						</label>
-						<input
-							className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-foreground focus:border-primary focus:outline-none"
-							onChange={(e) => setModelName(e.target.value)}
-							placeholder="Post"
-							type="text"
-							value={modelName}
-						/>
-						<div className="text-xs text-muted-foreground mt-1">
-							Singular, capitalized (Post, not posts)
-						</div>
+				<InstructionPanel>
+					{/* Scenario */}
+					<div className="p-4 border-b border-border">
+						<p className="text-sm text-muted-foreground leading-relaxed">
+							You&apos;re building a blog API. Before writing endpoints, you
+							need to define what a &quot;Post&quot; looks like. In Rails, this
+							is a Model.
+						</p>
 					</div>
 
-					{/* Attribute Selection */}
-					<div className="p-4 border-t border-border">
+					{/* Step Progress */}
+					<div className="p-4 border-b border-border">
 						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-							Choose Attributes ({selectedAttributes.length} selected)
+							Steps
 						</div>
-						<div className="space-y-2">
-							{attributes.map((attr) => (
-								<Button
-									className={`w-full p-3 h-auto rounded-lg text-left transition-all border-2 ${
-										attr.selected
-											? 'bg-primary/10 border-primary text-foreground'
-											: 'bg-secondary border-border text-muted-foreground hover:border-muted-foreground'
-									}`}
-									key={attr.id}
-									onClick={() => toggleAttribute(attr.id)}
-									variant="outline"
-								>
-									<div className="flex flex-col w-full">
-										<div className="flex items-center justify-between">
-											<div>
-												<span className="font-mono text-sm">{attr.name}</span>
-												<span className="text-xs text-muted-foreground ml-2">
-													:{attr.type}
-												</span>
-												{attr.required && (
-													<span className="text-xs text-warning ml-2">
-														(required)
-													</span>
-												)}
-											</div>
-											<div
-												className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-													attr.selected
-														? 'bg-primary border-primary'
-														: 'border-muted-foreground'
-												}`}
-											>
-												{attr.selected && (
-													<svg
-														className="w-3 h-3 text-foreground"
-														fill="currentColor"
-														viewBox="0 0 20 20"
-													>
-														<path
-															clipRule="evenodd"
-															d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-															fillRule="evenodd"
-														/>
-													</svg>
-												)}
-											</div>
-										</div>
-										<div className="text-xs text-muted-foreground mt-1">
-											{attr.description}
-										</div>
-									</div>
-								</Button>
-							))}
-						</div>
+						<StepProgress steps={stepper.steps} />
 					</div>
 
-					{/* Progress */}
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-							Progress
+					{/* Type palette for step 2 */}
+					{stepper.currentStep === 1 && (
+						<div className="p-4">
+							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+								Data Types
+							</div>
+							<div className="flex flex-wrap gap-2">
+								{AVAILABLE_TYPES.map((type) => (
+									<div
+										className={`px-3 py-1.5 rounded-md border text-xs font-mono cursor-grab active:cursor-grabbing transition-all ${
+											draggedType === type
+												? 'border-primary bg-primary/10 text-primary'
+												: 'border-border bg-secondary text-foreground hover:border-primary'
+										}`}
+										draggable
+										key={type}
+										onDragEnd={() => setDraggedType(null)}
+										onDragStart={(e) => handleTypeDragStart(e, type)}
+									>
+										:{type}
+									</div>
+								))}
+							</div>
+							<p className="text-xs text-muted-foreground mt-2">
+								Drag a type onto each field slot
+							</p>
 						</div>
-						<div className="flex justify-between text-sm mb-2">
-							<span className="text-muted-foreground">Required attributes</span>
-							<span
-								className={
-									requiredSelected === requiredTotal
-										? 'text-success'
-										: 'text-foreground'
-								}
-							>
-								{requiredSelected} / {requiredTotal}
-							</span>
-						</div>
-						<div className="h-2 bg-secondary rounded-full overflow-hidden">
-							<div
-								className="h-full bg-success transition-all duration-300"
-								style={{
-									width: `${(requiredSelected / requiredTotal) * 100}%`,
-								}}
-							/>
-						</div>
-					</div>
+					)}
 				</InstructionPanel>
 			</LeftPanel>
 
 			<CenterPanel>
 				<LevelHeader
 					actNumber={1}
-					levelName="Your First Model"
+					levelName="The Model"
 					levelNumber={2}
 					onComplete={handleComplete}
 					onExit={onExit}
-					onReset={() => setAttributes(AVAILABLE_ATTRIBUTES)}
+					onReset={() => window.location.reload()}
 					onValidate={validateSolution}
 				/>
 
-				<div className="flex-1 relative bg-background p-8 overflow-auto">
-					{/* Visual Model Representation */}
-					<div className="max-w-lg mx-auto">
-						{/* Model Card */}
-						<div className="bg-card rounded-xl border-2 border-purple-500 overflow-hidden">
-							{/* Header */}
-							<div className="bg-purple-900/40 px-4 py-3 border-b border-purple-500/50">
-								<div className="flex items-center gap-3">
-									<span className="w-10 h-10 rounded-lg bg-purple-600 flex items-center justify-center text-foreground font-bold text-lg">
-										M
-									</span>
-									<div>
-										<div className="text-foreground font-semibold text-lg">
-											{modelName || 'Model'}
-										</div>
-										<div className="text-purple-300 text-xs">
-											ActiveRecord Model
-										</div>
-									</div>
+				<div className="flex-1 relative bg-background p-6 overflow-auto">
+					<div className="max-w-2xl mx-auto space-y-6">
+						{/* Step 1: Name the Model */}
+						{stepper.currentStep === 0 && (
+							<div className="space-y-4">
+								<h3 className="text-lg font-semibold text-foreground">
+									Name the Model
+								</h3>
+								<p className="text-sm text-muted-foreground">
+									What should the model for a blog post be called?
+								</p>
+								<div className="grid grid-cols-2 gap-3">
+									{MODEL_NAME_OPTIONS.map((opt) => (
+										<Button
+											className="h-auto py-4 text-lg font-mono"
+											key={opt.label}
+											onClick={() => {
+												if (opt.correct) {
+													stepper.completeStep();
+												} else {
+													stepper.recordWrongAttempt(opt.feedback!);
+												}
+											}}
+											variant="outline"
+										>
+											{opt.label}
+										</Button>
+									))}
 								</div>
+								<ErrorFeedback
+									message={stepper.lastFeedback}
+									onDismiss={stepper.clearFeedback}
+								/>
 							</div>
+						)}
 
-							{/* Attributes */}
-							<div className="p-4">
-								<div className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
-									Attributes
-								</div>
+						{/* Step 2: Define Attributes */}
+						{stepper.currentStep === 1 && (
+							<div className="space-y-4">
+								<h3 className="text-lg font-semibold text-foreground">
+									Define Attributes
+								</h3>
+								<p className="text-sm text-muted-foreground">
+									Drag the correct data type onto each field. Think about what
+									kind of data each field stores.
+								</p>
 
-								{/* Built-in attributes */}
-								<div className="space-y-2 mb-4">
-									<div className="flex items-center gap-2 text-sm text-muted-foreground">
-										<span className="font-mono">id</span>
-										<span className="text-xs px-2 py-0.5 bg-secondary rounded">
-											integer
-										</span>
-										<span className="text-xs">(automatic)</span>
-									</div>
-								</div>
-
-								{/* Selected attributes */}
-								{selectedAttributes.length > 0 ? (
-									<div className="space-y-2">
-										{selectedAttributes.map((attr) => (
-											<div
-												className="flex items-center gap-2 text-sm"
-												key={attr.id}
-											>
-												<span className="font-mono text-primary">
-													{attr.name}
-												</span>
-												<span className="text-xs px-2 py-0.5 bg-primary/10 text-primary rounded">
-													{attr.type}
-												</span>
+								<div className="space-y-3">
+									{slots.map((slot) => (
+										<div
+											className={`p-4 rounded-lg border-2 transition-all ${
+												slot.assignedType === slot.correctType
+													? 'border-success bg-success/5'
+													: 'border-dashed border-border bg-card'
+											}`}
+											key={slot.field}
+											onDragOver={(e) => e.preventDefault()}
+											onDrop={(e) => handleTypeDrop(slot.field, e)}
+										>
+											<div className="flex items-center justify-between">
+												<div>
+													<span className="font-mono text-foreground font-medium">
+														{slot.field}
+													</span>
+													<span className="text-xs text-muted-foreground ml-2">
+														— {slot.description}
+													</span>
+												</div>
+												{slot.assignedType ? (
+													<span className="px-3 py-1 rounded-md bg-success/10 text-success text-xs font-mono border border-success/30">
+														:{slot.assignedType}
+													</span>
+												) : (
+													<span className="px-3 py-1 rounded-md border-2 border-dashed border-border text-xs text-muted-foreground">
+														drop type here
+													</span>
+												)}
 											</div>
-										))}
-									</div>
-								) : (
-									<div className="text-muted-foreground text-sm italic">
-										Select attributes from the left panel
+										</div>
+									))}
+								</div>
+
+								{allSlotsCorrect && (
+									<div className="flex justify-center pt-4">
+										<Button onClick={() => stepper.completeStep()}>
+											Attributes Look Good
+										</Button>
 									</div>
 								)}
 
-								{/* Timestamps */}
-								<div className="mt-4 pt-4 border-t border-border space-y-2">
-									<div className="flex items-center gap-2 text-sm text-muted-foreground">
-										<span className="font-mono">created_at</span>
-										<span className="text-xs px-2 py-0.5 bg-secondary rounded">
-											datetime
-										</span>
-										<span className="text-xs">(automatic)</span>
-									</div>
-									<div className="flex items-center gap-2 text-sm text-muted-foreground">
-										<span className="font-mono">updated_at</span>
-										<span className="text-xs px-2 py-0.5 bg-secondary rounded">
-											datetime
-										</span>
-										<span className="text-xs">(automatic)</span>
-									</div>
-								</div>
-							</div>
-						</div>
-
-						{/* Arrow to Database */}
-						{selectedAttributes.length >= 2 && (
-							<div className="flex flex-col items-center my-6">
-								<svg
-									className="w-6 h-12 text-muted-foreground"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 48"
-								>
-									<path
-										d="M12 0v40m0 0l-6-6m6 6l6-6"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										strokeWidth={2}
-									/>
-								</svg>
-								<div className="text-xs text-muted-foreground mt-1">
-									maps to
-								</div>
+								<ErrorFeedback
+									message={stepper.lastFeedback}
+									onDismiss={stepper.clearFeedback}
+								/>
 							</div>
 						)}
 
-						{/* Database Table Preview */}
-						{selectedAttributes.length >= 2 && (
-							<div className="bg-card rounded-xl border-2 border-primary overflow-hidden">
-								<div className="bg-primary/10 px-4 py-3 border-b border-primary/50">
-									<div className="flex items-center gap-3">
-										<span className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center text-foreground font-bold text-lg">
-											D
-										</span>
-										<div>
-											<div className="text-foreground font-semibold">
-												{modelName.toLowerCase()}s
-											</div>
-											<div className="text-primary text-xs">Database Table</div>
-										</div>
-									</div>
-								</div>
-								<div className="p-4 text-xs text-muted-foreground">
-									Rails automatically creates a database table with columns for
-									each attribute.
-								</div>
+						{/* Step 3: Run Generator */}
+						{stepper.currentStep === 2 && (
+							<div className="space-y-4">
+								<h3 className="text-lg font-semibold text-foreground">
+									Run Generator
+								</h3>
+								<p className="text-sm text-muted-foreground">
+									Pick the correct{' '}
+									<span className="font-mono text-primary">
+										rails generate model
+									</span>{' '}
+									command with all three attributes.
+								</p>
+								<SimulatedTerminal
+									commands={generatorCommands}
+									onCorrect={() => stepper.completeStep()}
+									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+									outputLines={generatorOutput}
+								/>
+								<ErrorFeedback
+									message={stepper.lastFeedback}
+									onDismiss={stepper.clearFeedback}
+								/>
 							</div>
 						)}
-					</div>
 
-					{/* Toggle migration view */}
-					<div className="mt-8 text-center">
-						<Button
-							onClick={() => setShowMigration(!showMigration)}
-							size="sm"
-							variant="ghost"
-						>
-							{showMigration ? 'Hide' : 'Show'} migration preview
-						</Button>
+						{/* Step 4: Run Migration */}
+						{stepper.currentStep === 3 && (
+							<div className="space-y-4">
+								<h3 className="text-lg font-semibold text-foreground">
+									Run Migration
+								</h3>
+								<p className="text-sm text-muted-foreground">
+									The generator created a migration file. Run it to create the
+									posts table in the database.
+								</p>
+								<SimulatedTerminal
+									commands={migrationCommands}
+									onCorrect={() => stepper.completeStep()}
+									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+									outputLines={migrationOutput}
+								/>
+								<ErrorFeedback
+									message={stepper.lastFeedback}
+									onDismiss={stepper.clearFeedback}
+								/>
+							</div>
+						)}
+
+						{/* Complete */}
+						{stepper.isComplete && (
+							<div className="text-center py-12 space-y-4">
+								<div className="text-4xl">
+									{'★'.repeat(stepper.starRating)}
+									{'☆'.repeat(3 - stepper.starRating)}
+								</div>
+								<h3 className="text-xl font-bold text-foreground">
+									Post Model Created!
+								</h3>
+								<p className="text-muted-foreground">
+									Your Post model is in the database with title, body, and
+									published attributes.
+								</p>
+								<Button onClick={handleComplete}>Complete Level</Button>
+							</div>
+						)}
 					</div>
 				</div>
 			</CenterPanel>
 
 			<RightPanel>
-				<CodePreviewPanel
-					files={[
-						{
-							filename: `app/models/${modelName.toLowerCase()}.rb`,
-							language: 'ruby',
-							code: generateModelCode(),
-							highlight: [1],
-						},
-						...(showMigration
-							? [
-									{
-										filename: `db/migrate/create_${modelName.toLowerCase()}s.rb`,
-										language: 'ruby',
-										code: generateMigrationCode(),
-										highlight: selectedAttributes.map((_, i) => i + 4),
-									},
-								]
-							: []),
-					]}
-					learningGoal="A Model is a Ruby class that inherits from ApplicationRecord. It represents a database table and gives you methods to query and manipulate data."
-				>
+				<CodePreviewPanel files={getCodeFiles()}>
 					<div className="p-4 border-t border-border">
 						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
 							Key Concepts
 						</div>
 						<ul className="text-xs text-muted-foreground space-y-2">
-							<li className="flex items-start gap-2">
-								<span className="text-purple-400">M</span>
-								<span>Model = Data + Behavior in one class</span>
+							<li>Model names are singular PascalCase (Post, not Posts)</li>
+							<li>Table names are auto-pluralized (posts)</li>
+							<li>
+								<span className="font-mono text-primary">string</span> = short
+								text (255 chars),{' '}
+								<span className="font-mono text-primary">text</span> = long
+								content
 							</li>
-							<li className="flex items-start gap-2">
-								<span className="text-primary">D</span>
-								<span>Each Model maps to a database table</span>
-							</li>
-							<li className="flex items-start gap-2">
-								<span className="text-success">+</span>
-								<span>Attributes become columns automatically</span>
+							<li>
+								<span className="font-mono text-primary">id</span>,{' '}
+								<span className="font-mono text-primary">created_at</span>,{' '}
+								<span className="font-mono text-primary">updated_at</span> are
+								automatic
 							</li>
 						</ul>
 					</div>

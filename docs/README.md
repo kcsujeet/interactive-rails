@@ -44,7 +44,7 @@ The narrative arc takes players from a simple Blog API through a social platform
 
 | Act | Name | Levels | Focus |
 |-----|------|--------|-------|
-| 1 | The Foundation | 7 (Levels 1-7) | MVC, CRUD, Controllers, Serializers, Routes, Associations |
+| 1 | The Foundation | 7 (Levels 1-7) | MVC, CRUD, Routes, Controllers, Serializers, Associations |
 | 2 | Users & Security | 7 (Levels 8-14) | Authentication, Validations, Callbacks, Authorization, Testing, Security, Scopes & Enums |
 | 3 | Clean Architecture | 7 (Levels 15-21) | Service Objects, Concerns, Validation Contracts, Query Objects, Error Handling, Action Mailer, Background Jobs |
 | 4 | Performance | 7 (Levels 22-28) | N+1 Queries, Eager Loading, Indexing, Counter Caches, Pagination, Search, Caching |
