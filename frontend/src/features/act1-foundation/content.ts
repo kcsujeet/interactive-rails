@@ -30,18 +30,17 @@ const level1StackChoice: Level = {
 		observation:
 			'No application exists yet. You need to choose a database, generate the project, create the database, and boot the server.',
 		rootCause: 'No application exists yet.',
-		codeExample: `# Step 1: Choose your database (PostgreSQL or SQLite)
-# Step 2: Generate the project
-rails new myapp --api --database=postgresql
+		codeExample: `# Rails 8 has two production-ready databases:
+# PostgreSQL — sharding, read replicas, advanced queries
+# SQLite — WAL mode, IMMEDIATE transactions, zero config
 
-# Step 3: Create the database
-rails db:create
+# The --api flag creates a lean app:
+# - ActionController::API (no cookies, sessions, flash)
+# - Solid Queue for background jobs
+# - Solid Cache for caching
+# - Solid Cable for WebSockets
 
-# Step 4: Boot the server
-rails server
-# => Booting Puma
-# => Rails 8.0.0 application starting in development
-# => Listening on http://127.0.0.1:3000`,
+# Your job: pick a database and get the server running.`,
 		goal: 'Set up a new Rails 8 API project in 4 steps: choose database, generate project, create database, and boot the server.',
 		thresholds: {},
 	},
@@ -142,18 +141,18 @@ const level2Model: Level = {
 	problem: {
 		observation: 'Empty application with no data structure. You need to define what a Post looks like.',
 		rootCause: 'No models defined yet.',
-		codeExample: `# Step 1: Name the model (singular PascalCase)
-# Post => posts table
+		codeExample: `# Rails model conventions:
+# - Model names are singular PascalCase (not plural)
+# - Table names are plural snake_case (auto-generated)
+# - Each attribute has a type: string, text, integer,
+#   boolean, datetime, float, decimal...
 
-# Step 2: Define attributes with correct types
-# title: string, body: text, published: boolean
+# string vs text:
+#   string  — short content (titles, names) — VARCHAR(255)
+#   text    — long content (articles, bios) — unlimited
 
-# Step 3: Run the generator
-rails generate model Post title:string body:text published:boolean
-
-# Step 4: Migrate the database
-rails db:migrate
-# => CreatePosts: migrated`,
+# Your job: name the model, pick the right types,
+# generate it, and migrate.`,
 		goal: 'Create the Post model: name it correctly, define attributes with proper types, run the generator, and migrate the database.',
 		thresholds: {},
 	},
@@ -249,20 +248,22 @@ const level3CRUD: Level = {
 	problem: {
 		observation: 'Model exists but no data. The console shows Post.count => 0.',
 		rootCause: 'No records have been created yet.',
-		codeExample: `# Step 1: Create
-Post.create(title: "Hello", body: "My first post")
-
-# Step 2: Read
-Post.find(1)
-
-# Step 3: Update
-post.update(title: "Updated")
-
-# Step 4: Destroy
-post.destroy
-
-# Step 5: Verify
-Post.count  # => 0`,
+		codeExample: `# ActiveRecord has methods for each operation:
+#
+# CREATE — save a new record to the database
+#   .create  vs  .new  vs  .insert
+#
+# READ — fetch records by ID or attributes
+#   .find  vs  .select  vs  .where
+#
+# UPDATE — change and persist attributes
+#   .update  vs  assignment  vs  .update_column
+#
+# DELETE — remove from database
+#   .destroy  vs  .delete
+#
+# Some methods skip validations or callbacks.
+# Your job: pick the right one each time.`,
 		goal: 'Run each CRUD operation in the Rails console: create a post, read it back, update it, destroy it, and verify it is gone.',
 		thresholds: {},
 	},
@@ -341,27 +342,20 @@ const level4Routes: Level = {
 	problem: {
 		observation: 'GET /posts returns 404. No routes are defined.',
 		rootCause: 'No routes defined — the outside world cannot reach your app.',
-		codeExample: `# Step 1: Define the resource
-resources :posts
-
-# Step 2: Wrap in API namespaces
+		codeExample: `# config/routes.rb — currently empty!
 Rails.application.routes.draw do
-  namespace :api do
-    namespace :v1 do
-      resources :posts
-    end
-  end
+  # Nothing here...
 end
 
-# Step 3: View generated routes
-rails routes
-
-# Step 4: Trace each route to its action
-# GET    /api/v1/posts     => posts#index
-# POST   /api/v1/posts     => posts#create
-# GET    /api/v1/posts/:id => posts#show
-# PATCH  /api/v1/posts/:id => posts#update
-# DELETE /api/v1/posts/:id => posts#destroy`,
+# Routes map HTTP verbs + URLs to controller actions.
+# Rails can generate all 5 RESTful routes with one line.
+#
+# Namespaces nest routes under a URL prefix:
+#   /posts        => posts#index
+#   /api/v1/posts => api/v1/posts#index
+#
+# Your job: define the resource, nest it properly,
+# and trace each route to its action.`,
 		goal: 'Define a resource, wrap it in API namespaces, view the generated routes, and trace each one to its controller action.',
 		thresholds: {},
 	},
@@ -451,20 +445,20 @@ const level5Controller: Level = {
 	problem: {
 		observation: 'Routes exist but return "uninitialized constant Api::V1::PostsController".',
 		rootCause: 'No controller exists to handle the routed requests.',
-		codeExample: `# Step 1: Generate the controller
-rails generate controller Api::V1::Posts
-
-# Step 2: Add the 5 RESTful actions
-# index, show, create, update, destroy
-
-# Step 3: Configure strong params
-def post_params
-  params.expect(post: [:title, :body, :published])
-end
-
-# Step 4: Test with curl
-curl localhost:3000/api/v1/posts
-# => [{"id":1,"title":"Hello"}]`,
+		codeExample: `# Controllers handle requests and return JSON.
+# API controllers inherit from ActionController::API
+# (no cookies, sessions, or views).
+#
+# The 5 RESTful actions:
+#   index, show, create, update, destroy
+#   (not: list, get, add, remove, new, edit)
+#
+# Rails 8 strong params:
+#   params.expect() — safer than require/permit
+#   Returns 400 (not 500) on tampered params
+#
+# Your job: generate the controller, add actions,
+# configure params, and test the endpoint.`,
 		goal: 'Generate the controller, add the 5 RESTful actions, configure strong params with params.expect, and test with curl.',
 		thresholds: {},
 	},
@@ -807,20 +801,23 @@ const level7Associations: Level = {
 			'Posts load correctly, but there is no way to include comments in the API response.',
 		rootCause:
 			'No Comment model exists and no association is defined between Post and Comment.',
-		codeExample: `# Step 1: Generate Comment model
-rails generate model Comment body:text post:references
-
-# Step 2: Choose the relationship
-# Post has_many :comments
-
-# Step 3: belongs_to is auto-added by post:references
-
-# Step 4: Set dependent option
-has_many :comments, dependent: :destroy
-
-# Step 5: Test it
-post.comments.create(body: "Nice!")
-post.destroy  # => cascades to comments`,
+		codeExample: `# Associations link models together:
+#   has_many    — one-to-many (parent side)
+#   belongs_to  — inverse (child side)
+#   has_one     — one-to-one
+#   has_and_belongs_to_many — many-to-many
+#
+# The foreign key lives on the belongs_to side.
+# Using "post:references" in a generator adds:
+#   - Foreign key column (post_id)
+#   - Database index
+#   - belongs_to association (automatic!)
+#
+# When a parent is destroyed, what happens to children?
+#   dependent: :destroy, :nullify, :restrict_with_error
+#
+# Your job: generate Comment, set up the relationship,
+# and handle cascade deletion.`,
 		goal: 'Generate the Comment model with post:references, choose the right relationship type, configure dependent destruction, and test the association.',
 		thresholds: {},
 	},
