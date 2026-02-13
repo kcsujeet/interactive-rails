@@ -112,7 +112,7 @@ export function Level14ScopesEnums({
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act2-level14-scopes-enums', {
+		const success = await completeLevel('act2-level15-scopes-enums', {
 			stars: 3,
 		});
 		if (success) {
@@ -290,7 +290,7 @@ end
 				<LevelHeader
 					actNumber={2}
 					levelName="Scopes & Enums"
-					levelNumber={14}
+					levelNumber={15}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {

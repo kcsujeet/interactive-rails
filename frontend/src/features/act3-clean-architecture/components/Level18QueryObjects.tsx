@@ -279,7 +279,7 @@ export function Level18QueryObjects({
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act3-level18-query-objects', {
+		const success = await completeLevel('act3-level19-query-objects', {
 			stars: 3,
 		});
 		if (success) {
@@ -359,7 +359,7 @@ export function Level18QueryObjects({
 				<LevelHeader
 					actNumber={3}
 					levelName="Query Objects"
-					levelNumber={18}
+					levelNumber={19}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}

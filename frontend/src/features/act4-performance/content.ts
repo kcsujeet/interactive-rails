@@ -13,9 +13,9 @@ import type { Act, Level } from '@/types';
 // ============================================
 
 const level22N1Problem: Level = {
-	id: 'act4-level22-n1-problem',
+	id: 'act4-level23-n1-problem',
 	actId: 4,
-	levelNumber: 22,
+	levelNumber: 23,
 	name: 'The N+1 Problem',
 	trigger: {
 		type: 'performance_alert',
@@ -213,9 +213,9 @@ end
 // ============================================
 
 const level23EagerLoading: Level = {
-	id: 'act4-level23-eager-loading',
+	id: 'act4-level24-eager-loading',
 	actId: 4,
-	levelNumber: 23,
+	levelNumber: 24,
 	name: 'Eager Loading',
 	trigger: {
 		type: 'optimization',
@@ -410,9 +410,9 @@ Post.where(published: true).pluck(:title)
 // ============================================
 
 const level24DatabaseIndexing: Level = {
-	id: 'act4-level24-database-indexing',
+	id: 'act4-level25-database-indexing',
 	actId: 4,
-	levelNumber: 24,
+	levelNumber: 25,
 	name: 'Database Indexing',
 	trigger: {
 		type: 'performance_alert',
@@ -599,9 +599,9 @@ add_index :users, :email, algorithm: :concurrently`,
 // ============================================
 
 const level25CounterCaches: Level = {
-	id: 'act4-level25-counter-caches',
+	id: 'act4-level26-counter-caches',
 	actId: 4,
-	levelNumber: 25,
+	levelNumber: 26,
 	name: 'Counter Caches',
 	trigger: {
 		type: 'performance_alert',
@@ -800,9 +800,9 @@ end`,
 // ============================================
 
 const level26Pagination: Level = {
-	id: 'act4-level26-pagination',
+	id: 'act4-level27-pagination',
 	actId: 4,
-	levelNumber: 26,
+	levelNumber: 27,
 	name: 'Pagination',
 	trigger: {
 		type: 'performance_alert',
@@ -1002,9 +1002,9 @@ end`,
 // ============================================
 
 const level27Search: Level = {
-	id: 'act4-level27-search',
+	id: 'act4-level28-search',
 	actId: 4,
-	levelNumber: 27,
+	levelNumber: 28,
 	name: 'Search',
 	trigger: {
 		type: 'new_feature',
@@ -1230,9 +1230,9 @@ Post.where(id: Post.connection.select_values(
 // ============================================
 
 const level28Caching: Level = {
-	id: 'act4-level28-caching',
+	id: 'act4-level29-caching',
 	actId: 4,
-	levelNumber: 28,
+	levelNumber: 29,
 	name: 'Caching',
 	trigger: {
 		type: 'scaling',

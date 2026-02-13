@@ -14,9 +14,9 @@ import type { Act, Level } from '@/types';
 // ============================================
 
 const level8Authentication: Level = {
-	id: 'act2-level8-authentication',
+	id: 'act2-level9-authentication',
 	actId: 2,
-	levelNumber: 8,
+	levelNumber: 9,
 	name: 'Authentication',
 	trigger: {
 		type: 'security_audit',
@@ -225,9 +225,9 @@ end
 // ============================================
 
 const level9Validations: Level = {
-	id: 'act2-level9-validations',
+	id: 'act2-level10-validations',
 	actId: 2,
-	levelNumber: 9,
+	levelNumber: 10,
 	name: 'Validations',
 	trigger: {
 		type: 'user_complaint',
@@ -418,9 +418,9 @@ end`,
 // ============================================
 
 const level10Callbacks: Level = {
-	id: 'act2-level10-callbacks',
+	id: 'act2-level11-callbacks',
 	actId: 2,
-	levelNumber: 10,
+	levelNumber: 11,
 	name: 'Callbacks & Normalizations',
 	trigger: {
 		type: 'incident',
@@ -610,9 +610,9 @@ User.find_by(email: "  JOE@GMAIL.COM  ")
 // ============================================
 
 const level11Authorization: Level = {
-	id: 'act2-level11-authorization',
+	id: 'act2-level12-authorization',
 	actId: 2,
-	levelNumber: 11,
+	levelNumber: 12,
 	name: 'Authorization',
 	trigger: {
 		type: 'security_incident',
@@ -846,9 +846,9 @@ end`,
 // ============================================
 
 const level12Testing: Level = {
-	id: 'act2-level12-testing',
+	id: 'act2-level13-testing',
 	actId: 2,
-	levelNumber: 12,
+	levelNumber: 13,
 	name: 'Testing',
 	requiresTests: true,
 	trigger: {
@@ -1101,9 +1101,9 @@ end`,
 // ============================================
 
 const level13Security: Level = {
-	id: 'act2-level13-security',
+	id: 'act2-level14-security',
 	actId: 2,
-	levelNumber: 13,
+	levelNumber: 14,
 	name: 'Security',
 	trigger: {
 		type: 'security_audit',
@@ -1322,9 +1322,9 @@ end`,
 // ============================================
 
 const level14ScopesEnums: Level = {
-	id: 'act2-level14-scopes-enums',
+	id: 'act2-level15-scopes-enums',
 	actId: 2,
-	levelNumber: 14,
+	levelNumber: 15,
 	name: 'Scopes & Enums',
 	trigger: {
 		type: 'user_complaint',

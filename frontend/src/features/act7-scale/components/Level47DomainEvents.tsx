@@ -137,7 +137,7 @@ export function Level47DomainEvents({
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act7-level47-domain-events', {
+		const success = await completeLevel('act7-level48-domain-events', {
 			stars: 3,
 		});
 		if (success) {
@@ -207,7 +207,7 @@ export function Level47DomainEvents({
 				<LevelHeader
 					actNumber={7}
 					levelName="Event-Driven"
-					levelNumber={47}
+					levelNumber={48}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {

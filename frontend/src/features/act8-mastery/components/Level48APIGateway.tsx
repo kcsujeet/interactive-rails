@@ -288,7 +288,7 @@ export function Level48APIGateway({ onComplete, onExit }: LevelComponentProps) {
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act8-level48-api-gateway', {
+		const success = await completeLevel('act8-level49-api-gateway', {
 			stars: 3,
 		});
 		if (success) {
@@ -351,7 +351,7 @@ export function Level48APIGateway({ onComplete, onExit }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={8}
 					levelName="API Gateway"
-					levelNumber={48}
+					levelNumber={49}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {

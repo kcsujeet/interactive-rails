@@ -15,9 +15,9 @@ import { standardPipeline } from '@/utils/pipelineTemplates';
 // ============================================
 
 const level15ServiceObjects: Level = {
-	id: 'act3-level15-service-objects',
+	id: 'act3-level16-service-objects',
 	actId: 3,
-	levelNumber: 15,
+	levelNumber: 16,
 	name: 'Service Objects',
 	requiresTests: true,
 	trigger: {
@@ -197,9 +197,9 @@ end`,
 // ============================================
 
 const level16Concerns: Level = {
-	id: 'act3-level16-concerns',
+	id: 'act3-level17-concerns',
 	actId: 3,
-	levelNumber: 16,
+	levelNumber: 17,
 	name: 'Concerns & Modules',
 	requiresTests: true,
 	trigger: {
@@ -422,9 +422,9 @@ end`,
 // ============================================
 
 const level17ValidationContracts: Level = {
-	id: 'act3-level17-validation-contracts',
+	id: 'act3-level18-validation-contracts',
 	actId: 3,
-	levelNumber: 17,
+	levelNumber: 18,
 	name: 'Validation Contracts',
 	requiresTests: true,
 	trigger: {
@@ -729,9 +729,9 @@ end`,
 // ============================================
 
 const level18QueryObjects: Level = {
-	id: 'act3-level18-query-objects',
+	id: 'act3-level19-query-objects',
 	actId: 3,
-	levelNumber: 18,
+	levelNumber: 19,
 	name: 'Query Objects',
 	requiresTests: true,
 	trigger: {
@@ -1031,9 +1031,9 @@ end`,
 // ============================================
 
 const level19ErrorHandling: Level = {
-	id: 'act3-level19-error-handling',
+	id: 'act3-level20-error-handling',
 	actId: 3,
-	levelNumber: 19,
+	levelNumber: 20,
 	name: 'Error Handling',
 	requiresTests: true,
 	trigger: {
@@ -1295,9 +1295,9 @@ end`,
 // ============================================
 
 const level20ActionMailer: Level = {
-	id: 'act3-level20-action-mailer',
+	id: 'act3-level21-action-mailer',
 	actId: 3,
-	levelNumber: 20,
+	levelNumber: 21,
 	name: 'Action Mailer',
 	requiresTests: true,
 	trigger: {
@@ -1540,9 +1540,9 @@ end`,
 // ============================================
 
 const level21BackgroundJobs: Level = {
-	id: 'act3-level21-background-jobs',
+	id: 'act3-level22-background-jobs',
 	actId: 3,
-	levelNumber: 21,
+	levelNumber: 22,
 	name: 'Background Jobs',
 	requiresTests: true,
 	trigger: {

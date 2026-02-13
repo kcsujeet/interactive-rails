@@ -110,7 +110,7 @@ export function Level49Sharding({ onComplete, onExit }: LevelComponentProps) {
 	}, [shardingEnabled, tenants]);
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act8-level49-sharding', { stars: 3 });
+		const success = await completeLevel('act8-level50-sharding', { stars: 3 });
 		if (success) {
 			onComplete({ stars: 3 });
 		}
@@ -181,7 +181,7 @@ export function Level49Sharding({ onComplete, onExit }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={8}
 					levelName="Database Sharding"
-					levelNumber={49}
+					levelNumber={50}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {

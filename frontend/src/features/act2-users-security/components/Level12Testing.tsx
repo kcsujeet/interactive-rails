@@ -478,7 +478,7 @@ export function Level12Testing({ onComplete, onExit }: LevelComponentProps) {
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act2-level12-testing', {
+		const success = await completeLevel('act2-level13-testing', {
 			stars: 3,
 		});
 		if (success) {
@@ -666,7 +666,7 @@ export function Level12Testing({ onComplete, onExit }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={2}
 					levelName="Testing"
-					levelNumber={12}
+					levelNumber={13}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}

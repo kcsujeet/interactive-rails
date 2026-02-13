@@ -18,9 +18,9 @@ import {
 // ============================================
 
 const level37Middleware: Level = {
-	id: 'act6-level37-middleware',
+	id: 'act6-level38-middleware',
 	actId: 6,
-	levelNumber: 37,
+	levelNumber: 38,
 	name: 'Middleware & Rack',
 	trigger: {
 		type: 'incident',
@@ -202,9 +202,9 @@ end
 // ============================================
 
 const level38RateLimiting: Level = {
-	id: 'act6-level38-rate-limiting',
+	id: 'act6-level39-rate-limiting',
 	actId: 6,
-	levelNumber: 38,
+	levelNumber: 39,
 	name: 'Rate Limiting',
 	requiresTests: true,
 	trigger: {
@@ -411,9 +411,9 @@ end`,
 // ============================================
 
 const level39SoftDeletes: Level = {
-	id: 'act6-level39-soft-deletes',
+	id: 'act6-level40-soft-deletes',
 	actId: 6,
-	levelNumber: 39,
+	levelNumber: 40,
 	name: 'Soft Deletes & Audit Trails',
 	requiresTests: true,
 	trigger: {
@@ -657,9 +657,9 @@ end`,
 // ============================================
 
 const level40SafeMigrations: Level = {
-	id: 'act6-level40-safe-migrations',
+	id: 'act6-level41-safe-migrations',
 	actId: 6,
-	levelNumber: 40,
+	levelNumber: 41,
 	name: 'Safe Migrations',
 	trigger: {
 		type: 'outage',
@@ -875,9 +875,9 @@ end
 // ============================================
 
 const level41RecurringJobs: Level = {
-	id: 'act6-level41-recurring-jobs',
+	id: 'act6-level42-recurring-jobs',
 	actId: 6,
-	levelNumber: 41,
+	levelNumber: 42,
 	name: 'Recurring Jobs & Scheduling',
 	requiresTests: true,
 	trigger: {
@@ -1163,9 +1163,9 @@ end`,
 // ============================================
 
 const level42ErrorMonitoring: Level = {
-	id: 'act6-level42-error-monitoring',
+	id: 'act6-level43-error-monitoring',
 	actId: 6,
-	levelNumber: 42,
+	levelNumber: 43,
 	name: 'Structured Error Monitoring',
 	trigger: {
 		type: 'user_complaint',

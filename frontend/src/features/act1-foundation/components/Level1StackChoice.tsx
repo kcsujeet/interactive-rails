@@ -4,7 +4,7 @@
  * 5-step progression: choose a database, install it, generate the project,
  * create the database, and boot the server.
  *
- * ID remains "act1-level1-stack-choice" to preserve saved progress.
+ * ID remains "act1-level2-hello-rails" to preserve saved progress.
  */
 
 import { useState } from 'react';
@@ -198,7 +198,7 @@ export function Level1StackChoice({ onComplete, onExit }: LevelComponentProps) {
 			console.error('Failed to save game choices:', e);
 		}
 
-		const success = await completeLevel('act1-level1-stack-choice', {
+		const success = await completeLevel('act1-level2-hello-rails', {
 			stars: stepper.starRating,
 			stackChoices: { database: 'postgresql' },
 		});

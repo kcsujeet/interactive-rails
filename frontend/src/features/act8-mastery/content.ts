@@ -13,9 +13,9 @@ import type { Act, Level } from '@/types';
 // ============================================
 
 const level48APIGateway: Level = {
-	id: 'act8-level48-api-gateway',
+	id: 'act8-level49-api-gateway',
 	actId: 8,
-	levelNumber: 48,
+	levelNumber: 49,
 	name: 'API Gateway',
 	trigger: {
 		type: 'architecture',
@@ -197,9 +197,9 @@ end`,
 // ============================================
 
 const level49Sharding: Level = {
-	id: 'act8-level49-sharding',
+	id: 'act8-level50-sharding',
 	actId: 8,
-	levelNumber: 49,
+	levelNumber: 50,
 	name: 'Database Sharding',
 	trigger: {
 		type: 'scaling',
@@ -422,9 +422,9 @@ end`,
 // ============================================
 
 const level50Architect: Level = {
-	id: 'act8-level50-architect',
+	id: 'act8-level51-architect',
 	actId: 8,
-	levelNumber: 50,
+	levelNumber: 51,
 	name: 'The Architect',
 	isCapstone: true,
 	trigger: {

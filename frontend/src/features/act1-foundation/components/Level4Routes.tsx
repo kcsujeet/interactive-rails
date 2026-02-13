@@ -148,7 +148,7 @@ export function Level4Routes({ onComplete, onExit }: LevelComponentProps) {
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act1-level4-routes', {
+		const success = await completeLevel('act1-level5-routes', {
 			stars: stepper.starRating,
 		});
 		if (success) {

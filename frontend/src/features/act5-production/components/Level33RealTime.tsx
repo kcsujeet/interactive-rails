@@ -242,7 +242,7 @@ export function Level33RealTime({ onComplete, onExit }: LevelComponentProps) {
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act5-level33-realtime', {
+		const success = await completeLevel('act5-level34-realtime', {
 			stars: 3,
 		});
 		if (success) {
@@ -506,7 +506,7 @@ export function Level33RealTime({ onComplete, onExit }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={5}
 					levelName="Real-Time"
-					levelNumber={33}
+					levelNumber={34}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}

@@ -211,7 +211,7 @@ export function Level28Caching({ onComplete, onExit }: LevelComponentProps) {
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act4-level28-caching', { stars: 3 });
+		const success = await completeLevel('act4-level29-caching', { stars: 3 });
 		if (success) {
 			onComplete({ stars: 3 });
 		}
@@ -299,7 +299,7 @@ export function Level28Caching({ onComplete, onExit }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={4}
 					levelName="Caching"
-					levelNumber={28}
+					levelNumber={29}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {

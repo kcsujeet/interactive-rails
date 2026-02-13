@@ -341,7 +341,7 @@ export function Level17ValidationContracts({
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act3-level17-validation-contracts', {
+		const success = await completeLevel('act3-level18-validation-contracts', {
 			stars: 3,
 		});
 		if (success) {
@@ -628,7 +628,7 @@ export function Level17ValidationContracts({
 				<LevelHeader
 					actNumber={3}
 					levelName="Validation Contracts"
-					levelNumber={17}
+					levelNumber={18}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}

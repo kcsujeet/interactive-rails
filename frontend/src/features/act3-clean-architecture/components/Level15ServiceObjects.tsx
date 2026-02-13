@@ -189,7 +189,7 @@ export function Level15ServiceObjects({
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act3-level15-service-objects', {
+		const success = await completeLevel('act3-level16-service-objects', {
 			stars: 3,
 		});
 		if (success) {
@@ -294,7 +294,7 @@ end`;
 				<LevelHeader
 					actNumber={3}
 					levelName="Service Objects"
-					levelNumber={15}
+					levelNumber={16}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => setComponents(SERVICE_COMPONENTS)}

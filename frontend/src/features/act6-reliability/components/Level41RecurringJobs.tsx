@@ -419,7 +419,7 @@ end`;
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act6-level41-recurring-jobs', {
+		const success = await completeLevel('act6-level42-recurring-jobs', {
 			stars: 3,
 		});
 		if (success) {
@@ -537,7 +537,7 @@ end`;
 				<LevelHeader
 					actNumber={6}
 					levelName="Recurring Jobs"
-					levelNumber={41}
+					levelNumber={42}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}

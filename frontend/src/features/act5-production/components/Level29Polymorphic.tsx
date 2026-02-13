@@ -116,7 +116,7 @@ export function Level29Polymorphic({
 	}, [hasUnified, allConnected, connections, connectedCount]);
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act5-level29-polymorphic', {
+		const success = await completeLevel('act5-level30-polymorphic', {
 			stars: 3,
 		});
 		if (success) {
@@ -246,7 +246,7 @@ export function Level29Polymorphic({
 				<LevelHeader
 					actNumber={5}
 					levelName="Polymorphic Associations"
-					levelNumber={29}
+					levelNumber={30}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}

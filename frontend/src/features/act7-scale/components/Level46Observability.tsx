@@ -123,7 +123,7 @@ export function Level46Observability({
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act7-level46-observability', {
+		const success = await completeLevel('act7-level47-observability', {
 			stars: 3,
 		});
 		if (success) {
@@ -232,7 +232,7 @@ export function Level46Observability({
 				<LevelHeader
 					actNumber={7}
 					levelName="Observability"
-					levelNumber={46}
+					levelNumber={47}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {

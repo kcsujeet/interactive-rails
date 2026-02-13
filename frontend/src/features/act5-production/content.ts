@@ -15,9 +15,9 @@ import { standardPipeline } from '@/utils/pipelineTemplates';
 // ============================================
 
 const level29Polymorphic: Level = {
-	id: 'act5-level29-polymorphic',
+	id: 'act5-level30-polymorphic',
 	actId: 5,
-	levelNumber: 29,
+	levelNumber: 30,
 	name: 'Polymorphic Associations',
 	trigger: {
 		type: 'new_feature',
@@ -226,9 +226,9 @@ end`,
 // ============================================
 
 const level30Transactions: Level = {
-	id: 'act5-level30-transactions',
+	id: 'act5-level31-transactions',
 	actId: 5,
-	levelNumber: 30,
+	levelNumber: 31,
 	name: 'Transactions & Locking',
 	trigger: {
 		type: 'incident',
@@ -409,9 +409,9 @@ end`,
 // ============================================
 
 const level31ActiveStorage: Level = {
-	id: 'act5-level31-active-storage',
+	id: 'act5-level32-active-storage',
 	actId: 5,
-	levelNumber: 31,
+	levelNumber: 32,
 	name: 'Active Storage',
 	trigger: {
 		type: 'new_feature',
@@ -565,9 +565,9 @@ end`,
 // ============================================
 
 const level32Encryption: Level = {
-	id: 'act5-level32-encryption',
+	id: 'act5-level33-encryption',
 	actId: 5,
-	levelNumber: 32,
+	levelNumber: 33,
 	name: 'Encrypted Attributes',
 	trigger: {
 		type: 'security_audit',
@@ -719,9 +719,9 @@ Rails.application.config.active_record.encryption.previous = [
 // ============================================
 
 const level33Realtime: Level = {
-	id: 'act5-level33-realtime',
+	id: 'act5-level34-realtime',
 	actId: 5,
-	levelNumber: 33,
+	levelNumber: 34,
 	name: 'Real-Time',
 	trigger: {
 		type: 'new_feature',
@@ -955,9 +955,9 @@ cable.subscriptions.create("NotificationsChannel", {
 // ============================================
 
 const level34ExternalAPIs: Level = {
-	id: 'act5-level34-external-apis',
+	id: 'act5-level35-external-apis',
 	actId: 5,
-	levelNumber: 34,
+	levelNumber: 35,
 	name: 'External APIs',
 	trigger: {
 		type: 'incident',
@@ -1186,9 +1186,9 @@ end`,
 // ============================================
 
 const level35Webhooks: Level = {
-	id: 'act5-level35-webhooks',
+	id: 'act5-level36-webhooks',
 	actId: 5,
-	levelNumber: 35,
+	levelNumber: 36,
 	name: 'Webhooks & Idempotency',
 	trigger: {
 		type: 'incident',
@@ -1470,9 +1470,9 @@ end`,
 // ============================================
 
 const level36APIVersioning: Level = {
-	id: 'act5-level36-api-versioning',
+	id: 'act5-level37-api-versioning',
 	actId: 5,
-	levelNumber: 36,
+	levelNumber: 37,
 	name: 'API Versioning',
 	trigger: {
 		type: 'new_feature',

@@ -171,7 +171,7 @@ export function Level36APIVersioning({
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act5-level36-api-versioning', {
+		const success = await completeLevel('act5-level37-api-versioning', {
 			stars: 3,
 		});
 		if (success) {
@@ -350,7 +350,7 @@ export function Level36APIVersioning({
 				<LevelHeader
 					actNumber={5}
 					levelName="API Versioning"
-					levelNumber={36}
+					levelNumber={37}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {

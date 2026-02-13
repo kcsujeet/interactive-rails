@@ -247,7 +247,7 @@ export function Level42ErrorMonitoring({
 	}, [enabledCount, errors.length]);
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act6-level42-error-monitoring', {
+		const success = await completeLevel('act6-level43-error-monitoring', {
 			stars: 3,
 		});
 		if (success) {
@@ -457,7 +457,7 @@ export function Level42ErrorMonitoring({
 				<LevelHeader
 					actNumber={6}
 					levelName="Error Monitoring"
-					levelNumber={42}
+					levelNumber={43}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}

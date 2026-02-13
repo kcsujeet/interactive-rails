@@ -133,7 +133,7 @@ export function Level13Security({ onComplete, onExit }: LevelComponentProps) {
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act2-level13-security', {
+		const success = await completeLevel('act2-level14-security', {
 			stars: 3,
 		});
 		if (success) {
@@ -366,7 +366,7 @@ end`,
 				<LevelHeader
 					actNumber={2}
 					levelName="Security"
-					levelNumber={13}
+					levelNumber={14}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {

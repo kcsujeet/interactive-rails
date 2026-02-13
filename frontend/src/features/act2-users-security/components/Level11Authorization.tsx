@@ -154,7 +154,7 @@ export function Level11Authorization({
 	}, [policyAdded]);
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act2-level11-authorization', {
+		const success = await completeLevel('act2-level12-authorization', {
 			stars: 3,
 		});
 		if (success) {
@@ -248,7 +248,7 @@ export function Level11Authorization({
 				<LevelHeader
 					actNumber={2}
 					levelName="Authorization"
-					levelNumber={11}
+					levelNumber={12}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {

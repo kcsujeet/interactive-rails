@@ -189,7 +189,7 @@ export function Level26Pagination({ onComplete, onExit }: LevelComponentProps) {
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act4-level26-pagination', {
+		const success = await completeLevel('act4-level27-pagination', {
 			stars: 3,
 		});
 		if (success) {
@@ -285,7 +285,7 @@ export function Level26Pagination({ onComplete, onExit }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={4}
 					levelName="Pagination"
-					levelNumber={26}
+					levelNumber={27}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => setScenarios(SCENARIOS)}

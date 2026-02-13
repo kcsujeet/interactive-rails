@@ -247,7 +247,7 @@ export function Level40SafeMigrations({
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act6-level40-safe-migrations', {
+		const success = await completeLevel('act6-level41-safe-migrations', {
 			stars: 3,
 		});
 		if (success) {
@@ -365,7 +365,7 @@ export function Level40SafeMigrations({
 				<LevelHeader
 					actNumber={6}
 					levelName="Safe Migrations"
-					levelNumber={40}
+					levelNumber={41}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}

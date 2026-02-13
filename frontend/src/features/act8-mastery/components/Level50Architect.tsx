@@ -296,7 +296,7 @@ export function Level50Architect({ onComplete, onExit }: LevelComponentProps) {
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act8-level50-architect', { stars: 3 });
+		const success = await completeLevel('act8-level51-architect', { stars: 3 });
 		if (success) {
 			onComplete({ stars: 3 });
 		}
@@ -406,7 +406,7 @@ export function Level50Architect({ onComplete, onExit }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={8}
 					levelName="The Architect"
-					levelNumber={50}
+					levelNumber={51}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {

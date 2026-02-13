@@ -261,7 +261,7 @@ export function Level27Search({ onComplete, onExit }: LevelComponentProps) {
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act4-level27-search', { stars: 3 });
+		const success = await completeLevel('act4-level28-search', { stars: 3 });
 		if (success) {
 			onComplete({ stars: 3 });
 		}
@@ -531,7 +531,7 @@ end`;
 				<LevelHeader
 					actNumber={4}
 					levelName="Search"
-					levelNumber={27}
+					levelNumber={28}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}

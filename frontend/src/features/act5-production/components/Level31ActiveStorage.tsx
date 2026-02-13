@@ -126,7 +126,7 @@ export function Level31ActiveStorage({
 	}, []);
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act5-level31-active-storage', {
+		const success = await completeLevel('act5-level32-active-storage', {
 			stars: 3,
 		});
 		if (success) {
@@ -213,7 +213,7 @@ export function Level31ActiveStorage({
 				<LevelHeader
 					actNumber={5}
 					levelName="Cloud Storage"
-					levelNumber={31}
+					levelNumber={32}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {

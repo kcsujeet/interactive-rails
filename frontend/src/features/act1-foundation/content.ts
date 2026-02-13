@@ -114,7 +114,7 @@ rails --version  # => Rails 8.0.0`,
 // ============================================
 
 const level2HelloRails: Level = {
-	id: 'act1-level1-stack-choice',
+	id: 'act1-level2-hello-rails',
 	actId: 1,
 	levelNumber: 2,
 	name: 'Hello, Rails',
@@ -236,7 +236,7 @@ curl http://localhost:3000/up
 // ============================================
 
 const level3Model: Level = {
-	id: 'act1-level2-model',
+	id: 'act1-level3-model',
 	actId: 1,
 	levelNumber: 3,
 	name: 'The Model',
@@ -331,7 +331,7 @@ rails db:schema:dump`,
 // ============================================
 
 const level4CRUD: Level = {
-	id: 'act1-level3-crud',
+	id: 'act1-level4-crud',
 	actId: 1,
 	levelNumber: 4,
 	name: 'CRUD Operations',
@@ -437,7 +437,7 @@ Post.destroy_all                  # DELETE FROM posts (careful!)`,
 // ============================================
 
 const level5Routes: Level = {
-	id: 'act1-level4-routes',
+	id: 'act1-level5-routes',
 	actId: 1,
 	levelNumber: 5,
 	name: 'Routes & Request Lifecycle',
@@ -540,7 +540,7 @@ rails routes
 // ============================================
 
 const level6Controller: Level = {
-	id: 'act1-level5-controller',
+	id: 'act1-level6-controller',
 	actId: 1,
 	levelNumber: 6,
 	name: 'The Controller',
@@ -661,7 +661,7 @@ end`,
 // ============================================
 
 const level7Serializers: Level = {
-	id: 'act1-level6-serializers',
+	id: 'act1-level7-serializers',
 	actId: 1,
 	levelNumber: 7,
 	name: 'Serializers',
@@ -848,7 +848,7 @@ end
 // ============================================
 
 const level8Associations: Level = {
-	id: 'act1-level7-associations',
+	id: 'act1-level8-associations',
 	actId: 1,
 	levelNumber: 8,
 	name: 'Associations',

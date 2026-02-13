@@ -186,7 +186,7 @@ export function Level5Controller({
 	];
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act1-level5-controller', {
+		const success = await completeLevel('act1-level6-controller', {
 			stars: stepper.starRating,
 		});
 		if (success) {

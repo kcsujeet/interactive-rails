@@ -206,7 +206,7 @@ export function Level23EagerLoading({
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act4-level23-eager-loading', {
+		const success = await completeLevel('act4-level24-eager-loading', {
 			stars: 3,
 		});
 		if (success) {
@@ -294,7 +294,7 @@ export function Level23EagerLoading({
 				<LevelHeader
 					actNumber={4}
 					levelName="Eager Loading"
-					levelNumber={23}
+					levelNumber={24}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => setScenarios(INITIAL_SCENARIOS)}

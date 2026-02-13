@@ -13,9 +13,9 @@ import type { Act, Level } from '@/types';
 // ============================================
 
 const level43MultiDatabase: Level = {
-	id: 'act7-level43-multi-database',
+	id: 'act7-level44-multi-database',
 	actId: 7,
-	levelNumber: 43,
+	levelNumber: 44,
 	name: 'Multi-Database',
 	trigger: {
 		type: 'scaling',
@@ -130,9 +130,9 @@ end
 // ============================================
 
 const level44StateMachines: Level = {
-	id: 'act7-level44-state-machines',
+	id: 'act7-level45-state-machines',
 	actId: 7,
-	levelNumber: 44,
+	levelNumber: 45,
 	name: 'State Machines',
 	requiresTests: true,
 	trigger: {
@@ -312,9 +312,9 @@ Order.pending.count     # SELECT COUNT(*) FROM orders WHERE status = 'pending'`,
 // ============================================
 
 const level45MultiTenancy: Level = {
-	id: 'act7-level45-multi-tenancy',
+	id: 'act7-level46-multi-tenancy',
 	actId: 7,
-	levelNumber: 45,
+	levelNumber: 46,
 	name: 'Multi-Tenancy',
 	requiresTests: true,
 	trigger: {
@@ -471,9 +471,9 @@ end`,
 // ============================================
 
 const level46Observability: Level = {
-	id: 'act7-level46-observability',
+	id: 'act7-level47-observability',
 	actId: 7,
-	levelNumber: 46,
+	levelNumber: 47,
 	name: 'Observability',
 	trigger: {
 		type: 'incident',
@@ -646,9 +646,9 @@ end`,
 // ============================================
 
 const level47DomainEvents: Level = {
-	id: 'act7-level47-domain-events',
+	id: 'act7-level48-domain-events',
 	actId: 7,
-	levelNumber: 47,
+	levelNumber: 48,
 	name: 'Domain Events & Decoupling',
 	requiresTests: true,
 	trigger: {

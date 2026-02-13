@@ -193,7 +193,7 @@ export function Level34ExternalAPIs({
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act5-level34-external-apis', {
+		const success = await completeLevel('act5-level35-external-apis', {
 			stars: 3,
 		});
 		if (success) {
@@ -297,7 +297,7 @@ export function Level34ExternalAPIs({
 				<LevelHeader
 					actNumber={5}
 					levelName="External APIs"
-					levelNumber={34}
+					levelNumber={35}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {

@@ -261,7 +261,7 @@ export function Level45MultiTenancy({
 
 	// Complete
 	const handleComplete = async () => {
-		const success = await completeLevel('act7-level45-multi-tenancy', {
+		const success = await completeLevel('act7-level46-multi-tenancy', {
 			stars: 3,
 		});
 		if (success) {
@@ -412,7 +412,7 @@ export function Level45MultiTenancy({
 				<LevelHeader
 					actNumber={7}
 					levelName="Multi-Tenancy"
-					levelNumber={45}
+					levelNumber={46}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}

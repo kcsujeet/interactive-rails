@@ -179,7 +179,7 @@ export function Level20ActionMailer({
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act3-level20-action-mailer', {
+		const success = await completeLevel('act3-level21-action-mailer', {
 			stars: 3,
 		});
 		if (success) {
@@ -334,7 +334,7 @@ export function Level20ActionMailer({
 				<LevelHeader
 					actNumber={3}
 					levelName="Action Mailer"
-					levelNumber={20}
+					levelNumber={21}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}

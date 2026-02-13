@@ -162,7 +162,7 @@ export function Level25CounterCaches({
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act4-level25-counter-caches', {
+		const success = await completeLevel('act4-level26-counter-caches', {
 			stars: 3,
 		});
 		if (success) onComplete({ stars: 3 });
@@ -314,7 +314,7 @@ export function Level25CounterCaches({
 				<LevelHeader
 					actNumber={4}
 					levelName="Counter Caches"
-					levelNumber={25}
+					levelNumber={26}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}

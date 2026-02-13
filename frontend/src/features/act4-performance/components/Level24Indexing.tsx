@@ -310,7 +310,7 @@ export function Level24Indexing({ onComplete, onExit }: LevelComponentProps) {
 
 	const handleComplete = async () => {
 		const stars = optimizedCount === 3 ? 3 : 2;
-		const success = await completeLevel('act4-level24-database-indexing', {
+		const success = await completeLevel('act4-level25-database-indexing', {
 			stars,
 		});
 		if (success) {
@@ -469,7 +469,7 @@ export function Level24Indexing({ onComplete, onExit }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={4}
 					levelName="Database Indexing"
-					levelNumber={24}
+					levelNumber={25}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}

@@ -168,7 +168,7 @@ export function Level7Associations({
 	];
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act1-level7-associations', {
+		const success = await completeLevel('act1-level8-associations', {
 			stars: stepper.starRating,
 			decisions: { relationship: 'has_many', dependent: 'destroy' },
 		});

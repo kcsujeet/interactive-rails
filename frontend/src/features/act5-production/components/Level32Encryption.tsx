@@ -226,7 +226,7 @@ export function Level32Encryption({ onComplete, onExit }: LevelComponentProps) {
 	}, [getColumnConfig]);
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act5-level32-encryption', {
+		const success = await completeLevel('act5-level33-encryption', {
 			stars: 3,
 		});
 		if (success) {
@@ -475,7 +475,7 @@ ${phoneQueryable ? 'User.find_by(phone: "+1-555-0123")        # Works!' : '# Use
 				<LevelHeader
 					actNumber={5}
 					levelName="Encrypted Attributes"
-					levelNumber={32}
+					levelNumber={33}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}

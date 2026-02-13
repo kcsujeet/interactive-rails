@@ -202,7 +202,7 @@ export function Level21BackgroundJobs({
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act3-level21-background-jobs', {
+		const success = await completeLevel('act3-level22-background-jobs', {
 			stars: 3,
 		});
 		if (success) {
@@ -294,7 +294,7 @@ export function Level21BackgroundJobs({
 				<LevelHeader
 					actNumber={3}
 					levelName="Background Jobs"
-					levelNumber={21}
+					levelNumber={22}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {

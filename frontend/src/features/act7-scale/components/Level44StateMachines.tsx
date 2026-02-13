@@ -383,7 +383,7 @@ export function Level44StateMachines({
 	// ----- Completion ---------------------------------------------------------
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act7-level44-state-machines', {
+		const success = await completeLevel('act7-level45-state-machines', {
 			stars: 3,
 		});
 		if (success) {
@@ -647,7 +647,7 @@ end
 				<LevelHeader
 					actNumber={7}
 					levelName="State Machines"
-					levelNumber={44}
+					levelNumber={45}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}

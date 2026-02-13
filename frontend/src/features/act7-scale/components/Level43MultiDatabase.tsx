@@ -232,7 +232,7 @@ export function Level43MultiDatabase({
 	}, [hasReplicas, connectsToEnabled, simulationComplete]);
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act7-level43-multi-database', {
+		const success = await completeLevel('act7-level44-multi-database', {
 			stars: 3,
 		});
 		if (success) {
@@ -410,7 +410,7 @@ config.active_record.database_resolver_context =
 				<LevelHeader
 					actNumber={7}
 					levelName="Multi-Database"
-					levelNumber={43}
+					levelNumber={44}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}

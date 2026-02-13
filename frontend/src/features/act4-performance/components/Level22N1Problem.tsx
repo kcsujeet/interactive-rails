@@ -109,7 +109,7 @@ export function Level22N1Problem({ onComplete, onExit }: LevelComponentProps) {
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act4-level22-n1-problem', {
+		const success = await completeLevel('act4-level23-n1-problem', {
 			stars: 3,
 		});
 		if (success) {
@@ -192,7 +192,7 @@ export function Level22N1Problem({ onComplete, onExit }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={4}
 					levelName="N+1 Problem"
-					levelNumber={22}
+					levelNumber={23}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={resetSimulation}

@@ -180,7 +180,7 @@ export function Level35Webhooks({ onComplete, onExit }: LevelComponentProps) {
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act5-level35-webhooks', { stars: 3 });
+		const success = await completeLevel('act5-level36-webhooks', { stars: 3 });
 		if (success) {
 			onComplete({ stars: 3 });
 		}
@@ -292,7 +292,7 @@ export function Level35Webhooks({ onComplete, onExit }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={5}
 					levelName="Webhooks"
-					levelNumber={35}
+					levelNumber={36}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {

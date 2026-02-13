@@ -185,7 +185,7 @@ export function Level38RateLimiting({
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act6-level38-rate-limiting', {
+		const success = await completeLevel('act6-level39-rate-limiting', {
 			stars: 3,
 		});
 		if (success) {
@@ -296,7 +296,7 @@ export function Level38RateLimiting({
 				<LevelHeader
 					actNumber={6}
 					levelName="Rate Limiting"
-					levelNumber={38}
+					levelNumber={39}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {
