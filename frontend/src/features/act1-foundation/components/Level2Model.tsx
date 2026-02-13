@@ -14,6 +14,7 @@ import {
 	LeftPanel,
 	LevelHeader,
 	LevelLayout,
+	OptionCard,
 	RightPanel,
 	SimulatedTerminal,
 	StepProgress,
@@ -304,19 +305,20 @@ end`,
 							</div>
 							<div className="flex flex-wrap gap-2">
 								{AVAILABLE_TYPES.map((type) => (
-									<div
-										className={`px-3 py-1.5 rounded-md border text-xs font-mono cursor-grab active:cursor-grabbing transition-all ${
-											draggedType === type
-												? 'border-primary bg-primary/10 text-primary'
-												: 'border-border bg-secondary text-foreground hover:border-primary'
-										}`}
+									<OptionCard
+										color="primary"
+										dragData={type}
+										dragType="attrType"
 										draggable
+										isDragging={draggedType === type}
 										key={type}
+										mono
+										name={`:${type}`}
 										onDragEnd={() => setDraggedType(null)}
 										onDragStart={(e) => handleTypeDragStart(e, type)}
-									>
-										:{type}
-									</div>
+										selected={draggedType === type}
+										size="sm"
+									/>
 								))}
 							</div>
 							<p className="text-xs text-muted-foreground mt-2">

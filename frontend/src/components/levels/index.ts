@@ -9,6 +9,8 @@ export { HelpDialog } from './HelpDialog';
 export { InstructionPanel } from './InstructionPanel';
 export { LearningGoalDialog } from './LearningGoalDialog';
 export { LevelHeader } from './LevelHeader';
+export type { OptionCardColor, OptionCardProps } from './OptionCard';
+export { DotIcon, OptionCard, resolveColor } from './OptionCard';
 export { CenterPanel, LeftPanel, LevelLayout, RightPanel } from './LevelLayout';
 export { MetricsPanel } from './MetricsPanel';
 export type { Particle, ParticleType } from './ParticleCanvas';

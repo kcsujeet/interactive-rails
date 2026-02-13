@@ -23,6 +23,8 @@ import {
 	LeftPanel,
 	LevelHeader,
 	LevelLayout,
+	OptionCard,
+	resolveColor,
 	RightPanel,
 	useLevelCompletion,
 	type ValidationResult,
@@ -288,51 +290,18 @@ export function Level20ActionMailer({
 							Email Components
 						</div>
 						<div className="space-y-2">
-							{EMAIL_COMPONENTS.map((comp) => {
-								const Icon = comp.icon;
-								const isEnabled = emailComponents[comp.id];
-								return (
-									<button
-										className={`w-full p-3 rounded-lg border text-left transition-all ${
-											isEnabled
-												? 'border-success bg-success/10'
-												: 'border-border bg-card hover:bg-secondary/50'
-										}`}
-										key={comp.id}
-										onClick={() => toggleComponent(comp.id)}
-										type="button"
-									>
-										<div className="flex items-center gap-3">
-											<div
-												className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-													isEnabled ? 'bg-success/20' : 'bg-secondary'
-												}`}
-											>
-												{isEnabled ? (
-													<Check className="w-4 h-4 text-success" />
-												) : (
-													<Icon
-														className="w-4 h-4"
-														style={{ color: comp.color }}
-													/>
-												)}
-											</div>
-											<div className="flex-1 min-w-0">
-												<div
-													className={`text-sm font-medium ${
-														isEnabled ? 'text-success' : 'text-foreground'
-													}`}
-												>
-													{comp.label}
-												</div>
-												<div className="text-xs text-muted-foreground truncate">
-													{comp.description}
-												</div>
-											</div>
-										</div>
-									</button>
-								);
-							})}
+							{EMAIL_COMPONENTS.map((comp) => (
+								<OptionCard
+									color={resolveColor(comp.color)}
+									description={comp.description}
+									icon={comp.icon}
+									key={comp.id}
+									name={comp.label}
+									onClick={() => toggleComponent(comp.id)}
+									selected={emailComponents[comp.id]}
+									size="lg"
+								/>
+							))}
 						</div>
 					</div>
 

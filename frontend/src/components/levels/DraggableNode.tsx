@@ -2,9 +2,10 @@
  * Draggable Node Component
  *
  * Palette item that can be dragged to the canvas.
+ * Wraps OptionCard with DotIcon for consistent styling.
  */
 
-import { GripVertical } from 'lucide-react';
+import { DotIcon, OptionCard, resolveColor } from './OptionCard';
 
 interface DraggableNodeProps {
 	type: string;
@@ -23,42 +24,25 @@ interface DraggableNodeProps {
 export function DraggableNode({
 	type,
 	name,
-	description,
-	icon,
 	color,
 	disabled = false,
 	isDragging = false,
-	warning,
-	benefit,
 	onDragStart,
 	onDragEnd,
 }: DraggableNodeProps) {
 	return (
-		<div
-			className={`
-        flex items-center gap-2.5 w-full px-4 py-2.5 rounded-lg border transition-all text-sm
-        ${
-					disabled
-						? 'bg-card/50 border-border opacity-50 cursor-not-allowed'
-						: isDragging
-							? 'opacity-50 border-dashed cursor-grabbing'
-							: 'bg-card border-border hover:border-primary cursor-grab active:cursor-grabbing'
-				}
-      `}
-			draggable={!disabled}
+		<OptionCard
+			color={resolveColor(color)}
+			disabled={disabled}
+			dragData={type}
+			dragType="nodeType"
+			draggable
+			icon={DotIcon}
+			isDragging={isDragging}
+			name={name}
 			onDragEnd={onDragEnd}
-			onDragStart={(e) => {
-				e.dataTransfer.setData('nodeType', type);
-				onDragStart(e, type);
-			}}
-		>
-			<span
-				className="w-3 h-3 rounded-full shrink-0"
-				style={{ backgroundColor: color }}
-			/>
-			<span className="font-medium text-foreground flex-1">{name}</span>
-			<GripVertical className="w-4 h-4 text-muted-foreground shrink-0" />
-		</div>
+			onDragStart={(e) => onDragStart(e, type)}
+		/>
 	);
 }
 

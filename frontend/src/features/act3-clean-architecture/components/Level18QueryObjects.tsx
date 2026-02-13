@@ -23,11 +23,12 @@ import {
 	LeftPanel,
 	LevelHeader,
 	LevelLayout,
+	OptionCard,
+	resolveColor,
 	RightPanel,
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
-import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 
 // --- Types ---
@@ -333,69 +334,20 @@ export function Level18QueryObjects({
 						</div>
 						<div className="space-y-2">
 							{methods.map((m) => {
-								const color = COMPLEXITY_COLORS[m.complexity];
 								const Icon = COMPLEXITY_ICONS[m.complexity];
 
 								return (
-									<Button
-										className={`w-full p-2.5 h-auto rounded-lg text-left border transition-all hover:opacity-80 ${
-											m.added ? 'opacity-60' : ''
-										}`}
+									<OptionCard
+										badge={!m.added ? COMPLEXITY_LABELS[m.complexity] : undefined}
+										color={resolveColor(COMPLEXITY_COLORS[m.complexity])}
+										description={m.description}
 										disabled={m.added}
+										icon={Icon}
 										key={m.id}
+										name={`.${m.name}`}
 										onClick={() => handleAddMethod(m.id)}
-										style={{
-											borderColor: m.added ? 'var(--color-border)' : color,
-											backgroundColor: m.added
-												? 'var(--color-secondary)'
-												: `${color}10`,
-										}}
-										variant="outline"
-									>
-										<div className="w-full space-y-1">
-											<div className="flex items-center justify-between">
-												<div className="flex items-center gap-1.5">
-													<Icon
-														className="w-3 h-3 shrink-0"
-														style={{
-															color: m.added
-																? 'var(--color-muted-foreground)'
-																: color,
-														}}
-													/>
-													<span
-														className="font-mono text-sm"
-														style={{
-															color: m.added
-																? 'var(--color-muted-foreground)'
-																: color,
-														}}
-													>
-														.{m.name}
-													</span>
-												</div>
-												{m.added && (
-													<Check className="w-4 h-4 text-success shrink-0" />
-												)}
-											</div>
-											<div className="pl-[18px] space-y-0.5">
-												{!m.added && (
-													<span
-														className="text-[10px] px-1.5 py-0.5 rounded-full inline-block"
-														style={{
-															backgroundColor: `${color}20`,
-															color,
-														}}
-													>
-														{COMPLEXITY_LABELS[m.complexity]}
-													</span>
-												)}
-												<div className="text-[10px] text-muted-foreground leading-tight">
-													{m.description}
-												</div>
-											</div>
-										</div>
-									</Button>
+										selected={m.added}
+								/>
 								);
 							})}
 						</div>

@@ -5,7 +5,7 @@
  * Teaches: Service object pattern with initialize + call, Result pattern, Data.define
  */
 
-import { Boxes, Check, GripVertical, X } from 'lucide-react';
+import { Boxes, Check, X } from 'lucide-react';
 import { useState } from 'react';
 import {
 	CenterPanel,
@@ -14,6 +14,8 @@ import {
 	LeftPanel,
 	LevelHeader,
 	LevelLayout,
+	OptionCard,
+	resolveColor,
 	RightPanel,
 	useLevelCompletion,
 	type ValidationResult,
@@ -242,30 +244,15 @@ end`;
 						</div>
 						<div className="space-y-2">
 							{paletteComponents.map((comp) => (
-								<div
-									className="p-2 rounded-lg cursor-grab active:cursor-grabbing border hover:opacity-80 transition-colors flex items-center gap-2"
+								<OptionCard
+									color={resolveColor(comp.color)}
+									description={comp.description}
 									draggable
 									key={comp.id}
+									name={comp.name}
 									onDragEnd={handleDragEnd}
 									onDragStart={() => handleDragStart(comp.id)}
-									style={{
-										backgroundColor: `${comp.color}20`,
-										borderColor: comp.color,
-									}}
-								>
-									<GripVertical className="w-3 h-3 text-muted-foreground shrink-0" />
-									<div className="flex-1 min-w-0">
-										<div
-											className="text-sm font-medium truncate"
-											style={{ color: comp.color }}
-										>
-											{comp.name}
-										</div>
-										<div className="text-xs text-muted-foreground truncate">
-											{comp.description}
-										</div>
-									</div>
-								</div>
+								/>
 							))}
 							{paletteComponents.length === 0 && (
 								<div className="text-success text-sm text-center py-4">

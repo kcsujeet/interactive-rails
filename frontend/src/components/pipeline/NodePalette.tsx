@@ -6,6 +6,7 @@
  */
 
 import clsx from 'clsx';
+import type { LucideIcon } from 'lucide-react';
 import {
 	CheckCircle,
 	Clock,
@@ -18,7 +19,8 @@ import {
 	Settings,
 	Zap,
 } from 'lucide-react';
-import { type DragEvent, memo, type ReactNode, useCallback } from 'react';
+import { type DragEvent, memo, useCallback } from 'react';
+import { OptionCard, resolveColor } from '@/components/levels';
 import type { NodeType } from '@/stores';
 import { selectNodeUnlockLevel, useGameStore } from '@/stores';
 
@@ -27,7 +29,7 @@ interface NodeDefinition {
 	label: string;
 	description: string;
 	color: string;
-	icon: ReactNode;
+	icon: LucideIcon;
 }
 
 const NODE_DEFINITIONS: NodeDefinition[] = [
@@ -36,63 +38,63 @@ const NODE_DEFINITIONS: NodeDefinition[] = [
 		label: 'Request',
 		description: 'Entry point for HTTP requests',
 		color: '#3b82f6',
-		icon: <Zap className="w-5 h-5" />,
+		icon: Zap,
 	},
 	{
 		type: 'router',
 		label: 'Router',
 		description: 'Routes requests to controllers',
 		color: '#a78bfa',
-		icon: <GitBranch className="w-5 h-5" />,
+		icon: GitBranch,
 	},
 	{
 		type: 'controller',
 		label: 'Controller',
 		description: 'Handles business logic',
 		color: '#10b981',
-		icon: <Settings className="w-5 h-5" />,
+		icon: Settings,
 	},
 	{
 		type: 'model',
 		label: 'Model',
 		description: 'Data layer and associations',
 		color: '#f59e0b',
-		icon: <Package className="w-5 h-5" />,
+		icon: Package,
 	},
 	{
 		type: 'database',
 		label: 'Database',
 		description: 'Persistent data storage',
 		color: '#ef4444',
-		icon: <Database className="w-5 h-5" />,
+		icon: Database,
 	},
 	{
 		type: 'cache',
 		label: 'Cache',
 		description: 'In-memory data caching',
 		color: '#06b6d4',
-		icon: <HardDrive className="w-5 h-5" />,
+		icon: HardDrive,
 	},
 	{
 		type: 'serializer',
 		label: 'Serializer',
 		description: 'Serializes JSON responses',
 		color: '#8b5cf6',
-		icon: <Eye className="w-5 h-5" />,
+		icon: Eye,
 	},
 	{
 		type: 'response',
 		label: 'Response',
 		description: 'Final HTTP response',
 		color: '#22c55e',
-		icon: <CheckCircle className="w-5 h-5" />,
+		icon: CheckCircle,
 	},
 	{
 		type: 'background_job',
 		label: 'Background Job',
 		description: 'Async task processing',
 		color: '#9333ea',
-		icon: <Clock className="w-5 h-5" />,
+		icon: Clock,
 	},
 ];
 
@@ -110,27 +112,18 @@ const NodePaletteItem = memo(function NodePaletteItem({
 	onDragStart,
 }: NodePaletteItemProps) {
 	const handleDragStart = useCallback(
-		(e: DragEvent<HTMLDivElement>) => {
+		(e: DragEvent<Element>) => {
 			if (!isUnlocked) {
 				e.preventDefault();
 				return;
 			}
-			onDragStart(e, node.type);
+			onDragStart(e as DragEvent<HTMLDivElement>, node.type);
 		},
 		[isUnlocked, node.type, onDragStart],
 	);
 
 	return (
-		<div
-			className={clsx(
-				'group relative p-3 rounded-lg border-2 transition-all duration-200',
-				isUnlocked
-					? 'bg-card border-border cursor-grab hover:border-blue-500 hover:shadow-lg active:cursor-grabbing'
-					: 'bg-background/50 border-border/50 cursor-not-allowed opacity-60',
-			)}
-			draggable={isUnlocked}
-			onDragStart={handleDragStart}
-		>
+		<div className="group relative">
 			{/* Lock overlay */}
 			{!isUnlocked && (
 				<div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-lg z-10">
@@ -143,39 +136,18 @@ const NodePaletteItem = memo(function NodePaletteItem({
 				</div>
 			)}
 
-			<div className="flex items-start gap-3">
-				{/* Icon with colored background */}
-				<div
-					className="shrink-0 w-10 h-10 rounded-lg flex items-center justify-center"
-					style={{ backgroundColor: `${node.color}20`, color: node.color }}
-				>
-					{node.icon}
-				</div>
-
-				{/* Text content */}
-				<div className="flex-1 min-w-0">
-					<div className="flex items-center gap-2">
-						<span className="font-medium text-sm text-foreground">
-							{node.label}
-						</span>
-						{/* Color indicator */}
-						<span
-							className="w-2 h-2 rounded-full shrink-0"
-							style={{ backgroundColor: node.color }}
-						/>
-					</div>
-					<p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-						{node.description}
-					</p>
-				</div>
-			</div>
-
-			{/* Drag hint */}
-			{isUnlocked && (
-				<div className="absolute -right-1 -bottom-1 opacity-0 group-hover:opacity-100 transition-opacity">
-					<span className="text-xs text-muted-foreground">Drag to add</span>
-				</div>
-			)}
+			<OptionCard
+				color={resolveColor(node.color)}
+				description={node.description}
+				disabled={!isUnlocked}
+				dragData={node.type}
+				dragType="application/reactflow"
+				draggable={isUnlocked}
+				icon={node.icon}
+				name={node.label}
+				onDragStart={handleDragStart}
+				size="lg"
+			/>
 		</div>
 	);
 });

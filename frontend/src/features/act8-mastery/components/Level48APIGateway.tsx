@@ -27,6 +27,7 @@ import {
 	LeftPanel,
 	LevelHeader,
 	LevelLayout,
+	OptionCard,
 	RightPanel,
 	useLevelCompletion,
 	type ValidationResult,
@@ -315,29 +316,16 @@ export function Level48APIGateway({ onComplete, onExit }: LevelComponentProps) {
 						</div>
 						<div className="space-y-2">
 							{features.map((feature) => (
-								<Button
-									className={`w-full justify-start text-left h-auto py-2 ${feature.enabled ? 'border-success bg-success/20' : ''}`}
+								<OptionCard
+									color="primary"
+									description={feature.description}
+									icon={feature.Icon}
 									key={feature.id}
+									name={feature.name}
 									onClick={() => toggleFeature(feature.id)}
-									variant={feature.enabled ? 'default' : 'outline'}
-								>
-									<div className="flex items-center gap-2 w-full">
-										<feature.Icon className="w-4 h-4" />
-										<div className="flex-1">
-											<div
-												className={
-													feature.enabled ? 'text-success' : 'text-foreground'
-												}
-											>
-												{feature.name}
-											</div>
-											<div className="text-xs text-muted-foreground">
-												{feature.description}
-											</div>
-										</div>
-										{feature.enabled && <span className="text-success">✓</span>}
-									</div>
-								</Button>
+									selected={feature.enabled}
+									size="lg"
+								/>
 							))}
 						</div>
 					</div>
@@ -516,10 +504,10 @@ export function Level48APIGateway({ onComplete, onExit }: LevelComponentProps) {
 												</span>
 											</div>
 											<div className="flex gap-2 flex-wrap">
-												{req.stages.map((stage, i) => (
+												{req.stages.map((stage) => (
 													<span
 														className="text-xs text-muted-foreground bg-card px-2 py-1 rounded"
-														key={i}
+														key={stage}
 													>
 														{stage}
 													</span>

@@ -14,6 +14,7 @@ import {
 	LeftPanel,
 	LevelHeader,
 	LevelLayout,
+	OptionCard,
 	RightPanel,
 	SimulatedTerminal,
 	StepProgress,
@@ -316,43 +317,27 @@ end`,
 								Databases
 							</div>
 							<div className="space-y-2">
-								<div
-									className="p-3 rounded-lg border bg-secondary border-border hover:border-primary cursor-grab active:cursor-grabbing transition-all"
+								<OptionCard
+									color="blue"
+									description="Production-ready. Supports sharding & read replicas."
+									dragData="postgresql"
+									dragType="nodeType"
 									draggable
+									name="PostgreSQL"
 									onDragStart={(e) => handleDragStart(e, 'postgresql')}
-								>
-									<div className="flex items-center gap-2 mb-1">
-										<span className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold text-white bg-[#336791]">
-											P
-										</span>
-										<span className="font-medium text-foreground text-sm">
-											PostgreSQL
-										</span>
-									</div>
-									<p className="text-xs text-muted-foreground">
-										Production-ready. Supports sharding & read replicas.
-									</p>
-								</div>
-								<div
-									className="p-3 rounded-lg border bg-secondary border-border hover:border-primary cursor-grab active:cursor-grabbing transition-all"
+									size="lg"
+								/>
+								<OptionCard
+									color="cyan"
+									description="Simple, file-based. Rails 8 makes it production-ready."
+									dragData="sqlite"
+									dragType="nodeType"
 									draggable
+									name="SQLite"
 									onDragStart={(e) => handleDragStart(e, 'sqlite')}
-								>
-									<div className="flex items-center gap-2 mb-1">
-										<span className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold text-white bg-[#003b57]">
-											S
-										</span>
-										<span className="font-medium text-foreground text-sm">
-											SQLite
-										</span>
-									</div>
-									<p className="text-xs text-muted-foreground">
-										Simple, file-based. Rails 8 makes it production-ready.
-									</p>
-									<p className="text-xs text-warning mt-1">
-										Cannot support Sharding (Level 49)
-									</p>
-								</div>
+									size="lg"
+									warning="Cannot support Sharding (Level 49)"
+								/>
 							</div>
 						</div>
 					)}
