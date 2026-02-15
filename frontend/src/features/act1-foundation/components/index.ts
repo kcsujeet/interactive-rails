@@ -1,18 +1,19 @@
 /**
  * Act 1: Rails Fundamentals - Level Components
  *
- * 1. Stack Choice - Set up a new Rails project
- * 2. The Model - Create the Post model
- * 3. CRUD Operations - Create, Read, Update, Delete
- * 4. Routes - Define RESTful routes
- * 5. The Controller - Build the controller
- * 6. Serializers - (generic pipeline builder)
- * 7. Associations - Model relationships
+ * 1. Environment - Set up Ruby/Rails dev environment
+ * 2. Hello, Rails - Create first Rails project
+ * 3. The Model - Create the Post model
+ * 4. CRUD Operations - Create, Read, Update, Delete
+ * 5. Routes - Define RESTful routes
+ * 6. The Controller - Build the controller
+ * 7. Serializers - (generic pipeline builder)
+ * 8. Associations - Model relationships
  */
 
-export { Level1StackChoice } from './Level1StackChoice';
-export { Level2Model } from './Level2Model';
-export { Level3CRUD } from './Level3CRUD';
-export { Level4Routes } from './Level4Routes';
-export { Level5Controller } from './Level5Controller';
-export { Level7Associations } from './Level7Associations';
+export { Level2HelloRails } from './Level2HelloRails';
+export { Level3Model } from './Level3Model';
+export { Level4CRUD } from './Level4CRUD';
+export { Level5Routes } from './Level5Routes';
+export { Level6Controller } from './Level6Controller';
+export { Level8Associations } from './Level8Associations';
