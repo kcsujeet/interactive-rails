@@ -102,11 +102,17 @@ export function useStepGating(
 	);
 
 	const nextStep = useCallback(() => {
-		if (viewingStep < furthestStep && viewingStep < stepDefs.length - 1) {
-			setViewingStep(viewingStep + 1);
-			setLastFeedback(null);
-		}
-	}, [viewingStep, furthestStep, stepDefs.length]);
+		setFurthestStep((currentFurthest) => {
+			setViewingStep((currentViewing) => {
+				if (currentViewing < currentFurthest && currentViewing < stepDefs.length - 1) {
+					setLastFeedback(null);
+					return currentViewing + 1;
+				}
+				return currentViewing;
+			});
+			return currentFurthest;
+		});
+	}, [stepDefs.length]);
 
 	const recordWrongAttempt = useCallback((feedback: string) => {
 		setWrongAttempts((prev) => prev + 1);

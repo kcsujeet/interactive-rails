@@ -9,6 +9,8 @@ alwaysApply: false
 **Always ask for permission before committing changes. This is non-negotiable.**
 Do NOT run `git commit` without explicit user approval.
 
+**Consistency is non-negotiable.** Don't do one-off things. When a pattern exists in the codebase (button labels, step navigation, component structure), follow it exactly. If Level 1 uses "Next Step" with an ArrowRight icon, every level uses "Next Step" with an ArrowRight icon. No custom labels, no special cases.
+
 Default to using Bun instead of Node.js:
 
 - `bun <file>` (not `node` / `ts-node`)

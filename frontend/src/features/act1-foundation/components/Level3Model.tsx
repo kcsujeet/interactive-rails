@@ -18,13 +18,13 @@ import {
 	RightPanel,
 	SimulatedTerminal,
 	StepProgress,
-	useLevelCompletion,
 	type TerminalOutputLine,
 	type ValidationResult,
 } from '@/components/levels';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { useStepGating, type StepDef } from '@/hooks/useStepGating';
+import { ArrowRight } from 'lucide-react';
 
 const STEP_DEFS: StepDef[] = [
 	{ id: 'name-model', title: 'Name the Model' },
@@ -64,17 +64,19 @@ const ATTRIBUTE_SLOTS: AttributeSlot[] = [
 const AVAILABLE_TYPES = ['string', 'text', 'boolean', 'integer', 'datetime'];
 
 const MODEL_NAME_OPTIONS = [
+	{ label: 'Posts', correct: false, feedback: 'Rails models are singular, not plural — Rails auto-pluralizes the table name for you.' },
 	{ label: 'Post', correct: true },
-	{ label: 'Posts', correct: false, feedback: 'Rails models are singular PascalCase — "Post" maps to the "posts" table automatically.' },
-	{ label: 'post', correct: false, feedback: 'Rails models use PascalCase — "Post", not "post".' },
-	{ label: 'posts_table', correct: false, feedback: 'Just use the model name "Post" — Rails infers the table name "posts" automatically.' },
+	{ label: 'post', correct: false, feedback: 'Rails models use PascalCase — check the capitalization convention.' },
+	{ label: 'posts_table', correct: false, feedback: 'You don\'t need to specify the table name — Rails infers it from a singular PascalCase model name.' },
 ];
 
 export function Level3Model({ onComplete, onExit }: LevelComponentProps) {
-	const { completeLevel } = useLevelCompletion();
-	const stepper = useStepGating(STEP_DEFS);
+	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const [slots, setSlots] = useState<AttributeSlot[]>(ATTRIBUTE_SLOTS);
 	const [draggedType, setDraggedType] = useState<string | null>(null);
+
+	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
+	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 
 	// Step 2: Drag types onto field slots
 	const allSlotsCorrect = slots.every(
@@ -104,22 +106,22 @@ export function Level3Model({ onComplete, onExit }: LevelComponentProps) {
 			// Wrong type feedback
 			const feedbackMap: Record<string, Record<string, string>> = {
 				title: {
-					text: '"title" is short — use "string", not "text".',
+					text: '"text" is for long-form content — "title" is a short field (under 255 characters).',
 					boolean: '"title" stores text, not true/false.',
 					integer: '"title" stores text, not numbers.',
 					datetime: '"title" stores text, not timestamps.',
 				},
 				body: {
-					string: '"body" stores long content — use "text", not "string". "string" is limited to 255 characters.',
+					string: '"string" maxes out at 255 characters — "body" needs to hold full articles and paragraphs.',
 					boolean: '"body" stores content, not true/false.',
 					integer: '"body" stores content, not numbers.',
 					datetime: '"body" stores content, not timestamps.',
 				},
 				published: {
-					string: '"published" is true/false — use "boolean".',
-					text: '"published" is true/false — use "boolean".',
-					integer: '"published" is true/false — use "boolean".',
-					datetime: '"published" is true/false — use "boolean".',
+					string: '"published" is a yes/no flag — not a text field.',
+					text: '"published" is a yes/no flag — not a content field.',
+					integer: '"published" is a yes/no flag — not a number.',
+					datetime: '"published" is a yes/no flag — not a timestamp.',
 				},
 			};
 			const fb = feedbackMap[field]?.[type] || `Wrong type for ${field}.`;
@@ -130,24 +132,24 @@ export function Level3Model({ onComplete, onExit }: LevelComponentProps) {
 	// Step 3: Generator commands
 	const generatorCommands = [
 		{
+			id: 'wrong-types',
+			label: 'rails generate model Post title:text body:string published:integer',
+			command: 'rails generate model Post title:text body:string published:integer',
+			correct: false,
+			feedback: 'The types are swapped around — think about which fields are short vs. long, and which is a flag.',
+		},
+		{
 			id: 'correct',
 			label: 'rails generate model Post title:string body:text published:boolean',
 			command: 'rails generate model Post title:string body:text published:boolean',
 			correct: true,
 		},
 		{
-			id: 'wrong-types',
-			label: 'rails generate model Post title:text body:string published:integer',
-			command: 'rails generate model Post title:text body:string published:integer',
-			correct: false,
-			feedback: 'Wrong types — title is string (short text), body is text (long content), published is boolean.',
-		},
-		{
 			id: 'wrong-missing',
 			label: 'rails generate model Post title:string body:text',
 			command: 'rails generate model Post title:string body:text',
 			correct: false,
-			feedback: 'Missing the "published" field — include all three attributes.',
+			feedback: 'Missing an attribute — the Post model has three fields, not two.',
 		},
 	];
 
@@ -162,17 +164,17 @@ export function Level3Model({ onComplete, onExit }: LevelComponentProps) {
 	// Step 4: Migration command
 	const migrationCommands = [
 		{
-			id: 'correct',
-			label: 'rails db:migrate',
-			command: 'rails db:migrate',
-			correct: true,
-		},
-		{
 			id: 'wrong-rollback',
 			label: 'rails db:rollback',
 			command: 'rails db:rollback',
 			correct: false,
-			feedback: 'Rollback undoes migrations — you want to run them with db:migrate.',
+			feedback: 'Rollback undoes migrations — you need to apply them, not reverse them.',
+		},
+		{
+			id: 'correct',
+			label: 'rails db:migrate',
+			command: 'rails db:migrate',
+			correct: true,
 		},
 	];
 
@@ -183,13 +185,8 @@ export function Level3Model({ onComplete, onExit }: LevelComponentProps) {
 		{ text: '== CreatePosts: migrated (0.0013s) ===========================', color: 'green' },
 	];
 
-	const handleComplete = async () => {
-		const success = await completeLevel('act1-level3-model', {
-			stars: stepper.starRating,
-		});
-		if (success) {
-			onComplete({ stars: stepper.starRating });
-		}
+	const handleComplete = () => {
+		onComplete({ stars: stepper.starRating });
 	};
 
 	const validateSolution = (): ValidationResult => {
@@ -209,7 +206,7 @@ export function Level3Model({ onComplete, onExit }: LevelComponentProps) {
 	const getCodeFiles = () => {
 		const files = [];
 
-		if (stepper.currentStep >= 1) {
+		if (stepper.furthestStep >= 1) {
 			files.push({
 				filename: 'app/models/post.rb',
 				language: 'ruby',
@@ -228,7 +225,7 @@ end`,
 			});
 		}
 
-		if (stepper.currentStep >= 3) {
+		if (stepper.furthestStep >= 3) {
 			files.push({
 				filename: 'db/migrate/create_posts.rb',
 				language: 'ruby',
@@ -247,7 +244,7 @@ end`,
 			});
 		}
 
-		if (stepper.currentStep >= 4) {
+		if (stepper.furthestStep >= 4) {
 			files.push({
 				filename: 'db/schema.rb',
 				language: 'ruby',
@@ -294,11 +291,11 @@ end`,
 						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 							Steps
 						</div>
-						<StepProgress steps={stepper.steps} />
+						<StepProgress currentStep={stepper.currentStep} onStepClick={stepper.goToStep} steps={stepper.steps} />
 					</div>
 
 					{/* Type palette for step 2 */}
-					{stepper.currentStep === 1 && (
+					{stepper.currentStep === 1 && !isViewingCompletedStep && (
 						<div className="p-4">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Data Types
@@ -351,28 +348,50 @@ end`,
 								<p className="text-sm text-muted-foreground">
 									What should the model for a blog post be called?
 								</p>
-								<div className="grid grid-cols-2 gap-3">
-									{MODEL_NAME_OPTIONS.map((opt) => (
-										<Button
-											className="h-auto py-4 text-lg font-mono"
-											key={opt.label}
-											onClick={() => {
-												if (opt.correct) {
-													stepper.completeStep();
-												} else {
-													stepper.recordWrongAttempt(opt.feedback!);
-												}
-											}}
-											variant="outline"
-										>
-											{opt.label}
-										</Button>
-									))}
-								</div>
+								{isViewingCompletedStep ? (
+									<div className="grid grid-cols-2 gap-3">
+										{MODEL_NAME_OPTIONS.map((opt) => (
+											<Button
+												className={`h-auto py-4 text-lg font-mono ${opt.correct ? 'border-success text-success' : 'opacity-50'}`}
+												disabled
+												key={opt.label}
+												variant="outline"
+											>
+												{opt.label}
+											</Button>
+										))}
+									</div>
+								) : (
+									<div className="grid grid-cols-2 gap-3">
+										{MODEL_NAME_OPTIONS.map((opt) => (
+											<Button
+												className="h-auto py-4 text-lg font-mono"
+												key={opt.label}
+												onClick={() => {
+													if (opt.correct) {
+														stepper.completeStep();
+													} else {
+														stepper.recordWrongAttempt(opt.feedback!);
+													}
+												}}
+												variant="outline"
+											>
+												{opt.label}
+											</Button>
+										))}
+									</div>
+								)}
 								<ErrorFeedback
 									message={stepper.lastFeedback}
 									onDismiss={stepper.clearFeedback}
 								/>
+								{isViewingCompletedStep && hasNextStep && (
+									<div className="flex justify-end">
+										<Button onClick={stepper.nextStep}>
+											Next Step <ArrowRight className="w-4 h-4 ml-2" />
+										</Button>
+									</div>
+								)}
 							</div>
 						)}
 
@@ -396,8 +415,8 @@ end`,
 													: 'border-dashed border-border bg-card'
 											}`}
 											key={slot.field}
-											onDragOver={(e) => e.preventDefault()}
-											onDrop={(e) => handleTypeDrop(slot.field, e)}
+											onDragOver={isViewingCompletedStep ? undefined : (e) => e.preventDefault()}
+											onDrop={isViewingCompletedStep ? undefined : (e) => handleTypeDrop(slot.field, e)}
 										>
 											<div className="flex items-center justify-between">
 												<div>
@@ -422,10 +441,10 @@ end`,
 									))}
 								</div>
 
-								{allSlotsCorrect && (
-									<div className="flex justify-center pt-4">
-										<Button onClick={() => stepper.completeStep()}>
-											Attributes Look Good
+								{allSlotsCorrect && !isViewingCompletedStep && (
+									<div className="flex justify-end pt-4">
+										<Button onClick={() => { stepper.completeStep(); stepper.nextStep(); }}>
+											Next Step <ArrowRight className="w-4 h-4 ml-2" />
 										</Button>
 									</div>
 								)}
@@ -434,6 +453,13 @@ end`,
 									message={stepper.lastFeedback}
 									onDismiss={stepper.clearFeedback}
 								/>
+								{isViewingCompletedStep && hasNextStep && (
+									<div className="flex justify-end">
+										<Button onClick={stepper.nextStep}>
+											Next Step <ArrowRight className="w-4 h-4 ml-2" />
+										</Button>
+									</div>
+								)}
 							</div>
 						)}
 
@@ -452,6 +478,8 @@ end`,
 								</p>
 								<SimulatedTerminal
 									commands={generatorCommands}
+									completed={isViewingCompletedStep}
+									key={stepper.currentStep}
 									onCorrect={() => stepper.completeStep()}
 									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 									outputLines={generatorOutput}
@@ -460,6 +488,13 @@ end`,
 									message={stepper.lastFeedback}
 									onDismiss={stepper.clearFeedback}
 								/>
+								{isViewingCompletedStep && hasNextStep && (
+									<div className="flex justify-end">
+										<Button onClick={stepper.nextStep}>
+											Next Step <ArrowRight className="w-4 h-4 ml-2" />
+										</Button>
+									</div>
+								)}
 							</div>
 						)}
 
@@ -475,6 +510,8 @@ end`,
 								</p>
 								<SimulatedTerminal
 									commands={migrationCommands}
+									completed={isViewingCompletedStep}
+									key={stepper.currentStep}
 									onCorrect={() => stepper.completeStep()}
 									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 									outputLines={migrationOutput}
@@ -483,24 +520,6 @@ end`,
 									message={stepper.lastFeedback}
 									onDismiss={stepper.clearFeedback}
 								/>
-							</div>
-						)}
-
-						{/* Complete */}
-						{stepper.isComplete && (
-							<div className="text-center py-12 space-y-4">
-								<div className="text-4xl">
-									{'★'.repeat(stepper.starRating)}
-									{'☆'.repeat(3 - stepper.starRating)}
-								</div>
-								<h3 className="text-xl font-bold text-foreground">
-									Post Model Created!
-								</h3>
-								<p className="text-muted-foreground">
-									Your Post model is in the database with title, body, and
-									published attributes.
-								</p>
-								<Button onClick={handleComplete}>Complete Level</Button>
 							</div>
 						)}
 					</div>
