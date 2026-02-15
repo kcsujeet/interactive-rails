@@ -8,10 +8,10 @@
  */
 
 import { useState } from 'react';
+import { AlertCircle, ArrowRight } from 'lucide-react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
-	ErrorFeedback,
 	InstructionPanel,
 	LeftPanel,
 	LevelHeader,
@@ -22,9 +22,9 @@ import {
 	StepProgress,
 	type TerminalCommand,
 	type TerminalOutputLine,
-	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 
@@ -39,8 +39,7 @@ const STEP_DEFS: StepDef[] = [
 ];
 
 export function Level1StackChoice({ onComplete, onExit }: LevelComponentProps) {
-	const { completeLevel } = useLevelCompletion();
-	const stepper = useStepGating(STEP_DEFS);
+	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const [database, setDatabase] = useState<DatabaseChoice>(null);
 
 	// Step 1: Choose Database — click-to-select with feedback
@@ -62,7 +61,7 @@ export function Level1StackChoice({ onComplete, onExit }: LevelComponentProps) {
 			label: 'gem install pg',
 			command: 'gem install pg',
 			correct: false,
-			feedback: "That's the Ruby driver — install the PostgreSQL server first.",
+			feedback: "That's the Ruby driver — install the database server itself first.",
 		},
 		{
 			id: 'wrong-apt',
@@ -180,7 +179,7 @@ export function Level1StackChoice({ onComplete, onExit }: LevelComponentProps) {
 		{ text: '{"status":"ok"}', color: 'green' },
 	];
 
-	const handleComplete = async () => {
+	const handleComplete = () => {
 		const choices = {
 			database: 'postgresql',
 			constraints: {
@@ -198,13 +197,7 @@ export function Level1StackChoice({ onComplete, onExit }: LevelComponentProps) {
 			console.error('Failed to save game choices:', e);
 		}
 
-		const success = await completeLevel('act1-level2-hello-rails', {
-			stars: stepper.starRating,
-			stackChoices: { database: 'postgresql' },
-		});
-		if (success) {
-			onComplete({ stars: stepper.starRating });
-		}
+		onComplete({ stars: stepper.starRating });
 	};
 
 	const validateSolution = (): ValidationResult => {
@@ -220,11 +213,11 @@ export function Level1StackChoice({ onComplete, onExit }: LevelComponentProps) {
 		return { valid: true, message: 'Rails app is ready!' };
 	};
 
-	// Code preview updates per step
+	// Code preview updates per step — use furthestStep so preview doesn't regress when navigating back
 	const getCodeFiles = () => {
 		const files = [];
 
-		if (stepper.currentStep >= 1) {
+		if (stepper.furthestStep >= 1) {
 			files.push({
 				filename: 'Gemfile',
 				language: 'ruby',
@@ -242,7 +235,7 @@ gem "solid_cable"`,
 			});
 		}
 
-		if (stepper.currentStep >= 2) {
+		if (stepper.furthestStep >= 2) {
 			files.push({
 				filename: 'config/database.yml',
 				language: 'yaml',
@@ -262,7 +255,7 @@ test:
 			});
 		}
 
-		if (stepper.currentStep >= 3) {
+		if (stepper.furthestStep >= 3) {
 			files.push({
 				filename: 'config/application.rb',
 				language: 'ruby',
@@ -278,7 +271,7 @@ end`,
 			});
 		}
 
-		if (stepper.currentStep >= 4) {
+		if (stepper.furthestStep >= 4) {
 			files.push({
 				filename: 'Server Output',
 				language: 'bash',
@@ -306,6 +299,9 @@ end`,
 		return files;
 	};
 
+	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
+	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
+
 	return (
 		<LevelLayout>
 			<LeftPanel>
@@ -320,37 +316,16 @@ end`,
 					</div>
 
 					{/* Step Progress */}
-					<div className="p-4 border-b border-border">
+					<div className="p-4">
 						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 							Steps
 						</div>
-						<StepProgress steps={stepper.steps} />
+						<StepProgress
+							currentStep={stepper.currentStep}
+							onStepClick={stepper.goToStep}
+							steps={stepper.steps}
+						/>
 					</div>
-
-					{/* Database Palette (step 1 only) */}
-					{stepper.currentStep === 0 && (
-						<div className="p-4">
-							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-								Databases
-							</div>
-							<div className="space-y-2">
-								<OptionCard
-									color="cyan"
-									description="File-based, zero config. Great for prototypes and single-writer apps."
-									name="SQLite"
-									onClick={() => handleChooseDb('sqlite')}
-									size="lg"
-								/>
-								<OptionCard
-									color="blue"
-									description="Multi-user, concurrent writes, sharding & read replicas. The production standard."
-									name="PostgreSQL"
-									onClick={() => handleChooseDb('postgresql')}
-									size="lg"
-								/>
-							</div>
-						</div>
-					)}
 				</InstructionPanel>
 			</LeftPanel>
 
@@ -379,15 +354,66 @@ end`,
 									Your API will serve multiple users sending concurrent
 									requests. Pick the database that can handle that.
 								</p>
-								<div className="bg-card border border-border rounded-lg p-6 text-center">
-									<div className="text-sm text-muted-foreground">
-										Select a database from the left panel
+
+								{isViewingCompletedStep ? (
+									<div className="space-y-2">
+										<OptionCard
+											color="cyan"
+											description="File-based, zero config. Great for prototypes and single-writer apps."
+											disabled
+											name="SQLite"
+											size="lg"
+										/>
+										<OptionCard
+											color="blue"
+											description="Multi-user, concurrent writes, sharding & read replicas. The production standard."
+											name="PostgreSQL"
+											selected
+											size="lg"
+										/>
 									</div>
-								</div>
-								<ErrorFeedback
-									message={stepper.lastFeedback}
-									onDismiss={stepper.clearFeedback}
-								/>
+								) : (
+									<>
+										<div className="space-y-2">
+											<OptionCard
+												color="cyan"
+												description="File-based, zero config. Great for prototypes and single-writer apps."
+												name="SQLite"
+												onClick={() => handleChooseDb('sqlite')}
+												size="lg"
+											/>
+											<OptionCard
+												color="blue"
+												description="Multi-user, concurrent writes, sharding & read replicas. The production standard."
+												name="PostgreSQL"
+												onClick={() => handleChooseDb('postgresql')}
+												size="lg"
+											/>
+										</div>
+
+										{stepper.lastFeedback && (
+											<div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 flex items-start gap-2">
+												<AlertCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+												<p className="text-sm text-destructive">
+													{stepper.lastFeedback}
+												</p>
+											</div>
+										)}
+									</>
+								)}
+
+								{isViewingCompletedStep && hasNextStep && (
+									<div className="flex justify-end">
+										<Button
+											className="gap-2"
+											onClick={stepper.nextStep}
+											size="sm"
+										>
+											Next Step
+											<ArrowRight className="w-4 h-4" />
+										</Button>
+									</div>
+								)}
 							</div>
 						)}
 
@@ -402,11 +428,26 @@ end`,
 									package manager installs system software on macOS?
 								</p>
 								<SimulatedTerminal
+									key={stepper.currentStep}
 									commands={installPgCommands}
+									completed={isViewingCompletedStep}
 									onCorrect={() => stepper.completeStep()}
 									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 									outputLines={installPgOutput}
 								/>
+
+								{isViewingCompletedStep && hasNextStep && (
+									<div className="flex justify-end">
+										<Button
+											className="gap-2"
+											onClick={stepper.nextStep}
+											size="sm"
+										>
+											Next Step
+											<ArrowRight className="w-4 h-4" />
+										</Button>
+									</div>
+								)}
 							</div>
 						)}
 
@@ -420,11 +461,26 @@ end`,
 									Create an API-only Rails app configured for PostgreSQL.
 								</p>
 								<SimulatedTerminal
+									key={stepper.currentStep}
 									commands={generateCommands}
+									completed={isViewingCompletedStep}
 									onCorrect={() => stepper.completeStep()}
 									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 									outputLines={generateOutput}
 								/>
+
+								{isViewingCompletedStep && hasNextStep && (
+									<div className="flex justify-end">
+										<Button
+											className="gap-2"
+											onClick={stepper.nextStep}
+											size="sm"
+										>
+											Next Step
+											<ArrowRight className="w-4 h-4" />
+										</Button>
+									</div>
+								)}
 							</div>
 						)}
 
@@ -439,16 +495,31 @@ end`,
 									databases.
 								</p>
 								<SimulatedTerminal
+									key={stepper.currentStep}
 									commands={createDbCommands}
+									completed={isViewingCompletedStep}
 									onCorrect={() => stepper.completeStep()}
 									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 									outputLines={createDbOutput}
 								/>
+
+								{isViewingCompletedStep && hasNextStep && (
+									<div className="flex justify-end">
+										<Button
+											className="gap-2"
+											onClick={stepper.nextStep}
+											size="sm"
+										>
+											Next Step
+											<ArrowRight className="w-4 h-4" />
+										</Button>
+									</div>
+								)}
 							</div>
 						)}
 
-						{/* Step 5: Boot Server (stays visible after completion) */}
-						{stepper.currentStep >= 4 && (
+						{/* Step 5: Boot Server */}
+						{stepper.currentStep === 4 && (
 							<div className="space-y-4">
 								<h3 className="text-lg font-semibold text-foreground">
 									Boot Server
@@ -458,8 +529,9 @@ end`,
 									responds.
 								</p>
 								<SimulatedTerminal
+									key={stepper.currentStep}
 									commands={bootCommands}
-									completed={stepper.isComplete}
+									completed={isViewingCompletedStep}
 									onCorrect={() => stepper.completeStep()}
 									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 									outputLines={bootOutput}
