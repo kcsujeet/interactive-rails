@@ -77,6 +77,8 @@ When creating or redesigning a level component, ensure all three phases are pres
 
 **The correct answer must NEVER be the first option.** Vary its position across steps so there is no predictable pattern.
 
+**Option colors must NEVER hint at the answer.** All options in a set must use the same color (or omit color entirely to use the default). Don't use `green` for the correct answer or `red`/`rose` for wrong ones — that's a visual giveaway.
+
 ```tsx
 // BAD — gives away the answer
 feedback: 'Rails is a Ruby gem — use `gem install rails`.'
@@ -99,6 +101,14 @@ const commands = [
   { label: 'apt-get install asdf', correct: false },
   { label: 'brew install asdf', correct: true },    // not first
 ];
+
+// BAD — color reveals the answer
+{ label: 'ruby 3.3.6', color: 'green', correct: true },   // green = obvious
+{ label: 'Ruby 3.3.6', color: 'rose', correct: false },    // rose = obviously wrong
+
+// GOOD — all options use the same color (or omit color for default)
+{ label: 'ruby 3.3.6', correct: true },
+{ label: 'Ruby 3.3.6', correct: false },
 ```
 
 ### Level Checklist: What to Update
