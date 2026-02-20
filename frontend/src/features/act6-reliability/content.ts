@@ -494,7 +494,7 @@ end
 - Recovery: Restore to any previous state
 
 **Gems:**
-- \`discard\` for soft deletes (lightweight, uses default scopes)
+- \`discard\` for soft deletes (lightweight, provides explicit scopes like \`kept\` and \`with_discarded\`)
 - \`paper_trail\` for audit trails (versioning with full change history)`,
 		railsCodeExample: `# ============================
 # Soft Deletes with Discard
@@ -518,8 +518,9 @@ class User < ApplicationRecord
 
   has_paper_trail
 
-  # Default scope excludes discarded records
-  # User.all only returns non-discarded users
+  # Discard does NOT add a default scope.
+  # Use explicit scopes to filter:
+  # User.kept returns non-discarded users
   # User.discarded returns only discarded users
   # User.with_discarded returns ALL users
 end
@@ -648,7 +649,7 @@ end`,
 		commonMistakes: [
 			'Using destroy instead of discard (bypasses soft delete)',
 			'Not adding an index on discarded_at (slow queries)',
-			'Forgetting to use default scope in associations (showing discarded records)',
+			'Forgetting to scope associations with .kept (showing discarded records in has_many)',
 			'Not setting whodunnit in PaperTrail (no accountability)',
 			'Storing PaperTrail versions in the same database (bloats main DB over time)',
 			'Not cleaning up old versions periodically',
@@ -684,32 +685,33 @@ const level40SafeMigrations: Level = {
 	trigger: {
 		type: 'outage',
 		description:
-			'Deploy adds a column with a default value. Locks the users table for 30 seconds. API returns 500s. 100K users affected.',
+			'Deploy changes a column type on a large table. Locks the table for 30 seconds while rewriting every row. API returns 500s. 100K users affected.',
 	},
 	startingPipeline: standardPipeline({ modelLabel: 'User' }),
 	problem: {
 		observation:
-			'Deploy ran a migration that added a column with a default to a 5M row table. The table was locked for 30 seconds. All API requests to that table returned 500. Monitoring lit up.',
+			'Deploy ran a migration that changed a column type on a 5M row table. The table was locked for 30 seconds while every row was rewritten. All API requests to that table returned 500. Monitoring lit up.',
 		rootCause:
 			'Unsafe migration patterns that acquire exclusive locks on large tables during production traffic.',
 		codeExample: `# The migration that caused the outage:
-class AddAdminToUsers < ActiveRecord::Migration[8.0]
+class ChangeViewsToBigint < ActiveRecord::Migration[8.0]
   def change
-    # This locks the entire users table while rewriting every row!
-    add_column :users, :admin, :boolean, default: false
+    # This locks the entire table while rewriting every row!
+    change_column :posts, :views, :bigint
   end
 end
 
 # PostgreSQL acquires an ACCESS EXCLUSIVE lock:
 # - No reads or writes while ALTER TABLE runs
-# - 5M rows x ~6us/row = ~30 seconds of downtime
+# - 5M rows rewritten to change column type = ~30 seconds of downtime
 # - All queries queue up, connections exhaust, 500s everywhere
 
 # Other dangerous patterns:
 add_index :users, :email                    # Locks table during index build
 rename_column :users, :name, :full_name     # Breaks running app code
-change_column :posts, :views, :bigint       # Rewrites entire table
-remove_column :users, :legacy_field         # Breaks running app code`,
+remove_column :users, :legacy_field         # Breaks running app code
+# Note: add_column with a constant default is instant on PG 11+,
+# but change_column type always rewrites the table.`,
 		goal: 'Configure strong_migrations and apply zero-downtime migration patterns.',
 		thresholds: {},
 	},
@@ -724,11 +726,11 @@ remove_column :users, :legacy_field         # Breaks running app code`,
 
 **Key zero-downtime patterns:**
 
-1. **Add column with default:** Add column (no default) -> backfill in batches -> change column default
+1. **Change column type:** Add new column with new type, backfill, swap (always rewrites the table)
 2. **Add index:** Use \`algorithm: :concurrently\` (PostgreSQL) with \`disable_ddl_transaction!\`
 3. **Remove column:** First deploy ignoring the column, then remove in a separate migration
 4. **Rename column:** Add new column, backfill, update code, drop old column
-5. **Change column type:** Add new column with new type, backfill, swap
+5. **Add column with default (pre-PG 11):** Add column (no default) -> backfill -> change default. On PG 11+ with constant defaults, this is instant and safe.
 
 **Rule of thumb:** If a migration touches a table with >100K rows, think twice.`,
 		railsCodeExample: `# Gemfile
@@ -739,41 +741,44 @@ StrongMigrations.start_after = 20240101000000
 StrongMigrations.target_postgresql_version = "16"
 
 # ============================
-# UNSAFE -> SAFE: add_column with default
+# UNSAFE -> SAFE: change_column type
 # ============================
 
-# UNSAFE: Locks the table while rewriting every row
-class AddAdminToUsers < ActiveRecord::Migration[8.0]
+# UNSAFE: Rewrites the entire table (locks it for duration)
+class ChangeViewsToBigint < ActiveRecord::Migration[8.0]
   def change
-    add_column :users, :admin, :boolean, default: false  # LOCKS TABLE!
+    change_column :posts, :views, :bigint  # REWRITES ALL ROWS!
   end
 end
 
-# SAFE: Three-step migration (zero downtime)
+# SAFE: Add new column, backfill, swap
 
-# Step 1: Add column without default (instant, no lock)
-class AddAdminToUsers < ActiveRecord::Migration[8.0]
+# Step 1: Add new column (instant, no lock)
+class AddViewsBigintToPosts < ActiveRecord::Migration[8.0]
   def change
-    add_column :users, :admin, :boolean
+    add_column :posts, :views_bigint, :bigint
   end
 end
 
 # Step 2: Backfill in batches (no lock, controlled DB load)
-class BackfillAdminOnUsers < ActiveRecord::Migration[8.0]
+class BackfillViewsBigintOnPosts < ActiveRecord::Migration[8.0]
   disable_ddl_transaction!
 
   def up
-    User.in_batches(of: 10_000) do |batch|
-      batch.update_all(admin: false)
+    Post.in_batches(of: 10_000) do |batch|
+      batch.update_all("views_bigint = views")
       sleep(0.1)  # Reduce DB load between batches
     end
   end
 end
 
-# Step 3: Add default for future rows (instant in PG 11+)
-class AddDefaultAdminToUsers < ActiveRecord::Migration[8.0]
+# Step 3: Swap columns (rename old, rename new)
+class SwapViewsColumns < ActiveRecord::Migration[8.0]
   def change
-    change_column_default :users, :admin, from: nil, to: false
+    safety_assured do
+      rename_column :posts, :views, :views_old
+      rename_column :posts, :views_bigint, :views
+    end
   end
 end
 
@@ -864,7 +869,7 @@ end
 #   end
 # end`,
 		commonMistakes: [
-			'Running add_column with default on large tables in production',
+			'Running change_column type on large tables in production (rewrites every row)',
 			'Adding indexes without CONCURRENTLY on tables with active traffic',
 			'Removing columns before the app stops referencing them',
 			'Not using disable_ddl_transaction! with concurrent operations',

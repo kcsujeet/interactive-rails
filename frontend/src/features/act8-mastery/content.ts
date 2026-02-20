@@ -85,31 +85,25 @@ class Api::GatewayController < ApplicationController
 
   # GET /api/dashboard (aggregates from multiple services)
   def dashboard
-    # Parallel service calls with timeout
-    results = Parallel.map(
-      [
-        -> { UserClient.profile(current_user.id) },
-        -> { OrderClient.recent(current_user.id, limit: 5) },
-        -> { NotificationClient.unread_count(current_user.id) },
-        -> { BillingClient.subscription(current_user.id) }
-      ],
-      in_threads: 4
-    ) { |callable| callable.call }
+    # Parallel service calls with resilient fetching
+    user = fetch_or_default { UserClient.profile(current_user.id) }
+    orders = fetch_or_default([]) { OrderClient.recent(current_user.id, limit: 5) }
+    notifications = fetch_or_default(0) { NotificationClient.unread_count(current_user.id) }
+    subscription = fetch_or_default { BillingClient.subscription(current_user.id) }
 
     render json: {
-      user: results[0],
-      recent_orders: results[1],
-      unread_notifications: results[2],
-      subscription: results[3]
+      user: user,
+      recent_orders: orders,
+      unread_notifications: notifications,
+      subscription: subscription
     }
-  rescue ServiceUnavailableError => e
-    # Circuit breaker: return partial data
-    render json: {
-      user: results[0] || { error: 'unavailable' },
-      recent_orders: results[1] || [],
-      unread_notifications: results[2] || 0,
-      subscription: results[3] || { error: 'unavailable' }
-    }, status: :multi_status
+  end
+
+  # Fetch with fallback: isolates each service call
+  def fetch_or_default(fallback = { error: 'unavailable' })
+    yield
+  rescue ServiceUnavailableError
+    fallback
   end
 
   private
@@ -272,8 +266,8 @@ Middleware detects company_id from JWT/subdomain, connects to the correct shard 
 
 **Rails 6.1+ native sharding:**
 - \`connects_to\` supports multiple shards
-- \`connected_to(shard: :shard_one)\` for block-scoped connection
-- \`connecting_to(:shard_two)\` for sticky connection (until changed)
+- \`connected_to(shard: :shard_one) { ... }\` for block-scoped connection
+- \`connected_to(shard: :shard_one, role: :reading) { ... }\` for shard + role
 - Without connecting: \`ActiveRecord::ConnectionNotEstablished\`
 
 **The cost of sharding (from the book):**
@@ -290,6 +284,15 @@ Middleware detects company_id from JWT/subdomain, connects to the correct shard 
 - Migrations must run on ALL shards`,
 		railsCodeExample: `# config/database.yml
 production:
+  primary:
+    adapter: postgresql
+    database: myapp_primary
+    host: primary-db.example.com
+  primary_replica:
+    adapter: postgresql
+    database: myapp_primary
+    host: primary-replica.example.com
+    replica: true
   primary_shard_one:
     adapter: postgresql
     database: myapp_shard_1
@@ -304,13 +307,13 @@ production:
     host: shard3.example.com
 
 # app/models/application_record.rb
+# Global models (users, tenants) use the primary database.
 class ApplicationRecord < ActiveRecord::Base
   primary_abstract_class
 
-  connects_to shards: {
-    shard_one: { writing: :primary_shard_one, reading: :primary_shard_one_replica },
-    shard_two: { writing: :primary_shard_two, reading: :primary_shard_two_replica },
-    shard_three: { writing: :primary_shard_three, reading: :primary_shard_three_replica }
+  connects_to database: {
+    writing: :primary,
+    reading: :primary_replica
   }
 end
 

@@ -25,7 +25,7 @@ const level43MultiDatabase: Level = {
 	startingPipeline: { nodes: [], connections: [] },
 	problem: {
 		observation:
-			'Write latency spikes during peak read traffic. Read queries hold locks that block inserts and updates.',
+			'Write latency spikes during peak read traffic. Reads and writes compete for shared CPU, memory, and I/O on a single server.',
 		rootCause:
 			'All reads and writes hit a single database. No read/write splitting configured.',
 		codeExample: `# Current: Every query hits the primary database
@@ -33,13 +33,14 @@ class ApplicationRecord < ActiveRecord::Base
   primary_abstract_class
 end
 
-# All reads compete with writes on the same connection:
-Order.where(status: "shipped").order(created_at: :desc) # SELECT ... (blocking writes)
-Order.create!(customer_id: 42, total: 99_00)            # INSERT ... (blocked by reads)
+# All reads compete with writes for CPU, memory, and I/O:
+Order.where(status: "shipped").order(created_at: :desc) # SELECT ... (heavy read I/O)
+Order.create!(customer_id: 42, total: 99_00)            # INSERT ... (competes for same resources)
 
 # Under load:
-# - Read queries hold shared locks
-# - Write queries wait for exclusive locks
+# - PostgreSQL MVCC means readers don't block writers,
+#   but they compete for CPU, memory, disk I/O, and shared buffer cache
+# - Heavy analytical reads starve write throughput
 # - p99 latency: 800ms and climbing`,
 		goal: 'Configure read replicas so reads go to replicas and writes go to the primary.',
 		thresholds: {
@@ -890,36 +891,34 @@ const level47DomainEvents: Level = {
 	trigger: {
 		type: 'incident',
 		description:
-			'Payment failure cascades into notification failure. The notification service exception prevents the payment retry from being recorded. Services are tightly coupled through direct method calls.',
+			'The checkout service directly calls Email, Inventory, Analytics, and Shipping. One slow service blocks the entire order. A failure in email prevents shipping from running. Adding a new service means modifying checkout.',
 	},
 	startingPipeline: { nodes: [], connections: [] },
 	problem: {
 		observation:
-			'When payment processing fails, the notification service also raises an error, preventing the payment failure from being logged. A bug in one subsystem breaks an unrelated subsystem.',
+			'Checkout directly calls four services in sequence. If the email service is down, inventory reservation and shipping never run. A bug in one subsystem breaks unrelated subsystems.',
 		rootCause:
-			'Services are tightly coupled through synchronous method calls. Each service directly calls the next, creating a failure cascade.',
+			'Services are tightly coupled through synchronous, sequential method calls. Each service directly calls the next, creating a failure cascade.',
 		codeExample: `# Current: Tight coupling, failure cascades
-class PaymentService
-  def process(order)
-    charge = Stripe::Charge.create(amount: order.total)
-    order.update!(payment_status: 'paid')
+class CheckoutService
+  def call(order)
+    order.complete!
 
-    # Direct coupling: if ANY of these fail, the whole thing fails
-    NotificationService.send_receipt(order)        # Raises if email server is down!
-    InventoryService.reserve_items(order)           # Raises if inventory service is down!
-    AnalyticsService.track_purchase(order)           # Raises if analytics is down!
-    LoyaltyService.award_points(order)               # Raises if loyalty service is down!
-  rescue Stripe::CardError => e
-    order.update!(payment_status: 'failed')
-    NotificationService.send_failure(order)          # Also fails if email is down!
-    raise  # The retry logic never runs
+    # Direct coupling: if ANY of these fail, the rest never run
+    EmailService.send_receipt(order)           # Raises if email server is down!
+    InventoryService.reserve_items(order)      # Never runs if email fails!
+    AnalyticsService.track_purchase(order)     # Never runs if inventory fails!
+    ShippingService.schedule_delivery(order)   # Never runs if analytics fails!
+  rescue => e
+    # One failure blocks everything downstream
+    raise  # The whole checkout fails
   end
 end
 
-# Problem: NotificationService failure prevents payment recording
-# Problem: Every new feature adds another direct call
-# Problem: Cannot test PaymentService without mocking 4 services`,
-		goal: 'Decouple services using domain events and pub/sub so failures are isolated.',
+# Problem: Email failure prevents shipping from running
+# Problem: Every new service means modifying CheckoutService
+# Problem: Cannot test CheckoutService without mocking 4 services`,
+		goal: 'Decouple services using domain events and pub/sub so failures are isolated and services process in parallel.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'domain_events_configured' }],
@@ -931,30 +930,33 @@ end
 
 **Without domain events (tight coupling, failure cascade):**
 \`\`\`
-PaymentService.process(order):
-  1. Stripe charge ✓
-  2. NotificationService.send_receipt(order) ✗ ← Email server down!
+CheckoutService.call(order):
+  1. order.complete! ✓
+  2. EmailService.send_receipt(order) ✗ ← Email server down!
   3. InventoryService.reserve(order) NEVER RUNS
   4. AnalyticsService.track(order) NEVER RUNS
-Result: Payment succeeded but nothing else happened.
+  5. ShippingService.schedule(order) NEVER RUNS
+Result: Order completed but nothing else happened. Sequential = slow.
 \`\`\`
 
-**With domain events (isolated failures):**
+**With domain events (isolated failures, parallel processing):**
 \`\`\`
-PaymentService.process(order):
-  1. Stripe charge ✓
-  2. events.payment_succeeded(order) ← Publish event, return immediately
-Subscribers (independent, isolated):
-  - NotificationListener: ✗ (email down) → retries later
-  - InventoryListener: ✓ (reserved items)
-  - AnalyticsListener: ✓ (tracked purchase)
-Result: 3 out of 4 succeed. Notification retries independently.
+CheckoutService.call(order):
+  1. order.complete! ✓
+  2. publish OrderCompleted event ← Return immediately
+Subscribers (independent, parallel):
+  - EmailSubscriber: ✗ (email down) → retries later
+  - InventorySubscriber: ✓ (reserved items)
+  - AnalyticsSubscriber: ✓ (tracked purchase)
+  - ShippingSubscriber: ✓ (scheduled delivery)
+Result: 3 out of 4 succeed. Email retries independently.
 \`\`\`
 
 **The principle:** A service publishes an event describing what happened. Other services subscribe and react independently. If a subscriber fails, it does not affect the publisher or other subscribers.
 
 **Benefits:**
-- Failure isolation: notification failure does not break payment
+- Failure isolation: email failure does not block inventory or shipping
+- Parallel processing: all subscribers run concurrently, not sequentially
 - Open/closed: add new subscribers without modifying the publisher
 - Testability: test each service in isolation
 - Audit trail: events are a log of everything that happened
@@ -977,87 +979,81 @@ Result: 3 out of 4 succeed. Notification retries independently.
 gem 'wisper'
 gem 'wisper-sidekiq'  # async subscribers
 
-# app/events/order_events.rb
-class OrderEvents
+# app/events/order_completed_event.rb
+class OrderCompletedEvent
   include Wisper::Publisher
 
-  def payment_succeeded(order)
-    broadcast(:payment_succeeded, order)
+  def initialize(order)
+    @order = order
   end
 
-  def payment_failed(order, error)
-    broadcast(:payment_failed, order, error)
+  def call
+    broadcast(:order_completed, @order)
   end
 end
 
-# app/services/payment_service.rb
-class PaymentService
-  def process(order)
-    charge = Stripe::Charge.create(amount: order.total)
-    order.update!(payment_status: 'paid')
+# app/services/checkout_service.rb
+class CheckoutService
+  def call(order)
+    order.complete!
 
     # Publish event, does NOT call subscribers directly
-    events.payment_succeeded(order)
-  rescue Stripe::CardError => e
-    order.update!(payment_status: 'failed')
-    events.payment_failed(order, e)
-    raise
-  end
-
-  private
-
-  def events
-    @events ||= OrderEvents.new
+    OrderCompletedEvent.new(order).call
+    # That's it! No direct dependencies on Email, Inventory, etc.
   end
 end
 
-# app/listeners/notification_listener.rb
-class NotificationListener
-  def payment_succeeded(order)
+# app/subscribers/email_subscriber.rb
+class EmailSubscriber
+  def order_completed(order)
     OrderMailer.receipt(order).deliver_later
   end
-
-  def payment_failed(order, error)
-    OrderMailer.payment_failed(order).deliver_later
-  end
 end
 
-# app/listeners/inventory_listener.rb
-class InventoryListener
-  def payment_succeeded(order)
+# app/subscribers/inventory_subscriber.rb
+class InventorySubscriber
+  def order_completed(order)
     ReserveInventoryJob.perform_later(order.id)
   end
 end
 
-# app/listeners/analytics_listener.rb
-class AnalyticsListener
-  def payment_succeeded(order)
+# app/subscribers/analytics_subscriber.rb
+class AnalyticsSubscriber
+  def order_completed(order)
     TrackPurchaseJob.perform_later(order.id)
+  end
+end
+
+# app/subscribers/shipping_subscriber.rb
+class ShippingSubscriber
+  def order_completed(order)
+    ScheduleDeliveryJob.perform_later(order.id)
   end
 end
 
 # config/initializers/event_subscriptions.rb
 Rails.application.config.after_initialize do
-  OrderEvents.subscribe(NotificationListener.new)
-  OrderEvents.subscribe(InventoryListener.new)
-  OrderEvents.subscribe(AnalyticsListener.new)
-  OrderEvents.subscribe(LoyaltyListener.new)
-  # Add new subscribers here. PaymentService never changes!
+  OrderCompletedEvent.subscribe(EmailSubscriber.new)
+  OrderCompletedEvent.subscribe(InventorySubscriber.new)
+  OrderCompletedEvent.subscribe(AnalyticsSubscriber.new)
+  OrderCompletedEvent.subscribe(ShippingSubscriber.new)
+  # Add new subscribers here. CheckoutService never changes!
 end
 
 # Async subscribers with Wisper-Sidekiq
-OrderEvents.subscribe(NotificationListener, async: true)
+OrderCompletedEvent.subscribe(EmailSubscriber, async: true)
 
 # Testing in isolation:
-RSpec.describe PaymentService do
-  it 'publishes payment_succeeded event' do
+RSpec.describe CheckoutService do
+  it 'publishes order_completed event' do
     events = spy('events')
-    service = PaymentService.new(events: events)
+    allow(OrderCompletedEvent).to receive(:new).and_return(events)
+    allow(events).to receive(:call)
 
-    service.process(order)
+    CheckoutService.new.call(order)
 
-    expect(events).to have_received(:payment_succeeded).with(order)
-    # No need to mock NotificationService, InventoryService, etc.
+    expect(events).to have_received(:call)
+    # No need to mock EmailService, InventoryService, etc.
   end
 end`,
 		commonMistakes: [
@@ -1089,7 +1085,7 @@ end`,
 	},
 	hint: {
 		delay: 25,
-		text: 'Publish domain events from PaymentService. Let listeners subscribe independently.',
+		text: 'Publish an OrderCompleted event from CheckoutService. Let subscribers (Email, Inventory, Analytics, Shipping) react independently.',
 	},
 };
 

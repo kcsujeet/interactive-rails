@@ -204,8 +204,8 @@ rails db:create
 rails server
 
 # Test it
-curl http://localhost:3000/up
-# => {"status":"ok"}`,
+curl -I http://localhost:3000/up
+# => HTTP/1.1 200 OK`,
 		commonMistakes: [
 			'Choosing SQLite for a multi-user API (single-writer limitation)',
 			'Forgetting --api flag (includes unnecessary browser middleware)',
@@ -459,7 +459,11 @@ Rails.application.routes.draw do
 end
 
 # Routes map HTTP verbs + URLs to controller actions.
-# Rails can generate all 5 RESTful routes with one line.
+# In a full-stack app, resources generates 7 routes
+# (including new/edit for HTML forms).
+# In API-only mode, new and edit are excluded --
+# leaving 5 RESTful actions:
+#   index, show, create, update, destroy
 #
 # Namespaces nest routes under a URL prefix:
 #   /posts        => posts#index
@@ -486,7 +490,7 @@ end
 
 The **Router** is the gateway. Without it, requests have no way to reach your controller.
 
-**\`resources :posts\`** generates all 5 RESTful routes at once.
+**\`resources :posts\`** in an API-only app generates 5 RESTful actions (index, show, create, update, destroy). The \`new\` and \`edit\` actions are excluded because API controllers don't serve HTML forms.
 **Namespacing** under \`/api/v1/\` keeps API routes organized and versioned.`,
 		railsCodeExample: `# config/routes.rb
 Rails.application.routes.draw do
@@ -562,7 +566,8 @@ const level6Controller: Level = {
 #
 # The 5 RESTful actions:
 #   index, show, create, update, destroy
-#   (not: list, get, add, remove, new, edit)
+#   (API controllers don't need: new, edit)
+#   (also not: list, get, add, remove)
 #
 # Rails 8 strong params:
 #   params.expect() - safer than require/permit

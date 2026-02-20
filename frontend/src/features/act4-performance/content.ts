@@ -494,7 +494,7 @@ const levelNarrowFetching: Level = {
 	trigger: {
 		type: 'performance_alert',
 		description:
-			'The admin CSV export endpoint crashes with memory exhaustion. It loads 50K user records but only needs 3 columns, but the other 27 columns include a ~75KB TEXT field.',
+			'Multiple endpoints are eating memory: a CSV export loads full objects when it only needs 2 columns, a dropdown loads 10K AR objects for simple key-value pairs, and a nightly sync loads 50K records at once. Time to fetch only what you need.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -548,29 +548,25 @@ const levelNarrowFetching: Level = {
 	},
 	problem: {
 		observation:
-			'`GET /api/posts/export` returns a CSV with only id and title, but loads full ActiveRecord objects with 30 columns. Each record has a ~75KB TEXT column. Fetching 10K records = 750MB of unused data.',
+			'Several endpoints use SELECT * when they only need a few columns. A CSV export loads 50K full objects for just id and email. A dropdown fetches 10K AR objects for simple key-value pairs. A nightly sync loads everything at once instead of batching.',
 		rootCause:
 			'SELECT * fetches every column including large TEXT fields. No narrow fetching (pluck/select) or batch processing (find_in_batches).',
-		codeExample: `# app/controllers/api/v1/posts_controller.rb
-def export
-  @posts = Post.all  # SELECT * FROM posts, loads ALL 30 columns!
-  csv = @posts.map { |p| [p.id, p.title].join(",") }
-  render plain: csv.join("\\n")
+		codeExample: `# CSV export -- loads ALL 30 columns for 2 values
+def export_csv
+  users = User.all  # SELECT * FROM users
+  CSV.generate { |csv| users.each { |u| csv << [u.id, u.email] } }
 end
+# Memory: 681 MB (only needed 2 columns!)
 
-# The posts table has a 'body' TEXT column averaging 75KB per record.
-# 10K records × 30 columns × 75KB body = 750MB of unused data.
-#
-# Memory: 681 MB allocated
-# Time:   212ms
-# Objects: 149,000 allocated
-#
-# We only need id and title!
-# But Post.all loads body, metadata, serialized_config...everything.
+# Dropdown -- full AR objects for key-value pairs
+categories = Category.all
+categories.map { |c| [c.id, c.name] }
+# Creates 10K AR objects for simple data
 
-# For even larger datasets (50K+ records), the entire result set
-# is loaded into memory at once, crashing the Ruby process.`,
-		goal: 'Fetch only the columns you need with pluck or select. Process large datasets in batches with find_in_batches.',
+# Nightly sync -- loads 50K records at once
+User.all.each { |u| SyncService.process(u) }
+# Entire dataset in memory simultaneously`,
+		goal: 'Choose the right fetching strategy for each scenario: pluck for raw values, select for lightweight AR objects, find_in_batches for huge datasets.',
 		thresholds: { maxMemoryUsage: 50 },
 	},
 	successConditions: [{ type: 'queries_optimized' }],
@@ -683,7 +679,7 @@ User.pluck(:id, :name)`,
 	},
 	hint: {
 		delay: 20,
-		text: 'Use pluck(:id, :title) instead of Post.all for the export. For large datasets, use find_in_batches to process in chunks.',
+		text: 'Use pluck when you only need raw values, select when you need model methods, and find_in_batches for huge datasets that would exhaust memory.',
 	},
 };
 
@@ -788,8 +784,8 @@ Post.where(published: true).order(:created_at) # Composite query`,
 
 **Production benchmarks (before vs after index):**
 \`\`\`
-No index:  type=ALL | key=NULL | rows=50,000 | Time: ~800ms
-With index: type=ref | key=index_users_on_email | rows=1 | Time: ~2ms → 400x faster
+No index:  Seq Scan on users  (cost=0.00..245.00 rows=50000) | Time: ~800ms
+With index: Index Scan using index_users_on_email on users  (cost=0.00..8.27 rows=1) | Time: ~2ms → 400x faster
 \`\`\`
 
 **When to add an index:**
@@ -805,11 +801,13 @@ With index: type=ref | key=index_users_on_email | rows=1 | Time: ~2ms → 400x f
 - **Composite**: Multiple columns in one index. Column order matters critically (leftmost prefix rule)
 - **Partial**: Index only a subset of rows. Smaller and faster for common filtered queries
 
-**Reading EXPLAIN output (what each field tells you):**
-- \`type\`: ALL = full table scan (bad), ref = index used (good), const = single row by unique index (best)
-- \`key\`: Which index was used (NULL = no index)
-- \`rows\`: How many rows the DB examined (lower = better)
-- \`Extra\`: \`Using filesort\` = expensive sort, \`Using index\` = covered by index (great), \`Using where\` = filtering after fetch
+**Reading PostgreSQL EXPLAIN output (what each node tells you):**
+- \`Seq Scan\`: Full table scan, reads every row (bad for large tables)
+- \`Index Scan\`: Uses an index to find rows (good)
+- \`Index Only Scan\`: Reads data directly from the index without touching the table (best)
+- \`cost=start..total\`: Estimated startup and total cost in arbitrary units
+- \`rows=N\`: Estimated number of rows returned
+- \`Filter\`: Rows are read then filtered (check if an index could avoid this)
 
 **The leftmost prefix rule (critical for composite indexes):**
 An index on \`[status, created_at]\` is like a dictionary sorted by last name then first name. It is perfect for finding "all published posts sorted by date" (filter by status, then sort by created_at). It is nearly useless for "all posts from January" (only filtering by created_at), because the leftmost column must be in the query.
@@ -1343,7 +1341,7 @@ end`,
 	},
 	hint: {
 		delay: 20,
-		text: 'Add Pagy to the controller. Use pagy(Post.includes(:user), items: 25) and add Link headers to the response.',
+		text: 'Match the pagination strategy to the use case: offset for small datasets with page numbers, cursor (WHERE id > ?) for infinite scroll feeds, keyset with compound keys for high-traffic APIs.',
 	},
 };
 
@@ -1499,8 +1497,9 @@ end
 # app/models/post.rb (manual approach)
 class Post < ApplicationRecord
   scope :search, ->(query) {
+    sanitized = connection.quote(query)
     where("searchable @@ plainto_tsquery('english', ?)", query)
-      .order(Arel.sql("ts_rank(searchable, plainto_tsquery('english', '#{query}')) DESC"))
+      .order(Arel.sql("ts_rank(searchable, plainto_tsquery('english', #{sanitized})) DESC"))
   }
 end
 

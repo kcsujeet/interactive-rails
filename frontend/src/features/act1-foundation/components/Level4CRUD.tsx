@@ -57,7 +57,7 @@ const CREATE_OPTIONS = [
 		label: 'Post.insert(title: "Hello", body: "My first post")',
 		correct: false,
 		feedback:
-			'"insert" is not an ActiveRecord method. Use "create" to build and save in one step.',
+			'"insert" does a raw SQL INSERT, skipping validations and callbacks. For the full lifecycle, pick the method that validates and saves in one step.',
 	},
 ];
 

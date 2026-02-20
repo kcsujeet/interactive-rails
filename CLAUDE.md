@@ -161,6 +161,40 @@ When a level's name suggests a concept that's taught elsewhere, keep the level f
 
 ---
 
+## Rails 8 Reference
+
+This game teaches Rails 8. When referring to features, use "Rails 8" as the version context. Here's what's actually new in Rails 8 (vs backported from earlier versions):
+
+**New defaults in Rails 8:**
+- Kamal 2 for deployment (replaces Capistrano)
+- Thruster as the default HTTP proxy (Puma + asset serving + X-Sendfile)
+- Solid Cable (DB-backed Action Cable adapter, replaces Redis for WebSockets)
+- Solid Cache (DB-backed cache store, replaces Redis/Memcached for caching)
+- Solid Queue (DB-backed job backend, replaces Sidekiq/Resque)
+- Propshaft (asset pipeline, replaces Sprockets)
+- SQLite as a viable default with WAL mode + IMMEDIATE transactions
+
+**New features in Rails 8:**
+- `bin/rails generate authentication` (built-in auth scaffolding with `has_secure_password`, session model, password resets)
+- `params.expect()` (stricter alternative to `params.require().permit()`)
+- `Script` tag helper for ESM import maps
+- Default `Regexp.timeout` for ReDoS protection
+- `allow_browser` for minimum browser version enforcement
+
+**Features available in Rails 8 but NOT new (introduced earlier):**
+- `normalizes` (Rails 7.1)
+- `encrypts` (Rails 7.0)
+- `generates_token_for` (Rails 7.1)
+- Hash-based enum syntax `enum :status, { draft: 0 }` (Rails 7.0)
+- `with_lock` (Rails 3.2)
+- `query_constraints` for composite primary keys (Rails 7.1)
+
+When writing content, say "Rails 8" as the context (since that's what we teach). Don't say "Rails 7.1+" just because a feature was introduced earlier. The player is learning Rails 8.
+
+**Reference:** https://guides.rubyonrails.org/8_0_release_notes.html
+
+---
+
 ## Code Conventions
 
 ### Icons

@@ -430,7 +430,7 @@ const level17ValidationContracts: Level = {
 	trigger: {
 		type: 'new_feature',
 		description:
-			'The onboarding endpoint creates a User, Company, and Address in one request. Validations are scattered across three models, and cross-model rules like "admin requires paid plan" have nowhere to live.',
+			'The registration endpoint creates a User, Profile, and NotificationPrefs in one request. Validations are scattered inline with duplicated render calls, and cross-field rules like "creator accounts must enable weekly digest" have nowhere to live.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -442,7 +442,7 @@ const level17ValidationContracts: Level = {
 				x: 460,
 				y: 250,
 				locked: true,
-				config: { label: 'OnboardingController' },
+				config: { label: 'RegistrationController' },
 			},
 			{
 				id: 'user-model',
@@ -453,20 +453,20 @@ const level17ValidationContracts: Level = {
 				config: { label: 'User' },
 			},
 			{
-				id: 'company-model',
+				id: 'profile-model',
 				type: 'model',
 				x: 680,
 				y: 250,
 				locked: true,
-				config: { label: 'Company' },
+				config: { label: 'Profile' },
 			},
 			{
-				id: 'address-model',
+				id: 'notif-pref-model',
 				type: 'model',
 				x: 680,
 				y: 380,
 				locked: true,
-				config: { label: 'Address' },
+				config: { label: 'NotificationPref' },
 			},
 			{ id: 'database-node', type: 'database', x: 880, y: 250, locked: true },
 		],
@@ -481,67 +481,68 @@ const level17ValidationContracts: Level = {
 			{
 				id: 'c4',
 				sourceNodeId: 'controller-node',
-				targetNodeId: 'company-model',
+				targetNodeId: 'profile-model',
 			},
 			{
 				id: 'c5',
 				sourceNodeId: 'controller-node',
-				targetNodeId: 'address-model',
+				targetNodeId: 'notif-pref-model',
 			},
 			{ id: 'c6', sourceNodeId: 'user-model', targetNodeId: 'database-node' },
 			{
 				id: 'c7',
-				sourceNodeId: 'company-model',
+				sourceNodeId: 'profile-model',
 				targetNodeId: 'database-node',
 			},
 			{
 				id: 'c8',
-				sourceNodeId: 'address-model',
+				sourceNodeId: 'notif-pref-model',
 				targetNodeId: 'database-node',
 			},
 		],
 	},
 	problem: {
 		observation:
-			'The controller manually validates and creates three models. Cross-model rules like "company name is required if role is admin" live in the controller. Partial failures leave orphaned records because there is no transaction.',
+			'The registration controller validates and creates User, Profile, and NotificationPrefs inline. Cross-field rules like "creator role requires weekly digest" live in the controller. Every model validates independently with duplicated render calls.',
 		rootCause:
-			'No validation contract to encapsulate multi-model validation and creation in a single transactional unit.',
-		codeExample: `# app/controllers/api/v1/onboarding_controller.rb
-class Api::V1::OnboardingController < ApplicationController
+			'No validation contract to encapsulate multi-model validation. Scattered inline checks instead of composable schemas with cross-field rules.',
+		codeExample: `# app/controllers/registration_controller.rb
+class RegistrationController < ApplicationController
   def create
-    # Manual validation in the controller -- messy!
-    if params[:role] == "admin" && params[:company_name].blank?
-      return render json: { error: "Company name required for admins" }, status: 422
+    # User validations -- inline!
+    if params[:email].blank?
+      return render json: { error: "..." }, status: 422
+    end
+    if params[:password].length < 8
+      return render json: { error: "..." }, status: 422
     end
 
-    user = User.new(email: params[:email], password: params[:password], role: params[:role])
-    unless user.valid?
-      return render json: { errors: user.errors }, status: 422
+    # Profile validations -- inline!
+    if params[:display_name].blank?
+      return render json: { error: "..." }, status: 422
+    end
+    if params[:bio].length > 500
+      return render json: { error: "..." }, status: 422
     end
 
-    company = Company.new(name: params[:company_name], plan: params[:plan])
-    unless company.valid?
-      return render json: { errors: company.errors }, status: 422
+    # Notification prefs validations -- inline!
+    unless %w[daily weekly monthly never].include?(params[:digest])
+      return render json: { error: "..." }, status: 422
     end
 
-    # No transaction! Partial failures create orphaned records
-    user.save!
-    company.save!
-    company.update!(owner: user)
-    Address.create!(
-      addressable: company,
-      street: params[:street],
-      city: params[:city],
-      country: params[:country]
-    )
+    # Cross-field business rule -- also inline!
+    if params[:role] == "creator" && params[:digest] != "weekly"
+      return render json: { error: "..." }, status: 422
+    end
+
+    user = User.create!(...)
+    Profile.create!(user: user, ...)
+    NotificationPref.create!(user: user, ...)
 
     render json: user, status: :created
-  rescue ActiveRecord::RecordInvalid => e
-    # Some records were already saved -- data inconsistency!
-    render json: { error: e.message }, status: 422
   end
 end`,
-		goal: 'Create a Dry::Validation contract that validates all inputs with schema + rules, then a service to persist them in a single transaction.',
+		goal: 'Extract scattered validations into composable Dry::Schema definitions, then compose them in a Dry::Validation::Contract with cross-field rules.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'form_object_created' }],
@@ -566,8 +567,8 @@ end`,
 
 **Key concepts:**
 - \`Dry::Schema.Params { required(:email).filled(:string) }\`: reusable schema (shape + types)
-- \`params(UserSchema & CompanySchema)\`: compose schemas in a contract
-- \`rule(:role, :plan) { ... }\`: business rules that span multiple fields
+- \`params(UserSchema & ProfileSchema)\`: compose schemas in a contract
+- \`rule(:role, :email_digest) { ... }\`: business rules that span multiple fields
 - \`key.failure("message")\`: attach errors to specific fields
 - \`contract.call(params)\` returns a \`Result\` (success or failure with errors)`,
 		railsCodeExample: `# Gemfile
@@ -578,38 +579,41 @@ gem "dry-schema"
 UserSchema = Dry::Schema.Params do
   required(:email).filled(:string, format?: URI::MailTo::EMAIL_REGEXP)
   required(:password).filled(:string, min_size?: 8)
-  required(:role).filled(:string)
+  required(:username).filled(:string, min_size?: 3)
+  optional(:role).filled(:string)
 end
 
-# app/schemas/company_schema.rb
-CompanySchema = Dry::Schema.Params do
-  required(:company_name).filled(:string)
-  required(:plan).filled(:string)
+# app/schemas/profile_schema.rb
+ProfileSchema = Dry::Schema.Params do
+  required(:display_name).filled(:string)
+  optional(:bio).filled(:string, max_size?: 500)
+  optional(:location).filled(:string)
 end
 
-# app/schemas/address_schema.rb
-AddressSchema = Dry::Schema.Params do
-  required(:city).filled(:string)
-  required(:country).filled(:string)
-  optional(:street).maybe(:string)
+# app/schemas/notif_prefs_schema.rb
+NotifPrefsSchema = Dry::Schema.Params do
+  required(:email_digest).filled(:string,
+    included_in?: %w[daily weekly monthly never])
+  optional(:push_enabled).filled(:bool)
+  optional(:mentions_only).filled(:bool)
 end
 
-# app/contracts/onboarding_contract.rb
-class OnboardingContract < Dry::Validation::Contract
+# app/contracts/registration_contract.rb
+class RegistrationContract < Dry::Validation::Contract
   # Compose reusable schemas - each can be shared across contracts
-  params(UserSchema & CompanySchema & AddressSchema)
+  params(UserSchema & ProfileSchema & NotifPrefsSchema)
 
   # Rules: cross-field business logic (runs after all schemas pass)
-  rule(:role, :plan) do
-    if values[:role] == "admin" && values[:plan] == "starter"
-      key(:plan).failure("must be a paid plan for admin users")
+  rule(:role, :email_digest) do
+    if values[:role] == "creator" && values[:email_digest] != "weekly"
+      key(:role).failure("creators need weekly digest")
     end
   end
 end
 
-# app/services/onboarding_service.rb
-class OnboardingService
-  def initialize(contract: OnboardingContract.new)
+# app/services/registration_service.rb
+class RegistrationService
+  def initialize(contract: RegistrationContract.new)
     @contract = contract
   end
 
@@ -620,29 +624,34 @@ class OnboardingService
     attrs = result.to_h
 
     ActiveRecord::Base.transaction do
-      company = Company.create!(name: attrs[:company_name], plan: attrs[:plan])
       user = User.create!(
         email: attrs[:email],
         password: attrs[:password],
-        role: attrs[:role],
-        company: company
+        username: attrs[:username],
+        role: attrs[:role]
       )
-      Address.create!(
-        addressable: company,
-        street: attrs[:street],
-        city: attrs[:city],
-        country: attrs[:country]
+      Profile.create!(
+        user: user,
+        display_name: attrs[:display_name],
+        bio: attrs[:bio],
+        location: attrs[:location]
+      )
+      NotificationPref.create!(
+        user: user,
+        email_digest: attrs[:email_digest],
+        push_enabled: attrs[:push_enabled],
+        mentions_only: attrs[:mentions_only]
       )
 
-      { user: user, company: company }
+      { user: user }
     end
   end
 end
 
-# app/controllers/api/v1/onboarding_controller.rb
-class Api::V1::OnboardingController < ApplicationController
+# app/controllers/registration_controller.rb
+class RegistrationController < ApplicationController
   def create
-    result = OnboardingService.new.call(onboarding_params)
+    result = RegistrationService.new.call(registration_params)
 
     if result.is_a?(Dry::Validation::Result)
       render json: { errors: result.errors.to_h }, status: :unprocessable_entity
@@ -653,45 +662,45 @@ class Api::V1::OnboardingController < ApplicationController
 
   private
 
-  def onboarding_params
-    params.expect(onboarding: [
-      :email, :password, :role,
-      :company_name, :plan,
-      :street, :city, :country
+  def registration_params
+    params.expect(registration: [
+      :email, :password, :username, :role,
+      :display_name, :bio, :location,
+      :email_digest, :push_enabled, :mentions_only
     ])
   end
 end
 
-# test/contracts/onboarding_contract_test.rb
-class OnboardingContractTest < ActiveSupport::TestCase
-  setup { @contract = OnboardingContract.new }
+# test/contracts/registration_contract_test.rb
+class RegistrationContractTest < ActiveSupport::TestCase
+  setup { @contract = RegistrationContract.new }
 
   test "valid params pass" do
     result = @contract.call(
       email: "alice@example.com", password: "secure1234",
-      role: "member", company_name: "Acme", plan: "pro",
-      city: "Portland", country: "US"
+      username: "alice", role: "member",
+      display_name: "Alice", email_digest: "weekly"
     )
 
     assert result.success?
   end
 
-  test "admin with starter plan fails" do
+  test "creator without weekly digest fails" do
     result = @contract.call(
-      email: "admin@example.com", password: "secure1234",
-      role: "admin", plan: "starter",
-      company_name: "Acme", city: "Portland", country: "US"
+      email: "bob@example.com", password: "secure1234",
+      username: "bob", role: "creator",
+      display_name: "Bob", email_digest: "monthly"
     )
 
     assert result.failure?
-    assert_includes result.errors[:plan], "must be a paid plan for admin users"
+    assert result.errors[:role].any?
   end
 
   test "missing email fails schema check" do
     result = @contract.call(
-      password: "secure1234", role: "member",
-      company_name: "Acme", plan: "pro",
-      city: "Portland", country: "US"
+      password: "secure1234", username: "alice",
+      role: "member", display_name: "Alice",
+      email_digest: "weekly"
     )
 
     assert result.failure?
@@ -905,8 +914,13 @@ class PostQuery < ApplicationQuery
     self
   end
 
+  SORTABLE_COLUMNS = %w[published_at created_at title].freeze
+  SORT_DIRECTIONS = %w[asc desc].freeze
+
   def sorted(column = :published_at, direction = :desc)
-    @scope = @scope.order(column => direction)
+    safe_column = SORTABLE_COLUMNS.include?(column.to_s) ? column : :published_at
+    safe_direction = SORT_DIRECTIONS.include?(direction.to_s) ? direction : :desc
+    @scope = @scope.order(safe_column => safe_direction)
     self
   end
 
@@ -1003,6 +1017,7 @@ end`,
 		commonMistakes: [
 			'Returning Array instead of ActiveRecord::Relation (breaks pagination, eager loading, and further chaining)',
 			'Not guarding blank params with `return self if param.blank?` (causes spurious WHERE clauses)',
+			'Passing raw user input to .order() without an allowlist (SQL injection via sort column/direction)',
 			'One giant method instead of composable filters (defeats the purpose of query objects)',
 			'Putting query object logic in model scopes instead (scopes are fine for simple single-purpose filters, but query objects compose better for multi-filter scenarios)',
 			'Forgetting to pass IDs instead of ActiveRecord objects for serialization-safe job arguments',
@@ -1197,7 +1212,7 @@ class Api::V1::PostsController < ApplicationController
   def create
     post = current_user.posts.new(post_params)
     post.save!  # RecordInvalid -> 422 JSON
-    render json: PostSerializer.new(post).serializable_hash.to_json.serializable_hash.to_json, status: :created
+    render json: PostSerializer.new(post).serializable_hash.to_json, status: :created
   end
 
   def update

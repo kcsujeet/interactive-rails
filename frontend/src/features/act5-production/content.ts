@@ -146,9 +146,6 @@ class CreateComments < ActiveRecord::Migration[8.0]
       t.references :user, null: false, foreign_key: true
       t.timestamps
     end
-
-    # Composite index for efficient lookups
-    add_index :comments, [:commentable_type, :commentable_id]
   end
 end
 
@@ -676,12 +673,9 @@ User.find_by(phone: "+1-555-0123")  # Raises ActiveRecord::Encryption::Errors::C
 # => "{"p":"dB3dhj...","h":{"iv":"f9w...","at":"Ij..."}}"
 
 # Migrating existing plaintext data
-class EncryptExistingUsers < ActiveRecord::Migration[8.0]
-  def up
-    User.find_each do |user|
-      user.encrypt  # Re-saves with encryption
-    end
-  end
+# Re-save records to trigger encryption on write:
+User.find_each do |user|
+  user.save!(validate: false)  # Re-saves with encryption
 end
 
 # Key rotation

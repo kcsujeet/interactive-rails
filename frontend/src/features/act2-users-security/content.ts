@@ -89,7 +89,7 @@ bin/rails generate authentication
 # - User model with has_secure_password
 # - Session model for token management
 # - Authentication concern for controllers
-# - Sign-in/sign-up scaffolding
+# - Login/logout controller scaffolding
 
 # But we're API-only -- we need Bearer tokens, not cookies.`,
 		goal: 'Generate auth scaffolding, add a User model, and protect endpoints with Bearer token authentication.',
@@ -367,7 +367,7 @@ end
 def create
   post = current_user.posts.build(post_params)
   if post.save
-    render json: PostSerializer.new(post).serializable_hash.to_json.serializable_hash.to_json, status: :created
+    render json: PostSerializer.new(post).serializable_hash.to_json, status: :created
   else
     render json: { errors: post.errors.full_messages }, status: :unprocessable_entity
   end
@@ -720,7 +720,7 @@ end
 - Replaces passing \`current_user\` through method arguments
 
 **Authentication vs Authorization:**
-- Authentication: "Who are you?" (Level 8)
+- Authentication: "Who are you?" (Level 9)
 - Authorization: "Are you allowed to do this?" (This level)`,
 		railsCodeExample: `# app/policies/post_policy.rb
 class PostPolicy < ApplicationPolicy
