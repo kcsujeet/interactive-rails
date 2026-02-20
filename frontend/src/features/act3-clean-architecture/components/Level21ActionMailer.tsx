@@ -668,7 +668,7 @@ export function Level21ActionMailer({
 							highlight: emailComponents.tokenGeneration ? [4, 5, 6, 7] : [],
 						},
 					]}
-					learningGoal="Action Mailer + generates_token_for gives you secure, stateless password resets. No token column needed — the token auto-expires when the password changes."
+					learningGoal="Action Mailer + generates_token_for gives you secure, stateless password resets. No token column needed: the token auto-expires when the password changes."
 				>
 					<div className="p-4 border-t border-border">
 						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">

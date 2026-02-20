@@ -408,7 +408,7 @@ export function Level22BackgroundJobs({
 										Solid Queue
 									</div>
 									<div className="text-xs text-muted-foreground">
-										Rails 8 default — DB-backed job queue
+										Rails 8 default: DB-backed job queue
 									</div>
 								</div>
 								<div className="flex gap-2">

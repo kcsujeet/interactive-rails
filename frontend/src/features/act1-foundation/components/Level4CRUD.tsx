@@ -50,14 +50,14 @@ const CREATE_OPTIONS = [
 		label: 'Post.new(title: "Hello", body: "My first post")',
 		correct: false,
 		feedback:
-			'"new" builds the object in memory but doesn\'t save it to the database — use "create" to persist immediately.',
+			'"new" builds the object in memory but doesn\'t save it to the database. Use "create" to persist immediately.',
 	},
 	{
 		id: 'insert',
 		label: 'Post.insert(title: "Hello", body: "My first post")',
 		correct: false,
 		feedback:
-			'"insert" is not an ActiveRecord method — use "create" to build and save in one step.',
+			'"insert" is not an ActiveRecord method. Use "create" to build and save in one step.',
 	},
 ];
 
@@ -73,14 +73,14 @@ const READ_OPTIONS = [
 		label: 'Post.select(1)',
 		correct: false,
 		feedback:
-			'"select" filters columns (like SQL SELECT columns), not records — use "find" to fetch by ID.',
+			'"select" filters columns (like SQL SELECT columns), not records. Use "find" to fetch by ID.',
 	},
 	{
 		id: 'where',
 		label: 'Post.where(1)',
 		correct: false,
 		feedback:
-			'"where" takes conditions like where(title: "Hello") — use "find(1)" to fetch by primary key.',
+			'"where" takes conditions like where(title: "Hello"). Use "find(1)" to fetch by primary key.',
 	},
 ];
 
@@ -96,14 +96,14 @@ const UPDATE_OPTIONS = [
 		label: 'post.title = "Updated"',
 		correct: false,
 		feedback:
-			'Assignment only changes the Ruby object in memory — "update" validates and persists to the DB in one call.',
+			'Assignment only changes the Ruby object in memory. "update" validates and persists to the DB in one call.',
 	},
 	{
 		id: 'update_column',
 		label: 'post.update_column(:title, "Updated")',
 		correct: false,
 		feedback:
-			'"update_column" skips validations and callbacks — use "update" to go through the full Rails lifecycle.',
+			'"update_column" skips validations and callbacks. Use "update" to go through the full Rails lifecycle.',
 	},
 ];
 
@@ -119,7 +119,7 @@ const DESTROY_OPTIONS = [
 		label: 'post.delete',
 		correct: false,
 		feedback:
-			'"delete" runs SQL directly, skipping callbacks — "destroy" runs lifecycle hooks like dependent: :destroy.',
+			'"delete" runs SQL directly, skipping callbacks. "destroy" runs lifecycle hooks like dependent: :destroy.',
 	},
 ];
 

@@ -257,7 +257,7 @@ Result:   Server overwhelmed, all legitimate users get 500 errors
 \`\`\`
 Attacker: 10,000 requests/second → 10 allowed, 9,990 get 429 Too Many Requests
 Legitimate users: Unaffected
-Cost:     Request rejected at Rack middleware level — never hits Rails controllers,
+Cost:     Request rejected at Rack middleware level, never hits Rails controllers,
           never touches the database, minimal server resources consumed
 \`\`\`
 
@@ -267,22 +267,22 @@ Cost:     Request rejected at Rack middleware level — never hits Rails control
 - Simple to configure for specific actions
 - Returns 429 Too Many Requests automatically
 
-**Rack::Attack (Rack-level — more granular):**
+**Rack::Attack (Rack-level, more granular):**
 - Global throttles: \`limit: 10, period: 1\` per IP
 - Per-user throttles via Warden session integration
 - 429 Too Many Requests response with customizable \`throttled_responder\`
-- Operates at the middleware level — before Rails controllers, before authentication, before any application logic
+- Operates at the middleware level: before Rails controllers, before authentication, before any application logic
 
-**Why Rack::Attack over Rails 8 \`rate_limit\`:** Rails 8's built-in rate_limit works per-controller action. Rack::Attack operates at the middleware level — the request is rejected with minimal resource consumption.
+**Why Rack::Attack over Rails 8 \`rate_limit\`:** Rails 8's built-in rate_limit works per-controller action. Rack::Attack operates at the middleware level: the request is rejected with minimal resource consumption.
 
-**Record creation limits** (often overlooked): Add \`MAX_AMOUNT\` validators to prevent data abuse. Real-world story: a customer support SaaS had users storing billions of tickets on the cheapest plan — not doing customer support, using it as free storage.
+**Record creation limits** (often overlooked): Add \`MAX_AMOUNT\` validators to prevent data abuse. Real-world story: a customer support SaaS had users storing billions of tickets on the cheapest plan, not doing customer support, using it as free storage.
 
-**Rate limit values should be in editable storage** (DB column, env var), not hardcoded — avoid deploying just to change a limit.
+**Rate limit values should be in editable storage** (DB column, env var), not hardcoded. Avoid deploying just to change a limit.
 
-**Defense in depth — three layers for production:**
+**Defense in depth, three layers for production:**
 1. **Rack::Attack** at the Rack level: Catches abuse before Rails even boots. IP throttling, blocklists, and Allow2Ban for repeat offenders. This is your first line of defense
 2. **Rails 8 \`rate_limit\`** at the controller level: Per-action, per-user limits with business context (e.g., 10 login attempts per 3 minutes per IP)
-3. **CDN/Load balancer** at the edge: Cloudflare, AWS WAF, or nginx rate limiting. Cheapest place to drop bad traffic — it never even reaches your servers`,
+3. **CDN/Load balancer** at the edge: Cloudflare, AWS WAF, or nginx rate limiting. Cheapest place to drop bad traffic; it never even reaches your servers`,
 		railsCodeExample: `# ============================
 # Layer 1: Rails 8 rate_limit
 # ============================
@@ -415,7 +415,7 @@ end`,
 				url: 'https://github.com/rack/rack-attack',
 			},
 			{
-				title: 'Book: "Rails Scales!", Chapter 7 — Rate Limits with Rack::Attack',
+				title: 'Book: "Rails Scales!", Chapter 7: Rate Limits with Rack::Attack',
 				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],
@@ -1230,7 +1230,7 @@ Order.where("created_at < ?", 1.year.ago).count  # => 47,500,000
 
 # Every query scans the full table:
 # EXPLAIN: Seq Scan on orders (rows=50,000,000)
-# Even indexed queries are slow — the index itself is 4GB
+# Even indexed queries are slow; the index itself is 4GB
 
 # Backups take 6 hours and sometimes fail
 # pg_dump: 48GB uncompressed
@@ -1266,7 +1266,7 @@ After archiving (2.5M rows):
   Migration:    30 seconds → 60x faster
 \`\`\`
 
-**The Gordian Knot metaphor:** The "assumed requirement" is keeping everything forever. Challenge it. Destroying data is the most effective scalability solution — if the data isn't there, you don't need to query it, index it, back it up, or migrate it.
+**The Gordian Knot metaphor:** The "assumed requirement" is keeping everything forever. Challenge it. Destroying data is the most effective scalability solution: if the data isn't there, you don't need to query it, index it, back it up, or migrate it.
 
 **Archiving strategies for warm data:**
 - **Separate table** (\`archived_orders\`): SQL queries still work. Easy to re-query if needed
@@ -1379,7 +1379,7 @@ Order.where(status: "shipped").order(created_at: :desc).limit(25)
 				url: 'https://www.postgresql.org/docs/current/ddl-partitioning.html',
 			},
 			{
-				title: 'Book: "Rails Scales!", Chapter 7 — Hot/Warm/Cold Data & Archiving',
+				title: 'Book: "Rails Scales!", Chapter 7: Hot/Warm/Cold Data & Archiving',
 				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],
@@ -1452,9 +1452,9 @@ No answers. Every alert feels equally urgent.
 **With SLOs:**
 \`\`\`
 SLO:           p95 latency ≤ 200ms, 99% of the time, 30-day rolling window
-Current:       99.3% — within budget
+Current:       99.3%, within budget
 Error budget:  0.3% remaining (was 1%)
-Alert:         "Error budget at 30% — freeze risky deploys"
+Alert:         "Error budget at 30%, freeze risky deploys"
 Decision:      Clear, data-driven, no guesswork
 \`\`\`
 
@@ -1464,7 +1464,7 @@ Decision:      Clear, data-driven, no guesswork
 - **SLA (Service Level Agreement):** Contractual agreement with customers (consequences if breached)
 - **Error budget:** If SLO is 99%, you have 1% budget for failures. Spend it on risky deploys/experiments. When exhausted → freeze features, fix reliability
 
-**Latency percentiles — measure what matters:**
+**Latency percentiles (measure what matters):**
 - **p50 (median):** Half of requests faster, half slower. Hides tail latency
 - **p75:** 75% of requests faster than this value
 - **p90:** 90% of requests. Starting to see edge cases
@@ -1685,11 +1685,11 @@ end`,
 				url: 'https://docs.sentry.io/platforms/ruby/guides/rails/',
 			},
 			{
-				title: 'Google SRE Book — SLOs',
+				title: 'Google SRE Book: SLOs',
 				url: 'https://sre.google/sre-book/service-level-objectives/',
 			},
 			{
-				title: 'Book: "Rails Scales!", Chapter 8 — SLOs, SLIs, Error Budgets',
+				title: 'Book: "Rails Scales!", Chapter 8: SLOs, SLIs, Error Budgets',
 				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],

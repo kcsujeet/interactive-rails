@@ -31,7 +31,7 @@ interface SuccessCondition {
 	targetType?: string;
 }
 
-// Extracted from usePipelineValidation.ts — pure function version of evaluateCondition
+// Extracted from usePipelineValidation.ts - pure function version of evaluateCondition
 function evaluateCondition(
 	condition: SuccessCondition,
 	placedNodes: PlacedNode[],
@@ -300,7 +300,7 @@ describe('evaluateCondition', () => {
 				node('ctrl', 'controller'),
 				node('res', 'response'),
 			];
-			// router is not connected — req→ctrl→res, router floats
+			// router is not connected: req->ctrl->res, router floats
 			const connections = [conn('req', 'ctrl'), conn('ctrl', 'res')];
 			const result = evaluateCondition(condition, nodes, connections);
 			expect(result.passed).toBe(false);
@@ -382,7 +382,7 @@ describe('evaluateCondition', () => {
 				conn('ser', 'res'),
 			];
 			const result = evaluateCondition(condition, nodes, connections);
-			// db is reachable from req, but is db a dead end? That's fine —
+			// db is reachable from req, but is db a dead end? That's fine -
 			// the condition checks that all nodes are reachable, not that all lead to response
 			expect(result.passed).toBe(true);
 		});

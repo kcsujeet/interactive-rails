@@ -44,7 +44,7 @@ export function Level1Environment({ onComplete, onExit }: LevelComponentProps) {
 			command: 'apt-get install asdf',
 			correct: false,
 			feedback:
-				'apt-get is a Linux package manager — not available on macOS.',
+				'apt-get is a Linux package manager, not available on macOS.',
 		},
 		{
 			id: 'correct',
@@ -58,7 +58,7 @@ export function Level1Environment({ onComplete, onExit }: LevelComponentProps) {
 			command: 'npm install -g asdf',
 			correct: false,
 			feedback:
-				"asdf isn't a Node package — it's a system tool, not an npm module.",
+				"asdf isn't a Node package. It's a system tool, not an npm module.",
 		},
 	];
 
@@ -76,7 +76,7 @@ export function Level1Environment({ onComplete, onExit }: LevelComponentProps) {
 			command: 'echo \'export PATH="/opt/homebrew/opt/asdf/bin:$PATH"\' >> ~/.zshrc',
 			correct: false,
 			feedback:
-				"Adding the binary to PATH isn't enough — asdf needs its shell integration sourced to manage shims.",
+				"Adding the binary to PATH isn't enough. asdf needs its shell integration sourced to manage shims.",
 		},
 		{
 			id: 'wrong-path',
@@ -84,7 +84,7 @@ export function Level1Environment({ onComplete, onExit }: LevelComponentProps) {
 			command: "echo 'source /usr/local/asdf/asdf.sh' >> ~/.zshrc",
 			correct: false,
 			feedback:
-				'That path is for older Intel Macs — Homebrew on Apple Silicon installs to /opt/homebrew.',
+				'That path is for older Intel Macs. Homebrew on Apple Silicon installs to /opt/homebrew.',
 		},
 		{
 			id: 'correct',
@@ -98,7 +98,7 @@ export function Level1Environment({ onComplete, onExit }: LevelComponentProps) {
 			command: "echo 'alias asdf=\"/opt/homebrew/bin/asdf\"' >> ~/.zshrc",
 			correct: false,
 			feedback:
-				'An alias only gives you the command — asdf also needs shell hooks for shim management.',
+				'An alias only gives you the command. asdf also needs shell hooks for shim management.',
 		},
 	];
 
@@ -116,7 +116,7 @@ export function Level1Environment({ onComplete, onExit }: LevelComponentProps) {
 			command: 'echo "Ruby 3.3.6" > .tool-versions',
 			correct: false,
 			feedback:
-				'asdf plugin names are always lowercase — "Ruby" won\'t be recognized.',
+				'asdf plugin names are always lowercase. "Ruby" won\'t be recognized.',
 		},
 		{
 			id: 'yaml',
@@ -124,7 +124,7 @@ export function Level1Environment({ onComplete, onExit }: LevelComponentProps) {
 			command: 'echo "ruby: 3.3.6" > .tool-versions',
 			correct: false,
 			feedback:
-				".tool-versions isn't YAML — colons are not part of the format.",
+				".tool-versions isn't YAML. Colons are not part of the format.",
 		},
 		{
 			id: 'hyphen',
@@ -132,7 +132,7 @@ export function Level1Environment({ onComplete, onExit }: LevelComponentProps) {
 			command: 'echo "ruby-3.3.6" > .tool-versions',
 			correct: false,
 			feedback:
-				'Hyphens are not the separator in .tool-versions — try a different delimiter.',
+				'Hyphens are not the separator in .tool-versions. Try a different delimiter.',
 		},
 		{
 			id: 'correct',
@@ -154,7 +154,7 @@ export function Level1Environment({ onComplete, onExit }: LevelComponentProps) {
 			command: 'brew install ruby',
 			correct: false,
 			feedback:
-				"A system-installed Ruby won't read .tool-versions — you need the version manager to handle it.",
+				"A system-installed Ruby won't read .tool-versions. You need the version manager to handle it.",
 		},
 		{
 			id: 'wrong-ruby',
@@ -201,7 +201,7 @@ export function Level1Environment({ onComplete, onExit }: LevelComponentProps) {
 			command: 'brew install rails',
 			correct: false,
 			feedback:
-				"Rails isn't a system package — it's distributed through Ruby's own ecosystem.",
+				"Rails isn't a system package. It's distributed through Ruby's own ecosystem.",
 		},
 	];
 
@@ -231,7 +231,7 @@ export function Level1Environment({ onComplete, onExit }: LevelComponentProps) {
 		return { valid: true, message: 'Dev environment is ready!' };
 	};
 
-	// Code preview — only generated FILES, no terminal (center panel handles that)
+	// Code preview: only generated FILES, no terminal (center panel handles that)
 	// furthestStep: 0=start, 1=installed asdf, 2=sourced zshrc, 3=configured .tool-versions, 4=installed ruby, 5=installed rails
 	const getCodeFiles = () => {
 		const files = [];
@@ -293,7 +293,7 @@ gem "solid_cable"`,
 			description: (
 				<p className="text-sm text-muted-foreground">
 					asdf is a version manager that handles Ruby, Node, Python, and
-					more — all with one tool. How do you install it on macOS?
+					more, all with one tool. How do you install it on macOS?
 				</p>
 			),
 			commands: asdfCommands,
@@ -382,7 +382,7 @@ gem "solid_cable"`,
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Before writing any code, you need Ruby and Rails on your machine.
 							Use <span className="font-mono text-primary">asdf</span> to
-							manage versions — it keeps every project pinned to the exact Ruby
+							manage versions. It keeps every project pinned to the exact Ruby
 							it needs.
 						</p>
 					</div>

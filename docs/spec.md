@@ -4,7 +4,7 @@ This is the definitive design document for Rails Expert. It outlines the 55-leve
 
 ## Core Philosophy: App-Driven Learning
 
-Every level exists because the app **needs** it at that stage — not because Rails has a feature to showcase. Players build a production-grade, billion-dollar SaaS app while learning major Rails 8 concepts along the way.
+Every level exists because the app **needs** it at that stage, not because Rails has a feature to showcase. Players build a production-grade, billion-dollar SaaS app while learning major Rails 8 concepts along the way.
 
 **Rails 8 API-only** with a React frontend. Rails 8 features (Solid Trifecta, built-in auth, `rate_limit`, `params.expect()`, etc.) appear naturally when they solve a real problem.
 
@@ -19,7 +19,7 @@ Every level exists because the app **needs** it at that stage — not because Ra
 | # | Name | Concept | Scenario |
 |---|------|---------|----------|
 | 1 | First Boot | `rails new --api`, PostgreSQL vs SQLite | Day 1. Choose your database. Rails 8 makes SQLite production-ready, PostgreSQL for scale. |
-| 2 | The Model | ActiveRecord, migrations, schema | Need a blog API. Define what a Post looks like — attributes, types, constraints. |
+| 2 | The Model | ActiveRecord, migrations, schema | Need a blog API. Define what a Post looks like: attributes, types, constraints. |
 | 3 | CRUD Operations | ActiveRecord CRUD, Rails console | Model exists but DB is empty. Create, read, update, destroy records. |
 | 4 | Routes & Request Lifecycle | `resources`, namespaces, request flow | Routes defined, requests traced. Map HTTP verbs + URLs to controller actions under /api/v1/. |
 | 5 | The Controller | API controllers, `render json:`, `params.expect()` | Routes exist but nothing responds. Build a controller that handles those routes and returns JSON. |
@@ -161,6 +161,6 @@ Every level exists because the app **needs** it at that stage — not because Ra
 ## Stats
 
 - **55 levels, 8 acts**
-- **API-only** — no view/Turbo complexity
+- **API-only**, no view/Turbo complexity
 - **~28 levels** requiring tests (from Level 13 onward)
 - **App-driven**: each level solves a real problem, not a feature demo

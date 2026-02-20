@@ -554,7 +554,7 @@ end`,
 **Why dry-validation over ActiveModel::Model?**
 - **Two-layer validation:** Schema checks structure/types first, rules check business logic second
 - **Composable:** Contracts can reuse shared schemas and rule sets
-- **Immutable:** No mutation, no state — easier to reason about
+- **Immutable:** No mutation, no state, easier to reason about
 - **Better errors:** Structured error objects with paths, not just flat strings
 - **No Rails coupling:** Works in service objects, CLI tools, anywhere
 
@@ -565,10 +565,10 @@ end`,
 4. A separate service wraps persistence in a transaction
 
 **Key concepts:**
-- \`Dry::Schema.Params { required(:email).filled(:string) }\` — reusable schema (shape + types)
-- \`params(UserSchema & CompanySchema)\` — compose schemas in a contract
-- \`rule(:role, :plan) { ... }\` — business rules that span multiple fields
-- \`key.failure("message")\` — attach errors to specific fields
+- \`Dry::Schema.Params { required(:email).filled(:string) }\`: reusable schema (shape + types)
+- \`params(UserSchema & CompanySchema)\`: compose schemas in a contract
+- \`rule(:role, :plan) { ... }\`: business rules that span multiple fields
+- \`key.failure("message")\`: attach errors to specific fields
 - \`contract.call(params)\` returns a \`Result\` (success or failure with errors)`,
 		railsCodeExample: `# Gemfile
 gem "dry-validation"
@@ -596,7 +596,7 @@ end
 
 # app/contracts/onboarding_contract.rb
 class OnboardingContract < Dry::Validation::Contract
-  # Compose reusable schemas — each can be shared across contracts
+  # Compose reusable schemas - each can be shared across contracts
   params(UserSchema & CompanySchema & AddressSchema)
 
   # Rules: cross-field business logic (runs after all schemas pass)
@@ -825,7 +825,7 @@ end
 	availableNodes: ['query_object'],
 	unlockedNodes: ['query_object'],
 	learningContent: {
-		title: 'Query Objects — Composable PORO Queries',
+		title: 'Query Objects: Composable PORO Queries',
 		conceptExplanation: `Query objects extract complex query chains from controllers into reusable POROs in \`app/queries/\`.
 
 **Why use query objects?**

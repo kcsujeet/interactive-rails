@@ -1,7 +1,7 @@
 /**
  * Inspector Panel Component
  * Right sidebar content with validation and stats.
- * Renders content only — wrap in RightPanel for layout chrome.
+ * Renders content only. Wrap in RightPanel for layout chrome.
  */
 
 import type {

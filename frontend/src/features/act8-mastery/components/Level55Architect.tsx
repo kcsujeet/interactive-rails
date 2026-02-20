@@ -1,7 +1,7 @@
 /**
  * Level 50: The Architect (Capstone)
  *
- * Full architecture canvas — apply every concept from the game.
+ * Full architecture canvas. Apply every concept from the game.
  * Extract billing from a monolith using state machines, domain events,
  * API gateway, multi-database, observability, tenant isolation,
  * background jobs, and circuit breakers.

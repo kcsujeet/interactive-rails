@@ -377,7 +377,7 @@ end`
 				: `class ProductsController < ApplicationController
   def index
     @products = Product.all
-    # No caching — every request hits the server
+    # No caching: every request hits the server
     render json: @products
   end
 end`,
@@ -405,7 +405,7 @@ end`
 				: `class PostsController < ApplicationController
   def show
     @post = Post.find(params[:id])
-    # No conditional GET — always re-serializes
+    # No conditional GET: always re-serializes
     render json: @post
   end
 end`,
@@ -464,7 +464,7 @@ end`
 
   def orders
     @orders = current_user.orders.recent
-    # No caching — user data needs care
+    # No caching: user data needs care
     render json: @orders
   end
 end`,

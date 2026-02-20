@@ -102,7 +102,7 @@ ActiveRecord::Base.connected_to(role: :writing) do
   Order.create!(customer_id: 42, total: 99_00)  # Hits primary
 end
 
-# In controllers — automatic: GET requests read from replica,
+# In controllers (automatic): GET requests read from replica,
 # POST/PUT/PATCH/DELETE write to primary`,
 		commonMistakes: [
 			'Not accounting for replication lag (user writes then immediately reads stale data)',
@@ -146,12 +146,12 @@ const level44StateMachines: Level = {
 			'Orders have invalid statuses. "shipped" orders are reverting to "pending". No audit trail exists for status changes.',
 		rootCause:
 			'Order status is a plain string with no transition guards. Any code can set any status at any time.',
-		codeExample: `# Current: Status is just a string — no guards
+		codeExample: `# Current: Status is just a string, no guards
 class Order < ApplicationRecord
   # status is a string column: pending, confirmed, shipped, delivered, cancelled
 
   def ship!
-    update!(status: 'shipped')  # No guard — what if status is 'cancelled'?
+    update!(status: 'shipped')  # No guard. What if status is 'cancelled'?
   end
 
   def cancel!
@@ -162,7 +162,7 @@ end
 # Bugs in production:
 order = Order.find(42)
 order.status  # => "shipped"
-order.update!(status: "pending")  # Oops — no error raised!
+order.update!(status: "pending")  # Oops, no error raised!
 
 # No audit trail:
 # Who changed this? When? From what state?`,
@@ -276,7 +276,7 @@ end
 # Usage:
 order = Order.create!
 order.confirm!          # Works if payment_received?
-order.ship!             # Works — transitions confirmed -> shipped
+order.ship!             # Works: transitions confirmed -> shipped
 order.cancel!           # Raises AASM::InvalidTransition!
                         # Cannot cancel a shipped order
 
@@ -328,7 +328,7 @@ const level45MultiTenancy: Level = {
 			"Company A can see Company B's records. Every query must be scoped to the current tenant, but developers keep forgetting.",
 		rootCause:
 			'No tenant isolation. Queries are unscoped and return all records across all tenants.',
-		codeExample: `# Current: No tenant scoping — data leaks!
+		codeExample: `# Current: No tenant scoping, data leaks!
 class Project < ApplicationRecord
   belongs_to :company
 end
@@ -486,7 +486,7 @@ const level46Observability: Level = {
 			'Alerts fire but the team cannot diagnose the root cause. Logs are unstructured, no metrics are tracked, and there is no distributed tracing.',
 		rootCause:
 			'No observability stack. Logging is puts-style strings. No APM, no tracing, no dashboards.',
-		codeExample: `# Current: Unstructured logging — impossible to search or aggregate
+		codeExample: `# Current: Unstructured logging, impossible to search or aggregate
 Rails.logger.info "User #{user.id} placed order #{order.id}"
 Rails.logger.error "Payment failed for order #{order.id}"
 
@@ -542,7 +542,7 @@ Lograge JSON output:
 **APM platform comparison:**
 - **New Relic**: Simplest. Best for small startups / junior teams. Great Rails integration
 - **Grafana** (+ Prometheus, Loki, Jaeger): Open-source, self-hosted, extremely customizable. More setup work
-- **Datadog**: Easy integration, incredibly comprehensive. Coinbase spent $65M/year on it — review your metrics periodically
+- **Datadog**: Easy integration, incredibly comprehensive. Coinbase spent $65M/year on it, so review your metrics periodically
 
 **3. Distributed Tracing:**
 - Follow a request across services
@@ -551,9 +551,9 @@ Lograge JSON output:
 - OpenTelemetry is the standard
 
 **Reading flame graphs (how to identify bottlenecks):**
-1. **Widest boxes first** — most time spent, most optimization opportunity
-2. **Recurring patterns** — repeated similar structures = possible N+1 loop
-3. **Tall stacks** — deep call chains, potential simplification opportunity
+1. **Widest boxes first**: most time spent, most optimization opportunity
+2. **Recurring patterns**: repeated similar structures = possible N+1 loop
+3. **Tall stacks**: deep call chains, potential simplification opportunity
 
 **Custom traces:** \`Datadog::Tracing.trace('presenter.to_json', service: 'presentation-layer')\` creates a new service in your trace explorer. Use for business-critical code paths.`,
 		railsCodeExample: `# Structured logging with Lograge
@@ -666,7 +666,7 @@ end`,
 				url: 'https://docs.datadoghq.com/tracing/trace_collection/dd_libraries/ruby/',
 			},
 			{
-				title: 'Book: "Rails Scales!", Chapter 8 — APM, Traces, Flame Graphs',
+				title: 'Book: "Rails Scales!", Chapter 8: APM, Traces, Flame Graphs',
 				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],
@@ -743,20 +743,20 @@ end
 - A modular monolith gives you domain isolation WITHOUT the infrastructure cost
 - When you DO need to extract a service later, the boundaries are already clean
 
-**Real users:** Shopify (the largest Rails app in the world), Zendesk, GitHub — all use Packwerk-style modular monoliths.
+**Real users:** Shopify (the largest Rails app in the world), Zendesk, GitHub. All use Packwerk-style modular monoliths.
 
 **Packwerk packages:**
 - Each business domain becomes a "package" with its own \`package.yml\`
-- \`enforce_dependencies: true\` — only allow explicit dependencies between packages
-- \`enforce_privacy: true\` — only allow access through the package's public API
+- \`enforce_dependencies: true\`: only allow explicit dependencies between packages
+- \`enforce_privacy: true\`: only allow access through the package's public API
 - \`bin/packwerk check\` catches unauthorized cross-package references at CI time
 
 **CODEOWNERS:**
 - \`.github/CODEOWNERS\` assigns domain experts as required reviewers
 - PRs to \`components/billing/\` require approval from the billing team
-- Branch protection rules enforce it — no merging without domain owner approval
+- Branch protection rules enforce it: no merging without domain owner approval
 
-**Eileen Uchitelle's keynote (Rails World 2024):** "The Myth of the Modular Monolith" — modularity can't fully solve human problems, but it delivers value by reorganizing complexity in ways humans can better understand.`,
+**Eileen Uchitelle's keynote (Rails World 2024):** "The Myth of the Modular Monolith". Modularity can't fully solve human problems, but it delivers value by reorganizing complexity in ways humans can better understand.`,
 		railsCodeExample: `# === Step 1: Organize into Packwerk packages ===
 
 # Gemfile
@@ -784,7 +784,7 @@ gem 'packwerk'
 enforce_dependencies: true
 enforce_privacy: true
 dependencies:
-  - '.'  # Root package only — no direct dependency on notifications!
+  - '.'  # Root package only, no direct dependency on notifications!
 
 # components/notifications/package.yml
 enforce_dependencies: true
@@ -819,7 +819,7 @@ end
 
 # === Step 4: Use public APIs, not direct access ===
 
-# BEFORE (privacy violation — Packwerk will flag this):
+# BEFORE (privacy violation, Packwerk will flag this):
 Audit.create!(auditable: order, action: "created")
 
 # AFTER (goes through public API):
@@ -851,7 +851,7 @@ config/                    @infra-team
 			'Organizing by Rails convention (models/, controllers/) instead of by domain',
 			'Allowing direct model access across packages (bypassing public APIs)',
 			'Not running packwerk check in CI (boundaries only enforced locally)',
-			'Making packages too granular (one per model — defeats the purpose)',
+			'Making packages too granular (one per model, which defeats the purpose)',
 			'Not setting up CODEOWNERS (no ownership enforcement)',
 		],
 		whenToUse:
@@ -866,7 +866,7 @@ config/                    @infra-team
 				url: 'https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners',
 			},
 			{
-				title: 'Book: "Rails Scales!", Chapter 9 — Packwerk & Modular Boundaries',
+				title: 'Book: "Rails Scales!", Chapter 9: Packwerk & Modular Boundaries',
 				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],
@@ -898,7 +898,7 @@ const level47DomainEvents: Level = {
 			'When payment processing fails, the notification service also raises an error, preventing the payment failure from being logged. A bug in one subsystem breaks an unrelated subsystem.',
 		rootCause:
 			'Services are tightly coupled through synchronous method calls. Each service directly calls the next, creating a failure cascade.',
-		codeExample: `# Current: Tight coupling — failure cascades
+		codeExample: `# Current: Tight coupling, failure cascades
 class PaymentService
   def process(order)
     charge = Stripe::Charge.create(amount: order.total)
@@ -929,13 +929,13 @@ end
 		title: 'Domain Events & Event-Driven Architecture',
 		conceptExplanation: `Domain events decouple producers from consumers.
 
-**Without domain events (tight coupling — failure cascade):**
+**Without domain events (tight coupling, failure cascade):**
 \`\`\`
 PaymentService.process(order):
   1. Stripe charge ✓
   2. NotificationService.send_receipt(order) ✗ ← Email server down!
-  3. InventoryService.reserve(order) — NEVER RUNS
-  4. AnalyticsService.track(order) — NEVER RUNS
+  3. InventoryService.reserve(order) NEVER RUNS
+  4. AnalyticsService.track(order) NEVER RUNS
 Result: Payment succeeded but nothing else happened.
 \`\`\`
 
@@ -959,7 +959,7 @@ Result: 3 out of 4 succeed. Notification retries independently.
 - Testability: test each service in isolation
 - Audit trail: events are a log of everything that happened
 
-**Progression — Wisper → Karafka:**
+**Progression, Wisper to Karafka:**
 
 **In-process (Wisper):** Events stay within the Rails process. Simple, no infrastructure. Best for decoupling within a monolith.
 
@@ -971,7 +971,7 @@ Result: 3 out of 4 succeed. Notification retries independently.
 
 **Hybrid:** Publish in-process with Wisper, fan out to Sidekiq jobs. Good middle ground before Kafka.
 
-**Monolith philosophy:** "Stick with a monolith for as long as possible (and no longer)." — Jason Warner (CTO GitHub): "One of the biggest architectural mistakes of the past decade was going full microservice."`,
+**Monolith philosophy:** "Stick with a monolith for as long as possible (and no longer)." Jason Warner (CTO GitHub): "One of the biggest architectural mistakes of the past decade was going full microservice."`,
 		railsCodeExample: `# Using Wisper for in-process domain events
 # Gemfile
 gem 'wisper'
@@ -996,7 +996,7 @@ class PaymentService
     charge = Stripe::Charge.create(amount: order.total)
     order.update!(payment_status: 'paid')
 
-    # Publish event — does NOT call subscribers directly
+    # Publish event, does NOT call subscribers directly
     events.payment_succeeded(order)
   rescue Stripe::CardError => e
     order.update!(payment_status: 'failed')
@@ -1042,7 +1042,7 @@ Rails.application.config.after_initialize do
   OrderEvents.subscribe(InventoryListener.new)
   OrderEvents.subscribe(AnalyticsListener.new)
   OrderEvents.subscribe(LoyaltyListener.new)
-  # Add new subscribers here — PaymentService never changes!
+  # Add new subscribers here. PaymentService never changes!
 end
 
 # Async subscribers with Wisper-Sidekiq
@@ -1082,7 +1082,7 @@ end`,
 				url: 'https://blog.arkency.com/domain-events-over-active-record-callbacks/',
 			},
 			{
-				title: 'Book: "Rails Scales!", Chapter 6 — Kafka + Karafka',
+				title: 'Book: "Rails Scales!", Chapter 6: Kafka + Karafka',
 				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],

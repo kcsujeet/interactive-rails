@@ -3,7 +3,7 @@
  * "Architect entire systems."
  *
  * Levels 48-50: API Gateway, Database Sharding, The Architect (Capstone)
- * The final act — system-level architecture
+ * The final act: system-level architecture
  */
 
 import type { Act, Level } from '@/types';
@@ -83,7 +83,7 @@ class Api::GatewayController < ApplicationController
   before_action :authenticate_at_edge!
   before_action :rate_limit!
 
-  # GET /api/dashboard — aggregates from multiple services
+  # GET /api/dashboard (aggregates from multiple services)
   def dashboard
     # Parallel service calls with timeout
     results = Parallel.map(
@@ -260,7 +260,7 @@ Shard selection: company_id % 3 → shard_one/shard_two/shard_three
 \`\`\`
 
 **ShardRecord abstract class pattern:**
-Only sharded models inherit from \`ShardRecord\`. Global models (users, tenants) stay on \`ApplicationRecord\`. This is critical — you cannot shard the users table because login must work cross-shard.
+Only sharded models inherit from \`ShardRecord\`. Global models (users, tenants) stay on \`ApplicationRecord\`. This is critical: you cannot shard the users table because login must work cross-shard.
 
 **Shard key selection is critical:**
 - Tenant ID (company_id): Natural for B2B SaaS, all tenant data on one shard
@@ -280,7 +280,7 @@ Middleware detects company_id from JWT/subdomain, connects to the correct shard 
 - Analytics requires querying ALL shards + aggregating in memory
 - Accounts may need rebalancing (some users generate orders of magnitude more data → hot shard)
 - Regional segregation (EU data can't live on US shard) adds more complexity
-- A reviewer recommended removing the sharding chapter entirely — "most projects don't need it"
+- A reviewer recommended removing the sharding chapter entirely: "most projects don't need it"
 - Author's response: "For many companies, sharding is one of the key decisions that allowed them to scale."
 
 **Trade-offs:**
@@ -334,7 +334,7 @@ end
 
 # Global models stay on ApplicationRecord (single DB):
 class User < ApplicationRecord
-  # NOT sharded — lives in the global database
+  # NOT sharded, lives in the global database
 end
 
 # === Middleware shard switching ===
@@ -368,7 +368,7 @@ class ShardResolver
   private
 
   def extract_tenant_id(env)
-    # From JWT, subdomain, or header — depends on your auth strategy
+    # From JWT, subdomain, or header (depends on your auth strategy)
     env['current_tenant_id'] || 0
   end
 end
@@ -441,7 +441,7 @@ end`,
 				url: 'https://www.citusdata.com/',
 			},
 			{
-				title: 'Rails Scales! — Chapter 6: Horizontal Sharding',
+				title: 'Rails Scales!, Chapter 6: Horizontal Sharding',
 				url: 'https://pragprog.com/titles/cpscale/rails-scales/',
 			},
 		],
@@ -465,14 +465,14 @@ const level50Architect: Level = {
 	trigger: {
 		type: 'architecture',
 		description:
-			'The billing system is a bottleneck. It is deeply coupled to the monolith, processes payments synchronously, and any change requires deploying the entire application. Design the complete architecture for extracting it into an independent service — using every concept you have learned.',
+			'The billing system is a bottleneck. It is deeply coupled to the monolith, processes payments synchronously, and any change requires deploying the entire application. Design the complete architecture for extracting it into an independent service, using every concept you have learned.',
 	},
 	startingPipeline: { nodes: [], connections: [] },
 	problem: {
 		observation:
 			'Billing code is entangled with order processing, user management, and notifications. Deploying a billing fix requires a full monolith deployment (2 hours). Payment processing latency is 3x higher than it should be because billing queries compete with unrelated traffic on the same database.',
 		rootCause:
-			'The billing domain is not isolated. It shares the database, the deployment pipeline, and the runtime with every other feature. Extracting it requires applying multi-database routing, domain events, API gateway patterns, state machines, observability, and tenant isolation — all at once.',
+			'The billing domain is not isolated. It shares the database, the deployment pipeline, and the runtime with every other feature. Extracting it requires applying multi-database routing, domain events, API gateway patterns, state machines, observability, and tenant isolation, all at once.',
 		codeExample: `# The monolith today: everything coupled
 class Order < ApplicationRecord
   belongs_to :user
@@ -515,11 +515,11 @@ end
 
 # Problems:
 # 1. Billing shares the database with everything else
-# 2. No state machine — invalid payment transitions possible
-# 3. Synchronous side effects — email failure blocks payment
-# 4. No observability — payment failures are invisible
-# 5. No tenant isolation — billing queries scan all tenants
-# 6. Single deployment pipeline — billing fix = full deploy`,
+# 2. No state machine, invalid payment transitions possible
+# 3. Synchronous side effects: email failure blocks payment
+# 4. No observability, payment failures are invisible
+# 5. No tenant isolation, billing queries scan all tenants
+# 6. Single deployment pipeline: billing fix = full deploy`,
 		goal: 'Design the complete architecture for extracting billing into an independent service. Apply multi-database, state machines, domain events, API gateway, observability, and tenant isolation.',
 		thresholds: {},
 	},
@@ -578,10 +578,10 @@ The gateway routes billing requests, handles auth at the edge, and provides circ
 Billing data is sharded by tenant for write scalability.
 
 **Modular monolith with Packwerk (before extracting):**
-Before extracting a service, enforce domain boundaries within the monolith using Shopify's Packwerk gem. Define packages (billing/, orders/, notifications/) with explicit public APIs and dependency rules. Packwerk statically analyzes your code and flags unauthorized cross-package references — catching coupling at CI time, not at extraction time.
+Before extracting a service, enforce domain boundaries within the monolith using Shopify's Packwerk gem. Define packages (billing/, orders/, notifications/) with explicit public APIs and dependency rules. Packwerk statically analyzes your code and flags unauthorized cross-package references, catching coupling at CI time, not at extraction time.
 
 **Gradual rollout with Flipper feature flags:**
-Flipper lets you control the extraction rollout with surgical precision: enable for specific tenants (\`Flipper.enable(:billing_v2, company)\`), by percentage (\`Flipper.enable_percentage_of_actors(:billing_v2, 5)\`), by group (\`Flipper.enable_group(:billing_v2, :beta_testers)\`), or with expressions for complex rules. If anything goes wrong, disable instantly — no deploy required.
+Flipper lets you control the extraction rollout with surgical precision: enable for specific tenants (\`Flipper.enable(:billing_v2, company)\`), by percentage (\`Flipper.enable_percentage_of_actors(:billing_v2, 5)\`), by group (\`Flipper.enable_group(:billing_v2, :beta_testers)\`), or with expressions for complex rules. If anything goes wrong, disable instantly. No deploy required.
 
 **Extraction Strategy: Strangler Fig**
 1. Define the billing bounded context (use Packwerk to enforce it)
@@ -592,7 +592,7 @@ Flipper lets you control the extraction rollout with surgical precision: enable 
 6. Remove billing code from the monolith
 
 **A note on the modular monolith (from the book):**
-Eileen Uchitelle's keynote ("The Myth of the Modular Monolith", Rails World 2024) argues that modularity can't fully solve human problems, but it delivers value by reorganizing complexity in ways humans can better understand. The key insight: enforce boundaries with tools (Packwerk, CODEOWNERS), not just conventions. Jason Warner (CTO GitHub): "One of the biggest architectural mistakes of the past decade was going full microservice." Stick with a monolith for as long as possible — and no longer.`,
+Eileen Uchitelle's keynote ("The Myth of the Modular Monolith", Rails World 2024) argues that modularity can't fully solve human problems, but it delivers value by reorganizing complexity in ways humans can better understand. The key insight: enforce boundaries with tools (Packwerk, CODEOWNERS), not just conventions. Jason Warner (CTO GitHub): "One of the biggest architectural mistakes of the past decade was going full microservice." Stick with a monolith for as long as possible, and no longer.`,
 		railsCodeExample: `# === STEP 1: Define the bounded context ===
 # Billing domain: Payment, Invoice, Subscription, Refund
 
@@ -736,7 +736,7 @@ Flipper.enable_percentage_of_actors(:billing_v2, 5)`,
 				url: 'https://github.com/Shopify/packwerk',
 			},
 			{
-				title: 'Rails Scales! — Full Book (Pragmatic Bookshelf)',
+				title: 'Rails Scales!, Full Book (Pragmatic Bookshelf)',
 				url: 'https://pragprog.com/titles/cpscale/rails-scales/',
 			},
 		],

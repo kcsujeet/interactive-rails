@@ -39,7 +39,7 @@ const STEP_DEFS: StepDef[] = [
 export function Level2FirstBoot({ onComplete, onExit }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 
-	// Step 1: Choose Database — click-to-select with feedback
+	// Step 1: Choose Database - click-to-select with feedback
 	function handleChooseDb(choice: 'postgresql' | 'sqlite') {
 		if (choice === 'postgresql') {
 			stepper.completeStep();
@@ -58,14 +58,14 @@ export function Level2FirstBoot({ onComplete, onExit }: LevelComponentProps) {
 			command: 'gem install pg',
 			correct: false,
 			feedback:
-				"That's the Ruby driver — install the database server itself first.",
+				"That's the Ruby driver. Install the database server itself first.",
 		},
 		{
 			id: 'wrong-apt',
 			label: 'apt-get install postgresql',
 			command: 'apt-get install postgresql',
 			correct: false,
-			feedback: 'apt-get is a Linux package manager — not available on macOS.',
+			feedback: 'apt-get is a Linux package manager, not available on macOS.',
 		},
 		{
 			id: 'correct',
@@ -90,7 +90,7 @@ export function Level2FirstBoot({ onComplete, onExit }: LevelComponentProps) {
 			command: 'rails new myapp',
 			correct: false,
 			feedback:
-				'Missing flags — you need API-only mode and a database adapter.',
+				'Missing flags. You need API-only mode and a database adapter.',
 		},
 		{
 			id: 'correct',
@@ -135,7 +135,7 @@ export function Level2FirstBoot({ onComplete, onExit }: LevelComponentProps) {
 			command: 'rails db:migrate',
 			correct: false,
 			feedback:
-				"Database doesn't exist yet — migrations need an existing database.",
+				"Database doesn't exist yet. Migrations need an existing database.",
 		},
 		{
 			id: 'correct',
@@ -214,7 +214,7 @@ export function Level2FirstBoot({ onComplete, onExit }: LevelComponentProps) {
 		return { valid: true, message: 'Rails app is ready!' };
 	};
 
-	// Terminal steps config for building history (step 0 is Choose DB — no terminal)
+	// Terminal steps config for building history (step 0 is Choose DB - no terminal)
 	const terminalSteps: {
 		stepIndex: number;
 		commands: TerminalCommand[];
@@ -243,7 +243,7 @@ export function Level2FirstBoot({ onComplete, onExit }: LevelComponentProps) {
 		return history;
 	};
 
-	// Code preview — only generated FILES, no terminal (center panel handles that)
+	// Code preview - only generated FILES, no terminal (center panel handles that)
 	// furthestStep: 0=start, 1=chose DB, 2=installed PG, 3=generated project, 4=created DB, 5=booted server
 	const getCodeFiles = () => {
 		const files = [];
@@ -303,7 +303,7 @@ test:
   class Application < Rails::Application
     config.load_defaults 8.0
 
-    # API-only mode: no cookies, sessions, flash
+    # API-only mode: leaner middleware stack
     config.api_only = true
   end
 end`,
@@ -335,7 +335,7 @@ end`,
 					<div className="p-4 border-b border-border">
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Ruby and Rails are installed. Now create your first Rails
-							application — pick a database, install it, generate the project,
+							application. Pick a database, install it, generate the project,
 							and get the server running.
 						</p>
 					</div>

@@ -37,12 +37,12 @@ const RESTFUL_ACTIONS = ['index', 'show', 'create', 'update', 'destroy'];
 const DISTRACTOR_ACTIONS = ['list', 'get', 'add', 'remove', 'new', 'edit'];
 
 const WRONG_ACTION_FEEDBACK: Record<string, string> = {
-	list: '"list" isn\'t a Rails convention — use "index" for listing records.',
-	get: '"get" isn\'t a Rails action — use "show" to display a single record.',
-	add: '"add" isn\'t a Rails action — use "create" to save a new record.',
-	remove: '"remove" isn\'t a Rails action — use "destroy" to delete a record.',
-	new: '"new" renders a form in full-stack Rails — API controllers don\'t need it.',
-	edit: '"edit" renders a form in full-stack Rails — API controllers don\'t need it.',
+	list: '"list" isn\'t a Rails convention. Use "index" for listing records.',
+	get: '"get" isn\'t a Rails action. Use "show" to display a single record.',
+	add: '"add" isn\'t a Rails action. Use "create" to save a new record.',
+	remove: '"remove" isn\'t a Rails action. Use "destroy" to delete a record.',
+	new: '"new" renders a form in full-stack Rails. API controllers don\'t need it.',
+	edit: '"edit" renders a form in full-stack Rails. API controllers don\'t need it.',
 };
 
 // Strong params pieces
@@ -92,7 +92,7 @@ export function Level6Controller({
 			command: 'rails generate controller Post',
 			correct: false,
 			feedback:
-				'Controller names are plural and match the route namespace — use "Api::V1::Posts".',
+				'Controller names are plural and match the route namespace. Use "Api::V1::Posts".',
 		},
 		{
 			id: 'wrong-no-namespace',
@@ -100,7 +100,7 @@ export function Level6Controller({
 			command: 'rails generate controller Posts',
 			correct: false,
 			feedback:
-				'Include the namespace to match your routes — "Api::V1::Posts", not just "Posts".',
+				'Include the namespace to match your routes: "Api::V1::Posts", not just "Posts".',
 		},
 	];
 
@@ -154,7 +154,7 @@ export function Level6Controller({
 
 	const getParamsErrorFeedback = (pieces: string[]): string => {
 		if (pieces.includes('require') || pieces.includes('permit')) {
-			return '`.expect` is the Rails 8 way — it combines require + permit in one call.';
+			return '`.expect` is the Rails 8 way. It combines require + permit in one call.';
 		}
 		if (pieces.includes('partial-attrs')) {
 			return 'Include all three attributes: title, body, and published.';
@@ -544,23 +544,23 @@ end`,
 						</div>
 						<div className="text-xs text-muted-foreground space-y-1">
 							<div>
-								<span className="text-emerald-400 font-mono">index</span> — List
+								<span className="text-emerald-400 font-mono">index</span>: List
 								all records
 							</div>
 							<div>
-								<span className="text-emerald-400 font-mono">show</span> —
+								<span className="text-emerald-400 font-mono">show</span>:
 								Display one record
 							</div>
 							<div>
-								<span className="text-blue-400 font-mono">create</span> — Save a
+								<span className="text-blue-400 font-mono">create</span>: Save a
 								new record
 							</div>
 							<div>
-								<span className="text-amber-400 font-mono">update</span> —
+								<span className="text-amber-400 font-mono">update</span>:
 								Modify existing
 							</div>
 							<div>
-								<span className="text-red-400 font-mono">destroy</span> — Delete
+								<span className="text-red-400 font-mono">destroy</span>: Delete
 								a record
 							</div>
 						</div>

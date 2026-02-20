@@ -65,7 +65,7 @@ const COMPLEXITY_ICONS: Record<Complexity, typeof Filter> = {
 	aggregate: SortAsc,
 };
 
-// Lines of the fat controller — each block maps to a method extraction
+// Lines of the fat controller, each block maps to a method extraction
 interface ControllerLine {
 	code: string;
 	indent: number;
@@ -519,7 +519,7 @@ export function Level19QueryObjects({
 							<li className="flex items-start gap-2">
 								<Database className="w-3 h-3 mt-0.5 text-primary shrink-0" />
 								<span>
-									Base scope: <code>Post.all</code> — override per use case
+									Base scope: <code>Post.all</code>, override per use case
 								</span>
 							</li>
 							<li className="flex items-start gap-2">

@@ -113,7 +113,7 @@ const SECTIONS = [
 	{
 		id: 'call',
 		name: 'Call Method',
-		description: 'The main entry point — one public method',
+		description: 'The main entry point (one public method)',
 	},
 	{
 		id: 'private',

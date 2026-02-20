@@ -65,7 +65,7 @@ export function Level8Associations({
 			command: 'rails generate model Comment body:text',
 			correct: false,
 			feedback:
-				'Comment needs a "post:references" to link to Post — otherwise there\'s no relationship.',
+				'Comment needs a "post:references" to link to Post. Otherwise there\'s no relationship.',
 		},
 	];
 
@@ -84,7 +84,7 @@ export function Level8Associations({
 			description: 'Only one comment per post',
 			correct: false,
 			feedback:
-				'"has_one" means only one comment per post — use "has_many" so posts can have unlimited comments.',
+				'"has_one" means only one comment per post. Use "has_many" so posts can have unlimited comments.',
 		},
 		{
 			id: 'has_many',
@@ -99,7 +99,7 @@ export function Level8Associations({
 			description: 'Post belongs to a Comment',
 			correct: false,
 			feedback:
-				'"belongs_to" goes on the child side (Comment) — Post is the parent and "has_many" comments.',
+				'"belongs_to" goes on the child side (Comment). Post is the parent and "has_many" comments.',
 		},
 		{
 			id: 'habtm',
@@ -107,7 +107,7 @@ export function Level8Associations({
 			description: 'Comments shared between posts',
 			correct: false,
 			feedback:
-				'"has_and_belongs_to_many" creates a many-to-many relationship — comments belong to one post, not shared across many.',
+				'"has_and_belongs_to_many" creates a many-to-many relationship. Comments belong to one post, not shared across many.',
 		},
 	];
 
@@ -126,7 +126,7 @@ export function Level8Associations({
 			description: 'Set post_id to NULL on comments',
 			correct: false,
 			feedback:
-				'Orphaned comments with NULL post_id would break your API — use :destroy to clean them up.',
+				'Orphaned comments with NULL post_id would break your API. Use :destroy to clean them up.',
 		},
 		{
 			id: 'restrict',
@@ -142,7 +142,7 @@ export function Level8Associations({
 			description: 'Do nothing when post is deleted',
 			correct: false,
 			feedback:
-				'Orphaned comments would break your API — add "dependent: :destroy" to clean up.',
+				'Orphaned comments would break your API. Add "dependent: :destroy" to clean up.',
 		},
 	];
 
@@ -503,22 +503,22 @@ end`,
 						</div>
 						<ul className="text-xs text-muted-foreground space-y-2">
 							<li>
-								<span className="font-mono text-primary">has_many</span> — one
+								<span className="font-mono text-primary">has_many</span>: one
 								Post has many Comments
 							</li>
 							<li>
-								<span className="font-mono text-primary">belongs_to</span> — one
+								<span className="font-mono text-primary">belongs_to</span>: one
 								Comment belongs to one Post
 							</li>
 							<li>
 								<span className="font-mono text-primary">
 									dependent: :destroy
 								</span>{' '}
-								— cascade delete
+								= cascade delete
 							</li>
 							<li>
 								<span className="font-mono text-primary">post:references</span>{' '}
-								— auto FK + index + belongs_to
+								= auto FK + index + belongs_to
 							</li>
 						</ul>
 					</div>

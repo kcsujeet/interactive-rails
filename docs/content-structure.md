@@ -366,7 +366,7 @@ Connections:
 
 **Data flow rules:**
 - Controller feeds both Model (right) and Serializer (down)
-- Never use `database → response` — the controller orchestrates both paths
+- Never use `database → response`. The controller orchestrates both paths
 - Never skip the serializer (controller → response) in levels that have one
 - The only exception is Level 5 (Serializers) where the puzzle IS to add a serializer
 

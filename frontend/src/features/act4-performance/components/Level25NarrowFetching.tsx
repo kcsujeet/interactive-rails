@@ -81,7 +81,7 @@ end`,
 				code: 'User.all.map { |u| [u.id, u.email] }',
 				correct: false,
 				feedback:
-					'This loads full ActiveRecord objects with all 30 columns including the 75KB bio field — massive memory waste when you only need two columns.',
+					'This loads full ActiveRecord objects with all 30 columns including the 75KB bio field. Massive memory waste when you only need two columns.',
 			},
 			{
 				id: 'pluck',
@@ -93,7 +93,7 @@ end`,
 				code: 'User.select(:id, :email, :bio)',
 				correct: false,
 				feedback:
-					'This still loads the bio column — the very column causing the memory problem. Check which columns you actually need.',
+					'This still loads the bio column, the very column causing the memory problem. Check which columns you actually need.',
 			},
 		],
 	},
@@ -101,7 +101,7 @@ end`,
 		id: 'dropdown',
 		title: 'Dropdown Populate',
 		description:
-			'A dropdown needs [id, name] pairs for 10K category records. No model methods are needed — just raw data for the UI.',
+			'A dropdown needs [id, name] pairs for 10K category records. No model methods are needed, just raw data for the UI.',
 		codeContext: `# Populate a <select> dropdown
 def category_options
   # Need: [[1, "Tech"], [2, "Science"], ...]
@@ -115,14 +115,14 @@ end`,
 				code: 'Category.all',
 				correct: false,
 				feedback:
-					'Loading full ActiveRecord objects for a simple dropdown is wasteful — you instantiate AR overhead for each of 10K records when you only need two plain values.',
+					'Loading full ActiveRecord objects for a simple dropdown is wasteful. You instantiate AR overhead for each of 10K records when you only need two plain values.',
 			},
 			{
 				id: 'select',
 				code: 'Category.select(:id, :name)',
 				correct: false,
 				feedback:
-					'This creates ActiveRecord objects when you only need plain data — for simple key-value pairs without model methods, there is a lighter approach.',
+					'This creates ActiveRecord objects when you only need plain data. For simple key-value pairs without model methods, there is a lighter approach.',
 			},
 			{
 				id: 'pluck',
@@ -149,7 +149,7 @@ end`,
 				code: 'User.all.each { |u| process(u) }',
 				correct: false,
 				feedback:
-					'This loads ALL 50K records into memory at once — with large datasets this will exhaust memory and crash the process.',
+					'This loads ALL 50K records into memory at once. With large datasets this will exhaust memory and crash the process.',
 			},
 			{
 				id: 'find-in-batches',
@@ -161,7 +161,7 @@ end`,
 				code: 'User.pluck(:id).each { |id| process(User.find(id)) }',
 				correct: false,
 				feedback:
-					'This plucks all IDs then does an individual database query for each one — a classic N+1 problem that makes 50K extra queries.',
+					'This plucks all IDs then does an individual database query for each one, a classic N+1 problem that makes 50K extra queries.',
 			},
 		],
 	},
@@ -169,7 +169,7 @@ end`,
 		id: 'api-response',
 		title: 'API Response with Model Methods',
 		description:
-			'Building an API response that needs user.full_name — a model method that combines first_name and last_name. The table also has large TEXT columns.',
+			'Building an API response that needs user.full_name, a model method that combines first_name and last_name. The table also has large TEXT columns.',
 		codeContext: `class User < ApplicationRecord
   def full_name
     "#{first_name} #{last_name}"
@@ -190,14 +190,14 @@ end`,
 				code: 'User.pluck(:first_name, :last_name).map { |f,l| "#{f} #{l}" }',
 				correct: false,
 				feedback:
-					'This reimplements the full_name logic in the query layer — if the model method changes, you have to update it in two places. Keep model logic in the model.',
+					'This reimplements the full_name logic in the query layer. If the model method changes, you have to update it in two places. Keep model logic in the model.',
 			},
 			{
 				id: 'all',
 				code: 'User.all',
 				correct: false,
 				feedback:
-					'This loads every column when you only need names — wasteful, especially with large TEXT columns bloating memory.',
+					'This loads every column when you only need names. Wasteful, especially with large TEXT columns bloating memory.',
 			},
 			{
 				id: 'select',
@@ -297,19 +297,19 @@ export function Level25NarrowFetching({
 				language: 'ruby',
 				code: `# Memory benchmarks (100K posts, 30 columns)
 
-# Wide fetch — loads everything
+# Wide fetch: loads everything
 Post.all
 #=> 681 MB, 149K objects allocated
 
-# Select — partial AR objects
+# Select: partial AR objects
 Post.select(:id, :title)
 #=> 12.1 MB, 107K objects  (56x less)
 
-# Pluck — plain Ruby arrays
+# Pluck: plain Ruby arrays
 Post.pluck(:id, :title)
 #=> 2.35 MB, 45K objects   (290x less)
 
-# Batch — constant memory
+# Batch: constant memory
 Post.find_in_batches(batch_size: 1000) { |batch|
   # ~50 MB per batch regardless of total
 }`,
@@ -328,9 +328,9 @@ Post.find_in_batches(batch_size: 1000) { |batch|
 				<InstructionPanel
 					goal="Choose the right fetching strategy for each scenario to minimize memory usage."
 					instructions={[
-						'pluck — returns plain arrays, skips AR objects entirely',
-						'select — returns AR objects with only specified columns',
-						'find_in_batches — processes large datasets in chunks',
+						'pluck: returns plain arrays, skips AR objects entirely',
+						'select: returns AR objects with only specified columns',
+						'find_in_batches: processes large datasets in chunks',
 						'Match the strategy to what the code actually needs',
 					]}
 					scenario="Your Rails app is running out of memory in production. Wide fetches load entire rows when you only need a few columns. Pick the narrowest fetch for each situation."

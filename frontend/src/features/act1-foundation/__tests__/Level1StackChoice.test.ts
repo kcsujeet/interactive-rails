@@ -93,7 +93,7 @@ describe('Level 1: Stack Choice (Database Only)', () => {
 				},
 			};
 
-			// No frontend field — the command always includes --api
+			// No frontend field - the command always includes --api
 			expect(choices).not.toHaveProperty('frontend');
 		});
 	});

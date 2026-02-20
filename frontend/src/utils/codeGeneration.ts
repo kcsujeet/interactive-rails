@@ -22,7 +22,7 @@ export interface CodeFile {
 export function generateCodeFiles(level: Level): CodeFile[] {
 	const files: CodeFile[] = [];
 
-	// "Before" state — the problem code
+	// "Before" state - the problem code
 	if (level.problem.codeExample) {
 		files.push({
 			filename: inferFilename(level.problem.codeExample, 'problem.rb'),
@@ -31,7 +31,7 @@ export function generateCodeFiles(level: Level): CodeFile[] {
 		});
 	}
 
-	// "After" state — the Rails solution code from learning content
+	// "After" state - the Rails solution code from learning content
 	if (level.learningContent.railsCodeExample) {
 		files.push({
 			filename: inferFilename(

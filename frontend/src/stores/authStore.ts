@@ -20,7 +20,7 @@ export function initAuth() {
 	const cached = getInitialUser();
 	$user.set(cached);
 
-	// Verify session with server — clear stale state on 401
+	// Verify session with server; clear stale state on 401
 	if (cached) {
 		fetch('/api/auth/me', { credentials: 'include' })
 			.then((res) => {
@@ -29,7 +29,7 @@ export function initAuth() {
 				}
 			})
 			.catch(() => {
-				// Network error — keep cached state
+				// Network error - keep cached state
 			});
 	}
 }

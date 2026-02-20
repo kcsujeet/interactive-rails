@@ -65,10 +65,10 @@ const ATTRIBUTE_SLOTS: AttributeSlot[] = [
 const AVAILABLE_TYPES = ['string', 'text', 'boolean', 'integer', 'datetime'];
 
 const MODEL_NAME_OPTIONS = [
-	{ label: 'Posts', correct: false, feedback: 'Rails models are singular, not plural — Rails auto-pluralizes the table name for you.' },
+	{ label: 'Posts', correct: false, feedback: 'Rails models are singular, not plural. Rails auto-pluralizes the table name for you.' },
 	{ label: 'Post', correct: true },
-	{ label: 'post', correct: false, feedback: 'Rails models use PascalCase — check the capitalization convention.' },
-	{ label: 'posts_table', correct: false, feedback: 'You don\'t need to specify the table name — Rails infers it from a singular PascalCase model name.' },
+	{ label: 'post', correct: false, feedback: 'Rails models use PascalCase. Check the capitalization convention.' },
+	{ label: 'posts_table', correct: false, feedback: 'You don\'t need to specify the table name. Rails infers it from a singular PascalCase model name.' },
 ];
 
 export function Level3Model({ onComplete, onExit }: LevelComponentProps) {
@@ -107,22 +107,22 @@ export function Level3Model({ onComplete, onExit }: LevelComponentProps) {
 			// Wrong type feedback
 			const feedbackMap: Record<string, Record<string, string>> = {
 				title: {
-					text: '"text" is for long-form content — "title" is a short field (under 255 characters).',
+					text: '"text" is for long-form content. "title" is a short field (under 255 characters).',
 					boolean: '"title" stores text, not true/false.',
 					integer: '"title" stores text, not numbers.',
 					datetime: '"title" stores text, not timestamps.',
 				},
 				body: {
-					string: '"string" maxes out at 255 characters — "body" needs to hold full articles and paragraphs.',
+					string: '"string" maxes out at 255 characters. "body" needs to hold full articles and paragraphs.',
 					boolean: '"body" stores content, not true/false.',
 					integer: '"body" stores content, not numbers.',
 					datetime: '"body" stores content, not timestamps.',
 				},
 				published: {
-					string: '"published" is a yes/no flag — not a text field.',
-					text: '"published" is a yes/no flag — not a content field.',
-					integer: '"published" is a yes/no flag — not a number.',
-					datetime: '"published" is a yes/no flag — not a timestamp.',
+					string: '"published" is a yes/no flag, not a text field.',
+					text: '"published" is a yes/no flag, not a content field.',
+					integer: '"published" is a yes/no flag, not a number.',
+					datetime: '"published" is a yes/no flag, not a timestamp.',
 				},
 			};
 			const fb = feedbackMap[field]?.[type] || `Wrong type for ${field}.`;
@@ -137,7 +137,7 @@ export function Level3Model({ onComplete, onExit }: LevelComponentProps) {
 			label: 'rails generate model Post title:text body:string published:integer',
 			command: 'rails generate model Post title:text body:string published:integer',
 			correct: false,
-			feedback: 'The types are swapped around — think about which fields are short vs. long, and which is a flag.',
+			feedback: 'The types are swapped around. Think about which fields are short vs. long, and which is a flag.',
 		},
 		{
 			id: 'correct',
@@ -150,7 +150,7 @@ export function Level3Model({ onComplete, onExit }: LevelComponentProps) {
 			label: 'rails generate model Post title:string body:text',
 			command: 'rails generate model Post title:string body:text',
 			correct: false,
-			feedback: 'Missing an attribute — the Post model has three fields, not two.',
+			feedback: 'Missing an attribute. The Post model has three fields, not two.',
 		},
 	];
 
@@ -169,7 +169,7 @@ export function Level3Model({ onComplete, onExit }: LevelComponentProps) {
 			label: 'rails db:rollback',
 			command: 'rails db:rollback',
 			correct: false,
-			feedback: 'Rollback undoes migrations — you need to apply them, not reverse them.',
+			feedback: 'Rollback undoes migrations. You need to apply them, not reverse them.',
 		},
 		{
 			id: 'correct',
@@ -229,12 +229,12 @@ export function Level3Model({ onComplete, onExit }: LevelComponentProps) {
 		return history;
 	};
 
-	// Code preview — each completed step adds its output
+	// Code preview - each completed step adds its output
 	// furthestStep: 0=start, 1=named model, 2=defined attrs, 3=ran generator, 4=ran migration
 	const getCodeFiles = () => {
 		const files = [];
 
-		// After naming the model (step 0) — show the generator command being built
+		// After naming the model (step 0) - show the generator command being built
 		if (stepper.furthestStep >= 1) {
 			const attrArgs = slots
 				.filter((s) => s.assignedType)
@@ -248,10 +248,10 @@ export function Level3Model({ onComplete, onExit }: LevelComponentProps) {
 			});
 		}
 
-		// After defining attributes (step 1) — update the command with all types
+		// After defining attributes (step 1) - update the command with all types
 		// (already reflected above via slots state)
 
-		// After running generator (step 2) — show generated files
+		// After running generator (step 2) - show generated files
 		if (stepper.furthestStep >= 3) {
 			files.push({
 				filename: 'app/models/post.rb',
@@ -288,7 +288,7 @@ end`,
 			});
 		}
 
-		// After running migration (step 3) — show schema
+		// After running migration (step 3) - show schema
 		if (stepper.furthestStep >= 4) {
 			files.push({
 				filename: 'db/schema.rb',
@@ -469,7 +469,7 @@ end`,
 														{slot.field}
 													</span>
 													<span className="text-xs text-muted-foreground ml-2">
-														— {slot.description}
+														({slot.description})
 													</span>
 												</div>
 												{slot.assignedType ? (

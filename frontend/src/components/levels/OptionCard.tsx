@@ -66,7 +66,7 @@ export function resolveColor(input: string): OptionCardColor {
 }
 
 // ---------------------------------------------------------------------------
-// DotIcon — small colored circle for nodes without a Lucide icon
+// DotIcon: small colored circle for nodes without a Lucide icon
 // ---------------------------------------------------------------------------
 
 export function DotIcon({ className }: { className?: string }) {

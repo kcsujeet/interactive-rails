@@ -20,7 +20,7 @@ const level1Environment: Level = {
 	trigger: {
 		type: 'initialization',
 		description:
-			'Before writing any code, set up your dev environment — install asdf for version management, pin Ruby in .tool-versions, install Ruby, and install Rails.',
+			'Before writing any code, set up your dev environment: install asdf for version management, pin Ruby in .tool-versions, install Ruby, and install Rails.',
 	},
 	startingPipeline: {
 		nodes: [{ id: 'terminal', type: 'terminal', x: 500, y: 300, locked: true }],
@@ -31,10 +31,10 @@ const level1Environment: Level = {
 			'No Ruby or Rails installed. You need a version manager and the right tools before creating any project.',
 		rootCause: 'No development environment configured.',
 		codeExample: `# A Rails project needs:
-# 1. A version manager (asdf) — so every project
+# 1. A version manager (asdf), so every project
 #    uses the exact Ruby version it was built with
-# 2. Ruby — the language
-# 3. Rails — the framework (installed as a Ruby gem)
+# 2. Ruby (the language)
+# 3. Rails (the framework, installed as a Ruby gem)
 #
 # .tool-versions pins the version per-project:
 #   ruby 3.3.6
@@ -121,7 +121,7 @@ const level2FirstBoot: Level = {
 	trigger: {
 		type: 'initialization',
 		description:
-			'Ruby and Rails are installed. Now create your first application — choose PostgreSQL over SQLite, install it, generate an API-only project, create the database, and boot the server.',
+			'Ruby and Rails are installed. Now create your first application: choose PostgreSQL over SQLite, install it, generate an API-only project, create the database, and boot the server.',
 	},
 	startingPipeline: {
 		nodes: [{ id: 'terminal', type: 'terminal', x: 500, y: 300, locked: true }],
@@ -144,7 +144,7 @@ const level2FirstBoot: Level = {
 #   - Not ideal for concurrent API requests
 #
 # The --api flag creates a lean app:
-#   ActionController::API (no cookies, sessions, flash)
+#   ActionController::API (leaner middleware stack)
 #
 # Your job: pick the right database, install it,
 # generate the project, and get the server running.`,
@@ -182,7 +182,7 @@ const level2FirstBoot: Level = {
 
 **API-only mode (\`--api\`):**
 - Inherits from \`ActionController::API\` instead of \`ActionController::Base\`
-- No cookies, sessions, flash, or browser middleware
+- Skips cookie, session, and flash middleware by default (can be added back)
 - Lighter middleware stack, faster responses
 - Perfect for React/mobile frontends
 
@@ -227,7 +227,7 @@ curl http://localhost:3000/up
 	},
 	hint: {
 		delay: 30,
-		text: 'PostgreSQL handles concurrent writes — pick it for a multi-user API. Install the server with Homebrew before generating the project.',
+		text: 'PostgreSQL handles concurrent writes, so pick it for a multi-user API. Install the server with Homebrew before generating the project.',
 	},
 };
 
@@ -243,7 +243,7 @@ const level3Model: Level = {
 	trigger: {
 		type: 'new_feature',
 		description:
-			'Your app is running but has no data. Define the Post model — name it, choose attribute types, run the generator, and migrate.',
+			'Your app is running but the database is empty: no tables, no schema. Define the Post model, choose attribute types, run the generator, and migrate.',
 	},
 	startingPipeline: {
 		nodes: [],
@@ -259,8 +259,8 @@ const level3Model: Level = {
 #   boolean, datetime, float, decimal...
 
 # string vs text:
-#   string  — short content (titles, names) — VARCHAR(255)
-#   text    — long content (articles, bios) — unlimited
+#   string  - short content (titles, names), VARCHAR(255)
+#   text    - long content (articles, bios), unlimited
 
 # Your job: name the model, pick the right types,
 # generate it, and migrate.`,
@@ -361,16 +361,16 @@ const level4CRUD: Level = {
 		rootCause: 'No records have been created yet.',
 		codeExample: `# ActiveRecord has methods for each operation:
 #
-# CREATE — save a new record to the database
+# CREATE - save a new record to the database
 #   .create  vs  .new  vs  .insert
 #
-# READ — fetch records by ID or attributes
+# READ - fetch records by ID or attributes
 #   .find  vs  .select  vs  .where
 #
-# UPDATE — change and persist attributes
+# UPDATE - change and persist attributes
 #   .update  vs  assignment  vs  .update_column
 #
-# DELETE — remove from database
+# DELETE - remove from database
 #   .destroy  vs  .delete
 #
 # Some methods skip validations or callbacks.
@@ -452,8 +452,8 @@ const level5Routes: Level = {
 	},
 	problem: {
 		observation: 'GET /posts returns 404. No routes are defined.',
-		rootCause: 'No routes defined — the outside world cannot reach your app.',
-		codeExample: `# config/routes.rb — currently empty!
+		rootCause: 'No routes defined. The outside world cannot reach your app.',
+		codeExample: `# config/routes.rb - currently empty!
 Rails.application.routes.draw do
   # Nothing here...
 end
@@ -484,7 +484,7 @@ end
    - **Database** returns data to the model, which returns it to the controller
 4. **Response** sent back to client
 
-The **Router** is the gateway — without it, requests have no way to reach your controller.
+The **Router** is the gateway. Without it, requests have no way to reach your controller.
 
 **\`resources :posts\`** generates all 5 RESTful routes at once.
 **Namespacing** under \`/api/v1/\` keeps API routes organized and versioned.`,
@@ -558,14 +558,14 @@ const level6Controller: Level = {
 		rootCause: 'No controller exists to handle the routed requests.',
 		codeExample: `# Controllers handle requests and return JSON.
 # API controllers inherit from ActionController::API
-# (no cookies, sessions, or views).
+# (skips cookie/session middleware by default).
 #
 # The 5 RESTful actions:
 #   index, show, create, update, destroy
 #   (not: list, get, add, remove, new, edit)
 #
 # Rails 8 strong params:
-#   params.expect() — safer than require/permit
+#   params.expect() - safer than require/permit
 #   Returns 400 (not 500) on tampered params
 #
 # Your job: generate the controller, add actions,
@@ -582,8 +582,8 @@ const level6Controller: Level = {
 
 **API vs Full-Stack Controllers:**
 - API: Inherits from \`ActionController::API\`
-- No cookies, sessions, flash, CSRF protection
-- Only \`render json:\` — no HTML views
+- Skips cookie, session, flash, CSRF middleware by default
+- Only \`render json:\`, no HTML views
 
 **Rails 8: params.expect():**
 - Replaces \`params.require(:post).permit(:title, :body)\`
@@ -627,7 +627,7 @@ class Api::V1::PostsController < ApplicationController
 
   private
 
-  # Rails 8: params.expect() — safer than require/permit
+  # Rails 8: params.expect() - safer than require/permit
   def post_params
     params.expect(post: [:title, :body, :published])
   end
@@ -769,10 +769,10 @@ The industry-standard response format for REST APIs. Used by Stripe, Ember, and 
 - Clean DSL: \`attributes\`, \`has_many\`, \`belongs_to\`
 
 **Alternatives and trade-offs:**
-- Blueprinter — simpler flat JSON, not standards-compliant, good for internal APIs
-- Alba — flexible, supports multiple formats, newer
-- Jbuilder — template-based, good for complex views, slower
-- ActiveModelSerializers (AMS) — legacy, unmaintained — avoid`,
+- Blueprinter: simpler flat JSON, not standards-compliant, good for internal APIs
+- Alba: flexible, supports multiple formats, newer
+- Jbuilder: template-based, good for complex views, slower
+- ActiveModelSerializers (AMS): legacy, unmaintained. Avoid.`,
 		railsCodeExample: `# Gemfile
 gem "jsonapi-serializer"
 
@@ -913,10 +913,10 @@ const level8Associations: Level = {
 		rootCause:
 			'No Comment model exists and no association is defined between Post and Comment.',
 		codeExample: `# Associations link models together:
-#   has_many    — one-to-many (parent side)
-#   belongs_to  — inverse (child side)
-#   has_one     — one-to-one
-#   has_and_belongs_to_many — many-to-many
+#   has_many    - one-to-many (parent side)
+#   belongs_to  - inverse (child side)
+#   has_one     - one-to-one
+#   has_and_belongs_to_many - many-to-many
 #
 # The foreign key lives on the belongs_to side.
 # Using "post:references" in a generator adds:
@@ -972,10 +972,10 @@ const level8Associations: Level = {
 		title: 'ActiveRecord Associations',
 		conceptExplanation: `Associations define relationships between models:
 
-**has_many** — A post has many comments (one-to-many)
-**belongs_to** — A comment belongs to a post (the inverse)
-**has_one** — A user has one profile (one-to-one)
-**has_many :through** — Posts have many tags through taggings (many-to-many)
+**has_many**: A post has many comments (one-to-many)
+**belongs_to**: A comment belongs to a post (the inverse)
+**has_one**: A user has one profile (one-to-one)
+**has_many :through**: Posts have many tags through taggings (many-to-many)
 
 The foreign key (\`post_id\`) lives on the \`belongs_to\` side (comments table).
 Always add \`dependent: :destroy\` to clean up child records.`,

@@ -1,7 +1,7 @@
 /**
  * Node Palette Component
  * Left sidebar content with draggable nodes and metrics.
- * Renders content only — wrap in LeftPanel for layout chrome.
+ * Renders content only. Wrap in LeftPanel for layout chrome.
  */
 
 import type { DragEvent } from 'react';

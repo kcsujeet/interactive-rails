@@ -79,7 +79,7 @@ export function ActsListApp() {
 			{isGuest && (
 				<div className="mb-6 flex items-center justify-between gap-4 py-3 px-4 bg-warning/10 border border-warning/20 rounded-lg">
 					<span className="text-sm text-foreground">
-						Playing as guest — progress won't sync
+						Playing as guest - progress won't sync
 					</span>
 					<Button asChild className="px-0" size="sm" variant="link">
 						<a href="/signup">Create account</a>

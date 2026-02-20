@@ -23,7 +23,7 @@ export interface Step extends StepDef {
 }
 
 export interface UseStepGatingOptions {
-	/** When false, completing a step does NOT auto-advance — user navigates manually. Default: true. */
+	/** When false, completing a step does NOT auto-advance. User navigates manually. Default: true. */
 	autoAdvance?: boolean;
 }
 

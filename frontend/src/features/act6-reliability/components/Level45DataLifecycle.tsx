@@ -58,7 +58,7 @@ const SCENARIOS: StepScenario[] = [
 	{
 		title: 'Classify Hot Data',
 		context:
-			'The orders table has 50M rows. Performance is degrading. You need to classify which data is "hot" — accessed frequently, needs full read/write access.',
+			'The orders table has 50M rows. Performance is degrading. You need to classify which data is "hot": accessed frequently, needs full read/write access.',
 		codeSnippet: `# orders table: 50,000,000 rows
 # Average query time: 2.3s (was 200ms)
 # Daily active queries hit orders table 15K times/hour
@@ -70,14 +70,14 @@ const SCENARIOS: StepScenario[] = [
 				label: 'All orders from the past 5 years',
 				correct: false,
 				feedback:
-					'Five years of data is far too broad — most daily operations only touch recent orders. Keeping everything "hot" defeats the purpose of data classification.',
+					'Five years of data is far too broad. Most daily operations only touch recent orders. Keeping everything "hot" defeats the purpose of data classification.',
 			},
 			{
 				id: 'older-than-1yr',
 				label: 'Orders older than 1 year',
 				correct: false,
 				feedback:
-					'Old orders are almost never accessed for daily operations — they belong in a colder tier, not the hot tier.',
+					'Old orders are almost never accessed for daily operations. They belong in a colder tier, not the hot tier.',
 			},
 			{
 				id: 'last-30-days',
@@ -102,14 +102,14 @@ const SCENARIOS: StepScenario[] = [
 				label: 'Export to S3 as JSON files',
 				correct: false,
 				feedback:
-					"S3 files aren't directly queryable with SQL — you'd need an additional query engine. That's overkill for data your reports team needs regular SQL access to.",
+					"S3 files aren't directly queryable with SQL. You'd need an additional query engine. That's overkill for data your reports team needs regular SQL access to.",
 			},
 			{
 				id: 'same-table-status',
 				label: 'Keep in the same table, add a status column',
 				correct: false,
 				feedback:
-					'Keeping warm data in the same table means 50M rows still slow every query — adding a column does nothing to reduce the table size that causes the performance problem.',
+					'Keeping warm data in the same table means 50M rows still slow every query. Adding a column does nothing to reduce the table size that causes the performance problem.',
 			},
 			{
 				id: 'separate-table',
@@ -166,14 +166,14 @@ const SCENARIOS: StepScenario[] = [
 				label: 'Archive all to S3, keep DB empty',
 				correct: false,
 				feedback:
-					'Session logs have no long-term value and no compliance requirement — archiving 200M rows of debugging data wastes storage for data nobody will ever read again.',
+					'Session logs have no long-term value and no compliance requirement. Archiving 200M rows of debugging data wastes storage for data nobody will ever read again.',
 			},
 			{
 				id: 'keep-add-index',
 				label: 'Keep all logs, add an index on created_at',
 				correct: false,
 				feedback:
-					"An index helps query speed but doesn't solve the core problem — 200M rows of stale logs still consume disk space, slow backups, and bloat migrations.",
+					"An index helps query speed but doesn't solve the core problem. 200M rows of stale logs still consume disk space, slow backups, and bloat migrations.",
 			},
 			{
 				id: 'delete-old',
@@ -280,9 +280,9 @@ export function Level45DataLifecycle({
 			filename: 'data_lifecycle_strategy.rb',
 			language: 'ruby',
 			code: `# Data Temperature Classification
-# Hot:  Last 30 days — full read/write
-# Warm: 30-365 days — read-only, SQL access
-# Cold: 1yr+ — export-only, cheapest storage
+# Hot:  Last 30 days, full read/write
+# Warm: 30-365 days, read-only, SQL access
+# Cold: 1yr+, export-only, cheapest storage
 
 # Archiving warm data
 class ArchiveOldOrders
@@ -612,7 +612,7 @@ end`,
 			<RightPanel>
 				<CodePreviewPanel
 					files={getCodeFiles()}
-					learningGoal="Classify data by access frequency: hot (read/write, recent), warm (read-only, SQL-queryable), cold (export to cheap storage). Destroy data with no compliance requirement — it's the most effective scalability solution."
+					learningGoal="Classify data by access frequency: hot (read/write, recent), warm (read-only, SQL-queryable), cold (export to cheap storage). Destroy data with no compliance requirement. It's the most effective scalability solution."
 				>
 					<div className="p-4 border-t border-border">
 						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
@@ -658,19 +658,19 @@ end`,
 						</div>
 						<ul className="text-xs text-muted-foreground space-y-1">
 							<li>
-								<code className="text-primary">find_in_batches</code> — move
+								<code className="text-primary">find_in_batches</code>: move
 								data without OOM
 							</li>
 							<li>
-								<code className="text-primary">insert_all</code> — bulk insert
+								<code className="text-primary">insert_all</code>: bulk insert
 								to archive table
 							</li>
 							<li>
-								<code className="text-primary">in_batches.delete_all</code> —
+								<code className="text-primary">in_batches.delete_all</code>:
 								destroy without locking
 							</li>
 							<li>
-								<code className="text-primary">Parquet + S3</code> — cheapest
+								<code className="text-primary">Parquet + S3</code>: cheapest
 								cold storage format
 							</li>
 						</ul>

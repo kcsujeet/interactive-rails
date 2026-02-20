@@ -44,14 +44,14 @@ const RESOURCE_OPTIONS = [
 		label: "get '/posts' => 'posts#index'",
 		correct: false,
 		feedback:
-			"That's only one route — `resources :posts` generates all 5 RESTful endpoints at once.",
+			"That's only one route. `resources :posts` generates all 5 RESTful endpoints at once.",
 	},
 	{
 		id: 'match',
 		label: "match '/posts', to: 'posts#index'",
 		correct: false,
 		feedback:
-			"`match` is for custom routes — `resources :posts` gives you all RESTful routes with one line.",
+			"`match` is for custom routes. `resources :posts` gives you all RESTful routes with one line.",
 	},
 ];
 
@@ -123,7 +123,7 @@ export function Level5Routes({ onComplete, onExit }: LevelComponentProps) {
 			label: 'rake routes',
 			command: 'rake routes',
 			correct: false,
-			feedback: 'The modern command is "rails routes" — "rake routes" is the old way.',
+			feedback: 'The modern command is "rails routes". "rake routes" is the old way.',
 		},
 	];
 
