@@ -2,7 +2,7 @@
  * Act 1: The Foundation
  * "Build a working API from nothing"
  *
- * Levels 1-8: Environment, Hello Rails, Model, CRUD, Routes, Controller, Serializers, Associations
+ * Levels 1-8: Environment, First Boot, Model, CRUD, Routes, Controller, Serializers, Associations
  * App context: Blog API
  */
 
@@ -110,14 +110,14 @@ rails --version  # => Rails 8.0.0`,
 };
 
 // ============================================
-// Level 2: Hello, Rails (was "The Stack Choice")
+// Level 2: First Boot (was "Hello, Rails")
 // ============================================
 
-const level2HelloRails: Level = {
-	id: 'act1-level2-hello-rails',
+const level2FirstBoot: Level = {
+	id: 'act1-level2-first-boot',
 	actId: 1,
 	levelNumber: 2,
-	name: 'Hello, Rails',
+	name: 'First Boot',
 	trigger: {
 		type: 'initialization',
 		description:
@@ -1040,7 +1040,7 @@ export const actOne: Act = {
 		'Build a Rails 8 API from scratch: environment setup, project creation, models, controllers, routes, serializers, and associations. By the end, you have a working blog API.',
 	levels: [
 		level1Environment,
-		level2HelloRails,
+		level2FirstBoot,
 		level3Model,
 		level4CRUD,
 		level5Routes,

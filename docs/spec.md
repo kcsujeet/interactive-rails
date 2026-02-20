@@ -18,7 +18,7 @@ Every level exists because the app **needs** it at that stage — not because Ra
 
 | # | Name | Concept | Scenario |
 |---|------|---------|----------|
-| 1 | Hello, Rails | `rails new --api`, PostgreSQL vs SQLite | Day 1. Choose your database. Rails 8 makes SQLite production-ready, PostgreSQL for scale. |
+| 1 | First Boot | `rails new --api`, PostgreSQL vs SQLite | Day 1. Choose your database. Rails 8 makes SQLite production-ready, PostgreSQL for scale. |
 | 2 | The Model | ActiveRecord, migrations, schema | Need a blog API. Define what a Post looks like — attributes, types, constraints. |
 | 3 | CRUD Operations | ActiveRecord CRUD, Rails console | Model exists but DB is empty. Create, read, update, destroy records. |
 | 4 | Routes & Request Lifecycle | `resources`, namespaces, request flow | Routes defined, requests traced. Map HTTP verbs + URLs to controller actions under /api/v1/. |

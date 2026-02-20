@@ -11,7 +11,7 @@ export { CompletionScreen } from './CompletionScreen';
 export { DecisionModal } from './DecisionModal';
 export { GameTopBar } from './GameTopBar';
 export { InspectorPanel } from './InspectorPanel';
-export { Level2HelloRails } from '@/features/act1-foundation/components/Level2HelloRails';
+export { Level2FirstBoot } from '@/features/act1-foundation/components/Level2FirstBoot';
 export { NodePalette } from './NodePalette';
 export { PausedOverlay } from './PausedOverlay';
 export { PipelineCanvas } from './PipelineCanvas';

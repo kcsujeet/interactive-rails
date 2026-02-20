@@ -1,10 +1,10 @@
 /**
- * Level 2: Hello, Rails
+ * Level 2: First Boot
  *
  * 5-step progression: choose a database, install it, generate the project,
  * create the database, and boot the server.
  *
- * ID remains "act1-level2-hello-rails" to preserve saved progress.
+ * ID: "act1-level2-first-boot"
  */
 
 import { AlertCircle, ArrowRight } from 'lucide-react';
@@ -36,7 +36,7 @@ const STEP_DEFS: StepDef[] = [
 	{ id: 'boot-server', title: 'Boot Server' },
 ];
 
-export function Level2HelloRails({ onComplete, onExit }: LevelComponentProps) {
+export function Level2FirstBoot({ onComplete, onExit }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 
 	// Step 1: Choose Database — click-to-select with feedback
@@ -176,8 +176,8 @@ export function Level2HelloRails({ onComplete, onExit }: LevelComponentProps) {
 		},
 		{ text: '* Listening on http://127.0.0.1:3000', color: 'green' },
 		{ text: '', color: 'muted' },
-		{ text: '$ curl http://localhost:3000/up', color: 'yellow' },
-		{ text: '{"status":"ok"}', color: 'green' },
+		{ text: '$ curl -I http://localhost:3000/up', color: 'default' },
+		{ text: 'HTTP/1.1 200 OK', color: 'green' },
 	];
 
 	const handleComplete = () => {
@@ -357,7 +357,7 @@ end`,
 			<CenterPanel>
 				<LevelHeader
 					actNumber={1}
-					levelName="Hello, Rails"
+					levelName="First Boot"
 					levelNumber={2}
 					onComplete={handleComplete}
 					onExit={onExit}
@@ -578,4 +578,4 @@ end`,
 	);
 }
 
-export default Level2HelloRails;
+export default Level2FirstBoot;

@@ -146,6 +146,17 @@ Levels within an act must form a coherent learning path. Each level should build
 - Reuse interaction patterns from earlier levels so new concepts feel familiar (e.g., L17 reuses L16's step-unlock gating and L18's before/after grid)
 - Introduce only one new core concept per level — anchor it to prior knowledge
 
+### Level Design: No Concept Overlap
+
+**Each concept belongs to exactly one level.** Before adding a step to a level, check if that concept is already taught in another level. If it is, don't duplicate it — the player will learn it there.
+
+Examples:
+- Level 2 (First Boot) should NOT add routing steps — Level 5 (Routes) handles that
+- Level 3 (Model) should NOT teach associations — Level 8 (Associations) handles that
+- Level 6 (Controller) should NOT teach testing — Level 13 (Testing) handles that
+
+When a level's name suggests a concept that's taught elsewhere, keep the level focused on its own scope. Don't pull in concepts from later levels to make the name feel more literal.
+
 ---
 
 ## Code Conventions

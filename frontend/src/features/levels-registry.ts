@@ -7,7 +7,7 @@
  * CURRICULUM STRUCTURE (55 levels, 8 acts):
  *
  * Act 1: The Foundation (L1-L8, 8 levels)
- * - Environment, Hello Rails, Model, CRUD, Routes, Controller, Serializers, Associations
+ * - Environment, First Boot, Model, CRUD, Routes, Controller, Serializers, Associations
  *
  * Act 2: Users & Security (L9-L15, 7 levels)
  * - Authentication, Validations, Callbacks, Authorization, Testing, Security, Scopes & Enums
@@ -49,7 +49,7 @@ export interface LevelComponentProps {
 // Act 1: The Foundation (Levels 1-8)
 // ===========================================
 import { Level1Environment } from './act1-foundation/components/Level1Environment';
-import { Level2HelloRails } from './act1-foundation/components/Level2HelloRails';
+import { Level2FirstBoot } from './act1-foundation/components/Level2FirstBoot';
 import { Level3Model } from './act1-foundation/components/Level3Model';
 import { Level4CRUD } from './act1-foundation/components/Level4CRUD';
 import { Level5Routes } from './act1-foundation/components/Level5Routes';
@@ -133,7 +133,7 @@ const LEVEL_COMPONENTS: Record<string, ComponentType<LevelComponentProps>> = {
 	// Act 1: The Foundation
 	// ============================================
 	'act1-level1-environment': Level1Environment,
-	'act1-level2-hello-rails': Level2HelloRails,
+	'act1-level2-first-boot': Level2FirstBoot,
 	'act1-level3-model': Level3Model,
 	'act1-level4-crud': Level4CRUD,
 	'act1-level5-routes': Level5Routes,
@@ -229,7 +229,7 @@ export function hasCustomComponent(levelId: string): boolean {
 
 // Re-export Act 1 level components for direct import
 export { Level1Environment } from './act1-foundation/components/Level1Environment';
-export { Level2HelloRails } from './act1-foundation/components/Level2HelloRails';
+export { Level2FirstBoot } from './act1-foundation/components/Level2FirstBoot';
 export { Level3Model } from './act1-foundation/components/Level3Model';
 export { Level4CRUD } from './act1-foundation/components/Level4CRUD';
 export { Level5Routes } from './act1-foundation/components/Level5Routes';
