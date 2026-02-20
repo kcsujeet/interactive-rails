@@ -52,7 +52,7 @@ const AFTER_QUERIES: QueryLogEntry[] = [
 const STEP_LABELS = ['Observe', 'Add Column', 'Enable', 'Verify'] as const;
 const TOTAL_BEFORE_TIME = BEFORE_QUERIES.reduce((s, q) => s + q.time, 0);
 
-export function Level26CounterCaches({
+export function Level27CounterCaches({
 	onComplete,
 	onExit,
 }: LevelComponentProps) {
@@ -162,7 +162,7 @@ export function Level26CounterCaches({
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act4-level26-counter-caches', {
+		const success = await completeLevel('act4-level27-counter-caches', {
 			stars: 3,
 		});
 		if (success) onComplete({ stars: 3 });
@@ -314,7 +314,7 @@ export function Level26CounterCaches({
 				<LevelHeader
 					actNumber={4}
 					levelName="Counter Caches"
-					levelNumber={26}
+					levelNumber={27}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}
@@ -816,4 +816,4 @@ export function Level26CounterCaches({
 	);
 }
 
-export default Level26CounterCaches;
+export default Level27CounterCaches;

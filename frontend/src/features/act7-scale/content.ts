@@ -13,9 +13,9 @@ import type { Act, Level } from '@/types';
 // ============================================
 
 const level43MultiDatabase: Level = {
-	id: 'act7-level44-multi-database',
+	id: 'act7-level47-multi-database',
 	actId: 7,
-	levelNumber: 44,
+	levelNumber: 47,
 	name: 'Multi-Database',
 	trigger: {
 		type: 'scaling',
@@ -130,9 +130,9 @@ end
 // ============================================
 
 const level44StateMachines: Level = {
-	id: 'act7-level45-state-machines',
+	id: 'act7-level48-state-machines',
 	actId: 7,
-	levelNumber: 45,
+	levelNumber: 48,
 	name: 'State Machines',
 	requiresTests: true,
 	trigger: {
@@ -312,9 +312,9 @@ Order.pending.count     # SELECT COUNT(*) FROM orders WHERE status = 'pending'`,
 // ============================================
 
 const level45MultiTenancy: Level = {
-	id: 'act7-level46-multi-tenancy',
+	id: 'act7-level49-multi-tenancy',
 	actId: 7,
-	levelNumber: 46,
+	levelNumber: 49,
 	name: 'Multi-Tenancy',
 	requiresTests: true,
 	trigger: {
@@ -471,9 +471,9 @@ end`,
 // ============================================
 
 const level46Observability: Level = {
-	id: 'act7-level47-observability',
+	id: 'act7-level50-observability',
 	actId: 7,
-	levelNumber: 47,
+	levelNumber: 50,
 	name: 'Observability',
 	trigger: {
 		type: 'incident',
@@ -508,8 +508,24 @@ Rails.logger.error "Payment failed for order #{order.id}"
 	availableNodes: ['observability', 'health_check'],
 	unlockedNodes: ['observability'],
 	learningContent: {
-		title: 'Observability: Logs, Metrics, Traces',
+		title: 'Observability: Logs, Metrics, Traces & Flame Graphs',
 		conceptExplanation: `The three pillars of observability:
+
+**Without observability:**
+\`\`\`
+Log output:
+  I, [2024-01-15 03:22:14] INFO -- : User 42 placed order 999
+  E, [2024-01-15 03:22:15] ERROR -- : Payment failed for order 999
+→ Wall of unstructured text. Can't filter, correlate, or build dashboards.
+\`\`\`
+
+**With structured logging + APM:**
+\`\`\`
+Lograge JSON output:
+  {"method":"GET","path":"/api/v1/orders","status":200,
+   "duration":45.2,"user_id":42,"company_id":7,"request_id":"abc-123"}
+→ Searchable by any field, correlatable across services via request_id
+\`\`\`
 
 **1. Structured Logging:**
 - JSON-formatted logs with consistent fields
@@ -521,13 +537,25 @@ Rails.logger.error "Payment failed for order #{order.id}"
 - Error rates by endpoint
 - Database query counts and durations
 - Background job queue depth
-- **Datadog APM** is a common production choice: auto-instruments Rails controllers, ActiveRecord, and Sidekiq. For custom business metrics (e.g., orders per minute, revenue), use DogStatsD: \`StatsD.increment('orders.completed', tags: ['plan:enterprise'])\`
+- For custom business metrics, use DogStatsD: \`StatsD.increment('orders.completed', tags: ['plan:enterprise'])\`
+
+**APM platform comparison:**
+- **New Relic**: Simplest. Best for small startups / junior teams. Great Rails integration
+- **Grafana** (+ Prometheus, Loki, Jaeger): Open-source, self-hosted, extremely customizable. More setup work
+- **Datadog**: Easy integration, incredibly comprehensive. Coinbase spent $65M/year on it — review your metrics periodically
 
 **3. Distributed Tracing:**
 - Follow a request across services
 - Each span shows duration and metadata
 - Identify bottlenecks visually
-- OpenTelemetry is the standard`,
+- OpenTelemetry is the standard
+
+**Reading flame graphs (how to identify bottlenecks):**
+1. **Widest boxes first** — most time spent, most optimization opportunity
+2. **Recurring patterns** — repeated similar structures = possible N+1 loop
+3. **Tall stacks** — deep call chains, potential simplification opportunity
+
+**Custom traces:** \`Datadog::Tracing.trace('presenter.to_json', service: 'presentation-layer')\` creates a new service in your trace explorer. Use for business-critical code paths.`,
 		railsCodeExample: `# Structured logging with Lograge
 # Gemfile
 gem 'lograge'
@@ -633,6 +661,14 @@ end`,
 				title: 'OpenTelemetry Ruby',
 				url: 'https://opentelemetry.io/docs/languages/ruby/',
 			},
+			{
+				title: 'Datadog APM for Rails',
+				url: 'https://docs.datadoghq.com/tracing/trace_collection/dd_libraries/ruby/',
+			},
+			{
+				title: 'Book: "Rails Scales!", Chapter 8 — APM, Traces, Flame Graphs',
+				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
+			},
 		],
 	},
 	hint: {
@@ -642,13 +678,213 @@ end`,
 };
 
 // ============================================
+// Level 46.5: Modular Monolith (NEW - inserted after Observability)
+// ============================================
+
+const levelModularMonolith: Level = {
+	id: 'act7-level51-modular-monolith',
+	actId: 7,
+	levelNumber: 51,
+	name: 'Modular Monolith',
+	requiresTests: true,
+	trigger: {
+		type: 'incident',
+		description:
+			'The monolith has grown to 200 files. A change to billing breaks notifications. No ownership. No boundaries. Team grew from 3 to 12 engineers and everyone touches everything.',
+	},
+	startingPipeline: { nodes: [], connections: [] },
+	problem: {
+		observation:
+			'A billing change broke notifications because there are no boundaries. Every team touches every part of the codebase. PR reviews take days because nobody knows who owns what.',
+		rootCause:
+			'No domain boundaries enforced. Code is organized by Rails convention (models/, controllers/) not by business domain. Cross-domain coupling is invisible until something breaks.',
+		codeExample: `# Everything lives in one flat structure:
+# app/models/
+#   order.rb          ← Billing domain
+#   payment.rb        ← Billing domain
+#   notification.rb   ← Notifications domain
+#   subscription.rb   ← Billing domain
+#   audit.rb          ← Compliance domain
+#
+# A billing change in order.rb directly calls:
+class Order < ApplicationRecord
+  after_create :send_notification   # Cross-domain coupling!
+  after_update :update_audit_trail  # Cross-domain coupling!
+
+  def send_notification
+    Notification.create!(            # Reaches into notifications domain
+      user: user,
+      message: "Order #\#{id} created"
+    )
+  end
+
+  def update_audit_trail
+    Audit.create!(                   # Reaches into compliance domain
+      auditable: self,
+      action: "updated"
+    )
+  end
+end
+
+# When billing changes Notification's interface,
+# notifications break. No one knows until production.`,
+		goal: 'Organize code into Packwerk packages with enforced boundaries, public APIs, and CODEOWNERS.',
+		thresholds: {},
+	},
+	successConditions: [{ type: 'service_created' }],
+	availableNodes: ['event_bus'],
+	unlockedNodes: [],
+	learningContent: {
+		title: 'Modular Monolith with Packwerk',
+		conceptExplanation: `The modular monolith is the critical step BEFORE microservice extraction. It enforces domain boundaries within a single deployable codebase.
+
+**Why modular monolith?**
+- Microservices add network latency, distributed transactions, and operational complexity
+- A modular monolith gives you domain isolation WITHOUT the infrastructure cost
+- When you DO need to extract a service later, the boundaries are already clean
+
+**Real users:** Shopify (the largest Rails app in the world), Zendesk, GitHub — all use Packwerk-style modular monoliths.
+
+**Packwerk packages:**
+- Each business domain becomes a "package" with its own \`package.yml\`
+- \`enforce_dependencies: true\` — only allow explicit dependencies between packages
+- \`enforce_privacy: true\` — only allow access through the package's public API
+- \`bin/packwerk check\` catches unauthorized cross-package references at CI time
+
+**CODEOWNERS:**
+- \`.github/CODEOWNERS\` assigns domain experts as required reviewers
+- PRs to \`components/billing/\` require approval from the billing team
+- Branch protection rules enforce it — no merging without domain owner approval
+
+**Eileen Uchitelle's keynote (Rails World 2024):** "The Myth of the Modular Monolith" — modularity can't fully solve human problems, but it delivers value by reorganizing complexity in ways humans can better understand.`,
+		railsCodeExample: `# === Step 1: Organize into Packwerk packages ===
+
+# Gemfile
+gem 'packwerk'
+
+# Directory structure:
+# components/
+#   billing/
+#     app/models/billing/order.rb
+#     app/models/billing/payment.rb
+#     app/public/billing_interface.rb  ← Public API
+#     package.yml
+#   notifications/
+#     app/models/notifications/notification.rb
+#     app/public/notification_interface.rb
+#     package.yml
+#   compliance/
+#     app/models/compliance/audit.rb
+#     app/public/audit_interface.rb
+#     package.yml
+
+# === Step 2: Define package.yml ===
+
+# components/billing/package.yml
+enforce_dependencies: true
+enforce_privacy: true
+dependencies:
+  - '.'  # Root package only — no direct dependency on notifications!
+
+# components/notifications/package.yml
+enforce_dependencies: true
+enforce_privacy: true
+dependencies:
+  - '.'
+
+# === Step 3: Create public APIs ===
+
+# components/billing/app/public/billing_interface.rb
+module BillingInterface
+  def self.create_order(user:, items:)
+    Billing::Order.create!(user: user, items: items)
+  end
+
+  def self.process_payment(order_id:)
+    order = Billing::Order.find(order_id)
+    Billing::PaymentService.charge(order)
+  end
+end
+
+# components/compliance/app/public/audit_interface.rb
+module AuditInterface
+  def self.record(auditable:, action:, user: nil)
+    Compliance::Audit.create!(
+      auditable: auditable,
+      action: action,
+      user: user
+    )
+  end
+end
+
+# === Step 4: Use public APIs, not direct access ===
+
+# BEFORE (privacy violation — Packwerk will flag this):
+Audit.create!(auditable: order, action: "created")
+
+# AFTER (goes through public API):
+AuditInterface.record(auditable: order, action: "created")
+
+# === Step 5: CODEOWNERS ===
+
+# .github/CODEOWNERS
+components/billing/   @billing-team
+components/notifications/  @platform-team
+components/compliance/     @compliance-team
+config/                    @infra-team
+
+# === Step 6: CI enforcement ===
+
+# bin/packwerk check
+# Checking 342 files...
+#
+# components/billing/app/models/billing/order.rb:15
+#   Privacy violation: Notification is private to components/notifications/
+#   Use NotificationInterface instead.
+#
+# 1 violation found. ← CI fails!
+
+# .github/workflows/packwerk.yml
+- name: Check package boundaries
+  run: bin/packwerk check`,
+		commonMistakes: [
+			'Organizing by Rails convention (models/, controllers/) instead of by domain',
+			'Allowing direct model access across packages (bypassing public APIs)',
+			'Not running packwerk check in CI (boundaries only enforced locally)',
+			'Making packages too granular (one per model — defeats the purpose)',
+			'Not setting up CODEOWNERS (no ownership enforcement)',
+		],
+		whenToUse:
+			'When your team grows beyond 5-6 engineers, or when a change in one domain frequently breaks another. The modular monolith is the bridge between a tangled monolith and microservices.',
+		furtherReading: [
+			{
+				title: 'Packwerk (Shopify)',
+				url: 'https://github.com/Shopify/packwerk',
+			},
+			{
+				title: 'CODEOWNERS (GitHub)',
+				url: 'https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners',
+			},
+			{
+				title: 'Book: "Rails Scales!", Chapter 9 — Packwerk & Modular Boundaries',
+				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
+			},
+		],
+	},
+	hint: {
+		delay: 25,
+		text: 'Organize code into Packwerk packages by business domain. Define public APIs. Set enforce_dependencies and enforce_privacy to true in package.yml.',
+	},
+};
+
+// ============================================
 // Level 47: Domain Events & Decoupling
 // ============================================
 
 const level47DomainEvents: Level = {
-	id: 'act7-level48-domain-events',
+	id: 'act7-level52-domain-events',
 	actId: 7,
-	levelNumber: 48,
+	levelNumber: 52,
 	name: 'Domain Events & Decoupling',
 	requiresTests: true,
 	trigger: {
@@ -693,6 +929,28 @@ end
 		title: 'Domain Events & Event-Driven Architecture',
 		conceptExplanation: `Domain events decouple producers from consumers.
 
+**Without domain events (tight coupling — failure cascade):**
+\`\`\`
+PaymentService.process(order):
+  1. Stripe charge ✓
+  2. NotificationService.send_receipt(order) ✗ ← Email server down!
+  3. InventoryService.reserve(order) — NEVER RUNS
+  4. AnalyticsService.track(order) — NEVER RUNS
+Result: Payment succeeded but nothing else happened.
+\`\`\`
+
+**With domain events (isolated failures):**
+\`\`\`
+PaymentService.process(order):
+  1. Stripe charge ✓
+  2. events.payment_succeeded(order) ← Publish event, return immediately
+Subscribers (independent, isolated):
+  - NotificationListener: ✗ (email down) → retries later
+  - InventoryListener: ✓ (reserved items)
+  - AnalyticsListener: ✓ (tracked purchase)
+Result: 3 out of 4 succeed. Notification retries independently.
+\`\`\`
+
 **The principle:** A service publishes an event describing what happened. Other services subscribe and react independently. If a subscriber fails, it does not affect the publisher or other subscribers.
 
 **Benefits:**
@@ -701,10 +959,19 @@ end
 - Testability: test each service in isolation
 - Audit trail: events are a log of everything that happened
 
-**Patterns:**
-- **In-process (Wisper):** Events stay within the Rails process. Simple, no infrastructure. Best for decoupling within a monolith
-- **Out-of-process (Karafka + Kafka):** Events are published to Kafka topics and consumed by independent worker processes. Karafka is the Ruby/Rails framework for Kafka — it gives you a familiar Rails-like DSL for consumers. Choose this when subscribers live in separate services or when you need guaranteed delivery, replay, and ordering
-- **Hybrid:** Publish in-process with Wisper, fan out to Sidekiq jobs. Good middle ground before going full Kafka`,
+**Progression — Wisper → Karafka:**
+
+**In-process (Wisper):** Events stay within the Rails process. Simple, no infrastructure. Best for decoupling within a monolith.
+
+**Out-of-process (Karafka + Kafka):** Events published to Kafka topics, consumed by independent worker processes. Guaranteed delivery, replay, and ordering. Choose when subscribers live in separate services.
+- Producing: \`Karafka.producer.produce_sync(topic: 'payments', payload: {...}.to_json)\`
+- Consuming: \`class PaymentsConsumer < ApplicationConsumer; def consume; messages.each { |msg| process(msg) }; end; end\`
+- Routing: \`topic :payments do; consumer PaymentsConsumer; end\`
+- Karafka Web dashboard at \`/karafka\` for monitoring
+
+**Hybrid:** Publish in-process with Wisper, fan out to Sidekiq jobs. Good middle ground before Kafka.
+
+**Monolith philosophy:** "Stick with a monolith for as long as possible (and no longer)." — Jason Warner (CTO GitHub): "One of the biggest architectural mistakes of the past decade was going full microservice."`,
 		railsCodeExample: `# Using Wisper for in-process domain events
 # Gemfile
 gem 'wisper'
@@ -807,8 +1074,16 @@ end`,
 				url: 'https://github.com/krisleech/wisper',
 			},
 			{
-				title: 'Domain Events in Rails',
+				title: 'Karafka (Kafka for Ruby/Rails)',
+				url: 'https://karafka.io/',
+			},
+			{
+				title: 'Domain Events in Rails (Arkency)',
 				url: 'https://blog.arkency.com/domain-events-over-active-record-callbacks/',
+			},
+			{
+				title: 'Book: "Rails Scales!", Chapter 6 — Kafka + Karafka',
+				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],
 	},
@@ -833,6 +1108,7 @@ export const actSeven: Act = {
 		level44StateMachines,
 		level45MultiTenancy,
 		level46Observability,
+		levelModularMonolith,
 		level47DomainEvents,
 	],
 	unlockedNodes: ['read_replica', 'state_machine', 'tenant', 'event_bus'],

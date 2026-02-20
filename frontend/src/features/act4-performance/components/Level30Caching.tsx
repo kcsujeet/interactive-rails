@@ -123,7 +123,7 @@ end
 	},
 ];
 
-export function Level29Caching({ onComplete, onExit }: LevelComponentProps) {
+export function Level30Caching({ onComplete, onExit }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [cacheLayers, setCacheLayers] =
 		useState<CacheLayer[]>(INITIAL_CACHE_LAYERS);
@@ -211,7 +211,7 @@ export function Level29Caching({ onComplete, onExit }: LevelComponentProps) {
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act4-level29-caching', { stars: 3 });
+		const success = await completeLevel('act4-level30-caching', { stars: 3 });
 		if (success) {
 			onComplete({ stars: 3 });
 		}
@@ -299,7 +299,7 @@ export function Level29Caching({ onComplete, onExit }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={4}
 					levelName="Caching"
-					levelNumber={29}
+					levelNumber={30}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {
@@ -499,4 +499,4 @@ Rails.cache.delete_matched("posts/*")`}
 	);
 }
 
-export default Level29Caching;
+export default Level30Caching;

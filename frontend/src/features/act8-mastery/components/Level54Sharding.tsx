@@ -33,7 +33,7 @@ interface Query {
 	shard: number;
 }
 
-export function Level50Sharding({ onComplete, onExit }: LevelComponentProps) {
+export function Level54Sharding({ onComplete, onExit }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [shardingEnabled, setShardingEnabled] = useState(false);
 	const [tenants] = useState<Tenant[]>([
@@ -110,7 +110,7 @@ export function Level50Sharding({ onComplete, onExit }: LevelComponentProps) {
 	}, [shardingEnabled, tenants]);
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act8-level50-sharding', { stars: 3 });
+		const success = await completeLevel('act8-level54-sharding', { stars: 3 });
 		if (success) {
 			onComplete({ stars: 3 });
 		}
@@ -181,7 +181,7 @@ export function Level50Sharding({ onComplete, onExit }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={8}
 					levelName="Database Sharding"
-					levelNumber={50}
+					levelNumber={54}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {
@@ -392,4 +392,4 @@ end`,
 	);
 }
 
-export default Level50Sharding;
+export default Level54Sharding;

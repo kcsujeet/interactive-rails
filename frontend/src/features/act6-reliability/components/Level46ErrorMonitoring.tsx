@@ -111,7 +111,7 @@ function generateError(): ErrorEntry {
 
 // --- Component ---
 
-export function Level43ErrorMonitoring({
+export function Level46ErrorMonitoring({
 	onComplete,
 	onExit,
 }: LevelComponentProps) {
@@ -247,7 +247,7 @@ export function Level43ErrorMonitoring({
 	}, [enabledCount, errors.length]);
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act6-level43-error-monitoring', {
+		const success = await completeLevel('act6-level46-error-monitoring', {
 			stars: 3,
 		});
 		if (success) {
@@ -457,7 +457,7 @@ export function Level43ErrorMonitoring({
 				<LevelHeader
 					actNumber={6}
 					levelName="Error Monitoring"
-					levelNumber={43}
+					levelNumber={46}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}
@@ -837,4 +837,4 @@ end`,
 	);
 }
 
-export default Level43ErrorMonitoring;
+export default Level46ErrorMonitoring;

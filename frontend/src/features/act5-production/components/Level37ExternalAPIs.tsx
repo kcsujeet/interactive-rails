@@ -48,7 +48,7 @@ interface APICall {
 	retryCount: number;
 }
 
-export function Level35ExternalAPIs({
+export function Level37ExternalAPIs({
 	onComplete,
 	onExit,
 }: LevelComponentProps) {
@@ -193,7 +193,7 @@ export function Level35ExternalAPIs({
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act5-level35-external-apis', {
+		const success = await completeLevel('act5-level37-external-apis', {
 			stars: 3,
 		});
 		if (success) {
@@ -297,7 +297,7 @@ export function Level35ExternalAPIs({
 				<LevelHeader
 					actNumber={5}
 					levelName="External APIs"
-					levelNumber={35}
+					levelNumber={37}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {
@@ -552,4 +552,4 @@ end`,
 	);
 }
 
-export default Level35ExternalAPIs;
+export default Level37ExternalAPIs;

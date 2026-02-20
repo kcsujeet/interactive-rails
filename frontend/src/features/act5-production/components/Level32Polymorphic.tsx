@@ -61,7 +61,7 @@ const PARENT_MODELS = [
 	},
 ] as const;
 
-export function Level30Polymorphic({
+export function Level32Polymorphic({
 	onComplete,
 	onExit,
 }: LevelComponentProps) {
@@ -116,7 +116,7 @@ export function Level30Polymorphic({
 	}, [hasUnified, allConnected, connections, connectedCount]);
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act5-level30-polymorphic', {
+		const success = await completeLevel('act5-level32-polymorphic', {
 			stars: 3,
 		});
 		if (success) {
@@ -246,7 +246,7 @@ export function Level30Polymorphic({
 				<LevelHeader
 					actNumber={5}
 					levelName="Polymorphic Associations"
-					levelNumber={30}
+					levelNumber={32}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}
@@ -674,4 +674,4 @@ function AfterView({
 	);
 }
 
-export default Level30Polymorphic;
+export default Level32Polymorphic;

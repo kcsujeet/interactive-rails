@@ -172,7 +172,7 @@ function formatHour(hour: number): string {
 
 // ── Component ──────────────────────────────────────────────────────────
 
-export function Level42RecurringJobs({
+export function Level44RecurringJobs({
 	onComplete,
 	onExit,
 }: LevelComponentProps) {
@@ -419,7 +419,7 @@ end`;
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act6-level42-recurring-jobs', {
+		const success = await completeLevel('act6-level44-recurring-jobs', {
 			stars: 3,
 		});
 		if (success) {
@@ -537,7 +537,7 @@ end`;
 				<LevelHeader
 					actNumber={6}
 					levelName="Recurring Jobs"
-					levelNumber={42}
+					levelNumber={44}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}
@@ -930,4 +930,4 @@ end`;
 	);
 }
 
-export default Level42RecurringJobs;
+export default Level44RecurringJobs;

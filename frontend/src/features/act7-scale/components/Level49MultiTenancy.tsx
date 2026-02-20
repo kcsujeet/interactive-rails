@@ -141,7 +141,7 @@ function getLevelDots(level: number, max: number) {
 
 // --- Component ---
 
-export function Level46MultiTenancy({
+export function Level49MultiTenancy({
 	onComplete,
 	onExit,
 }: LevelComponentProps) {
@@ -261,7 +261,7 @@ export function Level46MultiTenancy({
 
 	// Complete
 	const handleComplete = async () => {
-		const success = await completeLevel('act7-level46-multi-tenancy', {
+		const success = await completeLevel('act7-level49-multi-tenancy', {
 			stars: 3,
 		});
 		if (success) {
@@ -412,7 +412,7 @@ export function Level46MultiTenancy({
 				<LevelHeader
 					actNumber={7}
 					levelName="Multi-Tenancy"
-					levelNumber={46}
+					levelNumber={49}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}
@@ -791,4 +791,4 @@ end`,
 	);
 }
 
-export default Level46MultiTenancy;
+export default Level49MultiTenancy;

@@ -188,7 +188,7 @@ function getArrowPath(
 // Component
 // ---------------------------------------------------------------------------
 
-export function Level45StateMachines({
+export function Level48StateMachines({
 	onComplete,
 	onExit,
 }: LevelComponentProps) {
@@ -383,7 +383,7 @@ export function Level45StateMachines({
 	// ----- Completion ---------------------------------------------------------
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act7-level45-state-machines', {
+		const success = await completeLevel('act7-level48-state-machines', {
 			stars: 3,
 		});
 		if (success) {
@@ -647,7 +647,7 @@ end
 				<LevelHeader
 					actNumber={7}
 					levelName="State Machines"
-					levelNumber={45}
+					levelNumber={48}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}
@@ -1035,4 +1035,4 @@ end
 	);
 }
 
-export default Level45StateMachines;
+export default Level48StateMachines;

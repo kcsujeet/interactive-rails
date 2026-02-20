@@ -81,7 +81,7 @@ const WEBHOOK_TYPES: { type: string; Icon: LucideIcon; description: string }[] =
 		},
 	];
 
-export function Level36Webhooks({ onComplete, onExit }: LevelComponentProps) {
+export function Level38Webhooks({ onComplete, onExit }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [config, setConfig] = useState<WebhookConfig>({
 		signatureVerification: false,
@@ -180,7 +180,7 @@ export function Level36Webhooks({ onComplete, onExit }: LevelComponentProps) {
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act5-level36-webhooks', { stars: 3 });
+		const success = await completeLevel('act5-level38-webhooks', { stars: 3 });
 		if (success) {
 			onComplete({ stars: 3 });
 		}
@@ -292,7 +292,7 @@ export function Level36Webhooks({ onComplete, onExit }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={5}
 					levelName="Webhooks"
-					levelNumber={36}
+					levelNumber={38}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {
@@ -544,4 +544,4 @@ end`,
 	);
 }
 
-export default Level36Webhooks;
+export default Level38Webhooks;

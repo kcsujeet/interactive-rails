@@ -248,7 +248,7 @@ end
 
 // --- Component ---
 
-export function Level25Indexing({ onComplete, onExit }: LevelComponentProps) {
+export function Level26Indexing({ onComplete, onExit }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [indexes, setIndexes] = useState<IndexOption[]>(INITIAL_INDEXES);
 	const [selectedQuery, setSelectedQuery] = useState(0);
@@ -310,7 +310,7 @@ export function Level25Indexing({ onComplete, onExit }: LevelComponentProps) {
 
 	const handleComplete = async () => {
 		const stars = optimizedCount === 3 ? 3 : 2;
-		const success = await completeLevel('act4-level25-database-indexing', {
+		const success = await completeLevel('act4-level26-database-indexing', {
 			stars,
 		});
 		if (success) {
@@ -469,7 +469,7 @@ export function Level25Indexing({ onComplete, onExit }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={4}
 					levelName="Database Indexing"
-					levelNumber={25}
+					levelNumber={26}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}
@@ -853,4 +853,4 @@ EXPLAIN ANALYZE <your query>`}
 	);
 }
 
-export default Level25Indexing;
+export default Level26Indexing;

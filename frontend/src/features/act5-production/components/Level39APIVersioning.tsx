@@ -89,7 +89,7 @@ const V2_RESPONSE_BODY = JSON.stringify(
 	2,
 );
 
-export function Level37APIVersioning({
+export function Level39APIVersioning({
 	onComplete,
 	onExit,
 }: LevelComponentProps) {
@@ -171,7 +171,7 @@ export function Level37APIVersioning({
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act5-level37-api-versioning', {
+		const success = await completeLevel('act5-level39-api-versioning', {
 			stars: 3,
 		});
 		if (success) {
@@ -350,7 +350,7 @@ export function Level37APIVersioning({
 				<LevelHeader
 					actNumber={5}
 					levelName="API Versioning"
-					levelNumber={37}
+					levelNumber={39}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {
@@ -768,4 +768,4 @@ end`,
 	);
 }
 
-export default Level37APIVersioning;
+export default Level39APIVersioning;

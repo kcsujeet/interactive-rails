@@ -152,7 +152,7 @@ function computeRelevanceScore(post: Post, query: string): number {
 	return Math.round(score * 10) / 10;
 }
 
-export function Level28Search({ onComplete, onExit }: LevelComponentProps) {
+export function Level29Search({ onComplete, onExit }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [searchQuery, setSearchQuery] = useState('');
 	const [searchMode, setSearchMode] = useState<SearchMode>('like');
@@ -261,7 +261,7 @@ export function Level28Search({ onComplete, onExit }: LevelComponentProps) {
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act4-level28-search', { stars: 3 });
+		const success = await completeLevel('act4-level29-search', { stars: 3 });
 		if (success) {
 			onComplete({ stars: 3 });
 		}
@@ -531,7 +531,7 @@ end`;
 				<LevelHeader
 					actNumber={4}
 					levelName="Search"
-					levelNumber={28}
+					levelNumber={29}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}
@@ -935,4 +935,4 @@ end`;
 	);
 }
 
-export default Level28Search;
+export default Level29Search;

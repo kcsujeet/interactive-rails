@@ -69,7 +69,7 @@ const LATENCY_WITH_REPLICAS = { p50: 45, p95: 95, p99: 150 };
 
 // --- Component ---
 
-export function Level44MultiDatabase({
+export function Level47MultiDatabase({
 	onComplete,
 	onExit,
 }: LevelComponentProps) {
@@ -232,7 +232,7 @@ export function Level44MultiDatabase({
 	}, [hasReplicas, connectsToEnabled, simulationComplete]);
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act7-level44-multi-database', {
+		const success = await completeLevel('act7-level47-multi-database', {
 			stars: 3,
 		});
 		if (success) {
@@ -410,7 +410,7 @@ config.active_record.database_resolver_context =
 				<LevelHeader
 					actNumber={7}
 					levelName="Multi-Database"
-					levelNumber={44}
+					levelNumber={47}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}
@@ -802,4 +802,4 @@ config.active_record.database_resolver_context =
 	);
 }
 
-export default Level44MultiDatabase;
+export default Level47MultiDatabase;

@@ -114,7 +114,7 @@ interface SoftDeleteConfig {
 
 // ─── Component ────────────────────────────────────────────────────
 
-export function Level40SoftDeletes({
+export function Level42SoftDeletes({
 	onComplete,
 	onExit,
 }: LevelComponentProps) {
@@ -263,7 +263,7 @@ export function Level40SoftDeletes({
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act6-level40-soft-deletes', {
+		const success = await completeLevel('act6-level42-soft-deletes', {
 			stars: 3,
 		});
 		if (success) {
@@ -519,7 +519,7 @@ PaperTrail.request.whodunnit = -> {
 				<LevelHeader
 					actNumber={6}
 					levelName="Soft Deletes & Audit Trails"
-					levelNumber={40}
+					levelNumber={42}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}
@@ -899,4 +899,4 @@ PaperTrail.request.whodunnit = -> {
 	);
 }
 
-export default Level40SoftDeletes;
+export default Level42SoftDeletes;

@@ -132,7 +132,7 @@ const SERVICES: Service[] = [
 	},
 ];
 
-export function Level49APIGateway({ onComplete, onExit }: LevelComponentProps) {
+export function Level53APIGateway({ onComplete, onExit }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [features, setFeatures] = useState<GatewayFeature[]>(INITIAL_FEATURES);
 	const [services, setServices] = useState<Service[]>(SERVICES);
@@ -288,7 +288,7 @@ export function Level49APIGateway({ onComplete, onExit }: LevelComponentProps) {
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act8-level49-api-gateway', {
+		const success = await completeLevel('act8-level53-api-gateway', {
 			stars: 3,
 		});
 		if (success) {
@@ -351,7 +351,7 @@ export function Level49APIGateway({ onComplete, onExit }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={8}
 					levelName="API Gateway"
-					levelNumber={49}
+					levelNumber={53}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {
@@ -595,4 +595,4 @@ server {
 	);
 }
 
-export default Level49APIGateway;
+export default Level53APIGateway;

@@ -211,7 +211,7 @@ function buildSimulationSteps(enabled: string[]): SimulationStep[] {
 // Component
 // ---------------------------------------------------------------------------
 
-export function Level51Architect({ onComplete, onExit }: LevelComponentProps) {
+export function Level55Architect({ onComplete, onExit }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [components, setComponents] =
 		useState<ArchComponent[]>(INITIAL_COMPONENTS);
@@ -296,7 +296,7 @@ export function Level51Architect({ onComplete, onExit }: LevelComponentProps) {
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act8-level51-architect', { stars: 3 });
+		const success = await completeLevel('act8-level55-architect', { stars: 3 });
 		if (success) {
 			onComplete({ stars: 3 });
 		}
@@ -406,7 +406,7 @@ export function Level51Architect({ onComplete, onExit }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={8}
 					levelName="The Architect"
-					levelNumber={51}
+					levelNumber={55}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {
@@ -944,4 +944,4 @@ end`,
 	return files;
 }
 
-export default Level51Architect;
+export default Level55Architect;

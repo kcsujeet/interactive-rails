@@ -13,9 +13,9 @@ import type { Act, Level } from '@/types';
 // ============================================
 
 const level48APIGateway: Level = {
-	id: 'act8-level49-api-gateway',
+	id: 'act8-level53-api-gateway',
 	actId: 8,
-	levelNumber: 49,
+	levelNumber: 53,
 	name: 'API Gateway',
 	trigger: {
 		type: 'architecture',
@@ -197,9 +197,9 @@ end`,
 // ============================================
 
 const level49Sharding: Level = {
-	id: 'act8-level50-sharding',
+	id: 'act8-level54-sharding',
 	actId: 8,
-	levelNumber: 50,
+	levelNumber: 54,
 	name: 'Database Sharding',
 	trigger: {
 		type: 'scaling',
@@ -242,15 +242,46 @@ end
 		title: 'Horizontal Database Sharding',
 		conceptExplanation: `Sharding splits data across multiple database servers (shards).
 
+**The capacity wall (without sharding):**
+\`\`\`
+Orders table:    2 billion rows, 800M in largest table
+INSERT latency:  200ms+ (was 5ms a year ago)
+Index rebuilds:  4+ hours
+pg_dump:         Fails after 6 hours (out of disk)
+Autovacuum:      Cannot keep up
+Even with read replicas → WRITES are the bottleneck
+\`\`\`
+
+**With sharding (3 shards by tenant_id):**
+\`\`\`
+Each shard:      ~660M rows (manageable)
+INSERT latency:  ~5ms (back to normal)
+Shard selection: company_id % 3 → shard_one/shard_two/shard_three
+\`\`\`
+
+**ShardRecord abstract class pattern:**
+Only sharded models inherit from \`ShardRecord\`. Global models (users, tenants) stay on \`ApplicationRecord\`. This is critical — you cannot shard the users table because login must work cross-shard.
+
 **Shard key selection is critical:**
 - Tenant ID (company_id): Natural for B2B SaaS, all tenant data on one shard
 - User ID: Good for consumer apps, even distribution
 - Geographic region: Good for data sovereignty requirements
 
+**Middleware-based shard switching:**
+Middleware detects company_id from JWT/subdomain, connects to the correct shard before the controller runs. Uses modular hashing: \`company_id % 3\` → shard selection.
+
 **Rails 6.1+ native sharding:**
 - \`connects_to\` supports multiple shards
-- \`connected_to(shard: :shard_one)\` for explicit shard selection
-- Middleware can automatically route by tenant
+- \`connected_to(shard: :shard_one)\` for block-scoped connection
+- \`connecting_to(:shard_two)\` for sticky connection (until changed)
+- Without connecting: \`ActiveRecord::ConnectionNotEstablished\`
+
+**The cost of sharding (from the book):**
+- Analytics requires querying ALL shards + aggregating in memory
+- Accounts may need rebalancing (some users generate orders of magnitude more data → hot shard)
+- Regional segregation (EU data can't live on US shard) adds more complexity
+- A reviewer recommended removing the sharding chapter entirely — "most projects don't need it"
+- Author's response: "For many companies, sharding is one of the key decisions that allowed them to scale."
 
 **Trade-offs:**
 - Cross-shard queries are expensive (avoid them)
@@ -409,6 +440,10 @@ end`,
 				title: 'Citus (PostgreSQL Sharding)',
 				url: 'https://www.citusdata.com/',
 			},
+			{
+				title: 'Rails Scales! — Chapter 6: Horizontal Sharding',
+				url: 'https://pragprog.com/titles/cpscale/rails-scales/',
+			},
 		],
 	},
 	hint: {
@@ -422,9 +457,9 @@ end`,
 // ============================================
 
 const level50Architect: Level = {
-	id: 'act8-level51-architect',
+	id: 'act8-level55-architect',
 	actId: 8,
-	levelNumber: 51,
+	levelNumber: 55,
 	name: 'The Architect',
 	isCapstone: true,
 	trigger: {
@@ -518,25 +553,28 @@ end
 		title: 'The Architect: Full Service Extraction',
 		conceptExplanation: `This is the capstone. You are extracting a billing service from a monolith using every concept from the game:
 
-**1. Multi-Database (Act 7, Level 43):**
+**1. Multi-Database (Act 7, Level 47):**
 Billing gets its own database. Read replicas for reporting queries.
 
-**2. State Machines (Act 7, Level 44):**
+**2. State Machines (Act 7, Level 48):**
 Payment status transitions are guarded: pending -> processing -> completed/failed. No invalid transitions.
 
-**3. Multi-Tenancy (Act 7, Level 45):**
+**3. Multi-Tenancy (Act 7, Level 49):**
 Each tenant's billing data is isolated. Queries are automatically scoped.
 
-**4. Observability (Act 7, Level 46):**
+**4. Observability (Act 7, Level 50):**
 Structured logs, distributed tracing across the gateway and billing service, health checks, and alerting.
 
-**5. Domain Events (Act 7, Level 47):**
+**5. Modular Monolith (Act 7, Level 51):**
+Enforce domain boundaries with Packwerk before extracting. Define packages with public APIs and dependency rules.
+
+**6. Domain Events (Act 7, Level 52):**
 Payment events (payment.succeeded, payment.failed) are published. Notifications, inventory, and analytics subscribe independently.
 
-**6. API Gateway (Act 8, Level 48):**
+**7. API Gateway (Act 8, Level 53):**
 The gateway routes billing requests, handles auth at the edge, and provides circuit breakers.
 
-**7. Sharding (Act 8, Level 49):**
+**8. Sharding (Act 8, Level 54):**
 Billing data is sharded by tenant for write scalability.
 
 **Modular monolith with Packwerk (before extracting):**
@@ -551,7 +589,10 @@ Flipper lets you control the extraction rollout with surgical precision: enable 
 3. Dual-write during migration
 4. Route traffic through the gateway with Flipper feature flags
 5. Gradually increase traffic: 5% → 25% → 50% → 100%
-6. Remove billing code from the monolith`,
+6. Remove billing code from the monolith
+
+**A note on the modular monolith (from the book):**
+Eileen Uchitelle's keynote ("The Myth of the Modular Monolith", Rails World 2024) argues that modularity can't fully solve human problems, but it delivers value by reorganizing complexity in ways humans can better understand. The key insight: enforce boundaries with tools (Packwerk, CODEOWNERS), not just conventions. Jason Warner (CTO GitHub): "One of the biggest architectural mistakes of the past decade was going full microservice." Stick with a monolith for as long as possible — and no longer.`,
 		railsCodeExample: `# === STEP 1: Define the bounded context ===
 # Billing domain: Payment, Invoice, Subscription, Refund
 
@@ -689,6 +730,14 @@ Flipper.enable_percentage_of_actors(:billing_v2, 5)`,
 			{
 				title: 'Domain-Driven Design (Eric Evans)',
 				url: 'https://www.domainlanguage.com/ddd/',
+			},
+			{
+				title: 'Packwerk (Shopify)',
+				url: 'https://github.com/Shopify/packwerk',
+			},
+			{
+				title: 'Rails Scales! — Full Book (Pragmatic Bookshelf)',
+				url: 'https://pragprog.com/titles/cpscale/rails-scales/',
 			},
 		],
 	},

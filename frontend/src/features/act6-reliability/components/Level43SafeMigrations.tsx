@@ -204,7 +204,7 @@ function getRiskIcon(risk: RiskLevel) {
 
 // --- Component ---
 
-export function Level41SafeMigrations({
+export function Level43SafeMigrations({
 	onComplete,
 	onExit,
 }: LevelComponentProps) {
@@ -247,7 +247,7 @@ export function Level41SafeMigrations({
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act6-level41-safe-migrations', {
+		const success = await completeLevel('act6-level43-safe-migrations', {
 			stars: 3,
 		});
 		if (success) {
@@ -365,7 +365,7 @@ export function Level41SafeMigrations({
 				<LevelHeader
 					actNumber={6}
 					levelName="Safe Migrations"
-					levelNumber={41}
+					levelNumber={43}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}
@@ -844,4 +844,4 @@ end`,
 	return files;
 }
 
-export default Level41SafeMigrations;
+export default Level43SafeMigrations;

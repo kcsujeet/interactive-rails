@@ -73,6 +73,11 @@ Every level teaches through three phases: **WHY → HOW → ADVANTAGE**.
 
 When creating or redesigning a level component, ensure all three phases are present in the gameplay. Reference `docs/spec.md` for each level's scenario and concept.
 
+**Performance-level ADVANTAGE phase convention (Acts 4-8):**
+Every performance-related level must have a full ADVANTAGE phase in its `learningContent` with:
+- **Before/after benchmarks** showing time, memory, and object allocations where available
+- A **"Further reading"** section linking to relevant gems, guides, and the "Rails Scales!" book chapter
+
 ### Wrong-Answer Feedback: Never Reveal Answers
 
 **Error feedback must NEVER contain the correct answer.** This is non-negotiable. Feedback should explain *why the chosen option is wrong* — not what the right one is. The player must figure out the answer themselves.

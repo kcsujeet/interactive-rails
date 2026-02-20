@@ -29,7 +29,7 @@ interface Upload {
 	status: 'uploading' | 'completed' | 'failed';
 }
 
-export function Level32ActiveStorage({
+export function Level34ActiveStorage({
 	onComplete,
 	onExit,
 }: LevelComponentProps) {
@@ -126,7 +126,7 @@ export function Level32ActiveStorage({
 	}, []);
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act5-level32-active-storage', {
+		const success = await completeLevel('act5-level34-active-storage', {
 			stars: 3,
 		});
 		if (success) {
@@ -213,7 +213,7 @@ export function Level32ActiveStorage({
 				<LevelHeader
 					actNumber={5}
 					levelName="Cloud Storage"
-					levelNumber={32}
+					levelNumber={34}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {
@@ -451,4 +451,4 @@ amazon:
 	);
 }
 
-export default Level32ActiveStorage;
+export default Level34ActiveStorage;

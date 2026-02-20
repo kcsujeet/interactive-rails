@@ -33,7 +33,7 @@ interface Event {
 	to: string[];
 }
 
-export function Level48DomainEvents({
+export function Level52DomainEvents({
 	onComplete,
 	onExit,
 }: LevelComponentProps) {
@@ -137,7 +137,7 @@ export function Level48DomainEvents({
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act7-level48-domain-events', {
+		const success = await completeLevel('act7-level52-domain-events', {
 			stars: 3,
 		});
 		if (success) {
@@ -207,7 +207,7 @@ export function Level48DomainEvents({
 				<LevelHeader
 					actNumber={7}
 					levelName="Event-Driven"
-					levelNumber={48}
+					levelNumber={52}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {
@@ -359,4 +359,4 @@ end`,
 	);
 }
 
-export default Level48DomainEvents;
+export default Level52DomainEvents;

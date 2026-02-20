@@ -87,7 +87,7 @@ interface QueryResult {
 	detail: string;
 }
 
-export function Level33Encryption({ onComplete, onExit }: LevelComponentProps) {
+export function Level35Encryption({ onComplete, onExit }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 
 	const [columns, setColumns] = useState<ColumnConfig[]>([
@@ -226,7 +226,7 @@ export function Level33Encryption({ onComplete, onExit }: LevelComponentProps) {
 	}, [getColumnConfig]);
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act5-level33-encryption', {
+		const success = await completeLevel('act5-level35-encryption', {
 			stars: 3,
 		});
 		if (success) {
@@ -475,7 +475,7 @@ ${phoneQueryable ? 'User.find_by(phone: "+1-555-0123")        # Works!' : '# Use
 				<LevelHeader
 					actNumber={5}
 					levelName="Encrypted Attributes"
-					levelNumber={33}
+					levelNumber={35}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}
@@ -782,4 +782,4 @@ ${phoneQueryable ? 'User.find_by(phone: "+1-555-0123")        # Works!' : '# Use
 	);
 }
 
-export default Level33Encryption;
+export default Level35Encryption;

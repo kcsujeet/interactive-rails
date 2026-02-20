@@ -148,7 +148,7 @@ const SCENARIOS: Scenario[] = [
 	},
 ];
 
-export function Level27Pagination({ onComplete, onExit }: LevelComponentProps) {
+export function Level28Pagination({ onComplete, onExit }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [strategies] = useState<PaginationStrategy[]>(PAGINATION_STRATEGIES);
 	const [scenarios, setScenarios] = useState<Scenario[]>(SCENARIOS);
@@ -189,7 +189,7 @@ export function Level27Pagination({ onComplete, onExit }: LevelComponentProps) {
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act4-level27-pagination', {
+		const success = await completeLevel('act4-level28-pagination', {
 			stars: 3,
 		});
 		if (success) {
@@ -285,7 +285,7 @@ export function Level27Pagination({ onComplete, onExit }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={4}
 					levelName="Pagination"
-					levelNumber={27}
+					levelNumber={28}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => setScenarios(SCENARIOS)}
@@ -457,4 +457,4 @@ export function Level27Pagination({ onComplete, onExit }: LevelComponentProps) {
 	);
 }
 
-export default Level27Pagination;
+export default Level28Pagination;

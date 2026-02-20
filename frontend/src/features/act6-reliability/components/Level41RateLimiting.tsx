@@ -72,7 +72,7 @@ const INITIAL_CLIENTS: Client[] = [
 	},
 ];
 
-export function Level39RateLimiting({
+export function Level41RateLimiting({
 	onComplete,
 	onExit,
 }: LevelComponentProps) {
@@ -185,7 +185,7 @@ export function Level39RateLimiting({
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act6-level39-rate-limiting', {
+		const success = await completeLevel('act6-level41-rate-limiting', {
 			stars: 3,
 		});
 		if (success) {
@@ -296,7 +296,7 @@ export function Level39RateLimiting({
 				<LevelHeader
 					actNumber={6}
 					levelName="Rate Limiting"
-					levelNumber={39}
+					levelNumber={41}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {
@@ -537,4 +537,4 @@ Rack::Attack.throttled_responder = -> (req) {
 	);
 }
 
-export default Level39RateLimiting;
+export default Level41RateLimiting;

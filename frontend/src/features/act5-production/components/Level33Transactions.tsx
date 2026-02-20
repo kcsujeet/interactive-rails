@@ -204,7 +204,7 @@ function buildSimulation(strategy: LockingStrategy): SimulationState {
 	}
 }
 
-export function Level31Transactions({
+export function Level33Transactions({
 	onComplete,
 	onExit,
 }: LevelComponentProps) {
@@ -303,7 +303,7 @@ export function Level31Transactions({
 	}, [hasRunSimulation, strategy, strategiesViewed]);
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act5-level31-transactions', {
+		const success = await completeLevel('act5-level33-transactions', {
 			stars: 3,
 		});
 		if (success) {
@@ -463,7 +463,7 @@ export function Level31Transactions({
 				<LevelHeader
 					actNumber={5}
 					levelName="Transactions & Locking"
-					levelNumber={31}
+					levelNumber={33}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {
@@ -783,4 +783,4 @@ end`,
 	);
 }
 
-export default Level31Transactions;
+export default Level33Transactions;

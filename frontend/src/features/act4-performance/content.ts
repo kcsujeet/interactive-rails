@@ -131,7 +131,7 @@ end`,
 	availableNodes: [],
 	unlockedNodes: ['eager_load'],
 	learningContent: {
-		title: 'The N+1 Query Problem & Bullet Gem',
+		title: 'The N+1 Query Problem & Prosopite Detection',
 		conceptExplanation: `The N+1 problem is the most common performance killer in Rails apps. It happens when you load a collection of records (1 query) and then access an association on each record (N queries).
 
 **The math is brutal:**
@@ -139,18 +139,26 @@ end`,
 - 1,000 posts = 1,001 queries
 - 10,000 posts = 10,001 queries
 
-It scales linearly with data size. What works in development with 10 records becomes a disaster in production with 10,000.
+It scales linearly with data size. What works in development with 10 records becomes a disaster in production with 10,000. Twitter's early timeline had this exact problem — loading each tweet's author triggered a separate query.
+
+**Production benchmarks (N+1 vs preloaded at scale):**
+\`\`\`
+N+1:     4.873s | 1,564 MB | 5,301,574 objects allocated
+Preload: 0.195s |   682 MB |   148,827 objects allocated
+→ 25x faster, 2.3x less memory, 35x fewer objects
+\`\`\`
 
 **Detection tools:**
-- **Bullet gem**: Automatically detects N+1 queries in development. Shows browser alerts, console warnings, and log entries. Also detects unused eager loading
-- **Prosopite gem**: A complementary detector that catches N+1 queries Bullet misses — it works by monitoring SQL patterns rather than association access, so it catches N+1 through raw SQL and \`find_each\` blocks
-- Use both in development. Bullet is the first line; Prosopite is the safety net
+- **Prosopite gem** (recommended): Monitors SQL patterns rather than association access. Catches N+1 through raw SQL, \`find_each\` blocks, and patterns Bullet misses. Raises \`Prosopite::NPlusOneQueriesError\` in development
+- **Bullet gem**: Detects N+1 via association tracking. Good first line, but misses raw SQL N+1 patterns
+- Use Prosopite as your primary detector. Add Bullet for its unused eager loading detection
 
 **Where N+1 hides:**
 - Serializers (accessing associations during rendering)
 - Views (iterating and calling association methods)
 - Scopes with dependent queries
-- Callbacks that touch associations`,
+- Callbacks that touch associations
+- \`find_each\` blocks with association access (Bullet misses these, Prosopite catches them)`,
 		railsCodeExample: `# The problem: N+1 queries
 @posts = Post.all  # 1 query: SELECT * FROM posts
 
@@ -161,7 +169,28 @@ It scales linearly with data size. What works in development with 10 records bec
 end
 # Total: 1 + N + N queries!
 
-# Bullet gem setup:
+# === Prosopite setup (recommended N+1 detector) ===
+# Gemfile
+gem 'prosopite'
+
+# config/environments/development.rb
+config.after_initialize do
+  Prosopite.rails_logger = true
+  Prosopite.raise = true  # Raises error on N+1 in dev
+end
+
+# In tests (catch N+1 regressions):
+# test/test_helper.rb
+Prosopite.rails_logger = true
+Prosopite.raise = true
+
+# Why Prosopite over Bullet?
+# Prosopite monitors SQL patterns — it detects N+1 through:
+# - Raw SQL queries (Bullet only tracks association access)
+# - find_each blocks that trigger per-record queries
+# - Any code path that generates duplicate SQL patterns
+
+# === Bullet setup (complementary — catches unused eager loads) ===
 # Gemfile
 gem 'bullet', group: [:development, :test]
 
@@ -175,30 +204,34 @@ config.after_initialize do
   Bullet.add_footer    = true   # footer in HTML
 end
 
-# Bullet will tell you:
-# "USE eager loading detected
-#   Post => [:user]
-#   Add to your query: .includes(:user)"`,
+# Bullet also detects UNUSED eager loading:
+# "AVOID eager loading detected
+#   Post => [:comments]
+#   Remove from your query: .includes(:comments)"`,
 		commonMistakes: [
-			'Not monitoring query counts in development (use bullet gem)',
+			'Not using Prosopite in development (catches N+1 Bullet misses)',
 			'Assuming eager loading is always the fix (sometimes you need to restructure)',
 			'Only checking controller queries (N+1 often hides in serializers)',
 			'Ignoring N+1 in tests because test data is small',
 		],
 		whenToUse:
-			'Always check for N+1 when iterating over records and accessing associations. Install bullet in every Rails project.',
+			'Always check for N+1 when iterating over records and accessing associations. Install Prosopite in every Rails project from day one.',
 		furtherReading: [
+			{
+				title: 'Prosopite Gem',
+				url: 'https://github.com/charkost/prosopite',
+			},
 			{
 				title: 'Bullet Gem',
 				url: 'https://github.com/flyerhzm/bullet',
 			},
 			{
-				title: 'Prosopite Gem (Catches N+1 Bullet Misses)',
-				url: 'https://github.com/charkost/prosopite',
+				title: 'ActiveRecord Eager Loading Guide',
+				url: 'https://guides.rubyonrails.org/active_record_querying.html#eager-loading-associations',
 			},
 			{
-				title: 'ActiveRecord Query Interface - Eager Loading',
-				url: 'https://guides.rubyonrails.org/active_record_querying.html#eager-loading-associations',
+				title: 'Book: "Rails Scales!", Chapter 2',
+				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],
 	},
@@ -311,22 +344,43 @@ Post.eager_load(:user)   # Always LEFT OUTER JOIN (1 query)`,
 	unlockedNodes: [],
 	learningContent: {
 		title: 'Eager Loading: includes vs preload vs eager_load',
-		conceptExplanation: `Rails provides three eager loading methods. Each works differently:
+		conceptExplanation: `Rails provides three eager loading methods. Each works differently — and the choice matters for both speed AND memory:
 
 **\`includes\`** (recommended default):
 - Rails decides: 2 separate queries OR a LEFT OUTER JOIN
 - Uses JOIN when you filter on the association (e.g., \`.where(users: { active: true })\`)
 - Uses separate queries otherwise (usually faster for simple cases)
 
-**\`preload\`** (force separate queries):
+**\`preload\`** (force separate queries — 25x faster, LESS memory):
 - Always runs 2 separate queries
-- Cannot filter on the preloaded association in WHERE clauses
-- Best when you need the data but not for filtering
+- 148K objects allocated vs 250K for eager_load — separate simple queries create fewer temporary objects
+- Best when you DON'T filter by the associated table
 
-**\`eager_load\`** (force JOIN):
+**\`eager_load\`** (force JOIN — 20x faster, MORE memory):
 - Always uses LEFT OUTER JOIN in a single query
-- Required when filtering/ordering by the association
-- Can be slower for large datasets (big JOIN result)
+- Required when filtering/ordering by the association (\`Post.eager_load(:user).where(users: {role: 'admin'})\`)
+- Allocates more objects because the JOIN returns wider result rows
+
+**\`joins\`** — NEVER for preventing N+1:
+- INNER JOINs but does NOT load association records into memory
+- You will still get N+1 when you access associations after \`joins\`
+- This is a common misconception
+
+**Production benchmarks (simple scenario — posts with authors):**
+\`\`\`
+N+1:        Real 9.545s | User 4.873s | 1,564 MB | 5,301,574 objects
+Preload:    Real 1.34s  | User 0.195s |   682 MB |   148,827 objects → 25x faster
+Eager Load: Real 0.99s  | User 0.238s |   697 MB |   250,610 objects → 20x faster
+\`\`\`
+
+**Why preload beats eager_load on memory:** \`preload\` runs separate simple queries, creating fewer temporary objects. \`eager_load\` builds a single wide JOIN result — the database returns more columns per row, and ActiveRecord must allocate more intermediate objects to parse the wider result set.
+
+**Complex scenario (posts per category per author, at scale):**
+\`\`\`
+N+1:        Real 73.191s
+Preload:    Real 17.468s → 23x faster
+Eager Load: Real 16.898s → 16x faster
+\`\`\`
 
 **Nested eager loading:**
 - \`Post.includes(comments: :user)\` — load comments AND each comment's user
@@ -335,7 +389,15 @@ Post.eager_load(:user)   # Always LEFT OUTER JOIN (1 query)`,
 **strict_loading (Rails 6.1+):**
 - Raises an error if you access a non-eager-loaded association
 - Catches N+1 at runtime instead of silently degrading`,
-		railsCodeExample: `# includes — smart default (use this most of the time)
+		railsCodeExample: `# === Decision tree: which method to use? ===
+#
+# Do you filter/sort by the associated table?
+#   YES → eager_load (needs JOIN for WHERE/ORDER BY)
+#   NO  → Do you need ActiveRecord objects?
+#         YES → preload (separate queries, less memory)
+#         NO  → pluck (raw arrays, minimal memory)
+
+# includes — smart default (use this most of the time)
 Post.includes(:user)
 # Query 1: SELECT "posts".* FROM "posts"
 # Query 2: SELECT "users".* FROM "users" WHERE "users"."id" IN (1, 2, 3...)
@@ -346,19 +408,25 @@ Post.includes(:user).where(users: { role: 'admin' })
 #   LEFT OUTER JOIN "users" ON "users"."id" = "posts"."user_id"
 #   WHERE "users"."role" = 'admin'
 
-# preload — force 2 queries
+# preload — force 2 queries (less memory than eager_load)
 Post.preload(:user)
 # Always 2 separate queries, even with .where
+# 148K objects vs 250K for eager_load
 
-# eager_load — force JOIN
-Post.eager_load(:user)
+# eager_load — force JOIN (required for filtering)
+Post.eager_load(:user).where(users: { active: true })
 # Always 1 query with LEFT OUTER JOIN
+
+# joins — DOES NOT prevent N+1 (common mistake!)
+Post.joins(:user).where(users: { role: 'admin' })
+# INNER JOINs but does NOT load user records into memory
+# post.user.name → STILL triggers a separate query!
 
 # Nested eager loading
 Post.includes(comments: :user)
 # Query 1: SELECT "posts".* FROM "posts"
-# Query 2: SELECT "comments".* FROM "comments" WHERE "comments"."post_id" IN (...)
-# Query 3: SELECT "users".* FROM "users" WHERE "users"."id" IN (...)
+# Query 2: SELECT "comments".* FROM "comments" WHERE post_id IN (...)
+# Query 3: SELECT "users".* FROM "users" WHERE id IN (...)
 
 # strict_loading — catch N+1 at runtime
 Post.strict_loading.all
@@ -381,13 +449,14 @@ Post.where(published: true).pluck(:title)
 # => ["First Post", "Second Post", ...]
 # Ideal for dropdowns, exports, and reports`,
 		commonMistakes: [
-			'Using eager_load when includes would be faster (JOIN on large tables is expensive)',
+			'Using joins thinking it prevents N+1 (it INNER JOINs but does NOT load associations)',
+			'Using eager_load when preload would use less memory (JOIN creates wider result rows)',
 			'Eager loading associations you never access (wastes memory)',
 			'Not nesting includes for deeply nested serializers',
 			'Forgetting strict_loading to prevent future N+1 regressions',
 		],
 		whenToUse:
-			'Use includes by default. Use eager_load when filtering on associations. Use preload when you need guaranteed separate queries.',
+			'Use includes by default (let Rails decide). Use preload when you DON\'T filter by the associated table (less memory). Use eager_load when you DO filter by the associated table (requires JOIN).',
 		furtherReading: [
 			{
 				title: 'ActiveRecord Eager Loading',
@@ -396,6 +465,14 @@ Post.where(published: true).pluck(:title)
 			{
 				title: 'Strict Loading (Rails 6.1+)',
 				url: 'https://api.rubyonrails.org/classes/ActiveRecord/Core/ClassMethods.html#method-i-strict_loading_by_default-3D',
+			},
+			{
+				title: 'Join Decomposition (Why Separate Queries Can Beat JOINs)',
+				url: 'https://dev.mysql.com/doc/refman/8.0/en/optimization.html',
+			},
+			{
+				title: 'Book: "Rails Scales!", Chapter 2 — Preloading Methods',
+				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],
 	},
@@ -406,13 +483,218 @@ Post.where(published: true).pluck(:title)
 };
 
 // ============================================
+// Level 24.5: Narrow Fetching (NEW - inserted after Eager Loading)
+// ============================================
+
+const levelNarrowFetching: Level = {
+	id: 'act4-level25-narrow-fetching',
+	actId: 4,
+	levelNumber: 25,
+	name: 'Narrow Fetching',
+	trigger: {
+		type: 'performance_alert',
+		description:
+			'The admin CSV export endpoint crashes with memory exhaustion. It loads 50K user records but only needs 3 columns — the other 27 columns include a ~75KB TEXT field.',
+	},
+	startingPipeline: {
+		nodes: [
+			{ id: 'request-node', type: 'request', x: 100, y: 220, locked: true },
+			{ id: 'router-node', type: 'router', x: 280, y: 220, locked: true },
+			{
+				id: 'controller-node',
+				type: 'controller',
+				x: 460,
+				y: 220,
+				locked: true,
+			},
+			{
+				id: 'post-model',
+				type: 'model',
+				x: 660,
+				y: 220,
+				locked: true,
+				config: { label: 'Post' },
+			},
+			{ id: 'database-node', type: 'database', x: 860, y: 220, locked: true },
+			{
+				id: 'serializer-node',
+				type: 'serializer',
+				x: 460,
+				y: 400,
+				locked: true,
+			},
+			{ id: 'response-node', type: 'response', x: 660, y: 400, locked: true },
+		],
+		connections: [
+			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'router-node' },
+			{
+				id: 'c2',
+				sourceNodeId: 'router-node',
+				targetNodeId: 'controller-node',
+			},
+			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
+			{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
+			{
+				id: 'c5',
+				sourceNodeId: 'controller-node',
+				targetNodeId: 'serializer-node',
+			},
+			{
+				id: 'c6',
+				sourceNodeId: 'serializer-node',
+				targetNodeId: 'response-node',
+			},
+		],
+	},
+	problem: {
+		observation:
+			'`GET /api/posts/export` returns a CSV with only id and title, but loads full ActiveRecord objects with 30 columns. Each record has a ~75KB TEXT column — fetching 10K records = 750MB of unused data.',
+		rootCause:
+			'SELECT * fetches every column including large TEXT fields. No narrow fetching (pluck/select) or batch processing (find_in_batches).',
+		codeExample: `# app/controllers/api/v1/posts_controller.rb
+def export
+  @posts = Post.all  # SELECT * FROM posts — loads ALL 30 columns!
+  csv = @posts.map { |p| [p.id, p.title].join(",") }
+  render plain: csv.join("\\n")
+end
+
+# The posts table has a 'body' TEXT column averaging 75KB per record.
+# 10K records × 30 columns × 75KB body = 750MB of unused data.
+#
+# Memory: 681 MB allocated
+# Time:   212ms
+# Objects: 149,000 allocated
+#
+# We only need id and title!
+# But Post.all loads body, metadata, serialized_config...everything.
+
+# For even larger datasets (50K+ records), the entire result set
+# is loaded into memory at once — crashing the Ruby process.`,
+		goal: 'Fetch only the columns you need with pluck or select. Process large datasets in batches with find_in_batches.',
+		thresholds: { maxMemoryUsage: 50 },
+	},
+	successConditions: [{ type: 'queries_optimized' }],
+	availableNodes: [],
+	unlockedNodes: [],
+	learningContent: {
+		title: 'Narrow Fetching: pluck, select & find_in_batches',
+		conceptExplanation: `After fixing N+1 and adding eager loading, the next performance win is fetching less data — not just fewer queries, but fewer columns and smaller batches.
+
+**Production benchmarks (10K posts with 75KB body column):**
+\`\`\`
+Post.all (wide):           212ms | 681 MB  | 149,000 objects
+Post.select(:id, :title):  53ms |  12 MB  | 107,000 objects → 4x faster, 56x less memory
+Post.pluck(:id, :title):   18ms |   2 MB  |  45,000 objects → 12x faster, 290x less memory
+\`\`\`
+
+**Real-world endpoint comparison at scale:**
+\`\`\`
+Post.all (wide):     1,101ms (742ms in DB)
+Post.pluck (narrow): 76ms → 14x improvement
+\`\`\`
+
+**Three tools for narrow fetching:**
+
+**\`pluck(:col1, :col2)\`** — Returns plain Ruby arrays:
+- No ActiveRecord objects created — lowest memory possible
+- Returns \`[[1, "Title"], [2, "Other"]]\` not AR objects
+- Use when you only need data values (CSV export, dropdown options, IDs for queries)
+
+**\`select(:col1, :col2)\`** — Returns lightweight AR objects:
+- Still creates AR objects, but skips unused columns
+- Use when you need model methods (validations, associations, callbacks)
+- Accessing an unselected column raises \`ActiveModel::MissingAttributeError\`
+
+**\`find_in_batches(batch_size: 1000)\`** — Process huge datasets:
+- Generates \`LIMIT 1000 WHERE id > last_seen_id\` queries
+- Only 1,000 records in memory at a time instead of 50,000
+- Essential for exports, backfills, and data migrations
+
+**Rule of thumb:**
+- Prefer \`pluck\` when you only need data values
+- Use \`select\` only when you need model methods
+- Use \`find_in_batches\` when processing huge datasets
+
+**Real-world story:** An unpaginated endpoint returning only \`id\` and \`name\` was timing out. Root cause: table had 30+ columns including serialized objects in TEXT fields. One user had stored the entire U.S. Constitution in a text field. The \`SELECT *\` forced the DB to write to disk mid-response.`,
+		railsCodeExample: `# === pluck — raw arrays, minimal memory ===
+Post.where(published: true).pluck(:id, :title)
+# => [[1, "First Post"], [2, "Second Post"]]
+# SELECT id, title FROM posts WHERE published = true
+# No AR objects! Just arrays.
+
+# === select — lightweight AR objects ===
+Post.select(:id, :title, :user_id).includes(:user)
+# SELECT id, title, user_id FROM posts
+# AR objects with only 3 columns loaded
+# post.body → raises ActiveModel::MissingAttributeError
+
+# === find_in_batches — process huge datasets ===
+Post.find_in_batches(batch_size: 1000) do |batch|
+  csv_rows = batch.pluck(:id, :title).map { |r| r.join(",") }
+  File.open("export.csv", "a") { |f| f.write(csv_rows.join("\\n")) }
+end
+# Generates: SELECT * FROM posts WHERE id > 0 LIMIT 1000
+#            SELECT * FROM posts WHERE id > 1000 LIMIT 1000
+#            ... (1000 records at a time, not 50K at once)
+
+# === Combine for maximum efficiency ===
+# Export endpoint (production-safe):
+def export
+  headers["Content-Type"] = "text/csv"
+  headers["Content-Disposition"] = "attachment; filename=posts.csv"
+
+  # Stream CSV in batches — never loads all records at once
+  Post.published.find_in_batches(batch_size: 2000) do |batch|
+    rows = batch.pluck(:id, :title, :created_at)
+    response.stream.write(rows.map { |r| r.join(",") }.join("\\n") + "\\n")
+  end
+ensure
+  response.stream.close
+end
+
+# === For dropdown/autocomplete — pluck, don't load objects ===
+# BAD: loads full AR objects just for a dropdown
+User.all.map { |u| [u.id, u.name] }
+# GOOD: returns just the data you need
+User.pluck(:id, :name)`,
+		commonMistakes: [
+			'Using Post.all when you only need 2-3 columns (loads all 30 columns)',
+			'Not using find_in_batches for large dataset processing (memory explosion)',
+			'Using .length on a collection to get count (loads all records, use .count)',
+			'Forgetting that select raises MissingAttributeError for unselected columns',
+			'Using pluck inside a loop (N+1 pluck calls — batch the query instead)',
+		],
+		whenToUse:
+			'Any endpoint that returns data from wide tables (10+ columns) or processes large datasets (1K+ records). CSV exports, admin dashboards, dropdown data, background data processing.',
+		furtherReading: [
+			{
+				title: 'ActiveRecord pluck',
+				url: 'https://api.rubyonrails.org/classes/ActiveRecord/Calculations.html#method-i-pluck',
+			},
+			{
+				title: 'ActiveRecord find_in_batches',
+				url: 'https://api.rubyonrails.org/classes/ActiveRecord/Batches.html',
+			},
+			{
+				title: 'Book: "Rails Scales!", Chapter 2 — Wide vs Narrow Fetching',
+				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
+			},
+		],
+	},
+	hint: {
+		delay: 20,
+		text: 'Use pluck(:id, :title) instead of Post.all for the export. For large datasets, use find_in_batches to process in chunks.',
+	},
+};
+
+// ============================================
 // Level 24: Database Indexing
 // ============================================
 
 const level24DatabaseIndexing: Level = {
-	id: 'act4-level25-database-indexing',
+	id: 'act4-level26-database-indexing',
 	actId: 4,
-	levelNumber: 25,
+	levelNumber: 26,
 	name: 'Database Indexing',
 	trigger: {
 		type: 'performance_alert',
@@ -504,6 +786,12 @@ Post.where(published: true).order(:created_at) # Composite query`,
 		title: 'Database Indexing & EXPLAIN',
 		conceptExplanation: `An index is like a book's table of contents. Without it, the database reads every row (sequential scan). With it, the database jumps directly to matching rows (index scan).
 
+**Production benchmarks (before vs after index):**
+\`\`\`
+No index:  type=ALL | key=NULL | rows=50,000 | Time: ~800ms
+With index: type=ref | key=index_users_on_email | rows=1 | Time: ~2ms → 400x faster
+\`\`\`
+
 **When to add an index:**
 - Columns in WHERE clauses (\`find_by\`, \`where\`)
 - Foreign key columns (\`user_id\`, \`post_id\`)
@@ -514,14 +802,25 @@ Post.where(published: true).order(:created_at) # Composite query`,
 **Index types:**
 - **B-tree** (default): Works for equality and range queries. Handles =, <, >, BETWEEN, IN, LIKE 'prefix%'
 - **Unique**: Enforces uniqueness at the database level. Faster than regular B-tree for lookups
-- **Composite**: Multiple columns in one index. Column order matters (leftmost prefix rule)
+- **Composite**: Multiple columns in one index. Column order matters critically (leftmost prefix rule)
 - **Partial**: Index only a subset of rows. Smaller and faster for common filtered queries
 
-**EXPLAIN ANALYZE:**
-- Shows the query execution plan
-- Seq Scan = bad (full table scan)
-- Index Scan = good (uses index)
-- Shows actual execution time`,
+**Reading EXPLAIN output — what each field tells you:**
+- \`type\`: ALL = full table scan (bad), ref = index used (good), const = single row by unique index (best)
+- \`key\`: Which index was used (NULL = no index)
+- \`rows\`: How many rows the DB examined (lower = better)
+- \`Extra\`: \`Using filesort\` = expensive sort, \`Using index\` = covered by index (great), \`Using where\` = filtering after fetch
+
+**The leftmost prefix rule (critical for composite indexes):**
+An index on \`[status, created_at]\` is like a dictionary sorted by last name then first name. It is perfect for finding "all published posts sorted by date" (filter by status, then sort by created_at). It is nearly useless for "all posts from January" (only filtering by created_at) — because the leftmost column must be in the query.
+
+**Composite index benchmarks:**
+\`\`\`
+Filtering by status AND ordering by created_at:
+  No index:                    Real 28.59ms
+  [status, created_at] index:  Real 11.25ms → 2.5x faster
+  [created_at] only (wrong):   Real 67.73ms → WORSE! Wrong index hurts
+\`\`\``,
 		railsCodeExample: `# Single column index
 class AddEmailIndexToUsers < ActiveRecord::Migration[8.0]
   def change
@@ -583,8 +882,12 @@ add_index :users, :email, algorithm: :concurrently`,
 				url: 'https://use-the-index-luke.com/',
 			},
 			{
-				title: 'activerecord-analyze (Prettier EXPLAIN Output)',
-				url: 'https://github.com/pawurb/activerecord-analyze',
+				title: 'PostgreSQL EXPLAIN Documentation',
+				url: 'https://www.postgresql.org/docs/current/using-explain.html',
+			},
+			{
+				title: 'Book: "Rails Scales!", Chapter 2 — Indexing & EXPLAIN',
+				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],
 	},
@@ -599,9 +902,9 @@ add_index :users, :email, algorithm: :concurrently`,
 // ============================================
 
 const level25CounterCaches: Level = {
-	id: 'act4-level26-counter-caches',
+	id: 'act4-level27-counter-caches',
 	actId: 4,
-	levelNumber: 26,
+	levelNumber: 27,
 	name: 'Counter Caches',
 	trigger: {
 		type: 'performance_alert',
@@ -713,18 +1016,35 @@ end
 - Rails automatically increments/decrements the count on create/destroy
 - \`post.comments.count\` reads the column instead of running a query — zero queries!
 
-**Denormalization trade-off:**
-- Reads are instant (no COUNT query)
-- Writes are slightly slower (must update the counter)
-- Data can get out of sync (use \`reset_counters\` to fix)
+**Production benchmarks:**
+\`\`\`
+WITHOUT counter_cache (COUNT query per post):
+  Queries: 101 (1 for posts + 100 COUNT queries)
+  Time:    1,551ms
 
-**Production benchmark:** Displaying comment counts for 1,000 posts — without counter cache: 1,551ms (1,011 queries). With counter cache: 27ms (1 query). That is a 57x speedup from a single column addition.
+WITH counter_cache:
+  Queries: 1
+  Time:    27ms → 57x faster
+\`\`\`
+
+**How it works under the hood:**
+\`\`\`sql
+-- Creating a comment triggers both in one transaction:
+INSERT INTO comments (...)
+UPDATE posts SET comments_count = COALESCE(comments_count, 0) + 1 WHERE id = 42
+\`\`\`
+
+**Denormalization trade-offs:**
+- **Not source of truth**: The count is a cached value. Could diverge if someone runs a bad backfill or manually modifies data. Use \`reset_counters\` to fix
+- **Write penalty**: Every create/destroy adds an UPDATE to the parent row
+- **Locking at scale (the critical issue)**: A viral post with thousands of simultaneous comments — all try to \`UPDATE posts SET comments_count = ... WHERE id = viral_post_id\`. They all compete to lock the same row → lock contention → deadlocks → failed transactions. Same problem Twitter faced with \`followers_count\` on celebrity accounts. At that scale, you need async counter updates (batch increment every N seconds)
 
 **When to use counter_cache vs other approaches:**
-- Counter cache: Simple count, frequently displayed
+- Counter cache: Simple count, frequently displayed, moderate write volume
 - \`.size\` method: Uses counter cache if available, otherwise COUNT
 - \`.length\` method: Loads all records into memory (never use for counting!)
-- Precomputed aggregates: For complex calculations (sums, averages)`,
+- Precomputed aggregates: For complex calculations (sums, averages)
+- Async counters: For high-write scenarios where lock contention is a concern`,
 		railsCodeExample: `# Step 1: Migration — add counter column
 class AddCommentsCountToPosts < ActiveRecord::Migration[8.0]
   def change
@@ -787,6 +1107,10 @@ end`,
 				title: 'counter_culture Gem',
 				url: 'https://github.com/magnusvk/counter_culture',
 			},
+			{
+				title: 'Book: "Rails Scales!", Chapter 3 — counter_cache',
+				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
+			},
 		],
 	},
 	hint: {
@@ -800,9 +1124,9 @@ end`,
 // ============================================
 
 const level26Pagination: Level = {
-	id: 'act4-level27-pagination',
+	id: 'act4-level28-pagination',
 	actId: 4,
-	levelNumber: 27,
+	levelNumber: 28,
 	name: 'Pagination',
 	trigger: {
 		type: 'performance_alert',
@@ -897,14 +1221,32 @@ end
 - \`LIMIT 25 OFFSET 50\` — page 3 of 25 items
 - Simple, supports "jump to page 10"
 - Performance degrades on deep pages (OFFSET 100000 still scans 100K rows)
-- Records can shift between pages if data changes
+- Records can shift between pages if data changes (duplicates or missed items)
 
 **Cursor-based pagination** (keyset):
 - \`WHERE id > last_seen_id LIMIT 25\`
 - Consistent performance regardless of page depth
 - No "page 5" — only "next" and "previous"
 - Best for infinite scroll, real-time feeds
-- **Production benchmark:** 2.4x faster than offset on deep pages (0.327s vs 1.097s over 1,000 sequential page requests). The gap widens with table size — offset gets slower on every page, cursor stays constant
+
+**Production benchmarks (1,000 sequential page requests):**
+\`\`\`
+Offset-based: GET /posts?page=500
+  SQL:      SELECT * FROM posts LIMIT 25 OFFSET 12475
+            (DB must skip over 12,475 rows before returning 25)
+  Time:     Real 1.097s | User 391.5ms
+
+Cursor-based: GET /posts?cursor=eyJpZCI6MTI0NzZ9
+  SQL:      SELECT * FROM posts WHERE id > 12476 LIMIT 25
+            (DB uses index to jump directly to id=12476)
+  Time:     Real 0.327s | User 163.1ms → 2.4x faster
+\`\`\`
+
+**Why cursor-based is faster:** \`OFFSET 12475\` tells the DB "skip the first 12,475 rows" — it still reads and discards them. \`WHERE id > last_seen_id\` gives the DB engine extra context to traverse the B-tree index directly — no wasted reads regardless of page depth.
+
+**Why cursor-based is more stable:** With offset pagination, inserting a new post shifts every page by one — users see duplicates or miss posts. With cursor-based, cursors point to specific records — new inserts don't invalidate existing cursors.
+
+**The timestamp gotcha:** IDs are unique, but timestamps are NOT. A bulk import of 10,000 posts with identical \`created_at\` means \`WHERE created_at > X\` can skip records with duplicate values. Fix: always add a secondary sort key on a unique column: \`ORDER BY created_at DESC, id DESC\`.
 
 **API pagination with Link headers:**
 - Follow RFC 5988 — pagination info in response headers, not body
@@ -986,8 +1328,16 @@ end`,
 				url: 'https://github.com/ddnexus/pagy',
 			},
 			{
+				title: 'rails_cursor_pagination (Cursor-Based)',
+				url: 'https://github.com/xing/rails_cursor_pagination',
+			},
+			{
 				title: 'RFC 5988 - Web Linking',
 				url: 'https://tools.ietf.org/html/rfc5988',
+			},
+			{
+				title: 'Book: "Rails Scales!", Chapter 4 — Cursor-Based Pagination',
+				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],
 	},
@@ -1002,9 +1352,9 @@ end`,
 // ============================================
 
 const level27Search: Level = {
-	id: 'act4-level28-search',
+	id: 'act4-level29-search',
 	actId: 4,
-	levelNumber: 28,
+	levelNumber: 29,
 	name: 'Search',
 	trigger: {
 		type: 'new_feature',
@@ -1230,9 +1580,9 @@ Post.where(id: Post.connection.select_values(
 // ============================================
 
 const level28Caching: Level = {
-	id: 'act4-level29-caching',
+	id: 'act4-level30-caching',
 	actId: 4,
-	levelNumber: 29,
+	levelNumber: 30,
 	name: 'Caching',
 	trigger: {
 		type: 'scaling',
@@ -1326,35 +1676,58 @@ end
 	availableNodes: ['cache'],
 	unlockedNodes: ['cache'],
 	learningContent: {
-		title: 'Caching: Solid Cache, Low-Level Cache & HTTP ETags',
+		title: 'Caching: Fragment, Russian Doll, Solid Cache & HTTP ETags',
 		conceptExplanation: `Rails 8 introduces **Solid Cache** — a database-backed cache store that replaces Redis for most caching needs. No additional infrastructure required.
+
+**Production benchmarks:**
+\`\`\`
+No caching (with preloading):  ~3,800ms (sheer data volume + ranking)
+Fragment cache (cache hit):    17ms → 317x faster
+\`\`\`
 
 **Caching layers (from fastest to slowest):**
 
 1. **HTTP Caching (ETags/304)** — Client never even makes a request
    - \`stale?\` checks if the resource changed; \`fresh_when\` is the shorthand for render-only responses
-   - Returns 304 Not Modified if unchanged (no body, no computation — 21ms response vs 6ms for a 304)
+   - Returns 304 Not Modified if unchanged (21ms → 6ms, no serialization)
    - CDNs and browsers cache the response
 
-2. **Low-level cache (Rails.cache)** — Cached in your cache store
+2. **Fragment caching** — Cache rendered view/JSON fragments
+   - Wrap a view section in a \`cache\` block. Cache version auto-generated from \`MAX(updated_at)\` + \`COUNT(*)\`
+   - On cache hit, the entire serialization step is skipped — Rails returns pre-computed JSON directly
+   - The 317x improvement comes from avoiding all object allocation, serializer logic, and JSON generation
+
+3. **Russian doll caching** — Nested cache blocks
+   - Outer collection cache + inner per-record cache
+   - One post update only re-renders that post's fragment, not the entire collection
+   - Still must execute SQL to fetch post IDs, but saves serialization time
+
+4. **Low-level cache (Rails.cache)** — Cached in your cache store
    - \`Rails.cache.fetch("key", expires_in: 1.hour) { expensive_query }\`
    - First request computes and stores; subsequent requests read from cache
-   - Solid Cache stores this in your database (no Redis needed)
 
-3. **Query cache** — Automatic within a single request
+5. **Query cache** — Automatic within a single request
    - Rails caches identical SQL queries within the same request
    - Zero configuration, but only helps within a single request
 
-**Cache store comparison:**
-- **Solid Cache** (Rails 8 default): Database-backed, no Redis to manage, survives restarts, ~80% cheaper than a managed Redis instance. Perfect for most applications
-- **Redis**: In-memory, sub-millisecond reads, battle-tested. Choose when you need pub/sub or extreme throughput (>100K ops/sec)
-- **Memcached**: Pure key-value cache, slightly faster than Redis for simple gets, no persistence. Choose for simple caching at massive scale
+**Cache store comparison (choose wisely):**
+- **SolidCache** (Rails 8 default): DB-backed, allows much larger caches. ~40% slower reads than Redis, but 6x larger cache on 80% cheaper storage (per 37Signals). Use a separate database/connection pool from primary
+- **Memcached**: Faster than Redis for simple key-value. Strings only, LRU eviction. No persistence — data lost on restart. Good for pure fragment caching
+- **Redis**: Persistent (AOF/RDB). Data structures (lists, sets, sorted sets, hashes). Atomic operations (INCR, LPUSH). 6 eviction policies. Better for complex cases and pub/sub
+- **\`:memory_store\`**: Per-process only (32MB default). Data duplicated across Puma workers → reduced hit rate. Dev/test only
+
+**DHH's expiration key pattern:** Put the expiration key inside the cache key itself. Simpler logic but generates garbage (old keys stay until evicted).
+
+**Write-through caching:** Update cache at write time, not read time. Reading becomes O(1). Trade-off: slower writes.
 
 **Cache invalidation strategies:**
 - Time-based: \`expires_in: 5.minutes\`
 - Key-based: Include the record's \`updated_at\` in the cache key
 - Manual: \`Rails.cache.delete("key")\`
-- Touch: \`belongs_to :post, touch: true\` cascades cache invalidation`,
+- Touch: \`belongs_to :post, touch: true\` cascades cache invalidation
+
+**Real-world pattern — Fan-out writing (how Twitter worked with Rails):**
+On each new post, write the post ID into a cached "timeline" list for every follower. Reading a feed becomes \`Post.where(id: cached_ids)\` — trivial. The "Justin Bieber problem": celebrity with millions of followers → each post triggers millions of cache writes. Solution: mixed fan-out — regular users get fan-out writes; celebrities are exempt (their posts fetched via direct DB query at read time).`,
 		railsCodeExample: `# === Solid Cache Setup (Rails 8) ===
 
 # config/cache.yml (auto-generated)
@@ -1448,11 +1821,249 @@ Rails.cache.delete_matched("posts/*")
 				title: 'HTTP Caching in Rails',
 				url: 'https://guides.rubyonrails.org/caching_with_rails.html#conditional-get-support',
 			},
+			{
+				title: 'Book: "Rails Scales!", Chapter 3 — Fragment Caching, Russian Doll, Cache Stores',
+				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
+			},
 		],
 	},
 	hint: {
 		delay: 25,
 		text: 'Wrap the trending query in Rails.cache.fetch with a 5-minute expiration. Add stale? for HTTP caching on show actions.',
+	},
+};
+
+// ============================================
+// Level 29.5: HTTP Caching & CDNs (NEW - inserted after Caching)
+// ============================================
+
+const levelHTTPCaching: Level = {
+	id: 'act4-level31-http-caching',
+	actId: 4,
+	levelNumber: 31,
+	name: 'HTTP Caching & CDNs',
+	trigger: {
+		type: 'scaling',
+		description:
+			'Your Rails caching is great, but every request still hits the server. 1,000 req/sec all computing the same API response. HTTP caching can prevent requests from reaching Rails at all.',
+	},
+	startingPipeline: {
+		nodes: [
+			{ id: 'request-node', type: 'request', x: 100, y: 220, locked: true },
+			{ id: 'router-node', type: 'router', x: 280, y: 220, locked: true },
+			{
+				id: 'controller-node',
+				type: 'controller',
+				x: 460,
+				y: 220,
+				locked: true,
+			},
+			{
+				id: 'post-model',
+				type: 'model',
+				x: 660,
+				y: 220,
+				locked: true,
+				config: { label: 'Post' },
+			},
+			{ id: 'database-node', type: 'database', x: 860, y: 220, locked: true },
+			{
+				id: 'serializer-node',
+				type: 'serializer',
+				x: 460,
+				y: 400,
+				locked: true,
+			},
+			{ id: 'response-node', type: 'response', x: 660, y: 400, locked: true },
+		],
+		connections: [
+			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'router-node' },
+			{
+				id: 'c2',
+				sourceNodeId: 'router-node',
+				targetNodeId: 'controller-node',
+			},
+			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
+			{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
+			{
+				id: 'c5',
+				sourceNodeId: 'controller-node',
+				targetNodeId: 'serializer-node',
+			},
+			{
+				id: 'c6',
+				sourceNodeId: 'serializer-node',
+				targetNodeId: 'response-node',
+			},
+		],
+	},
+	problem: {
+		observation:
+			'Same expensive API response computed on every request. 1,000 req/sec all hitting Rails. Even with Rails.cache, every request still reaches the server.',
+		rootCause:
+			'No HTTP-level caching. No Cache-Control headers, no ETags, no CDN. Every request makes a full round-trip to the server.',
+		codeExample: `# app/controllers/api/v1/posts_controller.rb
+def show
+  @post = Post.find(params[:id])
+  render json: PostSerializer.new(@post).serializable_hash.to_json
+end
+
+# Every request, even if the post hasn't changed:
+#   First request:  200 OK in 21ms (ActiveRecord: 9.6ms, 2 queries)
+#   Second request: 200 OK in 21ms (ActiveRecord: 9.6ms, 2 queries)
+#   Same computation every time!
+#
+# Without CDN:
+#   Client → Origin server (transatlantic round trip: 60-100ms)
+#   Even for static assets that never change
+#
+# No Cache-Control headers means:
+# - Browsers don't cache API responses
+# - CDNs can't cache anything
+# - Every user request hits Rails`,
+		goal: 'Add HTTP caching with ETags, Cache-Control headers, and CDN configuration. Second requests should return 304 Not Modified.',
+		thresholds: { maxLatency: 10 },
+	},
+	successConditions: [{ type: 'cdn_configured' }],
+	availableNodes: ['cache'],
+	unlockedNodes: [],
+	learningContent: {
+		title: 'HTTP Caching: Cache-Control, ETags & CDNs',
+		conceptExplanation: `HTTP-level caching is the first line of defense before requests even hit Rails. It prevents requests from reaching your server at all.
+
+**Production benchmarks:**
+\`\`\`
+No HTTP caching:
+  First request:  200 OK in 21ms (ActiveRecord: 9.6ms, 2 queries)
+  Second request: 200 OK in 21ms (same computation repeated)
+
+With ETag + stale?:
+  First request:  200 OK in 21ms (ActiveRecord: 9.6ms, 2 queries)
+  Second request: 304 Not Modified in 6ms (1 query, no serialization) → 3.5x faster
+
+With CDN:
+  Without CDN: Client → Origin server (60-100ms round trip)
+  With CDN:    Client → Edge server (~5ms) → cache hit → instant response
+\`\`\`
+
+**How ETags work:**
+1. Rails generates a weak ETag (hash of response body)
+2. Browser sends it back as \`If-None-Match\` on next request
+3. If the post hasn't changed, Rails returns 304 (empty body)
+4. No serialization, no rendering, no second DB query
+5. The \`stale?\` helper checks \`post.updated_at\` in a single fast query
+
+**Key Cache-Control directives:**
+- \`max-age=N\`: Client can reuse for N seconds without asking server
+- \`s-max-age=N\`: Same but for shared caches (CDN) only
+- \`no-cache\`: Can be cached, but MUST revalidate with origin on every use
+- \`public\`: CDN and browser can both cache
+- \`private\`: Only browser can cache (user-specific data)
+- \`stale-while-revalidate=N\`: Serve stale cache while fetching fresh copy in background
+- \`immutable\`: Asset will never change (use with fingerprinted filenames)
+
+**CDN benefits:**
+- Geographically distributed edge servers
+- User in Tokyo hits a CDN edge in Tokyo: sub-10ms response
+- Without CDN, the request travels to your server in Virginia: 60-100ms
+- For static assets with fingerprinted filenames: set \`max-age: 1 year\` + \`immutable\`
+- Asset URL changes on every deploy, so stale cache is impossible`,
+		railsCodeExample: `# === ETag-based caching with stale? ===
+
+# app/controllers/api/v1/posts_controller.rb
+def show
+  @post = Post.find(params[:id])
+
+  # Returns 304 Not Modified if post hasn't changed
+  if stale?(@post)
+    render json: PostSerializer.new(@post).serializable_hash.to_json
+  end
+end
+
+# For collections:
+def index
+  @posts = Post.includes(:user).order(updated_at: :desc).limit(25)
+
+  # Use the most recently updated post as the ETag
+  if stale?(etag: @posts, last_modified: @posts.first&.updated_at)
+    render json: PostSerializer.new(@posts).serializable_hash.to_json
+  end
+end
+
+# fresh_when — shorthand for render-only responses:
+def show
+  @post = Post.find(params[:id])
+  fresh_when(@post)  # Sets ETag + Last-Modified, renders 304 if fresh
+end
+
+# === Cache-Control headers ===
+
+# Public API (CDN + browser can cache):
+def show
+  @post = Post.find(params[:id])
+  expires_in 5.minutes, public: true,
+    's-maxage': 1.hour  # CDN caches for 1 hour
+
+  if stale?(@post)
+    render json: PostSerializer.new(@post).serializable_hash.to_json
+  end
+end
+
+# User-specific data (browser only, no CDN):
+def profile
+  expires_in 5.minutes, public: false
+  render json: UserSerializer.new(current_user).serializable_hash.to_json
+end
+
+# stale-while-revalidate (serve stale while fetching fresh):
+response.headers['Cache-Control'] = 'public, max-age=60, stale-while-revalidate=300'
+# Browser serves cached version for 60s, then revalidates in background for 5min
+
+# === CDN configuration ===
+
+# config/environments/production.rb
+config.asset_host = "https://cdn.example.com"  # CDN for assets
+config.action_controller.asset_host = "https://cdn.example.com"
+
+# Fingerprinted assets get infinite cache:
+# application-abc123def456.css → Cache-Control: max-age=31536000, immutable
+# New deploy → new fingerprint → new URL → no stale cache possible
+
+# === Conditional GET for API clients ===
+# Client sends:
+#   GET /api/posts/42
+#   If-None-Match: "abc123"   ← ETag from previous response
+#
+# Server responds:
+#   304 Not Modified           ← Empty body, fast!
+#   ETag: "abc123"`,
+		commonMistakes: [
+			'Not using stale? for GET endpoints (every request recomputes the response)',
+			'Setting Cache-Control: public on user-specific data (CDN would serve wrong user\'s data)',
+			'Not using fingerprinted asset filenames (stale CSS/JS after deploy)',
+			'Setting very long max-age without ETag (no way to invalidate if data changes)',
+			'Forgetting to add s-maxage for CDN (defaults to max-age which might be too short)',
+		],
+		whenToUse:
+			'Every read-heavy GET endpoint. Use ETags for dynamic content (API responses). Use long max-age + immutable for static assets with fingerprinted filenames. Add a CDN for geographically distributed users.',
+		furtherReading: [
+			{
+				title: 'Rails fresh_when and stale?',
+				url: 'https://api.rubyonrails.org/classes/ActionController/ConditionalGet.html',
+			},
+			{
+				title: 'MDN Cache-Control',
+				url: 'https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control',
+			},
+			{
+				title: 'Book: "Rails Scales!", Chapter 5 — HTTP Headers, ETags, CDNs',
+				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
+			},
+		],
+	},
+	hint: {
+		delay: 20,
+		text: 'Use stale? to return 304 Not Modified when the post hasn\'t changed. Add Cache-Control headers for CDN caching.',
 	},
 };
 
@@ -1465,15 +2076,17 @@ export const actFour: Act = {
 	name: 'Performance',
 	tagline: '10K users. API is slow. Database groaning.',
 	description:
-		'Diagnose and fix N+1 queries, add indexes, implement caching with Solid Cache, pagination, and full-text search.',
+		'Diagnose and fix N+1 queries, add indexes, implement caching with Solid Cache, pagination, full-text search, narrow fetching, and HTTP caching with CDNs.',
 	levels: [
 		level22N1Problem,
 		level23EagerLoading,
+		levelNarrowFetching,
 		level24DatabaseIndexing,
 		level25CounterCaches,
 		level26Pagination,
 		level27Search,
 		level28Caching,
+		levelHTTPCaching,
 	],
 	unlockedNodes: ['eager_load', 'index', 'cache', 'pagination', 'search'],
 	metricsVisible: true,

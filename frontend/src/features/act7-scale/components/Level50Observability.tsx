@@ -29,7 +29,7 @@ interface Span {
 	traced: boolean;
 }
 
-export function Level47Observability({
+export function Level50Observability({
 	onComplete,
 	onExit,
 }: LevelComponentProps) {
@@ -123,7 +123,7 @@ export function Level47Observability({
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act7-level47-observability', {
+		const success = await completeLevel('act7-level50-observability', {
 			stars: 3,
 		});
 		if (success) {
@@ -232,7 +232,7 @@ export function Level47Observability({
 				<LevelHeader
 					actNumber={7}
 					levelName="Observability"
-					levelNumber={47}
+					levelNumber={50}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={() => {
@@ -425,4 +425,4 @@ end`,
 	);
 }
 
-export default Level47Observability;
+export default Level50Observability;

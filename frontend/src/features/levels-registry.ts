@@ -4,7 +4,7 @@
  * Maps level IDs to their custom components.
  * Levels without a custom component use the generic pipeline builder.
  *
- * CURRICULUM STRUCTURE (51 levels, 8 acts):
+ * CURRICULUM STRUCTURE (55 levels, 8 acts):
  *
  * Act 1: The Foundation (L1-L8, 8 levels)
  * - Environment, Hello Rails, Model, CRUD, Routes, Controller, Serializers, Associations
@@ -15,19 +15,19 @@
  * Act 3: Clean Architecture (L16-L22, 7 levels)
  * - Service Objects, Concerns, Validation Contracts, Query Objects, Error Handling, Action Mailer, Background Jobs
  *
- * Act 4: Performance (L23-L29, 7 levels)
- * - N+1 Problem, Eager Loading, Indexing, Counter Caches, Pagination, Search, Caching
+ * Act 4: Performance (L23-L31, 9 levels)
+ * - N+1 Problem, Eager Loading, Narrow Fetching, Indexing, Counter Caches, Pagination, Search, Caching, HTTP Caching & CDNs
  *
- * Act 5: Production Features (L30-L37, 8 levels)
+ * Act 5: Production Features (L32-L39, 8 levels)
  * - Polymorphic, Transactions, Active Storage, Encryption, Real-Time, External APIs, Webhooks, API Versioning
  *
- * Act 6: Reliability (L38-L43, 6 levels)
- * - Middleware, Rate Limiting, Soft Deletes, Safe Migrations, Recurring Jobs, Error Monitoring
+ * Act 6: Reliability (L40-L46, 7 levels)
+ * - Middleware, Rate Limiting, Soft Deletes, Safe Migrations, Recurring Jobs, Data Lifecycle, Error Monitoring
  *
- * Act 7: Scale (L44-L48, 5 levels)
- * - Multi-Database, State Machines, Multi-Tenancy, Observability, Domain Events
+ * Act 7: Scale (L47-L52, 6 levels)
+ * - Multi-Database, State Machines, Multi-Tenancy, Observability, Modular Monolith, Domain Events
  *
- * Act 8: Mastery (L49-L51, 3 levels)
+ * Act 8: Mastery (L53-L55, 3 levels)
  * - API Gateway, Database Sharding, The Architect (Capstone)
  */
 
@@ -75,52 +75,56 @@ import { Level21ActionMailer } from './act3-clean-architecture/components/Level2
 import { Level22BackgroundJobs } from './act3-clean-architecture/components/Level22BackgroundJobs';
 
 // ===========================================
-// Act 4: Performance (Levels 23-29)
+// Act 4: Performance (Levels 23-31)
 // ===========================================
 import { Level23N1Problem } from './act4-performance/components/Level23N1Problem';
 import { Level24EagerLoading } from './act4-performance/components/Level24EagerLoading';
-import { Level25Indexing } from './act4-performance/components/Level25Indexing';
-import { Level26CounterCaches } from './act4-performance/components/Level26CounterCaches';
-import { Level27Pagination } from './act4-performance/components/Level27Pagination';
-import { Level28Search } from './act4-performance/components/Level28Search';
-import { Level29Caching } from './act4-performance/components/Level29Caching';
+import { Level25NarrowFetching } from './act4-performance/components/Level25NarrowFetching';
+import { Level26Indexing } from './act4-performance/components/Level26Indexing';
+import { Level27CounterCaches } from './act4-performance/components/Level27CounterCaches';
+import { Level28Pagination } from './act4-performance/components/Level28Pagination';
+import { Level29Search } from './act4-performance/components/Level29Search';
+import { Level30Caching } from './act4-performance/components/Level30Caching';
+import { Level31HTTPCaching } from './act4-performance/components/Level31HTTPCaching';
 
 // ===========================================
-// Act 5: Production Features (Levels 30-37)
+// Act 5: Production Features (Levels 32-39)
 // ===========================================
-import { Level30Polymorphic } from './act5-production/components/Level30Polymorphic';
-import { Level31Transactions } from './act5-production/components/Level31Transactions';
-import { Level32ActiveStorage } from './act5-production/components/Level32ActiveStorage';
-import { Level33Encryption } from './act5-production/components/Level33Encryption';
-import { Level34RealTime } from './act5-production/components/Level34RealTime';
-import { Level35ExternalAPIs } from './act5-production/components/Level35ExternalAPIs';
-import { Level36Webhooks } from './act5-production/components/Level36Webhooks';
-import { Level37APIVersioning } from './act5-production/components/Level37APIVersioning';
+import { Level32Polymorphic } from './act5-production/components/Level32Polymorphic';
+import { Level33Transactions } from './act5-production/components/Level33Transactions';
+import { Level34ActiveStorage } from './act5-production/components/Level34ActiveStorage';
+import { Level35Encryption } from './act5-production/components/Level35Encryption';
+import { Level36RealTime } from './act5-production/components/Level36RealTime';
+import { Level37ExternalAPIs } from './act5-production/components/Level37ExternalAPIs';
+import { Level38Webhooks } from './act5-production/components/Level38Webhooks';
+import { Level39APIVersioning } from './act5-production/components/Level39APIVersioning';
 
 // ===========================================
-// Act 6: Reliability (Levels 38-43)
+// Act 6: Reliability (Levels 40-46)
 // ===========================================
-import { Level39RateLimiting } from './act6-reliability/components/Level39RateLimiting';
-import { Level40SoftDeletes } from './act6-reliability/components/Level40SoftDeletes';
-import { Level41SafeMigrations } from './act6-reliability/components/Level41SafeMigrations';
-import { Level42RecurringJobs } from './act6-reliability/components/Level42RecurringJobs';
-import { Level43ErrorMonitoring } from './act6-reliability/components/Level43ErrorMonitoring';
+import { Level41RateLimiting } from './act6-reliability/components/Level41RateLimiting';
+import { Level42SoftDeletes } from './act6-reliability/components/Level42SoftDeletes';
+import { Level43SafeMigrations } from './act6-reliability/components/Level43SafeMigrations';
+import { Level44RecurringJobs } from './act6-reliability/components/Level44RecurringJobs';
+import { Level45DataLifecycle } from './act6-reliability/components/Level45DataLifecycle';
+import { Level46ErrorMonitoring } from './act6-reliability/components/Level46ErrorMonitoring';
 
 // ===========================================
-// Act 7: Scale (Levels 44-48)
+// Act 7: Scale (Levels 47-52)
 // ===========================================
-import { Level44MultiDatabase } from './act7-scale/components/Level44MultiDatabase';
-import { Level45StateMachines } from './act7-scale/components/Level45StateMachines';
-import { Level46MultiTenancy } from './act7-scale/components/Level46MultiTenancy';
-import { Level47Observability } from './act7-scale/components/Level47Observability';
-import { Level48DomainEvents } from './act7-scale/components/Level48DomainEvents';
+import { Level47MultiDatabase } from './act7-scale/components/Level47MultiDatabase';
+import { Level48StateMachines } from './act7-scale/components/Level48StateMachines';
+import { Level49MultiTenancy } from './act7-scale/components/Level49MultiTenancy';
+import { Level50Observability } from './act7-scale/components/Level50Observability';
+import { Level51ModularMonolith } from './act7-scale/components/Level51ModularMonolith';
+import { Level52DomainEvents } from './act7-scale/components/Level52DomainEvents';
 
 // ===========================================
-// Act 8: Mastery (Levels 49-51)
+// Act 8: Mastery (Levels 53-55)
 // ===========================================
-import { Level49APIGateway } from './act8-mastery/components/Level49APIGateway';
-import { Level50Sharding } from './act8-mastery/components/Level50Sharding';
-import { Level51Architect } from './act8-mastery/components/Level51Architect';
+import { Level53APIGateway } from './act8-mastery/components/Level53APIGateway';
+import { Level54Sharding } from './act8-mastery/components/Level54Sharding';
+import { Level55Architect } from './act8-mastery/components/Level55Architect';
 
 // Level component registry
 // Levels not listed here use the generic pipeline builder view
@@ -159,48 +163,52 @@ const LEVEL_COMPONENTS: Record<string, ComponentType<LevelComponentProps>> = {
 	// ============================================
 	'act4-level23-n1-problem': Level23N1Problem,
 	'act4-level24-eager-loading': Level24EagerLoading,
-	'act4-level25-database-indexing': Level25Indexing,
-	'act4-level26-counter-caches': Level26CounterCaches,
-	'act4-level27-pagination': Level27Pagination,
-	'act4-level28-search': Level28Search,
-	'act4-level29-caching': Level29Caching,
+	'act4-level25-narrow-fetching': Level25NarrowFetching,
+	'act4-level26-database-indexing': Level26Indexing,
+	'act4-level27-counter-caches': Level27CounterCaches,
+	'act4-level28-pagination': Level28Pagination,
+	'act4-level29-search': Level29Search,
+	'act4-level30-caching': Level30Caching,
+	'act4-level31-http-caching': Level31HTTPCaching,
 
 	// ============================================
 	// Act 5: Production Features
 	// ============================================
-	'act5-level30-polymorphic': Level30Polymorphic,
-	'act5-level31-transactions': Level31Transactions,
-	'act5-level32-active-storage': Level32ActiveStorage,
-	'act5-level33-encryption': Level33Encryption,
-	'act5-level34-realtime': Level34RealTime,
-	'act5-level35-external-apis': Level35ExternalAPIs,
-	'act5-level36-webhooks': Level36Webhooks,
-	'act5-level37-api-versioning': Level37APIVersioning,
+	'act5-level32-polymorphic': Level32Polymorphic,
+	'act5-level33-transactions': Level33Transactions,
+	'act5-level34-active-storage': Level34ActiveStorage,
+	'act5-level35-encryption': Level35Encryption,
+	'act5-level36-realtime': Level36RealTime,
+	'act5-level37-external-apis': Level37ExternalAPIs,
+	'act5-level38-webhooks': Level38Webhooks,
+	'act5-level39-api-versioning': Level39APIVersioning,
 
 	// ============================================
 	// Act 6: Reliability
 	// ============================================
-	'act6-level39-rate-limiting': Level39RateLimiting,
-	'act6-level40-soft-deletes': Level40SoftDeletes,
-	'act6-level41-safe-migrations': Level41SafeMigrations,
-	'act6-level42-recurring-jobs': Level42RecurringJobs,
-	'act6-level43-error-monitoring': Level43ErrorMonitoring,
+	'act6-level41-rate-limiting': Level41RateLimiting,
+	'act6-level42-soft-deletes': Level42SoftDeletes,
+	'act6-level43-safe-migrations': Level43SafeMigrations,
+	'act6-level44-recurring-jobs': Level44RecurringJobs,
+	'act6-level45-data-lifecycle': Level45DataLifecycle,
+	'act6-level46-error-monitoring': Level46ErrorMonitoring,
 
 	// ============================================
 	// Act 7: Scale
 	// ============================================
-	'act7-level44-multi-database': Level44MultiDatabase,
-	'act7-level45-state-machines': Level45StateMachines,
-	'act7-level46-multi-tenancy': Level46MultiTenancy,
-	'act7-level47-observability': Level47Observability,
-	'act7-level48-domain-events': Level48DomainEvents,
+	'act7-level47-multi-database': Level47MultiDatabase,
+	'act7-level48-state-machines': Level48StateMachines,
+	'act7-level49-multi-tenancy': Level49MultiTenancy,
+	'act7-level50-observability': Level50Observability,
+	'act7-level51-modular-monolith': Level51ModularMonolith,
+	'act7-level52-domain-events': Level52DomainEvents,
 
 	// ============================================
 	// Act 8: Mastery
 	// ============================================
-	'act8-level49-api-gateway': Level49APIGateway,
-	'act8-level50-sharding': Level50Sharding,
-	'act8-level51-architect': Level51Architect,
+	'act8-level53-api-gateway': Level53APIGateway,
+	'act8-level54-sharding': Level54Sharding,
+	'act8-level55-architect': Level55Architect,
 };
 
 /**

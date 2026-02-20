@@ -1,7 +1,7 @@
 /**
  * Acts & Levels Content Index
  *
- * Rails Expert: 50 levels across 8 acts
+ * Rails Expert: 55 levels across 8 acts
  * Build a production-grade SaaS while mastering Rails 8
  */
 

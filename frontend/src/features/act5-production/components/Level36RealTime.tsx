@@ -54,7 +54,7 @@ const INITIAL_SUBSCRIPTIONS: EventSubscription[] = [
 	{ id: 'status', label: 'Status Updates', icon: Wifi, subscribed: false },
 ];
 
-export function Level34RealTime({ onComplete, onExit }: LevelComponentProps) {
+export function Level36RealTime({ onComplete, onExit }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 
 	// Configuration state
@@ -242,7 +242,7 @@ export function Level34RealTime({ onComplete, onExit }: LevelComponentProps) {
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act5-level34-realtime', {
+		const success = await completeLevel('act5-level36-realtime', {
 			stars: 3,
 		});
 		if (success) {
@@ -506,7 +506,7 @@ export function Level34RealTime({ onComplete, onExit }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={5}
 					levelName="Real-Time"
-					levelNumber={34}
+					levelNumber={36}
 					onComplete={handleComplete}
 					onExit={onExit}
 					onReset={handleReset}
@@ -957,4 +957,4 @@ end`,
 	);
 }
 
-export default Level34RealTime;
+export default Level36RealTime;
