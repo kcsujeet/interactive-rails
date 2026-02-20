@@ -230,12 +230,12 @@ export function Level1Environment({ onComplete, onExit }: LevelComponentProps) {
 		return { valid: true, message: 'Dev environment is ready!' };
 	};
 
-	// Code preview updates per step
+	// Code preview — only generated FILES, no terminal (center panel handles that)
 	// furthestStep: 0=start, 1=installed asdf, 2=sourced zshrc, 3=configured .tool-versions, 4=installed ruby, 5=installed rails
 	const getCodeFiles = () => {
 		const files = [];
 
-		// .zshrc is edited in step 1 (Source asdf), so show after step 1 completes
+		// ~/.zshrc is edited after sourcing asdf (step 1)
 		if (stepper.furthestStep >= 2) {
 			files.push({
 				filename: '~/.zshrc',
@@ -246,7 +246,6 @@ export function Level1Environment({ onComplete, onExit }: LevelComponentProps) {
 			});
 		}
 
-		// .tool-versions is created in step 2 (Configure .tool-versions), so show after step 2 completes
 		if (stepper.furthestStep >= 3) {
 			files.push({
 				filename: '.tool-versions',
@@ -256,31 +255,9 @@ export function Level1Environment({ onComplete, onExit }: LevelComponentProps) {
 			});
 		}
 
-		// Ruby is installed in step 3 (Install Ruby), so show after step 3 completes
-		if (stepper.furthestStep >= 4) {
-			files.push({
-				filename: 'Terminal: ruby --version',
-				language: 'bash',
-				code: `$ ruby --version
-ruby 3.3.6 (2024-11-05) [arm64-darwin24]
-
-$ which ruby
-/Users/dev/.asdf/shims/ruby`,
-				highlight: [2],
-			});
-		}
-
-		// Rails is installed in step 4 (Install Rails), so show after step 4 completes
 		if (stepper.furthestStep >= 5) {
 			files.push({
-				filename: 'Terminal: rails --version',
-				language: 'bash',
-				code: `$ rails --version
-Rails 8.0.0`,
-				highlight: [2],
-			});
-			files.push({
-				filename: 'Gemfile (skeleton)',
+				filename: 'Gemfile (global)',
 				language: 'ruby',
 				code: `source "https://rubygems.org"
 
@@ -297,11 +274,10 @@ gem "solid_cable"`,
 
 		if (files.length === 0) {
 			files.push({
-				filename: 'setup.sh',
+				filename: 'Dev Environment',
 				language: 'bash',
-				code: `# Step 1: Install a version manager
-# asdf lets you manage Ruby, Node, Python
-# — all from one tool.`,
+				code: `# Your dev environment is empty.
+# Install a version manager to get started.`,
 				highlight: [],
 			});
 		}

@@ -7,7 +7,6 @@
  * ID remains "act1-level2-hello-rails" to preserve saved progress.
  */
 
-import { useState } from 'react';
 import { AlertCircle, ArrowRight } from 'lucide-react';
 import {
 	CenterPanel,
@@ -28,8 +27,6 @@ import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 
-type DatabaseChoice = 'postgresql' | 'sqlite' | null;
-
 const STEP_DEFS: StepDef[] = [
 	{ id: 'choose-db', title: 'Choose Database' },
 	{ id: 'install-pg', title: 'Install PostgreSQL' },
@@ -40,12 +37,10 @@ const STEP_DEFS: StepDef[] = [
 
 export function Level2HelloRails({ onComplete, onExit }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
-	const [database, setDatabase] = useState<DatabaseChoice>(null);
 
 	// Step 1: Choose Database — click-to-select with feedback
-	function handleChooseDb(choice: DatabaseChoice) {
+	function handleChooseDb(choice: 'postgresql' | 'sqlite') {
 		if (choice === 'postgresql') {
-			setDatabase('postgresql');
 			stepper.completeStep();
 		} else {
 			stepper.recordWrongAttempt(
@@ -61,7 +56,8 @@ export function Level2HelloRails({ onComplete, onExit }: LevelComponentProps) {
 			label: 'gem install pg',
 			command: 'gem install pg',
 			correct: false,
-			feedback: "That's the Ruby driver — install the database server itself first.",
+			feedback:
+				"That's the Ruby driver — install the database server itself first.",
 		},
 		{
 			id: 'wrong-apt',
@@ -92,7 +88,8 @@ export function Level2HelloRails({ onComplete, onExit }: LevelComponentProps) {
 			label: 'rails new myapp',
 			command: 'rails new myapp',
 			correct: false,
-			feedback: 'Missing flags — you need API-only mode and a database adapter.',
+			feedback:
+				'Missing flags — you need API-only mode and a database adapter.',
 		},
 		{
 			id: 'correct',
@@ -105,7 +102,8 @@ export function Level2HelloRails({ onComplete, onExit }: LevelComponentProps) {
 			label: 'rails generate app myapp',
 			command: 'rails generate app myapp',
 			correct: false,
-			feedback: '"generate" is for scaffolding inside an existing app, not creating one.',
+			feedback:
+				'"generate" is for scaffolding inside an existing app, not creating one.',
 		},
 	];
 
@@ -135,7 +133,8 @@ export function Level2HelloRails({ onComplete, onExit }: LevelComponentProps) {
 			label: 'rails db:migrate',
 			command: 'rails db:migrate',
 			correct: false,
-			feedback: "Database doesn't exist yet — migrations need an existing database.",
+			feedback:
+				"Database doesn't exist yet — migrations need an existing database.",
 		},
 		{
 			id: 'correct',
@@ -157,7 +156,8 @@ export function Level2HelloRails({ onComplete, onExit }: LevelComponentProps) {
 			label: 'rails start',
 			command: 'rails start',
 			correct: false,
-			feedback: '"start" isn\'t a Rails command. Think about what runs a web server.',
+			feedback:
+				'"start" isn\'t a Rails command. Think about what runs a web server.',
 		},
 		{
 			id: 'correct',
@@ -213,12 +213,24 @@ export function Level2HelloRails({ onComplete, onExit }: LevelComponentProps) {
 		return { valid: true, message: 'Rails app is ready!' };
 	};
 
-	// Code preview updates per step — use furthestStep so preview doesn't regress when navigating back
+	// Code preview — only generated FILES, no terminal (center panel handles that)
 	// furthestStep: 0=start, 1=chose DB, 2=installed PG, 3=generated project, 4=created DB, 5=booted server
 	const getCodeFiles = () => {
 		const files = [];
 
-		// Gemfile, database.yml, and application.rb are all created by `rails new` (step 3)
+		// Stack choice summary (after choosing DB)
+		if (stepper.furthestStep >= 1) {
+			files.push({
+				filename: 'Stack',
+				language: 'bash',
+				code: `Database:  PostgreSQL 17
+Framework: Rails 8.0 (API-only)
+Server:    Puma`,
+				highlight: [1, 2, 3],
+			});
+		}
+
+		// Config files appear after rails new (step 2)
 		if (stepper.furthestStep >= 3) {
 			files.push({
 				filename: 'Gemfile',
@@ -269,28 +281,12 @@ end`,
 			});
 		}
 
-		// Server output only appears after `rails server` (step 5)
-		if (stepper.furthestStep >= 5) {
-			files.push({
-				filename: 'Server Output',
-				language: 'bash',
-				code: `# Puma starting in single mode...
-# * Listening on http://127.0.0.1:3000
-#
-# GET http://localhost:3000/up
-# => {"status":"ok"}
-#
-# Your Rails API is running!`,
-				highlight: [5, 7],
-			});
-		}
-
 		if (files.length === 0) {
 			files.push({
-				filename: 'setup.sh',
+				filename: 'Project Files',
 				language: 'bash',
-				code: `# First, choose your database.
-# PostgreSQL or SQLite?`,
+				code: `# No project yet.
+# Choose a database to begin.`,
 				highlight: [],
 			});
 		}
@@ -427,9 +423,9 @@ end`,
 									package manager installs system software on macOS?
 								</p>
 								<SimulatedTerminal
-									key={stepper.currentStep}
 									commands={installPgCommands}
 									completed={isViewingCompletedStep}
+									key={stepper.currentStep}
 									onCorrect={() => stepper.completeStep()}
 									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 									outputLines={installPgOutput}
@@ -460,9 +456,9 @@ end`,
 									Create an API-only Rails app configured for PostgreSQL.
 								</p>
 								<SimulatedTerminal
-									key={stepper.currentStep}
 									commands={generateCommands}
 									completed={isViewingCompletedStep}
+									key={stepper.currentStep}
 									onCorrect={() => stepper.completeStep()}
 									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 									outputLines={generateOutput}
@@ -494,9 +490,9 @@ end`,
 									databases.
 								</p>
 								<SimulatedTerminal
-									key={stepper.currentStep}
 									commands={createDbCommands}
 									completed={isViewingCompletedStep}
+									key={stepper.currentStep}
 									onCorrect={() => stepper.completeStep()}
 									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 									outputLines={createDbOutput}
@@ -528,9 +524,9 @@ end`,
 									responds.
 								</p>
 								<SimulatedTerminal
-									key={stepper.currentStep}
 									commands={bootCommands}
 									completed={isViewingCompletedStep}
+									key={stepper.currentStep}
 									onCorrect={() => stepper.completeStep()}
 									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 									outputLines={bootOutput}
@@ -542,29 +538,7 @@ end`,
 			</CenterPanel>
 
 			<RightPanel>
-				<CodePreviewPanel files={getCodeFiles()}>
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-							Your Choices
-						</div>
-						{database ? (
-							<div className="space-y-2 text-sm">
-								<div className="text-muted-foreground">
-									<span className="text-success font-medium">PostgreSQL</span> —
-									Can scale to sharding in Act VII
-								</div>
-								<div className="text-muted-foreground">
-									<span className="text-success font-medium">API-only</span> —
-									Lean JSON endpoints, no view layer
-								</div>
-							</div>
-						) : (
-							<p className="text-xs text-muted-foreground">
-								Choose a database to see your stack
-							</p>
-						)}
-					</div>
-				</CodePreviewPanel>
+				<CodePreviewPanel files={getCodeFiles()} />
 			</RightPanel>
 		</LevelLayout>
 	);

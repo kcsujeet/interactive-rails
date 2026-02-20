@@ -202,12 +202,29 @@ export function Level3Model({ onComplete, onExit }: LevelComponentProps) {
 		return { valid: true, message: 'Your Post model is ready!' };
 	};
 
-	// Code preview updates per step
+	// Code preview — each completed step adds its output
 	// furthestStep: 0=start, 1=named model, 2=defined attrs, 3=ran generator, 4=ran migration
 	const getCodeFiles = () => {
 		const files = [];
 
-		// Model file and migration are both created by the generator (step 2)
+		// After naming the model (step 0) — show the generator command being built
+		if (stepper.furthestStep >= 1) {
+			const attrArgs = slots
+				.filter((s) => s.assignedType)
+				.map((s) => `${s.field}:${s.assignedType}`)
+				.join(' ');
+			files.push({
+				filename: 'Generator Command',
+				language: 'bash',
+				code: `$ rails generate model Post${attrArgs ? ` ${attrArgs}` : ' ...'}`,
+				highlight: [1],
+			});
+		}
+
+		// After defining attributes (step 1) — update the command with all types
+		// (already reflected above via slots state)
+
+		// After running generator (step 2) — show generated files
 		if (stepper.furthestStep >= 3) {
 			files.push({
 				filename: 'app/models/post.rb',
@@ -225,9 +242,7 @@ export function Level3Model({ onComplete, onExit }: LevelComponentProps) {
 end`,
 				highlight: [1],
 			});
-		}
 
-		if (stepper.furthestStep >= 3) {
 			files.push({
 				filename: 'db/migrate/create_posts.rb',
 				language: 'ruby',
@@ -246,6 +261,7 @@ end`,
 			});
 		}
 
+		// After running migration (step 3) — show schema
 		if (stepper.furthestStep >= 4) {
 			files.push({
 				filename: 'db/schema.rb',
@@ -265,9 +281,9 @@ end`,
 
 		if (files.length === 0) {
 			files.push({
-				filename: 'app/models/post.rb',
-				language: 'ruby',
-				code: `# Choose the correct model name first`,
+				filename: 'Generator Command',
+				language: 'bash',
+				code: `# Name your model first.`,
 				highlight: [],
 			});
 		}
