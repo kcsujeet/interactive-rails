@@ -214,10 +214,12 @@ export function Level2HelloRails({ onComplete, onExit }: LevelComponentProps) {
 	};
 
 	// Code preview updates per step — use furthestStep so preview doesn't regress when navigating back
+	// furthestStep: 0=start, 1=chose DB, 2=installed PG, 3=generated project, 4=created DB, 5=booted server
 	const getCodeFiles = () => {
 		const files = [];
 
-		if (stepper.furthestStep >= 1) {
+		// Gemfile, database.yml, and application.rb are all created by `rails new` (step 3)
+		if (stepper.furthestStep >= 3) {
 			files.push({
 				filename: 'Gemfile',
 				language: 'ruby',
@@ -233,9 +235,7 @@ gem "solid_cache"
 gem "solid_cable"`,
 				highlight: [4],
 			});
-		}
 
-		if (stepper.furthestStep >= 2) {
 			files.push({
 				filename: 'config/database.yml',
 				language: 'yaml',
@@ -253,9 +253,7 @@ test:
   database: myapp_test`,
 				highlight: [2],
 			});
-		}
 
-		if (stepper.furthestStep >= 3) {
 			files.push({
 				filename: 'config/application.rb',
 				language: 'ruby',
@@ -271,7 +269,8 @@ end`,
 			});
 		}
 
-		if (stepper.furthestStep >= 4) {
+		// Server output only appears after `rails server` (step 5)
+		if (stepper.furthestStep >= 5) {
 			files.push({
 				filename: 'Server Output',
 				language: 'bash',

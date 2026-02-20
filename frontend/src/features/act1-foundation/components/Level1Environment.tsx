@@ -231,10 +231,12 @@ export function Level1Environment({ onComplete, onExit }: LevelComponentProps) {
 	};
 
 	// Code preview updates per step
+	// furthestStep: 0=start, 1=installed asdf, 2=sourced zshrc, 3=configured .tool-versions, 4=installed ruby, 5=installed rails
 	const getCodeFiles = () => {
 		const files = [];
 
-		if (stepper.furthestStep >= 1) {
+		// .zshrc is edited in step 1 (Source asdf), so show after step 1 completes
+		if (stepper.furthestStep >= 2) {
 			files.push({
 				filename: '~/.zshrc',
 				language: 'bash',
@@ -244,7 +246,8 @@ export function Level1Environment({ onComplete, onExit }: LevelComponentProps) {
 			});
 		}
 
-		if (stepper.furthestStep >= 2) {
+		// .tool-versions is created in step 2 (Configure .tool-versions), so show after step 2 completes
+		if (stepper.furthestStep >= 3) {
 			files.push({
 				filename: '.tool-versions',
 				language: 'bash',
@@ -253,7 +256,8 @@ export function Level1Environment({ onComplete, onExit }: LevelComponentProps) {
 			});
 		}
 
-		if (stepper.furthestStep >= 3) {
+		// Ruby is installed in step 3 (Install Ruby), so show after step 3 completes
+		if (stepper.furthestStep >= 4) {
 			files.push({
 				filename: 'Terminal: ruby --version',
 				language: 'bash',
@@ -266,7 +270,8 @@ $ which ruby
 			});
 		}
 
-		if (stepper.furthestStep >= 4) {
+		// Rails is installed in step 4 (Install Rails), so show after step 4 completes
+		if (stepper.furthestStep >= 5) {
 			files.push({
 				filename: 'Terminal: rails --version',
 				language: 'bash',

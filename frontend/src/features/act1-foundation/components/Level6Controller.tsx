@@ -239,7 +239,7 @@ end`,
 			});
 		}
 
-		if (stepper.currentStep >= 4) {
+		if (stepper.isComplete) {
 			files.push({
 				filename: 'Test Results',
 				language: 'ruby',

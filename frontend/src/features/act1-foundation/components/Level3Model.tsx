@@ -203,10 +203,12 @@ export function Level3Model({ onComplete, onExit }: LevelComponentProps) {
 	};
 
 	// Code preview updates per step
+	// furthestStep: 0=start, 1=named model, 2=defined attrs, 3=ran generator, 4=ran migration
 	const getCodeFiles = () => {
 		const files = [];
 
-		if (stepper.furthestStep >= 1) {
+		// Model file and migration are both created by the generator (step 2)
+		if (stepper.furthestStep >= 3) {
 			files.push({
 				filename: 'app/models/post.rb',
 				language: 'ruby',
