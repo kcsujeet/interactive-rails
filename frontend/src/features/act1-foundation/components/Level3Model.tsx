@@ -18,6 +18,7 @@ import {
 	RightPanel,
 	SimulatedTerminal,
 	StepProgress,
+	type TerminalHistoryEntry,
 	type TerminalOutputLine,
 	type ValidationResult,
 } from '@/components/levels';
@@ -200,6 +201,32 @@ export function Level3Model({ onComplete, onExit }: LevelComponentProps) {
 			};
 		}
 		return { valid: true, message: 'Your Post model is ready!' };
+	};
+
+	// Terminal steps for building history (steps 0-1 are non-terminal)
+	const terminalSteps: {
+		stepIndex: number;
+		commands: { command: string; correct: boolean }[];
+		output: TerminalOutputLine[];
+	}[] = [
+		{ stepIndex: 2, commands: generatorCommands, output: generatorOutput },
+		{ stepIndex: 3, commands: migrationCommands, output: migrationOutput },
+	];
+
+	const getInitialHistory = (): TerminalHistoryEntry[] => {
+		const history: TerminalHistoryEntry[] = [];
+		for (const ts of terminalSteps) {
+			if (ts.stepIndex >= stepper.currentStep) break;
+			const correctCmd = ts.commands.find((c) => c.correct);
+			if (correctCmd) {
+				history.push({
+					command: correctCmd.command,
+					output: ts.output,
+					isError: false,
+				});
+			}
+		}
+		return history;
 	};
 
 	// Code preview — each completed step adds its output
@@ -497,6 +524,7 @@ end`,
 								<SimulatedTerminal
 									commands={generatorCommands}
 									completed={isViewingCompletedStep}
+									initialHistory={getInitialHistory()}
 									key={stepper.currentStep}
 									onCorrect={() => stepper.completeStep()}
 									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
@@ -529,6 +557,7 @@ end`,
 								<SimulatedTerminal
 									commands={migrationCommands}
 									completed={isViewingCompletedStep}
+									initialHistory={getInitialHistory()}
 									key={stepper.currentStep}
 									onCorrect={() => stepper.completeStep()}
 									onWrong={(fb) => stepper.recordWrongAttempt(fb)}

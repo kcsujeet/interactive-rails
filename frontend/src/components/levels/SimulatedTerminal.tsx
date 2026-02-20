@@ -22,6 +22,12 @@ export interface TerminalOutputLine {
 	color?: 'default' | 'green' | 'yellow' | 'red' | 'cyan' | 'muted';
 }
 
+export interface TerminalHistoryEntry {
+	command: string;
+	output: TerminalOutputLine[];
+	isError: boolean;
+}
+
 interface SimulatedTerminalProps {
 	commands: TerminalCommand[];
 	onCorrect: () => void;
@@ -30,6 +36,8 @@ interface SimulatedTerminalProps {
 	outputLines?: TerminalOutputLine[];
 	disabled?: boolean;
 	completed?: boolean;
+	/** Pre-populated history from previous steps */
+	initialHistory?: TerminalHistoryEntry[];
 }
 
 export function SimulatedTerminal({
@@ -40,10 +48,11 @@ export function SimulatedTerminal({
 	outputLines,
 	disabled = false,
 	completed = false,
+	initialHistory = [],
 }: SimulatedTerminalProps) {
-	const [history, setHistory] = useState<
-		{ command: string; output: TerminalOutputLine[]; isError: boolean }[]
-	>([]);
+	const [history, setHistory] = useState<TerminalHistoryEntry[]>(
+		initialHistory,
+	);
 	const [animating, setAnimating] = useState(false);
 	const [visibleLines, setVisibleLines] = useState(0);
 	const scrollRef = useRef<HTMLDivElement>(null);

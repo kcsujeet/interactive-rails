@@ -17,6 +17,7 @@ export type { Particle, ParticleType } from './ParticleCanvas';
 export { ParticleCanvas, useParticles } from './ParticleCanvas';
 export type {
 	TerminalCommand,
+	TerminalHistoryEntry,
 	TerminalOutputLine,
 } from './SimulatedTerminal';
 export { SimulatedTerminal } from './SimulatedTerminal';

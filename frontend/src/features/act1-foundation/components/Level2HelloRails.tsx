@@ -20,6 +20,7 @@ import {
 	SimulatedTerminal,
 	StepProgress,
 	type TerminalCommand,
+	type TerminalHistoryEntry,
 	type TerminalOutputLine,
 	type ValidationResult,
 } from '@/components/levels';
@@ -211,6 +212,35 @@ export function Level2HelloRails({ onComplete, onExit }: LevelComponentProps) {
 			};
 		}
 		return { valid: true, message: 'Rails app is ready!' };
+	};
+
+	// Terminal steps config for building history (step 0 is Choose DB — no terminal)
+	const terminalSteps: {
+		stepIndex: number;
+		commands: TerminalCommand[];
+		output: TerminalOutputLine[];
+	}[] = [
+		{ stepIndex: 1, commands: installPgCommands, output: installPgOutput },
+		{ stepIndex: 2, commands: generateCommands, output: generateOutput },
+		{ stepIndex: 3, commands: createDbCommands, output: createDbOutput },
+		{ stepIndex: 4, commands: bootCommands, output: bootOutput },
+	];
+
+	// Build history from completed prior terminal steps
+	const getInitialHistory = (): TerminalHistoryEntry[] => {
+		const history: TerminalHistoryEntry[] = [];
+		for (const ts of terminalSteps) {
+			if (ts.stepIndex >= stepper.currentStep) break;
+			const correctCmd = ts.commands.find((c) => c.correct);
+			if (correctCmd) {
+				history.push({
+					command: correctCmd.command,
+					output: ts.output,
+					isError: false,
+				});
+			}
+		}
+		return history;
 	};
 
 	// Code preview — only generated FILES, no terminal (center panel handles that)
@@ -425,6 +455,7 @@ end`,
 								<SimulatedTerminal
 									commands={installPgCommands}
 									completed={isViewingCompletedStep}
+									initialHistory={getInitialHistory()}
 									key={stepper.currentStep}
 									onCorrect={() => stepper.completeStep()}
 									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
@@ -458,6 +489,7 @@ end`,
 								<SimulatedTerminal
 									commands={generateCommands}
 									completed={isViewingCompletedStep}
+									initialHistory={getInitialHistory()}
 									key={stepper.currentStep}
 									onCorrect={() => stepper.completeStep()}
 									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
@@ -492,6 +524,7 @@ end`,
 								<SimulatedTerminal
 									commands={createDbCommands}
 									completed={isViewingCompletedStep}
+									initialHistory={getInitialHistory()}
 									key={stepper.currentStep}
 									onCorrect={() => stepper.completeStep()}
 									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
@@ -526,6 +559,7 @@ end`,
 								<SimulatedTerminal
 									commands={bootCommands}
 									completed={isViewingCompletedStep}
+									initialHistory={getInitialHistory()}
 									key={stepper.currentStep}
 									onCorrect={() => stepper.completeStep()}
 									onWrong={(fb) => stepper.recordWrongAttempt(fb)}

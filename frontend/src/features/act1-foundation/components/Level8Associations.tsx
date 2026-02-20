@@ -18,6 +18,7 @@ import {
 	SimulatedTerminal,
 	StepProgress,
 	useLevelCompletion,
+	type TerminalHistoryEntry,
 	type TerminalOutputLine,
 	type ValidationResult,
 } from '@/components/levels';
@@ -193,6 +194,32 @@ export function Level8Associations({
 		return { valid: true, message: 'Associations configured correctly!' };
 	};
 
+	// Build history from completed prior terminal steps
+	const terminalSteps: {
+		stepIndex: number;
+		commands: { command: string; correct: boolean }[];
+		output: TerminalOutputLine[];
+	}[] = [
+		{ stepIndex: 0, commands: generateCommands, output: generateOutput },
+		{ stepIndex: 4, commands: testCommands, output: testOutput },
+	];
+
+	const getInitialHistory = (): TerminalHistoryEntry[] => {
+		const history: TerminalHistoryEntry[] = [];
+		for (const ts of terminalSteps) {
+			if (ts.stepIndex >= stepper.currentStep) break;
+			const correctCmd = ts.commands.find((c) => c.correct);
+			if (correctCmd) {
+				history.push({
+					command: correctCmd.command,
+					output: ts.output,
+					isError: false,
+				});
+			}
+		}
+		return history;
+	};
+
 	const getCodeFiles = () => {
 		const files = [];
 
@@ -293,6 +320,8 @@ end`,
 								</p>
 								<SimulatedTerminal
 									commands={generateCommands}
+									initialHistory={getInitialHistory()}
+									key={stepper.currentStep}
 									onCorrect={() => stepper.completeStep()}
 									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 									outputLines={generateOutput}
@@ -436,6 +465,8 @@ end`,
 								</p>
 								<SimulatedTerminal
 									commands={testCommands}
+									initialHistory={getInitialHistory()}
+									key={stepper.currentStep}
 									onCorrect={() => stepper.completeStep()}
 									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 									outputLines={testOutput}

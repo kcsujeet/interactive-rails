@@ -17,6 +17,7 @@ import {
 	SimulatedTerminal,
 	StepProgress,
 	type TerminalCommand,
+	type TerminalHistoryEntry,
 	type TerminalOutputLine,
 	type ValidationResult,
 } from '@/components/levels';
@@ -355,6 +356,23 @@ gem "solid_cable"`,
 	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
 	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 
+	// Build history from completed prior steps so the terminal isn't blank
+	const getInitialHistory = (): TerminalHistoryEntry[] => {
+		const history: TerminalHistoryEntry[] = [];
+		for (let i = 0; i < stepper.currentStep; i++) {
+			const cfg = stepConfigs[i];
+			const correctCmd = cfg.commands.find((c) => c.correct);
+			if (correctCmd) {
+				history.push({
+					command: correctCmd.command,
+					output: cfg.output,
+					isError: false,
+				});
+			}
+		}
+		return history;
+	};
+
 	return (
 		<LevelLayout>
 			<LeftPanel>
@@ -408,6 +426,7 @@ gem "solid_cable"`,
 									key={stepper.currentStep}
 									commands={currentConfig.commands}
 									completed={isViewingCompletedStep}
+									initialHistory={getInitialHistory()}
 									onCorrect={() => stepper.completeStep()}
 									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 									outputLines={currentConfig.output}
