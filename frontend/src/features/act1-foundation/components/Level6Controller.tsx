@@ -17,14 +17,14 @@ import {
 	RightPanel,
 	SimulatedTerminal,
 	StepProgress,
-	useLevelCompletion,
 	type TerminalHistoryEntry,
 	type TerminalOutputLine,
+	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
-import { useStepGating, type StepDef } from '@/hooks/useStepGating';
+import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 
 const STEP_DEFS: StepDef[] = [
 	{ id: 'generate-controller', title: 'Generate Controller' },
@@ -63,12 +63,15 @@ const PARAMS_PIECES: ParamsPiece[] = [
 	{ id: 'close', text: ')', position: 4 },
 ];
 
-const CORRECT_PARAMS_ORDER = ['params', 'expect', 'post-key', 'full-attrs', 'close'];
+const CORRECT_PARAMS_ORDER = [
+	'params',
+	'expect',
+	'post-key',
+	'full-attrs',
+	'close',
+];
 
-export function Level6Controller({
-	onComplete,
-	onExit,
-}: LevelComponentProps) {
+export function Level6Controller({ onComplete, onExit }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const stepper = useStepGating(STEP_DEFS);
 
@@ -81,18 +84,18 @@ export function Level6Controller({
 	// Step 1: Generate controller commands
 	const generateCommands = [
 		{
-			id: 'correct',
-			label: 'rails generate controller Api::V1::Posts',
-			command: 'rails generate controller Api::V1::Posts',
-			correct: true,
-		},
-		{
 			id: 'wrong-singular',
 			label: 'rails generate controller Post',
 			command: 'rails generate controller Post',
 			correct: false,
 			feedback:
 				'Controller names are plural and match the route namespace. Use "Api::V1::Posts".',
+		},
+		{
+			id: 'correct',
+			label: 'rails generate controller Api::V1::Posts',
+			command: 'rails generate controller Api::V1::Posts',
+			correct: true,
 		},
 		{
 			id: 'wrong-no-namespace',
@@ -105,9 +108,15 @@ export function Level6Controller({
 	];
 
 	const generateOutput: TerminalOutputLine[] = [
-		{ text: '      create  app/controllers/api/v1/posts_controller.rb', color: 'green' },
+		{
+			text: '      create  app/controllers/api/v1/posts_controller.rb',
+			color: 'green',
+		},
 		{ text: '      invoke  test_unit', color: 'muted' },
-		{ text: '      create    test/controllers/api/v1/posts_controller_test.rb', color: 'muted' },
+		{
+			text: '      create    test/controllers/api/v1/posts_controller_test.rb',
+			color: 'muted',
+		},
 	];
 
 	// Step 2: Action handling
@@ -144,9 +153,7 @@ export function Level6Controller({
 			if (isCorrect) {
 				stepper.completeStep();
 			} else {
-				stepper.recordWrongAttempt(
-					getParamsErrorFeedback(newAssembled),
-				);
+				stepper.recordWrongAttempt(getParamsErrorFeedback(newAssembled));
 				setAssembledPieces([]);
 			}
 		}
@@ -180,10 +187,16 @@ export function Level6Controller({
 		{ text: '', color: 'muted' },
 		{ text: '$ curl -X POST localhost:3000/api/v1/posts \\', color: 'yellow' },
 		{ text: '  -H "Content-Type: application/json" \\', color: 'yellow' },
-		{ text: '  -d \'{"post":{"title":"Hello","body":"World"}}\'', color: 'yellow' },
+		{
+			text: '  -d \'{"post":{"title":"Hello","body":"World"}}\'',
+			color: 'yellow',
+		},
 		{ text: '', color: 'muted' },
 		{ text: 'HTTP/1.1 201 Created', color: 'green' },
-		{ text: '{"id":1,"title":"Hello","body":"World","published":null}', color: 'cyan' },
+		{
+			text: '{"id":1,"title":"Hello","body":"World","published":null}',
+			color: 'cyan',
+		},
 	];
 
 	const handleComplete = async () => {
@@ -324,9 +337,7 @@ end`,
 									return (
 										<Button
 											className={`font-mono text-xs ${
-												isPlaced
-													? 'opacity-50 cursor-not-allowed'
-													: ''
+												isPlaced ? 'opacity-50 cursor-not-allowed' : ''
 											}`}
 											disabled={isPlaced}
 											key={action}
@@ -526,8 +537,8 @@ end`,
 									Controller Built!
 								</h3>
 								<p className="text-muted-foreground">
-									Your PostsController handles all 5 RESTful actions with
-									Rails 8 strong params.
+									Your PostsController handles all 5 RESTful actions with Rails
+									8 strong params.
 								</p>
 								<Button onClick={handleComplete}>Complete Level</Button>
 							</div>
@@ -556,8 +567,8 @@ end`,
 								new record
 							</div>
 							<div>
-								<span className="text-amber-400 font-mono">update</span>:
-								Modify existing
+								<span className="text-amber-400 font-mono">update</span>: Modify
+								existing
 							</div>
 							<div>
 								<span className="text-red-400 font-mono">destroy</span>: Delete

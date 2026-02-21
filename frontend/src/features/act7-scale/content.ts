@@ -179,18 +179,18 @@ order.update!(status: "pending")  # Oops, no error raised!
 			question: 'Which state machine approach?',
 			options: [
 				{
-					label: 'AASM',
-					value: 'aasm',
-					preview: 'Declarative DSL with guards, callbacks, and scopes',
-					consequence: 'Adds state machine DSL to ActiveRecord models',
-					correct: true,
-				},
-				{
 					label: 'Plain enum',
 					value: 'enum',
 					preview: 'ActiveRecord enum with manual guard methods',
 					consequence: 'Simple column-based approach, no transition logic',
 					correct: false,
+				},
+				{
+					label: 'AASM',
+					value: 'aasm',
+					preview: 'Declarative DSL with guards, callbacks, and scopes',
+					consequence: 'Adds state machine DSL to ActiveRecord models',
+					correct: true,
 				},
 				{
 					label: 'Statesman',
@@ -715,7 +715,7 @@ class Order < ApplicationRecord
   def send_notification
     Notification.create!(            # Reaches into notifications domain
       user: user,
-      message: "Order #\#{id} created"
+      message: "Order ##{id} created"
     )
   end
 
@@ -867,7 +867,8 @@ config/                    @infra-team
 				url: 'https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners',
 			},
 			{
-				title: 'Book: "Rails Scales!", Chapter 9: Packwerk & Modular Boundaries',
+				title:
+					'Book: "Rails Scales!", Chapter 9: Packwerk & Modular Boundaries',
 				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],

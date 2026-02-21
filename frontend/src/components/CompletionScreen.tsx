@@ -166,7 +166,7 @@ export function CompletionScreen(
 								window.location.href = `/acts/${nextLevelActId}/${nextLevelId}`;
 							}}
 						>
-							Next Level
+							Next Step
 							<ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
 						</Button>
 					</div>

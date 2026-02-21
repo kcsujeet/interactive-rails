@@ -15,14 +15,15 @@ import {
 	LevelHeader,
 	LevelLayout,
 	RightPanel,
+	SimulatedTerminal,
 	StepProgress,
+	type TerminalOutputLine,
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
-import { SimulatedTerminal, type TerminalOutputLine } from '@/components/levels';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
-import { useStepGating, type StepDef } from '@/hooks/useStepGating';
+import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 
 interface Post {
 	id: number;
@@ -41,16 +42,16 @@ const STEP_DEFS: StepDef[] = [
 // Step 1: Create options
 const CREATE_OPTIONS = [
 	{
-		id: 'create',
-		label: 'Post.create(title: "Hello", body: "My first post")',
-		correct: true,
-	},
-	{
 		id: 'new',
 		label: 'Post.new(title: "Hello", body: "My first post")',
 		correct: false,
 		feedback:
 			'"new" builds the object in memory but doesn\'t save it to the database. Use "create" to persist immediately.',
+	},
+	{
+		id: 'create',
+		label: 'Post.create(title: "Hello", body: "My first post")',
+		correct: true,
 	},
 	{
 		id: 'insert',
@@ -64,16 +65,16 @@ const CREATE_OPTIONS = [
 // Step 2: Read options
 const READ_OPTIONS = [
 	{
-		id: 'find',
-		label: 'Post.find(1)',
-		correct: true,
-	},
-	{
 		id: 'select',
 		label: 'Post.select(1)',
 		correct: false,
 		feedback:
 			'"select" filters columns (like SQL SELECT columns), not records. Use "find" to fetch by ID.',
+	},
+	{
+		id: 'find',
+		label: 'Post.find(1)',
+		correct: true,
 	},
 	{
 		id: 'where',
@@ -87,16 +88,16 @@ const READ_OPTIONS = [
 // Step 3: Update options
 const UPDATE_OPTIONS = [
 	{
-		id: 'update',
-		label: 'post.update(title: "Updated")',
-		correct: true,
-	},
-	{
 		id: 'assign',
 		label: 'post.title = "Updated"',
 		correct: false,
 		feedback:
 			'Assignment only changes the Ruby object in memory. "update" validates and persists to the DB in one call.',
+	},
+	{
+		id: 'update',
+		label: 'post.update(title: "Updated")',
+		correct: true,
 	},
 	{
 		id: 'update_column',
@@ -110,16 +111,16 @@ const UPDATE_OPTIONS = [
 // Step 4: Destroy options
 const DESTROY_OPTIONS = [
 	{
-		id: 'destroy',
-		label: 'post.destroy',
-		correct: true,
-	},
-	{
 		id: 'delete',
 		label: 'post.delete',
 		correct: false,
 		feedback:
 			'"delete" runs SQL directly, skipping callbacks. "destroy" runs lifecycle hooks like dependent: :destroy.',
+	},
+	{
+		id: 'destroy',
+		label: 'post.destroy',
+		correct: true,
 	},
 ];
 
@@ -129,7 +130,13 @@ export function Level4CRUD({ onComplete, onExit }: LevelComponentProps) {
 	const [posts, setPosts] = useState<Post[]>([]);
 	const [consoleHistory, setConsoleHistory] = useState<
 		{ input: string; output: string; type: 'success' | 'error' | 'info' }[]
-	>([{ input: 'rails console', output: 'Loading development environment (Rails 8.0.0)', type: 'info' }]);
+	>([
+		{
+			input: 'rails console',
+			output: 'Loading development environment (Rails 8.0.0)',
+			type: 'info',
+		},
+	]);
 
 	const addConsoleEntry = (
 		input: string,
@@ -175,10 +182,7 @@ export function Level4CRUD({ onComplete, onExit }: LevelComponentProps) {
 		setPosts((prev) =>
 			prev.map((p) => (p.id === 1 ? { ...p, title: 'Updated' } : p)),
 		);
-		addConsoleEntry(
-			'post.update(title: "Updated")',
-			'=> true',
-		);
+		addConsoleEntry('post.update(title: "Updated")', '=> true');
 		stepper.completeStep();
 	};
 
@@ -243,9 +247,7 @@ export function Level4CRUD({ onComplete, onExit }: LevelComponentProps) {
 					<Button
 						className="w-full h-auto py-3 text-left font-mono text-xs whitespace-normal"
 						key={opt.id}
-						onClick={() =>
-							handleChoice(options, opt.id, onCorrect)
-						}
+						onClick={() => handleChoice(options, opt.id, onCorrect)}
 						variant="outline"
 					>
 						{opt.label}
@@ -360,11 +362,12 @@ post.delete        # Skips callbacks (avoid)`,
 							</div>
 							<div className="p-3 font-mono text-sm max-h-48 overflow-y-auto">
 								{consoleHistory.map((entry, i) => (
-									<div className="mb-2" key={`console-${i}-${entry.input.slice(0, 15)}`}>
+									<div
+										className="mb-2"
+										key={`console-${i}-${entry.input.slice(0, 15)}`}
+									>
 										<div className="flex gap-2">
-											<span className="text-emerald-400 shrink-0">
-												irb&gt;
-											</span>
+											<span className="text-emerald-400 shrink-0">irb&gt;</span>
 											<span className="text-zinc-200">{entry.input}</span>
 										</div>
 										<div
@@ -472,9 +475,7 @@ post.delete        # Skips callbacks (avoid)`,
 									}`}
 									key={op}
 								>
-									<span className="font-bold uppercase">
-										{op[0]}
-									</span>
+									<span className="font-bold uppercase">{op[0]}</span>
 									{op.slice(1)}
 								</div>
 							))}

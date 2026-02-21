@@ -17,14 +17,14 @@ import {
 	RightPanel,
 	SimulatedTerminal,
 	StepProgress,
-	useLevelCompletion,
 	type TerminalHistoryEntry,
 	type TerminalOutputLine,
+	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
-import { useStepGating, type StepDef } from '@/hooks/useStepGating';
+import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 
 const STEP_DEFS: StepDef[] = [
 	{ id: 'generate-comment', title: 'Generate Comment' },
@@ -46,18 +46,18 @@ export function Level8Associations({
 	// Step 1: Generate Comment model
 	const generateCommands = [
 		{
-			id: 'correct',
-			label: 'rails generate model Comment body:text post:references',
-			command: 'rails generate model Comment body:text post:references',
-			correct: true,
-		},
-		{
 			id: 'wrong-integer',
 			label: 'rails generate model Comment body:text post_id:integer',
 			command: 'rails generate model Comment body:text post_id:integer',
 			correct: false,
 			feedback:
 				'"post:references" adds the foreign key, index, AND the belongs_to association automatically. "post_id:integer" only adds the column.',
+		},
+		{
+			id: 'correct',
+			label: 'rails generate model Comment body:text post:references',
+			command: 'rails generate model Comment body:text post:references',
+			correct: true,
 		},
 		{
 			id: 'wrong-missing-post',
@@ -71,7 +71,10 @@ export function Level8Associations({
 
 	const generateOutput: TerminalOutputLine[] = [
 		{ text: '      invoke  active_record', color: 'green' },
-		{ text: '      create    db/migrate/20240101000001_create_comments.rb', color: 'green' },
+		{
+			text: '      create    db/migrate/20240101000001_create_comments.rb',
+			color: 'green',
+		},
 		{ text: '      create    app/models/comment.rb', color: 'green' },
 		{ text: '      invoke    test_unit', color: 'muted' },
 	];
@@ -114,19 +117,19 @@ export function Level8Associations({
 	// Step 4: Dependent options
 	const DEPENDENT_OPTIONS = [
 		{
-			id: 'destroy',
-			label: 'dependent: :destroy',
-			description: 'Delete all comments when the post is deleted',
-			correct: true,
-			feedback: '',
-		},
-		{
 			id: 'nullify',
 			label: 'dependent: :nullify',
 			description: 'Set post_id to NULL on comments',
 			correct: false,
 			feedback:
 				'Orphaned comments with NULL post_id would break your API. Use :destroy to clean them up.',
+		},
+		{
+			id: 'destroy',
+			label: 'dependent: :destroy',
+			description: 'Delete all comments when the post is deleted',
+			correct: true,
+			feedback: '',
 		},
 		{
 			id: 'restrict',
@@ -163,8 +166,14 @@ export function Level8Associations({
 		{ text: '=> 1', color: 'cyan' },
 		{ text: '', color: 'muted' },
 		{ text: '> post.destroy', color: 'yellow' },
-		{ text: '  Comment Destroy (0.1ms)  DELETE FROM "comments" WHERE "comments"."post_id" = 1', color: 'red' },
-		{ text: '  Post Destroy (0.1ms)  DELETE FROM "posts" WHERE "posts"."id" = 1', color: 'red' },
+		{
+			text: '  Comment Destroy (0.1ms)  DELETE FROM "comments" WHERE "comments"."post_id" = 1',
+			color: 'red',
+		},
+		{
+			text: '  Post Destroy (0.1ms)  DELETE FROM "posts" WHERE "posts"."id" = 1',
+			color: 'red',
+		},
 		{ text: '=> #<Post id: 1> (destroyed with 1 comment)', color: 'green' },
 	];
 
@@ -225,9 +234,7 @@ export function Level8Associations({
 
 		// Post model
 		const postHasMany = relationshipType === 'has_many';
-		const depLine = dependentOption
-			? `, dependent: :${dependentOption}`
-			: '';
+		const depLine = dependentOption ? `, dependent: :${dependentOption}` : '';
 		files.push({
 			filename: 'app/models/post.rb',
 			language: 'ruby',
@@ -404,9 +411,7 @@ end`,
 									</p>
 								</div>
 								<div className="flex justify-center">
-									<Button onClick={() => stepper.completeStep()}>
-										Got It
-									</Button>
+									<Button onClick={() => stepper.completeStep()}>Got It</Button>
 								</div>
 							</div>
 						)}

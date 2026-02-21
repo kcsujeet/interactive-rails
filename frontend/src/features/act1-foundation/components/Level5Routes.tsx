@@ -17,13 +17,13 @@ import {
 	RightPanel,
 	SimulatedTerminal,
 	StepProgress,
-	useLevelCompletion,
 	type TerminalOutputLine,
+	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
-import { useStepGating, type StepDef } from '@/hooks/useStepGating';
+import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 
 const STEP_DEFS: StepDef[] = [
 	{ id: 'define-resource', title: 'Define Resource' },
@@ -35,11 +35,6 @@ const STEP_DEFS: StepDef[] = [
 // Route definitions for step 1
 const RESOURCE_OPTIONS = [
 	{
-		id: 'resources',
-		label: 'resources :posts',
-		correct: true,
-	},
-	{
 		id: 'get-only',
 		label: "get '/posts' => 'posts#index'",
 		correct: false,
@@ -47,11 +42,16 @@ const RESOURCE_OPTIONS = [
 			"That's only one route. `resources :posts` generates all 5 RESTful endpoints at once.",
 	},
 	{
+		id: 'resources',
+		label: 'resources :posts',
+		correct: true,
+	},
+	{
 		id: 'match',
 		label: "match '/posts', to: 'posts#index'",
 		correct: false,
 		feedback:
-			"`match` is for custom routes. `resources :posts` gives you all RESTful routes with one line.",
+			'`match` is for custom routes. `resources :posts` gives you all RESTful routes with one line.',
 	},
 ];
 
@@ -63,11 +63,36 @@ interface NamespaceBlock {
 }
 
 const ROUTE_TABLE = [
-	{ method: 'GET', path: '/api/v1/posts', action: 'api/v1/posts#index', description: 'List all posts' },
-	{ method: 'POST', path: '/api/v1/posts', action: 'api/v1/posts#create', description: 'Create a post' },
-	{ method: 'GET', path: '/api/v1/posts/:id', action: 'api/v1/posts#show', description: 'Show one post' },
-	{ method: 'PATCH', path: '/api/v1/posts/:id', action: 'api/v1/posts#update', description: 'Update a post' },
-	{ method: 'DELETE', path: '/api/v1/posts/:id', action: 'api/v1/posts#destroy', description: 'Delete a post' },
+	{
+		method: 'GET',
+		path: '/api/v1/posts',
+		action: 'api/v1/posts#index',
+		description: 'List all posts',
+	},
+	{
+		method: 'POST',
+		path: '/api/v1/posts',
+		action: 'api/v1/posts#create',
+		description: 'Create a post',
+	},
+	{
+		method: 'GET',
+		path: '/api/v1/posts/:id',
+		action: 'api/v1/posts#show',
+		description: 'Show one post',
+	},
+	{
+		method: 'PATCH',
+		path: '/api/v1/posts/:id',
+		action: 'api/v1/posts#update',
+		description: 'Update a post',
+	},
+	{
+		method: 'DELETE',
+		path: '/api/v1/posts/:id',
+		action: 'api/v1/posts#destroy',
+		description: 'Delete a post',
+	},
 ];
 
 const METHOD_COLORS: Record<string, string> = {
@@ -113,27 +138,46 @@ export function Level5Routes({ onComplete, onExit }: LevelComponentProps) {
 	// Step 3: View routes terminal
 	const viewRoutesCommands = [
 		{
+			id: 'wrong',
+			label: 'rake routes',
+			command: 'rake routes',
+			correct: false,
+			feedback:
+				'The modern command is "rails routes". "rake routes" is the old way.',
+		},
+		{
 			id: 'correct',
 			label: 'rails routes',
 			command: 'rails routes',
 			correct: true,
 		},
-		{
-			id: 'wrong',
-			label: 'rake routes',
-			command: 'rake routes',
-			correct: false,
-			feedback: 'The modern command is "rails routes". "rake routes" is the old way.',
-		},
 	];
 
 	const viewRoutesOutput: TerminalOutputLine[] = [
-		{ text: '      Prefix  Verb    URI Pattern                    Controller#Action', color: 'muted' },
-		{ text: '  api_v1_posts  GET     /api/v1/posts(.:format)        api/v1/posts#index', color: 'green' },
-		{ text: '               POST    /api/v1/posts(.:format)        api/v1/posts#create', color: 'cyan' },
-		{ text: '   api_v1_post  GET     /api/v1/posts/:id(.:format)    api/v1/posts#show', color: 'green' },
-		{ text: '               PATCH   /api/v1/posts/:id(.:format)    api/v1/posts#update', color: 'yellow' },
-		{ text: '               DELETE  /api/v1/posts/:id(.:format)    api/v1/posts#destroy', color: 'red' },
+		{
+			text: '      Prefix  Verb    URI Pattern                    Controller#Action',
+			color: 'muted',
+		},
+		{
+			text: '  api_v1_posts  GET     /api/v1/posts(.:format)        api/v1/posts#index',
+			color: 'green',
+		},
+		{
+			text: '               POST    /api/v1/posts(.:format)        api/v1/posts#create',
+			color: 'cyan',
+		},
+		{
+			text: '   api_v1_post  GET     /api/v1/posts/:id(.:format)    api/v1/posts#show',
+			color: 'green',
+		},
+		{
+			text: '               PATCH   /api/v1/posts/:id(.:format)    api/v1/posts#update',
+			color: 'yellow',
+		},
+		{
+			text: '               DELETE  /api/v1/posts/:id(.:format)    api/v1/posts#destroy',
+			color: 'red',
+		},
 	];
 
 	// Step 4: Route tracing
@@ -344,10 +388,7 @@ end`,
 											(b) => b.id === id,
 										)!;
 										return (
-											<div
-												className="text-emerald-400"
-												key={id}
-											>
+											<div className="text-emerald-400" key={id}>
 												{'  '.repeat(i + 1)}
 												{block.label}
 											</div>
@@ -358,13 +399,8 @@ end`,
 											.reverse()
 											.filter((id) => id !== 'resources')
 											.map((id, i) => (
-												<div
-													className="text-zinc-400"
-													key={`end-${id}`}
-												>
-													{'  '.repeat(
-														namespaceOrder.length - i - 1,
-													)}
+												<div className="text-zinc-400" key={`end-${id}`}>
+													{'  '.repeat(namespaceOrder.length - i - 1)}
 													end
 												</div>
 											))}
@@ -450,11 +486,12 @@ end`,
 								</div>
 
 								{/* Animated path visualization when clicking */}
-								{tracedRoutes.size > 0 && tracedRoutes.size < ROUTE_TABLE.length && (
-									<p className="text-xs text-muted-foreground text-center">
-										{tracedRoutes.size} / {ROUTE_TABLE.length} routes traced
-									</p>
-								)}
+								{tracedRoutes.size > 0 &&
+									tracedRoutes.size < ROUTE_TABLE.length && (
+										<p className="text-xs text-muted-foreground text-center">
+											{tracedRoutes.size} / {ROUTE_TABLE.length} routes traced
+										</p>
+									)}
 							</div>
 						)}
 
@@ -493,9 +530,7 @@ end`,
 								<span className="font-mono text-primary">namespace :api</span>{' '}
 								nests routes under /api/
 							</li>
-							<li>
-								Routes map HTTP verbs + URLs to controller actions
-							</li>
+							<li>Routes map HTTP verbs + URLs to controller actions</li>
 							<li>
 								Check routes with{' '}
 								<span className="font-mono text-primary">rails routes</span>
