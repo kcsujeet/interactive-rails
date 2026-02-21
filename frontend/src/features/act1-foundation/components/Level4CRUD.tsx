@@ -44,7 +44,7 @@ const CREATE_OPTIONS = [
 		label: 'Post.new(title: "Hello", body: "My first post")',
 		correct: false,
 		feedback:
-			'"new" builds the object in memory but doesn\'t save it to the database. Use "create" to persist immediately.',
+			'"new" builds the object in memory but doesn\'t save it to the database. You need the method that persists immediately.',
 	},
 	{
 		id: 'create',
@@ -67,7 +67,7 @@ const READ_OPTIONS = [
 		label: 'Post.select(1)',
 		correct: false,
 		feedback:
-			'"select" filters columns (like SQL SELECT columns), not records. Use "find" to fetch by ID.',
+			'"select" filters columns (like SQL SELECT columns), not records. You need the method that fetches a single record by primary key.',
 	},
 	{
 		id: 'find',
@@ -79,7 +79,7 @@ const READ_OPTIONS = [
 		label: 'Post.where(1)',
 		correct: false,
 		feedback:
-			'"where" takes conditions like where(title: "Hello"). Use "find(1)" to fetch by primary key.',
+			'"where" takes conditions like where(title: "Hello"), not a bare ID. You need the method designed for primary key lookups.',
 	},
 ];
 
@@ -90,7 +90,7 @@ const UPDATE_OPTIONS = [
 		label: 'post.title = "Updated"',
 		correct: false,
 		feedback:
-			'Assignment only changes the Ruby object in memory. "update" validates and persists to the DB in one call.',
+			'Assignment only changes the Ruby object in memory. You need the method that validates and persists to the DB in one call.',
 	},
 	{
 		id: 'update',
@@ -102,7 +102,7 @@ const UPDATE_OPTIONS = [
 		label: 'post.update_column(:title, "Updated")',
 		correct: false,
 		feedback:
-			'"update_column" skips validations and callbacks. Use "update" to go through the full Rails lifecycle.',
+			'"update_column" skips validations and callbacks. You need the method that goes through the full Rails lifecycle.',
 	},
 ];
 
@@ -113,7 +113,7 @@ const DESTROY_OPTIONS = [
 		label: 'post.delete',
 		correct: false,
 		feedback:
-			'"delete" runs SQL directly, skipping callbacks. "destroy" runs lifecycle hooks like dependent: :destroy.',
+			'"delete" runs SQL directly, skipping callbacks. You need the method that runs lifecycle hooks like dependent associations.',
 	},
 	{
 		id: 'destroy',

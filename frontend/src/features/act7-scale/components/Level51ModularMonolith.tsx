@@ -84,7 +84,7 @@ const PACKAGE_OPTIONS: StepOption[] = [
         order.rb`,
 		correct: false,
 		feedback:
-			'An Invoice belongs to the billing domain, not orders -- incorrect domain classification undermines the whole modular approach.',
+			"An Invoice doesn't belong in the orders domain. Think about which business function owns invoicing logic.",
 	},
 	{
 		id: 'correct-domain',

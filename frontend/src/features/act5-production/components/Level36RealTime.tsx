@@ -212,7 +212,7 @@ export function Level36RealTime({ onComplete, onExit }: LevelComponentProps) {
 				adapter === null
 					? 'Select an adapter for Action Cable'
 					: adapter === 'redis'
-						? 'Redis works but Solid Cable is the Rails 8 default -- no external dependency needed'
+						? 'Redis works but adds an external dependency. Rails 8 has a built-in adapter that needs no extra infrastructure.'
 						: 'Polling defeats the purpose of real-time WebSockets',
 			);
 		}

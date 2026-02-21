@@ -194,17 +194,17 @@ export function Level35Encryption({ onComplete, onExit }: LevelComponentProps) {
 
 		if (emailCol.mode !== 'deterministic') {
 			errors.push(
-				'Email must use deterministic encryption (needed for find_by/uniqueness)',
+				'Email needs to support lookups and uniqueness checks, which requires a queryable encryption mode.',
 			);
 		}
 		if (phoneCol.mode !== 'non-deterministic') {
 			errors.push(
-				'Phone must use non-deterministic encryption (max security, no querying needed)',
+				'Phone numbers are never used for lookups. The current mode exposes patterns unnecessarily.',
 			);
 		}
 		if (addressCol.mode !== 'non-deterministic') {
 			errors.push(
-				'Address must use non-deterministic encryption (max security, no querying needed)',
+				'Addresses are never queried directly. The current mode exposes patterns unnecessarily.',
 			);
 		}
 		if (nameCol.mode !== 'plaintext') {

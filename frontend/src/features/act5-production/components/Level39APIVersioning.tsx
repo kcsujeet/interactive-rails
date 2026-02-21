@@ -146,7 +146,7 @@ export function Level39APIVersioning({
 
 		if (config.strategy !== 'url-path') {
 			errors.push(
-				'Select URL path versioning (recommended for Rails namespaced routes)',
+				"The current strategy doesn't align well with Rails namespaced routes. Pick the approach that maps naturally to `namespace :v1 do`.",
 			);
 		}
 		if (!config.deprecationHeaders) {

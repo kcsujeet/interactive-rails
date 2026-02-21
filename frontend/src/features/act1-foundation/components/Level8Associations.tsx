@@ -51,7 +51,7 @@ export function Level8Associations({
 			command: 'rails generate model Comment body:text post_id:integer',
 			correct: false,
 			feedback:
-				'"post:references" adds the foreign key, index, AND the belongs_to association automatically. "post_id:integer" only adds the column.',
+				'Adding an integer column only gives you the column — you miss the automatic index, foreign key, and model association. There\'s a better field type for linking models.',
 		},
 		{
 			id: 'correct',
@@ -65,7 +65,7 @@ export function Level8Associations({
 			command: 'rails generate model Comment body:text',
 			correct: false,
 			feedback:
-				'Comment needs a "post:references" to link to Post. Otherwise there\'s no relationship.',
+				'Without a field that links Comment to Post, there\'s no relationship. You need to declare the connection in the generator.',
 		},
 	];
 
@@ -87,7 +87,7 @@ export function Level8Associations({
 			description: 'Only one comment per post',
 			correct: false,
 			feedback:
-				'"has_one" means only one comment per post. Use "has_many" so posts can have unlimited comments.',
+				'"has_one" limits the parent to a single child record. Posts should be able to have unlimited comments.',
 		},
 		{
 			id: 'has_many',
@@ -102,7 +102,7 @@ export function Level8Associations({
 			description: 'Post belongs to a Comment',
 			correct: false,
 			feedback:
-				'"belongs_to" goes on the child side (Comment). Post is the parent and "has_many" comments.',
+				'"belongs_to" goes on the child side (Comment). The parent needs a different declaration to express a one-to-many relationship.',
 		},
 		{
 			id: 'habtm',
@@ -122,7 +122,7 @@ export function Level8Associations({
 			description: 'Set post_id to NULL on comments',
 			correct: false,
 			feedback:
-				'Orphaned comments with NULL post_id would break your API. Use :destroy to clean them up.',
+				'Orphaned comments with NULL post_id would break your API. You need a strategy that removes them entirely.',
 		},
 		{
 			id: 'destroy',
@@ -145,7 +145,7 @@ export function Level8Associations({
 			description: 'Do nothing when post is deleted',
 			correct: false,
 			feedback:
-				'Orphaned comments would break your API. Add "dependent: :destroy" to clean up.',
+				'Orphaned comments would break your API. You need to specify what happens to child records when the parent is deleted.',
 		},
 	];
 

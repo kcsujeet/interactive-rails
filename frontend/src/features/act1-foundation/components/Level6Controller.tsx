@@ -37,10 +37,10 @@ const RESTFUL_ACTIONS = ['index', 'show', 'create', 'update', 'destroy'];
 const DISTRACTOR_ACTIONS = ['list', 'get', 'add', 'remove', 'new', 'edit'];
 
 const WRONG_ACTION_FEEDBACK: Record<string, string> = {
-	list: '"list" isn\'t a Rails convention. Use "index" for listing records.',
-	get: '"get" isn\'t a Rails action. Use "show" to display a single record.',
-	add: '"add" isn\'t a Rails action. Use "create" to save a new record.',
-	remove: '"remove" isn\'t a Rails action. Use "destroy" to delete a record.',
+	list: '"list" isn\'t a Rails convention. There\'s a standard RESTful name for listing records.',
+	get: '"get" isn\'t a Rails action. There\'s a standard RESTful name for displaying a single record.',
+	add: '"add" isn\'t a Rails action. There\'s a standard RESTful name for saving a new record.',
+	remove: '"remove" isn\'t a Rails action. There\'s a standard RESTful name for deleting a record.',
 	new: '"new" renders a form in full-stack Rails. API controllers don\'t need it.',
 	edit: '"edit" renders a form in full-stack Rails. API controllers don\'t need it.',
 };
@@ -89,7 +89,7 @@ export function Level6Controller({ onComplete, onExit }: LevelComponentProps) {
 			command: 'rails generate controller Post',
 			correct: false,
 			feedback:
-				'Controller names are plural and match the route namespace. Use "Api::V1::Posts".',
+				'Controller names are plural and must include the full route namespace, not just a singular model name.',
 		},
 		{
 			id: 'correct',
@@ -103,7 +103,7 @@ export function Level6Controller({ onComplete, onExit }: LevelComponentProps) {
 			command: 'rails generate controller Posts',
 			correct: false,
 			feedback:
-				'Include the namespace to match your routes: "Api::V1::Posts", not just "Posts".',
+				'The controller name must include namespaces to match your route structure, not just the resource name alone.',
 		},
 	];
 
@@ -161,12 +161,12 @@ export function Level6Controller({ onComplete, onExit }: LevelComponentProps) {
 
 	const getParamsErrorFeedback = (pieces: string[]): string => {
 		if (pieces.includes('require') || pieces.includes('permit')) {
-			return '`.expect` is the Rails 8 way. It combines require + permit in one call.';
+			return 'Rails 8 replaced the require/permit pattern with a single, more concise method.';
 		}
 		if (pieces.includes('partial-attrs')) {
 			return 'Include all three attributes: title, body, and published.';
 		}
-		return 'Check the order: params.expect(post: [:title, :body, :published])';
+		return 'The pieces are in the wrong order. Think about how method chaining works in Ruby.';
 	};
 
 	// Step 4: Test endpoint

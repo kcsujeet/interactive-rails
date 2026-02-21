@@ -39,7 +39,7 @@ const RESOURCE_OPTIONS = [
 		label: "get '/posts' => 'posts#index'",
 		correct: false,
 		feedback:
-			"That's only one route. `resources :posts` generates all 5 RESTful endpoints at once.",
+			"A single GET route only handles one endpoint. You need all 5 RESTful routes generated with one line.",
 	},
 	{
 		id: 'resources',
@@ -51,7 +51,7 @@ const RESOURCE_OPTIONS = [
 		label: "match '/posts', to: 'posts#index'",
 		correct: false,
 		feedback:
-			'`match` is for custom routes. `resources :posts` gives you all RESTful routes with one line.',
+			'`match` is for custom one-off routes, not for generating a full set of RESTful endpoints.',
 	},
 ];
 
@@ -128,7 +128,7 @@ export function Level5Routes({ onComplete, onExit }: LevelComponentProps) {
 				stepper.completeStep();
 			} else {
 				stepper.recordWrongAttempt(
-					'Nest in this order: namespace :api → namespace :v1 → resources :posts. The outer namespace comes first.',
+					'The nesting order is wrong. Think about the URL structure — the broadest namespace wraps the narrower one.',
 				);
 				setNamespaceOrder([]);
 			}
@@ -143,7 +143,7 @@ export function Level5Routes({ onComplete, onExit }: LevelComponentProps) {
 			command: 'rake routes',
 			correct: false,
 			feedback:
-				'The modern command is "rails routes". "rake routes" is the old way.',
+				'"rake routes" is deprecated. Modern Rails has its own CLI for viewing routes.',
 		},
 		{
 			id: 'correct',
