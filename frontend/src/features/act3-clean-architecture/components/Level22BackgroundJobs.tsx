@@ -224,70 +224,7 @@ export function Level22BackgroundJobs({
 						'Process jobs asynchronously',
 					]}
 					scenario="Users are waiting 15+ seconds for their signup to complete. Emails, PDFs, images... all blocking the request. Time to move slow work to background jobs!"
-				>
-					{/* Request Time Display */}
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-							Estimated Request Time
-						</div>
-						<div className="text-center py-4">
-							<div
-								className={`text-4xl font-bold ${
-									totalSyncTime < 500
-										? 'text-success'
-										: totalSyncTime < 2000
-											? 'text-warning'
-											: 'text-destructive'
-								}`}
-							>
-								{(totalSyncTime / 1000).toFixed(1)}s
-							</div>
-							<div className="text-xs text-muted-foreground">
-								{totalSyncTime < 500
-									? 'Fast!'
-									: totalSyncTime < 2000
-										? 'Acceptable'
-										: 'Too slow!'}
-							</div>
-						</div>
-					</div>
-
-					<div className="p-4 border-t border-border">
-						<Button
-							className={`w-full py-2 ${isProcessing ? 'cursor-not-allowed' : ''}`}
-							disabled={isProcessing}
-							onClick={simulateRequest}
-							variant={isProcessing ? 'secondary' : 'default'}
-						>
-							{isProcessing
-								? `Processing... ${requestTime}ms`
-								: 'Simulate Request'}
-						</Button>
-					</div>
-
-					<div className="p-4 border-t border-border">
-						<div className="flex justify-between text-sm mb-2">
-							<span className="text-muted-foreground">
-								Operations backgrounded
-							</span>
-							<span
-								className={
-									backgroundOps.length >= 3 ? 'text-success' : 'text-foreground'
-								}
-							>
-								{backgroundOps.length} / {operations.length}
-							</span>
-						</div>
-						<div className="h-2 bg-secondary rounded-full overflow-hidden">
-							<div
-								className="h-full bg-success transition-all"
-								style={{
-									width: `${(backgroundOps.length / operations.length) * 100}%`,
-								}}
-							/>
-						</div>
-					</div>
-				</InstructionPanel>
+				/>
 			</LeftPanel>
 
 			<CenterPanel>
@@ -307,6 +244,46 @@ export function Level22BackgroundJobs({
 
 				<div className="flex-1 relative bg-background p-6 overflow-auto">
 					<div className="max-w-4xl mx-auto">
+						{/* Request Time + Simulate */}
+						<div className="flex items-center gap-4 mb-6">
+							<div className="flex items-center gap-3 flex-1">
+								<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+									Request Time:
+								</div>
+								<div
+									className={`text-2xl font-bold ${
+										totalSyncTime < 500
+											? 'text-success'
+											: totalSyncTime < 2000
+												? 'text-warning'
+												: 'text-destructive'
+									}`}
+								>
+									{(totalSyncTime / 1000).toFixed(1)}s
+								</div>
+								<div className="text-xs text-muted-foreground">
+									{totalSyncTime < 500
+										? 'Fast!'
+										: totalSyncTime < 2000
+											? 'Acceptable'
+											: 'Too slow!'}
+								</div>
+							</div>
+							<div className="text-xs text-muted-foreground">
+								{backgroundOps.length}/{operations.length} backgrounded
+							</div>
+							<Button
+								className={isProcessing ? 'cursor-not-allowed' : ''}
+								disabled={isProcessing}
+								onClick={simulateRequest}
+								variant={isProcessing ? 'secondary' : 'default'}
+							>
+								{isProcessing
+									? `Processing... ${requestTime}ms`
+									: 'Simulate Request'}
+							</Button>
+						</div>
+
 						{/* Operations List */}
 						<div className="grid grid-cols-2 gap-6 mb-6">
 							{/* Synchronous */}

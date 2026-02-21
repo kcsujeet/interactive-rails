@@ -236,33 +236,6 @@ end`;
 			<LeftPanel>
 				<InstructionPanel>
 					<div className="p-4">
-						<div className="flex items-center gap-2 mb-3">
-							<Boxes className="w-4 h-4 text-primary" />
-							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-								Components ({paletteComponents.length} remaining)
-							</div>
-						</div>
-						<div className="space-y-2">
-							{paletteComponents.map((comp) => (
-								<OptionCard
-									color={resolveColor(comp.color)}
-									description={comp.description}
-									draggable
-									key={comp.id}
-									name={comp.name}
-									onDragEnd={handleDragEnd}
-									onDragStart={() => handleDragStart(comp.id)}
-								/>
-							))}
-							{paletteComponents.length === 0 && (
-								<div className="text-success text-sm text-center py-4">
-									All components placed!
-								</div>
-							)}
-						</div>
-					</div>
-
-					<div className="p-4 border-t border-border">
 						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
 							Progress
 						</div>
@@ -303,6 +276,35 @@ end`;
 
 				<div className="flex-1 relative bg-background p-6 overflow-auto">
 					<div className="max-w-2xl mx-auto space-y-4">
+						{/* Components Palette */}
+						<div className="p-4 bg-card rounded-xl border border-border">
+							<div className="flex items-center gap-2 mb-3">
+								<Boxes className="w-4 h-4 text-primary" />
+								<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+									Components ({paletteComponents.length} remaining)
+								</div>
+							</div>
+							{paletteComponents.length > 0 ? (
+								<div className="flex flex-wrap gap-2">
+									{paletteComponents.map((comp) => (
+										<OptionCard
+											color={resolveColor(comp.color)}
+											description={comp.description}
+											draggable
+											key={comp.id}
+											name={comp.name}
+											onDragEnd={handleDragEnd}
+											onDragStart={() => handleDragStart(comp.id)}
+										/>
+									))}
+								</div>
+							) : (
+								<div className="text-success text-sm text-center py-2">
+									All components placed!
+								</div>
+							)}
+						</div>
+
 						{SECTIONS.map((section) => {
 							const sectionComponents = getComponentsForSection(section.id);
 

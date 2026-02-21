@@ -192,20 +192,6 @@ export function Level12Authorization({
 					scenario="Anyone can access any endpoint! Hackers are trying to delete posts they don't own. We need authorization at the boundary."
 				>
 					<div className="p-4 border-t border-border">
-						<Button
-							className="w-full"
-							disabled={policyAdded}
-							onClick={() => {
-								setPolicyAdded(true);
-								setBreachOccurred(false);
-							}}
-							variant={policyAdded ? 'secondary' : 'default'}
-						>
-							{policyAdded ? 'Policy Added' : 'Add Policy Node'}
-						</Button>
-					</div>
-
-					<div className="p-4 border-t border-border">
 						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 							Request Legend
 						</div>
@@ -262,6 +248,20 @@ export function Level12Authorization({
 				/>
 
 				<div className="flex-1 relative bg-background overflow-hidden">
+					{/* Add Policy Button */}
+					<div className="absolute top-4 right-4 z-10">
+						<Button
+							disabled={policyAdded}
+							onClick={() => {
+								setPolicyAdded(true);
+								setBreachOccurred(false);
+							}}
+							variant={policyAdded ? 'secondary' : 'default'}
+						>
+							{policyAdded ? 'Policy Added' : 'Add Policy Node'}
+						</Button>
+					</div>
+
 					{/* Breach warning */}
 					{breachOccurred && !policyAdded && (
 						<div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-destructive/90 border border-destructive rounded-lg px-6 py-3 z-10">

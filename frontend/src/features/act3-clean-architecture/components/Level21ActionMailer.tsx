@@ -285,26 +285,6 @@ export function Level21ActionMailer({
 					]}
 					scenario="Users who forget their passwords are completely locked out. Support tickets are piling up. You need a self-service password reset flow."
 				>
-					<div className="p-4">
-						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-							Email Components
-						</div>
-						<div className="space-y-2">
-							{EMAIL_COMPONENTS.map((comp) => (
-								<OptionCard
-									color={resolveColor(comp.color)}
-									description={comp.description}
-									icon={comp.icon}
-									key={comp.id}
-									name={comp.label}
-									onClick={() => toggleComponent(comp.id)}
-									selected={emailComponents[comp.id]}
-									size="lg"
-								/>
-							))}
-						</div>
-					</div>
-
 					<div className="p-4 border-t border-border">
 						<div className="flex justify-between text-sm mb-2">
 							<span className="text-muted-foreground">
@@ -343,6 +323,27 @@ export function Level21ActionMailer({
 
 				<div className="flex-1 relative bg-background p-6 overflow-auto">
 					<div className="max-w-2xl mx-auto space-y-6">
+						{/* Email Components */}
+						<div className="p-4 bg-card rounded-xl border border-border">
+							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+								Email Components
+							</div>
+							<div className="flex flex-wrap gap-2">
+								{EMAIL_COMPONENTS.map((comp) => (
+									<OptionCard
+										color={resolveColor(comp.color)}
+										description={comp.description}
+										icon={comp.icon}
+										key={comp.id}
+										name={comp.label}
+										onClick={() => toggleComponent(comp.id)}
+										selected={emailComponents[comp.id]}
+										size="sm"
+									/>
+								))}
+							</div>
+						</div>
+
 						{/* Mailer tabs */}
 						<div className="flex gap-2">
 							<Button

@@ -213,7 +213,7 @@ function generateSpecCode(
 		}
 
 		if (selected.length === 0) {
-			lines.push('  # Select assertions from the left panel', '');
+			lines.push('  # Select assertions above to add tests', '');
 		}
 
 		lines.push('end');
@@ -270,7 +270,7 @@ function generateSpecCode(
 		}
 
 		if (selected.length === 0) {
-			lines.push('  # Select assertions from the left panel', '');
+			lines.push('  # Select assertions above to add tests', '');
 		}
 
 		lines.push('end');
@@ -328,7 +328,7 @@ function generateSpecCode(
 	}
 
 	if (selected.length === 0) {
-		lines.push('  # Select assertions from the left panel', '');
+		lines.push('  # Select assertions above to add tests', '');
 	}
 
 	lines.push('end');
@@ -559,107 +559,7 @@ export function Level13Testing({ onComplete, onExit }: LevelComponentProps) {
 						'Make sure all tests pass green',
 					]}
 					scenario="A deploy broke the login endpoint. Nobody noticed for 3 hours because there are zero tests. Time to add test coverage."
-				>
-					{/* Test Type Selector */}
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-							Test Type
-						</div>
-						<div className="flex flex-col gap-1.5">
-							{(Object.keys(TEST_TYPE_META) as TestType[]).map((type) => {
-								const typeMeta = TEST_TYPE_META[type];
-								const IconComponent = typeMeta.icon;
-								const isActive = selectedTestType === type;
-								return (
-									<Button
-										className={`w-full justify-start gap-2 h-9 text-sm ${
-											isActive
-												? 'bg-primary/10 border-primary text-foreground'
-												: 'text-muted-foreground'
-										}`}
-										key={type}
-										onClick={() => switchTestType(type)}
-										variant={isActive ? 'outline' : 'ghost'}
-									>
-										<IconComponent className="w-4 h-4 shrink-0" />
-										{typeMeta.label}
-									</Button>
-								);
-							})}
-						</div>
-					</div>
-
-					{/* Assertion Chips */}
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-							Assertions ({activeAssertionCount} selected)
-						</div>
-						<div className="flex flex-wrap gap-2">
-							{currentAssertions.map((assertion) => {
-								const isSelected = selectedAssertions.has(assertion);
-								return (
-									<button
-										className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
-											isSelected
-												? 'bg-primary/15 border-primary text-primary'
-												: 'bg-secondary border-border text-muted-foreground hover:border-muted-foreground hover:text-foreground'
-										}`}
-										key={assertion}
-										onClick={() => toggleAssertion(assertion)}
-										type="button"
-									>
-										{isSelected && (
-											<Check className="w-3 h-3 inline-block mr-1 -mt-0.5" />
-										)}
-										{assertion}
-									</button>
-								);
-							})}
-						</div>
-					</div>
-
-					{/* Run Button */}
-					<div className="p-4 border-t border-border">
-						<Button
-							className="w-full gap-2"
-							disabled={isRunning || activeAssertionCount === 0}
-							onClick={runTests}
-							variant={allPassing ? 'secondary' : 'default'}
-						>
-							{isRunning ? (
-								<>
-									<FlaskConical className="w-4 h-4 animate-pulse" />
-									Running...
-								</>
-							) : (
-								<>
-									<Play className="w-4 h-4" />
-									Run Tests
-								</>
-							)}
-						</Button>
-					</div>
-
-					{/* Status Summary */}
-					{hasRun && (
-						<div className="p-4 border-t border-border">
-							<div className="grid grid-cols-2 gap-3">
-								<div className="bg-success/20 rounded-lg p-3 text-center">
-									<div className="text-2xl font-bold text-success">
-										{testResults.filter((r) => r.passed).length}
-									</div>
-									<div className="text-xs text-success/70">Passed</div>
-								</div>
-								<div className="bg-destructive/20 rounded-lg p-3 text-center">
-									<div className="text-2xl font-bold text-destructive">
-										{testResults.filter((r) => !r.passed).length}
-									</div>
-									<div className="text-xs text-destructive/70">Failed</div>
-								</div>
-							</div>
-						</div>
-					)}
-				</InstructionPanel>
+				/>
 			</LeftPanel>
 
 			<CenterPanel>
@@ -674,8 +574,84 @@ export function Level13Testing({ onComplete, onExit }: LevelComponentProps) {
 				/>
 
 				<div className="flex-1 relative bg-background p-6 overflow-auto">
-					{/* Terminal Container */}
 					<div className="max-w-2xl mx-auto">
+						{/* Test Controls */}
+						<div className="mb-6 space-y-4">
+							{/* Test Type + Run */}
+							<div className="flex items-center gap-3">
+								{(Object.keys(TEST_TYPE_META) as TestType[]).map((type) => {
+									const typeMeta = TEST_TYPE_META[type];
+									const IconComponent = typeMeta.icon;
+									const isActive = selectedTestType === type;
+									return (
+										<Button
+											className={`gap-2 text-sm ${
+												isActive
+													? 'bg-primary/10 border-primary text-foreground'
+													: 'text-muted-foreground'
+											}`}
+											key={type}
+											onClick={() => switchTestType(type)}
+											size="sm"
+											variant={isActive ? 'outline' : 'ghost'}
+										>
+											<IconComponent className="w-4 h-4 shrink-0" />
+											{typeMeta.label}
+										</Button>
+									);
+								})}
+
+								<div className="ml-auto">
+									<Button
+										className="gap-2"
+										disabled={isRunning || activeAssertionCount === 0}
+										onClick={runTests}
+										size="sm"
+										variant={allPassing ? 'secondary' : 'default'}
+									>
+										{isRunning ? (
+											<>
+												<FlaskConical className="w-4 h-4 animate-pulse" />
+												Running...
+											</>
+										) : (
+											<>
+												<Play className="w-4 h-4" />
+												Run Tests
+											</>
+										)}
+									</Button>
+								</div>
+							</div>
+
+							{/* Assertions */}
+							<div className="flex flex-wrap gap-2">
+								{currentAssertions.map((assertion) => {
+									const isSelected = selectedAssertions.has(assertion);
+									return (
+										<button
+											className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
+												isSelected
+													? 'bg-primary/15 border-primary text-primary'
+													: 'bg-secondary border-border text-muted-foreground hover:border-muted-foreground hover:text-foreground'
+											}`}
+											key={assertion}
+											onClick={() => toggleAssertion(assertion)}
+											type="button"
+										>
+											{isSelected && (
+												<Check className="w-3 h-3 inline-block mr-1 -mt-0.5" />
+											)}
+											{assertion}
+										</button>
+									);
+								})}
+								<span className="text-xs text-muted-foreground self-center ml-1">
+									({activeAssertionCount} selected)
+								</span>
+							</div>
+						</div>
+
 						{/* Terminal Header */}
 						<div className="bg-card rounded-t-xl border border-border border-b-0">
 							<div className="flex items-center gap-2 px-4 py-2.5">

@@ -364,36 +364,6 @@ end`,
 						</div>
 						<StepProgress currentStep={stepper.currentStep} onStepClick={stepper.goToStep} steps={stepper.steps} />
 					</div>
-
-					{/* Type palette for step 2 */}
-					{stepper.currentStep === 1 && !isViewingCompletedStep && (
-						<div className="p-4">
-							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-								Data Types
-							</div>
-							<div className="flex flex-wrap gap-2">
-								{AVAILABLE_TYPES.map((type) => (
-									<OptionCard
-										color="primary"
-										dragData={type}
-										dragType="attrType"
-										draggable
-										isDragging={draggedType === type}
-										key={type}
-										mono
-										name={`:${type}`}
-										onDragEnd={() => setDraggedType(null)}
-										onDragStart={(e) => handleTypeDragStart(e, type)}
-										selected={draggedType === type}
-										size="sm"
-									/>
-								))}
-							</div>
-							<p className="text-xs text-muted-foreground mt-2">
-								Drag a type onto each field slot
-							</p>
-						</div>
-					)}
 				</InstructionPanel>
 			</LeftPanel>
 
@@ -476,6 +446,35 @@ end`,
 									Drag the correct data type onto each field. Think about what
 									kind of data each field stores.
 								</p>
+
+								{!isViewingCompletedStep && (
+									<div>
+										<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+											Data Types
+										</div>
+										<div className="flex flex-wrap gap-2">
+											{AVAILABLE_TYPES.map((type) => (
+												<OptionCard
+													color="primary"
+													dragData={type}
+													dragType="attrType"
+													draggable
+													isDragging={draggedType === type}
+													key={type}
+													mono
+													name={`:${type}`}
+													onDragEnd={() => setDraggedType(null)}
+													onDragStart={(e) => handleTypeDragStart(e, type)}
+													selected={draggedType === type}
+													size="sm"
+												/>
+											))}
+										</div>
+										<p className="text-xs text-muted-foreground mt-2">
+											Drag a type onto each field slot
+										</p>
+									</div>
+								)}
 
 								<div className="space-y-3">
 									{slots.map((slot) => (

@@ -276,61 +276,6 @@ end`,
 							)}
 						</div>
 
-						{/* Findings List */}
-						<div className="space-y-2">
-							{findings.map((finding) => {
-								const Icon = ICON_MAP[finding.icon];
-								return (
-									<button
-										className={`w-full p-3 rounded-lg text-left transition-all border ${
-											finding.status === 'fixed'
-												? 'bg-success/10 border-success/50'
-												: selectedFinding === finding.id
-													? 'bg-primary/10 border-primary'
-													: 'bg-card border-border hover:border-muted-foreground'
-										}`}
-										key={finding.id}
-										onClick={() =>
-											finding.status === 'open' &&
-											setSelectedFinding(finding.id)
-										}
-										type="button"
-									>
-										<div className="flex items-center gap-2">
-											<Icon
-												className={`w-4 h-4 ${
-													finding.status === 'fixed'
-														? 'text-success'
-														: 'text-destructive'
-												}`}
-											/>
-											<span
-												className={`text-sm font-medium ${
-													finding.status === 'fixed'
-														? 'text-success line-through'
-														: 'text-foreground'
-												}`}
-											>
-												{finding.name}
-											</span>
-											<span
-												className={`text-xs px-1.5 py-0.5 rounded ml-auto ${
-													finding.status === 'fixed'
-														? 'bg-success/20 text-success'
-														: finding.severity === 'critical'
-															? 'bg-destructive/20 text-destructive'
-															: 'bg-warning/20 text-warning'
-												}`}
-											>
-												{finding.status === 'fixed'
-													? 'Fixed'
-													: finding.severity}
-											</span>
-										</div>
-									</button>
-								);
-							})}
-						</div>
 					</div>
 
 					{/* Progress */}
@@ -433,7 +378,7 @@ end`,
 							<div className="text-center mb-8">
 								<div className="text-muted-foreground text-sm">
 									{openCount > 0
-										? 'Select a finding from the left panel to review and fix it'
+										? 'Click a finding below to review and fix it'
 										: 'All security findings have been resolved!'}
 								</div>
 							</div>
@@ -442,13 +387,18 @@ end`,
 								{findings.map((finding) => {
 									const Icon = ICON_MAP[finding.icon];
 									return (
-										<div
-											className={`p-5 rounded-xl border-2 transition-all ${
+										<button
+											className={`p-5 rounded-xl border-2 transition-all text-left ${
 												finding.status === 'fixed'
 													? 'border-success/50 bg-success/5'
-													: 'border-destructive/50 bg-destructive/5'
+													: 'border-destructive/50 bg-destructive/5 hover:border-destructive cursor-pointer'
 											}`}
 											key={finding.id}
+											onClick={() =>
+												finding.status === 'open' &&
+												setSelectedFinding(finding.id)
+											}
+											type="button"
 										>
 											<div className="flex items-center gap-3 mb-3">
 												<div
@@ -473,7 +423,7 @@ end`,
 													? finding.fix
 													: finding.description}
 											</p>
-										</div>
+										</button>
 									);
 								})}
 							</div>

@@ -178,85 +178,6 @@ end
 		<LevelLayout>
 			<LeftPanel>
 				<InstructionPanel>
-					{/* Enum Toggle */}
-					<div className="p-4">
-						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-							Step 1: Add Enum
-						</div>
-						<Button
-							className="w-full"
-							disabled={enumAdded}
-							onClick={() => setEnumAdded(true)}
-							variant={enumAdded ? 'secondary' : 'default'}
-						>
-							{enumAdded ? (
-								<>
-									<Check className="w-4 h-4 mr-2" />
-									Enum Added
-								</>
-							) : (
-								<>
-									<Hash className="w-4 h-4 mr-2" />
-									Add Status Enum
-								</>
-							)}
-						</Button>
-						{!enumAdded && (
-							<p className="text-xs text-muted-foreground mt-2">
-								Constrains status to draft, published, archived, deleted.
-								Prevents typos like "pubished."
-							</p>
-						)}
-						{enumAdded && (
-							<p className="text-xs text-success mt-2">
-								Auto-generates: Post.published, Post.draft, post.published?,
-								post.published!
-							</p>
-						)}
-					</div>
-
-					{/* Available Scope Names */}
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-							Step 2: Assign Scope Names
-						</div>
-						<div className="flex flex-wrap gap-2">
-							{AVAILABLE_SCOPES.map((scope) => {
-								const isUsed = queries.some((q) => q.scopeName === scope);
-								const isCorrect = queries.some(
-									(q) => q.scopeName === scope && q.correctScope === scope,
-								);
-								return (
-									<Button
-										className={`px-3 py-1.5 font-mono text-sm transition-all ${
-											isCorrect
-												? 'bg-success/20 border-success text-success'
-												: isUsed
-													? 'bg-destructive/20 border-destructive text-destructive'
-													: selectedQuery
-														? 'bg-primary/20 border-primary text-primary hover:bg-primary/30 cursor-pointer'
-														: 'bg-secondary border-border text-muted-foreground'
-										}`}
-										disabled={!selectedQuery}
-										key={scope}
-										onClick={() =>
-											selectedQuery && assignScope(selectedQuery, scope)
-										}
-										size="sm"
-										variant="outline"
-									>
-										:{scope}
-									</Button>
-								);
-							})}
-						</div>
-						{selectedQuery && (
-							<div className="mt-2 text-xs text-primary">
-								Click a scope name to assign it
-							</div>
-						)}
-					</div>
-
 					{/* Progress */}
 					<div className="p-4 border-t border-border">
 						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
@@ -303,6 +224,26 @@ end
 
 				<div className="flex-1 relative bg-background p-8 overflow-auto">
 					<div className="max-w-2xl mx-auto space-y-4">
+						{/* Step 1: Add Enum */}
+						{!enumAdded && (
+							<div className="p-4 bg-card rounded-xl border border-border">
+								<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+									Step 1: Add Enum
+								</div>
+								<Button
+									className="w-full"
+									onClick={() => setEnumAdded(true)}
+								>
+									<Hash className="w-4 h-4 mr-2" />
+									Add Status Enum
+								</Button>
+								<p className="text-xs text-muted-foreground mt-2">
+									Constrains status to draft, published, archived, deleted.
+									Prevents typos like &quot;pubished.&quot;
+								</p>
+							</div>
+						)}
+
 						{/* Enum status display */}
 						{enumAdded && (
 							<div className="p-4 bg-primary/10 border border-primary rounded-xl mb-6">
@@ -335,6 +276,48 @@ end
 							<div className="text-xs text-muted-foreground">
 								Click a query, then click a scope name to assign
 							</div>
+						</div>
+
+						{/* Scope Name Palette */}
+						<div className="p-4 bg-card rounded-xl border border-border">
+							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+								Step 2: Assign Scope Names
+							</div>
+							<div className="flex flex-wrap gap-2">
+								{AVAILABLE_SCOPES.map((scope) => {
+									const isUsed = queries.some((q) => q.scopeName === scope);
+									const isCorrect = queries.some(
+										(q) => q.scopeName === scope && q.correctScope === scope,
+									);
+									return (
+										<Button
+											className={`px-3 py-1.5 font-mono text-sm transition-all ${
+												isCorrect
+													? 'bg-success/20 border-success text-success'
+													: isUsed
+														? 'bg-destructive/20 border-destructive text-destructive'
+														: selectedQuery
+															? 'bg-primary/20 border-primary text-primary hover:bg-primary/30 cursor-pointer'
+															: 'bg-secondary border-border text-muted-foreground'
+											}`}
+											disabled={!selectedQuery}
+											key={scope}
+											onClick={() =>
+												selectedQuery && assignScope(selectedQuery, scope)
+											}
+											size="sm"
+											variant="outline"
+										>
+											:{scope}
+										</Button>
+									);
+								})}
+							</div>
+							{selectedQuery && (
+								<div className="mt-2 text-xs text-primary">
+									Click a scope name to assign it
+								</div>
+							)}
 						</div>
 
 						{/* Query Blocks */}
