@@ -312,11 +312,13 @@ export function Level51ModularMonolith({
 	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
-	const stepper = useStepGating(STEP_DEFS);
+	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
+	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
+	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 	const [selectedOption, setSelectedOption] = useState<string | null>(null);
 
 	const handleOptionClick = (option: StepOption) => {
-		if (stepper.isComplete) return;
+		if (stepper.isComplete || isViewingCompletedStep) return;
 
 		setSelectedOption(option.id);
 
@@ -662,6 +664,13 @@ exclude:
 									message={stepper.lastFeedback}
 									onDismiss={stepper.clearFeedback}
 								/>
+								{isViewingCompletedStep && hasNextStep && (
+									<div className="flex justify-end">
+										<Button onClick={stepper.nextStep}>
+											Next Step <ArrowRight className="w-4 h-4 ml-2" />
+										</Button>
+									</div>
+								)}
 							</div>
 						)}
 

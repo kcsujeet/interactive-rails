@@ -27,6 +27,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
+import { ArrowRight } from 'lucide-react';
 
 const STEP_DEFS: StepDef[] = [
 	{ id: 'define-resource', title: 'Define Resource' },
@@ -107,7 +108,9 @@ const METHOD_COLORS: Record<string, string> = {
 
 export function Level5Routes({ onComplete, onExit }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
-	const stepper = useStepGating(STEP_DEFS);
+	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
+	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
+	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 
 	// Step 2: namespace ordering
 	const [namespaceOrder, setNamespaceOrder] = useState<string[]>([]);
@@ -341,6 +344,7 @@ end`,
 									{RESOURCE_OPTIONS.map((opt) => (
 										<Button
 											className="w-full h-auto py-4 text-left font-mono text-sm"
+											disabled={isViewingCompletedStep}
 											key={opt.id}
 											onClick={() => {
 												if (opt.correct) {
@@ -359,6 +363,13 @@ end`,
 									message={stepper.lastFeedback}
 									onDismiss={stepper.clearFeedback}
 								/>
+								{isViewingCompletedStep && hasNextStep && (
+									<div className="flex justify-end">
+										<Button onClick={stepper.nextStep}>
+											Next Step <ArrowRight className="w-4 h-4 ml-2" />
+										</Button>
+									</div>
+								)}
 							</div>
 						)}
 
@@ -374,20 +385,22 @@ end`,
 								</p>
 
 								{/* Available blocks */}
-								<div className="flex flex-wrap gap-2">
-									{availableNamespaceBlocks
-										.filter((b) => !namespaceOrder.includes(b.id))
-										.map((block) => (
-											<Button
-												className="font-mono text-sm"
-												key={block.id}
-												onClick={() => handleNamespaceAdd(block.id)}
-												variant="outline"
-											>
-												{block.label}
-											</Button>
-										))}
-								</div>
+								{!isViewingCompletedStep && (
+									<div className="flex flex-wrap gap-2">
+										{availableNamespaceBlocks
+											.filter((b) => !namespaceOrder.includes(b.id))
+											.map((block) => (
+												<Button
+													className="font-mono text-sm"
+													key={block.id}
+													onClick={() => handleNamespaceAdd(block.id)}
+													variant="outline"
+												>
+													{block.label}
+												</Button>
+											))}
+									</div>
+								)}
 
 								{/* Preview of current nesting */}
 								<div className="bg-zinc-900 rounded-lg p-4 font-mono text-sm">
@@ -422,6 +435,13 @@ end`,
 									message={stepper.lastFeedback}
 									onDismiss={stepper.clearFeedback}
 								/>
+								{isViewingCompletedStep && hasNextStep && (
+									<div className="flex justify-end">
+										<Button onClick={stepper.nextStep}>
+											Next Step <ArrowRight className="w-4 h-4 ml-2" />
+										</Button>
+									</div>
+								)}
 							</div>
 						)}
 
@@ -441,7 +461,7 @@ end`,
 									stepper.currentStep,
 								)}
 								onCorrect={() => stepper.completeStep()}
-								onNext={() => stepper.goToStep(stepper.currentStep + 1)}
+								onNext={stepper.nextStep}
 								onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 								outputLines={viewRoutesOutput}
 								stepKey={stepper.currentStep}

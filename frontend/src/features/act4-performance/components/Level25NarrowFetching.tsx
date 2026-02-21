@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { useStepGating, type StepDef } from '@/hooks/useStepGating';
 import {
+	ArrowRight,
 	Database,
 	FileDown,
 	HardDrive,
@@ -238,7 +239,9 @@ export function Level25NarrowFetching({
 	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
-	const stepper = useStepGating(STEP_DEFS);
+	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
+	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
+	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 	const [selectedOptions, setSelectedOptions] = useState<
 		Record<string, string>
 	>({});
@@ -518,6 +521,13 @@ Post.find_in_batches(batch_size: 1000) { |batch|
 							message={stepper.lastFeedback}
 							onDismiss={stepper.clearFeedback}
 						/>
+						{isViewingCompletedStep && hasNextStep && (
+							<div className="flex justify-end">
+								<Button onClick={stepper.nextStep}>
+									Next Step <ArrowRight className="w-4 h-4 ml-2" />
+								</Button>
+							</div>
+						)}
 
 						{/* Completion message */}
 						{stepper.isComplete && (

@@ -7,6 +7,7 @@
 
 import {
 	Archive,
+	ArrowRight,
 	Database,
 	Flame,
 	HardDrive,
@@ -224,7 +225,9 @@ export function Level45DataLifecycle({
 	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
-	const stepper = useStepGating(STEP_DEFS);
+	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
+	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
+	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 
 	const [selectedOption, setSelectedOption] = useState<string | null>(null);
 
@@ -534,6 +537,7 @@ end`,
 													? 'border-destructive/50'
 													: ''
 											}`}
+											disabled={isViewingCompletedStep}
 											key={opt.id}
 											onClick={() => handleOptionClick(opt.id)}
 											variant="outline"
@@ -547,6 +551,13 @@ end`,
 									message={stepper.lastFeedback}
 									onDismiss={stepper.clearFeedback}
 								/>
+								{isViewingCompletedStep && hasNextStep && (
+									<div className="flex justify-end">
+										<Button onClick={stepper.nextStep}>
+											Next Step <ArrowRight className="w-4 h-4 ml-2" />
+										</Button>
+									</div>
+								)}
 							</div>
 						)}
 

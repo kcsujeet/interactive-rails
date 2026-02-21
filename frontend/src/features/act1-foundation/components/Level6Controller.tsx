@@ -26,6 +26,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
+import { ArrowRight } from 'lucide-react';
 
 const STEP_DEFS: StepDef[] = [
 	{ id: 'generate-controller', title: 'Generate Controller' },
@@ -74,7 +75,9 @@ const CORRECT_PARAMS_ORDER = [
 
 export function Level6Controller({ onComplete, onExit }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
-	const stepper = useStepGating(STEP_DEFS);
+	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
+	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
+	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 
 	// Step 2: placed actions
 	const [placedActions, setPlacedActions] = useState<string[]>([]);
@@ -340,7 +343,7 @@ end`,
 									stepper.currentStep,
 								)}
 								onCorrect={() => stepper.completeStep()}
-								onNext={() => stepper.goToStep(stepper.currentStep + 1)}
+								onNext={stepper.nextStep}
 								onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 								outputLines={generateOutput}
 								stepKey={stepper.currentStep}
@@ -372,7 +375,7 @@ end`,
 													className={`font-mono text-xs ${
 														isPlaced ? 'opacity-50 cursor-not-allowed' : ''
 													}`}
-													disabled={isPlaced}
+													disabled={isPlaced || isViewingCompletedStep}
 													key={action}
 													onClick={() => handleAddAction(action)}
 													size="sm"
@@ -411,6 +414,13 @@ end`,
 									message={stepper.lastFeedback}
 									onDismiss={stepper.clearFeedback}
 								/>
+								{isViewingCompletedStep && hasNextStep && (
+									<div className="flex justify-end">
+										<Button onClick={stepper.nextStep}>
+											Next Step <ArrowRight className="w-4 h-4 ml-2" />
+										</Button>
+									</div>
+								)}
 							</div>
 						)}
 
@@ -451,23 +461,25 @@ end`,
 								</div>
 
 								{/* Available pieces */}
-								<div className="flex flex-wrap gap-2">
-									{PARAMS_PIECES.filter(
-										(p) => !assembledPieces.includes(p.id),
-									).map((piece) => (
-										<Button
-											className="font-mono text-xs"
-											key={piece.id}
-											onClick={() => handleAddPiece(piece.id)}
-											size="sm"
-											variant="outline"
-										>
-											{piece.text}
-										</Button>
-									))}
-								</div>
+								{!isViewingCompletedStep && (
+									<div className="flex flex-wrap gap-2">
+										{PARAMS_PIECES.filter(
+											(p) => !assembledPieces.includes(p.id),
+										).map((piece) => (
+											<Button
+												className="font-mono text-xs"
+												key={piece.id}
+												onClick={() => handleAddPiece(piece.id)}
+												size="sm"
+												variant="outline"
+											>
+												{piece.text}
+											</Button>
+										))}
+									</div>
+								)}
 
-								{assembledPieces.length > 0 && (
+								{assembledPieces.length > 0 && !isViewingCompletedStep && (
 									<Button
 										className="text-xs"
 										onClick={() => setAssembledPieces([])}
@@ -482,6 +494,13 @@ end`,
 									message={stepper.lastFeedback}
 									onDismiss={stepper.clearFeedback}
 								/>
+								{isViewingCompletedStep && hasNextStep && (
+									<div className="flex justify-end">
+										<Button onClick={stepper.nextStep}>
+											Next Step <ArrowRight className="w-4 h-4 ml-2" />
+										</Button>
+									</div>
+								)}
 							</div>
 						)}
 
@@ -501,7 +520,7 @@ end`,
 									stepper.currentStep,
 								)}
 								onCorrect={() => stepper.completeStep()}
-								onNext={() => stepper.goToStep(stepper.currentStep + 1)}
+								onNext={stepper.nextStep}
 								onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 								outputLines={testOutput}
 								stepKey={stepper.currentStep}

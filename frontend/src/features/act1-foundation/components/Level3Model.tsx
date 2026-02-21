@@ -513,7 +513,7 @@ end`,
 
 								{allSlotsCorrect && !isViewingCompletedStep && (
 									<div className="flex justify-end pt-4">
-										<Button onClick={() => { stepper.completeStep(); stepper.nextStep(); }}>
+										<Button onClick={() => stepper.completeStep()}>
 											Next Step <ArrowRight className="w-4 h-4 ml-2" />
 										</Button>
 									</div>

@@ -26,6 +26,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
+import { ArrowRight } from 'lucide-react';
 
 const STEP_DEFS: StepDef[] = [
 	{ id: 'generate-comment', title: 'Generate Comment' },
@@ -40,7 +41,9 @@ export function Level8Associations({
 	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
-	const stepper = useStepGating(STEP_DEFS);
+	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
+	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
+	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 	const [relationshipType, setRelationshipType] = useState<string | null>(null);
 	const [dependentOption, setDependentOption] = useState<string | null>(null);
 
@@ -316,7 +319,7 @@ end`,
 									stepper.currentStep,
 								)}
 								onCorrect={() => stepper.completeStep()}
-								onNext={() => stepper.goToStep(stepper.currentStep + 1)}
+								onNext={stepper.nextStep}
 								onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 								outputLines={generateOutput}
 								stepKey={stepper.currentStep}
@@ -337,6 +340,7 @@ end`,
 									{RELATIONSHIP_OPTIONS.map((opt) => (
 										<Button
 											className="w-full h-auto py-3 text-left"
+											disabled={isViewingCompletedStep}
 											key={opt.id}
 											onClick={() => {
 												if (opt.correct) {
@@ -363,6 +367,13 @@ end`,
 									message={stepper.lastFeedback}
 									onDismiss={stepper.clearFeedback}
 								/>
+								{isViewingCompletedStep && hasNextStep && (
+									<div className="flex justify-end">
+										<Button onClick={stepper.nextStep}>
+											Next Step <ArrowRight className="w-4 h-4 ml-2" />
+										</Button>
+									</div>
+								)}
 							</div>
 						)}
 
@@ -394,9 +405,18 @@ end`,
 										knows which Post it belongs to.
 									</p>
 								</div>
-								<div className="flex justify-center">
-									<Button onClick={() => stepper.completeStep()}>Got It</Button>
-								</div>
+								{!isViewingCompletedStep && (
+									<div className="flex justify-center">
+										<Button onClick={() => stepper.completeStep()}>Got It</Button>
+									</div>
+								)}
+								{isViewingCompletedStep && hasNextStep && (
+									<div className="flex justify-end">
+										<Button onClick={stepper.nextStep}>
+											Next Step <ArrowRight className="w-4 h-4 ml-2" />
+										</Button>
+									</div>
+								)}
 							</div>
 						)}
 
@@ -413,6 +433,7 @@ end`,
 									{DEPENDENT_OPTIONS.map((opt) => (
 										<Button
 											className="w-full h-auto py-3 text-left"
+											disabled={isViewingCompletedStep}
 											key={opt.id}
 											onClick={() => {
 												if (opt.correct) {
@@ -439,6 +460,13 @@ end`,
 									message={stepper.lastFeedback}
 									onDismiss={stepper.clearFeedback}
 								/>
+								{isViewingCompletedStep && hasNextStep && (
+									<div className="flex justify-end">
+										<Button onClick={stepper.nextStep}>
+											Next Step <ArrowRight className="w-4 h-4 ml-2" />
+										</Button>
+									</div>
+								)}
 							</div>
 						)}
 
@@ -459,7 +487,7 @@ end`,
 									stepper.currentStep,
 								)}
 								onCorrect={() => stepper.completeStep()}
-								onNext={() => stepper.goToStep(stepper.currentStep + 1)}
+								onNext={stepper.nextStep}
 								onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 								outputLines={testOutput}
 								stepKey={stepper.currentStep}
