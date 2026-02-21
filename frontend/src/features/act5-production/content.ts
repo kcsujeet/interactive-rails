@@ -119,6 +119,7 @@ end
 	unlockedNodes: [],
 	learningContent: {
 		title: 'Polymorphic Associations',
+		goal: `In this level, you'll learn how polymorphic associations let a single model belong to multiple different parent types. You'll use commentable_type and commentable_id columns so one Comment model can belong to a Post, Photo, or Video, and understand when this pattern is the right choice versus separate tables.`,
 		conceptExplanation: `Polymorphic associations let a model belong to more than one other model using a single association.
 
 **How it works:**
@@ -303,6 +304,7 @@ end
 	unlockedNodes: [],
 	learningContent: {
 		title: 'Transactions & Locking',
+		goal: `In this level, you'll learn how to protect data integrity when multiple operations must succeed or fail together. You'll wrap related writes in database transactions, use optimistic locking with lock_version for low-contention edits, and apply pessimistic locking with FOR UPDATE for critical operations like financial transfers.`,
 		conceptExplanation: `Transactions ensure a group of operations either ALL succeed or ALL fail. Locking prevents concurrent access from corrupting data.
 
 **Transactions:**
@@ -447,6 +449,7 @@ end`,
 	unlockedNodes: ['s3'],
 	learningContent: {
 		title: 'Active Storage: Uploads, Variants & Direct Upload',
+		goal: `In this level, you'll learn how to handle file uploads in Rails using Active Storage. You'll attach files to models with has_one_attached and has_many_attached, upload directly to S3 via presigned URLs to bypass the app server, and generate image variants like thumbnails and crops on the fly.`,
 		conceptExplanation: `Active Storage manages file uploads in Rails, connecting files to Active Record models.
 
 **Key concepts:**
@@ -602,6 +605,7 @@ const level32Encryption: Level = {
 	unlockedNodes: [],
 	learningContent: {
 		title: 'Rails 8 Encrypted Attributes',
+		goal: `In this level, you'll learn how to encrypt sensitive data at the application level using Rails 8's built-in encrypts macro. You'll understand the difference between deterministic encryption (queryable but less secure) and non-deterministic encryption (maximum security), and when to use each for fields like SSNs, API keys, and personal data.`,
 		conceptExplanation: `Rails 8 provides built-in attribute encryption via the \`encrypts\` macro. No gems needed.
 
 **Deterministic encryption:**
@@ -803,6 +807,7 @@ setInterval(() => {
 	unlockedNodes: [],
 	learningContent: {
 		title: 'Real-Time with Action Cable & Solid Cable',
+		goal: `In this level, you'll add real-time capabilities to your API using Action Cable and WebSockets. You'll set up channels for live communication, use Solid Cable (Rails 8's database-backed adapter that replaces Redis), and broadcast updates to connected clients so they see changes instantly without polling.`,
 		conceptExplanation: `Action Cable integrates WebSockets with Rails. Rails 8 introduces Solid Cable as the default adapter.
 
 **Solid Cable (Rails 8 default):**
@@ -1038,6 +1043,7 @@ end
 	unlockedNodes: ['circuit_breaker'],
 	learningContent: {
 		title: 'Resilient External API Integration',
+		goal: `In this level, you'll learn how to call external APIs without letting their failures take down your app. You'll set timeouts on every HTTP call, implement retries with exponential backoff for transient errors, and use the circuit breaker pattern to fail fast when an external service is unresponsive.`,
 		conceptExplanation: `External APIs will fail. Your app must not fail with them.
 
 **Three layers of resilience:**
@@ -1291,6 +1297,7 @@ end
 	unlockedNodes: [],
 	learningContent: {
 		title: 'Webhook Security & Idempotency',
+		goal: `In this level, you'll learn how to receive and process webhooks from external services like Stripe and GitHub securely. You'll verify HMAC-SHA256 signatures to prevent spoofing, deduplicate events using stored event IDs for idempotency, and process payloads in background jobs so you can return 200 immediately.`,
 		conceptExplanation: `Webhooks are incoming HTTP callbacks from external services. They are unreliable by nature.
 
 **Three pillars of webhook handling:**
@@ -1563,6 +1570,7 @@ end
 	unlockedNodes: [],
 	learningContent: {
 		title: 'API Versioning & Deprecation',
+		goal: `In this level, you'll learn how to evolve your API without breaking existing clients. You'll namespace controllers under Api::V1:: and Api::V2:: to run multiple versions side by side, route requests to the correct version, and use Sunset headers to announce deprecation dates so clients have time to migrate.`,
 		conceptExplanation: `API versioning lets you evolve your API without breaking existing clients.
 
 **Three versioning strategies:**

@@ -47,7 +47,7 @@ export function LevelHeader({
 	// Look up level data directly from the registry
 	const level = getLevelByNumber(actNumber, levelNumber);
 	const scenario = level?.problem?.observation;
-	const learningGoal = level?.learningContent?.conceptExplanation;
+	const learningGoal = level?.learningContent?.goal;
 
 	const handleSubmit = async () => {
 		const result = onValidate();

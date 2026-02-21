@@ -132,6 +132,7 @@ end`,
 	unlockedNodes: ['eager_load'],
 	learningContent: {
 		title: 'The N+1 Query Problem & Prosopite Detection',
+		goal: `In this level, you'll learn to spot the N+1 query problem, the most common performance killer in Rails apps. You'll understand why loading 100 posts generates 101 database queries, trace the problem back to association access in serializers, and discover how gems like Prosopite and Bullet can detect N+1 queries automatically.`,
 		conceptExplanation: `The N+1 problem is the most common performance killer in Rails apps. It happens when you load a collection of records (1 query) and then access an association on each record (N queries).
 
 **The math is brutal:**
@@ -344,6 +345,7 @@ Post.eager_load(:user)   # Always LEFT OUTER JOIN (1 query)`,
 	unlockedNodes: [],
 	learningContent: {
 		title: 'Eager Loading: includes vs preload vs eager_load',
+		goal: `In this level, you'll fix the N+1 problem using eager loading. You'll learn the three Rails strategies for loading associations in bulk: includes (the safe default), preload (separate queries, lowest memory), and eager_load (single JOIN, required when filtering on associated tables).`,
 		conceptExplanation: `Rails provides three eager loading methods. Each works differently, and the choice matters for both speed AND memory:
 
 **\`includes\`** (recommended default):
@@ -574,6 +576,7 @@ User.all.each { |u| SyncService.process(u) }
 	unlockedNodes: [],
 	learningContent: {
 		title: 'Narrow Fetching: pluck, select & find_in_batches',
+		goal: `In this level, you'll learn how to fetch only the data you actually need. You'll use pluck for raw arrays with minimal memory, select to load lightweight ActiveRecord objects, and find_in_batches to process large datasets in manageable chunks instead of loading everything into memory at once.`,
 		conceptExplanation: `After fixing N+1 and adding eager loading, the next performance win is fetching less data: not just fewer queries, but fewer columns and smaller batches.
 
 **Production benchmarks (10K posts with 75KB body column):**
@@ -780,6 +783,7 @@ Post.where(published: true).order(:created_at) # Composite query`,
 	unlockedNodes: [],
 	learningContent: {
 		title: 'Database Indexing & EXPLAIN',
+		goal: `In this level, you'll learn how database indexes dramatically speed up queries. You'll add indexes to columns used in WHERE, ORDER BY, and JOIN clauses, read PostgreSQL EXPLAIN output to tell the difference between slow sequential scans and fast index scans, and understand the leftmost prefix rule for composite indexes.`,
 		conceptExplanation: `An index is like a book's table of contents. Without it, the database reads every row (sequential scan). With it, the database jumps directly to matching rows (index scan).
 
 **Production benchmarks (before vs after index):**
@@ -1006,6 +1010,7 @@ end
 	unlockedNodes: ['counter_cache'],
 	learningContent: {
 		title: 'Counter Caches & Denormalization',
+		goal: `In this level, you'll eliminate expensive COUNT queries by storing the count directly on the parent table. You'll learn how Rails counter caches work, set up counter_cache: true on a belongs_to association, and see how reading a pre-computed column is orders of magnitude faster than counting rows on every request.`,
 		conceptExplanation: `A counter cache stores the count of associated records directly on the parent table. Instead of running COUNT(*) on comments every time, Rails maintains a \`comments_count\` column on the posts table.
 
 **How it works:**
@@ -1213,6 +1218,7 @@ end
 	unlockedNodes: [],
 	learningContent: {
 		title: 'Pagination: Pagy, Cursor-Based & Link Headers',
+		goal: `In this level, you'll learn how to paginate API responses so clients don't download thousands of records at once. You'll compare offset pagination (simple page numbers) with cursor-based pagination (consistent performance on deep pages), and return standard pagination links in HTTP headers following RFC 5988.`,
 		conceptExplanation: `Three pagination strategies, each with trade-offs:
 
 **Offset pagination** (page numbers):
@@ -1446,6 +1452,7 @@ end
 	unlockedNodes: ['search'],
 	learningContent: {
 		title: 'Full-Text Search: PostgreSQL tsvector & pg_search',
+		goal: `In this level, you'll replace slow LIKE queries with PostgreSQL's built-in full-text search. You'll learn how tsvector and tsquery provide stemmed, ranked results out of the box, add a GIN index for fast lookups, and use the pg_search gem to make it all work cleanly in Rails.`,
 		conceptExplanation: `Relying on LIKE '%query%' for search is a common mistake. It cannot use indexes, has no relevance ranking, and gets slower as data grows.
 
 **PostgreSQL full-text search:**
@@ -1676,6 +1683,7 @@ end
 	unlockedNodes: ['cache'],
 	learningContent: {
 		title: 'Caching: Fragment, Russian Doll, Solid Cache & HTTP ETags',
+		goal: `In this level, you'll add application-level caching to avoid recomputing expensive responses. You'll learn how to cache JSON fragments with Rails.cache.fetch, nest caches with the Russian doll pattern for collections, and use Solid Cache, Rails 8's database-backed cache store that eliminates the need for Redis.`,
 		conceptExplanation: `Rails 8 introduces **Solid Cache**, a database-backed cache store that replaces Redis for most caching needs. No additional infrastructure required.
 
 **Production benchmarks:**
@@ -1928,6 +1936,7 @@ end
 	unlockedNodes: [],
 	learningContent: {
 		title: 'HTTP Caching: Cache-Control, ETags & CDNs',
+		goal: `In this level, you'll learn HTTP-level caching, the first line of defense that prevents requests from reaching your server at all. You'll use ETags with stale? to return 304 Not Modified, configure Cache-Control headers for different scenarios, and set up CDN caching for static assets.`,
 		conceptExplanation: `HTTP-level caching is the first line of defense before requests even hit Rails. It prevents requests from reaching your server at all.
 
 **Production benchmarks:**

@@ -50,7 +50,7 @@ export function generateCodeFiles(level: Level): CodeFile[] {
  * Get the learning goal text for the CodePreviewPanel.
  */
 export function getLearningGoal(level: Level): string {
-	return level.learningContent.conceptExplanation;
+	return level.learningContent.goal;
 }
 
 /**

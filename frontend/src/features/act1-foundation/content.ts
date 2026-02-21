@@ -50,6 +50,7 @@ const level1Environment: Level = {
 	darkCanvas: true,
 	learningContent: {
 		title: 'Ruby/Rails Development Environment',
+		goal: `In this level, you'll set up your Ruby on Rails development environment from scratch. You'll learn how to use asdf, a version manager that lets you pin exact Ruby versions per project so your whole team stays in sync. You'll configure a .tool-versions file, install Ruby through asdf, and install the Rails framework as a Ruby gem.`,
 		conceptExplanation: `Setting up a consistent dev environment is the first step in any Rails project.
 
 **Why asdf?**
@@ -174,6 +175,7 @@ const level2FirstBoot: Level = {
 	darkCanvas: true,
 	learningContent: {
 		title: 'Rails 8 API Application',
+		goal: `In this level, you'll create your first Rails 8 application. You'll learn why PostgreSQL is the go-to database for production APIs, how to generate an API-only project with the right flags, and what makes Rails 8 different: Solid Queue, Solid Cache, and Solid Cable replace Redis as the default infrastructure.`,
 		conceptExplanation: `Rails 8 introduces major changes to the default stack:
 
 **PostgreSQL vs SQLite:**
@@ -272,6 +274,7 @@ const level3Model: Level = {
 	unlockedNodes: [],
 	learningContent: {
 		title: 'ActiveRecord Models & Migrations',
+		goal: `In this level, you'll define your first data model and learn how Rails maps Ruby classes to database tables. You'll use the model generator, choose the right column types like string, text, and boolean, and run your first migration to create the table in PostgreSQL.`,
 		conceptExplanation: `Models are the M in MVC. They represent your data and business logic.
 
 **Key concepts:**
@@ -383,6 +386,7 @@ const level4CRUD: Level = {
 	unlockedNodes: [],
 	learningContent: {
 		title: 'ActiveRecord CRUD',
+		goal: `In this level, you'll learn the four fundamental database operations every Rails developer needs: creating, reading, updating, and destroying records. You'll work in the Rails console using ActiveRecord methods like create, find, where, update, and destroy to interact with your Post model directly.`,
 		conceptExplanation: `CRUD = Create, Read, Update, Destroy. Every database-backed app needs these four operations.
 
 **Create:** \`Post.create(attrs)\` or \`Post.new(attrs)\` + \`post.save\`
@@ -479,6 +483,7 @@ end
 	unlockedNodes: [],
 	learningContent: {
 		title: 'RESTful Routes & the Request Lifecycle',
+		goal: `In this level, you'll connect your app to the outside world by defining RESTful routes. You'll learn how Rails maps HTTP verbs and URLs to controller actions using resources, how to namespace routes under /api/v1/ for versioning, and how to trace a request from the moment it arrives to the response that goes back.`,
 		conceptExplanation: `Every HTTP request follows this path:
 
 1. **Request** arrives (GET /api/v1/posts)
@@ -583,6 +588,7 @@ const level6Controller: Level = {
 	unlockedNodes: [],
 	learningContent: {
 		title: 'API Controllers & params.expect()',
+		goal: `In this level, you'll build the controller that handles incoming API requests and returns JSON responses. You'll learn how to generate a controller, wire up the five RESTful actions (index, show, create, update, destroy), and use Rails 8's params.expect for safer parameter filtering.`,
 		conceptExplanation: `Controllers are the C in MVC. In API mode, they receive HTTP requests and return JSON.
 
 **API vs Full-Stack Controllers:**
@@ -751,6 +757,7 @@ const level7Serializers: Level = {
 	unlockedNodes: [],
 	learningContent: {
 		title: 'JSON:API Serialization',
+		goal: `In this level, you'll learn how to control exactly what your API returns to clients. You'll use the jsonapi-serializer gem to shape JSON responses, hide sensitive internal attributes like password_digest, and format your output to follow the JSON:API standard used by production APIs.`,
 		conceptExplanation: `Serializers control what data your API exposes. Without them, \`render json: post\` dumps everything.
 
 **Why serialize?**
@@ -975,6 +982,7 @@ const level8Associations: Level = {
 	],
 	learningContent: {
 		title: 'ActiveRecord Associations',
+		goal: `In this level, you'll link models together using ActiveRecord associations. You'll learn how has_many and belongs_to create one-to-many relationships, where the foreign key lives, and how to set up dependent: :destroy so deleting a post automatically cleans up its comments.`,
 		conceptExplanation: `Associations define relationships between models:
 
 **has_many**: A post has many comments (one-to-many)

@@ -299,7 +299,9 @@ Each level includes educational content displayed in the instruction panel.
 ```typescript
 interface LearningContent {
   title: string;
-  /** What the concept is */
+  /** Markdown bullet list of concrete learning outcomes (shown in Goal dialog) */
+  goal: string;
+  /** What the concept is (detailed reference, shown on completion screen) */
   conceptExplanation: string;
   /** Real Rails code showing the solution */
   railsCodeExample: string;
@@ -311,6 +313,9 @@ interface LearningContent {
 ```typescript
 const learningContent: LearningContent = {
   title: 'N+1 Query Problem',
+  goal: `- Spot the N+1 pattern: 1 query for a collection + N queries for each item's association
+- Know that 100 posts = 101 queries, and it only gets worse
+- Use Prosopite or Bullet gems to detect N+1 automatically`,
   conceptExplanation: `
 The N+1 query problem occurs when your code executes one query to fetch
 a list of records, then N additional queries to fetch associated records

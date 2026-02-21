@@ -60,6 +60,7 @@ const level48APIGateway: Level = {
 	unlockedNodes: ['api_gateway'],
 	learningContent: {
 		title: 'API Gateway Pattern',
+		goal: `In this level, you'll learn the API gateway pattern, where a single entry point routes requests to the right microservice. You'll centralize cross-cutting concerns like authentication, rate limiting, and logging at the gateway layer, and understand how gateways translate between protocols like REST, gRPC, and WebSocket.`,
 		conceptExplanation: `An API gateway is the single entry point for all client requests.
 
 **Responsibilities:**
@@ -234,6 +235,7 @@ end
 	unlockedNodes: ['shard', 'shard_router'],
 	learningContent: {
 		title: 'Horizontal Database Sharding',
+		goal: `In this level, you'll learn how to scale beyond a single database by splitting data across multiple shards. You'll choose a shard key like tenant_id that keeps related data together, configure Rails' connects_to with multiple shards, and set up automatic query routing so your application reads and writes to the correct shard transparently.`,
 		conceptExplanation: `Sharding splits data across multiple database servers (shards).
 
 **The capacity wall (without sharding):**
@@ -554,6 +556,7 @@ end
 	unlockedNodes: [],
 	learningContent: {
 		title: 'The Architect: Full Service Extraction',
+		goal: `This is the capstone level where everything comes together. You'll extract a full service from a monolith step by step, combining state machines, domain events, API gateway routing, and observability patterns from earlier levels. You'll also learn the critical judgment call: when extraction is worth the complexity, and when keeping it in the monolith is the smarter choice.`,
 		conceptExplanation: `This is the capstone. You are extracting a billing service from a monolith using every concept from the game:
 
 **1. Multi-Database (Act 7, Level 47):**

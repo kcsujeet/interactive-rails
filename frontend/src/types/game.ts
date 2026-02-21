@@ -217,7 +217,9 @@ export interface SuccessCondition {
 
 export interface LearningContent {
 	title: string;
-	/** What the concept is */
+	/** Markdown bullet list of concrete learning outcomes */
+	goal: string;
+	/** What the concept is (detailed reference, shown on completion screen) */
 	conceptExplanation: string;
 	/** Real Rails code showing the solution */
 	railsCodeExample: string;

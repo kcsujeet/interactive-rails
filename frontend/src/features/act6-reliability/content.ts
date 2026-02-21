@@ -61,6 +61,7 @@ $ bin/rails middleware
 	unlockedNodes: ['middleware'],
 	learningContent: {
 		title: 'Rack Middleware Stack',
+		goal: `In this level, you'll learn how Rack middleware works under the hood. You'll write a custom middleware class that intercepts every request before it reaches your controllers, understand the initialize/call interface, and insert it into the Rails middleware stack to add cross-cutting behavior like request logging or header injection.`,
 		conceptExplanation: `Rack is the interface between web servers and Ruby frameworks. Middleware sits in a stack between the server and your app, processing every request/response.
 
 **Why custom middleware?**
@@ -243,6 +244,7 @@ end
 	unlockedNodes: ['rate_limiter'],
 	learningContent: {
 		title: 'Rate Limiting: Rails 8 Built-in & Rack::Attack',
+		goal: `In this level, you'll protect your API from abuse by implementing rate limiting at multiple layers. You'll use Rails 8's built-in rate_limit to throttle requests per controller action, return proper 429 responses with Retry-After headers, and understand the trade-offs between fixed window, sliding window, and token bucket strategies.`,
 		conceptExplanation: `Rate limiting protects your app at multiple layers:
 
 **Without rate limiting:**
@@ -477,6 +479,7 @@ end
 	unlockedNodes: ['audit_trail'],
 	learningContent: {
 		title: 'Soft Deletes & Audit Trails',
+		goal: `In this level, you'll learn how to "delete" records without actually removing them from the database. You'll implement soft deletes using a deleted_at timestamp column, use the discard gem to filter soft-deleted records transparently, and set up an audit trail that tracks who changed what and when for compliance and debugging.`,
 		conceptExplanation: `**Soft deletes** mark records as deleted without removing them from the database. The record stays in the table with a \`discarded_at\` timestamp.
 
 **Why soft deletes?**
@@ -720,6 +723,7 @@ remove_column :users, :legacy_field         # Breaks running app code
 	unlockedNodes: [],
 	learningContent: {
 		title: 'Safe Migrations with strong_migrations',
+		goal: `In this level, you'll learn how to run database migrations safely in production without causing downtime. You'll use the strong_migrations gem to catch dangerous patterns before they reach production, split risky operations like column renames into multiple deploys, and test migrations against production-sized datasets.`,
 		conceptExplanation: `**The problem:** Many common migration operations lock tables in production, causing downtime.
 
 **strong_migrations** catches dangerous migrations at development time and suggests safe alternatives.
@@ -964,6 +968,7 @@ AuditLog.where("created_at < ?", 1.year.ago).count
 	unlockedNodes: ['scheduler'],
 	learningContent: {
 		title: 'Recurring Jobs with Solid Queue',
+		goal: `In this level, you'll set up recurring background tasks using Solid Queue's built-in scheduler. You'll define jobs in config/recurring.yml with cron syntax, use dedicated queues for maintenance tasks like cleanup and reporting, and learn why Solid Queue handles scheduling natively without needing external cron or Sidekiq.`,
 		conceptExplanation: `**Solid Queue** is Rails 8's default background job processor. It runs entirely on SQL (no Redis needed) and supports recurring tasks natively.
 
 **Why recurring tasks?**
@@ -1251,6 +1256,7 @@ Order.where("created_at < ?", 1.year.ago).count  # => 47,500,000
 	unlockedNodes: [],
 	learningContent: {
 		title: 'Data Lifecycle: Hot, Warm & Cold Data',
+		goal: `In this level, you'll learn how to manage data as it ages. You'll classify data into hot (actively accessed), warm (read-only), and cold (archived) tiers, move old data to cheaper storage or destroy it entirely, and understand why cleaning up unused data is the most impactful scalability optimization you can make.`,
 		conceptExplanation: `Most apps never clean up old data. This is a production reality that separates hobby projects from scalable systems.
 
 **Data temperature tiers:**
@@ -1443,6 +1449,7 @@ end
 	unlockedNodes: ['error_monitor'],
 	learningContent: {
 		title: 'Structured Error Monitoring & SLOs',
+		goal: `In this level, you'll set up structured error monitoring so you know when things break in production before your users tell you. You'll use Rails.error.handle and Rails.error.record to report errors with context like user ID and request ID, and route them to services like Sentry for grouping, alerting, and prioritization.`,
 		conceptExplanation: `**Error monitoring** transforms raw exceptions into actionable insights:
 
 **Without SLOs:**
