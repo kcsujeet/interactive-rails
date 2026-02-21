@@ -73,6 +73,26 @@ Every level teaches through three phases: **WHY → HOW → ADVANTAGE**.
 - Acts 3-4: First refactoring and performance problems appear.
 - Acts 5-8: Production, reliability, scale, architecture.
 
+**One terminal style per level.** If a level uses a custom terminal UI (e.g., Rails Console with `irb>` prompt), every step in that level must use the same terminal. Never mix a custom terminal with `SimulatedTerminal` (which renders a separate `$ ` shell prompt). Add entries to the existing terminal history instead of spawning a second terminal component.
+
+```tsx
+// BAD -- two different terminals in one level
+<div className="bg-zinc-900 ...">  {/* Custom irb> terminal */}
+  {consoleHistory.map(...)}
+</div>
+<SimulatedTerminal              {/* Second terminal with $ prompt */}
+  commands={verifyCommands}
+  onCorrect={() => stepper.completeStep()}
+/>
+
+// GOOD -- verify step reuses the same terminal
+const handleVerify = () => {
+  addConsoleEntry('Post.count', '=> 0');  // Adds to existing irb> history
+  stepper.completeStep();
+};
+<Button onClick={handleVerify} variant="outline">Post.count</Button>
+```
+
 When creating or redesigning a level component, ensure all three phases are present in the gameplay. Reference `docs/spec.md` for each level's scenario and concept.
 
 **Performance-level ADVANTAGE phase convention (Acts 4-8):**

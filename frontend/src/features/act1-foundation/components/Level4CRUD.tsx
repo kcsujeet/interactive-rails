@@ -1,5 +1,5 @@
 /**
- * Level 3: CRUD Operations
+ * Level 4: CRUD Operations
  *
  * 5-step progression through Create, Read, Update, Destroy, Verify.
  * Each step presents choices with wrong-choice feedback.
@@ -15,9 +15,7 @@ import {
 	LevelHeader,
 	LevelLayout,
 	RightPanel,
-	SimulatedTerminal,
 	StepProgress,
-	type TerminalOutputLine,
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
@@ -195,21 +193,10 @@ export function Level4CRUD({ onComplete, onExit }: LevelComponentProps) {
 		stepper.completeStep();
 	};
 
-	// Step 5: Verify with terminal
-	const verifyCommands = [
-		{
-			id: 'correct',
-			label: 'Post.count',
-			command: 'Post.count',
-			correct: true,
-		},
-	];
-
-	const verifyOutput: TerminalOutputLine[] = [
-		{ text: '=> 0', color: 'cyan' },
-		{ text: '', color: 'muted' },
-		{ text: '# All CRUD operations complete!', color: 'green' },
-	];
+	const handleVerify = () => {
+		addConsoleEntry('Post.count', '=> 0');
+		stepper.completeStep();
+	};
 
 	const handleComplete = async () => {
 		const success = await completeLevel('act1-level4-crud', {
@@ -383,10 +370,12 @@ post.delete        # Skips callbacks (avoid)`,
 										</div>
 									</div>
 								))}
-								<div className="flex items-center gap-2">
-									<span className="text-emerald-400">irb&gt;</span>
-									<span className="w-2 h-4 bg-zinc-300 animate-pulse" />
-								</div>
+								{!stepper.isComplete && (
+									<div className="flex items-center gap-2">
+										<span className="text-emerald-400">irb&gt;</span>
+										<span className="w-2 h-4 bg-zinc-300 animate-pulse" />
+									</div>
+								)}
 							</div>
 						</div>
 
@@ -431,12 +420,13 @@ post.delete        # Skips callbacks (avoid)`,
 								<p className="text-sm text-muted-foreground">
 									Confirm the post was destroyed. Check the count.
 								</p>
-								<SimulatedTerminal
-									commands={verifyCommands}
-									onCorrect={() => stepper.completeStep()}
-									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-									outputLines={verifyOutput}
-								/>
+								<Button
+									className="w-full h-auto py-3 text-left font-mono text-xs whitespace-normal"
+									onClick={handleVerify}
+									variant="outline"
+								>
+									Post.count
+								</Button>
 							</div>
 						)}
 
