@@ -431,13 +431,13 @@ end`,
 									Strong Params
 								</h3>
 								<p className="text-sm text-muted-foreground">
-									Build the{' '}
-									<span className="font-mono text-primary">post_params</span>{' '}
-									method. Click pieces in order to assemble{' '}
-									<span className="font-mono text-primary">
-										params.expect(post: [:title, :body, :published])
-									</span>
-									.
+									Your{' '}
+									<span className="font-mono text-primary">create</span> and{' '}
+									<span className="font-mono text-primary">update</span>{' '}
+									actions call{' '}
+									<span className="font-mono text-primary">post_params</span>,
+									but the method doesn't exist yet. Build it using Rails 8
+									strong params. Click pieces in the correct order.
 								</p>
 
 								{/* Assembly area */}
@@ -511,7 +511,8 @@ end`,
 								completed={stepper.currentStep < stepper.furthestStep}
 								description={
 									<p className="text-sm text-muted-foreground">
-										Test your controller by making a request.
+										You booted Puma in Level 2, but had no routes or controller
+										back then. Now both exist. Hit the endpoint with curl.
 									</p>
 								}
 								hasNext={stepper.currentStep < STEP_DEFS.length - 1}
