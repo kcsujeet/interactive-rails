@@ -308,37 +308,7 @@ end`,
 						<StepProgress steps={stepper.steps} />
 					</div>
 
-					{/* Action cards for step 2 */}
-					{stepper.currentStep === 1 && (
-						<div className="p-4">
-							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-								Actions ({placedActions.length} / {RESTFUL_ACTIONS.length})
-							</div>
-							<div className="flex flex-wrap gap-1.5">
-								{allActions.map((action) => {
-									const isPlaced = placedActions.includes(action);
-									return (
-										<Button
-											className={`font-mono text-xs ${
-												isPlaced ? 'opacity-50 cursor-not-allowed' : ''
-											}`}
-											disabled={isPlaced}
-											key={action}
-											onClick={() => handleAddAction(action)}
-											size="sm"
-											variant={isPlaced ? 'secondary' : 'outline'}
-										>
-											{action}
-										</Button>
-									);
-								})}
-							</div>
-							<p className="text-xs text-muted-foreground mt-2">
-								Pick the 5 RESTful actions
-							</p>
-						</div>
-					)}
-				</InstructionPanel>
+					</InstructionPanel>
 			</LeftPanel>
 
 			<CenterPanel>
@@ -385,9 +355,35 @@ end`,
 									Add Actions
 								</h3>
 								<p className="text-sm text-muted-foreground">
-									Click the 5 standard RESTful actions from the left panel.
-									Watch out for distractors!
+									Click the 5 standard RESTful actions. Watch out for
+									distractors!
 								</p>
+
+								{/* Action buttons */}
+								<div>
+									<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+										Actions ({placedActions.length} / {RESTFUL_ACTIONS.length})
+									</div>
+									<div className="flex flex-wrap gap-1.5">
+										{allActions.map((action) => {
+											const isPlaced = placedActions.includes(action);
+											return (
+												<Button
+													className={`font-mono text-xs ${
+														isPlaced ? 'opacity-50 cursor-not-allowed' : ''
+													}`}
+													disabled={isPlaced}
+													key={action}
+													onClick={() => handleAddAction(action)}
+													size="sm"
+													variant={isPlaced ? 'secondary' : 'outline'}
+												>
+													{action}
+												</Button>
+											);
+										})}
+									</div>
+								</div>
 
 								{/* Controller skeleton */}
 								<div className="bg-zinc-900 rounded-lg p-4 font-mono text-sm">
@@ -405,7 +401,7 @@ end`,
 									))}
 									{placedActions.length < RESTFUL_ACTIONS.length && (
 										<div className="ml-4 text-zinc-600 animate-pulse">
-											# click actions from the left panel...
+											# click actions above...
 										</div>
 									)}
 									<div className="text-zinc-400">end</div>
