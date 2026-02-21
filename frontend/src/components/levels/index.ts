@@ -22,6 +22,12 @@ export type {
 } from './SimulatedTerminal';
 export { SimulatedTerminal } from './SimulatedTerminal';
 export { StepProgress } from './StepProgress';
+export type {
+	TerminalChoiceStepProps,
+	TerminalStep,
+	TerminalStepData,
+} from './TerminalChoiceStep';
+export { buildTerminalHistory, TerminalChoiceStep } from './TerminalChoiceStep';
 export type { ValidateFn, ValidationResult } from './SubmitButton';
 export { SubmitButton } from './SubmitButton';
 export {

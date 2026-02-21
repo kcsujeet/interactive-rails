@@ -1,12 +1,13 @@
 /**
- * Level 2: The Model
+ * Level 3: The Model
  *
  * 4-step progression to create the Post model.
- * Steps: Name the Model → Define Attributes → Run Generator → Run Migration
+ * Steps: Name the Model -> Define Attributes -> Run Generator -> Run Migration
  */
 
 import { useState } from 'react';
 import {
+	buildTerminalHistory,
 	CenterPanel,
 	CodePreviewPanel,
 	ErrorFeedback,
@@ -16,10 +17,11 @@ import {
 	LevelLayout,
 	OptionCard,
 	RightPanel,
-	SimulatedTerminal,
 	StepProgress,
-	type TerminalHistoryEntry,
+	TerminalChoiceStep,
+	type TerminalCommand,
 	type TerminalOutputLine,
+	type TerminalStepData,
 	type ValidationResult,
 } from '@/components/levels';
 import { Button } from '@/components/ui/Button';
@@ -69,6 +71,107 @@ const MODEL_NAME_OPTIONS = [
 	{ label: 'Post', correct: true },
 	{ label: 'post', correct: false, feedback: 'Rails models use PascalCase. Check the capitalization convention.' },
 	{ label: 'posts_table', correct: false, feedback: 'You don\'t need to specify the table name. Rails infers it from a singular PascalCase model name.' },
+];
+
+// Step 3: Generator commands
+const generatorCommands: TerminalCommand[] = [
+	{
+		id: 'wrong-types',
+		label: 'rails generate model Post title:text body:string published:integer',
+		command: 'rails generate model Post title:text body:string published:integer',
+		correct: false,
+		feedback: 'The types are swapped around. Think about which fields are short vs. long, and which is a flag.',
+	},
+	{
+		id: 'correct',
+		label: 'rails generate model Post title:string body:text published:boolean',
+		command: 'rails generate model Post title:string body:text published:boolean',
+		correct: true,
+	},
+	{
+		id: 'wrong-missing',
+		label: 'rails generate model Post title:string body:text',
+		command: 'rails generate model Post title:string body:text',
+		correct: false,
+		feedback: 'Missing an attribute. The Post model has three fields, not two.',
+	},
+];
+
+const generatorOutput: TerminalOutputLine[] = [
+	{ text: '      invoke  active_record', color: 'green' },
+	{ text: '      create    db/migrate/20240101000000_create_posts.rb', color: 'green' },
+	{ text: '      create    app/models/post.rb', color: 'green' },
+	{ text: '      invoke    test_unit', color: 'muted' },
+	{ text: '      create      test/models/post_test.rb', color: 'muted' },
+];
+
+// Step 4: Migration command
+const migrationCommands: TerminalCommand[] = [
+	{
+		id: 'wrong-rollback',
+		label: 'rails db:rollback',
+		command: 'rails db:rollback',
+		correct: false,
+		feedback: 'Rollback undoes migrations. You need to apply them, not reverse them.',
+	},
+	{
+		id: 'correct',
+		label: 'rails db:migrate',
+		command: 'rails db:migrate',
+		correct: true,
+	},
+];
+
+const migrationOutput: TerminalOutputLine[] = [
+	{ text: '== CreatePosts: migrating ====================================', color: 'green' },
+	{ text: '-- create_table(:posts)', color: 'cyan' },
+	{ text: '   -> 0.0012s', color: 'muted' },
+	{ text: '== CreatePosts: migrated (0.0013s) ===========================', color: 'green' },
+];
+
+// Terminal step data for building history (steps 0-1 are non-terminal)
+const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
+	null, // step 0: Name Model (click-to-select)
+	null, // step 1: Define Attributes (drag-and-drop)
+	{ commands: generatorCommands, outputLines: generatorOutput },
+	{ commands: migrationCommands, outputLines: migrationOutput },
+];
+
+// Terminal step titles and descriptions
+const TERMINAL_STEPS: {
+	stepIndex: number;
+	title: string;
+	description: React.ReactNode;
+	commands: TerminalCommand[];
+	outputLines: TerminalOutputLine[];
+}[] = [
+	{
+		stepIndex: 2,
+		title: 'Run Generator',
+		description: (
+			<p className="text-sm text-muted-foreground">
+				Pick the correct{' '}
+				<span className="font-mono text-primary">
+					rails generate model
+				</span>{' '}
+				command with all three attributes.
+			</p>
+		),
+		commands: generatorCommands,
+		outputLines: generatorOutput,
+	},
+	{
+		stepIndex: 3,
+		title: 'Run Migration',
+		description: (
+			<p className="text-sm text-muted-foreground">
+				The generator created a migration file. Run it to create the
+				posts table in the database.
+			</p>
+		),
+		commands: migrationCommands,
+		outputLines: migrationOutput,
+	},
 ];
 
 export function Level3Model({ onComplete, onExit }: LevelComponentProps) {
@@ -130,62 +233,6 @@ export function Level3Model({ onComplete, onExit }: LevelComponentProps) {
 		}
 	};
 
-	// Step 3: Generator commands
-	const generatorCommands = [
-		{
-			id: 'wrong-types',
-			label: 'rails generate model Post title:text body:string published:integer',
-			command: 'rails generate model Post title:text body:string published:integer',
-			correct: false,
-			feedback: 'The types are swapped around. Think about which fields are short vs. long, and which is a flag.',
-		},
-		{
-			id: 'correct',
-			label: 'rails generate model Post title:string body:text published:boolean',
-			command: 'rails generate model Post title:string body:text published:boolean',
-			correct: true,
-		},
-		{
-			id: 'wrong-missing',
-			label: 'rails generate model Post title:string body:text',
-			command: 'rails generate model Post title:string body:text',
-			correct: false,
-			feedback: 'Missing an attribute. The Post model has three fields, not two.',
-		},
-	];
-
-	const generatorOutput: TerminalOutputLine[] = [
-		{ text: '      invoke  active_record', color: 'green' },
-		{ text: '      create    db/migrate/20240101000000_create_posts.rb', color: 'green' },
-		{ text: '      create    app/models/post.rb', color: 'green' },
-		{ text: '      invoke    test_unit', color: 'muted' },
-		{ text: '      create      test/models/post_test.rb', color: 'muted' },
-	];
-
-	// Step 4: Migration command
-	const migrationCommands = [
-		{
-			id: 'wrong-rollback',
-			label: 'rails db:rollback',
-			command: 'rails db:rollback',
-			correct: false,
-			feedback: 'Rollback undoes migrations. You need to apply them, not reverse them.',
-		},
-		{
-			id: 'correct',
-			label: 'rails db:migrate',
-			command: 'rails db:migrate',
-			correct: true,
-		},
-	];
-
-	const migrationOutput: TerminalOutputLine[] = [
-		{ text: '== CreatePosts: migrating ====================================', color: 'green' },
-		{ text: '-- create_table(:posts)', color: 'cyan' },
-		{ text: '   -> 0.0012s', color: 'muted' },
-		{ text: '== CreatePosts: migrated (0.0013s) ===========================', color: 'green' },
-	];
-
 	const handleComplete = () => {
 		onComplete({ stars: stepper.starRating });
 	};
@@ -201,32 +248,6 @@ export function Level3Model({ onComplete, onExit }: LevelComponentProps) {
 			};
 		}
 		return { valid: true, message: 'Your Post model is ready!' };
-	};
-
-	// Terminal steps for building history (steps 0-1 are non-terminal)
-	const terminalSteps: {
-		stepIndex: number;
-		commands: { command: string; correct: boolean }[];
-		output: TerminalOutputLine[];
-	}[] = [
-		{ stepIndex: 2, commands: generatorCommands, output: generatorOutput },
-		{ stepIndex: 3, commands: migrationCommands, output: migrationOutput },
-	];
-
-	const getInitialHistory = (): TerminalHistoryEntry[] => {
-		const history: TerminalHistoryEntry[] = [];
-		for (const ts of terminalSteps) {
-			if (ts.stepIndex >= stepper.currentStep) break;
-			const correctCmd = ts.commands.find((c) => c.correct);
-			if (correctCmd) {
-				history.push({
-					command: correctCmd.command,
-					output: ts.output,
-					isError: false,
-				});
-			}
-		}
-		return history;
 	};
 
 	// Code preview - each completed step adds its output
@@ -317,6 +338,11 @@ end`,
 
 		return files;
 	};
+
+	// Find current terminal step config (if viewing a terminal step)
+	const currentTerminalStep = TERMINAL_STEPS.find(
+		(ts) => ts.stepIndex === stepper.currentStep,
+	);
 
 	return (
 		<LevelLayout>
@@ -508,66 +534,24 @@ end`,
 							</div>
 						)}
 
-						{/* Step 3: Run Generator */}
-						{stepper.currentStep === 2 && (
-							<div className="space-y-4">
-								<h3 className="text-lg font-semibold text-foreground">
-									Run Generator
-								</h3>
-								<p className="text-sm text-muted-foreground">
-									Pick the correct{' '}
-									<span className="font-mono text-primary">
-										rails generate model
-									</span>{' '}
-									command with all three attributes.
-								</p>
-								<SimulatedTerminal
-									commands={generatorCommands}
-									completed={isViewingCompletedStep}
-									initialHistory={getInitialHistory()}
-									key={stepper.currentStep}
-									onCorrect={() => stepper.completeStep()}
-									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-									outputLines={generatorOutput}
-								/>
-								<ErrorFeedback
-									message={stepper.lastFeedback}
-									onDismiss={stepper.clearFeedback}
-								/>
-								{isViewingCompletedStep && hasNextStep && (
-									<div className="flex justify-end">
-										<Button onClick={stepper.nextStep}>
-											Next Step <ArrowRight className="w-4 h-4 ml-2" />
-										</Button>
-									</div>
+						{/* Steps 3-4: Terminal choice steps */}
+						{currentTerminalStep && (
+							<TerminalChoiceStep
+								commands={currentTerminalStep.commands}
+								completed={isViewingCompletedStep}
+								description={currentTerminalStep.description}
+								hasNext={hasNextStep}
+								initialHistory={buildTerminalHistory(
+									TERMINAL_STEP_MAP,
+									stepper.currentStep,
 								)}
-							</div>
-						)}
-
-						{/* Step 4: Run Migration */}
-						{stepper.currentStep === 3 && (
-							<div className="space-y-4">
-								<h3 className="text-lg font-semibold text-foreground">
-									Run Migration
-								</h3>
-								<p className="text-sm text-muted-foreground">
-									The generator created a migration file. Run it to create the
-									posts table in the database.
-								</p>
-								<SimulatedTerminal
-									commands={migrationCommands}
-									completed={isViewingCompletedStep}
-									initialHistory={getInitialHistory()}
-									key={stepper.currentStep}
-									onCorrect={() => stepper.completeStep()}
-									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-									outputLines={migrationOutput}
-								/>
-								<ErrorFeedback
-									message={stepper.lastFeedback}
-									onDismiss={stepper.clearFeedback}
-								/>
-							</div>
+								onCorrect={() => stepper.completeStep()}
+								onNext={stepper.nextStep}
+								onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+								outputLines={currentTerminalStep.outputLines}
+								stepKey={stepper.currentStep}
+								title={currentTerminalStep.title}
+							/>
 						)}
 					</div>
 				</div>

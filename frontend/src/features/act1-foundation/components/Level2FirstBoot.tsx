@@ -9,6 +9,7 @@
 
 import { AlertCircle, ArrowRight } from 'lucide-react';
 import {
+	buildTerminalHistory,
 	CenterPanel,
 	CodePreviewPanel,
 	InstructionPanel,
@@ -17,11 +18,11 @@ import {
 	LevelLayout,
 	OptionCard,
 	RightPanel,
-	SimulatedTerminal,
 	StepProgress,
+	TerminalChoiceStep,
 	type TerminalCommand,
-	type TerminalHistoryEntry,
 	type TerminalOutputLine,
+	type TerminalStepData,
 	type ValidationResult,
 } from '@/components/levels';
 import { Button } from '@/components/ui/Button';
@@ -34,6 +35,202 @@ const STEP_DEFS: StepDef[] = [
 	{ id: 'generate-project', title: 'Generate Project' },
 	{ id: 'create-db', title: 'Create Database' },
 	{ id: 'boot-server', title: 'Boot Server' },
+];
+
+// Step 2: Install PostgreSQL commands
+const installPgCommands: TerminalCommand[] = [
+	{
+		id: 'wrong-gem',
+		label: 'gem install pg',
+		command: 'gem install pg',
+		correct: false,
+		feedback:
+			"That's the Ruby driver. Install the database server itself first.",
+	},
+	{
+		id: 'wrong-apt',
+		label: 'apt-get install postgresql',
+		command: 'apt-get install postgresql',
+		correct: false,
+		feedback: 'apt-get is a Linux package manager, not available on macOS.',
+	},
+	{
+		id: 'correct',
+		label: 'brew install postgresql@17',
+		command: 'brew install postgresql@17',
+		correct: true,
+	},
+];
+
+const installPgOutput: TerminalOutputLine[] = [
+	{ text: '==> Downloading postgresql@17...', color: 'cyan' },
+	{ text: '==> Installing postgresql@17', color: 'green' },
+	{ text: '==> Starting postgresql@17', color: 'green' },
+	{ text: '\u2713 PostgreSQL 17.0 is running on port 5432', color: 'green' },
+];
+
+// Step 3: Generate Project commands
+const generateCommands: TerminalCommand[] = [
+	{
+		id: 'wrong-no-flags',
+		label: 'rails new myapp',
+		command: 'rails new myapp',
+		correct: false,
+		feedback:
+			'Missing flags. You need API-only mode and a database adapter.',
+	},
+	{
+		id: 'correct',
+		label: 'rails new myapp --api --database=postgresql',
+		command: 'rails new myapp --api --database=postgresql',
+		correct: true,
+	},
+	{
+		id: 'wrong-generate',
+		label: 'rails generate app myapp',
+		command: 'rails generate app myapp',
+		correct: false,
+		feedback:
+			'"generate" is for scaffolding inside an existing app, not creating one.',
+	},
+];
+
+const generateOutput: TerminalOutputLine[] = [
+	{ text: '      create  .', color: 'green' },
+	{ text: '      create  Gemfile', color: 'green' },
+	{ text: '      create  Rakefile', color: 'green' },
+	{ text: '      create  config.ru', color: 'green' },
+	{
+		text: '      create  app/controllers/application_controller.rb',
+		color: 'green',
+	},
+	{ text: '      create  app/models/application_record.rb', color: 'green' },
+	{
+		text: '      create  config/database.yml  (postgresql)',
+		color: 'cyan',
+	},
+	{ text: '      create  config/application.rb', color: 'green' },
+	{ text: '         run  bundle install', color: 'yellow' },
+	{ text: 'Bundle complete! 12 Gemfile dependencies.', color: 'green' },
+];
+
+// Step 4: Create Database commands
+const createDbCommands: TerminalCommand[] = [
+	{
+		id: 'wrong-migrate',
+		label: 'rails db:migrate',
+		command: 'rails db:migrate',
+		correct: false,
+		feedback:
+			"Database doesn't exist yet. Migrations need an existing database.",
+	},
+	{
+		id: 'correct',
+		label: 'rails db:create',
+		command: 'rails db:create',
+		correct: true,
+	},
+];
+
+const createDbOutput: TerminalOutputLine[] = [
+	{ text: `Created database 'myapp_development'`, color: 'green' },
+	{ text: `Created database 'myapp_test'`, color: 'green' },
+];
+
+// Step 5: Boot Server commands
+const bootCommands: TerminalCommand[] = [
+	{
+		id: 'wrong-start',
+		label: 'rails start',
+		command: 'rails start',
+		correct: false,
+		feedback:
+			'"start" isn\'t a Rails command. Think about what runs a web server.',
+	},
+	{
+		id: 'correct',
+		label: 'rails server',
+		command: 'rails server',
+		correct: true,
+	},
+];
+
+const bootOutput: TerminalOutputLine[] = [
+	{ text: '=> Booting Puma', color: 'cyan' },
+	{
+		text: '=> Rails 8.0.0 application starting in development',
+		color: 'cyan',
+	},
+	{ text: '* Listening on http://127.0.0.1:3000', color: 'green' },
+	{ text: '', color: 'muted' },
+	{ text: '$ curl -I http://localhost:3000/up', color: 'default' },
+	{ text: 'HTTP/1.1 200 OK', color: 'green' },
+];
+
+// Terminal step data for building history (step 0 is Choose DB, not terminal)
+const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
+	null, // step 0: Choose Database (OptionCard)
+	{ commands: installPgCommands, outputLines: installPgOutput },
+	{ commands: generateCommands, outputLines: generateOutput },
+	{ commands: createDbCommands, outputLines: createDbOutput },
+	{ commands: bootCommands, outputLines: bootOutput },
+];
+
+// Terminal step titles and descriptions
+const TERMINAL_STEPS: {
+	stepIndex: number;
+	title: string;
+	description: React.ReactNode;
+	commands: TerminalCommand[];
+	outputLines: TerminalOutputLine[];
+}[] = [
+	{
+		stepIndex: 1,
+		title: 'Install PostgreSQL',
+		description: (
+			<p className="text-sm text-muted-foreground">
+				PostgreSQL needs a server running on your machine. Which
+				package manager installs system software on macOS?
+			</p>
+		),
+		commands: installPgCommands,
+		outputLines: installPgOutput,
+	},
+	{
+		stepIndex: 2,
+		title: 'Generate Project',
+		description: (
+			<p className="text-sm text-muted-foreground">
+				Create an API-only Rails app configured for PostgreSQL.
+			</p>
+		),
+		commands: generateCommands,
+		outputLines: generateOutput,
+	},
+	{
+		stepIndex: 3,
+		title: 'Create Database',
+		description: (
+			<p className="text-sm text-muted-foreground">
+				The project is generated. Now create the development and test
+				databases.
+			</p>
+		),
+		commands: createDbCommands,
+		outputLines: createDbOutput,
+	},
+	{
+		stepIndex: 4,
+		title: 'Boot Server',
+		description: (
+			<p className="text-sm text-muted-foreground">
+				Database created. Start the Rails server and verify it
+				responds.
+			</p>
+		),
+		commands: bootCommands,
+		outputLines: bootOutput,
+	},
 ];
 
 export function Level2FirstBoot({ onComplete, onExit }: LevelComponentProps) {
@@ -49,136 +246,6 @@ export function Level2FirstBoot({ onComplete, onExit }: LevelComponentProps) {
 			);
 		}
 	}
-
-	// Step 2: Install PostgreSQL commands
-	const installPgCommands: TerminalCommand[] = [
-		{
-			id: 'wrong-gem',
-			label: 'gem install pg',
-			command: 'gem install pg',
-			correct: false,
-			feedback:
-				"That's the Ruby driver. Install the database server itself first.",
-		},
-		{
-			id: 'wrong-apt',
-			label: 'apt-get install postgresql',
-			command: 'apt-get install postgresql',
-			correct: false,
-			feedback: 'apt-get is a Linux package manager, not available on macOS.',
-		},
-		{
-			id: 'correct',
-			label: 'brew install postgresql@17',
-			command: 'brew install postgresql@17',
-			correct: true,
-		},
-	];
-
-	const installPgOutput: TerminalOutputLine[] = [
-		{ text: '==> Downloading postgresql@17...', color: 'cyan' },
-		{ text: '==> Installing postgresql@17', color: 'green' },
-		{ text: '==> Starting postgresql@17', color: 'green' },
-		{ text: '✓ PostgreSQL 17.0 is running on port 5432', color: 'green' },
-	];
-
-	// Step 3: Generate Project commands
-	const generateCommands: TerminalCommand[] = [
-		{
-			id: 'wrong-no-flags',
-			label: 'rails new myapp',
-			command: 'rails new myapp',
-			correct: false,
-			feedback:
-				'Missing flags. You need API-only mode and a database adapter.',
-		},
-		{
-			id: 'correct',
-			label: 'rails new myapp --api --database=postgresql',
-			command: 'rails new myapp --api --database=postgresql',
-			correct: true,
-		},
-		{
-			id: 'wrong-generate',
-			label: 'rails generate app myapp',
-			command: 'rails generate app myapp',
-			correct: false,
-			feedback:
-				'"generate" is for scaffolding inside an existing app, not creating one.',
-		},
-	];
-
-	const generateOutput: TerminalOutputLine[] = [
-		{ text: '      create  .', color: 'green' },
-		{ text: '      create  Gemfile', color: 'green' },
-		{ text: '      create  Rakefile', color: 'green' },
-		{ text: '      create  config.ru', color: 'green' },
-		{
-			text: '      create  app/controllers/application_controller.rb',
-			color: 'green',
-		},
-		{ text: '      create  app/models/application_record.rb', color: 'green' },
-		{
-			text: '      create  config/database.yml  (postgresql)',
-			color: 'cyan',
-		},
-		{ text: '      create  config/application.rb', color: 'green' },
-		{ text: '         run  bundle install', color: 'yellow' },
-		{ text: 'Bundle complete! 12 Gemfile dependencies.', color: 'green' },
-	];
-
-	// Step 4: Create Database commands
-	const createDbCommands: TerminalCommand[] = [
-		{
-			id: 'wrong-migrate',
-			label: 'rails db:migrate',
-			command: 'rails db:migrate',
-			correct: false,
-			feedback:
-				"Database doesn't exist yet. Migrations need an existing database.",
-		},
-		{
-			id: 'correct',
-			label: 'rails db:create',
-			command: 'rails db:create',
-			correct: true,
-		},
-	];
-
-	const createDbOutput: TerminalOutputLine[] = [
-		{ text: `Created database 'myapp_development'`, color: 'green' },
-		{ text: `Created database 'myapp_test'`, color: 'green' },
-	];
-
-	// Step 5: Boot Server commands
-	const bootCommands: TerminalCommand[] = [
-		{
-			id: 'wrong-start',
-			label: 'rails start',
-			command: 'rails start',
-			correct: false,
-			feedback:
-				'"start" isn\'t a Rails command. Think about what runs a web server.',
-		},
-		{
-			id: 'correct',
-			label: 'rails server',
-			command: 'rails server',
-			correct: true,
-		},
-	];
-
-	const bootOutput: TerminalOutputLine[] = [
-		{ text: '=> Booting Puma', color: 'cyan' },
-		{
-			text: '=> Rails 8.0.0 application starting in development',
-			color: 'cyan',
-		},
-		{ text: '* Listening on http://127.0.0.1:3000', color: 'green' },
-		{ text: '', color: 'muted' },
-		{ text: '$ curl -I http://localhost:3000/up', color: 'default' },
-		{ text: 'HTTP/1.1 200 OK', color: 'green' },
-	];
 
 	const handleComplete = () => {
 		const choices = {
@@ -212,35 +279,6 @@ export function Level2FirstBoot({ onComplete, onExit }: LevelComponentProps) {
 			};
 		}
 		return { valid: true, message: 'Rails app is ready!' };
-	};
-
-	// Terminal steps config for building history (step 0 is Choose DB - no terminal)
-	const terminalSteps: {
-		stepIndex: number;
-		commands: TerminalCommand[];
-		output: TerminalOutputLine[];
-	}[] = [
-		{ stepIndex: 1, commands: installPgCommands, output: installPgOutput },
-		{ stepIndex: 2, commands: generateCommands, output: generateOutput },
-		{ stepIndex: 3, commands: createDbCommands, output: createDbOutput },
-		{ stepIndex: 4, commands: bootCommands, output: bootOutput },
-	];
-
-	// Build history from completed prior terminal steps
-	const getInitialHistory = (): TerminalHistoryEntry[] => {
-		const history: TerminalHistoryEntry[] = [];
-		for (const ts of terminalSteps) {
-			if (ts.stepIndex >= stepper.currentStep) break;
-			const correctCmd = ts.commands.find((c) => c.correct);
-			if (correctCmd) {
-				history.push({
-					command: correctCmd.command,
-					output: ts.output,
-					isError: false,
-				});
-			}
-		}
-		return history;
 	};
 
 	// Code preview - only generated FILES, no terminal (center panel handles that)
@@ -327,6 +365,11 @@ end`,
 	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
 	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 
+	// Find current terminal step config (if viewing a terminal step)
+	const currentTerminalStep = TERMINAL_STEPS.find(
+		(ts) => ts.stepIndex === stepper.currentStep,
+	);
+
 	return (
 		<LevelLayout>
 			<LeftPanel>
@@ -369,7 +412,7 @@ end`,
 
 				<div className="flex-1 relative bg-background p-6 overflow-auto">
 					<div className="max-w-2xl mx-auto space-y-6">
-						{/* Step 1: Choose Database */}
+						{/* Step 1: Choose Database (OptionCard) */}
 						{stepper.currentStep === 0 && (
 							<div className="space-y-4">
 								<h3 className="text-lg font-semibold text-foreground">
@@ -442,130 +485,24 @@ end`,
 							</div>
 						)}
 
-						{/* Step 2: Install PostgreSQL */}
-						{stepper.currentStep === 1 && (
-							<div className="space-y-4">
-								<h3 className="text-lg font-semibold text-foreground">
-									Install PostgreSQL
-								</h3>
-								<p className="text-sm text-muted-foreground">
-									PostgreSQL needs a server running on your machine. Which
-									package manager installs system software on macOS?
-								</p>
-								<SimulatedTerminal
-									commands={installPgCommands}
-									completed={isViewingCompletedStep}
-									initialHistory={getInitialHistory()}
-									key={stepper.currentStep}
-									onCorrect={() => stepper.completeStep()}
-									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-									outputLines={installPgOutput}
-								/>
-
-								{isViewingCompletedStep && hasNextStep && (
-									<div className="flex justify-end">
-										<Button
-											className="gap-2"
-											onClick={stepper.nextStep}
-											size="sm"
-										>
-											Next Step
-											<ArrowRight className="w-4 h-4" />
-										</Button>
-									</div>
+						{/* Steps 2-5: Terminal choice steps */}
+						{currentTerminalStep && (
+							<TerminalChoiceStep
+								commands={currentTerminalStep.commands}
+								completed={isViewingCompletedStep}
+								description={currentTerminalStep.description}
+								hasNext={hasNextStep}
+								initialHistory={buildTerminalHistory(
+									TERMINAL_STEP_MAP,
+									stepper.currentStep,
 								)}
-							</div>
-						)}
-
-						{/* Step 3: Generate Project */}
-						{stepper.currentStep === 2 && (
-							<div className="space-y-4">
-								<h3 className="text-lg font-semibold text-foreground">
-									Generate Project
-								</h3>
-								<p className="text-sm text-muted-foreground">
-									Create an API-only Rails app configured for PostgreSQL.
-								</p>
-								<SimulatedTerminal
-									commands={generateCommands}
-									completed={isViewingCompletedStep}
-									initialHistory={getInitialHistory()}
-									key={stepper.currentStep}
-									onCorrect={() => stepper.completeStep()}
-									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-									outputLines={generateOutput}
-								/>
-
-								{isViewingCompletedStep && hasNextStep && (
-									<div className="flex justify-end">
-										<Button
-											className="gap-2"
-											onClick={stepper.nextStep}
-											size="sm"
-										>
-											Next Step
-											<ArrowRight className="w-4 h-4" />
-										</Button>
-									</div>
-								)}
-							</div>
-						)}
-
-						{/* Step 4: Create Database */}
-						{stepper.currentStep === 3 && (
-							<div className="space-y-4">
-								<h3 className="text-lg font-semibold text-foreground">
-									Create Database
-								</h3>
-								<p className="text-sm text-muted-foreground">
-									The project is generated. Now create the development and test
-									databases.
-								</p>
-								<SimulatedTerminal
-									commands={createDbCommands}
-									completed={isViewingCompletedStep}
-									initialHistory={getInitialHistory()}
-									key={stepper.currentStep}
-									onCorrect={() => stepper.completeStep()}
-									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-									outputLines={createDbOutput}
-								/>
-
-								{isViewingCompletedStep && hasNextStep && (
-									<div className="flex justify-end">
-										<Button
-											className="gap-2"
-											onClick={stepper.nextStep}
-											size="sm"
-										>
-											Next Step
-											<ArrowRight className="w-4 h-4" />
-										</Button>
-									</div>
-								)}
-							</div>
-						)}
-
-						{/* Step 5: Boot Server */}
-						{stepper.currentStep === 4 && (
-							<div className="space-y-4">
-								<h3 className="text-lg font-semibold text-foreground">
-									Boot Server
-								</h3>
-								<p className="text-sm text-muted-foreground">
-									Database created. Start the Rails server and verify it
-									responds.
-								</p>
-								<SimulatedTerminal
-									commands={bootCommands}
-									completed={isViewingCompletedStep}
-									initialHistory={getInitialHistory()}
-									key={stepper.currentStep}
-									onCorrect={() => stepper.completeStep()}
-									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-									outputLines={bootOutput}
-								/>
-							</div>
+								onCorrect={() => stepper.completeStep()}
+								onNext={stepper.nextStep}
+								onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+								outputLines={currentTerminalStep.outputLines}
+								stepKey={stepper.currentStep}
+								title={currentTerminalStep.title}
+							/>
 						)}
 					</div>
 				</div>

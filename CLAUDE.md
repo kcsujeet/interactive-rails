@@ -168,6 +168,62 @@ Levels within an act must form a coherent learning path. Each level should build
 - Reuse interaction patterns from earlier levels so new concepts feel familiar (e.g., L17 reuses L16's step-unlock gating and L18's before/after grid)
 - Introduce only one new core concept per level. Anchor it to prior knowledge
 
+### Level Design: TerminalChoiceStep Component
+
+For any level that has "pick the right terminal command" steps, use `TerminalChoiceStep` to render the step content. The level owns its own layout (3-panel, header, step progress, code preview); `TerminalChoiceStep` only renders the center panel block (title, description, SimulatedTerminal, Next Step button).
+
+**When to use it:** Any step where the player picks from terminal command options. Works in both pure-terminal levels (L1, L4) and mixed-interaction levels (L2, L3).
+
+**How to use it:**
+
+```tsx
+import {
+  buildTerminalHistory,
+  TerminalChoiceStep,
+  type TerminalStep,
+  type TerminalStepData,
+} from '@/components/levels';
+
+// For pure-terminal levels, define all steps as TerminalStep[]
+const STEPS: TerminalStep[] = [
+  {
+    id: 'step-1',
+    title: 'Do the thing',
+    description: <p className="text-sm text-muted-foreground">Pick the right command.</p>,
+    commands: [
+      { id: 'wrong', label: 'bad cmd', command: 'bad cmd', correct: false, feedback: 'Why wrong.' },
+      { id: 'correct', label: 'good cmd', command: 'good cmd', correct: true },
+    ],
+    outputLines: [{ text: 'Success!', color: 'green' }],
+  },
+];
+
+// Inside the level's center panel content area:
+<TerminalChoiceStep
+  title={currentConfig.title}
+  description={currentConfig.description}
+  commands={currentConfig.commands}
+  outputLines={currentConfig.outputLines}
+  initialHistory={buildTerminalHistory(STEPS, stepper.currentStep)}
+  completed={stepper.isCurrentStepCompleted}
+  hasNext={stepper.currentStep < STEPS.length - 1}
+  onCorrect={() => stepper.completeStep()}
+  onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+  onNext={stepper.nextStep}
+  stepKey={stepper.currentStep}
+  prompt="irb>"              // Default: '$'
+  terminalTitle="Rails Console" // Default: 'Terminal'
+/>
+
+// For mixed-interaction levels, pass null for non-terminal steps:
+const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
+  null, // step 0: OptionCard
+  { commands: step1Commands, outputLines: step1Output },
+  { commands: step2Commands, outputLines: step2Output },
+];
+const history = buildTerminalHistory(TERMINAL_STEP_MAP, stepper.currentStep);
+```
+
 ### Level Design: No Concept Overlap
 
 **Each concept belongs to exactly one level.** Before adding a step to a level, check if that concept is already taught in another level. If it is, don't duplicate it. The player will learn it there.

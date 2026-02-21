@@ -33,6 +33,8 @@ interface SimulatedTerminalProps {
 	onCorrect: () => void;
 	onWrong: (feedback: string) => void;
 	prompt?: string;
+	/** Label shown in the terminal header bar */
+	title?: string;
 	outputLines?: TerminalOutputLine[];
 	disabled?: boolean;
 	completed?: boolean;
@@ -45,6 +47,7 @@ export function SimulatedTerminal({
 	onCorrect,
 	onWrong,
 	prompt = '$',
+	title = 'Terminal',
 	outputLines,
 	disabled = false,
 	completed = false,
@@ -138,7 +141,7 @@ export function SimulatedTerminal({
 					<div className="w-3 h-3 rounded-full bg-green-500" />
 				</div>
 				<Terminal className="w-3.5 h-3.5 text-zinc-400 ml-1" />
-				<span className="text-xs text-zinc-400 font-mono">Terminal</span>
+				<span className="text-xs text-zinc-400 font-mono">{title}</span>
 			</div>
 
 			{/* Terminal output */}
