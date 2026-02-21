@@ -383,7 +383,7 @@ export function Level18ValidationContracts({
 							</div>
 						</div>
 						<p className="text-xs text-muted-foreground">
-							The registration controller creates User + Profile + NotificationPrefs in one action. Validations are scattered inline with no cross-field rule check. Every model validates independently with duplicated render calls.
+							In Level 6, params.expect() filtered input keys. But key filtering is not validation. The registration controller creates User + Profile + NotificationPrefs in one action with validations scattered inline, no cross-field rules, and duplicated render calls.
 						</p>
 					</div>
 

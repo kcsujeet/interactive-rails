@@ -189,7 +189,7 @@ export function Level12Authorization({
 						'Add a Policy node to authorize requests',
 						'See hackers get blocked while legitimate requests pass',
 					]}
-					scenario="Anyone can access any endpoint! Hackers are trying to delete posts they don't own. We need authorization at the boundary."
+					scenario="The PostsController you built in Level 6 has no access control. Anyone can delete any post. Hackers are exploiting this. You need authorization at the boundary."
 				>
 					<div className="p-4 border-t border-border">
 						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">

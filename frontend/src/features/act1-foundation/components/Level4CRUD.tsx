@@ -270,8 +270,10 @@ export function Level4CRUD({ onComplete, onExit }: LevelComponentProps) {
 				<InstructionPanel>
 					<div className="p-4 border-b border-border">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Your Post model exists, but the database is empty. Learn the four
-							fundamental operations: Create, Read, Update, Delete.
+							In Level 3, you created the Post model and ran the migration.
+							The table exists but it's empty. Open the Rails console and
+							learn the four operations every model needs: Create, Read,
+							Update, Delete.
 						</p>
 					</div>
 

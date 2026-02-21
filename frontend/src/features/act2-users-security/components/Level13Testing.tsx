@@ -558,7 +558,7 @@ export function Level13Testing({ onComplete, onExit }: LevelComponentProps) {
 						'Run your test suite',
 						'Make sure all tests pass green',
 					]}
-					scenario="A deploy broke the login endpoint. Nobody noticed for 3 hours because there are zero tests. Time to add test coverage."
+					scenario="Your API has grown across Act 1: models, routes, controllers, associations, authorization. But there are zero tests. A deploy broke the login endpoint and nobody noticed for 3 hours."
 				/>
 			</LeftPanel>
 

@@ -235,6 +235,14 @@ end`;
 		<LevelLayout>
 			<LeftPanel>
 				<InstructionPanel>
+					<div className="p-4 border-b border-border">
+						<p className="text-sm text-muted-foreground leading-relaxed">
+							In Level 6, your controller actions handled everything
+							directly: finding records, creating posts, rendering JSON. As
+							logic grows, controllers get fat. Extract complex operations
+							into Service Objects.
+						</p>
+					</div>
 					<div className="p-4">
 						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
 							Progress

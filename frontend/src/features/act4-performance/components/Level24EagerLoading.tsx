@@ -228,7 +228,7 @@ export function Level24EagerLoading({
 						'eager_load: Always uses LEFT OUTER JOIN',
 						'Match the strategy to the scenario',
 					]}
-					scenario="Now that you understand N+1, let's fix it! Rails provides three eager loading methods. Choose wisely - each has different use cases."
+					scenario="Level 23 exposed the N+1 problem in your posts query. Now fix it. Rails provides three eager loading methods, each with different tradeoffs."
 				>
 					{/* Scenario Tabs */}
 					<div className="p-4 border-t border-border">

@@ -289,8 +289,9 @@ end`;
 							</div>
 						</div>
 						<p className="text-xs text-muted-foreground mb-4">
-							Three models have identical tagging code -- 120 lines of pure
-							duplication across Post, Comment, and Photo. Time to DRY it up.
+							Post and Comment from Act 1 both need tagging. So does Photo.
+							Three models, 120 identical lines of tagging code. Time to DRY
+							it up with a shared Concern.
 						</p>
 
 						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">

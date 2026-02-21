@@ -133,7 +133,7 @@ export function Level23N1Problem({ onComplete, onExit }: LevelComponentProps) {
 						'Each query has network latency',
 						'Database connections are limited',
 					]}
-					scenario="You're loading posts with their authors. Each page load triggers 6 database queries - one for posts, then one for EACH author. As your site grows, this becomes a performance nightmare."
+					scenario="Your PostsController#index from Level 6 now loads posts with their authors. Each page triggers 6 queries: one for posts, then one for EACH author. As data grows, this becomes a performance nightmare."
 				>
 					<div className="p-4 border-t border-border">
 						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">

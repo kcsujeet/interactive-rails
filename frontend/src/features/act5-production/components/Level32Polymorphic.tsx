@@ -141,7 +141,7 @@ export function Level32Polymorphic({
 						'Connect Comment to all 3 parent models (Post, Photo, Video)',
 						'Submit to complete the level',
 					]}
-					scenario="Your app has PostComment, PhotoComment, and VideoComment tables. They all have identical columns (body, user_id, timestamps). This is a DRY violation. Polymorphic associations let you unify them into a single comments table."
+					scenario="In Level 8, you linked Comment to Post with has_many. But now photos and videos need comments too, creating three identical tables. Polymorphic associations unify them into one."
 				>
 					{/* Progress Tracker */}
 					<div className="p-4 border-t border-border">

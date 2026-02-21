@@ -299,8 +299,9 @@ end`,
 				<InstructionPanel>
 					<div className="p-4 border-b border-border">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Routes are defined but nothing handles the requests yet. Build the
-							controller with actions that match those routes.
+							In Level 5, you mapped 5 RESTful routes under /api/v1/posts.
+							But hitting those URLs returns "uninitialized constant" because
+							no controller exists yet. Build one.
 						</p>
 					</div>
 
@@ -334,7 +335,11 @@ end`,
 								completed={stepper.currentStep < stepper.furthestStep}
 								description={
 									<p className="text-sm text-muted-foreground">
-										Generate a controller that matches your route namespace.
+										Your routes live under{' '}
+										<span className="font-mono text-primary">
+											namespace :api / :v1
+										</span>{' '}
+										from Level 5. Generate a controller that matches.
 									</p>
 								}
 								hasNext={stepper.currentStep < STEP_DEFS.length - 1}

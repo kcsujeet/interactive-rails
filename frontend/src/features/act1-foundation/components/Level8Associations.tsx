@@ -276,8 +276,9 @@ end`,
 				<InstructionPanel>
 					<div className="p-4 border-b border-border">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Posts need comments! Add a Comment model and connect it to Post
-							with the correct relationship.
+							Your Post works end-to-end: model (L3), CRUD (L4), routes
+							(L5), controller (L6). Now add a Comment model and connect it
+							to Post with the correct relationship.
 						</p>
 					</div>
 
@@ -310,7 +311,12 @@ end`,
 								completed={stepper.currentStep < stepper.furthestStep}
 								description={
 									<p className="text-sm text-muted-foreground">
-										Generate the Comment model with a body and a link to Post.
+										In Level 3, you generated Post with{' '}
+										<span className="font-mono text-primary">
+											rails generate model
+										</span>
+										. Comment follows the same pattern, but needs a field
+										that links it back to Post.
 									</p>
 								}
 								hasNext={stepper.currentStep < STEP_DEFS.length - 1}

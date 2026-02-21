@@ -299,9 +299,9 @@ end`,
 				<InstructionPanel>
 					<div className="p-4 border-b border-border">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Your Post model and CRUD operations work in the console. But how
-							do HTTP requests from the outside world reach your app? You need
-							routes.
+							Posts work in the console (Levels 3-4), and Puma is running
+							from Level 2. But HTTP requests from the outside world can't
+							reach your app yet. You need routes to map URLs to code.
 						</p>
 					</div>
 

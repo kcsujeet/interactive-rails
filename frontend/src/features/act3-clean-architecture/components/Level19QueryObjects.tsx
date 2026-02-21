@@ -302,7 +302,7 @@ export function Level19QueryObjects({
 						'All 6 methods must be extracted to complete the level',
 						'The query object returns self for chaining',
 					]}
-					scenario="The admin dashboard API has a 60-line controller action with inline .where().joins().group().order() chains. The same filtering is duplicated across admin controller, API controller, and CSV export job."
+					scenario="Level 16 extracted business logic into Service Objects. Now do the same for queries. The admin dashboard has 60-line inline .where().joins().group().order() chains duplicated across three controllers."
 				>
 					{/* Progress */}
 					<div className="p-4 border-t border-border">
