@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import {
+	buildTerminalHistory,
 	CenterPanel,
 	CodePreviewPanel,
 	ErrorFeedback,
@@ -15,10 +16,10 @@ import {
 	LevelHeader,
 	LevelLayout,
 	RightPanel,
-	SimulatedTerminal,
 	StepProgress,
-	type TerminalHistoryEntry,
+	TerminalChoiceStep,
 	type TerminalOutputLine,
+	type TerminalStepData,
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
@@ -203,31 +204,14 @@ export function Level8Associations({
 		return { valid: true, message: 'Associations configured correctly!' };
 	};
 
-	// Build history from completed prior terminal steps
-	const terminalSteps: {
-		stepIndex: number;
-		commands: { command: string; correct: boolean }[];
-		output: TerminalOutputLine[];
-	}[] = [
-		{ stepIndex: 0, commands: generateCommands, output: generateOutput },
-		{ stepIndex: 4, commands: testCommands, output: testOutput },
+	// Terminal step data for building history (steps 1-3 are non-terminal)
+	const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
+		{ commands: generateCommands, outputLines: generateOutput },
+		null, // step 1: Choose Relationship (click-to-select)
+		null, // step 2: Auto belongs_to (informational)
+		null, // step 3: Set Dependent (click-to-select)
+		{ commands: testCommands, outputLines: testOutput },
 	];
-
-	const getInitialHistory = (): TerminalHistoryEntry[] => {
-		const history: TerminalHistoryEntry[] = [];
-		for (const ts of terminalSteps) {
-			if (ts.stepIndex >= stepper.currentStep) break;
-			const correctCmd = ts.commands.find((c) => c.correct);
-			if (correctCmd) {
-				history.push({
-					command: correctCmd.command,
-					output: ts.output,
-					isError: false,
-				});
-			}
-		}
-		return history;
-	};
 
 	const getCodeFiles = () => {
 		const files = [];
@@ -318,26 +302,26 @@ end`,
 					<div className="max-w-2xl mx-auto space-y-6">
 						{/* Step 1: Generate Comment */}
 						{stepper.currentStep === 0 && (
-							<div className="space-y-4">
-								<h3 className="text-lg font-semibold text-foreground">
-									Generate Comment Model
-								</h3>
-								<p className="text-sm text-muted-foreground">
-									Generate the Comment model with a body and a link to Post.
-								</p>
-								<SimulatedTerminal
-									commands={generateCommands}
-									initialHistory={getInitialHistory()}
-									key={stepper.currentStep}
-									onCorrect={() => stepper.completeStep()}
-									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-									outputLines={generateOutput}
-								/>
-								<ErrorFeedback
-									message={stepper.lastFeedback}
-									onDismiss={stepper.clearFeedback}
-								/>
-							</div>
+							<TerminalChoiceStep
+								commands={generateCommands}
+								completed={stepper.currentStep < stepper.furthestStep}
+								description={
+									<p className="text-sm text-muted-foreground">
+										Generate the Comment model with a body and a link to Post.
+									</p>
+								}
+								hasNext={stepper.currentStep < STEP_DEFS.length - 1}
+								initialHistory={buildTerminalHistory(
+									TERMINAL_STEP_MAP,
+									stepper.currentStep,
+								)}
+								onCorrect={() => stepper.completeStep()}
+								onNext={() => stepper.goToStep(stepper.currentStep + 1)}
+								onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+								outputLines={generateOutput}
+								stepKey={stepper.currentStep}
+								title="Generate Comment Model"
+							/>
 						)}
 
 						{/* Step 2: Choose Relationship */}
@@ -460,23 +444,27 @@ end`,
 
 						{/* Step 5: Test It */}
 						{stepper.currentStep === 4 && (
-							<div className="space-y-4">
-								<h3 className="text-lg font-semibold text-foreground">
-									Test It
-								</h3>
-								<p className="text-sm text-muted-foreground">
-									Create a comment through the association, then destroy the
-									post to verify cascade.
-								</p>
-								<SimulatedTerminal
-									commands={testCommands}
-									initialHistory={getInitialHistory()}
-									key={stepper.currentStep}
-									onCorrect={() => stepper.completeStep()}
-									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-									outputLines={testOutput}
-								/>
-							</div>
+							<TerminalChoiceStep
+								commands={testCommands}
+								completed={stepper.currentStep < stepper.furthestStep}
+								description={
+									<p className="text-sm text-muted-foreground">
+										Create a comment through the association, then destroy the
+										post to verify cascade.
+									</p>
+								}
+								hasNext={stepper.currentStep < STEP_DEFS.length - 1}
+								initialHistory={buildTerminalHistory(
+									TERMINAL_STEP_MAP,
+									stepper.currentStep,
+								)}
+								onCorrect={() => stepper.completeStep()}
+								onNext={() => stepper.goToStep(stepper.currentStep + 1)}
+								onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+								outputLines={testOutput}
+								stepKey={stepper.currentStep}
+								title="Test It"
+							/>
 						)}
 
 						{/* Complete */}

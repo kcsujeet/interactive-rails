@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import {
+	buildTerminalHistory,
 	CenterPanel,
 	CodePreviewPanel,
 	ErrorFeedback,
@@ -15,10 +16,10 @@ import {
 	LevelHeader,
 	LevelLayout,
 	RightPanel,
-	SimulatedTerminal,
 	StepProgress,
-	type TerminalHistoryEntry,
+	TerminalChoiceStep,
 	type TerminalOutputLine,
+	type TerminalStepData,
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
@@ -221,31 +222,13 @@ export function Level6Controller({ onComplete, onExit }: LevelComponentProps) {
 		return { valid: true, message: 'Controller is ready!' };
 	};
 
-	// Build history from completed prior terminal steps
-	const terminalSteps: {
-		stepIndex: number;
-		commands: { command: string; correct: boolean }[];
-		output: TerminalOutputLine[];
-	}[] = [
-		{ stepIndex: 0, commands: generateCommands, output: generateOutput },
-		{ stepIndex: 3, commands: testCommands, output: testOutput },
+	// Terminal step data for building history (steps 1-2 are non-terminal)
+	const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
+		{ commands: generateCommands, outputLines: generateOutput },
+		null, // step 1: Add Actions (click-to-select)
+		null, // step 2: Strong Params (assembly)
+		{ commands: testCommands, outputLines: testOutput },
 	];
-
-	const getInitialHistory = (): TerminalHistoryEntry[] => {
-		const history: TerminalHistoryEntry[] = [];
-		for (const ts of terminalSteps) {
-			if (ts.stepIndex >= stepper.currentStep) break;
-			const correctCmd = ts.commands.find((c) => c.correct);
-			if (correctCmd) {
-				history.push({
-					command: correctCmd.command,
-					output: ts.output,
-					isError: false,
-				});
-			}
-		}
-		return history;
-	};
 
 	const getCodeFiles = () => {
 		const files = [];
@@ -373,26 +356,26 @@ end`,
 					<div className="max-w-2xl mx-auto space-y-6">
 						{/* Step 1: Generate Controller */}
 						{stepper.currentStep === 0 && (
-							<div className="space-y-4">
-								<h3 className="text-lg font-semibold text-foreground">
-									Generate Controller
-								</h3>
-								<p className="text-sm text-muted-foreground">
-									Generate a controller that matches your route namespace.
-								</p>
-								<SimulatedTerminal
-									commands={generateCommands}
-									initialHistory={getInitialHistory()}
-									key={stepper.currentStep}
-									onCorrect={() => stepper.completeStep()}
-									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-									outputLines={generateOutput}
-								/>
-								<ErrorFeedback
-									message={stepper.lastFeedback}
-									onDismiss={stepper.clearFeedback}
-								/>
-							</div>
+							<TerminalChoiceStep
+								commands={generateCommands}
+								completed={stepper.currentStep < stepper.furthestStep}
+								description={
+									<p className="text-sm text-muted-foreground">
+										Generate a controller that matches your route namespace.
+									</p>
+								}
+								hasNext={stepper.currentStep < STEP_DEFS.length - 1}
+								initialHistory={buildTerminalHistory(
+									TERMINAL_STEP_MAP,
+									stepper.currentStep,
+								)}
+								onCorrect={() => stepper.completeStep()}
+								onNext={() => stepper.goToStep(stepper.currentStep + 1)}
+								onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+								outputLines={generateOutput}
+								stepKey={stepper.currentStep}
+								title="Generate Controller"
+							/>
 						)}
 
 						{/* Step 2: Add Actions */}
@@ -508,22 +491,26 @@ end`,
 
 						{/* Step 4: Test Endpoint */}
 						{stepper.currentStep === 3 && (
-							<div className="space-y-4">
-								<h3 className="text-lg font-semibold text-foreground">
-									Test Endpoint
-								</h3>
-								<p className="text-sm text-muted-foreground">
-									Test your controller by making a request.
-								</p>
-								<SimulatedTerminal
-									commands={testCommands}
-									initialHistory={getInitialHistory()}
-									key={stepper.currentStep}
-									onCorrect={() => stepper.completeStep()}
-									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-									outputLines={testOutput}
-								/>
-							</div>
+							<TerminalChoiceStep
+								commands={testCommands}
+								completed={stepper.currentStep < stepper.furthestStep}
+								description={
+									<p className="text-sm text-muted-foreground">
+										Test your controller by making a request.
+									</p>
+								}
+								hasNext={stepper.currentStep < STEP_DEFS.length - 1}
+								initialHistory={buildTerminalHistory(
+									TERMINAL_STEP_MAP,
+									stepper.currentStep,
+								)}
+								onCorrect={() => stepper.completeStep()}
+								onNext={() => stepper.goToStep(stepper.currentStep + 1)}
+								onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+								outputLines={testOutput}
+								stepKey={stepper.currentStep}
+								title="Test Endpoint"
+							/>
 						)}
 
 						{/* Complete */}

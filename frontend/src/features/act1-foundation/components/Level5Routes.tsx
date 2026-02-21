@@ -7,6 +7,7 @@
 
 import { useState } from 'react';
 import {
+	buildTerminalHistory,
 	CenterPanel,
 	CodePreviewPanel,
 	ErrorFeedback,
@@ -15,9 +16,11 @@ import {
 	LevelHeader,
 	LevelLayout,
 	RightPanel,
-	SimulatedTerminal,
 	StepProgress,
+	TerminalChoiceStep,
+	type TerminalCommand,
 	type TerminalOutputLine,
+	type TerminalStepData,
 	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
@@ -136,7 +139,7 @@ export function Level5Routes({ onComplete, onExit }: LevelComponentProps) {
 	};
 
 	// Step 3: View routes terminal
-	const viewRoutesCommands = [
+	const viewRoutesCommands: TerminalCommand[] = [
 		{
 			id: 'wrong',
 			label: 'rake routes',
@@ -178,6 +181,14 @@ export function Level5Routes({ onComplete, onExit }: LevelComponentProps) {
 			text: '               DELETE  /api/v1/posts/:id(.:format)    api/v1/posts#destroy',
 			color: 'red',
 		},
+	];
+
+	// Terminal step data for building history (only step 2 is terminal)
+	const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
+		null, // step 0: Define Resource (click-to-select)
+		null, // step 1: Add Namespace (click-to-order)
+		{ commands: viewRoutesCommands, outputLines: viewRoutesOutput },
+		null, // step 3: Trace a Request (custom UI)
 	];
 
 	// Step 4: Route tracing
@@ -416,24 +427,26 @@ end`,
 
 						{/* Step 3: View Routes */}
 						{stepper.currentStep === 2 && (
-							<div className="space-y-4">
-								<h3 className="text-lg font-semibold text-foreground">
-									View Routes
-								</h3>
-								<p className="text-sm text-muted-foreground">
-									Run the command to see all generated routes.
-								</p>
-								<SimulatedTerminal
-									commands={viewRoutesCommands}
-									onCorrect={() => stepper.completeStep()}
-									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-									outputLines={viewRoutesOutput}
-								/>
-								<ErrorFeedback
-									message={stepper.lastFeedback}
-									onDismiss={stepper.clearFeedback}
-								/>
-							</div>
+							<TerminalChoiceStep
+								commands={viewRoutesCommands}
+								completed={stepper.currentStep < stepper.furthestStep}
+								description={
+									<p className="text-sm text-muted-foreground">
+										Run the command to see all generated routes.
+									</p>
+								}
+								hasNext={stepper.currentStep < STEP_DEFS.length - 1}
+								initialHistory={buildTerminalHistory(
+									TERMINAL_STEP_MAP,
+									stepper.currentStep,
+								)}
+								onCorrect={() => stepper.completeStep()}
+								onNext={() => stepper.goToStep(stepper.currentStep + 1)}
+								onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+								outputLines={viewRoutesOutput}
+								stepKey={stepper.currentStep}
+								title="View Routes"
+							/>
 						)}
 
 						{/* Step 4: Trace a Request */}
