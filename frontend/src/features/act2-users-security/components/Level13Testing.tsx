@@ -373,7 +373,6 @@ const REWARD_STAGES: PipelineStage[] = [
 		label: 'RSpec',
 		sublabel: '2 specs, 0 failures',
 		variant: 'active',
-		badge: 'FAIL',
 	},
 	{ id: 'prod', label: 'Production' },
 ];
