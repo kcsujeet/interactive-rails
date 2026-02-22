@@ -5,6 +5,7 @@
  * Shows tenant-based sharding strategy.
  */
 
+import { AlertTriangle, Check } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import type { ValidationResult } from '@/components/levels';
 import {
@@ -36,12 +37,14 @@ interface Query {
 export function Level54Sharding({ onComplete }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [shardingEnabled, setShardingEnabled] = useState(false);
-	const [tenants] = useState<Tenant[]>([
+	const [tenants, setTenants] = useState<Tenant[]>([
 		{ id: 1, name: 'Acme Corp', shard: 0, records: 5000000 },
 		{ id: 2, name: 'Globex Inc', shard: 1, records: 3000000 },
 		{ id: 3, name: 'Initech', shard: 0, records: 2000000 },
 		{ id: 4, name: 'Umbrella', shard: 1, records: 4000000 },
 	]);
+	const [hotShardTriggered, setHotShardTriggered] = useState(false);
+	const [rebalanced, setRebalanced] = useState(false);
 	const [queries, setQueries] = useState<Query[]>([]);
 	const [shard0Load, setShard0Load] = useState(0);
 	const [shard1Load, setShard1Load] = useState(0);
@@ -57,6 +60,13 @@ export function Level54Sharding({ onComplete }: LevelComponentProps) {
 				],
 			};
 		}
+		if (hotShardTriggered && !rebalanced) {
+			return {
+				valid: false,
+				message: 'Hot shard needs rebalancing',
+				details: ['Move a tenant from the overloaded shard to balance the load'],
+			};
+		}
 		if (shard0Load >= 60 || shard1Load >= 60) {
 			return {
 				valid: false,
@@ -68,7 +78,21 @@ export function Level54Sharding({ onComplete }: LevelComponentProps) {
 			valid: true,
 			message: 'Sharding distributes load across databases!',
 		};
-	}, [shardingEnabled, shard0Load, shard1Load]);
+	}, [shardingEnabled, hotShardTriggered, rebalanced, shard0Load, shard1Load]);
+
+	// Hot shard trigger: after 5s of sharding, Acme Corp traffic spikes
+	useEffect(() => {
+		if (!shardingEnabled || hotShardTriggered) return;
+		const timer = setTimeout(() => {
+			setTenants((prev) =>
+				prev.map((t) =>
+					t.id === 1 ? { ...t, records: 12000000 } : t,
+				),
+			);
+			setHotShardTriggered(true);
+		}, 5000);
+		return () => clearTimeout(timer);
+	}, [shardingEnabled, hotShardTriggered]);
 
 	// Simulate queries
 	useEffect(() => {
@@ -127,6 +151,7 @@ export function Level54Sharding({ onComplete }: LevelComponentProps) {
 						'Watch the single database struggle with all data',
 						'Enable tenant-based sharding',
 						'See queries route to the correct shard',
+						'Handle a hot shard by rebalancing tenants',
 					]}
 					scenario="We have 14M user records in a single database. Even with replicas, the single DB can't keep up. We need to split the data across multiple databases."
 				>
@@ -150,17 +175,48 @@ export function Level54Sharding({ onComplete }: LevelComponentProps) {
 						</div>
 						<div className="space-y-2 text-sm">
 							{tenants.map((t) => (
-								<div className="flex items-center justify-between" key={t.id}>
+								<div className="flex items-center justify-between gap-2" key={t.id}>
 									<span className="text-foreground">{t.name}</span>
-									<span
-										className={`text-xs px-2 py-0.5 rounded ${
-											t.shard === 0
-												? 'bg-primary/30 text-primary'
-												: 'bg-success/30 text-success'
-										}`}
-									>
-										Shard {t.shard}
-									</span>
+									<div className="flex items-center gap-2">
+										<span
+											className={`text-xs px-2 py-0.5 rounded ${
+												t.shard === 0
+													? 'bg-primary/30 text-primary'
+													: 'bg-success/30 text-success'
+											}`}
+										>
+											Shard {t.shard}
+										</span>
+										{shardingEnabled && hotShardTriggered && !rebalanced && (
+											<Button
+												className="text-xs px-2 py-1"
+												onClick={() => {
+													const newTenants = tenants.map((ten) =>
+														ten.id === t.id
+															? { ...ten, shard: ten.shard === 0 ? 1 : 0 }
+															: ten,
+													);
+													setTenants(newTenants);
+													const shard0Records = newTenants
+														.filter((ten) => ten.shard === 0)
+														.reduce((sum, ten) => sum + ten.records, 0);
+													const shard1Records = newTenants
+														.filter((ten) => ten.shard === 1)
+														.reduce((sum, ten) => sum + ten.records, 0);
+													const ratio =
+														Math.max(shard0Records, shard1Records) /
+														Math.min(shard0Records, shard1Records);
+													if (ratio < 1.5) {
+														setRebalanced(true);
+													}
+												}}
+												size="sm"
+												variant="outline"
+											>
+												Move to Shard {t.shard === 0 ? 1 : 0}
+											</Button>
+										)}
+									</div>
 								</div>
 							))}
 						</div>
@@ -189,11 +245,44 @@ export function Level54Sharding({ onComplete }: LevelComponentProps) {
 						setShard0Load(0);
 						setShard1Load(0);
 						setSingleDbLoad(0);
+						setHotShardTriggered(false);
+						setRebalanced(false);
+						setTenants([
+							{ id: 1, name: 'Acme Corp', shard: 0, records: 5000000 },
+							{ id: 2, name: 'Globex Inc', shard: 1, records: 3000000 },
+							{ id: 3, name: 'Initech', shard: 0, records: 2000000 },
+							{ id: 4, name: 'Umbrella', shard: 1, records: 4000000 },
+						]);
 					}}
 					onValidate={handleValidate}
 				/>
 
 				<div className="flex-1 relative bg-background p-8">
+					{hotShardTriggered && !rebalanced && (
+						<div className="bg-destructive/10 border-2 border-destructive rounded-xl p-4 mb-6 animate-in fade-in slide-in-from-top-2 duration-300">
+							<div className="flex items-center gap-2 mb-2">
+								<AlertTriangle className="w-5 h-5 text-destructive" />
+								<span className="text-destructive font-semibold">Hot Shard Detected!</span>
+							</div>
+							<div className="text-sm text-destructive/80">
+								Acme Corp's traffic spiked to 12M records. Shard 0 has 14M records while Shard 1 has only 7M.
+								Reassign a tenant from Shard 0 to Shard 1 to rebalance.
+							</div>
+						</div>
+					)}
+
+					{rebalanced && (
+						<div className="bg-success/10 border border-success/30 rounded-xl p-4 mb-6 animate-in fade-in slide-in-from-top-2 duration-300">
+							<div className="flex items-center gap-2">
+								<Check className="w-5 h-5 text-success" />
+								<span className="text-success font-semibold">Shards Rebalanced</span>
+							</div>
+							<div className="text-sm text-success/80 mt-1">
+								Load is distributed evenly. In production, use consistent hashing to minimize data movement during rebalancing.
+							</div>
+						</div>
+					)}
+
 					{/* Architecture */}
 					<div className="flex justify-center gap-8 mb-8">
 						{/* App + Router */}
@@ -227,7 +316,7 @@ export function Level54Sharding({ onComplete }: LevelComponentProps) {
 								>
 									<div className="text-primary font-medium mb-2">Shard 0</div>
 									<div className="text-xs text-muted-foreground mb-2">
-										7M records
+										{(tenants.filter((t) => t.shard === 0).reduce((sum, t) => sum + t.records, 0) / 1000000).toFixed(0)}M records
 									</div>
 									<div className="bg-secondary rounded-full h-3 overflow-hidden">
 										<div
@@ -258,7 +347,7 @@ export function Level54Sharding({ onComplete }: LevelComponentProps) {
 								>
 									<div className="text-success font-medium mb-2">Shard 1</div>
 									<div className="text-xs text-muted-foreground mb-2">
-										7M records
+										{(tenants.filter((t) => t.shard === 1).reduce((sum, t) => sum + t.records, 0) / 1000000).toFixed(0)}M records
 									</div>
 									<div className="bg-secondary rounded-full h-3 overflow-hidden">
 										<div

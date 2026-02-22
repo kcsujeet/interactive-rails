@@ -54,7 +54,7 @@ export function Level8Associations({
 			command: 'rails generate model Comment body:text post_id:integer',
 			correct: false,
 			feedback:
-				'Adding an integer column only gives you the column — you miss the automatic index, foreign key, and model association. There\'s a better field type for linking models.',
+				'Adding an integer column only gives you the column, but you miss the automatic index, foreign key, and model association. There\'s a better field type for linking models.',
 		},
 		{
 			id: 'correct',

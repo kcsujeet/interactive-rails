@@ -400,7 +400,7 @@ export function Level26Indexing({ onComplete }: LevelComponentProps) {
 						</div>
 						<div className="space-y-2">
 							{indexes.map((idx) => (
-								<button
+								<Button
 									className={`w-full p-3 rounded-lg border text-left transition-all ${
 										idx.added
 											? 'bg-success/10 border-success/40'
@@ -408,7 +408,6 @@ export function Level26Indexing({ onComplete }: LevelComponentProps) {
 									}`}
 									key={idx.id}
 									onClick={() => toggleIndex(idx.id)}
-									type="button"
 								>
 									<div className="flex items-center justify-between mb-1">
 										<div className="flex items-center gap-2">
@@ -436,7 +435,7 @@ export function Level26Indexing({ onComplete }: LevelComponentProps) {
 											Index added
 										</div>
 									)}
-								</button>
+								</Button>
 							))}
 						</div>
 					</div>

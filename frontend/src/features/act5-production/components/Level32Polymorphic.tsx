@@ -489,15 +489,15 @@ function AfterView({
 				{PARENT_MODELS.map((model) => {
 					const isConnected = connections[model.key];
 					return (
-						<button
-							className={`rounded-xl border-2 p-4 text-center transition-all cursor-pointer ${
+						<Button
+							className={`rounded-xl border-2 p-4 text-center transition-all cursor-pointer h-auto flex-col whitespace-normal ${
 								isConnected
 									? `${model.borderColor} ${model.bgColor}`
 									: 'border-border bg-card hover:border-muted-foreground'
 							}`}
 							key={model.key}
 							onClick={() => onToggleConnection(model.key)}
-							type="button"
+							variant="ghost"
 						>
 							<Database
 								className={`w-6 h-6 mx-auto mb-2 ${isConnected ? model.color : 'text-muted-foreground'}`}
@@ -521,7 +521,7 @@ function AfterView({
 									Click to connect
 								</div>
 							)}
-						</button>
+						</Button>
 					);
 				})}
 			</div>

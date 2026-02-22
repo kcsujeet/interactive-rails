@@ -290,13 +290,11 @@ end
 									return (
 										<Button
 											className={`px-3 py-1.5 font-mono text-sm transition-all ${
-												isCorrect
-													? 'bg-success/20 border-success text-success'
-													: isUsed
-														? 'bg-destructive/20 border-destructive text-destructive'
-														: selectedQuery
-															? 'bg-primary/20 border-primary text-primary hover:bg-primary/30 cursor-pointer'
-															: 'bg-secondary border-border text-muted-foreground'
+												isUsed
+													? 'bg-primary/20 border-primary text-primary'
+													: selectedQuery
+														? 'bg-primary/20 border-primary text-primary hover:bg-primary/30 cursor-pointer'
+														: 'bg-secondary border-border text-muted-foreground'
 											}`}
 											disabled={!selectedQuery}
 											key={scope}
@@ -325,7 +323,7 @@ end
 								query.scopeName && query.scopeName !== query.correctScope;
 
 							return (
-								<button
+								<Button
 									className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
 										selectedQuery === query.id
 											? 'border-primary bg-primary/10'
@@ -337,7 +335,6 @@ end
 									}`}
 									key={query.id}
 									onClick={() => !isScoped && setSelectedQuery(query.id)}
-									type="button"
 								>
 									<div className="flex items-center justify-between mb-2">
 										<span className="text-muted-foreground text-sm">
@@ -393,7 +390,7 @@ end
 											)}
 										</div>
 									</div>
-								</button>
+								</Button>
 							);
 						})}
 

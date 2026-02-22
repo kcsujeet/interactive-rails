@@ -459,7 +459,7 @@ end`;
 											{model.sharedLines.map((line) => {
 												const isSelected = extractedLines.has(line.id);
 												return (
-													<button
+													<Button
 														className={`w-full text-left px-2 py-1.5 rounded text-xs font-mono transition-all ${
 															isSelected
 																? 'bg-primary/20 text-primary ring-1 ring-primary/50'
@@ -467,7 +467,6 @@ end`;
 														}`}
 														key={line.id}
 														onClick={() => toggleLine(line.id)}
-														type="button"
 													>
 														<div className="flex items-center gap-1.5">
 															{isSelected ? (
@@ -477,7 +476,7 @@ end`;
 															)}
 															<span className="truncate">{line.code}</span>
 														</div>
-													</button>
+													</Button>
 												);
 											})}
 										</div>
@@ -579,14 +578,13 @@ end`;
 
 											<div className="p-3 space-y-1">
 												{/* Include button / status */}
-												<button
+												<Button
 													className={`w-full text-left px-2 py-1.5 rounded text-xs font-mono transition-all ${
 														isIncluded
 															? 'bg-success/15 text-success ring-1 ring-success/30'
 															: 'bg-secondary hover:bg-primary/10 text-muted-foreground hover:text-primary'
 													}`}
 													onClick={() => toggleInclude(model.name)}
-													type="button"
 												>
 													<div className="flex items-center gap-1.5">
 														{isIncluded ? (
@@ -596,7 +594,7 @@ end`;
 														)}
 														include Taggable
 													</div>
-												</button>
+												</Button>
 
 												{/* Unique lines remain */}
 												{model.uniqueLines.map((line) => (

@@ -30,6 +30,13 @@ import {
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 
+interface FixOption {
+	id: string;
+	label: string;
+	correct: boolean;
+	feedback: string;
+}
+
 interface SecurityFinding {
 	id: string;
 	name: string;
@@ -38,6 +45,7 @@ interface SecurityFinding {
 	status: 'open' | 'fixed';
 	fix: string;
 	icon: 'globe' | 'key' | 'timer' | 'shield';
+	fixOptions: FixOption[];
 }
 
 const INITIAL_FINDINGS: SecurityFinding[] = [
@@ -50,6 +58,28 @@ const INITIAL_FINDINGS: SecurityFinding[] = [
 		status: 'open',
 		fix: 'Configure rack-cors to allow the frontend origin',
 		icon: 'globe',
+		fixOptions: [
+			{
+				id: 'cors-wildcard',
+				label: 'origins "*"',
+				correct: false,
+				feedback:
+					'Wildcard origins defeat the purpose of CORS. Restrict to known domains.',
+			},
+			{
+				id: 'cors-specific',
+				label: 'origins "https://yourdomain.com", "http://localhost:3001"',
+				correct: true,
+				feedback: '',
+			},
+			{
+				id: 'cors-false',
+				label: 'origins false',
+				correct: false,
+				feedback:
+					'Disabling CORS blocks all cross-origin requests. Your frontend needs access.',
+			},
+		],
 	},
 	{
 		id: 'credentials',
@@ -60,6 +90,28 @@ const INITIAL_FINDINGS: SecurityFinding[] = [
 		status: 'open',
 		fix: 'Move to Rails encrypted credentials',
 		icon: 'key',
+		fixOptions: [
+			{
+				id: 'creds-env',
+				label: 'ENV["STRIPE_KEY"] stored in .env file committed to git',
+				correct: false,
+				feedback:
+					'.env files can still be committed accidentally. Rails has a built-in encrypted solution.',
+			},
+			{
+				id: 'creds-constants',
+				label: 'Store keys as plain text constants in config/initializers/',
+				correct: false,
+				feedback:
+					'Constants in source code are visible to anyone with repo access.',
+			},
+			{
+				id: 'creds-encrypted',
+				label: 'Rails.application.credentials.dig(:stripe, :api_key)',
+				correct: true,
+				feedback: '',
+			},
+		],
 	},
 	{
 		id: 'rate_limit',
@@ -70,6 +122,28 @@ const INITIAL_FINDINGS: SecurityFinding[] = [
 		status: 'open',
 		fix: 'Add Rails 8 built-in rate_limit',
 		icon: 'timer',
+		fixOptions: [
+			{
+				id: 'rate-rack',
+				label: 'Rack::Attack.throttle with custom config',
+				correct: false,
+				feedback:
+					'Works, but Rails 8 has a simpler built-in approach. No gem needed.',
+			},
+			{
+				id: 'rate-sleep',
+				label: 'Add sleep(1) before login attempts',
+				correct: false,
+				feedback:
+					"Sleeping doesn't prevent brute force. Attackers can run parallel requests.",
+			},
+			{
+				id: 'rate-builtin',
+				label: 'rate_limit to: 10, within: 3.minutes, only: :create',
+				correct: true,
+				feedback: '',
+			},
+		],
 	},
 	{
 		id: 'strong_params',
@@ -80,6 +154,28 @@ const INITIAL_FINDINGS: SecurityFinding[] = [
 		status: 'open',
 		fix: 'Use Rails 8 params.expect for strict filtering',
 		icon: 'shield',
+		fixOptions: [
+			{
+				id: 'params-permit-all',
+				label: 'params.permit!',
+				correct: false,
+				feedback:
+					'permit! allows ALL parameters through. This makes the problem worse.',
+			},
+			{
+				id: 'params-require',
+				label: 'params.require(:post).permit(:title, :body)',
+				correct: false,
+				feedback:
+					'This works but returns 500 on missing params. Rails 8 has a stricter alternative.',
+			},
+			{
+				id: 'params-expect',
+				label: 'params.expect(post: [:title, :body, :status])',
+				correct: true,
+				feedback: '',
+			},
+		],
 	},
 ];
 
@@ -94,6 +190,7 @@ export function Level14Security({ onComplete }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [findings, setFindings] = useState<SecurityFinding[]>(INITIAL_FINDINGS);
 	const [selectedFinding, setSelectedFinding] = useState<string | null>(null);
+	const [wrongFeedback, setWrongFeedback] = useState<string | null>(null);
 
 	const fixedCount = findings.filter((f) => f.status === 'fixed').length;
 	const openCount = findings.filter((f) => f.status === 'open').length;
@@ -123,13 +220,23 @@ export function Level14Security({ onComplete }: LevelComponentProps) {
 		};
 	};
 
-	const fixFinding = (findingId: string) => {
-		setFindings((prev) =>
-			prev.map((f) =>
-				f.id === findingId ? { ...f, status: 'fixed' as const } : f,
-			),
-		);
-		setSelectedFinding(null);
+	const handleFixOption = (findingId: string, option: FixOption) => {
+		if (option.correct) {
+			setFindings((prev) =>
+				prev.map((f) =>
+					f.id === findingId ? { ...f, status: 'fixed' as const } : f,
+				),
+			);
+			setSelectedFinding(null);
+			setWrongFeedback(null);
+		} else {
+			setWrongFeedback(option.feedback);
+		}
+	};
+
+	const selectFinding = (findingId: string) => {
+		setSelectedFinding(findingId);
+		setWrongFeedback(null);
 	};
 
 	const handleComplete = async () => {
@@ -316,6 +423,7 @@ end`,
 					onReset={() => {
 						setFindings(INITIAL_FINDINGS);
 						setSelectedFinding(null);
+						setWrongFeedback(null);
 					}}
 					onValidate={validateSolution}
 				/>
@@ -354,20 +462,37 @@ end`,
 
 									<div>
 										<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-											Required Fix
+											Choose the Fix
 										</div>
-										<p className="text-sm text-primary font-medium">
-											{selected.fix}
-										</p>
+										<div className="space-y-2">
+											{selected.fixOptions.map((option) => (
+												<Button
+													className="w-full justify-start text-left whitespace-normal h-auto py-3 px-4"
+													key={option.id}
+													onClick={() =>
+														handleFixOption(selected.id, option)
+													}
+													variant="outline"
+												>
+													<Lock className="w-4 h-4 mr-2 shrink-0" />
+													<code className="text-xs">
+														{option.label}
+													</code>
+												</Button>
+											))}
+										</div>
 									</div>
 
-									<Button
-										className="w-full"
-										onClick={() => fixFinding(selected.id)}
-									>
-										<Lock className="w-4 h-4 mr-2" />
-										Apply Fix
-									</Button>
+									{wrongFeedback && (
+										<div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+											<div className="flex items-start gap-2">
+												<AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+												<p className="text-sm text-destructive">
+													{wrongFeedback}
+												</p>
+											</div>
+										</div>
+									)}
 								</div>
 							</div>
 						</div>
@@ -386,7 +511,7 @@ end`,
 								{findings.map((finding) => {
 									const Icon = ICON_MAP[finding.icon];
 									return (
-										<button
+										<Button
 											className={`p-5 rounded-xl border-2 transition-all text-left ${
 												finding.status === 'fixed'
 													? 'border-success/50 bg-success/5'
@@ -395,9 +520,8 @@ end`,
 											key={finding.id}
 											onClick={() =>
 												finding.status === 'open' &&
-												setSelectedFinding(finding.id)
+												selectFinding(finding.id)
 											}
-											type="button"
 										>
 											<div className="flex items-center gap-3 mb-3">
 												<div
@@ -422,7 +546,7 @@ end`,
 													? finding.fix
 													: finding.description}
 											</p>
-										</button>
+										</Button>
 									);
 								})}
 							</div>

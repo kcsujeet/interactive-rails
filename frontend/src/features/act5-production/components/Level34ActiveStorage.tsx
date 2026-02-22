@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import { Check } from 'lucide-react';
 import type { ValidationResult } from '@/components/levels';
 import {
 	CenterPanel,
@@ -38,33 +39,18 @@ export function Level34ActiveStorage({
 	const [memoryUsage, setMemoryUsage] = useState(0);
 	const [memoryPeak, setMemoryPeak] = useState(0);
 	const [directUploadsCompleted, setDirectUploadsCompleted] = useState(0);
+	const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
 	const handleValidate = useCallback((): ValidationResult => {
-		if (!directUploadEnabled) {
+		if (step < 4) {
 			return {
 				valid: false,
-				message: 'Enable direct upload',
-				details: ['Click "Enable Direct Upload" to bypass the app server'],
-			};
-		}
-		if (directUploadsCompleted < 2) {
-			return {
-				valid: false,
-				message: 'Upload more files',
-				details: [
-					`Upload video files using direct upload (${directUploadsCompleted}/2)`,
-				],
-			};
-		}
-		if (memoryPeak >= 100) {
-			return {
-				valid: false,
-				message: 'Memory too high',
-				details: ['Peak memory must stay below 100MB with direct uploads'],
+				message: 'Complete all steps',
+				details: ['Follow the steps in the left panel to complete the exercise'],
 			};
 		}
 		return { valid: true, message: 'Direct upload keeps memory flat!' };
-	}, [directUploadEnabled, directUploadsCompleted, memoryPeak]);
+	}, [step]);
 
 	const startUpload = () => {
 		const id = Date.now();
@@ -89,6 +75,11 @@ export function Level34ActiveStorage({
 						clearInterval(interval);
 						if (u.method === 'direct') {
 							setDirectUploadsCompleted((c) => c + 1);
+							// Step 3 -> 4: direct upload completed
+							setStep((s) => (s === 3 ? 4 : s) as 1 | 2 | 3 | 4);
+						} else {
+							// Step 1 -> 2: traditional upload completed
+							setStep((s) => (s === 1 ? 2 : s) as 1 | 2 | 3 | 4);
 						}
 						return { ...u, status: 'completed' };
 					}
@@ -146,12 +137,43 @@ export function Level34ActiveStorage({
 					scenario="Users upload 4K videos (100MB+). The entire file goes through our Rails app, causing memory to spike and sometimes crash the server!"
 				>
 					<div className="p-4 border-t border-border">
+						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+							Steps
+						</div>
+						<div className="space-y-2">
+							{[
+								{ num: 1, label: 'Upload via app server' },
+								{ num: 2, label: 'Enable direct upload' },
+								{ num: 3, label: 'Upload directly to S3' },
+								{ num: 4, label: 'Compare results' },
+							].map((s) => (
+								<div
+									key={s.num}
+									className={`flex items-center gap-2 text-xs ${step > s.num ? 'text-success' : step === s.num ? 'text-primary' : 'text-muted-foreground'}`}
+								>
+									<div
+										className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${step > s.num ? 'bg-success/20' : step === s.num ? 'bg-primary/20' : 'bg-secondary'}`}
+									>
+										{step > s.num ? (
+											<Check className="w-3 h-3" />
+										) : (
+											s.num
+										)}
+									</div>
+									{s.label}
+								</div>
+							))}
+						</div>
+					</div>
+
+					<div className="p-4 border-t border-border">
 						<Button
 							className={`w-full py-3 ${directUploadEnabled ? 'bg-success text-success-foreground cursor-default' : ''}`}
-							disabled={directUploadEnabled}
+							disabled={step !== 2}
 							onClick={() => {
 								setDirectUploadEnabled(true);
 								setMemoryPeak(memoryUsage);
+								setStep(3);
 							}}
 							variant={directUploadEnabled ? 'secondary' : 'default'}
 						>
@@ -164,6 +186,7 @@ export function Level34ActiveStorage({
 					<div className="p-4 border-t border-border">
 						<Button
 							className="w-full py-3 bg-purple-600 hover:bg-purple-500 text-foreground"
+							disabled={step !== 1 && step !== 3}
 							onClick={startUpload}
 							variant="secondary"
 						>
@@ -220,6 +243,7 @@ export function Level34ActiveStorage({
 						setMemoryUsage(0);
 						setMemoryPeak(0);
 						setDirectUploadsCompleted(0);
+						setStep(1);
 					}}
 					onValidate={handleValidate}
 				/>
@@ -392,11 +416,43 @@ export function Level34ActiveStorage({
 							))}
 							{uploads.length === 0 && (
 								<div className="text-muted-foreground text-center py-4">
-									Click "Upload Video" to start
+									Click "Upload Video File" to start
 								</div>
 							)}
 						</div>
 					</div>
+
+					{step === 4 && (
+						<div className="bg-card rounded-xl border border-border p-4 mt-6 max-w-xl mx-auto">
+							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+								Results
+							</div>
+							<div className="grid grid-cols-2 gap-4 text-sm">
+								<div className="bg-destructive/10 rounded-lg p-3">
+									<div className="text-xs text-destructive font-semibold mb-1">
+										Traditional Upload
+									</div>
+									<div className="text-foreground">
+										Peak memory: {Math.round(memoryPeak)}MB
+									</div>
+									<div className="text-muted-foreground text-xs">
+										File buffered in app server RAM
+									</div>
+								</div>
+								<div className="bg-success/10 rounded-lg p-3">
+									<div className="text-xs text-success font-semibold mb-1">
+										Direct Upload
+									</div>
+									<div className="text-foreground">
+										Peak memory: ~5MB
+									</div>
+									<div className="text-muted-foreground text-xs">
+										File goes straight to S3
+									</div>
+								</div>
+							</div>
+						</div>
+					)}
 				</div>
 			</CenterPanel>
 

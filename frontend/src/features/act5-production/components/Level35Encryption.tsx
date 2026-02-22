@@ -527,10 +527,10 @@ ${phoneQueryable ? 'User.find_by(phone: "+1-555-0123")        # Works!' : '# Use
 												</th>
 												{columns.map((col) => (
 													<th className="px-4 py-3 text-left" key={col.name}>
-														<button
-															className={`flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider transition-colors hover:opacity-80 ${getModeColor(col.mode)}`}
+														<Button
+															className={`flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider transition-colors hover:opacity-80 h-auto p-0 ${getModeColor(col.mode)}`}
 															onClick={() => cycleEncryptionMode(col.name)}
-															type="button"
+															variant="ghost"
 														>
 															{getModeIcon(col.mode)}
 															{col.name}
@@ -539,7 +539,7 @@ ${phoneQueryable ? 'User.find_by(phone: "+1-555-0123")        # Works!' : '# Use
 																	PII
 																</span>
 															)}
-														</button>
+														</Button>
 														<div
 															className={`text-[10px] font-normal mt-1 ${getModeColor(col.mode)}`}
 														>

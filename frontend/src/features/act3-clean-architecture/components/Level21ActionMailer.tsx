@@ -6,6 +6,7 @@
  */
 
 import {
+	AlertTriangle,
 	Check,
 	Clock,
 	Key,
@@ -390,16 +391,24 @@ export function Level21ActionMailer({
 
 							<div className="p-5 space-y-4">
 								{/* From field */}
-								<div className="flex items-center gap-3">
-									<span className="text-xs text-muted-foreground w-16 shrink-0">
-										From:
-									</span>
-									{emailComponents.from ? (
-										<span className="text-sm text-foreground font-medium">
-											noreply@app.com
+								<div>
+									<div className="flex items-center gap-3">
+										<span className="text-xs text-muted-foreground w-16 shrink-0">
+											From:
 										</span>
-									) : (
-										<div className="flex-1 h-5 border-2 border-dashed border-border rounded" />
+										{emailComponents.from ? (
+											<span className="text-sm text-foreground font-medium">
+												noreply@app.com
+											</span>
+										) : (
+											<div className="flex-1 h-5 border-2 border-dashed border-border rounded" />
+										)}
+									</div>
+									{!emailComponents.from && (
+										<div className="flex items-start gap-2 mt-2 p-2 bg-warning/10 border border-warning/30 rounded-lg">
+											<AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
+											<span className="text-xs text-warning">Without a from address, emails may be sent from the server's default address or rejected by spam filters.</span>
+										</div>
 									)}
 								</div>
 
@@ -461,6 +470,14 @@ export function Level21ActionMailer({
 												</div>
 											)}
 
+											{/* Warning: token ON but expiry OFF */}
+											{emailComponents.tokenGeneration && !emailComponents.expiryNotice && (
+												<div className="flex items-start gap-2 mt-2 p-2 bg-warning/10 border border-warning/30 rounded-lg">
+													<AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
+													<span className="text-xs text-warning">Without an expiry notice, users don't know the link is time-limited. They may try the link hours later and get a confusing error.</span>
+												</div>
+											)}
+
 											{/* Reset link */}
 											{emailComponents.resetLink ? (
 												<div className="bg-primary/10 border border-primary/30 rounded-lg px-4 py-3">
@@ -479,6 +496,14 @@ export function Level21ActionMailer({
 													<span className="text-xs text-muted-foreground">
 														Reset link
 													</span>
+												</div>
+											)}
+
+											{/* Warning: reset link ON but token OFF */}
+											{!emailComponents.tokenGeneration && emailComponents.resetLink && (
+												<div className="flex items-start gap-2 mt-2 p-2 bg-warning/10 border border-warning/30 rounded-lg">
+													<AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
+													<span className="text-xs text-warning">Reset link uses a predictable URL without a secure token. Anyone who guesses the pattern can reset any password.</span>
 												</div>
 											)}
 
@@ -611,6 +636,14 @@ export function Level21ActionMailer({
 										);
 									})}
 								</div>
+
+								{/* Warning: deliver_now blocks the request */}
+								{!emailComponents.deliverLater && emailSent && (
+									<div className="flex items-start gap-2 mt-4 p-2 bg-warning/10 border border-warning/30 rounded-lg">
+										<AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
+										<span className="text-xs text-warning">deliver_now blocks the HTTP request. Users wait 2-5 seconds for the SMTP round-trip. Under load, this causes request timeouts.</span>
+									</div>
+								)}
 							</div>
 						)}
 

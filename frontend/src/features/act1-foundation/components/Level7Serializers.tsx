@@ -481,7 +481,7 @@ end`,
 									{ATTRIBUTES.map((attr) => {
 										const isSelected = selectedAttrs.includes(attr.id);
 										return (
-											<button
+											<Button
 												className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-mono transition-all ${
 													isSelected
 														? 'border-emerald-500/60 bg-emerald-500/10 text-emerald-400'
@@ -490,7 +490,6 @@ end`,
 												disabled={isSelected || isViewingCompletedStep}
 												key={attr.id}
 												onClick={() => handleToggleAttr(attr)}
-												type="button"
 											>
 												{isSelected ? (
 													<Check className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -498,7 +497,7 @@ end`,
 													<div className="w-4 h-4 rounded border border-muted-foreground/30 shrink-0" />
 												)}
 												{attr.name}
-											</button>
+											</Button>
 										);
 									})}
 								</div>

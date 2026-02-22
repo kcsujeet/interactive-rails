@@ -59,6 +59,9 @@ import { Level8Associations } from './act1-foundation/components/Level8Associati
 // ===========================================
 // Act 2: Users & Security (Levels 9-15)
 // ===========================================
+import { Level9Authentication } from './act2-users-security/components/Level9Authentication';
+import { Level10Validations } from './act2-users-security/components/Level10Validations';
+import { Level11Callbacks } from './act2-users-security/components/Level11Callbacks';
 import { Level12Authorization } from './act2-users-security/components/Level12Authorization';
 import { Level13Testing } from './act2-users-security/components/Level13Testing';
 import { Level14Security } from './act2-users-security/components/Level14Security';
@@ -71,6 +74,7 @@ import { Level16ServiceObjects } from './act3-clean-architecture/components/Leve
 import { Level17Concerns } from './act3-clean-architecture/components/Level17Concerns';
 import { Level18ValidationContracts } from './act3-clean-architecture/components/Level18ValidationContracts';
 import { Level19QueryObjects } from './act3-clean-architecture/components/Level19QueryObjects';
+import { Level20ErrorHandling } from './act3-clean-architecture/components/Level20ErrorHandling';
 import { Level21ActionMailer } from './act3-clean-architecture/components/Level21ActionMailer';
 import { Level22BackgroundJobs } from './act3-clean-architecture/components/Level22BackgroundJobs';
 
@@ -102,6 +106,7 @@ import { Level39APIVersioning } from './act5-production/components/Level39APIVer
 // ===========================================
 // Act 6: Reliability (Levels 40-46)
 // ===========================================
+import { Level40Middleware } from './act6-reliability/components/Level40Middleware';
 import { Level41RateLimiting } from './act6-reliability/components/Level41RateLimiting';
 import { Level42SoftDeletes } from './act6-reliability/components/Level42SoftDeletes';
 import { Level43SafeMigrations } from './act6-reliability/components/Level43SafeMigrations';
@@ -144,6 +149,9 @@ const LEVEL_COMPONENTS: Record<string, ComponentType<LevelComponentProps>> = {
 	// ============================================
 	// Act 2: Users & Security
 	// ============================================
+	'act2-level9-authentication': Level9Authentication,
+	'act2-level10-validations': Level10Validations,
+	'act2-level11-callbacks': Level11Callbacks,
 	'act2-level12-authorization': Level12Authorization,
 	'act2-level13-testing': Level13Testing,
 	'act2-level14-security': Level14Security,
@@ -156,6 +164,7 @@ const LEVEL_COMPONENTS: Record<string, ComponentType<LevelComponentProps>> = {
 	'act3-level17-concerns': Level17Concerns,
 	'act3-level18-validation-contracts': Level18ValidationContracts,
 	'act3-level19-query-objects': Level19QueryObjects,
+	'act3-level20-error-handling': Level20ErrorHandling,
 	'act3-level21-action-mailer': Level21ActionMailer,
 	'act3-level22-background-jobs': Level22BackgroundJobs,
 
@@ -187,6 +196,7 @@ const LEVEL_COMPONENTS: Record<string, ComponentType<LevelComponentProps>> = {
 	// ============================================
 	// Act 6: Reliability
 	// ============================================
+	'act6-level40-middleware': Level40Middleware,
 	'act6-level41-rate-limiting': Level41RateLimiting,
 	'act6-level42-soft-deletes': Level42SoftDeletes,
 	'act6-level43-safe-migrations': Level43SafeMigrations,

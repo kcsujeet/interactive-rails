@@ -72,6 +72,24 @@ const INITIAL_CLIENTS: Client[] = [
 	},
 ];
 
+const STRATEGY_EXPLANATIONS: Record<string, { visual: string; tradeoff: string; railsCode: string }> = {
+	'fixed-window': {
+		visual: 'Counter resets at fixed intervals (e.g., every minute at :00). A burst of requests at :59 and :01 can double the effective rate.',
+		tradeoff: 'Simple to implement, but vulnerable to edge-of-window bursts.',
+		railsCode: `rate_limit to: 60, within: 1.minute`,
+	},
+	'sliding-window': {
+		visual: 'Counts requests in a rolling window behind each request. No edge bursts possible, but requires storing timestamps.',
+		tradeoff: 'Smooth limiting without bursts, but uses more memory per client.',
+		railsCode: `# Rack::Attack with sliding window\nRack::Attack.throttle("api/ip", limit: 60, period: 60) { |req| req.ip }`,
+	},
+	'token-bucket': {
+		visual: 'Each client gets a bucket of tokens that refills over time. A request costs one token. Empty bucket = rate limited. Allows short bursts.',
+		tradeoff: 'Best for APIs that need burst tolerance. Most flexible but most complex.',
+		railsCode: `# Token bucket via rack-attack\n# Tokens refill at limit/period rate\n# Burst allowed up to bucket size`,
+	},
+};
+
 export function Level41RateLimiting({
 	onComplete,
 }: LevelComponentProps) {
@@ -368,6 +386,25 @@ export function Level41RateLimiting({
 									</Button>
 								))}
 							</div>
+							<div className="text-xs text-primary mt-3 mx-4 p-2 bg-primary/10 rounded">
+								Rails 8 built-in: <code className="font-mono">rate_limit to: 10, within: 3.minutes</code> uses fixed-window by default.
+							</div>
+							{config.strategy && (
+								<div className="p-4 border-t border-border mt-3">
+									<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+										How It Works
+									</div>
+									<p className="text-sm text-foreground mb-2">
+										{STRATEGY_EXPLANATIONS[config.strategy].visual}
+									</p>
+									<div className="text-xs text-warning bg-warning/10 p-2 rounded">
+										{STRATEGY_EXPLANATIONS[config.strategy].tradeoff}
+									</div>
+									<pre className="text-xs text-muted-foreground bg-secondary p-2 rounded mt-2 overflow-x-auto">
+										{STRATEGY_EXPLANATIONS[config.strategy].railsCode}
+									</pre>
+								</div>
+							)}
 						</div>
 
 						{/* Client Traffic */}

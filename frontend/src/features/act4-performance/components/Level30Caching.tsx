@@ -37,6 +37,8 @@ interface CacheLayer {
 	hitRate: number;
 	latency: number;
 	code: string;
+	explanation: string;
+	whenToUse: string;
 }
 
 interface Request {
@@ -65,6 +67,10 @@ def show
   # Or use ETags
   fresh_when(@post)
 end`,
+		explanation:
+			'The fastest cache. Responses never leave the browser or CDN. Zero server load for cached requests.',
+		whenToUse:
+			'Static or rarely-changing data (product pages, images, public API responses)',
 	},
 	{
 		id: 'fragment',
@@ -82,6 +88,10 @@ end`,
 <% end %>
 
 <%# Auto-expires when post updates %>`,
+		explanation:
+			'Caches rendered HTML chunks. When a post has 50 comments, the view is built once and served from cache on subsequent requests.',
+		whenToUse:
+			'Complex view partials, nested associations, expensive renders',
 	},
 	{
 		id: 'lowlevel',
@@ -102,6 +112,10 @@ def expensive_stats
     }
   end
 end`,
+		explanation:
+			'Caches any Ruby object. Perfect for expensive calculations that do not change often (stats, aggregations, computed scores).',
+		whenToUse:
+			'Calculated values, aggregation results, external API responses',
 	},
 	{
 		id: 'query',
@@ -120,6 +134,10 @@ end
 
 # Note: to_a forces query execution
 # before caching`,
+		explanation:
+			'Stores database results so the same query does not hit the DB twice. Combined with cache keys, results auto-expire when data changes.',
+		whenToUse:
+			'Trending lists, leaderboards, dashboard data, frequently-read queries',
 	},
 ];
 
@@ -390,7 +408,7 @@ export function Level30Caching({ onComplete }: LevelComponentProps) {
 								<div className="grid grid-cols-4 gap-3">
 									{cacheLayers.map((layer) => (
 										<div
-											className={`p-3 rounded-lg border ${
+											className={`p-3 rounded-lg border transition-all duration-300 ${
 												layer.enabled
 													? 'border-success bg-success/10'
 													: 'border-border bg-secondary/50'
@@ -405,6 +423,19 @@ export function Level30Caching({ onComplete }: LevelComponentProps) {
 											<div className="text-xs text-muted-foreground">
 												{layer.description}
 											</div>
+											{layer.enabled && (
+												<>
+													<div className="text-xs text-foreground mt-2">
+														{layer.explanation}
+													</div>
+													<div className="text-xs text-muted-foreground mt-1">
+														<span className="text-primary font-medium">
+															Best for:
+														</span>{' '}
+														{layer.whenToUse}
+													</div>
+												</>
+											)}
 										</div>
 									))}
 								</div>
@@ -486,12 +517,56 @@ Rails.cache.delete_matched("posts/*")`}
 							Cache Stores
 						</div>
 						<ul className="text-xs text-muted-foreground space-y-1">
-							<li>• memory_store - Dev only</li>
-							<li>• redis_cache_store - Production</li>
-							<li>• memcache_store - Alternative</li>
-							<li>• solid_cache - Rails 8 default</li>
+							<li>- solid_cache (Rails 8 default, DB-backed)</li>
+							<li>- redis_cache_store (production standard)</li>
+							<li>- memcache_store (alternative)</li>
+							<li>- memory_store (dev only)</li>
 						</ul>
 					</div>
+
+					{enabledLayers.length >= 2 && (
+						<>
+							<div className="p-4 border-t border-border">
+								<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+									Performance Impact
+								</div>
+								<div className="space-y-2 text-xs font-mono">
+									<div className="flex justify-between">
+										<span className="text-destructive">No cache</span>
+										<span className="text-destructive">100ms avg</span>
+									</div>
+									<div className="flex justify-between">
+										<span className="text-warning">Fragment cache</span>
+										<span className="text-warning">40ms avg</span>
+									</div>
+									<div className="flex justify-between">
+										<span className="text-success">Multi-layer</span>
+										<span className="text-success">15ms avg</span>
+									</div>
+								</div>
+								<div className="text-xs text-muted-foreground mt-2">
+									85% reduction with multi-layer caching. Fragment caching alone cuts response time by 60%.
+								</div>
+							</div>
+
+							<div className="p-4 border-t border-border">
+								<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+									Further Reading
+								</div>
+								<ul className="text-xs text-muted-foreground space-y-1">
+									<li>
+										<span className="text-primary">Solid Cache</span> - Rails 8 DB-backed cache store
+									</li>
+									<li>
+										<span className="text-primary">Rails Guides</span> - Caching with Rails
+									</li>
+									<li>
+										<span className="text-primary">Cache key design</span> - Versioned keys with touch cascading
+									</li>
+								</ul>
+							</div>
+						</>
+					)}
 				</CodePreviewPanel>
 			</RightPanel>
 		</LevelLayout>

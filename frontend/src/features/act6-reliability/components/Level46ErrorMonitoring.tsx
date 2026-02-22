@@ -126,6 +126,8 @@ export function Level46ErrorMonitoring({
 	const [errors, setErrors] = useState<ErrorEntry[]>([]);
 	const [alertFired, setAlertFired] = useState(false);
 	const [isGenerating, setIsGenerating] = useState(false);
+	const [investigatedGroup, setInvestigatedGroup] = useState<string | null>(null);
+	const [debugTaskComplete, setDebugTaskComplete] = useState(false);
 	const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
 	// Derived state
@@ -222,28 +224,35 @@ export function Level46ErrorMonitoring({
 	};
 
 	const validateSolution = useCallback((): ValidationResult => {
+		const validationErrors: string[] = [];
 		if (enabledCount < 3) {
-			return {
-				valid: false,
-				message: 'Enable more monitoring features!',
-				details: [
-					`You enabled ${enabledCount}/4 features. Enable at least 3.`,
-					'Toggle grouping, context, alerts, or budgets.',
-				],
-			};
+			validationErrors.push(
+				`You enabled ${enabledCount}/4 features. Enable at least 3.`,
+				'Toggle grouping, context, alerts, or budgets.',
+			);
 		}
 		if (errors.length === 0) {
+			validationErrors.push(
+				'Click "Generate Errors" to simulate production errors.',
+			);
+		}
+		if (errors.length >= 5 && !debugTaskComplete) {
+			validationErrors.push(
+				'Complete the debug task by investigating the most critical error group.',
+			);
+		}
+		if (validationErrors.length > 0) {
 			return {
 				valid: false,
-				message: 'Generate some errors first!',
-				details: ['Click "Generate Errors" to simulate production errors.'],
+				message: 'Not quite there yet!',
+				details: validationErrors,
 			};
 		}
 		return {
 			valid: true,
 			message: 'Structured error monitoring configured!',
 		};
-	}, [enabledCount, errors.length]);
+	}, [enabledCount, errors.length, debugTaskComplete]);
 
 	const handleComplete = async () => {
 		const success = await completeLevel('act6-level46-error-monitoring', {
@@ -262,6 +271,8 @@ export function Level46ErrorMonitoring({
 			alerts: false,
 			budgets: false,
 		});
+		setInvestigatedGroup(null);
+		setDebugTaskComplete(false);
 		errorIdCounter = 0;
 	};
 
@@ -292,14 +303,13 @@ export function Level46ErrorMonitoring({
 							Monitoring Features ({enabledCount}/4)
 						</div>
 						<div className="space-y-2">
-							<button
+							<Button
 								className={`w-full flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${
 									config.grouping
 										? 'border-success bg-success/10'
 										: 'border-border bg-secondary hover:border-muted-foreground'
 								}`}
 								onClick={() => toggleFeature('grouping')}
-								type="button"
 							>
 								<Layers
 									className={`w-4 h-4 shrink-0 ${config.grouping ? 'text-success' : 'text-muted-foreground'}`}
@@ -314,16 +324,15 @@ export function Level46ErrorMonitoring({
 										Group by exception class
 									</div>
 								</div>
-							</button>
+							</Button>
 
-							<button
+							<Button
 								className={`w-full flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${
 									config.context
 										? 'border-success bg-success/10'
 										: 'border-border bg-secondary hover:border-muted-foreground'
 								}`}
 								onClick={() => toggleFeature('context')}
-								type="button"
 							>
 								<Tags
 									className={`w-4 h-4 shrink-0 ${config.context ? 'text-success' : 'text-muted-foreground'}`}
@@ -338,16 +347,15 @@ export function Level46ErrorMonitoring({
 										user_id, request_id, IP, path
 									</div>
 								</div>
-							</button>
+							</Button>
 
-							<button
+							<Button
 								className={`w-full flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${
 									config.alerts
 										? 'border-success bg-success/10'
 										: 'border-border bg-secondary hover:border-muted-foreground'
 								}`}
 								onClick={() => toggleFeature('alerts')}
-								type="button"
 							>
 								<Bell
 									className={`w-4 h-4 shrink-0 ${config.alerts ? 'text-success' : 'text-muted-foreground'}`}
@@ -362,16 +370,15 @@ export function Level46ErrorMonitoring({
 										Fire when error rate {'>'} 0.1%
 									</div>
 								</div>
-							</button>
+							</Button>
 
-							<button
+							<Button
 								className={`w-full flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${
 									config.budgets
 										? 'border-success bg-success/10'
 										: 'border-border bg-secondary hover:border-muted-foreground'
 								}`}
 								onClick={() => toggleFeature('budgets')}
-								type="button"
 							>
 								<ShieldAlert
 									className={`w-4 h-4 shrink-0 ${config.budgets ? 'text-success' : 'text-muted-foreground'}`}
@@ -386,7 +393,7 @@ export function Level46ErrorMonitoring({
 										SLO: 99.9% uptime
 									</div>
 								</div>
-							</button>
+							</Button>
 						</div>
 					</div>
 
@@ -583,6 +590,30 @@ export function Level46ErrorMonitoring({
 								</div>
 							)}
 
+							{/* Debug Task Prompt */}
+							{config.grouping && errors.length >= 5 && !debugTaskComplete && (
+								<div className="bg-warning/10 border border-warning/30 rounded-xl p-4 flex items-start gap-3">
+									<Bug className="w-5 h-5 text-warning shrink-0 mt-0.5" />
+									<div>
+										<div className="text-warning font-semibold text-sm">Debug Task</div>
+										<div className="text-warning/80 text-xs">
+											Click "Investigate" on the error group that needs the most urgent attention.
+										</div>
+									</div>
+								</div>
+							)}
+							{debugTaskComplete && (
+								<div className="bg-success/10 border border-success/30 rounded-xl p-4 flex items-start gap-3">
+									<ShieldAlert className="w-5 h-5 text-success shrink-0 mt-0.5" />
+									<div>
+										<div className="text-success font-semibold text-sm">Priority Identified</div>
+										<div className="text-success/80 text-xs">
+											You correctly identified the most frequent error group. In production, this is where you would focus first: the highest-count group impacts the most users.
+										</div>
+									</div>
+								</div>
+							)}
+
 							{/* WITH grouping: organized error groups */}
 							{config.grouping && errors.length > 0 && (
 								<div className="bg-card rounded-xl border border-border overflow-hidden">
@@ -623,7 +654,26 @@ export function Level46ErrorMonitoring({
 																</div>
 															</div>
 														</div>
-														<div className="text-right">
+														<div className="flex items-center gap-3">
+															{errors.length >= 5 && (
+																<Button
+																	className="text-xs px-2 py-1"
+																	onClick={(e) => {
+																		e.stopPropagation();
+																		const sortedGroups = [...errorGroups].sort((a, b) => b.count - a.count);
+																		const isTopGroup = sortedGroups[0]?.key === group.key;
+																		setInvestigatedGroup(group.key);
+																		if (isTopGroup) {
+																			setDebugTaskComplete(true);
+																		}
+																	}}
+																	size="sm"
+																	variant={investigatedGroup === group.key ? (debugTaskComplete && investigatedGroup === group.key ? 'default' : 'outline') : 'outline'}
+																>
+																	{investigatedGroup === group.key ? (debugTaskComplete ? 'Investigating' : 'Not the priority') : 'Investigate'}
+																</Button>
+															)}
+															<div className="text-right">
 															<div
 																className={`text-lg font-bold ${
 																	group.count > 5
@@ -635,6 +685,7 @@ export function Level46ErrorMonitoring({
 															</div>
 															<div className="text-xs text-muted-foreground">
 																{timeAgo(group.lastSeen)}
+															</div>
 															</div>
 														</div>
 													</div>

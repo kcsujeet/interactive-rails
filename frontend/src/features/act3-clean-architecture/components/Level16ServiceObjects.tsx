@@ -5,8 +5,8 @@
  * Teaches: Service object pattern with initialize + call, Result pattern, Data.define
  */
 
-import { Boxes, Check, X } from 'lucide-react';
-import { useState } from 'react';
+import { Boxes, Check, Lock, Unlock, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -130,10 +130,34 @@ export function Level16ServiceObjects({
 		useState<ServiceComponent[]>(SERVICE_COMPONENTS);
 	const [draggedComponent, setDraggedComponent] = useState<string | null>(null);
 	const [dragOverSection, setDragOverSection] = useState<string | null>(null);
+	const [showUnlockBanner, setShowUnlockBanner] = useState(false);
+	const prevPhaseRef = useRef(1);
 
 	const correctlyPlaced = components.filter(
 		(c) => c.currentSection === c.correctSection,
 	);
+
+	// Phase gating: Phase 1 = Dependencies + Initialize, Phase 2 = Call + Private
+	const phase1Complete =
+		components.filter(
+			(c) =>
+				(c.correctSection === 'dependencies' ||
+					c.correctSection === 'initialize') &&
+				c.currentSection === c.correctSection,
+		).length === 2;
+	const currentPhase = phase1Complete ? 2 : 1;
+	const isPhase2Section = (sectionId: string) =>
+		sectionId === 'call' || sectionId === 'private';
+
+	// Show unlock banner when transitioning from phase 1 to phase 2
+	useEffect(() => {
+		if (prevPhaseRef.current === 1 && currentPhase === 2) {
+			setShowUnlockBanner(true);
+			const timer = setTimeout(() => setShowUnlockBanner(false), 3000);
+			return () => clearTimeout(timer);
+		}
+		prevPhaseRef.current = currentPhase;
+	}, [currentPhase]);
 
 	const validateSolution = (): ValidationResult => {
 		const errors: string[] = [];
@@ -170,6 +194,8 @@ export function Level16ServiceObjects({
 
 	const handleDropOnSection = (sectionId: string) => {
 		if (!draggedComponent) return;
+		// Block drops onto locked phase 2 sections
+		if (currentPhase === 1 && isPhase2Section(sectionId)) return;
 		setComponents((prev) =>
 			prev.map((c) =>
 				c.id === draggedComponent ? { ...c, currentSection: sectionId } : c,
@@ -244,6 +270,39 @@ end`;
 					</div>
 					<div className="p-4">
 						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+							Phase
+						</div>
+						<div className="space-y-2 mb-4">
+							<div
+								className={`flex items-center gap-2 text-sm rounded-lg px-3 py-2 ${
+									currentPhase === 1
+										? 'bg-primary/10 text-primary font-medium'
+										: 'bg-success/10 text-success'
+								}`}
+							>
+								{currentPhase >= 2 ? (
+									<Check className="w-4 h-4 shrink-0" />
+								) : (
+									<span className="w-4 h-4 shrink-0 rounded-full border-2 border-primary" />
+								)}
+								Phase 1: Structure
+							</div>
+							<div
+								className={`flex items-center gap-2 text-sm rounded-lg px-3 py-2 ${
+									currentPhase === 2
+										? 'bg-primary/10 text-primary font-medium'
+										: 'bg-muted text-muted-foreground'
+								}`}
+							>
+								{currentPhase < 2 ? (
+									<Lock className="w-4 h-4 shrink-0" />
+								) : (
+									<span className="w-4 h-4 shrink-0 rounded-full border-2 border-primary" />
+								)}
+								Phase 2: Business Logic
+							</div>
+						</div>
+						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
 							Progress
 						</div>
 						<div className="flex justify-between text-sm mb-2">
@@ -311,34 +370,60 @@ end`;
 							)}
 						</div>
 
+						{/* Unlock banner */}
+						{showUnlockBanner && (
+							<div className="flex items-center gap-2 px-4 py-3 bg-success/10 border border-success/30 rounded-xl text-success text-sm font-medium animate-in fade-in slide-in-from-bottom-3 duration-300">
+								<Unlock className="w-4 h-4 shrink-0" />
+								Structure defined! Now add the business logic.
+							</div>
+						)}
+
 						{SECTIONS.map((section) => {
 							const sectionComponents = getComponentsForSection(section.id);
+							const locked =
+								currentPhase === 1 && isPhase2Section(section.id);
 
 							return (
 								<div
 									className={`rounded-xl border-2 transition-all ${
-										dragOverSection === section.id
-											? 'border-primary bg-primary/10'
-											: 'border-border bg-card'
+										locked
+											? 'border-border bg-muted/40 opacity-50 cursor-not-allowed'
+											: dragOverSection === section.id
+												? 'border-primary bg-primary/10'
+												: 'border-border bg-card'
 									}`}
 									key={section.id}
-									onDragLeave={() => setDragOverSection(null)}
+									onDragLeave={() => {
+										if (!locked) setDragOverSection(null);
+									}}
 									onDragOver={(e) => {
 										e.preventDefault();
-										setDragOverSection(section.id);
+										if (!locked) setDragOverSection(section.id);
 									}}
-									onDrop={() => handleDropOnSection(section.id)}
+									onDrop={() => {
+										if (!locked) handleDropOnSection(section.id);
+									}}
 								>
 									<div className="px-4 py-2 border-b border-border">
-										<div className="font-semibold text-foreground">
+										<div className="flex items-center gap-2 font-semibold text-foreground">
+											{locked && (
+												<Lock className="w-4 h-4 text-muted-foreground" />
+											)}
 											{section.name}
 										</div>
 										<div className="text-xs text-muted-foreground">
-											{section.description}
+											{locked
+												? 'Complete Dependencies & Initialize first'
+												: section.description}
 										</div>
 									</div>
 									<div className="p-4 min-h-[80px]">
-										{sectionComponents.length > 0 ? (
+										{locked ? (
+											<div className="text-muted-foreground text-sm text-center py-4 flex items-center justify-center gap-2">
+												<Lock className="w-3.5 h-3.5" />
+												Locked
+											</div>
+										) : sectionComponents.length > 0 ? (
 											<div className="flex flex-wrap gap-2">
 												{sectionComponents.map((comp) => {
 													const isCorrect = comp.correctSection === section.id;
@@ -357,13 +442,14 @@ end`;
 														>
 															{isCorrect && <Check className="w-3 h-3" />}
 															{comp.name}
-															<button
-																className="text-foreground/50 hover:text-foreground"
+															<Button
+																className="text-foreground/50 hover:text-foreground h-auto p-0"
 																onClick={() => handleRemove(comp.id)}
-																type="button"
+																size="icon-xs"
+																variant="ghost"
 															>
 																<X className="w-3 h-3" />
-															</button>
+															</Button>
 														</div>
 													);
 												})}

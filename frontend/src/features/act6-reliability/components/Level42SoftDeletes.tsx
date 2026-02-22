@@ -370,14 +370,13 @@ PaperTrail.request.whodunnit = -> {
 							Configuration
 						</div>
 						<div className="space-y-2">
-							<button
+							<Button
 								className={`w-full flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${
 									config.discardEnabled
 										? 'border-success bg-success/10'
 										: 'border-border bg-secondary hover:border-muted-foreground'
 								}`}
 								onClick={() => toggleConfig('discardEnabled')}
-								type="button"
 							>
 								<ShieldCheck
 									className={`w-5 h-5 shrink-0 ${config.discardEnabled ? 'text-success' : 'text-muted-foreground'}`}
@@ -392,16 +391,15 @@ PaperTrail.request.whodunnit = -> {
 										Soft deletes via discarded_at
 									</div>
 								</div>
-							</button>
+							</Button>
 
-							<button
+							<Button
 								className={`w-full flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${
 									config.paperTrailEnabled
 										? 'border-success bg-success/10'
 										: 'border-border bg-secondary hover:border-muted-foreground'
 								}`}
 								onClick={() => toggleConfig('paperTrailEnabled')}
-								type="button"
 							>
 								<History
 									className={`w-5 h-5 shrink-0 ${config.paperTrailEnabled ? 'text-success' : 'text-muted-foreground'}`}
@@ -416,16 +414,15 @@ PaperTrail.request.whodunnit = -> {
 										Version tracking & audit trail
 									</div>
 								</div>
-							</button>
+							</Button>
 
-							<button
+							<Button
 								className={`w-full flex items-center gap-3 p-3 rounded-lg border-2 transition-all text-left ${
 									config.auditLoggingEnabled
 										? 'border-success bg-success/10'
 										: 'border-border bg-secondary hover:border-muted-foreground'
 								}`}
 								onClick={() => toggleConfig('auditLoggingEnabled')}
-								type="button"
 							>
 								<Eye
 									className={`w-5 h-5 shrink-0 ${config.auditLoggingEnabled ? 'text-success' : 'text-muted-foreground'}`}
@@ -440,7 +437,7 @@ PaperTrail.request.whodunnit = -> {
 										Log all record changes
 									</div>
 								</div>
-							</button>
+							</Button>
 						</div>
 					</div>
 

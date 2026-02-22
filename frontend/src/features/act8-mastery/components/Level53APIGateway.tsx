@@ -215,7 +215,25 @@ export function Level53APIGateway({ onComplete }: LevelComponentProps) {
 			stages.push('Route');
 			delay += 300;
 			const service = services.find((s) => path.includes(s.id));
+			const isHealthy = service?.healthy ?? true;
 			setTimeout(() => {
+				if (!isHealthy) {
+					setRequests((prev) =>
+						prev.map((r) =>
+							r.id === request.id
+								? {
+										...r,
+										status: 'blocked' as const,
+										stages: [
+											...r.stages,
+											`✗ ${service?.name || 'Service'} is DOWN`,
+										],
+									}
+								: r,
+						),
+					);
+					return;
+				}
 				setRequests((prev) =>
 					prev.map((r) =>
 						r.id === request.id
@@ -260,7 +278,9 @@ export function Level53APIGateway({ onComplete }: LevelComponentProps) {
 		setTimeout(() => {
 			setRequests((prev) =>
 				prev.map((r) =>
-					r.id === request.id && r.status !== 'rate-limited'
+					r.id === request.id &&
+					r.status !== 'rate-limited' &&
+					r.status !== 'blocked'
 						? { ...r, status: 'completed', stages: [...r.stages, '✓ Response'] }
 						: r,
 				),
@@ -427,8 +447,16 @@ export function Level53APIGateway({ onComplete }: LevelComponentProps) {
 												>
 													{service.name}
 												</div>
+												{!service.healthy && (
+													<div className="text-[10px] text-destructive mt-1">
+														Circuit Open
+													</div>
+												)}
 											</Button>
 										))}
+									</div>
+									<div className="text-xs text-muted-foreground text-center mt-3">
+										Click a service to simulate failure
 									</div>
 								</div>
 							</div>
@@ -473,10 +501,27 @@ export function Level53APIGateway({ onComplete }: LevelComponentProps) {
 
 						{/* Request Log */}
 						<div className="bg-card rounded-xl border border-border overflow-hidden">
-							<div className="bg-secondary px-4 py-3 border-b border-border">
+							<div className="bg-secondary px-4 py-3 border-b border-border flex items-center justify-between">
 								<div className="text-foreground font-semibold">
 									Request Pipeline
 								</div>
+								{requests.length > 0 && (
+									<div className="text-xs text-muted-foreground">
+										{requests.length} requests |{' '}
+										{requests.filter((r) => r.status === 'blocked').length >
+										0 ? (
+											<span className="text-destructive">
+												{
+													requests.filter((r) => r.status === 'blocked')
+														.length
+												}{' '}
+												failed
+											</span>
+										) : (
+											'all healthy'
+										)}
+									</div>
+								)}
 							</div>
 							<div className="p-4 space-y-3 max-h-48 overflow-y-auto">
 								{requests.length === 0 ? (
@@ -494,7 +539,8 @@ export function Level53APIGateway({ onComplete }: LevelComponentProps) {
 													className={`text-xs px-2 py-1 rounded ${
 														req.status === 'completed'
 															? 'bg-success/40 text-success'
-															: req.status === 'rate-limited'
+															: req.status === 'rate-limited' ||
+																  req.status === 'blocked'
 																? 'bg-destructive/40 text-destructive'
 																: 'bg-warning/40 text-warning'
 													}`}

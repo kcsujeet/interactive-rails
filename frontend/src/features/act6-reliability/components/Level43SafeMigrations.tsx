@@ -397,15 +397,15 @@ export function Level43SafeMigrations({
 									const isSelected = selectedOp === op.id;
 
 									return (
-										<button
-											className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+										<Button
+											className={`w-full text-left p-4 rounded-lg border-2 transition-all h-auto whitespace-normal justify-start ${
 												isSelected
 													? `${style.border} ${style.bg} ring-2 ring-primary/20`
 													: `border-border hover:${style.border} hover:${style.bg}`
 											}`}
 											key={op.id}
 											onClick={() => setSelectedOp(isSelected ? null : op.id)}
-											type="button"
+											variant="ghost"
 										>
 											<div className="flex items-center justify-between">
 												<div className="flex items-center gap-3">
@@ -503,7 +503,7 @@ export function Level43SafeMigrations({
 													</div>
 												</div>
 											</div>
-										</button>
+										</Button>
 									);
 								})}
 							</div>

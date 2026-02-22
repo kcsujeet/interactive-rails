@@ -155,6 +155,7 @@ export function Level49MultiTenancy({
 	const [currentTenant, setCurrentTenant] = useState<number | null>(null);
 	const [queryInput, setQueryInput] = useState('Project.all');
 	const [queryExecuted, setQueryExecuted] = useState(false);
+	const [leakDetected, setLeakDetected] = useState(false);
 
 	const enabledModelCount = models.filter((m) => m.enabled).length;
 
@@ -277,6 +278,7 @@ export function Level49MultiTenancy({
 		setCurrentTenant(null);
 		setQueryInput('Project.all');
 		setQueryExecuted(false);
+		setLeakDetected(false);
 	};
 
 	// Determine current scoping status
@@ -303,7 +305,7 @@ export function Level49MultiTenancy({
 						</div>
 						<div className="space-y-2">
 							{STRATEGIES.map((strategy) => (
-								<button
+								<Button
 									className={`w-full text-left p-3 rounded-lg border transition-all ${
 										selectedStrategy === strategy.id
 											? 'border-primary bg-primary/10'
@@ -315,7 +317,6 @@ export function Level49MultiTenancy({
 										setIsolationTested(false);
 										setIsolationPassed(false);
 									}}
-									type="button"
 								>
 									<div className="flex items-center gap-2">
 										<Database className="w-3.5 h-3.5 text-primary shrink-0" />
@@ -328,7 +329,7 @@ export function Level49MultiTenancy({
 											</span>
 										)}
 									</div>
-								</button>
+								</Button>
 							))}
 						</div>
 					</div>
@@ -341,7 +342,7 @@ export function Level49MultiTenancy({
 						</div>
 						<div className="space-y-1.5">
 							{models.map((model) => (
-								<button
+								<Button
 									className={`w-full flex items-center justify-between p-2 rounded-lg transition-all ${
 										model.enabled
 											? 'bg-success/10 border border-success/30'
@@ -349,7 +350,6 @@ export function Level49MultiTenancy({
 									}`}
 									key={model.name}
 									onClick={() => toggleModel(model.name)}
-									type="button"
 								>
 									<span
 										className={`text-sm ${model.enabled ? 'text-success' : 'text-muted-foreground'}`}
@@ -361,7 +361,7 @@ export function Level49MultiTenancy({
 									) : (
 										<span className="w-4 h-4 rounded border border-muted-foreground" />
 									)}
-								</button>
+								</Button>
 							))}
 						</div>
 						<div className="text-xs text-muted-foreground mt-2">
@@ -597,7 +597,7 @@ export function Level49MultiTenancy({
 									{ id: 2, name: 'Globex Inc' },
 									{ id: 3, name: 'Initech LLC' },
 								].map((company) => (
-									<button
+									<Button
 										className={`text-xs px-3 py-1.5 rounded-full transition-all ${
 											currentTenant === company.id
 												? 'bg-primary text-primary-foreground'
@@ -608,11 +608,10 @@ export function Level49MultiTenancy({
 											setCurrentTenant(company.id);
 											setQueryExecuted(false);
 										}}
-										type="button"
 									>
 										<Building2 className="w-3 h-3 inline mr-1" />
 										{company.name}
-									</button>
+									</Button>
 								))}
 							</div>
 						</div>
@@ -620,7 +619,7 @@ export function Level49MultiTenancy({
 						{/* Query input */}
 						<div className="flex gap-3 mb-4">
 							<div className="flex-1 flex gap-2">
-								<button
+								<Button
 									className={`text-xs px-3 py-2 rounded-lg border transition-all font-mono ${
 										queryInput === 'Project.all'
 											? 'border-primary bg-primary/10 text-primary'
@@ -630,11 +629,10 @@ export function Level49MultiTenancy({
 										setQueryInput('Project.all');
 										setQueryExecuted(false);
 									}}
-									type="button"
 								>
 									Project.all
-								</button>
-								<button
+								</Button>
+								<Button
 									className={`text-xs px-3 py-2 rounded-lg border transition-all font-mono ${
 										queryInput === 'Project.create!(name: "New")'
 											? 'border-primary bg-primary/10 text-primary'
@@ -644,14 +642,18 @@ export function Level49MultiTenancy({
 										setQueryInput('Project.create!(name: "New")');
 										setQueryExecuted(false);
 									}}
-									type="button"
 								>
 									Project.create!(name: &quot;New&quot;)
-								</button>
+								</Button>
 							</div>
 							<Button
 								disabled={currentTenant === null}
-								onClick={() => setQueryExecuted(true)}
+								onClick={() => {
+									setQueryExecuted(true);
+									if (!hasScoping && currentTenant !== null) {
+										setLeakDetected(true);
+									}
+								}}
 								size="sm"
 							>
 								Run Query
@@ -678,6 +680,33 @@ export function Level49MultiTenancy({
 										{getTransformedQuery()}
 									</pre>
 								</div>
+
+								{/* Data leak alert */}
+								{!hasScoping && currentTenant !== null && (
+									<div className="bg-destructive/10 border-2 border-destructive rounded-xl p-4 mt-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+										<div className="flex items-center gap-2 mb-2">
+											<Eye className="w-5 h-5 text-destructive" />
+											<span className="text-destructive font-semibold text-sm">DATA LEAK DETECTED</span>
+										</div>
+										<div className="text-xs text-destructive/80 mb-2">
+											Logged in as {currentTenant === 1 ? 'Acme Corp' : currentTenant === 2 ? 'Globex Inc' : 'Initech LLC'},{' '}
+											but seeing records from {ALL_RECORDS.filter(r => r.companyId !== currentTenant).map(r => r.companyName).filter((v, i, a) => a.indexOf(v) === i).join(' and ')}.
+										</div>
+										<div className="text-xs text-destructive/60">
+											Without acts_as_tenant, queries return ALL records regardless of who is logged in.
+										</div>
+									</div>
+								)}
+
+								{/* Leak fixed confirmation */}
+								{hasScoping && currentTenant !== null && leakDetected && (
+									<div className="bg-success/10 border border-success/30 rounded-xl p-3 mt-3 animate-in fade-in duration-300">
+										<div className="flex items-center gap-2">
+											<ShieldCheck className="w-4 h-4 text-success" />
+											<span className="text-success text-sm font-medium">Leak fixed! Only {scopedRecords.length} records from the current tenant are visible.</span>
+										</div>
+									</div>
+								)}
 
 								{/* Result records */}
 								{queryInput === 'Project.all' && (
@@ -715,7 +744,7 @@ export function Level49MultiTenancy({
 														{record.companyName}
 														{!hasScoping &&
 															record.companyId !== currentTenant && (
-																<Eye className="w-3 h-3 inline ml-1" />
+																<Eye className="w-3 h-3 inline ml-1 animate-pulse" />
 															)}
 													</span>
 												</div>

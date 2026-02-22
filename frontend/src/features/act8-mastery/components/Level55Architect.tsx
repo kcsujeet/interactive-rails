@@ -325,15 +325,15 @@ export function Level55Architect({ onComplete }: LevelComponentProps) {
 						</div>
 						<div className="space-y-2">
 							{components.map((comp) => (
-								<button
-									className={`w-full text-left rounded-lg border p-3 transition-all ${
+								<Button
+									className={`w-full text-left rounded-lg border p-3 transition-all h-auto whitespace-normal justify-start ${
 										comp.enabled
 											? 'border-success bg-success/10'
 											: 'border-border bg-card hover:border-muted-foreground/50'
 									} ${isSimulating ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
 									key={comp.id}
 									onClick={() => toggleComponent(comp.id)}
-									type="button"
+						variant="ghost"
 								>
 									<div className="flex items-center gap-2">
 										<comp.Icon
@@ -360,7 +360,7 @@ export function Level55Architect({ onComplete }: LevelComponentProps) {
 											<Check className="w-4 h-4 text-success shrink-0" />
 										)}
 									</div>
-								</button>
+								</Button>
 							))}
 						</div>
 					</div>

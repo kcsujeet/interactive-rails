@@ -457,32 +457,31 @@ export function Level19QueryObjects({
 								) : (
 									<>
 										<div className="text-foreground h-[18px]">class Admin::PostsController</div>
-										<div className="text-foreground h-[18px]" style={{ paddingLeft: 12 }}>def index</div>
-										<div className="text-foreground h-[18px]" style={{ paddingLeft: 24 }}>
+										<div className="text-foreground h-[18px] pl-3">def index</div>
+										<div className="text-foreground h-[18px] pl-6">
 											posts = PostQuery.new
 										</div>
 										{methods
 											.filter((m) => m.added)
 											.map((m) => (
 												<div
-													className="h-[18px] animate-in fade-in slide-in-from-left-2 duration-200"
+													className="h-[18px] pl-9 animate-in fade-in slide-in-from-left-2 duration-200"
 													key={m.id}
 													style={{
-														paddingLeft: 36,
 														color: COMPLEXITY_COLORS[m.complexity],
 													}}
 												>
 													.{m.name}({m.param})
 												</div>
 											))}
-										<div className="text-foreground h-[18px]" style={{ paddingLeft: 36 }}>
+										<div className="text-foreground h-[18px] pl-9">
 											.results
 										</div>
 										<div className="h-[18px]" />
-										<div className="text-foreground h-[18px]" style={{ paddingLeft: 24 }}>
+										<div className="text-foreground h-[18px] pl-6">
 											render json: posts
 										</div>
-										<div className="text-foreground h-[18px]" style={{ paddingLeft: 12 }}>end</div>
+										<div className="text-foreground h-[18px] pl-3">end</div>
 										<div className="text-foreground h-[18px]">end</div>
 										{addedCount === 6 && (
 											<div className="mt-4 text-center text-success text-xs font-medium flex items-center justify-center gap-1.5">

@@ -28,6 +28,7 @@ interface LoadingStrategy {
 	queries: number | string;
 	selected: boolean;
 	correct: boolean;
+	sqlPlan: string;
 }
 
 interface Scenario {
@@ -57,6 +58,7 @@ const INITIAL_SCENARIOS: Scenario[] = [
 				queries: 101,
 				selected: true,
 				correct: false,
+				sqlPlan: 'SELECT * FROM posts;\nSELECT * FROM users WHERE id = 1;  -- per post\nSELECT * FROM users WHERE id = 2;  -- per post\n-- ...100 more user queries',
 			},
 			{
 				id: 'includes',
@@ -66,6 +68,7 @@ const INITIAL_SCENARIOS: Scenario[] = [
 				queries: 2,
 				selected: false,
 				correct: true,
+				sqlPlan: 'SELECT * FROM posts;\nSELECT * FROM users WHERE id IN (1, 2, 3, ...);  -- ONE query for all authors',
 			},
 			{
 				id: 'joins',
@@ -75,6 +78,7 @@ const INITIAL_SCENARIOS: Scenario[] = [
 				queries: 101,
 				selected: false,
 				correct: false,
+				sqlPlan: 'SELECT posts.* FROM posts INNER JOIN users ON users.id = posts.author_id;\n-- Filters only, doesn\'t load user data!',
 			},
 		],
 	},
@@ -94,6 +98,7 @@ const INITIAL_SCENARIOS: Scenario[] = [
 				queries: 1001,
 				selected: true,
 				correct: false,
+				sqlPlan: 'SELECT * FROM posts;\nSELECT * FROM comments WHERE post_id = 1;\nSELECT * FROM users WHERE id = 5;\n-- ...1000 more queries',
 			},
 			{
 				id: 'includes',
@@ -103,6 +108,7 @@ const INITIAL_SCENARIOS: Scenario[] = [
 				queries: 3,
 				selected: false,
 				correct: true,
+				sqlPlan: 'SELECT * FROM posts;\nSELECT * FROM comments WHERE post_id IN (1, 2, ...);\nSELECT * FROM users WHERE id IN (5, 6, ...);  -- 3 total',
 			},
 			{
 				id: 'flat',
@@ -112,6 +118,7 @@ const INITIAL_SCENARIOS: Scenario[] = [
 				queries: 102,
 				selected: false,
 				correct: false,
+				sqlPlan: 'SELECT * FROM posts;\nSELECT * FROM comments WHERE post_id IN (1, 2, ...);\n-- Users still N+1! 102 queries',
 			},
 		],
 	},
@@ -131,6 +138,7 @@ const INITIAL_SCENARIOS: Scenario[] = [
 				queries: 2,
 				selected: false,
 				correct: false,
+				sqlPlan: 'SELECT "posts"."id" FROM "posts" LEFT OUTER JOIN "tags" ON ...\n  WHERE "tags"."active" = true;\nSELECT * FROM tags WHERE post_id IN (...);  -- 2 queries',
 			},
 			{
 				id: 'eager_load',
@@ -140,6 +148,7 @@ const INITIAL_SCENARIOS: Scenario[] = [
 				queries: 1,
 				selected: false,
 				correct: true,
+				sqlPlan: 'SELECT "posts".*, "tags".* FROM "posts"\n  LEFT OUTER JOIN "tags" ON ...\n  WHERE "tags"."active" = true;  -- 1 query, 1 JOIN',
 			},
 			{
 				id: 'preload',
@@ -149,6 +158,7 @@ const INITIAL_SCENARIOS: Scenario[] = [
 				queries: 'Error!',
 				selected: false,
 				correct: false,
+				sqlPlan: 'SELECT * FROM posts;\nSELECT * FROM tags WHERE post_id IN (...);\n-- ERROR: Cannot use WHERE on preloaded association!',
 			},
 		],
 	},
@@ -426,6 +436,16 @@ export function Level24EagerLoading({
 														: '✗ Not the best option for this scenario'}
 												</div>
 											)}
+											{isSelected && (
+												<div className="mt-2 p-2 bg-card rounded border border-border w-full">
+													<div className="text-xs text-muted-foreground mb-1 font-semibold">
+														Generated SQL:
+													</div>
+													<pre className="text-[11px] text-muted-foreground font-mono whitespace-pre-wrap">
+														{strategy.sqlPlan}
+													</pre>
+												</div>
+											)}
 										</Button>
 									);
 								})}
@@ -505,6 +525,54 @@ Post.includes(:author,
 )`}
 						</pre>
 					</div>
+
+					{solvedCount === scenarios.length && (
+						<>
+							<div className="p-4 border-t border-border">
+								<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+									Performance Impact (10K records)
+								</div>
+								<div className="space-y-2 text-xs font-mono">
+									<div className="flex justify-between">
+										<span className="text-primary">includes</span>
+										<span className="text-muted-foreground">2 queries, SQL IN clause</span>
+									</div>
+									<div className="flex justify-between">
+										<span className="text-warning">preload</span>
+										<span className="text-muted-foreground">2 queries, separate SELECTs</span>
+									</div>
+									<div className="flex justify-between">
+										<span className="text-purple-400">eager_load</span>
+										<span className="text-muted-foreground">1 query, LEFT JOIN</span>
+									</div>
+									<div className="flex justify-between mt-2 pt-2 border-t border-border">
+										<span className="text-destructive">No eager loading</span>
+										<span className="text-destructive">10,001 queries</span>
+									</div>
+								</div>
+								<div className="text-xs text-muted-foreground mt-2">
+									Memory: 681MB (no eager) to 45MB (with includes) for 10K records
+								</div>
+							</div>
+
+							<div className="p-4 border-t border-border">
+								<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+									Further Reading
+								</div>
+								<ul className="text-xs text-muted-foreground space-y-1">
+									<li>
+										<span className="text-primary">bullet gem</span> - Auto-detects N+1 and suggests eager loading
+									</li>
+									<li>
+										<span className="text-primary">strict_loading</span> - Raises on lazy loads in development
+									</li>
+									<li>
+										<span className="text-primary">Rails Guides</span> - Eager Loading Associations
+									</li>
+								</ul>
+							</div>
+						</>
+					)}
 				</CodePreviewPanel>
 			</RightPanel>
 		</LevelLayout>

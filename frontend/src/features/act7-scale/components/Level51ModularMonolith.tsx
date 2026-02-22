@@ -627,7 +627,7 @@ exclude:
 								{/* Clickable options */}
 								<div className="space-y-3">
 									{currentOptions.map((option) => (
-										<button
+										<Button
 											className="w-full text-left bg-card rounded-xl border border-border p-4 transition-all hover:border-primary hover:bg-primary/5"
 											key={option.id}
 											onClick={() => handleOptionClick(option)}
@@ -637,7 +637,6 @@ exclude:
 											onMouseLeave={() =>
 												setSelectedOption(null)
 											}
-											type="button"
 										>
 											<div className="flex items-start gap-3">
 												<div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center shrink-0 mt-0.5">
@@ -653,7 +652,7 @@ exclude:
 												</div>
 												<ArrowRight className="w-4 h-4 text-muted-foreground shrink-0 mt-2" />
 											</div>
-										</button>
+										</Button>
 									))}
 								</div>
 

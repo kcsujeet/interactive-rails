@@ -323,7 +323,7 @@ export function Level27CounterCaches({
 					<div className="max-w-3xl mx-auto">
 						{/* Mode Toggle Tabs */}
 						<div className="flex gap-1 mb-6 bg-secondary rounded-lg p-1">
-							<button
+							<Button
 								className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
 									activeTab === 'before'
 										? 'bg-card text-foreground shadow-sm'
@@ -337,14 +337,13 @@ export function Level27CounterCaches({
 										setSimulationTime(0);
 									}
 								}}
-								type="button"
 							>
 								<div className="flex items-center justify-center gap-2">
 									<Database className="w-4 h-4" />
 									Before
 								</div>
-							</button>
-							<button
+							</Button>
+							<Button
 								className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
 									activeTab === 'after'
 										? 'bg-card text-foreground shadow-sm'
@@ -360,7 +359,6 @@ export function Level27CounterCaches({
 									setQueryCount(0);
 									setSimulationTime(0);
 								}}
-								type="button"
 							>
 								<div className="flex items-center justify-center gap-2">
 									<Zap className="w-4 h-4" />
@@ -369,7 +367,7 @@ export function Level27CounterCaches({
 										<span className="text-xs opacity-50">(locked)</span>
 									)}
 								</div>
-							</button>
+							</Button>
 						</div>
 
 						{/* Migration Animation */}

@@ -444,12 +444,56 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 							Popular Gems
 						</div>
 						<ul className="text-xs text-muted-foreground space-y-1">
-							<li>• kaminari - Offset pagination</li>
-							<li>• will_paginate - Classic offset</li>
-							<li>• pagy - Fast, flexible</li>
-							<li>• graphql-connections - Cursor</li>
+							<li>- pagy (fastest, most flexible)</li>
+							<li>- kaminari (offset pagination)</li>
+							<li>- will_paginate (classic offset)</li>
+							<li>- graphql-connections (cursor)</li>
 						</ul>
 					</div>
+
+					{solvedCount === scenarios.length && (
+						<>
+							<div className="p-4 border-t border-border">
+								<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+									Benchmark: Page 1000 (1M rows)
+								</div>
+								<div className="space-y-2 text-xs font-mono">
+									<div className="flex justify-between">
+										<span className="text-muted-foreground">Offset</span>
+										<span className="text-destructive">450ms, 8MB</span>
+									</div>
+									<div className="flex justify-between">
+										<span className="text-muted-foreground">Cursor</span>
+										<span className="text-warning">15ms, 2MB</span>
+									</div>
+									<div className="flex justify-between">
+										<span className="text-muted-foreground">Keyset</span>
+										<span className="text-success">8ms, 1MB</span>
+									</div>
+								</div>
+								<div className="text-xs text-muted-foreground mt-2">
+									Offset degrades linearly with page depth. Cursor and keyset stay constant.
+								</div>
+							</div>
+
+							<div className="p-4 border-t border-border">
+								<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+									Further Reading
+								</div>
+								<ul className="text-xs text-muted-foreground space-y-1">
+									<li>
+										<span className="text-primary">pagy gem</span> - 40x faster than kaminari, supports all strategies
+									</li>
+									<li>
+										<span className="text-primary">Rails Guides</span> - Active Record Query Interface: Pagination
+									</li>
+									<li>
+										<span className="text-primary">Use The Index, Luke</span> - Keyset pagination explained
+									</li>
+								</ul>
+							</div>
+						</>
+					)}
 				</CodePreviewPanel>
 			</RightPanel>
 		</LevelLayout>

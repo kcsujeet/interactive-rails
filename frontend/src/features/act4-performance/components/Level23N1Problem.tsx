@@ -372,15 +372,57 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 						)}
 
 						{understood && (
-							<div className="mt-6 bg-success/20 border border-success rounded-xl p-4">
-								<div className="text-success font-semibold">
-									Ready to Learn the Solution!
+							<div className="mt-6 space-y-4">
+								<div className="bg-success/20 border border-success rounded-xl p-4">
+									<div className="text-success font-semibold">
+										Ready to Learn the Solution!
+									</div>
+									<div className="text-sm text-muted-foreground mt-1">
+										In the next level, you'll learn how to use{' '}
+										<code className="text-primary">includes</code> to eager load
+										associations and reduce these {totalQueries} queries down to
+										just 2.
+									</div>
 								</div>
-								<div className="text-sm text-muted-foreground">
-									In the next level, you'll learn how to use{' '}
-									<code className="text-primary">includes</code> to eager load
-									associations and reduce these {totalQueries} queries down to
-									just 2.
+
+								<div className="bg-card border border-border rounded-xl p-4">
+									<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+										Performance Impact (100 posts)
+									</div>
+									<div className="grid grid-cols-2 gap-4 text-sm">
+										<div className="bg-destructive/10 rounded-lg p-3">
+											<div className="text-xs text-destructive font-semibold mb-1">Before (N+1)</div>
+											<div className="font-mono text-foreground">101 queries</div>
+											<div className="font-mono text-foreground">320ms response</div>
+											<div className="font-mono text-foreground">4.2MB allocated</div>
+										</div>
+										<div className="bg-success/10 rounded-lg p-3">
+											<div className="text-xs text-success font-semibold mb-1">After (includes)</div>
+											<div className="font-mono text-foreground">2 queries</div>
+											<div className="font-mono text-foreground">12ms response</div>
+											<div className="font-mono text-foreground">0.8MB allocated</div>
+										</div>
+									</div>
+									<div className="text-xs text-muted-foreground mt-2 text-center">
+										97% query reduction, 96% faster response time
+									</div>
+								</div>
+
+								<div className="bg-card border border-border rounded-xl p-4">
+									<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+										Further Reading
+									</div>
+									<ul className="text-xs text-muted-foreground space-y-1">
+										<li>
+											<span className="text-primary">bullet gem</span> - Detects N+1 queries in development and test
+										</li>
+										<li>
+											<span className="text-primary">strict_loading</span> - Rails 8 raises on lazy loads to catch N+1 at dev time
+										</li>
+										<li>
+											<span className="text-primary">Rails Guides</span> - Active Record Query Interface: Eager Loading
+										</li>
+									</ul>
 								</div>
 							</div>
 						)}

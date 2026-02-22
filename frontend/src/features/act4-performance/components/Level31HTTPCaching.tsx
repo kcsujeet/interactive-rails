@@ -663,7 +663,7 @@ export function Level31HTTPCaching({ onComplete }: LevelComponentProps) {
 									isViewingCompletedStep && !option.correct;
 
 								return (
-									<button
+									<Button
 										className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
 											isCorrectAndCompleted
 												? 'border-success bg-success/5'
@@ -676,7 +676,6 @@ export function Level31HTTPCaching({ onComplete }: LevelComponentProps) {
 										disabled={isViewingCompletedStep}
 										key={option.id}
 										onClick={() => handleOptionClick(option)}
-										type="button"
 									>
 										<div className="flex items-center gap-3">
 											<div
@@ -701,7 +700,7 @@ export function Level31HTTPCaching({ onComplete }: LevelComponentProps) {
 												</div>
 											</div>
 										</div>
-									</button>
+									</Button>
 								);
 							})}
 						</div>

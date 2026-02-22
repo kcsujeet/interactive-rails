@@ -133,9 +133,13 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 			) {
 				stepper.completeStep();
 			} else {
-				stepper.recordWrongAttempt(
-					'The nesting order is wrong. Think about the URL structure — the broadest namespace wraps the narrower one.',
-				);
+				const feedback =
+					newOrder[0] !== 'api'
+						? `"${newOrder[0]}" is not the outermost namespace. The URL starts with the broadest scope, then narrows.`
+						: newOrder[1] !== 'v1'
+							? `"${newOrder[1]}" should not come second. After the outermost scope, what groups your API version?`
+							: `Resources belong inside the version namespace, not before it. Think about the URL path: /api/v1/posts.`;
+				stepper.recordWrongAttempt(feedback);
 				setNamespaceOrder([]);
 			}
 		}
@@ -488,7 +492,7 @@ end`,
 									{ROUTE_TABLE.map((route, i) => {
 										const isTraced = tracedRoutes.has(i);
 										return (
-											<button
+											<Button
 												className={`grid grid-cols-[100px_1fr_1fr] w-full px-4 py-3 text-sm text-left border-b border-border transition-all ${
 													isTraced
 														? 'bg-primary/5'
@@ -497,7 +501,6 @@ end`,
 												disabled={isTraced}
 												key={route.path + route.method}
 												onClick={() => handleTraceRoute(i)}
-												type="button"
 											>
 												<span
 													className={`font-mono font-bold ${METHOD_COLORS[route.method]}`}
@@ -512,7 +515,7 @@ end`,
 												>
 													{isTraced ? route.action : '???'}
 												</span>
-											</button>
+											</Button>
 										);
 									})}
 								</div>

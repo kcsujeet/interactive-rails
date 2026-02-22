@@ -628,7 +628,7 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 								{currentAssertions.map((assertion) => {
 									const isSelected = selectedAssertions.has(assertion);
 									return (
-										<button
+										<Button
 											className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
 												isSelected
 													? 'bg-primary/15 border-primary text-primary'
@@ -636,13 +636,12 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 											}`}
 											key={assertion}
 											onClick={() => toggleAssertion(assertion)}
-											type="button"
 										>
 											{isSelected && (
 												<Check className="w-3 h-3 inline-block mr-1 -mt-0.5" />
 											)}
 											{assertion}
-										</button>
+										</Button>
 									);
 								})}
 								<span className="text-xs text-muted-foreground self-center ml-1">
