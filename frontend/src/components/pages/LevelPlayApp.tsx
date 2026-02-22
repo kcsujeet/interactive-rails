@@ -169,7 +169,7 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 				cpuLoad: 85,
 				dbLoad: 95,
 			});
-		} else if (level) {
+		} else if (level?.startingPipeline) {
 			const initialNodes = level.startingPipeline.nodes.map((node) => ({
 				id: node.id,
 				type: node.type,

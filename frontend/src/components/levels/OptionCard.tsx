@@ -237,13 +237,13 @@ export function OptionCard({
 		<Tag
 			className={cn(
 				optionCardVariants({ size, color }),
-				mono && 'font-mono',
+				mono && 'font-mono [font-variant-ligatures:none]',
 				selected && 'border-success bg-success/10',
 				disabled && 'opacity-50 cursor-not-allowed pointer-events-none',
 				isDragging && 'opacity-50 border-dashed cursor-grabbing',
 				!disabled && !isDragging && draggable && 'cursor-grab active:cursor-grabbing',
 				!disabled && !isDragging && onClick && !draggable && 'cursor-pointer',
-				!disabled && !isDragging && isInteractive && 'hover:border-[var(--card-accent)]',
+				!disabled && !isDragging && isInteractive && 'hover:border-(--card-accent)',
 				className,
 			)}
 			{...interactionProps}
@@ -266,8 +266,12 @@ export function OptionCard({
 
 			{/* Text content */}
 			<div className="flex-1 min-w-0">
-				<div className="flex items-center gap-1.5">
-					<span className={cn(nameVariants({ size }), selected && 'text-success')}>
+				<div className={cn('flex items-center gap-1.5', mono && 'block')}>
+					<span className={cn(
+						nameVariants({ size }),
+						selected && 'text-success',
+						mono && 'whitespace-pre-wrap wrap-anywhere [text-overflow:unset] block text-left',
+					)}>
 						{name}
 					</span>
 					{badgeText && (

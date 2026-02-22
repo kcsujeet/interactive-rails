@@ -622,58 +622,6 @@ const level11Authorization: Level = {
 		description:
 			"User A can edit User B's posts. Authentication tells us WHO is making the request, but nothing checks whether they are ALLOWED to do what they are asking.",
 	},
-	startingPipeline: {
-		nodes: [
-			{ id: 'request-node', type: 'request', x: 80, y: 250, locked: true },
-			{ id: 'auth-node', type: 'authentication', x: 280, y: 250, locked: true },
-			{ id: 'router-node', type: 'router', x: 480, y: 250, locked: true },
-			{
-				id: 'controller-node',
-				type: 'controller',
-				x: 680,
-				y: 250,
-				locked: true,
-			},
-			{
-				id: 'post-model',
-				type: 'model',
-				x: 880,
-				y: 250,
-				locked: true,
-				config: { label: 'Post' },
-			},
-			{ id: 'database-node', type: 'database', x: 1080, y: 250, locked: true },
-			{
-				id: 'serializer-node',
-				type: 'serializer',
-				x: 680,
-				y: 420,
-				locked: true,
-			},
-			{ id: 'response-node', type: 'response', x: 880, y: 420, locked: true },
-		],
-		connections: [
-			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'auth-node' },
-			{ id: 'c2', sourceNodeId: 'auth-node', targetNodeId: 'router-node' },
-			{
-				id: 'c3',
-				sourceNodeId: 'router-node',
-				targetNodeId: 'controller-node',
-			},
-			{ id: 'c4', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
-			{ id: 'c5', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
-			{
-				id: 'c6',
-				sourceNodeId: 'controller-node',
-				targetNodeId: 'serializer-node',
-			},
-			{
-				id: 'c7',
-				sourceNodeId: 'serializer-node',
-				targetNodeId: 'response-node',
-			},
-		],
-	},
 	problem: {
 		observation:
 			'User A logs in and sends DELETE /api/v1/posts/42 -- a post owned by User B. It succeeds. Any authenticated user can modify or destroy any post.',
@@ -681,12 +629,6 @@ const level11Authorization: Level = {
 			'Authentication verifies identity but there is no authorization layer checking ownership or permissions.',
 		codeExample: `# Current state: no authorization
 class Api::V1::PostsController < ApplicationController
-  def update
-    post = Post.find(params[:id])
-    post.update(post_params)  # Any user can update ANY post!
-    render json: PostSerializer.new(post).serializable_hash.to_json
-  end
-
   def destroy
     post = Post.find(params[:id])
     post.destroy  # Any user can delete ANY post!
@@ -694,19 +636,18 @@ class Api::V1::PostsController < ApplicationController
   end
 end
 
-# Authentication != Authorization
 # Authentication: "Who are you?" (Bearer token)
-# Authorization:  "Can you do this?" (Pundit policy)`,
-		goal: 'Implement Pundit policies so users can only modify their own posts. Use Current.user for request-scoped user access.',
+# Authorization:  "Can you do this?" (???)
+#
+# Rails ships authentication (Level 9) but NOT authorization.
+# The community standard is Pundit (gem "pundit").
+# Pundit gives each model a policy class (PostPolicy),
+# where each method maps to a controller action:
+#   destroy? -> "Can this user delete this post?"
+#   update?  -> "Can this user edit this post?"`,
+		goal: 'Install Pundit, include its module in ApplicationController, generate the base policy, then build a PostPolicy and watch it filter requests in real-time.',
 		thresholds: {},
 	},
-	successConditions: [
-		{ type: 'authorization_configured' },
-		{ type: 'node_present', nodeType: 'policy' },
-		{ type: 'connection', sourceType: 'controller', targetType: 'policy' },
-	],
-	availableNodes: ['policy'],
-	unlockedNodes: ['policy'],
 	learningContent: {
 		title: 'Authorization with Pundit & Current.user',
 		goal: `In this level, you'll:\n- learn the difference between authentication ("who are you?") and authorization ("are you allowed to do this?").\n- implement Pundit policy classes that control which users can update or delete specific records.\n- scope queries so users only see data they have permission to access.`,
@@ -750,12 +691,12 @@ class PostPolicy < ApplicationPolicy
     record.user == user || user.admin?
   end
 
-  class Scope < Scope
+  class Scope < ApplicationPolicy::Scope
     def resolve
-      if user&.admin?
+      if user.admin?
         scope.all
       else
-        scope.where(user: user).or(scope.where(status: "published"))
+        scope.where(published: true)
       end
     end
   end
@@ -841,7 +782,7 @@ end`,
 	},
 	hint: {
 		delay: 25,
-		text: 'Add a Policy node connected to the Controller. Pundit policies check whether current_user is allowed to perform each action.',
+		text: 'Pundit policy classes are named after the model (PostPolicy for Post). Each method matches a controller action.',
 	},
 };
 

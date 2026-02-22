@@ -55,20 +55,63 @@ Run `bun scripts/fix-imports.ts` to automatically convert relative imports to us
 </script>
 ```
 
-### Level Design: Three-Phase Pedagogy
+### Level Design: Three-Phase Sequential Flow (Non-Negotiable)
 
-Every level teaches through three phases: **WHY → HOW → ADVANTAGE**.
+**Every level MUST follow this exact three-phase sequential flow. This is the golden standard. No exceptions.**
 
-1. **WHY**: Context for why this concept matters. Delivered as **readable notes** (in InstructionPanel or a pre-level briefing), not as quiz questions. The player can read it, but it doesn't block gameplay.
+Each phase occupies the **full center panel**. The player focuses on one thing at a time. No split layouts showing multiple phases simultaneously.
 
-2. **HOW**: The core gameplay. **Players learn by doing, not by answering trivia.** The player runs commands, drags pieces, builds code, and configures files. Wrong choices get immediate feedback that teaches Rails conventions (e.g., "Rails models are singular PascalCase, not plural"). Never ask "what's wrong with this?". Instead, let the player try and learn from mistakes.
+#### Phase 1: Problem Visualization (WHY)
 
-   **Interaction types (pick per step):**
-   - **SimulatedTerminal**: click the right command from options
-   - **Drag-and-drop**: drag pieces into the correct positions
-   - **Click-to-select**: pick the correct option from 2-4 choices
+Show the problem visually before the player does anything. The player watches and understands what is broken.
 
-3. **ADVANTAGE**: Show the concrete improvement after completing the level. Delivered as **post-completion notes** or a summary card (before/after comparison, line count reduction, etc.). Not a quiz.
+- Center panel: full-screen visualization of the problem (SVG animation, broken pipeline, error state)
+- After a brief observation period (~3s), a **"Build the Fix"** button fades in (with ArrowRight icon)
+- Clicking transitions to Phase 2
+- Left panel: scenario text + any legends needed to understand the visualization
+- Right panel: the broken/vulnerable/unoptimized code
+
+#### Phase 2: Problem Solving (HOW)
+
+The player builds the solution step by step. **This phase must cover the COMPLETE workflow, including gem installation, generators, and setup commands.** Never skip setup steps. If a feature requires `bundle add gem_name` and `rails generate something:install`, those are real steps the player completes.
+
+**Players learn by doing, not by answering trivia.** Wrong choices get immediate feedback that teaches Rails conventions. Never ask "what's wrong with this?". Let the player try and learn from mistakes.
+
+**Step types (pick per step):**
+- **TerminalChoiceStep**: pick the right shell/console command (use for gem install, generators, rails commands)
+- **OptionCard**: pick the correct code snippet from 2-4 choices (use for Ruby DSL decisions, config choices)
+- **Drag-and-drop**: drag pieces into the correct positions
+
+**Typical step progression for a gem-based feature:**
+1. Install the gem (`bundle add ...`) - TerminalChoiceStep
+2. Run the generator (`rails generate ...`) - TerminalChoiceStep
+3. Configure/customize the generated code - OptionCard steps
+4. Wire it into the application - OptionCard steps
+
+- Center panel: step UI fills the space (no animation visible)
+- Left panel: scenario text + StepProgress pills
+- Right panel: code preview evolves with `stepper.furthestStep`
+
+#### Phase 3: Solution Visualization (ADVANTAGE)
+
+Show the concrete improvement. The player sees the fix in action.
+
+- Sub-phase a (activate): star rating display + "Activate" button (centered, no animation)
+- Sub-phase b (reward): full-screen visualization returns, now showing the solution working (blocked attacks, faster queries, cleaner output)
+- Left panel: StepProgress (all complete) + any counters/metrics
+- Right panel: final complete code
+- Player clicks Submit when satisfied
+
+#### Phase state machine
+
+```
+phase: 'observe' | 'build' | 'activate' | 'reward'
+
+observe  -> (click "Build the Fix")    -> build
+build    -> (all steps complete)        -> activate
+activate -> (click "Activate ___")      -> reward
+reward   -> (click Submit)              -> level complete
+```
 
 **Act calibration:**
 - Acts 1-2: Pure fundamentals. No anti-patterns, no debugging. Happy path.
@@ -96,6 +139,8 @@ const handleVerify = () => {
 ```
 
 When creating or redesigning a level component, ensure all three phases are present in the gameplay. Reference `docs/spec.md` for each level's scenario and concept.
+
+**Reference implementation:** Level 12 (Authorization) in `frontend/src/features/act2-users-security/components/Level12Authorization.tsx` is the canonical example of this pattern.
 
 **Performance-level ADVANTAGE phase convention (Acts 4-8):**
 Every performance-related level must have a full ADVANTAGE phase in its `learningContent` with:
