@@ -33,12 +33,13 @@ This step is non-negotiable. Skipping it has caused bugs in the past (wrong Scop
 
 The level must have a dedicated "observe" phase where:
 
-- [ ] Center panel shows a **full-screen visualization** of the problem (SVG animation, broken state, error condition)
+- [ ] Center panel shows a **full-screen visualization** of the problem (PipelineFlow, SVG animation, broken state, error condition)
+- [ ] For pipeline-style visualizations, use the shared `PipelineFlow` component from `@/components/levels/PipelineFlow` with declarative stage/connection configs (not custom SVG)
 - [ ] No build steps or OptionCards are visible during this phase
 - [ ] A **"Build the Fix"** button fades in after ~3 seconds (using `animate-in fade-in duration-500`)
 - [ ] Left panel shows scenario text + any legends needed to understand the visualization
 - [ ] Right panel shows the broken/vulnerable/unoptimized code
-- [ ] Clicking the button transitions to Phase 2 and clears the visualization
+- [ ] Clicking the button transitions to Phase 2
 
 If the level has no visual problem to animate (e.g., pure code structure levels), it must still have a dedicated observe phase showing the problematic code state before the player starts building.
 
@@ -101,8 +102,10 @@ The level must have a dedicated reward phase:
 
 - [ ] Sub-phase a (activate): Star rating + "Visualize ___" button (centered, no animation)
 - [ ] Sub-phase b (reward): Full-screen visualization returns, now showing the solution working
+- [ ] For PipelineFlow levels, reward uses a separate stage/connection config (e.g. `REWARD_STAGES`) with `variant: 'active'` on the fixed node and `dots: 'clean'` on the output edge
 - [ ] The contrast between Phase 1 (broken) and Phase 3b (fixed) is the reward
 - [ ] Left panel shows StepProgress (all complete) + counters/metrics if applicable
+- [ ] Reward counters use a simple interval (e.g. every 3500ms) matching the dot loop timing, not stateful simulation
 - [ ] Right panel shows the final complete code (all files)
 
 ### State Machine
@@ -113,8 +116,8 @@ Check the phase transitions:
 - [ ] `observe -> build`: triggered by "Build the Fix" button click
 - [ ] `build -> activate`: triggered by `useEffect` watching `stepper.isComplete`
 - [ ] `activate -> reward`: triggered by "Visualize ___" button click
-- [ ] Animation intervals only run during `observe` and `reward` phases
-- [ ] Requests/state are cleared on phase transitions
+- [ ] PipelineFlow visualizations are declarative (no manual animation intervals or mutable request state to manage)
+- [ ] Reward counter interval only runs during `reward` phase and is cleaned up on unmount
 
 ## Output Format
 
