@@ -9,7 +9,6 @@
 import { ArrowRight, X } from 'lucide-react';
 import { useState } from 'react';
 import {
-	buildTerminalHistory,
 	CenterPanel,
 	CodePreviewPanel,
 	ErrorFeedback,
@@ -20,10 +19,6 @@ import {
 	OptionCard,
 	RightPanel,
 	StepProgress,
-	TerminalChoiceStep,
-	type TerminalCommand,
-	type TerminalOutputLine,
-	type TerminalStepData,
 	type ValidationResult,
 } from '@/components/levels';
 import { Button } from '@/components/ui/Button';
@@ -76,38 +71,37 @@ const NORMALIZATION_OPTIONS: NormalizationOption[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Step 2: Add Callback terminal commands (correct answer NOT first)
+// Step 2: Add Callback options (correct answer NOT first)
 // ---------------------------------------------------------------------------
 
-const callbackCommands: TerminalCommand[] = [
+interface CallbackOption {
+	id: string;
+	code: string;
+	correct: boolean;
+	feedback: string;
+}
+
+const CALLBACK_OPTIONS: CallbackOption[] = [
 	{
 		id: 'after-initialize',
-		label: 'after_initialize :send_welcome_email',
-		command: 'after_initialize :send_welcome_email',
+		code: 'after_initialize :send_welcome_email',
 		correct: false,
 		feedback:
 			'after_initialize runs every time a record is loaded from the database, not just on creation. Users would get welcome emails on every page load.',
 	},
 	{
-		id: 'after-create',
-		label: 'after_create :send_welcome_email',
-		command: 'after_create :send_welcome_email',
-		correct: true,
-	},
-	{
 		id: 'after-save',
-		label: 'after_save :send_welcome_email',
-		command: 'after_save :send_welcome_email',
+		code: 'after_save :send_welcome_email',
 		correct: false,
 		feedback:
 			'after_save fires on both create AND update. Users would get a welcome email every time their profile is edited.',
 	},
-];
-
-const callbackOutput: TerminalOutputLine[] = [
-	{ text: '# app/models/user.rb updated', color: 'green' },
-	{ text: 'after_create :send_welcome_email registered', color: 'green' },
-	{ text: '=> User model now sends welcome email on creation', color: 'cyan' },
+	{
+		id: 'after-create',
+		code: 'after_create :send_welcome_email',
+		correct: true,
+		feedback: '',
+	},
 ];
 
 // ---------------------------------------------------------------------------
@@ -178,16 +172,6 @@ const PITFALL_OPTIONS: PitfallOption[] = [
 	},
 ];
 
-// ---------------------------------------------------------------------------
-// Terminal step map for building history
-// ---------------------------------------------------------------------------
-
-const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
-	null, // step 0: OptionCard (normalizes)
-	{ commands: callbackCommands, outputLines: callbackOutput }, // step 1: terminal
-	null, // step 2: OptionCard (ordering)
-	null, // step 3: OptionCard (after_commit)
-];
 
 // ---------------------------------------------------------------------------
 // Component
@@ -201,6 +185,9 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 	// Step 1: selected normalization
 	const [selectedNorm, setSelectedNorm] = useState<string | null>(null);
 
+	// Step 2: selected callback
+	const [selectedCallback, setSelectedCallback] = useState<string | null>(null);
+
 	// Step 3: selected ordering
 	const [selectedOrder, setSelectedOrder] = useState<string | null>(null);
 
@@ -212,6 +199,17 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 		if (isViewingCompletedStep) return;
 		if (option.correct) {
 			setSelectedNorm(option.id);
+			stepper.completeStep();
+		} else {
+			stepper.recordWrongAttempt(option.feedback);
+		}
+	};
+
+	// Step 2: Callback selection
+	const handleSelectCallback = (option: CallbackOption) => {
+		if (isViewingCompletedStep) return;
+		if (option.correct) {
+			setSelectedCallback(option.id);
 			stepper.completeStep();
 		} else {
 			stepper.recordWrongAttempt(option.feedback);
@@ -474,30 +472,45 @@ end`,
 							</div>
 						)}
 
-						{/* Step 2: Add Callback (terminal) */}
+						{/* Step 2: Add Callback (OptionCard) */}
 						{stepper.currentStep === 1 && (
-							<TerminalChoiceStep
-								commands={callbackCommands}
-								completed={isViewingCompletedStep}
-								description={
-									<p className="text-sm text-muted-foreground">
-										New users sign up but never receive a welcome
-										email. Add the right callback to trigger it
-										when a user is first created.
-									</p>
-								}
-								hasNext={hasNextStep}
-								initialHistory={buildTerminalHistory(
-									TERMINAL_STEP_MAP,
-									stepper.currentStep,
+							<div className="space-y-4">
+								<h3 className="text-lg font-semibold text-foreground">
+									Add Callback
+								</h3>
+								<p className="text-sm text-muted-foreground">
+									New users sign up but never receive a welcome
+									email. Add the right callback to trigger it
+									when a user is first created.
+								</p>
+
+								<div className="grid gap-2">
+									{CALLBACK_OPTIONS.map((option) => (
+										<OptionCard
+											color="blue"
+											disabled={isViewingCompletedStep}
+											key={option.id}
+											mono
+											name={option.code}
+											onClick={() => handleSelectCallback(option)}
+											selected={selectedCallback === option.id}
+										/>
+									))}
+								</div>
+
+								<ErrorFeedback
+									message={stepper.lastFeedback}
+									onDismiss={stepper.clearFeedback}
+								/>
+								{isViewingCompletedStep && hasNextStep && (
+									<div className="flex justify-end">
+										<Button onClick={stepper.nextStep}>
+											Next Step{' '}
+											<ArrowRight className="w-4 h-4 ml-2" />
+										</Button>
+									</div>
 								)}
-								onCorrect={() => stepper.completeStep()}
-								onNext={stepper.nextStep}
-								onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-								outputLines={callbackOutput}
-								stepKey={stepper.currentStep}
-								title="Add Callback"
-							/>
+							</div>
 						)}
 
 						{/* Step 3: Order Callbacks */}

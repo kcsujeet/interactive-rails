@@ -162,9 +162,7 @@ const bootOutput: TerminalOutputLine[] = [
 		color: 'cyan',
 	},
 	{ text: '* Listening on http://127.0.0.1:3000', color: 'green' },
-	{ text: '', color: 'muted' },
-	{ text: '$ curl -I http://localhost:3000/up', color: 'default' },
-	{ text: 'HTTP/1.1 200 OK', color: 'green' },
+	{ text: 'Use Ctrl-C to stop', color: 'muted' },
 ];
 
 // Terminal step data for building history (step 0 is Choose DB, not terminal)

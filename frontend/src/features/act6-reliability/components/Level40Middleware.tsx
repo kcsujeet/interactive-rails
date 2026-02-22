@@ -185,7 +185,6 @@ const insertCommands: TerminalCommand[] = [
 ];
 
 const insertOutput: TerminalOutputLine[] = [
-	{ text: '$ bin/rails middleware', color: 'muted' },
 	{ text: 'use RequestTimer', color: 'green' },
 	{ text: 'use ActionDispatch::HostAuthorization', color: 'muted' },
 	{ text: 'use Rack::Sendfile', color: 'muted' },

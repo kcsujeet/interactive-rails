@@ -213,14 +213,15 @@ const PROTECT_OPTIONS: ProtectOption[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Terminal step map (for building history across steps)
+// Terminal step maps (separate for shell vs console to avoid mixed history)
 // ---------------------------------------------------------------------------
 
-const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
-	{ commands: generateAuthCommands, outputLines: generateAuthOutput }, // step 0: terminal
-	null, // step 1: OptionCard (password strategy)
-	{ commands: createSessionCommands, outputLines: createSessionOutput }, // step 2: terminal
-	null, // step 3: OptionCard (protect endpoint)
+const SHELL_STEP_MAP: (TerminalStepData | null)[] = [
+	{ commands: generateAuthCommands, outputLines: generateAuthOutput },
+];
+
+const CONSOLE_STEP_MAP: (TerminalStepData | null)[] = [
+	{ commands: createSessionCommands, outputLines: createSessionOutput },
 ];
 
 // ---------------------------------------------------------------------------
@@ -444,8 +445,8 @@ export function Level9Authentication({ onComplete }: LevelComponentProps) {
 								}
 								hasNext={hasNextStep}
 								initialHistory={buildTerminalHistory(
-									TERMINAL_STEP_MAP,
-									stepper.currentStep,
+									SHELL_STEP_MAP,
+									0,
 								)}
 								onCorrect={() => stepper.completeStep()}
 								onNext={stepper.nextStep}
@@ -517,8 +518,8 @@ export function Level9Authentication({ onComplete }: LevelComponentProps) {
 								}
 								hasNext={hasNextStep}
 								initialHistory={buildTerminalHistory(
-									TERMINAL_STEP_MAP,
-									stepper.currentStep,
+									CONSOLE_STEP_MAP,
+									0,
 								)}
 								onCorrect={() => stepper.completeStep()}
 								onNext={stepper.nextStep}

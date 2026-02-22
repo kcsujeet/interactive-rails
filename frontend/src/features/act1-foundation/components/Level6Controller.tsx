@@ -176,10 +176,26 @@ export function Level6Controller({ onComplete }: LevelComponentProps) {
 	// Step 4: Test endpoint
 	const testCommands = [
 		{
+			id: 'wrong-browser',
+			label: 'open http://localhost:3000/api/v1/posts',
+			command: 'open http://localhost:3000/api/v1/posts',
+			correct: false,
+			feedback:
+				'Opening in a browser works for viewing HTML, but API endpoints return JSON. Use a command-line HTTP client to see headers and status codes.',
+		},
+		{
 			id: 'get',
 			label: 'curl localhost:3000/api/v1/posts',
 			command: 'curl localhost:3000/api/v1/posts',
 			correct: true,
+		},
+		{
+			id: 'wrong-rails-routes',
+			label: 'rails routes',
+			command: 'rails routes',
+			correct: false,
+			feedback:
+				'That lists route definitions, but does not actually send an HTTP request to test if the endpoint responds.',
 		},
 	];
 
@@ -188,19 +204,6 @@ export function Level6Controller({ onComplete }: LevelComponentProps) {
 		{ text: 'Content-Type: application/json', color: 'muted' },
 		{ text: '', color: 'muted' },
 		{ text: '[]', color: 'cyan' },
-		{ text: '', color: 'muted' },
-		{ text: '$ curl -X POST localhost:3000/api/v1/posts \\', color: 'yellow' },
-		{ text: '  -H "Content-Type: application/json" \\', color: 'yellow' },
-		{
-			text: '  -d \'{"post":{"title":"Hello","body":"World"}}\'',
-			color: 'yellow',
-		},
-		{ text: '', color: 'muted' },
-		{ text: 'HTTP/1.1 201 Created', color: 'green' },
-		{
-			text: '{"id":1,"title":"Hello","body":"World","published":null}',
-			color: 'cyan',
-		},
 	];
 
 	const handleComplete = async () => {

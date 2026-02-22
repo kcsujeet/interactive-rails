@@ -110,13 +110,9 @@ const uniquenessCommands: TerminalCommand[] = [
 const uniquenessOutput: TerminalOutputLine[] = [
 	{ text: '=> :validates', color: 'green' },
 	{ text: '', color: 'muted' },
-	{ text: '> User.create(email: "admin@example.com")', color: 'yellow' },
-	{ text: '=> #<User id: 1, email: "admin@example.com">', color: 'green' },
-	{ text: '', color: 'muted' },
-	{ text: '> User.create(email: "Admin@example.com")', color: 'yellow' },
 	{
-		text: '=> #<User id: nil> (validation failed: Email has already been taken)',
-		color: 'red',
+		text: 'Case-insensitive uniqueness constraint added to :email',
+		color: 'cyan',
 	},
 ];
 
@@ -192,20 +188,18 @@ const testOutput: TerminalOutputLine[] = [
 		text: '=> ["Title can\'t be blank", "Body can\'t be blank", "Email is invalid"]',
 		color: 'red',
 	},
-	{ text: '', color: 'muted' },
-	{ text: '> post.errors.count', color: 'yellow' },
-	{ text: '=> 3', color: 'cyan' },
 ];
 
 // ---------------------------------------------------------------------------
-// Terminal step map for building history
+// Terminal step maps (separate for shell vs console to avoid mixed history)
 // ---------------------------------------------------------------------------
 
-const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
-	null, // step 0: OptionCard (presence)
-	{ commands: uniquenessCommands, outputLines: uniquenessOutput }, // step 1: terminal
-	null, // step 2: OptionCard (format)
-	{ commands: testCommands, outputLines: testOutput }, // step 3: terminal
+const SHELL_STEP_MAP: (TerminalStepData | null)[] = [
+	{ commands: uniquenessCommands, outputLines: uniquenessOutput },
+];
+
+const CONSOLE_STEP_MAP: (TerminalStepData | null)[] = [
+	{ commands: testCommands, outputLines: testOutput },
 ];
 
 // ---------------------------------------------------------------------------
@@ -407,8 +401,8 @@ end`,
 								}
 								hasNext={stepper.currentStep < STEP_DEFS.length - 1}
 								initialHistory={buildTerminalHistory(
-									TERMINAL_STEP_MAP,
-									stepper.currentStep,
+									SHELL_STEP_MAP,
+									0,
 								)}
 								onCorrect={() => stepper.completeStep()}
 								onNext={stepper.nextStep}
@@ -475,8 +469,8 @@ end`,
 								}
 								hasNext={stepper.currentStep < STEP_DEFS.length - 1}
 								initialHistory={buildTerminalHistory(
-									TERMINAL_STEP_MAP,
-									stepper.currentStep,
+									CONSOLE_STEP_MAP,
+									0,
 								)}
 								onCorrect={() => stepper.completeStep()}
 								onNext={stepper.nextStep}
