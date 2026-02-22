@@ -10,7 +10,7 @@ This guide covers deploying Interactive Rails to Cloudflare's edge network.
 │                                                                  │
 │  ┌─────────────────────┐    ┌─────────────────────────────────┐ │
 │  │   Cloudflare Pages  │    │     Cloudflare Workers          │ │
-│  │   interactive-rails.com   │───▶│     api.interactive-rails.com         │ │
+│  │   interactiverails.com   │───▶│     api.interactiverails.com         │ │
 │  │   (Static assets)   │    │     (API endpoints)             │ │
 │  └─────────────────────┘    └─────────────────────────────────┘ │
 │                                         │                       │
@@ -163,7 +163,7 @@ ENVIRONMENT = "production"
 
 # Custom domain (optional)
 # routes = [
-#   { pattern = "api.interactive-rails.com/*", zone_name = "interactive-rails.com" }
+#   { pattern = "api.interactiverails.com/*", zone_name = "interactiverails.com" }
 # ]
 ```
 
@@ -178,7 +178,7 @@ export default defineConfig({
   output: 'static',  // or 'server' for SSR
   adapter: cloudflare(),
   integrations: [react()],
-  site: 'https://interactive-rails.com',
+  site: 'https://interactiverails.com',
 });
 ```
 
@@ -191,14 +191,14 @@ export default defineConfig({
 1. Go to Cloudflare Dashboard → Workers & Pages
 2. Select your worker
 3. Go to Settings → Triggers
-4. Add Custom Domain: `api.interactive-rails.com`
+4. Add Custom Domain: `api.interactiverails.com`
 
 ### Pages Domain
 
 1. Go to Cloudflare Dashboard → Workers & Pages
 2. Select your Pages project
 3. Go to Custom Domains
-4. Add: `interactive-rails.com` and `www.interactive-rails.com`
+4. Add: `interactiverails.com` and `www.interactiverails.com`
 
 ---
 
@@ -208,7 +208,7 @@ export default defineConfig({
 
 | Variable | Development | Production |
 |----------|-------------|------------|
-| API_URL | `http://localhost:8787` | `https://api.interactive-rails.com` |
+| API_URL | `http://localhost:8787` | `https://api.interactiverails.com` |
 | JWT_SECRET | (not needed locally) | Set via `wrangler secret` |
 | ENVIRONMENT | `development` | `production` |
 
@@ -390,7 +390,7 @@ D1 doesn't have built-in rollback. Options:
 
 ### After Deploy
 
-- [ ] Health check passes (`curl https://api.interactive-rails.com/`)
+- [ ] Health check passes (`curl https://api.interactiverails.com/`)
 - [ ] Auth flow works (signup, login)
 - [ ] Game flow works (get realms, challenges)
 - [ ] Frontend loads correctly
@@ -426,8 +426,8 @@ Update `worker/src/index.ts`:
 app.use('*', cors({
   origin: [
     'http://localhost:4321',
-    'https://interactive-rails.com',
-    'https://www.interactive-rails.com'
+    'https://interactiverails.com',
+    'https://www.interactiverails.com'
   ],
   credentials: true,
 }));

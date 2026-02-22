@@ -118,8 +118,8 @@ app.use('*', cors({
   origin: [
     'http://localhost:4321',
     'http://localhost:4322',  // Add if frontend uses different port
-    'https://interactive-rails.com',
-    'https://www.interactive-rails.com'
+    'https://interactiverails.com',
+    'https://www.interactiverails.com'
   ],
   credentials: true,
 }));

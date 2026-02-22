@@ -1,6 +1,6 @@
 # API Reference
 
-Base URL: `http://localhost:8787` (development) or `https://api.interactive-rails.com` (production)
+Base URL: `http://localhost:8787` (development) or `https://api.interactiverails.com` (production)
 
 All API endpoints are prefixed with `/api`.
 

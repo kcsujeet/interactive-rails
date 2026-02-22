@@ -15,7 +15,7 @@ import type {
 
 // In dev, use relative URL (proxied through Astro dev server for same-origin cookies)
 // In prod, use the API domain
-const API_URL = import.meta.env.DEV ? '' : 'https://api.interactive-rails.com';
+const API_URL = import.meta.env.DEV ? '' : 'https://api.interactiverails.com';
 
 interface ApiResponse<T> {
 	success: boolean;

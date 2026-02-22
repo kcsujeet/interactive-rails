@@ -25,7 +25,7 @@ app.use('*', requestIdMiddleware);
 app.use(
 	'*',
 	cors({
-		origin: ['http://localhost:4321', 'https://interactive-rails.com'],
+		origin: ['http://localhost:4321', 'https://interactiverails.com'],
 		credentials: true,
 	}),
 );
