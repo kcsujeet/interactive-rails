@@ -1,18 +1,23 @@
 /**
  * Level Layout Component
  *
- * Three-panel layout wrapper for all level components.
+ * Three-panel resizable layout wrapper for all level components.
  * Left: Instructions, Center: Canvas, Right: Code Preview
  */
 
 import type { ReactNode } from 'react';
+import { Group, Panel, Separator } from 'react-resizable-panels';
 
 interface LevelLayoutProps {
 	children: ReactNode;
 }
 
 export function LevelLayout({ children }: LevelLayoutProps) {
-	return <div className="h-full flex bg-background">{children}</div>;
+	return (
+		<Group className="h-full bg-background" id="level-panels" orientation="horizontal">
+			{children}
+		</Group>
+	);
 }
 
 interface LeftPanelProps {
@@ -21,9 +26,14 @@ interface LeftPanelProps {
 
 export function LeftPanel({ children }: LeftPanelProps) {
 	return (
-		<div className="w-64 shrink-0 bg-card border-r border-border flex flex-col overflow-hidden">
-			{children}
-		</div>
+		<>
+			<Panel defaultSize="18%" id="left" maxSize="30%" minSize="10%">
+				<div className="h-full bg-card border-r border-border flex flex-col overflow-hidden">
+					{children}
+				</div>
+			</Panel>
+			<Separator className="w-1 bg-border hover:bg-primary/50 transition-colors cursor-col-resize" />
+		</>
 	);
 }
 
@@ -33,24 +43,26 @@ interface CenterPanelProps {
 
 export function CenterPanel({ children }: CenterPanelProps) {
 	return (
-		<div className="flex-1 min-w-0 flex flex-col overflow-hidden">
-			{children}
-		</div>
+		<Panel id="center" minSize="30%">
+			<div className="h-full flex flex-col overflow-hidden">{children}</div>
+		</Panel>
 	);
 }
 
 interface RightPanelProps {
 	children: ReactNode;
-	width?: string;
 }
 
-export function RightPanel({ children, width = 'w-80' }: RightPanelProps) {
+export function RightPanel({ children }: RightPanelProps) {
 	return (
-		<div
-			className={`${width} shrink-0 bg-card border-l border-border flex flex-col overflow-hidden`}
-		>
-			{children}
-		</div>
+		<>
+			<Separator className="w-1 bg-border hover:bg-primary/50 transition-colors cursor-col-resize" />
+			<Panel defaultSize="22%" id="right" maxSize="35%" minSize="12%">
+				<div className="h-full bg-card border-l border-border flex flex-col overflow-hidden">
+					{children}
+				</div>
+			</Panel>
+		</>
 	);
 }
 
