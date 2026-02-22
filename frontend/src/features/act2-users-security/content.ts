@@ -799,7 +799,7 @@ const level12Testing: Level = {
 	trigger: {
 		type: 'incident',
 		description:
-			'A deploy broke the login endpoint. Nobody noticed for 3 hours. There are zero tests. The only way to verify anything works is to manually test it.',
+			'A deploy broke the login endpoint. Nobody noticed for 3 hours. Set up RSpec and FactoryBot, then write a request spec to prevent this from happening again.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -885,7 +885,7 @@ RSpec.describe "Sessions API" do
     expect(json_response["token"]).to be_present
   end
 end`,
-		goal: 'Set up RSpec and FactoryBot. Write your first request spec for the sessions endpoint.',
+		goal: 'Install rspec-rails and factory_bot_rails, configure FactoryBot in RSpec, define a user factory, and write a request spec for the sessions endpoint.',
 		thresholds: {},
 	},
 	successConditions: [
@@ -1038,7 +1038,7 @@ end`,
 	},
 	hint: {
 		delay: 25,
-		text: 'Add a Test node that connects to the Request node. Tests send HTTP requests and verify the JSON response, status codes, and side effects.',
+		text: 'Start by adding the rspec-rails gem with bundle add, then run the install generator to create the spec directory structure.',
 	},
 };
 

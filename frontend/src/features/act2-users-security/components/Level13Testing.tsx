@@ -1,565 +1,906 @@
 /**
- * Level 12: Testing
+ * Level 13: Testing
  *
- * Learn RSpec testing through a simulated test runner.
- * Player selects test types, picks assertions, and runs a simulated suite.
- * Teaches: Request specs, model specs, policy specs, FactoryBot, assertions.
+ * Sequential phase flow: observe -> build -> activate -> reward
+ * Each phase occupies the full center panel. One thing at a time.
+ *
+ * Phase 1 (WHY - observe): Watch broken commits pass through an empty test gate to production
+ * Phase 2 (HOW - build): 6 steps (3 terminal + 3 OptionCard) setting up RSpec + FactoryBot
+ *   Step 0: bundle add rspec-rails (terminal)
+ *   Step 1: rails generate rspec:install (terminal)
+ *   Step 2: bundle add factory_bot_rails (terminal)
+ *   Step 3: Configure FactoryBot in RSpec (OptionCard)
+ *   Step 4: Write the User Factory (OptionCard)
+ *   Step 5: Write the Request Spec (OptionCard)
+ * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Testing" button
+ * Phase 4 (ADVANTAGE - reward): Test gate catches broken commits
+ *
+ * Teaches: RSpec, FactoryBot, request specs
  */
 
-import {
-	Check,
-	ChevronRight,
-	FileCode,
-	FlaskConical,
-	Play,
-	ShieldCheck,
-	Terminal,
-	X,
-} from 'lucide-react';
+import { ArrowRight, Check, FlaskConical, Play, Star, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+	buildTerminalHistory,
 	CenterPanel,
 	CodePreviewPanel,
+	ErrorFeedback,
 	InstructionPanel,
 	LeftPanel,
 	LevelHeader,
 	LevelLayout,
+	OptionCard,
 	RightPanel,
-	useLevelCompletion,
+	StepProgress,
+	TerminalChoiceStep,
+	type TerminalCommand,
+	type TerminalOutputLine,
+	type TerminalStepData,
 	type ValidationResult,
 } from '@/components/levels';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
+import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 
-// --- Types ---
+// ──────────────────────────────────────────────
+// Phase type
+// ──────────────────────────────────────────────
 
-type TestType = 'request' | 'model' | 'policy';
+type Phase = 'observe' | 'build' | 'activate' | 'reward';
 
-interface TestResult {
-	name: string;
-	passed: boolean;
-	output: string;
+// ──────────────────────────────────────────────
+// Step definitions (6 steps: 3 terminal + 3 OptionCard)
+// ──────────────────────────────────────────────
+
+const STEP_DEFS: StepDef[] = [
+	{ id: 'add-rspec', title: 'Add rspec-rails Gem' },
+	{ id: 'run-rspec-install', title: 'Run RSpec Generator' },
+	{ id: 'add-factory-bot', title: 'Add factory_bot_rails Gem' },
+	{ id: 'configure-factory-bot', title: 'Configure FactoryBot in RSpec' },
+	{ id: 'write-factory', title: 'Write the User Factory' },
+	{ id: 'write-request-spec', title: 'Write the Request Spec' },
+];
+
+const STEP_TYPES: ('terminal' | 'option')[] = [
+	'terminal', // 0: bundle add rspec-rails
+	'terminal', // 1: rails generate rspec:install
+	'terminal', // 2: bundle add factory_bot_rails
+	'option',   // 3: Configure FactoryBot
+	'option',   // 4: Write User Factory
+	'option',   // 5: Write Request Spec
+];
+
+// ──────────────────────────────────────────────
+// Step 0: Add rspec-rails (Terminal)
+// ──────────────────────────────────────────────
+
+const addRspecCommands: TerminalCommand[] = [
+	{
+		id: 'wrong-gem-install',
+		label: 'gem install rspec',
+		command: 'gem install rspec',
+		correct: false,
+		feedback:
+			"That installs system-wide, not into your project's Gemfile. Use the bundler command that adds and installs in one step.",
+	},
+	{
+		id: 'correct',
+		label: 'bundle add rspec-rails',
+		command: 'bundle add rspec-rails',
+		correct: true,
+	},
+	{
+		id: 'wrong-npm',
+		label: 'npm install jest',
+		command: 'npm install jest',
+		correct: false,
+		feedback:
+			'Jest is a JavaScript testing framework. You need a Ruby testing framework for a Rails app.',
+	},
+];
+
+const addRspecOutput: TerminalOutputLine[] = [
+	{ text: 'Fetching rspec-rails 7.1.0', color: 'cyan' },
+	{ text: 'Installing rspec-core 3.13.0', color: 'muted' },
+	{ text: 'Installing rspec-expectations 3.13.0', color: 'muted' },
+	{ text: 'Installing rspec-rails 7.1.0', color: 'muted' },
+	{ text: 'Bundle complete! 14 Gemfile dependencies.', color: 'green' },
+];
+
+// ──────────────────────────────────────────────
+// Step 1: Run RSpec Generator (Terminal)
+// ──────────────────────────────────────────────
+
+const runRspecInstallCommands: TerminalCommand[] = [
+	{
+		id: 'wrong-test-install',
+		label: 'rails generate test:install',
+		command: 'rails generate test:install',
+		correct: false,
+		feedback:
+			"There is no test:install generator. RSpec has its own generator name that matches the gem.",
+	},
+	{
+		id: 'correct',
+		label: 'rails generate rspec:install',
+		command: 'rails generate rspec:install',
+		correct: true,
+	},
+	{
+		id: 'wrong-rspec-init',
+		label: 'rspec --init',
+		command: 'rspec --init',
+		correct: false,
+		feedback:
+			'That initializes plain RSpec without Rails integration. You need the Rails-specific generator for helpers and config.',
+	},
+];
+
+const runRspecInstallOutput: TerminalOutputLine[] = [
+	{ text: '      create  .rspec', color: 'green' },
+	{ text: '      create  spec/spec_helper.rb', color: 'green' },
+	{ text: '      create  spec/rails_helper.rb', color: 'green' },
+];
+
+// ──────────────────────────────────────────────
+// Step 2: Add factory_bot_rails (Terminal)
+// ──────────────────────────────────────────────
+
+const addFactoryBotCommands: TerminalCommand[] = [
+	{
+		id: 'wrong-factory-bot',
+		label: 'bundle add factory_bot',
+		command: 'bundle add factory_bot',
+		correct: false,
+		feedback:
+			'That is the plain Ruby gem. The Rails variant auto-discovers factories and integrates with the test environment.',
+	},
+	{
+		id: 'wrong-faker',
+		label: 'bundle add faker',
+		command: 'bundle add faker',
+		correct: false,
+		feedback:
+			'Faker generates fake data (names, emails). You need a factory library for creating test records.',
+	},
+	{
+		id: 'correct',
+		label: 'bundle add factory_bot_rails',
+		command: 'bundle add factory_bot_rails',
+		correct: true,
+	},
+];
+
+const addFactoryBotOutput: TerminalOutputLine[] = [
+	{ text: 'Fetching factory_bot_rails 6.4.4', color: 'cyan' },
+	{ text: 'Installing factory_bot 6.5.0', color: 'muted' },
+	{ text: 'Installing factory_bot_rails 6.4.4', color: 'muted' },
+	{ text: 'Bundle complete! 15 Gemfile dependencies.', color: 'green' },
+];
+
+// ──────────────────────────────────────────────
+// Terminal step map (for buildTerminalHistory)
+// ──────────────────────────────────────────────
+
+const SHELL_STEP_MAP: (TerminalStepData | null)[] = [
+	{ commands: addRspecCommands, outputLines: addRspecOutput },
+	{ commands: runRspecInstallCommands, outputLines: runRspecInstallOutput },
+	{ commands: addFactoryBotCommands, outputLines: addFactoryBotOutput },
+	null, // step 3: OptionCard
+	null, // step 4: OptionCard
+	null, // step 5: OptionCard
+];
+
+// ──────────────────────────────────────────────
+// OptionCard step data type
+// ──────────────────────────────────────────────
+
+interface StepOption {
+	id: string;
+	label: string;
+	correct: boolean;
+	feedback?: string;
 }
 
-// --- Constants ---
+// ──────────────────────────────────────────────
+// Step 3: Configure FactoryBot in RSpec (OptionCard)
+// ──────────────────────────────────────────────
 
-const TEST_TYPE_META: Record<
-	TestType,
-	{ label: string; specFile: string; icon: typeof FlaskConical }
-> = {
-	request: {
-		label: 'Request Spec',
-		specFile: 'spec/requests/posts_spec.rb',
-		icon: Terminal,
+const CONFIGURE_FB_OPTIONS: StepOption[] = [
+	{
+		id: 'wrong-require',
+		label: 'require "factory_bot"',
+		correct: false,
+		feedback:
+			'Requiring the library loads it, but does not make DSL methods like create() and build() available in your specs.',
 	},
-	model: {
-		label: 'Model Spec',
-		specFile: 'spec/models/post_spec.rb',
-		icon: FileCode,
+	{
+		id: 'correct',
+		label: 'config.include FactoryBot::Syntax::Methods',
+		correct: true,
 	},
-	policy: {
-		label: 'Policy Spec',
-		specFile: 'spec/policies/post_policy_spec.rb',
-		icon: ShieldCheck,
+	{
+		id: 'wrong-module',
+		label: 'config.include FactoryBot::Methods',
+		correct: false,
+		feedback:
+			"That module doesn't exist. The DSL methods live in a specific Syntax namespace.",
+	},
+];
+
+// ──────────────────────────────────────────────
+// Step 4: Write the User Factory (OptionCard)
+// ──────────────────────────────────────────────
+
+const WRITE_FACTORY_OPTIONS: StepOption[] = [
+	{
+		id: 'wrong-yaml',
+		label: `# test/fixtures/users.yml
+one:
+  email: user@example.com
+  password_digest: <%= BCrypt::Password.create("pass") %>`,
+		correct: false,
+		feedback:
+			'YAML fixtures are static and brittle. Factories generate unique data on each call and compose traits flexibly.',
+	},
+	{
+		id: 'correct',
+		label: `FactoryBot.define do
+  factory :user do
+    email { Faker::Internet.email }
+    password { "password123" }
+  end
+end`,
+		correct: true,
+	},
+	{
+		id: 'wrong-sql',
+		label: `ActiveRecord::Base.connection.execute(<<~SQL)
+  INSERT INTO users (email, password_digest)
+  VALUES ('test@ex.com', 'abc123')
+SQL`,
+		correct: false,
+		feedback:
+			'Raw SQL bypasses model validations and callbacks. Test data should go through the same code path as production.',
+	},
+];
+
+// ──────────────────────────────────────────────
+// Step 5: Write the Request Spec (OptionCard)
+// ──────────────────────────────────────────────
+
+const WRITE_SPEC_OPTIONS: StepOption[] = [
+	{
+		id: 'wrong-controller-spec',
+		label: `RSpec.describe SessionsController, type: :controller do
+  it "sets the session" do
+    post :create, params: { email: "a@b.com", password: "pass" }
+    expect(assigns(:token)).to be_present
+  end
+end`,
+		correct: false,
+		feedback:
+			'Controller specs test internals like assigns(). Request specs test the real HTTP cycle your clients experience.',
+	},
+	{
+		id: 'correct',
+		label: `RSpec.describe "Sessions API", type: :request do
+  it "returns a token on valid login" do
+    user = create(:user, password: "password123")
+    post "/api/v1/sessions",
+         params: { email: user.email, password: "password123" }
+    expect(response).to have_http_status(:created)
+    expect(json_response["token"]).to be_present
+  end
+end`,
+		correct: true,
+	},
+	{
+		id: 'wrong-model-spec',
+		label: `RSpec.describe User, type: :model do
+  it "authenticates with correct password" do
+    user = create(:user, password: "password123")
+    expect(user.authenticate("password123")).to eq(user)
+  end
+end`,
+		correct: false,
+		feedback:
+			'Model specs test the model in isolation. The login endpoint broke at the HTTP layer, not the model layer.',
+	},
+];
+
+// Map from step index -> OptionCard data for option-type steps
+const OPTION_STEP_CONFIG: Record<number, {
+	title: string;
+	description: string;
+	options: StepOption[];
+}> = {
+	3: {
+		title: 'Configure FactoryBot in RSpec',
+		description: 'FactoryBot is installed but RSpec does not know about it yet. Which line in rails_helper.rb makes create(), build(), and other FactoryBot methods available in every spec?',
+		options: CONFIGURE_FB_OPTIONS,
+	},
+	4: {
+		title: 'Write the User Factory',
+		description: 'Your request spec needs a user to log in with. Which approach creates reusable, dynamic test data?',
+		options: WRITE_FACTORY_OPTIONS,
+	},
+	5: {
+		title: 'Write the Request Spec',
+		description: 'The login endpoint broke and nobody noticed. Which spec type would have caught it before deploy?',
+		options: WRITE_SPEC_OPTIONS,
 	},
 };
 
-const ASSERTIONS: Record<TestType, string[]> = {
-	request: [
-		'Status code check',
-		'JSON body structure',
-		'Authentication required',
-		'Error response format',
-	],
-	model: [
-		'Presence validation',
-		'Uniqueness validation',
-		'Custom validation',
-		'Association check',
-	],
-	policy: [
-		'Owner can update',
-		'Non-owner forbidden',
-		'Admin can delete',
-		'Guest read-only',
-	],
-};
+// ──────────────────────────────────────────────
+// Simulation types
+// ──────────────────────────────────────────────
 
-// Maps assertion names to simulated test output
-const ASSERTION_OUTPUT: Record<string, { name: string; output: string }> = {
-	// Request spec
-	'Status code check': {
-		name: 'returns 200 for valid request',
-		output:
-			'expect(response).to have_http_status(:ok)                           PASSED',
-	},
-	'JSON body structure': {
-		name: 'returns correct JSON structure',
-		output:
-			'expect(json[:data]).to include(:id, :title, :body, :created_at)     PASSED',
-	},
-	'Authentication required': {
-		name: 'returns 401 without token',
-		output:
-			'expect(response).to have_http_status(:unauthorized)                 PASSED',
-	},
-	'Error response format': {
-		name: 'returns errors in JSON:API format',
-		output:
-			'expect(json[:errors].first).to include(:status, :detail)            PASSED',
-	},
-	// Model spec
-	'Presence validation': {
-		name: 'is invalid without a title',
-		output:
-			'expect(post).not_to be_valid                                        PASSED',
-	},
-	'Uniqueness validation': {
-		name: 'enforces unique slugs',
-		output:
-			'expect(duplicate).not_to be_valid                                   PASSED',
-	},
-	'Custom validation': {
-		name: 'rejects body shorter than 10 chars',
-		output:
-			'expect(post.errors[:body]).to include("is too short")               PASSED',
-	},
-	'Association check': {
-		name: 'belongs to a user',
-		output:
-			'expect(Post.reflect_on_association(:user).macro).to eq(:belongs_to) PASSED',
-	},
-	// Policy spec
-	'Owner can update': {
-		name: 'permits owner to update',
-		output:
-			'expect(policy).to permit(:update)                                   PASSED',
-	},
-	'Non-owner forbidden': {
-		name: 'forbids non-owner from updating',
-		output:
-			'expect(policy).to forbid(:update)                                   PASSED',
-	},
-	'Admin can delete': {
-		name: 'permits admin to destroy',
-		output:
-			'expect(policy).to permit(:destroy)                                  PASSED',
-	},
-	'Guest read-only': {
-		name: 'permits guest to view only',
-		output:
-			'expect(policy).to permit(:show)                                     PASSED',
-	},
-};
-
-// --- Code generators ---
-
-function generateSpecCode(
-	testType: TestType,
-	selectedAssertions: Set<string>,
-): string {
-	const assertions = ASSERTIONS[testType];
-	const selected = assertions.filter((a) => selectedAssertions.has(a));
-
-	if (testType === 'request') {
-		const lines = [
-			'require "rails_helper"',
-			'',
-			'RSpec.describe "Posts API", type: :request do',
-			'  let(:user) { create(:user) }',
-			'  let(:headers) { auth_headers_for(user) }',
-			'  let!(:post) { create(:post, user: user) }',
-			'',
-		];
-
-		if (selected.includes('Status code check')) {
-			lines.push(
-				'  it "returns 200 for valid request" do',
-				'    get "/api/v1/posts", headers: headers',
-				'    expect(response).to have_http_status(:ok)',
-				'  end',
-				'',
-			);
-		}
-		if (selected.includes('JSON body structure')) {
-			lines.push(
-				'  it "returns correct JSON structure" do',
-				'    get "/api/v1/posts/#{post.id}", headers: headers',
-				'    json = JSON.parse(response.body, symbolize_names: true)',
-				'    expect(json[:data]).to include(:id, :title, :body, :created_at)',
-				'  end',
-				'',
-			);
-		}
-		if (selected.includes('Authentication required')) {
-			lines.push(
-				'  it "returns 401 without token" do',
-				'    get "/api/v1/posts"',
-				'    expect(response).to have_http_status(:unauthorized)',
-				'  end',
-				'',
-			);
-		}
-		if (selected.includes('Error response format')) {
-			lines.push(
-				'  it "returns errors in JSON:API format" do',
-				'    post "/api/v1/posts", params: { post: { title: "" } },',
-				'                          headers: headers',
-				'    json = JSON.parse(response.body, symbolize_names: true)',
-				'    expect(json[:errors].first).to include(:status, :detail)',
-				'  end',
-				'',
-			);
-		}
-
-		if (selected.length === 0) {
-			lines.push('  # Select assertions above to add tests', '');
-		}
-
-		lines.push('end');
-		return lines.join('\n');
-	}
-
-	if (testType === 'model') {
-		const lines = [
-			'require "rails_helper"',
-			'',
-			'RSpec.describe Post, type: :model do',
-			'  subject { build(:post) }',
-			'',
-		];
-
-		if (selected.includes('Presence validation')) {
-			lines.push(
-				'  it "is invalid without a title" do',
-				'    post = build(:post, title: nil)',
-				'    expect(post).not_to be_valid',
-				'    expect(post.errors[:title]).to include("can\'t be blank")',
-				'  end',
-				'',
-			);
-		}
-		if (selected.includes('Uniqueness validation')) {
-			lines.push(
-				'  it "enforces unique slugs" do',
-				'    create(:post, slug: "hello-world")',
-				'    duplicate = build(:post, slug: "hello-world")',
-				'    expect(duplicate).not_to be_valid',
-				'  end',
-				'',
-			);
-		}
-		if (selected.includes('Custom validation')) {
-			lines.push(
-				'  it "rejects body shorter than 10 chars" do',
-				'    post = build(:post, body: "short")',
-				'    expect(post).not_to be_valid',
-				'    expect(post.errors[:body]).to include("is too short")',
-				'  end',
-				'',
-			);
-		}
-		if (selected.includes('Association check')) {
-			lines.push(
-				'  it "belongs to a user" do',
-				'    assoc = Post.reflect_on_association(:user)',
-				'    expect(assoc.macro).to eq(:belongs_to)',
-				'  end',
-				'',
-			);
-		}
-
-		if (selected.length === 0) {
-			lines.push('  # Select assertions above to add tests', '');
-		}
-
-		lines.push('end');
-		return lines.join('\n');
-	}
-
-	// policy spec
-	const lines = [
-		'require "rails_helper"',
-		'',
-		'RSpec.describe PostPolicy, type: :policy do',
-		'  let(:user) { create(:user) }',
-		'  let(:admin) { create(:user, :admin) }',
-		'  let(:post) { create(:post, user: user) }',
-		'',
-	];
-
-	if (selected.includes('Owner can update')) {
-		lines.push(
-			'  it "permits owner to update" do',
-			'    policy = described_class.new(user, post)',
-			'    expect(policy).to permit(:update)',
-			'  end',
-			'',
-		);
-	}
-	if (selected.includes('Non-owner forbidden')) {
-		lines.push(
-			'  it "forbids non-owner from updating" do',
-			'    other = create(:user)',
-			'    policy = described_class.new(other, post)',
-			'    expect(policy).to forbid(:update)',
-			'  end',
-			'',
-		);
-	}
-	if (selected.includes('Admin can delete')) {
-		lines.push(
-			'  it "permits admin to destroy" do',
-			'    policy = described_class.new(admin, post)',
-			'    expect(policy).to permit(:destroy)',
-			'  end',
-			'',
-		);
-	}
-	if (selected.includes('Guest read-only')) {
-		lines.push(
-			'  it "permits guest to view only" do',
-			'    guest = nil',
-			'    policy = described_class.new(guest, post)',
-			'    expect(policy).to permit(:show)',
-			'  end',
-			'',
-		);
-	}
-
-	if (selected.length === 0) {
-		lines.push('  # Select assertions above to add tests', '');
-	}
-
-	lines.push('end');
-	return lines.join('\n');
+interface PipelineCommit {
+	id: number;
+	x: number;
+	y: number;
+	broken: boolean;
+	caughtByTests: boolean;
 }
 
-// --- Component ---
+// ──────────────────────────────────────────────
+// Code preview helper
+// ──────────────────────────────────────────────
+
+function getCodeFiles(phase: Phase, furthestStep: number) {
+	const files = [];
+
+	// Observe phase: show the broken controller + empty spec dir
+	if (phase === 'observe') {
+		files.push({
+			filename: 'app/controllers/api/v1/sessions_controller.rb',
+			language: 'ruby',
+			code: `class Api::V1::SessionsController < ApplicationController
+  def create
+    user = User.find_by(email: params[:email])
+    if user&.authenticate(params[:password])
+      session = user.sessions.create!
+      render json: { auth_token: session.token },
+             status: :created
+    else
+      render json: { error: "Invalid credentials" },
+             status: :unauthorized
+    end
+  end
+end
+
+# Bug: column was renamed from 'token' to 'auth_token'
+# but line 6 still references session.token
+# => NoMethodError: undefined method 'token'
+# => 500 Internal Server Error`,
+			highlight: [6],
+		});
+		files.push({
+			filename: 'spec/',
+			language: 'plaintext',
+			code: '# (empty directory)\n# No test framework configured\n# No factories\n# No specs',
+		});
+		return files;
+	}
+
+	// Build / activate / reward phases: show evolving code
+	if (furthestStep === 0) {
+		files.push({
+			filename: 'app/controllers/api/v1/sessions_controller.rb',
+			language: 'ruby',
+			code: `class Api::V1::SessionsController < ApplicationController
+  def create
+    user = User.find_by(email: params[:email])
+    if user&.authenticate(params[:password])
+      session = user.sessions.create!
+      render json: { auth_token: session.token },
+             status: :created
+    else
+      render json: { error: "Invalid credentials" },
+             status: :unauthorized
+    end
+  end
+end`,
+			highlight: [6],
+		});
+	}
+
+	if (furthestStep >= 1) {
+		// After step 0: Gemfile shows rspec-rails
+		files.push({
+			filename: 'Gemfile',
+			language: 'ruby',
+			code: furthestStep >= 3
+				? `source "https://rubygems.org"
+
+gem "rails", "~> 8.0.0"
+gem "pg", "~> 1.1"
+gem "puma", ">= 5.0"
+gem "bcrypt", "~> 3.1.7"
+
+group :development, :test do
+  gem "rspec-rails"
+  gem "factory_bot_rails"
+end`
+				: `source "https://rubygems.org"
+
+gem "rails", "~> 8.0.0"
+gem "pg", "~> 1.1"
+gem "puma", ">= 5.0"
+gem "bcrypt", "~> 3.1.7"
+
+group :development, :test do
+  gem "rspec-rails"
+end`,
+			highlight: furthestStep >= 3 ? [9, 10] : [9],
+		});
+	}
+
+	if (furthestStep >= 2) {
+		// After step 1: .rspec + rails_helper.rb
+		files.push({
+			filename: '.rspec',
+			language: 'plaintext',
+			code: '--require spec_helper\n--format documentation\n--color',
+		});
+		files.push({
+			filename: 'spec/rails_helper.rb',
+			language: 'ruby',
+			code: furthestStep >= 4
+				? `require "spec_helper"
+ENV["RAILS_ENV"] ||= "test"
+require_relative "../config/environment"
+require "rspec/rails"
+
+RSpec.configure do |config|
+  config.use_transactional_fixtures = true
+  config.infer_spec_type_from_file_location!
+  config.include FactoryBot::Syntax::Methods
+end`
+				: `require "spec_helper"
+ENV["RAILS_ENV"] ||= "test"
+require_relative "../config/environment"
+require "rspec/rails"
+
+RSpec.configure do |config|
+  config.use_transactional_fixtures = true
+  config.infer_spec_type_from_file_location!
+end`,
+			highlight: furthestStep >= 4 ? [9] : [],
+		});
+	}
+
+	if (furthestStep >= 5) {
+		// After step 4: User factory
+		files.push({
+			filename: 'spec/factories/users.rb',
+			language: 'ruby',
+			code: `FactoryBot.define do
+  factory :user do
+    email { Faker::Internet.email }
+    password { "password123" }
+  end
+end`,
+			highlight: [2, 3, 4],
+		});
+	}
+
+	if (furthestStep >= 6) {
+		// After step 5: Request spec
+		files.push({
+			filename: 'spec/requests/api/v1/sessions_spec.rb',
+			language: 'ruby',
+			code: `require "rails_helper"
+
+RSpec.describe "Sessions API", type: :request do
+  it "returns a token on valid login" do
+    user = create(:user, password: "password123")
+    post "/api/v1/sessions",
+         params: { email: user.email,
+                   password: "password123" }
+    expect(response).to have_http_status(:created)
+    expect(json_response["token"]).to be_present
+  end
+
+  it "returns 401 with wrong password" do
+    user = create(:user, password: "password123")
+    post "/api/v1/sessions",
+         params: { email: user.email,
+                   password: "wrong" }
+    expect(response).to have_http_status(:unauthorized)
+  end
+end`,
+			highlight: [4, 5, 9, 10, 14, 18],
+		});
+	}
+
+	if (furthestStep >= 7) {
+		// All complete: show passing test output
+		files.push({
+			filename: 'Test Output',
+			language: 'plaintext',
+			code: `$ bundle exec rspec spec/requests/api/v1/sessions_spec.rb
+
+Sessions API
+  returns a token on valid login     PASSED
+  returns 401 with wrong password    PASSED
+
+2 examples, 0 failures
+
+Finished in 0.24 seconds`,
+		});
+	}
+
+	return files;
+}
+
+// ──────────────────────────────────────────────
+// SVG Pipeline Visualization
+// ──────────────────────────────────────────────
+
+function DeployPipeline({
+	commits,
+	testGateActive,
+}: {
+	commits: PipelineCommit[];
+	testGateActive: boolean;
+}) {
+	return (
+		<svg className="w-full h-full" preserveAspectRatio="xMidYMid meet" viewBox="0 0 700 300">
+			{/* Stage: Code */}
+			<rect fill="#374151" height="60" rx="8" width="90" x="30" y="120" />
+			<text fill="#9ca3af" fontSize="12" textAnchor="middle" x="75" y="155">
+				Code
+			</text>
+
+			{/* Arrow: Code -> Build */}
+			<line stroke="#4b5563" strokeWidth="2" x1="120" x2="175" y1="150" y2="150" />
+			<polygon fill="#4b5563" points="175,145 185,150 175,155" />
+
+			{/* Stage: Build */}
+			<rect fill="#374151" height="60" rx="8" width="90" x="185" y="120" />
+			<text fill="#9ca3af" fontSize="12" textAnchor="middle" x="230" y="155">
+				Build
+			</text>
+
+			{/* Arrow: Build -> Test Gate */}
+			<line stroke="#4b5563" strokeWidth="2" x1="275" x2="330" y1="150" y2="150" />
+			<polygon fill="#4b5563" points="330,145 340,150 330,155" />
+
+			{/* Stage: Test Gate */}
+			<rect
+				fill={testGateActive ? '#059669' : '#1f2937'}
+				height="60"
+				opacity={testGateActive ? 1 : 0.5}
+				rx="8"
+				stroke={testGateActive ? '#10b981' : '#4b5563'}
+				strokeDasharray={testGateActive ? 'none' : '6,4'}
+				strokeWidth={testGateActive ? 2 : 1}
+				width="110"
+				x="340"
+				y="120"
+			/>
+			<text
+				fill={testGateActive ? 'white' : '#6b7280'}
+				fontSize="11"
+				textAnchor="middle"
+				x="395"
+				y="148"
+			>
+				{testGateActive ? 'RSpec' : 'Test Gate'}
+			</text>
+			<text
+				fill={testGateActive ? '#a7f3d0' : '#4b5563'}
+				fontSize="9"
+				textAnchor="middle"
+				x="395"
+				y="163"
+			>
+				{testGateActive ? '2 specs, 0 failures' : '(no tests)'}
+			</text>
+
+			{/* Arrow: Test Gate -> Production */}
+			<line stroke="#4b5563" strokeWidth="2" x1="450" x2="510" y1="150" y2="150" />
+			<polygon fill="#4b5563" points="510,145 520,150 510,155" />
+
+			{/* Stage: Production */}
+			<rect fill="#374151" height="60" rx="8" width="110" x="520" y="120" />
+			<text fill="#9ca3af" fontSize="12" textAnchor="middle" x="575" y="155">
+				Production
+			</text>
+
+			{/* Commits */}
+			{commits.map((c) => {
+				// Hide caught commits past the test gate
+				if (c.caughtByTests && c.x > 420) return null;
+
+				const color = c.broken
+					? (c.caughtByTests ? '#6b7280' : '#ef4444')
+					: '#22c55e';
+
+				return (
+					<g key={c.id}>
+						<circle
+							cx={c.x}
+							cy={c.y}
+							fill={color}
+							opacity={c.caughtByTests ? 0.4 : 1}
+							r="12"
+						/>
+						<text
+							fill="white"
+							fontSize="10"
+							fontWeight="bold"
+							textAnchor="middle"
+							x={c.x}
+							y={c.y + 4}
+						>
+							{c.broken ? '!' : '\u2713'}
+						</text>
+
+						{/* 500! label when broken commit reaches production */}
+						{c.broken && !c.caughtByTests && c.x >= 530 && (
+							<text
+								fill="#ef4444"
+								fontSize="10"
+								fontWeight="bold"
+								textAnchor="middle"
+								x={c.x}
+								y={c.y - 18}
+							>
+								500!
+							</text>
+						)}
+
+						{/* FAIL label when test gate catches a broken commit */}
+						{c.caughtByTests && c.x >= 370 && c.x < 430 && (
+							<text
+								fill="#ef4444"
+								fontSize="9"
+								fontWeight="bold"
+								textAnchor="middle"
+								x={c.x}
+								y={c.y - 18}
+							>
+								FAIL
+							</text>
+						)}
+					</g>
+				);
+			})}
+		</svg>
+	);
+}
+
+// ──────────────────────────────────────────────
+// Pipeline Legend
+// ──────────────────────────────────────────────
+
+function PipelineLegend() {
+	return (
+		<div className="p-4 border-b border-border">
+			<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+				Pipeline Legend
+			</div>
+			<div className="space-y-2 text-sm">
+				<div className="flex items-center gap-2">
+					<Check className="w-4 h-4 text-success" />
+					<span className="text-foreground">Clean commit (passes)</span>
+				</div>
+				<div className="flex items-center gap-2">
+					<X className="w-4 h-4 text-destructive" />
+					<span className="text-foreground">Broken commit (has bug)</span>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+// ──────────────────────────────────────────────
+// Component
+// ──────────────────────────────────────────────
 
 export function Level13Testing({ onComplete }: LevelComponentProps) {
-	const { completeLevel } = useLevelCompletion();
-	const [selectedTestType, setSelectedTestType] = useState<TestType>('request');
-	const [selectedAssertions, setSelectedAssertions] = useState<Set<string>>(
-		new Set(),
-	);
-	const [isRunning, setIsRunning] = useState(false);
-	const [testResults, setTestResults] = useState<TestResult[]>([]);
-	const [hasRun, setHasRun] = useState(false);
-	const [visibleLines, setVisibleLines] = useState(0);
-	const terminalRef = useRef<HTMLDivElement>(null);
+	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
+	const [phase, setPhase] = useState<Phase>('observe');
+	const [showBuildButton, setShowBuildButton] = useState(false);
+	const [commits, setCommits] = useState<PipelineCommit[]>([]);
+	const [caughtCount, setCaughtCount] = useState(0);
+	const [deployedCount, setDeployedCount] = useState(0);
 
-	const currentAssertions = ASSERTIONS[selectedTestType];
-	const meta = TEST_TYPE_META[selectedTestType];
+	// Track whether animation should run (only in observe and reward phases)
+	const animationActive = phase === 'observe' || phase === 'reward';
+	const testGateActive = phase === 'reward';
 
-	// Auto-scroll terminal to bottom when new lines appear
+	// Ref to track latest testGateActive for animation intervals
+	const testGateActiveRef = useRef(testGateActive);
+	testGateActiveRef.current = testGateActive;
+
+	// ── "Build the Fix" button fade-in after 3 seconds ──
 	useEffect(() => {
-		if (terminalRef.current) {
-			terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
+		if (phase !== 'observe') return;
+		const timer = setTimeout(() => setShowBuildButton(true), 3000);
+		return () => clearTimeout(timer);
+	}, [phase]);
+
+	// ── Transition: build -> activate when all steps complete ──
+	useEffect(() => {
+		if (phase === 'build' && stepper.isComplete) {
+			setPhase('activate');
 		}
-	}, [visibleLines]);
+	}, [phase, stepper.isComplete]);
 
-	// Toggle an assertion on/off
-	const toggleAssertion = useCallback((assertion: string) => {
-		setSelectedAssertions((prev) => {
-			const next = new Set(prev);
-			if (next.has(assertion)) {
-				next.delete(assertion);
-			} else {
-				next.add(assertion);
+	// ── OptionCard step handler ──
+	const handleOptionClick = useCallback(
+		(option: StepOption) => {
+			if (option.correct) {
+				stepper.completeStep();
+			} else if (option.feedback) {
+				stepper.recordWrongAttempt(option.feedback);
 			}
-			return next;
-		});
-		// Reset run state when assertions change
-		setHasRun(false);
-		setTestResults([]);
-		setVisibleLines(0);
-	}, []);
+		},
+		[stepper],
+	);
 
-	// Switch test type, clear assertions for that type
-	const switchTestType = useCallback((type: TestType) => {
-		setSelectedTestType(type);
-		setSelectedAssertions(new Set());
-		setHasRun(false);
-		setTestResults([]);
-		setVisibleLines(0);
-	}, []);
-
-	// Run the test suite with line-by-line animation
-	const runTests = useCallback(() => {
-		if (isRunning) return;
-
-		const activeAssertions = currentAssertions.filter((a) =>
-			selectedAssertions.has(a),
-		);
-
-		if (activeAssertions.length === 0) return;
-
-		setIsRunning(true);
-		setVisibleLines(0);
-		setHasRun(false);
-
-		// Build results: all tests pass if >= 2 assertions selected
-		const allPass = activeAssertions.length >= 2;
-		const results: TestResult[] = activeAssertions.map((assertion, idx) => {
-			const info = ASSERTION_OUTPUT[assertion];
-			const passed = allPass || idx < activeAssertions.length - 1;
-			return {
-				name: info.name,
-				passed,
-				output: passed ? info.output : info.output.replace('PASSED', 'FAILED'),
-			};
-		});
-
-		setTestResults(results);
-
-		// Animate lines appearing one by one
-		// Header lines (3) + one line per result + summary line
-		const totalLines = 3 + results.length + 2;
-		let currentLine = 0;
+	// ── Animation: spawn commits (only when animation is active) ──
+	useEffect(() => {
+		if (!animationActive) return;
 
 		const interval = setInterval(() => {
-			currentLine += 1;
-			setVisibleLines(currentLine);
-			if (currentLine >= totalLines) {
-				clearInterval(interval);
-				setIsRunning(false);
-				setHasRun(true);
-			}
-		}, 280);
-	}, [isRunning, currentAssertions, selectedAssertions]);
+			const id = Date.now() + Math.random();
+			const broken = Math.random() < 0.3;
 
-	// Reset everything
-	const handleReset = useCallback(() => {
-		setSelectedTestType('request');
-		setSelectedAssertions(new Set());
-		setIsRunning(false);
-		setTestResults([]);
-		setHasRun(false);
-		setVisibleLines(0);
-	}, []);
+			setCommits((prev) => [
+				...prev.slice(-14),
+				{
+					id,
+					x: 50,
+					y: 140 + Math.random() * 20,
+					broken,
+					caughtByTests: false,
+				},
+			]);
+		}, 900);
 
-	// Validation
+		return () => clearInterval(interval);
+	}, [animationActive]);
+
+	// ── Animation: move commits (only when animation is active) ──
+	useEffect(() => {
+		if (!animationActive) return;
+
+		const interval = setInterval(() => {
+			setCommits((prev) =>
+				prev
+					.map((c) => {
+						const newX = c.x + 2.5;
+
+						if (testGateActiveRef.current) {
+							// Test gate checkpoint at x=390
+							if (newX >= 390 && newX < 400 && !c.caughtByTests && c.broken) {
+								setCaughtCount((n) => n + 1);
+								return { ...c, x: newX, caughtByTests: true };
+							}
+						}
+
+						// Count deployments (clean commits reaching production)
+						if (testGateActiveRef.current && newX >= 540 && newX < 550 && !c.broken) {
+							setDeployedCount((n) => n + 1);
+						}
+
+						return { ...c, x: newX };
+					})
+					.filter((c) => {
+						if (c.x >= 660) return false;
+						if (c.caughtByTests && c.x > 430) return false;
+						return true;
+					}),
+			);
+		}, 50);
+
+		return () => clearInterval(interval);
+	}, [animationActive]);
+
+	// ── Phase transition handlers ──
+	const handleStartBuild = () => {
+		setPhase('build');
+		setCommits([]);
+	};
+
+	const handleActivateTesting = () => {
+		setPhase('reward');
+		setCommits([]);
+		setCaughtCount(0);
+		setDeployedCount(0);
+	};
+
+	// ── Completion ──
+	const handleComplete = () => {
+		onComplete({ stars: stepper.starRating });
+	};
+
 	const validateSolution = (): ValidationResult => {
-		const errors: string[] = [];
-
-		const activeAssertions = currentAssertions.filter((a) =>
-			selectedAssertions.has(a),
-		);
-
-		if (activeAssertions.length < 2) {
-			errors.push(
-				`Select at least 2 assertions (currently ${activeAssertions.length})`,
-			);
-		}
-
-		if (!hasRun) {
-			errors.push('Run your test suite before submitting');
-		}
-
-		if (hasRun && testResults.some((r) => !r.passed)) {
-			errors.push(
-				'Some tests are failing. Select at least 2 assertions for all to pass.',
-			);
-		}
-
-		if (errors.length > 0) {
+		if (!stepper.isComplete) {
 			return {
 				valid: false,
-				message: 'Tests not passing yet!',
-				details: errors,
+				message: 'Complete all steps first',
+				details: stepper.steps
+					.filter((s) => s.status !== 'completed')
+					.map((s) => s.title),
 			};
 		}
-
-		return {
-			valid: true,
-			message: 'All tests green! Your test suite is ready.',
-		};
+		return { valid: true, message: 'Test suite is in place!' };
 	};
 
-	const handleComplete = async () => {
-		const success = await completeLevel('act2-level13-testing', {
-			stars: 3,
-		});
-		if (success) {
-			onComplete({ stars: 3 });
-		}
-	};
+	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
+	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
+	const currentStepType = STEP_TYPES[stepper.currentStep];
+	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep];
 
-	// Build terminal output lines
-	const buildTerminalLines = (): Array<{
-		text: string;
-		className: string;
-	}> => {
-		const lines: Array<{ text: string; className: string }> = [];
-
-		// Header
-		lines.push({
-			text: `$ bundle exec rspec ${meta.specFile}`,
-			className: 'text-muted-foreground',
-		});
-		lines.push({ text: '', className: '' });
-		lines.push({
-			text: `Running ${meta.label}...`,
-			className: 'text-foreground',
-		});
-
-		// Results
-		for (const result of testResults) {
-			if (result.passed) {
-				lines.push({
-					text: `  ${result.output}`,
-					className: 'text-success',
-				});
-			} else {
-				lines.push({
-					text: `  ${result.output}`,
-					className: 'text-destructive',
-				});
-			}
-		}
-
-		// Summary
-		if (testResults.length > 0) {
-			lines.push({ text: '', className: '' });
-			const passed = testResults.filter((r) => r.passed).length;
-			const failed = testResults.filter((r) => !r.passed).length;
-			if (failed === 0) {
-				lines.push({
-					text: `${passed} example${passed !== 1 ? 's' : ''}, 0 failures`,
-					className: 'text-success font-bold',
-				});
-			} else {
-				lines.push({
-					text: `${testResults.length} example${testResults.length !== 1 ? 's' : ''}, ${failed} failure${failed !== 1 ? 's' : ''}`,
-					className: 'text-destructive font-bold',
-				});
-			}
-		}
-
-		return lines;
-	};
-
-	const terminalLines = buildTerminalLines();
-	const activeAssertionCount = currentAssertions.filter((a) =>
-		selectedAssertions.has(a),
-	).length;
-	const allPassing =
-		hasRun && testResults.length > 0 && testResults.every((r) => r.passed);
-
+	// ── Render ──
 	return (
 		<LevelLayout>
 			<LeftPanel>
-				<InstructionPanel
-					goal="Write tests that catch bugs before they reach production."
-					instructions={[
-						'Choose a test type (request, model, or policy spec)',
-						'Select assertions to verify behavior',
-						'Run your test suite',
-						'Make sure all tests pass green',
-					]}
-					scenario="Your API has grown across Act 1: models, routes, controllers, associations, authorization. But there are zero tests. A deploy broke the login endpoint and nobody noticed for 3 hours."
-				/>
+				<InstructionPanel>
+					{/* Scenario (always visible) */}
+					<div className="p-4 border-b border-border space-y-3">
+						<p className="text-sm text-muted-foreground leading-relaxed">
+							A deploy broke the login endpoint. Nobody noticed for 3 hours
+							because there are zero tests. The only safety net was manual
+							testing.
+						</p>
+						<p className="text-sm text-muted-foreground leading-relaxed">
+							The community standard is{' '}
+							<span className="text-foreground font-medium">RSpec</span> for
+							test structure and{' '}
+							<span className="text-foreground font-medium">FactoryBot</span>{' '}
+							for test data. Request specs test the full HTTP
+							request/response cycle.
+						</p>
+					</div>
+
+					{/* Observe phase: legend only */}
+					{phase === 'observe' && <PipelineLegend />}
+
+					{/* Build / activate / reward phases: step progress */}
+					{phase !== 'observe' && (
+						<div className="p-4 border-b border-border">
+							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+								Steps
+							</div>
+							<StepProgress
+								currentStep={stepper.currentStep}
+								onStepClick={stepper.goToStep}
+								steps={stepper.steps}
+							/>
+						</div>
+					)}
+
+					{/* Reward phase: legend + counters */}
+					{phase === 'reward' && (
+						<>
+							<PipelineLegend />
+
+							<div className="p-4">
+								<div className="grid grid-cols-2 gap-3">
+									<div className="bg-destructive/20 rounded-lg p-3 text-center">
+										<div className="text-2xl font-bold text-destructive">
+											{caughtCount}
+										</div>
+										<div className="text-xs text-destructive/70">Caught</div>
+									</div>
+									<div className="bg-success/20 rounded-lg p-3 text-center">
+										<div className="text-2xl font-bold text-success">
+											{deployedCount}
+										</div>
+										<div className="text-xs text-success/70">Deployed</div>
+									</div>
+								</div>
+							</div>
+						</>
+					)}
+				</InstructionPanel>
 			</LeftPanel>
 
 			<CenterPanel>
@@ -568,240 +909,228 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 					levelName="Testing"
 					levelNumber={13}
 					onComplete={handleComplete}
-					onReset={handleReset}
+					onReset={() => {
+						window.location.reload();
+					}}
 					onValidate={validateSolution}
 				/>
 
-				<div className="flex-1 relative bg-background p-6 overflow-auto">
-					<div className="max-w-2xl mx-auto">
-						{/* Test Controls */}
-						<div className="mb-6 space-y-4">
-							{/* Test Type + Run */}
-							<div className="flex items-center gap-3">
-								{(Object.keys(TEST_TYPE_META) as TestType[]).map((type) => {
-									const typeMeta = TEST_TYPE_META[type];
-									const IconComponent = typeMeta.icon;
-									const isActive = selectedTestType === type;
-									return (
-										<Button
-											className={`gap-2 text-sm ${
-												isActive
-													? 'bg-primary/10 border-primary text-foreground'
-													: 'text-muted-foreground'
-											}`}
-											key={type}
-											onClick={() => switchTestType(type)}
-											size="sm"
-											variant={isActive ? 'outline' : 'ghost'}
-										>
-											<IconComponent className="w-4 h-4 shrink-0" />
-											{typeMeta.label}
-										</Button>
-									);
-								})}
-
-								<div className="ml-auto">
-									<Button
-										className="gap-2"
-										disabled={isRunning || activeAssertionCount === 0}
-										onClick={runTests}
-										size="sm"
-										variant={allPassing ? 'secondary' : 'default'}
-									>
-										{isRunning ? (
-											<>
-												<FlaskConical className="w-4 h-4 animate-pulse" />
-												Running...
-											</>
-										) : (
-											<>
-												<Play className="w-4 h-4" />
-												Run Tests
-											</>
-										)}
+				<div className="flex-1 flex flex-col bg-background overflow-hidden">
+					{/* ── Phase 1: Observe (WHY) ── */}
+					{phase === 'observe' && (
+						<div className="flex-1 flex flex-col">
+							<div className="flex-1 relative">
+								<DeployPipeline
+									commits={commits}
+									testGateActive={false}
+								/>
+							</div>
+							{showBuildButton && (
+								<div className="p-6 flex justify-center animate-in fade-in duration-500">
+									<Button className="gap-2" onClick={handleStartBuild} size="lg">
+										Build the Fix
+										<ArrowRight className="w-4 h-4" />
 									</Button>
-								</div>
-							</div>
-
-							{/* Assertions */}
-							<div className="flex flex-wrap gap-2">
-								{currentAssertions.map((assertion) => {
-									const isSelected = selectedAssertions.has(assertion);
-									return (
-										<Button
-											className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
-												isSelected
-													? 'bg-primary/15 border-primary text-primary'
-													: 'bg-secondary border-border text-muted-foreground hover:border-muted-foreground hover:text-foreground'
-											}`}
-											key={assertion}
-											onClick={() => toggleAssertion(assertion)}
-										>
-											{isSelected && (
-												<Check className="w-3 h-3 inline-block mr-1 -mt-0.5" />
-											)}
-											{assertion}
-										</Button>
-									);
-								})}
-								<span className="text-xs text-muted-foreground self-center ml-1">
-									({activeAssertionCount} selected)
-								</span>
-							</div>
-						</div>
-
-						{/* Terminal Header */}
-						<div className="bg-card rounded-t-xl border border-border border-b-0">
-							<div className="flex items-center gap-2 px-4 py-2.5">
-								<div className="flex gap-1.5">
-									<div className="w-3 h-3 rounded-full bg-destructive" />
-									<div className="w-3 h-3 rounded-full bg-warning" />
-									<div className="w-3 h-3 rounded-full bg-success" />
-								</div>
-								<div className="flex items-center gap-2 ml-3 text-xs text-muted-foreground font-mono">
-									<Terminal className="w-3.5 h-3.5" />
-									rspec -- {meta.specFile}
-								</div>
-							</div>
-						</div>
-
-						{/* Terminal Body */}
-						<div
-							className="bg-[#0d1117] rounded-b-xl border border-border border-t-0 p-4 font-mono text-sm min-h-[320px] max-h-[480px] overflow-y-auto"
-							ref={terminalRef}
-						>
-							{testResults.length === 0 && !isRunning ? (
-								<div className="text-muted-foreground/50 flex flex-col items-center justify-center min-h-[280px] gap-3">
-									<FlaskConical className="w-10 h-10" />
-									<div className="text-center">
-										<div className="text-sm">No test results yet</div>
-										<div className="text-xs mt-1">
-											Select assertions and click Run Tests
-										</div>
-									</div>
-								</div>
-							) : (
-								<div className="space-y-1">
-									{terminalLines.map((line, idx) => {
-										if (idx >= visibleLines) return null;
-										return (
-											<div
-												className={`${line.className} leading-relaxed`}
-												key={`line-${idx}-${line.text.slice(0, 20)}`}
-											>
-												{line.text || '\u00A0'}
-											</div>
-										);
-									})}
-									{isRunning && (
-										<span className="inline-block w-2 h-4 bg-foreground animate-pulse" />
-									)}
 								</div>
 							)}
 						</div>
+					)}
 
-						{/* Test Result Cards */}
-						{hasRun && testResults.length > 0 && (
-							<div className="mt-6 space-y-2">
-								<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-									Test Results Detail
-								</div>
-								{testResults.map((result) => (
-									<div
-										className={`flex items-center gap-3 px-4 py-3 rounded-lg border ${
-											result.passed
-												? 'bg-success/5 border-success/30'
-												: 'bg-destructive/5 border-destructive/30'
-										}`}
-										key={result.name}
-									>
-										{result.passed ? (
-											<Check className="w-4 h-4 text-success shrink-0" />
-										) : (
-											<X className="w-4 h-4 text-destructive shrink-0" />
+					{/* ── Phase 2: Build (HOW) ── */}
+					{phase === 'build' && (
+						<div className="flex-1 overflow-auto p-6">
+							<div className="max-w-2xl mx-auto space-y-4">
+								{/* Terminal steps (0, 1, 2) */}
+								{currentStepType === 'terminal' && stepper.currentStep === 0 && (
+									<TerminalChoiceStep
+										commands={addRspecCommands}
+										completed={isViewingCompletedStep}
+										description={
+											<p className="text-sm text-muted-foreground">
+												RSpec is the Ruby community standard for testing.
+												Add it to your project dependencies.
+											</p>
+										}
+										hasNext={hasNextStep}
+										initialHistory={buildTerminalHistory(
+											SHELL_STEP_MAP,
+											stepper.currentStep,
 										)}
-										<span
-											className={`text-sm ${result.passed ? 'text-success' : 'text-destructive'}`}
-										>
-											{result.name}
-										</span>
-										<ChevronRight className="w-3 h-3 text-muted-foreground ml-auto" />
-									</div>
-								))}
+										onCorrect={() => stepper.completeStep()}
+										onNext={stepper.nextStep}
+										onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+										outputLines={addRspecOutput}
+										stepKey={stepper.currentStep}
+										title="Add rspec-rails Gem"
+									/>
+								)}
+
+								{currentStepType === 'terminal' && stepper.currentStep === 1 && (
+									<TerminalChoiceStep
+										commands={runRspecInstallCommands}
+										completed={isViewingCompletedStep}
+										description={
+											<p className="text-sm text-muted-foreground">
+												RSpec needs a spec directory, helpers, and config
+												files. Run the install generator to scaffold them.
+											</p>
+										}
+										hasNext={hasNextStep}
+										initialHistory={buildTerminalHistory(
+											SHELL_STEP_MAP,
+											stepper.currentStep,
+										)}
+										onCorrect={() => stepper.completeStep()}
+										onNext={stepper.nextStep}
+										onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+										outputLines={runRspecInstallOutput}
+										stepKey={stepper.currentStep}
+										title="Run RSpec Generator"
+									/>
+								)}
+
+								{currentStepType === 'terminal' && stepper.currentStep === 2 && (
+									<TerminalChoiceStep
+										commands={addFactoryBotCommands}
+										completed={isViewingCompletedStep}
+										description={
+											<p className="text-sm text-muted-foreground">
+												FactoryBot creates test data with sensible defaults.
+												Add the Rails-integrated version to your project.
+											</p>
+										}
+										hasNext={hasNextStep}
+										initialHistory={buildTerminalHistory(
+											SHELL_STEP_MAP,
+											stepper.currentStep,
+										)}
+										onCorrect={() => stepper.completeStep()}
+										onNext={stepper.nextStep}
+										onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+										outputLines={addFactoryBotOutput}
+										stepKey={stepper.currentStep}
+										title="Add factory_bot_rails Gem"
+									/>
+								)}
+
+								{/* OptionCard steps (3, 4, 5) */}
+								{currentStepType === 'option' && currentOptionConfig && (
+									<>
+										<h3 className="text-lg font-semibold text-foreground">
+											{currentOptionConfig.title}
+										</h3>
+										<p className="text-sm text-muted-foreground">
+											{currentOptionConfig.description}
+										</p>
+
+										{isViewingCompletedStep ? (
+											<div className="space-y-2">
+												{currentOptionConfig.options.map((opt) => (
+													<OptionCard
+														key={opt.id}
+														color="emerald"
+														disabled={!opt.correct}
+														mono
+														name={opt.label}
+														selected={opt.correct}
+														size="lg"
+													/>
+												))}
+											</div>
+										) : (
+											<>
+												<div className="space-y-2">
+													{currentOptionConfig.options.map((opt) => (
+														<OptionCard
+															key={opt.id}
+															color="emerald"
+															mono
+															name={opt.label}
+															onClick={() => handleOptionClick(opt)}
+															size="lg"
+														/>
+													))}
+												</div>
+
+												<ErrorFeedback
+													message={stepper.lastFeedback}
+													onDismiss={stepper.clearFeedback}
+												/>
+											</>
+										)}
+
+										{isViewingCompletedStep && hasNextStep && (
+											<div className="flex justify-end">
+												<Button
+													className="gap-2"
+													onClick={stepper.nextStep}
+													size="sm"
+												>
+													Next Step
+													<ArrowRight className="w-4 h-4" />
+												</Button>
+											</div>
+										)}
+									</>
+								)}
 							</div>
-						)}
-					</div>
+						</div>
+					)}
+
+					{/* ── Phase 3: Activate (ADVANTAGE sub-phase a) ── */}
+					{phase === 'activate' && (
+						<div className="flex-1 flex items-center justify-center p-6">
+							<div className="max-w-md text-center space-y-6">
+								<div className="flex justify-center gap-1">
+									{[1, 2, 3].map((s) => (
+										<Star
+											key={s}
+											className={`w-8 h-8 ${
+												s <= stepper.starRating
+													? 'text-yellow-400 fill-yellow-400'
+													: 'text-muted-foreground/30'
+											}`}
+										/>
+									))}
+								</div>
+								<p className="text-sm text-muted-foreground">
+									Your test suite is ready. See broken commits get
+									caught at the test gate before they reach production.
+								</p>
+								<Button
+									className="gap-2"
+									onClick={handleActivateTesting}
+									size="lg"
+								>
+									<Play className="w-4 h-4" />
+									Visualize Testing
+								</Button>
+							</div>
+						</div>
+					)}
+
+					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
+					{phase === 'reward' && (
+						<div className="flex-1 flex flex-col">
+							<div className="flex-1 relative">
+								<DeployPipeline
+									commits={commits}
+									testGateActive={true}
+								/>
+							</div>
+							<div className="p-4 text-center">
+								<p className="text-sm text-muted-foreground">
+									Test gate active. Broken commits are caught before
+									they reach production. Click Submit to complete the level.
+								</p>
+							</div>
+						</div>
+					)}
 				</div>
 			</CenterPanel>
 
 			<RightPanel>
-				<CodePreviewPanel
-					files={[
-						{
-							filename: meta.specFile,
-							language: 'ruby',
-							code: generateSpecCode(selectedTestType, selectedAssertions),
-							highlight: (() => {
-								// Highlight assertion lines (the expect lines)
-								const code = generateSpecCode(
-									selectedTestType,
-									selectedAssertions,
-								);
-								const lines = code.split('\n');
-								const highlighted: number[] = [];
-								for (let i = 0; i < lines.length; i++) {
-									if (lines[i].includes('expect(')) {
-										highlighted.push(i + 1);
-									}
-								}
-								return highlighted;
-							})(),
-						},
-						{
-							filename: 'spec/factories/posts.rb',
-							language: 'ruby',
-							code: `FactoryBot.define do
-  factory :post do
-    title { Faker::Lorem.sentence }
-    body { Faker::Lorem.paragraph(sentence_count: 5) }
-    slug { Faker::Internet.slug }
-    association :user
-
-    trait :published do
-      status { "published" }
-      published_at { Time.current }
-    end
-  end
-end`,
-							highlight: [3, 4, 5, 6],
-						},
-					]}
-					learningGoal="Testing is not optional. Request specs are your highest-value tests for APIs -- they test the full HTTP request/response cycle."
-				>
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-							Key Concepts
-						</div>
-						<ul className="text-xs text-muted-foreground space-y-2">
-							<li className="flex items-start gap-2">
-								<Terminal className="w-3 h-3 mt-0.5 text-primary shrink-0" />
-								<span>Request specs test full HTTP cycle</span>
-							</li>
-							<li className="flex items-start gap-2">
-								<FileCode className="w-3 h-3 mt-0.5 text-success shrink-0" />
-								<span>FactoryBot creates test data</span>
-							</li>
-							<li className="flex items-start gap-2">
-								<FlaskConical className="w-3 h-3 mt-0.5 text-purple-400 shrink-0" />
-								<span>Test behavior, not implementation</span>
-							</li>
-							<li className="flex items-start gap-2">
-								<ShieldCheck className="w-3 h-3 mt-0.5 text-warning shrink-0" />
-								<span>One happy path + edge cases per endpoint</span>
-							</li>
-						</ul>
-					</div>
-				</CodePreviewPanel>
+				<CodePreviewPanel files={getCodeFiles(phase, stepper.furthestStep)} />
 			</RightPanel>
 		</LevelLayout>
 	);
