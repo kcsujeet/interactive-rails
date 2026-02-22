@@ -155,29 +155,31 @@ export function Level8Associations({
 	// Step 5: Test
 	const testCommands = [
 		{
+			id: 'wrong-direct',
+			label: 'Comment.create(body: "Nice!")',
+			command: 'Comment.create(body: "Nice!")',
+			correct: false,
+			feedback:
+				'This creates an orphaned Comment with no post_id. Use the association method on the post object instead.',
+		},
+		{
 			id: 'create-comment',
 			label: 'post.comments.create(body: "Nice!")',
 			command: 'post.comments.create(body: "Nice!")',
 			correct: true,
 		},
+		{
+			id: 'wrong-manual',
+			label: 'Comment.create(body: "Nice!", post_id: post.id)',
+			command: 'Comment.create(body: "Nice!", post_id: post.id)',
+			correct: false,
+			feedback:
+				'This works but bypasses the association. Rails provides a cleaner way to create through the parent object.',
+		},
 	];
 
 	const testOutput: TerminalOutputLine[] = [
 		{ text: '=> #<Comment id: 1, body: "Nice!", post_id: 1>', color: 'green' },
-		{ text: '', color: 'muted' },
-		{ text: '> post.comments.count', color: 'yellow' },
-		{ text: '=> 1', color: 'cyan' },
-		{ text: '', color: 'muted' },
-		{ text: '> post.destroy', color: 'yellow' },
-		{
-			text: '  Comment Destroy (0.1ms)  DELETE FROM "comments" WHERE "comments"."post_id" = 1',
-			color: 'red',
-		},
-		{
-			text: '  Post Destroy (0.1ms)  DELETE FROM "posts" WHERE "posts"."id" = 1',
-			color: 'red',
-		},
-		{ text: '=> #<Post id: 1> (destroyed with 1 comment)', color: 'green' },
 	];
 
 	const handleComplete = async () => {
@@ -206,12 +208,12 @@ export function Level8Associations({
 		return { valid: true, message: 'Associations configured correctly!' };
 	};
 
-	// Terminal step data for building history (steps 1-3 are non-terminal)
-	const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
+	// Terminal step data for building history
+	// Step 0 (shell) and Step 4 (Rails console) are separate terminals, so each gets its own map
+	const SHELL_STEP_MAP: (TerminalStepData | null)[] = [
 		{ commands: generateCommands, outputLines: generateOutput },
-		null, // step 1: Choose Relationship (click-to-select)
-		null, // step 2: Auto belongs_to (informational)
-		null, // step 3: Set Dependent (click-to-select)
+	];
+	const CONSOLE_STEP_MAP: (TerminalStepData | null)[] = [
 		{ commands: testCommands, outputLines: testOutput },
 	];
 
@@ -319,8 +321,8 @@ end`,
 								}
 								hasNext={stepper.currentStep < STEP_DEFS.length - 1}
 								initialHistory={buildTerminalHistory(
-									TERMINAL_STEP_MAP,
-									stepper.currentStep,
+									SHELL_STEP_MAP,
+									0,
 								)}
 								onCorrect={() => stepper.completeStep()}
 								onNext={stepper.nextStep}
@@ -481,20 +483,22 @@ end`,
 								completed={stepper.currentStep < stepper.furthestStep}
 								description={
 									<p className="text-sm text-muted-foreground">
-										Create a comment through the association, then destroy the
-										post to verify cascade.
+										Create a comment through the association. How do you add a
+										child record through the parent?
 									</p>
 								}
 								hasNext={stepper.currentStep < STEP_DEFS.length - 1}
 								initialHistory={buildTerminalHistory(
-									TERMINAL_STEP_MAP,
-									stepper.currentStep,
+									CONSOLE_STEP_MAP,
+									0,
 								)}
 								onCorrect={() => stepper.completeStep()}
 								onNext={stepper.nextStep}
 								onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 								outputLines={testOutput}
+								prompt="irb>"
 								stepKey={stepper.currentStep}
+								terminalTitle="Rails Console"
 								title="Test It"
 							/>
 						)}
