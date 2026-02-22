@@ -106,7 +106,7 @@ const METHOD_COLORS: Record<string, string> = {
 	DELETE: 'text-red-400',
 };
 
-export function Level5Routes({ onComplete, onExit }: LevelComponentProps) {
+export function Level5Routes({ onComplete }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
@@ -320,7 +320,6 @@ end`,
 					levelName="Routes & Request Lifecycle"
 					levelNumber={5}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => window.location.reload()}
 					onValidate={validateSolution}
 				/>

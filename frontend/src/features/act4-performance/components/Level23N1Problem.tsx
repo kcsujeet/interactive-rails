@@ -46,7 +46,7 @@ const AUTHORS: Author[] = [
 	{ id: 3, name: 'Charlie', loaded: false },
 ];
 
-export function Level23N1Problem({ onComplete, onExit }: LevelComponentProps) {
+export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [isRunning, setIsRunning] = useState(false);
 	const [queryLog, setQueryLog] = useState<string[]>([]);
@@ -194,7 +194,6 @@ export function Level23N1Problem({ onComplete, onExit }: LevelComponentProps) {
 					levelName="N+1 Problem"
 					levelNumber={23}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={resetSimulation}
 					onValidate={validateSolution}
 				/>

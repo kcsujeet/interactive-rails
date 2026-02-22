@@ -65,7 +65,6 @@ const AVAILABLE_SCOPES = ['visible', 'recent', 'by_author', 'not_deleted'];
 
 export function Level15ScopesEnums({
 	onComplete,
-	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [queries, setQueries] = useState<QueryBlock[]>(QUERY_BLOCKS);
@@ -213,7 +212,6 @@ end
 					levelName="Scopes & Enums"
 					levelNumber={15}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => {
 						setQueries(QUERY_BLOCKS);
 						setEnumAdded(false);

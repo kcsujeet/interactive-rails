@@ -38,7 +38,6 @@ const STEP_DEFS: StepDef[] = [
 
 export function Level8Associations({
 	onComplete,
-	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
@@ -297,7 +296,6 @@ end`,
 					levelName="Associations"
 					levelNumber={8}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => window.location.reload()}
 					onValidate={validateSolution}
 				/>

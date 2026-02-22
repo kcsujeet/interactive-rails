@@ -24,7 +24,6 @@ interface LevelHeaderProps {
 	levelName: string;
 	actNumber?: number;
 	subtitle?: string;
-	onExit: () => void;
 	onReset?: () => void;
 	onValidate: ValidateFn;
 	onComplete: () => void;
@@ -35,7 +34,6 @@ export function LevelHeader({
 	levelName,
 	actNumber = 1,
 	subtitle,
-	onExit,
 	onReset,
 	onValidate,
 	onComplete,
@@ -69,13 +67,15 @@ export function LevelHeader({
 			<div className="min-h-14 py-2 border-b border-border grid grid-cols-[1fr_auto_1fr] items-center px-6 bg-card/50">
 				<div className="justify-self-start">
 					<Button
+						asChild
 						className="text-muted-foreground hover:text-foreground text-sm flex items-center gap-2"
-						onClick={onExit}
 						size="sm"
-						variant="ghost"
+						variant="link"
 					>
-						<ChevronLeft className="w-4 h-4" />
-						Levels
+						<a href={`/acts/${actNumber}`}>
+							<ChevronLeft className="w-4 h-4" />
+							Levels
+						</a>
 					</Button>
 				</div>
 

@@ -233,7 +233,7 @@ const TERMINAL_STEPS: {
 	},
 ];
 
-export function Level2FirstBoot({ onComplete, onExit }: LevelComponentProps) {
+export function Level2FirstBoot({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 
 	// Step 1: Choose Database - click-to-select with feedback
@@ -403,7 +403,6 @@ end`,
 					levelName="First Boot"
 					levelNumber={2}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => {
 						window.location.reload();
 					}}

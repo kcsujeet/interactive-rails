@@ -298,7 +298,7 @@ gem "solid_cable"`,
 	return files;
 }
 
-export function Level1Environment({ onComplete, onExit }: LevelComponentProps) {
+export function Level1Environment({ onComplete }: LevelComponentProps) {
 	const stepDefs = STEPS.map((s) => ({ id: s.id, title: s.title }));
 	const stepper = useStepGating(stepDefs, { autoAdvance: false });
 
@@ -353,7 +353,6 @@ export function Level1Environment({ onComplete, onExit }: LevelComponentProps) {
 					levelName="The Environment"
 					levelNumber={1}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => {
 						window.location.reload();
 					}}

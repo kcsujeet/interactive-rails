@@ -116,7 +116,6 @@ interface SoftDeleteConfig {
 
 export function Level42SoftDeletes({
 	onComplete,
-	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 
@@ -521,7 +520,6 @@ PaperTrail.request.whodunnit = -> {
 					levelName="Soft Deletes & Audit Trails"
 					levelNumber={42}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={handleReset}
 					onValidate={validateSolution}
 				/>

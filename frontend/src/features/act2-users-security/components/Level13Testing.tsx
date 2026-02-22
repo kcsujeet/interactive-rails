@@ -337,7 +337,7 @@ function generateSpecCode(
 
 // --- Component ---
 
-export function Level13Testing({ onComplete, onExit }: LevelComponentProps) {
+export function Level13Testing({ onComplete }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [selectedTestType, setSelectedTestType] = useState<TestType>('request');
 	const [selectedAssertions, setSelectedAssertions] = useState<Set<string>>(
@@ -568,7 +568,6 @@ export function Level13Testing({ onComplete, onExit }: LevelComponentProps) {
 					levelName="Testing"
 					levelNumber={13}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={handleReset}
 					onValidate={validateSolution}
 				/>

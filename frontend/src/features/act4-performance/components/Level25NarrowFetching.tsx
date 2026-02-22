@@ -236,7 +236,6 @@ function ScenarioIcon({
 
 export function Level25NarrowFetching({
 	onComplete,
-	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
@@ -424,7 +423,6 @@ Post.find_in_batches(batch_size: 1000) { |batch|
 					levelName="Narrow Fetching"
 					levelNumber={25}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => window.location.reload()}
 					onValidate={validateSolution}
 				/>

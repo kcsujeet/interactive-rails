@@ -206,7 +206,6 @@ function getRiskIcon(risk: RiskLevel) {
 
 export function Level43SafeMigrations({
 	onComplete,
-	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [operations, setOperations] =
@@ -367,7 +366,6 @@ export function Level43SafeMigrations({
 					levelName="Safe Migrations"
 					levelNumber={43}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={handleReset}
 					onValidate={validateSolution}
 				/>

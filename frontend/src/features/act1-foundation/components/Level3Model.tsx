@@ -174,7 +174,7 @@ const TERMINAL_STEPS: {
 	},
 ];
 
-export function Level3Model({ onComplete, onExit }: LevelComponentProps) {
+export function Level3Model({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const [slots, setSlots] = useState<AttributeSlot[]>(ATTRIBUTE_SLOTS);
 	const [draggedType, setDraggedType] = useState<string | null>(null);
@@ -373,7 +373,6 @@ end`,
 					levelName="The Model"
 					levelNumber={3}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => window.location.reload()}
 					onValidate={validateSolution}
 				/>

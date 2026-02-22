@@ -50,7 +50,6 @@ interface APICall {
 
 export function Level37ExternalAPIs({
 	onComplete,
-	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [config, setConfig] = useState<APIConfig>({
@@ -299,7 +298,6 @@ export function Level37ExternalAPIs({
 					levelName="External APIs"
 					levelNumber={37}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => {
 						setConfig({
 							timeout: false,

@@ -54,7 +54,7 @@ const INITIAL_SUBSCRIPTIONS: EventSubscription[] = [
 	{ id: 'status', label: 'Status Updates', icon: Wifi, subscribed: false },
 ];
 
-export function Level36RealTime({ onComplete, onExit }: LevelComponentProps) {
+export function Level36RealTime({ onComplete }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 
 	// Configuration state
@@ -508,7 +508,6 @@ export function Level36RealTime({ onComplete, onExit }: LevelComponentProps) {
 					levelName="Real-Time"
 					levelNumber={36}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={handleReset}
 					onValidate={validateSolution}
 				/>

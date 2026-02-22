@@ -54,7 +54,6 @@ const TOTAL_BEFORE_TIME = BEFORE_QUERIES.reduce((s, q) => s + q.time, 0);
 
 export function Level27CounterCaches({
 	onComplete,
-	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [counterCacheEnabled, setCounterCacheEnabled] = useState(false);
@@ -316,7 +315,6 @@ export function Level27CounterCaches({
 					levelName="Counter Caches"
 					levelNumber={27}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={handleReset}
 					onValidate={validateSolution}
 				/>

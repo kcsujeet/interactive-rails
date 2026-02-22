@@ -87,7 +87,7 @@ interface QueryResult {
 	detail: string;
 }
 
-export function Level35Encryption({ onComplete, onExit }: LevelComponentProps) {
+export function Level35Encryption({ onComplete }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 
 	const [columns, setColumns] = useState<ColumnConfig[]>([
@@ -477,7 +477,6 @@ ${phoneQueryable ? 'User.find_by(phone: "+1-555-0123")        # Works!' : '# Use
 					levelName="Encrypted Attributes"
 					levelNumber={35}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={handleReset}
 					onValidate={validateSolution}
 				/>

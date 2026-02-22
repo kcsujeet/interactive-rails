@@ -156,7 +156,6 @@ const INITIAL_SCENARIOS: Scenario[] = [
 
 export function Level24EagerLoading({
 	onComplete,
-	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [scenarios, setScenarios] = useState<Scenario[]>(INITIAL_SCENARIOS);
@@ -296,7 +295,6 @@ export function Level24EagerLoading({
 					levelName="Eager Loading"
 					levelNumber={24}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => setScenarios(INITIAL_SCENARIOS)}
 					onValidate={validateSolution}
 				/>

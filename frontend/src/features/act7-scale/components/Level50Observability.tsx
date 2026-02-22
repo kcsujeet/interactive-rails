@@ -31,7 +31,6 @@ interface Span {
 
 export function Level50Observability({
 	onComplete,
-	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [tracingEnabled, setTracingEnabled] = useState(false);
@@ -234,7 +233,6 @@ export function Level50Observability({
 					levelName="Observability"
 					levelNumber={50}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => {
 						setTracingEnabled(false);
 						setSpans([

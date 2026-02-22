@@ -96,7 +96,6 @@ type SelectedMailer = 'password_reset' | 'welcome';
 
 export function Level21ActionMailer({
 	onComplete,
-	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [emailComponents, setEmailComponents] = useState<
@@ -316,7 +315,6 @@ export function Level21ActionMailer({
 					levelName="Action Mailer"
 					levelNumber={21}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={handleReset}
 					onValidate={validateSolution}
 				/>

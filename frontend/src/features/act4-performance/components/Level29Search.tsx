@@ -152,7 +152,7 @@ function computeRelevanceScore(post: Post, query: string): number {
 	return Math.round(score * 10) / 10;
 }
 
-export function Level29Search({ onComplete, onExit }: LevelComponentProps) {
+export function Level29Search({ onComplete }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [searchQuery, setSearchQuery] = useState('');
 	const [searchMode, setSearchMode] = useState<SearchMode>('like');
@@ -533,7 +533,6 @@ end`;
 					levelName="Search"
 					levelNumber={29}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={handleReset}
 					onValidate={validateSolution}
 				/>

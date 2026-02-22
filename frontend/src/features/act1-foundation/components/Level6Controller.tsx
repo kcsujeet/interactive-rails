@@ -73,7 +73,7 @@ const CORRECT_PARAMS_ORDER = [
 	'close',
 ];
 
-export function Level6Controller({ onComplete, onExit }: LevelComponentProps) {
+export function Level6Controller({ onComplete }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
@@ -321,7 +321,6 @@ end`,
 					levelName="The Controller"
 					levelNumber={6}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => window.location.reload()}
 					onValidate={validateSolution}
 				/>

@@ -206,7 +206,6 @@ function buildSimulation(strategy: LockingStrategy): SimulationState {
 
 export function Level33Transactions({
 	onComplete,
-	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [strategy, setStrategy] = useState<LockingStrategy>('none');
@@ -465,7 +464,6 @@ export function Level33Transactions({
 					levelName="Transactions & Locking"
 					levelNumber={33}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => {
 						setStrategy('none');
 						setSimulation(buildSimulation('none'));

@@ -477,7 +477,7 @@ end`,
 
 // --- Component ---
 
-export function Level31HTTPCaching({ onComplete, onExit }: LevelComponentProps) {
+export function Level31HTTPCaching({ onComplete }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const [selectedOption, setSelectedOption] = useState<string | null>(null);
@@ -619,7 +619,6 @@ export function Level31HTTPCaching({ onComplete, onExit }: LevelComponentProps) 
 					levelName="HTTP Caching"
 					levelNumber={31}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => window.location.reload()}
 					onValidate={validateSolution}
 				/>

@@ -124,7 +124,6 @@ const SECTIONS = [
 
 export function Level16ServiceObjects({
 	onComplete,
-	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [components, setComponents] =
@@ -277,7 +276,6 @@ end`;
 					levelName="Service Objects"
 					levelNumber={16}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => setComponents(SERVICE_COMPONENTS)}
 					onValidate={validateSolution}
 				/>

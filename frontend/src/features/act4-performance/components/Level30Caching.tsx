@@ -123,7 +123,7 @@ end
 	},
 ];
 
-export function Level30Caching({ onComplete, onExit }: LevelComponentProps) {
+export function Level30Caching({ onComplete }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [cacheLayers, setCacheLayers] =
 		useState<CacheLayer[]>(INITIAL_CACHE_LAYERS);
@@ -301,7 +301,6 @@ export function Level30Caching({ onComplete, onExit }: LevelComponentProps) {
 					levelName="Caching"
 					levelNumber={30}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => {
 						setCacheLayers(INITIAL_CACHE_LAYERS);
 						setRequests([]);

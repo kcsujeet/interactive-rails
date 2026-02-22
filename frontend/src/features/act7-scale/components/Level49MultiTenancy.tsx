@@ -143,7 +143,6 @@ function getLevelDots(level: number, max: number) {
 
 export function Level49MultiTenancy({
 	onComplete,
-	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 
@@ -414,7 +413,6 @@ export function Level49MultiTenancy({
 					levelName="Multi-Tenancy"
 					levelNumber={49}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={handleReset}
 					onValidate={handleValidate}
 				/>

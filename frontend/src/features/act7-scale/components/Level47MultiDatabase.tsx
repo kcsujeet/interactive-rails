@@ -71,7 +71,6 @@ const LATENCY_WITH_REPLICAS = { p50: 45, p95: 95, p99: 150 };
 
 export function Level47MultiDatabase({
 	onComplete,
-	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 
@@ -412,7 +411,6 @@ config.active_record.database_resolver_context =
 					levelName="Multi-Database"
 					levelNumber={47}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={handleReset}
 					onValidate={handleValidate}
 				/>

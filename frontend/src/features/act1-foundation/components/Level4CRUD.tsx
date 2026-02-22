@@ -241,7 +241,7 @@ function getDbState(furthestStep: number) {
 	return 'Table is empty (Post.count => 0)';
 }
 
-export function Level4CRUD({ onComplete, onExit }: LevelComponentProps) {
+export function Level4CRUD({ onComplete }: LevelComponentProps) {
 	const stepDefs = STEPS.map((s) => ({ id: s.id, title: s.title }));
 	const stepper = useStepGating(stepDefs, { autoAdvance: false });
 
@@ -305,7 +305,6 @@ export function Level4CRUD({ onComplete, onExit }: LevelComponentProps) {
 					levelName="CRUD Operations"
 					levelNumber={4}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => {
 						window.location.reload();
 					}}

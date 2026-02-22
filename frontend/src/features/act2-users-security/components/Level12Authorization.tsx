@@ -33,7 +33,6 @@ interface Request {
 
 export function Level12Authorization({
 	onComplete,
-	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [policyAdded, setPolicyAdded] = useState(false);
@@ -236,7 +235,6 @@ export function Level12Authorization({
 					levelName="Authorization"
 					levelNumber={12}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => {
 						setPolicyAdded(false);
 						setRequests([]);

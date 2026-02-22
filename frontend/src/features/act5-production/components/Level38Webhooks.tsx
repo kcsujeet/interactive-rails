@@ -81,7 +81,7 @@ const WEBHOOK_TYPES: { type: string; Icon: LucideIcon; description: string }[] =
 		},
 	];
 
-export function Level38Webhooks({ onComplete, onExit }: LevelComponentProps) {
+export function Level38Webhooks({ onComplete }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [config, setConfig] = useState<WebhookConfig>({
 		signatureVerification: false,
@@ -294,7 +294,6 @@ export function Level38Webhooks({ onComplete, onExit }: LevelComponentProps) {
 					levelName="Webhooks"
 					levelNumber={38}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => {
 						setConfig({
 							signatureVerification: false,

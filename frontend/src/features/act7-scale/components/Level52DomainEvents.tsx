@@ -35,7 +35,6 @@ interface Event {
 
 export function Level52DomainEvents({
 	onComplete,
-	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [eventBusEnabled, setEventBusEnabled] = useState(false);
@@ -209,7 +208,6 @@ export function Level52DomainEvents({
 					levelName="Event-Driven"
 					levelNumber={52}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => {
 						setEventBusEnabled(false);
 						setServices([

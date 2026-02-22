@@ -244,7 +244,6 @@ end`;
 
 export function Level19QueryObjects({
 	onComplete,
-	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [methods, setMethods] = useState<QueryMethod[]>(INITIAL_METHODS);
@@ -361,7 +360,6 @@ export function Level19QueryObjects({
 					levelName="Query Objects"
 					levelNumber={19}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={handleReset}
 					onValidate={validateSolution}
 				/>

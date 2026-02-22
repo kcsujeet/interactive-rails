@@ -31,7 +31,6 @@ interface Upload {
 
 export function Level34ActiveStorage({
 	onComplete,
-	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [directUploadEnabled, setDirectUploadEnabled] = useState(false);
@@ -215,7 +214,6 @@ export function Level34ActiveStorage({
 					levelName="Cloud Storage"
 					levelNumber={34}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => {
 						setDirectUploadEnabled(false);
 						setUploads([]);

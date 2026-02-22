@@ -222,7 +222,6 @@ const DATA_TIERS = [
 
 export function Level45DataLifecycle({
 	onComplete,
-	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
@@ -498,7 +497,6 @@ end`,
 					levelName="Data Lifecycle"
 					levelNumber={45}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={handleReset}
 					onValidate={validateSolution}
 				/>

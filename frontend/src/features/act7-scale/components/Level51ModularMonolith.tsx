@@ -309,7 +309,6 @@ function getStepScenario(stepIndex: number): {
 
 export function Level51ModularMonolith({
 	onComplete,
-	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
@@ -584,7 +583,6 @@ exclude:
 					levelName="Modular Monolith"
 					levelNumber={51}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => window.location.reload()}
 					onValidate={validateSolution}
 				/>

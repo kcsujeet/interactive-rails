@@ -148,7 +148,7 @@ const SCENARIOS: Scenario[] = [
 	},
 ];
 
-export function Level28Pagination({ onComplete, onExit }: LevelComponentProps) {
+export function Level28Pagination({ onComplete }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [strategies] = useState<PaginationStrategy[]>(PAGINATION_STRATEGIES);
 	const [scenarios, setScenarios] = useState<Scenario[]>(SCENARIOS);
@@ -287,7 +287,6 @@ export function Level28Pagination({ onComplete, onExit }: LevelComponentProps) {
 					levelName="Pagination"
 					levelNumber={28}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => setScenarios(SCENARIOS)}
 					onValidate={validateSolution}
 				/>

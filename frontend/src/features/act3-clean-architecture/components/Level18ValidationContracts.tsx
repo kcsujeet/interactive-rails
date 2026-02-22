@@ -290,7 +290,6 @@ function getAfterController(extractions: Extraction[]): {
 
 export function Level18ValidationContracts({
 	onComplete,
-	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [extractions, setExtractions] = useState<Extraction[]>(
@@ -630,7 +629,6 @@ export function Level18ValidationContracts({
 					levelName="Validation Contracts"
 					levelNumber={18}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={handleReset}
 					onValidate={validateSolution}
 				/>

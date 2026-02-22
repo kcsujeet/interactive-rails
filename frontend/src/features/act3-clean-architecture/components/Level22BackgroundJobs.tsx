@@ -102,7 +102,6 @@ interface QueuedJob {
 
 export function Level22BackgroundJobs({
 	onComplete,
-	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [operations, setOperations] =
@@ -233,7 +232,6 @@ export function Level22BackgroundJobs({
 					levelName="Background Jobs"
 					levelNumber={22}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => {
 						setOperations(INITIAL_OPERATIONS);
 						setQueuedJobs([]);

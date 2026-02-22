@@ -190,7 +190,6 @@ function getArrowPath(
 
 export function Level48StateMachines({
 	onComplete,
-	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 
@@ -649,7 +648,6 @@ end
 					levelName="State Machines"
 					levelNumber={48}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={handleReset}
 					onValidate={handleValidate}
 				/>

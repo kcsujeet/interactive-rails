@@ -132,7 +132,7 @@ const SERVICES: Service[] = [
 	},
 ];
 
-export function Level53APIGateway({ onComplete, onExit }: LevelComponentProps) {
+export function Level53APIGateway({ onComplete }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [features, setFeatures] = useState<GatewayFeature[]>(INITIAL_FEATURES);
 	const [services, setServices] = useState<Service[]>(SERVICES);
@@ -353,7 +353,6 @@ export function Level53APIGateway({ onComplete, onExit }: LevelComponentProps) {
 					levelName="API Gateway"
 					levelNumber={53}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => {
 						setFeatures(INITIAL_FEATURES);
 						setServices(SERVICES);

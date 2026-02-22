@@ -91,7 +91,6 @@ const V2_RESPONSE_BODY = JSON.stringify(
 
 export function Level39APIVersioning({
 	onComplete,
-	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [config, setConfig] = useState<VersioningConfig>({
@@ -352,7 +351,6 @@ export function Level39APIVersioning({
 					levelName="API Versioning"
 					levelNumber={39}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => {
 						setConfig({
 							strategy: null,

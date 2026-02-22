@@ -106,7 +106,7 @@ const INITIAL_INCLUDED: Set<string> = new Set();
 
 // --- Component ---
 
-export function Level17Concerns({ onComplete, onExit }: LevelComponentProps) {
+export function Level17Concerns({ onComplete }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 
 	const [extractedLines, setExtractedLines] = useState<Set<string>>(
@@ -393,7 +393,6 @@ end`;
 					levelName="Concerns & Modules"
 					levelNumber={17}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={handleReset}
 					onValidate={validateSolution}
 				/>

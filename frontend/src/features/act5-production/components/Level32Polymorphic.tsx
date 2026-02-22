@@ -63,7 +63,6 @@ const PARENT_MODELS = [
 
 export function Level32Polymorphic({
 	onComplete,
-	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [viewMode, setViewMode] = useState<ViewMode>('before');
@@ -248,7 +247,6 @@ export function Level32Polymorphic({
 					levelName="Polymorphic Associations"
 					levelNumber={32}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={handleReset}
 					onValidate={validateSolution}
 				/>

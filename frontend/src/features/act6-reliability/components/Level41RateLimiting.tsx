@@ -74,7 +74,6 @@ const INITIAL_CLIENTS: Client[] = [
 
 export function Level41RateLimiting({
 	onComplete,
-	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [config, setConfig] = useState<RateLimitConfig>({
@@ -298,7 +297,6 @@ export function Level41RateLimiting({
 					levelName="Rate Limiting"
 					levelNumber={41}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => {
 						setConfig({
 							enabled: false,

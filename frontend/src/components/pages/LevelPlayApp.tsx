@@ -308,7 +308,6 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 						console.error('Failed to save level completion:', err);
 					}
 				}}
-				onExit={exitLevel}
 			/>
 		);
 	}
@@ -342,7 +341,6 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 						levelName={levelData?.name || ''}
 						levelNumber={level?.levelNumber || 0}
 						onComplete={handleComplete}
-						onExit={exitLevel}
 						onReset={initializeLevel}
 						onValidate={handleValidate}
 					/>

@@ -90,7 +90,7 @@ const ICON_MAP = {
 	shield: Shield,
 };
 
-export function Level14Security({ onComplete, onExit }: LevelComponentProps) {
+export function Level14Security({ onComplete }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [findings, setFindings] = useState<SecurityFinding[]>(INITIAL_FINDINGS);
 	const [selectedFinding, setSelectedFinding] = useState<string | null>(null);
@@ -313,7 +313,6 @@ end`,
 					levelName="Security"
 					levelNumber={14}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => {
 						setFindings(INITIAL_FINDINGS);
 						setSelectedFinding(null);

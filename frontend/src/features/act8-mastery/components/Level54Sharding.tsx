@@ -33,7 +33,7 @@ interface Query {
 	shard: number;
 }
 
-export function Level54Sharding({ onComplete, onExit }: LevelComponentProps) {
+export function Level54Sharding({ onComplete }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [shardingEnabled, setShardingEnabled] = useState(false);
 	const [tenants] = useState<Tenant[]>([
@@ -183,7 +183,6 @@ export function Level54Sharding({ onComplete, onExit }: LevelComponentProps) {
 					levelName="Database Sharding"
 					levelNumber={54}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => {
 						setShardingEnabled(false);
 						setQueries([]);

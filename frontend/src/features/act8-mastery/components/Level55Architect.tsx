@@ -211,7 +211,7 @@ function buildSimulationSteps(enabled: string[]): SimulationStep[] {
 // Component
 // ---------------------------------------------------------------------------
 
-export function Level55Architect({ onComplete, onExit }: LevelComponentProps) {
+export function Level55Architect({ onComplete }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [components, setComponents] =
 		useState<ArchComponent[]>(INITIAL_COMPONENTS);
@@ -408,7 +408,6 @@ export function Level55Architect({ onComplete, onExit }: LevelComponentProps) {
 					levelName="The Architect"
 					levelNumber={55}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={() => {
 						setComponents(INITIAL_COMPONENTS);
 						setSimulationSteps([]);

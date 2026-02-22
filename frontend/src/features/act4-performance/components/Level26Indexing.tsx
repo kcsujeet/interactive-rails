@@ -248,7 +248,7 @@ end
 
 // --- Component ---
 
-export function Level26Indexing({ onComplete, onExit }: LevelComponentProps) {
+export function Level26Indexing({ onComplete }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [indexes, setIndexes] = useState<IndexOption[]>(INITIAL_INDEXES);
 	const [selectedQuery, setSelectedQuery] = useState(0);
@@ -471,7 +471,6 @@ export function Level26Indexing({ onComplete, onExit }: LevelComponentProps) {
 					levelName="Database Indexing"
 					levelNumber={26}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={handleReset}
 					onValidate={validateSolution}
 				/>

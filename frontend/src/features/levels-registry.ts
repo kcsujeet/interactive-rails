@@ -42,7 +42,6 @@ export interface LevelComponentProps {
 		stars?: number;
 		decisions?: Record<string, string>;
 	}) => void;
-	onExit: () => void;
 }
 
 // ===========================================

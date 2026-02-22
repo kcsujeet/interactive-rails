@@ -174,7 +174,6 @@ function formatHour(hour: number): string {
 
 export function Level44RecurringJobs({
 	onComplete,
-	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 
@@ -539,7 +538,6 @@ end`;
 					levelName="Recurring Jobs"
 					levelNumber={44}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={handleReset}
 					onValidate={validateSolution}
 				/>

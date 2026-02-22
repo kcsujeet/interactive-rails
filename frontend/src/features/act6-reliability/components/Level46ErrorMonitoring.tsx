@@ -113,7 +113,6 @@ function generateError(): ErrorEntry {
 
 export function Level46ErrorMonitoring({
 	onComplete,
-	onExit,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 
@@ -459,7 +458,6 @@ export function Level46ErrorMonitoring({
 					levelName="Error Monitoring"
 					levelNumber={46}
 					onComplete={handleComplete}
-					onExit={onExit}
 					onReset={handleReset}
 					onValidate={validateSolution}
 				/>
