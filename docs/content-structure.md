@@ -203,6 +203,7 @@ rails new myapp --api --database=postgresql`,
   unlockedNodes: ['request', 'router', 'controller', 'model', 'database', 'response', 'serializer'],
   learningContent: {
     title: 'Rails 8 API Application',
+    goal: `In this level, you'll:\n- create your first Rails 8 application.\n- learn why PostgreSQL is the go-to database for production APIs.\n- generate an API-only project with the right flags.`,
     conceptExplanation: '...',
     railsCodeExample: '...',
   },
@@ -299,27 +300,33 @@ Each level includes educational content displayed in the instruction panel.
 ```typescript
 interface LearningContent {
   title: string;
-  /** Markdown bullet list of concrete learning outcomes (shown in Goal dialog) */
+  /** Concise learning goal shown in the "Goal" dialog (triggered by the Goal button in LevelHeader).
+   *  Format: "In this level, you'll:\n- bullet 1.\n- bullet 2.\n- bullet 3."
+   *  This is NOT the same as conceptExplanation. Keep it short (3-5 bullets). */
   goal: string;
-  /** What the concept is (detailed reference, shown on completion screen) */
+  /** Detailed concept reference shown on the completion screen.
+   *  Can be long. Covers the full explanation, benchmarks, code patterns, etc. */
   conceptExplanation: string;
   /** Real Rails code showing the solution */
   railsCodeExample: string;
 }
 ```
 
+**`goal` vs `conceptExplanation`:** These serve different purposes. `goal` is what the player sees when they click the "Goal" button before or during gameplay. It should be a concise, scannable list of what they'll learn. `conceptExplanation` is the full reference material shown on the completion screen after the player finishes the level.
+
 ### Example Learning Content
 
 ```typescript
 const learningContent: LearningContent = {
   title: 'N+1 Query Problem',
-  goal: `- Spot the N+1 pattern: 1 query for a collection + N queries for each item's association
-- Know that 100 posts = 101 queries, and it only gets worse
-- Use Prosopite or Bullet gems to detect N+1 automatically`,
-  conceptExplanation: `
-The N+1 query problem occurs when your code executes one query to fetch
-a list of records, then N additional queries to fetch associated records
-for each item in the list.
+  goal: `In this level, you'll:\n- learn to spot the N+1 query problem, the most common performance killer in Rails apps.\n- understand why loading 100 posts generates 101 database queries.\n- trace the problem back to association access in serializers.\n- discover how gems like Prosopite and Bullet can detect N+1 queries automatically.`,
+  conceptExplanation: `The N+1 problem is the most common performance killer in Rails apps.
+It happens when you load a collection of records (1 query) and then
+access an association on each record (N queries).
+
+**The math is brutal:**
+- 100 posts = 101 queries
+- 1,000 posts = 1,001 queries
   `,
   railsCodeExample: `
 # Bad - N+1 queries

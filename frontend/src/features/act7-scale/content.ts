@@ -52,7 +52,7 @@ Order.create!(customer_id: 42, total: 99_00)            # INSERT ... (competes f
 	unlockedNodes: ['read_replica'],
 	learningContent: {
 		title: 'Multi-Database with connects_to',
-		goal: `In this level, you'll learn how to scale your database by splitting reads and writes across multiple servers. You'll configure database.yml with primary and replica databases, use Rails' connects_to to route reads to replicas and writes to the primary, and handle the tricky edge cases around replication delay.`,
+		goal: `In this level, you'll:\n- learn how to scale your database by splitting reads and writes across multiple servers.\n- configure database.yml with primary and replica databases.\n- use Rails' connects_to to route reads to replicas and writes to the primary.\n- handle the tricky edge cases around replication delay.`,
 		conceptExplanation: `Rails 6+ supports multiple databases natively via \`connects_to\`.
 
 **Key concepts:**
@@ -205,7 +205,7 @@ order.update!(status: "pending")  # Oops, no error raised!
 	],
 	learningContent: {
 		title: 'State Machines with AASM',
-		goal: `In this level, you'll learn how to model complex workflows using state machines with the AASM gem. You'll define valid states and transitions so records can only move through allowed paths (like draft to published, never draft to archived directly), add guards to enforce business rules, and trigger side effects on transitions.`,
+		goal: `In this level, you'll:\n- learn how to model complex workflows using state machines with the AASM gem.\n- define valid states and transitions so records can only move through allowed paths.\n- add guards to enforce business rules.\n- trigger side effects on transitions.`,
 		conceptExplanation: `State machines formalize which transitions are valid and enforce them at the model level.
 
 **Why not just a string column?**
@@ -355,7 +355,7 @@ Project.where(company_id: current_company.id, status: 'active')
 	unlockedNodes: ['tenant_scope'],
 	learningContent: {
 		title: 'Multi-Tenancy with ActsAsTenant',
-		goal: `In this level, you'll learn how to build a multi-tenant application where multiple companies share the same database without seeing each other's data. You'll use the acts_as_tenant gem to automatically scope every query to the current tenant, add tenant_id columns, and prevent data leaks between organizations.`,
+		goal: `In this level, you'll:\n- learn how to build a multi-tenant application where multiple companies share the same database without seeing each other's data.\n- use the acts_as_tenant gem to automatically scope every query to the current tenant.\n- add tenant_id columns and prevent data leaks between organizations.`,
 		conceptExplanation: `Multi-tenancy strategies:
 
 **Row-level isolation (ActsAsTenant):**
@@ -513,7 +513,7 @@ Rails.logger.error "Payment failed for order #{order.id}"
 	unlockedNodes: ['observability'],
 	learningContent: {
 		title: 'Observability: Logs, Metrics, Traces & Flame Graphs',
-		goal: `In this level, you'll learn how to make your application observable so you can diagnose problems in production. You'll add distributed tracing to follow requests across services, attach trace IDs to logs, errors, and metrics so they correlate, and use tracing to pinpoint slow spans and bottlenecks in your request pipeline.`,
+		goal: `In this level, you'll:\n- learn how to make your application observable so you can diagnose problems in production.\n- add distributed tracing to follow requests across services.\n- attach trace IDs to logs, errors, and metrics so they correlate.\n- use tracing to pinpoint slow spans and bottlenecks in your request pipeline.`,
 		conceptExplanation: `The three pillars of observability:
 
 **Without observability:**
@@ -741,7 +741,7 @@ end
 	unlockedNodes: [],
 	learningContent: {
 		title: 'Modular Monolith with Packwerk',
-		goal: `In this level, you'll learn how to organize a growing monolith into well-defined modules using Packwerk. You'll draw boundaries between domains, mark public APIs versus private internals in each package, and enforce those boundaries in CI so teams can work independently without accidentally coupling their code together.`,
+		goal: `In this level, you'll:\n- learn how to organize a growing monolith into well-defined modules using Packwerk.\n- draw boundaries between domains.\n- mark public APIs versus private internals in each package.\n- enforce those boundaries in CI so teams can work independently without accidentally coupling their code together.`,
 		conceptExplanation: `The modular monolith is the critical step BEFORE microservice extraction. It enforces domain boundaries within a single deployable codebase.
 
 **Why modular monolith?**
@@ -932,7 +932,7 @@ end
 	unlockedNodes: ['event_bus'],
 	learningContent: {
 		title: 'Domain Events & Event-Driven Architecture',
-		goal: `In this level, you'll learn how domain events decouple modules so they can communicate without depending on each other directly. You'll publish events when important things happen (like OrderPlaced), subscribe to them from other modules, and keep publishers and subscribers completely independent so changes in one don't break the other.`,
+		goal: `In this level, you'll:\n- learn how domain events decouple modules so they can communicate without depending on each other directly.\n- publish events when important things happen (like OrderPlaced).\n- subscribe to events from other modules.\n- keep publishers and subscribers completely independent so changes in one don't break the other.`,
 		conceptExplanation: `Domain events decouple producers from consumers.
 
 **Without domain events (tight coupling, failure cascade):**

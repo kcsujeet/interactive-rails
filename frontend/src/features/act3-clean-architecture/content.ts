@@ -70,7 +70,7 @@ end
 	unlockedNodes: ['service'],
 	learningContent: {
 		title: 'Service Objects & the Result Pattern',
-		goal: 'In this level, you\'ll learn how to extract bloated controller logic into service objects, which are plain Ruby classes with a single responsibility. You\'ll use the Result pattern to handle success and failure explicitly, keeping your controllers thin and your business logic testable in isolation.',
+		goal: `In this level, you'll:\n- learn how to extract bloated controller logic into service objects (plain Ruby classes with a single responsibility).\n- use the Result pattern to handle success and failure explicitly.\n- keep your controllers thin and your business logic testable in isolation.`,
 		conceptExplanation: `Service objects (Plain Old Ruby Objects) encapsulate multi-step business logic outside of controllers and models.
 
 **Why use service objects?**
@@ -291,7 +291,7 @@ end`,
 	unlockedNodes: ['concern'],
 	learningContent: {
 		title: 'ActiveSupport::Concern & Shared Behavior',
-		goal: 'In this level, you\'ll learn how to eliminate code duplication across models using ActiveSupport::Concern. You\'ll extract shared behavior like tagging into a reusable module, understand the included and class_methods blocks, and include the same concern in multiple models so changes only need to happen in one place.',
+		goal: `In this level, you'll:\n- learn how to eliminate code duplication across models using ActiveSupport::Concern.\n- extract shared behavior like tagging into a reusable module.\n- understand the included and class_methods blocks.\n- include the same concern in multiple models so changes only need to happen in one place.`,
 		conceptExplanation: `Concerns extract shared behavior into reusable modules that can be included in multiple models or controllers.
 
 **ActiveSupport::Concern provides:**
@@ -552,7 +552,7 @@ end`,
 	unlockedNodes: ['form_object'],
 	learningContent: {
 		title: 'Validation Contracts with Dry::Validation',
-		goal: 'In this level, you\'ll learn how to validate complex, multi-model input using dry-validation contracts. You\'ll separate schema validation (shape and types) from business rules, compose reusable schemas together, and keep cross-field logic like "creators must enable weekly digest" in one clean place instead of scattered across controllers.',
+		goal: `In this level, you'll:\n- learn how to validate complex, multi-model input using dry-validation contracts.\n- separate schema validation (shape and types) from business rules.\n- compose reusable schemas together.\n- keep cross-field logic in one clean place instead of scattered across controllers.`,
 		conceptExplanation: `Validation contracts act as a single entry point for multi-model operations. Using \`dry-validation\` and \`dry-schema\`, you get a clean separation between **schema** (shape & types) and **rules** (business logic).
 
 **Why dry-validation over ActiveModel::Model?**
@@ -838,7 +838,7 @@ end
 	unlockedNodes: ['query_object'],
 	learningContent: {
 		title: 'Query Objects: Composable PORO Queries',
-		goal: 'In this level, you\'ll learn how to extract complex query logic from controllers into reusable query objects. You\'ll build composable filter methods that chain together and always return ActiveRecord::Relation, so the same query logic can be shared across controllers, background jobs, and exports without duplication.',
+		goal: `In this level, you'll:\n- learn how to extract complex query logic from controllers into reusable query objects.\n- build composable filter methods that chain together and always return ActiveRecord::Relation.\n- share the same query logic across controllers, background jobs, and exports without duplication.`,
 		conceptExplanation: `Query objects extract complex query chains from controllers into reusable POROs in \`app/queries/\`.
 
 **Why use query objects?**
@@ -1105,7 +1105,7 @@ end
 	unlockedNodes: ['error_handler'],
 	learningContent: {
 		title: 'Centralized Error Handling with rescue_from',
-		goal: 'In this level, you\'ll build a centralized error handling layer so your API always returns consistent, predictable JSON errors. You\'ll use rescue_from in ApplicationController to catch exceptions globally, map them to the right HTTP status codes, and never leak stack traces to clients again.',
+		goal: `In this level, you'll:\n- build a centralized error handling layer so your API always returns consistent, predictable JSON errors.\n- use rescue_from in ApplicationController to catch exceptions globally.\n- map exceptions to the right HTTP status codes.\n- never leak stack traces to clients again.`,
 		conceptExplanation: `\`rescue_from\` in ApplicationController catches exceptions globally and converts them to consistent JSON error responses.
 
 **Principles:**
@@ -1355,7 +1355,7 @@ const level20ActionMailer: Level = {
 	unlockedNodes: ['mailer'],
 	learningContent: {
 		title: 'Action Mailer & generates_token_for (Rails 8)',
-		goal: 'In this level, you\'ll build a password reset flow using Action Mailer and Rails 8\'s generates_token_for. You\'ll learn how to send emails asynchronously with deliver_later, generate secure, stateless tokens that auto-expire, and verify them without storing anything in the database.',
+		goal: `In this level, you'll:\n- build a password reset flow using Action Mailer and Rails 8's generates_token_for.\n- learn how to send emails asynchronously with deliver_later.\n- generate secure, stateless tokens that auto-expire.\n- verify tokens without storing anything in the database.`,
 		conceptExplanation: `Action Mailer handles email delivery in Rails. Combined with Rails 8's \`generates_token_for\`, you get secure, expiring tokens without storing them in the database.
 
 **generates_token_for (Rails 8):**
@@ -1663,7 +1663,7 @@ end
 	unlockedNodes: ['background_job'],
 	learningContent: {
 		title: 'Background Jobs with Solid Queue (Rails 8)',
-		goal: 'In this level, you\'ll learn how to move slow work like email delivery and external API calls out of the request cycle using background jobs. You\'ll use ActiveJob with Solid Queue, Rails 8\'s database-backed job processor that needs no Redis, and design your jobs to be idempotent so they\'re safe to retry.',
+		goal: `In this level, you'll:\n- learn how to move slow work like email delivery and external API calls out of the request cycle.\n- use ActiveJob with Solid Queue, Rails 8's database-backed job processor that needs no Redis.\n- design your jobs to be idempotent so they're safe to retry.`,
 		conceptExplanation: `Background jobs move slow or unreliable work out of the HTTP request cycle. Rails 8 ships with Solid Queue as the default job backend -- no Redis required.
 
 **Solid Queue (Rails 8 default):**

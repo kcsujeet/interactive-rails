@@ -104,7 +104,7 @@ bin/rails generate authentication
 	unlockedNodes: ['authentication'],
 	learningContent: {
 		title: 'Rails 8 Authentication & Bearer Tokens',
-		goal: `In this level, you'll secure your API so every request is tied to a real user. You'll use Rails 8's built-in authentication generator, learn how has_secure_password stores passwords safely with bcrypt, and set up Bearer token authentication so clients can prove who they are on every request.`,
+		goal: `In this level, you'll:\n- secure your API so every request is tied to a real user.\n- use Rails 8's built-in authentication generator.\n- learn how has_secure_password stores passwords safely with bcrypt.\n- set up Bearer token authentication so clients can prove who they are on every request.`,
 		conceptExplanation: `Rails 8 includes a built-in authentication generator -- no more Devise dependency for basic auth.
 
 **\`bin/rails generate authentication\`** creates:
@@ -322,7 +322,7 @@ User.create(email: "joe@test.com")         # Saved again! Duplicate.
 	unlockedNodes: ['validation'],
 	learningContent: {
 		title: 'ActiveRecord Validations',
-		goal: `In this level, you'll learn how to reject bad data before it ever reaches the database. You'll add ActiveRecord validations like presence, uniqueness, format, and length to your models, understand when validations run in the lifecycle, and return meaningful error messages to API clients.`,
+		goal: `In this level, you'll:\n- learn how to reject bad data before it ever reaches the database.\n- add ActiveRecord validations like presence, uniqueness, format, and length to your models.\n- understand when validations run in the lifecycle.\n- return meaningful error messages to API clients.`,
 		conceptExplanation: `Validations ensure only valid data gets saved to the database. They run before \`save\`, \`create\`, and \`update\`.
 
 **Built-in validators:**
@@ -509,7 +509,7 @@ User.find_by(email: "joe@gmail.com")
 	unlockedNodes: ['callback'],
 	learningContent: {
 		title: 'Callbacks & Rails 8 Normalizations',
-		goal: `In this level, you'll learn how to automatically clean and transform data before it hits the database. You'll use Rails 8's normalizes to strip whitespace and downcase emails, hook into ActiveRecord lifecycle callbacks like before_validation and after_create, and understand why after_commit is the safe choice for external side effects.`,
+		goal: `In this level, you'll:\n- learn how to automatically clean and transform data before it hits the database.\n- use Rails 8's normalizes to strip whitespace and downcase emails.\n- hook into ActiveRecord lifecycle callbacks like before_validation and after_create.\n- understand why after_commit is the safe choice for external side effects.`,
 		conceptExplanation: `Callbacks are hooks into the ActiveRecord lifecycle. They let you run code at specific moments: before validation, before save, after create, after destroy, etc.
 
 **Rails 8 \`normalizes\`:**
@@ -709,7 +709,7 @@ end
 	unlockedNodes: ['policy'],
 	learningContent: {
 		title: 'Authorization with Pundit & Current.user',
-		goal: `In this level, you'll learn the difference between authentication ("who are you?") and authorization ("are you allowed to do this?"). You'll implement Pundit policy classes that control which users can update or delete specific records, and scope queries so users only see data they have permission to access.`,
+		goal: `In this level, you'll:\n- learn the difference between authentication ("who are you?") and authorization ("are you allowed to do this?").\n- implement Pundit policy classes that control which users can update or delete specific records.\n- scope queries so users only see data they have permission to access.`,
 		conceptExplanation: `Authorization answers "Can this user do this action on this resource?"
 
 **Pundit** provides a clean, policy-based pattern:
@@ -956,7 +956,7 @@ end`,
 	unlockedNodes: ['test'],
 	learningContent: {
 		title: 'RSpec, FactoryBot & Request Specs',
-		goal: `In this level, you'll set up automated testing for your API using RSpec and FactoryBot. You'll write request specs that send real HTTP requests and verify JSON responses, create reusable test data with factories, and learn the testing philosophy that keeps Rails apps reliable as they grow.`,
+		goal: `In this level, you'll:\n- set up automated testing for your API using RSpec and FactoryBot.\n- write request specs that send real HTTP requests and verify JSON responses.\n- create reusable test data with factories.\n- learn the testing philosophy that keeps Rails apps reliable as they grow.`,
 		conceptExplanation: `Testing is not optional for production applications. RSpec is the Ruby community standard.
 
 **Test types (from most to least valuable for APIs):**
@@ -1213,7 +1213,7 @@ end`,
 	unlockedNodes: ['cors', 'rate_limiter', 'credentials'],
 	learningContent: {
 		title: 'API Security: CORS, Credentials, Rate Limiting & Strong Params',
-		goal: `In this level, you'll harden your API against common security threats. You'll configure CORS so browsers can safely call your API, move hardcoded secrets into Rails encrypted credentials, and use Rails 8's built-in rate_limit to throttle brute-force attacks on sensitive endpoints like login.`,
+		goal: `In this level, you'll:\n- harden your API against common security threats.\n- configure CORS so browsers can safely call your API.\n- move hardcoded secrets into Rails encrypted credentials.\n- use Rails 8's built-in rate_limit to throttle brute-force attacks on sensitive endpoints like login.`,
 		conceptExplanation: `Security is not a feature -- it is a requirement. These four areas are non-negotiable for any production API.
 
 **CORS (Cross-Origin Resource Sharing):**
@@ -1436,7 +1436,7 @@ end
 	unlockedNodes: ['scope'],
 	learningContent: {
 		title: 'Enums, Named Scopes & Query Interface',
-		goal: `In this level, you'll learn how to constrain and filter your data using enums and named scopes. You'll define an enum for post status so only valid values like draft, published, and archived are allowed, and write chainable scopes that make your queries reusable and expressive across the entire app.`,
+		goal: `In this level, you'll:\n- learn how to constrain and filter your data using enums and named scopes.\n- define an enum for post status so only valid values like draft, published, and archived are allowed.\n- write chainable scopes that make your queries reusable and expressive across the entire app.`,
 		conceptExplanation: `Enums and scopes make your models expressive and your queries safe.
 
 **Rails 8 Enum (new syntax):**
