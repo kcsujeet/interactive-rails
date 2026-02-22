@@ -31,6 +31,19 @@ Default to using Bun instead of Node.js:
 
 - Always follow bulletproof-react project structure. https://github.com/alan2207/bulletproof-react/blob/master/docs/project-structure.md
 
+### No Barrel Files
+
+**Never add exports to `index.ts` barrel files.** Import directly from the source module path instead.
+
+```tsx
+// CORRECT
+import { PipelineFlow } from '@/components/levels/PipelineFlow';
+
+// WRONG (re-exporting through index.ts)
+export { PipelineFlow } from './PipelineFlow'; // in index.ts
+import { PipelineFlow } from '@/components/levels'; // consumer
+```
+
 ### Import Alias
 
 Use `@/` alias for imports from `src/`:

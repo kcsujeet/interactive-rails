@@ -18,8 +18,8 @@
  * Teaches: RSpec, FactoryBot, request specs
  */
 
-import { ArrowRight, Check, FlaskConical, Play, Star, X } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { ArrowRight, Check, Play, Star, X } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -38,6 +38,11 @@ import {
 	type TerminalStepData,
 	type ValidationResult,
 } from '@/components/levels';
+import {
+	type PipelineConnection,
+	PipelineFlow,
+	type PipelineStage,
+} from '@/components/levels/PipelineFlow';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
@@ -65,9 +70,9 @@ const STEP_TYPES: ('terminal' | 'option')[] = [
 	'terminal', // 0: bundle add rspec-rails
 	'terminal', // 1: rails generate rspec:install
 	'terminal', // 2: bundle add factory_bot_rails
-	'option',   // 3: Configure FactoryBot
-	'option',   // 4: Write User Factory
-	'option',   // 5: Write Request Spec
+	'option', // 3: Configure FactoryBot
+	'option', // 4: Write User Factory
+	'option', // 5: Write Request Spec
 ];
 
 // ──────────────────────────────────────────────
@@ -118,7 +123,7 @@ const runRspecInstallCommands: TerminalCommand[] = [
 		command: 'rails generate test:install',
 		correct: false,
 		feedback:
-			"There is no test:install generator. RSpec has its own generator name that matches the gem.",
+			'There is no test:install generator. RSpec has its own generator name that matches the gem.',
 	},
 	{
 		id: 'correct',
@@ -310,39 +315,74 @@ end`,
 ];
 
 // Map from step index -> OptionCard data for option-type steps
-const OPTION_STEP_CONFIG: Record<number, {
-	title: string;
-	description: string;
-	options: StepOption[];
-}> = {
+const OPTION_STEP_CONFIG: Record<
+	number,
+	{
+		title: string;
+		description: string;
+		options: StepOption[];
+	}
+> = {
 	3: {
 		title: 'Configure FactoryBot in RSpec',
-		description: 'FactoryBot is installed but RSpec does not know about it yet. Which line in rails_helper.rb makes create(), build(), and other FactoryBot methods available in every spec?',
+		description:
+			'FactoryBot is installed but RSpec does not know about it yet. Which line in rails_helper.rb makes create(), build(), and other FactoryBot methods available in every spec?',
 		options: CONFIGURE_FB_OPTIONS,
 	},
 	4: {
 		title: 'Write the User Factory',
-		description: 'Your request spec needs a user to log in with. Which approach creates reusable, dynamic test data?',
+		description:
+			'Your request spec needs a user to log in with. Which approach creates reusable, dynamic test data?',
 		options: WRITE_FACTORY_OPTIONS,
 	},
 	5: {
 		title: 'Write the Request Spec',
-		description: 'The login endpoint broke and nobody noticed. Which spec type would have caught it before deploy?',
+		description:
+			'The login endpoint broke and nobody noticed. Which spec type would have caught it before deploy?',
 		options: WRITE_SPEC_OPTIONS,
 	},
 };
 
 // ──────────────────────────────────────────────
-// Simulation types
+// Pipeline stage/connection configs (observe vs reward)
 // ──────────────────────────────────────────────
 
-interface PipelineCommit {
-	id: number;
-	x: number;
-	y: number;
-	broken: boolean;
-	caughtByTests: boolean;
-}
+const OBSERVE_STAGES: PipelineStage[] = [
+	{ id: 'code', label: 'Code' },
+	{ id: 'build', label: 'Build' },
+	{
+		id: 'test',
+		label: 'Test Gate',
+		sublabel: '(no tests)',
+		variant: 'inactive',
+	},
+	{ id: 'prod', label: 'Production', badge: '500!' },
+];
+
+const OBSERVE_CONNECTIONS: PipelineConnection[] = [
+	{ from: 'code', to: 'build', dots: 'mixed' },
+	{ from: 'build', to: 'test', dots: 'mixed' },
+	{ from: 'test', to: 'prod', dots: 'mixed' },
+];
+
+const REWARD_STAGES: PipelineStage[] = [
+	{ id: 'code', label: 'Code' },
+	{ id: 'build', label: 'Build' },
+	{
+		id: 'test',
+		label: 'RSpec',
+		sublabel: '2 specs, 0 failures',
+		variant: 'active',
+		badge: 'FAIL',
+	},
+	{ id: 'prod', label: 'Production' },
+];
+
+const REWARD_CONNECTIONS: PipelineConnection[] = [
+	{ from: 'code', to: 'build', dots: 'mixed' },
+	{ from: 'build', to: 'test', dots: 'mixed' },
+	{ from: 'test', to: 'prod', dots: 'clean' },
+];
 
 // ──────────────────────────────────────────────
 // Code preview helper
@@ -411,8 +451,9 @@ end`,
 		files.push({
 			filename: 'Gemfile',
 			language: 'ruby',
-			code: furthestStep >= 3
-				? `source "https://rubygems.org"
+			code:
+				furthestStep >= 3
+					? `source "https://rubygems.org"
 
 gem "rails", "~> 8.0.0"
 gem "pg", "~> 1.1"
@@ -423,7 +464,7 @@ group :development, :test do
   gem "rspec-rails"
   gem "factory_bot_rails"
 end`
-				: `source "https://rubygems.org"
+					: `source "https://rubygems.org"
 
 gem "rails", "~> 8.0.0"
 gem "pg", "~> 1.1"
@@ -447,8 +488,9 @@ end`,
 		files.push({
 			filename: 'spec/rails_helper.rb',
 			language: 'ruby',
-			code: furthestStep >= 4
-				? `require "spec_helper"
+			code:
+				furthestStep >= 4
+					? `require "spec_helper"
 ENV["RAILS_ENV"] ||= "test"
 require_relative "../config/environment"
 require "rspec/rails"
@@ -458,7 +500,7 @@ RSpec.configure do |config|
   config.infer_spec_type_from_file_location!
   config.include FactoryBot::Syntax::Methods
 end`
-				: `require "spec_helper"
+					: `require "spec_helper"
 ENV["RAILS_ENV"] ||= "test"
 require_relative "../config/environment"
 require "rspec/rails"
@@ -536,144 +578,6 @@ Finished in 0.24 seconds`,
 }
 
 // ──────────────────────────────────────────────
-// SVG Pipeline Visualization
-// ──────────────────────────────────────────────
-
-function DeployPipeline({
-	commits,
-	testGateActive,
-}: {
-	commits: PipelineCommit[];
-	testGateActive: boolean;
-}) {
-	return (
-		<svg className="w-full h-full" preserveAspectRatio="xMidYMid meet" viewBox="0 0 700 300">
-			{/* Stage: Code */}
-			<rect fill="#374151" height="60" rx="8" width="90" x="30" y="120" />
-			<text fill="#9ca3af" fontSize="12" textAnchor="middle" x="75" y="155">
-				Code
-			</text>
-
-			{/* Arrow: Code -> Build */}
-			<line stroke="#4b5563" strokeWidth="2" x1="120" x2="175" y1="150" y2="150" />
-			<polygon fill="#4b5563" points="175,145 185,150 175,155" />
-
-			{/* Stage: Build */}
-			<rect fill="#374151" height="60" rx="8" width="90" x="185" y="120" />
-			<text fill="#9ca3af" fontSize="12" textAnchor="middle" x="230" y="155">
-				Build
-			</text>
-
-			{/* Arrow: Build -> Test Gate */}
-			<line stroke="#4b5563" strokeWidth="2" x1="275" x2="330" y1="150" y2="150" />
-			<polygon fill="#4b5563" points="330,145 340,150 330,155" />
-
-			{/* Stage: Test Gate */}
-			<rect
-				fill={testGateActive ? '#059669' : '#1f2937'}
-				height="60"
-				opacity={testGateActive ? 1 : 0.5}
-				rx="8"
-				stroke={testGateActive ? '#10b981' : '#4b5563'}
-				strokeDasharray={testGateActive ? 'none' : '6,4'}
-				strokeWidth={testGateActive ? 2 : 1}
-				width="110"
-				x="340"
-				y="120"
-			/>
-			<text
-				fill={testGateActive ? 'white' : '#6b7280'}
-				fontSize="11"
-				textAnchor="middle"
-				x="395"
-				y="148"
-			>
-				{testGateActive ? 'RSpec' : 'Test Gate'}
-			</text>
-			<text
-				fill={testGateActive ? '#a7f3d0' : '#4b5563'}
-				fontSize="9"
-				textAnchor="middle"
-				x="395"
-				y="163"
-			>
-				{testGateActive ? '2 specs, 0 failures' : '(no tests)'}
-			</text>
-
-			{/* Arrow: Test Gate -> Production */}
-			<line stroke="#4b5563" strokeWidth="2" x1="450" x2="510" y1="150" y2="150" />
-			<polygon fill="#4b5563" points="510,145 520,150 510,155" />
-
-			{/* Stage: Production */}
-			<rect fill="#374151" height="60" rx="8" width="110" x="520" y="120" />
-			<text fill="#9ca3af" fontSize="12" textAnchor="middle" x="575" y="155">
-				Production
-			</text>
-
-			{/* Commits */}
-			{commits.map((c) => {
-				// Hide caught commits past the test gate
-				if (c.caughtByTests && c.x > 420) return null;
-
-				const color = c.broken
-					? (c.caughtByTests ? '#6b7280' : '#ef4444')
-					: '#22c55e';
-
-				return (
-					<g key={c.id}>
-						<circle
-							cx={c.x}
-							cy={c.y}
-							fill={color}
-							opacity={c.caughtByTests ? 0.4 : 1}
-							r="12"
-						/>
-						<text
-							fill="white"
-							fontSize="10"
-							fontWeight="bold"
-							textAnchor="middle"
-							x={c.x}
-							y={c.y + 4}
-						>
-							{c.broken ? '!' : '\u2713'}
-						</text>
-
-						{/* 500! label when broken commit reaches production */}
-						{c.broken && !c.caughtByTests && c.x >= 530 && (
-							<text
-								fill="#ef4444"
-								fontSize="10"
-								fontWeight="bold"
-								textAnchor="middle"
-								x={c.x}
-								y={c.y - 18}
-							>
-								500!
-							</text>
-						)}
-
-						{/* FAIL label when test gate catches a broken commit */}
-						{c.caughtByTests && c.x >= 370 && c.x < 430 && (
-							<text
-								fill="#ef4444"
-								fontSize="9"
-								fontWeight="bold"
-								textAnchor="middle"
-								x={c.x}
-								y={c.y - 18}
-							>
-								FAIL
-							</text>
-						)}
-					</g>
-				);
-			})}
-		</svg>
-	);
-}
-
-// ──────────────────────────────────────────────
 // Pipeline Legend
 // ──────────────────────────────────────────────
 
@@ -704,25 +608,8 @@ function PipelineLegend() {
 export function Level13Testing({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const [phase, setPhase] = useState<Phase>('observe');
-	const [showBuildButton, setShowBuildButton] = useState(false);
-	const [commits, setCommits] = useState<PipelineCommit[]>([]);
 	const [caughtCount, setCaughtCount] = useState(0);
 	const [deployedCount, setDeployedCount] = useState(0);
-
-	// Track whether animation should run (only in observe and reward phases)
-	const animationActive = phase === 'observe' || phase === 'reward';
-	const testGateActive = phase === 'reward';
-
-	// Ref to track latest testGateActive for animation intervals
-	const testGateActiveRef = useRef(testGateActive);
-	testGateActiveRef.current = testGateActive;
-
-	// ── "Build the Fix" button fade-in after 3 seconds ──
-	useEffect(() => {
-		if (phase !== 'observe') return;
-		const timer = setTimeout(() => setShowBuildButton(true), 3000);
-		return () => clearTimeout(timer);
-	}, [phase]);
 
 	// ── Transition: build -> activate when all steps complete ──
 	useEffect(() => {
@@ -730,6 +617,16 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 			setPhase('activate');
 		}
 	}, [phase, stepper.isComplete]);
+
+	// ── Reward phase: simple counter interval (matches dot loop timing) ──
+	useEffect(() => {
+		if (phase !== 'reward') return;
+		const interval = setInterval(() => {
+			setCaughtCount((c) => c + 1);
+			setDeployedCount((c) => c + 3);
+		}, 3500);
+		return () => clearInterval(interval);
+	}, [phase]);
 
 	// ── OptionCard step handler ──
 	const handleOptionClick = useCallback(
@@ -743,74 +640,13 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 		[stepper],
 	);
 
-	// ── Animation: spawn commits (only when animation is active) ──
-	useEffect(() => {
-		if (!animationActive) return;
-
-		const interval = setInterval(() => {
-			const id = Date.now() + Math.random();
-			const broken = Math.random() < 0.3;
-
-			setCommits((prev) => [
-				...prev.slice(-14),
-				{
-					id,
-					x: 50,
-					y: 140 + Math.random() * 20,
-					broken,
-					caughtByTests: false,
-				},
-			]);
-		}, 900);
-
-		return () => clearInterval(interval);
-	}, [animationActive]);
-
-	// ── Animation: move commits (only when animation is active) ──
-	useEffect(() => {
-		if (!animationActive) return;
-
-		const interval = setInterval(() => {
-			setCommits((prev) =>
-				prev
-					.map((c) => {
-						const newX = c.x + 2.5;
-
-						if (testGateActiveRef.current) {
-							// Test gate checkpoint at x=390
-							if (newX >= 390 && newX < 400 && !c.caughtByTests && c.broken) {
-								setCaughtCount((n) => n + 1);
-								return { ...c, x: newX, caughtByTests: true };
-							}
-						}
-
-						// Count deployments (clean commits reaching production)
-						if (testGateActiveRef.current && newX >= 540 && newX < 550 && !c.broken) {
-							setDeployedCount((n) => n + 1);
-						}
-
-						return { ...c, x: newX };
-					})
-					.filter((c) => {
-						if (c.x >= 660) return false;
-						if (c.caughtByTests && c.x > 430) return false;
-						return true;
-					}),
-			);
-		}, 50);
-
-		return () => clearInterval(interval);
-	}, [animationActive]);
-
 	// ── Phase transition handlers ──
 	const handleStartBuild = () => {
 		setPhase('build');
-		setCommits([]);
 	};
 
 	const handleActivateTesting = () => {
 		setPhase('reward');
-		setCommits([]);
 		setCaughtCount(0);
 		setDeployedCount(0);
 	};
@@ -855,8 +691,8 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 							<span className="text-foreground font-medium">RSpec</span> for
 							test structure and{' '}
 							<span className="text-foreground font-medium">FactoryBot</span>{' '}
-							for test data. Request specs test the full HTTP
-							request/response cycle.
+							for test data. Request specs test the full HTTP request/response
+							cycle.
 						</p>
 					</div>
 
@@ -920,19 +756,21 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 					{phase === 'observe' && (
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">
-								<DeployPipeline
-									commits={commits}
-									testGateActive={false}
+								<PipelineFlow
+									connections={OBSERVE_CONNECTIONS}
+									stages={OBSERVE_STAGES}
 								/>
 							</div>
-							{showBuildButton && (
-								<div className="p-6 flex justify-center animate-in fade-in duration-500">
-									<Button className="gap-2" onClick={handleStartBuild} size="lg">
-										Build the Fix
-										<ArrowRight className="w-4 h-4" />
-									</Button>
-								</div>
-							)}
+							<div className="p-6 flex justify-center">
+								<Button
+									className="gap-2"
+									onClick={handleStartBuild}
+									size="lg"
+								>
+									Build the Fix
+									<ArrowRight className="w-4 h-4" />
+								</Button>
+							</div>
 						</div>
 					)}
 
@@ -941,77 +779,80 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 						<div className="flex-1 overflow-auto p-6">
 							<div className="max-w-2xl mx-auto space-y-4">
 								{/* Terminal steps (0, 1, 2) */}
-								{currentStepType === 'terminal' && stepper.currentStep === 0 && (
-									<TerminalChoiceStep
-										commands={addRspecCommands}
-										completed={isViewingCompletedStep}
-										description={
-											<p className="text-sm text-muted-foreground">
-												RSpec is the Ruby community standard for testing.
-												Add it to your project dependencies.
-											</p>
-										}
-										hasNext={hasNextStep}
-										initialHistory={buildTerminalHistory(
-											SHELL_STEP_MAP,
-											stepper.currentStep,
-										)}
-										onCorrect={() => stepper.completeStep()}
-										onNext={stepper.nextStep}
-										onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-										outputLines={addRspecOutput}
-										stepKey={stepper.currentStep}
-										title="Add rspec-rails Gem"
-									/>
-								)}
+								{currentStepType === 'terminal' &&
+									stepper.currentStep === 0 && (
+										<TerminalChoiceStep
+											commands={addRspecCommands}
+											completed={isViewingCompletedStep}
+											description={
+												<p className="text-sm text-muted-foreground">
+													RSpec is the Ruby community standard for testing. Add
+													it to your project dependencies.
+												</p>
+											}
+											hasNext={hasNextStep}
+											initialHistory={buildTerminalHistory(
+												SHELL_STEP_MAP,
+												stepper.currentStep,
+											)}
+											onCorrect={() => stepper.completeStep()}
+											onNext={stepper.nextStep}
+											onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+											outputLines={addRspecOutput}
+											stepKey={stepper.currentStep}
+											title="Add rspec-rails Gem"
+										/>
+									)}
 
-								{currentStepType === 'terminal' && stepper.currentStep === 1 && (
-									<TerminalChoiceStep
-										commands={runRspecInstallCommands}
-										completed={isViewingCompletedStep}
-										description={
-											<p className="text-sm text-muted-foreground">
-												RSpec needs a spec directory, helpers, and config
-												files. Run the install generator to scaffold them.
-											</p>
-										}
-										hasNext={hasNextStep}
-										initialHistory={buildTerminalHistory(
-											SHELL_STEP_MAP,
-											stepper.currentStep,
-										)}
-										onCorrect={() => stepper.completeStep()}
-										onNext={stepper.nextStep}
-										onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-										outputLines={runRspecInstallOutput}
-										stepKey={stepper.currentStep}
-										title="Run RSpec Generator"
-									/>
-								)}
+								{currentStepType === 'terminal' &&
+									stepper.currentStep === 1 && (
+										<TerminalChoiceStep
+											commands={runRspecInstallCommands}
+											completed={isViewingCompletedStep}
+											description={
+												<p className="text-sm text-muted-foreground">
+													RSpec needs a spec directory, helpers, and config
+													files. Run the install generator to scaffold them.
+												</p>
+											}
+											hasNext={hasNextStep}
+											initialHistory={buildTerminalHistory(
+												SHELL_STEP_MAP,
+												stepper.currentStep,
+											)}
+											onCorrect={() => stepper.completeStep()}
+											onNext={stepper.nextStep}
+											onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+											outputLines={runRspecInstallOutput}
+											stepKey={stepper.currentStep}
+											title="Run RSpec Generator"
+										/>
+									)}
 
-								{currentStepType === 'terminal' && stepper.currentStep === 2 && (
-									<TerminalChoiceStep
-										commands={addFactoryBotCommands}
-										completed={isViewingCompletedStep}
-										description={
-											<p className="text-sm text-muted-foreground">
-												FactoryBot creates test data with sensible defaults.
-												Add the Rails-integrated version to your project.
-											</p>
-										}
-										hasNext={hasNextStep}
-										initialHistory={buildTerminalHistory(
-											SHELL_STEP_MAP,
-											stepper.currentStep,
-										)}
-										onCorrect={() => stepper.completeStep()}
-										onNext={stepper.nextStep}
-										onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-										outputLines={addFactoryBotOutput}
-										stepKey={stepper.currentStep}
-										title="Add factory_bot_rails Gem"
-									/>
-								)}
+								{currentStepType === 'terminal' &&
+									stepper.currentStep === 2 && (
+										<TerminalChoiceStep
+											commands={addFactoryBotCommands}
+											completed={isViewingCompletedStep}
+											description={
+												<p className="text-sm text-muted-foreground">
+													FactoryBot creates test data with sensible defaults.
+													Add the Rails-integrated version to your project.
+												</p>
+											}
+											hasNext={hasNextStep}
+											initialHistory={buildTerminalHistory(
+												SHELL_STEP_MAP,
+												stepper.currentStep,
+											)}
+											onCorrect={() => stepper.completeStep()}
+											onNext={stepper.nextStep}
+											onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+											outputLines={addFactoryBotOutput}
+											stepKey={stepper.currentStep}
+											title="Add factory_bot_rails Gem"
+										/>
+									)}
 
 								{/* OptionCard steps (3, 4, 5) */}
 								{currentStepType === 'option' && currentOptionConfig && (
@@ -1027,9 +868,9 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 											<div className="space-y-2">
 												{currentOptionConfig.options.map((opt) => (
 													<OptionCard
-														key={opt.id}
 														color="emerald"
 														disabled={!opt.correct}
+														key={opt.id}
 														mono
 														name={opt.label}
 														selected={opt.correct}
@@ -1042,8 +883,8 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 												<div className="space-y-2">
 													{currentOptionConfig.options.map((opt) => (
 														<OptionCard
-															key={opt.id}
 															color="emerald"
+															key={opt.id}
 															mono
 															name={opt.label}
 															onClick={() => handleOptionClick(opt)}
@@ -1084,18 +925,18 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 								<div className="flex justify-center gap-1">
 									{[1, 2, 3].map((s) => (
 										<Star
-											key={s}
 											className={`w-8 h-8 ${
 												s <= stepper.starRating
 													? 'text-yellow-400 fill-yellow-400'
 													: 'text-muted-foreground/30'
 											}`}
+											key={s}
 										/>
 									))}
 								</div>
 								<p className="text-sm text-muted-foreground">
-									Your test suite is ready. See broken commits get
-									caught at the test gate before they reach production.
+									Your test suite is ready. See broken commits get caught at the
+									test gate before they reach production.
 								</p>
 								<Button
 									className="gap-2"
@@ -1113,15 +954,15 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">
-								<DeployPipeline
-									commits={commits}
-									testGateActive={true}
+								<PipelineFlow
+									connections={REWARD_CONNECTIONS}
+									stages={REWARD_STAGES}
 								/>
 							</div>
 							<div className="p-4 text-center">
 								<p className="text-sm text-muted-foreground">
-									Test gate active. Broken commits are caught before
-									they reach production. Click Submit to complete the level.
+									Test gate active. Broken commits are caught before they reach
+									production. Click Submit to complete the level.
 								</p>
 							</div>
 						</div>

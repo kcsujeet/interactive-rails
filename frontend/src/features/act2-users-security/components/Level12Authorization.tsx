@@ -713,7 +713,6 @@ function RequestLegend() {
 export function Level12Authorization({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const [phase, setPhase] = useState<Phase>('observe');
-	const [showBuildButton, setShowBuildButton] = useState(false);
 	const [requests, setRequests] = useState<SimRequest[]>([]);
 	const [blockedCount, setBlockedCount] = useState(0);
 	const [allowedCount, setAllowedCount] = useState(0);
@@ -725,13 +724,6 @@ export function Level12Authorization({ onComplete }: LevelComponentProps) {
 	// Ref to track latest policyDeployed for animation intervals
 	const policyDeployedRef = useRef(policyDeployed);
 	policyDeployedRef.current = policyDeployed;
-
-	// ── "Build the Fix" button fade-in after 3 seconds ──
-	useEffect(() => {
-		if (phase !== 'observe') return;
-		const timer = setTimeout(() => setShowBuildButton(true), 3000);
-		return () => clearTimeout(timer);
-	}, [phase]);
 
 	// ── Transition: build -> activate when all steps complete ──
 	useEffect(() => {
@@ -967,14 +959,12 @@ export function Level12Authorization({ onComplete }: LevelComponentProps) {
 									requests={requests}
 								/>
 							</div>
-							{showBuildButton && (
-								<div className="p-6 flex justify-center animate-in fade-in duration-500">
-									<Button className="gap-2" onClick={handleStartBuild} size="lg">
-										Build the Fix
-										<ArrowRight className="w-4 h-4" />
-									</Button>
-								</div>
-							)}
+							<div className="p-6 flex justify-center">
+								<Button className="gap-2" onClick={handleStartBuild} size="lg">
+									Build the Fix
+									<ArrowRight className="w-4 h-4" />
+								</Button>
+							</div>
 						</div>
 					)}
 
