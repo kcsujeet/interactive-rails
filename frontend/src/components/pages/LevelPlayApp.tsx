@@ -1,8 +1,9 @@
 /**
  * Level Play App Component
  *
- * The main level gameplay interface with pipeline builder and simulation.
- * Uses the shared LevelLayout shell for consistent chrome across all levels.
+ * The main level gameplay interface.
+ * Custom level components handle their own layout and interactions.
+ * Falls back to a generic pipeline builder for unimplemented levels.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -12,10 +13,8 @@ import { completeLevel as completeLevelProgress } from '@/lib/progress';
 import { generateCodeFiles, getLearningGoal } from '@/utils/codeGeneration';
 import {
 	type Connection,
-	type GameState,
 	type LevelData,
 	levelChallenges,
-	PausedOverlay,
 	PipelineCanvas,
 	usePipelineSimulation,
 	usePipelineState,
@@ -37,7 +36,6 @@ interface LevelPlayAppProps {
 
 export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 	const [loading, setLoading] = useState(true);
-	const [gameState, setGameState] = useState<GameState>('playing');
 	const [stability] = useState(100);
 	const [levelData, setLevelData] = useState<LevelData | null>(null);
 
@@ -79,7 +77,7 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 
 	// Simulation hook - pass level-specific solution type
 	const simulation = usePipelineSimulation(
-		gameState,
+		'playing',
 		placedNodes,
 		connections,
 		isPipelineBroken,
@@ -95,19 +93,6 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 
 	function loadLevel() {
 		const activeLevel = level;
-
-		// 2. DYNAMIC PATCHING based on L1 Choices
-		if (activeLevel && activeLevel.levelNumber === 3) {
-			// Patch Level 2: If React, ask for Serializer instead of View
-			// Note: We need to clone the level to avoid mutating the global constant
-			const _patchedLevel = JSON.parse(JSON.stringify(activeLevel));
-
-			// If we chose React in L1 (we need to fetch this state, for now we assume React to test)
-			// effective choice logic would be here.
-
-			// For now, let's just LOG that we are ready to patch.
-			// Real patching requires global app state which we don't have passed in here yet.
-		}
 
 		// Use new level content if available, otherwise fall back to legacy challenge
 		const info = activeLevel
@@ -153,13 +138,11 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 
 		setLevelData(data);
 		setLoading(false);
-		// Start the level immediately - briefing is shown on separate page
 		initializeLevel();
 	}
 
 	function initializeLevel() {
 		if (challenge) {
-			// Use legacy challenge format
 			setPlacedNodes([...challenge.initialNodes]);
 
 			const initialConns: Connection[] = [];
@@ -187,7 +170,6 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 				dbLoad: 95,
 			});
 		} else if (level) {
-			// Use new Level content format from acts
 			const initialNodes = level.startingPipeline.nodes.map((node) => ({
 				id: node.id,
 				type: node.type,
@@ -213,11 +195,6 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 				dbLoad: 40,
 			});
 		}
-		setGameState('playing');
-	}
-
-	function exitLevel() {
-		window.location.href = `/acts/${act?.id || 1}/${levelId}`;
 	}
 
 	// Validate pipeline for LevelHeader's Submit button
@@ -278,10 +255,7 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 
 	// Check if this level has a custom component
 	const CustomLevelComponent = getLevelComponent(levelId);
-	if (
-		(gameState === 'playing' || gameState === 'paused') &&
-		CustomLevelComponent
-	) {
+	if (CustomLevelComponent) {
 		return (
 			<CustomLevelComponent
 				onComplete={async (data) => {
@@ -301,7 +275,6 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 						});
 
 						if (result.success) {
-							// Redirect to completion page
 							window.location.href = `/acts/${act?.id || 1}/${levelId}/complete?stars=${stars}`;
 						}
 					} catch (err) {
@@ -312,80 +285,69 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 		);
 	}
 
-	// Generate code preview files for generic levels
+	// Fallback: generic pipeline builder for unimplemented levels
 	const codeFiles = level ? generateCodeFiles(level) : [];
 	const learningGoal = level ? getLearningGoal(level) : undefined;
 
-	if (gameState === 'playing' || gameState === 'paused') {
-		return (
-			<LevelLayout>
-				<LeftPanel>
-					<NodePalette
-						availableNodes={level?.availableNodes || challenge?.availableNodes}
-						breakReason={breakReason}
-						challenge={challenge}
+	return (
+		<LevelLayout>
+			<LeftPanel>
+				<NodePalette
+					availableNodes={level?.availableNodes || challenge?.availableNodes}
+					breakReason={breakReason}
+					challenge={challenge}
+					draggedNodeType={draggedNodeType}
+					isPipelineBroken={isPipelineBroken}
+					liveMetrics={liveMetrics}
+					onDragEnd={handleDragEnd}
+					onDragStart={handleDragStart}
+					showMetrics={
+						!!challenge?.initialMetrics || (!!level && !!act?.metricsVisible)
+					}
+				/>
+			</LeftPanel>
+
+			<CenterPanel>
+				<LevelHeader
+					actNumber={act?.id}
+					levelName={levelData?.name || ''}
+					levelNumber={level?.levelNumber || 0}
+					onComplete={handleComplete}
+					onReset={initializeLevel}
+					onValidate={handleValidate}
+				/>
+
+				<div className="flex-1 relative flex flex-col">
+					<PipelineCanvas
+						canvasRef={canvasRef}
+						connections={connections}
 						draggedNodeType={draggedNodeType}
+						draggingNodeId={draggingNodeId}
 						isPipelineBroken={isPipelineBroken}
-						liveMetrics={liveMetrics}
-						onDragEnd={handleDragEnd}
-						onDragStart={handleDragStart}
-						showMetrics={
-							!!challenge?.initialMetrics || (!!level && !!act?.metricsVisible)
-						}
+						onClick={handleCanvasClick}
+						onCompleteConnection={completeConnection}
+						onDeleteConnection={deleteConnection}
+						onDeleteNode={deleteSelectedNode}
+						onDragOver={handleDragOver}
+						onDrop={handleDrop}
+						onMouseMove={handleCanvasMouseMove}
+						onMouseUp={handleCanvasMouseUp}
+						onNodeMouseDown={handleNodeMouseDown}
+						onStartConnection={startConnection}
+						pendingConnection={pendingConnection}
+						placedNodes={placedNodes}
+						queryParticles={queryParticles}
+						selectedNodeId={selectedNodeId}
+						simulationRunning={true}
 					/>
-				</LeftPanel>
+				</div>
+			</CenterPanel>
 
-				<CenterPanel>
-					<LevelHeader
-						actNumber={act?.id}
-						levelName={levelData?.name || ''}
-						levelNumber={level?.levelNumber || 0}
-						onComplete={handleComplete}
-						onReset={initializeLevel}
-						onValidate={handleValidate}
-					/>
-
-					<div className="flex-1 relative flex flex-col">
-						<PipelineCanvas
-							canvasRef={canvasRef}
-							connections={connections}
-							draggedNodeType={draggedNodeType}
-							draggingNodeId={draggingNodeId}
-							isPipelineBroken={isPipelineBroken}
-							onClick={handleCanvasClick}
-							onCompleteConnection={completeConnection}
-							onDeleteConnection={deleteConnection}
-							onDeleteNode={deleteSelectedNode}
-							onDragOver={handleDragOver}
-							onDrop={handleDrop}
-							onMouseMove={handleCanvasMouseMove}
-							onMouseUp={handleCanvasMouseUp}
-							onNodeMouseDown={handleNodeMouseDown}
-							onStartConnection={startConnection}
-							pendingConnection={pendingConnection}
-							placedNodes={placedNodes}
-							queryParticles={queryParticles}
-							selectedNodeId={selectedNodeId}
-							simulationRunning={gameState === 'playing'}
-						/>
-
-						{gameState === 'paused' && (
-							<PausedOverlay
-								onExit={exitLevel}
-								onResume={() => setGameState('playing')}
-							/>
-						)}
-					</div>
-				</CenterPanel>
-
-				<RightPanel>
-					<CodePreviewPanel files={codeFiles} learningGoal={learningGoal} />
-				</RightPanel>
-			</LevelLayout>
-		);
-	}
-
-	return null;
+			<RightPanel>
+				<CodePreviewPanel files={codeFiles} learningGoal={learningGoal} />
+			</RightPanel>
+		</LevelLayout>
+	);
 }
 
 export default LevelPlayApp;
