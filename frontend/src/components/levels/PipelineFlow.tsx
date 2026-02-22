@@ -251,10 +251,8 @@ function buildEdges(connections: PipelineConnection[]): Edge[] {
 // Component
 // ──────────────────────────────────────────────
 
-const FIT_VIEW_OPTIONS = { padding: 0.4 };
-
 function handleInit(instance: ReactFlowInstance) {
-	requestAnimationFrame(() => instance.fitView(FIT_VIEW_OPTIONS));
+	requestAnimationFrame(() => instance.fitView());
 }
 
 export function PipelineFlow({
