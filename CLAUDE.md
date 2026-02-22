@@ -323,3 +323,9 @@ Use `bun test` with imports from `"bun:test"` (`test`, `expect`, `describe`, etc
 Use HTML imports with `Bun.serve()`, not Vite. HTML files can import `.tsx`/`.jsx`/`.js` directly; `<link>` tags bundle CSS automatically.
 
 For more information, read the Bun API docs in `node_modules/bun-types/docs/**.mdx`.
+
+---
+
+## Session Logging
+
+**Document every session.** After making changes, record them in a session log at `docs/sessions/{YYYY-MM-DD}-session-{N}.md`. Each entry should include: what was changed, why, and what was learned. Use `/load-context` at the start of a new conversation to load full project context (docs, spec, architecture, recent sessions) and create a new log file.
