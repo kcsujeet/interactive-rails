@@ -13,6 +13,8 @@ Do NOT run `git commit` without explicit user approval.
 
 **Consistency is non-negotiable.** Don't do one-off things. When a pattern exists in the codebase (button labels, step navigation, component structure), follow it exactly. If Level 1 uses "Next Step" with an ArrowRight icon, every level uses "Next Step" with an ArrowRight icon. No custom labels, no special cases.
 
+**Always check the latest docs of any library before implementing.** Never assume the API from memory. Libraries rename components, change prop names, and introduce breaking changes between versions. Fetch the official docs (GitHub README, npm page, or docs site) and verify the current API before writing any code.
+
 Default to using Bun instead of Node.js:
 
 - `bun <file>` (not `node` / `ts-node`)
