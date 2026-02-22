@@ -71,6 +71,14 @@ Show the problem visually before the player does anything. The player watches an
 - Left panel: scenario text + any legends needed to understand the visualization
 - Right panel: the broken/vulnerable/unoptimized code
 
+**Every level needs its own unique visualization concept.** Do NOT reuse the same "dots flowing through a pipeline" pattern everywhere. The visualization must teach the specific concept of that level. Examples:
+- MVC/architecture levels: pipeline/flow diagram showing where this piece fits in the request cycle
+- Security levels: animated requests/actors showing what gets through without protections
+- Testing level: deploy pipeline where broken commits pass an empty test gate
+- Performance levels: before/after showing slow queries, N+1, memory bloat
+- Data levels: entity-relationship or schema diagrams showing structural problems
+- Routing level: request dispatcher showing URLs hitting dead ends
+
 #### Phase 2: Problem Solving (HOW)
 
 The player builds the solution step by step. **This phase must cover the COMPLETE workflow, including gem installation, generators, and setup commands.** Never skip setup steps. If a feature requires `bundle add gem_name` and `rails generate something:install`, those are real steps the player completes.

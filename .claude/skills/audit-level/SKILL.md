@@ -42,6 +42,19 @@ The level must have a dedicated "observe" phase where:
 
 If the level has no visual problem to animate (e.g., pure code structure levels), it must still have a dedicated observe phase showing the problematic code state before the player starts building.
 
+**CRITICAL: Every level needs its own unique visualization concept.**
+
+Do NOT copy-paste the same "dots flowing through a pipeline" pattern for every level. The visualization must teach the specific concept of that level. Think about what visual metaphor best explains the problem:
+
+- **MVC/architecture levels (Model, Controller):** A pipeline/flow diagram showing where this piece fits in the MVC request cycle. The player sees the gap in the architecture.
+- **Security levels (Authorization, Authentication):** Animated requests/actors flowing through a system, showing what gets through when protections are missing.
+- **Testing level:** A deploy pipeline where broken commits pass through an empty test gate to production.
+- **Performance levels:** Before/after visualizations showing slow queries, N+1 problems, or memory bloat.
+- **Data levels (Migrations, Associations):** Entity-relationship or schema diagrams showing structural problems.
+- **Routing level:** A request dispatcher showing URLs hitting dead ends or wrong handlers.
+
+Ask yourself: "If I showed this animation to someone who has never coded, would they understand WHAT is broken?" If the answer is no, the visualization is too generic. Each level's visualization should be a teaching moment on its own, not decoration.
+
 ### Phase 2: Problem Solving (HOW)
 
 The build phase must cover the **complete workflow**:
