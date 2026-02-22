@@ -7,9 +7,8 @@
 		"dev": "wrangler dev",
 		"build": "wrangler deploy --dry-run",
 		"deploy": "wrangler deploy",
-		"db:migrate": "wrangler d1 execute interactive-rails-db --file=src/db/schema.sql --local && wrangler d1 execute interactive-rails-db --file=src/db/schema-v2.sql --local",
-		"db:migrate:prod": "wrangler d1 execute interactive-rails-db --file=src/db/schema.sql && wrangler d1 execute interactive-rails-db --file=src/db/schema-v2.sql",
-		"db:migrate:v2": "wrangler d1 execute interactive-rails-db --file=src/db/schema-v2.sql --local",
+		"db:migrate": "wrangler d1 execute interactive-rails-db --file=src/db/schema.sql --local",
+		"db:migrate:prod": "wrangler d1 execute interactive-rails-db --file=src/db/schema.sql",
 		"test": "bun test"
 	},
 	"devDependencies": {
