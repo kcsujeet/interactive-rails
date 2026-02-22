@@ -654,9 +654,10 @@ end
 		conceptExplanation: `Authorization answers "Can this user do this action on this resource?"
 
 **Pundit** provides a clean, policy-based pattern:
-- One policy class per model
+- One policy class per model, named by convention: \`Post\` -> \`PostPolicy\`, \`Comment\` -> \`CommentPolicy\`
+- When you call \`authorize post\`, Pundit infers \`PostPolicy\` from the record's class and calls the method matching the current action (e.g. \`destroy?\`)
 - Each method corresponds to a controller action (\`update?\`, \`destroy?\`)
-- Policies are plain Ruby objects -- easy to test
+- Policies are plain Ruby objects, easy to test
 - Scopes filter collections based on user permissions
 
 **Current.user (Rails built-in):**
