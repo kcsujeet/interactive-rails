@@ -86,7 +86,7 @@ The build phase must cover the **complete workflow**:
 
 The level must have a dedicated reward phase:
 
-- [ ] Sub-phase a (activate): Star rating + "Activate ___" button (centered, no animation)
+- [ ] Sub-phase a (activate): Star rating + "Visualize ___" button (centered, no animation)
 - [ ] Sub-phase b (reward): Full-screen visualization returns, now showing the solution working
 - [ ] The contrast between Phase 1 (broken) and Phase 3b (fixed) is the reward
 - [ ] Left panel shows StepProgress (all complete) + counters/metrics if applicable
@@ -99,7 +99,7 @@ Check the phase transitions:
 - [ ] State uses `phase: 'observe' | 'build' | 'activate' | 'reward'` (not boolean flags)
 - [ ] `observe -> build`: triggered by "Build the Fix" button click
 - [ ] `build -> activate`: triggered by `useEffect` watching `stepper.isComplete`
-- [ ] `activate -> reward`: triggered by "Activate ___" button click
+- [ ] `activate -> reward`: triggered by "Visualize ___" button click
 - [ ] Animation intervals only run during `observe` and `reward` phases
 - [ ] Requests/state are cleared on phase transitions
 

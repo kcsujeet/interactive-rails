@@ -109,7 +109,7 @@ phase: 'observe' | 'build' | 'activate' | 'reward'
 
 observe  -> (click "Build the Fix")    -> build
 build    -> (all steps complete)        -> activate
-activate -> (click "Activate ___")      -> reward
+activate -> (click "Visualize ___")      -> reward
 reward   -> (click Submit)              -> level complete
 ```
 

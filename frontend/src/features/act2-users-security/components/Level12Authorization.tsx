@@ -13,7 +13,7 @@
  *   Step 4: Define the destroy? Method (OptionCard)
  *   Step 5: Wire Up the Controller (OptionCard)
  *   Step 6: Scope the Index Query (OptionCard)
- * Phase 3 (ADVANTAGE - activate): Star rating + "Activate Policy" button
+ * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Protection" button
  * Phase 4 (ADVANTAGE - reward): Policy blocks hackers in the animation
  *
  * Teaches: Pundit policies, authorize, policy_scope, rescue_from
@@ -1112,7 +1112,7 @@ export function Level12Authorization({ onComplete }: LevelComponentProps) {
 									))}
 								</div>
 								<p className="text-sm text-muted-foreground">
-									Your Pundit policy is ready. Activate it and watch the
+									Your Pundit policy is ready. See the
 									red hackers get blocked at the Policy checkpoint.
 								</p>
 								<Button
@@ -1121,7 +1121,7 @@ export function Level12Authorization({ onComplete }: LevelComponentProps) {
 									size="lg"
 								>
 									<Play className="w-4 h-4" />
-									Activate Policy
+									Visualize Protection
 								</Button>
 							</div>
 						</div>
