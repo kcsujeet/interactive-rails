@@ -17,7 +17,7 @@ export type ProgressData = GuestProgress & {
 	isGuest: boolean;
 };
 
-const GUEST_PROGRESS_KEY = 'railsexpert_progress_v1';
+const GUEST_PROGRESS_KEY = 'interactive_rails_progress_v1';
 
 function loadGuestProgress(): GuestProgress {
 	if (typeof window === 'undefined') {

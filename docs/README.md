@@ -1,6 +1,6 @@
-# RailsExpert Documentation
+# Interactive Rails Documentation
 
-Welcome to the RailsExpert documentation. This folder contains comprehensive documentation for the RailsExpert project - a gamified web application that teaches Ruby on Rails development through interactive pipeline-building gameplay.
+Welcome to the Interactive Rails documentation. This folder contains comprehensive documentation for the Interactive Rails project - a gamified web application that teaches Ruby on Rails development through interactive pipeline-building gameplay.
 
 ## Documentation Index
 
@@ -30,7 +30,7 @@ bun run dev
 
 ## Project Overview
 
-RailsExpert is an educational game where players learn **Rails 8 API-only** development by building a production-grade SaaS while mastering Rails 8 concepts through interactive pipeline-building gameplay.
+Interactive Rails is an educational game where players learn **Rails 8 API-only** development by building a production-grade SaaS while mastering Rails 8 concepts through interactive pipeline-building gameplay.
 
 The narrative arc takes players from a simple Blog API through a social platform, into a SaaS with payments, and ultimately to enterprise scale. Rails 8 features like Solid Queue, Solid Cache, Solid Cable, built-in auth, `params.expect()`, and `rate_limit` appear naturally as players progress. Testing is integrated from Level 12 onward.
 
@@ -77,7 +77,7 @@ The narrative arc takes players from a simple Blog API through a social platform
 ## Key Directories
 
 ```
-railsexpert/
+interactive-rails/
 ├── frontend/              # Astro app with React components
 │   └── src/
 │       ├── pages/         # Astro routes (acts, levels, sandbox)

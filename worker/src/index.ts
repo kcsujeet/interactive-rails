@@ -1,5 +1,5 @@
 /**
- * RailsExpert API
+ * Interactive Rails API
  * Main entry point for the Cloudflare Worker
  */
 
@@ -25,7 +25,7 @@ app.use('*', requestIdMiddleware);
 app.use(
 	'*',
 	cors({
-		origin: ['http://localhost:4321', 'https://railsexpert.com'],
+		origin: ['http://localhost:4321', 'https://interactive-rails.com'],
 		credentials: true,
 	}),
 );
@@ -55,7 +55,7 @@ app.get('/', (c) => {
 		success: true,
 		data: {
 			status: 'healthy',
-			name: 'RailsExpert API',
+			name: 'Interactive Rails API',
 			version: '1.0.0',
 			timestamp: new Date().toISOString(),
 		},

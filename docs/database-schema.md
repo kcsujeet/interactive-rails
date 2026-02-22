@@ -1,6 +1,6 @@
 # Database Schema
 
-RailsExpert uses Cloudflare D1 (SQLite) for persistent storage.
+Interactive Rails uses Cloudflare D1 (SQLite) for persistent storage.
 
 ## Schema Location
 
@@ -305,13 +305,13 @@ CREATE TABLE IF NOT EXISTS sessions (
 **Local development:**
 ```bash
 cd worker
-bunx wrangler d1 execute railsexpert-db --file=src/db/schema.sql --local
+bunx wrangler d1 execute interactive-rails-db --file=src/db/schema.sql --local
 ```
 
 **Production:**
 ```bash
 cd worker
-bunx wrangler d1 execute railsexpert-db --file=src/db/schema.sql
+bunx wrangler d1 execute interactive-rails-db --file=src/db/schema.sql
 ```
 
 ### Reset Local Database
@@ -319,7 +319,7 @@ bunx wrangler d1 execute railsexpert-db --file=src/db/schema.sql
 ```bash
 rm -rf worker/.wrangler/state
 cd worker
-bunx wrangler d1 execute railsexpert-db --file=src/db/schema.sql --local
+bunx wrangler d1 execute interactive-rails-db --file=src/db/schema.sql --local
 ```
 
 ---

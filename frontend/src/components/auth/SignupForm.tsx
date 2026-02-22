@@ -69,7 +69,7 @@ export default function SignupForm() {
 			<CardHeader>
 				<CardTitle className="text-xl">Create Account</CardTitle>
 				<CardDescription>
-					Join RailsExpert to start your learning journey
+					Join Interactive Rails to start your learning journey
 				</CardDescription>
 			</CardHeader>
 			<form onSubmit={handleSubmit}>

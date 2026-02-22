@@ -1,12 +1,12 @@
 # API Reference
 
-Base URL: `http://localhost:8787` (development) or `https://api.railsexpert.com` (production)
+Base URL: `http://localhost:8787` (development) or `https://api.interactive-rails.com` (production)
 
 All API endpoints are prefixed with `/api`.
 
 ## Overview
 
-The RailsExpert API handles:
+The Interactive Rails API handles:
 - **Authentication** - User signup, login, session management
 - **Progress** - Level completion tracking, star ratings, achievements
 - **Leaderboards** - Per-level rankings

@@ -1,6 +1,6 @@
-# Rails Expert: Game Design Document
+# Interactive Rails: Game Design Document
 
-This is the definitive design document for Rails Expert. It outlines the 55-level progression from `rails new` to High-Scale Architecture.
+This is the definitive design document for Interactive Rails. It outlines the 55-level progression from `rails new` to High-Scale Architecture.
 
 ## Core Philosophy: App-Driven Learning
 

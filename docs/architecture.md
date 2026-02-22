@@ -2,7 +2,7 @@
 
 ## System Overview
 
-RailsExpert uses a modern JAMstack architecture optimized for Cloudflare's edge network.
+Interactive Rails uses a modern JAMstack architecture optimized for Cloudflare's edge network.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -55,7 +55,7 @@ RailsExpert uses a modern JAMstack architecture optimized for Cloudflare's edge 
 ## Project Structure
 
 ```
-railsexpert/
+interactive-rails/
 ├── package.json              # Root workspace config
 ├── bun.lock                  # Bun lockfile
 ├── biome.json                # Linter/formatter config
@@ -283,13 +283,13 @@ export default defineConfig({
 
 ### Worker (wrangler.toml)
 ```toml
-name = "railsexpert-api"
+name = "interactive-rails-api"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "railsexpert-db"
+database_name = "interactive-rails-db"
 ```
 
 ## Security Considerations

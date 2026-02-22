@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers deploying RailsExpert to Cloudflare's edge network.
+This guide covers deploying Interactive Rails to Cloudflare's edge network.
 
 ## Architecture Overview
 
@@ -10,7 +10,7 @@ This guide covers deploying RailsExpert to Cloudflare's edge network.
 │                                                                  │
 │  ┌─────────────────────┐    ┌─────────────────────────────────┐ │
 │  │   Cloudflare Pages  │    │     Cloudflare Workers          │ │
-│  │   railsexpert.com   │───▶│     api.railsexpert.com         │ │
+│  │   interactive-rails.com   │───▶│     api.interactive-rails.com         │ │
 │  │   (Static assets)   │    │     (API endpoints)             │ │
 │  └─────────────────────┘    └─────────────────────────────────┘ │
 │                                         │                       │
@@ -56,10 +56,10 @@ bunx wrangler whoami
 cd worker
 
 # Create production database
-bunx wrangler d1 create railsexpert-db
+bunx wrangler d1 create interactive-rails-db
 
 # Output will include database_id - save this!
-# Example: Created database 'railsexpert-db' with ID: xxxx-xxxx-xxxx
+# Example: Created database 'interactive-rails-db' with ID: xxxx-xxxx-xxxx
 ```
 
 ### 2. Update wrangler.toml
@@ -67,13 +67,13 @@ bunx wrangler d1 create railsexpert-db
 Add the database ID to `worker/wrangler.toml`:
 
 ```toml
-name = "railsexpert-api"
+name = "interactive-rails-api"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "railsexpert-db"
+database_name = "interactive-rails-db"
 database_id = "your-database-id-here"  # <-- Update this
 ```
 
@@ -83,10 +83,10 @@ database_id = "your-database-id-here"  # <-- Update this
 cd worker
 
 # Run schema on production D1
-bunx wrangler d1 execute railsexpert-db --file=src/db/schema.sql
+bunx wrangler d1 execute interactive-rails-db --file=src/db/schema.sql
 
 # Verify tables created
-bunx wrangler d1 execute railsexpert-db --command="SELECT name FROM sqlite_master WHERE type='table';"
+bunx wrangler d1 execute interactive-rails-db --command="SELECT name FROM sqlite_master WHERE type='table';"
 ```
 
 ### 4. Set Production Secrets
@@ -146,7 +146,7 @@ bun run deploy:frontend
 ### worker/wrangler.toml
 
 ```toml
-name = "railsexpert-api"
+name = "interactive-rails-api"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
@@ -154,7 +154,7 @@ compatibility_flags = ["nodejs_compat"]
 # D1 Database binding
 [[d1_databases]]
 binding = "DB"
-database_name = "railsexpert-db"
+database_name = "interactive-rails-db"
 database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
 # Environment variables (non-secret)
@@ -163,7 +163,7 @@ ENVIRONMENT = "production"
 
 # Custom domain (optional)
 # routes = [
-#   { pattern = "api.railsexpert.com/*", zone_name = "railsexpert.com" }
+#   { pattern = "api.interactive-rails.com/*", zone_name = "interactive-rails.com" }
 # ]
 ```
 
@@ -178,7 +178,7 @@ export default defineConfig({
   output: 'static',  // or 'server' for SSR
   adapter: cloudflare(),
   integrations: [react()],
-  site: 'https://railsexpert.com',
+  site: 'https://interactive-rails.com',
 });
 ```
 
@@ -191,14 +191,14 @@ export default defineConfig({
 1. Go to Cloudflare Dashboard → Workers & Pages
 2. Select your worker
 3. Go to Settings → Triggers
-4. Add Custom Domain: `api.railsexpert.com`
+4. Add Custom Domain: `api.interactive-rails.com`
 
 ### Pages Domain
 
 1. Go to Cloudflare Dashboard → Workers & Pages
 2. Select your Pages project
 3. Go to Custom Domains
-4. Add: `railsexpert.com` and `www.railsexpert.com`
+4. Add: `interactive-rails.com` and `www.interactive-rails.com`
 
 ---
 
@@ -208,7 +208,7 @@ export default defineConfig({
 
 | Variable | Development | Production |
 |----------|-------------|------------|
-| API_URL | `http://localhost:8787` | `https://api.railsexpert.com` |
+| API_URL | `http://localhost:8787` | `https://api.interactive-rails.com` |
 | JWT_SECRET | (not needed locally) | Set via `wrangler secret` |
 | ENVIRONMENT | `development` | `production` |
 
@@ -235,24 +235,24 @@ bunx wrangler secret delete JWT_SECRET
 cd worker
 
 # Run a query
-bunx wrangler d1 execute railsexpert-db --command="SELECT COUNT(*) FROM users;"
+bunx wrangler d1 execute interactive-rails-db --command="SELECT COUNT(*) FROM users;"
 
 # Export data
-bunx wrangler d1 execute railsexpert-db --command="SELECT * FROM users;" --json > users.json
+bunx wrangler d1 execute interactive-rails-db --command="SELECT * FROM users;" --json > users.json
 ```
 
 ### Run Migrations
 
 ```bash
 # Apply new schema changes
-bunx wrangler d1 execute railsexpert-db --file=src/db/migrations/001_add_column.sql
+bunx wrangler d1 execute interactive-rails-db --file=src/db/migrations/001_add_column.sql
 ```
 
 ### Backup Database
 
 ```bash
 # Export full database
-bunx wrangler d1 export railsexpert-db --output=backup.sql
+bunx wrangler d1 export interactive-rails-db --output=backup.sql
 ```
 
 ---
@@ -296,7 +296,7 @@ jobs:
         run: cd frontend && bun run build
 
       - name: Deploy Frontend
-        run: cd frontend && bunx wrangler pages deploy dist --project-name=railsexpert
+        run: cd frontend && bunx wrangler pages deploy dist --project-name=interactive-rails
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 ```
@@ -390,7 +390,7 @@ D1 doesn't have built-in rollback. Options:
 
 ### After Deploy
 
-- [ ] Health check passes (`curl https://api.railsexpert.com/`)
+- [ ] Health check passes (`curl https://api.interactive-rails.com/`)
 - [ ] Auth flow works (signup, login)
 - [ ] Game flow works (get realms, challenges)
 - [ ] Frontend loads correctly
@@ -426,8 +426,8 @@ Update `worker/src/index.ts`:
 app.use('*', cors({
   origin: [
     'http://localhost:4321',
-    'https://railsexpert.com',
-    'https://www.railsexpert.com'
+    'https://interactive-rails.com',
+    'https://www.interactive-rails.com'
   ],
   credentials: true,
 }));

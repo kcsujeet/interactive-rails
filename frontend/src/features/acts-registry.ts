@@ -1,7 +1,7 @@
 /**
  * Acts & Levels Content Index
  *
- * Rails Expert: 55 levels across 8 acts
+ * Interactive Rails: 55 levels across 8 acts
  * Build a production-grade SaaS while mastering Rails 8
  */
 
@@ -109,7 +109,7 @@ export function isLevelUnlocked(
 	// Dev mode: unlock all levels
 	if (
 		typeof window !== 'undefined' &&
-		localStorage.getItem('railsexpert_unlock_all') === 'true'
+		localStorage.getItem('interactive_rails_unlock_all') === 'true'
 	) {
 		return true;
 	}

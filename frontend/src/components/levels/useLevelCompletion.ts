@@ -41,7 +41,7 @@ export function useLevelCompletion(): UseLevelCompletionReturn {
 				// Save any stack choices to localStorage for future levels
 				if (data.stackChoices) {
 					const existingChoices = localStorage.getItem(
-						'rails-expert-game-choices',
+						'interactive-rails-game-choices',
 					);
 					const choices = existingChoices ? JSON.parse(existingChoices) : {};
 
@@ -56,7 +56,7 @@ export function useLevelCompletion(): UseLevelCompletionReturn {
 					};
 
 					localStorage.setItem(
-						'rails-expert-game-choices',
+						'interactive-rails-game-choices',
 						JSON.stringify(updatedChoices),
 					);
 				}
@@ -64,7 +64,7 @@ export function useLevelCompletion(): UseLevelCompletionReturn {
 				// Save any decisions to localStorage
 				if (data.decisions) {
 					const existingDecisions = localStorage.getItem(
-						'rails-expert-level-decisions',
+						'interactive-rails-level-decisions',
 					);
 					const decisions = existingDecisions
 						? JSON.parse(existingDecisions)
@@ -76,7 +76,7 @@ export function useLevelCompletion(): UseLevelCompletionReturn {
 					};
 
 					localStorage.setItem(
-						'rails-expert-level-decisions',
+						'interactive-rails-level-decisions',
 						JSON.stringify(updatedDecisions),
 					);
 				}
@@ -131,7 +131,7 @@ export function useLevelCompletion(): UseLevelCompletionReturn {
 // Helper to get game choices from localStorage
 export function getGameChoices() {
 	try {
-		const stored = localStorage.getItem('rails-expert-game-choices');
+		const stored = localStorage.getItem('interactive-rails-game-choices');
 		if (stored) {
 			return JSON.parse(stored);
 		}
@@ -149,7 +149,7 @@ export function getGameChoices() {
 // Helper to get level decisions from localStorage
 export function getLevelDecisions(levelId: string): Record<string, string> {
 	try {
-		const stored = localStorage.getItem('rails-expert-level-decisions');
+		const stored = localStorage.getItem('interactive-rails-level-decisions');
 		if (stored) {
 			const all = JSON.parse(stored);
 			return all[levelId] || {};

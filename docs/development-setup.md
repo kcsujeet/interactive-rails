@@ -1,6 +1,6 @@
 # Development Setup
 
-This guide walks you through setting up the RailsExpert development environment.
+This guide walks you through setting up the Interactive Rails development environment.
 
 ## Prerequisites
 
@@ -35,8 +35,8 @@ bun --version
 
 ```bash
 # 1. Clone the repository
-git clone <repo-url> railsexpert
-cd railsexpert
+git clone <repo-url> interactive-rails
+cd interactive-rails
 
 # 2. Install dependencies
 bun install
@@ -56,8 +56,8 @@ bun run dev
 ### 1. Clone Repository
 
 ```bash
-git clone <repo-url> railsexpert
-cd railsexpert
+git clone <repo-url> interactive-rails
+cd interactive-rails
 ```
 
 ### 2. Install Dependencies
@@ -80,7 +80,7 @@ The worker uses Cloudflare D1 (SQLite). For local development, Wrangler emulates
 cd worker
 
 # Create tables in local D1 emulator
-bunx wrangler d1 execute railsexpert-db --file=src/db/schema.sql --local
+bunx wrangler d1 execute interactive-rails-db --file=src/db/schema.sql --local
 
 # Database is stored in: worker/.wrangler/state/v3/d1/
 ```
@@ -200,7 +200,7 @@ rm -rf worker/.wrangler/state
 
 # Re-run migration
 cd worker
-bunx wrangler d1 execute railsexpert-db --file=src/db/schema.sql --local
+bunx wrangler d1 execute interactive-rails-db --file=src/db/schema.sql --local
 ```
 
 ### View Local Database

@@ -1,5 +1,5 @@
 {
-	"name": "railsexpert-worker",
+	"name": "interactive-rails-worker",
 	"version": "0.1.0",
 	"type": "module",
 	"private": true,
@@ -7,9 +7,9 @@
 		"dev": "wrangler dev",
 		"build": "wrangler deploy --dry-run",
 		"deploy": "wrangler deploy",
-		"db:migrate": "wrangler d1 execute railsexpert-db --file=src/db/schema.sql --local && wrangler d1 execute railsexpert-db --file=src/db/schema-v2.sql --local",
-		"db:migrate:prod": "wrangler d1 execute railsexpert-db --file=src/db/schema.sql && wrangler d1 execute railsexpert-db --file=src/db/schema-v2.sql",
-		"db:migrate:v2": "wrangler d1 execute railsexpert-db --file=src/db/schema-v2.sql --local",
+		"db:migrate": "wrangler d1 execute interactive-rails-db --file=src/db/schema.sql --local && wrangler d1 execute interactive-rails-db --file=src/db/schema-v2.sql --local",
+		"db:migrate:prod": "wrangler d1 execute interactive-rails-db --file=src/db/schema.sql && wrangler d1 execute interactive-rails-db --file=src/db/schema-v2.sql",
+		"db:migrate:v2": "wrangler d1 execute interactive-rails-db --file=src/db/schema-v2.sql --local",
 		"test": "bun test"
 	},
 	"devDependencies": {

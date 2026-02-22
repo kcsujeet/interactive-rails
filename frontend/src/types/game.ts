@@ -1,5 +1,5 @@
 /**
- * Rails Expert Game Types
+ * Interactive Rails Game Types
  *
  * Type definitions for the pipeline builder game, Acts/Levels structure,
  * simulation, and learning content.

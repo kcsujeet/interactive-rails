@@ -258,7 +258,7 @@ export function Level2FirstBoot({ onComplete }: LevelComponentProps) {
 
 		try {
 			localStorage.setItem(
-				'rails-expert-game-choices',
+				'interactive-rails-game-choices',
 				JSON.stringify(choices),
 			);
 		} catch (e) {

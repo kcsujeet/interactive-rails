@@ -1,6 +1,6 @@
-# RailsExpert Frontend
+# Interactive Rails Frontend
 
-The frontend application for RailsExpert — a gamified web app that teaches Ruby on Rails 8 API development through interactive pipeline-building gameplay.
+The frontend application for Interactive Rails, a gamified web app that teaches Ruby on Rails 8 API development through interactive pipeline-building gameplay.
 
 ## Tech Stack
 

@@ -1,10 +1,10 @@
 # Game Mechanics
 
-This document details the gameplay systems in RailsExpert.
+This document details the gameplay systems in Interactive Rails.
 
 ## Overview
 
-RailsExpert teaches Rails optimization through pipeline-building gameplay:
+Interactive Rails teaches Rails optimization through pipeline-building gameplay:
 - **Pipeline Building** - Drag-drop nodes to create request flows
 - **Real-time Simulation** - Watch metrics as requests process
 - **Enemy/Defense System** - Combat performance threats

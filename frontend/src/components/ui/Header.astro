@@ -10,8 +10,8 @@ const isActive = (href: string) =>
   <div class="absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-primary/20 to-transparent"></div>
   <div class="max-w-[1200px] mx-auto px-6 h-12 flex items-center justify-between">
     <a href="/" class="flex items-center gap-2 no-underline hover:opacity-80 transition-opacity">
-      <img src="/favicon.svg" alt="RailsExpert Logo" class="w-5 h-5" />
-      <span class="text-sm font-semibold text-foreground">RailsExpert</span>
+      <img src="/favicon.svg" alt="Interactive Rails Logo" class="w-5 h-5" />
+      <span class="text-sm font-semibold text-foreground">Interactive Rails</span>
     </a>
 
     <nav class="hidden md:flex items-center gap-1" id="main-nav">
@@ -38,7 +38,7 @@ const isActive = (href: string) =>
   import { $user, initAuth, clearAuth } from "@/stores/authStore";
   import { escapeHtml } from "@/lib/utils";
 
-  const API_URL = import.meta.env.DEV ? '' : 'https://api.railsexpert.com';
+  const API_URL = import.meta.env.DEV ? '' : 'https://api.interactive-rails.com';
 
   initAuth();
 

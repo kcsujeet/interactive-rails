@@ -1,7 +1,7 @@
 import { atom, computed } from 'nanostores';
 import type { User } from '../../../shared/types';
 
-const USER_KEY = 'railsexpert_user';
+const USER_KEY = 'interactive_rails_user';
 
 // Initialize user from localStorage (for display purposes only, not auth)
 function getInitialUser(): User | null {

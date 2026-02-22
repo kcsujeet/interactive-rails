@@ -1,5 +1,5 @@
 {
-	"name": "railsexpert",
+	"name": "interactive-rails",
 	"version": "0.1.0",
 	"type": "module",
 	"private": true,
@@ -15,8 +15,8 @@
 		"build:frontend": "cd frontend && bun run build",
 		"build:worker": "cd worker && bun run build",
 		"preview": "cd frontend && bun run preview",
-		"db:migrate": "cd worker && wrangler d1 execute railsexpert-db --file=src/db/schema.sql --local",
-		"db:migrate:prod": "cd worker && wrangler d1 execute railsexpert-db --file=src/db/schema.sql",
+		"db:migrate": "cd worker && wrangler d1 execute interactive-rails-db --file=src/db/schema.sql --local",
+		"db:migrate:prod": "cd worker && wrangler d1 execute interactive-rails-db --file=src/db/schema.sql",
 		"deploy": "bun run build && bun run deploy:worker && bun run deploy:frontend",
 		"deploy:frontend": "cd frontend && wrangler pages deploy dist",
 		"deploy:worker": "cd worker && wrangler deploy",

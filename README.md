@@ -1,4 +1,4 @@
-# railsexpert
+# interactive-rails
 
 To install dependencies:
 

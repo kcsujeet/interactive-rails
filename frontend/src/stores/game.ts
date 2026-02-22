@@ -610,7 +610,7 @@ export const useGameStore = create<GameState>()(
 				})),
 			),
 			{
-				name: 'railsexpert-game',
+				name: 'interactive-rails-game',
 				partialize: (state) => ({
 					playerId: state.playerId,
 					playerName: state.playerName,

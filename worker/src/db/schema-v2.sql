@@ -1,4 +1,4 @@
--- RailsExpert Database Schema v2 - Pipeline Builder System
+-- Interactive Rails Database Schema v2 - Pipeline Builder System
 -- Simplified schema focused on progress and completion tracking
 -- Simulation runs client-side, only results are stored
 

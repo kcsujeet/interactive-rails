@@ -518,7 +518,7 @@ export const useUIStore = create<UIState>()(
 				})),
 			),
 			{
-				name: 'railsexpert-ui',
+				name: 'interactive-rails-ui',
 				partialize: (state) => ({
 					preferences: state.preferences,
 					sidebarCollapsed: state.sidebarCollapsed,

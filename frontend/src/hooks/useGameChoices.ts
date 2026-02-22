@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { GameChoices } from '@/types';
 
-const STORAGE_KEY = 'rails-expert-game-choices';
+const STORAGE_KEY = 'interactive-rails-game-choices';
 
 const DEFAULT_CHOICES: GameChoices = {
 	database: null,

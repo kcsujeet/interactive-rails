@@ -19,7 +19,7 @@ frontend/src/features/levels-registry.ts     # Level component registry (43 cust
 ## Content Hierarchy
 
 ```
-RailsExpert (50 levels, 8 acts)
+Interactive Rails (50 levels, 8 acts)
 ├── Act 1: The Foundation (7 levels)
 │   ├── Level 1: The Stack Choice
 │   ├── Level 2: The Model

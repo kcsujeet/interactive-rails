@@ -106,7 +106,7 @@ export default function LoginForm() {
 						{isLoading ? 'Signing in...' : 'Sign In'}
 					</Button>
 					<p className="text-center text-sm text-muted-foreground">
-						New to RailsExpert?{' '}
+						New to Interactive Rails?{' '}
 						<a className="text-primary hover:underline" href="/signup">
 							Create an account
 						</a>

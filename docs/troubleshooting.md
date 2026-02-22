@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Common issues and their solutions for RailsExpert development and deployment.
+Common issues and their solutions for Interactive Rails development and deployment.
 
 ---
 
@@ -73,7 +73,7 @@ Error: D1_ERROR: no such table: users
 cd worker
 
 # Run migration with --local flag
-bunx wrangler d1 execute railsexpert-db --file=src/db/schema.sql --local
+bunx wrangler d1 execute interactive-rails-db --file=src/db/schema.sql --local
 ```
 
 ---
@@ -118,8 +118,8 @@ app.use('*', cors({
   origin: [
     'http://localhost:4321',
     'http://localhost:4322',  // Add if frontend uses different port
-    'https://railsexpert.com',
-    'https://www.railsexpert.com'
+    'https://interactive-rails.com',
+    'https://www.interactive-rails.com'
   ],
   credentials: true,
 }));
@@ -283,7 +283,7 @@ rm -rf worker/.wrangler/state
 
 # Re-run migration
 cd worker
-bunx wrangler d1 execute railsexpert-db --file=src/db/schema.sql --local
+bunx wrangler d1 execute interactive-rails-db --file=src/db/schema.sql --local
 ```
 
 ---
@@ -312,12 +312,12 @@ curl -X POST http://localhost:8787/api/auth/signup \
 
 1. Check data exists:
 ```bash
-bunx wrangler d1 execute railsexpert-db --command="SELECT * FROM users;" --local
+bunx wrangler d1 execute interactive-rails-db --command="SELECT * FROM users;" --local
 ```
 
 2. Verify user_id:
 ```bash
-bunx wrangler d1 execute railsexpert-db --command="SELECT * FROM user_progress WHERE user_id='<id>';" --local
+bunx wrangler d1 execute interactive-rails-db --command="SELECT * FROM user_progress WHERE user_id='<id>';" --local
 ```
 
 ---
@@ -412,7 +412,7 @@ bunx wrangler d1 list
 ```toml
 [[d1_databases]]
 binding = "DB"
-database_name = "railsexpert-db"
+database_name = "interactive-rails-db"
 database_id = "correct-id-here"
 ```
 

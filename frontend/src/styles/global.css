@@ -1,4 +1,4 @@
-/* RailsExpert - Design System (Tailwind v4 + shadcn/ui) */
+/* Interactive Rails - Design System (Tailwind v4 + shadcn/ui) */
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -70,7 +70,7 @@
 }
 
 .dark {
-	/* RailsExpert Dark Theme (Warm) */
+	/* Interactive Rails Dark Theme (Warm) */
 	--background: oklch(0.13 0.02 30);
 	--foreground: oklch(0.95 0.01 60);
 
