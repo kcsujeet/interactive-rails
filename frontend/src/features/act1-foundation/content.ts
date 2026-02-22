@@ -679,45 +679,11 @@ const level7Serializers: Level = {
 	trigger: {
 		type: 'user_complaint',
 		description:
-			'The API returns raw model data including internal columns like password_digest, updated_at, and internal IDs. Clients are confused by the response shape.',
+			'The API returns raw model data including password_digest and internal columns. Choose a serializer gem, install it, define safe attributes, and wire it into the controller.',
 	},
 	startingPipeline: {
-		nodes: [
-			{ id: 'request-node', type: 'request', x: 100, y: 220, locked: true },
-			{ id: 'router-node', type: 'router', x: 280, y: 220, locked: true },
-			{
-				id: 'controller-node',
-				type: 'controller',
-				x: 460,
-				y: 220,
-				locked: true,
-			},
-			{
-				id: 'model-node',
-				type: 'model',
-				x: 660,
-				y: 220,
-				locked: true,
-				config: { label: 'Post' },
-			},
-			{ id: 'database-node', type: 'database', x: 860, y: 220, locked: true },
-			{ id: 'response-node', type: 'response', x: 660, y: 400, locked: true },
-		],
-		connections: [
-			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'router-node' },
-			{
-				id: 'c2',
-				sourceNodeId: 'router-node',
-				targetNodeId: 'controller-node',
-			},
-			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
-			{ id: 'c4', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-			{
-				id: 'c5',
-				sourceNodeId: 'controller-node',
-				targetNodeId: 'response-node',
-			},
-		],
+		nodes: [],
+		connections: [],
 	},
 	problem: {
 		observation: 'API returns all model attributes including internal ones.',
@@ -745,15 +711,11 @@ const level7Serializers: Level = {
     }
   }
 }`,
-		goal: 'Add a serializer to control exactly what the API returns.',
+		goal: 'Choose the right serializer gem, install it, define a PostSerializer with only safe attributes, and update the controller to use it.',
 		thresholds: {},
 	},
-	successConditions: [
-		{ type: 'node_present', nodeType: 'serializer' },
-		{ type: 'connection', sourceType: 'controller', targetType: 'serializer' },
-		{ type: 'connection', sourceType: 'serializer', targetType: 'response' },
-	],
-	availableNodes: ['serializer'],
+	successConditions: [],
+	availableNodes: [],
 	unlockedNodes: [],
 	learningContent: {
 		title: 'JSON:API Serialization',
@@ -851,7 +813,7 @@ end
 	},
 	hint: {
 		delay: 20,
-		text: 'Add a Serializer node between the Controller and Response.',
+		text: 'Look for the gem that implements the JSON:API spec and is actively maintained.',
 	},
 };
 

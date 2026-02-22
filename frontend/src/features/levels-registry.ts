@@ -53,6 +53,7 @@ import { Level3Model } from './act1-foundation/components/Level3Model';
 import { Level4CRUD } from './act1-foundation/components/Level4CRUD';
 import { Level5Routes } from './act1-foundation/components/Level5Routes';
 import { Level6Controller } from './act1-foundation/components/Level6Controller';
+import { Level7Serializers } from './act1-foundation/components/Level7Serializers';
 import { Level8Associations } from './act1-foundation/components/Level8Associations';
 
 // ===========================================
@@ -137,6 +138,7 @@ const LEVEL_COMPONENTS: Record<string, ComponentType<LevelComponentProps>> = {
 	'act1-level4-crud': Level4CRUD,
 	'act1-level5-routes': Level5Routes,
 	'act1-level6-controller': Level6Controller,
+	'act1-level7-serializers': Level7Serializers,
 	'act1-level8-associations': Level8Associations,
 
 	// ============================================
@@ -233,4 +235,5 @@ export { Level3Model } from './act1-foundation/components/Level3Model';
 export { Level4CRUD } from './act1-foundation/components/Level4CRUD';
 export { Level5Routes } from './act1-foundation/components/Level5Routes';
 export { Level6Controller } from './act1-foundation/components/Level6Controller';
+export { Level7Serializers } from './act1-foundation/components/Level7Serializers';
 export { Level8Associations } from './act1-foundation/components/Level8Associations';
