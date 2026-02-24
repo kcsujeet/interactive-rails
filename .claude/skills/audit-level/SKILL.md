@@ -29,6 +29,17 @@ This step is non-negotiable. Skipping it has caused bugs in the past (wrong Scop
 
 ## Checklist
 
+### Phase 0: Concept Fit (Does This Level Belong Here?)
+
+Before checking the implementation, verify the level's concept fits its position in the curriculum:
+
+- [ ] **The concept matches the act's narrative stage.** Each act represents a stage of app development. A concept that requires a production app with many users (rate limiting, caching, horizontal scaling) does not belong in an early act where the player is still building the basics. Ask: "Would a real developer need this right now, at this stage of the app?"
+- [ ] **The concept builds on what came before.** The player should have the prerequisite knowledge from earlier levels. If a level assumes knowledge that hasn't been taught yet, it's placed too early.
+- [ ] **The concept is proportional to the act's complexity.** Acts 1-2 cover fundamentals (models, controllers, views, basic security). Acts 3-4 introduce refactoring and first performance concerns. Acts 5-8 tackle production, reliability, scale, and architecture. A level that feels "too advanced" for its act probably is.
+- [ ] **The scenario feels natural, not forced.** If you have to invent a contrived justification for why the player needs this feature now, the level doesn't fit. The scenario should flow naturally from the app's current state.
+
+Example: Rate limiting in Act 2 fails this check. The app has barely any users at that point, there's no realistic threat of abuse, and the concept (throttling, sliding windows, IP tracking) is a production-scale concern that belongs in a later act. Strong params, by contrast, fits Act 2 perfectly because mass assignment is a real risk the moment you accept user input.
+
 ### Phase 1: Problem Visualization (WHY)
 
 The level must have a dedicated "observe" phase where:
@@ -108,6 +119,16 @@ The level must have a dedicated reward phase:
 - [ ] Reward counters use a simple interval (e.g. every 3500ms) matching the dot loop timing, not stateful simulation
 - [ ] Right panel shows the final complete code (all files)
 
+### Step Quality (Is the Build Phase Satisfying?)
+
+Beyond structural correctness, check that each step is meaningful and the level feels like a progression:
+
+- [ ] **Every step requires a real decision.** If a step's correct answer is "do nothing" or "let it happen automatically," it's not a real step. The player should actively build something at every step. (Example: "Let params.expect return 400 automatically" is a passive non-step. Replace it with an active wiring step like "update the create action to use post_params.")
+- [ ] **Steps don't reveal each other's answers.** If Step 0's correct option contains the exact code Step 1 will ask about, the player can read ahead. Use placeholders (`[...]`, `...`) in earlier steps when later steps will fill in the details.
+- [ ] **Code preview evolves progressively.** Each completed step should visibly change the right panel code. If two steps produce the same code preview, one of them feels invisible. The player should see the code being built piece by piece.
+- [ ] **Wrong options have distinct, teaching feedback.** Each wrong option should fail for a different reason that teaches something specific. Don't have two wrong options that are wrong for essentially the same reason.
+- [ ] **The reward phase has depth.** A single counter ticking up feels flat. Use dual counters (allowed vs blocked, fast vs slow, passing vs failing) in a grid layout to show the before/after contrast. The reward should feel like a payoff, not an afterthought.
+
 ### State Machine
 
 Check the phase transitions:
@@ -123,9 +144,11 @@ Check the phase transitions:
 
 Present findings as:
 
-1. **Pass/Fail** for each of the 3 phases
-2. **Missing steps** in the build phase (especially gem install, generators, setup)
-3. **Specific code locations** that need changes (file:line)
-4. **Suggested fix** for each issue found
+1. **Concept fit**: Does this level belong at this position in the curriculum?
+2. **Pass/Fail** for each of the 3 phases
+3. **Step quality**: Are steps meaningful, progressive, and satisfying?
+4. **Missing steps** in the build phase (especially gem install, generators, setup)
+5. **Specific code locations** that need changes (file:line)
+6. **Suggested fix** for each issue found
 
 If the level passes all checks, confirm it follows the golden standard.

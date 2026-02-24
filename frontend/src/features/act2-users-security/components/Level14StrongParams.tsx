@@ -7,8 +7,8 @@
  * Phase 1 (WHY - observe): Watch unfiltered params flow into database
  * Phase 2 (HOW - build): 3 OptionCard steps configuring params.expect
  *   Step 0: Choose the Params Method
- *   Step 1: Define Expected Params
- *   Step 2: Handle Missing Params
+ *   Step 1: Define the Whitelist
+ *   Step 2: Wire It Into Actions
  * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Filtering" button
  * Phase 4 (ADVANTAGE - reward): Filter gate blocks dangerous params
  *
@@ -46,8 +46,8 @@ type Phase = 'observe' | 'build' | 'activate' | 'reward';
 
 const STEP_DEFS: StepDef[] = [
 	{ id: 'choose-method', title: 'Choose the Params Method' },
-	{ id: 'define-params', title: 'Define Expected Params' },
-	{ id: 'handle-missing', title: 'Handle Missing Params' },
+	{ id: 'define-params', title: 'Define the Whitelist' },
+	{ id: 'wire-actions', title: 'Wire It Into Actions' },
 ];
 
 // ──────────────────────────────────────────────
@@ -68,65 +68,65 @@ const PARAMS_METHOD_OPTIONS: StepOption[] = [
 		label: 'params.permit!',
 		correct: false,
 		feedback:
-			'permit! allows ALL parameters through. This makes mass assignment worse, not better.',
+			'permit! allows ALL parameters through, including user_id and admin. It makes mass assignment worse.',
 	},
 	{
 		id: 'require-permit',
-		label: 'params.require(:post).permit(:title, :body)',
+		label: 'params.require(:post).permit(...)',
 		correct: false,
 		feedback:
-			'This works but returns 500 on missing params. Rails 8 has a stricter alternative that returns 400.',
+			"This works but doesn't enforce types. An attacker can send a string where a hash is expected and cause a 500 error. Rails 8 has a stricter alternative.",
 	},
 	{
 		id: 'expect',
-		label: 'params.expect(post: [:title, :body, :status])',
+		label: 'params.expect(post: [...])',
 		correct: true,
 	},
 ];
 
-// Step 1: Define Expected Params
-const EXPECTED_PARAMS_OPTIONS: StepOption[] = [
+// Step 1: Define the Whitelist
+const WHITELIST_OPTIONS: StepOption[] = [
 	{
 		id: 'with-user-id',
-		label: 'params.expect(post: [:title, :body, :user_id])',
+		label: '[:title, :body, :user_id]',
 		correct: false,
 		feedback:
-			'user_id should not be settable by the user. Only whitelist fields the user is allowed to change.',
+			'user_id should come from current_user, not from the request body. Allowing it lets attackers impersonate other users.',
+	},
+	{
+		id: 'with-admin',
+		label: '[:title, :body, :status, :admin]',
+		correct: false,
+		feedback:
+			'admin is a privileged flag. Allowing it in the whitelist lets any user escalate to admin.',
 	},
 	{
 		id: 'correct-params',
-		label: 'params.expect(post: [:title, :body, :status])',
+		label: '[:title, :body, :status]',
 		correct: true,
-	},
-	{
-		id: 'no-root-key',
-		label: 'params.expect(:title, :body, :status)',
-		correct: false,
-		feedback:
-			'params.expect needs the root key (:post) to scope the expected attributes.',
 	},
 ];
 
-// Step 2: Handle Missing Params
-const HANDLE_MISSING_OPTIONS: StepOption[] = [
+// Step 2: Wire It Into Actions
+const WIRE_ACTIONS_OPTIONS: StepOption[] = [
 	{
-		id: 'rescue-explicit',
-		label: 'rescue ActionController::ParameterMissing',
+		id: 'raw-params',
+		label: 'current_user.posts.create!(params[:post])',
 		correct: false,
 		feedback:
-			'Explicit rescue is unnecessary. params.expect already returns 400 Bad Request automatically.',
+			'Still using raw params[:post]. This bypasses the filter entirely.',
 	},
 	{
-		id: 'rescue-nil',
-		label: 'params.expect(post: [:title, :body, :status]) rescue nil',
-		correct: false,
-		feedback:
-			'Silencing the error defeats the purpose. You want invalid requests to fail loudly.',
-	},
-	{
-		id: 'auto-400',
-		label: 'Let params.expect return 400 automatically',
+		id: 'post-params',
+		label: 'current_user.posts.create!(post_params)',
 		correct: true,
+	},
+	{
+		id: 'require-only',
+		label: 'current_user.posts.create!(params.require(:post))',
+		correct: false,
+		feedback:
+			'require without expect or permit returns an unfiltered hash. Rails raises ForbiddenAttributesError.',
 	},
 ];
 
@@ -146,16 +146,16 @@ const OPTION_STEP_CONFIG: Record<
 		options: PARAMS_METHOD_OPTIONS,
 	},
 	1: {
-		title: 'Define Expected Params',
+		title: 'Define the Whitelist',
 		description:
-			'Now define which attributes the user is allowed to set. The Post model has title, body, status, and user_id columns. Which set of params should you whitelist?',
-		options: EXPECTED_PARAMS_OPTIONS,
+			'Now define which attributes the user is allowed to set. The Post model has title, body, status, user_id, and admin columns. Which set should you whitelist?',
+		options: WHITELIST_OPTIONS,
 	},
 	2: {
-		title: 'Handle Missing Params',
+		title: 'Wire It Into Actions',
 		description:
-			'What happens when a request is missing the required :post key or any expected attributes? How should your controller handle it?',
-		options: HANDLE_MISSING_OPTIONS,
+			'You defined post_params as a private method. Now update the create action to use filtered params instead of raw params[:post].',
+		options: WIRE_ACTIONS_OPTIONS,
 	},
 };
 
@@ -204,7 +204,7 @@ function ParamsFilterVisualization({
 			{/* ── Request box (left) ── */}
 			<rect
 				fill="none"
-				height="160"
+				height="186"
 				rx="8"
 				stroke="currentColor"
 				strokeOpacity="0.2"
@@ -253,7 +253,7 @@ function ParamsFilterVisualization({
 			</text>
 
 			<rect
-				fill="#ef4444"
+				fill="#10b981"
 				fillOpacity="0.15"
 				height="20"
 				rx="4"
@@ -261,8 +261,8 @@ function ParamsFilterVisualization({
 				x="45"
 				y="210"
 			/>
-			<text fill="#ef4444" fontSize="10" fontWeight="500" x="52" y="224">
-				user_id
+			<text fill="#10b981" fontSize="10" fontWeight="500" x="52" y="224">
+				status
 			</text>
 
 			<rect
@@ -275,6 +275,19 @@ function ParamsFilterVisualization({
 				y="236"
 			/>
 			<text fill="#ef4444" fontSize="10" fontWeight="500" x="52" y="250">
+				user_id
+			</text>
+
+			<rect
+				fill="#ef4444"
+				fillOpacity="0.15"
+				height="20"
+				rx="4"
+				width="70"
+				x="45"
+				y="262"
+			/>
+			<text fill="#ef4444" fontSize="10" fontWeight="500" x="52" y="276">
 				admin
 			</text>
 
@@ -550,7 +563,7 @@ function ParamsLegend() {
 function getCodeFiles(phase: Phase, furthestStep: number) {
 	const files = [];
 
-	// Observe phase: show unfiltered controller
+	// Observe phase / step 0: show vulnerable controller
 	if (phase === 'observe' || (phase === 'build' && furthestStep === 0)) {
 		files.push({
 			filename: 'app/controllers/api/v1/posts_controller.rb',
@@ -575,61 +588,20 @@ end`,
 		return files;
 	}
 
-	// After step 0: controller with params.expect method
-	if (furthestStep >= 1) {
+	// After step 0: post_params method with [...] placeholder, actions still raw
+	if (furthestStep === 1) {
 		files.push({
 			filename: 'app/controllers/api/v1/posts_controller.rb',
 			language: 'ruby',
-			code:
-				furthestStep >= 3
-					? `class Api::V1::PostsController < ApplicationController
+			code: `class Api::V1::PostsController < ApplicationController
   def create
-    post = current_user.posts.create!(post_params)
+    post = current_user.posts.create!(params[:post])
     render json: post, status: :created
   end
 
   def update
     post = current_user.posts.find(params[:id])
-    post.update!(post_params)
-    render json: post
-  end
-
-  private
-
-  def post_params
-    params.expect(post: [:title, :body, :status])
-    # Missing :post key or attributes -> 400 Bad Request
-    # No rescue needed, Rails handles it automatically
-  end
-end`
-					: furthestStep >= 2
-						? `class Api::V1::PostsController < ApplicationController
-  def create
-    post = current_user.posts.create!(post_params)
-    render json: post, status: :created
-  end
-
-  def update
-    post = current_user.posts.find(params[:id])
-    post.update!(post_params)
-    render json: post
-  end
-
-  private
-
-  def post_params
-    params.expect(post: [:title, :body, :status])
-  end
-end`
-						: `class Api::V1::PostsController < ApplicationController
-  def create
-    post = current_user.posts.create!(post_params)
-    render json: post, status: :created
-  end
-
-  def update
-    post = current_user.posts.find(params[:id])
-    post.update!(post_params)
+    post.update!(params[:post])
     render json: post
   end
 
@@ -639,10 +611,64 @@ end`
     params.expect(post: [...])  # Which params to allow?
   end
 end`,
-			highlight:
-				furthestStep >= 3 ? [16, 17, 18] : furthestStep >= 2 ? [16] : [16],
+			highlight: [16],
 		});
+		return files;
 	}
+
+	// After step 1: placeholder filled, actions still raw
+	if (furthestStep === 2) {
+		files.push({
+			filename: 'app/controllers/api/v1/posts_controller.rb',
+			language: 'ruby',
+			code: `class Api::V1::PostsController < ApplicationController
+  def create
+    post = current_user.posts.create!(params[:post])
+    render json: post, status: :created
+  end
+
+  def update
+    post = current_user.posts.find(params[:id])
+    post.update!(params[:post])
+    render json: post
+  end
+
+  private
+
+  def post_params
+    params.expect(post: [:title, :body, :status])
+  end
+end`,
+			highlight: [3, 9, 16],
+		});
+		return files;
+	}
+
+	// After step 2 (and activate/reward): actions wired to post_params
+	files.push({
+		filename: 'app/controllers/api/v1/posts_controller.rb',
+		language: 'ruby',
+		code: `class Api::V1::PostsController < ApplicationController
+  def create
+    post = current_user.posts.create!(post_params)
+    render json: post, status: :created
+  end
+
+  def update
+    post = current_user.posts.find(params[:id])
+    post.update!(post_params)
+    render json: post
+  end
+
+  private
+
+  def post_params
+    params.expect(post: [:title, :body, :status])
+    # Missing :post key -> 400 Bad Request (automatic)
+  end
+end`,
+		highlight: [3, 9, 16, 17],
+	});
 
 	return files;
 }
@@ -654,7 +680,8 @@ end`,
 export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const [phase, setPhase] = useState<Phase>('observe');
-	const [filteredCount, setFilteredCount] = useState(0);
+	const [allowedCount, setAllowedCount] = useState(0);
+	const [blockedCount, setBlockedCount] = useState(0);
 
 	// ── Transition: build -> activate when all steps complete ──
 	useEffect(() => {
@@ -663,11 +690,12 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 		}
 	}, [phase, stepper.isComplete]);
 
-	// ── Reward phase: counter interval ──
+	// ── Reward phase: dual counter interval ──
 	useEffect(() => {
 		if (phase !== 'reward') return;
 		const interval = setInterval(() => {
-			setFilteredCount((c) => c + 1);
+			setAllowedCount((c) => c + 3);
+			setBlockedCount((c) => c + 1);
 		}, 3500);
 		return () => clearInterval(interval);
 	}, [phase]);
@@ -691,7 +719,8 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 
 	const handleActivateFilter = () => {
 		setPhase('reward');
-		setFilteredCount(0);
+		setAllowedCount(0);
+		setBlockedCount(0);
 	};
 
 	// ── Completion ──
@@ -762,18 +791,28 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* Reward phase: legend + counter */}
+					{/* Reward phase: legend + dual counters */}
 					{phase === 'reward' && (
 						<>
 							<ParamsLegend />
 
 							<div className="p-4">
-								<div className="bg-destructive/20 rounded-lg p-3 text-center">
-									<div className="text-2xl font-bold text-destructive">
-										{filteredCount}
+								<div className="grid grid-cols-2 gap-3">
+									<div className="bg-success/20 rounded-lg p-3 text-center">
+										<div className="text-2xl font-bold text-success">
+											{allowedCount}
+										</div>
+										<div className="text-xs text-success/70">
+											Allowed
+										</div>
 									</div>
-									<div className="text-xs text-destructive/70">
-										Dangerous Params Blocked
+									<div className="bg-destructive/20 rounded-lg p-3 text-center">
+										<div className="text-2xl font-bold text-destructive">
+											{blockedCount}
+										</div>
+										<div className="text-xs text-destructive/70">
+											Blocked
+										</div>
 									</div>
 								</div>
 							</div>
@@ -894,8 +933,8 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 									))}
 								</div>
 								<p className="text-sm text-muted-foreground">
-									Strong params configured. Watch dangerous parameters
-									get rejected at the filter gate.
+									Your params filter is ready. Watch dangerous params
+									like user_id and admin get rejected at the gate.
 								</p>
 								<Button
 									className="gap-2"
@@ -917,9 +956,8 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 							</div>
 							<div className="p-4 text-center">
 								<p className="text-sm text-muted-foreground">
-									Filter active. Dangerous params like user_id and admin
-									are rejected automatically. Click Submit to complete
-									the level.
+									Filter active. Only title, body, and status reach the
+									database. Click Submit to complete the level.
 								</p>
 							</div>
 						</div>
