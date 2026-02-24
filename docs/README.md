@@ -40,18 +40,18 @@ The narrative arc takes players from a simple Blog API through a social platform
 
 ### Current Status
 
-**8 Acts with 50 Total Levels:**
+**8 Acts with 56 Total Levels:**
 
 | Act | Name | Levels | Focus |
 |-----|------|--------|-------|
-| 1 | The Foundation | 7 (Levels 1-7) | MVC, CRUD, Routes, Controllers, Serializers, Associations |
-| 2 | Users & Security | 7 (Levels 8-14) | Authentication, Validations, Callbacks, Authorization, Testing, Security, Scopes & Enums |
-| 3 | Clean Architecture | 7 (Levels 15-21) | Service Objects, Concerns, Validation Contracts, Query Objects, Error Handling, Action Mailer, Background Jobs |
-| 4 | Performance | 7 (Levels 22-28) | N+1 Queries, Eager Loading, Indexing, Counter Caches, Pagination, Search, Caching |
-| 5 | Production Features | 8 (Levels 29-36) | Polymorphic, Transactions, Active Storage, Encryption, Real-Time, External APIs, Webhooks, API Versioning |
-| 6 | Reliability | 6 (Levels 37-42) | Middleware, Rate Limiting, Soft Deletes, Safe Migrations, Recurring Jobs, Error Monitoring |
-| 7 | Scale | 5 (Levels 43-47) | Multi-Database, State Machines, Multi-Tenancy, Observability, Domain Events |
-| 8 | Mastery | 3 (Levels 48-50) | API Gateway, Database Sharding, The Architect (Capstone) |
+| 1 | The Foundation | 8 (Levels 1-8) | MVC, CRUD, Routes, Controllers, Serializers, Associations, Seeds |
+| 2 | Guards & Gates | 8 (Levels 9-16) | Authentication, Validations, Callbacks, Authorization, Testing, Strong Params, CORS, Scopes & Enums |
+| 3 | Clean Architecture | 7 (Levels 17-23) | Service Objects, Concerns, Validation Contracts, Query Objects, Error Handling, Action Mailer, Background Jobs |
+| 4 | Performance | 9 (Levels 24-32) | N+1 Queries, Eager Loading, Narrow Fetching, Indexing, Counter Caches, Pagination, Search, Caching, HTTP Caching |
+| 5 | Production Features | 8 (Levels 33-40) | Polymorphic, Transactions, Active Storage, Encryption, Real-Time, External APIs, Webhooks, API Versioning |
+| 6 | Reliability | 7 (Levels 41-47) | Middleware, Rate Limiting, Soft Deletes, Safe Migrations, Recurring Jobs, Data Lifecycle, Error Monitoring |
+| 7 | Scale | 6 (Levels 48-53) | Multi-Database, State Machines, Multi-Tenancy, Observability, Modular Monolith, Domain Events |
+| 8 | Mastery | 3 (Levels 54-56) | API Gateway, Database Sharding, The Architect (Capstone) |
 
 ### Key Features
 
@@ -83,7 +83,7 @@ interactive-rails/
 │       ├── pages/         # Astro routes (acts, levels, sandbox)
 │       ├── features/      # Feature modules (bulletproof-react pattern)
 │       │   ├── acts-registry.ts      # All acts registry
-│       │   ├── levels-registry.ts    # Level component registry (43 custom)
+│       │   ├── levels-registry.ts    # Level component registry (56 custom)
 │       │   ├── act1-foundation/      # Act 1 content + components
 │       │   │   ├── content.ts        # Level definitions
 │       │   │   └── components/       # Level-specific React components

@@ -1752,9 +1752,9 @@ end`,
 export const actFive: Act = {
 	id: 5,
 	name: 'Production Features',
-	tagline: 'Real users, real money, real failures.',
+	tagline: 'Time to ship what pays the bills.',
 	description:
-		'Build production-grade features for a SaaS API with payments: polymorphic associations, transactions & locking, file uploads, encrypted attributes, real-time notifications, resilient API integrations, idempotent webhooks, and API versioning.',
+		'The API is fast and clean. Now build the features that make it a real product: polymorphic associations, transactions, file uploads, encryption, real-time notifications, external API integrations, webhooks, and API versioning.',
 	levels: [
 		level30Polymorphic,
 		level31Transactions,

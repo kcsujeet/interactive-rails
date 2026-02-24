@@ -1103,9 +1103,9 @@ end`,
 export const actSeven: Act = {
 	id: 7,
 	name: 'Scale',
-	tagline: '1M users. Architectural decisions.',
+	tagline: 'The old tricks are not enough anymore.',
 	description:
-		'Handle enterprise scale: multi-database with read replicas, state machines, multi-tenancy, observability, and domain events for decoupled architecture.',
+		'Your optimizations from Act 4 carried you this far, but traffic has outgrown a single database. Introduce read replicas, state machines, multi-tenancy, observability, modular architecture, and domain events.',
 	levels: [
 		level44MultiDatabase,
 		level45StateMachines,

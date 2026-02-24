@@ -1719,9 +1719,9 @@ end`,
 export const actSix: Act = {
 	id: 6,
 	name: 'Reliability',
-	tagline: '100K users. Outages hurt.',
+	tagline: 'Users depend on you. Downtime is not an option.',
 	description:
-		'Build reliability features: custom middleware, rate limiting with Rails 8 built-in rate_limit, soft deletes, safe migrations, Solid Queue recurring jobs, and structured error monitoring.',
+		'Thousands of users rely on your API daily. Add custom middleware, rate limiting, soft deletes, safe migrations, recurring jobs, data lifecycle management, and error monitoring to keep it running.',
 	levels: [
 		level38Middleware,
 		level39RateLimiting,

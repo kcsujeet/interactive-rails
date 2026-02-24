@@ -760,9 +760,9 @@ Flipper.enable_percentage_of_actors(:billing_v2, 5)`,
 export const actEight: Act = {
 	id: 8,
 	name: 'Mastery',
-	tagline: 'Architect entire systems.',
+	tagline: 'You are the architect now.',
 	description:
-		'The final challenge: design API gateways, implement database sharding, and architect a complete service extraction using everything you have learned.',
+		'The final challenge. Design API gateways, implement database sharding, and architect a complete service extraction using everything you have learned across 53 levels.',
 	levels: [level49APIGateway, level50Sharding, level51Architect],
 	unlockedNodes: ['api_gateway', 'shard', 'service_mesh'],
 	metricsVisible: true,

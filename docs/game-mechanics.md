@@ -318,17 +318,17 @@ function activateDefenses() {
 
 ### Level Structure
 
-8 Acts with 50 total levels:
+8 Acts with 56 total levels:
 
 | Act | Name | Levels | Focus |
 |-----|------|--------|-------|
-| 1 | The Foundation | 7 | MVC, CRUD, Routes, Controllers, Serializers, Associations |
-| 2 | Users & Security | 7 | Authentication, Validations, Callbacks, Authorization, Testing |
+| 1 | The Foundation | 8 | MVC, CRUD, Routes, Controllers, Serializers, Associations, Seeds |
+| 2 | Guards & Gates | 8 | Authentication, Validations, Callbacks, Authorization, Testing, Strong Params, CORS, Scopes & Enums |
 | 3 | Clean Architecture | 7 | Service Objects, Concerns, Validation Contracts, Error Handling, Background Jobs |
-| 4 | Performance | 7 | N+1 Queries, Eager Loading, Indexing, Caching, Search |
-| 5 | Production Features | 8 | Polymorphic, Transactions, Active Storage, Real-Time, API Versioning |
-| 6 | Reliability | 6 | Middleware, Rate Limiting, Soft Deletes, Safe Migrations |
-| 7 | Scale | 5 | Multi-Database, State Machines, Multi-Tenancy, Observability |
+| 4 | Performance | 9 | N+1 Queries, Eager Loading, Narrow Fetching, Indexing, Caching, Pagination, Search, HTTP Caching |
+| 5 | Production Features | 8 | Polymorphic, Transactions, Active Storage, Encryption, Real-Time, External APIs, Webhooks, API Versioning |
+| 6 | Reliability | 7 | Middleware, Rate Limiting, Soft Deletes, Safe Migrations, Recurring Jobs, Data Lifecycle, Error Monitoring |
+| 7 | Scale | 6 | Multi-Database, State Machines, Multi-Tenancy, Observability, Modular Monolith, Domain Events |
 | 8 | Mastery | 3 | API Gateway, Database Sharding, The Architect |
 
 ### Unlocking

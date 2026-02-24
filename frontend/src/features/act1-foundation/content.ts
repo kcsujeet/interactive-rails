@@ -1010,7 +1010,7 @@ end`,
 export const actOne: Act = {
 	id: 1,
 	name: 'The Foundation',
-	tagline: 'Build a working API from nothing',
+	tagline: 'Build a working API from nothing.',
 	description:
 		'Build a Rails 8 API from scratch: environment setup, project creation, models, controllers, routes, serializers, and associations. By the end, you have a working blog API.',
 	levels: [

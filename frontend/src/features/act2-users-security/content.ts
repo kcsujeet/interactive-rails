@@ -1,6 +1,6 @@
 /**
- * Act 2: Users & Security
- * "Real users arrive. Things break."
+ * Act 2: Guards & Gates
+ * "Users are signing up. Time to lock it down."
  *
  * Levels 9-16: Authentication, Validations, Callbacks & Normalizations,
  * Authorization, Testing, Strong Params, CORS, Scopes & Enums
@@ -1490,10 +1490,10 @@ Post.published.recent.to_sql
 
 export const actTwo: Act = {
 	id: 2,
-	name: 'Users & Security',
-	tagline: 'Real users arrive. Things break.',
+	name: 'Guards & Gates',
+	tagline: 'Users are signing up. Time to lock it down.',
 	description:
-		'Real users start hitting your API. Add authentication with Bearer tokens, validate incoming data, normalize fields, lock down authorization with Pundit, write your first tests, filter params with params.expect, configure CORS for cross-origin access, and tame your queries with enums and scopes.',
+		'Your API is live and users are hitting it. But anyone can access anything, bad data is getting through, and there is no protection. Add authentication, validations, authorization, testing, parameter filtering, CORS, and query scopes to make it production-safe.',
 	levels: [
 		level8Authentication,
 		level9Validations,

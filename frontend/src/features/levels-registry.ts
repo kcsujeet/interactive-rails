@@ -9,7 +9,7 @@
  * Act 1: The Foundation (L1-L8, 8 levels)
  * - Environment, First Boot, Model, CRUD, Routes, Controller, Serializers, Associations
  *
- * Act 2: Users & Security (L9-L16, 8 levels)
+ * Act 2: Guards & Gates (L9-L16, 8 levels)
  * - Authentication, Validations, Callbacks, Authorization, Testing, Strong Params, CORS, Scopes & Enums
  *
  * Act 3: Clean Architecture (L17-L23, 7 levels)

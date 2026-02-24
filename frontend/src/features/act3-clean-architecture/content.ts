@@ -1848,9 +1848,9 @@ end
 export const actThree: Act = {
 	id: 3,
 	name: 'Clean Architecture',
-	tagline: 'Codebase doubles. Time to refactor.',
+	tagline: 'Features are piling up. The codebase is getting messy.',
 	description:
-		'Extract fat controllers into service objects, concerns, validation contracts, query objects, and mailers. Set up proper error handling and move slow work to Solid Queue background jobs.',
+		'Your API works and it is secure, but the controllers are doing too much and the code is hard to change. Extract service objects, concerns, validation contracts, query objects, mailers, error handling, and background jobs to keep things maintainable.',
 	levels: [
 		level16ServiceObjects,
 		level17Concerns,

@@ -2082,9 +2082,9 @@ config.action_controller.asset_host = "https://cdn.example.com"
 export const actFour: Act = {
 	id: 4,
 	name: 'Performance',
-	tagline: '10K users. API is slow. Database groaning.',
+	tagline: 'Traffic is growing. The API is slowing down.',
 	description:
-		'Diagnose and fix N+1 queries, add indexes, implement caching with Solid Cache, pagination, full-text search, narrow fetching, and HTTP caching with CDNs.',
+		'Users are multiplying and response times are climbing. Diagnose N+1 queries, add eager loading, narrow fetching, database indexes, counter caches, pagination, search, and caching layers to keep the API fast.',
 	levels: [
 		level23N1Problem,
 		level24EagerLoading,
