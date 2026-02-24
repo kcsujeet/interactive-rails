@@ -14,10 +14,10 @@ import { standardPipeline } from '@/utils/pipelineTemplates';
 // Level 29: Polymorphic Associations
 // ============================================
 
-const level29Polymorphic: Level = {
-	id: 'act5-level32-polymorphic',
+const level30Polymorphic: Level = {
+	id: 'act5-level33-polymorphic',
 	actId: 5,
-	levelNumber: 32,
+	levelNumber: 33,
 	name: 'Polymorphic Associations',
 	trigger: {
 		type: 'new_feature',
@@ -223,10 +223,10 @@ end`,
 // Level 30: Transactions & Locking
 // ============================================
 
-const level30Transactions: Level = {
-	id: 'act5-level33-transactions',
+const level31Transactions: Level = {
+	id: 'act5-level34-transactions',
 	actId: 5,
-	levelNumber: 33,
+	levelNumber: 34,
 	name: 'Transactions & Locking',
 	trigger: {
 		type: 'incident',
@@ -407,10 +407,10 @@ end`,
 // Level 31: Active Storage
 // ============================================
 
-const level31ActiveStorage: Level = {
-	id: 'act5-level34-active-storage',
+const level32ActiveStorage: Level = {
+	id: 'act5-level35-active-storage',
 	actId: 5,
-	levelNumber: 34,
+	levelNumber: 35,
 	name: 'Active Storage',
 	trigger: {
 		type: 'new_feature',
@@ -561,13 +561,13 @@ end`,
 };
 
 // ============================================
-// Level 32: Encrypted Attributes
+// Level 33: Encrypted Attributes
 // ============================================
 
-const level32Encryption: Level = {
-	id: 'act5-level35-encryption',
+const level33Encryption: Level = {
+	id: 'act5-level36-encryption',
 	actId: 5,
-	levelNumber: 35,
+	levelNumber: 36,
 	name: 'Encrypted Attributes',
 	trigger: {
 		type: 'security_audit',
@@ -713,13 +713,13 @@ Rails.application.config.active_record.encryption.previous = [
 };
 
 // ============================================
-// Level 33: Real-Time
+// Level 34: Real-Time
 // ============================================
 
-const level33Realtime: Level = {
-	id: 'act5-level36-realtime',
+const level34Realtime: Level = {
+	id: 'act5-level37-realtime',
 	actId: 5,
-	levelNumber: 36,
+	levelNumber: 37,
 	name: 'Real-Time',
 	trigger: {
 		type: 'new_feature',
@@ -950,13 +950,13 @@ cable.subscriptions.create("NotificationsChannel", {
 };
 
 // ============================================
-// Level 34: External APIs
+// Level 35: External APIs
 // ============================================
 
-const level34ExternalAPIs: Level = {
-	id: 'act5-level37-external-apis',
+const level35ExternalAPIs: Level = {
+	id: 'act5-level38-external-apis',
 	actId: 5,
-	levelNumber: 37,
+	levelNumber: 38,
 	name: 'External APIs',
 	trigger: {
 		type: 'incident',
@@ -1182,13 +1182,13 @@ end`,
 };
 
 // ============================================
-// Level 35: Webhooks & Idempotency
+// Level 36: Webhooks & Idempotency
 // ============================================
 
-const level35Webhooks: Level = {
-	id: 'act5-level38-webhooks',
+const level36Webhooks: Level = {
+	id: 'act5-level39-webhooks',
 	actId: 5,
-	levelNumber: 38,
+	levelNumber: 39,
 	name: 'Webhooks & Idempotency',
 	trigger: {
 		type: 'incident',
@@ -1467,13 +1467,13 @@ end`,
 };
 
 // ============================================
-// Level 36: API Versioning
+// Level 37: API Versioning
 // ============================================
 
-const level36APIVersioning: Level = {
-	id: 'act5-level39-api-versioning',
+const level37APIVersioning: Level = {
+	id: 'act5-level40-api-versioning',
 	actId: 5,
-	levelNumber: 39,
+	levelNumber: 40,
 	name: 'API Versioning',
 	trigger: {
 		type: 'new_feature',
@@ -1756,14 +1756,14 @@ export const actFive: Act = {
 	description:
 		'Build production-grade features for a SaaS API with payments: polymorphic associations, transactions & locking, file uploads, encrypted attributes, real-time notifications, resilient API integrations, idempotent webhooks, and API versioning.',
 	levels: [
-		level29Polymorphic,
-		level30Transactions,
-		level31ActiveStorage,
-		level32Encryption,
-		level33Realtime,
-		level34ExternalAPIs,
-		level35Webhooks,
-		level36APIVersioning,
+		level30Polymorphic,
+		level31Transactions,
+		level32ActiveStorage,
+		level33Encryption,
+		level34Realtime,
+		level35ExternalAPIs,
+		level36Webhooks,
+		level37APIVersioning,
 	],
 	unlockedNodes: ['circuit_breaker', 's3'],
 	metricsVisible: true,

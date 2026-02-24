@@ -17,10 +17,10 @@ import {
 // Level 37: Middleware & Rack
 // ============================================
 
-const level37Middleware: Level = {
-	id: 'act6-level40-middleware',
+const level38Middleware: Level = {
+	id: 'act6-level41-middleware',
 	actId: 6,
-	levelNumber: 40,
+	levelNumber: 41,
 	name: 'Middleware & Rack',
 	trigger: {
 		type: 'incident',
@@ -202,10 +202,10 @@ end
 // Level 38: Rate Limiting
 // ============================================
 
-const level38RateLimiting: Level = {
-	id: 'act6-level41-rate-limiting',
+const level39RateLimiting: Level = {
+	id: 'act6-level42-rate-limiting',
 	actId: 6,
-	levelNumber: 41,
+	levelNumber: 42,
 	name: 'Rate Limiting',
 	requiresTests: true,
 	trigger: {
@@ -432,10 +432,10 @@ end`,
 // Level 39: Soft Deletes & Audit Trails
 // ============================================
 
-const level39SoftDeletes: Level = {
-	id: 'act6-level42-soft-deletes',
+const level40SoftDeletes: Level = {
+	id: 'act6-level43-soft-deletes',
 	actId: 6,
-	levelNumber: 42,
+	levelNumber: 43,
 	name: 'Soft Deletes & Audit Trails',
 	requiresTests: true,
 	trigger: {
@@ -677,13 +677,13 @@ end`,
 };
 
 // ============================================
-// Level 40: Safe Migrations
+// Level 41: Safe Migrations
 // ============================================
 
-const level40SafeMigrations: Level = {
-	id: 'act6-level43-safe-migrations',
+const level41SafeMigrations: Level = {
+	id: 'act6-level44-safe-migrations',
 	actId: 6,
-	levelNumber: 43,
+	levelNumber: 44,
 	name: 'Safe Migrations',
 	trigger: {
 		type: 'outage',
@@ -900,13 +900,13 @@ end
 };
 
 // ============================================
-// Level 41: Recurring Jobs & Scheduling
+// Level 42: Recurring Jobs & Scheduling
 // ============================================
 
-const level41RecurringJobs: Level = {
-	id: 'act6-level44-recurring-jobs',
+const level42RecurringJobs: Level = {
+	id: 'act6-level45-recurring-jobs',
 	actId: 6,
-	levelNumber: 44,
+	levelNumber: 45,
 	name: 'Recurring Jobs & Scheduling',
 	requiresTests: true,
 	trigger: {
@@ -1193,9 +1193,9 @@ end`,
 // ============================================
 
 const levelDataLifecycle: Level = {
-	id: 'act6-level45-data-lifecycle',
+	id: 'act6-level46-data-lifecycle',
 	actId: 6,
-	levelNumber: 45,
+	levelNumber: 46,
 	name: 'Data Lifecycle',
 	trigger: {
 		type: 'data_growth',
@@ -1402,13 +1402,13 @@ Order.where(status: "shipped").order(created_at: :desc).limit(25)
 };
 
 // ============================================
-// Level 42: Structured Error Monitoring
+// Level 43: Structured Error Monitoring
 // ============================================
 
-const level42ErrorMonitoring: Level = {
-	id: 'act6-level46-error-monitoring',
+const level43ErrorMonitoring: Level = {
+	id: 'act6-level47-error-monitoring',
 	actId: 6,
-	levelNumber: 46,
+	levelNumber: 47,
 	name: 'Structured Error Monitoring',
 	trigger: {
 		type: 'user_complaint',
@@ -1723,13 +1723,13 @@ export const actSix: Act = {
 	description:
 		'Build reliability features: custom middleware, rate limiting with Rails 8 built-in rate_limit, soft deletes, safe migrations, Solid Queue recurring jobs, and structured error monitoring.',
 	levels: [
-		level37Middleware,
-		level38RateLimiting,
-		level39SoftDeletes,
-		level40SafeMigrations,
-		level41RecurringJobs,
+		level38Middleware,
+		level39RateLimiting,
+		level40SoftDeletes,
+		level41SafeMigrations,
+		level42RecurringJobs,
 		levelDataLifecycle,
-		level42ErrorMonitoring,
+		level43ErrorMonitoring,
 	],
 	unlockedNodes: ['middleware', 'rate_limiter', 'audit_trail', 'recurring_job'],
 	metricsVisible: true,

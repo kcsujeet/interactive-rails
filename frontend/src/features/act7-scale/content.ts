@@ -12,10 +12,10 @@ import type { Act, Level } from '@/types';
 // Level 43: Multi-Database
 // ============================================
 
-const level43MultiDatabase: Level = {
-	id: 'act7-level47-multi-database',
+const level44MultiDatabase: Level = {
+	id: 'act7-level48-multi-database',
 	actId: 7,
-	levelNumber: 47,
+	levelNumber: 48,
 	name: 'Multi-Database',
 	trigger: {
 		type: 'scaling',
@@ -131,10 +131,10 @@ end
 // Level 44: State Machines
 // ============================================
 
-const level44StateMachines: Level = {
-	id: 'act7-level48-state-machines',
+const level45StateMachines: Level = {
+	id: 'act7-level49-state-machines',
 	actId: 7,
-	levelNumber: 48,
+	levelNumber: 49,
 	name: 'State Machines',
 	requiresTests: true,
 	trigger: {
@@ -314,10 +314,10 @@ Order.pending.count     # SELECT COUNT(*) FROM orders WHERE status = 'pending'`,
 // Level 45: Multi-Tenancy
 // ============================================
 
-const level45MultiTenancy: Level = {
-	id: 'act7-level49-multi-tenancy',
+const level46MultiTenancy: Level = {
+	id: 'act7-level50-multi-tenancy',
 	actId: 7,
-	levelNumber: 49,
+	levelNumber: 50,
 	name: 'Multi-Tenancy',
 	requiresTests: true,
 	trigger: {
@@ -474,10 +474,10 @@ end`,
 // Level 46: Observability
 // ============================================
 
-const level46Observability: Level = {
-	id: 'act7-level50-observability',
+const level47Observability: Level = {
+	id: 'act7-level51-observability',
 	actId: 7,
-	levelNumber: 50,
+	levelNumber: 51,
 	name: 'Observability',
 	trigger: {
 		type: 'incident',
@@ -687,9 +687,9 @@ end`,
 // ============================================
 
 const levelModularMonolith: Level = {
-	id: 'act7-level51-modular-monolith',
+	id: 'act7-level52-modular-monolith',
 	actId: 7,
-	levelNumber: 51,
+	levelNumber: 52,
 	name: 'Modular Monolith',
 	requiresTests: true,
 	trigger: {
@@ -885,13 +885,13 @@ config/                    @infra-team
 };
 
 // ============================================
-// Level 47: Domain Events & Decoupling
+// Level 48: Domain Events & Decoupling
 // ============================================
 
-const level47DomainEvents: Level = {
-	id: 'act7-level52-domain-events',
+const level48DomainEvents: Level = {
+	id: 'act7-level53-domain-events',
 	actId: 7,
-	levelNumber: 52,
+	levelNumber: 53,
 	name: 'Domain Events & Decoupling',
 	requiresTests: true,
 	trigger: {
@@ -1107,12 +1107,12 @@ export const actSeven: Act = {
 	description:
 		'Handle enterprise scale: multi-database with read replicas, state machines, multi-tenancy, observability, and domain events for decoupled architecture.',
 	levels: [
-		level43MultiDatabase,
-		level44StateMachines,
-		level45MultiTenancy,
-		level46Observability,
+		level44MultiDatabase,
+		level45StateMachines,
+		level46MultiTenancy,
+		level47Observability,
 		levelModularMonolith,
-		level47DomainEvents,
+		level48DomainEvents,
 	],
 	unlockedNodes: ['read_replica', 'state_machine', 'tenant', 'event_bus'],
 	metricsVisible: true,

@@ -2,8 +2,8 @@
  * Act 2: Users & Security
  * "Real users arrive. Things break."
  *
- * Levels 8-14: Authentication, Validations, Callbacks & Normalizations,
- * Authorization, Testing, Security, Scopes & Enums
+ * Levels 9-16: Authentication, Validations, Callbacks & Normalizations,
+ * Authorization, Testing, Strong Params, CORS, Scopes & Enums
  * App context: Blog API (continued from Act 1)
  */
 
@@ -1044,143 +1044,175 @@ end`,
 };
 
 // ============================================
-// Level 13: Security
+// Level 13: Strong Params
 // ============================================
 
-const level13Security: Level = {
-	id: 'act2-level14-security',
+const level13StrongParams: Level = {
+	id: 'act2-level14-strong-params',
 	actId: 2,
 	levelNumber: 14,
-	name: 'Security',
+	name: 'Strong Params',
 	trigger: {
 		type: 'security_audit',
 		description:
-			'Security audit results are in. No CORS headers (frontend cannot call the API from a browser). API keys hardcoded in source code. Login endpoint has no rate limiting. Strong params are inconsistently applied.',
-	},
-	startingPipeline: {
-		nodes: [
-			{ id: 'request-node', type: 'request', x: 80, y: 220, locked: true },
-			{ id: 'auth-node', type: 'authentication', x: 280, y: 220, locked: true },
-			{ id: 'router-node', type: 'router', x: 480, y: 220, locked: true },
-			{
-				id: 'controller-node',
-				type: 'controller',
-				x: 680,
-				y: 220,
-				locked: true,
-			},
-			{ id: 'policy-node', type: 'policy', x: 680, y: 80, locked: true },
-			{
-				id: 'post-model',
-				type: 'model',
-				x: 900,
-				y: 220,
-				locked: true,
-				config: { label: 'Post' },
-			},
-			{ id: 'database-node', type: 'database', x: 1100, y: 220, locked: true },
-			{
-				id: 'serializer-node',
-				type: 'serializer',
-				x: 680,
-				y: 420,
-				locked: true,
-			},
-			{ id: 'response-node', type: 'response', x: 900, y: 420, locked: true },
-		],
-		connections: [
-			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'auth-node' },
-			{ id: 'c2', sourceNodeId: 'auth-node', targetNodeId: 'router-node' },
-			{
-				id: 'c3',
-				sourceNodeId: 'router-node',
-				targetNodeId: 'controller-node',
-			},
-			{
-				id: 'c4',
-				sourceNodeId: 'controller-node',
-				targetNodeId: 'policy-node',
-			},
-			{ id: 'c5', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
-			{ id: 'c6', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
-			{
-				id: 'c7',
-				sourceNodeId: 'controller-node',
-				targetNodeId: 'serializer-node',
-			},
-			{
-				id: 'c8',
-				sourceNodeId: 'serializer-node',
-				targetNodeId: 'response-node',
-			},
-		],
+			'The controller passes raw params straight to the model. A malicious user can send user_id or admin in the request body and escalate privileges. You need strict parameter filtering.',
 	},
 	problem: {
 		observation:
-			'Four critical findings: (1) No CORS -- browser requests from the React frontend fail with "blocked by CORS policy." (2) API keys for Stripe and SendGrid are hardcoded in initializers. (3) The login endpoint can be brute-forced with no rate limit. (4) Some controllers accept unfiltered params.',
+			'POST /api/v1/posts accepts ANY parameter. A user can set user_id to impersonate someone else or set admin to escalate their own role. The controller does zero filtering.',
 		rootCause:
-			'Security fundamentals were never configured. CORS, credentials, rate limiting, and strong params are all missing or incomplete.',
-		codeExample: `# Finding 1: No CORS headers
-# Browser console: "Access to XMLHttpRequest has been blocked by CORS policy"
-# The React frontend at localhost:3001 cannot talk to the API at localhost:3000
-
-# Finding 2: Hardcoded secrets
-# config/initializers/stripe.rb
-Stripe.api_key = "sk_live_abc123..."  # In source control!
-
-# Finding 3: No rate limiting on login
-# An attacker can try 10,000 passwords per second:
-for password in wordlist:
-    POST /api/v1/sessions { email: "admin@blog.com", password }
-
-# Finding 4: Unfiltered params
-def update
-  @post.update(params[:post])  # Mass assignment vulnerability!
-  # User could send: { post: { user_id: 999 } } to reassign ownership
+			'No parameter filtering. The controller uses params[:post] directly, passing every attribute to the model without a whitelist.',
+		codeExample: `# Current state: NO parameter filtering
+class Api::V1::PostsController < ApplicationController
+  def create
+    post = current_user.posts.create!(params[:post])
+    # Accepts ANY params: title, body, user_id, admin...
+    # Mass assignment vulnerability!
+    render json: post, status: :created
+  end
 end
 
-# Rails 8 has built-in rate_limit:
-class SessionsController < ApplicationController
-  rate_limit to: 10, within: 3.minutes, only: :create
-end`,
-		goal: 'Fix all four security findings: configure CORS, move secrets to credentials, add rate limiting, and enforce strong params.',
+# What gets through:
+# POST /api/v1/posts
+# { "post": { "title": "Hello", "user_id": 42, "admin": true } }
+# => user_id overwritten, admin flag set!
+
+# Rails 8 introduced params.expect as a stricter
+# alternative to require/permit. It returns 400 Bad Request
+# automatically when required params are missing.`,
+		goal: 'Use Rails 8 params.expect to whitelist only the fields the user is allowed to set, and let missing params return 400 automatically.',
 		thresholds: {},
 	},
-	successConditions: [
-		{ type: 'security_configured' },
-		{ type: 'node_present', nodeType: 'cors' },
-		{ type: 'node_present', nodeType: 'rate_limiter' },
-	],
-	availableNodes: ['cors', 'rate_limiter', 'credentials'],
-	unlockedNodes: ['cors', 'rate_limiter', 'credentials'],
 	learningContent: {
-		title: 'API Security: CORS, Credentials, Rate Limiting & Strong Params',
-		goal: `In this level, you'll:\n- harden your API against common security threats.\n- configure CORS so browsers can safely call your API.\n- move hardcoded secrets into Rails encrypted credentials.\n- use Rails 8's built-in rate_limit to throttle brute-force attacks on sensitive endpoints like login.`,
-		conceptExplanation: `Security is not a feature -- it is a requirement. These four areas are non-negotiable for any production API.
+		title: 'Rails 8 Strong Params with params.expect',
+		goal: `In this level, you'll:\n- learn how mass assignment attacks work and why they are dangerous.\n- use Rails 8's params.expect to whitelist allowed parameters.\n- understand the difference between params.expect and the older require/permit pattern.\n- see how params.expect automatically returns 400 for malformed requests.`,
+		conceptExplanation: `Strong Parameters prevent mass assignment attacks by whitelisting which request params are allowed to reach the model.
 
-**CORS (Cross-Origin Resource Sharing):**
-- Browsers block cross-origin requests by default
-- Your API must explicitly allow the frontend origin
-- Use the \`rack-cors\` gem to configure allowed origins, methods, and headers
+**The problem (mass assignment):**
+- Without filtering, users can set ANY model attribute via the request body
+- This includes sensitive fields like user_id, admin, role, balance
+- The controller must explicitly declare which params are safe
 
-**Rails Encrypted Credentials:**
-- \`rails credentials:edit\` opens an encrypted file
-- Encrypted with a master key (never committed)
-- Safe to commit the encrypted file to git
-- Access via \`Rails.application.credentials.dig(:stripe, :api_key)\`
+**Rails 8 \`params.expect\` (new):**
+- Stricter alternative to \`params.require(:post).permit(:title, :body)\`
+- Returns 400 Bad Request (not 500) when required params are missing
+- Declares both the root key and expected attributes in one call
+- No need for explicit rescue, Rails handles the error response
 
-**Rails 8 \`rate_limit\`:**
-- Built-in rate limiting -- no gems needed
-- \`rate_limit to: 10, within: 3.minutes, only: :create\`
-- Returns 429 Too Many Requests when exceeded
-- Uses Solid Cache as the backend by default
+**vs. the older pattern:**
+- \`params.require(:post).permit(:title)\` raises ActionController::ParameterMissing (500 by default)
+- You had to add a rescue_from to return 400 instead
+- \`params.expect\` does this automatically`,
+		railsCodeExample: `# app/controllers/api/v1/posts_controller.rb
+class Api::V1::PostsController < ApplicationController
+  def create
+    post = current_user.posts.create!(post_params)
+    render json: post, status: :created
+  end
 
-**Strong Params (\`params.expect\`):**
-- Rails 8 replaces \`require/permit\` with \`params.expect\`
-- Returns 400 Bad Request instead of 500 on tampered params
-- Always whitelist -- never blacklist`,
-		railsCodeExample: `# 1. CORS Configuration
-# Gemfile
+  def update
+    post = current_user.posts.find(params[:id])
+    post.update!(post_params)
+    render json: post
+  end
+
+  private
+
+  # Rails 8: params.expect
+  def post_params
+    params.expect(post: [:title, :body, :status])
+  end
+  # Missing :post key -> 400 Bad Request (automatic)
+  # Extra params like user_id, admin -> silently ignored
+end
+
+# Compared to the older pattern:
+# def post_params
+#   params.require(:post).permit(:title, :body, :status)
+# end
+# ^ Raises 500 on missing params unless you add rescue_from
+
+# For nested params:
+# params.expect(post: [:title, :body, { tags: [] }])
+# params.expect(post: [:title, { comments_attributes: [:body] }])`,
+		commonMistakes: [
+			'Using params[:post] directly without any filtering (mass assignment vulnerability)',
+			'Whitelisting user_id, admin, or role in permitted params',
+			'Using params.permit! which allows everything through',
+			'Adding explicit rescue for ParameterMissing when params.expect handles it automatically',
+		],
+		whenToUse:
+			'Every controller action that accepts user input needs strong params. Use params.expect in Rails 8 for stricter, cleaner parameter filtering.',
+		furtherReading: [
+			{
+				title: 'Rails 8 Release Notes (params.expect)',
+				url: 'https://guides.rubyonrails.org/8_0_release_notes.html',
+			},
+			{
+				title: 'Action Controller Parameters',
+				url: 'https://api.rubyonrails.org/classes/ActionController/Parameters.html',
+			},
+		],
+	},
+	hint: {
+		delay: 20,
+		text: 'Rails 8 introduced params.expect as a stricter alternative to require/permit. It declares the root key and expected attributes in a single call.',
+	},
+};
+
+// ============================================
+// Level 14: CORS
+// ============================================
+
+const level14CORS: Level = {
+	id: 'act2-level15-cors',
+	actId: 2,
+	levelNumber: 15,
+	name: 'CORS',
+	trigger: {
+		type: 'security_audit',
+		description:
+			'The React frontend cannot call the API from the browser. CORS is not configured, so every cross-origin request fails with "blocked by CORS policy."',
+	},
+	problem: {
+		observation:
+			'The React frontend at localhost:3001 gets "Access to XMLHttpRequest has been blocked by CORS policy" on every API call. The browser refuses to send requests to localhost:3000.',
+		rootCause:
+			'No CORS configuration. Browsers block cross-origin requests by default. The API must explicitly allow the frontend origin with proper CORS headers.',
+		codeExample: `# Browser console:
+# "Access to XMLHttpRequest at 'http://localhost:3000/api/v1/posts'
+#  from origin 'http://localhost:3001' has been blocked by CORS policy"
+
+# The React frontend runs on port 3001
+# The Rails API runs on port 3000
+# Different ports = different origins = blocked by default
+
+# Rails does not configure CORS out of the box.
+# You need the rack-cors gem to add CORS middleware.`,
+		goal: 'Install the rack-cors gem, configure specific allowed origins (not wildcard), and whitelist the HTTP methods your API uses.',
+		thresholds: {},
+	},
+	learningContent: {
+		title: 'Cross-Origin Resource Sharing (CORS)',
+		goal: `In this level, you'll:\n- understand why browsers block cross-origin requests by default.\n- install the rack-cors gem and configure allowed origins.\n- learn why wildcard origins are dangerous in production.\n- whitelist specific HTTP methods for your API.`,
+		conceptExplanation: `CORS (Cross-Origin Resource Sharing) is a browser security feature that blocks requests from one origin to another unless the server explicitly allows it.
+
+**Why CORS exists:**
+- Without CORS, any website could make API calls to your server using the user's cookies
+- CORS forces the server to declare which origins are trusted
+- The browser checks the CORS headers before allowing the response through
+
+**How it works:**
+- Browser sends a "preflight" OPTIONS request to check permissions
+- Server responds with Access-Control-Allow-Origin, Allow-Methods, etc.
+- If the origin matches, the browser allows the actual request
+- If not, the browser blocks it (the request never reaches your code)
+
+**rack-cors gem:**
+- Adds CORS middleware at the Rack level (before Rails routing)
+- Configure allowed origins, methods, and headers in an initializer
+- Never use wildcard (\`"*"\`) in production`,
+		railsCodeExample: `# Gemfile
 gem "rack-cors"
 
 # config/initializers/cors.rb
@@ -1195,73 +1227,39 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
   end
 end
 
-# 2. Rails Encrypted Credentials
-# Edit credentials:
-EDITOR=vim bin/rails credentials:edit
-
-# config/credentials.yml.enc (decrypted):
-stripe:
-  api_key: sk_live_abc123...
-  webhook_secret: whsec_xyz...
-sendgrid:
-  api_key: SG.abc123...
-
-# Access in code:
-Stripe.api_key = Rails.application.credentials.dig(:stripe, :api_key)
-
-# 3. Rails 8 Rate Limiting
-class Api::V1::SessionsController < ApplicationController
-  rate_limit to: 10, within: 3.minutes, only: :create,
-             with: -> { render json: { error: "Too many login attempts. Try again later." },
-                                status: :too_many_requests }
-end
-
-class Api::V1::PostsController < ApplicationController
-  rate_limit to: 100, within: 1.minute, only: [:create, :update]
-end
-
-# 4. Strong Params with params.expect (Rails 8)
-class Api::V1::PostsController < ApplicationController
-  private
-
-  def post_params
-    # Rails 8: params.expect -- safer than require/permit
-    params.expect(post: [:title, :body, :status])
-    # If params structure doesn't match, returns 400 (not 500)
-    # Rejects unexpected keys like user_id, admin, etc.
-  end
-end`,
+# What each option does:
+# origins   - which domains can call your API
+# resource  - which URL paths the CORS config applies to
+# headers   - which request headers are allowed (:any = all)
+# methods   - which HTTP methods are allowed
+# expose    - which response headers the browser can read
+# max_age   - how long (seconds) the browser caches preflight results`,
 		commonMistakes: [
-			'Setting CORS origins to "*" in production (allows any site to call your API)',
-			'Committing the master key to git (add config/master.key to .gitignore)',
-			'Not rate limiting login/signup endpoints (brute force attacks)',
-			'Using params.permit! or params[:post] without filtering (mass assignment)',
-			'Forgetting to rate limit password reset and other sensitive endpoints',
+			'Setting origins to "*" in production (allows any website to call your API)',
+			'Forgetting to include :options in allowed methods (breaks preflight requests)',
+			'Not installing rack-cors and trying to set headers manually',
+			'Using methods: :any instead of whitelisting specific methods',
 		],
 		whenToUse:
-			'Configure CORS and credentials before your first deploy. Add rate limiting to every endpoint that mutates data. Always use strong params.',
+			'Every Rails API that serves a separate frontend (React, Vue, mobile) needs CORS configuration. Set it up before your first deploy.',
 		furtherReading: [
-			{
-				title: 'Rails Security Guide',
-				url: 'https://guides.rubyonrails.org/security.html',
-			},
 			{
 				title: 'rack-cors',
 				url: 'https://github.com/cyu/rack-cors',
 			},
 			{
-				title: 'Rails Credentials',
-				url: 'https://guides.rubyonrails.org/security.html#custom-credentials',
+				title: 'MDN: Cross-Origin Resource Sharing',
+				url: 'https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS',
 			},
 			{
-				title: 'Rails 8 Rate Limiting',
-				url: 'https://guides.rubyonrails.org/8_0_release_notes.html',
+				title: 'Rails Security Guide',
+				url: 'https://guides.rubyonrails.org/security.html',
 			},
 		],
 	},
 	hint: {
-		delay: 30,
-		text: 'Add CORS and Rate Limiter nodes to the pipeline. CORS sits at the very front (before auth), and Rate Limiter protects sensitive endpoints like login.',
+		delay: 20,
+		text: 'Install rack-cors with bundle add, then configure specific origins in config/initializers/cors.rb. Never use wildcard origins in production.',
 	},
 };
 
@@ -1269,10 +1267,10 @@ end`,
 // Level 14: Scopes & Enums
 // ============================================
 
-const level14ScopesEnums: Level = {
-	id: 'act2-level15-scopes-enums',
+const level15ScopesEnums: Level = {
+	id: 'act2-level16-scopes-enums',
 	actId: 2,
-	levelNumber: 15,
+	levelNumber: 16,
 	name: 'Scopes & Enums',
 	trigger: {
 		type: 'user_complaint',
@@ -1495,15 +1493,16 @@ export const actTwo: Act = {
 	name: 'Users & Security',
 	tagline: 'Real users arrive. Things break.',
 	description:
-		'Real users start hitting your API. Add authentication with Bearer tokens, validate incoming data, normalize fields, lock down authorization with Pundit, write your first tests, harden security with CORS and rate limiting, and tame your queries with enums and scopes.',
+		'Real users start hitting your API. Add authentication with Bearer tokens, validate incoming data, normalize fields, lock down authorization with Pundit, write your first tests, filter params with params.expect, configure CORS for cross-origin access, and tame your queries with enums and scopes.',
 	levels: [
 		level8Authentication,
 		level9Validations,
 		level10Callbacks,
 		level11Authorization,
 		level12Testing,
-		level13Security,
-		level14ScopesEnums,
+		level13StrongParams,
+		level14CORS,
+		level15ScopesEnums,
 	],
 	unlockedNodes: [
 		'authentication',

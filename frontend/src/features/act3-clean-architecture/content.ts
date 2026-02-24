@@ -14,10 +14,10 @@ import { standardPipeline } from '@/utils/pipelineTemplates';
 // Level 15: Service Objects
 // ============================================
 
-const level15ServiceObjects: Level = {
-	id: 'act3-level16-service-objects',
+const level16ServiceObjects: Level = {
+	id: 'act3-level17-service-objects',
 	actId: 3,
-	levelNumber: 16,
+	levelNumber: 17,
 	name: 'Service Objects',
 	requiresTests: true,
 	trigger: {
@@ -194,13 +194,13 @@ end`,
 };
 
 // ============================================
-// Level 16: Concerns & Modules
+// Level 17: Concerns & Modules
 // ============================================
 
-const level16Concerns: Level = {
-	id: 'act3-level17-concerns',
+const level17Concerns: Level = {
+	id: 'act3-level18-concerns',
 	actId: 3,
-	levelNumber: 17,
+	levelNumber: 18,
 	name: 'Concerns & Modules',
 	requiresTests: true,
 	trigger: {
@@ -420,13 +420,13 @@ end`,
 };
 
 // ============================================
-// Level 17: Validation Contracts
+// Level 18: Validation Contracts
 // ============================================
 
-const level17ValidationContracts: Level = {
-	id: 'act3-level18-validation-contracts',
+const level18ValidationContracts: Level = {
+	id: 'act3-level19-validation-contracts',
 	actId: 3,
-	levelNumber: 18,
+	levelNumber: 19,
 	name: 'Validation Contracts',
 	requiresTests: true,
 	trigger: {
@@ -737,13 +737,13 @@ end`,
 };
 
 // ============================================
-// Level 18: Query Objects
+// Level 19: Query Objects
 // ============================================
 
-const level18QueryObjects: Level = {
-	id: 'act3-level19-query-objects',
+const level19QueryObjects: Level = {
+	id: 'act3-level20-query-objects',
 	actId: 3,
-	levelNumber: 19,
+	levelNumber: 20,
 	name: 'Query Objects',
 	requiresTests: true,
 	trigger: {
@@ -1046,13 +1046,13 @@ end`,
 };
 
 // ============================================
-// Level 19: Error Handling
+// Level 20: Error Handling
 // ============================================
 
-const level19ErrorHandling: Level = {
-	id: 'act3-level20-error-handling',
+const level20ErrorHandling: Level = {
+	id: 'act3-level21-error-handling',
 	actId: 3,
-	levelNumber: 20,
+	levelNumber: 21,
 	name: 'Error Handling',
 	requiresTests: true,
 	trigger: {
@@ -1311,13 +1311,13 @@ end`,
 };
 
 // ============================================
-// Level 20: Action Mailer
+// Level 21: Action Mailer
 // ============================================
 
-const level20ActionMailer: Level = {
-	id: 'act3-level21-action-mailer',
+const level21ActionMailer: Level = {
+	id: 'act3-level22-action-mailer',
 	actId: 3,
-	levelNumber: 21,
+	levelNumber: 22,
 	name: 'Action Mailer',
 	requiresTests: true,
 	trigger: {
@@ -1557,13 +1557,13 @@ end`,
 };
 
 // ============================================
-// Level 21: Background Jobs
+// Level 22: Background Jobs
 // ============================================
 
-const level21BackgroundJobs: Level = {
-	id: 'act3-level22-background-jobs',
+const level22BackgroundJobs: Level = {
+	id: 'act3-level23-background-jobs',
 	actId: 3,
-	levelNumber: 22,
+	levelNumber: 23,
 	name: 'Background Jobs',
 	requiresTests: true,
 	trigger: {
@@ -1852,13 +1852,13 @@ export const actThree: Act = {
 	description:
 		'Extract fat controllers into service objects, concerns, validation contracts, query objects, and mailers. Set up proper error handling and move slow work to Solid Queue background jobs.',
 	levels: [
-		level15ServiceObjects,
-		level16Concerns,
-		level17ValidationContracts,
-		level18QueryObjects,
-		level19ErrorHandling,
-		level20ActionMailer,
-		level21BackgroundJobs,
+		level16ServiceObjects,
+		level17Concerns,
+		level18ValidationContracts,
+		level19QueryObjects,
+		level20ErrorHandling,
+		level21ActionMailer,
+		level22BackgroundJobs,
 	],
 	unlockedNodes: ['service', 'concern', 'form_object', 'query_object', 'mailer', 'job'],
 	metricsVisible: true,

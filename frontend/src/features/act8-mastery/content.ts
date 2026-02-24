@@ -12,10 +12,10 @@ import type { Act, Level } from '@/types';
 // Level 48: API Gateway
 // ============================================
 
-const level48APIGateway: Level = {
-	id: 'act8-level53-api-gateway',
+const level49APIGateway: Level = {
+	id: 'act8-level54-api-gateway',
 	actId: 8,
-	levelNumber: 53,
+	levelNumber: 54,
 	name: 'API Gateway',
 	trigger: {
 		type: 'architecture',
@@ -191,10 +191,10 @@ end`,
 // Level 49: Database Sharding
 // ============================================
 
-const level49Sharding: Level = {
-	id: 'act8-level54-sharding',
+const level50Sharding: Level = {
+	id: 'act8-level55-sharding',
 	actId: 8,
-	levelNumber: 54,
+	levelNumber: 55,
 	name: 'Database Sharding',
 	trigger: {
 		type: 'scaling',
@@ -461,10 +461,10 @@ end`,
 // Level 50: The Architect (Capstone)
 // ============================================
 
-const level50Architect: Level = {
-	id: 'act8-level55-architect',
+const level51Architect: Level = {
+	id: 'act8-level56-architect',
 	actId: 8,
-	levelNumber: 55,
+	levelNumber: 56,
 	name: 'The Architect',
 	isCapstone: true,
 	trigger: {
@@ -763,7 +763,7 @@ export const actEight: Act = {
 	tagline: 'Architect entire systems.',
 	description:
 		'The final challenge: design API gateways, implement database sharding, and architect a complete service extraction using everything you have learned.',
-	levels: [level48APIGateway, level49Sharding, level50Architect],
+	levels: [level49APIGateway, level50Sharding, level51Architect],
 	unlockedNodes: ['api_gateway', 'shard', 'service_mesh'],
 	metricsVisible: true,
 	visibleMetrics: ['latency', 'errorRate', 'queryCount', 'memoryUsage'],

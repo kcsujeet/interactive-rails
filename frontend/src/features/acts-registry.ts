@@ -1,7 +1,7 @@
 /**
  * Acts & Levels Content Index
  *
- * Interactive Rails: 55 levels across 8 acts
+ * Interactive Rails: 56 levels across 8 acts
  * Build a production-grade SaaS while mastering Rails 8
  */
 
