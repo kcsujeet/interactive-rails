@@ -1,5 +1,5 @@
 /**
- * Level 15: CORS
+ * Level 16: CORS
  *
  * Sequential phase flow: observe -> build -> activate -> reward
  * Each phase occupies the full center panel. One thing at a time.
@@ -422,42 +422,95 @@ function CORSVisualization({
 			{/* ── Animated dots ── */}
 			{!isProtected ? (
 				<>
-					{/* Vulnerable: both browser and malicious requests go through */}
+					{/* No CORS: browser blocks ALL cross-origin responses */}
+					{/* Browser dot travels toward API then fades (blocked) */}
 					<circle fill="#10b981" r="4">
 						<animateMotion begin="0s" dur="2s" repeatCount="indefinite">
 							<mpath xlinkHref="#browser-path" />
 						</animateMotion>
+						<animate
+							attributeName="opacity"
+							dur="2s"
+							repeatCount="indefinite"
+							values="1;1;0"
+						/>
 					</circle>
 					<circle fill="#10b981" r="4">
 						<animateMotion begin="-1s" dur="2s" repeatCount="indefinite">
 							<mpath xlinkHref="#browser-path" />
 						</animateMotion>
+						<animate
+							attributeName="opacity"
+							begin="-1s"
+							dur="2s"
+							repeatCount="indefinite"
+							values="1;1;0"
+						/>
 					</circle>
 
+					{/* Malicious dot travels toward API then fades (blocked) */}
 					<circle fill="#ef4444" r="4">
 						<animateMotion begin="0s" dur="2s" repeatCount="indefinite">
 							<mpath xlinkHref="#malicious-path" />
 						</animateMotion>
+						<animate
+							attributeName="opacity"
+							dur="2s"
+							repeatCount="indefinite"
+							values="1;1;0"
+						/>
 					</circle>
 					<circle fill="#ef4444" r="4">
 						<animateMotion begin="-1s" dur="2s" repeatCount="indefinite">
 							<mpath xlinkHref="#malicious-path" />
 						</animateMotion>
+						<animate
+							attributeName="opacity"
+							begin="-1s"
+							dur="2s"
+							repeatCount="indefinite"
+							values="1;1;0"
+						/>
 					</circle>
 
-					{/* Both types continue to database */}
-					<circle fill="#10b981" r="4">
-						<animateMotion begin="0s" dur="2.5s" repeatCount="indefinite">
-							<mpath xlinkHref="#api-path" />
-						</animateMotion>
-					</circle>
-					<circle fill="#ef4444" r="4">
-						<animateMotion begin="-0.5s" dur="2.5s" repeatCount="indefinite">
-							<mpath xlinkHref="#api-path" />
-						</animateMotion>
-					</circle>
+					{/* No dots reach the database */}
 
-					{/* Vulnerability label */}
+					{/* BLOCKED labels for both */}
+					<text
+						fill="#ef4444"
+						fontSize="10"
+						fontWeight="600"
+						textAnchor="middle"
+						x="190"
+						y="145"
+					>
+						BLOCKED
+						<animate
+							attributeName="opacity"
+							dur="2s"
+							repeatCount="indefinite"
+							values="1;0.4;1"
+						/>
+					</text>
+					<text
+						fill="#ef4444"
+						fontSize="10"
+						fontWeight="600"
+						textAnchor="middle"
+						x="190"
+						y="305"
+					>
+						BLOCKED
+						<animate
+							attributeName="opacity"
+							begin="1s"
+							dur="2s"
+							repeatCount="indefinite"
+							values="1;0.4;1"
+						/>
+					</text>
+
+					{/* Explanation label */}
 					<text
 						fill="#ef4444"
 						fontSize="10"
@@ -466,7 +519,7 @@ function CORSVisualization({
 						x="300"
 						y="370"
 					>
-						All cross-origin requests accepted
+						No CORS headers: browser blocks all cross-origin requests
 					</text>
 				</>
 			) : (
@@ -590,9 +643,9 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 			filename: 'config/initializers/cors.rb',
 			language: 'ruby',
 			code: `# CORS NOT CONFIGURED
-# Browser console:
-# "Access to XMLHttpRequest has been blocked by CORS policy"
-# The React frontend cannot call the API!`,
+# curl works fine (bypasses browser security)
+# But the React frontend gets:
+# "Access to XMLHttpRequest has been blocked by CORS policy"`,
 			highlight: [],
 		});
 		return files;
@@ -651,7 +704,7 @@ end`,
 // Component
 // ──────────────────────────────────────────────
 
-export function Level15CORS({ onComplete }: LevelComponentProps) {
+export function Level16CORS({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const [phase, setPhase] = useState<Phase>('observe');
 	const [blockedCount, setBlockedCount] = useState(0);
@@ -725,24 +778,27 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							The React frontend runs on{' '}
+							Your API is secured and tested. Until now, you have been using{' '}
+							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
+								curl
+							</code>{' '}
+							to send requests directly. But a React frontend on{' '}
 							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
 								localhost:3001
 							</code>{' '}
-							but the API is on{' '}
+							needs to call the API on{' '}
 							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
 								localhost:3000
 							</code>
 							. Browsers block cross-origin requests by default.
-							Without CORS headers, the frontend cannot call the API.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							You need the{' '}
+							curl bypasses this entirely, which is why you never noticed. You need
+							the{' '}
 							<span className="text-foreground font-medium">
 								rack-cors
 							</span>{' '}
-							gem to configure which origins, methods, and headers are
-							allowed.
+							gem to tell the browser which origins are allowed.
 						</p>
 					</div>
 
@@ -787,7 +843,7 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={2}
 					levelName="CORS"
-					levelNumber={15}
+					levelNumber={16}
 					onComplete={handleComplete}
 					onReset={() => {
 						window.location.reload();
@@ -996,4 +1052,4 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 	);
 }
 
-export default Level15CORS;
+export default Level16CORS;

@@ -1,5 +1,5 @@
 /**
- * Level 16: Scopes & Enums
+ * Level 15: Scopes & Enums
  *
  * Learn to constrain values with Rails 8 enums and DRY up queries with scopes.
  * Player matches raw queries to scope names and adds an enum.
@@ -63,7 +63,7 @@ const QUERY_BLOCKS: QueryBlock[] = [
 
 const AVAILABLE_SCOPES = ['visible', 'recent', 'by_author', 'not_deleted'];
 
-export function Level16ScopesEnums({
+export function Level15ScopesEnums({
 	onComplete,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
@@ -111,7 +111,7 @@ export function Level16ScopesEnums({
 	};
 
 	const handleComplete = async () => {
-		const success = await completeLevel('act2-level16-scopes-enums', {
+		const success = await completeLevel('act2-level15-scopes-enums', {
 			stars: 3,
 		});
 		if (success) {
@@ -210,7 +210,7 @@ end
 				<LevelHeader
 					actNumber={2}
 					levelName="Scopes & Enums"
-					levelNumber={16}
+					levelNumber={15}
 					onComplete={handleComplete}
 					onReset={() => {
 						setQueries(QUERY_BLOCKS);
@@ -459,4 +459,4 @@ post.published! # update`}
 	);
 }
 
-export default Level16ScopesEnums;
+export default Level15ScopesEnums;

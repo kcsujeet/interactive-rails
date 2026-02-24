@@ -10,7 +10,7 @@
  * - Environment, First Boot, Model, CRUD, Routes, Controller, Serializers, Associations
  *
  * Act 2: Guards & Gates (L9-L16, 8 levels)
- * - Authentication, Validations, Callbacks, Authorization, Testing, Strong Params, CORS, Scopes & Enums
+ * - Authentication, Validations, Callbacks, Authorization, Testing, Strong Params, Scopes & Enums, CORS
  *
  * Act 3: Clean Architecture (L17-L23, 7 levels)
  * - Service Objects, Concerns, Validation Contracts, Query Objects, Error Handling, Action Mailer, Background Jobs
@@ -65,8 +65,8 @@ import { Level11Callbacks } from './act2-users-security/components/Level11Callba
 import { Level12Authorization } from './act2-users-security/components/Level12Authorization';
 import { Level13Testing } from './act2-users-security/components/Level13Testing';
 import { Level14StrongParams } from './act2-users-security/components/Level14StrongParams';
-import { Level15CORS } from './act2-users-security/components/Level15CORS';
-import { Level16ScopesEnums } from './act2-users-security/components/Level16ScopesEnums';
+import { Level15ScopesEnums } from './act2-users-security/components/Level15ScopesEnums';
+import { Level16CORS } from './act2-users-security/components/Level16CORS';
 
 // ===========================================
 // Act 3: Clean Architecture (Levels 17-23)
@@ -156,8 +156,8 @@ const LEVEL_COMPONENTS: Record<string, ComponentType<LevelComponentProps>> = {
 	'act2-level12-authorization': Level12Authorization,
 	'act2-level13-testing': Level13Testing,
 	'act2-level14-strong-params': Level14StrongParams,
-	'act2-level15-cors': Level15CORS,
-	'act2-level16-scopes-enums': Level16ScopesEnums,
+	'act2-level15-scopes-enums': Level15ScopesEnums,
+	'act2-level16-cors': Level16CORS,
 
 	// ============================================
 	// Act 3: Clean Architecture

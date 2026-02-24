@@ -3,7 +3,7 @@
  * "Users are signing up. Time to lock it down."
  *
  * Levels 9-16: Authentication, Validations, Callbacks & Normalizations,
- * Authorization, Testing, Strong Params, CORS, Scopes & Enums
+ * Authorization, Testing, Strong Params, Scopes & Enums, CORS
  * App context: Blog API (continued from Act 1)
  */
 
@@ -1165,20 +1165,20 @@ end
 // ============================================
 
 const level14CORS: Level = {
-	id: 'act2-level15-cors',
+	id: 'act2-level16-cors',
 	actId: 2,
-	levelNumber: 15,
+	levelNumber: 16,
 	name: 'CORS',
 	trigger: {
 		type: 'security_audit',
 		description:
-			'The React frontend cannot call the API from the browser. CORS is not configured, so every cross-origin request fails with "blocked by CORS policy."',
+			'Your API is secured, tested, and ready. Now a React frontend needs to call it from the browser, but cross-origin requests are blocked by default. Configure CORS to open the gate.',
 	},
 	problem: {
 		observation:
-			'The React frontend at localhost:3001 gets "Access to XMLHttpRequest has been blocked by CORS policy" on every API call. The browser refuses to send requests to localhost:3000.',
+			'You have been testing with curl, which bypasses browser security. But when the React frontend at localhost:3001 tries to call the API at localhost:3000, the browser blocks it: "Access to XMLHttpRequest has been blocked by CORS policy."',
 		rootCause:
-			'No CORS configuration. Browsers block cross-origin requests by default. The API must explicitly allow the frontend origin with proper CORS headers.',
+			'curl sends requests directly, so CORS never mattered until now. Browsers enforce the Same-Origin Policy, blocking requests between different origins (ports count). The API must explicitly allow the frontend origin with CORS headers.',
 		codeExample: `# Browser console:
 # "Access to XMLHttpRequest at 'http://localhost:3000/api/v1/posts'
 #  from origin 'http://localhost:3001' has been blocked by CORS policy"
@@ -1241,7 +1241,7 @@ end
 			'Using methods: :any instead of whitelisting specific methods',
 		],
 		whenToUse:
-			'Every Rails API that serves a separate frontend (React, Vue, mobile) needs CORS configuration. Set it up before your first deploy.',
+			'Every Rails API that serves a browser-based frontend (React, Vue, Next.js) needs CORS configuration. curl and mobile apps are not affected by CORS. Set it up when you connect your first browser frontend.',
 		furtherReading: [
 			{
 				title: 'rack-cors',
@@ -1268,9 +1268,9 @@ end
 // ============================================
 
 const level15ScopesEnums: Level = {
-	id: 'act2-level16-scopes-enums',
+	id: 'act2-level15-scopes-enums',
 	actId: 2,
-	levelNumber: 16,
+	levelNumber: 15,
 	name: 'Scopes & Enums',
 	trigger: {
 		type: 'user_complaint',
@@ -1280,58 +1280,56 @@ const level15ScopesEnums: Level = {
 	startingPipeline: {
 		nodes: [
 			{ id: 'request-node', type: 'request', x: 80, y: 220, locked: true },
-			{ id: 'cors-node', type: 'cors', x: 280, y: 220, locked: true },
-			{ id: 'auth-node', type: 'authentication', x: 480, y: 220, locked: true },
-			{ id: 'router-node', type: 'router', x: 680, y: 220, locked: true },
+			{ id: 'auth-node', type: 'authentication', x: 280, y: 220, locked: true },
+			{ id: 'router-node', type: 'router', x: 480, y: 220, locked: true },
 			{
 				id: 'controller-node',
 				type: 'controller',
-				x: 880,
+				x: 680,
 				y: 220,
 				locked: true,
 			},
-			{ id: 'policy-node', type: 'policy', x: 880, y: 80, locked: true },
+			{ id: 'policy-node', type: 'policy', x: 680, y: 80, locked: true },
 			{
 				id: 'post-model',
 				type: 'model',
-				x: 1080,
+				x: 880,
 				y: 220,
 				locked: true,
 				config: { label: 'Post' },
 			},
-			{ id: 'database-node', type: 'database', x: 1280, y: 220, locked: true },
+			{ id: 'database-node', type: 'database', x: 1080, y: 220, locked: true },
 			{
 				id: 'serializer-node',
 				type: 'serializer',
-				x: 880,
+				x: 680,
 				y: 420,
 				locked: true,
 			},
-			{ id: 'response-node', type: 'response', x: 1080, y: 420, locked: true },
+			{ id: 'response-node', type: 'response', x: 880, y: 420, locked: true },
 		],
 		connections: [
-			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'cors-node' },
-			{ id: 'c2', sourceNodeId: 'cors-node', targetNodeId: 'auth-node' },
-			{ id: 'c3', sourceNodeId: 'auth-node', targetNodeId: 'router-node' },
+			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'auth-node' },
+			{ id: 'c2', sourceNodeId: 'auth-node', targetNodeId: 'router-node' },
 			{
-				id: 'c4',
+				id: 'c3',
 				sourceNodeId: 'router-node',
 				targetNodeId: 'controller-node',
 			},
 			{
-				id: 'c5',
+				id: 'c4',
 				sourceNodeId: 'controller-node',
 				targetNodeId: 'policy-node',
 			},
-			{ id: 'c6', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
-			{ id: 'c7', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
+			{ id: 'c5', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
+			{ id: 'c6', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
 			{
-				id: 'c8',
+				id: 'c7',
 				sourceNodeId: 'controller-node',
 				targetNodeId: 'serializer-node',
 			},
 			{
-				id: 'c9',
+				id: 'c8',
 				sourceNodeId: 'serializer-node',
 				targetNodeId: 'response-node',
 			},
@@ -1493,7 +1491,7 @@ export const actTwo: Act = {
 	name: 'Guards & Gates',
 	tagline: 'Users are signing up. Time to lock it down.',
 	description:
-		'Your API is live and users are hitting it. But anyone can access anything, bad data is getting through, and there is no protection. Add authentication, validations, authorization, testing, parameter filtering, CORS, and query scopes to make it production-safe.',
+		'Your API is live and users are hitting it. But anyone can access anything, bad data is getting through, and there is no protection. Add authentication, validations, authorization, testing, parameter filtering, and query scopes to make it production-safe, then connect a React frontend.',
 	levels: [
 		level8Authentication,
 		level9Validations,
@@ -1501,8 +1499,8 @@ export const actTwo: Act = {
 		level11Authorization,
 		level12Testing,
 		level13StrongParams,
-		level14CORS,
 		level15ScopesEnums,
+		level14CORS,
 	],
 	unlockedNodes: [
 		'authentication',

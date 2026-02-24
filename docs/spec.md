@@ -41,8 +41,8 @@ Every level exists because the app **needs** it at that stage, not because Rails
 | 12 | Authorization | Pundit policies, `Current.user` | Anyone can edit anyone's posts. Restrict actions based on who's asking. |
 | 13 | Testing | RSpec, FactoryBot, request specs | Zero tests. Ship breaks silently. Set up RSpec, write your first spec. |
 | 14 | Strong Params | `params.expect`, strict parameter filtering | Controller accepts any parameter. Filter to only what the user should set. |
-| 15 | CORS | rack-cors, cross-origin configuration | React frontend gets CORS errors. Configure rack-cors for cross-origin API access. |
-| 16 | Scopes & Enums | `enum`, named scopes, query interface | API returns all posts including drafts. Filter by status. |
+| 15 | Scopes & Enums | `enum`, named scopes, query interface | API returns all posts including drafts. Filter by status. |
+| 16 | CORS | rack-cors, cross-origin configuration | API is ready. Connect a React frontend with rack-cors. |
 
 ---
 

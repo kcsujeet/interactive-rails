@@ -556,7 +556,7 @@ const level6Controller: Level = {
 	trigger: {
 		type: 'new_feature',
 		description:
-			'Routes are defined but return "uninitialized constant". Generate a controller, add the 5 RESTful actions, wire up strong params, and test with curl.',
+			'Routes are defined but return "uninitialized constant". Generate a controller, add the 5 RESTful actions, wire up strong params, and test with curl. For now, curl is your client. No browser frontend yet.',
 	},
 	startingPipeline: {
 		nodes: [],
@@ -599,7 +599,12 @@ const level6Controller: Level = {
 **Rails 8: params.expect():**
 - Replaces \`params.require(:post).permit(:title, :body)\`
 - Returns 400 Bad Request (not 500) if params are tampered
-- More explicit about expected parameter structure`,
+- More explicit about expected parameter structure
+
+**Testing your API:**
+- Use curl or Postman to send requests directly
+- No browser frontend is needed yet
+- This keeps things simple: one terminal for Rails, one for curl`,
 		railsCodeExample: `# app/controllers/api/v1/posts_controller.rb
 class Api::V1::PostsController < ApplicationController
   def index
