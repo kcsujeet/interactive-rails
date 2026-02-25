@@ -620,7 +620,7 @@ const level11Authorization: Level = {
 	trigger: {
 		type: 'security_incident',
 		description:
-			"User A can edit User B's posts. Authentication tells us WHO is making the request, but nothing checks whether they are ALLOWED to do what they are asking.",
+			"Users can authenticate, data is validated, and emails are normalized. But User A can still edit User B's posts. Authentication tells us WHO is making the request, but nothing checks whether they are ALLOWED to do what they are asking.",
 	},
 	problem: {
 		observation:
@@ -1055,20 +1055,26 @@ const level13StrongParams: Level = {
 	trigger: {
 		type: 'security_audit',
 		description:
-			'The controller passes raw params straight to the model. A malicious user can send user_id or admin in the request body and escalate privileges. You need strict parameter filtering.',
+			'Your controller uses params.expect, but the whitelist is too broad. A malicious user sends admin: true in the request body and escalates privileges. You need to audit and tighten your parameter filtering.',
 	},
 	problem: {
 		observation:
-			'POST /api/v1/posts accepts ANY parameter. A user can set user_id to impersonate someone else or set admin to escalate their own role. The controller does zero filtering.',
+			'POST /api/v1/posts accepts user_id and admin in the request body. A user can impersonate another author or escalate their own role. The parameter whitelist is too permissive.',
 		rootCause:
-			'No parameter filtering. The controller uses params[:post] directly, passing every attribute to the model without a whitelist.',
-		codeExample: `# Current state: NO parameter filtering
+			'The params.expect whitelist includes sensitive fields alongside safe ones. It filters the shape of the params, but the developer never audited which fields are safe for users to set.',
+		codeExample: `# Current state: whitelist is too broad
 class Api::V1::PostsController < ApplicationController
   def create
-    post = current_user.posts.create!(params[:post])
-    # Accepts ANY params: title, body, user_id, admin...
-    # Mass assignment vulnerability!
+    post = current_user.posts.create!(post_params)
     render json: post, status: :created
+  end
+
+  private
+
+  def post_params
+    params.expect(post: [:title, :body, :user_id, :admin])
+    #                                    ^^^^^^^^  ^^^^^^
+    #                              Impersonation!  Privilege escalation!
   end
 end
 
@@ -1076,33 +1082,31 @@ end
 # POST /api/v1/posts
 # { "post": { "title": "Hello", "user_id": 42, "admin": true } }
 # => user_id overwritten, admin flag set!
-
-# Rails 8 introduced params.expect as a stricter
-# alternative to require/permit. It returns 400 Bad Request
-# automatically when required params are missing.`,
-		goal: 'Use Rails 8 params.expect to whitelist only the fields the user is allowed to set, and let missing params return 400 automatically.',
+#
+# params.expect filters the SHAPE but not the SAFETY.
+# You must audit which fields users are allowed to set.`,
+		goal: 'Audit and tighten the params.expect whitelist to only include fields the user is allowed to set. Remove sensitive fields like user_id and admin.',
 		thresholds: {},
 	},
 	learningContent: {
 		title: 'Rails 8 Strong Params with params.expect',
-		goal: `In this level, you'll:\n- learn how mass assignment attacks work and why they are dangerous.\n- use Rails 8's params.expect to whitelist allowed parameters.\n- understand the difference between params.expect and the older require/permit pattern.\n- see how params.expect automatically returns 400 for malformed requests.`,
+		goal: `In this level, you'll:\n- learn how mass assignment attacks work and why a broad whitelist is dangerous.\n- audit your params.expect whitelist to remove sensitive fields.\n- understand the difference between filtering param shape and filtering param safety.\n- apply the principle of least privilege to parameter filtering.`,
 		conceptExplanation: `Strong Parameters prevent mass assignment attacks by whitelisting which request params are allowed to reach the model.
 
 **The problem (mass assignment):**
-- Without filtering, users can set ANY model attribute via the request body
-- This includes sensitive fields like user_id, admin, role, balance
-- The controller must explicitly declare which params are safe
+- You set up params.expect in L6, but the whitelist may include sensitive fields
+- Fields like user_id, admin, role, balance should never be user-settable
+- params.expect filters the shape of the request, but YOU decide which fields are safe
 
-**Rails 8 \`params.expect\` (new):**
-- Stricter alternative to \`params.require(:post).permit(:title, :body)\`
-- Returns 400 Bad Request (not 500) when required params are missing
-- Declares both the root key and expected attributes in one call
-- No need for explicit rescue, Rails handles the error response
+**Auditing your whitelist:**
+- Only include fields the user is meant to edit (title, body, status)
+- Never include ownership fields (user_id), role fields (admin), or internal state
+- Use \`current_user.posts.create!\` to set ownership, not user-submitted params
 
-**vs. the older pattern:**
-- \`params.require(:post).permit(:title)\` raises ActionController::ParameterMissing (500 by default)
-- You had to add a rescue_from to return 400 instead
-- \`params.expect\` does this automatically`,
+**Nested params and arrays:**
+- \`params.expect(post: [:title, :body, { tags: [] }])\` allows arrays
+- \`params.expect(post: [:title, { comments_attributes: [:body] }])\` allows nested
+- Each nesting level needs its own whitelist audit`,
 		railsCodeExample: `# app/controllers/api/v1/posts_controller.rb
 class Api::V1::PostsController < ApplicationController
   def create
@@ -1136,10 +1140,10 @@ end
 # params.expect(post: [:title, :body, { tags: [] }])
 # params.expect(post: [:title, { comments_attributes: [:body] }])`,
 		commonMistakes: [
-			'Using params[:post] directly without any filtering (mass assignment vulnerability)',
-			'Whitelisting user_id, admin, or role in permitted params',
+			'Whitelisting user_id, admin, or role in permitted params (mass assignment)',
 			'Using params.permit! which allows everything through',
-			'Adding explicit rescue for ParameterMissing when params.expect handles it automatically',
+			'Forgetting to audit nested params for sensitive fields',
+			'Setting ownership via params instead of current_user association',
 		],
 		whenToUse:
 			'Every controller action that accepts user input needs strong params. Use params.expect in Rails 8 for stricter, cleaner parameter filtering.',
@@ -1156,7 +1160,7 @@ end
 	},
 	hint: {
 		delay: 20,
-		text: 'Rails 8 introduced params.expect as a stricter alternative to require/permit. It declares the root key and expected attributes in a single call.',
+		text: 'Check which fields are in your params.expect whitelist. Remove any field the user should not be able to set directly.',
 	},
 };
 
@@ -1275,7 +1279,7 @@ const level15ScopesEnums: Level = {
 	trigger: {
 		type: 'user_complaint',
 		description:
-			'The API returns ALL posts including drafts and soft-deleted ones. Users need to filter by status. The status field is a plain string with no constraints.',
+			'Authorization controls who can act, but the API still returns ALL posts including drafts and soft-deleted ones. You control actions, now control visibility. Add enums and scopes to filter what users see.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -1337,12 +1341,23 @@ const level15ScopesEnums: Level = {
 	},
 	problem: {
 		observation:
-			'GET /api/v1/posts returns everything: published posts, drafts, even archived ones. Users see half-written drafts from other authors. There is no way to filter by status, and the status field accepts any string including typos like "pubished."',
+			'Pundit policies control who can update or delete, but GET /api/v1/posts still returns everything: drafts, archived posts, even soft-deleted ones. Users see half-written drafts from other authors. The status field is a plain string with no constraints, accepting typos like "pubished."',
 		rootCause:
-			'No enum to constrain status values. No scopes to filter posts by status. The controller just does Post.all.',
-		codeExample: `# Current state:
+			'Authorization (L12) guards actions, but the query layer has no filtering. No enum constrains status values. No scopes filter posts by status. The controller just does Post.all.',
+		codeExample: `# Step 1: Add a status column (integer for enum)
+# rails generate migration AddStatusToPosts status:integer
+#
+# db/migrate/..._add_status_to_posts.rb
+class AddStatusToPosts < ActiveRecord::Migration[8.0]
+  def change
+    add_column :posts, :status, :integer, default: 0, null: false
+    add_index :posts, :status
+  end
+end
+
+# Current state: no enum, no scopes
 class Post < ApplicationRecord
-  # status is a plain string column -- accepts anything
+  # status is just an integer column -- no constraints
 end
 
 # In the controller:
@@ -1351,18 +1366,9 @@ def index
   render json: PostSerializer.new(posts).serializable_hash.to_json
 end
 
-# Database contains:
-# | id | title        | status     |
-# |----|------------- |------------|
-# | 1  | "Hello"      | "published"|
-# | 2  | "Draft WIP"  | "draft"    |
-# | 3  | "Old Post"   | "archived" |
-# | 4  | "Test"       | "pubished" | <-- typo! No validation.
-# | 5  | "Deleted"    | "deleted"  |
-
-# API returns all 5 posts. Users see drafts and deleted posts.
+# API returns all posts. Users see drafts and deleted posts.
 # There's no way to request just published posts.`,
-		goal: 'Add an enum for status, define named scopes, and update the controller to support filtering.',
+		goal: 'Add a status column, define an enum to constrain its values, add named scopes, and update the controller to support filtering.',
 		thresholds: {},
 	},
 	successConditions: [
@@ -1374,7 +1380,7 @@ end
 	unlockedNodes: ['scope'],
 	learningContent: {
 		title: 'Enums, Named Scopes & Query Interface',
-		goal: `In this level, you'll:\n- learn how to constrain and filter your data using enums and named scopes.\n- define an enum for post status so only valid values like draft, published, and archived are allowed.\n- write chainable scopes that make your queries reusable and expressive across the entire app.`,
+		goal: `In this level, you'll:\n- complete the security arc: authorization controls actions, scopes control visibility.\n- define an enum for post status so only valid values like draft, published, and archived are allowed.\n- write chainable scopes that integrate with Pundit's policy_scope for filtered, authorized queries.`,
 		conceptExplanation: `Enums and scopes make your models expressive and your queries safe.
 
 **Rails 8 Enum (new syntax):**

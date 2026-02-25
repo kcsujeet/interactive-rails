@@ -18,14 +18,14 @@ Every level exists because the app **needs** it at that stage, not because Rails
 
 | # | Name | Concept | Scenario |
 |---|------|---------|----------|
-| 1 | First Boot | `rails new --api`, PostgreSQL vs SQLite | Day 1. Choose your database. Rails 8 makes SQLite production-ready, PostgreSQL for scale. |
-| 2 | The Model | ActiveRecord, migrations, schema | Need a blog API. Define what a Post looks like: attributes, types, constraints. |
-| 3 | CRUD Operations | ActiveRecord CRUD, Rails console | Model exists but DB is empty. Create, read, update, destroy records. |
-| 4 | Routes & Request Lifecycle | `resources`, namespaces, request flow | Routes defined, requests traced. Map HTTP verbs + URLs to controller actions under /api/v1/. |
-| 5 | The Controller | API controllers, `render json:`, `params.expect()` | Routes exist but nothing responds. Build a controller that handles those routes and returns JSON. |
-| 6 | Serializers | JSON shaping, jsonapi-serializer (JSON:API standard) | API dumps raw `to_json` with internal columns. Control exactly what the client sees. |
-| 7 | Associations | `has_many`, `belongs_to`, nested JSON | Posts need comments. Users need posts. Model relationships and include them in responses. |
-| 8 | Seeds & Sample Data | `db/seeds.rb`, Faker, idempotent seeding | DB is empty in dev. Create realistic seed data for development and testing. |
+| 1 | Environment | asdf, Ruby, Rails install, `rails new` | Day 0. Set up your development environment: version manager, Ruby, Rails, and generate the project. |
+| 2 | First Boot | `rails new --api`, PostgreSQL vs SQLite | Day 1. Choose your database. Rails 8 makes SQLite production-ready, PostgreSQL for scale. |
+| 3 | The Model | ActiveRecord, migrations, schema | Need a blog API. Define what a Post looks like: attributes, types, constraints. |
+| 4 | CRUD Operations | ActiveRecord CRUD, Rails console | Model exists but DB is empty. Create, read, update, destroy records. |
+| 5 | Routes & Request Lifecycle | `resources`, namespaces, request flow | Routes defined, requests traced. Map HTTP verbs + URLs to controller actions under /api/v1/. |
+| 6 | The Controller | API controllers, `render json:`, `params.expect()` | Routes exist but nothing responds. Build a controller that handles those routes and returns JSON. |
+| 7 | Serializers | JSON shaping, jsonapi-serializer (JSON:API standard) | API dumps raw `to_json` with internal columns. Control exactly what the client sees. |
+| 8 | Associations | `has_many`, `belongs_to`, nested JSON | Posts need comments. Users need posts. Model relationships and include them in responses. |
 
 ---
 
@@ -40,7 +40,7 @@ Every level exists because the app **needs** it at that stage, not because Rails
 | 11 | Callbacks & Normalizations | `before_save`, `after_create`, `normalizes` | Emails stored as " JOE@GMAIL.COM " break lookups. Normalize on save. |
 | 12 | Authorization | Pundit policies, `Current.user` | Anyone can edit anyone's posts. Restrict actions based on who's asking. |
 | 13 | Testing | RSpec, FactoryBot, request specs | Zero tests. Ship breaks silently. Set up RSpec, write your first spec. |
-| 14 | Strong Params | `params.expect`, strict parameter filtering | Controller accepts any parameter. Filter to only what the user should set. |
+| 14 | Strong Params | `params.expect`, strict parameter filtering | Params whitelist is too broad. Audit and tighten to prevent mass assignment. |
 | 15 | Scopes & Enums | `enum`, named scopes, query interface | API returns all posts including drafts. Filter by status. |
 | 16 | CORS | rack-cors, cross-origin configuration | API is ready. Connect a React frontend with rack-cors. |
 
@@ -144,14 +144,14 @@ Every level exists because the app **needs** it at that stage, not because Rails
 
 | Feature | Level | Why |
 |---|---|---|
-| `rails new --api` | L1 | Project setup |
-| SQLite production (WAL, IMMEDIATE) | L1 | DB choice |
-| `params.expect()` | L5, L14 | Safer than require/permit |
+| `rails new --api` | L2 | Project setup |
+| SQLite production (WAL, IMMEDIATE) | L2 | DB choice |
+| `params.expect()` | L6, L14 | Safer than require/permit |
 | `normalizes` | L11 | Clean data on assignment |
 | Built-in auth generator | L9 | Auth scaffolding |
 | `authenticate_by` | L9 | Timing-safe login |
 | `Current` attributes | L9, L12 | Request-scoped user |
-| `enum` (new syntax) | L16 | Status filtering |
+| `enum` (new syntax) | L15 | Status filtering |
 | `generates_token_for` | L22 | Password reset tokens |
 | Solid Queue | L23, L45 | Background jobs, recurring tasks |
 | Solid Cache | L31 | Database-backed caching |

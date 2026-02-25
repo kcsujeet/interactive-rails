@@ -57,9 +57,9 @@ const ATTRIBUTE_SLOTS: AttributeSlot[] = [
 		assignedType: null,
 	},
 	{
-		field: 'published',
-		description: 'Visibility flag',
-		correctType: 'boolean',
+		field: 'published_at',
+		description: 'When the post went live',
+		correctType: 'datetime',
 		assignedType: null,
 	},
 ];
@@ -77,15 +77,15 @@ const MODEL_NAME_OPTIONS = [
 const generatorCommands: TerminalCommand[] = [
 	{
 		id: 'wrong-types',
-		label: 'rails generate model Post title:text body:string published:integer',
-		command: 'rails generate model Post title:text body:string published:integer',
+		label: 'rails generate model Post title:text body:string published_at:integer',
+		command: 'rails generate model Post title:text body:string published_at:integer',
 		correct: false,
-		feedback: 'The types are swapped around. Think about which fields are short vs. long, and which is a flag.',
+		feedback: 'The types are swapped around. Think about which fields are short vs. long, and which stores a point in time.',
 	},
 	{
 		id: 'correct',
-		label: 'rails generate model Post title:string body:text published:boolean',
-		command: 'rails generate model Post title:string body:text published:boolean',
+		label: 'rails generate model Post title:string body:text published_at:datetime',
+		command: 'rails generate model Post title:string body:text published_at:datetime',
 		correct: true,
 	},
 	{
@@ -221,11 +221,11 @@ export function Level3Model({ onComplete }: LevelComponentProps) {
 					integer: '"body" stores content, not numbers.',
 					datetime: '"body" stores content, not timestamps.',
 				},
-				published: {
-					string: '"published" is a yes/no flag, not a text field.',
-					text: '"published" is a yes/no flag, not a content field.',
-					integer: '"published" is a yes/no flag, not a number.',
-					datetime: '"published" is a yes/no flag, not a timestamp.',
+				published_at: {
+					string: '"published_at" records when the post went live, not text.',
+					text: '"published_at" records when the post went live, not content.',
+					integer: '"published_at" records when the post went live, not a number.',
+					boolean: '"published_at" records when the post went live, not a flag.',
 				},
 			};
 			const fb = feedbackMap[field]?.[type] || `Wrong type for ${field}.`;
@@ -279,9 +279,9 @@ export function Level3Model({ onComplete }: LevelComponentProps) {
 				language: 'ruby',
 				code: `class Post < ApplicationRecord
   # Attributes:
-  # - title   (string)
-  # - body    (text)
-  # - published (boolean)
+  # - title        (string)
+  # - body         (text)
+  # - published_at (datetime)
   #
   # Auto-generated:
   # - id         (integer, primary key)
@@ -299,7 +299,7 @@ end`,
     create_table :posts do |t|
       t.string :title
       t.text :body
-      t.boolean :published
+      t.datetime :published_at
 
       t.timestamps
     end
@@ -318,7 +318,7 @@ end`,
   create_table "posts", force: :cascade do |t|
     t.string "title"
     t.text "body"
-    t.boolean "published"
+    t.datetime "published_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end

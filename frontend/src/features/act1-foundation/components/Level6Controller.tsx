@@ -60,8 +60,8 @@ const PARAMS_PIECES: ParamsPiece[] = [
 	{ id: 'require', text: '.require(', position: -1 }, // wrong
 	{ id: 'permit', text: '.permit(', position: -1 }, // wrong
 	{ id: 'post-key', text: 'post:', position: 2 },
-	{ id: 'partial-attrs', text: '[:title, :body]', position: -1 }, // wrong - missing published
-	{ id: 'full-attrs', text: '[:title, :body, :published]', position: 3 },
+	{ id: 'partial-attrs', text: '[:title, :body]', position: -1 }, // wrong - missing published_at
+	{ id: 'full-attrs', text: '[:title, :body, :published_at]', position: 3 },
 	{ id: 'close', text: ')', position: 4 },
 ];
 
@@ -168,7 +168,7 @@ export function Level6Controller({ onComplete }: LevelComponentProps) {
 			return 'Rails 8 replaced the require/permit pattern with a single, more concise method.';
 		}
 		if (pieces.includes('partial-attrs')) {
-			return 'Include all three attributes: title, body, and published.';
+			return 'Include all three attributes: title, body, and published_at.';
 		}
 		return 'The pieces are in the wrong order. Think about how method chaining works in Ruby.';
 	};
@@ -252,7 +252,7 @@ export function Level6Controller({ onComplete }: LevelComponentProps) {
 
 			const paramsMethod =
 				stepper.currentStep >= 3
-					? `\n\n  private\n\n  def post_params\n    params.expect(post: [:title, :body, :published])\n  end`
+					? `\n\n  private\n\n  def post_params\n    params.expect(post: [:title, :body, :published_at])\n  end`
 					: '';
 
 			files.push({

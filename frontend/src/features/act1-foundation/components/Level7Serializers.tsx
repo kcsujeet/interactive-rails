@@ -135,34 +135,27 @@ interface AttributeOption {
 const ATTRIBUTES: AttributeOption[] = [
 	{ id: 'title', name: 'title', safe: true, feedback: '' },
 	{
-		id: 'password_digest',
-		name: 'password_digest',
-		safe: false,
-		feedback:
-			'That column contains hashed passwords. Exposing it in API responses is a security vulnerability.',
-	},
-	{ id: 'body', name: 'body', safe: true, feedback: '' },
-	{
-		id: 'internal_notes',
-		name: 'internal_notes',
-		safe: false,
-		feedback:
-			'Internal notes are for admin use only. Exposing them leaks private operational data to API consumers.',
-	},
-	{ id: 'published_at', name: 'published_at', safe: true, feedback: '' },
-	{
 		id: 'created_at',
 		name: 'created_at',
 		safe: false,
 		feedback:
-			'Timestamps are metadata, not domain attributes. Serializers should expose meaningful data, not internal bookkeeping.',
+			'Serializers are about choosing what your API exposes. created_at is bookkeeping, not domain data clients need.',
 	},
+	{ id: 'body', name: 'body', safe: true, feedback: '' },
 	{
 		id: 'updated_at',
 		name: 'updated_at',
 		safe: false,
 		feedback:
-			'Timestamps are metadata, not domain attributes. Serializers should expose meaningful data, not internal bookkeeping.',
+			'updated_at tracks internal record changes. Expose domain-relevant fields instead.',
+	},
+	{ id: 'published_at', name: 'published_at', safe: true, feedback: '' },
+	{
+		id: 'id',
+		name: 'id',
+		safe: false,
+		feedback:
+			'JSON:API puts the id in the top-level data object, not inside attributes. The serializer handles this automatically.',
 	},
 ];
 
@@ -185,7 +178,7 @@ const RENDER_OPTIONS: RenderOption[] = [
 		code: 'render json: post',
 		correct: false,
 		feedback:
-			'That renders the raw model with no filtering. All attributes (including sensitive ones) are exposed.',
+			'That renders the raw model as flat JSON. Every column is dumped with no structure or formatting.',
 	},
 	{
 		id: 'to-json',
@@ -372,8 +365,8 @@ end`,
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							In Level 6, your controller returns{' '}
 							<span className="font-mono text-primary">render json: post</span>,
-							which dumps every column, including password_digest. Add a
-							serializer to control the output.
+							which dumps every column as flat JSON. Add a serializer
+							to shape the output into the JSON:API standard.
 						</p>
 					</div>
 
@@ -471,9 +464,9 @@ end`,
 									Define Attributes
 								</h3>
 								<p className="text-sm text-muted-foreground">
-									Your Post model has 7 columns. Select only the ones that
-									are safe to expose in the API. Leave out anything
-									sensitive or internal.
+									Your Post model has {ATTRIBUTES.length} columns. Pick the
+									domain attributes clients need. Skip bookkeeping columns
+									and anything JSON:API handles automatically.
 								</p>
 
 								{/* Attribute grid */}
@@ -482,7 +475,7 @@ end`,
 										const isSelected = selectedAttrs.includes(attr.id);
 										return (
 											<Button
-												className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-mono transition-all ${
+												className={`flex items-center justify-start gap-2 px-3 py-2.5 rounded-lg border text-sm font-mono transition-all ${
 													isSelected
 														? 'border-emerald-500/60 bg-emerald-500/10 text-emerald-400'
 														: 'border-border bg-card hover:border-blue-500/40 text-foreground'
@@ -524,7 +517,7 @@ end`,
 								</div>
 
 								<div className="text-xs text-muted-foreground">
-									{selectedAttrs.length} / {SAFE_ATTRIBUTES.length} safe
+									{selectedAttrs.length} / {SAFE_ATTRIBUTES.length} domain
 									attributes selected
 								</div>
 
@@ -616,17 +609,14 @@ end`,
 											<div className="ml-2 text-zinc-300">
 												"body": "World",
 											</div>
-											<div className="ml-2 text-red-400">
-												"password_digest": "$2a$12...",
-											</div>
-											<div className="ml-2 text-red-400">
-												"internal_notes": "...",
+											<div className="ml-2 text-zinc-300">
+												"published_at": "2024-01-01T00:00:00.000Z",
 											</div>
 											<div className="ml-2 text-zinc-500">
-												"created_at": "2024-01-01",
+												"created_at": "2024-01-01T00:00:00.000Z",
 											</div>
 											<div className="ml-2 text-zinc-500">
-												"updated_at": "2024-01-01"
+												"updated_at": "2024-01-01T00:00:00.000Z"
 											</div>
 											<div className="text-zinc-400">{'}'}</div>
 										</div>
@@ -668,8 +658,8 @@ end`,
 								</div>
 
 								<p className="text-sm text-muted-foreground text-center">
-									Sensitive fields are hidden. The response follows the
-									JSON:API standard with typed, structured output.
+									Only domain attributes are exposed. The response follows
+									the JSON:API standard with typed, structured output.
 								</p>
 
 								<div className="flex justify-center">

@@ -289,7 +289,7 @@ const level3Model: Level = {
 - Primary key is \`id\` (auto-generated)
 - \`created_at\` and \`updated_at\` are added by \`t.timestamps\``,
 		railsCodeExample: `# Generate a model with attributes
-rails generate model Post title:string body:text published:boolean
+rails generate model Post title:string body:text published_at:datetime
 
 # This creates:
 # - app/models/post.rb
@@ -297,7 +297,7 @@ rails generate model Post title:string body:text published:boolean
 
 # app/models/post.rb
 class Post < ApplicationRecord
-  # Attributes: title, body, published, created_at, updated_at
+  # Attributes: title, body, published_at, created_at, updated_at
 end
 
 # Run the migration
@@ -404,7 +404,7 @@ post.save
 # READ - many ways
 Post.all                          # SELECT * FROM posts
 Post.find(1)                      # SELECT * FROM posts WHERE id = 1
-Post.where(published: true)       # SELECT * FROM posts WHERE published = true
+Post.where.not(published_at: nil)  # SELECT * FROM posts WHERE published_at IS NOT NULL
 Post.find_by(title: "Hello")      # LIMIT 1
 Post.order(created_at: :desc)     # ORDER BY created_at DESC
 Post.first                        # LIMIT 1 ORDER BY id ASC
@@ -645,7 +645,7 @@ class Api::V1::PostsController < ApplicationController
 
   # Rails 8: params.expect() - safer than require/permit
   def post_params
-    params.expect(post: [:title, :body, :published])
+    params.expect(post: [:title, :body, :published_at])
   end
 end`,
 		commonMistakes: [
@@ -684,7 +684,7 @@ const level7Serializers: Level = {
 	trigger: {
 		type: 'user_complaint',
 		description:
-			'The API returns raw model data including password_digest and internal columns. Choose a serializer gem, install it, define safe attributes, and wire it into the controller.',
+			'The API dumps every column as flat JSON. Choose a serializer gem, install it, declare domain attributes, and shape the output into the JSON:API standard.',
 	},
 	startingPipeline: {
 		nodes: [],
@@ -698,10 +698,9 @@ const level7Serializers: Level = {
   "id": 1,
   "title": "Hello",
   "body": "World",
-  "password_digest": "$2a$12...",  # Leaked!
-  "internal_notes": "...",          # Internal!
-  "created_at": "2024-01-01",
-  "updated_at": "2024-01-01"
+  "published_at": "2024-01-01T00:00:00.000Z",  # Raw!
+  "created_at": "2024-01-01T00:00:00.000Z",     # Internal
+  "updated_at": "2024-01-01T00:00:00.000Z"      # Internal
 }
 
 # We want (JSON:API standard):
@@ -724,11 +723,11 @@ const level7Serializers: Level = {
 	unlockedNodes: [],
 	learningContent: {
 		title: 'JSON:API Serialization',
-		goal: `In this level, you'll:\n- learn how to control exactly what your API returns to clients.\n- use the jsonapi-serializer gem to shape JSON responses.\n- hide sensitive internal attributes like password_digest.\n- format your output to follow the JSON:API standard used by production APIs.`,
+		goal: `In this level, you'll:\n- learn how to control exactly what your API returns to clients.\n- use the jsonapi-serializer gem to shape JSON responses.\n- declare which domain attributes to expose and format dates for humans.\n- structure your output to follow the JSON:API standard used by production APIs.`,
 		conceptExplanation: `Serializers control what data your API exposes. Without them, \`render json: post\` dumps everything.
 
 **Why serialize?**
-- Hide internal attributes (password_digest, internal IDs)
+- Choose which attributes to expose (only domain data, not bookkeeping)
 - Format dates, currencies, names
 - Include computed fields (full_name, time_ago)
 - Nest related data (post with comments)
@@ -798,7 +797,7 @@ end
 #   }
 # }`,
 		commonMistakes: [
-			'Leaking sensitive attributes (password_digest, tokens)',
+			'Dumping all columns with render json: (flat, unstructured, no formatting)',
 			'Not serializing nested associations (N+1 in serializer)',
 			'Over-serializing (returning too much data)',
 			'Different shapes for list vs detail endpoints',
