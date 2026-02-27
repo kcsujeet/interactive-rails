@@ -11,7 +11,7 @@ Game content is defined in the frontend as TypeScript data structures and React 
 frontend/src/features/act*-*/content.ts      # Act and level definitions (8 files)
 frontend/src/features/act*-*/components/     # Level-specific React components
 frontend/src/features/acts-registry.ts       # All acts registry
-frontend/src/features/levels-registry.ts     # Level component registry (56 custom)
+frontend/src/features/levels-registry.ts     # Level component registry (55 custom)
 ```
 
 ---
@@ -19,7 +19,7 @@ frontend/src/features/levels-registry.ts     # Level component registry (56 cust
 ## Content Hierarchy
 
 ```
-Interactive Rails (56 levels, 8 acts)
+Interactive Rails (55 levels, 8 acts)
 ├── Act 1: The Foundation (8 levels)
 │   ├── Level 1: First Boot
 │   ├── Level 2: The Model
@@ -30,72 +30,71 @@ Interactive Rails (56 levels, 8 acts)
 │   ├── Level 7: Associations
 │   └── Level 8: Seeds & Sample Data
 │
-├── Act 2: Guards & Gates (8 levels)
+├── Act 2: Guards & Gates (L9-L15, 7 levels)
 │   ├── Level 9: Authentication
 │   ├── Level 10: Validations
 │   ├── Level 11: Callbacks & Normalizations
 │   ├── Level 12: Authorization
 │   ├── Level 13: Testing
 │   ├── Level 14: Strong Params
-│   ├── Level 15: CORS
-│   └── Level 16: Scopes & Enums
+│   └── Level 15: CORS
 │
-├── Act 3: Clean Architecture (7 levels)
-│   ├── Level 17: Service Objects
-│   ├── Level 18: Concerns & Modules
-│   ├── Level 19: Validation Contracts
-│   ├── Level 20: Query Objects
-│   ├── Level 21: Error Handling
-│   ├── Level 22: Action Mailer
-│   └── Level 23: Background Jobs
+├── Act 3: Clean Architecture (L16-L22, 7 levels)
+│   ├── Level 16: Service Objects
+│   ├── Level 17: Concerns & Modules
+│   ├── Level 18: Validation Contracts
+│   ├── Level 19: Query Objects
+│   ├── Level 20: Error Handling
+│   ├── Level 21: Action Mailer
+│   └── Level 22: Background Jobs
 │
-├── Act 4: Performance (9 levels)
-│   ├── Level 24: The N+1 Problem
-│   ├── Level 25: Eager Loading
-│   ├── Level 26: Narrow Fetching
-│   ├── Level 27: Database Indexing
-│   ├── Level 28: Counter Caches
-│   ├── Level 29: Pagination
-│   ├── Level 30: Search
-│   ├── Level 31: Caching
-│   └── Level 32: HTTP Caching & CDNs
+├── Act 4: Performance (L23-L31, 9 levels)
+│   ├── Level 23: The N+1 Problem
+│   ├── Level 24: Eager Loading
+│   ├── Level 25: Narrow Fetching
+│   ├── Level 26: Database Indexing
+│   ├── Level 27: Counter Caches
+│   ├── Level 28: Pagination
+│   ├── Level 29: Search
+│   ├── Level 30: Caching
+│   └── Level 31: HTTP Caching & CDNs
 │
-├── Act 5: Production Features (8 levels)
-│   ├── Level 33: Polymorphic Associations
-│   ├── Level 34: Transactions & Locking
-│   ├── Level 35: Active Storage
-│   ├── Level 36: Encrypted Attributes
-│   ├── Level 37: Real-Time
-│   ├── Level 38: External APIs
-│   ├── Level 39: Webhooks & Idempotency
-│   └── Level 40: API Versioning
+├── Act 5: Production Features (L32-L39, 8 levels)
+│   ├── Level 32: Polymorphic Associations
+│   ├── Level 33: Transactions & Locking
+│   ├── Level 34: Active Storage
+│   ├── Level 35: Encrypted Attributes
+│   ├── Level 36: Real-Time
+│   ├── Level 37: External APIs
+│   ├── Level 38: Webhooks & Idempotency
+│   └── Level 39: API Versioning
 │
-├── Act 6: Reliability (7 levels)
-│   ├── Level 41: Middleware & Rack
-│   ├── Level 42: Rate Limiting
-│   ├── Level 43: Soft Deletes & Audit Trails
-│   ├── Level 44: Safe Migrations
-│   ├── Level 45: Recurring Jobs & Scheduling
-│   ├── Level 46: Data Lifecycle
-│   └── Level 47: Structured Error Monitoring
+├── Act 6: Reliability (L40-L46, 7 levels)
+│   ├── Level 40: Middleware & Rack
+│   ├── Level 41: Rate Limiting
+│   ├── Level 42: Soft Deletes & Audit Trails
+│   ├── Level 43: Safe Migrations
+│   ├── Level 44: Recurring Jobs & Scheduling
+│   ├── Level 45: Data Lifecycle
+│   └── Level 46: Structured Error Monitoring
 │
-├── Act 7: Scale (6 levels)
-│   ├── Level 48: Multi-Database
-│   ├── Level 49: State Machines
-│   ├── Level 50: Multi-Tenancy
-│   ├── Level 51: Observability
-│   ├── Level 52: Modular Monolith
-│   └── Level 53: Domain Events & Decoupling
+├── Act 7: Scale (L47-L52, 6 levels)
+│   ├── Level 47: Multi-Database
+│   ├── Level 48: State Machines
+│   ├── Level 49: Multi-Tenancy
+│   ├── Level 50: Observability
+│   ├── Level 51: Modular Monolith
+│   └── Level 52: Domain Events & Decoupling
 │
-└── Act 8: Mastery (3 levels)
-    ├── Level 54: API Gateway
-    ├── Level 55: Database Sharding
-    └── Level 56: The Architect (Capstone)
+└── Act 8: Mastery (L53-L55, 3 levels)
+    ├── Level 53: API Gateway
+    ├── Level 54: Database Sharding
+    └── Level 55: The Architect (Capstone)
 ```
 
 **Current Status:**
 - 8 acts implemented
-- 56 total levels
+- 55 total levels
 - Rails 8 API-only focused
 - Testing required from Level 13 onward
 
@@ -231,7 +230,7 @@ export const actOne: Act = {
 
 ## Level Components
 
-Each level has a corresponding React component registered in `frontend/src/features/levels-registry.ts`. All 56 levels have custom interactive components registered in the level registry.
+Each level has a corresponding React component registered in `frontend/src/features/levels-registry.ts`. All 55 levels have custom interactive components registered in the level registry.
 
 ### Component Location
 
@@ -248,27 +247,26 @@ frontend/src/features/
 │   ├── Level12Authorization.tsx
 │   ├── Level13Testing.tsx
 │   ├── Level14StrongParams.tsx
-│   ├── Level15CORS.tsx
-│   └── Level16ScopesEnums.tsx
+│   └── Level15CORS.tsx
 ├── act3-clean-architecture/components/
-│   ├── Level17ServiceObjects.tsx ... Level23BackgroundJobs.tsx
+│   ├── Level16ServiceObjects.tsx ... Level22BackgroundJobs.tsx
 ├── act4-performance/components/
-│   ├── Level24N1Problem.tsx ... Level32HTTPCaching.tsx
+│   ├── Level23N1Problem.tsx ... Level31HTTPCaching.tsx
 ├── act5-production/components/
-│   ├── Level33Polymorphic.tsx ... Level40APIVersioning.tsx
+│   ├── Level32Polymorphic.tsx ... Level39APIVersioning.tsx
 ├── act6-reliability/components/
-│   ├── Level42RateLimiting.tsx ... Level47ErrorMonitoring.tsx
+│   ├── Level41RateLimiting.tsx ... Level46ErrorMonitoring.tsx
 ├── act7-scale/components/
-│   ├── Level48MultiDatabase.tsx ... Level53DomainEvents.tsx
+│   ├── Level47MultiDatabase.tsx ... Level52DomainEvents.tsx
 └── act8-mastery/components/
-    ├── Level54APIGateway.tsx
-    ├── Level55Sharding.tsx
-    └── Level56Architect.tsx
+    ├── Level53APIGateway.tsx
+    ├── Level54Sharding.tsx
+    └── Level55Architect.tsx
 ```
 
 ### Level Component Patterns
 
-**Custom Interactive (56 levels):** 3-panel layout with concept-specific interaction.
+**Custom Interactive (55 levels):** 3-panel layout with concept-specific interaction.
 
 ```typescript
 // features/act4-performance/components/Level24Indexing.tsx
@@ -390,21 +388,21 @@ Connections:
 - The only exception is Level 5 (Serializers) where the puzzle IS to add a serializer
 
 **Currently using templates:**
-- `standardPipeline()`: Act 3 (L17, 20, 21), Act 5 (L35, 33), Act 6 (L41, 43, 44)
-- `middlewarePipeline()`: Act 6 (L42, 47)
+- `standardPipeline()`: Act 3 (L16, 19, 20), Act 5 (L34, 32), Act 6 (L40, 42, 43)
+- `middlewarePipeline()`: Act 6 (L41, 46)
 
 **Levels with unique topologies (do NOT use templates):**
 - L1-4, L6-7 (Act 1): Progressively building the pipeline
 - L5 (Act 1): No serializer yet (that's the puzzle)
-- L18, L19 (Act 3): Multiple models → DB, no request cycle
-- L19 (Act 3): Multi-model form pattern
-- L22 (Act 3): Service + mailer branching
-- L33 (Act 5): 3 diverging models
-- L34 (Act 5): 2 concurrent requests
-- L37 (Act 5): Polling with 2 requests
-- L38-39 (Act 5): External API / webhook integration
-- L40 (Act 5): 2 client versions
-- L45 (Act 6): Minimal job pipeline (no response node)
+- L17, L18 (Act 3): Multiple models → DB, no request cycle
+- L18 (Act 3): Multi-model form pattern
+- L21 (Act 3): Service + mailer branching
+- L32 (Act 5): 3 diverging models
+- L33 (Act 5): 2 concurrent requests
+- L36 (Act 5): Polling with 2 requests
+- L37-38 (Act 5): External API / webhook integration
+- L39 (Act 5): 2 client versions
+- L44 (Act 6): Minimal job pipeline (no response node)
 
 ### Custom Initial Nodes
 
@@ -576,7 +574,6 @@ Additional tips:
 - Testing (RSpec/Minitest)
 - Strong Params (`params.expect`)
 - CORS (rack-cors)
-- Scopes and enums
 
 **Act 3 - Clean Architecture:**
 - Service objects

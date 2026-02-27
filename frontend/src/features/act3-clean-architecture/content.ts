@@ -2,7 +2,7 @@
  * Act 3: Clean Architecture
  * "Codebase doubles. Fat controllers, duplicated logic. Time to refactor."
  *
- * Levels 15-21: Service Objects, Concerns & Modules, Validation Contracts, Query Objects,
+ * Levels 16-22: Service Objects, Concerns & Modules, Validation Contracts, Query Objects,
  * Error Handling, Action Mailer, Background Jobs
  * App context: Social platform API with code quality problems
  */
@@ -14,10 +14,10 @@ import { standardPipeline } from '@/utils/pipelineTemplates';
 // Level 15: Service Objects
 // ============================================
 
-const level16ServiceObjects: Level = {
-	id: 'act3-level17-service-objects',
+const level15ServiceObjects: Level = {
+	id: 'act3-level16-service-objects',
 	actId: 3,
-	levelNumber: 17,
+	levelNumber: 16,
 	name: 'Service Objects',
 	requiresTests: true,
 	trigger: {
@@ -194,13 +194,13 @@ end`,
 };
 
 // ============================================
-// Level 17: Concerns & Modules
+// Level 16: Concerns & Modules
 // ============================================
 
-const level17Concerns: Level = {
-	id: 'act3-level18-concerns',
+const level16Concerns: Level = {
+	id: 'act3-level17-concerns',
 	actId: 3,
-	levelNumber: 18,
+	levelNumber: 17,
 	name: 'Concerns & Modules',
 	requiresTests: true,
 	trigger: {
@@ -420,13 +420,13 @@ end`,
 };
 
 // ============================================
-// Level 18: Validation Contracts
+// Level 17: Validation Contracts
 // ============================================
 
-const level18ValidationContracts: Level = {
-	id: 'act3-level19-validation-contracts',
+const level17ValidationContracts: Level = {
+	id: 'act3-level18-validation-contracts',
 	actId: 3,
-	levelNumber: 19,
+	levelNumber: 18,
 	name: 'Validation Contracts',
 	requiresTests: true,
 	trigger: {
@@ -737,13 +737,13 @@ end`,
 };
 
 // ============================================
-// Level 19: Query Objects
+// Level 18: Query Objects
 // ============================================
 
-const level19QueryObjects: Level = {
-	id: 'act3-level20-query-objects',
+const level18QueryObjects: Level = {
+	id: 'act3-level19-query-objects',
 	actId: 3,
-	levelNumber: 20,
+	levelNumber: 19,
 	name: 'Query Objects',
 	requiresTests: true,
 	trigger: {
@@ -857,6 +857,8 @@ end
 - Controller has >15 lines of query logic
 - Same filters are needed in multiple controllers, jobs, or rake tasks
 - Query involves JOINs, GROUP BY, HAVING, or subqueries
+
+**Scopes vs. query objects:** For single-purpose filters, use named scopes (\`scope :visible, -> { where(status: :published) }\`). Query objects are the next step when you need composable, multi-filter logic that spans parameters.
 
 **Key principle:** Always return \`ActiveRecord::Relation\`, never \`.to_a\` or \`.map\`. This preserves lazy loading and lets callers add pagination, includes, or further scopes.`,
 		railsCodeExample: `# app/queries/application_query.rb
@@ -1046,13 +1048,13 @@ end`,
 };
 
 // ============================================
-// Level 20: Error Handling
+// Level 19: Error Handling
 // ============================================
 
-const level20ErrorHandling: Level = {
-	id: 'act3-level21-error-handling',
+const level19ErrorHandling: Level = {
+	id: 'act3-level20-error-handling',
 	actId: 3,
-	levelNumber: 21,
+	levelNumber: 20,
 	name: 'Error Handling',
 	requiresTests: true,
 	trigger: {
@@ -1311,13 +1313,13 @@ end`,
 };
 
 // ============================================
-// Level 21: Action Mailer
+// Level 20: Action Mailer
 // ============================================
 
-const level21ActionMailer: Level = {
-	id: 'act3-level22-action-mailer',
+const level20ActionMailer: Level = {
+	id: 'act3-level21-action-mailer',
 	actId: 3,
-	levelNumber: 22,
+	levelNumber: 21,
 	name: 'Action Mailer',
 	requiresTests: true,
 	trigger: {
@@ -1557,13 +1559,13 @@ end`,
 };
 
 // ============================================
-// Level 22: Background Jobs
+// Level 21: Background Jobs
 // ============================================
 
-const level22BackgroundJobs: Level = {
-	id: 'act3-level23-background-jobs',
+const level21BackgroundJobs: Level = {
+	id: 'act3-level22-background-jobs',
 	actId: 3,
-	levelNumber: 23,
+	levelNumber: 22,
 	name: 'Background Jobs',
 	requiresTests: true,
 	trigger: {
@@ -1852,13 +1854,13 @@ export const actThree: Act = {
 	description:
 		'Your API works and it is secure, but the controllers are doing too much and the code is hard to change. Extract service objects, concerns, validation contracts, query objects, mailers, error handling, and background jobs to keep things maintainable.',
 	levels: [
-		level16ServiceObjects,
-		level17Concerns,
-		level18ValidationContracts,
-		level19QueryObjects,
-		level20ErrorHandling,
-		level21ActionMailer,
-		level22BackgroundJobs,
+		level15ServiceObjects,
+		level16Concerns,
+		level17ValidationContracts,
+		level18QueryObjects,
+		level19ErrorHandling,
+		level20ActionMailer,
+		level21BackgroundJobs,
 	],
 	unlockedNodes: ['service', 'concern', 'form_object', 'query_object', 'mailer', 'job'],
 	metricsVisible: true,

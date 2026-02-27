@@ -2,8 +2,8 @@
  * Act 2: Guards & Gates
  * "Users are signing up. Time to lock it down."
  *
- * Levels 9-16: Authentication, Validations, Callbacks & Normalizations,
- * Authorization, Testing, Strong Params, Scopes & Enums, CORS
+ * Levels 9-15: Authentication, Validations, Callbacks & Normalizations,
+ * Authorization, Testing, Strong Params, CORS
  * App context: Blog API (continued from Act 1)
  */
 
@@ -338,7 +338,9 @@ User.create(email: "joe@test.com")         # Saved again! Duplicate.
 **Custom validators:** Write your own for complex rules
 **Conditional validations:** \`if:\` and \`unless:\` options
 
-When validation fails, \`save\` returns \`false\` and errors are added to the model's \`errors\` collection.`,
+When validation fails, \`save\` returns \`false\` and errors are added to the model's \`errors\` collection.
+
+For fields with a fixed set of values (status, role, priority), Rails 8 enums (\`enum :status, { draft: 0, published: 1 }\`) provide both validation and query scopes in one declaration.`,
 		railsCodeExample: `# app/models/post.rb
 class Post < ApplicationRecord
   belongs_to :user
@@ -1165,13 +1167,13 @@ end
 };
 
 // ============================================
-// Level 14: CORS
+// Level 15: CORS
 // ============================================
 
 const level14CORS: Level = {
-	id: 'act2-level16-cors',
+	id: 'act2-level15-cors',
 	actId: 2,
-	levelNumber: 16,
+	levelNumber: 15,
 	name: 'CORS',
 	trigger: {
 		type: 'security_audit',
@@ -1268,227 +1270,6 @@ end
 };
 
 // ============================================
-// Level 14: Scopes & Enums
-// ============================================
-
-const level15ScopesEnums: Level = {
-	id: 'act2-level15-scopes-enums',
-	actId: 2,
-	levelNumber: 15,
-	name: 'Scopes & Enums',
-	trigger: {
-		type: 'user_complaint',
-		description:
-			'Authorization controls who can act, but the API still returns ALL posts including drafts and soft-deleted ones. You control actions, now control visibility. Add enums and scopes to filter what users see.',
-	},
-	startingPipeline: {
-		nodes: [
-			{ id: 'request-node', type: 'request', x: 80, y: 220, locked: true },
-			{ id: 'auth-node', type: 'authentication', x: 280, y: 220, locked: true },
-			{ id: 'router-node', type: 'router', x: 480, y: 220, locked: true },
-			{
-				id: 'controller-node',
-				type: 'controller',
-				x: 680,
-				y: 220,
-				locked: true,
-			},
-			{ id: 'policy-node', type: 'policy', x: 680, y: 80, locked: true },
-			{
-				id: 'post-model',
-				type: 'model',
-				x: 880,
-				y: 220,
-				locked: true,
-				config: { label: 'Post' },
-			},
-			{ id: 'database-node', type: 'database', x: 1080, y: 220, locked: true },
-			{
-				id: 'serializer-node',
-				type: 'serializer',
-				x: 680,
-				y: 420,
-				locked: true,
-			},
-			{ id: 'response-node', type: 'response', x: 880, y: 420, locked: true },
-		],
-		connections: [
-			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'auth-node' },
-			{ id: 'c2', sourceNodeId: 'auth-node', targetNodeId: 'router-node' },
-			{
-				id: 'c3',
-				sourceNodeId: 'router-node',
-				targetNodeId: 'controller-node',
-			},
-			{
-				id: 'c4',
-				sourceNodeId: 'controller-node',
-				targetNodeId: 'policy-node',
-			},
-			{ id: 'c5', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
-			{ id: 'c6', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
-			{
-				id: 'c7',
-				sourceNodeId: 'controller-node',
-				targetNodeId: 'serializer-node',
-			},
-			{
-				id: 'c8',
-				sourceNodeId: 'serializer-node',
-				targetNodeId: 'response-node',
-			},
-		],
-	},
-	problem: {
-		observation:
-			'Pundit policies control who can update or delete, but GET /api/v1/posts still returns everything: drafts, archived posts, even soft-deleted ones. Users see half-written drafts from other authors. The status field is a plain string with no constraints, accepting typos like "pubished."',
-		rootCause:
-			'Authorization (L12) guards actions, but the query layer has no filtering. No enum constrains status values. No scopes filter posts by status. The controller just does Post.all.',
-		codeExample: `# Step 1: Add a status column (integer for enum)
-# rails generate migration AddStatusToPosts status:integer
-#
-# db/migrate/..._add_status_to_posts.rb
-class AddStatusToPosts < ActiveRecord::Migration[8.0]
-  def change
-    add_column :posts, :status, :integer, default: 0, null: false
-    add_index :posts, :status
-  end
-end
-
-# Current state: no enum, no scopes
-class Post < ApplicationRecord
-  # status is just an integer column -- no constraints
-end
-
-# In the controller:
-def index
-  posts = Post.all  # Returns EVERYTHING
-  render json: PostSerializer.new(posts).serializable_hash.to_json
-end
-
-# API returns all posts. Users see drafts and deleted posts.
-# There's no way to request just published posts.`,
-		goal: 'Add a status column, define an enum to constrain its values, add named scopes, and update the controller to support filtering.',
-		thresholds: {},
-	},
-	successConditions: [
-		{ type: 'scopes_defined' },
-		{ type: 'node_present', nodeType: 'scope' },
-		{ type: 'connection', sourceType: 'controller', targetType: 'scope' },
-	],
-	availableNodes: ['scope'],
-	unlockedNodes: ['scope'],
-	learningContent: {
-		title: 'Enums, Named Scopes & Query Interface',
-		goal: `In this level, you'll:\n- complete the security arc: authorization controls actions, scopes control visibility.\n- define an enum for post status so only valid values like draft, published, and archived are allowed.\n- write chainable scopes that integrate with Pundit's policy_scope for filtered, authorized queries.`,
-		conceptExplanation: `Enums and scopes make your models expressive and your queries safe.
-
-**Rails 8 Enum (new syntax):**
-- Defines a fixed set of values for an attribute
-- Automatically creates scopes: \`Post.published\`, \`Post.draft\`
-- Creates predicate methods: \`post.published?\`, \`post.draft?\`
-- Creates bang methods: \`post.published!\` (updates status)
-- Backed by integers in the database (fast, indexable)
-- Rails 8 uses the hash syntax by default and validates values
-
-**Named Scopes:**
-- Encapsulate query logic in the model
-- Chainable: \`Post.published.recent.by_author(user)\`
-- Reusable across controllers, jobs, and other models
-- Default scope sets the "normal" query for a model
-
-**Query Interface:**
-- \`where\`, \`order\`, \`limit\`, \`offset\`, \`pluck\`, \`select\`
-- All chainable, all lazy (don't execute until needed)
-- Use \`to_sql\` to inspect the generated SQL`,
-		railsCodeExample: `# app/models/post.rb
-class Post < ApplicationRecord
-  belongs_to :user
-
-  # Rails 8 enum syntax (hash-based, validates by default)
-  enum :status, {
-    draft: 0,
-    published: 1,
-    archived: 2,
-    deleted: 3
-  }, default: :draft, validate: true
-
-  # Named scopes
-  scope :visible, -> { where(status: [:published]) }
-  scope :recent, -> { order(created_at: :desc) }
-  scope :by_author, ->(user) { where(user: user) }
-  scope :created_after, ->(date) { where("created_at >= ?", date) }
-  scope :search, ->(query) {
-    where("title ILIKE :q OR body ILIKE :q", q: "%#{query}%")
-  }
-
-  # Default scope (use sparingly -- affects ALL queries)
-  # default_scope { where.not(status: :deleted) }
-  # Better: use a scope and apply it explicitly
-  scope :not_deleted, -> { where.not(status: :deleted) }
-end
-
-# Auto-generated by enum:
-Post.draft        # WHERE status = 0
-Post.published    # WHERE status = 1
-Post.archived     # WHERE status = 2
-
-post.published?   # true/false
-post.published!   # UPDATE SET status = 1
-
-# Chaining scopes in the controller:
-class Api::V1::PostsController < ApplicationController
-  def index
-    posts = policy_scope(Post)
-              .not_deleted
-              .then { |scope| params[:status] ? scope.where(status: params[:status]) : scope.visible }
-              .then { |scope| params[:q] ? scope.search(params[:q]) : scope }
-              .recent
-              .page(params[:page])
-
-    render json: PostSerializer.new(posts).serializable_hash.to_json
-  end
-end
-
-# Query interface examples:
-Post.published.where(user: current_user).count
-Post.visible.recent.limit(10).pluck(:title)
-Post.where(created_at: 1.week.ago..).order(:title)
-
-# Inspect SQL:
-Post.published.recent.to_sql
-# => "SELECT \\"posts\\".* FROM \\"posts\\" WHERE \\"posts\\".\\"status\\" = 1 ORDER BY created_at DESC"`,
-		commonMistakes: [
-			'Using strings instead of enums for status fields (typos, no validation)',
-			'Using default_scope (silently affects every query, hard to override)',
-			'Not adding a database index on the enum column (slow filtering on large tables)',
-			'Complex logic in scopes that should be in a query object',
-			'Forgetting that enum values are integers in the DB -- do not change the mapping after data exists',
-		],
-		whenToUse:
-			'Use enums for any field with a fixed set of values (status, role, priority). Use scopes for any query pattern used in more than one place.',
-		furtherReading: [
-			{
-				title: 'ActiveRecord Enum',
-				url: 'https://api.rubyonrails.org/classes/ActiveRecord/Enum.html',
-			},
-			{
-				title: 'Active Record Query Interface',
-				url: 'https://guides.rubyonrails.org/active_record_querying.html',
-			},
-			{
-				title: 'ActiveRecord Scopes',
-				url: 'https://guides.rubyonrails.org/active_record_querying.html#scopes',
-			},
-		],
-	},
-	hint: {
-		delay: 20,
-		text: 'Add a Scope node between the Controller and Model. Define an enum for status and scopes for common filters like visible, recent, and by_author.',
-	},
-};
-
-// ============================================
 // Act 2 Definition
 // ============================================
 
@@ -1497,7 +1278,7 @@ export const actTwo: Act = {
 	name: 'Guards & Gates',
 	tagline: 'Users are signing up. Time to lock it down.',
 	description:
-		'Your API is live and users are hitting it. But anyone can access anything, bad data is getting through, and there is no protection. Add authentication, validations, authorization, testing, parameter filtering, and query scopes to make it production-safe, then connect a React frontend.',
+		'Your API is live and users are hitting it. But anyone can access anything, bad data is getting through, and there is no protection. Add authentication, validations, authorization, testing, and parameter filtering to make it production-safe, then connect a React frontend.',
 	levels: [
 		level8Authentication,
 		level9Validations,
@@ -1505,7 +1286,6 @@ export const actTwo: Act = {
 		level11Authorization,
 		level12Testing,
 		level13StrongParams,
-		level15ScopesEnums,
 		level14CORS,
 	],
 	unlockedNodes: [
@@ -1517,7 +1297,6 @@ export const actTwo: Act = {
 		'cors',
 		'rate_limiter',
 		'credentials',
-		'scope',
 	],
 	metricsVisible: false,
 };

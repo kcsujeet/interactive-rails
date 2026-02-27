@@ -2,20 +2,20 @@
  * Act 4: Performance
  * "10K users. API is slow. Database groaning."
  *
- * Levels 22-28: N+1 Problem, Eager Loading, Database Indexing, Counter Caches, Pagination, Search, Caching
+ * Levels 23-31: N+1 Problem, Eager Loading, Narrow Fetching, Database Indexing, Counter Caches, Pagination, Search, Caching, HTTP Caching & CDNs
  * App context: Blog API at scale. 10K users, 50K posts, millions of queries
  */
 
 import type { Act, Level } from '@/types';
 
 // ============================================
-// Level 22: The N+1 Problem
+// Level 21: The N+1 Problem
 // ============================================
 
-const level23N1Problem: Level = {
-	id: 'act4-level24-n1-problem',
+const level22N1Problem: Level = {
+	id: 'act4-level23-n1-problem',
 	actId: 4,
-	levelNumber: 24,
+	levelNumber: 23,
 	name: 'The N+1 Problem',
 	trigger: {
 		type: 'performance_alert',
@@ -243,13 +243,13 @@ end
 };
 
 // ============================================
-// Level 24: Eager Loading
+// Level 23: Eager Loading
 // ============================================
 
-const level24EagerLoading: Level = {
-	id: 'act4-level25-eager-loading',
+const level23EagerLoading: Level = {
+	id: 'act4-level24-eager-loading',
 	actId: 4,
-	levelNumber: 25,
+	levelNumber: 24,
 	name: 'Eager Loading',
 	trigger: {
 		type: 'optimization',
@@ -489,9 +489,9 @@ Post.where(published: true).pluck(:title)
 // ============================================
 
 const levelNarrowFetching: Level = {
-	id: 'act4-level26-narrow-fetching',
+	id: 'act4-level25-narrow-fetching',
 	actId: 4,
-	levelNumber: 26,
+	levelNumber: 25,
 	name: 'Narrow Fetching',
 	trigger: {
 		type: 'performance_alert',
@@ -687,13 +687,13 @@ User.pluck(:id, :name)`,
 };
 
 // ============================================
-// Level 25: Database Indexing
+// Level 24: Database Indexing
 // ============================================
 
-const level25DatabaseIndexing: Level = {
-	id: 'act4-level27-database-indexing',
+const level24DatabaseIndexing: Level = {
+	id: 'act4-level26-database-indexing',
 	actId: 4,
-	levelNumber: 27,
+	levelNumber: 26,
 	name: 'Database Indexing',
 	trigger: {
 		type: 'performance_alert',
@@ -900,13 +900,13 @@ add_index :users, :email, algorithm: :concurrently`,
 };
 
 // ============================================
-// Level 26: Counter Caches
+// Level 25: Counter Caches
 // ============================================
 
-const level26CounterCaches: Level = {
-	id: 'act4-level28-counter-caches',
+const level25CounterCaches: Level = {
+	id: 'act4-level27-counter-caches',
 	actId: 4,
-	levelNumber: 28,
+	levelNumber: 27,
 	name: 'Counter Caches',
 	trigger: {
 		type: 'performance_alert',
@@ -1123,13 +1123,13 @@ end`,
 };
 
 // ============================================
-// Level 27: Pagination
+// Level 26: Pagination
 // ============================================
 
-const level27Pagination: Level = {
-	id: 'act4-level29-pagination',
+const level26Pagination: Level = {
+	id: 'act4-level28-pagination',
 	actId: 4,
-	levelNumber: 29,
+	levelNumber: 28,
 	name: 'Pagination',
 	trigger: {
 		type: 'performance_alert',
@@ -1352,13 +1352,13 @@ end`,
 };
 
 // ============================================
-// Level 28: Search
+// Level 27: Search
 // ============================================
 
-const level28Search: Level = {
-	id: 'act4-level30-search',
+const level27Search: Level = {
+	id: 'act4-level29-search',
 	actId: 4,
-	levelNumber: 30,
+	levelNumber: 29,
 	name: 'Search',
 	trigger: {
 		type: 'new_feature',
@@ -1582,13 +1582,13 @@ Post.where(id: Post.connection.select_values(
 };
 
 // ============================================
-// Level 29: Caching
+// Level 28: Caching
 // ============================================
 
-const level29Caching: Level = {
-	id: 'act4-level31-caching',
+const level28Caching: Level = {
+	id: 'act4-level30-caching',
 	actId: 4,
-	levelNumber: 31,
+	levelNumber: 30,
 	name: 'Caching',
 	trigger: {
 		type: 'scaling',
@@ -1845,9 +1845,9 @@ Rails.cache.delete_matched("posts/*")
 // ============================================
 
 const levelHTTPCaching: Level = {
-	id: 'act4-level32-http-caching',
+	id: 'act4-level31-http-caching',
 	actId: 4,
-	levelNumber: 32,
+	levelNumber: 31,
 	name: 'HTTP Caching & CDNs',
 	trigger: {
 		type: 'scaling',
@@ -2086,14 +2086,14 @@ export const actFour: Act = {
 	description:
 		'Users are multiplying and response times are climbing. Diagnose N+1 queries, add eager loading, narrow fetching, database indexes, counter caches, pagination, search, and caching layers to keep the API fast.',
 	levels: [
-		level23N1Problem,
-		level24EagerLoading,
+		level22N1Problem,
+		level23EagerLoading,
 		levelNarrowFetching,
-		level25DatabaseIndexing,
-		level26CounterCaches,
-		level27Pagination,
-		level28Search,
-		level29Caching,
+		level24DatabaseIndexing,
+		level25CounterCaches,
+		level26Pagination,
+		level27Search,
+		level28Caching,
 		levelHTTPCaching,
 	],
 	unlockedNodes: ['eager_load', 'index', 'cache', 'pagination', 'search'],

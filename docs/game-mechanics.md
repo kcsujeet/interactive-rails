@@ -318,18 +318,18 @@ function activateDefenses() {
 
 ### Level Structure
 
-8 Acts with 56 total levels:
+8 Acts with 55 total levels:
 
 | Act | Name | Levels | Focus |
 |-----|------|--------|-------|
-| 1 | The Foundation | 8 | MVC, CRUD, Routes, Controllers, Serializers, Associations, Seeds |
-| 2 | Guards & Gates | 8 | Authentication, Validations, Callbacks, Authorization, Testing, Strong Params, CORS, Scopes & Enums |
-| 3 | Clean Architecture | 7 | Service Objects, Concerns, Validation Contracts, Error Handling, Background Jobs |
-| 4 | Performance | 9 | N+1 Queries, Eager Loading, Narrow Fetching, Indexing, Caching, Pagination, Search, HTTP Caching |
-| 5 | Production Features | 8 | Polymorphic, Transactions, Active Storage, Encryption, Real-Time, External APIs, Webhooks, API Versioning |
-| 6 | Reliability | 7 | Middleware, Rate Limiting, Soft Deletes, Safe Migrations, Recurring Jobs, Data Lifecycle, Error Monitoring |
-| 7 | Scale | 6 | Multi-Database, State Machines, Multi-Tenancy, Observability, Modular Monolith, Domain Events |
-| 8 | Mastery | 3 | API Gateway, Database Sharding, The Architect |
+| 1 | The Foundation | L1-L8 (8) | MVC, CRUD, Routes, Controllers, Serializers, Associations, Seeds |
+| 2 | Guards & Gates | L9-L15 (7) | Authentication, Validations, Callbacks, Authorization, Testing, Strong Params, CORS |
+| 3 | Clean Architecture | L16-L22 (7) | Service Objects, Concerns, Validation Contracts, Error Handling, Background Jobs |
+| 4 | Performance | L23-L31 (9) | N+1 Queries, Eager Loading, Narrow Fetching, Indexing, Caching, Pagination, Search, HTTP Caching |
+| 5 | Production Features | L32-L39 (8) | Polymorphic, Transactions, Active Storage, Encryption, Real-Time, External APIs, Webhooks, API Versioning |
+| 6 | Reliability | L40-L46 (7) | Middleware, Rate Limiting, Soft Deletes, Safe Migrations, Recurring Jobs, Data Lifecycle, Error Monitoring |
+| 7 | Scale | L47-L52 (6) | Multi-Database, State Machines, Multi-Tenancy, Observability, Modular Monolith, Domain Events |
+| 8 | Mastery | L53-L55 (3) | API Gateway, Database Sharding, The Architect |
 
 ### Unlocking
 
