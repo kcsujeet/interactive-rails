@@ -10,18 +10,18 @@ const isActive = (href: string) =>
   <div class="absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-primary/20 to-transparent"></div>
   <div class="max-w-[1200px] mx-auto px-6 h-12 flex items-center justify-between">
     <a href="/" class="flex items-center gap-2 no-underline hover:opacity-80 transition-opacity">
-      <img src="/favicon.svg" alt="Interactive Rails Logo" class="w-5 h-5" />
+      <img src="/favicon.svg" alt="Interactive Rails Logo" class="w-7 aspect-square" />
       <span class="text-sm font-semibold text-foreground">Interactive Rails</span>
     </a>
 
     <nav class="hidden md:flex items-center gap-1" id="main-nav">
-      <Button variant={isActive('/acts') ? 'primary' : 'ghost'} size="sm">
+      <Button variant={isActive('/acts') ? 'default' : 'ghost'} size="sm">
         <a href="/acts">Acts</a>
       </Button>
-      <Button variant={isActive('/sandbox') ? 'primary' : 'ghost'} size="sm">
+      <Button variant={isActive('/sandbox') ? 'default' : 'ghost'} size="sm">
         <a href="/sandbox">Sandbox</a>
       </Button>
-      <Button variant={isActive('/dashboard') ? 'primary' : 'ghost'} size="sm">
+      <Button variant={isActive('/dashboard') ? 'default' : 'ghost'} size="sm">
         <a href="/dashboard">Dashboard</a>
       </Button>
     </nav>

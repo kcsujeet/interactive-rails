@@ -1,4 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <!-- Background -->
+  <rect width="128" height="128" rx="24" fill="#18181b" />
+
   <!-- The Impulse Spike (Optimization) -->
   <path d="M20 90C40 90 45 90 55 40C60 15 68 15 73 40C83 90 88 90 108 90" stroke="#d97706" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" />
 

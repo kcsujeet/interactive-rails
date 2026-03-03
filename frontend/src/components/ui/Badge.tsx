@@ -5,7 +5,7 @@ import type * as React from 'react';
 import { cn } from '@/lib/utils';
 
 const badgeVariants = cva(
-	'inline-flex items-center justify-center rounded-full border border-transparent px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] transition-[color,box-shadow] overflow-hidden',
+	'inline-flex items-center justify-center rounded-full border border-transparent font-medium w-fit whitespace-nowrap shrink-0 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] transition-[color,box-shadow] overflow-hidden',
 	{
 		variants: {
 			variant: {
@@ -16,6 +16,14 @@ const badgeVariants = cva(
 				soft: 'bg-current/15 text-[var(--bdg)]',
 				ghost: 'text-[var(--bdg)] [a&]:hover:bg-current/10',
 				link: 'text-[var(--bdg)] underline-offset-4 [a&]:hover:underline',
+			},
+			size: {
+				xs: 'px-1 py-0 text-[9px] [&>svg]:size-2',
+				sm: 'px-1.5 py-0 text-[10px] [&>svg]:size-2.5',
+				default: 'px-2 py-0.5 text-xs [&>svg]:size-3',
+				md: 'px-2 py-0.5 text-[13px] [&>svg]:size-3',
+				lg: 'px-2.5 py-1 text-sm [&>svg]:size-3.5',
+				xl: 'px-3 py-1 text-base [&>svg]:size-4',
 			},
 			color: {
 				primary: '[--bdg:var(--primary)] [--bdg-fg:var(--primary-foreground)]',
@@ -29,6 +37,7 @@ const badgeVariants = cva(
 		defaultVariants: {
 			variant: 'default',
 			color: 'primary',
+			size: 'default',
 		},
 	},
 );
@@ -37,6 +46,7 @@ function Badge({
 	className,
 	variant,
 	color,
+	size,
 	asChild = false,
 	...props
 }: React.ComponentProps<'span'> &
@@ -45,7 +55,7 @@ function Badge({
 
 	return (
 		<Comp
-			className={cn(badgeVariants({ variant, color }), className)}
+			className={cn(badgeVariants({ variant, color, size }), className)}
 			data-slot="badge"
 			{...props}
 		/>
