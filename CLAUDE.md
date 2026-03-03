@@ -380,7 +380,8 @@ import { Database, Zap, Search, Settings } from "lucide-react";
 - Use actual components (`Button`, `Card`, `Badge`), not variant functions (`buttonVariants`). Only use variant functions when generating dynamic `innerHTML`.
 - No custom CSS utility classes (`.btn`, `.card`, `.cta-btn`, etc.). Use Tailwind or shadcn components.
 - Keep `global.css` minimal: only design tokens (`@theme`), keyframes, base styles, and third-party library styles.
-- **Never use raw HTML elements when a design system component exists.** Use `<Button>` instead of `<button>`, `<Card>` instead of `<div className="border rounded ...">`, etc. For links that look like buttons, use `<Button asChild><a href="...">...</a></Button>`, never a raw `<a>` with manual styling. The design system is the source of truth for all interactive UI.
+- **Never use raw HTML elements when a design system component exists.** Use `<Button>` instead of `<button>`, `<Card>` instead of `<div className="border rounded ...">`, etc. For links that look like buttons, wrap `<a>` inside `<Button>`: `<Button><a href="...">...</a></Button>`. The design system is the source of truth for all interactive UI.
+- **Never use `asChild` or Radix Slot with Astro.** Radix's `Slot` component (both `@radix-ui/react-slot` and `radix-ui`) does not merge className onto children during Astro's React SSR. The child renders with only its own classes, losing all parent styling. The `asChild` prop has been removed from the Button component.
 
 ### Styling
 

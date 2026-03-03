@@ -122,7 +122,7 @@ export function SandboxApp() {
 					</p>
 
 					<div className="mb-4">
-						<Button asChild className="w-full">
+						<Button className="w-full">
 							<a href="/acts">Back to Acts</a>
 						</Button>
 					</div>

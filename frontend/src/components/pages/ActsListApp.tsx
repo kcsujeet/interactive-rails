@@ -81,7 +81,7 @@ export function ActsListApp() {
 					<span className="text-sm text-foreground">
 						Playing as guest - progress won't sync
 					</span>
-					<Button asChild className="px-0" size="sm" variant="link">
+					<Button className="px-0" size="sm" variant="link">
 						<a href="/signup">Create account</a>
 					</Button>
 				</div>
