@@ -4,7 +4,9 @@
  * Sequential phase flow: observe -> build -> activate -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
- * Phase 1 (WHY - observe): Watch hackers breach through unprotected pipeline
+ * Phase 1 (WHY - observe): Interactive exploration. Click pipeline stages to
+ *   inspect code, fire API probes to discover vulnerabilities. Discovery gating
+ *   controls when "Build the Fix" appears.
  * Phase 2 (HOW - build): 7 steps (2 terminal + 5 OptionCard) building a Pundit PostPolicy
  *   Step 0: bundle add pundit (terminal)
  *   Step 1: include Pundit::Authorization in ApplicationController (OptionCard)
@@ -14,13 +16,14 @@
  *   Step 5: Wire Up the Controller (OptionCard)
  *   Step 6: Scope the Index Query (OptionCard)
  * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Protection" button
- * Phase 4 (ADVANTAGE - reward): Policy blocks hackers in the animation
+ * Phase 4 (ADVANTAGE - reward): Stress test. Fire request scenarios at the
+ *   protected pipeline and watch allowed/blocked results.
  *
  * Teaches: Pundit policies, authorize, policy_scope, rescue_from
  */
 
 import { ArrowRight, Check, Play, Star, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -39,14 +42,27 @@ import {
 	type TerminalStepData,
 	type ValidationResult,
 } from '@/components/levels';
+import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
 import {
 	type PipelineConnection,
 	PipelineFlow,
 	type PipelineStage,
 } from '@/components/levels/PipelineFlow';
+import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
+import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
+import {
+	StageInspector,
+	type StageInspectorData,
+} from '@/components/levels/StageInspector';
+import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
+import {
+	type DiscoveryDef,
+	useDiscoveryGating,
+} from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
+import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 
 // ──────────────────────────────────────────────
 // Phase type
@@ -55,7 +71,202 @@ import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 type Phase = 'observe' | 'build' | 'activate' | 'reward';
 
 // ──────────────────────────────────────────────
-// Step definitions (6 steps: 2 terminal + 4 OptionCard)
+// Discovery definitions (observe phase)
+// ──────────────────────────────────────────────
+
+const DISCOVERY_DEFS: DiscoveryDef[] = [
+	{ id: 'no-policy', label: 'No authorization policy exists' },
+	{ id: 'any-delete', label: 'Any user can delete any post' },
+	{ id: 'index-leaks', label: 'Index returns all posts including drafts' },
+	{ id: 'no-authorize', label: 'Controller has no authorize call' },
+];
+
+// ──────────────────────────────────────────────
+// Probe configurations (observe phase)
+// ──────────────────────────────────────────────
+
+const PROBES: ProbeConfig[] = [
+	{
+		id: 'delete-nonowner',
+		label: 'DELETE as non-owner',
+		command: 'DELETE /api/v1/posts/42 (as user_7, not the owner)',
+		responseLines: [
+			{ text: 'HTTP/1.1 204 No Content', color: 'red' },
+			{ text: '', color: 'muted' },
+			{
+				text: 'Post #42 deleted. user_7 was NOT the owner.',
+				color: 'yellow',
+			},
+			{
+				text: 'No permission check ran. Any user can delete any post.',
+				color: 'red',
+			},
+		],
+	},
+	{
+		id: 'get-drafts',
+		label: 'GET drafts as stranger',
+		command: 'GET /api/v1/posts (as visitor, no auth)',
+		responseLines: [
+			{ text: 'HTTP/1.1 200 OK', color: 'red' },
+			{
+				text: '[{"id":1,"title":"Draft: Secret Launch","published":false},',
+				color: 'muted',
+			},
+			{
+				text: ' {"id":2,"title":"Internal Roadmap","published":false},',
+				color: 'muted',
+			},
+			{
+				text: ' {"id":3,"title":"Public Post","published":true}]',
+				color: 'muted',
+			},
+			{
+				text: 'Post.all returns everything. Drafts are visible to anyone.',
+				color: 'yellow',
+			},
+		],
+	},
+	{
+		id: 'patch-nonowner',
+		label: 'PATCH as non-owner',
+		command: 'PATCH /api/v1/posts/42 (as user_7, body: {title: "Hacked"})',
+		responseLines: [
+			{ text: 'HTTP/1.1 200 OK', color: 'red' },
+			{
+				text: '{"id":42,"title":"Hacked","user_id":3}',
+				color: 'muted',
+			},
+			{
+				text: 'user_7 edited user_3\'s post. No ownership check.',
+				color: 'yellow',
+			},
+		],
+	},
+];
+
+// Map probe IDs to discovery IDs they trigger
+const PROBE_DISCOVERY_MAP: Record<string, string> = {
+	'delete-nonowner': 'any-delete',
+	'get-drafts': 'index-leaks',
+	'patch-nonowner': 'no-authorize',
+};
+
+// Map probe IDs to pipeline node display during observe
+const PROBE_PIPELINE_MAP: Record<
+	string,
+	{ policySublabel: string; modelBadge: string }
+> = {
+	'delete-nonowner': {
+		policySublabel: 'DELETE user_7',
+		modelBadge: '204!',
+	},
+	'get-drafts': {
+		policySublabel: 'GET visitor',
+		modelBadge: '200!',
+	},
+	'patch-nonowner': {
+		policySublabel: 'PATCH user_7',
+		modelBadge: '200!',
+	},
+};
+
+// ──────────────────────────────────────────────
+// Stage inspector data (observe phase)
+// ──────────────────────────────────────────────
+
+const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
+	request: {
+		stageId: 'request',
+		title: 'Incoming Request',
+		description:
+			'HTTP requests arrive with a session cookie that identifies the user (authentication). But knowing WHO is requesting says nothing about whether they are ALLOWED to perform the action.',
+	},
+	controller: {
+		stageId: 'controller',
+		title: 'PostsController',
+		description:
+			'The controller finds the post and immediately runs the action. There is no authorize call. Any authenticated user can destroy, update, or read any record.',
+		code: `def destroy
+  post = Post.find(params[:id])
+  post.destroy  # No permission check!
+  head :no_content
+end`,
+	},
+	policy: {
+		stageId: 'policy',
+		title: 'Policy (Missing!)',
+		description:
+			'This stage does not exist yet. There is no policy class to check permissions. Requests flow straight through to the model without any authorization gate.',
+	},
+	model: {
+		stageId: 'model',
+		title: 'Model (Unprotected)',
+		description:
+			'The model executes whatever the controller asks. Without a policy layer, every operation succeeds regardless of who requested it.',
+	},
+};
+
+// Map stage IDs to discovery IDs they trigger
+const STAGE_DISCOVERY_MAP: Record<string, string> = {
+	policy: 'no-policy',
+	controller: 'no-authorize',
+};
+
+// ──────────────────────────────────────────────
+// Stress test scenarios (reward phase)
+// ──────────────────────────────────────────────
+
+const STRESS_SCENARIOS: StressScenario[] = [
+	{
+		id: 'owner-edit',
+		label: 'Owner edits own post',
+		description: 'Post author updates their own content',
+		method: 'PATCH',
+		path: '/api/v1/posts/42',
+		actor: 'owner (user_3)',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'admin-delete',
+		label: 'Admin deletes flagged post',
+		description: 'Admin removes a flagged post',
+		method: 'DELETE',
+		path: '/api/v1/posts/99',
+		actor: 'admin',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'stranger-delete',
+		label: 'Stranger deletes post',
+		description: 'Random user tries to delete another user\'s post',
+		method: 'DELETE',
+		path: '/api/v1/posts/42',
+		actor: 'stranger (user_7)',
+		expectedResult: 'blocked',
+	},
+	{
+		id: 'stranger-update',
+		label: 'Stranger updates post',
+		description: 'Random user tries to edit another user\'s post',
+		method: 'PATCH',
+		path: '/api/v1/posts/42',
+		actor: 'stranger (user_7)',
+		expectedResult: 'blocked',
+	},
+	{
+		id: 'visitor-index',
+		label: 'Visitor sees published only',
+		description: 'Unauthenticated visitor views the index',
+		method: 'GET',
+		path: '/api/v1/posts',
+		actor: 'visitor (no auth)',
+		expectedResult: 'allowed',
+	},
+];
+
+// ──────────────────────────────────────────────
+// Step definitions (7 steps: 2 terminal + 5 OptionCard)
 // ──────────────────────────────────────────────
 
 const STEP_DEFS: StepDef[] = [
@@ -336,24 +547,12 @@ const OPTION_STEP_CONFIG: Record<
 // Pipeline visualization configs
 // ──────────────────────────────────────────────
 
-const OBSERVE_STAGES: PipelineStage[] = [
-	{ id: 'request', label: 'Request' },
-	{ id: 'controller', label: 'Controller' },
-	{ id: 'policy', label: 'Policy', sublabel: '(missing)', variant: 'inactive' },
-	{ id: 'model', label: 'Model', badge: 'BREACH' },
-];
 const OBSERVE_CONNECTIONS: PipelineConnection[] = [
 	{ from: 'request', to: 'controller', dots: 'mixed' },
 	{ from: 'controller', to: 'policy', dots: 'mixed' },
 	{ from: 'policy', to: 'model', dots: 'mixed' },
 ];
 
-const REWARD_STAGES: PipelineStage[] = [
-	{ id: 'request', label: 'Request' },
-	{ id: 'controller', label: 'Controller' },
-	{ id: 'policy', label: 'Pundit', sublabel: 'authorize!', variant: 'active' },
-	{ id: 'model', label: 'Model' },
-];
 const REWARD_CONNECTIONS: PipelineConnection[] = [
 	{ from: 'request', to: 'controller', dots: 'mixed' },
 	{ from: 'controller', to: 'policy', dots: 'mixed' },
@@ -603,9 +802,77 @@ function PipelineLegend() {
 
 export function Level12Authorization({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
+	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
+		minRequired: 3,
+	});
+	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
-	const [blockedCount, setBlockedCount] = useState(0);
-	const [allowedCount, setAllowedCount] = useState(0);
+	const [inspectorData, setInspectorData] =
+		useState<StageInspectorData | null>(null);
+	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
+		new Set(),
+	);
+	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
+
+	// ── Build observe stages dynamically (tracks inspected + last probe) ──
+	const probeDisplay = lastProbeId
+		? PROBE_PIPELINE_MAP[lastProbeId]
+		: null;
+	const observeStages: PipelineStage[] = useMemo(
+		() => [
+			{
+				id: 'request',
+				label: 'Request',
+				inspectable: true,
+				inspected: inspectedStages.has('request'),
+			},
+			{
+				id: 'controller',
+				label: 'Controller',
+				inspectable: true,
+				inspected: inspectedStages.has('controller'),
+			},
+			{
+				id: 'policy',
+				label: 'Policy',
+				sublabel: probeDisplay ? probeDisplay.policySublabel : '(missing)',
+				variant: (probeDisplay ? 'danger' : 'inactive') as
+					| 'danger'
+					| 'inactive',
+				inspectable: true,
+				inspected: inspectedStages.has('policy'),
+			},
+			{
+				id: 'model',
+				label: 'Model',
+				badge: probeDisplay ? probeDisplay.modelBadge : 'BREACH',
+				variant: (probeDisplay ? 'danger' : 'default') as
+					| 'danger'
+					| 'default',
+				inspectable: true,
+				inspected: inspectedStages.has('model'),
+			},
+		],
+		[inspectedStages, probeDisplay],
+	);
+
+	// ── Build reward stages dynamically (reacts to latest stress test result) ──
+	const lastResult = stressTest.results[stressTest.results.length - 1];
+	const rewardStages: PipelineStage[] = useMemo(() => {
+		const wasBlocked = lastResult?.result === 'blocked';
+		return [
+			{ id: 'request', label: 'Request' },
+			{ id: 'controller', label: 'Controller' },
+			{
+				id: 'policy',
+				label: 'Pundit',
+				sublabel: wasBlocked ? '403 Forbidden' : 'authorize!',
+				variant: wasBlocked ? ('danger' as const) : ('active' as const),
+				badge: wasBlocked ? 'BLOCKED' : undefined,
+			},
+			{ id: 'model', label: 'Model' },
+		];
+	}, [lastResult]);
 
 	// ── Transition: build -> activate when all steps complete ──
 	useEffect(() => {
@@ -614,15 +881,42 @@ export function Level12Authorization({ onComplete }: LevelComponentProps) {
 		}
 	}, [phase, stepper.isComplete]);
 
-	// ── Reward phase: simple counter interval (matches dot loop timing) ──
-	useEffect(() => {
-		if (phase !== 'reward') return;
-		const interval = setInterval(() => {
-			setBlockedCount((c) => c + 1);
-			setAllowedCount((c) => c + 3);
-		}, 3500);
-		return () => clearInterval(interval);
-	}, [phase]);
+	// ── Stage click handler (observe phase) ──
+	const handleStageClick = useCallback(
+		(stageId: string) => {
+			if (phase !== 'observe') return;
+
+			const data = STAGE_INSPECTOR_MAP[stageId];
+			if (!data) return;
+
+			setInspectorData(data);
+			setInspectedStages((prev) => {
+				if (prev.has(stageId)) return prev;
+				const next = new Set(prev);
+				next.add(stageId);
+				return next;
+			});
+
+			// Trigger discovery if this stage has one
+			const discoveryId = STAGE_DISCOVERY_MAP[stageId];
+			if (discoveryId) {
+				discoveryGating.discover(discoveryId);
+			}
+		},
+		[phase, discoveryGating],
+	);
+
+	// ── Probe handler (observe phase) ──
+	const handleProbe = useCallback(
+		(probeId: string) => {
+			setLastProbeId(probeId);
+			const discoveryId = PROBE_DISCOVERY_MAP[probeId];
+			if (discoveryId) {
+				discoveryGating.discover(discoveryId);
+			}
+		},
+		[discoveryGating],
+	);
 
 	// ── OptionCard step handler ──
 	const handleOptionClick = useCallback(
@@ -643,9 +937,16 @@ export function Level12Authorization({ onComplete }: LevelComponentProps) {
 
 	const handleActivatePolicy = () => {
 		setPhase('reward');
-		setBlockedCount(0);
-		setAllowedCount(0);
+		stressTest.reset();
 	};
+
+	// ── Stress test fire handler ──
+	const handleFireScenario = useCallback(
+		(scenarioId: string) => {
+			stressTest.fireRequest(scenarioId);
+		},
+		[stressTest],
+	);
 
 	// ── Completion ──
 	const handleComplete = () => {
@@ -691,11 +992,19 @@ export function Level12Authorization({ onComplete }: LevelComponentProps) {
 						</p>
 					</div>
 
-					{/* Observe phase: legend only */}
-					{phase === 'observe' && <PipelineLegend />}
+					{/* Observe phase: discovery checklist */}
+					{phase === 'observe' && (
+						<div className="p-4 border-b border-border">
+							<DiscoveryChecklist
+								discoveries={discoveryGating.discoveries}
+								discoveredCount={discoveryGating.discoveredCount}
+								minRequired={discoveryGating.minRequired}
+							/>
+						</div>
+					)}
 
-					{/* Build / activate / reward phases: step progress */}
-					{phase !== 'observe' && (
+					{/* Build / activate phases: step progress */}
+					{(phase === 'build' || phase === 'activate') && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -717,13 +1026,13 @@ export function Level12Authorization({ onComplete }: LevelComponentProps) {
 								<div className="grid grid-cols-2 gap-3">
 									<div className="bg-success/20 rounded-lg p-3 text-center">
 										<div className="text-2xl font-bold text-success">
-											{allowedCount}
+											{stressTest.allowedCount}
 										</div>
 										<div className="text-xs text-success/70">Allowed</div>
 									</div>
 									<div className="bg-destructive/20 rounded-lg p-3 text-center">
 										<div className="text-2xl font-bold text-destructive">
-											{blockedCount}
+											{stressTest.blockedCount}
 										</div>
 										<div className="text-xs text-destructive/70">Blocked</div>
 									</div>
@@ -753,15 +1062,39 @@ export function Level12Authorization({ onComplete }: LevelComponentProps) {
 							<div className="flex-1 relative">
 								<PipelineFlow
 									connections={OBSERVE_CONNECTIONS}
-									stages={OBSERVE_STAGES}
+									onNodeClick={handleStageClick}
+									stages={observeStages}
+								/>
+								{inspectorData && (
+									<StageInspector
+										data={inspectorData}
+										onClose={() => setInspectorData(null)}
+									/>
+								)}
+							</div>
+
+							{/* Probe terminal */}
+							<div className="px-6 pb-2">
+								<ProbeTerminal
+									onProbe={handleProbe}
+									probes={PROBES}
+									title="API Probe"
 								/>
 							</div>
-							<div className="p-6 flex justify-center">
-								<Button className="gap-2" onClick={handleStartBuild} size="lg">
-									Build the Fix
-									<ArrowRight className="w-4 h-4" />
-								</Button>
-							</div>
+
+							{/* Build the Fix button (discovery gated) */}
+							{discoveryGating.isUnlocked && (
+								<div className="p-4 flex justify-center animate-in fade-in duration-500">
+									<Button
+										className="gap-2"
+										onClick={handleStartBuild}
+										size="lg"
+									>
+										Build the Fix
+										<ArrowRight className="w-4 h-4" />
+									</Button>
+								</div>
+							)}
 						</div>
 					)}
 
@@ -922,14 +1255,22 @@ export function Level12Authorization({ onComplete }: LevelComponentProps) {
 							<div className="flex-1 relative">
 								<PipelineFlow
 									connections={REWARD_CONNECTIONS}
-									stages={REWARD_STAGES}
+									stages={rewardStages}
 								/>
 							</div>
-							<div className="p-4 text-center">
-								<p className="text-sm text-muted-foreground">
-									Policy active. Unauthorized deletes and hacker requests are
-									now blocked. Click Submit to complete the level.
-								</p>
+
+							{/* Stress test controls below pipeline */}
+							<div className="px-6 pb-2">
+								<StressTestPanel
+									allowedCount={stressTest.allowedCount}
+									blockedCount={stressTest.blockedCount}
+									canAutoFire={stressTest.canAutoFire}
+									isAutoFiring={stressTest.isAutoFiring}
+									onFire={handleFireScenario}
+									onToggleAutoFire={stressTest.toggleAutoFire}
+									results={stressTest.results}
+									scenarios={STRESS_SCENARIOS}
+								/>
 							</div>
 						</div>
 					)}

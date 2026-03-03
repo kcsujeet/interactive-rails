@@ -76,13 +76,29 @@ Each phase occupies the **full center panel**. The player focuses on one thing a
 
 #### Phase 1: Problem Visualization (WHY)
 
-Show the problem visually before the player does anything. The player watches and understands what is broken.
+The player **actively explores** the problem through an interactive observe phase. They click on pipeline stages to inspect code, fire test probes to discover vulnerabilities, and find the problem through exploration (not passive watching).
 
-- Center panel: full-screen visualization of the problem (SVG animation, broken pipeline, error state)
-- After a brief observation period (~3s), a **"Build the Fix"** button fades in (with ArrowRight icon)
-- Clicking transitions to Phase 2
-- Left panel: scenario text + any legends needed to understand the visualization
+- Center panel: interactive visualization of the problem. For pipeline levels, use `PipelineFlow` with `onNodeClick` to make stages clickable. Below the pipeline, add a `ProbeTerminal` where the player fires test requests that reveal vulnerabilities.
+- When a stage is clicked, a `StageInspector` card overlay shows the stage's description and code. Pipeline nodes react to probes: nodes flip between `'default'`/`'inactive'` and `'danger'` (red) variant to show the breach in real time. The node sublabel updates to show what is happening (e.g. "DELETE user_7") and the badge shows the response (e.g. "204!").
+- Left panel: scenario text + `DiscoveryChecklist` showing explore progress (pills with Search/Check icons, progress bar with "X of Y required")
 - Right panel: the broken/vulnerable/unoptimized code
+- "Build the Fix" button appears **only when `discoveryGating.isUnlocked`** (player has found enough problems), not on a timer. Uses `animate-in fade-in duration-500`.
+
+**Observe phase components:**
+- `useDiscoveryGating(defs, { minRequired })` hook: tracks what the player has discovered. API: `discover(id)`, `isDiscovered(id)`, `isUnlocked`. No wrong attempts, pure exploration gating.
+- `DiscoveryChecklist`: left panel component showing discovery progress
+- `ProbeTerminal`: terminal-style component (amber-themed `>` prompt, distinct from SimulatedTerminal's green `$`). Each probe fires once, response reveals vulnerability. NOT a quiz. `onProbe(id)` callback triggers discoveries.
+- `StageInspector`: card overlay on stage click. Shows title, description, optional code block. Closes on X, click outside, or Escape.
+- `PipelineFlow` with `onNodeClick`: stages get `inspectable: true` (shows pulsing `?` indicator until inspected) and `inspected: boolean` (hides `?` after click). `cursor-pointer` + hover ring on clickable nodes.
+- Pipeline node `variant` is `'danger'` (red bg, red border, red sublabel) when showing a breach, `'active'` (green) when showing success, `'inactive'` (dashed, dimmed) for missing stages, `'default'` (zinc) otherwise.
+
+**Define data maps for each level:**
+- `DISCOVERY_DEFS`: array of `{ id, label }` for all discoverable items
+- `PROBES`: array of `ProbeConfig` with `{ id, label, command, responseLines }`
+- `PROBE_DISCOVERY_MAP`: maps probe IDs to discovery IDs they trigger
+- `STAGE_INSPECTOR_MAP`: maps stage IDs to `StageInspectorData` (title, description, optional code)
+- `STAGE_DISCOVERY_MAP`: maps stage IDs to discovery IDs they trigger
+- `PROBE_PIPELINE_MAP`: maps probe IDs to `{ policySublabel, modelBadge }` for node display during probes
 
 **Every level needs its own unique visualization concept.** Do NOT reuse the same "dots flowing through a pipeline" pattern everywhere. The visualization must teach the specific concept of that level. Examples:
 - MVC/architecture levels: pipeline/flow diagram showing where this piece fits in the request cycle
@@ -115,23 +131,30 @@ The player builds the solution step by step. **This phase must cover the COMPLET
 
 #### Phase 3: Solution Visualization (ADVANTAGE)
 
-Show the concrete improvement. The player sees the fix in action.
+The player **stress-tests** their solution by firing different request scenarios and watching the fix handle each one. This is interactive, not passive.
 
-- Sub-phase a (activate): star rating display + "Activate" button (centered, no animation)
-- Sub-phase b (reward): full-screen visualization returns, now showing the solution working (blocked attacks, faster queries, cleaner output)
-- Left panel: StepProgress (all complete) + any counters/metrics
+- Sub-phase a (activate): star rating display + "Visualize ___" button (centered, no animation)
+- Sub-phase b (reward): full-screen visualization returns in center panel, now showing the solution working. Below the pipeline, a `StressTestPanel` (terminal-style, dark bg, traffic-light header) lets the player fire request scenarios.
+- Pipeline nodes react dynamically to each fired scenario. The key node (e.g. Pundit policy) flips between `'active'` (green, sublabel "authorize!") for allowed requests and `'danger'` (red, sublabel "403 Forbidden", badge "BLOCKED") for blocked requests. This gives immediate visual feedback per request.
+- Left panel: legend + dual counters (Allowed/Blocked in green/red grid)
 - Right panel: final complete code
 - Player clicks Submit when satisfied
+
+**Reward phase components:**
+- `useStressTest(scenarios)` hook: manages stress-test mechanics. API: `fireRequest(scenarioId)`, `toggleAutoFire()`, `reset()`. Returns `results`, `allowedCount`, `blockedCount`, `isAutoFiring`, `canAutoFire` (gates behind 3+ manual fires).
+- `StressTestPanel`: terminal-style center panel component (matching ProbeTerminal styling). Shows scenario buttons with full detail (`METHOD /path as actor`), color-coded by expected result (green border for allowed, red for blocked). Results log with status codes. Auto-fire toggle with escalating speed.
+- `STRESS_SCENARIOS`: array of `StressScenario` with `{ id, label, description, method, path, actor, expectedResult }`.
+- Reward pipeline stages are built with `useMemo` reacting to `stressTest.results[last]` so nodes update on every fire.
 
 #### Phase state machine
 
 ```
 phase: 'observe' | 'build' | 'activate' | 'reward'
 
-observe  -> (click "Build the Fix")    -> build
-build    -> (all steps complete)        -> activate
-activate -> (click "Visualize ___")      -> reward
-reward   -> (click Submit)              -> level complete
+observe  -> (discoveryGating.isUnlocked && click "Build the Fix") -> build
+build    -> (all steps complete via useEffect)                     -> activate
+activate -> (click "Visualize ___")                                -> reward
+reward   -> (click Submit)                                         -> level complete
 ```
 
 **Act calibration:**

@@ -26,10 +26,14 @@ export interface PipelineStage {
 	id: string;
 	label: string;
 	sublabel?: string;
-	/** 'default' = zinc, 'active' = emerald, 'inactive' = dashed + dimmed */
-	variant?: 'default' | 'active' | 'inactive';
+	/** 'default' = zinc, 'active' = emerald, 'danger' = red, 'inactive' = dashed + dimmed */
+	variant?: 'default' | 'active' | 'danger' | 'inactive';
 	/** Pulsing badge text (e.g. "500!", "FAIL") */
 	badge?: string;
+	/** Whether this stage can be clicked to inspect (shows pulsing ? indicator) */
+	inspectable?: boolean;
+	/** Whether this stage has been inspected (hides the ? indicator) */
+	inspected?: boolean;
 }
 
 export interface PipelineDot {
@@ -48,6 +52,8 @@ export interface PipelineConnection {
 export interface PipelineFlowProps {
 	stages: PipelineStage[];
 	connections: PipelineConnection[];
+	/** Called when a stage node is clicked. Enables interactive pipeline. */
+	onNodeClick?: (stageId: string) => void;
 	className?: string;
 }
 
@@ -84,8 +90,11 @@ interface InternalDotConfig {
 interface StageNodeData {
 	label: string;
 	sublabel?: string;
-	variant: 'default' | 'active' | 'inactive';
+	variant: 'default' | 'active' | 'danger' | 'inactive';
 	badge?: string;
+	clickable?: boolean;
+	inspectable?: boolean;
+	inspected?: boolean;
 	[key: string]: unknown;
 }
 
@@ -99,23 +108,35 @@ const PipelineStageNode = memo(function PipelineStageNode({
 	data: StageNodeData;
 }) {
 	const isActive = data.variant === 'active';
+	const isDanger = data.variant === 'danger';
 	const isInactive = data.variant === 'inactive';
+	const isDefault = !isActive && !isDanger && !isInactive;
+	const showIndicator = data.inspectable && !data.inspected;
 
 	return (
 		<div
 			className={cn(
-				'px-6 py-4 rounded-lg border-2 min-w-[120px] text-center',
+				'px-6 py-4 rounded-lg border-2 min-w-[120px] text-center relative transition-colors',
 				isActive && 'bg-emerald-900/60 border-emerald-500',
+				isDanger && 'bg-red-900/60 border-red-500',
 				isInactive && 'bg-zinc-900/40 border-zinc-600 border-dashed opacity-60',
-				!isActive && !isInactive && 'bg-zinc-800 border-zinc-600',
+				isDefault && 'bg-zinc-800 border-zinc-600',
+				data.clickable &&
+					'cursor-pointer hover:ring-2 hover:ring-primary/50 transition-shadow',
 			)}
 		>
+			{/* Pulsing ? indicator for uninspected clickable stages */}
+			{showIndicator && (
+				<div className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center animate-pulse">
+					<span className="text-xs font-bold text-zinc-900">?</span>
+				</div>
+			)}
 			<div
 				className={cn(
 					'text-sm font-medium',
-					isActive && 'text-white',
+					(isActive || isDanger) && 'text-white',
 					isInactive && 'text-zinc-500',
-					!isActive && !isInactive && 'text-zinc-300',
+					isDefault && 'text-zinc-300',
 				)}
 			>
 				{data.label}
@@ -125,8 +146,9 @@ const PipelineStageNode = memo(function PipelineStageNode({
 					className={cn(
 						'text-xs mt-1',
 						isActive && 'text-emerald-300',
+						isDanger && 'text-red-300',
 						isInactive && 'text-zinc-600',
-						!isActive && !isInactive && 'text-zinc-500',
+						isDefault && 'text-zinc-500',
 					)}
 				>
 					{data.sublabel}
@@ -223,7 +245,10 @@ function resolveDots(
 	}));
 }
 
-function buildNodes(stages: PipelineStage[]): Node[] {
+function buildNodes(
+	stages: PipelineStage[],
+	clickable: boolean,
+): Node[] {
 	return stages.map((stage, i) => ({
 		id: stage.id,
 		type: 'pipelineStage',
@@ -233,6 +258,9 @@ function buildNodes(stages: PipelineStage[]): Node[] {
 			sublabel: stage.sublabel,
 			variant: stage.variant ?? 'default',
 			badge: stage.badge,
+			clickable,
+			inspectable: stage.inspectable,
+			inspected: stage.inspected,
 		} satisfies StageNodeData,
 	}));
 }
@@ -258,22 +286,35 @@ function handleInit(instance: ReactFlowInstance) {
 export function PipelineFlow({
 	stages,
 	connections,
+	onNodeClick,
 	className,
 }: PipelineFlowProps) {
-	const nodes = useMemo(() => buildNodes(stages), [stages]);
+	const isClickable = !!onNodeClick;
+	const nodes = useMemo(
+		() => buildNodes(stages, isClickable),
+		[stages, isClickable],
+	);
 	const edges = useMemo(() => buildEdges(connections), [connections]);
+
+	const handleNodeClick = useMemo(() => {
+		if (!onNodeClick) return undefined;
+		return (_event: MouseEvent, node: Node) => {
+			onNodeClick(node.id);
+		};
+	}, [onNodeClick]);
 
 	return (
 		<ReactFlow
 			className={className}
 			edges={edges}
 			edgeTypes={pipelineEdgeTypes}
-			elementsSelectable={false}
+			elementsSelectable={isClickable}
 			nodes={nodes}
 			nodesConnectable={false}
 			nodesFocusable={false}
 			nodeTypes={pipelineNodeTypes}
 			onInit={handleInit}
+			onNodeClick={handleNodeClick}
 			proOptions={{ hideAttribution: true }}
 		/>
 	);
