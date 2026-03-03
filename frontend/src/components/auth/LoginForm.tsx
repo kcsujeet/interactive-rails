@@ -47,14 +47,14 @@ export default function LoginForm() {
 	}
 
 	return (
-		<Card className="w-full max-w-md shadow-xl border-primary/10">
-			<CardHeader>
-				<CardTitle className="text-xl">Login</CardTitle>
-				<CardDescription>
-					Enter your credentials to access your account
-				</CardDescription>
-			</CardHeader>
-			<form onSubmit={handleSubmit}>
+		<form onSubmit={handleSubmit}>
+			<Card className="w-full max-w-md shadow-xl border-primary/10">
+				<CardHeader>
+					<CardTitle className="text-xl">Login</CardTitle>
+					<CardDescription>
+						Enter your credentials to access your account
+					</CardDescription>
+				</CardHeader>
 				<CardContent className="space-y-4">
 					{error && (
 						<div className="p-3 rounded-lg bg-destructive/15 border border-destructive/50 text-sm text-destructive">
@@ -112,7 +112,7 @@ export default function LoginForm() {
 						</a>
 					</p>
 				</CardFooter>
-			</form>
-		</Card>
+			</Card>
+		</form>
 	);
 }
