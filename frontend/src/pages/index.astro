@@ -4,7 +4,7 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { Blocks, Sparkles, Search, Database, Cog, Rocket } from 'lucide-react';
+import { Eye, Wrench, Zap, Shield, Layers, Search, Database, Cog, Rocket, Server } from 'lucide-react';
 
 const currentYear = new Date().getFullYear();
 ---
@@ -23,11 +23,11 @@ const currentYear = new Date().getFullYear();
             <Badge className="mb-6 animate-in fade-in duration-500" size="md">Interactive Learning</Badge>
             <h1 class="text-5xl lg:text-6xl font-bold mb-6 leading-[1.1] tracking-tight">
               <span class="block text-foreground">Learn Rails</span>
-              <span class="block bg-linear-to-r from-primary via-amber-400 to-primary bg-clip-text text-transparent bg-size-[200%_auto] animate-shimmer">Interactively</span>
+              <span class="block bg-linear-to-r from-primary via-amber-400 to-primary bg-clip-text text-transparent bg-size-[200%_auto] animate-shimmer">By Building</span>
             </h1>
             <p class="text-lg text-muted-foreground mb-8 leading-relaxed animate-in fade-in slide-in-from-bottom-2 duration-500 delay-150">
-              Understand Rails patterns through interactive pipeline simulations.
-              Visualize request flows, detect N+1 queries, and learn optimization strategies.
+              55 levels across 8 acts. Discover vulnerabilities, build fixes step by step,
+              then stress-test your solution. From first <code class="text-sm bg-muted px-1.5 py-0.5 rounded">rails new</code> to database sharding.
             </p>
             <div class="flex flex-wrap gap-4" id="hero-cta">
               <Button size="xl">
@@ -90,28 +90,32 @@ const currentYear = new Date().getFullYear();
     <section class="py-20 bg-muted/30" id="how-it-works">
       <div class="max-w-[1200px] mx-auto px-6">
         <h2 class="text-3xl font-bold text-center text-foreground mb-2">How It Works</h2>
-        <p class="text-center text-muted-foreground mb-12">Learn Rails through hands-on exercises</p>
+        <p class="text-center text-muted-foreground mb-12">Every level follows the same three-phase flow</p>
 
-        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="p-6 text-center hover-card animate-in fade-in slide-in-from-bottom-3 duration-500 delay-100 ">
-            <div class="w-12 h-12 rounded-full bg-success/20 border border-success/50 flex items-center justify-center text-lg font-bold text-success mx-auto mb-4">1</div>
-            <h3 class="font-semibold text-foreground mb-2">Build Pipelines</h3>
-            <p class="text-sm text-muted-foreground leading-relaxed">Drag and drop Rails components to construct request pipelines. Connect routes, controllers, models, and databases.</p>
+        <div class="grid sm:grid-cols-3 gap-8">
+          <Card className="p-6 text-center hover-card animate-in fade-in slide-in-from-bottom-3 duration-500 delay-100">
+            <div class="w-14 h-14 rounded-xl bg-destructive/20 border border-destructive/50 flex items-center justify-center mx-auto mb-4">
+              <Eye className="w-7 h-7 text-destructive" />
+            </div>
+            <h3 class="font-semibold text-foreground mb-1">Observe</h3>
+            <p class="text-xs text-muted-foreground mb-3 uppercase tracking-wider">Why is it broken?</p>
+            <p class="text-sm text-muted-foreground leading-relaxed">Click pipeline stages, fire API probes, and discover vulnerabilities yourself. No hand-holding.</p>
           </Card>
-          <Card className="p-6 text-center hover-card animate-in fade-in slide-in-from-bottom-3 duration-500 delay-200 ">
-            <div class="w-12 h-12 rounded-full bg-info/20 border border-info/50 flex items-center justify-center text-lg font-bold text-info mx-auto mb-4">2</div>
-            <h3 class="font-semibold text-foreground mb-2">Visualize Flows</h3>
-            <p class="text-sm text-muted-foreground leading-relaxed">See how requests flow through your pipeline. Understand the MVC pattern and identify bottlenecks visually.</p>
+          <Card className="p-6 text-center hover-card animate-in fade-in slide-in-from-bottom-3 duration-500 delay-200">
+            <div class="w-14 h-14 rounded-xl bg-primary/20 border border-primary/50 flex items-center justify-center mx-auto mb-4">
+              <Wrench className="w-7 h-7 text-primary" />
+            </div>
+            <h3 class="font-semibold text-foreground mb-1">Build</h3>
+            <p class="text-xs text-muted-foreground mb-3 uppercase tracking-wider">How do you fix it?</p>
+            <p class="text-sm text-muted-foreground leading-relaxed">Install gems, run generators, choose code snippets. Build the complete solution step by step.</p>
           </Card>
-          <Card className="p-6 text-center hover-card animate-in fade-in slide-in-from-bottom-3 duration-500 delay-300 ">
-            <div class="w-12 h-12 rounded-full bg-destructive/20 border border-destructive/50 flex items-center justify-center text-lg font-bold text-destructive mx-auto mb-4">3</div>
-            <h3 class="font-semibold text-foreground mb-2">Learn Patterns</h3>
-            <p class="text-sm text-muted-foreground leading-relaxed">Understand N+1 queries, caching strategies, background jobs, and other Rails patterns through guided exercises.</p>
-          </Card>
-          <Card className="p-6 text-center hover-card animate-in fade-in slide-in-from-bottom-3 duration-500 delay-500 ">
-            <div class="w-12 h-12 rounded-full bg-primary/20 border border-primary/50 flex items-center justify-center text-lg font-bold text-primary mx-auto mb-4">4</div>
-            <h3 class="font-semibold text-foreground mb-2">Progress Through Acts</h3>
-            <p class="text-sm text-muted-foreground leading-relaxed">Work through 35 levels across 6 acts, from Rails fundamentals to system design and microservices.</p>
+          <Card className="p-6 text-center hover-card animate-in fade-in slide-in-from-bottom-3 duration-500 delay-300">
+            <div class="w-14 h-14 rounded-xl bg-success/20 border border-success/50 flex items-center justify-center mx-auto mb-4">
+              <Zap className="w-7 h-7 text-success" />
+            </div>
+            <h3 class="font-semibold text-foreground mb-1">Stress Test</h3>
+            <p class="text-xs text-muted-foreground mb-3 uppercase tracking-wider">Does it hold up?</p>
+            <p class="text-sm text-muted-foreground leading-relaxed">Fire requests at your solution. Watch pipeline nodes flip green and red. Toggle auto-fire for the crescendo.</p>
           </Card>
         </div>
       </div>
@@ -121,145 +125,145 @@ const currentYear = new Date().getFullYear();
     <section class="py-20">
       <div class="max-w-[1200px] mx-auto px-6">
         <h2 class="text-3xl font-bold text-center text-foreground mb-2">What You'll Learn</h2>
-        <p class="text-center text-muted-foreground mb-12">From Rails basics to production-scale architecture</p>
+        <p class="text-center text-muted-foreground mb-12">From <code class="text-xs bg-muted px-1.5 py-0.5 rounded">rails new</code> to production architecture</p>
 
         <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <Card className="p-6 hover-card group ">
+          <Card className="p-6 hover-card group">
             <div class="w-14 h-14 rounded-xl bg-destructive/20 border border-destructive/50 flex items-center justify-center mb-4 transition-all duration-300 group-hover:bg-destructive/25">
-              <Blocks className="w-7 h-7 text-destructive" />
+              <Layers className="w-7 h-7 text-destructive" />
             </div>
             <h3 class="text-lg font-semibold text-foreground mb-2">Rails Fundamentals</h3>
-            <p class="text-sm text-muted-foreground leading-relaxed mb-4">Master MVC architecture, ActiveRecord associations, validations, and the request lifecycle.</p>
+            <p class="text-sm text-muted-foreground leading-relaxed mb-4">MVC architecture, ActiveRecord, validations, callbacks, routes, and the full request lifecycle.</p>
             <div class="flex flex-wrap gap-1.5">
               <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-destructive">has_many</span>
-              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-destructive">belongs_to</span>
               <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-destructive">validates</span>
+              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-destructive">resources</span>
             </div>
           </Card>
 
-          <Card className="p-6 hover-card group ">
+          <Card className="p-6 hover-card group">
             <div class="w-14 h-14 rounded-xl bg-info/20 border border-info/50 flex items-center justify-center mb-4 transition-all duration-300 group-hover:bg-info/25">
-              <Sparkles className="w-7 h-7 text-info" />
+              <Shield className="w-7 h-7 text-info" />
             </div>
-            <h3 class="text-lg font-semibold text-foreground mb-2">Clean Code Patterns</h3>
-            <p class="text-sm text-muted-foreground leading-relaxed mb-4">Refactor fat controllers with service objects, validation contracts, and proper separation of concerns.</p>
+            <h3 class="text-lg font-semibold text-foreground mb-2">Security & Auth</h3>
+            <p class="text-sm text-muted-foreground leading-relaxed mb-4">Authentication, authorization with Pundit, strong params, CORS, and encrypted attributes.</p>
             <div class="flex flex-wrap gap-1.5">
-              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-info">Services</span>
-              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-info">Dry::Validation</span>
-              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-info">SRP</span>
+              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-info">has_secure_password</span>
+              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-info">authorize</span>
+              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-info">params.expect</span>
             </div>
           </Card>
 
-          <Card className="p-6 hover-card group ">
+          <Card className="p-6 hover-card group">
             <div class="w-14 h-14 rounded-xl bg-warning/20 border border-warning/50 flex items-center justify-center mb-4 transition-all duration-300 group-hover:bg-warning/25">
               <Search className="w-7 h-7 text-warning" />
             </div>
             <h3 class="text-lg font-semibold text-foreground mb-2">Query Optimization</h3>
-            <p class="text-sm text-muted-foreground leading-relaxed mb-4">Detect and fix N+1 queries, add proper indexes, and use eager loading effectively.</p>
+            <p class="text-sm text-muted-foreground leading-relaxed mb-4">Detect N+1 queries, add indexes, use eager loading, counter caches, and pagination.</p>
             <div class="flex flex-wrap gap-1.5">
               <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-warning">includes()</span>
               <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-warning">add_index</span>
-              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-warning">explain</span>
+              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-warning">counter_cache</span>
             </div>
           </Card>
 
-          <Card className="p-6 hover-card group ">
+          <Card className="p-6 hover-card group">
             <div class="w-14 h-14 rounded-xl bg-success/20 border border-success/50 flex items-center justify-center mb-4 transition-all duration-300 group-hover:bg-success/25">
               <Database className="w-7 h-7 text-success" />
             </div>
             <h3 class="text-lg font-semibold text-foreground mb-2">Caching & Performance</h3>
-            <p class="text-sm text-muted-foreground leading-relaxed mb-4">Implement caching strategies from fragment caching to Russian doll patterns with Redis.</p>
+            <p class="text-sm text-muted-foreground leading-relaxed mb-4">Fragment caching, HTTP caching, CDNs, and Solid Cache for database-backed stores.</p>
             <div class="flex flex-wrap gap-1.5">
               <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-success">Rails.cache</span>
-              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-success">Redis</span>
-              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-success">cache_key</span>
+              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-success">Solid Cache</span>
+              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-success">ETag</span>
             </div>
           </Card>
 
-          <Card className="p-6 hover-card group ">
+          <Card className="p-6 hover-card group">
             <div class="w-14 h-14 rounded-xl bg-primary/20 border border-primary/50 flex items-center justify-center mb-4 transition-all duration-300 group-hover:bg-primary/25">
               <Cog className="w-7 h-7 text-primary" />
             </div>
-            <h3 class="text-lg font-semibold text-foreground mb-2">Background Processing</h3>
-            <p class="text-sm text-muted-foreground leading-relaxed mb-4">Handle async operations with Sidekiq, manage job queues, and ensure idempotency.</p>
+            <h3 class="text-lg font-semibold text-foreground mb-2">Background Jobs</h3>
+            <p class="text-sm text-muted-foreground leading-relaxed mb-4">Offload work with Solid Queue, handle webhooks, schedule recurring jobs, and ensure idempotency.</p>
             <div class="flex flex-wrap gap-1.5">
-              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-primary">Sidekiq</span>
+              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-primary">Solid Queue</span>
               <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-primary">perform_later</span>
               <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-primary">ActiveJob</span>
             </div>
           </Card>
 
-          <Card className="p-6 hover-card group ">
+          <Card className="p-6 hover-card group">
             <div class="w-14 h-14 rounded-xl bg-info/20 border border-info/50 flex items-center justify-center mb-4 transition-all duration-300 group-hover:bg-info/25">
               <Rocket className="w-7 h-7 text-info" />
             </div>
-            <h3 class="text-lg font-semibold text-foreground mb-2">Production & Scale</h3>
-            <p class="text-sm text-muted-foreground leading-relaxed mb-4">Build resilient systems with circuit breakers, read replicas, sharding, and observability.</p>
+            <h3 class="text-lg font-semibold text-foreground mb-2">Scale & Architecture</h3>
+            <p class="text-sm text-muted-foreground leading-relaxed mb-4">Multi-database, state machines, modular monolith, domain events, and database sharding.</p>
             <div class="flex flex-wrap gap-1.5">
-              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-info">Circuit Breaker</span>
-              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-info">Replicas</span>
+              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-info">Multi-DB</span>
               <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-info">Sharding</span>
+              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-info">Packwerk</span>
             </div>
           </Card>
         </div>
       </div>
     </section>
 
-    <!-- Levels Preview -->
+    <!-- Learning Path -->
     <section class="py-20 bg-muted/30">
       <div class="max-w-[1200px] mx-auto px-6">
         <h2 class="text-3xl font-bold text-center text-foreground mb-2">Learning Path</h2>
-        <p class="text-center text-muted-foreground mb-12">35 levels across 6 acts - from Rails basics to system design</p>
+        <p class="text-center text-muted-foreground mb-12">55 levels across 8 acts, from zero to production architect</p>
 
         <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="p-6 hover-card ">
+          <Card className="p-6 hover-card">
             <div class="flex justify-between items-center mb-3">
-              <Badge color="success" variant="soft">Act I</Badge>
-              <span class="text-xs text-muted-foreground">8 levels</span>
+              <Badge color="success" variant="soft">Act 1-2</Badge>
+              <span class="text-xs text-muted-foreground">15 levels</span>
             </div>
-            <h3 class="font-semibold text-foreground mb-2">Rails Fundamentals</h3>
-            <p class="text-sm text-muted-foreground leading-relaxed mb-3">MVC architecture, associations, validations, and the request lifecycle.</p>
+            <h3 class="font-semibold text-foreground mb-2">Foundation & Security</h3>
+            <p class="text-sm text-muted-foreground leading-relaxed mb-3">Build a working API from scratch, then lock it down with auth, authorization, and strong params.</p>
             <div class="flex flex-wrap gap-1.5">
-              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-success">has_many</span>
-              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-success">belongs_to</span>
+              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-success">rails new</span>
+              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-success">Pundit</span>
             </div>
           </Card>
 
-          <Card className="p-6 hover-card ">
+          <Card className="p-6 hover-card">
             <div class="flex justify-between items-center mb-3">
-              <Badge color="info" variant="soft">Act II-III</Badge>
-              <span class="text-xs text-muted-foreground">13 levels</span>
+              <Badge color="info" variant="soft">Act 3-4</Badge>
+              <span class="text-xs text-muted-foreground">16 levels</span>
             </div>
             <h3 class="font-semibold text-foreground mb-2">Clean Code & Performance</h3>
-            <p class="text-sm text-muted-foreground leading-relaxed mb-3">Refactoring patterns, service objects, N+1 queries, and caching strategies.</p>
+            <p class="text-sm text-muted-foreground leading-relaxed mb-3">Refactor with service objects and concerns, then fix N+1 queries, add caching, and optimize.</p>
             <div class="flex flex-wrap gap-1.5">
               <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-info">includes()</span>
               <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-info">Rails.cache</span>
             </div>
           </Card>
 
-          <Card className="p-6 hover-card ">
+          <Card className="p-6 hover-card">
             <div class="flex justify-between items-center mb-3">
-              <Badge color="warning" variant="soft">Act IV-V</Badge>
-              <span class="text-xs text-muted-foreground">10 levels</span>
+              <Badge color="warning" variant="soft">Act 5-6</Badge>
+              <span class="text-xs text-muted-foreground">15 levels</span>
             </div>
-            <h3 class="font-semibold text-foreground mb-2">Production & Infrastructure</h3>
-            <p class="text-sm text-muted-foreground leading-relaxed mb-3">Security, background jobs, Redis, error handling, and resilience patterns.</p>
+            <h3 class="font-semibold text-foreground mb-2">Production & Reliability</h3>
+            <p class="text-sm text-muted-foreground leading-relaxed mb-3">Ship real features: file uploads, real-time, webhooks. Then harden with rate limiting and safe migrations.</p>
             <div class="flex flex-wrap gap-1.5">
-              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-warning">Sidekiq</span>
-              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-warning">Circuit Breaker</span>
+              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-warning">Active Storage</span>
+              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-warning">Solid Cable</span>
             </div>
           </Card>
 
-          <Card className="p-6 hover-card  ">
+          <Card className="p-6 hover-card">
             <div class="flex justify-between items-center mb-3">
-              <Badge color="destructive" variant="soft">Act VI</Badge>
-              <span class="text-xs text-muted-foreground">4 levels</span>
+              <Badge color="destructive" variant="soft">Act 7-8</Badge>
+              <span class="text-xs text-muted-foreground">9 levels</span>
             </div>
-            <h3 class="font-semibold text-foreground mb-2">System Design</h3>
-            <p class="text-sm text-muted-foreground leading-relaxed mb-3">Database scaling, read replicas, sharding, and distributed architecture.</p>
+            <h3 class="font-semibold text-foreground mb-2">Scale & Mastery</h3>
+            <p class="text-sm text-muted-foreground leading-relaxed mb-3">Multi-database, modular monolith, domain events, API gateway, and database sharding.</p>
             <div class="flex flex-wrap gap-1.5">
-              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-destructive">Read Replicas</span>
+              <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-destructive">Multi-DB</span>
               <span class="text-[10px] font-mono px-2 py-1 rounded bg-muted text-destructive">Sharding</span>
             </div>
           </Card>
@@ -272,8 +276,8 @@ const currentYear = new Date().getFullYear();
       <div class="absolute inset-0 bg-linear-to-r from-primary/5 via-amber-500/10 to-primary/5"></div>
       <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,oklch(0.75_0.16_55/0.1)_0%,transparent_60%)]"></div>
       <div class="relative max-w-[1200px] mx-auto px-6 text-center">
-        <h2 class="text-3xl font-bold text-foreground mb-3">Ready to Learn?</h2>
-        <p class="text-muted-foreground mb-8">Start learning Rails through interactive exercises.</p>
+        <h2 class="text-3xl font-bold text-foreground mb-3">Ready to Build?</h2>
+        <p class="text-muted-foreground mb-8">Start with <code class="text-xs bg-muted px-1.5 py-0.5 rounded">rails new</code> and work your way to architect.</p>
         <Button size="xl">
           <a href="/dashboard" id="cta-bottom">Start Learning</a>
         </Button>
@@ -292,4 +296,3 @@ const currentYear = new Date().getFullYear();
     </footer>
   </main>
 </BaseLayout>
-
