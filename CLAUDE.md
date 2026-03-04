@@ -396,6 +396,7 @@ import { Database, Zap, Search, Settings } from "lucide-react";
 
 - **Never use inline `style` attributes.** Use Tailwind utility classes. For animations, use `tw-animate-css` classes (`animate-in`, `fade-in`, `slide-in-from-bottom-3`, `zoom-in-95`, `duration-*`, `delay-*`). Use arbitrary value classes (e.g., `delay-[400ms]`) when no standard utility exists.
 - Use semantic color tokens: `text-foreground`, `bg-card`, `border-border`, `text-muted-foreground`
+- **Always consider both light and dark modes.** Every color choice must be visible and readable on both white and dark backgrounds. Use semantic tokens (which adapt automatically) where possible. When using fixed Tailwind colors (e.g., `text-emerald-600`, `border-zinc-300`), add `dark:` variants to ensure contrast in both modes. Never use hardcoded `white/[0.08]` or `oklch` values that only work on one background.
 - Use Tailwind classes directly, not custom CSS classes in `<style>` blocks.
 - For Astro pages, import and use React components directly (they render statically without hydration for presentational use).
 
