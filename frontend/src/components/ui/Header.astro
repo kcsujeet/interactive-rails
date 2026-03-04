@@ -26,10 +26,20 @@ const isActive = (href: string) =>
       </Button>
     </nav>
 
-    <div class="flex items-center gap-3" id="header-auth">
-      <Button variant="secondary" size="sm">
-        <a href="/login">Login</a>
-      </Button>
+    <div class="flex items-center gap-2">
+      <button
+        id="theme-toggle"
+        class="inline-flex items-center justify-center size-8 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+        aria-label="Toggle theme"
+      >
+        <svg id="theme-icon-sun" class="hidden size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+        <svg id="theme-icon-moon" class="hidden size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+      </button>
+      <div id="header-auth">
+        <Button variant="secondary" size="sm">
+          <a href="/login">Login</a>
+        </Button>
+      </div>
     </div>
   </div>
 </header>
@@ -39,6 +49,23 @@ const isActive = (href: string) =>
   import { escapeHtml } from "@/lib/utils";
 
   const API_URL = import.meta.env.DEV ? '' : 'https://api.interactiverails.com';
+
+  // Theme toggle
+  function updateThemeIcon() {
+    const isDark = document.documentElement.classList.contains('dark');
+    const sun = document.getElementById('theme-icon-sun');
+    const moon = document.getElementById('theme-icon-moon');
+    if (sun) sun.classList.toggle('hidden', isDark);
+    if (moon) moon.classList.toggle('hidden', !isDark);
+  }
+
+  document.getElementById('theme-toggle')?.addEventListener('click', () => {
+    const isDark = document.documentElement.classList.toggle('dark');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    updateThemeIcon();
+  });
+
+  updateThemeIcon();
 
   initAuth();
 

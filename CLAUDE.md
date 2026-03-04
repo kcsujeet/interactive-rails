@@ -383,6 +383,15 @@ import { Database, Zap, Search, Settings } from "lucide-react";
 - **Never use raw HTML elements when a design system component exists.** Use `<Button>` instead of `<button>`, `<Card>` instead of `<div className="border rounded ...">`, etc. For links that look like buttons, wrap `<a>` inside `<Button>`: `<Button><a href="...">...</a></Button>`. The design system is the source of truth for all interactive UI.
 - **Never use `asChild` or Radix Slot with Astro.** Radix's `Slot` component (both `@radix-ui/react-slot` and `radix-ui`) does not merge className onto children during Astro's React SSR. The child renders with only its own classes, losing all parent styling. The `asChild` prop has been removed from the Button component.
 
+### Theme Color Changes
+
+**When updating the theme primary color, update ALL of these:**
+1. `global.css` `.dark` block: `--primary`, `--primary-foreground`, `--ring`, `--shadow-glow`, `--chart-1`, `--sidebar-primary`, `--sidebar-primary-foreground`, `--sidebar-ring`, `::selection` background, `.react-flow__selection` background
+2. Hardcoded `oklch()` values in pages/components (search for the old oklch value across the codebase)
+3. `favicon.svg`: update the accent color to match the new primary
+4. Hero gradient text: update `via-*` color to match the primary hue family
+5. `body` dot pattern in global.css if it references the primary
+
 ### Styling
 
 - **Never use inline `style` attributes.** Use Tailwind utility classes. For animations, use `tw-animate-css` classes (`animate-in`, `fade-in`, `slide-in-from-bottom-3`, `zoom-in-95`, `duration-*`, `delay-*`). Use arbitrary value classes (e.g., `delay-[400ms]`) when no standard utility exists.
@@ -418,4 +427,4 @@ For more information, read the Bun API docs in `node_modules/bun-types/docs/**.m
 
 ## Session Logging
 
-**Document every session.** After making changes, record them in a session log at `docs/sessions/{YYYY-MM-DD}-session-{N}.md`. Each entry should include: what was changed, why, and what was learned. Use `/load-context` at the start of a new conversation to load full project context (docs, spec, architecture, recent sessions) and create a new log file.
+**Document every session.** After making changes, record them in a session log at `docs/sessions/{YYYY-MM-DD}.md` (one file per day). If multiple sessions happen on the same day, append to the existing day's log under a new heading. Each entry should include: what was changed, why, and what was learned. Keep max 10 session logs; prune older ones when creating a new one. Use `/load-context` at the start of a new conversation to load full project context (docs, spec, architecture, recent sessions) and create/update the log file.
