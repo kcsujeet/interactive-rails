@@ -67,6 +67,12 @@
 	--sidebar-accent-foreground: oklch(0.205 0 0);
 	--sidebar-border: oklch(0.922 0 0);
 	--sidebar-ring: oklch(0.55 0.25 18);
+
+	/* Shadows (light theme) */
+	--shadow-sm: 0 1px 2px oklch(0 0 0 / 5%), 0 0 1px oklch(0 0 0 / 3%);
+	--shadow-md: 0 4px 12px oklch(0 0 0 / 8%), 0 0 1px oklch(0 0 0 / 3%);
+	--shadow-lg: 0 8px 30px oklch(0 0 0 / 10%), 0 0 1px oklch(0 0 0 / 3%);
+	--shadow-glow: 0 0 20px oklch(0.55 0.25 18 / 10%);
 }
 
 .dark {
@@ -130,6 +136,7 @@
 	--sidebar-accent-foreground: oklch(0.9 0.005 260);
 	--sidebar-border: oklch(1 0 0 / 8%);
 	--sidebar-ring: oklch(0.65 0.25 18);
+
 }
 
 /* ============================================
@@ -294,10 +301,6 @@ html {
 body {
 	min-height: 100vh;
 	font-family: var(--font-sans);
-	background-image: radial-gradient(
-		oklch(1 0 0 / 4%) 1px,
-		transparent 1px
-	);
 	background-size: 24px 24px;
 }
 
@@ -322,6 +325,10 @@ body {
 
 /* Selection */
 ::selection {
+	background: oklch(0.55 0.25 18 / 20%);
+}
+
+.dark ::selection {
 	background: oklch(0.65 0.25 18 / 30%);
 	color: white;
 }

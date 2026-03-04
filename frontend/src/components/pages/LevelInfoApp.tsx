@@ -4,10 +4,11 @@
  * Displays level briefing information before starting the challenge.
  */
 
-import { Code, Play, Target } from 'lucide-react';
+import { BookOpen, Code, Info, Play, Target } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getActForLevel, getLevel } from '@/features/acts-registry';
 import { levelChallenges } from '../game-barrel';
+import { Alert, AlertDescription } from '../ui/Alert';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { CodeBlock } from '../ui/CodeBlock';
@@ -27,10 +28,20 @@ interface LevelInfo {
 	scenario?: string;
 	problem?: string;
 	goal?: string;
+	learningGoals?: string[];
 	initialMetrics?: {
 		queries: number;
 		latency: number;
 	};
+}
+
+/** Parse markdown-style bullet lines from learningContent.goal */
+function parseLearningGoals(goalText: string): string[] {
+	return goalText
+		.split('\n')
+		.map((line) => line.trim())
+		.filter((line) => line.startsWith('- '))
+		.map((line) => line.slice(2).trim());
 }
 
 export function LevelInfoApp({ levelId }: LevelInfoAppProps) {
@@ -58,6 +69,9 @@ export function LevelInfoApp({ levelId }: LevelInfoAppProps) {
 					problem: level.problem.codeExample,
 					goal:
 						level.problem.goal || 'Fix the pipeline to complete this level.',
+					learningGoals: level.learningContent.goal
+						? parseLearningGoals(level.learningContent.goal)
+						: undefined,
 				}
 			: challenge
 				? {
@@ -98,7 +112,7 @@ export function LevelInfoApp({ levelId }: LevelInfoAppProps) {
 	}
 
 	return (
-		<div className="max-w-3xl mx-auto">
+		<div className="max-w-4xl mx-auto">
 			{/* Breadcrumb */}
 			<LevelBreadcrumb
 				actId={levelInfo.actId}
@@ -107,17 +121,20 @@ export function LevelInfoApp({ levelId }: LevelInfoAppProps) {
 			/>
 
 			{/* Header */}
-			<div className="flex items-start gap-5 mb-8">
-				<div className="w-14 h-14 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-					<span className="text-xl font-bold text-primary">
+			<div className="flex items-start gap-5 mb-10">
+				<div className="w-16 h-16 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+					<span className="text-2xl font-bold text-primary">
 						{levelInfo.levelNumber}
 					</span>
 				</div>
 				<div className="flex-1 min-w-0">
-					<h1 className="text-2xl font-semibold text-foreground mb-2">
+					<p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
+						Act {levelInfo.actId}
+					</p>
+					<h1 className="text-3xl font-semibold text-foreground mb-2">
 						{levelInfo.name}
 					</h1>
-					<p className="text-muted-foreground text-sm leading-relaxed">
+					<p className="text-muted-foreground leading-relaxed">
 						{levelInfo.description}
 					</p>
 					<div className="flex items-center gap-2 mt-3">
@@ -131,18 +148,19 @@ export function LevelInfoApp({ levelId }: LevelInfoAppProps) {
 			</div>
 
 			{/* Content */}
-			<div className="space-y-5">
-				{/* Scenario - Subtle inline */}
+			<div className="space-y-6">
+				{/* Scenario */}
 				{levelInfo.scenario && (
-					<p className="text-sm text-muted-foreground leading-relaxed pl-4 border-l-2 border-border">
-						{levelInfo.scenario}
-					</p>
+					<Alert variant="info">
+						<Info />
+						<AlertDescription>{levelInfo.scenario}</AlertDescription>
+					</Alert>
 				)}
 
-				{/* Problem Card - Prominent (red = something to fix) */}
+				{/* Problem Code */}
 				{levelInfo.problem && (
-					<div className="rounded-xl border-2 border-destructive/20 overflow-hidden bg-destructive/2">
-						<div className="px-5 py-3 bg-destructive/5 border-b border-destructive/10 flex items-center gap-2">
+					<div className="rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950">
+						<div className="px-5 py-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-2">
 							<Code className="w-4 h-4 text-destructive" />
 							<span className="text-xs font-semibold text-destructive uppercase tracking-wider">
 								The Problem
@@ -174,29 +192,56 @@ export function LevelInfoApp({ levelId }: LevelInfoAppProps) {
 					</div>
 				)}
 
-				{/* Goal Card */}
-				{levelInfo.goal && (
-					<div className="bg-success/5 rounded-xl p-5 border border-success/20">
-						<div className="flex items-start gap-4">
-							<div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center shrink-0">
-								<Target className="w-5 h-5 text-success" />
-							</div>
-							<div className="flex-1">
-								<span className="text-xs font-medium text-success uppercase tracking-wider">
-									Your Goal
-								</span>
-								<p className="text-sm text-foreground leading-relaxed mt-1">
-									{levelInfo.goal}
-								</p>
+				{/* Goal + Learning Goals side by side on lg */}
+				<div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+					{/* Goal */}
+					{levelInfo.goal && (
+						<div className="rounded-xl bg-success/5 border border-success/20 p-5">
+							<div className="flex items-start gap-3">
+								<Target className="w-5 h-5 text-success shrink-0 mt-0.5" />
+								<div>
+									<span className="text-xs font-medium text-success uppercase tracking-wider">
+										Your Goal
+									</span>
+									<p className="text-sm text-foreground leading-relaxed mt-1">
+										{levelInfo.goal}
+									</p>
+								</div>
 							</div>
 						</div>
-					</div>
-				)}
+					)}
+
+					{/* What You'll Learn */}
+					{levelInfo.learningGoals && levelInfo.learningGoals.length > 0 && (
+						<div className="rounded-xl bg-primary/5 border border-primary/15 p-5">
+							<div className="flex items-center gap-2 mb-3">
+								<BookOpen className="w-4 h-4 text-primary" />
+								<span className="text-xs font-semibold text-primary uppercase tracking-wider">
+									What You'll Learn
+								</span>
+							</div>
+							<ul className="space-y-1.5">
+								{levelInfo.learningGoals.map((goal) => (
+									<li
+										key={goal}
+										className="flex items-start gap-2 text-sm text-muted-foreground leading-relaxed"
+									>
+										<span className="mt-2 block w-1 h-1 rounded-full bg-primary/50 shrink-0" />
+										{goal}
+									</li>
+								))}
+							</ul>
+						</div>
+					)}
+				</div>
 			</div>
 
-			{/* Action */}
-			<div className="mt-8">
-				<Button className="w-full h-12 text-base" onClick={startLevel}>
+			{/* CTA */}
+			<div className="mt-10">
+				<Button
+					className="w-full h-12 text-base shadow-lg shadow-primary/20"
+					onClick={startLevel}
+				>
 					<Play className="w-5 h-5 mr-2" />
 					Start Challenge
 				</Button>

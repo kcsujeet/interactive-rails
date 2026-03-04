@@ -20,6 +20,7 @@ const buttonVariants = cva(
 			},
 			color: {
 				primary: '[--btn:var(--primary)] [--btn-fg:var(--primary-foreground)]',
+				muted: '[--btn:var(--muted-foreground)] [--btn-fg:var(--foreground)]',
 				success: '[--btn:var(--success)] [--btn-fg:var(--success-foreground)]',
 				info: '[--btn:var(--info)] [--btn-fg:var(--info-foreground)]',
 				warning: '[--btn:var(--warning)] [--btn-fg:var(--warning-foreground)]',

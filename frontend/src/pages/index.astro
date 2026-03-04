@@ -27,8 +27,8 @@ const currentYear = new Date().getFullYear();
 
     <!-- Hero Section -->
     <section class="relative py-16 lg:py-20 overflow-hidden">
-      <div class="absolute inset-0 bg-[radial-gradient(oklch(0.65_0.25_18/0.05)_1px,transparent_1px)] bg-size-[32px_32px]" aria-hidden="true"></div>
-      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[800px] bg-[radial-gradient(ellipse,oklch(0.65_0.25_18/0.12)_0%,transparent_60%)]" aria-hidden="true"></div>
+      <div class="absolute inset-0 bg-[radial-gradient(oklch(0.55_0.25_18/0.08)_1px,transparent_1px)] dark:bg-[radial-gradient(oklch(0.65_0.25_18/0.05)_1px,transparent_1px)] bg-size-[32px_32px]" aria-hidden="true"></div>
+      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[800px] bg-[radial-gradient(ellipse,oklch(0.55_0.25_18/0.08)_0%,transparent_60%)] dark:bg-[radial-gradient(ellipse,oklch(0.65_0.25_18/0.12)_0%,transparent_60%)]" aria-hidden="true"></div>
       <div class="relative max-w-[1400px] mx-auto px-6">
         <div class="grid lg:grid-cols-[1fr_1fr] gap-8 lg:gap-12 items-center">
           <div>
@@ -42,7 +42,7 @@ const currentYear = new Date().getFullYear();
               then stress-test your solution. From first <code class="text-sm bg-muted/80 px-1.5 py-0.5 rounded font-mono text-foreground/80">rails new</code> to database sharding.
             </p>
             <div class="flex flex-wrap gap-3 mb-10" id="hero-cta">
-              <Button size="xl" className="shadow-[0_0_20px_oklch(0.65_0.25_18/0.25)]" >
+              <Button size="xl" className="shadow-[0_0_20px_oklch(0.55_0.25_18/0.2)] dark:shadow-[0_0_20px_oklch(0.65_0.25_18/0.25)]" >
                 <a href="/dashboard" id="cta-primary" class="flex items-center gap-2">
                   Start Learning
                   <ArrowRight className="w-4 h-4" />
@@ -139,7 +139,7 @@ const currentYear = new Date().getFullYear();
 
     <!-- How It Works -->
     <section class="py-24 bg-muted/30 relative overflow-hidden" id="how-it-works">
-      <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,oklch(0.65_0.25_18/0.04)_0%,transparent_60%)]" aria-hidden="true"></div>
+      <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,oklch(0.55_0.25_18/0.06)_0%,transparent_60%)] dark:bg-[radial-gradient(ellipse_at_bottom,oklch(0.65_0.25_18/0.04)_0%,transparent_60%)]" aria-hidden="true"></div>
       <div class="relative max-w-[1400px] mx-auto px-6">
         <div class="text-center mb-16">
           <Badge className="mb-4" variant="outline" size="sm">Three-Phase Flow</Badge>
@@ -154,7 +154,6 @@ const currentYear = new Date().getFullYear();
               <div class="w-12 h-12 rounded-xl bg-red-500/15 border border-red-500/30 flex items-center justify-center">
                 <Eye className="w-6 h-6 text-red-400" />
               </div>
-              <Badge className="absolute -top-2 -left-2" color="destructive" size="xs">1</Badge>
             </div>
             <h3 class="text-lg font-semibold text-foreground mb-1">Observe</h3>
             <p class="text-xs text-red-400/80 mb-2 uppercase tracking-wider font-medium">Find what's broken</p>
@@ -167,7 +166,6 @@ const currentYear = new Date().getFullYear();
               <div class="w-12 h-12 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
                 <Wrench className="w-6 h-6 text-amber-400" />
               </div>
-              <Badge className="absolute -top-2 -left-2" color="warning" size="xs">2</Badge>
             </div>
             <h3 class="text-lg font-semibold text-foreground mb-1">Build</h3>
             <p class="text-xs text-amber-400/80 mb-2 uppercase tracking-wider font-medium">Construct the fix</p>
@@ -180,7 +178,6 @@ const currentYear = new Date().getFullYear();
               <div class="w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center">
                 <Zap className="w-6 h-6 text-emerald-400" />
               </div>
-              <Badge className="absolute -top-2 -left-2" color="success" size="xs">3</Badge>
             </div>
             <h3 class="text-lg font-semibold text-foreground mb-1">Stress Test</h3>
             <p class="text-xs text-emerald-400/80 mb-2 uppercase tracking-wider font-medium">Prove it works</p>
@@ -196,14 +193,14 @@ const currentYear = new Date().getFullYear();
         <div class="grid lg:grid-cols-2 gap-12 items-center">
           <!-- Terminal mockup -->
           <div class="rounded-xl border border-border bg-zinc-900 dark:bg-zinc-900/80 overflow-hidden shadow-xl">
-            <div class="flex items-center gap-2 px-4 py-3 bg-white/[0.03] border-b border-zinc-800">
+            <div class="flex items-center gap-2 px-4 py-3 bg-zinc-800/50 border-b border-zinc-700">
               <div class="flex gap-1.5">
                 <span class="w-3 h-3 rounded-full bg-red-500"></span>
                 <span class="w-3 h-3 rounded-full bg-yellow-500"></span>
                 <span class="w-3 h-3 rounded-full bg-green-500"></span>
               </div>
-              <Terminal className="w-3.5 h-3.5 text-zinc-500 ml-2" />
-              <span class="text-xs text-zinc-500 font-mono">Probe Terminal</span>
+              <Terminal className="w-3.5 h-3.5 text-zinc-400 ml-2" />
+              <span class="text-xs text-zinc-400 font-mono">Probe Terminal</span>
             </div>
             <div class="p-5 font-mono text-sm space-y-3">
               <div>
@@ -234,7 +231,7 @@ const currentYear = new Date().getFullYear();
           <!-- Description -->
           <div>
             <Badge className="mb-4" variant="soft" color="warning" size="sm">Observe Phase</Badge>
-            <h2 class="text-3xl lg:text-4xl font-bold text-foreground mb-4">Discover Problems<br/>Through Exploration</h2>
+            <h2 class="text-3xl lg:text-4xl font-bold text-foreground mb-4">Discover Problems <br class="hidden lg:block" />Through Exploration</h2>
             <p class="text-muted-foreground leading-relaxed mb-6">
               No one tells you what's wrong. You fire API probes, click pipeline stages, and piece together
               the vulnerabilities yourself. Each discovery lights up the checklist. Find enough, and the "Build the Fix" button unlocks.
@@ -260,7 +257,7 @@ const currentYear = new Date().getFullYear();
 
     <!-- Concepts -->
     <section class="py-24 bg-muted/30 relative overflow-hidden">
-      <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,oklch(0.65_0.25_18/0.04)_0%,transparent_60%)]" aria-hidden="true"></div>
+      <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,oklch(0.55_0.25_18/0.06)_0%,transparent_60%)] dark:bg-[radial-gradient(ellipse_at_top,oklch(0.65_0.25_18/0.04)_0%,transparent_60%)]" aria-hidden="true"></div>
       <div class="relative max-w-[1400px] mx-auto px-6">
         <div class="text-center mb-14">
           <Badge className="mb-4" variant="outline" size="sm">Curriculum</Badge>
@@ -385,8 +382,8 @@ const currentYear = new Date().getFullYear();
           <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             <div class="relative">
               <div class="flex justify-center mb-4">
-                <div class="w-16 h-16 rounded-full bg-emerald-500/15 border-2 border-emerald-500/40 flex items-center justify-center relative z-10 bg-background">
-                  <span class="text-lg font-bold text-emerald-400">1-2</span>
+                <div class="w-16 h-16 rounded-full bg-emerald-500/15 border-2 border-emerald-500/40 flex items-center justify-center relative z-10 shadow-[0_0_0_4px_var(--background)]">
+                  <span class="text-lg font-bold text-emerald-600 dark:text-emerald-400">1-2</span>
                 </div>
               </div>
               <Card className="p-5 hover-card border-emerald-500/20 hover:border-emerald-500/40">
@@ -405,8 +402,8 @@ const currentYear = new Date().getFullYear();
 
             <div class="relative">
               <div class="flex justify-center mb-4">
-                <div class="w-16 h-16 rounded-full bg-blue-500/15 border-2 border-blue-500/40 flex items-center justify-center relative z-10 bg-background">
-                  <span class="text-lg font-bold text-blue-400">3-4</span>
+                <div class="w-16 h-16 rounded-full bg-blue-500/15 border-2 border-blue-500/40 flex items-center justify-center relative z-10 shadow-[0_0_0_4px_var(--background)]">
+                  <span class="text-lg font-bold text-blue-600 dark:text-blue-400">3-4</span>
                 </div>
               </div>
               <Card className="p-5 hover-card border-blue-500/20 hover:border-blue-500/40">
@@ -425,8 +422,8 @@ const currentYear = new Date().getFullYear();
 
             <div class="relative">
               <div class="flex justify-center mb-4">
-                <div class="w-16 h-16 rounded-full bg-amber-500/15 border-2 border-amber-500/40 flex items-center justify-center relative z-10 bg-background">
-                  <span class="text-lg font-bold text-amber-400">5-6</span>
+                <div class="w-16 h-16 rounded-full bg-amber-500/15 border-2 border-amber-500/40 flex items-center justify-center relative z-10 shadow-[0_0_0_4px_var(--background)]">
+                  <span class="text-lg font-bold text-amber-600 dark:text-amber-400">5-6</span>
                 </div>
               </div>
               <Card className="p-5 hover-card border-amber-500/20 hover:border-amber-500/40">
@@ -445,8 +442,8 @@ const currentYear = new Date().getFullYear();
 
             <div class="relative">
               <div class="flex justify-center mb-4">
-                <div class="w-16 h-16 rounded-full bg-red-500/15 border-2 border-red-500/40 flex items-center justify-center relative z-10 bg-background">
-                  <span class="text-lg font-bold text-red-400">7-8</span>
+                <div class="w-16 h-16 rounded-full bg-red-500/15 border-2 border-red-500/40 flex items-center justify-center relative z-10 shadow-[0_0_0_4px_var(--background)]">
+                  <span class="text-lg font-bold text-red-600 dark:text-red-400">7-8</span>
                 </div>
               </div>
               <Card className="p-5 hover-card border-red-500/20 hover:border-red-500/40">
@@ -470,12 +467,12 @@ const currentYear = new Date().getFullYear();
     <!-- CTA -->
     <section class="relative py-28 overflow-hidden">
       <div class="absolute inset-0 bg-linear-to-b from-muted/30 via-transparent to-transparent"></div>
-      <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,oklch(0.65_0.25_18/0.12)_0%,transparent_50%)]"></div>
-      <div class="absolute inset-0 bg-[radial-gradient(oklch(0.65_0.25_18/0.05)_1px,transparent_1px)] bg-size-[24px_24px]" aria-hidden="true"></div>
+      <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,oklch(0.55_0.25_18/0.08)_0%,transparent_50%)] dark:bg-[radial-gradient(ellipse_at_center,oklch(0.65_0.25_18/0.12)_0%,transparent_50%)]"></div>
+      <div class="absolute inset-0 bg-[radial-gradient(oklch(0.55_0.25_18/0.08)_1px,transparent_1px)] dark:bg-[radial-gradient(oklch(0.65_0.25_18/0.05)_1px,transparent_1px)] bg-size-[24px_24px]" aria-hidden="true"></div>
       <div class="relative max-w-[600px] mx-auto px-6 text-center">
         <h2 class="text-4xl lg:text-5xl font-bold text-foreground mb-4">Ready to Build?</h2>
         <p class="text-lg text-muted-foreground mb-10">Start with <code class="text-sm bg-muted px-1.5 py-0.5 rounded font-mono">rails new</code> and work your way to architect.</p>
-        <Button size="xl" className="shadow-[0_0_30px_oklch(0.65_0.25_18/0.2)]" >
+        <Button size="xl" className="shadow-[0_0_30px_oklch(0.55_0.25_18/0.15)] dark:shadow-[0_0_30px_oklch(0.65_0.25_18/0.2)]" >
           <a href="/dashboard" id="cta-bottom" class="flex items-center gap-2">
             Start Learning
             <ArrowRight className="w-4 h-4" />
@@ -486,7 +483,7 @@ const currentYear = new Date().getFullYear();
 
     <!-- Footer -->
     <footer class="py-8 border-t border-border/50">
-      <div class="max-w-[1200px] mx-auto px-6 flex items-center justify-between">
+      <div class="max-w-[1400px] mx-auto px-6 flex items-center justify-between">
         <p class="text-sm text-muted-foreground">&copy; {currentYear} Interactive Rails</p>
         <div class="flex items-center gap-1">
           <span class="text-xs text-muted-foreground/50">Built with</span>

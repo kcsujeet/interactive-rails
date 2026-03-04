@@ -9,6 +9,9 @@ alwaysApply: false
 **Always ask for permission before committing changes. This is non-negotiable.**
 Do NOT run `git commit` without explicit user approval.
 
+**Always update session logs after every change. This is non-negotiable.**
+After completing any work (code changes, fixes, refactors), immediately update the session log at `docs/sessions/{YYYY-MM-DD}.md` before reporting done. Do not wait to be asked. Do it proactively every time.
+
 **Never use em dashes (—) anywhere in the codebase.** Use commas, periods, colons, or parentheses instead. This applies to all text: code comments, UI strings, content definitions, feedback messages, documentation.
 
 **Consistency is non-negotiable.** Don't do one-off things. When a pattern exists in the codebase (button labels, step navigation, component structure), follow it exactly. If Level 1 uses "Next Step" with an ArrowRight icon, every level uses "Next Step" with an ArrowRight icon. No custom labels, no special cases.
