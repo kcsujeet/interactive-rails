@@ -1,14 +1,29 @@
 /**
  * Level 9: Authentication
  *
- * 4-step progression to add Rails 8 built-in authentication.
- * Steps: Generate Auth Scaffolding -> Choose Password Strategy ->
- *        Create Session -> Protect Endpoint
+ * Sequential phase flow: observe -> build -> activate -> reward
+ * Each phase occupies the full center panel. One thing at a time.
+ *
+ * Phase 1 (WHY - observe): Interactive exploration. Click pipeline stages to
+ *   inspect code, fire API probes to discover that anyone can hit any endpoint.
+ *   Discovery gating controls when "Build the Fix" appears.
+ * Phase 2 (HOW - build): 4 steps building Rails 8 built-in authentication.
+ *   Step 0: Generate Auth Scaffolding (terminal)
+ *   Step 1: Choose Password Strategy (OptionCard)
+ *   Step 2: Create Session (terminal, irb> prompt)
+ *   Step 3: Protect Endpoint (OptionCard)
+ * Phase 3a (ADVANTAGE - activate): Star rating + "Visualize Authentication" button
+ * Phase 3b (ADVANTAGE - reward): Stress test. Fire request scenarios at the
+ *   protected pipeline and watch authenticated/rejected results.
+ *
+ * Teaches: Rails 8 auth generator, has_secure_password, Bearer tokens,
+ *   require_authentication concern
  *
  * ID: "act2-level9-authentication"
  */
 
-import { ArrowRight, Lock, ShieldCheck, X } from 'lucide-react';
+import { ArrowRight, Check, Play, Star, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -27,24 +42,235 @@ import {
 	type TerminalStepData,
 	type ValidationResult,
 } from '@/components/levels';
+import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
+import {
+	type PipelineConnection,
+	PipelineFlow,
+	type PipelineStage,
+} from '@/components/levels/PipelineFlow';
+import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
+import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
+import {
+	StageInspector,
+	type StageInspectorData,
+} from '@/components/levels/StageInspector';
+import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
+import {
+	type DiscoveryDef,
+	useDiscoveryGating,
+} from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
+import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 
-// ---------------------------------------------------------------------------
-// Step definitions
-// ---------------------------------------------------------------------------
+// ──────────────────────────────────────────────
+// Phase type
+// ──────────────────────────────────────────────
+
+type Phase = 'observe' | 'build' | 'activate' | 'reward';
+
+// ──────────────────────────────────────────────
+// Discovery definitions (observe phase)
+// ──────────────────────────────────────────────
+
+const DISCOVERY_DEFS: DiscoveryDef[] = [
+	{ id: 'no-auth-layer', label: 'No authentication layer exists' },
+	{ id: 'anonymous-delete', label: 'Anonymous users can delete posts' },
+	{ id: 'anonymous-create', label: 'Anonymous users can create posts' },
+	{ id: 'no-user-identity', label: 'No way to know who made a request' },
+];
+
+// ──────────────────────────────────────────────
+// Probe configurations (observe phase)
+// ──────────────────────────────────────────────
+
+const PROBES: ProbeConfig[] = [
+	{
+		id: 'delete-no-token',
+		label: 'DELETE without token',
+		command: 'DELETE /api/v1/posts/1 (no Authorization header)',
+		responseLines: [
+			{ text: 'HTTP/1.1 204 No Content', color: 'red' },
+			{ text: '', color: 'muted' },
+			{ text: 'Post #1 deleted. No token was required.', color: 'yellow' },
+			{
+				text: 'Anyone on the internet can destroy your data.',
+				color: 'red',
+			},
+		],
+	},
+	{
+		id: 'create-no-token',
+		label: 'POST without token',
+		command: 'POST /api/v1/posts (no Authorization header)',
+		responseLines: [
+			{ text: 'HTTP/1.1 201 Created', color: 'red' },
+			{
+				text: '{"id":99,"title":"Spam","user_id":null}',
+				color: 'muted',
+			},
+			{
+				text: 'Post created with no user attached. Who wrote it? Nobody knows.',
+				color: 'yellow',
+			},
+		],
+	},
+	{
+		id: 'check-identity',
+		label: 'Check current_user',
+		command: 'GET /api/v1/me (who am I?)',
+		responseLines: [
+			{ text: 'HTTP/1.1 200 OK', color: 'red' },
+			{
+				text: '{"current_user":null}',
+				color: 'muted',
+			},
+			{
+				text: 'No user identity. The app cannot tell requests apart.',
+				color: 'yellow',
+			},
+		],
+	},
+];
+
+// Map probe IDs to discovery IDs they trigger
+const PROBE_DISCOVERY_MAP: Record<string, string> = {
+	'delete-no-token': 'anonymous-delete',
+	'create-no-token': 'anonymous-create',
+	'check-identity': 'no-user-identity',
+};
+
+// Map probe IDs to pipeline node display during observe
+const PROBE_PIPELINE_MAP: Record<
+	string,
+	{ authSublabel: string; modelBadge: string }
+> = {
+	'delete-no-token': {
+		authSublabel: 'DELETE anon',
+		modelBadge: '204!',
+	},
+	'create-no-token': {
+		authSublabel: 'POST anon',
+		modelBadge: '201!',
+	},
+	'check-identity': {
+		authSublabel: 'GET anon',
+		modelBadge: 'null!',
+	},
+};
+
+// ──────────────────────────────────────────────
+// Stage inspector data (observe phase)
+// ──────────────────────────────────────────────
+
+const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
+	request: {
+		stageId: 'request',
+		title: 'Incoming Request',
+		description:
+			'HTTP requests arrive with no Authorization header. There is no way to identify who is making the request. Every request is anonymous.',
+	},
+	auth: {
+		stageId: 'auth',
+		title: 'Authentication (Missing!)',
+		description:
+			'This layer does not exist yet. There is no User model, no Session model, and no token verification. Requests pass straight through to the controller without any identity check.',
+	},
+	controller: {
+		stageId: 'controller',
+		title: 'PostsController',
+		description:
+			'The controller processes every request blindly. It cannot tell if the requester is a logged-in user, an admin, or a random stranger. current_user is always nil.',
+		code: `class PostsController < ApplicationController
+  def destroy
+    post = Post.find(params[:id])
+    post.destroy  # Who deleted this? No idea.
+    head :no_content
+  end
+end`,
+	},
+	model: {
+		stageId: 'model',
+		title: 'Post Model',
+		description:
+			'The model executes every operation the controller asks for. Posts are created with user_id: nil because there is no authenticated user to attach.',
+	},
+};
+
+// Map stage IDs to discovery IDs they trigger
+const STAGE_DISCOVERY_MAP: Record<string, string> = {
+	auth: 'no-auth-layer',
+	controller: 'no-user-identity',
+};
+
+// ──────────────────────────────────────────────
+// Stress test scenarios (reward phase)
+// ──────────────────────────────────────────────
+
+const STRESS_SCENARIOS: StressScenario[] = [
+	{
+		id: 'valid-get',
+		label: 'GET with valid token',
+		description: 'Authenticated user fetches posts',
+		method: 'GET',
+		path: '/api/v1/posts',
+		actor: 'user_1 (valid token)',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'valid-create',
+		label: 'POST with valid token',
+		description: 'Authenticated user creates a post',
+		method: 'POST',
+		path: '/api/v1/posts',
+		actor: 'user_1 (valid token)',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'no-token-delete',
+		label: 'DELETE without token',
+		description: 'Anonymous request tries to delete',
+		method: 'DELETE',
+		path: '/api/v1/posts/1',
+		actor: 'anonymous (no token)',
+		expectedResult: 'blocked',
+	},
+	{
+		id: 'expired-token',
+		label: 'PATCH with expired token',
+		description: 'Revoked session token tries to update',
+		method: 'PATCH',
+		path: '/api/v1/posts/1',
+		actor: 'user_2 (expired token)',
+		expectedResult: 'blocked',
+	},
+	{
+		id: 'valid-delete',
+		label: 'DELETE with valid token',
+		description: 'Authenticated user deletes own post',
+		method: 'DELETE',
+		path: '/api/v1/posts/5',
+		actor: 'user_1 (valid token)',
+		expectedResult: 'allowed',
+	},
+];
+
+// ──────────────────────────────────────────────
+// Step definitions (build phase)
+// ──────────────────────────────────────────────
 
 const STEP_DEFS: StepDef[] = [
 	{ id: 'generate-auth', title: 'Generate Auth Scaffolding' },
+	{ id: 'run-migrations', title: 'Run Migrations' },
 	{ id: 'password-strategy', title: 'Choose Password Strategy' },
 	{ id: 'create-session', title: 'Create Session' },
 	{ id: 'protect-endpoint', title: 'Protect Endpoint' },
 ];
 
-// ---------------------------------------------------------------------------
-// Step 1: Generate Auth Scaffolding (TerminalChoiceStep)
-// ---------------------------------------------------------------------------
+// ──────────────────────────────────────────────
+// Step 0: Generate Auth Scaffolding (Terminal)
+// ──────────────────────────────────────────────
 
 const generateAuthCommands: TerminalCommand[] = [
 	{
@@ -56,18 +282,18 @@ const generateAuthCommands: TerminalCommand[] = [
 			'Devise is a third-party gem. Rails 8 ships its own authentication generator built-in.',
 	},
 	{
+		id: 'correct',
+		label: 'bin/rails generate authentication',
+		command: 'bin/rails generate authentication',
+		correct: true,
+	},
+	{
 		id: 'wrong-scaffold',
 		label: 'rails generate scaffold User email password',
 		command: 'rails generate scaffold User email password',
 		correct: false,
 		feedback:
 			'That creates a full CRUD scaffold with plaintext password. Authentication needs secure password hashing, not a string column.',
-	},
-	{
-		id: 'correct',
-		label: 'bin/rails generate authentication',
-		command: 'bin/rails generate authentication',
-		correct: true,
 	},
 ];
 
@@ -91,13 +317,66 @@ const generateAuthOutput: TerminalOutputLine[] = [
 		text: '      create  db/migrate/20240102_create_sessions.rb',
 		color: 'green',
 	},
-	{ text: '      create  app/controllers/passwords_controller.rb', color: 'green' },
+	{
+		text: '      create  app/controllers/passwords_controller.rb',
+		color: 'green',
+	},
 	{ text: '      invoke  test_unit', color: 'muted' },
 ];
 
-// ---------------------------------------------------------------------------
+// ──────────────────────────────────────────────
+// Step 1: Run Migrations (Terminal)
+// ──────────────────────────────────────────────
+
+const runMigrationsCommands: TerminalCommand[] = [
+	{
+		id: 'wrong-seed',
+		label: 'rails db:seed',
+		command: 'rails db:seed',
+		correct: false,
+		feedback:
+			'Seeds populate data, but the tables do not exist yet. The generator created migration files that need to run first.',
+	},
+	{
+		id: 'wrong-setup',
+		label: 'rails db:setup',
+		command: 'rails db:setup',
+		correct: false,
+		feedback:
+			'db:setup creates the database from schema.rb. You already have a database. You need to run the new migration files the generator just created.',
+	},
+	{
+		id: 'correct',
+		label: 'rails db:migrate',
+		command: 'rails db:migrate',
+		correct: true,
+	},
+];
+
+const runMigrationsOutput: TerminalOutputLine[] = [
+	{
+		text: '== CreateUsers: migrating ============================',
+		color: 'green',
+	},
+	{
+		text: '-- create_table(:users)',
+		color: 'muted',
+	},
+	{ text: '   -> 0.0012s', color: 'muted' },
+	{
+		text: '== CreateSessions: migrating =========================',
+		color: 'green',
+	},
+	{
+		text: '-- create_table(:sessions)',
+		color: 'muted',
+	},
+	{ text: '   -> 0.0008s', color: 'muted' },
+];
+
+// ──────────────────────────────────────────────
 // Step 2: Choose Password Strategy (OptionCard)
-// ---------------------------------------------------------------------------
+// ──────────────────────────────────────────────
 
 interface PasswordOption {
 	id: string;
@@ -117,13 +396,6 @@ const PASSWORD_OPTIONS: PasswordOption[] = [
 			'Devise is powerful but adds complexity. Rails 8 has built-in auth. Use the framework\'s own tools first.',
 	},
 	{
-		id: 'has-secure-password',
-		name: 'has_secure_password',
-		description: 'Rails built-in bcrypt integration on the model',
-		correct: true,
-		feedback: '',
-	},
-	{
 		id: 'manual-bcrypt',
 		name: 'BCrypt::Password.create(password)',
 		description: 'Manual bcrypt hashing in the controller',
@@ -131,11 +403,18 @@ const PASSWORD_OPTIONS: PasswordOption[] = [
 		feedback:
 			'Manual bcrypt calls are error-prone. Rails wraps this in a single declarative method on the model.',
 	},
+	{
+		id: 'has-secure-password',
+		name: 'has_secure_password',
+		description: 'Rails built-in bcrypt integration on the model',
+		correct: true,
+		feedback: '',
+	},
 ];
 
-// ---------------------------------------------------------------------------
-// Step 3: Create Session (TerminalChoiceStep with irb> prompt)
-// ---------------------------------------------------------------------------
+// ──────────────────────────────────────────────
+// Step 3: Create Session (Terminal, irb> prompt)
+// ──────────────────────────────────────────────
 
 const createSessionCommands: TerminalCommand[] = [
 	{
@@ -147,18 +426,18 @@ const createSessionCommands: TerminalCommand[] = [
 			'Cookies are for browser apps. API clients need a token in the response body, not a cookie header.',
 	},
 	{
+		id: 'correct',
+		label: 'session = user.sessions.create!',
+		command: 'session = user.sessions.create!',
+		correct: true,
+	},
+	{
 		id: 'wrong-jwt',
 		label: 'JWT.encode({ user_id: user.id }, secret)',
 		command: 'JWT.encode({ user_id: user.id }, secret)',
 		correct: false,
 		feedback:
 			'JWTs are stateless and hard to revoke. Rails 8 auth uses server-side sessions stored in the database.',
-	},
-	{
-		id: 'correct',
-		label: 'session = user.sessions.create!',
-		command: 'session = user.sessions.create!',
-		correct: true,
 	},
 ];
 
@@ -174,9 +453,9 @@ const createSessionOutput: TerminalOutputLine[] = [
 	},
 ];
 
-// ---------------------------------------------------------------------------
+// ──────────────────────────────────────────────
 // Step 4: Protect Endpoint (OptionCard)
-// ---------------------------------------------------------------------------
+// ──────────────────────────────────────────────
 
 interface ProtectOption {
 	id: string;
@@ -196,13 +475,6 @@ const PROTECT_OPTIONS: ProtectOption[] = [
 			"That's a Devise method. Rails 8's built-in auth concern uses a different callback name.",
 	},
 	{
-		id: 'before-action',
-		name: 'before_action :require_authentication',
-		description: 'Require valid session token via the Authentication concern',
-		correct: true,
-		feedback: '',
-	},
-	{
 		id: 'manual-check',
 		name: 'if current_user.nil? then head :unauthorized end',
 		description: 'Manually check for a user in each action',
@@ -210,47 +482,103 @@ const PROTECT_OPTIONS: ProtectOption[] = [
 		feedback:
 			'Manual nil checks in every action are repetitive. Use a before_action to protect all endpoints at once.',
 	},
+	{
+		id: 'before-action',
+		name: 'before_action :require_authentication',
+		description: 'Require valid session token via the Authentication concern',
+		correct: true,
+		feedback: '',
+	},
 ];
 
-// ---------------------------------------------------------------------------
-// Terminal step maps (separate for shell vs console to avoid mixed history)
-// ---------------------------------------------------------------------------
+// ──────────────────────────────────────────────
+// Terminal step maps
+// ──────────────────────────────────────────────
 
 const SHELL_STEP_MAP: (TerminalStepData | null)[] = [
 	{ commands: generateAuthCommands, outputLines: generateAuthOutput },
+	{ commands: runMigrationsCommands, outputLines: runMigrationsOutput },
 ];
 
 const CONSOLE_STEP_MAP: (TerminalStepData | null)[] = [
 	{ commands: createSessionCommands, outputLines: createSessionOutput },
 ];
 
-// ---------------------------------------------------------------------------
-// Code preview files that evolve with progress
-// ---------------------------------------------------------------------------
+// ──────────────────────────────────────────────
+// Pipeline visualization configs
+// ──────────────────────────────────────────────
 
-function getCodeFiles(furthestStep: number) {
+const OBSERVE_CONNECTIONS: PipelineConnection[] = [
+	{ from: 'request', to: 'auth', dots: 'mixed' },
+	{ from: 'auth', to: 'controller', dots: 'mixed' },
+	{ from: 'controller', to: 'model', dots: 'mixed' },
+];
+
+const REWARD_CONNECTIONS: PipelineConnection[] = [
+	{ from: 'request', to: 'auth', dots: 'mixed' },
+	{ from: 'auth', to: 'controller', dots: 'clean' },
+	{ from: 'controller', to: 'model', dots: 'clean' },
+];
+
+// ──────────────────────────────────────────────
+// Code preview helper
+// ──────────────────────────────────────────────
+
+function getCodeFiles(phase: Phase, furthestStep: number) {
 	const files = [];
 
-	// Initial state: unprotected model
-	if (furthestStep === 0) {
+	// Observe phase: show the unprotected controller
+	if (phase === 'observe') {
 		files.push({
-			filename: 'app/models/user.rb',
+			filename: 'app/controllers/posts_controller.rb',
 			language: 'ruby',
-			code: `class User < ApplicationRecord
-  # No authentication yet.
-  # Endpoints are wide open.
+			code: `class PostsController < ApplicationController
+  # No authentication. Anyone can do anything.
+
+  def create
+    post = Post.create!(post_params)
+    render json: post, status: :created
+  end
+
+  def destroy
+    Post.find(params[:id]).destroy
+    head :no_content
+  end
 end`,
-			highlight: [],
+			highlight: [2],
+		});
+		return files;
+	}
+
+	// Build / activate / reward phases: evolving code
+	if (furthestStep <= 1) {
+		files.push({
+			filename: 'app/controllers/posts_controller.rb',
+			language: 'ruby',
+			code: `class PostsController < ApplicationController
+  # No authentication. Anyone can do anything.
+
+  def create
+    post = Post.create!(post_params)
+    render json: post, status: :created
+  end
+
+  def destroy
+    Post.find(params[:id]).destroy
+    head :no_content
+  end
+end`,
+			highlight: [2],
 		});
 	}
 
-	// After step 1: User model skeleton from generator
-	if (furthestStep >= 1) {
+	// After step 1 (db:migrate): User model skeleton from generator
+	if (furthestStep >= 2) {
 		files.push({
 			filename: 'app/models/user.rb',
 			language: 'ruby',
 			code:
-				furthestStep >= 2
+				furthestStep >= 3
 					? `class User < ApplicationRecord
   has_secure_password
   has_many :sessions, dependent: :destroy
@@ -264,12 +592,12 @@ end`
   normalizes :email_address,
     with: ->(e) { e.strip.downcase }
 end`,
-			highlight: furthestStep >= 2 ? [2] : [],
+			highlight: furthestStep >= 3 ? [2] : [],
 		});
 	}
 
-	// After step 3: Session model + controller
-	if (furthestStep >= 3) {
+	// After step 3 (create session): Session model + controller
+	if (furthestStep >= 4) {
 		files.push({
 			filename: 'app/models/session.rb',
 			language: 'ruby',
@@ -287,12 +615,15 @@ end`,
 			filename: 'app/controllers/sessions_controller.rb',
 			language: 'ruby',
 			code: `class SessionsController < ApplicationController
+  allow_unauthenticated_access only: [:create]
+
   def create
-    user = User.find_by(
-      email_address: params[:email_address]
+    user = User.authenticate_by(
+      email_address: params[:email_address],
+      password: params[:password]
     )
 
-    if user&.authenticate(params[:password])
+    if user
       session = user.sessions.create!
       render json: { token: session.token }
     else
@@ -301,12 +632,12 @@ end`,
     end
   end
 end`,
-			highlight: [8, 9],
+			highlight: [5, 6, 7, 11],
 		});
 	}
 
-	// After step 4: Authentication concern with before_action
-	if (furthestStep >= 4) {
+	// After step 4 (protect endpoint): Authentication concern with require_authentication
+	if (furthestStep >= 5) {
 		files.push({
 			filename: 'app/controllers/concerns/authentication.rb',
 			language: 'ruby',
@@ -342,36 +673,200 @@ end`,
 	return files;
 }
 
-// ---------------------------------------------------------------------------
+// ──────────────────────────────────────────────
+// Pipeline Legend
+// ──────────────────────────────────────────────
+
+function PipelineLegend() {
+	return (
+		<div className="p-4 border-b border-border">
+			<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+				Pipeline Legend
+			</div>
+			<div className="space-y-2 text-sm">
+				<div className="flex items-center gap-2">
+					<Check className="w-4 h-4 text-success" />
+					<span className="text-foreground">
+						Authenticated request (passes)
+					</span>
+				</div>
+				<div className="flex items-center gap-2">
+					<X className="w-4 h-4 text-destructive" />
+					<span className="text-foreground">
+						Unauthenticated request (rejected)
+					</span>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+// ──────────────────────────────────────────────
 // Component
-// ---------------------------------------------------------------------------
+// ──────────────────────────────────────────────
 
 export function Level9Authentication({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
-	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
-	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
+	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
+		minRequired: 3,
+	});
+	const stressTest = useStressTest(STRESS_SCENARIOS);
+	const [phase, setPhase] = useState<Phase>('observe');
+	const [inspectorData, setInspectorData] =
+		useState<StageInspectorData | null>(null);
+	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
+		new Set(),
+	);
+	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
 
-	// Step 2: password strategy selection
-	const handlePasswordChoice = (option: PasswordOption) => {
-		if (isViewingCompletedStep) return;
-		if (option.correct) {
-			stepper.completeStep();
-		} else {
-			stepper.recordWrongAttempt(option.feedback);
+	// ── Build observe stages dynamically (tracks inspected + last probe) ──
+	const probeDisplay = lastProbeId
+		? PROBE_PIPELINE_MAP[lastProbeId]
+		: null;
+	const observeStages: PipelineStage[] = useMemo(
+		() => [
+			{
+				id: 'request',
+				label: 'Request',
+				inspectable: true,
+				inspected: inspectedStages.has('request'),
+			},
+			{
+				id: 'auth',
+				label: 'Auth',
+				sublabel: probeDisplay ? probeDisplay.authSublabel : '(missing)',
+				variant: (probeDisplay ? 'danger' : 'inactive') as
+					| 'danger'
+					| 'inactive',
+				inspectable: true,
+				inspected: inspectedStages.has('auth'),
+			},
+			{
+				id: 'controller',
+				label: 'Controller',
+				sublabel: probeDisplay ? 'no current_user' : undefined,
+				variant: probeDisplay ? ('danger' as const) : ('default' as const),
+				inspectable: true,
+				inspected: inspectedStages.has('controller'),
+			},
+			{
+				id: 'model',
+				label: 'Model',
+				badge: probeDisplay ? probeDisplay.modelBadge : undefined,
+				variant: probeDisplay ? ('danger' as const) : ('default' as const),
+				inspectable: true,
+				inspected: inspectedStages.has('model'),
+			},
+		],
+		[inspectedStages, probeDisplay],
+	);
+
+	// ── Build reward stages dynamically (reacts to latest stress test result) ──
+	const lastResult = stressTest.results[stressTest.results.length - 1];
+	const rewardStages: PipelineStage[] = useMemo(() => {
+		const wasBlocked = lastResult?.result === 'blocked';
+		return [
+			{ id: 'request', label: 'Request' },
+			{
+				id: 'auth',
+				label: 'Auth',
+				sublabel: wasBlocked ? '401 Unauthorized' : 'Token valid',
+				variant: wasBlocked ? ('danger' as const) : ('active' as const),
+				badge: wasBlocked ? 'BLOCKED' : undefined,
+			},
+			{ id: 'controller', label: 'Controller' },
+			{ id: 'model', label: 'Model' },
+		];
+	}, [lastResult]);
+
+	// ── Transition: build -> activate when all steps complete ──
+	useEffect(() => {
+		if (phase === 'build' && stepper.isComplete) {
+			setPhase('activate');
 		}
+	}, [phase, stepper.isComplete]);
+
+	// ── Stage click handler (observe phase) ──
+	const handleStageClick = useCallback(
+		(stageId: string) => {
+			if (phase !== 'observe') return;
+
+			const data = STAGE_INSPECTOR_MAP[stageId];
+			if (!data) return;
+
+			setInspectorData(data);
+			setInspectedStages((prev) => {
+				if (prev.has(stageId)) return prev;
+				const next = new Set(prev);
+				next.add(stageId);
+				return next;
+			});
+
+			// Trigger discovery if this stage has one
+			const discoveryId = STAGE_DISCOVERY_MAP[stageId];
+			if (discoveryId) {
+				discoveryGating.discover(discoveryId);
+			}
+		},
+		[phase, discoveryGating],
+	);
+
+	// ── Probe handler (observe phase) ──
+	const handleProbe = useCallback(
+		(probeId: string) => {
+			setLastProbeId(probeId);
+			const discoveryId = PROBE_DISCOVERY_MAP[probeId];
+			if (discoveryId) {
+				discoveryGating.discover(discoveryId);
+			}
+		},
+		[discoveryGating],
+	);
+
+	// ── Phase transition handlers ──
+	const handleStartBuild = () => {
+		setPhase('build');
 	};
 
-	// Step 4: protect endpoint selection
-	const handleProtectChoice = (option: ProtectOption) => {
-		if (isViewingCompletedStep) return;
-		if (option.correct) {
-			stepper.completeStep();
-		} else {
-			stepper.recordWrongAttempt(option.feedback);
-		}
+	const handleActivateAuth = () => {
+		setPhase('reward');
+		stressTest.reset();
 	};
 
-	// Completion
+	// ── Step handlers ──
+	const handlePasswordChoice = useCallback(
+		(option: PasswordOption) => {
+			if (stepper.isCurrentStepCompleted) return;
+			if (option.correct) {
+				stepper.completeStep();
+			} else {
+				stepper.recordWrongAttempt(option.feedback);
+			}
+		},
+		[stepper],
+	);
+
+	const handleProtectChoice = useCallback(
+		(option: ProtectOption) => {
+			if (stepper.isCurrentStepCompleted) return;
+			if (option.correct) {
+				stepper.completeStep();
+			} else {
+				stepper.recordWrongAttempt(option.feedback);
+			}
+		},
+		[stepper],
+	);
+
+	// ── Stress test fire handler ──
+	const handleFireScenario = useCallback(
+		(scenarioId: string) => {
+			stressTest.fireRequest(scenarioId);
+		},
+		[stressTest],
+	);
+
+	// ── Completion ──
 	const handleComplete = () => {
 		onComplete({ stars: stepper.starRating });
 	};
@@ -389,30 +884,76 @@ export function Level9Authentication({ onComplete }: LevelComponentProps) {
 		return { valid: true, message: 'Authentication is ready!' };
 	};
 
+	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
+	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
+
+	// ── Render ──
 	return (
 		<LevelLayout>
 			<LeftPanel>
 				<InstructionPanel>
-					<div className="p-4 border-b border-border">
+					{/* Scenario (always visible) */}
+					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Your API has no authentication. Anyone can create, update,
-							or delete posts without identifying themselves. Rails 8
-							ships a built-in authentication generator that creates
-							User and Session models, a bcrypt-backed password system,
-							and a concern that protects your controllers.
+							or delete posts without identifying themselves. There is
+							no User model, no sessions, and no token verification.
+						</p>
+						<p className="text-sm text-muted-foreground leading-relaxed">
+							Rails 8 ships a built-in authentication generator that
+							creates User and Session models, a bcrypt-backed password
+							system, and a concern that protects your controllers.
 						</p>
 					</div>
 
-					<div className="p-4">
-						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-							Steps
+					{/* Observe phase: discovery checklist */}
+					{phase === 'observe' && (
+						<div className="p-4 border-b border-border">
+							<DiscoveryChecklist
+								discoveries={discoveryGating.discoveries}
+								discoveredCount={discoveryGating.discoveredCount}
+								minRequired={discoveryGating.minRequired}
+							/>
 						</div>
-						<StepProgress
-							currentStep={stepper.currentStep}
-							onStepClick={stepper.goToStep}
-							steps={stepper.steps}
-						/>
-					</div>
+					)}
+
+					{/* Build / activate phases: step progress */}
+					{(phase === 'build' || phase === 'activate') && (
+						<div className="p-4 border-b border-border">
+							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+								Steps
+							</div>
+							<StepProgress
+								currentStep={stepper.currentStep}
+								onStepClick={stepper.goToStep}
+								steps={stepper.steps}
+							/>
+						</div>
+					)}
+
+					{/* Reward phase: legend + counters */}
+					{phase === 'reward' && (
+						<>
+							<PipelineLegend />
+
+							<div className="p-4">
+								<div className="grid grid-cols-2 gap-3">
+									<div className="bg-success/20 rounded-lg p-3 text-center">
+										<div className="text-2xl font-bold text-success">
+											{stressTest.allowedCount}
+										</div>
+										<div className="text-xs text-success/70">Allowed</div>
+									</div>
+									<div className="bg-destructive/20 rounded-lg p-3 text-center">
+										<div className="text-2xl font-bold text-destructive">
+											{stressTest.blockedCount}
+										</div>
+										<div className="text-xs text-destructive/70">Blocked</div>
+									</div>
+								</div>
+							</div>
+						</>
+					)}
 				</InstructionPanel>
 			</LeftPanel>
 
@@ -428,242 +969,296 @@ export function Level9Authentication({ onComplete }: LevelComponentProps) {
 					onValidate={validateSolution}
 				/>
 
-				<div className="flex-1 relative bg-background p-6 overflow-auto">
-					<div className="max-w-2xl mx-auto space-y-6">
-						{/* Step 1: Generate Auth Scaffolding (TerminalChoiceStep) */}
-						{stepper.currentStep === 0 && (
-							<TerminalChoiceStep
-								commands={generateAuthCommands}
-								completed={isViewingCompletedStep}
-								description={
-									<p className="text-sm text-muted-foreground">
-										Your API endpoints are wide open. Rails 8 includes
-										a generator that creates everything you need:
-										User model, Session model, controllers, and an
-										Authentication concern. Run it.
-									</p>
-								}
-								hasNext={hasNextStep}
-								initialHistory={buildTerminalHistory(
-									SHELL_STEP_MAP,
-									0,
-								)}
-								onCorrect={() => stepper.completeStep()}
-								onNext={stepper.nextStep}
-								onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-								outputLines={generateAuthOutput}
-								stepKey={stepper.currentStep}
-								title="Generate Auth Scaffolding"
-							/>
-						)}
-
-						{/* Step 2: Choose Password Strategy (OptionCard) */}
-						{stepper.currentStep === 1 && (
-							<div className="space-y-4">
-								<h3 className="text-lg font-semibold text-foreground">
-									Choose Password Strategy
-								</h3>
-								<p className="text-sm text-muted-foreground">
-									The User model needs a way to hash and verify
-									passwords. Pick the approach that keeps passwords
-									secure with the least amount of manual code.
-								</p>
-
-								<div className="grid gap-2">
-									{PASSWORD_OPTIONS.map((option) => (
-										<OptionCard
-											color="blue"
-											description={option.description}
-											disabled={isViewingCompletedStep}
-											key={option.id}
-											name={option.name}
-											onClick={() => handlePasswordChoice(option)}
-											selected={
-												isViewingCompletedStep && option.correct
-											}
-										/>
-									))}
-								</div>
-
-								<ErrorFeedback
-									message={stepper.lastFeedback}
-									onDismiss={stepper.clearFeedback}
+				<div className="flex-1 flex flex-col bg-background overflow-hidden">
+					{/* ── Phase 1: Observe (WHY) ── */}
+					{phase === 'observe' && (
+						<div className="flex-1 flex flex-col">
+							<div className="flex-1 relative">
+								<PipelineFlow
+									connections={OBSERVE_CONNECTIONS}
+									onNodeClick={handleStageClick}
+									stages={observeStages}
 								/>
-								{isViewingCompletedStep && hasNextStep && (
-									<div className="flex justify-end">
-										<Button
-											className="gap-2"
-											onClick={stepper.nextStep}
-											size="sm"
-										>
-											Next Step
-											<ArrowRight className="w-4 h-4" />
-										</Button>
-									</div>
+								{inspectorData && (
+									<StageInspector
+										data={inspectorData}
+										onClose={() => setInspectorData(null)}
+									/>
 								)}
 							</div>
-						)}
 
-						{/* Step 3: Create Session (TerminalChoiceStep with irb> prompt) */}
-						{stepper.currentStep === 2 && (
-							<TerminalChoiceStep
-								commands={createSessionCommands}
-								completed={isViewingCompletedStep}
-								description={
-									<p className="text-sm text-muted-foreground">
-										A user just authenticated with their email and
-										password. Now create a server-side session that
-										generates a Bearer token for subsequent API requests.
-									</p>
-								}
-								hasNext={hasNextStep}
-								initialHistory={buildTerminalHistory(
-									CONSOLE_STEP_MAP,
-									0,
-								)}
-								onCorrect={() => stepper.completeStep()}
-								onNext={stepper.nextStep}
-								onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-								outputLines={createSessionOutput}
-								prompt="irb>"
-								stepKey={stepper.currentStep}
-								terminalTitle="Rails Console"
-								title="Create a Session"
-							/>
-						)}
-
-						{/* Step 4: Protect Endpoint (OptionCard) */}
-						{stepper.currentStep === 3 && !stepper.isComplete && (
-							<div className="space-y-4">
-								<h3 className="text-lg font-semibold text-foreground">
-									Protect Your Endpoints
-								</h3>
-								<p className="text-sm text-muted-foreground">
-									Sessions are working. Now lock down your controllers
-									so only authenticated users can access them. Pick
-									the callback from the Authentication concern.
-								</p>
-
-								<div className="grid gap-2">
-									{PROTECT_OPTIONS.map((option) => (
-										<OptionCard
-											color="blue"
-											description={option.description}
-											disabled={isViewingCompletedStep}
-											key={option.id}
-											mono
-											name={option.name}
-											onClick={() => handleProtectChoice(option)}
-											selected={
-												isViewingCompletedStep && option.correct
-											}
-										/>
-									))}
-								</div>
-
-								<ErrorFeedback
-									message={stepper.lastFeedback}
-									onDismiss={stepper.clearFeedback}
+							{/* Probe terminal */}
+							<div className="px-6 pb-2">
+								<ProbeTerminal
+									onProbe={handleProbe}
+									probes={PROBES}
+									title="API Probe"
 								/>
 							</div>
-						)}
 
-						{/* ADVANTAGE phase: Before/After comparison */}
-						{stepper.isComplete && (
-							<div className="space-y-6 py-6">
-								<div className="text-center space-y-2">
-									<div className="text-4xl">
-										{'★'.repeat(stepper.starRating)}
-										{'☆'.repeat(3 - stepper.starRating)}
-									</div>
-									<h3 className="text-xl font-bold text-foreground">
-										Authentication Added!
-									</h3>
-									<p className="text-sm text-muted-foreground">
-										Your API now requires a valid session token.
-										Unauthenticated requests are rejected.
-									</p>
-								</div>
-
-								{/* Before / After comparison */}
-								<div className="grid grid-cols-2 gap-4">
-									<div className="space-y-2">
-										<div className="flex items-center gap-1.5 text-sm font-semibold text-red-400">
-											<X className="w-4 h-4" />
-											Before
-										</div>
-										<div className="bg-zinc-900 rounded-lg p-3 font-mono text-xs leading-relaxed">
-											<div className="text-zinc-400">
-												$ curl -X DELETE /api/v1/posts/1
-											</div>
-											<div className="text-zinc-300 mt-1">
-												HTTP/1.1 204 No Content
-											</div>
-											<div className="text-red-400 mt-2">
-												# Deleted! No token needed.
-											</div>
-										</div>
-									</div>
-
-									<div className="space-y-2">
-										<div className="flex items-center gap-1.5 text-sm font-semibold text-emerald-400">
-											<ShieldCheck className="w-4 h-4" />
-											After
-										</div>
-										<div className="bg-zinc-900 rounded-lg p-3 font-mono text-xs leading-relaxed">
-											<div className="text-zinc-400">
-												$ curl -X DELETE /api/v1/posts/1
-											</div>
-											<div className="text-emerald-400 mt-1">
-												HTTP/1.1 401 Unauthorized
-											</div>
-											<div className="text-zinc-500 mt-2">
-												# Token required. Post is safe.
-											</div>
-										</div>
-									</div>
-								</div>
-
-								{/* Key takeaways */}
-								<div className="bg-card border border-border rounded-lg p-4 space-y-3">
-									<div className="text-sm font-semibold text-foreground flex items-center gap-2">
-										<Lock className="w-4 h-4 text-primary" />
-										What Rails 8 Auth Gives You
-									</div>
-									<div className="text-xs text-muted-foreground space-y-1.5">
-										<div>
-											<span className="font-mono text-primary">has_secure_password</span>:
-											bcrypt hashing with{' '}
-											<span className="font-mono">authenticate</span> method
-										</div>
-										<div>
-											<span className="font-mono text-primary">Session</span> model:
-											database-backed tokens, easy to revoke
-										</div>
-										<div>
-											<span className="font-mono text-primary">Authentication</span> concern:
-											one before_action protects all endpoints
-										</div>
-										<div>
-											<span className="font-mono text-primary">Current</span> model:
-											thread-safe access to the current user
-										</div>
-									</div>
-								</div>
-
-								<div className="flex justify-center">
-									<Button onClick={handleComplete}>
-										Complete Level
+							{/* Build the Fix button (discovery gated) */}
+							{discoveryGating.isUnlocked && (
+								<div className="p-4 flex justify-center animate-in fade-in duration-500">
+									<Button
+										className="gap-2"
+										onClick={handleStartBuild}
+										size="lg"
+									>
+										Build the Fix
+										<ArrowRight className="w-4 h-4" />
 									</Button>
 								</div>
+							)}
+						</div>
+					)}
+
+					{/* ── Phase 2: Build (HOW) ── */}
+					{phase === 'build' && (
+						<div className="flex-1 overflow-auto p-6">
+							<div className="max-w-2xl mx-auto space-y-6">
+								{/* Step 0: Generate Auth Scaffolding (Terminal) */}
+								{stepper.currentStep === 0 && (
+									<TerminalChoiceStep
+										commands={generateAuthCommands}
+										completed={isViewingCompletedStep}
+										description={
+											<p className="text-sm text-muted-foreground">
+												Your API endpoints are wide open. Rails 8 includes
+												a generator that creates everything you need:
+												User model, Session model, controllers, and an
+												Authentication concern. Run it.
+											</p>
+										}
+										hasNext={hasNextStep}
+										initialHistory={buildTerminalHistory(
+											SHELL_STEP_MAP,
+											0,
+										)}
+										onCorrect={() => stepper.completeStep()}
+										onNext={stepper.nextStep}
+										onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+										outputLines={generateAuthOutput}
+										stepKey={stepper.currentStep}
+										title="Generate Auth Scaffolding"
+									/>
+								)}
+
+								{/* Step 1: Run Migrations (Terminal) */}
+								{stepper.currentStep === 1 && (
+									<TerminalChoiceStep
+										commands={runMigrationsCommands}
+										completed={isViewingCompletedStep}
+										description={
+											<p className="text-sm text-muted-foreground">
+												The generator created migration files for the
+												users and sessions tables. The tables do not
+												exist in the database yet. Run the migrations.
+											</p>
+										}
+										hasNext={hasNextStep}
+										initialHistory={buildTerminalHistory(
+											SHELL_STEP_MAP,
+											1,
+										)}
+										onCorrect={() => stepper.completeStep()}
+										onNext={stepper.nextStep}
+										onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+										outputLines={runMigrationsOutput}
+										stepKey={stepper.currentStep}
+										title="Run Migrations"
+									/>
+								)}
+
+								{/* Step 2: Choose Password Strategy (OptionCard) */}
+								{stepper.currentStep === 2 && (
+									<div className="space-y-4">
+										<h3 className="text-lg font-semibold text-foreground">
+											Choose Password Strategy
+										</h3>
+										<p className="text-sm text-muted-foreground">
+											The User model needs a way to hash and verify
+											passwords. Pick the approach that keeps passwords
+											secure with the least amount of manual code.
+										</p>
+
+										<div className="grid gap-2">
+											{PASSWORD_OPTIONS.map((option) => (
+												<OptionCard
+													color="blue"
+													description={option.description}
+													disabled={isViewingCompletedStep}
+													key={option.id}
+													name={option.name}
+													onClick={() => handlePasswordChoice(option)}
+													selected={
+														isViewingCompletedStep && option.correct
+													}
+												/>
+											))}
+										</div>
+
+										<ErrorFeedback
+											message={stepper.lastFeedback}
+											onDismiss={stepper.clearFeedback}
+										/>
+										{isViewingCompletedStep && hasNextStep && (
+											<div className="flex justify-end">
+												<Button
+													className="gap-2"
+													onClick={stepper.nextStep}
+													size="sm"
+												>
+													Next Step
+													<ArrowRight className="w-4 h-4" />
+												</Button>
+											</div>
+										)}
+									</div>
+								)}
+
+								{/* Step 3: Create Session (Terminal, irb> prompt) */}
+								{stepper.currentStep === 3 && (
+									<TerminalChoiceStep
+										commands={createSessionCommands}
+										completed={isViewingCompletedStep}
+										description={
+											<p className="text-sm text-muted-foreground">
+												A user just authenticated with their email and
+												password. Now create a server-side session that
+												generates a Bearer token for subsequent API requests.
+											</p>
+										}
+										hasNext={hasNextStep}
+										initialHistory={buildTerminalHistory(
+											CONSOLE_STEP_MAP,
+											0,
+										)}
+										onCorrect={() => stepper.completeStep()}
+										onNext={stepper.nextStep}
+										onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+										outputLines={createSessionOutput}
+										prompt="irb>"
+										stepKey={stepper.currentStep}
+										terminalTitle="Rails Console"
+										title="Create a Session"
+									/>
+								)}
+
+								{/* Step 4: Protect Endpoint (OptionCard) */}
+								{stepper.currentStep === 4 && (
+									<div className="space-y-4">
+										<h3 className="text-lg font-semibold text-foreground">
+											Protect Your Endpoints
+										</h3>
+										<p className="text-sm text-muted-foreground">
+											Sessions are working. Now lock down your controllers
+											so only authenticated users can access them. Pick
+											the callback from the Authentication concern.
+										</p>
+
+										<div className="grid gap-2">
+											{PROTECT_OPTIONS.map((option) => (
+												<OptionCard
+													color="blue"
+													description={option.description}
+													disabled={isViewingCompletedStep}
+													key={option.id}
+													mono
+													name={option.name}
+													onClick={() => handleProtectChoice(option)}
+													selected={
+														isViewingCompletedStep && option.correct
+													}
+												/>
+											))}
+										</div>
+
+										<ErrorFeedback
+											message={stepper.lastFeedback}
+											onDismiss={stepper.clearFeedback}
+										/>
+										{isViewingCompletedStep && (
+											<div className="flex justify-end">
+												<Button
+													className="gap-2"
+													onClick={stepper.nextStep}
+													size="sm"
+												>
+													Next Step
+													<ArrowRight className="w-4 h-4" />
+												</Button>
+											</div>
+										)}
+									</div>
+								)}
 							</div>
-						)}
-					</div>
+						</div>
+					)}
+
+					{/* ── Phase 3a: Activate (ADVANTAGE sub-phase a) ── */}
+					{phase === 'activate' && (
+						<div className="flex-1 flex items-center justify-center p-6">
+							<div className="max-w-md text-center space-y-6">
+								<div className="flex justify-center gap-1">
+									{[1, 2, 3].map((s) => (
+										<Star
+											className={`w-8 h-8 ${
+												s <= stepper.starRating
+													? 'text-yellow-400 fill-yellow-400'
+													: 'text-muted-foreground/30'
+											}`}
+											key={s}
+										/>
+									))}
+								</div>
+								<p className="text-sm text-muted-foreground">
+									Your authentication layer is in place. Watch
+									unauthenticated requests bounce off the Auth gate.
+								</p>
+								<Button
+									className="gap-2"
+									onClick={handleActivateAuth}
+									size="lg"
+								>
+									<Play className="w-4 h-4" />
+									Visualize Authentication
+								</Button>
+							</div>
+						</div>
+					)}
+
+					{/* ── Phase 3b: Reward (ADVANTAGE sub-phase b) ── */}
+					{phase === 'reward' && (
+						<div className="flex-1 flex flex-col">
+							<div className="flex-1 relative">
+								<PipelineFlow
+									connections={REWARD_CONNECTIONS}
+									stages={rewardStages}
+								/>
+							</div>
+
+							{/* Stress test controls below pipeline */}
+							<div className="px-6 pb-2">
+								<StressTestPanel
+									allowedCount={stressTest.allowedCount}
+									blockedCount={stressTest.blockedCount}
+									canAutoFire={stressTest.canAutoFire}
+									isAutoFiring={stressTest.isAutoFiring}
+									onFire={handleFireScenario}
+									onToggleAutoFire={stressTest.toggleAutoFire}
+									results={stressTest.results}
+									scenarios={STRESS_SCENARIOS}
+								/>
+							</div>
+						</div>
+					)}
 				</div>
 			</CenterPanel>
 
 			<RightPanel>
-				<CodePreviewPanel files={getCodeFiles(stepper.furthestStep)} />
+				<CodePreviewPanel
+					files={getCodeFiles(phase, stepper.furthestStep)}
+				/>
 			</RightPanel>
 		</LevelLayout>
 	);

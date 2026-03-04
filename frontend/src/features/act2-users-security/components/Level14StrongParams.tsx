@@ -4,19 +4,24 @@
  * Sequential phase flow: observe -> build -> activate -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
- * Phase 1 (WHY - observe): Watch unfiltered params flow into database
- * Phase 2 (HOW - build): 3 OptionCard steps configuring params.expect
- *   Step 0: Choose the Params Method
- *   Step 1: Define the Whitelist
- *   Step 2: Wire It Into Actions
+ * Phase 1 (WHY - observe): Interactive exploration. Click pipeline stages to
+ *   inspect the too-broad params.expect whitelist, fire API probes to inject
+ *   user_id and admin through the unaudited filter. Discovery gating
+ *   controls when "Build the Fix" appears.
+ * Phase 2 (HOW - build): 3 OptionCard steps auditing and tightening the whitelist
+ *   Step 0: Audit the Whitelist (identify dangerous fields)
+ *   Step 1: Tighten the Whitelist (choose correct params.expect)
+ *   Step 2: Set Ownership Safely (current_user association)
  * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Filtering" button
- * Phase 4 (ADVANTAGE - reward): Filter gate blocks dangerous params
+ * Phase 4 (ADVANTAGE - reward): Stress test. Fire param payloads at the
+ *   tightened filter and watch allowed/blocked results.
  *
- * Teaches: Rails 8 params.expect, mass assignment protection, strict parameter filtering
+ * Builds on L6 (Controller) which introduced params.expect.
+ * Teaches: mass assignment auditing, whitelist tightening, ownership via association
  */
 
-import { ArrowRight, Play, Star } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { ArrowRight, Check, Play, Star, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -30,9 +35,27 @@ import {
 	StepProgress,
 	type ValidationResult,
 } from '@/components/levels';
+import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
+import {
+	type PipelineConnection,
+	PipelineFlow,
+	type PipelineStage,
+} from '@/components/levels/PipelineFlow';
+import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
+import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
+import {
+	StageInspector,
+	type StageInspectorData,
+} from '@/components/levels/StageInspector';
+import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
+import {
+	type DiscoveryDef,
+	useDiscoveryGating,
+} from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
+import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 
 // ──────────────────────────────────────────────
 // Phase type
@@ -41,13 +64,211 @@ import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 type Phase = 'observe' | 'build' | 'activate' | 'reward';
 
 // ──────────────────────────────────────────────
+// Discovery definitions (observe phase)
+// ──────────────────────────────────────────────
+
+const DISCOVERY_DEFS: DiscoveryDef[] = [
+	{ id: 'broad-whitelist', label: 'Whitelist includes dangerous fields' },
+	{ id: 'user-id-injection', label: 'user_id can be overwritten via params' },
+	{ id: 'admin-escalation', label: 'admin flag can be set via params' },
+	{ id: 'unprotected-model', label: 'Model saves every whitelisted param' },
+];
+
+// ──────────────────────────────────────────────
+// Probe configurations (observe phase)
+// ──────────────────────────────────────────────
+
+const PROBES: ProbeConfig[] = [
+	{
+		id: 'inject-user-id',
+		label: 'POST with user_id',
+		command: 'POST /api/v1/posts {title: "Hi", user_id: 42}',
+		responseLines: [
+			{ text: 'HTTP/1.1 201 Created', color: 'red' },
+			{
+				text: '{"id":5,"title":"Hi","user_id":42,"admin":false}',
+				color: 'muted',
+			},
+			{
+				text: 'user_id accepted! Post created as user 42, not the real author.',
+				color: 'yellow',
+			},
+			{
+				text: 'The whitelist includes user_id, so it passes through.',
+				color: 'red',
+			},
+		],
+	},
+	{
+		id: 'escalate-admin',
+		label: 'POST with admin: true',
+		command: 'POST /api/v1/posts {title: "Exploit", admin: true}',
+		responseLines: [
+			{ text: 'HTTP/1.1 201 Created', color: 'red' },
+			{
+				text: '{"id":6,"title":"Exploit","admin":true}',
+				color: 'muted',
+			},
+			{
+				text: 'admin: true accepted! Privilege escalation succeeded.',
+				color: 'yellow',
+			},
+			{
+				text: 'The whitelist includes admin, so any user can set it.',
+				color: 'red',
+			},
+		],
+	},
+	{
+		id: 'inject-both',
+		label: 'PATCH with both fields',
+		command: 'PATCH /api/v1/posts/1 {user_id: 99, admin: true}',
+		responseLines: [
+			{ text: 'HTTP/1.1 200 OK', color: 'red' },
+			{
+				text: '{"id":1,"user_id":99,"admin":true}',
+				color: 'muted',
+			},
+			{
+				text: 'Both fields accepted. Ownership stolen AND admin escalated.',
+				color: 'yellow',
+			},
+		],
+	},
+];
+
+// Map probe IDs to discovery IDs they trigger
+const PROBE_DISCOVERY_MAP: Record<string, string> = {
+	'inject-user-id': 'user-id-injection',
+	'escalate-admin': 'admin-escalation',
+	'inject-both': 'user-id-injection',
+};
+
+// Map probe IDs to pipeline node display during observe
+const PROBE_PIPELINE_MAP: Record<
+	string,
+	{ filterSublabel: string; modelBadge: string }
+> = {
+	'inject-user-id': {
+		filterSublabel: 'user_id: 42 PASSED',
+		modelBadge: '201!',
+	},
+	'escalate-admin': {
+		filterSublabel: 'admin: true PASSED',
+		modelBadge: '201!',
+	},
+	'inject-both': {
+		filterSublabel: 'user_id + admin PASSED',
+		modelBadge: '200!',
+	},
+};
+
+// ──────────────────────────────────────────────
+// Stage inspector data (observe phase)
+// ──────────────────────────────────────────────
+
+const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
+	request: {
+		stageId: 'request',
+		title: 'Incoming Request',
+		description:
+			'POST and PATCH requests include a JSON body. The body can contain ANY key the attacker chooses, including user_id and admin, alongside legitimate fields like title and body.',
+	},
+	controller: {
+		stageId: 'controller',
+		title: 'PostsController',
+		description:
+			'The controller calls post_params, which runs params.expect. The method filters the shape of the request, but the whitelist was written too broadly during initial development.',
+		code: `def create
+  post = current_user.posts.create!(post_params)
+  render json: post, status: :created
+end`,
+	},
+	filter: {
+		stageId: 'filter',
+		title: 'params.expect (Too Broad!)',
+		description:
+			'The whitelist includes user_id and admin alongside safe fields. params.expect filters the shape, but these dangerous fields pass right through because they are explicitly allowed.',
+		code: `def post_params
+  params.expect(post: [:title, :body, :status, :user_id, :admin])
+  #                                    ^^^^^^^^  ^^^^^^
+  #                              Impersonation!  Escalation!
+end`,
+	},
+	model: {
+		stageId: 'model',
+		title: 'Post Model',
+		description:
+			'The model receives ALL whitelisted params and saves them to the database. If user_id and admin are in the whitelist, every value the attacker sends gets persisted.',
+	},
+};
+
+// Map stage IDs to discovery IDs they trigger
+const STAGE_DISCOVERY_MAP: Record<string, string> = {
+	filter: 'broad-whitelist',
+	model: 'unprotected-model',
+};
+
+// ──────────────────────────────────────────────
+// Stress test scenarios (reward phase)
+// ──────────────────────────────────────────────
+
+const STRESS_SCENARIOS: StressScenario[] = [
+	{
+		id: 'clean-create',
+		label: 'Create with safe params',
+		description: 'POST with only title, body, status',
+		method: 'POST',
+		path: '/api/v1/posts',
+		actor: 'user_3',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'inject-user-id',
+		label: 'POST with user_id',
+		description: 'Try to set ownership via params',
+		method: 'POST',
+		path: '/api/v1/posts',
+		actor: 'attacker',
+		expectedResult: 'blocked',
+	},
+	{
+		id: 'inject-admin',
+		label: 'POST with admin: true',
+		description: 'Try to escalate privileges via params',
+		method: 'POST',
+		path: '/api/v1/posts',
+		actor: 'attacker',
+		expectedResult: 'blocked',
+	},
+	{
+		id: 'clean-update',
+		label: 'Update with safe params',
+		description: 'PATCH with only body and status',
+		method: 'PATCH',
+		path: '/api/v1/posts/1',
+		actor: 'owner (user_3)',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'inject-both',
+		label: 'PATCH with user_id + admin',
+		description: 'Try to steal ownership and escalate',
+		method: 'PATCH',
+		path: '/api/v1/posts/1',
+		actor: 'attacker',
+		expectedResult: 'blocked',
+	},
+];
+
+// ──────────────────────────────────────────────
 // Step definitions (3 OptionCard steps)
 // ──────────────────────────────────────────────
 
 const STEP_DEFS: StepDef[] = [
-	{ id: 'choose-method', title: 'Choose the Params Method' },
-	{ id: 'define-params', title: 'Define the Whitelist' },
-	{ id: 'wire-actions', title: 'Wire It Into Actions' },
+	{ id: 'audit-fields', title: 'Audit the Whitelist' },
+	{ id: 'tighten-params', title: 'Tighten the Whitelist' },
+	{ id: 'set-ownership', title: 'Set Ownership Safely' },
 ];
 
 // ──────────────────────────────────────────────
@@ -61,72 +282,72 @@ interface StepOption {
 	feedback?: string;
 }
 
-// Step 0: Choose the Params Method
-const PARAMS_METHOD_OPTIONS: StepOption[] = [
+// Step 0: Audit the Whitelist
+const AUDIT_OPTIONS: StepOption[] = [
 	{
-		id: 'permit-all',
-		label: 'params.permit!',
+		id: 'status-only',
+		label: 'Remove status (it controls publishing)',
 		correct: false,
 		feedback:
-			'permit! allows ALL parameters through, including user_id and admin. It makes mass assignment worse.',
+			'status is a content field the user should set (draft/published). The dangerous fields control identity and access, not content.',
 	},
 	{
-		id: 'require-permit',
-		label: 'params.require(:post).permit(...)',
+		id: 'user-id-only',
+		label: 'Remove user_id only',
 		correct: false,
 		feedback:
-			"This works but doesn't enforce types. An attacker can send a string where a hash is expected and cause a 500 error. Rails 8 has a stricter alternative.",
+			'user_id is dangerous, but there is another privileged field in the whitelist that lets users escalate access.',
 	},
 	{
-		id: 'expect',
-		label: 'params.expect(post: [...])',
+		id: 'both-dangerous',
+		label: 'Remove user_id and admin',
 		correct: true,
 	},
 ];
 
-// Step 1: Define the Whitelist
-const WHITELIST_OPTIONS: StepOption[] = [
+// Step 1: Tighten the Whitelist
+const TIGHTEN_OPTIONS: StepOption[] = [
 	{
-		id: 'with-user-id',
-		label: '[:title, :body, :user_id]',
+		id: 'too-narrow',
+		label: 'params.expect(post: [:title, :body])',
 		correct: false,
 		feedback:
-			'user_id should come from current_user, not from the request body. Allowing it lets attackers impersonate other users.',
+			'That removes status too. The user needs to set draft/published status on their posts. Only remove the sensitive fields.',
 	},
 	{
-		id: 'with-admin',
-		label: '[:title, :body, :status, :admin]',
+		id: 'still-broad',
+		label: 'params.expect(post: [:title, :body, :status, :user_id])',
 		correct: false,
 		feedback:
-			'admin is a privileged flag. Allowing it in the whitelist lets any user escalate to admin.',
+			'user_id is still in the list. You just identified it as dangerous in the audit.',
 	},
 	{
-		id: 'correct-params',
-		label: '[:title, :body, :status]',
+		id: 'correct-whitelist',
+		label: 'params.expect(post: [:title, :body, :status])',
 		correct: true,
 	},
 ];
 
-// Step 2: Wire It Into Actions
-const WIRE_ACTIONS_OPTIONS: StepOption[] = [
+// Step 2: Set Ownership Safely
+const OWNERSHIP_OPTIONS: StepOption[] = [
 	{
-		id: 'raw-params',
-		label: 'current_user.posts.create!(params[:post])',
+		id: 'merge-params',
+		label: 'Post.create!(post_params.merge(user_id: params[:user_id]))',
 		correct: false,
 		feedback:
-			'Still using raw params[:post]. This bypasses the filter entirely.',
+			'That still reads user_id from the request body. An attacker can send any user_id they want.',
 	},
 	{
-		id: 'post-params',
+		id: 'no-user',
+		label: 'Post.create!(post_params)',
+		correct: false,
+		feedback:
+			'That does not set user_id at all. The post will not be associated with any user.',
+	},
+	{
+		id: 'current-user',
 		label: 'current_user.posts.create!(post_params)',
 		correct: true,
-	},
-	{
-		id: 'require-only',
-		label: 'current_user.posts.create!(params.require(:post))',
-		correct: false,
-		feedback:
-			'require without expect or permit returns an unfiltered hash. Rails raises ForbiddenAttributesError.',
 	},
 ];
 
@@ -140,421 +361,40 @@ const OPTION_STEP_CONFIG: Record<
 	}
 > = {
 	0: {
-		title: 'Choose the Params Method',
+		title: 'Audit the Whitelist',
 		description:
-			'The controller currently uses raw params[:post], passing every attribute straight to the model. Rails 8 introduced a stricter alternative to require/permit. Which method should you use?',
-		options: PARAMS_METHOD_OPTIONS,
+			'You set up params.expect in the controller, but the whitelist includes [:title, :body, :status, :user_id, :admin]. Which fields must be removed to prevent mass assignment?',
+		options: AUDIT_OPTIONS,
 	},
 	1: {
-		title: 'Define the Whitelist',
+		title: 'Tighten the Whitelist',
 		description:
-			'Now define which attributes the user is allowed to set. The Post model has title, body, status, user_id, and admin columns. Which set should you whitelist?',
-		options: WHITELIST_OPTIONS,
+			'Rewrite the params.expect call with only the fields users are allowed to set. Keep content fields, drop identity and privilege fields.',
+		options: TIGHTEN_OPTIONS,
 	},
 	2: {
-		title: 'Wire It Into Actions',
+		title: 'Set Ownership Safely',
 		description:
-			'You defined post_params as a private method. Now update the create action to use filtered params instead of raw params[:post].',
-		options: WIRE_ACTIONS_OPTIONS,
+			'user_id is no longer in the whitelist, but posts still need an owner. How should the create action associate the post with the current user?',
+		options: OWNERSHIP_OPTIONS,
 	},
 };
 
 // ──────────────────────────────────────────────
-// ParamsFilter SVG Visualization
+// Pipeline visualization configs
 // ──────────────────────────────────────────────
 
-function ParamsFilterVisualization({
-	mode,
-}: {
-	mode: 'vulnerable' | 'protected';
-}) {
-	const isProtected = mode === 'protected';
+const OBSERVE_CONNECTIONS: PipelineConnection[] = [
+	{ from: 'request', to: 'controller', dots: 'mixed' },
+	{ from: 'controller', to: 'filter', dots: 'mixed' },
+	{ from: 'filter', to: 'model', dots: 'mixed' },
+];
 
-	return (
-		<svg
-			className="w-full h-full"
-			preserveAspectRatio="xMidYMid meet"
-			viewBox="0 0 600 400"
-		>
-			{/* Background grid */}
-			<defs>
-				<pattern
-					height="30"
-					id="params-grid"
-					patternUnits="userSpaceOnUse"
-					width="30"
-				>
-					<path
-						d="M 30 0 L 0 0 0 30"
-						fill="none"
-						stroke="currentColor"
-						strokeOpacity="0.05"
-						strokeWidth="1"
-					/>
-				</pattern>
-
-				{/* Motion paths */}
-				<path d="M 100,200 L 220,200" id="safe-path" />
-				<path d="M 340,200 L 480,200" id="to-db-path" />
-				<path d="M 280,200 L 280,310" id="reject-path" />
-			</defs>
-
-			<rect fill="url(#params-grid)" height="400" width="600" />
-
-			{/* ── Request box (left) ── */}
-			<rect
-				fill="none"
-				height="186"
-				rx="8"
-				stroke="currentColor"
-				strokeOpacity="0.2"
-				strokeWidth="1.5"
-				width="100"
-				x="30"
-				y="120"
-			/>
-			<text
-				fill="currentColor"
-				fontSize="12"
-				fontWeight="600"
-				opacity="0.7"
-				textAnchor="middle"
-				x="80"
-				y="145"
-			>
-				Request
-			</text>
-
-			{/* Param badges inside request box */}
-			<rect
-				fill="#10b981"
-				fillOpacity="0.15"
-				height="20"
-				rx="4"
-				width="70"
-				x="45"
-				y="158"
-			/>
-			<text fill="#10b981" fontSize="10" fontWeight="500" x="52" y="172">
-				title
-			</text>
-
-			<rect
-				fill="#10b981"
-				fillOpacity="0.15"
-				height="20"
-				rx="4"
-				width="70"
-				x="45"
-				y="184"
-			/>
-			<text fill="#10b981" fontSize="10" fontWeight="500" x="52" y="198">
-				body
-			</text>
-
-			<rect
-				fill="#10b981"
-				fillOpacity="0.15"
-				height="20"
-				rx="4"
-				width="70"
-				x="45"
-				y="210"
-			/>
-			<text fill="#10b981" fontSize="10" fontWeight="500" x="52" y="224">
-				status
-			</text>
-
-			<rect
-				fill="#ef4444"
-				fillOpacity="0.15"
-				height="20"
-				rx="4"
-				width="70"
-				x="45"
-				y="236"
-			/>
-			<text fill="#ef4444" fontSize="10" fontWeight="500" x="52" y="250">
-				user_id
-			</text>
-
-			<rect
-				fill="#ef4444"
-				fillOpacity="0.15"
-				height="20"
-				rx="4"
-				width="70"
-				x="45"
-				y="262"
-			/>
-			<text fill="#ef4444" fontSize="10" fontWeight="500" x="52" y="276">
-				admin
-			</text>
-
-			{/* ── Controller box with filter gate (center) ── */}
-			<rect
-				fill="none"
-				height="60"
-				rx="8"
-				stroke="currentColor"
-				strokeOpacity="0.3"
-				strokeWidth="1.5"
-				width="140"
-				x="210"
-				y="170"
-			/>
-			<text
-				fill="currentColor"
-				fontSize="14"
-				fontWeight="600"
-				opacity="0.8"
-				textAnchor="middle"
-				x="280"
-				y="205"
-			>
-				Controller
-			</text>
-
-			{/* Filter gate indicator */}
-			{isProtected ? (
-				<g transform="translate(280, 245)">
-					<rect
-						fill="#10b981"
-						fillOpacity="0.2"
-						height="24"
-						rx="4"
-						stroke="#10b981"
-						strokeWidth="1"
-						width="100"
-						x="-50"
-						y="0"
-					/>
-					<text
-						fill="#10b981"
-						fontSize="10"
-						fontWeight="600"
-						textAnchor="middle"
-						x="0"
-						y="16"
-					>
-						params.expect
-					</text>
-				</g>
-			) : (
-				<g transform="translate(280, 245)">
-					<rect
-						fill="none"
-						height="24"
-						rx="4"
-						stroke="#71717a"
-						strokeDasharray="3 3"
-						strokeWidth="1"
-						width="100"
-						x="-50"
-						y="0"
-					/>
-					<text
-						fill="#f59e0b"
-						fontSize="10"
-						fontWeight="500"
-						textAnchor="middle"
-						x="0"
-						y="16"
-					>
-						no filter
-					</text>
-				</g>
-			)}
-
-			{/* ── Database box (right) ── */}
-			<rect
-				fill="none"
-				height="60"
-				rx="8"
-				stroke="currentColor"
-				strokeOpacity="0.3"
-				strokeWidth="1.5"
-				width="100"
-				x="440"
-				y="170"
-			/>
-			<text
-				fill="currentColor"
-				fontSize="14"
-				fontWeight="600"
-				opacity="0.8"
-				textAnchor="middle"
-				x="490"
-				y="205"
-			>
-				Database
-			</text>
-
-			{/* ── Connection lines ── */}
-			<line
-				stroke="currentColor"
-				strokeDasharray={isProtected ? 'none' : '4 4'}
-				strokeOpacity="0.15"
-				strokeWidth="1"
-				x1="130"
-				x2="210"
-				y1="200"
-				y2="200"
-			/>
-			<line
-				stroke="currentColor"
-				strokeDasharray={isProtected ? 'none' : '4 4'}
-				strokeOpacity="0.15"
-				strokeWidth="1"
-				x1="350"
-				x2="440"
-				y1="200"
-				y2="200"
-			/>
-
-			{/* ── Animated dots ── */}
-			{!isProtected ? (
-				<>
-					{/* Vulnerable: all params flow to database */}
-					<circle fill="#10b981" r="4">
-						<animateMotion begin="0s" dur="2s" repeatCount="indefinite">
-							<mpath xlinkHref="#safe-path" />
-						</animateMotion>
-					</circle>
-					<circle fill="#ef4444" r="4">
-						<animateMotion begin="-0.5s" dur="2s" repeatCount="indefinite">
-							<mpath xlinkHref="#safe-path" />
-						</animateMotion>
-					</circle>
-
-					{/* All continue to database unfiltered */}
-					<circle fill="#10b981" r="4">
-						<animateMotion begin="0s" dur="2.5s" repeatCount="indefinite">
-							<mpath xlinkHref="#to-db-path" />
-						</animateMotion>
-					</circle>
-					<circle fill="#ef4444" r="4">
-						<animateMotion begin="-0.5s" dur="2.5s" repeatCount="indefinite">
-							<mpath xlinkHref="#to-db-path" />
-						</animateMotion>
-					</circle>
-
-					{/* Vulnerability label */}
-					<text
-						fill="#ef4444"
-						fontSize="10"
-						opacity="0.7"
-						textAnchor="middle"
-						x="300"
-						y="340"
-					>
-						All params pass through unfiltered
-					</text>
-				</>
-			) : (
-				<>
-					{/* Protected: safe params pass, dangerous ones are rejected */}
-					{/* Safe params flow through to database */}
-					<circle fill="#10b981" r="4">
-						<animateMotion begin="0s" dur="2s" repeatCount="indefinite">
-							<mpath xlinkHref="#safe-path" />
-						</animateMotion>
-					</circle>
-					<circle fill="#10b981" r="4">
-						<animateMotion begin="0s" dur="2.5s" repeatCount="indefinite">
-							<mpath xlinkHref="#to-db-path" />
-						</animateMotion>
-					</circle>
-
-					{/* Dangerous params get rejected downward */}
-					<circle fill="#ef4444" r="4">
-						<animateMotion begin="0s" dur="1.5s" repeatCount="indefinite">
-							<mpath xlinkHref="#reject-path" />
-						</animateMotion>
-						<animate
-							attributeName="opacity"
-							dur="1.5s"
-							repeatCount="indefinite"
-							values="1;1;0"
-						/>
-					</circle>
-					<circle fill="#ef4444" r="4">
-						<animateMotion begin="-0.75s" dur="1.5s" repeatCount="indefinite">
-							<mpath xlinkHref="#reject-path" />
-						</animateMotion>
-						<animate
-							attributeName="opacity"
-							begin="-0.75s"
-							dur="1.5s"
-							repeatCount="indefinite"
-							values="1;1;0"
-						/>
-					</circle>
-
-					{/* REJECTED label */}
-					<text
-						fill="#ef4444"
-						fontSize="10"
-						fontWeight="600"
-						textAnchor="middle"
-						x="280"
-						y="340"
-					>
-						REJECTED
-						<animate
-							attributeName="opacity"
-							dur="2s"
-							repeatCount="indefinite"
-							values="1;0.4;1"
-						/>
-					</text>
-
-					{/* Allowed label */}
-					<text
-						fill="#10b981"
-						fontSize="10"
-						fontWeight="600"
-						textAnchor="middle"
-						x="400"
-						y="165"
-					>
-						ALLOWED
-						<animate
-							attributeName="opacity"
-							dur="2s"
-							repeatCount="indefinite"
-							values="1;0.4;1"
-						/>
-					</text>
-				</>
-			)}
-		</svg>
-	);
-}
-
-// ──────────────────────────────────────────────
-// Params Legend
-// ──────────────────────────────────────────────
-
-function ParamsLegend() {
-	return (
-		<div className="p-4 border-b border-border">
-			<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-				Legend
-			</div>
-			<div className="space-y-2 text-sm">
-				<div className="flex items-center gap-2">
-					<div className="w-3 h-3 rounded-full bg-success" />
-					<span className="text-foreground">Safe params (whitelisted)</span>
-				</div>
-				<div className="flex items-center gap-2">
-					<div className="w-3 h-3 rounded-full bg-destructive" />
-					<span className="text-foreground">Dangerous params (blocked)</span>
-				</div>
-			</div>
-		</div>
-	);
-}
+const REWARD_CONNECTIONS: PipelineConnection[] = [
+	{ from: 'request', to: 'controller', dots: 'mixed' },
+	{ from: 'controller', to: 'filter', dots: 'mixed' },
+	{ from: 'filter', to: 'model', dots: 'clean' },
+];
 
 // ──────────────────────────────────────────────
 // Code preview helper
@@ -563,92 +403,72 @@ function ParamsLegend() {
 function getCodeFiles(phase: Phase, furthestStep: number) {
 	const files = [];
 
-	// Observe phase / step 0: show vulnerable controller
-	if (phase === 'observe' || (phase === 'build' && furthestStep === 0)) {
+	// Observe phase: show the too-broad whitelist
+	if (phase === 'observe') {
 		files.push({
 			filename: 'app/controllers/api/v1/posts_controller.rb',
 			language: 'ruby',
 			code: `class Api::V1::PostsController < ApplicationController
   def create
-    post = current_user.posts.create!(params[:post])
-    # Accepts ANY params: title, body, user_id, admin...
-    # Mass assignment vulnerability!
+    post = current_user.posts.create!(post_params)
     render json: post, status: :created
   end
 
   def update
     post = current_user.posts.find(params[:id])
-    post.update!(params[:post])
-    # Same problem: no filtering
-    render json: post
-  end
-end`,
-			highlight: [3, 11],
-		});
-		return files;
-	}
-
-	// After step 0: post_params method with [...] placeholder, actions still raw
-	if (furthestStep === 1) {
-		files.push({
-			filename: 'app/controllers/api/v1/posts_controller.rb',
-			language: 'ruby',
-			code: `class Api::V1::PostsController < ApplicationController
-  def create
-    post = current_user.posts.create!(params[:post])
-    render json: post, status: :created
-  end
-
-  def update
-    post = current_user.posts.find(params[:id])
-    post.update!(params[:post])
+    post.update!(post_params)
     render json: post
   end
 
   private
 
   def post_params
-    params.expect(post: [...])  # Which params to allow?
+    params.expect(post: [:title, :body, :status, :user_id, :admin])
+    #                                    ^^^^^^^^  ^^^^^^
+    #                              Impersonation!  Escalation!
   end
 end`,
-			highlight: [16],
+			highlight: [16, 17, 18],
 		});
 		return files;
 	}
 
-	// After step 1: placeholder filled, actions still raw
-	if (furthestStep === 2) {
+	// Build / activate / reward phases: show evolving code
+	if (furthestStep === 0) {
 		files.push({
 			filename: 'app/controllers/api/v1/posts_controller.rb',
 			language: 'ruby',
 			code: `class Api::V1::PostsController < ApplicationController
   def create
-    post = current_user.posts.create!(params[:post])
+    post = current_user.posts.create!(post_params)
     render json: post, status: :created
   end
 
   def update
     post = current_user.posts.find(params[:id])
-    post.update!(params[:post])
+    post.update!(post_params)
     render json: post
   end
 
   private
 
   def post_params
-    params.expect(post: [:title, :body, :status])
+    params.expect(post: [:title, :body, :status, :user_id, :admin])
+    #              safe: ^^^^^^  ^^^^^  ^^^^^^^
+    #          dangerous:                        ^^^^^^^^  ^^^^^^
   end
 end`,
-			highlight: [3, 9, 16],
+			highlight: [16, 17, 18],
 		});
-		return files;
 	}
 
-	// After step 2 (and activate/reward): actions wired to post_params
-	files.push({
-		filename: 'app/controllers/api/v1/posts_controller.rb',
-		language: 'ruby',
-		code: `class Api::V1::PostsController < ApplicationController
+	if (furthestStep >= 1) {
+		files.push({
+			filename: 'app/controllers/api/v1/posts_controller.rb',
+			language: 'ruby',
+			code:
+				furthestStep >= 3
+					? `class Api::V1::PostsController < ApplicationController
   def create
     post = current_user.posts.create!(post_params)
     render json: post, status: :created
@@ -664,13 +484,88 @@ end`,
 
   def post_params
     params.expect(post: [:title, :body, :status])
-    # Missing :post key -> 400 Bad Request (automatic)
+    # user_id and admin removed!
+    # Ownership set via current_user.posts association
+  end
+end`
+					: furthestStep >= 2
+						? `class Api::V1::PostsController < ApplicationController
+  def create
+    post = current_user.posts.create!(post_params)
+    render json: post, status: :created
+  end
+
+  def update
+    post = current_user.posts.find(params[:id])
+    post.update!(post_params)
+    render json: post
+  end
+
+  private
+
+  def post_params
+    params.expect(post: [:title, :body, :status])
+    # user_id and admin removed!
+    # But how does user_id get set now?
+  end
+end`
+						: `class Api::V1::PostsController < ApplicationController
+  def create
+    post = current_user.posts.create!(post_params)
+    render json: post, status: :created
+  end
+
+  def update
+    post = current_user.posts.find(params[:id])
+    post.update!(post_params)
+    render json: post
+  end
+
+  private
+
+  def post_params
+    params.expect(post: [:title, :body, :status, ...])
+    # Which fields stay? Which get removed?
   end
 end`,
-		highlight: [3, 9, 16, 17],
-	});
+			highlight:
+				furthestStep >= 3
+					? [3, 16, 17, 18]
+					: furthestStep >= 2
+						? [16, 17]
+						: [16],
+		});
+	}
 
 	return files;
+}
+
+// ──────────────────────────────────────────────
+// Pipeline Legend (reward phase left panel)
+// ──────────────────────────────────────────────
+
+function PipelineLegend() {
+	return (
+		<div className="p-4 border-b border-border">
+			<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+				Pipeline Legend
+			</div>
+			<div className="space-y-2 text-sm">
+				<div className="flex items-center gap-2">
+					<Check className="w-4 h-4 text-success" />
+					<span className="text-foreground">
+						Safe params (whitelisted, passes through)
+					</span>
+				</div>
+				<div className="flex items-center gap-2">
+					<X className="w-4 h-4 text-destructive" />
+					<span className="text-foreground">
+						Dangerous params (stripped by filter)
+					</span>
+				</div>
+			</div>
+		</div>
+	);
 }
 
 // ──────────────────────────────────────────────
@@ -679,9 +574,79 @@ end`,
 
 export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
+	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
+		minRequired: 3,
+	});
+	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
-	const [allowedCount, setAllowedCount] = useState(0);
-	const [blockedCount, setBlockedCount] = useState(0);
+	const [inspectorData, setInspectorData] =
+		useState<StageInspectorData | null>(null);
+	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
+		new Set(),
+	);
+	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
+
+	// ── Build observe stages dynamically (tracks inspected + last probe) ──
+	const probeDisplay = lastProbeId
+		? PROBE_PIPELINE_MAP[lastProbeId]
+		: null;
+	const observeStages: PipelineStage[] = useMemo(
+		() => [
+			{
+				id: 'request',
+				label: 'Request',
+				inspectable: true,
+				inspected: inspectedStages.has('request'),
+			},
+			{
+				id: 'controller',
+				label: 'Controller',
+				inspectable: true,
+				inspected: inspectedStages.has('controller'),
+			},
+			{
+				id: 'filter',
+				label: 'params.expect',
+				sublabel: probeDisplay ? probeDisplay.filterSublabel : '(too broad)',
+				variant: (probeDisplay ? 'danger' : 'default') as
+					| 'danger'
+					| 'default',
+				inspectable: true,
+				inspected: inspectedStages.has('filter'),
+			},
+			{
+				id: 'model',
+				label: 'Post Model',
+				badge: probeDisplay ? probeDisplay.modelBadge : 'SAVES ALL',
+				variant: (probeDisplay ? 'danger' : 'default') as
+					| 'danger'
+					| 'default',
+				inspectable: true,
+				inspected: inspectedStages.has('model'),
+			},
+		],
+		[inspectedStages, probeDisplay],
+	);
+
+	// ── Build reward stages dynamically (reacts to latest stress test result) ──
+	const lastResult = stressTest.results[stressTest.results.length - 1];
+	const rewardStages: PipelineStage[] = useMemo(() => {
+		const wasBlocked = lastResult?.result === 'blocked';
+		return [
+			{ id: 'request', label: 'Request' },
+			{ id: 'controller', label: 'Controller' },
+			{
+				id: 'filter',
+				label: 'params.expect',
+				sublabel: wasBlocked
+					? 'STRIPPED'
+					: '[:title, :body, :status]',
+				variant: wasBlocked ? ('danger' as const) : ('active' as const),
+				badge: wasBlocked ? 'BLOCKED' : undefined,
+			},
+			{ id: 'model', label: 'Post Model' },
+		];
+	}, [lastResult]);
 
 	// ── Transition: build -> activate when all steps complete ──
 	useEffect(() => {
@@ -690,15 +655,42 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 		}
 	}, [phase, stepper.isComplete]);
 
-	// ── Reward phase: dual counter interval ──
-	useEffect(() => {
-		if (phase !== 'reward') return;
-		const interval = setInterval(() => {
-			setAllowedCount((c) => c + 3);
-			setBlockedCount((c) => c + 1);
-		}, 3500);
-		return () => clearInterval(interval);
-	}, [phase]);
+	// ── Stage click handler (observe phase) ──
+	const handleStageClick = useCallback(
+		(stageId: string) => {
+			if (phase !== 'observe') return;
+
+			const data = STAGE_INSPECTOR_MAP[stageId];
+			if (!data) return;
+
+			setInspectorData(data);
+			setInspectedStages((prev) => {
+				if (prev.has(stageId)) return prev;
+				const next = new Set(prev);
+				next.add(stageId);
+				return next;
+			});
+
+			// Trigger discovery if this stage has one
+			const discoveryId = STAGE_DISCOVERY_MAP[stageId];
+			if (discoveryId) {
+				discoveryGating.discover(discoveryId);
+			}
+		},
+		[phase, discoveryGating],
+	);
+
+	// ── Probe handler (observe phase) ──
+	const handleProbe = useCallback(
+		(probeId: string) => {
+			setLastProbeId(probeId);
+			const discoveryId = PROBE_DISCOVERY_MAP[probeId];
+			if (discoveryId) {
+				discoveryGating.discover(discoveryId);
+			}
+		},
+		[discoveryGating],
+	);
 
 	// ── OptionCard step handler ──
 	const handleOptionClick = useCallback(
@@ -719,9 +711,16 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 
 	const handleActivateFilter = () => {
 		setPhase('reward');
-		setAllowedCount(0);
-		setBlockedCount(0);
+		stressTest.reset();
 	};
+
+	// ── Stress test fire handler ──
+	const handleFireScenario = useCallback(
+		(scenarioId: string) => {
+			stressTest.fireRequest(scenarioId);
+		},
+		[stressTest],
+	);
 
 	// ── Completion ──
 	const handleComplete = () => {
@@ -738,7 +737,7 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 					.map((s) => s.title),
 			};
 		}
-		return { valid: true, message: 'Strong params are configured!' };
+		return { valid: true, message: 'Strong params are locked down!' };
 	};
 
 	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
@@ -753,32 +752,41 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							The controller passes raw params straight to the model.
-							A malicious user can send{' '}
-							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
-								user_id
-							</code>{' '}
-							or{' '}
-							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
-								admin
-							</code>{' '}
-							in the request body and take over any account.
-						</p>
-						<p className="text-sm text-muted-foreground leading-relaxed">
-							Rails 8 introduced{' '}
+							You set up{' '}
 							<span className="text-foreground font-medium">
 								params.expect
 							</span>{' '}
-							as a stricter alternative to require/permit. It returns 400
-							Bad Request automatically when required params are missing.
+							in the controller, but the whitelist was written too broadly. It
+							includes{' '}
+							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
+								user_id
+							</code>{' '}
+							and{' '}
+							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
+								admin
+							</code>{' '}
+							alongside safe fields.
+						</p>
+						<p className="text-sm text-muted-foreground leading-relaxed">
+							A malicious user can send these fields in the request body and
+							take over any account or escalate privileges. You need to audit
+							and tighten the whitelist.
 						</p>
 					</div>
 
-					{/* Observe phase: legend only */}
-					{phase === 'observe' && <ParamsLegend />}
+					{/* Observe phase: discovery checklist */}
+					{phase === 'observe' && (
+						<div className="p-4 border-b border-border">
+							<DiscoveryChecklist
+								discoveries={discoveryGating.discoveries}
+								discoveredCount={discoveryGating.discoveredCount}
+								minRequired={discoveryGating.minRequired}
+							/>
+						</div>
+					)}
 
-					{/* Build / activate / reward phases: step progress */}
-					{phase !== 'observe' && (
+					{/* Build / activate phases: step progress */}
+					{(phase === 'build' || phase === 'activate') && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -791,28 +799,24 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* Reward phase: legend + dual counters */}
+					{/* Reward phase: legend + counters */}
 					{phase === 'reward' && (
 						<>
-							<ParamsLegend />
+							<PipelineLegend />
 
 							<div className="p-4">
 								<div className="grid grid-cols-2 gap-3">
 									<div className="bg-success/20 rounded-lg p-3 text-center">
 										<div className="text-2xl font-bold text-success">
-											{allowedCount}
+											{stressTest.allowedCount}
 										</div>
-										<div className="text-xs text-success/70">
-											Allowed
-										</div>
+										<div className="text-xs text-success/70">Allowed</div>
 									</div>
 									<div className="bg-destructive/20 rounded-lg p-3 text-center">
 										<div className="text-2xl font-bold text-destructive">
-											{blockedCount}
+											{stressTest.blockedCount}
 										</div>
-										<div className="text-xs text-destructive/70">
-											Blocked
-										</div>
+										<div className="text-xs text-destructive/70">Blocked</div>
 									</div>
 								</div>
 							</div>
@@ -838,18 +842,41 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 					{phase === 'observe' && (
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">
-								<ParamsFilterVisualization mode="vulnerable" />
+								<PipelineFlow
+									connections={OBSERVE_CONNECTIONS}
+									onNodeClick={handleStageClick}
+									stages={observeStages}
+								/>
+								{inspectorData && (
+									<StageInspector
+										data={inspectorData}
+										onClose={() => setInspectorData(null)}
+									/>
+								)}
 							</div>
-							<div className="p-6 flex justify-center">
-								<Button
-									className="gap-2"
-									onClick={handleStartBuild}
-									size="lg"
-								>
-									Build the Fix
-									<ArrowRight className="w-4 h-4" />
-								</Button>
+
+							{/* Probe terminal */}
+							<div className="px-6 pb-2">
+								<ProbeTerminal
+									onProbe={handleProbe}
+									probes={PROBES}
+									title="Param Injection Probe"
+								/>
 							</div>
+
+							{/* Build the Fix button (discovery gated) */}
+							{discoveryGating.isUnlocked && (
+								<div className="p-4 flex justify-center animate-in fade-in duration-500">
+									<Button
+										className="gap-2"
+										onClick={handleStartBuild}
+										size="lg"
+									>
+										Build the Fix
+										<ArrowRight className="w-4 h-4" />
+									</Button>
+								</div>
+							)}
 						</div>
 					)}
 
@@ -933,8 +960,8 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 									))}
 								</div>
 								<p className="text-sm text-muted-foreground">
-									Your params filter is ready. Watch dangerous params
-									like user_id and admin get rejected at the gate.
+									Your params filter is locked down. Watch dangerous params
+									like user_id and admin get stripped at the gate.
 								</p>
 								<Button
 									className="gap-2"
@@ -952,13 +979,24 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">
-								<ParamsFilterVisualization mode="protected" />
+								<PipelineFlow
+									connections={REWARD_CONNECTIONS}
+									stages={rewardStages}
+								/>
 							</div>
-							<div className="p-4 text-center">
-								<p className="text-sm text-muted-foreground">
-									Filter active. Only title, body, and status reach the
-									database. Click Submit to complete the level.
-								</p>
+
+							{/* Stress test controls below pipeline */}
+							<div className="px-6 pb-2">
+								<StressTestPanel
+									allowedCount={stressTest.allowedCount}
+									blockedCount={stressTest.blockedCount}
+									canAutoFire={stressTest.canAutoFire}
+									isAutoFiring={stressTest.isAutoFiring}
+									onFire={handleFireScenario}
+									onToggleAutoFire={stressTest.toggleAutoFire}
+									results={stressTest.results}
+									scenarios={STRESS_SCENARIOS}
+								/>
 							</div>
 						</div>
 					)}
@@ -966,9 +1004,7 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 			</CenterPanel>
 
 			<RightPanel>
-				<CodePreviewPanel
-					files={getCodeFiles(phase, stepper.furthestStep)}
-				/>
+				<CodePreviewPanel files={getCodeFiles(phase, stepper.furthestStep)} />
 			</RightPanel>
 		</LevelLayout>
 	);

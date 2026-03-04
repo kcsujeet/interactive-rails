@@ -10,10 +10,10 @@
 import type { Act, Level } from '@/types';
 
 // ============================================
-// Level 8: Authentication
+// Level 9: Authentication
 // ============================================
 
-const level8Authentication: Level = {
+const level9Authentication: Level = {
 	id: 'act2-level9-authentication',
 	actId: 2,
 	levelNumber: 9,
@@ -92,7 +92,7 @@ bin/rails generate authentication
 # - Login/logout controller scaffolding
 
 # But we're API-only -- we need Bearer tokens, not cookies.`,
-		goal: 'Generate auth scaffolding, add a User model, and protect endpoints with Bearer token authentication.',
+		goal: 'Generate auth scaffolding, run migrations, configure password hashing, and protect endpoints with Bearer token authentication.',
 		thresholds: {},
 	},
 	successConditions: [
@@ -105,7 +105,7 @@ bin/rails generate authentication
 	learningContent: {
 		title: 'Rails 8 Authentication & Bearer Tokens',
 		goal: `In this level, you'll:\n- secure your API so every request is tied to a real user.\n- use Rails 8's built-in authentication generator.\n- learn how has_secure_password stores passwords safely with bcrypt.\n- set up Bearer token authentication so clients can prove who they are on every request.`,
-		conceptExplanation: `Rails 8 includes a built-in authentication generator -- no more Devise dependency for basic auth.
+		conceptExplanation: `Rails 8 includes a built-in authentication generator, so there is no more Devise dependency for basic auth.
 
 **\`bin/rails generate authentication\`** creates:
 - User model with \`has_secure_password\` (bcrypt)
@@ -114,12 +114,12 @@ bin/rails generate authentication
 - Login/logout controller scaffolding
 
 **API mode with Bearer tokens:**
-- Sessions use cookies by default -- but APIs need tokens
+- Sessions use cookies by default, but APIs need tokens
 - Generate a token on login, return it in JSON
 - Client sends \`Authorization: Bearer <token>\` on every request
-- \`authenticate_or_request_with_http_token\` verifies it
+- The Authentication concern's \`require_authentication\` verifies it
 
-**\`authenticate_by\` (Rails 8 -- timing-safe login):**
+**\`authenticate_by\` (Rails 8, timing-safe login):**
 - \`User.authenticate_by(email: "...", password: "...")\` returns the user or nil
 - Performs constant-time comparison to prevent timing attacks
 - Replaces the manual \`find_by + authenticate\` pattern
@@ -139,37 +139,41 @@ class User < ApplicationRecord
   has_many :sessions, dependent: :destroy
 end
 
-# For API mode: Token-based authentication
-# app/controllers/concerns/api_authentication.rb
-module ApiAuthentication
+# app/controllers/concerns/authentication.rb (generated)
+module Authentication
   extend ActiveSupport::Concern
 
   included do
-    before_action :authenticate_user
+    before_action :require_authentication
   end
 
   private
 
-  def authenticate_user
-    authenticate_or_request_with_http_token do |token, _options|
-      @current_user = Session.find_by(token: token)&.user
-    end
+  def require_authentication
+    session = Session.find_by(
+      token: request.headers["Authorization"]
+               &.delete_prefix("Bearer ")
+    )
+    resume_session(session)
+  end
+
+  def resume_session(session)
+    Current.session = session
   end
 
   def current_user
-    @current_user
+    Current.session&.user
   end
 end
 
-# app/controllers/api/v1/sessions_controller.rb
-class Api::V1::SessionsController < ApplicationController
-  skip_before_action :authenticate_user, only: [:create]
+# app/controllers/sessions_controller.rb
+class SessionsController < ApplicationController
+  allow_unauthenticated_access only: [:create]
 
   def create
-    # Rails 8: authenticate_by -- timing-safe login
-    # Prevents timing attacks (constant-time comparison)
+    # Rails 8: authenticate_by (timing-safe login)
     user = User.authenticate_by(
-      email: params[:email],
+      email_address: params[:email_address],
       password: params[:password]
     )
     if user
@@ -187,7 +191,7 @@ class Api::V1::SessionsController < ApplicationController
 end
 
 # Client usage:
-# POST /api/v1/sessions { email: "...", password: "..." }
+# POST /sessions { email_address: "...", password: "..." }
 # => { "token": "abc123..." }
 #
 # GET /api/v1/posts -H "Authorization: Bearer abc123..."`,
@@ -196,7 +200,7 @@ end
 			'Storing plaintext passwords instead of using has_secure_password',
 			'Using cookie-based sessions in API-only mode',
 			'Not expiring or rotating Bearer tokens',
-			'Forgetting skip_before_action on login/signup endpoints',
+			'Forgetting allow_unauthenticated_access on login/signup endpoints',
 		],
 		whenToUse:
 			'Every API that has user-specific data needs authentication. Start with Rails 8 auth generator and adapt for Bearer tokens.',
@@ -217,15 +221,15 @@ end
 	},
 	hint: {
 		delay: 25,
-		text: 'Add an Authentication node between Request and Router. This intercepts every request and verifies the Bearer token before it reaches the controller.',
+		text: 'Click pipeline stages to inspect them and fire API probes to discover the vulnerabilities. Look for missing authentication layers and anonymous access.',
 	},
 };
 
 // ============================================
-// Level 9: Validations
+// Level 10: Validations
 // ============================================
 
-const level9Validations: Level = {
+const level10Validations: Level = {
 	id: 'act2-level10-validations',
 	actId: 2,
 	levelNumber: 10,
@@ -233,7 +237,7 @@ const level9Validations: Level = {
 	trigger: {
 		type: 'user_complaint',
 		description:
-			'Users submit empty posts, duplicate emails, and garbage data. The database is filling up with invalid records. Reject bad data before it hits the DB.',
+			'Authentication is live, but users submit empty posts, duplicate emails, and garbage data. The database is filling up with invalid records. Reject bad data before it hits the DB.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -294,7 +298,7 @@ const level9Validations: Level = {
 			'No model validations. Data flows straight through to the database without any checks.',
 		codeExample: `# Current state: NO validations
 class Post < ApplicationRecord
-  # Nothing here -- accepts anything!
+  # Nothing here. Accepts anything!
 end
 
 class User < ApplicationRecord
@@ -310,7 +314,7 @@ User.create(email: "joe@test.com")         # Saved!
 User.create(email: "joe@test.com")         # Saved again! Duplicate.
 
 # The database is full of garbage.`,
-		goal: 'Add validations to reject invalid data before it reaches the database.',
+		goal: 'Add presence, uniqueness, and format validations to your models, then inspect error messages in the Rails console.',
 		thresholds: {},
 	},
 	successConditions: [
@@ -326,13 +330,13 @@ User.create(email: "joe@test.com")         # Saved again! Duplicate.
 		conceptExplanation: `Validations ensure only valid data gets saved to the database. They run before \`save\`, \`create\`, and \`update\`.
 
 **Built-in validators:**
-- \`presence\` -- field cannot be blank
-- \`uniqueness\` -- no duplicate values
-- \`format\` -- must match a regex
-- \`length\` -- min/max character count
-- \`numericality\` -- must be a number
-- \`inclusion\` -- must be in a list
-- \`exclusion\` -- must not be in a list
+- \`presence\`: field cannot be blank
+- \`uniqueness\`: no duplicate values
+- \`format\`: must match a regex
+- \`length\`: min/max character count
+- \`numericality\`: must be a number
+- \`inclusion\`: must be in a list
+- \`exclusion\`: must not be in a list
 
 **Custom messages:** Override defaults with \`message:\`
 **Custom validators:** Write your own for complex rules
@@ -367,7 +371,7 @@ class User < ApplicationRecord
                                  message: "only allows letters, numbers, and underscores" }
 end
 
-# In the controller -- return validation errors as JSON:
+# In the controller, return validation errors as JSON:
 def create
   post = current_user.posts.build(post_params)
   if post.save
@@ -399,7 +403,7 @@ end`,
 			'Skipping validations with save(validate: false) in production code',
 		],
 		whenToUse:
-			'Every model that accepts user input needs validations. Add them from the start -- retrofitting is painful.',
+			'Every model that accepts user input needs validations. Add them from the start. Retrofitting is painful.',
 		furtherReading: [
 			{
 				title: 'Active Record Validations',
@@ -413,7 +417,7 @@ end`,
 	},
 	hint: {
 		delay: 20,
-		text: 'Add a Validation node to the pipeline. Validations run inside the model before data reaches the database.',
+		text: 'Click the pipeline stages and fire data probes to discover what gets through. Then build presence, uniqueness, and format validations.',
 	},
 };
 
@@ -499,7 +503,7 @@ User.find_by(email: "joe@gmail.com")
 
 # Rails 8 introduces 'normalizes' -- a declarative way
 # to clean data before it hits the DB.`,
-		goal: 'Normalize email on save and trigger a welcome email after user creation.',
+		goal: 'Normalize email with Rails 8 normalizes, add an after_create callback for the welcome email, learn the callback lifecycle order, and use after_commit for safe external side effects.',
 		thresholds: {},
 	},
 	successConditions: [
@@ -600,13 +604,13 @@ User.find_by(email: "  JOE@GMAIL.COM  ")
 			},
 			{
 				title: 'Rails 8 normalizes',
-				url: 'https://guides.rubyonrails.org/8_0_release_notes.html',
+				url: 'https://api.rubyonrails.org/classes/ActiveRecord/Normalization/ClassMethods.html',
 			},
 		],
 	},
 	hint: {
 		delay: 20,
-		text: 'Add a Callback node connected to the User model. Use Rails 8 normalizes for email cleanup and after_create for the welcome email.',
+		text: 'Click pipeline stages and fire data probes to discover what is missing. Try signing up with a messy email and checking the mailer queue.',
 	},
 };
 
@@ -790,10 +794,10 @@ end`,
 };
 
 // ============================================
-// Level 12: Testing
+// Level 13: Testing
 // ============================================
 
-const level12Testing: Level = {
+const level13Testing: Level = {
 	id: 'act2-level13-testing',
 	actId: 2,
 	levelNumber: 13,
@@ -874,20 +878,21 @@ const level12Testing: Level = {
 
 # The login endpoint broke because someone
 # renamed the 'token' column to 'auth_token'
-# but forgot to update the sessions controller.
+# but forgot to update the sessions controller:
 
-# With a single request spec, this would have
-# been caught before deploy:
-
-# spec/requests/api/v1/sessions_spec.rb
-RSpec.describe "Sessions API" do
-  it "returns a token on valid login" do
-    user = create(:user, password: "password123")
-    post "/api/v1/sessions", params: { email: user.email, password: "password123" }
-    expect(response).to have_http_status(:created)
-    expect(json_response["token"]).to be_present
+class Api::V1::SessionsController < ApplicationController
+  def create
+    user = User.find_by(email: params[:email])
+    if user&.authenticate(params[:password])
+      session = user.sessions.create!
+      render json: { auth_token: session.token },
+             status: :created  # session.token => NoMethodError!
+    end
   end
-end`,
+end
+
+# A request spec hitting POST /api/v1/sessions
+# would have caught this before deploy.`,
 		goal: 'Install rspec-rails and factory_bot_rails, configure FactoryBot in RSpec, define a user factory, and write a request spec for the sessions endpoint.',
 		thresholds: {},
 	},
@@ -1074,9 +1079,9 @@ class Api::V1::PostsController < ApplicationController
   private
 
   def post_params
-    params.expect(post: [:title, :body, :user_id, :admin])
-    #                                    ^^^^^^^^  ^^^^^^
-    #                              Impersonation!  Privilege escalation!
+    params.expect(post: [:title, :body, :status, :user_id, :admin])
+    #                                            ^^^^^^^^  ^^^^^^
+    #                                      Impersonation!  Privilege escalation!
   end
 end
 
@@ -1170,7 +1175,7 @@ end
 // Level 15: CORS
 // ============================================
 
-const level14CORS: Level = {
+const level15CORS: Level = {
 	id: 'act2-level15-cors',
 	actId: 2,
 	levelNumber: 15,
@@ -1280,13 +1285,13 @@ export const actTwo: Act = {
 	description:
 		'Your API is live and users are hitting it. But anyone can access anything, bad data is getting through, and there is no protection. Add authentication, validations, authorization, testing, and parameter filtering to make it production-safe, then connect a React frontend.',
 	levels: [
-		level8Authentication,
-		level9Validations,
+		level9Authentication,
+		level10Validations,
 		level10Callbacks,
 		level11Authorization,
-		level12Testing,
+		level13Testing,
 		level13StrongParams,
-		level14CORS,
+		level15CORS,
 	],
 	unlockedNodes: [
 		'authentication',

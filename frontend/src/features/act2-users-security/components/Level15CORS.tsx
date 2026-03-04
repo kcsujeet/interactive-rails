@@ -4,19 +4,19 @@
  * Sequential phase flow: observe -> build -> activate -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
- * Phase 1 (WHY - observe): Watch all requests (legitimate and malicious) reach API unblocked
+ * Phase 1 (WHY - observe): Probe the API from different origins, discover CORS is missing
  * Phase 2 (HOW - build): 3 steps (1 terminal + 2 OptionCard) configuring rack-cors
  *   Step 0: bundle add rack-cors (terminal)
  *   Step 1: Configure CORS Origins (OptionCard)
  *   Step 2: Allow HTTP Methods (OptionCard)
  * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Protection" button
- * Phase 4 (ADVANTAGE - reward): CORS shield blocks malicious requests
+ * Phase 4 (ADVANTAGE - reward): Stress test CORS with requests from various origins
  *
  * Teaches: rack-cors gem, CORS origin configuration, allowed HTTP methods
  */
 
-import { ArrowRight, Play, Star } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { ArrowRight, Check, Play, Star, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -35,15 +35,128 @@ import {
 	type TerminalStepData,
 	type ValidationResult,
 } from '@/components/levels';
+import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
+import {
+	PipelineFlow,
+	PIPELINE_DOTS_CLEAN,
+	PIPELINE_DOTS_MIXED,
+	type PipelineConnection,
+	type PipelineStage,
+} from '@/components/levels/PipelineFlow';
+import { ProbeTerminal, type ProbeConfig } from '@/components/levels/ProbeTerminal';
+import { StageInspector, type StageInspectorData } from '@/components/levels/StageInspector';
+import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
+import { useDiscoveryGating, type DiscoveryDef } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
+import { useStressTest, type StressScenario } from '@/hooks/useStressTest';
 
 // ──────────────────────────────────────────────
 // Phase type
 // ──────────────────────────────────────────────
 
 type Phase = 'observe' | 'build' | 'activate' | 'reward';
+
+// ──────────────────────────────────────────────
+// Discovery definitions (observe phase)
+// ──────────────────────────────────────────────
+
+const DISCOVERY_DEFS: DiscoveryDef[] = [
+	{ id: 'browser-blocked', label: 'Browser blocks frontend requests' },
+	{ id: 'preflight-fails', label: 'Preflight OPTIONS request fails' },
+	{ id: 'curl-works', label: 'curl bypasses CORS entirely' },
+	{ id: 'no-middleware', label: 'No CORS middleware installed' },
+];
+
+// ──────────────────────────────────────────────
+// Probe definitions (observe phase)
+// ──────────────────────────────────────────────
+
+const PROBES: ProbeConfig[] = [
+	{
+		id: 'fetch-posts',
+		label: 'GET /posts from React',
+		command: 'fetch("http://localhost:3000/api/v1/posts") // from localhost:3001',
+		responseLines: [
+			{ text: 'Access to fetch at http://localhost:3000/api/v1/posts', color: 'red' },
+			{ text: "from origin 'http://localhost:3001' has been blocked", color: 'red' },
+			{ text: 'by CORS policy: No Access-Control-Allow-Origin header', color: 'red' },
+			{ text: 'Response Status: (blocked by browser)', color: 'yellow' },
+		],
+	},
+	{
+		id: 'preflight-delete',
+		label: 'DELETE /posts/1 from React',
+		command: 'fetch("http://localhost:3000/api/v1/posts/1", { method: "DELETE" })',
+		responseLines: [
+			{ text: 'Preflight OPTIONS /api/v1/posts/1', color: 'cyan' },
+			{ text: 'Response to preflight: no Access-Control-Allow-Origin', color: 'red' },
+			{ text: 'DELETE request never sent (preflight rejected)', color: 'yellow' },
+		],
+	},
+	{
+		id: 'curl-bypass',
+		label: 'GET /posts via curl',
+		command: 'curl http://localhost:3000/api/v1/posts',
+		responseLines: [
+			{ text: 'HTTP/1.1 200 OK', color: 'green' },
+			{ text: '[{"id":1,"title":"Hello World"}, ...]', color: 'green' },
+			{ text: 'curl ignores CORS (no browser = no Same-Origin Policy)', color: 'muted' },
+		],
+	},
+];
+
+const PROBE_DISCOVERY_MAP: Record<string, string> = {
+	'fetch-posts': 'browser-blocked',
+	'preflight-delete': 'preflight-fails',
+	'curl-bypass': 'curl-works',
+};
+
+// ──────────────────────────────────────────────
+// Stage inspector data (observe phase)
+// ──────────────────────────────────────────────
+
+const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
+	browser: {
+		stageId: 'browser',
+		title: 'Browser (Same-Origin Policy)',
+		description:
+			'Browsers enforce the Same-Origin Policy. Requests from one origin (host + port) to another are blocked unless the server sends CORS headers allowing it.',
+	},
+	preflight: {
+		stageId: 'preflight',
+		title: 'Preflight Check (OPTIONS)',
+		description:
+			'For non-simple requests (DELETE, PUT, custom headers), the browser sends an OPTIONS request first. If the server does not respond with CORS headers, the actual request is never sent.',
+	},
+	cors: {
+		stageId: 'cors',
+		title: 'CORS Middleware (Missing)',
+		description:
+			'No rack-cors gem installed. The API sends no Access-Control-Allow-Origin headers, so the browser blocks every cross-origin response.',
+		code: `# config/initializers/cors.rb
+# FILE DOES NOT EXIST
+# No CORS middleware in the Rack stack`,
+	},
+	api: {
+		stageId: 'api',
+		title: 'Rails API',
+		description:
+			'The API processes requests normally. curl works fine because it does not enforce CORS. The problem is the missing CORS headers in the response, not the request handling.',
+	},
+};
+
+const STAGE_DISCOVERY_MAP: Record<string, string> = {
+	cors: 'no-middleware',
+};
+
+// Maps probe IDs to pipeline node display state during observe
+const PROBE_PIPELINE_MAP: Record<string, { corsSublabel: string; corsBadge: string }> = {
+	'fetch-posts': { corsSublabel: 'No headers sent', corsBadge: 'BLOCKED' },
+	'preflight-delete': { corsSublabel: 'OPTIONS rejected', corsBadge: 'BLOCKED' },
+	'curl-bypass': { corsSublabel: '(bypassed)', corsBadge: '200' },
+};
 
 // ──────────────────────────────────────────────
 // Step definitions (3 steps: 1 terminal + 2 OptionCard)
@@ -75,18 +188,18 @@ const addGemCommands: TerminalCommand[] = [
 			'cors is a Node.js package. This is a Rails API, so you need the Ruby equivalent.',
 	},
 	{
-		id: 'correct',
-		label: 'bundle add rack-cors',
-		command: 'bundle add rack-cors',
-		correct: true,
-	},
-	{
 		id: 'wrong-gem-install',
 		label: 'gem install rack-cors',
 		command: 'gem install rack-cors',
 		correct: false,
 		feedback:
 			"That installs globally, not into your project. Bundler manages project dependencies.",
+	},
+	{
+		id: 'correct',
+		label: 'bundle add rack-cors',
+		command: 'bundle add rack-cors',
+		correct: true,
 	},
 ];
 
@@ -117,16 +230,16 @@ const CORS_ORIGIN_OPTIONS: StepOption[] = [
 			'Wildcard origins allow ANY website to call your API. That defeats the purpose of CORS entirely.',
 	},
 	{
+		id: 'specific',
+		label: 'origins "https://yourdomain.com", "http://localhost:3001"',
+		correct: true,
+	},
+	{
 		id: 'disabled',
 		label: 'origins false',
 		correct: false,
 		feedback:
 			'Disabling origins blocks all cross-origin requests. Your React frontend needs to reach the API.',
-	},
-	{
-		id: 'specific',
-		label: 'origins "https://yourdomain.com", "http://localhost:3001"',
-		correct: true,
 	},
 ];
 
@@ -140,16 +253,16 @@ const HTTP_METHODS_OPTIONS: StepOption[] = [
 			'GET-only blocks all mutations. Your frontend needs to create, update, and delete posts.',
 	},
 	{
-		id: 'full-set',
-		label: 'methods: [:get, :post, :put, :patch, :delete, :options]',
-		correct: true,
-	},
-	{
 		id: 'any',
 		label: 'methods: :any',
 		correct: false,
 		feedback:
 			'Allowing all HTTP methods is overly permissive. Whitelist only what your API actually uses.',
+	},
+	{
+		id: 'full-set',
+		label: 'methods: [:get, :post, :put, :patch, :delete, :options]',
+		correct: true,
 	},
 ];
 
@@ -190,440 +303,102 @@ const OPTION_STEP_CONFIG: Record<
 };
 
 // ──────────────────────────────────────────────
-// CORS SVG Visualization
+// Stress test scenarios (reward phase)
 // ──────────────────────────────────────────────
 
-function CORSVisualization({
-	mode,
-}: {
-	mode: 'vulnerable' | 'protected';
-}) {
-	const isProtected = mode === 'protected';
-
-	return (
-		<svg
-			className="w-full h-full"
-			preserveAspectRatio="xMidYMid meet"
-			viewBox="0 0 600 400"
-		>
-			{/* Background grid */}
-			<defs>
-				<pattern
-					height="30"
-					id="cors-grid"
-					patternUnits="userSpaceOnUse"
-					width="30"
-				>
-					<path
-						d="M 30 0 L 0 0 0 30"
-						fill="none"
-						stroke="currentColor"
-						strokeOpacity="0.05"
-						strokeWidth="1"
-					/>
-				</pattern>
-
-				{/* Motion paths */}
-				<path d="M 100,160 L 260,200" id="browser-path" />
-				<path d="M 100,280 L 260,240" id="malicious-path" />
-				<path d="M 340,200 L 500,200" id="api-path" />
-				<path d="M 300,220 L 300,330" id="block-path" />
-			</defs>
-
-			<rect fill="url(#cors-grid)" height="400" width="600" />
-
-			{/* ── Browser box (top-left) ── */}
-			<rect
-				fill="none"
-				height="50"
-				rx="8"
-				stroke="currentColor"
-				strokeOpacity="0.3"
-				strokeWidth="1.5"
-				width="130"
-				x="20"
-				y="130"
-			/>
-			<text
-				fill="currentColor"
-				fontSize="12"
-				fontWeight="600"
-				opacity="0.8"
-				textAnchor="middle"
-				x="85"
-				y="152"
-			>
-				Browser
-			</text>
-			<text
-				fill="#10b981"
-				fontSize="9"
-				opacity="0.7"
-				textAnchor="middle"
-				x="85"
-				y="168"
-			>
-				localhost:3001
-			</text>
-
-			{/* ── Malicious Site box (bottom-left) ── */}
-			<rect
-				fill="none"
-				height="50"
-				rx="8"
-				stroke="#ef4444"
-				strokeOpacity="0.4"
-				strokeWidth="1.5"
-				width="130"
-				x="20"
-				y="260"
-			/>
-			<text
-				fill="currentColor"
-				fontSize="12"
-				fontWeight="600"
-				opacity="0.8"
-				textAnchor="middle"
-				x="85"
-				y="282"
-			>
-				Malicious Site
-			</text>
-			<text
-				fill="#ef4444"
-				fontSize="9"
-				opacity="0.7"
-				textAnchor="middle"
-				x="85"
-				y="298"
-			>
-				evil.example.com
-			</text>
-
-			{/* ── API box with CORS shield (center) ── */}
-			<rect
-				fill="none"
-				height="80"
-				rx="8"
-				stroke="currentColor"
-				strokeOpacity="0.3"
-				strokeWidth="1.5"
-				width="120"
-				x="240"
-				y="170"
-			/>
-			<text
-				fill="currentColor"
-				fontSize="14"
-				fontWeight="600"
-				opacity="0.8"
-				textAnchor="middle"
-				x="300"
-				y="200"
-			>
-				Rails API
-			</text>
-
-			{/* CORS shield indicator */}
-			{isProtected ? (
-				<g transform="translate(300, 232)">
-					<rect
-						fill="#10b981"
-						fillOpacity="0.2"
-						height="20"
-						rx="4"
-						stroke="#10b981"
-						strokeWidth="1"
-						width="80"
-						x="-40"
-						y="-8"
-					/>
-					<text
-						fill="#10b981"
-						fontSize="10"
-						fontWeight="600"
-						textAnchor="middle"
-						x="0"
-						y="5"
-					>
-						CORS Shield
-					</text>
-				</g>
-			) : (
-				<text
-					fill="#f59e0b"
-					fontSize="10"
-					fontWeight="500"
-					opacity="0.7"
-					textAnchor="middle"
-					x="300"
-					y="240"
-				>
-					no CORS config
-				</text>
-			)}
-
-			{/* ── Database box (right) ── */}
-			<rect
-				fill="none"
-				height="60"
-				rx="8"
-				stroke="currentColor"
-				strokeOpacity="0.3"
-				strokeWidth="1.5"
-				width="80"
-				x="490"
-				y="170"
-			/>
-			<text
-				fill="currentColor"
-				fontSize="12"
-				fontWeight="600"
-				opacity="0.8"
-				textAnchor="middle"
-				x="530"
-				y="205"
-			>
-				Database
-			</text>
-
-			{/* ── Connection lines ── */}
-			<line
-				stroke="#10b981"
-				strokeDasharray={isProtected ? 'none' : '4 4'}
-				strokeOpacity="0.2"
-				strokeWidth="1"
-				x1="150"
-				x2="240"
-				y1="155"
-				y2="195"
-			/>
-			<line
-				stroke="#ef4444"
-				strokeDasharray="4 4"
-				strokeOpacity="0.2"
-				strokeWidth="1"
-				x1="150"
-				x2="240"
-				y1="285"
-				y2="225"
-			/>
-			<line
-				stroke="currentColor"
-				strokeDasharray={isProtected ? 'none' : '4 4'}
-				strokeOpacity="0.15"
-				strokeWidth="1"
-				x1="360"
-				x2="490"
-				y1="200"
-				y2="200"
-			/>
-
-			{/* ── Animated dots ── */}
-			{!isProtected ? (
-				<>
-					{/* No CORS: browser blocks ALL cross-origin responses */}
-					{/* Browser dot travels toward API then fades (blocked) */}
-					<circle fill="#10b981" r="4">
-						<animateMotion begin="0s" dur="2s" repeatCount="indefinite">
-							<mpath xlinkHref="#browser-path" />
-						</animateMotion>
-						<animate
-							attributeName="opacity"
-							dur="2s"
-							repeatCount="indefinite"
-							values="1;1;0"
-						/>
-					</circle>
-					<circle fill="#10b981" r="4">
-						<animateMotion begin="-1s" dur="2s" repeatCount="indefinite">
-							<mpath xlinkHref="#browser-path" />
-						</animateMotion>
-						<animate
-							attributeName="opacity"
-							begin="-1s"
-							dur="2s"
-							repeatCount="indefinite"
-							values="1;1;0"
-						/>
-					</circle>
-
-					{/* Malicious dot travels toward API then fades (blocked) */}
-					<circle fill="#ef4444" r="4">
-						<animateMotion begin="0s" dur="2s" repeatCount="indefinite">
-							<mpath xlinkHref="#malicious-path" />
-						</animateMotion>
-						<animate
-							attributeName="opacity"
-							dur="2s"
-							repeatCount="indefinite"
-							values="1;1;0"
-						/>
-					</circle>
-					<circle fill="#ef4444" r="4">
-						<animateMotion begin="-1s" dur="2s" repeatCount="indefinite">
-							<mpath xlinkHref="#malicious-path" />
-						</animateMotion>
-						<animate
-							attributeName="opacity"
-							begin="-1s"
-							dur="2s"
-							repeatCount="indefinite"
-							values="1;1;0"
-						/>
-					</circle>
-
-					{/* No dots reach the database */}
-
-					{/* BLOCKED labels for both */}
-					<text
-						fill="#ef4444"
-						fontSize="10"
-						fontWeight="600"
-						textAnchor="middle"
-						x="190"
-						y="145"
-					>
-						BLOCKED
-						<animate
-							attributeName="opacity"
-							dur="2s"
-							repeatCount="indefinite"
-							values="1;0.4;1"
-						/>
-					</text>
-					<text
-						fill="#ef4444"
-						fontSize="10"
-						fontWeight="600"
-						textAnchor="middle"
-						x="190"
-						y="305"
-					>
-						BLOCKED
-						<animate
-							attributeName="opacity"
-							begin="1s"
-							dur="2s"
-							repeatCount="indefinite"
-							values="1;0.4;1"
-						/>
-					</text>
-
-					{/* Explanation label */}
-					<text
-						fill="#ef4444"
-						fontSize="10"
-						opacity="0.7"
-						textAnchor="middle"
-						x="300"
-						y="370"
-					>
-						No CORS headers: browser blocks all cross-origin requests
-					</text>
-				</>
-			) : (
-				<>
-					{/* Protected: browser requests pass, malicious blocked */}
-					{/* Browser requests go through */}
-					<circle fill="#10b981" r="4">
-						<animateMotion begin="0s" dur="2s" repeatCount="indefinite">
-							<mpath xlinkHref="#browser-path" />
-						</animateMotion>
-					</circle>
-					<circle fill="#10b981" r="4">
-						<animateMotion begin="-1s" dur="2s" repeatCount="indefinite">
-							<mpath xlinkHref="#browser-path" />
-						</animateMotion>
-					</circle>
-					<circle fill="#10b981" r="4">
-						<animateMotion begin="0s" dur="2.5s" repeatCount="indefinite">
-							<mpath xlinkHref="#api-path" />
-						</animateMotion>
-					</circle>
-
-					{/* Malicious requests get blocked */}
-					<circle fill="#ef4444" r="4">
-						<animateMotion begin="0s" dur="2s" repeatCount="indefinite">
-							<mpath xlinkHref="#malicious-path" />
-						</animateMotion>
-						<animate
-							attributeName="opacity"
-							dur="2s"
-							repeatCount="indefinite"
-							values="1;1;0"
-						/>
-					</circle>
-					<circle fill="#ef4444" r="4">
-						<animateMotion begin="0s" dur="1.5s" repeatCount="indefinite">
-							<mpath xlinkHref="#block-path" />
-						</animateMotion>
-						<animate
-							attributeName="opacity"
-							dur="1.5s"
-							repeatCount="indefinite"
-							values="1;1;0"
-						/>
-					</circle>
-
-					{/* Status labels */}
-					<text
-						fill="#10b981"
-						fontSize="10"
-						fontWeight="600"
-						textAnchor="middle"
-						x="190"
-						y="145"
-					>
-						ALLOWED
-						<animate
-							attributeName="opacity"
-							dur="2s"
-							repeatCount="indefinite"
-							values="1;0.4;1"
-						/>
-					</text>
-					<text
-						fill="#ef4444"
-						fontSize="10"
-						fontWeight="600"
-						textAnchor="middle"
-						x="300"
-						y="360"
-					>
-						BLOCKED
-						<animate
-							attributeName="opacity"
-							begin="1s"
-							dur="2s"
-							repeatCount="indefinite"
-							values="1;0.4;1"
-						/>
-					</text>
-				</>
-			)}
-		</svg>
-	);
-}
+const STRESS_SCENARIOS: StressScenario[] = [
+	{
+		id: 'frontend-get',
+		label: 'GET /posts',
+		description: 'React frontend fetches posts',
+		method: 'GET',
+		path: '/api/v1/posts',
+		actor: 'localhost:3001',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'frontend-post',
+		label: 'POST /posts',
+		description: 'React frontend creates a post',
+		method: 'POST',
+		path: '/api/v1/posts',
+		actor: 'localhost:3001',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'frontend-delete',
+		label: 'DELETE /posts/1',
+		description: 'React frontend deletes a post',
+		method: 'DELETE',
+		path: '/api/v1/posts/1',
+		actor: 'localhost:3001',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'evil-get',
+		label: 'GET /posts',
+		description: 'Malicious site reads posts',
+		method: 'GET',
+		path: '/api/v1/posts',
+		actor: 'evil.example.com',
+		expectedResult: 'blocked',
+	},
+	{
+		id: 'evil-delete',
+		label: 'DELETE /posts/1',
+		description: 'Malicious site tries to delete',
+		method: 'DELETE',
+		path: '/api/v1/posts/1',
+		actor: 'evil.example.com',
+		expectedResult: 'blocked',
+	},
+	{
+		id: 'unknown-post',
+		label: 'POST /posts',
+		description: 'Unknown origin creates a post',
+		method: 'POST',
+		path: '/api/v1/posts',
+		actor: 'unknown.site.io',
+		expectedResult: 'blocked',
+	},
+];
 
 // ──────────────────────────────────────────────
-// CORS Legend
+// Pipeline stage builders
 // ──────────────────────────────────────────────
 
-function CORSLegend() {
+const OBSERVE_PIPELINE_IDS = ['browser', 'preflight', 'cors', 'api'] as const;
+
+const OBSERVE_CONNECTIONS: PipelineConnection[] = [
+	{ from: 'browser', to: 'preflight', dots: 'mixed' },
+	{ from: 'preflight', to: 'cors', dots: 'mixed' },
+	{ from: 'cors', to: 'api' },
+];
+
+const REWARD_CONNECTIONS: PipelineConnection[] = [
+	{ from: 'browser', to: 'preflight', dots: 'clean' },
+	{ from: 'preflight', to: 'cors', dots: 'clean' },
+	{ from: 'cors', to: 'api', dots: 'clean' },
+];
+
+// ──────────────────────────────────────────────
+// Pipeline Legend
+// ──────────────────────────────────────────────
+
+function PipelineLegend() {
 	return (
 		<div className="p-4 border-b border-border">
 			<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-				Legend
+				Pipeline Legend
 			</div>
 			<div className="space-y-2 text-sm">
 				<div className="flex items-center gap-2">
-					<div className="w-3 h-3 rounded-full bg-success" />
-					<span className="text-foreground">Legitimate request (your frontend)</span>
+					<Check className="w-4 h-4 text-success" />
+					<span className="text-foreground">Allowed origin (passes through)</span>
 				</div>
 				<div className="flex items-center gap-2">
-					<div className="w-3 h-3 rounded-full bg-destructive" />
-					<span className="text-foreground">Malicious request (unknown origin)</span>
+					<X className="w-4 h-4 text-destructive" />
+					<span className="text-foreground">Blocked origin (rejected by CORS)</span>
 				</div>
 			</div>
 		</div>
@@ -706,8 +481,14 @@ end`,
 
 export function Level15CORS({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
+	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, { minRequired: 3 });
+	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
-	const [blockedCount, setBlockedCount] = useState(0);
+
+	// Observe phase state
+	const [inspectedStages, setInspectedStages] = useState<Set<string>>(new Set());
+	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(null);
+	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
 
 	// ── Transition: build -> activate when all steps complete ──
 	useEffect(() => {
@@ -716,14 +497,172 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 		}
 	}, [phase, stepper.isComplete]);
 
-	// ── Reward phase: counter interval ──
-	useEffect(() => {
-		if (phase !== 'reward') return;
-		const interval = setInterval(() => {
-			setBlockedCount((c) => c + 1);
-		}, 3500);
-		return () => clearInterval(interval);
-	}, [phase]);
+	// ── Observe phase: handle stage click ──
+	const handleStageClick = useCallback(
+		(stageId: string) => {
+			if (phase !== 'observe') return;
+			const data = STAGE_INSPECTOR_MAP[stageId];
+			if (!data) return;
+
+			setInspectorData(data);
+			setInspectedStages((prev) => {
+				if (prev.has(stageId)) return prev;
+				const next = new Set(prev);
+				next.add(stageId);
+				return next;
+			});
+
+			// Trigger discovery if mapped
+			const discoveryId = STAGE_DISCOVERY_MAP[stageId];
+			if (discoveryId) {
+				discoveryGating.discover(discoveryId);
+			}
+		},
+		[phase, discoveryGating],
+	);
+
+	// ── Observe phase: handle probe fire ──
+	const handleProbe = useCallback(
+		(probeId: string) => {
+			setLastProbeId(probeId);
+			const discoveryId = PROBE_DISCOVERY_MAP[probeId];
+			if (discoveryId) {
+				discoveryGating.discover(discoveryId);
+			}
+		},
+		[discoveryGating],
+	);
+
+	// ── Observe pipeline stages (reactive to probes + inspections) ──
+	const observeStages: PipelineStage[] = useMemo(() => {
+		const probeState = lastProbeId ? PROBE_PIPELINE_MAP[lastProbeId] : null;
+
+		return OBSERVE_PIPELINE_IDS.map((id) => {
+			const isInspected = inspectedStages.has(id);
+
+			switch (id) {
+				case 'browser':
+					return {
+						id: 'browser',
+						label: 'Browser',
+						sublabel: probeState ? 'localhost:3001' : 'React Frontend',
+						variant: 'default' as const,
+						inspectable: true,
+						inspected: isInspected,
+					};
+				case 'preflight':
+					return {
+						id: 'preflight',
+						label: 'Preflight',
+						sublabel: probeState
+							? lastProbeId === 'preflight-delete'
+								? 'OPTIONS rejected'
+								: 'checking...'
+							: 'OPTIONS check',
+						variant: (probeState && lastProbeId === 'preflight-delete'
+							? 'danger'
+							: 'default') as const,
+						badge: probeState && lastProbeId === 'preflight-delete' ? 'FAIL' : undefined,
+						inspectable: true,
+						inspected: isInspected,
+					};
+				case 'cors':
+					return {
+						id: 'cors',
+						label: 'CORS Middleware',
+						sublabel: probeState
+							? probeState.corsSublabel
+							: '(not installed)',
+						variant: (lastProbeId === 'curl-bypass' ? 'inactive' : probeState ? 'danger' : 'inactive') as const,
+						badge: probeState ? probeState.corsBadge : '(missing)',
+						inspectable: true,
+						inspected: isInspected,
+					};
+				case 'api':
+					return {
+						id: 'api',
+						label: 'Rails API',
+						sublabel: probeState
+							? lastProbeId === 'curl-bypass'
+								? '200 OK'
+								: 'unreachable'
+							: 'localhost:3000',
+						variant: (probeState && lastProbeId === 'curl-bypass'
+							? 'active'
+							: 'default') as const,
+						inspectable: true,
+						inspected: isInspected,
+					};
+				default:
+					return { id, label: id, variant: 'default' as const };
+			}
+		});
+	}, [inspectedStages, lastProbeId]);
+
+	// ── Reward pipeline stages (reactive to stress test results) ──
+	const rewardStages: PipelineStage[] = useMemo(() => {
+		const lastResult = stressTest.results[stressTest.results.length - 1];
+		const lastScenario = lastResult
+			? STRESS_SCENARIOS.find((s) => s.id === lastResult.scenarioId)
+			: null;
+		const isAllowed = lastResult?.result === 'allowed';
+
+		return [
+			{
+				id: 'browser',
+				label: 'Browser',
+				sublabel: lastScenario ? lastScenario.actor : 'Any Origin',
+				variant: 'default' as const,
+			},
+			{
+				id: 'preflight',
+				label: 'Preflight',
+				sublabel: lastScenario
+					? isAllowed
+						? 'OPTIONS 200'
+						: 'OPTIONS 403'
+					: 'OPTIONS check',
+				variant: (lastScenario
+					? isAllowed
+						? 'active'
+						: 'danger'
+					: 'active') as const,
+			},
+			{
+				id: 'cors',
+				label: 'CORS Middleware',
+				sublabel: lastScenario
+					? isAllowed
+						? `Allow-Origin: ${lastScenario.actor}`
+						: 'Origin rejected'
+					: 'rack-cors active',
+				variant: (lastScenario
+					? isAllowed
+						? 'active'
+						: 'danger'
+					: 'active') as const,
+				badge: lastScenario
+					? isAllowed
+						? undefined
+						: 'BLOCKED'
+					: undefined,
+			},
+			{
+				id: 'api',
+				label: 'Rails API',
+				sublabel: lastScenario
+					? isAllowed
+						? `${lastScenario.method} ${lastScenario.path}`
+						: 'not reached'
+					: 'Protected',
+				variant: (lastScenario
+					? isAllowed
+						? 'active'
+						: 'default'
+					: 'active') as const,
+			},
+		];
+	}, [stressTest.results]);
 
 	// ── OptionCard step handler ──
 	const handleOptionClick = useCallback(
@@ -743,8 +682,8 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 	};
 
 	const handleActivateProtection = () => {
+		stressTest.reset();
 		setPhase('reward');
-		setBlockedCount(0);
 	};
 
 	// ── Completion ──
@@ -802,11 +741,19 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 						</p>
 					</div>
 
-					{/* Observe phase: legend only */}
-					{phase === 'observe' && <CORSLegend />}
+					{/* Observe phase: discovery checklist */}
+					{phase === 'observe' && (
+						<div className="p-4 border-b border-border">
+							<DiscoveryChecklist
+								discoveries={discoveryGating.discoveries}
+								discoveredCount={discoveryGating.discoveredCount}
+								minRequired={discoveryGating.minRequired}
+							/>
+						</div>
+					)}
 
-					{/* Build / activate / reward phases: step progress */}
-					{phase !== 'observe' && (
+					{/* Build / activate phases: step progress */}
+					{(phase === 'build' || phase === 'activate') && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -819,18 +766,28 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* Reward phase: legend + counter */}
+					{/* Reward phase: legend + dual counters */}
 					{phase === 'reward' && (
 						<>
-							<CORSLegend />
+							<PipelineLegend />
 
 							<div className="p-4">
-								<div className="bg-destructive/20 rounded-lg p-3 text-center">
-									<div className="text-2xl font-bold text-destructive">
-										{blockedCount}
+								<div className="grid grid-cols-2 gap-3">
+									<div className="bg-success/20 rounded-lg p-3 text-center">
+										<div className="text-2xl font-bold text-success">
+											{stressTest.allowedCount}
+										</div>
+										<div className="text-xs text-success/70">
+											Allowed
+										</div>
 									</div>
-									<div className="text-xs text-destructive/70">
-										Cross-Origin Attacks Blocked
+									<div className="bg-destructive/20 rounded-lg p-3 text-center">
+										<div className="text-2xl font-bold text-destructive">
+											{stressTest.blockedCount}
+										</div>
+										<div className="text-xs text-destructive/70">
+											Blocked
+										</div>
 									</div>
 								</div>
 							</div>
@@ -856,17 +813,42 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 					{phase === 'observe' && (
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">
-								<CORSVisualization mode="vulnerable" />
+								<PipelineFlow
+									connections={OBSERVE_CONNECTIONS}
+									onNodeClick={handleStageClick}
+									stages={observeStages}
+								/>
+								{inspectorData && (
+									<StageInspector
+										data={inspectorData}
+										onClose={() => setInspectorData(null)}
+									/>
+								)}
 							</div>
-							<div className="p-6 flex justify-center">
-								<Button
-									className="gap-2"
-									onClick={handleStartBuild}
-									size="lg"
-								>
-									Build the Fix
-									<ArrowRight className="w-4 h-4" />
-								</Button>
+
+							<div className="px-4 pb-2">
+								<ProbeTerminal
+									onProbe={handleProbe}
+									probes={PROBES}
+									title="CORS Probe"
+								/>
+							</div>
+
+							<div className="p-4 flex justify-center">
+								{discoveryGating.isUnlocked ? (
+									<Button
+										className="gap-2 animate-in fade-in duration-500"
+										onClick={handleStartBuild}
+										size="lg"
+									>
+										Build the Fix
+										<ArrowRight className="w-4 h-4" />
+									</Button>
+								) : (
+									<p className="text-xs text-muted-foreground">
+										Explore the pipeline and fire probes to understand the problem.
+									</p>
+								)}
 							</div>
 						</div>
 					)}
@@ -1029,14 +1011,23 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">
-								<CORSVisualization mode="protected" />
+								<PipelineFlow
+									connections={REWARD_CONNECTIONS}
+									stages={rewardStages}
+								/>
 							</div>
-							<div className="p-4 text-center">
-								<p className="text-sm text-muted-foreground">
-									CORS shield active. Your frontend can reach
-									the API while malicious origins are blocked.
-									Click Submit to complete the level.
-								</p>
+
+							<div className="px-4 pb-4">
+								<StressTestPanel
+									allowedCount={stressTest.allowedCount}
+									blockedCount={stressTest.blockedCount}
+									canAutoFire={stressTest.canAutoFire}
+									isAutoFiring={stressTest.isAutoFiring}
+									onFire={(id) => stressTest.fireRequest(id)}
+									onToggleAutoFire={() => stressTest.toggleAutoFire()}
+									results={stressTest.results}
+									scenarios={STRESS_SCENARIOS}
+								/>
 							</div>
 						</div>
 					)}

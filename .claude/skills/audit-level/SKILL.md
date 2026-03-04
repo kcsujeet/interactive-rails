@@ -9,8 +9,10 @@ Audit a level component to verify it follows the mandatory three-phase sequentia
 
 ## Reference Implementation
 
-Read Level 12 (Authorization) as the canonical example:
+Read Level 12 (Authorization) as the canonical example of the PipelineFlow-based pattern:
 `frontend/src/features/act2-users-security/components/Level12Authorization.tsx`
+
+Note: L12 uses PipelineFlow because authorization is naturally a request-flow concept. Not every level should use PipelineFlow. See "Visualization Approach" below.
 
 ## Step 0: Read the Official Documentation (MANDATORY)
 
@@ -64,72 +66,50 @@ When auditing, always read the full component file and grep for any flagged term
 
 The level must have a dedicated "observe" phase that is **interactive, not passive**. The player actively explores to discover the problem.
 
-#### Center panel layout
+#### Visualization approach: custom first, PipelineFlow when it fits
 
-- [ ] Top: `PipelineFlow` with `onNodeClick` prop for interactive stages (or equivalent visualization)
-- [ ] Bottom: `ProbeTerminal` where the player fires test requests that reveal vulnerabilities
-- [ ] No build steps or OptionCards are visible during this phase
-- [ ] A **"Build the Fix"** button appears **only when `discoveryGating.isUnlocked`** (not on a timer), using `animate-in fade-in duration-500`
-- [ ] Clicking the button transitions to Phase 2
+**Every level needs its own unique visualization concept.** Do NOT default to PipelineFlow for every level. The visualization must teach the specific concept. Pick the approach that best explains *this* problem:
 
-#### Clickable pipeline stages
+- **Custom SVG/animation**: CORS (browser-to-server arrows with blocked/allowed states), performance (slow query waterfall), data (ER diagrams), routing (URL dispatcher)
+- **PipelineFlow**: Request lifecycle concepts (auth, authorization, middleware, controller flow) where the player needs to see where a stage is missing or broken in the pipeline
+- **Interactive diagrams**: Schema/migration levels (tables with columns), association levels (entity relationships)
+- **Before/after comparisons**: Refactoring levels (messy code vs clean code), performance (N+1 query log vs optimized)
 
-- [ ] For pipeline visualizations, use `PipelineFlow` from `@/components/levels/PipelineFlow` with `onNodeClick` callback
-- [ ] Each stage has `inspectable: true` (shows pulsing amber `?` indicator) and tracks `inspected` state (hides `?` after click)
-- [ ] Clicking a stage opens a `StageInspector` card overlay (title, description, optional code block)
-- [ ] `StageInspector` closes on X button, click outside, or Escape key
-- [ ] Define `STAGE_INSPECTOR_MAP: Record<string, StageInspectorData>` with data for each clickable stage
+**If a level already has a custom visualization that teaches the concept well, keep it.** Add interactivity (clickable elements, probe-like actions, discovery gating) to the existing visualization rather than replacing it with a generic PipelineFlow.
 
-#### Probe terminal
+#### Required interactivity (regardless of visualization type)
 
-- [ ] `ProbeTerminal` component used in the center panel below the visualization
-- [ ] Amber-themed buttons and `>` prompt (distinct from SimulatedTerminal's green `$` prompt)
-- [ ] Each probe fires once and shows response lines revealing the vulnerability
-- [ ] NOT a quiz: every probe "succeeds" but reveals what is broken
-- [ ] Define `PROBES: ProbeConfig[]` with `{ id, label, command, responseLines }`
-- [ ] `onProbe(id)` callback triggers discoveries in the parent component
+- [ ] **The visualization is interactive, not passive.** The player must click, probe, or explore to discover the problem. Static animations that play automatically are not acceptable.
+- [ ] **Discovery gating controls progression.** Use `useDiscoveryGating(defs, { minRequired })` to track what the player has found. The "Build the Fix" button appears only when `discoveryGating.isUnlocked`.
+- [ ] **"Build the Fix" button** appears with `animate-in fade-in duration-500`, gated behind discoveries (NOT on a timer).
+- [ ] No build steps or OptionCards are visible during this phase.
 
-#### Pipeline node reactions to probes
+#### Discovery mechanisms (mix and match per level)
 
-- [ ] **Nodes change color/variant on probe fire.** When a probe reveals a breach, affected pipeline nodes flip to `variant: 'danger'` (red bg `bg-red-900/60`, red border `border-red-500`, red sublabel text `text-red-300`)
-- [ ] **Node sublabel updates** to show what is happening (e.g. "DELETE user_7", "GET visitor")
-- [ ] **Node badge updates** to show the response code (e.g. "204!", "200!")
-- [ ] Before any probe fires, nodes show their default state (e.g. Policy node is `'inactive'` with "(missing)", Model node is `'default'` with "BREACH" badge)
-- [ ] Define `PROBE_PIPELINE_MAP: Record<string, { policySublabel, modelBadge }>` mapping probe IDs to node display state
-- [ ] `observeStages` is built with `useMemo` reacting to `lastProbeId` state so nodes update on each probe fire
+Levels should use whichever discovery mechanisms fit their visualization:
 
-#### Discovery gating
-
-- [ ] `useDiscoveryGating(defs, { minRequired })` hook tracks what the player has discovered
-- [ ] Define `DISCOVERY_DEFS: DiscoveryDef[]` with `{ id, label }` for all discoverable items
-- [ ] Define `PROBE_DISCOVERY_MAP: Record<string, string>` mapping probe IDs to discovery IDs
-- [ ] Define `STAGE_DISCOVERY_MAP: Record<string, string>` mapping stage IDs to discovery IDs
-- [ ] `minRequired` is typically set to `totalDiscoveries - 1` (player doesn't need ALL, but needs most)
-- [ ] "Build the Fix" button gated behind `discoveryGating.isUnlocked`, NOT a timer
+- **Clickable regions** (for any visualization): clicking on parts of the visualization reveals information and triggers discoveries. For PipelineFlow, use `onNodeClick` + `StageInspector`. For custom SVGs, use click handlers on elements.
+- **ProbeTerminal**: terminal-style component where player fires test requests. Best for security/API levels where "try this request and see what happens" is the natural exploration. Not required for every level.
+- **Interactive controls**: buttons, toggles, or inputs that let the player manipulate the visualization and discover problems. E.g., toggling browser origins in a CORS level, firing different query patterns in a performance level.
 
 #### Left panel (observe)
 
 - [ ] Scenario text (always visible)
-- [ ] `DiscoveryChecklist` component showing discovery progress (Search icon when hidden, Check icon when found, progress bar with "X of Y required")
+- [ ] `DiscoveryChecklist` component showing discovery progress
 
 #### Right panel (observe)
 
 - [ ] Shows the broken/vulnerable/unoptimized code via `CodePreviewPanel`
 
-If the level has no visual problem to animate (e.g., pure code structure levels), it must still have a dedicated observe phase showing the problematic code state before the player starts building.
+#### When PipelineFlow IS used
 
-**CRITICAL: Every level needs its own unique visualization concept.**
+If the level uses PipelineFlow specifically, these additional checks apply:
 
-Do NOT copy-paste the same "dots flowing through a pipeline" pattern for every level. The visualization must teach the specific concept of that level. Think about what visual metaphor best explains the problem:
-
-- **MVC/architecture levels (Model, Controller):** A pipeline/flow diagram showing where this piece fits in the MVC request cycle. The player sees the gap in the architecture.
-- **Security levels (Authorization, Authentication):** Animated requests/actors flowing through a system, showing what gets through when protections are missing.
-- **Testing level:** A deploy pipeline where broken commits pass through an empty test gate to production.
-- **Performance levels:** Before/after visualizations showing slow queries, N+1 problems, or memory bloat.
-- **Data levels (Migrations, Associations):** Entity-relationship or schema diagrams showing structural problems.
-- **Routing level:** A request dispatcher showing URLs hitting dead ends or wrong handlers.
-
-Ask yourself: "If I showed this animation to someone who has never coded, would they understand WHAT is broken?" If the answer is no, the visualization is too generic. Each level's visualization should be a teaching moment on its own, not decoration.
+- [ ] `onNodeClick` callback for interactive stages
+- [ ] `inspectable: true` on clickable stages (pulsing `?` indicator)
+- [ ] `StageInspector` overlay on click
+- [ ] Node variants react to probes/interactions via `useMemo`
+- [ ] Define data maps: `STAGE_INSPECTOR_MAP`, `DISCOVERY_DEFS`, etc.
 
 ### Phase 2: Problem Solving (HOW)
 
@@ -171,46 +151,54 @@ The build phase must cover the **complete workflow**:
 - Missing configuration steps (initializers, environment config)
 - Any step listed in the gem's README "Getting Started" / "Installation" section that is not represented in the level
 
-### Phase 3: Solution Visualization (ADVANTAGE) - Interactive Stress Test
+### Phase 3: Solution Visualization (ADVANTAGE) - Interactive Reward
 
-The level must have a dedicated reward phase where the player **stress-tests** their solution interactively.
+The level must have a dedicated reward phase where the player **interactively verifies** their solution works.
 
 #### Sub-phase a (activate)
 
 - [ ] Star rating display + "Visualize ___" button (centered, no animation)
 - [ ] No visualization running yet
 
-#### Sub-phase b (reward) - center panel layout
+#### Sub-phase b (reward) - visualization returns
 
-- [ ] Top: `PipelineFlow` visualization returns, now showing the solution working
-- [ ] Bottom: `StressTestPanel` component (terminal-style, dark bg, traffic-light header matching ProbeTerminal)
+- [ ] The same visualization from Phase 1 returns, now showing the solution working
 - [ ] The contrast between Phase 1 (broken) and Phase 3b (fixed) is the reward
+- [ ] **The player interacts** to verify the fix works. This is NOT passive.
 
-#### Dynamic pipeline node reactions
+#### Interactivity requirement (non-negotiable)
 
-- [ ] **Reward pipeline stages are dynamic**, built with `useMemo` reacting to `stressTest.results[last]`
-- [ ] **Key node flips between green and red** on each fired scenario:
-  - `'active'` variant (green bg `bg-emerald-900/60`, green border `border-emerald-500`, sublabel "authorize!" or equivalent) for allowed requests
-  - `'danger'` variant (red bg `bg-red-900/60`, red border `border-red-500`, sublabel "403 Forbidden" or equivalent, pulsing badge "BLOCKED") for blocked requests
-- [ ] Before any scenario fires, the key node starts in `'active'` (green) state
-- [ ] The `variant`, `sublabel`, and `badge` all update together per result
+The reward phase MUST be interactive. Passive auto-incrementing counters (`setInterval`) are never acceptable. The player must take actions and see results. Options:
 
-#### Stress test panel
+- **StressTestPanel + useStressTest**: Player fires request scenarios and watches results. Best for security/API levels (auth, authorization, CORS, strong params). Provides `fireRequest()`, `toggleAutoFire()`, dual counters.
+- **Custom interactive controls**: Player clicks buttons, toggles, or inputs on the custom visualization. E.g., clicking different browser origins in a CORS visualization and watching them get allowed/blocked. Clicking different query patterns in a performance visualization and seeing response times.
+- **Replay/comparison controls**: Player toggles between before/after states, or replays scenarios at different scales.
 
-- [ ] `useStressTest(scenarios)` hook manages state. API: `fireRequest(scenarioId)`, `toggleAutoFire()`, `reset()`
-- [ ] Define `STRESS_SCENARIOS: StressScenario[]` with `{ id, label, description, method, path, actor, expectedResult }`
-- [ ] `StressTestPanel` renders in center panel below pipeline (NOT in the sidebar)
-- [ ] Terminal-style appearance (dark bg, traffic-light header dots, monospace font) matching ProbeTerminal
-- [ ] Scenario buttons show full detail: `METHOD /path as actor` (not abbreviated)
-- [ ] Buttons color-coded: green border/bg for `expectedResult: 'allowed'`, red for `'blocked'`
-- [ ] Results log shows status code (200/403), method, path, and actor for each fired request
-- [ ] Auto-fire toggle (gated behind 3+ manual fires, escalating speed 2000ms down to 500ms)
-- [ ] Header shows inline counters: `N allowed  N blocked`
+The key rule: **every click from the player must produce a visible reaction in the visualization.**
+
+#### When StressTestPanel IS used
+
+If the level uses StressTestPanel specifically:
+
+- [ ] `useStressTest(scenarios)` hook manages state
+- [ ] Define `STRESS_SCENARIOS` array
+- [ ] Terminal-style appearance matching ProbeTerminal
+- [ ] Scenario buttons with full detail, color-coded by expected result
+- [ ] Auto-fire toggle gated behind 3+ manual fires
+
+#### When custom visualization IS used
+
+If the level uses a custom visualization for the reward:
+
+- [ ] Player has clickable controls that trigger visual reactions
+- [ ] Visual elements update dynamically (color changes, animations, state transitions) in response to player actions
+- [ ] Some form of counter or progress tracker shows cumulative results
+- [ ] The visualization clearly shows the fix working (green/success states) vs what would have failed before (red/blocked states)
 
 #### Left panel (reward)
 
-- [ ] `PipelineLegend` showing what green/red dots mean
-- [ ] Dual counters grid (Allowed in green, Blocked in red) for quick glance
+- [ ] Legend or explanation of what visual states mean
+- [ ] Counters showing cumulative results (e.g., Allowed/Blocked, Saved/Rejected, Fast/Slow)
 
 #### Right panel (reward)
 
@@ -220,11 +208,11 @@ The level must have a dedicated reward phase where the player **stress-tests** t
 
 Beyond structural correctness, check that each step is meaningful and the level feels like a progression:
 
-- [ ] **Every step requires a real decision.** If a step's correct answer is "do nothing" or "let it happen automatically," it's not a real step. The player should actively build something at every step. (Example: "Let params.expect return 400 automatically" is a passive non-step. Replace it with an active wiring step like "update the create action to use post_params.")
+- [ ] **Every step requires a real decision.** If a step's correct answer is "do nothing" or "let it happen automatically," it's not a real step. The player should actively build something at every step.
 - [ ] **Steps don't reveal each other's answers.** If Step 0's correct option contains the exact code Step 1 will ask about, the player can read ahead. Use placeholders (`[...]`, `...`) in earlier steps when later steps will fill in the details.
-- [ ] **Code preview evolves progressively.** Each completed step should visibly change the right panel code. If two steps produce the same code preview, one of them feels invisible. The player should see the code being built piece by piece.
+- [ ] **Code preview evolves progressively.** Each completed step should visibly change the right panel code. If two steps produce the same code preview, one of them feels invisible.
 - [ ] **Wrong options have distinct, teaching feedback.** Each wrong option should fail for a different reason that teaches something specific. Don't have two wrong options that are wrong for essentially the same reason.
-- [ ] **The reward phase is interactive.** Passive auto-incrementing counters are not allowed. The player must fire scenarios via `StressTestPanel` and watch the pipeline react (nodes flip green/red, sublabels update, badges flash). Dual counters in the left panel track totals at a glance. Auto-fire is available after 3+ manual fires for a satisfying crescendo.
+- [ ] **The reward phase is interactive.** Passive auto-incrementing counters are not allowed. The player must take actions and see visual reactions.
 
 ### State Machine
 
@@ -233,11 +221,10 @@ Check the phase transitions:
 - [ ] State uses `phase: 'observe' | 'build' | 'activate' | 'reward'` (not boolean flags)
 - [ ] `observe -> build`: triggered by "Build the Fix" button click, **gated behind `discoveryGating.isUnlocked`** (NOT a timer)
 - [ ] `build -> activate`: triggered by `useEffect` watching `stepper.isComplete`
-- [ ] `activate -> reward`: triggered by "Visualize ___" button click, calls `stressTest.reset()`
-- [ ] PipelineFlow visualizations are declarative (no manual animation intervals or mutable request state to manage)
-- [ ] `observeStages` built with `useMemo` reacting to `inspectedStages` Set + `lastProbeId` state
-- [ ] `rewardStages` built with `useMemo` reacting to `stressTest.results[last]`
-- [ ] Stress test auto-fire interval cleaned up on unmount (handled inside `useStressTest` hook)
+- [ ] `activate -> reward`: triggered by "Visualize ___" button click
+- [ ] Visualizations are declarative (no manual animation intervals or mutable request state to manage)
+- [ ] Observe visualization state built with `useMemo` reacting to player interactions
+- [ ] Reward visualization state built with `useMemo` reacting to player actions
 
 ## Output Format
 
@@ -245,10 +232,11 @@ Present findings as:
 
 1. **Concept fit**: Does this level belong at this position in the curriculum?
 2. **Narrative consistency**: Any schema ghosts, concept overlaps, or trigger gaps?
-3. **Pass/Fail** for each of the 3 phases
-4. **Step quality**: Are steps meaningful, progressive, and satisfying?
-5. **Missing steps** in the build phase (especially gem install, generators, setup)
-6. **Specific code locations** that need changes (file:line)
-7. **Suggested fix** for each issue found
+3. **Visualization assessment**: Is the current visualization unique and concept-appropriate, or is it a generic pipeline that should be replaced with something custom? **If a level already has a custom visualization, recommend keeping it and adding interactivity rather than replacing it.**
+4. **Pass/Fail** for each of the 3 phases
+5. **Step quality**: Are steps meaningful, progressive, and satisfying?
+6. **Missing steps** in the build phase (especially gem install, generators, setup)
+7. **Specific code locations** that need changes (file:line)
+8. **Suggested fix** for each issue found
 
 If the level passes all checks, confirm it follows the golden standard.

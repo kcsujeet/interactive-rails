@@ -4,7 +4,10 @@
  * Sequential phase flow: observe -> build -> activate -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
- * Phase 1 (WHY - observe): Watch broken commits pass through an empty test gate to production
+ * Phase 1 (WHY - observe): Interactive exploration of a deploy pipeline with
+ *   an empty test gate. Click stages to inspect them, fire "deploy" probes
+ *   to see broken commits pass straight to production. Discovery gating
+ *   controls when "Build the Fix" appears.
  * Phase 2 (HOW - build): 6 steps (3 terminal + 3 OptionCard) setting up RSpec + FactoryBot
  *   Step 0: bundle add rspec-rails (terminal)
  *   Step 1: rails generate rspec:install (terminal)
@@ -13,13 +16,14 @@
  *   Step 4: Write the User Factory (OptionCard)
  *   Step 5: Write the Request Spec (OptionCard)
  * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Testing" button
- * Phase 4 (ADVANTAGE - reward): Test gate catches broken commits
+ * Phase 4 (ADVANTAGE - reward): Stress test. Fire commits at the test gate
+ *   and watch clean ones deploy while broken ones get caught.
  *
  * Teaches: RSpec, FactoryBot, request specs
  */
 
 import { ArrowRight, Check, Play, Star, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -38,20 +42,236 @@ import {
 	type TerminalStepData,
 	type ValidationResult,
 } from '@/components/levels';
+import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
 import {
 	type PipelineConnection,
 	PipelineFlow,
 	type PipelineStage,
 } from '@/components/levels/PipelineFlow';
+import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
+import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
+import {
+	StageInspector,
+	type StageInspectorData,
+} from '@/components/levels/StageInspector';
+import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
+import {
+	type DiscoveryDef,
+	useDiscoveryGating,
+} from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
+import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 
 // ──────────────────────────────────────────────
 // Phase type
 // ──────────────────────────────────────────────
 
 type Phase = 'observe' | 'build' | 'activate' | 'reward';
+
+// ──────────────────────────────────────────────
+// Discovery definitions (observe phase)
+// ──────────────────────────────────────────────
+
+const DISCOVERY_DEFS: DiscoveryDef[] = [
+	{ id: 'no-framework', label: 'No test framework installed' },
+	{ id: 'empty-specs', label: 'Zero test files exist' },
+	{ id: 'broken-deploy', label: 'Broken code reaches production' },
+	{ id: 'no-test-data', label: 'No factories for test records' },
+];
+
+// ──────────────────────────────────────────────
+// Probe configurations (observe phase)
+// ──────────────────────────────────────────────
+
+const PROBES: ProbeConfig[] = [
+	{
+		id: 'broken-login',
+		label: 'Deploy token rename',
+		command: 'git push origin main (renamed token -> auth_token)',
+		responseLines: [
+			{ text: 'Deploying commit a3f91c2...', color: 'cyan' },
+			{ text: 'Build: OK', color: 'green' },
+			{ text: 'Test gate: (empty, no specs to run)', color: 'yellow' },
+			{ text: 'Deploy: SUCCESS', color: 'green' },
+			{ text: '', color: 'muted' },
+			{
+				text: 'POST /api/v1/sessions => 500 Internal Server Error',
+				color: 'red',
+			},
+			{
+				text: "NoMethodError: undefined method 'token' for Session",
+				color: 'red',
+			},
+			{
+				text: 'Users unable to log in. No alert for 3 hours.',
+				color: 'yellow',
+			},
+		],
+	},
+	{
+		id: 'untested-endpoint',
+		label: 'Deploy broken create',
+		command: 'git push origin main (new posts#create with typo)',
+		responseLines: [
+			{ text: 'Deploying commit 7b2e4d1...', color: 'cyan' },
+			{ text: 'Build: OK', color: 'green' },
+			{ text: 'Test gate: (empty, no specs to run)', color: 'yellow' },
+			{ text: 'Deploy: SUCCESS', color: 'green' },
+			{ text: '', color: 'muted' },
+			{
+				text: 'POST /api/v1/posts => 500 Internal Server Error',
+				color: 'red',
+			},
+			{
+				text: "NameError: undefined local variable 'paramss'",
+				color: 'red',
+			},
+			{
+				text: 'No factory to generate test data. No spec to catch the typo.',
+				color: 'yellow',
+			},
+		],
+	},
+	{
+		id: 'bad-migration',
+		label: 'Deploy dropped column',
+		command: 'git push origin main (removed email column by accident)',
+		responseLines: [
+			{ text: 'Deploying commit e5c8a09...', color: 'cyan' },
+			{ text: 'Build: OK', color: 'green' },
+			{ text: 'Test gate: (empty, no specs to run)', color: 'yellow' },
+			{ text: 'Deploy: SUCCESS', color: 'green' },
+			{ text: '', color: 'muted' },
+			{
+				text: 'GET /api/v1/users => 500 Internal Server Error',
+				color: 'red',
+			},
+			{
+				text: "ActiveRecord::StatementInvalid: column 'email' does not exist",
+				color: 'red',
+			},
+			{
+				text: 'Every page that touches User is broken.',
+				color: 'yellow',
+			},
+		],
+	},
+];
+
+// Map probe IDs to discovery IDs they trigger
+const PROBE_DISCOVERY_MAP: Record<string, string> = {
+	'broken-login': 'broken-deploy',
+	'untested-endpoint': 'no-test-data',
+	'bad-migration': 'empty-specs',
+};
+
+// Map probe IDs to pipeline node display during observe
+const PROBE_PIPELINE_MAP: Record<
+	string,
+	{ testSublabel: string; prodBadge: string }
+> = {
+	'broken-login': { testSublabel: '(no tests)', prodBadge: '500!' },
+	'untested-endpoint': { testSublabel: '(no tests)', prodBadge: '500!' },
+	'bad-migration': { testSublabel: '(no tests)', prodBadge: '500!' },
+};
+
+// ──────────────────────────────────────────────
+// Stage inspector data (observe phase)
+// ──────────────────────────────────────────────
+
+const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
+	code: {
+		stageId: 'code',
+		title: 'Code Push',
+		description:
+			'Developers push commits to the main branch. Each commit might introduce new features, bug fixes, or accidental regressions. Without automated checks, every push is a gamble.',
+	},
+	build: {
+		stageId: 'build',
+		title: 'Build Step',
+		description:
+			'Bundler installs dependencies and compiles assets. The build step only checks that the code can be loaded, not that it works correctly. Syntax errors are caught here, but logic bugs pass through.',
+	},
+	test: {
+		stageId: 'test',
+		title: 'Test Gate (Empty!)',
+		description:
+			'This gate does not exist yet. There is no test framework, no spec files, no factories. Every commit passes through to production without any automated verification.',
+		code: `# spec/ directory:
+# (empty)
+# No .rspec file
+# No spec_helper.rb
+# No rails_helper.rb
+# No factories/
+# No request specs`,
+	},
+	prod: {
+		stageId: 'prod',
+		title: 'Production (Unprotected)',
+		description:
+			'Users hit the live app directly. When a broken commit deploys, real users see 500 errors, broken forms, and missing data. The only "test" is user complaints.',
+	},
+};
+
+// Map stage IDs to discovery IDs they trigger
+const STAGE_DISCOVERY_MAP: Record<string, string> = {
+	test: 'no-framework',
+	prod: 'empty-specs',
+};
+
+// ──────────────────────────────────────────────
+// Stress test scenarios (reward phase)
+// ──────────────────────────────────────────────
+
+const STRESS_SCENARIOS: StressScenario[] = [
+	{
+		id: 'clean-refactor',
+		label: 'Clean model refactor',
+		description: 'Refactored session creation, all specs still pass',
+		method: 'PUSH',
+		path: 'sessions_controller.rb',
+		actor: 'dev_alice',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'broken-token',
+		label: 'Broken token rename',
+		description: 'Renamed column but forgot to update controller',
+		method: 'PUSH',
+		path: 'sessions_controller.rb',
+		actor: 'dev_bob',
+		expectedResult: 'blocked',
+	},
+	{
+		id: 'clean-validation',
+		label: 'Clean validation add',
+		description: 'Added email format validation, specs pass',
+		method: 'PUSH',
+		path: 'user.rb',
+		actor: 'dev_alice',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'broken-params',
+		label: 'Missing params handling',
+		description: 'Removed strong params, request spec catches 500',
+		method: 'PUSH',
+		path: 'posts_controller.rb',
+		actor: 'dev_charlie',
+		expectedResult: 'blocked',
+	},
+	{
+		id: 'clean-endpoint',
+		label: 'Clean new endpoint',
+		description: 'Added show action with passing specs',
+		method: 'PUSH',
+		path: 'posts_controller.rb',
+		actor: 'dev_bob',
+		expectedResult: 'allowed',
+	},
+];
 
 // ──────────────────────────────────────────────
 // Step definitions (6 steps: 3 terminal + 3 OptionCard)
@@ -344,37 +564,13 @@ const OPTION_STEP_CONFIG: Record<
 };
 
 // ──────────────────────────────────────────────
-// Pipeline stage/connection configs (observe vs reward)
+// Pipeline visualization configs
 // ──────────────────────────────────────────────
-
-const OBSERVE_STAGES: PipelineStage[] = [
-	{ id: 'code', label: 'Code' },
-	{ id: 'build', label: 'Build' },
-	{
-		id: 'test',
-		label: 'Test Gate',
-		sublabel: '(no tests)',
-		variant: 'inactive',
-	},
-	{ id: 'prod', label: 'Production', badge: '500!' },
-];
 
 const OBSERVE_CONNECTIONS: PipelineConnection[] = [
 	{ from: 'code', to: 'build', dots: 'mixed' },
 	{ from: 'build', to: 'test', dots: 'mixed' },
 	{ from: 'test', to: 'prod', dots: 'mixed' },
-];
-
-const REWARD_STAGES: PipelineStage[] = [
-	{ id: 'code', label: 'Code' },
-	{ id: 'build', label: 'Build' },
-	{
-		id: 'test',
-		label: 'RSpec',
-		sublabel: '2 specs, 0 failures',
-		variant: 'active',
-	},
-	{ id: 'prod', label: 'Production' },
 ];
 
 const REWARD_CONNECTIONS: PipelineConnection[] = [
@@ -589,11 +785,11 @@ function PipelineLegend() {
 			<div className="space-y-2 text-sm">
 				<div className="flex items-center gap-2">
 					<Check className="w-4 h-4 text-success" />
-					<span className="text-foreground">Clean commit (passes)</span>
+					<span className="text-foreground">Clean commit (tests pass)</span>
 				</div>
 				<div className="flex items-center gap-2">
 					<X className="w-4 h-4 text-destructive" />
-					<span className="text-foreground">Broken commit (has bug)</span>
+					<span className="text-foreground">Broken commit (tests catch)</span>
 				</div>
 			</div>
 		</div>
@@ -606,9 +802,80 @@ function PipelineLegend() {
 
 export function Level13Testing({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
+	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
+		minRequired: 3,
+	});
+	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
-	const [caughtCount, setCaughtCount] = useState(0);
-	const [deployedCount, setDeployedCount] = useState(0);
+	const [inspectorData, setInspectorData] =
+		useState<StageInspectorData | null>(null);
+	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
+		new Set(),
+	);
+	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
+
+	// ── Build observe stages dynamically (tracks inspected + last probe) ──
+	const probeDisplay = lastProbeId
+		? PROBE_PIPELINE_MAP[lastProbeId]
+		: null;
+	const observeStages: PipelineStage[] = useMemo(
+		() => [
+			{
+				id: 'code',
+				label: 'Code',
+				inspectable: true,
+				inspected: inspectedStages.has('code'),
+			},
+			{
+				id: 'build',
+				label: 'Build',
+				inspectable: true,
+				inspected: inspectedStages.has('build'),
+			},
+			{
+				id: 'test',
+				label: 'Test Gate',
+				sublabel: probeDisplay ? probeDisplay.testSublabel : '(no tests)',
+				variant: 'inactive' as const,
+				inspectable: true,
+				inspected: inspectedStages.has('test'),
+			},
+			{
+				id: 'prod',
+				label: 'Production',
+				badge: probeDisplay ? probeDisplay.prodBadge : undefined,
+				variant: (probeDisplay ? 'danger' : 'default') as
+					| 'danger'
+					| 'default',
+				inspectable: true,
+				inspected: inspectedStages.has('prod'),
+			},
+		],
+		[inspectedStages, probeDisplay],
+	);
+
+	// ── Build reward stages dynamically (reacts to latest stress test result) ──
+	const lastResult = stressTest.results[stressTest.results.length - 1];
+	const rewardStages: PipelineStage[] = useMemo(() => {
+		const wasBlocked = lastResult?.result === 'blocked';
+		return [
+			{ id: 'code', label: 'Code' },
+			{ id: 'build', label: 'Build' },
+			{
+				id: 'test',
+				label: 'RSpec',
+				sublabel: wasBlocked ? 'FAILURE' : '2 specs, 0 failures',
+				variant: wasBlocked ? ('danger' as const) : ('active' as const),
+				badge: wasBlocked ? '1 FAILED' : undefined,
+			},
+			{
+				id: 'prod',
+				label: 'Production',
+				sublabel: wasBlocked ? '(blocked)' : 'deployed',
+				variant: wasBlocked ? ('default' as const) : ('active' as const),
+			},
+		];
+	}, [lastResult]);
 
 	// ── Transition: build -> activate when all steps complete ──
 	useEffect(() => {
@@ -617,15 +884,42 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 		}
 	}, [phase, stepper.isComplete]);
 
-	// ── Reward phase: simple counter interval (matches dot loop timing) ──
-	useEffect(() => {
-		if (phase !== 'reward') return;
-		const interval = setInterval(() => {
-			setCaughtCount((c) => c + 1);
-			setDeployedCount((c) => c + 3);
-		}, 3500);
-		return () => clearInterval(interval);
-	}, [phase]);
+	// ── Stage click handler (observe phase) ──
+	const handleStageClick = useCallback(
+		(stageId: string) => {
+			if (phase !== 'observe') return;
+
+			const data = STAGE_INSPECTOR_MAP[stageId];
+			if (!data) return;
+
+			setInspectorData(data);
+			setInspectedStages((prev) => {
+				if (prev.has(stageId)) return prev;
+				const next = new Set(prev);
+				next.add(stageId);
+				return next;
+			});
+
+			// Trigger discovery if this stage has one
+			const discoveryId = STAGE_DISCOVERY_MAP[stageId];
+			if (discoveryId) {
+				discoveryGating.discover(discoveryId);
+			}
+		},
+		[phase, discoveryGating],
+	);
+
+	// ── Probe handler (observe phase) ──
+	const handleProbe = useCallback(
+		(probeId: string) => {
+			setLastProbeId(probeId);
+			const discoveryId = PROBE_DISCOVERY_MAP[probeId];
+			if (discoveryId) {
+				discoveryGating.discover(discoveryId);
+			}
+		},
+		[discoveryGating],
+	);
 
 	// ── OptionCard step handler ──
 	const handleOptionClick = useCallback(
@@ -646,9 +940,16 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 
 	const handleActivateTesting = () => {
 		setPhase('reward');
-		setCaughtCount(0);
-		setDeployedCount(0);
+		stressTest.reset();
 	};
+
+	// ── Stress test fire handler ──
+	const handleFireScenario = useCallback(
+		(scenarioId: string) => {
+			stressTest.fireRequest(scenarioId);
+		},
+		[stressTest],
+	);
 
 	// ── Completion ──
 	const handleComplete = () => {
@@ -695,11 +996,19 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 						</p>
 					</div>
 
-					{/* Observe phase: legend only */}
-					{phase === 'observe' && <PipelineLegend />}
+					{/* Observe phase: discovery checklist */}
+					{phase === 'observe' && (
+						<div className="p-4 border-b border-border">
+							<DiscoveryChecklist
+								discoveries={discoveryGating.discoveries}
+								discoveredCount={discoveryGating.discoveredCount}
+								minRequired={discoveryGating.minRequired}
+							/>
+						</div>
+					)}
 
-					{/* Build / activate / reward phases: step progress */}
-					{phase !== 'observe' && (
+					{/* Build / activate phases: step progress */}
+					{(phase === 'build' || phase === 'activate') && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -719,17 +1028,17 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 
 							<div className="p-4">
 								<div className="grid grid-cols-2 gap-3">
-									<div className="bg-destructive/20 rounded-lg p-3 text-center">
-										<div className="text-2xl font-bold text-destructive">
-											{caughtCount}
-										</div>
-										<div className="text-xs text-destructive/70">Caught</div>
-									</div>
 									<div className="bg-success/20 rounded-lg p-3 text-center">
 										<div className="text-2xl font-bold text-success">
-											{deployedCount}
+											{stressTest.allowedCount}
 										</div>
 										<div className="text-xs text-success/70">Deployed</div>
+									</div>
+									<div className="bg-destructive/20 rounded-lg p-3 text-center">
+										<div className="text-2xl font-bold text-destructive">
+											{stressTest.blockedCount}
+										</div>
+										<div className="text-xs text-destructive/70">Caught</div>
 									</div>
 								</div>
 							</div>
@@ -757,19 +1066,39 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 							<div className="flex-1 relative">
 								<PipelineFlow
 									connections={OBSERVE_CONNECTIONS}
-									stages={OBSERVE_STAGES}
+									onNodeClick={handleStageClick}
+									stages={observeStages}
+								/>
+								{inspectorData && (
+									<StageInspector
+										data={inspectorData}
+										onClose={() => setInspectorData(null)}
+									/>
+								)}
+							</div>
+
+							{/* Probe terminal */}
+							<div className="px-6 pb-2">
+								<ProbeTerminal
+									onProbe={handleProbe}
+									probes={PROBES}
+									title="Deploy Probe"
 								/>
 							</div>
-							<div className="p-6 flex justify-center">
-								<Button
-									className="gap-2"
-									onClick={handleStartBuild}
-									size="lg"
-								>
-									Build the Fix
-									<ArrowRight className="w-4 h-4" />
-								</Button>
-							</div>
+
+							{/* Build the Fix button (discovery gated) */}
+							{discoveryGating.isUnlocked && (
+								<div className="p-4 flex justify-center animate-in fade-in duration-500">
+									<Button
+										className="gap-2"
+										onClick={handleStartBuild}
+										size="lg"
+									>
+										Build the Fix
+										<ArrowRight className="w-4 h-4" />
+									</Button>
+								</div>
+							)}
 						</div>
 					)}
 
@@ -955,14 +1284,22 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 							<div className="flex-1 relative">
 								<PipelineFlow
 									connections={REWARD_CONNECTIONS}
-									stages={REWARD_STAGES}
+									stages={rewardStages}
 								/>
 							</div>
-							<div className="p-4 text-center">
-								<p className="text-sm text-muted-foreground">
-									Test gate active. Broken commits are caught before they reach
-									production. Click Submit to complete the level.
-								</p>
+
+							{/* Stress test controls below pipeline */}
+							<div className="px-6 pb-2">
+								<StressTestPanel
+									allowedCount={stressTest.allowedCount}
+									blockedCount={stressTest.blockedCount}
+									canAutoFire={stressTest.canAutoFire}
+									isAutoFiring={stressTest.isAutoFiring}
+									onFire={handleFireScenario}
+									onToggleAutoFire={stressTest.toggleAutoFire}
+									results={stressTest.results}
+									scenarios={STRESS_SCENARIOS}
+								/>
 							</div>
 						</div>
 					)}
