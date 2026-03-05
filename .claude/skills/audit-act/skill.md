@@ -109,6 +109,26 @@ If the same Rails API appears in two levels, that is a concept overlap, even if 
 
 **The "same API, different framing" trap:** Repackaging the same Rails method under a new theme (e.g., "Controller" vs "Strong Params") feels like two distinct levels but teaches the same thing. The test: if you removed one level, would the player still learn the API from the other? If yes, the levels overlap.
 
+**Step 6c: Resolve overlap by finding the right home.**
+
+When overlap is found, don't just flag it. Determine which level should own the concept. Consider:
+
+1. **Which act does the concept belong to?** Each act has a theme and complexity band. A concept should live in the act where it naturally fits, not where it was first convenient to introduce. Example: `params.expect()` is about filtering parameters for security. Act 1 (Foundation) is about getting a working API from nothing. The player shouldn't worry about parameter security in a foundation act. Act 2 (Guards & Gates) is explicitly about security, so `params.expect()` belongs there.
+
+2. **Can the earlier level work without this concept?** If L6 (Controller) can function without teaching `params.expect()` (just generate the controller, add actions, test with curl), then `params.expect()` is not essential to L6's core lesson. It was added to L6 for convenience, not because it belongs there. Remove it from L6 and let the dedicated level (L14) own it fully.
+
+3. **Which level's identity IS this concept?** If a level is named after the concept (L14 "Strong Params"), that level should own it. If another level happens to use the concept as a sub-step (L6 "Controller" has a params step), that's the one to trim.
+
+4. **Don't just remove the overlap; relocate the teaching.** If L6 has a `params.expect()` build step that gets removed, the player still needs to learn it somewhere. Verify the owning level (L14) covers the full API, including anything the removed step was teaching.
+
+**Case study: L6 Controller vs L14 Strong Params.**
+
+Both taught `params.expect()`. L6 had it as Step 2 ("Build strong params with params.expect"). L14's entire identity was parameter filtering. Resolution:
+- Act 1 (Foundation) should not teach security concepts. A controller can work without `params.expect()` (use raw params or skip write actions in the test).
+- Act 2 (Guards & Gates) is the security act. `params.expect()` is a security mechanism. It belongs here.
+- L14 "Strong Params" is literally named after this concept. It should own it.
+- Fix: Remove the `params.expect()` step from L6. L14 introduces `params.expect()` from scratch and also teaches the mass assignment audit.
+
 ### 7. Check Schema Consistency
 
 For each level, verify every model, column, and association it references actually exists at that point:
