@@ -18,10 +18,10 @@ Each custom visualization level is a reference for how to tailor the visualizati
 
 - Level 10 (Validations): "Data Gate" with vertical zones (Input -> Model Gate -> Database), because validations are about filtering data at the model layer before it reaches storage.
   `frontend/src/features/act2-users-security/components/Level10Validations.tsx`
-- Level 15 (CORS): "Browser-Server Handshake" with side-by-side towers (Browser -> Origin Boundary -> Server), because CORS is about cross-origin communication between a browser and a server separated by a security boundary.
+- Level 15 (CORS): 3-zone horizontal flow (Client -> CORS Middleware Gate -> Rails API) with 2 FlowConnectors, because CORS is about a request crossing the network, hitting a middleware gate first, and only reaching the API if allowed. The client zone switches between browser chrome and terminal style depending on the probe (curl vs fetch).
   `frontend/src/features/act2-users-security/components/Level15CORS.tsx`
 
-The visualization shape, direction, and structure should emerge from the concept itself. L10 flows top-to-bottom because data moves through layers. L15 flows left-to-right because two actors communicate across a boundary. Don't copy one level's layout onto another. Design the visualization that best helps the player understand the specific problem.
+The visualization shape, direction, and structure should emerge from the concept itself. L10 flows top-to-bottom because data moves through layers. L15 flows left-to-right because a request travels from client through a gate to the API. Don't copy one level's layout onto another. Design the visualization that best helps the player understand the specific problem.
 
 ## Step 0: Read the Official Documentation (MANDATORY)
 
@@ -75,16 +75,80 @@ When auditing, always read the full component file and grep for any flagged term
 
 The level must have a dedicated "observe" phase that is **interactive, not passive**. The player actively explores to discover the problem.
 
+#### Step 0: Does this level need a visualization at all?
+
+**Not every level needs a visualization.** Some levels are pure setup (e.g., L1 installing Rails, L4 generating a scaffold). There is no "problem" to visualize because the player is building something from scratch, not fixing or discovering a flaw. Forcing a visualization onto a setup level produces something contrived that adds no teaching value.
+
+**Ask these questions before designing a visualization:**
+1. **Is there a problem or vulnerability the player needs to discover?** If yes, visualize it. If the level is "do these setup steps to create something new," skip the observe phase entirely and go straight to build.
+2. **Would a diagram help the player understand how this concept works?** If the concept is "run this command," a visualization adds nothing. If the concept is "requests flow through middleware before reaching your controller," a visualization teaches the architecture.
+3. **Can you describe what the visualization shows in one sentence?** If you can't, the concept may not be visual. "Requests hit the CORS gate before the API" is clear. "The player installs Ruby" is not a visualization.
+
+**Levels that typically need visualization:** security (auth, CORS, strong params), architecture (MVC, middleware), performance (N+1, caching), data flow (validations, callbacks, associations).
+
+**Levels that typically skip visualization:** initial setup, tooling installation, generator-only levels, configuration-only levels.
+
+When a level skips the observe phase, the three-phase flow becomes: build -> activate -> reward (or just build -> complete for pure setup levels).
+
 #### Visualization approach: custom first, PipelineFlow when it fits
 
-**Every level needs its own unique visualization concept.** Do NOT default to PipelineFlow for every level. The visualization must teach the specific concept. Pick the approach that best explains *this* problem:
+**This decision requires careful thought.** The wrong visualization type can mislead players or feel forced. Do NOT default to PipelineFlow for every level, and do NOT invent a custom visualization when a simple pipeline would be clearer. The visualization must teach the specific concept. Pick the approach that best explains *this* problem:
 
-- **Custom zone layouts**: Validations (vertical Data Gate: Input -> Model Gate -> Database), Callbacks (vertical Transform Lane: Raw Data -> Normalizes -> Model -> Callbacks), CORS (horizontal Browser-Server Handshake: Browser Tower -> Origin Boundary -> Server Tower)
-- **PipelineFlow**: Request lifecycle concepts (auth, authorization, middleware, controller flow) where the player needs to see where a stage is missing or broken in the pipeline
+- **Custom zone layouts**: When the concept has a specific spatial relationship that a generic pipeline cannot capture. Validations (vertical Data Gate: Input -> Model Gate -> Database), CORS (horizontal: Client -> CORS Gate -> API). The layout shape should emerge from the concept itself.
+- **PipelineFlow**: Request lifecycle concepts (auth, authorization, middleware, controller flow) where the player needs to see where a stage is missing or broken in the pipeline. Good default when the concept is "something is missing/broken in the request chain."
 - **Interactive diagrams**: Schema/migration levels (tables with columns), association levels (entity relationships)
 - **Before/after comparisons**: Refactoring levels (messy code vs clean code), performance (N+1 query log vs optimized)
+- **No visualization**: Setup and tooling levels where there is nothing to observe
+
+**Decision checklist:**
+- [ ] If the concept has a natural spatial/flow metaphor, use a custom layout that matches it
+- [ ] If the concept is "a stage is missing in the request lifecycle," use PipelineFlow
+- [ ] If the concept is structural (schema, relationships), use an interactive diagram
+- [ ] If the concept is "this code is slow/messy," use before/after comparisons
+- [ ] If there is no problem to discover, skip the visualization entirely
 
 **If a level already has a custom visualization that teaches the concept well, keep it.** Add interactivity (clickable elements, probe-like actions, discovery gating) to the existing visualization rather than replacing it with a generic PipelineFlow.
+
+#### Visualization accuracy (the visualization must not lie)
+
+**The visualization's structure must accurately represent how the concept works.** A pretty animation that teaches the wrong mental model is worse than no animation at all. When auditing, ask: "If a player memorized this diagram, would they have an accurate understanding of the architecture?"
+
+**Case study: L15 CORS redesign (bad -> good)**
+
+The original L15 visualization had structural inaccuracies:
+
+```
+BAD layout (original):
+  [Browser] | Origin Boundary (w-20 divider) | [Preflight OPTIONS]
+                                               [CORS Middleware]
+                                               [Rails API]
+```
+
+Problems:
+- **Preflight was a server-side box.** Preflight (OPTIONS) is a type of request the *browser* sends, not a server component. Showing it as a server box teaches the wrong mental model.
+- **CORS Middleware sat between Preflight and Rails API** as if it were a middle layer. In reality, it is Rack middleware that wraps the entire app and is the *first* thing requests hit.
+- **No flow between the 3 server boxes.** They were stacked vertically with no connectors, looking disconnected. There was no visual representation of how a request moves through them.
+- **Single FlowConnector** only spanned the narrow origin boundary divider, not the full request path.
+
+The redesigned version accurately represents the CORS flow:
+
+```
+GOOD layout (redesigned):
+  [Browser/Client] --FC1--> [CORS Middleware Gate] --FC2--> [Rails API]
+```
+
+Fixes:
+- **Preflight removed as a zone.** It is communicated through flow messages at the Client zone (e.g., "OPTIONS preflight from localhost:3001"), which accurately represents it as browser behavior.
+- **CORS Middleware is the center gate.** Requests hit it first. If allowed, they pass through to the API. If blocked, the API shows "not reached." This matches the real Rack middleware stack.
+- **curl bypass is visually distinct.** The Client zone switches from browser chrome (traffic light dots, address bar) to terminal style (dark header, `$` prompt) for the curl probe. The CORS gate shows "(bypassed, no browser enforcement)" because CORS is purely browser-enforced.
+- **2 FlowConnectors** show the full request path: client -> gate -> API.
+
+**Checklist for visualization accuracy:**
+- [ ] **Each zone/box represents a real architectural component**, not an abstract concept or a type of request. If something is a request type (e.g., preflight OPTIONS), communicate it through flow messages or labels, not as a separate processing stage.
+- [ ] **The order of zones matches the real processing order.** If middleware X runs before component Y, X must appear before Y in the flow direction.
+- [ ] **Connectors exist between every adjacent zone.** Stacking boxes without connectors looks disconnected and hides the flow relationship.
+- [ ] **Bypass/skip scenarios are visually distinct.** If a probe or scenario bypasses a zone (e.g., curl bypassing CORS), the zone should visually indicate it was bypassed (dashed border, muted label, "(bypassed)") rather than showing it as processing the request.
+- [ ] **The "not reached" state is shown.** When a request is blocked at zone N, zones after N should be dimmed/muted with a "not reached" label, not hidden entirely.
 
 #### Required interactivity (regardless of visualization type)
 
@@ -130,6 +194,19 @@ When a level uses custom zone layouts (not PipelineFlow), use the flow animation
 
 **Auto-inspect after probe:**
 After `handleProbe` fires, call `setInspectedStages(new Set([...allStageIds]))` to remove `?` indicators from all zones, since the flow animation reveals all zones.
+
+**Zone content must be gated behind flowPhase (critical):**
+When a probe fires, state like `lastProbeId` updates instantly, but the flow animation takes time to reach each zone. If zone content (sublabels, badges, border colors) reacts to `lastProbeId` directly, zones show their result before the animation reaches them, breaking the illusion.
+
+Fix: derive gated flags that check both the probe state AND the flow phase:
+
+```tsx
+// Zone N shows result only after flow reaches it OR animation is done
+const gateRevealed = probeState && (flowPhase >= 2 || flowPhase === -1);
+const apiRevealed = probeState && (flowPhase >= 4 || flowPhase === -1);
+```
+
+Then use `gateRevealed`/`apiRevealed` instead of raw `probeState` for zone styling, sublabels, and badges. The pattern: zone at phase N gates behind `flowPhase >= N || flowPhase === -1`.
 
 #### Left panel (observe)
 
@@ -294,7 +371,7 @@ Present findings as:
 2. **Narrative consistency**: Any schema ghosts, concept overlaps, or trigger gaps?
 3. **Visualization assessment**: Is the current visualization unique and concept-appropriate, or is it a generic pipeline that should be replaced with something custom? **If a level already has a custom visualization, recommend keeping it and adding interactivity rather than replacing it.**
 4. **Pass/Fail** for each of the 3 phases
-5. **Flow animation assessment**: If using custom zone layouts, does the flow animation pattern follow the standard? (flowPhase, FlowConnector, disabled props, auto-inspect, message persistence)
+5. **Flow animation assessment**: If using custom zone layouts, does the flow animation pattern follow the standard? (flowPhase, FlowConnector, disabled props, auto-inspect, message persistence, zone content gated behind flowPhase)
 6. **Step quality**: Are steps meaningful, progressive, and satisfying?
 7. **Missing steps** in the build phase (especially gem install, generators, setup)
 8. **CSS/animation compliance**: Any `var()` in keyframes, missing `@theme` entries, inline animation styles, or ArrowDown icons that should be FlowConnectors?
