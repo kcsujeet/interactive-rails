@@ -538,7 +538,7 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 			clearFlow();
 			setFlowMessages(messages);
 			const totalPhases = messages.length * 2 - 1;
-			const delay = 1200;
+			const delay = 1500;
 
 			setFlowPhase(0);
 
@@ -822,8 +822,8 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 									{/* Animated origin boundary */}
 									<FlowConnector
 										active={flowPhase === 1 || flowPhase === 3}
-										className="absolute inset-y-6 left-1/2 -translate-x-1/2 w-4"
-										direction="vertical"
+										className="absolute top-1/2 -translate-y-1/2 left-0 h-4 w-full"
+										direction="horizontal"
 										dotColor={
 											lastProbeId === 'curl-bypass'
 												? 'bg-success'
@@ -1237,8 +1237,8 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 									{/* Animated origin boundary */}
 									<FlowConnector
 										active={flowPhase === 1 || flowPhase === 3}
-										className="absolute inset-y-6 left-1/2 -translate-x-1/2 w-4"
-										direction="vertical"
+										className="absolute top-1/2 -translate-y-1/2 left-0 h-4 w-full"
+										direction="horizontal"
 										dotColor={
 											isAllowed
 												? 'bg-success'

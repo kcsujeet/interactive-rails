@@ -676,7 +676,7 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 			clearFlow();
 			setFlowMessages(messages);
 			const totalPhases = messages.length * 2 - 1;
-			const delay = 1000;
+			const delay = 1500;
 
 			setFlowPhase(0);
 

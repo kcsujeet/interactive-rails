@@ -625,7 +625,7 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 			clearFlow();
 			setFlowMessages(messages);
 			const totalPhases = messages.length * 2 - 1;
-			const delay = 1200;
+			const delay = 1500;
 
 			setFlowPhase(0);
 

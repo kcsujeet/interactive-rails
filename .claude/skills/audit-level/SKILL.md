@@ -7,12 +7,21 @@ description: Audit a level component against the three-phase sequential flow sta
 
 Audit a level component to verify it follows the mandatory three-phase sequential flow pattern established in CLAUDE.md. The golden standard is: Problem Visualization -> Problem Solving -> Solution Visualization.
 
-## Reference Implementation
+## Reference Implementations
 
-Read Level 12 (Authorization) as the canonical example of the PipelineFlow-based pattern:
+**PipelineFlow-based (request lifecycle concepts):**
+Read Level 12 (Authorization) as the canonical example:
 `frontend/src/features/act2-users-security/components/Level12Authorization.tsx`
 
-Note: L12 uses PipelineFlow because authorization is naturally a request-flow concept. Not every level should use PipelineFlow. See "Visualization Approach" below.
+**Custom visualization (non-pipeline concepts):**
+Each custom visualization level is a reference for how to tailor the visualization to the concept being taught. No two should look the same.
+
+- Level 10 (Validations): "Data Gate" with vertical zones (Input -> Model Gate -> Database), because validations are about filtering data at the model layer before it reaches storage.
+  `frontend/src/features/act2-users-security/components/Level10Validations.tsx`
+- Level 15 (CORS): "Browser-Server Handshake" with side-by-side towers (Browser -> Origin Boundary -> Server), because CORS is about cross-origin communication between a browser and a server separated by a security boundary.
+  `frontend/src/features/act2-users-security/components/Level15CORS.tsx`
+
+The visualization shape, direction, and structure should emerge from the concept itself. L10 flows top-to-bottom because data moves through layers. L15 flows left-to-right because two actors communicate across a boundary. Don't copy one level's layout onto another. Design the visualization that best helps the player understand the specific problem.
 
 ## Step 0: Read the Official Documentation (MANDATORY)
 
@@ -70,7 +79,7 @@ The level must have a dedicated "observe" phase that is **interactive, not passi
 
 **Every level needs its own unique visualization concept.** Do NOT default to PipelineFlow for every level. The visualization must teach the specific concept. Pick the approach that best explains *this* problem:
 
-- **Custom SVG/animation**: CORS (browser-to-server arrows with blocked/allowed states), performance (slow query waterfall), data (ER diagrams), routing (URL dispatcher)
+- **Custom zone layouts**: Validations (vertical Data Gate: Input -> Model Gate -> Database), Callbacks (vertical Transform Lane: Raw Data -> Normalizes -> Model -> Callbacks), CORS (horizontal Browser-Server Handshake: Browser Tower -> Origin Boundary -> Server Tower)
 - **PipelineFlow**: Request lifecycle concepts (auth, authorization, middleware, controller flow) where the player needs to see where a stage is missing or broken in the pipeline
 - **Interactive diagrams**: Schema/migration levels (tables with columns), association levels (entity relationships)
 - **Before/after comparisons**: Refactoring levels (messy code vs clean code), performance (N+1 query log vs optimized)
@@ -88,9 +97,39 @@ The level must have a dedicated "observe" phase that is **interactive, not passi
 
 Levels should use whichever discovery mechanisms fit their visualization:
 
-- **Clickable regions** (for any visualization): clicking on parts of the visualization reveals information and triggers discoveries. For PipelineFlow, use `onNodeClick` + `StageInspector`. For custom SVGs, use click handlers on elements.
-- **ProbeTerminal**: terminal-style component where player fires test requests. Best for security/API levels where "try this request and see what happens" is the natural exploration. Not required for every level.
+- **Clickable regions** (for any visualization): clicking on parts of the visualization reveals information and triggers discoveries. For PipelineFlow, use `onNodeClick` + `StageInspector`. For custom zone layouts, use `onClick` handlers on zone `<button>` elements with pulsing `?` indicators for uninspected zones.
+- **ProbeTerminal**: terminal-style component where player fires test requests. Best for security/API levels where "try this request and see what happens" is the natural exploration. Not required for every level. Must have `disabled={flowPhase !== -1}` to block probes during flow animations.
 - **Interactive controls**: buttons, toggles, or inputs that let the player manipulate the visualization and discover problems. E.g., toggling browser origins in a CORS level, firing different query patterns in a performance level.
+
+#### Flow animation pattern (for custom zone layouts)
+
+When a level uses custom zone layouts (not PipelineFlow), use the flow animation pattern to show data moving through zones:
+
+- **`flowPhase` state**: integer tracking current animation step. `-1` = idle, even numbers = zone highlights, odd numbers = edge animations.
+- **`flowMessages` array**: messages shown at each zone during animation. Messages are monotonically inclusive (once shown, they stay visible with `opacity-70`).
+- **`runFlow(messages)` callback**: advances phases sequentially with delays (650-1200ms per phase depending on zone count).
+- **`clearFlow()` callback**: cancels pending timeouts. Called on unmount via `useEffect(() => clearFlow, [clearFlow])`.
+- **`flowTimeoutsRef`**: ref holding pending `setTimeout` IDs for cleanup.
+
+**Data maps for flow animations:**
+- `OBSERVE_FLOW`: maps probe IDs to zone message arrays (e.g., `'empty-post': ['POST from client', 'No validations', 'Saved! 201']`)
+- `REWARD_FLOW`: maps stress scenario IDs to zone message arrays
+
+**Zone highlighting during flow:**
+- Active zone: `ring-2 ring-primary/60 shadow-lg shadow-primary/10`
+- Flow message appears with `animate-in fade-in duration-300` when zone activates
+- Post-activation: message stays visible with `opacity-70`
+- Color-coded: `text-primary` (neutral), `text-destructive` (failures), `text-success` (passes)
+
+**FlowConnector between zones:**
+- Use `FlowConnector` component (`@/components/levels/FlowConnector`) instead of `ArrowDown` icons or dashed borders.
+- `active={flowPhase === N}` where N is the odd-numbered phase between two zones.
+- `dotColor` changes based on context: `bg-destructive` for failures, `bg-success` for passes, `bg-primary` for neutral.
+- **Direction must match the visualization's data flow.** Use `direction="vertical"` when data flows top-to-bottom (e.g., L10's data gate), `direction="horizontal"` when data flows left-to-right (e.g., L15's browser-server handshake). The dot travel direction follows from how the concept is visualized, not from a fixed rule.
+- For custom-sized connectors, pass `className` with absolute positioning tailored to the visualization's layout.
+
+**Auto-inspect after probe:**
+After `handleProbe` fires, call `setInspectedStages(new Set([...allStageIds]))` to remove `?` indicators from all zones, since the flow animation reveals all zones.
 
 #### Left panel (observe)
 
@@ -170,11 +209,21 @@ The level must have a dedicated reward phase where the player **interactively ve
 
 The reward phase MUST be interactive. Passive auto-incrementing counters (`setInterval`) are never acceptable. The player must take actions and see results. Options:
 
-- **StressTestPanel + useStressTest**: Player fires request scenarios and watches results. Best for security/API levels (auth, authorization, CORS, strong params). Provides `fireRequest()`, `toggleAutoFire()`, dual counters.
+- **StressTestPanel + useStressTest**: Player fires request scenarios and watches results. Best for security/API levels (auth, authorization, CORS, strong params). Provides `fireRequest()`, `toggleAutoFire()`, dual counters. Must have `disabled={flowPhase !== -1}` to block during flow animations.
 - **Custom interactive controls**: Player clicks buttons, toggles, or inputs on the custom visualization. E.g., clicking different browser origins in a CORS visualization and watching them get allowed/blocked. Clicking different query patterns in a performance visualization and seeing response times.
 - **Replay/comparison controls**: Player toggles between before/after states, or replays scenarios at different scales.
 
 The key rule: **every click from the player must produce a visible reaction in the visualization.**
+
+#### Flow animation in reward phase
+
+When the reward visualization uses zone layouts (same as observe but with the fix applied):
+
+- Reuse the same `runFlow`/`clearFlow`/`flowPhase` state from observe phase
+- Define `REWARD_FLOW` messages showing the fix working (e.g., `'valid-post': ['Valid post', 'validates pass', 'Saved! 201']`)
+- Zones change color based on stress test result: `border-success bg-success/10` for allowed, `border-destructive bg-destructive/5` for blocked
+- FlowConnectors change `dotColor` based on result: `bg-success` for allowed, `bg-destructive` for blocked
+- Flow messages color-code: `text-success` for passes, `text-destructive` for rejections
 
 #### When StressTestPanel IS used
 
@@ -185,6 +234,7 @@ If the level uses StressTestPanel specifically:
 - [ ] Terminal-style appearance matching ProbeTerminal
 - [ ] Scenario buttons with full detail, color-coded by expected result
 - [ ] Auto-fire toggle gated behind 3+ manual fires
+- [ ] `disabled={flowPhase !== -1}` blocks during flow animations
 
 #### When custom visualization IS used
 
@@ -226,6 +276,16 @@ Check the phase transitions:
 - [ ] Observe visualization state built with `useMemo` reacting to player interactions
 - [ ] Reward visualization state built with `useMemo` reacting to player actions
 
+### CSS and Animation Checks
+
+Verify that any custom animations follow Tailwind v4 / Lightning CSS constraints:
+
+- [ ] **No `var()` inside `@keyframes`.** Lightning CSS silently strips keyframes containing CSS variable references. Use fixed values or percentage-based positioning instead.
+- [ ] **New `@theme` entries registered.** If the level introduces custom animation keyframes, they must be registered in `@theme inline {}` in `global.css` (e.g., `--animate-flow-dot-down: flow-dot-down 1.2s ease-in-out infinite;`). Note: this requires a dev server restart to take effect.
+- [ ] **No inline `style` attributes for animations.** Use Tailwind `animate-*` classes instead of inline `animation:` styles, so the build system includes the referenced keyframes.
+- [ ] **`FlowConnector` used instead of `ArrowDown` icons.** Between zones in custom layouts, use the `FlowConnector` component (not Lucide ArrowDown icons or dashed borders).
+- [ ] **`FlowConnector` direction matches the visualization's data flow.** Dots must travel in the same direction data flows in the visualization. A mismatch (e.g., vertical dots in a left-to-right layout) breaks the visual metaphor.
+
 ## Output Format
 
 Present findings as:
@@ -234,9 +294,11 @@ Present findings as:
 2. **Narrative consistency**: Any schema ghosts, concept overlaps, or trigger gaps?
 3. **Visualization assessment**: Is the current visualization unique and concept-appropriate, or is it a generic pipeline that should be replaced with something custom? **If a level already has a custom visualization, recommend keeping it and adding interactivity rather than replacing it.**
 4. **Pass/Fail** for each of the 3 phases
-5. **Step quality**: Are steps meaningful, progressive, and satisfying?
-6. **Missing steps** in the build phase (especially gem install, generators, setup)
-7. **Specific code locations** that need changes (file:line)
-8. **Suggested fix** for each issue found
+5. **Flow animation assessment**: If using custom zone layouts, does the flow animation pattern follow the standard? (flowPhase, FlowConnector, disabled props, auto-inspect, message persistence)
+6. **Step quality**: Are steps meaningful, progressive, and satisfying?
+7. **Missing steps** in the build phase (especially gem install, generators, setup)
+8. **CSS/animation compliance**: Any `var()` in keyframes, missing `@theme` entries, inline animation styles, or ArrowDown icons that should be FlowConnectors?
+9. **Specific code locations** that need changes (file:line)
+10. **Suggested fix** for each issue found
 
 If the level passes all checks, confirm it follows the golden standard.

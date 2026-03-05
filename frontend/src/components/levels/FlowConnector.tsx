@@ -65,7 +65,7 @@ export function FlowConnector({
 									: 'animate-flow-dot-right'
 							}`}
 							style={{
-								animationDelay: `${(i * 1.2) / dotCount}s`,
+								animationDelay: `${(i * 1.5) / dotCount}s`,
 							}}
 						/>
 					))}
