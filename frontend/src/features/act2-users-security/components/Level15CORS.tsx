@@ -15,8 +15,8 @@
  * Teaches: rack-cors gem, CORS origin configuration, allowed HTTP methods
  */
 
-import { ArrowRight, Check, Play, Star, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowRight, Check, Globe, Play, Server, Shield, Star, X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -36,13 +36,7 @@ import {
 	type ValidationResult,
 } from '@/components/levels';
 import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
-import {
-	PipelineFlow,
-	PIPELINE_DOTS_CLEAN,
-	PIPELINE_DOTS_MIXED,
-	type PipelineConnection,
-	type PipelineStage,
-} from '@/components/levels/PipelineFlow';
+import { FlowConnector } from '@/components/levels/FlowConnector';
 import { ProbeTerminal, type ProbeConfig } from '@/components/levels/ProbeTerminal';
 import { StageInspector, type StageInspectorData } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
@@ -156,6 +150,63 @@ const PROBE_PIPELINE_MAP: Record<string, { corsSublabel: string; corsBadge: stri
 	'fetch-posts': { corsSublabel: 'No headers sent', corsBadge: 'BLOCKED' },
 	'preflight-delete': { corsSublabel: 'OPTIONS rejected', corsBadge: 'BLOCKED' },
 	'curl-bypass': { corsSublabel: '(bypassed)', corsBadge: '200' },
+};
+
+// ──────────────────────────────────────────────
+// Flow animation messages (per probe / scenario)
+// ──────────────────────────────────────────────
+
+// Observe phase: 3 zones (Browser, Origin Boundary, Server)
+const OBSERVE_FLOW: Record<string, string[]> = {
+	'fetch-posts': [
+		'fetch() from localhost:3001',
+		'Cross-origin request detected',
+		'No CORS headers, browser blocks response',
+	],
+	'preflight-delete': [
+		'DELETE request from localhost:3001',
+		'Preflight OPTIONS sent first',
+		'OPTIONS rejected, DELETE never sent',
+	],
+	'curl-bypass': [
+		'curl from terminal (no browser)',
+		'No Same-Origin Policy enforcement',
+		'API responds 200 OK (curl has no CORS)',
+	],
+};
+
+// Reward phase: 3 zones (Browser, Origin Boundary, Server)
+const REWARD_FLOW: Record<string, string[]> = {
+	'frontend-get': [
+		'GET from localhost:3001',
+		'Origin allowed by rack-cors',
+		'200 OK, response delivered',
+	],
+	'frontend-post': [
+		'POST from localhost:3001',
+		'Preflight passes, origin allowed',
+		'201 Created, post saved',
+	],
+	'frontend-delete': [
+		'DELETE from localhost:3001',
+		'Preflight passes, origin allowed',
+		'200 OK, post deleted',
+	],
+	'evil-get': [
+		'GET from evil.example.com',
+		'Origin NOT in allowed list',
+		'BLOCKED by rack-cors',
+	],
+	'evil-delete': [
+		'DELETE from evil.example.com',
+		'Preflight fails, origin rejected',
+		'BLOCKED, request never reaches API',
+	],
+	'unknown-post': [
+		'POST from unknown.site.io',
+		'Origin NOT in allowed list',
+		'BLOCKED by rack-cors',
+	],
 };
 
 // ──────────────────────────────────────────────
@@ -364,24 +415,6 @@ const STRESS_SCENARIOS: StressScenario[] = [
 ];
 
 // ──────────────────────────────────────────────
-// Pipeline stage builders
-// ──────────────────────────────────────────────
-
-const OBSERVE_PIPELINE_IDS = ['browser', 'preflight', 'cors', 'api'] as const;
-
-const OBSERVE_CONNECTIONS: PipelineConnection[] = [
-	{ from: 'browser', to: 'preflight', dots: 'mixed' },
-	{ from: 'preflight', to: 'cors', dots: 'mixed' },
-	{ from: 'cors', to: 'api' },
-];
-
-const REWARD_CONNECTIONS: PipelineConnection[] = [
-	{ from: 'browser', to: 'preflight', dots: 'clean' },
-	{ from: 'preflight', to: 'cors', dots: 'clean' },
-	{ from: 'cors', to: 'api', dots: 'clean' },
-];
-
-// ──────────────────────────────────────────────
 // Pipeline Legend
 // ──────────────────────────────────────────────
 
@@ -490,6 +523,44 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(null);
 	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
 
+	// ── Flow animation state ──
+	const [flowPhase, setFlowPhase] = useState(-1);
+	const [flowMessages, setFlowMessages] = useState<string[]>([]);
+	const flowTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+	const clearFlow = useCallback(() => {
+		for (const t of flowTimeoutsRef.current) clearTimeout(t);
+		flowTimeoutsRef.current = [];
+	}, []);
+
+	const runFlow = useCallback(
+		(messages: string[]) => {
+			clearFlow();
+			setFlowMessages(messages);
+			const totalPhases = messages.length * 2 - 1;
+			const delay = 1200;
+
+			setFlowPhase(0);
+
+			for (let p = 1; p <= totalPhases; p++) {
+				const t = setTimeout(() => {
+					setFlowPhase(p);
+				}, delay * p);
+				flowTimeoutsRef.current.push(t);
+			}
+
+			const endT = setTimeout(() => {
+				setFlowPhase(-1);
+			}, delay * (totalPhases + 2));
+			flowTimeoutsRef.current.push(endT);
+		},
+		[clearFlow],
+	);
+
+	useEffect(() => {
+		return () => clearFlow();
+	}, [clearFlow]);
+
 	// ── Transition: build -> activate when all steps complete ──
 	useEffect(() => {
 		if (phase === 'build' && stepper.isComplete) {
@@ -529,140 +600,23 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 			if (discoveryId) {
 				discoveryGating.discover(discoveryId);
 			}
+			const messages = OBSERVE_FLOW[probeId];
+			if (messages) runFlow(messages);
+			// Mark all zones as inspected after animation reveals them
+			setInspectedStages(new Set(['browser', 'preflight', 'cors', 'api']));
 		},
-		[discoveryGating],
+		[discoveryGating, runFlow],
 	);
 
-	// ── Observe pipeline stages (reactive to probes + inspections) ──
-	const observeStages: PipelineStage[] = useMemo(() => {
-		const probeState = lastProbeId ? PROBE_PIPELINE_MAP[lastProbeId] : null;
+	// ── Probe display state ──
+	const probeState = lastProbeId ? PROBE_PIPELINE_MAP[lastProbeId] : null;
 
-		return OBSERVE_PIPELINE_IDS.map((id) => {
-			const isInspected = inspectedStages.has(id);
-
-			switch (id) {
-				case 'browser':
-					return {
-						id: 'browser',
-						label: 'Browser',
-						sublabel: probeState ? 'localhost:3001' : 'React Frontend',
-						variant: 'default' as const,
-						inspectable: true,
-						inspected: isInspected,
-					};
-				case 'preflight':
-					return {
-						id: 'preflight',
-						label: 'Preflight',
-						sublabel: probeState
-							? lastProbeId === 'preflight-delete'
-								? 'OPTIONS rejected'
-								: 'checking...'
-							: 'OPTIONS check',
-						variant: (probeState && lastProbeId === 'preflight-delete'
-							? 'danger'
-							: 'default') as const,
-						badge: probeState && lastProbeId === 'preflight-delete' ? 'FAIL' : undefined,
-						inspectable: true,
-						inspected: isInspected,
-					};
-				case 'cors':
-					return {
-						id: 'cors',
-						label: 'CORS Middleware',
-						sublabel: probeState
-							? probeState.corsSublabel
-							: '(not installed)',
-						variant: (lastProbeId === 'curl-bypass' ? 'inactive' : probeState ? 'danger' : 'inactive') as const,
-						badge: probeState ? probeState.corsBadge : '(missing)',
-						inspectable: true,
-						inspected: isInspected,
-					};
-				case 'api':
-					return {
-						id: 'api',
-						label: 'Rails API',
-						sublabel: probeState
-							? lastProbeId === 'curl-bypass'
-								? '200 OK'
-								: 'unreachable'
-							: 'localhost:3000',
-						variant: (probeState && lastProbeId === 'curl-bypass'
-							? 'active'
-							: 'default') as const,
-						inspectable: true,
-						inspected: isInspected,
-					};
-				default:
-					return { id, label: id, variant: 'default' as const };
-			}
-		});
-	}, [inspectedStages, lastProbeId]);
-
-	// ── Reward pipeline stages (reactive to stress test results) ──
-	const rewardStages: PipelineStage[] = useMemo(() => {
-		const lastResult = stressTest.results[stressTest.results.length - 1];
-		const lastScenario = lastResult
-			? STRESS_SCENARIOS.find((s) => s.id === lastResult.scenarioId)
-			: null;
-		const isAllowed = lastResult?.result === 'allowed';
-
-		return [
-			{
-				id: 'browser',
-				label: 'Browser',
-				sublabel: lastScenario ? lastScenario.actor : 'Any Origin',
-				variant: 'default' as const,
-			},
-			{
-				id: 'preflight',
-				label: 'Preflight',
-				sublabel: lastScenario
-					? isAllowed
-						? 'OPTIONS 200'
-						: 'OPTIONS 403'
-					: 'OPTIONS check',
-				variant: (lastScenario
-					? isAllowed
-						? 'active'
-						: 'danger'
-					: 'active') as const,
-			},
-			{
-				id: 'cors',
-				label: 'CORS Middleware',
-				sublabel: lastScenario
-					? isAllowed
-						? `Allow-Origin: ${lastScenario.actor}`
-						: 'Origin rejected'
-					: 'rack-cors active',
-				variant: (lastScenario
-					? isAllowed
-						? 'active'
-						: 'danger'
-					: 'active') as const,
-				badge: lastScenario
-					? isAllowed
-						? undefined
-						: 'BLOCKED'
-					: undefined,
-			},
-			{
-				id: 'api',
-				label: 'Rails API',
-				sublabel: lastScenario
-					? isAllowed
-						? `${lastScenario.method} ${lastScenario.path}`
-						: 'not reached'
-					: 'Protected',
-				variant: (lastScenario
-					? isAllowed
-						? 'active'
-						: 'default'
-					: 'active') as const,
-			},
-		];
-	}, [stressTest.results]);
+	// ── Latest stress test result (for reward visualization) ──
+	const lastResult = stressTest.results[stressTest.results.length - 1];
+	const lastScenario = lastResult
+		? STRESS_SCENARIOS.find((s) => s.id === lastResult.scenarioId)
+		: null;
+	const isAllowed = lastResult?.result === 'allowed';
 
 	// ── OptionCard step handler ──
 	const handleOptionClick = useCallback(
@@ -812,12 +766,227 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 					{/* ── Phase 1: Observe (WHY) ── */}
 					{phase === 'observe' && (
 						<div className="flex-1 flex flex-col">
-							<div className="flex-1 relative">
-								<PipelineFlow
-									connections={OBSERVE_CONNECTIONS}
-									onNodeClick={handleStageClick}
-									stages={observeStages}
-								/>
+							{/* Browser-Server Handshake Visualization */}
+							<div className="flex-1 flex items-stretch gap-0 px-4 py-4 relative">
+								{/* Browser Tower */}
+								<button
+									type="button"
+									className={`flex-1 flex flex-col border rounded-lg bg-card overflow-hidden cursor-pointer transition-all duration-300 hover:ring-2 hover:ring-ring/30 ${
+										flowPhase === 0
+											? 'ring-2 ring-primary/60 shadow-lg shadow-primary/10'
+											: !inspectedStages.has('browser')
+												? 'ring-1 ring-primary/20'
+												: ''
+									}`}
+									onClick={() => handleStageClick('browser')}
+								>
+									{/* Browser chrome header */}
+									<div className="flex items-center gap-1.5 px-3 py-2 border-b bg-muted/50">
+										<div className="flex gap-1">
+											<div className="w-2 h-2 rounded-full bg-red-400/70 dark:bg-red-400/50" />
+											<div className="w-2 h-2 rounded-full bg-yellow-400/70 dark:bg-yellow-400/50" />
+											<div className="w-2 h-2 rounded-full bg-green-400/70 dark:bg-green-400/50" />
+										</div>
+										<div className="text-[10px] text-muted-foreground ml-auto font-mono">
+											localhost:3001
+										</div>
+									</div>
+									<div className="flex-1 p-3 space-y-2">
+										<div className="flex items-center gap-1.5">
+											<Globe className="w-3.5 h-3.5 text-muted-foreground" />
+											<span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+												Browser
+											</span>
+											{!inspectedStages.has('browser') && flowPhase !== 0 && (
+												<span className="text-primary text-sm animate-pulse font-bold ml-auto">
+													?
+												</span>
+											)}
+										</div>
+										<pre className="text-[10px] font-mono text-foreground/70 leading-relaxed whitespace-pre-wrap">
+{`fetch("http://localhost:3000
+  /api/v1/posts")`}
+										</pre>
+										{flowMessages[0] && (flowPhase >= 0 || flowPhase === -1) && (
+											<div className={`text-[10px] text-primary font-medium ${flowPhase === 0 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}>
+												{flowMessages[0]}
+											</div>
+										)}
+									</div>
+								</button>
+
+								{/* Network Zone: origin boundary + request indicator */}
+								<div className={`w-20 flex flex-col items-center justify-center relative shrink-0 transition-all duration-300 ${
+									flowPhase === 1 || flowPhase === 3 ? 'scale-105' : ''
+								}`}>
+									{/* Animated origin boundary */}
+									<FlowConnector
+										active={flowPhase === 1 || flowPhase === 3}
+										className="absolute inset-y-6 left-1/2 -translate-x-1/2 w-4"
+										direction="vertical"
+										dotColor={
+											lastProbeId === 'curl-bypass'
+												? 'bg-success'
+												: lastProbeId
+													? 'bg-destructive'
+													: 'bg-primary'
+										}
+									/>
+
+									{/* Origin label or flow message */}
+									{flowMessages[1] && (flowPhase >= 2 || flowPhase === -1) ? (
+										<div className={`px-1 py-1 rounded text-[9px] font-medium z-10 text-center leading-tight ${flowPhase === 2 ? 'animate-in fade-in duration-300' : 'opacity-70'} ${
+											lastProbeId === 'curl-bypass'
+												? 'text-success bg-success/10'
+												: 'text-destructive bg-destructive/10'
+										}`}>
+											{flowMessages[1]}
+										</div>
+									) : (
+										<div className="bg-background px-1 py-0.5 text-[8px] text-muted-foreground/50 z-10 text-center leading-tight">
+											Origin
+											<br />
+											Boundary
+										</div>
+									)}
+
+									{/* Request result indicator */}
+									{lastProbeId && !(flowMessages[1] && (flowPhase >= 2 || flowPhase === -1)) && (
+										<div
+											className={`mt-2 px-2 py-1 rounded text-[10px] font-bold z-10 text-center ${
+												lastProbeId === 'curl-bypass'
+													? 'bg-success/20 text-success dark:bg-success/30'
+													: 'bg-destructive/20 text-destructive dark:bg-destructive/30'
+											}`}
+										>
+											{lastProbeId === 'curl-bypass'
+												? '200 OK'
+												: 'BLOCKED'}
+										</div>
+									)}
+								</div>
+
+								{/* Server Tower */}
+								<div className="flex-1 flex flex-col gap-2">
+									{/* Preflight zone */}
+									<button
+										type="button"
+										className={`border rounded-lg p-2.5 text-center cursor-pointer transition-all duration-300 hover:ring-2 hover:ring-ring/30 ${
+											lastProbeId === 'preflight-delete'
+												? 'border-destructive/50 bg-destructive/5 dark:bg-destructive/10'
+												: 'border-border bg-card'
+										} ${
+											!inspectedStages.has('preflight')
+												? 'ring-1 ring-primary/20'
+												: ''
+										}`}
+										onClick={() => handleStageClick('preflight')}
+									>
+										<div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+											Preflight (OPTIONS)
+										</div>
+										{lastProbeId === 'preflight-delete' && (
+											<div className="text-[10px] font-mono text-destructive mt-0.5">
+												OPTIONS rejected
+											</div>
+										)}
+										{!inspectedStages.has('preflight') && (
+											<div className="text-primary text-xs animate-pulse font-bold mt-0.5">
+												?
+											</div>
+										)}
+									</button>
+
+									{/* CORS middleware zone */}
+									<button
+										type="button"
+										className={`border-2 rounded-lg p-2.5 text-center cursor-pointer transition-all duration-300 hover:ring-2 hover:ring-ring/30 flex-1 ${
+											flowPhase === 4
+												? lastProbeId === 'curl-bypass'
+													? 'ring-2 ring-success/60 shadow-lg shadow-success/10 border-dashed border-muted-foreground/30 bg-muted/20 dark:bg-muted/10'
+													: 'ring-2 ring-destructive/60 shadow-lg shadow-destructive/10 border-destructive/50 bg-destructive/5 dark:bg-destructive/10'
+												: probeState
+													? lastProbeId === 'curl-bypass'
+														? 'border-dashed border-muted-foreground/30 bg-muted/20 dark:bg-muted/10'
+														: 'border-destructive/50 bg-destructive/5 dark:bg-destructive/10'
+													: 'border-dashed border-muted-foreground/30 bg-muted/20 dark:bg-muted/10'
+										} ${
+											flowPhase !== 4 && !inspectedStages.has('cors')
+												? 'ring-1 ring-primary/20'
+												: ''
+										}`}
+										onClick={() => handleStageClick('cors')}
+									>
+										<div className="flex items-center justify-center gap-1.5">
+											<Shield className="w-3.5 h-3.5 text-muted-foreground" />
+											<span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+												CORS Middleware
+											</span>
+										</div>
+										<div
+											className={`text-[10px] font-mono mt-1 ${
+												probeState && lastProbeId !== 'curl-bypass'
+													? 'text-destructive'
+													: 'text-muted-foreground/50'
+											}`}
+										>
+											{probeState
+												? probeState.corsSublabel
+												: '(not installed)'}
+										</div>
+										{probeState && lastProbeId !== 'curl-bypass' && (
+											<div className="text-[10px] font-bold text-destructive mt-0.5">
+												{probeState.corsBadge}
+											</div>
+										)}
+										{flowMessages[2] && (flowPhase >= 4 || flowPhase === -1) && (
+											<div className={`text-[10px] font-medium mt-0.5 ${flowPhase === 4 ? 'animate-in fade-in duration-300' : 'opacity-70'} ${
+												lastProbeId === 'curl-bypass' ? 'text-success' : 'text-destructive'
+											}`}>
+												{flowMessages[2]}
+											</div>
+										)}
+										{!inspectedStages.has('cors') && flowPhase !== 4 && (
+											<div className="text-primary text-xs animate-pulse font-bold mt-0.5">
+												?
+											</div>
+										)}
+									</button>
+
+									{/* Rails API zone */}
+									<button
+										type="button"
+										className={`border rounded-lg p-2.5 text-center cursor-pointer transition-all duration-300 hover:ring-2 hover:ring-ring/30 ${
+											lastProbeId === 'curl-bypass'
+												? 'border-success/50 bg-success/5 dark:bg-success/10'
+												: 'border-border bg-card'
+										} ${
+											!inspectedStages.has('api')
+												? 'ring-1 ring-primary/20'
+												: ''
+										}`}
+										onClick={() => handleStageClick('api')}
+									>
+										<div className="flex items-center justify-center gap-1.5">
+											<Server className="w-3.5 h-3.5 text-muted-foreground" />
+											<span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+												Rails API
+											</span>
+										</div>
+										<div className="text-[10px] font-mono text-muted-foreground mt-0.5">
+											{lastProbeId === 'curl-bypass'
+												? '200 OK'
+												: 'localhost:3000'}
+										</div>
+										{!inspectedStages.has('api') && (
+											<div className="text-primary text-xs animate-pulse font-bold mt-0.5">
+												?
+											</div>
+										)}
+									</button>
+								</div>
+
+								{/* Stage Inspector overlay */}
 								{inspectorData && (
 									<StageInspector
 										data={inspectorData}
@@ -828,6 +997,7 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 
 							<div className="px-4 pb-2">
 								<ProbeTerminal
+									disabled={flowPhase !== -1}
 									onProbe={handleProbe}
 									probes={PROBES}
 									title="CORS Probe"
@@ -846,7 +1016,7 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 									</Button>
 								) : (
 									<p className="text-xs text-muted-foreground">
-										Explore the pipeline and fire probes to understand the problem.
+										Explore the towers and fire probes to understand the problem.
 									</p>
 								)}
 							</div>
@@ -1007,14 +1177,223 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
+					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) - Browser-Server with CORS ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col">
-							<div className="flex-1 relative">
-								<PipelineFlow
-									connections={REWARD_CONNECTIONS}
-									stages={rewardStages}
-								/>
+							{/* Browser-Server with active CORS */}
+							<div className="flex-1 flex items-stretch gap-0 px-4 py-4">
+								{/* Browser Tower */}
+								<div
+									className={`flex-1 flex flex-col border rounded-lg bg-card overflow-hidden transition-all duration-300 ${
+										flowPhase === 0
+											? 'ring-2 ring-primary/60 shadow-lg shadow-primary/10'
+											: ''
+									}`}
+								>
+									{/* Browser chrome header */}
+									<div className="flex items-center gap-1.5 px-3 py-2 border-b bg-muted/50">
+										<div className="flex gap-1">
+											<div className="w-2 h-2 rounded-full bg-red-400/70 dark:bg-red-400/50" />
+											<div className="w-2 h-2 rounded-full bg-yellow-400/70 dark:bg-yellow-400/50" />
+											<div className="w-2 h-2 rounded-full bg-green-400/70 dark:bg-green-400/50" />
+										</div>
+										<div className="text-[10px] text-muted-foreground ml-auto font-mono">
+											{lastScenario
+												? lastScenario.actor
+												: 'Any Origin'}
+										</div>
+									</div>
+									<div className="flex-1 p-3 flex flex-col items-center justify-center gap-2">
+										<Globe
+											className={`w-6 h-6 ${
+												lastScenario
+													? isAllowed
+														? 'text-success'
+														: 'text-destructive'
+													: 'text-muted-foreground'
+											}`}
+										/>
+										<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+											Browser
+										</div>
+										{lastScenario && (
+											<div className="text-[10px] font-mono text-muted-foreground">
+												{lastScenario.method}{' '}
+												{lastScenario.path}
+											</div>
+										)}
+										{flowMessages[0] && (flowPhase >= 0 || flowPhase === -1) && (
+											<div className={`text-[10px] text-primary font-medium ${flowPhase === 0 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}>
+												{flowMessages[0]}
+											</div>
+										)}
+									</div>
+								</div>
+
+								{/* Network Zone: origin boundary + result */}
+								<div className={`w-20 flex flex-col items-center justify-center relative shrink-0 transition-all duration-300 ${
+									flowPhase === 1 || flowPhase === 3 ? 'scale-105' : ''
+								}`}>
+									{/* Animated origin boundary */}
+									<FlowConnector
+										active={flowPhase === 1 || flowPhase === 3}
+										className="absolute inset-y-6 left-1/2 -translate-x-1/2 w-4"
+										direction="vertical"
+										dotColor={
+											isAllowed
+												? 'bg-success'
+												: lastResult
+													? 'bg-destructive'
+													: 'bg-primary'
+										}
+									/>
+
+									{/* Flow message at boundary */}
+									{flowMessages[1] && (flowPhase >= 2 || flowPhase === -1) ? (
+										<div className={`px-1 py-1 rounded text-[9px] font-medium z-10 text-center leading-tight ${flowPhase === 2 ? 'animate-in fade-in duration-300' : 'opacity-70'} ${
+											isAllowed
+												? 'text-success bg-success/10'
+												: 'text-destructive bg-destructive/10'
+										}`}>
+											{flowMessages[1]}
+										</div>
+									) : lastResult ? (
+										<div
+											className={`px-2 py-1.5 rounded text-[10px] font-bold z-10 text-center ${
+												isAllowed
+													? 'bg-success/20 text-success dark:bg-success/30'
+													: 'bg-destructive/20 text-destructive dark:bg-destructive/30'
+											}`}
+										>
+											{isAllowed ? (
+												<Check className="w-4 h-4 mx-auto" />
+											) : (
+												<X className="w-4 h-4 mx-auto" />
+											)}
+											<div className="mt-0.5">
+												{isAllowed
+													? 'PASS'
+													: 'BLOCKED'}
+											</div>
+										</div>
+									) : (
+										<div className="bg-background px-1 py-0.5 text-[8px] text-muted-foreground/50 z-10 text-center leading-tight">
+											Origin
+											<br />
+											Boundary
+										</div>
+									)}
+								</div>
+
+								{/* Server Tower (with active CORS) */}
+								<div className="flex-1 flex flex-col gap-2">
+									{/* Preflight zone */}
+									<div
+										className={`border rounded-lg p-2.5 text-center transition-all duration-300 ${
+											lastResult
+												? isAllowed
+													? 'border-success/50 bg-success/5 dark:bg-success/10'
+													: 'border-destructive/50 bg-destructive/5 dark:bg-destructive/10'
+												: 'border-success/30 bg-success/5 dark:bg-success/10'
+										}`}
+									>
+										<div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+											Preflight
+										</div>
+										<div
+											className={`text-[10px] font-mono mt-0.5 ${
+												lastResult
+													? isAllowed
+														? 'text-success'
+														: 'text-destructive'
+													: 'text-success/70'
+											}`}
+										>
+											{lastResult
+												? isAllowed
+													? 'OPTIONS 200'
+													: 'OPTIONS 403'
+												: 'OPTIONS check'}
+										</div>
+									</div>
+
+									{/* CORS middleware zone (active) */}
+									<div
+										className={`border-2 rounded-lg p-2.5 text-center flex-1 flex flex-col items-center justify-center transition-all duration-300 ${
+											flowPhase === 4
+												? isAllowed
+													? 'ring-2 ring-success/60 shadow-lg shadow-success/10 border-success bg-success/10 dark:bg-success/15'
+													: 'ring-2 ring-destructive/60 shadow-lg shadow-destructive/10 border-destructive bg-destructive/5 dark:bg-destructive/10'
+												: lastResult
+													? isAllowed
+														? 'border-success bg-success/10 dark:bg-success/15'
+														: 'border-destructive bg-destructive/5 dark:bg-destructive/10'
+													: 'border-success/50 bg-success/5 dark:bg-success/10'
+										}`}
+									>
+										<div className="flex items-center justify-center gap-1.5">
+											<Shield
+												className={`w-3.5 h-3.5 ${
+													lastResult
+														? isAllowed
+															? 'text-success'
+															: 'text-destructive'
+														: 'text-success'
+												}`}
+											/>
+											<span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+												rack-cors
+											</span>
+										</div>
+										<div
+											className={`text-[10px] font-mono mt-1 ${
+												lastResult
+													? isAllowed
+														? 'text-success'
+														: 'text-destructive font-bold'
+													: 'text-success/70'
+											}`}
+										>
+											{lastResult
+												? isAllowed
+													? `Allow: ${lastScenario?.actor}`
+													: 'Origin rejected'
+												: 'Active'}
+										</div>
+										{flowMessages[2] && (flowPhase >= 4 || flowPhase === -1) && (
+											<div className={`text-[10px] font-medium mt-0.5 ${flowPhase === 4 ? 'animate-in fade-in duration-300' : 'opacity-70'} ${
+												isAllowed ? 'text-success' : 'text-destructive'
+											}`}>
+												{flowMessages[2]}
+											</div>
+										)}
+									</div>
+
+									{/* Rails API zone */}
+									<div
+										className={`border rounded-lg p-2.5 text-center transition-all duration-300 ${
+											lastResult
+												? isAllowed
+													? 'border-success/50 bg-success/5 dark:bg-success/10'
+													: 'border-border bg-card opacity-50'
+												: 'border-success/30 bg-card'
+										}`}
+									>
+										<div className="flex items-center justify-center gap-1.5">
+											<Server className="w-3.5 h-3.5 text-muted-foreground" />
+											<span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+												Rails API
+											</span>
+										</div>
+										<div className="text-[10px] font-mono text-muted-foreground mt-0.5">
+											{lastResult
+												? isAllowed
+													? `${lastScenario?.method} ${lastScenario?.path}`
+													: 'not reached'
+												: 'Protected'}
+										</div>
+									</div>
+								</div>
 							</div>
 
 							<div className="px-4 pb-4">
@@ -1022,8 +1401,13 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 									allowedCount={stressTest.allowedCount}
 									blockedCount={stressTest.blockedCount}
 									canAutoFire={stressTest.canAutoFire}
+									disabled={flowPhase !== -1}
 									isAutoFiring={stressTest.isAutoFiring}
-									onFire={(id) => stressTest.fireRequest(id)}
+									onFire={(id) => {
+										stressTest.fireRequest(id);
+										const messages = REWARD_FLOW[id];
+										if (messages) runFlow(messages);
+									}}
 									onToggleAutoFire={() => stressTest.toggleAutoFire()}
 									results={stressTest.results}
 									scenarios={STRESS_SCENARIOS}

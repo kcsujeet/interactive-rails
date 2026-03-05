@@ -19,8 +19,8 @@
  * Teaches: validates, presence, uniqueness, format, errors.full_messages
  */
 
-import { ArrowRight, Check, Play, Star, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowRight, Check, Database, Play, Star, X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -40,11 +40,7 @@ import {
 	type ValidationResult,
 } from '@/components/levels';
 import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
-import {
-	type PipelineConnection,
-	PipelineFlow,
-	type PipelineStage,
-} from '@/components/levels/PipelineFlow';
+import { FlowConnector } from '@/components/levels/FlowConnector';
 import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
 import {
@@ -160,6 +156,45 @@ const PROBE_PIPELINE_MAP: Record<
 		modelSublabel: 'not-an-email',
 		dbBadge: '201!',
 	},
+};
+
+// Map probe IDs to data card display text
+const PROBE_DATA_CARD: Record<string, string> = {
+	'empty-post': '{ title: "", body: "" }',
+	'duplicate-email': '{ email: "joe@test.com" }',
+	'bad-email': '{ email: "not-an-email" }',
+};
+
+// ──────────────────────────────────────────────
+// Flow animation messages (per probe / scenario)
+// ──────────────────────────────────────────────
+
+// Observe phase: 3 zones (Input, Model Gate, Database)
+const OBSERVE_FLOW: Record<string, string[]> = {
+	'empty-post': [
+		'POST /api/v1/posts from client',
+		'No validations, passes through',
+		'Empty record saved! 201',
+	],
+	'duplicate-email': [
+		'POST /api/v1/users from client',
+		'No uniqueness check, passes through',
+		'Duplicate email saved! 201',
+	],
+	'bad-email': [
+		'POST /api/v1/users from client',
+		'No format check, passes through',
+		'Malformed email saved! 201',
+	],
+};
+
+// Reward phase: 3 zones (Input, Validation Gate, Result)
+const REWARD_FLOW: Record<string, string[]> = {
+	'valid-post': ['Valid post: title + body', 'validates :title, :body pass', 'Saved! 201 Created'],
+	'empty-title': ['Post with blank title', 'validates :title FAILS', 'Rejected! 422'],
+	'valid-user': ['User with valid email', 'validates :email passes', 'Saved! 201 Created'],
+	'duplicate-email': ['Duplicate email signup', 'uniqueness check FAILS', 'Rejected! 422'],
+	'bad-email-format': ['User with "not-an-email"', 'format check FAILS', 'Rejected! 422'],
 };
 
 // ──────────────────────────────────────────────
@@ -424,20 +459,6 @@ const OPTION_STEP_CONFIG: Record<
 };
 
 // ──────────────────────────────────────────────
-// Pipeline visualization configs
-// ──────────────────────────────────────────────
-
-const OBSERVE_CONNECTIONS: PipelineConnection[] = [
-	{ from: 'controller', to: 'model', dots: 'mixed' },
-	{ from: 'model', to: 'database', dots: 'mixed' },
-];
-
-const REWARD_CONNECTIONS: PipelineConnection[] = [
-	{ from: 'controller', to: 'model', dots: 'mixed' },
-	{ from: 'model', to: 'database', dots: 'clean' },
-];
-
-// ──────────────────────────────────────────────
 // Code preview helper
 // ──────────────────────────────────────────────
 
@@ -581,59 +602,51 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 	);
 	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
 
-	// ── Build observe stages dynamically (tracks inspected + last probe) ──
+	// ── Probe display state (tracks last probe for visualization) ──
 	const probeDisplay = lastProbeId
 		? PROBE_PIPELINE_MAP[lastProbeId]
 		: null;
-	const observeStages: PipelineStage[] = useMemo(
-		() => [
-			{
-				id: 'controller',
-				label: 'Controller',
-				sublabel: probeDisplay ? 'post.save' : undefined,
-				inspectable: true,
-				inspected: inspectedStages.has('controller'),
-			},
-			{
-				id: 'model',
-				label: 'Model',
-				sublabel: probeDisplay ? probeDisplay.modelSublabel : '(no validations)',
-				variant: (probeDisplay ? 'danger' : 'inactive') as
-					| 'danger'
-					| 'inactive',
-				inspectable: true,
-				inspected: inspectedStages.has('model'),
-			},
-			{
-				id: 'database',
-				label: 'Database',
-				badge: probeDisplay ? probeDisplay.dbBadge : 'GARBAGE',
-				variant: (probeDisplay ? 'danger' : 'default') as
-					| 'danger'
-					| 'default',
-				inspectable: true,
-				inspected: inspectedStages.has('database'),
-			},
-		],
-		[inspectedStages, probeDisplay],
+
+	// ── Latest stress test result (for reward visualization) ──
+	const lastResult = stressTest.results[stressTest.results.length - 1];
+
+	// ── Flow animation state ──
+	const [flowPhase, setFlowPhase] = useState(-1);
+	const [flowMessages, setFlowMessages] = useState<string[]>([]);
+	const flowTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+	const clearFlow = useCallback(() => {
+		for (const t of flowTimeoutsRef.current) clearTimeout(t);
+		flowTimeoutsRef.current = [];
+	}, []);
+
+	const runFlow = useCallback(
+		(messages: string[]) => {
+			clearFlow();
+			setFlowMessages(messages);
+			const totalPhases = messages.length * 2 - 1;
+			const delay = 1200;
+
+			setFlowPhase(0);
+
+			for (let p = 1; p <= totalPhases; p++) {
+				const t = setTimeout(() => {
+					setFlowPhase(p);
+				}, delay * p);
+				flowTimeoutsRef.current.push(t);
+			}
+
+			const endT = setTimeout(() => {
+				setFlowPhase(-1);
+			}, delay * (totalPhases + 2));
+			flowTimeoutsRef.current.push(endT);
+		},
+		[clearFlow],
 	);
 
-	// ── Build reward stages dynamically (reacts to latest stress test result) ──
-	const lastResult = stressTest.results[stressTest.results.length - 1];
-	const rewardStages: PipelineStage[] = useMemo(() => {
-		const wasBlocked = lastResult?.result === 'blocked';
-		return [
-			{ id: 'controller', label: 'Controller' },
-			{
-				id: 'model',
-				label: 'Validations',
-				sublabel: wasBlocked ? '422 Unprocessable' : 'valid!',
-				variant: wasBlocked ? ('danger' as const) : ('active' as const),
-				badge: wasBlocked ? 'REJECTED' : undefined,
-			},
-			{ id: 'database', label: 'Database' },
-		];
-	}, [lastResult]);
+	useEffect(() => {
+		return () => clearFlow();
+	}, [clearFlow]);
 
 	// ── Transition: build -> activate when all steps complete ──
 	useEffect(() => {
@@ -675,8 +688,12 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 			if (discoveryId) {
 				discoveryGating.discover(discoveryId);
 			}
+			const messages = OBSERVE_FLOW[probeId];
+			if (messages) runFlow(messages);
+			// Mark all zones as inspected after animation reveals them
+			setInspectedStages(new Set(['controller', 'model', 'database']));
 		},
-		[discoveryGating],
+		[discoveryGating, runFlow],
 	);
 
 	// ── OptionCard step handler ──
@@ -705,8 +722,10 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 	const handleFireScenario = useCallback(
 		(scenarioId: string) => {
 			stressTest.fireRequest(scenarioId);
+			const messages = REWARD_FLOW[scenarioId];
+			if (messages) runFlow(messages);
 		},
-		[stressTest],
+		[stressTest, runFlow],
 	);
 
 	// ── Completion ──
@@ -817,12 +836,142 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 					{/* ── Phase 1: Observe (WHY) ── */}
 					{phase === 'observe' && (
 						<div className="flex-1 flex flex-col">
-							<div className="flex-1 relative">
-								<PipelineFlow
-									connections={OBSERVE_CONNECTIONS}
-									onNodeClick={handleStageClick}
-									stages={observeStages}
+							{/* Data Gate: three clickable zones connected by arrows */}
+							<div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 relative">
+								{/* Input Zone (Controller) */}
+								<button
+									type="button"
+									className={`w-full max-w-sm border rounded-lg p-3 bg-card text-left transition-all duration-300 hover:ring-2 hover:ring-ring/30 cursor-pointer ${
+										flowPhase === 0
+											? 'ring-2 ring-primary/60 shadow-lg shadow-primary/10'
+											: !inspectedStages.has('controller')
+												? 'ring-1 ring-primary/20'
+												: ''
+									}`}
+									onClick={() => handleStageClick('controller')}
+								>
+									<div className="flex items-center justify-between mb-1.5">
+										<span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+											Incoming Data
+										</span>
+										{!inspectedStages.has('controller') && (
+											<span className="text-primary text-sm animate-pulse font-bold">
+												?
+											</span>
+										)}
+									</div>
+									<pre className="text-xs font-mono text-foreground leading-relaxed">
+										{lastProbeId
+											? PROBE_DATA_CARD[lastProbeId]
+											: '{ title: "...", body: "..." }'}
+									</pre>
+									{flowMessages[0] && (flowPhase >= 0 || flowPhase === -1) && (
+										<div className={`text-xs text-primary font-medium mt-1.5 ${flowPhase === 0 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}>
+											{flowMessages[0]}
+										</div>
+									)}
+								</button>
+
+								{/* Flow connector */}
+								<FlowConnector
+									active={flowPhase === 1}
+									dotColor={probeDisplay ? 'bg-destructive' : 'bg-primary'}
 								/>
+
+								{/* Model Gate Zone */}
+								<button
+									type="button"
+									className={`w-full max-w-sm border-2 rounded-lg p-4 text-center transition-all duration-300 hover:ring-2 hover:ring-ring/30 cursor-pointer ${
+										flowPhase === 2
+											? 'ring-2 ring-primary/60 shadow-lg shadow-primary/10 border-destructive/50 bg-destructive/5 dark:bg-destructive/10'
+											: probeDisplay
+												? 'border-destructive/50 bg-destructive/5 dark:bg-destructive/10'
+												: 'border-dashed border-muted-foreground/30 bg-muted/30 dark:bg-muted/10'
+									} ${
+										flowPhase !== 2 && !inspectedStages.has('model')
+											? 'ring-1 ring-primary/20'
+											: ''
+									}`}
+									onClick={() => handleStageClick('model')}
+								>
+									<div className="font-mono text-xs text-muted-foreground">
+										class Post &lt; ApplicationRecord
+									</div>
+									<div
+										className={`text-sm font-medium mt-1.5 ${
+											probeDisplay
+												? 'text-destructive'
+												: 'text-muted-foreground/50'
+										}`}
+									>
+										{probeDisplay
+											? probeDisplay.modelSublabel
+											: '(no validations)'}
+									</div>
+									{flowMessages[1] && (flowPhase >= 2 || flowPhase === -1) && (
+										<div className={`text-xs text-destructive font-medium mt-1 ${flowPhase === 2 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}>
+											{flowMessages[1]}
+										</div>
+									)}
+									{!inspectedStages.has('model') && flowPhase !== 2 && (
+										<div className="text-primary text-sm animate-pulse font-bold mt-1">
+											?
+										</div>
+									)}
+								</button>
+
+								{/* Flow connector */}
+								<FlowConnector
+									active={flowPhase === 3}
+									dotColor={probeDisplay ? 'bg-destructive' : 'bg-primary'}
+								/>
+
+								{/* Database Zone */}
+								<button
+									type="button"
+									className={`w-full max-w-sm border rounded-lg p-3 text-center transition-all duration-300 hover:ring-2 hover:ring-ring/30 cursor-pointer ${
+										flowPhase === 4
+											? 'ring-2 ring-destructive/60 shadow-lg shadow-destructive/10 border-destructive/50 bg-destructive/5 dark:bg-destructive/10'
+											: probeDisplay
+												? 'border-destructive/50 bg-destructive/5 dark:bg-destructive/10'
+												: 'border-border bg-card'
+									} ${
+										flowPhase !== 4 && !inspectedStages.has('database')
+											? 'ring-1 ring-primary/20'
+											: ''
+									}`}
+									onClick={() => handleStageClick('database')}
+								>
+									<Database
+										className={`w-5 h-5 mx-auto mb-1 ${
+											flowPhase === 4
+												? 'text-destructive'
+												: probeDisplay
+													? 'text-destructive'
+													: 'text-muted-foreground'
+										}`}
+									/>
+									<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+										Database
+									</div>
+									{probeDisplay && (
+										<div className="text-xs font-mono text-destructive font-bold mt-1">
+											{probeDisplay.dbBadge}
+										</div>
+									)}
+									{flowMessages[2] && (flowPhase >= 4 || flowPhase === -1) && (
+										<div className={`text-xs text-destructive font-medium mt-1 ${flowPhase === 4 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}>
+											{flowMessages[2]}
+										</div>
+									)}
+									{!inspectedStages.has('database') && flowPhase !== 4 && (
+										<div className="text-primary text-sm animate-pulse font-bold mt-1">
+											?
+										</div>
+									)}
+								</button>
+
+								{/* Stage Inspector overlay */}
 								{inspectorData && (
 									<StageInspector
 										data={inspectorData}
@@ -834,6 +983,7 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 							{/* Probe terminal */}
 							<div className="px-6 pb-2">
 								<ProbeTerminal
+									disabled={flowPhase !== -1}
 									onProbe={handleProbe}
 									probes={PROBES}
 									title="Data Probe"
@@ -984,22 +1134,161 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
+					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) - Data Gate with Validations ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col">
-							<div className="flex-1 relative">
-								<PipelineFlow
-									connections={REWARD_CONNECTIONS}
-									stages={rewardStages}
+							{/* Data Gate: now with active validations */}
+							<div className="flex-1 flex flex-col items-center justify-center gap-3 px-6">
+								{/* Input Zone */}
+								<div
+									className={`w-full max-w-sm border rounded-lg p-3 bg-card text-center transition-all duration-300 ${
+										flowPhase === 0
+											? 'ring-2 ring-primary/60 shadow-lg shadow-primary/10'
+											: ''
+									}`}
+								>
+									<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+										Incoming Data
+									</div>
+									<div className="text-xs font-mono text-foreground">
+										{lastResult
+											? STRESS_SCENARIOS.find(
+													(s) =>
+														s.id ===
+														lastResult.scenarioId,
+												)?.label
+											: 'Fire a scenario below'}
+									</div>
+									{flowMessages[0] && (flowPhase >= 0 || flowPhase === -1) && (
+										<div className={`text-xs text-primary font-medium mt-1.5 ${flowPhase === 0 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}>
+											{flowMessages[0]}
+										</div>
+									)}
+								</div>
+
+								{/* Flow connector */}
+								<FlowConnector
+									active={flowPhase === 1}
+									dotColor={
+										!lastResult
+											? 'bg-primary'
+											: lastResult.result === 'allowed'
+												? 'bg-success'
+												: 'bg-destructive'
+									}
 								/>
+
+								{/* Validation Gate (active) */}
+								<div
+									className={`w-full max-w-sm border-2 rounded-lg p-4 text-center transition-all duration-300 ${
+										flowPhase === 2
+											? lastResult?.result === 'blocked'
+												? 'ring-2 ring-destructive/60 shadow-lg shadow-destructive/10 border-destructive bg-destructive/5 dark:bg-destructive/10'
+												: 'ring-2 ring-success/60 shadow-lg shadow-success/10 border-success bg-success/10 dark:bg-success/15'
+											: !lastResult
+												? 'border-success/40 bg-success/5 dark:bg-success/10'
+												: lastResult.result === 'allowed'
+													? 'border-success bg-success/10 dark:bg-success/15'
+													: 'border-destructive bg-destructive/5 dark:bg-destructive/10'
+									}`}
+								>
+									<div className="font-mono text-xs text-muted-foreground mb-2">
+										class Post / User &lt;
+										ApplicationRecord
+									</div>
+									<div className="space-y-0.5 font-mono text-xs text-success">
+										<div>
+											validates :title, presence: true
+										</div>
+										<div>
+											validates :email, uniqueness: true
+										</div>
+										<div>
+											validates :email, format: {'{ ... }'}
+										</div>
+									</div>
+									{flowMessages[1] && (flowPhase >= 2 || flowPhase === -1) && (
+										<div className={`text-xs font-medium mt-2 ${flowPhase === 2 ? 'animate-in fade-in duration-300' : 'opacity-70'} ${
+											lastResult?.result === 'blocked' ? 'text-destructive' : 'text-success'
+										}`}>
+											{flowMessages[1]}
+										</div>
+									)}
+								</div>
+
+								{/* Flow connector */}
+								<FlowConnector
+									active={flowPhase === 3}
+									dotColor={
+										!lastResult
+											? 'bg-primary'
+											: lastResult.result === 'allowed'
+												? 'bg-success'
+												: 'bg-destructive'
+									}
+								/>
+
+								{/* Result Zone */}
+								<div
+									className={`w-full max-w-sm border rounded-lg p-3 text-center transition-all duration-300 ${
+										flowPhase === 4
+											? lastResult?.result === 'blocked'
+												? 'ring-2 ring-destructive/60 shadow-lg shadow-destructive/10 border-destructive/50 bg-destructive/5 dark:bg-destructive/10'
+												: 'ring-2 ring-success/60 shadow-lg shadow-success/10 border-success/50 bg-success/10 dark:bg-success/15'
+											: !lastResult
+												? 'border-border bg-card'
+												: lastResult.result === 'allowed'
+													? 'border-success/50 bg-success/10 dark:bg-success/15'
+													: 'border-destructive/50 bg-destructive/5 dark:bg-destructive/10'
+									}`}
+								>
+									{flowMessages[2] && (flowPhase >= 4 || flowPhase === -1) && (
+										<div className={`text-xs font-medium mb-1 ${flowPhase === 4 ? 'animate-in fade-in duration-300' : 'opacity-70'} ${
+											lastResult?.result === 'blocked' ? 'text-destructive' : 'text-success'
+										}`}>
+											{flowMessages[2]}
+										</div>
+									)}
+									{lastResult?.result === 'allowed' && (
+										<>
+											<Database className="w-5 h-5 mx-auto mb-1 text-success" />
+											<div className="text-xs font-bold text-success">
+												SAVED
+											</div>
+											<div className="text-xs text-success/70 mt-0.5">
+												201 Created
+											</div>
+										</>
+									)}
+									{lastResult?.result === 'blocked' && (
+										<>
+											<X className="w-5 h-5 mx-auto mb-1 text-destructive" />
+											<div className="text-xs font-bold text-destructive">
+												422 Unprocessable Entity
+											</div>
+											<div className="text-xs font-mono text-destructive/70 mt-0.5">
+												errors.full_messages
+											</div>
+										</>
+									)}
+									{!lastResult && (
+										<>
+											<Database className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
+											<div className="text-xs text-muted-foreground">
+												Waiting for scenario...
+											</div>
+										</>
+									)}
+								</div>
 							</div>
 
-							{/* Stress test controls below pipeline */}
+							{/* Stress test controls */}
 							<div className="px-6 pb-2">
 								<StressTestPanel
 									allowedCount={stressTest.allowedCount}
 									blockedCount={stressTest.blockedCount}
 									canAutoFire={stressTest.canAutoFire}
+									disabled={flowPhase !== -1}
 									isAutoFiring={stressTest.isAutoFiring}
 									onFire={handleFireScenario}
 									onToggleAutoFire={stressTest.toggleAutoFire}

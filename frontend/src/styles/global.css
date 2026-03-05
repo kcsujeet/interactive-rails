@@ -216,6 +216,10 @@
 
 	/* UI Animations */
 	--animate-shimmer: shimmer 5s linear infinite;
+
+	/* Flow connector dot animations */
+	--animate-flow-dot-down: flow-dot-down 1.2s ease-in-out infinite;
+	--animate-flow-dot-right: flow-dot-right 1.2s ease-in-out infinite;
 }
 
 /* ============================================
@@ -287,6 +291,20 @@
 	100% {
 		background-position: 200% 0;
 	}
+}
+
+@keyframes flow-dot-down {
+	0% { top: -8px; opacity: 0; }
+	10% { opacity: 1; }
+	90% { opacity: 1; }
+	100% { top: 100%; opacity: 0; }
+}
+
+@keyframes flow-dot-right {
+	0% { left: -8px; opacity: 0; }
+	10% { opacity: 1; }
+	90% { opacity: 1; }
+	100% { left: 100%; opacity: 0; }
 }
 
 /* ============================================

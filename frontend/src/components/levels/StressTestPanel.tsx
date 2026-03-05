@@ -20,6 +20,8 @@ interface StressTestPanelProps {
 	canAutoFire: boolean;
 	onFire: (scenarioId: string) => void;
 	onToggleAutoFire: () => void;
+	/** Disable all fire buttons (e.g. while a flow animation is running) */
+	disabled?: boolean;
 }
 
 export function StressTestPanel({
@@ -31,6 +33,7 @@ export function StressTestPanel({
 	canAutoFire,
 	onFire,
 	onToggleAutoFire,
+	disabled = false,
 }: StressTestPanelProps) {
 	const recentResults = results.slice(-10);
 
@@ -116,7 +119,7 @@ export function StressTestPanel({
 									? 'bg-emerald-900/30 hover:bg-emerald-900/50 text-emerald-300 border-emerald-700/50'
 									: 'bg-red-900/30 hover:bg-red-900/50 text-red-300 border-red-700/50'
 							}`}
-							disabled={isAutoFiring}
+							disabled={isAutoFiring || disabled}
 							key={scenario.id}
 							onClick={() => onFire(scenario.id)}
 							size="sm"
@@ -129,7 +132,7 @@ export function StressTestPanel({
 					{/* Auto-fire toggle */}
 					<Button
 						className="gap-1.5"
-						disabled={!canAutoFire}
+						disabled={!canAutoFire || disabled}
 						onClick={onToggleAutoFire}
 						size="sm"
 						variant={isAutoFiring ? 'destructive' : 'outline'}

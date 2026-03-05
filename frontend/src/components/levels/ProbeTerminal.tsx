@@ -35,12 +35,15 @@ interface ProbeTerminalProps {
 	/** Called when a probe fires. Use to trigger discoveries. */
 	onProbe: (probeId: string) => void;
 	title?: string;
+	/** Disable all probe buttons (e.g. while a flow animation is running) */
+	disabled?: boolean;
 }
 
 export function ProbeTerminal({
 	probes,
 	onProbe,
 	title = 'API Probe',
+	disabled = false,
 }: ProbeTerminalProps) {
 	const [firedIds, setFiredIds] = useState<Set<string>>(new Set());
 	const [history, setHistory] = useState<ProbeHistoryEntry[]>([]);
@@ -76,7 +79,7 @@ export function ProbeTerminal({
 	}, [animating, history.length]);
 
 	const handleProbe = (probe: ProbeConfig) => {
-		if (firedIds.has(probe.id) || animating) return;
+		if (firedIds.has(probe.id) || animating || disabled) return;
 
 		setFiredIds((prev) => new Set(prev).add(probe.id));
 		setHistory((prev) => [
@@ -178,7 +181,7 @@ export function ProbeTerminal({
 						{availableProbes.map((probe) => (
 							<Button
 								className="font-mono text-xs bg-amber-900/30 hover:bg-amber-900/50 text-amber-300 border-amber-700/50"
-								disabled={animating}
+								disabled={animating || disabled}
 								key={probe.id}
 								onClick={() => handleProbe(probe)}
 								size="sm"
