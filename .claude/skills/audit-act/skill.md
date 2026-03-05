@@ -84,12 +84,30 @@ For every consecutive pair of levels, verify:
 
 Each concept belongs to exactly one level. This applies both within the act AND across acts.
 
-- [ ] **No concept is taught twice within this act.**
+**Step 6a: Extract the Rails API surface per level.**
+
+For every level in the act (and levels in adjacent acts that share topics), list the specific Rails APIs, methods, gems, and DSL keywords the level teaches. Be concrete:
+
+```
+| Level | Rails APIs / Keywords Taught |
+|-------|------------------------------|
+| L6    | params.expect(), render json:, before_action, controller generators |
+| L14   | params.expect(), mass assignment, whitelist auditing |
+```
+
+If the same Rails API appears in two levels, that is a concept overlap, even if the levels frame it differently. "Teaching params.expect() for the first time" and "auditing params.expect() for security" both teach params.expect(). The player learns the API once; revisiting it in a later level is redundant.
+
+**Step 6b: Check for overlap.**
+
+- [ ] **No Rails API or keyword is the primary concept of two levels.** Scan the table from 6a. If `params.expect` appears as the core teaching of both L6 and L14, one level must be redesigned to teach a different concept or the two must be merged. A new framing ("security audit") does not justify re-teaching the same API.
 - [ ] **No concept overlaps with levels in other acts.** Read content.ts of adjacent acts to verify. Examples from CLAUDE.md:
   - Level 2 (First Boot) should NOT add routing steps (Level 5 handles that)
   - Level 3 (Model) should NOT teach associations (Level 8 handles that)
   - Level 6 (Controller) should NOT teach testing (Level 13 handles that)
 - [ ] **Check `learningContent.conceptExplanation` for overlap.** If two levels explain the same Rails feature, one of them is redundant.
+- [ ] **Check the spec's "Rails 8 Features Integration" table.** If a feature appears at two level numbers (e.g., `params.expect()` at L6 and L14), flag it as a concept ownership conflict that needs resolution. Either one level introduces the API and the other only uses it as a prerequisite, or the levels need restructuring.
+
+**The "same API, different framing" trap:** Repackaging the same Rails method under a new theme (e.g., "Controller" vs "Strong Params") feels like two distinct levels but teaches the same thing. The test: if you removed one level, would the player still learn the API from the other? If yes, the levels overlap.
 
 ### 7. Check Schema Consistency
 
