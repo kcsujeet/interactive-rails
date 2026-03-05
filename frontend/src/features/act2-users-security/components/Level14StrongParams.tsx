@@ -5,19 +5,19 @@
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): Interactive exploration. Click pipeline stages to
- *   inspect the too-broad params.expect whitelist, fire API probes to inject
- *   user_id and admin through the unaudited filter. Discovery gating
- *   controls when "Build the Fix" appears.
- * Phase 2 (HOW - build): 3 OptionCard steps auditing and tightening the whitelist
- *   Step 0: Audit the Whitelist (identify dangerous fields)
- *   Step 1: Tighten the Whitelist (choose correct params.expect)
+ *   discover that the controller passes raw request params directly to the
+ *   model with no filtering. Fire API probes to inject user_id and admin.
+ *   Discovery gating controls when "Build the Fix" appears.
+ * Phase 2 (HOW - build): 3 OptionCard steps introducing params.expect
+ *   Step 0: Introduce params.expect (choose the right filtering method)
+ *   Step 1: Define the Whitelist (choose which fields to allow)
  *   Step 2: Set Ownership Safely (current_user association)
  * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Filtering" button
  * Phase 4 (ADVANTAGE - reward): Stress test. Fire param payloads at the
  *   tightened filter and watch allowed/blocked results.
  *
- * Builds on L6 (Controller) which introduced params.expect.
- * Teaches: mass assignment auditing, whitelist tightening, ownership via association
+ * Introduces params.expect as the solution to mass assignment.
+ * Teaches: parameter filtering, whitelist definition, ownership via association
  */
 
 import { ArrowRight, Check, Play, Star, X } from 'lucide-react';
@@ -68,10 +68,10 @@ type Phase = 'observe' | 'build' | 'activate' | 'reward';
 // ──────────────────────────────────────────────
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
-	{ id: 'broad-whitelist', label: 'Whitelist includes dangerous fields' },
-	{ id: 'user-id-injection', label: 'user_id can be overwritten via params' },
-	{ id: 'admin-escalation', label: 'admin flag can be set via params' },
-	{ id: 'unprotected-model', label: 'Model saves every whitelisted param' },
+	{ id: 'no-filtering', label: 'No parameter filtering at all' },
+	{ id: 'user-id-injection', label: 'user_id can be set via request body' },
+	{ id: 'admin-escalation', label: 'admin flag can be set via request body' },
+	{ id: 'raw-params', label: 'Controller passes raw params to model' },
 ];
 
 // ──────────────────────────────────────────────
@@ -94,7 +94,7 @@ const PROBES: ProbeConfig[] = [
 				color: 'yellow',
 			},
 			{
-				text: 'The whitelist includes user_id, so it passes through.',
+				text: 'No parameter filtering. user_id passes straight through to the model.',
 				color: 'red',
 			},
 		],
@@ -114,7 +114,7 @@ const PROBES: ProbeConfig[] = [
 				color: 'yellow',
 			},
 			{
-				text: 'The whitelist includes admin, so any user can set it.',
+				text: 'No parameter filtering. admin: true passes straight through to the model.',
 				color: 'red',
 			},
 		],
@@ -133,6 +133,10 @@ const PROBES: ProbeConfig[] = [
 				text: 'Both fields accepted. Ownership stolen AND admin escalated.',
 				color: 'yellow',
 			},
+			{
+				text: 'No filtering at all. Every param the attacker sends gets saved.',
+				color: 'red',
+			},
 		],
 	},
 ];
@@ -150,15 +154,15 @@ const PROBE_PIPELINE_MAP: Record<
 	{ filterSublabel: string; modelBadge: string }
 > = {
 	'inject-user-id': {
-		filterSublabel: 'user_id: 42 PASSED',
+		filterSublabel: 'NO FILTER',
 		modelBadge: '201!',
 	},
 	'escalate-admin': {
-		filterSublabel: 'admin: true PASSED',
+		filterSublabel: 'NO FILTER',
 		modelBadge: '201!',
 	},
 	'inject-both': {
-		filterSublabel: 'user_id + admin PASSED',
+		filterSublabel: 'NO FILTER',
 		modelBadge: '200!',
 	},
 };
@@ -178,35 +182,35 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		stageId: 'controller',
 		title: 'PostsController',
 		description:
-			'The controller calls post_params, which runs params.expect. The method filters the shape of the request, but the whitelist was written too broadly during initial development.',
+			'The controller reads request params directly with no filtering layer. Any key the attacker sends in the JSON body can be passed to the model.',
 		code: `def create
-  post = current_user.posts.create!(post_params)
+  post = Post.create!(title: params[:title], body: params[:body])
   render json: post, status: :created
 end`,
 	},
 	filter: {
 		stageId: 'filter',
-		title: 'params.expect (Too Broad!)',
+		title: 'Parameter Filtering (Missing!)',
 		description:
-			'The whitelist includes user_id and admin alongside safe fields. params.expect filters the shape, but these dangerous fields pass right through because they are explicitly allowed.',
-		code: `def post_params
-  params.expect(post: [:title, :body, :status, :user_id, :admin])
-  #                                    ^^^^^^^^  ^^^^^^
-  #                              Impersonation!  Escalation!
+			'There is no parameter filtering. The controller reads params directly and passes them to the model. Any key the attacker includes in the request body gets saved to the database.',
+		code: `def create
+  post = Post.create!(title: params[:title], body: params[:body],
+                      user_id: params[:user_id], admin: params[:admin])
+  # Every param gets through!
 end`,
 	},
 	model: {
 		stageId: 'model',
 		title: 'Post Model',
 		description:
-			'The model receives ALL whitelisted params and saves them to the database. If user_id and admin are in the whitelist, every value the attacker sends gets persisted.',
+			'The model receives ALL params and saves them to the database. With no filtering, every value the attacker sends gets persisted, including user_id and admin.',
 	},
 };
 
 // Map stage IDs to discovery IDs they trigger
 const STAGE_DISCOVERY_MAP: Record<string, string> = {
-	filter: 'broad-whitelist',
-	model: 'unprotected-model',
+	filter: 'no-filtering',
+	model: 'raw-params',
 };
 
 // ──────────────────────────────────────────────
@@ -217,7 +221,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'clean-create',
 		label: 'Create with safe params',
-		description: 'POST with only title, body, status',
+		description: 'POST with only title and body',
 		method: 'POST',
 		path: '/api/v1/posts',
 		actor: 'user_3',
@@ -244,7 +248,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'clean-update',
 		label: 'Update with safe params',
-		description: 'PATCH with only body and status',
+		description: 'PATCH with only title and body',
 		method: 'PATCH',
 		path: '/api/v1/posts/1',
 		actor: 'owner (user_3)',
@@ -266,8 +270,8 @@ const STRESS_SCENARIOS: StressScenario[] = [
 // ──────────────────────────────────────────────
 
 const STEP_DEFS: StepDef[] = [
-	{ id: 'audit-fields', title: 'Audit the Whitelist' },
-	{ id: 'tighten-params', title: 'Tighten the Whitelist' },
+	{ id: 'add-filtering', title: 'Add Parameter Filtering' },
+	{ id: 'define-whitelist', title: 'Define the Whitelist' },
 	{ id: 'set-ownership', title: 'Set Ownership Safely' },
 ];
 
@@ -282,48 +286,48 @@ interface StepOption {
 	feedback?: string;
 }
 
-// Step 0: Audit the Whitelist
-const AUDIT_OPTIONS: StepOption[] = [
+// Step 0: Add Parameter Filtering
+const FILTERING_OPTIONS: StepOption[] = [
 	{
-		id: 'status-only',
-		label: 'Remove status (it controls publishing)',
+		id: 'manual-check',
+		label: 'Check each param manually with if/else',
 		correct: false,
 		feedback:
-			'status is a content field the user should set (draft/published). The dangerous fields control identity and access, not content.',
+			'Manual checks are error-prone and verbose. Rails provides a built-in, declarative way to filter parameters.',
 	},
 	{
-		id: 'user-id-only',
-		label: 'Remove user_id only',
+		id: 'permit-all',
+		label: 'params.permit!',
 		correct: false,
 		feedback:
-			'user_id is dangerous, but there is another privileged field in the whitelist that lets users escalate access.',
+			'permit! allows EVERYTHING through, which is the same as no filtering at all.',
 	},
 	{
-		id: 'both-dangerous',
-		label: 'Remove user_id and admin',
+		id: 'params-expect',
+		label: 'params.expect(post: [:title, :body])',
 		correct: true,
 	},
 ];
 
-// Step 1: Tighten the Whitelist
-const TIGHTEN_OPTIONS: StepOption[] = [
+// Step 1: Define the Whitelist
+const WHITELIST_OPTIONS: StepOption[] = [
 	{
-		id: 'too-narrow',
+		id: 'everything',
+		label: 'params.expect(post: [:title, :body, :user_id, :admin])',
+		correct: false,
+		feedback:
+			'user_id and admin are sensitive fields. Users should never set their own ownership or privilege level through request params.',
+	},
+	{
+		id: 'with-user-id',
+		label: 'params.expect(post: [:title, :body, :user_id])',
+		correct: false,
+		feedback:
+			'user_id controls post ownership. If users can set it, they can impersonate other authors.',
+	},
+	{
+		id: 'safe-only',
 		label: 'params.expect(post: [:title, :body])',
-		correct: false,
-		feedback:
-			'That removes status too. The user needs to set draft/published status on their posts. Only remove the sensitive fields.',
-	},
-	{
-		id: 'still-broad',
-		label: 'params.expect(post: [:title, :body, :status, :user_id])',
-		correct: false,
-		feedback:
-			'user_id is still in the list. You just identified it as dangerous in the audit.',
-	},
-	{
-		id: 'correct-whitelist',
-		label: 'params.expect(post: [:title, :body, :status])',
 		correct: true,
 	},
 ];
@@ -361,21 +365,21 @@ const OPTION_STEP_CONFIG: Record<
 	}
 > = {
 	0: {
-		title: 'Audit the Whitelist',
+		title: 'Add Parameter Filtering',
 		description:
-			'You set up params.expect in the controller, but the whitelist includes [:title, :body, :status, :user_id, :admin]. Which fields must be removed to prevent mass assignment?',
-		options: AUDIT_OPTIONS,
+			'The controller passes raw params directly to the model. Any key an attacker sends gets saved. How should Rails filter incoming parameters?',
+		options: FILTERING_OPTIONS,
 	},
 	1: {
-		title: 'Tighten the Whitelist',
+		title: 'Define the Whitelist',
 		description:
-			'Rewrite the params.expect call with only the fields users are allowed to set. Keep content fields, drop identity and privilege fields.',
-		options: TIGHTEN_OPTIONS,
+			'params.expect filters the request body to only the keys you allow. Which fields should users be able to set on a Post?',
+		options: WHITELIST_OPTIONS,
 	},
 	2: {
 		title: 'Set Ownership Safely',
 		description:
-			'user_id is no longer in the whitelist, but posts still need an owner. How should the create action associate the post with the current user?',
+			'user_id is not in the whitelist, but posts still need an owner. How should the create action associate the post with the current user?',
 		options: OWNERSHIP_OPTIONS,
 	},
 };
@@ -403,62 +407,61 @@ const REWARD_CONNECTIONS: PipelineConnection[] = [
 function getCodeFiles(phase: Phase, furthestStep: number) {
 	const files = [];
 
-	// Observe phase: show the too-broad whitelist
+	// Observe phase: show controller with raw params (no filtering)
 	if (phase === 'observe') {
 		files.push({
 			filename: 'app/controllers/api/v1/posts_controller.rb',
 			language: 'ruby',
 			code: `class Api::V1::PostsController < ApplicationController
   def create
-    post = current_user.posts.create!(post_params)
+    post = Post.create!(
+      title: params[:title],
+      body: params[:body],
+      user_id: params[:user_id],  # Attacker-controlled!
+      admin: params[:admin]        # Attacker-controlled!
+    )
     render json: post, status: :created
   end
 
   def update
-    post = current_user.posts.find(params[:id])
-    post.update!(post_params)
+    post = Post.find(params[:id])
+    post.update!(title: params[:title], body: params[:body])
     render json: post
   end
 
-  private
-
-  def post_params
-    params.expect(post: [:title, :body, :status, :user_id, :admin])
-    #                                    ^^^^^^^^  ^^^^^^
-    #                              Impersonation!  Escalation!
-  end
+  # No parameter filtering at all!
 end`,
-			highlight: [16, 17, 18],
+			highlight: [6, 7],
 		});
 		return files;
 	}
 
 	// Build / activate / reward phases: show evolving code
 	if (furthestStep === 0) {
+		// Step 0: same as observe (player is choosing the filtering method)
 		files.push({
 			filename: 'app/controllers/api/v1/posts_controller.rb',
 			language: 'ruby',
 			code: `class Api::V1::PostsController < ApplicationController
   def create
-    post = current_user.posts.create!(post_params)
+    post = Post.create!(
+      title: params[:title],
+      body: params[:body],
+      user_id: params[:user_id],  # Attacker-controlled!
+      admin: params[:admin]        # Attacker-controlled!
+    )
     render json: post, status: :created
   end
 
   def update
-    post = current_user.posts.find(params[:id])
-    post.update!(post_params)
+    post = Post.find(params[:id])
+    post.update!(title: params[:title], body: params[:body])
     render json: post
   end
 
-  private
-
-  def post_params
-    params.expect(post: [:title, :body, :status, :user_id, :admin])
-    #              safe: ^^^^^^  ^^^^^  ^^^^^^^
-    #          dangerous:                        ^^^^^^^^  ^^^^^^
-  end
+  # No parameter filtering at all!
 end`,
-			highlight: [16, 17, 18],
+			highlight: [6, 7],
 		});
 	}
 
@@ -475,7 +478,7 @@ end`,
   end
 
   def update
-    post = current_user.posts.find(params[:id])
+    post = Post.find(params[:id])
     post.update!(post_params)
     render json: post
   end
@@ -483,7 +486,7 @@ end`,
   private
 
   def post_params
-    params.expect(post: [:title, :body, :status])
+    params.expect(post: [:title, :body])
     # user_id and admin removed!
     # Ownership set via current_user.posts association
   end
@@ -491,12 +494,12 @@ end`
 					: furthestStep >= 2
 						? `class Api::V1::PostsController < ApplicationController
   def create
-    post = current_user.posts.create!(post_params)
+    post = Post.create!(post_params)
     render json: post, status: :created
   end
 
   def update
-    post = current_user.posts.find(params[:id])
+    post = Post.find(params[:id])
     post.update!(post_params)
     render json: post
   end
@@ -504,19 +507,19 @@ end`
   private
 
   def post_params
-    params.expect(post: [:title, :body, :status])
+    params.expect(post: [:title, :body])
     # user_id and admin removed!
     # But how does user_id get set now?
   end
 end`
 						: `class Api::V1::PostsController < ApplicationController
   def create
-    post = current_user.posts.create!(post_params)
+    post = Post.create!(post_params)
     render json: post, status: :created
   end
 
   def update
-    post = current_user.posts.find(params[:id])
+    post = Post.find(params[:id])
     post.update!(post_params)
     render json: post
   end
@@ -524,8 +527,8 @@ end`
   private
 
   def post_params
-    params.expect(post: [:title, :body, :status, ...])
-    # Which fields stay? Which get removed?
+    params.expect(post: [...])
+    # Which fields should be allowed?
   end
 end`,
 			highlight:
@@ -606,11 +609,11 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 			},
 			{
 				id: 'filter',
-				label: 'params.expect',
-				sublabel: probeDisplay ? probeDisplay.filterSublabel : '(too broad)',
-				variant: (probeDisplay ? 'danger' : 'default') as
+				label: 'Params Filter',
+				sublabel: probeDisplay ? probeDisplay.filterSublabel : '(missing!)',
+				variant: (probeDisplay ? 'danger' : 'inactive') as
 					| 'danger'
-					| 'default',
+					| 'inactive',
 				inspectable: true,
 				inspected: inspectedStages.has('filter'),
 			},
@@ -640,7 +643,7 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 				label: 'params.expect',
 				sublabel: wasBlocked
 					? 'STRIPPED'
-					: '[:title, :body, :status]',
+					: '[:title, :body]',
 				variant: wasBlocked ? ('danger' as const) : ('active' as const),
 				badge: wasBlocked ? 'BLOCKED' : undefined,
 			},
@@ -752,25 +755,21 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							You set up{' '}
-							<span className="text-foreground font-medium">
-								params.expect
-							</span>{' '}
-							in the controller, but the whitelist was written too broadly. It
-							includes{' '}
+							Your controller passes raw request params directly to the
+							model with no filtering. A malicious user can send any field
+							they want, including{' '}
 							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
 								user_id
 							</code>{' '}
 							and{' '}
 							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
 								admin
-							</code>{' '}
-							alongside safe fields.
+							</code>
+							, and it gets saved to the database.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							A malicious user can send these fields in the request body and
-							take over any account or escalate privileges. You need to audit
-							and tighten the whitelist.
+							You need to add parameter filtering to prevent mass assignment
+							attacks and keep sensitive fields out of user control.
 						</p>
 					</div>
 

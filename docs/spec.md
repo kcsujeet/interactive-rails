@@ -145,7 +145,7 @@ Every level exists because the app **needs** it at that stage, not because Rails
 |---|---|---|
 | `rails new --api` | L2 | Project setup |
 | SQLite production (WAL, IMMEDIATE) | L2 | DB choice |
-| `params.expect()` | L6, L14 | Safer than require/permit |
+| `params.expect()` | L14 | Safer than require/permit |
 | `normalizes` | L11 | Clean data on assignment |
 | Built-in auth generator | L9 | Auth scaffolding |
 | `authenticate_by` | L9 | Timing-safe login |

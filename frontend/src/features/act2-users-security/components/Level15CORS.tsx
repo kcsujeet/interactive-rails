@@ -780,7 +780,7 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 								>
 									{/* Header: browser chrome or terminal style */}
 									{isCurlProbe ? (
-										<div className="flex items-center gap-1.5 px-3 py-2 border-b bg-zinc-900 dark:bg-zinc-950">
+										<div className="flex items-center gap-1.5 px-3 py-2 border-b bg-card">
 											<Terminal className="w-3 h-3 text-zinc-400" />
 											<div className="text-[10px] text-zinc-400 ml-auto font-mono">
 												$ curl

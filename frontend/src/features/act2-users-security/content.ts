@@ -342,9 +342,7 @@ User.create(email: "joe@test.com")         # Saved again! Duplicate.
 **Custom validators:** Write your own for complex rules
 **Conditional validations:** \`if:\` and \`unless:\` options
 
-When validation fails, \`save\` returns \`false\` and errors are added to the model's \`errors\` collection.
-
-For fields with a fixed set of values (status, role, priority), Rails 8 enums (\`enum :status, { draft: 0, published: 1 }\`) provide both validation and query scopes in one declaration.`,
+When validation fails, \`save\` returns \`false\` and errors are added to the model's \`errors\` collection.`,
 		railsCodeExample: `# app/models/post.rb
 class Post < ApplicationRecord
   belongs_to :user
@@ -353,7 +351,6 @@ class Post < ApplicationRecord
                     length: { minimum: 3, maximum: 255 }
   validates :body, presence: true,
                    length: { minimum: 10, message: "is too short (minimum 10 characters)" }
-  validates :status, inclusion: { in: %w[draft published archived] }
 end
 
 # app/models/user.rb
@@ -364,11 +361,6 @@ class User < ApplicationRecord
                     uniqueness: { case_sensitive: false },
                     format: { with: URI::MailTo::EMAIL_REGEXP,
                               message: "must be a valid email address" }
-  validates :username, presence: true,
-                       uniqueness: true,
-                       length: { in: 3..30 },
-                       format: { with: /\\A[a-zA-Z0-9_]+\\z/,
-                                 message: "only allows letters, numbers, and underscores" }
 end
 
 # In the controller, return validation errors as JSON:
@@ -422,10 +414,10 @@ end`,
 };
 
 // ============================================
-// Level 10: Callbacks & Normalizations
+// Level 11: Callbacks & Normalizations
 // ============================================
 
-const level10Callbacks: Level = {
+const level11Callbacks: Level = {
 	id: 'act2-level11-callbacks',
 	actId: 2,
 	levelNumber: 11,
@@ -615,10 +607,10 @@ User.find_by(email: "  JOE@GMAIL.COM  ")
 };
 
 // ============================================
-// Level 11: Authorization
+// Level 12: Authorization
 // ============================================
 
-const level11Authorization: Level = {
+const level12Authorization: Level = {
 	id: 'act2-level12-authorization',
 	actId: 2,
 	levelNumber: 12,
@@ -1051,10 +1043,10 @@ end`,
 };
 
 // ============================================
-// Level 13: Strong Params
+// Level 14: Strong Params
 // ============================================
 
-const level13StrongParams: Level = {
+const level14StrongParams: Level = {
 	id: 'act2-level14-strong-params',
 	actId: 2,
 	levelNumber: 14,
@@ -1062,51 +1054,54 @@ const level13StrongParams: Level = {
 	trigger: {
 		type: 'security_audit',
 		description:
-			'Your controller uses params.expect, but the whitelist is too broad. A malicious user sends admin: true in the request body and escalates privileges. You need to audit and tighten your parameter filtering.',
+			'Your controller passes raw request params directly to the model. A malicious user sends admin: true in the request body and escalates privileges. You need parameter filtering.',
 	},
 	problem: {
 		observation:
-			'POST /api/v1/posts accepts user_id and admin in the request body. A user can impersonate another author or escalate their own role. The parameter whitelist is too permissive.',
+			'POST /api/v1/posts accepts ANY field in the request body. A user can set user_id to impersonate another author or set admin: true to escalate privileges. There is no parameter filtering.',
 		rootCause:
-			'The params.expect whitelist includes sensitive fields alongside safe ones. It filters the shape of the params, but the developer never audited which fields are safe for users to set.',
-		codeExample: `# Current state: whitelist is too broad
+			'The controller reads params directly (params[:title], params[:user_id]) and passes them to the model. Every key the attacker includes in the request body gets saved to the database.',
+		codeExample: `# Current state: NO parameter filtering
 class Api::V1::PostsController < ApplicationController
   def create
-    post = current_user.posts.create!(post_params)
+    post = Post.create!(
+      title: params[:title],
+      body: params[:body],
+      user_id: params[:user_id],  # Attacker-controlled!
+      admin: params[:admin]        # Attacker-controlled!
+    )
     render json: post, status: :created
-  end
-
-  private
-
-  def post_params
-    params.expect(post: [:title, :body, :status, :user_id, :admin])
-    #                                            ^^^^^^^^  ^^^^^^
-    #                                      Impersonation!  Privilege escalation!
   end
 end
 
 # What gets through:
 # POST /api/v1/posts
-# { "post": { "title": "Hello", "user_id": 42, "admin": true } }
-# => user_id overwritten, admin flag set!
+# { "title": "Hello", "user_id": 42, "admin": true }
+# => user_id set to 42, admin flag set to true!
 #
-# params.expect filters the SHAPE but not the SAFETY.
-# You must audit which fields users are allowed to set.`,
-		goal: 'Audit and tighten the params.expect whitelist to only include fields the user is allowed to set. Remove sensitive fields like user_id and admin.',
+# Rails 8 provides params.expect() to filter parameters.
+# It declares which keys are allowed through a whitelist.`,
+		goal: 'Add params.expect to filter incoming parameters, define a safe whitelist of allowed fields, and set post ownership through the current_user association.',
 		thresholds: {},
 	},
 	learningContent: {
 		title: 'Rails 8 Strong Params with params.expect',
-		goal: `In this level, you'll:\n- learn how mass assignment attacks work and why a broad whitelist is dangerous.\n- audit your params.expect whitelist to remove sensitive fields.\n- understand the difference between filtering param shape and filtering param safety.\n- apply the principle of least privilege to parameter filtering.`,
+		goal: `In this level, you'll:\n- learn how mass assignment attacks work when controllers pass raw params to models.\n- introduce Rails 8 params.expect() to filter incoming parameters.\n- define a safe whitelist that only includes fields users should set.\n- set ownership through the current_user association instead of user-submitted params.`,
 		conceptExplanation: `Strong Parameters prevent mass assignment attacks by whitelisting which request params are allowed to reach the model.
 
 **The problem (mass assignment):**
-- You set up params.expect in L6, but the whitelist may include sensitive fields
-- Fields like user_id, admin, role, balance should never be user-settable
-- params.expect filters the shape of the request, but YOU decide which fields are safe
+- Without filtering, the controller passes raw params directly to the model
+- An attacker can include ANY key in the request body: user_id, admin, role, balance
+- Every param gets saved to the database, letting attackers control fields they should not
 
-**Auditing your whitelist:**
-- Only include fields the user is meant to edit (title, body, status)
+**Rails 8 \`params.expect()\`:**
+- Declares which keys are allowed through a whitelist
+- Returns only the permitted params, silently dropping everything else
+- Raises an error if the required root key is missing (e.g., \`post:\`)
+- Replaces the older \`params.require(:post).permit(:title, :body)\` pattern
+
+**Building a safe whitelist:**
+- Only include fields the user is meant to edit (title, body)
 - Never include ownership fields (user_id), role fields (admin), or internal state
 - Use \`current_user.posts.create!\` to set ownership, not user-submitted params
 
@@ -1114,7 +1109,19 @@ end
 - \`params.expect(post: [:title, :body, { tags: [] }])\` allows arrays
 - \`params.expect(post: [:title, { comments_attributes: [:body] }])\` allows nested
 - Each nesting level needs its own whitelist audit`,
-		railsCodeExample: `# app/controllers/api/v1/posts_controller.rb
+		railsCodeExample: `# BEFORE: no filtering (vulnerable)
+class Api::V1::PostsController < ApplicationController
+  def create
+    post = Post.create!(
+      title: params[:title],
+      body: params[:body],
+      user_id: params[:user_id]  # attacker sets this!
+    )
+    render json: post, status: :created
+  end
+end
+
+# AFTER: params.expect + current_user (secure)
 class Api::V1::PostsController < ApplicationController
   def create
     post = current_user.posts.create!(post_params)
@@ -1131,7 +1138,7 @@ class Api::V1::PostsController < ApplicationController
 
   # Rails 8: params.expect
   def post_params
-    params.expect(post: [:title, :body, :status])
+    params.expect(post: [:title, :body])
   end
   # Missing :post key -> 400 Bad Request (automatic)
   # Extra params like user_id, admin -> silently ignored
@@ -1139,13 +1146,9 @@ end
 
 # Compared to the older pattern:
 # def post_params
-#   params.require(:post).permit(:title, :body, :status)
+#   params.require(:post).permit(:title, :body)
 # end
-# ^ Raises 500 on missing params unless you add rescue_from
-
-# For nested params:
-# params.expect(post: [:title, :body, { tags: [] }])
-# params.expect(post: [:title, { comments_attributes: [:body] }])`,
+# ^ Raises 500 on missing params unless you add rescue_from`,
 		commonMistakes: [
 			'Whitelisting user_id, admin, or role in permitted params (mass assignment)',
 			'Using params.permit! which allows everything through',
@@ -1287,10 +1290,10 @@ export const actTwo: Act = {
 	levels: [
 		level9Authentication,
 		level10Validations,
-		level10Callbacks,
-		level11Authorization,
+		level11Callbacks,
+		level12Authorization,
 		level13Testing,
-		level13StrongParams,
+		level14StrongParams,
 		level15CORS,
 	],
 	unlockedNodes: [

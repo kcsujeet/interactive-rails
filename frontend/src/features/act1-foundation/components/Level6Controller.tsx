@@ -7,16 +7,15 @@
  * Phase 1 (WHY - observe): Routes exist from Level 5 but the controller class
  *   is missing. Requests match routes successfully, then crash with
  *   "uninitialized constant" at the Controller stage.
- * Phase 2 (HOW - build): 4 steps (2 terminal + 2 custom interactive)
+ * Phase 2 (HOW - build): 3 steps (2 terminal + 1 custom interactive)
  *   Step 0: Generate the namespaced controller (terminal)
  *   Step 1: Add the 5 RESTful actions (click-to-select)
- *   Step 2: Build strong params with params.expect (assembly)
- *   Step 3: Test the endpoint with curl (terminal)
+ *   Step 2: Test the endpoint with curl (terminal)
  * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Controller" button
  * Phase 4 (ADVANTAGE - reward): Stress test. Fire 5 HTTP requests at the
  *   working pipeline and see them resolve successfully.
  *
- * Teaches: rails generate controller, RESTful actions, params.expect, curl
+ * Teaches: rails generate controller, RESTful actions, curl
  */
 
 import { ArrowRight, Check, Play, Star } from 'lucide-react';
@@ -283,7 +282,6 @@ const STRESS_SCENARIOS: StressScenario[] = [
 const STEP_DEFS: StepDef[] = [
 	{ id: 'generate-controller', title: 'Generate Controller' },
 	{ id: 'add-actions', title: 'Add Actions' },
-	{ id: 'strong-params', title: 'Strong Params' },
 	{ id: 'test-endpoint', title: 'Test Endpoint' },
 ];
 
@@ -329,7 +327,7 @@ const generateOutput: TerminalOutputLine[] = [
 ];
 
 // ──────────────────────────────────────────────
-// Step 3: Test Endpoint (Terminal)
+// Step 2: Test Endpoint (Terminal)
 // ──────────────────────────────────────────────
 
 const testCommands: TerminalCommand[] = [
@@ -371,7 +369,6 @@ const testOutput: TerminalOutputLine[] = [
 const SHELL_STEP_MAP: (TerminalStepData | null)[] = [
 	{ commands: generateCommands, outputLines: generateOutput },
 	null, // step 1: Add Actions (click-to-select)
-	null, // step 2: Strong Params (assembly)
 	{ commands: testCommands, outputLines: testOutput },
 ];
 
@@ -390,34 +387,6 @@ const WRONG_ACTION_FEEDBACK: Record<string, string> = {
 	new: '"new" renders a form in full-stack Rails. API controllers do not need it.',
 	edit: '"edit" renders a form in full-stack Rails. API controllers do not need it.',
 };
-
-// ──────────────────────────────────────────────
-// Step 2: Strong Params assembly data
-// ──────────────────────────────────────────────
-
-interface ParamsPiece {
-	id: string;
-	text: string;
-}
-
-const PARAMS_PIECES: ParamsPiece[] = [
-	{ id: 'params', text: 'params' },
-	{ id: 'expect', text: '.expect(' },
-	{ id: 'require', text: '.require(' },
-	{ id: 'permit', text: '.permit(' },
-	{ id: 'post-key', text: 'post:' },
-	{ id: 'partial-attrs', text: '[:title, :body]' },
-	{ id: 'full-attrs', text: '[:title, :body, :published_at]' },
-	{ id: 'close', text: ')' },
-];
-
-const CORRECT_PARAMS_ORDER = [
-	'params',
-	'expect',
-	'post-key',
-	'full-attrs',
-	'close',
-];
 
 // ──────────────────────────────────────────────
 // Hub layout positions (Controller is the hub)
@@ -459,9 +428,9 @@ function getActionBody(action: string): string {
 		case 'show':
 			return 'render json: Post.find(params[:id])';
 		case 'create':
-			return 'post = Post.create!(post_params)\n      render json: post, status: :created';
+			return 'post = Post.create!(title: params[:title], body: params[:body])\n      render json: post, status: :created';
 		case 'update':
-			return 'post = Post.find(params[:id])\n      post.update!(post_params)\n      render json: post';
+			return 'post = Post.find(params[:id])\n      post.update!(title: params[:title], body: params[:body])\n      render json: post';
 		case 'destroy':
 			return 'Post.find(params[:id]).destroy\n      head :no_content';
 		default:
@@ -528,25 +497,17 @@ end`,
 						.join('\n\n')
 				: '  # Add actions here...';
 
-		const paramsMethod =
-			furthestStep >= 3
-				? `\n\n  private\n\n  def post_params\n    params.expect(post: [:title, :body, :published_at])\n  end`
-				: '';
-
 		files.push({
 			filename: 'app/controllers/api/v1/posts_controller.rb',
 			language: 'ruby',
 			code: `class Api::V1::PostsController < ApplicationController
-${actionCode}${paramsMethod}
+${actionCode}
 end`,
-			highlight:
-				furthestStep >= 3
-					? [placedActions.length * 3 + 4]
-					: placedActions.map((_, i) => i * 3 + 2),
+			highlight: placedActions.map((_, i) => i * 3 + 2),
 		});
 	}
 
-	if (furthestStep >= 4) {
+	if (furthestStep >= 3) {
 		files.push({
 			filename: 'Test Results',
 			language: 'ruby',
@@ -560,20 +521,6 @@ end`,
 	}
 
 	return files;
-}
-
-// ──────────────────────────────────────────────
-// Params error feedback helper
-// ──────────────────────────────────────────────
-
-function getParamsErrorFeedback(pieces: string[]): string {
-	if (pieces.includes('require') || pieces.includes('permit')) {
-		return 'Rails 8 replaced the require/permit pattern with a single, more concise method.';
-	}
-	if (pieces.includes('partial-attrs')) {
-		return 'Include all three attributes: title, body, and published_at.';
-	}
-	return 'The pieces are in the wrong order. Think about how method chaining works in Ruby.';
 }
 
 // ──────────────────────────────────────────────
@@ -628,9 +575,6 @@ export function Level6Controller({ onComplete }: LevelComponentProps) {
 
 	// Step 1: placed actions
 	const [placedActions, setPlacedActions] = useState<string[]>([]);
-
-	// Step 2: assembled params pieces
-	const [assembledPieces, setAssembledPieces] = useState<string[]>([]);
 
 	// ── Build observe stages dynamically ──
 	const probeDisplay = lastProbeId
@@ -802,30 +746,6 @@ export function Level6Controller({ onComplete }: LevelComponentProps) {
 		[placedActions, stepper],
 	);
 
-	// ── Step 2: Params assembly ──
-	const handleAddPiece = useCallback(
-		(pieceId: string) => {
-			if (assembledPieces.includes(pieceId)) return;
-
-			const newAssembled = [...assembledPieces, pieceId];
-			setAssembledPieces(newAssembled);
-
-			// Check if complete
-			if (newAssembled.length === CORRECT_PARAMS_ORDER.length) {
-				const isCorrect = newAssembled.every(
-					(id, i) => id === CORRECT_PARAMS_ORDER[i],
-				);
-				if (isCorrect) {
-					stepper.completeStep();
-				} else {
-					stepper.recordWrongAttempt(getParamsErrorFeedback(newAssembled));
-					setAssembledPieces([]);
-				}
-			}
-		},
-		[assembledPieces, stepper],
-	);
-
 	// ── Phase transition handlers ──
 	const handleStartBuild = () => {
 		setPhase('build');
@@ -881,7 +801,7 @@ export function Level6Controller({ onComplete }: LevelComponentProps) {
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							The router knows WHERE to send requests, but the controller
 							(the code that handles them) is missing. You need to generate
-							it, add the 5 RESTful actions, and wire up strong params.
+							it, add the 5 RESTful actions, and test the endpoint.
 						</p>
 					</div>
 
@@ -1066,7 +986,7 @@ export function Level6Controller({ onComplete }: LevelComponentProps) {
 										</div>
 
 										{/* Controller skeleton */}
-										<div className="bg-zinc-900 dark:bg-zinc-950 rounded-lg p-4 font-mono text-sm">
+										<div className="bg-card rounded-lg p-4 font-mono text-sm">
 											<div className="text-zinc-400">
 												class Api::V1::PostsController {'<'}{' '}
 												ApplicationController
@@ -1107,101 +1027,8 @@ export function Level6Controller({ onComplete }: LevelComponentProps) {
 									</div>
 								)}
 
-								{/* Step 2: Strong Params (assembly) */}
+								{/* Step 2: Test Endpoint (Terminal) */}
 								{stepper.currentStep === 2 && (
-									<div className="space-y-4">
-										<h3 className="text-lg font-semibold text-foreground">
-											Strong Params
-										</h3>
-										<p className="text-sm text-muted-foreground">
-											Your{' '}
-											<span className="font-mono text-primary">create</span>{' '}
-											and{' '}
-											<span className="font-mono text-primary">update</span>{' '}
-											actions call{' '}
-											<span className="font-mono text-primary">
-												post_params
-											</span>
-											, but the method does not exist yet. Build it using
-											Rails 8 strong params. Click pieces in the correct
-											order.
-										</p>
-
-										{/* Assembly area */}
-										<div className="bg-zinc-900 dark:bg-zinc-950 rounded-lg p-4 font-mono text-sm min-h-[60px] flex items-center gap-1 flex-wrap">
-											{assembledPieces.length > 0 ? (
-												assembledPieces.map((pieceId) => {
-													const piece = PARAMS_PIECES.find(
-														(p) => p.id === pieceId,
-													)!;
-													return (
-														<span
-															className="text-emerald-400"
-															key={pieceId}
-														>
-															{piece.text}
-														</span>
-													);
-												})
-											) : (
-												<span className="text-zinc-600">
-													Click pieces to assemble...
-												</span>
-											)}
-										</div>
-
-										{/* Available pieces */}
-										{!isViewingCompletedStep && (
-											<div className="flex flex-wrap gap-2">
-												{PARAMS_PIECES.filter(
-													(p) => !assembledPieces.includes(p.id),
-												).map((piece) => (
-													<Button
-														className="font-mono text-xs"
-														key={piece.id}
-														onClick={() => handleAddPiece(piece.id)}
-														size="sm"
-														variant="outline"
-													>
-														{piece.text}
-													</Button>
-												))}
-											</div>
-										)}
-
-										{assembledPieces.length > 0 &&
-											!isViewingCompletedStep && (
-												<Button
-													className="text-xs"
-													onClick={() => setAssembledPieces([])}
-													size="sm"
-													variant="ghost"
-												>
-													Reset
-												</Button>
-											)}
-
-										<ErrorFeedback
-											message={stepper.lastFeedback}
-											onDismiss={stepper.clearFeedback}
-										/>
-										{isViewingCompletedStep && hasNextStep && (
-											<div className="flex justify-end">
-												<Button
-													className="gap-2"
-													onClick={stepper.nextStep}
-													size="sm"
-												>
-													Next Step
-													<ArrowRight className="w-4 h-4" />
-												</Button>
-											</div>
-										)}
-									</div>
-								)}
-
-								{/* Step 3: Test Endpoint (Terminal) */}
-								{stepper.currentStep === 3 && (
 									<TerminalChoiceStep
 										commands={testCommands}
 										completed={isViewingCompletedStep}
