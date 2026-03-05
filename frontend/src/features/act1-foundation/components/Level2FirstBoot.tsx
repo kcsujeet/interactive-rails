@@ -423,7 +423,7 @@ end`,
 								{isViewingCompletedStep ? (
 									<div className="space-y-2">
 										<OptionCard
-											color="cyan"
+											color="blue"
 											description="File-based, zero config. Great for prototypes and single-writer apps."
 											disabled
 											name="SQLite"
@@ -441,7 +441,7 @@ end`,
 									<>
 										<div className="space-y-2">
 											<OptionCard
-												color="cyan"
+												color="blue"
 												description="File-based, zero config. Great for prototypes and single-writer apps."
 												name="SQLite"
 												onClick={() => handleChooseDb('sqlite')}

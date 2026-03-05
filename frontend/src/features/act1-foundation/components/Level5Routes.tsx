@@ -1,11 +1,26 @@
 /**
- * Level 4: Routes & Request Lifecycle
+ * Level 5: Routes & Request Lifecycle
  *
- * 4-step progression to define how the API responds to URLs.
- * Steps: Define Resource → Add Namespace → View Routes → Trace a Request
+ * Sequential phase flow: observe -> build -> activate -> reward
+ * Each phase occupies the full center panel. One thing at a time.
+ *
+ * Phase 1 (WHY - observe): HTTP requests hit the router and get 404 because
+ *   routes.rb is empty. The player fires probes and inspects stages to discover
+ *   that no routes are defined, no namespace exists, and all requests fail.
+ * Phase 2 (HOW - build): 4 steps building RESTful routes under /api/v1/
+ *   Step 0: Define resources :posts (OptionCard)
+ *   Step 1: Add namespace wrapping (OptionCard)
+ *   Step 2: View routes with rails routes (TerminalChoiceStep)
+ *   Step 3: Trace the request lifecycle (OptionCard)
+ * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Routes" button
+ * Phase 4 (ADVANTAGE - reward): Stress test. Fire HTTP requests at the
+ *   routed pipeline and watch them resolve to controller actions.
+ *
+ * Teaches: resources, namespace, rails routes, request lifecycle
  */
 
-import { useState } from 'react';
+import { ArrowRight, Check, Play, Star, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -15,19 +30,239 @@ import {
 	LeftPanel,
 	LevelHeader,
 	LevelLayout,
+	OptionCard,
 	RightPanel,
 	StepProgress,
 	TerminalChoiceStep,
 	type TerminalCommand,
 	type TerminalOutputLine,
 	type TerminalStepData,
-	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
+import {
+	type PipelineConnection,
+	PipelineFlow,
+	type PipelineStage,
+} from '@/components/levels/PipelineFlow';
+import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
+import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
+import {
+	StageInspector,
+	type StageInspectorData,
+} from '@/components/levels/StageInspector';
+import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
+import {
+	type DiscoveryDef,
+	useDiscoveryGating,
+} from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
-import { ArrowRight } from 'lucide-react';
+import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+
+// ──────────────────────────────────────────────
+// Phase type
+// ──────────────────────────────────────────────
+
+type Phase = 'observe' | 'build' | 'activate' | 'reward';
+
+// ──────────────────────────────────────────────
+// Discovery definitions (observe phase)
+// ──────────────────────────────────────────────
+
+const DISCOVERY_DEFS: DiscoveryDef[] = [
+	{ id: 'no-routes', label: 'Routes file is empty' },
+	{ id: 'get-404', label: 'GET requests return 404' },
+	{ id: 'post-404', label: 'POST requests return 404' },
+	{ id: 'no-namespace', label: 'No API versioning namespace' },
+];
+
+// ──────────────────────────────────────────────
+// Probe configurations (observe phase)
+// ──────────────────────────────────────────────
+
+const PROBES: ProbeConfig[] = [
+	{
+		id: 'get-posts',
+		label: 'GET /posts',
+		command: 'GET /posts',
+		responseLines: [
+			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
+			{ text: '', color: 'muted' },
+			{
+				text: 'No route matches [GET] "/posts"',
+				color: 'yellow',
+			},
+			{
+				text: 'The router has no entries. Every request is a dead end.',
+				color: 'red',
+			},
+		],
+	},
+	{
+		id: 'post-posts',
+		label: 'POST /posts',
+		command: 'POST /posts {"title":"Hello"}',
+		responseLines: [
+			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
+			{ text: '', color: 'muted' },
+			{
+				text: 'No route matches [POST] "/posts"',
+				color: 'yellow',
+			},
+			{
+				text: 'POST fails too. Without routes, no verb can reach the controller.',
+				color: 'red',
+			},
+		],
+	},
+	{
+		id: 'get-api-posts',
+		label: 'GET /api/v1/posts',
+		command: 'GET /api/v1/posts',
+		responseLines: [
+			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
+			{ text: '', color: 'muted' },
+			{
+				text: 'No route matches [GET] "/api/v1/posts"',
+				color: 'yellow',
+			},
+			{
+				text: 'Even the versioned API path fails. No namespace is configured.',
+				color: 'red',
+			},
+		],
+	},
+];
+
+// Map probe IDs to discovery IDs they trigger
+const PROBE_DISCOVERY_MAP: Record<string, string> = {
+	'get-posts': 'get-404',
+	'post-posts': 'post-404',
+	'get-api-posts': 'no-namespace',
+};
+
+// Map probe IDs to pipeline node display during observe
+const PROBE_PIPELINE_MAP: Record<
+	string,
+	{ routerSublabel: string; routerBadge: string }
+> = {
+	'get-posts': {
+		routerSublabel: 'GET /posts',
+		routerBadge: '404!',
+	},
+	'post-posts': {
+		routerSublabel: 'POST /posts',
+		routerBadge: '404!',
+	},
+	'get-api-posts': {
+		routerSublabel: 'GET /api/v1/posts',
+		routerBadge: '404!',
+	},
+};
+
+// ──────────────────────────────────────────────
+// Stage inspector data (observe phase)
+// ──────────────────────────────────────────────
+
+const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
+	request: {
+		stageId: 'request',
+		title: 'Incoming HTTP Request',
+		description:
+			'An HTTP request arrives with a verb (GET, POST, PATCH, DELETE) and a URL path. The router must match this combination to a controller action.',
+	},
+	router: {
+		stageId: 'router',
+		title: 'Router (Empty!)',
+		description:
+			'config/routes.rb is empty. No routes are defined, so every request gets a 404 response. The controller is unreachable.',
+		code: `# config/routes.rb
+Rails.application.routes.draw do
+  # Nothing here...
+end`,
+	},
+	controller: {
+		stageId: 'controller',
+		title: 'PostsController (Unreachable)',
+		description:
+			'The controller exists and has all five RESTful actions defined, but without routes, no HTTP request can reach it.',
+	},
+	model: {
+		stageId: 'model',
+		title: 'Post Model',
+		description:
+			'The Post model works perfectly in the console (Level 3-4). But the outside world cannot trigger it because requests never reach the controller.',
+	},
+	response: {
+		stageId: 'response',
+		title: 'Response',
+		description:
+			'Every response is currently a 404 because no routes exist to dispatch requests to the controller.',
+	},
+};
+
+// Map stage IDs to discovery IDs they trigger
+const STAGE_DISCOVERY_MAP: Record<string, string> = {
+	router: 'no-routes',
+};
+
+// ──────────────────────────────────────────────
+// Stress test scenarios (reward phase)
+// ──────────────────────────────────────────────
+
+const STRESS_SCENARIOS: StressScenario[] = [
+	{
+		id: 'get-index',
+		label: 'List all posts',
+		description: 'Fetch the collection of posts',
+		method: 'GET',
+		path: '/api/v1/posts',
+		actor: 'client',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'post-create',
+		label: 'Create a post',
+		description: 'Submit a new post',
+		method: 'POST',
+		path: '/api/v1/posts',
+		actor: 'client',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'get-show',
+		label: 'Show one post',
+		description: 'Fetch a single post by ID',
+		method: 'GET',
+		path: '/api/v1/posts/1',
+		actor: 'client',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'patch-update',
+		label: 'Update a post',
+		description: 'Modify an existing post',
+		method: 'PATCH',
+		path: '/api/v1/posts/1',
+		actor: 'client',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'delete-destroy',
+		label: 'Delete a post',
+		description: 'Remove a post by ID',
+		method: 'DELETE',
+		path: '/api/v1/posts/1',
+		actor: 'client',
+		expectedResult: 'allowed',
+	},
+];
+
+// ──────────────────────────────────────────────
+// Step definitions (4 steps: 3 OptionCard + 1 terminal)
+// ──────────────────────────────────────────────
 
 const STEP_DEFS: StepDef[] = [
 	{ id: 'define-resource', title: 'Define Resource' },
@@ -36,19 +271,36 @@ const STEP_DEFS: StepDef[] = [
 	{ id: 'trace-request', title: 'Trace a Request' },
 ];
 
-// Route definitions for step 1
-const RESOURCE_OPTIONS = [
+// Step type indexed by step number
+const STEP_TYPES: ('terminal' | 'option')[] = [
+	'option', // 0: resources :posts
+	'option', // 1: namespace wrapping
+	'terminal', // 2: rails routes
+	'option', // 3: trace request lifecycle
+];
+
+// ──────────────────────────────────────────────
+// OptionCard step data type
+// ──────────────────────────────────────────────
+
+interface StepOption {
+	id: string;
+	label: string;
+	correct: boolean;
+	feedback?: string;
+}
+
+// ──────────────────────────────────────────────
+// Step 0: Define Resource (OptionCard)
+// ──────────────────────────────────────────────
+
+const RESOURCE_OPTIONS: StepOption[] = [
 	{
 		id: 'get-only',
 		label: "get '/posts' => 'posts#index'",
 		correct: false,
 		feedback:
-			"A single GET route only handles one endpoint. You need all 5 RESTful routes generated with one line.",
-	},
-	{
-		id: 'resources',
-		label: 'resources :posts',
-		correct: true,
+			'A single GET route only handles one endpoint. You need all 5 RESTful routes generated with one line.',
 	},
 	{
 		id: 'match',
@@ -57,165 +309,521 @@ const RESOURCE_OPTIONS = [
 		feedback:
 			'`match` is for custom one-off routes, not for generating a full set of RESTful endpoints.',
 	},
-];
-
-// Namespace blocks for step 2
-interface NamespaceBlock {
-	id: string;
-	label: string;
-	indent: number;
-}
-
-const ROUTE_TABLE = [
 	{
-		method: 'GET',
-		path: '/api/v1/posts',
-		action: 'api/v1/posts#index',
-		description: 'List all posts',
-	},
-	{
-		method: 'POST',
-		path: '/api/v1/posts',
-		action: 'api/v1/posts#create',
-		description: 'Create a post',
-	},
-	{
-		method: 'GET',
-		path: '/api/v1/posts/:id',
-		action: 'api/v1/posts#show',
-		description: 'Show one post',
-	},
-	{
-		method: 'PATCH',
-		path: '/api/v1/posts/:id',
-		action: 'api/v1/posts#update',
-		description: 'Update a post',
-	},
-	{
-		method: 'DELETE',
-		path: '/api/v1/posts/:id',
-		action: 'api/v1/posts#destroy',
-		description: 'Delete a post',
+		id: 'resources',
+		label: 'resources :posts',
+		correct: true,
 	},
 ];
 
-const METHOD_COLORS: Record<string, string> = {
-	GET: 'text-emerald-400',
-	POST: 'text-blue-400',
-	PATCH: 'text-amber-400',
-	DELETE: 'text-red-400',
+// ──────────────────────────────────────────────
+// Step 1: Add Namespace (OptionCard)
+// ──────────────────────────────────────────────
+
+const NAMESPACE_OPTIONS: StepOption[] = [
+	{
+		id: 'scope-only',
+		label: "scope '/api/v1' do\n  resources :posts\nend",
+		correct: false,
+		feedback:
+			'scope changes only the URL path, not the controller module. Your controller lives in Api::V1, so you need something that maps both.',
+	},
+	{
+		id: 'correct-namespace',
+		label: 'namespace :api do\n  namespace :v1 do\n    resources :posts\n  end\nend',
+		correct: true,
+	},
+	{
+		id: 'single-namespace',
+		label: "namespace 'api/v1' do\n  resources :posts\nend",
+		correct: false,
+		feedback:
+			'Namespace takes a symbol for each segment. Nesting two namespaces produces the correct module path (Api::V1).',
+	},
+];
+
+// ──────────────────────────────────────────────
+// Step 2: View Routes (Terminal)
+// ──────────────────────────────────────────────
+
+const viewRoutesCommands: TerminalCommand[] = [
+	{
+		id: 'wrong-rake',
+		label: 'rake routes',
+		command: 'rake routes',
+		correct: false,
+		feedback:
+			'"rake routes" is deprecated. Modern Rails has its own CLI for viewing routes.',
+	},
+	{
+		id: 'correct',
+		label: 'rails routes',
+		command: 'rails routes',
+		correct: true,
+	},
+	{
+		id: 'wrong-show',
+		label: 'rails routes:show',
+		command: 'rails routes:show',
+		correct: false,
+		feedback:
+			'There is no routes:show task. The command is simpler than you think.',
+	},
+];
+
+const viewRoutesOutput: TerminalOutputLine[] = [
+	{
+		text: '      Prefix  Verb    URI Pattern                    Controller#Action',
+		color: 'muted',
+	},
+	{
+		text: '  api_v1_posts  GET     /api/v1/posts(.:format)        api/v1/posts#index',
+		color: 'green',
+	},
+	{
+		text: '               POST    /api/v1/posts(.:format)        api/v1/posts#create',
+		color: 'cyan',
+	},
+	{
+		text: '   api_v1_post  GET     /api/v1/posts/:id(.:format)    api/v1/posts#show',
+		color: 'green',
+	},
+	{
+		text: '               PATCH   /api/v1/posts/:id(.:format)    api/v1/posts#update',
+		color: 'yellow',
+	},
+	{
+		text: '               DELETE  /api/v1/posts/:id(.:format)    api/v1/posts#destroy',
+		color: 'red',
+	},
+];
+
+// ──────────────────────────────────────────────
+// Step 3: Trace a Request (OptionCard)
+// ──────────────────────────────────────────────
+
+const TRACE_OPTIONS: StepOption[] = [
+	{
+		id: 'wrong-model-first',
+		label: 'Request -> Model -> Controller -> Router -> Response',
+		correct: false,
+		feedback:
+			'The model does not receive requests directly. HTTP requests must be dispatched by the router before any code runs.',
+	},
+	{
+		id: 'wrong-no-router',
+		label: 'Request -> Controller -> Model -> Response',
+		correct: false,
+		feedback:
+			'Skipping the router means the request has no way to find the right controller. The router is the dispatcher.',
+	},
+	{
+		id: 'correct-lifecycle',
+		label: 'Request -> Router -> Controller -> Model -> Response',
+		correct: true,
+	},
+];
+
+// ──────────────────────────────────────────────
+// Terminal step map (for buildTerminalHistory)
+// ──────────────────────────────────────────────
+
+const SHELL_STEP_MAP: (TerminalStepData | null)[] = [
+	null, // step 0: OptionCard (define resource)
+	null, // step 1: OptionCard (add namespace)
+	{ commands: viewRoutesCommands, outputLines: viewRoutesOutput },
+	null, // step 3: OptionCard (trace request)
+];
+
+// ──────────────────────────────────────────────
+// OptionCard step configs
+// ──────────────────────────────────────────────
+
+const OPTION_STEP_CONFIG: Record<
+	number,
+	{
+		title: string;
+		description: string;
+		options: StepOption[];
+	}
+> = {
+	0: {
+		title: 'Define Resource',
+		description:
+			'Which line in config/routes.rb generates all 5 RESTful routes for posts (index, show, create, update, destroy)?',
+		options: RESOURCE_OPTIONS,
+	},
+	1: {
+		title: 'Add Namespace',
+		description:
+			'The resource creates /posts, but your API controller lives at Api::V1::PostsController. How do you nest routes under /api/v1/?',
+		options: NAMESPACE_OPTIONS,
+	},
+	3: {
+		title: 'Trace the Request Lifecycle',
+		description:
+			'When a client sends GET /api/v1/posts, what is the correct order of the request lifecycle?',
+		options: TRACE_OPTIONS,
+	},
 };
 
-export function Level5Routes({ onComplete }: LevelComponentProps) {
-	const { completeLevel } = useLevelCompletion();
-	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
-	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
-	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
+// ──────────────────────────────────────────────
+// Hub layout positions (Controller is the hub)
+// ──────────────────────────────────────────────
 
-	// Step 2: namespace ordering
-	const [namespaceOrder, setNamespaceOrder] = useState<string[]>([]);
-	const correctNamespaceOrder = ['api', 'v1', 'resources'];
+const HUB_POS = {
+	model: { x: 500, y: 180 },
+	database: { x: 500, y: 360 },
+} as const;
 
-	// Step 4: traced routes
-	const [tracedRoutes, setTracedRoutes] = useState<Set<number>>(new Set());
+// ──────────────────────────────────────────────
+// Pipeline visualization configs
+// ──────────────────────────────────────────────
 
-	const handleNamespaceAdd = (id: string) => {
-		if (namespaceOrder.includes(id)) return;
-		const newOrder = [...namespaceOrder, id];
-		setNamespaceOrder(newOrder);
+const OBSERVE_CONNECTIONS: PipelineConnection[] = [
+	{ from: 'request', to: 'router', dots: 'mixed' },
+	{ from: 'router', to: 'controller', dots: 'mixed' },
+	{ from: 'controller', to: 'response', dots: 'mixed' },
+	{ from: 'controller', to: 'model', sourceHandle: 'bottom', targetHandle: 'top', bidirectional: true, dots: 'mixed' },
+	{ from: 'model', to: 'database', sourceHandle: 'bottom', targetHandle: 'top', bidirectional: true, dots: 'mixed' },
+];
 
-		// Check if all 3 are placed
-		if (newOrder.length === 3) {
-			if (
-				newOrder[0] === 'api' &&
-				newOrder[1] === 'v1' &&
-				newOrder[2] === 'resources'
-			) {
-				stepper.completeStep();
-			} else {
-				const feedback =
-					newOrder[0] !== 'api'
-						? `"${newOrder[0]}" is not the outermost namespace. The URL starts with the broadest scope, then narrows.`
-						: newOrder[1] !== 'v1'
-							? `"${newOrder[1]}" should not come second. After the outermost scope, what groups your API version?`
-							: `Resources belong inside the version namespace, not before it. Think about the URL path: /api/v1/posts.`;
-				stepper.recordWrongAttempt(feedback);
-				setNamespaceOrder([]);
-			}
-		}
-	};
+const REWARD_CONNECTIONS: PipelineConnection[] = [
+	{ from: 'request', to: 'router', dots: 'clean' },
+	{ from: 'router', to: 'controller', dots: 'clean' },
+	{ from: 'controller', to: 'response', dots: 'clean' },
+	{ from: 'controller', to: 'model', sourceHandle: 'bottom', targetHandle: 'top', bidirectional: true, dots: 'clean' },
+	{ from: 'model', to: 'database', sourceHandle: 'bottom', targetHandle: 'top', bidirectional: true, dots: 'clean' },
+];
 
-	// Step 3: View routes terminal
-	const viewRoutesCommands: TerminalCommand[] = [
-		{
-			id: 'wrong',
-			label: 'rake routes',
-			command: 'rake routes',
-			correct: false,
-			feedback:
-				'"rake routes" is deprecated. Modern Rails has its own CLI for viewing routes.',
-		},
-		{
-			id: 'correct',
-			label: 'rails routes',
-			command: 'rails routes',
-			correct: true,
-		},
-	];
+// ──────────────────────────────────────────────
+// Code preview helper
+// ──────────────────────────────────────────────
 
-	const viewRoutesOutput: TerminalOutputLine[] = [
-		{
-			text: '      Prefix  Verb    URI Pattern                    Controller#Action',
-			color: 'muted',
-		},
-		{
-			text: '  api_v1_posts  GET     /api/v1/posts(.:format)        api/v1/posts#index',
-			color: 'green',
-		},
-		{
-			text: '               POST    /api/v1/posts(.:format)        api/v1/posts#create',
-			color: 'cyan',
-		},
-		{
-			text: '   api_v1_post  GET     /api/v1/posts/:id(.:format)    api/v1/posts#show',
-			color: 'green',
-		},
-		{
-			text: '               PATCH   /api/v1/posts/:id(.:format)    api/v1/posts#update',
-			color: 'yellow',
-		},
-		{
-			text: '               DELETE  /api/v1/posts/:id(.:format)    api/v1/posts#destroy',
-			color: 'red',
-		},
-	];
+function getCodeFiles(phase: Phase, furthestStep: number) {
+	const files = [];
 
-	// Terminal step data for building history (only step 2 is terminal)
-	const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
-		null, // step 0: Define Resource (click-to-select)
-		null, // step 1: Add Namespace (click-to-order)
-		{ commands: viewRoutesCommands, outputLines: viewRoutesOutput },
-		null, // step 3: Trace a Request (custom UI)
-	];
-
-	// Step 4: Route tracing
-	const handleTraceRoute = (index: number) => {
-		const newTraced = new Set(tracedRoutes);
-		newTraced.add(index);
-		setTracedRoutes(newTraced);
-
-		if (newTraced.size === ROUTE_TABLE.length) {
-			stepper.completeStep();
-		}
-	};
-
-	const handleComplete = async () => {
-		const success = await completeLevel('act1-level5-routes', {
-			stars: stepper.starRating,
+	// Observe phase: show empty routes.rb
+	if (phase === 'observe') {
+		files.push({
+			filename: 'config/routes.rb',
+			language: 'ruby',
+			code: `Rails.application.routes.draw do
+  # No routes defined yet...
+end`,
+			highlight: [2],
 		});
-		if (success) {
-			onComplete({ stars: stepper.starRating });
+		return files;
+	}
+
+	// Build / activate / reward phases: show evolving code
+	if (furthestStep === 0) {
+		files.push({
+			filename: 'config/routes.rb',
+			language: 'ruby',
+			code: `Rails.application.routes.draw do
+  # No routes defined yet...
+end`,
+			highlight: [2],
+		});
+	}
+
+	if (furthestStep >= 1 && furthestStep < 2) {
+		files.push({
+			filename: 'config/routes.rb',
+			language: 'ruby',
+			code: `Rails.application.routes.draw do
+  resources :posts
+  # But this creates /posts, not /api/v1/posts
+  # We need namespaces!
+end`,
+			highlight: [2],
+		});
+	}
+
+	if (furthestStep >= 2) {
+		files.push({
+			filename: 'config/routes.rb',
+			language: 'ruby',
+			code: `Rails.application.routes.draw do
+  namespace :api do
+    namespace :v1 do
+      resources :posts
+    end
+  end
+end`,
+			highlight: [2, 3, 4],
+		});
+	}
+
+	if (furthestStep >= 3) {
+		files.push({
+			filename: 'Route Table',
+			language: 'ruby',
+			code: `# rails routes
+#
+# GET    /api/v1/posts          => api/v1/posts#index
+# POST   /api/v1/posts          => api/v1/posts#create
+# GET    /api/v1/posts/:id      => api/v1/posts#show
+# PATCH  /api/v1/posts/:id      => api/v1/posts#update
+# DELETE /api/v1/posts/:id      => api/v1/posts#destroy`,
+			highlight: [3, 4, 5, 6, 7],
+		});
+	}
+
+	if (furthestStep >= 4) {
+		files.push({
+			filename: 'Request Lifecycle',
+			language: 'ruby',
+			code: `# GET /api/v1/posts
+#
+# 1. Request arrives (GET /api/v1/posts)
+# 2. Router matches: Api::V1::PostsController#index
+# 3. Controller calls: @posts = Post.all
+# 4. Model queries DB: SELECT * FROM posts
+# 5. Controller renders: render json: @posts
+# 6. Response: 200 OK with JSON body`,
+			highlight: [3, 4, 5, 6, 7, 8],
+		});
+	}
+
+	return files;
+}
+
+// ──────────────────────────────────────────────
+// Pipeline Legend (reward phase)
+// ──────────────────────────────────────────────
+
+function PipelineLegend() {
+	return (
+		<div className="p-4 border-b border-border">
+			<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+				Pipeline Legend
+			</div>
+			<div className="space-y-2 text-sm">
+				<div className="flex items-center gap-2">
+					<Check className="w-4 h-4 text-success" />
+					<span className="text-foreground">Routed request (200 OK)</span>
+				</div>
+				<div className="flex items-center gap-2">
+					<X className="w-4 h-4 text-destructive" />
+					<span className="text-foreground">
+						Unrouted request (404)
+					</span>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+// ──────────────────────────────────────────────
+// Component
+// ──────────────────────────────────────────────
+
+export function Level5Routes({ onComplete }: LevelComponentProps) {
+	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
+	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
+		minRequired: 3,
+	});
+	const stressTest = useStressTest(STRESS_SCENARIOS);
+	const [phase, setPhase] = useState<Phase>('observe');
+	const [inspectorData, setInspectorData] =
+		useState<StageInspectorData | null>(null);
+	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
+		new Set(),
+	);
+	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
+
+	// ── Build observe stages dynamically (tracks inspected + last probe) ──
+	const probeDisplay = lastProbeId
+		? PROBE_PIPELINE_MAP[lastProbeId]
+		: null;
+	const observeStages: PipelineStage[] = useMemo(
+		() => [
+			{
+				id: 'request',
+				label: 'Request',
+				inspectable: true,
+				inspected: inspectedStages.has('request'),
+			},
+			{
+				id: 'router',
+				label: 'Router',
+				sublabel: probeDisplay ? probeDisplay.routerSublabel : '(empty)',
+				variant: (probeDisplay ? 'danger' : 'inactive') as
+					| 'danger'
+					| 'inactive',
+				badge: probeDisplay ? probeDisplay.routerBadge : undefined,
+				inspectable: true,
+				inspected: inspectedStages.has('router'),
+			},
+			{
+				id: 'controller',
+				label: 'Controller',
+				sublabel: probeDisplay ? 'unreachable' : undefined,
+				variant: (probeDisplay ? 'inactive' : 'default') as
+					| 'inactive'
+					| 'default',
+				inspectable: true,
+				inspected: inspectedStages.has('controller'),
+			},
+			{
+				id: 'response',
+				label: 'Response',
+				sublabel: probeDisplay ? '404 Not Found' : undefined,
+				variant: (probeDisplay ? 'danger' : 'default') as
+					| 'danger'
+					| 'default',
+				inspectable: true,
+				inspected: inspectedStages.has('response'),
+			},
+			{
+				id: 'model',
+				label: 'Model',
+				position: HUB_POS.model,
+				variant: (probeDisplay ? 'inactive' : 'default') as
+					| 'inactive'
+					| 'default',
+				inspectable: true,
+				inspected: inspectedStages.has('model'),
+			},
+			{
+				id: 'database',
+				label: 'Database',
+				position: HUB_POS.database,
+				sublabel: probeDisplay ? 'unreachable' : undefined,
+				variant: (probeDisplay ? 'inactive' : 'default') as
+					| 'inactive'
+					| 'default',
+			},
+		],
+		[inspectedStages, probeDisplay],
+	);
+
+	// ── Build reward stages dynamically (reacts to latest stress test result) ──
+	const lastResult = stressTest.results[stressTest.results.length - 1];
+	const rewardStages: PipelineStage[] = useMemo(() => {
+		const scenario = lastResult
+			? STRESS_SCENARIOS.find((s) => s.id === lastResult.scenarioId)
+			: null;
+		const actionMap: Record<string, string> = {
+			'get-index': 'posts#index',
+			'post-create': 'posts#create',
+			'get-show': 'posts#show',
+			'patch-update': 'posts#update',
+			'delete-destroy': 'posts#destroy',
+		};
+		const matchedAction = scenario ? actionMap[scenario.id] : null;
+		return [
+			{ id: 'request', label: 'Request' },
+			{
+				id: 'router',
+				label: 'Router',
+				sublabel: matchedAction ?? 'routes.rb',
+				variant: 'active' as const,
+			},
+			{
+				id: 'controller',
+				label: 'Controller',
+				sublabel: matchedAction ? `${matchedAction.split('#')[1]}` : undefined,
+			},
+			{
+				id: 'response',
+				label: 'Response',
+				sublabel: lastResult ? '200 OK' : undefined,
+				variant: lastResult ? ('active' as const) : ('default' as const),
+			},
+			{
+				id: 'model',
+				label: 'Model',
+				position: HUB_POS.model,
+			},
+			{
+				id: 'database',
+				label: 'Database',
+				position: HUB_POS.database,
+				variant: 'active' as const,
+			},
+		];
+	}, [lastResult]);
+
+	// ── Transition: build -> activate when all steps complete ──
+	useEffect(() => {
+		if (phase === 'build' && stepper.isComplete) {
+			setPhase('activate');
 		}
+	}, [phase, stepper.isComplete]);
+
+	// ── Stage click handler (observe phase) ──
+	const handleStageClick = useCallback(
+		(stageId: string) => {
+			if (phase !== 'observe') return;
+
+			const data = STAGE_INSPECTOR_MAP[stageId];
+			if (!data) return;
+
+			setInspectorData(data);
+			setInspectedStages((prev) => {
+				if (prev.has(stageId)) return prev;
+				const next = new Set(prev);
+				next.add(stageId);
+				return next;
+			});
+
+			// Trigger discovery if this stage has one
+			const discoveryId = STAGE_DISCOVERY_MAP[stageId];
+			if (discoveryId) {
+				discoveryGating.discover(discoveryId);
+			}
+		},
+		[phase, discoveryGating],
+	);
+
+	// ── Probe handler (observe phase) ──
+	const handleProbe = useCallback(
+		(probeId: string) => {
+			setLastProbeId(probeId);
+			const discoveryId = PROBE_DISCOVERY_MAP[probeId];
+			if (discoveryId) {
+				discoveryGating.discover(discoveryId);
+			}
+		},
+		[discoveryGating],
+	);
+
+	// ── OptionCard step handler ──
+	const handleOptionClick = useCallback(
+		(option: StepOption) => {
+			if (option.correct) {
+				stepper.completeStep();
+			} else if (option.feedback) {
+				stepper.recordWrongAttempt(option.feedback);
+			}
+		},
+		[stepper],
+	);
+
+	// ── Phase transition handlers ──
+	const handleStartBuild = () => {
+		setPhase('build');
+	};
+
+	const handleActivateRoutes = () => {
+		setPhase('reward');
+		stressTest.reset();
+	};
+
+	// ── Stress test fire handler ──
+	const handleFireScenario = useCallback(
+		(scenarioId: string) => {
+			stressTest.fireRequest(scenarioId);
+		},
+		[stressTest],
+	);
+
+	// ── Completion ──
+	const handleComplete = () => {
+		onComplete({ stars: stepper.starRating });
 	};
 
 	const validateSolution = (): ValidationResult => {
@@ -231,90 +839,83 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 		return { valid: true, message: 'Routes are configured!' };
 	};
 
-	const getCodeFiles = () => {
-		const files = [];
+	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
+	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
+	const currentStepType = STEP_TYPES[stepper.currentStep];
+	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep];
 
-		if (stepper.currentStep === 0) {
-			files.push({
-				filename: 'config/routes.rb',
-				language: 'ruby',
-				code: `Rails.application.routes.draw do
-  # No routes defined yet...
-end`,
-				highlight: [],
-			});
-		}
-
-		if (stepper.currentStep === 1) {
-			files.push({
-				filename: 'config/routes.rb',
-				language: 'ruby',
-				code: `Rails.application.routes.draw do
-  resources :posts
-  # But this creates /posts, not /api/v1/posts
-  # We need namespaces!
-end`,
-				highlight: [2],
-			});
-		}
-
-		if (stepper.currentStep >= 2) {
-			files.push({
-				filename: 'config/routes.rb',
-				language: 'ruby',
-				code: `Rails.application.routes.draw do
-  namespace :api do
-    namespace :v1 do
-      resources :posts
-    end
-  end
-end`,
-				highlight: [2, 3, 4],
-			});
-		}
-
-		if (stepper.currentStep >= 3) {
-			files.push({
-				filename: 'Route Table',
-				language: 'ruby',
-				code: `# rails routes
-#
-# GET    /api/v1/posts          => api/v1/posts#index
-# POST   /api/v1/posts          => api/v1/posts#create
-# GET    /api/v1/posts/:id      => api/v1/posts#show
-# PATCH  /api/v1/posts/:id      => api/v1/posts#update
-# DELETE /api/v1/posts/:id      => api/v1/posts#destroy`,
-				highlight: [3, 4, 5, 6, 7],
-			});
-		}
-
-		return files;
-	};
-
-	const availableNamespaceBlocks: NamespaceBlock[] = [
-		{ id: 'v1', label: 'namespace :v1 do', indent: 1 },
-		{ id: 'api', label: 'namespace :api do', indent: 0 },
-		{ id: 'resources', label: 'resources :posts', indent: 2 },
-	];
-
+	// ── Render ──
 	return (
 		<LevelLayout>
 			<LeftPanel>
 				<InstructionPanel>
-					<div className="p-4 border-b border-border">
+					{/* Scenario (always visible) */}
+					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Posts work in the console (Levels 3-4), and Puma is running
-							from Level 2. But HTTP requests from the outside world can't
-							reach your app yet. You need routes to map URLs to code.
+							from Level 2. But HTTP requests from the outside world cannot
+							reach your app yet.
+						</p>
+						<p className="text-sm text-muted-foreground leading-relaxed">
+							The{' '}
+							<span className="text-foreground font-medium">router</span> maps
+							HTTP verbs and URLs to controller actions. Without routes defined
+							in{' '}
+							<span className="font-mono text-primary">
+								config/routes.rb
+							</span>
+							, every request returns 404.
 						</p>
 					</div>
 
-					<div className="p-4 border-b border-border">
-						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-							Steps
+					{/* Observe phase: discovery checklist */}
+					{phase === 'observe' && (
+						<div className="p-4 border-b border-border">
+							<DiscoveryChecklist
+								discoveries={discoveryGating.discoveries}
+								discoveredCount={discoveryGating.discoveredCount}
+								minRequired={discoveryGating.minRequired}
+							/>
 						</div>
-						<StepProgress steps={stepper.steps} />
-					</div>
+					)}
+
+					{/* Build / activate phases: step progress */}
+					{(phase === 'build' || phase === 'activate') && (
+						<div className="p-4 border-b border-border">
+							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+								Steps
+							</div>
+							<StepProgress
+								currentStep={stepper.currentStep}
+								onStepClick={stepper.goToStep}
+								steps={stepper.steps}
+							/>
+						</div>
+					)}
+
+					{/* Reward phase: legend + counters */}
+					{phase === 'reward' && (
+						<>
+							<PipelineLegend />
+
+							<div className="p-4">
+								<div className="grid grid-cols-2 gap-3">
+									<div className="bg-success/20 rounded-lg p-3 text-center">
+										<div className="text-2xl font-bold text-success">
+											{stressTest.allowedCount}
+										</div>
+										<div className="text-xs text-success/70">Routed</div>
+									</div>
+									<div className="bg-muted/20 rounded-lg p-3 text-center">
+										<div className="text-2xl font-bold text-muted-foreground">
+											{stressTest.results.length}
+										</div>
+										<div className="text-xs text-muted-foreground/70">Total</div>
+									</div>
+								</div>
+							</div>
+						</>
+					)}
 				</InstructionPanel>
 			</LeftPanel>
 
@@ -324,255 +925,211 @@ end`,
 					levelName="Routes & Request Lifecycle"
 					levelNumber={5}
 					onComplete={handleComplete}
-					onReset={() => window.location.reload()}
+					onReset={() => {
+						window.location.reload();
+					}}
 					onValidate={validateSolution}
 				/>
 
-				<div className="flex-1 relative bg-background p-6 overflow-auto">
-					<div className="max-w-2xl mx-auto space-y-6">
-						{/* Step 1: Define Resource */}
-						{stepper.currentStep === 0 && (
-							<div className="space-y-4">
-								<h3 className="text-lg font-semibold text-foreground">
-									Define Resource
-								</h3>
-								<p className="text-sm text-muted-foreground">
-									Which line in{' '}
-									<span className="font-mono text-primary">
-										config/routes.rb
-									</span>{' '}
-									generates all 5 RESTful routes for posts?
-								</p>
-								<div className="space-y-3">
-									{RESOURCE_OPTIONS.map((opt) => (
-										<Button
-											className="w-full h-auto py-4 text-left font-mono text-sm"
-											disabled={isViewingCompletedStep}
-											key={opt.id}
-											onClick={() => {
-												if (opt.correct) {
-													stepper.completeStep();
-												} else {
-													stepper.recordWrongAttempt(opt.feedback!);
-												}
-											}}
-											variant="outline"
-										>
-											{opt.label}
-										</Button>
+				<div className="flex-1 flex flex-col bg-background overflow-hidden">
+					{/* ── Phase 1: Observe (WHY) ── */}
+					{phase === 'observe' && (
+						<div className="flex-1 flex flex-col">
+							<div className="flex-1 relative">
+								<PipelineFlow
+									connections={OBSERVE_CONNECTIONS}
+									onNodeClick={handleStageClick}
+									stages={observeStages}
+								/>
+								{inspectorData && (
+									<StageInspector
+										data={inspectorData}
+										onClose={() => setInspectorData(null)}
+									/>
+								)}
+							</div>
+
+							{/* Probe terminal */}
+							<div className="px-6 pb-2">
+								<ProbeTerminal
+									onProbe={handleProbe}
+									probes={PROBES}
+									title="HTTP Probe"
+								/>
+							</div>
+
+							{/* Build the Fix button (discovery gated) */}
+							{discoveryGating.isUnlocked && (
+								<div className="p-4 flex justify-center animate-in fade-in duration-500">
+									<Button
+										className="gap-2"
+										onClick={handleStartBuild}
+										size="lg"
+									>
+										Build the Fix
+										<ArrowRight className="w-4 h-4" />
+									</Button>
+								</div>
+							)}
+						</div>
+					)}
+
+					{/* ── Phase 2: Build (HOW) ── */}
+					{phase === 'build' && (
+						<div className="flex-1 overflow-auto p-6">
+							<div className="max-w-2xl mx-auto space-y-4">
+								{/* Terminal step (2: rails routes) */}
+								{currentStepType === 'terminal' &&
+									stepper.currentStep === 2 && (
+										<TerminalChoiceStep
+											commands={viewRoutesCommands}
+											completed={isViewingCompletedStep}
+											description={
+												<p className="text-sm text-muted-foreground">
+													Your routes are defined and namespaced. Run the
+													command to see all generated routes.
+												</p>
+											}
+											hasNext={hasNextStep}
+											initialHistory={buildTerminalHistory(
+												SHELL_STEP_MAP,
+												stepper.currentStep,
+											)}
+											onCorrect={() => stepper.completeStep()}
+											onNext={stepper.nextStep}
+											onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+											outputLines={viewRoutesOutput}
+											stepKey={stepper.currentStep}
+											title="View Routes"
+										/>
+									)}
+
+								{/* OptionCard steps (0, 1, 3) */}
+								{currentStepType === 'option' && currentOptionConfig && (
+									<>
+										<h3 className="text-lg font-semibold text-foreground">
+											{currentOptionConfig.title}
+										</h3>
+										<p className="text-sm text-muted-foreground">
+											{currentOptionConfig.description}
+										</p>
+
+										{isViewingCompletedStep ? (
+											<div className="space-y-2">
+												{currentOptionConfig.options.map((opt) => (
+													<OptionCard
+														color="violet"
+														disabled={!opt.correct}
+														key={opt.id}
+														mono
+														name={opt.label}
+														selected={opt.correct}
+														size="lg"
+													/>
+												))}
+											</div>
+										) : (
+											<>
+												<div className="space-y-2">
+													{currentOptionConfig.options.map((opt) => (
+														<OptionCard
+															color="violet"
+															key={opt.id}
+															mono
+															name={opt.label}
+															onClick={() => handleOptionClick(opt)}
+															size="lg"
+														/>
+													))}
+												</div>
+
+												<ErrorFeedback
+													message={stepper.lastFeedback}
+													onDismiss={stepper.clearFeedback}
+												/>
+											</>
+										)}
+
+										{isViewingCompletedStep && hasNextStep && (
+											<div className="flex justify-end">
+												<Button
+													className="gap-2"
+													onClick={stepper.nextStep}
+													size="sm"
+												>
+													Next Step
+													<ArrowRight className="w-4 h-4" />
+												</Button>
+											</div>
+										)}
+									</>
+								)}
+							</div>
+						</div>
+					)}
+
+					{/* ── Phase 3: Activate (ADVANTAGE sub-phase a) ── */}
+					{phase === 'activate' && (
+						<div className="flex-1 flex items-center justify-center p-6">
+							<div className="max-w-md text-center space-y-6">
+								<div className="flex justify-center gap-1">
+									{[1, 2, 3].map((s) => (
+										<Star
+											className={`w-8 h-8 ${
+												s <= stepper.starRating
+													? 'text-yellow-400 fill-yellow-400'
+													: 'text-muted-foreground/30'
+											}`}
+											key={s}
+										/>
 									))}
 								</div>
-								<ErrorFeedback
-									message={stepper.lastFeedback}
-									onDismiss={stepper.clearFeedback}
-								/>
-								{isViewingCompletedStep && hasNextStep && (
-									<div className="flex justify-end">
-										<Button onClick={stepper.nextStep}>
-											Next Step <ArrowRight className="w-4 h-4 ml-2" />
-										</Button>
-									</div>
-								)}
-							</div>
-						)}
-
-						{/* Step 2: Add Namespace */}
-						{stepper.currentStep === 1 && (
-							<div className="space-y-4">
-								<h3 className="text-lg font-semibold text-foreground">
-									Add Namespace
-								</h3>
 								<p className="text-sm text-muted-foreground">
-									Wrap the resource in API version namespaces. Click blocks in
-									the correct nesting order (outermost first).
+									Your routes are defined. Watch HTTP requests flow through
+									the router to the right controller action.
 								</p>
+								<Button
+									className="gap-2"
+									onClick={handleActivateRoutes}
+									size="lg"
+								>
+									<Play className="w-4 h-4" />
+									Visualize Routes
+								</Button>
+							</div>
+						</div>
+					)}
 
-								{/* Available blocks */}
-								{!isViewingCompletedStep && (
-									<div className="flex flex-wrap gap-2">
-										{availableNamespaceBlocks
-											.filter((b) => !namespaceOrder.includes(b.id))
-											.map((block) => (
-												<Button
-													className="font-mono text-sm"
-													key={block.id}
-													onClick={() => handleNamespaceAdd(block.id)}
-													variant="outline"
-												>
-													{block.label}
-												</Button>
-											))}
-									</div>
-								)}
-
-								{/* Preview of current nesting */}
-								<div className="bg-zinc-900 rounded-lg p-4 font-mono text-sm">
-									<div className="text-zinc-400">
-										Rails.application.routes.draw do
-									</div>
-									{namespaceOrder.map((id, i) => {
-										const block = availableNamespaceBlocks.find(
-											(b) => b.id === id,
-										)!;
-										return (
-											<div className="text-emerald-400" key={id}>
-												{'  '.repeat(i + 1)}
-												{block.label}
-											</div>
-										);
-									})}
-									{namespaceOrder.length > 0 &&
-										[...namespaceOrder]
-											.reverse()
-											.filter((id) => id !== 'resources')
-											.map((id, i) => (
-												<div className="text-zinc-400" key={`end-${id}`}>
-													{'  '.repeat(namespaceOrder.length - i - 1)}
-													end
-												</div>
-											))}
-									<div className="text-zinc-400">end</div>
-								</div>
-
-								<ErrorFeedback
-									message={stepper.lastFeedback}
-									onDismiss={stepper.clearFeedback}
+					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
+					{phase === 'reward' && (
+						<div className="flex-1 flex flex-col">
+							<div className="flex-1 relative">
+								<PipelineFlow
+									connections={REWARD_CONNECTIONS}
+									stages={rewardStages}
 								/>
-								{isViewingCompletedStep && hasNextStep && (
-									<div className="flex justify-end">
-										<Button onClick={stepper.nextStep}>
-											Next Step <ArrowRight className="w-4 h-4 ml-2" />
-										</Button>
-									</div>
-								)}
 							</div>
-						)}
 
-						{/* Step 3: View Routes */}
-						{stepper.currentStep === 2 && (
-							<TerminalChoiceStep
-								commands={viewRoutesCommands}
-								completed={stepper.currentStep < stepper.furthestStep}
-								description={
-									<p className="text-sm text-muted-foreground">
-										Run the command to see all generated routes.
-									</p>
-								}
-								hasNext={stepper.currentStep < STEP_DEFS.length - 1}
-								initialHistory={buildTerminalHistory(
-									TERMINAL_STEP_MAP,
-									stepper.currentStep,
-								)}
-								onCorrect={() => stepper.completeStep()}
-								onNext={stepper.nextStep}
-								onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-								outputLines={viewRoutesOutput}
-								stepKey={stepper.currentStep}
-								title="View Routes"
-							/>
-						)}
-
-						{/* Step 4: Trace a Request */}
-						{stepper.currentStep === 3 && (
-							<div className="space-y-4">
-								<h3 className="text-lg font-semibold text-foreground">
-									Trace a Request
-								</h3>
-								<p className="text-sm text-muted-foreground">
-									Click each route to see how it maps to a controller action.
-									Trace all 5 routes.
-								</p>
-
-								<div className="bg-card rounded-lg border border-border overflow-hidden">
-									<div className="grid grid-cols-[100px_1fr_1fr] bg-secondary border-b border-border text-xs font-semibold text-muted-foreground px-4 py-2">
-										<span>Method</span>
-										<span>Path</span>
-										<span>Controller#Action</span>
-									</div>
-									{ROUTE_TABLE.map((route, i) => {
-										const isTraced = tracedRoutes.has(i);
-										return (
-											<Button
-												className={`grid grid-cols-[100px_1fr_1fr] w-full px-4 py-3 text-sm text-left border-b border-border transition-all ${
-													isTraced
-														? 'bg-primary/5'
-														: 'hover:bg-secondary cursor-pointer'
-												}`}
-												disabled={isTraced}
-												key={route.path + route.method}
-												onClick={() => handleTraceRoute(i)}
-											>
-												<span
-													className={`font-mono font-bold ${METHOD_COLORS[route.method]}`}
-												>
-													{route.method}
-												</span>
-												<span className="font-mono text-foreground">
-													{route.path}
-												</span>
-												<span
-													className={`font-mono ${isTraced ? 'text-primary' : 'text-muted-foreground'}`}
-												>
-													{isTraced ? route.action : '???'}
-												</span>
-											</Button>
-										);
-									})}
-								</div>
-
-								{/* Animated path visualization when clicking */}
-								{tracedRoutes.size > 0 &&
-									tracedRoutes.size < ROUTE_TABLE.length && (
-										<p className="text-xs text-muted-foreground text-center">
-											{tracedRoutes.size} / {ROUTE_TABLE.length} routes traced
-										</p>
-									)}
+							{/* Stress test controls below pipeline */}
+							<div className="px-6 pb-2">
+								<StressTestPanel
+									allowedCount={stressTest.allowedCount}
+									blockedCount={stressTest.blockedCount}
+									canAutoFire={stressTest.canAutoFire}
+									isAutoFiring={stressTest.isAutoFiring}
+									onFire={handleFireScenario}
+									onToggleAutoFire={stressTest.toggleAutoFire}
+									results={stressTest.results}
+									scenarios={STRESS_SCENARIOS}
+								/>
 							</div>
-						)}
-
-						{/* Complete */}
-						{stepper.isComplete && (
-							<div className="text-center py-12 space-y-4">
-								<div className="text-4xl">
-									{'★'.repeat(stepper.starRating)}
-									{'☆'.repeat(3 - stepper.starRating)}
-								</div>
-								<h3 className="text-xl font-bold text-foreground">
-									Routes Configured!
-								</h3>
-								<p className="text-muted-foreground">
-									5 RESTful routes are mapped under /api/v1/posts.
-								</p>
-								<Button onClick={handleComplete}>Complete Level</Button>
-							</div>
-						)}
-					</div>
+						</div>
+					)}
 				</div>
 			</CenterPanel>
 
 			<RightPanel>
-				<CodePreviewPanel files={getCodeFiles()}>
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-							Key Concepts
-						</div>
-						<ul className="text-xs text-muted-foreground space-y-2">
-							<li>
-								<span className="font-mono text-primary">resources :posts</span>{' '}
-								generates all 5 RESTful routes
-							</li>
-							<li>
-								<span className="font-mono text-primary">namespace :api</span>{' '}
-								nests routes under /api/
-							</li>
-							<li>Routes map HTTP verbs + URLs to controller actions</li>
-							<li>
-								Check routes with{' '}
-								<span className="font-mono text-primary">rails routes</span>
-							</li>
-						</ul>
-					</div>
-				</CodePreviewPanel>
+				<CodePreviewPanel files={getCodeFiles(phase, stepper.furthestStep)} />
 			</RightPanel>
 		</LevelLayout>
 	);

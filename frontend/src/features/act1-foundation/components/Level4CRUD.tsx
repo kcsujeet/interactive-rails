@@ -41,18 +41,18 @@ const STEPS: TerminalStep[] = [
 					'"new" builds the object in memory but doesn\'t save it to the database. You need the method that persists immediately.',
 			},
 			{
-				id: 'create',
-				label: 'Post.create(title: "Hello", body: "My first post")',
-				command: 'Post.create(title: "Hello", body: "My first post")',
-				correct: true,
-			},
-			{
 				id: 'insert',
 				label: 'Post.insert(title: "Hello", body: "My first post")',
 				command: 'Post.insert(title: "Hello", body: "My first post")',
 				correct: false,
 				feedback:
 					'"insert" does a raw SQL INSERT, skipping validations and callbacks. For the full lifecycle, pick the method that validates and saves in one step.',
+			},
+			{
+				id: 'create',
+				label: 'Post.create(title: "Hello", body: "My first post")',
+				command: 'Post.create(title: "Hello", body: "My first post")',
+				correct: true,
 			},
 		],
 		outputLines: [
@@ -119,18 +119,18 @@ const STEPS: TerminalStep[] = [
 					'Assignment only changes the Ruby object in memory. You need the method that validates and persists to the DB in one call.',
 			},
 			{
-				id: 'update',
-				label: 'post.update(title: "Updated")',
-				command: 'post.update(title: "Updated")',
-				correct: true,
-			},
-			{
 				id: 'update_column',
 				label: 'post.update_column(:title, "Updated")',
 				command: 'post.update_column(:title, "Updated")',
 				correct: false,
 				feedback:
 					'"update_column" skips validations and callbacks. You need the method that goes through the full Rails lifecycle.',
+			},
+			{
+				id: 'update',
+				label: 'post.update(title: "Updated")',
+				command: 'post.update(title: "Updated")',
+				correct: true,
 			},
 		],
 		outputLines: [{ text: '=> true', color: 'cyan' }],
@@ -176,6 +176,14 @@ const STEPS: TerminalStep[] = [
 		),
 		commands: [
 			{
+				id: 'all-length',
+				label: 'Post.all.length',
+				command: 'Post.all.length',
+				correct: false,
+				feedback:
+					"all.length loads every record into memory just to count them. There's a more efficient way.",
+			},
+			{
 				id: 'exists',
 				label: 'Post.exists?',
 				command: 'Post.exists?',
@@ -188,14 +196,6 @@ const STEPS: TerminalStep[] = [
 				label: 'Post.count',
 				command: 'Post.count',
 				correct: true,
-			},
-			{
-				id: 'all-length',
-				label: 'Post.all.length',
-				command: 'Post.all.length',
-				correct: false,
-				feedback:
-					"all.length loads every record into memory just to count them. There's a more efficient way.",
 			},
 		],
 		outputLines: [{ text: '=> 0', color: 'cyan' }],

@@ -34,6 +34,8 @@ export interface PipelineStage {
 	inspectable?: boolean;
 	/** Whether this stage has been inspected (hides the ? indicator) */
 	inspected?: boolean;
+	/** Explicit position. If omitted, auto-positioned in horizontal chain. */
+	position?: { x: number; y: number };
 }
 
 export interface PipelineDot {
@@ -47,6 +49,12 @@ export interface PipelineConnection {
 	to: string;
 	/** Custom dot array, a preset name, or undefined for no dots */
 	dots?: PipelineDot[] | 'mixed' | 'clean';
+	/** Which side of the source node the edge leaves from. Default: 'right' */
+	sourceHandle?: 'top' | 'right' | 'bottom' | 'left';
+	/** Which side of the target node the edge enters. Default: 'left' */
+	targetHandle?: 'top' | 'right' | 'bottom' | 'left';
+	/** If true, a return edge (target -> source) is also created */
+	bidirectional?: boolean;
 }
 
 export interface PipelineFlowProps {
@@ -55,6 +63,13 @@ export interface PipelineFlowProps {
 	/** Called when a stage node is clicked. Enables interactive pipeline. */
 	onNodeClick?: (stageId: string) => void;
 	className?: string;
+	/**
+	 * Controls which edges animate.
+	 * - undefined: all edges show idle animation (backward compat default)
+	 * - []: fully dormant, no dots
+	 * - ['request-router', ...]: only listed edges animate (single-pass)
+	 */
+	activeConnections?: string[];
 }
 
 // ──────────────────────────────────────────────
@@ -85,6 +100,19 @@ interface InternalDotConfig {
 	color: string;
 	dur: string;
 	begin: string;
+}
+
+/** Edge animation mode: idle = subtle always-on, active = single-pass, dormant = no dots */
+type EdgeMode = 'idle' | 'active' | 'dormant';
+
+interface PipelineEdgeData {
+	dots?: InternalDotConfig[];
+	mode: EdgeMode;
+	/** True for return edges (dashed line, shifted right/down) */
+	isReturn?: boolean;
+	/** True for forward edges that have a bidirectional counterpart (shifted left/up) */
+	isBidirectional?: boolean;
+	[key: string]: unknown;
 }
 
 interface StageNodeData {
@@ -159,16 +187,16 @@ const PipelineStageNode = memo(function PipelineStageNode({
 					{data.badge}
 				</div>
 			)}
-			<Handle
-				className="opacity-0! w-0! h-0!"
-				position={Position.Left}
-				type="target"
-			/>
-			<Handle
-				className="opacity-0! w-0! h-0!"
-				position={Position.Right}
-				type="source"
-			/>
+			{/* Horizontal handles */}
+			<Handle className="opacity-0! w-0! h-0!" position={Position.Left} type="target" id="left-target" />
+			<Handle className="opacity-0! w-0! h-0!" position={Position.Left} type="source" id="left-source" />
+			<Handle className="opacity-0! w-0! h-0!" position={Position.Right} type="source" id="right-source" />
+			<Handle className="opacity-0! w-0! h-0!" position={Position.Right} type="target" id="right-target" />
+			{/* Vertical handles */}
+			<Handle className="opacity-0! w-0! h-0!" position={Position.Top} type="target" id="top-target" />
+			<Handle className="opacity-0! w-0! h-0!" position={Position.Top} type="source" id="top-source" />
+			<Handle className="opacity-0! w-0! h-0!" position={Position.Bottom} type="source" id="bottom-source" />
+			<Handle className="opacity-0! w-0! h-0!" position={Position.Bottom} type="target" id="bottom-target" />
 		</div>
 	);
 });
@@ -176,6 +204,12 @@ const PipelineStageNode = memo(function PipelineStageNode({
 // ──────────────────────────────────────────────
 // Custom edge
 // ──────────────────────────────────────────────
+
+/**
+ * Half-offset for symmetric parallel lanes.
+ * Forward edge shifts -LANE_OFFSET, return edge shifts +LANE_OFFSET.
+ */
+const LANE_OFFSET = 14;
 
 function PipelineFlowEdge({
 	id,
@@ -187,30 +221,53 @@ function PipelineFlowEdge({
 	targetPosition,
 	data,
 }: EdgeProps) {
+	const { dots, mode = 'idle', isReturn = false, isBidirectional = false } = (data ?? {}) as PipelineEdgeData;
+
+	// Only offset edges that are part of a bidirectional pair
+	const needsOffset = isReturn || isBidirectional;
+	const isVertical =
+		sourcePosition === Position.Top || sourcePosition === Position.Bottom;
+	const sign = isReturn ? 1 : -1;
+
+	const offset = needsOffset ? sign * LANE_OFFSET : 0;
+	const adjSourceX = sourceX + (isVertical ? offset : 0);
+	const adjSourceY = sourceY + (isVertical ? 0 : offset);
+	const adjTargetX = targetX + (isVertical ? offset : 0);
+	const adjTargetY = targetY + (isVertical ? 0 : offset);
+
 	const [edgePath] = getSmoothStepPath({
-		sourceX,
-		sourceY,
+		sourceX: adjSourceX,
+		sourceY: adjSourceY,
 		sourcePosition,
-		targetX,
-		targetY,
+		targetX: adjTargetX,
+		targetY: adjTargetY,
 		targetPosition,
 	});
 
-	const dots = (data as { dots?: InternalDotConfig[] } | undefined)?.dots;
-
 	return (
 		<>
-			<BaseEdge id={id} path={edgePath} />
-			{dots?.map((dot) => (
-				<circle fill={dot.color} key={dot.id} r="8">
-					<animateMotion
-						begin={dot.begin}
-						dur={dot.dur}
-						path={edgePath}
-						repeatCount="indefinite"
-					/>
-				</circle>
-			))}
+			{isReturn ? (
+				<path
+					className="fill-none stroke-zinc-600 dark:stroke-zinc-700"
+					d={edgePath}
+					strokeDasharray="4 4"
+					strokeWidth={1}
+				/>
+			) : (
+				<BaseEdge id={id} path={edgePath} />
+			)}
+			{mode !== 'dormant' &&
+				dots?.map((dot) => (
+					<circle fill={dot.color} key={dot.id} r="8">
+						<animateMotion
+							begin={dot.begin}
+							dur={mode === 'active' ? '0.8s' : dot.dur}
+							path={edgePath}
+							repeatCount={mode === 'active' ? '1' : 'indefinite'}
+							fill="freeze"
+						/>
+					</circle>
+				))}
 		</>
 	);
 }
@@ -249,30 +306,93 @@ function buildNodes(
 	stages: PipelineStage[],
 	clickable: boolean,
 ): Node[] {
-	return stages.map((stage, i) => ({
-		id: stage.id,
-		type: 'pipelineStage',
-		position: { x: i * 250, y: 0 },
-		data: {
-			label: stage.label,
-			sublabel: stage.sublabel,
-			variant: stage.variant ?? 'default',
-			badge: stage.badge,
-			clickable,
-			inspectable: stage.inspectable,
-			inspected: stage.inspected,
-		} satisfies StageNodeData,
-	}));
+	let autoX = 0;
+	return stages.map((stage) => {
+		const pos = stage.position ?? { x: autoX, y: 0 };
+		if (!stage.position) autoX += 250;
+		return {
+			id: stage.id,
+			type: 'pipelineStage',
+			position: pos,
+			data: {
+				label: stage.label,
+				sublabel: stage.sublabel,
+				variant: stage.variant ?? 'default',
+				badge: stage.badge,
+				clickable,
+				inspectable: stage.inspectable,
+				inspected: stage.inspected,
+			} satisfies StageNodeData,
+		};
+	});
 }
 
-function buildEdges(connections: PipelineConnection[]): Edge[] {
-	return connections.map((conn, i) => ({
-		id: `e-${conn.from}-${conn.to}`,
-		source: conn.from,
-		target: conn.to,
-		type: 'pipelineFlow',
-		data: { dots: resolveDots(conn.dots, i) },
-	}));
+function buildEdges(
+	connections: PipelineConnection[],
+	activeConnectionIds?: string[],
+): Edge[] {
+	const edges: Edge[] = [];
+	let edgeIndex = 0;
+
+	for (const conn of connections) {
+		const connKey = `${conn.from}-${conn.to}`;
+		const mode: EdgeMode =
+			activeConnectionIds === undefined
+				? 'idle'
+				: activeConnectionIds.includes(connKey)
+					? 'active'
+					: 'dormant';
+
+		edges.push({
+			id: `e-${connKey}`,
+			source: conn.from,
+			target: conn.to,
+			type: 'pipelineFlow',
+			sourceHandle: conn.sourceHandle
+				? `${conn.sourceHandle}-source`
+				: 'right-source',
+			targetHandle: conn.targetHandle
+				? `${conn.targetHandle}-target`
+				: 'left-target',
+			data: {
+				dots: resolveDots(conn.dots, edgeIndex),
+				mode,
+				isBidirectional: conn.bidirectional ?? false,
+			} satisfies PipelineEdgeData,
+		});
+		edgeIndex++;
+
+		if (conn.bidirectional) {
+			const returnKey = `${conn.to}-${conn.from}`;
+			const returnMode: EdgeMode =
+				activeConnectionIds === undefined
+					? 'idle'
+					: activeConnectionIds.includes(returnKey)
+						? 'active'
+						: 'dormant';
+
+			edges.push({
+				id: `e-${returnKey}`,
+				source: conn.to,
+				target: conn.from,
+				type: 'pipelineFlow',
+				sourceHandle: conn.targetHandle
+					? `${conn.targetHandle}-source`
+					: 'left-source',
+				targetHandle: conn.sourceHandle
+					? `${conn.sourceHandle}-target`
+					: 'right-target',
+				data: {
+					dots: resolveDots(conn.dots, edgeIndex),
+					isReturn: true,
+					mode: returnMode,
+				} satisfies PipelineEdgeData,
+			});
+			edgeIndex++;
+		}
+	}
+
+	return edges;
 }
 
 // ──────────────────────────────────────────────
@@ -280,7 +400,7 @@ function buildEdges(connections: PipelineConnection[]): Edge[] {
 // ──────────────────────────────────────────────
 
 function handleInit(instance: ReactFlowInstance) {
-	requestAnimationFrame(() => instance.fitView());
+	requestAnimationFrame(() => instance.fitView({ padding: 0.15 }));
 }
 
 export function PipelineFlow({
@@ -288,13 +408,17 @@ export function PipelineFlow({
 	connections,
 	onNodeClick,
 	className,
+	activeConnections,
 }: PipelineFlowProps) {
 	const isClickable = !!onNodeClick;
 	const nodes = useMemo(
 		() => buildNodes(stages, isClickable),
 		[stages, isClickable],
 	);
-	const edges = useMemo(() => buildEdges(connections), [connections]);
+	const edges = useMemo(
+		() => buildEdges(connections, activeConnections),
+		[connections, activeConnections],
+	);
 
 	const handleNodeClick = useMemo(() => {
 		if (!onNodeClick) return undefined;
