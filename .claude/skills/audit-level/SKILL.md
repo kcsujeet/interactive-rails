@@ -71,43 +71,122 @@ Read the content definition in `content.ts` alongside the component. Check for t
 
 When auditing, always read the full component file and grep for any flagged terms (e.g., `password_digest`, `Post.status`) across both files.
 
-### Phase 1: Problem Visualization (WHY) - Interactive Observe
+### Phase 1: Problem Visualization (WHY)
 
-The level must have a dedicated "observe" phase that is **interactive, not passive**. The player actively explores to discover the problem.
+#### Step 0: Pick the observe phase type
 
-#### Step 0: Does this level need a visualization at all?
+There are exactly **four types** of observe phase. Every level falls into one. Pick the right one first, then follow the rules for that type.
 
-**Not every level needs a visualization.** Some levels are pure setup (e.g., L1 installing Rails, L4 generating a scaffold). There is no "problem" to visualize because the player is building something from scratch, not fixing or discovering a flaw. Forcing a visualization onto a setup level produces something contrived that adds no teaching value.
+| Type | When to use | Phase name | Discovery gating | Example levels |
+|------|------------|------------|-----------------|----------------|
+| **1. No observe** | Pure setup/installation. No problem exists yet. | (skipped) | None | L1 (Rails install), L4 (scaffold generator) |
+| **2. Static intro** | Code-structure problem visible by reading the code. No runtime behavior to simulate. | `'intro'` | None (button always visible) | L16 (Service Objects) |
+| **3. Custom visualization** | Concept has a unique spatial/flow metaphor that needs a bespoke layout with animated state machine. | `'observe'` | Yes (`useDiscoveryGating`) | L10 (Validations: vertical data gate), L15 (CORS: horizontal 3-zone flow) |
+| **4. PipelineFlow** | Request lifecycle concept where a stage is missing or broken in the MVC pipeline. | `'observe'` | Yes (`useDiscoveryGating`) | L5 (Routes), L6 (Controller), L7 (Serializer), L8 (Associations) |
 
-**Ask these questions before designing a visualization:**
-1. **Is there a problem or vulnerability the player needs to discover?** If yes, visualize it. If the level is "do these setup steps to create something new," skip the observe phase entirely and go straight to build.
-2. **Would a diagram help the player understand how this concept works?** If the concept is "run this command," a visualization adds nothing. If the concept is "requests flow through middleware before reaching your controller," a visualization teaches the architecture.
-3. **Can you describe what the visualization shows in one sentence?** If you can't, the concept may not be visual. "Requests hit the CORS gate before the API" is clear. "The player installs Ruby" is not a visualization.
+**Decision flowchart:**
+1. Is there a problem to discover? **No** -> Type 1 (no observe, go straight to build)
+2. Is the problem visible just by reading the code? **Yes** -> Type 2 (static intro)
+3. Does the concept have a unique spatial metaphor (not the MVC request chain)? **Yes** -> Type 3 (custom visualization)
+4. Is the concept about something missing/broken in the request lifecycle? **Yes** -> Type 4 (PipelineFlow)
 
-**Levels that typically need visualization:** security (auth, CORS, strong params), architecture (MVC, middleware), performance (N+1, caching), data flow (validations, callbacks, associations).
+**Critical: Types 3 and 4 are both interactive with discovery gating. Types 1 and 2 have no discovery gating.** Do not add `useDiscoveryGating`, `DiscoveryChecklist`, `ProbeTerminal`, or `ScenarioCards` to Type 1 or Type 2 levels.
 
-**Levels that typically skip visualization:** initial setup, tooling installation, generator-only levels, configuration-only levels.
+#### Type 1: No observe phase
 
-When a level skips the observe phase, the three-phase flow becomes: build -> activate -> reward (or just build -> complete for pure setup levels).
+The level skips the observe phase entirely and goes straight to build. The three-phase flow becomes: `build -> activate -> reward` (or just `build -> complete` for pure setup levels).
 
-#### Visualization approach: custom first, PipelineFlow when it fits
+**When:** The player is building something from scratch, not fixing or discovering a flaw. There is no "problem" to visualize.
 
-**This decision requires careful thought.** The wrong visualization type can mislead players or feel forced. Do NOT default to PipelineFlow for every level, and do NOT invent a custom visualization when a simple pipeline would be clearer. The visualization must teach the specific concept. Pick the approach that best explains *this* problem:
+#### Type 2: Static intro (code-structure / refactoring levels)
 
-- **Custom zone layouts**: When the concept has a specific spatial relationship that a generic pipeline cannot capture. Validations (vertical Data Gate: Input -> Model Gate -> Database), CORS (horizontal: Client -> CORS Gate -> API). The layout shape should emerge from the concept itself.
-- **PipelineFlow**: Request lifecycle concepts (auth, authorization, middleware, controller flow) where the player needs to see where a stage is missing or broken in the pipeline. Good default when the concept is "something is missing/broken in the request chain."
-- **Interactive diagrams**: Schema/migration levels (tables with columns), association levels (entity relationships)
-- **Before/after comparisons**: Refactoring levels (messy code vs clean code), performance (N+1 query log vs optimized)
-- **No visualization**: Setup and tooling levels where there is nothing to observe
+The problem is self-evident from reading the code. A static annotated code display is enough. No animation, no interactive discovery.
 
-**Decision checklist:**
-- [ ] If the concept has a natural spatial/flow metaphor, use a custom layout that matches it
-- [ ] If the concept is "a stage is missing in the request lifecycle," use PipelineFlow
-- [ ] If the concept is structural (schema, relationships), use an interactive diagram
-- [ ] If the concept is "this code is slow/messy," use before/after comparisons
-- [ ] If there is no problem to discover, skip the visualization entirely
+**When:** Refactoring levels (fat controllers, missing abstractions, duplicated logic) where the problem is a code structure issue visible by reading the code. The briefing screen already explains the problem in text. Interactive discovery (probes, inspectors, scenario cards) would feel like busywork.
 
-**If a level already has a custom visualization that teaches the concept well, keep it.** Add interactivity (clickable elements, probe-like actions, discovery gating) to the existing visualization rather than replacing it with a generic PipelineFlow.
+**What it looks like:**
+- Static annotated code display with visual markers (colored left borders, Badge labels)
+- A brief callout (1-2 sentences) stating the structural problem
+- "Build the Fix" button always visible (no gating)
+- No `useDiscoveryGating`, no `DiscoveryChecklist`, no `ProbeTerminal`, no `ScenarioCards`
+- Phase type: `'intro'` (not `'observe'`)
+
+**Reference implementation:** Level 16 (Service Objects)
+`frontend/src/features/act3-clean-architecture/components/Level16ServiceObjects.tsx`
+
+L16 shows a fat controller method with color-coded left-border annotations marking each responsibility section. Side-effect sections (logging, preferences, token) get an amber left border + Badge label. The core logic gets a muted zinc border. Below: a callout stating "4 responsibilities in one method." The player reads the annotated code, sees the problem, and clicks "Build the Fix" immediately.
+
+```tsx
+// GOOD: Static intro for a refactoring level
+// The code tells the story. No interactive overhead.
+const ANNOTATED_SECTIONS: AnnotatedSection[] = [
+  { id: 'core', label: 'Core Logic', variant: 'core', code: `@user = User.new(...)` },
+  { id: 'logging', label: 'Side Effect: Logging', variant: 'side-effect', code: `Rails.logger.info(...)` },
+  // ...
+];
+
+// Render: colored left borders + Badge labels + callout + always-visible button
+<div className="border-l-2 border-l-amber-500 bg-amber-500/5 ...">
+  <Badge className="border-amber-500/50 text-amber-600 ...">Side Effect: Logging</Badge>
+  <pre>{section.code}</pre>
+</div>
+// ...
+<Button onClick={handleStartBuild}>Build the Fix</Button>  // No gating
+```
+
+```tsx
+// BAD: Over-engineering the observe phase for a refactoring level
+const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, { minRequired: 3 });
+// Player clicks 4 abstract buttons, reads inspector overlays, clicks 3 scenario cards...
+// ...all to learn that one method has too many responsibilities (which the code already shows)
+{discoveryGating.isUnlocked && <Button>Build the Fix</Button>}
+```
+
+#### Type 3: Custom visualization (bespoke layout with state machine)
+
+The concept has a unique spatial or flow metaphor that a generic pipeline cannot capture. Each custom visualization is different; the layout shape emerges from the concept itself.
+
+**When:** Security concepts (CORS, validations), data flow concepts, or any level where the architecture has a specific spatial relationship (vertical gates, horizontal handshakes, entity diagrams).
+
+**Examples:**
+- L10 Validations: vertical "Data Gate" (Input -> Model Gate -> Database), because validations filter data at the model layer before storage
+- L15 CORS: horizontal 3-zone flow (Client -> CORS Middleware Gate -> Rails API), because CORS is about a request crossing the network through a middleware gate
+
+The visualization shape, direction, and structure should emerge from the concept itself. L10 flows top-to-bottom because data moves through layers. L15 flows left-to-right because a request travels from client through a gate to the API. No two custom visualizations should look the same.
+
+**Required:** Discovery gating, interactive elements, flow animation state machine (see sections below).
+
+#### Type 4: PipelineFlow (hub-and-spoke MVC architecture)
+
+The concept is about a missing or broken stage in the request lifecycle. PipelineFlow renders the MVC architecture as an interactive node graph.
+
+**When:** MVC architecture levels where the player needs to see where a stage fits (or is missing) in the request chain.
+
+**Critical: PipelineFlow always uses hub-and-spoke layout, never linear.** The MVC architecture is not a simple left-to-right chain. The Controller is the hub that orchestrates satellites (Model, Database, Serializer) on vertical branches. All PipelineFlow levels must use this layout consistently.
+
+```
+                 Serializer (L7+)
+                    ^  |
+                    |  v
+Request -> Router -> Controller -> Response
+                    ^  |
+                    |  v
+                   Model (L5+)
+                    ^  |
+                    |  v
+                  Database (L5+)
+```
+
+- Main horizontal chain: Request, Router, Controller, Response (auto-positioned, no `position` prop)
+- Satellites branch off the Controller vertically with explicit `position` props
+- Each level only shows nodes introduced up to that point (progressive disclosure)
+- All levels that use PipelineFlow share this same hub-and-spoke topology
+
+**Required:** Discovery gating, clickable nodes with `StageInspector`, probes, flow animation (see sections below).
+
+**Reference implementations:** L5 (Routes), L6 (Controller), L7 (Serializer), L8 (Associations)
+
+**If a level already has a custom visualization (Type 3) that teaches the concept well, keep it.** Do not replace it with PipelineFlow. Add interactivity to the existing visualization instead.
 
 #### Visualization accuracy (the visualization must not lie)
 
@@ -150,7 +229,9 @@ Fixes:
 - [ ] **Bypass/skip scenarios are visually distinct.** If a probe or scenario bypasses a zone (e.g., curl bypassing CORS), the zone should visually indicate it was bypassed (dashed border, muted label, "(bypassed)") rather than showing it as processing the request.
 - [ ] **The "not reached" state is shown.** When a request is blocked at zone N, zones after N should be dimmed/muted with a "not reached" label, not hidden entirely.
 
-#### Required interactivity (regardless of visualization type)
+#### Required interactivity (Types 3 and 4 only)
+
+When a level uses a full interactive observe phase (Type 3 custom visualization or Type 4 PipelineFlow), these rules apply:
 
 - [ ] **The visualization is interactive, not passive.** The player must click, probe, or explore to discover the problem. Static animations that play automatically are not acceptable.
 - [ ] **Discovery gating controls progression.** Use `useDiscoveryGating(defs, { minRequired })` to track what the player has found. The "Build the Fix" button appears only when `discoveryGating.isUnlocked`.
@@ -241,29 +322,13 @@ The rule: if a node's sublabel changes on probe (e.g., showing "404", "unreachab
 
 **Case study:** L6 Controller had Model node with no variant on probe (stayed black) even though the controller was broken and Model was unreachable. L8 Associations had Response node showing "404" sublabel but no variant change (stayed black instead of danger red). Both were fixed by adding the appropriate variant.
 
-#### Hub-and-spoke layout for MVC architecture levels
+#### Hub-and-spoke implementation details (Type 4 PipelineFlow)
 
-**When to use:** Any level where the Controller orchestrates dependencies (L5-L8 and future MVC levels). Levels with inherently linear concepts (CI/CD, middleware chains, CORS) keep simple horizontal layout.
+Implementation specifics for the hub-and-spoke layout described in Type 4 above.
 
-**Layout:**
-```
-                 Serializer (L7+)
-                    ^  |
-                    |  v
-Request -> Router -> Controller -> Response
-                    ^  |
-                    |  v
-                   Model (L5+)
-                    ^  |
-                    |  v
-                  Database (L5+)
-```
-
-- Main horizontal chain: Request, Router, Controller, Response (auto-positioned, no `position` prop)
 - Model: below Controller with `position: { x: 500, y: 180 }`, connection uses `sourceHandle: 'bottom', targetHandle: 'top', bidirectional: true`
 - Database: below Model with `position: { x: 500, y: 360 }`, same handle config
 - Serializer: above Controller with `position: { x: 500, y: -180 }`, connection uses `sourceHandle: 'top', targetHandle: 'bottom', bidirectional: true`
-- Each level only shows nodes introduced up to that point (progressive disclosure)
 - Focus node uses `variant: 'inactive'` or `'danger'`, others use `'active'` or `'default'`
 - Stages with explicit `position` do not consume an auto-layout slot (auto-positioned stages stay on the horizontal chain)
 
@@ -434,14 +499,28 @@ Beyond structural correctness, check that each step is meaningful and the level 
 
 ### State Machine
 
-Check the phase transitions:
+Check the phase transitions. Three valid patterns exist (matching the four observe types):
 
-- [ ] State uses `phase: 'observe' | 'build' | 'activate' | 'reward'` (not boolean flags)
+**Type 1: No observe (setup levels):**
+- [ ] State uses `phase: 'build' | 'activate' | 'reward'` or `phase: 'build' | 'complete'`
+- [ ] Level starts directly in `'build'` phase
+
+**Type 2: Static intro (refactoring / code-structure levels):**
+- [ ] State uses `phase: 'intro' | 'build' | 'activate' | 'reward'`
+- [ ] `intro -> build`: triggered by "Build the Fix" button click, **no gating** (always visible)
+- [ ] `build -> activate`: triggered by `useEffect` watching `stepper.isComplete`
+- [ ] `activate -> reward`: triggered by "Visualize ___" button click
+
+**Types 3 and 4: Full interactive observe (custom visualization or PipelineFlow):**
+- [ ] State uses `phase: 'observe' | 'build' | 'activate' | 'reward'`
 - [ ] `observe -> build`: triggered by "Build the Fix" button click, **gated behind `discoveryGating.isUnlocked`** (NOT a timer)
 - [ ] `build -> activate`: triggered by `useEffect` watching `stepper.isComplete`
 - [ ] `activate -> reward`: triggered by "Visualize ___" button click
+
+**Common to all:**
+- [ ] Phase state uses a union type (not boolean flags)
 - [ ] Visualizations are declarative (no manual animation intervals or mutable request state to manage)
-- [ ] Observe visualization state built with `useMemo` reacting to player interactions
+- [ ] Observe/intro visualization state built with `useMemo` reacting to player interactions
 - [ ] Reward visualization state built with `useMemo` reacting to player actions
 
 ### CSS and Animation Checks

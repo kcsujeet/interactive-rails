@@ -1,20 +1,29 @@
 /**
  * Level 20: Error Handling
  *
- * Centralize error handling with rescue_from in ApplicationController.
- * Teaches: rescue_from, HTTP status code mapping, consistent JSON error shape,
- * testing error responses.
+ * Sequential phase flow: observe -> build -> activate -> reward
+ * Each phase occupies the full center panel. One thing at a time.
  *
- * Three-phase pedagogy:
- *   WHY   -- scattered begin/rescue blocks produce inconsistent error formats
- *   HOW   -- 4 steps: choose strategy, map exceptions, define shape, test
- *   ADVANTAGE -- before/after: raw stack trace vs clean JSON error
+ * Phase 1 (WHY - observe): Interactive exploration. Click pipeline stages to
+ *   discover that the API returns raw 500s with stack traces, plain text 404s,
+ *   and inconsistent JSON error shapes. Fire API probes to trigger different
+ *   error types and see the inconsistency firsthand.
+ *   Discovery gating controls when "Build the Fix" appears.
+ * Phase 2 (HOW - build): 3 OptionCard steps introducing rescue_from
+ *   Step 0: Choose where to handle errors (rescue_from in ApplicationController)
+ *   Step 1: Map exceptions to status codes (RecordNotFound->404, RecordInvalid->422, ParameterMissing->400)
+ *   Step 2: Define the error response shape ({ error: { code, message, details } })
+ * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Error Handling" button
+ * Phase 4 (ADVANTAGE - reward): Stress test. Fire error-triggering requests at
+ *   the centralized handler and watch consistent JSON responses.
+ *
+ * Introduces rescue_from as the solution to scattered error handling.
+ * Teaches: centralized exception handling, HTTP status mapping, consistent error shape
  */
 
-import { ArrowRight, AlertTriangle, Check, Shield, Terminal } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowRight, Check, Play, Star, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-	buildTerminalHistory,
 	CenterPanel,
 	CodePreviewPanel,
 	ErrorFeedback,
@@ -25,195 +34,407 @@ import {
 	OptionCard,
 	RightPanel,
 	StepProgress,
-	TerminalChoiceStep,
-	type TerminalCommand,
-	type TerminalOutputLine,
-	type TerminalStepData,
-	useLevelCompletion,
 	type ValidationResult,
 } from '@/components/levels';
+import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
+import {
+	type PipelineConnection,
+	PipelineFlow,
+	type PipelineStage,
+} from '@/components/levels/PipelineFlow';
+import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
+import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
+import {
+	StageInspector,
+	type StageInspectorData,
+} from '@/components/levels/StageInspector';
+import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
+import {
+	type DiscoveryDef,
+	useDiscoveryGating,
+} from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
+import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 
-// ---------------------------------------------------------------------------
-// Step definitions
-// ---------------------------------------------------------------------------
+// ──────────────────────────────────────────────
+// Phase type
+// ──────────────────────────────────────────────
 
-const STEP_DEFS: StepDef[] = [
-	{ id: 'choose-strategy', title: 'Choose Strategy' },
-	{ id: 'map-exceptions', title: 'Map Exceptions to Status Codes' },
-	{ id: 'define-shape', title: 'Define Error Shape' },
-	{ id: 'test-response', title: 'Test Error Response' },
+type Phase = 'observe' | 'build' | 'activate' | 'reward';
+
+// ──────────────────────────────────────────────
+// Discovery definitions (observe phase)
+// ──────────────────────────────────────────────
+
+const DISCOVERY_DEFS: DiscoveryDef[] = [
+	{ id: 'raw-500-stacktrace', label: 'Raw 500 with stack trace' },
+	{ id: 'plain-text-404', label: 'Plain text 404' },
+	{ id: 'inconsistent-shapes', label: 'Inconsistent JSON shapes' },
+	{ id: 'no-centralized-handling', label: 'No centralized handling' },
 ];
 
-// ---------------------------------------------------------------------------
-// Step 1: Choose Strategy (OptionCard click-to-select)
-// ---------------------------------------------------------------------------
+// ──────────────────────────────────────────────
+// Probe configurations (observe phase)
+// ──────────────────────────────────────────────
 
-interface StrategyOption {
+const PROBES: ProbeConfig[] = [
+	{
+		id: 'missing-post',
+		label: 'GET /api/v1/posts/999',
+		command: 'GET /api/v1/posts/999',
+		responseLines: [
+			{ text: 'HTTP/1.1 500 Internal Server Error', color: 'red' },
+			{ text: 'Content-Type: text/html', color: 'muted' },
+			{
+				text: '<h1>ActiveRecord::RecordNotFound</h1>',
+				color: 'yellow',
+			},
+			{
+				text: "app/controllers/api/v1/posts_controller.rb:4:in 'show'",
+				color: 'muted',
+			},
+			{
+				text: 'Raw stack trace exposed! 500 for a missing resource.',
+				color: 'red',
+			},
+		],
+	},
+	{
+		id: 'bad-params',
+		label: 'POST /api/v1/posts (bad params)',
+		command: 'POST /api/v1/posts {}',
+		responseLines: [
+			{ text: 'HTTP/1.1 400 Bad Request', color: 'red' },
+			{ text: 'Content-Type: application/json', color: 'muted' },
+			{
+				text: '{"message":"param is missing or the value is empty: post"}',
+				color: 'yellow',
+			},
+			{
+				text: 'Different error shape! { message: "..." } instead of a consistent structure.',
+				color: 'red',
+			},
+		],
+	},
+	{
+		id: 'missing-user',
+		label: 'GET /api/v1/users/999',
+		command: 'GET /api/v1/users/999',
+		responseLines: [
+			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
+			{ text: 'Content-Type: text/plain', color: 'muted' },
+			{ text: 'Not found', color: 'yellow' },
+			{
+				text: 'Plain text response! No JSON, no error code, no details.',
+				color: 'red',
+			},
+		],
+	},
+];
+
+// Map probe IDs to discovery IDs they trigger
+const PROBE_DISCOVERY_MAP: Record<string, string> = {
+	'missing-post': 'raw-500-stacktrace',
+	'bad-params': 'inconsistent-shapes',
+	'missing-user': 'plain-text-404',
+};
+
+// Map probe IDs to pipeline node display during observe
+const PROBE_PIPELINE_MAP: Record<
+	string,
+	{ handlerSublabel: string; responseBadge: string }
+> = {
+	'missing-post': {
+		handlerSublabel: 'NO HANDLER',
+		responseBadge: '500!',
+	},
+	'bad-params': {
+		handlerSublabel: 'NO HANDLER',
+		responseBadge: '400!',
+	},
+	'missing-user': {
+		handlerSublabel: 'NO HANDLER',
+		responseBadge: '404!',
+	},
+};
+
+// ──────────────────────────────────────────────
+// Stage inspector data (observe phase)
+// ──────────────────────────────────────────────
+
+const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
+	request: {
+		stageId: 'request',
+		title: 'Incoming Request',
+		description:
+			'API requests come in from web and mobile clients. They expect consistent JSON responses for both success and error cases. Right now, errors come back in three different formats depending on which controller handles them.',
+	},
+	controller: {
+		stageId: 'controller',
+		title: 'PostsController',
+		description:
+			'Each controller action has its own begin/rescue block. Some return JSON, some return plain text, some let exceptions bubble up as raw 500s with stack traces.',
+		code: `def show
+  begin
+    @post = Post.find(params[:id])
+    render json: @post
+  rescue ActiveRecord::RecordNotFound
+    render plain: "Not found", status: 500
+  end
+end
+
+def create
+  begin
+    @post = Post.create!(post_params)
+    render json: @post, status: :created
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { msg: e.message }, status: 400
+  end
+end`,
+	},
+	'error-handler': {
+		stageId: 'error-handler',
+		title: 'Error Handler (Missing!)',
+		description:
+			'There is no centralized error handling. Each controller action catches exceptions independently with different rescue blocks. The result: three different error formats across endpoints. Clients cannot parse errors reliably.',
+	},
+	response: {
+		stageId: 'response',
+		title: 'API Response',
+		description:
+			'Responses are inconsistent. GET /posts/999 returns an HTML stack trace. POST with bad params returns { "message": "..." }. GET /users/999 returns plain text "Not found". Three endpoints, three formats.',
+	},
+};
+
+// Map stage IDs to discovery IDs they trigger
+const STAGE_DISCOVERY_MAP: Record<string, string> = {
+	'error-handler': 'no-centralized-handling',
+	controller: 'inconsistent-shapes',
+};
+
+// ──────────────────────────────────────────────
+// Stress test scenarios (reward phase)
+// ──────────────────────────────────────────────
+
+const STRESS_SCENARIOS: StressScenario[] = [
+	{
+		id: 'valid-create',
+		label: 'Create a post',
+		description: 'POST with valid title and body',
+		method: 'POST',
+		path: '/api/v1/posts',
+		actor: 'user_3',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'not-found',
+		label: '404 Not Found',
+		description: 'GET a post that does not exist',
+		method: 'GET',
+		path: '/api/v1/posts/999',
+		actor: 'user_3',
+		expectedResult: 'blocked',
+	},
+	{
+		id: 'invalid-record',
+		label: '422 Unprocessable',
+		description: 'POST with blank title (validation fails)',
+		method: 'POST',
+		path: '/api/v1/posts',
+		actor: 'user_3',
+		expectedResult: 'blocked',
+	},
+	{
+		id: 'missing-params',
+		label: '400 Bad Request',
+		description: 'POST with missing post key',
+		method: 'POST',
+		path: '/api/v1/posts',
+		actor: 'attacker',
+		expectedResult: 'blocked',
+	},
+	{
+		id: 'unauthorized',
+		label: '403 Forbidden',
+		description: 'DELETE another user\'s post',
+		method: 'DELETE',
+		path: '/api/v1/posts/1',
+		actor: 'attacker',
+		expectedResult: 'blocked',
+	},
+	{
+		id: 'valid-show',
+		label: 'Show a post',
+		description: 'GET an existing post',
+		method: 'GET',
+		path: '/api/v1/posts/1',
+		actor: 'user_3',
+		expectedResult: 'allowed',
+	},
+];
+
+// ──────────────────────────────────────────────
+// Step definitions (3 OptionCard steps)
+// ──────────────────────────────────────────────
+
+const STEP_DEFS: StepDef[] = [
+	{ id: 'choose-strategy', title: 'Choose Error Handling Strategy' },
+	{ id: 'map-exceptions', title: 'Map Exceptions to Status Codes' },
+	{ id: 'define-shape', title: 'Define Error Response Shape' },
+];
+
+// ──────────────────────────────────────────────
+// OptionCard step data
+// ──────────────────────────────────────────────
+
+interface StepOption {
 	id: string;
-	name: string;
-	description: string;
+	label: string;
 	correct: boolean;
 	feedback?: string;
 }
 
-const STRATEGY_OPTIONS: StrategyOption[] = [
+// Step 0: Choose Error Handling Strategy
+const STRATEGY_OPTIONS: StepOption[] = [
 	{
 		id: 'per-action',
-		name: 'Per-action begin/rescue blocks',
-		description: 'Wrap each controller action in its own begin/rescue',
+		label: 'begin/rescue in each controller action',
 		correct: false,
 		feedback:
-			'Duplicating begin/rescue in every action means inconsistent error formats. One controller returns JSON, another returns plain text.',
+			'Duplicating rescue blocks in every action is what caused the inconsistency in the first place. You need a single place to handle all exceptions.',
+	},
+	{
+		id: 'middleware',
+		label: 'Rack middleware error handler',
+		correct: false,
+		feedback:
+			'Middleware catches errors before Rails processes the request. You lose access to controller context, params, and error details.',
 	},
 	{
 		id: 'rescue-from',
-		name: 'rescue_from in ApplicationController',
-		description: 'Declare exception handlers once in the base controller',
+		label: 'rescue_from in ApplicationController',
 		correct: true,
 	},
 	{
-		id: 'rack-middleware',
-		name: 'Rack middleware error handler',
-		description: 'Catch all exceptions at the Rack layer before Rails',
+		id: 'exception-gem',
+		label: 'exception_notification gem',
 		correct: false,
 		feedback:
-			'Middleware catches errors too early, before Rails has parsed params. You lose access to controller context and error details.',
+			'That gem sends error notifications (email, Slack). It does not format error responses for API clients.',
 	},
 ];
 
-// ---------------------------------------------------------------------------
-// Step 2: Map Exceptions to Status Codes (OptionCard click-to-select)
-// ---------------------------------------------------------------------------
-
-interface StatusOption {
-	id: string;
-	name: string;
-	description: string;
-	correct: boolean;
-	feedback?: string;
-}
-
-const STATUS_OPTIONS: StatusOption[] = [
+// Step 1: Map Exceptions to Status Codes
+const MAPPING_OPTIONS: StepOption[] = [
 	{
-		id: '500',
-		name: '500 Internal Server Error',
-		description: 'Server encountered an unexpected condition',
+		id: 'all-500',
+		label: 'RecordNotFound -> 500, RecordInvalid -> 500, ParameterMissing -> 500',
 		correct: false,
 		feedback:
-			'500 means something broke on the server. A missing resource is a client-side issue, not a server error.',
+			'Returning 500 for everything tells clients nothing. A missing resource, a validation failure, and a malformed request are three different problems with three different status codes.',
 	},
 	{
-		id: '400',
-		name: '400 Bad Request',
-		description: 'Malformed request syntax',
+		id: 'wrong-codes',
+		label: 'RecordNotFound -> 400, RecordInvalid -> 404, ParameterMissing -> 422',
 		correct: false,
 		feedback:
-			'400 means malformed request syntax. The request format is fine; the resource simply does not exist.',
+			'Those status codes are mismatched. A missing resource is not a bad request, and a validation failure is not a missing resource.',
 	},
 	{
-		id: '404',
-		name: '404 Not Found',
-		description: 'The requested resource does not exist',
+		id: 'correct-codes',
+		label: 'RecordNotFound -> 404, RecordInvalid -> 422, ParameterMissing -> 400',
 		correct: true,
 	},
 ];
 
-// ---------------------------------------------------------------------------
-// Step 3: Define Error Shape (OptionCard click-to-select)
-// ---------------------------------------------------------------------------
-
-interface ShapeOption {
-	id: string;
-	name: string;
-	description: string;
-	correct: boolean;
-	feedback?: string;
-}
-
-const SHAPE_OPTIONS: ShapeOption[] = [
+// Step 2: Define Error Response Shape
+const SHAPE_OPTIONS: StepOption[] = [
 	{
-		id: 'bare-string',
-		name: '{ error: "message" }',
-		description: 'Simple string under an error key',
+		id: 'flat-hash',
+		label: '{ message: "Not found", status: 404 }',
 		correct: false,
 		feedback:
-			'A bare string gives clients nothing to switch on programmatically. Include a machine-readable code and structured details.',
+			'A flat hash with no machine-readable code forces clients to parse the message string. Nest errors under an error key with structured fields.',
+	},
+	{
+		id: 'array',
+		label: '{ errors: ["Not found"] }',
+		correct: false,
+		feedback:
+			'An array of strings has no structure. Clients need a code to switch on, a message to display, and details for validation errors.',
 	},
 	{
 		id: 'structured',
-		name: '{ error: { code, message, details } }',
-		description: 'Nested object with machine-readable code and details',
+		label: '{ error: { code: "not_found", message: "Post not found", details: {} } }',
 		correct: true,
 	},
 	{
-		id: 'success-flag',
-		name: '{ message: "...", success: false }',
-		description: 'Top-level message with a success boolean',
+		id: 'bare-string',
+		label: '"Not found"',
 		correct: false,
 		feedback:
-			'Mixing success flags with messages is ambiguous. Nest errors under an error key with code, message, and details for consistency.',
+			'A bare string response has no structure at all. Clients cannot reliably detect error vs. success or extract any metadata.',
 	},
 ];
 
-// ---------------------------------------------------------------------------
-// Step 4: Test Error Response (TerminalChoiceStep)
-// ---------------------------------------------------------------------------
-
-const testCommands: TerminalCommand[] = [
+// Map from step index -> OptionCard config
+const OPTION_STEP_CONFIG: Record<
+	number,
 	{
-		id: 'curl-raw',
-		label: 'curl /api/v1/posts/999',
-		command: 'curl /api/v1/posts/999',
-		correct: false,
-		feedback:
-			'That returns the raw response. Pipe through jq to verify the JSON structure matches your error shape.',
+		title: string;
+		description: string;
+		options: StepOption[];
+	}
+> = {
+	0: {
+		title: 'Choose Error Handling Strategy',
+		description:
+			'Every controller action has its own begin/rescue with different error formats. How should you centralize error handling so all exceptions are handled in one place?',
+		options: STRATEGY_OPTIONS,
 	},
-	{
-		id: 'curl-jq',
-		label: 'curl -s /api/v1/posts/999 | jq .error',
-		command: 'curl -s /api/v1/posts/999 | jq .error',
-		correct: true,
+	1: {
+		title: 'Map Exceptions to Status Codes',
+		description:
+			'rescue_from catches exceptions globally. Each exception type should return the correct HTTP status code. Which mapping is correct?',
+		options: MAPPING_OPTIONS,
 	},
-	{
-		id: 'rails-console',
-		label: 'rails console -e test',
-		command: 'rails console -e test',
-		correct: false,
-		feedback:
-			"Console doesn't test HTTP responses. You need to make a real HTTP request to see the error formatting.",
+	2: {
+		title: 'Define Error Response Shape',
+		description:
+			'All error handlers need to render a consistent JSON structure. Which shape lets clients parse every error programmatically?',
+		options: SHAPE_OPTIONS,
 	},
+};
+
+// ──────────────────────────────────────────────
+// Pipeline visualization configs
+// ──────────────────────────────────────────────
+
+const OBSERVE_CONNECTIONS: PipelineConnection[] = [
+	{ from: 'request', to: 'router', dots: 'mixed' },
+	{ from: 'router', to: 'controller', dots: 'mixed' },
+	{ from: 'controller', to: 'error-handler', dots: 'mixed' },
+	{ from: 'error-handler', to: 'response', dots: 'mixed' },
 ];
 
-const testOutput: TerminalOutputLine[] = [
-	{ text: '{', color: 'cyan' },
-	{ text: '  "code": "not_found",', color: 'cyan' },
-	{ text: '  "message": "Post not found",', color: 'cyan' },
-	{ text: '  "details": {}', color: 'cyan' },
-	{ text: '}', color: 'cyan' },
+const REWARD_CONNECTIONS: PipelineConnection[] = [
+	{ from: 'request', to: 'router', dots: 'mixed' },
+	{ from: 'router', to: 'controller', dots: 'mixed' },
+	{ from: 'controller', to: 'error-handler', dots: 'mixed' },
+	{ from: 'error-handler', to: 'response', dots: 'clean' },
 ];
 
-// ---------------------------------------------------------------------------
-// Terminal step map for building history
-// ---------------------------------------------------------------------------
+// ──────────────────────────────────────────────
+// Code preview helper
+// ──────────────────────────────────────────────
 
-const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
-	null, // step 0: OptionCard (strategy)
-	null, // step 1: OptionCard (status codes)
-	null, // step 2: OptionCard (error shape)
-	{ commands: testCommands, outputLines: testOutput }, // step 3: terminal
-];
-
-// ---------------------------------------------------------------------------
-// Code preview files that evolve with step completion
-// ---------------------------------------------------------------------------
-
-function getCodeFiles(completedSteps: number) {
+function getCodeFiles(phase: Phase, furthestStep: number) {
 	const files = [];
 
-	if (completedSteps === 0) {
+	// Observe phase: show scattered error handling
+	if (phase === 'observe') {
 		files.push({
 			filename: 'app/controllers/api/v1/posts_controller.rb',
 			language: 'ruby',
@@ -224,8 +445,6 @@ function getCodeFiles(completedSteps: number) {
       render json: @post
     rescue ActiveRecord::RecordNotFound
       render plain: "Not found", status: 500
-    rescue => e
-      render json: { msg: e.message }
     end
   end
 
@@ -234,42 +453,115 @@ function getCodeFiles(completedSteps: number) {
       @post = Post.create!(post_params)
       render json: @post, status: :created
     rescue ActiveRecord::RecordInvalid => e
-      render plain: e.message, status: 400
-    rescue => e
-      render json: "<h1>Error</h1>", status: 500
+      render json: { msg: e.message }, status: 400
+    end
+  end
+
+  # Every action has its own begin/rescue!
+  # 3 different error formats across endpoints
+end`,
+			highlight: [3, 6, 7, 12, 15, 16],
+		});
+		return files;
+	}
+
+	// Build / activate / reward phases: show evolving code
+	if (furthestStep === 0) {
+		// Step 0: same as observe (player is choosing the strategy)
+		files.push({
+			filename: 'app/controllers/api/v1/posts_controller.rb',
+			language: 'ruby',
+			code: `class Api::V1::PostsController < ApplicationController
+  def show
+    begin
+      @post = Post.find(params[:id])
+      render json: @post
+    rescue ActiveRecord::RecordNotFound
+      render plain: "Not found", status: 500
+    end
+  end
+
+  def create
+    begin
+      @post = Post.create!(post_params)
+      render json: @post, status: :created
+    rescue ActiveRecord::RecordInvalid => e
+      render json: { msg: e.message }, status: 400
     end
   end
 end`,
-			highlight: [3, 7, 8, 14, 17, 18, 19],
+			highlight: [3, 6, 7, 12, 15, 16],
 		});
 	}
 
-	if (completedSteps >= 1) {
+	if (furthestStep >= 1) {
 		files.push({
 			filename: 'app/controllers/application_controller.rb',
 			language: 'ruby',
 			code:
-				completedSteps === 1
+				furthestStep >= 3
 					? `class ApplicationController < ActionController::API
   rescue_from ActiveRecord::RecordNotFound,
               with: :handle_not_found
   rescue_from ActiveRecord::RecordInvalid,
               with: :handle_unprocessable
-  rescue_from StandardError,
-              with: :handle_internal_error
+  rescue_from ActionController::ParameterMissing,
+              with: :handle_bad_request
+  rescue_from Pundit::NotAuthorizedError,
+              with: :handle_forbidden
 
   private
 
-  # Status mapping methods go here...
+  def handle_not_found(exception)
+    render json: {
+      error: {
+        code: "not_found",
+        message: exception.message,
+        details: {}
+      }
+    }, status: :not_found
+  end
+
+  def handle_unprocessable(exception)
+    render json: {
+      error: {
+        code: "unprocessable_entity",
+        message: exception.message,
+        details: exception.record.errors.to_hash
+      }
+    }, status: :unprocessable_entity
+  end
+
+  def handle_bad_request(exception)
+    render json: {
+      error: {
+        code: "bad_request",
+        message: exception.message,
+        details: {}
+      }
+    }, status: :bad_request
+  end
+
+  def handle_forbidden(_exception)
+    render json: {
+      error: {
+        code: "forbidden",
+        message: "You are not authorized to perform this action",
+        details: {}
+      }
+    }, status: :forbidden
+  end
 end`
-					: completedSteps === 2
+					: furthestStep >= 2
 						? `class ApplicationController < ActionController::API
   rescue_from ActiveRecord::RecordNotFound,
               with: :handle_not_found
   rescue_from ActiveRecord::RecordInvalid,
               with: :handle_unprocessable
-  rescue_from StandardError,
-              with: :handle_internal_error
+  rescue_from ActionController::ParameterMissing,
+              with: :handle_bad_request
+  rescue_from Pundit::NotAuthorizedError,
+              with: :handle_forbidden
 
   private
 
@@ -281,101 +573,40 @@ end`
     render json: { error: "..." }, status: :unprocessable_entity
   end
 
-  def handle_internal_error(exception)
-    render json: { error: "..." }, status: :internal_server_error
+  def handle_bad_request(exception)
+    render json: { error: "..." }, status: :bad_request
   end
+
+  def handle_forbidden(_exception)
+    render json: { error: "..." }, status: :forbidden
+  end
+
+  # What should the error shape look like?
 end`
-						: completedSteps === 3
-							? `class ApplicationController < ActionController::API
+						: `class ApplicationController < ActionController::API
   rescue_from ActiveRecord::RecordNotFound,
               with: :handle_not_found
   rescue_from ActiveRecord::RecordInvalid,
               with: :handle_unprocessable
-  rescue_from StandardError,
-              with: :handle_internal_error
+  rescue_from ActionController::ParameterMissing,
+              with: :handle_bad_request
+  rescue_from Pundit::NotAuthorizedError,
+              with: :handle_forbidden
 
   private
 
-  def handle_not_found(exception)
-    render json: {
-      error: {
-        code: "not_found",
-        message: exception.message,
-        details: {}
-      }
-    }, status: :not_found
-  end
-
-  def handle_unprocessable(exception)
-    render json: {
-      error: {
-        code: "unprocessable_entity",
-        message: exception.message,
-        details: exception.record.errors.to_hash
-      }
-    }, status: :unprocessable_entity
-  end
-
-  def handle_internal_error(exception)
-    render json: {
-      error: {
-        code: "internal_server_error",
-        message: "Something went wrong",
-        details: {}
-      }
-    }, status: :internal_server_error
-  end
-end`
-							: `class ApplicationController < ActionController::API
-  rescue_from ActiveRecord::RecordNotFound,
-              with: :handle_not_found
-  rescue_from ActiveRecord::RecordInvalid,
-              with: :handle_unprocessable
-  rescue_from StandardError,
-              with: :handle_internal_error
-
-  private
-
-  def handle_not_found(exception)
-    render json: {
-      error: {
-        code: "not_found",
-        message: exception.message,
-        details: {}
-      }
-    }, status: :not_found
-  end
-
-  def handle_unprocessable(exception)
-    render json: {
-      error: {
-        code: "unprocessable_entity",
-        message: exception.message,
-        details: exception.record.errors.to_hash
-      }
-    }, status: :unprocessable_entity
-  end
-
-  def handle_internal_error(exception)
-    render json: {
-      error: {
-        code: "internal_server_error",
-        message: "Something went wrong",
-        details: {}
-      }
-    }, status: :internal_server_error
-  end
+  # Which status codes should each exception map to?
 end`,
 			highlight:
-				completedSteps === 1
-					? [2, 3, 4, 5, 6, 7]
-					: completedSteps === 2
-						? [11, 12, 13, 15, 16, 17, 19, 20, 21]
-						: [13, 14, 15, 16, 24, 25, 26, 34, 35, 36],
+				furthestStep >= 3
+					? [14, 15, 16, 17, 25, 26, 27, 35, 36]
+					: furthestStep >= 2
+						? [14, 18, 22, 26]
+						: [2, 3, 4, 5, 6, 7, 8, 9],
 		});
 	}
 
-	if (completedSteps >= 4) {
+	if (furthestStep >= 3) {
 		files.push({
 			filename: 'app/controllers/api/v1/posts_controller.rb',
 			language: 'ruby',
@@ -390,89 +621,219 @@ end`,
     render json: @post, status: :created
   end
 
-  private
-
-  def post_params
-    params.expect(post: [:title, :body, :published])
-  end
+  # No begin/rescue needed!
+  # rescue_from in ApplicationController handles all errors
 end`,
 			highlight: [3, 4, 8, 9],
-		});
-	}
-
-	if (files.length === 0) {
-		files.push({
-			filename: 'app/controllers/api/v1/posts_controller.rb',
-			language: 'ruby',
-			code: `# Scattered error handling across controllers
-# Each action has its own begin/rescue
-# Inconsistent formats: plain text, JSON, HTML`,
-			highlight: [],
 		});
 	}
 
 	return files;
 }
 
-// ---------------------------------------------------------------------------
+// ──────────────────────────────────────────────
+// Pipeline Legend (reward phase left panel)
+// ──────────────────────────────────────────────
+
+function PipelineLegend() {
+	return (
+		<div className="p-4 border-b border-border">
+			<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+				Pipeline Legend
+			</div>
+			<div className="space-y-2 text-sm">
+				<div className="flex items-center gap-2">
+					<Check className="w-4 h-4 text-success" />
+					<span className="text-foreground">
+						Successful request (passes through)
+					</span>
+				</div>
+				<div className="flex items-center gap-2">
+					<X className="w-4 h-4 text-destructive" />
+					<span className="text-foreground">
+						Error caught, clean JSON returned
+					</span>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+// ──────────────────────────────────────────────
 // Component
-// ---------------------------------------------------------------------------
+// ──────────────────────────────────────────────
 
 export function Level20ErrorHandling({ onComplete }: LevelComponentProps) {
-	const { completeLevel } = useLevelCompletion();
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
-	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
-	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
+	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
+		minRequired: 3,
+	});
+	const stressTest = useStressTest(STRESS_SCENARIOS);
+	const [phase, setPhase] = useState<Phase>('observe');
+	const [inspectorData, setInspectorData] =
+		useState<StageInspectorData | null>(null);
+	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
+		new Set(),
+	);
+	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
 
-	// Track which options were selected for visual feedback
-	const [selectedStrategy, setSelectedStrategy] = useState<string | null>(null);
-	const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
-	const [selectedShape, setSelectedShape] = useState<string | null>(null);
+	// ── Build observe stages dynamically (tracks inspected + last probe) ──
+	const probeDisplay = lastProbeId
+		? PROBE_PIPELINE_MAP[lastProbeId]
+		: null;
+	const observeStages: PipelineStage[] = useMemo(
+		() => [
+			{
+				id: 'request',
+				label: 'Request',
+				inspectable: true,
+				inspected: inspectedStages.has('request'),
+			},
+			{
+				id: 'router',
+				label: 'Router',
+			},
+			{
+				id: 'controller',
+				label: 'Controller',
+				inspectable: true,
+				inspected: inspectedStages.has('controller'),
+			},
+			{
+				id: 'error-handler',
+				label: 'Error Handler',
+				sublabel: probeDisplay ? probeDisplay.handlerSublabel : '(missing!)',
+				variant: (probeDisplay ? 'danger' : 'inactive') as
+					| 'danger'
+					| 'inactive',
+				inspectable: true,
+				inspected: inspectedStages.has('error-handler'),
+			},
+			{
+				id: 'response',
+				label: 'Response',
+				badge: probeDisplay ? probeDisplay.responseBadge : undefined,
+				variant: (probeDisplay ? 'danger' : 'default') as
+					| 'danger'
+					| 'default',
+				inspectable: true,
+				inspected: inspectedStages.has('response'),
+			},
+		],
+		[inspectedStages, probeDisplay],
+	);
 
-	// -----------------------------------------------------------------------
-	// Handlers
-	// -----------------------------------------------------------------------
+	// ── Build reward stages dynamically (reacts to latest stress test result) ──
+	const lastResult = stressTest.results[stressTest.results.length - 1];
+	const rewardStages: PipelineStage[] = useMemo(() => {
+		const wasBlocked = lastResult?.result === 'blocked';
+		const wasAllowed = lastResult?.result === 'allowed';
+		return [
+			{ id: 'request', label: 'Request' },
+			{ id: 'router', label: 'Router' },
+			{ id: 'controller', label: 'Controller' },
+			{
+				id: 'error-handler',
+				label: 'rescue_from',
+				sublabel: wasBlocked
+					? 'caught!'
+					: wasAllowed
+						? 'no error'
+						: 'rescue_from',
+				variant: wasBlocked
+					? ('danger' as const)
+					: ('active' as const),
+				badge: wasBlocked ? 'HANDLED' : undefined,
+			},
+			{
+				id: 'response',
+				label: 'Response',
+				sublabel: wasBlocked
+					? 'clean JSON error'
+					: wasAllowed
+						? '200 OK'
+						: undefined,
+			},
+		];
+	}, [lastResult]);
 
-	const handleStrategyClick = (option: StrategyOption) => {
-		if (isViewingCompletedStep && stepper.currentStep === 0) return;
-
-		if (option.correct) {
-			setSelectedStrategy(option.id);
-			stepper.completeStep();
-		} else {
-			stepper.recordWrongAttempt(option.feedback ?? 'Not the best strategy.');
+	// ── Transition: build -> activate when all steps complete ──
+	useEffect(() => {
+		if (phase === 'build' && stepper.isComplete) {
+			setPhase('activate');
 		}
+	}, [phase, stepper.isComplete]);
+
+	// ── Stage click handler (observe phase) ──
+	const handleStageClick = useCallback(
+		(stageId: string) => {
+			if (phase !== 'observe') return;
+
+			const data = STAGE_INSPECTOR_MAP[stageId];
+			if (!data) return;
+
+			setInspectorData(data);
+			setInspectedStages((prev) => {
+				if (prev.has(stageId)) return prev;
+				const next = new Set(prev);
+				next.add(stageId);
+				return next;
+			});
+
+			// Trigger discovery if this stage has one
+			const discoveryId = STAGE_DISCOVERY_MAP[stageId];
+			if (discoveryId) {
+				discoveryGating.discover(discoveryId);
+			}
+		},
+		[phase, discoveryGating],
+	);
+
+	// ── Probe handler (observe phase) ──
+	const handleProbe = useCallback(
+		(probeId: string) => {
+			setLastProbeId(probeId);
+			const discoveryId = PROBE_DISCOVERY_MAP[probeId];
+			if (discoveryId) {
+				discoveryGating.discover(discoveryId);
+			}
+		},
+		[discoveryGating],
+	);
+
+	// ── OptionCard step handler ──
+	const handleOptionClick = useCallback(
+		(option: StepOption) => {
+			if (option.correct) {
+				stepper.completeStep();
+			} else if (option.feedback) {
+				stepper.recordWrongAttempt(option.feedback);
+			}
+		},
+		[stepper],
+	);
+
+	// ── Phase transition handlers ──
+	const handleStartBuild = () => {
+		setPhase('build');
 	};
 
-	const handleStatusClick = (option: StatusOption) => {
-		if (isViewingCompletedStep && stepper.currentStep === 1) return;
-
-		if (option.correct) {
-			setSelectedStatus(option.id);
-			stepper.completeStep();
-		} else {
-			stepper.recordWrongAttempt(option.feedback ?? 'Not the right status code.');
-		}
+	const handleActivateHandler = () => {
+		setPhase('reward');
+		stressTest.reset();
 	};
 
-	const handleShapeClick = (option: ShapeOption) => {
-		if (isViewingCompletedStep && stepper.currentStep === 2) return;
+	// ── Stress test fire handler ──
+	const handleFireScenario = useCallback(
+		(scenarioId: string) => {
+			stressTest.fireRequest(scenarioId);
+		},
+		[stressTest],
+	);
 
-		if (option.correct) {
-			setSelectedShape(option.id);
-			stepper.completeStep();
-		} else {
-			stepper.recordWrongAttempt(option.feedback ?? 'Not the right error shape.');
-		}
-	};
-
-	const handleComplete = async () => {
-		const success = await completeLevel('act3-level20-error-handling', {
-			stars: stepper.starRating,
-		});
-		if (success) {
-			onComplete({ stars: stepper.starRating });
-		}
+	// ── Completion ──
+	const handleComplete = () => {
+		onComplete({ stars: stepper.starRating });
 	};
 
 	const validateSolution = (): ValidationResult => {
@@ -488,74 +849,77 @@ export function Level20ErrorHandling({ onComplete }: LevelComponentProps) {
 		return { valid: true, message: 'Error handling is centralized!' };
 	};
 
-	// Calculate completed steps for code preview
-	const completedSteps = stepper.steps.filter(
-		(s) => s.status === 'completed',
-	).length;
+	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
+	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
+	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep];
 
-	// -----------------------------------------------------------------------
-	// Render
-	// -----------------------------------------------------------------------
-
+	// ── Render ──
 	return (
 		<LevelLayout>
 			<LeftPanel>
 				<InstructionPanel>
-					{/* Context */}
-					<div className="p-4 border-b border-border">
-						<div className="flex items-center gap-2 mb-3">
-							<AlertTriangle className="w-4 h-4 text-warning" />
-							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-								The Problem
-							</div>
-						</div>
+					{/* Scenario (always visible) */}
+					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Your API returns raw 500 errors with stack traces in production.
-							Every controller has its own begin/rescue block with different
-							error formats: some return JSON, some return plain text, some
-							return HTML. Clients cannot parse errors reliably.
+							Your API returns raw 500 errors with stack traces, plain
+							text 404s, and inconsistent JSON shapes. Every controller
+							has its own begin/rescue block with a different error
+							format. Clients cannot parse errors reliably.
+						</p>
+						<p className="text-sm text-muted-foreground leading-relaxed">
+							You need to centralize error handling so every exception
+							returns a consistent, structured JSON response.
 						</p>
 					</div>
 
-					{/* Steps */}
-					<div className="p-4 border-b border-border">
-						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-							Steps
+					{/* Observe phase: discovery checklist */}
+					{phase === 'observe' && (
+						<div className="p-4 border-b border-border">
+							<DiscoveryChecklist
+								discoveries={discoveryGating.discoveries}
+								discoveredCount={discoveryGating.discoveredCount}
+								minRequired={discoveryGating.minRequired}
+							/>
 						</div>
-						<StepProgress
-							currentStep={stepper.currentStep}
-							onStepClick={stepper.goToStep}
-							steps={stepper.steps}
-						/>
-					</div>
+					)}
 
-					{/* Key concepts */}
-					<div className="p-4">
-						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-							Key Concepts
+					{/* Build / activate phases: step progress */}
+					{(phase === 'build' || phase === 'activate') && (
+						<div className="p-4 border-b border-border">
+							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+								Steps
+							</div>
+							<StepProgress
+								currentStep={stepper.currentStep}
+								onStepClick={stepper.goToStep}
+								steps={stepper.steps}
+							/>
 						</div>
-						<ul className="text-xs text-muted-foreground space-y-2">
-							<li className="flex items-start gap-2">
-								<Shield className="w-3 h-3 mt-0.5 text-primary shrink-0" />
-								<span>
-									<code className="text-primary">rescue_from</code> catches
-									exceptions globally in one place
-								</span>
-							</li>
-							<li className="flex items-start gap-2">
-								<AlertTriangle className="w-3 h-3 mt-0.5 text-warning shrink-0" />
-								<span>
-									Map each exception class to the correct HTTP status code
-								</span>
-							</li>
-							<li className="flex items-start gap-2">
-								<Terminal className="w-3 h-3 mt-0.5 text-primary shrink-0" />
-								<span>
-									A consistent error shape lets clients parse every error the same way
-								</span>
-							</li>
-						</ul>
-					</div>
+					)}
+
+					{/* Reward phase: legend + counters */}
+					{phase === 'reward' && (
+						<>
+							<PipelineLegend />
+
+							<div className="p-4">
+								<div className="grid grid-cols-2 gap-3">
+									<div className="bg-success/20 rounded-lg p-3 text-center">
+										<div className="text-2xl font-bold text-success">
+											{stressTest.allowedCount}
+										</div>
+										<div className="text-xs text-success/70">Allowed</div>
+									</div>
+									<div className="bg-destructive/20 rounded-lg p-3 text-center">
+										<div className="text-2xl font-bold text-destructive">
+											{stressTest.blockedCount}
+										</div>
+										<div className="text-xs text-destructive/70">Handled</div>
+									</div>
+								</div>
+							</div>
+						</>
+					)}
 				</InstructionPanel>
 			</LeftPanel>
 
@@ -565,352 +929,180 @@ export function Level20ErrorHandling({ onComplete }: LevelComponentProps) {
 					levelName="Error Handling"
 					levelNumber={20}
 					onComplete={handleComplete}
-					onReset={() => window.location.reload()}
+					onReset={() => {
+						window.location.reload();
+					}}
 					onValidate={validateSolution}
 				/>
 
-				<div className="flex-1 relative bg-background p-6 overflow-auto">
-					<div className="max-w-2xl mx-auto space-y-6">
-						{/* Step 1: Choose Strategy */}
-						{stepper.currentStep === 0 && (
-							<div className="space-y-4">
-								<h3 className="text-lg font-semibold text-foreground">
-									Choose Error Handling Strategy
-								</h3>
-								<p className="text-sm text-muted-foreground">
-									Every controller action wraps its logic in begin/rescue with
-									different error formats. How should you centralize this?
-								</p>
-
-								<div className="space-y-3">
-									{STRATEGY_OPTIONS.map((option) => {
-										const isSelected = selectedStrategy === option.id;
-										const isCorrectAndSelected =
-											isSelected && option.correct;
-										const isDone =
-											stepper.isCurrentStepCompleted &&
-											stepper.currentStep === 0;
-
-										return (
-											<OptionCard
-												color={
-													isCorrectAndSelected ? 'success' : 'primary'
-												}
-												description={option.description}
-												disabled={isDone}
-												icon={
-													isCorrectAndSelected ? Check : Shield
-												}
-												key={option.id}
-												name={option.name}
-												onClick={() => handleStrategyClick(option)}
-												selected={isCorrectAndSelected}
-											/>
-										);
-									})}
-								</div>
-
-								<ErrorFeedback
-									message={stepper.lastFeedback}
-									onDismiss={stepper.clearFeedback}
+				<div className="flex-1 flex flex-col bg-background overflow-hidden">
+					{/* ── Phase 1: Observe (WHY) ── */}
+					{phase === 'observe' && (
+						<div className="flex-1 flex flex-col">
+							<div className="flex-1 relative">
+								<PipelineFlow
+									connections={OBSERVE_CONNECTIONS}
+									onNodeClick={handleStageClick}
+									stages={observeStages}
 								/>
-								{isViewingCompletedStep && hasNextStep && (
-									<div className="flex justify-end">
-										<Button className="gap-2" onClick={stepper.nextStep} size="sm">
-											Next Step
-											<ArrowRight className="w-4 h-4" />
-										</Button>
-									</div>
+								{inspectorData && (
+									<StageInspector
+										data={inspectorData}
+										onClose={() => setInspectorData(null)}
+									/>
 								)}
 							</div>
-						)}
 
-						{/* Step 2: Map Exceptions to Status Codes */}
-						{stepper.currentStep === 1 && (
-							<div className="space-y-4">
-								<h3 className="text-lg font-semibold text-foreground">
-									Map Exceptions to Status Codes
-								</h3>
-								<p className="text-sm text-muted-foreground">
-									A request hits{' '}
-									<code className="text-primary font-mono">
-										GET /api/v1/posts/999
-									</code>
-									. The post does not exist. What status code should{' '}
-									<code className="text-primary font-mono">
-										ActiveRecord::RecordNotFound
-									</code>{' '}
-									map to?
-								</p>
-
-								<div className="space-y-3">
-									{STATUS_OPTIONS.map((option) => {
-										const isSelected = selectedStatus === option.id;
-										const isCorrectAndSelected =
-											isSelected && option.correct;
-										const isDone =
-											stepper.isCurrentStepCompleted &&
-											stepper.currentStep === 1;
-
-										return (
-											<OptionCard
-												color={
-													isCorrectAndSelected ? 'success' : 'primary'
-												}
-												description={option.description}
-												disabled={isDone}
-												icon={
-													isCorrectAndSelected ? Check : AlertTriangle
-												}
-												key={option.id}
-												name={option.name}
-												onClick={() => handleStatusClick(option)}
-												selected={isCorrectAndSelected}
-											/>
-										);
-									})}
-								</div>
-
-								<ErrorFeedback
-									message={stepper.lastFeedback}
-									onDismiss={stepper.clearFeedback}
+							{/* Probe terminal */}
+							<div className="px-6 pb-2">
+								<ProbeTerminal
+									onProbe={handleProbe}
+									probes={PROBES}
+									title="Error Response Probe"
 								/>
-								{isViewingCompletedStep && hasNextStep && (
-									<div className="flex justify-end">
-										<Button className="gap-2" onClick={stepper.nextStep} size="sm">
-											Next Step
-											<ArrowRight className="w-4 h-4" />
-										</Button>
-									</div>
-								)}
 							</div>
-						)}
 
-						{/* Step 3: Define Error Shape */}
-						{stepper.currentStep === 2 && (
-							<div className="space-y-4">
-								<h3 className="text-lg font-semibold text-foreground">
-									Define Error Shape
-								</h3>
-								<p className="text-sm text-muted-foreground">
-									Your rescue_from handlers need to render a consistent JSON
-									structure. Which shape lets clients parse errors
-									programmatically?
-								</p>
-
-								<div className="space-y-3">
-									{SHAPE_OPTIONS.map((option) => {
-										const isSelected = selectedShape === option.id;
-										const isCorrectAndSelected =
-											isSelected && option.correct;
-										const isDone =
-											stepper.isCurrentStepCompleted &&
-											stepper.currentStep === 2;
-
-										return (
-											<OptionCard
-												color={
-													isCorrectAndSelected ? 'success' : 'primary'
-												}
-												description={option.description}
-												disabled={isDone}
-												icon={isCorrectAndSelected ? Check : Terminal}
-												key={option.id}
-												mono
-												name={option.name}
-												onClick={() => handleShapeClick(option)}
-												selected={isCorrectAndSelected}
-											/>
-										);
-									})}
-								</div>
-
-								<ErrorFeedback
-									message={stepper.lastFeedback}
-									onDismiss={stepper.clearFeedback}
-								/>
-								{isViewingCompletedStep && hasNextStep && (
-									<div className="flex justify-end">
-										<Button className="gap-2" onClick={stepper.nextStep} size="sm">
-											Next Step
-											<ArrowRight className="w-4 h-4" />
-										</Button>
-									</div>
-								)}
-							</div>
-						)}
-
-						{/* Step 4: Test Error Response */}
-						{stepper.currentStep === 3 && (
-							<TerminalChoiceStep
-								commands={testCommands}
-								completed={stepper.isCurrentStepCompleted}
-								description={
-									<p className="text-sm text-muted-foreground">
-										Your rescue_from handlers are in place with a structured
-										error shape. Verify the response by requesting a post
-										that does not exist.
-									</p>
-								}
-								hasNext={false}
-								initialHistory={buildTerminalHistory(
-									TERMINAL_STEP_MAP,
-									stepper.currentStep,
-								)}
-								onCorrect={() => stepper.completeStep()}
-								onNext={stepper.nextStep}
-								onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-								outputLines={testOutput}
-								stepKey={stepper.currentStep}
-								title="Test Error Response"
-							/>
-						)}
-
-						{/* ADVANTAGE: Completion section with before/after */}
-						{stepper.isComplete && (
-							<div className="space-y-4">
-								<div className="bg-success/10 border border-success/30 rounded-xl p-4">
-									<div className="flex items-center gap-2 text-success font-semibold mb-2">
-										<Shield className="w-4 h-4" />
-										Error Handling Centralized!
-									</div>
-									<p className="text-sm text-muted-foreground mb-4">
-										All error handling lives in ApplicationController. Individual
-										controllers are clean, and every error response follows the
-										same shape.
-									</p>
-
-									{/* Before / After comparison */}
-									<div className="grid grid-cols-2 gap-3">
-										<div className="bg-card rounded-lg border border-destructive/30 overflow-hidden">
-											<div className="bg-destructive/10 px-3 py-2 border-b border-destructive/20">
-												<span className="text-xs font-semibold text-destructive">
-													Before
-												</span>
-											</div>
-											<pre className="p-3 text-xs text-muted-foreground overflow-x-auto leading-relaxed">
-{`GET /api/v1/posts/999
-
-500 Internal Server Error
-Content-Type: text/html
-
-<h1>ActiveRecord::
-  RecordNotFound</h1>
-<pre>app/controllers/
-  posts_controller.rb:4
-</pre>`}
-											</pre>
-										</div>
-
-										<div className="bg-card rounded-lg border border-success/30 overflow-hidden">
-											<div className="bg-success/10 px-3 py-2 border-b border-success/20">
-												<span className="text-xs font-semibold text-success">
-													After
-												</span>
-											</div>
-											<pre className="p-3 text-xs text-muted-foreground overflow-x-auto leading-relaxed">
-{`GET /api/v1/posts/999
-
-404 Not Found
-Content-Type: application/json
-
-{
-  "error": {
-    "code": "not_found",
-    "message": "Post not found",
-    "details": {}
-  }
-}`}
-											</pre>
-										</div>
-									</div>
-								</div>
-
-								<div className="text-center">
-									<Button onClick={handleComplete}>
-										Complete Level
+							{/* Build the Fix button (discovery gated) */}
+							{discoveryGating.isUnlocked && (
+								<div className="p-4 flex justify-center animate-in fade-in duration-500">
+									<Button
+										className="gap-2"
+										onClick={handleStartBuild}
+										size="lg"
+									>
+										Build the Fix
+										<ArrowRight className="w-4 h-4" />
 									</Button>
 								</div>
+							)}
+						</div>
+					)}
+
+					{/* ── Phase 2: Build (HOW) ── */}
+					{phase === 'build' && currentOptionConfig && (
+						<div className="flex-1 overflow-auto p-6">
+							<div className="max-w-2xl mx-auto space-y-4">
+								<h3 className="text-lg font-semibold text-foreground">
+									{currentOptionConfig.title}
+								</h3>
+								<p className="text-sm text-muted-foreground">
+									{currentOptionConfig.description}
+								</p>
+
+								{isViewingCompletedStep ? (
+									<div className="space-y-2">
+										{currentOptionConfig.options.map((opt) => (
+											<OptionCard
+												color="violet"
+												disabled={!opt.correct}
+												key={opt.id}
+												mono
+												name={opt.label}
+												selected={opt.correct}
+												size="lg"
+											/>
+										))}
+									</div>
+								) : (
+									<>
+										<div className="space-y-2">
+											{currentOptionConfig.options.map((opt) => (
+												<OptionCard
+													color="violet"
+													key={opt.id}
+													mono
+													name={opt.label}
+													onClick={() => handleOptionClick(opt)}
+													size="lg"
+												/>
+											))}
+										</div>
+
+										<ErrorFeedback
+											message={stepper.lastFeedback}
+											onDismiss={stepper.clearFeedback}
+										/>
+									</>
+								)}
+
+								{isViewingCompletedStep && hasNextStep && (
+									<div className="flex justify-end">
+										<Button
+											className="gap-2"
+											onClick={stepper.nextStep}
+											size="sm"
+										>
+											Next Step
+											<ArrowRight className="w-4 h-4" />
+										</Button>
+									</div>
+								)}
 							</div>
-						)}
-					</div>
+						</div>
+					)}
+
+					{/* ── Phase 3: Activate (ADVANTAGE sub-phase a) ── */}
+					{phase === 'activate' && (
+						<div className="flex-1 flex items-center justify-center p-6">
+							<div className="max-w-md text-center space-y-6">
+								<div className="flex justify-center gap-1">
+									{[1, 2, 3].map((s) => (
+										<Star
+											className={`w-8 h-8 ${
+												s <= stepper.starRating
+													? 'text-yellow-400 fill-yellow-400'
+													: 'text-muted-foreground/30'
+											}`}
+											key={s}
+										/>
+									))}
+								</div>
+								<p className="text-sm text-muted-foreground">
+									Your rescue_from handlers are in place. Watch exceptions
+									get caught and converted into consistent JSON responses.
+								</p>
+								<Button
+									className="gap-2"
+									onClick={handleActivateHandler}
+									size="lg"
+								>
+									<Play className="w-4 h-4" />
+									Visualize Error Handling
+								</Button>
+							</div>
+						</div>
+					)}
+
+					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
+					{phase === 'reward' && (
+						<div className="flex-1 flex flex-col">
+							<div className="flex-1 relative">
+								<PipelineFlow
+									connections={REWARD_CONNECTIONS}
+									stages={rewardStages}
+								/>
+							</div>
+
+							{/* Stress test controls below pipeline */}
+							<div className="px-6 pb-2">
+								<StressTestPanel
+									allowedCount={stressTest.allowedCount}
+									blockedCount={stressTest.blockedCount}
+									canAutoFire={stressTest.canAutoFire}
+									isAutoFiring={stressTest.isAutoFiring}
+									onFire={handleFireScenario}
+									onToggleAutoFire={stressTest.toggleAutoFire}
+									results={stressTest.results}
+									scenarios={STRESS_SCENARIOS}
+								/>
+							</div>
+						</div>
+					)}
 				</div>
 			</CenterPanel>
 
 			<RightPanel>
-				<CodePreviewPanel files={getCodeFiles(completedSteps)}>
-					{/* Key concepts */}
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-							rescue_from Lookup Order
-						</div>
-						<ul className="text-xs text-muted-foreground space-y-1.5">
-							<li className="flex items-start gap-2">
-								<Shield className="w-3 h-3 mt-0.5 text-primary shrink-0" />
-								<span>
-									Most specific exceptions first (RecordNotFound, RecordInvalid)
-								</span>
-							</li>
-							<li className="flex items-start gap-2">
-								<AlertTriangle className="w-3 h-3 mt-0.5 text-warning shrink-0" />
-								<span>
-									StandardError as a catch-all at the end
-								</span>
-							</li>
-							<li className="flex items-start gap-2">
-								<Terminal className="w-3 h-3 mt-0.5 text-primary shrink-0" />
-								<span>
-									Child controllers inherit all handlers from ApplicationController
-								</span>
-							</li>
-						</ul>
-					</div>
-
-					{/* HTTP status code reference */}
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-							Common Status Codes
-						</div>
-						<div className="space-y-1.5 text-xs font-mono">
-							<div className="flex justify-between text-muted-foreground">
-								<span>RecordNotFound</span>
-								<span className="text-warning">404</span>
-							</div>
-							<div className="flex justify-between text-muted-foreground">
-								<span>RecordInvalid</span>
-								<span className="text-warning">422</span>
-							</div>
-							<div className="flex justify-between text-muted-foreground">
-								<span>ParameterMissing</span>
-								<span className="text-warning">400</span>
-							</div>
-							<div className="flex justify-between text-muted-foreground">
-								<span>StandardError</span>
-								<span className="text-destructive">500</span>
-							</div>
-						</div>
-					</div>
-
-					{/* Error shape reference */}
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-							Consistent Error Shape
-						</div>
-						<pre className="text-xs text-muted-foreground bg-secondary p-2 rounded overflow-x-auto">
-							{`{
-  "error": {
-    "code": "not_found",
-    "message": "Post not found",
-    "details": {}
-  }
-}
-
-# code:    machine-readable identifier
-# message: human-readable description
-# details: validation errors, context`}
-						</pre>
-					</div>
-				</CodePreviewPanel>
+				<CodePreviewPanel files={getCodeFiles(phase, stepper.furthestStep)} />
 			</RightPanel>
 		</LevelLayout>
 	);

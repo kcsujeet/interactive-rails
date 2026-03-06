@@ -11,10 +11,10 @@ import type { Act, Level } from '@/types';
 import { standardPipeline } from '@/utils/pipelineTemplates';
 
 // ============================================
-// Level 15: Service Objects
+// Level 16: Service Objects
 // ============================================
 
-const level15ServiceObjects: Level = {
+const level16ServiceObjects: Level = {
 	id: 'act3-level16-service-objects',
 	actId: 3,
 	levelNumber: 16,
@@ -23,12 +23,12 @@ const level15ServiceObjects: Level = {
 	trigger: {
 		type: 'refactor_request',
 		description:
-			'The RegistrationsController#create action is 80 lines long. It creates a user, sends a welcome email, and creates a Stripe customer. Too much logic in one controller action.',
+			'The RegistrationsController#create action is 80 lines long. It creates a user, logs a welcome message, and subscribes to the newsletter. Too much logic in one controller action.',
 	},
 	startingPipeline: standardPipeline(),
 	problem: {
 		observation:
-			'The create action handles user creation, email delivery, and Stripe customer creation all inline. It is 80 lines, untestable, and breaks when any step fails.',
+			'The create action handles user creation, welcome logging, and newsletter subscription all inline. It is 80 lines, untestable, and breaks when any step fails.',
 		rootCause:
 			'Business logic is embedded in the controller instead of being extracted into a dedicated service object.',
 		codeExample: `# app/controllers/api/v1/registrations_controller.rb
@@ -37,30 +37,29 @@ class Api::V1::RegistrationsController < ApplicationController
     @user = User.new(user_params)
 
     if @user.save
-      # Send welcome email inline
-      UserMailer.welcome(@user).deliver_now  # Blocks for 2s!
+      # Log welcome message inline
+      Rails.logger.info("User #{@user.id} registered")
 
-      # Create Stripe customer inline
-      customer = Stripe::Customer.create(email: @user.email)
-      @user.update!(stripe_customer_id: customer.id)
+      # Set default preferences inline
+      DefaultPreferences.apply!(@user)
 
-      # Subscribe to newsletter
-      NewsletterService.subscribe(@user.email)
+      # Generate default profile inline
+      Profile.create!(user: @user, display_name: @user.name)
 
       render json: @user, status: :created
     else
       render json: { errors: @user.errors }, status: :unprocessable_entity
     end
-  rescue Stripe::StripeError => e
+  rescue StandardError => e
     @user&.destroy  # Orphaned records!
-    render json: { error: e.message }, status: :payment_required
+    render json: { error: e.message }, status: :internal_server_error
   end
 end
 
 # Problems:
 # 1. Controller does too many things (SRP violation)
-# 2. Email blocks the response
-# 3. Stripe failure leaves orphaned records
+# 2. Side effects block the response
+# 3. Failure in any step leaves orphaned records
 # 4. Impossible to test steps independently`,
 		goal: 'Extract the registration workflow into a PORO service object with a Result pattern.',
 		thresholds: {},
@@ -113,8 +112,8 @@ class UserRegistration < ApplicationService
     end
 
     # Enqueue side effects (don't block the response)
-    UserMailer.welcome(user).deliver_later
-    CreateStripeCustomerJob.perform_later(user.id)
+    Rails.logger.info("User #{user.id} registered")
+    WelcomeNotification.log(user)
 
     Result.new(success?: true, user: user, errors: [])
   end
@@ -142,7 +141,7 @@ end
 # Test the service in isolation:
 # test/services/user_registration_test.rb
 class UserRegistrationTest < ActiveSupport::TestCase
-  test "successful registration creates user and enqueues jobs" do
+  test "successful registration creates user and logs welcome" do
     result = UserRegistration.call(
       email: "new@example.com",
       password: "secure123",
@@ -151,7 +150,6 @@ class UserRegistrationTest < ActiveSupport::TestCase
 
     assert result.success?
     assert_equal "new@example.com", result.user.email
-    assert_enqueued_jobs 2  # mailer + stripe job
   end
 
   test "duplicate email returns failure result" do
@@ -164,7 +162,6 @@ class UserRegistrationTest < ActiveSupport::TestCase
 
     refute result.success?
     assert_includes result.errors, "Email has already been taken"
-    assert_enqueued_jobs 0  # no side effects on failure
   end
 end`,
 		commonMistakes: [
@@ -194,10 +191,10 @@ end`,
 };
 
 // ============================================
-// Level 16: Concerns & Modules
+// Level 17: Concerns & Modules
 // ============================================
 
-const level16Concerns: Level = {
+const level17Concerns: Level = {
 	id: 'act3-level17-concerns',
 	actId: 3,
 	levelNumber: 17,
@@ -206,7 +203,7 @@ const level16Concerns: Level = {
 	trigger: {
 		type: 'code_review',
 		description:
-			'Tagging logic is copy-pasted across Post, Comment, and Photo models. Three copies of the same 40 lines. DRY it up with a Taggable concern.',
+			'Tagging logic is copy-pasted across Post and Comment models. Two copies of the same 40 lines. DRY it up with a Taggable concern.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -226,15 +223,7 @@ const level16Concerns: Level = {
 				locked: true,
 				config: { label: 'Comment' },
 			},
-			{
-				id: 'photo-model',
-				type: 'model',
-				x: 200,
-				y: 450,
-				locked: true,
-				config: { label: 'Photo' },
-			},
-			{ id: 'database-node', type: 'database', x: 500, y: 300, locked: true },
+			{ id: 'database-node', type: 'database', x: 500, y: 225, locked: true },
 		],
 		connections: [
 			{ id: 'c1', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
@@ -243,12 +232,11 @@ const level16Concerns: Level = {
 				sourceNodeId: 'comment-model',
 				targetNodeId: 'database-node',
 			},
-			{ id: 'c3', sourceNodeId: 'photo-model', targetNodeId: 'database-node' },
 		],
 	},
 	problem: {
 		observation:
-			'Three models have identical tagging code: has_many :taggings, has_many :tags, scope :tagged_with, and #tag_list. 120 lines of duplication across Post, Comment, and Photo.',
+			'Two models have identical tagging code: has_many :taggings, has_many :tags, scope :tagged_with, and #tag_list. 80 lines of duplication across Post and Comment.',
 		rootCause:
 			'Shared behavior is duplicated across models instead of being extracted into an ActiveSupport::Concern.',
 		codeExample: `# app/models/post.rb
@@ -276,14 +264,8 @@ class Comment < ApplicationRecord
   has_many :taggings, as: :taggable, dependent: :destroy
   has_many :tags, through: :taggings
   # ... identical 40 lines ...
-end
-
-# app/models/photo.rb -- EXACT SAME CODE AGAIN
-class Photo < ApplicationRecord
-  has_many :taggings, as: :taggable, dependent: :destroy
-  # ... identical 40 lines ...
 end`,
-		goal: 'Extract the shared tagging behavior into a Taggable concern and include it in all three models.',
+		goal: 'Extract the shared tagging behavior into a Taggable concern and include it in both models.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'concerns_configured' }],
@@ -358,14 +340,6 @@ class Comment < ApplicationRecord
   belongs_to :user
 end
 
-# app/models/photo.rb -- clean!
-class Photo < ApplicationRecord
-  include Taggable
-
-  has_one_attached :image
-  belongs_to :user
-end
-
 # Test the concern independently:
 # test/models/concerns/taggable_test.rb
 class TaggableTest < ActiveSupport::TestCase
@@ -415,15 +389,15 @@ end`,
 	},
 	hint: {
 		delay: 25,
-		text: 'Add a Concern node and connect it to all three models. The concern holds the shared tagging logic so each model is just one line: include Taggable.',
+		text: 'Add a Concern node and connect it to both models. The concern holds the shared tagging logic so each model is just one line: include Taggable.',
 	},
 };
 
 // ============================================
-// Level 17: Validation Contracts
+// Level 18: Validation Contracts
 // ============================================
 
-const level17ValidationContracts: Level = {
+const level18ValidationContracts: Level = {
 	id: 'act3-level18-validation-contracts',
 	actId: 3,
 	levelNumber: 18,
@@ -582,7 +556,6 @@ gem "dry-schema"
 UserSchema = Dry::Schema.Params do
   required(:email).filled(:string, format?: URI::MailTo::EMAIL_REGEXP)
   required(:password).filled(:string, min_size?: 8)
-  required(:username).filled(:string, min_size?: 3)
   optional(:role).filled(:string)
 end
 
@@ -630,7 +603,6 @@ class RegistrationService
       user = User.create!(
         email: attrs[:email],
         password: attrs[:password],
-        username: attrs[:username],
         role: attrs[:role]
       )
       Profile.create!(
@@ -667,7 +639,7 @@ class RegistrationController < ApplicationController
 
   def registration_params
     params.expect(registration: [
-      :email, :password, :username, :role,
+      :email, :password, :role,
       :display_name, :bio, :location,
       :email_digest, :push_enabled, :mentions_only
     ])
@@ -681,7 +653,7 @@ class RegistrationContractTest < ActiveSupport::TestCase
   test "valid params pass" do
     result = @contract.call(
       email: "alice@example.com", password: "secure1234",
-      username: "alice", role: "member",
+      role: "member",
       display_name: "Alice", email_digest: "weekly"
     )
 
@@ -691,7 +663,7 @@ class RegistrationContractTest < ActiveSupport::TestCase
   test "creator without weekly digest fails" do
     result = @contract.call(
       email: "bob@example.com", password: "secure1234",
-      username: "bob", role: "creator",
+      role: "creator",
       display_name: "Bob", email_digest: "monthly"
     )
 
@@ -701,7 +673,7 @@ class RegistrationContractTest < ActiveSupport::TestCase
 
   test "missing email fails schema check" do
     result = @contract.call(
-      password: "secure1234", username: "alice",
+      password: "secure1234",
       role: "member", display_name: "Alice",
       email_digest: "weekly"
     )
@@ -737,10 +709,10 @@ end`,
 };
 
 // ============================================
-// Level 18: Query Objects
+// Level 19: Query Objects
 // ============================================
 
-const level18QueryObjects: Level = {
+const level19QueryObjects: Level = {
 	id: 'act3-level19-query-objects',
 	actId: 3,
 	levelNumber: 19,
@@ -799,8 +771,8 @@ class Api::V1::Admin::PostsController < ApplicationController
     @posts = Post.all
 
     # 60 lines of inline query chains!
-    if params[:status].present?
-      @posts = @posts.where(status: params[:status])
+    if params[:published].present?
+      @posts = @posts.where.not(published_at: nil)
     end
 
     if params[:author_id].present?
@@ -858,7 +830,7 @@ end
 - Same filters are needed in multiple controllers, jobs, or rake tasks
 - Query involves JOINs, GROUP BY, HAVING, or subqueries
 
-**Scopes vs. query objects:** For single-purpose filters, use named scopes (\`scope :visible, -> { where(status: :published) }\`). Query objects are the next step when you need composable, multi-filter logic that spans parameters.
+**Scopes vs. query objects:** For single-purpose filters, use named scopes (\`scope :visible, -> { where.not(published_at: nil) }\`). Query objects are the next step when you need composable, multi-filter logic that spans parameters.
 
 **Key principle:** Always return \`ActiveRecord::Relation\`, never \`.to_a\` or \`.map\`. This preserves lazy loading and lets callers add pagination, includes, or further scopes.`,
 		railsCodeExample: `# app/queries/application_query.rb
@@ -882,10 +854,8 @@ end
 
 # app/queries/post_query.rb
 class PostQuery < ApplicationQuery
-  def by_status(status)
-    return self if status.blank?
-
-    @scope = @scope.where(status: status)
+  def published_only
+    @scope = @scope.where.not(published_at: nil)
     self
   end
 
@@ -941,7 +911,7 @@ end
 class Api::V1::Admin::PostsController < ApplicationController
   def index
     posts = PostQuery.new
-      .by_status(params[:status])
+      .published_only
       .by_author(params[:author_id])
       .since(params[:since])
       .with_min_comments(params[:min_comments])
@@ -956,7 +926,7 @@ end
 # Reuse in API controller with different base scope:
 class Api::V1::PostsController < ApplicationController
   def index
-    posts = PostQuery.new(Post.published)
+    posts = PostQuery.new(Post.where.not(published_at: nil))
       .by_author(params[:author_id])
       .by_tag(params[:tag])
       .sorted
@@ -970,7 +940,7 @@ end
 class CsvExportJob < ApplicationJob
   def perform(filters)
     posts = PostQuery.new
-      .by_status(filters[:status])
+      .published_only
       .since(filters[:since])
       .sorted(:created_at, :asc)
       .results
@@ -981,26 +951,26 @@ end
 
 # test/queries/post_query_test.rb
 class PostQueryTest < ActiveSupport::TestCase
-  test "by_status filters published posts" do
-    published = posts(:published)
-    draft = posts(:draft)
+  test "published_only filters to posts with published_at" do
+    published = posts(:with_published_at)
+    unpublished = posts(:without_published_at)
 
-    results = PostQuery.new.by_status("published").results
+    results = PostQuery.new.published_only.results
 
     assert_includes results, published
-    refute_includes results, draft
+    refute_includes results, unpublished
   end
 
   test "blank params are skipped" do
     all_posts = Post.count
-    results = PostQuery.new.by_status(nil).by_author("").results
+    results = PostQuery.new.by_author("").results
 
     assert_equal all_posts, results.count
   end
 
   test "methods are chainable" do
     results = PostQuery.new
-      .by_status("published")
+      .published_only
       .by_author(users(:alice).id)
       .sorted
       .results
@@ -1016,8 +986,8 @@ class PostQueryTest < ActiveSupport::TestCase
   end
 
   test "custom base scope narrows results" do
-    results = PostQuery.new(Post.published).results
-    assert results.all? { |p| p.status == "published" }
+    results = PostQuery.new(Post.where.not(published_at: nil)).results
+    assert results.all? { |p| p.published_at.present? }
   end
 end`,
 		commonMistakes: [
@@ -1048,10 +1018,10 @@ end`,
 };
 
 // ============================================
-// Level 19: Error Handling
+// Level 20: Error Handling
 // ============================================
 
-const level19ErrorHandling: Level = {
+const level20ErrorHandling: Level = {
 	id: 'act3-level20-error-handling',
 	actId: 3,
 	levelNumber: 20,
@@ -1313,10 +1283,10 @@ end`,
 };
 
 // ============================================
-// Level 20: Action Mailer
+// Level 21: Action Mailer
 // ============================================
 
-const level20ActionMailer: Level = {
+const level21ActionMailer: Level = {
 	id: 'act3-level21-action-mailer',
 	actId: 3,
 	levelNumber: 21,
@@ -1559,10 +1529,10 @@ end`,
 };
 
 // ============================================
-// Level 21: Background Jobs
+// Level 22: Background Jobs
 // ============================================
 
-const level21BackgroundJobs: Level = {
+const level22BackgroundJobs: Level = {
 	id: 'act3-level22-background-jobs',
 	actId: 3,
 	levelNumber: 22,
@@ -1571,7 +1541,7 @@ const level21BackgroundJobs: Level = {
 	trigger: {
 		type: 'performance_alert',
 		description:
-			'Email sending blocks the HTTP response for 3 seconds. Users stare at a loading spinner while the mailer talks to the SMTP server. The Stripe API call adds another 2 seconds. Move it all to background jobs.',
+			'Email sending blocks the HTTP response for 3 seconds. Users stare at a loading spinner while the mailer talks to the SMTP server. The newsletter API call adds another 2 seconds. Move it all to background jobs.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -1636,9 +1606,9 @@ const level21BackgroundJobs: Level = {
 	},
 	problem: {
 		observation:
-			'Registration takes 5+ seconds because the mailer calls the SMTP server synchronously (3s) and the Stripe API call adds another 2s. Users think the app is broken.',
+			'Registration takes 5+ seconds because the mailer calls the SMTP server synchronously (3s) and the newsletter API call adds another 2s. Users think the app is broken.',
 		rootCause:
-			'Side effects (email, Stripe, newsletter) are executed inline during the request cycle instead of being offloaded to background jobs.',
+			'Side effects (email, newsletter, profile setup) are executed inline during the request cycle instead of being offloaded to background jobs.',
 		codeExample: `# app/services/user_registration.rb -- currently synchronous
 class UserRegistration < ApplicationService
   def call
@@ -1646,17 +1616,17 @@ class UserRegistration < ApplicationService
 
     # These block the HTTP response!
     UserMailer.welcome(user).deliver_now       # 2-3 seconds
-    Stripe::Customer.create(email: user.email) # 1-2 seconds
-    NewsletterService.subscribe(user.email)    # 0.5 seconds
+    ExternalProfileSync.call(user)              # 1-2 seconds
+    DefaultPreferences.apply!(user)              # 0.5 seconds
 
     Result.new(success?: true, user: user, errors: [])
   end
 end
 
 # Total response time: 4-6 seconds (should be < 200ms)
-# If Stripe is down, the entire registration fails
 # If the email server is slow, every user waits
-# If the newsletter API times out, registration times out`,
+# If the newsletter API times out, registration times out
+# If profile setup fails, the entire registration fails`,
 		goal: 'Move side effects to background jobs using ActiveJob and Solid Queue (Rails 8 default, database-backed, no Redis).',
 		thresholds: {},
 	},
@@ -1684,7 +1654,7 @@ end
 
 **What to background:**
 - Email delivery (\`deliver_later\` instead of \`deliver_now\`)
-- External API calls (Stripe, webhooks, third-party services)
+- External API calls (webhooks, third-party services)
 - File processing (image resizing, PDF generation, CSV exports)
 - Data exports, reports, and batch operations
 - Anything that takes more than ~100ms
@@ -1714,36 +1684,37 @@ production:
       threads: 2
       polling_interval: 5
 
-# app/jobs/create_stripe_customer_job.rb
-class CreateStripeCustomerJob < ApplicationJob
+# app/jobs/sync_external_profile_job.rb
+class SyncExternalProfileJob < ApplicationJob
   queue_as :default
 
   # Solid Queue: retry with exponential backoff
-  retry_on Stripe::StripeError, wait: :polynomially_longer, attempts: 5
-  discard_on Stripe::InvalidRequestError  # Don't retry bad requests
+  retry_on Net::OpenTimeout, wait: :polynomially_longer, attempts: 5
+  discard_on ActiveRecord::RecordNotFound  # Don't retry if user was deleted
 
   def perform(user_id)
     user = User.find(user_id)
-    return if user.stripe_customer_id.present?  # Idempotent!
+    return if user.external_profile_synced?  # Idempotent!
 
-    customer = Stripe::Customer.create(
+    ExternalProfileService.sync(
       email: user.email,
       name: user.name,
       metadata: { user_id: user.id }
     )
 
-    user.update!(stripe_customer_id: customer.id)
+    user.update!(external_profile_synced: true)
   end
 end
 
-# app/jobs/subscribe_newsletter_job.rb
-class SubscribeNewsletterJob < ApplicationJob
+# app/jobs/apply_default_prefs_job.rb
+class ApplyDefaultPrefsJob < ApplicationJob
   queue_as :low_priority
 
   retry_on Net::OpenTimeout, wait: 30.seconds, attempts: 3
 
-  def perform(email)
-    NewsletterService.subscribe(email)
+  def perform(user_id)
+    user = User.find(user_id)
+    DefaultPreferences.apply!(user)
   end
 end
 
@@ -1760,8 +1731,8 @@ class UserRegistration < ApplicationService
 
     # All side effects are now background jobs
     UserMailer.welcome(user).deliver_later                # Queued!
-    CreateStripeCustomerJob.perform_later(user.id)        # Queued!
-    SubscribeNewsletterJob.perform_later(user.email)      # Queued!
+    SyncExternalProfileJob.perform_later(user.id)         # Queued!
+    ApplyDefaultPrefsJob.perform_later(user.id)            # Queued!
 
     # Response returns instantly (< 200ms)
     Result.new(success?: true, user: user, errors: [])
@@ -1770,28 +1741,28 @@ class UserRegistration < ApplicationService
   end
 end
 
-# test/jobs/create_stripe_customer_job_test.rb
-class CreateStripeCustomerJobTest < ActiveJob::TestCase
+# test/jobs/sync_external_profile_job_test.rb
+class SyncExternalProfileJobTest < ActiveJob::TestCase
   test "enqueues job on registration" do
-    assert_enqueued_with(job: CreateStripeCustomerJob) do
-      CreateStripeCustomerJob.perform_later(users(:alice).id)
+    assert_enqueued_with(job: SyncExternalProfileJob) do
+      SyncExternalProfileJob.perform_later(users(:alice).id)
     end
   end
 
-  test "is idempotent -- skips if customer already exists" do
+  test "is idempotent -- skips if already synced" do
     user = users(:alice)
-    user.update!(stripe_customer_id: "cus_existing")
+    user.update!(external_profile_synced: true)
 
-    # Should not call Stripe API
-    assert_no_changes -> { user.reload.stripe_customer_id } do
-      CreateStripeCustomerJob.perform_now(user.id)
+    # Should not call external service
+    assert_no_changes -> { user.reload.external_profile_synced } do
+      SyncExternalProfileJob.perform_now(user.id)
     end
   end
 
-  test "retries on transient Stripe errors" do
+  test "retries on transient network errors" do
     perform_enqueued_jobs do
-      assert_performed_with(job: CreateStripeCustomerJob) do
-        CreateStripeCustomerJob.perform_later(users(:alice).id)
+      assert_performed_with(job: SyncExternalProfileJob) do
+        SyncExternalProfileJob.perform_later(users(:alice).id)
       end
     end
   end
@@ -1805,7 +1776,7 @@ class UserRegistrationTest < ActiveSupport::TestCase
     )
 
     assert result.success?
-    assert_enqueued_jobs 3  # welcome email + stripe + newsletter
+    assert_enqueued_jobs 3  # welcome email + profile sync + newsletter
   end
 end
 
@@ -1854,13 +1825,13 @@ export const actThree: Act = {
 	description:
 		'Your API works and it is secure, but the controllers are doing too much and the code is hard to change. Extract service objects, concerns, validation contracts, query objects, mailers, error handling, and background jobs to keep things maintainable.',
 	levels: [
-		level15ServiceObjects,
-		level16Concerns,
-		level17ValidationContracts,
-		level18QueryObjects,
-		level19ErrorHandling,
-		level20ActionMailer,
-		level21BackgroundJobs,
+		level16ServiceObjects,
+		level17Concerns,
+		level18ValidationContracts,
+		level19QueryObjects,
+		level20ErrorHandling,
+		level21ActionMailer,
+		level22BackgroundJobs,
 	],
 	unlockedNodes: ['service', 'concern', 'form_object', 'query_object', 'mailer', 'job'],
 	metricsVisible: true,

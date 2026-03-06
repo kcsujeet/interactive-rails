@@ -1,312 +1,915 @@
 /**
- * Level 20: Action Mailer
+ * Level 21: Action Mailer
  *
- * Build a secure password reset email flow with Action Mailer.
+ * Sequential phase flow: observe -> build -> activate -> reward
+ * Each phase occupies the full center panel. One thing at a time.
+ *
+ * Phase 1 (WHY - observe): Interactive exploration. Click pipeline stages to
+ *   discover that there is no mailer, no token generation, and no password
+ *   reset endpoint. Fire API probes to confirm the dead end.
+ *   Discovery gating controls when "Build the Fix" appears.
+ * Phase 2 (HOW - build): 4 steps (mix of OptionCard + TerminalChoiceStep)
+ *   Step 0: Add generates_token_for to User model (OptionCard)
+ *   Step 1: Generate the mailer (TerminalChoiceStep)
+ *   Step 2: Build the password reset email (OptionCard)
+ *   Step 3: Create the password reset controller (OptionCard)
+ * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Password Reset" button
+ * Phase 4 (ADVANTAGE - reward): Stress test. Fire password reset scenarios at
+ *   the new flow and watch allowed/blocked results.
+ *
  * Teaches: Action Mailer, generates_token_for, deliver_later, stateless tokens
  */
 
+import { ArrowRight, Check, Play, Star, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-	AlertTriangle,
-	Check,
-	Clock,
-	Key,
-	Mail,
-	Send,
-	Server,
-	ShieldCheck,
-	Timer,
-} from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
-import {
+	buildTerminalHistory,
 	CenterPanel,
 	CodePreviewPanel,
+	ErrorFeedback,
 	InstructionPanel,
 	LeftPanel,
 	LevelHeader,
 	LevelLayout,
 	OptionCard,
-	resolveColor,
 	RightPanel,
-	useLevelCompletion,
+	StepProgress,
+	TerminalChoiceStep,
+	type TerminalStepData,
 	type ValidationResult,
 } from '@/components/levels';
+import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
+import {
+	type PipelineConnection,
+	PipelineFlow,
+	type PipelineStage,
+} from '@/components/levels/PipelineFlow';
+import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
+import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
+import {
+	StageInspector,
+	type StageInspectorData,
+} from '@/components/levels/StageInspector';
+import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
+import {
+	type DiscoveryDef,
+	useDiscoveryGating,
+} from '@/hooks/useDiscoveryGating';
+import { type StepDef, useStepGating } from '@/hooks/useStepGating';
+import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 
-interface EmailComponent {
+// ──────────────────────────────────────────────
+// Phase type
+// ──────────────────────────────────────────────
+
+type Phase = 'observe' | 'build' | 'activate' | 'reward';
+
+// ──────────────────────────────────────────────
+// Discovery definitions (observe phase)
+// ──────────────────────────────────────────────
+
+const DISCOVERY_DEFS: DiscoveryDef[] = [
+	{ id: 'no-reset-endpoint', label: 'No password reset endpoint' },
+	{ id: 'no-token-generation', label: 'No token generation' },
+	{ id: 'no-mailer', label: 'No mailer configured' },
+	{ id: 'manual-resets', label: 'Manual resets only' },
+];
+
+// ──────────────────────────────────────────────
+// Probe configurations (observe phase)
+// ──────────────────────────────────────────────
+
+const PROBES: ProbeConfig[] = [
+	{
+		id: 'post-password-reset',
+		label: 'POST /api/v1/password_resets',
+		command: 'POST /api/v1/password_resets {email: "user@example.com"}',
+		responseLines: [
+			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
+			{
+				text: '{"error":"No route matches POST /api/v1/password_resets"}',
+				color: 'muted',
+			},
+			{
+				text: 'No route exists. Users who forget their password have no way to recover.',
+				color: 'yellow',
+			},
+			{
+				text: 'Password reset is a dead end. No endpoint, no flow.',
+				color: 'red',
+			},
+		],
+	},
+	{
+		id: 'check-support',
+		label: 'Check support tickets',
+		command: 'GET /admin/support_tickets?tag=password_reset',
+		responseLines: [
+			{ text: 'HTTP/1.1 200 OK', color: 'muted' },
+			{
+				text: '{"total":47,"this_week":12,"avg_resolution":"3.2 hours"}',
+				color: 'muted',
+			},
+			{
+				text: '47 manual password reset requests. 12 this week alone.',
+				color: 'yellow',
+			},
+			{
+				text: 'Support is manually running User.find_by(email: ...).update!(password: ...) in console.',
+				color: 'red',
+			},
+		],
+	},
+	{
+		id: 'inspect-user',
+		label: 'Inspect User model',
+		command: 'User.instance_methods.grep(/token|reset|mailer/)',
+		responseLines: [
+			{ text: '=> []', color: 'muted' },
+			{
+				text: 'No token generation methods. No reset flow. No mailer integration.',
+				color: 'yellow',
+			},
+			{
+				text: 'The User model has has_secure_password but nothing else for password recovery.',
+				color: 'red',
+			},
+		],
+	},
+];
+
+// Map probe IDs to discovery IDs they trigger
+const PROBE_DISCOVERY_MAP: Record<string, string> = {
+	'post-password-reset': 'no-reset-endpoint',
+	'check-support': 'manual-resets',
+	'inspect-user': 'no-token-generation',
+};
+
+// Map probe IDs to pipeline node display during observe
+const PROBE_PIPELINE_MAP: Record<
+	string,
+	{ controllerSublabel: string; modelBadge: string }
+> = {
+	'post-password-reset': {
+		controllerSublabel: '404 NOT FOUND',
+		modelBadge: 'DEAD END',
+	},
+	'check-support': {
+		controllerSublabel: 'NO ROUTE',
+		modelBadge: 'MANUAL ONLY',
+	},
+	'inspect-user': {
+		controllerSublabel: 'NO ACTION',
+		modelBadge: 'NO TOKEN',
+	},
+};
+
+// ──────────────────────────────────────────────
+// Stage inspector data (observe phase)
+// ──────────────────────────────────────────────
+
+const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
+	request: {
+		stageId: 'request',
+		title: 'Incoming Request',
+		description:
+			'A user who forgot their password tries to POST to /api/v1/password_resets. The request never reaches a controller because no route is defined for password resets.',
+	},
+	router: {
+		stageId: 'router',
+		title: 'Router',
+		description:
+			'The router has no entry for password_resets. The request hits a 404 dead end. There is no self-service recovery path.',
+		code: `Rails.application.routes.draw do
+  namespace :api do
+    namespace :v1 do
+      resources :posts
+      resources :comments
+      # No password_resets route!
+    end
+  end
+end`,
+	},
+	controller: {
+		stageId: 'controller',
+		title: 'Controller (Missing!)',
+		description:
+			'There is no PasswordResetsController. No action exists to accept a reset request, generate a token, or send an email. Users are completely stuck.',
+	},
+	model: {
+		stageId: 'model',
+		title: 'User Model',
+		description:
+			'The User model has has_secure_password for authentication, but no token generation for password recovery. There is no generates_token_for, no reset method, and no mailer integration.',
+		code: `class User < ApplicationRecord
+  has_secure_password
+  has_many :posts
+  has_many :comments
+
+  # No generates_token_for!
+  # No password reset support at all.
+end`,
+	},
+	database: {
+		stageId: 'database',
+		title: 'Database',
+		description:
+			'The users table stores password_digest but has no token columns. With generates_token_for, you do not need to store tokens in the database at all.',
+	},
+};
+
+// Map stage IDs to discovery IDs they trigger
+const STAGE_DISCOVERY_MAP: Record<string, string> = {
+	controller: 'no-reset-endpoint',
+	model: 'no-token-generation',
+	router: 'no-mailer',
+};
+
+// ──────────────────────────────────────────────
+// Stress test scenarios (reward phase)
+// ──────────────────────────────────────────────
+
+const STRESS_SCENARIOS: StressScenario[] = [
+	{
+		id: 'valid-email',
+		label: 'Valid email reset',
+		description: 'POST with a registered email address',
+		method: 'POST',
+		path: '/api/v1/password_resets',
+		actor: 'user@example.com',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'nonexistent-email',
+		label: 'Non-existent email',
+		description: 'POST with unknown email (same response, no leak)',
+		method: 'POST',
+		path: '/api/v1/password_resets',
+		actor: 'nobody@example.com',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'valid-token-reset',
+		label: 'Valid token reset',
+		description: 'PATCH with a fresh, valid token',
+		method: 'PATCH',
+		path: '/api/v1/password_resets/:token',
+		actor: 'user@example.com',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'expired-token',
+		label: 'Expired token',
+		description: 'PATCH with a token older than 15 minutes',
+		method: 'PATCH',
+		path: '/api/v1/password_resets/:token',
+		actor: 'attacker',
+		expectedResult: 'blocked',
+	},
+	{
+		id: 'used-token',
+		label: 'Already-used token',
+		description: 'PATCH with a token after password was changed',
+		method: 'PATCH',
+		path: '/api/v1/password_resets/:token',
+		actor: 'attacker',
+		expectedResult: 'blocked',
+	},
+];
+
+// ──────────────────────────────────────────────
+// Step definitions (4 steps: OptionCard, Terminal, OptionCard, OptionCard)
+// ──────────────────────────────────────────────
+
+const STEP_DEFS: StepDef[] = [
+	{ id: 'add-token', title: 'Add generates_token_for' },
+	{ id: 'generate-mailer', title: 'Generate the Mailer' },
+	{ id: 'build-email', title: 'Build the Reset Email' },
+	{ id: 'create-controller', title: 'Create the Controller' },
+];
+
+// ──────────────────────────────────────────────
+// OptionCard step data
+// ──────────────────────────────────────────────
+
+interface StepOption {
 	id: string;
 	label: string;
-	description: string;
-	icon: typeof Mail;
-	color: string;
+	correct: boolean;
+	feedback?: string;
 }
 
-const EMAIL_COMPONENTS: EmailComponent[] = [
+// Step 0: Add generates_token_for to User model
+const TOKEN_OPTIONS: StepOption[] = [
 	{
-		id: 'from',
-		label: 'From Address',
-		description: 'noreply@app.com',
-		icon: Mail,
-		color: '#3b82f6',
+		id: 'random-token-column',
+		label: `add_column :users, :reset_token, :string\nuser.update!(reset_token: SecureRandom.hex)`,
+		correct: false,
+		feedback:
+			'Storing tokens in a column means you have to manage expiry, cleanup, and secure comparison yourself. Rails 8 has a built-in approach that handles all of this.',
 	},
 	{
-		id: 'subject',
-		label: 'Subject Line',
-		description: 'Reset your password',
-		icon: Mail,
-		color: '#8b5cf6',
+		id: 'generates-no-expiry',
+		label: `generates_token_for :password_reset`,
+		correct: false,
+		feedback:
+			'Without an expiry duration, tokens live forever. A leaked token could be used days or weeks later. You need a time limit.',
 	},
 	{
-		id: 'tokenGeneration',
-		label: 'Token Generation',
-		description: 'generates_token_for :password_reset',
-		icon: Key,
-		color: '#f59e0b',
-	},
-	{
-		id: 'resetLink',
-		label: 'Reset Link',
-		description: 'Include reset URL with token',
-		icon: Send,
-		color: '#22c55e',
-	},
-	{
-		id: 'expiryNotice',
-		label: 'Expiry Notice',
-		description: '15-minute expiry warning',
-		icon: Clock,
-		color: '#ef4444',
-	},
-	{
-		id: 'deliverLater',
-		label: 'Background Delivery',
-		description: 'deliver_later (not deliver_now)',
-		icon: Timer,
-		color: '#06b6d4',
+		id: 'generates-with-expiry',
+		label: `generates_token_for :password_reset, expires_in: 15.minutes do\n  password_salt&.last(10)\nend`,
+		correct: true,
 	},
 ];
 
-const DELIVERY_STEPS = [
-	{ label: 'Mailer', icon: Mail, color: '#3b82f6' },
-	{ label: 'Job Queue', icon: Timer, color: '#f59e0b' },
-	{ label: 'SMTP', icon: Server, color: '#8b5cf6' },
-	{ label: 'Delivered', icon: Check, color: '#22c55e' },
+// Step 2: Build the password reset email
+const EMAIL_OPTIONS: StepOption[] = [
+	{
+		id: 'no-token-in-url',
+		label: `def password_reset(user)\n  @user = user\n  mail(to: user.email, subject: "Reset your password")\nend`,
+		correct: false,
+		feedback:
+			'The email body needs a reset URL with the token embedded. Without generating and including the token, the user has no way to prove their identity.',
+	},
+	{
+		id: 'deliver-now-inline',
+		label: `def password_reset(user)\n  @user = user\n  @token = user.generate_token_for(:password_reset)\n  mail(to: user.email, subject: "Reset your password").deliver_now\nend`,
+		correct: false,
+		feedback:
+			'Calling deliver_now inside the mailer method blocks the entire request. Delivery should be triggered by the controller, not hardcoded in the mailer.',
+	},
+	{
+		id: 'correct-mailer',
+		label: `def password_reset(user)\n  @user = user\n  @token = user.generate_token_for(:password_reset)\n  mail(to: user.email, subject: "Reset your password")\nend`,
+		correct: true,
+	},
 ];
 
-type SelectedMailer = 'password_reset' | 'welcome';
+// Step 3: Create the password reset controller
+const CONTROLLER_OPTIONS: StepOption[] = [
+	{
+		id: 'find-by-email-leak',
+		label: `def create\n  user = User.find_by!(email: params[:email])\n  UserMailer.password_reset(user).deliver_later\n  render json: { message: "Email sent" }\nend`,
+		correct: false,
+		feedback:
+			'find_by! raises an error if the email is not found. That reveals whether an email is registered, which is an information leak.',
+	},
+	{
+		id: 'find-by-token-deliver-now',
+		label: `def create\n  user = User.find_by(email: params[:email])\n  UserMailer.password_reset(user).deliver_now if user\n  render json: { message: "Check your email" }\nend`,
+		correct: false,
+		feedback:
+			'deliver_now blocks the HTTP request while waiting for SMTP. Under load, this causes timeouts. Background delivery is the Rails convention.',
+	},
+	{
+		id: 'correct-controller',
+		label: `def create\n  user = User.find_by(email: params[:email])\n  UserMailer.password_reset(user).deliver_later if user\n  render json: { message: "Check your email" }\nend`,
+		correct: true,
+	},
+];
 
-export function Level21ActionMailer({
-	onComplete,
-}: LevelComponentProps) {
-	const { completeLevel } = useLevelCompletion();
-	const [emailComponents, setEmailComponents] = useState<
-		Record<string, boolean>
-	>({
-		from: false,
-		subject: false,
-		tokenGeneration: false,
-		resetLink: false,
-		expiryNotice: false,
-		deliverLater: false,
+// Map from step index -> OptionCard config (null for terminal steps)
+const OPTION_STEP_CONFIG: Record<
+	number,
+	{
+		title: string;
+		description: string;
+		options: StepOption[];
+	}
+> = {
+	0: {
+		title: 'Add generates_token_for',
+		description:
+			'The User model needs a way to generate secure, expiring password reset tokens. Rails 8 provides a built-in method that creates signed tokens without storing anything in the database. How should you configure it?',
+		options: TOKEN_OPTIONS,
+	},
+	2: {
+		title: 'Build the Reset Email',
+		description:
+			'The mailer method receives a user and needs to generate a token, build a reset URL, and compose the email. How should the password_reset method look?',
+		options: EMAIL_OPTIONS,
+	},
+	3: {
+		title: 'Create the Controller',
+		description:
+			'The PasswordResetsController#create action receives an email address, looks up the user, and sends the reset email. It must not leak whether the email exists and must not block the request during delivery.',
+		options: CONTROLLER_OPTIONS,
+	},
+};
+
+// ──────────────────────────────────────────────
+// Terminal step data (Step 1: generate the mailer)
+// ──────────────────────────────────────────────
+
+const MAILER_TERMINAL_COMMANDS = [
+	{
+		id: 'generate-model',
+		label: 'rails generate model UserMailer',
+		command: 'rails generate model UserMailer',
+		correct: false,
+		feedback:
+			'Mailers are not models. Rails has a dedicated generator for mailer classes with their own directory and templates.',
+	},
+	{
+		id: 'generate-controller',
+		label: 'rails generate controller UserMailer password_reset',
+		command: 'rails generate controller UserMailer password_reset',
+		correct: false,
+		feedback:
+			'Mailers have their own generator. Using the controller generator creates HTTP controllers, not mailer classes.',
+	},
+	{
+		id: 'generate-mailer',
+		label: 'rails generate mailer User password_reset',
+		command: 'rails generate mailer User password_reset',
+		correct: true,
+	},
+];
+
+const MAILER_TERMINAL_OUTPUT = [
+	{ text: 'create  app/mailers/user_mailer.rb', color: 'green' as const },
+	{
+		text: 'create  app/views/user_mailer/password_reset.html.erb',
+		color: 'green' as const,
+	},
+	{
+		text: 'create  app/views/user_mailer/password_reset.text.erb',
+		color: 'green' as const,
+	},
+	{
+		text: 'create  test/mailers/user_mailer_test.rb',
+		color: 'green' as const,
+	},
+	{
+		text: 'create  test/mailers/previews/user_mailer_preview.rb',
+		color: 'green' as const,
+	},
+];
+
+// Build the terminal step map for history (null = OptionCard step)
+const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
+	null, // Step 0: OptionCard
+	{
+		commands: MAILER_TERMINAL_COMMANDS,
+		outputLines: MAILER_TERMINAL_OUTPUT,
+	}, // Step 1: Terminal
+	null, // Step 2: OptionCard
+	null, // Step 3: OptionCard
+];
+
+// ──────────────────────────────────────────────
+// Pipeline visualization configs
+// ──────────────────────────────────────────────
+
+const OBSERVE_CONNECTIONS: PipelineConnection[] = [
+	{ from: 'request', to: 'router', dots: 'mixed' },
+	{ from: 'router', to: 'controller', dots: 'mixed' },
+	{ from: 'controller', to: 'model', dots: 'mixed' },
+	{ from: 'model', to: 'database', dots: 'mixed' },
+];
+
+const REWARD_CONNECTIONS: PipelineConnection[] = [
+	{ from: 'request', to: 'router', dots: 'clean' },
+	{ from: 'router', to: 'controller', dots: 'clean' },
+	{ from: 'controller', to: 'model', dots: 'clean' },
+	{ from: 'model', to: 'mailer', dots: 'clean' },
+	{ from: 'mailer', to: 'response', dots: 'clean' },
+];
+
+// ──────────────────────────────────────────────
+// Code preview helper
+// ──────────────────────────────────────────────
+
+function getCodeFiles(phase: Phase, furthestStep: number) {
+	const files = [];
+
+	// Observe phase: show User model with no token generation
+	if (phase === 'observe') {
+		files.push({
+			filename: 'app/models/user.rb',
+			language: 'ruby',
+			code: `class User < ApplicationRecord
+  has_secure_password
+  has_many :posts
+  has_many :comments
+
+  # No generates_token_for!
+  # No password reset support.
+  # Users who forget their password are locked out.
+end`,
+			highlight: [6, 7, 8],
+		});
+		files.push({
+			filename: 'config/routes.rb',
+			language: 'ruby',
+			code: `Rails.application.routes.draw do
+  namespace :api do
+    namespace :v1 do
+      resources :posts
+      resources :comments
+      # No password_resets route!
+    end
+  end
+end`,
+			highlight: [6],
+		});
+		return files;
+	}
+
+	// Build / activate / reward phases: show evolving code
+	if (furthestStep === 0) {
+		// Step 0: player is choosing the token config
+		files.push({
+			filename: 'app/models/user.rb',
+			language: 'ruby',
+			code: `class User < ApplicationRecord
+  has_secure_password
+  has_many :posts
+  has_many :comments
+
+  # Add token generation here...
+end`,
+			highlight: [6],
+		});
+	}
+
+	if (furthestStep >= 1) {
+		files.push({
+			filename: 'app/models/user.rb',
+			language: 'ruby',
+			code: `class User < ApplicationRecord
+  has_secure_password
+  has_many :posts
+  has_many :comments
+
+  generates_token_for :password_reset,
+                      expires_in: 15.minutes do
+    password_salt&.last(10)
+  end
+end`,
+			highlight: [6, 7, 8, 9],
+		});
+	}
+
+	if (furthestStep >= 2) {
+		files.push({
+			filename: 'app/mailers/user_mailer.rb',
+			language: 'ruby',
+			code:
+				furthestStep >= 3
+					? `class UserMailer < ApplicationMailer
+  def password_reset(user)
+    @user = user
+    @token = user.generate_token_for(:password_reset)
+
+    mail(to: user.email, subject: "Reset your password")
+  end
+end`
+					: `class UserMailer < ApplicationMailer
+  def password_reset(user)
+    @user = user
+    # Build the email method...
+  end
+end`,
+			highlight: furthestStep >= 3 ? [3, 4, 6] : [4],
+		});
+	}
+
+	if (furthestStep >= 4) {
+		files.push({
+			filename: 'app/controllers/api/v1/password_resets_controller.rb',
+			language: 'ruby',
+			code: `class Api::V1::PasswordResetsController < ApplicationController
+  def create
+    user = User.find_by(email: params[:email])
+    UserMailer.password_reset(user).deliver_later if user
+    render json: { message: "Check your email" }
+  end
+
+  def update
+    user = User.find_by_token_for(:password_reset, params[:token])
+    if user
+      user.update!(password: params[:password])
+      render json: { message: "Password updated" }
+    else
+      render json: { error: "Invalid or expired token" },
+             status: :unprocessable_entity
+    end
+  end
+end`,
+			highlight: [3, 4, 5, 9, 10, 11],
+		});
+	}
+
+	return files;
+}
+
+// ──────────────────────────────────────────────
+// Pipeline Legend (reward phase left panel)
+// ──────────────────────────────────────────────
+
+function PipelineLegend() {
+	return (
+		<div className="p-4 border-b border-border">
+			<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+				Pipeline Legend
+			</div>
+			<div className="space-y-2 text-sm">
+				<div className="flex items-center gap-2">
+					<Check className="w-4 h-4 text-success" />
+					<span className="text-foreground">
+						Valid request (token accepted, email sent)
+					</span>
+				</div>
+				<div className="flex items-center gap-2">
+					<X className="w-4 h-4 text-destructive" />
+					<span className="text-foreground">
+						Rejected (expired or used token)
+					</span>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+// ──────────────────────────────────────────────
+// Component
+// ──────────────────────────────────────────────
+
+export function Level21ActionMailer({ onComplete }: LevelComponentProps) {
+	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
+	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
+		minRequired: 3,
 	});
-	const [emailSent, setEmailSent] = useState(false);
-	const [deliveryStep, setDeliveryStep] = useState(0);
-	const [selectedMailer, setSelectedMailer] =
-		useState<SelectedMailer>('password_reset');
-	const deliveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const stressTest = useStressTest(STRESS_SCENARIOS);
+	const [phase, setPhase] = useState<Phase>('observe');
+	const [inspectorData, setInspectorData] =
+		useState<StageInspectorData | null>(null);
+	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
+		new Set(),
+	);
+	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
 
-	const enabledCount = Object.values(emailComponents).filter(Boolean).length;
-	const canSend = enabledCount >= 4;
+	// ── Build observe stages dynamically (tracks inspected + last probe) ──
+	const probeDisplay = lastProbeId
+		? PROBE_PIPELINE_MAP[lastProbeId]
+		: null;
+	const observeStages: PipelineStage[] = useMemo(
+		() => [
+			{
+				id: 'request',
+				label: 'Request',
+				inspectable: true,
+				inspected: inspectedStages.has('request'),
+			},
+			{
+				id: 'router',
+				label: 'Router',
+				inspectable: true,
+				inspected: inspectedStages.has('router'),
+			},
+			{
+				id: 'controller',
+				label: 'Controller',
+				sublabel: probeDisplay ? probeDisplay.controllerSublabel : '(missing!)',
+				variant: (probeDisplay ? 'danger' : 'inactive') as
+					| 'danger'
+					| 'inactive',
+				inspectable: true,
+				inspected: inspectedStages.has('controller'),
+			},
+			{
+				id: 'model',
+				label: 'User Model',
+				badge: probeDisplay ? probeDisplay.modelBadge : 'NO RESET',
+				variant: (probeDisplay ? 'danger' : 'default') as
+					| 'danger'
+					| 'default',
+				inspectable: true,
+				inspected: inspectedStages.has('model'),
+			},
+			{
+				id: 'database',
+				label: 'Database',
+				inspectable: true,
+				inspected: inspectedStages.has('database'),
+			},
+		],
+		[inspectedStages, probeDisplay],
+	);
 
-	// Clean up delivery timer on unmount
+	// ── Build reward stages dynamically (reacts to latest stress test result) ──
+	const lastResult = stressTest.results[stressTest.results.length - 1];
+	const rewardStages: PipelineStage[] = useMemo(() => {
+		const wasBlocked = lastResult?.result === 'blocked';
+		return [
+			{ id: 'request', label: 'Request' },
+			{ id: 'router', label: 'Router' },
+			{
+				id: 'controller',
+				label: 'PasswordResets',
+				sublabel: wasBlocked
+					? 'Token Invalid'
+					: 'find_by_token_for',
+				variant: wasBlocked ? ('danger' as const) : ('active' as const),
+				badge: wasBlocked ? 'REJECTED' : undefined,
+			},
+			{
+				id: 'model',
+				label: 'User Model',
+				sublabel: wasBlocked
+					? 'nil (not found)'
+					: 'generate_token_for',
+			},
+			{
+				id: 'mailer',
+				label: 'Mailer',
+				sublabel: wasBlocked
+					? 'skipped'
+					: 'deliver_later',
+				variant: wasBlocked ? ('danger' as const) : ('active' as const),
+				badge: wasBlocked ? 'BLOCKED' : 'SENT',
+			},
+			{
+				id: 'response',
+				label: 'Response',
+				sublabel: wasBlocked ? '422' : '200',
+			},
+		];
+	}, [lastResult]);
+
+	// ── Transition: build -> activate when all steps complete ──
 	useEffect(() => {
-		return () => {
-			if (deliveryTimerRef.current) {
-				clearTimeout(deliveryTimerRef.current);
-			}
-		};
-	}, []);
+		if (phase === 'build' && stepper.isComplete) {
+			setPhase('activate');
+		}
+	}, [phase, stepper.isComplete]);
 
-	const toggleComponent = (id: string) => {
-		setEmailComponents((prev) => ({ ...prev, [id]: !prev[id] }));
+	// ── Stage click handler (observe phase) ──
+	const handleStageClick = useCallback(
+		(stageId: string) => {
+			if (phase !== 'observe') return;
+
+			const data = STAGE_INSPECTOR_MAP[stageId];
+			if (!data) return;
+
+			setInspectorData(data);
+			setInspectedStages((prev) => {
+				if (prev.has(stageId)) return prev;
+				const next = new Set(prev);
+				next.add(stageId);
+				return next;
+			});
+
+			// Trigger discovery if this stage has one
+			const discoveryId = STAGE_DISCOVERY_MAP[stageId];
+			if (discoveryId) {
+				discoveryGating.discover(discoveryId);
+			}
+		},
+		[phase, discoveryGating],
+	);
+
+	// ── Probe handler (observe phase) ──
+	const handleProbe = useCallback(
+		(probeId: string) => {
+			setLastProbeId(probeId);
+			const discoveryId = PROBE_DISCOVERY_MAP[probeId];
+			if (discoveryId) {
+				discoveryGating.discover(discoveryId);
+			}
+		},
+		[discoveryGating],
+	);
+
+	// ── OptionCard step handler ──
+	const handleOptionClick = useCallback(
+		(option: StepOption) => {
+			if (option.correct) {
+				stepper.completeStep();
+			} else if (option.feedback) {
+				stepper.recordWrongAttempt(option.feedback);
+			}
+		},
+		[stepper],
+	);
+
+	// ── Phase transition handlers ──
+	const handleStartBuild = () => {
+		setPhase('build');
 	};
 
-	const handleSendEmail = () => {
-		if (!canSend || deliveryStep > 0) return;
-		setDeliveryStep(1);
+	const handleActivateReset = () => {
+		setPhase('reward');
+		stressTest.reset();
+	};
 
-		const advanceStep = (step: number) => {
-			if (step > 4) {
-				setEmailSent(true);
-				return;
-			}
-			deliveryTimerRef.current = setTimeout(() => {
-				setDeliveryStep(step);
-				advanceStep(step + 1);
-			}, 500);
-		};
+	// ── Stress test fire handler ──
+	const handleFireScenario = useCallback(
+		(scenarioId: string) => {
+			stressTest.fireRequest(scenarioId);
+		},
+		[stressTest],
+	);
 
-		advanceStep(2);
+	// ── Completion ──
+	const handleComplete = () => {
+		onComplete({ stars: stepper.starRating });
 	};
 
 	const validateSolution = (): ValidationResult => {
-		const errors: string[] = [];
-
-		if (enabledCount < 5) {
-			errors.push(`Configure at least 5 email components (${enabledCount}/5)`);
-		}
-
-		if (!emailSent) {
-			errors.push('Send the test email to verify the flow');
-		}
-
-		if (!emailComponents.deliverLater) {
-			errors.push('Use deliver_later for background sending');
-		}
-
-		if (errors.length > 0) {
+		if (!stepper.isComplete) {
 			return {
 				valid: false,
-				message: 'Email flow incomplete!',
-				details: errors,
+				message: 'Complete all steps first',
+				details: stepper.steps
+					.filter((s) => s.status !== 'completed')
+					.map((s) => s.title),
 			};
 		}
-
-		return {
-			valid: true,
-			message: 'Secure password reset flow with Action Mailer!',
-		};
+		return { valid: true, message: 'Password reset flow is live!' };
 	};
 
-	const handleComplete = async () => {
-		const success = await completeLevel('act3-level21-action-mailer', {
-			stars: 3,
-		});
-		if (success) {
-			onComplete({ stars: 3 });
-		}
-	};
+	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
+	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
+	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep];
+	const isTerminalStep = stepper.currentStep === 1;
 
-	const handleReset = () => {
-		setEmailComponents({
-			from: false,
-			subject: false,
-			tokenGeneration: false,
-			resetLink: false,
-			expiryNotice: false,
-			deliverLater: false,
-		});
-		setEmailSent(false);
-		setDeliveryStep(0);
-		setSelectedMailer('password_reset');
-		if (deliveryTimerRef.current) {
-			clearTimeout(deliveryTimerRef.current);
-		}
-	};
-
-	const generateMailerCode = () => {
-		const lines: string[] = ['class UserMailer < ApplicationMailer'];
-
-		if (emailComponents.from) {
-			lines.push('  default from: "noreply@app.com"');
-			lines.push('');
-		}
-
-		lines.push('  def password_reset(user)');
-		lines.push('    @user = user');
-
-		if (emailComponents.tokenGeneration) {
-			lines.push('    @token = user.generate_token_for(:password_reset)');
-		}
-
-		if (emailComponents.resetLink) {
-			lines.push('    @reset_url = edit_password_url(token: @token)');
-		}
-
-		lines.push('');
-
-		const mailArgs: string[] = [];
-		mailArgs.push('to: user.email');
-		if (emailComponents.subject) {
-			mailArgs.push('subject: "Reset your password"');
-		}
-
-		lines.push(`    mail(${mailArgs.join(', ')})`);
-		lines.push('  end');
-		lines.push('end');
-
-		return lines.join('\n');
-	};
-
-	const generateModelCode = () => {
-		const lines: string[] = ['class User < ApplicationRecord'];
-		lines.push('  has_secure_password');
-		lines.push('');
-
-		if (emailComponents.tokenGeneration) {
-			lines.push('  generates_token_for :password_reset,');
-			lines.push('                      expires_in: 15.minutes do');
-			lines.push('    password_salt&.last(10)');
-			lines.push('  end');
-		} else {
-			lines.push('  # Add token generation here');
-		}
-
-		lines.push('end');
-		return lines.join('\n');
-	};
-
-	// Security checklist items
-	const securityChecks = [
-		{
-			label: 'Same response for existing/non-existing emails',
-			met: emailComponents.from && emailComponents.subject,
-		},
-		{
-			label: 'Token expires in 15 minutes',
-			met: emailComponents.expiryNotice && emailComponents.tokenGeneration,
-		},
-		{
-			label: 'Token invalidated when password changes',
-			met: emailComponents.tokenGeneration,
-		},
-	];
-
+	// ── Render ──
 	return (
 		<LevelLayout>
 			<LeftPanel>
-				<InstructionPanel
-					goal="Build a secure password reset flow with Action Mailer and generates_token_for."
-					instructions={[
-						'Configure the email sender and subject',
-						'Add token generation with generates_token_for',
-						'Include reset link and expiry notice',
-						'Use deliver_later for background sending',
-					]}
-					scenario="Users who forget their passwords are completely locked out. Support tickets are piling up. You need a self-service password reset flow."
-				>
-					<div className="p-4 border-t border-border">
-						<div className="flex justify-between text-sm mb-2">
-							<span className="text-muted-foreground">
-								Components configured
-							</span>
-							<span
-								className={
-									enabledCount >= 5 ? 'text-success' : 'text-foreground'
-								}
-							>
-								{enabledCount} / 6
-							</span>
-						</div>
-						<div className="h-2 bg-secondary rounded-full overflow-hidden">
-							<div
-								className="h-full bg-success transition-all"
-								style={{
-									width: `${(enabledCount / 6) * 100}%`,
-								}}
+				<InstructionPanel>
+					{/* Scenario (always visible) */}
+					<div className="p-4 border-b border-border space-y-3">
+						<p className="text-sm text-muted-foreground leading-relaxed">
+							Users who forget their password are completely locked out.
+							There is no self-service recovery flow. Support tickets for
+							manual password resets are piling up, averaging 12 per week.
+						</p>
+						<p className="text-sm text-muted-foreground leading-relaxed">
+							You need to build a secure password reset flow using Rails 8{' '}
+							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
+								generates_token_for
+							</code>{' '}
+							and Action Mailer with{' '}
+							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
+								deliver_later
+							</code>
+							.
+						</p>
+					</div>
+
+					{/* Observe phase: discovery checklist */}
+					{phase === 'observe' && (
+						<div className="p-4 border-b border-border">
+							<DiscoveryChecklist
+								discoveries={discoveryGating.discoveries}
+								discoveredCount={discoveryGating.discoveredCount}
+								minRequired={discoveryGating.minRequired}
 							/>
 						</div>
-					</div>
+					)}
+
+					{/* Build / activate phases: step progress */}
+					{(phase === 'build' || phase === 'activate') && (
+						<div className="p-4 border-b border-border">
+							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+								Steps
+							</div>
+							<StepProgress
+								currentStep={stepper.currentStep}
+								onStepClick={stepper.goToStep}
+								steps={stepper.steps}
+							/>
+						</div>
+					)}
+
+					{/* Reward phase: legend + counters */}
+					{phase === 'reward' && (
+						<>
+							<PipelineLegend />
+
+							<div className="p-4">
+								<div className="grid grid-cols-2 gap-3">
+									<div className="bg-success/20 rounded-lg p-3 text-center">
+										<div className="text-2xl font-bold text-success">
+											{stressTest.allowedCount}
+										</div>
+										<div className="text-xs text-success/70">Allowed</div>
+									</div>
+									<div className="bg-destructive/20 rounded-lg p-3 text-center">
+										<div className="text-2xl font-bold text-destructive">
+											{stressTest.blockedCount}
+										</div>
+										<div className="text-xs text-destructive/70">Blocked</div>
+									</div>
+								</div>
+							</div>
+						</>
+					)}
 				</InstructionPanel>
 			</LeftPanel>
 
@@ -316,439 +919,212 @@ export function Level21ActionMailer({
 					levelName="Action Mailer"
 					levelNumber={21}
 					onComplete={handleComplete}
-					onReset={handleReset}
+					onReset={() => {
+						window.location.reload();
+					}}
 					onValidate={validateSolution}
 				/>
 
-				<div className="flex-1 relative bg-background p-6 overflow-auto">
-					<div className="max-w-2xl mx-auto space-y-6">
-						{/* Email Components */}
-						<div className="p-4 bg-card rounded-xl border border-border">
-							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-								Email Components
-							</div>
-							<div className="flex flex-wrap gap-2">
-								{EMAIL_COMPONENTS.map((comp) => (
-									<OptionCard
-										color={resolveColor(comp.color)}
-										description={comp.description}
-										icon={comp.icon}
-										key={comp.id}
-										name={comp.label}
-										onClick={() => toggleComponent(comp.id)}
-										selected={emailComponents[comp.id]}
-										size="sm"
+				<div className="flex-1 flex flex-col bg-background overflow-hidden">
+					{/* ── Phase 1: Observe (WHY) ── */}
+					{phase === 'observe' && (
+						<div className="flex-1 flex flex-col">
+							<div className="flex-1 relative">
+								<PipelineFlow
+									connections={OBSERVE_CONNECTIONS}
+									onNodeClick={handleStageClick}
+									stages={observeStages}
+								/>
+								{inspectorData && (
+									<StageInspector
+										data={inspectorData}
+										onClose={() => setInspectorData(null)}
 									/>
-								))}
-							</div>
-						</div>
-
-						{/* Mailer tabs */}
-						<div className="flex gap-2">
-							<Button
-								className={`text-sm ${
-									selectedMailer === 'password_reset'
-										? 'bg-primary text-primary-foreground'
-										: ''
-								}`}
-								onClick={() => setSelectedMailer('password_reset')}
-								size="sm"
-								variant={
-									selectedMailer === 'password_reset' ? 'default' : 'outline'
-								}
-							>
-								<Key className="w-3.5 h-3.5 mr-1.5" />
-								Password Reset
-							</Button>
-							<Button
-								className={`text-sm ${
-									selectedMailer === 'welcome'
-										? 'bg-primary text-primary-foreground'
-										: ''
-								}`}
-								onClick={() => setSelectedMailer('welcome')}
-								size="sm"
-								variant={selectedMailer === 'welcome' ? 'default' : 'outline'}
-							>
-								<Mail className="w-3.5 h-3.5 mr-1.5" />
-								Welcome Email
-							</Button>
-						</div>
-
-						{/* Email Preview */}
-						<div className="bg-card rounded-xl border border-border overflow-hidden">
-							<div className="bg-secondary px-4 py-3 border-b border-border flex items-center gap-2">
-								<Mail className="w-4 h-4 text-primary" />
-								<div>
-									<div className="text-foreground font-semibold text-sm">
-										{selectedMailer === 'password_reset'
-											? 'Password Reset Email'
-											: 'Welcome Email'}
-									</div>
-									<div className="text-xs text-muted-foreground">Preview</div>
-								</div>
-							</div>
-
-							<div className="p-5 space-y-4">
-								{/* From field */}
-								<div>
-									<div className="flex items-center gap-3">
-										<span className="text-xs text-muted-foreground w-16 shrink-0">
-											From:
-										</span>
-										{emailComponents.from ? (
-											<span className="text-sm text-foreground font-medium">
-												noreply@app.com
-											</span>
-										) : (
-											<div className="flex-1 h-5 border-2 border-dashed border-border rounded" />
-										)}
-									</div>
-									{!emailComponents.from && (
-										<div className="flex items-start gap-2 mt-2 p-2 bg-warning/10 border border-warning/30 rounded-lg">
-											<AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
-											<span className="text-xs text-warning">Without a from address, emails may be sent from the server's default address or rejected by spam filters.</span>
-										</div>
-									)}
-								</div>
-
-								{/* To field */}
-								<div className="flex items-center gap-3">
-									<span className="text-xs text-muted-foreground w-16 shrink-0">
-										To:
-									</span>
-									<span className="text-sm text-muted-foreground">
-										user@example.com
-									</span>
-								</div>
-
-								{/* Subject field */}
-								<div className="flex items-center gap-3">
-									<span className="text-xs text-muted-foreground w-16 shrink-0">
-										Subject:
-									</span>
-									{emailComponents.subject ? (
-										<span className="text-sm text-foreground font-semibold">
-											Reset your password
-										</span>
-									) : (
-										<div className="flex-1 h-5 border-2 border-dashed border-border rounded" />
-									)}
-								</div>
-
-								<div className="border-t border-border" />
-
-								{/* Email body */}
-								<div className="space-y-3">
-									<p className="text-sm text-muted-foreground">Hi there,</p>
-									<p className="text-sm text-muted-foreground">
-										{selectedMailer === 'password_reset'
-											? 'Someone requested a password reset for your account.'
-											: 'Welcome to our app! We are glad to have you.'}
-									</p>
-
-									{/* Token generation section */}
-									{selectedMailer === 'password_reset' && (
-										<>
-											{emailComponents.tokenGeneration ? (
-												<div className="bg-warning/10 border border-warning/30 rounded-lg px-4 py-3 flex items-start gap-3">
-													<Key className="w-4 h-4 text-warning shrink-0 mt-0.5" />
-													<div>
-														<div className="text-xs font-semibold text-warning">
-															Secure Token
-														</div>
-														<code className="text-xs text-muted-foreground font-mono">
-															generates_token_for :password_reset
-														</code>
-													</div>
-												</div>
-											) : (
-												<div className="h-14 border-2 border-dashed border-border rounded-lg flex items-center justify-center">
-													<span className="text-xs text-muted-foreground">
-														Token generation
-													</span>
-												</div>
-											)}
-
-											{/* Warning: token ON but expiry OFF */}
-											{emailComponents.tokenGeneration && !emailComponents.expiryNotice && (
-												<div className="flex items-start gap-2 mt-2 p-2 bg-warning/10 border border-warning/30 rounded-lg">
-													<AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
-													<span className="text-xs text-warning">Without an expiry notice, users don't know the link is time-limited. They may try the link hours later and get a confusing error.</span>
-												</div>
-											)}
-
-											{/* Reset link */}
-											{emailComponents.resetLink ? (
-												<div className="bg-primary/10 border border-primary/30 rounded-lg px-4 py-3">
-													<div className="flex items-center gap-2 mb-1">
-														<Send className="w-3.5 h-3.5 text-primary" />
-														<span className="text-xs font-semibold text-primary">
-															Reset Link
-														</span>
-													</div>
-													<code className="text-xs text-primary/80 font-mono break-all">
-														https://app.com/passwords/edit?token=eyJfcm...
-													</code>
-												</div>
-											) : (
-												<div className="h-14 border-2 border-dashed border-border rounded-lg flex items-center justify-center">
-													<span className="text-xs text-muted-foreground">
-														Reset link
-													</span>
-												</div>
-											)}
-
-											{/* Warning: reset link ON but token OFF */}
-											{!emailComponents.tokenGeneration && emailComponents.resetLink && (
-												<div className="flex items-start gap-2 mt-2 p-2 bg-warning/10 border border-warning/30 rounded-lg">
-													<AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
-													<span className="text-xs text-warning">Reset link uses a predictable URL without a secure token. Anyone who guesses the pattern can reset any password.</span>
-												</div>
-											)}
-
-											{/* Expiry notice */}
-											{emailComponents.expiryNotice ? (
-												<div className="bg-destructive/10 border border-destructive/30 rounded-lg px-4 py-3 flex items-center gap-3">
-													<Clock className="w-4 h-4 text-destructive shrink-0" />
-													<span className="text-xs text-destructive">
-														This link expires in 15 minutes. If you did not
-														request this, ignore this email.
-													</span>
-												</div>
-											) : (
-												<div className="h-10 border-2 border-dashed border-border rounded-lg flex items-center justify-center">
-													<span className="text-xs text-muted-foreground">
-														Expiry notice
-													</span>
-												</div>
-											)}
-										</>
-									)}
-								</div>
-							</div>
-						</div>
-
-						{/* Send Test Email */}
-						<Button
-							className={`w-full py-3 ${
-								emailSent
-									? 'bg-success hover:bg-success/90 text-foreground'
-									: ''
-							}`}
-							disabled={!canSend || (deliveryStep > 0 && !emailSent)}
-							onClick={handleSendEmail}
-							variant={emailSent ? 'default' : 'default'}
-						>
-							{emailSent ? (
-								<>
-									<Check className="w-4 h-4 mr-2" />
-									Email Sent Successfully
-								</>
-							) : deliveryStep > 0 ? (
-								<>
-									<Mail className="w-4 h-4 mr-2 animate-pulse" />
-									Sending...
-								</>
-							) : (
-								<>
-									<Send className="w-4 h-4 mr-2" />
-									Send Test Email
-									{!canSend && (
-										<span className="ml-2 text-xs opacity-70">
-											(configure {4 - enabledCount} more)
-										</span>
-									)}
-								</>
-							)}
-						</Button>
-
-						{/* Delivery Animation */}
-						{deliveryStep > 0 && (
-							<div className="bg-card rounded-xl border border-border p-5">
-								<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-									{emailComponents.deliverLater
-										? 'Background Delivery Pipeline'
-										: 'Synchronous Delivery (blocking request)'}
-								</div>
-								<div className="flex items-center justify-between">
-									{DELIVERY_STEPS.map((step, index) => {
-										const Icon = step.icon;
-										const stepNum = index + 1;
-										const isActive = deliveryStep >= stepNum;
-										const isCurrent = deliveryStep === stepNum;
-										return (
-											<div
-												className="flex items-center flex-1"
-												key={step.label}
-											>
-												<div className="flex flex-col items-center">
-													<div
-														className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${
-															isActive
-																? 'border-transparent'
-																: 'border-border bg-secondary'
-														} ${isCurrent ? 'animate-pulse' : ''}`}
-														style={
-															isActive
-																? {
-																		backgroundColor: `${step.color}20`,
-																		borderColor: step.color,
-																	}
-																: undefined
-														}
-													>
-														<Icon
-															className={`w-5 h-5 transition-colors ${
-																isActive ? '' : 'text-muted-foreground'
-															}`}
-															style={
-																isActive
-																	? {
-																			color: step.color,
-																		}
-																	: undefined
-															}
-														/>
-													</div>
-													<span
-														className={`text-xs mt-1.5 font-medium ${
-															isActive
-																? 'text-foreground'
-																: 'text-muted-foreground'
-														}`}
-													>
-														{step.label}
-													</span>
-												</div>
-												{index < DELIVERY_STEPS.length - 1 && (
-													<div className="flex-1 mx-2">
-														<div
-															className={`h-0.5 transition-all ${
-																deliveryStep > stepNum
-																	? 'bg-success'
-																	: 'bg-border'
-															}`}
-														/>
-													</div>
-												)}
-											</div>
-										);
-									})}
-								</div>
-
-								{/* Warning: deliver_now blocks the request */}
-								{!emailComponents.deliverLater && emailSent && (
-									<div className="flex items-start gap-2 mt-4 p-2 bg-warning/10 border border-warning/30 rounded-lg">
-										<AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0 mt-0.5" />
-										<span className="text-xs text-warning">deliver_now blocks the HTTP request. Users wait 2-5 seconds for the SMTP round-trip. Under load, this causes request timeouts.</span>
-									</div>
 								)}
 							</div>
-						)}
 
-						{/* Security Checklist */}
-						<div className="bg-card rounded-xl border border-border overflow-hidden">
-							<div className="bg-secondary px-4 py-3 border-b border-border flex items-center gap-2">
-								<ShieldCheck className="w-4 h-4 text-primary" />
-								<div className="text-foreground font-semibold text-sm">
-									Security Checklist
-								</div>
+							{/* Probe terminal */}
+							<div className="px-6 pb-2">
+								<ProbeTerminal
+									onProbe={handleProbe}
+									probes={PROBES}
+									title="Password Reset Probe"
+								/>
 							</div>
-							<div className="p-4 space-y-3">
-								{securityChecks.map((check) => (
-									<div className="flex items-center gap-3" key={check.label}>
-										<div
-											className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
-												check.met ? 'bg-success/20' : 'bg-secondary'
-											}`}
-										>
-											{check.met ? (
-												<Check className="w-3 h-3 text-success" />
-											) : (
-												<div className="w-2 h-2 rounded-full bg-muted-foreground/30" />
-											)}
-										</div>
-										<span
-											className={`text-sm ${
-												check.met ? 'text-foreground' : 'text-muted-foreground'
-											}`}
-										>
-											{check.label}
-										</span>
-									</div>
-								))}
+
+							{/* Build the Fix button (discovery gated) */}
+							{discoveryGating.isUnlocked && (
+								<div className="p-4 flex justify-center animate-in fade-in duration-500">
+									<Button
+										className="gap-2"
+										onClick={handleStartBuild}
+										size="lg"
+									>
+										Build the Fix
+										<ArrowRight className="w-4 h-4" />
+									</Button>
+								</div>
+							)}
+						</div>
+					)}
+
+					{/* ── Phase 2: Build (HOW) ── */}
+					{phase === 'build' && (
+						<div className="flex-1 overflow-auto p-6">
+							<div className="max-w-2xl mx-auto space-y-4">
+								{/* Terminal step (Step 1) */}
+								{isTerminalStep && (
+									<TerminalChoiceStep
+										title="Generate the Mailer"
+										description={
+											<p className="text-sm text-muted-foreground">
+												Rails has a dedicated generator for mailer classes. It creates the
+												mailer file, email templates (HTML and text), a test file, and a
+												preview file. Which command generates the UserMailer with a
+												password_reset method?
+											</p>
+										}
+										commands={MAILER_TERMINAL_COMMANDS}
+										outputLines={MAILER_TERMINAL_OUTPUT}
+										initialHistory={buildTerminalHistory(
+											TERMINAL_STEP_MAP,
+											stepper.currentStep,
+										)}
+										completed={isViewingCompletedStep}
+										hasNext={hasNextStep}
+										onCorrect={() => stepper.completeStep()}
+										onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+										onNext={stepper.nextStep}
+										stepKey={stepper.currentStep}
+									/>
+								)}
+
+								{/* OptionCard steps (Steps 0, 2, 3) */}
+								{!isTerminalStep && currentOptionConfig && (
+									<>
+										<h3 className="text-lg font-semibold text-foreground">
+											{currentOptionConfig.title}
+										</h3>
+										<p className="text-sm text-muted-foreground">
+											{currentOptionConfig.description}
+										</p>
+
+										{isViewingCompletedStep ? (
+											<div className="space-y-2">
+												{currentOptionConfig.options.map((opt) => (
+													<OptionCard
+														color="violet"
+														disabled={!opt.correct}
+														key={opt.id}
+														mono
+														name={opt.label}
+														selected={opt.correct}
+														size="lg"
+													/>
+												))}
+											</div>
+										) : (
+											<>
+												<div className="space-y-2">
+													{currentOptionConfig.options.map((opt) => (
+														<OptionCard
+															color="violet"
+															key={opt.id}
+															mono
+															name={opt.label}
+															onClick={() => handleOptionClick(opt)}
+															size="lg"
+														/>
+													))}
+												</div>
+
+												<ErrorFeedback
+													message={stepper.lastFeedback}
+													onDismiss={stepper.clearFeedback}
+												/>
+											</>
+										)}
+
+										{isViewingCompletedStep && hasNextStep && (
+											<div className="flex justify-end">
+												<Button
+													className="gap-2"
+													onClick={stepper.nextStep}
+													size="sm"
+												>
+													Next Step
+													<ArrowRight className="w-4 h-4" />
+												</Button>
+											</div>
+										)}
+									</>
+								)}
 							</div>
 						</div>
-					</div>
+					)}
+
+					{/* ── Phase 3: Activate (ADVANTAGE sub-phase a) ── */}
+					{phase === 'activate' && (
+						<div className="flex-1 flex items-center justify-center p-6">
+							<div className="max-w-md text-center space-y-6">
+								<div className="flex justify-center gap-1">
+									{[1, 2, 3].map((s) => (
+										<Star
+											className={`w-8 h-8 ${
+												s <= stepper.starRating
+													? 'text-yellow-400 fill-yellow-400'
+													: 'text-muted-foreground/30'
+											}`}
+											key={s}
+										/>
+									))}
+								</div>
+								<p className="text-sm text-muted-foreground">
+									Your password reset flow is built. Watch tokens get generated,
+									emails get queued, and expired tokens get rejected.
+								</p>
+								<Button
+									className="gap-2"
+									onClick={handleActivateReset}
+									size="lg"
+								>
+									<Play className="w-4 h-4" />
+									Visualize Password Reset
+								</Button>
+							</div>
+						</div>
+					)}
+
+					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
+					{phase === 'reward' && (
+						<div className="flex-1 flex flex-col">
+							<div className="flex-1 relative">
+								<PipelineFlow
+									connections={REWARD_CONNECTIONS}
+									stages={rewardStages}
+								/>
+							</div>
+
+							{/* Stress test controls below pipeline */}
+							<div className="px-6 pb-2">
+								<StressTestPanel
+									allowedCount={stressTest.allowedCount}
+									blockedCount={stressTest.blockedCount}
+									canAutoFire={stressTest.canAutoFire}
+									isAutoFiring={stressTest.isAutoFiring}
+									onFire={handleFireScenario}
+									onToggleAutoFire={stressTest.toggleAutoFire}
+									results={stressTest.results}
+									scenarios={STRESS_SCENARIOS}
+								/>
+							</div>
+						</div>
+					)}
 				</div>
 			</CenterPanel>
 
 			<RightPanel>
-				<CodePreviewPanel
-					files={[
-						{
-							filename: 'app/mailers/user_mailer.rb',
-							language: 'ruby',
-							code: generateMailerCode(),
-							highlight: emailComponents.deliverLater ? [] : [],
-						},
-						{
-							filename: 'app/models/user.rb',
-							language: 'ruby',
-							code: generateModelCode(),
-							highlight: emailComponents.tokenGeneration ? [4, 5, 6, 7] : [],
-						},
-					]}
-					learningGoal="Action Mailer + generates_token_for gives you secure, stateless password resets. No token column needed: the token auto-expires when the password changes."
-				>
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-							Key Concepts
-						</div>
-						<ul className="text-xs text-muted-foreground space-y-1.5">
-							<li className="flex items-start gap-2">
-								<Key className="w-3 h-3 text-warning shrink-0 mt-0.5" />
-								<span>generates_token_for: stateless, expiring tokens</span>
-							</li>
-							<li className="flex items-start gap-2">
-								<Timer className="w-3 h-3 text-primary shrink-0 mt-0.5" />
-								<span>deliver_later: always use background jobs</span>
-							</li>
-							<li className="flex items-start gap-2">
-								<Mail className="w-3 h-3 text-success shrink-0 mt-0.5" />
-								<span>Mailers are like controllers for email</span>
-							</li>
-							<li className="flex items-start gap-2">
-								<Server className="w-3 h-3 text-muted-foreground shrink-0 mt-0.5" />
-								<span>Preview at /rails/mailers in development</span>
-							</li>
-						</ul>
-					</div>
-
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-							Controller Usage
-						</div>
-						<pre className="text-xs text-muted-foreground bg-secondary p-2 rounded overflow-x-auto">
-							{`# POST /passwords
-def create
-  user = User.find_by(email: params[:email])
-
-  # Always respond the same way!
-  # (prevents email enumeration)
-  if user
-    UserMailer
-      .password_reset(user)
-      .${emailComponents.deliverLater ? 'deliver_later' : 'deliver_now'}
-  end
-
-  redirect_to root_path,
-    notice: "Check your email."
-end`}
-						</pre>
-					</div>
-				</CodePreviewPanel>
+				<CodePreviewPanel files={getCodeFiles(phase, stepper.furthestStep)} />
 			</RightPanel>
 		</LevelLayout>
 	);
