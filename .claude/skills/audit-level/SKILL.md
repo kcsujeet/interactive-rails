@@ -394,6 +394,7 @@ The build phase must cover the **complete workflow**:
 - [ ] Code selection steps use `OptionCard`
 - [ ] Left panel shows scenario text + `StepProgress` pills
 - [ ] Right panel code preview evolves with `stepper.furthestStep`
+- [ ] **Code preview has no empty states.** Check the `getCodeFiles` function: every value of `furthestStep` (0, 1, 2, ... N) must produce non-empty code. A common bug is a ternary chain (`furthestStep >= 3 ? ... : furthestStep >= 2 ? ... : ''`) where the fallback is an empty string, leaving the code panel blank after completing a step. Every step completion should show a meaningful code snapshot (skeleton with placeholder comments for what comes next).
 - [ ] `ErrorFeedback` component is used for wrong-answer feedback (not inline error divs)
 - [ ] Correct answer is never the first option
 - [ ] All options use the same color
