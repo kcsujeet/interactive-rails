@@ -14,14 +14,8 @@
  * Teaches: Service object pattern, Result pattern with Data.define, thin controllers
  */
 
-import {
-	ArrowRight,
-	Check,
-	Play,
-	Star,
-	X,
-} from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { ArrowRight, Play, Star } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -35,13 +29,10 @@ import {
 	StepProgress,
 	type ValidationResult,
 } from '@/components/levels';
-import { FlowConnector } from '@/components/levels/FlowConnector';
-import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
-import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 
 // ──────────────────────────────────────────────
 // Phase type
@@ -91,92 +82,8 @@ if @user.save`,
 	},
 ];
 
-// ──────────────────────────────────────────────
-// Responsibility labels for reward phase
-// ──────────────────────────────────────────────
 
-const RESPONSIBILITY_LABELS = [
-	'User Creation',
-	'Welcome Logging',
-	'Default Preferences',
-	'Token Generation',
-];
 
-// ──────────────────────────────────────────────
-// Stress test scenarios (reward phase)
-// ──────────────────────────────────────────────
-
-const STRESS_SCENARIOS: StressScenario[] = [
-	{
-		id: 'valid-registration',
-		label: 'Valid registration',
-		description: 'POST with valid email and password',
-		method: 'POST',
-		path: '/api/v1/registrations',
-		actor: 'new_user',
-		expectedResult: 'allowed',
-	},
-	{
-		id: 'invalid-email',
-		label: 'Invalid email format',
-		description: 'POST with malformed email',
-		method: 'POST',
-		path: '/api/v1/registrations',
-		actor: 'new_user',
-		expectedResult: 'blocked',
-	},
-	{
-		id: 'duplicate-email',
-		label: 'Duplicate email',
-		description: 'POST with existing email address',
-		method: 'POST',
-		path: '/api/v1/registrations',
-		actor: 'new_user',
-		expectedResult: 'blocked',
-	},
-	{
-		id: 'missing-password',
-		label: 'Missing password',
-		description: 'POST without password field',
-		method: 'POST',
-		path: '/api/v1/registrations',
-		actor: 'new_user',
-		expectedResult: 'blocked',
-	},
-	{
-		id: 'valid-with-name',
-		label: 'Full registration',
-		description: 'POST with email, password, and name',
-		method: 'POST',
-		path: '/api/v1/registrations',
-		actor: 'new_user',
-		expectedResult: 'allowed',
-	},
-];
-
-// Reward flow messages: [controller, service-result]
-const REWARD_FLOW: Record<string, string[]> = {
-	'valid-registration': [
-		'Delegates to service',
-		'Result(success: true, user: alice)',
-	],
-	'invalid-email': [
-		'Delegates to service',
-		'Result(success: false, errors: ["invalid email"])',
-	],
-	'duplicate-email': [
-		'Delegates to service',
-		'Result(success: false, errors: ["taken"])',
-	],
-	'missing-password': [
-		'Delegates to service',
-		'Result(success: false, errors: ["blank"])',
-	],
-	'valid-with-name': [
-		'Delegates to service',
-		'Result(success: true, user: bob)',
-	],
-};
 
 // ──────────────────────────────────────────────
 // Step definitions (3 OptionCard steps)
@@ -185,6 +92,7 @@ const REWARD_FLOW: Record<string, string[]> = {
 const STEP_DEFS: StepDef[] = [
 	{ id: 'choose-pattern', title: 'Choose Extraction Pattern' },
 	{ id: 'define-result', title: 'Define the Result Object' },
+	{ id: 'move-side-effects', title: 'Move the Side Effects' },
 	{ id: 'wire-controller', title: 'Wire the Controller' },
 ];
 
@@ -257,6 +165,35 @@ const RESULT_OPTIONS: StepOption[] = [
 	},
 ];
 
+const SIDE_EFFECTS_OPTIONS: StepOption[] = [
+	{
+		id: 'callbacks',
+		label: 'Move them into after_create callbacks on User',
+		correct: false,
+		feedback:
+			'Callbacks run on every save, not just registration. Logging and preference setup would fire on admin edits, CSV imports, and tests too.',
+	},
+	{
+		id: 'separate-services',
+		label: 'Create a separate service for each (WelcomeLogger, PreferenceSetter, TokenGenerator)',
+		correct: false,
+		feedback:
+			'Three extra classes for three lines of code each. Over-extraction makes the workflow harder to follow, not easier.',
+	},
+	{
+		id: 'inline-in-call',
+		label: 'Run them sequentially inside the service\'s #call method, after the save',
+		correct: true,
+	},
+	{
+		id: 'background-job',
+		label: 'Enqueue each side effect as a background job',
+		correct: false,
+		feedback:
+			'Background jobs add async complexity. Preferences and tokens are needed immediately for the response. Logging could be async, but not all three.',
+	},
+];
+
 const WIRING_OPTIONS: StepOption[] = [
 	{
 		id: 'instantiate-manual',
@@ -296,6 +233,12 @@ const OPTION_STEP_CONFIG: Record<
 		options: RESULT_OPTIONS,
 	},
 	2: {
+		title: 'Move the Side Effects',
+		description:
+			'The controller has 3 side effects after user creation: logging, setting default preferences, and generating a session token. Where should they live in the service?',
+		options: SIDE_EFFECTS_OPTIONS,
+	},
+	3: {
 		title: 'Wire the Controller',
 		description:
 			'The service is built. Now the controller needs to call it and handle the result. What is the conventional way to invoke a service object?',
@@ -355,6 +298,7 @@ end`,
 		return files;
 	}
 
+	// Step 0: fat controller (choosing extraction pattern)
 	if (furthestStep === 0) {
 		files.push({
 			filename: 'app/controllers/api/v1/registrations_controller.rb',
@@ -385,90 +329,145 @@ end`,
 		});
 	}
 
-	if (furthestStep >= 1) {
+	// Step 1: service skeleton, no Result yet (choosing Result type)
+	if (furthestStep === 1) {
 		files.push({
 			filename: 'app/services/user_registration.rb',
 			language: 'ruby',
-			code:
-				furthestStep >= 3
-					? [
-							'class UserRegistration < ApplicationService',
-							'  Result = Data.define(:success?, :user, :errors)',
-							'',
-							'  def initialize(params)',
-							'    @params = params',
-							'  end',
-							'',
-							'  def call',
-							'    user = User.new(@params)',
-							'',
-							'    unless user.save',
-							'      return Result.new(',
-							'        success?: false, user: nil,',
-							'        errors: user.errors.full_messages',
-							'      )',
-							'    end',
-							'',
-							'    # Side effects (isolated, non-blocking)',
-							'    Rails.logger.info("New registration: #{user.email}")',
-							'    user.update!(locale: "en", timezone: "UTC",',
-							'                 notification_preference: "email")',
-							'',
-							'    Result.new(success?: true, user: user, errors: [])',
-							'  end',
-							'end',
-						].join('\n')
-					: furthestStep >= 2
-						? [
-								'class UserRegistration < ApplicationService',
-								'  Result = Data.define(:success?, :user, :errors)',
-								'',
-								'  def initialize(params)',
-								'    @params = params',
-								'  end',
-								'',
-								'  def call',
-								'    user = User.new(@params)',
-								'',
-								'    unless user.save',
-								'      return Result.new(',
-								'        success?: false, user: nil,',
-								'        errors: user.errors.full_messages',
-								'      )',
-								'    end',
-								'',
-								'    # Side effects here...',
-								'    Result.new(success?: true, user: user, errors: [])',
-								'  end',
-								'end',
-								'',
-								'# How does the controller call this service?',
-							].join('\n')
-						: [
-								'class UserRegistration < ApplicationService',
-								'  # What should the service return?',
-								'',
-								'  def initialize(params)',
-								'    @params = params',
-								'  end',
-								'',
-								'  def call',
-								'    user = User.new(@params)',
-								'',
-								'    unless user.save',
-								'      # return failure...',
-								'    end',
-								'',
-								'    # Side effects here...',
-								'    # return success...',
-								'  end',
-								'end',
-							].join('\n'),
+			code: [
+				'class UserRegistration < ApplicationService',
+				'  # What should the service return?',
+				'',
+				'  def initialize(params)',
+				'    @params = params',
+				'  end',
+				'',
+				'  def call',
+				'    user = User.new(@params)',
+				'',
+				'    unless user.save',
+				'      # return failure...',
+				'    end',
+				'',
+				'    # Side effects here...',
+				'    # return success...',
+				'  end',
+				'end',
+			].join('\n'),
 			highlight: [2],
 		});
 	}
 
-	if (furthestStep >= 3) {
+	// Step 2: service with Result, placeholder side effects (choosing where side effects go)
+	if (furthestStep === 2) {
+		files.push({
+			filename: 'app/services/user_registration.rb',
+			language: 'ruby',
+			code: [
+				'class UserRegistration < ApplicationService',
+				'  Result = Data.define(:success?, :user, :errors)',
+				'',
+				'  def initialize(params)',
+				'    @params = params',
+				'  end',
+				'',
+				'  def call',
+				'    user = User.new(@params)',
+				'',
+				'    unless user.save',
+				'      return Result.new(',
+				'        success?: false, user: nil,',
+				'        errors: user.errors.full_messages',
+				'      )',
+				'    end',
+				'',
+				'    # Where do the side effects go?',
+				'    # - logging',
+				'    # - default preferences',
+				'    # - token generation',
+				'',
+				'    Result.new(success?: true, user: user, errors: [])',
+				'  end',
+				'end',
+			].join('\n'),
+			highlight: [2, 18, 19, 20, 21],
+		});
+	}
+
+	// Step 3: service complete with side effects (choosing how to wire controller)
+	if (furthestStep === 3) {
+		files.push({
+			filename: 'app/services/user_registration.rb',
+			language: 'ruby',
+			code: [
+				'class UserRegistration < ApplicationService',
+				'  Result = Data.define(:success?, :user, :errors)',
+				'',
+				'  def initialize(params)',
+				'    @params = params',
+				'  end',
+				'',
+				'  def call',
+				'    user = User.new(@params)',
+				'',
+				'    unless user.save',
+				'      return Result.new(',
+				'        success?: false, user: nil,',
+				'        errors: user.errors.full_messages',
+				'      )',
+				'    end',
+				'',
+				'    # Side effects (isolated, testable)',
+				'    Rails.logger.info("New registration: #{user.email}")',
+				'    user.update!(locale: "en", timezone: "UTC",',
+				'                 notification_preference: "email")',
+				'    token = user.generate_token_for(:session)',
+				'',
+				'    Result.new(success?: true, user: user, errors: [])',
+				'  end',
+				'end',
+				'',
+				'# How does the controller call this service?',
+			].join('\n'),
+			highlight: [18, 19, 20, 21],
+		});
+	}
+
+	// Step 4 (all complete): service + thin controller
+	if (furthestStep >= 4) {
+		files.push({
+			filename: 'app/services/user_registration.rb',
+			language: 'ruby',
+			code: [
+				'class UserRegistration < ApplicationService',
+				'  Result = Data.define(:success?, :user, :errors)',
+				'',
+				'  def initialize(params)',
+				'    @params = params',
+				'  end',
+				'',
+				'  def call',
+				'    user = User.new(@params)',
+				'',
+				'    unless user.save',
+				'      return Result.new(',
+				'        success?: false, user: nil,',
+				'        errors: user.errors.full_messages',
+				'      )',
+				'    end',
+				'',
+				'    # Side effects (isolated, testable)',
+				'    Rails.logger.info("New registration: #{user.email}")',
+				'    user.update!(locale: "en", timezone: "UTC",',
+				'                 notification_preference: "email")',
+				'    token = user.generate_token_for(:session)',
+				'',
+				'    Result.new(success?: true, user: user, errors: [])',
+				'  end',
+				'end',
+			].join('\n'),
+			highlight: [2],
+		});
 		files.push({
 			filename: 'app/controllers/api/v1/registrations_controller.rb',
 			language: 'ruby',
@@ -498,33 +497,6 @@ end`,
 	return files;
 }
 
-// ──────────────────────────────────────────────
-// Legend (reward phase left panel)
-// ──────────────────────────────────────────────
-
-function ServiceLegend() {
-	return (
-		<div className="p-4 border-b border-border">
-			<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-				Architecture Legend
-			</div>
-			<div className="space-y-2 text-sm">
-				<div className="flex items-center gap-2">
-					<Check className="w-4 h-4 text-success" />
-					<span className="text-foreground">
-						Valid input (service returns Result with success)
-					</span>
-				</div>
-				<div className="flex items-center gap-2">
-					<X className="w-4 h-4 text-destructive" />
-					<span className="text-foreground">
-						Invalid input (service returns Result with errors)
-					</span>
-				</div>
-			</div>
-		</div>
-	);
-}
 
 // ──────────────────────────────────────────────
 // Component
@@ -532,7 +504,6 @@ function ServiceLegend() {
 
 export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
-	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('intro');
 
 	// ── Transition: build -> activate when all steps complete ──
@@ -561,45 +532,7 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 
 	const handleActivateService = () => {
 		setPhase('reward');
-		stressTest.reset();
 	};
-
-	// ── Stress test fire handler (reward phase) ──
-	const [rewardFlowPhase, setRewardFlowPhase] = useState(-1);
-	const [rewardFlowMessages, setRewardFlowMessages] = useState<string[]>([]);
-	const rewardFlowTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-
-	const clearRewardFlow = useCallback(() => {
-		for (const t of rewardFlowTimeoutsRef.current) clearTimeout(t);
-		rewardFlowTimeoutsRef.current = [];
-	}, []);
-
-	const runRewardFlow = useCallback(
-		(messages: string[]) => {
-			clearRewardFlow();
-			setRewardFlowMessages(messages);
-			setRewardFlowPhase(0);
-
-			const t1 = setTimeout(() => setRewardFlowPhase(1), 600);
-			const t2 = setTimeout(() => setRewardFlowPhase(2), 1200);
-			const t3 = setTimeout(() => setRewardFlowPhase(-1), 2400);
-			rewardFlowTimeoutsRef.current.push(t1, t2, t3);
-		},
-		[clearRewardFlow],
-	);
-
-	useEffect(() => {
-		return () => clearRewardFlow();
-	}, [clearRewardFlow]);
-
-	const handleFireScenario = useCallback(
-		(scenarioId: string) => {
-			stressTest.fireRequest(scenarioId);
-			const messages = REWARD_FLOW[scenarioId];
-			if (messages) runRewardFlow(messages);
-		},
-		[stressTest, runRewardFlow],
-	);
 
 	// ── Completion ──
 	const handleComplete = () => {
@@ -622,10 +555,6 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
 	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep];
-
-	// Latest stress test result for reward visualization
-	const lastResult = stressTest.results[stressTest.results.length - 1];
-	const lastWasBlocked = lastResult?.result === 'blocked';
 
 	// ── Render ──
 	return (
@@ -662,31 +591,6 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{phase === 'reward' && (
-						<>
-							<ServiceLegend />
-							<div className="p-4">
-								<div className="grid grid-cols-2 gap-3">
-									<div className="bg-success/20 rounded-lg p-3 text-center">
-										<div className="text-2xl font-bold text-success">
-											{stressTest.allowedCount}
-										</div>
-										<div className="text-xs text-success/70">
-											Allowed
-										</div>
-									</div>
-									<div className="bg-destructive/20 rounded-lg p-3 text-center">
-										<div className="text-2xl font-bold text-destructive">
-											{stressTest.blockedCount}
-										</div>
-										<div className="text-xs text-destructive/70">
-											Rejected
-										</div>
-									</div>
-								</div>
-							</div>
-						</>
-					)}
 				</InstructionPanel>
 			</LeftPanel>
 
@@ -899,131 +803,106 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 
 					{/* ── Phase 4: Reward ── */}
 					{phase === 'reward' && (
-						<div className="flex-1 flex flex-col">
-							<div className="flex-1 flex items-center justify-center px-6">
-								<div className="flex items-center gap-4 w-full max-w-2xl">
-									{/* Thin Controller zone */}
-									<div
-										className={`flex-shrink-0 w-48 border-2 rounded-lg p-4 transition-all duration-300 ${
-											rewardFlowPhase === 0
-												? 'ring-2 ring-primary/60 shadow-lg shadow-primary/10 border-primary/30'
-												: 'border-success/50 bg-success/5 dark:bg-success/10'
-										}`}
-									>
-										<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-											Controller
-										</div>
-										<pre className="text-xs font-mono text-foreground leading-relaxed">
-											{`result = UserRegistration
-  .call(params)
+						<div className="flex-1 flex flex-col overflow-auto">
+							{/* Header */}
+							<div className="px-6 pt-4 pb-2 flex items-center justify-between">
+								<div className="text-sm font-semibold text-foreground">
+									The Fix: Controller + UserRegistration Service
+								</div>
+								</div>
 
-if result.success?
-  render :created
-else
-  render :errors
-end`}
-										</pre>
-										<div className="mt-2 text-xs font-mono text-success">
-											8 lines
-										</div>
-										{rewardFlowMessages[0] &&
-											rewardFlowPhase >= 0 && (
-												<div
-													className={`text-xs font-medium mt-1.5 text-primary ${
-														rewardFlowPhase === 0
-															? 'animate-in fade-in duration-300'
-															: 'opacity-70'
-													}`}
-												>
-													{rewardFlowMessages[0]}
-												</div>
-											)}
+							{/* Annotated code: thin controller */}
+							<div className="px-6 py-2">
+								<div className="max-w-lg mx-auto space-y-1">
+									<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+										Controller (8 lines)
 									</div>
-
-									<FlowConnector
-										direction="horizontal"
-										active={rewardFlowPhase === 1}
-										dotColor={
-											lastWasBlocked
-												? 'bg-destructive'
-												: 'bg-success'
-										}
-									/>
-
-									{/* Service zone */}
-									<div
-										className={`flex-1 border-2 rounded-lg p-4 transition-all duration-300 ${
-											rewardFlowPhase === 2
-												? lastWasBlocked
-													? 'ring-2 ring-destructive/60 shadow-lg shadow-destructive/10 border-destructive/30 bg-destructive/5 dark:bg-destructive/10'
-													: 'ring-2 ring-success/60 shadow-lg shadow-success/10 border-success/30 bg-success/5 dark:bg-success/10'
-												: 'border-border bg-card'
-										}`}
-									>
-										<div className="flex items-center justify-between mb-2">
-											<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-												UserRegistration Service
-											</div>
-											{lastResult && (
-												<div
-													className={`text-xs font-mono font-bold ${
-														lastWasBlocked
-															? 'text-destructive'
-															: 'text-success'
-													}`}
-												>
-													{lastWasBlocked
-														? 'Result(failure)'
-														: 'Result(success)'}
-												</div>
-											)}
+									<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/5 rounded-r-md px-3 py-2">
+										<div className="flex items-center gap-2 mb-1">
+											<Badge variant="secondary" className="text-[10px] px-1.5 py-0 text-success">
+												Delegates
+											</Badge>
 										</div>
-
-										<div className="space-y-1.5">
-											{RESPONSIBILITY_LABELS.map((label) => (
-												<div
-													key={label}
-													className="border border-border/50 rounded px-2.5 py-1.5 bg-muted/30 dark:bg-muted/10"
-												>
-													<span className="text-xs font-medium text-foreground">
-														{label}
-													</span>
-												</div>
-											))}
-										</div>
-
-										{rewardFlowMessages[1] &&
-											rewardFlowPhase >= 2 && (
-												<div
-													className={`text-xs font-medium mt-2 ${
-														rewardFlowPhase === 2
-															? 'animate-in fade-in duration-300'
-															: 'opacity-70'
-													} ${
-														lastWasBlocked
-															? 'text-destructive'
-															: 'text-success'
-													}`}
-												>
-													{rewardFlowMessages[1]}
-												</div>
-											)}
+										<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">{`result = UserRegistration.call(params)
+if result.success?
+  render json: { user: result.user }, status: :created
+else
+  render json: { errors: result.errors }, status: :unprocessable_entity
+end`}</pre>
 									</div>
 								</div>
 							</div>
 
-							<div className="px-6 pb-2">
-								<StressTestPanel
-									allowedCount={stressTest.allowedCount}
-									blockedCount={stressTest.blockedCount}
-									canAutoFire={stressTest.canAutoFire}
-									isAutoFiring={stressTest.isAutoFiring}
-									onFire={handleFireScenario}
-									onToggleAutoFire={stressTest.toggleAutoFire}
-									results={stressTest.results}
-									scenarios={STRESS_SCENARIOS}
-								/>
+							{/* Annotated code: service with responsibilities */}
+							<div className="px-6 py-2">
+								<div className="max-w-lg mx-auto space-y-1">
+									<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+										UserRegistration Service
+									</div>
+									<pre className="text-xs font-mono text-muted-foreground px-3 py-1">
+										{'def call'}
+									</pre>
+
+									<div className="border-l-2 border-l-zinc-400 dark:border-l-zinc-600 bg-muted/30 rounded-r-md px-3 py-2">
+										<div className="flex items-center gap-2 mb-1">
+											<Badge variant="secondary" className="text-[10px] px-1.5 py-0 text-muted-foreground">
+												Core Logic
+											</Badge>
+										</div>
+										<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">{`user = User.new(@params)
+return Result.new(failure) unless user.save`}</pre>
+									</div>
+
+									{ANNOTATED_SECTIONS.filter(s => s.variant === 'side-effect').map((section) => (
+										<div
+											key={section.id}
+											className="border-l-2 border-l-success bg-success/5 dark:bg-success/5 rounded-r-md px-3 py-2"
+										>
+											<div className="flex items-center gap-2 mb-1">
+												<Badge variant="outline" className="text-[10px] px-1.5 py-0 border-success/50 text-success">
+													{section.label.replace('Side Effect: ', 'Isolated: ')}
+												</Badge>
+											</div>
+											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">
+												{section.code}
+											</pre>
+										</div>
+									))}
+
+									<pre className="text-xs font-mono text-muted-foreground px-3 py-1">
+										{'  Result.new(success: true, user: user)'}
+									</pre>
+									<pre className="text-xs font-mono text-muted-foreground px-3 py-1">
+										{'end'}
+									</pre>
+								</div>
 							</div>
+
+							{/* Problems solved checklist */}
+							<div className="px-6 py-3">
+								<div className="max-w-lg mx-auto">
+									<div className="border border-success/30 bg-success/5 dark:bg-success/5 rounded-lg p-3 space-y-2">
+										<div className="text-xs font-semibold text-success uppercase tracking-wider">
+											Problems Solved
+										</div>
+										<div className="space-y-1.5 text-sm text-foreground">
+											<div className="flex items-start gap-2">
+												<span className="text-success shrink-0 mt-0.5">&#10003;</span>
+												<span><strong>Reusable by a rake task:</strong> <code className="text-xs bg-muted px-1 py-0.5 rounded">UserRegistration.call(params)</code> works from controllers, rake tasks, console, or tests.</span>
+											</div>
+											<div className="flex items-start gap-2">
+												<span className="text-success shrink-0 mt-0.5">&#10003;</span>
+												<span><strong>Testable without HTTP:</strong> Unit test calls <code className="text-xs bg-muted px-1 py-0.5 rounded">UserRegistration.call</code> directly. No request context needed.</span>
+											</div>
+											<div className="flex items-start gap-2">
+												<span className="text-success shrink-0 mt-0.5">&#10003;</span>
+												<span><strong>Readable at a glance:</strong> Controller is 8 lines. Service has one public method with clear inputs and outputs.</span>
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
+
 						</div>
 					)}
 				</div>

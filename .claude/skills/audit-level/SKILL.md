@@ -498,6 +498,72 @@ Beyond structural correctness, check that each step is meaningful and the level 
 - [ ] **Wrong options have distinct, teaching feedback.** Each wrong option should fail for a different reason that teaches something specific. Don't have two wrong options that are wrong for essentially the same reason.
 - [ ] **The reward phase is interactive.** Passive auto-incrementing counters are not allowed. The player must take actions and see visual reactions.
 
+### Cross-Phase Consistency (Non-Negotiable)
+
+These checks cut across all phases. Every level redesign or modification must pass all of them.
+
+#### Visual language must be consistent across phases
+
+The intro/observe visualization and the reward visualization must use the **same visual language**. If the intro shows annotated code with colored left borders, the reward must show annotated code with colored left borders (now green instead of amber). If the intro shows a pipeline with nodes, the reward must show the same pipeline with nodes (now fixed).
+
+```
+BAD: Intro uses annotated code blocks -> Reward uses a two-zone architecture diagram
+     (completely different visual language, player can't compare before/after)
+
+GOOD: Intro uses annotated code blocks (amber borders, "Side Effect" badges)
+   -> Reward uses annotated code blocks (green borders, "Isolated" badges)
+      (same visual language, player sees the transformation)
+```
+
+**Case study:** L16 originally showed annotated code in the intro but switched to a Controller box + FlowConnector + Service box layout in the reward. The player couldn't visually compare before and after because they looked nothing alike.
+
+#### Build steps must address all problems shown in the intro
+
+Every problem highlighted in the intro/observe phase must have a corresponding build step where the player solves it. If the intro shows N distinct problems, the build phase must have steps that address all N of them (possibly grouped, but none silently skipped).
+
+```
+BAD: Intro highlights 4 responsibilities (core + 3 side effects)
+     Build has 3 steps: choose pattern, define Result, wire controller
+     (The 3 side effects magically appear in the final code without the player deciding anything)
+
+GOOD: Intro highlights 4 responsibilities (core + 3 side effects)
+      Build has 4 steps: choose pattern, define Result, move side effects, wire controller
+      (Every responsibility gets addressed by a player decision)
+```
+
+**Case study:** L16 originally had 3 build steps but the intro showed 4 responsibilities. The side effects (logging, preferences, token) appeared in the generated code without the player making any decision about where they should go.
+
+#### Reward must close the loop on intro's stated problems
+
+If the intro states specific problems (e.g., "can't be reused by a rake task, tested without HTTP, or understood at a glance"), the reward must explicitly show that each problem is now solved. A generic "it's fixed now" message is not enough.
+
+```
+BAD: Intro says "can't be reused, can't be tested, can't be read"
+     Reward says "Each responsibility is isolated."
+     (Generic, doesn't prove the specific claims)
+
+GOOD: Intro says "can't be reused, can't be tested, can't be read"
+      Reward shows a "Problems Solved" checklist:
+      ✓ Reusable: UserRegistration.call(params) works from controllers, rake tasks, console
+      ✓ Testable: Unit test calls .call directly, no request context needed
+      ✓ Readable: Controller is 8 lines, service has one clear public method
+      (Each original problem gets a concrete resolution)
+```
+
+**Case study:** L16's intro callout stated three specific problems but the reward had a one-line generic message. Now it has a checklist mapping each problem to its solution.
+
+#### Reward phase type must match the level's observe type
+
+Not every level needs an interactive stress test in the reward phase. The reward mechanism should match the level type:
+
+| Observe type | Reward mechanism | Example |
+|---|---|---|
+| Type 3/4 (interactive observe with probes) | StressTestPanel: player fires requests, sees fix working | L12 Authorization, L15 CORS |
+| Type 2 (static intro, code-structure level) | Static before/after contrast + problems-solved checklist | L16 Service Objects |
+| Type 1 (no observe) | May not need a reward visualization at all | L1 Setup |
+
+A stress test ("fire requests and check allowed/blocked") makes no sense for a refactoring level where the fix doesn't change what requests get through. The reward for a refactoring level is seeing the clean code structure and confirming the original problems are resolved.
+
 ### State Machine
 
 Check the phase transitions. Three valid patterns exist (matching the four observe types):
