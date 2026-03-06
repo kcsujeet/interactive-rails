@@ -622,6 +622,10 @@ export function Level6Controller({ onComplete }: LevelComponentProps) {
 				id: 'model',
 				label: 'Model',
 				position: HUB_POS.model,
+				sublabel: probeDisplay ? 'unreachable' : undefined,
+				variant: (probeDisplay ? 'inactive' : 'default') as
+					| 'inactive'
+					| 'default',
 				inspectable: true,
 				inspected: inspectedStages.has('model'),
 			},

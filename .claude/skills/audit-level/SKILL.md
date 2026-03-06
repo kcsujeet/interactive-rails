@@ -227,6 +227,20 @@ If the level uses PipelineFlow specifically, these additional checks apply:
 - [ ] Node variants react to probes/interactions via `useMemo`
 - [ ] Define data maps: `STAGE_INSPECTOR_MAP`, `DISCOVERY_DEFS`, etc.
 
+**Node colors must match their state (non-negotiable):**
+
+Every node in the pipeline must visually reflect its actual state during the observe phase. A node that is unreachable, errored, or broken must never stay `default` (black/zinc). Check every node in the `observeStages` array:
+
+- **Broken/errored node** (the focus of the level): `variant: 'danger'` on probe (red background, red border)
+- **Nodes downstream of the broken stage** (unreachable): `variant: 'inactive'` + `sublabel: 'unreachable'` on probe (dashed, dimmed)
+- **Nodes that show error responses** (e.g., Response showing "500" or "404"): `variant: 'danger'` on probe
+- **Working nodes upstream of the problem**: `variant: 'active'` (green) or keep their existing state
+- **Idle state** (no probe fired): nodes can be `default`, `active`, or `inactive` depending on their role
+
+The rule: if a node's sublabel changes on probe (e.g., showing "404", "unreachable", "500 Error"), its variant MUST also change. A sublabel without a matching variant creates a black node with error text, which is visually wrong.
+
+**Case study:** L6 Controller had Model node with no variant on probe (stayed black) even though the controller was broken and Model was unreachable. L8 Associations had Response node showing "404" sublabel but no variant change (stayed black instead of danger red). Both were fixed by adding the appropriate variant.
+
 #### Hub-and-spoke layout for MVC architecture levels
 
 **When to use:** Any level where the Controller orchestrates dependencies (L5-L8 and future MVC levels). Levels with inherently linear concepts (CI/CD, middleware chains, CORS) keep simple horizontal layout.

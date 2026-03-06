@@ -749,6 +749,9 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 				id: 'response',
 				label: 'Response',
 				sublabel: probeDisplay ? '404' : undefined,
+				variant: (probeDisplay ? 'danger' : 'default') as
+					| 'danger'
+					| 'default',
 				inspectable: true,
 				inspected: inspectedStages.has('response'),
 			},
