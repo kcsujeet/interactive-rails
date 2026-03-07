@@ -1,40 +1,30 @@
 /**
  * Level 17: Concerns & Modules
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: intro -> build -> activate -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
- * Phase 1 (WHY - observe): Custom "Code Duplication" visualization.
- *   Two model zones side by side (Post, Comment), each containing
- *   identical tagging code blocks. Player clicks each model to inspect
- *   the duplicated code, fires probes to see both models behave
- *   identically. A dashed "Missing Concern" zone below highlights
- *   the absence of shared behavior extraction.
+ * Phase 1 (WHY - intro): Static annotated code display (Type 2).
+ *   Side-by-side annotated code blocks showing identical tagging methods
+ *   in Post and Comment with destructive left borders. Callout states
+ *   the structural problem. "Build the Fix" always visible (no gating).
  * Phase 2 (HOW - build): 3 OptionCard steps
  *   Step 0: Choose where to put shared behavior (ActiveSupport::Concern)
- *   Step 1: Define the concern's included block (has_many + scope)
+ *   Step 1: Define the concern's included block (has_many + scope + methods)
  *   Step 2: Include the concern in models (include Taggable)
  * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Concern" button
- * Phase 4 (ADVANTAGE - reward): Three-zone layout: Post and Comment models
- *   both connect down to the shared Taggable concern. Stress test fires
- *   tagging operations and shows the shared behavior working.
+ * Phase 4 (ADVANTAGE - reward): Same side-by-side layout as intro, now
+ *   showing clean models with "include Taggable" (green borders) and the
+ *   extracted Taggable concern below. "Problems Solved" checklist.
  *
- * Visualization approach: Custom zone layout (refactoring concept, code duplication).
- * Two side-by-side model zones with highlighted identical code blocks,
- * not a PipelineFlow request chain.
+ * Visualization approach: Type 2 static intro (refactoring concept).
+ * The code duplication is self-evident by reading the two files.
  *
  * Teaches: ActiveSupport::Concern, DRY, included block, module extraction
  */
 
-import {
-	ArrowRight,
-	Check,
-	Play,
-	Search,
-	Star,
-	X,
-} from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { ArrowRight, Check, Play, Star } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -48,221 +38,130 @@ import {
 	StepProgress,
 	type ValidationResult,
 } from '@/components/levels';
-import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
-import { FlowConnector } from '@/components/levels/FlowConnector';
-import { ScenarioCards, type ScenarioConfig } from '@/components/levels/ScenarioCards';
-import {
-	StageInspector,
-	type StageInspectorData,
-} from '@/components/levels/StageInspector';
-import { StressTestPanel } from '@/components/levels/StressTestPanel';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
-import {
-	type DiscoveryDef,
-	useDiscoveryGating,
-} from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
-import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 
 // ──────────────────────────────────────────────
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'intro' | 'build' | 'activate' | 'reward';
 
 // ──────────────────────────────────────────────
-// Duplicated code lines shown inside each model zone
+// Annotated code sections (intro + reward)
 // ──────────────────────────────────────────────
 
-const DUPLICATED_CODE_LINES = [
-	'has_many :taggings, as: :taggable',
-	'has_many :tags, through: :taggings',
-	'scope :tagged_with, ->(name) { ... }',
-	'def tag_list ... end',
-];
+interface AnnotatedSection {
+	id: string;
+	label: string;
+	variant: 'core' | 'duplicated';
+	code: string;
+}
 
-// ──────────────────────────────────────────────
-// Discovery definitions (observe phase)
-// ──────────────────────────────────────────────
-
-const DISCOVERY_DEFS: DiscoveryDef[] = [
-	{ id: 'post-tagging', label: 'Identical tagging code in Post' },
-	{ id: 'comment-tagging', label: 'Identical tagging code in Comment' },
-	{ id: 'dry-violation', label: 'DRY violation detected' },
-	{ id: 'identical-behavior', label: 'Both models behave identically' },
-];
-
-// ──────────────────────────────────────────────
-// Scenario configurations (observe phase)
-// ──────────────────────────────────────────────
-
-const SCENARIOS: ScenarioConfig[] = [
+const POST_SECTIONS: AnnotatedSection[] = [
 	{
-		id: 'fix-tagged-with',
-		title: 'Fix tagged_with for multi-word tags',
-		consequence: 'Must fix identical code in both Post and Comment. Forget one and behavior diverges.',
+		id: 'post-core',
+		label: 'Core',
+		variant: 'core',
+		code: 'belongs_to :user\nhas_many :comments',
 	},
 	{
-		id: 'add-article-model',
-		title: 'Add Article model with tagging',
-		consequence: 'Copy-paste the same 4 methods a third time? The duplication grows with every new model.',
+		id: 'post-tagging-assoc',
+		label: 'Duplicated: Associations',
+		variant: 'duplicated',
+		code: 'has_many :taggings, as: :taggable\nhas_many :tags, through: :taggings',
 	},
 	{
-		id: 'compare-implementations',
-		title: 'Audit all tagging code for consistency',
-		consequence: 'Scattered across multiple files. No single source of truth to review or test.',
+		id: 'post-tagging-scope',
+		label: 'Duplicated: Scope',
+		variant: 'duplicated',
+		code: 'scope :tagged_with, ->(name) {\n  joins(:tags).where(tags: { name: name })\n}',
+	},
+	{
+		id: 'post-tagging-methods',
+		label: 'Duplicated: Methods',
+		variant: 'duplicated',
+		code: 'def tag_list\n  tags.map(&:name).join(", ")\nend\n\ndef tag_list=(names)\n  self.tags = names.split(",").map { |n|\n    Tag.find_or_create_by(name: n.strip)\n  }\nend',
 	},
 ];
 
-// Map scenario IDs to discovery IDs they trigger
-const SCENARIO_DISCOVERY_MAP: Record<string, string> = {
-	'fix-tagged-with': 'dry-violation',
-	'add-article-model': 'identical-behavior',
-	'compare-implementations': 'post-tagging',
-};
-
-// Flow messages per scenario: [postMessage, commentMessage]
-const OBSERVE_FLOW: Record<string, [string, string]> = {
-	'fix-tagged-with': ['Fix here too!', 'Fix here too!'],
-	'add-article-model': ['Copy these 4 methods', 'Copy these 4 methods'],
-	'compare-implementations': ['has_many + scope + tag_list', 'has_many + scope + tag_list (identical!)'],
-};
-
-// ──────────────────────────────────────────────
-// Stage inspector data (observe phase)
-// ──────────────────────────────────────────────
-
-const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
-	post: {
-		stageId: 'post',
-		title: 'Post Model',
-		description:
-			'The Post model defines tagging associations, a tagged_with scope, and a tag_list method directly in the model file. This is the same code that also exists in the Comment model.',
-		code: `class Post < ApplicationRecord
-  belongs_to :user
-  has_many :comments
-
-  # Tagging (duplicated in Comment!)
-  has_many :taggings, as: :taggable
-  has_many :tags, through: :taggings
-
-  scope :tagged_with, ->(name) {
-    joins(:tags).where(tags: { name: name })
-  }
-
-  def tag_list
-    tags.map(&:name).join(", ")
-  end
-end`,
-	},
-	comment: {
-		stageId: 'comment',
-		title: 'Comment Model',
-		description:
-			'The Comment model has the exact same tagging code as Post. Every line of tagging logic is duplicated: the associations, the scope, and the instance method.',
-		code: `class Comment < ApplicationRecord
-  belongs_to :post
-  belongs_to :user
-
-  # Tagging (duplicated in Post!)
-  has_many :taggings, as: :taggable
-  has_many :tags, through: :taggings
-
-  scope :tagged_with, ->(name) {
-    joins(:tags).where(tags: { name: name })
-  }
-
-  def tag_list
-    tags.map(&:name).join(", ")
-  end
-end`,
-	},
-	concern: {
-		stageId: 'concern',
-		title: 'Concern (Missing!)',
-		description:
-			'There is no shared module for tagging behavior. Each model defines the same associations, scopes, and methods independently. When a bug is found or a feature added, every model must be updated separately.',
-	},
-};
-
-// Map stage IDs to discovery IDs they trigger
-const STAGE_DISCOVERY_MAP: Record<string, string> = {
-	post: 'post-tagging',
-	comment: 'comment-tagging',
-	concern: 'dry-violation',
-};
-
-// ──────────────────────────────────────────────
-// Stress test scenarios (reward phase)
-// ──────────────────────────────────────────────
-
-const STRESS_SCENARIOS: StressScenario[] = [
+const COMMENT_SECTIONS: AnnotatedSection[] = [
 	{
-		id: 'post-tagged-with',
-		label: 'Post.tagged_with("rails")',
-		description: 'Query posts by tag via shared concern',
-		method: 'GET',
-		path: '/posts?tag=rails',
-		actor: 'Post model',
-		expectedResult: 'allowed',
+		id: 'comment-core',
+		label: 'Core',
+		variant: 'core',
+		code: 'belongs_to :post\nbelongs_to :user',
 	},
 	{
-		id: 'comment-tagged-with',
-		label: 'Comment.tagged_with("ruby")',
-		description: 'Query comments by tag via shared concern',
-		method: 'GET',
-		path: '/comments?tag=ruby',
-		actor: 'Comment model',
-		expectedResult: 'allowed',
+		id: 'comment-tagging-assoc',
+		label: 'Duplicated: Associations',
+		variant: 'duplicated',
+		code: 'has_many :taggings, as: :taggable\nhas_many :tags, through: :taggings',
 	},
 	{
-		id: 'post-tag-list',
-		label: 'Post.first.tag_list',
-		description: 'Get tag list from Post via concern',
-		method: 'GET',
-		path: '/posts/1/tags',
-		actor: 'Post model',
-		expectedResult: 'allowed',
+		id: 'comment-tagging-scope',
+		label: 'Duplicated: Scope',
+		variant: 'duplicated',
+		code: 'scope :tagged_with, ->(name) {\n  joins(:tags).where(tags: { name: name })\n}',
 	},
 	{
-		id: 'comment-tag-list',
-		label: 'Comment.first.tag_list',
-		description: 'Get tag list from Comment via concern',
-		method: 'GET',
-		path: '/comments/1/tags',
-		actor: 'Comment model',
-		expectedResult: 'allowed',
-	},
-	{
-		id: 'post-add-tag',
-		label: 'Post.first.tag_list = "new"',
-		description: 'Set tags on Post via concern setter',
-		method: 'PATCH',
-		path: '/posts/1',
-		actor: 'Post model',
-		expectedResult: 'allowed',
-	},
-	{
-		id: 'concern-bug-fix',
-		label: 'Fix bug in Taggable concern',
-		description: 'One fix applies to all models automatically',
-		method: 'PATCH',
-		path: '/concerns/taggable',
-		actor: 'developer',
-		expectedResult: 'allowed',
+		id: 'comment-tagging-methods',
+		label: 'Duplicated: Methods',
+		variant: 'duplicated',
+		code: 'def tag_list\n  tags.map(&:name).join(", ")\nend\n\ndef tag_list=(names)\n  self.tags = names.split(",").map { |n|\n    Tag.find_or_create_by(name: n.strip)\n  }\nend',
 	},
 ];
 
-// Reward flow: [postMsg, concernMsg, commentMsg]
-const REWARD_FLOW: Record<string, [string, string, string]> = {
-	'post-tagged-with': ['Post.tagged_with', 'Taggable scope runs', ''],
-	'comment-tagged-with': ['', 'Taggable scope runs', 'Comment.tagged_with'],
-	'post-tag-list': ['Post.tag_list', 'Taggable#tag_list', ''],
-	'comment-tag-list': ['', 'Taggable#tag_list', 'Comment.tag_list'],
-	'post-add-tag': ['Post.tag_list=', 'Taggable setter', ''],
-	'concern-bug-fix': ['Auto-updated', 'Bug fixed here', 'Auto-updated'],
-};
+function AnnotatedCodeBlock({
+	modelName,
+	sections,
+	borderColor,
+}: {
+	modelName: string;
+	sections: AnnotatedSection[];
+	borderColor: 'destructive' | 'success';
+}) {
+	const isDestructive = borderColor === 'destructive';
+	return (
+		<div className="flex-1 space-y-1.5">
+			<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+				{modelName}
+			</div>
+			{sections.map((section) => {
+				const isDuplicated = section.variant === 'duplicated';
+				const borderClass = isDuplicated
+					? isDestructive
+						? 'border-l-destructive bg-destructive/5 dark:bg-destructive/10'
+						: 'border-l-success bg-success/5 dark:bg-success/10'
+					: 'border-l-zinc-400 dark:border-l-zinc-600 bg-muted/30';
+				const badgeClass = isDuplicated
+					? isDestructive
+						? 'border-destructive/50 text-destructive bg-destructive/10'
+						: 'border-success/50 text-success bg-success/10'
+					: 'border-zinc-400/50 text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800';
+
+				return (
+					<div
+						key={section.id}
+						className={`border-l-2 rounded-r-md px-3 py-2 ${borderClass}`}
+					>
+						<Badge
+							className={`text-[10px] mb-1 ${badgeClass}`}
+							variant="outline"
+						>
+							{section.label}
+						</Badge>
+						<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">
+							{section.code}
+						</pre>
+					</div>
+				);
+			})}
+		</div>
+	);
+}
 
 // ──────────────────────────────────────────────
 // Step definitions (3 OptionCard steps)
@@ -342,7 +241,7 @@ end`,
 end`,
 		correct: false,
 		feedback:
-			'The associations are correct, but the tagged_with scope and tag_list method are also duplicated. Extract everything that is shared.',
+			'The associations are correct, but the tagged_with scope, tag_list, and tag_list= methods are also duplicated. Extract everything that is shared.',
 	},
 	{
 		id: 'full-concern',
@@ -359,6 +258,12 @@ end`,
 
   def tag_list
     tags.map(&:name).join(", ")
+  end
+
+  def tag_list=(names)
+    self.tags = names.split(",").map { |n|
+      Tag.find_or_create_by(name: n.strip)
+    }
   end
 end`,
 		correct: true,
@@ -434,8 +339,8 @@ const OPTION_STEP_CONFIG: Record<
 function getCodeFiles(phase: Phase, furthestStep: number) {
 	const files = [];
 
-	// Observe phase: show duplicated code in both models
-	if (phase === 'observe') {
+	// Intro phase: show duplicated code in both models
+	if (phase === 'intro') {
 		files.push({
 			filename: 'app/models/post.rb',
 			language: 'ruby',
@@ -454,8 +359,14 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
   def tag_list
     tags.map(&:name).join(", ")
   end
+
+  def tag_list=(names)
+    self.tags = names.split(",").map { |n|
+      Tag.find_or_create_by(name: n.strip)
+    }
+  end
 end`,
-			highlight: [6, 7, 9, 10, 13, 14],
+			highlight: [6, 7, 9, 10, 13, 14, 17, 18, 19, 20],
 		});
 		files.push({
 			filename: 'app/models/comment.rb',
@@ -475,8 +386,14 @@ end`,
   def tag_list
     tags.map(&:name).join(", ")
   end
+
+  def tag_list=(names)
+    self.tags = names.split(",").map { |n|
+      Tag.find_or_create_by(name: n.strip)
+    }
+  end
 end`,
-			highlight: [6, 7, 9, 10, 13, 14],
+			highlight: [6, 7, 9, 10, 13, 14, 17, 18, 19, 20],
 		});
 		return files;
 	}
@@ -501,8 +418,14 @@ end`,
   def tag_list
     tags.map(&:name).join(", ")
   end
+
+  def tag_list=(names)
+    self.tags = names.split(",").map { |n|
+      Tag.find_or_create_by(name: n.strip)
+    }
+  end
 end`,
-			highlight: [6, 7, 9, 10, 13, 14],
+			highlight: [6, 7, 9, 10, 13, 14, 17, 18, 19, 20],
 		});
 	}
 
@@ -528,6 +451,12 @@ module Taggable
   def tag_list
     tags.map(&:name).join(", ")
   end
+
+  def tag_list=(names)
+    self.tags = names.split(",").map { |n|
+      Tag.find_or_create_by(name: n.strip)
+    }
+  end
 end`
 					: `# app/models/concerns/taggable.rb
 module Taggable
@@ -540,7 +469,7 @@ module Taggable
   # Instance methods go here
 end`,
 			highlight:
-				furthestStep >= 2 ? [5, 6, 7, 9, 10, 14, 15] : [5],
+				furthestStep >= 2 ? [5, 6, 7, 9, 10, 14, 15, 18, 19, 20, 21] : [5],
 		});
 	}
 
@@ -579,174 +508,12 @@ end
 }
 
 // ──────────────────────────────────────────────
-// Legend (reward phase left panel)
-// ──────────────────────────────────────────────
-
-function ConcernLegend() {
-	return (
-		<div className="p-4 border-b border-border">
-			<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-				Architecture Legend
-			</div>
-			<div className="space-y-2 text-sm">
-				<div className="flex items-center gap-2">
-					<Check className="w-4 h-4 text-success" />
-					<span className="text-foreground">
-						Shared behavior via Taggable concern
-					</span>
-				</div>
-				<div className="flex items-center gap-2">
-					<X className="w-4 h-4 text-destructive" />
-					<span className="text-foreground">
-						Duplicated code (eliminated)
-					</span>
-				</div>
-			</div>
-		</div>
-	);
-}
-
-// ──────────────────────────────────────────────
-// Observe phase: Model Zone component
-// ──────────────────────────────────────────────
-
-interface ModelZoneProps {
-	id: string;
-	name: string;
-	inspected: boolean;
-	highlighted: boolean;
-	flowMessage?: string;
-	showFlowMessage: boolean;
-	disabled: boolean;
-	onClick: (id: string) => void;
-}
-
-function ModelZone({
-	id,
-	name,
-	inspected,
-	highlighted,
-	flowMessage,
-	showFlowMessage,
-	disabled,
-	onClick,
-}: ModelZoneProps) {
-	return (
-		<button
-			type="button"
-			className={`flex-1 border-2 rounded-lg p-4 text-left transition-all duration-300 cursor-pointer hover:ring-2 hover:ring-ring/30 ${
-				highlighted
-					? 'ring-2 ring-destructive/60 shadow-lg shadow-destructive/10 border-destructive/50 bg-destructive/5 dark:bg-destructive/10'
-					: 'border-destructive/30 bg-card'
-			} ${!inspected && !highlighted ? 'ring-1 ring-primary/20' : ''}`}
-			disabled={disabled}
-			onClick={() => onClick(id)}
-		>
-			<div className="flex items-center justify-between mb-2">
-				<span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-					{name}
-				</span>
-				{!inspected && !disabled && (
-					<Search className="w-3.5 h-3.5 text-primary animate-pulse" />
-				)}
-			</div>
-
-			{/* Duplicated code lines */}
-			<div className="space-y-1">
-				{DUPLICATED_CODE_LINES.map((line) => (
-					<div
-						key={line}
-						className="text-xs font-mono text-destructive/80 bg-destructive/5 dark:bg-destructive/10 rounded px-2 py-1 border border-destructive/20"
-					>
-						{line}
-					</div>
-				))}
-			</div>
-
-			{/* Flow message */}
-			{flowMessage && showFlowMessage && (
-				<div
-					className={`text-xs font-medium mt-2 text-destructive ${
-						highlighted ? 'animate-in fade-in duration-300' : 'opacity-70'
-					}`}
-				>
-					{flowMessage}
-				</div>
-			)}
-		</button>
-	);
-}
-
-// ──────────────────────────────────────────────
 // Component
 // ──────────────────────────────────────────────
 
 export function Level17Concerns({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
-	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
-		minRequired: 3,
-	});
-	const stressTest = useStressTest(STRESS_SCENARIOS);
-	const [phase, setPhase] = useState<Phase>('observe');
-	const [inspectorData, setInspectorData] =
-		useState<StageInspectorData | null>(null);
-	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
-		new Set(),
-	);
-	// ── Flow animation state (observe phase) ──
-	const [flowPhase, setFlowPhase] = useState(-1);
-	const [flowMessages, setFlowMessages] = useState<[string, string]>(['', '']);
-	const flowTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-
-	const clearFlow = useCallback(() => {
-		for (const t of flowTimeoutsRef.current) clearTimeout(t);
-		flowTimeoutsRef.current = [];
-	}, []);
-
-	const runFlow = useCallback(
-		(messages: [string, string]) => {
-			clearFlow();
-			setFlowMessages(messages);
-			// Phase 0: highlight Post, Phase 1: highlight Comment
-			setFlowPhase(0);
-			const t1 = setTimeout(() => setFlowPhase(1), 1000);
-			const t2 = setTimeout(() => setFlowPhase(-1), 2500);
-			flowTimeoutsRef.current.push(t1, t2);
-		},
-		[clearFlow],
-	);
-
-	useEffect(() => {
-		return () => clearFlow();
-	}, [clearFlow]);
-
-	// ── Reward flow animation ──
-	const [rewardFlowPhase, setRewardFlowPhase] = useState(-1);
-	const [rewardFlowMessages, setRewardFlowMessages] = useState<[string, string, string]>(['', '', '']);
-	const rewardFlowTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-
-	const clearRewardFlow = useCallback(() => {
-		for (const t of rewardFlowTimeoutsRef.current) clearTimeout(t);
-		rewardFlowTimeoutsRef.current = [];
-	}, []);
-
-	const runRewardFlow = useCallback(
-		(messages: [string, string, string]) => {
-			clearRewardFlow();
-			setRewardFlowMessages(messages);
-			// Phase 0: models highlight, Phase 1: connectors, Phase 2: concern highlights
-			setRewardFlowPhase(0);
-			const t1 = setTimeout(() => setRewardFlowPhase(1), 600);
-			const t2 = setTimeout(() => setRewardFlowPhase(2), 1200);
-			const t3 = setTimeout(() => setRewardFlowPhase(-1), 2400);
-			rewardFlowTimeoutsRef.current.push(t1, t2, t3);
-		},
-		[clearRewardFlow],
-	);
-
-	useEffect(() => {
-		return () => clearRewardFlow();
-	}, [clearRewardFlow]);
+	const [phase, setPhase] = useState<Phase>('intro');
 
 	// ── Transition: build -> activate when all steps complete ──
 	useEffect(() => {
@@ -755,55 +522,14 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 		}
 	}, [phase, stepper.isComplete]);
 
-	// ── Stage click handler (observe phase) ──
-	const handleStageClick = useCallback(
-		(stageId: string) => {
-			if (phase !== 'observe') return;
-			if (flowPhase !== -1) return;
-
-			const data = STAGE_INSPECTOR_MAP[stageId];
-			if (!data) return;
-
-			setInspectorData(data);
-			setInspectedStages((prev) => {
-				if (prev.has(stageId)) return prev;
-				const next = new Set(prev);
-				next.add(stageId);
-				return next;
-			});
-
-			const discoveryId = STAGE_DISCOVERY_MAP[stageId];
-			if (discoveryId) {
-				discoveryGating.discover(discoveryId);
-			}
-		},
-		[phase, flowPhase, discoveryGating],
-	);
-
-	// ── Scenario handler (observe phase) ──
-	const handleScenario = useCallback(
-		(scenarioId: string) => {
-			const discoveryId = SCENARIO_DISCOVERY_MAP[scenarioId];
-			if (discoveryId) {
-				discoveryGating.discover(discoveryId);
-			}
-			const messages = OBSERVE_FLOW[scenarioId];
-			if (messages) runFlow(messages);
-		},
-		[discoveryGating, runFlow],
-	);
-
 	// ── OptionCard step handler ──
-	const handleOptionClick = useCallback(
-		(option: StepOption) => {
-			if (option.correct) {
-				stepper.completeStep();
-			} else if (option.feedback) {
-				stepper.recordWrongAttempt(option.feedback);
-			}
-		},
-		[stepper],
-	);
+	const handleOptionClick = (option: StepOption) => {
+		if (option.correct) {
+			stepper.completeStep();
+		} else if (option.feedback) {
+			stepper.recordWrongAttempt(option.feedback);
+		}
+	};
 
 	// ── Phase transition handlers ──
 	const handleStartBuild = () => {
@@ -812,18 +538,7 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 
 	const handleActivateConcern = () => {
 		setPhase('reward');
-		stressTest.reset();
 	};
-
-	// ── Stress test fire handler ──
-	const handleFireScenario = useCallback(
-		(scenarioId: string) => {
-			stressTest.fireRequest(scenarioId);
-			const messages = REWARD_FLOW[scenarioId];
-			if (messages) runRewardFlow(messages);
-		},
-		[stressTest, runRewardFlow],
-	);
 
 	// ── Completion ──
 	const handleComplete = () => {
@@ -846,9 +561,6 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
 	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep];
-
-	// Latest stress test result
-	const lastResult = stressTest.results[stressTest.results.length - 1];
 
 	// ── Render ──
 	return (
@@ -879,17 +591,6 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 						</p>
 					</div>
 
-					{/* Observe phase: discovery checklist */}
-					{phase === 'observe' && (
-						<div className="p-4 border-b border-border">
-							<DiscoveryChecklist
-								discoveries={discoveryGating.discoveries}
-								discoveredCount={discoveryGating.discoveredCount}
-								minRequired={discoveryGating.minRequired}
-							/>
-						</div>
-					)}
-
 					{/* Build / activate phases: step progress */}
 					{(phase === 'build' || phase === 'activate') && (
 						<div className="p-4 border-b border-border">
@@ -902,30 +603,6 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 								steps={stepper.steps}
 							/>
 						</div>
-					)}
-
-					{/* Reward phase: legend + counters */}
-					{phase === 'reward' && (
-						<>
-							<ConcernLegend />
-
-							<div className="p-4">
-								<div className="grid grid-cols-2 gap-3">
-									<div className="bg-success/20 rounded-lg p-3 text-center">
-										<div className="text-2xl font-bold text-success">
-											{stressTest.allowedCount}
-										</div>
-										<div className="text-xs text-success/70">Shared Ops</div>
-									</div>
-									<div className="bg-destructive/20 rounded-lg p-3 text-center">
-										<div className="text-2xl font-bold text-destructive">
-											{stressTest.blockedCount}
-										</div>
-										<div className="text-xs text-destructive/70">Blocked</div>
-									</div>
-								</div>
-							</div>
-						</>
 					)}
 				</InstructionPanel>
 			</LeftPanel>
@@ -943,93 +620,54 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 				/>
 
 				<div className="flex-1 flex flex-col bg-background overflow-hidden">
-					{/* ── Phase 1: Observe (WHY) ── */}
-					{phase === 'observe' && (
-						<div className="flex-1 flex flex-col">
-							{/* Two model zones side by side + missing concern below */}
-							<div className="flex-1 flex flex-col items-center justify-center px-6 gap-3 relative">
-								{/* Side-by-side model zones */}
-								<div className="w-full max-w-2xl flex gap-4">
-									<ModelZone
-										id="post"
-										name="Post Model"
-										inspected={inspectedStages.has('post')}
-										highlighted={flowPhase === 0}
-										flowMessage={flowMessages[0]}
-										showFlowMessage={flowPhase >= 0}
-										disabled={flowPhase !== -1}
-										onClick={handleStageClick}
-									/>
-									<ModelZone
-										id="comment"
-										name="Comment Model"
-										inspected={inspectedStages.has('comment')}
-										highlighted={flowPhase === 1}
-										flowMessage={flowMessages[1]}
-										showFlowMessage={flowPhase >= 1}
-										disabled={flowPhase !== -1}
-										onClick={handleStageClick}
-									/>
-								</div>
-
-								{/* Missing Concern zone (dashed) */}
-								<button
-									type="button"
-									className={`w-full max-w-2xl border-2 border-dashed rounded-lg p-3 text-center transition-all duration-300 cursor-pointer hover:ring-2 hover:ring-ring/30 ${
-										inspectedStages.has('concern')
-											? 'border-muted-foreground/30 bg-muted/20 dark:bg-muted/10'
-											: 'border-muted-foreground/30 bg-muted/20 dark:bg-muted/10 ring-1 ring-primary/20'
-									}`}
-									disabled={flowPhase !== -1}
-									onClick={() => handleStageClick('concern')}
-								>
-									<div className="flex items-center justify-center gap-2">
-										<span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-											Shared Module
-										</span>
-										<span className="text-xs text-destructive font-medium">
-											(missing!)
-										</span>
-										{!inspectedStages.has('concern') && flowPhase === -1 && (
-											<Search className="w-3.5 h-3.5 text-primary animate-pulse" />
-										)}
-									</div>
+					{/* ── Phase 1: Intro (WHY) ── */}
+					{phase === 'intro' && (
+						<div className="flex-1 flex flex-col overflow-auto">
+							<div className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
+								{/* Header */}
+								<div className="text-center">
+									<h3 className="text-lg font-semibold text-foreground">
+										The Problem: Duplicated Tagging Code
+									</h3>
 									<p className="text-xs text-muted-foreground mt-1">
-										No concern exists. Each model duplicates the same code.
+										Two models, same 4 methods, same bugs to fix twice
 									</p>
-								</button>
-
-								{/* Stage Inspector overlay */}
-								{inspectorData && (
-									<StageInspector
-										data={inspectorData}
-										onClose={() => setInspectorData(null)}
-									/>
-								)}
-							</div>
-
-							{/* Scenario cards */}
-							<div className="px-6 pb-2">
-								<ScenarioCards
-									scenarios={SCENARIOS}
-									onSelect={handleScenario}
-									disabled={flowPhase !== -1}
-								/>
-							</div>
-
-							{/* Build the Fix button (discovery gated) */}
-							{discoveryGating.isUnlocked && (
-								<div className="p-4 flex justify-center animate-in fade-in duration-500">
-									<Button
-										className="gap-2"
-										onClick={handleStartBuild}
-										size="lg"
-									>
-										Build the Fix
-										<ArrowRight className="w-4 h-4" />
-									</Button>
 								</div>
-							)}
+
+								{/* Side-by-side annotated code */}
+								<div className="w-full max-w-3xl flex gap-4">
+									<AnnotatedCodeBlock
+										borderColor="destructive"
+										modelName="app/models/post.rb"
+										sections={POST_SECTIONS}
+									/>
+									<AnnotatedCodeBlock
+										borderColor="destructive"
+										modelName="app/models/comment.rb"
+										sections={COMMENT_SECTIONS}
+									/>
+								</div>
+
+								{/* Callout */}
+								<div className="w-full max-w-3xl rounded-lg border border-destructive/30 bg-destructive/5 dark:bg-destructive/10 p-3">
+									<p className="text-sm text-destructive font-medium">
+										Same 4 methods in both models. Fix a bug?
+										Fix it twice. Add a third model? Copy-paste
+										again. No single source of truth to test or
+										review.
+									</p>
+								</div>
+
+								{/* Build the Fix button (always visible) */}
+								<Button
+									className="gap-2"
+									onClick={handleStartBuild}
+									size="lg"
+								>
+									Build the Fix
+									<ArrowRight className="w-4 h-4" />
+								</Button>
+							</div>
 						</div>
 					)}
 
@@ -1130,142 +768,148 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 
 					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
 					{phase === 'reward' && (
-						<div className="flex-1 flex flex-col">
-							{/* Three-zone layout: models -> concern */}
-							<div className="flex-1 flex flex-col items-center justify-center px-6 gap-3">
-								{/* Model zones side by side (now clean) */}
-								<div className="w-full max-w-2xl flex gap-4">
-									{/* Post Model (clean) */}
-									<div
-										className={`flex-1 border-2 rounded-lg p-4 transition-all duration-300 ${
-											rewardFlowPhase === 0 && rewardFlowMessages[0]
-												? 'ring-2 ring-primary/60 shadow-lg shadow-primary/10 border-success/50'
-												: 'border-success/30 bg-success/5 dark:bg-success/10'
-										}`}
-									>
-										<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-											Post Model
-										</div>
-										<pre className="text-xs font-mono text-foreground">
-											include Taggable
-										</pre>
-										<div className="mt-1 text-xs text-success font-medium">
-											Clean (6 lines)
-										</div>
-										{rewardFlowMessages[0] && rewardFlowPhase >= 0 && (
-											<div
-												className={`text-xs font-medium mt-1.5 text-primary ${
-													rewardFlowPhase === 0
-														? 'animate-in fade-in duration-300'
-														: 'opacity-70'
-												}`}
-											>
-												{rewardFlowMessages[0]}
-											</div>
-										)}
-									</div>
-
-									{/* Comment Model (clean) */}
-									<div
-										className={`flex-1 border-2 rounded-lg p-4 transition-all duration-300 ${
-											rewardFlowPhase === 0 && rewardFlowMessages[2]
-												? 'ring-2 ring-primary/60 shadow-lg shadow-primary/10 border-success/50'
-												: 'border-success/30 bg-success/5 dark:bg-success/10'
-										}`}
-									>
-										<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-											Comment Model
-										</div>
-										<pre className="text-xs font-mono text-foreground">
-											include Taggable
-										</pre>
-										<div className="mt-1 text-xs text-success font-medium">
-											Clean (6 lines)
-										</div>
-										{rewardFlowMessages[2] && rewardFlowPhase >= 0 && (
-											<div
-												className={`text-xs font-medium mt-1.5 text-primary ${
-													rewardFlowPhase === 0
-														? 'animate-in fade-in duration-300'
-														: 'opacity-70'
-												}`}
-											>
-												{rewardFlowMessages[2]}
-											</div>
-										)}
-									</div>
+						<div className="flex-1 flex flex-col overflow-auto">
+							<div className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
+								{/* Header */}
+								<div className="text-center">
+									<h3 className="text-lg font-semibold text-foreground">
+										The Fix: Taggable Concern
+									</h3>
+									<p className="text-xs text-muted-foreground mt-1">
+										Shared behavior extracted, models stay clean
+									</p>
 								</div>
 
-								{/* Flow connectors (both models down to concern) */}
-								<div className="flex gap-4 w-full max-w-2xl">
-									<div className="flex-1 flex justify-center">
-										<FlowConnector
-											active={rewardFlowPhase === 1}
-											dotColor="bg-success"
-										/>
+								{/* Side-by-side clean models */}
+								<div className="w-full max-w-3xl flex gap-4">
+									{/* Post (clean) */}
+									<div className="flex-1 space-y-1.5">
+										<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+											app/models/post.rb
+										</div>
+										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-3 py-2">
+											<Badge
+												className="text-[10px] mb-1 border-success/50 text-success bg-success/10"
+												variant="outline"
+											>
+												Delegates to Concern
+											</Badge>
+											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">include Taggable</pre>
+										</div>
+										<div className="border-l-2 border-l-zinc-400 dark:border-l-zinc-600 bg-muted/30 rounded-r-md px-3 py-2">
+											<Badge
+												className="text-[10px] mb-1 border-zinc-400/50 text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800"
+												variant="outline"
+											>
+												Core
+											</Badge>
+											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">belongs_to :user{'\n'}has_many :comments</pre>
+										</div>
+										<div className="mt-1 text-xs text-success font-medium px-3">
+											Clean (6 lines)
+										</div>
 									</div>
-									<div className="flex-1 flex justify-center">
-										<FlowConnector
-											active={rewardFlowPhase === 1}
-											dotColor="bg-success"
-										/>
+
+									{/* Comment (clean) */}
+									<div className="flex-1 space-y-1.5">
+										<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+											app/models/comment.rb
+										</div>
+										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-3 py-2">
+											<Badge
+												className="text-[10px] mb-1 border-success/50 text-success bg-success/10"
+												variant="outline"
+											>
+												Delegates to Concern
+											</Badge>
+											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">include Taggable</pre>
+										</div>
+										<div className="border-l-2 border-l-zinc-400 dark:border-l-zinc-600 bg-muted/30 rounded-r-md px-3 py-2">
+											<Badge
+												className="text-[10px] mb-1 border-zinc-400/50 text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800"
+												variant="outline"
+											>
+												Core
+											</Badge>
+											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">belongs_to :post{'\n'}belongs_to :user</pre>
+										</div>
+										<div className="mt-1 text-xs text-success font-medium px-3">
+											Clean (6 lines)
+										</div>
 									</div>
 								</div>
 
 								{/* Taggable Concern zone */}
-								<div
-									className={`w-full max-w-2xl border-2 rounded-lg p-4 text-center transition-all duration-300 ${
-										rewardFlowPhase === 2
-											? 'ring-2 ring-success/60 shadow-lg shadow-success/10 border-success/50 bg-success/5 dark:bg-success/10'
-											: 'border-success/30 bg-success/5 dark:bg-success/10'
-									}`}
-								>
-									<div className="flex items-center justify-center gap-2 mb-2">
-										<span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-											Taggable Concern
-										</span>
-										{lastResult && (
-											<span className="text-xs font-mono text-success font-bold">
-												DRY
-											</span>
-										)}
+								<div className="w-full max-w-3xl border-2 border-success/30 bg-success/5 dark:bg-success/10 rounded-lg p-4">
+									<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 text-center">
+										app/models/concerns/taggable.rb
 									</div>
-									<div className="flex flex-wrap gap-1.5 justify-center">
-										{DUPLICATED_CODE_LINES.map((line) => (
-											<div
-												key={line}
-												className="text-xs font-mono text-success/80 bg-success/5 dark:bg-success/10 rounded px-2 py-1 border border-success/20"
+									<div className="grid grid-cols-3 gap-2">
+										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-2 py-1.5">
+											<Badge
+												className="text-[10px] mb-1 border-success/50 text-success bg-success/10"
+												variant="outline"
 											>
-												{line}
-											</div>
-										))}
-									</div>
-									{rewardFlowMessages[1] && rewardFlowPhase >= 2 && (
-										<div
-											className={`text-xs font-medium mt-2 text-success ${
-												rewardFlowPhase === 2
-													? 'animate-in fade-in duration-300'
-													: 'opacity-70'
-											}`}
-										>
-											{rewardFlowMessages[1]}
+												Associations
+											</Badge>
+											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">has_many :taggings{'\n'}has_many :tags</pre>
 										</div>
-									)}
+										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-2 py-1.5">
+											<Badge
+												className="text-[10px] mb-1 border-success/50 text-success bg-success/10"
+												variant="outline"
+											>
+												Scope
+											</Badge>
+											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">scope :tagged_with</pre>
+										</div>
+										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-2 py-1.5">
+											<Badge
+												className="text-[10px] mb-1 border-success/50 text-success bg-success/10"
+												variant="outline"
+											>
+												Methods
+											</Badge>
+											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">def tag_list{'\n'}def tag_list=</pre>
+										</div>
+									</div>
 								</div>
-							</div>
 
-							{/* Stress test controls */}
-							<div className="px-6 pb-2">
-								<StressTestPanel
-									allowedCount={stressTest.allowedCount}
-									blockedCount={stressTest.blockedCount}
-									canAutoFire={stressTest.canAutoFire}
-									isAutoFiring={stressTest.isAutoFiring}
-									onFire={handleFireScenario}
-									onToggleAutoFire={stressTest.toggleAutoFire}
-									results={stressTest.results}
-									scenarios={STRESS_SCENARIOS}
-								/>
+								{/* Problems Solved checklist */}
+								<div className="w-full max-w-3xl rounded-lg border border-success/30 bg-success/5 dark:bg-success/10 p-3">
+									<div className="text-xs font-semibold text-success uppercase tracking-wider mb-2">
+										Problems Solved
+									</div>
+									<div className="space-y-2">
+										<div className="flex items-start gap-2">
+											<Check className="w-4 h-4 text-success mt-0.5 shrink-0" />
+											<p className="text-sm text-foreground">
+												<span className="font-medium">Fix once, applies everywhere.</span>{' '}
+												<span className="text-muted-foreground">
+													Change the Taggable concern, both Post and Comment update automatically.
+												</span>
+											</p>
+										</div>
+										<div className="flex items-start gap-2">
+											<Check className="w-4 h-4 text-success mt-0.5 shrink-0" />
+											<p className="text-sm text-foreground">
+												<span className="font-medium">Add Article model with tagging.</span>{' '}
+												<span className="text-muted-foreground">
+													Just <code className="text-xs bg-muted px-1 py-0.5 rounded">include Taggable</code>, done. No copy-paste.
+												</span>
+											</p>
+										</div>
+										<div className="flex items-start gap-2">
+											<Check className="w-4 h-4 text-success mt-0.5 shrink-0" />
+											<p className="text-sm text-foreground">
+												<span className="font-medium">One file to audit and test.</span>{' '}
+												<span className="text-muted-foreground">
+													All tagging logic lives in <code className="text-xs bg-muted px-1 py-0.5 rounded">app/models/concerns/taggable.rb</code>.
+												</span>
+											</p>
+										</div>
+									</div>
+								</div>
 							</div>
 						</div>
 					)}
