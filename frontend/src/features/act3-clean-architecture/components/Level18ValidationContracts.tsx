@@ -1,33 +1,31 @@
 /**
  * Level 18: Validation Contracts
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: intro -> build -> activate -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
- * Phase 1 (WHY - observe): Custom "Scattered Validations" zone layout.
- *   A large Controller zone shows 5 inline validation blocks crammed together
- *   (email check, password check, display name check, digest check, cross-field rule).
- *   The player clicks each block to discover why scattered validations are problematic.
- *   Probes reveal inconsistent error responses and missing cross-field logic.
+ * Phase 1 (WHY - intro): Static annotated code display (Type 2).
+ *   Shows the fat controller with color-coded validation blocks.
+ *   Each inline check gets a destructive left border + Badge label.
+ *   Callout states the structural problems. "Build the Fix" always visible.
  * Phase 2 (HOW - build): 4 steps (1 TerminalChoice + 3 OptionCard)
  *   Step 0: Install dry-validation gem (TerminalChoiceStep)
  *   Step 1: Choose schema approach (OptionCard)
  *   Step 2: Create composed contract (OptionCard)
  *   Step 3: Add cross-field rule (OptionCard)
  * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Contract" button
- * Phase 4 (ADVANTAGE - reward): Two-zone layout: thin Controller delegates to
- *   Contract zone containing composed schemas + rule block. Stress test fires
- *   registration payloads showing consistent validation.
+ * Phase 4 (ADVANTAGE - reward): Same annotated code style as intro, now
+ *   showing thin controller (green) + contract with composed schemas (green).
+ *   "Problems Solved" checklist closing the loop on intro's stated problems.
  *
- * Visualization approach: Custom zone layout (refactoring concept, not request lifecycle).
- * The fat controller is shown with scattered inline checks, then extracted into
- * controller + contract zones in the reward phase.
+ * Visualization approach: Type 2 static intro (refactoring concept).
+ * The scattered validations are self-evident by reading the controller code.
  *
  * Teaches: dry-validation gem, Dry::Schema, schema composition, cross-field rules
  */
 
-import { ArrowRight, Check, Play, Search, Star, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowRight, Check, Play, Star } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -44,310 +42,66 @@ import {
 	type TerminalStepData,
 	type ValidationResult,
 } from '@/components/levels';
-import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
-import { FlowConnector } from '@/components/levels/FlowConnector';
-import {
-	ScenarioCards,
-	type ScenarioConfig,
-} from '@/components/levels/ScenarioCards';
-import {
-	StageInspector,
-	type StageInspectorData,
-} from '@/components/levels/StageInspector';
-import { StressTestPanel } from '@/components/levels/StressTestPanel';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
-import {
-	type DiscoveryDef,
-	useDiscoveryGating,
-} from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
-import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 
 // ──────────────────────────────────────────────
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'intro' | 'build' | 'activate' | 'reward';
 
 // ──────────────────────────────────────────────
-// Validation blocks inside the fat controller
+// Annotated code sections (intro)
 // ──────────────────────────────────────────────
 
-interface ValidationBlock {
+interface AnnotatedSection {
 	id: string;
 	label: string;
-	lines: string;
+	variant: 'core' | 'scattered' | 'buried';
 	code: string;
 }
 
-const VALIDATION_BLOCKS: ValidationBlock[] = [
+const INTRO_SECTIONS: AnnotatedSection[] = [
 	{
 		id: 'email-check',
-		label: 'Email Check',
-		lines: 'Lines 3-5',
-		code: `if params[:email].blank?
-  return render json: {error: "Email required"}, status: 422
-end`,
+		label: 'Inline: Email Check',
+		variant: 'scattered',
+		code: `if params[:email].blank?\n  return render json: {error: "Email required"}, status: 422\nend`,
 	},
 	{
 		id: 'password-check',
-		label: 'Password Check',
-		lines: 'Lines 6-8',
-		code: `if params[:password].length < 8
-  return render json: {error: "Password too short"}, status: 422
-end`,
+		label: 'Inline: Password Check',
+		variant: 'scattered',
+		code: `if params[:password].length < 8\n  return render json: {error: "Password too short"}, status: 422\nend`,
 	},
 	{
 		id: 'name-check',
-		label: 'Display Name Check',
-		lines: 'Lines 11-13',
-		code: `if params[:display_name].blank?
-  return render json: {error: "Name required"}, status: 422
-end`,
+		label: 'Inline: Display Name Check',
+		variant: 'scattered',
+		code: `if params[:display_name].blank?\n  return render json: {error: "Name required"}, status: 422\nend`,
 	},
 	{
 		id: 'digest-check',
-		label: 'Digest Frequency Check',
-		lines: 'Lines 17-19',
-		code: `unless %w[daily weekly monthly never].include?(params[:digest])
-  return render json: {error: "Bad digest"}, status: 422
-end`,
+		label: 'Inline: Digest Frequency',
+		variant: 'scattered',
+		code: `unless %w[daily weekly monthly never].include?(params[:digest])\n  return render json: {error: "Bad digest"}, status: 422\nend`,
 	},
 	{
-		id: 'cross-field-rule',
-		label: 'Cross-Field Rule (buried!)',
-		lines: 'Lines 22-24',
-		code: `if params[:role] == "creator" && params[:digest] != "weekly"
-  return render json: {error: "Creators need weekly"}, status: 422
-end`,
+		id: 'cross-field',
+		label: 'Buried: Cross-Field Rule',
+		variant: 'buried',
+		code: `if params[:role] == "creator" && params[:digest] != "weekly"\n  return render json: {error: "Creators need weekly"}, status: 422\nend`,
+	},
+	{
+		id: 'create',
+		label: 'Core: Record Creation',
+		variant: 'core',
+		code: `user = User.create!(...)\nProfile.create!(user: user, ...)\nNotificationPref.create!(user: user, ...)`,
 	},
 ];
-
-// ──────────────────────────────────────────────
-// Discovery definitions (observe phase)
-// ──────────────────────────────────────────────
-
-const DISCOVERY_DEFS: DiscoveryDef[] = [
-	{ id: 'scattered-validations', label: 'Scattered inline validations' },
-	{ id: 'inconsistent-errors', label: 'Inconsistent error responses' },
-	{ id: 'no-cross-field', label: 'No cross-field rules' },
-	{ id: 'controller-bloat', label: 'Controller too complex' },
-];
-
-// ──────────────────────────────────────────────
-// Scenario configurations (observe phase)
-// ──────────────────────────────────────────────
-
-const SCENARIOS: ScenarioConfig[] = [
-	{
-		id: 'user-three-errors',
-		title: 'User submits a form with 3 invalid fields',
-		consequence:
-			'Only the first error is returned. User must fix and resubmit for each one.',
-	},
-	{
-		id: 'reuse-validation',
-		title: 'Reuse validation logic in admin endpoint',
-		consequence:
-			'Must copy all inline checks to the new controller. No shared validation layer.',
-	},
-	{
-		id: 'test-cross-field',
-		title: 'Unit test the creator+weekly rule',
-		consequence:
-			'Business rules are buried in the controller. Cannot test without the full HTTP stack.',
-	},
-];
-
-// Map scenario IDs to discovery IDs they trigger
-const SCENARIO_DISCOVERY_MAP: Record<string, string> = {
-	'user-three-errors': 'inconsistent-errors',
-	'reuse-validation': 'scattered-validations',
-	'test-cross-field': 'no-cross-field',
-};
-
-// Map scenario IDs to flow animation: which validation block lights up
-const OBSERVE_FLOW: Record<string, string[]> = {
-	'user-three-errors': [
-		'render {error: "Email required"} (STOP)',
-		'(never checked)',
-		'(never checked)',
-		'(never checked)',
-		'(never checked)',
-	],
-	'reuse-validation': [
-		'Copy to new controller',
-		'Copy to new controller',
-		'Copy to new controller',
-		'Copy to new controller',
-		'Copy to new controller',
-	],
-	'test-cross-field': [
-		'(inline in controller)',
-		'(inline in controller)',
-		'(inline in controller)',
-		'(inline in controller)',
-		'Buried here, untestable',
-	],
-};
-
-// ──────────────────────────────────────────────
-// Block inspector data (observe phase)
-// ──────────────────────────────────────────────
-
-const BLOCK_INSPECTOR_MAP: Record<string, StageInspectorData> = {
-	'email-check': {
-		stageId: 'email-check',
-		title: 'Email Check (Inline)',
-		description:
-			'The email check returns immediately with its own error format. If this fails, no other validations run. The controller never collects all errors at once.',
-		code: `if params[:email].blank?
-  return render json: {error: "Email required"}, status: 422
-end
-# Only one error per request. User fixes email,
-# then discovers password is also wrong.`,
-	},
-	'password-check': {
-		stageId: 'password-check',
-		title: 'Password Check (Inline)',
-		description:
-			'Another standalone check with its own render call. If email passes but password fails, only the password error is returned. No batch validation.',
-		code: `if params[:password].length < 8
-  return render json: {error: "Password too short"}, status: 422
-end`,
-	},
-	'name-check': {
-		stageId: 'name-check',
-		title: 'Display Name Check (Inline)',
-		description:
-			'Profile validation mixed in with user validations. These belong to different models but are jumbled together in one controller action.',
-		code: `# Profile model field validated in user controller
-if params[:display_name].blank?
-  return render json: {error: "Name required"}, status: 422
-end`,
-	},
-	'digest-check': {
-		stageId: 'digest-check',
-		title: 'Digest Frequency Check (Inline)',
-		description:
-			'Notification preferences validated inline. The allowed values list is hardcoded in the controller instead of being defined in a schema.',
-		code: `digests = %w[daily weekly monthly never]
-unless digests.include?(params[:digest])
-  return render json: {error: "Bad digest"}, status: 422
-end`,
-	},
-	'cross-field-rule': {
-		stageId: 'cross-field-rule',
-		title: 'Cross-Field Rule (Buried)',
-		description:
-			'Business logic that spans two fields (role + digest). Buried between format checks. Cannot be tested independently or reused in other contexts.',
-		code: `# Business rule: creators must have weekly digest
-if params[:role] == "creator" && params[:digest] != "weekly"
-  return render json: {error: "Creators need weekly"}, status: 422
-end
-# This rule is impossible to unit test without
-# hitting the full HTTP stack.`,
-	},
-};
-
-// Map block IDs to discovery IDs
-const BLOCK_DISCOVERY_MAP: Record<string, string> = {
-	'email-check': 'inconsistent-errors',
-	'password-check': 'scattered-validations',
-	'name-check': 'controller-bloat',
-	'digest-check': 'scattered-validations',
-	'cross-field-rule': 'no-cross-field',
-};
-
-// ──────────────────────────────────────────────
-// Stress test scenarios (reward phase)
-// ──────────────────────────────────────────────
-
-const STRESS_SCENARIOS: StressScenario[] = [
-	{
-		id: 'valid-registration',
-		label: 'Valid registration',
-		description: 'POST with all fields correct',
-		method: 'POST',
-		path: '/api/v1/register',
-		actor: 'new_user',
-		expectedResult: 'allowed',
-	},
-	{
-		id: 'missing-email',
-		label: 'Missing email',
-		description: 'POST without required email field',
-		method: 'POST',
-		path: '/api/v1/register',
-		actor: 'new_user',
-		expectedResult: 'blocked',
-	},
-	{
-		id: 'short-password',
-		label: 'Short password',
-		description: 'POST with password under 8 chars',
-		method: 'POST',
-		path: '/api/v1/register',
-		actor: 'new_user',
-		expectedResult: 'blocked',
-	},
-	{
-		id: 'invalid-digest',
-		label: 'Invalid digest value',
-		description: 'POST with digest: "hourly" (not in allowed list)',
-		method: 'POST',
-		path: '/api/v1/register',
-		actor: 'new_user',
-		expectedResult: 'blocked',
-	},
-	{
-		id: 'creator-monthly',
-		label: 'Creator + monthly digest',
-		description: 'POST with role: creator, digest: monthly',
-		method: 'POST',
-		path: '/api/v1/register',
-		actor: 'new_user',
-		expectedResult: 'blocked',
-	},
-	{
-		id: 'creator-weekly',
-		label: 'Creator + weekly digest',
-		description: 'POST with role: creator, digest: weekly',
-		method: 'POST',
-		path: '/api/v1/register',
-		actor: 'new_user',
-		expectedResult: 'allowed',
-	},
-];
-
-// Reward flow messages: [controller, contract-result]
-const REWARD_FLOW: Record<string, string[]> = {
-	'valid-registration': [
-		'contract.call(params)',
-		'Result(success: true, values: {email, password, ...})',
-	],
-	'missing-email': [
-		'contract.call(params)',
-		'Result(failure: {email: ["must be filled"]})',
-	],
-	'short-password': [
-		'contract.call(params)',
-		'Result(failure: {password: ["min 8 chars"]})',
-	],
-	'invalid-digest': [
-		'contract.call(params)',
-		'Result(failure: {email_digest: ["not included"]})',
-	],
-	'creator-monthly': [
-		'contract.call(params)',
-		'Result(failure: {role: ["creators need weekly digest"]})',
-	],
-	'creator-weekly': [
-		'contract.call(params)',
-		'Result(success: true, values: {role: "creator", digest: "weekly"})',
-	],
-};
 
 // ──────────────────────────────────────────────
 // Step definitions (1 terminal + 3 OptionCard)
@@ -525,37 +279,14 @@ const OPTION_STEP_CONFIG: Record<
 };
 
 // ──────────────────────────────────────────────
-// Contract schema blocks for reward visualization
-// ──────────────────────────────────────────────
-
-const CONTRACT_SCHEMAS = [
-	{ id: 'user-schema', label: 'UserSchema', fields: 'email, password, role' },
-	{
-		id: 'profile-schema',
-		label: 'ProfileSchema',
-		fields: 'display_name, bio',
-	},
-	{
-		id: 'notif-schema',
-		label: 'NotifPrefsSchema',
-		fields: 'email_digest, push_enabled',
-	},
-	{
-		id: 'cross-field',
-		label: 'rule(:role, :email_digest)',
-		fields: 'creators need weekly',
-	},
-];
-
-// ──────────────────────────────────────────────
 // Code preview helper
 // ──────────────────────────────────────────────
 
 function getCodeFiles(phase: Phase, furthestStep: number) {
 	const files = [];
 
-	// Observe phase: show controller with scattered validations
-	if (phase === 'observe') {
+	// Intro phase: show controller with scattered validations
+	if (phase === 'intro') {
 		files.push({
 			filename: 'app/controllers/registration_controller.rb',
 			language: 'ruby',
@@ -601,7 +332,6 @@ end`,
 
 	// Build / activate / reward phases: evolving code
 	if (furthestStep === 0) {
-		// Step 0: installing the gem
 		files.push({
 			filename: 'Gemfile',
 			language: 'ruby',
@@ -616,7 +346,6 @@ gem "sqlite3"
 	}
 
 	if (furthestStep >= 1 && furthestStep < 2) {
-		// Step 1: choosing schema approach
 		files.push({
 			filename: 'Gemfile',
 			language: 'ruby',
@@ -630,7 +359,6 @@ gem "dry-validation"`,
 	}
 
 	if (furthestStep >= 2 && furthestStep < 3) {
-		// Step 2: composing contract
 		files.push({
 			filename: 'app/schemas/user_schema.rb',
 			language: 'ruby',
@@ -663,7 +391,6 @@ end`,
 	}
 
 	if (furthestStep >= 3 && furthestStep < 4) {
-		// Step 3: adding cross-field rule
 		files.push({
 			filename: 'app/contracts/registration_contract.rb',
 			language: 'ruby',
@@ -677,7 +404,6 @@ end`,
 	}
 
 	if (furthestStep >= 4) {
-		// All steps complete: full contract + clean controller
 		files.push({
 			filename: 'app/contracts/registration_contract.rb',
 			language: 'ruby',
@@ -724,34 +450,6 @@ end`,
 }
 
 // ──────────────────────────────────────────────
-// Legend (reward phase left panel)
-// ──────────────────────────────────────────────
-
-function ContractLegend() {
-	return (
-		<div className="p-4 border-b border-border">
-			<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-				Contract Legend
-			</div>
-			<div className="space-y-2 text-sm">
-				<div className="flex items-center gap-2">
-					<Check className="w-4 h-4 text-success" />
-					<span className="text-foreground">
-						Valid payload (contract passes, all schemas satisfied)
-					</span>
-				</div>
-				<div className="flex items-center gap-2">
-					<X className="w-4 h-4 text-destructive" />
-					<span className="text-foreground">
-						Invalid payload (contract rejects with structured errors)
-					</span>
-				</div>
-			</div>
-		</div>
-	);
-}
-
-// ──────────────────────────────────────────────
 // Component
 // ──────────────────────────────────────────────
 
@@ -759,83 +457,7 @@ export function Level18ValidationContracts({
 	onComplete,
 }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
-	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
-		minRequired: 3,
-	});
-	const stressTest = useStressTest(STRESS_SCENARIOS);
-	const [phase, setPhase] = useState<Phase>('observe');
-	const [inspectorData, setInspectorData] =
-		useState<StageInspectorData | null>(null);
-	const [inspectedBlocks, setInspectedBlocks] = useState<Set<string>>(
-		new Set(),
-	);
-	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
-
-	// ── Flow animation state (observe phase) ──
-	const [flowPhase, setFlowPhase] = useState(-1);
-	const [flowMessages, setFlowMessages] = useState<string[]>([]);
-	const flowTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-
-	const clearFlow = useCallback(() => {
-		for (const t of flowTimeoutsRef.current) clearTimeout(t);
-		flowTimeoutsRef.current = [];
-	}, []);
-
-	const runFlow = useCallback(
-		(messages: string[]) => {
-			clearFlow();
-			setFlowMessages(messages);
-			const totalPhases = messages.length;
-			const delay = 800;
-
-			setFlowPhase(0);
-
-			for (let p = 1; p < totalPhases; p++) {
-				const t = setTimeout(() => {
-					setFlowPhase(p);
-				}, delay * p);
-				flowTimeoutsRef.current.push(t);
-			}
-
-			const endT = setTimeout(() => {
-				setFlowPhase(-1);
-			}, delay * (totalPhases + 1));
-			flowTimeoutsRef.current.push(endT);
-		},
-		[clearFlow],
-	);
-
-	useEffect(() => {
-		return () => clearFlow();
-	}, [clearFlow]);
-
-	// ── Reward flow animation state ──
-	const [rewardFlowPhase, setRewardFlowPhase] = useState(-1);
-	const [rewardFlowMessages, setRewardFlowMessages] = useState<string[]>([]);
-	const rewardFlowTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-
-	const clearRewardFlow = useCallback(() => {
-		for (const t of rewardFlowTimeoutsRef.current) clearTimeout(t);
-		rewardFlowTimeoutsRef.current = [];
-	}, []);
-
-	const runRewardFlow = useCallback(
-		(messages: string[]) => {
-			clearRewardFlow();
-			setRewardFlowMessages(messages);
-			setRewardFlowPhase(0);
-
-			const t1 = setTimeout(() => setRewardFlowPhase(1), 600);
-			const t2 = setTimeout(() => setRewardFlowPhase(2), 1200);
-			const t3 = setTimeout(() => setRewardFlowPhase(-1), 2400);
-			rewardFlowTimeoutsRef.current.push(t1, t2, t3);
-		},
-		[clearRewardFlow],
-	);
-
-	useEffect(() => {
-		return () => clearRewardFlow();
-	}, [clearRewardFlow]);
+	const [phase, setPhase] = useState<Phase>('intro');
 
 	// ── Transition: build -> activate when all steps complete ──
 	useEffect(() => {
@@ -844,58 +466,14 @@ export function Level18ValidationContracts({
 		}
 	}, [phase, stepper.isComplete]);
 
-	// ── Block click handler (observe phase) ──
-	const handleBlockClick = useCallback(
-		(blockId: string) => {
-			if (phase !== 'observe') return;
-			if (flowPhase !== -1) return;
-
-			const data = BLOCK_INSPECTOR_MAP[blockId];
-			if (!data) return;
-
-			setInspectorData(data);
-			setInspectedBlocks((prev) => {
-				if (prev.has(blockId)) return prev;
-				const next = new Set(prev);
-				next.add(blockId);
-				return next;
-			});
-
-			const discoveryId = BLOCK_DISCOVERY_MAP[blockId];
-			if (discoveryId) {
-				discoveryGating.discover(discoveryId);
-			}
-		},
-		[phase, flowPhase, discoveryGating],
-	);
-
-	// ── Scenario handler (observe phase) ──
-	const handleScenario = useCallback(
-		(scenarioId: string) => {
-			setLastProbeId(scenarioId);
-			const discoveryId = SCENARIO_DISCOVERY_MAP[scenarioId];
-			if (discoveryId) {
-				discoveryGating.discover(discoveryId);
-			}
-			const messages = OBSERVE_FLOW[scenarioId];
-			if (messages) runFlow(messages);
-			// Mark all blocks as inspected after scenario reveals them
-			setInspectedBlocks(new Set(VALIDATION_BLOCKS.map((b) => b.id)));
-		},
-		[discoveryGating, runFlow],
-	);
-
 	// ── OptionCard step handler ──
-	const handleOptionClick = useCallback(
-		(option: StepOption) => {
-			if (option.correct) {
-				stepper.completeStep();
-			} else if (option.feedback) {
-				stepper.recordWrongAttempt(option.feedback);
-			}
-		},
-		[stepper],
-	);
+	const handleOptionClick = (option: StepOption) => {
+		if (option.correct) {
+			stepper.completeStep();
+		} else if (option.feedback) {
+			stepper.recordWrongAttempt(option.feedback);
+		}
+	};
 
 	// ── Phase transition handlers ──
 	const handleStartBuild = () => {
@@ -904,18 +482,7 @@ export function Level18ValidationContracts({
 
 	const handleActivateContract = () => {
 		setPhase('reward');
-		stressTest.reset();
 	};
-
-	// ── Stress test fire handler (reward phase) ──
-	const handleFireScenario = useCallback(
-		(scenarioId: string) => {
-			stressTest.fireRequest(scenarioId);
-			const messages = REWARD_FLOW[scenarioId];
-			if (messages) runRewardFlow(messages);
-		},
-		[stressTest, runRewardFlow],
-	);
 
 	// ── Completion ──
 	const handleComplete = () => {
@@ -938,10 +505,6 @@ export function Level18ValidationContracts({
 	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
 	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep];
-
-	// Latest stress test result for reward visualization
-	const lastResult = stressTest.results[stressTest.results.length - 1];
-	const lastWasBlocked = lastResult?.result === 'blocked';
 
 	// ── Render ──
 	return (
@@ -966,17 +529,6 @@ export function Level18ValidationContracts({
 						</p>
 					</div>
 
-					{/* Observe phase: discovery checklist */}
-					{phase === 'observe' && (
-						<div className="p-4 border-b border-border">
-							<DiscoveryChecklist
-								discoveries={discoveryGating.discoveries}
-								discoveredCount={discoveryGating.discoveredCount}
-								minRequired={discoveryGating.minRequired}
-							/>
-						</div>
-					)}
-
 					{/* Build / activate phases: step progress */}
 					{(phase === 'build' || phase === 'activate') && (
 						<div className="p-4 border-b border-border">
@@ -989,32 +541,6 @@ export function Level18ValidationContracts({
 								steps={stepper.steps}
 							/>
 						</div>
-					)}
-
-					{/* Reward phase: legend + counters */}
-					{phase === 'reward' && (
-						<>
-							<ContractLegend />
-
-							<div className="p-4">
-								<div className="grid grid-cols-2 gap-3">
-									<div className="bg-success/20 rounded-lg p-3 text-center">
-										<div className="text-2xl font-bold text-success">
-											{stressTest.allowedCount}
-										</div>
-										<div className="text-xs text-success/70">Valid</div>
-									</div>
-									<div className="bg-destructive/20 rounded-lg p-3 text-center">
-										<div className="text-2xl font-bold text-destructive">
-											{stressTest.blockedCount}
-										</div>
-										<div className="text-xs text-destructive/70">
-											Rejected
-										</div>
-									</div>
-								</div>
-							</div>
-						</>
 					)}
 				</InstructionPanel>
 			</LeftPanel>
@@ -1032,138 +558,76 @@ export function Level18ValidationContracts({
 				/>
 
 				<div className="flex-1 flex flex-col bg-background overflow-hidden">
-					{/* ── Phase 1: Observe (WHY) ── */}
-					{phase === 'observe' && (
-						<div className="flex-1 flex flex-col">
-							{/* Fat Controller zone with scattered validation blocks */}
-							<div className="flex-1 flex items-center justify-center px-6 relative">
-								<div className="w-full max-w-lg">
-									{/* Controller header */}
-									<div className="flex items-center justify-between mb-2">
-										<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-											RegistrationController#create
-										</div>
-										<div className="text-xs font-mono text-destructive font-bold">
-											35 lines of inline checks
-										</div>
-									</div>
+					{/* ── Phase 1: Intro (WHY) ── */}
+					{phase === 'intro' && (
+						<div className="flex-1 flex flex-col overflow-auto">
+							<div className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
+								{/* Header */}
+								<div className="text-center">
+									<h3 className="text-lg font-semibold text-foreground">
+										The Problem: Scattered Inline Validations
+									</h3>
+									<p className="text-xs text-muted-foreground mt-1">
+										RegistrationController#create, 35 lines of inline checks
+									</p>
+								</div>
 
-									{/* Controller zone: border wraps all validation blocks */}
-									<div className="border-2 border-destructive/50 rounded-lg bg-destructive/5 dark:bg-destructive/10 p-3 space-y-2">
-										{VALIDATION_BLOCKS.map((block, i) => {
-											const isFlowActive = flowPhase === i;
-											const flowMsg = flowMessages[i];
-											const isInspected = inspectedBlocks.has(
-												block.id,
-											);
-											const isError =
-												flowMsg &&
-												(flowMsg.includes('422') ||
-													flowMsg.includes('never reached'));
-											const isPassed =
-												flowMsg && flowMsg.includes('passed');
+								{/* Annotated code blocks */}
+								<div className="w-full max-w-2xl space-y-1.5">
+									{INTRO_SECTIONS.map((section) => {
+										const isScattered = section.variant === 'scattered';
+										const isBuried = section.variant === 'buried';
+										const borderClass = isScattered
+											? 'border-l-destructive bg-destructive/5 dark:bg-destructive/10'
+											: isBuried
+												? 'border-l-amber-500 bg-amber-500/5 dark:bg-amber-500/10'
+												: 'border-l-zinc-400 dark:border-l-zinc-600 bg-muted/30';
+										const badgeClass = isScattered
+											? 'border-destructive/50 text-destructive bg-destructive/10'
+											: isBuried
+												? 'border-amber-500/50 text-amber-600 dark:text-amber-400 bg-amber-500/10'
+												: 'border-zinc-400/50 text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800';
 
-											return (
-												<button
-													key={block.id}
-													type="button"
-													className={`w-full text-left border rounded-md p-3 transition-all duration-300 cursor-pointer hover:ring-2 hover:ring-ring/30 ${
-														isFlowActive
-															? isError
-																? 'ring-2 ring-destructive/60 shadow-lg shadow-destructive/10 border-destructive/50 bg-destructive/10 dark:bg-destructive/20'
-																: isPassed
-																	? 'ring-2 ring-success/60 shadow-lg shadow-success/10 border-success/30 bg-success/5 dark:bg-success/10'
-																	: 'ring-2 ring-primary/60 shadow-lg shadow-primary/10 border-primary/30 bg-primary/5 dark:bg-primary/10'
-															: 'border-border bg-card'
-													} ${
-														!isInspected && flowPhase === -1
-															? 'ring-1 ring-primary/20'
-															: ''
-													}`}
-													disabled={flowPhase !== -1}
-													onClick={() =>
-														handleBlockClick(block.id)
-													}
+										return (
+											<div
+												key={section.id}
+												className={`border-l-2 rounded-r-md px-3 py-2 ${borderClass}`}
+											>
+												<Badge
+													className={`text-[10px] mb-1 ${badgeClass}`}
+													variant="outline"
 												>
-													<div className="flex items-center justify-between">
-														<div className="flex items-center gap-2">
-															<span className="text-sm font-medium text-foreground">
-																{block.label}
-															</span>
-															<span className="text-xs text-muted-foreground font-mono">
-																{block.lines}
-															</span>
-														</div>
-														{!isInspected &&
-															flowPhase === -1 && (
-																<span className="text-primary text-sm animate-pulse font-bold">
-																	<Search className="w-3.5 h-3.5" />
-																</span>
-															)}
-													</div>
-													{/* Flow message during animation */}
-													{flowMsg && flowPhase >= i && (
-														<div
-															className={`text-xs font-medium mt-1.5 ${
-																isFlowActive
-																	? 'animate-in fade-in duration-300'
-																	: 'opacity-70'
-															} ${
-																isError
-																	? 'text-destructive'
-																	: isPassed
-																		? 'text-success'
-																		: 'text-muted-foreground'
-															}`}
-														>
-															{flowMsg}
-														</div>
-													)}
-												</button>
-											);
-										})}
-									</div>
-
-									{/* Error format indicator */}
-									{flowPhase !== -1 && (
-										<div className="mt-2 text-center text-xs font-mono text-destructive animate-in fade-in duration-300">
-											Only one error returned per request (no
-											batch validation)
-										</div>
-									)}
+													{section.label}
+												</Badge>
+												<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">
+													{section.code}
+												</pre>
+											</div>
+										);
+									})}
 								</div>
 
-								{/* Stage Inspector overlay */}
-								{inspectorData && (
-									<StageInspector
-										data={inspectorData}
-										onClose={() => setInspectorData(null)}
-									/>
-								)}
-							</div>
-
-							{/* Scenario cards */}
-							<div className="px-6 pb-2">
-								<ScenarioCards
-									scenarios={SCENARIOS}
-									onSelect={handleScenario}
-									disabled={flowPhase !== -1}
-								/>
-							</div>
-
-							{/* Build the Fix button (discovery gated) */}
-							{discoveryGating.isUnlocked && (
-								<div className="p-4 flex justify-center animate-in fade-in duration-500">
-									<Button
-										className="gap-2"
-										onClick={handleStartBuild}
-										size="lg"
-									>
-										Build the Fix
-										<ArrowRight className="w-4 h-4" />
-									</Button>
+								{/* Callout */}
+								<div className="w-full max-w-2xl rounded-lg border border-destructive/30 bg-destructive/5 dark:bg-destructive/10 p-3">
+									<p className="text-sm text-destructive font-medium">
+										5 scattered checks, each with its own{' '}
+										<code className="text-xs bg-destructive/10 px-1 py-0.5 rounded">render</code>.
+										Only one error returned per request. Cross-field rules are
+										buried. Cannot reuse validations in other endpoints or
+										test them without HTTP.
+									</p>
 								</div>
-							)}
+
+								{/* Build the Fix button (always visible) */}
+								<Button
+									className="gap-2"
+									onClick={handleStartBuild}
+									size="lg"
+								>
+									Build the Fix
+									<ArrowRight className="w-4 h-4" />
+								</Button>
+							</div>
 						</div>
 					)}
 
@@ -1315,140 +779,123 @@ export function Level18ValidationContracts({
 
 					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
 					{phase === 'reward' && (
-						<div className="flex-1 flex flex-col">
-							{/* Two-zone layout: Controller -> Contract */}
-							<div className="flex-1 flex items-center justify-center px-6">
-								<div className="flex items-center gap-4 w-full max-w-2xl">
-									{/* Thin Controller zone */}
-									<div
-										className={`flex-shrink-0 w-48 border-2 rounded-lg p-4 transition-all duration-300 ${
-											rewardFlowPhase === 0
-												? 'ring-2 ring-primary/60 shadow-lg shadow-primary/10 border-primary/30'
-												: 'border-success/50 bg-success/5 dark:bg-success/10'
-										}`}
-									>
-										<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-											Controller
-										</div>
-										<pre className="text-xs font-mono text-foreground leading-relaxed">
-											{`result = Contract
-  .new.call(params)
+						<div className="flex-1 flex flex-col overflow-auto">
+							<div className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
+								{/* Header */}
+								<div className="text-center">
+									<h3 className="text-lg font-semibold text-foreground">
+										The Fix: RegistrationContract
+									</h3>
+									<p className="text-xs text-muted-foreground mt-1">
+										Composable schemas, cross-field rules, structured errors
+									</p>
+								</div>
 
-if result.failure?
-  render errors
-else
-  create records
-end`}
-										</pre>
-										<div className="mt-2 text-xs font-mono text-success">
-											10 lines
-										</div>
-										{rewardFlowMessages[0] &&
-											rewardFlowPhase >= 0 && (
-												<div
-													className={`text-xs font-medium mt-1.5 text-primary ${
-														rewardFlowPhase === 0
-															? 'animate-in fade-in duration-300'
-															: 'opacity-70'
-													}`}
-												>
-													{rewardFlowMessages[0]}
-												</div>
-											)}
+								{/* Clean controller (thin) */}
+								<div className="w-full max-w-2xl space-y-1.5">
+									<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+										app/controllers/registration_controller.rb
 									</div>
-
-									{/* Flow connector */}
-									<FlowConnector
-										direction="horizontal"
-										active={rewardFlowPhase === 1}
-										dotColor={
-											lastWasBlocked
-												? 'bg-destructive'
-												: 'bg-success'
-										}
-									/>
-
-									{/* Contract zone */}
-									<div
-										className={`flex-1 border-2 rounded-lg p-4 transition-all duration-300 ${
-											rewardFlowPhase === 2
-												? lastWasBlocked
-													? 'ring-2 ring-destructive/60 shadow-lg shadow-destructive/10 border-destructive/30 bg-destructive/5 dark:bg-destructive/10'
-													: 'ring-2 ring-success/60 shadow-lg shadow-success/10 border-success/30 bg-success/5 dark:bg-success/10'
-												: 'border-border bg-card'
-										}`}
-									>
-										<div className="flex items-center justify-between mb-2">
-											<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-												RegistrationContract
-											</div>
-											{lastResult && (
-												<div
-													className={`text-xs font-mono font-bold ${
-														lastWasBlocked
-															? 'text-destructive'
-															: 'text-success'
-													}`}
-												>
-													{lastWasBlocked
-														? 'Result(failure)'
-														: 'Result(success)'}
-												</div>
-											)}
-										</div>
-
-										{/* Schema blocks inside contract */}
-										<div className="space-y-1.5">
-											{CONTRACT_SCHEMAS.map((schema) => (
-												<div
-													key={schema.id}
-													className="border border-border/50 rounded px-2.5 py-1.5 bg-muted/30 dark:bg-muted/10"
-												>
-													<div className="flex items-center justify-between">
-														<span className="text-xs font-medium text-foreground">
-															{schema.label}
-														</span>
-														<span className="text-xs text-muted-foreground font-mono">
-															{schema.fields}
-														</span>
-													</div>
-												</div>
-											))}
-										</div>
-
-										{/* Flow message */}
-										{rewardFlowMessages[1] &&
-											rewardFlowPhase >= 2 && (
-												<div
-													className={`text-xs font-medium mt-2 ${
-														rewardFlowPhase === 2
-															? 'animate-in fade-in duration-300'
-															: 'opacity-70'
-													} ${
-														lastWasBlocked
-															? 'text-destructive'
-															: 'text-success'
-													}`}
-												>
-													{rewardFlowMessages[1]}
-												</div>
-											)}
+									<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-3 py-2">
+										<Badge
+											className="text-[10px] mb-1 border-success/50 text-success bg-success/10"
+											variant="outline"
+										>
+											Delegates to Contract
+										</Badge>
+										<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">{`result = RegistrationContract.new.call(params)
+if result.failure?
+  render json: { errors: result.errors.to_h }, status: 422
+else
+  # create records from result.to_h
+end`}</pre>
+									</div>
+									<div className="mt-1 text-xs text-success font-medium px-3">
+										Clean (10 lines, no inline validation)
 									</div>
 								</div>
-							</div>
 
-							{/* Stress test controls */}
-							<div className="px-6 pb-2">
-								<StressTestPanel
-									allowedCount={stressTest.allowedCount}
-									blockedCount={stressTest.blockedCount}
-									canAutoFire={stressTest.canAutoFire}
-									isAutoFiring={stressTest.isAutoFiring}
-									onFire={handleFireScenario}
-									onToggleAutoFire={stressTest.toggleAutoFire}
-									results={stressTest.results}
-									scenarios={STRESS_SCENARIOS}
-								/>
+								{/* Contract with schemas */}
+								<div className="w-full max-w-2xl border-2 border-success/30 bg-success/5 dark:bg-success/10 rounded-lg p-4">
+									<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 text-center">
+										app/contracts/registration_contract.rb
+									</div>
+									<div className="grid grid-cols-3 gap-2 mb-2">
+										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-2 py-1.5">
+											<Badge
+												className="text-[10px] mb-1 border-success/50 text-success bg-success/10"
+												variant="outline"
+											>
+												UserSchema
+											</Badge>
+											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">email, password{'\n'}role</pre>
+										</div>
+										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-2 py-1.5">
+											<Badge
+												className="text-[10px] mb-1 border-success/50 text-success bg-success/10"
+												variant="outline"
+											>
+												ProfileSchema
+											</Badge>
+											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">display_name{'\n'}bio</pre>
+										</div>
+										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-2 py-1.5">
+											<Badge
+												className="text-[10px] mb-1 border-success/50 text-success bg-success/10"
+												variant="outline"
+											>
+												NotifPrefsSchema
+											</Badge>
+											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">email_digest{'\n'}push_enabled</pre>
+										</div>
+									</div>
+									<div className="border-l-2 border-l-amber-500 bg-amber-500/5 dark:bg-amber-500/10 rounded-r-md px-2 py-1.5">
+										<Badge
+											className="text-[10px] mb-1 border-amber-500/50 text-amber-600 dark:text-amber-400 bg-amber-500/10"
+											variant="outline"
+										>
+											Cross-Field Rule
+										</Badge>
+										<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">rule(:role, :email_digest) {"{"} creators need weekly {"}"}</pre>
+									</div>
+								</div>
+
+								{/* Problems Solved checklist */}
+								<div className="w-full max-w-2xl rounded-lg border border-success/30 bg-success/5 dark:bg-success/10 p-3">
+									<div className="text-xs font-semibold text-success uppercase tracking-wider mb-2">
+										Problems Solved
+									</div>
+									<div className="space-y-2">
+										<div className="flex items-start gap-2">
+											<Check className="w-4 h-4 text-success mt-0.5 shrink-0" />
+											<p className="text-sm text-foreground">
+												<span className="font-medium">All errors returned at once.</span>{' '}
+												<span className="text-muted-foreground">
+													Schema validates every field, returns structured errors for all failures in one response.
+												</span>
+											</p>
+										</div>
+										<div className="flex items-start gap-2">
+											<Check className="w-4 h-4 text-success mt-0.5 shrink-0" />
+											<p className="text-sm text-foreground">
+												<span className="font-medium">Reusable in any endpoint.</span>{' '}
+												<span className="text-muted-foreground">
+													Admin registration, API import, CSV upload can all call{' '}
+													<code className="text-xs bg-muted px-1 py-0.5 rounded">RegistrationContract.new.call(params)</code>.
+												</span>
+											</p>
+										</div>
+										<div className="flex items-start gap-2">
+											<Check className="w-4 h-4 text-success mt-0.5 shrink-0" />
+											<p className="text-sm text-foreground">
+												<span className="font-medium">Cross-field rules are explicit and testable.</span>{' '}
+												<span className="text-muted-foreground">
+													<code className="text-xs bg-muted px-1 py-0.5 rounded">rule(:role, :email_digest)</code> lives in the contract, unit-testable without HTTP.
+												</span>
+											</p>
+										</div>
+									</div>
+								</div>
 							</div>
 						</div>
 					)}
