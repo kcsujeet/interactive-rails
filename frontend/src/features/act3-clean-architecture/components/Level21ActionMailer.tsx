@@ -311,16 +311,16 @@ const TOKEN_OPTIONS: StepOption[] = [
 			'Storing tokens in a column means you have to manage expiry, cleanup, and secure comparison yourself. Rails 8 has a built-in approach that handles all of this.',
 	},
 	{
+		id: 'generates-with-expiry',
+		label: `generates_token_for :password_reset, expires_in: 15.minutes do\n  password_salt&.last(10)\nend`,
+		correct: true,
+	},
+	{
 		id: 'generates-no-expiry',
 		label: `generates_token_for :password_reset`,
 		correct: false,
 		feedback:
 			'Without an expiry duration, tokens live forever. A leaked token could be used days or weeks later. You need a time limit.',
-	},
-	{
-		id: 'generates-with-expiry',
-		label: `generates_token_for :password_reset, expires_in: 15.minutes do\n  password_salt&.last(10)\nend`,
-		correct: true,
 	},
 ];
 
@@ -350,13 +350,6 @@ const EMAIL_OPTIONS: StepOption[] = [
 // Step 3: Create the password reset controller
 const CONTROLLER_OPTIONS: StepOption[] = [
 	{
-		id: 'find-by-email-leak',
-		label: `def create\n  user = User.find_by!(email: params[:email])\n  UserMailer.password_reset(user).deliver_later\n  render json: { message: "Email sent" }\nend`,
-		correct: false,
-		feedback:
-			'find_by! raises an error if the email is not found. That reveals whether an email is registered, which is an information leak.',
-	},
-	{
 		id: 'find-by-token-deliver-now',
 		label: `def create\n  user = User.find_by(email: params[:email])\n  UserMailer.password_reset(user).deliver_now if user\n  render json: { message: "Check your email" }\nend`,
 		correct: false,
@@ -367,6 +360,13 @@ const CONTROLLER_OPTIONS: StepOption[] = [
 		id: 'correct-controller',
 		label: `def create\n  user = User.find_by(email: params[:email])\n  UserMailer.password_reset(user).deliver_later if user\n  render json: { message: "Check your email" }\nend`,
 		correct: true,
+	},
+	{
+		id: 'find-by-email-leak',
+		label: `def create\n  user = User.find_by!(email: params[:email])\n  UserMailer.password_reset(user).deliver_later\n  render json: { message: "Email sent" }\nend`,
+		correct: false,
+		feedback:
+			'find_by! raises an error if the email is not found. That reveals whether an email is registered, which is an information leak.',
 	},
 ];
 
@@ -405,14 +405,6 @@ const OPTION_STEP_CONFIG: Record<
 
 const MAILER_TERMINAL_COMMANDS = [
 	{
-		id: 'generate-model',
-		label: 'rails generate model UserMailer',
-		command: 'rails generate model UserMailer',
-		correct: false,
-		feedback:
-			'Mailers are not models. Rails has a dedicated generator for mailer classes with their own directory and templates.',
-	},
-	{
 		id: 'generate-controller',
 		label: 'rails generate controller UserMailer password_reset',
 		command: 'rails generate controller UserMailer password_reset',
@@ -425,6 +417,14 @@ const MAILER_TERMINAL_COMMANDS = [
 		label: 'rails generate mailer User password_reset',
 		command: 'rails generate mailer User password_reset',
 		correct: true,
+	},
+	{
+		id: 'generate-model',
+		label: 'rails generate model UserMailer',
+		command: 'rails generate model UserMailer',
+		correct: false,
+		feedback:
+			'Mailers are not models. Rails has a dedicated generator for mailer classes with their own directory and templates.',
 	},
 ];
 

@@ -1,38 +1,31 @@
 /**
  * Level 19: Query Objects
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: intro -> build -> activate -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
- * Phase 1 (WHY - observe): Custom "Duplicated Query Chains" visualization.
+ * Phase 1 (WHY - intro): Static annotated code display (Type 2).
  *   Three consumer zones (Admin Controller, API Controller, CSV Job) each
- *   containing identical inline query chain blocks. Player clicks each
- *   consumer to inspect the duplicated/divergent code, fires probes to
- *   see inconsistent behavior and maintenance burden.
+ *   showing the same inline query chain with destructive left borders.
+ *   Callout states the structural problem. "Build the Fix" always visible.
  * Phase 2 (HOW - build): 3 OptionCard steps
  *   Step 0: Choose extraction pattern (PORO query object)
  *   Step 1: Define filter method pattern (return self for chaining)
  *   Step 2: Wire controller to query object (proper instantiation + chaining)
  * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Queries" button
- * Phase 4 (ADVANTAGE - reward): Three-zone layout: all consumers delegate
- *   to shared PostQuery. Stress test fires filter combos showing clean reuse.
+ * Phase 4 (ADVANTAGE - reward): Clean consumers with PostQuery delegation
+ *   (green borders), extracted PostQuery zone with filter methods, and
+ *   "Problems Solved" checklist closing the loop on intro's stated problems.
  *
- * Visualization approach: Custom zone layout (refactoring concept, duplicated code).
- * Three consumer zones with inline chains, not a PipelineFlow request chain.
+ * Visualization approach: Type 2 static intro (refactoring concept).
+ * The duplicated inline query chains are self-evident by reading the three files.
  *
  * Teaches: Query objects, composable scopes, returning self for chaining,
  * reuse across controllers/jobs.
  */
 
-import {
-	ArrowRight,
-	Check,
-	Play,
-	Search,
-	Star,
-	X,
-} from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { ArrowRight, Check, Play, Star } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -46,294 +39,108 @@ import {
 	StepProgress,
 	type ValidationResult,
 } from '@/components/levels';
-import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
-import { FlowConnector } from '@/components/levels/FlowConnector';
-import { ScenarioCards, type ScenarioConfig } from '@/components/levels/ScenarioCards';
-import {
-	StageInspector,
-	type StageInspectorData,
-} from '@/components/levels/StageInspector';
-import { StressTestPanel } from '@/components/levels/StressTestPanel';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
-import {
-	type DiscoveryDef,
-	useDiscoveryGating,
-} from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
-import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 
 // ──────────────────────────────────────────────
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'intro' | 'build' | 'activate' | 'reward';
 
 // ──────────────────────────────────────────────
-// Consumer zones (each has duplicated query logic)
+// Annotated code sections (intro)
 // ──────────────────────────────────────────────
 
-interface ConsumerZone {
+interface AnnotatedSection {
 	id: string;
-	name: string;
-	lines: string;
-	queryLines: string[];
+	label: string;
+	variant: 'core' | 'duplicated';
+	code: string;
 }
 
-const CONSUMERS: ConsumerZone[] = [
+const ADMIN_SECTIONS: AnnotatedSection[] = [
 	{
-		id: 'admin-controller',
-		name: 'Admin Controller',
-		lines: '60 lines',
-		queryLines: [
-			'.where.not(published_at: nil)',
-			'.where(author_id: params[:author_id])',
-			'.left_joins(:comments).group(:id)',
-			'.having("COUNT(comments.id) >= ?"...)',
-			'.joins(:tags).where(tags: ...)',
-			'.order(published_at: :desc)',
-		],
+		id: 'admin-core',
+		label: 'Core',
+		variant: 'core',
+		code: '@posts = Post.all',
 	},
 	{
-		id: 'api-controller',
-		name: 'API Controller',
-		lines: '45 lines',
-		queryLines: [
-			'.where.not(published_at: nil)',
-			'.where(author_id: params[:author_id])',
-			'.left_joins(:comments).group(:id)',
-			'.having("COUNT(comments.id) >= ?"...)',
-			'.joins(:tags).where(tags: ...)',
-			'.order(published_at: :desc)',
-		],
+		id: 'admin-published',
+		label: 'Duplicated: Published Filter',
+		variant: 'duplicated',
+		code: 'if params[:published].present?\n  @posts = @posts.where.not(published_at: nil)\nend',
 	},
 	{
-		id: 'csv-job',
-		name: 'CSV Export Job',
-		lines: '35 lines',
-		queryLines: [
-			'.where.not(published_at: nil)',
-			'.where(author_id: author_id)',
-			'.left_joins(:comments).group(:id)',
-			'.having("COUNT(comments.id) >= ?"...)',
-			'.joins(:tags).where(tags: ...)',
-			'.order(published_at: :desc)',
-		],
+		id: 'admin-author',
+		label: 'Duplicated: Author Filter',
+		variant: 'duplicated',
+		code: 'if params[:author_id].present?\n  @posts = @posts.where(author_id: params[:author_id])\nend',
+	},
+	{
+		id: 'admin-comments',
+		label: 'Duplicated: Comment Count',
+		variant: 'duplicated',
+		code: 'if params[:min_comments].present?\n  @posts = @posts.left_joins(:comments)\n    .group(:id)\n    .having("COUNT(comments.id) >= ?", ...)\nend',
+	},
+	{
+		id: 'admin-tag',
+		label: 'Duplicated: Tag Filter',
+		variant: 'duplicated',
+		code: 'if params[:tag].present?\n  @posts = @posts.joins(:tags)\n    .where(tags: { name: params[:tag] })\nend',
 	},
 ];
 
-// ──────────────────────────────────────────────
-// Discovery definitions (observe phase)
-// ──────────────────────────────────────────────
-
-const DISCOVERY_DEFS: DiscoveryDef[] = [
-	{ id: 'fat-controller', label: '60-line controller action' },
-	{ id: 'inline-chains', label: 'Inline query chains' },
-	{ id: 'duplicated-logic', label: 'Duplicated across 3 files' },
-	{ id: 'no-reuse', label: 'No reusable filters' },
-];
-
-// ──────────────────────────────────────────────
-// Scenario configurations (observe phase)
-// ──────────────────────────────────────────────
-
-const SCENARIOS: ScenarioConfig[] = [
+const API_SECTIONS: AnnotatedSection[] = [
 	{
-		id: 'add-filter',
-		title: 'Add a created_at date filter',
-		consequence: 'Must update the same query chain in 3 separate files. Miss one and results diverge.',
+		id: 'api-core',
+		label: 'Core',
+		variant: 'core',
+		code: 'posts = Post.all',
 	},
 	{
-		id: 'csv-bug',
-		title: 'QA reports CSV export has wrong data',
-		consequence: 'The CSV job has a subtle bug: uses > instead of >=. Three copies, three chances for bugs.',
+		id: 'api-published',
+		label: 'Duplicated: Published Filter',
+		variant: 'duplicated',
+		code: 'posts = posts.where.not(published_at: nil) if params[:published]',
 	},
 	{
-		id: 'unit-test',
-		title: 'Write a unit test for tag filtering',
-		consequence: 'Query logic is inline in controllers. No standalone object to test independently.',
+		id: 'api-author',
+		label: 'Duplicated: Author Filter',
+		variant: 'duplicated',
+		code: 'posts = posts.where(author_id: params[:author_id]) if params[:author_id]',
+	},
+	{
+		id: 'api-tag',
+		label: 'Duplicated: Tag Filter',
+		variant: 'duplicated',
+		code: 'posts = posts.joins(:tags).where(tags: { name: params[:tag] }) if params[:tag]',
 	},
 ];
 
-// Map scenario IDs to discovery IDs they trigger
-const SCENARIO_DISCOVERY_MAP: Record<string, string> = {
-	'add-filter': 'inline-chains',
-	'csv-bug': 'duplicated-logic',
-	'unit-test': 'no-reuse',
-};
-
-// Flow messages per scenario: [admin, api, csv]
-const OBSERVE_FLOW: Record<string, [string, string, string]> = {
-	'add-filter': [
-		'Add filter here (60 lines)',
-		'Add filter here too (45 lines)',
-		'And here (35 lines)',
-	],
-	'csv-bug': [
-		'.where("published_at >= ?"...)',
-		'.where("published_at >= ?"...)',
-		'.where("published_at > ?"...) BUG!',
-	],
-	'unit-test': [
-		'Inline in controller, untestable',
-		'Inline in controller, untestable',
-		'Inline in job, untestable',
-	],
-};
-
-// ──────────────────────────────────────────────
-// Stage inspector data (observe phase)
-// ──────────────────────────────────────────────
-
-const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
-	'admin-controller': {
-		stageId: 'admin-controller',
-		title: 'Admin::PostsController (60 lines!)',
-		description:
-			'The index action has 60 lines of inline .where().joins().group().order() chains. Every filter combination is built manually with if/end blocks.',
-		code: `def index
-  @posts = Post.all
-
-  if params[:published].present?
-    @posts = @posts.where.not(published_at: nil)
-  end
-
-  if params[:author_id].present?
-    @posts = @posts.where(author_id: params[:author_id])
-  end
-
-  if params[:min_comments].present?
-    @posts = @posts.left_joins(:comments)
-      .group(:id)
-      .having("COUNT(comments.id) >= ?", params[:min_comments])
-  end
-
-  if params[:tag].present?
-    @posts = @posts.joins(:tags)
-      .where(tags: { name: params[:tag] })
-  end
-
-  @posts = @posts.order(published_at: :desc)
-  render json: @posts
-end`,
-	},
-	'api-controller': {
-		stageId: 'api-controller',
-		title: 'Api::V1::PostsController (45 lines)',
-		description:
-			'The API controller has its own copy of the same filtering logic. It was copy-pasted from the admin controller with minor tweaks for the public API.',
-		code: `def index
-  posts = Post.all
-
-  # Same filtering logic, copy-pasted
-  posts = posts.where.not(published_at: nil) if params[:published]
-  posts = posts.where(author_id: params[:author_id]) if params[:author_id]
-  posts = posts.joins(:tags).where(tags: { name: params[:tag] }) if params[:tag]
-  posts = posts.order(published_at: :desc)
-
-  render json: PostSerializer.new(posts)
-end`,
-	},
-	'csv-job': {
-		stageId: 'csv-job',
-		title: 'CsvExportJob (35 lines)',
-		description:
-			'The background job has a third copy, but with a subtle bug: it uses ">" instead of ">=" for the date comparison. This inconsistency produces different results than the controllers.',
-		code: `def perform(filters)
-  posts = Post.all
-
-  # Copy-pasted filtering with a BUG
-  if filters[:published]
-    posts = posts.where.not(published_at: nil)
-  end
-
-  if filters[:since]
-    # BUG: uses > instead of >=
-    posts = posts.where("published_at > ?", filters[:since])
-  end
-
-  posts.find_each { |post| write_csv_row(post) }
-end`,
-	},
-};
-
-// Map stage IDs to discovery IDs they trigger
-const STAGE_DISCOVERY_MAP: Record<string, string> = {
-	'admin-controller': 'fat-controller',
-	'api-controller': 'duplicated-logic',
-	'csv-job': 'no-reuse',
-};
-
-// ──────────────────────────────────────────────
-// Stress test scenarios (reward phase)
-// ──────────────────────────────────────────────
-
-const STRESS_SCENARIOS: StressScenario[] = [
+const CSV_SECTIONS: AnnotatedSection[] = [
 	{
-		id: 'published-only',
-		label: 'Published posts only',
-		description: 'GET with published filter',
-		method: 'GET',
-		path: '/admin/posts?published=true',
-		actor: 'admin',
-		expectedResult: 'allowed',
+		id: 'csv-core',
+		label: 'Core',
+		variant: 'core',
+		code: 'posts = Post.all',
 	},
 	{
-		id: 'by-author',
-		label: 'Filter by author',
-		description: 'GET with author_id filter',
-		method: 'GET',
-		path: '/admin/posts?author_id=3',
-		actor: 'admin',
-		expectedResult: 'allowed',
+		id: 'csv-published',
+		label: 'Duplicated: Published Filter',
+		variant: 'duplicated',
+		code: 'posts = posts.where.not(published_at: nil) if filters[:published]',
 	},
 	{
-		id: 'by-tag',
-		label: 'Filter by tag',
-		description: 'GET with tag filter via JOIN',
-		method: 'GET',
-		path: '/admin/posts?tag=rails',
-		actor: 'admin',
-		expectedResult: 'allowed',
-	},
-	{
-		id: 'combined-filters',
-		label: 'All filters combined',
-		description: 'GET with every filter at once',
-		method: 'GET',
-		path: '/admin/posts?published=true&author_id=3&tag=rails',
-		actor: 'admin',
-		expectedResult: 'allowed',
-	},
-	{
-		id: 'csv-export-reuse',
-		label: 'CSV export (reuse)',
-		description: 'Background job reuses PostQuery',
-		method: 'JOB',
-		path: 'CsvExportJob.perform_later(published: true)',
-		actor: 'system',
-		expectedResult: 'allowed',
-	},
-	{
-		id: 'api-reuse',
-		label: 'API controller (reuse)',
-		description: 'Public API uses same PostQuery',
-		method: 'GET',
-		path: '/api/v1/posts?tag=ruby',
-		actor: 'user',
-		expectedResult: 'allowed',
+		id: 'csv-since',
+		label: 'Duplicated: Date Filter (BUG)',
+		variant: 'duplicated',
+		code: '# BUG: uses > instead of >=\nposts = posts.where("published_at > ?", filters[:since])',
 	},
 ];
-
-// Reward flow: [consumers, postQuery]
-const REWARD_FLOW: Record<string, [string, string]> = {
-	'published-only': ['Delegates to PostQuery', '.published(true).results'],
-	'by-author': ['Delegates to PostQuery', '.by_author(3).results'],
-	'by-tag': ['Delegates to PostQuery', '.by_tag("rails").results'],
-	'combined-filters': ['Delegates to PostQuery', '.published(true).by_author(3).by_tag("rails").results'],
-	'csv-export-reuse': ['Same PostQuery!', '.published(true).since(date).results'],
-	'api-reuse': ['Same PostQuery!', '.by_tag("ruby").sorted.results'],
-};
 
 // ──────────────────────────────────────────────
 // Step definitions (3 OptionCard steps)
@@ -465,13 +272,75 @@ const OPTION_STEP_CONFIG: Record<
 };
 
 // ──────────────────────────────────────────────
+// Annotated code block component
+// ──────────────────────────────────────────────
+
+function AnnotatedCodeBlock({
+	fileName,
+	sections,
+	borderColor,
+	lineCount,
+}: {
+	fileName: string;
+	sections: AnnotatedSection[];
+	borderColor: 'destructive' | 'success';
+	lineCount?: string;
+}) {
+	const isDestructive = borderColor === 'destructive';
+	return (
+		<div className="flex-1 space-y-1.5">
+			<div className="flex items-center justify-between mb-2">
+				<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+					{fileName}
+				</div>
+				{lineCount && (
+					<div className={`text-xs font-mono ${isDestructive ? 'text-destructive' : 'text-success'}`}>
+						{lineCount}
+					</div>
+				)}
+			</div>
+			{sections.map((section) => {
+				const isDuplicated = section.variant === 'duplicated';
+				const borderClass = isDuplicated
+					? isDestructive
+						? 'border-l-destructive bg-destructive/5 dark:bg-destructive/10'
+						: 'border-l-success bg-success/5 dark:bg-success/10'
+					: 'border-l-zinc-400 dark:border-l-zinc-600 bg-muted/30';
+				const badgeClass = isDuplicated
+					? isDestructive
+						? 'border-destructive/50 text-destructive bg-destructive/10'
+						: 'border-success/50 text-success bg-success/10'
+					: 'border-zinc-400/50 text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800';
+
+				return (
+					<div
+						key={section.id}
+						className={`border-l-2 rounded-r-md px-3 py-2 ${borderClass}`}
+					>
+						<Badge
+							className={`text-[10px] mb-1 ${badgeClass}`}
+							variant="outline"
+						>
+							{section.label}
+						</Badge>
+						<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">
+							{section.code}
+						</pre>
+					</div>
+				);
+			})}
+		</div>
+	);
+}
+
+// ──────────────────────────────────────────────
 // Code preview helper
 // ──────────────────────────────────────────────
 
 function getCodeFiles(phase: Phase, furthestStep: number) {
 	const files = [];
 
-	if (phase === 'observe') {
+	if (phase === 'intro') {
 		files.push({
 			filename: 'app/controllers/admin/posts_controller.rb',
 			language: 'ruby',
@@ -684,98 +553,12 @@ end
 }
 
 // ──────────────────────────────────────────────
-// Legend (reward phase left panel)
-// ──────────────────────────────────────────────
-
-function QueryLegend() {
-	return (
-		<div className="p-4 border-b border-border">
-			<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-				Architecture Legend
-			</div>
-			<div className="space-y-2 text-sm">
-				<div className="flex items-center gap-2">
-					<Check className="w-4 h-4 text-success" />
-					<span className="text-foreground">
-						PostQuery handles all filters (composable, reusable)
-					</span>
-				</div>
-				<div className="flex items-center gap-2">
-					<X className="w-4 h-4 text-destructive" />
-					<span className="text-foreground">
-						Inline chains removed from all consumers
-					</span>
-				</div>
-			</div>
-		</div>
-	);
-}
-
-// ──────────────────────────────────────────────
 // Component
 // ──────────────────────────────────────────────
 
 export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
-	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
-		minRequired: 3,
-	});
-	const stressTest = useStressTest(STRESS_SCENARIOS);
-	const [phase, setPhase] = useState<Phase>('observe');
-	const [inspectorData, setInspectorData] =
-		useState<StageInspectorData | null>(null);
-	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
-		new Set(),
-	);
-	// ── Flow animation state (observe) ──
-	const [flowPhase, setFlowPhase] = useState(-1);
-	const [flowMessages, setFlowMessages] = useState<[string, string, string]>(['', '', '']);
-	const flowTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-
-	const clearFlow = useCallback(() => {
-		for (const t of flowTimeoutsRef.current) clearTimeout(t);
-		flowTimeoutsRef.current = [];
-	}, []);
-
-	const runFlow = useCallback(
-		(messages: [string, string, string]) => {
-			clearFlow();
-			setFlowMessages(messages);
-			setFlowPhase(0);
-			const t1 = setTimeout(() => setFlowPhase(1), 800);
-			const t2 = setTimeout(() => setFlowPhase(2), 1600);
-			const t3 = setTimeout(() => setFlowPhase(-1), 3000);
-			flowTimeoutsRef.current.push(t1, t2, t3);
-		},
-		[clearFlow],
-	);
-
-	useEffect(() => clearFlow, [clearFlow]);
-
-	// ── Reward flow animation ──
-	const [rewardFlowPhase, setRewardFlowPhase] = useState(-1);
-	const [rewardFlowMessages, setRewardFlowMessages] = useState<[string, string]>(['', '']);
-	const rewardFlowTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-
-	const clearRewardFlow = useCallback(() => {
-		for (const t of rewardFlowTimeoutsRef.current) clearTimeout(t);
-		rewardFlowTimeoutsRef.current = [];
-	}, []);
-
-	const runRewardFlow = useCallback(
-		(messages: [string, string]) => {
-			clearRewardFlow();
-			setRewardFlowMessages(messages);
-			setRewardFlowPhase(0);
-			const t1 = setTimeout(() => setRewardFlowPhase(1), 600);
-			const t2 = setTimeout(() => setRewardFlowPhase(2), 1200);
-			const t3 = setTimeout(() => setRewardFlowPhase(-1), 2400);
-			rewardFlowTimeoutsRef.current.push(t1, t2, t3);
-		},
-		[clearRewardFlow],
-	);
-
-	useEffect(() => clearRewardFlow, [clearRewardFlow]);
+	const [phase, setPhase] = useState<Phase>('intro');
 
 	// ── Transition: build -> activate when all steps complete ──
 	useEffect(() => {
@@ -784,72 +567,25 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 		}
 	}, [phase, stepper.isComplete]);
 
-	// ── Stage click handler (observe phase) ──
-	const handleStageClick = useCallback(
-		(stageId: string) => {
-			if (phase !== 'observe') return;
-			if (flowPhase !== -1) return;
-
-			const data = STAGE_INSPECTOR_MAP[stageId];
-			if (!data) return;
-
-			setInspectorData(data);
-			setInspectedStages((prev) => {
-				if (prev.has(stageId)) return prev;
-				const next = new Set(prev);
-				next.add(stageId);
-				return next;
-			});
-
-			const discoveryId = STAGE_DISCOVERY_MAP[stageId];
-			if (discoveryId) {
-				discoveryGating.discover(discoveryId);
-			}
-		},
-		[phase, flowPhase, discoveryGating],
-	);
-
-	// ── Scenario handler ──
-	const handleScenario = useCallback(
-		(scenarioId: string) => {
-			const discoveryId = SCENARIO_DISCOVERY_MAP[scenarioId];
-			if (discoveryId) {
-				discoveryGating.discover(discoveryId);
-			}
-			const messages = OBSERVE_FLOW[scenarioId];
-			if (messages) runFlow(messages);
-		},
-		[discoveryGating, runFlow],
-	);
-
 	// ── OptionCard step handler ──
-	const handleOptionClick = useCallback(
-		(option: StepOption) => {
-			if (option.correct) {
-				stepper.completeStep();
-			} else if (option.feedback) {
-				stepper.recordWrongAttempt(option.feedback);
-			}
-		},
-		[stepper],
-	);
+	const handleOptionClick = (option: StepOption) => {
+		if (option.correct) {
+			stepper.completeStep();
+		} else if (option.feedback) {
+			stepper.recordWrongAttempt(option.feedback);
+		}
+	};
 
-	const handleStartBuild = () => setPhase('build');
+	// ── Phase transition handlers ──
+	const handleStartBuild = () => {
+		setPhase('build');
+	};
 
 	const handleActivateQueries = () => {
 		setPhase('reward');
-		stressTest.reset();
 	};
 
-	const handleFireScenario = useCallback(
-		(scenarioId: string) => {
-			stressTest.fireRequest(scenarioId);
-			const messages = REWARD_FLOW[scenarioId];
-			if (messages) runRewardFlow(messages);
-		},
-		[stressTest, runRewardFlow],
-	);
-
+	// ── Completion ──
 	const handleComplete = () => {
 		onComplete({ stars: stepper.starRating });
 	};
@@ -871,10 +607,12 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep];
 
+	// ── Render ──
 	return (
 		<LevelLayout>
 			<LeftPanel>
 				<InstructionPanel>
+					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							The admin dashboard controller has a 60-line index action
@@ -891,16 +629,7 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 						</p>
 					</div>
 
-					{phase === 'observe' && (
-						<div className="p-4 border-b border-border">
-							<DiscoveryChecklist
-								discoveries={discoveryGating.discoveries}
-								discoveredCount={discoveryGating.discoveredCount}
-								minRequired={discoveryGating.minRequired}
-							/>
-						</div>
-					)}
-
+					{/* Build / activate phases: step progress */}
 					{(phase === 'build' || phase === 'activate') && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
@@ -913,28 +642,6 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 							/>
 						</div>
 					)}
-
-					{phase === 'reward' && (
-						<>
-							<QueryLegend />
-							<div className="p-4">
-								<div className="grid grid-cols-2 gap-3">
-									<div className="bg-success/20 rounded-lg p-3 text-center">
-										<div className="text-2xl font-bold text-success">
-											{stressTest.allowedCount}
-										</div>
-										<div className="text-xs text-success/70">Handled</div>
-									</div>
-									<div className="bg-destructive/20 rounded-lg p-3 text-center">
-										<div className="text-2xl font-bold text-destructive">
-											{stressTest.blockedCount}
-										</div>
-										<div className="text-xs text-destructive/70">Blocked</div>
-									</div>
-								</div>
-							</div>
-						</>
-					)}
 				</InstructionPanel>
 			</LeftPanel>
 
@@ -944,101 +651,70 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 					levelName="Query Objects"
 					levelNumber={19}
 					onComplete={handleComplete}
-					onReset={() => window.location.reload()}
+					onReset={() => {
+						window.location.reload();
+					}}
 					onValidate={validateSolution}
 				/>
 
 				<div className="flex-1 flex flex-col bg-background overflow-hidden">
-					{/* ── Phase 1: Observe (WHY) ── */}
-					{phase === 'observe' && (
-						<div className="flex-1 flex flex-col">
-							{/* Three consumer zones showing duplicated query logic */}
-							<div className="flex-1 flex items-center justify-center px-6 relative">
-								<div className="w-full max-w-3xl flex gap-3">
-									{CONSUMERS.map((consumer, i) => {
-										const isHighlighted = flowPhase === i;
-										const flowMsg = flowMessages[i];
-										const isInspected = inspectedStages.has(consumer.id);
-										const isBuggy = flowMsg?.includes('BUG');
-
-										return (
-											<button
-												key={consumer.id}
-												type="button"
-												className={`flex-1 border-2 rounded-lg p-3 text-left transition-all duration-300 cursor-pointer hover:ring-2 hover:ring-ring/30 ${
-													isHighlighted
-														? isBuggy
-															? 'ring-2 ring-destructive/60 shadow-lg shadow-destructive/10 border-destructive/50 bg-destructive/5 dark:bg-destructive/10'
-															: 'ring-2 ring-primary/60 shadow-lg shadow-primary/10 border-destructive/30'
-														: 'border-destructive/30 bg-card'
-												} ${!isInspected && flowPhase === -1 ? 'ring-1 ring-primary/20' : ''}`}
-												disabled={flowPhase !== -1}
-												onClick={() => handleStageClick(consumer.id)}
-											>
-												<div className="flex items-center justify-between mb-2">
-													<span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-														{consumer.name}
-													</span>
-													{!isInspected && flowPhase === -1 && (
-														<Search className="w-3.5 h-3.5 text-primary animate-pulse" />
-													)}
-												</div>
-												<div className="text-xs font-mono text-destructive mb-2">
-													{consumer.lines}
-												</div>
-												<div className="space-y-1">
-													{consumer.queryLines.slice(0, 4).map((line) => (
-														<div
-															key={line}
-															className="text-[10px] font-mono text-destructive/70 bg-destructive/5 dark:bg-destructive/10 rounded px-1.5 py-0.5 border border-destructive/15 truncate"
-														>
-															{line}
-														</div>
-													))}
-													{consumer.queryLines.length > 4 && (
-														<div className="text-[10px] text-muted-foreground">
-															+{consumer.queryLines.length - 4} more chains...
-														</div>
-													)}
-												</div>
-												{flowMsg && flowPhase >= i && (
-													<div
-														className={`text-xs font-medium mt-2 ${
-															isHighlighted ? 'animate-in fade-in duration-300' : 'opacity-70'
-														} ${isBuggy ? 'text-destructive' : 'text-primary'}`}
-													>
-														{flowMsg}
-													</div>
-												)}
-											</button>
-										);
-									})}
+					{/* ── Phase 1: Intro (WHY) ── */}
+					{phase === 'intro' && (
+						<div className="flex-1 flex flex-col overflow-auto">
+							<div className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
+								{/* Header */}
+								<div className="text-center">
+									<h3 className="text-lg font-semibold text-foreground">
+										The Problem: Duplicated Query Chains
+									</h3>
+									<p className="text-xs text-muted-foreground mt-1">
+										Same inline filters in 3 consumers, 60+ lines each
+									</p>
 								</div>
 
-								{inspectorData && (
-									<StageInspector
-										data={inspectorData}
-										onClose={() => setInspectorData(null)}
+								{/* Three consumer zones with annotated code */}
+								<div className="w-full max-w-4xl grid grid-cols-3 gap-3">
+									<AnnotatedCodeBlock
+										borderColor="destructive"
+										fileName="Admin Controller"
+										lineCount="60 lines"
+										sections={ADMIN_SECTIONS}
 									/>
-								)}
-							</div>
-
-							<div className="px-6 pb-2">
-								<ScenarioCards
-									scenarios={SCENARIOS}
-									onSelect={handleScenario}
-									disabled={flowPhase !== -1}
-								/>
-							</div>
-
-							{discoveryGating.isUnlocked && (
-								<div className="p-4 flex justify-center animate-in fade-in duration-500">
-									<Button className="gap-2" onClick={handleStartBuild} size="lg">
-										Build the Fix
-										<ArrowRight className="w-4 h-4" />
-									</Button>
+									<AnnotatedCodeBlock
+										borderColor="destructive"
+										fileName="API Controller"
+										lineCount="45 lines"
+										sections={API_SECTIONS}
+									/>
+									<AnnotatedCodeBlock
+										borderColor="destructive"
+										fileName="CSV Export Job"
+										lineCount="35 lines"
+										sections={CSV_SECTIONS}
+									/>
 								</div>
-							)}
+
+								{/* Callout */}
+								<div className="w-full max-w-4xl rounded-lg border border-destructive/30 bg-destructive/5 dark:bg-destructive/10 p-3">
+									<p className="text-sm text-destructive font-medium">
+										Same query chain in 3 places. Change the filter
+										logic? Update it everywhere. Add a new filter?
+										Copy-paste across all consumers. The CSV job
+										already has a bug ({">"} vs {">="}) that diverged from the
+										controllers.
+									</p>
+								</div>
+
+								{/* Build the Fix button (always visible) */}
+								<Button
+									className="gap-2"
+									onClick={handleStartBuild}
+									size="lg"
+								>
+									Build the Fix
+									<ArrowRight className="w-4 h-4" />
+								</Button>
+							</div>
 						</div>
 					)}
 
@@ -1081,6 +757,7 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 												/>
 											))}
 										</div>
+
 										<ErrorFeedback
 											message={stepper.lastFeedback}
 											onDismiss={stepper.clearFeedback}
@@ -1090,7 +767,11 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 
 								{isViewingCompletedStep && hasNextStep && (
 									<div className="flex justify-end">
-										<Button className="gap-2" onClick={stepper.nextStep} size="sm">
+										<Button
+											className="gap-2"
+											onClick={stepper.nextStep}
+											size="sm"
+										>
 											Next Step
 											<ArrowRight className="w-4 h-4" />
 										</Button>
@@ -1100,7 +781,7 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* ── Phase 3: Activate ── */}
+					{/* ── Phase 3: Activate (ADVANTAGE sub-phase a) ── */}
 					{phase === 'activate' && (
 						<div className="flex-1 flex items-center justify-center p-6">
 							<div className="max-w-md text-center space-y-6">
@@ -1117,11 +798,15 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 									))}
 								</div>
 								<p className="text-sm text-muted-foreground">
-									Your PostQuery object is ready. Watch it handle every
-									filter combination cleanly, reused across controllers
-									and background jobs.
+									Your PostQuery object is ready. Every consumer now
+									delegates to one composable query object instead of
+									maintaining its own inline chain.
 								</p>
-								<Button className="gap-2" onClick={handleActivateQueries} size="lg">
+								<Button
+									className="gap-2"
+									onClick={handleActivateQueries}
+									size="lg"
+								>
 									<Play className="w-4 h-4" />
 									Visualize Queries
 								</Button>
@@ -1129,107 +814,153 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* ── Phase 4: Reward ── */}
+					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
 					{phase === 'reward' && (
-						<div className="flex-1 flex flex-col">
-							{/* Consumer zones (clean) -> PostQuery */}
-							<div className="flex-1 flex flex-col items-center justify-center px-6 gap-3">
-								{/* Three consumer zones (now thin) */}
-								<div className="w-full max-w-3xl flex gap-3">
-									{CONSUMERS.map((consumer) => (
-										<div
-											key={consumer.id}
-											className={`flex-1 border-2 rounded-lg p-3 transition-all duration-300 ${
-												rewardFlowPhase === 0
-													? 'ring-2 ring-primary/60 shadow-lg shadow-primary/10 border-success/50'
-													: 'border-success/30 bg-success/5 dark:bg-success/10'
-											}`}
-										>
-											<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-												{consumer.name}
-											</div>
-											<pre className="text-[10px] font-mono text-foreground">
-												PostQuery.new.&lt;filters&gt;.results
-											</pre>
-											<div className="mt-1 text-xs text-success font-medium">
-												3 lines
-											</div>
-										</div>
-									))}
+						<div className="flex-1 flex flex-col overflow-auto">
+							<div className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
+								{/* Header */}
+								<div className="text-center">
+									<h3 className="text-lg font-semibold text-foreground">
+										The Fix: PostQuery Object
+									</h3>
+									<p className="text-xs text-muted-foreground mt-1">
+										One composable query object, three clean consumers
+									</p>
 								</div>
 
-								{/* Flow connectors */}
-								<div className="flex gap-3 w-full max-w-3xl">
-									{CONSUMERS.map((consumer) => (
-										<div key={consumer.id} className="flex-1 flex justify-center">
-											<FlowConnector
-												active={rewardFlowPhase === 1}
-												dotColor="bg-success"
-											/>
+								{/* Clean consumers (thin) */}
+								<div className="w-full max-w-4xl grid grid-cols-3 gap-3">
+									{/* Admin Controller (clean) */}
+									<div className="space-y-1.5">
+										<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+											Admin Controller
 										</div>
-									))}
+										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-3 py-2">
+											<Badge
+												className="text-[10px] mb-1 border-success/50 text-success bg-success/10"
+												variant="outline"
+											>
+												Delegates to PostQuery
+											</Badge>
+											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">PostQuery.new{'\n'}  .published(params[:published]){'\n'}  .by_author(params[:author_id]){'\n'}  .sorted.results</pre>
+										</div>
+										<div className="mt-1 text-xs text-success font-medium px-3">
+											Clean (5 lines)
+										</div>
+									</div>
+
+									{/* API Controller (clean) */}
+									<div className="space-y-1.5">
+										<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+											API Controller
+										</div>
+										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-3 py-2">
+											<Badge
+												className="text-[10px] mb-1 border-success/50 text-success bg-success/10"
+												variant="outline"
+											>
+												Delegates to PostQuery
+											</Badge>
+											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">PostQuery.new{'\n'}  .by_tag(params[:tag]){'\n'}  .sorted.results</pre>
+										</div>
+										<div className="mt-1 text-xs text-success font-medium px-3">
+											Clean (3 lines)
+										</div>
+									</div>
+
+									{/* CSV Job (clean) */}
+									<div className="space-y-1.5">
+										<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+											CSV Export Job
+										</div>
+										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-3 py-2">
+											<Badge
+												className="text-[10px] mb-1 border-success/50 text-success bg-success/10"
+												variant="outline"
+											>
+												Delegates to PostQuery
+											</Badge>
+											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">PostQuery.new{'\n'}  .published(true){'\n'}  .since(date).results</pre>
+										</div>
+										<div className="mt-1 text-xs text-success font-medium px-3">
+											Clean (3 lines)
+										</div>
+									</div>
 								</div>
 
 								{/* PostQuery zone */}
-								<div
-									className={`w-full max-w-3xl border-2 rounded-lg p-4 text-center transition-all duration-300 ${
-										rewardFlowPhase === 2
-											? 'ring-2 ring-success/60 shadow-lg shadow-success/10 border-success/50 bg-success/5 dark:bg-success/10'
-											: 'border-success/30 bg-success/5 dark:bg-success/10'
-									}`}
-								>
-									<div className="flex items-center justify-center gap-2 mb-2">
-										<span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-											PostQuery
-										</span>
-										<span className="text-xs font-mono text-success font-bold">
-											Chainable
-										</span>
+								<div className="w-full max-w-4xl border-2 border-success/30 bg-success/5 dark:bg-success/10 rounded-lg p-4">
+									<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 text-center">
+										app/queries/post_query.rb
 									</div>
-									<div className="flex flex-wrap gap-1.5 justify-center">
-										{['.published()', '.by_author()', '.by_tag()', '.with_min_comments()', '.since()', '.sorted()'].map((method) => (
-											<div
-												key={method}
-												className="text-xs font-mono text-success/80 bg-success/5 dark:bg-success/10 rounded px-2 py-1 border border-success/20"
+									<div className="grid grid-cols-3 gap-2">
+										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-2 py-1.5">
+											<Badge
+												className="text-[10px] mb-1 border-success/50 text-success bg-success/10"
+												variant="outline"
 											>
-												{method}
-											</div>
-										))}
-									</div>
-									{rewardFlowMessages[1] && rewardFlowPhase >= 2 && (
-										<div
-											className={`text-xs font-medium mt-2 text-success ${
-												rewardFlowPhase === 2 ? 'animate-in fade-in duration-300' : 'opacity-70'
-											}`}
-										>
-											{rewardFlowMessages[1]}
+												Filters
+											</Badge>
+											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">.published(flag){'\n'}.by_author(id){'\n'}.by_tag(name)</pre>
 										</div>
-									)}
+										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-2 py-1.5">
+											<Badge
+												className="text-[10px] mb-1 border-success/50 text-success bg-success/10"
+												variant="outline"
+											>
+												Aggregates
+											</Badge>
+											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">.with_min_comments(n){'\n'}.since(date)</pre>
+										</div>
+										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-2 py-1.5">
+											<Badge
+												className="text-[10px] mb-1 border-success/50 text-success bg-success/10"
+												variant="outline"
+											>
+												Ordering
+											</Badge>
+											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">.sorted(col, dir){'\n'}.results</pre>
+										</div>
+									</div>
 								</div>
 
-								{/* Consumers message */}
-								{rewardFlowMessages[0] && rewardFlowPhase >= 0 && (
-									<div
-										className={`text-xs font-medium text-primary ${
-											rewardFlowPhase === 0 ? 'animate-in fade-in duration-300' : 'opacity-70'
-										}`}
-									>
-										{rewardFlowMessages[0]}
+								{/* Problems Solved checklist */}
+								<div className="w-full max-w-4xl rounded-lg border border-success/30 bg-success/5 dark:bg-success/10 p-3">
+									<div className="text-xs font-semibold text-success uppercase tracking-wider mb-2">
+										Problems Solved
 									</div>
-								)}
-							</div>
-
-							<div className="px-6 pb-2">
-								<StressTestPanel
-									allowedCount={stressTest.allowedCount}
-									blockedCount={stressTest.blockedCount}
-									canAutoFire={stressTest.canAutoFire}
-									isAutoFiring={stressTest.isAutoFiring}
-									onFire={handleFireScenario}
-									onToggleAutoFire={stressTest.toggleAutoFire}
-									results={stressTest.results}
-									scenarios={STRESS_SCENARIOS}
-								/>
+									<div className="space-y-2">
+										<div className="flex items-start gap-2">
+											<Check className="w-4 h-4 text-success mt-0.5 shrink-0" />
+											<p className="text-sm text-foreground">
+												<span className="font-medium">Change filter logic once, applies everywhere.</span>{' '}
+												<span className="text-muted-foreground">
+													Fix the date comparison in PostQuery, all three consumers get the fix automatically.
+												</span>
+											</p>
+										</div>
+										<div className="flex items-start gap-2">
+											<Check className="w-4 h-4 text-success mt-0.5 shrink-0" />
+											<p className="text-sm text-foreground">
+												<span className="font-medium">Add a new filter: one method in PostQuery.</span>{' '}
+												<span className="text-muted-foreground">
+													All consumers can chain it immediately. No copy-paste across controllers and jobs.
+												</span>
+											</p>
+										</div>
+										<div className="flex items-start gap-2">
+											<Check className="w-4 h-4 text-success mt-0.5 shrink-0" />
+											<p className="text-sm text-foreground">
+												<span className="font-medium">Unit-testable in isolation.</span>{' '}
+												<span className="text-muted-foreground">
+													Test{' '}
+													<code className="text-xs bg-muted px-1 py-0.5 rounded">PostQuery</code>{' '}
+													directly without controllers or HTTP requests.
+												</span>
+											</p>
+										</div>
+									</div>
+								</div>
 							</div>
 						</div>
 					)}
