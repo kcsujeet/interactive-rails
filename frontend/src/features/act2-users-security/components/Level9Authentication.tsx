@@ -582,15 +582,9 @@ end`,
 					? `class User < ApplicationRecord
   has_secure_password
   has_many :sessions, dependent: :destroy
-
-  normalizes :email_address,
-    with: ->(e) { e.strip.downcase }
 end`
 					: `class User < ApplicationRecord
   has_many :sessions, dependent: :destroy
-
-  normalizes :email_address,
-    with: ->(e) { e.strip.downcase }
 end`,
 			highlight: furthestStep >= 3 ? [2] : [],
 		});
@@ -619,7 +613,7 @@ end`,
 
   def create
     user = User.authenticate_by(
-      email_address: params[:email_address],
+      email: params[:email],
       password: params[:password]
     )
 

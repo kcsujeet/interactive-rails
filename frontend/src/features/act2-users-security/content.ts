@@ -120,7 +120,7 @@ bin/rails generate authentication
 - The Authentication concern's \`require_authentication\` verifies it
 
 **\`authenticate_by\` (Rails 8, timing-safe login):**
-- \`User.authenticate_by(email: "...", password: "...")\` returns the user or nil
+- \`User.authenticate_by(email: ..., password: ...)\` returns the user or nil
 - Performs constant-time comparison to prevent timing attacks
 - Replaces the manual \`find_by + authenticate\` pattern
 - Returns nil (not false) on failure -- safe against enumeration
@@ -173,7 +173,7 @@ class SessionsController < ApplicationController
   def create
     # Rails 8: authenticate_by (timing-safe login)
     user = User.authenticate_by(
-      email_address: params[:email_address],
+      email: params[:email],
       password: params[:password]
     )
     if user
@@ -191,7 +191,7 @@ class SessionsController < ApplicationController
 end
 
 # Client usage:
-# POST /sessions { email_address: "...", password: "..." }
+# POST /sessions { email: "...", password: "..." }
 # => { "token": "abc123..." }
 #
 # GET /api/v1/posts -H "Authorization: Bearer abc123..."`,
@@ -874,8 +874,10 @@ const level13Testing: Level = {
 
 class Api::V1::SessionsController < ApplicationController
   def create
-    user = User.find_by(email: params[:email])
-    if user&.authenticate(params[:password])
+    user = User.authenticate_by(
+      email: params[:email], password: params[:password]
+    )
+    if user
       session = user.sessions.create!
       render json: { auth_token: session.token },
              status: :created  # session.token => NoMethodError!

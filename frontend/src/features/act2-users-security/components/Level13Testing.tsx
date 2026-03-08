@@ -593,8 +593,11 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 			language: 'ruby',
 			code: `class Api::V1::SessionsController < ApplicationController
   def create
-    user = User.find_by(email: params[:email])
-    if user&.authenticate(params[:password])
+    user = User.authenticate_by(
+      email: params[:email],
+      password: params[:password]
+    )
+    if user
       session = user.sessions.create!
       render json: { auth_token: session.token },
              status: :created
@@ -606,10 +609,10 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 end
 
 # Bug: column was renamed from 'token' to 'auth_token'
-# but line 6 still references session.token
+# but line 9 still references session.token
 # => NoMethodError: undefined method 'token'
 # => 500 Internal Server Error`,
-			highlight: [6],
+			highlight: [9],
 		});
 		files.push({
 			filename: 'spec/',
@@ -626,8 +629,11 @@ end
 			language: 'ruby',
 			code: `class Api::V1::SessionsController < ApplicationController
   def create
-    user = User.find_by(email: params[:email])
-    if user&.authenticate(params[:password])
+    user = User.authenticate_by(
+      email: params[:email],
+      password: params[:password]
+    )
+    if user
       session = user.sessions.create!
       render json: { auth_token: session.token },
              status: :created
@@ -637,7 +643,7 @@ end
     end
   end
 end`,
-			highlight: [6],
+			highlight: [9],
 		});
 	}
 

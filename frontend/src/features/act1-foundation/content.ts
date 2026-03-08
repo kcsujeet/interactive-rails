@@ -556,7 +556,7 @@ const level6Controller: Level = {
 	trigger: {
 		type: 'new_feature',
 		description:
-			'Routes are defined but return "uninitialized constant". Generate a controller, add the 5 RESTful actions, wire up strong params, and test with curl. For now, curl is your client. No browser frontend yet.',
+			'Routes are defined but return "uninitialized constant". Generate a controller, add the 5 RESTful actions, and test with curl. For now, curl is your client. No browser frontend yet.',
 	},
 	startingPipeline: {
 		nodes: [],
@@ -574,21 +574,17 @@ const level6Controller: Level = {
 #   (API controllers don't need: new, edit)
 #   (also not: list, get, add, remove)
 #
-# Rails 8 strong params:
-#   params.expect() - safer than require/permit
-#   Returns 400 (not 500) on tampered params
-#
 # Your job: generate the controller, add actions,
-# configure params, and test the endpoint.`,
-		goal: 'Generate the controller, add the 5 RESTful actions, configure strong params with params.expect, and test with curl.',
+# and test the endpoint with curl.`,
+		goal: 'Generate the controller, add the 5 RESTful actions, return JSON responses, and test with curl.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'pipeline_complete' }],
 	availableNodes: ['controller'],
 	unlockedNodes: [],
 	learningContent: {
-		title: 'API Controllers & params.expect()',
-		goal: `In this level, you'll:\n- build the controller that handles incoming API requests and returns JSON responses.\n- learn how to generate a controller and wire up the five RESTful actions (index, show, create, update, destroy).\n- use Rails 8's params.expect for safer parameter filtering.`,
+		title: 'API Controllers & JSON Responses',
+		goal: `In this level, you'll:\n- build the controller that handles incoming API requests and returns JSON responses.\n- learn how to generate a controller and wire up the five RESTful actions (index, show, create, update, destroy).\n- test your endpoints with curl from the command line.`,
 		conceptExplanation: `Controllers are the C in MVC. In API mode, they receive HTTP requests and return JSON.
 
 **API vs Full-Stack Controllers:**
@@ -596,10 +592,12 @@ const level6Controller: Level = {
 - Skips cookie, session, flash, CSRF middleware by default
 - Only \`render json:\`, no HTML views
 
-**Rails 8: params.expect():**
-- Replaces \`params.require(:post).permit(:title, :body)\`
-- Returns 400 Bad Request (not 500) if params are tampered
-- More explicit about expected parameter structure
+**The 5 RESTful Actions:**
+- \`index\`: List all records (GET /posts)
+- \`show\`: Get one record (GET /posts/:id)
+- \`create\`: Create a record (POST /posts)
+- \`update\`: Update a record (PATCH /posts/:id)
+- \`destroy\`: Delete a record (DELETE /posts/:id)
 
 **Testing your API:**
 - Use curl or Postman to send requests directly
@@ -643,16 +641,19 @@ class Api::V1::PostsController < ApplicationController
 
   private
 
-  # Rails 8: params.expect() - safer than require/permit
   def post_params
-    params.expect(post: [:title, :body, :published_at])
+    params.require(:post).permit(:title, :body, :published_at)
   end
-end`,
+end
+
+# Parameter filtering keeps user input safe.
+# Rails 8 introduces params.expect() for even stricter
+# filtering -- you'll learn that in a later level.`,
 		commonMistakes: [
 			'Using ActionController::Base in API mode (includes unnecessary middleware)',
 			'Forgetting to return proper HTTP status codes',
-			'Not using params.expect() for safe parameter filtering',
 			'Rendering HTML instead of JSON in API controllers',
+			'Not namespacing controllers under Api::V1 to match routes',
 		],
 		whenToUse: 'Every API endpoint needs a controller action.',
 		furtherReading: [
