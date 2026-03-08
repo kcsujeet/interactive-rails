@@ -36,6 +36,17 @@ class Api::V1::RegistrationsController < ApplicationController
   def create
     @user = User.new(user_params)
 
+    # Inline validation checks
+    if params[:email].blank?
+      return render json: { error: "Email required" }, status: 422
+    end
+    if params[:password].length < 8
+      return render json: { error: "Too short" }, status: 422
+    end
+    if params[:display_name].blank?
+      return render json: { error: "Name required" }, status: 422
+    end
+
     if @user.save
       # Log welcome message inline
       Rails.logger.info("User #{@user.id} registered")
@@ -43,8 +54,8 @@ class Api::V1::RegistrationsController < ApplicationController
       # Set default preferences inline
       DefaultPreferences.apply!(@user)
 
-      # Generate default profile inline
-      Profile.create!(user: @user, display_name: @user.name)
+      # Generate session token inline
+      token = @user.generate_token_for(:session)
 
       render json: @user, status: :created
     else
@@ -105,15 +116,25 @@ class UserRegistration < ApplicationService
   end
 
   def call
+    # Inline validation checks (carried from controller)
+    if @params[:email].blank?
+      return Result.new(success?: false, user: nil, errors: ["Email required"])
+    end
+    if @params[:password].length < 8
+      return Result.new(success?: false, user: nil, errors: ["Password too short"])
+    end
+
     user = User.new(@params)
 
     unless user.save
       return Result.new(success?: false, user: nil, errors: user.errors.full_messages)
     end
 
-    # Enqueue side effects (don't block the response)
+    # Side effects (isolated, testable)
     Rails.logger.info("User #{user.id} registered")
-    WelcomeNotification.log(user)
+    user.update!(locale: "en", timezone: "UTC",
+                 notification_preference: "email")
+    token = user.generate_token_for(:session)
 
     Result.new(success?: true, user: user, errors: [])
   end
@@ -406,7 +427,7 @@ const level18ValidationContracts: Level = {
 	trigger: {
 		type: 'new_feature',
 		description:
-			'The registration endpoint creates a User, Profile, and NotificationPrefs in one request. Validations are scattered inline with duplicated render calls, and cross-field rules like "creator accounts must enable weekly digest" have nowhere to live.',
+			'The registration service creates a User, Profile, and NotificationPrefs in one call. Validations are scattered inline with early returns, and cross-field rules like "creator accounts must enable weekly digest" are buried between model checks.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -479,45 +500,49 @@ const level18ValidationContracts: Level = {
 	},
 	problem: {
 		observation:
-			'The registration controller validates and creates User, Profile, and NotificationPrefs inline. Cross-field rules like "creator role requires weekly digest" live in the controller. Every model validates independently with duplicated render calls.',
+			'The registration service (from L16) validates User, Profile, and NotificationPrefs with scattered inline checks. Cross-field rules like "creator role requires weekly digest" are buried between model checks. Only one error is returned per request.',
 		rootCause:
-			'No validation contract to encapsulate multi-model validation. Scattered inline checks instead of composable schemas with cross-field rules.',
-		codeExample: `# app/controllers/registration_controller.rb
-class RegistrationController < ApplicationController
-  def create
-    # User validations -- inline!
-    if params[:email].blank?
-      return render json: { error: "..." }, status: 422
+			'No validation contract to encapsulate multi-model validation. Scattered inline checks inside the service instead of composable schemas with cross-field rules.',
+		codeExample: `# app/services/user_registration.rb
+# (Service exists from L16, but validations are scattered inline!)
+class UserRegistration < ApplicationService
+  def call
+    # User validations -- scattered inside the service!
+    if @params[:email].blank?
+      return Result.new(success?: false, errors: ["Email required"])
     end
-    if params[:password].length < 8
-      return render json: { error: "..." }, status: 422
-    end
-
-    # Profile validations -- inline!
-    if params[:display_name].blank?
-      return render json: { error: "..." }, status: 422
-    end
-    if params[:bio].length > 500
-      return render json: { error: "..." }, status: 422
+    if @params[:password].length < 8
+      return Result.new(success?: false, errors: ["Too short"])
     end
 
-    # Notification prefs validations -- inline!
-    unless %w[daily weekly monthly never].include?(params[:digest])
-      return render json: { error: "..." }, status: 422
+    # Profile validations -- more scattered checks!
+    if @params[:display_name].blank?
+      return Result.new(success?: false, errors: ["Name required"])
     end
 
-    # Cross-field business rule -- also inline!
-    if params[:role] == "creator" && params[:digest] != "weekly"
-      return render json: { error: "..." }, status: 422
+    # Notification prefs -- one error per check, not composable
+    unless %w[daily weekly monthly never].include?(@params[:digest])
+      return Result.new(success?: false, errors: ["Bad digest"])
     end
 
-    user = User.create!(...)
-    Profile.create!(user: user, ...)
-    NotificationPref.create!(user: user, ...)
+    # Cross-field rule -- buried between model checks!
+    if @params[:role] == "creator" && @params[:digest] != "weekly"
+      return Result.new(success?: false, errors: ["Creators need weekly"])
+    end
 
-    render json: user, status: :created
+    user = User.create!(email: @params[:email], password: @params[:password])
+    Profile.create!(user: user, display_name: @params[:display_name])
+    NotificationPref.create!(user: user, email_digest: @params[:digest])
+
+    Result.new(success?: true, user: user, errors: [])
   end
-end`,
+end
+
+# Problems:
+# 1. One error per request (early returns)
+# 2. Can't reuse validations in another endpoint
+# 3. Cross-field rules buried between model checks
+# 4. Can't test validations without running the whole service`,
 		goal: 'Extract scattered validations into composable Dry::Schema definitions, then compose them in a Dry::Validation::Contract with cross-field rules.',
 		thresholds: {},
 	},
@@ -587,17 +612,24 @@ class RegistrationContract < Dry::Validation::Contract
   end
 end
 
-# app/services/registration_service.rb
-class RegistrationService
-  def initialize(contract: RegistrationContract.new)
+# app/services/user_registration.rb (updated from L16)
+# Now delegates validation to the contract instead of inline checks
+class UserRegistration < ApplicationService
+  Result = Data.define(:success?, :user, :errors)
+
+  def initialize(params, contract: RegistrationContract.new)
+    super(params)
     @contract = contract
   end
 
-  def call(params)
-    result = @contract.call(params)
-    return result if result.failure?
+  def call
+    validation = @contract.call(@params)
+    unless validation.success?
+      return Result.new(success?: false, user: nil,
+                        errors: validation.errors.to_h)
+    end
 
-    attrs = result.to_h
+    attrs = validation.to_h
 
     ActiveRecord::Base.transaction do
       user = User.create!(
@@ -608,30 +640,29 @@ class RegistrationService
       Profile.create!(
         user: user,
         display_name: attrs[:display_name],
-        bio: attrs[:bio],
-        location: attrs[:location]
+        bio: attrs[:bio]
       )
       NotificationPref.create!(
         user: user,
         email_digest: attrs[:email_digest],
-        push_enabled: attrs[:push_enabled],
-        mentions_only: attrs[:mentions_only]
+        push_enabled: attrs[:push_enabled]
       )
 
-      { user: user }
+      Result.new(success?: true, user: user, errors: [])
     end
   end
 end
 
-# app/controllers/registration_controller.rb
-class RegistrationController < ApplicationController
+# Controller stays thin (unchanged from L16):
+# app/controllers/api/v1/registrations_controller.rb
+class Api::V1::RegistrationsController < ApplicationController
   def create
-    result = RegistrationService.new.call(registration_params)
+    result = UserRegistration.call(registration_params)
 
-    if result.is_a?(Dry::Validation::Result)
-      render json: { errors: result.errors.to_h }, status: :unprocessable_entity
+    if result.success?
+      render json: UserSerializer.new(result.user).serializable_hash.to_json, status: :created
     else
-      render json: UserSerializer.new(result[:user]).serializable_hash.to_json, status: :created
+      render json: { errors: result.errors }, status: :unprocessable_entity
     end
   end
 
@@ -640,8 +671,8 @@ class RegistrationController < ApplicationController
   def registration_params
     params.expect(registration: [
       :email, :password, :role,
-      :display_name, :bio, :location,
-      :email_digest, :push_enabled, :mentions_only
+      :display_name, :bio,
+      :email_digest, :push_enabled
     ])
   end
 end
@@ -1180,6 +1211,7 @@ end
 
 # Now controllers are clean -- no rescue blocks needed:
 # app/controllers/api/v1/posts_controller.rb
+# (Simple CRUD stays in controllers; multi-step workflows use service objects)
 class Api::V1::PostsController < ApplicationController
   def show
     post = Post.find(params[:id])  # RecordNotFound -> 404 JSON
@@ -1541,7 +1573,7 @@ const level22BackgroundJobs: Level = {
 	trigger: {
 		type: 'performance_alert',
 		description:
-			'Email sending blocks the HTTP response for 3 seconds. Users stare at a loading spinner while the mailer talks to the SMTP server. The newsletter API call adds another 2 seconds. Move it all to background jobs.',
+			'Email sending blocks the HTTP response for 3 seconds. Users stare at a loading spinner while the mailer talks to the SMTP server. The external profile sync adds another 2 seconds. Move it all to background jobs.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -1606,9 +1638,9 @@ const level22BackgroundJobs: Level = {
 	},
 	problem: {
 		observation:
-			'Registration takes 5+ seconds because the mailer calls the SMTP server synchronously (3s) and the newsletter API call adds another 2s. Users think the app is broken.',
+			'Registration takes 5+ seconds because the mailer calls the SMTP server synchronously (3s) and the external profile sync adds another 2s. Users think the app is broken.',
 		rootCause:
-			'Side effects (email, newsletter, profile setup) are executed inline during the request cycle instead of being offloaded to background jobs.',
+			'Side effects (email, profile sync, preferences setup) are executed inline during the request cycle instead of being offloaded to background jobs.',
 		codeExample: `# app/services/user_registration.rb -- currently synchronous
 class UserRegistration < ApplicationService
   def call
@@ -1625,7 +1657,7 @@ end
 
 # Total response time: 4-6 seconds (should be < 200ms)
 # If the email server is slow, every user waits
-# If the newsletter API times out, registration times out
+# If the external profile sync times out, registration times out
 # If profile setup fails, the entire registration fails`,
 		goal: 'Move side effects to background jobs using ActiveJob and Solid Queue (Rails 8 default, database-backed, no Redis).',
 		thresholds: {},
@@ -1776,7 +1808,7 @@ class UserRegistrationTest < ActiveSupport::TestCase
     )
 
     assert result.success?
-    assert_enqueued_jobs 3  # welcome email + profile sync + newsletter
+    assert_enqueued_jobs 3  # welcome email + profile sync + preferences
   end
 end
 

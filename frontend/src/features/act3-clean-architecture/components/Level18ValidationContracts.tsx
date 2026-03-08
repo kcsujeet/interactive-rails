@@ -5,7 +5,7 @@
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - intro): Static annotated code display (Type 2).
- *   Shows the fat controller with color-coded validation blocks.
+ *   Shows the registration service (from L16) with color-coded validation blocks.
  *   Each inline check gets a destructive left border + Badge label.
  *   Callout states the structural problems. "Build the Fix" always visible.
  * Phase 2 (HOW - build): 4 steps (1 TerminalChoice + 3 OptionCard)
@@ -15,11 +15,11 @@
  *   Step 3: Add cross-field rule (OptionCard)
  * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Contract" button
  * Phase 4 (ADVANTAGE - reward): Same annotated code style as intro, now
- *   showing thin controller (green) + contract with composed schemas (green).
+ *   showing thin service (green) + contract with composed schemas (green).
  *   "Problems Solved" checklist closing the loop on intro's stated problems.
  *
  * Visualization approach: Type 2 static intro (refactoring concept).
- * The scattered validations are self-evident by reading the controller code.
+ * The scattered validations are self-evident by reading the service code.
  *
  * Teaches: dry-validation gem, Dry::Schema, schema composition, cross-field rules
  */
@@ -69,37 +69,37 @@ const INTRO_SECTIONS: AnnotatedSection[] = [
 		id: 'email-check',
 		label: 'Inline: Email Check',
 		variant: 'scattered',
-		code: `if params[:email].blank?\n  return render json: {error: "Email required"}, status: 422\nend`,
+		code: `if @params[:email].blank?\n  return Result.new(success?: false, errors: ["Email required"])\nend`,
 	},
 	{
 		id: 'password-check',
 		label: 'Inline: Password Check',
 		variant: 'scattered',
-		code: `if params[:password].length < 8\n  return render json: {error: "Password too short"}, status: 422\nend`,
+		code: `if @params[:password].length < 8\n  return Result.new(success?: false, errors: ["Password too short"])\nend`,
 	},
 	{
 		id: 'name-check',
 		label: 'Inline: Display Name Check',
 		variant: 'scattered',
-		code: `if params[:display_name].blank?\n  return render json: {error: "Name required"}, status: 422\nend`,
+		code: `if @params[:display_name].blank?\n  return Result.new(success?: false, errors: ["Name required"])\nend`,
 	},
 	{
 		id: 'digest-check',
 		label: 'Inline: Digest Frequency',
 		variant: 'scattered',
-		code: `unless %w[daily weekly monthly never].include?(params[:digest])\n  return render json: {error: "Bad digest"}, status: 422\nend`,
+		code: `unless %w[daily weekly monthly never].include?(@params[:digest])\n  return Result.new(success?: false, errors: ["Bad digest"])\nend`,
 	},
 	{
 		id: 'cross-field',
 		label: 'Buried: Cross-Field Rule',
 		variant: 'buried',
-		code: `if params[:role] == "creator" && params[:digest] != "weekly"\n  return render json: {error: "Creators need weekly"}, status: 422\nend`,
+		code: `if @params[:role] == "creator" && @params[:digest] != "weekly"\n  return Result.new(success?: false, errors: ["Creators need weekly"])\nend`,
 	},
 	{
 		id: 'create',
 		label: 'Core: Record Creation',
 		variant: 'core',
-		code: `user = User.create!(...)\nProfile.create!(user: user, ...)\nNotificationPref.create!(user: user, ...)`,
+		code: `user = User.create!(email: @params[:email], ...)\nProfile.create!(user: user, ...)\nNotificationPref.create!(user: user, ...)`,
 	},
 ];
 
@@ -177,7 +177,7 @@ interface StepOption {
 const SCHEMA_APPROACH_OPTIONS: StepOption[] = [
 	{
 		id: 'inline-checks',
-		label: 'Keep inline if/else checks in the controller',
+		label: 'Keep inline if/else checks in the service',
 		correct: false,
 		feedback:
 			'Inline checks are exactly the problem. They scatter validation logic and produce inconsistent errors.',
@@ -240,7 +240,7 @@ const CROSS_FIELD_RULE_OPTIONS: StepOption[] = [
 		label: `before_action :validate_creator_digest\ndef validate_creator_digest\n  # check in controller\nend`,
 		correct: false,
 		feedback:
-			'That puts the logic back in the controller. The whole point is to keep business rules in the contract.',
+			'That puts the logic back in the service. The whole point is to keep business rules in the contract.',
 	},
 	{
 		id: 'rule-block',
@@ -261,7 +261,7 @@ const OPTION_STEP_CONFIG: Record<
 	1: {
 		title: 'Choose Schema Approach',
 		description:
-			'The controller has scattered inline checks for email format, password length, display name, bio, and digest frequency. How should you define reusable validation schemas?',
+			'The registration service has scattered inline checks for email format, password length, display name, bio, and digest frequency. How should you define reusable validation schemas?',
 		options: SCHEMA_APPROACH_OPTIONS,
 	},
 	2: {
@@ -285,47 +285,48 @@ const OPTION_STEP_CONFIG: Record<
 function getCodeFiles(phase: Phase, furthestStep: number) {
 	const files = [];
 
-	// Intro phase: show controller with scattered validations
+	// Intro phase: show service with scattered validations (service exists from L16)
 	if (phase === 'intro') {
 		files.push({
-			filename: 'app/controllers/registration_controller.rb',
+			filename: 'app/services/user_registration.rb',
 			language: 'ruby',
-			code: `class RegistrationController < ApplicationController
-  def create
+			code: `# Service exists from L16, but validations are scattered inline!
+class UserRegistration < ApplicationService
+  def call
     # User validations (inline!)
-    if params[:email].blank?
-      return render json: {error: "Email required"}, status: 422
+    if @params[:email].blank?
+      return Result.new(success?: false, errors: ["Email required"])
     end
-    if params[:password].length < 8
-      return render json: {error: "Password too short"}, status: 422
+    if @params[:password].length < 8
+      return Result.new(success?: false, errors: ["Password too short"])
     end
 
     # Profile validations (inline!)
-    if params[:display_name].blank?
-      return render json: {error: "Name required"}, status: 422
+    if @params[:display_name].blank?
+      return Result.new(success?: false, errors: ["Name required"])
     end
-    if params[:bio].length > 500
-      return render json: {error: "Bio too long"}, status: 422
+    if @params[:bio]&.length.to_i > 500
+      return Result.new(success?: false, errors: ["Bio too long"])
     end
 
     # Notification prefs (inline!)
     digests = %w[daily weekly monthly never]
-    unless digests.include?(params[:digest])
-      return render json: {error: "Bad digest"}, status: 422
+    unless digests.include?(@params[:digest])
+      return Result.new(success?: false, errors: ["Bad digest"])
     end
 
     # Cross-field rule (also inline!)
-    if params[:role] == "creator" && params[:digest] != "weekly"
-      return render json: {error: "Creators need weekly"}, status: 422
+    if @params[:role] == "creator" && @params[:digest] != "weekly"
+      return Result.new(success?: false, errors: ["Creators need weekly"])
     end
 
-    user = User.create!(email: params[:email], ...)
+    user = User.create!(email: @params[:email], ...)
     Profile.create!(user: user, ...)
     NotificationPref.create!(user: user, ...)
-    render json: user, status: :created
+    Result.new(success?: true, data: user)
   end
 end`,
-			highlight: [4, 5, 7, 8, 12, 13, 15, 16, 20, 21, 25, 26],
+			highlight: [5, 6, 8, 9, 13, 14, 16, 17, 22, 23, 27, 28],
 		});
 		return files;
 	}
@@ -420,15 +421,15 @@ end`,
 			highlight: [4, 5, 6, 7],
 		});
 		files.push({
-			filename: 'app/controllers/registration_controller.rb',
+			filename: 'app/services/user_registration.rb',
 			language: 'ruby',
-			code: `class RegistrationController < ApplicationController
-  def create
-    result = RegistrationContract.new.call(params.to_h)
+			code: `# Service from L16, now delegates validation to the contract
+class UserRegistration < ApplicationService
+  def call
+    result = RegistrationContract.new.call(@params)
 
     if result.failure?
-      render json: { errors: result.errors.to_h }, status: 422
-      return
+      return Result.new(success?: false, errors: result.errors.to_h)
     end
 
     attrs = result.to_h
@@ -438,11 +439,10 @@ end`,
                     display_name: attrs[:display_name])
     NotificationPref.create!(user: user,
                              email_digest: attrs[:email_digest])
-
-    render json: user, status: :created
+    Result.new(success?: true, data: user)
   end
 end`,
-			highlight: [3, 5, 6],
+			highlight: [4, 6, 7],
 		});
 	}
 
@@ -514,11 +514,11 @@ export function Level18ValidationContracts({
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							The registration endpoint creates a User, Profile, and
-							NotificationPrefs in one request. Validations are scattered
-							inline in the controller with duplicated{' '}
+							The registration service (extracted in L16) creates a User,
+							Profile, and NotificationPrefs. Validations are scattered
+							inline inside the service with duplicated{' '}
 							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
-								render
+								Result.new
 							</code>{' '}
 							calls and inconsistent error formats.
 						</p>
@@ -568,7 +568,7 @@ export function Level18ValidationContracts({
 										The Problem: Scattered Inline Validations
 									</h3>
 									<p className="text-xs text-muted-foreground mt-1">
-										RegistrationController#create, 35 lines of inline checks
+										UserRegistration#call, scattered inline checks
 									</p>
 								</div>
 
@@ -610,11 +610,11 @@ export function Level18ValidationContracts({
 								{/* Callout */}
 								<div className="w-full max-w-2xl rounded-lg border border-destructive/30 bg-destructive/5 dark:bg-destructive/10 p-3">
 									<p className="text-sm text-destructive font-medium">
-										5 scattered checks, each with its own{' '}
-										<code className="text-xs bg-destructive/10 px-1 py-0.5 rounded">render</code>.
-										Only one error returned per request. Cross-field rules are
-										buried. Cannot reuse validations in other endpoints or
-										test them without HTTP.
+										5 scattered checks, each returning a separate{' '}
+										<code className="text-xs bg-destructive/10 px-1 py-0.5 rounded">Result</code>.
+										Only one error returned per call. Cross-field rules are
+										buried. Cannot reuse validations in other services or
+										test them in isolation.
 									</p>
 								</div>
 
@@ -791,10 +791,10 @@ export function Level18ValidationContracts({
 									</p>
 								</div>
 
-								{/* Clean controller (thin) */}
+								{/* Clean service (thin) */}
 								<div className="w-full max-w-2xl space-y-1.5">
 									<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-										app/controllers/registration_controller.rb
+										app/services/user_registration.rb
 									</div>
 									<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-3 py-2">
 										<Badge
@@ -803,15 +803,14 @@ export function Level18ValidationContracts({
 										>
 											Delegates to Contract
 										</Badge>
-										<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">{`result = RegistrationContract.new.call(params)
+										<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">{`result = RegistrationContract.new.call(@params)
 if result.failure?
-  render json: { errors: result.errors.to_h }, status: 422
-else
-  # create records from result.to_h
-end`}</pre>
+  return Result.new(success?: false, errors: result.errors.to_h)
+end
+# create records from result.to_h`}</pre>
 									</div>
 									<div className="mt-1 text-xs text-success font-medium px-3">
-										Clean (10 lines, no inline validation)
+										Clean (12 lines, no inline validation)
 									</div>
 								</div>
 

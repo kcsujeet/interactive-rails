@@ -129,7 +129,201 @@ Both taught `params.expect()`. L6 had it as Step 2 ("Build strong params with pa
 - L14 "Strong Params" is literally named after this concept. It should own it.
 - Fix: Remove the `params.expect()` step from L6. L14 introduces `params.expect()` from scratch and also teaches the mass assignment audit.
 
-### 7. Check Schema Consistency
+### 7. Check Cumulative Narrative Consistency (Code Must Reflect Prior Levels)
+
+**This is the most commonly missed check.** Later levels' code examples must reflect the patterns established by earlier levels in the same act. If L[n] teaches a pattern (service objects, concerns, query objects, etc.), then L[n+1] through the end of the act must use that pattern in their code where appropriate. The app is cumulative: the player has already made these changes.
+
+**How to check:**
+
+1. Build the cumulative pattern table from Step 4 (app state trace).
+2. For each level L[n+1] onward, read its `content.ts` fields (`codeExample`, `railsCodeExample`) AND its component's code preview strings, stage inspector code blocks, option labels, and left panel text.
+3. For every code snippet, ask: "Does this code reflect what the app looks like AFTER all prior levels?" If L16 extracted registration into a service object, L18's code should not show a fat RegistrationController with all logic inline.
+
+**What to check in each file:**
+- `content.ts` → `problem.codeExample` (the "before" code on the briefing page)
+- `content.ts` → `learningContent.railsCodeExample` (the "after" code in the learning panel)
+- Component `.tsx` → `STAGE_INSPECTOR_MAP` code blocks (shown during observe)
+- Component `.tsx` → `getCodeFiles()` / code preview strings (shown in the right panel)
+- Component `.tsx` → `OPTION_STEP_CONFIG` option labels (shown during build)
+- Component `.tsx` → left panel text, probe response text
+
+**The key rule:** A level's "before" (problem) code must show the problem IN THE CONTEXT OF what already exists. If service objects exist, the "before" code should show the problem happening inside or alongside the service, not as if the service was never created.
+
+**Case study: L18 Validation Contracts ignoring L16 Service Objects.**
+
+L16 extracts the registration workflow into `UserRegistration` service. L18's problem is scattered inline validations. But L18's `codeExample` showed:
+
+```ruby
+# BAD: L18 codeExample ignores L16's service objects
+class RegistrationController < ApplicationController
+  def create
+    if params[:email].blank?
+      return render json: { error: "..." }, status: 422
+    end
+    # ... 20 more lines of inline validation + creation
+    user = User.create!(...)
+    Profile.create!(user: user, ...)
+  end
+end
+# This controller should not exist! L16 already extracted registration into a service.
+```
+
+The player completed L16 and saw the registration move to a service object. Now L18 shows the registration back in a fat controller. This breaks the narrative: it feels like L16 never happened.
+
+The fix: show the validation problem WHERE IT ACTUALLY LIVES post-L16, which is inside the service:
+
+```ruby
+# GOOD: L18 codeExample builds on L16's service objects
+class RegistrationService < ApplicationService
+  def call
+    # Validations scattered inside the service!
+    if @params[:email].blank?
+      return Result.new(success?: false, errors: ["Email required"])
+    end
+    if @params[:password].length < 8
+      return Result.new(success?: false, errors: ["Password too short"])
+    end
+    # ... more inline checks scattered throughout
+    user = User.create!(email: @params[:email], password: @params[:password])
+    Profile.create!(user: user, display_name: @params[:display_name])
+  end
+end
+# The service exists (from L16), but validations are scattered inline.
+# L18 teaches: extract them into a Dry::Validation::Contract.
+```
+
+**Case study: L20 Error Handling with simple CRUD.**
+
+L16 teaches service objects for multi-step workflows (80+ lines). L20 shows `PostsController` with `Post.find(params[:id])` directly in the controller. Is this a narrative inconsistency?
+
+No. L16's own guidelines say "Extract when a controller exceeds ~15 lines." A `show` action with `Post.find + render` is 2 lines. Simple CRUD stays in controllers. Service objects are for multi-step workflows, not one-liners.
+
+However, the "after" code in `railsCodeExample` should briefly acknowledge the pattern exists:
+
+```ruby
+# GOOD: L20 railsCodeExample acknowledges service objects exist
+class Api::V1::PostsController < ApplicationController
+  # Simple CRUD stays in the controller.
+  # Multi-step workflows (like registration) use service objects.
+  def show
+    post = Post.find(params[:id])
+    render json: PostSerializer.new(post).serializable_hash.to_json
+  end
+end
+```
+
+**Checklist:**
+- [ ] **Every code example in L[n+K]+ uses patterns from L[n].** If L16 creates services, L17+ code examples that touch controllers should show services (or explicitly note why a service is not needed).
+- [ ] **"Before" code shows the problem in the post-prior-level context.** Never show code that regresses to a state before a prior level's fix.
+- [ ] **"After" code in `railsCodeExample` reflects cumulative patterns.** The learning panel code should show the full picture, including prior patterns.
+- [ ] **Component code previews match content.ts.** Both files must tell the same cumulative story.
+- [ ] **Terminology is consistent across content.ts and components.** If content.ts says "newsletter API" but the component says "external profile sync," that is a terminology drift issue.
+
+#### 7a. Check Naming Consistency Across All Levels
+
+**The codebase is cumulative across the entire game, not just within one act.** When a level introduces a class, file, gem, or concept with a specific name, every subsequent level that references it must use the exact same name. This applies across act boundaries.
+
+**How to check:**
+
+1. From the app state trace (Step 4), extract every named entity: class names, file paths, gem names, method names.
+2. For every level in the current act, grep its `content.ts` fields AND its component `.tsx` for references to entities from prior levels.
+3. Flag any mismatch: different class name, different file path, different method signature.
+
+**What counts as a naming inconsistency:**
+- Class name: L16 creates `UserRegistration`, L18 calls it `RegistrationService`
+- File path: L16 creates `app/services/user_registration.rb`, L22 references `app/services/registration_service.rb`
+- Result type: L16 uses `Result = Data.define(:success?, :user, :errors)`, L18 uses `Result.new(success?: false, errors: [...])`
+- Call pattern: L16 uses `UserRegistration.call(params)`, L22 uses `RegistrationService.new(params).call`
+
+**The scope is the entire game, not just one act.** If Act 1 L3 creates a `Post` model, Act 3 L19 cannot call it `Article`. If Act 2 L9 adds `User` with `has_secure_password`, Act 3 L21 cannot reference `User.authenticate` (a method that does not exist in `has_secure_password`). Trace entities from their origin level forward.
+
+**Case study: L16 `UserRegistration` vs L18/L22 `RegistrationService`.**
+
+L16 extracts the registration workflow into a class named `UserRegistration` in `app/services/user_registration.rb`. L18 and L22 both reference the same service but call it `RegistrationService` in `app/services/registration_service.rb`. The player completed L16 and built `UserRegistration`. Two levels later, the code says `RegistrationService` as if they built something different. This breaks continuity.
+
+Fix: L18 and L22 must use `UserRegistration` (the name L16 established). The class name, file path, Result type, and call pattern must all match what L16 produced.
+
+#### 7b. Check Code Continuity (What L[n] Produces Must Ground L[n+k])
+
+**If a later level claims certain code exists, a prior level must actually produce that code.** The player builds the codebase level by level. If L18 shows `UserRegistration` with scattered inline validation checks, then L16 (which created `UserRegistration`) must include those checks in its "after" code.
+
+**How to check:**
+
+1. For each level in the act, read its "before" code (the problem it shows).
+2. Trace that code back to the level that produced it. Read that level's "after" code (its final reward/code preview state).
+3. The "before" code of the later level must be a plausible evolution of the "after" code of the earlier level. Code can grow between levels (new features added), but it cannot contain things the earlier level never established.
+
+**What counts as a code continuity violation:**
+- L18 shows `UserRegistration#call` with 5 inline validation checks (`if @params[:email].blank?` etc.), but L16's final `UserRegistration#call` has zero inline checks (it only uses `user.save` for model validations). The checks appeared from nowhere.
+- L22 shows `UserRegistration#call` with `deliver_now` for emails, but no prior level added email sending to the service. The mailer call appeared from nowhere.
+
+**The key principle: the app grows between levels, but each addition must be grounded.** It is fine for code to grow between levels (the player is building an app, new features get added). But when a level shows code, the additions since the last level that touched that file should be explainable as natural growth, not contradictions.
+
+**Case study: L18 claiming inline checks that L16 never produced.**
+
+L16's final `UserRegistration#call` uses `user.save` (model-level validation) and has side effects (logging, preferences, token). There are no inline `if @params[:email].blank?` checks.
+
+L18 then shows `UserRegistration#call` with 5 scattered inline validation checks as its "before" problem. But the player never added those checks. They appeared between L16 and L18 without explanation.
+
+Fix: L16's fat controller (the "before" code) should already include inline validation checks as part of its 80-line blob. L16 focuses on extracting the service (side effects are the highlighted problem), not on fixing the checks. The checks naturally move into `UserRegistration#call` along with everything else. Then L18 can truthfully say "the service has scattered inline checks" because L16's service includes them.
+
+```ruby
+# GOOD: L16's fat controller includes inline checks (not highlighted as L16's focus)
+class Api::V1::RegistrationsController < ApplicationController
+  def create
+    # These inline checks exist but are NOT L16's focus
+    if params[:email].blank?
+      return render json: { error: "Email required" }, status: 422
+    end
+    if params[:password].length < 8
+      return render json: { error: "Too short" }, status: 422
+    end
+
+    @user = User.new(registration_params)
+    if @user.save
+      # L16's focus: these side effects are the problem
+      Rails.logger.info("New registration: #{@user.email}")
+      @user.update!(locale: "en", timezone: "UTC")
+      token = @user.generate_token_for(:session)
+      render json: { user: @user, token: token }, status: :created
+    else
+      render json: { errors: @user.errors }, status: :unprocessable_entity
+    end
+  end
+end
+```
+
+```ruby
+# GOOD: L16's UserRegistration "after" code carries the checks over
+class UserRegistration < ApplicationService
+  Result = Data.define(:success?, :user, :errors)
+
+  def call
+    # Inline checks moved from controller (not L16's focus, just came along)
+    if @params[:email].blank?
+      return Result.new(success?: false, user: nil, errors: ["Email required"])
+    end
+    if @params[:password].length < 8
+      return Result.new(success?: false, user: nil, errors: ["Password too short"])
+    end
+
+    user = User.new(@params)
+    unless user.save
+      return Result.new(success?: false, user: nil, errors: user.errors.full_messages)
+    end
+
+    # Side effects (L16's actual focus)
+    Rails.logger.info("New registration: #{user.email}")
+    user.update!(locale: "en", timezone: "UTC")
+    token = user.generate_token_for(:session)
+
+    Result.new(success?: true, user: user, errors: [])
+  end
+end
+# Now L18 can truthfully show this service with scattered checks as its problem.
+```
+
+### 8. Check Schema Consistency
 
 For each level, verify every model, column, and association it references actually exists at that point:
 
@@ -139,7 +333,7 @@ For each level, verify every model, column, and association it references actual
 
 **CRITICAL: Check both content.ts AND component .tsx files.** Content definitions and interactive components are separate files that can drift. A level's `content.ts` may be fixed but the component's data arrays, code preview generators, left panel text, or step options may still reference phantom models or columns. Grep the component for any flagged terms.
 
-### 8. Check Content Quality
+### 9. Check Content Quality
 
 Every level has content fields that appear on the briefing page (LevelInfoApp) and during gameplay. Verify these are well-written and accurate:
 
@@ -151,13 +345,13 @@ Every level has content fields that appear on the briefing page (LevelInfoApp) a
 - [ ] **`learningContent.title`**: Shown as a badge on the briefing page. Should be concise and descriptive.
 - [ ] **Content and component are in sync.** If the component uses terminal interactions, the trigger should not say "Drag the node." Always check both halves.
 
-### 9. Check Act-Level Coherence
+### 10. Check Act-Level Coherence
 
 - [ ] **Act description matches its levels.** If the description says "add authentication, validations, authorization, testing, parameter filtering, and query scopes," verify all of those appear as levels.
 - [ ] **Act has a narrative arc.** The first level should introduce the act's theme. The last level should feel like a capstone or transition to the next act.
 - [ ] **Level grouping makes sense.** Related concepts should be adjacent. Model-layer features grouped together, security features grouped together. Interleaving unrelated concepts breaks the learning flow.
 
-### 10. Check Spec Alignment
+### 11. Check Spec Alignment
 
 - [ ] **Level names in spec.md match code.** If spec says "Seeds & Sample Data" but code has "Associations" at that position, flag the mismatch.
 - [ ] **Level numbers in spec.md match code.** If code has L1=Environment but spec starts at L1=First Boot, flag it.
@@ -190,6 +384,10 @@ Numbered list of all issues, categorized as:
 - **Calibration violation**: Level concept doesn't match the act's complexity band
 - **Narrative gap**: Trigger ignores prior levels or transition feels abrupt
 - **Content drift**: content.ts and component .tsx are out of sync
+- **Narrative regression**: Code example ignores a pattern established by a prior level (Step 7)
+- **Terminology drift**: content.ts and component use different names for the same thing
+- **Naming inconsistency**: A class, file, or entity has different names across levels (Step 7a)
+- **Code continuity violation**: A level's "before" code contains things no prior level produced (Step 7b)
 - **Spec mismatch**: spec.md disagrees with code
 
 ### Suggested Fixes

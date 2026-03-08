@@ -159,10 +159,10 @@ const PROBE_PIPELINE_MAP: Record<
 const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 	service: {
 		stageId: 'service',
-		title: 'RegistrationService',
+		title: 'UserRegistration',
 		description:
 			'The service creates a user, then runs all side effects inline: welcome email via deliver_now, external profile sync, and notification preferences setup. Each one blocks the HTTP response.',
-		code: `class RegistrationService < ApplicationService
+		code: `class UserRegistration < ApplicationService
   def call
     user = User.create!(@params)
 
@@ -192,7 +192,7 @@ UserMailer.welcome(user).deliver_now
 		stageId: 'controller',
 		title: 'RegistrationsController',
 		description:
-			'The controller calls RegistrationService.call and waits for ALL side effects to finish before returning the response. The user stares at a loading spinner the entire time.',
+			'The controller calls UserRegistration.call and waits for ALL side effects to finish before returning the response. The user stares at a loading spinner the entire time.',
 	},
 	database: {
 		stageId: 'database',
@@ -463,9 +463,9 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 	// Observe phase: show synchronous registration service
 	if (phase === 'observe') {
 		files.push({
-			filename: 'app/services/registration_service.rb',
+			filename: 'app/services/user_registration.rb',
 			language: 'ruby',
-			code: `class RegistrationService < ApplicationService
+			code: `class UserRegistration < ApplicationService
   def call
     user = User.create!(@params)
 
@@ -502,9 +502,9 @@ end`,
 			highlight: [5],
 		});
 		files.push({
-			filename: 'app/services/registration_service.rb',
+			filename: 'app/services/user_registration.rb',
 			language: 'ruby',
-			code: `class RegistrationService < ApplicationService
+			code: `class UserRegistration < ApplicationService
   def call
     user = User.create!(@params)
 
@@ -576,9 +576,9 @@ end`,
 			highlight: [4, 8, 11],
 		});
 		files.push({
-			filename: 'app/services/registration_service.rb',
+			filename: 'app/services/user_registration.rb',
 			language: 'ruby',
-			code: `class RegistrationService < ApplicationService
+			code: `class UserRegistration < ApplicationService
   def call
     user = User.create!(@params)
 
@@ -664,7 +664,7 @@ export function Level22BackgroundJobs({ onComplete }: LevelComponentProps) {
 			},
 			{
 				id: 'service',
-				label: 'RegistrationService',
+				label: 'UserRegistration',
 				inspectable: true,
 				inspected: inspectedStages.has('service'),
 			},
@@ -697,7 +697,7 @@ export function Level22BackgroundJobs({ onComplete }: LevelComponentProps) {
 			{ id: 'controller', label: 'Controller' },
 			{
 				id: 'service',
-				label: 'RegistrationService',
+				label: 'UserRegistration',
 				sublabel: wasBlocked ? '422 Unprocessable' : '< 50ms',
 				variant: wasBlocked ? ('danger' as const) : ('active' as const),
 			},

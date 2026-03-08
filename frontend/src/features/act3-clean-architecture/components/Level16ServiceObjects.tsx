@@ -53,6 +53,20 @@ interface AnnotatedSection {
 
 const ANNOTATED_SECTIONS: AnnotatedSection[] = [
 	{
+		id: 'checks',
+		label: 'Inline Validation Checks',
+		variant: 'core',
+		code: `if params[:email].blank?
+  return render json: { error: "Email required" }, status: 422
+end
+if params[:password].length < 8
+  return render json: { error: "Too short" }, status: 422
+end
+if params[:display_name].blank?
+  return render json: { error: "Name required" }, status: 422
+end`,
+	},
+	{
 		id: 'core',
 		label: 'Core Logic',
 		variant: 'core',
@@ -261,6 +275,17 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
   def create
     @user = User.new(registration_params)
 
+    # Inline validation checks
+    if params[:email].blank?
+      return render json: { error: "Email required" }, status: 422
+    end
+    if params[:password].length < 8
+      return render json: { error: "Too short" }, status: 422
+    end
+    if params[:display_name].blank?
+      return render json: { error: "Name required" }, status: 422
+    end
+
     if @user.save
       # Log welcome message inline
       Rails.logger.info("New registration: #\{@user.email}")
@@ -293,7 +318,7 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
     params.expect(user: [:email, :password, :name])
   end
 end`,
-			highlight: [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17],
+			highlight: [6, 7, 8, 9, 10, 11, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29],
 		});
 		return files;
 	}
@@ -306,6 +331,11 @@ end`,
 			code: `class Api::V1::RegistrationsController < ApplicationController
   def create
     @user = User.new(registration_params)
+
+    # Inline validation checks
+    return render json: { error: "Email required" }, status: 422 if params[:email].blank?
+    return render json: { error: "Too short" }, status: 422 if params[:password].length < 8
+    return render json: { error: "Name required" }, status: 422 if params[:display_name].blank?
 
     if @user.save
       Rails.logger.info("New registration: #\{@user.email}")
@@ -325,7 +355,7 @@ end`,
            status: :internal_server_error
   end
 end`,
-			highlight: [5, 6, 7, 8, 9],
+			highlight: [6, 7, 8, 10, 11, 12, 13, 14],
 		});
 	}
 
@@ -343,6 +373,10 @@ end`,
 				'  end',
 				'',
 				'  def call',
+				'    # Inline checks (carried from controller)',
+				'    # return failure if @params[:email].blank?',
+				'    # return failure if @params[:password].length < 8',
+				'',
 				'    user = User.new(@params)',
 				'',
 				'    unless user.save',
@@ -372,6 +406,14 @@ end`,
 				'  end',
 				'',
 				'  def call',
+				'    # Inline validation checks (from controller)',
+				'    if @params[:email].blank?',
+				'      return Result.new(success?: false, user: nil, errors: ["Email required"])',
+				'    end',
+				'    if @params[:password].length < 8',
+				'      return Result.new(success?: false, user: nil, errors: ["Password too short"])',
+				'    end',
+				'',
 				'    user = User.new(@params)',
 				'',
 				'    unless user.save',
@@ -390,7 +432,7 @@ end`,
 				'  end',
 				'end',
 			].join('\n'),
-			highlight: [2, 18, 19, 20, 21],
+			highlight: [2, 23, 24, 25, 26],
 		});
 	}
 
@@ -408,6 +450,14 @@ end`,
 				'  end',
 				'',
 				'  def call',
+				'    # Inline validation checks (from controller)',
+				'    if @params[:email].blank?',
+				'      return Result.new(success?: false, user: nil, errors: ["Email required"])',
+				'    end',
+				'    if @params[:password].length < 8',
+				'      return Result.new(success?: false, user: nil, errors: ["Password too short"])',
+				'    end',
+				'',
 				'    user = User.new(@params)',
 				'',
 				'    unless user.save',
@@ -429,7 +479,7 @@ end`,
 				'',
 				'# How does the controller call this service?',
 			].join('\n'),
-			highlight: [18, 19, 20, 21],
+			highlight: [23, 24, 25, 26],
 		});
 	}
 
@@ -447,6 +497,14 @@ end`,
 				'  end',
 				'',
 				'  def call',
+				'    # Inline validation checks (from controller)',
+				'    if @params[:email].blank?',
+				'      return Result.new(success?: false, user: nil, errors: ["Email required"])',
+				'    end',
+				'    if @params[:password].length < 8',
+				'      return Result.new(success?: false, user: nil, errors: ["Password too short"])',
+				'    end',
+				'',
 				'    user = User.new(@params)',
 				'',
 				'    unless user.save',
@@ -567,13 +625,13 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
 								RegistrationsController#create
 							</code>{' '}
-							action is 80 lines long. It handles user creation,
-							logging, preferences, and token generation all
-							inline in one action.
+							action is 80 lines long. It handles validation checks,
+							user creation, logging, preferences, and token
+							generation all inline in one action.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							{phase === 'intro'
-								? 'The annotated code shows 4 distinct responsibilities tangled together. Extract them into a service object.'
+								? 'The annotated code shows 5 distinct responsibilities tangled together. Extract them into a service object.'
 								: 'Extract the workflow into a service object with a clear Result type.'}
 						</p>
 					</div>
@@ -616,7 +674,7 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 									The Problem: RegistrationsController#create
 								</div>
 								<span className="text-xs font-mono text-destructive font-bold">
-									80 lines, 4 responsibilities
+									80 lines, 5 responsibilities
 								</span>
 							</div>
 
@@ -676,7 +734,7 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 							<div className="px-6 py-3">
 								<div className="max-w-lg mx-auto">
 									<div className="border border-amber-500/30 bg-amber-500/5 dark:bg-amber-400/5 rounded-lg p-3 text-sm text-foreground">
-										<strong>4 responsibilities in one method.</strong>{' '}
+										<strong>5 responsibilities in one method.</strong>{' '}
 										This logic can&apos;t be reused by a rake task,
 										tested without HTTP, or understood at a glance.
 									</div>
@@ -846,10 +904,12 @@ end`}</pre>
 									<div className="border-l-2 border-l-zinc-400 dark:border-l-zinc-600 bg-muted/30 rounded-r-md px-3 py-2">
 										<div className="flex items-center gap-2 mb-1">
 											<Badge variant="secondary" className="text-[10px] px-1.5 py-0 text-muted-foreground">
-												Core Logic
+												Inline Checks + Core Logic
 											</Badge>
 										</div>
-										<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">{`user = User.new(@params)
+										<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">{`return failure if @params[:email].blank?
+return failure if @params[:password].length < 8
+user = User.new(@params)
 return Result.new(failure) unless user.save`}</pre>
 									</div>
 
