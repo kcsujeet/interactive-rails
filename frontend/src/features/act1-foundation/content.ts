@@ -972,7 +972,6 @@ end
 # Migration for comments:
 create_table :comments do |t|
   t.references :post, null: false, foreign_key: true
-  t.string :author_name
   t.text :body
   t.timestamps
 end

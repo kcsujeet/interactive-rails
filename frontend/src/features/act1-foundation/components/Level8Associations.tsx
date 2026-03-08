@@ -230,7 +230,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		description: 'Add a new comment through the association',
 		method: 'POST',
 		path: '/api/v1/posts/1/comments',
-		actor: 'authenticated user',
+		actor: 'client',
 		expectedResult: 'allowed',
 	},
 	{
@@ -239,7 +239,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		description: 'Fetch all comments for a specific post',
 		method: 'GET',
 		path: '/api/v1/posts/1/comments',
-		actor: 'any user',
+		actor: 'client',
 		expectedResult: 'allowed',
 	},
 	{
@@ -248,7 +248,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		description: 'Delete a post and cascade-destroy its comments',
 		method: 'DELETE',
 		path: '/api/v1/posts/1',
-		actor: 'post owner',
+		actor: 'client',
 		expectedResult: 'allowed',
 	},
 	{
@@ -257,7 +257,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		description: 'Fetch a post with its nested comments',
 		method: 'GET',
 		path: '/api/v1/posts/1',
-		actor: 'any user',
+		actor: 'client',
 		expectedResult: 'allowed',
 	},
 	{
@@ -266,7 +266,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		description: 'Try to create a comment on a non-existent post',
 		method: 'POST',
 		path: '/api/v1/posts/999/comments',
-		actor: 'authenticated user',
+		actor: 'client',
 		expectedResult: 'blocked',
 	},
 ];

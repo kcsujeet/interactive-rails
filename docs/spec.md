@@ -18,14 +18,14 @@ Every level exists because the app **needs** it at that stage, not because Rails
 
 | # | Name | Concept | Scenario |
 |---|------|---------|----------|
-| 1 | Environment | asdf, Ruby, Rails install, `rails new` | Day 0. Set up your development environment: version manager, Ruby, Rails, and generate the project. |
+| 1 | Environment | asdf, Ruby, Rails install | Day 0. Set up your development environment: version manager, Ruby, Rails. |
 | 2 | First Boot | `rails new --api`, PostgreSQL vs SQLite | Day 1. Choose your database. Rails 8 makes SQLite production-ready, PostgreSQL for scale. |
 | 3 | The Model | ActiveRecord, migrations, schema | Need a blog API. Define what a Post looks like: attributes, types, constraints. |
 | 4 | CRUD Operations | ActiveRecord CRUD, Rails console | Model exists but DB is empty. Create, read, update, destroy records. |
 | 5 | Routes & Request Lifecycle | `resources`, namespaces, request flow | Routes defined, requests traced. Map HTTP verbs + URLs to controller actions under /api/v1/. |
 | 6 | The Controller | API controllers, `render json:`, RESTful actions | Routes exist but nothing responds. Build a controller that handles those routes and returns JSON. |
 | 7 | Serializers | JSON shaping, jsonapi-serializer (JSON:API standard) | API dumps raw `to_json` with internal columns. Control exactly what the client sees. |
-| 8 | Associations | `has_many`, `belongs_to`, nested JSON | Posts need comments. Users need posts. Model relationships and include them in responses. |
+| 8 | Associations | `has_many`, `belongs_to`, nested JSON | Posts need comments. Model relationships, cascade deletion, and nested responses. |
 
 ---
 

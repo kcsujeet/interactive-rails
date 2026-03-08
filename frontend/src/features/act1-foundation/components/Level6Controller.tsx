@@ -428,9 +428,9 @@ function getActionBody(action: string): string {
 		case 'show':
 			return 'render json: Post.find(params[:id])';
 		case 'create':
-			return 'post = Post.create!(title: params[:title], body: params[:body])\n      render json: post, status: :created';
+			return 'post = Post.new(post_params)\n      if post.save\n        render json: post, status: :created\n      else\n        render json: { errors: post.errors }, status: :unprocessable_entity\n      end';
 		case 'update':
-			return 'post = Post.find(params[:id])\n      post.update!(title: params[:title], body: params[:body])\n      render json: post';
+			return 'post = Post.find(params[:id])\n      if post.update(post_params)\n        render json: post\n      else\n        render json: { errors: post.errors }, status: :unprocessable_entity\n      end';
 		case 'destroy':
 			return 'Post.find(params[:id]).destroy\n      head :no_content';
 		default:
@@ -497,11 +497,17 @@ end`,
 						.join('\n\n')
 				: '  # Add actions here...';
 
+		const needsPostParams =
+			placedActions.includes('create') || placedActions.includes('update');
+		const privateSection = needsPostParams
+			? `\n\n  private\n\n  def post_params\n    params.require(:post).permit(:title, :body, :published_at)\n  end`
+			: '';
+
 		files.push({
 			filename: 'app/controllers/api/v1/posts_controller.rb',
 			language: 'ruby',
 			code: `class Api::V1::PostsController < ApplicationController
-${actionCode}
+${actionCode}${privateSection}
 end`,
 			highlight: placedActions.map((_, i) => i * 3 + 2),
 		});
