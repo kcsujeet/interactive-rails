@@ -44,9 +44,9 @@ interface Scenario {
 const INITIAL_SCENARIOS: Scenario[] = [
 	{
 		id: 'basic',
-		title: 'Posts with Authors',
-		description: 'Load posts and display author names',
-		code: '@posts = Post.all\n# View: post.author.name',
+		title: 'Posts with Users',
+		description: 'Load posts and display user names',
+		code: '@posts = Post.all\n# View: post.user.name',
 		currentQueries: 101,
 		solved: false,
 		strategies: [
@@ -63,22 +63,22 @@ const INITIAL_SCENARIOS: Scenario[] = [
 			{
 				id: 'includes',
 				name: 'includes',
-				code: 'Post.includes(:author)',
-				description: 'Loads authors in separate query',
+				code: 'Post.includes(:user)',
+				description: 'Loads users in separate query',
 				queries: 2,
 				selected: false,
 				correct: true,
-				sqlPlan: 'SELECT * FROM posts;\nSELECT * FROM users WHERE id IN (1, 2, 3, ...);  -- ONE query for all authors',
+				sqlPlan: 'SELECT * FROM posts;\nSELECT * FROM users WHERE id IN (1, 2, 3, ...);  -- ONE query for all users',
 			},
 			{
 				id: 'joins',
 				name: 'joins',
-				code: 'Post.joins(:author)',
+				code: 'Post.joins(:user)',
 				description: 'Only filters, does not load',
 				queries: 101,
 				selected: false,
 				correct: false,
-				sqlPlan: 'SELECT posts.* FROM posts INNER JOIN users ON users.id = posts.author_id;\n-- Filters only, doesn\'t load user data!',
+				sqlPlan: 'SELECT posts.* FROM posts INNER JOIN users ON users.id = posts.user_id;\n-- Filters only, doesn\'t load user data!',
 			},
 		],
 	},
@@ -237,7 +237,7 @@ export function Level24EagerLoading({
 						'eager_load: Always uses LEFT OUTER JOIN',
 						'Match the strategy to the scenario',
 					]}
-					scenario="Level 23 exposed the N+1 problem in your posts query. Now fix it. Rails provides three eager loading methods, each with different tradeoffs."
+					scenario="The N+1 problem is killing your posts query. Now fix it. Rails provides three eager loading methods, each with different tradeoffs."
 				>
 					{/* Scenario Tabs */}
 					<div className="p-4 border-t border-border">
@@ -462,7 +462,7 @@ export function Level24EagerLoading({
 							filename: 'app/models/post.rb',
 							language: 'ruby',
 							code: `class Post < ApplicationRecord
-  belongs_to :author
+  belongs_to :user
   has_many :comments
   has_many :tags
 end
@@ -470,17 +470,17 @@ end
 # Eager Loading Comparison:
 
 # includes (recommended default)
-Post.includes(:author)
+Post.includes(:user)
 # Uses separate query OR JOIN
 # Smart: adapts to your query
 
 # preload (force separate queries)
-Post.preload(:author)
+Post.preload(:user)
 # Always: 2 separate queries
 # Cannot use in WHERE clause
 
 # eager_load (force JOIN)
-Post.eager_load(:author)
+Post.eager_load(:user)
 # Always: LEFT OUTER JOIN
 # Required for WHERE on association`,
 							highlight: [],
@@ -517,10 +517,10 @@ Post.eager_load(:author)
 Post.includes(comments: :user)
 
 # Load multiple associations:
-Post.includes(:author, :tags)
+Post.includes(:user, :tags)
 
 # Combine both:
-Post.includes(:author,
+Post.includes(:user,
   comments: [:user, :likes]
 )`}
 						</pre>

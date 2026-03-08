@@ -23,24 +23,24 @@ import type { LevelComponentProps } from '@/features/levels-registry';
 interface Post {
 	id: number;
 	title: string;
-	authorId: number;
+	userId: number;
 }
 
-interface Author {
+interface UserRecord {
 	id: number;
 	name: string;
 	loaded: boolean;
 }
 
 const POSTS: Post[] = [
-	{ id: 1, title: 'Getting Started with Rails', authorId: 1 },
-	{ id: 2, title: 'ActiveRecord Basics', authorId: 2 },
-	{ id: 3, title: 'RESTful Routes', authorId: 1 },
-	{ id: 4, title: 'Testing with RSpec', authorId: 3 },
-	{ id: 5, title: 'Background Jobs', authorId: 2 },
+	{ id: 1, title: 'Getting Started with Rails', userId: 1 },
+	{ id: 2, title: 'ActiveRecord Basics', userId: 2 },
+	{ id: 3, title: 'RESTful Routes', userId: 1 },
+	{ id: 4, title: 'Testing with RSpec', userId: 3 },
+	{ id: 5, title: 'Background Jobs', userId: 2 },
 ];
 
-const AUTHORS: Author[] = [
+const USERS: UserRecord[] = [
 	{ id: 1, name: 'Alice', loaded: false },
 	{ id: 2, name: 'Bob', loaded: false },
 	{ id: 3, name: 'Charlie', loaded: false },
@@ -51,7 +51,7 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 	const [isRunning, setIsRunning] = useState(false);
 	const [queryLog, setQueryLog] = useState<string[]>([]);
 	const [currentStep, setCurrentStep] = useState(0);
-	const [loadedAuthors, setLoadedAuthors] = useState<Set<number>>(new Set());
+	const [loadedUsers, setLoadedUsers] = useState<Set<number>>(new Set());
 	const [understood, setUnderstood] = useState(false);
 
 	const totalQueries = queryLog.length;
@@ -66,34 +66,34 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 				setQueryLog((prev) => [...prev, 'SELECT * FROM posts']);
 				setCurrentStep(1);
 			} else {
-				// N+1: load each author individually
+				// N+1: load each user individually
 				const post = POSTS[currentStep - 1];
-				if (post && !loadedAuthors.has(post.authorId)) {
+				if (post && !loadedUsers.has(post.userId)) {
 					setQueryLog((prev) => [
 						...prev,
-						`SELECT * FROM authors WHERE id = ${post.authorId}`,
+						`SELECT * FROM users WHERE id = ${post.userId}`,
 					]);
-					setLoadedAuthors((prev) => new Set([...prev, post.authorId]));
+					setLoadedUsers((prev) => new Set([...prev, post.userId]));
 				}
 				setCurrentStep(currentStep + 1);
 			}
 		}, 800);
 
 		return () => clearTimeout(timer);
-	}, [isRunning, currentStep, loadedAuthors]);
+	}, [isRunning, currentStep, loadedUsers]);
 
 	const startSimulation = () => {
 		setIsRunning(true);
 		setQueryLog([]);
 		setCurrentStep(0);
-		setLoadedAuthors(new Set());
+		setLoadedUsers(new Set());
 	};
 
 	const resetSimulation = () => {
 		setIsRunning(false);
 		setQueryLog([]);
 		setCurrentStep(0);
-		setLoadedAuthors(new Set());
+		setLoadedUsers(new Set());
 		setUnderstood(false);
 	};
 
@@ -133,7 +133,7 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 						'Each query has network latency',
 						'Database connections are limited',
 					]}
-					scenario="Your PostsController#index from Level 6 now loads posts with their authors. Each page triggers 6 queries: one for posts, then one for EACH author. As data grows, this becomes a performance nightmare."
+					scenario="Your PostsController#index from Level 6 now loads posts with their users. Each page triggers 6 queries: one for posts, then one for EACH user. As data grows, this becomes a performance nightmare."
 				>
 					<div className="p-4 border-t border-border">
 						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
@@ -252,7 +252,7 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 									{' |post|'}
 									{'\n'}
 									{'    '}
-									<span className="text-destructive">post.author.name</span>
+									<span className="text-destructive">post.user.name</span>
 									{'\n'}
 									{'  '}
 									<span className="text-purple-400">end</span>
@@ -288,11 +288,11 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 								const isLoaded =
 									currentStep > index + 1 ||
 									(currentStep === index + 1 &&
-										loadedAuthors.has(post.authorId));
+										loadedUsers.has(post.userId));
 								const isLoading =
 									currentStep === index + 1 &&
-									!loadedAuthors.has(post.authorId);
-								const author = AUTHORS.find((a) => a.id === post.authorId);
+									!loadedUsers.has(post.userId);
+								const user = USERS.find((u) => u.id === post.userId);
 
 								return (
 									<div
@@ -312,10 +312,10 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 											className={`text-xs mt-1 ${isLoaded ? 'text-success' : 'text-muted-foreground'}`}
 										>
 											{isLoaded
-												? `By: ${author?.name}`
+												? `By: ${user?.name}`
 												: isLoading
 													? 'Loading...'
-													: 'Author: ?'}
+													: 'User: ?'}
 										</div>
 									</div>
 								);
@@ -361,7 +361,7 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 								</div>
 								<div className="text-sm text-muted-foreground mb-4">
 									You loaded 5 posts but executed {totalQueries} queries. Each{' '}
-									<code className="text-warning">post.author</code>
+									<code className="text-warning">post.user</code>
 									call triggers a separate database query. With 1000 posts,
 									that's 1001 queries!
 								</div>
@@ -464,12 +464,12 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 							Coming Next
 						</div>
 						<pre className="text-xs text-muted-foreground bg-secondary p-2 rounded overflow-x-auto">
-							{`# The fix (Level 23):
-Post.includes(:author).all
+							{`# The fix (Level 24):
+Post.includes(:user).all
 
 # Result: Only 2 queries!
 # SELECT * FROM posts
-# SELECT * FROM authors
+# SELECT * FROM users
 #   WHERE id IN (1, 2, 3)`}
 						</pre>
 					</div>

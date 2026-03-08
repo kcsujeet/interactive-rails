@@ -9,10 +9,10 @@
 import type { Act, Level } from '@/types';
 
 // ============================================
-// Level 21: The N+1 Problem
+// Level 23: The N+1 Problem
 // ============================================
 
-const level22N1Problem: Level = {
+const level23N1Problem: Level = {
 	id: 'act4-level23-n1-problem',
 	actId: 4,
 	levelNumber: 23,
@@ -84,9 +84,9 @@ const level22N1Problem: Level = {
 	},
 	problem: {
 		observation:
-			'`/api/posts` runs 101 queries for 100 posts. Each post triggers an extra query to fetch its author.',
+			'`/api/posts` runs 101 queries for 100 posts. Each post triggers an extra query to fetch its user.',
 		rootCause:
-			'N+1 query pattern: 1 query loads all posts, then N individual queries load each author.',
+			'N+1 query pattern: 1 query loads all posts, then N individual queries load each user.',
 		codeExample: `# app/controllers/api/v1/posts_controller.rb
 def index
   @posts = Post.all
@@ -131,7 +131,7 @@ end`,
 	availableNodes: [],
 	unlockedNodes: ['eager_load'],
 	learningContent: {
-		title: 'The N+1 Query Problem & Prosopite Detection',
+		title: 'The N+1 Query Problem & Detection',
 		goal: `In this level, you'll:\n- learn to spot the N+1 query problem, the most common performance killer in Rails apps.\n- understand why loading 100 posts generates 101 database queries.\n- trace the problem back to association access in serializers.\n- discover how gems like Prosopite and Bullet can detect N+1 queries automatically.`,
 		conceptExplanation: `The N+1 problem is the most common performance killer in Rails apps. It happens when you load a collection of records (1 query) and then access an association on each record (N queries).
 
@@ -243,10 +243,10 @@ end
 };
 
 // ============================================
-// Level 23: Eager Loading
+// Level 24: Eager Loading
 // ============================================
 
-const level23EagerLoading: Level = {
+const level24EagerLoading: Level = {
 	id: 'act4-level24-eager-loading',
 	actId: 4,
 	levelNumber: 24,
@@ -254,7 +254,7 @@ const level23EagerLoading: Level = {
 	trigger: {
 		type: 'optimization',
 		description:
-			'The N+1 problem is identified. Now fix it. Batch those author queries into a single load. Response time must drop to 50ms.',
+			'The N+1 problem is identified. Now fix it. Batch those user queries into a single load. Response time must drop to 50ms.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -318,7 +318,7 @@ const level23EagerLoading: Level = {
 	},
 	problem: {
 		observation:
-			'101 queries identified. Need to collapse N author queries into 1 batch query.',
+			'101 queries identified. Need to collapse N user queries into 1 batch query.',
 		rootCause:
 			'Associations are lazy-loaded by default. Rails only queries the database when you first access the association.',
 		codeExample: `# BEFORE: 101 queries (N+1)
@@ -368,7 +368,7 @@ Post.eager_load(:user)   # Always LEFT OUTER JOIN (1 query)`,
 - You will still get N+1 when you access associations after \`joins\`
 - This is a common misconception
 
-**Production benchmarks (simple scenario, posts with authors):**
+**Production benchmarks (simple scenario, posts with users):**
 \`\`\`
 N+1:        Real 9.545s | User 4.873s | 1,564 MB | 5,301,574 objects
 Preload:    Real 1.34s  | User 0.195s |   682 MB |   148,827 objects → 25x faster
@@ -377,7 +377,7 @@ Eager Load: Real 0.99s  | User 0.238s |   697 MB |   250,610 objects → 20x fas
 
 **Why preload beats eager_load on memory:** \`preload\` runs separate simple queries, creating fewer temporary objects. \`eager_load\` builds a single wide JOIN result; the database returns more columns per row, and ActiveRecord must allocate more intermediate objects to parse the wider result set.
 
-**Complex scenario (posts per category per author, at scale):**
+**Complex scenario (posts per category per user, at scale):**
 \`\`\`
 N+1:        Real 73.191s
 Preload:    Real 17.468s → 23x faster
@@ -438,18 +438,7 @@ Post.strict_loading.all
 class Post < ApplicationRecord
   self.strict_loading_by_default = true
 end
-
-# === Narrow fetching: select/pluck ===
-# Even with eager loading, SELECT * fetches every column.
-# If you only need title and author_name, fetch only those:
-Post.includes(:user).select(:id, :title, :user_id)
-# SELECT id, title, user_id FROM posts (not SELECT *)
-# 12x faster, 290x less memory on wide tables
-
-# pluck returns raw arrays (no ActiveRecord objects):
-Post.where(published: true).pluck(:title)
-# => ["First Post", "Second Post", ...]
-# Ideal for dropdowns, exports, and reports`,
+# Next level: narrow fetching (select/pluck) to fetch only needed columns`,
 		commonMistakes: [
 			'Using joins thinking it prevents N+1 (it INNER JOINs but does NOT load associations)',
 			'Using eager_load when preload would use less memory (JOIN creates wider result rows)',
@@ -480,15 +469,15 @@ Post.where(published: true).pluck(:title)
 	},
 	hint: {
 		delay: 20,
-		text: 'Add an Eager Load node. Use .includes(:user) to batch the author queries into one.',
+		text: 'Add an Eager Load node. Use .includes(:user) to batch the user queries into one.',
 	},
 };
 
 // ============================================
-// Level 24.5: Narrow Fetching (NEW - inserted after Eager Loading)
+// Level 25: Narrow Fetching
 // ============================================
 
-const levelNarrowFetching: Level = {
+const level25NarrowFetching: Level = {
 	id: 'act4-level25-narrow-fetching',
 	actId: 4,
 	levelNumber: 25,
@@ -687,10 +676,10 @@ User.pluck(:id, :name)`,
 };
 
 // ============================================
-// Level 24: Database Indexing
+// Level 26: Database Indexing
 // ============================================
 
-const level24DatabaseIndexing: Level = {
+const level26DatabaseIndexing: Level = {
 	id: 'act4-level26-database-indexing',
 	actId: 4,
 	levelNumber: 26,
@@ -900,10 +889,10 @@ add_index :users, :email, algorithm: :concurrently`,
 };
 
 // ============================================
-// Level 25: Counter Caches
+// Level 27: Counter Caches
 // ============================================
 
-const level25CounterCaches: Level = {
+const level27CounterCaches: Level = {
 	id: 'act4-level27-counter-caches',
 	actId: 4,
 	levelNumber: 27,
@@ -1123,10 +1112,10 @@ end`,
 };
 
 // ============================================
-// Level 26: Pagination
+// Level 28: Pagination
 // ============================================
 
-const level26Pagination: Level = {
+const level28Pagination: Level = {
 	id: 'act4-level28-pagination',
 	actId: 4,
 	levelNumber: 28,
@@ -1352,10 +1341,10 @@ end`,
 };
 
 // ============================================
-// Level 27: Search
+// Level 29: Search
 // ============================================
 
-const level27Search: Level = {
+const level29Search: Level = {
 	id: 'act4-level29-search',
 	actId: 4,
 	levelNumber: 29,
@@ -1582,10 +1571,10 @@ Post.where(id: Post.connection.select_values(
 };
 
 // ============================================
-// Level 28: Caching
+// Level 30: Caching
 // ============================================
 
-const level28Caching: Level = {
+const level30Caching: Level = {
 	id: 'act4-level30-caching',
 	actId: 4,
 	levelNumber: 30,
@@ -1654,10 +1643,10 @@ const level28Caching: Level = {
 def trending
   # Runs on EVERY request, 200 times/minute
   @posts = Post
-    .joins(:comments, :likes)
+    .joins(:comments)
     .where("posts.created_at > ?", 7.days.ago)
     .group("posts.id")
-    .select("posts.*, COUNT(DISTINCT comments.id) + COUNT(DISTINCT likes.id) AS score")
+    .select("posts.*, COUNT(comments.id) AS score")
     .order("score DESC")
     .limit(20)
     .includes(:user)
@@ -1666,7 +1655,7 @@ def trending
 end
 
 # This query:
-# 1. Joins 3 tables (posts, comments, likes)
+# 1. Joins posts and comments
 # 2. Filters 7 days of data
 # 3. Groups and aggregates
 # 4. Sorts by computed score
@@ -1682,7 +1671,7 @@ end
 	availableNodes: ['cache'],
 	unlockedNodes: ['cache'],
 	learningContent: {
-		title: 'Caching: Fragment, Russian Doll, Solid Cache & HTTP ETags',
+		title: 'Caching: Fragment, Russian Doll & Solid Cache',
 		goal: `In this level, you'll:\n- add application-level caching to avoid recomputing expensive responses.\n- learn how to cache JSON fragments with Rails.cache.fetch.\n- nest caches with the Russian doll pattern for collections.\n- use Solid Cache, Rails 8's database-backed cache store that eliminates the need for Redis.`,
 		conceptExplanation: `Rails 8 introduces **Solid Cache**, a database-backed cache store that replaces Redis for most caching needs. No additional infrastructure required.
 
@@ -1692,28 +1681,23 @@ No caching (with preloading):  ~3,800ms (sheer data volume + ranking)
 Fragment cache (cache hit):    17ms → 317x faster
 \`\`\`
 
-**Caching layers (from fastest to slowest):**
+**Application-level caching layers (from fastest to slowest):**
 
-1. **HTTP Caching (ETags/304)**: Client never even makes a request
-   - \`stale?\` checks if the resource changed; \`fresh_when\` is the shorthand for render-only responses
-   - Returns 304 Not Modified if unchanged (21ms → 6ms, no serialization)
-   - CDNs and browsers cache the response
-
-2. **Fragment caching**: Cache rendered view/JSON fragments
+1. **Fragment caching**: Cache rendered view/JSON fragments
    - Wrap a view section in a \`cache\` block. Cache version auto-generated from \`MAX(updated_at)\` + \`COUNT(*)\`
    - On cache hit, the entire serialization step is skipped. Rails returns pre-computed JSON directly
    - The 317x improvement comes from avoiding all object allocation, serializer logic, and JSON generation
 
-3. **Russian doll caching**: Nested cache blocks
+2. **Russian doll caching**: Nested cache blocks
    - Outer collection cache + inner per-record cache
    - One post update only re-renders that post's fragment, not the entire collection
    - Still must execute SQL to fetch post IDs, but saves serialization time
 
-4. **Low-level cache (Rails.cache)**: Cached in your cache store
+3. **Low-level cache (Rails.cache)**: Cached in your cache store
    - \`Rails.cache.fetch("key", expires_in: 1.hour) { expensive_query }\`
    - First request computes and stores; subsequent requests read from cache
 
-5. **Query cache**: Automatic within a single request
+4. **Query cache**: Automatic within a single request
    - Rails caches identical SQL queries within the same request
    - Zero configuration, but only helps within a single request
 
@@ -1750,10 +1734,10 @@ config.cache_store = :solid_cache_store
 def trending
   @posts = Rails.cache.fetch("trending_posts", expires_in: 5.minutes) do
     Post
-      .joins(:comments, :likes)
+      .joins(:comments)
       .where("posts.created_at > ?", 7.days.ago)
       .group("posts.id")
-      .select("posts.*, COUNT(DISTINCT comments.id) + COUNT(DISTINCT likes.id) AS score")
+      .select("posts.*, COUNT(comments.id) AS score")
       .order("score DESC")
       .limit(20)
       .includes(:user)
@@ -1766,27 +1750,6 @@ end
 # Cache key with record versioning:
 Rails.cache.fetch(["post", post.id, post.updated_at]) do
   PostSerializer.new(post).serializable_hash
-end
-
-# === HTTP Caching (ETags) ===
-
-def show
-  @post = Post.find(params[:id])
-
-  # Returns 304 Not Modified if post hasn't changed
-  if stale?(@post)
-    render json: PostSerializer.new(@post).serializable_hash.to_json
-  end
-end
-
-# For collections:
-def index
-  @posts = Post.includes(:user).order(updated_at: :desc).limit(25)
-
-  # Use the most recently updated post as the ETag
-  if stale?(etag: @posts, last_modified: @posts.first&.updated_at)
-    render json: PostSerializer.new(@posts).serializable_hash.to_json
-  end
 end
 
 # === Cache Invalidation ===
@@ -1802,16 +1765,14 @@ Rails.cache.delete("trending_posts")
 # Pattern deletion
 Rails.cache.delete_matched("posts/*")
 
-# === Conditional GET (API clients) ===
-# Client sends: If-None-Match: "etag-value"
-# Server returns: 304 Not Modified (empty body, fast!)`,
+# Next level: HTTP caching (ETags, Cache-Control, CDNs) to prevent
+# requests from reaching Rails at all.`,
 		commonMistakes: [
 			'Caching ActiveRecord relations instead of materialized arrays (use .to_a)',
 			'Not setting expiration times (stale data forever)',
 			'Cache keys that do not include updated_at (stale after updates)',
 			'Over-caching dynamic/personalized content',
 			'Forgetting touch: true on belongs_to (child changes do not invalidate parent cache)',
-			'Not using HTTP caching for public, read-heavy endpoints',
 		],
 		whenToUse:
 			'Cache any computation that runs more than once with the same result. Start with Solid Cache (database-backed). Graduate to Redis/Memcached only if you measure a need.',
@@ -1823,10 +1784,6 @@ Rails.cache.delete_matched("posts/*")
 			{
 				title: 'Solid Cache',
 				url: 'https://github.com/rails/solid_cache',
-			},
-			{
-				title: 'HTTP Caching in Rails',
-				url: 'https://guides.rubyonrails.org/caching_with_rails.html#conditional-get-support',
 			},
 			{
 				title: 'Book: "Rails Scales!", Chapter 3: Fragment Caching, Russian Doll, Cache Stores',
@@ -1841,10 +1798,10 @@ Rails.cache.delete_matched("posts/*")
 };
 
 // ============================================
-// Level 29.5: HTTP Caching & CDNs (NEW - inserted after Caching)
+// Level 31: HTTP Caching & CDNs
 // ============================================
 
-const levelHTTPCaching: Level = {
+const level31HTTPCaching: Level = {
 	id: 'act4-level31-http-caching',
 	actId: 4,
 	levelNumber: 31,
@@ -2086,15 +2043,15 @@ export const actFour: Act = {
 	description:
 		'Users are multiplying and response times are climbing. Diagnose N+1 queries, add eager loading, narrow fetching, database indexes, counter caches, pagination, search, and caching layers to keep the API fast.',
 	levels: [
-		level22N1Problem,
-		level23EagerLoading,
-		levelNarrowFetching,
-		level24DatabaseIndexing,
-		level25CounterCaches,
-		level26Pagination,
-		level27Search,
-		level28Caching,
-		levelHTTPCaching,
+		level23N1Problem,
+		level24EagerLoading,
+		level25NarrowFetching,
+		level26DatabaseIndexing,
+		level27CounterCaches,
+		level28Pagination,
+		level29Search,
+		level30Caching,
+		level31HTTPCaching,
 	],
 	unlockedNodes: ['eager_load', 'index', 'cache', 'pagination', 'search'],
 	metricsVisible: true,

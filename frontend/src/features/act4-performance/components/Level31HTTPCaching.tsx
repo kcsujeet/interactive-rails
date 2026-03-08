@@ -62,15 +62,15 @@ interface StepScenario {
 
 const STEP_SCENARIOS: StepScenario[] = [
 	{
-		title: 'Public Product Catalog',
+		title: 'Public Posts Listing',
 		description:
-			'A public product catalog endpoint. Same data served to all users. Changes once per hour.',
-		context: `# GET /api/products
-class ProductsController < ApplicationController
+			'A public posts listing endpoint. Same data served to all users. Changes once per hour.',
+		context: `# GET /api/posts
+class Api::V1::PostsController < ApplicationController
   def index
-    @products = Product.all
+    @posts = Post.published.includes(:user)
     # Which Cache-Control header?
-    render json: @products
+    render json: PostSerializer.new(@posts).serializable_hash.to_json
   end
 end`,
 		icon: Globe,
@@ -233,7 +233,7 @@ function getHttpFlowForStep(stepIndex: number, completed: boolean): HttpFlow[] {
 		return [
 			{
 				method: 'GET',
-				path: stepIndex === 0 ? '/api/products' : stepIndex === 1 ? '/api/posts/42' : stepIndex === 2 ? '/assets/app-a1b2c3.js' : '/api/dashboard/orders',
+				path: stepIndex === 0 ? '/api/posts' : stepIndex === 1 ? '/api/posts/42' : stepIndex === 2 ? '/assets/app-a1b2c3.js' : '/api/dashboard/orders',
 				requestHeaders: ['Accept: application/json'],
 				responseStatus: '200 OK',
 				responseHeaders: ['Content-Type: application/json', '(no caching headers)'],
@@ -247,7 +247,7 @@ function getHttpFlowForStep(stepIndex: number, completed: boolean): HttpFlow[] {
 			return [
 				{
 					method: 'GET',
-					path: '/api/products',
+					path: '/api/posts',
 					requestHeaders: ['Accept: application/json'],
 					responseStatus: '200 OK',
 					responseHeaders: [
@@ -258,7 +258,7 @@ function getHttpFlowForStep(stepIndex: number, completed: boolean): HttpFlow[] {
 				},
 				{
 					method: 'GET',
-					path: '/api/products',
+					path: '/api/posts',
 					requestHeaders: ['Accept: application/json'],
 					responseStatus: '200 OK (CDN)',
 					responseHeaders: [
@@ -360,25 +360,25 @@ function getCodePreviewForStep(stepIndex: number, completed: boolean) {
 
 	if (stepIndex === 0) {
 		files.push({
-			filename: 'products_controller.rb',
+			filename: 'posts_controller.rb',
 			language: 'ruby',
 			code: completed
-				? `class ProductsController < ApplicationController
+				? `class Api::V1::PostsController < ApplicationController
   def index
-    @products = Product.all
+    @posts = Post.published.includes(:user)
 
     # CDN + browser cache for 1 hour
     expires_in 1.hour, public: true,
       's-max-age': 3600
 
-    render json: @products
+    render json: PostSerializer.new(@posts).serializable_hash.to_json
   end
 end`
-				: `class ProductsController < ApplicationController
+				: `class Api::V1::PostsController < ApplicationController
   def index
-    @products = Product.all
+    @posts = Post.published.includes(:user)
     # No caching: every request hits the server
-    render json: @products
+    render json: PostSerializer.new(@posts).serializable_hash.to_json
   end
 end`,
 			highlight: completed ? [5, 6, 7] : [],
