@@ -1,370 +1,563 @@
 /**
- * Level 27: Search
+ * Level 29: Search
  *
- * Teaches full-text search vs LIKE queries in PostgreSQL.
- * Player compares LIKE pattern matching with tsvector + GIN index search.
+ * Sequential phase flow: observe -> build -> activate -> reward
+ *
+ * Phase 1 (WHY - observe): Player fires search queries at the LIKE-based
+ *   implementation and discovers performance, ranking, and stemming problems.
+ *   Pipeline shows Request -> Controller -> Model -> Database with the DB
+ *   node going 'danger' on each probe (Seq Scan, 3200ms).
+ * Phase 2 (HOW - build): 5 steps building pg_search full-text search:
+ *   Step 0: bundle add pg_search (terminal)
+ *   Step 1: Generate migration for tsvector + GIN index (terminal)
+ *   Step 2: Include PgSearch::Model in Post (OptionCard)
+ *   Step 3: Configure pg_search_scope (OptionCard)
+ *   Step 4: Wire up the controller search action (OptionCard)
+ * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Search" button
+ * Phase 4 (ADVANTAGE - reward): Stress test. Fire search queries and watch
+ *   fast GIN index scans vs blocked slow queries.
+ *
  * Teaches: tsvector, tsquery, GIN indexes, pg_search gem
  */
 
+import { ArrowRight, Check, Database, Play, Search, Star, X, Zap } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-	ArrowRight,
-	Database,
-	Filter,
-	Search,
-	Star,
-	Timer,
-	TrendingDown,
-	Zap,
-} from 'lucide-react';
-import { useState } from 'react';
-import {
+	buildTerminalHistory,
 	CenterPanel,
 	CodePreviewPanel,
+	ErrorFeedback,
 	InstructionPanel,
 	LeftPanel,
 	LevelHeader,
 	LevelLayout,
+	OptionCard,
 	RightPanel,
-	useLevelCompletion,
+	StepProgress,
+	TerminalChoiceStep,
+	type TerminalCommand,
+	type TerminalOutputLine,
+	type TerminalStepData,
 	type ValidationResult,
 } from '@/components/levels';
+import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
+import {
+	type PipelineConnection,
+	PipelineFlow,
+	type PipelineStage,
+} from '@/components/levels/PipelineFlow';
+import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
+import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
+import {
+	StageInspector,
+	type StageInspectorData,
+} from '@/components/levels/StageInspector';
+import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
+import {
+	type DiscoveryDef,
+	useDiscoveryGating,
+} from '@/hooks/useDiscoveryGating';
+import { type StepDef, useStepGating } from '@/hooks/useStepGating';
+import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 
-interface Post {
-	id: number;
-	title: string;
-	body: string;
-}
+// ──────────────────────────────────────────────
+// Phase type
+// ──────────────────────────────────────────────
 
-interface SearchResult {
-	id: number;
-	title: string;
-	body: string;
-	score?: number;
-	highlighted?: boolean;
-}
+type Phase = 'observe' | 'build' | 'activate' | 'reward';
 
-interface QueryPlan {
-	type: 'seq_scan' | 'gin_index_scan';
-	time: number;
-}
+// ──────────────────────────────────────────────
+// Discovery definitions (observe phase)
+// ──────────────────────────────────────────────
 
-type SearchMode = 'like' | 'fulltext';
+const DISCOVERY_DEFS: DiscoveryDef[] = [
+	{ id: 'seq-scan', label: 'LIKE forces a sequential scan (3,200ms)' },
+	{ id: 'no-ranking', label: 'Results have no relevance ranking' },
+	{ id: 'no-stemming', label: '"run" does not match "running"' },
+	{ id: 'controller-like', label: 'Controller uses raw LIKE query' },
+];
 
-const POSTS: Post[] = [
+// ──────────────────────────────────────────────
+// Probe configurations (observe phase)
+// ──────────────────────────────────────────────
+
+const PROBES: ProbeConfig[] = [
 	{
-		id: 1,
-		title: 'Getting Started with Ruby on Rails',
-		body: 'Rails is a powerful framework for building web applications...',
+		id: 'search-rails',
+		label: 'Search "rails"',
+		command: 'GET /api/posts?q=rails (50K rows)',
+		responseLines: [
+			{ text: 'HTTP/1.1 200 OK', color: 'yellow' },
+			{ text: '', color: 'muted' },
+			{ text: 'Seq Scan on posts (cost=0.00..1250.00)', color: 'red' },
+			{ text: 'Filter: (title ~~ \'%rails%\' OR body ~~ \'%rails%\')', color: 'muted' },
+			{ text: 'Rows Removed by Filter: 49,500', color: 'muted' },
+			{ text: 'Execution Time: 3,200ms', color: 'red' },
+		],
 	},
 	{
-		id: 2,
-		title: 'Running Tests in RSpec',
-		body: 'Testing is essential for production apps. Run your tests...',
+		id: 'search-running',
+		label: 'Search "running"',
+		command: 'GET /api/posts?q=running (stemming test)',
+		responseLines: [
+			{ text: 'HTTP/1.1 200 OK', color: 'yellow' },
+			{ text: '', color: 'muted' },
+			{ text: '0 results for "running"', color: 'red' },
+			{ text: 'Post titled "Running Tests in RSpec" not found.', color: 'muted' },
+			{ text: 'LIKE has no stemming: "running" != "run"', color: 'red' },
+		],
 	},
 	{
-		id: 3,
-		title: 'Database Optimization Tips',
-		body: 'Optimize your database queries for better performance...',
-	},
-	{
-		id: 4,
-		title: 'Ruby Metaprogramming Guide',
-		body: 'Learn about define_method, method_missing, and more...',
-	},
-	{
-		id: 5,
-		title: 'API Design Best Practices',
-		body: 'Build RESTful APIs that developers love to use...',
+		id: 'search-database',
+		label: 'Search "database"',
+		command: 'GET /api/posts?q=database (ranking test)',
+		responseLines: [
+			{ text: 'HTTP/1.1 200 OK', color: 'yellow' },
+			{ text: '', color: 'muted' },
+			{ text: 'Results returned in insertion order, not relevance.', color: 'red' },
+			{ text: 'A title match and a body mention are ranked equally.', color: 'muted' },
+			{ text: 'No relevance scoring with LIKE queries.', color: 'red' },
+		],
 	},
 ];
 
-// Stemming map: maps stems to words that should match
-const STEM_MAP: Record<string, string[]> = {
-	run: ['run', 'running', 'runs', 'runner'],
-	test: ['test', 'testing', 'tests', 'tested'],
-	build: ['build', 'building', 'builds', 'built'],
-	optim: ['optimize', 'optimization', 'optimizing', 'optimized'],
-	learn: ['learn', 'learning', 'learns', 'learned'],
-	start: ['start', 'started', 'starting', 'starts', 'getting'],
-	app: ['app', 'apps', 'application', 'applications'],
-	develop: ['develop', 'developer', 'developers', 'developing'],
-	perform: ['perform', 'performance', 'performing'],
-	query: ['query', 'queries', 'querying'],
-	power: ['power', 'powerful', 'powers'],
-	product: ['product', 'production', 'productive'],
-	practic: ['practice', 'practices', 'practical'],
-	design: ['design', 'designing', 'designs'],
-	framework: ['framework', 'frameworks'],
-	databas: ['database', 'databases'],
+// Map probe IDs to discovery IDs they trigger
+const PROBE_DISCOVERY_MAP: Record<string, string> = {
+	'search-rails': 'seq-scan',
+	'search-running': 'no-stemming',
+	'search-database': 'no-ranking',
 };
 
-function getStem(word: string): string | null {
-	const lower = word.toLowerCase();
-	for (const [stem, words] of Object.entries(STEM_MAP)) {
-		if (words.includes(lower)) {
-			return stem;
-		}
+// Map probe IDs to pipeline node display during observe
+const PROBE_PIPELINE_MAP: Record<
+	string,
+	{ dbSublabel: string; dbBadge: string }
+> = {
+	'search-rails': {
+		dbSublabel: 'Seq Scan 50K rows',
+		dbBadge: '3,200ms',
+	},
+	'search-running': {
+		dbSublabel: 'No stemming',
+		dbBadge: '0 hits',
+	},
+	'search-database': {
+		dbSublabel: 'No ranking',
+		dbBadge: 'unordered',
+	},
+};
+
+// ──────────────────────────────────────────────
+// Stage inspector data (observe phase)
+// ──────────────────────────────────────────────
+
+const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
+	request: {
+		stageId: 'request',
+		title: 'Search Request',
+		description:
+			'Users send GET /api/posts?q=keyword to find posts. The query parameter is passed straight to a LIKE clause in the database.',
+	},
+	controller: {
+		stageId: 'controller',
+		title: 'PostsController',
+		description:
+			'The controller builds a raw LIKE query with leading wildcards. This forces PostgreSQL into a sequential scan on every search, regardless of indexes.',
+		code: `def index
+  @posts = Post.where(
+    "title LIKE :q OR body LIKE :q",
+    q: "%\#{params[:q]}%"
+  )
+  render json: @posts
+end`,
+	},
+	model: {
+		stageId: 'model',
+		title: 'Post Model',
+		description:
+			'The Post model has no search scope or tsvector column. Every search is a raw LIKE pattern match with no ranking, no stemming, and no way to use an index.',
+	},
+	database: {
+		stageId: 'database',
+		title: 'Database (Seq Scan)',
+		description:
+			'PostgreSQL must scan every row in the posts table for each LIKE query. B-tree indexes cannot help when the pattern starts with %. On 50K rows this takes over 3 seconds.',
+	},
+};
+
+// Map stage IDs to discovery IDs they trigger
+const STAGE_DISCOVERY_MAP: Record<string, string> = {
+	controller: 'controller-like',
+	database: 'seq-scan',
+};
+
+// ──────────────────────────────────────────────
+// Stress test scenarios (reward phase)
+// ──────────────────────────────────────────────
+
+const STRESS_SCENARIOS: StressScenario[] = [
+	{
+		id: 'exact-term',
+		label: 'Search exact term',
+		description: 'Search for "rails" with GIN index',
+		method: 'GET',
+		path: '/api/posts?q=rails',
+		actor: 'user',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'stemmed-term',
+		label: 'Stemmed search',
+		description: '"running" matches "run" via stemming',
+		method: 'GET',
+		path: '/api/posts?q=running',
+		actor: 'user',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'ranked-results',
+		label: 'Ranked results',
+		description: 'Title matches ranked higher than body',
+		method: 'GET',
+		path: '/api/posts?q=database',
+		actor: 'user',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'multi-word',
+		label: 'Multi-word query',
+		description: '"ruby testing" uses tsquery AND',
+		method: 'GET',
+		path: '/api/posts?q=ruby+testing',
+		actor: 'user',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'empty-query',
+		label: 'Empty search blocked',
+		description: 'Empty query string rejected',
+		method: 'GET',
+		path: '/api/posts?q=',
+		actor: 'user',
+		expectedResult: 'blocked',
+	},
+	{
+		id: 'sql-injection',
+		label: 'SQL injection blocked',
+		description: 'Malicious query safely parameterized',
+		method: 'GET',
+		path: "/api/posts?q=' OR 1=1--",
+		actor: 'attacker',
+		expectedResult: 'blocked',
+	},
+];
+
+// ──────────────────────────────────────────────
+// Step definitions (5 steps: 2 terminal + 3 OptionCard)
+// ──────────────────────────────────────────────
+
+const STEP_DEFS: StepDef[] = [
+	{ id: 'add-gem', title: 'Add pg_search Gem' },
+	{ id: 'generate-migration', title: 'Generate Search Migration' },
+	{ id: 'include-module', title: 'Include PgSearch in Model' },
+	{ id: 'configure-scope', title: 'Configure Search Scope' },
+	{ id: 'wire-controller', title: 'Wire Up the Controller' },
+];
+
+const STEP_TYPES: ('terminal' | 'option')[] = [
+	'terminal', // 0: bundle add pg_search
+	'terminal', // 1: rails generate migration
+	'option', // 2: include PgSearch::Model
+	'option', // 3: pg_search_scope config
+	'option', // 4: controller search action
+];
+
+// ──────────────────────────────────────────────
+// Step 0: Add pg_search Gem (Terminal)
+// ──────────────────────────────────────────────
+
+const addGemCommands: TerminalCommand[] = [
+	{
+		id: 'wrong-gem-install',
+		label: 'gem install pg_search',
+		command: 'gem install pg_search',
+		correct: false,
+		feedback:
+			'That installs the gem system-wide, not into your project. You need it in the Gemfile so the app can load it.',
+	},
+	{
+		id: 'correct',
+		label: 'bundle add pg_search',
+		command: 'bundle add pg_search',
+		correct: true,
+	},
+	{
+		id: 'wrong-elasticsearch',
+		label: 'bundle add elasticsearch-model',
+		command: 'bundle add elasticsearch-model',
+		correct: false,
+		feedback:
+			'Elasticsearch is a separate search engine. PostgreSQL has built-in full-text search that handles most needs without extra infrastructure.',
+	},
+];
+
+const addGemOutput: TerminalOutputLine[] = [
+	{ text: 'Fetching pg_search 2.3.7', color: 'cyan' },
+	{ text: 'Installing pg_search 2.3.7', color: 'muted' },
+	{ text: 'Bundle complete! 14 Gemfile dependencies.', color: 'green' },
+];
+
+// ──────────────────────────────────────────────
+// Step 1: Generate Migration (Terminal)
+// ──────────────────────────────────────────────
+
+const generateMigrationCommands: TerminalCommand[] = [
+	{
+		id: 'wrong-model-gen',
+		label: 'rails generate model SearchIndex',
+		command: 'rails generate model SearchIndex',
+		correct: false,
+		feedback:
+			'Full-text search does not need a separate model. You add a tsvector column and GIN index to the existing posts table via a migration.',
+	},
+	{
+		id: 'wrong-no-gin',
+		label: 'rails generate migration AddSearchToPosts searchable:tsvector',
+		command: 'rails generate migration AddSearchToPosts searchable:tsvector',
+		correct: false,
+		feedback:
+			'A tsvector column alone is not enough. Without a GIN index, full-text search still does a sequential scan.',
+	},
+	{
+		id: 'correct',
+		label: 'rails generate migration AddSearchToPosts',
+		command: 'rails generate migration AddSearchToPosts',
+		correct: true,
+	},
+];
+
+const generateMigrationOutput: TerminalOutputLine[] = [
+	{
+		text: '      create  db/migrate/20240101_add_search_to_posts.rb',
+		color: 'green',
+	},
+];
+
+// ──────────────────────────────────────────────
+// Terminal step map (for buildTerminalHistory)
+// ──────────────────────────────────────────────
+
+const SHELL_STEP_MAP: (TerminalStepData | null)[] = [
+	{ commands: addGemCommands, outputLines: addGemOutput },
+	{ commands: generateMigrationCommands, outputLines: generateMigrationOutput },
+	null, // step 2: OptionCard
+	null, // step 3: OptionCard
+	null, // step 4: OptionCard
+];
+
+// ──────────────────────────────────────────────
+// OptionCard step data
+// ──────────────────────────────────────────────
+
+interface StepOption {
+	id: string;
+	label: string;
+	correct: boolean;
+	feedback?: string;
+}
+
+// Step 2: Include PgSearch in Model
+const INCLUDE_OPTIONS: StepOption[] = [
+	{
+		id: 'wrong-concern',
+		label: 'include Searchable',
+		correct: false,
+		feedback:
+			'That would require a custom concern you have not defined. The pg_search gem provides its own module to include.',
+	},
+	{
+		id: 'correct',
+		label: 'include PgSearch::Model',
+		correct: true,
+	},
+	{
+		id: 'wrong-ar',
+		label: 'include ActiveRecord::FullTextSearch',
+		correct: false,
+		feedback:
+			'ActiveRecord does not have a built-in FullTextSearch module. pg_search provides the integration layer.',
+	},
+];
+
+// Step 3: Configure pg_search_scope
+const SCOPE_OPTIONS: StepOption[] = [
+	{
+		id: 'wrong-like-scope',
+		label: "scope :search, ->(q) {\n  where(\"title LIKE ?\", \"%#{q}%\")\n}",
+		correct: false,
+		feedback:
+			'That is the same LIKE approach you are replacing. pg_search provides a DSL that uses tsvector under the hood.',
+	},
+	{
+		id: 'wrong-no-weights',
+		label: "pg_search_scope :search,\n  against: [:title, :body]",
+		correct: false,
+		feedback:
+			'Passing columns as an array gives them equal weight. Title matches should rank higher than body matches for better relevance.',
+	},
+	{
+		id: 'correct',
+		label: "pg_search_scope :search,\n  against: { title: 'A', body: 'B' },\n  using: {\n    tsearch: { dictionary: 'english' }\n  }",
+		correct: true,
+	},
+];
+
+// Step 4: Wire Up Controller
+const CONTROLLER_OPTIONS: StepOption[] = [
+	{
+		id: 'wrong-raw-sql',
+		label: "Post.where(\"searchable @@ plainto_tsquery(?)\", q)",
+		correct: false,
+		feedback:
+			'Writing raw SQL defeats the purpose of pg_search. The gem provides a clean scope you already defined.',
+	},
+	{
+		id: 'correct',
+		label: 'Post.search(params[:q])',
+		correct: true,
+	},
+	{
+		id: 'wrong-like-fallback',
+		label: "Post.where(\"title ILIKE ?\", \"%#{params[:q]}%\")",
+		correct: false,
+		feedback:
+			'ILIKE is still a pattern match that cannot use GIN indexes. Use the pg_search scope for full-text search.',
+	},
+];
+
+const OPTION_STEP_CONFIG: Record<
+	number,
+	{
+		title: string;
+		description: string;
+		options: StepOption[];
 	}
-	return null;
-}
+> = {
+	2: {
+		title: 'Include PgSearch in Model',
+		description:
+			'The pg_search gem is installed. Now the Post model needs to load the search module so you can define search scopes.',
+		options: INCLUDE_OPTIONS,
+	},
+	3: {
+		title: 'Configure Search Scope',
+		description:
+			'Define how pg_search indexes your content. Title matches should rank higher than body matches. Use the English dictionary for stemming.',
+		options: SCOPE_OPTIONS,
+	},
+	4: {
+		title: 'Wire Up the Controller',
+		description:
+			'The search scope is ready. How should the controller use it when a query parameter is present?',
+		options: CONTROLLER_OPTIONS,
+	},
+};
 
-function matchesFullText(text: string, query: string): boolean {
-	const textLower = text.toLowerCase();
-	const queryWords = query
-		.toLowerCase()
-		.split(/\s+/)
-		.filter((w) => w.length > 0);
+// ──────────────────────────────────────────────
+// Pipeline visualization configs
+// ──────────────────────────────────────────────
 
-	return queryWords.some((queryWord) => {
-		const stem = getStem(queryWord);
-		if (stem) {
-			const stemWords = STEM_MAP[stem] || [];
-			return stemWords.some((sw) => textLower.includes(sw));
-		}
-		return textLower.includes(queryWord);
-	});
-}
+const OBSERVE_CONNECTIONS: PipelineConnection[] = [
+	{ from: 'request', to: 'controller', dots: 'mixed' },
+	{ from: 'controller', to: 'model', dots: 'mixed' },
+	{ from: 'model', to: 'database', dots: 'mixed' },
+];
 
-function matchesLike(text: string, query: string): boolean {
-	return text.toLowerCase().includes(query.toLowerCase());
-}
+const REWARD_CONNECTIONS: PipelineConnection[] = [
+	{ from: 'request', to: 'controller', dots: 'mixed' },
+	{ from: 'controller', to: 'model', dots: 'clean' },
+	{ from: 'model', to: 'database', dots: 'clean' },
+];
 
-function computeRelevanceScore(post: Post, query: string): number {
-	let score = 0;
-	const queryWords = query
-		.toLowerCase()
-		.split(/\s+/)
-		.filter((w) => w.length > 0);
+// ──────────────────────────────────────────────
+// Code preview helper
+// ──────────────────────────────────────────────
 
-	for (const word of queryWords) {
-		const stem = getStem(word);
-		const wordsToCheck = stem ? STEM_MAP[stem] || [word] : [word];
+function getCodeFiles(phase: Phase, furthestStep: number) {
+	const files = [];
 
-		for (const w of wordsToCheck) {
-			// Title matches are worth more
-			if (post.title.toLowerCase().includes(w)) score += 3;
-			if (post.body.toLowerCase().includes(w)) score += 1;
-		}
+	// Observe phase: show the broken LIKE-based code
+	if (phase === 'observe') {
+		files.push({
+			filename: 'app/controllers/api/v1/posts_controller.rb',
+			language: 'ruby',
+			code: `class Api::V1::PostsController < ApplicationController
+  def index
+    if params[:q].present?
+      @posts = Post.where(
+        "title LIKE :q OR body LIKE :q",
+        q: "%\#{params[:q]}%"
+      )
+    else
+      @posts = Post.all
+    end
+    render json: @posts
+  end
+end
+
+# EXPLAIN for LIKE '%rails%':
+# Seq Scan on posts  (cost=0.00..1250.00)
+#   Filter: (title ~~ '%rails%')
+#   Rows Removed by Filter: 49,500
+#   Execution Time: 3,200ms`,
+			highlight: [4, 5, 6],
+		});
+		return files;
 	}
 
-	return Math.round(score * 10) / 10;
-}
-
-export function Level29Search({ onComplete }: LevelComponentProps) {
-	const { completeLevel } = useLevelCompletion();
-	const [searchQuery, setSearchQuery] = useState('');
-	const [searchMode, setSearchMode] = useState<SearchMode>('like');
-	const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-	const [queryPlan, setQueryPlan] = useState<QueryPlan | null>(null);
-	const [ginIndexAdded, setGinIndexAdded] = useState(false);
-	const [hasSearchedLike, setHasSearchedLike] = useState(false);
-	const [hasSearchedFullText, setHasSearchedFullText] = useState(false);
-
-	const performSearch = (query: string, mode: SearchMode) => {
-		if (!query.trim()) {
-			setSearchResults([]);
-			setQueryPlan(null);
-			return;
-		}
-
-		if (mode === 'like') {
-			setHasSearchedLike(true);
-			const results: SearchResult[] = POSTS.filter(
-				(post) =>
-					matchesLike(post.title, query) || matchesLike(post.body, query),
-			).map((post) => ({
-				id: post.id,
-				title: post.title,
-				body: post.body,
-			}));
-
-			setSearchResults(results);
-			setQueryPlan({ type: 'seq_scan', time: 3200 });
-		} else {
-			setHasSearchedFullText(true);
-			const results: SearchResult[] = POSTS.filter(
-				(post) =>
-					matchesFullText(post.title, query) ||
-					matchesFullText(post.body, query),
-			)
-				.map((post) => ({
-					id: post.id,
-					title: post.title,
-					body: post.body,
-					score: computeRelevanceScore(post, query),
-					highlighted: true,
-				}))
-				.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
-
-			setSearchResults(results);
-			setQueryPlan({
-				type: ginIndexAdded ? 'gin_index_scan' : 'seq_scan',
-				time: ginIndexAdded ? 2 : 800,
-			});
-		}
-	};
-
-	const handleSearchInput = (value: string) => {
-		setSearchQuery(value);
-		performSearch(value, searchMode);
-	};
-
-	const handleModeSwitch = (mode: SearchMode) => {
-		setSearchMode(mode);
-		performSearch(searchQuery, mode);
-	};
-
-	const handleAddGinIndex = () => {
-		setGinIndexAdded(true);
-		if (searchQuery.trim() && searchMode === 'fulltext') {
-			performSearch(searchQuery, 'fulltext');
-		}
-	};
-
-	// Re-run search after GIN index added (need fresh queryPlan)
-	const handleAddGinAndReSearch = () => {
-		handleAddGinIndex();
-		// Force re-evaluation with gin
-		if (searchQuery.trim() && searchMode === 'fulltext') {
-			setSearchResults((prev) => [...prev]);
-			setQueryPlan({ type: 'gin_index_scan', time: 2 });
-		}
-	};
-
-	const validateSolution = (): ValidationResult => {
-		const issues: string[] = [];
-
-		if (!hasSearchedLike) {
-			issues.push('Try a search using LIKE mode first');
-		}
-		if (!hasSearchedFullText) {
-			issues.push('Try a search using full-text mode');
-		}
-		if (!ginIndexAdded) {
-			issues.push('Add a GIN index in full-text mode');
-		}
-
-		if (issues.length > 0) {
-			return {
-				valid: false,
-				message: 'Complete all search tasks to proceed!',
-				details: issues,
-			};
-		}
-
-		return {
-			valid: true,
-			message: 'Full-text search with GIN index implemented!',
-		};
-	};
-
-	const handleComplete = async () => {
-		const success = await completeLevel('act4-level29-search', { stars: 3 });
-		if (success) {
-			onComplete({ stars: 3 });
-		}
-	};
-
-	const handleReset = () => {
-		setSearchQuery('');
-		setSearchMode('like');
-		setSearchResults([]);
-		setQueryPlan(null);
-		setGinIndexAdded(false);
-		setHasSearchedLike(false);
-		setHasSearchedFullText(false);
-	};
-
-	const likeQueryDisplay = searchQuery.trim()
-		? `WHERE title LIKE '%${searchQuery}%' OR body LIKE '%${searchQuery}%'`
-		: "WHERE title LIKE '%...%' OR body LIKE '%...%'";
-
-	const fullTextQueryDisplay = searchQuery.trim()
-		? `WHERE searchable @@ plainto_tsquery('english', '${searchQuery}')`
-		: "WHERE searchable @@ plainto_tsquery('english', '...')";
-
-	const getModelCode = (): string => {
-		if (searchMode === 'like') {
-			return `class Post < ApplicationRecord
-  # LIKE-based search (slow!)
-  scope :search, ->(query) {
-    where(
+	// Build / activate / reward phases: evolving code
+	if (furthestStep === 0) {
+		files.push({
+			filename: 'app/controllers/api/v1/posts_controller.rb',
+			language: 'ruby',
+			code: `class Api::V1::PostsController < ApplicationController
+  def index
+    @posts = Post.where(
       "title LIKE :q OR body LIKE :q",
-      q: "%#{query}%"
+      q: "%\#{params[:q]}%"
     )
-  }
-end
+    render json: @posts
+  end
+end`,
+			highlight: [3, 4, 5],
+		});
+	}
 
-# Usage in controller:
-# @posts = Post.search(params[:q])
-#
-# Problems:
-# - Cannot use indexes (always Seq Scan)
-# - No relevance ranking
-# - No stemming ("run" != "running")
-# - Case-sensitive by default`;
-		}
+	if (furthestStep >= 1) {
+		files.push({
+			filename: 'Gemfile',
+			language: 'ruby',
+			code: `source "https://rubygems.org"
 
-		if (ginIndexAdded) {
-			return `class Post < ApplicationRecord
-  include PgSearch::Model
+gem "rails", "~> 8.0.0"
+gem "pg", "~> 1.1"
+gem "puma", ">= 5.0"
+gem "pg_search"`,
+			highlight: [6],
+		});
+	}
 
-  pg_search_scope :search,
-    against: { title: 'A', body: 'B' },
-    using: {
-      tsearch: {
-        dictionary: 'english',
-        tsvector_column: 'searchable'
-      }
-    }
-end
-
-# Results are ranked by relevance
-# Stemming: "run" matches "running"
-# GIN index: 2ms instead of 3,200ms`;
-		}
-
-		return `class Post < ApplicationRecord
-  include PgSearch::Model
-
-  pg_search_scope :search,
-    against: { title: 'A', body: 'B' },
-    using: {
-      tsearch: {
-        dictionary: 'english'
-      }
-    }
-end
-
-# Without GIN index: still uses Seq Scan
-# Add index for fast lookups!`;
-	};
-
-	const getMigrationCode = (): string => {
-		if (searchMode === 'like') {
-			return `# No special migration needed for LIKE
-# But also no way to optimize it!
-#
-# LIKE '%query%' forces a sequential scan
-# every single time, on every single row.
-#
-# On 50,000 posts: ~3,200ms per search
-# On 500,000 posts: ~32,000ms per search`;
-		}
-
-		if (ginIndexAdded) {
-			return `class AddSearchToPost < ActiveRecord::Migration[7.1]
+	if (furthestStep >= 2) {
+		files.push({
+			filename: 'db/migrate/add_search_to_posts.rb',
+			language: 'ruby',
+			code: `class AddSearchToPosts < ActiveRecord::Migration[8.0]
   def change
-    # Add tsvector column
     add_column :posts, :searchable, :tsvector
+    add_index :posts, :searchable, using: :gin
 
-    # Add GIN index for fast lookups
-    add_index :posts, :searchable,
-              using: :gin
-
-    # Auto-update tsvector on changes
     execute <<-SQL
       CREATE TRIGGER posts_search_update
       BEFORE INSERT OR UPDATE ON posts
@@ -375,155 +568,338 @@ end
         );
     SQL
   end
-end`;
-		}
+end`,
+			highlight: [3, 4],
+		});
+	}
 
-		return `class AddSearchToPost < ActiveRecord::Migration[7.1]
-  def change
-    # Add tsvector column
-    add_column :posts, :searchable, :tsvector
+	if (furthestStep >= 3) {
+		files.push({
+			filename: 'app/models/post.rb',
+			language: 'ruby',
+			code:
+				furthestStep >= 4
+					? `class Post < ApplicationRecord
+  include PgSearch::Model
 
-    # TODO: Add GIN index!
-    # Without it, full-text still does Seq Scan
-    #
-    # add_index :posts, :searchable,
-    #           using: :gin
+  pg_search_scope :search,
+    against: { title: 'A', body: 'B' },
+    using: {
+      tsearch: { dictionary: 'english' }
+    }
+end`
+					: `class Post < ApplicationRecord
+  include PgSearch::Model
+end`,
+			highlight: furthestStep >= 4 ? [4, 5, 6, 7, 8] : [2],
+		});
+	}
+
+	if (furthestStep >= 5) {
+		files.push({
+			filename: 'app/controllers/api/v1/posts_controller.rb',
+			language: 'ruby',
+			code: `class Api::V1::PostsController < ApplicationController
+  def index
+    @posts = if params[:q].present?
+      Post.search(params[:q])
+    else
+      Post.all
+    end
+    render json: @posts
   end
-end`;
+end`,
+			highlight: [3, 4],
+		});
+	}
+
+	return files;
+}
+
+// ──────────────────────────────────────────────
+// Pipeline Legend (reward phase)
+// ──────────────────────────────────────────────
+
+function PipelineLegend() {
+	return (
+		<div className="p-4 border-b border-border">
+			<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+				Search Pipeline Legend
+			</div>
+			<div className="space-y-2 text-sm">
+				<div className="flex items-center gap-2">
+					<Check className="w-4 h-4 text-success" />
+					<span className="text-foreground">
+						Fast search (GIN index, ranked results)
+					</span>
+				</div>
+				<div className="flex items-center gap-2">
+					<X className="w-4 h-4 text-destructive" />
+					<span className="text-foreground">
+						Query rejected (empty/invalid input)
+					</span>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+// ──────────────────────────────────────────────
+// Component
+// ──────────────────────────────────────────────
+
+export function Level29Search({ onComplete }: LevelComponentProps) {
+	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
+	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
+		minRequired: 3,
+	});
+	const stressTest = useStressTest(STRESS_SCENARIOS);
+	const [phase, setPhase] = useState<Phase>('observe');
+	const [inspectorData, setInspectorData] =
+		useState<StageInspectorData | null>(null);
+	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
+		new Set(),
+	);
+	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
+
+	// ── Build observe stages dynamically (tracks inspected + last probe) ──
+	const probeDisplay = lastProbeId
+		? PROBE_PIPELINE_MAP[lastProbeId]
+		: null;
+	const observeStages: PipelineStage[] = useMemo(
+		() => [
+			{
+				id: 'request',
+				label: 'Request',
+				sublabel: 'GET /api/posts?q=...',
+				inspectable: true,
+				inspected: inspectedStages.has('request'),
+			},
+			{
+				id: 'controller',
+				label: 'Controller',
+				sublabel: probeDisplay ? 'LIKE %query%' : undefined,
+				variant: (probeDisplay ? 'danger' : 'default') as
+					| 'danger'
+					| 'default',
+				inspectable: true,
+				inspected: inspectedStages.has('controller'),
+			},
+			{
+				id: 'model',
+				label: 'Post',
+				inspectable: true,
+				inspected: inspectedStages.has('model'),
+			},
+			{
+				id: 'database',
+				label: 'Database',
+				sublabel: probeDisplay ? probeDisplay.dbSublabel : 'Waiting...',
+				badge: probeDisplay ? probeDisplay.dbBadge : undefined,
+				variant: (probeDisplay ? 'danger' : 'default') as
+					| 'danger'
+					| 'default',
+				inspectable: true,
+				inspected: inspectedStages.has('database'),
+			},
+		],
+		[inspectedStages, probeDisplay],
+	);
+
+	// ── Build reward stages dynamically (reacts to latest stress test result) ──
+	const lastResult = stressTest.results[stressTest.results.length - 1];
+	const rewardStages: PipelineStage[] = useMemo(() => {
+		const wasBlocked = lastResult?.result === 'blocked';
+		return [
+			{ id: 'request', label: 'Request' },
+			{ id: 'controller', label: 'Controller' },
+			{
+				id: 'model',
+				label: 'Post',
+				sublabel: wasBlocked ? 'rejected' : 'pg_search',
+				variant: wasBlocked ? ('danger' as const) : ('active' as const),
+			},
+			{
+				id: 'database',
+				label: 'Database',
+				sublabel: wasBlocked ? 'no query' : 'GIN Scan 2ms',
+				badge: wasBlocked ? 'BLOCKED' : undefined,
+				variant: wasBlocked ? ('danger' as const) : ('active' as const),
+			},
+		];
+	}, [lastResult]);
+
+	// ── Transition: build -> activate when all steps complete ──
+	useEffect(() => {
+		if (phase === 'build' && stepper.isComplete) {
+			setPhase('activate');
+		}
+	}, [phase, stepper.isComplete]);
+
+	// ── Stage click handler (observe phase) ──
+	const handleStageClick = useCallback(
+		(stageId: string) => {
+			if (phase !== 'observe') return;
+
+			const data = STAGE_INSPECTOR_MAP[stageId];
+			if (!data) return;
+
+			setInspectorData(data);
+			setInspectedStages((prev) => {
+				if (prev.has(stageId)) return prev;
+				const next = new Set(prev);
+				next.add(stageId);
+				return next;
+			});
+
+			// Trigger discovery if this stage has one
+			const discoveryId = STAGE_DISCOVERY_MAP[stageId];
+			if (discoveryId) {
+				discoveryGating.discover(discoveryId);
+			}
+		},
+		[phase, discoveryGating],
+	);
+
+	// ── Probe handler (observe phase) ──
+	const handleProbe = useCallback(
+		(probeId: string) => {
+			setLastProbeId(probeId);
+			const discoveryId = PROBE_DISCOVERY_MAP[probeId];
+			if (discoveryId) {
+				discoveryGating.discover(discoveryId);
+			}
+		},
+		[discoveryGating],
+	);
+
+	// ── OptionCard step handler ──
+	const handleOptionClick = useCallback(
+		(option: StepOption) => {
+			if (option.correct) {
+				stepper.completeStep();
+			} else if (option.feedback) {
+				stepper.recordWrongAttempt(option.feedback);
+			}
+		},
+		[stepper],
+	);
+
+	// ── Phase transition handlers ──
+	const handleStartBuild = () => {
+		setPhase('build');
 	};
 
+	const handleActivateSearch = () => {
+		setPhase('reward');
+		stressTest.reset();
+	};
+
+	// ── Stress test fire handler ──
+	const handleFireScenario = useCallback(
+		(scenarioId: string) => {
+			stressTest.fireRequest(scenarioId);
+		},
+		[stressTest],
+	);
+
+	// ── Completion ──
+	const handleComplete = () => {
+		onComplete({ stars: stepper.starRating });
+	};
+
+	const validateSolution = (): ValidationResult => {
+		if (!stepper.isComplete) {
+			return {
+				valid: false,
+				message: 'Complete all steps first',
+				details: stepper.steps
+					.filter((s) => s.status !== 'completed')
+					.map((s) => s.title),
+			};
+		}
+		return { valid: true, message: 'Full-text search deployed!' };
+	};
+
+	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
+	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
+	const currentStepType = STEP_TYPES[stepper.currentStep];
+	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep];
+
+	// ── Render ──
 	return (
 		<LevelLayout>
 			<LeftPanel>
-				<InstructionPanel
-					goal="Replace slow LIKE queries with proper full-text search using PostgreSQL tsvector and GIN indexes."
-					instructions={[
-						'Try a LIKE search and see the slow Seq Scan',
-						'Switch to full-text search mode',
-						'Add a GIN index for fast lookups',
-						'Compare: ranking, stemming, speed',
-					]}
-					scenario="Users want to search posts by keyword. LIKE '%query%' takes 3 seconds on 50K posts, has no ranking, and can't use indexes."
-				>
-					{/* Mode Toggle */}
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-							Search Mode
-						</div>
-						<div className="grid grid-cols-2 gap-2">
-							<Button
-								className={`text-sm py-2 ${
-									searchMode === 'like'
-										? 'bg-destructive/20 border-destructive text-destructive'
-										: 'bg-secondary border-border text-muted-foreground'
-								}`}
-								onClick={() => handleModeSwitch('like')}
-								variant={searchMode === 'like' ? 'default' : 'outline'}
-							>
-								<TrendingDown className="w-3.5 h-3.5 mr-1.5" />
-								LIKE
-							</Button>
-							<Button
-								className={`text-sm py-2 ${
-									searchMode === 'fulltext'
-										? 'bg-success/20 border-success text-success'
-										: 'bg-secondary border-border text-muted-foreground'
-								}`}
-								onClick={() => handleModeSwitch('fulltext')}
-								variant={searchMode === 'fulltext' ? 'default' : 'outline'}
-							>
-								<Zap className="w-3.5 h-3.5 mr-1.5" />
-								Full-Text
-							</Button>
-						</div>
+				<InstructionPanel>
+					{/* Scenario (always visible) */}
+					<div className="p-4 border-b border-border space-y-3">
+						<p className="text-sm text-muted-foreground leading-relaxed">
+							Users want to search posts by keyword, but the current
+							implementation uses{' '}
+							<span className="text-foreground font-medium">
+								LIKE &apos;%query%&apos;
+							</span>{' '}
+							which takes 3 seconds on 50K posts. No relevance ranking, no
+							stemming, and no way to use an index.
+						</p>
+						<p className="text-sm text-muted-foreground leading-relaxed">
+							PostgreSQL has built-in full-text search using{' '}
+							<span className="text-foreground font-medium">tsvector</span> and{' '}
+							<span className="text-foreground font-medium">GIN indexes</span>.
+							The{' '}
+							<span className="text-foreground font-medium">pg_search</span> gem
+							wraps this in a clean Rails DSL.
+						</p>
 					</div>
 
-					{/* GIN Index Button */}
-					{searchMode === 'fulltext' && !ginIndexAdded && (
-						<div className="p-4 border-t border-border">
-							<Button
-								className="w-full py-2 bg-primary/20 border-primary text-primary hover:bg-primary/30"
-								onClick={handleAddGinAndReSearch}
-								variant="outline"
-							>
-								<Database className="w-4 h-4 mr-2" />
-								Add GIN Index
-							</Button>
-							<p className="text-xs text-muted-foreground mt-2">
-								Create a Generalized Inverted Index for fast full-text lookups
-							</p>
+					{/* Observe phase: discovery checklist */}
+					{phase === 'observe' && (
+						<div className="p-4 border-b border-border">
+							<DiscoveryChecklist
+								discoveries={discoveryGating.discoveries}
+								discoveredCount={discoveryGating.discoveredCount}
+								minRequired={discoveryGating.minRequired}
+							/>
 						</div>
 					)}
 
-					{searchMode === 'fulltext' && ginIndexAdded && (
-						<div className="p-4 border-t border-border">
-							<div className="flex items-center gap-2 text-success text-sm">
-								<Database className="w-4 h-4" />
-								GIN Index Active
+					{/* Build / activate phases: step progress */}
+					{(phase === 'build' || phase === 'activate') && (
+						<div className="p-4 border-b border-border">
+							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+								Steps
 							</div>
-							<p className="text-xs text-muted-foreground mt-1">
-								Inverted index enables sub-millisecond lookups on tsvector
-								columns
-							</p>
+							<StepProgress
+								currentStep={stepper.currentStep}
+								onStepClick={stepper.goToStep}
+								steps={stepper.steps}
+							/>
 						</div>
 					)}
 
-					{/* Progress */}
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-							Progress
-						</div>
-						<div className="space-y-2 text-xs">
-							<div className="flex items-center gap-2">
-								<div
-									className={`w-4 h-4 rounded-full flex items-center justify-center ${hasSearchedLike ? 'bg-success text-white' : 'bg-secondary text-muted-foreground'}`}
-								>
-									{hasSearchedLike ? (
-										<span className="text-[10px]">1</span>
-									) : (
-										<span className="text-[10px]">1</span>
-									)}
+					{/* Reward phase: legend + counters */}
+					{phase === 'reward' && (
+						<>
+							<PipelineLegend />
+
+							<div className="p-4">
+								<div className="grid grid-cols-2 gap-3">
+									<div className="bg-success/20 rounded-lg p-3 text-center">
+										<div className="text-2xl font-bold text-success">
+											{stressTest.allowedCount}
+										</div>
+										<div className="text-xs text-success/70">Fast Results</div>
+									</div>
+									<div className="bg-destructive/20 rounded-lg p-3 text-center">
+										<div className="text-2xl font-bold text-destructive">
+											{stressTest.blockedCount}
+										</div>
+										<div className="text-xs text-destructive/70">Rejected</div>
+									</div>
 								</div>
-								<span
-									className={
-										hasSearchedLike ? 'text-success' : 'text-muted-foreground'
-									}
-								>
-									Tried LIKE search
-								</span>
 							</div>
-							<div className="flex items-center gap-2">
-								<div
-									className={`w-4 h-4 rounded-full flex items-center justify-center ${hasSearchedFullText ? 'bg-success text-white' : 'bg-secondary text-muted-foreground'}`}
-								>
-									<span className="text-[10px]">2</span>
-								</div>
-								<span
-									className={
-										hasSearchedFullText
-											? 'text-success'
-											: 'text-muted-foreground'
-									}
-								>
-									Tried full-text search
-								</span>
-							</div>
-							<div className="flex items-center gap-2">
-								<div
-									className={`w-4 h-4 rounded-full flex items-center justify-center ${ginIndexAdded ? 'bg-success text-white' : 'bg-secondary text-muted-foreground'}`}
-								>
-									<span className="text-[10px]">3</span>
-								</div>
-								<span
-									className={
-										ginIndexAdded ? 'text-success' : 'text-muted-foreground'
-									}
-								>
-									Added GIN index
-								</span>
-							</div>
-						</div>
-					</div>
+						</>
+					)}
 				</InstructionPanel>
 			</LeftPanel>
 
@@ -533,402 +909,236 @@ end`;
 					levelName="Search"
 					levelNumber={29}
 					onComplete={handleComplete}
-					onReset={handleReset}
+					onReset={() => {
+						window.location.reload();
+					}}
 					onValidate={validateSolution}
 				/>
 
-				<div className="flex-1 relative bg-background p-6 overflow-auto">
-					<div className="max-w-4xl mx-auto space-y-4">
-						{/* Search Input */}
-						<div className="bg-card rounded-xl border border-border overflow-hidden">
-							<div className="p-4">
-								<div className="relative">
-									<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-									<input
-										className="w-full bg-secondary border border-border rounded-lg pl-10 pr-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-										onChange={(e) => handleSearchInput(e.target.value)}
-										placeholder='Try searching "rails", "run", "database"...'
-										type="text"
-										value={searchQuery}
+				<div className="flex-1 flex flex-col bg-background overflow-hidden">
+					{/* ── Phase 1: Observe (WHY) ── */}
+					{phase === 'observe' && (
+						<div className="flex-1 flex flex-col">
+							<div className="flex-1 relative">
+								<PipelineFlow
+									connections={OBSERVE_CONNECTIONS}
+									onNodeClick={handleStageClick}
+									stages={observeStages}
+								/>
+								{inspectorData && (
+									<StageInspector
+										data={inspectorData}
+										onClose={() => setInspectorData(null)}
 									/>
-								</div>
-								<div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-									<Filter className="w-3.5 h-3.5" />
-									<span>
-										Searching {POSTS.length} posts (simulating 50K rows)
-									</span>
-								</div>
+								)}
 							</div>
-						</div>
 
-						{/* SQL Query Display */}
-						<div className="bg-card rounded-xl border border-border overflow-hidden">
-							<div className="bg-secondary px-4 py-2.5 border-b border-border flex items-center justify-between">
-								<div className="text-sm font-semibold text-foreground flex items-center gap-2">
-									<Database className="w-4 h-4 text-primary" />
-									Generated SQL
-								</div>
-								<span
-									className={`text-xs px-2 py-0.5 rounded-full ${
-										searchMode === 'like'
-											? 'bg-destructive/20 text-destructive'
-											: 'bg-success/20 text-success'
-									}`}
-								>
-									{searchMode === 'like' ? 'LIKE Query' : 'Full-Text Query'}
-								</span>
+							{/* Probe terminal */}
+							<div className="px-6 pb-2">
+								<ProbeTerminal
+									onProbe={handleProbe}
+									probes={PROBES}
+									title="Search Probe"
+								/>
 							</div>
-							<div className="p-4">
-								<pre className="text-sm font-mono text-muted-foreground bg-secondary/50 rounded-lg p-3 overflow-x-auto">
-									{searchMode === 'like'
-										? likeQueryDisplay
-										: fullTextQueryDisplay}
-								</pre>
-							</div>
-						</div>
 
-						{/* EXPLAIN / Query Plan */}
-						{queryPlan && (
-							<div className="bg-card rounded-xl border border-border overflow-hidden">
-								<div className="bg-secondary px-4 py-2.5 border-b border-border">
-									<div className="text-sm font-semibold text-foreground flex items-center gap-2">
-										<Timer className="w-4 h-4 text-primary" />
-										EXPLAIN ANALYZE
-									</div>
-								</div>
-								<div className="p-4">
-									<div
-										className={`flex items-center justify-between p-3 rounded-lg border ${
-											queryPlan.type === 'gin_index_scan'
-												? 'bg-success/10 border-success/30'
-												: queryPlan.time <= 800
-													? 'bg-warning/10 border-warning/30'
-													: 'bg-destructive/10 border-destructive/30'
-										}`}
+							{/* Build the Fix button (discovery gated) */}
+							{discoveryGating.isUnlocked && (
+								<div className="p-4 flex justify-center animate-in fade-in duration-500">
+									<Button
+										className="gap-2"
+										onClick={handleStartBuild}
+										size="lg"
 									>
-										<div className="flex items-center gap-3">
-											<div
-												className={`w-8 h-8 rounded-full flex items-center justify-center ${
-													queryPlan.type === 'gin_index_scan'
-														? 'bg-success/20'
-														: queryPlan.time <= 800
-															? 'bg-warning/20'
-															: 'bg-destructive/20'
-												}`}
-											>
-												{queryPlan.type === 'gin_index_scan' ? (
-													<Zap className="w-4 h-4 text-success" />
-												) : (
-													<TrendingDown className="w-4 h-4 text-destructive" />
-												)}
-											</div>
-											<div>
-												<div
-													className={`text-sm font-semibold ${
-														queryPlan.type === 'gin_index_scan'
-															? 'text-success'
-															: queryPlan.time <= 800
-																? 'text-warning'
-																: 'text-destructive'
-													}`}
-												>
-													{queryPlan.type === 'gin_index_scan'
-														? 'Bitmap Heap Scan (GIN Index Scan)'
-														: 'Seq Scan on posts'}
-												</div>
-												<div className="text-xs text-muted-foreground">
-													{queryPlan.type === 'gin_index_scan'
-														? 'Using GIN index on searchable column'
-														: 'Full table scan - checking every row'}
-												</div>
-											</div>
-										</div>
-										<div
-											className={`text-lg font-bold ${
-												queryPlan.type === 'gin_index_scan'
-													? 'text-success'
-													: queryPlan.time <= 800
-														? 'text-warning'
-														: 'text-destructive'
-											}`}
-										>
-											{queryPlan.time.toLocaleString()}ms
-										</div>
-									</div>
-
-									{/* Comparison bar */}
-									<div className="mt-4 space-y-2">
-										<div className="flex items-center gap-3 text-xs">
-											<span className="w-24 text-muted-foreground">
-												LIKE query
-											</span>
-											<div className="flex-1 h-3 bg-secondary rounded-full overflow-hidden">
-												<div
-													className="h-full bg-destructive rounded-full"
-													style={{ width: '100%' }}
-												/>
-											</div>
-											<span className="text-destructive font-mono w-16 text-right">
-												3,200ms
-											</span>
-										</div>
-										<div className="flex items-center gap-3 text-xs">
-											<span className="w-24 text-muted-foreground">
-												FTS (no idx)
-											</span>
-											<div className="flex-1 h-3 bg-secondary rounded-full overflow-hidden">
-												<div
-													className="h-full bg-warning rounded-full"
-													style={{ width: '25%' }}
-												/>
-											</div>
-											<span className="text-warning font-mono w-16 text-right">
-												800ms
-											</span>
-										</div>
-										<div className="flex items-center gap-3 text-xs">
-											<span className="w-24 text-muted-foreground">
-												FTS + GIN
-											</span>
-											<div className="flex-1 h-3 bg-secondary rounded-full overflow-hidden">
-												<div
-													className="h-full bg-success rounded-full"
-													style={{ width: '0.5%', minWidth: '4px' }}
-												/>
-											</div>
-											<span className="text-success font-mono w-16 text-right">
-												2ms
-											</span>
-										</div>
-									</div>
-								</div>
-							</div>
-						)}
-
-						{/* Search Results */}
-						<div className="bg-card rounded-xl border border-border overflow-hidden">
-							<div className="bg-secondary px-4 py-2.5 border-b border-border flex items-center justify-between">
-								<div className="text-sm font-semibold text-foreground flex items-center gap-2">
-									<Search className="w-4 h-4 text-primary" />
-									Results ({searchResults.length})
-								</div>
-								{searchMode === 'fulltext' && searchResults.length > 0 && (
-									<span className="text-xs text-success flex items-center gap-1">
-										<Star className="w-3 h-3" />
-										Ranked by relevance
-									</span>
-								)}
-							</div>
-
-							<div className="divide-y divide-border">
-								{searchResults.length === 0 && searchQuery.trim() ? (
-									<div className="p-6 text-center text-muted-foreground text-sm">
-										No results found for &quot;{searchQuery}&quot;
-										{searchMode === 'like' && (
-											<div className="mt-2 text-xs">
-												LIKE is case-sensitive by default. Try switching to
-												full-text search for stemming support.
-											</div>
-										)}
-									</div>
-								) : searchResults.length === 0 ? (
-									<div className="p-6 text-center text-muted-foreground text-sm">
-										Type a search query above to see results
-									</div>
-								) : (
-									searchResults.map((result) => (
-										<div
-											className="p-4 hover:bg-secondary/30 transition-colors"
-											key={result.id}
-										>
-											<div className="flex items-start justify-between">
-												<div className="flex-1 min-w-0">
-													<div className="flex items-center gap-2">
-														<h4 className="text-sm font-semibold text-foreground truncate">
-															{result.title}
-														</h4>
-														{result.highlighted && (
-															<Zap className="w-3.5 h-3.5 text-success shrink-0" />
-														)}
-													</div>
-													<p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-														{result.body}
-													</p>
-												</div>
-												{result.score !== undefined && (
-													<div className="ml-4 shrink-0 text-right">
-														<div className="text-xs text-muted-foreground">
-															Score
-														</div>
-														<div className="text-sm font-bold text-success">
-															{result.score}
-														</div>
-													</div>
-												)}
-											</div>
-										</div>
-									))
-								)}
-							</div>
-
-							{/* Mode-specific notes */}
-							{searchQuery.trim() && (
-								<div className="px-4 py-3 bg-secondary/30 border-t border-border">
-									{searchMode === 'like' ? (
-										<div className="text-xs text-muted-foreground space-y-1">
-											<div className="flex items-center gap-1.5 text-destructive">
-												<TrendingDown className="w-3 h-3" />
-												<span className="font-semibold">LIKE Limitations:</span>
-											</div>
-											<ul className="ml-5 space-y-0.5">
-												<li>
-													<ArrowRight className="w-3 h-3 inline mr-1" />
-													No relevance ranking - results are unordered
-												</li>
-												<li>
-													<ArrowRight className="w-3 h-3 inline mr-1" />
-													No stemming - &quot;run&quot; won&apos;t match
-													&quot;running&quot;
-												</li>
-												<li>
-													<ArrowRight className="w-3 h-3 inline mr-1" />
-													Cannot use indexes - always sequential scan
-												</li>
-												<li>
-													<ArrowRight className="w-3 h-3 inline mr-1" />
-													Case-sensitive matching by default
-												</li>
-											</ul>
-										</div>
-									) : (
-										<div className="text-xs text-muted-foreground space-y-1">
-											<div className="flex items-center gap-1.5 text-success">
-												<Zap className="w-3 h-3" />
-												<span className="font-semibold">
-													Full-Text Benefits:
-												</span>
-											</div>
-											<ul className="ml-5 space-y-0.5">
-												<li>
-													<ArrowRight className="w-3 h-3 inline mr-1" />
-													Ranked results by relevance score
-												</li>
-												<li>
-													<ArrowRight className="w-3 h-3 inline mr-1" />
-													Stemming - &quot;run&quot; matches
-													&quot;running&quot;, &quot;runs&quot;
-												</li>
-												<li>
-													<ArrowRight className="w-3 h-3 inline mr-1" />
-													{ginIndexAdded
-														? 'GIN index enables sub-millisecond lookups'
-														: 'Add GIN index for fast index scans'}
-												</li>
-												<li>
-													<ArrowRight className="w-3 h-3 inline mr-1" />
-													Language-aware (English dictionary)
-												</li>
-											</ul>
-										</div>
-									)}
+										Build the Fix
+										<ArrowRight className="w-4 h-4" />
+									</Button>
 								</div>
 							)}
 						</div>
-					</div>
+					)}
+
+					{/* ── Phase 2: Build (HOW) ── */}
+					{phase === 'build' && (
+						<div className="flex-1 overflow-auto p-6">
+							<div className="max-w-2xl mx-auto space-y-4">
+								{/* Terminal steps (0: gem install, 1: migration) */}
+								{currentStepType === 'terminal' &&
+									stepper.currentStep === 0 && (
+										<TerminalChoiceStep
+											commands={addGemCommands}
+											completed={isViewingCompletedStep}
+											description={
+												<p className="text-sm text-muted-foreground">
+													pg_search provides a clean Ruby DSL for PostgreSQL
+													full-text search. Add it to your project dependencies.
+												</p>
+											}
+											hasNext={hasNextStep}
+											initialHistory={buildTerminalHistory(
+												SHELL_STEP_MAP,
+												stepper.currentStep,
+											)}
+											onCorrect={() => stepper.completeStep()}
+											onNext={stepper.nextStep}
+											onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+											outputLines={addGemOutput}
+											stepKey={stepper.currentStep}
+											title="Add pg_search Gem"
+										/>
+									)}
+
+								{currentStepType === 'terminal' &&
+									stepper.currentStep === 1 && (
+										<TerminalChoiceStep
+											commands={generateMigrationCommands}
+											completed={isViewingCompletedStep}
+											description={
+												<p className="text-sm text-muted-foreground">
+													Full-text search needs a tsvector column and a GIN
+													index on the posts table. Generate the migration file.
+												</p>
+											}
+											hasNext={hasNextStep}
+											initialHistory={buildTerminalHistory(
+												SHELL_STEP_MAP,
+												stepper.currentStep,
+											)}
+											onCorrect={() => stepper.completeStep()}
+											onNext={stepper.nextStep}
+											onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+											outputLines={generateMigrationOutput}
+											stepKey={stepper.currentStep}
+											title="Generate Search Migration"
+										/>
+									)}
+
+								{/* OptionCard steps (2, 3, 4) */}
+								{currentStepType === 'option' && currentOptionConfig && (
+									<>
+										<h3 className="text-lg font-semibold text-foreground">
+											{currentOptionConfig.title}
+										</h3>
+										<p className="text-sm text-muted-foreground">
+											{currentOptionConfig.description}
+										</p>
+
+										{isViewingCompletedStep ? (
+											<div className="space-y-2">
+												{currentOptionConfig.options.map((opt) => (
+													<OptionCard
+														color="violet"
+														disabled={!opt.correct}
+														key={opt.id}
+														mono
+														name={opt.label}
+														selected={opt.correct}
+														size="lg"
+													/>
+												))}
+											</div>
+										) : (
+											<>
+												<div className="space-y-2">
+													{currentOptionConfig.options.map((opt) => (
+														<OptionCard
+															color="violet"
+															key={opt.id}
+															mono
+															name={opt.label}
+															onClick={() => handleOptionClick(opt)}
+															size="lg"
+														/>
+													))}
+												</div>
+
+												<ErrorFeedback
+													message={stepper.lastFeedback}
+													onDismiss={stepper.clearFeedback}
+												/>
+											</>
+										)}
+
+										{isViewingCompletedStep && hasNextStep && (
+											<div className="flex justify-end">
+												<Button
+													className="gap-2"
+													onClick={stepper.nextStep}
+													size="sm"
+												>
+													Next Step
+													<ArrowRight className="w-4 h-4" />
+												</Button>
+											</div>
+										)}
+									</>
+								)}
+							</div>
+						</div>
+					)}
+
+					{/* ── Phase 3: Activate (ADVANTAGE sub-phase a) ── */}
+					{phase === 'activate' && (
+						<div className="flex-1 flex items-center justify-center p-6">
+							<div className="max-w-md text-center space-y-6">
+								<div className="flex justify-center gap-1">
+									{[1, 2, 3].map((s) => (
+										<Star
+											className={`w-8 h-8 ${
+												s <= stepper.starRating
+													? 'text-yellow-400 fill-yellow-400'
+													: 'text-muted-foreground/30'
+											}`}
+											key={s}
+										/>
+									))}
+								</div>
+								<p className="text-sm text-muted-foreground">
+									Full-text search with GIN index is ready. Fire search queries
+									and watch results return in under 2ms.
+								</p>
+								<Button
+									className="gap-2"
+									onClick={handleActivateSearch}
+									size="lg"
+								>
+									<Play className="w-4 h-4" />
+									Visualize Search
+								</Button>
+							</div>
+						</div>
+					)}
+
+					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
+					{phase === 'reward' && (
+						<div className="flex-1 flex flex-col">
+							<div className="flex-1 relative">
+								<PipelineFlow
+									connections={REWARD_CONNECTIONS}
+									stages={rewardStages}
+								/>
+							</div>
+
+							{/* Stress test controls below pipeline */}
+							<div className="px-6 pb-2">
+								<StressTestPanel
+									allowedCount={stressTest.allowedCount}
+									blockedCount={stressTest.blockedCount}
+									canAutoFire={stressTest.canAutoFire}
+									isAutoFiring={stressTest.isAutoFiring}
+									onFire={handleFireScenario}
+									onToggleAutoFire={stressTest.toggleAutoFire}
+									results={stressTest.results}
+									scenarios={STRESS_SCENARIOS}
+								/>
+							</div>
+						</div>
+					)}
 				</div>
 			</CenterPanel>
 
 			<RightPanel>
-				<CodePreviewPanel
-					files={[
-						{
-							filename: 'app/models/post.rb',
-							language: 'ruby',
-							code: getModelCode(),
-							highlight:
-								searchMode === 'fulltext'
-									? ginIndexAdded
-										? [4, 5, 6, 7, 8, 9, 10, 11]
-										: [4, 5, 6]
-									: [3, 4, 5, 6, 7],
-						},
-						{
-							filename: 'db/migrate/add_search.rb',
-							language: 'ruby',
-							code: getMigrationCode(),
-							highlight: ginIndexAdded ? [5, 6, 7] : [],
-						},
-					]}
-					learningGoal="LIKE '%query%' cannot use indexes and has no ranking. PostgreSQL full-text search with tsvector + GIN index gives you fast, ranked, stemmed search results."
-				>
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-							Key Concepts
-						</div>
-						<div className="space-y-3 text-xs">
-							<div>
-								<div className="text-foreground font-semibold flex items-center gap-1.5">
-									<Database className="w-3 h-3 text-primary" />
-									tsvector
-								</div>
-								<p className="text-muted-foreground mt-0.5">
-									Document representation optimized for search. Stores
-									normalized lexemes with position info.
-								</p>
-							</div>
-							<div>
-								<div className="text-foreground font-semibold flex items-center gap-1.5">
-									<Search className="w-3 h-3 text-primary" />
-									tsquery
-								</div>
-								<p className="text-muted-foreground mt-0.5">
-									Search query representation. Supports AND, OR, NOT operators
-									and prefix matching.
-								</p>
-							</div>
-							<div>
-								<div className="text-foreground font-semibold flex items-center gap-1.5">
-									<Zap className="w-3 h-3 text-primary" />
-									GIN Index
-								</div>
-								<p className="text-muted-foreground mt-0.5">
-									Generalized Inverted Index. Maps each lexeme to the rows
-									containing it for O(1) lookups.
-								</p>
-							</div>
-							<div>
-								<div className="text-foreground font-semibold flex items-center gap-1.5">
-									<Star className="w-3 h-3 text-primary" />
-									pg_search
-								</div>
-								<p className="text-muted-foreground mt-0.5">
-									Ruby gem providing clean ActiveRecord integration for
-									PostgreSQL full-text search.
-								</p>
-							</div>
-						</div>
-					</div>
-
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-							Performance Comparison
-						</div>
-						<div className="text-xs space-y-2">
-							<div className="flex justify-between text-muted-foreground">
-								<span>LIKE on 50K rows</span>
-								<span className="text-destructive font-mono">~3,200ms</span>
-							</div>
-							<div className="flex justify-between text-muted-foreground">
-								<span>FTS without index</span>
-								<span className="text-warning font-mono">~800ms</span>
-							</div>
-							<div className="flex justify-between text-muted-foreground">
-								<span>FTS with GIN index</span>
-								<span className="text-success font-mono">~2ms</span>
-							</div>
-						</div>
-					</div>
-				</CodePreviewPanel>
+				<CodePreviewPanel files={getCodeFiles(phase, stepper.furthestStep)} />
 			</RightPanel>
 		</LevelLayout>
 	);

@@ -1,15 +1,17 @@
 /**
- * Level 28: Caching
+ * Level 30: Caching
  *
- * Implement caching strategies for Rails applications.
- * Player learns fragment, low-level, and HTTP caching.
- * Teaches: Solid Cache, ETags, fragment caching, low-level caching
+ * Implement application-level caching strategies for Rails applications.
+ * Player learns fragment caching, low-level caching, and Solid Cache setup.
+ * Teaches: Solid Cache, Rails.cache.fetch, fragment caching, cache invalidation
+ *
+ * NOTE: HTTP caching (ETags, stale?, Cache-Control, CDNs) belongs to Level 31.
+ * This level focuses on server-side caching only.
  */
 
 import {
 	Database,
 	FileText,
-	Globe,
 	HardDrive,
 	Server,
 	User,
@@ -50,28 +52,6 @@ interface Request {
 }
 
 const INITIAL_CACHE_LAYERS: CacheLayer[] = [
-	{
-		id: 'http',
-		name: 'HTTP Caching',
-		description: 'Browser/CDN caches entire responses',
-		enabled: false,
-		hitRate: 0,
-		latency: 1,
-		code: `# In controller
-def show
-  @post = Post.find(params[:id])
-
-  # Browser caches for 5 minutes
-  expires_in 5.minutes, public: true
-
-  # Or use ETags
-  fresh_when(@post)
-end`,
-		explanation:
-			'The fastest cache. Responses never leave the browser or CDN. Zero server load for cached requests.',
-		whenToUse:
-			'Static or rarely-changing data (product pages, images, public API responses)',
-	},
 	{
 		id: 'fragment',
 		name: 'Fragment Caching',
@@ -244,12 +224,11 @@ export function Level30Caching({ onComplete }: LevelComponentProps) {
 				<InstructionPanel
 					goal="Build a multi-layer caching strategy to dramatically reduce database load."
 					instructions={[
-						'HTTP: Cache entire responses at edge',
 						'Fragment: Cache rendered HTML partials',
-						'Low-level: Cache computed data',
+						'Low-level: Cache computed data with Rails.cache',
 						'Query: Cache database results',
 					]}
-					scenario="Your database is struggling. Every page load hits the DB. Users are seeing slow response times. Time to add caching layers!"
+					scenario="Your database is struggling. Every page load hits the DB. Users are seeing slow response times. Time to add server-side caching layers!"
 				>
 					{/* Live Metrics */}
 					<div className="p-4 border-t border-border">
@@ -303,10 +282,15 @@ export function Level30Caching({ onComplete }: LevelComponentProps) {
 						</div>
 						<div className="h-2 bg-secondary rounded-full overflow-hidden">
 							<div
-								className="h-full bg-success transition-all"
-								style={{
-									width: `${(enabledLayers.length / cacheLayers.length) * 100}%`,
-								}}
+								className={`h-full bg-success transition-all ${
+									enabledLayers.length === 0
+										? 'w-0'
+										: enabledLayers.length === 1
+											? 'w-1/3'
+											: enabledLayers.length === 2
+												? 'w-2/3'
+												: 'w-full'
+								}`}
 							/>
 						</div>
 					</div>
@@ -370,9 +354,7 @@ export function Level30Caching({ onComplete }: LevelComponentProps) {
 													variant={layer.enabled ? 'default' : 'outline'}
 												>
 													<span className="text-lg flex items-center justify-center">
-														{layer.id === 'http' ? (
-															<Globe className="w-5 h-5" />
-														) : layer.id === 'fragment' ? (
+														{layer.id === 'fragment' ? (
 															<FileText className="w-5 h-5" />
 														) : layer.id === 'lowlevel' ? (
 															<HardDrive className="w-5 h-5" />
@@ -405,7 +387,7 @@ export function Level30Caching({ onComplete }: LevelComponentProps) {
 								</div>
 
 								{/* Layer Details */}
-								<div className="grid grid-cols-4 gap-3">
+								<div className="grid grid-cols-3 gap-3">
 									{cacheLayers.map((layer) => (
 										<div
 											className={`p-3 rounded-lg border transition-all duration-300 ${
@@ -492,7 +474,7 @@ export function Level30Caching({ onComplete }: LevelComponentProps) {
 							code: l.code,
 							highlight: [],
 						}))}
-					learningGoal="Cache at multiple layers. Closest to user = fastest. Balance freshness vs performance."
+					learningGoal="Cache at multiple server-side layers. Balance freshness vs performance. Use Solid Cache as the Rails 8 default store."
 				>
 					<div className="p-4 border-t border-border">
 						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">

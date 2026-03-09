@@ -1,307 +1,754 @@
 /**
- * Level 25: Counter Caches
+ * Level 27: Counter Caches
  *
- * Teaches counter caches through a before/after comparison.
- * Player observes the COUNT(*) explosion, adds a counter cache, then sees queries drop to one.
+ * Sequential phase flow: observe -> build -> activate -> reward
+ * Each phase occupies the full center panel. One thing at a time.
+ *
+ * Phase 1 (WHY - observe): Custom "Query Waterfall" visualization.
+ *   Player fires requests at GET /api/posts and watches COUNT(*) queries
+ *   cascade down a waterfall. Clickable query rows reveal details.
+ *   Discovery gating controls when "Build the Fix" appears.
+ *
+ * Phase 2 (HOW - build): 4 steps (1 terminal + 3 OptionCard)
+ *   Step 0: Generate migration to add comments_count column (terminal)
+ *   Step 1: Add counter_cache: true to belongs_to (OptionCard)
+ *   Step 2: Reset existing counters (OptionCard)
+ *   Step 3: Update serializer to use .size (OptionCard)
+ *
+ * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Counter Cache" button
+ * Phase 4 (ADVANTAGE - reward): Interactive before/after comparison.
+ *   Player fires requests at different scales (10, 50, 100, 500 posts)
+ *   and sees query count stay at 1 with counter cache vs N+1 without.
+ *
+ * Teaches: counter_cache: true, migration conventions, reset_counters, .size vs .count
  */
 
 import {
-	ArrowDown,
 	ArrowRight,
-	Check,
 	Database,
-	Hash,
+	Play,
+	Search,
+	Star,
 	Timer,
 	TrendingDown,
 	Zap,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+	buildTerminalHistory,
 	CenterPanel,
 	CodePreviewPanel,
+	ErrorFeedback,
 	InstructionPanel,
 	LeftPanel,
 	LevelHeader,
 	LevelLayout,
+	OptionCard,
 	RightPanel,
-	useLevelCompletion,
+	StepProgress,
+	TerminalChoiceStep,
+	type TerminalStepData,
 	type ValidationResult,
 } from '@/components/levels';
+import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
+import {
+	type DiscoveryDef,
+	useDiscoveryGating,
+} from '@/hooks/useDiscoveryGating';
+import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 
-type Step = 'before' | 'adding' | 'after';
+// ──────────────────────────────────────────────
+// Phase type
+// ──────────────────────────────────────────────
 
-interface QueryLogEntry {
-	text: string;
-	time: number;
+type Phase = 'observe' | 'build' | 'activate' | 'reward';
+
+// ──────────────────────────────────────────────
+// Discovery definitions (observe phase)
+// ──────────────────────────────────────────────
+
+const DISCOVERY_DEFS: DiscoveryDef[] = [
+	{ id: 'count-explosion', label: 'COUNT(*) query explosion on index' },
+	{ id: 'per-post-query', label: 'Each post fires a separate COUNT(*)' },
+	{ id: 'linear-scaling', label: 'Query count scales linearly with posts' },
+];
+
+// ──────────────────────────────────────────────
+// Observe phase: query waterfall probes
+// ──────────────────────────────────────────────
+
+interface WaterfallProbe {
+	id: string;
+	label: string;
+	postCount: number;
+	discoveryIds: string[];
 }
 
-const BEFORE_QUERIES: QueryLogEntry[] = [
-	{ text: 'Post Load (1.2ms)  SELECT "posts".* FROM "posts"', time: 1.2 },
-	...Array.from({ length: 100 }, (_, i) => ({
-		text: `  (${(0.3 + Math.random() * 0.2).toFixed(1)}ms)  SELECT COUNT(*) FROM "comments" WHERE "comments"."post_id" = ${i + 1}`,
-		time: 0.3 + Math.random() * 0.2,
-	})),
+const WATERFALL_PROBES: WaterfallProbe[] = [
+	{
+		id: 'small',
+		label: 'GET /api/posts (10 posts)',
+		postCount: 10,
+		discoveryIds: ['count-explosion'],
+	},
+	{
+		id: 'medium',
+		label: 'GET /api/posts (50 posts)',
+		postCount: 50,
+		discoveryIds: ['per-post-query'],
+	},
+	{
+		id: 'large',
+		label: 'GET /api/posts (100 posts)',
+		postCount: 100,
+		discoveryIds: ['linear-scaling'],
+	},
 ];
 
-const AFTER_QUERIES: QueryLogEntry[] = [
-	{ text: 'Post Load (1.2ms)  SELECT "posts".* FROM "posts"', time: 1.2 },
+function generateQueryLog(postCount: number): string[] {
+	const lines: string[] = [
+		`Post Load (1.2ms)  SELECT "posts".* FROM "posts" LIMIT ${postCount}`,
+	];
+	for (let i = 1; i <= postCount; i++) {
+		const time = (0.3 + Math.random() * 0.2).toFixed(1);
+		lines.push(
+			`  (${time}ms)  SELECT COUNT(*) FROM "comments" WHERE "comments"."post_id" = ${i}`,
+		);
+	}
+	return lines;
+}
+
+// ──────────────────────────────────────────────
+// Step definitions (build phase)
+// ──────────────────────────────────────────────
+
+const STEP_DEFS: StepDef[] = [
+	{ id: 'generate-migration', title: 'Generate the Migration' },
+	{ id: 'add-counter-cache', title: 'Enable counter_cache' },
+	{ id: 'reset-counters', title: 'Reset Existing Counters' },
+	{ id: 'update-serializer', title: 'Use the Cached Count' },
 ];
 
-const STEP_LABELS = ['Observe', 'Add Column', 'Enable', 'Verify'] as const;
-const TOTAL_BEFORE_TIME = BEFORE_QUERIES.reduce((s, q) => s + q.time, 0);
+// ──────────────────────────────────────────────
+// Terminal step data (step 0)
+// ──────────────────────────────────────────────
 
-export function Level27CounterCaches({
-	onComplete,
-}: LevelComponentProps) {
-	const { completeLevel } = useLevelCompletion();
-	const [counterCacheEnabled, setCounterCacheEnabled] = useState(false);
-	const [isSimulating, setIsSimulating] = useState(false);
+const MIGRATION_COMMANDS = [
+	{
+		id: 'add-column-raw',
+		label: 'rails db:migrate',
+		command: 'rails db:migrate',
+		correct: false,
+		feedback:
+			'There is no migration to run yet. You need to generate one first that adds the counter column.',
+	},
+	{
+		id: 'generate-migration',
+		label: 'rails generate migration AddCommentsCountToPosts comments_count:integer',
+		command:
+			'rails generate migration AddCommentsCountToPosts comments_count:integer',
+		correct: true,
+	},
+	{
+		id: 'add-index',
+		label: 'rails generate migration AddIndexToComments post_id:index',
+		command: 'rails generate migration AddIndexToComments post_id:index',
+		correct: false,
+		feedback:
+			'An index on comments.post_id helps query speed, but it does not eliminate the N+1 COUNT queries. You need a column on the parent table.',
+	},
+];
+
+const MIGRATION_OUTPUT = [
+	{ text: 'invoke  active_record', color: 'green' as const },
+	{
+		text: 'create    db/migrate/20240301_add_comments_count_to_posts.rb',
+		color: 'green' as const,
+	},
+];
+
+// ──────────────────────────────────────────────
+// OptionCard step data (steps 1-3)
+// ──────────────────────────────────────────────
+
+interface StepOption {
+	id: string;
+	label: string;
+	correct: boolean;
+	feedback?: string;
+}
+
+const COUNTER_CACHE_OPTIONS: StepOption[] = [
+	{
+		id: 'has-many-counter',
+		label: 'has_many :comments, counter_cache: true',
+		correct: false,
+		feedback:
+			'counter_cache is declared on the belongs_to side, not has_many. The child model owns the relationship declaration.',
+	},
+	{
+		id: 'after-create',
+		label: 'after_create { Post.increment_counter(:comments_count, post_id) }',
+		correct: false,
+		feedback:
+			'Manual callbacks are error-prone. You would also need after_destroy, after_update, and handle edge cases. Rails provides a built-in option.',
+	},
+	{
+		id: 'belongs-to-counter',
+		label: 'belongs_to :post, counter_cache: true',
+		correct: true,
+	},
+];
+
+const RESET_OPTIONS: StepOption[] = [
+	{
+		id: 'update-all',
+		label: 'Post.update_all(comments_count: Post.joins(:comments).count)',
+		correct: false,
+		feedback:
+			'This sets every post to the same total count, not each post to its own count. Rails provides a method that recalculates per-record.',
+	},
+	{
+		id: 'manual-each',
+		label: 'Post.find_each { |p| p.update(comments_count: p.comments.count) }',
+		correct: false,
+		feedback:
+			'This works but fires N+1 queries and skips the counter cache mechanism. Rails has a dedicated method that uses efficient SQL.',
+	},
+	{
+		id: 'reset-counters',
+		label: 'Post.find_each { |p| Post.reset_counters(p.id, :comments) }',
+		correct: true,
+	},
+];
+
+const SERIALIZER_OPTIONS: StepOption[] = [
+	{
+		id: 'comments-count-method',
+		label: 'post.comments.count',
+		correct: false,
+		feedback:
+			'This always runs a COUNT(*) query, completely bypassing the counter cache column you just added.',
+	},
+	{
+		id: 'comments-length',
+		label: 'post.comments.length',
+		correct: false,
+		feedback:
+			'This loads ALL comment records into memory just to count them. Even worse than COUNT(*) for large collections.',
+	},
+	{
+		id: 'comments-size',
+		label: 'post.comments.size',
+		correct: true,
+	},
+];
+
+const OPTION_STEP_CONFIG: Record<
+	number,
+	{ title: string; description: string; options: StepOption[] }
+> = {
+	1: {
+		title: 'Enable counter_cache',
+		description:
+			'The migration adds the column. Now tell Rails to automatically increment and decrement it when comments are created or destroyed. Where does this declaration go?',
+		options: COUNTER_CACHE_OPTIONS,
+	},
+	2: {
+		title: 'Reset Existing Counters',
+		description:
+			'The column exists but all values are 0. Existing posts already have comments. How do you sync the cached counts with the real data?',
+		options: RESET_OPTIONS,
+	},
+	3: {
+		title: 'Use the Cached Count',
+		description:
+			'The counter cache is populated. Now update the serializer to read the cached value instead of running a query. Which method uses the counter cache?',
+		options: SERIALIZER_OPTIONS,
+	},
+};
+
+// ──────────────────────────────────────────────
+// Terminal step map for buildTerminalHistory
+// ──────────────────────────────────────────────
+
+const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
+	{ commands: MIGRATION_COMMANDS, outputLines: MIGRATION_OUTPUT },
+	null, // step 1: OptionCard
+	null, // step 2: OptionCard
+	null, // step 3: OptionCard
+];
+
+// ──────────────────────────────────────────────
+// Reward phase: scale scenarios
+// ──────────────────────────────────────────────
+
+interface ScaleScenario {
+	id: string;
+	label: string;
+	postCount: number;
+	description: string;
+}
+
+const SCALE_SCENARIOS: ScaleScenario[] = [
+	{
+		id: 'ten',
+		label: '10 posts',
+		postCount: 10,
+		description: 'Small page load',
+	},
+	{
+		id: 'fifty',
+		label: '50 posts',
+		postCount: 50,
+		description: 'Medium listing',
+	},
+	{
+		id: 'hundred',
+		label: '100 posts',
+		postCount: 100,
+		description: 'Full page',
+	},
+	{
+		id: 'five-hundred',
+		label: '500 posts',
+		postCount: 500,
+		description: 'Admin export',
+	},
+];
+
+// ──────────────────────────────────────────────
+// Code preview helper
+// ──────────────────────────────────────────────
+
+function getCodeFiles(phase: Phase, furthestStep: number) {
+	if (phase === 'observe') {
+		return [
+			{
+				filename: 'app/serializers/post_serializer.rb',
+				language: 'ruby',
+				highlight: [4],
+				code: `class PostSerializer
+  include JSONAPI::Serializer
+
+  attribute :comment_count do |post|
+    post.comments.count  # COUNT(*) every time!
+  end
+end`,
+			},
+			{
+				filename: 'app/models/comment.rb',
+				language: 'ruby',
+				code: `class Comment < ApplicationRecord
+  belongs_to :post
+  belongs_to :user
+end`,
+			},
+		];
+	}
+
+	// Build phase: code evolves with each step
+	if (furthestStep === 0) {
+		return [
+			{
+				filename: 'app/serializers/post_serializer.rb',
+				language: 'ruby',
+				highlight: [4, 5],
+				code: `class PostSerializer
+  include JSONAPI::Serializer
+
+  attribute :comment_count do |post|
+    post.comments.count  # N+1 COUNT(*)
+  end
+end
+
+# Step 1: Generate a migration to add
+# the counter cache column to posts`,
+			},
+		];
+	}
+
+	if (furthestStep === 1) {
+		return [
+			{
+				filename: 'db/migrate/add_comments_count_to_posts.rb',
+				language: 'ruby',
+				highlight: [3, 4],
+				code: `class AddCommentsCountToPosts < ActiveRecord::Migration[8.0]
+  def change
+    add_column :posts, :comments_count,
+               :integer, default: 0, null: false
+  end
+end`,
+			},
+			{
+				filename: 'app/models/comment.rb',
+				language: 'ruby',
+				highlight: [2],
+				code: `class Comment < ApplicationRecord
+  belongs_to :post  # Where does counter_cache go?
+  belongs_to :user
+end`,
+			},
+		];
+	}
+
+	if (furthestStep === 2) {
+		return [
+			{
+				filename: 'db/migrate/add_comments_count_to_posts.rb',
+				language: 'ruby',
+				code: `class AddCommentsCountToPosts < ActiveRecord::Migration[8.0]
+  def change
+    add_column :posts, :comments_count,
+               :integer, default: 0, null: false
+  end
+end`,
+			},
+			{
+				filename: 'app/models/comment.rb',
+				language: 'ruby',
+				highlight: [2],
+				code: `class Comment < ApplicationRecord
+  belongs_to :post, counter_cache: true
+  belongs_to :user
+end
+
+# Column defaults to 0, but existing posts
+# have real comments. How to sync?`,
+			},
+		];
+	}
+
+	if (furthestStep === 3) {
+		return [
+			{
+				filename: 'app/models/comment.rb',
+				language: 'ruby',
+				highlight: [2],
+				code: `class Comment < ApplicationRecord
+  belongs_to :post, counter_cache: true
+  belongs_to :user
+end`,
+			},
+			{
+				filename: 'app/serializers/post_serializer.rb',
+				language: 'ruby',
+				highlight: [4, 5],
+				code: `class PostSerializer
+  include JSONAPI::Serializer
+
+  attribute :comment_count do |post|
+    post.comments.count  # Still using .count!
+  end
+end
+
+# .count always runs COUNT(*)
+# Which method reads the cached column?`,
+			},
+		];
+	}
+
+	// All steps complete (activate + reward)
+	return [
+		{
+			filename: 'db/migrate/add_comments_count_to_posts.rb',
+			language: 'ruby',
+			code: `class AddCommentsCountToPosts < ActiveRecord::Migration[8.0]
+  def change
+    add_column :posts, :comments_count,
+               :integer, default: 0, null: false
+  end
+end`,
+		},
+		{
+			filename: 'app/models/comment.rb',
+			language: 'ruby',
+			highlight: [2],
+			code: `class Comment < ApplicationRecord
+  belongs_to :post, counter_cache: true
+  belongs_to :user
+end`,
+		},
+		{
+			filename: 'app/serializers/post_serializer.rb',
+			language: 'ruby',
+			highlight: [4],
+			code: `class PostSerializer
+  include JSONAPI::Serializer
+
+  attribute :comment_count do |post|
+    post.comments.size  # Uses counter cache!
+  end
+end
+
+# .size  -> reads posts.comments_count (0 queries)
+# .count -> always runs COUNT(*) (1 query)
+# .length -> loads all records into memory (bad)`,
+		},
+	];
+}
+
+// ──────────────────────────────────────────────
+// Component
+// ──────────────────────────────────────────────
+
+export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
+	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
+		minRequired: 3,
+	});
+	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
+	const [phase, setPhase] = useState<Phase>('observe');
+
+	// Observe phase state
+	const [firedProbes, setFiredProbes] = useState<Set<string>>(new Set());
+	const [activeProbe, setActiveProbe] = useState<string | null>(null);
+	const [queryLog, setQueryLog] = useState<string[]>([]);
 	const [queryCount, setQueryCount] = useState(0);
-	const [simulationTime, setSimulationTime] = useState(0);
-	const [step, setStep] = useState<Step>('before');
-	const [viewedBefore, setViewedBefore] = useState(false);
-	const [visibleQueries, setVisibleQueries] = useState<QueryLogEntry[]>([]);
-	const [activeTab, setActiveTab] = useState<'before' | 'after'>('before');
-	const [migrationProgress, setMigrationProgress] = useState(0);
+	const [visibleQueryIndex, setVisibleQueryIndex] = useState(0);
+	const [isAnimating, setIsAnimating] = useState(false);
 	const logRef = useRef<HTMLDivElement>(null);
-	const simulationRef = useRef<number | null>(null);
+	const animationRef = useRef<number | null>(null);
 
-	const stepIndex =
-		step === 'before' ? (viewedBefore ? 1 : 0) : step === 'adding' ? 2 : 3;
+	// Reward phase state
+	const [firedScenarios, setFiredScenarios] = useState<
+		{ id: string; postCount: number; withCache: number; withoutCache: number }[]
+	>([]);
+	const [lastScenario, setLastScenario] = useState<string | null>(null);
 
-	// Auto-scroll the query log
+	// ── Transition: build -> activate when all steps complete ──
 	useEffect(() => {
-		if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
-	}, [visibleQueries]);
+		if (phase === 'build' && stepper.isComplete) {
+			setPhase('activate');
+		}
+	}, [phase, stepper.isComplete]);
 
-	// Cleanup on unmount
+	// Auto-scroll query log
+	useEffect(() => {
+		if (logRef.current) {
+			logRef.current.scrollTop = logRef.current.scrollHeight;
+		}
+	}, [visibleQueryIndex, queryLog]);
+
+	// Cleanup animation on unmount
 	useEffect(() => {
 		return () => {
-			if (simulationRef.current) clearInterval(simulationRef.current);
+			if (animationRef.current) clearInterval(animationRef.current);
 		};
 	}, []);
 
-	const runBeforeSimulation = () => {
-		setIsSimulating(true);
-		setVisibleQueries([]);
-		setQueryCount(0);
-		setSimulationTime(0);
-		let idx = 0;
-		const iv = setInterval(() => {
-			if (idx >= BEFORE_QUERIES.length) {
-				clearInterval(iv);
-				setIsSimulating(false);
-				setViewedBefore(true);
-				return;
-			}
-			const entry = BEFORE_QUERIES[idx];
-			setVisibleQueries((prev) => [...prev, entry]);
-			setQueryCount(idx + 1);
-			setSimulationTime((prev) => prev + entry.time);
-			idx++;
-		}, 40);
-		simulationRef.current = iv as unknown as number;
-	};
+	// ── Observe phase: fire probe ──
+	const handleFireProbe = useCallback(
+		(probeId: string) => {
+			if (isAnimating) return;
+			const probe = WATERFALL_PROBES.find((p) => p.id === probeId);
+			if (!probe) return;
 
-	const runAfterSimulation = () => {
-		setIsSimulating(true);
-		setVisibleQueries([]);
-		setQueryCount(0);
-		setSimulationTime(0);
-		setTimeout(() => {
-			setVisibleQueries(AFTER_QUERIES);
-			setQueryCount(1);
-			setSimulationTime(1.2);
-			setIsSimulating(false);
-		}, 600);
-	};
+			setActiveProbe(probeId);
+			setFiredProbes((prev) => new Set([...prev, probeId]));
 
-	const runMigration = () => {
-		setStep('adding');
-		setMigrationProgress(0);
-		let progress = 0;
-		const iv = setInterval(() => {
-			progress += 2;
-			setMigrationProgress(progress);
-			if (progress >= 100) {
-				clearInterval(iv);
-				setTimeout(() => {
-					setCounterCacheEnabled(true);
-					setStep('after');
-					setActiveTab('after');
-					setVisibleQueries([]);
-					setQueryCount(0);
-					setSimulationTime(0);
-				}, 400);
+			const lines = generateQueryLog(probe.postCount);
+			setQueryLog(lines);
+			setVisibleQueryIndex(0);
+			setQueryCount(0);
+			setIsAnimating(true);
+
+			let idx = 0;
+			const iv = setInterval(() => {
+				if (idx >= lines.length) {
+					clearInterval(iv);
+					setIsAnimating(false);
+					// Trigger discoveries after animation completes
+					for (const did of probe.discoveryIds) {
+						discoveryGating.discover(did);
+					}
+					return;
+				}
+				idx++;
+				setVisibleQueryIndex(idx);
+				setQueryCount(idx);
+			}, 30);
+			animationRef.current = iv as unknown as number;
+		},
+		[isAnimating, discoveryGating],
+	);
+
+	// ── Build phase: OptionCard handler ──
+	const handleOptionClick = useCallback(
+		(option: StepOption) => {
+			if (option.correct) {
+				stepper.completeStep();
+			} else if (option.feedback) {
+				stepper.recordWrongAttempt(option.feedback);
 			}
-		}, 30);
+		},
+		[stepper],
+	);
+
+	// ── Reward phase: fire scale scenario ──
+	const handleFireScenario = useCallback((scenarioId: string) => {
+		const scenario = SCALE_SCENARIOS.find((s) => s.id === scenarioId);
+		if (!scenario) return;
+
+		setLastScenario(scenarioId);
+		setFiredScenarios((prev) => [
+			...prev.slice(-9),
+			{
+				id: scenarioId,
+				postCount: scenario.postCount,
+				withoutCache: scenario.postCount + 1,
+				withCache: 1,
+			},
+		]);
+	}, []);
+
+	// ── Phase transitions ──
+	const handleStartBuild = () => setPhase('build');
+	const handleActivateReward = () => setPhase('reward');
+
+	// ── Completion ──
+	const handleComplete = () => {
+		onComplete({ stars: stepper.starRating });
 	};
 
 	const validateSolution = (): ValidationResult => {
-		if (!viewedBefore) {
+		if (!stepper.isComplete) {
 			return {
 				valid: false,
-				message: 'Run the "Before" simulation first!',
-				details: ['Click "Run Simulation" to see the COUNT(*) query explosion'],
+				message: 'Complete all build steps first',
+				details: stepper.steps
+					.filter((s) => s.status !== 'completed')
+					.map((s) => s.title),
 			};
 		}
-		if (!counterCacheEnabled) {
-			return {
-				valid: false,
-				message: 'Add the counter cache to fix the problem!',
-				details: ['Click "Add Counter Cache" to apply the optimization'],
-			};
-		}
-		return {
-			valid: true,
-			message: 'Counter cache eliminates N COUNT queries!',
-		};
+		return { valid: true, message: 'Counter cache eliminates N COUNT queries!' };
 	};
 
-	const handleComplete = async () => {
-		const success = await completeLevel('act4-level27-counter-caches', {
-			stars: 3,
-		});
-		if (success) onComplete({ stars: 3 });
-	};
+	// ── Reward stats ──
+	const totalSavedQueries = useMemo(
+		() =>
+			firedScenarios.reduce(
+				(sum, s) => sum + (s.withoutCache - s.withCache),
+				0,
+			),
+		[firedScenarios],
+	);
 
-	const handleReset = () => {
-		if (simulationRef.current) clearInterval(simulationRef.current);
-		setCounterCacheEnabled(false);
-		setIsSimulating(false);
-		setQueryCount(0);
-		setSimulationTime(0);
-		setStep('before');
-		setViewedBefore(false);
-		setVisibleQueries([]);
-		setActiveTab('before');
-		setMigrationProgress(0);
-	};
+	const lastResult = firedScenarios[firedScenarios.length - 1] ?? null;
 
-	const qColor = (n: number) =>
-		n === 0
-			? 'text-muted-foreground'
-			: n <= 1
-				? 'text-success'
-				: 'text-destructive';
-	const tColor = (t: number) =>
-		t === 0
-			? 'text-muted-foreground'
-			: t <= 2
-				? 'text-success'
-				: 'text-destructive';
+	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
+	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
+	const currentOptionConfig =
+		OPTION_STEP_CONFIG[stepper.currentStep] ?? null;
+	const isTerminalStep = stepper.currentStep === 0;
 
+	// ── Render ──
 	return (
 		<LevelLayout>
 			<LeftPanel>
-				<InstructionPanel
-					goal="Eliminate N COUNT(*) queries by storing the count directly on the parent table."
-					instructions={[
-						'Observe the COUNT query explosion',
-						'Add comments_count column to posts',
-						'Enable counter_cache on belongs_to',
-						'Watch queries drop to zero',
-					]}
-					scenario="The posts index shows comment counts. Each post.comments.count fires a COUNT(*) query. 100 posts = 100 extra queries."
-				>
-					{/* Steps Indicator */}
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-							Progress
+				<InstructionPanel>
+					<div className="p-4 border-b border-border space-y-3">
+						<p className="text-sm text-muted-foreground leading-relaxed">
+							The posts index shows comment counts.{' '}
+							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
+								post.comments.count
+							</code>{' '}
+							fires a separate COUNT(*) query for every post.
+							100 posts = 101 queries.
+						</p>
+						<p className="text-sm text-muted-foreground leading-relaxed">
+							{phase === 'observe'
+								? 'Fire requests at different scales to see the query explosion grow linearly.'
+								: phase === 'build'
+									? 'Add a counter cache column so Rails tracks the count automatically.'
+									: phase === 'reward'
+										? 'Fire requests at different scales. The counter cache keeps it at 1 query.'
+										: 'Your counter cache is ready. See it handle any scale.'}
+						</p>
+					</div>
+
+					{/* Observe: Discovery checklist */}
+					{phase === 'observe' && (
+						<div className="p-4 border-b border-border">
+							<DiscoveryChecklist
+								discoveredCount={discoveryGating.discoveredCount}
+								discoveries={discoveryGating.discoveries}
+								minRequired={discoveryGating.minRequired}
+							/>
 						</div>
-						<div className="space-y-2">
-							{STEP_LABELS.map((label, i) => (
-								<div className="flex items-center gap-2" key={label}>
-									<div
-										className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-											i < stepIndex
-												? 'bg-success text-success-foreground'
-												: i === stepIndex
-													? 'bg-primary text-primary-foreground'
-													: 'bg-secondary text-muted-foreground'
-										}`}
-									>
-										{i < stepIndex ? <Check className="w-3 h-3" /> : i + 1}
+					)}
+
+					{/* Build: Step progress */}
+					{(phase === 'build' || phase === 'activate') && (
+						<div className="p-4 border-b border-border">
+							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+								Steps
+							</div>
+							<StepProgress
+								currentStep={stepper.currentStep}
+								onStepClick={stepper.goToStep}
+								steps={stepper.steps}
+							/>
+						</div>
+					)}
+
+					{/* Observe: Query stats */}
+					{phase === 'observe' && activeProbe && (
+						<div className="p-4 border-b border-border">
+							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+								Query Stats
+							</div>
+							<div className="space-y-3">
+								<div className="flex items-center justify-between">
+									<div className="flex items-center gap-2 text-sm text-muted-foreground">
+										<Database className="w-4 h-4" />
+										<span>Queries</span>
 									</div>
 									<span
-										className={`text-sm ${
-											i === stepIndex
-												? 'text-foreground font-medium'
-												: i < stepIndex
-													? 'text-success'
-													: 'text-muted-foreground'
-										}`}
+										className={`text-sm font-bold tabular-nums ${queryCount > 2 ? 'text-destructive' : 'text-muted-foreground'}`}
 									>
-										{label}
+										{queryCount}
 									</span>
-									{i < STEP_LABELS.length - 1 && (
-										<ArrowRight className="w-3 h-3 text-muted-foreground ml-auto" />
-									)}
 								</div>
-							))}
-						</div>
-					</div>
-
-					{/* Query Stats */}
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-							Query Stats
-						</div>
-						<div className="space-y-3">
-							<div className="flex items-center justify-between">
-								<div className="flex items-center gap-2 text-sm text-muted-foreground">
-									<Database className="w-4 h-4" />
-									<span>Queries</span>
+								<div className="flex items-center justify-between">
+									<div className="flex items-center gap-2 text-sm text-muted-foreground">
+										<Timer className="w-4 h-4" />
+										<span>Estimated</span>
+									</div>
+									<span
+										className={`text-sm font-bold tabular-nums ${queryCount > 2 ? 'text-destructive' : 'text-muted-foreground'}`}
+									>
+										{(queryCount * 0.4).toFixed(1)}ms
+									</span>
 								</div>
-								<span className={`text-sm font-bold ${qColor(queryCount)}`}>
-									{queryCount}
-								</span>
-							</div>
-							<div className="flex items-center justify-between">
-								<div className="flex items-center gap-2 text-sm text-muted-foreground">
-									<Timer className="w-4 h-4" />
-									<span>Time</span>
-								</div>
-								<span className={`text-sm font-bold ${tColor(simulationTime)}`}>
-									{simulationTime.toFixed(1)}ms
-								</span>
 							</div>
 						</div>
-					</div>
+					)}
 
-					{/* Improvement comparison after enabling */}
-					{counterCacheEnabled && (
-						<div className="p-4 border-t border-border">
-							<div className="text-xs font-semibold text-success uppercase tracking-wider mb-3 flex items-center gap-1">
-								<TrendingDown className="w-3 h-3" />
-								Improvement
+					{/* Reward: Counters */}
+					{phase === 'reward' && (
+						<div className="p-4 border-b border-border">
+							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+								Performance
 							</div>
 							<div className="grid grid-cols-2 gap-3">
-								<div className="bg-destructive/10 rounded-lg p-3 text-center">
+								<div className="bg-success/10 rounded-lg p-3 text-center">
 									<div className="text-xs text-muted-foreground mb-1">
-										Before
+										Scenarios fired
 									</div>
-									<div className="text-lg font-bold text-destructive">101</div>
-									<div className="text-xs text-muted-foreground">queries</div>
+									<div className="text-2xl font-bold text-success tabular-nums">
+										{firedScenarios.length}
+									</div>
 								</div>
 								<div className="bg-success/10 rounded-lg p-3 text-center">
 									<div className="text-xs text-muted-foreground mb-1">
-										After
+										Queries saved
 									</div>
-									<div className="text-lg font-bold text-success">1</div>
-									<div className="text-xs text-muted-foreground">query</div>
-								</div>
-							</div>
-							<div className="grid grid-cols-2 gap-3 mt-2">
-								<div className="bg-destructive/10 rounded-lg p-3 text-center">
-									<div className="text-lg font-bold text-destructive">
-										{TOTAL_BEFORE_TIME.toFixed(1)}ms
+									<div className="text-2xl font-bold text-success tabular-nums">
+										{totalSavedQueries}
 									</div>
-								</div>
-								<div className="bg-success/10 rounded-lg p-3 text-center">
-									<div className="text-lg font-bold text-success">1.2ms</div>
 								</div>
 							</div>
 						</div>
@@ -315,436 +762,494 @@ export function Level27CounterCaches({
 					levelName="Counter Caches"
 					levelNumber={27}
 					onComplete={handleComplete}
-					onReset={handleReset}
+					onReset={() => {
+						window.location.reload();
+					}}
 					onValidate={validateSolution}
 				/>
 
-				<div className="flex-1 relative bg-background p-6 overflow-auto">
-					<div className="max-w-3xl mx-auto">
-						{/* Mode Toggle Tabs */}
-						<div className="flex gap-1 mb-6 bg-secondary rounded-lg p-1">
-							<Button
-								className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-									activeTab === 'before'
-										? 'bg-card text-foreground shadow-sm'
-										: 'text-muted-foreground hover:text-foreground'
-								}`}
-								onClick={() => {
-									setActiveTab('before');
-									if (step === 'after') {
-										setVisibleQueries([]);
-										setQueryCount(0);
-										setSimulationTime(0);
-									}
-								}}
-							>
-								<div className="flex items-center justify-center gap-2">
-									<Database className="w-4 h-4" />
-									Before
+				<div className="flex-1 flex flex-col bg-background overflow-hidden">
+					{/* ── Phase 1: Observe (WHY) ── */}
+					{phase === 'observe' && (
+						<div className="flex-1 flex flex-col overflow-auto">
+							{/* Header */}
+							<div className="px-6 pt-4 pb-2 flex items-center justify-between">
+								<div className="text-sm font-semibold text-foreground">
+									Query Waterfall: GET /api/posts
 								</div>
-							</Button>
-							<Button
-								className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-									activeTab === 'after'
-										? 'bg-card text-foreground shadow-sm'
-										: counterCacheEnabled
-											? 'text-muted-foreground hover:text-foreground'
-											: 'text-muted-foreground/50 cursor-not-allowed'
-								}`}
-								disabled={!counterCacheEnabled}
-								onClick={() => {
-									if (!counterCacheEnabled) return;
-									setActiveTab('after');
-									setVisibleQueries([]);
-									setQueryCount(0);
-									setSimulationTime(0);
-								}}
-							>
-								<div className="flex items-center justify-center gap-2">
-									<Zap className="w-4 h-4" />
-									After
-									{!counterCacheEnabled && (
-										<span className="text-xs opacity-50">(locked)</span>
-									)}
-								</div>
-							</Button>
-						</div>
+								<span className="text-xs font-mono text-destructive font-bold">
+									N+1 COUNT(*) explosion
+								</span>
+							</div>
 
-						{/* Migration Animation */}
-						{step === 'adding' && (
-							<div className="bg-card rounded-xl border border-primary overflow-hidden mb-6 animate-in fade-in duration-300">
-								<div className="bg-primary/10 px-4 py-3 border-b border-primary/30">
-									<div className="flex items-center gap-2 text-primary font-semibold">
-										<Hash className="w-4 h-4" />
-										Running Migration...
-									</div>
+							{/* Probe buttons */}
+							<div className="px-6 py-3">
+								<div className="flex gap-2">
+									{WATERFALL_PROBES.map((probe) => {
+										const fired = firedProbes.has(probe.id);
+										return (
+											<Button
+												className="gap-2 flex-1"
+												disabled={
+													isAnimating ||
+													(fired &&
+														activeProbe !== probe.id)
+												}
+												key={probe.id}
+												onClick={() =>
+													handleFireProbe(probe.id)
+												}
+												size="sm"
+												variant={
+													fired ? 'secondary' : 'outline'
+												}
+											>
+												<Search className="w-3.5 h-3.5" />
+												{probe.label}
+											</Button>
+										);
+									})}
 								</div>
-								<div className="p-6">
-									<pre className="text-sm text-muted-foreground bg-secondary p-4 rounded-lg mb-4 overflow-x-auto font-mono">
-										<code>
-											<span className="text-primary">rails</span> db:migrate
-											{'\n\n'}
-											<span className="text-success">
-												== AddCommentsCountToPosts: migrating ==
+							</div>
+
+							{/* Query waterfall log */}
+							<div className="px-6 flex-1 min-h-0">
+								<div className="rounded-lg border border-zinc-700 bg-zinc-900 overflow-hidden h-full flex flex-col">
+									{/* Terminal header */}
+									<div className="flex items-center gap-2 px-3 py-2 bg-zinc-800 border-b border-zinc-700">
+										<div className="flex gap-1.5">
+											<div className="w-3 h-3 rounded-full bg-red-500" />
+											<div className="w-3 h-3 rounded-full bg-yellow-500" />
+											<div className="w-3 h-3 rounded-full bg-green-500" />
+										</div>
+										<Database className="w-3.5 h-3.5 text-zinc-400 ml-1" />
+										<span className="text-xs text-zinc-400 font-mono">
+											Database Log
+										</span>
+										{queryCount > 0 && (
+											<span
+												className={`text-xs font-mono ml-auto px-2 py-0.5 rounded ${
+													queryCount > 2
+														? 'bg-red-500/20 text-red-400'
+														: 'text-zinc-500'
+												}`}
+											>
+												{queryCount}{' '}
+												{queryCount === 1
+													? 'query'
+													: 'queries'}
 											</span>
-											{'\n'}
-											{'-- '}add_column(:posts, :comments_count, :integer,{'\n'}
-											{'   '}default: 0, null: false)
-										</code>
-									</pre>
-									<div className="flex justify-between text-xs text-muted-foreground mb-2">
-										<span>Adding column and resetting counters...</span>
-										<span>{migrationProgress}%</span>
+										)}
 									</div>
-									<div className="h-2 bg-secondary rounded-full overflow-hidden">
-										<div
-											className="h-full bg-primary transition-all duration-75 rounded-full"
-											style={{ width: `${migrationProgress}%` }}
-										/>
+
+									{/* Log body */}
+									<div
+										className="flex-1 p-3 overflow-y-auto font-mono text-xs space-y-0.5"
+										ref={logRef}
+									>
+										{queryLog.length === 0 ? (
+											<div className="text-zinc-500 text-center py-8">
+												Fire a request to see the query
+												waterfall...
+											</div>
+										) : (
+											queryLog
+												.slice(0, visibleQueryIndex)
+												.map((line, i) => (
+													<div
+														className={
+															line.includes('COUNT')
+																? 'text-red-400/80'
+																: 'text-emerald-400'
+														}
+														key={i}
+													>
+														{line}
+													</div>
+												))
+										)}
 									</div>
 								</div>
 							</div>
-						)}
 
-						{/* Before Mode */}
-						{step !== 'adding' && activeTab === 'before' && (
-							<>
-								<div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
-									<div className="bg-secondary px-4 py-3 border-b border-border">
-										<div className="text-foreground font-semibold flex items-center gap-2">
-											<Database className="w-4 h-4 text-destructive" />
-											Without Counter Cache
-										</div>
-										<div className="text-xs text-muted-foreground mt-1">
-											Each post.comments.count fires a separate COUNT(*) query
-										</div>
-									</div>
-									<div className="p-4">
-										<pre className="bg-secondary p-3 rounded-lg text-sm text-muted-foreground overflow-x-auto">
-											<code>
-												<span className="text-muted-foreground">
-													# app/serializers/post_serializer.rb
-												</span>
-												{'\n'}
-												{'attribute :comment_count do |post|'}
-												{'\n'}
-												{'  '}
-												<span className="text-destructive">
-													{'post.comments.count'}
-												</span>
-												{'\n'}
-												{'end'}
-											</code>
-										</pre>
-									</div>
-								</div>
-
-								{/* Query Counter + Timer */}
-								<div className="grid grid-cols-2 gap-4 mb-6">
-									<div className="bg-card rounded-xl border border-border p-4 text-center">
-										<div className="text-xs text-muted-foreground mb-1">
-											Database Queries
-										</div>
-										<div
-											className={`text-4xl font-bold tabular-nums ${qColor(queryCount)}`}
-										>
-											{queryCount}
-										</div>
-										{queryCount > 10 && (
-											<div className="text-xs text-destructive mt-1 flex items-center justify-center gap-1">
-												<ArrowDown className="w-3 h-3" />
-												N+1 COUNT explosion
-											</div>
-										)}
-									</div>
-									<div className="bg-card rounded-xl border border-border p-4 text-center">
-										<div className="text-xs text-muted-foreground mb-1">
-											Total Time
-										</div>
-										<div
-											className={`text-4xl font-bold tabular-nums ${tColor(simulationTime)}`}
-										>
-											{simulationTime.toFixed(1)}
-										</div>
-										<div className="text-xs text-muted-foreground">ms</div>
-									</div>
-								</div>
-
-								{/* Database Query Log */}
-								<div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
-									<div className="bg-secondary px-4 py-2 border-b border-border flex justify-between items-center">
-										<span className="text-muted-foreground text-sm font-semibold flex items-center gap-2">
-											<Database className="w-3 h-3" />
-											Database Log
-										</span>
-										<span
-											className={`text-xs px-2 py-1 rounded ${queryCount > 2 ? 'bg-destructive/20 text-destructive' : 'bg-secondary text-muted-foreground'}`}
-										>
-											{queryCount} {queryCount === 1 ? 'query' : 'queries'}
-										</span>
-									</div>
-									<div
-										className="p-3 h-56 overflow-y-auto font-mono text-xs space-y-0.5"
-										ref={logRef}
-									>
-										{visibleQueries.length === 0 ? (
-											<div className="text-muted-foreground text-center py-8">
-												Click "Run Simulation" to see the queries...
-											</div>
-										) : (
-											visibleQueries.map((entry, i) => (
-												<div
-													className={
-														entry.text.includes('COUNT')
-															? 'text-destructive/80'
-															: 'text-primary'
-													}
-													key={i}
-												>
-													{entry.text}
-												</div>
-											))
-										)}
-									</div>
-								</div>
-
-								{/* Action Button */}
-								<div className="flex justify-center">
-									{!viewedBefore ? (
-										<Button
-											disabled={isSimulating}
-											onClick={runBeforeSimulation}
-											size="lg"
-											variant={isSimulating ? 'secondary' : 'default'}
-										>
-											<Database
-												className={`w-4 h-4 mr-2 ${isSimulating ? 'animate-pulse' : ''}`}
-											/>
-											{isSimulating
-												? `Simulating... (${queryCount}/101)`
-												: 'Run Simulation'}
-										</Button>
-									) : (
-										<Button
-											className="text-base px-8 py-4 h-auto"
-											onClick={runMigration}
-											size="lg"
-										>
-											<Zap className="w-5 h-5 mr-2" />
-											Add Counter Cache
-										</Button>
-									)}
-								</div>
-							</>
-						)}
-
-						{/* After Mode */}
-						{step === 'after' && activeTab === 'after' && (
-							<>
-								<div className="bg-card rounded-xl border border-success/30 overflow-hidden mb-6">
-									<div className="bg-success/10 px-4 py-3 border-b border-success/20">
-										<div className="text-foreground font-semibold flex items-center gap-2">
-											<Zap className="w-4 h-4 text-success" />
-											With Counter Cache
-										</div>
-										<div className="text-xs text-muted-foreground mt-1">
-											comments_count is stored on the posts table -- zero extra
-											queries
-										</div>
-									</div>
-									<div className="p-4">
-										<pre className="bg-secondary p-3 rounded-lg text-sm text-muted-foreground overflow-x-auto">
-											<code>
-												<span className="text-muted-foreground">
-													# app/serializers/post_serializer.rb
-												</span>
-												{'\n'}
-												{'attribute :comment_count do |post|'}
-												{'\n'}
-												{'  '}
-												<span className="text-success">
-													{'post.comments_count'}
-												</span>
-												{'\n'}
-												{'end'}
-											</code>
-										</pre>
-									</div>
-								</div>
-
-								{/* Query Counter + Timer (After) */}
-								<div className="grid grid-cols-2 gap-4 mb-6">
-									<div className="bg-card rounded-xl border border-success/30 p-4 text-center">
-										<div className="text-xs text-muted-foreground mb-1">
-											Database Queries
-										</div>
-										<div
-											className={`text-4xl font-bold tabular-nums ${queryCount === 0 ? 'text-muted-foreground' : 'text-success'}`}
-										>
-											{queryCount}
-										</div>
-										{queryCount === 1 && (
-											<div className="text-xs text-success mt-1 flex items-center justify-center gap-1">
-												<Check className="w-3 h-3" />
-												Just one query
-											</div>
-										)}
-									</div>
-									<div className="bg-card rounded-xl border border-success/30 p-4 text-center">
-										<div className="text-xs text-muted-foreground mb-1">
-											Total Time
-										</div>
-										<div
-											className={`text-4xl font-bold tabular-nums ${simulationTime === 0 ? 'text-muted-foreground' : 'text-success'}`}
-										>
-											{simulationTime.toFixed(1)}
-										</div>
-										<div className="text-xs text-muted-foreground">ms</div>
-									</div>
-								</div>
-
-								{/* Database Query Log (After) */}
-								<div className="bg-card rounded-xl border border-success/30 overflow-hidden mb-6">
-									<div className="bg-success/10 px-4 py-2 border-b border-success/20 flex justify-between items-center">
-										<span className="text-muted-foreground text-sm font-semibold flex items-center gap-2">
-											<Database className="w-3 h-3" />
-											Database Log
-										</span>
-										<span className="text-xs px-2 py-1 rounded bg-success/20 text-success">
-											{queryCount} {queryCount === 1 ? 'query' : 'queries'}
-										</span>
-									</div>
-									<div className="p-3 h-56 overflow-y-auto font-mono text-xs space-y-0.5">
-										{visibleQueries.length === 0 ? (
-											<div className="text-muted-foreground text-center py-8">
-												Click "Run Simulation" to see the optimized query...
-											</div>
-										) : (
-											visibleQueries.map((entry, i) => (
-												<div className="text-success" key={i}>
-													{entry.text}
-												</div>
-											))
-										)}
-										{queryCount === 1 && (
-											<div className="text-muted-foreground mt-4 text-center">
-												No COUNT(*) queries needed -- the count is already on
-												the posts row.
-											</div>
-										)}
-									</div>
-								</div>
-
-								{/* Before vs After Comparison Table */}
-								<div className="bg-card rounded-xl border border-border overflow-hidden mb-6">
-									<div className="bg-secondary px-4 py-3 border-b border-border">
-										<div className="text-foreground font-semibold flex items-center gap-2">
-											<TrendingDown className="w-4 h-4 text-success" />
-											Before vs After
-										</div>
-									</div>
-									<div className="grid grid-cols-3 gap-0 divide-x divide-border text-center">
-										<div className="p-3">
-											<div className="text-xs text-muted-foreground">
-												Metric
-											</div>
-										</div>
-										<div className="p-3 bg-destructive/5">
-											<div className="text-xs text-destructive">Before</div>
-										</div>
-										<div className="p-3 bg-success/5">
-											<div className="text-xs text-success">After</div>
-										</div>
-
-										<div className="p-3 border-t border-border">
-											<div className="text-sm text-muted-foreground">
-												Queries
-											</div>
-										</div>
-										<div className="p-3 bg-destructive/5 border-t border-border">
-											<div className="text-2xl font-bold text-destructive">
-												101
-											</div>
-										</div>
-										<div className="p-3 bg-success/5 border-t border-border">
-											<div className="text-2xl font-bold text-success">1</div>
-										</div>
-
-										<div className="p-3 border-t border-border">
-											<div className="text-sm text-muted-foreground">Time</div>
-										</div>
-										<div className="p-3 bg-destructive/5 border-t border-border">
-											<div className="text-2xl font-bold text-destructive">
-												{TOTAL_BEFORE_TIME.toFixed(1)}ms
-											</div>
-										</div>
-										<div className="p-3 bg-success/5 border-t border-border">
-											<div className="text-2xl font-bold text-success">
-												1.2ms
-											</div>
-										</div>
-
-										<div className="p-3 border-t border-border">
-											<div className="text-sm text-muted-foreground">
-												Reduction
-											</div>
-										</div>
-										<div className="p-3 bg-destructive/5 border-t border-border">
-											<div className="text-sm text-muted-foreground">--</div>
-										</div>
-										<div className="p-3 bg-success/5 border-t border-border">
-											<div className="text-lg font-bold text-success">99%</div>
-										</div>
-									</div>
-								</div>
-
-								{/* Run After Simulation */}
-								<div className="flex justify-center">
+							{/* Build the Fix button (gated) */}
+							<div className="p-4 flex justify-center">
+								{discoveryGating.isUnlocked && (
 									<Button
-										disabled={isSimulating}
-										onClick={runAfterSimulation}
+										className="gap-2 animate-in fade-in duration-500"
+										onClick={handleStartBuild}
 										size="lg"
-										variant={queryCount > 0 ? 'secondary' : 'default'}
 									>
-										<Zap
-											className={`w-4 h-4 mr-2 ${isSimulating ? 'animate-pulse' : ''}`}
-										/>
-										{isSimulating
-											? 'Running...'
-											: queryCount > 0
-												? 'Run Again'
-												: 'Run Simulation'}
+										Build the Fix
+										<ArrowRight className="w-4 h-4" />
 									</Button>
+								)}
+							</div>
+						</div>
+					)}
+
+					{/* ── Phase 2: Build (HOW) ── */}
+					{phase === 'build' && (
+						<div className="flex-1 overflow-auto p-6">
+							<div className="max-w-2xl mx-auto space-y-4">
+								{/* Step 0: Terminal step */}
+								{isTerminalStep && (
+									<TerminalChoiceStep
+										commands={MIGRATION_COMMANDS}
+										completed={isViewingCompletedStep}
+										description={
+											<p className="text-sm text-muted-foreground">
+												You need a{' '}
+												<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
+													comments_count
+												</code>{' '}
+												integer column on the posts
+												table. Generate the migration.
+											</p>
+										}
+										hasNext={hasNextStep}
+										initialHistory={buildTerminalHistory(
+											TERMINAL_STEP_MAP,
+											stepper.currentStep,
+										)}
+										onCorrect={() =>
+											stepper.completeStep()
+										}
+										onNext={stepper.nextStep}
+										onWrong={(fb) =>
+											stepper.recordWrongAttempt(fb)
+										}
+										outputLines={MIGRATION_OUTPUT}
+										stepKey={stepper.currentStep}
+										title="Generate the Migration"
+									/>
+								)}
+
+								{/* Steps 1-3: OptionCard steps */}
+								{!isTerminalStep && currentOptionConfig && (
+									<>
+										<h3 className="text-lg font-semibold text-foreground">
+											{currentOptionConfig.title}
+										</h3>
+										<p className="text-sm text-muted-foreground">
+											{currentOptionConfig.description}
+										</p>
+
+										{isViewingCompletedStep ? (
+											<div className="space-y-2">
+												{currentOptionConfig.options.map(
+													(opt) => (
+														<OptionCard
+															color="violet"
+															disabled={
+																!opt.correct
+															}
+															key={opt.id}
+															mono
+															name={opt.label}
+															selected={
+																opt.correct
+															}
+															size="lg"
+														/>
+													),
+												)}
+											</div>
+										) : (
+											<>
+												<div className="space-y-2">
+													{currentOptionConfig.options.map(
+														(opt) => (
+															<OptionCard
+																color="violet"
+																key={opt.id}
+																mono
+																name={
+																	opt.label
+																}
+																onClick={() =>
+																	handleOptionClick(
+																		opt,
+																	)
+																}
+																size="lg"
+															/>
+														),
+													)}
+												</div>
+
+												<ErrorFeedback
+													message={
+														stepper.lastFeedback
+													}
+													onDismiss={
+														stepper.clearFeedback
+													}
+												/>
+											</>
+										)}
+
+										{isViewingCompletedStep &&
+											hasNextStep && (
+												<div className="flex justify-end">
+													<Button
+														className="gap-2"
+														onClick={
+															stepper.nextStep
+														}
+														size="sm"
+													>
+														Next Step
+														<ArrowRight className="w-4 h-4" />
+													</Button>
+												</div>
+											)}
+									</>
+								)}
+							</div>
+						</div>
+					)}
+
+					{/* ── Phase 3: Activate ── */}
+					{phase === 'activate' && (
+						<div className="flex-1 flex items-center justify-center p-6">
+							<div className="max-w-md text-center space-y-6">
+								<div className="flex justify-center gap-1">
+									{[1, 2, 3].map((s) => (
+										<Star
+											className={`w-8 h-8 ${
+												s <= stepper.starRating
+													? 'text-yellow-400 fill-yellow-400'
+													: 'text-muted-foreground/30'
+											}`}
+											key={s}
+										/>
+									))}
 								</div>
-							</>
-						)}
-					</div>
+								<p className="text-sm text-muted-foreground">
+									Counter cache is configured. Rails will
+									auto-increment and auto-decrement
+									comments_count on create and destroy. See
+									it handle any scale.
+								</p>
+								<Button
+									className="gap-2"
+									onClick={handleActivateReward}
+									size="lg"
+								>
+									<Play className="w-4 h-4" />
+									Visualize Counter Cache
+								</Button>
+							</div>
+						</div>
+					)}
+
+					{/* ── Phase 4: Reward ── */}
+					{phase === 'reward' && (
+						<div className="flex-1 flex flex-col overflow-auto">
+							{/* Header */}
+							<div className="px-6 pt-4 pb-2 flex items-center justify-between">
+								<div className="text-sm font-semibold text-foreground">
+									Scale Test: Counter Cache vs COUNT(*)
+								</div>
+								<div className="flex items-center gap-2">
+									<TrendingDown className="w-4 h-4 text-success" />
+									<span className="text-xs font-mono text-success font-bold">
+										Always 1 query
+									</span>
+								</div>
+							</div>
+
+							{/* Scenario buttons */}
+							<div className="px-6 py-3">
+								<div className="text-xs text-muted-foreground mb-2">
+									Fire requests at different scales:
+								</div>
+								<div className="flex gap-2 flex-wrap">
+									{SCALE_SCENARIOS.map((scenario) => (
+										<Button
+											className="gap-2"
+											key={scenario.id}
+											onClick={() =>
+												handleFireScenario(
+													scenario.id,
+												)
+											}
+											size="sm"
+											variant={
+												lastScenario === scenario.id
+													? 'default'
+													: 'outline'
+											}
+										>
+											<Database className="w-3.5 h-3.5" />
+											{scenario.label}
+										</Button>
+									))}
+								</div>
+							</div>
+
+							{/* Before/After comparison panel */}
+							<div className="px-6 flex-1 min-h-0 pb-4">
+								{lastResult ? (
+									<div className="space-y-4">
+										{/* Comparison grid */}
+										<div className="grid grid-cols-2 gap-4">
+											{/* Without counter cache */}
+											<div className="rounded-lg border border-destructive/30 bg-zinc-900 overflow-hidden">
+												<div className="flex items-center gap-2 px-3 py-2 bg-destructive/10 border-b border-destructive/20">
+													<Database className="w-3.5 h-3.5 text-red-400" />
+													<span className="text-xs text-red-400 font-mono font-bold">
+														Without Counter Cache
+													</span>
+												</div>
+												<div className="p-4 text-center">
+													<div className="text-4xl font-bold text-red-400 tabular-nums">
+														{lastResult.withoutCache}
+													</div>
+													<div className="text-xs text-zinc-500 mt-1">
+														queries
+													</div>
+													<div className="text-xs text-zinc-500 mt-2 font-mono">
+														1 + {lastResult.postCount}{' '}
+														COUNT(*)
+													</div>
+													<div className="text-sm text-red-400 font-mono mt-2">
+														~
+														{(
+															lastResult.withoutCache *
+															0.4
+														).toFixed(0)}
+														ms
+													</div>
+												</div>
+											</div>
+
+											{/* With counter cache */}
+											<div className="rounded-lg border border-success/30 bg-zinc-900 overflow-hidden">
+												<div className="flex items-center gap-2 px-3 py-2 bg-success/10 border-b border-success/20">
+													<Zap className="w-3.5 h-3.5 text-emerald-400" />
+													<span className="text-xs text-emerald-400 font-mono font-bold">
+														With Counter Cache
+													</span>
+												</div>
+												<div className="p-4 text-center">
+													<div className="text-4xl font-bold text-emerald-400 tabular-nums">
+														{lastResult.withCache}
+													</div>
+													<div className="text-xs text-zinc-500 mt-1">
+														query
+													</div>
+													<div className="text-xs text-zinc-500 mt-2 font-mono">
+														Just SELECT posts.*
+													</div>
+													<div className="text-sm text-emerald-400 font-mono mt-2">
+														~1.2ms
+													</div>
+												</div>
+											</div>
+										</div>
+
+										{/* Reduction stat */}
+										<div className="rounded-lg border border-border bg-card p-4 text-center">
+											<div className="flex items-center justify-center gap-3">
+												<div className="text-sm text-muted-foreground">
+													Query reduction:
+												</div>
+												<div className="text-2xl font-bold text-success">
+													{Math.round(
+														((lastResult.withoutCache -
+															lastResult.withCache) /
+															lastResult.withoutCache) *
+															100,
+													)}
+													%
+												</div>
+												<div className="text-sm text-muted-foreground">
+													({lastResult.withoutCache -
+														lastResult.withCache}{' '}
+													fewer queries)
+												</div>
+											</div>
+										</div>
+
+										{/* Results log */}
+										<div className="rounded-lg border border-zinc-700 bg-zinc-900 overflow-hidden">
+											<div className="flex items-center gap-2 px-3 py-2 bg-zinc-800 border-b border-zinc-700">
+												<div className="flex gap-1.5">
+													<div className="w-3 h-3 rounded-full bg-red-500" />
+													<div className="w-3 h-3 rounded-full bg-yellow-500" />
+													<div className="w-3 h-3 rounded-full bg-green-500" />
+												</div>
+												<TrendingDown className="w-3.5 h-3.5 text-zinc-400 ml-1" />
+												<span className="text-xs text-zinc-400 font-mono">
+													Scale Results
+												</span>
+											</div>
+											<div className="p-3 font-mono text-xs max-h-36 overflow-y-auto space-y-1">
+												{firedScenarios.map(
+													(result, i) => (
+														<div
+															className="flex items-center gap-3"
+															key={i}
+														>
+															<span className="text-zinc-500">
+																GET /api/posts?limit=
+																{
+																	result.postCount
+																}
+															</span>
+															<span className="text-red-400">
+																{
+																	result.withoutCache
+																}
+																q
+															</span>
+															<span className="text-zinc-600">
+																{'->'}
+															</span>
+															<span className="text-emerald-400">
+																{result.withCache}
+																q
+															</span>
+															<span className="text-emerald-400/60">
+																(-
+																{result.withoutCache -
+																	result.withCache}
+																)
+															</span>
+														</div>
+													),
+												)}
+											</div>
+										</div>
+									</div>
+								) : (
+									<div className="flex items-center justify-center h-full">
+										<div className="text-center space-y-3">
+											<Database className="w-12 h-12 text-muted-foreground/30 mx-auto" />
+											<p className="text-sm text-muted-foreground">
+												Fire a scenario to compare
+												query counts at different
+												scales
+											</p>
+										</div>
+									</div>
+								)}
+							</div>
+						</div>
+					)}
 				</div>
 			</CenterPanel>
 
 			<RightPanel>
 				<CodePreviewPanel
-					files={[
-						{
-							filename: 'db/migrate/add_comments_count_to_posts.rb',
-							language: 'ruby',
-							highlight: [3, 4],
-							code: `class AddCommentsCountToPosts < ActiveRecord::Migration[7.1]\n  def change\n    add_column :posts, :comments_count,\n               :integer, default: 0, null: false\n  end\nend\n\n# Then reset existing counters:\n# Post.find_each do |post|\n#   Post.reset_counters(post.id, :comments)\n# end`,
-						},
-						{
-							filename: 'app/models/comment.rb',
-							language: 'ruby',
-							highlight: [2],
-							code: `class Comment < ApplicationRecord\n  belongs_to :post, counter_cache: true\nend\n\n# Rails automatically:\n# - Increments posts.comments_count on create\n# - Decrements posts.comments_count on destroy\n# - No manual updates needed`,
-						},
-						{
-							filename: 'app/models/post.rb',
-							language: 'ruby',
-							highlight: [4],
-							code: `class Post < ApplicationRecord\n  has_many :comments\n\n  # .size  → uses counter cache (fast)\n  # .count → always runs COUNT(*) (slow)\n  # .length → loads all records (bad)\nend`,
-						},
-					]}
-					learningGoal="Counter caches store association counts on the parent table. Rails auto-increments/decrements on create/destroy -- zero queries to get the count."
+					files={getCodeFiles(phase, stepper.furthestStep)}
+					learningGoal={
+						phase === 'observe'
+							? 'Each post.comments.count fires a COUNT(*) query. With 100 posts, that is 101 total queries.'
+							: 'counter_cache stores the count on the parent table. Rails auto-increments on create, auto-decrements on destroy.'
+					}
 				>
 					<div className="p-4 border-t border-border">
 						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-3">
@@ -752,7 +1257,7 @@ export function Level27CounterCaches({
 						</div>
 						<div className="space-y-3 text-xs">
 							<div className="flex items-start gap-2">
-								<Hash className="w-3 h-3 text-primary mt-0.5 shrink-0" />
+								<Database className="w-3 h-3 text-primary mt-0.5 shrink-0" />
 								<div>
 									<span className="text-foreground font-medium">
 										counter_cache: true
@@ -763,13 +1268,14 @@ export function Level27CounterCaches({
 								</div>
 							</div>
 							<div className="flex items-start gap-2">
-								<Database className="w-3 h-3 text-primary mt-0.5 shrink-0" />
+								<Zap className="w-3 h-3 text-primary mt-0.5 shrink-0" />
 								<div>
 									<span className="text-foreground font-medium">
-										default: 0, null: false
+										.size vs .count vs .length
 									</span>
 									<div className="text-muted-foreground">
-										Always set defaults on the column
+										.size reads the cache; .count always
+										queries; .length loads all records
 									</div>
 								</div>
 							</div>
@@ -780,18 +1286,8 @@ export function Level27CounterCaches({
 										reset_counters
 									</span>
 									<div className="text-muted-foreground">
-										Fix out-of-sync data after migration
-									</div>
-								</div>
-							</div>
-							<div className="flex items-start gap-2">
-								<Zap className="w-3 h-3 text-primary mt-0.5 shrink-0" />
-								<div>
-									<span className="text-foreground font-medium">
-										.size vs .count vs .length
-									</span>
-									<div className="text-muted-foreground">
-										.size uses cache; .count always queries
+										Recalculate cached values for existing
+										records after migration
 									</div>
 								</div>
 							</div>
@@ -803,7 +1299,14 @@ export function Level27CounterCaches({
 							Custom Column Name
 						</div>
 						<pre className="text-xs text-muted-foreground bg-secondary p-2 rounded overflow-x-auto">
-							{`# Use a custom column name:\nbelongs_to :post,\n  counter_cache: :total_comments\n\n# Column must match on parent:\nadd_column :posts,\n  :total_comments, :integer,\n  default: 0, null: false`}
+							{`# Use a custom column name:
+belongs_to :post,
+  counter_cache: :total_comments
+
+# Column must match on parent:
+add_column :posts,
+  :total_comments, :integer,
+  default: 0, null: false`}
 						</pre>
 					</div>
 				</CodePreviewPanel>

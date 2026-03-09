@@ -20,7 +20,7 @@ const level23N1Problem: Level = {
 	trigger: {
 		type: 'performance_alert',
 		description:
-			'10K users hit the API daily. Response times crept above 2 seconds. The database log reveals a devastating pattern.',
+			'10K users hit the API daily. Response times crept above 2 seconds. Explore the request pipeline, trace the query explosion, then set up Prosopite and Bullet to catch N+1 automatically.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -90,7 +90,7 @@ const level23N1Problem: Level = {
 		codeExample: `# app/controllers/api/v1/posts_controller.rb
 def index
   @posts = Post.all
-  render json: PostSerializer.new(@posts).serializable_hash.to_json
+  render json: PostSerializer.new(@posts)
 end
 
 # app/serializers/post_serializer.rb
@@ -110,21 +110,8 @@ end
 #   User Load (0.3ms)  SELECT "users".* FROM "users" WHERE "users"."id" = 3
 #   ... 97 more queries
 #
-# Total: 101 queries, 850ms
-
-# Install the bullet gem to detect N+1 automatically:
-# Gemfile
-gem 'bullet', group: :development
-
-# config/environments/development.rb
-config.after_initialize do
-  Bullet.enable = true
-  Bullet.alert = true
-  Bullet.bullet_logger = true
-  Bullet.console = true
-  Bullet.rails_logger = true
-end`,
-		goal: 'Identify the N+1 query pattern. Trace the 101 queries back to the serializer accessing post.user.',
+# Total: 101 queries, 850ms`,
+		goal: 'Explore the pipeline to find the N+1 pattern. Then install Prosopite and Bullet to detect N+1 queries automatically, and enable strict_loading on the Post model.',
 		thresholds: { maxQueriesPerRequest: 5 },
 	},
 	successConditions: [{ type: 'n1_identified' }],
@@ -238,7 +225,7 @@ end
 	},
 	hint: {
 		delay: 25,
-		text: 'Count the queries in the database log. Each post.user call triggers a separate SELECT.',
+		text: 'Click pipeline stages and fire probes at different data sizes. Watch how query count scales with post count.',
 	},
 };
 
@@ -254,7 +241,7 @@ const level24EagerLoading: Level = {
 	trigger: {
 		type: 'optimization',
 		description:
-			'The N+1 problem is identified. Now fix it. Batch those user queries into a single load. Response time must drop to 50ms.',
+			'Explore the N+1 query explosion, then apply the right eager loading strategy (includes, preload, or eager_load) for three different scenarios.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -318,25 +305,21 @@ const level24EagerLoading: Level = {
 	},
 	problem: {
 		observation:
-			'101 queries identified. Need to collapse N user queries into 1 batch query.',
+			'101 queries for 100 posts. Every post.author.name triggers a separate SELECT. Nested associations make it 1000+.',
 		rootCause:
 			'Associations are lazy-loaded by default. Rails only queries the database when you first access the association.',
-		codeExample: `# BEFORE: 101 queries (N+1)
+		codeExample: `# The controller does Post.all with no eager loading:
 @posts = Post.all
-# SELECT "posts".* FROM "posts"
-# Then for each post:
-#   SELECT "users".* FROM "users" WHERE "users"."id" = ?
-
-# AFTER: 2 queries (eager loaded)
-@posts = Post.includes(:user)
-# SELECT "posts".* FROM "posts"
-# SELECT "users".* FROM "users" WHERE "users"."id" IN (1, 2, 3, ...)
+# View calls post.author.name per post -> N+1
 
 # Rails provides three strategies:
 Post.includes(:user)     # Smart default: 2 queries or JOIN
 Post.preload(:user)      # Always 2 separate queries
-Post.eager_load(:user)   # Always LEFT OUTER JOIN (1 query)`,
-		goal: 'Apply the correct eager loading strategy. Drop from 101 queries to 2. Response time under 50ms.',
+Post.eager_load(:user)   # Always LEFT OUTER JOIN (1 query)
+
+# Common trap: joins does NOT prevent N+1!
+Post.joins(:user)  # INNER JOINs but does NOT load user records`,
+		goal: 'Explore the N+1 problem in the query pipeline, then choose the right eager loading strategy for three scenarios: basic includes, nested associations, and filtered queries.',
 		thresholds: { maxQueriesPerRequest: 3, maxLatency: 50 },
 	},
 	successConditions: [{ type: 'eager_loading_applied' }],
@@ -469,7 +452,7 @@ end
 	},
 	hint: {
 		delay: 20,
-		text: 'Add an Eager Load node. Use .includes(:user) to batch the user queries into one.',
+		text: 'Fire probes in the observe phase to see query counts explode. Click pipeline stages to inspect the lazy-loading code.',
 	},
 };
 
@@ -687,7 +670,7 @@ const level26DatabaseIndexing: Level = {
 	trigger: {
 		type: 'performance_alert',
 		description:
-			'GET /api/users?email=alice@example.com takes 800ms. The EXPLAIN output shows a sequential scan across 10,000 rows.',
+			'Explore slow queries with EXPLAIN probes, then add database indexes via Rails migrations to eliminate sequential scans.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -764,7 +747,7 @@ end
 User.find_by(email: params[:email])          # WHERE email = ?
 Post.where(user_id: user.id)                 # Foreign key lookup
 Post.where(published: true).order(:created_at) # Composite query`,
-		goal: 'Add the correct database indexes. EXPLAIN should show Index Scan instead of Seq Scan.',
+		goal: 'Generate a migration, add unique/B-tree/composite indexes to the right columns, and run the migration. Verify EXPLAIN shows Index Scan.',
 		thresholds: { maxLatency: 10 },
 	},
 	successConditions: [{ type: 'queries_optimized' }],
@@ -884,7 +867,7 @@ add_index :users, :email, algorithm: :concurrently`,
 	},
 	hint: {
 		delay: 20,
-		text: 'Run EXPLAIN ANALYZE on the slow query. Add an index on the email column with add_index :users, :email, unique: true.',
+		text: 'Fire the EXPLAIN probes and click the Database stage to discover all the slow queries. Look for Seq Scan in the output.',
 	},
 };
 
@@ -990,7 +973,7 @@ end
 #
 # includes(:comments) would fix N+1 but loads ALL comment records
 # into memory just to count them. That is worse!`,
-		goal: 'Eliminate the COUNT queries. Store the count directly on the posts table.',
+		goal: 'Generate the counter cache migration, add counter_cache: true to belongs_to, reset existing counters, and update the serializer.',
 		thresholds: { maxQueriesPerRequest: 3 },
 	},
 	successConditions: [{ type: 'counter_cache_configured' }],
@@ -1107,7 +1090,7 @@ end`,
 	},
 	hint: {
 		delay: 20,
-		text: 'Add a comments_count column to posts and use counter_cache: true on the belongs_to association.',
+		text: 'The COUNT queries fire because there is no cached value. Generate a migration to add a counter column, then tell Rails to maintain it automatically with counter_cache: true.',
 	},
 };
 
@@ -1198,7 +1181,7 @@ end
 # 2. Ruby serializes 50K objects
 # 3. Client parses 12MB JSON
 # 4. No way to request "page 2"`,
-		goal: 'Implement pagination with Pagy. Return 25 posts per page with Link headers for navigation.',
+		goal: 'Install Pagy, include Pagy::Backend, paginate the index action, and add RFC 5988 Link headers.',
 		thresholds: { maxLatency: 100 },
 	},
 	successConditions: [{ type: 'pagination_implemented' }],
@@ -1336,7 +1319,7 @@ end`,
 	},
 	hint: {
 		delay: 20,
-		text: 'Match the pagination strategy to the use case: offset for small datasets with page numbers, cursor (WHERE id > ?) for infinite scroll feeds, keyset with compound keys for high-traffic APIs.',
+		text: 'Pagy uses a two-return-value pattern: @pagy, @posts = pagy(scope). The first value is metadata (page, count, links), the second is the paginated ActiveRecord relation.',
 	},
 };
 
@@ -1352,7 +1335,7 @@ const level29Search: Level = {
 	trigger: {
 		type: 'new_feature',
 		description:
-			"Users want to find posts by keyword. The current implementation uses LIKE '%query%' which cannot use indexes and takes 3 seconds on 50K posts.",
+			"Discover why LIKE '%query%' is killing search performance, then build proper full-text search with pg_search, tsvector, and a GIN index.",
 	},
 	startingPipeline: {
 		nodes: [
@@ -1432,7 +1415,7 @@ end
 # 3. No stemming ("running" won't match "run")
 # 4. Case-sensitive by default
 # 5. SQL injection risk if not parameterized properly`,
-		goal: 'Replace LIKE with proper full-text search. Results should be ranked by relevance and return in under 50ms.',
+		goal: 'Add pg_search gem, generate a migration with tsvector column and GIN index, configure pg_search_scope with weighted columns, and wire the controller to use the search scope.',
 		thresholds: { maxLatency: 50 },
 	},
 	successConditions: [{ type: 'search_configured' }],
@@ -1441,7 +1424,7 @@ end
 	unlockedNodes: ['search'],
 	learningContent: {
 		title: 'Full-Text Search: PostgreSQL tsvector & pg_search',
-		goal: `In this level, you'll:\n- replace slow LIKE queries with PostgreSQL's built-in full-text search.\n- learn how tsvector and tsquery provide stemmed, ranked results out of the box.\n- add a GIN index for fast lookups.\n- use the pg_search gem to make it all work cleanly in Rails.`,
+		goal: `In this level, you'll:\n- discover why LIKE '%query%' forces sequential scans and has no ranking or stemming.\n- install the pg_search gem and generate a migration with a tsvector column and GIN index.\n- configure pg_search_scope with weighted columns and the English dictionary.\n- wire the controller to use the new search scope.\n- stress-test the solution with varied search queries.`,
 		conceptExplanation: `Relying on LIKE '%query%' for search is a common mistake. It cannot use indexes, has no relevance ranking, and gets slower as data grows.
 
 **PostgreSQL full-text search:**
@@ -1548,7 +1531,7 @@ Post.where(id: Post.connection.select_values(
 			'Building search without pagination (returning all matches)',
 		],
 		whenToUse:
-			'PostgreSQL full-text search handles most search needs. Graduate to Elasticsearch/Meilisearch when you need autocomplete, facets, or fuzzy matching across millions of documents.',
+			'PostgreSQL full-text search handles most search needs. Graduate to Elasticsearch/Meilisearch when you need autocomplete, facets, or fuzzy matching across millions of documents.\n\n**Before (LIKE):** 50K rows: ~3,200ms (sequential scan), no ranking, no stemming.\n**After (tsvector + GIN):** 50K rows: ~2ms (GIN index scan), ranked results, English stemming.\n**Improvement: 1,600x faster search on 50K rows.**',
 		furtherReading: [
 			{
 				title: 'pg_search Gem',
@@ -1562,11 +1545,15 @@ Post.where(id: Post.connection.select_values(
 				title: 'SQLite FTS5',
 				url: 'https://www.sqlite.org/fts5.html',
 			},
+			{
+				title: 'Rails Scales! (Full-Text Search chapter)',
+				url: 'https://railsscales.com',
+			},
 		],
 	},
 	hint: {
 		delay: 25,
-		text: 'Replace LIKE with PostgreSQL full-text search using tsvector and a GIN index. Use the pg_search gem for a cleaner API.',
+		text: 'Fire the search probes and click pipeline stages to discover why LIKE queries are slow. You need 3 discoveries to unlock the build phase.',
 	},
 };
 
@@ -1885,7 +1872,7 @@ end
 # - Browsers don't cache API responses
 # - CDNs can't cache anything
 # - Every user request hits Rails`,
-		goal: 'Add HTTP caching with ETags, Cache-Control headers, and CDN configuration. Second requests should return 304 Not Modified.',
+		goal: 'Explore uncached HTTP requests to discover the problem, then configure Cache-Control headers, ETags, and CDN caching for different endpoint types.',
 		thresholds: { maxLatency: 10 },
 	},
 	successConditions: [{ type: 'cdn_configured' }],
@@ -2028,7 +2015,7 @@ config.action_controller.asset_host = "https://cdn.example.com"
 	},
 	hint: {
 		delay: 20,
-		text: 'Use stale? to return 304 Not Modified when the post hasn\'t changed. Add Cache-Control headers for CDN caching.',
+		text: 'Click pipeline stages and fire HTTP probes to see how every request hits the origin server. Discover 3 problems to unlock the build phase.',
 	},
 };
 
