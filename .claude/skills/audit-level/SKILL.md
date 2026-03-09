@@ -234,7 +234,7 @@ Fixes:
 When a level uses a full interactive observe phase (Type 3 custom visualization or Type 4 PipelineFlow), these rules apply:
 
 - [ ] **The visualization is interactive, not passive.** The player must click, probe, or explore to discover the problem. Static animations that play automatically are not acceptable.
-- [ ] **Discovery gating controls progression.** Use `useDiscoveryGating(defs, { minRequired })` to track what the player has found. The "Build the Fix" button appears only when `discoveryGating.isUnlocked`.
+- [ ] **Discovery gating controls progression.** Use `useDiscoveryGating(defs, { minRequired })` to track what the player has found. **All discoveries must be completed** before the player can proceed: set `minRequired` equal to the total number of discoveries. The "Build the Fix" button appears only when `discoveryGating.isUnlocked`.
 - [ ] **"Build the Fix" button** appears with `animate-in fade-in duration-500`, gated behind discoveries (NOT on a timer).
 - [ ] No build steps or OptionCards are visible during this phase.
 
@@ -245,6 +245,25 @@ Levels should use whichever discovery mechanisms fit their visualization:
 - **Clickable regions** (for any visualization): clicking on parts of the visualization reveals information and triggers discoveries. For PipelineFlow, use `onNodeClick` + `StageInspector`. For custom zone layouts, use `onClick` handlers on zone `<button>` elements with pulsing `?` indicators for uninspected zones.
 - **ProbeTerminal**: terminal-style component where player fires test requests. Best for security/API levels where "try this request and see what happens" is the natural exploration. Not required for every level. Must be disabled during flow animations (see "Animation locking" below).
 - **Interactive controls**: buttons, toggles, or inputs that let the player manipulate the visualization and discover problems. E.g., toggling browser origins in a CORS level, firing different query patterns in a performance level.
+
+**Hint for non-obvious discovery actions:** When discoveries require clicking on visualization nodes (not just firing probes), the `?` indicator alone is not enough. Show a progressive `<Alert variant="info">` hint below the `DiscoveryChecklist` to guide the player:
+- After the player has completed the obvious actions (e.g., fired 2+ probes), show a gentle hint: "Click the zones with **?** to inspect their code"
+- After all obvious actions are exhausted but discoveries remain incomplete, show a specific hint naming the exact zone: "Now click the **Serializer** zone to see where the N+1 hides"
+- Gate hints behind a `firedProbeCount` (or equivalent) state to avoid showing them too early
+
+```tsx
+{firedProbeCount >= 2 && !discoveryGating.isUnlocked && (
+  <Alert className="mt-3 animate-in fade-in duration-500" variant="info">
+    <Info className="w-4 h-4" />
+    <AlertDescription className="text-xs">
+      {firedProbeCount >= 3
+        ? <>Now click the <span className="font-medium">Serializer</span> zone to see where the N+1 hides.</>
+        : <>Click the zones with <span className="font-medium">?</span> to inspect their code</>
+      }
+    </AlertDescription>
+  </Alert>
+)}
+```
 
 #### Animation locking (non-negotiable, all phases)
 
@@ -322,6 +341,7 @@ Then use `gateRevealed`/`apiRevealed` instead of raw `probeState` for zone styli
 
 - [ ] Scenario text (always visible)
 - [ ] `DiscoveryChecklist` component showing discovery progress
+- [ ] If any discoveries require clicking on nodes/zones, an `<Alert variant="info">` hint appears below the checklist after the player has completed the more obvious actions (probes, etc.) but still has undiscovered items
 
 #### Right panel (observe)
 

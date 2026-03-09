@@ -20,7 +20,7 @@
  * Teaches: N+1 query problem, Prosopite gem, pg_query, strict_loading
  */
 
-import { ArrowRight, Check, Play, Star, X } from 'lucide-react';
+import { ArrowRight, Check, Info, Play, Star, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
@@ -57,6 +57,7 @@ import {
 	type StageInspectorData,
 } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
+import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import {
@@ -166,7 +167,7 @@ const PROBES: ProbeConfig[] = [
 const PROBE_DISCOVERY_MAP: Record<string, string> = {
 	'get-posts-5': 'n1-pattern',
 	'get-posts-100': 'query-count',
-	'get-posts-1000': 'query-count',
+	'get-posts-1000': 'no-eager-load',
 };
 
 // ──────────────────────────────────────────────
@@ -593,7 +594,7 @@ function DetectionLegend() {
 export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
-		minRequired: 3,
+		minRequired: 4,
 	});
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
@@ -603,6 +604,7 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 		new Set(),
 	);
 	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
+	const [firedProbeCount, setFiredProbeCount] = useState(0);
 
 	// ── Flow animation state ──
 	const [flowPhase, setFlowPhase] = useState(-1);
@@ -882,6 +884,7 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 	const handleProbe = useCallback(
 		(probeId: string) => {
 			setLastProbeId(probeId);
+			setFiredProbeCount((c) => c + 1);
 			runFlow();
 			const discoveryId = PROBE_DISCOVERY_MAP[probeId];
 			if (discoveryId) {
@@ -982,6 +985,17 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 								discoveredCount={discoveryGating.discoveredCount}
 								minRequired={discoveryGating.minRequired}
 							/>
+							{firedProbeCount >= 2 && !discoveryGating.isUnlocked && (
+								<Alert className="mt-3 animate-in fade-in duration-500" variant="info">
+									<Info className="w-4 h-4" />
+									<AlertDescription className="text-xs">
+										{firedProbeCount >= 3
+											? <>The probes revealed the query pattern. Now click the <span className="font-medium">Serializer</span> zone to see where the N+1 hides.</>
+											: <>Click the zones with <span className="font-medium">?</span> to inspect their code</>
+										}
+									</AlertDescription>
+								</Alert>
+							)}
 						</div>
 					)}
 
