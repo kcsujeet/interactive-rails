@@ -4,6 +4,9 @@
  * Manages the reward phase stress-test mechanics.
  * Players fire different request scenarios at their solution
  * and watch results accumulate.
+ *
+ * Auto-fire cycles through all scenarios once, calling the same onFire
+ * callback as manual fires so animations trigger correctly.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -32,8 +35,12 @@ export interface UseStressTestReturn {
 	isAutoFiring: boolean;
 	/** Fire a specific scenario. Returns the result. */
 	fireRequest: (scenarioId: string) => RequestResult;
-	/** Toggle auto-fire on/off. Only available after 3+ manual fires. */
-	toggleAutoFire: () => void;
+	/**
+	 * Toggle auto-fire on/off. Pass the same onFire handler used for manual
+	 * fires so animations trigger during auto-fire. Auto-fire cycles through
+	 * all scenarios once, then stops.
+	 */
+	toggleAutoFire: (onFire: (scenarioId: string) => void) => void;
 	/** Whether auto-fire can be enabled (3+ manual fires). */
 	canAutoFire: boolean;
 	/** Clear all results and counters. */
@@ -50,9 +57,10 @@ export function useStressTest(
 	const [blockedCount, setBlockedCount] = useState(0);
 	const [manualFireCount, setManualFireCount] = useState(0);
 	const [isAutoFiring, setIsAutoFiring] = useState(false);
-	const autoFireRef = useRef<ReturnType<typeof setInterval> | null>(null);
+	const autoFireRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const autoFireIndexRef = useRef(0);
-	const autoFireSpeedRef = useRef(2000);
+	const autoFireSpeedRef = useRef(1200);
+	const onFireRef = useRef<((scenarioId: string) => void) | null>(null);
 
 	const canAutoFire = manualFireCount >= 3;
 
@@ -92,53 +100,69 @@ export function useStressTest(
 
 	const stopAutoFire = useCallback(() => {
 		if (autoFireRef.current) {
-			clearInterval(autoFireRef.current);
+			clearTimeout(autoFireRef.current);
 			autoFireRef.current = null;
 		}
+		onFireRef.current = null;
 		setIsAutoFiring(false);
-		autoFireSpeedRef.current = 2000;
+		autoFireSpeedRef.current = 1200;
 		autoFireIndexRef.current = 0;
 	}, []);
 
-	const startAutoFire = useCallback(() => {
-		if (!canAutoFire || scenarios.length === 0) return;
+	const startAutoFire = useCallback(
+		(onFire: (scenarioId: string) => void) => {
+			if (!canAutoFire || scenarios.length === 0) return;
 
-		setIsAutoFiring(true);
-		autoFireIndexRef.current = 0;
-		autoFireSpeedRef.current = 2000;
+			setIsAutoFiring(true);
+			autoFireIndexRef.current = 0;
+			autoFireSpeedRef.current = 1200;
+			onFireRef.current = onFire;
 
-		let fireCount = 0;
+			const tick = () => {
+				const idx = autoFireIndexRef.current;
 
-		const tick = () => {
-			const idx = autoFireIndexRef.current % scenarios.length;
-			addResult(scenarios[idx].id);
-			autoFireIndexRef.current++;
-			fireCount++;
-
-			// Escalate speed every 5 fires, down to 500ms minimum
-			if (fireCount % 5 === 0 && autoFireSpeedRef.current > 500) {
-				autoFireSpeedRef.current = Math.max(
-					500,
-					autoFireSpeedRef.current - 300,
-				);
-				// Restart interval with new speed
-				if (autoFireRef.current) {
-					clearInterval(autoFireRef.current);
+				// Stop after cycling through all scenarios once
+				if (idx >= scenarios.length) {
+					stopAutoFire();
+					return;
 				}
-				autoFireRef.current = setInterval(tick, autoFireSpeedRef.current);
+
+				// Delegate to the same handler as manual fire
+				onFireRef.current?.(scenarios[idx].id);
+				autoFireIndexRef.current++;
+
+				// Schedule next tick (escalate speed as we go)
+				if (autoFireIndexRef.current < scenarios.length) {
+					autoFireSpeedRef.current = Math.max(
+						600,
+						autoFireSpeedRef.current - 100,
+					);
+					autoFireRef.current = setTimeout(
+						tick,
+						autoFireSpeedRef.current,
+					);
+				} else {
+					// Final scenario just fired, stop after a brief delay
+					autoFireRef.current = setTimeout(stopAutoFire, 500);
+				}
+			};
+
+			// Fire the first one immediately, then schedule the rest
+			tick();
+		},
+		[canAutoFire, scenarios, stopAutoFire],
+	);
+
+	const toggleAutoFire = useCallback(
+		(onFire: (scenarioId: string) => void) => {
+			if (isAutoFiring) {
+				stopAutoFire();
+			} else {
+				startAutoFire(onFire);
 			}
-		};
-
-		autoFireRef.current = setInterval(tick, autoFireSpeedRef.current);
-	}, [canAutoFire, scenarios, addResult]);
-
-	const toggleAutoFire = useCallback(() => {
-		if (isAutoFiring) {
-			stopAutoFire();
-		} else {
-			startAutoFire();
-		}
-	}, [isAutoFiring, stopAutoFire, startAutoFire]);
+		},
+		[isAutoFiring, stopAutoFire, startAutoFire],
+	);
 
 	const reset = useCallback(() => {
 		stopAutoFire();
@@ -152,7 +176,7 @@ export function useStressTest(
 	useEffect(() => {
 		return () => {
 			if (autoFireRef.current) {
-				clearInterval(autoFireRef.current);
+				clearTimeout(autoFireRef.current);
 			}
 		};
 	}, []);

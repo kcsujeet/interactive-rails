@@ -243,8 +243,37 @@ When a level uses a full interactive observe phase (Type 3 custom visualization 
 Levels should use whichever discovery mechanisms fit their visualization:
 
 - **Clickable regions** (for any visualization): clicking on parts of the visualization reveals information and triggers discoveries. For PipelineFlow, use `onNodeClick` + `StageInspector`. For custom zone layouts, use `onClick` handlers on zone `<button>` elements with pulsing `?` indicators for uninspected zones.
-- **ProbeTerminal**: terminal-style component where player fires test requests. Best for security/API levels where "try this request and see what happens" is the natural exploration. Not required for every level. Must have `disabled={flowPhase !== -1}` to block probes during flow animations.
+- **ProbeTerminal**: terminal-style component where player fires test requests. Best for security/API levels where "try this request and see what happens" is the natural exploration. Not required for every level. Must be disabled during flow animations (see "Animation locking" below).
 - **Interactive controls**: buttons, toggles, or inputs that let the player manipulate the visualization and discover problems. E.g., toggling browser origins in a CORS level, firing different query patterns in a performance level.
+
+#### Animation locking (non-negotiable, all phases)
+
+**When a flow animation is running, all probe/fire buttons MUST be disabled.** This prevents the player from firing a new probe while the previous one is still animating, which would cause overlapping animations and confusing visual state.
+
+This applies to:
+- **ProbeTerminal** (observe phase): `disabled={flowPhase !== -1}` prevents firing new probes during animation
+- **StressTestPanel** (reward phase): `disabled={flowPhase !== -1}` prevents firing new stress scenarios during animation
+- **Any custom fire buttons**: same pattern, disable while `flowPhase !== -1`
+- **Clickable zones/nodes**: consider disabling during animation if clicking would interfere with the visual flow
+
+The pattern: the level tracks a `flowPhase` state (`-1` = idle, `0+` = animating). All interactive fire controls check `flowPhase !== -1` and disable themselves during animation. The animation runs to completion, then `flowPhase` resets to `-1` (or stays at the final phase if persistence is desired), re-enabling the controls.
+
+```tsx
+// GOOD: probes disabled during animation
+<ProbeTerminal disabled={flowPhase !== -1} onProbe={handleProbe} probes={PROBES} />
+
+// GOOD: stress test disabled during animation
+<StressTestPanel disabled={flowPhase !== -1} onFire={handleFireScenario} ... />
+
+// BAD: no disabled prop, player can fire overlapping probes
+<ProbeTerminal onProbe={handleProbe} probes={PROBES} />
+```
+
+**Checklist:**
+- [ ] ProbeTerminal has `disabled={flowPhase !== -1}` (or equivalent animation-in-progress check)
+- [ ] StressTestPanel has `disabled={flowPhase !== -1}` (or equivalent)
+- [ ] No custom fire buttons are clickable during animation
+- [ ] Auto-fire timing accounts for animation duration (each tick should be long enough for the animation to complete or nearly complete before the next fire)
 
 #### Flow animation pattern (for custom zone layouts)
 
@@ -380,7 +409,7 @@ Connection IDs use `from-to` format (e.g., `"request-router"`, `"controller-mode
 - [ ] `FLOW_SEQUENCE` defined with correct order matching real data flow
 - [ ] Bidirectional edges have TWO entries (forward + return), never simultaneous
 - [ ] `activeConnections` prop passed to PipelineFlow
-- [ ] Probes/stress-tests disabled during animation (`disabled={flowPhase !== -1}`)
+- [ ] Probes/stress-tests disabled during animation (see "Animation locking" section)
 - [ ] Node variants update in sync with the sequence
 
 ### Phase 2: Problem Solving (HOW)
@@ -443,7 +472,7 @@ The level must have a dedicated reward phase where the player **interactively ve
 
 The reward phase MUST be interactive. Passive auto-incrementing counters (`setInterval`) are never acceptable. The player must take actions and see results. Options:
 
-- **StressTestPanel + useStressTest**: Player fires request scenarios and watches results. Best for security/API levels (auth, authorization, CORS, strong params). Provides `fireRequest()`, `toggleAutoFire()`, dual counters. Must have `disabled={flowPhase !== -1}` to block during flow animations.
+- **StressTestPanel + useStressTest**: Player fires request scenarios and watches results. Best for security/API levels (auth, authorization, CORS, strong params). Provides `fireRequest()`, `toggleAutoFire(onFire)`, dual counters. `toggleAutoFire` accepts the same `onFire` handler used for manual fires, so animations trigger during auto-fire. Auto-fire cycles through all scenarios once, then stops. Must be disabled during flow animations (see "Animation locking" section).
 - **Custom interactive controls**: Player clicks buttons, toggles, or inputs on the custom visualization. E.g., clicking different browser origins in a CORS visualization and watching them get allowed/blocked. Clicking different query patterns in a performance visualization and seeing response times.
 - **Replay/comparison controls**: Player toggles between before/after states, or replays scenarios at different scales.
 
@@ -468,7 +497,7 @@ If the level uses StressTestPanel specifically:
 - [ ] Terminal-style appearance matching ProbeTerminal
 - [ ] Scenario buttons with full detail, color-coded by expected result
 - [ ] Auto-fire toggle gated behind 3+ manual fires
-- [ ] `disabled={flowPhase !== -1}` blocks during flow animations
+- [ ] `disabled={flowPhase !== -1}` blocks fire buttons during flow animations (see "Animation locking" section)
 
 #### When custom visualization IS used
 

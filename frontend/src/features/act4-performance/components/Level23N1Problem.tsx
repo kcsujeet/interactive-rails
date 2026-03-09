@@ -606,6 +606,7 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 
 	// ── Flow animation state ──
 	const [flowPhase, setFlowPhase] = useState(-1);
+	const [isAnimating, setIsAnimating] = useState(false);
 	const flowTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
 	const clearFlow = useCallback(() => {
@@ -618,12 +619,16 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 		setVisibleQueryCount(0);
 		setLoopCounter(0);
 		setFlowPhase(0);
+		setIsAnimating(true);
 
 		const delays = [0, 600, 1200, 1800, 2400];
 		for (let i = 1; i < delays.length; i++) {
 			const t = setTimeout(() => setFlowPhase(i), delays[i]);
 			flowTimeoutsRef.current.push(t);
 		}
+		// Re-enable controls after animation completes + cascade buffer
+		const t = setTimeout(() => setIsAnimating(false), delays[4] + 1500);
+		flowTimeoutsRef.current.push(t);
 	}, [clearFlow]);
 
 	useEffect(() => clearFlow, [clearFlow]);
@@ -1056,6 +1061,7 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 							{/* Probe terminal */}
 							<div className="px-6 pb-2">
 								<ProbeTerminal
+									disabled={isAnimating}
 									onProbe={handleProbe}
 									probes={PROBES}
 									title="Query Probe"
@@ -1222,6 +1228,7 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 									allowedCount={stressTest.allowedCount}
 									blockedCount={stressTest.blockedCount}
 									canAutoFire={stressTest.canAutoFire}
+									disabled={isAnimating}
 									isAutoFiring={stressTest.isAutoFiring}
 									onFire={handleFireScenario}
 									onToggleAutoFire={stressTest.toggleAutoFire}

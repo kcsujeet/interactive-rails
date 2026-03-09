@@ -1365,7 +1365,7 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 										const messages = REWARD_FLOW[id];
 										if (messages) runFlow(messages);
 									}}
-									onToggleAutoFire={() => stressTest.toggleAutoFire()}
+									onToggleAutoFire={stressTest.toggleAutoFire}
 									results={stressTest.results}
 									scenarios={STRESS_SCENARIOS}
 								/>
