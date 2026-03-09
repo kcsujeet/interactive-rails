@@ -324,7 +324,7 @@ interface LearningContent {
 ```typescript
 const learningContent: LearningContent = {
   title: 'N+1 Query Problem',
-  goal: `In this level, you'll:\n- learn to spot the N+1 query problem, the most common performance killer in Rails apps.\n- understand why loading 100 posts generates 101 database queries.\n- trace the problem back to association access in serializers.\n- discover how gems like Prosopite and Bullet can detect N+1 queries automatically.`,
+  goal: `In this level, you'll:\n- learn to spot the N+1 query problem, the most common performance killer in Rails apps.\n- understand why loading 100 posts generates 101 database queries.\n- trace the problem back to association access in serializers.\n- install Prosopite to detect N+1 queries automatically.\n- enable strict_loading to prevent lazy-loading regressions.`,
   conceptExplanation: `The N+1 problem is the most common performance killer in Rails apps.
 It happens when you load a collection of records (1 query) and then
 access an association on each record (N queries).

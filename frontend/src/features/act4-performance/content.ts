@@ -20,7 +20,7 @@ const level23N1Problem: Level = {
 	trigger: {
 		type: 'performance_alert',
 		description:
-			'10K users hit the API daily. Response times crept above 2 seconds. Explore the request pipeline, trace the query explosion, then set up Prosopite and Bullet to catch N+1 automatically.',
+			'10K users hit the API daily. Response times crept above 2 seconds. Explore the request pipeline, trace the query explosion, then set up Prosopite to catch N+1 automatically.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -111,7 +111,7 @@ end
 #   ... 97 more queries
 #
 # Total: 101 queries, 850ms`,
-		goal: 'Explore the pipeline to find the N+1 pattern. Then install Prosopite and Bullet to detect N+1 queries automatically, and enable strict_loading on the Post model.',
+		goal: 'Explore the pipeline to find the N+1 pattern. Then install Prosopite to detect N+1 queries automatically, and enable strict_loading on the Post model.',
 		thresholds: { maxQueriesPerRequest: 5 },
 	},
 	successConditions: [{ type: 'n1_identified' }],
@@ -119,7 +119,7 @@ end
 	unlockedNodes: ['eager_load'],
 	learningContent: {
 		title: 'The N+1 Query Problem & Detection',
-		goal: `In this level, you'll:\n- learn to spot the N+1 query problem, the most common performance killer in Rails apps.\n- understand why loading 100 posts generates 101 database queries.\n- trace the problem back to association access in serializers.\n- discover how gems like Prosopite and Bullet can detect N+1 queries automatically.`,
+		goal: `In this level, you'll:\n- learn to spot the N+1 query problem, the most common performance killer in Rails apps.\n- understand why loading 100 posts generates 101 database queries.\n- trace the problem back to association access in serializers.\n- install Prosopite to detect N+1 queries automatically.\n- enable strict_loading to prevent lazy-loading regressions.`,
 		conceptExplanation: `The N+1 problem is the most common performance killer in Rails apps. It happens when you load a collection of records (1 query) and then access an association on each record (N queries).
 
 **The math is brutal:**
@@ -137,16 +137,15 @@ Preload: 0.195s |   682 MB |   148,827 objects allocated
 \`\`\`
 
 **Detection tools:**
-- **Prosopite gem** (recommended): Monitors SQL patterns rather than association access. Catches N+1 through raw SQL, \`find_each\` blocks, and patterns Bullet misses. Raises \`Prosopite::NPlusOneQueriesError\` in development
-- **Bullet gem**: Detects N+1 via association tracking. Good first line, but misses raw SQL N+1 patterns
-- Use Prosopite as your primary detector. Add Bullet for its unused eager loading detection
+- **Prosopite gem**: Monitors SQL patterns rather than association access. Catches N+1 through raw SQL, \`find_each\` blocks, and any code path that generates duplicate SQL patterns. Raises \`Prosopite::NPlusOneQueriesError\` in development. Requires \`pg_query\` gem for PostgreSQL
+- **strict_loading**: Rails built-in. Raises \`ActiveRecord::StrictLoadingViolationError\` when you lazy-load an association that was not eager-loaded. Set per-model or per-query
 
 **Where N+1 hides:**
 - Serializers (accessing associations during rendering)
 - Views (iterating and calling association methods)
 - Scopes with dependent queries
 - Callbacks that touch associations
-- \`find_each\` blocks with association access (Bullet misses these, Prosopite catches them)`,
+- \`find_each\` blocks with association access`,
 		railsCodeExample: `# The problem: N+1 queries
 @posts = Post.all  # 1 query: SELECT * FROM posts
 
@@ -157,9 +156,10 @@ Preload: 0.195s |   682 MB |   148,827 objects allocated
 end
 # Total: 1 + N + N queries!
 
-# === Prosopite setup (recommended N+1 detector) ===
+# === Prosopite setup (N+1 detector) ===
 # Gemfile
 gem 'prosopite'
+gem 'pg_query'  # Required for PostgreSQL SQL fingerprinting
 
 # config/environments/development.rb
 config.after_initialize do
@@ -172,32 +172,22 @@ end
 Prosopite.rails_logger = true
 Prosopite.raise = true
 
-# Why Prosopite over Bullet?
 # Prosopite monitors SQL patterns. It detects N+1 through:
-# - Raw SQL queries (Bullet only tracks association access)
+# - Raw SQL queries
 # - find_each blocks that trigger per-record queries
 # - Any code path that generates duplicate SQL patterns
 
-# === Bullet setup (complementary, catches unused eager loads) ===
-# Gemfile
-gem 'bullet', group: [:development, :test]
-
-# config/environments/development.rb
-config.after_initialize do
-  Bullet.enable        = true
-  Bullet.alert         = true   # JS alert in browser
-  Bullet.bullet_logger = true   # log/bullet.log
-  Bullet.console       = true   # browser console
-  Bullet.rails_logger  = true   # Rails log
-  Bullet.add_footer    = true   # footer in HTML
+# === strict_loading (Rails built-in) ===
+# Per-model default:
+class Post < ApplicationRecord
+  self.strict_loading_by_default = true
 end
 
-# Bullet also detects UNUSED eager loading:
-# "AVOID eager loading detected
-#   Post => [:comments]
-#   Remove from your query: .includes(:comments)"`,
+# Per-query:
+Post.strict_loading.includes(:user).each { |p| p.user }
+# Without includes, this raises StrictLoadingViolationError`,
 		commonMistakes: [
-			'Not using Prosopite in development (catches N+1 Bullet misses)',
+			'Not using Prosopite in development (catches N+1 patterns automatically)',
 			'Assuming eager loading is always the fix (sometimes you need to restructure)',
 			'Only checking controller queries (N+1 often hides in serializers)',
 			'Ignoring N+1 in tests because test data is small',
@@ -206,12 +196,8 @@ end
 			'Always check for N+1 when iterating over records and accessing associations. Install Prosopite in every Rails project from day one.',
 		furtherReading: [
 			{
-				title: 'Prosopite Gem',
-				url: 'https://github.com/charkost/prosopite',
-			},
-			{
-				title: 'Bullet Gem',
-				url: 'https://github.com/flyerhzm/bullet',
+				title: 'Prosopite README',
+				url: 'https://github.com/charkost/prosopite/blob/main/README.md',
 			},
 			{
 				title: 'ActiveRecord Eager Loading Guide',

@@ -67,7 +67,7 @@ Every level exists because the app **needs** it at that stage, not because Rails
 
 | # | Name | Concept | Scenario | Tests? |
 |---|------|---------|----------|--------|
-| 23 | The N+1 Problem | N+1 queries, Prosopite/Bullet detection | `/api/posts` runs 101 queries for 100 posts. | |
+| 23 | The N+1 Problem | N+1 queries, Prosopite detection, strict_loading | `/api/posts` runs 101 queries for 100 posts. | |
 | 24 | Eager Loading | `includes`, `preload`, `eager_load` | Fix the N+1. Batch those queries. | Yes |
 | 25 | Narrow Fetching | `pluck`, `select`, `find_in_batches` | API loads full AR objects just to read one column. Fetch only what you need. | Yes |
 | 26 | Database Indexing | `add_index`, composite indexes, EXPLAIN | `GET /api/users?email=...` does a full table scan. | |

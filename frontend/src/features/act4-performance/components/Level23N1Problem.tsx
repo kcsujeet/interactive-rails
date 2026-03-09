@@ -7,17 +7,15 @@
  * Phase 1 (WHY - observe): Interactive exploration. Click pipeline stages to
  *   inspect the request cycle. Fire API probes to watch queries multiply.
  *   Discovery gating controls when "Build the Fix" appears.
- * Phase 2 (HOW - build): 5 steps (2 terminal + 3 OptionCard) setting up N+1 detection
- *   Step 0: bundle add prosopite (terminal)
+ * Phase 2 (HOW - build): 3 steps setting up N+1 detection with Prosopite
+ *   Step 0: bundle add prosopite pg_query (terminal)
  *   Step 1: Configure Prosopite in development.rb (OptionCard)
- *   Step 2: bundle add bullet (terminal)
- *   Step 3: Configure Bullet in development.rb (OptionCard)
- *   Step 4: Enable strict_loading on the model (OptionCard)
+ *   Step 2: Enable strict_loading on the model (OptionCard)
  * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Detection" button
  * Phase 4 (ADVANTAGE - reward): Stress test. Fire different query patterns
  *   and watch Prosopite detect N+1 vs. safe queries.
  *
- * Teaches: N+1 query problem, Prosopite gem, Bullet gem, strict_loading
+ * Teaches: N+1 query problem, Prosopite gem, pg_query, strict_loading
  */
 
 import { ArrowRight, Check, Play, Star, X } from 'lucide-react';
@@ -248,7 +246,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'find-each-n1',
 		label: 'find_each { |p| p.user }',
-		description: 'find_each block accessing association (Bullet misses this)',
+		description: 'find_each block accessing association without preloading',
 		method: 'TASK',
 		path: '/jobs/export_posts',
 		actor: 'find_each block',
@@ -266,24 +264,20 @@ const STRESS_SCENARIOS: StressScenario[] = [
 ];
 
 // ──────────────────────────────────────────────
-// Step definitions (5 steps: 2 terminal + 3 OptionCard)
+// Step definitions (3 steps: 1 terminal + 2 OptionCard)
 // ──────────────────────────────────────────────
 
 const STEP_DEFS: StepDef[] = [
 	{ id: 'add-prosopite', title: 'Add Prosopite Gem' },
 	{ id: 'config-prosopite', title: 'Configure Prosopite' },
-	{ id: 'add-bullet', title: 'Add Bullet Gem' },
-	{ id: 'config-bullet', title: 'Configure Bullet' },
 	{ id: 'strict-loading', title: 'Enable strict_loading' },
 ];
 
 // Step type: 'terminal' or 'option', indexed by step number
 const STEP_TYPES: ('terminal' | 'option')[] = [
-	'terminal', // 0: bundle add prosopite
+	'terminal', // 0: bundle add prosopite pg_query
 	'option', // 1: configure Prosopite
-	'terminal', // 2: bundle add bullet
-	'option', // 3: configure Bullet
-	'option', // 4: enable strict_loading
+	'option', // 2: enable strict_loading
 ];
 
 // ──────────────────────────────────────────────
@@ -300,59 +294,26 @@ const addProsopiteCommands: TerminalCommand[] = [
 			'That installs system-wide, not into your project. You need it in the Gemfile.',
 	},
 	{
-		id: 'correct',
+		id: 'wrong-no-pg-query',
 		label: 'bundle add prosopite',
 		command: 'bundle add prosopite',
-		correct: true,
-	},
-	{
-		id: 'wrong-bullet',
-		label: 'bundle add bullet',
-		command: 'bundle add bullet',
 		correct: false,
 		feedback:
-			'Bullet is useful but Prosopite is the primary detector. It catches patterns Bullet misses. Install Prosopite first.',
+			'Prosopite needs pg_query for SQL fingerprinting on PostgreSQL. Without it, Prosopite cannot group similar queries to detect N+1 patterns.',
+	},
+	{
+		id: 'correct',
+		label: 'bundle add prosopite pg_query',
+		command: 'bundle add prosopite pg_query',
+		correct: true,
 	},
 ];
 
 const addProsopiteOutput: TerminalOutputLine[] = [
 	{ text: 'Fetching prosopite 1.4.2', color: 'cyan' },
+	{ text: 'Fetching pg_query 5.1.0', color: 'cyan' },
 	{ text: 'Installing prosopite 1.4.2', color: 'muted' },
-	{ text: 'Bundle complete! 14 Gemfile dependencies.', color: 'green' },
-];
-
-// ──────────────────────────────────────────────
-// Step 2: Add Bullet Gem (Terminal)
-// ──────────────────────────────────────────────
-
-const addBulletCommands: TerminalCommand[] = [
-	{
-		id: 'wrong-npm',
-		label: 'npm install bullet',
-		command: 'npm install bullet',
-		correct: false,
-		feedback:
-			'Bullet is a Ruby gem, not an npm package. Use the Ruby package manager.',
-	},
-	{
-		id: 'wrong-group',
-		label: 'bundle add bullet --group=production',
-		command: 'bundle add bullet --group=production',
-		correct: false,
-		feedback:
-			'N+1 detection belongs in development and test, not production. Wrong environment group.',
-	},
-	{
-		id: 'correct',
-		label: 'bundle add bullet --group=development,test',
-		command: 'bundle add bullet --group=development,test',
-		correct: true,
-	},
-];
-
-const addBulletOutput: TerminalOutputLine[] = [
-	{ text: 'Fetching bullet 7.2.0', color: 'cyan' },
-	{ text: 'Installing bullet 7.2.0', color: 'muted' },
+	{ text: 'Installing pg_query 5.1.0', color: 'muted' },
 	{ text: 'Bundle complete! 15 Gemfile dependencies.', color: 'green' },
 ];
 
@@ -374,9 +335,7 @@ interface StepOption {
 const SHELL_STEP_MAP: (TerminalStepData | null)[] = [
 	{ commands: addProsopiteCommands, outputLines: addProsopiteOutput },
 	null, // step 1: OptionCard (configure Prosopite)
-	{ commands: addBulletCommands, outputLines: addBulletOutput },
-	null, // step 3: OptionCard (configure Bullet)
-	null, // step 4: OptionCard (strict_loading)
+	null, // step 2: OptionCard (strict_loading)
 ];
 
 // ──────────────────────────────────────────────
@@ -405,31 +364,6 @@ const PROSOPITE_CONFIG_OPTIONS: StepOption[] = [
 		correct: false,
 		feedback:
 			'prosopite_logger writes to a separate file but does not feed into the Rails log. Use rails_logger so N+1 warnings appear alongside your normal log output.',
-	},
-];
-
-const BULLET_CONFIG_OPTIONS: StepOption[] = [
-	{
-		id: 'wrong-minimal',
-		label:
-			'config.after_initialize do\n  Bullet.enable = true\nend',
-		correct: false,
-		feedback:
-			'Enabling Bullet without output channels means it detects N+1 but shows nothing. You need at least one output method.',
-	},
-	{
-		id: 'wrong-alert-only',
-		label:
-			'config.after_initialize do\n  Bullet.enable = true\n  Bullet.alert = true\nend',
-		correct: false,
-		feedback:
-			'JS alerts are intrusive and only work in browsers. For API-only apps, you need the Rails logger and console output too.',
-	},
-	{
-		id: 'correct',
-		label:
-			'config.after_initialize do\n  Bullet.enable        = true\n  Bullet.bullet_logger = true\n  Bullet.rails_logger  = true\n  Bullet.add_footer    = true\nend',
-		correct: true,
 	},
 ];
 
@@ -473,16 +407,10 @@ const OPTION_STEP_CONFIG: Record<
 			'Prosopite is installed. Now configure it in config/environments/development.rb so it raises an error when N+1 queries are detected.',
 		options: PROSOPITE_CONFIG_OPTIONS,
 	},
-	3: {
-		title: 'Configure Bullet',
-		description:
-			'Bullet complements Prosopite by detecting unused eager loading. Configure it in config/environments/development.rb with multiple output channels.',
-		options: BULLET_CONFIG_OPTIONS,
-	},
-	4: {
+	2: {
 		title: 'Enable strict_loading on Post',
 		description:
-			'Rails 8 supports strict_loading, which raises an error when you lazy-load an association that was not eager-loaded. Where should you enable it?',
+			'Rails supports strict_loading, which raises an error when you lazy-load an association that was not eager-loaded. Where should you enable it?',
 		options: STRICT_LOADING_OPTIONS,
 	},
 };
@@ -498,8 +426,8 @@ const OBSERVE_CONNECTIONS: PipelineConnection[] = [
 ];
 
 const REWARD_CONNECTIONS: PipelineConnection[] = [
-	{ from: 'controller', to: 'detector', dots: 'mixed' },
-	{ from: 'detector', to: 'database', dots: 'clean' },
+	{ from: 'controller', to: 'serializer', dots: 'mixed' },
+	{ from: 'serializer', to: 'database', dots: 'clean' },
 	{ from: 'database', to: 'response', dots: 'clean' },
 ];
 
@@ -565,8 +493,9 @@ end`,
 gem "rails", "~> 8.0.0"
 gem "pg", "~> 1.1"
 gem "puma", ">= 5.0"
-gem "prosopite"`,
-			highlight: [6],
+gem "prosopite"
+gem "pg_query"`,
+			highlight: [6, 7],
 		});
 	}
 
@@ -574,58 +503,18 @@ gem "prosopite"`,
 		files.push({
 			filename: 'config/environments/development.rb',
 			language: 'ruby',
-			code:
-				furthestStep >= 4
-					? `Rails.application.configure do
-  # Prosopite: N+1 detection (catches patterns Bullet misses)
-  config.after_initialize do
-    Prosopite.rails_logger = true
-    Prosopite.raise = true
-  end
-
-  # Bullet: unused eager loading detection
-  config.after_initialize do
-    Bullet.enable        = true
-    Bullet.bullet_logger = true
-    Bullet.rails_logger  = true
-    Bullet.add_footer    = true
-  end
-end`
-					: furthestStep >= 2
-						? `Rails.application.configure do
-  # Prosopite: N+1 detection (catches patterns Bullet misses)
-  config.after_initialize do
-    Prosopite.rails_logger = true
-    Prosopite.raise = true
-  end
-end`
-						: `Rails.application.configure do
-  # Prosopite: N+1 detection (catches patterns Bullet misses)
+			code: `Rails.application.configure do
+  # Prosopite: N+1 detection
   config.after_initialize do
     Prosopite.rails_logger = true
     Prosopite.raise = true
   end
 end`,
-			highlight: furthestStep >= 4 ? [4, 5, 10, 11, 12, 13] : [4, 5],
+			highlight: [4, 5],
 		});
 	}
 
 	if (furthestStep >= 3) {
-		files.push({
-			filename: 'Gemfile',
-			language: 'ruby',
-			code: `source "https://rubygems.org"
-
-gem "rails", "~> 8.0.0"
-gem "pg", "~> 1.1"
-gem "puma", ">= 5.0"
-gem "prosopite"
-gem "bullet", group: [:development, :test]`,
-			highlight: [7],
-		});
-	}
-
-	if (furthestStep >= 5) {
 		files.push({
 			filename: 'app/models/post.rb',
 			language: 'ruby',
@@ -694,6 +583,9 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 				id: 'controller',
 				label: 'Controller',
 				sublabel: 'Post.all',
+				variant: (probeDisplay ? 'active' : 'default') as
+					| 'active'
+					| 'default',
 				inspectable: true,
 				inspected: inspectedStages.has('controller'),
 			},
@@ -723,6 +615,10 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 			{
 				id: 'response',
 				label: 'Response',
+				variant: (probeDisplay ? 'danger' : 'default') as
+					| 'danger'
+					| 'default',
+				sublabel: probeDisplay ? 'Slow' : undefined,
 				inspectable: true,
 				inspected: inspectedStages.has('response'),
 			},
@@ -735,11 +631,15 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 	const rewardStages: PipelineStage[] = useMemo(() => {
 		const wasBlocked = lastResult?.result === 'blocked';
 		return [
-			{ id: 'controller', label: 'Controller' },
 			{
-				id: 'detector',
-				label: 'Prosopite',
-				sublabel: wasBlocked ? 'N+1 detected!' : 'Query OK',
+				id: 'controller',
+				label: 'Controller',
+				variant: 'active' as const,
+			},
+			{
+				id: 'serializer',
+				label: 'Serializer',
+				sublabel: wasBlocked ? 'N+1 detected!' : 'Prosopite OK',
 				variant: wasBlocked ? ('danger' as const) : ('active' as const),
 				badge: wasBlocked ? 'RAISE' : undefined,
 			},
@@ -747,8 +647,13 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 				id: 'database',
 				label: 'Database',
 				sublabel: wasBlocked ? 'N+1 pattern' : '2 queries',
+				variant: wasBlocked ? ('danger' as const) : ('active' as const),
 			},
-			{ id: 'response', label: 'Response' },
+			{
+				id: 'response',
+				label: 'Response',
+				variant: wasBlocked ? ('danger' as const) : ('active' as const),
+			},
 		];
 	}, [lastResult]);
 
@@ -868,9 +773,9 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 							is the most common performance killer in Rails apps. You will set
 							up{' '}
 							<span className="text-foreground font-medium">Prosopite</span>{' '}
-							and{' '}
-							<span className="text-foreground font-medium">Bullet</span> to
-							detect it automatically.
+							to detect it automatically and enable{' '}
+							<span className="text-foreground font-medium">strict_loading</span>{' '}
+							to prevent it at the model level.
 						</p>
 					</div>
 
@@ -984,7 +889,7 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 					{phase === 'build' && (
 						<div className="flex-1 overflow-auto p-6">
 							<div className="max-w-2xl mx-auto space-y-4">
-								{/* Terminal steps (0: prosopite, 2: bullet) */}
+								{/* Terminal step (0: prosopite) */}
 								{currentStepType === 'terminal' &&
 									stepper.currentStep === 0 && (
 										<TerminalChoiceStep
@@ -992,9 +897,9 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 											completed={isViewingCompletedStep}
 											description={
 												<p className="text-sm text-muted-foreground">
-													Prosopite monitors SQL patterns to detect N+1 queries.
-													It catches patterns that Bullet misses, including raw
-													SQL and find_each blocks. Add it to your project.
+													Prosopite monitors SQL patterns to detect N+1 queries,
+													including raw SQL and find_each blocks. It needs
+													pg_query for SQL fingerprinting on PostgreSQL.
 												</p>
 											}
 											hasNext={hasNextStep}
@@ -1011,33 +916,7 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 										/>
 									)}
 
-								{currentStepType === 'terminal' &&
-									stepper.currentStep === 2 && (
-										<TerminalChoiceStep
-											commands={addBulletCommands}
-											completed={isViewingCompletedStep}
-											description={
-												<p className="text-sm text-muted-foreground">
-													Bullet complements Prosopite. It detects N+1 queries
-													AND warns when you have unused eager loading. Add it
-													to dev and test groups only.
-												</p>
-											}
-											hasNext={hasNextStep}
-											initialHistory={buildTerminalHistory(
-												SHELL_STEP_MAP,
-												stepper.currentStep,
-											)}
-											onCorrect={() => stepper.completeStep()}
-											onNext={stepper.nextStep}
-											onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-											outputLines={addBulletOutput}
-											stepKey={stepper.currentStep}
-											title="Add the Bullet Gem"
-										/>
-									)}
-
-								{/* OptionCard steps (1, 3, 4) */}
+								{/* OptionCard steps (1, 2) */}
 								{currentStepType === 'option' && currentOptionConfig && (
 									<>
 										<h3 className="text-lg font-semibold text-foreground">
@@ -1118,8 +997,8 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 									))}
 								</div>
 								<p className="text-sm text-muted-foreground">
-									Prosopite and Bullet are configured. Fire query patterns and
-									watch N+1 detection catch the slow ones.
+									Prosopite is configured and strict_loading is enabled. Fire
+									query patterns and watch N+1 detection catch the slow ones.
 								</p>
 								<Button
 									className="gap-2"
