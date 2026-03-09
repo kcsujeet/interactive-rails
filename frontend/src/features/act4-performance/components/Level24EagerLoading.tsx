@@ -4,20 +4,23 @@
  * Sequential phase flow: observe -> build -> activate -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
- * Phase 1 (WHY - observe): Interactive exploration of N+1 queries.
- *   Click pipeline stages to inspect the lazy-loading flow, fire probes
- *   to see query counts explode. Discovery gating controls "Build the Fix".
+ * Phase 1 (WHY - observe): "SQL Timeline" visualization. 4 horizontal lanes
+ *   (includes, preload, eager_load, joins) show the actual SQL query pattern
+ *   each strategy generates. When a probe fires, all 4 lanes animate to reveal
+ *   their query blocks. The `joins` lane floods with 100 tiny red blocks,
+ *   making the N+1 trap visually obvious. Click lane labels to inspect each
+ *   strategy's SQL pattern via StageInspector.
  * Phase 2 (HOW - build): 3 OptionCard steps picking the right eager loading
  *   strategy for each scenario (basic includes, nested includes, eager_load).
  * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Optimization" button
- * Phase 4 (ADVANTAGE - reward): Stress test. Fire query scenarios at the
- *   optimized pipeline and watch query counts stay low.
+ * Phase 4 (ADVANTAGE - reward): Stress test. Fire query scenarios and see a
+ *   result lane showing the applied strategy with its query pattern.
  *
  * Teaches: includes, preload, eager_load, nested eager loading
  */
 
-import { ArrowRight, Check, Database, Play, Star, X, Zap } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowRight, Check, Info, Play, Star, X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -32,11 +35,6 @@ import {
 	type ValidationResult,
 } from '@/components/levels';
 import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
-import {
-	type PipelineConnection,
-	PipelineFlow,
-	type PipelineStage,
-} from '@/components/levels/PipelineFlow';
 import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
 import {
@@ -44,6 +42,7 @@ import {
 	type StageInspectorData,
 } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
+import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import {
@@ -52,6 +51,8 @@ import {
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { cn } from '@/lib/utils';
 
 // ──────────────────────────────────────────────
 // Phase type
@@ -64,10 +65,16 @@ type Phase = 'observe' | 'build' | 'activate' | 'reward';
 // ──────────────────────────────────────────────
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
-	{ id: 'lazy-loading', label: 'Associations are lazy-loaded by default' },
-	{ id: 'n1-basic', label: 'Post.all triggers 101 queries for 100 posts' },
-	{ id: 'n1-nested', label: 'Nested associations multiply the problem' },
-	{ id: 'no-eager', label: 'No eager loading configured anywhere' },
+	{ id: 'joins-trap', label: 'joins does NOT prevent N+1' },
+	{ id: 'nested-syntax', label: 'Nested associations need nested includes' },
+	{
+		id: 'filter-needs-join',
+		label: 'Filtering by association requires a JOIN strategy',
+	},
+	{
+		id: 'strategy-diff',
+		label: 'Different scenarios need different strategies',
+	},
 ];
 
 // ──────────────────────────────────────────────
@@ -76,114 +83,344 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 
 const PROBES: ProbeConfig[] = [
 	{
-		id: 'list-posts',
-		label: 'GET /posts (100 posts)',
-		command: 'GET /api/v1/posts (100 posts with authors)',
+		id: 'basic-users',
+		label: 'Load posts with users',
+		command: 'Post.all + post.user.name (basic N+1)',
 		responseLines: [
-			{ text: 'SELECT * FROM posts', color: 'muted' },
-			{ text: 'SELECT * FROM users WHERE id = 1  -- post #1', color: 'yellow' },
-			{ text: 'SELECT * FROM users WHERE id = 2  -- post #2', color: 'yellow' },
-			{ text: 'SELECT * FROM users WHERE id = 3  -- post #3', color: 'yellow' },
-			{ text: '... (97 more individual queries)', color: 'red' },
-			{ text: 'Total: 101 queries, 850ms', color: 'red' },
+			{
+				text: 'Scenario: 100 posts, each needs .user.name',
+				color: 'cyan',
+			},
+			{ text: '', color: 'muted' },
+			{
+				text: 'includes(:user)   => 2 queries (SELECT posts + SELECT users IN(...))',
+				color: 'green',
+			},
+			{
+				text: 'preload(:user)    => 2 queries (separate SELECTs)',
+				color: 'green',
+			},
+			{
+				text: 'eager_load(:user) => 1 query (LEFT OUTER JOIN)',
+				color: 'green',
+			},
+			{
+				text: 'joins(:user)      => 101 queries! (loads nothing into memory)',
+				color: 'red',
+			},
 		],
 	},
 	{
-		id: 'nested-load',
-		label: 'GET /posts with comments',
-		command: 'GET /api/v1/posts?include=comments.user (nested associations)',
+		id: 'nested-comments',
+		label: 'Load posts + comments + users',
+		command: 'Post.all + post.comments.map(&:user) (nested N+1)',
 		responseLines: [
-			{ text: 'SELECT * FROM posts', color: 'muted' },
-			{ text: 'SELECT * FROM comments WHERE post_id = 1', color: 'yellow' },
-			{ text: 'SELECT * FROM users WHERE id = 5  -- comment author', color: 'yellow' },
-			{ text: 'SELECT * FROM users WHERE id = 6  -- comment author', color: 'yellow' },
-			{ text: '... (1000+ more queries for nested data)', color: 'red' },
-			{ text: 'Total: 1,001 queries, 9.5s', color: 'red' },
+			{
+				text: 'Scenario: posts -> comments -> comment authors (2 levels deep)',
+				color: 'cyan',
+			},
+			{ text: '', color: 'muted' },
+			{
+				text: 'includes(comments: :user) => 3 queries (posts + comments + users)',
+				color: 'green',
+			},
+			{
+				text: 'preload(comments: :user)  => 3 queries (always separate)',
+				color: 'green',
+			},
+			{
+				text: 'eager_load(c: :user)      => 1 wide JOIN (high memory)',
+				color: 'yellow',
+			},
+			{
+				text: 'includes(:comments) only  => N+1 on comment.user!',
+				color: 'red',
+			},
 		],
 	},
 	{
-		id: 'filtered-tags',
-		label: 'GET /posts?tag=active',
-		command: 'GET /api/v1/posts?tag=active (filtering by association)',
+		id: 'filtered-assoc',
+		label: 'Filter by association column',
+		command: 'Post.where(tags: { active: true }) (filter on assoc)',
 		responseLines: [
-			{ text: 'SELECT * FROM posts', color: 'muted' },
-			{ text: 'SELECT * FROM tags WHERE post_id = 1', color: 'yellow' },
-			{ text: 'SELECT * FROM tags WHERE post_id = 2', color: 'yellow' },
-			{ text: '... then Ruby filters in memory (not SQL!)', color: 'red' },
-			{ text: 'Total: 101 queries + in-memory filter', color: 'red' },
+			{
+				text: 'Scenario: filter posts WHERE tags.active = true',
+				color: 'cyan',
+			},
+			{ text: '', color: 'muted' },
+			{
+				text: 'eager_load(:tags).where(tags: { active: true }) => 1 JOIN query',
+				color: 'green',
+			},
+			{
+				text: 'includes(:tags).where(...)  => works (auto-switches to JOIN)',
+				color: 'yellow',
+			},
+			{
+				text: 'preload(:tags).where(...)   => ERROR! Cannot filter with separate queries',
+				color: 'red',
+			},
+			{
+				text: 'When filtering on associations, you need a JOIN strategy.',
+				color: 'yellow',
+			},
 		],
 	},
 ];
 
 // Map probe IDs to discovery IDs they trigger
 const PROBE_DISCOVERY_MAP: Record<string, string> = {
-	'list-posts': 'n1-basic',
-	'nested-load': 'n1-nested',
-	'filtered-tags': 'no-eager',
-};
-
-// Map probe IDs to pipeline node display during observe
-const PROBE_PIPELINE_MAP: Record<
-	string,
-	{ querySublabel: string; dbBadge: string }
-> = {
-	'list-posts': { querySublabel: '101 queries', dbBadge: '850ms!' },
-	'nested-load': { querySublabel: '1001 queries', dbBadge: '9.5s!' },
-	'filtered-tags': { querySublabel: '101 + filter', dbBadge: 'SLOW!' },
+	'basic-users': 'joins-trap',
+	'nested-comments': 'nested-syntax',
+	'filtered-assoc': 'filter-needs-join',
 };
 
 // ──────────────────────────────────────────────
-// Stage inspector data (observe phase)
+// SQL Timeline lane data (observe phase)
+// ──────────────────────────────────────────────
+
+interface QueryBlock {
+	label: string;
+	color: 'green' | 'amber' | 'red';
+	wide?: boolean;
+}
+
+interface StrategyLaneData {
+	id: string;
+	name: string;
+	method: string;
+	blocks: QueryBlock[];
+	floodCount?: number;
+	totalLabel: string;
+	result: 'works' | 'fails' | 'suboptimal' | 'error';
+}
+
+const PROBE_LANES: Record<string, StrategyLaneData[]> = {
+	'basic-users': [
+		{
+			id: 'includes',
+			name: 'includes',
+			method: 'Post.includes(:user)',
+			blocks: [
+				{ label: 'SELECT posts', color: 'green' },
+				{ label: 'SELECT users WHERE id IN(...)', color: 'green' },
+			],
+			totalLabel: '2 queries',
+			result: 'works',
+		},
+		{
+			id: 'preload',
+			name: 'preload',
+			method: 'Post.preload(:user)',
+			blocks: [
+				{ label: 'SELECT posts', color: 'green' },
+				{ label: 'SELECT users WHERE id IN(...)', color: 'green' },
+			],
+			totalLabel: '2 queries',
+			result: 'works',
+		},
+		{
+			id: 'eager_load',
+			name: 'eager_load',
+			method: 'Post.eager_load(:user)',
+			blocks: [
+				{
+					label: 'SELECT posts LEFT JOIN users',
+					color: 'green',
+					wide: true,
+				},
+			],
+			totalLabel: '1 query',
+			result: 'works',
+		},
+		{
+			id: 'joins',
+			name: 'joins',
+			method: 'Post.joins(:user)',
+			blocks: [{ label: 'SELECT posts JOIN users', color: 'amber' }],
+			floodCount: 100,
+			totalLabel: '101 queries!',
+			result: 'fails',
+		},
+	],
+	'nested-comments': [
+		{
+			id: 'includes',
+			name: 'includes',
+			method: 'Post.includes(comments: :user)',
+			blocks: [
+				{ label: 'SELECT posts', color: 'green' },
+				{ label: 'SELECT comments IN(...)', color: 'green' },
+				{ label: 'SELECT users IN(...)', color: 'green' },
+			],
+			totalLabel: '3 queries',
+			result: 'works',
+		},
+		{
+			id: 'preload',
+			name: 'preload',
+			method: 'Post.preload(comments: :user)',
+			blocks: [
+				{ label: 'SELECT posts', color: 'green' },
+				{ label: 'SELECT comments IN(...)', color: 'green' },
+				{ label: 'SELECT users IN(...)', color: 'green' },
+			],
+			totalLabel: '3 queries',
+			result: 'works',
+		},
+		{
+			id: 'eager_load',
+			name: 'eager_load',
+			method: 'Post.eager_load(comments: :user)',
+			blocks: [
+				{
+					label: 'SELECT posts LEFT JOIN comments, users',
+					color: 'amber',
+					wide: true,
+				},
+			],
+			totalLabel: '1 query (wide JOIN)',
+			result: 'suboptimal',
+		},
+		{
+			id: 'joins',
+			name: 'joins',
+			method: 'Post.joins(:comments)',
+			blocks: [{ label: 'SELECT posts JOIN comments', color: 'amber' }],
+			floodCount: 100,
+			totalLabel: '100+ queries!',
+			result: 'fails',
+		},
+	],
+	'filtered-assoc': [
+		{
+			id: 'includes',
+			name: 'includes',
+			method: 'Post.includes(:tags).where(...)',
+			blocks: [
+				{
+					label: 'SELECT posts LEFT JOIN tags WHERE active',
+					color: 'amber',
+					wide: true,
+				},
+			],
+			totalLabel: '1 query (auto-JOIN)',
+			result: 'suboptimal',
+		},
+		{
+			id: 'preload',
+			name: 'preload',
+			method: 'Post.preload(:tags).where(...)',
+			blocks: [
+				{
+					label: 'ERROR! Cannot filter with separate queries',
+					color: 'red',
+					wide: true,
+				},
+			],
+			totalLabel: 'ERROR',
+			result: 'error',
+		},
+		{
+			id: 'eager_load',
+			name: 'eager_load',
+			method: 'Post.eager_load(:tags).where(...)',
+			blocks: [
+				{
+					label: 'SELECT posts LEFT JOIN tags WHERE active',
+					color: 'green',
+					wide: true,
+				},
+			],
+			totalLabel: '1 query (JOIN)',
+			result: 'works',
+		},
+		{
+			id: 'joins',
+			name: 'joins',
+			method: 'Post.joins(:tags).where(...)',
+			blocks: [
+				{ label: 'SELECT posts JOIN tags WHERE active', color: 'amber' },
+			],
+			floodCount: 50,
+			totalLabel: '51+ queries!',
+			result: 'fails',
+		},
+	],
+};
+
+// ──────────────────────────────────────────────
+// Stage inspector data (lane label click)
 // ──────────────────────────────────────────────
 
 const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
-	controller: {
-		stageId: 'controller',
-		title: 'PostsController#index',
+	includes: {
+		stageId: 'includes',
+		title: 'includes (Smart Default)',
 		description:
-			'The controller calls Post.all. This fires one SELECT for posts, but every time the view accesses post.author, Rails fires another SELECT. One per post.',
-		code: `def index
-  @posts = Post.all
-  # No eager loading!
-  # View calls post.author.name → N+1
-end`,
-	},
-	model: {
-		stageId: 'model',
-		title: 'Post Model (Lazy Loading)',
-		description:
-			'belongs_to :author is lazy by default. Rails only queries the author when you first access it. For 100 posts, that means 100 separate author queries.',
-		code: `class Post < ApplicationRecord
-  belongs_to :author  # lazy-loaded
-  has_many :comments
-  has_many :tags
-end`,
-	},
-	database: {
-		stageId: 'database',
-		title: 'Database (Overloaded)',
-		description:
-			'The database receives 101 separate queries instead of 2. Each query has overhead: parsing, planning, network round-trip. Batching with IN() eliminates 99% of this overhead.',
-	},
-	serializer: {
-		stageId: 'serializer',
-		title: 'Serializer (Triggers N+1)',
-		description:
-			'The serializer accesses post.author.name for each post. This is where the N+1 actually fires: each access triggers a lazy load if the author is not already cached.',
-		code: `class PostSerializer
-  attributes :title, :author_name
+			'Rails decides the best strategy: 2 separate queries (IN clause) when no filtering, or LEFT OUTER JOIN when you chain .where on the association. This is the recommended default for most cases.',
+		code: `Post.includes(:user)
+# Query 1: SELECT "posts".* FROM "posts"
+# Query 2: SELECT "users".* FROM "users"
+#           WHERE "users"."id" IN (1, 2, 3...)
 
-  def author_name
-    object.author.name  # Triggers lazy load!
-  end
-end`,
+# With filtering (auto-switches to JOIN):
+Post.includes(:user).where(users: { role: 'admin' })
+# SELECT "posts".* LEFT OUTER JOIN "users" ...`,
+	},
+	preload: {
+		stageId: 'preload',
+		title: 'preload (Force Separate Queries)',
+		description:
+			'Always runs 2 separate queries. Uses less memory than eager_load (148K objects vs 250K). Cannot filter by the associated table. Best when you just need the data without conditions.',
+		code: `Post.preload(:user)
+# Always 2 separate queries:
+# Query 1: SELECT "posts".* FROM "posts"
+# Query 2: SELECT "users".* FROM "users"
+#           WHERE "users"."id" IN (1, 2, 3...)
+
+# ERROR if you try to filter:
+Post.preload(:user).where(users: { active: true })
+# => ActiveRecord::StatementInvalid`,
+	},
+	eager_load: {
+		stageId: 'eager_load',
+		title: 'eager_load (Force JOIN)',
+		description:
+			'Always uses LEFT OUTER JOIN in a single query. Required when you need to filter or sort by association columns. Uses more memory because the JOIN returns wider result rows.',
+		code: `Post.eager_load(:user)
+# Single query with LEFT OUTER JOIN:
+# SELECT "posts".*, "users".*
+#   FROM "posts"
+#   LEFT OUTER JOIN "users"
+#     ON "users"."id" = "posts"."user_id"
+
+# Required for filtering:
+Post.eager_load(:tags)
+    .where(tags: { active: true })`,
+	},
+	joins: {
+		stageId: 'joins',
+		title: 'joins (NOT for N+1 prevention!)',
+		description:
+			'INNER JOINs the table but does NOT load association records into memory. Accessing post.user after joins still triggers a lazy load. This is the most common mistake when trying to fix N+1 queries.',
+		code: `Post.joins(:user).where(users: { role: 'admin' })
+# SQL: SELECT "posts".* FROM "posts"
+#   INNER JOIN "users" ON ...
+#   WHERE "users"."role" = 'admin'
+
+# BUT: user data is NOT loaded!
+posts.each { |p| p.user.name }
+# => N+1! Each .user triggers a SELECT`,
 	},
 };
 
 // Map stage IDs to discovery IDs they trigger
 const STAGE_DISCOVERY_MAP: Record<string, string> = {
-	model: 'lazy-loading',
-	controller: 'no-eager',
+	joins: 'joins-trap',
+	includes: 'strategy-diff',
+	preload: 'strategy-diff',
+	eager_load: 'strategy-diff',
 };
 
 // ──────────────────────────────────────────────
@@ -193,11 +430,11 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'basic-includes',
-		label: 'Posts with authors (includes)',
-		description: 'Load 100 posts with author names',
+		label: 'Posts with users (includes)',
+		description: 'Load 100 posts with user names',
 		method: 'GET',
 		path: '/api/v1/posts',
-		actor: 'includes(:author)',
+		actor: 'includes(:user)',
 		expectedResult: 'allowed',
 	},
 	{
@@ -233,17 +470,75 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		description: 'joins does NOT load associations into memory',
 		method: 'GET',
 		path: '/api/v1/posts?admin=true',
-		actor: 'Post.joins(:author)',
+		actor: 'Post.joins(:user)',
 		expectedResult: 'blocked',
 	},
 ];
+
+// Reward phase: result lane data per stress scenario
+const REWARD_LANE_DATA: Record<
+	string,
+	{
+		strategy: string;
+		blocks: QueryBlock[];
+		floodCount?: number;
+		totalLabel: string;
+		result: 'works' | 'fails';
+	}
+> = {
+	'basic-includes': {
+		strategy: 'includes(:user)',
+		blocks: [
+			{ label: 'SELECT posts', color: 'green' },
+			{ label: 'SELECT users WHERE id IN(...)', color: 'green' },
+		],
+		totalLabel: '2 queries',
+		result: 'works',
+	},
+	'nested-includes': {
+		strategy: 'includes(comments: :user)',
+		blocks: [
+			{ label: 'SELECT posts', color: 'green' },
+			{ label: 'SELECT comments IN(...)', color: 'green' },
+			{ label: 'SELECT users IN(...)', color: 'green' },
+		],
+		totalLabel: '3 queries',
+		result: 'works',
+	},
+	'filtered-eager': {
+		strategy: 'eager_load(:tags).where(...)',
+		blocks: [
+			{
+				label: 'SELECT posts LEFT JOIN tags WHERE active',
+				color: 'green',
+				wide: true,
+			},
+		],
+		totalLabel: '1 query (JOIN)',
+		result: 'works',
+	},
+	'no-eager-basic': {
+		strategy: 'Post.all (no includes)',
+		blocks: [{ label: 'SELECT posts', color: 'amber' }],
+		floodCount: 100,
+		totalLabel: '101 queries!',
+		result: 'fails',
+	},
+	'joins-mistake': {
+		strategy: 'Post.joins(:user)',
+		blocks: [{ label: 'SELECT posts JOIN users', color: 'amber' }],
+		floodCount: 100,
+		totalLabel: '101 queries!',
+		result: 'fails',
+	},
+};
 
 // ──────────────────────────────────────────────
 // Step definitions (3 steps: OptionCard choices)
 // ──────────────────────────────────────────────
 
 const STEP_DEFS: StepDef[] = [
-	{ id: 'basic-includes', title: 'Fix Posts with Authors' },
+	{ id: 'basic-includes', title: 'Fix Posts with Users' },
 	{ id: 'nested-includes', title: 'Fix Nested Associations' },
 	{ id: 'conditional-eager', title: 'Fix Filtered Query' },
 ];
@@ -268,28 +563,28 @@ const OPTION_STEP_CONFIG: Record<
 	}
 > = {
 	0: {
-		title: 'Fix Posts with Authors',
+		title: 'Fix Posts with Users',
 		description:
-			'Post.all triggers 101 queries for 100 posts. Each post.author.name fires a separate SELECT. Which method batches all author queries into one?',
+			'Post.all triggers 101 queries for 100 posts. Each post.user.name fires a separate SELECT. Which method batches all user queries into one?',
 		options: [
 			{
 				id: 'joins',
-				label: 'Post.joins(:author)',
+				label: 'Post.joins(:user)',
 				correct: false,
 				feedback:
-					'joins creates an INNER JOIN but does NOT load author records into memory. You will still get N+1 when accessing post.author.',
+					'joins creates an INNER JOIN but does NOT load user records into memory. You will still get N+1 when accessing post.user.',
 			},
 			{
 				id: 'includes',
-				label: 'Post.includes(:author)',
+				label: 'Post.includes(:user)',
 				correct: true,
 			},
 			{
 				id: 'find-each',
-				label: 'Post.find_each { |p| p.author }',
+				label: 'Post.find_each { |p| p.user }',
 				correct: false,
 				feedback:
-					'find_each processes records in batches to save memory, but it still lazy-loads each author individually. The association query pattern does not change.',
+					'find_each processes records in batches to save memory, but it still lazy-loads each user individually. The association query pattern does not change.',
 			},
 		],
 	},
@@ -348,21 +643,6 @@ const OPTION_STEP_CONFIG: Record<
 };
 
 // ──────────────────────────────────────────────
-// Pipeline visualization configs
-// ──────────────────────────────────────────────
-
-const OBSERVE_CONNECTIONS: PipelineConnection[] = [
-	{ from: 'controller', to: 'model', dots: 'mixed' },
-	{ from: 'model', to: 'serializer', dots: 'mixed' },
-	{ from: 'serializer', to: 'database', dots: 'mixed' },
-];
-
-const REWARD_CONNECTIONS: PipelineConnection[] = [
-	{ from: 'controller', to: 'eager-load', dots: 'clean' },
-	{ from: 'eager-load', to: 'database', dots: 'clean' },
-];
-
-// ──────────────────────────────────────────────
 // Code preview helper
 // ──────────────────────────────────────────────
 
@@ -382,7 +662,7 @@ end
 
 # For 100 posts, this triggers:
 # 1 query for posts
-# + 100 queries for authors (one per post)
+# + 100 queries for users (one per post)
 # = 101 queries total`,
 			highlight: [3],
 		});
@@ -408,10 +688,11 @@ end`,
 		files.push({
 			filename: 'app/controllers/posts_controller.rb',
 			language: 'ruby',
-			code: furthestStep >= 3
-				? `class PostsController < ApplicationController
+			code:
+				furthestStep >= 3
+					? `class PostsController < ApplicationController
   def index
-    @posts = Post.includes(:author)
+    @posts = Post.includes(:user)
     # 2 queries instead of 101
     render json: PostSerializer.new(@posts)
   end
@@ -429,10 +710,10 @@ end`,
     render json: PostSerializer.new(@posts)
   end
 end`
-				: furthestStep >= 2
-					? `class PostsController < ApplicationController
+					: furthestStep >= 2
+						? `class PostsController < ApplicationController
   def index
-    @posts = Post.includes(:author)
+    @posts = Post.includes(:user)
     # 2 queries instead of 101
     render json: PostSerializer.new(@posts)
   end
@@ -443,14 +724,19 @@ end`
     render json: FeedSerializer.new(@posts)
   end
 end`
-					: `class PostsController < ApplicationController
+						: `class PostsController < ApplicationController
   def index
-    @posts = Post.includes(:author)
+    @posts = Post.includes(:user)
     # 2 queries instead of 101
     render json: PostSerializer.new(@posts)
   end
 end`,
-			highlight: furthestStep >= 3 ? [3, 9, 16, 17] : furthestStep >= 2 ? [3, 9] : [3],
+			highlight:
+				furthestStep >= 3
+					? [3, 9, 16, 17]
+					: furthestStep >= 2
+						? [3, 9]
+						: [3],
 		});
 	}
 
@@ -459,7 +745,7 @@ end`,
 			filename: 'app/models/post.rb',
 			language: 'ruby',
 			code: `class Post < ApplicationRecord
-  belongs_to :author, class_name: "User"
+  belongs_to :user
   has_many :comments
   has_many :tags
 
@@ -475,10 +761,295 @@ end`,
 }
 
 // ──────────────────────────────────────────────
-// Pipeline Legend (reward phase)
+// Block color maps
 // ──────────────────────────────────────────────
 
-function PipelineLegend() {
+const BLOCK_COLORS: Record<string, string> = {
+	green:
+		'bg-emerald-100 dark:bg-emerald-900/50 border-emerald-400 dark:border-emerald-600 text-emerald-800 dark:text-emerald-200',
+	amber:
+		'bg-amber-100 dark:bg-amber-900/50 border-amber-400 dark:border-amber-600 text-amber-800 dark:text-amber-200',
+	red: 'bg-red-100 dark:bg-red-900/50 border-red-400 dark:border-red-600 text-red-800 dark:text-red-200',
+};
+
+const RESULT_BADGE: Record<
+	string,
+	{ icon: typeof Check; label: string; className: string }
+> = {
+	works: {
+		icon: Check,
+		label: 'WORKS',
+		className: 'text-emerald-700 dark:text-emerald-400',
+	},
+	fails: {
+		icon: X,
+		label: 'N+1!',
+		className: 'text-red-700 dark:text-red-400',
+	},
+	suboptimal: {
+		icon: Info,
+		label: 'OK',
+		className: 'text-amber-700 dark:text-amber-400',
+	},
+	error: {
+		icon: X,
+		label: 'ERROR',
+		className: 'text-red-700 dark:text-red-400',
+	},
+};
+
+// ──────────────────────────────────────────────
+// QueryTimelineLane component (single lane)
+// ──────────────────────────────────────────────
+
+function QueryTimelineLane({
+	lane,
+	visible,
+	inspectable,
+	inspected,
+	onClick,
+}: {
+	lane: StrategyLaneData;
+	visible: boolean;
+	inspectable?: boolean;
+	inspected?: boolean;
+	onClick?: () => void;
+}) {
+	const badge = RESULT_BADGE[lane.result];
+	const BadgeIcon = badge?.icon;
+	const isClickable = inspectable && !!onClick;
+
+	return (
+		<div
+			className={cn(
+				'rounded-lg border border-border bg-card/50 transition-all duration-300 overflow-hidden',
+				!visible && 'opacity-40',
+			)}
+		>
+			{/* Lane header */}
+			<div className="flex items-center justify-between px-3 py-2 border-b border-border/50">
+				<button
+					className={cn(
+						'flex items-center gap-2 text-left',
+						isClickable &&
+							'cursor-pointer hover:text-primary transition-colors',
+					)}
+					disabled={!isClickable}
+					onClick={isClickable ? onClick : undefined}
+					type="button"
+				>
+					<code className="text-xs font-bold text-foreground">
+						{lane.name}
+					</code>
+					{inspectable && !inspected && (
+						<span className="flex items-center justify-center w-4 h-4 rounded-full bg-primary/20 text-primary text-[10px] font-bold animate-pulse">
+							?
+						</span>
+					)}
+				</button>
+				<div className="flex items-center gap-2">
+					<span className="text-[10px] font-mono text-muted-foreground">
+						{visible ? lane.method : ''}
+					</span>
+					{visible && badge && (
+						<span
+							className={cn(
+								'flex items-center gap-0.5 text-[11px] font-semibold',
+								badge.className,
+							)}
+						>
+							<BadgeIcon className="w-3 h-3" />
+							{badge.label}
+						</span>
+					)}
+				</div>
+			</div>
+
+			{/* Query blocks timeline */}
+			<div className="px-3 py-2 min-h-[36px]">
+				{!visible ? (
+					<span className="text-[10px] text-muted-foreground/50 italic">
+						Fire a probe to test this strategy
+					</span>
+				) : (
+					<div className="flex flex-wrap items-center gap-1.5">
+						{lane.blocks.map((block, i) => (
+							<div
+								className={cn(
+									'flex items-center gap-1.5',
+									'animate-in fade-in slide-in-from-left-2 duration-300',
+								)}
+								key={i}
+							>
+								{i > 0 && (
+									<span className="text-muted-foreground/40 text-xs">
+										{'->'}
+									</span>
+								)}
+								<span
+									className={cn(
+										'text-[10px] font-mono px-2 py-0.5 rounded border',
+										block.wide && 'px-3',
+										BLOCK_COLORS[block.color],
+									)}
+								>
+									{block.label}
+								</span>
+							</div>
+						))}
+
+						{/* Flood blocks (N+1 lazy loads) */}
+						{lane.floodCount && lane.floodCount > 0 && (
+							<>
+								<span className="text-muted-foreground/40 text-xs">
+									{'->'}
+								</span>
+								<div className="flex flex-wrap gap-[3px] max-w-[280px] animate-in fade-in zoom-in-95 duration-500">
+									{Array.from(
+										{ length: Math.min(lane.floodCount, 60) },
+										(_, i) => (
+											<div
+												className="w-[5px] h-[5px] rounded-[1px] bg-red-500 dark:bg-red-400"
+												key={i}
+												title={`SELECT user WHERE id=${i + 1}`}
+											/>
+										),
+									)}
+									{lane.floodCount > 60 && (
+										<span className="text-[9px] text-red-600 dark:text-red-400 font-mono ml-1">
+											+{lane.floodCount - 60}
+										</span>
+									)}
+								</div>
+							</>
+						)}
+
+						{/* Total label */}
+						<span
+							className={cn(
+								'text-[10px] font-semibold ml-auto pl-2',
+								lane.result === 'works'
+									? 'text-emerald-700 dark:text-emerald-400'
+									: lane.result === 'fails' || lane.result === 'error'
+										? 'text-red-700 dark:text-red-400'
+										: 'text-amber-700 dark:text-amber-400',
+							)}
+						>
+							{lane.totalLabel}
+						</span>
+					</div>
+				)}
+			</div>
+		</div>
+	);
+}
+
+// ──────────────────────────────────────────────
+// ResultLane component (reward phase - single lane)
+// ──────────────────────────────────────────────
+
+function ResultLane({
+	data,
+}: {
+	data: (typeof REWARD_LANE_DATA)[string];
+}) {
+	const isAllowed = data.result === 'works';
+	return (
+		<div
+			className={cn(
+				'rounded-lg border-2 p-4 transition-all duration-300 animate-in fade-in duration-500',
+				isAllowed
+					? 'border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-900/10'
+					: 'border-red-500/50 bg-red-50/50 dark:bg-red-900/10',
+			)}
+		>
+			{/* Strategy label */}
+			<div className="flex items-center justify-between mb-3">
+				<code className="text-sm font-bold text-foreground">
+					{data.strategy}
+				</code>
+				<span
+					className={cn(
+						'flex items-center gap-1 text-xs font-semibold',
+						isAllowed
+							? 'text-emerald-700 dark:text-emerald-400'
+							: 'text-red-700 dark:text-red-400',
+					)}
+				>
+					{isAllowed ? (
+						<Check className="w-3.5 h-3.5" />
+					) : (
+						<X className="w-3.5 h-3.5" />
+					)}
+					{isAllowed ? 'OPTIMIZED' : 'N+1 DETECTED'}
+				</span>
+			</div>
+
+			{/* Query blocks */}
+			<div className="flex flex-wrap items-center gap-1.5">
+				{data.blocks.map((block, i) => (
+					<div className="flex items-center gap-1.5" key={i}>
+						{i > 0 && (
+							<span className="text-muted-foreground/40 text-xs">
+								{'->'}
+							</span>
+						)}
+						<span
+							className={cn(
+								'text-[10px] font-mono px-2 py-0.5 rounded border',
+								block.wide && 'px-3',
+								BLOCK_COLORS[block.color],
+							)}
+						>
+							{block.label}
+						</span>
+					</div>
+				))}
+
+				{data.floodCount && data.floodCount > 0 && (
+					<>
+						<span className="text-muted-foreground/40 text-xs">
+							{'->'}
+						</span>
+						<div className="flex flex-wrap gap-[3px] max-w-[280px] animate-in fade-in zoom-in-95 duration-500">
+							{Array.from(
+								{ length: Math.min(data.floodCount, 60) },
+								(_, i) => (
+									<div
+										className="w-[5px] h-[5px] rounded-[1px] bg-red-500 dark:bg-red-400"
+										key={i}
+									/>
+								),
+							)}
+							{data.floodCount > 60 && (
+								<span className="text-[9px] text-red-600 dark:text-red-400 font-mono ml-1">
+									+{data.floodCount - 60}
+								</span>
+							)}
+						</div>
+					</>
+				)}
+
+				<span
+					className={cn(
+						'text-xs font-semibold ml-auto pl-2',
+						isAllowed
+							? 'text-emerald-700 dark:text-emerald-400'
+							: 'text-red-700 dark:text-red-400',
+					)}
+				>
+					{data.totalLabel}
+				</span>
+			</div>
+		</div>
+	);
+}
+
+// ──────────────────────────────────────────────
+// Strategy Legend (reward phase)
+// ──────────────────────────────────────────────
+
+function StrategyLegend() {
 	return (
 		<div className="p-4 border-b border-border">
 			<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
@@ -487,11 +1058,15 @@ function PipelineLegend() {
 			<div className="space-y-2 text-sm">
 				<div className="flex items-center gap-2">
 					<Check className="w-4 h-4 text-success" />
-					<span className="text-foreground">Optimized (eager loaded)</span>
+					<span className="text-foreground">
+						Optimized (eager loaded)
+					</span>
 				</div>
 				<div className="flex items-center gap-2">
 					<X className="w-4 h-4 text-destructive" />
-					<span className="text-foreground">N+1 detected (not eager loaded)</span>
+					<span className="text-foreground">
+						N+1 detected (not eager loaded)
+					</span>
 				</div>
 			</div>
 		</div>
@@ -505,7 +1080,7 @@ function PipelineLegend() {
 export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
-		minRequired: 3,
+		minRequired: 4,
 	});
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
@@ -515,71 +1090,53 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 		new Set(),
 	);
 	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
+	const [isAnimating, setIsAnimating] = useState(false);
+	const [firedProbeCount, setFiredProbeCount] = useState(0);
+	const [animationPhase, setAnimationPhase] = useState(-1);
+	const animationTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-	// ── Build observe stages dynamically (tracks inspected + last probe) ──
-	const probeDisplay = lastProbeId
-		? PROBE_PIPELINE_MAP[lastProbeId]
+	// Reward phase
+	const [lastRewardScenarioId, setLastRewardScenarioId] = useState<
+		string | null
+	>(null);
+
+	// ── Get current lanes for observe phase ──
+	const currentLanes = lastProbeId ? PROBE_LANES[lastProbeId] ?? null : null;
+
+	// ── Get current reward lane data ──
+	const currentRewardLane = lastRewardScenarioId
+		? REWARD_LANE_DATA[lastRewardScenarioId] ?? null
 		: null;
-	const observeStages: PipelineStage[] = useMemo(
-		() => [
-			{
-				id: 'controller',
-				label: 'Controller',
-				sublabel: 'Post.all',
-				inspectable: true,
-				inspected: inspectedStages.has('controller'),
-			},
-			{
-				id: 'model',
-				label: 'Model',
-				sublabel: probeDisplay ? probeDisplay.querySublabel : 'lazy load',
-				variant: (probeDisplay ? 'danger' : 'default') as
-					| 'danger'
-					| 'default',
-				inspectable: true,
-				inspected: inspectedStages.has('model'),
-			},
-			{
-				id: 'serializer',
-				label: 'Serializer',
-				sublabel: 'post.author.name',
-				inspectable: true,
-				inspected: inspectedStages.has('serializer'),
-			},
-			{
-				id: 'database',
-				label: 'Database',
-				badge: probeDisplay ? probeDisplay.dbBadge : undefined,
-				variant: (probeDisplay ? 'danger' : 'default') as
-					| 'danger'
-					| 'default',
-				inspectable: true,
-				inspected: inspectedStages.has('database'),
-			},
-		],
-		[inspectedStages, probeDisplay],
-	);
 
-	// ── Build reward stages dynamically (reacts to latest stress test result) ──
-	const lastResult = stressTest.results[stressTest.results.length - 1];
-	const rewardStages: PipelineStage[] = useMemo(() => {
-		const wasBlocked = lastResult?.result === 'blocked';
-		return [
-			{ id: 'controller', label: 'Controller' },
-			{
-				id: 'eager-load',
-				label: 'Eager Load',
-				sublabel: wasBlocked ? 'N+1 detected!' : 'includes/eager_load',
-				variant: wasBlocked ? ('danger' as const) : ('active' as const),
-				badge: wasBlocked ? 'N+1!' : undefined,
-			},
-			{
-				id: 'database',
-				label: 'Database',
-				sublabel: wasBlocked ? '101 queries' : '2 queries',
-			},
-		];
-	}, [lastResult]);
+	// ── Clear all animation timeouts ──
+	const clearAnimations = useCallback(() => {
+		animationTimeoutsRef.current.forEach(clearTimeout);
+		animationTimeoutsRef.current = [];
+	}, []);
+
+	// ── Run observe animation (stagger lanes) ──
+	const laneCount = 4;
+	const runObserveAnimation = useCallback(() => {
+		clearAnimations();
+		setIsAnimating(true);
+		setAnimationPhase(0);
+
+		for (let i = 1; i < laneCount; i++) {
+			animationTimeoutsRef.current.push(
+				setTimeout(
+					() => setAnimationPhase(i),
+					i * ANIMATION_DURATION_MS,
+				),
+			);
+		}
+
+		// Unlock after last lane + one more duration for settle
+		animationTimeoutsRef.current.push(
+			setTimeout(() => {
+				setIsAnimating(false);
+			}, laneCount * ANIMATION_DURATION_MS),
+		);
+	}, [clearAnimations]);
 
 	// ── Transition: build -> activate when all steps complete ──
 	useEffect(() => {
@@ -588,40 +1145,49 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 		}
 	}, [phase, stepper.isComplete]);
 
-	// ── Stage click handler (observe phase) ──
-	const handleStageClick = useCallback(
-		(stageId: string) => {
-			if (phase !== 'observe') return;
+	// ── Cleanup animation timeouts on unmount ──
+	useEffect(() => {
+		return () => clearAnimations();
+	}, [clearAnimations]);
 
-			const data = STAGE_INSPECTOR_MAP[stageId];
+	// ── Lane label click handler (observe phase) ──
+	const handleLaneClick = useCallback(
+		(laneId: string) => {
+			if (phase !== 'observe' || isAnimating) return;
+
+			const data = STAGE_INSPECTOR_MAP[laneId];
 			if (!data) return;
 
 			setInspectorData(data);
 			setInspectedStages((prev) => {
-				if (prev.has(stageId)) return prev;
+				if (prev.has(laneId)) return prev;
 				const next = new Set(prev);
-				next.add(stageId);
+				next.add(laneId);
 				return next;
 			});
 
-			const discoveryId = STAGE_DISCOVERY_MAP[stageId];
+			const discoveryId = STAGE_DISCOVERY_MAP[laneId];
 			if (discoveryId) {
 				discoveryGating.discover(discoveryId);
 			}
 		},
-		[phase, discoveryGating],
+		[phase, isAnimating, discoveryGating],
 	);
 
 	// ── Probe handler (observe phase) ──
 	const handleProbe = useCallback(
 		(probeId: string) => {
 			setLastProbeId(probeId);
+			setFiredProbeCount((prev) => prev + 1);
+
 			const discoveryId = PROBE_DISCOVERY_MAP[probeId];
 			if (discoveryId) {
 				discoveryGating.discover(discoveryId);
 			}
+
+			runObserveAnimation();
 		},
-		[discoveryGating],
+		[discoveryGating, runObserveAnimation],
 	);
 
 	// ── OptionCard step handler ──
@@ -649,9 +1215,18 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 	// ── Stress test fire handler ──
 	const handleFireScenario = useCallback(
 		(scenarioId: string) => {
+			setIsAnimating(true);
+			setLastRewardScenarioId(scenarioId);
 			stressTest.fireRequest(scenarioId);
+
+			clearAnimations();
+			animationTimeoutsRef.current.push(
+				setTimeout(() => {
+					setIsAnimating(false);
+				}, ANIMATION_DURATION_MS),
+			);
 		},
-		[stressTest],
+		[stressTest, clearAnimations],
 	);
 
 	// ── Completion ──
@@ -669,7 +1244,10 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 					.map((s) => s.title),
 			};
 		}
-		return { valid: true, message: 'All queries optimized with eager loading!' };
+		return {
+			valid: true,
+			message: 'All queries optimized with eager loading!',
+		};
 	};
 
 	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
@@ -684,15 +1262,17 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Level 23 exposed the N+1 problem: Post.all fires 101 queries
-							for 100 posts. Every post.author.name triggers a separate
-							SELECT.
+							Level 23 exposed the N+1 problem. Now you need to choose
+							the right{' '}
+							<span className="text-foreground font-medium">
+								strategy
+							</span>{' '}
+							to fix it. Not all eager loading methods work for every
+							scenario.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Rails provides three eager loading methods to fix this:
-							<span className="text-foreground font-medium"> includes</span> (smart default),
-							<span className="text-foreground font-medium"> preload</span> (separate queries), and
-							<span className="text-foreground font-medium"> eager_load</span> (LEFT OUTER JOIN).
+							Fire probes to test scenarios against four loading
+							strategies. Watch the SQL queries each one generates.
 						</p>
 					</div>
 
@@ -704,6 +1284,34 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 								discoveredCount={discoveryGating.discoveredCount}
 								minRequired={discoveryGating.minRequired}
 							/>
+
+							{/* Progressive hint */}
+							{firedProbeCount >= 2 &&
+								!discoveryGating.isUnlocked && (
+									<Alert
+										className="mt-3 animate-in fade-in duration-500"
+										variant="info"
+									>
+										<Info className="w-4 h-4" />
+										<AlertDescription className="text-xs">
+											{firedProbeCount >= 3 ? (
+												<>
+													Click the strategy names with{' '}
+													<span className="font-medium">?</span>{' '}
+													to inspect their SQL patterns and
+													discover why different scenarios need
+													different approaches.
+												</>
+											) : (
+												<>
+													Click the strategy names with{' '}
+													<span className="font-medium">?</span>{' '}
+													to inspect each loading method.
+												</>
+											)}
+										</AlertDescription>
+									</Alert>
+								)}
 						</div>
 					)}
 
@@ -724,7 +1332,7 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 					{/* Reward phase: legend + counters */}
 					{phase === 'reward' && (
 						<>
-							<PipelineLegend />
+							<StrategyLegend />
 
 							<div className="p-4">
 								<div className="grid grid-cols-2 gap-3">
@@ -732,13 +1340,17 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 										<div className="text-2xl font-bold text-success">
 											{stressTest.allowedCount}
 										</div>
-										<div className="text-xs text-success/70">Optimized</div>
+										<div className="text-xs text-success/70">
+											Optimized
+										</div>
 									</div>
 									<div className="bg-destructive/20 rounded-lg p-3 text-center">
 										<div className="text-2xl font-bold text-destructive">
 											{stressTest.blockedCount}
 										</div>
-										<div className="text-xs text-destructive/70">N+1 Caught</div>
+										<div className="text-xs text-destructive/70">
+											N+1 Caught
+										</div>
 									</div>
 								</div>
 							</div>
@@ -763,16 +1375,69 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 					{/* ── Phase 1: Observe (WHY) ── */}
 					{phase === 'observe' && (
 						<div className="flex-1 flex flex-col">
-							<div className="flex-1 relative">
-								<PipelineFlow
-									connections={OBSERVE_CONNECTIONS}
-									onNodeClick={handleStageClick}
-									stages={observeStages}
-								/>
+							{/* SQL Timeline lanes */}
+							<div className="flex-1 overflow-auto p-4">
+								<div className="max-w-3xl mx-auto space-y-2">
+									{(
+										currentLanes ?? [
+											{
+												id: 'includes',
+												name: 'includes',
+												method: '',
+												blocks: [],
+												totalLabel: '',
+												result: 'works' as const,
+											},
+											{
+												id: 'preload',
+												name: 'preload',
+												method: '',
+												blocks: [],
+												totalLabel: '',
+												result: 'works' as const,
+											},
+											{
+												id: 'eager_load',
+												name: 'eager_load',
+												method: '',
+												blocks: [],
+												totalLabel: '',
+												result: 'works' as const,
+											},
+											{
+												id: 'joins',
+												name: 'joins',
+												method: '',
+												blocks: [],
+												totalLabel: '',
+												result: 'works' as const,
+											},
+										]
+									).map((lane, i) => (
+										<QueryTimelineLane
+											inspectable
+											inspected={inspectedStages.has(
+												lane.id,
+											)}
+											key={lane.id}
+											lane={lane}
+											onClick={() =>
+												handleLaneClick(lane.id)
+											}
+											visible={
+												currentLanes !== null &&
+												animationPhase >= i
+											}
+										/>
+									))}
+								</div>
+
 								{inspectorData && (
 									<StageInspector
 										data={inspectorData}
-										onClose={() => setInspectorData(null)}
+										onClose={() =>
+											setInspectorData(null)
+										}
 									/>
 								)}
 							</div>
@@ -780,9 +1445,10 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 							{/* Probe terminal */}
 							<div className="px-6 pb-2">
 								<ProbeTerminal
+									disabled={isAnimating}
 									onProbe={handleProbe}
 									probes={PROBES}
-									title="Query Probe"
+									title="Strategy Tester"
 								/>
 							</div>
 
@@ -817,52 +1483,73 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 
 										{isViewingCompletedStep ? (
 											<div className="space-y-2">
-												{currentOptionConfig.options.map((opt) => (
-													<OptionCard
-														color="violet"
-														disabled={!opt.correct}
-														key={opt.id}
-														mono
-														name={opt.label}
-														selected={opt.correct}
-														size="lg"
-													/>
-												))}
+												{currentOptionConfig.options.map(
+													(opt) => (
+														<OptionCard
+															color="violet"
+															disabled={
+																!opt.correct
+															}
+															key={opt.id}
+															mono
+															name={opt.label}
+															selected={
+																opt.correct
+															}
+															size="lg"
+														/>
+													),
+												)}
 											</div>
 										) : (
 											<>
 												<div className="space-y-2">
-													{currentOptionConfig.options.map((opt) => (
-														<OptionCard
-															color="violet"
-															key={opt.id}
-															mono
-															name={opt.label}
-															onClick={() => handleOptionClick(opt)}
-															size="lg"
-														/>
-													))}
+													{currentOptionConfig.options.map(
+														(opt) => (
+															<OptionCard
+																color="violet"
+																key={opt.id}
+																mono
+																name={
+																	opt.label
+																}
+																onClick={() =>
+																	handleOptionClick(
+																		opt,
+																	)
+																}
+																size="lg"
+															/>
+														),
+													)}
 												</div>
 
 												<ErrorFeedback
-													message={stepper.lastFeedback}
-													onDismiss={stepper.clearFeedback}
+													message={
+														stepper.lastFeedback
+													}
+													onDismiss={
+														stepper.clearFeedback
+													}
 												/>
 											</>
 										)}
 
-										{isViewingCompletedStep && hasNextStep && (
-											<div className="flex justify-end">
-												<Button
-													className="gap-2"
-													onClick={stepper.nextStep}
-													size="sm"
-												>
-													Next Step
-													<ArrowRight className="w-4 h-4" />
-												</Button>
-											</div>
-										)}
+										{isViewingCompletedStep &&
+											hasNextStep && (
+												<div className="flex justify-end">
+													<Button
+														className="gap-2"
+														onClick={
+															stepper.nextStep
+														}
+														size="sm"
+													>
+														Next Step
+														<ArrowRight className="w-4 h-4" />
+													</Button>
+												</div>
+											)}
 									</>
 								)}
 							</div>
@@ -886,8 +1573,9 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 									))}
 								</div>
 								<p className="text-sm text-muted-foreground">
-									Your eager loading strategies are set. Stress-test the
-									optimized queries and watch N+1 problems get caught.
+									Your eager loading strategies are set.
+									Stress-test the optimized queries and watch
+									N+1 problems get caught.
 								</p>
 								<Button
 									className="gap-2"
@@ -904,22 +1592,35 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col">
-							<div className="flex-1 relative">
-								<PipelineFlow
-									connections={REWARD_CONNECTIONS}
-									stages={rewardStages}
-								/>
+							{/* Result lane */}
+							<div className="flex-1 flex items-center justify-center p-6">
+								<div className="w-full max-w-3xl">
+									{currentRewardLane ? (
+										<ResultLane
+											data={currentRewardLane}
+											key={lastRewardScenarioId}
+										/>
+									) : (
+										<div className="text-center text-muted-foreground text-sm">
+											Fire a scenario below to see the
+											query pattern
+										</div>
+									)}
+								</div>
 							</div>
 
-							{/* Stress test controls below pipeline */}
+							{/* Stress test controls */}
 							<div className="px-6 pb-2">
 								<StressTestPanel
 									allowedCount={stressTest.allowedCount}
 									blockedCount={stressTest.blockedCount}
 									canAutoFire={stressTest.canAutoFire}
+									disabled={isAnimating}
 									isAutoFiring={stressTest.isAutoFiring}
 									onFire={handleFireScenario}
-									onToggleAutoFire={stressTest.toggleAutoFire}
+									onToggleAutoFire={
+										stressTest.toggleAutoFire
+									}
 									results={stressTest.results}
 									scenarios={STRESS_SCENARIOS}
 								/>
@@ -942,24 +1643,41 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 								</div>
 								<div className="space-y-2 text-xs font-mono">
 									<div className="flex justify-between">
-										<span className="text-primary">includes</span>
-										<span className="text-muted-foreground">2 queries, SQL IN clause</span>
+										<span className="text-primary">
+											includes
+										</span>
+										<span className="text-muted-foreground">
+											2 queries, SQL IN clause
+										</span>
 									</div>
 									<div className="flex justify-between">
-										<span className="text-warning">preload</span>
-										<span className="text-muted-foreground">2 queries, separate SELECTs</span>
+										<span className="text-warning">
+											preload
+										</span>
+										<span className="text-muted-foreground">
+											2 queries, separate SELECTs
+										</span>
 									</div>
 									<div className="flex justify-between">
-										<span className="text-purple-400 dark:text-purple-300">eager_load</span>
-										<span className="text-muted-foreground">1 query, LEFT JOIN</span>
+										<span className="text-purple-400 dark:text-purple-300">
+											eager_load
+										</span>
+										<span className="text-muted-foreground">
+											1 query, LEFT JOIN
+										</span>
 									</div>
 									<div className="flex justify-between mt-2 pt-2 border-t border-border">
-										<span className="text-destructive">No eager loading</span>
-										<span className="text-destructive">10,001 queries</span>
+										<span className="text-destructive">
+											No eager loading
+										</span>
+										<span className="text-destructive">
+											10,001 queries
+										</span>
 									</div>
 								</div>
 								<div className="text-xs text-muted-foreground mt-2">
-									Memory: 681MB (no eager) to 45MB (with includes) for 10K records
+									Memory: 681MB (no eager) to 45MB (with
+									includes) for 10K records
 								</div>
 							</div>
 
@@ -969,13 +1687,23 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 								</div>
 								<ul className="text-xs text-muted-foreground space-y-1">
 									<li>
-										<span className="text-primary">bullet gem</span> - Auto-detects N+1 and suggests eager loading
+										<span className="text-primary">
+											prosopite gem
+										</span>{' '}
+										- Auto-detects N+1 and raises in
+										development
 									</li>
 									<li>
-										<span className="text-primary">strict_loading</span> - Raises on lazy loads in development
+										<span className="text-primary">
+											strict_loading
+										</span>{' '}
+										- Raises on lazy loads in development
 									</li>
 									<li>
-										<span className="text-primary">Rails Scales!, Ch. 2</span> - Preloading Methods
+										<span className="text-primary">
+											Rails Scales!, Ch. 2
+										</span>{' '}
+										- Preloading Methods
 									</li>
 								</ul>
 							</div>

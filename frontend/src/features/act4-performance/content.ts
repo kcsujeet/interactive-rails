@@ -227,71 +227,11 @@ const level24EagerLoading: Level = {
 	trigger: {
 		type: 'optimization',
 		description:
-			'Explore the N+1 query explosion, then apply the right eager loading strategy (includes, preload, or eager_load) for three different scenarios.',
-	},
-	startingPipeline: {
-		nodes: [
-			{ id: 'request-node', type: 'request', x: 80, y: 250, locked: true },
-			{ id: 'router-node', type: 'router', x: 280, y: 250, locked: true },
-			{
-				id: 'controller-node',
-				type: 'controller',
-				x: 480,
-				y: 250,
-				locked: true,
-			},
-			{
-				id: 'post-model',
-				type: 'model',
-				x: 720,
-				y: 140,
-				locked: true,
-				config: { label: 'Post' },
-			},
-			{
-				id: 'author-model',
-				type: 'model',
-				x: 720,
-				y: 360,
-				locked: true,
-				config: { label: 'User' },
-			},
-			{ id: 'database-node', type: 'database', x: 960, y: 250, locked: true },
-			{
-				id: 'serializer-node',
-				type: 'serializer',
-				x: 480,
-				y: 460,
-				locked: true,
-			},
-			{ id: 'response-node', type: 'response', x: 720, y: 460, locked: true },
-		],
-		connections: [
-			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'router-node' },
-			{
-				id: 'c2',
-				sourceNodeId: 'router-node',
-				targetNodeId: 'controller-node',
-			},
-			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
-			{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
-			{ id: 'c5', sourceNodeId: 'post-model', targetNodeId: 'author-model' },
-			{ id: 'c6', sourceNodeId: 'author-model', targetNodeId: 'database-node' },
-			{
-				id: 'c7',
-				sourceNodeId: 'controller-node',
-				targetNodeId: 'serializer-node',
-			},
-			{
-				id: 'c8',
-				sourceNodeId: 'serializer-node',
-				targetNodeId: 'response-node',
-			},
-		],
+			'Compare four loading strategies (includes, preload, eager_load, joins) across three scenarios to discover which strategy fits which situation.',
 	},
 	problem: {
 		observation:
-			'101 queries for 100 posts. Every post.author.name triggers a separate SELECT. Nested associations make it 1000+.',
+			'No eager loading strategy selected. Different scenarios need different approaches, and joins is a common trap that does not prevent N+1.',
 		rootCause:
 			'Associations are lazy-loaded by default. Rails only queries the database when you first access the association.',
 		codeExample: `# The controller does Post.all with no eager loading:
@@ -305,7 +245,7 @@ Post.eager_load(:user)   # Always LEFT OUTER JOIN (1 query)
 
 # Common trap: joins does NOT prevent N+1!
 Post.joins(:user)  # INNER JOINs but does NOT load user records`,
-		goal: 'Explore the N+1 problem in the query pipeline, then choose the right eager loading strategy for three scenarios: basic includes, nested associations, and filtered queries.',
+		goal: 'Test four loading strategies against three scenarios, discover why each strategy fits different situations, then apply the right fix for basic includes, nested associations, and filtered queries.',
 		thresholds: { maxQueriesPerRequest: 3, maxLatency: 50 },
 	},
 	successConditions: [{ type: 'eager_loading_applied' }],
@@ -438,7 +378,7 @@ end
 	},
 	hint: {
 		delay: 20,
-		text: 'Fire probes in the observe phase to see query counts explode. Click pipeline stages to inspect the lazy-loading code.',
+		text: 'Fire probes to test each scenario against the four strategy cards. Click strategy cards to inspect their SQL patterns and discover the differences.',
 	},
 };
 

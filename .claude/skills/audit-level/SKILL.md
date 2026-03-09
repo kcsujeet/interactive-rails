@@ -294,13 +294,33 @@ The pattern: the level tracks a `flowPhase` state (`-1` = idle, `0+` = animating
 - [ ] No custom fire buttons are clickable during animation
 - [ ] Auto-fire timing accounts for animation duration (each tick should be long enough for the animation to complete or nearly complete before the next fire)
 
+#### Animation timing constant
+
+All multi-phase flow animations must use the standard duration from `@/lib/animation`:
+
+```tsx
+import { ANIMATION_DURATION_MS } from '@/lib/animation'; // 1500ms per element
+```
+
+`ANIMATION_DURATION_MS` is the duration **per animated element** (lane, zone, node, block). Total animation scales with element count:
+- **Phase spacing**: `i * ANIMATION_DURATION_MS` (each element starts 1500ms after the previous)
+- **Total lockout**: `elementCount * ANIMATION_DURATION_MS` (last element start + settle)
+- **Single-element animation** (e.g., reward fire): `ANIMATION_DURATION_MS`
+
+Never divide `ANIMATION_DURATION_MS` by element count. That makes animations faster as you add elements, which is the opposite of what you want.
+
+**Checklist:**
+- [ ] Level imports `ANIMATION_DURATION_MS` from `@/lib/animation`
+- [ ] Per-element stagger uses `ANIMATION_DURATION_MS` directly (not divided)
+- [ ] Total lockout = `elementCount * ANIMATION_DURATION_MS`
+
 #### Flow animation pattern (for custom zone layouts)
 
 When a level uses custom zone layouts (not PipelineFlow), use the flow animation pattern to show data moving through zones:
 
 - **`flowPhase` state**: integer tracking current animation step. `-1` = idle, even numbers = zone highlights, odd numbers = edge animations.
 - **`flowMessages` array**: messages shown at each zone during animation. Messages are monotonically inclusive (once shown, they stay visible with `opacity-70`).
-- **`runFlow(messages)` callback**: advances phases sequentially with delays (650-1200ms per phase depending on zone count).
+- **`runFlow(messages)` callback**: advances phases sequentially with delays derived from `ANIMATION_DURATION_MS`.
 - **`clearFlow()` callback**: cancels pending timeouts. Called on unmount via `useEffect(() => clearFlow, [clearFlow])`.
 - **`flowTimeoutsRef`**: ref holding pending `setTimeout` IDs for cleanup.
 
