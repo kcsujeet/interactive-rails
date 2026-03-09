@@ -81,19 +81,33 @@ Each phase occupies the **full center panel**. The player focuses on one thing a
 
 The player **actively explores** the problem through an interactive observe phase. They click on pipeline stages to inspect code, fire test probes to discover vulnerabilities, and find the problem through exploration (not passive watching).
 
-- Center panel: interactive visualization of the problem. For pipeline levels, use `PipelineFlow` with `onNodeClick` to make stages clickable. Below the pipeline, add a `ProbeTerminal` where the player fires test requests that reveal vulnerabilities.
-- When a stage is clicked, a `StageInspector` card overlay shows the stage's description and code. Pipeline nodes react to probes: nodes flip between `'default'`/`'inactive'` and `'danger'` (red) variant to show the breach in real time. The node sublabel updates to show what is happening (e.g. "DELETE user_7") and the badge shows the response (e.g. "204!").
+- Center panel: interactive visualization of the problem. Pick the right visualization component for the concept (see below). Below the visualization, add a `ProbeTerminal` where the player fires test requests that reveal vulnerabilities.
+- When a zone/stage is clicked, a `StageInspector` card overlay shows the stage's description and code. Nodes react to probes with visual feedback (color changes, badges, content updates).
 - Left panel: scenario text + `DiscoveryChecklist` showing explore progress (pills with Search/Check icons, progress bar with "X of Y required")
 - Right panel: the broken/vulnerable/unoptimized code
 - "Build the Fix" button appears **only when `discoveryGating.isUnlocked`** (player has found enough problems), not on a timer. Uses `animate-in fade-in duration-500`.
+
+**Observe phase visualization: choose the right component.**
+
+Two reusable React Flow components exist. Use one of these before building a custom visualization:
+
+1. **`PipelineFlow`** — for levels where a **stage is missing or broken** in the request lifecycle (auth, validation, error handling). Nodes are minimal (label + sublabel + badge), styled by `variant` ('active'/'danger'/'inactive'/'default'). Supports multi-directional handles, bidirectional edges with lane offsets, and `activeConnections` for selective edge animation. Use when the concept is "something is wrong/missing at this point in the MVC pipeline."
+   - `PipelineFlow` with `onNodeClick`: stages get `inspectable: true` (shows pulsing `?` indicator until inspected) and `inspected: boolean` (hides `?` after click). `cursor-pointer` + hover ring on clickable nodes.
+   - Pipeline node `variant` is `'danger'` (red bg, red border, red sublabel) when showing a breach, `'active'` (green) when showing success, `'inactive'` (dashed, dimmed) for missing stages, `'default'` (zinc) otherwise.
+   - Canonical example: L12 (Authorization)
+
+2. **`QueryZoneFlow`** — for levels where **all stages work but data volume/flow is the problem** (N+1 queries, query flooding, caching, counter caches). Nodes are content-rich with structured slots (`codeLine`, `badge`, `statusText`, `statusBadge`, `loopCounter`, `queryLog`, `waitingText`). Supports `highlighted`/`highlightColor`/`panic` for visual state, and `danger` flag on edges to turn them red. Horizontal left-to-right layout, 350px spacing.
+   - `QueryZoneFlow` with `onZoneClick`: zones get `inspectable: true` and `inspected: boolean`, same pulsing `?` indicator pattern.
+   - Dot presets: `QUERY_DOTS_NORMAL` (1 green), `QUERY_DOTS_FLOOD` (12 red), `QUERY_DOTS_CLEAN` (2 green), `QUERY_DOTS_DANGER` (6 red).
+   - Canonical example: L23 (N+1 Problem)
+
+**When neither fits**, build a custom visualization. But always check these two first.
 
 **Observe phase components:**
 - `useDiscoveryGating(defs, { minRequired })` hook: tracks what the player has discovered. API: `discover(id)`, `isDiscovered(id)`, `isUnlocked`. No wrong attempts, pure exploration gating.
 - `DiscoveryChecklist`: left panel component showing discovery progress
 - `ProbeTerminal`: terminal-style component (amber-themed `>` prompt, distinct from SimulatedTerminal's green `$`). Each probe fires once, response reveals vulnerability. NOT a quiz. `onProbe(id)` callback triggers discoveries.
 - `StageInspector`: card overlay on stage click. Shows title, description, optional code block. Closes on X, click outside, or Escape.
-- `PipelineFlow` with `onNodeClick`: stages get `inspectable: true` (shows pulsing `?` indicator until inspected) and `inspected: boolean` (hides `?` after click). `cursor-pointer` + hover ring on clickable nodes.
-- Pipeline node `variant` is `'danger'` (red bg, red border, red sublabel) when showing a breach, `'active'` (green) when showing success, `'inactive'` (dashed, dimmed) for missing stages, `'default'` (zinc) otherwise.
 
 **Define data maps for each level:**
 - `DISCOVERY_DEFS`: array of `{ id, label }` for all discoverable items
@@ -101,13 +115,13 @@ The player **actively explores** the problem through an interactive observe phas
 - `PROBE_DISCOVERY_MAP`: maps probe IDs to discovery IDs they trigger
 - `STAGE_INSPECTOR_MAP`: maps stage IDs to `StageInspectorData` (title, description, optional code)
 - `STAGE_DISCOVERY_MAP`: maps stage IDs to discovery IDs they trigger
-- `PROBE_PIPELINE_MAP`: maps probe IDs to `{ policySublabel, modelBadge }` for node display during probes
+- `PROBE_PIPELINE_MAP`: (PipelineFlow levels) maps probe IDs to `{ policySublabel, modelBadge }` for node display during probes
 
 **Every level needs its own unique visualization concept.** Do NOT reuse the same "dots flowing through a pipeline" pattern everywhere. The visualization must teach the specific concept of that level. Examples:
-- MVC/architecture levels: pipeline/flow diagram showing where this piece fits in the request cycle
-- Security levels: animated requests/actors showing what gets through without protections
+- MVC/architecture levels: `PipelineFlow` showing where this piece fits in the request cycle
+- Security levels: `PipelineFlow` with animated requests/actors showing what gets through
+- Performance levels: `QueryZoneFlow` showing data flow, query multiplication, caching zones
 - Testing level: deploy pipeline where broken commits pass an empty test gate
-- Performance levels: before/after showing slow queries, N+1, memory bloat
 - Data levels: entity-relationship or schema diagrams showing structural problems
 - Routing level: request dispatcher showing URLs hitting dead ends
 
@@ -137,8 +151,8 @@ The player builds the solution step by step. **This phase must cover the COMPLET
 The player **stress-tests** their solution by firing different request scenarios and watching the fix handle each one. This is interactive, not passive.
 
 - Sub-phase a (activate): star rating display + "Visualize ___" button (centered, no animation)
-- Sub-phase b (reward): full-screen visualization returns in center panel, now showing the solution working. Below the pipeline, a `StressTestPanel` (terminal-style, dark bg, traffic-light header) lets the player fire request scenarios.
-- Pipeline nodes react dynamically to each fired scenario. The key node (e.g. Pundit policy) flips between `'active'` (green, sublabel "authorize!") for allowed requests and `'danger'` (red, sublabel "403 Forbidden", badge "BLOCKED") for blocked requests. This gives immediate visual feedback per request.
+- Sub-phase b (reward): full-screen visualization returns in center panel, now showing the solution working. Below the visualization, a `StressTestPanel` (terminal-style, dark bg, traffic-light header) lets the player fire request scenarios.
+- Visualization nodes react dynamically to each fired scenario. For `PipelineFlow`: the key node flips between `'active'` (green, sublabel "authorize!") and `'danger'` (red, sublabel "403 Forbidden", badge "BLOCKED"). For `QueryZoneFlow`: zones update `highlighted`/`highlightColor`, `statusText`, `statusBadge`, and edges toggle `danger` flag. Both give immediate visual feedback per request.
 - Left panel: legend + dual counters (Allowed/Blocked in green/red grid)
 - Right panel: final complete code
 - Player clicks Submit when satisfied

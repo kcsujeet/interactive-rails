@@ -4,22 +4,24 @@
  * Sequential phase flow: observe -> build -> activate -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
- * Phase 1 (WHY - observe): Interactive exploration. Click pipeline stages to
- *   inspect the request cycle. Fire API probes to watch queries multiply.
- *   Discovery gating controls when "Build the Fix" appears.
+ * Phase 1 (WHY - observe): Interactive exploration. Click 3 spatial zones
+ *   (Controller, Serializer, Database) in a React Flow canvas. Fire API
+ *   probes to watch queries cascade via animated SVG dots along edges.
+ *   The Serializer->Database edge floods with red dots. Database node
+ *   enters a panic blink state as the query log fills up.
  * Phase 2 (HOW - build): 3 steps setting up N+1 detection with Prosopite
  *   Step 0: bundle add prosopite pg_query (terminal)
  *   Step 1: Configure Prosopite in development.rb (OptionCard)
  *   Step 2: Enable strict_loading on the model (OptionCard)
  * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Detection" button
- * Phase 4 (ADVANTAGE - reward): Stress test. Fire different query patterns
- *   and watch Prosopite detect N+1 vs. safe queries.
+ * Phase 4 (ADVANTAGE - reward): Stress test. Same 3-zone React Flow layout
+ *   shows the fix. Fire patterns and watch Prosopite detect N+1 vs. safe.
  *
  * Teaches: N+1 query problem, Prosopite gem, pg_query, strict_loading
  */
 
 import { ArrowRight, Check, Play, Star, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -39,13 +41,17 @@ import {
 	type ValidationResult,
 } from '@/components/levels';
 import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
-import {
-	type PipelineConnection,
-	PipelineFlow,
-	type PipelineStage,
-} from '@/components/levels/PipelineFlow';
 import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
+import {
+	QueryZoneFlow,
+	type QueryZone,
+	type QueryZoneEdge,
+	QUERY_DOTS_NORMAL,
+	QUERY_DOTS_FLOOD,
+	QUERY_DOTS_CLEAN,
+	QUERY_DOTS_DANGER,
+} from '@/components/levels/QueryZoneFlow';
 import {
 	StageInspector,
 	type StageInspectorData,
@@ -65,6 +71,27 @@ import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 // ──────────────────────────────────────────────
 
 type Phase = 'observe' | 'build' | 'activate' | 'reward';
+
+// ──────────────────────────────────────────────
+// Flow animation: phase thresholds per zone
+// ──────────────────────────────────────────────
+
+/** Phase threshold at which each zone highlights */
+const ZONE_PHASE_THRESHOLD: Record<string, number> = {
+	controller: 0,
+	serializer: 2,
+	database: 4,
+};
+
+// ──────────────────────────────────────────────
+// Zone icon mapping (for QueryZoneFlow)
+// ──────────────────────────────────────────────
+
+const ZONE_ICON_MAP: Record<string, 'server' | 'search' | 'database'> = {
+	controller: 'server',
+	serializer: 'search',
+	database: 'database',
+};
 
 // ──────────────────────────────────────────────
 // Discovery definitions (observe phase)
@@ -142,25 +169,35 @@ const PROBE_DISCOVERY_MAP: Record<string, string> = {
 	'get-posts-1000': 'query-count',
 };
 
-// Map probe IDs to pipeline node display during observe
-const PROBE_PIPELINE_MAP: Record<
-	string,
-	{ dbSublabel: string; dbBadge: string; serializerSublabel: string }
-> = {
+// ──────────────────────────────────────────────
+// Probe zone display data (3-zone visualization)
+// ──────────────────────────────────────────────
+
+interface ProbeZoneData {
+	controllerBadge: string;
+	serializerCount: number;
+	dbTotalQueries: number;
+	dbTime: string;
+}
+
+const PROBE_ZONE_MAP: Record<string, ProbeZoneData> = {
 	'get-posts-5': {
-		dbSublabel: '6 queries',
-		dbBadge: 'N+1!',
-		serializerSublabel: 'post.user x5',
+		controllerBadge: '1 query',
+		serializerCount: 5,
+		dbTotalQueries: 6,
+		dbTime: '~2.4ms',
 	},
 	'get-posts-100': {
-		dbSublabel: '101 queries',
-		dbBadge: '850ms',
-		serializerSublabel: 'post.user x100',
+		controllerBadge: '1 query',
+		serializerCount: 100,
+		dbTotalQueries: 101,
+		dbTime: '~850ms',
 	},
 	'get-posts-1000': {
-		dbSublabel: '1001 queries',
-		dbBadge: '4.9s!',
-		serializerSublabel: 'post.user x1000',
+		controllerBadge: '1 query',
+		serializerCount: 1000,
+		dbTotalQueries: 1001,
+		dbTime: '~4.9s',
 	},
 };
 
@@ -196,12 +233,6 @@ end`,
 		title: 'Database (overwhelmed)',
 		description:
 			'The database receives 1 query for posts, then 1 query per post for the author. With 100 posts that is 101 queries. With 1000 posts, 1001 queries. It scales linearly with data size.',
-	},
-	response: {
-		stageId: 'response',
-		title: 'Response (slow)',
-		description:
-			'The response is correct but extremely slow. Each query adds network latency. Database connections are limited. What works in development with 10 records becomes a disaster in production.',
 	},
 };
 
@@ -416,20 +447,20 @@ const OPTION_STEP_CONFIG: Record<
 };
 
 // ──────────────────────────────────────────────
-// Pipeline visualization configs
+// Query line generator for database zone cascade
 // ──────────────────────────────────────────────
 
-const OBSERVE_CONNECTIONS: PipelineConnection[] = [
-	{ from: 'controller', to: 'serializer', dots: 'mixed' },
-	{ from: 'serializer', to: 'database', dots: 'mixed' },
-	{ from: 'database', to: 'response', dots: 'mixed' },
-];
-
-const REWARD_CONNECTIONS: PipelineConnection[] = [
-	{ from: 'controller', to: 'serializer', dots: 'mixed' },
-	{ from: 'serializer', to: 'database', dots: 'clean' },
-	{ from: 'database', to: 'response', dots: 'clean' },
-];
+function generateQueryLines(count: number): string[] {
+	const lines: string[] = ['SELECT * FROM posts'];
+	const show = Math.min(count, 6);
+	for (let i = 1; i <= show; i++) {
+		lines.push(`SELECT * FROM users WHERE id = ${i}`);
+	}
+	if (count > show) {
+		lines.push(`... ${count - show} more queries`);
+	}
+	return lines;
+}
 
 // ──────────────────────────────────────────────
 // Code preview helper
@@ -532,10 +563,10 @@ end`,
 }
 
 // ──────────────────────────────────────────────
-// Pipeline Legend (reward phase)
+// Detection Legend (reward phase)
 // ──────────────────────────────────────────────
 
-function PipelineLegend() {
+function DetectionLegend() {
 	return (
 		<div className="p-4 border-b border-border">
 			<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
@@ -573,89 +604,243 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 	);
 	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
 
-	// ── Build observe stages dynamically (tracks inspected + last probe) ──
-	const probeDisplay = lastProbeId
-		? PROBE_PIPELINE_MAP[lastProbeId]
-		: null;
-	const observeStages: PipelineStage[] = useMemo(
-		() => [
-			{
-				id: 'controller',
-				label: 'Controller',
-				sublabel: 'Post.all',
-				variant: (probeDisplay ? 'active' : 'default') as
-					| 'active'
-					| 'default',
-				inspectable: true,
-				inspected: inspectedStages.has('controller'),
-			},
-			{
-				id: 'serializer',
-				label: 'Serializer',
-				sublabel: probeDisplay
-					? probeDisplay.serializerSublabel
-					: 'post.user.name',
-				variant: (probeDisplay ? 'danger' : 'default') as
-					| 'danger'
-					| 'default',
-				inspectable: true,
-				inspected: inspectedStages.has('serializer'),
-			},
-			{
-				id: 'database',
-				label: 'Database',
-				sublabel: probeDisplay ? probeDisplay.dbSublabel : '(waiting)',
-				badge: probeDisplay ? probeDisplay.dbBadge : undefined,
-				variant: (probeDisplay ? 'danger' : 'default') as
-					| 'danger'
-					| 'default',
-				inspectable: true,
-				inspected: inspectedStages.has('database'),
-			},
-			{
-				id: 'response',
-				label: 'Response',
-				variant: (probeDisplay ? 'danger' : 'default') as
-					| 'danger'
-					| 'default',
-				sublabel: probeDisplay ? 'Slow' : undefined,
-				inspectable: true,
-				inspected: inspectedStages.has('response'),
-			},
-		],
-		[inspectedStages, probeDisplay],
-	);
+	// ── Flow animation state ──
+	const [flowPhase, setFlowPhase] = useState(-1);
+	const flowTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-	// ── Build reward stages dynamically (reacts to latest stress test result) ──
-	const lastResult = stressTest.results[stressTest.results.length - 1];
-	const rewardStages: PipelineStage[] = useMemo(() => {
-		const wasBlocked = lastResult?.result === 'blocked';
+	const clearFlow = useCallback(() => {
+		for (const t of flowTimeoutsRef.current) clearTimeout(t);
+		flowTimeoutsRef.current = [];
+	}, []);
+
+	const runFlow = useCallback(() => {
+		clearFlow();
+		setVisibleQueryCount(0);
+		setLoopCounter(0);
+		setFlowPhase(0);
+
+		const delays = [0, 600, 1200, 1800, 2400];
+		for (let i = 1; i < delays.length; i++) {
+			const t = setTimeout(() => setFlowPhase(i), delays[i]);
+			flowTimeoutsRef.current.push(t);
+		}
+	}, [clearFlow]);
+
+	useEffect(() => clearFlow, [clearFlow]);
+
+	// ── Query cascade animation (database zone, observe phase) ──
+	const [visibleQueryCount, setVisibleQueryCount] = useState(0);
+
+	const queryLines = useMemo(() => {
+		if (!lastProbeId) return [];
+		const zoneData = PROBE_ZONE_MAP[lastProbeId];
+		if (!zoneData) return [];
+		return generateQueryLines(zoneData.serializerCount);
+	}, [lastProbeId]);
+
+	useEffect(() => {
+		if (phase !== 'observe' || flowPhase !== 4 || !lastProbeId) return;
+		const zoneData = PROBE_ZONE_MAP[lastProbeId];
+		if (!zoneData) return;
+
+		const totalLines = generateQueryLines(zoneData.serializerCount).length;
+		const interval = zoneData.serializerCount > 100 ? 30 : 60;
+		let count = 0;
+
+		const id = setInterval(() => {
+			count++;
+			if (count >= totalLines) {
+				clearInterval(id);
+			}
+			setVisibleQueryCount(count);
+		}, interval);
+
+		return () => clearInterval(id);
+	}, [phase, flowPhase, lastProbeId]);
+
+	// ── Serializer loop counter animation (observe phase) ──
+	const [loopCounter, setLoopCounter] = useState(0);
+
+	useEffect(() => {
+		if (phase !== 'observe' || flowPhase !== 2 || !lastProbeId) return;
+		const zoneData = PROBE_ZONE_MAP[lastProbeId];
+		if (!zoneData) return;
+
+		const target = Math.min(zoneData.serializerCount, 8);
+		const interval = zoneData.serializerCount > 100 ? 40 : 80;
+		let count = 1;
+		setLoopCounter(1);
+
+		const id = setInterval(() => {
+			count++;
+			if (count > target) {
+				clearInterval(id);
+				return;
+			}
+			setLoopCounter(count);
+		}, interval);
+
+		return () => clearInterval(id);
+	}, [phase, flowPhase, lastProbeId]);
+
+	// ── Current probe zone data ──
+	const probeZoneData = lastProbeId ? PROBE_ZONE_MAP[lastProbeId] : null;
+
+	// ── Reward phase: last stress test result ──
+	const [lastRewardResult, setLastRewardResult] = useState<'allowed' | 'blocked' | null>(null);
+
+	// ── Build QueryZone[] / QueryZoneEdge[] for observe phase ──
+	const observeZones: QueryZone[] = useMemo(() => {
+		const zoneIds = ['controller', 'serializer', 'database'] as const;
+		return zoneIds.map((zoneId) => {
+			const isActive = flowPhase >= ZONE_PHASE_THRESHOLD[zoneId];
+			const isPanic = zoneId === 'database' && flowPhase >= 4;
+
+			const zone: QueryZone = {
+				id: zoneId,
+				label: zoneId.charAt(0).toUpperCase() + zoneId.slice(1),
+				icon: ZONE_ICON_MAP[zoneId],
+				inspectable: true,
+				inspected: inspectedStages.has(zoneId),
+			};
+
+			// Highlight state
+			if (isPanic) {
+				zone.highlighted = true;
+				zone.highlightColor = 'red';
+				zone.panic = true;
+			} else if (isActive) {
+				zone.highlighted = true;
+				zone.highlightColor = zoneId === 'controller' ? 'green' : 'red';
+			}
+
+			// Zone-specific content
+			if (zoneId === 'controller') {
+				zone.codeLine = 'Post.all';
+				if (isActive && probeZoneData) {
+					zone.badge = { text: probeZoneData.controllerBadge, color: 'green' };
+				}
+			} else if (zoneId === 'serializer') {
+				zone.codeLine = 'post.user.name';
+				if (isActive && probeZoneData) {
+					zone.loopCounter = { current: loopCounter, total: probeZoneData.serializerCount };
+					zone.badge = { text: `x${probeZoneData.serializerCount} queries`, color: 'red' };
+				}
+			} else if (zoneId === 'database') {
+				if (isActive && probeZoneData) {
+					zone.queryLog = { lines: queryLines, visibleCount: visibleQueryCount };
+					zone.badge = {
+						text: `${probeZoneData.dbTotalQueries} queries (${probeZoneData.dbTime})`,
+						color: probeZoneData.dbTotalQueries > 10 ? 'red' : 'yellow',
+					};
+				} else {
+					zone.waitingText = '(waiting)';
+				}
+			}
+
+			return zone;
+		});
+	}, [flowPhase, inspectedStages, probeZoneData, loopCounter, queryLines, visibleQueryCount]);
+
+	const observeEdges: QueryZoneEdge[] = useMemo(() => {
+		const fc1Active = flowPhase === 1;
+		const fc2Active = flowPhase >= 3 && flowPhase <= 4;
 		return [
 			{
-				id: 'controller',
-				label: 'Controller',
-				variant: 'active' as const,
+				from: 'controller',
+				to: 'serializer',
+				dots: QUERY_DOTS_NORMAL,
+				active: fc1Active,
 			},
 			{
-				id: 'serializer',
-				label: 'Serializer',
-				sublabel: wasBlocked ? 'N+1 detected!' : 'Prosopite OK',
-				variant: wasBlocked ? ('danger' as const) : ('active' as const),
-				badge: wasBlocked ? 'RAISE' : undefined,
-			},
-			{
-				id: 'database',
-				label: 'Database',
-				sublabel: wasBlocked ? 'N+1 pattern' : '2 queries',
-				variant: wasBlocked ? ('danger' as const) : ('active' as const),
-			},
-			{
-				id: 'response',
-				label: 'Response',
-				variant: wasBlocked ? ('danger' as const) : ('active' as const),
+				from: 'serializer',
+				to: 'database',
+				dots: QUERY_DOTS_FLOOD,
+				active: fc2Active,
+				danger: true,
 			},
 		];
-	}, [lastResult]);
+	}, [flowPhase]);
+
+	// ── Build QueryZone[] / QueryZoneEdge[] for reward phase ──
+	const rewardZones: QueryZone[] = useMemo(() => {
+		const zoneIds = ['controller', 'serializer', 'database'] as const;
+		return zoneIds.map((zoneId) => {
+			const isActive = flowPhase >= ZONE_PHASE_THRESHOLD[zoneId];
+			const isAllowed = lastRewardResult === 'allowed';
+			const isBlocked = lastRewardResult === 'blocked';
+
+			const zone: QueryZone = {
+				id: zoneId,
+				label: zoneId.charAt(0).toUpperCase() + zoneId.slice(1),
+				icon: ZONE_ICON_MAP[zoneId],
+			};
+
+			// Controller is always green when active
+			if (zoneId === 'controller') {
+				if (isActive) {
+					zone.highlighted = true;
+					zone.highlightColor = 'green';
+				}
+				zone.codeLine = 'Post.includes(:user)';
+				if (isActive) {
+					zone.badge = { text: '2 queries (eager loaded)', color: 'green' };
+				}
+			} else if (zoneId === 'serializer') {
+				if (isActive && lastRewardResult) {
+					zone.highlighted = true;
+					zone.highlightColor = isBlocked ? 'red' : 'green';
+					zone.statusText = {
+						text: isBlocked ? 'N+1 DETECTED!' : 'Prosopite OK',
+						color: isBlocked ? 'red' : 'green',
+					};
+					if (isBlocked) {
+						zone.statusBadge = { text: 'RAISE', color: 'red' };
+					}
+				} else {
+					zone.waitingText = 'Monitoring...';
+				}
+			} else if (zoneId === 'database') {
+				if (isActive && lastRewardResult) {
+					zone.highlighted = true;
+					zone.highlightColor = isBlocked ? 'red' : 'green';
+					zone.statusText = {
+						text: isBlocked ? 'N+1 pattern' : '2 queries',
+						color: isBlocked ? 'red' : 'green',
+					};
+					zone.statusBadge = {
+						text: isBlocked ? 'RAISE!' : 'Optimized',
+						color: isBlocked ? 'red' : 'green',
+					};
+				} else {
+					zone.waitingText = '(waiting)';
+				}
+			}
+
+			return zone;
+		});
+	}, [flowPhase, lastRewardResult]);
+
+	const rewardEdges: QueryZoneEdge[] = useMemo(() => {
+		const isBlocked = lastRewardResult === 'blocked';
+		const fc1Active = flowPhase === 1;
+		const fc2Active = flowPhase >= 3 && flowPhase <= 4;
+		return [
+			{
+				from: 'controller',
+				to: 'serializer',
+				dots: QUERY_DOTS_CLEAN,
+				active: fc1Active,
+			},
+			{
+				from: 'serializer',
+				to: 'database',
+				dots: isBlocked ? QUERY_DOTS_DANGER : QUERY_DOTS_CLEAN,
+				active: fc2Active,
+				danger: isBlocked,
+			},
+		];
+	}, [flowPhase, lastRewardResult]);
 
 	// ── Transition: build -> activate when all steps complete ──
 	useEffect(() => {
@@ -680,7 +865,6 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 				return next;
 			});
 
-			// Trigger discovery if this stage has one
 			const discoveryId = STAGE_DISCOVERY_MAP[stageId];
 			if (discoveryId) {
 				discoveryGating.discover(discoveryId);
@@ -693,12 +877,13 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 	const handleProbe = useCallback(
 		(probeId: string) => {
 			setLastProbeId(probeId);
+			runFlow();
 			const discoveryId = PROBE_DISCOVERY_MAP[probeId];
 			if (discoveryId) {
 				discoveryGating.discover(discoveryId);
 			}
 		},
-		[discoveryGating],
+		[discoveryGating, runFlow],
 	);
 
 	// ── OptionCard step handler ──
@@ -726,9 +911,14 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 	// ── Stress test fire handler ──
 	const handleFireScenario = useCallback(
 		(scenarioId: string) => {
+			const scenario = STRESS_SCENARIOS.find((s) => s.id === scenarioId);
+			if (scenario) {
+				setLastRewardResult(scenario.expectedResult);
+			}
 			stressTest.fireRequest(scenarioId);
+			runFlow();
 		},
-		[stressTest],
+		[stressTest, runFlow],
 	);
 
 	// ── Completion ──
@@ -807,7 +997,7 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 					{/* Reward phase: legend + counters */}
 					{phase === 'reward' && (
 						<>
-							<PipelineLegend />
+							<DetectionLegend />
 
 							<div className="p-4">
 								<div className="grid grid-cols-2 gap-3">
@@ -846,12 +1036,15 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 					{/* ── Phase 1: Observe (WHY) ── */}
 					{phase === 'observe' && (
 						<div className="flex-1 flex flex-col">
+							{/* Query zone flow with 3 clickable zones */}
 							<div className="flex-1 relative">
-								<PipelineFlow
-									connections={OBSERVE_CONNECTIONS}
-									onNodeClick={handleStageClick}
-									stages={observeStages}
+								<QueryZoneFlow
+									edges={observeEdges}
+									onZoneClick={handleStageClick}
+									zones={observeZones}
 								/>
+
+								{/* Stage Inspector overlay */}
 								{inspectorData && (
 									<StageInspector
 										data={inspectorData}
@@ -1015,14 +1208,15 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col">
+							{/* Query zone flow showing the fix */}
 							<div className="flex-1 relative">
-								<PipelineFlow
-									connections={REWARD_CONNECTIONS}
-									stages={rewardStages}
+								<QueryZoneFlow
+									edges={rewardEdges}
+									zones={rewardZones}
 								/>
 							</div>
 
-							{/* Stress test controls below pipeline */}
+							{/* Stress test controls */}
 							<div className="px-6 pb-2">
 								<StressTestPanel
 									allowedCount={stressTest.allowedCount}

@@ -220,6 +220,9 @@
 	/* Flow connector dot animations */
 	--animate-flow-dot-down: flow-dot-down 1.5s linear infinite;
 	--animate-flow-dot-right: flow-dot-right 1.5s linear infinite;
+
+	/* Database panic blink for N+1 visualization */
+	--animate-db-panic: db-panic 0.4s ease-in-out infinite;
 }
 
 /* ============================================
@@ -303,6 +306,11 @@
 	0% { left: 0; opacity: 1; }
 	85% { opacity: 1; }
 	100% { left: 100%; opacity: 0; }
+}
+
+@keyframes db-panic {
+	0%, 100% { border-color: var(--destructive); box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); }
+	50% { border-color: color-mix(in oklch, var(--destructive) 40%, transparent); box-shadow: 0 0 4px rgba(239, 68, 68, 0.1); }
 }
 
 /* ============================================

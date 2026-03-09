@@ -600,6 +600,16 @@ Verify that any custom animations follow Tailwind v4 / Lightning CSS constraints
 - [ ] **`FlowConnector` used instead of `ArrowDown` icons.** Between zones in custom layouts, use the `FlowConnector` component (not Lucide ArrowDown icons or dashed borders).
 - [ ] **`FlowConnector` direction matches the visualization's data flow.** Dots must travel in the same direction data flows in the visualization. A mismatch (e.g., vertical dots in a left-to-right layout) breaks the visual metaphor.
 
+### Color Contrast Checks (Light + Dark Mode)
+
+Every color choice must be visible and readable on both white and dark backgrounds. Custom visualization nodes (React Flow nodes, zone cards, etc.) are especially prone to contrast issues because they use explicit color classes rather than semantic tokens.
+
+- [ ] **No hardcoded dark-only colors.** Do not use fixed `text-zinc-200`, `text-zinc-400`, `bg-zinc-800`, `bg-emerald-900/40`, `bg-red-900/40` etc. without `dark:` counterparts. These are invisible or washed out in light mode. Use semantic tokens (`text-foreground`, `text-muted-foreground`, `bg-card`, `border-border`) where possible, and add explicit `dark:` variants for any fixed Tailwind colors.
+- [ ] **Badge/pill text contrast.** Badge text like `text-emerald-400` or `text-red-400` is unreadable on light backgrounds. Use darker shades for light mode: `text-emerald-700 dark:text-emerald-400`, `text-red-700 dark:text-red-400`.
+- [ ] **Zone/node backgrounds adapt to theme.** Active zone backgrounds should use light tints in light mode and dark tints in dark mode: `bg-emerald-100 dark:bg-emerald-900/40`, `bg-red-100 dark:bg-red-900/40`.
+- [ ] **Semi-transparent backgrounds do not leak.** If a node/zone uses a semi-transparent background (e.g., `bg-red-900/40`), verify the underlying canvas color does not bleed through and create unreadable contrast. Prefer opaque backgrounds for states like panic/danger.
+- [ ] **Scrollbar artifacts.** If a node/zone has scrollable content (`overflow-y-auto`, `max-h-*`), check that the scrollbar track does not create visible contrast artifacts against the node background. Prefer expanding height over scrolling when content is short.
+
 ## Output Format
 
 Present findings as:
