@@ -86,9 +86,23 @@ There are exactly **four types** of observe phase. Every level falls into one. P
 
 **Decision flowchart:**
 1. Is there a problem to discover? **No** -> Type 1 (no observe, go straight to build)
-2. Is the problem visible just by reading the code? **Yes** -> Type 2 (static intro)
+2. Is the problem visible just by reading the code, AND is it purely a code-structure issue (not a runtime/performance behavior)? **Yes** -> Type 2 (static intro)
 3. Does the concept have a unique spatial metaphor (not the MVC request chain)? **Yes** -> Type 3 (custom visualization)
 4. Is the concept about something missing/broken in the request lifecycle? **Yes** -> Type 4 (PipelineFlow)
+
+**Critical distinction between Type 2 and Type 3:** The question at step 2 is not just "can you see the problem in the code?" but "is reading the code sufficient to understand the IMPACT?" For refactoring levels (fat controller, missing abstraction), yes: the code structure IS the problem. But for performance levels, security levels, and data-flow levels, the code may look innocuous while the runtime behavior is catastrophic. In those cases, the player needs to SEE the runtime impact through an interactive visualization (Type 3), not just read annotated code (Type 2).
+
+**Case study: L25 Narrow Fetching (Type 2 was wrong, Type 3 is correct)**
+
+The original L25 used Type 2: static annotated code blocks showing `User.all` with text labels like "681 MB for 2 columns." This failed because:
+- The player reads "681 MB" as an abstract number with no visceral understanding of why
+- The code `User.all` looks harmless. You can't see the 30 columns, the 75KB TEXT field, or the memory explosion by reading a one-liner
+- The *ratio* of waste (28 unused columns vs 2 needed) is the core insight, and ratios need visual representation, not text labels
+- The problem is a RUNTIME behavior (memory allocation, query width), not a CODE STRUCTURE issue
+
+The redesigned L25 uses Type 3: a "Data Table Heatmap" where firing probes makes ALL 30 columns light up red (SELECT *), then the 2 needed columns flash green. The overwhelming red-to-green ratio IS the lesson. You don't need text to explain it when you can SEE 28 red columns and 2 green ones.
+
+**Rule of thumb:** If explaining the problem requires showing numbers (memory, latency, query count, object count) rather than showing code structure (responsibilities, abstractions, duplication), it needs Type 3, not Type 2.
 
 **Critical: Types 3 and 4 are both interactive with discovery gating. Types 1 and 2 have no discovery gating.** Do not add `useDiscoveryGating`, `DiscoveryChecklist`, `ProbeTerminal`, or `ScenarioCards` to Type 1 or Type 2 levels.
 
@@ -98,11 +112,13 @@ The level skips the observe phase entirely and goes straight to build. The three
 
 **When:** The player is building something from scratch, not fixing or discovering a flaw. There is no "problem" to visualize.
 
-#### Type 2: Static intro (code-structure / refactoring levels)
+#### Type 2: Static intro (code-structure / refactoring levels ONLY)
 
 The problem is self-evident from reading the code. A static annotated code display is enough. No animation, no interactive discovery.
 
 **When:** Refactoring levels (fat controllers, missing abstractions, duplicated logic) where the problem is a code structure issue visible by reading the code. The briefing screen already explains the problem in text. Interactive discovery (probes, inspectors, scenario cards) would feel like busywork.
+
+**When NOT to use Type 2 (common mistake):** Do NOT use static intro for performance, security, or data-flow levels where the problem is a runtime behavior. Code like `User.all` or `Post.includes(:author)` looks innocuous on its own. Annotating it with text labels ("681 MB", "101 queries") tells the player a fact but does not help them UNDERSTAND the impact. These levels need Type 3 so the player can SEE the runtime behavior: memory filling up, queries multiplying, columns wasting space. If the problem requires showing numbers (benchmarks, memory, latency) to be understood, it is not a code-structure problem and Type 2 is the wrong choice.
 
 **What it looks like:**
 - Static annotated code display with visual markers (colored left borders, Badge labels)
