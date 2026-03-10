@@ -1,24 +1,34 @@
 /**
  * Level 25: Narrow Fetching
  *
- * Sequential phase flow: intro -> build -> activate -> reward
+ * Sequential phase flow: observe -> build -> activate -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
- * Phase 1 (WHY - intro): Static visualization of memory-wasteful endpoints.
- *   Three annotated code blocks show wide fetches bleeding memory.
- *   Memory bar chart highlights the waste.
+ * Phase 1 (WHY - observe): Data Table Heatmap visualization. A stylized
+ *   database table grid shows 30 columns. When probes fire, ALL columns
+ *   light up red, then the 2-3 needed columns flash green. The ratio
+ *   teaches the lesson. Memory gauge shows waste.
  *
  * Phase 2 (HOW - build): 4 OptionCard steps. Pick the right fetching strategy
  *   (pluck, select, find_in_batches) for each scenario.
  *
  * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Savings" button
- * Phase 4 (ADVANTAGE - reward): Before/after memory benchmarks + problems-solved
+ * Phase 4 (ADVANTAGE - reward): Same heatmap returns, now showing narrow
+ *   fetches working. StressTestPanel lets player fire scenarios.
  *
  * Teaches: pluck, select, find_in_batches for memory-efficient data fetching
  */
 
-import { ArrowRight, Database, HardDrive, Layers, Play, Star, Zap } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import {
+	ArrowRight,
+	Database,
+	Info,
+	Layers,
+	Play,
+	Star,
+	Zap,
+} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -32,56 +42,251 @@ import {
 	StepProgress,
 	type ValidationResult,
 } from '@/components/levels';
+import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
+import { ProbeTerminal, type ProbeConfig } from '@/components/levels/ProbeTerminal';
+import { StageInspector, type StageInspectorData } from '@/components/levels/StageInspector';
+import { StressTestPanel } from '@/components/levels/StressTestPanel';
+import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
+import { useDiscoveryGating, type DiscoveryDef } from '@/hooks/useDiscoveryGating';
+import { useStressTest, type StressScenario } from '@/hooks/useStressTest';
+import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { cn } from '@/lib/utils';
 
 // ──────────────────────────────────────────────
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'intro' | 'build' | 'activate' | 'reward';
+type Phase = 'observe' | 'build' | 'activate' | 'reward';
 
 // ──────────────────────────────────────────────
-// Annotated endpoint sections (intro phase)
+// Table column schema
 // ──────────────────────────────────────────────
 
-interface AnnotatedEndpoint {
+interface TableColumn {
 	id: string;
 	label: string;
-	description: string;
-	code: string;
-	memoryWaste: string;
+	/** Approximate bytes per row for this column */
+	size: 'small' | 'medium' | 'large';
+	/** Whether this is the collapsed "+N more" placeholder */
+	collapsed?: boolean;
 }
 
-const ANNOTATED_ENDPOINTS: AnnotatedEndpoint[] = [
+const TABLE_COLUMNS: TableColumn[] = [
+	{ id: 'id', label: 'id', size: 'small' },
+	{ id: 'name', label: 'name', size: 'medium' },
+	{ id: 'email', label: 'email', size: 'medium' },
+	{ id: 'first_name', label: 'first_name', size: 'medium' },
+	{ id: 'last_name', label: 'last_name', size: 'medium' },
+	{ id: 'language_id', label: 'language_id', size: 'small' },
+	{ id: 'bio', label: 'bio', size: 'medium' },
+	{ id: 'avatar_url', label: 'avatar_url', size: 'medium' },
+	{ id: 'big_text_column', label: 'big_text_column', size: 'large' },
+	{ id: 'created_at', label: 'created_at', size: 'small' },
+	{ id: 'updated_at', label: 'updated_at', size: 'small' },
+	{ id: 'more', label: '+19 more', size: 'small', collapsed: true },
+];
+
+const TOTAL_COLUMN_COUNT = 30;
+const ROW_COUNT = 8;
+
+// ──────────────────────────────────────────────
+// Discovery definitions
+// ──────────────────────────────────────────────
+
+const DISCOVERY_DEFS: DiscoveryDef[] = [
+	{ id: 'select-star', label: 'SELECT * loads all 30 columns' },
+	{ id: 'ar-overhead', label: 'Full AR objects waste memory' },
+	{ id: 'batch-missing', label: 'Loading all records exhausts memory' },
+	{ id: 'text-column', label: 'Large TEXT columns dominate footprint' },
+];
+
+// ──────────────────────────────────────────────
+// Probe definitions
+// ──────────────────────────────────────────────
+
+const PROBES: ProbeConfig[] = [
 	{
 		id: 'csv-export',
 		label: 'CSV Export',
-		description: 'Loads all 30 columns for 50K users, only needs id and email',
-		code: `users = User.all  # SELECT * FROM users
-CSV.generate { |csv| users.each { |u| csv << [u.id, u.email] } }`,
-		memoryWaste: '681 MB for 2 columns',
+		command: 'GET /api/v1/users/export.csv (as admin)',
+		responseLines: [
+			{ text: 'SELECT * FROM users;', color: 'yellow' },
+			{ text: '-- 30 columns loaded, only 2 needed (id, email)', color: 'red' },
+			{ text: '-- big_text_column: 75 KB per row', color: 'red' },
+			{ text: 'Memory: 681 MB for 10K rows', color: 'red' },
+			{ text: 'Needed: 2.35 MB (id + email only)', color: 'green' },
+		],
 	},
 	{
-		id: 'dropdown',
+		id: 'dropdown-api',
 		label: 'Dropdown',
-		description: 'Creates 10K AR objects for simple key-value pairs',
-		code: `categories = Category.all
-categories.map { |c| [c.id, c.name] }`,
-		memoryWaste: '10K objects for 2 values',
+		command: 'GET /api/v1/categories/options (as frontend)',
+		responseLines: [
+			{ text: 'categories = Category.all', color: 'yellow' },
+			{ text: 'categories.map { |c| [c.id, c.name] }', color: 'yellow' },
+			{ text: '-- 10K ActiveRecord objects instantiated', color: 'red' },
+			{ text: '-- Each object: 2.5 KB overhead for 2 values', color: 'red' },
+			{ text: 'Plain arrays would use 80 bytes each', color: 'green' },
+		],
 	},
 	{
 		id: 'nightly-sync',
 		label: 'Nightly Sync',
-		description: 'Loads 50K records into memory simultaneously',
-		code: `User.all.each do |user|
-  SyncService.process(user)
-end`,
-		memoryWaste: 'All 50K records at once',
+		command: 'rails runner NightlySyncJob.perform (as scheduler)',
+		responseLines: [
+			{ text: 'User.all.each { |u| SyncService.process(u) }', color: 'yellow' },
+			{ text: '-- Loading 50K records into memory at once', color: 'red' },
+			{ text: '-- Peak memory: 3.4 GB', color: 'red' },
+			{ text: '-- Server swap triggered, OOM killer invoked', color: 'red' },
+			{ text: 'Batching 1K at a time: ~50 MB constant', color: 'green' },
+		],
 	},
 ];
+
+const PROBE_DISCOVERY_MAP: Record<string, string> = {
+	'csv-export': 'select-star',
+	'dropdown-api': 'ar-overhead',
+	'nightly-sync': 'batch-missing',
+};
+
+/** Which columns are "needed" per probe (shown green) */
+const PROBE_NEEDED_COLUMNS: Record<string, string[]> = {
+	'csv-export': ['id', 'email'],
+	'dropdown-api': ['id', 'name'],
+	'nightly-sync': [], // all columns needed, but batched
+};
+
+/** Memory gauge data per probe */
+const PROBE_MEMORY: Record<string, { total: string; needed: string; totalPct: number; neededPct: number }> = {
+	'csv-export': { total: '681 MB', needed: '2.35 MB', totalPct: 100, neededPct: 0.35 },
+	'dropdown-api': { total: '245 MB', needed: '0.8 MB', totalPct: 36, neededPct: 0.12 },
+	'nightly-sync': { total: '3.4 GB', needed: '~50 MB', totalPct: 100, neededPct: 1.5 },
+};
+
+// ──────────────────────────────────────────────
+// Stage inspector data (for big_text_column click)
+// ──────────────────────────────────────────────
+
+const BIG_TEXT_INSPECTOR: StageInspectorData = {
+	stageId: 'big_text_column',
+	title: 'big_text_column (TEXT)',
+	description:
+		'PostgreSQL TEXT columns can store up to 1 GB per cell. This column averages 75 KB per row.\n\n' +
+		'75 KB per row x 10,000 rows = 750 MB for just one column.\n\n' +
+		'A user once stored the entire U.S. Constitution in a TEXT field. ' +
+		'The SELECT * forced the DB to write to disk mid-response, causing double-digit second latency for an endpoint that only needed id and name.',
+	code: `# 75 KB per row in big_text_column
+10_000.times { |i|
+  User.create!(
+    big_text_column: "..." # avg 75 KB
+  )
+}
+
+# SELECT * loads ALL of it:
+User.all  # 750 MB just from this column!
+
+# SELECT id, name skips it entirely:
+User.pluck(:id, :name)  # 2.35 MB total`,
+};
+
+// ──────────────────────────────────────────────
+// Stress test scenarios (reward phase)
+// ──────────────────────────────────────────────
+
+const STRESS_SCENARIOS: StressScenario[] = [
+	{
+		id: 'csv-pluck',
+		label: 'CSV Export',
+		description: 'pluck(:id, :email) returns plain arrays',
+		method: 'GET',
+		path: '/api/v1/users/export.csv',
+		actor: 'admin',
+		expectedResult: 'allowed',
+		responseLines: [
+			{ text: 'User.pluck(:id, :email)', color: 'yellow' },
+			{ text: '-- 2 columns, plain arrays (no AR objects)', color: 'green' },
+			{ text: 'Memory: 2.35 MB for 10K rows', color: 'green' },
+		],
+	},
+	{
+		id: 'dropdown-pluck',
+		label: 'Dropdown',
+		description: 'pluck(:id, :name) returns key-value pairs',
+		method: 'GET',
+		path: '/api/v1/categories/options',
+		actor: 'frontend',
+		expectedResult: 'allowed',
+		responseLines: [
+			{ text: 'Category.pluck(:id, :name)', color: 'yellow' },
+			{ text: '-- 2 columns, 80 bytes per pair (no 2.5 KB objects)', color: 'green' },
+			{ text: 'Memory: 0.8 MB for 10K rows', color: 'green' },
+		],
+	},
+	{
+		id: 'api-select',
+		label: 'API Response',
+		description: 'select(:id, :first_name, :last_name) for model methods',
+		method: 'GET',
+		path: '/api/v1/users',
+		actor: 'client',
+		expectedResult: 'allowed',
+		responseLines: [
+			{ text: 'User.select(:id, :first_name, :last_name)', color: 'yellow' },
+			{ text: '-- 3 columns, AR objects with model methods', color: 'green' },
+			{ text: 'Memory: 12.1 MB for 10K rows', color: 'green' },
+		],
+	},
+	{
+		id: 'batch-sync',
+		label: 'Nightly Sync',
+		description: 'find_in_batches(batch_size: 1000) processes in chunks',
+		method: 'POST',
+		path: '/jobs/nightly_sync',
+		actor: 'scheduler',
+		expectedResult: 'allowed',
+		responseLines: [
+			{ text: 'User.find_in_batches(batch_size: 1000)', color: 'yellow' },
+			{ text: '-- Batch 1/50... Batch 2/50... processing', color: 'green' },
+			{ text: 'Peak memory: ~50 MB constant (not 3.4 GB)', color: 'green' },
+		],
+	},
+	{
+		id: 'wide-fetch',
+		label: 'Wide Fetch',
+		description: 'User.all loads all 30 columns for 50K records',
+		method: 'GET',
+		path: '/api/v1/users/all',
+		actor: 'legacy_client',
+		expectedResult: 'blocked',
+		responseLines: [
+			{ text: 'User.all', color: 'yellow' },
+			{ text: '-- SELECT * FROM users (30 columns, 50K rows)', color: 'red' },
+			{ text: '-- big_text_column: 75 KB per row', color: 'red' },
+			{ text: 'Memory: 3.4 GB, server OOM killed', color: 'red' },
+		],
+	},
+];
+
+/** Which columns light up per stress scenario (reward heatmap) */
+const STRESS_NEEDED_COLUMNS: Record<string, string[]> = {
+	'csv-pluck': ['id', 'email'],
+	'dropdown-pluck': ['id', 'name'],
+	'api-select': ['id', 'first_name', 'last_name'],
+	'batch-sync': [], // all columns, but batched
+	'wide-fetch': [], // all columns, blocked
+};
+
+const STRESS_MEMORY: Record<string, { label: string; pct: number }> = {
+	'csv-pluck': { label: '2.35 MB', pct: 0.35 },
+	'dropdown-pluck': { label: '0.8 MB', pct: 0.12 },
+	'api-select': { label: '12.1 MB', pct: 1.8 },
+	'batch-sync': { label: '~50 MB/batch', pct: 7.3 },
+	'wide-fetch': { label: '681 MB', pct: 100 },
+};
 
 // ──────────────────────────────────────────────
 // Step definitions (4 OptionCard steps)
@@ -134,11 +339,11 @@ end`,
 				correct: true,
 			},
 			{
-				id: 'select-with-bio',
-				label: 'User.select(:id, :email, :bio)',
+				id: 'select-two',
+				label: 'User.select(:id, :email)',
 				correct: false,
 				feedback:
-					'This still loads the bio column, the very column causing the memory problem. Check which columns you actually need.',
+					'This creates ActiveRecord objects when you only need raw data for a CSV. For simple values without model methods, there is a lighter approach that skips object creation entirely.',
 			},
 		],
 	},
@@ -226,7 +431,7 @@ end`,
 		options: [
 			{
 				id: 'pluck-manual',
-				label: 'User.pluck(:first_name, :last_name).map { |f,l| "\#{f} \#{l}" }',
+				label: 'User.pluck(:first_name, :last_name).map { |f,l| "#{f} #{l}" }',
 				correct: false,
 				feedback:
 					'This reimplements the full_name logic in the query layer. If the model method changes, you have to update it in two places. Keep model logic in the model.',
@@ -254,7 +459,7 @@ end`,
 function getCodeFiles(phase: Phase, furthestStep: number) {
 	const files = [];
 
-	if (phase === 'intro') {
+	if (phase === 'observe') {
 		files.push({
 			filename: 'app/controllers/api/v1/users_controller.rb',
 			language: 'ruby',
@@ -360,12 +565,436 @@ end`,
 }
 
 // ──────────────────────────────────────────────
+// Data Table Heatmap component
+// ──────────────────────────────────────────────
+
+interface HeatmapState {
+	/** Which animation phase: -1=idle, 0=columns red, 1=rows fill, 2=needed green, 3=gauge */
+	animPhase: number;
+	/** Which columns are "needed" (green) */
+	neededColumns: string[];
+	/** Memory gauge data */
+	memory: { total: string; needed: string; totalPct: number; neededPct: number } | null;
+	/** Is this a "blocked" scenario (all red, no green) */
+	isBlocked: boolean;
+	/** For nightly sync: show batch label instead of green columns */
+	isBatched: boolean;
+	/** Row counter for animation */
+	rowCount: number;
+}
+
+const INITIAL_HEATMAP: HeatmapState = {
+	animPhase: -1,
+	neededColumns: [],
+	memory: null,
+	isBlocked: false,
+	isBatched: false,
+	rowCount: 0,
+};
+
+function DataTableHeatmap({
+	state,
+	mode,
+	onColumnClick,
+	inspectedBigText,
+	inspectableBigText,
+}: {
+	state: HeatmapState;
+	/** 'problem' = observe phase (red dominates, shows waste), 'solution' = reward phase (green dominates for allowed, red only for blocked) */
+	mode: 'problem' | 'solution';
+	onColumnClick?: (colId: string) => void;
+	inspectedBigText?: boolean;
+	inspectableBigText?: boolean;
+}) {
+	const isActive = state.animPhase >= 0;
+	const showColumns = state.animPhase >= 0;
+	const showGreen = state.animPhase >= 2 && !state.isBlocked;
+	const showGauge = state.animPhase >= 3;
+
+	// In solution mode for allowed scenarios: no red at all. Just green on neutral.
+	const solutionAllowed = mode === 'solution' && !state.isBlocked;
+
+	return (
+		<div className="space-y-3">
+			{/* Column headers */}
+			<div className="flex gap-0.5 flex-wrap">
+				{TABLE_COLUMNS.map((col) => {
+					const isNeeded = showColumns && state.neededColumns.includes(col.id);
+					const isBigText = col.id === 'big_text_column';
+					const isClickable = isBigText && inspectableBigText && onColumnClick;
+
+					// Color logic differs by mode
+					let colorClass: string;
+					if (solutionAllowed && showGreen && isNeeded) {
+						// Solution allowed: needed columns glow green
+						colorClass = 'bg-emerald-100 dark:bg-emerald-900/50 border-emerald-500 text-emerald-700 dark:text-emerald-300';
+					} else if (solutionAllowed) {
+						// Solution allowed: non-needed columns stay neutral/dim
+						colorClass = 'bg-muted border-border text-muted-foreground';
+					} else if (showGreen && isNeeded) {
+						// Problem mode: needed columns flash green (contrast against red)
+						colorClass = 'bg-emerald-100 dark:bg-emerald-900/50 border-emerald-500 text-emerald-700 dark:text-emerald-300';
+					} else if (showColumns && isActive) {
+						// Problem mode (or solution blocked): all columns red
+						colorClass = 'bg-red-100 dark:bg-red-900/40 border-red-400 dark:border-red-600 text-red-700 dark:text-red-300';
+					} else {
+						colorClass = 'bg-muted border-border text-muted-foreground';
+					}
+
+					return (
+						<button
+							key={col.id}
+							type="button"
+							onClick={isClickable ? () => onColumnClick(col.id) : undefined}
+							disabled={!isClickable}
+							className={cn(
+								'relative px-1.5 py-1 text-[10px] font-mono rounded border transition-all transition-colors duration-300',
+								isBigText ? 'min-w-[100px]' : col.collapsed ? 'min-w-[60px]' : 'min-w-[56px]',
+								colorClass,
+								isClickable && !inspectedBigText && 'cursor-pointer hover:ring-2 hover:ring-primary/50',
+								isClickable && inspectedBigText && 'cursor-default',
+							)}
+						>
+							{col.label}
+							{isBigText && inspectableBigText && !inspectedBigText && (
+								<span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center animate-pulse">
+									?
+								</span>
+							)}
+							{isBigText && (
+								<span className={cn(
+									'block text-[8px] mt-0.5',
+									showColumns && isActive && !solutionAllowed
+										? 'text-red-500 dark:text-red-400'
+										: 'text-muted-foreground',
+								)}>
+									75 KB/row
+								</span>
+							)}
+						</button>
+					);
+				})}
+			</div>
+
+			{/* Column count indicator */}
+			<div className="text-[10px] text-muted-foreground font-mono text-right">
+				{solutionAllowed && showGreen && state.neededColumns.length > 0
+					? (
+						<span className="text-emerald-600 dark:text-emerald-400 font-bold">
+							{state.neededColumns.length} columns fetched
+						</span>
+					)
+					: solutionAllowed && state.isBatched && showGreen
+						? (
+							<span className="text-primary font-bold">
+								All columns, batched 1K at a time
+							</span>
+						)
+						: isActive && !state.isBlocked && state.neededColumns.length > 0 && showGreen
+							? (
+								<span>
+									<span className="text-emerald-600 dark:text-emerald-400 font-bold">
+										{state.neededColumns.length} needed
+									</span>
+									{' / '}
+									<span className="text-red-500 dark:text-red-400">
+										{TOTAL_COLUMN_COUNT} loaded
+									</span>
+								</span>
+							)
+							: state.isBatched && showGreen
+								? (
+									<span className="text-primary font-bold">
+										All columns, batched 1K at a time
+									</span>
+								)
+								: isActive
+									? (
+										<span className="text-red-500 dark:text-red-400 font-bold">
+											{TOTAL_COLUMN_COUNT} columns loaded via SELECT *
+										</span>
+									)
+									: `${TOTAL_COLUMN_COUNT} columns total`}
+			</div>
+
+			{/* Row indicator bars */}
+			<div className="space-y-1">
+				{Array.from({ length: ROW_COUNT }).map((_, i) => {
+					const showRow = state.animPhase >= 1 && i < state.rowCount;
+					return (
+						<div
+							key={i}
+							className={cn(
+								'h-2 rounded-full transition-all duration-300',
+								showRow && solutionAllowed
+									? 'bg-emerald-400/30 dark:bg-emerald-500/20'
+									: showRow && !state.isBlocked && showGreen
+										? 'bg-emerald-400/30 dark:bg-emerald-500/20'
+										: showRow
+											? 'bg-red-400/30 dark:bg-red-500/20'
+											: 'bg-muted',
+							)}
+						/>
+					);
+				})}
+				<div className="text-[10px] text-muted-foreground font-mono text-right">
+					{state.animPhase >= 1 && state.rowCount > 0
+						? state.isBatched && (showGreen || solutionAllowed)
+							? 'Batch 1/50 (1,000 rows)'
+							: `${state.rowCount.toLocaleString()}${state.rowCount >= 10000 ? '+' : ''} rows`
+						: `10K-50K rows`}
+				</div>
+			</div>
+
+			{/* Memory gauge */}
+			{state.memory && (
+				<div className="space-y-1.5 pt-1 border-t border-border">
+					{solutionAllowed ? (
+						/* Solution allowed: single green gauge only */
+						showGauge && (
+							<div className="flex items-center gap-2 animate-in fade-in duration-300">
+								<div className="flex-1 h-3 bg-secondary rounded-full overflow-hidden">
+									<div className="h-full rounded-full bg-emerald-500 dark:bg-emerald-600 transition-all duration-700 max-w-[3%] min-w-[2px]" />
+								</div>
+								<span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 w-24 text-right">
+									{state.memory.needed}
+								</span>
+							</div>
+						)
+					) : (
+						/* Problem mode or solution blocked: red gauge (+ green comparison in problem mode) */
+						<>
+							<div className="flex items-center gap-2">
+								<div className="flex-1 h-3 bg-secondary rounded-full overflow-hidden">
+									<div
+										className={cn(
+											'h-full rounded-full transition-all',
+											showGauge ? 'duration-700 w-full' : 'duration-0 w-0',
+											!showGreen
+												? 'bg-red-500 dark:bg-red-600'
+												: 'bg-red-400/20 dark:bg-red-500/15',
+										)}
+									/>
+								</div>
+								<span className={cn(
+									'text-[10px] font-mono w-24 text-right',
+									!showGreen
+										? 'text-red-500 dark:text-red-400'
+										: 'text-red-400/60 dark:text-red-500/40',
+								)}>
+									{showGauge ? (showGreen ? `${state.memory.total} wasted` : state.memory.total) : ''}
+								</span>
+							</div>
+							{showGreen && (
+								<div className="flex items-center gap-2 animate-in fade-in duration-300">
+									<div className="flex-1 h-3 bg-secondary rounded-full overflow-hidden">
+										<div className="h-full rounded-full bg-emerald-500 dark:bg-emerald-600 transition-all duration-700 max-w-[3%] min-w-[2px]" />
+									</div>
+									<span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 w-24 text-right">
+										{state.memory.needed}
+									</span>
+								</div>
+							)}
+						</>
+					)}
+				</div>
+			)}
+		</div>
+	);
+}
+
+// ──────────────────────────────────────────────
 // Component
 // ──────────────────────────────────────────────
 
 export function Level25NarrowFetching({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
-	const [phase, setPhase] = useState<Phase>('intro');
+	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, { minRequired: 4 });
+	const stressTest = useStressTest(STRESS_SCENARIOS);
+	const [phase, setPhase] = useState<Phase>('observe');
+
+	// ── Animation state ──
+	const [isAnimating, setIsAnimating] = useState(false);
+	const [heatmapState, setHeatmapState] = useState<HeatmapState>(INITIAL_HEATMAP);
+	const animationTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+	const [firedProbeCount, setFiredProbeCount] = useState(0);
+
+	// ── StageInspector state ──
+	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(null);
+	const [inspectedBigText, setInspectedBigText] = useState(false);
+
+	// ── Reward heatmap state ──
+	const [rewardHeatmap, setRewardHeatmap] = useState<HeatmapState>(INITIAL_HEATMAP);
+
+	const clearAnimations = useCallback(() => {
+		for (const t of animationTimeoutsRef.current) clearTimeout(t);
+		animationTimeoutsRef.current = [];
+	}, []);
+
+	useEffect(() => {
+		return () => clearAnimations();
+	}, [clearAnimations]);
+
+	// ── Observe phase: run heatmap animation on probe ──
+	const runObserveAnimation = useCallback(
+		(probeId: string) => {
+			clearAnimations();
+			setIsAnimating(true);
+
+			const neededCols = PROBE_NEEDED_COLUMNS[probeId] ?? [];
+			const memory = PROBE_MEMORY[probeId] ?? null;
+			const isBatched = probeId === 'nightly-sync';
+
+			// Phase 0: all columns turn red (staggered via CSS transition)
+			setHeatmapState({
+				animPhase: 0,
+				neededColumns: neededCols,
+				memory,
+				isBlocked: false,
+				isBatched,
+				rowCount: 0,
+			});
+
+			// Phase 1: rows fill up (after ANIMATION_DURATION_MS)
+			const rowInterval = 150;
+			const totalRows = isBatched ? 8 : 8;
+			animationTimeoutsRef.current.push(
+				setTimeout(() => {
+					setHeatmapState((prev) => ({ ...prev, animPhase: 1 }));
+					// Animate row counter
+					for (let r = 1; r <= totalRows; r++) {
+						animationTimeoutsRef.current.push(
+							setTimeout(() => {
+								const count = isBatched
+									? Math.round((50000 / totalRows) * r)
+									: Math.round((10000 / totalRows) * r);
+								setHeatmapState((prev) => ({ ...prev, rowCount: count }));
+							}, r * rowInterval),
+						);
+					}
+				}, ANIMATION_DURATION_MS),
+			);
+
+			// Phase 2: needed columns flash green (after 2 * ANIMATION_DURATION_MS)
+			animationTimeoutsRef.current.push(
+				setTimeout(() => {
+					setHeatmapState((prev) => ({ ...prev, animPhase: 2 }));
+				}, 2 * ANIMATION_DURATION_MS),
+			);
+
+			// Phase 3: memory gauge fills (after 3 * ANIMATION_DURATION_MS)
+			animationTimeoutsRef.current.push(
+				setTimeout(() => {
+					setHeatmapState((prev) => ({ ...prev, animPhase: 3 }));
+				}, 3 * ANIMATION_DURATION_MS),
+			);
+
+			// Unlock after 4 * ANIMATION_DURATION_MS
+			animationTimeoutsRef.current.push(
+				setTimeout(() => {
+					setIsAnimating(false);
+				}, 4 * ANIMATION_DURATION_MS),
+			);
+		},
+		[clearAnimations],
+	);
+
+	// ── Reward phase: run heatmap animation on stress test fire ──
+	const runRewardAnimation = useCallback(
+		(scenarioId: string) => {
+			clearAnimations();
+			setIsAnimating(true);
+
+			const scenario = STRESS_SCENARIOS.find((s) => s.id === scenarioId);
+			if (!scenario) return;
+
+			const neededCols = STRESS_NEEDED_COLUMNS[scenarioId] ?? [];
+			const memData = STRESS_MEMORY[scenarioId];
+			const isBlocked = scenario.expectedResult === 'blocked';
+			const isBatched = scenarioId === 'batch-sync';
+
+			// Phase 0: columns light up
+			// For allowed: show 681 MB (what SELECT * would load) vs actual narrow amount
+			// For blocked: show 681 MB as the actual load
+			setRewardHeatmap({
+				animPhase: 0,
+				neededColumns: neededCols,
+				memory: {
+					total: '681 MB',
+					needed: memData?.label ?? '',
+					totalPct: 100,
+					neededPct: memData?.pct ?? 0,
+				},
+				isBlocked,
+				isBatched,
+				rowCount: 0,
+			});
+
+			// Phase 1: rows
+			animationTimeoutsRef.current.push(
+				setTimeout(() => {
+					setRewardHeatmap((prev) => ({ ...prev, animPhase: 1, rowCount: isBatched ? 1000 : 10000 }));
+				}, ANIMATION_DURATION_MS * 0.5),
+			);
+
+			// Phase 2: green/red columns
+			animationTimeoutsRef.current.push(
+				setTimeout(() => {
+					setRewardHeatmap((prev) => ({ ...prev, animPhase: 2 }));
+				}, ANIMATION_DURATION_MS),
+			);
+
+			// Phase 3: gauge
+			animationTimeoutsRef.current.push(
+				setTimeout(() => {
+					setRewardHeatmap((prev) => ({ ...prev, animPhase: 3 }));
+				}, ANIMATION_DURATION_MS * 1.5),
+			);
+
+			// Unlock
+			animationTimeoutsRef.current.push(
+				setTimeout(() => {
+					setIsAnimating(false);
+				}, 2 * ANIMATION_DURATION_MS),
+			);
+		},
+		[clearAnimations],
+	);
+
+	// ── Probe handler ──
+	const handleProbe = useCallback(
+		(probeId: string) => {
+			setFiredProbeCount((c) => c + 1);
+			const discoveryId = PROBE_DISCOVERY_MAP[probeId];
+			if (discoveryId) {
+				discoveryGating.discover(discoveryId);
+			}
+			runObserveAnimation(probeId);
+		},
+		[discoveryGating, runObserveAnimation],
+	);
+
+	// ── Column click handler (big_text_column) ──
+	const handleColumnClick = useCallback(
+		(colId: string) => {
+			if (phase !== 'observe' || isAnimating) return;
+			if (colId === 'big_text_column') {
+				setInspectorData(BIG_TEXT_INSPECTOR);
+				setInspectedBigText(true);
+				discoveryGating.discover('text-column');
+			}
+		},
+		[phase, isAnimating, discoveryGating],
+	);
+
+	// ── Stress test fire handler ──
+	const handleFireScenario = useCallback(
+		(scenarioId: string) => {
+			stressTest.fireRequest(scenarioId);
+			runRewardAnimation(scenarioId);
+		},
+		[stressTest, runRewardAnimation],
+	);
 
 	// ── Transition: build -> activate when all steps complete ──
 	useEffect(() => {
@@ -393,6 +1022,7 @@ export function Level25NarrowFetching({ onComplete }: LevelComponentProps) {
 
 	const handleActivateSavings = () => {
 		setPhase('reward');
+		stressTest.reset();
 	};
 
 	// ── Completion ──
@@ -429,15 +1059,39 @@ export function Level25NarrowFetching({ onComplete }: LevelComponentProps) {
 							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
 								SELECT *
 							</code>{' '}
-							when they only need a few columns. A CSV export, a dropdown, and a
-							nightly sync are all loading far more data than necessary.
+							when they only need a few columns. The users table has 30 columns
+							including a 75KB TEXT field.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							{phase === 'intro'
-								? 'The annotated endpoints below show three different memory waste patterns. Each one needs a different fetching strategy.'
-								: 'Choose the right strategy for each scenario: pluck for raw values, select for model methods, find_in_batches for huge datasets.'}
+							{phase === 'observe'
+								? 'Fire probes to see how much data gets loaded. Click column headers to inspect the worst offenders.'
+								: phase === 'reward'
+									? 'Test your narrow fetching strategies. Watch the heatmap show efficient vs wasteful fetches.'
+									: 'Choose the right strategy for each scenario: pluck for raw values, select for model methods, find_in_batches for huge datasets.'}
 						</p>
 					</div>
+
+					{/* Observe phase: discovery checklist */}
+					{phase === 'observe' && (
+						<div className="p-4 border-b border-border">
+							<DiscoveryChecklist
+								discoveries={discoveryGating.discoveries}
+								discoveredCount={discoveryGating.discoveredCount}
+								minRequired={discoveryGating.minRequired}
+							/>
+							{/* Progressive hint */}
+							{firedProbeCount >= 2 && !discoveryGating.isUnlocked && (
+								<Alert variant="info" className="mt-3 animate-in fade-in duration-500">
+									<Info className="w-4 h-4" />
+									<AlertDescription className="text-xs">
+										Click the{' '}
+										<span className="font-medium">big_text_column</span>{' '}
+										header to see why TEXT columns dominate the memory footprint.
+									</AlertDescription>
+								</Alert>
+							)}
+						</div>
+					)}
 
 					{/* Build / activate phases: step progress */}
 					{(phase === 'build' || phase === 'activate') && (
@@ -453,51 +1107,49 @@ export function Level25NarrowFetching({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* Memory comparison (visible in all phases) */}
-					<div className="p-4 border-b border-border">
-						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-							<div className="flex items-center gap-1.5">
-								<HardDrive className="w-3.5 h-3.5" />
-								Memory Comparison
+					{/* Reward phase: legend + counters */}
+					{phase === 'reward' && (
+						<div className="p-4 border-b border-border space-y-3">
+							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+								Fetch Results
+							</div>
+							<div className="grid grid-cols-2 gap-2">
+								<div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-2 text-center">
+									<div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+										{stressTest.allowedCount}
+									</div>
+									<div className="text-[10px] text-muted-foreground">
+										Efficient
+									</div>
+								</div>
+								<div className="rounded-lg border border-red-500/30 bg-red-500/5 p-2 text-center">
+									<div className="text-lg font-bold text-red-500 dark:text-red-400">
+										{stressTest.blockedCount}
+									</div>
+									<div className="text-[10px] text-muted-foreground">
+										Blocked
+									</div>
+								</div>
+							</div>
+							<div className="space-y-1.5 text-[10px]">
+								<div className="flex items-center gap-1.5">
+									<div className="w-3 h-3 rounded bg-emerald-500/30 border border-emerald-500" />
+									<span className="text-muted-foreground">
+										Narrow fetch (efficient)
+									</span>
+								</div>
+								<div className="flex items-center gap-1.5">
+									<div className="w-3 h-3 rounded bg-red-500/30 border border-red-500" />
+									<span className="text-muted-foreground">
+										Wide fetch (blocked)
+									</span>
+								</div>
 							</div>
 						</div>
-						<div className="space-y-2 text-xs font-mono">
-							<div className="flex justify-between items-center">
-								<span className="text-destructive">Post.all</span>
-								<span className="text-destructive">681 MB</span>
-							</div>
-							<div className="h-2 bg-secondary rounded-full overflow-hidden">
-								<div className="h-full bg-destructive rounded-full w-full" />
-							</div>
-
-							<div className="flex justify-between items-center">
-								<span className="text-warning">select(...</span>
-								<span className="text-warning">12.1 MB</span>
-							</div>
-							<div className="h-2 bg-secondary rounded-full overflow-hidden">
-								<div className="h-full bg-warning rounded-full w-[1.8%]" />
-							</div>
-
-							<div className="flex justify-between items-center">
-								<span className="text-success">pluck(...</span>
-								<span className="text-success">2.35 MB</span>
-							</div>
-							<div className="h-2 bg-secondary rounded-full overflow-hidden">
-								<div className="h-full bg-success rounded-full w-[0.35%]" />
-							</div>
-
-							<div className="flex justify-between items-center">
-								<span className="text-primary">find_in_batches</span>
-								<span className="text-primary">~50 MB</span>
-							</div>
-							<div className="h-2 bg-secondary rounded-full overflow-hidden">
-								<div className="h-full bg-primary rounded-full w-[7.3%]" />
-							</div>
-						</div>
-					</div>
+					)}
 
 					{/* Decision tree (visible in build+) */}
-					{phase !== 'intro' && (
+					{phase !== 'observe' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Decision Tree
@@ -528,72 +1180,65 @@ export function Level25NarrowFetching({ onComplete }: LevelComponentProps) {
 				/>
 
 				<div className="flex-1 flex flex-col bg-background overflow-hidden">
-					{/* ── Phase 1: Intro (WHY) ── */}
-					{phase === 'intro' && (
+					{/* ── Phase 1: Observe (WHY) ── */}
+					{phase === 'observe' && (
 						<div className="flex-1 flex flex-col overflow-auto">
 							{/* Header */}
 							<div className="px-6 pt-4 pb-2 flex items-center justify-between">
 								<div className="text-sm font-semibold text-foreground">
-									The Problem: SELECT * Everywhere
+									Data Table Heatmap: SELECT * Waste
 								</div>
 								<span className="text-xs font-mono text-destructive font-bold">
-									3 endpoints, 3 memory leaks
+									{TOTAL_COLUMN_COUNT} columns, 10K+ rows
 								</span>
 							</div>
 
-							{/* Annotated endpoint sections */}
-							<div className="px-6 py-2">
-								<div className="max-w-lg mx-auto space-y-3">
-									{ANNOTATED_ENDPOINTS.map((endpoint) => (
-										<div
-											key={endpoint.id}
-											className="border-l-2 border-l-destructive bg-destructive/5 dark:bg-destructive/5 rounded-r-md px-3 py-2"
-										>
-											<div className="flex items-center gap-2 mb-1">
-												<Badge
-													variant="outline"
-													className="text-[10px] px-1.5 py-0 border-destructive/50 text-destructive"
-												>
-													{endpoint.label}
-												</Badge>
-												<span className="text-[10px] text-destructive font-mono">
-													{endpoint.memoryWaste}
-												</span>
-											</div>
-											<p className="text-xs text-muted-foreground mb-1.5">
-												{endpoint.description}
-											</p>
-											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">
-												{endpoint.code}
-											</pre>
-										</div>
-									))}
+							{/* Heatmap visualization */}
+							<div className="px-6 py-3">
+								<div className="max-w-2xl mx-auto">
+									<DataTableHeatmap
+										state={heatmapState}
+										mode="problem"
+										onColumnClick={handleColumnClick}
+										inspectableBigText
+										inspectedBigText={inspectedBigText}
+									/>
 								</div>
 							</div>
 
-							{/* Callout */}
-							<div className="px-6 py-3">
-								<div className="max-w-lg mx-auto">
-									<div className="border border-destructive/30 bg-destructive/5 dark:bg-destructive/5 rounded-lg p-3 text-sm text-foreground">
-										<strong>Every endpoint uses SELECT *.</strong>{' '}
-										Wide fetches load entire rows (including large TEXT columns)
-										when the code only reads 2-3 fields. Memory usage is 56x to 290x
-										higher than necessary.
-									</div>
+							{/* ProbeTerminal */}
+							<div className="px-6 py-2 flex-shrink-0">
+								<div className="max-w-2xl mx-auto">
+									<ProbeTerminal
+										probes={PROBES}
+										onProbe={handleProbe}
+										title="Endpoint Probe"
+										disabled={isAnimating}
+									/>
 								</div>
 							</div>
 
 							{/* Build the Fix button */}
-							<div className="p-4 flex justify-center">
-								<Button
-									className="gap-2"
-									onClick={handleStartBuild}
-									size="lg"
-								>
-									Build the Fix
-									<ArrowRight className="w-4 h-4" />
-								</Button>
-							</div>
+							{discoveryGating.isUnlocked && (
+								<div className="p-4 flex justify-center animate-in fade-in duration-500">
+									<Button
+										className="gap-2"
+										onClick={handleStartBuild}
+										size="lg"
+									>
+										Build the Fix
+										<ArrowRight className="w-4 h-4" />
+									</Button>
+								</div>
+							)}
+
+							{/* StageInspector overlay */}
+							{inspectorData && (
+								<StageInspector
+									data={inspectorData}
+									onClose={() => setInspectorData(null)}
+								/>
+							)}
 						</div>
 					)}
 
@@ -698,99 +1343,39 @@ export function Level25NarrowFetching({ onComplete }: LevelComponentProps) {
 							{/* Header */}
 							<div className="px-6 pt-4 pb-2 flex items-center justify-between">
 								<div className="text-sm font-semibold text-foreground">
-									The Fix: Narrow Fetching Applied
+									Narrow Fetching: Stress Test
 								</div>
+								{rewardHeatmap.animPhase >= 2 && rewardHeatmap.isBlocked && (
+									<Badge
+										variant="outline"
+										className="text-[10px] border-red-500/50 text-red-500 dark:text-red-400 animate-in fade-in duration-300"
+									>
+										BLOCKED
+									</Badge>
+								)}
 							</div>
 
-							{/* Before / After comparison */}
-							<div className="px-6 py-2">
-								<div className="max-w-lg mx-auto space-y-4">
-									{/* Before */}
-									<div>
-										<div className="text-xs font-semibold text-destructive uppercase tracking-wider mb-2">
-											Before (SELECT *)
-										</div>
-										<div className="bg-destructive/5 dark:bg-destructive/5 border border-destructive/20 rounded-lg p-3 space-y-2">
-											<div className="grid grid-cols-3 gap-2 text-xs font-mono">
-												<div className="text-center">
-													<div className="text-destructive font-bold text-lg">681 MB</div>
-													<div className="text-muted-foreground">Memory</div>
-												</div>
-												<div className="text-center">
-													<div className="text-destructive font-bold text-lg">149K</div>
-													<div className="text-muted-foreground">Objects</div>
-												</div>
-												<div className="text-center">
-													<div className="text-destructive font-bold text-lg">212ms</div>
-													<div className="text-muted-foreground">Time</div>
-												</div>
-											</div>
-										</div>
-									</div>
-
-									{/* After */}
-									<div>
-										<div className="text-xs font-semibold text-success uppercase tracking-wider mb-2">
-											After (Narrow Fetching)
-										</div>
-										<div className="bg-success/5 dark:bg-success/5 border border-success/20 rounded-lg p-3 space-y-3">
-											<div className="space-y-2">
-												<div className="flex items-center justify-between text-xs">
-													<span className="font-mono text-foreground">
-														CSV: User.pluck(:id, :email)
-													</span>
-													<span className="text-success font-bold">2.35 MB (290x less)</span>
-												</div>
-												<div className="flex items-center justify-between text-xs">
-													<span className="font-mono text-foreground">
-														Dropdown: Category.pluck(:id, :name)
-													</span>
-													<span className="text-success font-bold">Plain arrays</span>
-												</div>
-												<div className="flex items-center justify-between text-xs">
-													<span className="font-mono text-foreground">
-														API: User.select(:id, :first_name, :last_name)
-													</span>
-													<span className="text-success font-bold">12.1 MB (56x less)</span>
-												</div>
-												<div className="flex items-center justify-between text-xs">
-													<span className="font-mono text-foreground">
-														Sync: User.find_in_batches(batch_size: 1000)
-													</span>
-													<span className="text-success font-bold">~50 MB constant</span>
-												</div>
-											</div>
-										</div>
-									</div>
-								</div>
-							</div>
-
-							{/* Problems solved checklist */}
+							{/* Reward heatmap */}
 							<div className="px-6 py-3">
-								<div className="max-w-lg mx-auto">
-									<div className="border border-success/30 bg-success/5 dark:bg-success/5 rounded-lg p-3 space-y-2">
-										<div className="text-xs font-semibold text-success uppercase tracking-wider">
-											Problems Solved
-										</div>
-										<div className="space-y-1.5 text-sm text-foreground">
-											<div className="flex items-start gap-2">
-												<span className="text-success shrink-0 mt-0.5">&#10003;</span>
-												<span><strong>CSV export:</strong> <code className="text-xs bg-muted px-1 py-0.5 rounded">pluck</code> returns plain arrays. No AR objects, 290x less memory.</span>
-											</div>
-											<div className="flex items-start gap-2">
-												<span className="text-success shrink-0 mt-0.5">&#10003;</span>
-												<span><strong>Dropdown:</strong> <code className="text-xs bg-muted px-1 py-0.5 rounded">pluck</code> skips object creation entirely. Raw values for the UI.</span>
-											</div>
-											<div className="flex items-start gap-2">
-												<span className="text-success shrink-0 mt-0.5">&#10003;</span>
-												<span><strong>API response:</strong> <code className="text-xs bg-muted px-1 py-0.5 rounded">select</code> loads only needed columns while keeping model methods.</span>
-											</div>
-											<div className="flex items-start gap-2">
-												<span className="text-success shrink-0 mt-0.5">&#10003;</span>
-												<span><strong>Nightly sync:</strong> <code className="text-xs bg-muted px-1 py-0.5 rounded">find_in_batches</code> processes 1K at a time. Constant memory regardless of total.</span>
-											</div>
-										</div>
-									</div>
+								<div className="max-w-2xl mx-auto">
+									<DataTableHeatmap state={rewardHeatmap} mode="solution" />
+								</div>
+							</div>
+
+							{/* StressTestPanel */}
+							<div className="px-6 py-2 flex-shrink-0">
+								<div className="max-w-2xl mx-auto">
+									<StressTestPanel
+										scenarios={STRESS_SCENARIOS}
+										results={stressTest.results}
+										allowedCount={stressTest.allowedCount}
+										blockedCount={stressTest.blockedCount}
+										isAutoFiring={stressTest.isAutoFiring}
+										canAutoFire={stressTest.canAutoFire}
+										onFire={handleFireScenario}
+										onToggleAutoFire={stressTest.toggleAutoFire}
+										disabled={isAnimating}
+									/>
 								</div>
 							</div>
 						</div>
@@ -841,30 +1426,6 @@ export function Level25NarrowFetching({ onComplete }: LevelComponentProps) {
 						</div>
 					</div>
 
-					{/* Memory savings summary */}
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-							Memory Savings
-						</div>
-						<div className="space-y-1.5 text-xs font-mono">
-							<div className="flex justify-between text-muted-foreground">
-								<span className="text-destructive">Post.all</span>
-								<span>681 MB</span>
-							</div>
-							<div className="flex justify-between text-muted-foreground">
-								<span className="text-warning">select(...)</span>
-								<span>12.1 MB (56x less)</span>
-							</div>
-							<div className="flex justify-between text-muted-foreground">
-								<span className="text-success">pluck(...)</span>
-								<span>2.35 MB (290x less)</span>
-							</div>
-							<div className="flex justify-between text-muted-foreground">
-								<span className="text-primary">find_in_batches</span>
-								<span>~50 MB constant</span>
-							</div>
-						</div>
-					</div>
 				</CodePreviewPanel>
 			</RightPanel>
 		</LevelLayout>

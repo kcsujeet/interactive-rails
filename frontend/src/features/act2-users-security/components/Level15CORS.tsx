@@ -344,7 +344,7 @@ const OPTION_STEP_CONFIG: Record<
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'frontend-get',
-		label: 'GET /posts',
+		label: 'GET /posts (from localhost)',
 		description: 'React frontend fetches posts',
 		method: 'GET',
 		path: '/api/v1/posts',
@@ -353,7 +353,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'frontend-post',
-		label: 'POST /posts',
+		label: 'POST /posts (from localhost)',
 		description: 'React frontend creates a post',
 		method: 'POST',
 		path: '/api/v1/posts',
@@ -362,7 +362,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'frontend-delete',
-		label: 'DELETE /posts/1',
+		label: 'DELETE /posts/1 (from localhost)',
 		description: 'React frontend deletes a post',
 		method: 'DELETE',
 		path: '/api/v1/posts/1',
@@ -371,7 +371,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'evil-get',
-		label: 'GET /posts',
+		label: 'GET /posts (from evil.com)',
 		description: 'Malicious site reads posts',
 		method: 'GET',
 		path: '/api/v1/posts',
@@ -380,7 +380,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'evil-delete',
-		label: 'DELETE /posts/1',
+		label: 'DELETE /posts/1 (from evil.com)',
 		description: 'Malicious site tries to delete',
 		method: 'DELETE',
 		path: '/api/v1/posts/1',
@@ -389,7 +389,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'unknown-post',
-		label: 'POST /posts',
+		label: 'POST /posts (from unknown)',
 		description: 'Unknown origin creates a post',
 		method: 'POST',
 		path: '/api/v1/posts',

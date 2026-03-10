@@ -551,9 +551,84 @@ If the level uses StressTestPanel specifically:
 - [ ] `useStressTest(scenarios)` hook manages state
 - [ ] Define `STRESS_SCENARIOS` array
 - [ ] Terminal-style appearance matching ProbeTerminal
-- [ ] Scenario buttons with full detail, color-coded by expected result
+- [ ] Scenario buttons use `label` field as button text, color-coded by expected result
 - [ ] Auto-fire toggle gated behind 3+ manual fires
 - [ ] `disabled={flowPhase !== -1}` blocks fire buttons during flow animations (see "Animation locking" section)
+
+#### StressTestPanel response lines (non-negotiable)
+
+The ProbeTerminal in the observe phase shows multi-line colored `responseLines` per probe (SQL queries, memory stats, warnings). The StressTestPanel in the reward phase must provide the same level of detail. Without response lines, the stress test feels like a dumb button clicker with no feedback beyond "200" or "403".
+
+**Rule:** If the observe phase ProbeTerminal has `responseLines` per probe, the reward phase StressTestPanel MUST also have `responseLines` per scenario. The `StressScenario` type supports an optional `responseLines` field for this purpose.
+
+**Observe (problem) response lines** explain what went wrong:
+```
+responseLines: [
+  { text: 'SELECT * FROM users;', color: 'yellow' },
+  { text: '-- 30 columns loaded, only 2 needed', color: 'red' },
+  { text: 'Memory: 681 MB for 10K rows', color: 'red' },
+]
+```
+
+**Reward (solution) response lines** show the fix working. Allowed scenarios use green, blocked scenarios use red:
+```
+// Allowed scenario
+responseLines: [
+  { text: 'User.pluck(:id, :email)', color: 'yellow' },
+  { text: '-- 2 columns, plain arrays (no AR objects)', color: 'green' },
+  { text: 'Memory: 2.35 MB for 10K rows', color: 'green' },
+]
+
+// Blocked scenario
+responseLines: [
+  { text: 'User.all', color: 'yellow' },
+  { text: '-- SELECT * FROM users (30 columns, 50K rows)', color: 'red' },
+  { text: 'Memory: 3.4 GB, server OOM killed', color: 'red' },
+]
+```
+
+**Cross-phase parity:** The observe probe for "CSV Export" shows the problem (red lines about waste). The reward scenario for "CSV Export" shows the fix (green lines about efficiency). Same endpoint, opposite story.
+
+**When to skip:** If the level concept is purely about access control (auth, CORS) where the response is just "allowed" or "forbidden" with no numerical detail, response lines are optional. But for any level involving data, performance, or behavior differences, response lines are required.
+
+**Checklist:**
+- [ ] Every stress scenario has `responseLines` when the observe probes have them
+- [ ] Allowed scenarios use green lines, blocked scenarios use red lines
+- [ ] First line is the SQL/command (yellow), subsequent lines are the result/impact
+- [ ] Response lines tell the opposite story from observe (fix working vs problem occurring)
+
+#### StressTestPanel button labels (non-negotiable)
+
+StressTestPanel buttons display `scenario.label` as the button text. The `label` must be self-descriptive: the player should understand what the button does without needing `method`, `path`, or `actor` fields (those are used in the results log for technical detail).
+
+**When the actor/context matters to the concept (security, CORS, auth):** include it in the label. The actor IS the point of the test.
+
+```
+// GOOD: CORS level -- origin is the differentiator
+{ label: 'GET /posts (from localhost)', actor: 'localhost:3001', expectedResult: 'allowed' }
+{ label: 'GET /posts (from evil.com)', actor: 'evil.example.com', expectedResult: 'blocked' }
+
+// GOOD: Authorization level -- actor role is the point
+{ label: 'Owner edits own post', actor: 'owner (user_3)', expectedResult: 'allowed' }
+{ label: 'Stranger deletes post', actor: 'stranger (user_7)', expectedResult: 'blocked' }
+```
+
+**When the actor/context is irrelevant (performance, refactoring):** omit it from the label. The fetching strategy or pattern IS the point, not who calls it.
+
+```
+// GOOD: Performance level -- strategy is the differentiator
+{ label: 'CSV Export', actor: 'admin', expectedResult: 'allowed' }
+{ label: 'Nightly Sync', actor: 'scheduler', expectedResult: 'allowed' }
+{ label: 'Wide Fetch', actor: 'legacy_client', expectedResult: 'blocked' }
+```
+
+**Cross-phase consistency:** If the observe phase ProbeTerminal has a button labeled "CSV Export", the reward phase StressTestPanel should also say "CSV Export" (not `GET /api/v1/users/export.csv as admin`). The player must recognize the same endpoint across phases.
+
+**Checklist:**
+- [ ] Each `label` is unique within the scenario array (no duplicate button text)
+- [ ] Labels include actor context only when the actor is relevant to the concept being taught
+- [ ] Labels match the corresponding observe-phase probe labels for overlapping endpoints
+- [ ] Labels are concise enough to fit in a button without truncation
 
 #### When custom visualization IS used
 
@@ -563,6 +638,7 @@ If the level uses a custom visualization for the reward:
 - [ ] Visual elements update dynamically (color changes, animations, state transitions) in response to player actions
 - [ ] Some form of counter or progress tracker shows cumulative results
 - [ ] The visualization clearly shows the fix working (green/success states) vs what would have failed before (red/blocked states)
+- [ ] Allowed/success scenarios look visibly different from the observe phase (see "Same component, different visual state" in Cross-Phase Consistency)
 
 #### Left panel (reward)
 
@@ -601,6 +677,49 @@ GOOD: Intro uses annotated code blocks (amber borders, "Side Effect" badges)
 ```
 
 **Case study:** L16 originally showed annotated code in the intro but switched to a Controller box + FlowConnector + Service box layout in the reward. The player couldn't visually compare before and after because they looked nothing alike.
+
+#### Same component, different visual state (non-negotiable)
+
+"Same visual language" does NOT mean "identical appearance." The observe and reward phases reuse the same visualization component, but they must show **visibly different states** so the player can immediately tell the fix is working. If a player screenshots both phases and they look the same, the reward has failed.
+
+The distinction comes from what the visualization emphasizes:
+- **Observe phase** shows the PROBLEM: alarming colors (red), everything activated/wasteful, big numbers
+- **Reward phase** shows the SOLUTION: calm colors (green for success, neutral/dim for unused), only the relevant parts activated, small numbers
+
+When building a shared visualization component for both phases, add a `mode` prop (or equivalent state) that controls the color logic, not just the data. The component must render differently depending on whether it's showing broken state vs fixed state.
+
+```
+BAD: Same component, same visual logic, different data
+     Observe: 2 green columns, 28 red columns, red memory bar, green memory bar
+     Reward:  2 green columns, 28 red columns, red memory bar, green memory bar
+     (Player can't tell which phase they're in. The "fix" looks identical to the problem.)
+
+GOOD: Same component, mode-aware visual logic
+     Observe: ALL columns red (SELECT * waste) -> 2 flash green (contrast teaches the ratio)
+     Reward:  Only 2 columns glow green, 28 stay neutral/dim (clean, efficient, no red)
+     (Observe feels alarming. Reward feels calm. The visual shift IS the lesson.)
+```
+
+The rule: **observe shows what's wrong (red dominates), reward shows what's right (green dominates, red only appears for blocked/failed scenarios).** If the reward still shows red for successful scenarios, it's not showing the fix working.
+
+**Checklist:**
+- [ ] Observe and reward use the same visualization component
+- [ ] The component has a mode/state that changes its color logic between phases
+- [ ] Observe: problem state dominates (red, alarming, wasteful)
+- [ ] Reward (allowed): solution state dominates (green, calm, efficient). No red for successful outcomes.
+- [ ] Reward (blocked): problem state returns (red) to show what the fix prevents
+- [ ] A screenshot of each phase would look visibly different even without reading text
+
+**Case study: L25 Narrow Fetching (identical observe and reward was wrong)**
+
+L25 uses a "Data Table Heatmap" showing 30 database columns. The original implementation used the same color logic for both phases: fire a probe/scenario, all 30 columns turn red, then the 2 needed columns flash green, memory gauge shows red bar + green bar. The observe and reward phases were visually indistinguishable.
+
+This failed because:
+- The reward for "CSV Export (pluck)" showed 28 red columns + 2 green. But pluck SOLVED the problem. Why is there still red? The player sees the same alarming visual as the observe phase and doesn't feel like the fix worked.
+- The memory gauge showed both a red "681 MB wasted" bar and a green "2.35 MB" bar in the reward. But with pluck, there IS no 681 MB load. The red bar represents a hypothetical waste that doesn't happen anymore.
+- The player cannot visually distinguish "before fix" from "after fix" because both phases render identically.
+
+The fix: the component needs a `mode` prop. In observe mode (showing the problem): all columns go red, needed ones flash green for contrast, memory gauge shows red vs green comparison. In reward mode (showing the solution): for allowed scenarios, only the needed columns glow green against neutral/dim backgrounds, no red anywhere, memory gauge shows just the green bar. For blocked scenarios (User.all), everything goes red as before, showing what the fix prevents. The visual shift from "red everywhere" (observe) to "green on neutral" (reward) is the payoff for building the fix.
 
 #### Build steps must address all problems shown in the intro
 

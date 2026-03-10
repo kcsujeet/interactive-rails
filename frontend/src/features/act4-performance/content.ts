@@ -394,57 +394,7 @@ const level25NarrowFetching: Level = {
 	trigger: {
 		type: 'performance_alert',
 		description:
-			'Multiple endpoints are eating memory: a CSV export loads full objects when it only needs 2 columns, a dropdown loads 10K AR objects for simple key-value pairs, and a nightly sync loads 50K records at once. Time to fetch only what you need.',
-	},
-	startingPipeline: {
-		nodes: [
-			{ id: 'request-node', type: 'request', x: 100, y: 220, locked: true },
-			{ id: 'router-node', type: 'router', x: 280, y: 220, locked: true },
-			{
-				id: 'controller-node',
-				type: 'controller',
-				x: 460,
-				y: 220,
-				locked: true,
-			},
-			{
-				id: 'post-model',
-				type: 'model',
-				x: 660,
-				y: 220,
-				locked: true,
-				config: { label: 'Post' },
-			},
-			{ id: 'database-node', type: 'database', x: 860, y: 220, locked: true },
-			{
-				id: 'serializer-node',
-				type: 'serializer',
-				x: 460,
-				y: 400,
-				locked: true,
-			},
-			{ id: 'response-node', type: 'response', x: 660, y: 400, locked: true },
-		],
-		connections: [
-			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'router-node' },
-			{
-				id: 'c2',
-				sourceNodeId: 'router-node',
-				targetNodeId: 'controller-node',
-			},
-			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
-			{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
-			{
-				id: 'c5',
-				sourceNodeId: 'controller-node',
-				targetNodeId: 'serializer-node',
-			},
-			{
-				id: 'c6',
-				sourceNodeId: 'serializer-node',
-				targetNodeId: 'response-node',
-			},
-		],
+			'Multiple endpoints are eating memory. Explore the Data Table Heatmap to see how SELECT * loads 30 columns when only 2 are needed, then choose the right fetching strategy for each scenario.',
 	},
 	problem: {
 		observation:
@@ -466,7 +416,7 @@ categories.map { |c| [c.id, c.name] }
 # Nightly sync -- loads 50K records at once
 User.all.each { |u| SyncService.process(u) }
 # Entire dataset in memory simultaneously`,
-		goal: 'Choose the right fetching strategy for each scenario: pluck for raw values, select for lightweight AR objects, find_in_batches for huge datasets.',
+		goal: 'Explore the data table to discover why SELECT * wastes memory, then choose the right fetching strategy for each scenario.',
 		thresholds: { maxMemoryUsage: 50 },
 	},
 	successConditions: [{ type: 'queries_optimized' }],
@@ -580,7 +530,7 @@ User.pluck(:id, :name)`,
 	},
 	hint: {
 		delay: 20,
-		text: 'Use pluck when you only need raw values, select when you need model methods, and find_in_batches for huge datasets that would exhaust memory.',
+		text: 'Click column headers and fire probes to explore the waste. The big_text_column header reveals why TEXT columns dominate memory.',
 	},
 };
 

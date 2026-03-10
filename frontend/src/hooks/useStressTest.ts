@@ -19,6 +19,8 @@ export interface StressScenario {
 	path: string;
 	actor: string;
 	expectedResult: 'allowed' | 'blocked';
+	/** Optional terminal-style response lines shown in the results log after firing. */
+	responseLines?: { text: string; color?: string }[];
 }
 
 export interface RequestResult {

@@ -82,25 +82,49 @@ export function StressTestPanel({
 					const isAllowed = result.result === 'allowed';
 					return (
 						<div
-							className="flex items-center gap-2 py-0.5"
 							key={`${result.scenarioId}-${result.timestamp}-${i}`}
+							className="py-0.5"
 						>
-							<span
-								className={`text-xs font-bold shrink-0 ${
-									isAllowed ? 'text-emerald-400' : 'text-red-400'
-								}`}
-							>
-								{isAllowed ? '200' : '403'}
-							</span>
-							<span className="text-zinc-500 text-xs shrink-0">
-								{scenario.method}
-							</span>
-							<span className="text-zinc-300 text-xs truncate">
-								{scenario.path}
-							</span>
-							<span className="text-zinc-600 text-xs ml-auto shrink-0">
-								{scenario.actor}
-							</span>
+							<div className="flex items-center gap-2">
+								<span
+									className={`text-xs font-bold shrink-0 ${
+										isAllowed ? 'text-emerald-400' : 'text-red-400'
+									}`}
+								>
+									{isAllowed ? '200' : '403'}
+								</span>
+								<span className="text-zinc-500 text-xs shrink-0">
+									{scenario.method}
+								</span>
+								<span className="text-zinc-300 text-xs truncate">
+									{scenario.path}
+								</span>
+								<span className="text-zinc-600 text-xs ml-auto shrink-0">
+									{scenario.actor}
+								</span>
+							</div>
+							{scenario.responseLines && (
+								<div className="ml-8 mt-0.5 mb-1">
+									{scenario.responseLines.map((line, j) => {
+										const colorClass =
+											line.color === 'green'
+												? 'text-emerald-400'
+												: line.color === 'red'
+													? 'text-red-400'
+													: line.color === 'yellow'
+														? 'text-yellow-400'
+														: 'text-zinc-400';
+										return (
+											<div
+												className={`text-xs ${colorClass}`}
+												key={`${result.scenarioId}-line-${j}`}
+											>
+												{line.text}
+											</div>
+										);
+									})}
+								</div>
+							)}
 						</div>
 					);
 				})}
@@ -125,7 +149,7 @@ export function StressTestPanel({
 							size="sm"
 							variant="outline"
 						>
-							{scenario.method} {scenario.path} as {scenario.actor}
+							{scenario.label}
 						</Button>
 					))}
 
