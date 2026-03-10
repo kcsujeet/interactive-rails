@@ -22,18 +22,23 @@ Read these files in `docs/` to understand the project's design, architecture, an
 
 Read these in parallel to save time. Skim long files for key sections rather than reading every line.
 
-### 2. Read recent session logs
+### 2. Read project rules
+
+- List all files in `.claude/rules/` (recursively)
+- Read each rule file to understand project-specific coding conventions and constraints
+
+### 3. Read recent session logs
 
 - List all files in `docs/sessions/`
 - Read the most recent 5 session logs (or all if fewer than 5)
 - Note what was changed recently, ongoing work, and open issues
 
-### 3. Prune old session logs
+### 4. Prune old session logs
 
 - Keep only the 5 most recent session log files
 - Delete any older ones (they are stale and the codebase has moved on)
 
-### 4. Create a new session log
+### 5. Create a new session log
 
 - Check if any sessions exist for today's date (format: `YYYY-MM-DD`)
 - If yes, increment the session number
@@ -56,13 +61,13 @@ Read these in parallel to save time. Skim long files for key sections rather tha
 (Record any structural decisions or discoveries)
 ```
 
-### 5. Present context summary
+### 6. Present context summary
 
 Give a brief oriented summary covering:
 - What the project is and its current state
 - What was done in recent sessions
 - Any in-progress or upcoming work
 
-### 6. Ongoing
+### 7. Ongoing
 
 As the session progresses, update the session log with changes made, decisions taken, and learnings.

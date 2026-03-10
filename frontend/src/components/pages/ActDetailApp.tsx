@@ -26,15 +26,52 @@ function LevelCard({
 	level,
 	isUnlocked,
 	progress,
-	onSelect,
+	href,
 }: {
 	level: Level;
 	isUnlocked: boolean;
 	progress?: LevelProgress;
-	onSelect: () => void;
+	href: string;
 }) {
 	const isCompleted = progress?.completed || false;
 	const stars = progress?.stars || 0;
+
+	const content = (
+		<div className="flex items-center justify-between w-full">
+			<div className="flex items-center gap-3 min-w-0">
+				<span className="text-xs text-muted-foreground font-mono w-5">
+					{level.levelNumber}
+				</span>
+				<div className="min-w-0">
+					<div className="flex items-center gap-2">
+						<h4 className="text-sm font-medium text-foreground truncate">
+							{level.name}
+						</h4>
+						{isCompleted && <Check className="w-4 h-4 text-success shrink-0" />}
+					</div>
+					<p className="text-xs text-muted-foreground truncate mt-0.5">
+						{level.learningContent.title}
+					</p>
+				</div>
+			</div>
+			<div className="flex items-center gap-3 shrink-0">
+				{isCompleted && stars > 0 && (
+					<div className="flex items-center gap-0.5">
+						{Array.from({ length: 3 }).map((_, i) => (
+							<Star
+								className={`w-3.5 h-3.5 ${i < stars ? 'text-warning fill-warning' : 'text-muted'}`}
+								key={i}
+							/>
+						))}
+					</div>
+				)}
+				{!isUnlocked && <Lock className="w-4 h-4 text-muted-foreground" />}
+				{isUnlocked && !isCompleted && (
+					<ChevronRight className="w-4 h-4 text-muted-foreground" />
+				)}
+			</div>
+		</div>
+	);
 
 	return (
 		<Button
@@ -47,45 +84,15 @@ function LevelCard({
 				}
 			`}
 			disabled={!isUnlocked}
-			onClick={onSelect}
 			variant="ghost"
 		>
-			<div className="flex items-center justify-between w-full">
-				<div className="flex items-center gap-3 min-w-0">
-					<span className="text-xs text-muted-foreground font-mono w-5">
-						{level.levelNumber}
-					</span>
-					<div className="min-w-0">
-						<div className="flex items-center gap-2">
-							<h4 className="text-sm font-medium text-foreground truncate">
-								{level.name}
-							</h4>
-							{isCompleted && (
-								<Check className="w-4 h-4 text-success shrink-0" />
-							)}
-						</div>
-						<p className="text-xs text-muted-foreground truncate mt-0.5">
-							{level.learningContent.title}
-						</p>
-					</div>
-				</div>
-				<div className="flex items-center gap-3 shrink-0">
-					{isCompleted && stars > 0 && (
-						<div className="flex items-center gap-0.5">
-							{Array.from({ length: 3 }).map((_, i) => (
-								<Star
-									className={`w-3.5 h-3.5 ${i < stars ? 'text-warning fill-warning' : 'text-muted'}`}
-									key={i}
-								/>
-							))}
-						</div>
-					)}
-					{!isUnlocked && <Lock className="w-4 h-4 text-muted-foreground" />}
-					{isUnlocked && !isCompleted && (
-						<ChevronRight className="w-4 h-4 text-muted-foreground" />
-					)}
-				</div>
-			</div>
+			{isUnlocked ? (
+				<a className="flex w-full no-underline" href={href}>
+					{content}
+				</a>
+			) : (
+				content
+			)}
 		</Button>
 	);
 }
@@ -191,14 +198,10 @@ export function ActDetailApp({ actId }: ActDetailAppProps) {
 			<div className="space-y-2">
 				{act.levels.map((level) => (
 					<LevelCard
+						href={`/acts/${actId}/${level.id}`}
 						isUnlocked={isLevelUnlocked(level.id, completedLevels)}
 						key={level.id}
 						level={level}
-						onSelect={() => {
-							if (isLevelUnlocked(level.id, completedLevels)) {
-								window.location.href = `/acts/${actId}/${level.id}`;
-							}
-						}}
 						progress={levelProgress.get(level.id)}
 					/>
 				))}

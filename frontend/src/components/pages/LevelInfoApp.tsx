@@ -99,10 +99,6 @@ export function LevelInfoApp({ levelId }: LevelInfoAppProps) {
 		setLoading(false);
 	}
 
-	function startLevel() {
-		window.location.href = `/acts/${levelInfo?.actId}/${levelId}/play`;
-	}
-
 	if (loading || !levelInfo) {
 		return (
 			<div className="flex items-center justify-center min-h-[60vh]">
@@ -240,10 +236,11 @@ export function LevelInfoApp({ levelId }: LevelInfoAppProps) {
 			<div className="mt-10">
 				<Button
 					className="w-full h-12 text-base shadow-lg shadow-primary/20"
-					onClick={startLevel}
 				>
-					<Play className="w-5 h-5 mr-2" />
-					Start Challenge
+					<a href={`/acts/${levelInfo.actId}/${levelId}/play`} className="flex items-center justify-center w-full no-underline">
+						<Play className="w-5 h-5 mr-2" />
+						Start Challenge
+					</a>
 				</Button>
 			</div>
 		</div>

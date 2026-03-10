@@ -80,10 +80,10 @@
 	--background: oklch(0.13 0.005 260);
 	--foreground: oklch(0.95 0.005 260);
 
-	--card: oklch(0.16 0.005 260);
+	--card: oklch(0.18 0.005 260);
 	--card-foreground: oklch(0.95 0.005 260);
 
-	--popover: oklch(0.16 0.005 260);
+	--popover: oklch(0.18 0.005 260);
 	--popover-foreground: oklch(0.95 0.005 260);
 
 	--primary: oklch(0.65 0.25 18);
@@ -110,8 +110,8 @@
 	--info: oklch(0.65 0.2 250);
 	--info-foreground: oklch(0.95 0.01 250);
 
-	--border: oklch(1 0 0 / 10%);
-	--input: oklch(1 0 0 / 10%);
+	--border: oklch(0.35 0.01 260);
+	--input: oklch(0.35 0.01 260);
 	--ring: oklch(0.65 0.25 18);
 
 	/* Layered shadows for depth */

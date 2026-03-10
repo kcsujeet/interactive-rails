@@ -13,12 +13,7 @@ const { title, fullscreen = false } = Astro.props;
 <BaseLayout title={title}>
   <div class:list={["game-container", { "game-container--fullscreen": fullscreen }]}>
     {fullscreen ? (
-      <div class="game-min-header">
-        <a href="/acts" class="game-min-logo">
-          <img src="/favicon.svg" alt="Interactive Rails" class="game-min-icon" />
-          <span>Interactive Rails</span>
-        </a>
-      </div>
+      <Header hideNav compact />
     ) : (
       <Header />
     )}
@@ -51,27 +46,4 @@ const { title, fullscreen = false } = Astro.props;
     overflow: hidden;
   }
 
-  .game-min-header {
-    display: flex;
-    align-items: center;
-    padding: 0 20px;
-    height: 48px;
-    background: var(--color-card);
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  .game-min-logo {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: 600;
-    color: var(--color-foreground);
-    text-decoration: none;
-    font-size: 0.875rem;
-  }
-
-  .game-min-icon {
-    width: 1.25rem;
-    height: 1.25rem;
-  }
 </style>

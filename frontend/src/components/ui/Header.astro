@@ -1,30 +1,34 @@
 ---
 import { Button } from '@/components/ui/Button';
 
+interface Props {
+	hideNav?: boolean;
+	compact?: boolean;
+}
+
+const { hideNav = false, compact = false } = Astro.props;
 const pathname = Astro.url.pathname;
 const isActive = (href: string) =>
 	pathname === href || pathname.startsWith(href);
 ---
 
-<header class="sticky top-0 z-50 border-b border-border/50 bg-card/80 backdrop-blur-xl">
+<header class:list={["sticky top-0 z-50 border-b border-border/50 bg-card/80 backdrop-blur-xl", { "compact-header": compact }]}>
   <div class="absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-primary/20 to-transparent"></div>
-  <div class="max-w-[1400px] mx-auto px-6 h-16 flex items-center justify-between">
-    <a href="/" class="flex items-center gap-2 no-underline hover:opacity-80 transition-opacity">
-      <img src="/favicon.svg" alt="Interactive Rails Logo" class="w-7 aspect-square" />
-      <span class="text-sm font-semibold text-foreground">Interactive Rails</span>
-    </a>
+  <div class:list={["mx-auto px-6 flex items-center justify-between", compact ? "h-12" : "h-16 max-w-[1400px]"]}>
+    <div class="flex items-center gap-4">
+      <a href={hideNav ? "/acts" : "/"} class="flex items-center gap-2 no-underline hover:opacity-80 transition-opacity">
+        <img src="/favicon.svg" alt="Interactive Rails Logo" class:list={[compact ? "w-5 aspect-square" : "w-7 aspect-square"]} />
+        <span class:list={["font-semibold text-foreground", compact ? "text-xs" : "text-sm"]}>Interactive Rails</span>
+      </a>
 
-    <nav class="hidden md:flex items-center gap-1" id="main-nav">
-      <Button variant={isActive('/acts') ? 'default' : 'ghost'} color={isActive('/acts') ? 'primary' : 'muted'} size="sm">
-        <a href="/acts">Acts</a>
-      </Button>
-      <Button variant={isActive('/sandbox') ? 'default' : 'ghost'} color={isActive('/sandbox') ? 'primary' : 'muted'} size="sm">
-        <a href="/sandbox">Sandbox</a>
-      </Button>
-      <Button variant={isActive('/dashboard') ? 'default' : 'ghost'} color={isActive('/dashboard') ? 'primary' : 'muted'} size="sm">
-        <a href="/dashboard">Dashboard</a>
-      </Button>
-    </nav>
+      {!hideNav && (
+        <nav class="hidden md:flex items-center gap-1" id="main-nav">
+          <a href="/acts" class:list={["relative text-sm px-3 py-1.5 rounded-md transition-colors no-underline", isActive('/acts') ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"]}>Acts{isActive('/acts') && <span class="absolute bottom-0 left-3 right-3 h-0.5 bg-primary rounded-full" />}</a>
+          <a href="/sandbox" class:list={["relative text-sm px-3 py-1.5 rounded-md transition-colors no-underline", isActive('/sandbox') ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"]}>Sandbox{isActive('/sandbox') && <span class="absolute bottom-0 left-3 right-3 h-0.5 bg-primary rounded-full" />}</a>
+          <a href="/dashboard" class:list={["relative text-sm px-3 py-1.5 rounded-md transition-colors no-underline", isActive('/dashboard') ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"]}>Dashboard{isActive('/dashboard') && <span class="absolute bottom-0 left-3 right-3 h-0.5 bg-primary rounded-full" />}</a>
+        </nav>
+      )}
+    </div>
 
     <div class="flex items-center gap-2">
       <button
