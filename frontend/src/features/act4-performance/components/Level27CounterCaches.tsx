@@ -4,10 +4,12 @@
  * Sequential phase flow: observe -> build -> activate -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
- * Phase 1 (WHY - observe): Custom "Query Waterfall" visualization.
- *   Player fires requests at GET /api/posts and watches COUNT(*) queries
- *   cascade down a waterfall. Clickable query rows reveal details.
- *   Discovery gating controls when "Build the Fix" appears.
+ * Phase 1 (WHY - observe): Custom "Query Cascade" visualization.
+ *   Two-table layout: posts grid (left) + comments table (right).
+ *   Player fires probes and watches COUNT(*) queries cascade from each post
+ *   block to the comments table, one by one. The blocks turn red sequentially,
+ *   showing the N+1 mechanism visually. ProbeTerminal sits below the
+ *   visualization and drives it via onProbe callbacks.
  *
  * Phase 2 (HOW - build): 4 steps (1 terminal + 3 OptionCard)
  *   Step 0: Generate migration to add comments_count column (terminal)
@@ -16,9 +18,9 @@
  *   Step 3: Update serializer to use .size (OptionCard)
  *
  * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Counter Cache" button
- * Phase 4 (ADVANTAGE - reward): Interactive before/after comparison.
- *   Player fires requests at different scales (10, 50, 100, 500 posts)
- *   and sees query count stay at 1 with counter cache vs N+1 without.
+ * Phase 4 (ADVANTAGE - reward): Same visualization, now showing the fix.
+ *   Allowed: all blocks appear green instantly (counts embedded in posts.*).
+ *   Blocked (.count bypasses): red cascade returns, showing the problem persists.
  *
  * Teaches: counter_cache: true, migration conventions, reset_counters, .size vs .count
  */
@@ -27,9 +29,7 @@ import {
 	ArrowRight,
 	Database,
 	Play,
-	Search,
 	Star,
-	Timer,
 	TrendingDown,
 	Zap,
 } from 'lucide-react';
@@ -51,6 +51,12 @@ import {
 	type ValidationResult,
 } from '@/components/levels';
 import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
+import { FlowConnector } from '@/components/levels/FlowConnector';
+import {
+	type ProbeConfig,
+	ProbeTerminal,
+} from '@/components/levels/ProbeTerminal';
+import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import {
@@ -58,6 +64,9 @@ import {
 	useDiscoveryGating,
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
+import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { cn } from '@/lib/utils';
 
 // ──────────────────────────────────────────────
 // Phase type
@@ -66,59 +75,65 @@ import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 type Phase = 'observe' | 'build' | 'activate' | 'reward';
 
 // ──────────────────────────────────────────────
+// Visualization state types
+// ──────────────────────────────────────────────
+
+type VizMode = 'idle' | 'cascade' | 'cached';
+
+// ──────────────────────────────────────────────
 // Discovery definitions (observe phase)
 // ──────────────────────────────────────────────
 
+const OBSERVE_POST_COUNT = 20;
+
 const DISCOVERY_DEFS: DiscoveryDef[] = [
-	{ id: 'count-explosion', label: 'COUNT(*) query explosion on index' },
-	{ id: 'per-post-query', label: 'Each post fires a separate COUNT(*)' },
-	{ id: 'linear-scaling', label: 'Query count scales linearly with posts' },
-];
-
-// ──────────────────────────────────────────────
-// Observe phase: query waterfall probes
-// ──────────────────────────────────────────────
-
-interface WaterfallProbe {
-	id: string;
-	label: string;
-	postCount: number;
-	discoveryIds: string[];
-}
-
-const WATERFALL_PROBES: WaterfallProbe[] = [
 	{
-		id: 'small',
-		label: 'GET /api/posts (10 posts)',
-		postCount: 10,
-		discoveryIds: ['count-explosion'],
-	},
-	{
-		id: 'medium',
-		label: 'GET /api/posts (50 posts)',
-		postCount: 50,
-		discoveryIds: ['per-post-query'],
-	},
-	{
-		id: 'large',
-		label: 'GET /api/posts (100 posts)',
-		postCount: 100,
-		discoveryIds: ['linear-scaling'],
+		id: 'n-plus-one-counts',
+		label: 'Each post fires a separate COUNT(*) to the comments table',
 	},
 ];
 
-function generateQueryLog(postCount: number): string[] {
-	const lines: string[] = [
-		`Post Load (1.2ms)  SELECT "posts".* FROM "posts" LIMIT ${postCount}`,
-	];
-	for (let i = 1; i <= postCount; i++) {
-		const time = (0.3 + Math.random() * 0.2).toFixed(1);
-		lines.push(
-			`  (${time}ms)  SELECT COUNT(*) FROM "comments" WHERE "comments"."post_id" = ${i}`,
-		);
-	}
-	return lines;
-}
+// ──────────────────────────────────────────────
+// Observe phase: probes + discovery mapping
+// ──────────────────────────────────────────────
+
+const PROBES: ProbeConfig[] = [
+	{
+		id: 'load-posts',
+		label: 'GET /api/posts',
+		command: 'GET /api/posts?limit=20',
+		responseLines: [
+			{
+				text: 'Post Load (1.2ms)  SELECT "posts".* FROM "posts" LIMIT 20',
+				color: 'green',
+			},
+			{
+				text: '  Loading comment counts for 20 posts...',
+				color: 'muted',
+			},
+			{
+				text: '  (0.4ms)  SELECT COUNT(*) FROM "comments" WHERE "post_id" = 1',
+				color: 'red',
+			},
+			{
+				text: '  (0.3ms)  SELECT COUNT(*) FROM "comments" WHERE "post_id" = 2',
+				color: 'red',
+			},
+			{
+				text: '  ... 18 more COUNT(*) queries',
+				color: 'red',
+			},
+			{
+				text: '  Total: 21 queries for 20 posts',
+				color: 'red',
+			},
+		],
+	},
+];
+
+const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
+	'load-posts': ['n-plus-one-counts'],
+};
 
 // ──────────────────────────────────────────────
 // Step definitions (build phase)
@@ -126,6 +141,7 @@ function generateQueryLog(postCount: number): string[] {
 
 const STEP_DEFS: StepDef[] = [
 	{ id: 'generate-migration', title: 'Generate the Migration' },
+	{ id: 'run-migration', title: 'Run the Migration' },
 	{ id: 'add-counter-cache', title: 'Enable counter_cache' },
 	{ id: 'reset-counters', title: 'Reset Existing Counters' },
 	{ id: 'update-serializer', title: 'Use the Cached Count' },
@@ -146,7 +162,8 @@ const MIGRATION_COMMANDS = [
 	},
 	{
 		id: 'generate-migration',
-		label: 'rails generate migration AddCommentsCountToPosts comments_count:integer',
+		label:
+			'rails generate migration AddCommentsCountToPosts comments_count:integer',
 		command:
 			'rails generate migration AddCommentsCountToPosts comments_count:integer',
 		correct: true,
@@ -170,7 +187,51 @@ const MIGRATION_OUTPUT = [
 ];
 
 // ──────────────────────────────────────────────
-// OptionCard step data (steps 1-3)
+// Terminal step data (step 1: run migration)
+// ──────────────────────────────────────────────
+
+const RUN_MIGRATION_COMMANDS = [
+	{
+		id: 'generate-again',
+		label: 'rails generate migration AddCommentsCountToPosts',
+		command: 'rails generate migration AddCommentsCountToPosts',
+		correct: false,
+		feedback:
+			'The migration file already exists. You need to apply it to the database.',
+	},
+	{
+		id: 'run-migrate',
+		label: 'rails db:migrate',
+		command: 'rails db:migrate',
+		correct: true,
+	},
+	{
+		id: 'db-setup',
+		label: 'rails db:setup',
+		command: 'rails db:setup',
+		correct: false,
+		feedback:
+			'This recreates the entire database from schema.rb. You just need to run the pending migration.',
+	},
+];
+
+const RUN_MIGRATION_OUTPUT = [
+	{
+		text: '== AddCommentsCountToPosts: migrating ========',
+		color: 'green' as const,
+	},
+	{
+		text: '-- add_column(:posts, :comments_count, :integer, default: 0)',
+		color: 'green' as const,
+	},
+	{
+		text: '== AddCommentsCountToPosts: migrated (0.0021s)',
+		color: 'green' as const,
+	},
+];
+
+// ──────────────────────────────────────────────
+// OptionCard step data (steps 2-4)
 // ──────────────────────────────────────────────
 
 interface StepOption {
@@ -250,19 +311,19 @@ const OPTION_STEP_CONFIG: Record<
 	number,
 	{ title: string; description: string; options: StepOption[] }
 > = {
-	1: {
+	2: {
 		title: 'Enable counter_cache',
 		description:
-			'The migration adds the column. Now tell Rails to automatically increment and decrement it when comments are created or destroyed. Where does this declaration go?',
+			'The column exists in the database. Now tell Rails to automatically increment and decrement it when comments are created or destroyed. Where does this declaration go?',
 		options: COUNTER_CACHE_OPTIONS,
 	},
-	2: {
+	3: {
 		title: 'Reset Existing Counters',
 		description:
 			'The column exists but all values are 0. Existing posts already have comments. How do you sync the cached counts with the real data?',
 		options: RESET_OPTIONS,
 	},
-	3: {
+	4: {
 		title: 'Use the Cached Count',
 		description:
 			'The counter cache is populated. Now update the serializer to read the cached value instead of running a query. Which method uses the counter cache?',
@@ -276,48 +337,116 @@ const OPTION_STEP_CONFIG: Record<
 
 const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
 	{ commands: MIGRATION_COMMANDS, outputLines: MIGRATION_OUTPUT },
-	null, // step 1: OptionCard
+	{ commands: RUN_MIGRATION_COMMANDS, outputLines: RUN_MIGRATION_OUTPUT },
 	null, // step 2: OptionCard
 	null, // step 3: OptionCard
+	null, // step 4: OptionCard
 ];
 
 // ──────────────────────────────────────────────
-// Reward phase: scale scenarios
+// Stress test scenarios (reward phase)
 // ──────────────────────────────────────────────
 
-interface ScaleScenario {
-	id: string;
-	label: string;
-	postCount: number;
-	description: string;
+const STRESS_SCENARIOS: StressScenario[] = [
+	{
+		id: 'ten-posts',
+		label: '10 posts index',
+		description: 'Small page load with counter cache',
+		method: 'GET',
+		path: '/api/posts?limit=10',
+		actor: 'client',
+		expectedResult: 'allowed',
+		responseLines: [
+			{
+				text: 'Post Load (1.2ms)  SELECT "posts".* FROM "posts" LIMIT 10',
+				color: 'yellow',
+			},
+			{ text: '  comments_count read from column (0 queries)', color: 'green' },
+			{ text: '  Total: 1 query (was 11)', color: 'green' },
+		],
+	},
+	{
+		id: 'fifty-posts',
+		label: '50 posts index',
+		description: 'Medium listing with counter cache',
+		method: 'GET',
+		path: '/api/posts?limit=50',
+		actor: 'client',
+		expectedResult: 'allowed',
+		responseLines: [
+			{
+				text: 'Post Load (1.8ms)  SELECT "posts".* FROM "posts" LIMIT 50',
+				color: 'yellow',
+			},
+			{ text: '  comments_count read from column (0 queries)', color: 'green' },
+			{ text: '  Total: 1 query (was 51)', color: 'green' },
+		],
+	},
+	{
+		id: 'hundred-posts',
+		label: '100 posts index',
+		description: 'Full page with counter cache',
+		method: 'GET',
+		path: '/api/posts?limit=100',
+		actor: 'client',
+		expectedResult: 'allowed',
+		responseLines: [
+			{
+				text: 'Post Load (2.4ms)  SELECT "posts".* FROM "posts" LIMIT 100',
+				color: 'yellow',
+			},
+			{ text: '  comments_count read from column (0 queries)', color: 'green' },
+			{ text: '  Total: 1 query (was 101)', color: 'green' },
+		],
+	},
+	{
+		id: 'five-hundred-posts',
+		label: '500 posts export',
+		description: 'Admin export with counter cache',
+		method: 'GET',
+		path: '/api/posts?limit=500',
+		actor: 'admin',
+		expectedResult: 'allowed',
+		responseLines: [
+			{
+				text: 'Post Load (5.1ms)  SELECT "posts".* FROM "posts" LIMIT 500',
+				color: 'yellow',
+			},
+			{ text: '  comments_count read from column (0 queries)', color: 'green' },
+			{ text: '  Total: 1 query (was 501)', color: 'green' },
+		],
+	},
+	{
+		id: 'force-count',
+		label: '.count bypasses cache',
+		description: 'Serializer still using .count instead of .size',
+		method: 'GET',
+		path: '/api/posts?limit=100&method=count',
+		actor: 'client',
+		expectedResult: 'blocked',
+		responseLines: [
+			{
+				text: 'Post Load (2.4ms)  SELECT "posts".* FROM "posts" LIMIT 100',
+				color: 'yellow',
+			},
+			{ text: '  post.comments.count -> 100 COUNT(*) queries!', color: 'red' },
+			{
+				text: '  .count ALWAYS runs SQL, ignoring the cached column',
+				color: 'red',
+			},
+			{ text: '  Total: 101 queries (counter cache wasted)', color: 'red' },
+		],
+	},
+];
+
+// ──────────────────────────────────────────────
+// Visualization helpers
+// ──────────────────────────────────────────────
+
+/** Deterministic comment count per post for visual consistency */
+function getCommentCount(i: number): number {
+	return (i * 7 + 3) % 16;
 }
-
-const SCALE_SCENARIOS: ScaleScenario[] = [
-	{
-		id: 'ten',
-		label: '10 posts',
-		postCount: 10,
-		description: 'Small page load',
-	},
-	{
-		id: 'fifty',
-		label: '50 posts',
-		postCount: 50,
-		description: 'Medium listing',
-	},
-	{
-		id: 'hundred',
-		label: '100 posts',
-		postCount: 100,
-		description: 'Full page',
-	},
-	{
-		id: 'five-hundred',
-		label: '500 posts',
-		postCount: 500,
-		description: 'Admin export',
-	},
-];
 
 // ──────────────────────────────────────────────
 // Code preview helper
@@ -364,7 +493,7 @@ end`,
   end
 end
 
-# Step 1: Generate a migration to add
+# Generate a migration to add
 # the counter cache column to posts`,
 			},
 		];
@@ -376,6 +505,23 @@ end
 				filename: 'db/migrate/add_comments_count_to_posts.rb',
 				language: 'ruby',
 				highlight: [3, 4],
+				code: `class AddCommentsCountToPosts < ActiveRecord::Migration[8.0]
+  def change
+    add_column :posts, :comments_count,
+               :integer, default: 0, null: false
+  end
+end
+
+# Migration generated. Now apply it.`,
+			},
+		];
+	}
+
+	if (furthestStep === 2) {
+		return [
+			{
+				filename: 'db/migrate/add_comments_count_to_posts.rb',
+				language: 'ruby',
 				code: `class AddCommentsCountToPosts < ActiveRecord::Migration[8.0]
   def change
     add_column :posts, :comments_count,
@@ -395,7 +541,7 @@ end`,
 		];
 	}
 
-	if (furthestStep === 2) {
+	if (furthestStep === 3) {
 		return [
 			{
 				filename: 'db/migrate/add_comments_count_to_posts.rb',
@@ -422,7 +568,7 @@ end
 		];
 	}
 
-	if (furthestStep === 3) {
+	if (furthestStep === 4) {
 		return [
 			{
 				filename: 'app/models/comment.rb',
@@ -497,26 +643,89 @@ end
 
 export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
-		minRequired: 3,
+		minRequired: 1,
 	});
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
+	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
 
-	// Observe phase state
-	const [firedProbes, setFiredProbes] = useState<Set<string>>(new Set());
-	const [activeProbe, setActiveProbe] = useState<string | null>(null);
-	const [queryLog, setQueryLog] = useState<string[]>([]);
-	const [queryCount, setQueryCount] = useState(0);
-	const [visibleQueryIndex, setVisibleQueryIndex] = useState(0);
-	const [isAnimating, setIsAnimating] = useState(false);
-	const logRef = useRef<HTMLDivElement>(null);
-	const animationRef = useRef<number | null>(null);
+	// ── Visualization state (shared between observe and reward) ──
+	const [vizMode, setVizMode] = useState<VizMode>('idle');
+	const [vizPostCount, setVizPostCount] = useState(0);
+	const [cascadeProgress, setCascadeProgress] = useState(0);
+	const [vizAnimating, setVizAnimating] = useState(false);
+	const cascadeTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-	// Reward phase state
-	const [firedScenarios, setFiredScenarios] = useState<
-		{ id: string; postCount: number; withCache: number; withoutCache: number }[]
-	>([]);
-	const [lastScenario, setLastScenario] = useState<string | null>(null);
+	// ── Cascade animation helpers ──
+	const clearCascadeTimers = useCallback(() => {
+		for (const t of cascadeTimersRef.current) clearTimeout(t);
+		cascadeTimersRef.current = [];
+	}, []);
+
+	const runCascade = useCallback(
+		(postCount: number): number => {
+			clearCascadeTimers();
+			const displayCount = Math.min(postCount, 100);
+			setVizMode('cascade');
+			setVizPostCount(displayCount);
+			setCascadeProgress(0);
+			setVizAnimating(true);
+
+			// Cascade spans one full ANIMATION_DURATION_MS, distributed across all blocks
+			const startDelay = Math.round(ANIMATION_DURATION_MS * 0.25);
+			const cascadeDuration = ANIMATION_DURATION_MS;
+			const perBlockDelay = Math.round(cascadeDuration / displayCount);
+
+			for (let i = 1; i <= displayCount; i++) {
+				const timer = setTimeout(
+					() => {
+						setCascadeProgress(i);
+					},
+					startDelay + i * perBlockDelay,
+				);
+				cascadeTimersRef.current.push(timer);
+			}
+
+			// Total: start delay + cascade + settle
+			const totalDuration =
+				startDelay +
+				displayCount * perBlockDelay +
+				Math.round(ANIMATION_DURATION_MS * 0.25);
+			const endTimer = setTimeout(() => {
+				setVizAnimating(false);
+			}, totalDuration);
+			cascadeTimersRef.current.push(endTimer);
+
+			return totalDuration;
+		},
+		[clearCascadeTimers],
+	);
+
+	const runCachedLoad = useCallback(
+		(postCount: number) => {
+			clearCascadeTimers();
+			const displayCount = Math.min(postCount, 100);
+			setVizMode('cached');
+			setVizPostCount(displayCount);
+			setCascadeProgress(displayCount);
+			setVizAnimating(true);
+
+			const timer = setTimeout(
+				() => setVizAnimating(false),
+				ANIMATION_DURATION_MS,
+			);
+			cascadeTimersRef.current.push(timer);
+		},
+		[clearCascadeTimers],
+	);
+
+	const resetVisualization = useCallback(() => {
+		clearCascadeTimers();
+		setVizMode('idle');
+		setVizPostCount(0);
+		setCascadeProgress(0);
+		setVizAnimating(false);
+	}, [clearCascadeTimers]);
 
 	// ── Transition: build -> activate when all steps complete ──
 	useEffect(() => {
@@ -525,54 +734,27 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 		}
 	}, [phase, stepper.isComplete]);
 
-	// Auto-scroll query log
+	// Cleanup timers on unmount
 	useEffect(() => {
-		if (logRef.current) {
-			logRef.current.scrollTop = logRef.current.scrollHeight;
-		}
-	}, [visibleQueryIndex, queryLog]);
+		return () => clearCascadeTimers();
+	}, [clearCascadeTimers]);
 
-	// Cleanup animation on unmount
-	useEffect(() => {
-		return () => {
-			if (animationRef.current) clearInterval(animationRef.current);
-		};
-	}, []);
-
-	// ── Observe phase: fire probe ──
-	const handleFireProbe = useCallback(
+	// ── Observe phase: probe handler ──
+	const handleProbe = useCallback(
 		(probeId: string) => {
-			if (isAnimating) return;
-			const probe = WATERFALL_PROBES.find((p) => p.id === probeId);
-			if (!probe) return;
+			const duration = runCascade(OBSERVE_POST_COUNT);
 
-			setActiveProbe(probeId);
-			setFiredProbes((prev) => new Set([...prev, probeId]));
-
-			const lines = generateQueryLog(probe.postCount);
-			setQueryLog(lines);
-			setVisibleQueryIndex(0);
-			setQueryCount(0);
-			setIsAnimating(true);
-
-			let idx = 0;
-			const iv = setInterval(() => {
-				if (idx >= lines.length) {
-					clearInterval(iv);
-					setIsAnimating(false);
-					// Trigger discoveries after animation completes
-					for (const did of probe.discoveryIds) {
+			// Trigger discoveries after cascade completes
+			setTimeout(() => {
+				const discoveryIds = PROBE_DISCOVERY_MAP[probeId];
+				if (discoveryIds) {
+					for (const did of discoveryIds) {
 						discoveryGating.discover(did);
 					}
-					return;
 				}
-				idx++;
-				setVisibleQueryIndex(idx);
-				setQueryCount(idx);
-			}, 30);
-			animationRef.current = iv as unknown as number;
+			}, duration);
 		},
-		[isAnimating, discoveryGating],
+		[discoveryGating, runCascade],
 	);
 
 	// ── Build phase: OptionCard handler ──
@@ -587,26 +769,39 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 		[stepper],
 	);
 
-	// ── Reward phase: fire scale scenario ──
-	const handleFireScenario = useCallback((scenarioId: string) => {
-		const scenario = SCALE_SCENARIOS.find((s) => s.id === scenarioId);
-		if (!scenario) return;
+	// ── Reward phase: fire stress scenario ──
+	const handleFireScenario = useCallback(
+		(scenarioId: string) => {
+			if (vizAnimating) return;
+			stressTest.fireRequest(scenarioId);
 
-		setLastScenario(scenarioId);
-		setFiredScenarios((prev) => [
-			...prev.slice(-9),
-			{
-				id: scenarioId,
-				postCount: scenario.postCount,
-				withoutCache: scenario.postCount + 1,
-				withCache: 1,
-			},
-		]);
-	}, []);
+			const scenario = STRESS_SCENARIOS.find((s) => s.id === scenarioId);
+			if (!scenario) return;
+
+			const postCount = Number.parseInt(
+				scenario.path.match(/limit=(\d+)/)?.[1] ?? '100',
+				10,
+			);
+
+			if (scenario.expectedResult === 'blocked') {
+				runCascade(postCount);
+			} else {
+				runCachedLoad(postCount);
+			}
+		},
+		[vizAnimating, stressTest, runCascade, runCachedLoad],
+	);
 
 	// ── Phase transitions ──
-	const handleStartBuild = () => setPhase('build');
-	const handleActivateReward = () => setPhase('reward');
+	const handleStartBuild = () => {
+		resetVisualization();
+		setPhase('build');
+	};
+	const handleActivateReward = () => {
+		resetVisualization();
+		setPhase('reward');
+		stressTest.reset();
+	};
 
 	// ── Completion ──
 	const handleComplete = () => {
@@ -623,26 +818,229 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 					.map((s) => s.title),
 			};
 		}
-		return { valid: true, message: 'Counter cache eliminates N COUNT queries!' };
+		return {
+			valid: true,
+			message: 'Counter cache eliminates N COUNT queries!',
+		};
 	};
-
-	// ── Reward stats ──
-	const totalSavedQueries = useMemo(
-		() =>
-			firedScenarios.reduce(
-				(sum, s) => sum + (s.withoutCache - s.withCache),
-				0,
-			),
-		[firedScenarios],
-	);
-
-	const lastResult = firedScenarios[firedScenarios.length - 1] ?? null;
 
 	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
 	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
-	const currentOptionConfig =
-		OPTION_STEP_CONFIG[stepper.currentStep] ?? null;
-	const isTerminalStep = stepper.currentStep === 0;
+	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep] ?? null;
+	const isTerminalStep = stepper.currentStep === 0 || stepper.currentStep === 1;
+
+	const lastResult =
+		stressTest.results.length > 0
+			? stressTest.results[stressTest.results.length - 1]
+			: null;
+	const lastScenario = lastResult
+		? STRESS_SCENARIOS.find((s) => s.id === lastResult.scenarioId)
+		: null;
+
+	// ── Derived viz state ──
+	const showCacheColumn = phase === 'reward';
+	const isCascading = vizMode === 'cascade' && vizAnimating;
+	const isCascadeDone = vizMode === 'cascade' && !vizAnimating;
+	const isCached = vizMode === 'cached';
+
+	// Post block grid data
+	const postBlocks = useMemo(() => {
+		return Array.from({ length: vizPostCount }, (_, i) => ({
+			id: i,
+			commentCount: getCommentCount(i),
+		}));
+	}, [vizPostCount]);
+
+	// ── Visualization render helper ──
+	/** Column headers for the posts table */
+	const postColumns = showCacheColumn
+		? ['id', 'title', 'user_id', 'comments_count']
+		: ['id', 'title', 'user_id'];
+
+	const renderQueryCascade = () => (
+		<div className="flex gap-3 items-stretch">
+			{/* Posts table */}
+			<div className="flex-1 rounded-lg border border-border overflow-hidden flex flex-col max-h-64">
+				<div className="flex-1 min-h-0 overflow-auto">
+					<table className="w-full text-xs font-mono">
+						<thead className="sticky top-0 z-10">
+							<tr className="bg-muted border-b border-border">
+								{postColumns.map((col) => (
+									<th
+										className={cn(
+											'px-2 py-1.5 text-left font-medium',
+											col === 'comments_count'
+												? isCached
+													? 'text-emerald-600 dark:text-emerald-400'
+													: 'text-muted-foreground'
+												: 'text-muted-foreground',
+										)}
+										key={col}
+									>
+										{col}
+									</th>
+								))}
+							</tr>
+						</thead>
+						{vizPostCount === 0 ? (
+							<tbody>
+								<tr>
+									<td
+										className="text-muted-foreground text-center py-8"
+										colSpan={postColumns.length}
+									>
+										Fire a probe to load posts...
+									</td>
+								</tr>
+							</tbody>
+						) : (
+							<tbody>
+								{postBlocks.map((block) => {
+									const isCounted = block.id < cascadeProgress;
+									const isCounting =
+										block.id === cascadeProgress && isCascading;
+
+									return (
+										<tr
+											className={cn(
+												'border-b border-border/50 transition-colors duration-150',
+												isCached
+													? 'bg-emerald-50 dark:bg-emerald-950/30'
+													: isCounting
+														? 'bg-red-100 dark:bg-red-900/40'
+														: isCounted
+															? 'bg-red-50 dark:bg-red-950/20'
+															: '',
+											)}
+											key={`post-${block.id}`}
+										>
+											<td className="px-2 py-1 text-muted-foreground">
+												{block.id + 1}
+											</td>
+											<td className="px-2 py-1">Post #{block.id + 1}</td>
+											<td className="px-2 py-1 text-muted-foreground">
+												{(block.id % 5) + 1}
+											</td>
+											{showCacheColumn && (
+												<td
+													className={cn(
+														'px-2 py-1 font-bold',
+														isCached
+															? 'text-emerald-600 dark:text-emerald-400'
+															: 'text-muted-foreground',
+													)}
+												>
+													{isCached ? block.commentCount : ''}
+												</td>
+											)}
+										</tr>
+									);
+								})}
+							</tbody>
+						)}
+					</table>
+				</div>
+			</div>
+
+			{/* Arrow area with FlowConnector + query counter */}
+			<div className="w-16 shrink-0 flex flex-col items-center justify-center gap-2">
+				<FlowConnector
+					active={isCascading}
+					direction="horizontal"
+					dotColor={
+						isCascading
+							? 'bg-destructive'
+							: isCached
+								? 'bg-success'
+								: 'bg-muted-foreground'
+					}
+					dotCount={isCascading ? 3 : 1}
+				/>
+				{vizPostCount > 0 && (
+					<div
+						className={cn(
+							'text-xs font-mono font-bold px-1.5 py-0.5 rounded tabular-nums',
+							isCached
+								? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+								: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+						)}
+					>
+						{isCached ? '0' : cascadeProgress}
+						<span className="text-xs font-normal ml-0.5">
+							{isCached ? 'queries' : 'COUNT'}
+						</span>
+					</div>
+				)}
+			</div>
+
+			{/* Comments table */}
+			<div
+				className={cn(
+					'w-48 shrink-0 rounded-lg border overflow-hidden flex flex-col transition-colors',
+					isCascading ? 'border-red-300 dark:border-red-600' : 'border-border',
+				)}
+			>
+				<table className="w-full text-xs font-mono">
+					<thead>
+						<tr className="bg-muted border-b border-border">
+							<th className="px-2 py-1.5 text-left font-medium text-muted-foreground">
+								id
+							</th>
+							<th className="px-2 py-1.5 text-left font-medium text-muted-foreground">
+								post_id
+							</th>
+							<th className="px-2 py-1.5 text-left font-medium text-muted-foreground">
+								body
+							</th>
+						</tr>
+					</thead>
+				</table>
+				<div className="flex-1 flex flex-col items-center justify-center p-3 gap-1">
+					{vizMode === 'idle' && (
+						<span className="text-xs text-muted-foreground">
+							Waiting for query...
+						</span>
+					)}
+					{isCascading && (
+						<div className="text-center space-y-1">
+							<Database className="w-5 h-5 text-red-500 dark:text-red-400 animate-pulse mx-auto" />
+							<div className="text-xs font-mono text-red-600 dark:text-red-400 font-bold">
+								SELECT COUNT(*)
+							</div>
+							<div className="text-xs font-mono text-red-600 dark:text-red-400">
+								WHERE post_id = {cascadeProgress + 1}
+							</div>
+							<div className="text-sm font-mono font-bold text-red-700 dark:text-red-300 mt-1">
+								= {postBlocks[cascadeProgress]?.commentCount ?? 0}
+							</div>
+						</div>
+					)}
+					{isCascadeDone && (
+						<div className="text-center space-y-1">
+							<Database className="w-5 h-5 text-destructive mx-auto" />
+							<span className="text-xs text-destructive font-bold">
+								{vizPostCount} COUNT(*)
+							</span>
+							<div className="text-xs text-muted-foreground">
+								queries executed
+							</div>
+						</div>
+					)}
+					{isCached && (
+						<div className="text-center space-y-1">
+							<Database className="w-5 h-5 text-emerald-500 dark:text-emerald-400 mx-auto" />
+							<span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">
+								Not queried
+							</span>
+							<div className="text-xs text-muted-foreground">
+								counts read from posts table
+							</div>
+						</div>
+					)}
+				</div>
+			</div>
+		</div>
+	);
 
 	// ── Render ──
 	return (
@@ -655,8 +1053,8 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
 								post.comments.count
 							</code>{' '}
-							fires a separate COUNT(*) query for every post.
-							100 posts = 101 queries.
+							fires a separate COUNT(*) query for every post. 100 posts = 101
+							queries.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							{phase === 'observe'
@@ -694,39 +1092,6 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* Observe: Query stats */}
-					{phase === 'observe' && activeProbe && (
-						<div className="p-4 border-b border-border">
-							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-								Query Stats
-							</div>
-							<div className="space-y-3">
-								<div className="flex items-center justify-between">
-									<div className="flex items-center gap-2 text-sm text-muted-foreground">
-										<Database className="w-4 h-4" />
-										<span>Queries</span>
-									</div>
-									<span
-										className={`text-sm font-bold tabular-nums ${queryCount > 2 ? 'text-destructive' : 'text-muted-foreground'}`}
-									>
-										{queryCount}
-									</span>
-								</div>
-								<div className="flex items-center justify-between">
-									<div className="flex items-center gap-2 text-sm text-muted-foreground">
-										<Timer className="w-4 h-4" />
-										<span>Estimated</span>
-									</div>
-									<span
-										className={`text-sm font-bold tabular-nums ${queryCount > 2 ? 'text-destructive' : 'text-muted-foreground'}`}
-									>
-										{(queryCount * 0.4).toFixed(1)}ms
-									</span>
-								</div>
-							</div>
-						</div>
-					)}
-
 					{/* Reward: Counters */}
 					{phase === 'reward' && (
 						<div className="p-4 border-b border-border">
@@ -736,18 +1101,18 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 							<div className="grid grid-cols-2 gap-3">
 								<div className="bg-success/10 rounded-lg p-3 text-center">
 									<div className="text-xs text-muted-foreground mb-1">
-										Scenarios fired
+										Allowed
 									</div>
 									<div className="text-2xl font-bold text-success tabular-nums">
-										{firedScenarios.length}
+										{stressTest.allowedCount}
 									</div>
 								</div>
-								<div className="bg-success/10 rounded-lg p-3 text-center">
+								<div className="bg-destructive/10 rounded-lg p-3 text-center">
 									<div className="text-xs text-muted-foreground mb-1">
-										Queries saved
+										Blocked
 									</div>
-									<div className="text-2xl font-bold text-success tabular-nums">
-										{totalSavedQueries}
+									<div className="text-2xl font-bold text-destructive tabular-nums">
+										{stressTest.blockedCount}
 									</div>
 								</div>
 							</div>
@@ -771,105 +1136,31 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 				<div className="flex-1 flex flex-col bg-background overflow-hidden">
 					{/* ── Phase 1: Observe (WHY) ── */}
 					{phase === 'observe' && (
-						<div className="flex-1 flex flex-col overflow-auto">
+						<div className="flex-1 flex flex-col min-h-0">
 							{/* Header */}
 							<div className="px-6 pt-4 pb-2 flex items-center justify-between">
 								<div className="text-sm font-semibold text-foreground">
-									Query Waterfall: GET /api/posts
+									Query Cascade: GET /api/posts
 								</div>
-								<span className="text-xs font-mono text-destructive font-bold">
-									N+1 COUNT(*) explosion
-								</span>
+								{vizMode !== 'idle' && (
+									<span className="text-xs font-mono text-destructive font-bold tabular-nums">
+										{cascadeProgress + 1} / {vizPostCount + 1} queries
+									</span>
+								)}
 							</div>
 
-							{/* Probe buttons */}
-							<div className="px-6 py-3">
-								<div className="flex gap-2">
-									{WATERFALL_PROBES.map((probe) => {
-										const fired = firedProbes.has(probe.id);
-										return (
-											<Button
-												className="gap-2 flex-1"
-												disabled={
-													isAnimating ||
-													(fired &&
-														activeProbe !== probe.id)
-												}
-												key={probe.id}
-												onClick={() =>
-													handleFireProbe(probe.id)
-												}
-												size="sm"
-												variant={
-													fired ? 'secondary' : 'outline'
-												}
-											>
-												<Search className="w-3.5 h-3.5" />
-												{probe.label}
-											</Button>
-										);
-									})}
-								</div>
-							</div>
+							{/* Visualization */}
+							<div className="px-6 pb-2">{renderQueryCascade()}</div>
 
-							{/* Query waterfall log */}
-							<div className="px-6 flex-1 min-h-0">
-								<div className="rounded-lg border border-zinc-700 bg-zinc-900 overflow-hidden h-full flex flex-col">
-									{/* Terminal header */}
-									<div className="flex items-center gap-2 px-3 py-2 bg-zinc-800 border-b border-zinc-700">
-										<div className="flex gap-1.5">
-											<div className="w-3 h-3 rounded-full bg-red-500" />
-											<div className="w-3 h-3 rounded-full bg-yellow-500" />
-											<div className="w-3 h-3 rounded-full bg-green-500" />
-										</div>
-										<Database className="w-3.5 h-3.5 text-zinc-400 ml-1" />
-										<span className="text-xs text-zinc-400 font-mono">
-											Database Log
-										</span>
-										{queryCount > 0 && (
-											<span
-												className={`text-xs font-mono ml-auto px-2 py-0.5 rounded ${
-													queryCount > 2
-														? 'bg-red-500/20 text-red-400'
-														: 'text-zinc-500'
-												}`}
-											>
-												{queryCount}{' '}
-												{queryCount === 1
-													? 'query'
-													: 'queries'}
-											</span>
-										)}
-									</div>
-
-									{/* Log body */}
-									<div
-										className="flex-1 p-3 overflow-y-auto font-mono text-xs space-y-0.5"
-										ref={logRef}
-									>
-										{queryLog.length === 0 ? (
-											<div className="text-zinc-500 text-center py-8">
-												Fire a request to see the query
-												waterfall...
-											</div>
-										) : (
-											queryLog
-												.slice(0, visibleQueryIndex)
-												.map((line, i) => (
-													<div
-														className={
-															line.includes('COUNT')
-																? 'text-red-400/80'
-																: 'text-emerald-400'
-														}
-														key={i}
-													>
-														{line}
-													</div>
-												))
-										)}
-									</div>
-								</div>
+							{/* Probe terminal */}
+							<div className="px-6 pb-2 flex-1 min-h-0 flex flex-col">
+								<ProbeTerminal
+									className="flex-1 flex flex-col"
+									disabled={vizAnimating}
+									onProbe={handleProbe}
+									probes={PROBES}
+									title="Database Log"
+								/>
 							</div>
 
 							{/* Build the Fix button (gated) */}
@@ -892,40 +1183,54 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 					{phase === 'build' && (
 						<div className="flex-1 overflow-auto p-6">
 							<div className="max-w-2xl mx-auto space-y-4">
-								{/* Step 0: Terminal step */}
+								{/* Steps 0-1: Terminal steps */}
 								{isTerminalStep && (
 									<TerminalChoiceStep
-										commands={MIGRATION_COMMANDS}
+										commands={
+											stepper.currentStep === 0
+												? MIGRATION_COMMANDS
+												: RUN_MIGRATION_COMMANDS
+										}
 										completed={isViewingCompletedStep}
 										description={
-											<p className="text-sm text-muted-foreground">
-												You need a{' '}
-												<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
-													comments_count
-												</code>{' '}
-												integer column on the posts
-												table. Generate the migration.
-											</p>
+											stepper.currentStep === 0 ? (
+												<p className="text-sm text-muted-foreground">
+													You need a{' '}
+													<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
+														comments_count
+													</code>{' '}
+													integer column on the posts table. Generate the
+													migration.
+												</p>
+											) : (
+												<p className="text-sm text-muted-foreground">
+													The migration file is ready. Apply it to create the{' '}
+													<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
+														comments_count
+													</code>{' '}
+													column in the database.
+												</p>
+											)
 										}
 										hasNext={hasNextStep}
 										initialHistory={buildTerminalHistory(
 											TERMINAL_STEP_MAP,
 											stepper.currentStep,
 										)}
-										onCorrect={() =>
-											stepper.completeStep()
-										}
+										onCorrect={() => stepper.completeStep()}
 										onNext={stepper.nextStep}
-										onWrong={(fb) =>
-											stepper.recordWrongAttempt(fb)
+										onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+										outputLines={
+											stepper.currentStep === 0
+												? MIGRATION_OUTPUT
+												: RUN_MIGRATION_OUTPUT
 										}
-										outputLines={MIGRATION_OUTPUT}
 										stepKey={stepper.currentStep}
-										title="Generate the Migration"
+										title={STEP_DEFS[stepper.currentStep].title}
 									/>
 								)}
 
-								{/* Steps 1-3: OptionCard steps */}
+								{/* Steps 2-4: OptionCard steps */}
 								{!isTerminalStep && currentOptionConfig && (
 									<>
 										<h3 className="text-lg font-semibold text-foreground">
@@ -937,73 +1242,50 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 
 										{isViewingCompletedStep ? (
 											<div className="space-y-2">
-												{currentOptionConfig.options.map(
-													(opt) => (
-														<OptionCard
-															color="violet"
-															disabled={
-																!opt.correct
-															}
-															key={opt.id}
-															mono
-															name={opt.label}
-															selected={
-																opt.correct
-															}
-															size="lg"
-														/>
-													),
-												)}
+												{currentOptionConfig.options.map((opt) => (
+													<OptionCard
+														disabled={!opt.correct}
+														key={opt.id}
+														mono
+														name={opt.label}
+														selected={opt.correct}
+														size="lg"
+													/>
+												))}
 											</div>
 										) : (
 											<>
 												<div className="space-y-2">
-													{currentOptionConfig.options.map(
-														(opt) => (
-															<OptionCard
-																color="violet"
-																key={opt.id}
-																mono
-																name={
-																	opt.label
-																}
-																onClick={() =>
-																	handleOptionClick(
-																		opt,
-																	)
-																}
-																size="lg"
-															/>
-														),
-													)}
+													{currentOptionConfig.options.map((opt) => (
+														<OptionCard
+															key={opt.id}
+															mono
+															name={opt.label}
+															onClick={() => handleOptionClick(opt)}
+															size="lg"
+														/>
+													))}
 												</div>
 
 												<ErrorFeedback
-													message={
-														stepper.lastFeedback
-													}
-													onDismiss={
-														stepper.clearFeedback
-													}
+													message={stepper.lastFeedback}
+													onDismiss={stepper.clearFeedback}
 												/>
 											</>
 										)}
 
-										{isViewingCompletedStep &&
-											hasNextStep && (
-												<div className="flex justify-end">
-													<Button
-														className="gap-2"
-														onClick={
-															stepper.nextStep
-														}
-														size="sm"
-													>
-														Next Step
-														<ArrowRight className="w-4 h-4" />
-													</Button>
-												</div>
-											)}
+										{isViewingCompletedStep && hasNextStep && (
+											<div className="flex justify-end">
+												<Button
+													className="gap-2"
+													onClick={stepper.nextStep}
+													size="sm"
+												>
+													Next Step
+													<ArrowRight className="w-4 h-4" />
+												</Button>
+											</div>
+										)}
 									</>
 								)}
 							</div>
@@ -1027,10 +1309,9 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 									))}
 								</div>
 								<p className="text-sm text-muted-foreground">
-									Counter cache is configured. Rails will
-									auto-increment and auto-decrement
-									comments_count on create and destroy. See
-									it handle any scale.
+									Counter cache is configured. Rails will auto-increment and
+									auto-decrement comments_count on create and destroy. See it
+									handle any scale.
 								</p>
 								<Button
 									className="gap-2"
@@ -1046,196 +1327,93 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 
 					{/* ── Phase 4: Reward ── */}
 					{phase === 'reward' && (
-						<div className="flex-1 flex flex-col overflow-auto">
+						<div className="flex-1 flex flex-col min-h-0">
 							{/* Header */}
 							<div className="px-6 pt-4 pb-2 flex items-center justify-between">
 								<div className="text-sm font-semibold text-foreground">
-									Scale Test: Counter Cache vs COUNT(*)
+									Counter Cache Active
 								</div>
-								<div className="flex items-center gap-2">
-									<TrendingDown className="w-4 h-4 text-success" />
-									<span className="text-xs font-mono text-success font-bold">
-										Always 1 query
-									</span>
-								</div>
-							</div>
-
-							{/* Scenario buttons */}
-							<div className="px-6 py-3">
-								<div className="text-xs text-muted-foreground mb-2">
-									Fire requests at different scales:
-								</div>
-								<div className="flex gap-2 flex-wrap">
-									{SCALE_SCENARIOS.map((scenario) => (
-										<Button
-											className="gap-2"
-											key={scenario.id}
-											onClick={() =>
-												handleFireScenario(
-													scenario.id,
-												)
-											}
-											size="sm"
-											variant={
-												lastScenario === scenario.id
-													? 'default'
-													: 'outline'
-											}
+								{vizMode !== 'idle' && (
+									<div className="flex items-center gap-2">
+										<TrendingDown
+											className={cn(
+												'w-4 h-4',
+												isCached ? 'text-success' : 'text-destructive',
+											)}
+										/>
+										<span
+											className={cn(
+												'text-xs font-mono font-bold',
+												isCached ? 'text-success' : 'text-destructive',
+											)}
 										>
-											<Database className="w-3.5 h-3.5" />
-											{scenario.label}
-										</Button>
-									))}
-								</div>
-							</div>
-
-							{/* Before/After comparison panel */}
-							<div className="px-6 flex-1 min-h-0 pb-4">
-								{lastResult ? (
-									<div className="space-y-4">
-										{/* Comparison grid */}
-										<div className="grid grid-cols-2 gap-4">
-											{/* Without counter cache */}
-											<div className="rounded-lg border border-destructive/30 bg-zinc-900 overflow-hidden">
-												<div className="flex items-center gap-2 px-3 py-2 bg-destructive/10 border-b border-destructive/20">
-													<Database className="w-3.5 h-3.5 text-red-400" />
-													<span className="text-xs text-red-400 font-mono font-bold">
-														Without Counter Cache
-													</span>
-												</div>
-												<div className="p-4 text-center">
-													<div className="text-4xl font-bold text-red-400 tabular-nums">
-														{lastResult.withoutCache}
-													</div>
-													<div className="text-xs text-zinc-500 mt-1">
-														queries
-													</div>
-													<div className="text-xs text-zinc-500 mt-2 font-mono">
-														1 + {lastResult.postCount}{' '}
-														COUNT(*)
-													</div>
-													<div className="text-sm text-red-400 font-mono mt-2">
-														~
-														{(
-															lastResult.withoutCache *
-															0.4
-														).toFixed(0)}
-														ms
-													</div>
-												</div>
-											</div>
-
-											{/* With counter cache */}
-											<div className="rounded-lg border border-success/30 bg-zinc-900 overflow-hidden">
-												<div className="flex items-center gap-2 px-3 py-2 bg-success/10 border-b border-success/20">
-													<Zap className="w-3.5 h-3.5 text-emerald-400" />
-													<span className="text-xs text-emerald-400 font-mono font-bold">
-														With Counter Cache
-													</span>
-												</div>
-												<div className="p-4 text-center">
-													<div className="text-4xl font-bold text-emerald-400 tabular-nums">
-														{lastResult.withCache}
-													</div>
-													<div className="text-xs text-zinc-500 mt-1">
-														query
-													</div>
-													<div className="text-xs text-zinc-500 mt-2 font-mono">
-														Just SELECT posts.*
-													</div>
-													<div className="text-sm text-emerald-400 font-mono mt-2">
-														~1.2ms
-													</div>
-												</div>
-											</div>
-										</div>
-
-										{/* Reduction stat */}
-										<div className="rounded-lg border border-border bg-card p-4 text-center">
-											<div className="flex items-center justify-center gap-3">
-												<div className="text-sm text-muted-foreground">
-													Query reduction:
-												</div>
-												<div className="text-2xl font-bold text-success">
-													{Math.round(
-														((lastResult.withoutCache -
-															lastResult.withCache) /
-															lastResult.withoutCache) *
-															100,
-													)}
-													%
-												</div>
-												<div className="text-sm text-muted-foreground">
-													({lastResult.withoutCache -
-														lastResult.withCache}{' '}
-													fewer queries)
-												</div>
-											</div>
-										</div>
-
-										{/* Results log */}
-										<div className="rounded-lg border border-zinc-700 bg-zinc-900 overflow-hidden">
-											<div className="flex items-center gap-2 px-3 py-2 bg-zinc-800 border-b border-zinc-700">
-												<div className="flex gap-1.5">
-													<div className="w-3 h-3 rounded-full bg-red-500" />
-													<div className="w-3 h-3 rounded-full bg-yellow-500" />
-													<div className="w-3 h-3 rounded-full bg-green-500" />
-												</div>
-												<TrendingDown className="w-3.5 h-3.5 text-zinc-400 ml-1" />
-												<span className="text-xs text-zinc-400 font-mono">
-													Scale Results
-												</span>
-											</div>
-											<div className="p-3 font-mono text-xs max-h-36 overflow-y-auto space-y-1">
-												{firedScenarios.map(
-													(result, i) => (
-														<div
-															className="flex items-center gap-3"
-															key={i}
-														>
-															<span className="text-zinc-500">
-																GET /api/posts?limit=
-																{
-																	result.postCount
-																}
-															</span>
-															<span className="text-red-400">
-																{
-																	result.withoutCache
-																}
-																q
-															</span>
-															<span className="text-zinc-600">
-																{'->'}
-															</span>
-															<span className="text-emerald-400">
-																{result.withCache}
-																q
-															</span>
-															<span className="text-emerald-400/60">
-																(-
-																{result.withoutCache -
-																	result.withCache}
-																)
-															</span>
-														</div>
-													),
-												)}
-											</div>
-										</div>
-									</div>
-								) : (
-									<div className="flex items-center justify-center h-full">
-										<div className="text-center space-y-3">
-											<Database className="w-12 h-12 text-muted-foreground/30 mx-auto" />
-											<p className="text-sm text-muted-foreground">
-												Fire a scenario to compare
-												query counts at different
-												scales
-											</p>
-										</div>
+											{isCached
+												? '1 query total'
+												: `${vizPostCount + 1} queries (cache bypassed!)`}
+										</span>
 									</div>
 								)}
+							</div>
+
+							{/* Visualization */}
+							<div className="px-6 pb-2">{renderQueryCascade()}</div>
+
+							{/* Before/after comparison */}
+							{lastResult && lastScenario && (
+								<div className="px-6 pb-2">
+									<div className="grid grid-cols-2 gap-3 animate-in fade-in duration-300">
+										<div className="rounded-lg border border-destructive/30 bg-destructive/5 p-2 text-center">
+											<div className="text-xs text-muted-foreground">
+												Without Cache
+											</div>
+											<div className="text-lg font-bold text-destructive tabular-nums">
+												{Number.parseInt(
+													lastScenario.path.match(/limit=(\d+)/)?.[1] ?? '100',
+													10,
+												) + 1}
+											</div>
+											<div className="text-xs text-muted-foreground">
+												queries
+											</div>
+										</div>
+										<div className="rounded-lg border border-success/30 bg-success/5 p-2 text-center">
+											<div className="text-xs text-muted-foreground">
+												With Cache
+											</div>
+											<div className="text-lg font-bold text-success tabular-nums">
+												{lastScenario.expectedResult === 'blocked'
+													? Number.parseInt(
+															lastScenario.path.match(/limit=(\d+)/)?.[1] ??
+																'100',
+															10,
+														) + 1
+													: 1}
+											</div>
+											<div className="text-xs text-muted-foreground">
+												{lastScenario.expectedResult === 'blocked'
+													? 'queries (.count bypassed!)'
+													: 'query'}
+											</div>
+										</div>
+									</div>
+								</div>
+							)}
+
+							{/* Stress test controls */}
+							<div className="px-6 pb-2 flex-1 min-h-0">
+								<StressTestPanel
+									allowedCount={stressTest.allowedCount}
+									blockedCount={stressTest.blockedCount}
+									canAutoFire={stressTest.canAutoFire}
+									disabled={vizAnimating}
+									isAutoFiring={stressTest.isAutoFiring}
+									onFire={handleFireScenario}
+									onToggleAutoFire={() =>
+										stressTest.toggleAutoFire(handleFireScenario)
+									}
+									results={stressTest.results}
+									scenarios={STRESS_SCENARIOS}
+								/>
 							</div>
 						</div>
 					)}
@@ -1274,8 +1452,8 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 										.size vs .count vs .length
 									</span>
 									<div className="text-muted-foreground">
-										.size reads the cache; .count always
-										queries; .length loads all records
+										.size reads the cache; .count always queries; .length loads
+										all records
 									</div>
 								</div>
 							</div>
@@ -1286,8 +1464,8 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 										reset_counters
 									</span>
 									<div className="text-muted-foreground">
-										Recalculate cached values for existing
-										records after migration
+										Recalculate cached values for existing records after
+										migration
 									</div>
 								</div>
 							</div>

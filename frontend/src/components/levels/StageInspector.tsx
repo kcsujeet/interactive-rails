@@ -75,7 +75,7 @@ export function StageInspector({ data, onClose }: StageInspectorProps) {
 						{data.description}
 					</p>
 					{data.code && (
-						<pre className="text-xs font-mono bg-zinc-900 text-zinc-300 rounded-md p-3 overflow-x-auto whitespace-pre-wrap">
+						<pre className="text-xs font-mono bg-zinc-100 text-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 rounded-md p-3 overflow-x-auto whitespace-pre-wrap">
 							{data.code}
 						</pre>
 					)}

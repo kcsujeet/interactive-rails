@@ -225,7 +225,7 @@ const QueryZoneNode = memo(function QueryZoneNode({
 			{/* Query log */}
 			{zone.queryLog && zone.queryLog.visibleCount > 0 && (
 				<div className="animate-in fade-in duration-300">
-					<div className="font-mono text-[10px] leading-tight space-y-px mb-2 rounded bg-zinc-900 dark:bg-zinc-950 p-2">
+					<div className="font-mono text-[10px] leading-tight space-y-px mb-2 rounded bg-zinc-100 dark:bg-zinc-900 p-2">
 						{zone.queryLog.lines
 							.slice(0, zone.queryLog.visibleCount)
 							.map((line, i) => (

@@ -707,71 +707,7 @@ const level27CounterCaches: Level = {
 	trigger: {
 		type: 'performance_alert',
 		description:
-			'The posts index page shows comment counts for every post. Each post.comments.count fires a COUNT(*) query. Back to N+1.',
-	},
-	startingPipeline: {
-		nodes: [
-			{ id: 'request-node', type: 'request', x: 80, y: 250, locked: true },
-			{ id: 'router-node', type: 'router', x: 280, y: 250, locked: true },
-			{
-				id: 'controller-node',
-				type: 'controller',
-				x: 480,
-				y: 250,
-				locked: true,
-			},
-			{
-				id: 'post-model',
-				type: 'model',
-				x: 720,
-				y: 140,
-				locked: true,
-				config: { label: 'Post' },
-			},
-			{
-				id: 'comment-model',
-				type: 'model',
-				x: 720,
-				y: 360,
-				locked: true,
-				config: { label: 'Comment' },
-			},
-			{ id: 'database-node', type: 'database', x: 960, y: 250, locked: true },
-			{
-				id: 'serializer-node',
-				type: 'serializer',
-				x: 480,
-				y: 460,
-				locked: true,
-			},
-			{ id: 'response-node', type: 'response', x: 720, y: 460, locked: true },
-		],
-		connections: [
-			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'router-node' },
-			{
-				id: 'c2',
-				sourceNodeId: 'router-node',
-				targetNodeId: 'controller-node',
-			},
-			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
-			{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
-			{ id: 'c5', sourceNodeId: 'post-model', targetNodeId: 'comment-model' },
-			{
-				id: 'c6',
-				sourceNodeId: 'comment-model',
-				targetNodeId: 'database-node',
-			},
-			{
-				id: 'c7',
-				sourceNodeId: 'controller-node',
-				targetNodeId: 'serializer-node',
-			},
-			{
-				id: 'c8',
-				sourceNodeId: 'serializer-node',
-				targetNodeId: 'response-node',
-			},
-		],
+			'Fire requests at the posts index to watch COUNT(*) queries cascade through the query waterfall. Each post fires a separate query just to count its comments.',
 	},
 	problem: {
 		observation:
@@ -802,8 +738,6 @@ end
 	},
 	successConditions: [{ type: 'counter_cache_configured' }],
 	requiresTests: true,
-	availableNodes: ['counter_cache'],
-	unlockedNodes: ['counter_cache'],
 	learningContent: {
 		title: 'Counter Caches & Denormalization',
 		goal: `In this level, you'll:\n- eliminate expensive COUNT queries by storing the count directly on the parent table.\n- learn how Rails counter caches work.\n- set up counter_cache: true on a belongs_to association.\n- see how reading a pre-computed column is orders of magnitude faster than counting rows on every request.`,
@@ -914,7 +848,7 @@ end`,
 	},
 	hint: {
 		delay: 20,
-		text: 'The COUNT queries fire because there is no cached value. Generate a migration to add a counter column, then tell Rails to maintain it automatically with counter_cache: true.',
+		text: 'Fire probes at different post counts to see the query waterfall grow. The COUNT queries multiply because there is no cached value on the parent table.',
 	},
 };
 

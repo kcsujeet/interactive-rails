@@ -22,8 +22,10 @@ Each custom visualization level is a reference for how to tailor the visualizati
   `frontend/src/features/act2-users-security/components/Level15CORS.tsx`
 - Level 26 (Database Indexing): "Table Row Grid" with 100 blocks per table + IndexLookupCard, because indexing is about how the database searches rows. Seq Scan = red wave sweeps through all blocks. Index Scan = B-tree index card points directly to the match (green block). The visualization shows the mechanism (scanning vs looking up), not just the metric (820ms vs 0.05ms).
   `frontend/src/features/act4-performance/components/Level26Indexing.tsx`
+- Level 27 (Counter Caches): "Database Table View" showing the actual posts schema (id, title, user_id) where the ABSENCE of the `comments_count` column is the teaching moment. Firing the probe triggers a cascade animation: each post row turns red sequentially as it fires a separate COUNT(*) query to the comments table. The reward phase adds the `comments_count` column to the table, and cached loads show all rows green instantly (no cross-table queries). Single probe design: one probe teaches the N+1 COUNT mechanism; multiple probes with different row counts would be metric repetition.
+  `frontend/src/features/act4-performance/components/Level27CounterCaches.tsx`
 
-The visualization shape, direction, and structure should emerge from the concept itself. L10 flows top-to-bottom because data moves through layers. L15 flows left-to-right because a request travels from client through a gate to the API. L26 shows a grid of row blocks because indexing is about how many rows the database touches. Don't copy one level's layout onto another. Design the visualization that best helps the player understand the specific problem.
+The visualization shape, direction, and structure should emerge from the concept itself. L10 flows top-to-bottom because data moves through layers. L15 flows left-to-right because a request travels from client through a gate to the API. L26 shows a grid of row blocks because indexing is about how many rows the database touches. L27 shows a database table with schema columns because counter caches are about adding a column to avoid cross-table queries. Don't copy one level's layout onto another. Design the visualization that best helps the player understand the specific problem.
 
 ## Step 0: Read the Official Documentation (MANDATORY)
 
@@ -39,6 +41,107 @@ Before auditing or building any level that involves a gem, library, or Rails fea
 5. **Never trust cached knowledge.** Gems rename modules, change inheritance hierarchies, and add/remove setup steps between versions. The README is the single source of truth
 
 This step is non-negotiable. Skipping it has caused bugs in the past (wrong Scope inheritance, missing `include` steps, fake generator output).
+
+## Gate Check: Does the Observe Phase Teach the Concept? (EVALUATE FIRST)
+
+**This is the single most important check in the entire audit. Evaluate it BEFORE any structural compliance checks. If this fails, nothing else matters.**
+
+Before looking at discovery gating, animation locking, color contrast, shared components, or any other checklist item, do two things:
+
+### Step 1: Identify the observe phase type
+
+Determine which of the four observe types the level uses (or should use). The type dictates what "teaching the concept" means:
+
+| Type | Observe phase | What "teaches the concept" means |
+|------|--------------|----------------------------------|
+| **1. No observe** | Skipped entirely | N/A. Pure setup, no problem to teach. Gate check passes automatically. |
+| **2. Static intro** | Annotated code display | The code structure IS the lesson. Colored borders, badges, and a callout make the structural problem visible. No animation or interactivity needed. |
+| **3. Custom visualization** | Bespoke animated layout | Visual objects (blocks, arrows, zones, grids) animate to show the runtime mechanism. ProbeTerminal drives the animation but is NOT the visualization itself. |
+| **4. PipelineFlow** | Interactive node graph | Pipeline nodes react to probes with variant/sublabel changes, edges animate sequentially, StageInspector overlays reveal code. |
+
+**If you cannot immediately identify the type, that is already a problem.** A well-designed level makes its type obvious at a glance.
+
+### Step 2: Apply the design check for that type
+
+**Type 1 (no observe):** No check needed. Move on to the build phase audit.
+
+**Type 2 (static intro):** Ask: "Does the annotated code display make the structural problem self-evident?" The player should see the problem by reading the code with its visual markers (colored borders, badges, callouts). If the code needs extensive text explanation to convey the problem, either the annotations are insufficient or the level should be Type 3.
+
+**Type 3 (custom visualization):** Ask: **"If I were a player who had never heard of [concept], would I understand what it IS and DOES by watching this visualization? Or would I only learn a fact/number about it?"** Then check:
+
+1. **Is there a visual component above/alongside the ProbeTerminal?** If the center panel is ONLY a ProbeTerminal (or only text/logs) with no visual component, the level has no visualization. Stop and redesign.
+2. **Does that visual component show objects (blocks, arrows, cards, zones, grids) that animate and change state?** If it only shows text, numbers, or static labels, it's a metric display, not a mechanism visualization. Stop and redesign.
+3. **Does the visual component react to probe fires with visible state changes?** The ProbeTerminal fires, and the visualization above it should animate in response (arrows appearing, blocks changing color, zones highlighting). If probe fires only add text to a log, there is no visual feedback loop. Stop and redesign.
+
+**Type 4 (PipelineFlow):** Ask: "Do the pipeline nodes visually react to probes?" Then check:
+
+1. **Do node variants change on probe fire?** The broken node should flip to `'danger'`, downstream nodes to `'inactive'`, working nodes to `'active'`. If all nodes stay `'default'` after a probe, there is no visual feedback.
+2. **Do edges animate sequentially?** The `activeConnections` prop should light up edges in order, showing the request path. If all edges animate simultaneously or not at all, the flow is not visible.
+3. **Does StageInspector reveal meaningful code on click?** Clicking an inspectable node should show code that helps the player understand the problem, not just a generic description.
+
+**If any sub-check fails for the level's type, do not proceed with the rest of the audit.** Flag the observe phase as fundamentally broken and redesign it before checking anything else. Every other check (animation locking, color contrast, step quality) is predicated on having a working observe phase.
+
+### Why this gate check exists
+
+**Case study: L27 Counter Caches (terminal logs were not a visualization, now fixed)**
+
+L27's original observe phase was a ProbeTerminal showing SQL log lines. The player pressed "10 posts," "50 posts," "100 posts" and read `SELECT COUNT(*) FROM comments WHERE post_id = 1`, `...post_id = 2`, etc. The audit found 18 issues (wrong colors, custom terminal, missing animation locking, passive reward phase) and fixed them all. But it missed the fundamental problem: **the level had no visualization at all.** The entire observe phase was text in a terminal. This is a Type 3 level (runtime performance behavior) but it had no custom visualization, just a ProbeTerminal alone.
+
+L27 was subsequently redesigned with a "Database Table View" visualization: the posts table shows real schema columns (id, title, user_id) and the comments table sits beside it with a FlowConnector. Firing the single probe triggers a cascade: each post row turns red sequentially as it fires COUNT(*) to the comments table. The key insight is the ABSENCE of a `comments_count` column in the posts schema. The player sees id, title, user_id and notices there is no column for counts, which is why every post must cross to the comments table. The reward phase adds the column, and cached loads show all rows green instantly. See the reference implementation above for the current approach.
+
+Why was this missed? Three reasons:
+
+1. **The audit was treated as a compliance checklist, not a design review.** Each item was checked independently: "Does it have discovery gating? Yes. Does it use shared components? Yes. Are colors correct? Fixed." The volume of surface-level fixes (18 issues!) created a false sense of completeness. But checking 18 boxes is worthless if the core design is wrong.
+
+2. **Fixing the implementation anchored thinking to the existing frame.** The original L27 already used a terminal log approach. The audit improved it within that frame (shared ProbeTerminal, better colors, proper gating) instead of questioning the frame itself. Replacing a bad custom terminal with a good shared terminal is a code quality fix, not a design fix.
+
+3. **"Correct component" was conflated with "correct visualization."** ProbeTerminal is a shared component, so using it felt like following the rules. But ProbeTerminal is a **discovery mechanism** (a way for the player to interact), not a **visualization**. It should sit BELOW a visualization and drive it, not BE the visualization. L26 has a TableRowGrid + IndexLookupCard with ProbeTerminal below it. The original L27 had just ProbeTerminal with nothing above it. The redesigned L27 now has a Database Table View above ProbeTerminal, following the correct architecture.
+
+### ProbeTerminal is a discovery tool, not a visualization (Types 3 and 4 only)
+
+This distinction is critical and was the root cause of the L27 failure. It applies to Types 3 and 4, which are the interactive observe types that use ProbeTerminal:
+
+| Component | Role | What it does |
+|-----------|------|-------------|
+| **Visualization** (TableRowGrid, QueryCascade, DataGate, PipelineFlow, etc.) | Shows the mechanism | Visual objects animate to show what the system is doing |
+| **ProbeTerminal** | Drives discovery | Player clicks buttons, terminal shows text, fires `onProbe` callback |
+
+The correct architecture for a Type 3 level:
+
+```
+Center Panel:
+  ┌─────────────────────────────────────┐
+  │  VISUALIZATION (reacts to probes)   │  <- The actual teaching tool
+  │  [blocks, arrows, zones, grids]     │
+  │  [animates on probe fire]           │
+  ├─────────────────────────────────────┤
+  │  PROBE TERMINAL (drives probes)     │  <- The interaction tool
+  │  [> Fire probe buttons]             │
+  └─────────────────────────────────────┘
+```
+
+```
+BAD (L27 before redesign):
+  ┌─────────────────────────────────────┐
+  │  (nothing)                          │
+  ├─────────────────────────────────────┤
+  │  PROBE TERMINAL (the only thing)    │  <- No visualization exists
+  │  [SQL text scrolls by]             │
+  └─────────────────────────────────────┘
+
+GOOD (L27 after redesign):
+  ┌─────────────────────────────────────┐
+  │  DATABASE TABLE VIEW                │  <- The actual teaching tool
+  │  [posts: id,title,user_id columns] │
+  │  [rows cascade red on probe fire]  │
+  │  [FlowConnector -> comments table] │
+  ├─────────────────────────────────────┤
+  │  PROBE TERMINAL (drives probes)     │  <- The interaction tool
+  │  [> GET /api/posts]                │
+  └─────────────────────────────────────┘
+```
+
+This distinction does NOT apply to Type 1 (no observe) or Type 2 (static intro), which do not use ProbeTerminal at all.
 
 ## Checklist
 
@@ -246,6 +349,9 @@ Fixes:
 - [ ] **Connectors exist between every adjacent zone.** Stacking boxes without connectors looks disconnected and hides the flow relationship.
 - [ ] **Bypass/skip scenarios are visually distinct.** If a probe or scenario bypasses a zone (e.g., curl bypassing CORS), the zone should visually indicate it was bypassed (dashed border, muted label, "(bypassed)") rather than showing it as processing the request.
 - [ ] **The "not reached" state is shown.** When a request is blocked at zone N, zones after N should be dimmed/muted with a "not reached" label, not hidden entirely.
+- [ ] **The idle state shows the same structural elements as the active state.** Before a probe fires, the visualization should already display its structural skeleton: table headers, zone outlines, node shapes, lane labels. Only the dynamic content (data rows, flow messages, animation states) should be absent. If a component conditionally renders its entire structure (headers, columns, labels) only after interaction, the idle state looks like a blank box while sibling components show their full structure, creating an inconsistent layout. Use placeholder rows (`colSpan` with "waiting" text) or empty-state bodies inside the existing structure, not a completely different render path that hides the structure.
+
+Case study: L27's posts table originally rendered a plain `<div>` with "Fire a probe to load posts..." when idle, hiding the column headers (id, title, user_id). Meanwhile the adjacent comments table always showed its headers (id, post_id, body). The fix: always render `<table><thead>` with column headers, and use a `<tbody>` with a placeholder `<td colSpan={N}>` row for the idle state. Both tables now show their schema structure from the start, which is critical because the schema visibility IS the teaching moment.
 
 #### Visualization must show the mechanism, not just the metric (non-negotiable)
 
@@ -300,13 +406,23 @@ Why this works:
 - **The reward phase looks structurally different.** No red wave, no scanning. Just the index card pointing to a single green block on a field of neutral gray. The visual shift from "sea of red" (observe) to "one green on gray" (reward) IS the lesson.
 - **The mechanism is visible.** Seq Scan = read every row (red wave). Index Scan = look up in sorted structure, jump to match (index card + green block). The player builds the correct mental model of what the database does differently.
 
+**Case study: L27 Counter Caches (metric repetition was wrong, schema visibility is correct)**
+
+The original L27 had three probes: "10 posts," "50 posts," "100 posts." Each showed the same N+1 COUNT(*) pattern with different numbers (11 queries, 51 queries, 101 queries). This is pure metric repetition: the player learns "more posts = more queries" (a number) instead of "each post individually hits the comments table" (a mechanism).
+
+The redesigned L27 uses a single probe with a "Database Table View" showing the actual posts schema columns (id, title, user_id). The key visual: the player sees that there is NO `comments_count` column. When the probe fires, rows cascade red one-by-one as each post fires COUNT(*) to the adjacent comments table. The mechanism is visible: each row individually crossing to another table. After the build phase, the reward adds the `comments_count` column to the schema, and cached loads show all rows green instantly (no cross-table queries).
+
+The structural difference between observe and reward: observe has 3 columns and red cascade. Reward has 4 columns (the new one IS the fix) and instant green. The new column appearing in the schema IS the lesson.
+
 **Rule of thumb:** If your visualization could be replaced by a text label ("820ms", "10,000 rows scanned") without losing information, it's showing a metric, not a mechanism. Redesign it to show the mechanism.
 
 **Checklist for mechanism vs metric:**
-- [ ] **Can the player see WHAT the system is doing, not just the result?** A Seq Scan should show rows being read. An N+1 should show queries multiplying. A cache miss should show the request going to the database. If the visualization only shows the output (a number, a status badge), it's a metric.
+- [ ] **Is the center panel MORE than just a ProbeTerminal?** If the observe phase center panel contains only a ProbeTerminal (or only text/logs) with no visual component above it, there is no visualization. ProbeTerminal is a discovery tool, not a visualization. Stop and redesign before checking anything else. (See "Gate Check" section above.)
+- [ ] **Can the player see WHAT the system is doing, not just the result?** A Seq Scan should show rows being read. An N+1 should show queries multiplying. A cache miss should show the request going to the database. If the visualization only shows the output (a number, a status badge, or SQL text in a terminal), it's a metric.
+- [ ] **Does the visualization show visual objects (blocks, arrows, cards, zones, grids) that animate?** Text output in a terminal is not a visual object. The player must see shapes that move, change color, appear, or disappear. If you removed all text and the visualization still conveyed the core insight through shapes and animation alone, it's mechanism-based.
 - [ ] **Does the visualization look structurally different between the problem and solution?** If observe and reward both show the same component with different numbers/colors, the visualization is metric-based. The solution should introduce a new visual element (the index card, the cache layer, the preloaded batch) that was absent in the problem.
 - [ ] **Could a player explain the mechanism after watching the visualization?** After seeing L26, the player should be able to say: "Without an index, the database reads every row sequentially. With an index, it uses a sorted lookup to jump directly to the matching row." If they can only say "it went from 820ms to 0.05ms," the visualization taught a metric, not a mechanism.
-- [ ] **Are progress bars or gauges the primary visual element?** Progress bars and gauges are inherently metric-based. They show a quantity, not a process. Replace them with visual representations of the actual objects: rows, queries, columns, cache entries, connections. Small colored blocks, animated flow dots, and structural diagrams show mechanisms.
+- [ ] **Are progress bars, gauges, or terminal logs the primary visual element?** Progress bars, gauges, and terminal log output are inherently metric-based. They show a quantity or text, not a process. Replace them with visual representations of the actual objects: rows, queries, columns, cache entries, connections. Small colored blocks, animated flow dots, and structural diagrams show mechanisms.
 
 #### Required interactivity (Types 3 and 4 only)
 
@@ -322,7 +438,7 @@ When a level uses a full interactive observe phase (Type 3 custom visualization 
 Levels should use whichever discovery mechanisms fit their visualization:
 
 - **Clickable regions** (for any visualization): clicking on parts of the visualization reveals information and triggers discoveries. For PipelineFlow, use `onNodeClick` + `StageInspector`. For custom zone layouts, use `onClick` handlers on zone `<button>` elements with pulsing `?` indicators for uninspected zones.
-- **ProbeTerminal**: terminal-style component where player fires test requests. Best for security/API levels where "try this request and see what happens" is the natural exploration. Not required for every level. Must be disabled during flow animations (see "Animation locking" below).
+- **ProbeTerminal**: terminal-style component where player fires test requests. Best for security/API levels where "try this request and see what happens" is the natural exploration. Not required for every level. Must be disabled during flow animations (see "Animation locking" below). **Always use this shared component. Never build a custom terminal** (see "Always use shared terminal components" below).
 - **Interactive controls**: buttons, toggles, or inputs that let the player manipulate the visualization and discover problems. E.g., toggling browser origins in a CORS level, firing different query patterns in a performance level.
 
 **Hint for non-obvious discovery actions:** When discoveries require clicking on visualization nodes (not just firing probes), the `?` indicator alone is not enough. Show a progressive `<Alert variant="info">` hint below the `DiscoveryChecklist` to guide the player:
@@ -343,6 +459,65 @@ Levels should use whichever discovery mechanisms fit their visualization:
   </Alert>
 )}
 ```
+
+#### Always use shared terminal components (non-negotiable)
+
+**Never build a custom terminal UI when a shared component exists.** Three shared terminal components cover all use cases:
+
+| Component | Phase | Use case |
+|-----------|-------|----------|
+| `ProbeTerminal` | Observe | Player fires probes to discover problems |
+| `StressTestPanel` | Reward | Player fires stress scenarios to verify the fix |
+| `SimulatedTerminal` | Build | Player picks the right shell command |
+
+**If a level needs a terminal-like display (query log, request log, database output), use `ProbeTerminal` with appropriate `responseLines` per probe.** Do not build a custom div with traffic-light dots, a scrollable log area, and custom buttons. That is exactly what ProbeTerminal already provides.
+
+**Case study: L27 Counter Caches (custom terminal was wrong, then redesigned entirely)**
+
+L27 went through three stages, each teaching a different lesson:
+
+**Stage 1 (bad): custom terminal.** The original L27 built a custom "Query Waterfall" terminal with ~80 lines of custom state (`firedProbes`, `activeProbe`, `queryLog`, `visibleQueryIndex`, `isAnimating`). This duplicated ProbeTerminal's functionality with inconsistent styling and manual interval cleanup.
+
+**Stage 2 (better but still wrong): ProbeTerminal alone.** Replacing the custom terminal with `<ProbeTerminal>` fixed the code quality issues (~80 fewer lines, consistent styling), but the observe phase was STILL just terminal text. There was no visualization above it. The player read SQL log lines instead of seeing the mechanism. (See the gate check case study above for why this was caught.)
+
+**Stage 3 (correct): Database Table View + ProbeTerminal.** The final redesign added a proper visualization above ProbeTerminal: a database table showing posts schema columns (id, title, user_id) with cascade animation. Each row turns red sequentially as its COUNT(*) query fires. The absence of a `comments_count` column IS the visual problem. ProbeTerminal sits below and drives the visualization via `onProbe`. The reward phase adds the column.
+
+The lessons: (1) Always use shared components instead of custom terminals. (2) Using the right component is necessary but not sufficient: ProbeTerminal drives discovery, it does not replace a visualization. (3) The visualization must show the mechanism (rows cascading, columns appearing), not just log text.
+
+```tsx
+// BAD: custom terminal UI duplicating ProbeTerminal
+const [firedProbes, setFiredProbes] = useState<Set<string>>(new Set());
+const [queryLog, setQueryLog] = useState<string[]>([]);
+// ... 80+ lines of custom state, animation, and JSX
+
+// BETTER but still wrong: ProbeTerminal alone (no visualization above it)
+<ProbeTerminal onProbe={handleProbe} probes={PROBES} title="Database Log" />
+
+// GOOD: visualization + ProbeTerminal
+<DatabaseTableView posts={postBlocks} onCascade={...} />  {/* Shows the mechanism */}
+<ProbeTerminal onProbe={handleProbe} probes={PROBES} />   {/* Drives interaction */}
+```
+
+**ProbeTerminal accepts `className` for layout control.** By default, the output area has `max-h-48`. When the terminal should fill its parent container (e.g., no other content above it), pass `className="flex-1 flex flex-col"` and wrap it in a flex container with `flex-1 min-h-0`:
+
+```tsx
+// Terminal fills available space
+<div className="px-6 pb-2 flex-1 min-h-0 flex flex-col">
+  <ProbeTerminal
+    className="flex-1 flex flex-col"
+    onProbe={handleProbe}
+    probes={PROBES}
+    title="Database Log"
+  />
+</div>
+```
+
+**Checklist:**
+- [ ] Level does not build a custom terminal div with traffic-light dots, scrollable log, and buttons
+- [ ] Observe phase uses `ProbeTerminal` for any terminal-like interaction
+- [ ] Reward phase uses `StressTestPanel` for any terminal-like stress testing
+- [ ] Build phase uses `SimulatedTerminal` (via `TerminalChoiceStep`) for command selection
+- [ ] If the terminal should fill the panel, `className="flex-1 flex flex-col"` is passed
 
 #### Animation locking (non-negotiable, all phases)
 
@@ -568,9 +743,14 @@ The build phase must cover the **complete workflow**:
 - Missing `bundle add <gem>` step
 - Missing `include <Gem>::<Module>` in ApplicationController (many gems require this, e.g., Pundit, Devise)
 - Missing `rails generate <gem>:install` step
-- Missing database migration step (`rails db:migrate`) when generators create migrations
+- Missing `rails db:migrate` step after any generator that creates migrations (non-negotiable, see below)
 - Missing configuration steps (initializers, environment config)
 - Any step listed in the gem's README "Getting Started" / "Installation" section that is not represented in the level
+
+**Every migration generation must be followed by `rails db:migrate` (non-negotiable):**
+If any build step generates a migration file (`rails generate migration ...`, `rails generate <gem>:install` that creates a migration), the very next step MUST be running `rails db:migrate`. Without it, the column/table does not exist in the database and subsequent steps would fail in reality. This is a TerminalChoiceStep with wrong options like `rails db:setup` (wrong: drops and recreates) or running the generator again (wrong: already generated).
+
+Case study: L27 Counter Caches originally had "Generate the counter cache migration" immediately followed by "Enable counter_cache on the association." The player generated `add_comments_count_to_posts` but never ran `rails db:migrate`, so the `comments_count` column would not exist when the model tried to use it. Adding step 1 (`rails db:migrate`) between generation and configuration fixed the gap.
 
 ### Phase 3: Solution Visualization (ADVANTAGE) - Interactive Reward
 
@@ -908,6 +1088,26 @@ Every color choice must be visible and readable on both white and dark backgroun
 - [ ] **Zone/node backgrounds adapt to theme.** Active zone backgrounds should use light tints in light mode and dark tints in dark mode: `bg-emerald-100 dark:bg-emerald-900/40`, `bg-red-100 dark:bg-red-900/40`.
 - [ ] **Semi-transparent backgrounds do not leak.** If a node/zone uses a semi-transparent background (e.g., `bg-red-900/40`), verify the underlying canvas color does not bleed through and create unreadable contrast. Prefer opaque backgrounds for states like panic/danger.
 - [ ] **Scrollbar artifacts.** If a node/zone has scrollable content (`overflow-y-auto`, `max-h-*`), check that the scrollbar track does not create visible contrast artifacts against the node background. Prefer expanding height over scrolling when content is short.
+- [ ] **Terminal components use adaptive colors, not always-dark.** The shared terminal components (`ProbeTerminal`, `StressTestPanel`, `SimulatedTerminal`) use adaptive light/dark styling. They are light in light mode (`bg-zinc-50`) and dark in dark mode (`dark:bg-zinc-900`). If a level builds custom terminal-like UI, it must follow the same pattern. Never use always-dark terminal colors like `bg-zinc-900` without a `bg-zinc-50` light-mode counterpart.
+
+**Terminal adaptive color reference (already built into the shared components):**
+
+| Element | Light mode | Dark mode |
+|---------|-----------|-----------|
+| Container | `bg-zinc-50` | `dark:bg-zinc-900` |
+| Border | `border-border` | (semantic, auto) |
+| Header | `bg-muted` | (semantic, auto) |
+| Header text | `text-muted-foreground` | (semantic, auto) |
+| Body text | `text-foreground` | (semantic, auto) |
+| Footer | `bg-muted/50` | (semantic, auto) |
+| Green text | `text-emerald-600` | `dark:text-emerald-400` |
+| Amber text | `text-amber-600` | `dark:text-amber-400` |
+| Red text | `text-red-600` | `dark:text-red-400` |
+| Cyan text | `text-cyan-600` | `dark:text-cyan-400` |
+| Cursor | `bg-foreground/50` | (semantic, auto) |
+| Probe buttons | `bg-amber-100 text-amber-700 border-amber-300` | `dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700/50` |
+| Allowed buttons | `bg-emerald-100 text-emerald-700 border-emerald-300` | `dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700/50` |
+| Blocked buttons | `bg-red-100 text-red-700 border-red-300` | `dark:bg-red-900/30 dark:text-red-300 dark:border-red-700/50` |
 
 ## Output Format
 

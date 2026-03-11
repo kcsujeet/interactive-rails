@@ -38,17 +38,17 @@ export function StressTestPanel({
 	const recentResults = results.slice(-10);
 
 	return (
-		<div className="rounded-lg border border-zinc-700 bg-zinc-900 overflow-hidden">
+		<div className="rounded-lg border border-border bg-zinc-50 dark:bg-zinc-900 overflow-hidden">
 			{/* Header */}
-			<div className="flex items-center justify-between px-3 py-2 bg-zinc-800 border-b border-zinc-700">
+			<div className="flex items-center justify-between px-3 py-2 bg-muted border-b border-border">
 				<div className="flex items-center gap-2">
 					<div className="flex gap-1.5">
 						<div className="w-3 h-3 rounded-full bg-red-500" />
 						<div className="w-3 h-3 rounded-full bg-yellow-500" />
 						<div className="w-3 h-3 rounded-full bg-green-500" />
 					</div>
-					<Shield className="w-3.5 h-3.5 text-zinc-400 ml-1" />
-					<span className="text-xs text-zinc-400 font-mono">
+					<Shield className="w-3.5 h-3.5 text-muted-foreground ml-1" />
+					<span className="text-xs text-muted-foreground font-mono">
 						Stress Test
 					</span>
 				</div>
@@ -56,12 +56,16 @@ export function StressTestPanel({
 				{/* Inline counters */}
 				<div className="flex items-center gap-3">
 					<span className="text-xs font-mono">
-						<span className="text-emerald-400 font-bold">{allowedCount}</span>
-						<span className="text-zinc-500 ml-1">allowed</span>
+						<span className="text-emerald-600 dark:text-emerald-400 font-bold">
+							{allowedCount}
+						</span>
+						<span className="text-muted-foreground ml-1">allowed</span>
 					</span>
 					<span className="text-xs font-mono">
-						<span className="text-red-400 font-bold">{blockedCount}</span>
-						<span className="text-zinc-500 ml-1">blocked</span>
+						<span className="text-red-600 dark:text-red-400 font-bold">
+							{blockedCount}
+						</span>
+						<span className="text-muted-foreground ml-1">blocked</span>
 					</span>
 				</div>
 			</div>
@@ -69,37 +73,37 @@ export function StressTestPanel({
 			{/* Results log */}
 			<div className="p-3 font-mono text-sm max-h-36 overflow-y-auto">
 				{recentResults.length === 0 && (
-					<div className="text-zinc-500 text-xs">
+					<div className="text-muted-foreground text-xs">
 						Fire requests to stress-test your authorization...
 					</div>
 				)}
 
 				{recentResults.map((result, i) => {
-					const scenario = scenarios.find(
-						(s) => s.id === result.scenarioId,
-					);
+					const scenario = scenarios.find((s) => s.id === result.scenarioId);
 					if (!scenario) return null;
 					const isAllowed = result.result === 'allowed';
 					return (
 						<div
-							key={`${result.scenarioId}-${result.timestamp}-${i}`}
 							className="py-0.5"
+							key={`${result.scenarioId}-${result.timestamp}-${i}`}
 						>
 							<div className="flex items-center gap-2">
 								<span
 									className={`text-xs font-bold shrink-0 ${
-										isAllowed ? 'text-emerald-400' : 'text-red-400'
+										isAllowed
+											? 'text-emerald-600 dark:text-emerald-400'
+											: 'text-red-600 dark:text-red-400'
 									}`}
 								>
 									{isAllowed ? '200' : '403'}
 								</span>
-								<span className="text-zinc-500 text-xs shrink-0">
+								<span className="text-muted-foreground text-xs shrink-0">
 									{scenario.method}
 								</span>
-								<span className="text-zinc-300 text-xs truncate">
+								<span className="text-foreground text-xs truncate">
 									{scenario.path}
 								</span>
-								<span className="text-zinc-600 text-xs ml-auto shrink-0">
+								<span className="text-muted-foreground/60 text-xs ml-auto shrink-0">
 									{scenario.actor}
 								</span>
 							</div>
@@ -108,12 +112,12 @@ export function StressTestPanel({
 									{scenario.responseLines.map((line, j) => {
 										const colorClass =
 											line.color === 'green'
-												? 'text-emerald-400'
+												? 'text-emerald-600 dark:text-emerald-400'
 												: line.color === 'red'
-													? 'text-red-400'
+													? 'text-red-600 dark:text-red-400'
 													: line.color === 'yellow'
-														? 'text-yellow-400'
-														: 'text-zinc-400';
+														? 'text-yellow-600 dark:text-yellow-400'
+														: 'text-muted-foreground';
 										return (
 											<div
 												className={`text-xs ${colorClass}`}
@@ -131,8 +135,8 @@ export function StressTestPanel({
 			</div>
 
 			{/* Scenario buttons */}
-			<div className="p-3 border-t border-zinc-700 bg-zinc-800/50">
-				<div className="text-xs text-zinc-500 mb-2">
+			<div className="p-3 border-t border-border bg-muted/50">
+				<div className="text-xs text-muted-foreground mb-2">
 					Fire a request to test your policy:
 				</div>
 				<div className="flex flex-wrap gap-2">
@@ -140,8 +144,8 @@ export function StressTestPanel({
 						<Button
 							className={`font-mono text-xs ${
 								scenario.expectedResult === 'allowed'
-									? 'bg-emerald-900/30 hover:bg-emerald-900/50 text-emerald-300 border-emerald-700/50'
-									: 'bg-red-900/30 hover:bg-red-900/50 text-red-300 border-red-700/50'
+									? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-700 border-emerald-300 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-700/50'
+									: 'bg-red-100 hover:bg-red-200 text-red-700 border-red-300 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-300 dark:border-red-700/50'
 							}`}
 							disabled={isAutoFiring || disabled}
 							key={scenario.id}
