@@ -2,26 +2,37 @@
  * Level 26: Database Indexing
  *
  * Sequential phase flow: observe -> build -> activate -> reward
- * Each phase occupies the full center panel. One thing at a time.
  *
- * Phase 1 (WHY - observe): Interactive exploration. Click pipeline stages to
- *   inspect code, fire query probes to discover slow sequential scans.
- *   Discovery gating controls when "Build the Fix" appears.
+ * Phase 1 (WHY - observe): "Table Row Grid" visualization.
+ *   3 lanes, each showing a database table as a grid of row blocks.
+ *   Seq Scan: red wave sweeps through ALL blocks, then match block(s) turn green.
+ *   The player SEES the database reading every row. Clickable lanes + schema
+ *   button trigger discoveries. Discovery gating controls "Build the Fix".
+ *
  * Phase 2 (HOW - build): 5 steps building database indexes via migrations
- *   Step 0: Generate migration (terminal)
- *   Step 1: Add unique index on users.email (OptionCard)
- *   Step 2: Add foreign key index on posts.user_id (OptionCard)
- *   Step 3: Add composite index on posts.[published, created_at] (OptionCard)
- *   Step 4: Run migration (terminal)
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Performance" button
- * Phase 4 (ADVANTAGE - reward): Stress test. Fire query scenarios and watch
- *   EXPLAIN switch from Seq Scan to Index Scan.
  *
- * Teaches: add_index, unique/composite/partial indexes, EXPLAIN, algorithm: :concurrently
+ * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Performance" button
+ *
+ * Phase 4 (ADVANTAGE - reward): Same lanes return. Index Scan shows an
+ *   IndexLookupCard (sorted B-tree entries with arrow to match), then ONLY the
+ *   match block(s) turn green instantly. No red wave. The contrast teaches
+ *   what an index does: skip the scan, jump to the answer.
+ *
+ * Teaches: add_index, unique/composite indexes, EXPLAIN, leftmost prefix rule
  */
 
-import { ArrowRight, Check, Play, Star, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+	ArrowRight,
+	Database,
+	Info,
+	Play,
+	Search,
+	Star,
+	Table2,
+	X,
+	Zap,
+} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -41,18 +52,15 @@ import {
 	type ValidationResult,
 } from '@/components/levels';
 import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
-import {
-	type PipelineConnection,
-	PipelineFlow,
-	type PipelineStage,
-} from '@/components/levels/PipelineFlow';
-import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
+import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import {
 	StageInspector,
 	type StageInspectorData,
 } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
+import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import {
@@ -61,6 +69,8 @@ import {
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { cn } from '@/lib/utils';
 
 // ──────────────────────────────────────────────
 // Phase type
@@ -69,13 +79,126 @@ import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 type Phase = 'observe' | 'build' | 'activate' | 'reward';
 
 // ──────────────────────────────────────────────
+// Query lane data types
+// ──────────────────────────────────────────────
+
+interface ScanResult {
+	scanType: 'seq' | 'index';
+	plan: string;
+	time: string;
+	rowsScanned: number;
+	totalRows: number;
+	rowsRemoved?: number;
+	/** When true, a seq scan is expected (e.g., no WHERE clause). Uses amber instead of red. */
+	expected?: boolean;
+	sortKey?: string;
+}
+
+interface QueryLane {
+	id: string;
+	label: string;
+	table: string;
+	sql: string;
+	icon: typeof Database;
+	totalRows: number;
+}
+
+const QUERY_LANES: QueryLane[] = [
+	{
+		id: 'email',
+		label: 'Email Lookup',
+		table: 'users',
+		sql: "SELECT * FROM users WHERE email = 'alice@example.com'",
+		icon: Search,
+		totalRows: 10000,
+	},
+	{
+		id: 'fk',
+		label: 'Foreign Key Lookup',
+		table: 'posts',
+		sql: 'SELECT * FROM posts WHERE user_id = 42',
+		icon: Table2,
+		totalRows: 50000,
+	},
+	{
+		id: 'composite',
+		label: 'Composite Query',
+		table: 'posts',
+		sql: 'SELECT * FROM posts WHERE published = true ORDER BY created_at',
+		icon: Database,
+		totalRows: 50000,
+	},
+];
+
+// ──────────────────────────────────────────────
+// Row grid config (visual representation of table rows)
+// ──────────────────────────────────────────────
+
+const GRID_SIZE = 100; // 10x10 grid of blocks per lane
+const GRID_COLS = 20;
+
+/** Which blocks in the grid represent "matched" rows */
+const GRID_MATCHES: Record<string, number[]> = {
+	// 1 user with that email, placed near the end to maximize visible scan
+	email: [73],
+	// 5 posts by user_id=42, scattered through the table
+	fk: [12, 37, 54, 71, 89],
+	// ~50% of posts are published (every other block)
+	composite: Array.from({ length: 50 }, (_, i) => i * 2),
+};
+
+/** Index entries shown during reward phase index scans */
+interface IndexEntry {
+	value: string;
+	row: string;
+	highlight?: boolean;
+}
+
+const INDEX_LOOKUP_DATA: Record<
+	string,
+	{ name: string; entries: IndexEntry[] }
+> = {
+	email: {
+		name: 'index_users_on_email (unique, B-tree)',
+		entries: [
+			{ value: 'aaa@corp.com', row: 'row #231' },
+			{ value: 'alice@example.com', row: 'row #4231', highlight: true },
+			{ value: 'bob@dev.io', row: 'row #1892' },
+			{ value: 'carol@startup.co', row: 'row #892' },
+			{ value: '...', row: '(9,996 more)' },
+		],
+	},
+	fk: {
+		name: 'index_posts_on_user_id (B-tree)',
+		entries: [
+			{ value: 'user_id = 41', row: 'rows #800..820' },
+			{ value: 'user_id = 42', row: 'rows #821..845', highlight: true },
+			{ value: 'user_id = 43', row: 'rows #846..870' },
+			{ value: '...', row: '(sorted by user_id)' },
+		],
+	},
+	composite: {
+		name: 'index_posts_on_published_created_at',
+		entries: [
+			{ value: 'false, 2024-01-01', row: 'rows #1..25000' },
+			{ value: 'true, 2024-01-01', row: 'row #25001', highlight: true },
+			{ value: 'true, 2024-01-02', row: 'row #25002' },
+			{ value: '(pre-sorted by created_at)', row: 'no Sort needed' },
+		],
+	},
+};
+
+// ──────────────────────────────────────────────
 // Discovery definitions (observe phase)
 // ──────────────────────────────────────────────
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{ id: 'seq-scan-email', label: 'Seq Scan on users.email (820ms)' },
 	{ id: 'seq-scan-fk', label: 'Seq Scan on posts.user_id (450ms)' },
-	{ id: 'seq-scan-composite', label: 'Sort + Seq Scan on published posts (650ms)' },
+	{
+		id: 'seq-scan-composite',
+		label: 'Sort + Seq Scan on published posts (650ms)',
+	},
 	{ id: 'no-indexes', label: 'No indexes defined on any table' },
 ];
 
@@ -87,10 +210,17 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'query-email',
 		label: 'Find user by email',
-		command: 'EXPLAIN ANALYZE SELECT * FROM users WHERE email = \'alice@example.com\'',
+		command:
+			"EXPLAIN ANALYZE SELECT * FROM users WHERE email = 'alice@example.com'",
 		responseLines: [
-			{ text: 'Seq Scan on users  (cost=0.00..245.00 rows=1 width=72)', color: 'red' },
-			{ text: '  Filter: ((email)::text = \'alice@example.com\'::text)', color: 'muted' },
+			{
+				text: 'Seq Scan on users  (cost=0.00..245.00 rows=1 width=72)',
+				color: 'red',
+			},
+			{
+				text: "  Filter: ((email)::text = 'alice@example.com'::text)",
+				color: 'muted',
+			},
 			{ text: '  Rows Removed by Filter: 9999', color: 'yellow' },
 			{ text: '  Execution Time: 820.00 ms', color: 'red' },
 		],
@@ -100,7 +230,10 @@ const PROBES: ProbeConfig[] = [
 		label: 'Load user posts',
 		command: 'EXPLAIN ANALYZE SELECT * FROM posts WHERE user_id = 42',
 		responseLines: [
-			{ text: 'Seq Scan on posts  (cost=0.00..1125.00 rows=25 width=128)', color: 'red' },
+			{
+				text: 'Seq Scan on posts  (cost=0.00..1125.00 rows=25 width=128)',
+				color: 'red',
+			},
 			{ text: '  Filter: (user_id = 42)', color: 'muted' },
 			{ text: '  Rows Removed by Filter: 49975', color: 'yellow' },
 			{ text: '  Execution Time: 450.00 ms', color: 'red' },
@@ -109,9 +242,13 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'query-composite',
 		label: 'Published posts by date',
-		command: 'EXPLAIN ANALYZE SELECT * FROM posts WHERE published = true ORDER BY created_at',
+		command:
+			'EXPLAIN ANALYZE SELECT * FROM posts WHERE published = true ORDER BY created_at',
 		responseLines: [
-			{ text: 'Sort  (cost=1850.00..1862.50 rows=25000 width=128)', color: 'red' },
+			{
+				text: 'Sort  (cost=1850.00..1862.50 rows=25000 width=128)',
+				color: 'red',
+			},
 			{ text: '  Sort Key: created_at', color: 'muted' },
 			{ text: '  ->  Seq Scan on posts  (rows=25000)', color: 'red' },
 			{ text: '        Filter: (published = true)', color: 'muted' },
@@ -120,79 +257,124 @@ const PROBES: ProbeConfig[] = [
 	},
 ];
 
-// Map probe IDs to discovery IDs they trigger
+// Map probe IDs to discovery IDs and lane IDs
 const PROBE_DISCOVERY_MAP: Record<string, string> = {
 	'query-email': 'seq-scan-email',
 	'query-fk': 'seq-scan-fk',
 	'query-composite': 'seq-scan-composite',
 };
 
-// Map probe IDs to pipeline node display during observe
-const PROBE_PIPELINE_MAP: Record<
-	string,
-	{ dbSublabel: string; dbBadge: string }
-> = {
-	'query-email': {
-		dbSublabel: 'Seq Scan: 10K rows',
-		dbBadge: '820ms',
+const PROBE_LANE_MAP: Record<string, string> = {
+	'query-email': 'email',
+	'query-fk': 'fk',
+	'query-composite': 'composite',
+};
+
+// Observe scan results per probe (Seq Scan data)
+const OBSERVE_SCAN_DATA: Record<string, ScanResult> = {
+	email: {
+		scanType: 'seq',
+		plan: 'Seq Scan on users',
+		time: '820ms',
+		rowsScanned: 10000,
+		totalRows: 10000,
+		rowsRemoved: 9999,
 	},
-	'query-fk': {
-		dbSublabel: 'Seq Scan: 50K rows',
-		dbBadge: '450ms',
+	fk: {
+		scanType: 'seq',
+		plan: 'Seq Scan on posts',
+		time: '450ms',
+		rowsScanned: 50000,
+		totalRows: 50000,
+		rowsRemoved: 49975,
 	},
-	'query-composite': {
-		dbSublabel: 'Sort + Seq Scan',
-		dbBadge: '650ms',
+	composite: {
+		scanType: 'seq',
+		plan: 'Sort + Seq Scan on posts',
+		time: '650ms',
+		rowsScanned: 50000,
+		totalRows: 50000,
+		sortKey: 'created_at',
 	},
 };
 
 // ──────────────────────────────────────────────
-// Stage inspector data (observe phase)
+// Schema inspector (observe phase, 4th discovery)
 // ──────────────────────────────────────────────
 
-const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
-	request: {
-		stageId: 'request',
-		title: 'Incoming Request',
-		description:
-			'GET /api/users?email=alice@example.com arrives. The controller will look up the user by email, which hits the database.',
-	},
-	controller: {
-		stageId: 'controller',
-		title: 'UsersController',
-		description:
-			'The controller calls User.find_by(email: params[:email]). ActiveRecord translates this to a WHERE query on the users table.',
-		code: `def show
-  @user = User.find_by!(email: params[:email])
-  render json: UserSerializer.new(@user)
-end`,
-	},
-	database: {
-		stageId: 'database',
-		title: 'Database (No Indexes)',
-		description:
-			'No index exists on users.email or posts.user_id. Every query does a sequential scan, reading every row in the table to find matches. With 10K+ rows, this is extremely slow.',
-		code: `-- Schema (no indexes!)
+const SCHEMA_INSPECTOR: StageInspectorData = {
+	stageId: 'schema',
+	title: 'Database Schema (No Indexes)',
+	description:
+		'No indexes exist on any column. Every WHERE, JOIN, and ORDER BY triggers a sequential scan, reading every row in the table.',
+	code: `-- db/schema.rb (no indexes!)
 CREATE TABLE users (
   id bigint PRIMARY KEY,
-  email varchar,
+  email varchar NOT NULL,
   name varchar,
   created_at timestamp
 );
 -- No index on email!
--- No index on posts.user_id!`,
-	},
-	model: {
-		stageId: 'model',
-		title: 'User Model',
-		description:
-			'The User model generates SQL queries. Without database indexes, every find_by, where, and order triggers a full table scan.',
-	},
+
+CREATE TABLE posts (
+  id bigint PRIMARY KEY,
+  user_id bigint REFERENCES users(id),
+  title varchar,
+  body text,
+  published boolean DEFAULT false,
+  created_at timestamp
+);
+-- No index on user_id!
+-- No index on [published, created_at]!`,
 };
 
-// Map stage IDs to discovery IDs they trigger
-const STAGE_DISCOVERY_MAP: Record<string, string> = {
-	database: 'no-indexes',
+// Lane inspector data (click on lane headers)
+const LANE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
+	email: {
+		stageId: 'email',
+		title: 'Email Lookup Query',
+		description:
+			'User.find_by(email: params[:email]) translates to a WHERE clause. Without an index, the database reads every row to find the match.',
+		code: `-- Generated SQL:
+SELECT * FROM users WHERE email = 'alice@example.com'
+
+-- EXPLAIN output:
+Seq Scan on users  (cost=0.00..245.00)
+  Filter: ((email) = 'alice@example.com')
+  Rows Removed by Filter: 9999
+  -- Scanned all 10,000 rows to find 1 match!`,
+	},
+	fk: {
+		stageId: 'fk',
+		title: 'Foreign Key Lookup Query',
+		description:
+			'Post.where(user_id: 42) filters posts by a foreign key. Rails does NOT automatically create indexes on foreign key columns.',
+		code: `-- Generated SQL:
+SELECT * FROM posts WHERE user_id = 42
+
+-- EXPLAIN output:
+Seq Scan on posts  (cost=0.00..1125.00)
+  Filter: (user_id = 42)
+  Rows Removed by Filter: 49975
+  -- Scanned all 50,000 posts to find 25!`,
+	},
+	composite: {
+		stageId: 'composite',
+		title: 'Composite Query (WHERE + ORDER BY)',
+		description:
+			'Post.where(published: true).order(:created_at) needs both a filter and a sort. Without a composite index, the database does a full scan AND an in-memory sort.',
+		code: `-- Generated SQL:
+SELECT * FROM posts
+  WHERE published = true
+  ORDER BY created_at
+
+-- EXPLAIN output:
+Sort  (cost=1850.00..1862.50)
+  Sort Key: created_at
+  ->  Seq Scan on posts
+      Filter: (published = true)
+  -- Full scan + in-memory sort = double penalty`,
+	},
 };
 
 // ──────────────────────────────────────────────
@@ -206,8 +388,20 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		description: 'Unique index lookup on users.email',
 		method: 'GET',
 		path: '/api/users?email=alice@example.com',
-		actor: 'Index Scan (0.05ms)',
+		actor: 'client',
 		expectedResult: 'allowed',
+		responseLines: [
+			{
+				text: 'Index Scan using index_users_on_email on users',
+				color: 'green',
+			},
+			{
+				text: "  Index Cond: (email = 'alice@example.com')",
+				color: 'yellow',
+			},
+			{ text: '  Rows Scanned: 1 of 10,000', color: 'green' },
+			{ text: '  Execution Time: 0.05 ms (was 820ms)', color: 'green' },
+		],
 	},
 	{
 		id: 'fk-lookup',
@@ -215,8 +409,17 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		description: 'B-tree index on posts.user_id',
 		method: 'GET',
 		path: '/api/users/42/posts',
-		actor: 'Index Scan (0.10ms)',
+		actor: 'client',
 		expectedResult: 'allowed',
+		responseLines: [
+			{
+				text: 'Index Scan using index_posts_on_user_id on posts',
+				color: 'green',
+			},
+			{ text: '  Index Cond: (user_id = 42)', color: 'yellow' },
+			{ text: '  Rows Scanned: 25 of 50,000', color: 'green' },
+			{ text: '  Execution Time: 0.10 ms (was 450ms)', color: 'green' },
+		],
 	},
 	{
 		id: 'composite-query',
@@ -224,8 +427,23 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		description: 'Composite index on [published, created_at]',
 		method: 'GET',
 		path: '/api/posts?published=true&sort=created_at',
-		actor: 'Index Scan (0.20ms)',
+		actor: 'client',
 		expectedResult: 'allowed',
+		responseLines: [
+			{
+				text: 'Index Scan using index_posts_on_published_and_created_at',
+				color: 'green',
+			},
+			{
+				text: '  Index Cond: (published = true)',
+				color: 'yellow',
+			},
+			{
+				text: '  Rows pre-sorted by created_at (no Sort node)',
+				color: 'green',
+			},
+			{ text: '  Execution Time: 0.20 ms (was 650ms)', color: 'green' },
+		],
 	},
 	{
 		id: 'created-at-only',
@@ -233,19 +451,102 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		description: 'Leftmost prefix rule: composite index cannot help',
 		method: 'GET',
 		path: '/api/posts?sort=created_at',
-		actor: 'Seq Scan (still slow)',
+		actor: 'client',
 		expectedResult: 'blocked',
+		responseLines: [
+			{
+				text: 'Seq Scan on posts  (cost=0.00..1125.00)',
+				color: 'red',
+			},
+			{
+				text: '  Sort Key: created_at (no covering index)',
+				color: 'yellow',
+			},
+			{
+				text: '  Index on [published, created_at] skipped: leftmost column not in query',
+				color: 'red',
+			},
+			{ text: '  Execution Time: 650.00 ms (still slow!)', color: 'red' },
+		],
 	},
 	{
 		id: 'admin-all-users',
 		label: 'Admin: list all users',
-		description: 'Full table query, no WHERE clause needed',
+		description: 'Full table scan, no WHERE clause to index',
 		method: 'GET',
 		path: '/api/admin/users',
-		actor: 'Seq Scan (expected)',
+		actor: 'admin',
 		expectedResult: 'allowed',
+		responseLines: [
+			{
+				text: 'Seq Scan on users  (cost=0.00..245.00)',
+				color: 'yellow',
+			},
+			{
+				text: '  No WHERE clause: index not applicable',
+				color: 'yellow',
+			},
+			{
+				text: '  Full scan expected (loading all rows is the goal)',
+				color: 'green',
+			},
+			{
+				text: '  Execution Time: 12.00 ms (acceptable for admin)',
+				color: 'green',
+			},
+		],
 	},
 ];
+
+// Reward scan data per scenario
+const REWARD_SCAN_DATA: Record<
+	string,
+	ScanResult & { laneId: string; sqlOverride?: string; labelOverride?: string }
+> = {
+	'email-lookup': {
+		laneId: 'email',
+		scanType: 'index',
+		plan: 'Index Scan using index_users_on_email',
+		time: '0.05ms',
+		rowsScanned: 1,
+		totalRows: 10000,
+	},
+	'fk-lookup': {
+		laneId: 'fk',
+		scanType: 'index',
+		plan: 'Index Scan using index_posts_on_user_id',
+		time: '0.10ms',
+		rowsScanned: 25,
+		totalRows: 50000,
+	},
+	'composite-query': {
+		laneId: 'composite',
+		scanType: 'index',
+		plan: 'Index Scan using index_posts_on_published_and_created_at',
+		time: '0.20ms',
+		rowsScanned: 25000,
+		totalRows: 50000,
+	},
+	'created-at-only': {
+		laneId: 'composite',
+		scanType: 'seq',
+		plan: 'Seq Scan on posts (leftmost prefix violation)',
+		time: '650ms',
+		rowsScanned: 50000,
+		totalRows: 50000,
+	},
+	'admin-all-users': {
+		laneId: 'email',
+		scanType: 'seq',
+		plan: 'Seq Scan on users (no WHERE clause, expected)',
+		time: '12ms',
+		rowsScanned: 10000,
+		totalRows: 10000,
+		expected: true,
+		sqlOverride: 'SELECT * FROM users',
+		labelOverride: 'Admin: All Users',
+	},
+};
 
 // ──────────────────────────────────────────────
 // Step definitions (5 steps: 2 terminal + 3 OptionCard)
@@ -259,13 +560,12 @@ const STEP_DEFS: StepDef[] = [
 	{ id: 'run-migration', title: 'Run Migration' },
 ];
 
-// Step type indexed by step number
 const STEP_TYPES: ('terminal' | 'option')[] = [
-	'terminal', // 0: rails generate migration
-	'option', // 1: unique index on users.email
-	'option', // 2: fk index on posts.user_id
-	'option', // 3: composite index on posts.[published, created_at]
-	'terminal', // 4: rails db:migrate
+	'terminal',
+	'option',
+	'option',
+	'option',
+	'terminal',
 ];
 
 // ──────────────────────────────────────────────
@@ -319,18 +619,18 @@ const runMigrationCommands: TerminalCommand[] = [
 			'That recreates the database from scratch. You need to run pending migrations on the existing database.',
 	},
 	{
+		id: 'correct',
+		label: 'rails db:migrate',
+		command: 'rails db:migrate',
+		correct: true,
+	},
+	{
 		id: 'wrong-seed',
 		label: 'rails db:seed',
 		command: 'rails db:seed',
 		correct: false,
 		feedback:
 			'That loads seed data. You need to apply the migration that adds indexes.',
-	},
-	{
-		id: 'correct',
-		label: 'rails db:migrate',
-		command: 'rails db:migrate',
-		correct: true,
 	},
 ];
 
@@ -362,10 +662,13 @@ const runMigrationOutput: TerminalOutputLine[] = [
 // ──────────────────────────────────────────────
 
 const SHELL_STEP_MAP: (TerminalStepData | null)[] = [
-	{ commands: generateMigrationCommands, outputLines: generateMigrationOutput },
-	null, // step 1: OptionCard (unique index)
-	null, // step 2: OptionCard (fk index)
-	null, // step 3: OptionCard (composite index)
+	{
+		commands: generateMigrationCommands,
+		outputLines: generateMigrationOutput,
+	},
+	null, // step 1: OptionCard
+	null, // step 2: OptionCard
+	null, // step 3: OptionCard
 	{ commands: runMigrationCommands, outputLines: runMigrationOutput },
 ];
 
@@ -427,16 +730,16 @@ const OPTION_STEP_CONFIG: Record<
 					'A composite index on user_id and title is overkill here. The query only filters by user_id.',
 			},
 			{
+				id: 'correct',
+				label: 'add_index :posts, :user_id',
+				correct: true,
+			},
+			{
 				id: 'wrong-table',
 				label: 'add_index :users, :id',
 				correct: false,
 				feedback:
 					'The primary key already has an index. The slow query is on the posts table, filtering by user_id.',
-			},
-			{
-				id: 'correct',
-				label: 'add_index :posts, :user_id',
-				correct: true,
 			},
 		],
 	},
@@ -469,29 +772,12 @@ const OPTION_STEP_CONFIG: Record<
 };
 
 // ──────────────────────────────────────────────
-// Pipeline visualization configs
-// ──────────────────────────────────────────────
-
-const OBSERVE_CONNECTIONS: PipelineConnection[] = [
-	{ from: 'request', to: 'controller', dots: 'mixed' },
-	{ from: 'controller', to: 'model', dots: 'mixed' },
-	{ from: 'model', to: 'database', dots: 'mixed' },
-];
-
-const REWARD_CONNECTIONS: PipelineConnection[] = [
-	{ from: 'request', to: 'controller', dots: 'clean' },
-	{ from: 'controller', to: 'model', dots: 'clean' },
-	{ from: 'model', to: 'database', dots: 'clean' },
-];
-
-// ──────────────────────────────────────────────
 // Code preview helper
 // ──────────────────────────────────────────────
 
 function getCodeFiles(phase: Phase, furthestStep: number) {
 	const files = [];
 
-	// Observe phase: show the unindexed schema
 	if (phase === 'observe') {
 		files.push({
 			filename: 'db/schema.rb',
@@ -514,7 +800,7 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
   # No index on user_id!
   # No index on [published, created_at]!
 end`,
-			highlight: [7, 17, 18],
+			highlight: [7, 16, 17],
 		});
 		files.push({
 			filename: 'app/controllers/api/v1/users_controller.rb',
@@ -542,9 +828,7 @@ end`,
   end
 end`,
 		});
-	}
-
-	if (furthestStep >= 1) {
+	} else if (furthestStep === 1) {
 		files.push({
 			filename: 'db/migrate/add_indexes.rb',
 			language: 'ruby',
@@ -554,47 +838,58 @@ end`,
   end
 end`,
 		});
-	}
-
-	if (furthestStep >= 2) {
-		// After step 1: unique index on email
+	} else if (furthestStep === 2) {
 		files.push({
 			filename: 'db/migrate/add_indexes.rb',
 			language: 'ruby',
-			code:
-				furthestStep >= 4
-					? `class AddIndexes < ActiveRecord::Migration[8.0]
-  def change
-    add_index :users, :email, unique: true
-    add_index :posts, :user_id
-    add_index :posts, [:published, :created_at]
-  end
-end`
-					: furthestStep >= 3
-						? `class AddIndexes < ActiveRecord::Migration[8.0]
-  def change
-    add_index :users, :email, unique: true
-    add_index :posts, :user_id
-    # Next: composite index for published posts
-  end
-end`
-						: `class AddIndexes < ActiveRecord::Migration[8.0]
+			code: `class AddIndexes < ActiveRecord::Migration[8.0]
   def change
     add_index :users, :email, unique: true
     # Next: foreign key index
   end
 end`,
-			highlight:
-				furthestStep >= 4
-					? [3, 4, 5]
-					: furthestStep >= 3
-						? [3, 4]
-						: [3],
+			highlight: [3],
 		});
-	}
-
-	if (furthestStep >= 5) {
-		// After running migration, show the EXPLAIN improvements
+	} else if (furthestStep === 3) {
+		files.push({
+			filename: 'db/migrate/add_indexes.rb',
+			language: 'ruby',
+			code: `class AddIndexes < ActiveRecord::Migration[8.0]
+  def change
+    add_index :users, :email, unique: true
+    add_index :posts, :user_id
+    # Next: composite index for published posts
+  end
+end`,
+			highlight: [3, 4],
+		});
+	} else if (furthestStep === 4) {
+		files.push({
+			filename: 'db/migrate/add_indexes.rb',
+			language: 'ruby',
+			code: `class AddIndexes < ActiveRecord::Migration[8.0]
+  def change
+    add_index :users, :email, unique: true
+    add_index :posts, :user_id
+    add_index :posts, [:published, :created_at]
+  end
+end`,
+			highlight: [3, 4, 5],
+		});
+	} else {
+		// furthestStep >= 5 (after running migration)
+		files.push({
+			filename: 'db/migrate/add_indexes.rb',
+			language: 'ruby',
+			code: `class AddIndexes < ActiveRecord::Migration[8.0]
+  def change
+    add_index :users, :email, unique: true
+    add_index :posts, :user_id
+    add_index :posts, [:published, :created_at]
+  end
+end`,
+			highlight: [3, 4, 5],
+		});
 		files.push({
 			filename: 'EXPLAIN output (after indexing)',
 			language: 'sql',
@@ -620,10 +915,398 @@ Index Scan using index_posts_on_published_and_created_at
 }
 
 // ──────────────────────────────────────────────
-// Pipeline Legend (reward phase)
+// TableRowGrid: shows database rows as a grid of blocks
 // ──────────────────────────────────────────────
 
-function PipelineLegend() {
+function TableRowGrid({
+	laneId,
+	scanProgress,
+	scanType,
+	tableName,
+	totalRows,
+	expected,
+}: {
+	laneId: string;
+	scanProgress: number; // -1=idle, 0..GRID_SIZE=scanning, GRID_SIZE=done
+	scanType: 'seq' | 'index';
+	tableName: string;
+	totalRows: number;
+	expected?: boolean;
+}) {
+	const matchPositions = useMemo(
+		() => new Set(GRID_MATCHES[laneId] ?? []),
+		[laneId],
+	);
+	const gridBlocks = useMemo(
+		() =>
+			Array.from({ length: GRID_SIZE }, (_, i) => ({
+				key: `${laneId}-r${i}`,
+				idx: i,
+				isMatch: matchPositions.has(i),
+			})),
+		[laneId, matchPositions],
+	);
+	const isDone = scanProgress >= GRID_SIZE;
+	const isActive = scanProgress >= 0;
+	const matchCount = matchPositions.size;
+	const rowsPerBlock = Math.round(totalRows / GRID_SIZE);
+
+	// Color classes depend on whether the seq scan is expected (amber) or problematic (red)
+	const seqTextColor = expected
+		? 'text-amber-600 dark:text-amber-400'
+		: 'text-red-600 dark:text-red-400';
+	const seqBlockColor = expected
+		? 'bg-amber-300/80 dark:bg-amber-500/50'
+		: 'bg-red-400/80 dark:bg-red-500/60';
+
+	return (
+		<div className="space-y-2">
+			{/* Table label */}
+			<div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+				<Table2 className="w-3 h-3" />
+				<span className="font-mono">
+					{tableName} ({totalRows.toLocaleString()} rows)
+				</span>
+				{isActive && scanType === 'seq' && !isDone && (
+					<span className={cn('font-mono', seqTextColor)}>
+						scanning row{' '}
+						{Math.min(scanProgress * rowsPerBlock, totalRows).toLocaleString()}
+						...
+					</span>
+				)}
+				{isDone && scanType === 'seq' && (
+					<span className={cn('font-mono', seqTextColor)}>
+						all {totalRows.toLocaleString()} rows{' '}
+						{expected ? 'loaded' : 'scanned'}
+					</span>
+				)}
+				{isDone && scanType === 'index' && (
+					<span className="font-mono text-emerald-600 dark:text-emerald-400">
+						{matchCount} row{matchCount !== 1 ? 's' : ''} via index
+					</span>
+				)}
+			</div>
+
+			{/* Row grid */}
+			<div
+				className="flex flex-wrap gap-[3px]"
+				style={{ maxWidth: `${GRID_COLS * 13}px` }}
+			>
+				{gridBlocks.map((block) => (
+					<div
+						className={cn(
+							'w-2.5 h-2.5 rounded-[1px] transition-colors duration-75',
+							block.isMatch && isDone
+								? 'bg-emerald-500 dark:bg-emerald-400'
+								: block.idx < scanProgress && scanType === 'seq'
+									? seqBlockColor
+									: 'bg-zinc-200 dark:bg-zinc-700/50',
+						)}
+						key={block.key}
+					/>
+				))}
+			</div>
+
+			{/* Legend below grid */}
+			{isDone && (
+				<div className="flex items-center gap-4 text-[10px] animate-in fade-in duration-300">
+					{scanType === 'seq' ? (
+						<>
+							<span className="flex items-center gap-1">
+								<span
+									className={cn(
+										'inline-block w-2 h-2 rounded-[1px]',
+										seqBlockColor,
+									)}
+								/>
+								<span className={seqTextColor}>
+									{expected ? 'Loaded' : 'Scanned'} (
+									{(GRID_SIZE - matchCount).toLocaleString()} blocks)
+								</span>
+							</span>
+							<span className="flex items-center gap-1">
+								<span className="inline-block w-2 h-2 rounded-[1px] bg-emerald-500 dark:bg-emerald-400" />
+								<span className="text-emerald-600 dark:text-emerald-400">
+									Matched ({matchCount})
+								</span>
+							</span>
+						</>
+					) : (
+						<span className="flex items-center gap-1">
+							<span className="inline-block w-2 h-2 rounded-[1px] bg-emerald-500 dark:bg-emerald-400" />
+							<span className="text-emerald-600 dark:text-emerald-400">
+								Direct lookup via index ({matchCount} row
+								{matchCount !== 1 ? 's' : ''})
+							</span>
+						</span>
+					)}
+				</div>
+			)}
+		</div>
+	);
+}
+
+// ──────────────────────────────────────────────
+// IndexLookupCard: shows the B-tree index structure
+// ──────────────────────────────────────────────
+
+function IndexLookupCard({
+	indexName,
+	entries,
+}: {
+	indexName: string;
+	entries: IndexEntry[];
+}) {
+	return (
+		<div className="rounded-lg border border-emerald-500/30 bg-emerald-50 dark:bg-emerald-900/10 p-2.5 space-y-1.5">
+			<div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+				<Zap className="w-3.5 h-3.5" />
+				<span className="font-mono">{indexName}</span>
+			</div>
+			<div className="space-y-0.5 pl-5 font-mono text-[10px]">
+				{entries.map((entry) => (
+					<div
+						className={cn(
+							'flex items-center gap-2',
+							entry.highlight
+								? 'text-emerald-700 dark:text-emerald-300 font-bold'
+								: 'text-emerald-600/40 dark:text-emerald-400/30',
+						)}
+						key={`idx-${entry.value}`}
+					>
+						{entry.highlight ? (
+							<ArrowRight className="w-2.5 h-2.5 shrink-0" />
+						) : (
+							<span className="w-2.5" />
+						)}
+						<span>{entry.value}</span>
+						{entry.row && (
+							<span
+								className={cn(
+									entry.highlight
+										? 'text-emerald-600 dark:text-emerald-400'
+										: 'text-emerald-500/30 dark:text-emerald-400/20',
+								)}
+							>
+								{'\u2192'} {entry.row}
+							</span>
+						)}
+					</div>
+				))}
+			</div>
+		</div>
+	);
+}
+
+// ──────────────────────────────────────────────
+// NoIndexBanner: shown during seq scan
+// ──────────────────────────────────────────────
+
+function NoIndexBanner({
+	tableName,
+	expected,
+}: {
+	tableName: string;
+	expected?: boolean;
+}) {
+	if (expected) {
+		return (
+			<div className="rounded-lg border border-amber-500/30 bg-amber-50 dark:bg-amber-900/10 px-2.5 py-1.5 flex items-center gap-2 text-[11px]">
+				<Info className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400 shrink-0" />
+				<span className="font-mono text-amber-700 dark:text-amber-400 font-semibold">
+					Full table scan (no WHERE clause)
+				</span>
+				<span className="text-amber-600/60 dark:text-amber-400/50">
+					Expected when loading all rows
+				</span>
+			</div>
+		);
+	}
+	return (
+		<div className="rounded-lg border border-red-500/30 bg-red-50 dark:bg-red-900/10 px-2.5 py-1.5 flex items-center gap-2 text-[11px]">
+			<X className="w-3.5 h-3.5 text-red-500 dark:text-red-400 shrink-0" />
+			<span className="font-mono text-red-700 dark:text-red-400 font-semibold">
+				No index on {tableName}
+			</span>
+			<span className="text-red-600/60 dark:text-red-400/50">
+				Reading every row (Sequential Scan)
+			</span>
+		</div>
+	);
+}
+
+// ──────────────────────────────────────────────
+// QueryPlanLane: a single query lane with row grid
+// ──────────────────────────────────────────────
+
+function QueryPlanLane({
+	lane,
+	scan,
+	scanProgress,
+	scanType,
+	indexData,
+	inspectable,
+	inspected,
+	onClick,
+	sqlOverride,
+	labelOverride,
+}: {
+	lane: QueryLane;
+	scan: ScanResult | null;
+	scanProgress: number;
+	scanType: 'seq' | 'index';
+	indexData?: { name: string; entries: IndexEntry[] } | null;
+	inspectable?: boolean;
+	inspected?: boolean;
+	onClick?: () => void;
+	sqlOverride?: string;
+	labelOverride?: string;
+}) {
+	const Icon = lane.icon;
+	const isActive = scanProgress >= 0;
+	const isDone = scanProgress >= GRID_SIZE;
+	const isIndex = scanType === 'index';
+	const isExpected = scan?.expected ?? false;
+
+	return (
+		<button
+			className={cn(
+				'w-full text-left rounded-lg border p-3 transition-all duration-300',
+				isActive && isDone
+					? isIndex
+						? 'border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-900/10'
+						: isExpected
+							? 'border-amber-500/50 bg-amber-50/50 dark:bg-amber-900/10'
+							: 'border-red-500/50 bg-red-50/50 dark:bg-red-900/10'
+					: 'border-border bg-card',
+				inspectable && 'cursor-pointer hover:ring-2 hover:ring-primary/40',
+			)}
+			disabled={!inspectable}
+			onClick={onClick}
+			type="button"
+		>
+			{/* Header */}
+			<div className="flex items-center gap-2 mb-1">
+				<Icon className="w-3.5 h-3.5 text-muted-foreground" />
+				<span className="text-xs font-semibold text-foreground">
+					{labelOverride ?? lane.label}
+				</span>
+				<span className="text-[10px] font-mono text-muted-foreground">
+					({lane.table})
+				</span>
+				{inspectable && !inspected && (
+					<span className="ml-auto text-primary animate-pulse text-xs font-bold">
+						?
+					</span>
+				)}
+				{isDone && scan && (
+					<Badge
+						className={cn(
+							'ml-auto text-[10px]',
+							isIndex
+								? 'border-emerald-500/50 text-emerald-700 dark:text-emerald-400'
+								: isExpected
+									? 'border-amber-500/50 text-amber-700 dark:text-amber-400'
+									: 'border-red-500/50 text-red-700 dark:text-red-400',
+						)}
+						variant="outline"
+					>
+						{isIndex ? (
+							<>
+								<Zap className="w-2.5 h-2.5 mr-1" />
+								{scan.time}
+							</>
+						) : (
+							scan.time
+						)}
+					</Badge>
+				)}
+			</div>
+
+			{/* SQL */}
+			<p className="text-[10px] font-mono text-muted-foreground mb-2 truncate">
+				{sqlOverride ?? lane.sql}
+			</p>
+
+			{/* Visualization content */}
+			{isActive ? (
+				<div className="space-y-2" onClickCapture={(e) => e.stopPropagation()}>
+					{/* Index lookup card OR no-index banner */}
+					{isIndex && indexData ? (
+						<IndexLookupCard
+							entries={indexData.entries}
+							indexName={indexData.name}
+						/>
+					) : isActive ? (
+						<NoIndexBanner expected={isExpected} tableName={lane.table} />
+					) : null}
+
+					{/* Row grid */}
+					<TableRowGrid
+						expected={isExpected}
+						laneId={lane.id}
+						scanProgress={scanProgress}
+						scanType={scanType}
+						tableName={lane.table}
+						totalRows={lane.totalRows}
+					/>
+
+					{/* EXPLAIN plan text */}
+					{isDone && scan && (
+						<div className="flex items-center gap-2 animate-in fade-in duration-300">
+							<span
+								className={cn(
+									'text-[10px] font-mono font-semibold',
+									isIndex
+										? 'text-emerald-700 dark:text-emerald-400'
+										: isExpected
+											? 'text-amber-700 dark:text-amber-400'
+											: 'text-red-700 dark:text-red-400',
+								)}
+							>
+								{scan.plan}
+							</span>
+							{isIndex ? (
+								<Badge
+									className="text-[10px] border-emerald-500/50 text-emerald-700 dark:text-emerald-400"
+									variant="outline"
+								>
+									FAST
+								</Badge>
+							) : isExpected ? (
+								<Badge
+									className="text-[10px] border-amber-500/50 text-amber-700 dark:text-amber-400"
+									variant="outline"
+								>
+									OK
+								</Badge>
+							) : (
+								<Badge
+									className="text-[10px] border-red-500/50 text-red-700 dark:text-red-400"
+									variant="outline"
+								>
+									SLOW
+								</Badge>
+							)}
+						</div>
+					)}
+				</div>
+			) : (
+				<div className="h-10 flex items-center">
+					<span className="text-[10px] text-muted-foreground/50 italic">
+						Fire a probe to test this query
+					</span>
+				</div>
+			)}
+		</button>
+	);
+}
+
+// ──────────────────────────────────────────────
+// Legend (reward phase)
+// ──────────────────────────────────────────────
+
+function QueryLegend() {
 	return (
 		<div className="p-4 border-b border-border">
 			<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
@@ -631,13 +1314,27 @@ function PipelineLegend() {
 			</div>
 			<div className="space-y-2 text-sm">
 				<div className="flex items-center gap-2">
-					<Check className="w-4 h-4 text-success" />
-					<span className="text-foreground">Index Scan (fast)</span>
+					<Zap className="w-4 h-4 text-success" />
+					<span className="text-foreground">Index Scan (direct lookup)</span>
 				</div>
 				<div className="flex items-center gap-2">
 					<X className="w-4 h-4 text-destructive" />
-					<span className="text-foreground">Seq Scan (slow, no index)</span>
+					<span className="text-foreground">Seq Scan (reads every row)</span>
 				</div>
+			</div>
+			<div className="flex items-center gap-3 mt-3 text-[10px]">
+				<span className="flex items-center gap-1">
+					<span className="inline-block w-2.5 h-2.5 rounded-[1px] bg-emerald-500 dark:bg-emerald-400" />
+					Matched row
+				</span>
+				<span className="flex items-center gap-1">
+					<span className="inline-block w-2.5 h-2.5 rounded-[1px] bg-red-400/80 dark:bg-red-500/60" />
+					Scanned (wasted)
+				</span>
+				<span className="flex items-center gap-1">
+					<span className="inline-block w-2.5 h-2.5 rounded-[1px] bg-zinc-200 dark:bg-zinc-700/50" />
+					Not touched
+				</span>
 			</div>
 		</div>
 	);
@@ -650,73 +1347,95 @@ function PipelineLegend() {
 export function Level26Indexing({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
-		minRequired: 3,
+		minRequired: 4,
 	});
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
-	const [inspectorData, setInspectorData] =
-		useState<StageInspectorData | null>(null);
-	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
-		new Set(),
+	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(
+		null,
 	);
-	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
+	const [inspectedLanes, setInspectedLanes] = useState<Set<string>>(new Set());
 
-	// ── Build observe stages dynamically (tracks inspected + last probe) ──
-	const probeDisplay = lastProbeId
-		? PROBE_PIPELINE_MAP[lastProbeId]
-		: null;
-	const observeStages: PipelineStage[] = useMemo(
-		() => [
-			{
-				id: 'request',
-				label: 'Request',
-				inspectable: true,
-				inspected: inspectedStages.has('request'),
-			},
-			{
-				id: 'controller',
-				label: 'Controller',
-				inspectable: true,
-				inspected: inspectedStages.has('controller'),
-			},
-			{
-				id: 'model',
-				label: 'Model',
-				inspectable: true,
-				inspected: inspectedStages.has('model'),
-			},
-			{
-				id: 'database',
-				label: 'Database',
-				sublabel: probeDisplay ? probeDisplay.dbSublabel : '(no indexes)',
-				variant: (probeDisplay ? 'danger' : 'inactive') as
-					| 'danger'
-					| 'inactive',
-				badge: probeDisplay ? probeDisplay.dbBadge : undefined,
-				inspectable: true,
-				inspected: inspectedStages.has('database'),
-			},
-		],
-		[inspectedStages, probeDisplay],
+	// Observe animation state: per-lane scan progress (0 to GRID_SIZE)
+	const [laneProgress, setLaneProgress] = useState<Record<string, number>>({});
+	const [laneDone, setLaneDone] = useState<Set<string>>(new Set());
+	const [isAnimating, setIsAnimating] = useState(false);
+	const animationTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+	const [firedProbeCount, setFiredProbeCount] = useState(0);
+
+	// Reward state
+	const [lastRewardScenarioId, setLastRewardScenarioId] = useState<
+		string | null
+	>(null);
+	const [rewardProgress, setRewardProgress] = useState(-1);
+	const [rewardDone, setRewardDone] = useState(false);
+
+	// ── Animation helpers ──
+	const clearAnimations = useCallback(() => {
+		animationTimeoutsRef.current.forEach(clearTimeout);
+		animationTimeoutsRef.current = [];
+	}, []);
+
+	useEffect(() => {
+		return () => clearAnimations();
+	}, [clearAnimations]);
+
+	/** Run a seq scan animation on a lane (red wave sweeping through blocks) */
+	const runSeqScanAnimation = useCallback(
+		(
+			_laneId: string,
+			onProgress: (progress: number) => void,
+			onDone: () => void,
+		) => {
+			clearAnimations();
+			setIsAnimating(true);
+
+			const steps = 14;
+			const blocksPerStep = Math.ceil(GRID_SIZE / steps);
+			const stepInterval = ANIMATION_DURATION_MS / steps;
+
+			onProgress(0);
+
+			for (let step = 1; step <= steps; step++) {
+				animationTimeoutsRef.current.push(
+					setTimeout(() => {
+						onProgress(Math.min(step * blocksPerStep, GRID_SIZE));
+					}, step * stepInterval),
+				);
+			}
+
+			animationTimeoutsRef.current.push(
+				setTimeout(() => {
+					onDone();
+					setIsAnimating(false);
+				}, ANIMATION_DURATION_MS),
+			);
+		},
+		[clearAnimations],
 	);
 
-	// ── Build reward stages dynamically (reacts to latest stress test result) ──
-	const lastResult = stressTest.results[stressTest.results.length - 1];
-	const rewardStages: PipelineStage[] = useMemo(() => {
-		const wasBlocked = lastResult?.result === 'blocked';
-		return [
-			{ id: 'request', label: 'Request' },
-			{ id: 'controller', label: 'Controller' },
-			{ id: 'model', label: 'Model' },
-			{
-				id: 'database',
-				label: 'Database',
-				sublabel: wasBlocked ? 'Seq Scan (no index)' : 'Index Scan',
-				variant: wasBlocked ? ('danger' as const) : ('active' as const),
-				badge: wasBlocked ? 'SLOW' : undefined,
-			},
-		];
-	}, [lastResult]);
+	/** Run an index scan animation (instant match, short delay) */
+	const runIndexScanAnimation = useCallback(
+		(onProgress: (progress: number) => void, onDone: () => void) => {
+			clearAnimations();
+			setIsAnimating(true);
+
+			// Short pause to show the index card, then reveal match
+			animationTimeoutsRef.current.push(
+				setTimeout(() => {
+					onProgress(GRID_SIZE);
+					onDone();
+				}, 400),
+			);
+
+			animationTimeoutsRef.current.push(
+				setTimeout(() => {
+					setIsAnimating(false);
+				}, ANIMATION_DURATION_MS / 2),
+			);
+		},
+		[clearAnimations],
+	);
 
 	// ── Transition: build -> activate when all steps complete ──
 	useEffect(() => {
@@ -725,42 +1444,56 @@ export function Level26Indexing({ onComplete }: LevelComponentProps) {
 		}
 	}, [phase, stepper.isComplete]);
 
-	// ── Stage click handler (observe phase) ──
-	const handleStageClick = useCallback(
-		(stageId: string) => {
-			if (phase !== 'observe') return;
-
-			const data = STAGE_INSPECTOR_MAP[stageId];
-			if (!data) return;
-
-			setInspectorData(data);
-			setInspectedStages((prev) => {
-				if (prev.has(stageId)) return prev;
-				const next = new Set(prev);
-				next.add(stageId);
-				return next;
-			});
-
-			// Trigger discovery if this stage has one
-			const discoveryId = STAGE_DISCOVERY_MAP[stageId];
-			if (discoveryId) {
-				discoveryGating.discover(discoveryId);
-			}
-		},
-		[phase, discoveryGating],
-	);
-
 	// ── Probe handler (observe phase) ──
 	const handleProbe = useCallback(
 		(probeId: string) => {
-			setLastProbeId(probeId);
+			const laneId = PROBE_LANE_MAP[probeId];
+			if (!laneId) return;
+
+			// Run seq scan animation for this lane
+			runSeqScanAnimation(
+				laneId,
+				(progress) => {
+					setLaneProgress((prev) => ({ ...prev, [laneId]: progress }));
+				},
+				() => {
+					setLaneDone((prev) => new Set([...prev, laneId]));
+				},
+			);
+
+			setFiredProbeCount((c) => c + 1);
+
 			const discoveryId = PROBE_DISCOVERY_MAP[probeId];
 			if (discoveryId) {
 				discoveryGating.discover(discoveryId);
 			}
 		},
-		[discoveryGating],
+		[discoveryGating, runSeqScanAnimation],
 	);
+
+	// ── Lane click handler (observe phase, for inspectors) ──
+	const handleLaneClick = useCallback(
+		(laneId: string) => {
+			if (phase !== 'observe' || isAnimating) return;
+
+			const data = LANE_INSPECTOR_MAP[laneId];
+			if (!data) return;
+
+			setInspectorData(data);
+			setInspectedLanes((prev) => {
+				if (prev.has(laneId)) return prev;
+				return new Set([...prev, laneId]);
+			});
+		},
+		[phase, isAnimating],
+	);
+
+	// ── Schema click handler (observe phase, 4th discovery) ──
+	const handleSchemaClick = useCallback(() => {
+		if (phase !== 'observe' || isAnimating) return;
+		setInspectorData(SCHEMA_INSPECTOR);
+		discoveryGating.discover('no-indexes');
+	}, [phase, isAnimating, discoveryGating]);
 
 	// ── OptionCard step handler ──
 	const handleOptionClick = useCallback(
@@ -782,14 +1515,38 @@ export function Level26Indexing({ onComplete }: LevelComponentProps) {
 	const handleActivateIndexes = () => {
 		setPhase('reward');
 		stressTest.reset();
+		setLastRewardScenarioId(null);
+		setRewardProgress(-1);
+		setRewardDone(false);
 	};
 
-	// ── Stress test fire handler ──
+	// ── Stress test fire handler (reward phase) ──
 	const handleFireScenario = useCallback(
 		(scenarioId: string) => {
+			setLastRewardScenarioId(scenarioId);
+			setRewardDone(false);
 			stressTest.fireRequest(scenarioId);
+
+			const rewardData = REWARD_SCAN_DATA[scenarioId];
+			if (!rewardData) return;
+
+			if (rewardData.scanType === 'index') {
+				// Index scan: show index card, then match appears instantly
+				setRewardProgress(0); // triggers the index card to show
+				runIndexScanAnimation(
+					(progress) => setRewardProgress(progress),
+					() => setRewardDone(true),
+				);
+			} else {
+				// Seq scan: red wave sweep
+				runSeqScanAnimation(
+					rewardData.laneId,
+					(progress) => setRewardProgress(progress),
+					() => setRewardDone(true),
+				);
+			}
 		},
-		[stressTest],
+		[stressTest, runSeqScanAnimation, runIndexScanAnimation],
 	);
 
 	// ── Completion ──
@@ -815,6 +1572,11 @@ export function Level26Indexing({ onComplete }: LevelComponentProps) {
 	const currentStepType = STEP_TYPES[stepper.currentStep];
 	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep];
 
+	// Reward scan data for current scenario
+	const rewardScan = lastRewardScenarioId
+		? REWARD_SCAN_DATA[lastRewardScenarioId]
+		: null;
+
 	// ── Render ──
 	return (
 		<LevelLayout>
@@ -828,22 +1590,42 @@ export function Level26Indexing({ onComplete }: LevelComponentProps) {
 							database indexes, every query reads every row in the table.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							An index is like a book's table of contents. It lets the database
+							An index is like a book's table of contents: it lets the database
 							jump directly to matching rows instead of scanning everything.
-							Rails migrations use{' '}
-							<span className="text-foreground font-medium">add_index</span> to
-							create them.
 						</p>
 					</div>
 
-					{/* Observe phase: discovery checklist */}
+					{/* Observe phase: discovery checklist + hints */}
 					{phase === 'observe' && (
 						<div className="p-4 border-b border-border">
 							<DiscoveryChecklist
-								discoveries={discoveryGating.discoveries}
 								discoveredCount={discoveryGating.discoveredCount}
+								discoveries={discoveryGating.discoveries}
 								minRequired={discoveryGating.minRequired}
 							/>
+							{firedProbeCount >= 2 && !discoveryGating.isUnlocked && (
+								<Alert
+									className="mt-3 animate-in fade-in duration-500"
+									variant="info"
+								>
+									<Info className="w-4 h-4" />
+									<AlertDescription className="text-xs">
+										{firedProbeCount >= 3 ? (
+											<>
+												Now click the{' '}
+												<span className="font-medium">Schema</span> button to
+												see why there are no indexes.
+											</>
+										) : (
+											<>
+												Click query lanes with{' '}
+												<span className="font-medium">?</span> to inspect their
+												SQL, or check the schema.
+											</>
+										)}
+									</AlertDescription>
+								</Alert>
+							)}
 						</div>
 					)}
 
@@ -864,8 +1646,7 @@ export function Level26Indexing({ onComplete }: LevelComponentProps) {
 					{/* Reward phase: legend + counters */}
 					{phase === 'reward' && (
 						<>
-							<PipelineLegend />
-
+							<QueryLegend />
 							<div className="p-4">
 								<div className="grid grid-cols-2 gap-3">
 									<div className="bg-success/20 rounded-lg p-3 text-center">
@@ -903,16 +1684,55 @@ export function Level26Indexing({ onComplete }: LevelComponentProps) {
 					onValidate={validateSolution}
 				/>
 
-				<div className="flex-1 flex flex-col bg-background overflow-hidden">
+				<div className="flex-1 flex flex-col min-h-0 bg-background overflow-hidden">
 					{/* ── Phase 1: Observe (WHY) ── */}
 					{phase === 'observe' && (
-						<div className="flex-1 flex flex-col">
-							<div className="flex-1 relative">
-								<PipelineFlow
-									connections={OBSERVE_CONNECTIONS}
-									onNodeClick={handleStageClick}
-									stages={observeStages}
-								/>
+						<div className="flex-1 flex flex-col min-h-0">
+							<div className="flex-1 overflow-auto min-h-0 p-4 space-y-3">
+								{/* Query Plan Lanes with Row Grids */}
+								{QUERY_LANES.map((lane) => {
+									const progress = laneProgress[lane.id] ?? -1;
+									return (
+										<QueryPlanLane
+											inspectable
+											inspected={inspectedLanes.has(lane.id)}
+											key={lane.id}
+											lane={lane}
+											onClick={() => handleLaneClick(lane.id)}
+											scan={
+												laneDone.has(lane.id)
+													? OBSERVE_SCAN_DATA[lane.id]
+													: null
+											}
+											scanProgress={progress}
+											scanType="seq"
+										/>
+									);
+								})}
+
+								{/* Schema button (4th discovery) */}
+								<button
+									className={cn(
+										'w-full flex items-center gap-2 rounded-lg border border-dashed p-3 transition-colors',
+										'border-border bg-card hover:border-primary/40 hover:bg-primary/5',
+										isAnimating && 'pointer-events-none opacity-50',
+									)}
+									disabled={isAnimating}
+									onClick={handleSchemaClick}
+									type="button"
+								>
+									<Database className="w-4 h-4 text-muted-foreground" />
+									<span className="text-xs font-medium text-foreground">
+										View Schema (CREATE TABLE)
+									</span>
+									{!discoveryGating.isDiscovered('no-indexes') && (
+										<span className="ml-auto text-primary animate-pulse text-xs font-bold">
+											?
+										</span>
+									)}
+								</button>
+
+								{/* Stage Inspector overlay */}
 								{inspectorData && (
 									<StageInspector
 										data={inspectorData}
@@ -924,6 +1744,7 @@ export function Level26Indexing({ onComplete }: LevelComponentProps) {
 							{/* Probe terminal */}
 							<div className="px-6 pb-2">
 								<ProbeTerminal
+									disabled={isAnimating}
 									onProbe={handleProbe}
 									probes={PROBES}
 									title="EXPLAIN Probe"
@@ -950,7 +1771,6 @@ export function Level26Indexing({ onComplete }: LevelComponentProps) {
 					{phase === 'build' && (
 						<div className="flex-1 overflow-auto p-6">
 							<div className="max-w-2xl mx-auto space-y-4">
-								{/* Terminal steps (0: generate migration, 4: run migration) */}
 								{currentStepType === 'terminal' &&
 									stepper.currentStep === 0 && (
 										<TerminalChoiceStep
@@ -1002,7 +1822,6 @@ export function Level26Indexing({ onComplete }: LevelComponentProps) {
 										/>
 									)}
 
-								{/* OptionCard steps (1, 2, 3) */}
 								{currentStepType === 'option' && currentOptionConfig && (
 									<>
 										<h3 className="text-lg font-semibold text-foreground">
@@ -1100,20 +1919,46 @@ export function Level26Indexing({ onComplete }: LevelComponentProps) {
 
 					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
 					{phase === 'reward' && (
-						<div className="flex-1 flex flex-col">
-							<div className="flex-1 relative">
-								<PipelineFlow
-									connections={REWARD_CONNECTIONS}
-									stages={rewardStages}
-								/>
+						<div className="flex-1 flex flex-col min-h-0">
+							<div className="flex-1 overflow-auto min-h-0 p-4 space-y-3">
+								{/* Result lane showing the query plan for current scenario */}
+								{rewardScan ? (
+									<div className="animate-in fade-in duration-300">
+										{QUERY_LANES.filter((l) => l.id === rewardScan.laneId).map(
+											(lane) => (
+												<QueryPlanLane
+													indexData={
+														rewardScan.scanType === 'index'
+															? INDEX_LOOKUP_DATA[lane.id]
+															: null
+													}
+													key={lane.id}
+													labelOverride={rewardScan.labelOverride}
+													lane={lane}
+													scan={rewardDone ? rewardScan : null}
+													scanProgress={rewardProgress}
+													scanType={rewardScan.scanType}
+													sqlOverride={rewardScan.sqlOverride}
+												/>
+											),
+										)}
+									</div>
+								) : (
+									<div className="flex-1 flex items-center justify-center py-12">
+										<p className="text-sm text-muted-foreground/50 italic">
+											Fire a scenario to see its EXPLAIN plan
+										</p>
+									</div>
+								)}
 							</div>
 
-							{/* Stress test controls below pipeline */}
+							{/* Stress test controls */}
 							<div className="px-6 pb-2">
 								<StressTestPanel
 									allowedCount={stressTest.allowedCount}
 									blockedCount={stressTest.blockedCount}
 									canAutoFire={stressTest.canAutoFire}
+									disabled={isAnimating}
 									isAutoFiring={stressTest.isAutoFiring}
 									onFire={handleFireScenario}
 									onToggleAutoFire={stressTest.toggleAutoFire}

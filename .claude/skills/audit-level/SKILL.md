@@ -20,8 +20,10 @@ Each custom visualization level is a reference for how to tailor the visualizati
   `frontend/src/features/act2-users-security/components/Level10Validations.tsx`
 - Level 15 (CORS): 3-zone horizontal flow (Client -> CORS Middleware Gate -> Rails API) with 2 FlowConnectors, because CORS is about a request crossing the network, hitting a middleware gate first, and only reaching the API if allowed. The client zone switches between browser chrome and terminal style depending on the probe (curl vs fetch).
   `frontend/src/features/act2-users-security/components/Level15CORS.tsx`
+- Level 26 (Database Indexing): "Table Row Grid" with 100 blocks per table + IndexLookupCard, because indexing is about how the database searches rows. Seq Scan = red wave sweeps through all blocks. Index Scan = B-tree index card points directly to the match (green block). The visualization shows the mechanism (scanning vs looking up), not just the metric (820ms vs 0.05ms).
+  `frontend/src/features/act4-performance/components/Level26Indexing.tsx`
 
-The visualization shape, direction, and structure should emerge from the concept itself. L10 flows top-to-bottom because data moves through layers. L15 flows left-to-right because a request travels from client through a gate to the API. Don't copy one level's layout onto another. Design the visualization that best helps the player understand the specific problem.
+The visualization shape, direction, and structure should emerge from the concept itself. L10 flows top-to-bottom because data moves through layers. L15 flows left-to-right because a request travels from client through a gate to the API. L26 shows a grid of row blocks because indexing is about how many rows the database touches. Don't copy one level's layout onto another. Design the visualization that best helps the player understand the specific problem.
 
 ## Step 0: Read the Official Documentation (MANDATORY)
 
@@ -244,6 +246,67 @@ Fixes:
 - [ ] **Connectors exist between every adjacent zone.** Stacking boxes without connectors looks disconnected and hides the flow relationship.
 - [ ] **Bypass/skip scenarios are visually distinct.** If a probe or scenario bypasses a zone (e.g., curl bypassing CORS), the zone should visually indicate it was bypassed (dashed border, muted label, "(bypassed)") rather than showing it as processing the request.
 - [ ] **The "not reached" state is shown.** When a request is blocked at zone N, zones after N should be dimmed/muted with a "not reached" label, not hidden entirely.
+
+#### Visualization must show the mechanism, not just the metric (non-negotiable)
+
+**The visualization must show WHAT the system is doing, not just HOW FAST it's doing it.** A progress bar labeled "10,000 rows scanned" is a metric. A grid of 100 blocks turning red one-by-one as the database reads each row is a mechanism. Numbers tell the player a fact. Mechanisms give the player a mental model.
+
+This is the single most important principle for Type 3 visualizations. Before designing any visualization, ask: **"What is the system physically doing under the hood, and can the player SEE it?"** If your visualization shows text labels, progress bars, or timing numbers, you are showing metrics. If it shows objects moving, states changing, or structures being traversed, you are showing mechanism.
+
+**Case study: L26 Database Indexing (metrics were wrong, mechanism is correct)**
+
+The first redesign of L26 replaced PipelineFlow with a "Query Plan Lanes" layout: 3 horizontal lanes, each containing a `ScanBar` (a simple progress bar that fills red for Seq Scan or green for Index Scan) plus SQL text and timing labels. This looked reasonable on paper but failed in practice.
+
+Problems:
+- **The player sees `SELECT * FROM users WHERE email = 'alice@example.com'` and a red progress bar filling to 100%.** They know it's slow because the text says "820ms." But they don't understand WHY it's slow. They can't see the database reading row after row after row.
+- **An "Index Scan" was shown as a green progress bar filling to 1%.** The player knows the index is faster because the number is smaller. But they have no idea what an index IS or what it does differently. Where is the B-tree? Where is the sorted lookup? The visualization teaches "index = small number" instead of "index = skip the scan."
+- **The observe and reward phases looked nearly identical**: both showed a progress bar with different colors and numbers. There was no structural difference between "no index" and "has index." The visualization failed to show the fundamental change in how the database searches.
+
+The redesigned version shows the mechanism:
+
+```
+OBSERVE (no index, Seq Scan):
+  ┌─ ✕ No index on users ── Sequential Scan ─┐
+  │                                            │
+  │  users table (10,000 rows)                 │
+  │  ████████████████████   ← red wave sweeps  │
+  │  ████████████████████     through ALL       │
+  │  ██████████░░░░░░░░░░     100 blocks       │
+  │  ░░░░░░░░░░░░░░░░░░░░                      │
+  │  ░░░░░░░░░░░░░░░░░░░░                      │
+  │                                            │
+  │  ■ Scanned (99)  ■ Matched (1)            │
+  └────────────────────────────────────────────┘
+
+REWARD (with index, Index Scan):
+  ┌─ ⚡ index_users_on_email (unique, B-tree) ─┐
+  │  aaa@corp.com        → row #231            │
+  │  ➜ alice@example.com → row #4231           │
+  │  bob@dev.io          → row #1892           │
+  │  ...                   (9,996 more)        │
+  ├────────────────────────────────────────────┤
+  │  users table (10,000 rows)                 │
+  │  ░░░░░░░░░░░░░░░░░░░░                      │
+  │  ░░░░░░░░░░░░░░░░░░░░   ← only the match  │
+  │  ░░░░░░░█░░░░░░░░░░░░     block is green   │
+  │  ░░░░░░░░░░░░░░░░░░░░     rest untouched   │
+  │  ░░░░░░░░░░░░░░░░░░░░                      │
+  └────────────────────────────────────────────┘
+```
+
+Why this works:
+- **The player watches the red wave sweep through every block.** They feel the waste. 100 blocks scanned to find 1 match. The animation takes 1.5 seconds, long enough to feel slow.
+- **The IndexLookupCard shows the actual B-tree structure**: sorted entries with the highlighted lookup pointing to the matching row. The player sees what an index IS (a sorted lookup table) and what it DOES (maps a value directly to a row position).
+- **The reward phase looks structurally different.** No red wave, no scanning. Just the index card pointing to a single green block on a field of neutral gray. The visual shift from "sea of red" (observe) to "one green on gray" (reward) IS the lesson.
+- **The mechanism is visible.** Seq Scan = read every row (red wave). Index Scan = look up in sorted structure, jump to match (index card + green block). The player builds the correct mental model of what the database does differently.
+
+**Rule of thumb:** If your visualization could be replaced by a text label ("820ms", "10,000 rows scanned") without losing information, it's showing a metric, not a mechanism. Redesign it to show the mechanism.
+
+**Checklist for mechanism vs metric:**
+- [ ] **Can the player see WHAT the system is doing, not just the result?** A Seq Scan should show rows being read. An N+1 should show queries multiplying. A cache miss should show the request going to the database. If the visualization only shows the output (a number, a status badge), it's a metric.
+- [ ] **Does the visualization look structurally different between the problem and solution?** If observe and reward both show the same component with different numbers/colors, the visualization is metric-based. The solution should introduce a new visual element (the index card, the cache layer, the preloaded batch) that was absent in the problem.
+- [ ] **Could a player explain the mechanism after watching the visualization?** After seeing L26, the player should be able to say: "Without an index, the database reads every row sequentially. With an index, it uses a sorted lookup to jump directly to the matching row." If they can only say "it went from 820ms to 0.05ms," the visualization taught a metric, not a mechanism.
+- [ ] **Are progress bars or gauges the primary visual element?** Progress bars and gauges are inherently metric-based. They show a quantity, not a process. Replace them with visual representations of the actual objects: rows, queries, columns, cache entries, connections. Small colored blocks, animated flow dots, and structural diagrams show mechanisms.
 
 #### Required interactivity (Types 3 and 4 only)
 
@@ -755,6 +818,38 @@ GOOD: Intro says "can't be reused, can't be tested, can't be read"
 ```
 
 **Case study:** L16's intro callout stated three specific problems but the reward had a one-line generic message. Now it has a checklist mapping each problem to its solution.
+
+#### Reward scenario data must not contradict shared visualization components (non-negotiable)
+
+When the reward phase reuses a shared visualization component (lanes, zones, nodes) across multiple scenarios, each scenario's data must be consistent with what the component displays. A common bug: a scenario maps to a lane/zone whose header shows static data (SQL query, label, table name) that contradicts the scenario's actual behavior.
+
+**Case study: L26 "Admin: list all users" contradiction**
+
+L26 has 3 query lanes (Email Lookup, FK Lookup, Composite Query). The `admin-all-users` stress scenario mapped to the `email` lane (since it queries the `users` table). But the Email Lookup lane's header always showed `SELECT * FROM users WHERE email = 'alice@example.com'`. When the admin scenario fired, the player saw:
+
+```
+BAD:
+  Header:  "Email Lookup (users)"
+  SQL:     SELECT * FROM users WHERE email = 'alice@example.com'
+  Banner:  "Full table scan (no WHERE clause)"
+  ← The SQL HAS a WHERE clause, but the banner says there is none!
+```
+
+The fix: add `sqlOverride` and `labelOverride` fields to scenario data so the component can display scenario-specific text instead of the lane's default.
+
+```
+GOOD:
+  Header:  "Admin: All Users (users)"    ← labelOverride
+  SQL:     SELECT * FROM users            ← sqlOverride (no WHERE clause)
+  Banner:  "Full table scan (no WHERE clause)"
+  ← Now the SQL and banner are consistent
+```
+
+**Checklist:**
+- [ ] **Every reward scenario's data is consistent with its lane/zone header.** If a scenario has a WHERE clause but the lane header says "no WHERE clause" (or vice versa), add an override.
+- [ ] **Scenario labels make sense in the lane context.** If "Admin: list all users" renders inside an "Email Lookup" lane, the label should override to something that makes sense.
+- [ ] **Banners, badges, and status text reference the correct SQL.** If a banner says "no WHERE clause" or "no index applicable," verify the displayed SQL actually has no WHERE clause.
+- [ ] **Write tests that cross-check scenario data against lane/zone definitions.** These contradictions are invisible in code review but obvious in the UI. Automated tests catch them before the player does.
 
 #### Reward phase type must match the level's observe type
 

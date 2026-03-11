@@ -356,7 +356,7 @@ end
 			'Forgetting strict_loading to prevent future N+1 regressions',
 		],
 		whenToUse:
-			'Use includes by default (let Rails decide). Use preload when you DON\'T filter by the associated table (less memory). Use eager_load when you DO filter by the associated table (requires JOIN).',
+			"Use includes by default (let Rails decide). Use preload when you DON'T filter by the associated table (less memory). Use eager_load when you DO filter by the associated table (requires JOIN).",
 		furtherReading: [
 			{
 				title: 'ActiveRecord Eager Loading',
@@ -546,57 +546,7 @@ const level26DatabaseIndexing: Level = {
 	trigger: {
 		type: 'performance_alert',
 		description:
-			'Explore slow queries with EXPLAIN probes, then add database indexes via Rails migrations to eliminate sequential scans.',
-	},
-	startingPipeline: {
-		nodes: [
-			{ id: 'request-node', type: 'request', x: 100, y: 220, locked: true },
-			{ id: 'router-node', type: 'router', x: 280, y: 220, locked: true },
-			{
-				id: 'controller-node',
-				type: 'controller',
-				x: 460,
-				y: 220,
-				locked: true,
-			},
-			{
-				id: 'user-model',
-				type: 'model',
-				x: 660,
-				y: 220,
-				locked: true,
-				config: { label: 'User' },
-			},
-			{ id: 'database-node', type: 'database', x: 860, y: 220, locked: true },
-			{
-				id: 'serializer-node',
-				type: 'serializer',
-				x: 460,
-				y: 400,
-				locked: true,
-			},
-			{ id: 'response-node', type: 'response', x: 660, y: 400, locked: true },
-		],
-		connections: [
-			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'router-node' },
-			{
-				id: 'c2',
-				sourceNodeId: 'router-node',
-				targetNodeId: 'controller-node',
-			},
-			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'user-model' },
-			{ id: 'c4', sourceNodeId: 'user-model', targetNodeId: 'database-node' },
-			{
-				id: 'c5',
-				sourceNodeId: 'controller-node',
-				targetNodeId: 'serializer-node',
-			},
-			{
-				id: 'c6',
-				sourceNodeId: 'serializer-node',
-				targetNodeId: 'response-node',
-			},
-		],
+			'Fire EXPLAIN probes to watch sequential scans crawl through every row, then add the right indexes to make the database jump straight to the answer.',
 	},
 	problem: {
 		observation:
@@ -627,8 +577,6 @@ Post.where(published: true).order(:created_at) # Composite query`,
 		thresholds: { maxLatency: 10 },
 	},
 	successConditions: [{ type: 'queries_optimized' }],
-	availableNodes: [],
-	unlockedNodes: [],
 	learningContent: {
 		title: 'Database Indexing & EXPLAIN',
 		goal: `In this level, you'll:\n- learn how database indexes dramatically speed up queries.\n- add indexes to columns used in WHERE, ORDER BY, and JOIN clauses.\n- read PostgreSQL EXPLAIN output to tell the difference between slow sequential scans and fast index scans.\n- understand the leftmost prefix rule for composite indexes.`,
@@ -743,7 +691,7 @@ add_index :users, :email, algorithm: :concurrently`,
 	},
 	hint: {
 		delay: 20,
-		text: 'Fire the EXPLAIN probes and click the Database stage to discover all the slow queries. Look for Seq Scan in the output.',
+		text: 'Fire the EXPLAIN probes to see scan bars fill red, then click the query lanes and schema icon to inspect where indexes are missing.',
 	},
 };
 
@@ -1649,7 +1597,8 @@ Rails.cache.delete_matched("posts/*")
 				url: 'https://github.com/rails/solid_cache',
 			},
 			{
-				title: 'Book: "Rails Scales!", Chapter 3: Fragment Caching, Russian Doll, Cache Stores',
+				title:
+					'Book: "Rails Scales!", Chapter 3: Fragment Caching, Russian Doll, Cache Stores',
 				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],
@@ -1867,7 +1816,7 @@ config.action_controller.asset_host = "https://cdn.example.com"
 #   ETag: "abc123"`,
 		commonMistakes: [
 			'Not using stale? for GET endpoints (every request recomputes the response)',
-			'Setting Cache-Control: public on user-specific data (CDN would serve wrong user\'s data)',
+			"Setting Cache-Control: public on user-specific data (CDN would serve wrong user's data)",
 			'Not using fingerprinted asset filenames (stale CSS/JS after deploy)',
 			'Setting very long max-age without ETag (no way to invalidate if data changes)',
 			'Forgetting to add s-maxage for CDN (defaults to max-age which might be too short)',
