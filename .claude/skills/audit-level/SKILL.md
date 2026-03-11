@@ -7,6 +7,15 @@ description: Audit a level component against the three-phase sequential flow sta
 
 Audit a level component to verify it follows the mandatory three-phase sequential flow pattern established in CLAUDE.md. The golden standard is: Problem Visualization -> Problem Solving -> Solution Visualization.
 
+## Supporting Files
+
+This skill is split across multiple files. SKILL.md contains the core audit flow and all checklists. Supporting files contain detailed guidance, case studies, and implementation patterns:
+
+- [observe-phase-guide.md](observe-phase-guide.md): Type 2/3/4 deep dives, visualization accuracy case studies (L15, L25, L26, L27), mechanism vs metric principles, shared terminal components, flow animation patterns, discovery hint patterns
+- [pipelineflow-guide.md](pipelineflow-guide.md): Hub-and-spoke layout coordinates, bidirectional edge rendering, satellite state rules, node color rules, sequential edge animation API
+- [reward-phase-guide.md](reward-phase-guide.md): StressTestPanel response lines, button labels, custom reward visualization rules, reward flow animation
+- [cross-phase-consistency.md](cross-phase-consistency.md): Visual language consistency, same component different state, build-intro alignment, reward loop closure, scenario data consistency (all with case studies)
+
 ## Reference Implementations
 
 **PipelineFlow-based (request lifecycle concepts):**
@@ -46,11 +55,7 @@ This step is non-negotiable. Skipping it has caused bugs in the past (wrong Scop
 
 **This is the single most important check in the entire audit. Evaluate it BEFORE any structural compliance checks. If this fails, nothing else matters.**
 
-Before looking at discovery gating, animation locking, color contrast, shared components, or any other checklist item, do two things:
-
 ### Step 1: Identify the observe phase type
-
-Determine which of the four observe types the level uses (or should use). The type dictates what "teaching the concept" means:
 
 | Type | Observe phase | What "teaches the concept" means |
 |------|--------------|----------------------------------|
@@ -59,231 +64,100 @@ Determine which of the four observe types the level uses (or should use). The ty
 | **3. Custom visualization** | Bespoke animated layout | Visual objects (blocks, arrows, zones, grids) animate to show the runtime mechanism. ProbeTerminal drives the animation but is NOT the visualization itself. |
 | **4. PipelineFlow** | Interactive node graph | Pipeline nodes react to probes with variant/sublabel changes, edges animate sequentially, StageInspector overlays reveal code. |
 
-**If you cannot immediately identify the type, that is already a problem.** A well-designed level makes its type obvious at a glance.
+**If you cannot immediately identify the type, that is already a problem.**
 
 ### Step 2: Apply the design check for that type
 
 **Type 1 (no observe):** No check needed. Move on to the build phase audit.
 
-**Type 2 (static intro):** Ask: "Does the annotated code display make the structural problem self-evident?" The player should see the problem by reading the code with its visual markers (colored borders, badges, callouts). If the code needs extensive text explanation to convey the problem, either the annotations are insufficient or the level should be Type 3.
+**Type 2 (static intro):** Ask: "Does the annotated code display make the structural problem self-evident?" If it needs extensive text explanation, either the annotations are insufficient or it should be Type 3.
 
-**Type 3 (custom visualization):** Ask: **"If I were a player who had never heard of [concept], would I understand what it IS and DOES by watching this visualization? Or would I only learn a fact/number about it?"** Then check:
-
-1. **Is there a visual component above/alongside the ProbeTerminal?** If the center panel is ONLY a ProbeTerminal (or only text/logs) with no visual component, the level has no visualization. Stop and redesign.
-2. **Does that visual component show objects (blocks, arrows, cards, zones, grids) that animate and change state?** If it only shows text, numbers, or static labels, it's a metric display, not a mechanism visualization. Stop and redesign.
-3. **Does the visual component react to probe fires with visible state changes?** The ProbeTerminal fires, and the visualization above it should animate in response (arrows appearing, blocks changing color, zones highlighting). If probe fires only add text to a log, there is no visual feedback loop. Stop and redesign.
+**Type 3 (custom visualization):** Ask: **"If I were a player who had never heard of [concept], would I understand what it IS and DOES by watching this visualization?"** Then check:
+1. **Is there a visual component above/alongside the ProbeTerminal?** If the center panel is ONLY a ProbeTerminal with no visual component, the level has no visualization. Stop and redesign.
+2. **Does that visual component show objects (blocks, arrows, cards, zones, grids) that animate and change state?** If it only shows text, numbers, or static labels, it's a metric display, not a mechanism. Stop and redesign.
+3. **Does the visual component react to probe fires with visible state changes?** If probe fires only add text to a log, there is no visual feedback loop. Stop and redesign.
 
 **Type 4 (PipelineFlow):** Ask: "Do the pipeline nodes visually react to probes?" Then check:
+1. **Do node variants change on probe fire?** Broken -> `'danger'`, downstream -> `'inactive'`, working -> `'active'`.
+2. **Do edges animate sequentially?** `activeConnections` should light up edges in order.
+3. **Does StageInspector reveal meaningful code on click?**
 
-1. **Do node variants change on probe fire?** The broken node should flip to `'danger'`, downstream nodes to `'inactive'`, working nodes to `'active'`. If all nodes stay `'default'` after a probe, there is no visual feedback.
-2. **Do edges animate sequentially?** The `activeConnections` prop should light up edges in order, showing the request path. If all edges animate simultaneously or not at all, the flow is not visible.
-3. **Does StageInspector reveal meaningful code on click?** Clicking an inspectable node should show code that helps the player understand the problem, not just a generic description.
+**If any sub-check fails, do not proceed with the rest of the audit.** Flag the observe phase as fundamentally broken and redesign it before checking anything else.
 
-**If any sub-check fails for the level's type, do not proceed with the rest of the audit.** Flag the observe phase as fundamentally broken and redesign it before checking anything else. Every other check (animation locking, color contrast, step quality) is predicated on having a working observe phase.
-
-### Why this gate check exists
-
-**Case study: L27 Counter Caches (terminal logs were not a visualization, now fixed)**
-
-L27's original observe phase was a ProbeTerminal showing SQL log lines. The player pressed "10 posts," "50 posts," "100 posts" and read `SELECT COUNT(*) FROM comments WHERE post_id = 1`, `...post_id = 2`, etc. The audit found 18 issues (wrong colors, custom terminal, missing animation locking, passive reward phase) and fixed them all. But it missed the fundamental problem: **the level had no visualization at all.** The entire observe phase was text in a terminal. This is a Type 3 level (runtime performance behavior) but it had no custom visualization, just a ProbeTerminal alone.
-
-L27 was subsequently redesigned with a "Database Table View" visualization: the posts table shows real schema columns (id, title, user_id) and the comments table sits beside it with a FlowConnector. Firing the single probe triggers a cascade: each post row turns red sequentially as it fires COUNT(*) to the comments table. The key insight is the ABSENCE of a `comments_count` column in the posts schema. The player sees id, title, user_id and notices there is no column for counts, which is why every post must cross to the comments table. The reward phase adds the column, and cached loads show all rows green instantly. See the reference implementation above for the current approach.
-
-Why was this missed? Three reasons:
-
-1. **The audit was treated as a compliance checklist, not a design review.** Each item was checked independently: "Does it have discovery gating? Yes. Does it use shared components? Yes. Are colors correct? Fixed." The volume of surface-level fixes (18 issues!) created a false sense of completeness. But checking 18 boxes is worthless if the core design is wrong.
-
-2. **Fixing the implementation anchored thinking to the existing frame.** The original L27 already used a terminal log approach. The audit improved it within that frame (shared ProbeTerminal, better colors, proper gating) instead of questioning the frame itself. Replacing a bad custom terminal with a good shared terminal is a code quality fix, not a design fix.
-
-3. **"Correct component" was conflated with "correct visualization."** ProbeTerminal is a shared component, so using it felt like following the rules. But ProbeTerminal is a **discovery mechanism** (a way for the player to interact), not a **visualization**. It should sit BELOW a visualization and drive it, not BE the visualization. L26 has a TableRowGrid + IndexLookupCard with ProbeTerminal below it. The original L27 had just ProbeTerminal with nothing above it. The redesigned L27 now has a Database Table View above ProbeTerminal, following the correct architecture.
-
-### ProbeTerminal is a discovery tool, not a visualization (Types 3 and 4 only)
-
-This distinction is critical and was the root cause of the L27 failure. It applies to Types 3 and 4, which are the interactive observe types that use ProbeTerminal:
-
-| Component | Role | What it does |
-|-----------|------|-------------|
-| **Visualization** (TableRowGrid, QueryCascade, DataGate, PipelineFlow, etc.) | Shows the mechanism | Visual objects animate to show what the system is doing |
-| **ProbeTerminal** | Drives discovery | Player clicks buttons, terminal shows text, fires `onProbe` callback |
-
-The correct architecture for a Type 3 level:
-
-```
-Center Panel:
-  ┌─────────────────────────────────────┐
-  │  VISUALIZATION (reacts to probes)   │  <- The actual teaching tool
-  │  [blocks, arrows, zones, grids]     │
-  │  [animates on probe fire]           │
-  ├─────────────────────────────────────┤
-  │  PROBE TERMINAL (drives probes)     │  <- The interaction tool
-  │  [> Fire probe buttons]             │
-  └─────────────────────────────────────┘
-```
-
-```
-BAD (L27 before redesign):
-  ┌─────────────────────────────────────┐
-  │  (nothing)                          │
-  ├─────────────────────────────────────┤
-  │  PROBE TERMINAL (the only thing)    │  <- No visualization exists
-  │  [SQL text scrolls by]             │
-  └─────────────────────────────────────┘
-
-GOOD (L27 after redesign):
-  ┌─────────────────────────────────────┐
-  │  DATABASE TABLE VIEW                │  <- The actual teaching tool
-  │  [posts: id,title,user_id columns] │
-  │  [rows cascade red on probe fire]  │
-  │  [FlowConnector -> comments table] │
-  ├─────────────────────────────────────┤
-  │  PROBE TERMINAL (drives probes)     │  <- The interaction tool
-  │  [> GET /api/posts]                │
-  └─────────────────────────────────────┘
-```
-
-This distinction does NOT apply to Type 1 (no observe) or Type 2 (static intro), which do not use ProbeTerminal at all.
+For detailed case studies (L27 terminal-only failure, ProbeTerminal-is-not-a-visualization architecture), see [observe-phase-guide.md](observe-phase-guide.md).
 
 ## Checklist
 
 ### Phase 0: Concept Fit (Does This Level Belong Here?)
 
-Before checking the implementation, verify the level's concept fits its position in the curriculum:
+- [ ] **The concept matches the act's narrative stage.** Ask: "Would a real developer need this right now, at this stage of the app?"
+- [ ] **The concept builds on what came before.** The player should have the prerequisite knowledge from earlier levels.
+- [ ] **The concept is proportional to the act's complexity.** Acts 1-2: fundamentals. Acts 3-4: refactoring and performance. Acts 5-8: production, reliability, scale.
+- [ ] **The scenario feels natural, not forced.** If you have to invent a contrived justification, the level doesn't fit.
+- [ ] **Complexity is monotonically increasing.** The level should feel at least as complex as the previous one.
 
-- [ ] **The concept matches the act's narrative stage.** Each act represents a stage of app development. A concept that requires a production app with many users (rate limiting, caching, horizontal scaling) does not belong in an early act where the player is still building the basics. Ask: "Would a real developer need this right now, at this stage of the app?"
-- [ ] **The concept builds on what came before.** The player should have the prerequisite knowledge from earlier levels. If a level assumes knowledge that hasn't been taught yet, it's placed too early.
-- [ ] **The concept is proportional to the act's complexity.** Acts 1-2 cover fundamentals (models, controllers, views, basic security). Acts 3-4 introduce refactoring and first performance concerns. Acts 5-8 tackle production, reliability, scale, and architecture. A level that feels "too advanced" for its act probably is.
-- [ ] **The scenario feels natural, not forced.** If you have to invent a contrived justification for why the player needs this feature now, the level doesn't fit. The scenario should flow naturally from the app's current state.
-- [ ] **Complexity is monotonically increasing.** The level should feel at least as complex as the previous one. A model-layer DSL lesson after authorization and testing is a regression. If the concept is simpler than what came before, either reframe it to build on prior concepts (e.g., "scopes complement authorization by controlling visibility") or move it earlier.
-
-Example: Rate limiting in Act 2 fails this check. The app has barely any users at that point, there's no realistic threat of abuse, and the concept (throttling, sliding windows, IP tracking) is a production-scale concern that belongs in a later act. Strong params, by contrast, fits Act 2 perfectly because mass assignment is a real risk the moment you accept user input.
+Example: Rate limiting in Act 2 fails this check. Strong params fits Act 2 perfectly.
 
 ### Phase 0b: Narrative Consistency (Does the Content Match the App State?)
 
 Read the content definition in `content.ts` alongside the component. Check for these common narrative bugs:
 
-- [ ] **No references to models/columns that do not exist yet.** Trace the app's schema from L1 to this level. If the level references `Post.status`, verify a prior level added that column. If the level says "password_digest is leaking," verify a User model with `has_secure_password` exists at this point.
-- [ ] **No concept overlap with other levels.** Check if this level teaches something already covered elsewhere. If L6 teaches `params.expect`, L14 cannot say "the controller has no parameter filtering." Instead, L14 should build on L6 (e.g., "the whitelist is too broad"). Read the content of adjacent levels to verify.
-- [ ] **Trigger acknowledges prior levels.** The trigger description should connect to the app's state after the previous level. A good trigger says "Users can authenticate, data is validated, and emails are normalized. But User A can still edit User B's posts." A bad trigger ignores everything before it.
-- [ ] **codeExample does not show exact answers.** The problem code block should teach context and concepts, not provide the code the player will select in the build phase. If the codeExample contains the exact snippet from a correct OptionCard, the player can read ahead.
-- [ ] **content.ts and component are in sync.** If the component uses a terminal interaction, the trigger should not say "Drag the node to the slot." If the component teaches scopes, the trigger should not describe CORS. Always update both halves when changing a level.
+- [ ] **No references to models/columns that do not exist yet.** Trace the app's schema from L1 to this level.
+- [ ] **No concept overlap with other levels.** Check if this level teaches something already covered elsewhere.
+- [ ] **Trigger acknowledges prior levels.** The trigger should connect to the app's state after the previous level.
+- [ ] **codeExample does not show exact answers.** The problem code block should teach context, not provide the code the player will select.
+- [ ] **content.ts and component are in sync.** If the component uses a terminal interaction, the trigger should not say "Drag the node to the slot."
 
-**CRITICAL: Check both content.ts AND the component .tsx file.** Content definitions (`content.ts`) and interactive components (`LevelNN*.tsx`) are separate files that can drift apart. A fix to content.ts is incomplete if the component still has the old text, options, or references. Common drift points:
-- Attribute lists in drag/select interactions (e.g., ATTRIBUTES array in the component)
-- Code snippets in "Before/After" comparisons in the reward phase
-- Left panel instruction text (hardcoded in the component, not from content.ts)
-- Step descriptions and feedback messages
-- Code preview strings generated by functions like `generateModelCode()`
-
-When auditing, always read the full component file and grep for any flagged terms (e.g., `password_digest`, `Post.status`) across both files.
+**CRITICAL: Check both content.ts AND the component .tsx file.** Common drift points: attribute lists, code snippets in Before/After comparisons, left panel instruction text, step descriptions, code preview strings.
 
 ### Phase 1: Problem Visualization (WHY)
 
 #### Step 0: Pick the observe phase type
 
-There are exactly **four types** of observe phase. Every level falls into one. Pick the right one first, then follow the rules for that type.
+There are exactly **four types** of observe phase. Every level falls into one.
 
 | Type | When to use | Phase name | Discovery gating | Example levels |
 |------|------------|------------|-----------------|----------------|
 | **1. No observe** | Pure setup/installation. No problem exists yet. | (skipped) | None | L1 (Rails install), L4 (scaffold generator) |
 | **2. Static intro** | Code-structure problem visible by reading the code. No runtime behavior to simulate. | `'intro'` | None (button always visible) | L16 (Service Objects) |
-| **3. Custom visualization** | Concept has a unique spatial/flow metaphor that needs a bespoke layout with animated state machine. | `'observe'` | Yes (`useDiscoveryGating`) | L10 (Validations: vertical data gate), L15 (CORS: horizontal 3-zone flow) |
+| **3. Custom visualization** | Concept has a unique spatial/flow metaphor that needs a bespoke layout with animated state machine. | `'observe'` | Yes (`useDiscoveryGating`) | L10 (Validations), L15 (CORS) |
 | **4. PipelineFlow** | Request lifecycle concept where a stage is missing or broken in the MVC pipeline. | `'observe'` | Yes (`useDiscoveryGating`) | L5 (Routes), L6 (Controller), L7 (Serializer), L8 (Associations) |
 
 **Decision flowchart:**
-1. Is there a problem to discover? **No** -> Type 1 (no observe, go straight to build)
-2. Is the problem visible just by reading the code, AND is it purely a code-structure issue (not a runtime/performance behavior)? **Yes** -> Type 2 (static intro)
-3. Does the concept have a unique spatial metaphor (not the MVC request chain)? **Yes** -> Type 3 (custom visualization)
-4. Is the concept about something missing/broken in the request lifecycle? **Yes** -> Type 4 (PipelineFlow)
+1. Is there a problem to discover? **No** -> Type 1
+2. Is it purely a code-structure issue (not runtime/performance)? **Yes** -> Type 2
+3. Does the concept have a unique spatial metaphor (not MVC)? **Yes** -> Type 3
+4. Is it about something missing/broken in the request lifecycle? **Yes** -> Type 4
 
-**Critical distinction between Type 2 and Type 3:** The question at step 2 is not just "can you see the problem in the code?" but "is reading the code sufficient to understand the IMPACT?" For refactoring levels (fat controller, missing abstraction), yes: the code structure IS the problem. But for performance levels, security levels, and data-flow levels, the code may look innocuous while the runtime behavior is catastrophic. In those cases, the player needs to SEE the runtime impact through an interactive visualization (Type 3), not just read annotated code (Type 2).
-
-**Case study: L25 Narrow Fetching (Type 2 was wrong, Type 3 is correct)**
-
-The original L25 used Type 2: static annotated code blocks showing `User.all` with text labels like "681 MB for 2 columns." This failed because:
-- The player reads "681 MB" as an abstract number with no visceral understanding of why
-- The code `User.all` looks harmless. You can't see the 30 columns, the 75KB TEXT field, or the memory explosion by reading a one-liner
-- The *ratio* of waste (28 unused columns vs 2 needed) is the core insight, and ratios need visual representation, not text labels
-- The problem is a RUNTIME behavior (memory allocation, query width), not a CODE STRUCTURE issue
-
-The redesigned L25 uses Type 3: a "Data Table Heatmap" where firing probes makes ALL 30 columns light up red (SELECT *), then the 2 needed columns flash green. The overwhelming red-to-green ratio IS the lesson. You don't need text to explain it when you can SEE 28 red columns and 2 green ones.
-
-**Rule of thumb:** If explaining the problem requires showing numbers (memory, latency, query count, object count) rather than showing code structure (responsibilities, abstractions, duplication), it needs Type 3, not Type 2.
+**Critical distinction between Type 2 and Type 3:** If explaining the problem requires showing numbers (memory, latency, query count) rather than code structure (responsibilities, abstractions, duplication), it needs Type 3, not Type 2.
 
 **Critical: Types 3 and 4 are both interactive with discovery gating. Types 1 and 2 have no discovery gating.** Do not add `useDiscoveryGating`, `DiscoveryChecklist`, `ProbeTerminal`, or `ScenarioCards` to Type 1 or Type 2 levels.
 
 #### Type 1: No observe phase
 
-The level skips the observe phase entirely and goes straight to build. The three-phase flow becomes: `build -> activate -> reward` (or just `build -> complete` for pure setup levels).
-
-**When:** The player is building something from scratch, not fixing or discovering a flaw. There is no "problem" to visualize.
+The level skips observe and goes straight to build. **When:** building from scratch, no problem to visualize.
 
 #### Type 2: Static intro (code-structure / refactoring levels ONLY)
 
-The problem is self-evident from reading the code. A static annotated code display is enough. No animation, no interactive discovery.
+Static annotated code display. No animation, no interactive discovery.
 
-**When:** Refactoring levels (fat controllers, missing abstractions, duplicated logic) where the problem is a code structure issue visible by reading the code. The briefing screen already explains the problem in text. Interactive discovery (probes, inspectors, scenario cards) would feel like busywork.
+**When:** Refactoring levels where the code structure IS the problem. **When NOT:** Performance, security, or data-flow levels where the problem is a runtime behavior.
 
-**When NOT to use Type 2 (common mistake):** Do NOT use static intro for performance, security, or data-flow levels where the problem is a runtime behavior. Code like `User.all` or `Post.includes(:author)` looks innocuous on its own. Annotating it with text labels ("681 MB", "101 queries") tells the player a fact but does not help them UNDERSTAND the impact. These levels need Type 3 so the player can SEE the runtime behavior: memory filling up, queries multiplying, columns wasting space. If the problem requires showing numbers (benchmarks, memory, latency) to be understood, it is not a code-structure problem and Type 2 is the wrong choice.
+**What it looks like:** Colored left borders, Badge labels, callout, "Build the Fix" button always visible (no gating), phase type `'intro'`.
 
-**What it looks like:**
-- Static annotated code display with visual markers (colored left borders, Badge labels)
-- A brief callout (1-2 sentences) stating the structural problem
-- "Build the Fix" button always visible (no gating)
-- No `useDiscoveryGating`, no `DiscoveryChecklist`, no `ProbeTerminal`, no `ScenarioCards`
-- Phase type: `'intro'` (not `'observe'`)
-
-**Reference implementation:** Level 16 (Service Objects)
-`frontend/src/features/act3-clean-architecture/components/Level16ServiceObjects.tsx`
-
-L16 shows a fat controller method with color-coded left-border annotations marking each responsibility section. Side-effect sections (logging, preferences, token) get an amber left border + Badge label. The core logic gets a muted zinc border. Below: a callout stating "4 responsibilities in one method." The player reads the annotated code, sees the problem, and clicks "Build the Fix" immediately.
-
-```tsx
-// GOOD: Static intro for a refactoring level
-// The code tells the story. No interactive overhead.
-const ANNOTATED_SECTIONS: AnnotatedSection[] = [
-  { id: 'core', label: 'Core Logic', variant: 'core', code: `@user = User.new(...)` },
-  { id: 'logging', label: 'Side Effect: Logging', variant: 'side-effect', code: `Rails.logger.info(...)` },
-  // ...
-];
-
-// Render: colored left borders + Badge labels + callout + always-visible button
-<div className="border-l-2 border-l-amber-500 bg-amber-500/5 ...">
-  <Badge className="border-amber-500/50 text-amber-600 ...">Side Effect: Logging</Badge>
-  <pre>{section.code}</pre>
-</div>
-// ...
-<Button onClick={handleStartBuild}>Build the Fix</Button>  // No gating
-```
-
-```tsx
-// BAD: Over-engineering the observe phase for a refactoring level
-const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, { minRequired: 3 });
-// Player clicks 4 abstract buttons, reads inspector overlays, clicks 3 scenario cards...
-// ...all to learn that one method has too many responsibilities (which the code already shows)
-{discoveryGating.isUnlocked && <Button>Build the Fix</Button>}
-```
+**Reference implementation:** Level 16 (Service Objects). For detailed code examples, see [observe-phase-guide.md](observe-phase-guide.md).
 
 #### Type 3: Custom visualization (bespoke layout with state machine)
 
-The concept has a unique spatial or flow metaphor that a generic pipeline cannot capture. Each custom visualization is different; the layout shape emerges from the concept itself.
+Each custom visualization is different; the layout shape emerges from the concept itself.
 
-**When:** Security concepts (CORS, validations), data flow concepts, or any level where the architecture has a specific spatial relationship (vertical gates, horizontal handshakes, entity diagrams).
+**When:** Security concepts, data flow concepts, any level with a specific spatial relationship. **Required:** Discovery gating, interactive elements, flow animation state machine.
 
-**Examples:**
-- L10 Validations: vertical "Data Gate" (Input -> Model Gate -> Database), because validations filter data at the model layer before storage
-- L15 CORS: horizontal 3-zone flow (Client -> CORS Middleware Gate -> Rails API), because CORS is about a request crossing the network through a middleware gate
-
-The visualization shape, direction, and structure should emerge from the concept itself. L10 flows top-to-bottom because data moves through layers. L15 flows left-to-right because a request travels from client through a gate to the API. No two custom visualizations should look the same.
-
-**Required:** Discovery gating, interactive elements, flow animation state machine (see sections below).
+For detailed examples and flow animation patterns, see [observe-phase-guide.md](observe-phase-guide.md).
 
 #### Type 4: PipelineFlow (hub-and-spoke MVC architecture)
 
-The concept is about a missing or broken stage in the request lifecycle. PipelineFlow renders the MVC architecture as an interactive node graph.
-
-**When:** MVC architecture levels where the player needs to see where a stage fits (or is missing) in the request chain.
-
-**Critical: PipelineFlow always uses hub-and-spoke layout, never linear.** The MVC architecture is not a simple left-to-right chain. The Controller is the hub that orchestrates satellites (Model, Database, Serializer) on vertical branches. All PipelineFlow levels must use this layout consistently.
+**Critical: PipelineFlow always uses hub-and-spoke layout, never linear.** The Controller is the hub that orchestrates satellites (Model, Database, Serializer) on vertical branches.
 
 ```
                  Serializer (L7+)
@@ -298,221 +172,51 @@ Request -> Router -> Controller -> Response
                   Database (L5+)
 ```
 
-- Main horizontal chain: Request, Router, Controller, Response (auto-positioned, no `position` prop)
-- Satellites branch off the Controller vertically with explicit `position` props
-- Each level only shows nodes introduced up to that point (progressive disclosure)
-- All levels that use PipelineFlow share this same hub-and-spoke topology
+**Required:** Discovery gating, clickable nodes with `StageInspector`, probes, flow animation. **Reference implementations:** L5, L6, L7, L8.
 
-**Required:** Discovery gating, clickable nodes with `StageInspector`, probes, flow animation (see sections below).
+**If a level already has a custom visualization (Type 3) that teaches the concept well, keep it.** Do not replace it with PipelineFlow.
 
-**Reference implementations:** L5 (Routes), L6 (Controller), L7 (Serializer), L8 (Associations)
+For hub-and-spoke coordinates, bidirectional edges, satellite state rules, and sequential edge animation, see [pipelineflow-guide.md](pipelineflow-guide.md).
 
-**If a level already has a custom visualization (Type 3) that teaches the concept well, keep it.** Do not replace it with PipelineFlow. Add interactivity to the existing visualization instead.
+#### Visualization accuracy checklist
 
-#### Visualization accuracy (the visualization must not lie)
+- [ ] **Each zone/box represents a real architectural component**, not an abstract concept or a type of request.
+- [ ] **The order of zones matches the real processing order.**
+- [ ] **Connectors exist between every adjacent zone.**
+- [ ] **Bypass/skip scenarios are visually distinct** (dashed border, muted label, "(bypassed)").
+- [ ] **The "not reached" state is shown** (dimmed/muted with "not reached" label).
+- [ ] **The idle state shows the same structural elements as the active state.** Table headers, zone outlines, node shapes, and lane labels must be visible before any probe fires. Use placeholder rows inside the existing structure, not a different render path.
 
-**The visualization's structure must accurately represent how the concept works.** A pretty animation that teaches the wrong mental model is worse than no animation at all. When auditing, ask: "If a player memorized this diagram, would they have an accurate understanding of the architecture?"
+For visualization accuracy case studies (L15 CORS, L27 idle state), see [observe-phase-guide.md](observe-phase-guide.md).
 
-**Case study: L15 CORS redesign (bad -> good)**
+#### Mechanism vs metric checklist
 
-The original L15 visualization had structural inaccuracies:
+- [ ] **Is the center panel MORE than just a ProbeTerminal?** If only ProbeTerminal with no visual component above, there is no visualization. Stop and redesign.
+- [ ] **Can the player see WHAT the system is doing, not just the result?** If the visualization only shows a number, status badge, or SQL text in a terminal, it's a metric.
+- [ ] **Does the visualization show visual objects that animate?** Text in a terminal is not a visual object.
+- [ ] **Does the visualization look structurally different between problem and solution?** The solution should introduce a new visual element absent in the problem.
+- [ ] **Could a player explain the mechanism after watching?** If they can only cite a number, the visualization taught a metric.
+- [ ] **Are progress bars, gauges, or terminal logs the primary element?** Replace with visual representations of the actual objects.
 
-```
-BAD layout (original):
-  [Browser] | Origin Boundary (w-20 divider) | [Preflight OPTIONS]
-                                               [CORS Middleware]
-                                               [Rails API]
-```
-
-Problems:
-- **Preflight was a server-side box.** Preflight (OPTIONS) is a type of request the *browser* sends, not a server component. Showing it as a server box teaches the wrong mental model.
-- **CORS Middleware sat between Preflight and Rails API** as if it were a middle layer. In reality, it is Rack middleware that wraps the entire app and is the *first* thing requests hit.
-- **No flow between the 3 server boxes.** They were stacked vertically with no connectors, looking disconnected. There was no visual representation of how a request moves through them.
-- **Single FlowConnector** only spanned the narrow origin boundary divider, not the full request path.
-
-The redesigned version accurately represents the CORS flow:
-
-```
-GOOD layout (redesigned):
-  [Browser/Client] --FC1--> [CORS Middleware Gate] --FC2--> [Rails API]
-```
-
-Fixes:
-- **Preflight removed as a zone.** It is communicated through flow messages at the Client zone (e.g., "OPTIONS preflight from localhost:3001"), which accurately represents it as browser behavior.
-- **CORS Middleware is the center gate.** Requests hit it first. If allowed, they pass through to the API. If blocked, the API shows "not reached." This matches the real Rack middleware stack.
-- **curl bypass is visually distinct.** The Client zone switches from browser chrome (traffic light dots, address bar) to terminal style (dark header, `$` prompt) for the curl probe. The CORS gate shows "(bypassed, no browser enforcement)" because CORS is purely browser-enforced.
-- **2 FlowConnectors** show the full request path: client -> gate -> API.
-
-**Checklist for visualization accuracy:**
-- [ ] **Each zone/box represents a real architectural component**, not an abstract concept or a type of request. If something is a request type (e.g., preflight OPTIONS), communicate it through flow messages or labels, not as a separate processing stage.
-- [ ] **The order of zones matches the real processing order.** If middleware X runs before component Y, X must appear before Y in the flow direction.
-- [ ] **Connectors exist between every adjacent zone.** Stacking boxes without connectors looks disconnected and hides the flow relationship.
-- [ ] **Bypass/skip scenarios are visually distinct.** If a probe or scenario bypasses a zone (e.g., curl bypassing CORS), the zone should visually indicate it was bypassed (dashed border, muted label, "(bypassed)") rather than showing it as processing the request.
-- [ ] **The "not reached" state is shown.** When a request is blocked at zone N, zones after N should be dimmed/muted with a "not reached" label, not hidden entirely.
-- [ ] **The idle state shows the same structural elements as the active state.** Before a probe fires, the visualization should already display its structural skeleton: table headers, zone outlines, node shapes, lane labels. Only the dynamic content (data rows, flow messages, animation states) should be absent. If a component conditionally renders its entire structure (headers, columns, labels) only after interaction, the idle state looks like a blank box while sibling components show their full structure, creating an inconsistent layout. Use placeholder rows (`colSpan` with "waiting" text) or empty-state bodies inside the existing structure, not a completely different render path that hides the structure.
-
-Case study: L27's posts table originally rendered a plain `<div>` with "Fire a probe to load posts..." when idle, hiding the column headers (id, title, user_id). Meanwhile the adjacent comments table always showed its headers (id, post_id, body). The fix: always render `<table><thead>` with column headers, and use a `<tbody>` with a placeholder `<td colSpan={N}>` row for the idle state. Both tables now show their schema structure from the start, which is critical because the schema visibility IS the teaching moment.
-
-#### Visualization must show the mechanism, not just the metric (non-negotiable)
-
-**The visualization must show WHAT the system is doing, not just HOW FAST it's doing it.** A progress bar labeled "10,000 rows scanned" is a metric. A grid of 100 blocks turning red one-by-one as the database reads each row is a mechanism. Numbers tell the player a fact. Mechanisms give the player a mental model.
-
-This is the single most important principle for Type 3 visualizations. Before designing any visualization, ask: **"What is the system physically doing under the hood, and can the player SEE it?"** If your visualization shows text labels, progress bars, or timing numbers, you are showing metrics. If it shows objects moving, states changing, or structures being traversed, you are showing mechanism.
-
-**Case study: L26 Database Indexing (metrics were wrong, mechanism is correct)**
-
-The first redesign of L26 replaced PipelineFlow with a "Query Plan Lanes" layout: 3 horizontal lanes, each containing a `ScanBar` (a simple progress bar that fills red for Seq Scan or green for Index Scan) plus SQL text and timing labels. This looked reasonable on paper but failed in practice.
-
-Problems:
-- **The player sees `SELECT * FROM users WHERE email = 'alice@example.com'` and a red progress bar filling to 100%.** They know it's slow because the text says "820ms." But they don't understand WHY it's slow. They can't see the database reading row after row after row.
-- **An "Index Scan" was shown as a green progress bar filling to 1%.** The player knows the index is faster because the number is smaller. But they have no idea what an index IS or what it does differently. Where is the B-tree? Where is the sorted lookup? The visualization teaches "index = small number" instead of "index = skip the scan."
-- **The observe and reward phases looked nearly identical**: both showed a progress bar with different colors and numbers. There was no structural difference between "no index" and "has index." The visualization failed to show the fundamental change in how the database searches.
-
-The redesigned version shows the mechanism:
-
-```
-OBSERVE (no index, Seq Scan):
-  ┌─ ✕ No index on users ── Sequential Scan ─┐
-  │                                            │
-  │  users table (10,000 rows)                 │
-  │  ████████████████████   ← red wave sweeps  │
-  │  ████████████████████     through ALL       │
-  │  ██████████░░░░░░░░░░     100 blocks       │
-  │  ░░░░░░░░░░░░░░░░░░░░                      │
-  │  ░░░░░░░░░░░░░░░░░░░░                      │
-  │                                            │
-  │  ■ Scanned (99)  ■ Matched (1)            │
-  └────────────────────────────────────────────┘
-
-REWARD (with index, Index Scan):
-  ┌─ ⚡ index_users_on_email (unique, B-tree) ─┐
-  │  aaa@corp.com        → row #231            │
-  │  ➜ alice@example.com → row #4231           │
-  │  bob@dev.io          → row #1892           │
-  │  ...                   (9,996 more)        │
-  ├────────────────────────────────────────────┤
-  │  users table (10,000 rows)                 │
-  │  ░░░░░░░░░░░░░░░░░░░░                      │
-  │  ░░░░░░░░░░░░░░░░░░░░   ← only the match  │
-  │  ░░░░░░░█░░░░░░░░░░░░     block is green   │
-  │  ░░░░░░░░░░░░░░░░░░░░     rest untouched   │
-  │  ░░░░░░░░░░░░░░░░░░░░                      │
-  └────────────────────────────────────────────┘
-```
-
-Why this works:
-- **The player watches the red wave sweep through every block.** They feel the waste. 100 blocks scanned to find 1 match. The animation takes 1.5 seconds, long enough to feel slow.
-- **The IndexLookupCard shows the actual B-tree structure**: sorted entries with the highlighted lookup pointing to the matching row. The player sees what an index IS (a sorted lookup table) and what it DOES (maps a value directly to a row position).
-- **The reward phase looks structurally different.** No red wave, no scanning. Just the index card pointing to a single green block on a field of neutral gray. The visual shift from "sea of red" (observe) to "one green on gray" (reward) IS the lesson.
-- **The mechanism is visible.** Seq Scan = read every row (red wave). Index Scan = look up in sorted structure, jump to match (index card + green block). The player builds the correct mental model of what the database does differently.
-
-**Case study: L27 Counter Caches (metric repetition was wrong, schema visibility is correct)**
-
-The original L27 had three probes: "10 posts," "50 posts," "100 posts." Each showed the same N+1 COUNT(*) pattern with different numbers (11 queries, 51 queries, 101 queries). This is pure metric repetition: the player learns "more posts = more queries" (a number) instead of "each post individually hits the comments table" (a mechanism).
-
-The redesigned L27 uses a single probe with a "Database Table View" showing the actual posts schema columns (id, title, user_id). The key visual: the player sees that there is NO `comments_count` column. When the probe fires, rows cascade red one-by-one as each post fires COUNT(*) to the adjacent comments table. The mechanism is visible: each row individually crossing to another table. After the build phase, the reward adds the `comments_count` column to the schema, and cached loads show all rows green instantly (no cross-table queries).
-
-The structural difference between observe and reward: observe has 3 columns and red cascade. Reward has 4 columns (the new one IS the fix) and instant green. The new column appearing in the schema IS the lesson.
-
-**Rule of thumb:** If your visualization could be replaced by a text label ("820ms", "10,000 rows scanned") without losing information, it's showing a metric, not a mechanism. Redesign it to show the mechanism.
-
-**Checklist for mechanism vs metric:**
-- [ ] **Is the center panel MORE than just a ProbeTerminal?** If the observe phase center panel contains only a ProbeTerminal (or only text/logs) with no visual component above it, there is no visualization. ProbeTerminal is a discovery tool, not a visualization. Stop and redesign before checking anything else. (See "Gate Check" section above.)
-- [ ] **Can the player see WHAT the system is doing, not just the result?** A Seq Scan should show rows being read. An N+1 should show queries multiplying. A cache miss should show the request going to the database. If the visualization only shows the output (a number, a status badge, or SQL text in a terminal), it's a metric.
-- [ ] **Does the visualization show visual objects (blocks, arrows, cards, zones, grids) that animate?** Text output in a terminal is not a visual object. The player must see shapes that move, change color, appear, or disappear. If you removed all text and the visualization still conveyed the core insight through shapes and animation alone, it's mechanism-based.
-- [ ] **Does the visualization look structurally different between the problem and solution?** If observe and reward both show the same component with different numbers/colors, the visualization is metric-based. The solution should introduce a new visual element (the index card, the cache layer, the preloaded batch) that was absent in the problem.
-- [ ] **Could a player explain the mechanism after watching the visualization?** After seeing L26, the player should be able to say: "Without an index, the database reads every row sequentially. With an index, it uses a sorted lookup to jump directly to the matching row." If they can only say "it went from 820ms to 0.05ms," the visualization taught a metric, not a mechanism.
-- [ ] **Are progress bars, gauges, or terminal logs the primary visual element?** Progress bars, gauges, and terminal log output are inherently metric-based. They show a quantity or text, not a process. Replace them with visual representations of the actual objects: rows, queries, columns, cache entries, connections. Small colored blocks, animated flow dots, and structural diagrams show mechanisms.
+For mechanism vs metric case studies (L26 indexing, L27 counter caches), see [observe-phase-guide.md](observe-phase-guide.md).
 
 #### Required interactivity (Types 3 and 4 only)
 
-When a level uses a full interactive observe phase (Type 3 custom visualization or Type 4 PipelineFlow), these rules apply:
-
-- [ ] **The visualization is interactive, not passive.** The player must click, probe, or explore to discover the problem. Static animations that play automatically are not acceptable.
-- [ ] **Discovery gating controls progression.** Use `useDiscoveryGating(defs, { minRequired })` to track what the player has found. **All discoveries must be completed** before the player can proceed: set `minRequired` equal to the total number of discoveries. The "Build the Fix" button appears only when `discoveryGating.isUnlocked`.
-- [ ] **"Build the Fix" button** appears with `animate-in fade-in duration-500`, gated behind discoveries (NOT on a timer).
-- [ ] No build steps or OptionCards are visible during this phase.
+- [ ] **The visualization is interactive, not passive.** Player must click, probe, or explore.
+- [ ] **Discovery gating controls progression.** `minRequired` equals total discoveries. "Build the Fix" appears only when `discoveryGating.isUnlocked`.
+- [ ] **"Build the Fix" button** appears with `animate-in fade-in duration-500`, gated behind discoveries (NOT a timer).
+- [ ] No build steps or OptionCards visible during this phase.
 
 #### Discovery mechanisms (mix and match per level)
 
-Levels should use whichever discovery mechanisms fit their visualization:
+- **Clickable regions**: For PipelineFlow, use `onNodeClick` + `StageInspector`. For custom zones, use `onClick` handlers with pulsing `?` indicators.
+- **ProbeTerminal**: Terminal-style probe firing. **Always use this shared component, never build a custom terminal.** Must be disabled during flow animations.
+- **Interactive controls**: Buttons, toggles, inputs that manipulate the visualization.
 
-- **Clickable regions** (for any visualization): clicking on parts of the visualization reveals information and triggers discoveries. For PipelineFlow, use `onNodeClick` + `StageInspector`. For custom zone layouts, use `onClick` handlers on zone `<button>` elements with pulsing `?` indicators for uninspected zones.
-- **ProbeTerminal**: terminal-style component where player fires test requests. Best for security/API levels where "try this request and see what happens" is the natural exploration. Not required for every level. Must be disabled during flow animations (see "Animation locking" below). **Always use this shared component. Never build a custom terminal** (see "Always use shared terminal components" below).
-- **Interactive controls**: buttons, toggles, or inputs that let the player manipulate the visualization and discover problems. E.g., toggling browser origins in a CORS level, firing different query patterns in a performance level.
+For progressive hint patterns and shared terminal component details, see [observe-phase-guide.md](observe-phase-guide.md).
 
-**Hint for non-obvious discovery actions:** When discoveries require clicking on visualization nodes (not just firing probes), the `?` indicator alone is not enough. Show a progressive `<Alert variant="info">` hint below the `DiscoveryChecklist` to guide the player:
-- After the player has completed the obvious actions (e.g., fired 2+ probes), show a gentle hint: "Click the zones with **?** to inspect their code"
-- After all obvious actions are exhausted but discoveries remain incomplete, show a specific hint naming the exact zone: "Now click the **Serializer** zone to see where the N+1 hides"
-- Gate hints behind a `firedProbeCount` (or equivalent) state to avoid showing them too early
+#### Shared terminal components checklist
 
-```tsx
-{firedProbeCount >= 2 && !discoveryGating.isUnlocked && (
-  <Alert className="mt-3 animate-in fade-in duration-500" variant="info">
-    <Info className="w-4 h-4" />
-    <AlertDescription className="text-xs">
-      {firedProbeCount >= 3
-        ? <>Now click the <span className="font-medium">Serializer</span> zone to see where the N+1 hides.</>
-        : <>Click the zones with <span className="font-medium">?</span> to inspect their code</>
-      }
-    </AlertDescription>
-  </Alert>
-)}
-```
-
-#### Always use shared terminal components (non-negotiable)
-
-**Never build a custom terminal UI when a shared component exists.** Three shared terminal components cover all use cases:
-
-| Component | Phase | Use case |
-|-----------|-------|----------|
-| `ProbeTerminal` | Observe | Player fires probes to discover problems |
-| `StressTestPanel` | Reward | Player fires stress scenarios to verify the fix |
-| `SimulatedTerminal` | Build | Player picks the right shell command |
-
-**If a level needs a terminal-like display (query log, request log, database output), use `ProbeTerminal` with appropriate `responseLines` per probe.** Do not build a custom div with traffic-light dots, a scrollable log area, and custom buttons. That is exactly what ProbeTerminal already provides.
-
-**Case study: L27 Counter Caches (custom terminal was wrong, then redesigned entirely)**
-
-L27 went through three stages, each teaching a different lesson:
-
-**Stage 1 (bad): custom terminal.** The original L27 built a custom "Query Waterfall" terminal with ~80 lines of custom state (`firedProbes`, `activeProbe`, `queryLog`, `visibleQueryIndex`, `isAnimating`). This duplicated ProbeTerminal's functionality with inconsistent styling and manual interval cleanup.
-
-**Stage 2 (better but still wrong): ProbeTerminal alone.** Replacing the custom terminal with `<ProbeTerminal>` fixed the code quality issues (~80 fewer lines, consistent styling), but the observe phase was STILL just terminal text. There was no visualization above it. The player read SQL log lines instead of seeing the mechanism. (See the gate check case study above for why this was caught.)
-
-**Stage 3 (correct): Database Table View + ProbeTerminal.** The final redesign added a proper visualization above ProbeTerminal: a database table showing posts schema columns (id, title, user_id) with cascade animation. Each row turns red sequentially as its COUNT(*) query fires. The absence of a `comments_count` column IS the visual problem. ProbeTerminal sits below and drives the visualization via `onProbe`. The reward phase adds the column.
-
-The lessons: (1) Always use shared components instead of custom terminals. (2) Using the right component is necessary but not sufficient: ProbeTerminal drives discovery, it does not replace a visualization. (3) The visualization must show the mechanism (rows cascading, columns appearing), not just log text.
-
-```tsx
-// BAD: custom terminal UI duplicating ProbeTerminal
-const [firedProbes, setFiredProbes] = useState<Set<string>>(new Set());
-const [queryLog, setQueryLog] = useState<string[]>([]);
-// ... 80+ lines of custom state, animation, and JSX
-
-// BETTER but still wrong: ProbeTerminal alone (no visualization above it)
-<ProbeTerminal onProbe={handleProbe} probes={PROBES} title="Database Log" />
-
-// GOOD: visualization + ProbeTerminal
-<DatabaseTableView posts={postBlocks} onCascade={...} />  {/* Shows the mechanism */}
-<ProbeTerminal onProbe={handleProbe} probes={PROBES} />   {/* Drives interaction */}
-```
-
-**ProbeTerminal accepts `className` for layout control.** By default, the output area has `max-h-48`. When the terminal should fill its parent container (e.g., no other content above it), pass `className="flex-1 flex flex-col"` and wrap it in a flex container with `flex-1 min-h-0`:
-
-```tsx
-// Terminal fills available space
-<div className="px-6 pb-2 flex-1 min-h-0 flex flex-col">
-  <ProbeTerminal
-    className="flex-1 flex flex-col"
-    onProbe={handleProbe}
-    probes={PROBES}
-    title="Database Log"
-  />
-</div>
-```
-
-**Checklist:**
 - [ ] Level does not build a custom terminal div with traffic-light dots, scrollable log, and buttons
 - [ ] Observe phase uses `ProbeTerminal` for any terminal-like interaction
 - [ ] Reward phase uses `StressTestPanel` for any terminal-like stress testing
@@ -521,190 +225,53 @@ const [queryLog, setQueryLog] = useState<string[]>([]);
 
 #### Animation locking (non-negotiable, all phases)
 
-**When a flow animation is running, all probe/fire buttons MUST be disabled.** This prevents the player from firing a new probe while the previous one is still animating, which would cause overlapping animations and confusing visual state.
-
-This applies to:
-- **ProbeTerminal** (observe phase): `disabled={flowPhase !== -1}` prevents firing new probes during animation
-- **StressTestPanel** (reward phase): `disabled={flowPhase !== -1}` prevents firing new stress scenarios during animation
-- **Any custom fire buttons**: same pattern, disable while `flowPhase !== -1`
-- **Clickable zones/nodes**: consider disabling during animation if clicking would interfere with the visual flow
-
-The pattern: the level tracks a `flowPhase` state (`-1` = idle, `0+` = animating). All interactive fire controls check `flowPhase !== -1` and disable themselves during animation. The animation runs to completion, then `flowPhase` resets to `-1` (or stays at the final phase if persistence is desired), re-enabling the controls.
+**When a flow animation is running, all probe/fire buttons MUST be disabled.**
 
 ```tsx
 // GOOD: probes disabled during animation
 <ProbeTerminal disabled={flowPhase !== -1} onProbe={handleProbe} probes={PROBES} />
-
-// GOOD: stress test disabled during animation
 <StressTestPanel disabled={flowPhase !== -1} onFire={handleFireScenario} ... />
 
 // BAD: no disabled prop, player can fire overlapping probes
 <ProbeTerminal onProbe={handleProbe} probes={PROBES} />
 ```
 
-**Checklist:**
-- [ ] ProbeTerminal has `disabled={flowPhase !== -1}` (or equivalent animation-in-progress check)
+- [ ] ProbeTerminal has `disabled={flowPhase !== -1}` (or equivalent)
 - [ ] StressTestPanel has `disabled={flowPhase !== -1}` (or equivalent)
 - [ ] No custom fire buttons are clickable during animation
-- [ ] Auto-fire timing accounts for animation duration (each tick should be long enough for the animation to complete or nearly complete before the next fire)
+- [ ] Auto-fire timing accounts for animation duration
 
 #### Animation timing constant
-
-All multi-phase flow animations must use the standard duration from `@/lib/animation`:
 
 ```tsx
 import { ANIMATION_DURATION_MS } from '@/lib/animation'; // 1500ms per element
 ```
 
-`ANIMATION_DURATION_MS` is the duration **per animated element** (lane, zone, node, block). Total animation scales with element count:
-- **Phase spacing**: `i * ANIMATION_DURATION_MS` (each element starts 1500ms after the previous)
-- **Total lockout**: `elementCount * ANIMATION_DURATION_MS` (last element start + settle)
-- **Single-element animation** (e.g., reward fire): `ANIMATION_DURATION_MS`
-
-Never divide `ANIMATION_DURATION_MS` by element count. That makes animations faster as you add elements, which is the opposite of what you want.
-
-**Checklist:**
 - [ ] Level imports `ANIMATION_DURATION_MS` from `@/lib/animation`
 - [ ] Per-element stagger uses `ANIMATION_DURATION_MS` directly (not divided)
 - [ ] Total lockout = `elementCount * ANIMATION_DURATION_MS`
 
-#### Flow animation pattern (for custom zone layouts)
-
-When a level uses custom zone layouts (not PipelineFlow), use the flow animation pattern to show data moving through zones:
-
-- **`flowPhase` state**: integer tracking current animation step. `-1` = idle, even numbers = zone highlights, odd numbers = edge animations.
-- **`flowMessages` array**: messages shown at each zone during animation. Messages are monotonically inclusive (once shown, they stay visible with `opacity-70`).
-- **`runFlow(messages)` callback**: advances phases sequentially with delays derived from `ANIMATION_DURATION_MS`.
-- **`clearFlow()` callback**: cancels pending timeouts. Called on unmount via `useEffect(() => clearFlow, [clearFlow])`.
-- **`flowTimeoutsRef`**: ref holding pending `setTimeout` IDs for cleanup.
-
-**Data maps for flow animations:**
-- `OBSERVE_FLOW`: maps probe IDs to zone message arrays (e.g., `'empty-post': ['POST from client', 'No validations', 'Saved! 201']`)
-- `REWARD_FLOW`: maps stress scenario IDs to zone message arrays
-
-**Zone highlighting during flow:**
-- Active zone: `ring-2 ring-primary/60 shadow-lg shadow-primary/10`
-- Flow message appears with `animate-in fade-in duration-300` when zone activates
-- Post-activation: message stays visible with `opacity-70`
-- Color-coded: `text-primary` (neutral), `text-destructive` (failures), `text-success` (passes)
-
-**FlowConnector between zones:**
-- Use `FlowConnector` component (`@/components/levels/FlowConnector`) instead of `ArrowDown` icons or dashed borders.
-- `active={flowPhase === N}` where N is the odd-numbered phase between two zones.
-- `dotColor` changes based on context: `bg-destructive` for failures, `bg-success` for passes, `bg-primary` for neutral.
-- **Direction must match the visualization's data flow.** Use `direction="vertical"` when data flows top-to-bottom (e.g., L10's data gate), `direction="horizontal"` when data flows left-to-right (e.g., L15's browser-server handshake). The dot travel direction follows from how the concept is visualized, not from a fixed rule.
-- For custom-sized connectors, pass `className` with absolute positioning tailored to the visualization's layout.
-
-**Auto-inspect after probe:**
-After `handleProbe` fires, call `setInspectedStages(new Set([...allStageIds]))` to remove `?` indicators from all zones, since the flow animation reveals all zones.
-
-**Zone content must be gated behind flowPhase (critical):**
-When a probe fires, state like `lastProbeId` updates instantly, but the flow animation takes time to reach each zone. If zone content (sublabels, badges, border colors) reacts to `lastProbeId` directly, zones show their result before the animation reaches them, breaking the illusion.
-
-Fix: derive gated flags that check both the probe state AND the flow phase:
-
-```tsx
-// Zone N shows result only after flow reaches it OR animation is done
-const gateRevealed = probeState && (flowPhase >= 2 || flowPhase === -1);
-const apiRevealed = probeState && (flowPhase >= 4 || flowPhase === -1);
-```
-
-Then use `gateRevealed`/`apiRevealed` instead of raw `probeState` for zone styling, sublabels, and badges. The pattern: zone at phase N gates behind `flowPhase >= N || flowPhase === -1`.
+For flow animation patterns (flowPhase, FlowConnector, zone gating), see [observe-phase-guide.md](observe-phase-guide.md).
 
 #### Left panel (observe)
 
 - [ ] Scenario text (always visible)
 - [ ] `DiscoveryChecklist` component showing discovery progress
-- [ ] If any discoveries require clicking on nodes/zones, an `<Alert variant="info">` hint appears below the checklist after the player has completed the more obvious actions (probes, etc.) but still has undiscovered items
+- [ ] Progressive `<Alert variant="info">` hint for non-obvious discovery actions
 
 #### Right panel (observe)
 
 - [ ] Shows the broken/vulnerable/unoptimized code via `CodePreviewPanel`
 
-#### When PipelineFlow IS used
-
-If the level uses PipelineFlow specifically, these additional checks apply:
+#### PipelineFlow-specific checks
 
 - [ ] `onNodeClick` callback for interactive stages
 - [ ] `inspectable: true` on clickable stages (pulsing `?` indicator)
 - [ ] `StageInspector` overlay on click
-- [ ] Node variants react to probes/interactions via `useMemo`
-- [ ] Define data maps: `STAGE_INSPECTOR_MAP`, `DISCOVERY_DEFS`, etc.
+- [ ] Node variants react to probes via `useMemo`
+- [ ] Node colors match their state (broken = `'danger'`, downstream = `'inactive'`, working = `'active'`)
 
-**Node colors must match their state (non-negotiable):**
-
-Every node in the pipeline must visually reflect its actual state during the observe phase. A node that is unreachable, errored, or broken must never stay `default` (black/zinc). Check every node in the `observeStages` array:
-
-- **Broken/errored node** (the focus of the level): `variant: 'danger'` on probe (red background, red border)
-- **Nodes downstream of the broken stage** (unreachable): `variant: 'inactive'` + `sublabel: 'unreachable'` on probe (dashed, dimmed)
-- **Nodes that show error responses** (e.g., Response showing "500" or "404"): `variant: 'danger'` on probe
-- **Working nodes upstream of the problem**: `variant: 'active'` (green) or keep their existing state
-- **Idle state** (no probe fired): nodes can be `default`, `active`, or `inactive` depending on their role
-
-The rule: if a node's sublabel changes on probe (e.g., showing "404", "unreachable", "500 Error"), its variant MUST also change. A sublabel without a matching variant creates a black node with error text, which is visually wrong.
-
-**Case study:** L6 Controller had Model node with no variant on probe (stayed black) even though the controller was broken and Model was unreachable. L8 Associations had Response node showing "404" sublabel but no variant change (stayed black instead of danger red). Both were fixed by adding the appropriate variant.
-
-#### Hub-and-spoke implementation details (Type 4 PipelineFlow)
-
-Implementation specifics for the hub-and-spoke layout described in Type 4 above.
-
-- Model: below Controller with `position: { x: 500, y: 180 }`, connection uses `sourceHandle: 'bottom', targetHandle: 'top', bidirectional: true`
-- Database: below Model with `position: { x: 500, y: 360 }`, same handle config
-- Serializer: above Controller with `position: { x: 500, y: -180 }`, connection uses `sourceHandle: 'top', targetHandle: 'bottom', bidirectional: true`
-- Focus node uses `variant: 'inactive'` or `'danger'`, others use `'active'` or `'default'`
-- Stages with explicit `position` do not consume an auto-layout slot (auto-positioned stages stay on the horizontal chain)
-
-**Bidirectional edge rendering:**
-- Bidirectional connections produce two parallel edges: forward (solid line, shifted left) and return (dashed line, shifted right), symmetric about the center
-- Both edges use the same dot size (r=8). The offset is controlled by `LANE_OFFSET` (14px) in PipelineFlow
-- Forward edges of bidirectional pairs get `isBidirectional: true` in edge data so they are also offset
-- Non-bidirectional edges (horizontal chain) stay centered with no offset
-
-**Satellite node state rules (every satellite must have a variant):**
-- A satellite node must NEVER use the bare `default` variant (zinc) in the observe phase. It looks identical to Request and implies no relationship to the pipeline state
-- When the broken stage is upstream of the satellite (e.g., Router broken in L5, Controller missing in L6), set satellites to `variant: 'inactive'` with `sublabel: 'unreachable'` on probe
-- When the satellite is working (problem is elsewhere, e.g., Serializer missing in L7), set it to `variant: 'active'`
-- In reward phases, satellites should always be `variant: 'active'` since the fix is applied
-
-| Level | Observe (idle) | Observe (probe fired) | Reward |
-|-------|---------------|----------------------|--------|
-| L5 | `default` | `inactive` + "unreachable" | `active` |
-| L6 | `default` | `inactive` + "unreachable" | `active` |
-| L7 | `active` | `active` | `active` |
-| L8 | `active` | `active` | `active` |
-
-**Checklist for hub layout:**
-- [ ] Main chain stages have NO `position` prop (auto-positioned horizontally)
-- [ ] Satellite stages (Model, Database, Serializer) have explicit `position` props
-- [ ] Connections to satellites use `sourceHandle`/`targetHandle` for vertical edges
-- [ ] Bidirectional connections (`bidirectional: true`) create return edges automatically
-- [ ] Every satellite node has an explicit `variant` (never bare `default` in observe)
-- [ ] Satellites downstream of the broken stage show `inactive` + "unreachable" on probe
-- [ ] All satellites show `active` in the reward phase
-
-#### Sequential edge animation
-
-**The core rule: use `activeConnections` prop to control which edges animate.** The `activeConnections` prop on PipelineFlow controls edge animation:
-- `undefined` (default): all edges show idle animation (backward compat)
-- `[]`: fully dormant, no dots on any edge
-- `['request-router', 'controller-model']`: only listed edges animate (single-pass)
-
-Connection IDs use `from-to` format (e.g., `"request-router"`, `"controller-model"`). For bidirectional edges, the return direction uses `"model-controller"`.
-
-**How levels use it:**
-1. Define a `FLOW_SEQUENCE: string[]` listing edge IDs in animation order
-2. On probe/stress-test fire, advance through the sequence with ~600ms per edge
-3. Pass `activeConnections={currentEdgeIds}` to PipelineFlow
-
-**Idle state:** When no probe is active, `activeConnections` is `undefined` (not `[]`). An empty array means fully dormant.
-
-**Checklist for sequential animation:**
-- [ ] `FLOW_SEQUENCE` defined with correct order matching real data flow
-- [ ] Bidirectional edges have TWO entries (forward + return), never simultaneous
-- [ ] `activeConnections` prop passed to PipelineFlow
-- [ ] Probes/stress-tests disabled during animation (see "Animation locking" section)
-- [ ] Node variants update in sync with the sequence
+For hub-and-spoke layout, satellite state rules, and sequential edge animation, see [pipelineflow-guide.md](pipelineflow-guide.md).
 
 ### Phase 2: Problem Solving (HOW)
 
@@ -724,33 +291,30 @@ The build phase must cover the **complete workflow**:
 - [ ] Feedback never reveals the correct answer
 
 **Documentation verification (non-negotiable):**
-- [ ] Before writing ANY step content, **fetch and read the full README** of the gem/library from its official GitHub repo (not a summary, not from memory)
-- [ ] Use `WebFetch` to read the actual README.md, not just the repo landing page
-- [ ] Verify the exact installation steps from the README. Gems often have steps beyond `bundle add` and `rails generate` (e.g., including a module in ApplicationController, running migrations, adding initializer config)
-- [ ] Verify generated file contents match the actual template files in the gem's source code (check `lib/generators/` in the repo)
-- [ ] Verify class names, module names, method signatures, and inheritance patterns against the README
-- [ ] Do NOT rely on AI knowledge of gem APIs. Gems change between versions. The README is the source of truth
-- [ ] If the README shows N installation steps, the level must have at least N steps covering them all
+- [ ] Before writing ANY step content, **fetch and read the full README** of the gem/library from its official GitHub repo using `WebFetch` (not just the repo landing page, not a summary)
+- [ ] Verify exact installation steps from the README
+- [ ] Verify generated file contents match actual template files in the gem's source code (check `lib/generators/` in the repo)
+- [ ] Verify class names, module names, method signatures against the README
+- [ ] Do NOT rely on AI knowledge of gem APIs. The README is the source of truth
+- [ ] If the README shows N installation steps, the level must have at least N steps
+- [ ] Any step listed in the gem's README "Getting Started" / "Installation" section that is not represented in the level must be flagged
 
-**Typical step progression for a gem-based feature (verify against README):**
+**Typical step progression for a gem-based feature:**
 1. Install the gem (`bundle add ...`) - TerminalChoiceStep
 2. Include module / configure controller (if README requires it) - OptionCard step
 3. Run the generator (`rails generate ...`) - TerminalChoiceStep
 4. Configure/customize the generated code - OptionCard steps
 5. Wire it into the application - OptionCard steps
 
-**Common missing steps to flag (cross-reference with README):**
+**Common missing steps to flag:**
 - Missing `bundle add <gem>` step
 - Missing `include <Gem>::<Module>` in ApplicationController (many gems require this, e.g., Pundit, Devise)
 - Missing `rails generate <gem>:install` step
-- Missing `rails db:migrate` step after any generator that creates migrations (non-negotiable, see below)
+- Missing `rails db:migrate` step after any generator that creates migrations (non-negotiable)
 - Missing configuration steps (initializers, environment config)
-- Any step listed in the gem's README "Getting Started" / "Installation" section that is not represented in the level
 
 **Every migration generation must be followed by `rails db:migrate` (non-negotiable):**
-If any build step generates a migration file (`rails generate migration ...`, `rails generate <gem>:install` that creates a migration), the very next step MUST be running `rails db:migrate`. Without it, the column/table does not exist in the database and subsequent steps would fail in reality. This is a TerminalChoiceStep with wrong options like `rails db:setup` (wrong: drops and recreates) or running the generator again (wrong: already generated).
-
-Case study: L27 Counter Caches originally had "Generate the counter cache migration" immediately followed by "Enable counter_cache on the association." The player generated `add_comments_count_to_posts` but never ran `rails db:migrate`, so the `comments_count` column would not exist when the model tried to use it. Adding step 1 (`rails db:migrate`) between generation and configuration fixed the gap.
+If any build step generates a migration file, the very next step MUST be running `rails db:migrate`. Without it, the column/table does not exist in the database. Case study: L27 Counter Caches originally had "Generate the counter cache migration" immediately followed by "Enable counter_cache on the association," skipping the migration run.
 
 ### Phase 3: Solution Visualization (ADVANTAGE) - Interactive Reward
 
@@ -769,119 +333,24 @@ The level must have a dedicated reward phase where the player **interactively ve
 
 #### Interactivity requirement (non-negotiable)
 
-The reward phase MUST be interactive. Passive auto-incrementing counters (`setInterval`) are never acceptable. The player must take actions and see results. Options:
-
-- **StressTestPanel + useStressTest**: Player fires request scenarios and watches results. Best for security/API levels (auth, authorization, CORS, strong params). Provides `fireRequest()`, `toggleAutoFire(onFire)`, dual counters. `toggleAutoFire` accepts the same `onFire` handler used for manual fires, so animations trigger during auto-fire. Auto-fire cycles through all scenarios once, then stops. Must be disabled during flow animations (see "Animation locking" section).
-- **Custom interactive controls**: Player clicks buttons, toggles, or inputs on the custom visualization. E.g., clicking different browser origins in a CORS visualization and watching them get allowed/blocked. Clicking different query patterns in a performance visualization and seeing response times.
-- **Replay/comparison controls**: Player toggles between before/after states, or replays scenarios at different scales.
+The reward phase MUST be interactive. Passive auto-incrementing counters (`setInterval`) are never acceptable. Options:
+- **StressTestPanel + useStressTest**: Player fires scenarios. Provides `fireRequest()`, `toggleAutoFire(onFire)`, dual counters. `toggleAutoFire` accepts the same `onFire` handler used for manual fires, so animations trigger during auto-fire. Auto-fire cycles through all scenarios once, then stops. Must be disabled during flow animations.
+- **Custom interactive controls**: Buttons, toggles, inputs on the custom visualization. E.g., clicking different browser origins in a CORS visualization and watching them get allowed/blocked. Clicking different query patterns in a performance visualization and seeing response times.
+- **Replay/comparison controls**: Toggle between before/after states, or replay scenarios at different scales.
 
 The key rule: **every click from the player must produce a visible reaction in the visualization.**
 
-#### Flow animation in reward phase
-
-When the reward visualization uses zone layouts (same as observe but with the fix applied):
-
-- Reuse the same `runFlow`/`clearFlow`/`flowPhase` state from observe phase
-- Define `REWARD_FLOW` messages showing the fix working (e.g., `'valid-post': ['Valid post', 'validates pass', 'Saved! 201']`)
-- Zones change color based on stress test result: `border-success bg-success/10` for allowed, `border-destructive bg-destructive/5` for blocked
-- FlowConnectors change `dotColor` based on result: `bg-success` for allowed, `bg-destructive` for blocked
-- Flow messages color-code: `text-success` for passes, `text-destructive` for rejections
-
-#### When StressTestPanel IS used
-
-If the level uses StressTestPanel specifically:
+#### StressTestPanel checklist
 
 - [ ] `useStressTest(scenarios)` hook manages state
-- [ ] Define `STRESS_SCENARIOS` array
-- [ ] Terminal-style appearance matching ProbeTerminal
-- [ ] Scenario buttons use `label` field as button text, color-coded by expected result
+- [ ] `STRESS_SCENARIOS` array defined
+- [ ] Scenario buttons use `label` field, color-coded by expected result
 - [ ] Auto-fire toggle gated behind 3+ manual fires
-- [ ] `disabled={flowPhase !== -1}` blocks fire buttons during flow animations (see "Animation locking" section)
+- [ ] `disabled={flowPhase !== -1}` blocks fire during flow animations
+- [ ] Response lines present on all scenarios when observe probes have them
+- [ ] Labels are self-descriptive and match observe-phase probe labels
 
-#### StressTestPanel response lines (non-negotiable)
-
-The ProbeTerminal in the observe phase shows multi-line colored `responseLines` per probe (SQL queries, memory stats, warnings). The StressTestPanel in the reward phase must provide the same level of detail. Without response lines, the stress test feels like a dumb button clicker with no feedback beyond "200" or "403".
-
-**Rule:** If the observe phase ProbeTerminal has `responseLines` per probe, the reward phase StressTestPanel MUST also have `responseLines` per scenario. The `StressScenario` type supports an optional `responseLines` field for this purpose.
-
-**Observe (problem) response lines** explain what went wrong:
-```
-responseLines: [
-  { text: 'SELECT * FROM users;', color: 'yellow' },
-  { text: '-- 30 columns loaded, only 2 needed', color: 'red' },
-  { text: 'Memory: 681 MB for 10K rows', color: 'red' },
-]
-```
-
-**Reward (solution) response lines** show the fix working. Allowed scenarios use green, blocked scenarios use red:
-```
-// Allowed scenario
-responseLines: [
-  { text: 'User.pluck(:id, :email)', color: 'yellow' },
-  { text: '-- 2 columns, plain arrays (no AR objects)', color: 'green' },
-  { text: 'Memory: 2.35 MB for 10K rows', color: 'green' },
-]
-
-// Blocked scenario
-responseLines: [
-  { text: 'User.all', color: 'yellow' },
-  { text: '-- SELECT * FROM users (30 columns, 50K rows)', color: 'red' },
-  { text: 'Memory: 3.4 GB, server OOM killed', color: 'red' },
-]
-```
-
-**Cross-phase parity:** The observe probe for "CSV Export" shows the problem (red lines about waste). The reward scenario for "CSV Export" shows the fix (green lines about efficiency). Same endpoint, opposite story.
-
-**When to skip:** If the level concept is purely about access control (auth, CORS) where the response is just "allowed" or "forbidden" with no numerical detail, response lines are optional. But for any level involving data, performance, or behavior differences, response lines are required.
-
-**Checklist:**
-- [ ] Every stress scenario has `responseLines` when the observe probes have them
-- [ ] Allowed scenarios use green lines, blocked scenarios use red lines
-- [ ] First line is the SQL/command (yellow), subsequent lines are the result/impact
-- [ ] Response lines tell the opposite story from observe (fix working vs problem occurring)
-
-#### StressTestPanel button labels (non-negotiable)
-
-StressTestPanel buttons display `scenario.label` as the button text. The `label` must be self-descriptive: the player should understand what the button does without needing `method`, `path`, or `actor` fields (those are used in the results log for technical detail).
-
-**When the actor/context matters to the concept (security, CORS, auth):** include it in the label. The actor IS the point of the test.
-
-```
-// GOOD: CORS level -- origin is the differentiator
-{ label: 'GET /posts (from localhost)', actor: 'localhost:3001', expectedResult: 'allowed' }
-{ label: 'GET /posts (from evil.com)', actor: 'evil.example.com', expectedResult: 'blocked' }
-
-// GOOD: Authorization level -- actor role is the point
-{ label: 'Owner edits own post', actor: 'owner (user_3)', expectedResult: 'allowed' }
-{ label: 'Stranger deletes post', actor: 'stranger (user_7)', expectedResult: 'blocked' }
-```
-
-**When the actor/context is irrelevant (performance, refactoring):** omit it from the label. The fetching strategy or pattern IS the point, not who calls it.
-
-```
-// GOOD: Performance level -- strategy is the differentiator
-{ label: 'CSV Export', actor: 'admin', expectedResult: 'allowed' }
-{ label: 'Nightly Sync', actor: 'scheduler', expectedResult: 'allowed' }
-{ label: 'Wide Fetch', actor: 'legacy_client', expectedResult: 'blocked' }
-```
-
-**Cross-phase consistency:** If the observe phase ProbeTerminal has a button labeled "CSV Export", the reward phase StressTestPanel should also say "CSV Export" (not `GET /api/v1/users/export.csv as admin`). The player must recognize the same endpoint across phases.
-
-**Checklist:**
-- [ ] Each `label` is unique within the scenario array (no duplicate button text)
-- [ ] Labels include actor context only when the actor is relevant to the concept being taught
-- [ ] Labels match the corresponding observe-phase probe labels for overlapping endpoints
-- [ ] Labels are concise enough to fit in a button without truncation
-
-#### When custom visualization IS used
-
-If the level uses a custom visualization for the reward:
-
-- [ ] Player has clickable controls that trigger visual reactions
-- [ ] Visual elements update dynamically (color changes, animations, state transitions) in response to player actions
-- [ ] Some form of counter or progress tracker shows cumulative results
-- [ ] The visualization clearly shows the fix working (green/success states) vs what would have failed before (red/blocked states)
-- [ ] Allowed/success scenarios look visibly different from the observe phase (see "Same component, different visual state" in Cross-Phase Consistency)
+For StressTestPanel response lines rules, button label conventions, and custom reward visualization details, see [reward-phase-guide.md](reward-phase-guide.md).
 
 #### Left panel (reward)
 
@@ -894,8 +363,6 @@ If the level uses a custom visualization for the reward:
 
 ### Step Quality (Is the Build Phase Satisfying?)
 
-Beyond structural correctness, check that each step is meaningful and the level feels like a progression:
-
 - [ ] **Every step requires a real decision.** If a step's correct answer is "do nothing" or "let it happen automatically," it's not a real step. The player should actively build something at every step.
 - [ ] **Steps don't reveal each other's answers.** If Step 0's correct option contains the exact code Step 1 will ask about, the player can read ahead. Use placeholders (`[...]`, `...`) in earlier steps when later steps will fill in the details.
 - [ ] **Code preview evolves progressively.** Each completed step should visibly change the right panel code. If two steps produce the same code preview, one of them feels invisible.
@@ -904,148 +371,18 @@ Beyond structural correctness, check that each step is meaningful and the level 
 
 ### Cross-Phase Consistency (Non-Negotiable)
 
-These checks cut across all phases. Every level redesign or modification must pass all of them.
+- [ ] **Visual language is consistent across phases.** Observe and reward use the same visual components.
+- [ ] **Same component, different visual state.** Observe = red/alarming, reward = green/calm. A screenshot of each phase must look visibly different.
+- [ ] **Build steps address all problems shown in the intro.** Every highlighted problem gets a player decision.
+- [ ] **Reward closes the loop on intro's stated problems.** Each stated problem gets a concrete resolution.
+- [ ] **Reward scenario data does not contradict shared visualization components.** If a scenario reuses a lane/zone, check SQL, labels, and banners for consistency.
+- [ ] **Reward phase type matches observe type.** Type 3/4 -> StressTestPanel. Type 2 -> static before/after. Type 1 -> may not need reward.
 
-#### Visual language must be consistent across phases
-
-The intro/observe visualization and the reward visualization must use the **same visual language**. If the intro shows annotated code with colored left borders, the reward must show annotated code with colored left borders (now green instead of amber). If the intro shows a pipeline with nodes, the reward must show the same pipeline with nodes (now fixed).
-
-```
-BAD: Intro uses annotated code blocks -> Reward uses a two-zone architecture diagram
-     (completely different visual language, player can't compare before/after)
-
-GOOD: Intro uses annotated code blocks (amber borders, "Side Effect" badges)
-   -> Reward uses annotated code blocks (green borders, "Isolated" badges)
-      (same visual language, player sees the transformation)
-```
-
-**Case study:** L16 originally showed annotated code in the intro but switched to a Controller box + FlowConnector + Service box layout in the reward. The player couldn't visually compare before and after because they looked nothing alike.
-
-#### Same component, different visual state (non-negotiable)
-
-"Same visual language" does NOT mean "identical appearance." The observe and reward phases reuse the same visualization component, but they must show **visibly different states** so the player can immediately tell the fix is working. If a player screenshots both phases and they look the same, the reward has failed.
-
-The distinction comes from what the visualization emphasizes:
-- **Observe phase** shows the PROBLEM: alarming colors (red), everything activated/wasteful, big numbers
-- **Reward phase** shows the SOLUTION: calm colors (green for success, neutral/dim for unused), only the relevant parts activated, small numbers
-
-When building a shared visualization component for both phases, add a `mode` prop (or equivalent state) that controls the color logic, not just the data. The component must render differently depending on whether it's showing broken state vs fixed state.
-
-```
-BAD: Same component, same visual logic, different data
-     Observe: 2 green columns, 28 red columns, red memory bar, green memory bar
-     Reward:  2 green columns, 28 red columns, red memory bar, green memory bar
-     (Player can't tell which phase they're in. The "fix" looks identical to the problem.)
-
-GOOD: Same component, mode-aware visual logic
-     Observe: ALL columns red (SELECT * waste) -> 2 flash green (contrast teaches the ratio)
-     Reward:  Only 2 columns glow green, 28 stay neutral/dim (clean, efficient, no red)
-     (Observe feels alarming. Reward feels calm. The visual shift IS the lesson.)
-```
-
-The rule: **observe shows what's wrong (red dominates), reward shows what's right (green dominates, red only appears for blocked/failed scenarios).** If the reward still shows red for successful scenarios, it's not showing the fix working.
-
-**Checklist:**
-- [ ] Observe and reward use the same visualization component
-- [ ] The component has a mode/state that changes its color logic between phases
-- [ ] Observe: problem state dominates (red, alarming, wasteful)
-- [ ] Reward (allowed): solution state dominates (green, calm, efficient). No red for successful outcomes.
-- [ ] Reward (blocked): problem state returns (red) to show what the fix prevents
-- [ ] A screenshot of each phase would look visibly different even without reading text
-
-**Case study: L25 Narrow Fetching (identical observe and reward was wrong)**
-
-L25 uses a "Data Table Heatmap" showing 30 database columns. The original implementation used the same color logic for both phases: fire a probe/scenario, all 30 columns turn red, then the 2 needed columns flash green, memory gauge shows red bar + green bar. The observe and reward phases were visually indistinguishable.
-
-This failed because:
-- The reward for "CSV Export (pluck)" showed 28 red columns + 2 green. But pluck SOLVED the problem. Why is there still red? The player sees the same alarming visual as the observe phase and doesn't feel like the fix worked.
-- The memory gauge showed both a red "681 MB wasted" bar and a green "2.35 MB" bar in the reward. But with pluck, there IS no 681 MB load. The red bar represents a hypothetical waste that doesn't happen anymore.
-- The player cannot visually distinguish "before fix" from "after fix" because both phases render identically.
-
-The fix: the component needs a `mode` prop. In observe mode (showing the problem): all columns go red, needed ones flash green for contrast, memory gauge shows red vs green comparison. In reward mode (showing the solution): for allowed scenarios, only the needed columns glow green against neutral/dim backgrounds, no red anywhere, memory gauge shows just the green bar. For blocked scenarios (User.all), everything goes red as before, showing what the fix prevents. The visual shift from "red everywhere" (observe) to "green on neutral" (reward) is the payoff for building the fix.
-
-#### Build steps must address all problems shown in the intro
-
-Every problem highlighted in the intro/observe phase must have a corresponding build step where the player solves it. If the intro shows N distinct problems, the build phase must have steps that address all N of them (possibly grouped, but none silently skipped).
-
-```
-BAD: Intro highlights 4 responsibilities (core + 3 side effects)
-     Build has 3 steps: choose pattern, define Result, wire controller
-     (The 3 side effects magically appear in the final code without the player deciding anything)
-
-GOOD: Intro highlights 4 responsibilities (core + 3 side effects)
-      Build has 4 steps: choose pattern, define Result, move side effects, wire controller
-      (Every responsibility gets addressed by a player decision)
-```
-
-**Case study:** L16 originally had 3 build steps but the intro showed 4 responsibilities. The side effects (logging, preferences, token) appeared in the generated code without the player making any decision about where they should go.
-
-#### Reward must close the loop on intro's stated problems
-
-If the intro states specific problems (e.g., "can't be reused by a rake task, tested without HTTP, or understood at a glance"), the reward must explicitly show that each problem is now solved. A generic "it's fixed now" message is not enough.
-
-```
-BAD: Intro says "can't be reused, can't be tested, can't be read"
-     Reward says "Each responsibility is isolated."
-     (Generic, doesn't prove the specific claims)
-
-GOOD: Intro says "can't be reused, can't be tested, can't be read"
-      Reward shows a "Problems Solved" checklist:
-      ✓ Reusable: UserRegistration.call(params) works from controllers, rake tasks, console
-      ✓ Testable: Unit test calls .call directly, no request context needed
-      ✓ Readable: Controller is 8 lines, service has one clear public method
-      (Each original problem gets a concrete resolution)
-```
-
-**Case study:** L16's intro callout stated three specific problems but the reward had a one-line generic message. Now it has a checklist mapping each problem to its solution.
-
-#### Reward scenario data must not contradict shared visualization components (non-negotiable)
-
-When the reward phase reuses a shared visualization component (lanes, zones, nodes) across multiple scenarios, each scenario's data must be consistent with what the component displays. A common bug: a scenario maps to a lane/zone whose header shows static data (SQL query, label, table name) that contradicts the scenario's actual behavior.
-
-**Case study: L26 "Admin: list all users" contradiction**
-
-L26 has 3 query lanes (Email Lookup, FK Lookup, Composite Query). The `admin-all-users` stress scenario mapped to the `email` lane (since it queries the `users` table). But the Email Lookup lane's header always showed `SELECT * FROM users WHERE email = 'alice@example.com'`. When the admin scenario fired, the player saw:
-
-```
-BAD:
-  Header:  "Email Lookup (users)"
-  SQL:     SELECT * FROM users WHERE email = 'alice@example.com'
-  Banner:  "Full table scan (no WHERE clause)"
-  ← The SQL HAS a WHERE clause, but the banner says there is none!
-```
-
-The fix: add `sqlOverride` and `labelOverride` fields to scenario data so the component can display scenario-specific text instead of the lane's default.
-
-```
-GOOD:
-  Header:  "Admin: All Users (users)"    ← labelOverride
-  SQL:     SELECT * FROM users            ← sqlOverride (no WHERE clause)
-  Banner:  "Full table scan (no WHERE clause)"
-  ← Now the SQL and banner are consistent
-```
-
-**Checklist:**
-- [ ] **Every reward scenario's data is consistent with its lane/zone header.** If a scenario has a WHERE clause but the lane header says "no WHERE clause" (or vice versa), add an override.
-- [ ] **Scenario labels make sense in the lane context.** If "Admin: list all users" renders inside an "Email Lookup" lane, the label should override to something that makes sense.
-- [ ] **Banners, badges, and status text reference the correct SQL.** If a banner says "no WHERE clause" or "no index applicable," verify the displayed SQL actually has no WHERE clause.
-- [ ] **Write tests that cross-check scenario data against lane/zone definitions.** These contradictions are invisible in code review but obvious in the UI. Automated tests catch them before the player does.
-
-#### Reward phase type must match the level's observe type
-
-Not every level needs an interactive stress test in the reward phase. The reward mechanism should match the level type:
-
-| Observe type | Reward mechanism | Example |
-|---|---|---|
-| Type 3/4 (interactive observe with probes) | StressTestPanel: player fires requests, sees fix working | L12 Authorization, L15 CORS |
-| Type 2 (static intro, code-structure level) | Static before/after contrast + problems-solved checklist | L16 Service Objects |
-| Type 1 (no observe) | May not need a reward visualization at all | L1 Setup |
-
-A stress test ("fire requests and check allowed/blocked") makes no sense for a refactoring level where the fix doesn't change what requests get through. The reward for a refactoring level is seeing the clean code structure and confirming the original problems are resolved.
+For detailed guidance with case studies (L16, L25, L26), see [cross-phase-consistency.md](cross-phase-consistency.md).
 
 ### State Machine
 
-Check the phase transitions. Three valid patterns exist (matching the four observe types):
+Three valid patterns exist (matching the four observe types):
 
 **Type 1: No observe (setup levels):**
 - [ ] State uses `phase: 'build' | 'activate' | 'reward'` or `phase: 'build' | 'complete'`
@@ -1074,23 +411,21 @@ Check the phase transitions. Three valid patterns exist (matching the four obser
 Verify that any custom animations follow Tailwind v4 / Lightning CSS constraints:
 
 - [ ] **No `var()` inside `@keyframes`.** Lightning CSS silently strips keyframes containing CSS variable references. Use fixed values or percentage-based positioning instead.
-- [ ] **New `@theme` entries registered.** If the level introduces custom animation keyframes, they must be registered in `@theme inline {}` in `global.css` (e.g., `--animate-flow-dot-down: flow-dot-down 1.2s ease-in-out infinite;`). Note: this requires a dev server restart to take effect.
+- [ ] **New `@theme` entries registered** in `@theme inline {}` in `global.css` for custom keyframes (e.g., `--animate-flow-dot-down: flow-dot-down 1.2s ease-in-out infinite;`). Note: this requires a dev server restart to take effect.
 - [ ] **No inline `style` attributes for animations.** Use Tailwind `animate-*` classes instead of inline `animation:` styles, so the build system includes the referenced keyframes.
-- [ ] **`FlowConnector` used instead of `ArrowDown` icons.** Between zones in custom layouts, use the `FlowConnector` component (not Lucide ArrowDown icons or dashed borders).
+- [ ] **`FlowConnector` used instead of `ArrowDown` icons.**
 - [ ] **`FlowConnector` direction matches the visualization's data flow.** Dots must travel in the same direction data flows in the visualization. A mismatch (e.g., vertical dots in a left-to-right layout) breaks the visual metaphor.
 
 ### Color Contrast Checks (Light + Dark Mode)
 
-Every color choice must be visible and readable on both white and dark backgrounds. Custom visualization nodes (React Flow nodes, zone cards, etc.) are especially prone to contrast issues because they use explicit color classes rather than semantic tokens.
-
 - [ ] **No hardcoded dark-only colors.** Do not use fixed `text-zinc-200`, `text-zinc-400`, `bg-zinc-800`, `bg-emerald-900/40`, `bg-red-900/40` etc. without `dark:` counterparts. These are invisible or washed out in light mode. Use semantic tokens (`text-foreground`, `text-muted-foreground`, `bg-card`, `border-border`) where possible, and add explicit `dark:` variants for any fixed Tailwind colors.
-- [ ] **Badge/pill text contrast.** Badge text like `text-emerald-400` or `text-red-400` is unreadable on light backgrounds. Use darker shades for light mode: `text-emerald-700 dark:text-emerald-400`, `text-red-700 dark:text-red-400`.
-- [ ] **Zone/node backgrounds adapt to theme.** Active zone backgrounds should use light tints in light mode and dark tints in dark mode: `bg-emerald-100 dark:bg-emerald-900/40`, `bg-red-100 dark:bg-red-900/40`.
+- [ ] **Badge/pill text contrast.** Use `text-emerald-700 dark:text-emerald-400`, not just `text-emerald-400`.
+- [ ] **Zone/node backgrounds adapt to theme.** `bg-emerald-100 dark:bg-emerald-900/40`.
 - [ ] **Semi-transparent backgrounds do not leak.** If a node/zone uses a semi-transparent background (e.g., `bg-red-900/40`), verify the underlying canvas color does not bleed through and create unreadable contrast. Prefer opaque backgrounds for states like panic/danger.
 - [ ] **Scrollbar artifacts.** If a node/zone has scrollable content (`overflow-y-auto`, `max-h-*`), check that the scrollbar track does not create visible contrast artifacts against the node background. Prefer expanding height over scrolling when content is short.
-- [ ] **Terminal components use adaptive colors, not always-dark.** The shared terminal components (`ProbeTerminal`, `StressTestPanel`, `SimulatedTerminal`) use adaptive light/dark styling. They are light in light mode (`bg-zinc-50`) and dark in dark mode (`dark:bg-zinc-900`). If a level builds custom terminal-like UI, it must follow the same pattern. Never use always-dark terminal colors like `bg-zinc-900` without a `bg-zinc-50` light-mode counterpart.
+- [ ] **Terminal components use adaptive colors.** The shared terminal components (ProbeTerminal, StressTestPanel, SimulatedTerminal) use adaptive light/dark styling. They are light in light mode (`bg-zinc-50`) and dark in dark mode (`dark:bg-zinc-900`). If a level builds custom terminal-like UI, it must follow the same pattern. Never use always-dark terminal colors like `bg-zinc-900` without a `bg-zinc-50` light-mode counterpart.
 
-**Terminal adaptive color reference (already built into the shared components):**
+**Terminal adaptive color reference (built into shared components):**
 
 | Element | Light mode | Dark mode |
 |---------|-----------|-----------|
