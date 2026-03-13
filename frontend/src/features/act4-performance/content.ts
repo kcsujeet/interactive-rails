@@ -918,7 +918,7 @@ const level28Pagination: Level = {
 	},
 	problem: {
 		observation:
-			'`GET /api/posts` returns all 50K posts at once. Response size: 12MB. Load time: 8 seconds. Mobile clients crash from memory usage.',
+			'The controller calls `Post.includes(:user).all` with no limit. Ruby loads 50K ActiveRecord objects into memory, serializes every one, and sends a single 12MB JSON array. There is no way for clients to request a specific page.',
 		rootCause:
 			'No pagination. Post.all loads the entire table into memory and serializes every record.',
 		codeExample: `# app/controllers/api/v1/posts_controller.rb
@@ -939,7 +939,7 @@ end
 # 2. Ruby serializes 50K objects
 # 3. Client parses 12MB JSON
 # 4. No way to request "page 2"`,
-		goal: 'Install Pagy, include Pagy::Backend, paginate the index action, and add RFC 5988 Link headers.',
+		goal: 'Install Pagy, include Pagy::Method, configure Pagy::OPTIONS[:limit], paginate with pagy(:offset, scope), and add RFC 5988 Link headers via headers_hash.',
 		thresholds: { maxLatency: 100 },
 	},
 	successConditions: [{ type: 'pagination_implemented' }],
@@ -993,32 +993,22 @@ Cursor-based: GET /posts?cursor=eyJpZCI6MTI0NzZ9
 - Supports offset, cursor, and keyset pagination
 - Built-in Link header support for APIs`,
 		railsCodeExample: `# Gemfile
-gem 'pagy'
+gem 'pagy', '~> 43.3'
+
+# config/initializers/pagy.rb
+Pagy::OPTIONS[:limit] = 25
 
 # app/controllers/application_controller.rb
 class ApplicationController < ActionController::API
-  include Pagy::Backend
-
-  private
-
-  def pagy_headers(pagy)
-    links = []
-    links << %(<#{request.url.sub(/[?&]page=\\d+/, '')}?page=#{pagy.next}>; rel="next") if pagy.next
-    links << %(<#{request.url.sub(/[?&]page=\\d+/, '')}?page=#{pagy.prev}>; rel="prev") if pagy.prev
-    links << %(<#{request.url.sub(/[?&]page=\\d+/, '')}?page=#{pagy.last}>; rel="last")
-    response.headers['Link'] = links.join(', ')
-    response.headers['X-Total-Count'] = pagy.count.to_s
-    response.headers['X-Page'] = pagy.page.to_s
-    response.headers['X-Per-Page'] = pagy.items.to_s
-  end
+  include Pagy::Method
 end
 
 # app/controllers/api/v1/posts_controller.rb
 class Api::V1::PostsController < ApplicationController
   def index
-    @pagy, @posts = pagy(Post.includes(:user), items: 25)
-    pagy_headers(@pagy)
-    render json: PostSerializer.new(@posts).serializable_hash.to_json
+    @pagy, @posts = pagy(:offset, Post.includes(:user))
+    response.headers.merge!(@pagy.headers_hash)
+    render json: PostSerializer.new(@posts)
   end
 end
 
@@ -1026,27 +1016,9 @@ end
 # HTTP/1.1 200 OK
 # Link: <http://api.example.com/posts?page=2>; rel="next",
 #       <http://api.example.com/posts?page=2000>; rel="last"
-# X-Total-Count: 50000
-# X-Page: 1
-# X-Per-Page: 25
 # Content-Length: 6250
 #
-# [{"id":1,...},...,{"id":25,...}]  (25 items only!)
-
-# Cursor-based pagination (for infinite scroll):
-class Api::V1::FeedController < ApplicationController
-  def index
-    scope = Post.where(published: true).order(created_at: :desc)
-
-    if params[:after]
-      cursor_post = Post.find(params[:after])
-      scope = scope.where("created_at < ?", cursor_post.created_at)
-    end
-
-    @posts = scope.limit(25)
-    render json: PostSerializer.new(@posts).serializable_hash.to_json
-  end
-end`,
+# [{"id":1,...},...,{"id":25,...}]  (25 items only!)`,
 		commonMistakes: [
 			'Using offset pagination for deep pages on large tables (OFFSET 100000 is slow)',
 			'Not including pagination metadata in the response (Link headers or meta object)',
@@ -1077,7 +1049,7 @@ end`,
 	},
 	hint: {
 		delay: 20,
-		text: 'Pagy uses a two-return-value pattern: @pagy, @posts = pagy(scope). The first value is metadata (page, count, links), the second is the paginated ActiveRecord relation.',
+		text: 'Pagy v43 uses pagy(:offset, scope). The first return value is metadata (page, count, headers_hash), the second is the paginated ActiveRecord relation.',
 	},
 };
 

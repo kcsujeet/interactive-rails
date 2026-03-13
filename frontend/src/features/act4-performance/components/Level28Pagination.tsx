@@ -4,25 +4,38 @@
  * Sequential phase flow: observe -> build -> activate -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
- * Phase 1 (WHY - observe): Performance pipeline visualization. The player
- *   fires API requests against GET /api/posts and sees how the response grows
- *   with the full dataset. Click pipeline stages to inspect code, fire probes
- *   to discover the response size, memory, and mobile crash problems.
- * Phase 2 (HOW - build): 5 steps (2 terminal + 3 OptionCard) implementing Pagy
- *   Step 0: bundle add pagy (terminal)
- *   Step 1: include Pagy::Backend in ApplicationController (OptionCard)
- *   Step 2: Configure pagy initializer items: 25 (OptionCard)
- *   Step 3: Wire up the index action with pagy (OptionCard)
- *   Step 4: Add Link headers for API clients (OptionCard)
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Pagination" button
- * Phase 4 (ADVANTAGE - reward): Stress test. Fire paginated requests and
- *   watch page sizes, response times, and Link headers.
+ * Phase 1 (WHY - observe): Custom "Record Grid + Response Payload" visualization.
+ *   Two-zone layout stacked vertically: database grid (100 blocks = 50K records)
+ *   and response zone showing payload size. Player fires probes and watches all
+ *   100 blocks cascade red row by row, with the response zone filling red.
+ *   ProbeTerminal drives probes, clickable zones reveal StageInspector.
  *
- * Teaches: Pagy gem, include Pagy::Backend, pagy(), pagy_headers_merge
+ * Phase 2 (HOW - build): 5 steps (1 terminal + 4 OptionCard) implementing Pagy v43
+ *   Step 0: bundle add pagy (terminal)
+ *   Step 1: include Pagy::Method in ApplicationController (OptionCard)
+ *   Step 2: Configure Pagy::OPTIONS[:limit] = 25 (OptionCard)
+ *   Step 3: Wire up pagy(:offset, Post.includes(:user)) (OptionCard)
+ *   Step 4: Add response.headers.merge!(@pagy.headers_hash) (OptionCard)
+ *
+ * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Pagination" button
+ * Phase 4 (ADVANTAGE - reward): Same two-zone layout, now showing the fix.
+ *   Allowed: one block glows green (page window), response shows 6KB.
+ *   Blocked (page 99999): no blocks, response shows overflow error.
+ *
+ * Teaches: Pagy v43 gem, Pagy::Method, Pagy::OPTIONS, pagy(:offset, ...), headers_hash
  */
 
-import { ArrowRight, Check, Play, Star, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+	ArrowRight,
+	Database,
+	Globe,
+	Info,
+	Play,
+	Search,
+	Star,
+	Zap,
+} from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -42,18 +55,17 @@ import {
 	type ValidationResult,
 } from '@/components/levels';
 import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
+import { FlowConnector } from '@/components/levels/FlowConnector';
 import {
-	type PipelineConnection,
-	PipelineFlow,
-	type PipelineStage,
-} from '@/components/levels/PipelineFlow';
-import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
-import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
+	type ProbeConfig,
+	ProbeTerminal,
+} from '@/components/levels/ProbeTerminal';
 import {
 	StageInspector,
 	type StageInspectorData,
 } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
+import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import {
@@ -62,12 +74,40 @@ import {
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { cn } from '@/lib/utils';
 
 // ──────────────────────────────────────────────
 // Phase type
 // ──────────────────────────────────────────────
 
 type Phase = 'observe' | 'build' | 'activate' | 'reward';
+
+// ──────────────────────────────────────────────
+// Visualization state types
+// ──────────────────────────────────────────────
+
+type VizMode = 'idle' | 'cascade' | 'page-window' | 'overflow';
+
+// ──────────────────────────────────────────────
+// Constants
+// ──────────────────────────────────────────────
+
+const GRID_ROWS = 10;
+const GRID_COLS = 10;
+const TOTAL_BLOCKS = GRID_ROWS * GRID_COLS;
+
+/** Pre-generated block keys (static grid, never reordered) */
+const BLOCK_KEYS = Array.from({ length: TOTAL_BLOCKS }, (_, i) => `b${i}`);
+const RECORDS_PER_BLOCK = 500;
+const TOTAL_RECORDS = TOTAL_BLOCKS * RECORDS_PER_BLOCK; // 50,000
+
+/** Map a page number (1-based, 25 per page) to a block index (0-99), or null if out of range */
+function pageToBlock(page: number): number | null {
+	if (page < 1 || page > Math.ceil(TOTAL_RECORDS / 25)) return null;
+	const blockIndex = Math.floor((page - 1) / 20);
+	return blockIndex < TOTAL_BLOCKS ? blockIndex : null;
+}
 
 // ──────────────────────────────────────────────
 // Discovery definitions (observe phase)
@@ -149,64 +189,42 @@ const PROBE_DISCOVERY_MAP: Record<string, string> = {
 	'check-memory': 'memory-spike',
 };
 
-// Map probe IDs to pipeline node display during observe
-const PROBE_PIPELINE_MAP: Record<
-	string,
-	{ responseSublabel: string; responseBadge: string }
-> = {
-	'get-all-posts': {
-		responseSublabel: '12MB JSON',
-		responseBadge: '50K rows!',
-	},
-	'get-mobile': {
-		responseSublabel: 'OOM crash',
-		responseBadge: 'CRASH',
-	},
-	'check-memory': {
-		responseSublabel: '180MB alloc',
-		responseBadge: '100K objs',
-	},
-};
-
 // ──────────────────────────────────────────────
-// Stage inspector data (observe phase)
+// Zone inspector data (observe phase)
 // ──────────────────────────────────────────────
 
-const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
-	controller: {
-		stageId: 'controller',
-		title: 'PostsController#index',
+const ZONE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
+	database: {
+		stageId: 'database',
+		title: 'posts table (50,000 rows)',
 		description:
-			'The controller calls Post.includes(:user).all with no limit. Every row in the posts table is loaded into memory and serialized.',
-		code: `def index
-  @posts = Post.includes(:user).all
-  render json: PostSerializer.new(@posts)
-end`,
-	},
-	model: {
-		stageId: 'model',
-		title: 'Post.all (50,000 rows)',
-		description:
-			'Active Record instantiates 50,000 Post objects and 50,000 associated User objects. Each object consumes ~1.8KB of heap memory.',
-	},
-	serializer: {
-		stageId: 'serializer',
-		title: 'PostSerializer (no limit)',
-		description:
-			'The serializer converts all 50K objects to JSON. The resulting payload is 12MB. No pagination metadata, no Link headers, no way for the client to request a subset.',
+			'The controller calls Post.includes(:user).all with no limit. Active Record instantiates every row in the table, allocating ~180MB of heap memory per request.',
+		code: `# PostsController#index
+@posts = Post.includes(:user).all
+# => SELECT "posts".* FROM "posts"
+# => SELECT "users".* FROM "users"
+#    WHERE "users"."id" IN (1, 2, ..., 50000)
+#
+# 50,000 Post objects + 50,000 User objects loaded`,
 	},
 	response: {
 		stageId: 'response',
-		title: 'Response (12MB)',
+		title: 'Response (12MB JSON)',
 		description:
-			'A single 12MB JSON array is sent to the client. Mobile clients on slow connections time out or crash trying to parse the payload. There is no way to request "page 2".',
+			'The serializer converts all 50,000 objects to a single JSON array. No pagination headers, no Link rel="next", no way for the client to request a subset. Mobile clients crash parsing this payload.',
+		code: `# Response headers:
+# Content-Length: 12,582,912
+# Content-Type: application/json
+#
+# No Link header
+# No X-Total-Count
+# No way to request "page 2"`,
 	},
 };
 
-// Map stage IDs to discovery IDs they trigger
-const STAGE_DISCOVERY_MAP: Record<string, string> = {
-	controller: 'no-pagination',
-	response: 'huge-response',
+// Map zone IDs to discovery IDs they trigger
+const ZONE_DISCOVERY_MAP: Record<string, string> = {
+	database: 'no-pagination',
 };
 
 // ──────────────────────────────────────────────
@@ -222,6 +240,14 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		path: '/api/v1/posts',
 		actor: 'web client',
 		expectedResult: 'allowed',
+		responseLines: [
+			{ text: 'HTTP/1.1 200 OK', color: 'green' },
+			{
+				text: 'Link: </posts?page=2>; rel="next", </posts?page=2000>; rel="last"',
+				color: 'green',
+			},
+			{ text: 'Content-Length: 6,250  (6KB, 25 items)', color: 'green' },
+		],
 	},
 	{
 		id: 'page-50',
@@ -231,6 +257,14 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		path: '/api/v1/posts?page=50',
 		actor: 'web client',
 		expectedResult: 'allowed',
+		responseLines: [
+			{ text: 'HTTP/1.1 200 OK', color: 'green' },
+			{
+				text: 'Link: </posts?page=49>; rel="prev", </posts?page=51>; rel="next"',
+				color: 'green',
+			},
+			{ text: 'Content-Length: 6,250  (6KB, 25 items)', color: 'green' },
+		],
 	},
 	{
 		id: 'page-2000',
@@ -240,6 +274,14 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		path: '/api/v1/posts?page=2000',
 		actor: 'mobile client',
 		expectedResult: 'allowed',
+		responseLines: [
+			{ text: 'HTTP/1.1 200 OK', color: 'green' },
+			{
+				text: 'Link: </posts?page=1999>; rel="prev"',
+				color: 'green',
+			},
+			{ text: 'Content-Length: 6,250  (6KB, 25 items)', color: 'green' },
+		],
 	},
 	{
 		id: 'mobile-page-1',
@@ -249,6 +291,14 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		path: '/api/v1/posts?page=1',
 		actor: 'iPhone (3G)',
 		expectedResult: 'allowed',
+		responseLines: [
+			{ text: 'HTTP/1.1 200 OK', color: 'green' },
+			{
+				text: 'Content-Length: 6,250  (6KB on 3G = 0.1s)',
+				color: 'green',
+			},
+			{ text: 'Mobile renders instantly.', color: 'green' },
+		],
 	},
 	{
 		id: 'invalid-page',
@@ -258,32 +308,45 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		path: '/api/v1/posts?page=99999',
 		actor: 'API client',
 		expectedResult: 'blocked',
+		responseLines: [
+			{ text: 'Pagy::OverflowError: page 99999 out of 1..2000', color: 'red' },
+			{ text: 'Returned: []  (empty array)', color: 'red' },
+		],
 	},
 ];
+
+// Map scenario IDs to page numbers for the reward visualization
+const SCENARIO_PAGE_MAP: Record<string, number> = {
+	'page-1': 1,
+	'page-50': 50,
+	'page-2000': 2000,
+	'mobile-page-1': 1,
+	'invalid-page': 99999,
+};
 
 // ──────────────────────────────────────────────
 // Step definitions (5 steps: 1 terminal + 4 OptionCard)
 // ──────────────────────────────────────────────
 
 const STEP_DEFS: StepDef[] = [
-	{ id: 'add-gem', title: 'Add the Pagy Gem' },
-	{ id: 'include-backend', title: 'Include Pagy::Backend' },
-	{ id: 'configure-items', title: 'Configure Items Per Page' },
-	{ id: 'wire-index', title: 'Paginate the Index Action' },
-	{ id: 'add-headers', title: 'Add Link Headers' },
+	{ id: 'add-gem', title: 'Install Pagination Gem' },
+	{ id: 'include-method', title: 'Include Controller Module' },
+	{ id: 'configure-limit', title: 'Set Page Size' },
+	{ id: 'wire-index', title: 'Paginate the Query' },
+	{ id: 'add-headers', title: 'Add Navigation Headers' },
 ];
 
-// Step type: 'terminal' or 'option', indexed by step number
+// Step type indexed by step number
 const STEP_TYPES: ('terminal' | 'option')[] = [
 	'terminal', // 0: bundle add pagy
-	'option', // 1: include Pagy::Backend
-	'option', // 2: configure items
+	'option', // 1: include Pagy::Method
+	'option', // 2: configure limit
 	'option', // 3: wire pagy into index
 	'option', // 4: add Link headers
 ];
 
 // ──────────────────────────────────────────────
-// Step 0: Add the Pagy Gem (Terminal)
+// Step 0: Install Pagination Gem (Terminal)
 // ──────────────────────────────────────────────
 
 const addGemCommands: TerminalCommand[] = [
@@ -296,6 +359,12 @@ const addGemCommands: TerminalCommand[] = [
 			'Kaminari works but is significantly slower. The recommended pagination gem is 40x faster with a smaller memory footprint.',
 	},
 	{
+		id: 'correct',
+		label: 'bundle add pagy',
+		command: 'bundle add pagy',
+		correct: true,
+	},
+	{
 		id: 'wrong-will-paginate',
 		label: 'bundle add will_paginate',
 		command: 'bundle add will_paginate',
@@ -303,22 +372,16 @@ const addGemCommands: TerminalCommand[] = [
 		feedback:
 			'will_paginate is a legacy gem. The modern alternative is faster and supports offset, cursor, and keyset strategies.',
 	},
-	{
-		id: 'correct',
-		label: 'bundle add pagy',
-		command: 'bundle add pagy',
-		correct: true,
-	},
 ];
 
 const addGemOutput: TerminalOutputLine[] = [
-	{ text: 'Fetching pagy 9.3.3', color: 'cyan' },
-	{ text: 'Installing pagy 9.3.3', color: 'muted' },
+	{ text: 'Fetching pagy 43.3.2', color: 'cyan' },
+	{ text: 'Installing pagy 43.3.2', color: 'muted' },
 	{ text: 'Bundle complete! 14 Gemfile dependencies.', color: 'green' },
 ];
 
 // ──────────────────────────────────────────────
-// OptionCard step data type
+// OptionCard step data
 // ──────────────────────────────────────────────
 
 interface StepOption {
@@ -328,10 +391,7 @@ interface StepOption {
 	feedback?: string;
 }
 
-// ──────────────────────────────────────────────
 // Terminal step map (for buildTerminalHistory)
-// ──────────────────────────────────────────────
-
 const SHELL_STEP_MAP: (TerminalStepData | null)[] = [
 	{ commands: addGemCommands, outputLines: addGemOutput },
 	null, // step 1: OptionCard
@@ -346,44 +406,44 @@ const SHELL_STEP_MAP: (TerminalStepData | null)[] = [
 
 const INCLUDE_OPTIONS: StepOption[] = [
 	{
-		id: 'wrong-concern',
+		id: 'wrong-frontend',
 		label: 'include Pagy::Frontend',
 		correct: false,
 		feedback:
-			'Pagy::Frontend is for view helpers (HTML pagination links). API controllers need the backend module that provides the pagy() method.',
+			'Pagy::Frontend is for view helpers (HTML pagination links). API controllers need the module that provides the pagy() method.',
 	},
 	{
 		id: 'correct',
-		label: 'include Pagy::Backend',
+		label: 'include Pagy::Method',
 		correct: true,
 	},
 	{
-		id: 'wrong-kaminari',
-		label: 'include Kaminari::PageScopeMethods',
+		id: 'wrong-backend',
+		label: 'include Pagy::Backend',
 		correct: false,
 		feedback:
-			'That is from a different pagination gem. You installed Pagy, so use its controller module.',
+			'That was the old module name from Pagy v8 and earlier. The v43+ API uses a different module name.',
 	},
 ];
 
 const CONFIGURE_OPTIONS: StepOption[] = [
 	{
 		id: 'wrong-100',
-		label: 'Pagy::DEFAULT[:items] = 100',
+		label: 'Pagy::OPTIONS[:limit] = 100',
 		correct: false,
 		feedback:
 			'100 items per page is still too large for mobile clients. A typical API page size is much smaller.',
 	},
 	{
-		id: 'wrong-limit',
-		label: 'Pagy::DEFAULT[:limit] = 25',
+		id: 'wrong-old-api',
+		label: 'Pagy::DEFAULT[:items] = 25',
 		correct: false,
 		feedback:
-			'Pagy uses :items for the per-page count, not :limit. Check the Pagy configuration API.',
+			'That is the old Pagy API (pre-v43). The current version uses OPTIONS and :limit instead of DEFAULT and :items.',
 	},
 	{
 		id: 'correct',
-		label: 'Pagy::DEFAULT[:items] = 25',
+		label: 'Pagy::OPTIONS[:limit] = 25',
 		correct: true,
 	},
 ];
@@ -397,16 +457,17 @@ const WIRE_INDEX_OPTIONS: StepOption[] = [
 			'That is Kaminari syntax. Pagy uses a different API: the pagy() method returns both metadata and the paginated collection.',
 	},
 	{
-		id: 'correct',
-		label: '@pagy, @posts = pagy(Post.includes(:user))',
-		correct: true,
-	},
-	{
 		id: 'wrong-manual',
-		label: '@posts = Post.includes(:user).limit(25).offset(params[:page].to_i * 25)',
+		label:
+			'@posts = Post.includes(:user).limit(25).offset(params[:page].to_i * 25)',
 		correct: false,
 		feedback:
 			'Manual LIMIT/OFFSET works but loses pagination metadata (total count, page links). The gem handles this automatically.',
+	},
+	{
+		id: 'correct',
+		label: '@pagy, @posts = pagy(:offset, Post.includes(:user))',
+		correct: true,
 	},
 ];
 
@@ -419,16 +480,16 @@ const HEADERS_OPTIONS: StepOption[] = [
 			'Embedding pagination in the JSON body is non-standard. RFC 5988 specifies Link headers so the payload stays clean.',
 	},
 	{
+		id: 'correct',
+		label: 'response.headers.merge!(@pagy.headers_hash)',
+		correct: true,
+	},
+	{
 		id: 'wrong-custom',
 		label: 'response.headers["X-Pagination"] = @pagy.to_json',
 		correct: false,
 		feedback:
-			'Custom headers are non-standard. Pagy has built-in support for RFC 5988 Link headers.',
-	},
-	{
-		id: 'correct',
-		label: 'pagy_headers_merge(@pagy)',
-		correct: true,
+			'Custom headers are non-standard. Pagy has built-in support for RFC 5988 Link headers via headers_hash.',
 	},
 ];
 
@@ -441,49 +502,30 @@ const OPTION_STEP_CONFIG: Record<
 	}
 > = {
 	1: {
-		title: 'Include Pagy::Backend',
+		title: 'Include Controller Module',
 		description:
-			'Pagy is installed. Your ApplicationController needs the module that provides the pagy() pagination method to all controllers.',
+			'The gem is installed. Your ApplicationController needs the module that provides the pagination method to all controllers.',
 		options: INCLUDE_OPTIONS,
 	},
 	2: {
-		title: 'Configure Items Per Page',
+		title: 'Set Page Size',
 		description:
-			'Set the default page size in config/initializers/pagy.rb. The current endpoint returns all 50K posts. Choose a reasonable default.',
+			'Configure the default page size in an initializer. The current endpoint returns all 50K posts. Choose a reasonable default.',
 		options: CONFIGURE_OPTIONS,
 	},
 	3: {
-		title: 'Paginate the Index Action',
+		title: 'Paginate the Query',
 		description:
-			'Replace Post.includes(:user).all with a paginated query. Pagy returns a tuple: pagination metadata and the scoped collection.',
+			'Replace Post.includes(:user).all with a paginated query. The pagination method returns a tuple: metadata and the scoped collection.',
 		options: WIRE_INDEX_OPTIONS,
 	},
 	4: {
-		title: 'Add Link Headers',
+		title: 'Add Navigation Headers',
 		description:
-			'API clients need to know how to fetch the next page. RFC 5988 Link headers are the standard way to communicate pagination URLs without polluting the JSON body.',
+			'API clients need to know how to fetch the next page. RFC 5988 headers are the standard way to communicate pagination URLs without polluting the JSON body.',
 		options: HEADERS_OPTIONS,
 	},
 };
-
-// ──────────────────────────────────────────────
-// Pipeline visualization configs
-// ──────────────────────────────────────────────
-
-const OBSERVE_CONNECTIONS: PipelineConnection[] = [
-	{ from: 'request', to: 'controller', dots: 'mixed' },
-	{ from: 'controller', to: 'model', dots: 'mixed' },
-	{ from: 'model', to: 'serializer', dots: 'mixed' },
-	{ from: 'serializer', to: 'response', dots: 'mixed' },
-];
-
-const REWARD_CONNECTIONS: PipelineConnection[] = [
-	{ from: 'request', to: 'controller', dots: 'clean' },
-	{ from: 'controller', to: 'pagy', dots: 'clean' },
-	{ from: 'pagy', to: 'model', dots: 'clean' },
-	{ from: 'model', to: 'serializer', dots: 'clean' },
-	{ from: 'serializer', to: 'response', dots: 'clean' },
-];
 
 // ──────────────────────────────────────────────
 // Code preview helper
@@ -539,7 +581,7 @@ gem "rails", "~> 8.0.0"
 gem "pg", "~> 1.1"
 gem "puma", ">= 5.0"
 gem "jsonapi-serializer"
-gem "pagy"`,
+gem "pagy", "~> 43.3"`,
 			highlight: [7],
 		});
 	}
@@ -549,7 +591,7 @@ gem "pagy"`,
 			filename: 'app/controllers/application_controller.rb',
 			language: 'ruby',
 			code: `class ApplicationController < ActionController::API
-  include Pagy::Backend
+  include Pagy::Method
 end`,
 			highlight: [2],
 		});
@@ -561,7 +603,7 @@ end`,
 			language: 'ruby',
 			code: `# frozen_string_literal: true
 
-Pagy::DEFAULT[:items] = 25`,
+Pagy::OPTIONS[:limit] = 25`,
 			highlight: [3],
 		});
 	}
@@ -574,23 +616,20 @@ Pagy::DEFAULT[:items] = 25`,
 				furthestStep >= 5
 					? `class Api::V1::PostsController < ApplicationController
   def index
-    @pagy, @posts = pagy(Post.includes(:user))
-    pagy_headers_merge(@pagy)
+    @pagy, @posts = pagy(:offset, Post.includes(:user))
+    response.headers.merge!(@pagy.headers_hash)
     render json: PostSerializer.new(@posts)
   end
 end
 
 # Response:
 # HTTP/1.1 200 OK
-# Link: <http://api.example.com/posts?page=2>; rel="next",
-#       <http://api.example.com/posts?page=2000>; rel="last"
-# X-Total-Count: 50000
-# X-Page: 1
-# X-Per-Page: 25
+# Link: </posts?page=2>; rel="next",
+#       </posts?page=2000>; rel="last"
 # Content-Length: 6,250  (25 items only!)`
 					: `class Api::V1::PostsController < ApplicationController
   def index
-    @pagy, @posts = pagy(Post.includes(:user))
+    @pagy, @posts = pagy(:offset, Post.includes(:user))
     render json: PostSerializer.new(@posts)
   end
 end`,
@@ -602,27 +641,29 @@ end`,
 }
 
 // ──────────────────────────────────────────────
-// Pipeline Legend
+// Reward Legend
 // ──────────────────────────────────────────────
 
-function PipelineLegend() {
+function PaginationLegend() {
 	return (
 		<div className="p-4 border-b border-border">
 			<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-				Pipeline Legend
+				Legend
 			</div>
 			<div className="space-y-2 text-sm">
 				<div className="flex items-center gap-2">
-					<Check className="w-4 h-4 text-success" />
+					<div className="w-3 h-3 rounded-sm bg-emerald-500 dark:bg-emerald-400" />
 					<span className="text-foreground">
-						Paginated response (25 items)
+						Active page window (25 records)
 					</span>
 				</div>
 				<div className="flex items-center gap-2">
-					<X className="w-4 h-4 text-destructive" />
-					<span className="text-foreground">
-						Invalid page (empty result)
-					</span>
+					<div className="w-3 h-3 rounded-sm bg-muted-foreground/20" />
+					<span className="text-foreground">Untouched records</span>
+				</div>
+				<div className="flex items-center gap-2">
+					<div className="w-3 h-3 rounded-sm bg-red-500 dark:bg-red-400" />
+					<span className="text-foreground">Page out of range</span>
 				</div>
 			</div>
 		</div>
@@ -636,85 +677,107 @@ function PipelineLegend() {
 export function Level28Pagination({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
-		minRequired: 3,
+		minRequired: 4,
 	});
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
-	const [inspectorData, setInspectorData] =
-		useState<StageInspectorData | null>(null);
-	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
-		new Set(),
+	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(
+		null,
 	);
-	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
+	const [inspectedZones, setInspectedZones] = useState<Set<string>>(new Set());
+	const [firedProbeCount, setFiredProbeCount] = useState(0);
 
-	// ── Build observe stages dynamically ──
-	const probeDisplay = lastProbeId
-		? PROBE_PIPELINE_MAP[lastProbeId]
-		: null;
-	const observeStages: PipelineStage[] = useMemo(
-		() => [
-			{ id: 'request', label: 'Request', inspectable: true, inspected: inspectedStages.has('request') },
-			{
-				id: 'controller',
-				label: 'Controller',
-				sublabel: 'Post.all',
-				variant: 'danger' as const,
-				inspectable: true,
-				inspected: inspectedStages.has('controller'),
-			},
-			{
-				id: 'model',
-				label: 'Post',
-				sublabel: '50K rows',
-				variant: 'danger' as const,
-				inspectable: true,
-				inspected: inspectedStages.has('model'),
-			},
-			{
-				id: 'serializer',
-				label: 'Serializer',
-				sublabel: probeDisplay ? '12MB JSON' : 'serialize all',
-				variant: 'danger' as const,
-				inspectable: true,
-				inspected: inspectedStages.has('serializer'),
-			},
-			{
-				id: 'response',
-				label: 'Response',
-				sublabel: probeDisplay ? probeDisplay.responseSublabel : '12MB payload',
-				badge: probeDisplay ? probeDisplay.responseBadge : undefined,
-				variant: 'danger' as const,
-				inspectable: true,
-				inspected: inspectedStages.has('response'),
-			},
-		],
-		[inspectedStages, probeDisplay],
+	// ── Visualization state ──
+	const [vizMode, setVizMode] = useState<VizMode>('idle');
+	const [cascadeProgress, setCascadeProgress] = useState(0); // 0..10 (row index)
+	const [activeBlock, setActiveBlock] = useState<number | null>(null); // block index for reward
+	const [vizAnimating, setVizAnimating] = useState(false);
+	const cascadeTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+	// ── Cascade animation helpers ──
+	const clearCascadeTimers = useCallback(() => {
+		for (const t of cascadeTimersRef.current) clearTimeout(t);
+		cascadeTimersRef.current = [];
+	}, []);
+
+	/** Run the red cascade animation: 10 rows cascade sequentially */
+	const runCascade = useCallback(
+		(onDone?: () => void): void => {
+			clearCascadeTimers();
+			setVizMode('cascade');
+			setCascadeProgress(0);
+			setActiveBlock(null);
+			setVizAnimating(true);
+
+			// Cascade across 10 rows, each row takes a slice of ANIMATION_DURATION_MS
+			const startDelay = Math.round(ANIMATION_DURATION_MS * 0.15);
+			const cascadeDuration = ANIMATION_DURATION_MS;
+			const perRowDelay = Math.round(cascadeDuration / GRID_ROWS);
+
+			for (let row = 1; row <= GRID_ROWS; row++) {
+				const timer = setTimeout(
+					() => {
+						setCascadeProgress(row);
+					},
+					startDelay + row * perRowDelay,
+				);
+				cascadeTimersRef.current.push(timer);
+			}
+
+			// Total: start delay + cascade + settle
+			const totalDuration =
+				startDelay +
+				GRID_ROWS * perRowDelay +
+				Math.round(ANIMATION_DURATION_MS * 0.25);
+			const endTimer = setTimeout(() => {
+				setVizAnimating(false);
+				onDone?.();
+			}, totalDuration);
+			cascadeTimersRef.current.push(endTimer);
+		},
+		[clearCascadeTimers],
 	);
 
-	// ── Build reward stages dynamically ──
-	const lastResult = stressTest.results[stressTest.results.length - 1];
-	const rewardStages: PipelineStage[] = useMemo(() => {
-		const wasBlocked = lastResult?.result === 'blocked';
-		return [
-			{ id: 'request', label: 'Request' },
-			{ id: 'controller', label: 'Controller' },
-			{
-				id: 'pagy',
-				label: 'Pagy',
-				sublabel: wasBlocked ? 'page out of range' : 'page(n), 25 items',
-				variant: wasBlocked ? ('danger' as const) : ('active' as const),
-				badge: wasBlocked ? 'EMPTY' : '25/page',
-			},
-			{ id: 'model', label: 'Post' },
-			{ id: 'serializer', label: 'Serializer' },
-			{
-				id: 'response',
-				label: 'Response',
-				sublabel: wasBlocked ? '[]' : '6KB + Link headers',
-				variant: wasBlocked ? ('danger' as const) : ('active' as const),
-			},
-		];
-	}, [lastResult]);
+	/** Show a single page window in the grid (reward allowed scenario) */
+	const runPageWindow = useCallback(
+		(blockIndex: number) => {
+			clearCascadeTimers();
+			setVizMode('page-window');
+			setCascadeProgress(0);
+			setActiveBlock(blockIndex);
+			setVizAnimating(true);
+
+			const timer = setTimeout(
+				() => setVizAnimating(false),
+				ANIMATION_DURATION_MS,
+			);
+			cascadeTimersRef.current.push(timer);
+		},
+		[clearCascadeTimers],
+	);
+
+	/** Show overflow state (reward blocked scenario) */
+	const runOverflow = useCallback(() => {
+		clearCascadeTimers();
+		setVizMode('overflow');
+		setCascadeProgress(0);
+		setActiveBlock(null);
+		setVizAnimating(true);
+
+		const timer = setTimeout(
+			() => setVizAnimating(false),
+			ANIMATION_DURATION_MS,
+		);
+		cascadeTimersRef.current.push(timer);
+	}, [clearCascadeTimers]);
+
+	const resetVisualization = useCallback(() => {
+		clearCascadeTimers();
+		setVizMode('idle');
+		setCascadeProgress(0);
+		setActiveBlock(null);
+		setVizAnimating(false);
+	}, [clearCascadeTimers]);
 
 	// ── Transition: build -> activate when all steps complete ──
 	useEffect(() => {
@@ -723,23 +786,28 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 		}
 	}, [phase, stepper.isComplete]);
 
-	// ── Stage click handler (observe phase) ──
-	const handleStageClick = useCallback(
-		(stageId: string) => {
+	// Cleanup timers on unmount
+	useEffect(() => {
+		return () => clearCascadeTimers();
+	}, [clearCascadeTimers]);
+
+	// ── Zone click handler (observe phase) ──
+	const handleZoneClick = useCallback(
+		(zoneId: string) => {
 			if (phase !== 'observe') return;
 
-			const data = STAGE_INSPECTOR_MAP[stageId];
+			const data = ZONE_INSPECTOR_MAP[zoneId];
 			if (!data) return;
 
 			setInspectorData(data);
-			setInspectedStages((prev) => {
-				if (prev.has(stageId)) return prev;
+			setInspectedZones((prev) => {
+				if (prev.has(zoneId)) return prev;
 				const next = new Set(prev);
-				next.add(stageId);
+				next.add(zoneId);
 				return next;
 			});
 
-			const discoveryId = STAGE_DISCOVERY_MAP[stageId];
+			const discoveryId = ZONE_DISCOVERY_MAP[zoneId];
 			if (discoveryId) {
 				discoveryGating.discover(discoveryId);
 			}
@@ -750,13 +818,17 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 	// ── Probe handler (observe phase) ──
 	const handleProbe = useCallback(
 		(probeId: string) => {
-			setLastProbeId(probeId);
-			const discoveryId = PROBE_DISCOVERY_MAP[probeId];
-			if (discoveryId) {
-				discoveryGating.discover(discoveryId);
-			}
+			setFiredProbeCount((c) => c + 1);
+
+			// Run cascade animation, trigger discovery after it completes
+			runCascade(() => {
+				const discoveryId = PROBE_DISCOVERY_MAP[probeId];
+				if (discoveryId) {
+					discoveryGating.discover(discoveryId);
+				}
+			});
 		},
-		[discoveryGating],
+		[discoveryGating, runCascade],
 	);
 
 	// ── OptionCard step handler ──
@@ -771,23 +843,35 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 		[stepper],
 	);
 
+	// ── Reward phase: fire stress scenario ──
+	const handleFireScenario = useCallback(
+		(scenarioId: string) => {
+			if (vizAnimating) return;
+			stressTest.fireRequest(scenarioId);
+
+			const page = SCENARIO_PAGE_MAP[scenarioId] ?? 1;
+			const blockIndex = pageToBlock(page);
+
+			if (blockIndex !== null) {
+				runPageWindow(blockIndex);
+			} else {
+				runOverflow();
+			}
+		},
+		[vizAnimating, stressTest, runPageWindow, runOverflow],
+	);
+
 	// ── Phase transition handlers ──
 	const handleStartBuild = () => {
+		resetVisualization();
 		setPhase('build');
 	};
 
 	const handleActivatePagination = () => {
+		resetVisualization();
 		setPhase('reward');
 		stressTest.reset();
 	};
-
-	// ── Stress test fire handler ──
-	const handleFireScenario = useCallback(
-		(scenarioId: string) => {
-			stressTest.fireRequest(scenarioId);
-		},
-		[stressTest],
-	);
 
 	// ── Completion ──
 	const handleComplete = () => {
@@ -812,6 +896,232 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 	const currentStepType = STEP_TYPES[stepper.currentStep];
 	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep];
 
+	// Derived viz state
+	const isCascading = vizMode === 'cascade' && vizAnimating;
+	const isCascadeDone = vizMode === 'cascade' && !vizAnimating;
+	const isPageWindow = vizMode === 'page-window';
+	const isOverflow = vizMode === 'overflow';
+
+	// Last stress test result for response zone
+	const lastResult =
+		stressTest.results.length > 0
+			? stressTest.results[stressTest.results.length - 1]
+			: null;
+	const lastScenario = lastResult
+		? STRESS_SCENARIOS.find((s) => s.id === lastResult.scenarioId)
+		: null;
+
+	// ── Grid block state helper ──
+	const getBlockState = (
+		blockIndex: number,
+	): 'neutral' | 'red' | 'green' | 'dim' => {
+		if (phase === 'observe' || (phase === 'reward' && vizMode === 'cascade')) {
+			// Cascade: row-by-row red fill
+			const row = Math.floor(blockIndex / GRID_COLS);
+			if (row < cascadeProgress) return 'red';
+			return 'neutral';
+		}
+		if (phase === 'reward') {
+			if (isPageWindow && activeBlock !== null) {
+				return blockIndex === activeBlock ? 'green' : 'dim';
+			}
+			if (isOverflow) {
+				return 'dim';
+			}
+		}
+		return 'neutral';
+	};
+
+	// ── Response zone content ──
+	const getResponseContent = (): {
+		text: string;
+		detail?: string;
+		variant: 'neutral' | 'danger' | 'success';
+	} => {
+		if (phase === 'observe') {
+			if (isCascading) {
+				const loadedRows = cascadeProgress * GRID_COLS * RECORDS_PER_BLOCK;
+				return {
+					text: `Loading... ${loadedRows.toLocaleString()} / ${TOTAL_RECORDS.toLocaleString()} records`,
+					variant: 'danger',
+				};
+			}
+			if (isCascadeDone) {
+				return {
+					text: '12MB / 50,000 records',
+					detail: 'No pagination. No Link headers.',
+					variant: 'danger',
+				};
+			}
+			return {
+				text: 'Waiting for request...',
+				variant: 'neutral',
+			};
+		}
+
+		// Reward phase
+		if (isPageWindow && lastScenario) {
+			const page = SCENARIO_PAGE_MAP[lastScenario.id] ?? 1;
+			return {
+				text: `6KB / 25 records (page ${page})`,
+				detail: `Link: </posts?page=${Math.max(1, page - 1)}>; rel="prev"`,
+				variant: 'success',
+			};
+		}
+		if (isOverflow) {
+			return {
+				text: 'Page out of range',
+				detail: 'Pagy::OverflowError, returned []',
+				variant: 'danger',
+			};
+		}
+		return {
+			text: 'Fire a scenario to test pagination...',
+			variant: 'neutral',
+		};
+	};
+
+	// ── Visualization render ──
+	const renderRecordGrid = () => {
+		const responseContent = getResponseContent();
+		const isObserve = phase === 'observe';
+
+		return (
+			<div className="flex flex-col items-center gap-1">
+				{/* Database Zone */}
+				<button
+					className={cn(
+						'w-full rounded-lg border p-3 text-left transition-colors relative',
+						'bg-card',
+						isCascading || isCascadeDone
+							? 'border-destructive'
+							: isPageWindow
+								? 'border-emerald-500 dark:border-emerald-400'
+								: 'border-border',
+						isObserve && 'cursor-pointer hover:border-primary/50',
+					)}
+					onClick={() => handleZoneClick('database')}
+					type="button"
+				>
+					{/* Zone label */}
+					<div className="flex items-center justify-between mb-2">
+						<div className="flex items-center gap-2">
+							<Database className="w-4 h-4 text-muted-foreground" />
+							<span className="text-xs font-semibold text-foreground">
+								Database: posts ({TOTAL_RECORDS.toLocaleString()} rows)
+							</span>
+						</div>
+						{isObserve && !inspectedZones.has('database') && (
+							<span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/20 text-primary animate-pulse">
+								<Search className="w-3 h-3" />
+							</span>
+						)}
+						{phase === 'reward' && activeBlock !== null && isPageWindow && (
+							<span className="text-xs font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+								Page {SCENARIO_PAGE_MAP[lastScenario?.id ?? ''] ?? '?'}
+							</span>
+						)}
+					</div>
+
+					{/* 10x10 Grid */}
+					<div className="grid grid-cols-10 gap-0.5">
+						{BLOCK_KEYS.map((key, i) => {
+							const state = getBlockState(i);
+							return (
+								<div
+									className={cn(
+										'h-5 rounded-sm transition-colors duration-150',
+										state === 'neutral' && 'bg-muted-foreground/20',
+										state === 'red' && 'bg-red-500 dark:bg-red-400',
+										state === 'green' && 'bg-emerald-500 dark:bg-emerald-400',
+										state === 'dim' && 'bg-muted-foreground/10',
+									)}
+									key={key}
+								/>
+							);
+						})}
+					</div>
+
+					{/* Block legend */}
+					<div className="mt-2 text-xs text-muted-foreground">
+						Each block = {RECORDS_PER_BLOCK.toLocaleString()} records
+					</div>
+				</button>
+
+				{/* FlowConnector between zones */}
+				<FlowConnector
+					active={isCascading || (isPageWindow && vizAnimating)}
+					direction="vertical"
+					dotColor={
+						isCascading
+							? 'bg-destructive'
+							: isPageWindow
+								? 'bg-success'
+								: 'bg-muted-foreground'
+					}
+					dotCount={isCascading ? 3 : 1}
+				/>
+
+				{/* Response Zone */}
+				<button
+					className={cn(
+						'w-full rounded-lg border p-3 text-left transition-colors relative',
+						'bg-card',
+						responseContent.variant === 'danger'
+							? 'border-destructive'
+							: responseContent.variant === 'success'
+								? 'border-emerald-500 dark:border-emerald-400'
+								: 'border-border',
+						isObserve && 'cursor-pointer hover:border-primary/50',
+					)}
+					onClick={() => handleZoneClick('response')}
+					type="button"
+				>
+					<div className="flex items-center justify-between mb-1">
+						<div className="flex items-center gap-2">
+							<Globe className="w-4 h-4 text-muted-foreground" />
+							<span className="text-xs font-semibold text-foreground">
+								Response
+							</span>
+						</div>
+						{isObserve && !inspectedZones.has('response') && (
+							<span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/20 text-primary animate-pulse">
+								<Search className="w-3 h-3" />
+							</span>
+						)}
+					</div>
+
+					<div
+						className={cn(
+							'text-sm font-mono font-bold',
+							responseContent.variant === 'danger' &&
+								'text-red-600 dark:text-red-400',
+							responseContent.variant === 'success' &&
+								'text-emerald-600 dark:text-emerald-400',
+							responseContent.variant === 'neutral' && 'text-muted-foreground',
+						)}
+					>
+						{responseContent.text}
+					</div>
+					{responseContent.detail && (
+						<div
+							className={cn(
+								'text-xs font-mono mt-1',
+								responseContent.variant === 'danger'
+									? 'text-red-500/70 dark:text-red-400/70'
+									: responseContent.variant === 'success'
+										? 'text-emerald-500/70 dark:text-emerald-400/70'
+										: 'text-muted-foreground',
+							)}
+						>
+							{responseContent.detail}
+						</div>
+					)}
+				</button>
+			</div>
+		);
+	};
+
 	// ── Render ──
 	return (
 		<LevelLayout>
@@ -820,14 +1130,14 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							GET /api/posts returns all 50,000 posts at once. The response
-							is 12MB of JSON. Mobile clients crash, and the server allocates
-							180MB per request.
+							GET /api/posts returns all 50,000 posts at once. The response is
+							12MB of JSON. Mobile clients crash, and the server allocates 180MB
+							per request.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							<span className="text-foreground font-medium">Pagy</span> is
-							the recommended pagination gem: 40x faster than Kaminari, tiny
-							memory footprint, and built-in Link header support for APIs.
+							You need a pagination gem that supports API-style Link headers,
+							has a tiny memory footprint, and can handle high-traffic
+							endpoints.
 						</p>
 					</div>
 
@@ -835,10 +1145,26 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 					{phase === 'observe' && (
 						<div className="p-4 border-b border-border">
 							<DiscoveryChecklist
-								discoveries={discoveryGating.discoveries}
 								discoveredCount={discoveryGating.discoveredCount}
+								discoveries={discoveryGating.discoveries}
 								minRequired={discoveryGating.minRequired}
 							/>
+							{/* Progressive hint for zone click discovery */}
+							{firedProbeCount >= 2 &&
+								!discoveryGating.isDiscovered('no-pagination') && (
+									<Alert
+										className="mt-3 animate-in fade-in duration-500"
+										variant="info"
+									>
+										<Info className="w-4 h-4" />
+										<AlertDescription className="text-xs">
+											Click the{' '}
+											<span className="font-medium">Database zone</span> in the
+											visualization to inspect why there is no pagination in the
+											controller.
+										</AlertDescription>
+									</Alert>
+								)}
 						</div>
 					)}
 
@@ -859,22 +1185,24 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 					{/* Reward phase: legend + counters */}
 					{phase === 'reward' && (
 						<>
-							<PipelineLegend />
+							<PaginationLegend />
 
 							<div className="p-4">
 								<div className="grid grid-cols-2 gap-3">
-									<div className="bg-success/20 rounded-lg p-3 text-center">
-										<div className="text-2xl font-bold text-success">
+									<div className="bg-success/10 rounded-lg p-3 text-center">
+										<div className="text-xs text-muted-foreground mb-1">
+											Paginated
+										</div>
+										<div className="text-2xl font-bold text-success tabular-nums">
 											{stressTest.allowedCount}
 										</div>
-										<div className="text-xs text-success/70">Paginated</div>
 									</div>
-									<div className="bg-destructive/20 rounded-lg p-3 text-center">
-										<div className="text-2xl font-bold text-destructive">
-											{stressTest.blockedCount}
-										</div>
-										<div className="text-xs text-destructive/70">
+									<div className="bg-destructive/10 rounded-lg p-3 text-center">
+										<div className="text-xs text-muted-foreground mb-1">
 											Out of Range
+										</div>
+										<div className="text-2xl font-bold text-destructive tabular-nums">
+											{stressTest.blockedCount}
 										</div>
 									</div>
 								</div>
@@ -899,24 +1227,44 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 				<div className="flex-1 flex flex-col bg-background overflow-hidden">
 					{/* ── Phase 1: Observe (WHY) ── */}
 					{phase === 'observe' && (
-						<div className="flex-1 flex flex-col">
-							<div className="flex-1 relative">
-								<PipelineFlow
-									connections={OBSERVE_CONNECTIONS}
-									onNodeClick={handleStageClick}
-									stages={observeStages}
-								/>
-								{inspectorData && (
+						<div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+							{/* Header */}
+							<div className="px-6 pt-4 pb-2 flex items-center justify-between">
+								<div className="text-sm font-semibold text-foreground">
+									Record Grid: GET /api/posts
+								</div>
+								{vizMode !== 'idle' && (
+									<span
+										className={cn(
+											'text-xs font-mono font-bold tabular-nums',
+											isCascading ? 'text-destructive' : 'text-destructive',
+										)}
+									>
+										{cascadeProgress * GRID_COLS * RECORDS_PER_BLOCK > 0
+											? `${(cascadeProgress * GRID_COLS * RECORDS_PER_BLOCK).toLocaleString()} / ${TOTAL_RECORDS.toLocaleString()} loaded`
+											: `${TOTAL_RECORDS.toLocaleString()} records`}
+									</span>
+								)}
+							</div>
+
+							{/* Visualization */}
+							<div className="px-6 pb-2">{renderRecordGrid()}</div>
+
+							{/* StageInspector overlay */}
+							{inspectorData && (
+								<div className="px-6">
 									<StageInspector
 										data={inspectorData}
 										onClose={() => setInspectorData(null)}
 									/>
-								)}
-							</div>
+								</div>
+							)}
 
 							{/* Probe terminal */}
-							<div className="px-6 pb-2">
+							<div className="px-6 pb-2 flex-1 min-h-0 flex flex-col">
 								<ProbeTerminal
+									className="flex-1 flex flex-col"
+									disabled={vizAnimating}
 									onProbe={handleProbe}
 									probes={PROBES}
 									title="Performance Probe"
@@ -924,18 +1272,18 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 							</div>
 
 							{/* Build the Fix button (discovery gated) */}
-							{discoveryGating.isUnlocked && (
-								<div className="p-4 flex justify-center animate-in fade-in duration-500">
+							<div className="p-4 flex justify-center">
+								{discoveryGating.isUnlocked && (
 									<Button
-										className="gap-2"
+										className="gap-2 animate-in fade-in duration-500"
 										onClick={handleStartBuild}
 										size="lg"
 									>
 										Build the Fix
 										<ArrowRight className="w-4 h-4" />
 									</Button>
-								</div>
-							)}
+								)}
+							</div>
 						</div>
 					)}
 
@@ -951,9 +1299,9 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 											completed={isViewingCompletedStep}
 											description={
 												<p className="text-sm text-muted-foreground">
-													Pagy is the fastest Ruby pagination gem: 40x faster
-													than Kaminari, 70x faster than will_paginate. Add it
-													to your project.
+													Choose the right pagination gem. You need one that is
+													fast, memory-efficient, and supports Link headers for
+													API clients.
 												</p>
 											}
 											hasNext={hasNextStep}
@@ -966,7 +1314,7 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 											onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 											outputLines={addGemOutput}
 											stepKey={stepper.currentStep}
-											title="Add the Pagy Gem"
+											title="Install Pagination Gem"
 										/>
 									)}
 
@@ -984,7 +1332,6 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 											<div className="space-y-2">
 												{currentOptionConfig.options.map((opt) => (
 													<OptionCard
-														color="violet"
 														disabled={!opt.correct}
 														key={opt.id}
 														mono
@@ -999,7 +1346,6 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 												<div className="space-y-2">
 													{currentOptionConfig.options.map((opt) => (
 														<OptionCard
-															color="violet"
 															key={opt.id}
 															mono
 															name={opt.label}
@@ -1068,23 +1414,51 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 
 					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
 					{phase === 'reward' && (
-						<div className="flex-1 flex flex-col">
-							<div className="flex-1 relative">
-								<PipelineFlow
-									connections={REWARD_CONNECTIONS}
-									stages={rewardStages}
-								/>
+						<div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+							{/* Header */}
+							<div className="px-6 pt-4 pb-2 flex items-center justify-between">
+								<div className="text-sm font-semibold text-foreground">
+									Pagination Active
+								</div>
+								{vizMode !== 'idle' && (
+									<div className="flex items-center gap-2">
+										<Zap
+											className={cn(
+												'w-4 h-4',
+												isPageWindow ? 'text-success' : 'text-destructive',
+											)}
+										/>
+										<span
+											className={cn(
+												'text-xs font-mono font-bold',
+												isPageWindow ? 'text-success' : 'text-destructive',
+											)}
+										>
+											{isPageWindow
+												? '25 records / 6KB'
+												: isOverflow
+													? 'page out of range'
+													: `${TOTAL_RECORDS.toLocaleString()} records (no pagination!)`}
+										</span>
+									</div>
+								)}
 							</div>
 
-							{/* Stress test controls below pipeline */}
-							<div className="px-6 pb-2">
+							{/* Visualization */}
+							<div className="px-6 pb-2">{renderRecordGrid()}</div>
+
+							{/* Stress test controls */}
+							<div className="px-6 pb-2 flex-1 min-h-0">
 								<StressTestPanel
 									allowedCount={stressTest.allowedCount}
 									blockedCount={stressTest.blockedCount}
 									canAutoFire={stressTest.canAutoFire}
+									disabled={vizAnimating}
 									isAutoFiring={stressTest.isAutoFiring}
 									onFire={handleFireScenario}
-									onToggleAutoFire={stressTest.toggleAutoFire}
+									onToggleAutoFire={() =>
+										stressTest.toggleAutoFire(handleFireScenario)
+									}
 									results={stressTest.results}
 									scenarios={STRESS_SCENARIOS}
 								/>
@@ -1095,7 +1469,74 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 			</CenterPanel>
 
 			<RightPanel>
-				<CodePreviewPanel files={getCodeFiles(phase, stepper.furthestStep)} />
+				<CodePreviewPanel
+					files={getCodeFiles(phase, stepper.furthestStep)}
+					learningGoal={
+						phase === 'observe'
+							? 'Post.includes(:user).all loads every row. The 12MB JSON response has no pagination headers and no way to request a subset.'
+							: 'Pagy paginates with offset strategy, 25 per page, and sends RFC 5988 Link headers so clients can navigate pages.'
+					}
+				>
+					<div className="p-4 border-t border-border">
+						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-3">
+							Key Concepts
+						</div>
+						<div className="space-y-3 text-xs">
+							<div className="flex items-start gap-2">
+								<Database className="w-3 h-3 text-primary mt-0.5 shrink-0" />
+								<div>
+									<span className="text-foreground font-medium">
+										Pagy::OPTIONS[:limit]
+									</span>
+									<div className="text-muted-foreground">
+										Default page size (25 items per request)
+									</div>
+								</div>
+							</div>
+							<div className="flex items-start gap-2">
+								<Zap className="w-3 h-3 text-primary mt-0.5 shrink-0" />
+								<div>
+									<span className="text-foreground font-medium">
+										pagy(:offset, scope)
+									</span>
+									<div className="text-muted-foreground">
+										Returns [pagy_metadata, paginated_collection]
+									</div>
+								</div>
+							</div>
+							<div className="flex items-start gap-2">
+								<Globe className="w-3 h-3 text-primary mt-0.5 shrink-0" />
+								<div>
+									<span className="text-foreground font-medium">
+										@pagy.headers_hash
+									</span>
+									<div className="text-muted-foreground">
+										RFC 5988 Link headers for API navigation
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div className="p-4 border-t border-border">
+						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
+							Pagy v43 API Changes
+						</div>
+						<pre className="text-xs text-muted-foreground bg-secondary p-2 rounded overflow-x-auto">
+							{`# v43+ uses Pagy::Method (not Backend)
+include Pagy::Method
+
+# v43+ uses OPTIONS (not DEFAULT)
+Pagy::OPTIONS[:limit] = 25
+
+# v43+ requires strategy argument
+pagy(:offset, Post.all)
+
+# v43+ uses headers_hash method
+@pagy.headers_hash`}
+						</pre>
+					</div>
+				</CodePreviewPanel>
 			</RightPanel>
 		</LevelLayout>
 	);

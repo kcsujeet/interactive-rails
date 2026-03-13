@@ -289,6 +289,9 @@ The build phase must cover the **complete workflow**:
 - [ ] Correct answer is never the first option
 - [ ] All options use the same color
 - [ ] Feedback never reveals the correct answer
+- [ ] **Step labels do not reveal answers.** StepProgress pill titles (shown in the left panel) must describe the task generically, not name the specific gem, module, or method the player will choose. E.g., "Install Pagination Gem" not "Add the Pagy Gem"; "Include Controller Module" not "Include Pagy::Method".
+- [ ] **Scenario text and descriptions do not reveal answers.** The left panel scenario text, step descriptions, and hint text must never name the correct gem, class, method, or command that the player will select. Describe the requirements and constraints instead. E.g., "Choose the right pagination gem" not "Pagy is the fastest pagination gem. Add it to your project."
+- [ ] **Wrong options are contextually plausible.** After the player has already chosen a gem/library in an earlier step, wrong options in later steps must be from that same gem (e.g., old API names, wrong modules), not from a completely different gem they did not install.
 
 **Documentation verification (non-negotiable):**
 - [ ] Before writing ANY step content, **fetch and read the full README** of the gem/library from its official GitHub repo using `WebFetch` (not just the repo landing page, not a summary)
