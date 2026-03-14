@@ -373,6 +373,7 @@ The key rule: **every click from the player must produce a visible reaction in t
 - [ ] `disabled={flowPhase !== -1}` blocks fire during flow animations
 - [ ] Response lines present on all scenarios when observe probes have them
 - [ ] Labels are self-descriptive and match observe-phase probe labels
+- [ ] **Button label format is consistent between ProbeTerminal and StressTestPanel.** If probe buttons use short labels without URL paths (e.g., `GET trending`), stress scenario buttons must use the same style (e.g., `GET trending (cached)`), not path-style labels (e.g., `GET /trending (cached)`). The two terminals appear in the same center panel across phases and must look like they belong to the same UI.
 
 For StressTestPanel response lines rules, button label conventions, and custom reward visualization details, see [reward-phase-guide.md](reward-phase-guide.md).
 
@@ -400,6 +401,7 @@ For StressTestPanel response lines rules, button label conventions, and custom r
 - [ ] **Build steps address all problems shown in the intro.** Every highlighted problem gets a player decision.
 - [ ] **Reward closes the loop on intro's stated problems.** Each stated problem gets a concrete resolution.
 - [ ] **Reward scenario data does not contradict shared visualization components.** If a scenario reuses a lane/zone, check SQL, labels, and banners for consistency.
+- [ ] **Probe and stress test button labels use the same format.** Compare the `label` fields in `PROBES` and `STRESS_SCENARIOS`. They must use the same naming convention (e.g., both short like `GET trending`, not probes short and scenarios with full paths like `GET /api/v1/posts/trending`). Mismatched label styles make the observe and reward phases look like different UIs.
 - [ ] **Reward phase type matches observe type.** Type 3/4 -> StressTestPanel. Type 2 -> static before/after. Type 1 -> may not need reward.
 
 For detailed guidance with case studies (L16, L25, L26), see [cross-phase-consistency.md](cross-phase-consistency.md).

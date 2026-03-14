@@ -10,6 +10,7 @@ import { Pause, Shield, Zap } from 'lucide-react';
 
 import { Button } from '@/components/ui/Button';
 import type { RequestResult, StressScenario } from '@/hooks/useStressTest';
+import { cn } from '@/lib/utils';
 
 interface StressTestPanelProps {
 	scenarios: StressScenario[];
@@ -22,6 +23,8 @@ interface StressTestPanelProps {
 	onToggleAutoFire: (onFire: (scenarioId: string) => void) => void;
 	/** Disable all fire buttons (e.g. while a flow animation is running) */
 	disabled?: boolean;
+	/** Additional CSS classes for the outer container */
+	className?: string;
 }
 
 export function StressTestPanel({
@@ -34,11 +37,17 @@ export function StressTestPanel({
 	onFire,
 	onToggleAutoFire,
 	disabled = false,
+	className,
 }: StressTestPanelProps) {
 	const recentResults = results.slice(-10);
 
 	return (
-		<div className="rounded-lg border border-border bg-zinc-50 dark:bg-zinc-900 overflow-hidden">
+		<div
+			className={cn(
+				'rounded-lg border border-border bg-zinc-50 dark:bg-zinc-900 overflow-hidden',
+				className,
+			)}
+		>
 			{/* Header */}
 			<div className="flex items-center justify-between px-3 py-2 bg-muted border-b border-border">
 				<div className="flex items-center gap-2">
@@ -71,7 +80,7 @@ export function StressTestPanel({
 			</div>
 
 			{/* Results log */}
-			<div className="p-3 font-mono text-sm max-h-36 overflow-y-auto">
+			<div className="p-3 font-mono text-sm min-h-36 flex-1 overflow-y-auto">
 				{recentResults.length === 0 && (
 					<div className="text-muted-foreground text-xs">
 						Fire requests to stress-test your authorization...
