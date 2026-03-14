@@ -1301,7 +1301,7 @@ function SearchLegend() {
 export function Level29Search({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
-		minRequired: 3,
+		minRequired: 4,
 	});
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');

@@ -41,16 +41,16 @@ import {
 	type ValidationResult,
 } from '@/components/levels';
 import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
-import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
+import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import {
-	QueryZoneFlow,
-	type QueryZone,
-	type QueryZoneEdge,
-	QUERY_DOTS_NORMAL,
-	QUERY_DOTS_FLOOD,
 	QUERY_DOTS_CLEAN,
 	QUERY_DOTS_DANGER,
+	QUERY_DOTS_FLOOD,
+	QUERY_DOTS_NORMAL,
+	type QueryZone,
+	type QueryZoneEdge,
+	QueryZoneFlow,
 } from '@/components/levels/QueryZoneFlow';
 import {
 	StageInspector,
@@ -134,7 +134,10 @@ const PROBES: ProbeConfig[] = [
 			{ text: 'HTTP/1.1 200 OK (850ms)', color: 'yellow' },
 			{ text: '', color: 'muted' },
 			{ text: 'SQL queries executed: 101', color: 'red' },
-			{ text: '  SELECT * FROM posts                (1 query)', color: 'muted' },
+			{
+				text: '  SELECT * FROM posts                (1 query)',
+				color: 'muted',
+			},
 			{ text: '  SELECT * FROM users WHERE id = ... (x100)', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
@@ -211,10 +214,22 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		stageId: 'controller',
 		title: 'PostsController#index',
 		description:
-			'The controller loads all posts with Post.all. This fires just 1 query. The problem is not here.',
-		code: `def index
-  @posts = Post.all
-  render json: PostSerializer.new(@posts)
+			'The controller delegates to PostList service. The service loads posts with Post.all, firing just 1 query. The problem is not here.',
+		code: `# app/controllers/api/v1/posts_controller.rb
+def index
+  result = PostList.call(params:)
+  render json: PostSerializer.new(result.posts)
+end
+
+# app/services/post_list.rb
+class PostList < ApplicationService
+  Result = Data.define(:success?, :posts, :errors)
+
+  def call
+    contract = ListContract.new.call(params)
+    posts = Post.all  # 1 query, no includes
+    Result.new(success?: true, posts:, errors: [])
+  end
 end`,
 	},
 	serializer: {
@@ -250,29 +265,31 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'posts-no-includes',
-		label: 'Post.all (no includes)',
-		description: 'Load posts without eager loading, access .user',
+		label: 'PostList (no includes)',
+		description:
+			'Service loads posts without eager loading, serializer accesses .user',
 		method: 'GET',
 		path: '/api/v1/posts',
-		actor: 'Post.all',
+		actor: 'PostList.call',
 		expectedResult: 'blocked',
 	},
 	{
 		id: 'posts-with-includes',
-		label: 'Post.includes(:user)',
-		description: 'Load posts with eager-loaded users',
+		label: 'PostList (with includes)',
+		description: 'Service loads posts with eager-loaded users',
 		method: 'GET',
 		path: '/api/v1/posts',
-		actor: 'Post.includes(:user)',
+		actor: 'PostList.call',
 		expectedResult: 'allowed',
 	},
 	{
 		id: 'comments-no-includes',
-		label: 'Post.all + .comments.count',
-		description: 'Count comments per post without counter cache',
+		label: 'PostList + .comments.count',
+		description:
+			'Service loads posts, serializer counts comments without counter cache',
 		method: 'GET',
 		path: '/api/v1/posts',
-		actor: 'Post.all + count',
+		actor: 'PostList.call',
 		expectedResult: 'blocked',
 	},
 	{
@@ -377,8 +394,7 @@ const SHELL_STEP_MAP: (TerminalStepData | null)[] = [
 const PROSOPITE_CONFIG_OPTIONS: StepOption[] = [
 	{
 		id: 'wrong-log-only',
-		label:
-			'config.after_initialize do\n  Prosopite.rails_logger = true\nend',
+		label: 'config.after_initialize do\n  Prosopite.rails_logger = true\nend',
 		correct: false,
 		feedback:
 			'Logging alone means N+1 warnings get buried in the log. You want it to stop execution so you notice immediately.',
@@ -416,8 +432,7 @@ const STRICT_LOADING_OPTIONS: StepOption[] = [
 	},
 	{
 		id: 'wrong-scope',
-		label:
-			'# app/models/post.rb\nscope :safe, -> { strict_loading }',
+		label: '# app/models/post.rb\nscope :safe, -> { strict_loading }',
 		correct: false,
 		feedback:
 			'A scope only applies when explicitly used. Developers will forget to chain it. The default should enforce it.',
@@ -470,18 +485,32 @@ function generateQueryLines(count: number): string[] {
 function getCodeFiles(phase: Phase, furthestStep: number) {
 	const files = [];
 
-	// Observe phase: show the unoptimized controller + serializer
+	// Observe phase: show the unoptimized controller + service + serializer
 	if (phase === 'observe') {
 		files.push({
 			filename: 'app/controllers/api/v1/posts_controller.rb',
 			language: 'ruby',
 			code: `class Api::V1::PostsController < ApplicationController
   def index
-    @posts = Post.all  # 1 query
-    render json: PostSerializer.new(@posts)
+    result = PostList.call(params:)
+    render json: PostSerializer.new(result.posts)
   end
 end`,
 			highlight: [3],
+		});
+		files.push({
+			filename: 'app/services/post_list.rb',
+			language: 'ruby',
+			code: `class PostList < ApplicationService
+  Result = Data.define(:success?, :posts, :errors)
+
+  def call
+    contract = ListContract.new.call(params)
+    posts = Post.all  # 1 query, no includes!
+    Result.new(success?: true, posts:, errors: [])
+  end
+end`,
+			highlight: [6],
 		});
 		files.push({
 			filename: 'app/serializers/post_serializer.rb',
@@ -501,6 +530,20 @@ end`,
 
 	// Build / activate / reward phases: show evolving code
 	if (furthestStep === 0) {
+		files.push({
+			filename: 'app/services/post_list.rb',
+			language: 'ruby',
+			code: `class PostList < ApplicationService
+  Result = Data.define(:success?, :posts, :errors)
+
+  def call
+    contract = ListContract.new.call(params)
+    posts = Post.all  # no includes!
+    Result.new(success?: true, posts:, errors: [])
+  end
+end`,
+			highlight: [6],
+		});
 		files.push({
 			filename: 'app/serializers/post_serializer.rb',
 			language: 'ruby',
@@ -580,7 +623,9 @@ function DetectionLegend() {
 				</div>
 				<div className="flex items-center gap-2">
 					<X className="w-4 h-4 text-destructive" />
-					<span className="text-foreground">N+1 detected (Prosopite raises)</span>
+					<span className="text-foreground">
+						N+1 detected (Prosopite raises)
+					</span>
 				</div>
 			</div>
 		</div>
@@ -598,8 +643,9 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 	});
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
-	const [inspectorData, setInspectorData] =
-		useState<StageInspectorData | null>(null);
+	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(
+		null,
+	);
 	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
 		new Set(),
 	);
@@ -694,7 +740,9 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 	const probeZoneData = lastProbeId ? PROBE_ZONE_MAP[lastProbeId] : null;
 
 	// ── Reward phase: last stress test result ──
-	const [lastRewardResult, setLastRewardResult] = useState<'allowed' | 'blocked' | null>(null);
+	const [lastRewardResult, setLastRewardResult] = useState<
+		'allowed' | 'blocked' | null
+	>(null);
 
 	// ── Build QueryZone[] / QueryZoneEdge[] for observe phase ──
 	const observeZones: QueryZone[] = useMemo(() => {
@@ -723,19 +771,28 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 
 			// Zone-specific content
 			if (zoneId === 'controller') {
-				zone.codeLine = 'Post.all';
+				zone.codeLine = 'PostList.call(params:)';
 				if (isActive && probeZoneData) {
 					zone.badge = { text: probeZoneData.controllerBadge, color: 'green' };
 				}
 			} else if (zoneId === 'serializer') {
 				zone.codeLine = 'post.user.name';
 				if (isActive && probeZoneData) {
-					zone.loopCounter = { current: loopCounter, total: probeZoneData.serializerCount };
-					zone.badge = { text: `x${probeZoneData.serializerCount} queries`, color: 'red' };
+					zone.loopCounter = {
+						current: loopCounter,
+						total: probeZoneData.serializerCount,
+					};
+					zone.badge = {
+						text: `x${probeZoneData.serializerCount} queries`,
+						color: 'red',
+					};
 				}
 			} else if (zoneId === 'database') {
 				if (isActive && probeZoneData) {
-					zone.queryLog = { lines: queryLines, visibleCount: visibleQueryCount };
+					zone.queryLog = {
+						lines: queryLines,
+						visibleCount: visibleQueryCount,
+					};
 					zone.badge = {
 						text: `${probeZoneData.dbTotalQueries} queries (${probeZoneData.dbTime})`,
 						color: probeZoneData.dbTotalQueries > 10 ? 'red' : 'yellow',
@@ -747,7 +804,14 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 
 			return zone;
 		});
-	}, [flowPhase, inspectedStages, probeZoneData, loopCounter, queryLines, visibleQueryCount]);
+	}, [
+		flowPhase,
+		inspectedStages,
+		probeZoneData,
+		loopCounter,
+		queryLines,
+		visibleQueryCount,
+	]);
 
 	const observeEdges: QueryZoneEdge[] = useMemo(() => {
 		const fc1Active = flowPhase === 1;
@@ -789,7 +853,7 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 					zone.highlighted = true;
 					zone.highlightColor = 'green';
 				}
-				zone.codeLine = 'Post.includes(:user)';
+				zone.codeLine = 'PostList.call(params:)';
 				if (isActive) {
 					zone.badge = { text: '2 queries (eager loaded)', color: 'green' };
 				}
@@ -960,19 +1024,20 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Your PostsController#index now loads posts with their authors.
+							Your PostList service loads posts for the API index endpoint.
 							Response times have crept above 2 seconds. The database log
-							reveals a devastating pattern: 1 query for posts, then 1 query
-							for EACH author.
+							reveals a devastating pattern: 1 query for posts, then 1 query for
+							EACH author.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							The{' '}
 							<span className="text-foreground font-medium">N+1 problem</span>{' '}
 							is the most common performance killer in Rails apps. You will set
-							up{' '}
-							<span className="text-foreground font-medium">Prosopite</span>{' '}
+							up <span className="text-foreground font-medium">Prosopite</span>{' '}
 							to detect it automatically and enable{' '}
-							<span className="text-foreground font-medium">strict_loading</span>{' '}
+							<span className="text-foreground font-medium">
+								strict_loading
+							</span>{' '}
 							to prevent it at the model level.
 						</p>
 					</div>
@@ -981,18 +1046,30 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 					{phase === 'observe' && (
 						<div className="p-4 border-b border-border">
 							<DiscoveryChecklist
-								discoveries={discoveryGating.discoveries}
 								discoveredCount={discoveryGating.discoveredCount}
+								discoveries={discoveryGating.discoveries}
 								minRequired={discoveryGating.minRequired}
 							/>
 							{firedProbeCount >= 2 && !discoveryGating.isUnlocked && (
-								<Alert className="mt-3 animate-in fade-in duration-500" variant="info">
+								<Alert
+									className="mt-3 animate-in fade-in duration-500"
+									variant="info"
+								>
 									<Info className="w-4 h-4" />
 									<AlertDescription className="text-xs">
-										{firedProbeCount >= 3
-											? <>The probes revealed the query pattern. Now click the <span className="font-medium">Serializer</span> zone to see where the N+1 hides.</>
-											: <>Click the zones with <span className="font-medium">?</span> to inspect their code</>
-										}
+										{firedProbeCount >= 3 ? (
+											<>
+												The probes revealed the query pattern. Now click the{' '}
+												<span className="font-medium">Serializer</span> zone to
+												see where the N+1 hides.
+											</>
+										) : (
+											<>
+												Click the zones with{' '}
+												<span className="font-medium">?</span> to inspect their
+												code
+											</>
+										)}
 									</AlertDescription>
 								</Alert>
 							)}
@@ -1030,7 +1107,9 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 										<div className="text-2xl font-bold text-destructive">
 											{stressTest.blockedCount}
 										</div>
-										<div className="text-xs text-destructive/70">N+1 Caught</div>
+										<div className="text-xs text-destructive/70">
+											N+1 Caught
+										</div>
 									</div>
 								</div>
 							</div>
@@ -1230,10 +1309,7 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 						<div className="flex-1 flex flex-col">
 							{/* Query zone flow showing the fix */}
 							<div className="flex-1 relative">
-								<QueryZoneFlow
-									edges={rewardEdges}
-									zones={rewardZones}
-								/>
+								<QueryZoneFlow edges={rewardEdges} zones={rewardZones} />
 							</div>
 
 							{/* Stress test controls */}

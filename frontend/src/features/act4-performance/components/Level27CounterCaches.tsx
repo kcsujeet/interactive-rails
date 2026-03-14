@@ -456,6 +456,21 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 	if (phase === 'observe') {
 		return [
 			{
+				filename: 'app/services/post_list.rb',
+				language: 'ruby',
+				code: `class PostList < ApplicationService
+  Result = Data.define(:success?, :posts, :errors)
+
+  def call(params)
+    contract = ListContract.new.call(params)
+    return Result.new(false, [], contract.errors) unless contract.success?
+
+    posts = Post.includes(:user).limit(contract[:limit])
+    Result.new(true, posts, [])
+  end
+end`,
+			},
+			{
 				filename: 'app/serializers/post_serializer.rb',
 				language: 'ruby',
 				highlight: [4],
@@ -482,6 +497,16 @@ end`,
 	if (furthestStep === 0) {
 		return [
 			{
+				filename: 'app/controllers/posts_controller.rb',
+				language: 'ruby',
+				code: `class PostsController < ApplicationController
+  def index
+    result = PostList.call(params)
+    render json: PostSerializer.new(result.posts)
+  end
+end`,
+			},
+			{
 				filename: 'app/serializers/post_serializer.rb',
 				language: 'ruby',
 				highlight: [4, 5],
@@ -502,6 +527,21 @@ end
 	if (furthestStep === 1) {
 		return [
 			{
+				filename: 'app/services/post_list.rb',
+				language: 'ruby',
+				code: `class PostList < ApplicationService
+  Result = Data.define(:success?, :posts, :errors)
+
+  def call(params)
+    contract = ListContract.new.call(params)
+    return Result.new(false, [], contract.errors) unless contract.success?
+
+    posts = Post.includes(:user).limit(contract[:limit])
+    Result.new(true, posts, [])
+  end
+end`,
+			},
+			{
 				filename: 'db/migrate/add_comments_count_to_posts.rb',
 				language: 'ruby',
 				highlight: [3, 4],
@@ -520,12 +560,17 @@ end
 	if (furthestStep === 2) {
 		return [
 			{
-				filename: 'db/migrate/add_comments_count_to_posts.rb',
+				filename: 'app/services/post_list.rb',
 				language: 'ruby',
-				code: `class AddCommentsCountToPosts < ActiveRecord::Migration[8.0]
-  def change
-    add_column :posts, :comments_count,
-               :integer, default: 0, null: false
+				code: `class PostList < ApplicationService
+  Result = Data.define(:success?, :posts, :errors)
+
+  def call(params)
+    contract = ListContract.new.call(params)
+    return Result.new(false, [], contract.errors) unless contract.success?
+
+    posts = Post.includes(:user).limit(contract[:limit])
+    Result.new(true, posts, [])
   end
 end`,
 			},
@@ -544,12 +589,17 @@ end`,
 	if (furthestStep === 3) {
 		return [
 			{
-				filename: 'db/migrate/add_comments_count_to_posts.rb',
+				filename: 'app/services/post_list.rb',
 				language: 'ruby',
-				code: `class AddCommentsCountToPosts < ActiveRecord::Migration[8.0]
-  def change
-    add_column :posts, :comments_count,
-               :integer, default: 0, null: false
+				code: `class PostList < ApplicationService
+  Result = Data.define(:success?, :posts, :errors)
+
+  def call(params)
+    contract = ListContract.new.call(params)
+    return Result.new(false, [], contract.errors) unless contract.success?
+
+    posts = Post.includes(:user).limit(contract[:limit])
+    Result.new(true, posts, [])
   end
 end`,
 			},
@@ -571,12 +621,18 @@ end
 	if (furthestStep === 4) {
 		return [
 			{
-				filename: 'app/models/comment.rb',
+				filename: 'app/services/post_list.rb',
 				language: 'ruby',
-				highlight: [2],
-				code: `class Comment < ApplicationRecord
-  belongs_to :post, counter_cache: true
-  belongs_to :user
+				code: `class PostList < ApplicationService
+  Result = Data.define(:success?, :posts, :errors)
+
+  def call(params)
+    contract = ListContract.new.call(params)
+    return Result.new(false, [], contract.errors) unless contract.success?
+
+    posts = Post.includes(:user).limit(contract[:limit])
+    Result.new(true, posts, [])
+  end
 end`,
 			},
 			{
@@ -600,12 +656,17 @@ end
 	// All steps complete (activate + reward)
 	return [
 		{
-			filename: 'db/migrate/add_comments_count_to_posts.rb',
+			filename: 'app/services/post_list.rb',
 			language: 'ruby',
-			code: `class AddCommentsCountToPosts < ActiveRecord::Migration[8.0]
-  def change
-    add_column :posts, :comments_count,
-               :integer, default: 0, null: false
+			code: `class PostList < ApplicationService
+  Result = Data.define(:success?, :posts, :errors)
+
+  def call(params)
+    contract = ListContract.new.call(params)
+    return Result.new(false, [], contract.errors) unless contract.success?
+
+    posts = Post.includes(:user).limit(contract[:limit])
+    Result.new(true, posts, [])
   end
 end`,
 		},

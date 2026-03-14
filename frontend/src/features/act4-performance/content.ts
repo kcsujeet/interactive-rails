@@ -87,10 +87,17 @@ const level23N1Problem: Level = {
 			'`/api/posts` runs 101 queries for 100 posts. Each post triggers an extra query to fetch its user.',
 		rootCause:
 			'N+1 query pattern: 1 query loads all posts, then N individual queries load each user.',
-		codeExample: `# app/controllers/api/v1/posts_controller.rb
-def index
-  @posts = Post.all
-  render json: PostSerializer.new(@posts)
+		codeExample: `# app/services/post_list.rb
+class PostList < ApplicationService
+  Result = Data.define(:success?, :posts, :errors)
+
+  def call
+    validation = ListContract.new.call({})
+    return Result.new(...) if validation.failure?
+
+    posts = Post.all  # No eager loading!
+    Result.new(success?: true, posts: posts, errors: [])
+  end
 end
 
 # app/serializers/post_serializer.rb
@@ -115,6 +122,7 @@ end
 		thresholds: { maxQueriesPerRequest: 5 },
 	},
 	successConditions: [{ type: 'n1_identified' }],
+	requiresTests: true,
 	availableNodes: [],
 	unlockedNodes: ['eager_load'],
 	learningContent: {
@@ -234,9 +242,18 @@ const level24EagerLoading: Level = {
 			'No eager loading strategy selected. Different scenarios need different approaches, and joins is a common trap that does not prevent N+1.',
 		rootCause:
 			'Associations are lazy-loaded by default. Rails only queries the database when you first access the association.',
-		codeExample: `# The controller does Post.all with no eager loading:
-@posts = Post.all
-# View calls post.author.name per post -> N+1
+		codeExample: `# app/services/post_list.rb
+class PostList < ApplicationService
+  Result = Data.define(:success?, :posts, :errors)
+
+  def call
+    validation = ListContract.new.call({})
+    return Result.new(...) if validation.failure?
+
+    posts = Post.all  # No eager loading!
+    Result.new(success?: true, posts: posts, errors: [])
+  end
+end
 
 # Rails provides three strategies:
 Post.includes(:user)     # Smart default: 2 queries or JOIN
@@ -401,10 +418,19 @@ const level25NarrowFetching: Level = {
 			'Several endpoints use SELECT * when they only need a few columns. A CSV export loads 50K full objects for just id and email. A dropdown fetches 10K AR objects for simple key-value pairs. A nightly sync loads everything at once instead of batching.',
 		rootCause:
 			'SELECT * fetches every column including large TEXT fields. No narrow fetching (pluck/select) or batch processing (find_in_batches).',
-		codeExample: `# CSV export -- loads ALL 30 columns for 2 values
-def export_csv
-  users = User.all  # SELECT * FROM users
-  CSV.generate { |csv| users.each { |u| csv << [u.id, u.email] } }
+		codeExample: `# app/services/user_export.rb
+class UserExport < ApplicationService
+  Result = Data.define(:success?, :csv, :errors)
+
+  def call
+    validation = ExportContract.new.call({})
+    return Result.new(...) if validation.failure?
+
+    # SELECT * FROM users -- loads ALL 30 columns for 2 values
+    users = User.all
+    csv = CSV.generate { |csv| users.each { |u| csv << [u.id, u.email] } }
+    Result.new(success?: true, csv: csv, errors: [])
+  end
 end
 # Memory: 681 MB (only needed 2 columns!)
 
@@ -420,6 +446,7 @@ User.all.each { |u| SyncService.process(u) }
 		thresholds: { maxMemoryUsage: 50 },
 	},
 	successConditions: [{ type: 'queries_optimized' }],
+	requiresTests: true,
 	availableNodes: [],
 	unlockedNodes: [],
 	learningContent: {
@@ -553,11 +580,18 @@ const level26DatabaseIndexing: Level = {
 			'`GET /api/users?email=...` does a full table scan on 10,000 rows. EXPLAIN shows Seq Scan with no index usage.',
 		rootCause:
 			'No database index on the email column. The database must scan every row to find a match.',
-		codeExample: `# app/controllers/api/v1/users_controller.rb
-def show
-  @user = User.find_by!(email: params[:email])
-  render json: UserSerializer.new(@user).serializable_hash.to_json
+		codeExample: `# app/services/user_lookup.rb
+class UserLookup < ApplicationService
+  Result = Data.define(:success?, :user, :errors)
+
+  def call
+    user = User.find_by!(email: @email)
+    Result.new(success?: true, user: user, errors: [])
+  end
 end
+
+# Controller delegates to service:
+# result = UserLookup.call(email: params[:email])
 
 # EXPLAIN ANALYZE output:
 # Seq Scan on users  (cost=0.00..245.00 rows=1 width=128)
@@ -577,6 +611,7 @@ Post.where(published: true).order(:created_at) # Composite query`,
 		thresholds: { maxLatency: 10 },
 	},
 	successConditions: [{ type: 'queries_optimized' }],
+	requiresTests: true,
 	learningContent: {
 		title: 'Database Indexing & EXPLAIN',
 		goal: `In this level, you'll:\n- learn how database indexes dramatically speed up queries.\n- add indexes to columns used in WHERE, ORDER BY, and JOIN clauses.\n- read PostgreSQL EXPLAIN output to tell the difference between slow sequential scans and fast index scans.\n- understand the leftmost prefix rule for composite indexes.`,
@@ -714,11 +749,21 @@ const level27CounterCaches: Level = {
 			'`post.comments.count` runs a COUNT(*) query for every post on the index page. 100 posts = 100 extra COUNT queries.',
 		rootCause:
 			'No denormalized count column. Rails must query the comments table for every post to get the count.',
-		codeExample: `# app/serializers/post_serializer.rb
-class PostSerializer < BaseSerializer
-  attribute :title
-  attribute :body
+		codeExample: `# app/services/post_list.rb
+class PostList < ApplicationService
+  Result = Data.define(:success?, :posts, :errors)
 
+  def call
+    validation = ListContract.new.call({})
+    return Result.new(...) if validation.failure?
+
+    posts = Post.includes(:user)
+    Result.new(success?: true, posts: posts, errors: [])
+  end
+end
+
+# app/serializers/post_serializer.rb
+class PostSerializer < BaseSerializer
   attribute :comments_count do |post|
     post.comments.count  # <-- COUNT(*) query per post!
   end
@@ -726,13 +771,11 @@ end
 
 # Database log for 100 posts:
 #   Post Load (1.2ms)  SELECT "posts".* FROM "posts"
-#   (0.4ms)  SELECT COUNT(*) FROM "comments" WHERE "comments"."post_id" = 1
-#   (0.3ms)  SELECT COUNT(*) FROM "comments" WHERE "comments"."post_id" = 2
-#   (0.4ms)  SELECT COUNT(*) FROM "comments" WHERE "comments"."post_id" = 3
+#   (0.4ms)  SELECT COUNT(*) FROM "comments" WHERE post_id = 1
+#   (0.3ms)  SELECT COUNT(*) FROM "comments" WHERE post_id = 2
 #   ... 97 more COUNT queries
 #
-# includes(:comments) would fix N+1 but loads ALL comment records
-# into memory just to count them. That is worse!`,
+# includes(:comments) loads ALL records just to count them!`,
 		goal: 'Generate the counter cache migration, add counter_cache: true to belongs_to, reset existing counters, and update the serializer.',
 		thresholds: { maxQueriesPerRequest: 3 },
 	},
@@ -1297,7 +1340,7 @@ Post.where(id: Post.connection.select_values(
 	},
 	hint: {
 		delay: 25,
-		text: 'Fire the search probes and inspect the controller code to discover why LIKE queries are slow. You need 3 discoveries to unlock the build phase.',
+		text: 'Fire the search probes and inspect the controller code to discover why LIKE queries are slow. You need all 4 discoveries to unlock the build phase.',
 	},
 };
 

@@ -35,8 +35,8 @@ import {
 	type ValidationResult,
 } from '@/components/levels';
 import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
-import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
+import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import {
 	StageInspector,
 	type StageInspectorData,
@@ -359,10 +359,16 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		title: 'includes (Smart Default)',
 		description:
 			'Rails decides the best strategy: 2 separate queries (IN clause) when no filtering, or LEFT OUTER JOIN when you chain .where on the association. This is the recommended default for most cases.',
-		code: `Post.includes(:user)
-# Query 1: SELECT "posts".* FROM "posts"
-# Query 2: SELECT "users".* FROM "users"
-#           WHERE "users"."id" IN (1, 2, 3...)
+		code: `# In your service object:
+class PostList < ApplicationService
+  def call
+    posts = Post.includes(:user)
+    # Query 1: SELECT "posts".* FROM "posts"
+    # Query 2: SELECT "users".* FROM "users"
+    #           WHERE "users"."id" IN (1, 2, 3...)
+    Result.new(success?: true, posts: posts, errors: [])
+  end
+end
 
 # With filtering (auto-switches to JOIN):
 Post.includes(:user).where(users: { role: 'admin' })
@@ -373,11 +379,17 @@ Post.includes(:user).where(users: { role: 'admin' })
 		title: 'preload (Force Separate Queries)',
 		description:
 			'Always runs 2 separate queries. Uses less memory than eager_load (148K objects vs 250K). Cannot filter by the associated table. Best when you just need the data without conditions.',
-		code: `Post.preload(:user)
-# Always 2 separate queries:
-# Query 1: SELECT "posts".* FROM "posts"
-# Query 2: SELECT "users".* FROM "users"
-#           WHERE "users"."id" IN (1, 2, 3...)
+		code: `# In your service object:
+class PostList < ApplicationService
+  def call
+    posts = Post.preload(:user)
+    # Always 2 separate queries:
+    # Query 1: SELECT "posts".* FROM "posts"
+    # Query 2: SELECT "users".* FROM "users"
+    #           WHERE "users"."id" IN (1, 2, 3...)
+    Result.new(success?: true, posts: posts, errors: [])
+  end
+end
 
 # ERROR if you try to filter:
 Post.preload(:user).where(users: { active: true })
@@ -388,30 +400,41 @@ Post.preload(:user).where(users: { active: true })
 		title: 'eager_load (Force JOIN)',
 		description:
 			'Always uses LEFT OUTER JOIN in a single query. Required when you need to filter or sort by association columns. Uses more memory because the JOIN returns wider result rows.',
-		code: `Post.eager_load(:user)
-# Single query with LEFT OUTER JOIN:
-# SELECT "posts".*, "users".*
-#   FROM "posts"
-#   LEFT OUTER JOIN "users"
-#     ON "users"."id" = "posts"."user_id"
-
-# Required for filtering:
-Post.eager_load(:tags)
-    .where(tags: { active: true })`,
+		code: `# In your service object:
+class PostList < ApplicationService
+  def call(filters: {})
+    posts = Post.eager_load(:tags)
+                .where(tags: { active: filters[:tag_active] })
+    # Single query with LEFT OUTER JOIN:
+    # SELECT "posts".*, "tags".*
+    #   FROM "posts"
+    #   LEFT OUTER JOIN "tags"
+    #     ON "tags"."post_id" = "posts"."id"
+    #   WHERE "tags"."active" = true
+    Result.new(success?: true, posts: posts, errors: [])
+  end
+end`,
 	},
 	joins: {
 		stageId: 'joins',
 		title: 'joins (NOT for N+1 prevention!)',
 		description:
 			'INNER JOINs the table but does NOT load association records into memory. Accessing post.user after joins still triggers a lazy load. This is the most common mistake when trying to fix N+1 queries.',
-		code: `Post.joins(:user).where(users: { role: 'admin' })
-# SQL: SELECT "posts".* FROM "posts"
-#   INNER JOIN "users" ON ...
-#   WHERE "users"."role" = 'admin'
+		code: `# Common mistake in a service:
+class PostList < ApplicationService
+  def call
+    posts = Post.joins(:user)
+                .where(users: { role: 'admin' })
+    # SQL: SELECT "posts".* FROM "posts"
+    #   INNER JOIN "users" ON ...
+    #   WHERE "users"."role" = 'admin'
 
-# BUT: user data is NOT loaded!
-posts.each { |p| p.user.name }
-# => N+1! Each .user triggers a SELECT`,
+    # BUT: user data is NOT loaded!
+    # posts.each { |p| p.user.name }
+    # => N+1! Each .user triggers a SELECT
+    Result.new(success?: true, posts: posts, errors: [])
+  end
+end`,
 	},
 };
 
@@ -565,7 +588,7 @@ const OPTION_STEP_CONFIG: Record<
 	0: {
 		title: 'Fix Posts with Users',
 		description:
-			'Post.all triggers 101 queries for 100 posts. Each post.user.name fires a separate SELECT. Which method batches all user queries into one?',
+			'PostList service calls Post.all, triggering 101 queries for 100 posts. Each post.user.name fires a separate SELECT. Which method should the service use to batch all user queries into one?',
 		options: [
 			{
 				id: 'joins',
@@ -591,7 +614,7 @@ const OPTION_STEP_CONFIG: Record<
 	1: {
 		title: 'Fix Nested Associations',
 		description:
-			'Posts have comments, and each comment has a user. Loading post.comments.map(&:user) fires 1000+ queries. How do you eager-load both levels at once?',
+			'Posts have comments, and each comment has a user. The service loading post.comments.map(&:user) fires 1000+ queries. Which call should the service use to eager-load both levels at once?',
 		options: [
 			{
 				id: 'flat-includes',
@@ -617,7 +640,7 @@ const OPTION_STEP_CONFIG: Record<
 	2: {
 		title: 'Fix Filtered Query',
 		description:
-			'You need posts WHERE tags.active = true. This filters by an association column. includes auto-switches to a JOIN here, but which method gives you explicit control and the best performance?',
+			'The service needs posts WHERE tags.active = true. This filters by an association column. includes auto-switches to a JOIN here, but which method gives the service explicit control and the best performance?',
 		options: [
 			{
 				id: 'preload',
@@ -651,12 +674,14 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 
 	if (phase === 'observe') {
 		files.push({
-			filename: 'app/controllers/posts_controller.rb',
+			filename: 'app/services/post_list.rb',
 			language: 'ruby',
-			code: `class PostsController < ApplicationController
-  def index
-    @posts = Post.all  # No eager loading!
-    render json: PostSerializer.new(@posts)
+			code: `class PostList < ApplicationService
+  Result = Data.define(:success?, :posts, :errors)
+
+  def call
+    posts = Post.all  # No eager loading!
+    Result.new(success?: true, posts: posts, errors: [])
   end
 end
 
@@ -664,7 +689,17 @@ end
 # 1 query for posts
 # + 100 queries for users (one per post)
 # = 101 queries total`,
-			highlight: [3],
+			highlight: [5],
+		});
+		files.push({
+			filename: 'app/controllers/posts_controller.rb',
+			language: 'ruby',
+			code: `class PostsController < ApplicationController
+  def index
+    result = PostList.call
+    render json: PostSerializer.new(result.posts)
+  end
+end`,
 		});
 		return files;
 	}
@@ -672,19 +707,85 @@ end
 	// Build / activate / reward phases
 	if (furthestStep === 0) {
 		files.push({
+			filename: 'app/services/post_list.rb',
+			language: 'ruby',
+			code: `class PostList < ApplicationService
+  Result = Data.define(:success?, :posts, :errors)
+
+  def call
+    posts = Post.all  # 101 queries!
+    Result.new(success?: true, posts: posts, errors: [])
+  end
+end`,
+			highlight: [5],
+		});
+		files.push({
 			filename: 'app/controllers/posts_controller.rb',
 			language: 'ruby',
 			code: `class PostsController < ApplicationController
   def index
-    @posts = Post.all  # 101 queries!
-    render json: PostSerializer.new(@posts)
+    result = PostList.call
+    render json: PostSerializer.new(result.posts)
   end
 end`,
-			highlight: [3],
 		});
 	}
 
 	if (furthestStep >= 1) {
+		files.push({
+			filename: 'app/services/post_list.rb',
+			language: 'ruby',
+			code:
+				furthestStep >= 3
+					? `class PostList < ApplicationService
+  Result = Data.define(:success?, :posts, :errors)
+
+  def call(scope: :index, filters: {})
+    posts = case scope
+    when :index
+      Post.includes(:user)
+      # 2 queries instead of 101
+    when :feed
+      Post.includes(comments: :user)
+      # 3 queries instead of 1001
+    when :tagged
+      Post.eager_load(:tags)
+          .where(tags: { active: filters[:tag_active] })
+      # 1 query with LEFT OUTER JOIN
+    end
+
+    Result.new(success?: true, posts: posts, errors: [])
+  end
+end`
+					: furthestStep >= 2
+						? `class PostList < ApplicationService
+  Result = Data.define(:success?, :posts, :errors)
+
+  def call(scope: :index)
+    posts = case scope
+    when :index
+      Post.includes(:user)
+      # 2 queries instead of 101
+    when :feed
+      Post.includes(comments: :user)
+      # 3 queries instead of 1001
+    end
+
+    Result.new(success?: true, posts: posts, errors: [])
+  end
+end`
+						: `class PostList < ApplicationService
+  Result = Data.define(:success?, :posts, :errors)
+
+  def call
+    posts = Post.includes(:user)
+    # 2 queries instead of 101
+    Result.new(success?: true, posts: posts, errors: [])
+  end
+end`,
+			highlight:
+				furthestStep >= 3 ? [7, 10, 13, 14] : furthestStep >= 2 ? [7, 10] : [5],
+		});
 		files.push({
 			filename: 'app/controllers/posts_controller.rb',
 			language: 'ruby',
@@ -692,51 +793,40 @@ end`,
 				furthestStep >= 3
 					? `class PostsController < ApplicationController
   def index
-    @posts = Post.includes(:user)
-    # 2 queries instead of 101
-    render json: PostSerializer.new(@posts)
+    result = PostList.call(scope: :index)
+    render json: PostSerializer.new(result.posts)
   end
 
   def feed
-    @posts = Post.includes(comments: :user)
-    # 3 queries instead of 1001
-    render json: FeedSerializer.new(@posts)
+    result = PostList.call(scope: :feed)
+    render json: FeedSerializer.new(result.posts)
   end
 
   def tagged
-    @posts = Post.eager_load(:tags)
-                 .where(tags: { active: true })
-    # 1 query with LEFT OUTER JOIN
-    render json: PostSerializer.new(@posts)
+    result = PostList.call(
+      scope: :tagged, filters: { tag_active: true }
+    )
+    render json: PostSerializer.new(result.posts)
   end
 end`
 					: furthestStep >= 2
 						? `class PostsController < ApplicationController
   def index
-    @posts = Post.includes(:user)
-    # 2 queries instead of 101
-    render json: PostSerializer.new(@posts)
+    result = PostList.call(scope: :index)
+    render json: PostSerializer.new(result.posts)
   end
 
   def feed
-    @posts = Post.includes(comments: :user)
-    # 3 queries instead of 1001
-    render json: FeedSerializer.new(@posts)
+    result = PostList.call(scope: :feed)
+    render json: FeedSerializer.new(result.posts)
   end
 end`
 						: `class PostsController < ApplicationController
   def index
-    @posts = Post.includes(:user)
-    # 2 queries instead of 101
-    render json: PostSerializer.new(@posts)
+    result = PostList.call
+    render json: PostSerializer.new(result.posts)
   end
 end`,
-			highlight:
-				furthestStep >= 3
-					? [3, 9, 16, 17]
-					: furthestStep >= 2
-						? [3, 9]
-						: [3],
 		});
 	}
 
@@ -838,9 +928,7 @@ function QueryTimelineLane({
 					onClick={isClickable ? onClick : undefined}
 					type="button"
 				>
-					<code className="text-xs font-bold text-foreground">
-						{lane.name}
-					</code>
+					<code className="text-xs font-bold text-foreground">{lane.name}</code>
 					{inspectable && !inspected && (
 						<span className="flex items-center justify-center w-4 h-4 rounded-full bg-primary/20 text-primary text-[10px] font-bold animate-pulse">
 							?
@@ -901,9 +989,7 @@ function QueryTimelineLane({
 						{/* Flood blocks (N+1 lazy loads) */}
 						{lane.floodCount && lane.floodCount > 0 && (
 							<>
-								<span className="text-muted-foreground/40 text-xs">
-									{'->'}
-								</span>
+								<span className="text-muted-foreground/40 text-xs">{'->'}</span>
 								<div className="flex flex-wrap gap-[3px] max-w-[280px] animate-in fade-in zoom-in-95 duration-500">
 									{Array.from(
 										{ length: Math.min(lane.floodCount, 60) },
@@ -948,11 +1034,7 @@ function QueryTimelineLane({
 // ResultLane component (reward phase - single lane)
 // ──────────────────────────────────────────────
 
-function ResultLane({
-	data,
-}: {
-	data: (typeof REWARD_LANE_DATA)[string];
-}) {
+function ResultLane({ data }: { data: (typeof REWARD_LANE_DATA)[string] }) {
 	const isAllowed = data.result === 'works';
 	return (
 		<div
@@ -990,9 +1072,7 @@ function ResultLane({
 				{data.blocks.map((block, i) => (
 					<div className="flex items-center gap-1.5" key={i}>
 						{i > 0 && (
-							<span className="text-muted-foreground/40 text-xs">
-								{'->'}
-							</span>
+							<span className="text-muted-foreground/40 text-xs">{'->'}</span>
 						)}
 						<span
 							className={cn(
@@ -1008,19 +1088,14 @@ function ResultLane({
 
 				{data.floodCount && data.floodCount > 0 && (
 					<>
-						<span className="text-muted-foreground/40 text-xs">
-							{'->'}
-						</span>
+						<span className="text-muted-foreground/40 text-xs">{'->'}</span>
 						<div className="flex flex-wrap gap-[3px] max-w-[280px] animate-in fade-in zoom-in-95 duration-500">
-							{Array.from(
-								{ length: Math.min(data.floodCount, 60) },
-								(_, i) => (
-									<div
-										className="w-[5px] h-[5px] rounded-[1px] bg-red-500 dark:bg-red-400"
-										key={i}
-									/>
-								),
-							)}
+							{Array.from({ length: Math.min(data.floodCount, 60) }, (_, i) => (
+								<div
+									className="w-[5px] h-[5px] rounded-[1px] bg-red-500 dark:bg-red-400"
+									key={i}
+								/>
+							))}
 							{data.floodCount > 60 && (
 								<span className="text-[9px] text-red-600 dark:text-red-400 font-mono ml-1">
 									+{data.floodCount - 60}
@@ -1058,9 +1133,7 @@ function StrategyLegend() {
 			<div className="space-y-2 text-sm">
 				<div className="flex items-center gap-2">
 					<Check className="w-4 h-4 text-success" />
-					<span className="text-foreground">
-						Optimized (eager loaded)
-					</span>
+					<span className="text-foreground">Optimized (eager loaded)</span>
 				</div>
 				<div className="flex items-center gap-2">
 					<X className="w-4 h-4 text-destructive" />
@@ -1084,8 +1157,9 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 	});
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
-	const [inspectorData, setInspectorData] =
-		useState<StageInspectorData | null>(null);
+	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(
+		null,
+	);
 	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
 		new Set(),
 	);
@@ -1101,11 +1175,11 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 	>(null);
 
 	// ── Get current lanes for observe phase ──
-	const currentLanes = lastProbeId ? PROBE_LANES[lastProbeId] ?? null : null;
+	const currentLanes = lastProbeId ? (PROBE_LANES[lastProbeId] ?? null) : null;
 
 	// ── Get current reward lane data ──
 	const currentRewardLane = lastRewardScenarioId
-		? REWARD_LANE_DATA[lastRewardScenarioId] ?? null
+		? (REWARD_LANE_DATA[lastRewardScenarioId] ?? null)
 		: null;
 
 	// ── Clear all animation timeouts ──
@@ -1123,10 +1197,7 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 
 		for (let i = 1; i < laneCount; i++) {
 			animationTimeoutsRef.current.push(
-				setTimeout(
-					() => setAnimationPhase(i),
-					i * ANIMATION_DURATION_MS,
-				),
+				setTimeout(() => setAnimationPhase(i), i * ANIMATION_DURATION_MS),
 			);
 		}
 
@@ -1262,17 +1333,13 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Level 23 exposed the N+1 problem. Now you need to choose
-							the right{' '}
-							<span className="text-foreground font-medium">
-								strategy
-							</span>{' '}
-							to fix it. Not all eager loading methods work for every
-							scenario.
+							Level 23 exposed the N+1 problem. Now you need to choose the right{' '}
+							<span className="text-foreground font-medium">strategy</span> to
+							fix it. Not all eager loading methods work for every scenario.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Fire probes to test scenarios against four loading
-							strategies. Watch the SQL queries each one generates.
+							Fire probes to test scenarios against four loading strategies.
+							Watch the SQL queries each one generates.
 						</p>
 					</div>
 
@@ -1280,38 +1347,36 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 					{phase === 'observe' && (
 						<div className="p-4 border-b border-border">
 							<DiscoveryChecklist
-								discoveries={discoveryGating.discoveries}
 								discoveredCount={discoveryGating.discoveredCount}
+								discoveries={discoveryGating.discoveries}
 								minRequired={discoveryGating.minRequired}
 							/>
 
 							{/* Progressive hint */}
-							{firedProbeCount >= 2 &&
-								!discoveryGating.isUnlocked && (
-									<Alert
-										className="mt-3 animate-in fade-in duration-500"
-										variant="info"
-									>
-										<Info className="w-4 h-4" />
-										<AlertDescription className="text-xs">
-											{firedProbeCount >= 3 ? (
-												<>
-													Click the strategy names with{' '}
-													<span className="font-medium">?</span>{' '}
-													to inspect their SQL patterns and
-													discover why different scenarios need
-													different approaches.
-												</>
-											) : (
-												<>
-													Click the strategy names with{' '}
-													<span className="font-medium">?</span>{' '}
-													to inspect each loading method.
-												</>
-											)}
-										</AlertDescription>
-									</Alert>
-								)}
+							{firedProbeCount >= 2 && !discoveryGating.isUnlocked && (
+								<Alert
+									className="mt-3 animate-in fade-in duration-500"
+									variant="info"
+								>
+									<Info className="w-4 h-4" />
+									<AlertDescription className="text-xs">
+										{firedProbeCount >= 3 ? (
+											<>
+												Click the strategy names with{' '}
+												<span className="font-medium">?</span> to inspect their
+												SQL patterns and discover why different scenarios need
+												different approaches.
+											</>
+										) : (
+											<>
+												Click the strategy names with{' '}
+												<span className="font-medium">?</span> to inspect each
+												loading method.
+											</>
+										)}
+									</AlertDescription>
+								</Alert>
+							)}
 						</div>
 					)}
 
@@ -1340,9 +1405,7 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 										<div className="text-2xl font-bold text-success">
 											{stressTest.allowedCount}
 										</div>
-										<div className="text-xs text-success/70">
-											Optimized
-										</div>
+										<div className="text-xs text-success/70">Optimized</div>
 									</div>
 									<div className="bg-destructive/20 rounded-lg p-3 text-center">
 										<div className="text-2xl font-bold text-destructive">
@@ -1416,18 +1479,11 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 									).map((lane, i) => (
 										<QueryTimelineLane
 											inspectable
-											inspected={inspectedStages.has(
-												lane.id,
-											)}
+											inspected={inspectedStages.has(lane.id)}
 											key={lane.id}
 											lane={lane}
-											onClick={() =>
-												handleLaneClick(lane.id)
-											}
-											visible={
-												currentLanes !== null &&
-												animationPhase >= i
-											}
+											onClick={() => handleLaneClick(lane.id)}
+											visible={currentLanes !== null && animationPhase >= i}
 										/>
 									))}
 								</div>
@@ -1435,9 +1491,7 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 								{inspectorData && (
 									<StageInspector
 										data={inspectorData}
-										onClose={() =>
-											setInspectorData(null)
-										}
+										onClose={() => setInspectorData(null)}
 									/>
 								)}
 							</div>
@@ -1483,73 +1537,52 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 
 										{isViewingCompletedStep ? (
 											<div className="space-y-2">
-												{currentOptionConfig.options.map(
-													(opt) => (
-														<OptionCard
-															color="violet"
-															disabled={
-																!opt.correct
-															}
-															key={opt.id}
-															mono
-															name={opt.label}
-															selected={
-																opt.correct
-															}
-															size="lg"
-														/>
-													),
-												)}
+												{currentOptionConfig.options.map((opt) => (
+													<OptionCard
+														color="violet"
+														disabled={!opt.correct}
+														key={opt.id}
+														mono
+														name={opt.label}
+														selected={opt.correct}
+														size="lg"
+													/>
+												))}
 											</div>
 										) : (
 											<>
 												<div className="space-y-2">
-													{currentOptionConfig.options.map(
-														(opt) => (
-															<OptionCard
-																color="violet"
-																key={opt.id}
-																mono
-																name={
-																	opt.label
-																}
-																onClick={() =>
-																	handleOptionClick(
-																		opt,
-																	)
-																}
-																size="lg"
-															/>
-														),
-													)}
+													{currentOptionConfig.options.map((opt) => (
+														<OptionCard
+															color="violet"
+															key={opt.id}
+															mono
+															name={opt.label}
+															onClick={() => handleOptionClick(opt)}
+															size="lg"
+														/>
+													))}
 												</div>
 
 												<ErrorFeedback
-													message={
-														stepper.lastFeedback
-													}
-													onDismiss={
-														stepper.clearFeedback
-													}
+													message={stepper.lastFeedback}
+													onDismiss={stepper.clearFeedback}
 												/>
 											</>
 										)}
 
-										{isViewingCompletedStep &&
-											hasNextStep && (
-												<div className="flex justify-end">
-													<Button
-														className="gap-2"
-														onClick={
-															stepper.nextStep
-														}
-														size="sm"
-													>
-														Next Step
-														<ArrowRight className="w-4 h-4" />
-													</Button>
-												</div>
-											)}
+										{isViewingCompletedStep && hasNextStep && (
+											<div className="flex justify-end">
+												<Button
+													className="gap-2"
+													onClick={stepper.nextStep}
+													size="sm"
+												>
+													Next Step
+													<ArrowRight className="w-4 h-4" />
+												</Button>
+											</div>
+										)}
 									</>
 								)}
 							</div>
@@ -1573,9 +1606,8 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 									))}
 								</div>
 								<p className="text-sm text-muted-foreground">
-									Your eager loading strategies are set.
-									Stress-test the optimized queries and watch
-									N+1 problems get caught.
+									Your eager loading strategies are set. Stress-test the
+									optimized queries and watch N+1 problems get caught.
 								</p>
 								<Button
 									className="gap-2"
@@ -1602,8 +1634,7 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 										/>
 									) : (
 										<div className="text-center text-muted-foreground text-sm">
-											Fire a scenario below to see the
-											query pattern
+											Fire a scenario below to see the query pattern
 										</div>
 									)}
 								</div>
@@ -1618,9 +1649,7 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 									disabled={isAnimating}
 									isAutoFiring={stressTest.isAutoFiring}
 									onFire={handleFireScenario}
-									onToggleAutoFire={
-										stressTest.toggleAutoFire
-									}
+									onToggleAutoFire={stressTest.toggleAutoFire}
 									results={stressTest.results}
 									scenarios={STRESS_SCENARIOS}
 								/>
@@ -1643,17 +1672,13 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 								</div>
 								<div className="space-y-2 text-xs font-mono">
 									<div className="flex justify-between">
-										<span className="text-primary">
-											includes
-										</span>
+										<span className="text-primary">includes</span>
 										<span className="text-muted-foreground">
 											2 queries, SQL IN clause
 										</span>
 									</div>
 									<div className="flex justify-between">
-										<span className="text-warning">
-											preload
-										</span>
+										<span className="text-warning">preload</span>
 										<span className="text-muted-foreground">
 											2 queries, separate SELECTs
 										</span>
@@ -1667,17 +1692,13 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 										</span>
 									</div>
 									<div className="flex justify-between mt-2 pt-2 border-t border-border">
-										<span className="text-destructive">
-											No eager loading
-										</span>
-										<span className="text-destructive">
-											10,001 queries
-										</span>
+										<span className="text-destructive">No eager loading</span>
+										<span className="text-destructive">10,001 queries</span>
 									</div>
 								</div>
 								<div className="text-xs text-muted-foreground mt-2">
-									Memory: 681MB (no eager) to 45MB (with
-									includes) for 10K records
+									Memory: 681MB (no eager) to 45MB (with includes) for 10K
+									records
 								</div>
 							</div>
 
@@ -1687,23 +1708,16 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 								</div>
 								<ul className="text-xs text-muted-foreground space-y-1">
 									<li>
-										<span className="text-primary">
-											prosopite gem
-										</span>{' '}
-										- Auto-detects N+1 and raises in
-										development
+										<span className="text-primary">prosopite gem</span> -
+										Auto-detects N+1 and raises in development
 									</li>
 									<li>
-										<span className="text-primary">
-											strict_loading
-										</span>{' '}
-										- Raises on lazy loads in development
+										<span className="text-primary">strict_loading</span> -
+										Raises on lazy loads in development
 									</li>
 									<li>
-										<span className="text-primary">
-											Rails Scales!, Ch. 2
-										</span>{' '}
-										- Preloading Methods
+										<span className="text-primary">Rails Scales!, Ch. 2</span> -
+										Preloading Methods
 									</li>
 								</ul>
 							</div>

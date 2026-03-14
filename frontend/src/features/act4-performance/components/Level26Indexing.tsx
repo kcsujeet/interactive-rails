@@ -334,8 +334,9 @@ const LANE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		stageId: 'email',
 		title: 'Email Lookup Query',
 		description:
-			'User.find_by(email: params[:email]) translates to a WHERE clause. Without an index, the database reads every row to find the match.',
-		code: `-- Generated SQL:
+			'UserLookup.call(email:) calls User.find_by!(email: @email) inside the service. This translates to a WHERE clause. Without an index, the database reads every row to find the match.',
+		code: `-- UserLookup service calls User.find_by!(email: @email)
+-- Generated SQL:
 SELECT * FROM users WHERE email = 'alice@example.com'
 
 -- EXPLAIN output:
@@ -348,8 +349,9 @@ Seq Scan on users  (cost=0.00..245.00)
 		stageId: 'fk',
 		title: 'Foreign Key Lookup Query',
 		description:
-			'Post.where(user_id: 42) filters posts by a foreign key. Rails does NOT automatically create indexes on foreign key columns.',
-		code: `-- Generated SQL:
+			'UserPostsLoader.call(user_id:) calls Post.where(user_id: @user_id) inside the service. This filters posts by a foreign key. Rails does NOT automatically create indexes on foreign key columns.',
+		code: `-- UserPostsLoader service calls Post.where(user_id: @user_id)
+-- Generated SQL:
 SELECT * FROM posts WHERE user_id = 42
 
 -- EXPLAIN output:
@@ -362,8 +364,9 @@ Seq Scan on posts  (cost=0.00..1125.00)
 		stageId: 'composite',
 		title: 'Composite Query (WHERE + ORDER BY)',
 		description:
-			'Post.where(published: true).order(:created_at) needs both a filter and a sort. Without a composite index, the database does a full scan AND an in-memory sort.',
-		code: `-- Generated SQL:
+			'PublishedPostsQuery.call filters with Post.where(published: true).order(:created_at) inside the service. Without a composite index, the database does a full scan AND an in-memory sort.',
+		code: `-- PublishedPostsQuery service calls Post.where(published: true).order(:created_at)
+-- Generated SQL:
 SELECT * FROM posts
   WHERE published = true
   ORDER BY created_at
@@ -694,7 +697,7 @@ const OPTION_STEP_CONFIG: Record<
 	1: {
 		title: 'Unique Index on Email',
 		description:
-			'User.find_by(email: ...) triggers a Seq Scan across 10,000 rows. Each email must be unique. Which index definition belongs in the migration?',
+			'UserLookup calls User.find_by!(email: @email), which triggers a Seq Scan across 10,000 rows. Each email must be unique. Which index definition belongs in the migration?',
 		options: [
 			{
 				id: 'wrong-plain',
@@ -720,7 +723,7 @@ const OPTION_STEP_CONFIG: Record<
 	2: {
 		title: 'Foreign Key Index',
 		description:
-			'Post.where(user_id: 42) scans all 50,000 posts. Rails does not automatically index foreign keys. Which index fixes this?',
+			'UserPostsLoader calls Post.where(user_id: @user_id), which scans all 50,000 posts. Rails does not automatically index foreign keys. Which index fixes this?',
 		options: [
 			{
 				id: 'wrong-composite',
@@ -746,7 +749,7 @@ const OPTION_STEP_CONFIG: Record<
 	3: {
 		title: 'Composite Index',
 		description:
-			'Post.where(published: true).order(:created_at) does a sort on top of a Seq Scan. A composite index can cover both the WHERE and ORDER BY. Column order matters: the leftmost prefix rule means the first column must match the WHERE clause.',
+			'PublishedPostsQuery calls Post.where(published: true).order(:created_at), which does a sort on top of a Seq Scan. A composite index can cover both the WHERE and ORDER BY. Column order matters: the leftmost prefix rule means the first column must match the WHERE clause.',
 		options: [
 			{
 				id: 'wrong-order',
@@ -803,16 +806,34 @@ end`,
 			highlight: [7, 16, 17],
 		});
 		files.push({
+			filename: 'app/services/user_lookup.rb',
+			language: 'ruby',
+			code: `class UserLookup < ApplicationService
+  Result = Data.define(:success?, :user, :errors)
+
+  def initialize(email:)
+    @email = email
+  end
+
+  def call
+    user = User.find_by!(email: @email)
+    # Seq Scan: 820ms on 10K rows!
+    Result.new(success?: true, user: user, errors: [])
+  rescue ActiveRecord::RecordNotFound
+    Result.new(success?: false, user: nil, errors: ["not found"])
+  end
+end`,
+			highlight: [9, 10],
+		});
+		files.push({
 			filename: 'app/controllers/api/v1/users_controller.rb',
 			language: 'ruby',
 			code: `class Api::V1::UsersController < ApplicationController
   def show
-    @user = User.find_by!(email: params[:email])
-    # Seq Scan: 820ms on 10K rows!
-    render json: UserSerializer.new(@user)
+    result = UserLookup.call(email: params[:email])
+    render json: UserSerializer.new(result.user)
   end
 end`,
-			highlight: [3, 4],
 		});
 		return files;
 	}
@@ -893,21 +914,24 @@ end`,
 		files.push({
 			filename: 'EXPLAIN output (after indexing)',
 			language: 'sql',
-			code: `-- User.find_by(email: "alice@example.com").explain
+			code: `-- UserLookup.call(email: "alice@example.com")
+-- Service calls User.find_by!(email: @email)
 Index Scan using index_users_on_email on users
   Index Cond: ((email) = 'alice@example.com')
-  Execution Time: 0.05 ms  -- was 820ms!
+  Execution Time: 0.05 ms  (was 820ms)
 
--- Post.where(user_id: 42).explain
+-- UserPostsLoader.call(user_id: 42)
+-- Service calls Post.where(user_id: @user_id)
 Index Scan using index_posts_on_user_id on posts
   Index Cond: (user_id = 42)
-  Execution Time: 0.10 ms  -- was 450ms!
+  Execution Time: 0.10 ms  (was 450ms)
 
--- Post.where(published: true).order(:created_at).explain
+-- PublishedPostsQuery.call
+-- Service calls Post.where(published: true).order(:created_at)
 Index Scan using index_posts_on_published_and_created_at
   Index Cond: (published = true)
-  Execution Time: 0.20 ms  -- was 650ms!`,
-			highlight: [2, 4, 7, 9, 12, 14],
+  Execution Time: 0.20 ms  (was 650ms)`,
+			highlight: [3, 5, 9, 11, 15, 17],
 		});
 	}
 

@@ -43,16 +43,25 @@ import {
 	type ValidationResult,
 } from '@/components/levels';
 import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
-import { ProbeTerminal, type ProbeConfig } from '@/components/levels/ProbeTerminal';
-import { StageInspector, type StageInspectorData } from '@/components/levels/StageInspector';
+import {
+	type ProbeConfig,
+	ProbeTerminal,
+} from '@/components/levels/ProbeTerminal';
+import {
+	StageInspector,
+	type StageInspectorData,
+} from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
+import {
+	type DiscoveryDef,
+	useDiscoveryGating,
+} from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
-import { useDiscoveryGating, type DiscoveryDef } from '@/hooks/useDiscoveryGating';
-import { useStressTest, type StressScenario } from '@/hooks/useStressTest';
+import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { cn } from '@/lib/utils';
 
@@ -161,10 +170,28 @@ const PROBE_NEEDED_COLUMNS: Record<string, string[]> = {
 };
 
 /** Memory gauge data per probe */
-const PROBE_MEMORY: Record<string, { total: string; needed: string; totalPct: number; neededPct: number }> = {
-	'csv-export': { total: '681 MB', needed: '2.35 MB', totalPct: 100, neededPct: 0.35 },
-	'dropdown-api': { total: '245 MB', needed: '0.8 MB', totalPct: 36, neededPct: 0.12 },
-	'nightly-sync': { total: '3.4 GB', needed: '~50 MB', totalPct: 100, neededPct: 1.5 },
+const PROBE_MEMORY: Record<
+	string,
+	{ total: string; needed: string; totalPct: number; neededPct: number }
+> = {
+	'csv-export': {
+		total: '681 MB',
+		needed: '2.35 MB',
+		totalPct: 100,
+		neededPct: 0.35,
+	},
+	'dropdown-api': {
+		total: '245 MB',
+		needed: '0.8 MB',
+		totalPct: 36,
+		neededPct: 0.12,
+	},
+	'nightly-sync': {
+		total: '3.4 GB',
+		needed: '~50 MB',
+		totalPct: 100,
+		neededPct: 1.5,
+	},
 };
 
 // ──────────────────────────────────────────────
@@ -222,7 +249,10 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'allowed',
 		responseLines: [
 			{ text: 'Category.pluck(:id, :name)', color: 'yellow' },
-			{ text: '-- 2 columns, 80 bytes per pair (no 2.5 KB objects)', color: 'green' },
+			{
+				text: '-- 2 columns, 80 bytes per pair (no 2.5 KB objects)',
+				color: 'green',
+			},
 			{ text: 'Memory: 0.8 MB for 10K rows', color: 'green' },
 		],
 	},
@@ -312,17 +342,25 @@ interface StepOption {
 
 const OPTION_STEP_CONFIG: Record<
 	number,
-	{ title: string; description: string; codeContext: string; options: StepOption[] }
+	{
+		title: string;
+		description: string;
+		codeContext: string;
+		options: StepOption[];
+	}
 > = {
 	0: {
 		title: 'CSV Export Strategy',
 		description:
 			'Admin dashboard exports 50K user records to CSV. Only id and email are needed. The users table has 30 columns including a 75KB TEXT column (bio).',
-		codeContext: `# Current implementation (slow, high memory)
-def export_csv
-  users = User.all
-  CSV.generate do |csv|
-    users.each { |u| csv << [u.id, u.email] }
+		codeContext: `# Current service (slow, high memory)
+class UserExport < ApplicationService
+  def call
+    users = User.all  # SELECT *
+    csv = CSV.generate do |csv|
+      users.each { |u| csv << [u.id, u.email] }
+    end
+    Result.new(success?: true, resource: csv, errors: [])
   end
 end`,
 		options: [
@@ -351,11 +389,14 @@ end`,
 		title: 'Dropdown Data',
 		description:
 			'A dropdown needs [id, name] pairs for 10K category records. No model methods are needed, just raw data for the UI.',
-		codeContext: `# Populate a <select> dropdown
-def category_options
-  # Need: [[1, "Tech"], [2, "Science"], ...]
-  categories = Category.all
-  categories.map { |c| [c.id, c.name] }
+		codeContext: `# Current service (wasteful AR overhead)
+class CategoryDropdown < ApplicationService
+  def call
+    # Need: [[1, "Tech"], [2, "Science"], ...]
+    categories = Category.all
+    pairs = categories.map { |c| [c.id, c.name] }
+    Result.new(success?: true, resource: pairs, errors: [])
+  end
 end`,
 		options: [
 			{
@@ -383,10 +424,13 @@ end`,
 		title: 'Batch Processing',
 		description:
 			'Processing 50K records for a nightly data sync. Each record needs model validations run on it, so you need full AR objects.',
-		codeContext: `# Nightly sync job
-def sync_all_users
-  User.all.each do |user|
-    SyncService.process(user)  # needs validations
+		codeContext: `# Current service (loads all 50K records at once)
+class NightlySync < ApplicationService
+  def call
+    User.all.each do |user|
+      SyncService.process(user)  # needs validations
+    end
+    Result.new(success?: true, resource: nil, errors: [])
   end
 end`,
 		options: [
@@ -399,7 +443,8 @@ end`,
 			},
 			{
 				id: 'find-in-batches',
-				label: 'User.find_in_batches(batch_size: 1000) { |batch| batch.each { |u| process(u) } }',
+				label:
+					'User.find_in_batches(batch_size: 1000) { |batch| batch.each { |u| process(u) } }',
 				correct: true,
 			},
 			{
@@ -417,16 +462,19 @@ end`,
 			'Building an API response that needs user.full_name, a model method that combines first_name and last_name. The table also has large TEXT columns.',
 		codeContext: `class User < ApplicationRecord
   def full_name
-    "\#{first_name} \#{last_name}"
+    "#{first_name} #{last_name}"
   end
 end
 
-# API endpoint
-def index
-  users = User.all
-  render json: users.map { |u|
-    { id: u.id, name: u.full_name }
-  }
+# Current service (loads all columns)
+class UserListing < ApplicationService
+  def call
+    users = User.all
+    data = users.map { |u|
+      { id: u.id, name: u.full_name }
+    }
+    Result.new(success?: true, resource: data, errors: [])
+  end
 end`,
 		options: [
 			{
@@ -461,26 +509,36 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 
 	if (phase === 'observe') {
 		files.push({
-			filename: 'app/controllers/api/v1/users_controller.rb',
+			filename: 'app/services/user_export.rb',
 			language: 'ruby',
-			code: `class Api::V1::UsersController < ApplicationController
-  # CSV export: loads ALL 30 columns for 50K users
-  def export_csv
+			code: `class UserExport < ApplicationService
+  Result = Data.define(:success?, :resource, :errors)
+
+  def call
     users = User.all  # SELECT * FROM users
-    CSV.generate do |csv|
+    csv = CSV.generate do |csv|
       users.each { |u| csv << [u.id, u.email] }
     end
-  end
-
-  # API index: loads ALL columns for full_name
-  def index
-    users = User.all  # SELECT * FROM users
-    render json: users.map { |u|
-      { id: u.id, name: u.full_name }
-    }
+    Result.new(success?: true, resource: csv, errors: [])
   end
 end`,
-			highlight: [4, 12],
+			highlight: [5],
+		});
+		files.push({
+			filename: 'app/services/user_listing.rb',
+			language: 'ruby',
+			code: `class UserListing < ApplicationService
+  Result = Data.define(:success?, :resource, :errors)
+
+  def call
+    users = User.all  # SELECT * FROM users
+    data = users.map { |u|
+      { id: u.id, name: u.full_name }
+    }
+    Result.new(success?: true, resource: data, errors: [])
+  end
+end`,
+			highlight: [5],
 		});
 		return files;
 	}
@@ -490,7 +548,7 @@ end`,
 		const stepConfig = OPTION_STEP_CONFIG[Math.min(furthestStep, 3)];
 		if (stepConfig) {
 			files.push({
-				filename: 'current_endpoint.rb',
+				filename: 'current_service.rb',
 				language: 'ruby',
 				code: stepConfig.codeContext,
 				highlight: [],
@@ -524,41 +582,66 @@ Post.find_in_batches(batch_size: 1000) { |batch|
 
 	// Activate / reward: show the fixed code
 	files.push({
-		filename: 'app/controllers/api/v1/users_controller.rb',
+		filename: 'app/services/user_export.rb',
 		language: 'ruby',
-		code: `class Api::V1::UsersController < ApplicationController
-  # CSV export: pluck returns plain arrays
-  def export_csv
+		code: `class UserExport < ApplicationService
+  Result = Data.define(:success?, :resource, :errors)
+
+  # pluck returns plain arrays (no AR objects)
+  def call
     rows = User.pluck(:id, :email)
-    CSV.generate { |csv| rows.each { |r| csv << r } }
-  end
-
-  # Dropdown: pluck for raw key-value pairs
-  def category_options
-    Category.pluck(:id, :name)
-  end
-
-  # API index: select for model methods
-  def index
-    users = User.select(:id, :first_name, :last_name)
-    render json: users.map { |u|
-      { id: u.id, name: u.full_name }
-    }
+    csv = CSV.generate { |csv| rows.each { |r| csv << r } }
+    Result.new(success?: true, resource: csv, errors: [])
   end
 end`,
-		highlight: [4, 10, 15],
+		highlight: [6],
 	});
 	files.push({
-		filename: 'app/jobs/nightly_sync_job.rb',
+		filename: 'app/services/category_dropdown.rb',
 		language: 'ruby',
-		code: `class NightlySyncJob < ApplicationJob
-  def perform
+		code: `class CategoryDropdown < ApplicationService
+  Result = Data.define(:success?, :resource, :errors)
+
+  # pluck for raw key-value pairs
+  def call
+    pairs = Category.pluck(:id, :name)
+    Result.new(success?: true, resource: pairs, errors: [])
+  end
+end`,
+		highlight: [6],
+	});
+	files.push({
+		filename: 'app/services/user_listing.rb',
+		language: 'ruby',
+		code: `class UserListing < ApplicationService
+  Result = Data.define(:success?, :resource, :errors)
+
+  # select for model methods (skips large columns)
+  def call
+    users = User.select(:id, :first_name, :last_name)
+    data = users.map { |u|
+      { id: u.id, name: u.full_name }
+    }
+    Result.new(success?: true, resource: data, errors: [])
+  end
+end`,
+		highlight: [6],
+	});
+	files.push({
+		filename: 'app/services/nightly_sync.rb',
+		language: 'ruby',
+		code: `class NightlySync < ApplicationService
+  Result = Data.define(:success?, :resource, :errors)
+
+  # find_in_batches: constant memory
+  def call
     User.find_in_batches(batch_size: 1000) do |batch|
       batch.each { |u| SyncService.process(u) }
     end
+    Result.new(success?: true, resource: nil, errors: [])
   end
 end`,
-		highlight: [3],
+		highlight: [6],
 	});
 
 	return files;
@@ -574,7 +657,12 @@ interface HeatmapState {
 	/** Which columns are "needed" (green) */
 	neededColumns: string[];
 	/** Memory gauge data */
-	memory: { total: string; needed: string; totalPct: number; neededPct: number } | null;
+	memory: {
+		total: string;
+		needed: string;
+		totalPct: number;
+		neededPct: number;
+	} | null;
 	/** Is this a "blocked" scenario (all red, no green) */
 	isBlocked: boolean;
 	/** For nightly sync: show batch label instead of green columns */
@@ -627,33 +715,42 @@ function DataTableHeatmap({
 					let colorClass: string;
 					if (solutionAllowed && showGreen && isNeeded) {
 						// Solution allowed: needed columns glow green
-						colorClass = 'bg-emerald-100 dark:bg-emerald-900/50 border-emerald-500 text-emerald-700 dark:text-emerald-300';
+						colorClass =
+							'bg-emerald-100 dark:bg-emerald-900/50 border-emerald-500 text-emerald-700 dark:text-emerald-300';
 					} else if (solutionAllowed) {
 						// Solution allowed: non-needed columns stay neutral/dim
 						colorClass = 'bg-muted border-border text-muted-foreground';
 					} else if (showGreen && isNeeded) {
 						// Problem mode: needed columns flash green (contrast against red)
-						colorClass = 'bg-emerald-100 dark:bg-emerald-900/50 border-emerald-500 text-emerald-700 dark:text-emerald-300';
+						colorClass =
+							'bg-emerald-100 dark:bg-emerald-900/50 border-emerald-500 text-emerald-700 dark:text-emerald-300';
 					} else if (showColumns && isActive) {
 						// Problem mode (or solution blocked): all columns red
-						colorClass = 'bg-red-100 dark:bg-red-900/40 border-red-400 dark:border-red-600 text-red-700 dark:text-red-300';
+						colorClass =
+							'bg-red-100 dark:bg-red-900/40 border-red-400 dark:border-red-600 text-red-700 dark:text-red-300';
 					} else {
 						colorClass = 'bg-muted border-border text-muted-foreground';
 					}
 
 					return (
 						<button
-							key={col.id}
-							type="button"
-							onClick={isClickable ? () => onColumnClick(col.id) : undefined}
-							disabled={!isClickable}
 							className={cn(
 								'relative px-1.5 py-1 text-[10px] font-mono rounded border transition-all transition-colors duration-300',
-								isBigText ? 'min-w-[100px]' : col.collapsed ? 'min-w-[60px]' : 'min-w-[56px]',
+								isBigText
+									? 'min-w-[100px]'
+									: col.collapsed
+										? 'min-w-[60px]'
+										: 'min-w-[56px]',
 								colorClass,
-								isClickable && !inspectedBigText && 'cursor-pointer hover:ring-2 hover:ring-primary/50',
+								isClickable &&
+									!inspectedBigText &&
+									'cursor-pointer hover:ring-2 hover:ring-primary/50',
 								isClickable && inspectedBigText && 'cursor-default',
 							)}
+							disabled={!isClickable}
+							key={col.id}
+							onClick={isClickable ? () => onColumnClick(col.id) : undefined}
+							type="button"
 						>
 							{col.label}
 							{isBigText && inspectableBigText && !inspectedBigText && (
@@ -662,12 +759,14 @@ function DataTableHeatmap({
 								</span>
 							)}
 							{isBigText && (
-								<span className={cn(
-									'block text-[8px] mt-0.5',
-									showColumns && isActive && !solutionAllowed
-										? 'text-red-500 dark:text-red-400'
-										: 'text-muted-foreground',
-								)}>
+								<span
+									className={cn(
+										'block text-[8px] mt-0.5',
+										showColumns && isActive && !solutionAllowed
+											? 'text-red-500 dark:text-red-400'
+											: 'text-muted-foreground',
+									)}
+								>
 									75 KB/row
 								</span>
 							)}
@@ -678,43 +777,38 @@ function DataTableHeatmap({
 
 			{/* Column count indicator */}
 			<div className="text-[10px] text-muted-foreground font-mono text-right">
-				{solutionAllowed && showGreen && state.neededColumns.length > 0
-					? (
+				{solutionAllowed && showGreen && state.neededColumns.length > 0 ? (
+					<span className="text-emerald-600 dark:text-emerald-400 font-bold">
+						{state.neededColumns.length} columns fetched
+					</span>
+				) : solutionAllowed && state.isBatched && showGreen ? (
+					<span className="text-primary font-bold">
+						All columns, batched 1K at a time
+					</span>
+				) : isActive &&
+					!state.isBlocked &&
+					state.neededColumns.length > 0 &&
+					showGreen ? (
+					<span>
 						<span className="text-emerald-600 dark:text-emerald-400 font-bold">
-							{state.neededColumns.length} columns fetched
+							{state.neededColumns.length} needed
 						</span>
-					)
-					: solutionAllowed && state.isBatched && showGreen
-						? (
-							<span className="text-primary font-bold">
-								All columns, batched 1K at a time
-							</span>
-						)
-						: isActive && !state.isBlocked && state.neededColumns.length > 0 && showGreen
-							? (
-								<span>
-									<span className="text-emerald-600 dark:text-emerald-400 font-bold">
-										{state.neededColumns.length} needed
-									</span>
-									{' / '}
-									<span className="text-red-500 dark:text-red-400">
-										{TOTAL_COLUMN_COUNT} loaded
-									</span>
-								</span>
-							)
-							: state.isBatched && showGreen
-								? (
-									<span className="text-primary font-bold">
-										All columns, batched 1K at a time
-									</span>
-								)
-								: isActive
-									? (
-										<span className="text-red-500 dark:text-red-400 font-bold">
-											{TOTAL_COLUMN_COUNT} columns loaded via SELECT *
-										</span>
-									)
-									: `${TOTAL_COLUMN_COUNT} columns total`}
+						{' / '}
+						<span className="text-red-500 dark:text-red-400">
+							{TOTAL_COLUMN_COUNT} loaded
+						</span>
+					</span>
+				) : state.isBatched && showGreen ? (
+					<span className="text-primary font-bold">
+						All columns, batched 1K at a time
+					</span>
+				) : isActive ? (
+					<span className="text-red-500 dark:text-red-400 font-bold">
+						{TOTAL_COLUMN_COUNT} columns loaded via SELECT *
+					</span>
+				) : (
+					`${TOTAL_COLUMN_COUNT} columns total`
+				)}
 			</div>
 
 			{/* Row indicator bars */}
@@ -723,7 +817,6 @@ function DataTableHeatmap({
 					const showRow = state.animPhase >= 1 && i < state.rowCount;
 					return (
 						<div
-							key={i}
 							className={cn(
 								'h-2 rounded-full transition-all duration-300',
 								showRow && solutionAllowed
@@ -734,6 +827,7 @@ function DataTableHeatmap({
 											? 'bg-red-400/30 dark:bg-red-500/20'
 											: 'bg-muted',
 							)}
+							key={i}
 						/>
 					);
 				})}
@@ -776,13 +870,19 @@ function DataTableHeatmap({
 										)}
 									/>
 								</div>
-								<span className={cn(
-									'text-[10px] font-mono w-24 text-right',
-									!showGreen
-										? 'text-red-500 dark:text-red-400'
-										: 'text-red-400/60 dark:text-red-500/40',
-								)}>
-									{showGauge ? (showGreen ? `${state.memory.total} wasted` : state.memory.total) : ''}
+								<span
+									className={cn(
+										'text-[10px] font-mono w-24 text-right',
+										!showGreen
+											? 'text-red-500 dark:text-red-400'
+											: 'text-red-400/60 dark:text-red-500/40',
+									)}
+								>
+									{showGauge
+										? showGreen
+											? `${state.memory.total} wasted`
+											: state.memory.total
+										: ''}
 								</span>
 							</div>
 							{showGreen && (
@@ -809,22 +909,28 @@ function DataTableHeatmap({
 
 export function Level25NarrowFetching({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
-	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, { minRequired: 4 });
+	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
+		minRequired: 4,
+	});
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
 
 	// ── Animation state ──
 	const [isAnimating, setIsAnimating] = useState(false);
-	const [heatmapState, setHeatmapState] = useState<HeatmapState>(INITIAL_HEATMAP);
+	const [heatmapState, setHeatmapState] =
+		useState<HeatmapState>(INITIAL_HEATMAP);
 	const animationTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 	const [firedProbeCount, setFiredProbeCount] = useState(0);
 
 	// ── StageInspector state ──
-	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(null);
+	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(
+		null,
+	);
 	const [inspectedBigText, setInspectedBigText] = useState(false);
 
 	// ── Reward heatmap state ──
-	const [rewardHeatmap, setRewardHeatmap] = useState<HeatmapState>(INITIAL_HEATMAP);
+	const [rewardHeatmap, setRewardHeatmap] =
+		useState<HeatmapState>(INITIAL_HEATMAP);
 
 	const clearAnimations = useCallback(() => {
 		for (const t of animationTimeoutsRef.current) clearTimeout(t);
@@ -933,7 +1039,11 @@ export function Level25NarrowFetching({ onComplete }: LevelComponentProps) {
 			// Phase 1: rows
 			animationTimeoutsRef.current.push(
 				setTimeout(() => {
-					setRewardHeatmap((prev) => ({ ...prev, animPhase: 1, rowCount: isBatched ? 1000 : 10000 }));
+					setRewardHeatmap((prev) => ({
+						...prev,
+						animPhase: 1,
+						rowCount: isBatched ? 1000 : 10000,
+					}));
 				}, ANIMATION_DURATION_MS * 0.5),
 			);
 
@@ -1075,18 +1185,21 @@ export function Level25NarrowFetching({ onComplete }: LevelComponentProps) {
 					{phase === 'observe' && (
 						<div className="p-4 border-b border-border">
 							<DiscoveryChecklist
-								discoveries={discoveryGating.discoveries}
 								discoveredCount={discoveryGating.discoveredCount}
+								discoveries={discoveryGating.discoveries}
 								minRequired={discoveryGating.minRequired}
 							/>
 							{/* Progressive hint */}
 							{firedProbeCount >= 2 && !discoveryGating.isUnlocked && (
-								<Alert variant="info" className="mt-3 animate-in fade-in duration-500">
+								<Alert
+									className="mt-3 animate-in fade-in duration-500"
+									variant="info"
+								>
 									<Info className="w-4 h-4" />
 									<AlertDescription className="text-xs">
 										Click the{' '}
-										<span className="font-medium">big_text_column</span>{' '}
-										header to see why TEXT columns dominate the memory footprint.
+										<span className="font-medium">big_text_column</span> header
+										to see why TEXT columns dominate the memory footprint.
 									</AlertDescription>
 								</Alert>
 							)}
@@ -1197,11 +1310,11 @@ export function Level25NarrowFetching({ onComplete }: LevelComponentProps) {
 							<div className="px-6 py-3">
 								<div className="max-w-2xl mx-auto">
 									<DataTableHeatmap
-										state={heatmapState}
-										mode="problem"
-										onColumnClick={handleColumnClick}
 										inspectableBigText
 										inspectedBigText={inspectedBigText}
+										mode="problem"
+										onColumnClick={handleColumnClick}
+										state={heatmapState}
 									/>
 								</div>
 							</div>
@@ -1210,10 +1323,10 @@ export function Level25NarrowFetching({ onComplete }: LevelComponentProps) {
 							<div className="px-6 py-2 flex-shrink-0">
 								<div className="max-w-2xl mx-auto">
 									<ProbeTerminal
-										probes={PROBES}
-										onProbe={handleProbe}
-										title="Endpoint Probe"
 										disabled={isAnimating}
+										onProbe={handleProbe}
+										probes={PROBES}
+										title="Endpoint Probe"
 									/>
 								</div>
 							</div>
@@ -1322,8 +1435,8 @@ export function Level25NarrowFetching({ onComplete }: LevelComponentProps) {
 									))}
 								</div>
 								<p className="text-sm text-muted-foreground">
-									Every endpoint is now using the narrowest fetch possible.
-									See the memory savings in action.
+									Every endpoint is now using the narrowest fetch possible. See
+									the memory savings in action.
 								</p>
 								<Button
 									className="gap-2"
@@ -1347,8 +1460,8 @@ export function Level25NarrowFetching({ onComplete }: LevelComponentProps) {
 								</div>
 								{rewardHeatmap.animPhase >= 2 && rewardHeatmap.isBlocked && (
 									<Badge
-										variant="outline"
 										className="text-[10px] border-red-500/50 text-red-500 dark:text-red-400 animate-in fade-in duration-300"
+										variant="outline"
 									>
 										BLOCKED
 									</Badge>
@@ -1358,7 +1471,7 @@ export function Level25NarrowFetching({ onComplete }: LevelComponentProps) {
 							{/* Reward heatmap */}
 							<div className="px-6 py-3">
 								<div className="max-w-2xl mx-auto">
-									<DataTableHeatmap state={rewardHeatmap} mode="solution" />
+									<DataTableHeatmap mode="solution" state={rewardHeatmap} />
 								</div>
 							</div>
 
@@ -1366,15 +1479,15 @@ export function Level25NarrowFetching({ onComplete }: LevelComponentProps) {
 							<div className="px-6 py-2 flex-shrink-0">
 								<div className="max-w-2xl mx-auto">
 									<StressTestPanel
-										scenarios={STRESS_SCENARIOS}
-										results={stressTest.results}
 										allowedCount={stressTest.allowedCount}
 										blockedCount={stressTest.blockedCount}
-										isAutoFiring={stressTest.isAutoFiring}
 										canAutoFire={stressTest.canAutoFire}
+										disabled={isAnimating}
+										isAutoFiring={stressTest.isAutoFiring}
 										onFire={handleFireScenario}
 										onToggleAutoFire={stressTest.toggleAutoFire}
-										disabled={isAnimating}
+										results={stressTest.results}
+										scenarios={STRESS_SCENARIOS}
 									/>
 								</div>
 							</div>
@@ -1384,9 +1497,7 @@ export function Level25NarrowFetching({ onComplete }: LevelComponentProps) {
 			</CenterPanel>
 
 			<RightPanel>
-				<CodePreviewPanel
-					files={getCodeFiles(phase, stepper.furthestStep)}
-				>
+				<CodePreviewPanel files={getCodeFiles(phase, stepper.furthestStep)}>
 					{/* Quick reference (visible in all phases) */}
 					<div className="p-4 border-t border-border">
 						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-3">
@@ -1399,8 +1510,8 @@ export function Level25NarrowFetching({ onComplete }: LevelComponentProps) {
 									pluck
 								</div>
 								<p className="text-muted-foreground">
-									Need raw values (dropdowns, CSV, IDs). No model methods needed.
-									Returns plain Ruby arrays.
+									Need raw values (dropdowns, CSV, IDs). No model methods
+									needed. Returns plain Ruby arrays.
 								</p>
 							</div>
 							<div>
@@ -1425,7 +1536,6 @@ export function Level25NarrowFetching({ onComplete }: LevelComponentProps) {
 							</div>
 						</div>
 					</div>
-
 				</CodePreviewPanel>
 			</RightPanel>
 		</LevelLayout>
