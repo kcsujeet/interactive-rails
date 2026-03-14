@@ -89,8 +89,7 @@ type Phase = 'observe' | 'build' | 'activate' | 'reward';
 // Row grid config (visual representation of table rows)
 // ──────────────────────────────────────────────
 
-const GRID_SIZE = 100; // 10x10 grid of blocks
-const GRID_COLS = 20;
+const GRID_SIZE = 100; // 20x5 grid of blocks
 
 // ──────────────────────────────────────────────
 // Scan result types
@@ -1029,10 +1028,10 @@ function DocumentGrid({
 	const rowsPerBlock = Math.round(totalRows / GRID_SIZE);
 
 	return (
-		<div className="space-y-2">
+		<div className="space-y-2.5">
 			{/* Table label */}
-			<div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-				<Table2 className="w-3 h-3" />
+			<div className="flex items-center gap-2 text-xs text-muted-foreground">
+				<Table2 className="w-3.5 h-3.5" />
 				<span className="font-mono">
 					posts ({totalRows.toLocaleString()} rows)
 				</span>
@@ -1060,15 +1059,12 @@ function DocumentGrid({
 				)}
 			</div>
 
-			{/* Row grid */}
-			<div
-				className="flex flex-wrap gap-[3px]"
-				style={{ maxWidth: `${GRID_COLS * 13}px` }}
-			>
+			{/* Row grid: 20 columns, full width */}
+			<div className="grid grid-cols-[repeat(20,1fr)] gap-1 w-full">
 				{gridBlocks.map((block) => (
 					<div
 						className={cn(
-							'w-2.5 h-2.5 rounded-[1px] transition-colors duration-75',
+							'h-4 rounded-sm transition-colors duration-75',
 							block.isMatch && isDone
 								? 'bg-emerald-500 dark:bg-emerald-400'
 								: block.idx < scanProgress && scanType === 'seq'
@@ -1082,25 +1078,25 @@ function DocumentGrid({
 
 			{/* Legend below grid */}
 			{isDone && scanType !== 'blocked' && (
-				<div className="flex items-center gap-4 text-[10px] animate-in fade-in duration-300">
+				<div className="flex items-center gap-4 text-xs animate-in fade-in duration-300">
 					{scanType === 'seq' ? (
 						<>
-							<span className="flex items-center gap-1">
-								<span className="inline-block w-2 h-2 rounded-[1px] bg-red-400/80 dark:bg-red-500/60" />
+							<span className="flex items-center gap-1.5">
+								<span className="inline-block w-2.5 h-2.5 rounded-sm bg-red-400/80 dark:bg-red-500/60" />
 								<span className="text-red-600 dark:text-red-400">
 									Scanned ({(GRID_SIZE - matchCount).toLocaleString()} blocks)
 								</span>
 							</span>
-							<span className="flex items-center gap-1">
-								<span className="inline-block w-2 h-2 rounded-[1px] bg-emerald-500 dark:bg-emerald-400" />
+							<span className="flex items-center gap-1.5">
+								<span className="inline-block w-2.5 h-2.5 rounded-sm bg-emerald-500 dark:bg-emerald-400" />
 								<span className="text-emerald-600 dark:text-emerald-400">
 									Matched ({matchCount})
 								</span>
 							</span>
 						</>
 					) : (
-						<span className="flex items-center gap-1">
-							<span className="inline-block w-2 h-2 rounded-[1px] bg-emerald-500 dark:bg-emerald-400" />
+						<span className="flex items-center gap-1.5">
+							<span className="inline-block w-2.5 h-2.5 rounded-sm bg-emerald-500 dark:bg-emerald-400" />
 							<span className="text-emerald-600 dark:text-emerald-400">
 								Direct lookup via GIN index ({matchCount} row
 								{matchCount !== 1 ? 's' : ''})
@@ -1125,12 +1121,12 @@ function GinIndexCard({
 	indexName: string;
 }) {
 	return (
-		<div className="rounded-lg border border-emerald-500/30 bg-emerald-50 dark:bg-emerald-900/10 p-2.5 space-y-1.5">
-			<div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+		<div className="rounded-lg border border-emerald-500/30 bg-emerald-50 dark:bg-emerald-900/10 p-3 space-y-2">
+			<div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
 				<Zap className="w-3.5 h-3.5" />
 				<span className="font-mono">{indexName}</span>
 			</div>
-			<div className="space-y-0.5 pl-5 font-mono text-[10px]">
+			<div className="space-y-0.5 pl-5 font-mono text-xs">
 				{entries.map((entry) => (
 					<div
 						className={cn(
@@ -1169,7 +1165,7 @@ function GinIndexCard({
 
 function NoIndexBanner() {
 	return (
-		<div className="rounded-lg border border-red-500/30 bg-red-50 dark:bg-red-900/10 px-2.5 py-1.5 flex items-center gap-2 text-[11px]">
+		<div className="rounded-lg border border-red-500/30 bg-red-50 dark:bg-red-900/10 px-3 py-2 flex items-center gap-2 text-xs">
 			<X className="w-3.5 h-3.5 text-red-500 dark:text-red-400 shrink-0" />
 			<span className="font-mono text-red-700 dark:text-red-400 font-semibold">
 				No GIN index on posts
@@ -1187,7 +1183,7 @@ function NoIndexBanner() {
 
 function BlockedBanner({ reason }: { reason: string }) {
 	return (
-		<div className="rounded-lg border border-red-500/30 bg-red-50 dark:bg-red-900/10 px-2.5 py-1.5 flex items-center gap-2 text-[11px]">
+		<div className="rounded-lg border border-red-500/30 bg-red-50 dark:bg-red-900/10 px-3 py-2 flex items-center gap-2 text-xs">
 			<X className="w-3.5 h-3.5 text-red-500 dark:text-red-400 shrink-0" />
 			<span className="font-mono text-red-700 dark:text-red-400 font-semibold">
 				BLOCKED
@@ -1208,7 +1204,7 @@ function SearchBadges({ scan }: { scan: SearchScanResult }) {
 			{/* Scan type badge */}
 			<Badge
 				className={cn(
-					'text-[10px]',
+					'text-xs',
 					isGood
 						? 'border-emerald-500/50 text-emerald-700 dark:text-emerald-400'
 						: 'border-red-500/50 text-red-700 dark:text-red-400',
@@ -1228,7 +1224,7 @@ function SearchBadges({ scan }: { scan: SearchScanResult }) {
 			{/* Stemming badge */}
 			<Badge
 				className={cn(
-					'text-[10px]',
+					'text-xs',
 					scan.stemmed || isGood
 						? 'border-emerald-500/50 text-emerald-700 dark:text-emerald-400'
 						: 'border-red-500/50 text-red-700 dark:text-red-400',
@@ -1243,7 +1239,7 @@ function SearchBadges({ scan }: { scan: SearchScanResult }) {
 			{/* Ranking badge */}
 			<Badge
 				className={cn(
-					'text-[10px]',
+					'text-xs',
 					scan.ranked
 						? 'border-emerald-500/50 text-emerald-700 dark:text-emerald-400'
 						: 'border-red-500/50 text-red-700 dark:text-red-400',
@@ -1280,17 +1276,17 @@ function SearchLegend() {
 					</span>
 				</div>
 			</div>
-			<div className="flex items-center gap-3 mt-3 text-[10px]">
-				<span className="flex items-center gap-1">
-					<span className="inline-block w-2.5 h-2.5 rounded-[1px] bg-emerald-500 dark:bg-emerald-400" />
+			<div className="flex items-center gap-3 mt-3 text-xs">
+				<span className="flex items-center gap-1.5">
+					<span className="inline-block w-3 h-3 rounded-sm bg-emerald-500 dark:bg-emerald-400" />
 					Matched row
 				</span>
-				<span className="flex items-center gap-1">
-					<span className="inline-block w-2.5 h-2.5 rounded-[1px] bg-red-400/80 dark:bg-red-500/60" />
+				<span className="flex items-center gap-1.5">
+					<span className="inline-block w-3 h-3 rounded-sm bg-red-400/80 dark:bg-red-500/60" />
 					Scanned (wasted)
 				</span>
-				<span className="flex items-center gap-1">
-					<span className="inline-block w-2.5 h-2.5 rounded-[1px] bg-zinc-200 dark:bg-zinc-700/50" />
+				<span className="flex items-center gap-1.5">
+					<span className="inline-block w-3 h-3 rounded-sm bg-zinc-200 dark:bg-zinc-700/50" />
 					Not touched
 				</span>
 			</div>
@@ -1661,12 +1657,12 @@ export function Level29Search({ onComplete }: LevelComponentProps) {
 										<span className="text-xs font-semibold text-foreground">
 											Search Query
 										</span>
-										<span className="text-[10px] font-mono text-muted-foreground">
+										<span className="text-xs font-mono text-muted-foreground">
 											(posts)
 										</span>
 										{scanDone && observeScan && (
 											<Badge
-												className="ml-auto text-[10px] border-red-500/50 text-red-700 dark:text-red-400"
+												className="ml-auto text-xs border-red-500/50 text-red-700 dark:text-red-400"
 												variant="outline"
 											>
 												{observeScan.time}
@@ -1676,7 +1672,7 @@ export function Level29Search({ onComplete }: LevelComponentProps) {
 
 									{/* SQL */}
 									{lastProbeId && (
-										<p className="text-[10px] font-mono text-muted-foreground mb-2 truncate">
+										<p className="text-xs font-mono text-muted-foreground mb-2 truncate">
 											{lastProbeId === 'search-rails' &&
 												"WHERE title LIKE '%rails%' OR body LIKE '%rails%'"}
 											{lastProbeId === 'search-running' &&
@@ -1704,7 +1700,7 @@ export function Level29Search({ onComplete }: LevelComponentProps) {
 										</div>
 									) : (
 										<div className="h-10 flex items-center">
-											<span className="text-[10px] text-muted-foreground/50 italic">
+											<span className="text-xs text-muted-foreground/50 italic">
 												Fire a probe to test this query
 											</span>
 										</div>
@@ -1968,12 +1964,12 @@ export function Level29Search({ onComplete }: LevelComponentProps) {
 												<span className="text-xs font-semibold text-foreground">
 													Search Query
 												</span>
-												<span className="text-[10px] font-mono text-muted-foreground">
+												<span className="text-xs font-mono text-muted-foreground">
 													(posts)
 												</span>
 												{rewardDone && rewardScan.scanType === 'gin' && (
 													<Badge
-														className="ml-auto text-[10px] border-emerald-500/50 text-emerald-700 dark:text-emerald-400"
+														className="ml-auto text-xs border-emerald-500/50 text-emerald-700 dark:text-emerald-400"
 														variant="outline"
 													>
 														<Zap className="w-2.5 h-2.5 mr-1" />
@@ -1982,7 +1978,7 @@ export function Level29Search({ onComplete }: LevelComponentProps) {
 												)}
 												{rewardDone && rewardScan.scanType === 'blocked' && (
 													<Badge
-														className="ml-auto text-[10px] border-red-500/50 text-red-700 dark:text-red-400"
+														className="ml-auto text-xs border-red-500/50 text-red-700 dark:text-red-400"
 														variant="outline"
 													>
 														BLOCKED
