@@ -16,6 +16,7 @@ This skill is split across multiple files. SKILL.md contains the core audit flow
 - [pipelineflow-guide.md](pipelineflow-guide.md): Hub-and-spoke layout coordinates, bidirectional edge rendering, satellite state rules, node color rules, sequential edge animation API
 - [reward-phase-guide.md](reward-phase-guide.md): StressTestPanel response lines, button labels, custom reward visualization rules, reward flow animation
 - [cross-phase-consistency.md](cross-phase-consistency.md): Visual language consistency, same component different state, build-intro alignment, reward loop closure, scenario data consistency (all with case studies)
+- [terminal-layout-guide.md](terminal-layout-guide.md): Terminal panel sizing patterns (Pattern A for custom viz, Pattern B for PipelineFlow), shared component usage rules, flex layout common mistakes
 
 ## Reference Implementations
 
@@ -236,13 +237,17 @@ For mechanism vs metric case studies (L26 indexing, L27 counter caches), see [ob
 
 For progressive hint patterns and shared terminal component details, see [observe-phase-guide.md](observe-phase-guide.md).
 
-#### Shared terminal components checklist
+#### Shared terminal components and layout checklist
+
+For detailed layout patterns, code examples, and common mistakes, see [terminal-layout-guide.md](terminal-layout-guide.md).
 
 - [ ] Level does not build a custom terminal div with traffic-light dots, scrollable log, and buttons
 - [ ] Observe phase uses `ProbeTerminal` for any terminal-like interaction
 - [ ] Reward phase uses `StressTestPanel` for any terminal-like stress testing
 - [ ] Build phase uses `SimulatedTerminal` (via `TerminalChoiceStep`) for command selection
-- [ ] If the terminal should fill the panel, `className="flex-1 flex flex-col"` is passed
+- [ ] **Terminal never hides the visualization.** Verify by firing 6+ requests; the diagram must remain visible.
+- [ ] **Custom viz levels (Pattern A):** terminal wrapper has `flex-1 min-h-0 flex flex-col`, terminal gets `className="flex-1 flex flex-col"`
+- [ ] **PipelineFlow levels (Pattern B):** terminal wrapper is a plain div, terminal gets NO `className` prop
 
 #### Animation locking (non-negotiable, all phases)
 

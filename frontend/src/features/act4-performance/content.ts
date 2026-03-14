@@ -1605,20 +1605,24 @@ const level31HTTPCaching: Level = {
 			'Same expensive API response computed on every request. 1,000 req/sec all hitting Rails. Even with Rails.cache, every request still reaches the server.',
 		rootCause:
 			'No HTTP-level caching. No Cache-Control headers, no ETags, no CDN. Every request makes a full round-trip to the server.',
-		codeExample: `# app/controllers/api/v1/posts_controller.rb
+		codeExample: `# app/services/post_detail.rb
+class PostDetail < ApplicationService
+  Result = Data.define(:post)
+  def call
+    post = Post.find(@id)
+    Result.new(post: post)
+  end
+end
+
+# app/controllers/api/v1/posts_controller.rb
 def show
-  @post = Post.find(params[:id])
-  render json: PostSerializer.new(@post).serializable_hash.to_json
+  result = PostDetail.call(id: params[:id])
+  render json: result.post  # No caching headers!
 end
 
 # Every request, even if the post hasn't changed:
-#   First request:  200 OK in 21ms (ActiveRecord: 9.6ms, 2 queries)
-#   Second request: 200 OK in 21ms (ActiveRecord: 9.6ms, 2 queries)
-#   Same computation every time!
-#
-# Without CDN:
-#   Client → Origin server (transatlantic round trip: 60-100ms)
-#   Even for static assets that never change
+#   First request:  200 OK in 21ms (2 queries)
+#   Second request: 200 OK in 21ms (same computation)
 #
 # No Cache-Control headers means:
 # - Browsers don't cache API responses
@@ -1672,75 +1676,57 @@ With CDN:
 - Without CDN, the request travels to your server in Virginia: 60-100ms
 - For static assets with fingerprinted filenames: set \`max-age: 1 year\` + \`immutable\`
 - Asset URL changes on every deploy, so stale cache is impossible`,
-		railsCodeExample: `# === ETag-based caching with stale? ===
+		railsCodeExample: `# === Service provides data, controller handles HTTP caching ===
+
+# app/services/post_detail.rb
+class PostDetail < ApplicationService
+  Result = Data.define(:post)
+  def call
+    post = Post.find(@id)
+    Result.new(post: post)
+  end
+end
 
 # app/controllers/api/v1/posts_controller.rb
 def show
-  @post = Post.find(params[:id])
+  result = PostDetail.call(id: params[:id])
 
   # Returns 304 Not Modified if post hasn't changed
-  if stale?(@post)
-    render json: PostSerializer.new(@post).serializable_hash.to_json
+  if stale?(result.post)
+    render json: result.post
   end
 end
 
-# For collections:
+# app/controllers/api/v1/products_controller.rb
 def index
-  @posts = Post.includes(:user).order(updated_at: :desc).limit(25)
+  result = ProductCatalog.call
 
-  # Use the most recently updated post as the ETag
-  if stale?(etag: @posts, last_modified: @posts.first&.updated_at)
-    render json: PostSerializer.new(@posts).serializable_hash.to_json
-  end
+  # CDN + browser cache for 1 hour
+  expires_in 1.hour, public: true,
+    's-max-age': 3600
+
+  render json: result.products
 end
 
-# fresh_when: shorthand for render-only responses:
-def show
-  @post = Post.find(params[:id])
-  fresh_when(@post)  # Sets ETag + Last-Modified, renders 304 if fresh
-end
+# === Cache-Control strategies ===
 
-# === Cache-Control headers ===
-
-# Public API (CDN + browser can cache):
-def show
-  @post = Post.find(params[:id])
-  expires_in 5.minutes, public: true,
-    's-maxage': 1.hour  # CDN caches for 1 hour
-
-  if stale?(@post)
-    render json: PostSerializer.new(@post).serializable_hash.to_json
-  end
-end
-
-# User-specific data (browser only, no CDN):
-def profile
-  expires_in 5.minutes, public: false
-  render json: UserSerializer.new(current_user).serializable_hash.to_json
-end
-
-# stale-while-revalidate (serve stale while fetching fresh):
-response.headers['Cache-Control'] = 'public, max-age=60, stale-while-revalidate=300'
-# Browser serves cached version for 60s, then revalidates in background for 5min
+# Public data (CDN + browser):
+#   Cache-Control: public, s-max-age=3600
+# User-specific data (browser only):
+#   Cache-Control: private, max-age=60, stale-while-revalidate=30
+# Fingerprinted assets (immutable):
+#   Cache-Control: public, max-age=31536000, immutable
 
 # === CDN configuration ===
-
 # config/environments/production.rb
-config.asset_host = "https://cdn.example.com"  # CDN for assets
-config.action_controller.asset_host = "https://cdn.example.com"
+config.asset_host = "https://cdn.example.com"
+config.public_file_server.headers = {
+  "Cache-Control" => "public, max-age=31536000, immutable"
+}
 
-# Fingerprinted assets get infinite cache:
-# application-abc123def456.css → Cache-Control: max-age=31536000, immutable
-# New deploy → new fingerprint → new URL → no stale cache possible
-
-# === Conditional GET for API clients ===
-# Client sends:
-#   GET /api/posts/42
-#   If-None-Match: "abc123"   ← ETag from previous response
-#
-# Server responds:
-#   304 Not Modified           ← Empty body, fast!
-#   ETag: "abc123"`,
+# === Conditional GET flow ===
+# Client: GET /api/posts/42, If-None-Match: "abc123"
+# Server: 304 Not Modified (empty body, 6ms vs 21ms)`,
 		commonMistakes: [
 			'Not using stale? for GET endpoints (every request recomputes the response)',
 			"Setting Cache-Control: public on user-specific data (CDN would serve wrong user's data)",
@@ -1767,7 +1753,7 @@ config.action_controller.asset_host = "https://cdn.example.com"
 	},
 	hint: {
 		delay: 20,
-		text: 'Click pipeline stages and fire HTTP probes to see how every request hits the origin server. Discover 3 problems to unlock the build phase.',
+		text: 'Click pipeline stages and fire HTTP probes to see how every request hits the origin server. Discover all 4 problems to unlock the build phase.',
 	},
 };
 

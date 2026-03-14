@@ -37,8 +37,8 @@ import {
 	PipelineFlow,
 	type PipelineStage,
 } from '@/components/levels/PipelineFlow';
-import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
+import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import {
 	StageInspector,
 	type StageInspectorData,
@@ -77,7 +77,7 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 const PROBES: ProbeConfig[] = [
 	{
 		id: 'repeat-products',
-		label: 'GET /api/products (twice)',
+		label: 'GET products (repeat)',
 		command: 'GET /api/products (first), then GET /api/products (second)',
 		responseLines: [
 			{ text: 'Request 1: 200 OK in 200ms (origin)', color: 'red' },
@@ -95,7 +95,7 @@ const PROBES: ProbeConfig[] = [
 	},
 	{
 		id: 'repeat-post',
-		label: 'GET /api/posts/42 (twice)',
+		label: 'GET post detail (repeat)',
 		command: 'GET /api/posts/42 (first), then GET /api/posts/42 (second)',
 		responseLines: [
 			{ text: 'Request 1: 200 OK in 21ms (query + serialize)', color: 'red' },
@@ -113,7 +113,7 @@ const PROBES: ProbeConfig[] = [
 	},
 	{
 		id: 'static-asset',
-		label: 'GET /assets/app.js (page reload)',
+		label: 'GET static asset (reload)',
 		command: 'GET /assets/app-a1b2c3.js (after reload)',
 		responseLines: [
 			{ text: 'Request 1: 200 OK in 50ms', color: 'red' },
@@ -168,7 +168,7 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		stageId: 'cdn',
 		title: 'CDN Edge (Not Configured)',
 		description:
-			'No CDN is configured. All requests travel directly to the origin server, regardless of the user\'s location. A user in Tokyo waits 60-100ms for a round-trip to Virginia.',
+			"No CDN is configured. All requests travel directly to the origin server, regardless of the user's location. A user in Tokyo waits 60-100ms for a round-trip to Virginia.",
 	},
 	cache: {
 		stageId: 'cache',
@@ -184,12 +184,14 @@ response.headers
 		stageId: 'server',
 		title: 'Rails Origin Server',
 		description:
-			'Every request hits the server. ActiveRecord queries, serialization, and rendering run on every single request, even when the data has not changed.',
-		code: `def show
-  @post = Post.find(params[:id])
-  # No stale? check, no expires_in
-  # Full query + serialize every time
-  render json: @post
+			'Every request hits the server. The service fetches data, but the controller has no HTTP caching. Full query + serialize on every request, even when nothing changed.',
+		code: `# app/services/post_detail.rb
+result = PostDetail.call(id: params[:id])
+
+# Controller: no stale? check, no expires_in
+def show
+  result = PostDetail.call(id: params[:id])
+  render json: result.post  # Full response every time
 end`,
 	},
 };
@@ -207,57 +209,88 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'public-catalog-hit',
-		label: 'Public catalog (CDN hit)',
+		label: 'GET products (CDN hit)',
 		description: 'Repeat request for product catalog, CDN has it cached',
 		method: 'GET',
 		path: '/api/products',
 		actor: 'any user',
 		expectedResult: 'allowed',
+		responseLines: [
+			{ text: 'CDN Edge: HIT (5ms)', color: 'green' },
+			{ text: 'Cache-Control: public, s-max-age=3600', color: 'yellow' },
+			{ text: 'Origin server not contacted.', color: 'green' },
+		],
 	},
 	{
 		id: 'post-304',
-		label: 'Post detail (304 Not Modified)',
+		label: 'GET post detail (304)',
 		description: 'Post unchanged since last request, ETag matches',
 		method: 'GET',
 		path: '/api/posts/42',
 		actor: 'returning visitor',
 		expectedResult: 'allowed',
+		responseLines: [
+			{ text: '304 Not Modified (6ms)', color: 'green' },
+			{ text: 'If-None-Match matched current ETag', color: 'yellow' },
+			{ text: 'No body, no serialization.', color: 'green' },
+		],
 	},
 	{
 		id: 'static-immutable',
-		label: 'Static asset (from cache)',
+		label: 'GET static asset (cached)',
 		description: 'Fingerprinted JS file served from browser cache',
 		method: 'GET',
 		path: '/assets/app-a1b2c3.js',
 		actor: 'any user',
 		expectedResult: 'allowed',
+		responseLines: [
+			{ text: 'from disk cache (0ms)', color: 'green' },
+			{ text: 'Cache-Control: immutable, max-age=31536000', color: 'yellow' },
+			{ text: 'No network request at all.', color: 'green' },
+		],
 	},
 	{
 		id: 'private-browser',
-		label: 'Dashboard (browser cache)',
+		label: 'GET orders (browser cache)',
 		description: 'User-specific orders served from private browser cache',
 		method: 'GET',
 		path: '/api/dashboard/orders',
 		actor: 'authenticated user',
 		expectedResult: 'allowed',
+		responseLines: [
+			{ text: 'from browser cache (0ms)', color: 'green' },
+			{ text: 'Cache-Control: private, max-age=60', color: 'yellow' },
+			{ text: 'User-specific data served locally.', color: 'green' },
+		],
 	},
 	{
 		id: 'private-cdn-blocked',
-		label: 'Dashboard via CDN (blocked)',
-		description: 'CDN tries to cache private user data, rejected by private directive',
+		label: 'GET orders via CDN (blocked)',
+		description:
+			'CDN tries to cache private user data, rejected by private directive',
 		method: 'GET',
 		path: '/api/dashboard/orders',
 		actor: 'CDN edge server',
 		expectedResult: 'blocked',
+		responseLines: [
+			{ text: 'CDN Edge: REJECTED', color: 'red' },
+			{ text: 'Cache-Control: private blocks shared caches', color: 'yellow' },
+			{ text: 'User data protected from CDN storage.', color: 'red' },
+		],
 	},
 	{
 		id: 'stale-post',
-		label: 'Updated post (cache miss)',
+		label: 'GET post detail (updated)',
 		description: 'Post was updated, ETag changed, full response needed',
 		method: 'GET',
 		path: '/api/posts/42',
 		actor: 'returning visitor',
 		expectedResult: 'allowed',
+		responseLines: [
+			{ text: '200 OK (21ms, full response)', color: 'green' },
+			{ text: 'If-None-Match did not match current ETag', color: 'yellow' },
+			{ text: 'Post updated, fresh response generated.', color: 'green' },
+		],
 	},
 ];
 
@@ -420,40 +453,60 @@ const REWARD_CONNECTIONS: PipelineConnection[] = [
 function getCodeFiles(phase: Phase, furthestStep: number) {
 	const files = [];
 
-	// Observe phase: show the uncached controller
+	// Observe phase: show service pattern but no HTTP caching
 	if (phase === 'observe') {
+		files.push({
+			filename: 'app/services/product_catalog.rb',
+			language: 'ruby',
+			code: `class ProductCatalog < ApplicationService
+  Result = Data.define(:products)
+
+  def call
+    products = Product.includes(:category).all
+    Result.new(products: products)
+  end
+end`,
+			highlight: [],
+		});
+		files.push({
+			filename: 'app/controllers/api/v1/products_controller.rb',
+			language: 'ruby',
+			code: `class Api::V1::ProductsController < ApplicationController
+  def index
+    result = ProductCatalog.call
+    # No Cache-Control headers
+    # CDN can't help, browser re-fetches every time
+    render json: result.products
+  end
+end`,
+			highlight: [4, 5],
+		});
 		files.push({
 			filename: 'app/controllers/api/v1/posts_controller.rb',
 			language: 'ruby',
 			code: `class Api::V1::PostsController < ApplicationController
   def show
-    @post = Post.find(params[:id])
-    # No caching headers, no ETags
-    # Every request: full query + serialize
-    render json: @post
-  end
-
-  def index
-    @products = Product.all
-    # No Cache-Control: CDN can't help
-    render json: @products
+    result = PostDetail.call(id: params[:id])
+    # No stale? check, no ETags
+    # Full query + serialize every time
+    render json: result.post
   end
 end`,
-			highlight: [4, 5, 11],
+			highlight: [4, 5],
 		});
 		return files;
 	}
 
-	// Build / activate / reward: show evolving code
+	// Build / activate / reward: show evolving code with service pattern
 	if (furthestStep === 0) {
 		files.push({
-			filename: 'posts_controller.rb',
+			filename: 'app/controllers/api/v1/products_controller.rb',
 			language: 'ruby',
-			code: `class ProductsController < ApplicationController
+			code: `class Api::V1::ProductsController < ApplicationController
   def index
-    @products = Product.all
+    result = ProductCatalog.call
     # No caching: every request hits the server
-    render json: @products
+    render json: result.products
   end
 end`,
 			highlight: [],
@@ -462,17 +515,17 @@ end`,
 
 	if (furthestStep >= 1) {
 		files.push({
-			filename: 'products_controller.rb',
+			filename: 'app/controllers/api/v1/products_controller.rb',
 			language: 'ruby',
-			code: `class ProductsController < ApplicationController
+			code: `class Api::V1::ProductsController < ApplicationController
   def index
-    @products = Product.all
+    result = ProductCatalog.call
 
     # CDN + browser cache for 1 hour
     expires_in 1.hour, public: true,
       's-max-age': 3600
 
-    render json: @products
+    render json: result.products
   end
 end`,
 			highlight: [5, 6, 7],
@@ -481,16 +534,16 @@ end`,
 
 	if (furthestStep >= 2) {
 		files.push({
-			filename: 'posts_controller.rb',
+			filename: 'app/controllers/api/v1/posts_controller.rb',
 			language: 'ruby',
-			code: `class PostsController < ApplicationController
+			code: `class Api::V1::PostsController < ApplicationController
   def show
-    @post = Post.find(params[:id])
+    result = PostDetail.call(id: params[:id])
 
     # ETag from post content
     # Returns 304 if unchanged
-    if stale?(@post)
-      render json: @post
+    if stale?(result.post)
+      render json: result.post
     end
     # If not stale, Rails auto-returns 304
   end
@@ -520,13 +573,13 @@ end`,
 
 	if (furthestStep >= 4) {
 		files.push({
-			filename: 'dashboard_controller.rb',
+			filename: 'app/controllers/api/v1/dashboard_controller.rb',
 			language: 'ruby',
-			code: `class DashboardController < ApplicationController
+			code: `class Api::V1::DashboardController < ApplicationController
   before_action :authenticate_user!
 
   def orders
-    @orders = current_user.orders.recent
+    result = OrderHistory.call(user: current_user)
 
     # Private: browser only, no CDN
     # SWR: serve stale while fetching fresh
@@ -534,10 +587,10 @@ end`,
       private: true,
       stale_while_revalidate: 30.seconds
 
-    render json: @orders
+    render json: result.orders
   end
 end`,
-			highlight: [8, 9, 10, 11],
+			highlight: [9, 10, 11],
 		});
 	}
 
@@ -561,9 +614,7 @@ function PipelineLegend() {
 				</div>
 				<div className="flex items-center gap-2">
 					<X className="w-4 h-4 text-destructive" />
-					<span className="text-foreground">
-						Blocked by private directive
-					</span>
+					<span className="text-foreground">Blocked by private directive</span>
 				</div>
 			</div>
 		</div>
@@ -577,21 +628,20 @@ function PipelineLegend() {
 export function Level31HTTPCaching({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
-		minRequired: 3,
+		minRequired: 4,
 	});
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
-	const [inspectorData, setInspectorData] =
-		useState<StageInspectorData | null>(null);
+	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(
+		null,
+	);
 	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
 		new Set(),
 	);
 	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
 
 	// ── Build observe stages dynamically (tracks inspected + last probe) ──
-	const probeDisplay = lastProbeId
-		? PROBE_PIPELINE_MAP[lastProbeId]
-		: null;
+	const probeDisplay = lastProbeId ? PROBE_PIPELINE_MAP[lastProbeId] : null;
 	const observeStages: PipelineStage[] = useMemo(
 		() => [
 			{
@@ -603,7 +653,9 @@ export function Level31HTTPCaching({ onComplete }: LevelComponentProps) {
 			{
 				id: 'cdn',
 				label: 'CDN',
-				sublabel: probeDisplay ? probeDisplay.cacheSublabel : '(not configured)',
+				sublabel: probeDisplay
+					? probeDisplay.cacheSublabel
+					: '(not configured)',
 				variant: (probeDisplay ? 'danger' : 'inactive') as
 					| 'danger'
 					| 'inactive',
@@ -624,9 +676,7 @@ export function Level31HTTPCaching({ onComplete }: LevelComponentProps) {
 				id: 'server',
 				label: 'Rails Server',
 				badge: probeDisplay ? probeDisplay.serverBadge : undefined,
-				variant: (probeDisplay ? 'danger' : 'default') as
-					| 'danger'
-					| 'default',
+				variant: (probeDisplay ? 'danger' : 'default') as 'danger' | 'default',
 				inspectable: true,
 				inspected: inspectedStages.has('server'),
 			},
@@ -675,9 +725,7 @@ export function Level31HTTPCaching({ onComplete }: LevelComponentProps) {
 						: isBrowserCache
 							? 'from cache (0ms)'
 							: 'cache active',
-				variant: wasBlocked
-					? ('danger' as const)
-					: ('active' as const),
+				variant: wasBlocked ? ('danger' as const) : ('active' as const),
 				badge: is304 ? '304' : undefined,
 			},
 			{
@@ -799,15 +847,13 @@ export function Level31HTTPCaching({ onComplete }: LevelComponentProps) {
 					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Your API serves every response from scratch. No caching headers,
-							no ETags, no CDN. 1,000 requests per second all computing the
-							same response.
+							no ETags, no CDN. 1,000 requests per second all computing the same
+							response.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							HTTP caching can prevent requests from reaching Rails at all.
-							The right{' '}
-							<span className="text-foreground font-medium">
-								Cache-Control
-							</span>{' '}
+							HTTP caching can prevent requests from reaching Rails at all. The
+							right{' '}
+							<span className="text-foreground font-medium">Cache-Control</span>{' '}
 							header depends on who the data is for and how often it changes.
 						</p>
 					</div>
@@ -816,8 +862,8 @@ export function Level31HTTPCaching({ onComplete }: LevelComponentProps) {
 					{phase === 'observe' && (
 						<div className="p-4 border-b border-border">
 							<DiscoveryChecklist
-								discoveries={discoveryGating.discoveries}
 								discoveredCount={discoveryGating.discoveredCount}
+								discoveries={discoveryGating.discoveries}
 								minRequired={discoveryGating.minRequired}
 							/>
 						</div>
@@ -891,7 +937,7 @@ export function Level31HTTPCaching({ onComplete }: LevelComponentProps) {
 								)}
 							</div>
 
-							{/* Probe terminal */}
+							{/* Probe terminal (bounded, not flex-fill) */}
 							<div className="px-6 pb-2">
 								<ProbeTerminal
 									onProbe={handleProbe}
@@ -1021,7 +1067,7 @@ export function Level31HTTPCaching({ onComplete }: LevelComponentProps) {
 								/>
 							</div>
 
-							{/* Stress test controls below pipeline */}
+							{/* Stress test controls below pipeline (bounded, not flex-fill) */}
 							<div className="px-6 pb-2">
 								<StressTestPanel
 									allowedCount={stressTest.allowedCount}
