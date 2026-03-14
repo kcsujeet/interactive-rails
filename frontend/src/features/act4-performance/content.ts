@@ -1065,7 +1065,7 @@ const level29Search: Level = {
 	trigger: {
 		type: 'new_feature',
 		description:
-			"Discover why LIKE '%query%' is killing search performance, then build proper full-text search with pg_search, tsvector, and a GIN index.",
+			"Discover why LIKE '%query%' is killing search performance, then build proper full-text search with ranking, stemming, and fast index lookups.",
 	},
 	startingPipeline: {
 		nodes: [
@@ -1122,15 +1122,20 @@ const level29Search: Level = {
 			"`GET /api/posts?q=rails` uses `LIKE '%rails%'` which forces a sequential scan. 3 seconds for 50K posts. No relevance ranking.",
 		rootCause:
 			'LIKE with a leading wildcard cannot use B-tree indexes. Full-text search requires a different approach.',
-		codeExample: `# app/controllers/api/v1/posts_controller.rb
-def index
-  if params[:q].present?
-    @posts = Post.where("title LIKE ? OR body LIKE ?",
-                        "%#{params[:q]}%", "%#{params[:q]}%")
-  else
-    @posts = Post.all
+		codeExample: `# app/services/post_search.rb
+class PostSearch < ApplicationService
+  Result = Data.define(:success?, :posts, :errors)
+
+  def call
+    validation = SearchContract.new.call(query: @query)
+    return Result.new(...) if validation.failure?
+
+    posts = Post.where(
+      "title LIKE :q OR body LIKE :q",
+      q: "%#{@query}%"
+    )
+    Result.new(success?: true, posts: posts, errors: [])
   end
-  render json: PostSerializer.new(@posts).serializable_hash.to_json
 end
 
 # EXPLAIN for LIKE '%rails%':
@@ -1142,10 +1147,8 @@ end
 # Problems:
 # 1. Full table scan (no index can help with leading %)
 # 2. No relevance ranking (exact match = partial match)
-# 3. No stemming ("running" won't match "run")
-# 4. Case-sensitive by default
-# 5. SQL injection risk if not parameterized properly`,
-		goal: 'Add pg_search gem, generate a migration with tsvector column and GIN index, configure pg_search_scope with weighted columns, and wire the controller to use the search scope.',
+# 3. No stemming ("running" won't match "run")`,
+		goal: 'Install a full-text search gem, generate a migration with a search column and index, run the migration, configure weighted search scopes, and wire the controller to use the new search.',
 		thresholds: { maxLatency: 50 },
 	},
 	successConditions: [{ type: 'search_configured' }],
@@ -1154,7 +1157,7 @@ end
 	unlockedNodes: ['search'],
 	learningContent: {
 		title: 'Full-Text Search: PostgreSQL tsvector & pg_search',
-		goal: `In this level, you'll:\n- discover why LIKE '%query%' forces sequential scans and has no ranking or stemming.\n- install the pg_search gem and generate a migration with a tsvector column and GIN index.\n- configure pg_search_scope with weighted columns and the English dictionary.\n- wire the controller to use the new search scope.\n- stress-test the solution with varied search queries.`,
+		goal: `In this level, you'll:\n- discover why LIKE '%query%' forces sequential scans and has no ranking or stemming.\n- install a full-text search gem and generate a migration for a search column with a GIN index.\n- configure search scopes with weighted columns and the English dictionary.\n- wire the controller to use the new search scope.\n- stress-test the solution with varied search queries.`,
 		conceptExplanation: `Relying on LIKE '%query%' for search is a common mistake. It cannot use indexes, has no relevance ranking, and gets slower as data grows.
 
 **PostgreSQL full-text search:**
@@ -1228,15 +1231,17 @@ class Post < ApplicationRecord
     }
 end
 
-# Controller:
-def index
-  @posts = if params[:q].present?
-    Post.search(params[:q]).includes(:user)
-  else
-    Post.includes(:user).order(created_at: :desc)
+# Service object:
+class PostSearch < ApplicationService
+  Result = Data.define(:success?, :posts, :errors)
+
+  def call
+    validation = SearchContract.new.call(query: @query)
+    return Result.new(success?: false, posts: [], errors: validation.errors.to_h) if validation.failure?
+
+    posts = Post.search(@query)
+    Result.new(success?: true, posts: posts, errors: [])
   end
-  @pagy, @posts = pagy(@posts, items: 25)
-  render json: PostSerializer.new(@posts).serializable_hash.to_json
 end
 
 # === SQLite FTS5 (for SQLite databases) ===
@@ -1283,7 +1288,7 @@ Post.where(id: Post.connection.select_values(
 	},
 	hint: {
 		delay: 25,
-		text: 'Fire the search probes and click pipeline stages to discover why LIKE queries are slow. You need 3 discoveries to unlock the build phase.',
+		text: 'Fire the search probes and inspect the controller code to discover why LIKE queries are slow. You need 3 discoveries to unlock the build phase.',
 	},
 };
 

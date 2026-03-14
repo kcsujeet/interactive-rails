@@ -11,6 +11,7 @@ Audit a level component to verify it follows the mandatory three-phase sequentia
 
 This skill is split across multiple files. SKILL.md contains the core audit flow and all checklists. Supporting files contain detailed guidance, case studies, and implementation patterns:
 
+- [cumulative-patterns.md](cumulative-patterns.md): **Non-negotiable.** Complete reference of every architectural pattern, gem, and code convention established in each level. Every audit must check code previews against patterns from earlier levels. Violations (e.g., inline validation instead of dry-validation contracts, direct model calls instead of service objects) are Critical severity. **You must update this file whenever you create, redesign, or modify a level that changes what patterns are taught.** This file must always reflect the current state of the curriculum.
 - [observe-phase-guide.md](observe-phase-guide.md): Type 2/3/4 deep dives, visualization accuracy case studies (L15, L25, L26, L27), mechanism vs metric principles, shared terminal components, flow animation patterns, discovery hint patterns
 - [pipelineflow-guide.md](pipelineflow-guide.md): Hub-and-spoke layout coordinates, bidirectional edge rendering, satellite state rules, node color rules, sequential edge animation API
 - [reward-phase-guide.md](reward-phase-guide.md): StressTestPanel response lines, button labels, custom reward visualization rules, reward flow animation
@@ -109,6 +110,13 @@ Read the content definition in `content.ts` alongside the component. Check for t
 - [ ] **content.ts and component are in sync.** If the component uses a terminal interaction, the trigger should not say "Drag the node to the slot."
 
 **CRITICAL: Check both content.ts AND the component .tsx file.** Common drift points: attribute lists, code snippets in Before/After comparisons, left panel instruction text, step descriptions, code preview strings.
+
+- [ ] **Code previews use ALL patterns established in earlier levels (non-negotiable).** Read [cumulative-patterns.md](cumulative-patterns.md) and verify every code preview (observe "before" code, build step previews, reward "after" code) is consistent with patterns from earlier levels. Common violations:
+  - **L16+ (Service Objects):** Controllers must delegate to `ServiceName.call(args)`, never do business logic directly. Service inherits from `ApplicationService`, returns `Result = Data.define(...)`. The observe phase "before" code must also use services (the problem is in the service logic, not controller structure).
+  - **L18+ (Dry-Validation):** Services must validate input via `MyContract.new.call(params)` with `validation.failure?` check, never inline `if param.blank?`. Contract file (`app/contracts/`) must appear in code previews.
+  - **L19+ (Query Objects):** Complex queries should use query objects, not be inlined in services.
+  - **L20+ (Error Handling):** Error responses follow the `{ error: { code, message, details } }` shape.
+  This applies to ALL code shown to the player: observe phase, build step options, code preview evolution, and reward phase final code.
 
 ### Phase 1: Problem Visualization (WHY)
 

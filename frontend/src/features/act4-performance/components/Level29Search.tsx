@@ -3,25 +3,43 @@
  *
  * Sequential phase flow: observe -> build -> activate -> reward
  *
- * Phase 1 (WHY - observe): Player fires search queries at the LIKE-based
- *   implementation and discovers performance, ranking, and stemming problems.
- *   Pipeline shows Request -> Controller -> Model -> Database with the DB
- *   node going 'danger' on each probe (Seq Scan, 3200ms).
- * Phase 2 (HOW - build): 5 steps building pg_search full-text search:
+ * Phase 1 (WHY - observe): "Document Search Grid" visualization.
+ *   A single posts table shown as a grid of 100 row blocks.
+ *   LIKE search: red wave sweeps through ALL blocks (sequential scan),
+ *   then matched blocks turn green. Badges show: no stemming, no ranking.
+ *   Player fires 3 search probes and clicks "View Controller Code" to
+ *   discover 4 problems. Discovery gating controls "Build the Fix".
+ *
+ * Phase 2 (HOW - build): 6 steps building pg_search full-text search:
  *   Step 0: bundle add pg_search (terminal)
  *   Step 1: Generate migration for tsvector + GIN index (terminal)
- *   Step 2: Include PgSearch::Model in Post (OptionCard)
- *   Step 3: Configure pg_search_scope (OptionCard)
- *   Step 4: Wire up the controller search action (OptionCard)
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Search" button
- * Phase 4 (ADVANTAGE - reward): Stress test. Fire search queries and watch
- *   fast GIN index scans vs blocked slow queries.
+ *   Step 2: rails db:migrate (terminal)
+ *   Step 3: Include PgSearch::Model in Post (OptionCard)
+ *   Step 4: Configure pg_search_scope (OptionCard)
+ *   Step 5: Update the service to use the search scope (OptionCard)
  *
- * Teaches: tsvector, tsquery, GIN indexes, pg_search gem
+ * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Search" button
+ *
+ * Phase 4 (ADVANTAGE - reward): Same grid returns. GIN Index Card appears
+ *   (inverted index showing stemmed terms -> row IDs). Matching blocks go
+ *   green instantly (no red wave). The contrast teaches what a GIN index
+ *   does: skip the scan, look up terms, jump to matching documents.
+ *
+ * Teaches: tsvector, tsquery, GIN indexes, pg_search gem, stemming, ranking
  */
 
-import { ArrowRight, Check, Database, Play, Search, Star, X, Zap } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+	ArrowRight,
+	FileCode,
+	Info,
+	Play,
+	Search,
+	Star,
+	Table2,
+	X,
+	Zap,
+} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -41,18 +59,15 @@ import {
 	type ValidationResult,
 } from '@/components/levels';
 import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
-import {
-	type PipelineConnection,
-	PipelineFlow,
-	type PipelineStage,
-} from '@/components/levels/PipelineFlow';
-import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
+import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import {
 	StageInspector,
 	type StageInspectorData,
 } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
+import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import {
@@ -61,6 +76,8 @@ import {
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { cn } from '@/lib/utils';
 
 // ──────────────────────────────────────────────
 // Phase type
@@ -69,13 +86,35 @@ import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 type Phase = 'observe' | 'build' | 'activate' | 'reward';
 
 // ──────────────────────────────────────────────
+// Row grid config (visual representation of table rows)
+// ──────────────────────────────────────────────
+
+const GRID_SIZE = 100; // 10x10 grid of blocks
+const GRID_COLS = 20;
+
+// ──────────────────────────────────────────────
+// Scan result types
+// ──────────────────────────────────────────────
+
+interface SearchScanResult {
+	scanType: 'seq' | 'gin' | 'blocked';
+	plan: string;
+	time: string;
+	rowsScanned: number;
+	totalRows: number;
+	matchCount: number;
+	ranked: boolean;
+	stemmed: boolean;
+}
+
+// ──────────────────────────────────────────────
 // Discovery definitions (observe phase)
 // ──────────────────────────────────────────────
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{ id: 'seq-scan', label: 'LIKE forces a sequential scan (3,200ms)' },
+	{ id: 'no-stemming', label: '"running" does not match "run"' },
 	{ id: 'no-ranking', label: 'Results have no relevance ranking' },
-	{ id: 'no-stemming', label: '"run" does not match "running"' },
 	{ id: 'controller-like', label: 'Controller uses raw LIKE query' },
 ];
 
@@ -92,7 +131,10 @@ const PROBES: ProbeConfig[] = [
 			{ text: 'HTTP/1.1 200 OK', color: 'yellow' },
 			{ text: '', color: 'muted' },
 			{ text: 'Seq Scan on posts (cost=0.00..1250.00)', color: 'red' },
-			{ text: 'Filter: (title ~~ \'%rails%\' OR body ~~ \'%rails%\')', color: 'muted' },
+			{
+				text: "Filter: (title ~~ '%rails%' OR body ~~ '%rails%')",
+				color: 'muted',
+			},
 			{ text: 'Rows Removed by Filter: 49,500', color: 'muted' },
 			{ text: 'Execution Time: 3,200ms', color: 'red' },
 		],
@@ -105,7 +147,10 @@ const PROBES: ProbeConfig[] = [
 			{ text: 'HTTP/1.1 200 OK', color: 'yellow' },
 			{ text: '', color: 'muted' },
 			{ text: '0 results for "running"', color: 'red' },
-			{ text: 'Post titled "Running Tests in RSpec" not found.', color: 'muted' },
+			{
+				text: 'Post titled "Running Tests in RSpec" not found.',
+				color: 'muted',
+			},
 			{ text: 'LIKE has no stemming: "running" != "run"', color: 'red' },
 		],
 	},
@@ -116,8 +161,14 @@ const PROBES: ProbeConfig[] = [
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'yellow' },
 			{ text: '', color: 'muted' },
-			{ text: 'Results returned in insertion order, not relevance.', color: 'red' },
-			{ text: 'A title match and a body mention are ranked equally.', color: 'muted' },
+			{
+				text: 'Results returned in insertion order, not relevance.',
+				color: 'red',
+			},
+			{
+				text: 'A title match and a body mention are ranked equally.',
+				color: 'muted',
+			},
 			{ text: 'No relevance scoring with LIKE queries.', color: 'red' },
 		],
 	},
@@ -130,67 +181,153 @@ const PROBE_DISCOVERY_MAP: Record<string, string> = {
 	'search-database': 'no-ranking',
 };
 
-// Map probe IDs to pipeline node display during observe
-const PROBE_PIPELINE_MAP: Record<
-	string,
-	{ dbSublabel: string; dbBadge: string }
-> = {
+// Match positions per probe (which blocks in the grid light up as matches)
+const OBSERVE_GRID_MATCHES: Record<string, number[]> = {
+	// 6 posts about "rails", scattered through the table
+	'search-rails': [8, 23, 41, 56, 72, 87],
+	// 0 matches: LIKE has no stemming, "running" != "run"
+	'search-running': [],
+	// 7 posts about "database"
+	'search-database': [3, 15, 31, 47, 62, 78, 91],
+};
+
+// Observe scan data per probe
+const OBSERVE_SCAN_DATA: Record<string, SearchScanResult> = {
 	'search-rails': {
-		dbSublabel: 'Seq Scan 50K rows',
-		dbBadge: '3,200ms',
+		scanType: 'seq',
+		plan: 'Seq Scan on posts (LIKE)',
+		time: '3,200ms',
+		rowsScanned: 50000,
+		totalRows: 50000,
+		matchCount: 6,
+		ranked: false,
+		stemmed: false,
 	},
 	'search-running': {
-		dbSublabel: 'No stemming',
-		dbBadge: '0 hits',
+		scanType: 'seq',
+		plan: 'Seq Scan on posts (LIKE)',
+		time: '3,200ms',
+		rowsScanned: 50000,
+		totalRows: 50000,
+		matchCount: 0,
+		ranked: false,
+		stemmed: false,
 	},
 	'search-database': {
-		dbSublabel: 'No ranking',
-		dbBadge: 'unordered',
+		scanType: 'seq',
+		plan: 'Seq Scan on posts (LIKE)',
+		time: '3,200ms',
+		rowsScanned: 50000,
+		totalRows: 50000,
+		matchCount: 7,
+		ranked: false,
+		stemmed: false,
 	},
 };
 
 // ──────────────────────────────────────────────
-// Stage inspector data (observe phase)
+// Controller inspector (observe phase, 4th discovery)
 // ──────────────────────────────────────────────
 
-const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
-	request: {
-		stageId: 'request',
-		title: 'Search Request',
-		description:
-			'Users send GET /api/posts?q=keyword to find posts. The query parameter is passed straight to a LIKE clause in the database.',
-	},
-	controller: {
-		stageId: 'controller',
-		title: 'PostsController',
-		description:
-			'The controller builds a raw LIKE query with leading wildcards. This forces PostgreSQL into a sequential scan on every search, regardless of indexes.',
-		code: `def index
-  @posts = Post.where(
-    "title LIKE :q OR body LIKE :q",
-    q: "%\#{params[:q]}%"
-  )
-  render json: @posts
-end`,
-	},
-	model: {
-		stageId: 'model',
-		title: 'Post Model',
-		description:
-			'The Post model has no search scope or tsvector column. Every search is a raw LIKE pattern match with no ranking, no stemming, and no way to use an index.',
-	},
-	database: {
-		stageId: 'database',
-		title: 'Database (Seq Scan)',
-		description:
-			'PostgreSQL must scan every row in the posts table for each LIKE query. B-tree indexes cannot help when the pattern starts with %. On 50K rows this takes over 3 seconds.',
-	},
+const CONTROLLER_INSPECTOR: StageInspectorData = {
+	stageId: 'controller',
+	title: 'PostSearch Service (Search Logic)',
+	description:
+		'The service builds a raw LIKE query with leading wildcards. This forces PostgreSQL into a sequential scan on every search, regardless of indexes. No stemming, no ranking.',
+	code: `class PostSearch < ApplicationService
+  Result = Data.define(:success?, :posts, :errors)
+
+  def initialize(query:)
+    @query = query
+  end
+
+  def call
+    validation = SearchContract.new.call(query: @query)
+    return Result.new(...) if validation.failure?
+
+    posts = Post.where(
+      "title LIKE :q OR body LIKE :q",
+      q: "%#{@query}%"
+    )
+    Result.new(success?: true, posts: posts, errors: [])
+  end
+end
+
+# Problems:
+# 1. LIKE '%query%' cannot use B-tree indexes
+# 2. No stemming: "running" won't match "run"
+# 3. No ranking: title match = body match`,
 };
 
-// Map stage IDs to discovery IDs they trigger
-const STAGE_DISCOVERY_MAP: Record<string, string> = {
-	controller: 'controller-like',
-	database: 'seq-scan',
+// ──────────────────────────────────────────────
+// GIN Index data (reward phase)
+// ──────────────────────────────────────────────
+
+interface GinIndexEntry {
+	term: string;
+	rows: string;
+	highlight?: boolean;
+}
+
+const GIN_INDEX_DATA: Record<
+	string,
+	{ name: string; entries: GinIndexEntry[] }
+> = {
+	'exact-term': {
+		name: 'posts_searchable_idx (GIN)',
+		entries: [
+			{ term: "'postgresql'", rows: 'rows #31, #47' },
+			{
+				term: "'rail'",
+				rows: 'rows #8, #23, #41, #56, #72, #87',
+				highlight: true,
+			},
+			{ term: "'rubi'", rows: 'rows #2, #15, #56' },
+			{ term: "'test'", rows: 'rows #12, #34, #67' },
+			{ term: '...', rows: '(12,847 more stems)' },
+		],
+	},
+	'stemmed-term': {
+		name: 'posts_searchable_idx (GIN)',
+		entries: [
+			{ term: "'result'", rows: 'rows #12, #67' },
+			{ term: "'run'", rows: 'rows #5, #19, #44', highlight: true },
+			{ term: "'rspec'", rows: 'rows #19, #44' },
+			{ term: "'test'", rows: 'rows #12, #34, #67' },
+			{ term: '...', rows: '(12,847 more stems)' },
+		],
+	},
+	'ranked-results': {
+		name: 'posts_searchable_idx (GIN)',
+		entries: [
+			{ term: "'data'", rows: 'rows #3, #15, #78' },
+			{
+				term: "'databas'",
+				rows: 'rows #3, #15, #31, #47, #62, #78, #91',
+				highlight: true,
+			},
+			{ term: "'design'", rows: 'rows #22, #45' },
+			{ term: "'devop'", rows: 'rows #9, #38' },
+			{ term: '...', rows: '(12,847 more stems)' },
+		],
+	},
+	'multi-word': {
+		name: 'posts_searchable_idx (GIN)',
+		entries: [
+			{
+				term: "'rubi'",
+				rows: 'rows #2, #15, #23, #56',
+				highlight: true,
+			},
+			{
+				term: "'test'",
+				rows: 'rows #12, #23, #34, #56, #67',
+				highlight: true,
+			},
+			{ term: 'AND intersection', rows: 'rows #23, #56' },
+			{ term: '...', rows: '(12,847 more stems)' },
+		],
+	},
 };
 
 // ──────────────────────────────────────────────
@@ -206,6 +343,15 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		path: '/api/posts?q=rails',
 		actor: 'user',
 		expectedResult: 'allowed',
+		responseLines: [
+			{
+				text: 'Bitmap Heap Scan using posts_searchable_idx',
+				color: 'green',
+			},
+			{ text: "  Index Cond: searchable @@ 'rail'", color: 'yellow' },
+			{ text: '  Rows: 6 of 50,000 (GIN lookup)', color: 'green' },
+			{ text: '  Execution Time: 1.8ms (was 3,200ms)', color: 'green' },
+		],
 	},
 	{
 		id: 'stemmed-term',
@@ -215,6 +361,18 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		path: '/api/posts?q=running',
 		actor: 'user',
 		expectedResult: 'allowed',
+		responseLines: [
+			{
+				text: 'Bitmap Heap Scan using posts_searchable_idx',
+				color: 'green',
+			},
+			{
+				text: "  Index Cond: searchable @@ 'run' (stemmed from 'running')",
+				color: 'yellow',
+			},
+			{ text: '  Rows: 3 matched via English stemming', color: 'green' },
+			{ text: '  Execution Time: 1.5ms', color: 'green' },
+		],
 	},
 	{
 		id: 'ranked-results',
@@ -224,6 +382,18 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		path: '/api/posts?q=database',
 		actor: 'user',
 		expectedResult: 'allowed',
+		responseLines: [
+			{
+				text: 'Bitmap Heap Scan using posts_searchable_idx',
+				color: 'green',
+			},
+			{
+				text: "  ts_rank: title(A) > body(B) for 'databas'",
+				color: 'yellow',
+			},
+			{ text: '  Rows: 7, sorted by relevance', color: 'green' },
+			{ text: '  Execution Time: 2.1ms (was 3,200ms)', color: 'green' },
+		],
 	},
 	{
 		id: 'multi-word',
@@ -233,6 +403,18 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		path: '/api/posts?q=ruby+testing',
 		actor: 'user',
 		expectedResult: 'allowed',
+		responseLines: [
+			{
+				text: 'Bitmap Heap Scan using posts_searchable_idx',
+				color: 'green',
+			},
+			{
+				text: "  Index Cond: searchable @@ 'rubi' & 'test'",
+				color: 'yellow',
+			},
+			{ text: '  Rows: 2 (AND intersection)', color: 'green' },
+			{ text: '  Execution Time: 1.2ms', color: 'green' },
+		],
 	},
 	{
 		id: 'empty-query',
@@ -242,6 +424,11 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		path: '/api/posts?q=',
 		actor: 'user',
 		expectedResult: 'blocked',
+		responseLines: [
+			{ text: 'HTTP/1.1 422 Unprocessable Entity', color: 'red' },
+			{ text: '  params[:q] is blank, search skipped', color: 'yellow' },
+			{ text: '  No database query executed', color: 'green' },
+		],
 	},
 	{
 		id: 'sql-injection',
@@ -251,34 +438,119 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		path: "/api/posts?q=' OR 1=1--",
 		actor: 'attacker',
 		expectedResult: 'blocked',
+		responseLines: [
+			{ text: 'HTTP/1.1 200 OK', color: 'yellow' },
+			{
+				text: "  plainto_tsquery sanitized input: '' | '1' | '1'",
+				color: 'green',
+			},
+			{ text: '  0 results (no matching stems)', color: 'green' },
+			{ text: '  SQL injection attempt safely neutralized', color: 'green' },
+		],
 	},
 ];
 
+// Reward grid matches per scenario
+const REWARD_GRID_MATCHES: Record<string, number[]> = {
+	'exact-term': [8, 23, 41, 56, 72, 87],
+	'stemmed-term': [5, 19, 44],
+	'ranked-results': [15, 3, 31, 47, 62, 78, 91],
+	'multi-word': [23, 56],
+	'empty-query': [],
+	'sql-injection': [],
+};
+
+// Reward scan data per scenario
+const REWARD_SCAN_DATA: Record<string, SearchScanResult> = {
+	'exact-term': {
+		scanType: 'gin',
+		plan: 'Bitmap Heap Scan using posts_searchable_idx',
+		time: '1.8ms',
+		rowsScanned: 6,
+		totalRows: 50000,
+		matchCount: 6,
+		ranked: true,
+		stemmed: false,
+	},
+	'stemmed-term': {
+		scanType: 'gin',
+		plan: 'Bitmap Heap Scan using posts_searchable_idx',
+		time: '1.5ms',
+		rowsScanned: 3,
+		totalRows: 50000,
+		matchCount: 3,
+		ranked: true,
+		stemmed: true,
+	},
+	'ranked-results': {
+		scanType: 'gin',
+		plan: 'Bitmap Heap Scan using posts_searchable_idx',
+		time: '2.1ms',
+		rowsScanned: 7,
+		totalRows: 50000,
+		matchCount: 7,
+		ranked: true,
+		stemmed: false,
+	},
+	'multi-word': {
+		scanType: 'gin',
+		plan: 'Bitmap Heap Scan using posts_searchable_idx',
+		time: '1.2ms',
+		rowsScanned: 2,
+		totalRows: 50000,
+		matchCount: 2,
+		ranked: true,
+		stemmed: false,
+	},
+	'empty-query': {
+		scanType: 'blocked',
+		plan: 'Query rejected (empty input)',
+		time: '0ms',
+		rowsScanned: 0,
+		totalRows: 50000,
+		matchCount: 0,
+		ranked: false,
+		stemmed: false,
+	},
+	'sql-injection': {
+		scanType: 'blocked',
+		plan: 'Input sanitized by plainto_tsquery',
+		time: '0.3ms',
+		rowsScanned: 0,
+		totalRows: 50000,
+		matchCount: 0,
+		ranked: false,
+		stemmed: false,
+	},
+};
+
 // ──────────────────────────────────────────────
-// Step definitions (5 steps: 2 terminal + 3 OptionCard)
+// Step definitions (6 steps: 3 terminal + 3 OptionCard)
 // ──────────────────────────────────────────────
 
 const STEP_DEFS: StepDef[] = [
-	{ id: 'add-gem', title: 'Add pg_search Gem' },
-	{ id: 'generate-migration', title: 'Generate Search Migration' },
-	{ id: 'include-module', title: 'Include PgSearch in Model' },
-	{ id: 'configure-scope', title: 'Configure Search Scope' },
-	{ id: 'wire-controller', title: 'Wire Up the Controller' },
+	{ id: 'install-gem', title: 'Install Search Gem' },
+	{ id: 'generate-migration', title: 'Generate Search Column' },
+	{ id: 'run-migration', title: 'Run Migration' },
+	{ id: 'include-module', title: 'Include Search Module' },
+	{ id: 'configure-scope', title: 'Define Search Scope' },
+	{ id: 'update-service', title: 'Update Service' },
 ];
 
 const STEP_TYPES: ('terminal' | 'option')[] = [
 	'terminal', // 0: bundle add pg_search
 	'terminal', // 1: rails generate migration
-	'option', // 2: include PgSearch::Model
-	'option', // 3: pg_search_scope config
-	'option', // 4: controller search action
+	'terminal', // 2: rails db:migrate
+	'option', // 3: include PgSearch::Model
+	'option', // 4: pg_search_scope config
+	'option', // 5: controller search action
 ];
 
 // ──────────────────────────────────────────────
-// Step 0: Add pg_search Gem (Terminal)
+// Step 0: Install Search Gem (Terminal)
 // ──────────────────────────────────────────────
 
-const addGemCommands: TerminalCommand[] = [
+const installGemCommands: TerminalCommand[] = [
 	{
 		id: 'wrong-gem-install',
 		label: 'gem install pg_search',
@@ -288,12 +560,6 @@ const addGemCommands: TerminalCommand[] = [
 			'That installs the gem system-wide, not into your project. You need it in the Gemfile so the app can load it.',
 	},
 	{
-		id: 'correct',
-		label: 'bundle add pg_search',
-		command: 'bundle add pg_search',
-		correct: true,
-	},
-	{
 		id: 'wrong-elasticsearch',
 		label: 'bundle add elasticsearch-model',
 		command: 'bundle add elasticsearch-model',
@@ -301,9 +567,15 @@ const addGemCommands: TerminalCommand[] = [
 		feedback:
 			'Elasticsearch is a separate search engine. PostgreSQL has built-in full-text search that handles most needs without extra infrastructure.',
 	},
+	{
+		id: 'correct',
+		label: 'bundle add pg_search',
+		command: 'bundle add pg_search',
+		correct: true,
+	},
 ];
 
-const addGemOutput: TerminalOutputLine[] = [
+const installGemOutput: TerminalOutputLine[] = [
 	{ text: 'Fetching pg_search 2.3.7', color: 'cyan' },
 	{ text: 'Installing pg_search 2.3.7', color: 'muted' },
 	{ text: 'Bundle complete! 14 Gemfile dependencies.', color: 'green' },
@@ -320,7 +592,13 @@ const generateMigrationCommands: TerminalCommand[] = [
 		command: 'rails generate model SearchIndex',
 		correct: false,
 		feedback:
-			'Full-text search does not need a separate model. You add a tsvector column and GIN index to the existing posts table via a migration.',
+			'Full-text search does not need a separate model. You add a search column and index to the existing posts table via a migration.',
+	},
+	{
+		id: 'correct',
+		label: 'rails generate migration AddSearchToPosts',
+		command: 'rails generate migration AddSearchToPosts',
+		correct: true,
 	},
 	{
 		id: 'wrong-no-gin',
@@ -328,13 +606,7 @@ const generateMigrationCommands: TerminalCommand[] = [
 		command: 'rails generate migration AddSearchToPosts searchable:tsvector',
 		correct: false,
 		feedback:
-			'A tsvector column alone is not enough. Without a GIN index, full-text search still does a sequential scan.',
-	},
-	{
-		id: 'correct',
-		label: 'rails generate migration AddSearchToPosts',
-		command: 'rails generate migration AddSearchToPosts',
-		correct: true,
+			'Passing the column type on the command line only adds the column. You need to manually add the GIN index and trigger in the migration file.',
 	},
 ];
 
@@ -346,15 +618,66 @@ const generateMigrationOutput: TerminalOutputLine[] = [
 ];
 
 // ──────────────────────────────────────────────
+// Step 2: Run Migration (Terminal) - NEW
+// ──────────────────────────────────────────────
+
+const runMigrationCommands: TerminalCommand[] = [
+	{
+		id: 'wrong-setup',
+		label: 'rails db:setup',
+		command: 'rails db:setup',
+		correct: false,
+		feedback:
+			'That recreates the database from scratch. You need to run pending migrations on the existing database.',
+	},
+	{
+		id: 'correct',
+		label: 'rails db:migrate',
+		command: 'rails db:migrate',
+		correct: true,
+	},
+	{
+		id: 'wrong-seed',
+		label: 'rails db:seed',
+		command: 'rails db:seed',
+		correct: false,
+		feedback:
+			'That loads seed data. You need to apply the migration that creates the search column and index.',
+	},
+];
+
+const runMigrationOutput: TerminalOutputLine[] = [
+	{
+		text: '== AddSearchToPosts: migrating =============================',
+		color: 'muted',
+	},
+	{
+		text: '-- add_column(:posts, :searchable, :tsvector)',
+		color: 'green',
+	},
+	{ text: '   -> 0.0038s', color: 'muted' },
+	{
+		text: '-- add_index(:posts, :searchable, {:using=>:gin})',
+		color: 'green',
+	},
+	{ text: '   -> 0.0072s', color: 'muted' },
+	{
+		text: '== AddSearchToPosts: migrated (0.0110s) ====================',
+		color: 'green',
+	},
+];
+
+// ──────────────────────────────────────────────
 // Terminal step map (for buildTerminalHistory)
 // ──────────────────────────────────────────────
 
 const SHELL_STEP_MAP: (TerminalStepData | null)[] = [
-	{ commands: addGemCommands, outputLines: addGemOutput },
+	{ commands: installGemCommands, outputLines: installGemOutput },
 	{ commands: generateMigrationCommands, outputLines: generateMigrationOutput },
-	null, // step 2: OptionCard
+	{ commands: runMigrationCommands, outputLines: runMigrationOutput },
 	null, // step 3: OptionCard
 	null, // step 4: OptionCard
+	null, // step 5: OptionCard
 ];
 
 // ──────────────────────────────────────────────
@@ -368,14 +691,14 @@ interface StepOption {
 	feedback?: string;
 }
 
-// Step 2: Include PgSearch in Model
+// Step 3: Include PgSearch in Model
 const INCLUDE_OPTIONS: StepOption[] = [
 	{
 		id: 'wrong-concern',
 		label: 'include Searchable',
 		correct: false,
 		feedback:
-			'That would require a custom concern you have not defined. The pg_search gem provides its own module to include.',
+			'That would require a custom concern you have not defined. The gem provides its own module to include.',
 	},
 	{
 		id: 'correct',
@@ -387,53 +710,54 @@ const INCLUDE_OPTIONS: StepOption[] = [
 		label: 'include ActiveRecord::FullTextSearch',
 		correct: false,
 		feedback:
-			'ActiveRecord does not have a built-in FullTextSearch module. pg_search provides the integration layer.',
+			'ActiveRecord does not have a built-in FullTextSearch module. The gem provides the integration layer.',
 	},
 ];
 
-// Step 3: Configure pg_search_scope
+// Step 4: Configure pg_search_scope
 const SCOPE_OPTIONS: StepOption[] = [
 	{
 		id: 'wrong-like-scope',
-		label: "scope :search, ->(q) {\n  where(\"title LIKE ?\", \"%#{q}%\")\n}",
+		label: 'scope :search, ->(q) {\n  where("title LIKE ?", "%#{q}%")\n}',
 		correct: false,
 		feedback:
-			'That is the same LIKE approach you are replacing. pg_search provides a DSL that uses tsvector under the hood.',
+			'That is the same LIKE approach you are replacing. The gem provides a DSL that uses tsvector under the hood.',
 	},
 	{
 		id: 'wrong-no-weights',
-		label: "pg_search_scope :search,\n  against: [:title, :body]",
+		label: 'pg_search_scope :search,\n  against: [:title, :body]',
 		correct: false,
 		feedback:
 			'Passing columns as an array gives them equal weight. Title matches should rank higher than body matches for better relevance.',
 	},
 	{
 		id: 'correct',
-		label: "pg_search_scope :search,\n  against: { title: 'A', body: 'B' },\n  using: {\n    tsearch: { dictionary: 'english' }\n  }",
+		label:
+			"pg_search_scope :search,\n  against: { title: 'A', body: 'B' },\n  using: {\n    tsearch: { dictionary: 'english' }\n  }",
 		correct: true,
 	},
 ];
 
-// Step 4: Wire Up Controller
-const CONTROLLER_OPTIONS: StepOption[] = [
+// Step 5: Wire Up Controller (using service object pattern from L16)
+const SERVICE_OPTIONS: StepOption[] = [
 	{
-		id: 'wrong-raw-sql',
-		label: "Post.where(\"searchable @@ plainto_tsquery(?)\", q)",
+		id: 'wrong-keep-like',
+		label: 'Post.where("title LIKE :q OR body LIKE :q", q: "%#{@query}%")',
 		correct: false,
 		feedback:
-			'Writing raw SQL defeats the purpose of pg_search. The gem provides a clean scope you already defined.',
+			'That is the same LIKE query you are replacing. You just defined a search scope on the model that uses the GIN index.',
 	},
 	{
 		id: 'correct',
-		label: 'Post.search(params[:q])',
+		label: 'Post.search(@query)',
 		correct: true,
 	},
 	{
-		id: 'wrong-like-fallback',
-		label: "Post.where(\"title ILIKE ?\", \"%#{params[:q]}%\")",
+		id: 'wrong-raw-tsquery',
+		label: 'Post.where("searchable @@ plainto_tsquery(?)", @query)',
 		correct: false,
 		feedback:
-			'ILIKE is still a pattern match that cannot use GIN indexes. Use the pg_search scope for full-text search.',
+			'Writing raw SQL defeats the purpose of the gem. You already defined a clean search scope that handles tsvector, ranking, and stemming.',
 	},
 ];
 
@@ -445,41 +769,25 @@ const OPTION_STEP_CONFIG: Record<
 		options: StepOption[];
 	}
 > = {
-	2: {
-		title: 'Include PgSearch in Model',
+	3: {
+		title: 'Include Search Module',
 		description:
-			'The pg_search gem is installed. Now the Post model needs to load the search module so you can define search scopes.',
+			'The gem is installed and the migration is applied. Now the Post model needs to load the search module so you can define search scopes.',
 		options: INCLUDE_OPTIONS,
 	},
-	3: {
-		title: 'Configure Search Scope',
+	4: {
+		title: 'Define Search Scope',
 		description:
-			'Define how pg_search indexes your content. Title matches should rank higher than body matches. Use the English dictionary for stemming.',
+			'Define how the gem indexes your content. Title matches should rank higher than body matches. Use the English dictionary for stemming.',
 		options: SCOPE_OPTIONS,
 	},
-	4: {
-		title: 'Wire Up the Controller',
+	5: {
+		title: 'Update Service',
 		description:
-			'The search scope is ready. How should the controller use it when a query parameter is present?',
-		options: CONTROLLER_OPTIONS,
+			'The search scope is ready on the model. Update the service object to replace the LIKE query with the new scope.',
+		options: SERVICE_OPTIONS,
 	},
 };
-
-// ──────────────────────────────────────────────
-// Pipeline visualization configs
-// ──────────────────────────────────────────────
-
-const OBSERVE_CONNECTIONS: PipelineConnection[] = [
-	{ from: 'request', to: 'controller', dots: 'mixed' },
-	{ from: 'controller', to: 'model', dots: 'mixed' },
-	{ from: 'model', to: 'database', dots: 'mixed' },
-];
-
-const REWARD_CONNECTIONS: PipelineConnection[] = [
-	{ from: 'request', to: 'controller', dots: 'mixed' },
-	{ from: 'controller', to: 'model', dots: 'clean' },
-	{ from: 'model', to: 'database', dots: 'clean' },
-];
 
 // ──────────────────────────────────────────────
 // Code preview helper
@@ -488,22 +796,41 @@ const REWARD_CONNECTIONS: PipelineConnection[] = [
 function getCodeFiles(phase: Phase, furthestStep: number) {
 	const files = [];
 
-	// Observe phase: show the broken LIKE-based code
+	// Observe phase: show the broken service using LIKE
 	if (phase === 'observe') {
 		files.push({
-			filename: 'app/controllers/api/v1/posts_controller.rb',
+			filename: 'app/contracts/search_contract.rb',
 			language: 'ruby',
-			code: `class Api::V1::PostsController < ApplicationController
-  def index
-    if params[:q].present?
-      @posts = Post.where(
-        "title LIKE :q OR body LIKE :q",
-        q: "%\#{params[:q]}%"
+			code: `class SearchContract < Dry::Validation::Contract
+  params do
+    required(:query).filled(:string)
+  end
+end`,
+		});
+		files.push({
+			filename: 'app/services/post_search.rb',
+			language: 'ruby',
+			code: `class PostSearch < ApplicationService
+  Result = Data.define(:success?, :posts, :errors)
+
+  def initialize(query:)
+    @query = query
+  end
+
+  def call
+    validation = SearchContract.new.call(query: @query)
+    if validation.failure?
+      return Result.new(
+        success?: false, posts: [],
+        errors: validation.errors.to_h
       )
-    else
-      @posts = Post.all
     end
-    render json: @posts
+
+    posts = Post.where(
+      "title LIKE :q OR body LIKE :q",
+      q: "%#{@query}%"
+    )
+    Result.new(success?: true, posts: posts, errors: [])
   end
 end
 
@@ -512,7 +839,23 @@ end
 #   Filter: (title ~~ '%rails%')
 #   Rows Removed by Filter: 49,500
 #   Execution Time: 3,200ms`,
-			highlight: [4, 5, 6],
+			highlight: [17, 18, 19],
+		});
+		files.push({
+			filename: 'app/controllers/api/v1/posts_controller.rb',
+			language: 'ruby',
+			code: `class Api::V1::PostsController < ApplicationController
+  def index
+    result = PostSearch.call(query: params[:q])
+
+    if result.success?
+      render json: result.posts
+    else
+      render json: { errors: result.errors },
+             status: :unprocessable_entity
+    end
+  end
+end`,
 		});
 		return files;
 	}
@@ -520,18 +863,32 @@ end
 	// Build / activate / reward phases: evolving code
 	if (furthestStep === 0) {
 		files.push({
-			filename: 'app/controllers/api/v1/posts_controller.rb',
+			filename: 'app/services/post_search.rb',
 			language: 'ruby',
-			code: `class Api::V1::PostsController < ApplicationController
-  def index
-    @posts = Post.where(
+			code: `class PostSearch < ApplicationService
+  Result = Data.define(:success?, :posts, :errors)
+
+  def initialize(query:)
+    @query = query
+  end
+
+  def call
+    validation = SearchContract.new.call(query: @query)
+    if validation.failure?
+      return Result.new(
+        success?: false, posts: [],
+        errors: validation.errors.to_h
+      )
+    end
+
+    posts = Post.where(
       "title LIKE :q OR body LIKE :q",
-      q: "%\#{params[:q]}%"
+      q: "%#{@query}%"
     )
-    render json: @posts
+    Result.new(success?: true, posts: posts, errors: [])
   end
 end`,
-			highlight: [3, 4, 5],
+			highlight: [17, 18, 19],
 		});
 	}
 
@@ -574,11 +931,27 @@ end`,
 	}
 
 	if (furthestStep >= 3) {
+		// Show migration output after db:migrate
+		files.push({
+			filename: 'Migration output',
+			language: 'sql',
+			code: `-- rails db:migrate
+== AddSearchToPosts: migrating ======================
+-- add_column(:posts, :searchable, :tsvector)
+   -> 0.0038s
+-- add_index(:posts, :searchable, {:using=>:gin})
+   -> 0.0072s
+== AddSearchToPosts: migrated (0.0110s) =============`,
+			highlight: [3, 5],
+		});
+	}
+
+	if (furthestStep >= 4) {
 		files.push({
 			filename: 'app/models/post.rb',
 			language: 'ruby',
 			code:
-				furthestStep >= 4
+				furthestStep >= 5
 					? `class Post < ApplicationRecord
   include PgSearch::Model
 
@@ -591,25 +964,35 @@ end`
 					: `class Post < ApplicationRecord
   include PgSearch::Model
 end`,
-			highlight: furthestStep >= 4 ? [4, 5, 6, 7, 8] : [2],
+			highlight: furthestStep >= 5 ? [4, 5, 6, 7, 8] : [2],
 		});
 	}
 
-	if (furthestStep >= 5) {
+	if (furthestStep >= 6) {
 		files.push({
-			filename: 'app/controllers/api/v1/posts_controller.rb',
+			filename: 'app/services/post_search.rb',
 			language: 'ruby',
-			code: `class Api::V1::PostsController < ApplicationController
-  def index
-    @posts = if params[:q].present?
-      Post.search(params[:q])
-    else
-      Post.all
+			code: `class PostSearch < ApplicationService
+  Result = Data.define(:success?, :posts, :errors)
+
+  def initialize(query:)
+    @query = query
+  end
+
+  def call
+    validation = SearchContract.new.call(query: @query)
+    if validation.failure?
+      return Result.new(
+        success?: false, posts: [],
+        errors: validation.errors.to_h
+      )
     end
-    render json: @posts
+
+    posts = Post.search(@query)
+    Result.new(success?: true, posts: posts, errors: [])
   end
 end`,
-			highlight: [3, 4],
+			highlight: [17],
 		});
 	}
 
@@ -617,28 +1000,299 @@ end`,
 }
 
 // ──────────────────────────────────────────────
-// Pipeline Legend (reward phase)
+// DocumentGrid: shows database rows as a grid of blocks
 // ──────────────────────────────────────────────
 
-function PipelineLegend() {
+function DocumentGrid({
+	matchPositions,
+	scanProgress,
+	scanType,
+	totalRows,
+}: {
+	matchPositions: Set<number>;
+	scanProgress: number; // -1=idle, 0..GRID_SIZE=scanning, GRID_SIZE=done
+	scanType: 'seq' | 'gin' | 'blocked';
+	totalRows: number;
+}) {
+	const gridBlocks = useMemo(
+		() =>
+			Array.from({ length: GRID_SIZE }, (_, i) => ({
+				key: `r${i}`,
+				idx: i,
+				isMatch: matchPositions.has(i),
+			})),
+		[matchPositions],
+	);
+	const isDone = scanProgress >= GRID_SIZE;
+	const isActive = scanProgress >= 0;
+	const matchCount = matchPositions.size;
+	const rowsPerBlock = Math.round(totalRows / GRID_SIZE);
+
+	return (
+		<div className="space-y-2">
+			{/* Table label */}
+			<div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+				<Table2 className="w-3 h-3" />
+				<span className="font-mono">
+					posts ({totalRows.toLocaleString()} rows)
+				</span>
+				{isActive && scanType === 'seq' && !isDone && (
+					<span className="font-mono text-red-600 dark:text-red-400">
+						scanning row{' '}
+						{Math.min(scanProgress * rowsPerBlock, totalRows).toLocaleString()}
+						...
+					</span>
+				)}
+				{isDone && scanType === 'seq' && (
+					<span className="font-mono text-red-600 dark:text-red-400">
+						all {totalRows.toLocaleString()} rows scanned
+					</span>
+				)}
+				{isDone && scanType === 'gin' && (
+					<span className="font-mono text-emerald-600 dark:text-emerald-400">
+						{matchCount} row{matchCount !== 1 ? 's' : ''} via GIN index
+					</span>
+				)}
+				{isDone && scanType === 'blocked' && (
+					<span className="font-mono text-red-600 dark:text-red-400">
+						query rejected
+					</span>
+				)}
+			</div>
+
+			{/* Row grid */}
+			<div
+				className="flex flex-wrap gap-[3px]"
+				style={{ maxWidth: `${GRID_COLS * 13}px` }}
+			>
+				{gridBlocks.map((block) => (
+					<div
+						className={cn(
+							'w-2.5 h-2.5 rounded-[1px] transition-colors duration-75',
+							block.isMatch && isDone
+								? 'bg-emerald-500 dark:bg-emerald-400'
+								: block.idx < scanProgress && scanType === 'seq'
+									? 'bg-red-400/80 dark:bg-red-500/60'
+									: 'bg-zinc-200 dark:bg-zinc-700/50',
+						)}
+						key={block.key}
+					/>
+				))}
+			</div>
+
+			{/* Legend below grid */}
+			{isDone && scanType !== 'blocked' && (
+				<div className="flex items-center gap-4 text-[10px] animate-in fade-in duration-300">
+					{scanType === 'seq' ? (
+						<>
+							<span className="flex items-center gap-1">
+								<span className="inline-block w-2 h-2 rounded-[1px] bg-red-400/80 dark:bg-red-500/60" />
+								<span className="text-red-600 dark:text-red-400">
+									Scanned ({(GRID_SIZE - matchCount).toLocaleString()} blocks)
+								</span>
+							</span>
+							<span className="flex items-center gap-1">
+								<span className="inline-block w-2 h-2 rounded-[1px] bg-emerald-500 dark:bg-emerald-400" />
+								<span className="text-emerald-600 dark:text-emerald-400">
+									Matched ({matchCount})
+								</span>
+							</span>
+						</>
+					) : (
+						<span className="flex items-center gap-1">
+							<span className="inline-block w-2 h-2 rounded-[1px] bg-emerald-500 dark:bg-emerald-400" />
+							<span className="text-emerald-600 dark:text-emerald-400">
+								Direct lookup via GIN index ({matchCount} row
+								{matchCount !== 1 ? 's' : ''})
+							</span>
+						</span>
+					)}
+				</div>
+			)}
+		</div>
+	);
+}
+
+// ──────────────────────────────────────────────
+// GinIndexCard: shows the inverted index structure
+// ──────────────────────────────────────────────
+
+function GinIndexCard({
+	entries,
+	indexName,
+}: {
+	entries: GinIndexEntry[];
+	indexName: string;
+}) {
+	return (
+		<div className="rounded-lg border border-emerald-500/30 bg-emerald-50 dark:bg-emerald-900/10 p-2.5 space-y-1.5">
+			<div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+				<Zap className="w-3.5 h-3.5" />
+				<span className="font-mono">{indexName}</span>
+			</div>
+			<div className="space-y-0.5 pl-5 font-mono text-[10px]">
+				{entries.map((entry) => (
+					<div
+						className={cn(
+							'flex items-center gap-2',
+							entry.highlight
+								? 'text-emerald-700 dark:text-emerald-300 font-bold'
+								: 'text-emerald-600/40 dark:text-emerald-400/30',
+						)}
+						key={`gin-${entry.term}`}
+					>
+						{entry.highlight ? (
+							<ArrowRight className="w-2.5 h-2.5 shrink-0" />
+						) : (
+							<span className="w-2.5" />
+						)}
+						<span>{entry.term}</span>
+						<span
+							className={cn(
+								entry.highlight
+									? 'text-emerald-600 dark:text-emerald-400'
+									: 'text-emerald-500/30 dark:text-emerald-400/20',
+							)}
+						>
+							{'\u2192'} {entry.rows}
+						</span>
+					</div>
+				))}
+			</div>
+		</div>
+	);
+}
+
+// ──────────────────────────────────────────────
+// NoIndexBanner: shown during observe seq scan
+// ──────────────────────────────────────────────
+
+function NoIndexBanner() {
+	return (
+		<div className="rounded-lg border border-red-500/30 bg-red-50 dark:bg-red-900/10 px-2.5 py-1.5 flex items-center gap-2 text-[11px]">
+			<X className="w-3.5 h-3.5 text-red-500 dark:text-red-400 shrink-0" />
+			<span className="font-mono text-red-700 dark:text-red-400 font-semibold">
+				No GIN index on posts
+			</span>
+			<span className="text-red-600/60 dark:text-red-400/50">
+				Reading every row (Sequential Scan)
+			</span>
+		</div>
+	);
+}
+
+// ──────────────────────────────────────────────
+// BlockedBanner: shown when query is rejected
+// ──────────────────────────────────────────────
+
+function BlockedBanner({ reason }: { reason: string }) {
+	return (
+		<div className="rounded-lg border border-red-500/30 bg-red-50 dark:bg-red-900/10 px-2.5 py-1.5 flex items-center gap-2 text-[11px]">
+			<X className="w-3.5 h-3.5 text-red-500 dark:text-red-400 shrink-0" />
+			<span className="font-mono text-red-700 dark:text-red-400 font-semibold">
+				BLOCKED
+			</span>
+			<span className="text-red-600/60 dark:text-red-400/50">{reason}</span>
+		</div>
+	);
+}
+
+// ──────────────────────────────────────────────
+// SearchBadges: shows scan type, stemming, ranking status
+// ──────────────────────────────────────────────
+
+function SearchBadges({ scan }: { scan: SearchScanResult }) {
+	const isGood = scan.scanType === 'gin';
+	return (
+		<div className="flex items-center gap-2 flex-wrap">
+			{/* Scan type badge */}
+			<Badge
+				className={cn(
+					'text-[10px]',
+					isGood
+						? 'border-emerald-500/50 text-emerald-700 dark:text-emerald-400'
+						: 'border-red-500/50 text-red-700 dark:text-red-400',
+				)}
+				variant="outline"
+			>
+				{isGood ? (
+					<>
+						<Zap className="w-2.5 h-2.5 mr-1" />
+						{scan.time}
+					</>
+				) : (
+					scan.time
+				)}
+			</Badge>
+
+			{/* Stemming badge */}
+			<Badge
+				className={cn(
+					'text-[10px]',
+					scan.stemmed || isGood
+						? 'border-emerald-500/50 text-emerald-700 dark:text-emerald-400'
+						: 'border-red-500/50 text-red-700 dark:text-red-400',
+				)}
+				variant="outline"
+			>
+				{scan.stemmed || (isGood && scan.matchCount > 0)
+					? 'Stemming'
+					: 'No Stemming'}
+			</Badge>
+
+			{/* Ranking badge */}
+			<Badge
+				className={cn(
+					'text-[10px]',
+					scan.ranked
+						? 'border-emerald-500/50 text-emerald-700 dark:text-emerald-400'
+						: 'border-red-500/50 text-red-700 dark:text-red-400',
+				)}
+				variant="outline"
+			>
+				{scan.ranked ? 'Ranked (A > B)' : 'No Ranking'}
+			</Badge>
+		</div>
+	);
+}
+
+// ──────────────────────────────────────────────
+// SearchLegend (reward phase)
+// ──────────────────────────────────────────────
+
+function SearchLegend() {
 	return (
 		<div className="p-4 border-b border-border">
 			<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-				Search Pipeline Legend
+				Search Performance Legend
 			</div>
 			<div className="space-y-2 text-sm">
 				<div className="flex items-center gap-2">
-					<Check className="w-4 h-4 text-success" />
+					<Zap className="w-4 h-4 text-success" />
 					<span className="text-foreground">
-						Fast search (GIN index, ranked results)
+						GIN Index Scan (direct term lookup)
 					</span>
 				</div>
 				<div className="flex items-center gap-2">
 					<X className="w-4 h-4 text-destructive" />
 					<span className="text-foreground">
-						Query rejected (empty/invalid input)
+						Blocked (empty/malicious input)
 					</span>
 				</div>
+			</div>
+			<div className="flex items-center gap-3 mt-3 text-[10px]">
+				<span className="flex items-center gap-1">
+					<span className="inline-block w-2.5 h-2.5 rounded-[1px] bg-emerald-500 dark:bg-emerald-400" />
+					Matched row
+				</span>
+				<span className="flex items-center gap-1">
+					<span className="inline-block w-2.5 h-2.5 rounded-[1px] bg-red-400/80 dark:bg-red-500/60" />
+					Scanned (wasted)
+				</span>
+				<span className="flex items-center gap-1">
+					<span className="inline-block w-2.5 h-2.5 rounded-[1px] bg-zinc-200 dark:bg-zinc-700/50" />
+					Not touched
+				</span>
 			</div>
 		</div>
 	);
@@ -655,79 +1309,103 @@ export function Level29Search({ onComplete }: LevelComponentProps) {
 	});
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
-	const [inspectorData, setInspectorData] =
-		useState<StageInspectorData | null>(null);
-	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
-		new Set(),
+	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(
+		null,
 	);
+
+	// Observe animation state
 	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
+	const [scanProgress, setScanProgress] = useState(-1);
+	const [scanDone, setScanDone] = useState(false);
+	const [isAnimating, setIsAnimating] = useState(false);
+	const [firedProbeCount, setFiredProbeCount] = useState(0);
+	const animationTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-	// ── Build observe stages dynamically (tracks inspected + last probe) ──
-	const probeDisplay = lastProbeId
-		? PROBE_PIPELINE_MAP[lastProbeId]
-		: null;
-	const observeStages: PipelineStage[] = useMemo(
-		() => [
-			{
-				id: 'request',
-				label: 'Request',
-				sublabel: 'GET /api/posts?q=...',
-				inspectable: true,
-				inspected: inspectedStages.has('request'),
-			},
-			{
-				id: 'controller',
-				label: 'Controller',
-				sublabel: probeDisplay ? 'LIKE %query%' : undefined,
-				variant: (probeDisplay ? 'danger' : 'default') as
-					| 'danger'
-					| 'default',
-				inspectable: true,
-				inspected: inspectedStages.has('controller'),
-			},
-			{
-				id: 'model',
-				label: 'Post',
-				inspectable: true,
-				inspected: inspectedStages.has('model'),
-			},
-			{
-				id: 'database',
-				label: 'Database',
-				sublabel: probeDisplay ? probeDisplay.dbSublabel : 'Waiting...',
-				badge: probeDisplay ? probeDisplay.dbBadge : undefined,
-				variant: (probeDisplay ? 'danger' : 'default') as
-					| 'danger'
-					| 'default',
-				inspectable: true,
-				inspected: inspectedStages.has('database'),
-			},
-		],
-		[inspectedStages, probeDisplay],
+	// Reward animation state
+	const [lastRewardScenarioId, setLastRewardScenarioId] = useState<
+		string | null
+	>(null);
+	const [rewardProgress, setRewardProgress] = useState(-1);
+	const [rewardDone, setRewardDone] = useState(false);
+
+	// ── Animation helpers ──
+	const clearAnimations = useCallback(() => {
+		animationTimeoutsRef.current.forEach(clearTimeout);
+		animationTimeoutsRef.current = [];
+	}, []);
+
+	useEffect(() => {
+		return () => clearAnimations();
+	}, [clearAnimations]);
+
+	/** Run a seq scan animation (red wave sweeping through all blocks) */
+	const runSeqScanAnimation = useCallback(
+		(onProgress: (p: number) => void, onDone: () => void) => {
+			clearAnimations();
+			setIsAnimating(true);
+
+			const steps = 14;
+			const blocksPerStep = Math.ceil(GRID_SIZE / steps);
+			const stepInterval = ANIMATION_DURATION_MS / steps;
+
+			onProgress(0);
+
+			for (let step = 1; step <= steps; step++) {
+				animationTimeoutsRef.current.push(
+					setTimeout(() => {
+						onProgress(Math.min(step * blocksPerStep, GRID_SIZE));
+					}, step * stepInterval),
+				);
+			}
+
+			animationTimeoutsRef.current.push(
+				setTimeout(() => {
+					onDone();
+					setIsAnimating(false);
+				}, ANIMATION_DURATION_MS),
+			);
+		},
+		[clearAnimations],
 	);
 
-	// ── Build reward stages dynamically (reacts to latest stress test result) ──
-	const lastResult = stressTest.results[stressTest.results.length - 1];
-	const rewardStages: PipelineStage[] = useMemo(() => {
-		const wasBlocked = lastResult?.result === 'blocked';
-		return [
-			{ id: 'request', label: 'Request' },
-			{ id: 'controller', label: 'Controller' },
-			{
-				id: 'model',
-				label: 'Post',
-				sublabel: wasBlocked ? 'rejected' : 'pg_search',
-				variant: wasBlocked ? ('danger' as const) : ('active' as const),
-			},
-			{
-				id: 'database',
-				label: 'Database',
-				sublabel: wasBlocked ? 'no query' : 'GIN Scan 2ms',
-				badge: wasBlocked ? 'BLOCKED' : undefined,
-				variant: wasBlocked ? ('danger' as const) : ('active' as const),
-			},
-		];
-	}, [lastResult]);
+	/** Run a GIN index scan animation (instant match, short delay) */
+	const runGinScanAnimation = useCallback(
+		(onProgress: (p: number) => void, onDone: () => void) => {
+			clearAnimations();
+			setIsAnimating(true);
+
+			// Short pause to show the index card, then reveal matches
+			animationTimeoutsRef.current.push(
+				setTimeout(() => {
+					onProgress(GRID_SIZE);
+					onDone();
+				}, 400),
+			);
+
+			animationTimeoutsRef.current.push(
+				setTimeout(() => {
+					setIsAnimating(false);
+				}, ANIMATION_DURATION_MS / 2),
+			);
+		},
+		[clearAnimations],
+	);
+
+	// ── Match positions for current state ──
+	const observeMatchPositions = useMemo(
+		() => new Set(lastProbeId ? (OBSERVE_GRID_MATCHES[lastProbeId] ?? []) : []),
+		[lastProbeId],
+	);
+
+	const rewardMatchPositions = useMemo(
+		() =>
+			new Set(
+				lastRewardScenarioId
+					? (REWARD_GRID_MATCHES[lastRewardScenarioId] ?? [])
+					: [],
+			),
+		[lastRewardScenarioId],
+	);
 
 	// ── Transition: build -> activate when all steps complete ──
 	useEffect(() => {
@@ -736,42 +1414,34 @@ export function Level29Search({ onComplete }: LevelComponentProps) {
 		}
 	}, [phase, stepper.isComplete]);
 
-	// ── Stage click handler (observe phase) ──
-	const handleStageClick = useCallback(
-		(stageId: string) => {
-			if (phase !== 'observe') return;
-
-			const data = STAGE_INSPECTOR_MAP[stageId];
-			if (!data) return;
-
-			setInspectorData(data);
-			setInspectedStages((prev) => {
-				if (prev.has(stageId)) return prev;
-				const next = new Set(prev);
-				next.add(stageId);
-				return next;
-			});
-
-			// Trigger discovery if this stage has one
-			const discoveryId = STAGE_DISCOVERY_MAP[stageId];
-			if (discoveryId) {
-				discoveryGating.discover(discoveryId);
-			}
-		},
-		[phase, discoveryGating],
-	);
-
 	// ── Probe handler (observe phase) ──
 	const handleProbe = useCallback(
 		(probeId: string) => {
 			setLastProbeId(probeId);
+			setScanDone(false);
+
+			// Run seq scan animation
+			runSeqScanAnimation(
+				(progress) => setScanProgress(progress),
+				() => setScanDone(true),
+			);
+
+			setFiredProbeCount((c) => c + 1);
+
 			const discoveryId = PROBE_DISCOVERY_MAP[probeId];
 			if (discoveryId) {
 				discoveryGating.discover(discoveryId);
 			}
 		},
-		[discoveryGating],
+		[discoveryGating, runSeqScanAnimation],
 	);
+
+	// ── Controller code click handler (observe phase, 4th discovery) ──
+	const handleControllerClick = useCallback(() => {
+		if (phase !== 'observe' || isAnimating) return;
+		setInspectorData(CONTROLLER_INSPECTOR);
+		discoveryGating.discover('controller-like');
+	}, [phase, isAnimating, discoveryGating]);
 
 	// ── OptionCard step handler ──
 	const handleOptionClick = useCallback(
@@ -793,14 +1463,36 @@ export function Level29Search({ onComplete }: LevelComponentProps) {
 	const handleActivateSearch = () => {
 		setPhase('reward');
 		stressTest.reset();
+		setLastRewardScenarioId(null);
+		setRewardProgress(-1);
+		setRewardDone(false);
 	};
 
-	// ── Stress test fire handler ──
+	// ── Stress test fire handler (reward phase) ──
 	const handleFireScenario = useCallback(
 		(scenarioId: string) => {
+			setLastRewardScenarioId(scenarioId);
+			setRewardDone(false);
 			stressTest.fireRequest(scenarioId);
+
+			const rewardData = REWARD_SCAN_DATA[scenarioId];
+			if (!rewardData) return;
+
+			if (rewardData.scanType === 'gin') {
+				// GIN scan: show index card, then matches appear instantly
+				setRewardProgress(0);
+				runGinScanAnimation(
+					(progress) => setRewardProgress(progress),
+					() => setRewardDone(true),
+				);
+			} else {
+				// Blocked: show immediately
+				setRewardProgress(GRID_SIZE);
+				setRewardDone(true);
+				setIsAnimating(false);
+			}
 		},
-		[stressTest],
+		[stressTest, runGinScanAnimation],
 	);
 
 	// ── Completion ──
@@ -826,6 +1518,18 @@ export function Level29Search({ onComplete }: LevelComponentProps) {
 	const currentStepType = STEP_TYPES[stepper.currentStep];
 	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep];
 
+	// Observe scan data for display
+	const observeScan = lastProbeId ? OBSERVE_SCAN_DATA[lastProbeId] : null;
+
+	// Reward scan data for current scenario
+	const rewardScan = lastRewardScenarioId
+		? REWARD_SCAN_DATA[lastRewardScenarioId]
+		: null;
+	const rewardGinData =
+		lastRewardScenarioId && rewardScan?.scanType === 'gin'
+			? GIN_INDEX_DATA[lastRewardScenarioId]
+			: null;
+
 	// ── Render ──
 	return (
 		<LevelLayout>
@@ -846,20 +1550,42 @@ export function Level29Search({ onComplete }: LevelComponentProps) {
 							PostgreSQL has built-in full-text search using{' '}
 							<span className="text-foreground font-medium">tsvector</span> and{' '}
 							<span className="text-foreground font-medium">GIN indexes</span>.
-							The{' '}
-							<span className="text-foreground font-medium">pg_search</span> gem
-							wraps this in a clean Rails DSL.
+							A gem can wrap this in a clean Rails DSL.
 						</p>
 					</div>
 
-					{/* Observe phase: discovery checklist */}
+					{/* Observe phase: discovery checklist + hints */}
 					{phase === 'observe' && (
 						<div className="p-4 border-b border-border">
 							<DiscoveryChecklist
-								discoveries={discoveryGating.discoveries}
 								discoveredCount={discoveryGating.discoveredCount}
+								discoveries={discoveryGating.discoveries}
 								minRequired={discoveryGating.minRequired}
 							/>
+							{firedProbeCount >= 2 && !discoveryGating.isUnlocked && (
+								<Alert
+									className="mt-3 animate-in fade-in duration-500"
+									variant="info"
+								>
+									<Info className="w-4 h-4" />
+									<AlertDescription className="text-xs">
+										{firedProbeCount >= 3 ? (
+											<>
+												Click{' '}
+												<span className="font-medium">
+													View Controller Code
+												</span>{' '}
+												to see why the search is broken.
+											</>
+										) : (
+											<>
+												Fire more probes to discover all the problems with LIKE
+												queries.
+											</>
+										)}
+									</AlertDescription>
+								</Alert>
+							)}
 						</div>
 					)}
 
@@ -880,7 +1606,7 @@ export function Level29Search({ onComplete }: LevelComponentProps) {
 					{/* Reward phase: legend + counters */}
 					{phase === 'reward' && (
 						<>
-							<PipelineLegend />
+							<SearchLegend />
 
 							<div className="p-4">
 								<div className="grid grid-cols-2 gap-3">
@@ -915,16 +1641,99 @@ export function Level29Search({ onComplete }: LevelComponentProps) {
 					onValidate={validateSolution}
 				/>
 
-				<div className="flex-1 flex flex-col bg-background overflow-hidden">
+				<div className="flex-1 flex flex-col min-h-0 bg-background overflow-hidden">
 					{/* ── Phase 1: Observe (WHY) ── */}
 					{phase === 'observe' && (
-						<div className="flex-1 flex flex-col">
-							<div className="flex-1 relative">
-								<PipelineFlow
-									connections={OBSERVE_CONNECTIONS}
-									onNodeClick={handleStageClick}
-									stages={observeStages}
-								/>
+						<div className="flex-1 flex flex-col min-h-0">
+							<div className="flex-1 overflow-auto min-h-0 p-4 space-y-3">
+								{/* Search Query Panel */}
+								<div
+									className={cn(
+										'rounded-lg border p-3 transition-all duration-300',
+										scanDone && observeScan
+											? 'border-red-500/50 bg-red-50/50 dark:bg-red-900/10'
+											: 'border-border bg-card',
+									)}
+								>
+									{/* Header */}
+									<div className="flex items-center gap-2 mb-2">
+										<Search className="w-3.5 h-3.5 text-muted-foreground" />
+										<span className="text-xs font-semibold text-foreground">
+											Search Query
+										</span>
+										<span className="text-[10px] font-mono text-muted-foreground">
+											(posts)
+										</span>
+										{scanDone && observeScan && (
+											<Badge
+												className="ml-auto text-[10px] border-red-500/50 text-red-700 dark:text-red-400"
+												variant="outline"
+											>
+												{observeScan.time}
+											</Badge>
+										)}
+									</div>
+
+									{/* SQL */}
+									{lastProbeId && (
+										<p className="text-[10px] font-mono text-muted-foreground mb-2 truncate">
+											{lastProbeId === 'search-rails' &&
+												"WHERE title LIKE '%rails%' OR body LIKE '%rails%'"}
+											{lastProbeId === 'search-running' &&
+												"WHERE title LIKE '%running%' OR body LIKE '%running%'"}
+											{lastProbeId === 'search-database' &&
+												"WHERE title LIKE '%database%' OR body LIKE '%database%'"}
+										</p>
+									)}
+
+									{/* Grid + results */}
+									{scanProgress >= 0 ? (
+										<div className="space-y-2">
+											<NoIndexBanner />
+											<DocumentGrid
+												matchPositions={observeMatchPositions}
+												scanProgress={scanProgress}
+												scanType="seq"
+												totalRows={50000}
+											/>
+											{scanDone && observeScan && (
+												<div className="animate-in fade-in duration-300">
+													<SearchBadges scan={observeScan} />
+												</div>
+											)}
+										</div>
+									) : (
+										<div className="h-10 flex items-center">
+											<span className="text-[10px] text-muted-foreground/50 italic">
+												Fire a probe to test this query
+											</span>
+										</div>
+									)}
+								</div>
+
+								{/* Controller Code button (4th discovery) */}
+								<button
+									className={cn(
+										'w-full flex items-center gap-2 rounded-lg border border-dashed p-3 transition-colors',
+										'border-border bg-card hover:border-primary/40 hover:bg-primary/5',
+										isAnimating && 'pointer-events-none opacity-50',
+									)}
+									disabled={isAnimating}
+									onClick={handleControllerClick}
+									type="button"
+								>
+									<FileCode className="w-4 h-4 text-muted-foreground" />
+									<span className="text-xs font-medium text-foreground">
+										View Controller Code
+									</span>
+									{!discoveryGating.isDiscovered('controller-like') && (
+										<span className="ml-auto text-primary animate-pulse text-xs font-bold">
+											?
+										</span>
+									)}
+								</button>
+
+								{/* Stage Inspector overlay */}
 								{inspectorData && (
 									<StageInspector
 										data={inspectorData}
@@ -936,6 +1745,7 @@ export function Level29Search({ onComplete }: LevelComponentProps) {
 							{/* Probe terminal */}
 							<div className="px-6 pb-2">
 								<ProbeTerminal
+									disabled={isAnimating}
 									onProbe={handleProbe}
 									probes={PROBES}
 									title="Search Probe"
@@ -962,16 +1772,16 @@ export function Level29Search({ onComplete }: LevelComponentProps) {
 					{phase === 'build' && (
 						<div className="flex-1 overflow-auto p-6">
 							<div className="max-w-2xl mx-auto space-y-4">
-								{/* Terminal steps (0: gem install, 1: migration) */}
+								{/* Step 0: Install gem */}
 								{currentStepType === 'terminal' &&
 									stepper.currentStep === 0 && (
 										<TerminalChoiceStep
-											commands={addGemCommands}
+											commands={installGemCommands}
 											completed={isViewingCompletedStep}
 											description={
 												<p className="text-sm text-muted-foreground">
-													pg_search provides a clean Ruby DSL for PostgreSQL
-													full-text search. Add it to your project dependencies.
+													You need a gem that wraps PostgreSQL full-text search
+													in a clean Rails DSL. Add it to your project.
 												</p>
 											}
 											hasNext={hasNextStep}
@@ -982,12 +1792,13 @@ export function Level29Search({ onComplete }: LevelComponentProps) {
 											onCorrect={() => stepper.completeStep()}
 											onNext={stepper.nextStep}
 											onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-											outputLines={addGemOutput}
+											outputLines={installGemOutput}
 											stepKey={stepper.currentStep}
-											title="Add pg_search Gem"
+											title="Install Search Gem"
 										/>
 									)}
 
+								{/* Step 1: Generate migration */}
 								{currentStepType === 'terminal' &&
 									stepper.currentStep === 1 && (
 										<TerminalChoiceStep
@@ -1009,11 +1820,37 @@ export function Level29Search({ onComplete }: LevelComponentProps) {
 											onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 											outputLines={generateMigrationOutput}
 											stepKey={stepper.currentStep}
-											title="Generate Search Migration"
+											title="Generate Search Column"
 										/>
 									)}
 
-								{/* OptionCard steps (2, 3, 4) */}
+								{/* Step 2: Run migration */}
+								{currentStepType === 'terminal' &&
+									stepper.currentStep === 2 && (
+										<TerminalChoiceStep
+											commands={runMigrationCommands}
+											completed={isViewingCompletedStep}
+											description={
+												<p className="text-sm text-muted-foreground">
+													The migration file is ready with a tsvector column and
+													GIN index. Apply it to the database.
+												</p>
+											}
+											hasNext={hasNextStep}
+											initialHistory={buildTerminalHistory(
+												SHELL_STEP_MAP,
+												stepper.currentStep,
+											)}
+											onCorrect={() => stepper.completeStep()}
+											onNext={stepper.nextStep}
+											onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+											outputLines={runMigrationOutput}
+											stepKey={stepper.currentStep}
+											title="Run Migration"
+										/>
+									)}
+
+								{/* OptionCard steps (3, 4, 5) */}
 								{currentStepType === 'option' && currentOptionConfig && (
 									<>
 										<h3 className="text-lg font-semibold text-foreground">
@@ -1111,20 +1948,103 @@ export function Level29Search({ onComplete }: LevelComponentProps) {
 
 					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
 					{phase === 'reward' && (
-						<div className="flex-1 flex flex-col">
-							<div className="flex-1 relative">
-								<PipelineFlow
-									connections={REWARD_CONNECTIONS}
-									stages={rewardStages}
-								/>
+						<div className="flex-1 flex flex-col min-h-0">
+							<div className="flex-1 overflow-auto min-h-0 p-4 space-y-3">
+								{rewardScan ? (
+									<div className="animate-in fade-in duration-300">
+										<div
+											className={cn(
+												'rounded-lg border p-3 transition-all duration-300',
+												rewardDone && rewardScan.scanType === 'gin'
+													? 'border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-900/10'
+													: rewardDone && rewardScan.scanType === 'blocked'
+														? 'border-red-500/50 bg-red-50/50 dark:bg-red-900/10'
+														: 'border-border bg-card',
+											)}
+										>
+											{/* Header */}
+											<div className="flex items-center gap-2 mb-2">
+												<Search className="w-3.5 h-3.5 text-muted-foreground" />
+												<span className="text-xs font-semibold text-foreground">
+													Search Query
+												</span>
+												<span className="text-[10px] font-mono text-muted-foreground">
+													(posts)
+												</span>
+												{rewardDone && rewardScan.scanType === 'gin' && (
+													<Badge
+														className="ml-auto text-[10px] border-emerald-500/50 text-emerald-700 dark:text-emerald-400"
+														variant="outline"
+													>
+														<Zap className="w-2.5 h-2.5 mr-1" />
+														{rewardScan.time}
+													</Badge>
+												)}
+												{rewardDone && rewardScan.scanType === 'blocked' && (
+													<Badge
+														className="ml-auto text-[10px] border-red-500/50 text-red-700 dark:text-red-400"
+														variant="outline"
+													>
+														BLOCKED
+													</Badge>
+												)}
+											</div>
+
+											{/* GIN Index card (for successful searches) */}
+											{rewardGinData && rewardProgress >= 0 && (
+												<div className="mb-2">
+													<GinIndexCard
+														entries={rewardGinData.entries}
+														indexName={rewardGinData.name}
+													/>
+												</div>
+											)}
+
+											{/* Blocked banner */}
+											{rewardScan.scanType === 'blocked' && rewardDone && (
+												<div className="mb-2">
+													<BlockedBanner
+														reason={
+															lastRewardScenarioId === 'empty-query'
+																? 'Empty search query rejected'
+																: 'Malicious input safely sanitized'
+														}
+													/>
+												</div>
+											)}
+
+											{/* Document grid */}
+											<DocumentGrid
+												matchPositions={rewardMatchPositions}
+												scanProgress={rewardProgress}
+												scanType={rewardScan.scanType}
+												totalRows={50000}
+											/>
+
+											{/* Search badges */}
+											{rewardDone && rewardScan.scanType === 'gin' && (
+												<div className="mt-2 animate-in fade-in duration-300">
+													<SearchBadges scan={rewardScan} />
+												</div>
+											)}
+										</div>
+									</div>
+								) : (
+									<div className="flex-1 flex items-center justify-center py-12">
+										<p className="text-sm text-muted-foreground/50 italic">
+											Fire a scenario to see the search plan
+										</p>
+									</div>
+								)}
 							</div>
 
-							{/* Stress test controls below pipeline */}
+							{/* Stress test controls */}
 							<div className="px-6 pb-2">
 								<StressTestPanel
 									allowedCount={stressTest.allowedCount}
 									blockedCount={stressTest.blockedCount}
 									canAutoFire={stressTest.canAutoFire}
+									disabled={isAnimating}
 									isAutoFiring={stressTest.isAutoFiring}
 									onFire={handleFireScenario}
 									onToggleAutoFire={stressTest.toggleAutoFire}
