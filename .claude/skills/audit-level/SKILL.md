@@ -34,8 +34,14 @@ Each custom visualization level is a reference for how to tailor the visualizati
   `frontend/src/features/act4-performance/components/Level26Indexing.tsx`
 - Level 27 (Counter Caches): "Database Table View" showing the actual posts schema (id, title, user_id) where the ABSENCE of the `comments_count` column is the teaching moment. Firing the probe triggers a cascade animation: each post row turns red sequentially as it fires a separate COUNT(*) query to the comments table. The reward phase adds the `comments_count` column to the table, and cached loads show all rows green instantly (no cross-table queries). Single probe design: one probe teaches the N+1 COUNT mechanism; multiple probes with different row counts would be metric repetition.
   `frontend/src/features/act4-performance/components/Level27CounterCaches.tsx`
+- Level 28 (Pagination): "Page Stack" with 20 horizontal bars stacked vertically (each bar = 2,500 records out of 50K). Problem: all 20 bars cascade red top-to-bottom (loading everything). Solution: only 1 bar glows green (the page chunk requested), rest stay dim. Visually distinct from L26's block grid and L29's document grid because bars are wide horizontal slices that communicate "cutting data into pages."
+  `frontend/src/features/act4-performance/components/Level28Pagination.tsx`
+- Level 29 (Search): "Document Search Grid" with a 100-block grid (20x5). Problem: red wave sweeps ALL blocks (sequential scan with LIKE). Solution: GIN Index Card appears showing stemmed terms -> row IDs, matching blocks go green instantly. Visually distinct from L28's page stack because the grid represents database rows being scanned, not pages being sliced.
+  `frontend/src/features/act4-performance/components/Level29Search.tsx`
 
 The visualization shape, direction, and structure should emerge from the concept itself. L10 flows top-to-bottom because data moves through layers. L15 flows left-to-right because a request travels from client through a gate to the API. L26 shows a grid of row blocks because indexing is about how many rows the database touches. L27 shows a database table with schema columns because counter caches are about adding a column to avoid cross-table queries. Don't copy one level's layout onto another. Design the visualization that best helps the player understand the specific problem.
+
+**Visualization uniqueness is non-negotiable.** Before designing or approving a visualization, check adjacent levels (N-2 to N+2) for visual similarity. If two levels use the same shape (e.g., both use block grids, both use stacked bars, both use left-to-right pipelines), redesign one of them. Each level's visualization must be visually distinct at a glance. Ask: "If I showed a player screenshots of levels N-1, N, and N+1 side by side, could they tell which is which without reading the title?" If not, the visualizations are too similar and at least one needs a redesign. Always think about what visual metaphor best represents the specific concept, not what is easiest to build.
 
 ## Step 0: Read the Official Documentation (MANDATORY)
 
@@ -207,6 +213,13 @@ For visualization accuracy case studies (L15 CORS, L27 idle state), see [observe
 - [ ] **Are progress bars, gauges, or terminal logs the primary element?** Replace with visual representations of the actual objects.
 
 For mechanism vs metric case studies (L26 indexing, L27 counter caches), see [observe-phase-guide.md](observe-phase-guide.md).
+
+#### Visualization uniqueness checklist (non-negotiable)
+
+- [ ] **Check adjacent levels (N-2 to N+2) for visual similarity.** Open the component files for nearby levels and compare the visualization shape, layout direction, and primary visual elements.
+- [ ] **No two adjacent levels share the same visual shape.** Two levels using block grids, two using stacked bars, or two using left-to-right pipelines side by side is a failure. Redesign one.
+- [ ] **The visual metaphor emerges from the concept.** Ask: "Why does this concept use THIS shape?" If the answer is "because the previous level used it" or "because it was easy to build," the metaphor is wrong.
+- [ ] **A player could identify the level from the visualization alone.** If screenshots of levels N-1, N, and N+1 look interchangeable (same shape, same animation pattern, same color semantics), redesign.
 
 #### Required interactivity (Types 3 and 4 only)
 

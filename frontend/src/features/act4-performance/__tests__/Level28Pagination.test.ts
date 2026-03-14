@@ -134,11 +134,11 @@ const ZONE_DISCOVERY_MAP: Record<string, string> = {
 };
 
 const STEP_DEFS: StepDef[] = [
-	{ id: 'add-gem', title: 'Add the Pagy Gem' },
-	{ id: 'include-method', title: 'Include Pagy::Method' },
-	{ id: 'configure-limit', title: 'Configure Limit Per Page' },
-	{ id: 'wire-index', title: 'Paginate the Index Action' },
-	{ id: 'add-headers', title: 'Add Link Headers' },
+	{ id: 'add-gem', title: 'Install Pagination Gem' },
+	{ id: 'include-method', title: 'Include Controller Module' },
+	{ id: 'configure-limit', title: 'Set Page Size' },
+	{ id: 'wire-index', title: 'Paginate the Query' },
+	{ id: 'add-headers', title: 'Add Navigation Headers' },
 ];
 
 const addGemCommands: TerminalCommand[] = [
@@ -180,11 +180,11 @@ const INCLUDE_OPTIONS: StepOption[] = [
 		correct: true,
 	},
 	{
-		id: 'wrong-kaminari',
-		label: 'include Kaminari::PageScopeMethods',
+		id: 'wrong-backend',
+		label: 'include Pagy::Backend',
 		correct: false,
 		feedback:
-			'That is from a different pagination gem. You installed Pagy, so use its controller module.',
+			'That was the old module name from Pagy v8 and earlier. The v43+ API uses a different module name.',
 	},
 ];
 
@@ -213,22 +213,21 @@ const CONFIGURE_OPTIONS: StepOption[] = [
 const WIRE_INDEX_OPTIONS: StepOption[] = [
 	{
 		id: 'wrong-kaminari-style',
-		label: '@posts = Post.includes(:user).page(params[:page]).per(25)',
+		label: '@posts = result.scope.page(params[:page]).per(25)',
 		correct: false,
 		feedback:
 			'That is Kaminari syntax. Pagy uses a different API: the pagy() method returns both metadata and the paginated collection.',
 	},
 	{
 		id: 'wrong-manual',
-		label:
-			'@posts = Post.includes(:user).limit(25).offset(params[:page].to_i * 25)',
+		label: '@posts = result.scope.limit(25).offset(params[:page].to_i * 25)',
 		correct: false,
 		feedback:
 			'Manual LIMIT/OFFSET works but loses pagination metadata (total count, page links). The gem handles this automatically.',
 	},
 	{
 		id: 'correct',
-		label: '@pagy, @posts = pagy(:offset, Post.includes(:user))',
+		label: '@pagy, @posts = pagy(:offset, result.scope)',
 		correct: true,
 	},
 ];
@@ -357,11 +356,12 @@ const SCENARIO_PAGE_MAP: Record<string, number> = {
 	'invalid-page': 99999,
 };
 
-// Page-to-block mapping helper (mirrored from component)
-function pageToBlock(page: number): number | null {
+// Page-to-bar mapping helper (mirrored from component)
+// 20 bars, each covering 2,500 records (100 pages of 25)
+function pageToBar(page: number): number | null {
 	if (page < 1 || page > 2000) return null;
-	const blockIndex = Math.floor((page - 1) / 20);
-	return blockIndex < 100 ? blockIndex : null;
+	const barIndex = Math.floor((page - 1) / 100);
+	return barIndex < 20 ? barIndex : null;
 }
 
 // ──────────────────────────────────────────────
@@ -637,53 +637,57 @@ describe('Level 28: Pagination', () => {
 		});
 	});
 
-	// ── Page-to-block mapping ──
+	// ── Page-to-bar mapping ──
 
-	describe('Page-to-block mapping', () => {
-		test('page 1 maps to block 0', () => {
-			expect(pageToBlock(1)).toBe(0);
+	describe('Page-to-bar mapping', () => {
+		test('page 1 maps to bar 0', () => {
+			expect(pageToBar(1)).toBe(0);
 		});
 
-		test('page 50 maps to block 2', () => {
-			expect(pageToBlock(50)).toBe(2);
+		test('page 50 maps to bar 0 (first 100 pages in bar 0)', () => {
+			expect(pageToBar(50)).toBe(0);
 		});
 
-		test('page 2000 maps to block 99', () => {
-			expect(pageToBlock(2000)).toBe(99);
+		test('page 101 maps to bar 1', () => {
+			expect(pageToBar(101)).toBe(1);
+		});
+
+		test('page 2000 maps to bar 19 (last bar)', () => {
+			expect(pageToBar(2000)).toBe(19);
 		});
 
 		test('page 99999 maps to null (out of range)', () => {
-			expect(pageToBlock(99999)).toBe(null);
+			expect(pageToBar(99999)).toBe(null);
 		});
 
 		test('page 0 maps to null (invalid)', () => {
-			expect(pageToBlock(0)).toBe(null);
+			expect(pageToBar(0)).toBe(null);
 		});
 
 		test('page -1 maps to null (invalid)', () => {
-			expect(pageToBlock(-1)).toBe(null);
+			expect(pageToBar(-1)).toBe(null);
 		});
 
-		test('allowed scenarios map to valid blocks', () => {
+		test('allowed scenarios map to valid bars (0-19)', () => {
 			const allowed = STRESS_SCENARIOS.filter(
 				(s) => s.expectedResult === 'allowed',
 			);
 			for (const scenario of allowed) {
 				const page = SCENARIO_PAGE_MAP[scenario.id];
-				const block = pageToBlock(page);
-				expect(block).not.toBe(null);
-				expect(block).toBeGreaterThanOrEqual(0);
-				expect(block).toBeLessThan(100);
+				const bar = pageToBar(page);
+				expect(bar).not.toBe(null);
+				expect(bar).toBeGreaterThanOrEqual(0);
+				expect(bar).toBeLessThan(20);
 			}
 		});
 
-		test('blocked scenario maps to null block', () => {
+		test('blocked scenario maps to null bar', () => {
 			const blocked = STRESS_SCENARIOS.find(
 				(s) => s.expectedResult === 'blocked',
 			);
 			expect(blocked).toBeTruthy();
 			const page = SCENARIO_PAGE_MAP[blocked?.id ?? ''];
-			expect(pageToBlock(page)).toBe(null);
+			expect(pageToBar(page)).toBe(null);
 		});
 	});
 

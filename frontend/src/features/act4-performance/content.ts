@@ -918,28 +918,28 @@ const level28Pagination: Level = {
 	},
 	problem: {
 		observation:
-			'The controller calls `Post.includes(:user).all` with no limit. Ruby loads 50K ActiveRecord objects into memory, serializes every one, and sends a single 12MB JSON array. There is no way for clients to request a specific page.',
+			'The PostList service returns `Post.includes(:user)` as the scope with no limit. The controller renders the entire scope, loading 50K ActiveRecord objects into memory and sending a 12MB JSON array. There is no way for clients to request a specific page.',
 		rootCause:
-			'No pagination. Post.all loads the entire table into memory and serializes every record.',
-		codeExample: `# app/controllers/api/v1/posts_controller.rb
-def index
-  @posts = Post.includes(:user).all  # ALL 50,000 posts!
-  render json: PostSerializer.new(@posts).serializable_hash.to_json
+			'No pagination. The service scope loads the entire table and the controller renders it all.',
+		codeExample: `# app/services/post_list.rb
+class PostList < ApplicationService
+  Result = Data.define(:success?, :scope, :errors)
+  def call
+    validation = ListContract.new.call(page: @page)
+    return Result.new(...) if validation.failure?
+    scope = Post.includes(:user)  # No limit!
+    Result.new(success?: true, scope: scope, errors: [])
+  end
 end
 
-# Response:
-# HTTP/1.1 200 OK
-# Content-Length: 12,582,912  (12MB!)
-# Transfer-Encoding: chunked
-#
-# [{"id":1,...},{"id":2,...},...,{"id":50000,...}]
+# Controller renders ALL of result.scope:
+# render json: PostSerializer.new(result.scope)
 #
 # Problems:
 # 1. Database loads 50K rows into memory
-# 2. Ruby serializes 50K objects
-# 3. Client parses 12MB JSON
-# 4. No way to request "page 2"`,
-		goal: 'Install Pagy, include Pagy::Method, configure Pagy::OPTIONS[:limit], paginate with pagy(:offset, scope), and add RFC 5988 Link headers via headers_hash.',
+# 2. Ruby serializes 50K objects (12MB JSON)
+# 3. No pagination headers, no way to request "page 2"`,
+		goal: 'Install Pagy, include Pagy::Method, configure Pagy::OPTIONS[:limit], paginate with pagy(:offset, result.scope), and add RFC 5988 Link headers via headers_hash.',
 		thresholds: { maxLatency: 100 },
 	},
 	successConditions: [{ type: 'pagination_implemented' }],
@@ -1003,22 +1003,31 @@ class ApplicationController < ActionController::API
   include Pagy::Method
 end
 
-# app/controllers/api/v1/posts_controller.rb
-class Api::V1::PostsController < ApplicationController
-  def index
-    @pagy, @posts = pagy(:offset, Post.includes(:user))
-    response.headers.merge!(@pagy.headers_hash)
-    render json: PostSerializer.new(@posts)
+# Service object provides the scope:
+class PostList < ApplicationService
+  Result = Data.define(:success?, :scope, :errors)
+  def call
+    validation = ListContract.new.call(page: @page)
+    return Result.new(success?: false, ...) if validation.failure?
+    scope = Post.includes(:user)
+    Result.new(success?: true, scope: scope, errors: [])
   end
 end
 
-# Response:
-# HTTP/1.1 200 OK
-# Link: <http://api.example.com/posts?page=2>; rel="next",
-#       <http://api.example.com/posts?page=2000>; rel="last"
-# Content-Length: 6250
-#
-# [{"id":1,...},...,{"id":25,...}]  (25 items only!)`,
+# Controller paginates the service scope:
+class Api::V1::PostsController < ApplicationController
+  def index
+    result = PostList.call(page: params[:page])
+    if result.success?
+      @pagy, @posts = pagy(:offset, result.scope)
+      response.headers.merge!(@pagy.headers_hash)
+      render json: PostSerializer.new(@posts)
+    else
+      render json: { errors: result.errors },
+             status: :unprocessable_entity
+    end
+  end
+end`,
 		commonMistakes: [
 			'Using offset pagination for deep pages on large tables (OFFSET 100000 is slow)',
 			'Not including pagination metadata in the response (Link headers or meta object)',

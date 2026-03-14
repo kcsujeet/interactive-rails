@@ -4,11 +4,11 @@
  * Sequential phase flow: observe -> build -> activate -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
- * Phase 1 (WHY - observe): Custom "Record Grid + Response Payload" visualization.
- *   Two-zone layout stacked vertically: database grid (100 blocks = 50K records)
- *   and response zone showing payload size. Player fires probes and watches all
- *   100 blocks cascade red row by row, with the response zone filling red.
- *   ProbeTerminal drives probes, clickable zones reveal StageInspector.
+ * Phase 1 (WHY - observe): Custom "Page Stack + Response Payload" visualization.
+ *   Two-zone layout stacked vertically: 20 horizontal bars (each = 2,500 records
+ *   out of 50K total) and response zone showing payload size. Player fires probes
+ *   and watches all 20 bars cascade red top-to-bottom, with the response zone
+ *   filling red. ProbeTerminal drives probes, clickable zones reveal StageInspector.
  *
  * Phase 2 (HOW - build): 5 steps (1 terminal + 4 OptionCard) implementing Pagy v43
  *   Step 0: bundle add pagy (terminal)
@@ -19,8 +19,8 @@
  *
  * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Pagination" button
  * Phase 4 (ADVANTAGE - reward): Same two-zone layout, now showing the fix.
- *   Allowed: one block glows green (page window), response shows 6KB.
- *   Blocked (page 99999): no blocks, response shows overflow error.
+ *   Allowed: one bar glows green (page window), response shows 6KB.
+ *   Blocked (page 99999): all bars dim, response shows overflow error.
  *
  * Teaches: Pagy v43 gem, Pagy::Method, Pagy::OPTIONS, pagy(:offset, ...), headers_hash
  */
@@ -93,20 +93,19 @@ type VizMode = 'idle' | 'cascade' | 'page-window' | 'overflow';
 // Constants
 // ──────────────────────────────────────────────
 
-const GRID_ROWS = 10;
-const GRID_COLS = 10;
-const TOTAL_BLOCKS = GRID_ROWS * GRID_COLS;
+const TOTAL_BARS = 20;
+const RECORDS_PER_BAR = 2500;
+const TOTAL_RECORDS = TOTAL_BARS * RECORDS_PER_BAR; // 50,000
 
-/** Pre-generated block keys (static grid, never reordered) */
-const BLOCK_KEYS = Array.from({ length: TOTAL_BLOCKS }, (_, i) => `b${i}`);
-const RECORDS_PER_BLOCK = 500;
-const TOTAL_RECORDS = TOTAL_BLOCKS * RECORDS_PER_BLOCK; // 50,000
+/** Pre-generated bar keys (static stack, never reordered) */
+const BAR_KEYS = Array.from({ length: TOTAL_BARS }, (_, i) => `bar${i}`);
 
-/** Map a page number (1-based, 25 per page) to a block index (0-99), or null if out of range */
-function pageToBlock(page: number): number | null {
+/** Map a page number (1-based, 25 per page) to a bar index (0-19), or null if out of range */
+function pageToBar(page: number): number | null {
 	if (page < 1 || page > Math.ceil(TOTAL_RECORDS / 25)) return null;
-	const blockIndex = Math.floor((page - 1) / 20);
-	return blockIndex < TOTAL_BLOCKS ? blockIndex : null;
+	// Each bar covers 2,500 records = 100 pages (25 per page)
+	const barIndex = Math.floor((page - 1) / 100);
+	return barIndex < TOTAL_BARS ? barIndex : null;
 }
 
 // ──────────────────────────────────────────────
@@ -196,16 +195,22 @@ const PROBE_DISCOVERY_MAP: Record<string, string> = {
 const ZONE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 	database: {
 		stageId: 'database',
-		title: 'posts table (50,000 rows)',
+		title: 'PostList Service (Query Logic)',
 		description:
-			'The controller calls Post.includes(:user).all with no limit. Active Record instantiates every row in the table, allocating ~180MB of heap memory per request.',
-		code: `# PostsController#index
-@posts = Post.includes(:user).all
+			'The service returns Post.includes(:user) as the scope with no limit. The controller renders the entire scope without pagination, loading all 50K rows and allocating ~180MB per request.',
+		code: `# app/services/post_list.rb
+class PostList < ApplicationService
+  Result = Data.define(:success?, :scope, :errors)
+  def call
+    validation = ListContract.new.call({})
+    scope = Post.includes(:user)  # No limit!
+    Result.new(success?: true, scope: scope, errors: [])
+  end
+end
+
+# Controller renders ALL of result.scope:
 # => SELECT "posts".* FROM "posts"
-# => SELECT "users".* FROM "users"
-#    WHERE "users"."id" IN (1, 2, ..., 50000)
-#
-# 50,000 Post objects + 50,000 User objects loaded`,
+# => 50,000 Post + 50,000 User objects loaded`,
 	},
 	response: {
 		stageId: 'response',
@@ -451,22 +456,21 @@ const CONFIGURE_OPTIONS: StepOption[] = [
 const WIRE_INDEX_OPTIONS: StepOption[] = [
 	{
 		id: 'wrong-kaminari-style',
-		label: '@posts = Post.includes(:user).page(params[:page]).per(25)',
+		label: '@posts = result.scope.page(params[:page]).per(25)',
 		correct: false,
 		feedback:
 			'That is Kaminari syntax. Pagy uses a different API: the pagy() method returns both metadata and the paginated collection.',
 	},
 	{
 		id: 'wrong-manual',
-		label:
-			'@posts = Post.includes(:user).limit(25).offset(params[:page].to_i * 25)',
+		label: '@posts = result.scope.limit(25).offset(params[:page].to_i * 25)',
 		correct: false,
 		feedback:
 			'Manual LIMIT/OFFSET works but loses pagination metadata (total count, page links). The gem handles this automatically.',
 	},
 	{
 		id: 'correct',
-		label: '@pagy, @posts = pagy(:offset, Post.includes(:user))',
+		label: '@pagy, @posts = pagy(:offset, result.scope)',
 		correct: true,
 	},
 ];
@@ -516,7 +520,7 @@ const OPTION_STEP_CONFIG: Record<
 	3: {
 		title: 'Paginate the Query',
 		description:
-			'Replace Post.includes(:user).all with a paginated query. The pagination method returns a tuple: metadata and the scoped collection.',
+			'The service returns the scope via result.scope. Paginate it in the controller. The pagination method returns a tuple: metadata and the scoped collection.',
 		options: WIRE_INDEX_OPTIONS,
 	},
 	4: {
@@ -534,40 +538,94 @@ const OPTION_STEP_CONFIG: Record<
 function getCodeFiles(phase: Phase, furthestStep: number) {
 	const files = [];
 
+	// Contract file (shown in observe and final reward)
+	const contractCode = `class ListContract < Dry::Validation::Contract
+  params do
+    optional(:page).filled(:integer, gt?: 0)
+  end
+end`;
+
 	if (phase === 'observe') {
+		files.push({
+			filename: 'app/contracts/list_contract.rb',
+			language: 'ruby',
+			code: contractCode,
+		});
+		files.push({
+			filename: 'app/services/post_list.rb',
+			language: 'ruby',
+			code: `class PostList < ApplicationService
+  Result = Data.define(:success?, :scope, :errors)
+
+  def initialize(page: nil)
+    @page = page
+  end
+
+  def call
+    validation = ListContract.new.call(
+      page: @page
+    )
+    if validation.failure?
+      return Result.new(
+        success?: false, scope: Post.none,
+        errors: validation.errors.to_h
+      )
+    end
+    scope = Post.includes(:user)  # No limit!
+    Result.new(success?: true, scope: scope, errors: [])
+  end
+end`,
+			highlight: [18],
+		});
 		files.push({
 			filename: 'app/controllers/api/v1/posts_controller.rb',
 			language: 'ruby',
 			code: `class Api::V1::PostsController < ApplicationController
   def index
-    @posts = Post.includes(:user).all  # ALL 50,000 posts!
-    render json: PostSerializer.new(@posts)
+    result = PostList.call(page: params[:page])
+    if result.success?
+      render json: PostSerializer.new(result.scope)
+    else
+      render json: { errors: result.errors },
+             status: :unprocessable_entity
+    end
   end
 end
 
-# Response:
-# HTTP/1.1 200 OK
-# Content-Length: 12,582,912  (12MB!)
-#
-# [{"id":1,...},...,{"id":50000,...}]
-# No pagination. No Link headers. No way to request "page 2".`,
-			highlight: [3],
+# Renders ALL of result.scope (50K posts!)
+# No pagination. No Link headers.
+# Content-Length: 12,582,912  (12MB!)`,
+			highlight: [5],
 		});
 		return files;
 	}
 
 	// Build / activate / reward phases: evolving code
 	if (furthestStep === 0) {
+		// Show the broken service (same as observe)
 		files.push({
-			filename: 'app/controllers/api/v1/posts_controller.rb',
+			filename: 'app/services/post_list.rb',
 			language: 'ruby',
-			code: `class Api::V1::PostsController < ApplicationController
-  def index
-    @posts = Post.includes(:user).all  # ALL 50,000 posts!
-    render json: PostSerializer.new(@posts)
+			code: `class PostList < ApplicationService
+  Result = Data.define(:success?, :scope, :errors)
+
+  def initialize(page: nil)
+    @page = page
+  end
+
+  def call
+    validation = ListContract.new.call(page: @page)
+    if validation.failure?
+      return Result.new(
+        success?: false, scope: Post.none,
+        errors: validation.errors.to_h
+      )
+    end
+    scope = Post.includes(:user)  # No limit!
+    Result.new(success?: true, scope: scope, errors: [])
   end
 end`,
-			highlight: [3],
+			highlight: [17],
 		});
 	}
 
@@ -616,9 +674,15 @@ Pagy::OPTIONS[:limit] = 25`,
 				furthestStep >= 5
 					? `class Api::V1::PostsController < ApplicationController
   def index
-    @pagy, @posts = pagy(:offset, Post.includes(:user))
-    response.headers.merge!(@pagy.headers_hash)
-    render json: PostSerializer.new(@posts)
+    result = PostList.call(page: params[:page])
+    if result.success?
+      @pagy, @posts = pagy(:offset, result.scope)
+      response.headers.merge!(@pagy.headers_hash)
+      render json: PostSerializer.new(@posts)
+    else
+      render json: { errors: result.errors },
+             status: :unprocessable_entity
+    end
   end
 end
 
@@ -629,11 +693,49 @@ end
 # Content-Length: 6,250  (25 items only!)`
 					: `class Api::V1::PostsController < ApplicationController
   def index
-    @pagy, @posts = pagy(:offset, Post.includes(:user))
-    render json: PostSerializer.new(@posts)
+    result = PostList.call(page: params[:page])
+    if result.success?
+      @pagy, @posts = pagy(:offset, result.scope)
+      render json: PostSerializer.new(@posts)
+    else
+      render json: { errors: result.errors },
+             status: :unprocessable_entity
+    end
   end
 end`,
-			highlight: furthestStep >= 5 ? [3, 4] : [3],
+			highlight: furthestStep >= 5 ? [5, 6] : [5],
+		});
+	}
+
+	// Show contract + final service in reward
+	if (furthestStep >= 5) {
+		files.push({
+			filename: 'app/contracts/list_contract.rb',
+			language: 'ruby',
+			code: contractCode,
+		});
+		files.push({
+			filename: 'app/services/post_list.rb',
+			language: 'ruby',
+			code: `class PostList < ApplicationService
+  Result = Data.define(:success?, :scope, :errors)
+
+  def initialize(page: nil)
+    @page = page
+  end
+
+  def call
+    validation = ListContract.new.call(page: @page)
+    if validation.failure?
+      return Result.new(
+        success?: false, scope: Post.none,
+        errors: validation.errors.to_h
+      )
+    end
+    scope = Post.includes(:user)
+    Result.new(success?: true, scope: scope, errors: [])
+  end
+end`,
 		});
 	}
 
@@ -652,18 +754,18 @@ function PaginationLegend() {
 			</div>
 			<div className="space-y-2 text-sm">
 				<div className="flex items-center gap-2">
-					<div className="w-3 h-3 rounded-sm bg-emerald-500 dark:bg-emerald-400" />
+					<div className="w-8 h-2.5 rounded-sm bg-emerald-500 dark:bg-emerald-400" />
 					<span className="text-foreground">
-						Active page window (25 records)
+						Active page chunk (25 records)
 					</span>
 				</div>
 				<div className="flex items-center gap-2">
-					<div className="w-3 h-3 rounded-sm bg-muted-foreground/20" />
+					<div className="w-8 h-2.5 rounded-sm bg-muted-foreground/20" />
 					<span className="text-foreground">Untouched records</span>
 				</div>
 				<div className="flex items-center gap-2">
-					<div className="w-3 h-3 rounded-sm bg-red-500 dark:bg-red-400" />
-					<span className="text-foreground">Page out of range</span>
+					<div className="w-8 h-2.5 rounded-sm bg-muted-foreground/10" />
+					<span className="text-foreground">Page out of range (all dim)</span>
 				</div>
 			</div>
 		</div>
@@ -689,8 +791,8 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 
 	// ── Visualization state ──
 	const [vizMode, setVizMode] = useState<VizMode>('idle');
-	const [cascadeProgress, setCascadeProgress] = useState(0); // 0..10 (row index)
-	const [activeBlock, setActiveBlock] = useState<number | null>(null); // block index for reward
+	const [cascadeProgress, setCascadeProgress] = useState(0); // 0..TOTAL_BARS (bar index)
+	const [activeBar, setActiveBar] = useState<number | null>(null); // bar index for reward
 	const [vizAnimating, setVizAnimating] = useState(false);
 	const cascadeTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -700,26 +802,26 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 		cascadeTimersRef.current = [];
 	}, []);
 
-	/** Run the red cascade animation: 10 rows cascade sequentially */
+	/** Run the red cascade animation: 20 bars cascade sequentially top-to-bottom */
 	const runCascade = useCallback(
 		(onDone?: () => void): void => {
 			clearCascadeTimers();
 			setVizMode('cascade');
 			setCascadeProgress(0);
-			setActiveBlock(null);
+			setActiveBar(null);
 			setVizAnimating(true);
 
-			// Cascade across 10 rows, each row takes a slice of ANIMATION_DURATION_MS
+			// Cascade across 20 bars
 			const startDelay = Math.round(ANIMATION_DURATION_MS * 0.15);
 			const cascadeDuration = ANIMATION_DURATION_MS;
-			const perRowDelay = Math.round(cascadeDuration / GRID_ROWS);
+			const perBarDelay = Math.round(cascadeDuration / TOTAL_BARS);
 
-			for (let row = 1; row <= GRID_ROWS; row++) {
+			for (let bar = 1; bar <= TOTAL_BARS; bar++) {
 				const timer = setTimeout(
 					() => {
-						setCascadeProgress(row);
+						setCascadeProgress(bar);
 					},
-					startDelay + row * perRowDelay,
+					startDelay + bar * perBarDelay,
 				);
 				cascadeTimersRef.current.push(timer);
 			}
@@ -727,7 +829,7 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 			// Total: start delay + cascade + settle
 			const totalDuration =
 				startDelay +
-				GRID_ROWS * perRowDelay +
+				TOTAL_BARS * perBarDelay +
 				Math.round(ANIMATION_DURATION_MS * 0.25);
 			const endTimer = setTimeout(() => {
 				setVizAnimating(false);
@@ -738,13 +840,13 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 		[clearCascadeTimers],
 	);
 
-	/** Show a single page window in the grid (reward allowed scenario) */
+	/** Show a single page window bar (reward allowed scenario) */
 	const runPageWindow = useCallback(
-		(blockIndex: number) => {
+		(barIndex: number) => {
 			clearCascadeTimers();
 			setVizMode('page-window');
 			setCascadeProgress(0);
-			setActiveBlock(blockIndex);
+			setActiveBar(barIndex);
 			setVizAnimating(true);
 
 			const timer = setTimeout(
@@ -761,7 +863,7 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 		clearCascadeTimers();
 		setVizMode('overflow');
 		setCascadeProgress(0);
-		setActiveBlock(null);
+		setActiveBar(null);
 		setVizAnimating(true);
 
 		const timer = setTimeout(
@@ -775,7 +877,7 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 		clearCascadeTimers();
 		setVizMode('idle');
 		setCascadeProgress(0);
-		setActiveBlock(null);
+		setActiveBar(null);
 		setVizAnimating(false);
 	}, [clearCascadeTimers]);
 
@@ -850,10 +952,10 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 			stressTest.fireRequest(scenarioId);
 
 			const page = SCENARIO_PAGE_MAP[scenarioId] ?? 1;
-			const blockIndex = pageToBlock(page);
+			const barIndex = pageToBar(page);
 
-			if (blockIndex !== null) {
-				runPageWindow(blockIndex);
+			if (barIndex !== null) {
+				runPageWindow(barIndex);
 			} else {
 				runOverflow();
 			}
@@ -911,19 +1013,18 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 		? STRESS_SCENARIOS.find((s) => s.id === lastResult.scenarioId)
 		: null;
 
-	// ── Grid block state helper ──
-	const getBlockState = (
-		blockIndex: number,
+	// ── Bar state helper ──
+	const getBarState = (
+		barIndex: number,
 	): 'neutral' | 'red' | 'green' | 'dim' => {
 		if (phase === 'observe' || (phase === 'reward' && vizMode === 'cascade')) {
-			// Cascade: row-by-row red fill
-			const row = Math.floor(blockIndex / GRID_COLS);
-			if (row < cascadeProgress) return 'red';
+			// Cascade: bar-by-bar red fill top-to-bottom
+			if (barIndex < cascadeProgress) return 'red';
 			return 'neutral';
 		}
 		if (phase === 'reward') {
-			if (isPageWindow && activeBlock !== null) {
-				return blockIndex === activeBlock ? 'green' : 'dim';
+			if (isPageWindow && activeBar !== null) {
+				return barIndex === activeBar ? 'green' : 'dim';
 			}
 			if (isOverflow) {
 				return 'dim';
@@ -940,7 +1041,7 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 	} => {
 		if (phase === 'observe') {
 			if (isCascading) {
-				const loadedRows = cascadeProgress * GRID_COLS * RECORDS_PER_BLOCK;
+				const loadedRows = cascadeProgress * RECORDS_PER_BAR;
 				return {
 					text: `Loading... ${loadedRows.toLocaleString()} / ${TOTAL_RECORDS.toLocaleString()} records`,
 					variant: 'danger',
@@ -982,7 +1083,7 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 	};
 
 	// ── Visualization render ──
-	const renderRecordGrid = () => {
+	const renderPageStack = () => {
 		const responseContent = getResponseContent();
 		const isObserve = phase === 'observe';
 
@@ -1016,35 +1117,42 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 								<Search className="w-3 h-3" />
 							</span>
 						)}
-						{phase === 'reward' && activeBlock !== null && isPageWindow && (
+						{phase === 'reward' && activeBar !== null && isPageWindow && (
 							<span className="text-xs font-mono text-emerald-600 dark:text-emerald-400 font-bold">
 								Page {SCENARIO_PAGE_MAP[lastScenario?.id ?? ''] ?? '?'}
 							</span>
 						)}
 					</div>
 
-					{/* 10x10 Grid */}
-					<div className="grid grid-cols-10 gap-0.5">
-						{BLOCK_KEYS.map((key, i) => {
-							const state = getBlockState(i);
+					{/* Page Stack: 20 horizontal bars */}
+					<div className="flex flex-col gap-0.5">
+						{BAR_KEYS.map((key, i) => {
+							const state = getBarState(i);
 							return (
 								<div
 									className={cn(
-										'h-5 rounded-sm transition-colors duration-150',
+										'relative h-3 w-full rounded-sm transition-colors duration-150',
 										state === 'neutral' && 'bg-muted-foreground/20',
 										state === 'red' && 'bg-red-500 dark:bg-red-400',
 										state === 'green' && 'bg-emerald-500 dark:bg-emerald-400',
 										state === 'dim' && 'bg-muted-foreground/10',
 									)}
 									key={key}
-								/>
+								>
+									{/* Row label on the right for every 5th bar */}
+									{i % 5 === 0 && (
+										<span className="absolute right-1 top-0 text-[9px] font-mono text-muted-foreground/60 leading-3">
+											{((i + 1) * RECORDS_PER_BAR).toLocaleString()}
+										</span>
+									)}
+								</div>
 							);
 						})}
 					</div>
 
-					{/* Block legend */}
+					{/* Bar legend */}
 					<div className="mt-2 text-xs text-muted-foreground">
-						Each block = {RECORDS_PER_BLOCK.toLocaleString()} records
+						Each bar = {RECORDS_PER_BAR.toLocaleString()} records (100 pages)
 					</div>
 				</button>
 
@@ -1231,7 +1339,7 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 							{/* Header */}
 							<div className="px-6 pt-4 pb-2 flex items-center justify-between">
 								<div className="text-sm font-semibold text-foreground">
-									Record Grid: GET /api/posts
+									Page Stack: GET /api/posts
 								</div>
 								{vizMode !== 'idle' && (
 									<span
@@ -1240,15 +1348,15 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 											isCascading ? 'text-destructive' : 'text-destructive',
 										)}
 									>
-										{cascadeProgress * GRID_COLS * RECORDS_PER_BLOCK > 0
-											? `${(cascadeProgress * GRID_COLS * RECORDS_PER_BLOCK).toLocaleString()} / ${TOTAL_RECORDS.toLocaleString()} loaded`
+										{cascadeProgress * RECORDS_PER_BAR > 0
+											? `${(cascadeProgress * RECORDS_PER_BAR).toLocaleString()} / ${TOTAL_RECORDS.toLocaleString()} loaded`
 											: `${TOTAL_RECORDS.toLocaleString()} records`}
 									</span>
 								)}
 							</div>
 
 							{/* Visualization */}
-							<div className="px-6 pb-2">{renderRecordGrid()}</div>
+							<div className="px-6 pb-2">{renderPageStack()}</div>
 
 							{/* StageInspector overlay */}
 							{inspectorData && (
@@ -1435,17 +1543,17 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 											)}
 										>
 											{isPageWindow
-												? '25 records / 6KB'
+												? '25 records / 6KB (1 bar)'
 												: isOverflow
 													? 'page out of range'
-													: `${TOTAL_RECORDS.toLocaleString()} records (no pagination!)`}
+													: `${TOTAL_RECORDS.toLocaleString()} records (all ${TOTAL_BARS} bars!)`}
 										</span>
 									</div>
 								)}
 							</div>
 
 							{/* Visualization */}
-							<div className="px-6 pb-2">{renderRecordGrid()}</div>
+							<div className="px-6 pb-2">{renderPageStack()}</div>
 
 							{/* Stress test controls */}
 							<div className="px-6 pb-2 flex-1 min-h-0">
