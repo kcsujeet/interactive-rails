@@ -1,14 +1,13 @@
 /**
  * Level 32: Polymorphic Associations
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: intro -> build -> activate -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
- * Phase 1 (WHY - observe): Custom "Schema Diagram" visualization.
- *   Three parent model cards (Post, Photo, Video) at top, each with its own
- *   separate comment table below, connected by FlowConnectors. Player fires
- *   probes and clicks on tables to discover duplication, scattered queries,
- *   maintenance burden, and logic repetition.
+ * Phase 1 (WHY - intro): Type 2 static intro. Annotated schema display showing
+ *   three duplicate comment table schemas side by side with colored annotations
+ *   highlighting the duplication. "Build the Fix" button always visible (no gating).
+ *   No probes, no discovery gating, no animations.
  *
  * Phase 2 (HOW - build): 6 steps (2 terminal + 4 OptionCard)
  *   Step 0: Generate polymorphic migration (terminal)
@@ -27,15 +26,7 @@
  *   service objects for comment creation, contract validation
  */
 
-import {
-	ArrowRight,
-	Database,
-	Play,
-	Search,
-	Star,
-	Table2,
-	Zap,
-} from 'lucide-react';
+import { ArrowRight, Database, Play, Star, Table2, Zap } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
@@ -53,21 +44,9 @@ import {
 	type TerminalStepData,
 	type ValidationResult,
 } from '@/components/levels';
-import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
-import { FlowConnector } from '@/components/levels/FlowConnector';
-import {
-	type ProbeConfig,
-	ProbeTerminal,
-} from '@/components/levels/ProbeTerminal';
-import type { StageInspectorData } from '@/components/levels/StageInspector';
-import { StageInspector } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
-import {
-	type DiscoveryDef,
-	useDiscoveryGating,
-} from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
@@ -77,174 +56,50 @@ import { cn } from '@/lib/utils';
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'intro' | 'build' | 'activate' | 'reward';
 
 // ──────────────────────────────────────────────
-// Visualization state
+// Table schema definitions (static intro display)
 // ──────────────────────────────────────────────
 
-// ──────────────────────────────────────────────
-// Parent model definitions
-// ──────────────────────────────────────────────
-
-const PARENT_MODELS = [
+const DUPLICATE_TABLES = [
 	{
-		key: 'post' as const,
-		label: 'Post',
-		table: 'post_comments',
-		columns: ['id', 'body', 'post_id', 'user_id', 'created_at'],
-		borderColor: 'border-blue-300 dark:border-blue-500/50',
-		bgColor: 'bg-blue-50 dark:bg-blue-900/20',
+		name: 'post_comments',
+		fkColumn: 'post_id',
+		borderColor: 'border-blue-300 dark:border-blue-600',
+		headerBg: 'bg-blue-50 dark:bg-blue-900/30',
 		textColor: 'text-blue-700 dark:text-blue-300',
+		rows: [
+			{ id: 1, body: 'Great post!', fk: 1, userId: 5, createdAt: 'Mar 12' },
+			{ id: 2, body: 'Helpful guide', fk: 1, userId: 3, createdAt: 'Mar 13' },
+			{ id: 3, body: 'Thanks!', fk: 2, userId: 8, createdAt: 'Mar 14' },
+		],
 	},
 	{
-		key: 'photo' as const,
-		label: 'Photo',
-		table: 'photo_comments',
-		columns: ['id', 'body', 'photo_id', 'user_id', 'created_at'],
-		borderColor: 'border-purple-300 dark:border-purple-500/50',
-		bgColor: 'bg-purple-50 dark:bg-purple-900/20',
+		name: 'photo_comments',
+		fkColumn: 'photo_id',
+		borderColor: 'border-purple-300 dark:border-purple-600',
+		headerBg: 'bg-purple-50 dark:bg-purple-900/30',
 		textColor: 'text-purple-700 dark:text-purple-300',
+		rows: [
+			{ id: 1, body: 'Beautiful shot!', fk: 3, userId: 5, createdAt: 'Mar 10' },
+			{ id: 2, body: 'Nice angle', fk: 3, userId: 2, createdAt: 'Mar 11' },
+			{ id: 3, body: 'Love the colors', fk: 7, userId: 1, createdAt: 'Mar 14' },
+		],
 	},
 	{
-		key: 'video' as const,
-		label: 'Video',
-		table: 'video_comments',
-		columns: ['id', 'body', 'video_id', 'user_id', 'created_at'],
-		borderColor: 'border-amber-300 dark:border-amber-500/50',
-		bgColor: 'bg-amber-50 dark:bg-amber-900/20',
+		name: 'video_comments',
+		fkColumn: 'video_id',
+		borderColor: 'border-amber-300 dark:border-amber-600',
+		headerBg: 'bg-amber-50 dark:bg-amber-900/30',
 		textColor: 'text-amber-700 dark:text-amber-300',
+		rows: [
+			{ id: 1, body: 'Great tutorial', fk: 2, userId: 4, createdAt: 'Mar 11' },
+			{ id: 2, body: 'More like this!', fk: 5, userId: 5, createdAt: 'Mar 13' },
+			{ id: 3, body: 'Subscribed!', fk: 5, userId: 9, createdAt: 'Mar 15' },
+		],
 	},
 ] as const;
-
-// ──────────────────────────────────────────────
-// Discovery definitions (observe phase)
-// ──────────────────────────────────────────────
-
-const DISCOVERY_DEFS: DiscoveryDef[] = [
-	{ id: 'duplicate-schemas', label: 'Three tables with identical columns' },
-	{ id: 'scattered-queries', label: 'Cannot query all comments at once' },
-	{ id: 'maintenance-burden', label: 'New types require new tables' },
-	{ id: 'duplicate-logic', label: 'Validation logic duplicated 3 times' },
-];
-
-const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
-	'list-tables': ['duplicate-schemas'],
-	'query-all-comments': ['scattered-queries'],
-	'add-article-comments': ['maintenance-burden'],
-};
-
-const STAGE_DISCOVERY_MAP: Record<string, string[]> = {
-	'post-comment-table': ['duplicate-logic'],
-	'photo-comment-table': ['duplicate-logic'],
-	'video-comment-table': ['duplicate-logic'],
-};
-
-// ──────────────────────────────────────────────
-// Probe definitions
-// ──────────────────────────────────────────────
-
-const PROBES: ProbeConfig[] = [
-	{
-		id: 'list-tables',
-		label: 'List comment tables',
-		command: 'ActiveRecord::Base.connection.tables.grep(/comment/)',
-		responseLines: [
-			{
-				text: '=> ["post_comments", "photo_comments", "video_comments"]',
-				color: 'red',
-			},
-			{ text: '# 3 separate tables with identical schemas!', color: 'yellow' },
-			{
-				text: '# Each has: id, body, *_id, user_id, timestamps',
-				color: 'muted',
-			},
-		],
-	},
-	{
-		id: 'query-all-comments',
-		label: 'Query all user comments',
-		command: 'Comment.where(user: current_user)',
-		responseLines: [
-			{ text: 'NameError: uninitialized constant Comment', color: 'red' },
-			{ text: '# No unified Comment model exists!', color: 'yellow' },
-			{
-				text: '# Must UNION across post_comments, photo_comments, video_comments',
-				color: 'muted',
-			},
-		],
-	},
-	{
-		id: 'add-article-comments',
-		label: 'Add comments for Article',
-		command: 'rails generate model ArticleComment body:text article:references',
-		responseLines: [
-			{
-				text: '  create  db/migrate/..._create_article_comments.rb',
-				color: 'green',
-			},
-			{ text: '  create  app/models/article_comment.rb', color: 'green' },
-			{ text: '# Yet ANOTHER table with the same columns!', color: 'red' },
-			{
-				text: '# Plus another controller, serializer, and tests...',
-				color: 'yellow',
-			},
-		],
-	},
-];
-
-// ──────────────────────────────────────────────
-// Stage inspector data (clickable tables)
-// ──────────────────────────────────────────────
-
-const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
-	'post-comment-table': {
-		stageId: 'post-comment-table',
-		title: 'PostComment Model',
-		description:
-			'Dedicated comment model for posts only. Identical validation logic is copied from PhotoComment and VideoComment.',
-		code: `class PostComment < ApplicationRecord
-  belongs_to :post
-  belongs_to :user
-  validates :body, presence: true,
-    length: { maximum: 10_000 }
-end
-
-# Same validates block in PhotoComment
-# Same validates block in VideoComment
-# 3x duplication!`,
-	},
-	'photo-comment-table': {
-		stageId: 'photo-comment-table',
-		title: 'PhotoComment Model',
-		description:
-			'Dedicated comment model for photos only. Same schema, same validations, just a different foreign key.',
-		code: `class PhotoComment < ApplicationRecord
-  belongs_to :photo
-  belongs_to :user
-  validates :body, presence: true,
-    length: { maximum: 10_000 }
-end
-
-# Identical to PostComment except:
-# belongs_to :photo instead of :post`,
-	},
-	'video-comment-table': {
-		stageId: 'video-comment-table',
-		title: 'VideoComment Model',
-		description:
-			'Dedicated comment model for videos only. When a bug is fixed in PostComment validations, it must be manually patched here too.',
-		code: `class VideoComment < ApplicationRecord
-  belongs_to :video
-  belongs_to :user
-  validates :body, presence: true,
-    length: { maximum: 10_000 }
-end
-
-# Bug fixed in PostComment?
-# Don't forget to fix it here too!`,
-	},
-};
 
 // ──────────────────────────────────────────────
 // Build step definitions
@@ -690,7 +545,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 
 function getCodeFiles(phase: Phase, furthestStep: number) {
 	// Observe phase: show the problem (3 separate models)
-	if (phase === 'observe') {
+	if (phase === 'intro') {
 		return [
 			{
 				filename: 'app/models/post_comment.rb',
@@ -1035,31 +890,19 @@ end`,
 
 export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 	// Phase state
-	const [phase, setPhase] = useState<Phase>('observe');
+	const [phase, setPhase] = useState<Phase>('intro');
 
 	// Gating hooks
-	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
-		minRequired: 4,
-	});
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 
-	// Visualization state
-	const [vizAnimating, setVizAnimating] = useState(false);
-	const [activeTable, setActiveTable] = useState<string | null>(null);
-	const [highlightedTables, setHighlightedTables] = useState<string[]>([]);
-	const animTimerRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-
-	// Stage inspector state
-	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(
-		null,
-	);
-
 	// Reward visualization state
+	const [vizAnimating, setVizAnimating] = useState(false);
 	const [rewardHighlight, setRewardHighlight] = useState<{
 		parentKey: string | null;
 		result: 'allowed' | 'blocked';
 	} | null>(null);
+	const animTimerRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
 	// ── Cleanup timers ──
 	const clearTimers = useCallback(() => {
@@ -1075,56 +918,6 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 			setPhase('activate');
 		}
 	}, [phase, stepper.isComplete]);
-
-	// ── Observe: probe handler ──
-	const handleProbe = useCallback(
-		(probeId: string) => {
-			if (vizAnimating) return;
-
-			setVizAnimating(true);
-			clearTimers();
-
-			// Animate: highlight all 3 tables sequentially
-			const tables = PARENT_MODELS.map((m) => `${m.key}-comment-table`);
-			const highlighted: string[] = [];
-
-			for (let i = 0; i < tables.length; i++) {
-				const t = setTimeout(() => {
-					highlighted.push(tables[i]);
-					setHighlightedTables([...highlighted]);
-					setActiveTable(tables[i]);
-				}, i * ANIMATION_DURATION_MS);
-				animTimerRef.current.push(t);
-			}
-
-			// After animation: trigger discoveries, reset
-			const totalDelay = tables.length * ANIMATION_DURATION_MS + 500;
-			const endTimer = setTimeout(() => {
-				setVizAnimating(false);
-				setHighlightedTables([]);
-				setActiveTable(null);
-
-				// Trigger discoveries for this probe
-				const discoveries = PROBE_DISCOVERY_MAP[probeId] ?? [];
-				for (const d of discoveries) discoveryGating.discover(d);
-			}, totalDelay);
-			animTimerRef.current.push(endTimer);
-		},
-		[vizAnimating, clearTimers, discoveryGating],
-	);
-
-	// ── Observe: stage click handler ──
-	const handleStageClick = useCallback(
-		(stageId: string) => {
-			const data = STAGE_INSPECTOR_MAP[stageId];
-			if (data) {
-				setInspectorData(data);
-				const discoveries = STAGE_DISCOVERY_MAP[stageId] ?? [];
-				for (const d of discoveries) discoveryGating.discover(d);
-			}
-		},
-		[discoveryGating],
-	);
 
 	// ── Build: option click handler ──
 	const handleOptionClick = useCallback(
@@ -1181,9 +974,6 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 	// ── Phase transition handlers ──
 	const handleStartBuild = () => {
 		setPhase('build');
-
-		setHighlightedTables([]);
-		setActiveTable(null);
 	};
 
 	const handleActivateReward = () => {
@@ -1221,103 +1011,13 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep] ?? null;
 	const isTerminalStep = stepper.currentStep <= 1;
 
-	// ──────────────────────────────────────────
-	// Render: Schema diagram visualization
-	// ──────────────────────────────────────────
-
-	const renderObserveVisualization = () => (
-		<div className="flex-1 flex flex-col items-center justify-center gap-4 p-4">
-			{/* Banner */}
-			<div className="text-center">
-				<div className="inline-flex items-center gap-2 bg-destructive/10 dark:bg-destructive/20 border border-destructive/30 rounded-lg px-3 py-1.5">
-					<Table2 className="w-4 h-4 text-destructive" />
-					<span className="text-sm font-semibold text-destructive">
-						3 Separate Comment Tables
-					</span>
-				</div>
-			</div>
-
-			{/* Parent models + their comment tables */}
-			<div className="grid grid-cols-3 gap-6 w-full max-w-2xl">
-				{PARENT_MODELS.map((model) => {
-					const tableId = `${model.key}-comment-table`;
-					const isHighlighted = highlightedTables.includes(tableId);
-					const isActive = activeTable === tableId;
-
-					return (
-						<div className="flex flex-col items-center gap-2" key={model.key}>
-							{/* Parent model card */}
-							<div
-								className={cn(
-									'rounded-lg border-2 px-4 py-3 text-center w-full transition-colors',
-									model.borderColor,
-									model.bgColor,
-								)}
-							>
-								<Database
-									className={cn('w-5 h-5 mx-auto mb-1', model.textColor)}
-								/>
-								<div className={cn('font-bold text-sm', model.textColor)}>
-									{model.label}
-								</div>
-							</div>
-
-							{/* Flow connector */}
-							<FlowConnector active={isActive} dotColor="bg-destructive" />
-
-							{/* Comment table card (clickable) */}
-							<button
-								className={cn(
-									'rounded-lg border-2 p-3 w-full text-left transition-all cursor-pointer',
-									'hover:ring-2 hover:ring-primary/30',
-									isHighlighted
-										? 'border-destructive bg-destructive/10 dark:bg-destructive/20'
-										: 'border-muted-foreground/30 bg-card',
-								)}
-								onClick={() => handleStageClick(tableId)}
-								type="button"
-							>
-								<div className="flex items-center justify-between mb-2">
-									<span
-										className={cn(
-											'text-xs font-bold',
-											isHighlighted
-												? 'text-destructive'
-												: 'text-muted-foreground',
-										)}
-									>
-										{model.table}
-									</span>
-									{!discoveryGating.isDiscovered('duplicate-logic') && (
-										<Search className="w-3 h-3 text-primary animate-pulse" />
-									)}
-								</div>
-								<div className="space-y-0.5">
-									{model.columns.map((col) => (
-										<div
-											className="text-xs font-mono text-muted-foreground"
-											key={col}
-										>
-											{col}
-										</div>
-									))}
-								</div>
-							</button>
-						</div>
-					);
-				})}
-			</div>
-
-			{/* Problem callout */}
-			<div className="max-w-2xl w-full bg-destructive/5 dark:bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-center">
-				<p className="text-xs text-muted-foreground">
-					Identical columns across 3 tables. Identical validations across 3
-					models. Adding a new commentable type means yet another table, model,
-					controller, and serializer.
-				</p>
-			</div>
-		</div>
-	);
+	// Reward: unified table rows
+	const UNIFIED_ROWS = [
+		{ id: 1, body: 'Great post!', type: 'Post', typeId: 1, userId: 5 },
+		{ id: 2, body: 'Beautiful shot!', type: 'Photo', typeId: 3, userId: 5 },
+		{ id: 3, body: 'Awesome video!', type: 'Video', typeId: 7, userId: 2 },
+		{ id: 4, body: 'Nice analysis', type: 'Article', typeId: 2, userId: 8 },
+	];
 
 	const renderRewardVisualization = () => {
 		const lastResult =
@@ -1327,154 +1027,126 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 			: null;
 
 		return (
-			<div className="flex-1 flex flex-col items-center justify-center gap-4 p-4">
+			<div className="flex-1 flex flex-col items-center justify-center gap-3 p-4">
 				{/* Banner */}
-				<div className="text-center">
-					<div className="inline-flex items-center gap-2 bg-success/10 dark:bg-success/20 border border-success/30 rounded-lg px-3 py-1.5">
-						<Database className="w-4 h-4 text-success" />
-						<span className="text-sm font-semibold text-success">
-							Unified Polymorphic Comment
-						</span>
-					</div>
+				<div className="inline-flex items-center gap-2 bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-300 dark:border-emerald-700 rounded-lg px-3 py-1.5">
+					<Table2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+					<span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+						1 Unified Comment Table
+					</span>
+					<span className="text-[10px] font-mono bg-emerald-200 dark:bg-emerald-800/50 text-emerald-700 dark:text-emerald-300 rounded-full px-2 py-0.5">
+						polymorphic
+					</span>
 				</div>
 
-				{/* Parent models connected to single Comment table */}
-				<div className="flex flex-col items-center gap-2 w-full max-w-2xl">
-					{/* Parent model row */}
-					<div className="grid grid-cols-3 gap-6 w-full">
-						{PARENT_MODELS.map((model) => {
-							const isTarget =
-								rewardHighlight?.parentKey === model.key ||
-								rewardHighlight?.parentKey === 'all';
-							const isBlocked = rewardHighlight?.result === 'blocked';
+				{/* Unified database table */}
+				<div
+					className={cn(
+						'w-full max-w-2xl rounded-lg border overflow-hidden transition-colors',
+						lastResult?.result === 'allowed'
+							? 'border-emerald-400 dark:border-emerald-600'
+							: lastResult?.result === 'blocked'
+								? 'border-destructive'
+								: 'border-border',
+					)}
+				>
+					{/* Column headers */}
+					<table className="w-full text-xs font-mono">
+						<thead>
+							<tr className="bg-muted border-b border-border">
+								<th className="px-2 py-1.5 text-left font-medium text-muted-foreground w-8">
+									id
+								</th>
+								<th className="px-2 py-1.5 text-left font-medium text-muted-foreground">
+									body
+								</th>
+								<th className="px-2 py-1.5 text-left font-medium text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-900/20">
+									commentable_type
+								</th>
+								<th className="px-2 py-1.5 text-left font-medium text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-900/20 w-12">
+									..._id
+								</th>
+								<th className="px-2 py-1.5 text-left font-medium text-muted-foreground w-12">
+									user_id
+								</th>
+							</tr>
+						</thead>
+						<tbody>
+							{UNIFIED_ROWS.map((row) => {
+								const isActive =
+									rewardHighlight?.parentKey === row.type.toLowerCase() ||
+									rewardHighlight?.parentKey === 'all';
+								return (
+									<tr
+										className={cn(
+											'border-b border-border/30 last:border-b-0 transition-colors',
+											isActive &&
+												rewardHighlight?.result === 'allowed' &&
+												'bg-emerald-50 dark:bg-emerald-950/30',
+											isActive &&
+												rewardHighlight?.result === 'blocked' &&
+												'bg-destructive/10',
+										)}
+										key={row.id}
+									>
+										<td className="px-2 py-1.5 text-muted-foreground">
+											{row.id}
+										</td>
+										<td className="px-2 py-1.5 text-muted-foreground truncate max-w-[120px]">
+											{row.body}
+										</td>
+										<td className="px-2 py-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+											{row.type}
+										</td>
+										<td className="px-2 py-1.5 text-emerald-600 dark:text-emerald-400">
+											{row.typeId}
+										</td>
+										<td className="px-2 py-1.5 text-muted-foreground">
+											{row.userId}
+										</td>
+									</tr>
+								);
+							})}
 
-							return (
-								<div
+							{/* Dynamic result row */}
+							{lastScenario && lastResult && (
+								<tr
 									className={cn(
-										'rounded-lg border-2 px-4 py-3 text-center transition-all',
-										isTarget && !isBlocked
-											? 'border-success bg-success/10 dark:bg-success/20 scale-105'
-											: isTarget && isBlocked
-												? 'border-destructive bg-destructive/10 dark:bg-destructive/20'
-												: `${model.borderColor} ${model.bgColor}`,
+										'border-t-2 transition-colors',
+										lastResult.result === 'allowed'
+											? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/40'
+											: 'border-destructive/30 bg-destructive/5 dark:bg-destructive/10',
 									)}
-									key={model.key}
 								>
-									<Database
-										className={cn('w-5 h-5 mx-auto mb-1', model.textColor)}
-									/>
-									<div className={cn('font-bold text-sm', model.textColor)}>
-										{model.label}
-									</div>
-									<div className="text-xs text-muted-foreground mt-0.5 font-mono">
-										has_many :comments
-									</div>
-								</div>
-							);
-						})}
-					</div>
-
-					{/* Flow connectors */}
-					<div className="flex justify-around w-full px-12">
-						{PARENT_MODELS.map((model) => {
-							const isTarget =
-								rewardHighlight?.parentKey === model.key ||
-								rewardHighlight?.parentKey === 'all';
-							return (
-								<FlowConnector
-									active={isTarget && rewardHighlight?.result === 'allowed'}
-									dotColor={
-										rewardHighlight?.result === 'blocked'
-											? 'bg-destructive'
-											: 'bg-success'
-									}
-									key={model.key}
-								/>
-							);
-						})}
-					</div>
-
-					{/* Unified Comment table */}
-					<div
-						className={cn(
-							'rounded-lg border-2 p-4 w-full transition-all',
-							lastResult?.result === 'allowed'
-								? 'border-success bg-success/5 dark:bg-success/10'
-								: lastResult?.result === 'blocked'
-									? 'border-destructive bg-destructive/5 dark:bg-destructive/10'
-									: 'border-primary/40 bg-primary/5 dark:bg-primary/10',
-						)}
-					>
-						<div className="flex items-center justify-center gap-3 mb-3">
-							<Table2
-								className={cn(
-									'w-5 h-5',
-									lastResult?.result === 'allowed'
-										? 'text-success'
-										: lastResult?.result === 'blocked'
-											? 'text-destructive'
-											: 'text-primary',
-								)}
-							/>
-							<span
-								className={cn(
-									'font-bold text-sm',
-									lastResult?.result === 'allowed'
-										? 'text-success'
-										: lastResult?.result === 'blocked'
-											? 'text-destructive'
-											: 'text-primary',
-								)}
-							>
-								comments
-							</span>
-							<span className="text-xs bg-primary/20 text-primary rounded-full px-2 py-0.5">
-								polymorphic
-							</span>
-						</div>
-
-						{/* Schema columns */}
-						<div className="grid grid-cols-3 gap-x-4 gap-y-1 max-w-md mx-auto">
-							{[
-								{ col: 'id', highlight: false },
-								{ col: 'body', highlight: false },
-								{ col: 'commentable_type', highlight: true },
-								{ col: 'commentable_id', highlight: true },
-								{ col: 'user_id', highlight: false },
-								{ col: 'created_at', highlight: false },
-							].map((item) => (
-								<div
-									className={cn(
-										'text-xs font-mono px-2 py-0.5 rounded',
-										item.highlight
-											? 'text-primary bg-primary/10'
-											: 'text-muted-foreground',
-									)}
-									key={item.col}
-								>
-									{item.col}
-								</div>
-							))}
-						</div>
-
-						{/* Last result row */}
-						{lastScenario && (
-							<div
-								className={cn(
-									'mt-3 pt-3 border-t text-center text-xs font-mono',
-									lastResult?.result === 'allowed'
-										? 'border-success/20 text-success'
-										: 'border-destructive/20 text-destructive',
-								)}
-							>
-								{lastResult?.result === 'allowed'
-									? `commentable_type: "${rewardHighlight?.parentKey === 'all' ? '*' : (rewardHighlight?.parentKey?.replace(/^\w/, (c) => c.toUpperCase()) ?? '?')}", commentable_id: ...`
-									: lastScenario.id === 'empty-body'
-										? 'CommentContract validation failed'
-										: 'Record not found'}
-							</div>
-						)}
-					</div>
+									<td
+										className={cn(
+											'px-2 py-1.5 font-bold',
+											lastResult.result === 'allowed'
+												? 'text-emerald-600 dark:text-emerald-400'
+												: 'text-destructive',
+										)}
+									>
+										{lastResult.result === 'allowed' ? '+' : '\u00d7'}
+									</td>
+									<td
+										className={cn(
+											'px-2 py-1.5 col-span-4',
+											lastResult.result === 'allowed'
+												? 'text-emerald-600 dark:text-emerald-400'
+												: 'text-destructive',
+										)}
+										colSpan={4}
+									>
+										{lastResult.result === 'allowed'
+											? `commentable_type: "${rewardHighlight?.parentKey === 'all' ? '*' : (rewardHighlight?.parentKey?.replace(/^\w/, (c) => c.toUpperCase()) ?? '?')}"`
+											: lastScenario.id === 'empty-body'
+												? 'CommentContract validation failed'
+												: 'Record not found'}
+									</td>
+								</tr>
+							)}
+						</tbody>
+					</table>
 				</div>
 			</div>
 		);
@@ -1490,11 +1162,11 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 				<InstructionPanel
 					goal="Replace three separate comment tables with one polymorphic Comment model."
 					instructions={
-						phase === 'observe'
+						phase === 'intro'
 							? [
-									'Fire probes to discover the problems with duplicate tables',
-									'Click on comment tables to inspect their duplicate logic',
-									'Find all 4 issues to unlock the build phase',
+									'Review the three duplicate comment table schemas',
+									'Notice the identical columns across all tables',
+									'Click "Build the Fix" when ready to consolidate them',
 								]
 							: phase === 'build'
 								? [
@@ -1516,12 +1188,16 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 				>
 					{/* Phase-specific sidebar content */}
 					<div className="border-t border-border">
-						{phase === 'observe' && (
-							<div className="p-4">
-								<DiscoveryChecklist
-									discoveries={discoveryGating.discoveries}
-									minRequired={discoveryGating.minRequired}
-								/>
+						{phase === 'intro' && (
+							<div className="p-4 text-xs text-muted-foreground space-y-2">
+								<p>
+									Three models need comments: Post, Photo, and Video. Each has
+									its own comment table with nearly identical schemas.
+								</p>
+								<p>
+									Polymorphic associations replace all three with a single
+									unified Comment table.
+								</p>
 							</div>
 						)}
 
@@ -1570,39 +1246,126 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 				/>
 
 				<div className="flex-1 flex flex-col">
-					{/* ── OBSERVE PHASE ── */}
-					{phase === 'observe' && (
-						<>
-							{renderObserveVisualization()}
+					{/* ── INTRO PHASE (Type 2: static annotated code) ── */}
+					{phase === 'intro' && (
+						<div className="flex-1 overflow-y-auto overflow-x-auto p-6">
+							<div className="mx-auto flex flex-col items-center gap-5">
+								{/* Problem banner */}
+								<div className="inline-flex items-center gap-2 bg-destructive/10 dark:bg-destructive/20 border border-destructive/30 rounded-lg px-3 py-1.5">
+									<Table2 className="w-4 h-4 text-destructive" />
+									<span className="text-sm font-semibold text-destructive">
+										3 Separate Comment Tables
+									</span>
+								</div>
 
-							<div className="px-6 pb-2">
-								<ProbeTerminal
-									disabled={vizAnimating}
-									onProbe={handleProbe}
-									probes={PROBES}
-									title="Schema Probe"
-								/>
+								{/* Three database tables as grids */}
+								<div className="grid grid-cols-3 gap-4 w-full min-w-[640px]">
+									{DUPLICATE_TABLES.map((table) => (
+										<div
+											className={cn(
+												'rounded-lg border overflow-hidden',
+												table.borderColor,
+											)}
+											key={table.name}
+										>
+											{/* Table name header */}
+											<div
+												className={cn(
+													'px-3 py-2 flex items-center gap-1.5 border-b border-border/30',
+													table.headerBg,
+												)}
+											>
+												<Database
+													className={cn('w-3.5 h-3.5', table.textColor)}
+												/>
+												<span
+													className={cn(
+														'text-xs font-bold font-mono',
+														table.textColor,
+													)}
+												>
+													{table.name}
+												</span>
+											</div>
+
+											{/* Column headers */}
+											<div className="overflow-x-auto">
+												<table className="w-full text-[11px] font-mono">
+													<thead>
+														<tr className="bg-muted/50 border-b border-border/30">
+															<th className="px-2 py-1 text-left font-medium text-destructive bg-destructive/5">
+																id
+															</th>
+															<th className="px-2 py-1 text-left font-medium text-destructive bg-destructive/5">
+																body
+															</th>
+															<th
+																className={cn(
+																	'px-2 py-1 text-left font-bold',
+																	table.textColor,
+																)}
+															>
+																{table.fkColumn}
+															</th>
+															<th className="px-2 py-1 text-left font-medium text-destructive bg-destructive/5">
+																user_id
+															</th>
+															<th className="px-2 py-1 text-left font-medium text-destructive bg-destructive/5">
+																created_at
+															</th>
+														</tr>
+													</thead>
+													<tbody>
+														{table.rows.map((row) => (
+															<tr
+																className="border-b border-border/20 last:border-b-0"
+																key={row.id}
+															>
+																<td className="px-2 py-1 text-muted-foreground">
+																	{row.id}
+																</td>
+																<td className="px-2 py-1 text-muted-foreground truncate max-w-[80px]">
+																	{row.body}
+																</td>
+																<td
+																	className={cn(
+																		'px-2 py-1 font-medium',
+																		table.textColor,
+																	)}
+																>
+																	{row.fk}
+																</td>
+																<td className="px-2 py-1 text-muted-foreground">
+																	{row.userId}
+																</td>
+																<td className="px-2 py-1 text-muted-foreground">
+																	{row.createdAt}
+																</td>
+															</tr>
+														))}
+													</tbody>
+												</table>
+											</div>
+										</div>
+									))}
+								</div>
+
+								{/* Duplication callout */}
+								<div className="w-full bg-destructive/5 dark:bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-center">
+									<p className="text-sm text-destructive font-medium">
+										4 of 5 columns are identical across every table. Only the
+										foreign key name differs. Adding a new commentable type
+										requires creating yet another table.
+									</p>
+								</div>
+
+								{/* "Build the Fix" button */}
+								<Button onClick={handleStartBuild} size="lg">
+									Build the Fix
+									<ArrowRight className="w-4 h-4" />
+								</Button>
 							</div>
-
-							{discoveryGating.isUnlocked && (
-								<div className="p-4 flex justify-center animate-in fade-in duration-500">
-									<Button onClick={handleStartBuild} size="lg">
-										Build the Fix
-										<ArrowRight className="w-4 h-4" />
-									</Button>
-								</div>
-							)}
-
-							{/* Stage Inspector overlay */}
-							{inspectorData && (
-								<div className="absolute inset-0 flex items-center justify-center z-10">
-									<StageInspector
-										data={inspectorData}
-										onClose={() => setInspectorData(null)}
-									/>
-								</div>
-							)}
-						</>
+						</div>
 					)}
 
 					{/* ── BUILD PHASE ── */}
@@ -1760,7 +1523,7 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 						phase === 'build' ? stepper.furthestStep : 0,
 					)}
 					learningGoal={
-						phase === 'observe'
+						phase === 'intro'
 							? 'Three identical comment tables duplicate schema, validations, and queries. Any new commentable type requires another table.'
 							: 'One polymorphic Comment model handles all parent types. commentable_type + commentable_id columns replace three separate foreign keys.'
 					}

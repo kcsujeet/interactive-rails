@@ -1,13 +1,12 @@
 /**
  * Level 32: Polymorphic Associations - Data Consistency Tests
  *
+ * Type 2 static intro (no probes, no discoveries, no stage inspector).
+ *
  * Tests mirror the data structures from the component to verify:
- * - Discovery definitions are complete and correctly mapped
- * - Probe definitions have proper response lines
  * - Build step quality (correct answer position, feedback quality)
  * - Stress test scenario coverage and consistency
- * - Cross-phase consistency (probe labels match stress test labels)
- * - Code preview evolution (no empty states)
+ * - Cross-phase consistency (intro tables match reward visualization)
  * - Cumulative pattern compliance (service objects, contracts, error handling)
  */
 
@@ -15,58 +14,13 @@ import { describe, expect, test } from 'bun:test';
 
 // ── Mirror data from component ──
 
-const DISCOVERY_DEFS = [
-	{ id: 'duplicate-schemas', label: 'Three tables with identical columns' },
-	{ id: 'scattered-queries', label: 'Cannot query all comments at once' },
-	{ id: 'maintenance-burden', label: 'New types require new tables' },
-	{ id: 'duplicate-logic', label: 'Validation logic duplicated 3 times' },
+const DUPLICATE_TABLES = [
+	{ name: 'post_comments', fkColumn: 'post_id' },
+	{ name: 'photo_comments', fkColumn: 'photo_id' },
+	{ name: 'video_comments', fkColumn: 'video_id' },
 ];
 
-const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
-	'list-tables': ['duplicate-schemas'],
-	'query-all-comments': ['scattered-queries'],
-	'add-article-comments': ['maintenance-burden'],
-};
-
-const STAGE_DISCOVERY_MAP: Record<string, string[]> = {
-	'post-comment-table': ['duplicate-logic'],
-	'photo-comment-table': ['duplicate-logic'],
-	'video-comment-table': ['duplicate-logic'],
-};
-
-const PROBES = [
-	{
-		id: 'list-tables',
-		label: 'List comment tables',
-		command: 'ActiveRecord::Base.connection.tables.grep(/comment/)',
-		responseLines: [
-			{ text: '=> ["post_comments", "photo_comments", "video_comments"]', color: 'red' },
-			{ text: '# 3 separate tables with identical schemas!', color: 'yellow' },
-			{ text: '# Each has: id, body, *_id, user_id, timestamps', color: 'muted' },
-		],
-	},
-	{
-		id: 'query-all-comments',
-		label: 'Query all user comments',
-		command: 'Comment.where(user: current_user)',
-		responseLines: [
-			{ text: 'NameError: uninitialized constant Comment', color: 'red' },
-			{ text: '# No unified Comment model exists!', color: 'yellow' },
-			{ text: '# Must UNION across post_comments, photo_comments, video_comments', color: 'muted' },
-		],
-	},
-	{
-		id: 'add-article-comments',
-		label: 'Add comments for Article',
-		command: 'rails generate model ArticleComment body:text article:references',
-		responseLines: [
-			{ text: '  create  db/migrate/..._create_article_comments.rb', color: 'green' },
-			{ text: '  create  app/models/article_comment.rb', color: 'green' },
-			{ text: '# Yet ANOTHER table with the same columns!', color: 'red' },
-			{ text: '# Plus another controller, serializer, and tests...', color: 'yellow' },
-		],
-	},
-];
+const SHARED_COLUMNS = ['id', 'body', 'user_id', 'created_at'];
 
 const STEP_DEFS = [
 	{ id: 'generate-migration', title: 'Generate Migration' },
@@ -136,117 +90,30 @@ const STRESS_SCENARIOS = [
 	{ id: 'empty-body', label: 'POST comment with empty body', expectedResult: 'blocked' as const },
 ];
 
-const STAGE_INSPECTOR_MAP: Record<string, { title: string; code: string }> = {
-	'post-comment-table': {
-		title: 'PostComment Model',
-		code: `class PostComment < ApplicationRecord
-  belongs_to :post
-  belongs_to :user
-  validates :body, presence: true,
-    length: { maximum: 10_000 }
-end
-
-# Same validates block in PhotoComment
-# Same validates block in VideoComment
-# 3x duplication!`,
-	},
-	'photo-comment-table': {
-		title: 'PhotoComment Model',
-		code: `class PhotoComment < ApplicationRecord
-  belongs_to :photo
-  belongs_to :user
-  validates :body, presence: true,
-    length: { maximum: 10_000 }
-end
-
-# Identical to PostComment except:
-# belongs_to :photo instead of :post`,
-	},
-	'video-comment-table': {
-		title: 'VideoComment Model',
-		code: `class VideoComment < ApplicationRecord
-  belongs_to :video
-  belongs_to :user
-  validates :body, presence: true,
-    length: { maximum: 10_000 }
-end
-
-# Bug fixed in PostComment?
-# Don't forget to fix it here too!`,
-	},
-};
-
 // ── Tests ──
 
 describe('Level 32: Polymorphic Associations', () => {
-	describe('Discovery definitions', () => {
-		test('has exactly 4 discoveries', () => {
-			expect(DISCOVERY_DEFS).toHaveLength(4);
+	describe('Static intro (Type 2)', () => {
+		test('has exactly 3 duplicate tables', () => {
+			expect(DUPLICATE_TABLES).toHaveLength(3);
 		});
 
-		test('all discovery IDs are unique', () => {
-			const ids = DISCOVERY_DEFS.map((d) => d.id);
-			expect(new Set(ids).size).toBe(ids.length);
+		test('all table names are unique', () => {
+			const names = DUPLICATE_TABLES.map((t) => t.name);
+			expect(new Set(names).size).toBe(names.length);
 		});
 
-		test('all discovery labels are unique', () => {
-			const labels = DISCOVERY_DEFS.map((d) => d.label);
-			expect(new Set(labels).size).toBe(labels.length);
+		test('all tables share the same 4 columns', () => {
+			expect(SHARED_COLUMNS).toHaveLength(4);
+			expect(SHARED_COLUMNS).toContain('id');
+			expect(SHARED_COLUMNS).toContain('body');
+			expect(SHARED_COLUMNS).toContain('user_id');
+			expect(SHARED_COLUMNS).toContain('created_at');
 		});
 
-		test('every discovery is reachable via probe or stage click', () => {
-			const probeDiscoveries = Object.values(PROBE_DISCOVERY_MAP).flat();
-			const stageDiscoveries = Object.values(STAGE_DISCOVERY_MAP).flat();
-			const reachable = new Set([...probeDiscoveries, ...stageDiscoveries]);
-
-			for (const def of DISCOVERY_DEFS) {
-				expect(reachable.has(def.id)).toBe(true);
-			}
-		});
-
-		test('probe discovery map only references valid probe IDs', () => {
-			const probeIds = new Set(PROBES.map((p) => p.id));
-			for (const key of Object.keys(PROBE_DISCOVERY_MAP)) {
-				expect(probeIds.has(key)).toBe(true);
-			}
-		});
-
-		test('stage discovery map only references valid stage IDs', () => {
-			const stageIds = new Set(Object.keys(STAGE_INSPECTOR_MAP));
-			for (const key of Object.keys(STAGE_DISCOVERY_MAP)) {
-				expect(stageIds.has(key)).toBe(true);
-			}
-		});
-	});
-
-	describe('Probes', () => {
-		test('has exactly 3 probes', () => {
-			expect(PROBES).toHaveLength(3);
-		});
-
-		test('all probe IDs are unique', () => {
-			const ids = PROBES.map((p) => p.id);
-			expect(new Set(ids).size).toBe(ids.length);
-		});
-
-		test('every probe has response lines', () => {
-			for (const probe of PROBES) {
-				expect(probe.responseLines.length).toBeGreaterThan(0);
-			}
-		});
-
-		test('every probe has a command', () => {
-			for (const probe of PROBES) {
-				expect(probe.command.length).toBeGreaterThan(0);
-			}
-		});
-
-		test('every probe response line has a color', () => {
-			for (const probe of PROBES) {
-				for (const line of probe.responseLines) {
-					expect(line.color).toBeDefined();
-				}
-			}
+		test('each table has a unique foreign key column', () => {
+			const fks = DUPLICATE_TABLES.map((t) => t.fkColumn);
+			expect(new Set(fks).size).toBe(fks.length);
 		});
 	});
 
@@ -343,7 +210,6 @@ describe('Level 32: Polymorphic Associations', () => {
 			];
 			for (const opt of allWrongOptions) {
 				const fb = opt.feedback?.toLowerCase() ?? '';
-				// Feedback should not contain the exact correct command/code
 				expect(fb).not.toContain('commentable:references{polymorphic}');
 				expect(fb).not.toContain('rails db:migrate');
 			}
@@ -399,53 +265,24 @@ describe('Level 32: Polymorphic Associations', () => {
 		});
 	});
 
-	describe('Stage inspector data', () => {
-		test('has inspector data for all three comment tables', () => {
-			expect(STAGE_INSPECTOR_MAP['post-comment-table']).toBeDefined();
-			expect(STAGE_INSPECTOR_MAP['photo-comment-table']).toBeDefined();
-			expect(STAGE_INSPECTOR_MAP['video-comment-table']).toBeDefined();
-		});
-
-		test('all inspector entries have code blocks', () => {
-			for (const data of Object.values(STAGE_INSPECTOR_MAP)) {
-				expect(data.code.length).toBeGreaterThan(0);
-			}
-		});
-
-		test('inspector code shows duplicate validation pattern', () => {
-			for (const data of Object.values(STAGE_INSPECTOR_MAP)) {
-				expect(data.code).toContain('validates :body');
-			}
-		});
-	});
-
 	describe('Cross-phase consistency', () => {
-		test('observe probes cover all non-stage discoveries', () => {
-			const probeDiscoveryIds = new Set(Object.values(PROBE_DISCOVERY_MAP).flat());
-			// duplicate-schemas, scattered-queries, maintenance-burden are from probes
-			expect(probeDiscoveryIds.has('duplicate-schemas')).toBe(true);
-			expect(probeDiscoveryIds.has('scattered-queries')).toBe(true);
-			expect(probeDiscoveryIds.has('maintenance-burden')).toBe(true);
-		});
-
-		test('stage clicks cover duplicate-logic discovery', () => {
-			const stageDiscoveryIds = new Set(Object.values(STAGE_DISCOVERY_MAP).flat());
-			expect(stageDiscoveryIds.has('duplicate-logic')).toBe(true);
-		});
-
-		test('stress scenarios cover same parent types as observe visualization', () => {
-			const observeParents = ['post', 'photo', 'video'];
-			for (const parent of observeParents) {
+		test('intro tables cover same parent types as stress scenarios', () => {
+			const introParents = DUPLICATE_TABLES.map((t) => t.name.replace('_comments', ''));
+			for (const parent of introParents) {
 				const found = STRESS_SCENARIOS.some((s) => s.id.includes(parent));
 				expect(found).toBe(true);
 			}
+		});
+
+		test('stress scenarios include types beyond intro (extensibility)', () => {
+			const articleScenario = STRESS_SCENARIOS.find((s) => s.id === 'comment-on-article');
+			expect(articleScenario).toBeDefined();
 		});
 	});
 
 	describe('Cumulative pattern compliance', () => {
 		test('service option uses ApplicationService base class', () => {
 			const correct = SERVICE_OPTIONS.find((o) => o.correct);
-			// The correct option should be the one with contract validation
 			expect(correct?.id).toBe('correct-with-contract');
 		});
 
@@ -464,15 +301,9 @@ describe('Level 32: Polymorphic Associations', () => {
 	});
 
 	describe('Data consistency', () => {
-		test('minRequired (4) matches total discoveries', () => {
-			expect(DISCOVERY_DEFS.length).toBe(4);
-		});
-
 		test('terminal steps are 0 and 1, option steps are 2-5', () => {
-			// Steps 0 and 1 should be terminal (migration commands)
 			expect(STEP_DEFS[0].id).toBe('generate-migration');
 			expect(STEP_DEFS[1].id).toBe('run-migration');
-			// Steps 2-5 should be option cards
 			expect(STEP_DEFS[2].id).toBe('comment-model');
 			expect(STEP_DEFS[3].id).toBe('parent-models');
 			expect(STEP_DEFS[4].id).toBe('create-service');
@@ -480,15 +311,14 @@ describe('Level 32: Polymorphic Associations', () => {
 		});
 
 		test('all option step IDs match expected config keys', () => {
-			const optionStepIndices = [2, 3, 4, 5];
 			const expectedOptions = [
 				COMMENT_MODEL_OPTIONS,
 				PARENT_MODEL_OPTIONS,
 				SERVICE_OPTIONS,
 				CONTROLLER_OPTIONS,
 			];
-			for (let i = 0; i < optionStepIndices.length; i++) {
-				expect(expectedOptions[i].length).toBeGreaterThanOrEqual(2);
+			for (const options of expectedOptions) {
+				expect(options.length).toBeGreaterThanOrEqual(2);
 			}
 		});
 	});
