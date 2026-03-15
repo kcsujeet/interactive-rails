@@ -27,11 +27,13 @@ import {
 	CodePreviewPanel,
 	ErrorFeedback,
 	LeftPanel,
+	LevelHeader,
 	LevelLayout,
 	OptionCard,
 	RightPanel,
 	StepProgress,
 	TerminalChoiceStep,
+	type ValidationResult,
 } from '@/components/levels';
 import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
 import { FlowConnector } from '@/components/levels/FlowConnector';
@@ -785,12 +787,10 @@ export function Level36RealTime({ onComplete }: LevelComponentProps) {
 	const [flowPhase, setFlowPhase] = useState(-1);
 	const [pollArrows, setPollArrows] = useState<PollArrow[]>([]);
 	const [wsMessages, setWsMessages] = useState<WsMessage[]>([]);
-	const [_lastProbeId, setLastProbeId] = useState<string | null>(null);
 	const flowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const handleProbe = useCallback(
 		(probeId: string) => {
-			setLastProbeId(probeId);
 			const discoveries = PROBE_DISCOVERY_MAP[probeId];
 			if (discoveries) {
 				for (const d of discoveries) discoveryGating.discover(d);
@@ -881,6 +881,37 @@ export function Level36RealTime({ onComplete }: LevelComponentProps) {
 		};
 	}, []);
 
+	// ── Completion ──
+	const handleValidate = useCallback((): ValidationResult => {
+		if (phase !== 'reward') {
+			return {
+				valid: false,
+				message: 'Complete all phases',
+				details: ['Finish the observe, build, and reward phases'],
+			};
+		}
+		return {
+			valid: true,
+			message: 'Real-time notifications with Action Cable deployed!',
+		};
+	}, [phase]);
+
+	const handleComplete = useCallback(() => {
+		onComplete({ stars: stepper.starRating });
+	}, [onComplete, stepper.starRating]);
+
+	const handleReset = useCallback(() => {
+		setPhase('observe');
+		setFlowPhase(-1);
+		setPollArrows([]);
+		setWsMessages([]);
+		discoveryGating.reset();
+		stepper.reset();
+		stressTest.reset();
+		setRewardFlowPhase(-1);
+		setRewardWsMessages([]);
+	}, [discoveryGating, stepper, stressTest]);
+
 	// ── Render helpers ──
 	const renderConnectionComparison = (isReward: boolean) => {
 		const probeActive = isReward ? rewardFlowPhase !== -1 : flowPhase !== -1;
@@ -932,16 +963,18 @@ export function Level36RealTime({ onComplete }: LevelComponentProps) {
 									<div className="text-red-600 dark:text-red-400 font-semibold mb-1">
 										25,000 req/sec (99% empty)
 									</div>
-									{Array.from({ length: 6 }).map((_, i) => (
-										<div
-											className="flex items-center gap-1 text-red-500/60 dark:text-red-400/50"
-											key={i}
-										>
-											<ArrowRight className="w-3 h-3" />
-											<span>GET /notifications</span>
-											<span className="ml-auto">{'{ }'}</span>
-										</div>
-									))}
+									{['req-1', 'req-2', 'req-3', 'req-4', 'req-5', 'req-6'].map(
+										(id) => (
+											<div
+												className="flex items-center gap-1 text-red-500/60 dark:text-red-400/50"
+												key={id}
+											>
+												<ArrowRight className="w-3 h-3" />
+												<span>GET /notifications</span>
+												<span className="ml-auto">{'{ }'}</span>
+											</div>
+										),
+									)}
 								</>
 							)}
 							{!isReward &&
@@ -1396,7 +1429,17 @@ export function Level36RealTime({ onComplete }: LevelComponentProps) {
 	return (
 		<LevelLayout>
 			<LeftPanel>{renderLeftPanel()}</LeftPanel>
-			<CenterPanel>{renderCenterPanel()}</CenterPanel>
+			<CenterPanel>
+				<LevelHeader
+					actNumber={5}
+					levelName="Real-Time"
+					levelNumber={36}
+					onComplete={handleComplete}
+					onReset={handleReset}
+					onValidate={handleValidate}
+				/>
+				{renderCenterPanel()}
+			</CenterPanel>
 			<RightPanel>
 				<CodePreviewPanel
 					files={getCodeFiles(phase, stepper.furthestStep)}

@@ -10,12 +10,13 @@
  *   ProbeTerminal fires concurrent scenarios; FlowConnectors animate data flow.
  *   Player discovers lost updates, partial failures, and stale reads.
  *
- * Phase 2 (HOW - build): 5 steps (1 terminal + 4 OptionCard)
+ * Phase 2 (HOW - build): 6 steps (2 terminal + 4 OptionCard)
  *   Step 0: Add lock_version column migration (terminal)
- *   Step 1: Wrap writes in a transaction (OptionCard)
- *   Step 2: Add pessimistic locking for financial ops (OptionCard)
- *   Step 3: Build DeductBalance service with contract (OptionCard)
- *   Step 4: Handle StaleObjectError for optimistic locking (OptionCard)
+ *   Step 1: Run rails db:migrate (terminal)
+ *   Step 2: Wrap writes in a transaction (OptionCard)
+ *   Step 3: Add pessimistic locking for financial ops (OptionCard)
+ *   Step 4: Build DeductBalance service with contract (OptionCard)
+ *   Step 5: Handle StaleObjectError for optimistic locking (OptionCard)
  *
  * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Locking" button
  * Phase 4 (ADVANTAGE - reward): Same timeline, now showing locks working.
@@ -146,6 +147,7 @@ const PROBES: ProbeConfig[] = [
 
 const STEP_DEFS: StepDef[] = [
 	{ id: 'add-lock-version', title: 'Add Lock Version Column' },
+	{ id: 'run-migration', title: 'Run Migration' },
 	{ id: 'wrap-transaction', title: 'Wrap in Transaction' },
 	{ id: 'add-pessimistic-lock', title: 'Add Row Lock' },
 	{ id: 'build-service', title: 'Build Deduction Service' },
@@ -160,7 +162,7 @@ const LOCK_VERSION_COMMANDS = [
 		command: 'rails generate migration AddLockedToAccounts locked:boolean',
 		correct: false,
 		feedback:
-			'A boolean flag cannot detect concurrent modifications. Rails uses an integer lock_version column that auto-increments on each save.',
+			'A boolean flag cannot detect concurrent modifications. Optimistic locking needs a column that tracks how many times a record has been saved.',
 	},
 	{
 		id: 'wrong-timestamp',
@@ -169,7 +171,7 @@ const LOCK_VERSION_COMMANDS = [
 			'rails generate migration AddUpdatedAtToAccounts updated_at:datetime',
 		correct: false,
 		feedback:
-			'Timestamps have precision issues with concurrent writes. Rails optimistic locking uses an integer lock_version column with exact increment checking.',
+			'Timestamps have precision issues with concurrent writes. Rails needs an auto-incrementing counter to detect exact version mismatches.',
 	},
 	{
 		id: 'correct-lock-version',
@@ -188,12 +190,54 @@ const LOCK_VERSION_OUTPUT = [
 	},
 ];
 
+// Terminal step 1: Run migration
+const MIGRATE_COMMANDS = [
+	{
+		id: 'wrong-seed',
+		label: 'rails db:seed',
+		command: 'rails db:seed',
+		correct: false,
+		feedback:
+			'Seeding populates the database with sample data. The migration file still needs to be applied to the schema.',
+	},
+	{
+		id: 'wrong-reset',
+		label: 'rails db:reset',
+		command: 'rails db:reset',
+		correct: false,
+		feedback:
+			'Resetting drops and recreates the database from schema.rb. That discards all existing data. You just need to apply the pending migration.',
+	},
+	{
+		id: 'correct-migrate',
+		label: 'rails db:migrate',
+		command: 'rails db:migrate',
+		correct: true,
+	},
+];
+
+const MIGRATE_OUTPUT = [
+	{
+		text: '== AddLockVersionToAccounts: migrating ===',
+		color: 'green' as const,
+	},
+	{
+		text: '-- add_column(:accounts, :lock_version, :integer, {:default=>0, :null=>false})',
+		color: 'green' as const,
+	},
+	{
+		text: '== AddLockVersionToAccounts: migrated ====',
+		color: 'green' as const,
+	},
+];
+
 const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
 	{ commands: LOCK_VERSION_COMMANDS, outputLines: LOCK_VERSION_OUTPUT },
-	null, // step 1: OptionCard
+	{ commands: MIGRATE_COMMANDS, outputLines: MIGRATE_OUTPUT },
 	null, // step 2: OptionCard
 	null, // step 3: OptionCard
 	null, // step 4: OptionCard
+	null, // step 5: OptionCard
 ];
 
 // OptionCard step 1: Wrap in transaction
@@ -401,25 +445,25 @@ const OPTION_STEP_CONFIG: Record<
 		}[];
 	}
 > = {
-	1: {
+	2: {
 		title: 'Wrap Writes in a Transaction',
 		description:
 			'Choose the code that ensures balance deduction and audit log creation succeed or fail together.',
 		options: TRANSACTION_OPTIONS,
 	},
-	2: {
+	3: {
 		title: 'Add Pessimistic Locking',
 		description:
 			'For financial operations, acquire a row lock to prevent concurrent modifications.',
 		options: PESSIMISTIC_OPTIONS,
 	},
-	3: {
+	4: {
 		title: 'Build the Deduction Service',
 		description:
 			'Create a service object with contract validation, transaction, and pessimistic locking.',
 		options: SERVICE_OPTIONS,
 	},
-	4: {
+	5: {
 		title: 'Handle Optimistic Lock Conflicts',
 		description:
 			'For low-contention resources like profiles, handle the case where another user edited the same record.',
@@ -608,6 +652,27 @@ end`,
 		if (furthestStep === 1) {
 			return [
 				{
+					filename: 'db/migrate/add_lock_version_to_accounts.rb (pending)',
+					language: 'ruby',
+					code: `class AddLockVersionToAccounts < ActiveRecord::Migration[8.0]
+  def change
+    add_column :accounts, :lock_version, :integer,
+      default: 0, null: false
+  end
+end`,
+					highlight: [3, 4],
+				},
+				{
+					filename: 'status',
+					language: 'ruby',
+					code: `# Migration generated but not yet applied.
+# Run the migration to add the column.`,
+				},
+			];
+		}
+		if (furthestStep === 2) {
+			return [
+				{
 					filename: 'db/migrate/add_lock_version_to_accounts.rb',
 					language: 'ruby',
 					code: `class AddLockVersionToAccounts < ActiveRecord::Migration[8.0]
@@ -625,7 +690,7 @@ end`,
 				},
 			];
 		}
-		if (furthestStep === 2) {
+		if (furthestStep === 3) {
 			return [
 				{
 					filename: 'app/services/deduct_balance.rb (transaction added)',
@@ -648,7 +713,7 @@ end`,
 				},
 			];
 		}
-		if (furthestStep === 3) {
+		if (furthestStep === 4) {
 			return [
 				{
 					filename: 'app/services/deduct_balance.rb (lock added)',
@@ -672,7 +737,7 @@ end`,
 				},
 			];
 		}
-		if (furthestStep === 4) {
+		if (furthestStep === 5) {
 			return [
 				{
 					filename: 'app/contracts/deduction_contract.rb',
@@ -996,7 +1061,7 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
 	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep] ?? null;
-	const isTerminalStep = stepper.currentStep === 0;
+	const isTerminalStep = stepper.currentStep <= 1;
 
 	// ──────────────────────────────────────────
 	// Render: Race Condition Visualization
@@ -1332,6 +1397,7 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 							: phase === 'build'
 								? [
 										'Add a lock_version column for optimistic locking',
+										'Run the migration to apply the schema change',
 										'Wrap writes in transactions for atomicity',
 										'Add pessimistic locking for financial operations',
 										'Build a service with contract validation',
@@ -1432,12 +1498,17 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 						<div className="flex-1 overflow-y-auto p-6">
 							{isTerminalStep ? (
 								<TerminalChoiceStep
-									commands={LOCK_VERSION_COMMANDS}
+									commands={
+										stepper.currentStep === 0
+											? LOCK_VERSION_COMMANDS
+											: MIGRATE_COMMANDS
+									}
 									completed={isViewingCompletedStep}
 									description={
 										<p className="text-sm text-muted-foreground">
-											Add a lock_version column to the accounts table for
-											optimistic locking.
+											{stepper.currentStep === 0
+												? 'Add a lock_version column to the accounts table for optimistic locking.'
+												: 'Apply the pending migration to add the lock_version column to the database.'}
 										</p>
 									}
 									hasNext={hasNextStep}
@@ -1448,7 +1519,11 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 									onCorrect={() => stepper.completeStep()}
 									onNext={stepper.nextStep}
 									onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-									outputLines={LOCK_VERSION_OUTPUT}
+									outputLines={
+										stepper.currentStep === 0
+											? LOCK_VERSION_OUTPUT
+											: MIGRATE_OUTPUT
+									}
 									stepKey={stepper.currentStep}
 									title={STEP_DEFS[stepper.currentStep].title}
 								/>

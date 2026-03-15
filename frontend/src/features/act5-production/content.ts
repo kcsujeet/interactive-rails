@@ -220,7 +220,7 @@ class DeductBalance < ApplicationService
     Result.new(success?: true, account:, errors: [])
   end
 end`,
-		goal: 'Wrap the deduction in a transaction with proper locking to prevent lost updates.',
+		goal: 'Add a lock_version column, run the migration, wrap writes in transactions, add pessimistic locking, build a service with validation, and handle optimistic lock conflicts.',
 		thresholds: {},
 	},
 	successConditions: [
@@ -332,7 +332,7 @@ end`,
 	},
 	hint: {
 		delay: 25,
-		text: 'Use Account.transaction with Account.lock.find to prevent lost updates on balances.',
+		text: 'Think about what happens when two processes read the same row. What mechanism can serialize their writes?',
 	},
 };
 

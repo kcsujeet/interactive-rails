@@ -102,8 +102,7 @@ const STEP_DEFS = [
 const GENERATE_MIGRATION_COMMANDS = [
 	{
 		id: 'wrong-no-index',
-		label:
-			'rails g migration CreateWebhookEvents provider event_id event_type',
+		label: 'rails g migration CreateWebhookEvents provider event_id event_type',
 		correct: false,
 		feedback:
 			'Without a unique index on [provider, event_id], race conditions between concurrent webhooks can insert duplicates before your code checks.',
@@ -180,7 +179,7 @@ const CONFIGURE_IDEMPOTENCY_OPTIONS = [
 		label: 'Check with find_by before creating',
 		correct: false,
 		feedback:
-			'find_by + create has a race condition. Two concurrent requests can both pass the find_by check before either inserts. Use find_or_create_by with a unique index instead.',
+			'find_by + create has a race condition. Two concurrent requests can both pass the find_by check before either inserts. You need an atomic operation backed by a database constraint.',
 	},
 	{
 		id: 'correct',
@@ -217,7 +216,7 @@ const BUILD_SERVICE_OPTIONS = [
 		label: 'All logic in the controller action',
 		correct: false,
 		feedback:
-			'Webhook ingestion logic in the controller violates the service object pattern. Extract verification, dedup, and dispatch into a service.',
+			'Keeping all webhook logic in the controller violates the pattern established in earlier levels. Complex multi-step operations belong in a dedicated object.',
 	},
 	{
 		id: 'correct',
@@ -302,9 +301,7 @@ describe('Level 38: Webhooks & Idempotency', () => {
 		});
 
 		test('every discovery is reachable via at least one probe', () => {
-			const reachable = new Set(
-				Object.values(PROBE_DISCOVERY_MAP).flat(),
-			);
+			const reachable = new Set(Object.values(PROBE_DISCOVERY_MAP).flat());
 			for (const def of DISCOVERY_DEFS) {
 				expect(reachable.has(def.id)).toBe(true);
 			}
@@ -391,18 +388,14 @@ describe('Level 38: Webhooks & Idempotency', () => {
 
 		test('each command set has exactly one correct answer', () => {
 			for (const set of ALL_COMMAND_SETS) {
-				const correctCount = set.commands.filter(
-					(c) => c.correct,
-				).length;
+				const correctCount = set.commands.filter((c) => c.correct).length;
 				expect(correctCount).toBe(1);
 			}
 		});
 
 		test('each option set has exactly one correct answer', () => {
 			for (const set of ALL_OPTION_SETS) {
-				const correctCount = set.options.filter(
-					(o) => o.correct,
-				).length;
+				const correctCount = set.options.filter((o) => o.correct).length;
 				expect(correctCount).toBe(1);
 			}
 		});
@@ -432,8 +425,7 @@ describe('Level 38: Webhooks & Idempotency', () => {
 		test('feedback never reveals the correct answer', () => {
 			// Check command feedback
 			for (const set of ALL_COMMAND_SETS) {
-				const correctLabel =
-					set.commands.find((c) => c.correct)?.label ?? '';
+				const correctLabel = set.commands.find((c) => c.correct)?.label ?? '';
 				for (const cmd of set.commands) {
 					if (!cmd.correct && cmd.feedback) {
 						// Feedback should not contain the exact correct command
@@ -447,13 +439,13 @@ describe('Level 38: Webhooks & Idempotency', () => {
 				for (const opt of set.options) {
 					if (!opt.correct && opt.feedback) {
 						// Feedback should not reveal specific correct APIs
-						expect(opt.feedback).not.toContain(
-							'find_or_create_by!',
-						);
+						expect(opt.feedback).not.toContain('find_or_create_by!');
+						expect(opt.feedback).not.toContain('find_or_create_by');
 						expect(opt.feedback).not.toContain(
 							'Stripe::Webhook.construct_event',
 						);
 						expect(opt.feedback).not.toContain('perform_later');
+						expect(opt.feedback).not.toContain('Extract verification');
 					}
 				}
 			}
@@ -463,9 +455,7 @@ describe('Level 38: Webhooks & Idempotency', () => {
 			const generateIdx = STEP_DEFS.findIndex(
 				(s) => s.id === 'generate-migration',
 			);
-			const migrateIdx = STEP_DEFS.findIndex(
-				(s) => s.id === 'run-migration',
-			);
+			const migrateIdx = STEP_DEFS.findIndex((s) => s.id === 'run-migration');
 			expect(migrateIdx).toBe(generateIdx + 1);
 		});
 	});
@@ -558,9 +548,7 @@ describe('Level 38: Webhooks & Idempotency', () => {
 
 	describe('Cumulative pattern compliance', () => {
 		test('correct service option uses ApplicationService', () => {
-			const correctService = BUILD_SERVICE_OPTIONS.find(
-				(o) => o.correct,
-			);
+			const correctService = BUILD_SERVICE_OPTIONS.find((o) => o.correct);
 			expect(correctService).toBeDefined();
 			expect(correctService?.label).toContain('Service');
 		});
@@ -571,13 +559,11 @@ describe('Level 38: Webhooks & Idempotency', () => {
 			);
 			expect(controllerOption).toBeDefined();
 			expect(controllerOption?.correct).toBe(false);
-			expect(controllerOption?.feedback).toContain('service object');
+			expect(controllerOption?.feedback).toContain('dedicated object');
 		});
 
 		test('service step teaches service object extraction', () => {
-			const serviceStep = STEP_DEFS.find(
-				(s) => s.id === 'build-service',
-			);
+			const serviceStep = STEP_DEFS.find((s) => s.id === 'build-service');
 			expect(serviceStep).toBeDefined();
 		});
 
@@ -618,9 +604,7 @@ describe('Level 38: Webhooks & Idempotency', () => {
 		test('all probe IDs map to discoveries', () => {
 			for (const probe of PROBES) {
 				expect(PROBE_DISCOVERY_MAP[probe.id]).toBeDefined();
-				expect(
-					PROBE_DISCOVERY_MAP[probe.id].length,
-				).toBeGreaterThan(0);
+				expect(PROBE_DISCOVERY_MAP[probe.id].length).toBeGreaterThan(0);
 			}
 		});
 
@@ -648,12 +632,8 @@ describe('Level 38: Webhooks & Idempotency', () => {
 		});
 
 		test('signature and idempotency options each have at least 3 choices', () => {
-			expect(CONFIGURE_SIGNATURE_OPTIONS.length).toBeGreaterThanOrEqual(
-				3,
-			);
-			expect(
-				CONFIGURE_IDEMPOTENCY_OPTIONS.length,
-			).toBeGreaterThanOrEqual(3);
+			expect(CONFIGURE_SIGNATURE_OPTIONS.length).toBeGreaterThanOrEqual(3);
+			expect(CONFIGURE_IDEMPOTENCY_OPTIONS.length).toBeGreaterThanOrEqual(3);
 		});
 	});
 });

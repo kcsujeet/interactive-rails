@@ -281,7 +281,7 @@ end`,
 end`,
 		correct: false,
 		feedback:
-			'find_by + create has a race condition. Two concurrent requests can both pass the find_by check before either inserts. Use find_or_create_by with a unique index instead.',
+			'find_by + create has a race condition. Two concurrent requests can both pass the find_by check before either inserts. You need an atomic operation backed by a database constraint.',
 	},
 	{
 		id: 'correct',
@@ -377,7 +377,7 @@ const BUILD_SERVICE_OPTIONS = [
 end`,
 		correct: false,
 		feedback:
-			'Webhook ingestion logic in the controller violates the service object pattern. Extract verification, dedup, and dispatch into a service.',
+			'Keeping all webhook logic in the controller violates the pattern established in earlier levels. Complex multi-step operations belong in a dedicated object.',
 	},
 	{
 		id: 'correct',

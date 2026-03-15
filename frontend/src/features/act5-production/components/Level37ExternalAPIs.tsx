@@ -1154,6 +1154,12 @@ export function Level37ExternalAPIs({ onComplete }: LevelComponentProps) {
 						{stressTest.isAutoFiring ? 'Stop Auto-Fire' : 'Auto-Fire All'}
 					</Button>
 				)}
+				<Button
+					className="w-full"
+					onClick={() => onComplete({ stars: stepper.starRating })}
+				>
+					Submit
+				</Button>
 			</div>
 		);
 	};

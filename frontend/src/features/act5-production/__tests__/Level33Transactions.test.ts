@@ -59,7 +59,10 @@ const PROBES = [
 			{ text: '  def call', color: 'muted' },
 			{ text: '    account = Account.find(@account_id)', color: 'muted' },
 			{ text: '    account.balance -= @amount  # No lock!', color: 'red' },
-			{ text: '    account.save!               # No transaction!', color: 'red' },
+			{
+				text: '    account.save!               # No transaction!',
+				color: 'red',
+			},
 			{ text: '  end', color: 'muted' },
 			{ text: 'end', color: 'muted' },
 		],
@@ -68,6 +71,7 @@ const PROBES = [
 
 const STEP_DEFS = [
 	{ id: 'add-lock-version', title: 'Add Lock Version Column' },
+	{ id: 'run-migration', title: 'Run Migration' },
 	{ id: 'wrap-transaction', title: 'Wrap in Transaction' },
 	{ id: 'add-pessimistic-lock', title: 'Add Row Lock' },
 	{ id: 'build-service', title: 'Build Deduction Service' },
@@ -80,18 +84,40 @@ const LOCK_VERSION_COMMANDS = [
 		label: 'rails g migration AddLockedToAccounts locked:boolean',
 		correct: false,
 		feedback:
-			'A boolean flag cannot detect concurrent modifications. Rails uses an integer lock_version column that auto-increments on each save.',
+			'A boolean flag cannot detect concurrent modifications. Optimistic locking needs a column that tracks how many times a record has been saved.',
 	},
 	{
 		id: 'wrong-timestamp',
 		label: 'rails g migration AddUpdatedAtToAccounts updated_at:datetime',
 		correct: false,
 		feedback:
-			'Timestamps have precision issues with concurrent writes. Rails optimistic locking uses an integer lock_version column with exact increment checking.',
+			'Timestamps have precision issues with concurrent writes. Rails needs an auto-incrementing counter to detect exact version mismatches.',
 	},
 	{
 		id: 'correct-lock-version',
 		label: 'rails g migration AddLockVersionToAccounts lock_version:integer',
+		correct: true,
+	},
+];
+
+const MIGRATE_COMMANDS = [
+	{
+		id: 'wrong-seed',
+		label: 'rails db:seed',
+		correct: false,
+		feedback:
+			'Seeding populates the database with sample data. The migration file still needs to be applied to the schema.',
+	},
+	{
+		id: 'wrong-reset',
+		label: 'rails db:reset',
+		correct: false,
+		feedback:
+			'Resetting drops and recreates the database from schema.rb. That discards all existing data. You just need to apply the pending migration.',
+	},
+	{
+		id: 'correct-migrate',
+		label: 'rails db:migrate',
 		correct: true,
 	},
 ];
@@ -155,12 +181,36 @@ const STALE_ERROR_OPTIONS = [
 ];
 
 const STRESS_SCENARIOS = [
-	{ id: 'single-deduct', label: 'POST deduct $30', expectedResult: 'allowed' as const },
-	{ id: 'concurrent-deduct-locked', label: 'POST concurrent deductions (locked)', expectedResult: 'allowed' as const },
-	{ id: 'transfer', label: 'POST transfer $50 between accounts', expectedResult: 'allowed' as const },
-	{ id: 'insufficient-funds', label: 'POST deduct $200 (insufficient)', expectedResult: 'blocked' as const },
-	{ id: 'stale-profile-edit', label: 'PATCH profile (stale version)', expectedResult: 'blocked' as const },
-	{ id: 'invalid-amount', label: 'POST deduct -$10 (invalid)', expectedResult: 'blocked' as const },
+	{
+		id: 'single-deduct',
+		label: 'POST deduct $30',
+		expectedResult: 'allowed' as const,
+	},
+	{
+		id: 'concurrent-deduct-locked',
+		label: 'POST concurrent deductions (locked)',
+		expectedResult: 'allowed' as const,
+	},
+	{
+		id: 'transfer',
+		label: 'POST transfer $50 between accounts',
+		expectedResult: 'allowed' as const,
+	},
+	{
+		id: 'insufficient-funds',
+		label: 'POST deduct $200 (insufficient)',
+		expectedResult: 'blocked' as const,
+	},
+	{
+		id: 'stale-profile-edit',
+		label: 'PATCH profile (stale version)',
+		expectedResult: 'blocked' as const,
+	},
+	{
+		id: 'invalid-amount',
+		label: 'POST deduct -$10 (invalid)',
+		expectedResult: 'blocked' as const,
+	},
 ];
 
 // ── Tests ──
@@ -182,7 +232,9 @@ describe('Level 33: Transactions & Locking', () => {
 		});
 
 		test('every discovery is reachable via probes', () => {
-			const probeDiscoveries = new Set(Object.values(PROBE_DISCOVERY_MAP).flat());
+			const probeDiscoveries = new Set(
+				Object.values(PROBE_DISCOVERY_MAP).flat(),
+			);
 			for (const def of DISCOVERY_DEFS) {
 				expect(probeDiscoveries.has(def.id)).toBe(true);
 			}
@@ -253,8 +305,8 @@ describe('Level 33: Transactions & Locking', () => {
 	});
 
 	describe('Build step quality', () => {
-		test('has exactly 5 build steps', () => {
-			expect(STEP_DEFS).toHaveLength(5);
+		test('has exactly 6 build steps', () => {
+			expect(STEP_DEFS).toHaveLength(6);
 		});
 
 		test('all step IDs are unique', () => {
@@ -273,6 +325,11 @@ describe('Level 33: Transactions & Locking', () => {
 
 		test('correct lock_version command is never first', () => {
 			const correctIdx = LOCK_VERSION_COMMANDS.findIndex((c) => c.correct);
+			expect(correctIdx).toBeGreaterThan(0);
+		});
+
+		test('correct migrate command is never first', () => {
+			const correctIdx = MIGRATE_COMMANDS.findIndex((c) => c.correct);
 			expect(correctIdx).toBeGreaterThan(0);
 		});
 
@@ -299,6 +356,7 @@ describe('Level 33: Transactions & Locking', () => {
 		test('each step has exactly one correct answer', () => {
 			const allStepOptions = [
 				LOCK_VERSION_COMMANDS,
+				MIGRATE_COMMANDS,
 				TRANSACTION_OPTIONS,
 				PESSIMISTIC_OPTIONS,
 				SERVICE_OPTIONS,
@@ -313,6 +371,7 @@ describe('Level 33: Transactions & Locking', () => {
 		test('every wrong option has feedback', () => {
 			const allStepOptions = [
 				LOCK_VERSION_COMMANDS,
+				MIGRATE_COMMANDS,
 				TRANSACTION_OPTIONS,
 				PESSIMISTIC_OPTIONS,
 				SERVICE_OPTIONS,
@@ -331,6 +390,7 @@ describe('Level 33: Transactions & Locking', () => {
 		test('feedback never reveals the correct answer', () => {
 			const allWrongOptions = [
 				...LOCK_VERSION_COMMANDS.filter((o) => !o.correct),
+				...MIGRATE_COMMANDS.filter((o) => !o.correct),
 				...TRANSACTION_OPTIONS.filter((o) => !o.correct),
 				...PESSIMISTIC_OPTIONS.filter((o) => !o.correct),
 				...SERVICE_OPTIONS.filter((o) => !o.correct),
@@ -340,15 +400,19 @@ describe('Level 33: Transactions & Locking', () => {
 				const fb = opt.feedback?.toLowerCase() ?? '';
 				expect(fb).not.toContain('lock_version:integer');
 				expect(fb).not.toContain('account.lock.find');
+				expect(fb).not.toContain('rails db:migrate');
+				// Feedback should not name the exact column (lock_version)
+				expect(fb).not.toContain('lock_version column');
 			}
 		});
 
-		test('terminal step is step 0, option steps are 1-4', () => {
+		test('terminal steps are 0-1, option steps are 2-5', () => {
 			expect(STEP_DEFS[0].id).toBe('add-lock-version');
-			expect(STEP_DEFS[1].id).toBe('wrap-transaction');
-			expect(STEP_DEFS[2].id).toBe('add-pessimistic-lock');
-			expect(STEP_DEFS[3].id).toBe('build-service');
-			expect(STEP_DEFS[4].id).toBe('handle-stale-error');
+			expect(STEP_DEFS[1].id).toBe('run-migration');
+			expect(STEP_DEFS[2].id).toBe('wrap-transaction');
+			expect(STEP_DEFS[3].id).toBe('add-pessimistic-lock');
+			expect(STEP_DEFS[4].id).toBe('build-service');
+			expect(STEP_DEFS[5].id).toBe('handle-stale-error');
 		});
 	});
 
@@ -368,27 +432,39 @@ describe('Level 33: Transactions & Locking', () => {
 		});
 
 		test('has mix of allowed and blocked results', () => {
-			const allowed = STRESS_SCENARIOS.filter((s) => s.expectedResult === 'allowed');
-			const blocked = STRESS_SCENARIOS.filter((s) => s.expectedResult === 'blocked');
+			const allowed = STRESS_SCENARIOS.filter(
+				(s) => s.expectedResult === 'allowed',
+			);
+			const blocked = STRESS_SCENARIOS.filter(
+				(s) => s.expectedResult === 'blocked',
+			);
 			expect(allowed.length).toBeGreaterThan(0);
 			expect(blocked.length).toBeGreaterThan(0);
 		});
 
 		test('has 3 allowed and 3 blocked scenarios', () => {
-			const allowed = STRESS_SCENARIOS.filter((s) => s.expectedResult === 'allowed');
-			const blocked = STRESS_SCENARIOS.filter((s) => s.expectedResult === 'blocked');
+			const allowed = STRESS_SCENARIOS.filter(
+				(s) => s.expectedResult === 'allowed',
+			);
+			const blocked = STRESS_SCENARIOS.filter(
+				(s) => s.expectedResult === 'blocked',
+			);
 			expect(allowed).toHaveLength(3);
 			expect(blocked).toHaveLength(3);
 		});
 
 		test('includes concurrent deduction scenario (reward mirrors observe)', () => {
-			const concurrent = STRESS_SCENARIOS.find((s) => s.id === 'concurrent-deduct-locked');
+			const concurrent = STRESS_SCENARIOS.find(
+				(s) => s.id === 'concurrent-deduct-locked',
+			);
 			expect(concurrent).toBeDefined();
 			expect(concurrent?.expectedResult).toBe('allowed');
 		});
 
 		test('includes insufficient funds validation', () => {
-			const insufficient = STRESS_SCENARIOS.find((s) => s.id === 'insufficient-funds');
+			const insufficient = STRESS_SCENARIOS.find(
+				(s) => s.id === 'insufficient-funds',
+			);
 			expect(insufficient).toBeDefined();
 			expect(insufficient?.expectedResult).toBe('blocked');
 		});
@@ -408,7 +484,9 @@ describe('Level 33: Transactions & Locking', () => {
 
 	describe('Cross-phase consistency', () => {
 		test('probe discoveries cover all discovery definitions', () => {
-			const probeDiscoveryIds = new Set(Object.values(PROBE_DISCOVERY_MAP).flat());
+			const probeDiscoveryIds = new Set(
+				Object.values(PROBE_DISCOVERY_MAP).flat(),
+			);
 			for (const def of DISCOVERY_DEFS) {
 				expect(probeDiscoveryIds.has(def.id)).toBe(true);
 			}
@@ -416,7 +494,9 @@ describe('Level 33: Transactions & Locking', () => {
 
 		test('concurrent deduction appears in both observe and reward', () => {
 			const observeProbe = PROBES.find((p) => p.id === 'concurrent-deduct');
-			const rewardScenario = STRESS_SCENARIOS.find((s) => s.id === 'concurrent-deduct-locked');
+			const rewardScenario = STRESS_SCENARIOS.find(
+				(s) => s.id === 'concurrent-deduct-locked',
+			);
 			expect(observeProbe).toBeDefined();
 			expect(rewardScenario).toBeDefined();
 		});
@@ -434,10 +514,14 @@ describe('Level 33: Transactions & Locking', () => {
 
 		test('reward scenarios cover both locking strategies from build phase', () => {
 			// Pessimistic locking (financial ops)
-			const pessimistic = STRESS_SCENARIOS.find((s) => s.id === 'concurrent-deduct-locked');
+			const pessimistic = STRESS_SCENARIOS.find(
+				(s) => s.id === 'concurrent-deduct-locked',
+			);
 			expect(pessimistic).toBeDefined();
 			// Optimistic locking (profile edits)
-			const optimistic = STRESS_SCENARIOS.find((s) => s.id === 'stale-profile-edit');
+			const optimistic = STRESS_SCENARIOS.find(
+				(s) => s.id === 'stale-profile-edit',
+			);
 			expect(optimistic).toBeDefined();
 		});
 	});
@@ -449,7 +533,9 @@ describe('Level 33: Transactions & Locking', () => {
 		});
 
 		test('wrong service option explains contract requirement', () => {
-			const noContract = SERVICE_OPTIONS.find((o) => o.id === 'wrong-no-contract');
+			const noContract = SERVICE_OPTIONS.find(
+				(o) => o.id === 'wrong-no-contract',
+			);
 			expect(noContract?.feedback).toContain('contract');
 			expect(noContract?.feedback).toContain('Dry::Validation::Contract');
 		});
@@ -464,7 +550,9 @@ describe('Level 33: Transactions & Locking', () => {
 			const ignore = STALE_ERROR_OPTIONS.find((o) => o.id === 'wrong-ignore');
 			expect(ignore?.feedback).toContain('StaleObjectError');
 
-			const pessimistic = STALE_ERROR_OPTIONS.find((o) => o.id === 'wrong-pessimistic-everywhere');
+			const pessimistic = STALE_ERROR_OPTIONS.find(
+				(o) => o.id === 'wrong-pessimistic-everywhere',
+			);
 			expect(pessimistic?.feedback).toContain('optimistic locking');
 		});
 	});
@@ -482,16 +570,28 @@ describe('Level 33: Transactions & Locking', () => {
 		});
 
 		test('step progression follows logical order', () => {
-			// First: add lock_version column (migration)
+			// First: add lock_version column (migration generation)
+			// Then: run migration (apply schema change)
 			// Then: wrap in transaction (foundation)
 			// Then: add pessimistic lock (strengthen)
 			// Then: build service with contract (cumulative pattern)
 			// Finally: handle optimistic lock conflicts (error case)
 			const stepIds = STEP_DEFS.map((s) => s.id);
-			expect(stepIds.indexOf('add-lock-version')).toBeLessThan(stepIds.indexOf('wrap-transaction'));
-			expect(stepIds.indexOf('wrap-transaction')).toBeLessThan(stepIds.indexOf('add-pessimistic-lock'));
-			expect(stepIds.indexOf('add-pessimistic-lock')).toBeLessThan(stepIds.indexOf('build-service'));
-			expect(stepIds.indexOf('build-service')).toBeLessThan(stepIds.indexOf('handle-stale-error'));
+			expect(stepIds.indexOf('add-lock-version')).toBeLessThan(
+				stepIds.indexOf('run-migration'),
+			);
+			expect(stepIds.indexOf('run-migration')).toBeLessThan(
+				stepIds.indexOf('wrap-transaction'),
+			);
+			expect(stepIds.indexOf('wrap-transaction')).toBeLessThan(
+				stepIds.indexOf('add-pessimistic-lock'),
+			);
+			expect(stepIds.indexOf('add-pessimistic-lock')).toBeLessThan(
+				stepIds.indexOf('build-service'),
+			);
+			expect(stepIds.indexOf('build-service')).toBeLessThan(
+				stepIds.indexOf('handle-stale-error'),
+			);
 		});
 	});
 });
