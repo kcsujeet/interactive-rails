@@ -2,20 +2,20 @@
  * Act 8: Mastery
  * "Architect entire systems."
  *
- * Levels 53-55: API Gateway, Database Sharding, The Architect (Capstone)
+ * Levels 54-56: API Gateway, Database Sharding, The Architect (Capstone)
  * The final act: system-level architecture
  */
 
 import type { Act, Level } from '@/types';
 
 // ============================================
-// Level 47: API Gateway
+// Level 48: API Gateway
 // ============================================
 
-const level48APIGateway: Level = {
-	id: 'act8-level53-api-gateway',
+const level49APIGateway: Level = {
+	id: 'act8-level54-api-gateway',
 	actId: 8,
-	levelNumber: 53,
+	levelNumber: 54,
 	name: 'API Gateway',
 	trigger: {
 		type: 'architecture',
@@ -188,13 +188,13 @@ end`,
 };
 
 // ============================================
-// Level 48: Database Sharding
+// Level 49: Database Sharding
 // ============================================
 
-const level49Sharding: Level = {
-	id: 'act8-level54-sharding',
+const level50Sharding: Level = {
+	id: 'act8-level55-sharding',
 	actId: 8,
-	levelNumber: 54,
+	levelNumber: 55,
 	name: 'Database Sharding',
 	trigger: {
 		type: 'scaling',
@@ -458,13 +458,13 @@ end`,
 };
 
 // ============================================
-// Level 49: The Architect (Capstone)
+// Level 50: The Architect (Capstone)
 // ============================================
 
-const level50Architect: Level = {
-	id: 'act8-level55-architect',
+const level51Architect: Level = {
+	id: 'act8-level56-architect',
 	actId: 8,
-	levelNumber: 55,
+	levelNumber: 56,
 	name: 'The Architect',
 	isCapstone: true,
 	trigger: {
@@ -577,10 +577,10 @@ Enforce domain boundaries with Packwerk before extracting. Define packages with 
 **6. Domain Events (Act 7, Level 52):**
 Payment events (payment.succeeded, payment.failed) are published. Notifications, inventory, and analytics subscribe independently.
 
-**7. API Gateway (Act 8, Level 53):**
+**7. API Gateway (Act 8, Level 54):**
 The gateway routes billing requests, handles auth at the edge, and provides circuit breakers.
 
-**8. Sharding (Act 8, Level 54):**
+**8. Sharding (Act 8, Level 55):**
 Billing data is sharded by tenant for write scalability.
 
 **Modular monolith with Packwerk (before extracting):**
@@ -762,8 +762,8 @@ export const actEight: Act = {
 	name: 'Mastery',
 	tagline: 'You are the architect now.',
 	description:
-		'The final challenge. Design API gateways, implement database sharding, and architect a complete service extraction using everything you have learned across 53 levels.',
-	levels: [level48APIGateway, level49Sharding, level50Architect],
+		'The final challenge. Design API gateways, implement database sharding, and architect a complete service extraction using everything you have learned across 54 levels.',
+	levels: [level49APIGateway, level50Sharding, level51Architect],
 	unlockedNodes: ['api_gateway', 'shard', 'service_mesh'],
 	metricsVisible: true,
 	visibleMetrics: ['latency', 'errorRate', 'queryCount', 'memoryUsage'],

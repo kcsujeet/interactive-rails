@@ -1,5 +1,5 @@
 /**
- * Level 37: External APIs (Resilient Integration)
+ * Level 38: External APIs (Resilient Integration)
  *
  * Three-phase flow: observe -> build -> activate -> reward
  *
@@ -749,7 +749,7 @@ end`,
 }
 
 // ─── Main component ────────────────────────────────────────────────────
-export function Level37ExternalAPIs({ onComplete }: LevelComponentProps) {
+export function Level38ExternalAPIs({ onComplete }: LevelComponentProps) {
 	const [phase, setPhase] = useState<
 		'observe' | 'build' | 'activate' | 'reward'
 	>('observe');
@@ -1316,4 +1316,4 @@ export function Level37ExternalAPIs({ onComplete }: LevelComponentProps) {
 	);
 }
 
-export default Level37ExternalAPIs;
+export default Level38ExternalAPIs;

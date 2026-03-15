@@ -1,5 +1,5 @@
 /**
- * Level 45: Multi-Tenancy
+ * Level 50: Multi-Tenancy
  *
  * Strategy picker with data isolation visualization.
  * Shows how acts_as_tenant scopes queries to prevent data leaks.
@@ -141,7 +141,7 @@ function getLevelDots(level: number, max: number) {
 
 // --- Component ---
 
-export function Level49MultiTenancy({
+export function Level50MultiTenancy({
 	onComplete,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
@@ -818,4 +818,4 @@ end`,
 	);
 }
 
-export default Level49MultiTenancy;
+export default Level50MultiTenancy;

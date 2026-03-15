@@ -1,5 +1,5 @@
 /**
- * Level 50: The Architect (Capstone)
+ * Level 51: The Architect (Capstone)
  *
  * Full architecture canvas. Apply every concept from the game.
  * Extract billing from a monolith using state machines, domain events,
@@ -211,7 +211,7 @@ function buildSimulationSteps(enabled: string[]): SimulationStep[] {
 // Component
 // ---------------------------------------------------------------------------
 
-export function Level55Architect({ onComplete }: LevelComponentProps) {
+export function Level56Architect({ onComplete }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [components, setComponents] =
 		useState<ArchComponent[]>(INITIAL_COMPONENTS);
@@ -943,4 +943,4 @@ end`,
 	return files;
 }
 
-export default Level55Architect;
+export default Level56Architect;

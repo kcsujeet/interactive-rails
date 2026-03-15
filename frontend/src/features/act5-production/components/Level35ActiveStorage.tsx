@@ -1,5 +1,5 @@
 /**
- * Level 34: Active Storage
+ * Level 35: Active Storage
  *
  * Sequential phase flow: observe -> build -> activate -> reward
  * Each phase occupies the full center panel. One thing at a time.
@@ -971,7 +971,7 @@ end`,
 // Component
 // ──────────────────────────────────────────────
 
-export function Level34ActiveStorage({ onComplete }: LevelComponentProps) {
+export function Level35ActiveStorage({ onComplete }: LevelComponentProps) {
 	const [phase, setPhase] = useState<Phase>('observe');
 	const [flowPhase, setFlowPhase] = useState(-1);
 	const [wrongFeedback, setWrongFeedback] = useState<string | null>(null);
@@ -1501,4 +1501,4 @@ export function Level34ActiveStorage({ onComplete }: LevelComponentProps) {
 	);
 }
 
-export default Level34ActiveStorage;
+export default Level35ActiveStorage;

@@ -2,20 +2,20 @@
  * Act 7: Scale
  * "1M users. Architectural decisions."
  *
- * Levels 47-52: Multi-Database, State Machines, Multi-Tenancy, Observability, Modular Monolith, Domain Events
+ * Levels 48-53: Multi-Database, State Machines, Multi-Tenancy, Observability, Modular Monolith, Domain Events
  * App context: Enterprise SaaS
  */
 
 import type { Act, Level } from '@/types';
 
 // ============================================
-// Level 42: Multi-Database
+// Level 48: Multi-Database
 // ============================================
 
-const level43MultiDatabase: Level = {
-	id: 'act7-level47-multi-database',
+const level48MultiDatabase: Level = {
+	id: 'act7-level48-multi-database',
 	actId: 7,
-	levelNumber: 47,
+	levelNumber: 48,
 	name: 'Multi-Database',
 	trigger: {
 		type: 'scaling',
@@ -128,13 +128,13 @@ end
 };
 
 // ============================================
-// Level 43: State Machines
+// Level 49: State Machines
 // ============================================
 
-const level44StateMachines: Level = {
-	id: 'act7-level48-state-machines',
+const level49StateMachines: Level = {
+	id: 'act7-level49-state-machines',
 	actId: 7,
-	levelNumber: 48,
+	levelNumber: 49,
 	name: 'State Machines',
 	requiresTests: true,
 	trigger: {
@@ -311,13 +311,13 @@ Order.pending.count     # SELECT COUNT(*) FROM orders WHERE status = 'pending'`,
 };
 
 // ============================================
-// Level 44: Multi-Tenancy
+// Level 50: Multi-Tenancy
 // ============================================
 
-const level45MultiTenancy: Level = {
-	id: 'act7-level49-multi-tenancy',
+const level50MultiTenancy: Level = {
+	id: 'act7-level50-multi-tenancy',
 	actId: 7,
-	levelNumber: 49,
+	levelNumber: 50,
 	name: 'Multi-Tenancy',
 	requiresTests: true,
 	trigger: {
@@ -471,13 +471,13 @@ end`,
 };
 
 // ============================================
-// Level 45: Observability
+// Level 51: Observability
 // ============================================
 
-const level46Observability: Level = {
-	id: 'act7-level50-observability',
+const level51Observability: Level = {
+	id: 'act7-level51-observability',
 	actId: 7,
-	levelNumber: 50,
+	levelNumber: 51,
 	name: 'Observability',
 	trigger: {
 		type: 'incident',
@@ -683,13 +683,13 @@ end`,
 };
 
 // ============================================
-// Level 46.5: Modular Monolith (NEW - inserted after Observability)
+// Level 52: Modular Monolith
 // ============================================
 
-const levelModularMonolith: Level = {
-	id: 'act7-level51-modular-monolith',
+const level52ModularMonolith: Level = {
+	id: 'act7-level52-modular-monolith',
 	actId: 7,
-	levelNumber: 51,
+	levelNumber: 52,
 	name: 'Modular Monolith',
 	requiresTests: true,
 	trigger: {
@@ -885,13 +885,13 @@ config/                    @infra-team
 };
 
 // ============================================
-// Level 47: Domain Events & Decoupling
+// Level 53: Domain Events & Decoupling
 // ============================================
 
-const level47DomainEvents: Level = {
-	id: 'act7-level52-domain-events',
+const level53DomainEvents: Level = {
+	id: 'act7-level53-domain-events',
 	actId: 7,
-	levelNumber: 52,
+	levelNumber: 53,
 	name: 'Domain Events & Decoupling',
 	requiresTests: true,
 	trigger: {
@@ -1107,12 +1107,12 @@ export const actSeven: Act = {
 	description:
 		'Your optimizations from Act 4 carried you this far, but traffic has outgrown a single database. Introduce read replicas, state machines, multi-tenancy, observability, modular architecture, and domain events.',
 	levels: [
-		level43MultiDatabase,
-		level44StateMachines,
-		level45MultiTenancy,
-		level46Observability,
-		levelModularMonolith,
-		level47DomainEvents,
+		level48MultiDatabase,
+		level49StateMachines,
+		level50MultiTenancy,
+		level51Observability,
+		level52ModularMonolith,
+		level53DomainEvents,
 	],
 	unlockedNodes: ['read_replica', 'state_machine', 'tenant', 'event_bus'],
 	metricsVisible: true,

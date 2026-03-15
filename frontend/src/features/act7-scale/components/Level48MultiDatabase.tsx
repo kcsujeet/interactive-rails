@@ -1,5 +1,5 @@
 /**
- * Level 43: Multi-Database
+ * Level 48: Multi-Database
  *
  * Architecture diagram builder for Rails multi-database support.
  * Users add read replicas, configure traffic routing, and observe
@@ -69,7 +69,7 @@ const LATENCY_WITH_REPLICAS = { p50: 45, p95: 95, p99: 150 };
 
 // --- Component ---
 
-export function Level47MultiDatabase({
+export function Level48MultiDatabase({
 	onComplete,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
@@ -800,4 +800,4 @@ config.active_record.database_resolver_context =
 	);
 }
 
-export default Level47MultiDatabase;
+export default Level48MultiDatabase;

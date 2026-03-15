@@ -1,5 +1,5 @@
 /**
- * Level 45: Data Lifecycle
+ * Level 46: Data Lifecycle
  *
  * Hot/warm/cold data classification, archiving strategies,
  * and data destruction. 4-step click-to-select progression.
@@ -220,7 +220,7 @@ const DATA_TIERS = [
 
 // ── Component ───────────────────────────────────────────────────────
 
-export function Level45DataLifecycle({
+export function Level46DataLifecycle({
 	onComplete,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
@@ -701,4 +701,4 @@ end`,
 	);
 }
 
-export default Level45DataLifecycle;
+export default Level46DataLifecycle;

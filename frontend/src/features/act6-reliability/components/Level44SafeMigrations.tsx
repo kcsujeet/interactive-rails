@@ -1,5 +1,5 @@
 /**
- * Level 40: Safe Migrations
+ * Level 44: Safe Migrations
  *
  * Migration risk analyzer. Player learns how to convert unsafe
  * database migrations into safe, zero-downtime alternatives.
@@ -204,7 +204,7 @@ function getRiskIcon(risk: RiskLevel) {
 
 // --- Component ---
 
-export function Level43SafeMigrations({
+export function Level44SafeMigrations({
 	onComplete,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
@@ -842,4 +842,4 @@ end`,
 	return files;
 }
 
-export default Level43SafeMigrations;
+export default Level44SafeMigrations;

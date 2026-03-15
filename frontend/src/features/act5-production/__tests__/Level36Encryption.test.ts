@@ -1,5 +1,5 @@
 /**
- * Level 35: Encrypted Attributes - Data Consistency Tests
+ * Level 36: Encrypted Attributes - Data Consistency Tests
  *
  * Tests mirror the data structures from the component to verify:
  * - Discovery definitions are complete and correctly mapped
@@ -111,7 +111,7 @@ const STRESS_SCENARIOS = [
 
 // ── Tests ──
 
-describe('Level 35: Encrypted Attributes', () => {
+describe('Level 36: Encrypted Attributes', () => {
 	describe('Discovery definitions', () => {
 		test('has exactly 4 discoveries', () => {
 			expect(DISCOVERY_DEFS).toHaveLength(4);

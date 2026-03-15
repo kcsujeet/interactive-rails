@@ -1,5 +1,5 @@
 /**
- * Level 33: Transactions & Locking - Data Consistency Tests
+ * Level 33: Transactions (Atomicity) - Data Consistency Tests
  *
  * Tests mirror the data structures from the component to verify:
  * - Discovery definitions are complete and correctly mapped
@@ -7,7 +7,7 @@
  * - Build step quality (correct answer position, feedback quality)
  * - Stress test scenario coverage and consistency
  * - Cross-phase consistency (probe labels match stress test labels)
- * - Cumulative pattern compliance (service objects, contracts, error handling)
+ * - Cumulative pattern compliance (service objects, contracts)
  */
 
 import { describe, expect, test } from 'bun:test';
@@ -15,52 +15,88 @@ import { describe, expect, test } from 'bun:test';
 // ── Mirror data from component ──
 
 const DISCOVERY_DEFS = [
-	{ id: 'lost-update', label: 'Lost update: $30 deduction vanishes' },
-	{ id: 'stale-read', label: 'Both users read the same stale balance' },
-	{ id: 'no-atomicity', label: 'Partial failure leaves data inconsistent' },
+	{ id: 'charge-no-order', label: 'Account charged but no order created' },
+	{ id: 'orphan-audit', label: 'Audit log orphaned without order' },
+	{
+		id: 'no-rollback',
+		label: 'No rollback mechanism for partial failures',
+	},
 ];
 
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
-	'concurrent-deduct': ['lost-update', 'stale-read'],
-	'partial-failure': ['no-atomicity'],
+	'order-fail': ['charge-no-order'],
+	'audit-fail': ['orphan-audit'],
+	'inspect-code': ['no-rollback'],
 };
 
 const PROBES = [
 	{
-		id: 'concurrent-deduct',
-		label: 'Concurrent deductions',
-		command: '# User A: deduct $30, User B: deduct $50 (simultaneously)',
+		id: 'order-fail',
+		label: 'Process order (Order.create! fails)',
+		command: '# Charge account, then create order (order fails)',
 		responseLines: [
-			{ text: 'User A: Account.find(1) => balance: $100', color: 'cyan' },
-			{ text: 'User B: Account.find(1) => balance: $100', color: 'cyan' },
-			{ text: 'User A: balance -= 30 => saves $70', color: 'yellow' },
-			{ text: 'User B: balance -= 50 => saves $50', color: 'red' },
-			{ text: 'Final balance: $50 (should be $20!)', color: 'red' },
-			{ text: "User A's $30 deduction was silently lost!", color: 'red' },
-		],
-	},
-	{
-		id: 'partial-failure',
-		label: 'Transfer with partial failure',
-		command: '# Debit sender + credit receiver (no transaction)',
-		responseLines: [
-			{ text: 'sender.balance -= 100 => saves $400', color: 'yellow' },
-			{ text: 'receiver.balance += 100 => BOOM! NetworkError', color: 'red' },
-			{ text: 'Sender lost $100 but receiver never got it!', color: 'red' },
-			{ text: 'No transaction means no rollback.', color: 'red' },
-		],
-	},
-	{
-		id: 'check-no-lock',
-		label: 'Inspect service code',
-		command: 'cat app/services/deduct_balance.rb',
-		responseLines: [
-			{ text: 'class DeductBalance < ApplicationService', color: 'cyan' },
-			{ text: '  def call', color: 'muted' },
-			{ text: '    account = Account.find(@account_id)', color: 'muted' },
-			{ text: '    account.balance -= @amount  # No lock!', color: 'red' },
+			{ text: 'account.balance -= 100  =>  saves $400', color: 'green' },
 			{
-				text: '    account.save!               # No transaction!',
+				text: 'Order.create!(...)     =>  BOOM! RecordInvalid',
+				color: 'red',
+			},
+			{
+				text: 'AuditLog.create!(...)  =>  never reached',
+				color: 'muted',
+			},
+			{
+				text: 'Account was charged $100 but no order exists!',
+				color: 'red',
+			},
+			{ text: 'No rollback. Money vanished.', color: 'red' },
+		],
+	},
+	{
+		id: 'audit-fail',
+		label: 'Process order (AuditLog fails)',
+		command: '# Charge account, create order, then audit (audit fails)',
+		responseLines: [
+			{ text: 'account.balance -= 100  =>  saves $400', color: 'green' },
+			{
+				text: 'Order.create!(...)     =>  OK (order #42)',
+				color: 'green',
+			},
+			{
+				text: 'AuditLog.create!(...)  =>  BOOM! ConnectionError',
+				color: 'red',
+			},
+			{ text: 'Order exists without audit trail!', color: 'red' },
+			{
+				text: 'Compliance violation: unaudited financial operation.',
+				color: 'red',
+			},
+		],
+	},
+	{
+		id: 'inspect-code',
+		label: 'Inspect service code',
+		command: 'cat app/services/process_order.rb',
+		responseLines: [
+			{
+				text: 'class ProcessOrder < ApplicationService',
+				color: 'cyan',
+			},
+			{ text: '  def call', color: 'muted' },
+			{ text: '    account.balance -= @amount', color: 'muted' },
+			{
+				text: '    account.save!          # Step 1: committed',
+				color: 'yellow',
+			},
+			{
+				text: '    Order.create!(...)     # Step 2: might fail',
+				color: 'yellow',
+			},
+			{
+				text: '    AuditLog.create!(...) # Step 3: might fail',
+				color: 'yellow',
+			},
+			{
+				text: '    # No transaction wrapping these operations!',
 				color: 'red',
 			},
 			{ text: '  end', color: 'muted' },
@@ -70,88 +106,61 @@ const PROBES = [
 ];
 
 const STEP_DEFS = [
-	{ id: 'add-lock-version', title: 'Add Lock Version Column' },
-	{ id: 'run-migration', title: 'Run Migration' },
+	{ id: 'identify-problem', title: 'Identify the Problem' },
 	{ id: 'wrap-transaction', title: 'Wrap in Transaction' },
-	{ id: 'add-pessimistic-lock', title: 'Add Row Lock' },
-	{ id: 'build-service', title: 'Build Deduction Service' },
-	{ id: 'handle-stale-error', title: 'Handle Conflicts' },
+	{ id: 'handle-rollback', title: 'Handle Custom Abort' },
+	{ id: 'build-service', title: 'Build Order Service' },
 ];
 
-const LOCK_VERSION_COMMANDS = [
+const IDENTIFY_OPTIONS = [
 	{
-		id: 'wrong-boolean',
-		label: 'rails g migration AddLockedToAccounts locked:boolean',
+		id: 'wrong-validation',
 		correct: false,
 		feedback:
-			'A boolean flag cannot detect concurrent modifications. Optimistic locking needs a column that tracks how many times a record has been saved.',
+			'Validation is important but not the root cause here. The issue is that each database write commits independently, so a failure midway leaves partial data.',
 	},
 	{
-		id: 'wrong-timestamp',
-		label: 'rails g migration AddUpdatedAtToAccounts updated_at:datetime',
+		id: 'wrong-ordering',
 		correct: false,
 		feedback:
-			'Timestamps have precision issues with concurrent writes. Rails needs an auto-incrementing counter to detect exact version mismatches.',
+			'Reordering the steps does not solve the problem. Any step can fail, and without atomicity, earlier committed writes cannot be undone.',
 	},
 	{
-		id: 'correct-lock-version',
-		label: 'rails g migration AddLockVersionToAccounts lock_version:integer',
-		correct: true,
-	},
-];
-
-const MIGRATE_COMMANDS = [
-	{
-		id: 'wrong-seed',
-		label: 'rails db:seed',
-		correct: false,
-		feedback:
-			'Seeding populates the database with sample data. The migration file still needs to be applied to the schema.',
-	},
-	{
-		id: 'wrong-reset',
-		label: 'rails db:reset',
-		correct: false,
-		feedback:
-			'Resetting drops and recreates the database from schema.rb. That discards all existing data. You just need to apply the pending migration.',
-	},
-	{
-		id: 'correct-migrate',
-		label: 'rails db:migrate',
+		id: 'correct-no-atomicity',
 		correct: true,
 	},
 ];
 
 const TRANSACTION_OPTIONS = [
 	{
-		id: 'wrong-no-transaction',
-		correct: false,
-		feedback:
-			'Without a transaction, if AuditLog.create! fails, the balance is already deducted but no record exists. The operations must succeed or fail together.',
-	},
-	{ id: 'correct-transaction', correct: true },
-	{
-		id: 'wrong-rescue-only',
+		id: 'wrong-begin-rescue',
 		correct: false,
 		feedback:
 			'Manual rescue and reload cannot undo a committed write. Only database transactions guarantee atomicity with automatic rollback on any failure.',
 	},
+	{ id: 'correct-transaction', correct: true },
+	{
+		id: 'wrong-save-only',
+		correct: false,
+		feedback:
+			'Letting exceptions propagate does not undo writes that already committed. Without a transaction boundary, account.save! persists even if Order.create! fails.',
+	},
 ];
 
-const PESSIMISTIC_OPTIONS = [
+const ROLLBACK_OPTIONS = [
 	{
-		id: 'wrong-find-only',
+		id: 'wrong-return-false',
 		correct: false,
 		feedback:
-			'A plain find does not acquire a row lock. Another transaction can read and modify the same row concurrently, causing a lost update.',
+			'Returning false inside a transaction does NOT trigger a rollback. The transaction commits normally with the balance already deducted. You need to raise to abort.',
 	},
-	{ id: 'correct-lock', correct: true },
 	{
-		id: 'wrong-with-lock-outside',
+		id: 'wrong-throw',
 		correct: false,
 		feedback:
-			'The audit log creation is outside the lock block. If it fails, the balance was already changed. All related writes must be inside the same locked transaction.',
+			'In Ruby, throw/catch is for flow control, not exception handling. ActiveRecord transactions respond to raise, not throw. Use the built-in rollback exception.',
 	},
+	{ id: 'correct-rollback-raise', correct: true },
 ];
 
 const SERVICE_OPTIONS = [
@@ -164,58 +173,37 @@ const SERVICE_OPTIONS = [
 	{ id: 'correct-with-contract', correct: true },
 ];
 
-const STALE_ERROR_OPTIONS = [
-	{
-		id: 'wrong-ignore',
-		correct: false,
-		feedback:
-			'Without handling StaleObjectError, the second writer silently overwrites the first. Optimistic locking requires catching and retrying or reporting the conflict.',
-	},
-	{ id: 'correct-rescue-retry', correct: true },
-	{
-		id: 'wrong-pessimistic-everywhere',
-		correct: false,
-		feedback:
-			'Pessimistic locking for low-contention profile edits is overkill. It blocks concurrent reads and can cause deadlocks. Use optimistic locking (lock_version) with StaleObjectError handling instead.',
-	},
-];
-
 const STRESS_SCENARIOS = [
 	{
-		id: 'single-deduct',
-		label: 'POST deduct $30',
+		id: 'valid-order',
+		label: 'POST order $50 (valid)',
 		expectedResult: 'allowed' as const,
 	},
 	{
-		id: 'concurrent-deduct-locked',
-		label: 'POST concurrent deductions (locked)',
+		id: 'order-with-coupon',
+		label: 'POST order $30 with coupon',
 		expectedResult: 'allowed' as const,
-	},
-	{
-		id: 'transfer',
-		label: 'POST transfer $50 between accounts',
-		expectedResult: 'allowed' as const,
-	},
-	{
-		id: 'insufficient-funds',
-		label: 'POST deduct $200 (insufficient)',
-		expectedResult: 'blocked' as const,
-	},
-	{
-		id: 'stale-profile-edit',
-		label: 'PATCH profile (stale version)',
-		expectedResult: 'blocked' as const,
 	},
 	{
 		id: 'invalid-amount',
-		label: 'POST deduct -$10 (invalid)',
+		label: 'POST order -$10 (invalid)',
+		expectedResult: 'blocked' as const,
+	},
+	{
+		id: 'order-creation-fails',
+		label: 'POST order (creation error)',
+		expectedResult: 'blocked' as const,
+	},
+	{
+		id: 'audit-fails-rollback',
+		label: 'POST order (audit fails, rollback)',
 		expectedResult: 'blocked' as const,
 	},
 ];
 
 // ── Tests ──
 
-describe('Level 33: Transactions & Locking', () => {
+describe('Level 33: Transactions (Atomicity)', () => {
 	describe('Discovery definitions', () => {
 		test('has exactly 3 discoveries', () => {
 			expect(DISCOVERY_DEFS).toHaveLength(3);
@@ -287,26 +275,24 @@ describe('Level 33: Transactions & Locking', () => {
 			}
 		});
 
-		test('concurrent-deduct probe shows both users reading stale balance', () => {
-			const probe = PROBES.find((p) => p.id === 'concurrent-deduct');
+		test('order-fail probe shows partial failure', () => {
+			const probe = PROBES.find((p) => p.id === 'order-fail');
 			const texts = probe?.responseLines.map((l) => l.text).join(' ') ?? '';
-			expect(texts).toContain('User A');
-			expect(texts).toContain('User B');
-			expect(texts).toContain('$100');
+			expect(texts).toContain('BOOM');
+			expect(texts).toContain('no order');
 		});
 
-		test('partial-failure probe shows incomplete operation', () => {
-			const probe = PROBES.find((p) => p.id === 'partial-failure');
+		test('audit-fail probe shows orphaned data', () => {
+			const probe = PROBES.find((p) => p.id === 'audit-fail');
 			const texts = probe?.responseLines.map((l) => l.text).join(' ') ?? '';
-			expect(texts).toContain('sender');
-			expect(texts).toContain('receiver');
-			expect(texts).toContain('BOOM');
+			expect(texts).toContain('audit');
+			expect(texts).toContain('ConnectionError');
 		});
 	});
 
 	describe('Build step quality', () => {
-		test('has exactly 6 build steps', () => {
-			expect(STEP_DEFS).toHaveLength(6);
+		test('has exactly 4 build steps', () => {
+			expect(STEP_DEFS).toHaveLength(4);
 		});
 
 		test('all step IDs are unique', () => {
@@ -316,20 +302,13 @@ describe('Level 33: Transactions & Locking', () => {
 
 		test('step titles do not reveal specific method names', () => {
 			for (const step of STEP_DEFS) {
-				expect(step.title).not.toContain('lock_version');
-				expect(step.title).not.toContain('with_lock');
-				expect(step.title).not.toContain('StaleObjectError');
 				expect(step.title).not.toContain('ActiveRecord::Base.transaction');
+				expect(step.title).not.toContain('ActiveRecord::Rollback');
 			}
 		});
 
-		test('correct lock_version command is never first', () => {
-			const correctIdx = LOCK_VERSION_COMMANDS.findIndex((c) => c.correct);
-			expect(correctIdx).toBeGreaterThan(0);
-		});
-
-		test('correct migrate command is never first', () => {
-			const correctIdx = MIGRATE_COMMANDS.findIndex((c) => c.correct);
+		test('correct identify option is never first', () => {
+			const correctIdx = IDENTIFY_OPTIONS.findIndex((c) => c.correct);
 			expect(correctIdx).toBeGreaterThan(0);
 		});
 
@@ -338,8 +317,8 @@ describe('Level 33: Transactions & Locking', () => {
 			expect(correctIdx).toBeGreaterThan(0);
 		});
 
-		test('correct pessimistic lock option is never first', () => {
-			const correctIdx = PESSIMISTIC_OPTIONS.findIndex((c) => c.correct);
+		test('correct rollback option is never first', () => {
+			const correctIdx = ROLLBACK_OPTIONS.findIndex((c) => c.correct);
 			expect(correctIdx).toBeGreaterThan(0);
 		});
 
@@ -348,19 +327,12 @@ describe('Level 33: Transactions & Locking', () => {
 			expect(correctIdx).toBeGreaterThan(0);
 		});
 
-		test('correct stale error option is never first', () => {
-			const correctIdx = STALE_ERROR_OPTIONS.findIndex((c) => c.correct);
-			expect(correctIdx).toBeGreaterThan(0);
-		});
-
 		test('each step has exactly one correct answer', () => {
 			const allStepOptions = [
-				LOCK_VERSION_COMMANDS,
-				MIGRATE_COMMANDS,
+				IDENTIFY_OPTIONS,
 				TRANSACTION_OPTIONS,
-				PESSIMISTIC_OPTIONS,
+				ROLLBACK_OPTIONS,
 				SERVICE_OPTIONS,
-				STALE_ERROR_OPTIONS,
 			];
 			for (const options of allStepOptions) {
 				const correctCount = options.filter((o) => o.correct).length;
@@ -370,12 +342,10 @@ describe('Level 33: Transactions & Locking', () => {
 
 		test('every wrong option has feedback', () => {
 			const allStepOptions = [
-				LOCK_VERSION_COMMANDS,
-				MIGRATE_COMMANDS,
+				IDENTIFY_OPTIONS,
 				TRANSACTION_OPTIONS,
-				PESSIMISTIC_OPTIONS,
+				ROLLBACK_OPTIONS,
 				SERVICE_OPTIONS,
-				STALE_ERROR_OPTIONS,
 			];
 			for (const options of allStepOptions) {
 				for (const opt of options) {
@@ -389,36 +359,35 @@ describe('Level 33: Transactions & Locking', () => {
 
 		test('feedback never reveals the correct answer', () => {
 			const allWrongOptions = [
-				...LOCK_VERSION_COMMANDS.filter((o) => !o.correct),
-				...MIGRATE_COMMANDS.filter((o) => !o.correct),
+				...IDENTIFY_OPTIONS.filter((o) => !o.correct),
 				...TRANSACTION_OPTIONS.filter((o) => !o.correct),
-				...PESSIMISTIC_OPTIONS.filter((o) => !o.correct),
+				...ROLLBACK_OPTIONS.filter((o) => !o.correct),
 				...SERVICE_OPTIONS.filter((o) => !o.correct),
-				...STALE_ERROR_OPTIONS.filter((o) => !o.correct),
 			];
 			for (const opt of allWrongOptions) {
 				const fb = opt.feedback?.toLowerCase() ?? '';
-				expect(fb).not.toContain('lock_version:integer');
-				expect(fb).not.toContain('account.lock.find');
-				expect(fb).not.toContain('rails db:migrate');
-				// Feedback should not name the exact column (lock_version)
-				expect(fb).not.toContain('lock_version column');
+				expect(fb).not.toContain('activerecord::base.transaction do');
+				expect(fb).not.toContain('raise activerecord::rollback');
 			}
 		});
 
-		test('terminal steps are 0-1, option steps are 2-5', () => {
-			expect(STEP_DEFS[0].id).toBe('add-lock-version');
-			expect(STEP_DEFS[1].id).toBe('run-migration');
-			expect(STEP_DEFS[2].id).toBe('wrap-transaction');
-			expect(STEP_DEFS[3].id).toBe('add-pessimistic-lock');
-			expect(STEP_DEFS[4].id).toBe('build-service');
-			expect(STEP_DEFS[5].id).toBe('handle-stale-error');
+		test('step progression follows logical order', () => {
+			const stepIds = STEP_DEFS.map((s) => s.id);
+			expect(stepIds.indexOf('identify-problem')).toBeLessThan(
+				stepIds.indexOf('wrap-transaction'),
+			);
+			expect(stepIds.indexOf('wrap-transaction')).toBeLessThan(
+				stepIds.indexOf('handle-rollback'),
+			);
+			expect(stepIds.indexOf('handle-rollback')).toBeLessThan(
+				stepIds.indexOf('build-service'),
+			);
 		});
 	});
 
 	describe('Stress test scenarios', () => {
-		test('has 6 scenarios', () => {
-			expect(STRESS_SCENARIOS).toHaveLength(6);
+		test('has 5 scenarios', () => {
+			expect(STRESS_SCENARIOS).toHaveLength(5);
 		});
 
 		test('all scenario IDs are unique', () => {
@@ -442,37 +411,28 @@ describe('Level 33: Transactions & Locking', () => {
 			expect(blocked.length).toBeGreaterThan(0);
 		});
 
-		test('has 3 allowed and 3 blocked scenarios', () => {
+		test('has 2 allowed and 3 blocked scenarios', () => {
 			const allowed = STRESS_SCENARIOS.filter(
 				(s) => s.expectedResult === 'allowed',
 			);
 			const blocked = STRESS_SCENARIOS.filter(
 				(s) => s.expectedResult === 'blocked',
 			);
-			expect(allowed).toHaveLength(3);
+			expect(allowed).toHaveLength(2);
 			expect(blocked).toHaveLength(3);
 		});
 
-		test('includes concurrent deduction scenario (reward mirrors observe)', () => {
-			const concurrent = STRESS_SCENARIOS.find(
-				(s) => s.id === 'concurrent-deduct-locked',
+		test('includes rollback scenarios that mirror observe failures', () => {
+			const orderFail = STRESS_SCENARIOS.find(
+				(s) => s.id === 'order-creation-fails',
 			);
-			expect(concurrent).toBeDefined();
-			expect(concurrent?.expectedResult).toBe('allowed');
-		});
-
-		test('includes insufficient funds validation', () => {
-			const insufficient = STRESS_SCENARIOS.find(
-				(s) => s.id === 'insufficient-funds',
+			const auditFail = STRESS_SCENARIOS.find(
+				(s) => s.id === 'audit-fails-rollback',
 			);
-			expect(insufficient).toBeDefined();
-			expect(insufficient?.expectedResult).toBe('blocked');
-		});
-
-		test('includes optimistic locking conflict scenario', () => {
-			const stale = STRESS_SCENARIOS.find((s) => s.id === 'stale-profile-edit');
-			expect(stale).toBeDefined();
-			expect(stale?.expectedResult).toBe('blocked');
+			expect(orderFail).toBeDefined();
+			expect(orderFail?.expectedResult).toBe('blocked');
+			expect(auditFail).toBeDefined();
+			expect(auditFail?.expectedResult).toBe('blocked');
 		});
 
 		test('includes contract validation scenario (invalid amount)', () => {
@@ -492,37 +452,22 @@ describe('Level 33: Transactions & Locking', () => {
 			}
 		});
 
-		test('concurrent deduction appears in both observe and reward', () => {
-			const observeProbe = PROBES.find((p) => p.id === 'concurrent-deduct');
+		test('partial failure appears in both observe and reward', () => {
+			const observeProbe = PROBES.find((p) => p.id === 'order-fail');
 			const rewardScenario = STRESS_SCENARIOS.find(
-				(s) => s.id === 'concurrent-deduct-locked',
+				(s) => s.id === 'order-creation-fails',
 			);
 			expect(observeProbe).toBeDefined();
 			expect(rewardScenario).toBeDefined();
 		});
 
-		test('probe and stress test button labels use consistent format', () => {
-			// Probes use descriptive labels, stress tests use HTTP method + description
-			// Both should be short and descriptive (not full URL paths)
-			for (const probe of PROBES) {
-				expect(probe.label.length).toBeLessThan(60);
-			}
-			for (const scenario of STRESS_SCENARIOS) {
-				expect(scenario.label.length).toBeLessThan(60);
-			}
-		});
-
-		test('reward scenarios cover both locking strategies from build phase', () => {
-			// Pessimistic locking (financial ops)
-			const pessimistic = STRESS_SCENARIOS.find(
-				(s) => s.id === 'concurrent-deduct-locked',
+		test('audit failure appears in both observe and reward', () => {
+			const observeProbe = PROBES.find((p) => p.id === 'audit-fail');
+			const rewardScenario = STRESS_SCENARIOS.find(
+				(s) => s.id === 'audit-fails-rollback',
 			);
-			expect(pessimistic).toBeDefined();
-			// Optimistic locking (profile edits)
-			const optimistic = STRESS_SCENARIOS.find(
-				(s) => s.id === 'stale-profile-edit',
-			);
-			expect(optimistic).toBeDefined();
+			expect(observeProbe).toBeDefined();
+			expect(rewardScenario).toBeDefined();
 		});
 	});
 
@@ -539,22 +484,6 @@ describe('Level 33: Transactions & Locking', () => {
 			expect(noContract?.feedback).toContain('contract');
 			expect(noContract?.feedback).toContain('Dry::Validation::Contract');
 		});
-
-		test('stale error handler uses standard error shape', () => {
-			const correct = STALE_ERROR_OPTIONS.find((o) => o.correct);
-			// The correct option should reference the { error: { code, message, details } } shape
-			expect(correct?.id).toBe('correct-rescue-retry');
-		});
-
-		test('wrong stale error options explain why they fail', () => {
-			const ignore = STALE_ERROR_OPTIONS.find((o) => o.id === 'wrong-ignore');
-			expect(ignore?.feedback).toContain('StaleObjectError');
-
-			const pessimistic = STALE_ERROR_OPTIONS.find(
-				(o) => o.id === 'wrong-pessimistic-everywhere',
-			);
-			expect(pessimistic?.feedback).toContain('optimistic locking');
-		});
 	});
 
 	describe('Data consistency', () => {
@@ -563,35 +492,10 @@ describe('Level 33: Transactions & Locking', () => {
 		});
 
 		test('all option step arrays have at least 2 options', () => {
+			expect(IDENTIFY_OPTIONS.length).toBeGreaterThanOrEqual(2);
 			expect(TRANSACTION_OPTIONS.length).toBeGreaterThanOrEqual(2);
-			expect(PESSIMISTIC_OPTIONS.length).toBeGreaterThanOrEqual(2);
+			expect(ROLLBACK_OPTIONS.length).toBeGreaterThanOrEqual(2);
 			expect(SERVICE_OPTIONS.length).toBeGreaterThanOrEqual(2);
-			expect(STALE_ERROR_OPTIONS.length).toBeGreaterThanOrEqual(2);
-		});
-
-		test('step progression follows logical order', () => {
-			// First: add lock_version column (migration generation)
-			// Then: run migration (apply schema change)
-			// Then: wrap in transaction (foundation)
-			// Then: add pessimistic lock (strengthen)
-			// Then: build service with contract (cumulative pattern)
-			// Finally: handle optimistic lock conflicts (error case)
-			const stepIds = STEP_DEFS.map((s) => s.id);
-			expect(stepIds.indexOf('add-lock-version')).toBeLessThan(
-				stepIds.indexOf('run-migration'),
-			);
-			expect(stepIds.indexOf('run-migration')).toBeLessThan(
-				stepIds.indexOf('wrap-transaction'),
-			);
-			expect(stepIds.indexOf('wrap-transaction')).toBeLessThan(
-				stepIds.indexOf('add-pessimistic-lock'),
-			);
-			expect(stepIds.indexOf('add-pessimistic-lock')).toBeLessThan(
-				stepIds.indexOf('build-service'),
-			);
-			expect(stepIds.indexOf('build-service')).toBeLessThan(
-				stepIds.indexOf('handle-stale-error'),
-			);
 		});
 	});
 });

@@ -1,5 +1,5 @@
 /**
- * Level 39: API Versioning
+ * Level 40: API Versioning
  *
  * Three-phase flow: observe -> build -> activate -> reward
  *
@@ -757,7 +757,7 @@ end`,
 }
 
 // ─── Main component ────────────────────────────────────────────────────
-export function Level39APIVersioning(_props: LevelComponentProps) {
+export function Level40APIVersioning(_props: LevelComponentProps) {
 	const [phase, setPhase] = useState<
 		'observe' | 'build' | 'activate' | 'reward'
 	>('observe');
@@ -1345,4 +1345,4 @@ export function Level39APIVersioning(_props: LevelComponentProps) {
 	);
 }
 
-export default Level39APIVersioning;
+export default Level40APIVersioning;

@@ -1,5 +1,5 @@
 /**
- * Level 40: Middleware & Rack
+ * Level 41: Middleware & Rack
  *
  * 4-step progression to understand the Rack middleware stack,
  * write custom middleware, and insert it correctly.
@@ -211,7 +211,7 @@ const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
 // Component
 // ---------------------------------------------------------------------------
 
-export function Level40Middleware({ onComplete }: LevelComponentProps) {
+export function Level41Middleware({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
 	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
@@ -785,4 +785,4 @@ end`,
 	);
 }
 
-export default Level40Middleware;
+export default Level41Middleware;

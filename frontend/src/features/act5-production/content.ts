@@ -2,7 +2,7 @@
  * Act 5: Production Features
  * "Real users, real money, real failures."
  *
- * Levels 32-39: Polymorphic Associations, Transactions & Locking, Active Storage,
+ * Levels 32-40: Polymorphic Associations, Transactions & Locking, Locking, Active Storage,
  * Encrypted Attributes, Real-Time, External APIs, Webhooks & Idempotency, API Versioning
  * App context: SaaS API with payments
  */
@@ -176,27 +176,179 @@ end`,
 };
 
 // ============================================
-// Level 33: Transactions & Locking
+// Level 33: Transactions (Atomicity)
 // ============================================
 
 const level33Transactions: Level = {
 	id: 'act5-level33-transactions',
 	actId: 5,
 	levelNumber: 33,
-	name: 'Transactions & Locking',
+	name: 'Transactions',
 	requiresTests: true,
 	trigger: {
 		type: 'incident',
 		description:
-			'Two users update the same subscription simultaneously. The last write silently overwrites the first. Account balance is now corrupted.',
+			'An order fails mid-processing. The account was charged but no order was created. $100 vanished with no record of what happened.',
+	},
+	startingPipeline: standardPipeline(),
+	problem: {
+		observation:
+			'The order pipeline runs three steps sequentially: charge account, create order, write audit log. When step 2 or 3 fails, step 1 is already committed and cannot be undone.',
+		rootCause:
+			'Each database write commits independently. Without a transaction boundary, a failure midway leaves partial writes that corrupt data integrity.',
+		codeExample: `# BAD: Each operation commits independently
+class ProcessOrder < ApplicationService
+  Result = Data.define(:success?, :order, :errors)
+
+  def initialize(account_id:, amount:, items:)
+    @account_id = account_id
+    @amount = amount
+    @items = items
+  end
+
+  def call
+    v = OrderContract.new.call(
+      account_id: @account_id,
+      amount: @amount, items: @items)
+    return Result.new(success?: false,
+      order: nil, errors: v.errors.to_h) if v.failure?
+
+    account = Account.find(@account_id)
+    account.balance -= @amount
+    account.save!
+    # Step 1 committed. If step 2 fails...
+    order = Order.create!(account:, total: @amount,
+      items: @items)
+    # Step 2 committed. If step 3 fails...
+    AuditLog.create!(account:, amount: -@amount,
+      balance_after: account.balance)
+    Result.new(success?: true, order:, errors: [])
+  end
+end`,
+		goal: 'Identify the atomicity problem, wrap operations in a transaction, handle custom abort with raise ActiveRecord::Rollback, and build a ProcessOrder service with contract validation.',
+		thresholds: {},
+	},
+	successConditions: [
+		{ type: 'node_present', nodeType: 'model' },
+		{ type: 'connection', sourceType: 'controller', targetType: 'model' },
+	],
+	availableNodes: [],
+	unlockedNodes: [],
+	learningContent: {
+		title: 'Transactions (Atomicity)',
+		goal: `In this level, you'll:\n- understand why multi-step writes need atomicity guarantees\n- wrap related database writes in ActiveRecord::Base.transaction\n- use raise ActiveRecord::Rollback for business-rule aborts\n- build a service object that ensures all-or-nothing semantics`,
+		conceptExplanation: `Transactions ensure a group of database operations either ALL succeed or ALL fail (rollback). Without transactions, a failure midway through a multi-step write leaves data in an inconsistent state.
+
+**The problem:**
+\`\`\`ruby
+account.save!           # Step 1: committed
+Order.create!(...)      # Step 2: might fail
+AuditLog.create!(...)   # Step 3: might fail
+# If step 2 fails, step 1 is already persisted!
+\`\`\`
+
+**The solution:**
+\`\`\`ruby
+ActiveRecord::Base.transaction do
+  account.save!
+  Order.create!(...)
+  AuditLog.create!(...)
+end
+# If ANY step raises, ALL are rolled back
+\`\`\`
+
+**Custom aborts:**
+- \`raise ActiveRecord::Rollback\` silently aborts the transaction
+- Unlike other exceptions, it does not propagate outside the block
+- Use it for business rule failures (e.g., insufficient funds)
+
+**Key rules:**
+- Always wrap related writes in a transaction
+- Any exception inside the block triggers rollback
+- The transaction returns nil when rolled back via Rollback`,
+		railsCodeExample: `# app/contracts/order_contract.rb
+class OrderContract < Dry::Validation::Contract
+  params do
+    required(:account_id).filled(:integer)
+    required(:amount).filled(:decimal, gt?: 0)
+    required(:items).filled(:array, min_size?: 1)
+  end
+end
+
+# app/services/process_order.rb
+class ProcessOrder < ApplicationService
+  Result = Data.define(:success?, :order, :errors)
+
+  def initialize(account_id:, amount:, items:)
+    @account_id = account_id
+    @amount = amount
+    @items = items
+  end
+
+  def call
+    v = OrderContract.new.call(
+      account_id: @account_id,
+      amount: @amount, items: @items)
+    return Result.new(success?: false,
+      order: nil, errors: v.errors.to_h) if v.failure?
+
+    ActiveRecord::Base.transaction do
+      account = Account.find(@account_id)
+      raise ActiveRecord::Rollback if account.balance < @amount
+      account.balance -= @amount
+      account.save!
+      order = Order.create!(account:, total: @amount,
+        items: @items)
+      AuditLog.create!(account:, amount: -@amount,
+        balance_after: account.balance)
+      Result.new(success?: true, order:, errors: [])
+    end || Result.new(success?: false, order: nil,
+      errors: ["Insufficient funds"])
+  end
+end`,
+		commonMistakes: [
+			'Not wrapping related writes in a transaction (partial failures corrupt data)',
+			'Using begin/rescue/reload instead of a real transaction for rollback',
+			'Returning false inside a transaction and expecting rollback (only raise works)',
+			'Nesting transactions without understanding savepoints',
+		],
+		whenToUse:
+			'Any time multiple database writes must succeed or fail together: charge + order, transfer between accounts, multi-table updates.',
+		furtherReading: [
+			{
+				title: 'Active Record Transactions',
+				url: 'https://api.rubyonrails.org/classes/ActiveRecord/Transactions/ClassMethods.html',
+			},
+		],
+	},
+	hint: {
+		delay: 25,
+		text: 'What guarantees that all three steps succeed or fail together? Think about database-level atomicity.',
+	},
+};
+
+// ============================================
+// Level 34: Locking (Concurrency Control)
+// ============================================
+
+const level34Locking: Level = {
+	id: 'act5-level34-locking',
+	actId: 5,
+	levelNumber: 34,
+	name: 'Locking',
+	requiresTests: true,
+	trigger: {
+		type: 'incident',
+		description:
+			'Two users deduct from the same account simultaneously. The last write silently overwrites the first. $30 vanished from the ledger.',
 	},
 	startingPipeline: standardPipeline(),
 	problem: {
 		observation:
 			'User A reads balance ($100), User B reads balance ($100). A deducts $30, saves $70. B deducts $50, saves $50. Actual balance should be $20 but is $50. Lost update.',
 		rootCause:
-			'No transaction isolation or locking. Concurrent reads followed by concurrent writes cause lost updates.',
-		codeExample: `# BAD: Race condition in the service
+			'No row-level locking. Concurrent reads followed by concurrent writes cause lost updates because each thread operates on stale data.',
+		codeExample: `# BAD: No locking in the service
 class DeductBalance < ApplicationService
   Result = Data.define(:success?, :account, :errors)
 
@@ -212,15 +364,14 @@ class DeductBalance < ApplicationService
       account: nil, errors: v.errors.to_h) if v.failure?
 
     account = Account.find(@account_id)
-    # User A reads $100, User B reads $100 (stale!)
+    # Thread A reads $100, Thread B reads $100 (stale!)
     account.balance -= @amount
     account.save!
-    # No transaction! No lock!
-    # User A saves $70, User B saves $50 (overwrites!)
+    # Thread A saves $70, Thread B saves $50 (overwrites!)
     Result.new(success?: true, account:, errors: [])
   end
 end`,
-		goal: 'Add a lock_version column, run the migration, wrap writes in transactions, add pessimistic locking, build a service with validation, and handle optimistic lock conflicts.',
+		goal: 'Add a lock_version column, run the migration, add pessimistic locking with Account.lock.find(id), build a DeductBalance service with contract, and handle StaleObjectError for optimistic locking.',
 		thresholds: {},
 	},
 	successConditions: [
@@ -230,28 +381,34 @@ end`,
 	availableNodes: [],
 	unlockedNodes: [],
 	learningContent: {
-		title: 'Transactions & Locking',
-		goal: `In this level, you'll:\n- learn how to protect data integrity when multiple operations must succeed or fail together.\n- wrap related writes in database transactions.\n- use optimistic locking with lock_version for low-contention edits.\n- apply pessimistic locking with FOR UPDATE for critical operations like financial transfers.`,
-		conceptExplanation: `Transactions ensure a group of operations either ALL succeed or ALL fail. Locking prevents concurrent access from corrupting data.
-
-**Transactions:**
-- Wrap multiple writes in \`ActiveRecord::Base.transaction\`
-- If any operation raises, everything is rolled back
-- Essential for multi-step operations (charge + create order + send email)
+		title: 'Locking (Concurrency Control)',
+		goal: `In this level, you'll:\n- understand how concurrent access causes lost updates\n- add a lock_version column for optimistic locking\n- use Account.lock.find(id) for pessimistic locking (SELECT ... FOR UPDATE)\n- handle StaleObjectError for conflict detection on low-contention resources`,
+		conceptExplanation: `Locking prevents concurrent access from corrupting shared data. Two strategies exist:
 
 **Optimistic Locking (lock_version column):**
-- No database locks held
-- Checks \`lock_version\` on save; raises \`StaleObjectError\` if changed
+- No database locks held during read
+- On save, Rails checks if \`lock_version\` has changed since the record was loaded
+- If changed, raises \`ActiveRecord::StaleObjectError\`
 - Best for low-contention resources (profile edits, CMS pages)
 
 **Pessimistic Locking (SELECT ... FOR UPDATE):**
-- Acquires a database row lock
-- Other transactions wait until lock is released
+- Acquires a database row lock when reading
+- Other transactions must wait until the lock is released (on COMMIT/ROLLBACK)
 - Best for high-contention resources (account balances, inventory counts)
 
 **Rule of thumb:**
-- Low contention + user-facing: Optimistic (retry on conflict)
-- High contention + financial: Pessimistic (serialize access)`,
+- Low contention + user-facing: Optimistic (detect conflict, ask user to retry)
+- High contention + financial: Pessimistic (serialize access, no lost updates)
+
+**Key API:**
+\`\`\`ruby
+# Pessimistic
+Account.lock.find(id)     # SELECT ... FOR UPDATE
+account.with_lock { ... } # lock + block
+
+# Optimistic (needs lock_version column)
+account.save! # raises StaleObjectError if version mismatch
+\`\`\``,
 		railsCodeExample: `# app/contracts/deduction_contract.rb
 class DeductionContract < Dry::Validation::Contract
   params do
@@ -311,19 +468,14 @@ class Api::V1::AccountsController < ApplicationController
   end
 end`,
 		commonMistakes: [
-			'Not wrapping related writes in a transaction (partial failures corrupt data)',
 			'Using optimistic locking for financial operations (too many retries under load)',
 			'Holding pessimistic locks too long (causes deadlocks and timeouts)',
 			'Forgetting to handle StaleObjectError when using optimistic locking',
-			'Nesting transactions without understanding savepoints',
+			'Using pessimistic locks for low-contention profile edits (overkill)',
 		],
 		whenToUse:
-			'Transactions for any multi-step write. Pessimistic locking for financial data. Optimistic locking for low-contention edits.',
+			'Pessimistic locking for financial data and inventory. Optimistic locking for user profiles and content edits.',
 		furtherReading: [
-			{
-				title: 'Active Record Transactions',
-				url: 'https://api.rubyonrails.org/classes/ActiveRecord/Transactions/ClassMethods.html',
-			},
 			{
 				title: 'Active Record Locking',
 				url: 'https://api.rubyonrails.org/classes/ActiveRecord/Locking.html',
@@ -337,13 +489,13 @@ end`,
 };
 
 // ============================================
-// Level 34: Active Storage
+// Level 35: Active Storage
 // ============================================
 
-const level34ActiveStorage: Level = {
-	id: 'act5-level34-active-storage',
+const level35ActiveStorage: Level = {
+	id: 'act5-level35-active-storage',
 	actId: 5,
-	levelNumber: 34,
+	levelNumber: 35,
 	name: 'Active Storage',
 	requiresTests: true,
 	trigger: {
@@ -502,13 +654,13 @@ end`,
 };
 
 // ============================================
-// Level 35: Encrypted Attributes
+// Level 36: Encrypted Attributes
 // ============================================
 
-const level35Encryption: Level = {
-	id: 'act5-level35-encryption',
+const level36Encryption: Level = {
+	id: 'act5-level36-encryption',
 	actId: 5,
-	levelNumber: 35,
+	levelNumber: 36,
 	name: 'Encrypted Attributes',
 	requiresTests: true,
 	trigger: {
@@ -655,13 +807,13 @@ Rails.application.config.active_record.encryption.previous = [
 };
 
 // ============================================
-// Level 36: Real-Time
+// Level 37: Real-Time
 // ============================================
 
-const level36Realtime: Level = {
-	id: 'act5-level36-realtime',
+const level37Realtime: Level = {
+	id: 'act5-level37-realtime',
 	actId: 5,
-	levelNumber: 36,
+	levelNumber: 37,
 	name: 'Real-Time',
 	requiresTests: true,
 	trigger: {
@@ -823,13 +975,13 @@ end`,
 };
 
 // ============================================
-// Level 37: External APIs
+// Level 38: External APIs
 // ============================================
 
-const level37ExternalAPIs: Level = {
-	id: 'act5-level37-external-apis',
+const level38ExternalAPIs: Level = {
+	id: 'act5-level38-external-apis',
 	actId: 5,
-	levelNumber: 37,
+	levelNumber: 38,
 	name: 'External APIs',
 	requiresTests: true,
 	trigger: {
@@ -1016,13 +1168,13 @@ end`,
 };
 
 // ============================================
-// Level 38: Webhooks & Idempotency
+// Level 39: Webhooks & Idempotency
 // ============================================
 
-const level38Webhooks: Level = {
-	id: 'act5-level38-webhooks',
+const level39Webhooks: Level = {
+	id: 'act5-level39-webhooks',
 	actId: 5,
-	levelNumber: 38,
+	levelNumber: 39,
 	name: 'Webhooks & Idempotency',
 	requiresTests: true,
 	trigger: {
@@ -1302,13 +1454,13 @@ end`,
 };
 
 // ============================================
-// Level 39: API Versioning
+// Level 40: API Versioning
 // ============================================
 
-const level39APIVersioning: Level = {
-	id: 'act5-level39-api-versioning',
+const level40APIVersioning: Level = {
+	id: 'act5-level40-api-versioning',
 	actId: 5,
-	levelNumber: 39,
+	levelNumber: 40,
 	name: 'API Versioning',
 	requiresTests: true,
 	trigger: {
@@ -1590,16 +1742,17 @@ export const actFive: Act = {
 	name: 'Production Features',
 	tagline: 'Time to ship what pays the bills.',
 	description:
-		'The API is fast and clean. Now build the features that make it a real product: polymorphic associations, transactions, file uploads, encryption, real-time notifications, external API integrations, webhooks, and API versioning.',
+		'The API is fast and clean. Now build the features that make it a real product: polymorphic associations, transactions, locking, file uploads, encryption, real-time notifications, external API integrations, webhooks, and API versioning.',
 	levels: [
 		level32Polymorphic,
 		level33Transactions,
-		level34ActiveStorage,
-		level35Encryption,
-		level36Realtime,
-		level37ExternalAPIs,
-		level38Webhooks,
-		level39APIVersioning,
+		level34Locking,
+		level35ActiveStorage,
+		level36Encryption,
+		level37Realtime,
+		level38ExternalAPIs,
+		level39Webhooks,
+		level40APIVersioning,
 	],
 	unlockedNodes: ['circuit_breaker', 's3'],
 	metricsVisible: true,

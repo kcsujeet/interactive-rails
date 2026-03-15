@@ -1,5 +1,5 @@
 /**
- * Level 41: Recurring Jobs & Scheduling
+ * Level 45: Recurring Jobs & Scheduling
  *
  * Build a recurring job schedule to automate maintenance tasks.
  * Teaches: Solid Queue recurring.yml, queue_as, cron scheduling
@@ -172,7 +172,7 @@ function formatHour(hour: number): string {
 
 // ── Component ──────────────────────────────────────────────────────────
 
-export function Level44RecurringJobs({
+export function Level45RecurringJobs({
 	onComplete,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
@@ -928,4 +928,4 @@ end`;
 	);
 }
 
-export default Level44RecurringJobs;
+export default Level45RecurringJobs;

@@ -1,5 +1,5 @@
 /**
- * Level 49: Database Sharding
+ * Level 50: Database Sharding
  *
  * Horizontal partitioning across multiple databases.
  * Shows tenant-based sharding strategy.
@@ -34,7 +34,7 @@ interface Query {
 	shard: number;
 }
 
-export function Level54Sharding({ onComplete }: LevelComponentProps) {
+export function Level55Sharding({ onComplete }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [shardingEnabled, setShardingEnabled] = useState(false);
 	const [tenants, setTenants] = useState<Tenant[]>([
@@ -480,4 +480,4 @@ end`,
 	);
 }
 
-export default Level54Sharding;
+export default Level55Sharding;

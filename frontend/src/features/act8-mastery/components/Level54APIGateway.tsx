@@ -1,5 +1,5 @@
 /**
- * Level 48: API Gateway
+ * Level 49: API Gateway
  *
  * Central entry point for microservices architecture.
  * Player learns routing, auth, rate limiting, and aggregation.
@@ -132,7 +132,7 @@ const SERVICES: Service[] = [
 	},
 ];
 
-export function Level53APIGateway({ onComplete }: LevelComponentProps) {
+export function Level54APIGateway({ onComplete }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
 	const [features, setFeatures] = useState<GatewayFeature[]>(INITIAL_FEATURES);
 	const [services, setServices] = useState<Service[]>(SERVICES);
@@ -640,4 +640,4 @@ server {
 	);
 }
 
-export default Level53APIGateway;
+export default Level54APIGateway;

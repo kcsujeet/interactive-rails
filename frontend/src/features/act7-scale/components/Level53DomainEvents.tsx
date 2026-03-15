@@ -1,5 +1,5 @@
 /**
- * Level 47: Domain Events
+ * Level 53: Domain Events
  *
  * Decouple services using event bus pub/sub.
  * Shows domain events pattern.
@@ -33,7 +33,7 @@ interface Event {
 	to: string[];
 }
 
-export function Level52DomainEvents({
+export function Level53DomainEvents({
 	onComplete,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
@@ -357,4 +357,4 @@ end`,
 	);
 }
 
-export default Level52DomainEvents;
+export default Level53DomainEvents;

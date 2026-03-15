@@ -1,5 +1,5 @@
 /**
- * Level 36: Real-Time with Action Cable + Solid Cable
+ * Level 37: Real-Time with Action Cable + Solid Cable
  *
  * Tests mirror the component data structures to verify:
  * - Discovery definitions and probe mappings
@@ -394,7 +394,7 @@ const STRESS_SCENARIOS = [
 
 // ── Tests ──
 
-describe('Level 36: Real-Time (Action Cable + Solid Cable)', () => {
+describe('Level 37: Real-Time (Action Cable + Solid Cable)', () => {
 	describe('Discovery definitions', () => {
 		test('has exactly 4 discoveries', () => {
 			expect(DISCOVERY_DEFS).toHaveLength(4);

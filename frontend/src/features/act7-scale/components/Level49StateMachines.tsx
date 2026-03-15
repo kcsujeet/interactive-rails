@@ -1,5 +1,5 @@
 /**
- * Level 44: State Machines
+ * Level 49: State Machines
  *
  * State diagram builder for order lifecycle using AASM.
  * Users draw valid transitions between states, add guard conditions,
@@ -188,7 +188,7 @@ function getArrowPath(
 // Component
 // ---------------------------------------------------------------------------
 
-export function Level48StateMachines({
+export function Level49StateMachines({
 	onComplete,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
@@ -1033,4 +1033,4 @@ end
 	);
 }
 
-export default Level48StateMachines;
+export default Level49StateMachines;

@@ -1,5 +1,5 @@
 /**
- * Level 39: Soft Deletes & Audit Trails
+ * Level 43: Soft Deletes & Audit Trails
  *
  * Learn to protect data with soft deletes (Discard gem) and track changes
  * with audit trails (PaperTrail gem). Delete records safely and restore them.
@@ -114,7 +114,7 @@ interface SoftDeleteConfig {
 
 // ─── Component ────────────────────────────────────────────────────
 
-export function Level42SoftDeletes({
+export function Level43SoftDeletes({
 	onComplete,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
@@ -894,4 +894,4 @@ PaperTrail.request.whodunnit = -> {
 	);
 }
 
-export default Level42SoftDeletes;
+export default Level43SoftDeletes;

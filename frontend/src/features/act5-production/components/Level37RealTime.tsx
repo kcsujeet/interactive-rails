@@ -1,5 +1,5 @@
 /**
- * Level 36: Real-Time with Action Cable + Solid Cable
+ * Level 37: Real-Time with Action Cable + Solid Cable
  *
  * Replace HTTP polling with WebSocket-based real-time via Action Cable.
  * Uses Solid Cable (Rails 8 default) as the adapter, no Redis needed.
@@ -774,7 +774,7 @@ end`,
 }
 
 // ─── Main component ────────────────────────────────────────────────────
-export function Level36RealTime({ onComplete }: LevelComponentProps) {
+export function Level37RealTime({ onComplete }: LevelComponentProps) {
 	const [phase, setPhase] = useState<
 		'observe' | 'build' | 'activate' | 'reward'
 	>('observe');
@@ -1450,4 +1450,4 @@ export function Level36RealTime({ onComplete }: LevelComponentProps) {
 	);
 }
 
-export default Level36RealTime;
+export default Level37RealTime;

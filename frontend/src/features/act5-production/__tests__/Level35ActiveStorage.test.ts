@@ -1,5 +1,5 @@
 /**
- * Level 34: Active Storage - Data Consistency Tests
+ * Level 35: Active Storage - Data Consistency Tests
  *
  * Tests mirror the data structures from the component to verify:
  * - Discovery definitions are complete and correctly mapped
@@ -118,7 +118,7 @@ const STRESS_SCENARIOS = [
 
 // ── Tests ──
 
-describe('Level 34: Active Storage', () => {
+describe('Level 35: Active Storage', () => {
 	describe('Discovery definitions', () => {
 		test('has exactly 4 discoveries', () => {
 			expect(DISCOVERY_DEFS).toHaveLength(4);

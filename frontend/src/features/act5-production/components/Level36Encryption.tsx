@@ -1,5 +1,5 @@
 /**
- * Level 35: Encrypted Attributes
+ * Level 36: Encrypted Attributes
  *
  * Sequential phase flow: observe -> build -> activate -> reward
  * Each phase occupies the full center panel. One thing at a time.
@@ -775,7 +775,7 @@ end`,
 // Component
 // ──────────────────────────────────────────────
 
-export function Level35Encryption({ onComplete }: LevelComponentProps) {
+export function Level36Encryption({ onComplete }: LevelComponentProps) {
 	const [phase, setPhase] = useState<Phase>('observe');
 	const [flowPhase, setFlowPhase] = useState(-1);
 	const [wrongFeedback, setWrongFeedback] = useState<string | null>(null);
@@ -1392,4 +1392,4 @@ export function Level35Encryption({ onComplete }: LevelComponentProps) {
 	);
 }
 
-export default Level35Encryption;
+export default Level36Encryption;

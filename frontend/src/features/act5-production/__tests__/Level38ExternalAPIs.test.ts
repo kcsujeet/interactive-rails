@@ -1,5 +1,5 @@
 /**
- * Level 37: External APIs (Resilient Integration)
+ * Level 38: External APIs (Resilient Integration)
  *
  * Tests mirror data structures to verify:
  * - Discovery defs and probe mappings
@@ -298,7 +298,7 @@ const STRESS_SCENARIOS = [
 
 // ── Tests ──
 
-describe('Level 37: External APIs (Resilient Integration)', () => {
+describe('Level 38: External APIs (Resilient Integration)', () => {
 	describe('Discovery definitions', () => {
 		test('has exactly 4 discoveries', () => {
 			expect(DISCOVERY_DEFS).toHaveLength(4);

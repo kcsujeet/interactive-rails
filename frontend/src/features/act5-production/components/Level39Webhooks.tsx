@@ -1,5 +1,5 @@
 /**
- * Level 38: Webhooks & Idempotency
+ * Level 39: Webhooks & Idempotency
  *
  * Three-phase flow: observe -> build -> activate -> reward
  *
@@ -831,7 +831,7 @@ end`,
 }
 
 // ─── Main component ────────────────────────────────────────────────────
-export function Level38Webhooks(_props: LevelComponentProps) {
+export function Level39Webhooks(_props: LevelComponentProps) {
 	const [phase, setPhase] = useState<
 		'observe' | 'build' | 'activate' | 'reward'
 	>('observe');
@@ -1419,4 +1419,4 @@ export function Level38Webhooks(_props: LevelComponentProps) {
 	);
 }
 
-export default Level38Webhooks;
+export default Level39Webhooks;

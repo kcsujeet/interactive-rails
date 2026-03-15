@@ -1,5 +1,5 @@
 /**
- * Level 39: API Versioning
+ * Level 40: API Versioning
  *
  * Tests mirror data structures to verify:
  * - Discovery defs and probe mappings
@@ -288,7 +288,7 @@ const STRESS_SCENARIOS = [
 
 // ── Tests ──
 
-describe('Level 39: API Versioning', () => {
+describe('Level 40: API Versioning', () => {
 	describe('Discovery definitions', () => {
 		test('all discovery IDs are unique', () => {
 			const ids = DISCOVERY_DEFS.map((d) => d.id);

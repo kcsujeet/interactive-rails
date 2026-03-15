@@ -1,5 +1,5 @@
 /**
- * Level 51: Modular Monolith
+ * Level 52: Modular Monolith
  *
  * Packwerk packages, CODEOWNERS, enforced boundaries, and privacy APIs.
  * Player organizes code into packages, configures dependency rules,
@@ -307,7 +307,7 @@ function getStepScenario(stepIndex: number): {
 
 // --- Component ---
 
-export function Level51ModularMonolith({
+export function Level52ModularMonolith({
 	onComplete,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
@@ -828,4 +828,4 @@ exclude:
 	);
 }
 
-export default Level51ModularMonolith;
+export default Level52ModularMonolith;

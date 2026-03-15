@@ -1,5 +1,5 @@
 /**
- * Level 42: Error Monitoring
+ * Level 47: Error Monitoring
  *
  * Structured error monitoring dashboard simulation.
  * Player configures monitoring features and observes how
@@ -111,7 +111,7 @@ function generateError(): ErrorEntry {
 
 // --- Component ---
 
-export function Level46ErrorMonitoring({
+export function Level47ErrorMonitoring({
 	onComplete,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
@@ -886,4 +886,4 @@ end`,
 	);
 }
 
-export default Level46ErrorMonitoring;
+export default Level47ErrorMonitoring;

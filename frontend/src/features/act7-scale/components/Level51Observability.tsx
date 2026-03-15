@@ -1,5 +1,5 @@
 /**
- * Level 46: Observability
+ * Level 51: Observability
  *
  * Distributed tracing with flame graph visualization.
  * Find the slow service causing latency issues.
@@ -29,7 +29,7 @@ interface Span {
 	traced: boolean;
 }
 
-export function Level50Observability({
+export function Level51Observability({
 	onComplete,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
@@ -423,4 +423,4 @@ end`,
 	);
 }
 
-export default Level50Observability;
+export default Level51Observability;

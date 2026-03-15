@@ -1,5 +1,5 @@
 /**
- * Level 38: Webhooks & Idempotency
+ * Level 39: Webhooks & Idempotency
  *
  * Tests mirror data structures to verify:
  * - Discovery defs and probe mappings
@@ -288,7 +288,7 @@ const STRESS_SCENARIOS = [
 
 // ── Tests ──
 
-describe('Level 38: Webhooks & Idempotency', () => {
+describe('Level 39: Webhooks & Idempotency', () => {
 	describe('Discovery definitions', () => {
 		test('all discovery IDs are unique', () => {
 			const ids = DISCOVERY_DEFS.map((d) => d.id);

@@ -1,5 +1,5 @@
 /**
- * Level 38: Rate Limiting
+ * Level 42: Rate Limiting
  *
  * Protect your API from abuse with rate limiting.
  * Player learns different rate limiting strategies.
@@ -90,7 +90,7 @@ const STRATEGY_EXPLANATIONS: Record<string, { visual: string; tradeoff: string; 
 	},
 };
 
-export function Level41RateLimiting({
+export function Level42RateLimiting({
 	onComplete,
 }: LevelComponentProps) {
 	const { completeLevel } = useLevelCompletion();
@@ -572,4 +572,4 @@ Rack::Attack.throttled_responder = -> (req) {
 	);
 }
 
-export default Level41RateLimiting;
+export default Level42RateLimiting;

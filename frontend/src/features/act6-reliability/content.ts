@@ -2,7 +2,7 @@
  * Act 6: Reliability
  * "100K users. Outages hurt."
  *
- * Levels 40-46: Middleware & Rack, Rate Limiting, Soft Deletes & Audit Trails,
+ * Levels 41-47: Middleware & Rack, Rate Limiting, Soft Deletes & Audit Trails,
  *               Safe Migrations, Recurring Jobs & Scheduling, Data Lifecycle, Error Monitoring
  * App context: Production SaaS
  */
@@ -18,9 +18,9 @@ import {
 // ============================================
 
 const level37Middleware: Level = {
-	id: 'act6-level40-middleware',
+	id: 'act6-level41-middleware',
 	actId: 6,
-	levelNumber: 40,
+	levelNumber: 41,
 	name: 'Middleware & Rack',
 	trigger: {
 		type: 'incident',
@@ -203,9 +203,9 @@ end
 // ============================================
 
 const level38RateLimiting: Level = {
-	id: 'act6-level41-rate-limiting',
+	id: 'act6-level42-rate-limiting',
 	actId: 6,
-	levelNumber: 41,
+	levelNumber: 42,
 	name: 'Rate Limiting',
 	requiresTests: true,
 	trigger: {
@@ -433,9 +433,9 @@ end`,
 // ============================================
 
 const level39SoftDeletes: Level = {
-	id: 'act6-level42-soft-deletes',
+	id: 'act6-level43-soft-deletes',
 	actId: 6,
-	levelNumber: 42,
+	levelNumber: 43,
 	name: 'Soft Deletes & Audit Trails',
 	requiresTests: true,
 	trigger: {
@@ -681,9 +681,9 @@ end`,
 // ============================================
 
 const level40SafeMigrations: Level = {
-	id: 'act6-level43-safe-migrations',
+	id: 'act6-level44-safe-migrations',
 	actId: 6,
-	levelNumber: 43,
+	levelNumber: 44,
 	name: 'Safe Migrations',
 	trigger: {
 		type: 'outage',
@@ -904,9 +904,9 @@ end
 // ============================================
 
 const level41RecurringJobs: Level = {
-	id: 'act6-level44-recurring-jobs',
+	id: 'act6-level45-recurring-jobs',
 	actId: 6,
-	levelNumber: 44,
+	levelNumber: 45,
 	name: 'Recurring Jobs & Scheduling',
 	requiresTests: true,
 	trigger: {
@@ -1193,9 +1193,9 @@ end`,
 // ============================================
 
 const levelDataLifecycle: Level = {
-	id: 'act6-level45-data-lifecycle',
+	id: 'act6-level46-data-lifecycle',
 	actId: 6,
-	levelNumber: 45,
+	levelNumber: 46,
 	name: 'Data Lifecycle',
 	trigger: {
 		type: 'data_growth',
@@ -1406,9 +1406,9 @@ Order.where(status: "shipped").order(created_at: :desc).limit(25)
 // ============================================
 
 const level42ErrorMonitoring: Level = {
-	id: 'act6-level46-error-monitoring',
+	id: 'act6-level47-error-monitoring',
 	actId: 6,
-	levelNumber: 46,
+	levelNumber: 47,
 	name: 'Structured Error Monitoring',
 	trigger: {
 		type: 'user_complaint',
