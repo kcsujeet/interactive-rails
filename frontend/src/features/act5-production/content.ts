@@ -11,111 +11,53 @@ import type { Act, Level } from '@/types';
 import { standardPipeline } from '@/utils/pipelineTemplates';
 
 // ============================================
-// Level 28: Polymorphic Associations
+// Level 32: Polymorphic Associations
 // ============================================
 
-const level29Polymorphic: Level = {
+const level32Polymorphic: Level = {
 	id: 'act5-level32-polymorphic',
 	actId: 5,
 	levelNumber: 32,
 	name: 'Polymorphic Associations',
+	requiresTests: true,
 	trigger: {
 		type: 'new_feature',
 		description:
-			'Users want to comment on Posts, Photos, AND Videos. Product asks: do we need three separate comment tables?',
+			'Users want to comment on Posts, Photos, AND Videos. Three separate comment tables with identical schemas exist. Polymorphic associations can unify them.',
 	},
-	startingPipeline: {
-		nodes: [
-			{ id: 'request-node', type: 'request', x: 80, y: 250, locked: true },
-			{ id: 'router-node', type: 'router', x: 260, y: 250, locked: true },
-			{
-				id: 'controller-node',
-				type: 'controller',
-				x: 440,
-				y: 250,
-				locked: true,
-			},
-			{
-				id: 'post-model',
-				type: 'model',
-				x: 640,
-				y: 150,
-				locked: true,
-				config: { label: 'Post' },
-			},
-			{
-				id: 'photo-model',
-				type: 'model',
-				x: 640,
-				y: 250,
-				locked: true,
-				config: { label: 'Photo' },
-			},
-			{
-				id: 'video-model',
-				type: 'model',
-				x: 640,
-				y: 350,
-				locked: true,
-				config: { label: 'Video' },
-			},
-			{ id: 'database-node', type: 'database', x: 860, y: 250, locked: true },
-			{ id: 'response-node', type: 'response', x: 1040, y: 250, locked: true },
-		],
-		connections: [
-			{ id: 'c1', sourceNodeId: 'request-node', targetNodeId: 'router-node' },
-			{
-				id: 'c2',
-				sourceNodeId: 'router-node',
-				targetNodeId: 'controller-node',
-			},
-			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
-			{
-				id: 'c4',
-				sourceNodeId: 'controller-node',
-				targetNodeId: 'photo-model',
-			},
-			{
-				id: 'c5',
-				sourceNodeId: 'controller-node',
-				targetNodeId: 'video-model',
-			},
-			{ id: 'c6', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
-			{ id: 'c7', sourceNodeId: 'photo-model', targetNodeId: 'database-node' },
-			{ id: 'c8', sourceNodeId: 'video-model', targetNodeId: 'database-node' },
-		],
-	},
+	startingPipeline: standardPipeline(),
 	problem: {
 		observation:
 			'Three separate comment tables exist: post_comments, photo_comments, video_comments. Schema is duplicated, queries are scattered, and adding a new commentable type means a new table and new controller.',
 		rootCause:
 			'Each commentable model has its own dedicated comments table instead of using a single polymorphic comments table.',
-		codeExample: `# Current mess: Three separate tables!
-class PostComment < ApplicationRecord
-  belongs_to :post
+		codeExample: `# Three separate service objects doing the same thing!
+# app/services/create_post_comment.rb
+class CreatePostComment < ApplicationService
+  Result = Data.define(:success?, :comment, :errors)
+
+  def initialize(post:, user:, params:)
+    @post = post; @user = user; @params = params
+  end
+
+  def call
+    v = PostCommentContract.new.call(@params)
+    return Result.new(success?: false,
+      comment: nil, errors: v.errors.to_h) if v.failure?
+    comment = @post.post_comments.create!(
+      user: @user, body: v[:body])
+    Result.new(success?: true, comment:, errors: [])
+  end
 end
 
-class PhotoComment < ApplicationRecord
-  belongs_to :photo
-end
-
-class VideoComment < ApplicationRecord
-  belongs_to :video
-end
-
-# Three controllers, three serializers, three sets of tests...
-# Adding "comment on Articles" means ANOTHER table.
-
-# What if we had ONE Comment that belongs to anything?
-# comments table: commentable_type + commentable_id`,
-		goal: 'Replace three comment tables with one polymorphic Comment model that can belong to any commentable resource.',
+# CreatePhotoComment, CreateVideoComment are identical copies!
+# 3 tables, 3 models, 3 contracts, 3 services, 3 controllers
+# Adding "comment on Articles" means ANOTHER full set.`,
+		goal: 'Replace three comment tables with one polymorphic Comment model that can belong to any commentable resource. Build a single CreateComment service with contract validation.',
 		thresholds: {},
 	},
-	successConditions: [
-		{ type: 'node_present', nodeType: 'model' },
-		{ type: 'connection', sourceType: 'model', targetType: 'model' },
-	],
-	availableNodes: ['model'],
+	successConditions: [],
+	availableNodes: [],
 	unlockedNodes: [],
 	learningContent: {
 		title: 'Polymorphic Associations',
@@ -147,6 +89,7 @@ class CreateComments < ActiveRecord::Migration[8.0]
       t.references :user, null: false, foreign_key: true
       t.timestamps
     end
+    add_index :comments, [:commentable_type, :commentable_id]
   end
 end
 
@@ -154,44 +97,57 @@ end
 class Comment < ApplicationRecord
   belongs_to :commentable, polymorphic: true
   belongs_to :user
+  validates :body, presence: true, length: { maximum: 10_000 }
 end
 
-# app/models/post.rb
+# app/models/post.rb (same for Photo, Video)
 class Post < ApplicationRecord
   has_many :comments, as: :commentable, dependent: :destroy
 end
 
-# app/models/photo.rb
-class Photo < ApplicationRecord
-  has_many :comments, as: :commentable, dependent: :destroy
+# app/contracts/comment_contract.rb
+class CommentContract < Dry::Validation::Contract
+  params do
+    required(:body).filled(:string, max_size?: 10_000)
+  end
 end
 
-# app/models/video.rb
-class Video < ApplicationRecord
-  has_many :comments, as: :commentable, dependent: :destroy
+# app/services/create_comment.rb
+class CreateComment < ApplicationService
+  Result = Data.define(:success?, :comment, :errors)
+
+  def initialize(commentable:, user:, params:)
+    @commentable = commentable
+    @user = user
+    @params = params
+  end
+
+  def call
+    v = CommentContract.new.call(@params)
+    return Result.new(success?: false,
+      comment: nil, errors: v.errors.to_h) if v.failure?
+    comment = @commentable.comments.create!(
+      user: @user, body: v[:body])
+    Result.new(success?: true, comment:, errors: [])
+  end
 end
 
-# Usage:
-post = Post.find(1)
-post.comments.create!(body: "Great post!", user: current_user)
-
-photo = Photo.find(1)
-photo.comments.create!(body: "Nice shot!", user: current_user)
-
-# Works the same way for all types!
-comment = Comment.first
-comment.commentable  # Returns Post, Photo, or Video
-
-# Eager loading polymorphic associations
-Comment.includes(:commentable).where(user: current_user)
-
-# Shared controller using polymorphic routing
-# config/routes.rb
-resources :posts do
-  resources :comments, module: :posts
-end
-resources :photos do
-  resources :comments, module: :photos
+# app/controllers/api/v1/comments_controller.rb
+class Api::V1::CommentsController < ApplicationController
+  def create
+    result = CreateComment.call(
+      commentable: find_commentable,
+      user: Current.user,
+      params: params.expect(comment: [:body]))
+    if result.success?
+      render json: CommentSerializer.new(result.comment),
+        status: :created
+    else
+      render json: { error: { code: "VALIDATION_FAILED",
+        message: "Invalid comment",
+        details: result.errors } }, status: :unprocessable_entity
+    end
+  end
 end`,
 		commonMistakes: [
 			'Not adding a composite index on [commentable_type, commentable_id]',
@@ -220,79 +176,50 @@ end`,
 };
 
 // ============================================
-// Level 29: Transactions & Locking
+// Level 33: Transactions & Locking
 // ============================================
 
-const level30Transactions: Level = {
+const level33Transactions: Level = {
 	id: 'act5-level33-transactions',
 	actId: 5,
 	levelNumber: 33,
 	name: 'Transactions & Locking',
+	requiresTests: true,
 	trigger: {
 		type: 'incident',
 		description:
 			'Two users update the same subscription simultaneously. The last write silently overwrites the first. Account balance is now corrupted.',
 	},
-	startingPipeline: {
-		nodes: [
-			{
-				id: 'request-a',
-				type: 'request',
-				x: 80,
-				y: 150,
-				locked: true,
-				config: { label: 'User A' },
-			},
-			{
-				id: 'request-b',
-				type: 'request',
-				x: 80,
-				y: 350,
-				locked: true,
-				config: { label: 'User B' },
-			},
-			{
-				id: 'controller-node',
-				type: 'controller',
-				x: 300,
-				y: 250,
-				locked: true,
-			},
-			{
-				id: 'model-node',
-				type: 'model',
-				x: 500,
-				y: 250,
-				locked: true,
-				config: { label: 'Account' },
-			},
-			{ id: 'database-node', type: 'database', x: 700, y: 250, locked: true },
-		],
-		connections: [
-			{ id: 'c1', sourceNodeId: 'request-a', targetNodeId: 'controller-node' },
-			{ id: 'c2', sourceNodeId: 'request-b', targetNodeId: 'controller-node' },
-			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
-			{ id: 'c4', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-		],
-	},
+	startingPipeline: standardPipeline(),
 	problem: {
 		observation:
 			'User A reads balance ($100), User B reads balance ($100). A deducts $30, saves $70. B deducts $50, saves $50. Actual balance should be $20 but is $50. Lost update.',
 		rootCause:
 			'No transaction isolation or locking. Concurrent reads followed by concurrent writes cause lost updates.',
-		codeExample: `# BAD: Race condition - lost update
-def deduct(amount)
-  account = Account.find(params[:id])
-  # User A reads balance: $100
-  # User B reads balance: $100 (same stale value!)
-  account.balance -= amount
-  account.save!
-  # User A saves: $70
-  # User B saves: $50 (overwrites A's deduction!)
-end
+		codeExample: `# BAD: Race condition in the service
+class DeductBalance < ApplicationService
+  Result = Data.define(:success?, :account, :errors)
 
-# Balance is $50 instead of $20
-# User A's $30 deduction vanished!`,
+  def initialize(account_id:, amount:)
+    @account_id = account_id
+    @amount = amount
+  end
+
+  def call
+    v = DeductionContract.new.call(
+      account_id: @account_id, amount: @amount)
+    return Result.new(success?: false,
+      account: nil, errors: v.errors.to_h) if v.failure?
+
+    account = Account.find(@account_id)
+    # User A reads $100, User B reads $100 (stale!)
+    account.balance -= @amount
+    account.save!
+    # No transaction! No lock!
+    # User A saves $70, User B saves $50 (overwrites!)
+    Result.new(success?: true, account:, errors: [])
+  end
+end`,
 		goal: 'Wrap the deduction in a transaction with proper locking to prevent lost updates.',
 		thresholds: {},
 	},
@@ -325,57 +252,63 @@ end
 **Rule of thumb:**
 - Low contention + user-facing: Optimistic (retry on conflict)
 - High contention + financial: Pessimistic (serialize access)`,
-		railsCodeExample: `# OPTIMISTIC LOCKING
-# Migration: add lock_version column
-add_column :accounts, :lock_version, :integer, default: 0, null: false
-
-# Rails automatically uses lock_version for optimistic locking
-class Account < ApplicationRecord
-  # lock_version column is automatically detected
-end
-
-# Usage:
-account = Account.find(1)
-account.balance -= 30
-account.save!
-# If another process updated the row, raises:
-# ActiveRecord::StaleObjectError
-rescue ActiveRecord::StaleObjectError
-  retry  # Re-read and try again
-
-# PESSIMISTIC LOCKING
-def deduct(amount)
-  Account.transaction do
-    # SELECT * FROM accounts WHERE id = 1 FOR UPDATE
-    account = Account.lock.find(params[:id])
-    # Other transactions block here until this one commits
-
-    raise InsufficientFundsError if account.balance < amount
-
-    account.balance -= amount
-    account.save!
-
-    # Creates an audit trail within the same transaction
-    account.transactions.create!(
-      amount: -amount,
-      balance_after: account.balance
-    )
+		railsCodeExample: `# app/contracts/deduction_contract.rb
+class DeductionContract < Dry::Validation::Contract
+  params do
+    required(:account_id).filled(:integer)
+    required(:amount).filled(:decimal, gt?: 0)
   end
 end
 
-# TRANSACTION with multiple models
-ActiveRecord::Base.transaction do
-  order = Order.create!(user: current_user, total: amount)
-  payment = Payment.create!(order: order, amount: amount)
-  account.update!(balance: account.balance - amount)
-  # If ANY of these fail, ALL are rolled back
+# app/services/deduct_balance.rb
+class DeductBalance < ApplicationService
+  Result = Data.define(:success?, :account, :errors)
+
+  def initialize(account_id:, amount:)
+    @account_id = account_id
+    @amount = amount
+  end
+
+  def call
+    v = DeductionContract.new.call(
+      account_id: @account_id, amount: @amount)
+    return Result.new(success?: false,
+      account: nil, errors: v.errors.to_h) if v.failure?
+
+    ActiveRecord::Base.transaction do
+      account = Account.lock.find(@account_id)
+      raise InsufficientFundsError if account.balance < @amount
+      account.balance -= @amount
+      account.save!
+      AuditLog.create!(account:, amount: -@amount,
+        balance_after: account.balance)
+      Result.new(success?: true, account:, errors: [])
+    end
+  rescue InsufficientFundsError
+    Result.new(success?: false, account: nil,
+      errors: ["Insufficient funds"])
+  end
 end
 
-# Rails 8: with_lock shorthand
-account = Account.find(1)
-account.with_lock do
-  account.balance -= amount
-  account.save!
+# app/controllers/api/v1/accounts_controller.rb
+class Api::V1::AccountsController < ApplicationController
+  def deduct
+    result = DeductBalance.call(
+      account_id: params[:id],
+      amount: params.expect(deduction: [:amount])[:amount])
+    if result.success?
+      render json: AccountSerializer.new(result.account)
+    else
+      render json: { error: { code: "DEDUCTION_FAILED",
+        message: "Could not deduct",
+        details: result.errors } },
+        status: :unprocessable_entity
+    end
+  rescue ActiveRecord::StaleObjectError
+    render json: { error: { code: "CONFLICT",
+      message: "Record was modified by another user",
+      details: {} } }, status: :conflict
+  end
 end`,
 		commonMistakes: [
 			'Not wrapping related writes in a transaction (partial failures corrupt data)',
@@ -404,14 +337,15 @@ end`,
 };
 
 // ============================================
-// Level 30: Active Storage
+// Level 34: Active Storage
 // ============================================
 
-const level31ActiveStorage: Level = {
+const level34ActiveStorage: Level = {
 	id: 'act5-level34-active-storage',
 	actId: 5,
 	levelNumber: 34,
 	name: 'Active Storage',
+	requiresTests: true,
 	trigger: {
 		type: 'new_feature',
 		description:
@@ -420,24 +354,33 @@ const level31ActiveStorage: Level = {
 	startingPipeline: standardPipeline({ modelLabel: 'User' }),
 	problem: {
 		observation:
-			'Users upload 5MB profile photos through the Rails server. Memory spikes on every upload. No thumbnails generated. Serving originals costs bandwidth.',
+			'Users upload 5MB profile photos through the Rails server via the UploadAvatar service. Memory spikes on every upload. No thumbnails generated. Serving originals costs bandwidth.',
 		rootCause:
 			'Files are uploaded through the application server instead of directly to object storage. No variant processing for thumbnails or resized images.',
-		codeExample: `# BAD: File goes through app server
-# Browser -> App Server (5MB in memory!) -> S3
-def update
-  @user.avatar.attach(params[:avatar])
-  # Entire file loaded into Rails process memory
-  # 10 concurrent uploads = 50MB memory spike
+		codeExample: `# UploadAvatar service buffers entire file in memory!
+class UploadAvatar < ApplicationService
+  Result = Data.define(:success?, :user, :errors)
+
+  def initialize(user_id:, file:)
+    @user_id = user_id
+    @file = file  # 5MB in memory!
+  end
+
+  def call
+    v = AvatarUploadContract.new.call(
+      user_id: @user_id, file: @file)
+    return Result.new(success?: false,
+      user: nil, errors: v.errors.to_h) if v.failure?
+
+    user = User.find(@user_id)
+    user.avatar.attach(@file)  # Buffered in Rails!
+    # 10 concurrent uploads = 50MB memory spike
+    Result.new(success?: true, user:, errors: [])
+  end
 end
 
-# No thumbnails - serving 5MB originals on listing pages
-# GET /users -> each avatar is the full-resolution original
-
-# No presigned URLs - every file download routes through Rails
-def show_avatar
-  send_data @user.avatar.download  # Blocks a Rails worker!
-end`,
+# No thumbnails, no variants, no CDN redirect
+# Downloads also go through Rails: send_data user.avatar.download`,
 		goal: 'Configure Active Storage with direct uploads via presigned URLs, generate image variants for thumbnails, and serve files through a CDN.',
 		thresholds: {},
 	},
@@ -465,38 +408,57 @@ end`,
 3. Client sends the blob signed_id back to Rails
 4. Rails attaches the blob to the model
 5. Variants are generated lazily on first access`,
-		railsCodeExample: `# Setup: rails active_storage:install
-# This creates active_storage_blobs and active_storage_attachments tables
+		railsCodeExample: `# Setup: bin/rails active_storage:install && rails db:migrate
 
 # config/storage.yml
 amazon:
   service: S3
-  access_key_id: <%= ENV['AWS_ACCESS_KEY_ID'] %>
-  secret_access_key: <%= ENV['AWS_SECRET_ACCESS_KEY'] %>
+  access_key_id: <%= Rails.application.credentials
+    .dig(:aws, :access_key_id) %>
+  secret_access_key: <%= Rails.application.credentials
+    .dig(:aws, :secret_access_key) %>
   region: us-east-1
   bucket: myapp-production
-
-# config/environments/production.rb
-config.active_storage.service = :amazon
 
 # app/models/user.rb
 class User < ApplicationRecord
   has_one_attached :avatar do |attachable|
-    # Pre-define variants for consistent usage
     attachable.variant :thumb, resize_to_limit: [100, 100]
     attachable.variant :medium, resize_to_limit: [300, 300]
   end
-
   has_many_attached :documents
 end
 
-# Direct Upload: API endpoint returns presigned URL
+# app/services/upload_avatar.rb
+class UploadAvatar < ApplicationService
+  Result = Data.define(:success?, :user, :errors)
+
+  def initialize(user_id:, blob_signed_id:)
+    @user_id = user_id
+    @blob_signed_id = blob_signed_id
+  end
+
+  def call
+    v = AvatarUploadContract.new.call(
+      user_id: @user_id, blob_signed_id: @blob_signed_id)
+    return Result.new(success?: false,
+      user: nil, errors: v.errors.to_h) if v.failure?
+
+    user = User.find(@user_id)
+    blob = ActiveStorage::Blob.find_signed!(@blob_signed_id)
+    validate_content_type!(blob)
+    validate_file_size!(blob)
+
+    user.avatar.attach(@blob_signed_id)
+    Result.new(success?: true, user:, errors: [])
+  end
+end
+
 # app/controllers/api/v1/direct_uploads_controller.rb
 class Api::V1::DirectUploadsController < ApplicationController
   def create
     blob = ActiveStorage::Blob.create_before_direct_upload!(
-      **blob_params
-    )
+      **blob_args)
     render json: {
       direct_upload: {
         url: blob.service_url_for_direct_upload,
@@ -508,30 +470,9 @@ class Api::V1::DirectUploadsController < ApplicationController
 
   private
 
-  def blob_params
-    params.expect(file: [:filename, :byte_size, :checksum, :content_type])
-  end
-end
-
-# Client-side: Upload directly to S3
-# PUT <presigned_url> with file body
-# Then attach: user.avatar.attach(blob_signed_id)
-
-# Serving variants (lazy-generated)
-url_for(user.avatar.variant(:thumb))
-# First request: generates thumbnail, caches it
-# Subsequent: serves cached variant
-
-# In serializer / API response
-class UserSerializer < BaseSerializer
-  attribute :avatar_url do |user|
-    if user.avatar.attached?
-      Rails.application.routes.url_helpers
-        .rails_representation_url(
-          user.avatar.variant(:medium),
-          only_path: false
-        )
-    end
+  def blob_args
+    params.expect(file: [:filename, :byte_size,
+                         :checksum, :content_type])
   end
 end`,
 		commonMistakes: [
@@ -561,14 +502,15 @@ end`,
 };
 
 // ============================================
-// Level 32: Encrypted Attributes
+// Level 35: Encrypted Attributes
 // ============================================
 
-const level32Encryption: Level = {
+const level35Encryption: Level = {
 	id: 'act5-level35-encryption',
 	actId: 5,
 	levelNumber: 35,
 	name: 'Encrypted Attributes',
+	requiresTests: true,
 	trigger: {
 		type: 'security_audit',
 		description:
@@ -713,128 +655,78 @@ Rails.application.config.active_record.encryption.previous = [
 };
 
 // ============================================
-// Level 33: Real-Time
+// Level 36: Real-Time
 // ============================================
 
-const level33Realtime: Level = {
+const level36Realtime: Level = {
 	id: 'act5-level36-realtime',
 	actId: 5,
 	levelNumber: 36,
 	name: 'Real-Time',
+	requiresTests: true,
 	trigger: {
 		type: 'new_feature',
 		description:
-			'Users want live notifications when their payments complete. HTTP polling every 2 seconds is killing the server with 50,000 concurrent users.',
+			'Users want live notifications when their payments complete. The ProcessPayment service has no way to push updates. HTTP polling every 2 seconds is killing the server with 50,000 concurrent users.',
 	},
 	startingPipeline: {
-		nodes: [
-			{ id: 'request-node', type: 'request', x: 80, y: 150, locked: true },
-			{
-				id: 'poll-request',
-				type: 'request',
-				x: 80,
-				y: 350,
-				locked: true,
-				config: { label: 'Polling' },
-			},
-			{
-				id: 'controller-node',
-				type: 'controller',
-				x: 300,
-				y: 250,
-				locked: true,
-			},
-			{
-				id: 'model-node',
-				type: 'model',
-				x: 500,
-				y: 250,
-				locked: true,
-				config: { label: 'Notification' },
-			},
-			{ id: 'database-node', type: 'database', x: 700, y: 250, locked: true },
-			{ id: 'response-node', type: 'response', x: 900, y: 250, locked: true },
-		],
-		connections: [
-			{
-				id: 'c1',
-				sourceNodeId: 'request-node',
-				targetNodeId: 'controller-node',
-			},
-			{
-				id: 'c2',
-				sourceNodeId: 'poll-request',
-				targetNodeId: 'controller-node',
-			},
-			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
-			{ id: 'c4', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-			{
-				id: 'c5',
-				sourceNodeId: 'database-node',
-				targetNodeId: 'response-node',
-			},
-		],
+		nodes: [],
+		connections: [],
 	},
 	problem: {
 		observation:
-			'50,000 users polling every 2 seconds = 25,000 requests/second. 99% of polls return "no new notifications." Server CPU at 95%. Database connections exhausted.',
+			'50,000 users polling every 2 seconds = 25,000 requests/second. 99% of polls return empty. Server CPU at 95%. The ProcessPayment service creates records but has no real-time push mechanism.',
 		rootCause:
 			'HTTP polling wastes resources when there are no new events. Need server-push via WebSockets to only send data when something actually changes.',
-		codeExample: `# BAD: Polling - wastes resources
-# Client polls every 2 seconds:
-setInterval(() => {
-  fetch('/api/notifications/unread')
-    .then(r => r.json())
-    .then(data => updateUI(data))
-}, 2000)
+		codeExample: `# The ProcessPayment service completes payments,
+# but has no way to notify users in real-time.
+# Clients must poll GET /notifications every 2 seconds.
+#
+# 50K users x 0.5 req/sec = 25K wasted requests/sec
+# 99% return empty arrays. CPU at 95%.
+#
+# app/services/process_payment.rb
+class ProcessPayment < ApplicationService
+  Result = Data.define(:success?, :payment, :errors)
 
-# Server handles 25,000 req/sec, most return empty:
-# GET /api/notifications/unread => { notifications: [] }
-# GET /api/notifications/unread => { notifications: [] }
-# GET /api/notifications/unread => { notifications: [] }
-# ...99% are wasted requests
+  def call
+    validation = PaymentContract.new.call(@params)
+    return failure(validation) if validation.failure?
 
-# Need: Push notifications only when something happens
-# WebSocket connection: open once, receive events as they occur`,
-		goal: 'Replace HTTP polling with Action Cable WebSockets using Solid Cable (Rails 8 default, no Redis required).',
+    payment = @user.payments.create!(amount: @params[:amount])
+    # No way to tell the user their payment completed!
+    # They find out on their next poll cycle (up to 2s delay)
+    Result.new(success?: true, payment:, errors: {})
+  end
+end`,
+		goal: 'Install Solid Cable, generate a notifications channel, authenticate WebSocket connections, and build a broadcast service using after_create_commit.',
 		thresholds: {},
 	},
-	successConditions: [
-		{ type: 'node_present', nodeType: 'controller' },
-		{ type: 'connection', sourceType: 'controller', targetType: 'model' },
-	],
+	successConditions: [],
 	availableNodes: [],
 	unlockedNodes: [],
 	learningContent: {
 		title: 'Real-Time with Action Cable & Solid Cable',
-		goal: `In this level, you'll:\n- add real-time capabilities to your API using Action Cable and WebSockets.\n- set up channels for live communication.\n- use Solid Cable (Rails 8's database-backed adapter that replaces Redis).\n- broadcast updates to connected clients so they see changes instantly without polling.`,
-		conceptExplanation: `Action Cable integrates WebSockets with Rails. Rails 8 introduces Solid Cable as the default adapter.
+		goal: `In this level, you'll:\n- Replace HTTP polling with WebSocket push using Action Cable\n- Install Solid Cable (Rails 8 database-backed adapter, no Redis)\n- Authenticate WebSocket connections via encrypted cookies\n- Build a BroadcastNotification service with after_create_commit callbacks`,
+		conceptExplanation: `Action Cable integrates WebSockets with Rails. Rails 8 uses Solid Cable as the default adapter, storing pub/sub messages in the database instead of Redis.
 
 **Solid Cable (Rails 8 default):**
 - Uses the database for pub/sub instead of Redis
 - No additional infrastructure needed
-- Perfectly fine for most apps (< 100K concurrent connections)
-- Backed by a database table with automatic message pruning
+- Handles most apps (< 100K concurrent connections)
+- Automatic message pruning via configurable retention
 
 **Action Cable concepts:**
-- **Channel**: Like a controller for WebSockets (handles subscribe/unsubscribe/receive)
-- **Stream**: A named broadcast channel (e.g., "notifications:user_42")
+- **Channel**: Like a controller for WebSockets (subscribe/unsubscribe/receive)
+- **Stream**: A named broadcast target (e.g., "notifications:user_42")
 - **Connection**: The WebSocket connection with authentication
-- **Subscription**: Client subscribes to a channel
-
-**When to upgrade from Solid Cable to Redis:**
-- More than 100K concurrent WebSocket connections
-- Sub-millisecond broadcast latency requirements
-- Multi-region deployments needing shared pub/sub`,
-		railsCodeExample: `# Rails 8: Solid Cable is the default (no Redis!)
-# config/cable.yml
+- **Subscription**: Client subscribes to a channel to receive pushes`,
+		railsCodeExample: `# config/cable.yml (Solid Cable, no Redis!)
 production:
   adapter: solid_cable
-  # Messages stored in database, auto-pruned
-  # polling_interval: 0.1.seconds
-  # message_retention: 1.day
+  polling_interval: 0.1.seconds
+  message_retention: 1.day
 
-# Step 1: Connection authentication
 # app/channels/application_cable/connection.rb
 module ApplicationCable
   class Connection < ActionCable::Connection::Base
@@ -847,37 +739,52 @@ module ApplicationCable
     private
 
     def find_verified_user
-      # For API: Verify JWT from query params
-      token = request.params[:token]
-      user = User.find_by_token(token)
-      user || reject_unauthorized_connection
+      verified = User.find_by(id: cookies.encrypted[:user_id])
+      verified || reject_unauthorized_connection
     end
   end
 end
 
-# Step 2: Create a channel
 # app/channels/notifications_channel.rb
 class NotificationsChannel < ApplicationCable::Channel
   def subscribed
     stream_for current_user
-    # Creates stream: "notifications:user_42"
-  end
-
-  def unsubscribed
-    # Cleanup when client disconnects
-  end
-
-  # Client can send messages to the channel
-  def mark_read(data)
-    notification = current_user.notifications.find(data["id"])
-    notification.update!(read_at: Time.current)
   end
 end
 
-# Step 3: Broadcast from anywhere in the app
+# app/services/broadcast_notification.rb
+class BroadcastNotification < ApplicationService
+  Result = Data.define(:success?, :notification, :errors)
+
+  def initialize(user:, title:, body:)
+    @user = user
+    @title = title
+    @body = body
+  end
+
+  def call
+    validation = NotificationContract.new.call(
+      title: @title, body: @body
+    )
+    if validation.failure?
+      return Result.new(
+        success?: false, notification: nil,
+        errors: validation.errors.to_h
+      )
+    end
+
+    notification = @user.notifications.create!(
+      title: @title, body: @body
+    )
+    # after_create_commit on Notification broadcasts automatically
+    Result.new(success?: true, notification:, errors: {})
+  end
+end
+
 # app/models/notification.rb
 class Notification < ApplicationRecord
   belongs_to :user
+  validates :title, :body, presence: true
 
   after_create_commit :broadcast_to_user
 
@@ -886,49 +793,15 @@ class Notification < ApplicationRecord
   def broadcast_to_user
     NotificationsChannel.broadcast_to(
       user,
-      {
-        id: id,
-        title: title,
-        body: body,
-        created_at: created_at.iso8601
-      }
+      NotificationSerializer.new(self).serializable_hash
     )
   end
-end
-
-# Or broadcast from a job
-class PaymentCompletedJob < ApplicationJob
-  def perform(payment_id)
-    payment = Payment.find(payment_id)
-    notification = payment.user.notifications.create!(
-      title: "Payment received",
-      body: "Your payment of #{payment.amount} was processed."
-    )
-    # Notification broadcasts automatically via after_create_commit
-  end
-end
-
-# Step 4: Client-side (JavaScript)
-import { createConsumer } from "@rails/actioncable"
-
-const cable = createConsumer(
-  "wss://api.example.com/cable?token=" + authToken
-)
-
-cable.subscriptions.create("NotificationsChannel", {
-  received(data) {
-    showNotification(data.title, data.body)
-  },
-  markRead(id) {
-    this.perform("mark_read", { id })
-  }
-})`,
+end`,
 		commonMistakes: [
 			'Not authenticating WebSocket connections (anyone can subscribe)',
 			'Broadcasting too much data (send IDs, let client fetch details)',
-			'Using Redis adapter when Solid Cable is sufficient (unnecessary infrastructure)',
-			'Not handling disconnections and reconnections on the client',
-			'Broadcasting in the request cycle instead of from a background job',
+			'Using Redis when Solid Cable is sufficient (unnecessary infrastructure)',
+			'Broadcasting in the request cycle instead of via model callbacks',
 		],
 		whenToUse:
 			'Live notifications, chat, real-time dashboards, collaborative editing. Replace polling whenever events are infrequent relative to poll interval.',
@@ -945,102 +818,63 @@ cable.subscriptions.create("NotificationsChannel", {
 	},
 	hint: {
 		delay: 25,
-		text: 'Create a NotificationsChannel with stream_for current_user. Use after_create_commit to broadcast. Solid Cable needs no Redis.',
+		text: 'Install solid_cable, generate a NotificationsChannel, authenticate connections via encrypted cookies, then build a service that creates notifications with after_create_commit broadcasting.',
 	},
 };
 
 // ============================================
-// Level 34: External APIs
+// Level 37: External APIs
 // ============================================
 
-const level34ExternalAPIs: Level = {
+const level37ExternalAPIs: Level = {
 	id: 'act5-level37-external-apis',
 	actId: 5,
 	levelNumber: 37,
 	name: 'External APIs',
+	requiresTests: true,
 	trigger: {
 		type: 'incident',
 		description:
-			'Stripe payment API timed out. The checkout controller hung for 30 seconds, then crashed. Users saw 500 errors. The cascade took down 3 other services.',
+			'Stripe API returned HTTP 503 for 5 minutes. The ProcessPayment service hung for 30 seconds per request, blocking all Puma threads. Entire app unresponsive.',
 	},
 	startingPipeline: {
-		nodes: [
-			{ id: 'request-node', type: 'request', x: 80, y: 250, locked: true },
-			{
-				id: 'controller-node',
-				type: 'controller',
-				x: 280,
-				y: 250,
-				locked: true,
-			},
-			{
-				id: 'model-node',
-				type: 'model',
-				x: 500,
-				y: 150,
-				locked: true,
-				config: { label: 'Order' },
-			},
-			{
-				id: 'external-api',
-				type: 'model',
-				x: 500,
-				y: 350,
-				locked: true,
-				config: { label: 'Stripe API' },
-			},
-			{ id: 'database-node', type: 'database', x: 720, y: 150, locked: true },
-			{ id: 'response-node', type: 'response', x: 920, y: 250, locked: true },
-		],
-		connections: [
-			{
-				id: 'c1',
-				sourceNodeId: 'request-node',
-				targetNodeId: 'controller-node',
-			},
-			{ id: 'c2', sourceNodeId: 'controller-node', targetNodeId: 'model-node' },
-			{
-				id: 'c3',
-				sourceNodeId: 'controller-node',
-				targetNodeId: 'external-api',
-			},
-			{ id: 'c4', sourceNodeId: 'model-node', targetNodeId: 'database-node' },
-			{
-				id: 'c5',
-				sourceNodeId: 'database-node',
-				targetNodeId: 'response-node',
-			},
-		],
+		nodes: [],
+		connections: [],
 	},
 	problem: {
 		observation:
-			'Stripe API returned HTTP 503 for 5 minutes. During that time, every checkout request waited 30 seconds (default timeout), consumed a Puma thread, and timed out. All Puma threads were blocked. The entire application became unresponsive, not just checkout.',
+			'The ProcessPayment service calls Stripe with no timeout, no retry, and no circuit breaker. One failing dependency cascades into total application failure.',
 		rootCause:
-			'No timeout configured on HTTP client. No retry with backoff. No circuit breaker to stop calling a failing service. One failing dependency cascades into total application failure.',
-		codeExample: `# BAD: No resilience at all
-class CheckoutService
-  def charge(order)
-    # No timeout! Blocks thread for 30+ seconds
+			'No timeout configured on HTTP client. No retry with backoff. No circuit breaker to stop calling a failing service.',
+		codeExample: `# The ProcessPayment service calls Stripe with no resilience.
+# No timeout: thread blocks for 30+ seconds
+# No retry: transient 503 errors fail immediately
+# No circuit breaker: keeps hammering a dead service
+#
+# app/services/process_payment.rb
+class ProcessPayment < ApplicationService
+  Result = Data.define(:success?, :payment, :errors)
+
+  def call
+    validation = PaymentContract.new.call(@params)
+    return failure(validation) if validation.failure?
+
+    # HTTParty with no timeout, no retry, no circuit breaker
     response = HTTParty.post(
       'https://api.stripe.com/v1/charges',
-      body: { amount: order.total_cents }
+      body: { amount: @params[:amount] }
     )
-    # No error handling
-    # No retry
-    # No circuit breaker
     # If Stripe is down, ALL of our app is down
-    JSON.parse(response.body)
+    payment = @user.payments.create!(stripe_id: response["id"])
+    Result.new(success?: true, payment:, errors: {})
   end
-end
-
-# Result: Stripe 5-minute outage = our 5-minute outage
-# 50 concurrent checkouts = 50 blocked Puma threads = full app down`,
-		goal: 'Build a resilient Stripe integration with timeouts, retries with exponential backoff, and a circuit breaker that fails fast when Stripe is down.',
+end`,
+		goal: 'Install Faraday and Stoplight, configure timeouts, retry with exponential backoff, and a circuit breaker that fails fast when Stripe is down.',
 		thresholds: {},
 	},
-	successConditions: [{ type: 'api_resilience_configured' }],
-	availableNodes: ['circuit_breaker'],
-	unlockedNodes: ['circuit_breaker'],
+	successConditions: [],
+	availableNodes: [],
+	unlockedNodes: [],
 	learningContent: {
 		title: 'Resilient External API Integration',
 		goal: `In this level, you'll:\n- learn how to call external APIs without letting their failures take down your app.\n- set timeouts on every HTTP call.\n- implement retries with exponential backoff for transient errors.\n- use the circuit breaker pattern to fail fast when an external service is unresponsive.`,
@@ -1182,14 +1016,15 @@ end`,
 };
 
 // ============================================
-// Level 35: Webhooks & Idempotency
+// Level 38: Webhooks & Idempotency
 // ============================================
 
-const level35Webhooks: Level = {
+const level38Webhooks: Level = {
 	id: 'act5-level38-webhooks',
 	actId: 5,
 	levelNumber: 38,
 	name: 'Webhooks & Idempotency',
+	requiresTests: true,
 	trigger: {
 		type: 'incident',
 		description:
@@ -1467,14 +1302,15 @@ end`,
 };
 
 // ============================================
-// Level 36: API Versioning
+// Level 39: API Versioning
 // ============================================
 
-const level36APIVersioning: Level = {
+const level39APIVersioning: Level = {
 	id: 'act5-level39-api-versioning',
 	actId: 5,
 	levelNumber: 39,
 	name: 'API Versioning',
+	requiresTests: true,
 	trigger: {
 		type: 'new_feature',
 		description:
@@ -1756,14 +1592,14 @@ export const actFive: Act = {
 	description:
 		'The API is fast and clean. Now build the features that make it a real product: polymorphic associations, transactions, file uploads, encryption, real-time notifications, external API integrations, webhooks, and API versioning.',
 	levels: [
-		level29Polymorphic,
-		level30Transactions,
-		level31ActiveStorage,
-		level32Encryption,
-		level33Realtime,
-		level34ExternalAPIs,
-		level35Webhooks,
-		level36APIVersioning,
+		level32Polymorphic,
+		level33Transactions,
+		level34ActiveStorage,
+		level35Encryption,
+		level36Realtime,
+		level37ExternalAPIs,
+		level38Webhooks,
+		level39APIVersioning,
 	],
 	unlockedNodes: ['circuit_breaker', 's3'],
 	metricsVisible: true,
