@@ -144,6 +144,17 @@ There are exactly **four types** of observe phase. Every level falls into one.
 3. Does the concept have a unique spatial metaphor (not MVC)? **Yes** -> Type 3
 4. Is it about something missing/broken in the request lifecycle? **Yes** -> Type 4
 
+**Mandatory type justification (non-negotiable):** Before proceeding with any type, write a one-sentence justification answering: **"What runtime behavior does this level need to animate?"** If the answer is "none, the problem is visible in the code structure," it is Type 2. If you cannot name a specific runtime mechanism (request flow, query execution, data race, network call), do not use Type 3 or Type 4.
+
+**The "pattern matching" trap:** Do not choose Type 3 just because adjacent levels in the same act use Type 3. Each level's type is determined by its concept, not by what its neighbors do. A schema duplication problem (Type 2) surrounded by runtime behavior levels (Type 3) is still Type 2.
+
+**Type 2 litmus test (apply before choosing Type 3):** Ask these questions in order. If ANY answer is "yes," the level is Type 2, not Type 3:
+1. Can the player fully understand the problem by reading two code snippets side by side? (e.g., duplicate schemas, fat controller, scattered validations)
+2. Is the problem about code organization, duplication, or missing abstractions rather than what happens at runtime?
+3. Would adding probes and animations feel forced, like inventing fake runtime behavior to justify interactivity?
+
+**Case study: L32 Polymorphic Associations.** Polymorphic associations solve schema duplication (3 identical comment tables). This is a code-structure problem visible by reading the schema. There is no runtime behavior to animate: no requests to fire, no race conditions, no performance degradation to measure. Adding probes ("fire a query at post_comments!") and discovery gating would be inventing fake interactivity. Type 2 static intro with annotated schema tables is the correct choice.
+
 **Critical distinction between Type 2 and Type 3:** If explaining the problem requires showing numbers (memory, latency, query count) rather than code structure (responsibilities, abstractions, duplication), it needs Type 3, not Type 2.
 
 **Critical: Types 3 and 4 are both interactive with discovery gating. Types 1 and 2 have no discovery gating.** Do not add `useDiscoveryGating`, `DiscoveryChecklist`, `ProbeTerminal`, or `ScenarioCards` to Type 1 or Type 2 levels.
@@ -345,9 +356,27 @@ The build phase must cover the **complete workflow**:
 **Every migration generation must be followed by `rails db:migrate` (non-negotiable):**
 If any build step generates a migration file, the very next step MUST be running `rails db:migrate`. Without it, the column/table does not exist in the database. Case study: L27 Counter Caches originally had "Generate the counter cache migration" immediately followed by "Enable counter_cache on the association," skipping the migration run.
 
-### Phase 3: Solution Visualization (ADVANTAGE) - Interactive Reward
+### Phase 3: Solution Visualization (ADVANTAGE) - Reward
 
-The level must have a dedicated reward phase where the player **interactively verifies** their solution works.
+The level must have a dedicated reward phase. **The reward style depends on the observe phase type.**
+
+#### Type 2 levels: Static before/after reward
+
+Type 2 levels (static intro) use a **static before/after comparison**, not StressTestPanel. The reward shows the problem state and solution state side by side or stacked, so the player sees the structural improvement at a glance.
+
+- [ ] "Before" section shows the problem (compact, dimmed with `opacity-60`)
+- [ ] Arrow or separator between before and after
+- [ ] "After" section shows the solution (full detail, highlighted improvements in green)
+- [ ] No StressTestPanel, no useStressTest, no STRESS_SCENARIOS
+- [ ] Left panel shows explanatory text about the improvement, not counters
+
+**Case study: L32 Polymorphic Associations.** Before: 3 separate comment tables (compact, dimmed). After: 1 unified comments table with polymorphic columns (`commentable_type`, `commentable_id`) highlighted in green, plus an extensibility row (Article) showing the pattern works for new types without new tables.
+
+**Do not add StressTestPanel to Type 2 levels.** There is no runtime behavior to stress-test. Firing fake "requests" at a schema change is contrived and teaches nothing. The static comparison IS the reward: the player sees their structural improvement directly.
+
+#### Types 3 and 4 levels: Interactive reward
+
+For levels with interactive observe phases (Types 3 and 4), the player **interactively verifies** their solution works.
 
 #### Sub-phase a (activate)
 
@@ -360,9 +389,9 @@ The level must have a dedicated reward phase where the player **interactively ve
 - [ ] The contrast between Phase 1 (broken) and Phase 3b (fixed) is the reward
 - [ ] **The player interacts** to verify the fix works. This is NOT passive.
 
-#### Interactivity requirement (non-negotiable)
+#### Interactivity requirement (Types 3 and 4 only)
 
-The reward phase MUST be interactive. Passive auto-incrementing counters (`setInterval`) are never acceptable. Options:
+The reward phase MUST be interactive for Types 3 and 4. Passive auto-incrementing counters (`setInterval`) are never acceptable. Options:
 - **StressTestPanel + useStressTest**: Player fires scenarios. Provides `fireRequest()`, `toggleAutoFire(onFire)`, dual counters. `toggleAutoFire` accepts the same `onFire` handler used for manual fires, so animations trigger during auto-fire. Auto-fire cycles through all scenarios once, then stops. Must be disabled during flow animations.
 - **Custom interactive controls**: Buttons, toggles, inputs on the custom visualization. E.g., clicking different browser origins in a CORS visualization and watching them get allowed/blocked. Clicking different query patterns in a performance visualization and seeing response times.
 - **Replay/comparison controls**: Toggle between before/after states, or replay scenarios at different scales.
@@ -397,17 +426,17 @@ For StressTestPanel response lines rules, button label conventions, and custom r
 - [ ] **Steps don't reveal each other's answers.** If Step 0's correct option contains the exact code Step 1 will ask about, the player can read ahead. Use placeholders (`[...]`, `...`) in earlier steps when later steps will fill in the details.
 - [ ] **Code preview evolves progressively.** Each completed step should visibly change the right panel code. If two steps produce the same code preview, one of them feels invisible.
 - [ ] **Wrong options have distinct, teaching feedback.** Each wrong option should fail for a different reason that teaches something specific. Don't have two wrong options that are wrong for essentially the same reason.
-- [ ] **The reward phase is interactive.** Passive auto-incrementing counters are not allowed. The player must take actions and see visual reactions.
+- [ ] **The reward phase matches the level type.** Types 3/4: interactive (StressTestPanel or custom controls). Type 2: static before/after. Passive auto-incrementing counters are never allowed for any type.
 
 ### Cross-Phase Consistency (Non-Negotiable)
 
-- [ ] **Visual language is consistent across phases.** Observe and reward use the same visual components.
+- [ ] **Visual language is consistent across phases.** Observe/intro and reward use the same visual components and the same visual style. If the intro shows static annotated tables, the reward shows static annotated tables. If the intro shows an animated pipeline, the reward shows the same animated pipeline. Mixing styles (e.g., static tables in intro, terminal-based stress test in reward) is a cross-phase inconsistency.
 - [ ] **Same component, different visual state.** Observe = red/alarming, reward = green/calm. A screenshot of each phase must look visibly different.
 - [ ] **Build steps address all problems shown in the intro.** Every highlighted problem gets a player decision.
 - [ ] **Reward closes the loop on intro's stated problems.** Each stated problem gets a concrete resolution.
 - [ ] **Reward scenario data does not contradict shared visualization components.** If a scenario reuses a lane/zone, check SQL, labels, and banners for consistency.
 - [ ] **Probe and stress test button labels use the same format.** Compare the `label` fields in `PROBES` and `STRESS_SCENARIOS`. They must use the same naming convention (e.g., both short like `GET trending`, not probes short and scenarios with full paths like `GET /api/v1/posts/trending`). Mismatched label styles make the observe and reward phases look like different UIs.
-- [ ] **Reward phase type matches observe type.** Type 3/4 -> StressTestPanel. Type 2 -> static before/after. Type 1 -> may not need reward.
+- [ ] **Reward phase type matches observe type.** Type 3/4 -> StressTestPanel (interactive). Type 2 -> static before/after (no StressTestPanel, no useStressTest). Type 1 -> may not need reward. If a Type 2 level has StressTestPanel, that is a bug.
 
 For detailed guidance with case studies (L16, L25, L26), see [cross-phase-consistency.md](cross-phase-consistency.md).
 

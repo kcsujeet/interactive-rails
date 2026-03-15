@@ -138,3 +138,19 @@ Not every level needs an interactive stress test in the reward phase. The reward
 | Type 1 (no observe) | May not need a reward visualization at all | L1 Setup |
 
 A stress test ("fire requests and check allowed/blocked") makes no sense for a refactoring level where the fix doesn't change what requests get through. The reward for a refactoring level is seeing the clean code structure and confirming the original problems are resolved.
+
+**Case study: L32 Polymorphic Associations (mismatched intro and reward)**
+
+L32 was converted from Type 3 to Type 2 (static intro with annotated schema tables). The intro phase was correctly rebuilt as a static display showing 3 duplicate comment tables. However, the reward phase was not updated to match: it still had a StressTestPanel with terminal-style scenario firing from the old Type 3 implementation.
+
+The result: the intro showed static database table grids (no terminal, no interactivity), but the reward showed a dark terminal with fire buttons. The two phases looked like they belonged to different levels. The player's experience was disjointed: they studied a schema diagram, built a fix, then were asked to "fire requests" at a schema change that has nothing to do with requests.
+
+The fix: replace the StressTestPanel reward with a static before/after comparison using the same visual language as the intro. Before: 3 separate tables (compact, dimmed). After: 1 unified table with polymorphic columns highlighted in green. Same table grid components, same styling conventions, different state (problem vs solution).
+
+**The rule: when you change the intro phase type, you must also change the reward phase to match.** Converting the intro from Type 3 to Type 2 is only half the job. The reward must follow. Check both phases together, not independently.
+
+**Checklist for type conversions:**
+- [ ] If the intro is static (Type 2), the reward is static (before/after, no terminal)
+- [ ] If the intro is interactive (Type 3/4), the reward is interactive (StressTestPanel or custom controls)
+- [ ] The visual components used in the intro appear in the reward (same tables, same grids, same pipeline)
+- [ ] No leftover imports or hooks from the previous type (useStressTest, StressTestPanel, STRESS_SCENARIOS, useDiscoveryGating, ProbeTerminal, DiscoveryChecklist)
