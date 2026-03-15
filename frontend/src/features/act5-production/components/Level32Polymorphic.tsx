@@ -27,7 +27,7 @@
  */
 
 import { ArrowRight, Database, Play, Star, Table2, Zap } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -44,12 +44,9 @@ import {
 	type TerminalStepData,
 	type ValidationResult,
 } from '@/components/levels';
-import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
-import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
-import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { cn } from '@/lib/utils';
 
 // ──────────────────────────────────────────────
@@ -434,112 +431,6 @@ const OPTION_STEP_CONFIG: Record<
 };
 
 // ──────────────────────────────────────────────
-// Stress test scenarios (reward phase)
-// ──────────────────────────────────────────────
-
-const STRESS_SCENARIOS: StressScenario[] = [
-	{
-		id: 'comment-on-post',
-		label: 'POST comment on Post',
-		description: 'Create a comment on a blog post',
-		method: 'POST',
-		path: '/api/v1/posts/1/comments',
-		actor: 'authenticated user',
-		expectedResult: 'allowed',
-		responseLines: [
-			{ text: '201 Created', color: 'green' },
-			{ text: 'commentable_type: "Post", commentable_id: 1', color: 'cyan' },
-		],
-	},
-	{
-		id: 'comment-on-photo',
-		label: 'POST comment on Photo',
-		description: 'Create a comment on a photo',
-		method: 'POST',
-		path: '/api/v1/photos/3/comments',
-		actor: 'authenticated user',
-		expectedResult: 'allowed',
-		responseLines: [
-			{ text: '201 Created', color: 'green' },
-			{ text: 'commentable_type: "Photo", commentable_id: 3', color: 'cyan' },
-		],
-	},
-	{
-		id: 'comment-on-video',
-		label: 'POST comment on Video',
-		description: 'Create a comment on a video',
-		method: 'POST',
-		path: '/api/v1/videos/7/comments',
-		actor: 'authenticated user',
-		expectedResult: 'allowed',
-		responseLines: [
-			{ text: '201 Created', color: 'green' },
-			{ text: 'commentable_type: "Video", commentable_id: 7', color: 'cyan' },
-		],
-	},
-	{
-		id: 'list-all-comments',
-		label: 'GET all user comments',
-		description: 'Query all comments by current user across all types',
-		method: 'GET',
-		path: '/api/v1/comments?user=me',
-		actor: 'authenticated user',
-		expectedResult: 'allowed',
-		responseLines: [
-			{ text: '200 OK', color: 'green' },
-			{
-				text: 'Comment.where(user: Current.user) => 14 results',
-				color: 'cyan',
-			},
-			{ text: 'Single query across all commentable types!', color: 'green' },
-		],
-	},
-	{
-		id: 'comment-on-article',
-		label: 'POST comment on Article (new type)',
-		description: 'Comment on a new commentable type with zero schema changes',
-		method: 'POST',
-		path: '/api/v1/articles/2/comments',
-		actor: 'authenticated user',
-		expectedResult: 'allowed',
-		responseLines: [
-			{ text: '201 Created', color: 'green' },
-			{ text: 'commentable_type: "Article", commentable_id: 2', color: 'cyan' },
-			{
-				text: 'No new table needed. Just add has_many to Article!',
-				color: 'green',
-			},
-		],
-	},
-	{
-		id: 'invalid-parent',
-		label: 'POST comment on missing parent',
-		description: 'Try to comment on a non-existent record',
-		method: 'POST',
-		path: '/api/v1/posts/999/comments',
-		actor: 'authenticated user',
-		expectedResult: 'blocked',
-		responseLines: [
-			{ text: '404 Not Found', color: 'red' },
-			{ text: '{ error: { code: "NOT_FOUND" } }', color: 'red' },
-		],
-	},
-	{
-		id: 'empty-body',
-		label: 'POST comment with empty body',
-		description: 'Submit a comment without a body',
-		method: 'POST',
-		path: '/api/v1/posts/1/comments',
-		actor: 'authenticated user',
-		expectedResult: 'blocked',
-		responseLines: [
-			{ text: '422 Unprocessable Entity', color: 'red' },
-			{ text: 'CommentContract: body is missing', color: 'yellow' },
-		],
-	},
-];
-
-// ──────────────────────────────────────────────
 // Code preview files
 // ──────────────────────────────────────────────
 
@@ -894,23 +785,6 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 
 	// Gating hooks
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
-	const stressTest = useStressTest(STRESS_SCENARIOS);
-
-	// Reward visualization state
-	const [vizAnimating, setVizAnimating] = useState(false);
-	const [rewardHighlight, setRewardHighlight] = useState<{
-		parentKey: string | null;
-		result: 'allowed' | 'blocked';
-	} | null>(null);
-	const animTimerRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-
-	// ── Cleanup timers ──
-	const clearTimers = useCallback(() => {
-		for (const t of animTimerRef.current) clearTimeout(t);
-		animTimerRef.current = [];
-	}, []);
-
-	useEffect(() => () => clearTimers(), [clearTimers]);
 
 	// ── Phase transitions ──
 	useEffect(() => {
@@ -931,46 +805,6 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 		[stepper],
 	);
 
-	// ── Reward: fire scenario handler ──
-	const handleFireScenario = useCallback(
-		(scenarioId: string) => {
-			if (vizAnimating) return;
-			stressTest.fireRequest(scenarioId);
-
-			const scenario = STRESS_SCENARIOS.find((s) => s.id === scenarioId);
-			if (!scenario) return;
-
-			// Map scenario to parent model for visualization
-			const parentMap: Record<string, string> = {
-				'comment-on-post': 'post',
-				'comment-on-photo': 'photo',
-				'comment-on-video': 'video',
-				'comment-on-article': 'article',
-				'list-all-comments': 'all',
-			};
-			const parentKey = parentMap[scenarioId] ?? null;
-
-			setVizAnimating(true);
-			setRewardHighlight({
-				parentKey,
-				result: scenario.expectedResult,
-			});
-
-			const timer = setTimeout(() => {
-				setVizAnimating(false);
-			}, ANIMATION_DURATION_MS);
-			animTimerRef.current.push(timer);
-		},
-		[vizAnimating, stressTest],
-	);
-
-	const handleToggleAutoFire = useCallback(
-		(onFire: (id: string) => void) => {
-			stressTest.toggleAutoFire(onFire);
-		},
-		[stressTest],
-	);
-
 	// ── Phase transition handlers ──
 	const handleStartBuild = () => {
 		setPhase('build');
@@ -978,7 +812,6 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 
 	const handleActivateReward = () => {
 		setPhase('reward');
-		setRewardHighlight(null);
 	};
 
 	const handleComplete = async () => {
@@ -990,15 +823,8 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 			return {
 				valid: false,
 				message: 'Complete all phases first',
-				details: ['Finish the observe and build phases before submitting.'],
-			};
-		}
-		if (stressTest.results.length < 3) {
-			return {
-				valid: false,
-				message: 'Test more scenarios',
 				details: [
-					'Fire at least 3 stress test scenarios to verify your solution works.',
+					'Finish the build phase and review the solution before submitting.',
 				],
 			};
 		}
@@ -1011,146 +837,41 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep] ?? null;
 	const isTerminalStep = stepper.currentStep <= 1;
 
-	// Reward: unified table rows
+	// Reward: unified table rows (solution visualization)
 	const UNIFIED_ROWS = [
-		{ id: 1, body: 'Great post!', type: 'Post', typeId: 1, userId: 5 },
-		{ id: 2, body: 'Beautiful shot!', type: 'Photo', typeId: 3, userId: 5 },
-		{ id: 3, body: 'Awesome video!', type: 'Video', typeId: 7, userId: 2 },
-		{ id: 4, body: 'Nice analysis', type: 'Article', typeId: 2, userId: 8 },
+		{
+			id: 1,
+			body: 'Great post!',
+			type: 'Post',
+			typeId: 1,
+			userId: 5,
+			createdAt: 'Mar 12',
+		},
+		{
+			id: 2,
+			body: 'Beautiful shot!',
+			type: 'Photo',
+			typeId: 3,
+			userId: 5,
+			createdAt: 'Mar 10',
+		},
+		{
+			id: 3,
+			body: 'Awesome video!',
+			type: 'Video',
+			typeId: 7,
+			userId: 2,
+			createdAt: 'Mar 11',
+		},
+		{
+			id: 4,
+			body: 'Nice analysis',
+			type: 'Article',
+			typeId: 2,
+			userId: 8,
+			createdAt: 'Mar 15',
+		},
 	];
-
-	const renderRewardVisualization = () => {
-		const lastResult =
-			stressTest.results[stressTest.results.length - 1] ?? null;
-		const lastScenario = lastResult
-			? STRESS_SCENARIOS.find((s) => s.id === lastResult.scenarioId)
-			: null;
-
-		return (
-			<div className="flex-1 flex flex-col items-center justify-center gap-3 p-4">
-				{/* Banner */}
-				<div className="inline-flex items-center gap-2 bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-300 dark:border-emerald-700 rounded-lg px-3 py-1.5">
-					<Table2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-					<span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-						1 Unified Comment Table
-					</span>
-					<span className="text-[10px] font-mono bg-emerald-200 dark:bg-emerald-800/50 text-emerald-700 dark:text-emerald-300 rounded-full px-2 py-0.5">
-						polymorphic
-					</span>
-				</div>
-
-				{/* Unified database table */}
-				<div
-					className={cn(
-						'w-full max-w-2xl rounded-lg border overflow-hidden transition-colors',
-						lastResult?.result === 'allowed'
-							? 'border-emerald-400 dark:border-emerald-600'
-							: lastResult?.result === 'blocked'
-								? 'border-destructive'
-								: 'border-border',
-					)}
-				>
-					{/* Column headers */}
-					<table className="w-full text-xs font-mono">
-						<thead>
-							<tr className="bg-muted border-b border-border">
-								<th className="px-2 py-1.5 text-left font-medium text-muted-foreground w-8">
-									id
-								</th>
-								<th className="px-2 py-1.5 text-left font-medium text-muted-foreground">
-									body
-								</th>
-								<th className="px-2 py-1.5 text-left font-medium text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-900/20">
-									commentable_type
-								</th>
-								<th className="px-2 py-1.5 text-left font-medium text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-900/20 w-12">
-									..._id
-								</th>
-								<th className="px-2 py-1.5 text-left font-medium text-muted-foreground w-12">
-									user_id
-								</th>
-							</tr>
-						</thead>
-						<tbody>
-							{UNIFIED_ROWS.map((row) => {
-								const isActive =
-									rewardHighlight?.parentKey === row.type.toLowerCase() ||
-									rewardHighlight?.parentKey === 'all';
-								return (
-									<tr
-										className={cn(
-											'border-b border-border/30 last:border-b-0 transition-colors',
-											isActive &&
-												rewardHighlight?.result === 'allowed' &&
-												'bg-emerald-50 dark:bg-emerald-950/30',
-											isActive &&
-												rewardHighlight?.result === 'blocked' &&
-												'bg-destructive/10',
-										)}
-										key={row.id}
-									>
-										<td className="px-2 py-1.5 text-muted-foreground">
-											{row.id}
-										</td>
-										<td className="px-2 py-1.5 text-muted-foreground truncate max-w-[120px]">
-											{row.body}
-										</td>
-										<td className="px-2 py-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
-											{row.type}
-										</td>
-										<td className="px-2 py-1.5 text-emerald-600 dark:text-emerald-400">
-											{row.typeId}
-										</td>
-										<td className="px-2 py-1.5 text-muted-foreground">
-											{row.userId}
-										</td>
-									</tr>
-								);
-							})}
-
-							{/* Dynamic result row */}
-							{lastScenario && lastResult && (
-								<tr
-									className={cn(
-										'border-t-2 transition-colors',
-										lastResult.result === 'allowed'
-											? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/40'
-											: 'border-destructive/30 bg-destructive/5 dark:bg-destructive/10',
-									)}
-								>
-									<td
-										className={cn(
-											'px-2 py-1.5 font-bold',
-											lastResult.result === 'allowed'
-												? 'text-emerald-600 dark:text-emerald-400'
-												: 'text-destructive',
-										)}
-									>
-										{lastResult.result === 'allowed' ? '+' : '\u00d7'}
-									</td>
-									<td
-										className={cn(
-											'px-2 py-1.5 col-span-4',
-											lastResult.result === 'allowed'
-												? 'text-emerald-600 dark:text-emerald-400'
-												: 'text-destructive',
-										)}
-										colSpan={4}
-									>
-										{lastResult.result === 'allowed'
-											? `commentable_type: "${rewardHighlight?.parentKey === 'all' ? '*' : (rewardHighlight?.parentKey?.replace(/^\w/, (c) => c.toUpperCase()) ?? '?')}"`
-											: lastScenario.id === 'empty-body'
-												? 'CommentContract validation failed'
-												: 'Record not found'}
-									</td>
-								</tr>
-							)}
-						</tbody>
-					</table>
-				</div>
-			</div>
-		);
-	};
 
 	// ──────────────────────────────────────────
 	// Main render
@@ -1178,9 +899,9 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 									]
 								: phase === 'reward'
 									? [
-											'Fire scenarios to test comment creation on different types',
-											'Try the new Article type (zero schema changes needed)',
-											'Verify validation and error handling work correctly',
+											'Compare the before (3 tables) and after (1 table)',
+											'Notice the polymorphic columns replace separate foreign keys',
+											'New types like Article need zero schema changes',
 										]
 									: ['Review your star rating and visualize the solution']
 					}
@@ -1212,24 +933,13 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 						)}
 
 						{phase === 'reward' && (
-							<div className="p-4 space-y-3">
-								<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-									Results
-								</div>
-								<div className="grid grid-cols-2 gap-2">
-									<div className="bg-success/10 dark:bg-success/20 rounded-lg p-2 text-center">
-										<div className="text-lg font-bold text-success">
-											{stressTest.allowedCount}
-										</div>
-										<div className="text-xs text-success">Created</div>
-									</div>
-									<div className="bg-destructive/10 dark:bg-destructive/20 rounded-lg p-2 text-center">
-										<div className="text-lg font-bold text-destructive">
-											{stressTest.blockedCount}
-										</div>
-										<div className="text-xs text-destructive">Rejected</div>
-									</div>
-								</div>
+							<div className="p-4 text-xs text-muted-foreground space-y-2">
+								<p>
+									Three separate tables consolidated into one. The
+									commentable_type and commentable_id columns replace post_id,
+									photo_id, and video_id.
+								</p>
+								<p>Adding Article comments required zero schema changes.</p>
 							</div>
 						)}
 					</div>
@@ -1245,7 +955,7 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 					onValidate={validateSolution}
 				/>
 
-				<div className="flex-1 flex flex-col">
+				<div className="flex-1 flex flex-col min-h-0">
 					{/* ── INTRO PHASE (Type 2: static annotated code) ── */}
 					{phase === 'intro' && (
 						<div className="flex-1 overflow-y-auto overflow-x-auto p-6">
@@ -1493,25 +1203,143 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* ── REWARD PHASE ── */}
+					{/* ── REWARD PHASE (static before/after) ── */}
 					{phase === 'reward' && (
-						<>
-							{renderRewardVisualization()}
+						<div className="flex-1 overflow-y-auto overflow-x-auto p-6">
+							<div className="mx-auto flex flex-col gap-6">
+								{/* BEFORE: 3 separate tables (compact) */}
+								<div className="flex flex-col items-center gap-3">
+									<div className="inline-flex items-center gap-2 bg-destructive/10 dark:bg-destructive/20 border border-destructive/30 rounded-lg px-3 py-1.5">
+										<Table2 className="w-4 h-4 text-destructive" />
+										<span className="text-sm font-semibold text-destructive">
+											Before: 3 Separate Tables
+										</span>
+									</div>
+									<div className="grid grid-cols-3 gap-3 w-full min-w-[640px] opacity-60">
+										{DUPLICATE_TABLES.map((table) => (
+											<div
+												className={cn(
+													'rounded-lg border overflow-hidden',
+													table.borderColor,
+												)}
+												key={table.name}
+											>
+												<div
+													className={cn(
+														'px-2.5 py-1.5 flex items-center gap-1.5 border-b border-border/30',
+														table.headerBg,
+													)}
+												>
+													<Database
+														className={cn('w-3 h-3', table.textColor)}
+													/>
+													<span
+														className={cn(
+															'text-[11px] font-bold font-mono',
+															table.textColor,
+														)}
+													>
+														{table.name}
+													</span>
+												</div>
+												<div className="px-2.5 py-1.5 flex flex-wrap gap-1 text-[10px] font-mono text-muted-foreground">
+													<span>id</span>
+													<span>body</span>
+													<span className={cn('font-bold', table.textColor)}>
+														{table.fkColumn}
+													</span>
+													<span>user_id</span>
+													<span>created_at</span>
+												</div>
+											</div>
+										))}
+									</div>
+								</div>
 
-							<div className="px-6 pb-2">
-								<StressTestPanel
-									allowedCount={stressTest.allowedCount}
-									blockedCount={stressTest.blockedCount}
-									canAutoFire={stressTest.canAutoFire}
-									disabled={vizAnimating}
-									isAutoFiring={stressTest.isAutoFiring}
-									onFire={handleFireScenario}
-									onToggleAutoFire={handleToggleAutoFire}
-									results={stressTest.results}
-									scenarios={STRESS_SCENARIOS}
-								/>
+								{/* Arrow */}
+								<div className="flex justify-center">
+									<div className="flex flex-col items-center gap-1 text-emerald-600 dark:text-emerald-400">
+										<ArrowRight className="w-6 h-6 rotate-90" />
+										<span className="text-xs font-semibold">Consolidated</span>
+									</div>
+								</div>
+
+								{/* AFTER: 1 unified table */}
+								<div className="flex flex-col items-center gap-3">
+									<div className="inline-flex items-center gap-2 bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-300 dark:border-emerald-700 rounded-lg px-3 py-1.5">
+										<Table2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+										<span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+											After: 1 Unified Table
+										</span>
+										<span className="text-[10px] font-mono bg-emerald-200 dark:bg-emerald-800/50 text-emerald-700 dark:text-emerald-300 rounded-full px-2 py-0.5">
+											polymorphic
+										</span>
+									</div>
+
+									<div className="w-full min-w-[640px] rounded-lg border border-emerald-300 dark:border-emerald-600 overflow-hidden">
+										<div className="px-3 py-2 flex items-center gap-1.5 border-b border-border/30 bg-emerald-50 dark:bg-emerald-900/30">
+											<Database className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+											<span className="text-xs font-bold font-mono text-emerald-700 dark:text-emerald-300">
+												comments
+											</span>
+										</div>
+										<div className="overflow-x-auto">
+											<table className="w-full text-[11px] font-mono">
+												<thead>
+													<tr className="bg-muted/50 border-b border-border/30">
+														<th className="px-2 py-1 text-left font-medium text-muted-foreground">
+															id
+														</th>
+														<th className="px-2 py-1 text-left font-medium text-muted-foreground">
+															body
+														</th>
+														<th className="px-2 py-1 text-left font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20">
+															commentable_type
+														</th>
+														<th className="px-2 py-1 text-left font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20">
+															commentable_id
+														</th>
+														<th className="px-2 py-1 text-left font-medium text-muted-foreground">
+															user_id
+														</th>
+														<th className="px-2 py-1 text-left font-medium text-muted-foreground">
+															created_at
+														</th>
+													</tr>
+												</thead>
+												<tbody>
+													{UNIFIED_ROWS.map((row) => (
+														<tr
+															className="border-b border-border/20 last:border-b-0"
+															key={row.id}
+														>
+															<td className="px-2 py-1 text-muted-foreground">
+																{row.id}
+															</td>
+															<td className="px-2 py-1 text-muted-foreground">
+																{row.body}
+															</td>
+															<td className="px-2 py-1 text-emerald-600 dark:text-emerald-400 font-bold">
+																{row.type}
+															</td>
+															<td className="px-2 py-1 text-emerald-600 dark:text-emerald-400">
+																{row.typeId}
+															</td>
+															<td className="px-2 py-1 text-muted-foreground">
+																{row.userId}
+															</td>
+															<td className="px-2 py-1 text-muted-foreground">
+																{row.createdAt}
+															</td>
+														</tr>
+													))}
+												</tbody>
+											</table>
+										</div>
+									</div>
+								</div>
 							</div>
-						</>
+						</div>
 					)}
 				</div>
 			</CenterPanel>

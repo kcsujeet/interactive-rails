@@ -1,12 +1,11 @@
 /**
  * Level 32: Polymorphic Associations - Data Consistency Tests
  *
- * Type 2 static intro (no probes, no discoveries, no stage inspector).
+ * Type 2 static intro, static before/after reward (no probes, no stress test).
  *
  * Tests mirror the data structures from the component to verify:
  * - Build step quality (correct answer position, feedback quality)
- * - Stress test scenario coverage and consistency
- * - Cross-phase consistency (intro tables match reward visualization)
+ * - Cross-phase consistency (intro tables match reward unified table)
  * - Cumulative pattern compliance (service objects, contracts, error handling)
  */
 
@@ -21,6 +20,13 @@ const DUPLICATE_TABLES = [
 ];
 
 const SHARED_COLUMNS = ['id', 'body', 'user_id', 'created_at'];
+
+const UNIFIED_ROWS = [
+	{ id: 1, body: 'Great post!', type: 'Post', typeId: 1, userId: 5, createdAt: 'Mar 12' },
+	{ id: 2, body: 'Beautiful shot!', type: 'Photo', typeId: 3, userId: 5, createdAt: 'Mar 10' },
+	{ id: 3, body: 'Awesome video!', type: 'Video', typeId: 7, userId: 2, createdAt: 'Mar 11' },
+	{ id: 4, body: 'Nice analysis', type: 'Article', typeId: 2, userId: 8, createdAt: 'Mar 15' },
+];
 
 const STEP_DEFS = [
 	{ id: 'generate-migration', title: 'Generate Migration' },
@@ -78,16 +84,6 @@ const SERVICE_OPTIONS = [
 const CONTROLLER_OPTIONS = [
 	{ id: 'wrong-direct-create', correct: false, feedback: 'Business logic belongs in service objects, not controllers. The controller should delegate to CreateComment.call and handle the result.' },
 	{ id: 'correct-service', correct: true },
-];
-
-const STRESS_SCENARIOS = [
-	{ id: 'comment-on-post', label: 'POST comment on Post', expectedResult: 'allowed' as const },
-	{ id: 'comment-on-photo', label: 'POST comment on Photo', expectedResult: 'allowed' as const },
-	{ id: 'comment-on-video', label: 'POST comment on Video', expectedResult: 'allowed' as const },
-	{ id: 'list-all-comments', label: 'GET all user comments', expectedResult: 'allowed' as const },
-	{ id: 'comment-on-article', label: 'POST comment on Article (new type)', expectedResult: 'allowed' as const },
-	{ id: 'invalid-parent', label: 'POST comment on missing parent', expectedResult: 'blocked' as const },
-	{ id: 'empty-body', label: 'POST comment with empty body', expectedResult: 'blocked' as const },
 ];
 
 // ── Tests ──
@@ -222,61 +218,35 @@ describe('Level 32: Polymorphic Associations', () => {
 		});
 	});
 
-	describe('Stress test scenarios', () => {
-		test('has 7 scenarios', () => {
-			expect(STRESS_SCENARIOS).toHaveLength(7);
-		});
-
-		test('all scenario IDs are unique', () => {
-			const ids = STRESS_SCENARIOS.map((s) => s.id);
-			expect(new Set(ids).size).toBe(ids.length);
-		});
-
-		test('all scenario labels are unique', () => {
-			const labels = STRESS_SCENARIOS.map((s) => s.label);
-			expect(new Set(labels).size).toBe(labels.length);
-		});
-
-		test('has mix of allowed and blocked results', () => {
-			const allowed = STRESS_SCENARIOS.filter((s) => s.expectedResult === 'allowed');
-			const blocked = STRESS_SCENARIOS.filter((s) => s.expectedResult === 'blocked');
-			expect(allowed.length).toBeGreaterThan(0);
-			expect(blocked.length).toBeGreaterThan(0);
-		});
-
-		test('covers all three parent types', () => {
-			const parentTypes = ['post', 'photo', 'video'];
-			for (const type of parentTypes) {
-				const found = STRESS_SCENARIOS.some((s) => s.id.includes(type));
-				expect(found).toBe(true);
-			}
-		});
-
-		test('includes extensibility test (Article type)', () => {
-			const articleScenario = STRESS_SCENARIOS.find((s) => s.id === 'comment-on-article');
-			expect(articleScenario).toBeDefined();
-			expect(articleScenario?.expectedResult).toBe('allowed');
-		});
-
-		test('includes validation failure test (empty body)', () => {
-			const emptyBody = STRESS_SCENARIOS.find((s) => s.id === 'empty-body');
-			expect(emptyBody).toBeDefined();
-			expect(emptyBody?.expectedResult).toBe('blocked');
-		});
-	});
-
-	describe('Cross-phase consistency', () => {
-		test('intro tables cover same parent types as stress scenarios', () => {
+	describe('Cross-phase consistency (intro vs reward)', () => {
+		test('reward unified table covers all intro parent types', () => {
 			const introParents = DUPLICATE_TABLES.map((t) => t.name.replace('_comments', ''));
+			const rewardTypes = UNIFIED_ROWS.map((r) => r.type.toLowerCase());
 			for (const parent of introParents) {
-				const found = STRESS_SCENARIOS.some((s) => s.id.includes(parent));
-				expect(found).toBe(true);
+				expect(rewardTypes).toContain(parent);
 			}
 		});
 
-		test('stress scenarios include types beyond intro (extensibility)', () => {
-			const articleScenario = STRESS_SCENARIOS.find((s) => s.id === 'comment-on-article');
-			expect(articleScenario).toBeDefined();
+		test('reward table includes extensibility type (Article)', () => {
+			const articleRow = UNIFIED_ROWS.find((r) => r.type === 'Article');
+			expect(articleRow).toBeDefined();
+		});
+
+		test('reward rows all have complete data', () => {
+			for (const row of UNIFIED_ROWS) {
+				expect(row.id).toBeGreaterThan(0);
+				expect(row.body.length).toBeGreaterThan(0);
+				expect(row.type.length).toBeGreaterThan(0);
+				expect(row.typeId).toBeGreaterThan(0);
+				expect(row.userId).toBeGreaterThan(0);
+				expect(row.createdAt.length).toBeGreaterThan(0);
+			}
+		});
+
+		test('unified table has more types than intro (shows improvement)', () => {
+			const introCount = DUPLICATE_TABLES.length;
+			const rewardTypes = new Set(UNIFIED_ROWS.map((r) => r.type));
+			expect(rewardTypes.size).toBeGreaterThan(introCount);
 		});
 	});
 
