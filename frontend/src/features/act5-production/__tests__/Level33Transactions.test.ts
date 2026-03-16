@@ -15,92 +15,65 @@ import { describe, expect, test } from 'bun:test';
 // ── Mirror data from component ──
 
 const DISCOVERY_DEFS = [
-	{ id: 'charge-no-order', label: 'Account charged but no order created' },
-	{ id: 'orphan-audit', label: 'Audit log orphaned without order' },
-	{
-		id: 'no-rollback',
-		label: 'No rollback mechanism for partial failures',
-	},
+	{ id: 'credits-no-boost', label: 'Credits deducted but post never boosted' },
+	{ id: 'orphan-boost', label: 'Post boosted without audit trail' },
 ];
 
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
-	'order-fail': ['charge-no-order'],
-	'audit-fail': ['orphan-audit'],
-	'inspect-code': ['no-rollback'],
+	'boost-fail': ['credits-no-boost'],
+	'log-fail': ['orphan-boost'],
 };
 
 const PROBES = [
 	{
-		id: 'order-fail',
-		label: 'Process order (Order.create! fails)',
-		command: '# Charge account, then create order (order fails)',
+		id: 'boost-fail',
+		label: 'Boost post (Boost.create! fails)',
+		command: '# Deduct credits, then create boost (boost fails)',
 		responseLines: [
-			{ text: 'account.balance -= 100  =>  saves $400', color: 'green' },
 			{
-				text: 'Order.create!(...)     =>  BOOM! RecordInvalid',
-				color: 'red',
-			},
-			{
-				text: 'AuditLog.create!(...)  =>  never reached',
-				color: 'muted',
-			},
-			{
-				text: 'Account was charged $100 but no order exists!',
-				color: 'red',
-			},
-			{ text: 'No rollback. Money vanished.', color: 'red' },
-		],
-	},
-	{
-		id: 'audit-fail',
-		label: 'Process order (AuditLog fails)',
-		command: '# Charge account, create order, then audit (audit fails)',
-		responseLines: [
-			{ text: 'account.balance -= 100  =>  saves $400', color: 'green' },
-			{
-				text: 'Order.create!(...)     =>  OK (order #42)',
+				text: 'user.credits -= 10      =>  saves (credits: 40)',
 				color: 'green',
 			},
 			{
-				text: 'AuditLog.create!(...)  =>  BOOM! ConnectionError',
+				text: 'Boost.create!(...)      =>  BOOM! RecordInvalid',
 				color: 'red',
 			},
-			{ text: 'Order exists without audit trail!', color: 'red' },
 			{
-				text: 'Compliance violation: unaudited financial operation.',
+				text: 'CreditLog.create!(...)  =>  never reached',
+				color: 'muted',
+			},
+			{
+				text: 'Credits deducted but post was never boosted!',
 				color: 'red',
 			},
+			{ text: 'No rollback. 10 credits vanished.', color: 'red' },
 		],
 	},
 	{
-		id: 'inspect-code',
-		label: 'Inspect service code',
-		command: 'cat app/services/process_order.rb',
+		id: 'log-fail',
+		label: 'Boost post (CreditLog fails)',
+		command: '# Deduct credits, create boost, then log (log fails)',
 		responseLines: [
 			{
-				text: 'class ProcessOrder < ApplicationService',
-				color: 'cyan',
-			},
-			{ text: '  def call', color: 'muted' },
-			{ text: '    account.balance -= @amount', color: 'muted' },
-			{
-				text: '    account.save!          # Step 1: committed',
-				color: 'yellow',
+				text: 'user.credits -= 10      =>  saves (credits: 40)',
+				color: 'green',
 			},
 			{
-				text: '    Order.create!(...)     # Step 2: might fail',
-				color: 'yellow',
+				text: 'Boost.create!(...)      =>  OK (boost #7)',
+				color: 'green',
 			},
 			{
-				text: '    AuditLog.create!(...) # Step 3: might fail',
-				color: 'yellow',
-			},
-			{
-				text: '    # No transaction wrapping these operations!',
+				text: 'CreditLog.create!(...)  =>  BOOM! ConnectionError',
 				color: 'red',
 			},
-			{ text: '  end', color: 'muted' },
-			{ text: 'end', color: 'muted' },
+			{
+				text: 'Post boosted but no audit trail!',
+				color: 'red',
+			},
+			{
+				text: 'Compliance violation: unaudited credit operation.',
+				color: 'red',
+			},
 		],
 	},
 ];
@@ -109,7 +82,7 @@ const STEP_DEFS = [
 	{ id: 'identify-problem', title: 'Identify the Problem' },
 	{ id: 'wrap-transaction', title: 'Wrap in Transaction' },
 	{ id: 'handle-rollback', title: 'Handle Custom Abort' },
-	{ id: 'build-service', title: 'Build Order Service' },
+	{ id: 'build-service', title: 'Build Boost Service' },
 ];
 
 const IDENTIFY_OPTIONS = [
@@ -143,7 +116,7 @@ const TRANSACTION_OPTIONS = [
 		id: 'wrong-save-only',
 		correct: false,
 		feedback:
-			'Letting exceptions propagate does not undo writes that already committed. Without a transaction boundary, account.save! persists even if Order.create! fails.',
+			'Letting exceptions propagate does not undo writes that already committed. Without a transaction boundary, user.save! persists even if Boost.create! fails.',
 	},
 ];
 
@@ -152,7 +125,7 @@ const ROLLBACK_OPTIONS = [
 		id: 'wrong-return-false',
 		correct: false,
 		feedback:
-			'Returning false inside a transaction does NOT trigger a rollback. The transaction commits normally with the balance already deducted. You need to raise to abort.',
+			'Returning false inside a transaction does NOT trigger a rollback. The transaction commits normally with the credits already deducted. You need to raise to abort.',
 	},
 	{
 		id: 'wrong-throw',
@@ -175,28 +148,28 @@ const SERVICE_OPTIONS = [
 
 const STRESS_SCENARIOS = [
 	{
-		id: 'valid-order',
-		label: 'POST order $50 (valid)',
+		id: 'valid-boost',
+		label: 'POST boost (50 credits, valid)',
 		expectedResult: 'allowed' as const,
 	},
 	{
-		id: 'order-with-coupon',
-		label: 'POST order $30 with coupon',
+		id: 'boost-with-discount',
+		label: 'POST boost (30 credits, discount)',
 		expectedResult: 'allowed' as const,
 	},
 	{
-		id: 'invalid-amount',
-		label: 'POST order -$10 (invalid)',
+		id: 'negative-credits',
+		label: 'POST boost (-5 credits, invalid)',
 		expectedResult: 'blocked' as const,
 	},
 	{
-		id: 'order-creation-fails',
-		label: 'POST order (creation error)',
+		id: 'boost-creation-fails',
+		label: 'POST boost (creation error)',
 		expectedResult: 'blocked' as const,
 	},
 	{
-		id: 'audit-fails-rollback',
-		label: 'POST order (audit fails, rollback)',
+		id: 'log-fails-rollback',
+		label: 'POST boost (log fails, rollback)',
 		expectedResult: 'blocked' as const,
 	},
 ];
@@ -205,8 +178,8 @@ const STRESS_SCENARIOS = [
 
 describe('Level 33: Transactions (Atomicity)', () => {
 	describe('Discovery definitions', () => {
-		test('has exactly 3 discoveries', () => {
-			expect(DISCOVERY_DEFS).toHaveLength(3);
+		test('has exactly 2 discoveries', () => {
+			expect(DISCOVERY_DEFS).toHaveLength(2);
 		});
 
 		test('all discovery IDs are unique', () => {
@@ -246,8 +219,8 @@ describe('Level 33: Transactions (Atomicity)', () => {
 	});
 
 	describe('Probes', () => {
-		test('has exactly 3 probes', () => {
-			expect(PROBES).toHaveLength(3);
+		test('has exactly 2 probes', () => {
+			expect(PROBES).toHaveLength(2);
 		});
 
 		test('all probe IDs are unique', () => {
@@ -275,15 +248,15 @@ describe('Level 33: Transactions (Atomicity)', () => {
 			}
 		});
 
-		test('order-fail probe shows partial failure', () => {
-			const probe = PROBES.find((p) => p.id === 'order-fail');
+		test('boost-fail probe shows partial failure', () => {
+			const probe = PROBES.find((p) => p.id === 'boost-fail');
 			const texts = probe?.responseLines.map((l) => l.text).join(' ') ?? '';
 			expect(texts).toContain('BOOM');
-			expect(texts).toContain('no order');
+			expect(texts).toContain('never boosted');
 		});
 
-		test('audit-fail probe shows orphaned data', () => {
-			const probe = PROBES.find((p) => p.id === 'audit-fail');
+		test('log-fail probe shows orphaned data', () => {
+			const probe = PROBES.find((p) => p.id === 'log-fail');
 			const texts = probe?.responseLines.map((l) => l.text).join(' ') ?? '';
 			expect(texts).toContain('audit');
 			expect(texts).toContain('ConnectionError');
@@ -423,20 +396,20 @@ describe('Level 33: Transactions (Atomicity)', () => {
 		});
 
 		test('includes rollback scenarios that mirror observe failures', () => {
-			const orderFail = STRESS_SCENARIOS.find(
-				(s) => s.id === 'order-creation-fails',
+			const boostFail = STRESS_SCENARIOS.find(
+				(s) => s.id === 'boost-creation-fails',
 			);
-			const auditFail = STRESS_SCENARIOS.find(
-				(s) => s.id === 'audit-fails-rollback',
+			const logFail = STRESS_SCENARIOS.find(
+				(s) => s.id === 'log-fails-rollback',
 			);
-			expect(orderFail).toBeDefined();
-			expect(orderFail?.expectedResult).toBe('blocked');
-			expect(auditFail).toBeDefined();
-			expect(auditFail?.expectedResult).toBe('blocked');
+			expect(boostFail).toBeDefined();
+			expect(boostFail?.expectedResult).toBe('blocked');
+			expect(logFail).toBeDefined();
+			expect(logFail?.expectedResult).toBe('blocked');
 		});
 
-		test('includes contract validation scenario (invalid amount)', () => {
-			const invalid = STRESS_SCENARIOS.find((s) => s.id === 'invalid-amount');
+		test('includes contract validation scenario (negative credits)', () => {
+			const invalid = STRESS_SCENARIOS.find((s) => s.id === 'negative-credits');
 			expect(invalid).toBeDefined();
 			expect(invalid?.expectedResult).toBe('blocked');
 		});
@@ -453,18 +426,18 @@ describe('Level 33: Transactions (Atomicity)', () => {
 		});
 
 		test('partial failure appears in both observe and reward', () => {
-			const observeProbe = PROBES.find((p) => p.id === 'order-fail');
+			const observeProbe = PROBES.find((p) => p.id === 'boost-fail');
 			const rewardScenario = STRESS_SCENARIOS.find(
-				(s) => s.id === 'order-creation-fails',
+				(s) => s.id === 'boost-creation-fails',
 			);
 			expect(observeProbe).toBeDefined();
 			expect(rewardScenario).toBeDefined();
 		});
 
-		test('audit failure appears in both observe and reward', () => {
-			const observeProbe = PROBES.find((p) => p.id === 'audit-fail');
+		test('log failure appears in both observe and reward', () => {
+			const observeProbe = PROBES.find((p) => p.id === 'log-fail');
 			const rewardScenario = STRESS_SCENARIOS.find(
-				(s) => s.id === 'audit-fails-rollback',
+				(s) => s.id === 'log-fails-rollback',
 			);
 			expect(observeProbe).toBeDefined();
 			expect(rewardScenario).toBeDefined();
@@ -487,8 +460,8 @@ describe('Level 33: Transactions (Atomicity)', () => {
 	});
 
 	describe('Data consistency', () => {
-		test('minRequired (3) matches total discoveries', () => {
-			expect(DISCOVERY_DEFS.length).toBe(3);
+		test('minRequired (2) matches total discoveries', () => {
+			expect(DISCOVERY_DEFS.length).toBe(2);
 		});
 
 		test('all option step arrays have at least 2 options', () => {

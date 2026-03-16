@@ -188,44 +188,44 @@ const level33Transactions: Level = {
 	trigger: {
 		type: 'incident',
 		description:
-			'An order fails mid-processing. The account was charged but no order was created. $100 vanished with no record of what happened.',
+			'A user spends 10 credits to boost a post, but the boost record never gets created. The credits are gone with no record of what happened.',
 	},
 	startingPipeline: standardPipeline(),
 	problem: {
 		observation:
-			'The order pipeline runs three steps sequentially: charge account, create order, write audit log. When step 2 or 3 fails, step 1 is already committed and cannot be undone.',
+			'The boost pipeline deducts user credits, creates a boost record, and writes a credit log. When step 2 or 3 fails, the credits are already deducted and cannot be restored.',
 		rootCause:
 			'Each database write commits independently. Without a transaction boundary, a failure midway leaves partial writes that corrupt data integrity.',
 		codeExample: `# BAD: Each operation commits independently
-class ProcessOrder < ApplicationService
-  Result = Data.define(:success?, :order, :errors)
+class BoostPost < ApplicationService
+  Result = Data.define(:success?, :boost, :errors)
 
-  def initialize(account_id:, amount:, items:)
-    @account_id = account_id
-    @amount = amount
-    @items = items
+  def initialize(user_id:, post_id:, cost:)
+    @user_id = user_id
+    @post_id = post_id
+    @cost = cost
   end
 
   def call
-    v = OrderContract.new.call(
-      account_id: @account_id,
-      amount: @amount, items: @items)
+    v = BoostContract.new.call(
+      user_id: @user_id,
+      post_id: @post_id, cost: @cost)
     return Result.new(success?: false,
-      order: nil, errors: v.errors.to_h) if v.failure?
+      boost: nil, errors: v.errors.to_h) if v.failure?
 
-    account = Account.find(@account_id)
-    account.balance -= @amount
-    account.save!
+    user = User.find(@user_id)
+    user.credits -= @cost
+    user.save!
     # Step 1 committed. If step 2 fails...
-    order = Order.create!(account:, total: @amount,
-      items: @items)
+    boost = Boost.create!(user:, post_id: @post_id,
+      reach: 5000)
     # Step 2 committed. If step 3 fails...
-    AuditLog.create!(account:, amount: -@amount,
-      balance_after: account.balance)
-    Result.new(success?: true, order:, errors: [])
+    CreditLog.create!(user:, amount: -@cost,
+      reason: "boost_post_#{@post_id}")
+    Result.new(success?: true, boost:, errors: [])
   end
 end`,
-		goal: 'Identify the atomicity problem, wrap operations in a transaction, handle custom abort with raise ActiveRecord::Rollback, and build a ProcessOrder service with contract validation.',
+		goal: 'Identify the atomicity problem, wrap operations in a transaction, handle custom abort with raise ActiveRecord::Rollback, and build a BoostPost service with contract validation.',
 		thresholds: {},
 	},
 	successConditions: [
@@ -241,18 +241,18 @@ end`,
 
 **The problem:**
 \`\`\`ruby
-account.save!           # Step 1: committed
-Order.create!(...)      # Step 2: might fail
-AuditLog.create!(...)   # Step 3: might fail
+user.save!              # Step 1: committed
+Boost.create!(...)      # Step 2: might fail
+CreditLog.create!(...)  # Step 3: might fail
 # If step 2 fails, step 1 is already persisted!
 \`\`\`
 
 **The solution:**
 \`\`\`ruby
 ActiveRecord::Base.transaction do
-  account.save!
-  Order.create!(...)
-  AuditLog.create!(...)
+  user.save!
+  Boost.create!(...)
+  CreditLog.create!(...)
 end
 # If ANY step raises, ALL are rolled back
 \`\`\`
@@ -260,50 +260,50 @@ end
 **Custom aborts:**
 - \`raise ActiveRecord::Rollback\` silently aborts the transaction
 - Unlike other exceptions, it does not propagate outside the block
-- Use it for business rule failures (e.g., insufficient funds)
+- Use it for business rule failures (e.g., insufficient credits)
 
 **Key rules:**
 - Always wrap related writes in a transaction
 - Any exception inside the block triggers rollback
 - The transaction returns nil when rolled back via Rollback`,
-		railsCodeExample: `# app/contracts/order_contract.rb
-class OrderContract < Dry::Validation::Contract
+		railsCodeExample: `# app/contracts/boost_contract.rb
+class BoostContract < Dry::Validation::Contract
   params do
-    required(:account_id).filled(:integer)
-    required(:amount).filled(:decimal, gt?: 0)
-    required(:items).filled(:array, min_size?: 1)
+    required(:user_id).filled(:integer)
+    required(:post_id).filled(:integer)
+    required(:cost).filled(:integer, gt?: 0)
   end
 end
 
-# app/services/process_order.rb
-class ProcessOrder < ApplicationService
-  Result = Data.define(:success?, :order, :errors)
+# app/services/boost_post.rb
+class BoostPost < ApplicationService
+  Result = Data.define(:success?, :boost, :errors)
 
-  def initialize(account_id:, amount:, items:)
-    @account_id = account_id
-    @amount = amount
-    @items = items
+  def initialize(user_id:, post_id:, cost:)
+    @user_id = user_id
+    @post_id = post_id
+    @cost = cost
   end
 
   def call
-    v = OrderContract.new.call(
-      account_id: @account_id,
-      amount: @amount, items: @items)
+    v = BoostContract.new.call(
+      user_id: @user_id,
+      post_id: @post_id, cost: @cost)
     return Result.new(success?: false,
-      order: nil, errors: v.errors.to_h) if v.failure?
+      boost: nil, errors: v.errors.to_h) if v.failure?
 
     ActiveRecord::Base.transaction do
-      account = Account.find(@account_id)
-      raise ActiveRecord::Rollback if account.balance < @amount
-      account.balance -= @amount
-      account.save!
-      order = Order.create!(account:, total: @amount,
-        items: @items)
-      AuditLog.create!(account:, amount: -@amount,
-        balance_after: account.balance)
-      Result.new(success?: true, order:, errors: [])
-    end || Result.new(success?: false, order: nil,
-      errors: ["Insufficient funds"])
+      user = User.find(@user_id)
+      raise ActiveRecord::Rollback if user.credits < @cost
+      user.credits -= @cost
+      user.save!
+      boost = Boost.create!(user:, post_id: @post_id,
+        reach: 5000)
+      CreditLog.create!(user:, amount: -@cost,
+        reason: "boost_post_#{@post_id}")
+      Result.new(success?: true, boost:, errors: [])
+    end || Result.new(success?: false, boost: nil,
+      errors: ["Insufficient credits"])
   end
 end`,
 		commonMistakes: [
@@ -313,7 +313,7 @@ end`,
 			'Nesting transactions without understanding savepoints',
 		],
 		whenToUse:
-			'Any time multiple database writes must succeed or fail together: charge + order, transfer between accounts, multi-table updates.',
+			'Any time multiple database writes must succeed or fail together: deduct credits + create record, transfer between accounts, multi-table updates.',
 		furtherReading: [
 			{
 				title: 'Active Record Transactions',

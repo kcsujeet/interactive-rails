@@ -4,26 +4,22 @@
  * Sequential phase flow: observe -> build -> activate -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
- * Phase 1 (WHY - observe): Custom "Operation Pipeline" vertical step chain.
- *   3 vertically stacked operation boxes connected by FlowConnectors:
- *   Box 1: account.balance -= 100 (Charge)
- *   Box 2: Order.create!(...) (Create Order)
- *   Box 3: AuditLog.create!(...) (Audit)
- *   Probes fire: boxes light up top-to-bottom. On partial failure, completed
- *   boxes stay green, failed box goes red, remaining stay gray.
- *   The key visual: green boxes above the failure = committed writes that
- *   cannot be undone.
+ * Phase 1 (WHY - observe): "Database Snapshot" visualization.
+ *   Left strip: 3 numbered operation indicators (Deduct Credits, Create Boost, Write Log)
+ *   Main area: 3 mini database tables (users, boosts, credit_logs) showing actual values.
+ *   Probes animate step-by-step: cells flash amber (running), green (committed),
+ *   red (failed). The key visual: user sees credits=40 but no boost row exists.
  *
  * Phase 2 (HOW - build): 4 OptionCard steps
  *   Step 0: Identify the atomicity problem
  *   Step 1: Wrap operations in ActiveRecord::Base.transaction
  *   Step 2: Handle custom abort with raise ActiveRecord::Rollback
- *   Step 3: Build ProcessOrder service with contract + transaction
+ *   Step 3: Build BoostPost service with contract + transaction
  *
  * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Transactions" button
- * Phase 4 (ADVANTAGE - reward): Same pipeline, now with a transaction boundary
- *   wrapping all 3 boxes. On failure, ALL boxes flash red then revert to gray
- *   (rollback). On success, all go green together.
+ * Phase 4 (ADVANTAGE - reward): Same DB snapshot, now with transaction boundary
+ *   (dashed border). On success, all tables update + COMMIT label. On failure,
+ *   tables flash red then revert to original values + ROLLBACK label.
  *
  * Teaches: ActiveRecord::Base.transaction, raise ActiveRecord::Rollback,
  *   atomicity, rollback behavior, service objects with transactions
@@ -33,11 +29,13 @@ import {
 	ArrowRight,
 	CheckCircle,
 	CircleX,
+	Coins,
 	Database,
 	FileText,
+	Loader2,
 	Play,
+	Rocket,
 	ShieldCheck,
-	ShoppingCart,
 	Star,
 	Zap,
 } from 'lucide-react';
@@ -56,7 +54,6 @@ import {
 	type ValidationResult,
 } from '@/components/levels';
 import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
-import { FlowConnector } from '@/components/levels/FlowConnector';
 import {
 	type ProbeConfig,
 	ProbeTerminal,
@@ -84,18 +81,13 @@ type Phase = 'observe' | 'build' | 'activate' | 'reward';
 // ──────────────────────────────────────────────
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
-	{ id: 'charge-no-order', label: 'Account charged but no order created' },
-	{ id: 'orphan-audit', label: 'Audit log orphaned without order' },
-	{
-		id: 'no-rollback',
-		label: 'No rollback mechanism for partial failures',
-	},
+	{ id: 'credits-no-boost', label: 'Credits deducted but post never boosted' },
+	{ id: 'orphan-boost', label: 'Post boosted without audit trail' },
 ];
 
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
-	'order-fail': ['charge-no-order'],
-	'audit-fail': ['orphan-audit'],
-	'inspect-code': ['no-rollback'],
+	'boost-fail': ['credits-no-boost'],
+	'log-fail': ['orphan-boost'],
 };
 
 // ──────────────────────────────────────────────
@@ -104,88 +96,54 @@ const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 
 const PROBES: ProbeConfig[] = [
 	{
-		id: 'order-fail',
-		label: 'Process order (Order.create! fails)',
-		command: '# Charge account, then create order (order fails)',
+		id: 'boost-fail',
+		label: 'Boost post (Boost.create! fails)',
+		command: '# Deduct credits, then create boost (boost fails)',
 		responseLines: [
 			{
-				text: 'account.balance -= 100  =>  saves $400',
+				text: 'user.credits -= 10      =>  saves (credits: 40)',
 				color: 'green',
 			},
 			{
-				text: 'Order.create!(...)     =>  BOOM! RecordInvalid',
+				text: 'Boost.create!(...)      =>  BOOM! RecordInvalid',
 				color: 'red',
 			},
 			{
-				text: 'AuditLog.create!(...)  =>  never reached',
+				text: 'CreditLog.create!(...)  =>  never reached',
 				color: 'muted',
 			},
 			{
-				text: 'Account was charged $100 but no order exists!',
+				text: 'Credits deducted but post was never boosted!',
 				color: 'red',
 			},
-			{ text: 'No rollback. Money vanished.', color: 'red' },
+			{ text: 'No rollback. 10 credits vanished.', color: 'red' },
 		],
 	},
 	{
-		id: 'audit-fail',
-		label: 'Process order (AuditLog fails)',
-		command: '# Charge account, create order, then audit (audit fails)',
+		id: 'log-fail',
+		label: 'Boost post (CreditLog fails)',
+		command: '# Deduct credits, create boost, then log (log fails)',
 		responseLines: [
 			{
-				text: 'account.balance -= 100  =>  saves $400',
+				text: 'user.credits -= 10      =>  saves (credits: 40)',
 				color: 'green',
 			},
 			{
-				text: 'Order.create!(...)     =>  OK (order #42)',
+				text: 'Boost.create!(...)      =>  OK (boost #7)',
 				color: 'green',
 			},
 			{
-				text: 'AuditLog.create!(...)  =>  BOOM! ConnectionError',
+				text: 'CreditLog.create!(...)  =>  BOOM! ConnectionError',
 				color: 'red',
 			},
 			{
-				text: 'Order exists without audit trail!',
+				text: 'Post boosted but no audit trail!',
 				color: 'red',
 			},
 			{
-				text: 'Compliance violation: unaudited financial operation.',
+				text: 'Compliance violation: unaudited credit operation.',
 				color: 'red',
 			},
-		],
-	},
-	{
-		id: 'inspect-code',
-		label: 'Inspect service code',
-		command: 'cat app/services/process_order.rb',
-		responseLines: [
-			{
-				text: 'class ProcessOrder < ApplicationService',
-				color: 'cyan',
-			},
-			{ text: '  def call', color: 'muted' },
-			{
-				text: '    account.balance -= @amount',
-				color: 'muted',
-			},
-			{
-				text: '    account.save!          # Step 1: committed',
-				color: 'yellow',
-			},
-			{
-				text: '    Order.create!(...)     # Step 2: might fail',
-				color: 'yellow',
-			},
-			{
-				text: '    AuditLog.create!(...) # Step 3: might fail',
-				color: 'yellow',
-			},
-			{
-				text: '    # No transaction wrapping these operations!',
-				color: 'red',
-			},
-			{ text: '  end', color: 'muted' },
-			{ text: 'end', color: 'muted' },
 		],
 	},
 ];
@@ -198,7 +156,7 @@ const STEP_DEFS: StepDef[] = [
 	{ id: 'identify-problem', title: 'Identify the Problem' },
 	{ id: 'wrap-transaction', title: 'Wrap in Transaction' },
 	{ id: 'handle-rollback', title: 'Handle Custom Abort' },
-	{ id: 'build-service', title: 'Build Order Service' },
+	{ id: 'build-service', title: 'Build Boost Service' },
 ];
 
 // OptionCard step 0: Identify the atomicity problem
@@ -230,12 +188,12 @@ const TRANSACTION_OPTIONS = [
 	{
 		id: 'wrong-begin-rescue',
 		label: `begin
-  account.balance -= amount
-  account.save!
-  Order.create!(account:, total: amount)
-  AuditLog.create!(account:, amount: -amount)
+  user.credits -= cost
+  user.save!
+  Boost.create!(user:, post:, reach: 5000)
+  CreditLog.create!(user:, amount: -cost)
 rescue => e
-  account.reload  # manual rollback?
+  user.reload  # manual rollback?
 end`,
 		correct: false,
 		feedback:
@@ -244,24 +202,24 @@ end`,
 	{
 		id: 'correct-transaction',
 		label: `ActiveRecord::Base.transaction do
-  account.balance -= amount
-  account.save!
-  Order.create!(account:, total: amount)
-  AuditLog.create!(account:, amount: -amount,
-    balance_after: account.balance)
+  user.credits -= cost
+  user.save!
+  Boost.create!(user:, post:, reach: 5000)
+  CreditLog.create!(user:, amount: -cost,
+    reason: "boost_post_#{post.id}")
 end`,
 		correct: true,
 	},
 	{
 		id: 'wrong-save-only',
-		label: `account.balance -= amount
-account.save!
-Order.create!(account:, total: amount)
-AuditLog.create!(account:, amount: -amount)
+		label: `user.credits -= cost
+user.save!
+Boost.create!(user:, post:, reach: 5000)
+CreditLog.create!(user:, amount: -cost)
 # Just let exceptions propagate`,
 		correct: false,
 		feedback:
-			'Letting exceptions propagate does not undo writes that already committed. Without a transaction boundary, account.save! persists even if Order.create! fails.',
+			'Letting exceptions propagate does not undo writes that already committed. Without a transaction boundary, user.save! persists even if Boost.create! fails.',
 	},
 ];
 
@@ -270,22 +228,22 @@ const ROLLBACK_OPTIONS = [
 	{
 		id: 'wrong-return-false',
 		label: `ActiveRecord::Base.transaction do
-  account.balance -= amount
-  account.save!
-  return false if amount > account.balance
-  Order.create!(account:, total: amount)
+  user.credits -= cost
+  user.save!
+  return false if user.credits < 0
+  Boost.create!(user:, post:, reach: 5000)
 end`,
 		correct: false,
 		feedback:
-			'Returning false inside a transaction does NOT trigger a rollback. The transaction commits normally with the balance already deducted. You need to raise to abort.',
+			'Returning false inside a transaction does NOT trigger a rollback. The transaction commits normally with the credits already deducted. You need to raise to abort.',
 	},
 	{
 		id: 'wrong-throw',
 		label: `ActiveRecord::Base.transaction do
-  account.balance -= amount
-  account.save!
-  throw :abort if amount > account.balance
-  Order.create!(account:, total: amount)
+  user.credits -= cost
+  user.save!
+  throw :abort if user.credits < 0
+  Boost.create!(user:, post:, reach: 5000)
 end`,
 		correct: false,
 		feedback:
@@ -294,44 +252,44 @@ end`,
 	{
 		id: 'correct-rollback-raise',
 		label: `ActiveRecord::Base.transaction do
-  account.balance -= amount
-  account.save!
-  if account.balance < 0
+  user.credits -= cost
+  user.save!
+  if user.credits < 0
     raise ActiveRecord::Rollback,
-      "Insufficient funds"
+      "Insufficient credits"
   end
-  Order.create!(account:, total: amount)
+  Boost.create!(user:, post:, reach: 5000)
 end`,
 		correct: true,
 	},
 ];
 
-// OptionCard step 3: Build ProcessOrder service
+// OptionCard step 3: Build BoostPost service
 const SERVICE_OPTIONS = [
 	{
 		id: 'wrong-no-contract',
-		label: `class ProcessOrder < ApplicationService
-  Result = Data.define(:success?, :order, :errors)
+		label: `class BoostPost < ApplicationService
+  Result = Data.define(:success?, :boost, :errors)
 
-  def initialize(account_id:, amount:, items:)
-    @account_id = account_id
-    @amount = amount
-    @items = items
+  def initialize(user_id:, post_id:, cost:)
+    @user_id = user_id
+    @post_id = post_id
+    @cost = cost
   end
 
   def call
     ActiveRecord::Base.transaction do
-      account = Account.find(@account_id)
-      account.balance -= @amount
-      account.save!
-      order = Order.create!(account:, total: @amount,
-        items: @items)
-      AuditLog.create!(account:, amount: -@amount,
-        balance_after: account.balance)
-      Result.new(success?: true, order:, errors: [])
+      user = User.find(@user_id)
+      user.credits -= @cost
+      user.save!
+      boost = Boost.create!(user:, post_id: @post_id,
+        reach: 5000)
+      CreditLog.create!(user:, amount: -@cost,
+        reason: "boost_post_#{@post_id}")
+      Result.new(success?: true, boost:, errors: [])
     end
   rescue ActiveRecord::RecordInvalid => e
-    Result.new(success?: false, order: nil,
+    Result.new(success?: false, boost: nil,
       errors: [e.message])
   end
 end`,
@@ -341,34 +299,34 @@ end`,
 	},
 	{
 		id: 'correct-with-contract',
-		label: `class ProcessOrder < ApplicationService
-  Result = Data.define(:success?, :order, :errors)
+		label: `class BoostPost < ApplicationService
+  Result = Data.define(:success?, :boost, :errors)
 
-  def initialize(account_id:, amount:, items:)
-    @account_id = account_id
-    @amount = amount
-    @items = items
+  def initialize(user_id:, post_id:, cost:)
+    @user_id = user_id
+    @post_id = post_id
+    @cost = cost
   end
 
   def call
-    v = OrderContract.new.call(
-      account_id: @account_id,
-      amount: @amount, items: @items)
+    v = BoostContract.new.call(
+      user_id: @user_id,
+      post_id: @post_id, cost: @cost)
     return Result.new(success?: false,
-      order: nil, errors: v.errors.to_h) if v.failure?
+      boost: nil, errors: v.errors.to_h) if v.failure?
 
     ActiveRecord::Base.transaction do
-      account = Account.find(@account_id)
-      raise ActiveRecord::Rollback if account.balance < @amount
-      account.balance -= @amount
-      account.save!
-      order = Order.create!(account:, total: @amount,
-        items: @items)
-      AuditLog.create!(account:, amount: -@amount,
-        balance_after: account.balance)
-      Result.new(success?: true, order:, errors: [])
-    end || Result.new(success?: false, order: nil,
-      errors: ["Insufficient funds"])
+      user = User.find(@user_id)
+      raise ActiveRecord::Rollback if user.credits < @cost
+      user.credits -= @cost
+      user.save!
+      boost = Boost.create!(user:, post_id: @post_id,
+        reach: 5000)
+      CreditLog.create!(user:, amount: -@cost,
+        reason: "boost_post_#{@post_id}")
+      Result.new(success?: true, boost:, errors: [])
+    end || Result.new(success?: false, boost: nil,
+      errors: ["Insufficient credits"])
   end
 end`,
 		correct: true,
@@ -391,13 +349,13 @@ const OPTION_STEP_CONFIG: Record<
 	0: {
 		title: 'Identify the Atomicity Problem',
 		description:
-			'What is the root cause of partial failures in the order processing pipeline?',
+			'What is the root cause of partial failures in the boost pipeline?',
 		options: IDENTIFY_OPTIONS,
 	},
 	1: {
 		title: 'Wrap Operations in a Transaction',
 		description:
-			'Choose the code that ensures charge, order creation, and audit log succeed or fail together.',
+			'Choose the code that ensures credit deduction, boost creation, and credit log succeed or fail together.',
 		options: TRANSACTION_OPTIONS,
 	},
 	2: {
@@ -407,7 +365,7 @@ const OPTION_STEP_CONFIG: Record<
 		options: ROLLBACK_OPTIONS,
 	},
 	3: {
-		title: 'Build the Order Service',
+		title: 'Build the Boost Service',
 		description:
 			'Create a service object with contract validation and a transaction wrapping all operations.',
 		options: SERVICE_OPTIONS,
@@ -420,50 +378,50 @@ const OPTION_STEP_CONFIG: Record<
 
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
-		id: 'valid-order',
-		label: 'POST order $50 (valid)',
-		description: 'Process a valid order with sufficient balance',
+		id: 'valid-boost',
+		label: 'POST boost (50 credits, valid)',
+		description: 'Boost a post with sufficient credits',
 		method: 'POST',
-		path: '/api/v1/orders',
+		path: '/api/v1/boosts',
 		actor: 'authenticated user',
 		expectedResult: 'allowed',
 		responseLines: [
 			{ text: '201 Created', color: 'green' },
 			{
-				text: 'Transaction: charge -> order -> audit -> commit',
+				text: 'Transaction: deduct -> boost -> log -> commit',
 				color: 'cyan',
 			},
 			{ text: 'All 3 operations committed atomically.', color: 'green' },
 		],
 	},
 	{
-		id: 'order-with-coupon',
-		label: 'POST order $30 with coupon',
-		description: 'Order with coupon discount applied',
+		id: 'boost-with-discount',
+		label: 'POST boost (30 credits, discount)',
+		description: 'Boost with promotional discount applied',
 		method: 'POST',
-		path: '/api/v1/orders',
-		actor: 'user with coupon',
+		path: '/api/v1/boosts',
+		actor: 'user with promo',
 		expectedResult: 'allowed',
 		responseLines: [
 			{ text: '201 Created', color: 'green' },
 			{
-				text: 'Transaction: validate coupon -> charge $30 -> order -> audit -> commit',
+				text: 'Transaction: validate promo -> deduct 30 -> boost -> log -> commit',
 				color: 'cyan',
 			},
 		],
 	},
 	{
-		id: 'invalid-amount',
-		label: 'POST order -$10 (invalid)',
-		description: 'Negative amount rejected by contract validation',
+		id: 'negative-credits',
+		label: 'POST boost (-5 credits, invalid)',
+		description: 'Negative cost rejected by contract validation',
 		method: 'POST',
-		path: '/api/v1/orders',
+		path: '/api/v1/boosts',
 		actor: 'authenticated user',
 		expectedResult: 'blocked',
 		responseLines: [
 			{ text: '422 Unprocessable Entity', color: 'red' },
 			{
-				text: 'OrderContract: amount must be greater than 0',
+				text: 'BoostContract: cost must be greater than 0',
 				color: 'yellow',
 			},
 			{
@@ -473,41 +431,41 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		],
 	},
 	{
-		id: 'order-creation-fails',
-		label: 'POST order (creation error)',
-		description: 'Order creation fails mid-transaction, rollback triggered',
+		id: 'boost-creation-fails',
+		label: 'POST boost (creation error)',
+		description: 'Boost creation fails mid-transaction, rollback triggered',
 		method: 'POST',
-		path: '/api/v1/orders',
+		path: '/api/v1/boosts',
 		actor: 'authenticated user',
 		expectedResult: 'blocked',
 		responseLines: [
 			{ text: '422 Unprocessable Entity', color: 'red' },
 			{
-				text: 'Order.create! raised RecordInvalid',
+				text: 'Boost.create! raised RecordInvalid',
 				color: 'yellow',
 			},
 			{
-				text: 'Transaction ROLLED BACK. Balance unchanged.',
+				text: 'Transaction ROLLED BACK. Credits unchanged.',
 				color: 'green',
 			},
 		],
 	},
 	{
-		id: 'audit-fails-rollback',
-		label: 'POST order (audit fails, rollback)',
-		description: 'Audit log creation fails, entire transaction rolls back',
+		id: 'log-fails-rollback',
+		label: 'POST boost (log fails, rollback)',
+		description: 'Credit log creation fails, entire transaction rolls back',
 		method: 'POST',
-		path: '/api/v1/orders',
+		path: '/api/v1/boosts',
 		actor: 'authenticated user',
 		expectedResult: 'blocked',
 		responseLines: [
 			{ text: '422 Unprocessable Entity', color: 'red' },
 			{
-				text: 'AuditLog.create! raised ConnectionError',
+				text: 'CreditLog.create! raised ConnectionError',
 				color: 'yellow',
 			},
 			{
-				text: 'Transaction ROLLED BACK. Balance and order both undone.',
+				text: 'Transaction ROLLED BACK. Credits and boost both undone.',
 				color: 'green',
 			},
 		],
@@ -515,87 +473,303 @@ const STRESS_SCENARIOS: StressScenario[] = [
 ];
 
 // ──────────────────────────────────────────────
-// Operation pipeline box states
+// Database snapshot types and state
 // ──────────────────────────────────────────────
 
-type BoxState =
-	| 'idle'
-	| 'running'
-	| 'success'
-	| 'failed'
-	| 'skipped'
-	| 'rollback';
+type CellFlash = 'none' | 'running' | 'success' | 'failed' | 'rollback';
 
-interface PipelineBoxProps {
-	icon: React.ReactNode;
-	label: string;
-	code: string;
-	state: BoxState;
+interface DbState {
+	usersCredits: number;
+	boostRow: { userId: number; postId: number; reach: number } | null;
+	creditLogRow: {
+		userId: number;
+		amount: number;
+		reason: string;
+	} | null;
+}
+
+interface FlashState {
+	users: CellFlash;
+	boosts: CellFlash;
+	creditLogs: CellFlash;
+}
+
+type OpStatus = 'idle' | 'running' | 'success' | 'failed' | 'skipped';
+
+const INITIAL_DB: DbState = {
+	usersCredits: 50,
+	boostRow: null,
+	creditLogRow: null,
+};
+
+const INITIAL_FLASH: FlashState = {
+	users: 'none',
+	boosts: 'none',
+	creditLogs: 'none',
+};
+
+// ──────────────────────────────────────────────
+// DatabaseSnapshot component (~80 lines, inline)
+// ──────────────────────────────────────────────
+
+interface DatabaseSnapshotProps {
+	dbState: DbState;
+	flashState: FlashState;
+	opStates: [OpStatus, OpStatus, OpStatus];
+	errorTable?: 'boosts' | 'creditLogs' | null;
+	errorMessage?: string;
+	showRollbackLabel?: boolean;
+	showCommitLabel?: boolean;
 	wrapped?: boolean;
 }
 
-function PipelineBox({ icon, label, code, state, wrapped }: PipelineBoxProps) {
+const OP_DEFS = [
+	{ icon: Coins, label: 'Deduct' },
+	{ icon: Rocket, label: 'Boost' },
+	{ icon: FileText, label: 'Log' },
+];
+
+function opColor(status: OpStatus): string {
+	switch (status) {
+		case 'running':
+			return 'text-amber-500 border-amber-400';
+		case 'success':
+			return 'text-emerald-500 dark:text-emerald-400 border-emerald-500 dark:border-emerald-400';
+		case 'failed':
+			return 'text-destructive border-destructive';
+		case 'skipped':
+			return 'text-muted-foreground/40 border-muted-foreground/20';
+		default:
+			return 'text-muted-foreground border-muted-foreground/30';
+	}
+}
+
+function cellBg(flash: CellFlash): string {
+	switch (flash) {
+		case 'running':
+			return 'bg-amber-100 dark:bg-amber-900/40';
+		case 'success':
+			return 'bg-emerald-100 dark:bg-emerald-900/40';
+		case 'failed':
+			return 'bg-red-100 dark:bg-red-900/40';
+		case 'rollback':
+			return 'bg-red-50 dark:bg-red-900/20';
+		default:
+			return '';
+	}
+}
+
+function DatabaseSnapshot({
+	dbState,
+	flashState,
+	opStates,
+	errorTable,
+	errorMessage,
+	showRollbackLabel,
+	showCommitLabel,
+	wrapped,
+}: DatabaseSnapshotProps) {
+	const tables = [
+		{
+			name: 'users',
+			headerClass:
+				'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
+			columns: ['id', 'username', 'credits'],
+			rows: [
+				{
+					cells: ['1', 'alice', String(dbState.usersCredits)],
+					changed: dbState.usersCredits !== 50,
+				},
+			],
+			flash: flashState.users,
+			error: false,
+		},
+		{
+			name: 'boosts',
+			headerClass:
+				'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300',
+			columns: ['id', 'user_id', 'post_id', 'reach'],
+			rows: dbState.boostRow
+				? [
+						{
+							cells: [
+								'1',
+								String(dbState.boostRow.userId),
+								String(dbState.boostRow.postId),
+								String(dbState.boostRow.reach),
+							],
+							changed: true,
+						},
+					]
+				: [],
+			flash: flashState.boosts,
+			error: errorTable === 'boosts',
+		},
+		{
+			name: 'credit_logs',
+			headerClass:
+				'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300',
+			columns: ['id', 'user_id', 'amount', 'reason'],
+			rows: dbState.creditLogRow
+				? [
+						{
+							cells: [
+								'1',
+								String(dbState.creditLogRow.userId),
+								String(dbState.creditLogRow.amount),
+								dbState.creditLogRow.reason,
+							],
+							changed: true,
+						},
+					]
+				: [],
+			flash: flashState.creditLogs,
+			error: errorTable === 'creditLogs',
+		},
+	];
+
 	return (
 		<div
 			className={cn(
-				'rounded-lg border-2 px-4 py-3 transition-all duration-300',
-				state === 'idle' && 'border-muted-foreground/30 bg-card',
-				state === 'running' &&
-					'border-amber-400 bg-amber-50 dark:bg-amber-900/20',
-				state === 'success' &&
-					'border-emerald-500 dark:border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20',
-				state === 'failed' &&
-					'border-destructive bg-destructive/10 dark:bg-destructive/20',
-				state === 'skipped' &&
-					'border-muted-foreground/20 bg-muted/30 opacity-50',
-				state === 'rollback' &&
-					'border-destructive bg-destructive/5 dark:bg-destructive/10 opacity-70',
-				wrapped && 'ring-2 ring-primary/30',
+				'space-y-4 w-full max-w-2xl transition-all duration-300',
+				wrapped &&
+					'border-2 border-dashed border-primary/50 bg-primary/5 dark:bg-primary/10 rounded-xl p-4',
 			)}
 		>
-			<div className="flex items-center gap-2">
-				<div
-					className={cn(
-						'shrink-0',
-						state === 'success' && 'text-emerald-600 dark:text-emerald-400',
-						state === 'failed' && 'text-destructive',
-						state === 'rollback' && 'text-destructive/60',
-						state === 'running' && 'text-amber-600 dark:text-amber-400',
-						(state === 'idle' || state === 'skipped') &&
-							'text-muted-foreground',
-					)}
-				>
-					{icon}
+			{wrapped && (
+				<div className="text-sm font-mono text-primary">
+					ActiveRecord::Base.transaction do
 				</div>
-				<div className="flex-1 min-w-0">
-					<div
-						className={cn(
-							'font-semibold text-sm',
-							state === 'success' && 'text-emerald-700 dark:text-emerald-300',
-							state === 'failed' && 'text-destructive',
-							state === 'rollback' && 'text-destructive/60',
-							state === 'running' && 'text-amber-700 dark:text-amber-300',
-							(state === 'idle' || state === 'skipped') && 'text-foreground',
-						)}
-					>
-						{label}
+			)}
+
+			{tables.map((table, tableIdx) => {
+				const op = OP_DEFS[tableIdx];
+				const Icon = op.icon;
+				const status = opStates[tableIdx];
+
+				return (
+					<div className="flex items-center gap-4" key={table.name}>
+						{/* Op icon */}
+						<div className="flex flex-col items-center shrink-0 w-14">
+							<div
+								className={cn(
+									'w-10 h-10 rounded-full border-2 flex items-center justify-center transition-colors duration-300',
+									opColor(status),
+								)}
+							>
+								{status === 'running' ? (
+									<Loader2 className="w-4 h-4 animate-spin" />
+								) : (
+									<Icon className="w-4 h-4" />
+								)}
+							</div>
+							<span
+								className={cn(
+									'text-xs font-medium mt-0.5',
+									status === 'skipped'
+										? 'text-muted-foreground/40'
+										: 'text-muted-foreground',
+								)}
+							>
+								{op.label}
+							</span>
+						</div>
+
+						{/* Table */}
+						<div className="flex-1 rounded-lg border border-border overflow-hidden min-w-0">
+							<div
+								className={cn(
+									'px-4 py-1.5 text-xs font-mono font-semibold flex items-center justify-between',
+									table.headerClass,
+								)}
+							>
+								<span>{table.name}</span>
+								{table.error && errorMessage && (
+									<span className="text-xs font-semibold text-destructive bg-destructive/10 dark:bg-destructive/20 rounded px-2 py-0.5">
+										{errorMessage}
+									</span>
+								)}
+							</div>
+							<div className="bg-card">
+								<div
+									className="grid border-b border-border/50 px-4 py-1"
+									style={{
+										gridTemplateColumns: `repeat(${table.columns.length}, 1fr)`,
+									}}
+								>
+									{table.columns.map((col) => (
+										<span
+											className="text-xs font-mono text-muted-foreground font-semibold"
+											key={col}
+										>
+											{col}
+										</span>
+									))}
+								</div>
+								{table.rows.length > 0 ? (
+									table.rows.map((row) => (
+										<div
+											className={cn(
+												'grid px-4 py-1.5 transition-colors duration-300',
+												cellBg(table.flash),
+											)}
+											key={row.cells[0]}
+											style={{
+												gridTemplateColumns: `repeat(${table.columns.length}, 1fr)`,
+											}}
+										>
+											{row.cells.map((cell, cellIdx) => (
+												<span
+													className={cn(
+														'text-sm font-mono',
+														row.changed && cellIdx === row.cells.length - 1
+															? 'text-foreground font-semibold'
+															: 'text-muted-foreground',
+													)}
+													key={table.columns[cellIdx]}
+												>
+													{cell}
+												</span>
+											))}
+										</div>
+									))
+								) : (
+									<div
+										className={cn(
+											'px-4 py-2 text-center transition-colors duration-300',
+											cellBg(table.flash),
+										)}
+									>
+										<span className="text-xs text-muted-foreground italic">
+											(no rows)
+										</span>
+									</div>
+								)}
+							</div>
+						</div>
 					</div>
-					<code className="text-xs text-muted-foreground font-mono">
-						{code}
-					</code>
+				);
+			})}
+
+			{wrapped && <div className="text-sm font-mono text-primary">end</div>}
+
+			{showCommitLabel && (
+				<div className="text-center">
+					<span className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-full px-4 py-1.5">
+						<CheckCircle className="w-4 h-4" />
+						COMMIT
+					</span>
 				</div>
-				<div className="shrink-0">
-					{state === 'success' && (
-						<CheckCircle className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
-					)}
-					{state === 'failed' && (
-						<CircleX className="w-4 h-4 text-destructive" />
-					)}
-					{state === 'rollback' && (
-						<CircleX className="w-4 h-4 text-destructive/50" />
-					)}
+			)}
+
+			{showRollbackLabel && (
+				<div className="text-center">
+					<span className="inline-flex items-center gap-1.5 text-sm font-semibold text-destructive bg-destructive/10 dark:bg-destructive/20 rounded-full px-4 py-1.5">
+						<CircleX className="w-4 h-4" />
+						ROLLBACK
+					</span>
 				</div>
-			</div>
+			)}
 		</div>
 	);
 }
@@ -608,34 +782,34 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 	if (phase === 'observe') {
 		return [
 			{
-				filename: 'app/services/process_order.rb',
+				filename: 'app/services/boost_post.rb',
 				language: 'ruby',
-				code: `class ProcessOrder < ApplicationService
-  Result = Data.define(:success?, :order, :errors)
+				code: `class BoostPost < ApplicationService
+  Result = Data.define(:success?, :boost, :errors)
 
-  def initialize(account_id:, amount:, items:)
-    @account_id = account_id
-    @amount = amount
-    @items = items
+  def initialize(user_id:, post_id:, cost:)
+    @user_id = user_id
+    @post_id = post_id
+    @cost = cost
   end
 
   def call
-    v = OrderContract.new.call(
-      account_id: @account_id,
-      amount: @amount, items: @items)
+    v = BoostContract.new.call(
+      user_id: @user_id,
+      post_id: @post_id, cost: @cost)
     return Result.new(success?: false,
-      order: nil, errors: v.errors.to_h) if v.failure?
+      boost: nil, errors: v.errors.to_h) if v.failure?
 
-    account = Account.find(@account_id)
-    account.balance -= @amount
-    account.save!
+    user = User.find(@user_id)
+    user.credits -= @cost
+    user.save!
     # Step 1 committed. If step 2 fails...
-    order = Order.create!(account:, total: @amount,
-      items: @items)
+    boost = Boost.create!(user:, post_id: @post_id,
+      reach: 5000)
     # Step 2 committed. If step 3 fails...
-    AuditLog.create!(account:, amount: -@amount,
-      balance_after: account.balance)
-    Result.new(success?: true, order:, errors: [])
+    CreditLog.create!(user:, amount: -@cost,
+      reason: "boost_post_#{@post_id}")
+    Result.new(success?: true, boost:, errors: [])
   end
 end`,
 				highlight: [19, 20, 22, 23, 25, 26],
@@ -647,16 +821,16 @@ end`,
 		if (furthestStep <= 0) {
 			return [
 				{
-					filename: 'app/services/process_order.rb (broken)',
+					filename: 'app/services/boost_post.rb (broken)',
 					language: 'ruby',
 					code: `# Each operation commits independently.
 # If step 2 or 3 fails, step 1 is already
 # persisted and cannot be undone.
 
-account.balance -= amount
-account.save!           # Committed!
-Order.create!(...)      # Might fail
-AuditLog.create!(...)   # Might fail`,
+user.credits -= cost
+user.save!              # Committed!
+Boost.create!(...)      # Might fail
+CreditLog.create!(...)  # Might fail`,
 					highlight: [5, 6],
 				},
 			];
@@ -664,7 +838,7 @@ AuditLog.create!(...)   # Might fail`,
 		if (furthestStep === 1) {
 			return [
 				{
-					filename: 'app/services/process_order.rb (next step)',
+					filename: 'app/services/boost_post.rb (next step)',
 					language: 'ruby',
 					code: `# Wrap all operations in a transaction...`,
 				},
@@ -673,14 +847,14 @@ AuditLog.create!(...)   # Might fail`,
 		if (furthestStep === 2) {
 			return [
 				{
-					filename: 'app/services/process_order.rb (transaction added)',
+					filename: 'app/services/boost_post.rb (transaction added)',
 					language: 'ruby',
 					code: `ActiveRecord::Base.transaction do
-  account.balance -= amount
-  account.save!
-  Order.create!(account:, total: amount)
-  AuditLog.create!(account:, amount: -amount,
-    balance_after: account.balance)
+  user.credits -= cost
+  user.save!
+  Boost.create!(user:, post_id:, reach: 5000)
+  CreditLog.create!(user:, amount: -cost,
+    reason: "boost_post_#{post_id}")
 end
 # If any operation raises, ALL are rolled back.
 # But what about business rule failures?`,
@@ -691,18 +865,18 @@ end
 		if (furthestStep === 3) {
 			return [
 				{
-					filename: 'app/services/process_order.rb (rollback added)',
+					filename: 'app/services/boost_post.rb (rollback added)',
 					language: 'ruby',
 					code: `ActiveRecord::Base.transaction do
-  account.balance -= amount
-  account.save!
-  if account.balance < 0
+  user.credits -= cost
+  user.save!
+  if user.credits < 0
     raise ActiveRecord::Rollback,
-      "Insufficient funds"
+      "Insufficient credits"
   end
-  Order.create!(account:, total: amount)
-  AuditLog.create!(account:, amount: -amount,
-    balance_after: account.balance)
+  Boost.create!(user:, post_id:, reach: 5000)
+  CreditLog.create!(user:, amount: -cost,
+    reason: "boost_post_#{post_id}")
 end
 # raise ActiveRecord::Rollback silently aborts
 # the transaction without propagating the error.`,
@@ -715,67 +889,67 @@ end
 	// Activate + reward: complete solution
 	return [
 		{
-			filename: 'app/contracts/order_contract.rb',
+			filename: 'app/contracts/boost_contract.rb',
 			language: 'ruby',
-			code: `class OrderContract < Dry::Validation::Contract
+			code: `class BoostContract < Dry::Validation::Contract
   params do
-    required(:account_id).filled(:integer)
-    required(:amount).filled(:decimal, gt?: 0)
-    required(:items).filled(:array, min_size?: 1)
+    required(:user_id).filled(:integer)
+    required(:post_id).filled(:integer)
+    required(:cost).filled(:integer, gt?: 0)
   end
 end`,
 		},
 		{
-			filename: 'app/services/process_order.rb',
+			filename: 'app/services/boost_post.rb',
 			language: 'ruby',
-			code: `class ProcessOrder < ApplicationService
-  Result = Data.define(:success?, :order, :errors)
+			code: `class BoostPost < ApplicationService
+  Result = Data.define(:success?, :boost, :errors)
 
-  def initialize(account_id:, amount:, items:)
-    @account_id = account_id
-    @amount = amount
-    @items = items
+  def initialize(user_id:, post_id:, cost:)
+    @user_id = user_id
+    @post_id = post_id
+    @cost = cost
   end
 
   def call
-    v = OrderContract.new.call(
-      account_id: @account_id,
-      amount: @amount, items: @items)
+    v = BoostContract.new.call(
+      user_id: @user_id,
+      post_id: @post_id, cost: @cost)
     return Result.new(success?: false,
-      order: nil, errors: v.errors.to_h) if v.failure?
+      boost: nil, errors: v.errors.to_h) if v.failure?
 
     ActiveRecord::Base.transaction do
-      account = Account.find(@account_id)
-      raise ActiveRecord::Rollback if account.balance < @amount
-      account.balance -= @amount
-      account.save!
-      order = Order.create!(account:, total: @amount,
-        items: @items)
-      AuditLog.create!(account:, amount: -@amount,
-        balance_after: account.balance)
-      Result.new(success?: true, order:, errors: [])
-    end || Result.new(success?: false, order: nil,
-      errors: ["Insufficient funds"])
+      user = User.find(@user_id)
+      raise ActiveRecord::Rollback if user.credits < @cost
+      user.credits -= @cost
+      user.save!
+      boost = Boost.create!(user:, post_id: @post_id,
+        reach: 5000)
+      CreditLog.create!(user:, amount: -@cost,
+        reason: "boost_post_#{@post_id}")
+      Result.new(success?: true, boost:, errors: [])
+    end || Result.new(success?: false, boost: nil,
+      errors: ["Insufficient credits"])
   end
 end`,
-			highlight: [17, 19, 27, 28],
+			highlight: [17, 19, 28, 29],
 		},
 		{
-			filename: 'app/controllers/api/v1/orders_controller.rb',
+			filename: 'app/controllers/api/v1/boosts_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::OrdersController < ApplicationController
+			code: `class Api::V1::BoostsController < ApplicationController
   def create
-    result = ProcessOrder.call(
-      account_id: Current.user.account_id,
-      amount: order_params[:amount],
-      items: order_params[:items])
+    result = BoostPost.call(
+      user_id: Current.user.id,
+      post_id: boost_params[:post_id],
+      cost: boost_params[:cost])
     if result.success?
-      render json: OrderSerializer.new(result.order),
+      render json: BoostSerializer.new(result.boost),
         status: :created
     else
       render json: { error: {
-        code: "ORDER_FAILED",
-        message: "Could not process order",
+        code: "BOOST_FAILED",
+        message: "Could not boost post",
         details: result.errors } },
         status: :unprocessable_entity
     end
@@ -783,8 +957,8 @@ end`,
 
   private
 
-  def order_params
-    params.expect(order: [:amount, items: []])
+  def boost_params
+    params.expect(boost: [:post_id, :cost])
   end
 end`,
 		},
@@ -801,25 +975,53 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 
 	// Gating hooks
 	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
-		minRequired: 3,
+		minRequired: 2,
 	});
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 
 	// Visualization state
 	const [vizAnimating, setVizAnimating] = useState(false);
-	const [boxStates, setBoxStates] = useState<[BoxState, BoxState, BoxState]>([
+	const [dbState, setDbState] = useState<DbState>({ ...INITIAL_DB });
+	const [flashState, setFlashState] = useState<FlashState>({
+		...INITIAL_FLASH,
+	});
+	const [opStates, setOpStates] = useState<[OpStatus, OpStatus, OpStatus]>([
 		'idle',
 		'idle',
 		'idle',
 	]);
-	const animTimerRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+	const [errorTable, setErrorTable] = useState<'boosts' | 'creditLogs' | null>(
+		null,
+	);
+	const [errorMessage, setErrorMessage] = useState<string | undefined>(
+		undefined,
+	);
+	const [problemCallout, setProblemCallout] = useState(
+		'Fire probes to see what happens when an operation fails midway through the pipeline.',
+	);
 
 	// Reward visualization state
-	const [rewardBoxStates, setRewardBoxStates] = useState<
-		[BoxState, BoxState, BoxState]
-	>(['idle', 'idle', 'idle']);
+	const [rewardDb, setRewardDb] = useState<DbState>({ ...INITIAL_DB });
+	const [rewardFlash, setRewardFlash] = useState<FlashState>({
+		...INITIAL_FLASH,
+	});
+	const [rewardOps, setRewardOps] = useState<[OpStatus, OpStatus, OpStatus]>([
+		'idle',
+		'idle',
+		'idle',
+	]);
+	const [rewardError, setRewardError] = useState<
+		'boosts' | 'creditLogs' | null
+	>(null);
+	const [rewardErrorMsg, setRewardErrorMsg] = useState<string | undefined>(
+		undefined,
+	);
+	const [showCommit, setShowCommit] = useState(false);
+	const [showRollback, setShowRollback] = useState(false);
 	const [showTransactionBorder, setShowTransactionBorder] = useState(false);
+
+	const animTimerRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
 	// ── Cleanup timers ──
 	const clearTimers = useCallback(() => {
@@ -845,47 +1047,107 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 
 			const step = ANIMATION_DURATION_MS;
 
-			if (probeId === 'order-fail') {
-				// Box 1 runs and succeeds, box 2 fails, box 3 skipped
-				setBoxStates(['running', 'idle', 'idle']);
+			// Reset state before animation
+			setDbState({ ...INITIAL_DB });
+			setFlashState({ ...INITIAL_FLASH });
+			setOpStates(['idle', 'idle', 'idle']);
+			setErrorTable(null);
+			setErrorMessage(undefined);
+
+			if (probeId === 'boost-fail') {
+				// Op1 running
+				setOpStates(['running', 'idle', 'idle']);
+				setFlashState({ users: 'running', boosts: 'none', creditLogs: 'none' });
+
 				const t1 = setTimeout(() => {
-					setBoxStates(['success', 'running', 'idle']);
+					// Op1 done: credits 50->40
+					setDbState((prev) => ({ ...prev, usersCredits: 40 }));
+					setFlashState({
+						users: 'success',
+						boosts: 'none',
+						creditLogs: 'none',
+					});
+					setOpStates(['success', 'running', 'idle']);
+					// Op2 running
+					setFlashState((prev) => ({ ...prev, boosts: 'running' }));
 				}, step);
+
 				const t2 = setTimeout(() => {
-					setBoxStates(['success', 'failed', 'skipped']);
+					// Op2 failed
+					setFlashState({
+						users: 'success',
+						boosts: 'failed',
+						creditLogs: 'none',
+					});
+					setOpStates(['success', 'failed', 'skipped']);
+					setErrorTable('boosts');
+					setErrorMessage('RecordInvalid');
 				}, step * 2);
+
 				const t3 = setTimeout(() => {
+					setProblemCallout(
+						'Credits deducted but post was never boosted. 10 credits vanished with nothing to show.',
+					);
 					setVizAnimating(false);
 					const discoveries = PROBE_DISCOVERY_MAP[probeId] ?? [];
 					for (const d of discoveries) discoveryGating.discover(d);
 				}, step * 3);
+
 				animTimerRef.current.push(t1, t2, t3);
-			} else if (probeId === 'audit-fail') {
-				// Box 1 and 2 succeed, box 3 fails
-				setBoxStates(['running', 'idle', 'idle']);
+			} else if (probeId === 'log-fail') {
+				// Op1 running
+				setOpStates(['running', 'idle', 'idle']);
+				setFlashState({ users: 'running', boosts: 'none', creditLogs: 'none' });
+
 				const t1 = setTimeout(() => {
-					setBoxStates(['success', 'running', 'idle']);
+					// Op1 done: credits 50->40
+					setDbState((prev) => ({ ...prev, usersCredits: 40 }));
+					setFlashState({
+						users: 'success',
+						boosts: 'none',
+						creditLogs: 'none',
+					});
+					setOpStates(['success', 'running', 'idle']);
+					setFlashState((prev) => ({ ...prev, boosts: 'running' }));
 				}, step);
+
 				const t2 = setTimeout(() => {
-					setBoxStates(['success', 'success', 'running']);
+					// Op2 done: boost row created
+					setDbState((prev) => ({
+						...prev,
+						boostRow: { userId: 1, postId: 42, reach: 5000 },
+					}));
+					setFlashState({
+						users: 'success',
+						boosts: 'success',
+						creditLogs: 'none',
+					});
+					setOpStates(['success', 'success', 'running']);
+					setFlashState((prev) => ({ ...prev, creditLogs: 'running' }));
 				}, step * 2);
+
 				const t3 = setTimeout(() => {
-					setBoxStates(['success', 'success', 'failed']);
+					// Op3 failed
+					setFlashState({
+						users: 'success',
+						boosts: 'success',
+						creditLogs: 'failed',
+					});
+					setOpStates(['success', 'success', 'failed']);
+					setErrorTable('creditLogs');
+					setErrorMessage('ConnectionError');
 				}, step * 3);
+
 				const t4 = setTimeout(() => {
+					setProblemCallout(
+						'Post boosted but no audit trail exists. Compliance requires every credit operation to be logged.',
+					);
 					setVizAnimating(false);
 					const discoveries = PROBE_DISCOVERY_MAP[probeId] ?? [];
 					for (const d of discoveries) discoveryGating.discover(d);
 				}, step * 4);
+
 				animTimerRef.current.push(t1, t2, t3, t4);
-			} else {
-				// inspect-code: just show current state briefly
-				const t1 = setTimeout(() => {
-					setVizAnimating(false);
-					const discoveries = PROBE_DISCOVERY_MAP[probeId] ?? [];
-					for (const d of discoveries) discoveryGating.discover(d);
-				}, step);
-				animTimerRef.current.push(t1);
 			}
 		},
 		[vizAnimating, clearTimers, discoveryGating],
@@ -914,39 +1176,110 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 
 			setVizAnimating(true);
 			setShowTransactionBorder(true);
+			setShowCommit(false);
+			setShowRollback(false);
+			setRewardError(null);
+			setRewardErrorMsg(undefined);
+			setRewardDb({ ...INITIAL_DB });
+			setRewardFlash({ ...INITIAL_FLASH });
+			setRewardOps(['idle', 'idle', 'idle']);
+
 			const step = ANIMATION_DURATION_MS;
 
 			if (scenario.expectedResult === 'allowed') {
-				// All boxes run and succeed together
-				setRewardBoxStates(['running', 'running', 'running']);
+				// All ops run together
+				setRewardOps(['running', 'running', 'running']);
+				setRewardFlash({
+					users: 'running',
+					boosts: 'running',
+					creditLogs: 'running',
+				});
+
 				const t1 = setTimeout(() => {
-					setRewardBoxStates(['success', 'success', 'success']);
+					// All succeed
+					setRewardDb({
+						usersCredits: 40,
+						boostRow: { userId: 1, postId: 42, reach: 5000 },
+						creditLogRow: { userId: 1, amount: -10, reason: 'boost_post_42' },
+					});
+					setRewardFlash({
+						users: 'success',
+						boosts: 'success',
+						creditLogs: 'success',
+					});
+					setRewardOps(['success', 'success', 'success']);
+					setShowCommit(true);
 				}, step);
+
 				const t2 = setTimeout(() => {
 					setVizAnimating(false);
 				}, step * 2);
 				animTimerRef.current.push(t1, t2);
 			} else {
 				// Show failure then rollback
-				setRewardBoxStates(['running', 'running', 'running']);
+				setRewardOps(['running', 'running', 'running']);
+				setRewardFlash({
+					users: 'running',
+					boosts: 'running',
+					creditLogs: 'running',
+				});
+
 				const t1 = setTimeout(() => {
-					// One fails
-					if (scenarioId === 'order-creation-fails') {
-						setRewardBoxStates(['success', 'failed', 'skipped']);
-					} else if (scenarioId === 'audit-fails-rollback') {
-						setRewardBoxStates(['success', 'success', 'failed']);
+					// Tentative write, then failure
+					if (scenarioId === 'boost-creation-fails') {
+						setRewardDb((prev) => ({ ...prev, usersCredits: 40 }));
+						setRewardFlash({
+							users: 'success',
+							boosts: 'failed',
+							creditLogs: 'none',
+						});
+						setRewardOps(['success', 'failed', 'skipped']);
+						setRewardError('boosts');
+						setRewardErrorMsg('RecordInvalid');
+					} else if (scenarioId === 'log-fails-rollback') {
+						setRewardDb({
+							usersCredits: 40,
+							boostRow: { userId: 1, postId: 42, reach: 5000 },
+							creditLogRow: null,
+						});
+						setRewardFlash({
+							users: 'success',
+							boosts: 'success',
+							creditLogs: 'failed',
+						});
+						setRewardOps(['success', 'success', 'failed']);
+						setRewardError('creditLogs');
+						setRewardErrorMsg('ConnectionError');
 					} else {
-						setRewardBoxStates(['failed', 'skipped', 'skipped']);
+						// negative-credits: contract rejects before transaction
+						setRewardFlash({
+							users: 'failed',
+							boosts: 'none',
+							creditLogs: 'none',
+						});
+						setRewardOps(['failed', 'skipped', 'skipped']);
 					}
 				}, step);
+
 				const t2 = setTimeout(() => {
-					// Rollback: all revert
-					setRewardBoxStates(['rollback', 'rollback', 'rollback']);
+					// Rollback: revert everything
+					setRewardDb({ ...INITIAL_DB });
+					setRewardFlash({
+						users: 'rollback',
+						boosts: 'rollback',
+						creditLogs: 'rollback',
+					});
+					setRewardOps(['idle', 'idle', 'idle']);
+					setRewardError(null);
+					setRewardErrorMsg(undefined);
+					setShowRollback(true);
 				}, step * 2);
+
 				const t3 = setTimeout(() => {
-					setRewardBoxStates(['idle', 'idle', 'idle']);
+					setRewardFlash({ ...INITIAL_FLASH });
 					setVizAnimating(false);
 				}, step * 3);
+
 				animTimerRef.current.push(t1, t2, t3);
 			}
 		},
@@ -963,13 +1296,19 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 	// ── Phase transition handlers ──
 	const handleStartBuild = () => {
 		setPhase('build');
-		setBoxStates(['idle', 'idle', 'idle']);
+		setDbState({ ...INITIAL_DB });
+		setFlashState({ ...INITIAL_FLASH });
+		setOpStates(['idle', 'idle', 'idle']);
 	};
 
 	const handleActivateReward = () => {
 		setPhase('reward');
-		setRewardBoxStates(['idle', 'idle', 'idle']);
+		setRewardDb({ ...INITIAL_DB });
+		setRewardFlash({ ...INITIAL_FLASH });
+		setRewardOps(['idle', 'idle', 'idle']);
 		setShowTransactionBorder(false);
+		setShowCommit(false);
+		setShowRollback(false);
 	};
 
 	const handleComplete = async () => {
@@ -1000,26 +1339,8 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep] ?? null;
 
 	// ──────────────────────────────────────────
-	// Render: Operation Pipeline Visualization
+	// Render: Observe visualization
 	// ──────────────────────────────────────────
-
-	const PIPELINE_BOXES: Omit<PipelineBoxProps, 'state' | 'wrapped'>[] = [
-		{
-			icon: <Database className="w-5 h-5" />,
-			label: 'Charge Account',
-			code: 'account.balance -= 100',
-		},
-		{
-			icon: <ShoppingCart className="w-5 h-5" />,
-			label: 'Create Order',
-			code: 'Order.create!(...)',
-		},
-		{
-			icon: <FileText className="w-5 h-5" />,
-			label: 'Create Audit Log',
-			code: 'AuditLog.create!(...)',
-		},
-	];
 
 	const renderObserveVisualization = () => (
 		<div className="flex-1 flex flex-col items-center justify-center gap-2 p-4">
@@ -1033,39 +1354,17 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 				</div>
 			</div>
 
-			{/* Vertical pipeline */}
-			<div className="flex flex-col items-center gap-0 w-full max-w-sm">
-				{PIPELINE_BOXES.map((box, i) => (
-					<div className="w-full flex flex-col items-center" key={box.label}>
-						<PipelineBox
-							code={box.code}
-							icon={box.icon}
-							label={box.label}
-							state={boxStates[i]}
-						/>
-						{i < PIPELINE_BOXES.length - 1 && (
-							<FlowConnector
-								active={
-									boxStates[i] === 'running' || boxStates[i] === 'success'
-								}
-								dotColor={
-									boxStates[i] === 'success' ? 'bg-emerald-500' : 'bg-amber-500'
-								}
-							/>
-						)}
-					</div>
-				))}
-			</div>
+			<DatabaseSnapshot
+				dbState={dbState}
+				errorMessage={errorMessage}
+				errorTable={errorTable}
+				flashState={flashState}
+				opStates={opStates}
+			/>
 
 			{/* Problem callout */}
-			<div className="max-w-sm w-full bg-destructive/5 dark:bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-center mt-2">
-				<p className="text-xs text-muted-foreground">
-					{boxStates[1] === 'failed'
-						? 'Account was charged but no order was created. The $100 is gone with nothing to show for it.'
-						: boxStates[2] === 'failed'
-							? 'Order exists but no audit trail. Compliance requires every financial operation to be logged.'
-							: 'Fire probes to see what happens when an operation fails midway through the pipeline.'}
-				</p>
+			<div className="max-w-2xl w-full bg-destructive/5 dark:bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-center mt-2">
+				<p className="text-sm text-muted-foreground">{problemCallout}</p>
 			</div>
 		</div>
 	);
@@ -1082,58 +1381,16 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 				</div>
 			</div>
 
-			{/* Vertical pipeline wrapped in transaction border */}
-			<div
-				className={cn(
-					'flex flex-col items-center gap-0 w-full max-w-sm rounded-xl p-3 transition-all duration-300',
-					showTransactionBorder &&
-						'border-2 border-dashed border-primary/50 bg-primary/5 dark:bg-primary/10',
-				)}
-			>
-				{showTransactionBorder && (
-					<div className="text-xs font-mono text-primary mb-2">
-						ActiveRecord::Base.transaction do
-					</div>
-				)}
-				{PIPELINE_BOXES.map((box, i) => (
-					<div className="w-full flex flex-col items-center" key={box.label}>
-						<PipelineBox
-							code={box.code}
-							icon={box.icon}
-							label={box.label}
-							state={rewardBoxStates[i]}
-							wrapped={showTransactionBorder}
-						/>
-						{i < PIPELINE_BOXES.length - 1 && (
-							<FlowConnector
-								active={
-									rewardBoxStates[i] === 'running' ||
-									rewardBoxStates[i] === 'success'
-								}
-								dotColor={
-									rewardBoxStates[i] === 'success'
-										? 'bg-emerald-500'
-										: rewardBoxStates[i] === 'rollback'
-											? 'bg-destructive'
-											: 'bg-amber-500'
-								}
-							/>
-						)}
-					</div>
-				))}
-				{showTransactionBorder && (
-					<div className="text-xs font-mono text-primary mt-2">end</div>
-				)}
-			</div>
-
-			{/* Status callout */}
-			{rewardBoxStates.some((s) => s === 'rollback') && (
-				<div className="max-w-sm w-full bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-500/30 rounded-lg p-2 text-center">
-					<p className="text-xs text-amber-700 dark:text-amber-300 font-semibold">
-						ROLLBACK: All writes undone. Database unchanged.
-					</p>
-				</div>
-			)}
+			<DatabaseSnapshot
+				dbState={rewardDb}
+				errorMessage={rewardErrorMsg}
+				errorTable={rewardError}
+				flashState={rewardFlash}
+				opStates={rewardOps}
+				showCommitLabel={showCommit}
+				showRollbackLabel={showRollback}
+				wrapped={showTransactionBorder}
+			/>
 		</div>
 	);
 
@@ -1149,9 +1406,9 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 					instructions={
 						phase === 'observe'
 							? [
-									'Fire probes to see partial failures in the order pipeline',
+									'Fire probes to see partial failures in the boost pipeline',
 									'Watch what happens when step 2 or step 3 fails',
-									'Discover all 3 atomicity problems',
+									'Discover both atomicity problems',
 								]
 							: phase === 'build'
 								? [
@@ -1168,7 +1425,7 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 										]
 									: ['Review your star rating and visualize the solution']
 					}
-					scenario="The order pipeline charges an account, creates an order, and logs an audit. Without a transaction, a failure at step 2 or 3 leaves the database in an inconsistent state."
+					scenario="The boost pipeline deducts user credits, creates a boost record, and logs a credit entry. Without a transaction, a failure at step 2 or 3 leaves the database in an inconsistent state."
 				>
 					<div className="border-t border-border">
 						{phase === 'observe' && (
@@ -1237,7 +1494,7 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 									disabled={vizAnimating}
 									onProbe={handleProbe}
 									probes={PROBES}
-									title="Order Pipeline Probe"
+									title="Boost Pipeline Probe"
 								/>
 							</div>
 
@@ -1397,5 +1654,3 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 		</LevelLayout>
 	);
 }
-
-export default Level33Transactions;
