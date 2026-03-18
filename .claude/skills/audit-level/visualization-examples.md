@@ -115,6 +115,55 @@ The level has two probes. The first teaches stock count races, the second teache
 
 **Rule:** When designing probe scenarios, the wrong outcome must be wrong in a way that is SELF-EVIDENT without domain knowledge. "18 units sold, 8 deducted" is self-evidently wrong. "$39.99 instead of $29.99" is not. Ask: "Would a non-technical person understand why this result is bad?"
 
+### Build Phase: Narrative Consistency Failures
+
+**5. Code snippets must use the level's domain, not a different domain (FAILED then FIXED).**
+The build step for handling StaleObjectError showed `UpdateProfile.call(user_id:)`, `UserSerializer`, `User.lock.find`, and `profile_params` in the code options. The entire level is about products and orders in an e-commerce app. "Profiles" and "users" are from a different domain entirely. The player just spent the observe phase watching product stock and price races, and now they're suddenly looking at user profile code.
+
+The step description also said "For low-contention resources like profiles" which is vague and disconnected from the scenario. It was rewritten to: "When two admins edit the same product, the second save should fail instead of silently overwriting. Handle the version conflict in the controller."
+
+**Rule:** Every code snippet, description, and label in the build phase must use the same domain as the observe phase. If the level teaches locking on products, the code must show `Product`, `ProductSerializer`, `product_params`, not `User`, `UserSerializer`, `profile_params`. The player should never encounter a domain switch mid-level.
+
+**6. The center panel must scroll when build step content is tall (FAILED then FIXED).**
+The OptionCard step for "Build Order Service" showed two large Ruby code blocks. The content overflowed the center panel but the player could not scroll to see the second option or the "Next Step" button. The panel's parent div had `flex-1 flex flex-col` but was missing `min-h-0`. In a flex column layout, children with `flex-1` won't shrink below their content height unless `min-h-0` is set, which prevents `overflow-y-auto` on the child from activating.
+
+**Rule:** Any flex column container that has a scrollable child must include `min-h-0`. This is a CSS layout requirement, not optional. Without it, `overflow-y-auto` on the child is silently ignored and content clips or overflows. Always test the build phase with the tallest OptionCard step to verify scrolling works.
+
+### Reward Phase: Cross-Phase Consistency Failures
+
+The reward phase reuses the same visualization components as the observe phase but shows the solution working. Several consistency issues were caught during review:
+
+**1. Card params must match across phases (FAILED then FIXED).**
+The observe phase showed JSON payloads under card headers (`{ product_id: 1, qty: 10 }`), but the reward phase showed descriptions ("Two customers order simultaneously with FOR UPDATE lock") or actor names ("as Customer A"). The two phases use the same `RequestCard` component in the same center panel. Mismatched content styles make them look like different UIs.
+
+**Rule:** Whatever format the observe phase cards use (JSON payloads, SQL queries, etc.), the reward phase cards must use the same format.
+
+**2. Single-request scenarios should not show an empty second card (FAILED then FIXED).**
+The observe phase always shows two cards because both probes involve concurrent requests. But reward scenarios like "buy 100 (insufficient)" or "invalid quantity" are single-request operations. Showing an empty Request B card with just a header and no log entries is confusing: the player wonders why it's there and what it's waiting for.
+
+**Rule:** Only show Request B when the scenario actually involves a second concurrent request. Track this with a state flag (`showRequestB`) that's set per scenario.
+
+**3. Blocked scenarios must show specific failure reasons, not generic messages (FAILED then FIXED).**
+All three blocked scenarios (insufficient stock, stale version, invalid amount) originally shared the same generic animation frames: "Validation check..." then "CHECK FAILED. ROLLBACK." The player fires "buy 100, insufficient" but sees a generic failure with no connection to the actual problem. Meanwhile, the StressTestPanel below correctly shows "INSUFFICIENT_STOCK", creating a disconnect between the visualization and the terminal.
+
+Each blocked scenario must have its own frames that explain the specific failure:
+- **Insufficient stock:** "Checking: stock_count (15) >= quantity (100)?" then "InsufficientStockError! 15 < 100. ROLLBACK."
+- **Stale version:** "Admin loaded edit form earlier: GET /products/1 returned lock_version: 0" then "Rails checks: WHERE lock_version = 0... but DB has lock_version = 2" then "StaleObjectError! 0 rows updated."
+- **Invalid amount:** "OrderContract validating: { quantity: -5 }" then "Contract failed: quantity must be greater than 0"
+
+**Rule:** Every scenario must produce visualization output that matches what the StressTestPanel shows. If the terminal says "INSUFFICIENT_STOCK", the request card should show why the stock was insufficient, not a generic "CHECK FAILED."
+
+**4. Optimistic locking must show how the version travels (FAILED then FIXED).**
+The stale version scenario originally showed "Loading product (lock_version = 0 from stale form)" without explaining how the admin got version 0 in the first place. The player has just learned about `lock_version` in the build phase but doesn't yet understand the full lifecycle: form loads it via GET, form sends it back via PATCH, Rails uses it in the WHERE clause.
+
+The fixed version shows the complete flow:
+1. "Admin loaded edit form earlier: GET /products/1 returned lock_version: 0"
+2. "PATCH /products/1 with lock_version: 0 from form"
+3. "Rails checks: WHERE lock_version = 0... but DB has lock_version = 2"
+4. "StaleObjectError! 0 rows updated. Version mismatch."
+
+**Rule:** When a concept has a lifecycle (data travels between client and server), the visualization must show the full round trip. Don't skip steps that the player needs to understand.
+
 ## Checklist for New Visualizations
 
 When designing any observe phase visualization, verify:
@@ -129,3 +178,17 @@ When designing any observe phase visualization, verify:
 - [ ] **Concrete consequence.** Does the visualization state the real-world impact in plain language? "18 units sold, only 8 deducted" makes the business impact clear. A technical label like "(LOST!)" or "OVERWRITE" does not.
 - [ ] **Scenario plausibility.** Would a real developer encounter this exact scenario? If the scenario requires a broken API, a contrived setup, or unusual user behavior to work, rethink it. The probe should model realistic conditions where the problem naturally occurs.
 - [ ] **Self-evident wrongness.** Would a non-technical person understand why the outcome is bad? "18 units sold, 8 deducted" is self-evident. "$39.99 instead of $29.99" requires domain context to judge. The wrongness should be obvious from the numbers alone.
+
+### Build phase checks
+
+- [ ] **Same domain throughout.** Every code snippet, service name, serializer, and param name in the build phase must use the level's domain. If the observe phase shows products, the build phase must show `Product`, `ProductSerializer`, `product_params`, not `User`, `UserSerializer`, `profile_params`.
+- [ ] **Descriptions are specific, not vague.** Step descriptions should say what the player is doing and why, not use generic phrases like "for low-contention resources." Connect the description to the scenario the player just observed.
+- [ ] **Center panel scrolls with tall content.** Test the build phase with the tallest OptionCard step. If content overflows without a scrollbar, the parent flex container is missing `min-h-0`. This is required on any `flex flex-col` container that has a scrollable `overflow-y-auto` child.
+
+### Reward phase consistency checks
+
+- [ ] **Same card format across phases.** If observe phase cards show JSON payloads, reward phase cards must show JSON payloads. Not descriptions, not actor names, not scenario labels.
+- [ ] **Only show cards that participate.** If a reward scenario involves a single request, show one card. Don't render an empty second card. Track with a per-scenario flag.
+- [ ] **Per-scenario failure details.** Each blocked/rejected scenario must have its own specific animation frames explaining why it failed. A generic "CHECK FAILED" shared across all failures teaches nothing.
+- [ ] **Visualization matches terminal output.** If the StressTestPanel shows "INSUFFICIENT_STOCK", the request card must show why stock was insufficient (e.g., "15 < 100"). The two components are in the same panel and must tell the same story.
+- [ ] **Show full concept lifecycle.** If a concept involves data traveling between client and server (like lock_version in a form), show the complete round trip: how the data was loaded, how it was sent back, and where the check happens.
