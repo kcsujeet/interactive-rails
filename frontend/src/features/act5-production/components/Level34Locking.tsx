@@ -374,9 +374,9 @@ const STALE_ERROR_OPTIONS = [
 	{
 		id: 'wrong-ignore',
 		label: `# In controller:
-result = UpdateProfile.call(user_id:, params:)
+result = UpdateProduct.call(product_id:, params:)
 # No StaleObjectError handling
-# If two users edit simultaneously, one silently overwrites`,
+# If two admins edit simultaneously, one silently overwrites`,
 		correct: false,
 		feedback:
 			'Without handling StaleObjectError, the second writer silently overwrites the first. Optimistic locking requires catching and retrying or reporting the conflict.',
@@ -385,10 +385,10 @@ result = UpdateProfile.call(user_id:, params:)
 		id: 'correct-rescue-retry',
 		label: `# In controller:
 def update
-  result = UpdateProfile.call(
-    user_id: Current.user.id, params: profile_params)
+  result = UpdateProduct.call(
+    product_id: params[:id], params: product_params)
   if result.success?
-    render json: UserSerializer.new(result.user)
+    render json: ProductSerializer.new(result.product)
   else
     render json: { error: { code: "VALIDATION_FAILED",
       message: "Update failed",
@@ -396,7 +396,7 @@ def update
   end
 rescue ActiveRecord::StaleObjectError
   render json: { error: { code: "CONFLICT",
-    message: "Record was modified by another user",
+    message: "Record was modified by another admin",
     details: {} } }, status: :conflict
 end`,
 		correct: true,
@@ -406,15 +406,15 @@ end`,
 		label: `# In controller:
 def update
   ActiveRecord::Base.transaction do
-    user = User.lock.find(Current.user.id)
-    user.update!(profile_params)
-    render json: UserSerializer.new(user)
+    product = Product.lock.find(params[:id])
+    product.update!(product_params)
+    render json: ProductSerializer.new(product)
   end
 end
-# Pessimistic lock for a profile edit`,
+# Pessimistic lock for a product listing edit`,
 		correct: false,
 		feedback:
-			'Pessimistic locking for low-contention profile edits is overkill. It blocks concurrent reads and can cause deadlocks. Use optimistic locking (lock_version) with StaleObjectError handling instead.',
+			'Pessimistic locking for low-contention product edits is overkill. It blocks concurrent reads and can cause deadlocks. Use optimistic locking (lock_version) with StaleObjectError handling instead.',
 	},
 ];
 
@@ -446,7 +446,7 @@ const OPTION_STEP_CONFIG: Record<
 	4: {
 		title: 'Handle Optimistic Lock Conflicts',
 		description:
-			'For low-contention resources like profiles, handle the case where another user edited the same record.',
+			'When two admins edit the same product, the second save should fail instead of silently overwriting. Handle the version conflict in the controller.',
 		options: STALE_ERROR_OPTIONS,
 	},
 };
@@ -506,7 +506,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		description: 'Single checkout: lock product, deduct stock -> create order',
 		method: 'POST',
 		path: '/api/v1/orders',
-		actor: 'authenticated customer',
+		actor: 'Customer A',
 		expectedResult: 'allowed',
 		responseLines: [
 			{ text: '200 OK', color: 'green' },
@@ -522,7 +522,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		description: 'Try to order more than available stock',
 		method: 'POST',
 		path: '/api/v1/orders',
-		actor: 'authenticated customer',
+		actor: 'Customer A',
 		expectedResult: 'blocked',
 		responseLines: [
 			{ text: '422 Unprocessable Entity', color: 'red' },
@@ -538,10 +538,10 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'stale-product-edit',
-		label: 'PATCH profile (stale version)',
-		description: 'Edit profile that was already modified by another user',
+		label: 'PATCH product (stale version)',
+		description: 'Edit product that was already modified by another admin',
 		method: 'PATCH',
-		path: '/api/v1/users/1',
+		path: '/api/v1/products/1',
 		actor: 'Admin B (stale)',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -562,7 +562,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		description: 'Try to deduct a negative amount',
 		method: 'POST',
 		path: '/api/v1/orders',
-		actor: 'authenticated customer',
+		actor: 'Customer A',
 		expectedResult: 'blocked',
 		responseLines: [
 			{ text: '422 Unprocessable Entity', color: 'red' },
@@ -884,7 +884,7 @@ const REWARD_ALLOWED_FRAMES: AnimationFrame[] = [
 	},
 ];
 
-const REWARD_BLOCKED_FRAMES: AnimationFrame[] = [
+const BLOCKED_FRAMES_INSUFFICIENT_STOCK: AnimationFrame[] = [
 	{
 		dbRow: { flashCells: { 3: 'locked' } },
 		requestA: {
@@ -899,7 +899,7 @@ const REWARD_BLOCKED_FRAMES: AnimationFrame[] = [
 		requestA: {
 			newLogEntry: {
 				icon: 'cpu',
-				text: 'Validation check...',
+				text: 'Checking: stock_count (15) >= quantity (100)?',
 				variant: 'default',
 			},
 		},
@@ -909,15 +909,89 @@ const REWARD_BLOCKED_FRAMES: AnimationFrame[] = [
 		requestA: {
 			newLogEntry: {
 				icon: 'alert',
-				text: 'CHECK FAILED. ROLLBACK.',
+				text: 'InsufficientStockError! 15 < 100. ROLLBACK.',
 				variant: 'danger',
 			},
 			badge: { text: 'REJECTED', variant: 'danger' },
 		},
 		warningMessage:
-			'Validation or stock check failed. Transaction rolled back. Stock unchanged.',
+			'Only 15 units in stock, but 100 requested. Transaction rolled back. Stock unchanged.',
 	},
 ];
+
+const BLOCKED_FRAMES_STALE_VERSION: AnimationFrame[] = [
+	{
+		requestA: {
+			newLogEntry: {
+				icon: 'database',
+				text: 'Admin loaded edit form earlier: GET /products/1 returned lock_version: 0',
+				variant: 'default',
+			},
+		},
+	},
+	{
+		dbRow: { flashCells: { 4: 'reading' } },
+		requestA: {
+			newLogEntry: {
+				icon: 'save',
+				text: 'PATCH /products/1 with lock_version: 0 from form',
+				variant: 'default',
+			},
+		},
+	},
+	{
+		requestA: {
+			newLogEntry: {
+				icon: 'cpu',
+				text: 'Rails checks: WHERE lock_version = 0... but DB has lock_version = 2',
+				variant: 'warning',
+			},
+		},
+	},
+	{
+		dbRow: { flashCells: {} },
+		requestA: {
+			newLogEntry: {
+				icon: 'alert',
+				text: 'StaleObjectError! 0 rows updated. Version mismatch.',
+				variant: 'danger',
+			},
+			badge: { text: 'CONFLICT', variant: 'danger' },
+		},
+		warningMessage:
+			'The admin loaded the form when lock_version was 0. Another admin saved in between, bumping it to 2. The stale PATCH was rejected. Client can reload the form and retry with the current version.',
+	},
+];
+
+const BLOCKED_FRAMES_INVALID_AMOUNT: AnimationFrame[] = [
+	{
+		requestA: {
+			newLogEntry: {
+				icon: 'cpu',
+				text: 'OrderContract validating: { quantity: -5 }',
+				variant: 'default',
+			},
+		},
+	},
+	{
+		requestA: {
+			newLogEntry: {
+				icon: 'alert',
+				text: 'Contract failed: quantity must be greater than 0',
+				variant: 'danger',
+			},
+			badge: { text: 'REJECTED', variant: 'danger' },
+		},
+		warningMessage:
+			'Contract validation rejected the request before it reached the database. No lock acquired, no transaction started.',
+	},
+];
+
+const BLOCKED_FRAMES_MAP: Record<string, AnimationFrame[]> = {
+	'insufficient-stock': BLOCKED_FRAMES_INSUFFICIENT_STOCK,
+	'stale-product-edit': BLOCKED_FRAMES_STALE_VERSION,
+	'invalid-amount': BLOCKED_FRAMES_INVALID_AMOUNT,
+};
 
 // ── Inline visualization components ──
 
@@ -1350,6 +1424,7 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 	const [mismatchCounter, setMismatchCounter] = useState<string | null>(null);
 	const [warningMessage, setWarningMessage] = useState<string | null>(null);
 	const [vizStarted, setVizStarted] = useState(false);
+	const [showRequestB, setShowRequestB] = useState(true);
 
 	// ── Cleanup timers ──
 	const clearTimers = useCallback(() => {
@@ -1439,6 +1514,7 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 		(probeId: string) => {
 			if (vizAnimating) return;
 			setVizStarted(true);
+			setShowRequestB(true);
 
 			// Reset cards
 			setMismatchCounter(null);
@@ -1507,8 +1583,41 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 			if (!scenario) return;
 
 			setVizStarted(true);
+			setShowRequestB(scenarioId === 'concurrent-order-locked');
 			setMismatchCounter(null);
 			setWarningMessage(null);
+
+			// Per-scenario params
+			const SCENARIO_PARAMS: Record<string, { a: string; b: string }> = {
+				'single-order': {
+					a: '{ product_id: 1, qty: 10 }',
+					b: '{ product_id: 1, qty: 3 }',
+				},
+				'concurrent-order-locked': {
+					a: '{ product_id: 1, qty: 10 }',
+					b: '{ product_id: 1, qty: 3 }',
+				},
+				transfer: {
+					a: '{ product_id: 1, qty: 5 }',
+					b: '{ product_id: 1, qty: 3 }',
+				},
+				'insufficient-stock': {
+					a: '{ product_id: 1, qty: 100 }',
+					b: '{ product_id: 1, qty: 3 }',
+				},
+				'stale-product-edit': {
+					a: '{ price: "$65.00", lock_version: 0 }',
+					b: '{ price: "$55.00", lock_version: 0 }',
+				},
+				'invalid-amount': {
+					a: '{ product_id: 1, qty: -5 }',
+					b: '{ product_id: 1, qty: 3 }',
+				},
+			};
+			const params = SCENARIO_PARAMS[scenarioId] ?? {
+				a: '{ product_id: 1 }',
+				b: '{ product_id: 1 }',
+			};
 
 			// Reset DB row for reward phase (with lock_version)
 			setDbRow({
@@ -1519,15 +1628,14 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 			setRequestA({
 				label: 'Request A',
 				endpoint: `${scenario.method} ${scenario.path}`,
-				params: `as ${scenario.actor}`,
+				params: params.a,
 				color: 'blue',
 				log: [],
 			});
 			setRequestB({
 				label: 'Request B',
 				endpoint: `${scenario.method} ${scenario.path}`,
-				params:
-					scenario.id === 'concurrent-order-locked' ? 'as Customer B' : '',
+				params: params.b,
 				color: 'purple',
 				log: [],
 			});
@@ -1535,7 +1643,8 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 			const frames =
 				scenario.expectedResult === 'allowed'
 					? REWARD_ALLOWED_FRAMES
-					: REWARD_BLOCKED_FRAMES;
+					: (BLOCKED_FRAMES_MAP[scenarioId] ??
+						BLOCKED_FRAMES_INSUFFICIENT_STOCK);
 
 			runAnimation(frames);
 		},
@@ -1557,6 +1666,7 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 	const handleActivateReward = () => {
 		setPhase('reward');
 		setVizStarted(false);
+		setShowRequestB(true);
 		setDbRow({
 			columns: ['id', 'name', 'price', 'stock_count', 'lock_version'],
 			values: ['1', 'Laptop Pro', '$50.00', '15', '0'],
@@ -1628,7 +1738,7 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 			{vizStarted ? (
 				<div className="flex gap-3 w-full max-w-2xl mx-auto">
 					<RequestCard card={requestA} />
-					<RequestCard card={requestB} />
+					{showRequestB && <RequestCard card={requestB} />}
 				</div>
 			) : (
 				<div className="w-full max-w-2xl mx-auto rounded-lg border border-dashed border-muted-foreground/30 p-8 text-center">
@@ -1766,7 +1876,7 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 					onValidate={validateSolution}
 				/>
 
-				<div className="flex-1 flex flex-col">
+				<div className="flex-1 flex flex-col min-h-0">
 					{/* ── OBSERVE PHASE ── */}
 					{phase === 'observe' && (
 						<>
@@ -1957,7 +2067,7 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 							</li>
 							<li className="flex items-start gap-1.5">
 								<Unlock className="w-3 h-3 mt-0.5 shrink-0 text-primary" />
-								<span>Optimistic (lock_version): profiles, CMS pages</span>
+								<span>Optimistic (lock_version): product listings, CMS pages</span>
 							</li>
 							<li className="flex items-start gap-1.5">
 								<Clock className="w-3 h-3 mt-0.5 shrink-0 text-primary" />

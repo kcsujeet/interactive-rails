@@ -177,7 +177,7 @@ const STALE_ERROR_OPTIONS = [
 		id: 'wrong-pessimistic-everywhere',
 		correct: false,
 		feedback:
-			'Pessimistic locking for low-contention profile edits is overkill. It blocks concurrent reads and can cause deadlocks. Use optimistic locking (lock_version) with StaleObjectError handling instead.',
+			'Pessimistic locking for low-contention product edits is overkill. It blocks concurrent reads and can cause deadlocks. Use optimistic locking (lock_version) with StaleObjectError handling instead.',
 	},
 ];
 
@@ -204,7 +204,7 @@ const STRESS_SCENARIOS = [
 	},
 	{
 		id: 'stale-product-edit',
-		label: 'PATCH profile (stale version)',
+		label: 'PATCH product (stale version)',
 		expectedResult: 'blocked' as const,
 	},
 	{
@@ -489,7 +489,7 @@ describe('Level 34: Locking (Concurrency Control)', () => {
 				(s) => s.id === 'concurrent-order-locked',
 			);
 			expect(pessimistic).toBeDefined();
-			// Optimistic locking (profile edits)
+			// Optimistic locking (product edits)
 			const optimistic = STRESS_SCENARIOS.find(
 				(s) => s.id === 'stale-product-edit',
 			);
