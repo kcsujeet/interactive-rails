@@ -89,25 +89,25 @@ const POST_SECTIONS: AnnotatedSection[] = [
 
 const COMMENT_SECTIONS: AnnotatedSection[] = [
 	{
-		id: 'comment-core',
+		id: 'review-core',
 		label: 'Core',
 		variant: 'core',
 		code: 'belongs_to :product\nbelongs_to :user',
 	},
 	{
-		id: 'comment-tagging-assoc',
+		id: 'review-tagging-assoc',
 		label: 'Duplicated: Associations',
 		variant: 'duplicated',
 		code: 'has_many :taggings, as: :taggable\nhas_many :tags, through: :taggings',
 	},
 	{
-		id: 'comment-tagging-scope',
+		id: 'review-tagging-scope',
 		label: 'Duplicated: Scope',
 		variant: 'duplicated',
 		code: 'scope :tagged_with, ->(name) {\n  joins(:tags).where(tags: { name: name })\n}',
 	},
 	{
-		id: 'comment-tagging-methods',
+		id: 'review-tagging-methods',
 		label: 'Duplicated: Methods',
 		variant: 'duplicated',
 		code: 'def tag_list\n  tags.map(&:name).join(", ")\nend\n\ndef tag_list=(names)\n  self.tags = names.split(",").map { |n|\n    Tag.find_or_create_by(name: n.strip)\n  }\nend',

@@ -111,21 +111,21 @@ const PROBES: ProbeConfig[] = [
 		],
 	},
 	{
-		id: 'nested-comments',
-		label: 'Load posts + comments + users',
+		id: 'nested-reviews',
+		label: 'Load products + reviews + users',
 		command: 'Product.all + product.reviews.map(&:user) (nested N+1)',
 		responseLines: [
 			{
-				text: 'Scenario: posts -> comments -> comment authors (2 levels deep)',
+				text: 'Scenario: products -> reviews -> review authors (2 levels deep)',
 				color: 'cyan',
 			},
 			{ text: '', color: 'muted' },
 			{
-				text: 'includes(comments: :user) => 3 queries (posts + comments + users)',
+				text: 'includes(reviews: :user) => 3 queries (products + reviews + users)',
 				color: 'green',
 			},
 			{
-				text: 'preload(comments: :user)  => 3 queries (always separate)',
+				text: 'preload(reviews: :user)  => 3 queries (always separate)',
 				color: 'green',
 			},
 			{
@@ -133,7 +133,7 @@ const PROBES: ProbeConfig[] = [
 				color: 'yellow',
 			},
 			{
-				text: 'includes(:reviews) only  => N+1 on comment.user!',
+				text: 'includes(:reviews) only  => N+1 on review.user!',
 				color: 'red',
 			},
 		],
@@ -171,7 +171,7 @@ const PROBES: ProbeConfig[] = [
 // Map probe IDs to discovery IDs they trigger
 const PROBE_DISCOVERY_MAP: Record<string, string> = {
 	'basic-users': 'joins-trap',
-	'nested-comments': 'nested-syntax',
+	'nested-reviews': 'nested-syntax',
 	'filtered-assoc': 'filter-needs-join',
 };
 
@@ -243,14 +243,14 @@ const PROBE_LANES: Record<string, StrategyLaneData[]> = {
 			result: 'fails',
 		},
 	],
-	'nested-comments': [
+	'nested-reviews': [
 		{
 			id: 'includes',
 			name: 'includes',
-			method: 'Product.includes(comments: :user)',
+			method: 'Product.includes(reviews: :user)',
 			blocks: [
 				{ label: 'SELECT posts', color: 'green' },
-				{ label: 'SELECT comments IN(...)', color: 'green' },
+				{ label: 'SELECT reviews IN(...)', color: 'green' },
 				{ label: 'SELECT users IN(...)', color: 'green' },
 			],
 			totalLabel: '3 queries',
@@ -259,10 +259,10 @@ const PROBE_LANES: Record<string, StrategyLaneData[]> = {
 		{
 			id: 'preload',
 			name: 'preload',
-			method: 'Product.preload(comments: :user)',
+			method: 'Product.preload(reviews: :user)',
 			blocks: [
 				{ label: 'SELECT posts', color: 'green' },
-				{ label: 'SELECT comments IN(...)', color: 'green' },
+				{ label: 'SELECT reviews IN(...)', color: 'green' },
 				{ label: 'SELECT users IN(...)', color: 'green' },
 			],
 			totalLabel: '3 queries',
@@ -271,10 +271,10 @@ const PROBE_LANES: Record<string, StrategyLaneData[]> = {
 		{
 			id: 'eager_load',
 			name: 'eager_load',
-			method: 'Product.eager_load(comments: :user)',
+			method: 'Product.eager_load(reviews: :user)',
 			blocks: [
 				{
-					label: 'SELECT posts LEFT JOIN comments, users',
+					label: 'SELECT posts LEFT JOIN reviews, users',
 					color: 'amber',
 					wide: true,
 				},
@@ -286,7 +286,7 @@ const PROBE_LANES: Record<string, StrategyLaneData[]> = {
 			id: 'joins',
 			name: 'joins',
 			method: 'Product.joins(:reviews)',
-			blocks: [{ label: 'SELECT posts JOIN comments', color: 'amber' }],
+			blocks: [{ label: 'SELECT products JOIN reviews', color: 'amber' }],
 			floodCount: 100,
 			totalLabel: '100+ queries!',
 			result: 'fails',
@@ -462,11 +462,11 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'nested-includes',
-		label: 'Posts with nested comments',
-		description: 'Load posts with comments and their users',
+		label: 'Products with nested reviews',
+		description: 'Load products with reviews and their users',
 		method: 'GET',
-		path: '/api/v1/products?include=comments',
-		actor: 'includes(comments: :user)',
+		path: '/api/v1/products?include=reviews',
+		actor: 'includes(reviews: :user)',
 		expectedResult: 'allowed',
 	},
 	{
@@ -519,10 +519,10 @@ const REWARD_LANE_DATA: Record<
 		result: 'works',
 	},
 	'nested-includes': {
-		strategy: 'includes(comments: :user)',
+		strategy: 'includes(reviews: :user)',
 		blocks: [
 			{ label: 'SELECT posts', color: 'green' },
-			{ label: 'SELECT comments IN(...)', color: 'green' },
+			{ label: 'SELECT reviews IN(...)', color: 'green' },
 			{ label: 'SELECT users IN(...)', color: 'green' },
 		],
 		totalLabel: '3 queries',
@@ -614,25 +614,25 @@ const OPTION_STEP_CONFIG: Record<
 	1: {
 		title: 'Fix Nested Associations',
 		description:
-			'Posts have comments, and each comment has a user. The service loading product.reviews.map(&:user) fires 1000+ queries. Which call should the service use to eager-load both levels at once?',
+			'Products have reviews, and each review has a user. The service loading product.reviews.map(&:user) fires 1000+ queries. Which call should the service use to eager-load both levels at once?',
 		options: [
 			{
 				id: 'flat-includes',
 				label: 'Product.includes(:reviews)',
 				correct: false,
 				feedback:
-					'That loads comments but not their users. You will still get N+1 on comment.user. The nested association needs to be specified.',
+					'That loads reviews but not their users. You will still get N+1 on review.user. The nested association needs to be specified.',
 			},
 			{
 				id: 'separate',
 				label: 'Product.includes(:reviews).includes(:users)',
 				correct: false,
 				feedback:
-					'Posts do not have a direct :users association. The users belong to comments, so you need to express that nesting in the includes call.',
+					'Products do not have a direct :users association. The users belong to reviews, so you need to express that nesting in the includes call.',
 			},
 			{
 				id: 'nested-includes',
-				label: 'Product.includes(comments: :user)',
+				label: 'Product.includes(reviews: :user)',
 				correct: true,
 			},
 		],
@@ -746,7 +746,7 @@ end`,
       Product.includes(:user)
       # 2 queries instead of 101
     when :feed
-      Product.includes(comments: :user)
+      Product.includes(reviews: :user)
       # 3 queries instead of 1001
     when :tagged
       Product.eager_load(:tags)
@@ -767,7 +767,7 @@ end`
       Product.includes(:user)
       # 2 queries instead of 101
     when :feed
-      Product.includes(comments: :user)
+      Product.includes(reviews: :user)
       # 3 queries instead of 1001
     end
 

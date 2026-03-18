@@ -742,7 +742,7 @@ The industry-standard response format for REST APIs. Used by Stripe, Ember, and 
 - Standardized envelope: \`data\`, \`type\`, \`attributes\`, \`relationships\`
 - Built-in pagination via \`links\`
 - Sparse fieldsets: \`fields[posts]=title,body\`
-- Compound documents: \`include=comments\`
+- Compound documents: \`include=reviews\`
 - Standardized error format
 
 **Why jsonapi-serializer?**

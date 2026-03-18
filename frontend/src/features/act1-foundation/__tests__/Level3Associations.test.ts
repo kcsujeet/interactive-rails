@@ -13,7 +13,7 @@ interface ValidationResult {
 }
 
 interface Level3State {
-	commentAdded: boolean;
+	reviewAdded: boolean;
 	relationshipType: 'has_one' | 'has_many' | 'has_and_belongs_to_many' | null;
 }
 
@@ -21,7 +21,7 @@ interface Level3State {
 function validateLevel3Solution(state: Level3State): ValidationResult {
 	const errors: string[] = [];
 
-	if (!state.commentAdded) {
+	if (!state.reviewAdded) {
 		errors.push('Add the Review model to the canvas');
 	}
 
@@ -30,11 +30,11 @@ function validateLevel3Solution(state: Level3State): ValidationResult {
 	} else if (state.relationshipType !== 'has_many') {
 		if (state.relationshipType === 'has_one') {
 			errors.push(
-				'has_one limits posts to a single comment - use has_many instead',
+				'has_one limits posts to a single review - use has_many instead',
 			);
 		} else if (state.relationshipType === 'has_and_belongs_to_many') {
 			errors.push(
-				'has_and_belongs_to_many is for many-to-many - comments belong to one post',
+				'has_and_belongs_to_many is for many-to-many - reviews belong to one post',
 			);
 		}
 	}
@@ -57,16 +57,16 @@ describe('Level 3: Associations', () => {
 	describe('Initial State', () => {
 		test('should be invalid when nothing done', () => {
 			const result = validateLevel3Solution({
-				commentAdded: false,
+				reviewAdded: false,
 				relationshipType: null,
 			});
 
 			expect(result.valid).toBe(false);
 		});
 
-		test('should require adding comment model', () => {
+		test('should require adding review model', () => {
 			const result = validateLevel3Solution({
-				commentAdded: false,
+				reviewAdded: false,
 				relationshipType: null,
 			});
 
@@ -77,7 +77,7 @@ describe('Level 3: Associations', () => {
 
 		test('should require selecting relationship', () => {
 			const result = validateLevel3Solution({
-				commentAdded: true,
+				reviewAdded: true,
 				relationshipType: null,
 			});
 
@@ -90,19 +90,19 @@ describe('Level 3: Associations', () => {
 	describe('Wrong Choices', () => {
 		test('should be invalid with has_one', () => {
 			const result = validateLevel3Solution({
-				commentAdded: true,
+				reviewAdded: true,
 				relationshipType: 'has_one',
 			});
 
 			expect(result.valid).toBe(false);
-			expect(result.details!.some((d) => d.includes('single comment'))).toBe(
+			expect(result.details!.some((d) => d.includes('single review'))).toBe(
 				true,
 			);
 		});
 
 		test('should be invalid with has_and_belongs_to_many', () => {
 			const result = validateLevel3Solution({
-				commentAdded: true,
+				reviewAdded: true,
 				relationshipType: 'has_and_belongs_to_many',
 			});
 
@@ -116,7 +116,7 @@ describe('Level 3: Associations', () => {
 	describe('Correct Solution', () => {
 		test('should be valid with has_many', () => {
 			const result = validateLevel3Solution({
-				commentAdded: true,
+				reviewAdded: true,
 				relationshipType: 'has_many',
 			});
 
@@ -125,7 +125,7 @@ describe('Level 3: Associations', () => {
 
 		test('should have correct success message', () => {
 			const result = validateLevel3Solution({
-				commentAdded: true,
+				reviewAdded: true,
 				relationshipType: 'has_many',
 			});
 
@@ -136,20 +136,20 @@ describe('Level 3: Associations', () => {
 	describe('Learning Outcomes', () => {
 		test('has_one creates 1:1 relationship', () => {
 			// has_one means: Product has_one Review (only one)
-			const explanation = 'has_one limits posts to a single comment';
+			const explanation = 'has_one limits posts to a single review';
 			expect(explanation).toContain('single');
 		});
 
 		test('has_many creates 1:N relationship', () => {
 			// has_many means: Product has_many Reviews (unlimited)
-			const explanation = 'has_many allows unlimited comments per post';
+			const explanation = 'has_many allows unlimited reviews per post';
 			expect(explanation).toContain('unlimited');
 		});
 
 		test('has_and_belongs_to_many creates N:N relationship', () => {
-			// HABTM means: Comments shared between posts (wrong for this case)
+			// HABTM means: Reviews shared between posts (wrong for this case)
 			const explanation =
-				'has_and_belongs_to_many shares comments between posts';
+				'has_and_belongs_to_many shares reviews between posts';
 			expect(explanation).toContain('shares');
 		});
 	});

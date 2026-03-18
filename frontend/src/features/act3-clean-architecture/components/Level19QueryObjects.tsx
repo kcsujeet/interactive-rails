@@ -66,31 +66,31 @@ const ADMIN_SECTIONS: AnnotatedSection[] = [
 		id: 'admin-core',
 		label: 'Core',
 		variant: 'core',
-		code: '@posts = Product.all',
+		code: '@products = Product.all',
 	},
 	{
 		id: 'admin-published',
 		label: 'Duplicated: Published Filter',
 		variant: 'duplicated',
-		code: 'if params[:published].present?\n  @posts = @posts.where.not(published_at: nil)\nend',
+		code: 'if params[:published].present?\n  @products = @products.where.not(published_at: nil)\nend',
 	},
 	{
 		id: 'admin-author',
 		label: 'Duplicated: Author Filter',
 		variant: 'duplicated',
-		code: 'if params[:author_id].present?\n  @posts = @posts.where(author_id: params[:author_id])\nend',
+		code: 'if params[:author_id].present?\n  @products = @products.where(author_id: params[:author_id])\nend',
 	},
 	{
-		id: 'admin-comments',
+		id: 'admin-reviews',
 		label: 'Duplicated: Review Count',
 		variant: 'duplicated',
-		code: 'if params[:min_comments].present?\n  @posts = @posts.left_joins(:reviews)\n    .group(:id)\n    .having("COUNT(comments.id) >= ?", ...)\nend',
+		code: 'if params[:min_reviews].present?\n  @products = @products.left_joins(:reviews)\n    .group(:id)\n    .having("COUNT(reviews.id) >= ?", ...)\nend',
 	},
 	{
 		id: 'admin-tag',
 		label: 'Duplicated: Tag Filter',
 		variant: 'duplicated',
-		code: 'if params[:tag].present?\n  @posts = @posts.joins(:tags)\n    .where(tags: { name: params[:tag] })\nend',
+		code: 'if params[:tag].present?\n  @products = @products.joins(:tags)\n    .where(tags: { name: params[:tag] })\nend',
 	},
 ];
 
@@ -260,7 +260,7 @@ const OPTION_STEP_CONFIG: Record<
 	1: {
 		title: 'Define Filter Method Pattern',
 		description:
-			'Each filter method (published, by_author, by_tag, with_min_comments) needs to be chainable so callers can combine any subset of filters. What should each method return?',
+			'Each filter method (published, by_author, by_tag, with_min_reviews) needs to be chainable so callers can combine any subset of filters. What should each method return?',
 		options: FILTER_METHOD_OPTIONS,
 	},
 	2: {
@@ -349,32 +349,32 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
     @products = Product.all
 
     if params[:published].present?
-      @products = @posts.where.not(published_at: nil)
+      @products = @products.where.not(published_at: nil)
     end
 
     if params[:author_id].present?
-      @products = @posts.where(author_id: params[:author_id])
+      @products = @products.where(author_id: params[:author_id])
     end
 
     if params[:since].present?
-      @products = @posts.where("published_at >= ?", params[:since])
+      @products = @products.where("published_at >= ?", params[:since])
     end
 
-    if params[:min_comments].present?
-      @products = @posts.left_joins(:reviews)
+    if params[:min_reviews].present?
+      @products = @products.left_joins(:reviews)
         .group(:id)
-        .having("COUNT(comments.id) >= ?",
-                params[:min_comments])
+        .having("COUNT(reviews.id) >= ?",
+                params[:min_reviews])
     end
 
     if params[:tag].present?
-      @products = @posts.joins(:tags)
+      @products = @products.joins(:tags)
         .where(tags: { name: params[:tag] })
     end
 
-    @products = @posts.order(published_at: :desc)
+    @products = @products.order(published_at: :desc)
 
-    render json: @posts
+    render json: @products
   end
 end
 
@@ -395,22 +395,22 @@ end
     @products = Product.all
 
     if params[:published].present?
-      @products = @posts.where.not(published_at: nil)
+      @products = @products.where.not(published_at: nil)
     end
 
     if params[:author_id].present?
-      @products = @posts.where(author_id: params[:author_id])
+      @products = @products.where(author_id: params[:author_id])
     end
 
-    if params[:min_comments].present?
-      @products = @posts.left_joins(:reviews)
+    if params[:min_reviews].present?
+      @products = @products.left_joins(:reviews)
         .group(:id)
-        .having("COUNT(comments.id) >= ?",
-                params[:min_comments])
+        .having("COUNT(reviews.id) >= ?",
+                params[:min_reviews])
     end
 
     # ... 60 lines of inline query chains
-    render json: @posts
+    render json: @products
   end
 end
 
@@ -447,13 +447,13 @@ end
     self
   end
 
-  def with_min_comments(count)
+  def with_min_reviews(count)
     return self if count.blank?
 
     @scope = @scope
       .left_joins(:reviews)
       .group(:id)
-      .having("COUNT(comments.id) >= ?", count)
+      .having("COUNT(reviews.id) >= ?", count)
     self
   end
 
@@ -530,7 +530,7 @@ end`,
       .published(params[:published])
       .by_author(params[:author_id])
       .since(params[:since])
-      .with_min_comments(params[:min_comments])
+      .with_min_reviews(params[:min_reviews])
       .by_tag(params[:tag])
       .sorted
       .results
@@ -910,7 +910,7 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 											>
 												Aggregates
 											</Badge>
-											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">.with_min_comments(n){'\n'}.since(date)</pre>
+											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">.with_min_reviews(n){'\n'}.since(date)</pre>
 										</div>
 										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-2 py-1.5">
 											<Badge

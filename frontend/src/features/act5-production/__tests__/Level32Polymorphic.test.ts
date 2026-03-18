@@ -66,19 +66,19 @@ const RUN_MIGRATION_COMMANDS = [
 const COMMENT_MODEL_OPTIONS = [
 	{ id: 'wrong-sti', correct: false, feedback: 'Multiple belongs_to associations require all three foreign keys on every row. Most will be null. Polymorphic uses a single type/id pair instead.' },
 	{ id: 'correct-polymorphic', correct: true },
-	{ id: 'wrong-no-polymorphic', correct: false, feedback: 'Without `polymorphic: true`, Rails expects a `commentables` table to exist. The polymorphic flag tells Rails to use the type/id column pair instead.' },
+	{ id: 'wrong-no-polymorphic', correct: false, feedback: 'Without `polymorphic: true`, Rails expects a `reviewables` table to exist. The polymorphic flag tells Rails to use the type/id column pair instead.' },
 ];
 
 const PARENT_MODEL_OPTIONS = [
-	{ id: 'wrong-has-one', correct: false, feedback: 'has_one limits each product to a single comment. Posts can have many comments, so has_many is the correct association.' },
-	{ id: 'wrong-no-as', correct: false, feedback: 'Without `as: :reviewable`, Rails looks for a `product_id` column on comments. The `as:` option tells Rails to use the polymorphic reviewable_type/reviewable_id pair.' },
-	{ id: 'correct-as-commentable', correct: true },
+	{ id: 'wrong-has-one', correct: false, feedback: 'has_one limits each product to a single review. Posts can have many reviews, so has_many is the correct association.' },
+	{ id: 'wrong-no-as', correct: false, feedback: 'Without `as: :reviewable`, Rails looks for a `product_id` column on reviews. The `as:` option tells Rails to use the polymorphic reviewable_type/reviewable_id pair.' },
+	{ id: 'correct-as-reviewable', correct: true },
 ];
 
 const SERVICE_OPTIONS = [
 	{ id: 'wrong-no-contract', correct: false, feedback: 'Missing input validation via contract. Since L18, services must validate input through a Dry::Validation::Contract before business logic.' },
 	{ id: 'correct-with-contract', correct: true },
-	{ id: 'wrong-inline-validation', correct: false, feedback: 'Inline validation checks in the service were replaced by Dry::Validation contracts in L18. Use a CommentContract to validate input.' },
+	{ id: 'wrong-inline-validation', correct: false, feedback: 'Inline validation checks in the service were replaced by Dry::Validation contracts in L18. Use a ReviewContract to validate input.' },
 ];
 
 const CONTROLLER_OPTIONS = [
@@ -206,7 +206,7 @@ describe('Level 32: Polymorphic Associations', () => {
 			];
 			for (const opt of allWrongOptions) {
 				const fb = opt.feedback?.toLowerCase() ?? '';
-				expect(fb).not.toContain('commentable:references{polymorphic}');
+				expect(fb).not.toContain('reviewable:references{polymorphic}');
 				expect(fb).not.toContain('rails db:migrate');
 			}
 		});

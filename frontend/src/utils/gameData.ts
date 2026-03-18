@@ -784,7 +784,7 @@ export const levelChallenges: Record<string, LevelChallenge> = {
 		scenario:
 			'The Database Guardian has corrupted your entire pipeline with multiple performance issues!',
 		problem: `Multiple issues detected:
-  - N+1 queries on comments
+  - N+1 queries on reviews
   - No caching layer
   - Missing eager loading`,
 		goal: 'Bring query count under 10 and latency under 100ms. Multiple optimizations needed.',

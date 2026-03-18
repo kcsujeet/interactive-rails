@@ -106,21 +106,21 @@ const PROBES: ProbeConfig[] = [
 		],
 	},
 	{
-		id: 'nested-comments',
-		label: 'Load posts + comments + users',
+		id: 'nested-reviews',
+		label: 'Load products + reviews + users',
 		command: 'Product.all + product.reviews.map(&:user) (nested N+1)',
 		responseLines: [
 			{
-				text: 'Scenario: posts -> comments -> comment authors (2 levels deep)',
+				text: 'Scenario: products -> reviews -> review authors (2 levels deep)',
 				color: 'cyan',
 			},
 			{ text: '', color: 'muted' },
 			{
-				text: 'includes(comments: :user) => 3 queries (posts + comments + users)',
+				text: 'includes(reviews: :user) => 3 queries (products + reviews + users)',
 				color: 'green',
 			},
 			{
-				text: 'preload(comments: :user)  => 3 queries (always separate)',
+				text: 'preload(reviews: :user)  => 3 queries (always separate)',
 				color: 'green',
 			},
 			{
@@ -128,7 +128,7 @@ const PROBES: ProbeConfig[] = [
 				color: 'yellow',
 			},
 			{
-				text: 'includes(:reviews) only  => N+1 on comment.user!',
+				text: 'includes(:reviews) only  => N+1 on review.user!',
 				color: 'red',
 			},
 		],
@@ -165,7 +165,7 @@ const PROBES: ProbeConfig[] = [
 
 const PROBE_DISCOVERY_MAP: Record<string, string> = {
 	'basic-users': 'joins-trap',
-	'nested-comments': 'nested-syntax',
+	'nested-reviews': 'nested-syntax',
 	'filtered-assoc': 'filter-needs-join',
 };
 
@@ -210,18 +210,18 @@ const OPTION_STEP_1: StepOption[] = [
 		label: 'Product.includes(:reviews)',
 		correct: false,
 		feedback:
-			'That loads comments but not their users. You will still get N+1 on comment.user. The nested association needs to be specified.',
+			'That loads reviews but not their users. You will still get N+1 on review.user. The nested association needs to be specified.',
 	},
 	{
 		id: 'separate',
 		label: 'Product.includes(:reviews).includes(:users)',
 		correct: false,
 		feedback:
-			'Posts do not have a direct :users association. The users belong to comments, so you need to express that nesting in the includes call.',
+			'Products do not have a direct :users association. The users belong to reviews, so you need to express that nesting in the includes call.',
 	},
 	{
 		id: 'nested-includes',
-		label: 'Product.includes(comments: :user)',
+		label: 'Product.includes(reviews: :user)',
 		correct: true,
 	},
 ];
@@ -266,11 +266,11 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'nested-includes',
-		label: 'Posts with nested comments',
-		description: 'Load posts with comments and their users',
+		label: 'Products with nested reviews',
+		description: 'Load products with reviews and their users',
 		method: 'GET',
-		path: '/api/v1/products?include=comments',
-		actor: 'includes(comments: :user)',
+		path: '/api/v1/products?include=reviews',
+		actor: 'includes(reviews: :user)',
 		expectedResult: 'allowed',
 	},
 	{
@@ -313,10 +313,10 @@ const REWARD_LANE_DATA: Record<string, RewardLaneData> = {
 		result: 'works',
 	},
 	'nested-includes': {
-		strategy: 'includes(comments: :user)',
+		strategy: 'includes(reviews: :user)',
 		blocks: [
 			{ label: 'SELECT posts', color: 'green' },
-			{ label: 'SELECT comments IN(...)', color: 'green' },
+			{ label: 'SELECT reviews IN(...)', color: 'green' },
 			{ label: 'SELECT users IN(...)', color: 'green' },
 		],
 		totalLabel: '3 queries',
@@ -431,8 +431,8 @@ describe('Level 24: Eager Loading', () => {
 			expect(hasJoinsTrap).toBe(true);
 		});
 
-		test('nested-comments probe shows nested N+1', () => {
-			const probe = PROBES.find((p) => p.id === 'nested-comments');
+		test('nested-reviews probe shows nested N+1', () => {
+			const probe = PROBES.find((p) => p.id === 'nested-reviews');
 			expect(probe).toBeTruthy();
 			const hasNestedN1 = probe?.responseLines.some((l) =>
 				l.text.includes('N+1'),
@@ -497,9 +497,9 @@ describe('Level 24: Eager Loading', () => {
 			expect(correct?.label).toBe('Product.includes(:user)');
 		});
 
-		test('step 1 correct answer uses nested includes(comments: :user)', () => {
+		test('step 1 correct answer uses nested includes(reviews: :user)', () => {
 			const correct = OPTION_STEP_1.find((o) => o.correct);
-			expect(correct?.label).toBe('Product.includes(comments: :user)');
+			expect(correct?.label).toBe('Product.includes(reviews: :user)');
 		});
 
 		test('step 2 correct answer uses eager_load for filtering', () => {
@@ -601,7 +601,7 @@ describe('Level 24: Eager Loading', () => {
 		test('observe probes cover all three scenarios (basic, nested, filtered)', () => {
 			const probeIds = PROBES.map((p) => p.id);
 			expect(probeIds).toContain('basic-users');
-			expect(probeIds).toContain('nested-comments');
+			expect(probeIds).toContain('nested-reviews');
 			expect(probeIds).toContain('filtered-assoc');
 		});
 
@@ -611,7 +611,7 @@ describe('Level 24: Eager Loading', () => {
 			);
 			expect(strategies.some((s) => s.includes('includes(:user)'))).toBe(true);
 			expect(
-				strategies.some((s) => s.includes('includes(comments: :user)')),
+				strategies.some((s) => s.includes('includes(reviews: :user)')),
 			).toBe(true);
 			expect(strategies.some((s) => s.includes('eager_load'))).toBe(true);
 		});

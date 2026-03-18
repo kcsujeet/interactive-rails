@@ -6,7 +6,7 @@
  *
  * Phase 1 (WHY - observe): Interactive exploration. Click pipeline stages to
  *   inspect code, fire API probes to discover that posts are isolated with no
- *   way to attach comments. Discovery gating controls when "Build the Fix" appears.
+ *   way to attach reviews. Discovery gating controls when "Build the Fix" appears.
  * Phase 2 (HOW - build): 6 steps (3 terminal + 1 informational + 2 OptionCard)
  *   Step 0: Generate Review model with product:references (terminal)
  *   Step 1: Run migration (terminal)
@@ -74,10 +74,10 @@ type Phase = 'observe' | 'build' | 'activate' | 'reward';
 // ──────────────────────────────────────────────
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
-	{ id: 'no-comment-model', label: 'Review model does not exist' },
+	{ id: 'no-review-model', label: 'Review model does not exist' },
 	{ id: 'no-association', label: 'Product has no associations defined' },
 	{ id: 'isolated-posts', label: 'Posts exist in isolation' },
-	{ id: 'no-nested-routes', label: 'No nested routes for comments' },
+	{ id: 'no-nested-routes', label: 'No nested routes for reviews' },
 ];
 
 // ──────────────────────────────────────────────
@@ -86,31 +86,31 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 
 const PROBES: ProbeConfig[] = [
 	{
-		id: 'get-comments',
-		label: 'GET comments',
-		command: 'GET /api/v1/products/1/comments',
+		id: 'get-reviews',
+		label: 'GET reviews',
+		command: 'GET /api/v1/products/1/reviews',
 		responseLines: [
 			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'No route matches GET "/api/v1/products/1/comments"',
+				text: 'No route matches GET "/api/v1/products/1/reviews"',
 				color: 'yellow',
 			},
 			{
-				text: 'Posts exist in isolation. No comment routes defined.',
+				text: 'Posts exist in isolation. No review routes defined.',
 				color: 'red',
 			},
 		],
 	},
 	{
-		id: 'post-comment',
-		label: 'POST comment',
-		command: 'POST /api/v1/products/1/comments (body: "Great post!")',
+		id: 'post-review',
+		label: 'POST review',
+		command: 'POST /api/v1/products/1/reviews (body: "Great post!")',
 		responseLines: [
 			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'No route matches POST "/api/v1/products/1/comments"',
+				text: 'No route matches POST "/api/v1/products/1/reviews"',
 				color: 'yellow',
 			},
 			{
@@ -120,15 +120,15 @@ const PROBES: ProbeConfig[] = [
 		],
 	},
 	{
-		id: 'console-comments',
+		id: 'console-reviews',
 		label: 'Rails console',
-		command: 'rails console: Product.first.comments',
+		command: 'rails console: Product.first.reviews',
 		responseLines: [
-			{ text: 'NoMethodError: undefined method `comments\'', color: 'red' },
+			{ text: 'NoMethodError: undefined method `reviews\'', color: 'red' },
 			{ text: 'for #<Product id: 1, title: "Laptop Pro">', color: 'muted' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'Product has no "comments" method. No association is defined.',
+				text: 'Product has no "reviews" method. No association is defined.',
 				color: 'yellow',
 			},
 		],
@@ -137,9 +137,9 @@ const PROBES: ProbeConfig[] = [
 
 // Map probe IDs to discovery IDs they trigger
 const PROBE_DISCOVERY_MAP: Record<string, string> = {
-	'get-comments': 'isolated-posts',
-	'post-comment': 'no-comment-model',
-	'console-comments': 'no-association',
+	'get-reviews': 'isolated-posts',
+	'post-review': 'no-review-model',
+	'console-reviews': 'no-association',
 };
 
 // Map probe IDs to pipeline node display during observe
@@ -147,15 +147,15 @@ const PROBE_PIPELINE_MAP: Record<
 	string,
 	{ modelSublabel: string; modelBadge: string }
 > = {
-	'get-comments': {
-		modelSublabel: 'No .comments method',
+	'get-reviews': {
+		modelSublabel: 'No .reviews method',
 		modelBadge: '404!',
 	},
-	'post-comment': {
+	'post-review': {
 		modelSublabel: 'No Review model',
 		modelBadge: '404!',
 	},
-	'console-comments': {
+	'console-reviews': {
 		modelSublabel: 'NoMethodError',
 		modelBadge: 'ERROR',
 	},
@@ -170,13 +170,13 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		stageId: 'request',
 		title: 'Incoming Request',
 		description:
-			'HTTP request targeting comments on a product. The request expects nested resources at /posts/:id/comments.',
+			'HTTP request targeting reviews on a product. The request expects nested resources at /posts/:id/reviews.',
 	},
 	router: {
 		stageId: 'router',
 		title: 'Router',
 		description:
-			'Routes only define `resources :posts`. There are no nested routes for comments. Add `resources :comments` inside the products block to create /posts/:id/comments.',
+			'Routes only define `resources :posts`. There are no nested routes for reviews. Add `resources :reviews` inside the products block to create /posts/:id/reviews.',
 		code: `# config/routes.rb
 namespace :api do
   namespace :v1 do
@@ -204,18 +204,18 @@ end`,
 		stageId: 'serializer',
 		title: 'Serializer (from Level 7)',
 		description:
-			'ProductSerializer shapes output into JSON:API format. Once associations are added, the serializer can include nested comment data in the response.',
+			'ProductSerializer shapes output into JSON:API format. Once associations are added, the serializer can include nested review data in the response.',
 	},
 	response: {
 		stageId: 'response',
 		title: 'Response',
-		description: '404 for all comment-related requests.',
+		description: '404 for all review-related requests.',
 	},
 };
 
 // Map stage IDs to discovery IDs they trigger
 const STAGE_DISCOVERY_MAP: Record<string, string> = {
-	model: 'no-comment-model',
+	model: 'no-review-model',
 	router: 'no-nested-routes',
 };
 
@@ -225,47 +225,47 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
-		id: 'create-comment',
-		label: 'Create comment on post',
-		description: 'Add a new comment through the association',
+		id: 'create-review',
+		label: 'Create review on post',
+		description: 'Add a new review through the association',
 		method: 'POST',
-		path: '/api/v1/products/1/comments',
+		path: '/api/v1/products/1/reviews',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
 	{
-		id: 'list-comments',
-		label: 'List post comments',
-		description: 'Fetch all comments for a specific post',
+		id: 'list-reviews',
+		label: 'List post reviews',
+		description: 'Fetch all reviews for a specific post',
 		method: 'GET',
-		path: '/api/v1/products/1/comments',
+		path: '/api/v1/products/1/reviews',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
 	{
 		id: 'delete-post-cascade',
 		label: 'Delete post (cascade)',
-		description: 'Delete a product and cascade-destroy its comments',
+		description: 'Delete a product and cascade-destroy its reviews',
 		method: 'DELETE',
 		path: '/api/v1/products/1',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
 	{
-		id: 'get-post-with-comments',
-		label: 'Show post with comments',
-		description: 'Fetch a product with its nested comments',
+		id: 'get-post-with-reviews',
+		label: 'Show post with reviews',
+		description: 'Fetch a product with its nested reviews',
 		method: 'GET',
 		path: '/api/v1/products/1',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
 	{
-		id: 'comment-invalid-post',
+		id: 'review-invalid-post',
 		label: 'Review on missing product',
-		description: 'Try to create a comment on a non-existent post',
+		description: 'Try to create a review on a non-existent post',
 		method: 'POST',
-		path: '/api/v1/products/999/comments',
+		path: '/api/v1/products/999/reviews',
 		actor: 'client',
 		expectedResult: 'blocked',
 	},
@@ -276,7 +276,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 // ──────────────────────────────────────────────
 
 const STEP_DEFS: StepDef[] = [
-	{ id: 'generate-comment', title: 'Generate Review' },
+	{ id: 'generate-review', title: 'Generate Review' },
 	{ id: 'run-migration', title: 'Run Migration' },
 	{ id: 'choose-relationship', title: 'Choose Relationship' },
 	{ id: 'auto-belongs-to', title: 'Auto belongs_to' },
@@ -326,7 +326,7 @@ const generateCommands: TerminalCommand[] = [
 const generateOutput: TerminalOutputLine[] = [
 	{ text: '      invoke  active_record', color: 'green' },
 	{
-		text: '      create    db/migrate/20240101000001_create_comments.rb',
+		text: '      create    db/migrate/20240101000001_create_reviews.rb',
 		color: 'green',
 	},
 	{ text: '      create    app/models/review.rb', color: 'green' },
@@ -368,7 +368,7 @@ const migrateOutput: TerminalOutputLine[] = [
 		color: 'muted',
 	},
 	{
-		text: '-- create_table(:comments)',
+		text: '-- create_table(:reviews)',
 		color: 'green',
 	},
 	{
@@ -451,14 +451,14 @@ const CONSOLE_STEP_MAP: (TerminalStepData | null)[] = [
 const RELATIONSHIP_OPTIONS: StepOption[] = [
 	{
 		id: 'has_one',
-		label: 'has_one :comments',
+		label: 'has_one :reviews',
 		correct: false,
 		feedback:
-			'"has_one" limits the parent to a single child record. Posts should be able to have unlimited comments.',
+			'"has_one" limits the parent to a single child record. Posts should be able to have unlimited reviews.',
 	},
 	{
 		id: 'belongs_to',
-		label: 'belongs_to :comments',
+		label: 'belongs_to :reviews',
 		correct: false,
 		feedback:
 			'"belongs_to" goes on the child side (Review). The parent needs a different declaration to express a one-to-many relationship.',
@@ -470,10 +470,10 @@ const RELATIONSHIP_OPTIONS: StepOption[] = [
 	},
 	{
 		id: 'habtm',
-		label: 'has_and_belongs_to_many :comments',
+		label: 'has_and_belongs_to_many :reviews',
 		correct: false,
 		feedback:
-			'"has_and_belongs_to_many" creates a many-to-many relationship. Comments belong to one post, not shared across many.',
+			'"has_and_belongs_to_many" creates a many-to-many relationship. Reviews belong to one post, not shared across many.',
 	},
 ];
 
@@ -487,21 +487,21 @@ const DEPENDENT_OPTIONS: StepOption[] = [
 		label: 'No dependent option',
 		correct: false,
 		feedback:
-			'Orphaned comments would break your API. You need to specify what happens to child records when the parent is deleted.',
+			'Orphaned reviews would break your API. You need to specify what happens to child records when the parent is deleted.',
 	},
 	{
 		id: 'nullify',
 		label: 'dependent: :nullify',
 		correct: false,
 		feedback:
-			'Orphaned comments with NULL product_id would break your API. You need a strategy that removes them entirely.',
+			'Orphaned reviews with NULL product_id would break your API. You need a strategy that removes them entirely.',
 	},
 	{
 		id: 'restrict',
 		label: 'dependent: :restrict_with_error',
 		correct: false,
 		feedback:
-			'For a blog API, cleaning up comments on delete is better than preventing deletion entirely.',
+			'For a blog API, cleaning up reviews on delete is better than preventing deletion entirely.',
 	},
 	{
 		id: 'destroy',
@@ -528,7 +528,7 @@ const OPTION_STEP_CONFIG: Record<
 	4: {
 		title: 'Set Dependent',
 		description:
-			'When a Product is destroyed, what should happen to its comments?',
+			'When a Product is destroyed, what should happen to its reviews?',
 		options: DEPENDENT_OPTIONS,
 	},
 };
@@ -601,11 +601,11 @@ end`,
 	if (furthestStep >= 1) {
 		// After step 0: migration file from generator
 		files.push({
-			filename: 'db/migrate/create_comments.rb',
+			filename: 'db/migrate/create_reviews.rb',
 			language: 'ruby',
 			code: `class CreateReviews < ActiveRecord::Migration[8.0]
   def change
-    create_table :comments do |t|
+    create_table :reviews do |t|
       t.text :body
       t.references :post, null: false, foreign_key: true
 
@@ -941,10 +941,10 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Your Product API works end-to-end: model (L3), CRUD (L4),
 							routes (L5), controller (L6), serializer (L7). But posts
-							exist in isolation: no comments, no likes, no tags.
+							exist in isolation: no reviews, no likes, no tags.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Try accessing comments on a product and see what happens.
+							Try accessing reviews on a product and see what happens.
 							Rails{' '}
 							<span className="text-foreground font-medium">
 								associations
@@ -1265,7 +1265,7 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 											completed={isViewingCompletedStep}
 											description={
 												<p className="text-sm text-muted-foreground">
-													Create a comment through the association.
+													Create a review through the association.
 													How do you add a child record through the
 													parent?
 												</p>
@@ -1308,7 +1308,7 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 									))}
 								</div>
 								<p className="text-sm text-muted-foreground">
-									Your associations are configured. See comments flow
+									Your associations are configured. See reviews flow
 									through the pipeline and cascade deletes in action.
 								</p>
 								<Button

@@ -78,15 +78,15 @@ const PROBES: ProbeConfig[] = [
 				color: 'green',
 			},
 			{
-				text: '  Loading comment counts for 20 posts...',
+				text: '  Loading review counts for 20 posts...',
 				color: 'muted',
 			},
 			{
-				text: '  (0.4ms)  SELECT COUNT(*) FROM "comments" WHERE "product_id" = 1',
+				text: '  (0.4ms)  SELECT COUNT(*) FROM "reviews" WHERE "product_id" = 1',
 				color: 'red',
 			},
 			{
-				text: '  (0.3ms)  SELECT COUNT(*) FROM "comments" WHERE "product_id" = 2',
+				text: '  (0.3ms)  SELECT COUNT(*) FROM "reviews" WHERE "product_id" = 2',
 				color: 'red',
 			},
 			{
@@ -125,26 +125,26 @@ const MIGRATION_COMMANDS: TerminalCommand[] = [
 	{
 		id: 'generate-migration',
 		label:
-			'rails generate migration AddCommentsCountToPosts reviews_count:integer',
+			'rails generate migration AddReviewsCountToPosts reviews_count:integer',
 		command:
-			'rails generate migration AddCommentsCountToPosts reviews_count:integer',
+			'rails generate migration AddReviewsCountToPosts reviews_count:integer',
 		correct: true,
 	},
 	{
 		id: 'add-index',
-		label: 'rails generate migration AddIndexToComments product_id:index',
-		command: 'rails generate migration AddIndexToComments product_id:index',
+		label: 'rails generate migration AddIndexToReviews product_id:index',
+		command: 'rails generate migration AddIndexToReviews product_id:index',
 		correct: false,
 		feedback:
-			'An index on comments.product_id helps query speed, but it does not eliminate the N+1 COUNT queries. You need a column on the parent table.',
+			'An index on reviews.product_id helps query speed, but it does not eliminate the N+1 COUNT queries. You need a column on the parent table.',
 	},
 ];
 
 const RUN_MIGRATION_COMMANDS: TerminalCommand[] = [
 	{
 		id: 'generate-again',
-		label: 'rails generate migration AddCommentsCountToPosts',
-		command: 'rails generate migration AddCommentsCountToPosts',
+		label: 'rails generate migration AddReviewsCountToPosts',
+		command: 'rails generate migration AddReviewsCountToPosts',
 		correct: false,
 		feedback:
 			'The migration file already exists. You need to apply it to the database.',
@@ -197,35 +197,35 @@ const RESET_OPTIONS: StepOption[] = [
 	},
 	{
 		id: 'manual-each',
-		label: 'Product.find_each { |p| p.update(reviews_count: p.comments.count) }',
+		label: 'Product.find_each { |p| p.update(reviews_count: p.reviews.count) }',
 		correct: false,
 		feedback:
 			'This works but fires N+1 queries and skips the counter cache mechanism. Rails has a dedicated method that uses efficient SQL.',
 	},
 	{
 		id: 'reset-counters',
-		label: 'Product.find_each { |p| Product.reset_counters(p.id, :comments) }',
+		label: 'Product.find_each { |p| Product.reset_counters(p.id, :reviews) }',
 		correct: true,
 	},
 ];
 
 const SERIALIZER_OPTIONS: StepOption[] = [
 	{
-		id: 'comments-count-method',
+		id: 'reviews-count-method',
 		label: 'product.reviews.count',
 		correct: false,
 		feedback:
 			'This always runs a COUNT(*) query, completely bypassing the counter cache column you just added.',
 	},
 	{
-		id: 'comments-length',
+		id: 'reviews-length',
 		label: 'product.reviews.length',
 		correct: false,
 		feedback:
-			'This loads ALL comment records into memory just to count them. Even worse than COUNT(*) for large collections.',
+			'This loads ALL review records into memory just to count them. Even worse than COUNT(*) for large collections.',
 	},
 	{
-		id: 'comments-size',
+		id: 'reviews-size',
 		label: 'product.reviews.size',
 		correct: true,
 	},
@@ -463,7 +463,7 @@ describe('Level 27: Counter Caches', () => {
 			for (const cmd of MIGRATION_COMMANDS) {
 				if (!cmd.correct && cmd.feedback) {
 					expect(cmd.feedback).not.toContain(correctCommand?.command ?? '');
-					expect(cmd.feedback).not.toContain('AddCommentsCountToPosts');
+					expect(cmd.feedback).not.toContain('AddReviewsCountToPosts');
 				}
 			}
 		});

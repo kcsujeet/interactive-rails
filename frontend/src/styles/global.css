@@ -223,6 +223,9 @@
 
 	/* Database panic blink for N+1 visualization */
 	--animate-db-panic: db-panic 0.4s ease-in-out infinite;
+
+	/* Hero landing page dot flow */
+	--animate-hero-dot-flow: hero-dot-flow 1.8s ease-in-out infinite;
 }
 
 /* ============================================
@@ -311,6 +314,13 @@
 @keyframes db-panic {
 	0%, 100% { border-color: var(--destructive); box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); }
 	50% { border-color: color-mix(in oklch, var(--destructive) 40%, transparent); box-shadow: 0 0 4px rgba(239, 68, 68, 0.1); }
+}
+
+@keyframes hero-dot-flow {
+	0% { top: -7px; opacity: 0; }
+	15% { opacity: 1; }
+	85% { opacity: 1; }
+	100% { top: calc(100% - 7px); opacity: 0; }
 }
 
 /* ============================================

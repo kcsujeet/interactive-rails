@@ -477,8 +477,8 @@ export interface AppState {
 	userCount: number;
 	/** Current number of posts */
 	postCount: number;
-	/** Current number of comments */
-	commentCount: number;
+	/** Current number of reviews */
+	reviewCount: number;
 	/** Features that have been added */
 	features: string[];
 	/** Current traffic level (requests per second) */

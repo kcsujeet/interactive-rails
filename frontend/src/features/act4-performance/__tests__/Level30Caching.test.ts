@@ -337,10 +337,10 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'invalidation',
-		label: 'POST comment (touch)',
-		description: 'New comment triggers touch: true',
+		label: 'POST review (touch)',
+		description: 'New review triggers touch: true',
 		method: 'POST',
-		path: '/api/v1/products/42/comments',
+		path: '/api/v1/products/42/reviews',
 		actor: 'user',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -583,7 +583,7 @@ describe('Level 30: Caching', () => {
       .joins(:reviews)
       .where("posts.created_at > ?", 7.days.ago)
       .group("posts.id")
-      .select("posts.*, COUNT(comments.id) AS score")
+      .select("products.*, COUNT(reviews.id) AS score")
       .order("score DESC")
       .limit(20)
       .includes(:user)

@@ -306,7 +306,7 @@ end`,
 **When to use:**
 - Same code in 2+ models (DRY principle)
 - Behavior that is conceptually separate from the model's core responsibility
-- Polymorphic patterns (tagging, commenting, auditing, soft-deletes)
+- Polymorphic patterns (tagging, reviewing, auditing, soft-deletes)
 
 **When NOT to use:**
 - Kitchen-sink concerns that bundle unrelated behaviors
@@ -396,7 +396,7 @@ end`,
 			'Forgetting the `extend ActiveSupport::Concern` line (included block silently breaks)',
 		],
 		whenToUse:
-			'When 2+ models share identical behavior, especially polymorphic patterns like tagging, auditing, commenting, or soft-deletes.',
+			'When 2+ models share identical behavior, especially polymorphic patterns like tagging, auditing, reviewing, or soft-deletes.',
 		furtherReading: [
 			{
 				title: 'ActiveSupport::Concern',

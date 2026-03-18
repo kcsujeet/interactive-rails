@@ -23,37 +23,37 @@ const level32Polymorphic: Level = {
 	trigger: {
 		type: 'new_feature',
 		description:
-			'Users want to comment on Posts, Photos, AND Videos. Three separate review tables with identical schemas exist. Polymorphic associations can unify them.',
+			'Users want to review Products, ProductImages, AND ProductVideos. Three separate review tables with identical schemas exist. Polymorphic associations can unify them.',
 	},
 	startingPipeline: standardPipeline(),
 	problem: {
 		observation:
-			'Three separate review tables exist: post_comments, photo_comments, video_comments. Schema is duplicated, queries are scattered, and adding a new commentable type means a new table and new controller.',
+			'Three separate review tables exist: post_reviews, photo_reviews, video_reviews. Schema is duplicated, queries are scattered, and adding a new reviewable type means a new table and new controller.',
 		rootCause:
 			'Each reviewable model has its own dedicated reviews table instead of using a single polymorphic reviews table.',
 		codeExample: `# Three separate service objects doing the same thing!
-# app/services/create_post_comment.rb
-class CreatePostComment < ApplicationService
-  Result = Data.define(:success?, :comment, :errors)
+# app/services/create_post_review.rb
+class CreatePostReview < ApplicationService
+  Result = Data.define(:success?, :review, :errors)
 
   def initialize(post:, user:, params:)
     @post = post; @user = user; @params = params
   end
 
   def call
-    v = PostCommentContract.new.call(@params)
+    v = PostReviewContract.new.call(@params)
     return Result.new(success?: false,
-      comment: nil, errors: v.errors.to_h) if v.failure?
-    comment = @post.post_comments.create!(
+      review: nil, errors: v.errors.to_h) if v.failure?
+    review = @product.product_reviews.create!(
       user: @user, body: v[:body])
-    Result.new(success?: true, comment:, errors: [])
+    Result.new(success?: true, review:, errors: [])
   end
 end
 
-# CreatePhotoComment, CreateVideoComment are identical copies!
+# CreatePhotoReview, CreateVideoReview are identical copies!
 # 3 tables, 3 models, 3 contracts, 3 services, 3 controllers
-# Adding "comment on Articles" means ANOTHER full set.`,
-		goal: 'Replace three review tables with one polymorphic Review model that can belong to any commentable resource. Build a single CreateReview service with contract validation.',
+# Adding "review on Articles" means ANOTHER full set.`,
+		goal: 'Replace three review tables with one polymorphic Review model that can belong to any reviewable resource. Build a single CreateReview service with contract validation.',
 		thresholds: {},
 	},
 	successConditions: [],
@@ -71,7 +71,7 @@ end
 - Rails resolves the correct parent model at runtime
 
 **When to use polymorphic:**
-- Comments on multiple types (Posts, Photos, Videos)
+- Reviews on multiple types (Posts, Photos, Videos)
 - Taggings across models
 - Attachments on different record types
 - Activity logs referencing various models
@@ -93,7 +93,7 @@ class CreateReviews < ActiveRecord::Migration[8.0]
   end
 end
 
-# app/models/comment.rb
+# app/models/review.rb
 class Review < ApplicationRecord
   belongs_to :reviewable, polymorphic: true
   belongs_to :user
@@ -105,46 +105,46 @@ class Product < ApplicationRecord
   has_many :reviews, as: :reviewable, dependent: :destroy
 end
 
-# app/contracts/comment_contract.rb
-class CommentContract < Dry::Validation::Contract
+# app/contracts/review_contract.rb
+class ReviewContract < Dry::Validation::Contract
   params do
     required(:body).filled(:string, max_size?: 10_000)
   end
 end
 
-# app/services/create_comment.rb
+# app/services/create_review.rb
 class CreateReview < ApplicationService
-  Result = Data.define(:success?, :comment, :errors)
+  Result = Data.define(:success?, :review, :errors)
 
-  def initialize(commentable:, user:, params:)
-    @reviewable = commentable
+  def initialize(reviewable:, user:, params:)
+    @reviewable = reviewable
     @user = user
     @params = params
   end
 
   def call
-    v = CommentContract.new.call(@params)
+    v = ReviewContract.new.call(@params)
     return Result.new(success?: false,
-      comment: nil, errors: v.errors.to_h) if v.failure?
-    comment = @reviewable.reviews.create!(
+      review: nil, errors: v.errors.to_h) if v.failure?
+    review = @reviewable.reviews.create!(
       user: @user, body: v[:body])
-    Result.new(success?: true, comment:, errors: [])
+    Result.new(success?: true, review:, errors: [])
   end
 end
 
-# app/controllers/api/v1/comments_controller.rb
-class Api::V1::CommentsController < ApplicationController
+# app/controllers/api/v1/reviews_controller.rb
+class Api::V1::ReviewsController < ApplicationController
   def create
     result = CreateReview.call(
-      commentable: find_commentable,
+      reviewable: find_reviewable,
       user: Current.user,
-      params: params.expect(comment: [:body]))
+      params: params.expect(review: [:body]))
     if result.success?
-      render json: CommentSerializer.new(result.comment),
+      render json: ReviewSerializer.new(result.review),
         status: :created
     else
       render json: { error: { code: "VALIDATION_FAILED",
-        message: "Invalid comment",
+        message: "Invalid review",
         details: result.errors } }, status: :unprocessable_entity
     end
   end

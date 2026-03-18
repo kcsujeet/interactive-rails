@@ -244,7 +244,7 @@ class TrendingProducts < ApplicationService
       .joins(:reviews)
       .where("posts.created_at > ?", 7.days.ago)
       .group("posts.id")
-      .select("posts.*, COUNT(comments.id) AS score")
+      .select("posts.*, COUNT(reviews.id) AS score")
       .order("score DESC")
       .limit(20)
       .includes(:user)
@@ -258,11 +258,11 @@ end`,
 		stageId: 'database',
 		title: 'PostgreSQL (50K Posts)',
 		description:
-			'Joins posts and comments, groups, aggregates, sorts. 512ms per execution. Running 200 times/minute.',
+			'Joins products and reviews, groups, aggregates, sorts. 512ms per execution. Running 200 times/minute.',
 		code: `EXPLAIN ANALYZE
-SELECT posts.*, COUNT(comments.id) AS score
+SELECT products.*, COUNT(reviews.id) AS score
 FROM products
-INNER JOIN comments ON comments.product_id = posts.id
+INNER JOIN reviews ON reviews.product_id = products.id
 WHERE posts.created_at > NOW() - INTERVAL '7 days'
 GROUP BY posts.id
 ORDER BY score DESC
@@ -327,10 +327,10 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'invalidation',
-		label: 'POST comment (touch)',
-		description: 'New comment triggers touch: true',
+		label: 'POST review (touch)',
+		description: 'New review triggers touch: true',
 		method: 'POST',
-		path: '/api/v1/products/42/comments',
+		path: '/api/v1/products/42/reviews',
 		actor: 'user',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -595,7 +595,7 @@ const OPTION_STEP_CONFIG: Record<
 	5: {
 		title: 'Cache Invalidation',
 		description:
-			'When a new comment is posted, the trending rankings change. The Review model needs to signal that its parent product has changed so cache keys that depend on updated_at are invalidated.',
+			'When a new review is posted, the trending rankings change. The Review model needs to signal that its parent product has changed so cache keys that depend on updated_at are invalidated.',
 		options: TOUCH_OPTIONS,
 	},
 };
@@ -638,7 +638,7 @@ end`;
       .joins(:reviews)
       .where("posts.created_at > ?", 7.days.ago)
       .group("posts.id")
-      .select("posts.*, COUNT(comments.id) AS score")
+      .select("posts.*, COUNT(reviews.id) AS score")
       .order("score DESC")
       .limit(20)
       .includes(:user)
@@ -687,7 +687,7 @@ end
       .joins(:reviews)
       .where("posts.created_at > ?", 7.days.ago)
       .group("posts.id")
-      .select("posts.*, COUNT(comments.id) AS score")
+      .select("posts.*, COUNT(reviews.id) AS score")
       .order("score DESC")
       .limit(20)
       .includes(:user)
@@ -783,7 +783,7 @@ end`,
         .joins(:reviews)
         .where("posts.created_at > ?", 7.days.ago)
         .group("posts.id")
-        .select("posts.*, COUNT(comments.id) AS score")
+        .select("posts.*, COUNT(reviews.id) AS score")
         .order("score DESC")
         .limit(20)
         .includes(:user)
@@ -808,7 +808,7 @@ end`,
   validates :body, presence: true
 
   # touch: true updates product.updated_at when a
-  # comment is created, updated, or destroyed.
+  # review is created, updated, or destroyed.
   # Cache keys that include updated_at are
   # automatically invalidated.
 end`,

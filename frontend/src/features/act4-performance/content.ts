@@ -311,8 +311,8 @@ Eager Load: Real 16.898s → 16x faster
 \`\`\`
 
 **Nested eager loading:**
-- \`Product.includes(comments: :user)\`: load comments AND each comment's user
-- \`Product.includes(:user, :tags, comments: [:user, :likes])\`: multiple levels
+- \`Product.includes(reviews: :user)\`: load reviews AND each review's user
+- \`Product.includes(:user, :tags, reviews: [:user, :likes])\`: multiple levels
 
 **strict_loading (Rails 6.1+):**
 - Raises an error if you access a non-eager-loaded association
@@ -351,9 +351,9 @@ Product.joins(:user).where(users: { role: 'admin' })
 # product.user.name → STILL triggers a separate query!
 
 # Nested eager loading
-Product.includes(comments: :user)
+Product.includes(reviews: :user)
 # Query 1: SELECT "posts".* FROM "posts"
-# Query 2: SELECT "comments".* FROM "comments" WHERE post_id IN (...)
+# Query 2: SELECT "reviews".* FROM "reviews" WHERE product_id IN (...)
 # Query 3: SELECT "users".* FROM "users" WHERE id IN (...)
 
 # strict_loading: catch N+1 at runtime
@@ -742,13 +742,13 @@ const level27CounterCaches: Level = {
 	trigger: {
 		type: 'performance_alert',
 		description:
-			'Fire requests at the posts index to watch COUNT(*) queries cascade through the query waterfall. Each post fires a separate query just to count its comments.',
+			'Fire requests at the posts index to watch COUNT(*) queries cascade through the query waterfall. Each post fires a separate query just to count its reviews.',
 	},
 	problem: {
 		observation:
 			'`product.reviews.count` runs a COUNT(*) query for every post on the index page. 100 posts = 100 extra COUNT queries.',
 		rootCause:
-			'No denormalized count column. Rails must query the comments table for every post to get the count.',
+			'No denormalized count column. Rails must query the reviews table for every product to get the count.',
 		codeExample: `# app/services/post_list.rb
 class PostList < ApplicationService
   Result = Data.define(:success?, :posts, :errors)
@@ -771,8 +771,8 @@ end
 
 # Database log for 100 posts:
 #   Product Load (1.2ms)  SELECT "posts".* FROM "posts"
-#   (0.4ms)  SELECT COUNT(*) FROM "comments" WHERE post_id = 1
-#   (0.3ms)  SELECT COUNT(*) FROM "comments" WHERE post_id = 2
+#   (0.4ms)  SELECT COUNT(*) FROM "reviews" WHERE product_id = 1
+#   (0.3ms)  SELECT COUNT(*) FROM "reviews" WHERE product_id = 2
 #   ... 97 more COUNT queries
 #
 # includes(:reviews) loads ALL records just to count them!`,
@@ -784,7 +784,7 @@ end
 	learningContent: {
 		title: 'Counter Caches & Denormalization',
 		goal: `In this level, you'll:\n- eliminate expensive COUNT queries by storing the count directly on the parent table.\n- learn how Rails counter caches work.\n- set up counter_cache: true on a belongs_to association.\n- see how reading a pre-computed column is orders of magnitude faster than counting rows on every request.`,
-		conceptExplanation: `A counter cache stores the count of associated records directly on the parent table. Instead of running COUNT(*) on comments every time, Rails maintains a \`reviews_count\` column on the posts table.
+		conceptExplanation: `A counter cache stores the count of associated records directly on the parent table. Instead of running COUNT(*) on reviews every time, Rails maintains a \`reviews_count\` column on the products table.
 
 **How it works:**
 - Add a \`reviews_count\` integer column to the posts table (default: 0)
@@ -805,15 +805,15 @@ WITH counter_cache:
 
 **How it works under the hood:**
 \`\`\`sql
--- Creating a comment triggers both in one transaction:
-INSERT INTO comments (...)
-UPDATE posts SET reviews_count = COALESCE(reviews_count, 0) + 1 WHERE id = 42
+-- Creating a review triggers both in one transaction:
+INSERT INTO reviews (...)
+UPDATE products SET reviews_count = COALESCE(reviews_count, 0) + 1 WHERE id = 42
 \`\`\`
 
 **Denormalization trade-offs:**
 - **Not source of truth**: The count is a cached value. Could diverge if someone runs a bad backfill or manually modifies data. Use \`reset_counters\` to fix
 - **Write penalty**: Every create/destroy adds an UPDATE to the parent row
-- **Locking at scale (the critical issue)**: A viral post with thousands of simultaneous comments, all trying to \`UPDATE posts SET reviews_count = ... WHERE id = viral_post_id\`. They all compete to lock the same row, leading to lock contention, deadlocks, and failed transactions. Same problem Twitter faced with \`followers_count\` on celebrity accounts. At that scale, you need async counter updates (batch increment every N seconds)
+- **Locking at scale (the critical issue)**: A viral product with thousands of simultaneous reviews, all trying to \`UPDATE products SET reviews_count = ... WHERE id = viral_product_id\`. They all compete to lock the same row, leading to lock contention, deadlocks, and failed transactions. Same problem Twitter faced with \`followers_count\` on celebrity accounts. At that scale, you need async counter updates (batch increment every N seconds)
 
 **When to use counter_cache vs other approaches:**
 - Counter cache: Simple count, frequently displayed, moderate write volume
@@ -822,17 +822,17 @@ UPDATE posts SET reviews_count = COALESCE(reviews_count, 0) + 1 WHERE id = 42
 - Precomputed aggregates: For complex calculations (sums, averages)
 - Async counters: For high-write scenarios where lock contention is a concern`,
 		railsCodeExample: `# Step 1: Migration, add counter column
-class AddCommentsCountToPosts < ActiveRecord::Migration[8.0]
+class AddReviewsCountToPosts < ActiveRecord::Migration[8.0]
   def change
     add_column :posts, :reviews_count, :integer, default: 0, null: false
   end
 end
 
 # Step 2: Backfill existing counts
-class BackfillCommentsCount < ActiveRecord::Migration[8.0]
+class BackfillReviewsCount < ActiveRecord::Migration[8.0]
   def up
     Product.find_each do |post|
-      Product.reset_counters(post.id, :comments)
+      Product.reset_counters(product.id, :reviews)
     end
   end
 end
@@ -854,10 +854,10 @@ product.reviews.count
 belongs_to :product, counter_cache: :replies_count
 
 # Fix out-of-sync counters:
-Product.reset_counters(post_id, :comments)
+Product.reset_counters(product_id, :reviews)
 
 # Bulk reset all:
-Product.find_each { |p| Product.reset_counters(p.id, :comments) }
+Product.find_each { |p| Product.reset_counters(p.id, :reviews) }
 
 # In serializer, no query needed:
 class ProductSerializer < BaseSerializer
@@ -873,7 +873,7 @@ end`,
 			'Using counter_cache for frequently changing counts on high-write tables',
 		],
 		whenToUse:
-			'When you frequently display counts of associated records (e.g., comment counts, like counts, follower counts). The trade-off is slightly slower writes for much faster reads.',
+			'When you frequently display counts of associated records (e.g., review counts, like counts, follower counts). The trade-off is slightly slower writes for much faster reads.',
 		furtherReading: [
 			{
 				title: 'Rails Counter Cache',
@@ -1252,7 +1252,7 @@ class AddSearchToProduct < ActiveRecord::Migration[8.0]
 
     # Backfill existing records
     execute <<-SQL
-      UPDATE posts SET searchable =
+      UPDATE products SET searchable =
         to_tsvector('english', coalesce(title, '') || ' ' || coalesce(body, ''));
     SQL
   end
@@ -1428,7 +1428,7 @@ class TrendingProducts < ApplicationService
       .joins(:reviews)
       .where("posts.created_at > ?", 7.days.ago)
       .group("posts.id")
-      .select("posts.*, COUNT(comments.id) AS score")
+      .select("posts.*, COUNT(reviews.id) AS score")
       .order("score DESC")
       .limit(20)
       .includes(:user)
@@ -1526,7 +1526,7 @@ class TrendingProducts < ApplicationService
         .joins(:reviews)
         .where("posts.created_at > ?", 7.days.ago)
         .group("posts.id")
-        .select("posts.*, COUNT(comments.id) AS score")
+        .select("posts.*, COUNT(reviews.id) AS score")
         .order("score DESC")
         .limit(20)
         .includes(:user)

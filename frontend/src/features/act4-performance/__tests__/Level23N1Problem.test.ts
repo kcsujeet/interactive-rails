@@ -239,10 +239,10 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'allowed',
 	},
 	{
-		id: 'comments-no-includes',
-		label: 'PostList + .comments.count',
+		id: 'reviews-no-includes',
+		label: 'PostList + .reviews.count',
 		description:
-			'Service loads posts, serializer counts comments without counter cache',
+			'Service loads posts, serializer counts reviews without counter cache',
 		method: 'GET',
 		path: '/api/v1/products',
 		actor: 'PostList.call',

@@ -185,8 +185,8 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		code: `Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
-      resources :posts
-      resources :comments
+      resources :products
+      resources :reviews
       # No password_resets route!
     end
   end
@@ -507,8 +507,8 @@ end`,
 			code: `Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
-      resources :posts
-      resources :comments
+      resources :products
+      resources :reviews
       # No password_resets route!
     end
   end

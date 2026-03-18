@@ -55,7 +55,7 @@ function validateLevel12Solution(state: Level12State): ValidationResult {
 const INITIAL_BLOCKS: ViewBlock[] = [
 	{ id: 'user-card-1', view: 'users/index', extracted: false },
 	{ id: 'user-card-2', view: 'posts/show', extracted: false },
-	{ id: 'user-card-3', view: 'comments/show', extracted: false },
+	{ id: 'user-card-3', view: 'reviews/show', extracted: false },
 ];
 
 describe('Level 12: ViewComponents', () => {

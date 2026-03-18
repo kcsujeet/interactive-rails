@@ -29,7 +29,7 @@ function validateLevel4Solution(state: Level4State): ValidationResult {
 		errors.push('Connect Product model to Database for persistence');
 	}
 
-	if (!state.modelsConnectedToDb.has('comment-model')) {
+	if (!state.modelsConnectedToDb.has('review-model')) {
 		errors.push('Connect Review model to Database for persistence');
 	}
 
@@ -78,7 +78,7 @@ describe('Level 4: Persistence', () => {
 			expect(result.details!.some((d) => d.includes('Product model'))).toBe(true);
 		});
 
-		test('should require connecting comment model', () => {
+		test('should require connecting review model', () => {
 			const result = validateLevel4Solution({
 				databaseAdded: true,
 				modelsConnectedToDb: new Set(),
@@ -101,10 +101,10 @@ describe('Level 4: Persistence', () => {
 			expect(result.details!.some((d) => d.includes('Review'))).toBe(true);
 		});
 
-		test('should be invalid with only comment connected', () => {
+		test('should be invalid with only review connected', () => {
 			const result = validateLevel4Solution({
 				databaseAdded: true,
-				modelsConnectedToDb: new Set(['comment-model']),
+				modelsConnectedToDb: new Set(['review-model']),
 			});
 
 			expect(result.valid).toBe(false);
@@ -114,7 +114,7 @@ describe('Level 4: Persistence', () => {
 		test('should be invalid without database', () => {
 			const result = validateLevel4Solution({
 				databaseAdded: false,
-				modelsConnectedToDb: new Set(['post-model', 'comment-model']),
+				modelsConnectedToDb: new Set(['post-model', 'review-model']),
 			});
 
 			expect(result.valid).toBe(false);
@@ -125,7 +125,7 @@ describe('Level 4: Persistence', () => {
 		test('should be valid with both models connected', () => {
 			const result = validateLevel4Solution({
 				databaseAdded: true,
-				modelsConnectedToDb: new Set(['post-model', 'comment-model']),
+				modelsConnectedToDb: new Set(['post-model', 'review-model']),
 			});
 
 			expect(result.valid).toBe(true);
@@ -134,7 +134,7 @@ describe('Level 4: Persistence', () => {
 		test('should have correct success message', () => {
 			const result = validateLevel4Solution({
 				databaseAdded: true,
-				modelsConnectedToDb: new Set(['post-model', 'comment-model']),
+				modelsConnectedToDb: new Set(['post-model', 'review-model']),
 			});
 
 			expect(result.message).toContain('persists');

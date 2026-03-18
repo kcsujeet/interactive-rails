@@ -5,7 +5,7 @@
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - intro): Type 2 static intro. Annotated schema display showing
- *   three duplicate comment table schemas side by side with colored annotations
+ *   three duplicate review table schemas side by side with colored annotations
  *   highlighting the duplication. "Build the Fix" button always visible (no gating).
  *   No probes, no discovery gating, no animations.
  *
@@ -19,11 +19,11 @@
  *
  * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Polymorphic" button
  * Phase 4 (ADVANTAGE - reward): Single unified Review table, connected to all
- *   3 parent models. StressTestPanel fires comment creation scenarios on
+ *   3 parent models. StressTestPanel fires review creation scenarios on
  *   different parent types, including a new Article type to show extensibility.
  *
  * Teaches: polymorphic: true, reviewable_type/id columns, has_many as:,
- *   service objects for comment creation, contract validation
+ *   service objects for review creation, contract validation
  */
 
 import { ArrowRight, Database, Play, Star, Table2, Zap } from 'lucide-react';
@@ -61,7 +61,7 @@ type Phase = 'intro' | 'build' | 'activate' | 'reward';
 
 const DUPLICATE_TABLES = [
 	{
-		name: 'post_comments',
+		name: 'post_reviews',
 		fkColumn: 'product_id',
 		borderColor: 'border-blue-300 dark:border-blue-600',
 		headerBg: 'bg-blue-50 dark:bg-blue-900/30',
@@ -73,7 +73,7 @@ const DUPLICATE_TABLES = [
 		],
 	},
 	{
-		name: 'photo_comments',
+		name: 'photo_reviews',
 		fkColumn: 'photo_id',
 		borderColor: 'border-purple-300 dark:border-purple-600',
 		headerBg: 'bg-purple-50 dark:bg-purple-900/30',
@@ -85,7 +85,7 @@ const DUPLICATE_TABLES = [
 		],
 	},
 	{
-		name: 'video_comments',
+		name: 'video_reviews',
 		fkColumn: 'video_id',
 		borderColor: 'border-amber-300 dark:border-amber-600',
 		headerBg: 'bg-amber-50 dark:bg-amber-900/30',
@@ -144,7 +144,7 @@ const MIGRATION_COMMANDS = [
 const MIGRATION_OUTPUT = [
 	{ text: '  invoke  active_record', color: 'green' as const },
 	{
-		text: '  create    db/migrate/20250314_create_comments.rb',
+		text: '  create    db/migrate/20250314_create_reviews.rb',
 		color: 'green' as const,
 	},
 	{ text: '  create    app/models/review.rb', color: 'green' as const },
@@ -178,10 +178,10 @@ const RUN_MIGRATION_COMMANDS = [
 
 const RUN_MIGRATION_OUTPUT = [
 	{ text: '== CreateReviews: migrating ====', color: 'green' as const },
-	{ text: '-- create_table(:comments)', color: 'green' as const },
+	{ text: '-- create_table(:reviews)', color: 'green' as const },
 	{ text: '   -> 0.0045s', color: 'muted' as const },
 	{
-		text: '-- add_index(:comments, [:reviewable_type, :reviewable_id])',
+		text: '-- add_index(:reviews, [:reviewable_type, :reviewable_id])',
 		color: 'green' as const,
 	},
 	{ text: '   -> 0.0012s', color: 'muted' as const },
@@ -233,7 +233,7 @@ end`,
 end`,
 		correct: false,
 		feedback:
-			'Without `polymorphic: true`, Rails expects a `commentables` table to exist. The polymorphic flag tells Rails to use the type/id column pair instead.',
+			'Without `polymorphic: true`, Rails expects a `reviewables` table to exist. The polymorphic flag tells Rails to use the type/id column pair instead.',
 	},
 ];
 
@@ -242,11 +242,11 @@ const PARENT_MODEL_OPTIONS = [
 	{
 		id: 'wrong-has-one',
 		label: `class Product < ApplicationRecord
-  has_one :comment, as: :reviewable
+  has_one :review, as: :reviewable
 end`,
 		correct: false,
 		feedback:
-			'has_one limits each product to a single comment. Posts can have many comments, so has_many is the correct association.',
+			'has_one limits each product to a single review. Posts can have many reviews, so has_many is the correct association.',
 	},
 	{
 		id: 'wrong-no-as',
@@ -255,10 +255,10 @@ end`,
 end`,
 		correct: false,
 		feedback:
-			'Without `as: :reviewable`, Rails looks for a `product_id` column on comments. The `as:` option tells Rails to use the polymorphic reviewable_type/reviewable_id pair.',
+			'Without `as: :reviewable`, Rails looks for a `product_id` column on reviews. The `as:` option tells Rails to use the polymorphic reviewable_type/reviewable_id pair.',
 	},
 	{
-		id: 'correct-as-commentable',
+		id: 'correct-as-reviewable',
 		label: `class Product < ApplicationRecord
   has_many :reviews, as: :reviewable,
     dependent: :destroy
@@ -273,23 +273,23 @@ const SERVICE_OPTIONS = [
 	{
 		id: 'wrong-no-contract',
 		label: `class CreateReview < ApplicationService
-  Result = Data.define(:success?, :comment, :errors)
+  Result = Data.define(:success?, :review, :errors)
 
-  def initialize(commentable:, user:, body:)
-    @reviewable = commentable
+  def initialize(reviewable:, user:, body:)
+    @reviewable = reviewable
     @user = user
     @body = body
   end
 
   def call
-    review = @reviewable.comments.build(
+    review = @reviewable.reviews.build(
       user: @user, body: @body
     )
-    if comment.save
-      Result.new(success?: true, comment:, errors: [])
+    if review.save
+      Result.new(success?: true, review:, errors: [])
     else
-      Result.new(success?: false, comment: nil,
-        errors: comment.errors.full_messages)
+      Result.new(success?: false, review: nil,
+        errors: review.errors.full_messages)
     end
   end
 end`,
@@ -300,23 +300,23 @@ end`,
 	{
 		id: 'correct-with-contract',
 		label: `class CreateReview < ApplicationService
-  Result = Data.define(:success?, :comment, :errors)
+  Result = Data.define(:success?, :review, :errors)
 
-  def initialize(commentable:, user:, params:)
-    @reviewable = commentable
+  def initialize(reviewable:, user:, params:)
+    @reviewable = reviewable
     @user = user
     @params = params
   end
 
   def call
-    v = CommentContract.new.call(@params)
+    v = ReviewContract.new.call(@params)
     return Result.new(success?: false,
-      comment: nil, errors: v.errors.to_h) if v.failure?
+      review: nil, errors: v.errors.to_h) if v.failure?
 
-    review = @reviewable.comments.create!(
+    review = @reviewable.reviews.create!(
       user: @user, body: v[:body]
     )
-    Result.new(success?: true, comment:, errors: [])
+    Result.new(success?: true, review:, errors: [])
   end
 end`,
 		correct: true,
@@ -324,10 +324,10 @@ end`,
 	{
 		id: 'wrong-inline-validation',
 		label: `class CreateReview < ApplicationService
-  Result = Data.define(:success?, :comment, :errors)
+  Result = Data.define(:success?, :review, :errors)
 
-  def initialize(commentable:, user:, params:)
-    @reviewable = commentable
+  def initialize(reviewable:, user:, params:)
+    @reviewable = reviewable
     @user = user
     @params = params
   end
@@ -335,17 +335,17 @@ end`,
   def call
     if @params[:body].blank?
       return Result.new(success?: false,
-        comment: nil, errors: ["Body required"])
+        review: nil, errors: ["Body required"])
     end
-    review = @reviewable.comments.create!(
+    review = @reviewable.reviews.create!(
       user: @user, body: @params[:body]
     )
-    Result.new(success?: true, comment:, errors: [])
+    Result.new(success?: true, review:, errors: [])
   end
 end`,
 		correct: false,
 		feedback:
-			'Inline validation checks in the service were replaced by Dry::Validation contracts in L18. Use a CommentContract to validate input.',
+			'Inline validation checks in the service were replaced by Dry::Validation contracts in L18. Use a ReviewContract to validate input.',
 	},
 ];
 
@@ -353,13 +353,13 @@ end`,
 const CONTROLLER_OPTIONS = [
 	{
 		id: 'wrong-direct-create',
-		label: `class Api::V1::CommentsController < ApplicationController
+		label: `class Api::V1::ReviewsController < ApplicationController
   def create
-    commentable = find_commentable
-    review = commentable.comments.create!(
-      comment_params.merge(user: Current.user)
+    reviewable = find_reviewable
+    review = reviewable.reviews.create!(
+      review_params.merge(user: Current.user)
     )
-    render json: ReviewSerializer.new(comment),
+    render json: ReviewSerializer.new(review),
       status: :created
   end
 end`,
@@ -369,19 +369,19 @@ end`,
 	},
 	{
 		id: 'correct-service',
-		label: `class Api::V1::CommentsController < ApplicationController
+		label: `class Api::V1::ReviewsController < ApplicationController
   def create
-    commentable = find_commentable
+    reviewable = find_reviewable
     result = CreateReview.call(
-      commentable:, user: Current.user,
-      params: params.expect(comment: [:body])
+      reviewable:, user: Current.user,
+      params: params.expect(review: [:body])
     )
     if result.success?
-      render json: ReviewSerializer.new(result.comment),
+      render json: ReviewSerializer.new(result.review),
         status: :created
     else
       render json: { error: { code: "VALIDATION_FAILED",
-        message: "Invalid comment",
+        message: "Invalid review",
         details: result.errors } }, status: :unprocessable_entity
     end
   end
@@ -419,7 +419,7 @@ const OPTION_STEP_CONFIG: Record<
 	4: {
 		title: 'Create the Review Service',
 		description:
-			'Build a service object that creates comments on any commentable parent, using contract validation.',
+			'Build a service object that creates reviews on any reviewable parent, using contract validation.',
 		options: SERVICE_OPTIONS,
 	},
 	5: {
@@ -439,7 +439,7 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 	if (phase === 'intro') {
 		return [
 			{
-				filename: 'app/models/post_comment.rb',
+				filename: 'app/models/post_review.rb',
 				language: 'ruby',
 				code: `class PostReview < ApplicationRecord
   belongs_to :product
@@ -450,7 +450,7 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 end`,
 			},
 			{
-				filename: 'app/models/photo_comment.rb',
+				filename: 'app/models/photo_review.rb',
 				language: 'ruby',
 				code: `class PhotoReview < ApplicationRecord
   belongs_to :photo
@@ -461,7 +461,7 @@ end`,
 end`,
 			},
 			{
-				filename: 'app/models/video_comment.rb',
+				filename: 'app/models/video_review.rb',
 				language: 'ruby',
 				code: `class VideoReview < ApplicationRecord
   belongs_to :video
@@ -472,10 +472,10 @@ end`,
 end`,
 			},
 			{
-				filename: 'app/services/create_post_comment.rb',
+				filename: 'app/services/create_post_review.rb',
 				language: 'ruby',
-				code: `class CreatePostComment < ApplicationService
-  Result = Data.define(:success?, :comment, :errors)
+				code: `class CreatePostReview < ApplicationService
+  Result = Data.define(:success?, :review, :errors)
 
   def initialize(post:, user:, params:)
     @product = post
@@ -484,17 +484,17 @@ end`,
   end
 
   def call
-    v = PostCommentContract.new.call(@params)
+    v = PostReviewContract.new.call(@params)
     return Result.new(success?: false,
-      comment: nil, errors: v.errors.to_h) if v.failure?
+      review: nil, errors: v.errors.to_h) if v.failure?
 
-    review = @post.post_comments.create!(
+    review = @post.post_reviews.create!(
       user: @user, body: v[:body]
     )
-    Result.new(success?: true, comment:, errors: [])
+    Result.new(success?: true, review:, errors: [])
   end
 end
-# CreatePhotoComment and CreateVideoComment are
+# CreatePhotoReview and CreateVideoReview are
 # identical copies with different model names!`,
 			},
 		];
@@ -505,7 +505,7 @@ end
 		if (furthestStep <= 0) {
 			return [
 				{
-					filename: 'db/migrate/..._create_comments.rb (pending)',
+					filename: 'db/migrate/..._create_reviews.rb (pending)',
 					language: 'ruby',
 					code: `# Migration will be generated in this step...
 # Goal: single reviews table with polymorphic
@@ -516,17 +516,17 @@ end
 		if (furthestStep === 1) {
 			return [
 				{
-					filename: 'db/migrate/create_comments.rb',
+					filename: 'db/migrate/create_reviews.rb',
 					language: 'ruby',
 					code: `class CreateReviews < ActiveRecord::Migration[8.0]
   def change
-    create_table :comments do |t|
+    create_table :reviews do |t|
       t.text :body, null: false
       t.references :reviewable, polymorphic: true, null: false
       t.references :user, null: false, foreign_key: true
       t.timestamps
     end
-    add_index :comments,
+    add_index :reviews,
       [:reviewable_type, :reviewable_id]
   end
 end`,
@@ -537,17 +537,17 @@ end`,
 		if (furthestStep === 2) {
 			return [
 				{
-					filename: 'db/migrate/create_comments.rb',
+					filename: 'db/migrate/create_reviews.rb',
 					language: 'ruby',
 					code: `class CreateReviews < ActiveRecord::Migration[8.0]
   def change
-    create_table :comments do |t|
+    create_table :reviews do |t|
       t.text :body, null: false
       t.references :reviewable, polymorphic: true, null: false
       t.references :user, null: false, foreign_key: true
       t.timestamps
     end
-    add_index :comments,
+    add_index :reviews,
       [:reviewable_type, :reviewable_id]
   end
 end`,
@@ -618,10 +618,10 @@ end`,
 					highlight: [2, 8, 14],
 				},
 				{
-					filename: 'app/services/create_comment.rb (next step)',
+					filename: 'app/services/create_review.rb (next step)',
 					language: 'ruby',
 					code: `# Build the service object for
-# creating comments on any parent...`,
+# creating reviews on any parent...`,
 				},
 			];
 		}
@@ -639,35 +639,35 @@ end`,
 end`,
 				},
 				{
-					filename: 'app/contracts/comment_contract.rb',
+					filename: 'app/contracts/review_contract.rb',
 					language: 'ruby',
-					code: `class CommentContract < Dry::Validation::Contract
+					code: `class ReviewContract < Dry::Validation::Contract
   params do
     required(:body).filled(:string, max_size?: 10_000)
   end
 end`,
 				},
 				{
-					filename: 'app/services/create_comment.rb',
+					filename: 'app/services/create_review.rb',
 					language: 'ruby',
 					code: `class CreateReview < ApplicationService
-  Result = Data.define(:success?, :comment, :errors)
+  Result = Data.define(:success?, :review, :errors)
 
-  def initialize(commentable:, user:, params:)
-    @reviewable = commentable
+  def initialize(reviewable:, user:, params:)
+    @reviewable = reviewable
     @user = user
     @params = params
   end
 
   def call
-    v = CommentContract.new.call(@params)
+    v = ReviewContract.new.call(@params)
     return Result.new(success?: false,
-      comment: nil, errors: v.errors.to_h) if v.failure?
+      review: nil, errors: v.errors.to_h) if v.failure?
 
-    review = @reviewable.comments.create!(
+    review = @reviewable.reviews.create!(
       user: @user, body: v[:body]
     )
-    Result.new(success?: true, comment:, errors: [])
+    Result.new(success?: true, review:, errors: [])
   end
 end`,
 					highlight: [1, 3, 11],
@@ -707,57 +707,57 @@ end
 # has_many :reviews, as: :reviewable`,
 		},
 		{
-			filename: 'app/contracts/comment_contract.rb',
+			filename: 'app/contracts/review_contract.rb',
 			language: 'ruby',
-			code: `class CommentContract < Dry::Validation::Contract
+			code: `class ReviewContract < Dry::Validation::Contract
   params do
     required(:body).filled(:string, max_size?: 10_000)
   end
 end`,
 		},
 		{
-			filename: 'app/services/create_comment.rb',
+			filename: 'app/services/create_review.rb',
 			language: 'ruby',
 			code: `class CreateReview < ApplicationService
-  Result = Data.define(:success?, :comment, :errors)
+  Result = Data.define(:success?, :review, :errors)
 
-  def initialize(commentable:, user:, params:)
-    @reviewable = commentable
+  def initialize(reviewable:, user:, params:)
+    @reviewable = reviewable
     @user = user
     @params = params
   end
 
   def call
-    v = CommentContract.new.call(@params)
+    v = ReviewContract.new.call(@params)
     return Result.new(success?: false,
-      comment: nil, errors: v.errors.to_h) if v.failure?
+      review: nil, errors: v.errors.to_h) if v.failure?
 
-    review = @reviewable.comments.create!(
+    review = @reviewable.reviews.create!(
       user: @user, body: v[:body]
     )
-    Result.new(success?: true, comment:, errors: [])
+    Result.new(success?: true, review:, errors: [])
   end
 end`,
 		},
 		{
 			filename: 'app/controllers/api/v1/reviews_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::CommentsController < ApplicationController
-  before_action :set_commentable
+			code: `class Api::V1::ReviewsController < ApplicationController
+  before_action :set_reviewable
 
   def create
     result = CreateReview.call(
-      commentable: @reviewable,
+      reviewable: @reviewable,
       user: Current.user,
-      params: params.expect(comment: [:body])
+      params: params.expect(review: [:body])
     )
     if result.success?
-      render json: ReviewSerializer.new(result.comment),
+      render json: ReviewSerializer.new(result.review),
         status: :created
     else
       render json: { error: {
         code: "VALIDATION_FAILED",
-        message: "Invalid comment",
+        message: "Invalid review",
         details: result.errors
       } }, status: :unprocessable_entity
     end
@@ -765,7 +765,7 @@ end`,
 
   private
 
-  def set_commentable
+  def set_reviewable
     resource, id = request.path.split("/")[3..4]
     @reviewable = resource.singularize.classify
       .constantize.find(id)
@@ -881,11 +881,11 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 		<LevelLayout>
 			<LeftPanel>
 				<InstructionPanel
-					goal="Replace three separate comment tables with one polymorphic Review model."
+					goal="Replace three separate review tables with one polymorphic Review model."
 					instructions={
 						phase === 'intro'
 							? [
-									'Review the three duplicate comment table schemas',
+									'Review the three duplicate review table schemas',
 									'Notice the identical columns across all tables',
 									'Click "Build the Fix" when ready to consolidate them',
 								]
@@ -905,7 +905,7 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 										]
 									: ['Review your star rating and visualize the solution']
 					}
-					scenario="Photos and Videos now need comments alongside Posts. Three separate comment tables with identical schemas, duplicated validations, and scattered queries. Polymorphic associations can unify them."
+					scenario="Photos and Videos now need reviews alongside Posts. Three separate review tables with identical schemas, duplicated validations, and scattered queries. Polymorphic associations can unify them."
 				>
 					{/* Phase-specific sidebar content */}
 					<div className="border-t border-border">
@@ -913,7 +913,7 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 							<div className="p-4 text-xs text-muted-foreground space-y-2">
 								<p>
 									Three models need reviews: Product, ProductImage, and ProductVideo. Each has
-									its own comment table with nearly identical schemas.
+									its own review table with nearly identical schemas.
 								</p>
 								<p>
 									Polymorphic associations replace all three with a single
@@ -939,7 +939,7 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 									reviewable_type and reviewable_id columns replace product_id,
 									photo_id, and video_id.
 								</p>
-								<p>Adding Article comments required zero schema changes.</p>
+								<p>Adding Article reviews required zero schema changes.</p>
 							</div>
 						)}
 					</div>
@@ -1064,7 +1064,7 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 								<div className="w-full bg-destructive/5 dark:bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-center">
 									<p className="text-sm text-destructive font-medium">
 										4 of 5 columns are identical across every table. Only the
-										foreign key name differs. Adding a new commentable type
+										foreign key name differs. Adding a new reviewable type
 										requires creating yet another table.
 									</p>
 								</div>
@@ -1093,7 +1093,7 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 										stepper.currentStep === 0 ? (
 											<p className="text-sm text-muted-foreground">
 												Generate a Review model with a polymorphic reference to
-												any commentable parent.
+												any reviewable parent.
 											</p>
 										) : (
 											<p className="text-sm text-muted-foreground">
@@ -1198,7 +1198,7 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 							</p>
 							<Button onClick={handleActivateReward} size="lg">
 								<Play className="w-4 h-4" />
-								Visualize Polymorphic Comments
+								Visualize Polymorphic Reviews
 							</Button>
 						</div>
 					)}
@@ -1280,7 +1280,7 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 										<div className="px-3 py-2 flex items-center gap-1.5 border-b border-border/30 bg-emerald-50 dark:bg-emerald-900/30">
 											<Database className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
 											<span className="text-xs font-bold font-mono text-emerald-700 dark:text-emerald-300">
-												comments
+												reviews
 											</span>
 										</div>
 										<div className="overflow-x-auto">
@@ -1352,7 +1352,7 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 					)}
 					learningGoal={
 						phase === 'intro'
-							? 'Three identical comment tables duplicate schema, validations, and queries. Any new commentable type requires another table.'
+							? 'Three identical review tables duplicate schema, validations, and queries. Any new reviewable type requires another table.'
 							: 'One polymorphic Review model handles all parent types. reviewable_type + reviewable_id columns replace three separate foreign keys.'
 					}
 				>
