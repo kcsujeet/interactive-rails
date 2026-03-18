@@ -15,10 +15,13 @@ import { describe, expect, test } from 'bun:test';
 // ── Mirror data from component ──
 
 const DISCOVERY_DEFS = [
-	{ id: 'lost-update', label: "User A's deduction silently vanishes" },
+	{
+		id: 'lost-update',
+		label: "Customer A's order overwrites Customer B's stock update",
+	},
 	{
 		id: 'stale-read',
-		label: 'Both users read the same outdated balance',
+		label: 'Both requests read the same outdated stock count',
 	},
 	{
 		id: 'no-lock',
@@ -27,50 +30,57 @@ const DISCOVERY_DEFS = [
 ];
 
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
-	'concurrent-deduct': ['lost-update', 'stale-read'],
-	'stale-edit': ['no-lock'],
+	'concurrent-checkout': ['lost-update', 'stale-read'],
+	'stale-product-edit': ['no-lock'],
 };
 
 const PROBES = [
 	{
-		id: 'concurrent-deduct',
-		label: 'Concurrent deductions',
-		command: '# User A: deduct $30, User B: deduct $50 (simultaneously)',
+		id: 'stale-product-edit',
+		label: 'Stale product edit',
+		command:
+			'# Admin A: raise price by $10, Admin B: raise price by $5 (simultaneously)',
 		responseLines: [
-			{ text: 'User A: Account.find(1) => balance: $100', color: 'cyan' },
-			{ text: 'User B: Account.find(1) => balance: $100', color: 'cyan' },
-			{ text: 'User A: balance -= 30 => saves $70', color: 'yellow' },
-			{ text: 'User B: balance -= 50 => saves $50', color: 'red' },
-			{ text: 'Final balance: $50 (should be $20!)', color: 'red' },
 			{
-				text: "User A's $30 deduction was silently lost!",
+				text: 'Admin A: Product.find(1) => price: $50.00, lock_version: nil',
+				color: 'cyan',
+			},
+			{
+				text: 'Admin B: Product.find(1) => price: $50.00, lock_version: nil',
+				color: 'cyan',
+			},
+			{
+				text: 'Admin A: sets price = $60.00 ($50 + $10) => saved',
+				color: 'yellow',
+			},
+			{
+				text: 'Admin B: sets price = $55.00 ($50 + $5) => saved (OVERWRITES $60!)',
+				color: 'red',
+			},
+			{
+				text: 'Final price: $55. $15 in adjustments, only $5 applied.',
 				color: 'red',
 			},
 		],
 	},
 	{
-		id: 'stale-edit',
-		label: 'Stale profile edit',
-		command: '# Two admins edit the same user profile simultaneously',
+		id: 'concurrent-checkout',
+		label: 'Concurrent checkouts',
+		command: '# Customer A: buy 10, Customer B: buy 8 (simultaneously)',
 		responseLines: [
+			{ text: 'Customer A: Product.find(1) => stock_count: 15', color: 'cyan' },
+			{ text: 'Customer B: Product.find(1) => stock_count: 15', color: 'cyan' },
+			{ text: 'Customer A: 15 - 10 = 5, saves stock_count = 5', color: 'yellow' },
 			{
-				text: 'Admin A: User.find(1) => lock_version: nil',
-				color: 'cyan',
-			},
-			{
-				text: 'Admin B: User.find(1) => lock_version: nil',
-				color: 'cyan',
-			},
-			{
-				text: "Admin A: updates name to 'Alice'   => saved",
-				color: 'yellow',
-			},
-			{
-				text: "Admin B: updates name to 'Bob'     => saved (overwrites!)",
+				text: 'Customer B: 15 - 8 = 7, saves stock_count = 7 (OVERWRITES 5!)',
 				color: 'red',
 			},
 			{
-				text: 'No lock_version column means no conflict detection.',
+				text: 'Final stock: 7. 18 units sold, only 8 deducted from 15!',
+				color: 'red',
+			},
+			{
+				text: "Request A's deduction was silently overwritten.",
 				color: 'red',
 			},
 		],
@@ -81,28 +91,28 @@ const STEP_DEFS = [
 	{ id: 'add-lock-version', title: 'Add Lock Version Column' },
 	{ id: 'run-migration', title: 'Run Migration' },
 	{ id: 'add-pessimistic-lock', title: 'Add Row Lock' },
-	{ id: 'build-service', title: 'Build Deduction Service' },
+	{ id: 'build-service', title: 'Build Order Service' },
 	{ id: 'handle-stale-error', title: 'Handle Conflicts' },
 ];
 
 const LOCK_VERSION_COMMANDS = [
 	{
 		id: 'wrong-boolean',
-		label: 'rails g migration AddLockedToAccounts locked:boolean',
+		label: 'rails g migration AddLockedToProducts locked:boolean',
 		correct: false,
 		feedback:
 			'A boolean flag cannot detect concurrent modifications. Optimistic locking needs a column that tracks how many times a record has been saved.',
 	},
 	{
 		id: 'wrong-timestamp',
-		label: 'rails g migration AddUpdatedAtToAccounts updated_at:datetime',
+		label: 'rails g migration AddUpdatedAtToProducts updated_at:datetime',
 		correct: false,
 		feedback:
 			'Timestamps have precision issues with concurrent writes. Rails needs an auto-incrementing counter to detect exact version mismatches.',
 	},
 	{
 		id: 'correct-lock-version',
-		label: 'rails g migration AddLockVersionToAccounts lock_version:integer',
+		label: 'rails g migration AddLockVersionToProducts lock_version:integer',
 		correct: true,
 	},
 ];
@@ -141,7 +151,7 @@ const PESSIMISTIC_OPTIONS = [
 		id: 'wrong-with-lock-outside',
 		correct: false,
 		feedback:
-			'The audit log creation is outside the lock block. If it fails, the balance was already changed. All related writes must be inside the same locked transaction.',
+			'The order creation is outside the lock block. If it fails, the stock was already changed. All related writes must be inside the same locked transaction.',
 	},
 ];
 
@@ -173,33 +183,33 @@ const STALE_ERROR_OPTIONS = [
 
 const STRESS_SCENARIOS = [
 	{
-		id: 'single-deduct',
-		label: 'POST deduct $30',
+		id: 'single-order',
+		label: 'POST order (buy 10)',
 		expectedResult: 'allowed' as const,
 	},
 	{
-		id: 'concurrent-deduct-locked',
-		label: 'POST concurrent deductions (locked)',
+		id: 'concurrent-order-locked',
+		label: 'POST concurrent orders (locked)',
 		expectedResult: 'allowed' as const,
 	},
 	{
 		id: 'transfer',
-		label: 'POST transfer $50 between accounts',
+		label: 'POST order (buy 5 units)',
 		expectedResult: 'allowed' as const,
 	},
 	{
-		id: 'insufficient-funds',
-		label: 'POST deduct $200 (insufficient)',
+		id: 'insufficient-stock',
+		label: 'POST order (buy 100, insufficient)',
 		expectedResult: 'blocked' as const,
 	},
 	{
-		id: 'stale-profile-edit',
+		id: 'stale-product-edit',
 		label: 'PATCH profile (stale version)',
 		expectedResult: 'blocked' as const,
 	},
 	{
 		id: 'invalid-amount',
-		label: 'POST deduct -$10 (invalid)',
+		label: 'POST order (-5 quantity, invalid)',
 		expectedResult: 'blocked' as const,
 	},
 ];
@@ -278,12 +288,12 @@ describe('Level 34: Locking (Concurrency Control)', () => {
 			}
 		});
 
-		test('concurrent-deduct probe shows both users reading stale balance', () => {
-			const probe = PROBES.find((p) => p.id === 'concurrent-deduct');
+		test('concurrent-checkout probe shows both requests reading stale stock', () => {
+			const probe = PROBES.find((p) => p.id === 'concurrent-checkout');
 			const texts = probe?.responseLines.map((l) => l.text).join(' ') ?? '';
-			expect(texts).toContain('User A');
-			expect(texts).toContain('User B');
-			expect(texts).toContain('$100');
+			expect(texts).toContain('Customer A');
+			expect(texts).toContain('Customer B');
+			expect(texts).toContain('15');
 		});
 	});
 
@@ -373,7 +383,7 @@ describe('Level 34: Locking (Concurrency Control)', () => {
 			for (const opt of allWrongOptions) {
 				const fb = opt.feedback?.toLowerCase() ?? '';
 				expect(fb).not.toContain('lock_version:integer');
-				expect(fb).not.toContain('account.lock.find');
+				expect(fb).not.toContain('product.lock.find');
 				expect(fb).not.toContain('rails db:migrate');
 				expect(fb).not.toContain('lock_version column');
 			}
@@ -425,24 +435,24 @@ describe('Level 34: Locking (Concurrency Control)', () => {
 			expect(blocked).toHaveLength(3);
 		});
 
-		test('includes concurrent deduction scenario (reward mirrors observe)', () => {
+		test('includes concurrent checkout scenario (reward mirrors observe)', () => {
 			const concurrent = STRESS_SCENARIOS.find(
-				(s) => s.id === 'concurrent-deduct-locked',
+				(s) => s.id === 'concurrent-order-locked',
 			);
 			expect(concurrent).toBeDefined();
 			expect(concurrent?.expectedResult).toBe('allowed');
 		});
 
-		test('includes insufficient funds validation', () => {
+		test('includes insufficient stock validation', () => {
 			const insufficient = STRESS_SCENARIOS.find(
-				(s) => s.id === 'insufficient-funds',
+				(s) => s.id === 'insufficient-stock',
 			);
 			expect(insufficient).toBeDefined();
 			expect(insufficient?.expectedResult).toBe('blocked');
 		});
 
 		test('includes optimistic locking conflict scenario', () => {
-			const stale = STRESS_SCENARIOS.find((s) => s.id === 'stale-profile-edit');
+			const stale = STRESS_SCENARIOS.find((s) => s.id === 'stale-product-edit');
 			expect(stale).toBeDefined();
 			expect(stale?.expectedResult).toBe('blocked');
 		});
@@ -464,10 +474,10 @@ describe('Level 34: Locking (Concurrency Control)', () => {
 			}
 		});
 
-		test('concurrent deduction appears in both observe and reward', () => {
-			const observeProbe = PROBES.find((p) => p.id === 'concurrent-deduct');
+		test('concurrent checkout appears in both observe and reward', () => {
+			const observeProbe = PROBES.find((p) => p.id === 'concurrent-checkout');
 			const rewardScenario = STRESS_SCENARIOS.find(
-				(s) => s.id === 'concurrent-deduct-locked',
+				(s) => s.id === 'concurrent-order-locked',
 			);
 			expect(observeProbe).toBeDefined();
 			expect(rewardScenario).toBeDefined();
@@ -476,12 +486,12 @@ describe('Level 34: Locking (Concurrency Control)', () => {
 		test('reward scenarios cover both locking strategies from build phase', () => {
 			// Pessimistic locking (financial ops)
 			const pessimistic = STRESS_SCENARIOS.find(
-				(s) => s.id === 'concurrent-deduct-locked',
+				(s) => s.id === 'concurrent-order-locked',
 			);
 			expect(pessimistic).toBeDefined();
 			// Optimistic locking (profile edits)
 			const optimistic = STRESS_SCENARIOS.find(
-				(s) => s.id === 'stale-profile-edit',
+				(s) => s.id === 'stale-product-edit',
 			);
 			expect(optimistic).toBeDefined();
 		});

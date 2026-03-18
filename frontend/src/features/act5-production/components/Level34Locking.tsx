@@ -4,36 +4,40 @@
  * Sequential phase flow: observe -> build -> activate -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
- * Phase 1 (WHY - observe): Custom "Dual Timeline Lanes" visualization.
- *   Two horizontal swim lanes (Thread A top, Thread B bottom) with time
- *   flowing left to right. Shared Account Row card in the center.
- *   Without locking: both READ at same time, both WRITE with stale data.
+ * Phase 1 (WHY - observe): Split-screen concurrency visualization.
+ *   Database table card (persistent) + two request cards side-by-side.
+ *   Animated sequence shows both requests reading stale data, then one
+ *   overwriting the other. Mismatch counter makes the consequence concrete.
  *   ProbeTerminal fires concurrent scenarios revealing lost updates.
  *
  * Phase 2 (HOW - build): 5 steps (2 terminal + 3 OptionCard)
  *   Step 0: Generate lock_version:integer migration (terminal)
  *   Step 1: Run rails db:migrate (terminal)
- *   Step 2: Add pessimistic locking with Account.lock.find(id) (OptionCard)
- *   Step 3: Build DeductBalance service with contract + lock (OptionCard)
+ *   Step 2: Add pessimistic locking with Product.lock.find(id) (OptionCard)
+ *   Step 3: Build PlaceOrder service with contract + lock (OptionCard)
  *   Step 4: Handle StaleObjectError for optimistic locking (OptionCard)
  *
  * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Locking" button
- * Phase 4 (ADVANTAGE - reward): Same dual lanes, now showing locks working.
- *   Thread A acquires lock, Thread B waits, then proceeds with updated data.
+ * Phase 4 (ADVANTAGE - reward): Same layout, now showing locks working.
+ *   Request A acquires lock, Request B waits, then processes with fresh data.
  *
- * Teaches: Account.lock.find, with_lock, lock_version, optimistic vs
+ * Teaches: Product.lock.find, with_lock, lock_version, optimistic vs
  *   pessimistic locking, StaleObjectError handling, SELECT ... FOR UPDATE
  */
 
 import {
+	AlertTriangle,
 	ArrowRight,
 	Clock,
+	Cpu,
 	Database,
 	Lock,
 	Play,
+	Save,
 	ShieldCheck,
 	Star,
 	Unlock,
+	Zap,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -80,10 +84,13 @@ type Phase = 'observe' | 'build' | 'activate' | 'reward';
 // ──────────────────────────────────────────────
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
-	{ id: 'lost-update', label: "User A's deduction silently vanishes" },
+	{
+		id: 'lost-update',
+		label: "Customer A's order overwrites Customer B's stock update",
+	},
 	{
 		id: 'stale-read',
-		label: 'Both users read the same outdated balance',
+		label: 'Both requests read the same outdated stock count',
 	},
 	{
 		id: 'no-lock',
@@ -92,8 +99,8 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 ];
 
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
-	'concurrent-deduct': ['lost-update', 'stale-read'],
-	'stale-edit': ['no-lock'],
+	'concurrent-checkout': ['lost-update', 'stale-read'],
+	'stale-product-edit': ['no-lock'],
 };
 
 // ──────────────────────────────────────────────
@@ -102,59 +109,60 @@ const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 
 const PROBES: ProbeConfig[] = [
 	{
-		id: 'concurrent-deduct',
-		label: 'Concurrent deductions',
-		command: '# User A: deduct $30, User B: deduct $50 (simultaneously)',
+		id: 'stale-product-edit',
+		label: 'Stale product edit',
+		command:
+			'# Admin A: raise price by $10, Admin B: raise price by $5 (simultaneously)',
 		responseLines: [
 			{
-				text: 'User A: Account.find(1) => balance: $100',
+				text: 'Admin A: Product.find(1) => price: $50.00, lock_version: nil',
 				color: 'cyan',
 			},
 			{
-				text: 'User B: Account.find(1) => balance: $100',
+				text: 'Admin B: Product.find(1) => price: $50.00, lock_version: nil',
 				color: 'cyan',
 			},
 			{
-				text: 'User A: balance -= 30 => saves $70',
+				text: 'Admin A: sets price = $60.00 ($50 + $10) => saved',
 				color: 'yellow',
 			},
 			{
-				text: 'User B: balance -= 50 => saves $50',
+				text: 'Admin B: sets price = $55.00 ($50 + $5) => saved (OVERWRITES $60!)',
 				color: 'red',
 			},
 			{
-				text: 'Final balance: $50 (should be $20!)',
-				color: 'red',
-			},
-			{
-				text: "User A's $30 deduction was silently lost!",
+				text: 'Final price: $55. $15 in adjustments, only $5 applied.',
 				color: 'red',
 			},
 		],
 	},
 	{
-		id: 'stale-edit',
-		label: 'Stale profile edit',
-		command: '# Two admins edit the same user profile simultaneously',
+		id: 'concurrent-checkout',
+		label: 'Concurrent checkouts',
+		command: '# Customer A: buy 10, Customer B: buy 8 (simultaneously)',
 		responseLines: [
 			{
-				text: 'Admin A: User.find(1) => lock_version: nil',
+				text: 'Customer A: Product.find(1) => stock_count: 15',
 				color: 'cyan',
 			},
 			{
-				text: 'Admin B: User.find(1) => lock_version: nil',
+				text: 'Customer B: Product.find(1) => stock_count: 15',
 				color: 'cyan',
 			},
 			{
-				text: "Admin A: updates name to 'Alice'   => saved",
+				text: 'Customer A: 15 - 10 = 5, saves stock_count = 5',
 				color: 'yellow',
 			},
 			{
-				text: "Admin B: updates name to 'Bob'     => saved (overwrites!)",
+				text: 'Customer B: 15 - 8 = 7, saves stock_count = 7 (OVERWRITES 5!)',
 				color: 'red',
 			},
 			{
-				text: 'No lock_version column means no conflict detection.',
+				text: 'Final stock: 7. 18 units sold, only 8 deducted from 15!',
+				color: 'red',
+			},
+			{
+				text: "Request A's deduction was silently overwritten.",
 				color: 'red',
 			},
 		],
@@ -169,7 +177,7 @@ const STEP_DEFS: StepDef[] = [
 	{ id: 'add-lock-version', title: 'Add Lock Version Column' },
 	{ id: 'run-migration', title: 'Run Migration' },
 	{ id: 'add-pessimistic-lock', title: 'Add Row Lock' },
-	{ id: 'build-service', title: 'Build Deduction Service' },
+	{ id: 'build-service', title: 'Build Order Service' },
 	{ id: 'handle-stale-error', title: 'Handle Conflicts' },
 ];
 
@@ -177,26 +185,26 @@ const STEP_DEFS: StepDef[] = [
 const LOCK_VERSION_COMMANDS = [
 	{
 		id: 'wrong-boolean',
-		label: 'rails g migration AddLockedToAccounts locked:boolean',
-		command: 'rails generate migration AddLockedToAccounts locked:boolean',
+		label: 'rails g migration AddLockedToProducts locked:boolean',
+		command: 'rails generate migration AddLockedToProducts locked:boolean',
 		correct: false,
 		feedback:
 			'A boolean flag cannot detect concurrent modifications. Optimistic locking needs a column that tracks how many times a record has been saved.',
 	},
 	{
 		id: 'wrong-timestamp',
-		label: 'rails g migration AddUpdatedAtToAccounts updated_at:datetime',
+		label: 'rails g migration AddUpdatedAtToProducts updated_at:datetime',
 		command:
-			'rails generate migration AddUpdatedAtToAccounts updated_at:datetime',
+			'rails generate migration AddUpdatedAtToProducts updated_at:datetime',
 		correct: false,
 		feedback:
 			'Timestamps have precision issues with concurrent writes. Rails needs an auto-incrementing counter to detect exact version mismatches.',
 	},
 	{
 		id: 'correct-lock-version',
-		label: 'rails g migration AddLockVersionToAccounts lock_version:integer',
+		label: 'rails g migration AddLockVersionToProducts lock_version:integer',
 		command:
-			'rails generate migration AddLockVersionToAccounts lock_version:integer',
+			'rails generate migration AddLockVersionToProducts lock_version:integer',
 		correct: true,
 	},
 ];
@@ -204,7 +212,7 @@ const LOCK_VERSION_COMMANDS = [
 const LOCK_VERSION_OUTPUT = [
 	{ text: '  invoke  active_record', color: 'green' as const },
 	{
-		text: '  create    db/migrate/..._add_lock_version_to_accounts.rb',
+		text: '  create    db/migrate/..._add_lock_version_to_products.rb',
 		color: 'green' as const,
 	},
 ];
@@ -237,15 +245,15 @@ const MIGRATE_COMMANDS = [
 
 const MIGRATE_OUTPUT = [
 	{
-		text: '== AddLockVersionToAccounts: migrating ===',
+		text: '== AddLockVersionToProducts: migrating ===',
 		color: 'green' as const,
 	},
 	{
-		text: '-- add_column(:accounts, :lock_version, :integer, {:default=>0, :null=>false})',
+		text: '-- add_column(:products, :lock_version, :integer, {:default=>0, :null=>false})',
 		color: 'green' as const,
 	},
 	{
-		text: '== AddLockVersionToAccounts: migrated ====',
+		text: '== AddLockVersionToProducts: migrated ====',
 		color: 'green' as const,
 	},
 ];
@@ -263,10 +271,10 @@ const PESSIMISTIC_OPTIONS = [
 	{
 		id: 'wrong-find-only',
 		label: `ActiveRecord::Base.transaction do
-  account = Account.find(id)
+  product = Product.find(id)
   # No lock acquired!
-  account.balance -= amount
-  account.save!
+  product.stock_count -= amount
+  product.save!
 end`,
 		correct: false,
 		feedback:
@@ -275,26 +283,26 @@ end`,
 	{
 		id: 'correct-lock',
 		label: `ActiveRecord::Base.transaction do
-  account = Account.lock.find(id)
+  product = Product.lock.find(id)
   # SELECT ... FOR UPDATE locks the row
-  raise InsufficientFundsError if account.balance < amount
-  account.balance -= amount
-  account.save!
+  raise InsufficientStockError if product.stock_count < amount
+  product.stock_count -= amount
+  product.save!
 end`,
 		correct: true,
 	},
 	{
 		id: 'wrong-with-lock-outside',
-		label: `account = Account.find(id)
-account.with_lock do
-  account.balance -= amount
-  account.save!
+		label: `product = Product.find(id)
+product.with_lock do
+  product.stock_count -= amount
+  product.save!
 end
 # Lock released, but audit log outside lock
-AuditLog.create!(account:, amount: -amount)`,
+AuditLog.create!(product:, quantity: -amount)`,
 		correct: false,
 		feedback:
-			'The audit log creation is outside the lock block. If it fails, the balance was already changed. All related writes must be inside the same locked transaction.',
+			'The audit log creation is outside the lock block. If it fails, the stock was already changed. All related writes must be inside the same locked transaction.',
 	},
 ];
 
@@ -302,25 +310,25 @@ AuditLog.create!(account:, amount: -amount)`,
 const SERVICE_OPTIONS = [
 	{
 		id: 'wrong-no-contract',
-		label: `class DeductBalance < ApplicationService
-  Result = Data.define(:success?, :account, :errors)
+		label: `class PlaceOrder < ApplicationService
+  Result = Data.define(:success?, :product, :errors)
 
-  def initialize(account_id:, amount:)
-    @account_id = account_id
-    @amount = amount
+  def initialize(product_id:, quantity:)
+    @product_id = product_id
+    @quantity = amount
   end
 
   def call
     ActiveRecord::Base.transaction do
-      account = Account.lock.find(@account_id)
-      raise InsufficientFundsError if account.balance < @amount
-      account.balance -= @amount
-      account.save!
-      Result.new(success?: true, account:, errors: [])
+      product = Product.lock.find(@product_id)
+      raise InsufficientStockError if product.stock_count < @quantity
+      product.stock_count -= @quantity
+      product.save!
+      Result.new(success?: true, product:, errors: [])
     end
-  rescue InsufficientFundsError
-    Result.new(success?: false, account: nil,
-      errors: ["Insufficient funds"])
+  rescue InsufficientStockError
+    Result.new(success?: false, product: nil,
+      errors: ["Insufficient stock"])
   end
 end`,
 		correct: false,
@@ -329,32 +337,32 @@ end`,
 	},
 	{
 		id: 'correct-with-contract',
-		label: `class DeductBalance < ApplicationService
-  Result = Data.define(:success?, :account, :errors)
+		label: `class PlaceOrder < ApplicationService
+  Result = Data.define(:success?, :product, :errors)
 
-  def initialize(account_id:, amount:)
-    @account_id = account_id
-    @amount = amount
+  def initialize(product_id:, quantity:)
+    @product_id = product_id
+    @quantity = amount
   end
 
   def call
-    v = DeductionContract.new.call(
-      account_id: @account_id, amount: @amount)
+    v = OrderContract.new.call(
+      product_id: @product_id, quantity: @quantity)
     return Result.new(success?: false,
-      account: nil, errors: v.errors.to_h) if v.failure?
+      product: nil, errors: v.errors.to_h) if v.failure?
 
     ActiveRecord::Base.transaction do
-      account = Account.lock.find(@account_id)
-      raise InsufficientFundsError if account.balance < @amount
-      account.balance -= @amount
-      account.save!
-      AuditLog.create!(account:, amount: -@amount,
-        balance_after: account.balance)
-      Result.new(success?: true, account:, errors: [])
+      product = Product.lock.find(@product_id)
+      raise InsufficientStockError if product.stock_count < @quantity
+      product.stock_count -= @quantity
+      product.save!
+      AuditLog.create!(product:, quantity: @quantity,
+        stock_after: product.stock_count)
+      Result.new(success?: true, product:, errors: [])
     end
-  rescue InsufficientFundsError
-    Result.new(success?: false, account: nil,
-      errors: ["Insufficient funds"])
+  rescue InsufficientStockError
+    Result.new(success?: false, product: nil,
+      errors: ["Insufficient stock"])
   end
 end`,
 		correct: true,
@@ -430,7 +438,7 @@ const OPTION_STEP_CONFIG: Record<
 		options: PESSIMISTIC_OPTIONS,
 	},
 	3: {
-		title: 'Build the Deduction Service',
+		title: 'Build the Order Service',
 		description:
 			'Create a service object with contract validation, transaction, and pessimistic locking.',
 		options: SERVICE_OPTIONS,
@@ -449,29 +457,29 @@ const OPTION_STEP_CONFIG: Record<
 
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
-		id: 'single-deduct',
-		label: 'POST deduct $30',
-		description: 'Single user deducts $30 from account',
+		id: 'single-order',
+		label: 'POST order (buy 10)',
+		description: 'Single customer buys 10 units',
 		method: 'POST',
-		path: '/api/v1/accounts/1/deduct',
-		actor: 'User A',
+		path: '/api/v1/orders',
+		actor: 'Customer A',
 		expectedResult: 'allowed',
 		responseLines: [
 			{ text: '200 OK', color: 'green' },
 			{
-				text: 'Transaction: lock -> deduct $30 -> audit -> commit',
+				text: 'Transaction: lock -> deduct 10 -> create order -> create order -> commit',
 				color: 'cyan',
 			},
-			{ text: 'Balance: $100 -> $70', color: 'green' },
+			{ text: 'Stock: 15 -> 5', color: 'green' },
 		],
 	},
 	{
-		id: 'concurrent-deduct-locked',
-		label: 'POST concurrent deductions (locked)',
-		description: 'Two users deduct simultaneously with FOR UPDATE lock',
+		id: 'concurrent-order-locked',
+		label: 'POST concurrent orders (locked)',
+		description: 'Two customers order simultaneously with FOR UPDATE lock',
 		method: 'POST',
-		path: '/api/v1/accounts/1/deduct',
-		actor: 'User A + User B',
+		path: '/api/v1/orders',
+		actor: 'Customer A + Customer B',
 		expectedResult: 'allowed',
 		responseLines: [
 			{
@@ -479,24 +487,26 @@ const STRESS_SCENARIOS: StressScenario[] = [
 				color: 'green',
 			},
 			{
-				text: 'User A: lock -> $100 - $30 = $70 -> commit',
+				text: 'Customer A: lock -> 15 - 10 = 5 -> commit',
 				color: 'cyan',
 			},
 			{
-				text: 'User B: waits... lock -> $70 - $50 = $20 -> commit',
+				text: 'Customer B: waits... lock -> 5 - 3 = 2 -> commit',
 				color: 'cyan',
 			},
-			{ text: 'Final balance: $20 (correct!)', color: 'green' },
+			{
+				text: 'Final stock: 2 (both orders applied correctly!)',
+				color: 'green',
+			},
 		],
 	},
 	{
 		id: 'transfer',
-		label: 'POST transfer $50 between accounts',
-		description:
-			'Atomic transfer: debit sender + credit receiver in one transaction',
+		label: 'POST order (buy 5 units)',
+		description: 'Single checkout: lock product, deduct stock -> create order',
 		method: 'POST',
-		path: '/api/v1/transfers',
-		actor: 'authenticated user',
+		path: '/api/v1/orders',
+		actor: 'authenticated customer',
 		expectedResult: 'allowed',
 		responseLines: [
 			{ text: '200 OK', color: 'green' },
@@ -507,32 +517,32 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		],
 	},
 	{
-		id: 'insufficient-funds',
-		label: 'POST deduct $200 (insufficient)',
-		description: 'Try to deduct more than available balance',
+		id: 'insufficient-stock',
+		label: 'POST order (buy 100, insufficient)',
+		description: 'Try to order more than available stock',
 		method: 'POST',
-		path: '/api/v1/accounts/1/deduct',
-		actor: 'authenticated user',
+		path: '/api/v1/orders',
+		actor: 'authenticated customer',
 		expectedResult: 'blocked',
 		responseLines: [
 			{ text: '422 Unprocessable Entity', color: 'red' },
 			{
-				text: '{ error: { code: "INSUFFICIENT_FUNDS" } }',
+				text: '{ error: { code: "INSUFFICIENT_STOCK" } }',
 				color: 'yellow',
 			},
 			{
-				text: 'Transaction rolled back. Balance unchanged.',
+				text: 'Transaction rolled back. Stock unchanged.',
 				color: 'green',
 			},
 		],
 	},
 	{
-		id: 'stale-profile-edit',
+		id: 'stale-product-edit',
 		label: 'PATCH profile (stale version)',
 		description: 'Edit profile that was already modified by another user',
 		method: 'PATCH',
 		path: '/api/v1/users/1',
-		actor: 'User B (stale)',
+		actor: 'Admin B (stale)',
 		expectedResult: 'blocked',
 		responseLines: [
 			{ text: '409 Conflict', color: 'red' },
@@ -548,16 +558,16 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'invalid-amount',
-		label: 'POST deduct -$10 (invalid)',
+		label: 'POST order (-5 quantity, invalid)',
 		description: 'Try to deduct a negative amount',
 		method: 'POST',
-		path: '/api/v1/accounts/1/deduct',
-		actor: 'authenticated user',
+		path: '/api/v1/orders',
+		actor: 'authenticated customer',
 		expectedResult: 'blocked',
 		responseLines: [
 			{ text: '422 Unprocessable Entity', color: 'red' },
 			{
-				text: 'DeductionContract: amount must be greater than 0',
+				text: 'OrderContract: amount must be greater than 0',
 				color: 'yellow',
 			},
 		],
@@ -565,191 +575,499 @@ const STRESS_SCENARIOS: StressScenario[] = [
 ];
 
 // ──────────────────────────────────────────────
-// Race Timeline visualization
+// Concurrency visualization types
 // ──────────────────────────────────────────────
 
-type CellVariant =
-	| 'default'
-	| 'blue'
-	| 'purple'
+type DbCellFlash =
+	| 'idle'
+	| 'reading'
 	| 'success'
-	| 'danger'
-	| 'warning'
-	| 'muted';
+	| 'overwrite'
+	| 'locked'
+	| 'waiting';
 
-interface TimelineCell {
+interface ProductRowState {
+	columns: string[];
+	values: string[];
+	flashCells: Record<number, DbCellFlash>;
+}
+
+interface RequestLogEntry {
+	icon: 'database' | 'cpu' | 'save' | 'alert' | 'lock' | 'clock';
 	text: string;
-	variant: CellVariant;
+	variant: 'default' | 'success' | 'danger' | 'warning';
 }
 
-interface TimelineRow {
-	threadA: TimelineCell;
-	center: TimelineCell;
-	threadB: TimelineCell;
+interface RequestCardState {
+	label: string;
+	endpoint: string;
+	params: string;
+	color: 'blue' | 'purple';
+	log: RequestLogEntry[];
+	badge?: { text: string; variant: 'success' | 'danger' | 'warning' };
 }
 
-// Observe: concurrent deduction (no lock, race condition)
-const OBSERVE_CONCURRENT_ROWS: TimelineRow[] = [
+interface AnimationFrame {
+	dbRow?: Partial<ProductRowState>;
+	requestA?: {
+		newLogEntry?: RequestLogEntry;
+		badge?: RequestCardState['badge'];
+	};
+	requestB?: {
+		newLogEntry?: RequestLogEntry;
+		badge?: RequestCardState['badge'];
+	};
+	mismatchCounter?: string;
+	warningMessage?: string;
+}
+
+// ── Animation frame sequences ──
+
+const OBSERVE_CHECKOUT_FRAMES: AnimationFrame[] = [
 	{
-		threadA: { text: 'READ \u2192 $100', variant: 'blue' },
-		center: { text: '$100', variant: 'default' },
-		threadB: { text: 'READ \u2192 $100', variant: 'purple' },
+		dbRow: { flashCells: { 3: 'reading' } },
+		requestA: {
+			newLogEntry: {
+				icon: 'database',
+				text: 'Reading stock_count...',
+				variant: 'default',
+			},
+		},
+		requestB: {
+			newLogEntry: {
+				icon: 'database',
+				text: 'Reading stock_count...',
+				variant: 'default',
+			},
+		},
 	},
 	{
-		threadA: { text: '-= $30 \u2192 $70', variant: 'blue' },
-		center: { text: '$100 (stale)', variant: 'warning' },
-		threadB: { text: '-= $50 \u2192 $50', variant: 'purple' },
+		dbRow: { flashCells: {} },
+		requestA: {
+			newLogEntry: {
+				icon: 'database',
+				text: 'Read: stock_count = 15',
+				variant: 'default',
+			},
+		},
+		requestB: {
+			newLogEntry: {
+				icon: 'database',
+				text: 'Read: stock_count = 15',
+				variant: 'default',
+			},
+		},
 	},
 	{
-		threadA: { text: 'SAVE $70', variant: 'success' },
-		center: { text: '$70', variant: 'success' },
-		threadB: { text: '', variant: 'muted' },
+		requestA: {
+			newLogEntry: {
+				icon: 'cpu',
+				text: 'Computing: 15 - 10 = 5',
+				variant: 'default',
+			},
+		},
+		requestB: {
+			newLogEntry: {
+				icon: 'cpu',
+				text: 'Computing: 15 - 8 = 7',
+				variant: 'default',
+			},
+		},
 	},
 	{
-		threadA: { text: '', variant: 'muted' },
-		center: { text: '$50 (LOST!)', variant: 'danger' },
-		threadB: { text: 'SAVE $50 (overwrites)', variant: 'danger' },
+		dbRow: {
+			values: ['1', 'Laptop Pro', '$50.00', '5', '(none)'],
+			flashCells: { 3: 'success' },
+		},
+		requestA: {
+			newLogEntry: {
+				icon: 'save',
+				text: 'Saved! stock_count = 5',
+				variant: 'success',
+			},
+			badge: { text: 'SAVED', variant: 'success' },
+		},
+		requestB: {
+			newLogEntry: {
+				icon: 'clock',
+				text: 'Still computing...',
+				variant: 'warning',
+			},
+		},
+	},
+	{
+		dbRow: {
+			values: ['1', 'Laptop Pro', '$50.00', '7', '(none)'],
+			flashCells: { 3: 'overwrite' },
+		},
+		requestB: {
+			newLogEntry: {
+				icon: 'alert',
+				text: 'OVERWRITES! stock_count = 7',
+				variant: 'danger',
+			},
+			badge: { text: 'OVERWRITES', variant: 'danger' },
+		},
+		mismatchCounter: '18 units sold, only 8 deducted',
+		warningMessage:
+			"Request B saved stock_count = 7 using the 15 it read before Request A saved. Request A's deduction to 5 was silently overwritten. 18 units sold from 15 in stock.",
 	},
 ];
 
-// Observe: stale profile edit (no lock_version)
-const OBSERVE_STALE_ROWS: TimelineRow[] = [
+const OBSERVE_STALE_EDIT_FRAMES: AnimationFrame[] = [
 	{
-		threadA: { text: 'READ user (v: nil)', variant: 'blue' },
-		center: { text: 'name: Alice', variant: 'default' },
-		threadB: { text: 'READ user (v: nil)', variant: 'purple' },
+		dbRow: {
+			columns: ['id', 'name', 'price', 'stock_count', 'lock_version'],
+			values: ['1', 'Laptop Pro', '$50.00', '15', '(none)'],
+			flashCells: { 2: 'reading' },
+		},
+		requestA: {
+			newLogEntry: {
+				icon: 'database',
+				text: 'Reading product...',
+				variant: 'default',
+			},
+		},
+		requestB: {
+			newLogEntry: {
+				icon: 'database',
+				text: 'Reading product...',
+				variant: 'default',
+			},
+		},
 	},
 	{
-		threadA: { text: "SET 'Carol'", variant: 'blue' },
-		center: { text: 'Alice', variant: 'default' },
-		threadB: { text: '(editing...)', variant: 'muted' },
+		dbRow: { flashCells: {} },
+		requestA: {
+			newLogEntry: {
+				icon: 'database',
+				text: 'Read: price = $50.00',
+				variant: 'default',
+			},
+		},
+		requestB: {
+			newLogEntry: {
+				icon: 'database',
+				text: 'Read: price = $50.00',
+				variant: 'default',
+			},
+		},
 	},
 	{
-		threadA: { text: 'SAVE', variant: 'success' },
-		center: { text: 'Carol', variant: 'success' },
-		threadB: { text: "SET 'Bob'", variant: 'purple' },
+		requestA: {
+			newLogEntry: {
+				icon: 'cpu',
+				text: 'Setting price = $60.00 ($50 + $10)',
+				variant: 'default',
+			},
+		},
+		requestB: {
+			newLogEntry: {
+				icon: 'clock',
+				text: 'Still editing...',
+				variant: 'warning',
+			},
+		},
 	},
 	{
-		threadA: { text: '', variant: 'muted' },
-		center: { text: 'Bob (LOST!)', variant: 'danger' },
-		threadB: { text: 'SAVE (overwrites)', variant: 'danger' },
+		dbRow: {
+			values: ['1', 'Laptop Pro', '$60.00', '15', '(none)'],
+			flashCells: { 2: 'success' },
+		},
+		requestA: {
+			newLogEntry: {
+				icon: 'save',
+				text: 'Saved! price = $60.00',
+				variant: 'success',
+			},
+			badge: { text: 'SAVED', variant: 'success' },
+		},
+		requestB: {
+			newLogEntry: {
+				icon: 'cpu',
+				text: 'Setting price = $55.00 ($50 + $5)',
+				variant: 'default',
+			},
+		},
+	},
+	{
+		dbRow: {
+			values: ['1', 'Laptop Pro', '$55.00', '15', '(none)'],
+			flashCells: { 2: 'overwrite' },
+		},
+		requestB: {
+			newLogEntry: {
+				icon: 'alert',
+				text: 'OVERWRITES! price = $55.00',
+				variant: 'danger',
+			},
+			badge: { text: 'OVERWRITES', variant: 'danger' },
+		},
+		mismatchCounter: '$15 in adjustments, only $5 applied',
+		warningMessage:
+			"Admin B saved $55 using the $50 they read before Admin A saved $60. Admin A's $10 raise was silently lost. Price should be $65, not $55.",
 	},
 ];
 
-// Reward: locked concurrent deduction (serialized, correct)
-const REWARD_ALLOWED_ROWS: TimelineRow[] = [
+const REWARD_ALLOWED_FRAMES: AnimationFrame[] = [
 	{
-		threadA: { text: 'LOCK + READ $100', variant: 'blue' },
-		center: { text: '$100 (locked)', variant: 'warning' },
-		threadB: { text: 'WAITING...', variant: 'warning' },
+		dbRow: { flashCells: { 3: 'locked' } },
+		requestA: {
+			newLogEntry: {
+				icon: 'lock',
+				text: 'SELECT ... FOR UPDATE (lock acquired)',
+				variant: 'default',
+			},
+		},
+		requestB: {
+			newLogEntry: {
+				icon: 'clock',
+				text: 'WAITING... (row locked by Request A)',
+				variant: 'warning',
+			},
+		},
 	},
 	{
-		threadA: { text: '-= $30, SAVE $70', variant: 'blue' },
-		center: { text: '$70', variant: 'success' },
-		threadB: { text: 'WAITING...', variant: 'warning' },
+		requestA: {
+			newLogEntry: {
+				icon: 'cpu',
+				text: 'Computing: 15 - 10 = 5',
+				variant: 'default',
+			},
+		},
+		requestB: {
+			newLogEntry: {
+				icon: 'clock',
+				text: 'Still waiting...',
+				variant: 'warning',
+			},
+		},
 	},
 	{
-		threadA: { text: 'COMMIT + UNLOCK', variant: 'success' },
-		center: { text: '$70', variant: 'default' },
-		threadB: { text: 'LOCK + READ $70', variant: 'purple' },
+		dbRow: {
+			values: ['1', 'Laptop Pro', '$50.00', '5', '1'],
+			flashCells: { 3: 'success', 4: 'success' },
+		},
+		requestA: {
+			newLogEntry: {
+				icon: 'save',
+				text: 'COMMIT! stock_count = 5, lock_version = 1',
+				variant: 'success',
+			},
+			badge: { text: 'COMMITTED', variant: 'success' },
+		},
 	},
 	{
-		threadA: { text: '', variant: 'muted' },
-		center: { text: '$20 (correct)', variant: 'success' },
-		threadB: { text: '-= $50, SAVE $20', variant: 'success' },
+		dbRow: { flashCells: { 3: 'locked' } },
+		requestB: {
+			newLogEntry: {
+				icon: 'lock',
+				text: 'Lock acquired. Reading FRESH stock_count = 5',
+				variant: 'default',
+			},
+		},
+	},
+	{
+		dbRow: {
+			values: ['1', 'Laptop Pro', '$50.00', '2', '2'],
+			flashCells: { 3: 'success', 4: 'success' },
+		},
+		requestB: {
+			newLogEntry: {
+				icon: 'save',
+				text: 'COMMIT! stock_count = 5 - 3 = 2, lock_version = 2',
+				variant: 'success',
+			},
+			badge: { text: 'COMMITTED', variant: 'success' },
+		},
+		mismatchCounter: '13 units sold, 13 deducted. Correct!',
 	},
 ];
 
-// Reward: blocked scenario (rejected by lock/validation)
-const REWARD_BLOCKED_ROWS: TimelineRow[] = [
+const REWARD_BLOCKED_FRAMES: AnimationFrame[] = [
 	{
-		threadA: { text: 'LOCK + READ $100', variant: 'blue' },
-		center: { text: '$100 (locked)', variant: 'warning' },
-		threadB: { text: '', variant: 'muted' },
+		dbRow: { flashCells: { 3: 'locked' } },
+		requestA: {
+			newLogEntry: {
+				icon: 'lock',
+				text: 'SELECT ... FOR UPDATE (lock acquired)',
+				variant: 'default',
+			},
+		},
 	},
 	{
-		threadA: { text: 'CHECK FAILS', variant: 'danger' },
-		center: { text: '$100', variant: 'default' },
-		threadB: { text: '', variant: 'muted' },
+		requestA: {
+			newLogEntry: {
+				icon: 'cpu',
+				text: 'Validation check...',
+				variant: 'default',
+			},
+		},
 	},
 	{
-		threadA: { text: 'ROLLBACK', variant: 'danger' },
-		center: { text: '$100 (safe)', variant: 'success' },
-		threadB: { text: '', variant: 'muted' },
+		dbRow: { flashCells: {} },
+		requestA: {
+			newLogEntry: {
+				icon: 'alert',
+				text: 'CHECK FAILED. ROLLBACK.',
+				variant: 'danger',
+			},
+			badge: { text: 'REJECTED', variant: 'danger' },
+		},
+		warningMessage:
+			'Validation or stock check failed. Transaction rolled back. Stock unchanged.',
 	},
 ];
 
-const CELL_STYLES: Record<CellVariant, string> = {
-	default: 'bg-muted/30 text-foreground border-muted-foreground/20',
-	blue: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-600/50',
-	purple:
-		'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-600/50',
-	success:
-		'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border-emerald-400 dark:border-emerald-600/50',
-	danger:
-		'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-400 dark:border-red-500/50',
-	warning:
-		'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border-amber-400 dark:border-amber-600/50',
-	muted: 'bg-muted/20 text-muted-foreground border-muted-foreground/10',
+// ── Inline visualization components ──
+
+const LOG_ICONS: Record<RequestLogEntry['icon'], typeof Database> = {
+	database: Database,
+	cpu: Cpu,
+	save: Save,
+	alert: AlertTriangle,
+	lock: Lock,
+	clock: Clock,
 };
 
-function RaceTimeline({
-	rows,
-	visibleCount,
-	centerLabel,
-}: {
-	rows: TimelineRow[];
-	visibleCount: number;
-	centerLabel: string;
-}) {
+const FLASH_STYLES: Record<DbCellFlash, string> = {
+	idle: '',
+	reading:
+		'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 transition-colors duration-300',
+	success:
+		'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200 transition-colors duration-300',
+	overwrite:
+		'bg-red-200 dark:bg-red-900/50 text-red-800 dark:text-red-200 transition-colors duration-300',
+	locked:
+		'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 transition-colors duration-300',
+	waiting:
+		'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 transition-colors duration-300',
+};
+
+function ProductTable({ row }: { row: ProductRowState }) {
 	return (
-		<div className="w-full max-w-2xl">
-			{/* Column headers */}
-			<div className="grid grid-cols-[1fr_auto_1fr] gap-2 mb-2">
-				<div className="text-center text-xs font-semibold text-blue-600 dark:text-blue-400">
-					Thread A
+		<div className="w-full max-w-2xl mx-auto">
+			<div className="flex items-center gap-1.5 mb-1.5">
+				<Database className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+				<span className="text-xs font-semibold text-teal-600 dark:text-teal-400 font-mono">
+					products
+				</span>
+			</div>
+			<div className="border border-border rounded-lg overflow-hidden">
+				{/* Header */}
+				<div
+					className="grid bg-teal-50 dark:bg-teal-900/20 border-b border-border"
+					style={{ gridTemplateColumns: `repeat(${row.columns.length}, 1fr)` }}
+				>
+					{row.columns.map((col) => (
+						<div
+							className="px-3 py-1.5 text-xs font-semibold text-teal-700 dark:text-teal-300 font-mono border-r border-border last:border-r-0"
+							key={col}
+						>
+							{col}
+						</div>
+					))}
 				</div>
-				<div className="text-center text-xs font-semibold text-muted-foreground w-28">
-					{centerLabel}
-				</div>
-				<div className="text-center text-xs font-semibold text-purple-600 dark:text-purple-400">
-					Thread B
+				{/* Row */}
+				<div
+					className="grid"
+					style={{ gridTemplateColumns: `repeat(${row.columns.length}, 1fr)` }}
+				>
+					{row.values.map((val, i) => (
+						<div
+							className={cn(
+								'px-3 py-2 text-xs font-mono border-r border-border last:border-r-0 transition-colors duration-300',
+								FLASH_STYLES[row.flashCells[i] ?? 'idle'],
+							)}
+							key={`${row.columns[i]}-${val}`}
+						>
+							{val}
+						</div>
+					))}
 				</div>
 			</div>
+		</div>
+	);
+}
 
-			{/* Timeline rows */}
-			<div className="space-y-1.5">
-				{rows.slice(0, visibleCount).map((row, i) => (
-					<div
-						className="grid grid-cols-[1fr_auto_1fr] gap-2 animate-in fade-in slide-in-from-top-1 duration-300"
-						key={`t${i}-${row.center.text}`}
+const BADGE_STYLES: Record<string, string> = {
+	success:
+		'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-600/50',
+	danger:
+		'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-300 dark:border-red-500/50',
+	warning:
+		'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-600/50',
+};
+
+const CARD_BORDER: Record<string, string> = {
+	blue: 'border-blue-300 dark:border-blue-600/50',
+	purple: 'border-purple-300 dark:border-purple-600/50',
+};
+
+const CARD_HEADER: Record<string, string> = {
+	blue: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300',
+	purple:
+		'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300',
+};
+
+const LOG_VARIANT_STYLES: Record<string, string> = {
+	default: 'text-muted-foreground',
+	success: 'text-emerald-600 dark:text-emerald-400',
+	danger: 'text-red-600 dark:text-red-400',
+	warning: 'text-amber-600 dark:text-amber-400',
+};
+
+function RequestCard({ card }: { card: RequestCardState }) {
+	return (
+		<div
+			className={cn(
+				'flex-1 rounded-lg border overflow-hidden',
+				CARD_BORDER[card.color],
+			)}
+		>
+			{/* Header */}
+			<div
+				className={cn(
+					'px-3 py-2 flex items-center justify-between',
+					CARD_HEADER[card.color],
+				)}
+			>
+				<div>
+					<div className="text-xs font-semibold font-mono">{card.label}</div>
+					<div className="text-xs font-mono opacity-70">{card.endpoint}</div>
+				</div>
+				{card.badge && (
+					<span
+						className={cn(
+							'text-xs font-bold px-2 py-0.5 rounded border',
+							BADGE_STYLES[card.badge.variant],
+						)}
 					>
+						{card.badge.text}
+					</span>
+				)}
+			</div>
+			{/* Params */}
+			<div className="px-3 py-1 bg-muted/30 border-b border-border">
+				<code className="text-xs text-muted-foreground">{card.params}</code>
+			</div>
+			{/* Log entries */}
+			<div className="px-3 py-2 space-y-1 min-h-[80px]">
+				{card.log.map((entry, i) => {
+					const Icon = LOG_ICONS[entry.icon];
+					return (
 						<div
 							className={cn(
-								'rounded border px-3 py-2 text-xs font-mono text-center min-h-[36px] flex items-center justify-center transition-colors',
-								CELL_STYLES[row.threadA.variant],
+								'flex items-start gap-1.5 text-xs animate-in fade-in duration-300',
+								LOG_VARIANT_STYLES[entry.variant],
 							)}
+							key={`${entry.text}-${i}`}
 						>
-							{row.threadA.text}
+							<Icon className="w-3 h-3 mt-0.5 shrink-0" />
+							<span className="font-mono">{entry.text}</span>
 						</div>
-						<div
-							className={cn(
-								'rounded border px-3 py-2 text-xs font-mono text-center font-bold w-28 flex items-center justify-center transition-colors',
-								CELL_STYLES[row.center.variant],
-							)}
-						>
-							{row.center.text}
-						</div>
-						<div
-							className={cn(
-								'rounded border px-3 py-2 text-xs font-mono text-center min-h-[36px] flex items-center justify-center transition-colors',
-								CELL_STYLES[row.threadB.variant],
-							)}
-						>
-							{row.threadB.text}
-						</div>
-					</div>
-				))}
+					);
+				})}
 			</div>
 		</div>
 	);
@@ -763,27 +1081,27 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 	if (phase === 'observe') {
 		return [
 			{
-				filename: 'app/services/deduct_balance.rb',
+				filename: 'app/services/place_order.rb',
 				language: 'ruby',
-				code: `class DeductBalance < ApplicationService
-  Result = Data.define(:success?, :account, :errors)
+				code: `class PlaceOrder < ApplicationService
+  Result = Data.define(:success?, :product, :errors)
 
-  def initialize(account_id:, amount:)
-    @account_id = account_id
-    @amount = amount
+  def initialize(product_id:, quantity:)
+    @product_id = product_id
+    @quantity = amount
   end
 
   def call
-    v = DeductionContract.new.call(
-      account_id: @account_id, amount: @amount)
+    v = OrderContract.new.call(
+      product_id: @product_id, quantity: @quantity)
     return Result.new(success?: false,
-      account: nil, errors: v.errors.to_h) if v.failure?
+      product: nil, errors: v.errors.to_h) if v.failure?
 
-    account = Account.find(@account_id)
-    account.balance -= @amount
-    account.save!
+    product = Product.find(@product_id)
+    product.stock_count -= @quantity
+    product.save!
     # No lock! Concurrent calls cause lost updates
-    Result.new(success?: true, account:, errors: [])
+    Result.new(success?: true, product:, errors: [])
   end
 end`,
 				highlight: [15, 16, 17],
@@ -799,18 +1117,18 @@ end`,
 					language: 'ruby',
 					code: `# Migration will be generated in this step...
 # Goal: add lock_version column for
-# optimistic locking on Account`,
+# optimistic locking on Product`,
 				},
 			];
 		}
 		if (furthestStep === 1) {
 			return [
 				{
-					filename: 'db/migrate/add_lock_version_to_accounts.rb (pending)',
+					filename: 'db/migrate/add_lock_version_to_products.rb (pending)',
 					language: 'ruby',
-					code: `class AddLockVersionToAccounts < ActiveRecord::Migration[8.0]
+					code: `class AddLockVersionToProducts < ActiveRecord::Migration[8.0]
   def change
-    add_column :accounts, :lock_version, :integer,
+    add_column :products, :lock_version, :integer,
       default: 0, null: false
   end
 end`,
@@ -821,18 +1139,18 @@ end`,
 		if (furthestStep === 2) {
 			return [
 				{
-					filename: 'db/migrate/add_lock_version_to_accounts.rb',
+					filename: 'db/migrate/add_lock_version_to_products.rb',
 					language: 'ruby',
-					code: `class AddLockVersionToAccounts < ActiveRecord::Migration[8.0]
+					code: `class AddLockVersionToProducts < ActiveRecord::Migration[8.0]
   def change
-    add_column :accounts, :lock_version, :integer,
+    add_column :products, :lock_version, :integer,
       default: 0, null: false
   end
 end`,
 					highlight: [3, 4],
 				},
 				{
-					filename: 'app/services/deduct_balance.rb (next step)',
+					filename: 'app/services/place_order.rb (next step)',
 					language: 'ruby',
 					code: `# Add pessimistic locking for financial operations...`,
 				},
@@ -841,21 +1159,21 @@ end`,
 		if (furthestStep === 3) {
 			return [
 				{
-					filename: 'app/services/deduct_balance.rb (lock added)',
+					filename: 'app/services/place_order.rb (lock added)',
 					language: 'ruby',
 					code: `def call
-  v = DeductionContract.new.call(...)
+  v = OrderContract.new.call(...)
   return failure if v.failure?
 
   ActiveRecord::Base.transaction do
-    account = Account.lock.find(@account_id)
+    product = Product.lock.find(@product_id)
     # SELECT ... FOR UPDATE locks the row
-    raise InsufficientFundsError if account.balance < @amount
-    account.balance -= @amount
-    account.save!
-    AuditLog.create!(account:, amount: -@amount,
-      balance_after: account.balance)
-    Result.new(success?: true, account:, errors: [])
+    raise InsufficientStockError if product.stock_count < @quantity
+    product.stock_count -= @quantity
+    product.save!
+    AuditLog.create!(product:, quantity: @quantity,
+      stock_after: product.stock_count)
+    Result.new(success?: true, product:, errors: [])
   end
 end`,
 					highlight: [6, 7],
@@ -865,44 +1183,44 @@ end`,
 		if (furthestStep === 4) {
 			return [
 				{
-					filename: 'app/contracts/deduction_contract.rb',
+					filename: 'app/contracts/order_contract.rb',
 					language: 'ruby',
-					code: `class DeductionContract < Dry::Validation::Contract
+					code: `class OrderContract < Dry::Validation::Contract
   params do
-    required(:account_id).filled(:integer)
+    required(:product_id).filled(:integer)
     required(:amount).filled(:decimal, gt?: 0)
   end
 end`,
 				},
 				{
-					filename: 'app/services/deduct_balance.rb',
+					filename: 'app/services/place_order.rb',
 					language: 'ruby',
-					code: `class DeductBalance < ApplicationService
-  Result = Data.define(:success?, :account, :errors)
+					code: `class PlaceOrder < ApplicationService
+  Result = Data.define(:success?, :product, :errors)
 
-  def initialize(account_id:, amount:)
-    @account_id = account_id
-    @amount = amount
+  def initialize(product_id:, quantity:)
+    @product_id = product_id
+    @quantity = amount
   end
 
   def call
-    v = DeductionContract.new.call(
-      account_id: @account_id, amount: @amount)
+    v = OrderContract.new.call(
+      product_id: @product_id, quantity: @quantity)
     return Result.new(success?: false,
-      account: nil, errors: v.errors.to_h) if v.failure?
+      product: nil, errors: v.errors.to_h) if v.failure?
 
     ActiveRecord::Base.transaction do
-      account = Account.lock.find(@account_id)
-      raise InsufficientFundsError if account.balance < @amount
-      account.balance -= @amount
-      account.save!
-      AuditLog.create!(account:, amount: -@amount,
-        balance_after: account.balance)
-      Result.new(success?: true, account:, errors: [])
+      product = Product.lock.find(@product_id)
+      raise InsufficientStockError if product.stock_count < @quantity
+      product.stock_count -= @quantity
+      product.save!
+      AuditLog.create!(product:, quantity: @quantity,
+        stock_after: product.stock_count)
+      Result.new(success?: true, product:, errors: [])
     end
-  rescue InsufficientFundsError
-    Result.new(success?: false, account: nil,
-      errors: ["Insufficient funds"])
+  rescue InsufficientStockError
+    Result.new(success?: false, product: nil,
+      errors: ["Insufficient stock"])
   end
 end`,
 					highlight: [1, 3, 10, 16],
@@ -914,61 +1232,61 @@ end`,
 	// Activate + reward: complete solution
 	return [
 		{
-			filename: 'app/contracts/deduction_contract.rb',
+			filename: 'app/contracts/order_contract.rb',
 			language: 'ruby',
-			code: `class DeductionContract < Dry::Validation::Contract
+			code: `class OrderContract < Dry::Validation::Contract
   params do
-    required(:account_id).filled(:integer)
+    required(:product_id).filled(:integer)
     required(:amount).filled(:decimal, gt?: 0)
   end
 end`,
 		},
 		{
-			filename: 'app/services/deduct_balance.rb',
+			filename: 'app/services/place_order.rb',
 			language: 'ruby',
-			code: `class DeductBalance < ApplicationService
-  Result = Data.define(:success?, :account, :errors)
+			code: `class PlaceOrder < ApplicationService
+  Result = Data.define(:success?, :product, :errors)
 
-  def initialize(account_id:, amount:)
-    @account_id = account_id
-    @amount = amount
+  def initialize(product_id:, quantity:)
+    @product_id = product_id
+    @quantity = amount
   end
 
   def call
-    v = DeductionContract.new.call(
-      account_id: @account_id, amount: @amount)
+    v = OrderContract.new.call(
+      product_id: @product_id, quantity: @quantity)
     return Result.new(success?: false,
-      account: nil, errors: v.errors.to_h) if v.failure?
+      product: nil, errors: v.errors.to_h) if v.failure?
 
     ActiveRecord::Base.transaction do
-      account = Account.lock.find(@account_id)
-      raise InsufficientFundsError if account.balance < @amount
-      account.balance -= @amount
-      account.save!
-      AuditLog.create!(account:, amount: -@amount,
-        balance_after: account.balance)
-      Result.new(success?: true, account:, errors: [])
+      product = Product.lock.find(@product_id)
+      raise InsufficientStockError if product.stock_count < @quantity
+      product.stock_count -= @quantity
+      product.save!
+      AuditLog.create!(product:, quantity: @quantity,
+        stock_after: product.stock_count)
+      Result.new(success?: true, product:, errors: [])
     end
-  rescue InsufficientFundsError
-    Result.new(success?: false, account: nil,
-      errors: ["Insufficient funds"])
+  rescue InsufficientStockError
+    Result.new(success?: false, product: nil,
+      errors: ["Insufficient stock"])
   end
 end`,
 		},
 		{
-			filename: 'app/controllers/api/v1/accounts_controller.rb',
+			filename: 'app/controllers/api/v1/orders_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::AccountsController < ApplicationController
-  def deduct
-    result = DeductBalance.call(
-      account_id: params[:id],
-      amount: params.expect(deduction: [:amount])[:amount])
+			code: `class Api::V1::OrdersController < ApplicationController
+  def create
+    result = PlaceOrder.call(
+      product_id: params[:id],
+      quantity: params.expect(order: [:product_id, :quantity]))
     if result.success?
-      render json: AccountSerializer.new(result.account)
+      render json: OrderSerializer.new(result.order)
     else
       render json: { error: {
         code: "DEDUCTION_FAILED",
-        message: "Could not deduct",
+        message: "Could not place order",
         details: result.errors } },
         status: :unprocessable_entity
     end
@@ -998,15 +1316,40 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 
-	// Visualization state (observe)
+	// Visualization state
 	const [vizAnimating, setVizAnimating] = useState(false);
-	const [observeRows, setObserveRows] = useState<TimelineRow[] | null>(null);
-	const [observeVisible, setObserveVisible] = useState(0);
 	const animTimerRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-	// Visualization state (reward)
-	const [rewardRows, setRewardRows] = useState<TimelineRow[] | null>(null);
-	const [rewardVisible, setRewardVisible] = useState(0);
+	// Database row state
+	const defaultDbRow: ProductRowState = {
+		columns: ['id', 'name', 'price', 'stock_count', 'lock_version'],
+		values: ['1', 'Laptop Pro', '$50.00', '15', '(none)'],
+		flashCells: {},
+	};
+	const [dbRow, setDbRow] = useState<ProductRowState>(defaultDbRow);
+
+	// Request card states
+	const emptyCardA: RequestCardState = {
+		label: 'Request A',
+		endpoint: 'POST /api/v1/orders',
+		params: '{ product_id: 1, qty: 10 }',
+		color: 'blue',
+		log: [],
+	};
+	const emptyCardB: RequestCardState = {
+		label: 'Request B',
+		endpoint: 'POST /api/v1/orders',
+		params: '{ product_id: 1, qty: 8 }',
+		color: 'purple',
+		log: [],
+	};
+	const [requestA, setRequestA] = useState<RequestCardState>(emptyCardA);
+	const [requestB, setRequestB] = useState<RequestCardState>(emptyCardB);
+
+	// Counters and warnings
+	const [mismatchCounter, setMismatchCounter] = useState<string | null>(null);
+	const [warningMessage, setWarningMessage] = useState<string | null>(null);
+	const [vizStarted, setVizStarted] = useState(false);
 
 	// ── Cleanup timers ──
 	const clearTimers = useCallback(() => {
@@ -1023,26 +1366,56 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 		}
 	}, [phase, stepper.isComplete]);
 
-	// ── Observe: probe handler ──
-	const handleProbe = useCallback(
-		(probeId: string) => {
-			if (vizAnimating) return;
+	// ── Apply a single animation frame ──
+	const applyFrame = useCallback((frame: AnimationFrame) => {
+		if (frame.dbRow) {
+			setDbRow((prev) => ({
+				columns: frame.dbRow?.columns ?? prev.columns,
+				values: frame.dbRow?.values ?? prev.values,
+				flashCells: frame.dbRow?.flashCells ?? prev.flashCells,
+			}));
+		}
+		if (frame.requestA?.newLogEntry) {
+			const entry = frame.requestA.newLogEntry;
+			const badge = frame.requestA.badge;
+			setRequestA((prev) => ({
+				...prev,
+				log: [...prev.log, entry],
+				badge: badge ?? prev.badge,
+			}));
+		} else if (frame.requestA?.badge) {
+			setRequestA((prev) => ({ ...prev, badge: frame.requestA?.badge }));
+		}
+		if (frame.requestB?.newLogEntry) {
+			const entry = frame.requestB.newLogEntry;
+			const badge = frame.requestB.badge;
+			setRequestB((prev) => ({
+				...prev,
+				log: [...prev.log, entry],
+				badge: badge ?? prev.badge,
+			}));
+		} else if (frame.requestB?.badge) {
+			setRequestB((prev) => ({ ...prev, badge: frame.requestB?.badge }));
+		}
+		if (frame.mismatchCounter) {
+			setMismatchCounter(frame.mismatchCounter);
+		}
+		if (frame.warningMessage) {
+			setWarningMessage(frame.warningMessage);
+		}
+	}, []);
+
+	// ── Run animation frame sequence ──
+	const runAnimation = useCallback(
+		(frames: AnimationFrame[], onComplete?: () => void) => {
 			setVizAnimating(true);
 			clearTimers();
 
-			const rows =
-				probeId === 'concurrent-deduct'
-					? OBSERVE_CONCURRENT_ROWS
-					: OBSERVE_STALE_ROWS;
-
-			setObserveRows(rows);
-			setObserveVisible(0);
-
 			const step = ANIMATION_DURATION_MS;
-			for (let i = 0; i < rows.length; i++) {
+			for (let i = 0; i < frames.length; i++) {
 				const t = setTimeout(
 					() => {
-						setObserveVisible(i + 1);
+						applyFrame(frames[i]);
 					},
 					step * (i + 1),
 				);
@@ -1052,14 +1425,64 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 			const tFinal = setTimeout(
 				() => {
 					setVizAnimating(false);
-					const discoveries = PROBE_DISCOVERY_MAP[probeId] ?? [];
-					for (const d of discoveries) discoveryGating.discover(d);
+					onComplete?.();
 				},
-				step * (rows.length + 1),
+				step * (frames.length + 1),
 			);
 			animTimerRef.current.push(tFinal);
 		},
-		[vizAnimating, clearTimers, discoveryGating],
+		[clearTimers, applyFrame],
+	);
+
+	// ── Observe: probe handler ──
+	const handleProbe = useCallback(
+		(probeId: string) => {
+			if (vizAnimating) return;
+			setVizStarted(true);
+
+			// Reset cards
+			setMismatchCounter(null);
+			setWarningMessage(null);
+
+			if (probeId === 'concurrent-checkout') {
+				setDbRow({
+					columns: ['id', 'name', 'price', 'stock_count', 'lock_version'],
+					values: ['1', 'Laptop Pro', '$50.00', '15', '(none)'],
+					flashCells: {},
+				});
+				setRequestA({ ...emptyCardA, log: [] });
+				setRequestB({ ...emptyCardB, log: [] });
+				runAnimation(OBSERVE_CHECKOUT_FRAMES, () => {
+					const discoveries = PROBE_DISCOVERY_MAP[probeId] ?? [];
+					for (const d of discoveries) discoveryGating.discover(d);
+				});
+			} else {
+				setDbRow({
+					columns: ['id', 'name', 'price', 'stock_count', 'lock_version'],
+					values: ['1', 'Laptop Pro', '$50.00', '15', '(none)'],
+					flashCells: {},
+				});
+				setRequestA({
+					label: 'Admin A',
+					endpoint: 'PATCH /api/v1/products/1',
+					params: '{ price: "$60.00" }',
+					color: 'blue',
+					log: [],
+				});
+				setRequestB({
+					label: 'Admin B',
+					endpoint: 'PATCH /api/v1/products/1',
+					params: '{ price: "$55.00" }',
+					color: 'purple',
+					log: [],
+				});
+				runAnimation(OBSERVE_STALE_EDIT_FRAMES, () => {
+					const discoveries = PROBE_DISCOVERY_MAP[probeId] ?? [];
+					for (const d of discoveries) discoveryGating.discover(d);
+				});
+			}
+		},
+		[vizAnimating, discoveryGating, runAnimation],
 	);
 
 	// ── Build: option click handler ──
@@ -1083,37 +1506,40 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 			const scenario = STRESS_SCENARIOS.find((s) => s.id === scenarioId);
 			if (!scenario) return;
 
-			setVizAnimating(true);
-			clearTimers();
+			setVizStarted(true);
+			setMismatchCounter(null);
+			setWarningMessage(null);
 
-			const rows =
+			// Reset DB row for reward phase (with lock_version)
+			setDbRow({
+				columns: ['id', 'name', 'price', 'stock_count', 'lock_version'],
+				values: ['1', 'Laptop Pro', '$50.00', '15', '0'],
+				flashCells: {},
+			});
+			setRequestA({
+				label: 'Request A',
+				endpoint: `${scenario.method} ${scenario.path}`,
+				params: `as ${scenario.actor}`,
+				color: 'blue',
+				log: [],
+			});
+			setRequestB({
+				label: 'Request B',
+				endpoint: `${scenario.method} ${scenario.path}`,
+				params:
+					scenario.id === 'concurrent-order-locked' ? 'as Customer B' : '',
+				color: 'purple',
+				log: [],
+			});
+
+			const frames =
 				scenario.expectedResult === 'allowed'
-					? REWARD_ALLOWED_ROWS
-					: REWARD_BLOCKED_ROWS;
+					? REWARD_ALLOWED_FRAMES
+					: REWARD_BLOCKED_FRAMES;
 
-			setRewardRows(rows);
-			setRewardVisible(0);
-
-			const step = ANIMATION_DURATION_MS;
-			for (let i = 0; i < rows.length; i++) {
-				const t = setTimeout(
-					() => {
-						setRewardVisible(i + 1);
-					},
-					step * (i + 1),
-				);
-				animTimerRef.current.push(t);
-			}
-
-			const tFinal = setTimeout(
-				() => {
-					setVizAnimating(false);
-				},
-				step * (rows.length + 1),
-			);
-			animTimerRef.current.push(tFinal);
+			runAnimation(frames);
 		},
-		[vizAnimating, stressTest, clearTimers],
+		[vizAnimating, stressTest, runAnimation],
 	);
 
 	const handleToggleAutoFire = useCallback(
@@ -1130,8 +1556,16 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 
 	const handleActivateReward = () => {
 		setPhase('reward');
-		setRewardRows(null);
-		setRewardVisible(0);
+		setVizStarted(false);
+		setDbRow({
+			columns: ['id', 'name', 'price', 'stock_count', 'lock_version'],
+			values: ['1', 'Laptop Pro', '$50.00', '15', '0'],
+			flashCells: {},
+		});
+		setRequestA({ ...emptyCardA, log: [] });
+		setRequestB({ ...emptyCardB, log: [] });
+		setMismatchCounter(null);
+		setWarningMessage(null);
 	};
 
 	const handleComplete = async () => {
@@ -1163,80 +1597,80 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 	const isTerminalStep = stepper.currentStep <= 1;
 
 	// ──────────────────────────────────────────
-	// Render: Race Timeline
+	// Render: Concurrency Visualization
 	// ──────────────────────────────────────────
 
-	const observeCenterLabel =
-		observeRows === OBSERVE_STALE_ROWS ? 'DB Row' : 'Balance';
-
-	const renderObserveVisualization = () => (
-		<div className="flex-1 flex flex-col items-center justify-center gap-4 p-4">
-			{/* Banner */}
+	const renderConcurrencyViz = (mode: 'observe' | 'reward') => (
+		<div className="flex-1 flex flex-col gap-3 p-4 overflow-y-auto">
+			{/* Context banner */}
 			<div className="text-center">
-				<div className="inline-flex items-center gap-2 bg-destructive/10 dark:bg-destructive/20 border border-destructive/30 rounded-lg px-3 py-1.5">
-					<Unlock className="w-4 h-4 text-destructive" />
-					<span className="text-sm font-semibold text-destructive">
-						No Locking: Race Condition
-					</span>
-				</div>
+				{mode === 'observe' ? (
+					<div className="inline-flex items-center gap-2 bg-destructive/10 dark:bg-destructive/20 border border-destructive/30 rounded-lg px-3 py-1.5">
+						<Zap className="w-4 h-4 text-destructive" />
+						<span className="text-sm font-semibold text-destructive">
+							2 requests hit the same row at the same moment
+						</span>
+					</div>
+				) : (
+					<div className="inline-flex items-center gap-2 bg-emerald-500/10 dark:bg-emerald-500/20 border border-emerald-500/30 rounded-lg px-3 py-1.5">
+						<ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+						<span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+							Pessimistic Lock: Serialized Access
+						</span>
+					</div>
+				)}
 			</div>
 
-			{/* Timeline table */}
-			{observeRows ? (
-				<RaceTimeline
-					centerLabel={observeCenterLabel}
-					rows={observeRows}
-					visibleCount={observeVisible}
-				/>
+			{/* Database table (always visible) */}
+			<ProductTable row={dbRow} />
+
+			{/* Two request cards side by side */}
+			{vizStarted ? (
+				<div className="flex gap-3 w-full max-w-2xl mx-auto">
+					<RequestCard card={requestA} />
+					<RequestCard card={requestB} />
+				</div>
 			) : (
-				<div className="w-full max-w-2xl rounded-lg border border-dashed border-muted-foreground/30 p-8 text-center">
-					<Clock className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
-					<p className="text-sm text-muted-foreground">
-						Fire a probe to see the race condition unfold step by step.
-					</p>
+				<div className="w-full max-w-2xl mx-auto rounded-lg border border-dashed border-muted-foreground/30 p-8 text-center">
+					{mode === 'observe' ? (
+						<>
+							<Clock className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+							<p className="text-sm text-muted-foreground">
+								Fire a probe to see the race condition unfold step by step.
+							</p>
+						</>
+					) : (
+						<>
+							<Lock className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+							<p className="text-sm text-muted-foreground">
+								Fire a scenario to see how locking serializes access.
+							</p>
+						</>
+					)}
 				</div>
 			)}
 
-			{/* Problem callout */}
-			{observeVisible > 0 &&
-				observeRows &&
-				observeVisible >= observeRows.length && (
-					<div className="max-w-2xl w-full bg-destructive/5 dark:bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-center">
-						<p className="text-xs text-muted-foreground">
-							{observeRows === OBSERVE_CONCURRENT_ROWS
-								? "Without a lock, Thread B overwrites Thread A's write. $30 vanished from the ledger."
-								: "Without a lock_version column, Thread B silently overwrites Thread A's edit. No conflict detected."}
-						</p>
-					</div>
-				)}
-		</div>
-	);
-
-	const renderRewardVisualization = () => (
-		<div className="flex-1 flex flex-col items-center justify-center gap-4 p-4">
-			{/* Banner */}
-			<div className="text-center">
-				<div className="inline-flex items-center gap-2 bg-emerald-500/10 dark:bg-emerald-500/20 border border-emerald-500/30 rounded-lg px-3 py-1.5">
-					<ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-					<span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-						Pessimistic Lock: Serialized Access
-					</span>
+			{/* Mismatch counter */}
+			{mismatchCounter && (
+				<div
+					className={cn(
+						'w-full max-w-2xl mx-auto rounded-lg border px-4 py-2 text-center text-sm font-semibold font-mono animate-in fade-in duration-300',
+						mode === 'observe'
+							? 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-500/50 text-red-700 dark:text-red-300'
+							: 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-500/50 text-emerald-700 dark:text-emerald-300',
+					)}
+				>
+					{mismatchCounter}
 				</div>
-			</div>
+			)}
 
-			{/* Timeline table */}
-			{rewardRows ? (
-				<RaceTimeline
-					centerLabel="Balance"
-					rows={rewardRows}
-					visibleCount={rewardVisible}
-				/>
-			) : (
-				<div className="w-full max-w-2xl rounded-lg border border-dashed border-muted-foreground/30 p-8 text-center">
-					<Lock className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
-					<p className="text-sm text-muted-foreground">
-						Fire a scenario to see how locking serializes access.
-					</p>
+			{/* Warning callout */}
+			{warningMessage && (
+				<div className="max-w-2xl mx-auto w-full bg-destructive/5 dark:bg-destructive/10 border border-destructive/20 rounded-lg p-3 animate-in fade-in duration-500">
+					<div className="flex items-start gap-2">
+						<AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 text-destructive" />
+						<p className="text-xs text-muted-foreground">{warningMessage}</p>
+					</div>
 				</div>
 			)}
 		</div>
@@ -1274,7 +1708,7 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 										]
 									: ['Review your star rating and visualize the solution']
 					}
-					scenario="Two users deduct from the same account simultaneously. Without locking, the last write wins and money vanishes. Locks serialize access so each user sees the correct balance."
+					scenario="Two customers check out the same product simultaneously. Without locking, the last write wins and stock goes negative. Locks serialize access so each request sees the correct inventory."
 				>
 					<div className="border-t border-border">
 						{phase === 'observe' && (
@@ -1336,7 +1770,7 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 					{/* ── OBSERVE PHASE ── */}
 					{phase === 'observe' && (
 						<>
-							{renderObserveVisualization()}
+							{renderConcurrencyViz('observe')}
 
 							<div className="px-6 pb-2">
 								<ProbeTerminal
@@ -1372,7 +1806,7 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 									description={
 										<p className="text-sm text-muted-foreground">
 											{stepper.currentStep === 0
-												? 'Add a lock_version column to the accounts table for optimistic locking.'
+												? 'Add a lock_version column to the products table for optimistic locking.'
 												: 'Apply the pending migration to add the lock_version column to the database.'}
 										</p>
 									}
@@ -1480,7 +1914,7 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 					{/* ── REWARD PHASE ── */}
 					{phase === 'reward' && (
 						<>
-							{renderRewardVisualization()}
+							{renderConcurrencyViz('reward')}
 
 							<div className="px-6 pb-2">
 								<StressTestPanel

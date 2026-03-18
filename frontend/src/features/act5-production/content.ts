@@ -340,38 +340,38 @@ const level34Locking: Level = {
 	trigger: {
 		type: 'incident',
 		description:
-			'Two users deduct from the same account simultaneously. The last write silently overwrites the first. $30 vanished from the ledger.',
+			'Two customers check out the same product simultaneously. Both see "15 in stock." Customer A buys 10, Customer B buys 8. Final stock is 7, not the expected result. 18 units sold, only 8 deducted.',
 	},
 	startingPipeline: standardPipeline(),
 	problem: {
 		observation:
-			'User A reads balance ($100), User B reads balance ($100). A deducts $30, saves $70. B deducts $50, saves $50. Actual balance should be $20 but is $50. Lost update.',
+			'Customer A reads stock (15), Customer B reads stock (15). A buys 10, saves 5. B buys 8, saves 7, overwriting A. 18 units sold, only 8 deducted. Lost update.',
 		rootCause:
-			'No row-level locking. Concurrent reads followed by concurrent writes cause lost updates because each thread operates on stale data.',
+			'No row-level locking. Concurrent reads followed by concurrent writes cause lost updates because each request operates on stale data.',
 		codeExample: `# BAD: No locking in the service
-class DeductBalance < ApplicationService
-  Result = Data.define(:success?, :account, :errors)
+class PlaceOrder < ApplicationService
+  Result = Data.define(:success?, :order, :errors)
 
-  def initialize(account_id:, amount:)
-    @account_id = account_id
-    @amount = amount
+  def initialize(product_id:, quantity:)
+    @product_id = product_id
+    @quantity = quantity
   end
 
   def call
-    v = DeductionContract.new.call(
-      account_id: @account_id, amount: @amount)
+    v = OrderContract.new.call(
+      product_id: @product_id, quantity: @quantity)
     return Result.new(success?: false,
-      account: nil, errors: v.errors.to_h) if v.failure?
+      order: nil, errors: v.errors.to_h) if v.failure?
 
-    account = Account.find(@account_id)
-    # Thread A reads $100, Thread B reads $100 (stale!)
-    account.balance -= @amount
-    account.save!
-    # Thread A saves $70, Thread B saves $50 (overwrites!)
-    Result.new(success?: true, account:, errors: [])
+    product = Product.find(@product_id)
+    # Request A reads 15, Request B reads 15 (stale!)
+    product.stock_count -= @quantity
+    product.save!
+    # Request A saves 5, Request B saves 5 (overwrites!)
+    Result.new(success?: true, order: nil, errors: [])
   end
 end`,
-		goal: 'Add a lock_version column, run the migration, add pessimistic locking with Account.lock.find(id), build a DeductBalance service with contract, and handle StaleObjectError for optimistic locking.',
+		goal: 'Add a lock_version column, run the migration, add pessimistic locking with Product.lock.find(id), build a PlaceOrder service with contract, and handle StaleObjectError for optimistic locking.',
 		thresholds: {},
 	},
 	successConditions: [
@@ -382,19 +382,19 @@ end`,
 	unlockedNodes: [],
 	learningContent: {
 		title: 'Locking (Concurrency Control)',
-		goal: `In this level, you'll:\n- understand how concurrent access causes lost updates\n- add a lock_version column for optimistic locking\n- use Account.lock.find(id) for pessimistic locking (SELECT ... FOR UPDATE)\n- handle StaleObjectError for conflict detection on low-contention resources`,
+		goal: `In this level, you'll:\n- understand how concurrent access causes lost updates\n- add a lock_version column for optimistic locking\n- use Product.lock.find(id) for pessimistic locking (SELECT ... FOR UPDATE)\n- handle StaleObjectError for conflict detection on low-contention resources`,
 		conceptExplanation: `Locking prevents concurrent access from corrupting shared data. Two strategies exist:
 
 **Optimistic Locking (lock_version column):**
 - No database locks held during read
 - On save, Rails checks if \`lock_version\` has changed since the record was loaded
 - If changed, raises \`ActiveRecord::StaleObjectError\`
-- Best for low-contention resources (profile edits, CMS pages)
+- Best for low-contention resources (product edits, CMS pages)
 
 **Pessimistic Locking (SELECT ... FOR UPDATE):**
 - Acquires a database row lock when reading
 - Other transactions must wait until the lock is released (on COMMIT/ROLLBACK)
-- Best for high-contention resources (account balances, inventory counts)
+- Best for high-contention resources (inventory counts, order totals)
 
 **Rule of thumb:**
 - Low contention + user-facing: Optimistic (detect conflict, ask user to retry)
@@ -403,78 +403,79 @@ end`,
 **Key API:**
 \`\`\`ruby
 # Pessimistic
-Account.lock.find(id)     # SELECT ... FOR UPDATE
-account.with_lock { ... } # lock + block
+Product.lock.find(id)     # SELECT ... FOR UPDATE
+product.with_lock { ... } # lock + block
 
 # Optimistic (needs lock_version column)
-account.save! # raises StaleObjectError if version mismatch
+product.save! # raises StaleObjectError if version mismatch
 \`\`\``,
-		railsCodeExample: `# app/contracts/deduction_contract.rb
-class DeductionContract < Dry::Validation::Contract
+		railsCodeExample: `# app/contracts/order_contract.rb
+class OrderContract < Dry::Validation::Contract
   params do
-    required(:account_id).filled(:integer)
-    required(:amount).filled(:decimal, gt?: 0)
+    required(:product_id).filled(:integer)
+    required(:quantity).filled(:integer, gt?: 0)
   end
 end
 
-# app/services/deduct_balance.rb
-class DeductBalance < ApplicationService
-  Result = Data.define(:success?, :account, :errors)
+# app/services/place_order.rb
+class PlaceOrder < ApplicationService
+  Result = Data.define(:success?, :order, :errors)
 
-  def initialize(account_id:, amount:)
-    @account_id = account_id
-    @amount = amount
+  def initialize(product_id:, quantity:)
+    @product_id = product_id
+    @quantity = quantity
   end
 
   def call
-    v = DeductionContract.new.call(
-      account_id: @account_id, amount: @amount)
+    v = OrderContract.new.call(
+      product_id: @product_id, quantity: @quantity)
     return Result.new(success?: false,
-      account: nil, errors: v.errors.to_h) if v.failure?
+      order: nil, errors: v.errors.to_h) if v.failure?
 
     ActiveRecord::Base.transaction do
-      account = Account.lock.find(@account_id)
-      raise InsufficientFundsError if account.balance < @amount
-      account.balance -= @amount
-      account.save!
-      AuditLog.create!(account:, amount: -@amount,
-        balance_after: account.balance)
-      Result.new(success?: true, account:, errors: [])
+      product = Product.lock.find(@product_id)
+      raise InsufficientStockError if product.stock_count < @quantity
+      product.stock_count -= @quantity
+      product.save!
+      order = Order.create!(product:, quantity: @quantity,
+        user: Current.user)
+      Result.new(success?: true, order:, errors: [])
     end
-  rescue InsufficientFundsError
-    Result.new(success?: false, account: nil,
-      errors: ["Insufficient funds"])
+  rescue InsufficientStockError
+    Result.new(success?: false, order: nil,
+      errors: ["Insufficient stock"])
   end
 end
 
-# app/controllers/api/v1/accounts_controller.rb
-class Api::V1::AccountsController < ApplicationController
-  def deduct
-    result = DeductBalance.call(
-      account_id: params[:id],
-      amount: params.expect(deduction: [:amount])[:amount])
+# app/controllers/api/v1/orders_controller.rb
+class Api::V1::OrdersController < ApplicationController
+  def create
+    result = PlaceOrder.call(
+      product_id: params.expect(order: [:product_id])[:product_id],
+      quantity: params.expect(order: [:quantity])[:quantity])
     if result.success?
-      render json: AccountSerializer.new(result.account)
+      render json: OrderSerializer.new(result.order),
+        status: :created
     else
-      render json: { error: { code: "DEDUCTION_FAILED",
-        message: "Could not deduct",
+      render json: { error: { code: "ORDER_FAILED",
+        message: "Could not place order",
         details: result.errors } },
         status: :unprocessable_entity
     end
   rescue ActiveRecord::StaleObjectError
     render json: { error: { code: "CONFLICT",
-      message: "Record was modified by another user",
+      message: "Product was modified by another request",
       details: {} } }, status: :conflict
   end
 end`,
 		commonMistakes: [
-			'Using optimistic locking for financial operations (too many retries under load)',
+			'Using optimistic locking for inventory operations (too many retries under load)',
 			'Holding pessimistic locks too long (causes deadlocks and timeouts)',
 			'Forgetting to handle StaleObjectError when using optimistic locking',
-			'Using pessimistic locks for low-contention profile edits (overkill)',
+			'Using pessimistic locks for low-contention product edits (overkill)',
 		],
 		whenToUse:
-			'Pessimistic locking for financial data and inventory. Optimistic locking for user profiles and content edits.',
+			'Pessimistic locking for inventory and financial data. Optimistic locking for product details and content edits.',
 		furtherReading: [
 			{
 				title: 'Active Record Locking',
@@ -484,7 +485,7 @@ end`,
 	},
 	hint: {
 		delay: 25,
-		text: 'Think about what happens when two processes read the same row. What mechanism can serialize their writes?',
+		text: 'Think about what happens when two checkout requests read the same product row. What mechanism can serialize their writes?',
 	},
 };
 

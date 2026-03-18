@@ -17,6 +17,7 @@ This skill is split across multiple files. SKILL.md contains the core audit flow
 - [reward-phase-guide.md](reward-phase-guide.md): StressTestPanel response lines, button labels, custom reward visualization rules, reward flow animation
 - [cross-phase-consistency.md](cross-phase-consistency.md): Visual language consistency, same component different state, build-intro alignment, reward loop closure, scenario data consistency (all with case studies)
 - [terminal-layout-guide.md](terminal-layout-guide.md): Terminal panel sizing patterns (Pattern A for custom viz, Pattern B for PipelineFlow), shared component usage rules, flex layout common mistakes
+- [visualization-examples.md](visualization-examples.md): **Read before designing any visualization.** Real examples of failed visualizations and how they were fixed. Covers the zero-knowledge principle: every visualization must be understandable by someone who has never encountered the concept. Includes L34 Locking case study (invisible same-value conflicts, abstract labels, implausible scenarios) and a checklist for new visualizations.
 
 ## Reference Implementations
 
@@ -62,6 +63,8 @@ This step is non-negotiable. Skipping it has caused bugs in the past (wrong Scop
 ## Gate Check: Does the Observe Phase Teach the Concept? (EVALUATE FIRST)
 
 **This is the single most important check in the entire audit. Evaluate it BEFORE any structural compliance checks. If this fails, nothing else matters.**
+
+**Before designing or evaluating any visualization, read [visualization-examples.md](visualization-examples.md).** It contains real case studies of visualizations that failed the zero-knowledge test and how they were fixed. The core principle: every visualization must be understandable by a player who has never encountered the concept.
 
 ### Step 1: Identify the observe phase type
 
