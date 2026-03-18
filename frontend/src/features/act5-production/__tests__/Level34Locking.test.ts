@@ -28,7 +28,7 @@ const DISCOVERY_DEFS = [
 
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 	'concurrent-deduct': ['lost-update', 'stale-read'],
-	'inspect-code': ['no-lock'],
+	'stale-edit': ['no-lock'],
 };
 
 const PROBES = [
@@ -46,32 +46,6 @@ const PROBES = [
 				text: "User A's $30 deduction was silently lost!",
 				color: 'red',
 			},
-		],
-	},
-	{
-		id: 'inspect-code',
-		label: 'Inspect service code',
-		command: 'cat app/services/deduct_balance.rb',
-		responseLines: [
-			{
-				text: 'class DeductBalance < ApplicationService',
-				color: 'cyan',
-			},
-			{ text: '  def call', color: 'muted' },
-			{
-				text: '    account = Account.find(@account_id)',
-				color: 'muted',
-			},
-			{
-				text: '    account.balance -= @amount  # No lock!',
-				color: 'red',
-			},
-			{
-				text: '    account.save!               # SELECT ... FOR UPDATE missing!',
-				color: 'red',
-			},
-			{ text: '  end', color: 'muted' },
-			{ text: 'end', color: 'muted' },
 		],
 	},
 	{
@@ -275,8 +249,8 @@ describe('Level 34: Locking (Concurrency Control)', () => {
 	});
 
 	describe('Probes', () => {
-		test('has exactly 3 probes', () => {
-			expect(PROBES).toHaveLength(3);
+		test('has exactly 2 probes', () => {
+			expect(PROBES).toHaveLength(2);
 		});
 
 		test('all probe IDs are unique', () => {

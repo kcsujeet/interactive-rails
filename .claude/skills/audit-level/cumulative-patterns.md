@@ -184,14 +184,17 @@ end
 ### L32: Polymorphic Associations
 - **Pattern**: `has_many :comments, as: :commentable`, `polymorphic: true`
 
-### L33: Transactions & Locking
-- **Pattern**: `ActiveRecord::Base.transaction { ... }`, `with_lock { ... }`
+### L33: Transactions (Atomicity)
+- **Pattern**: `ActiveRecord::Base.transaction { ... }`, `raise ActiveRecord::Rollback`
+- **Domain**: Boost a post (User credits, Boost, CreditLog). Three-step operation wrapped in a transaction for atomicity.
+- **Applies to**: Any multi-step database operation that must be all-or-nothing
 
-### L34: Active Storage
-- **Pattern**: `has_one_attached :avatar`, direct upload to S3
+### L34: Locking (Concurrency Control)
+- **Pattern**: `Account.lock.find(id)` (pessimistic, SELECT ... FOR UPDATE), `lock_version:integer` column (optimistic), `ActiveRecord::StaleObjectError` handling
+- **Applies to**: Any concurrent access to shared mutable data (financial balances, inventory counts, profile edits)
 
-### L35: Encryption (Rails 8 built-in)
-- **Pattern**: `encrypts :ssn`, `encrypts :api_key, deterministic: true`
+### L35: Active Storage
+- **Pattern**: `has_one_attached :avatar`, `has_many_attached :images`, direct upload to S3
 
 ### L36: Real-Time (Solid Cable)
 - **Pattern**: Action Cable channels, `broadcast_to(@post, action: :updated)`

@@ -28,13 +28,12 @@
 import {
 	ArrowRight,
 	Clock,
-	DollarSign,
+	Database,
 	Lock,
 	Play,
 	ShieldCheck,
 	Star,
 	Unlock,
-	Zap,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -94,7 +93,7 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 	'concurrent-deduct': ['lost-update', 'stale-read'],
-	'inspect-code': ['no-lock'],
+	'stale-edit': ['no-lock'],
 };
 
 // ──────────────────────────────────────────────
@@ -131,32 +130,6 @@ const PROBES: ProbeConfig[] = [
 				text: "User A's $30 deduction was silently lost!",
 				color: 'red',
 			},
-		],
-	},
-	{
-		id: 'inspect-code',
-		label: 'Inspect service code',
-		command: 'cat app/services/deduct_balance.rb',
-		responseLines: [
-			{
-				text: 'class DeductBalance < ApplicationService',
-				color: 'cyan',
-			},
-			{ text: '  def call', color: 'muted' },
-			{
-				text: '    account = Account.find(@account_id)',
-				color: 'muted',
-			},
-			{
-				text: '    account.balance -= @amount  # No lock!',
-				color: 'red',
-			},
-			{
-				text: '    account.save!               # SELECT ... FOR UPDATE missing!',
-				color: 'red',
-			},
-			{ text: '  end', color: 'muted' },
-			{ text: 'end', color: 'muted' },
 		],
 	},
 	{
@@ -592,116 +565,191 @@ const STRESS_SCENARIOS: StressScenario[] = [
 ];
 
 // ──────────────────────────────────────────────
-// Timeline lane visualization types
+// Race Timeline visualization
 // ──────────────────────────────────────────────
 
-type LaneStep =
-	| 'idle'
-	| 'read'
-	| 'compute'
-	| 'write'
-	| 'done'
-	| 'waiting'
-	| 'rejected';
+type CellVariant =
+	| 'default'
+	| 'blue'
+	| 'purple'
+	| 'success'
+	| 'danger'
+	| 'warning'
+	| 'muted';
 
-interface TimelineLaneProps {
-	label: string;
-	color: string;
-	step: LaneStep;
-	amount: string;
+interface TimelineCell {
+	text: string;
+	variant: CellVariant;
 }
 
-function TimelineLane({ label, color, step, amount }: TimelineLaneProps) {
-	const stepLabels: Record<LaneStep, string> = {
-		idle: 'idle',
-		read: `READ $100`,
-		compute: `balance -= ${amount}`,
-		write: `SAVE`,
-		done: 'COMMITTED',
-		waiting: 'WAITING (locked)',
-		rejected: 'REJECTED',
-	};
+interface TimelineRow {
+	threadA: TimelineCell;
+	center: TimelineCell;
+	threadB: TimelineCell;
+}
 
+// Observe: concurrent deduction (no lock, race condition)
+const OBSERVE_CONCURRENT_ROWS: TimelineRow[] = [
+	{
+		threadA: { text: 'READ \u2192 $100', variant: 'blue' },
+		center: { text: '$100', variant: 'default' },
+		threadB: { text: 'READ \u2192 $100', variant: 'purple' },
+	},
+	{
+		threadA: { text: '-= $30 \u2192 $70', variant: 'blue' },
+		center: { text: '$100 (stale)', variant: 'warning' },
+		threadB: { text: '-= $50 \u2192 $50', variant: 'purple' },
+	},
+	{
+		threadA: { text: 'SAVE $70', variant: 'success' },
+		center: { text: '$70', variant: 'success' },
+		threadB: { text: '', variant: 'muted' },
+	},
+	{
+		threadA: { text: '', variant: 'muted' },
+		center: { text: '$50 (LOST!)', variant: 'danger' },
+		threadB: { text: 'SAVE $50 (overwrites)', variant: 'danger' },
+	},
+];
+
+// Observe: stale profile edit (no lock_version)
+const OBSERVE_STALE_ROWS: TimelineRow[] = [
+	{
+		threadA: { text: 'READ user (v: nil)', variant: 'blue' },
+		center: { text: 'name: Alice', variant: 'default' },
+		threadB: { text: 'READ user (v: nil)', variant: 'purple' },
+	},
+	{
+		threadA: { text: "SET 'Carol'", variant: 'blue' },
+		center: { text: 'Alice', variant: 'default' },
+		threadB: { text: '(editing...)', variant: 'muted' },
+	},
+	{
+		threadA: { text: 'SAVE', variant: 'success' },
+		center: { text: 'Carol', variant: 'success' },
+		threadB: { text: "SET 'Bob'", variant: 'purple' },
+	},
+	{
+		threadA: { text: '', variant: 'muted' },
+		center: { text: 'Bob (LOST!)', variant: 'danger' },
+		threadB: { text: 'SAVE (overwrites)', variant: 'danger' },
+	},
+];
+
+// Reward: locked concurrent deduction (serialized, correct)
+const REWARD_ALLOWED_ROWS: TimelineRow[] = [
+	{
+		threadA: { text: 'LOCK + READ $100', variant: 'blue' },
+		center: { text: '$100 (locked)', variant: 'warning' },
+		threadB: { text: 'WAITING...', variant: 'warning' },
+	},
+	{
+		threadA: { text: '-= $30, SAVE $70', variant: 'blue' },
+		center: { text: '$70', variant: 'success' },
+		threadB: { text: 'WAITING...', variant: 'warning' },
+	},
+	{
+		threadA: { text: 'COMMIT + UNLOCK', variant: 'success' },
+		center: { text: '$70', variant: 'default' },
+		threadB: { text: 'LOCK + READ $70', variant: 'purple' },
+	},
+	{
+		threadA: { text: '', variant: 'muted' },
+		center: { text: '$20 (correct)', variant: 'success' },
+		threadB: { text: '-= $50, SAVE $20', variant: 'success' },
+	},
+];
+
+// Reward: blocked scenario (rejected by lock/validation)
+const REWARD_BLOCKED_ROWS: TimelineRow[] = [
+	{
+		threadA: { text: 'LOCK + READ $100', variant: 'blue' },
+		center: { text: '$100 (locked)', variant: 'warning' },
+		threadB: { text: '', variant: 'muted' },
+	},
+	{
+		threadA: { text: 'CHECK FAILS', variant: 'danger' },
+		center: { text: '$100', variant: 'default' },
+		threadB: { text: '', variant: 'muted' },
+	},
+	{
+		threadA: { text: 'ROLLBACK', variant: 'danger' },
+		center: { text: '$100 (safe)', variant: 'success' },
+		threadB: { text: '', variant: 'muted' },
+	},
+];
+
+const CELL_STYLES: Record<CellVariant, string> = {
+	default: 'bg-muted/30 text-foreground border-muted-foreground/20',
+	blue: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-600/50',
+	purple:
+		'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-600/50',
+	success:
+		'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border-emerald-400 dark:border-emerald-600/50',
+	danger:
+		'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-400 dark:border-red-500/50',
+	warning:
+		'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border-amber-400 dark:border-amber-600/50',
+	muted: 'bg-muted/20 text-muted-foreground border-muted-foreground/10',
+};
+
+function RaceTimeline({
+	rows,
+	visibleCount,
+	centerLabel,
+}: {
+	rows: TimelineRow[];
+	visibleCount: number;
+	centerLabel: string;
+}) {
 	return (
-		<div className="flex items-center gap-3">
-			{/* Actor label */}
-			<div
-				className={cn(
-					'rounded-lg border-2 px-3 py-2 text-center w-24 shrink-0 transition-colors',
-					step === 'done'
-						? `border-emerald-500 dark:border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20`
-						: step === 'waiting'
-							? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20'
-							: step === 'rejected'
-								? 'border-destructive bg-destructive/10 dark:bg-destructive/20'
-								: step !== 'idle'
-									? `${color}`
-									: 'border-muted-foreground/30 bg-card',
-				)}
-			>
-				<DollarSign
-					className={cn(
-						'w-4 h-4 mx-auto mb-0.5',
-						step !== 'idle' ? 'text-foreground' : 'text-muted-foreground',
-					)}
-				/>
-				<div className="font-bold text-xs">{label}</div>
+		<div className="w-full max-w-2xl">
+			{/* Column headers */}
+			<div className="grid grid-cols-[1fr_auto_1fr] gap-2 mb-2">
+				<div className="text-center text-xs font-semibold text-blue-600 dark:text-blue-400">
+					Thread A
+				</div>
+				<div className="text-center text-xs font-semibold text-muted-foreground w-28">
+					{centerLabel}
+				</div>
+				<div className="text-center text-xs font-semibold text-purple-600 dark:text-purple-400">
+					Thread B
+				</div>
 			</div>
 
-			{/* Timeline steps (3 boxes flowing right) */}
-			<div className="flex items-center gap-2 flex-1">
-				{['read', 'compute', 'write'].map((s) => {
-					const isActive =
-						s === 'read'
-							? step === 'read' ||
-								step === 'compute' ||
-								step === 'write' ||
-								step === 'done'
-							: s === 'compute'
-								? step === 'compute' || step === 'write' || step === 'done'
-								: step === 'write' || step === 'done';
-					const isCurrent =
-						s === step ||
-						(step === 'waiting' && s === 'read') ||
-						(step === 'rejected' && s === 'write');
-
-					return (
+			{/* Timeline rows */}
+			<div className="space-y-1.5">
+				{rows.slice(0, visibleCount).map((row, i) => (
+					<div
+						className="grid grid-cols-[1fr_auto_1fr] gap-2 animate-in fade-in slide-in-from-top-1 duration-300"
+						key={`t${i}-${row.center.text}`}
+					>
 						<div
 							className={cn(
-								'rounded border px-2 py-1.5 text-xs font-mono text-center flex-1 transition-all',
-								isCurrent && step === 'waiting'
-									? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300'
-									: isCurrent && step === 'rejected'
-										? 'border-destructive bg-destructive/10 dark:bg-destructive/20 text-destructive'
-										: isActive
-											? 'border-emerald-400 dark:border-emerald-500/50 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300'
-											: 'border-muted-foreground/20 bg-muted/30 text-muted-foreground',
+								'rounded border px-3 py-2 text-xs font-mono text-center min-h-[36px] flex items-center justify-center transition-colors',
+								CELL_STYLES[row.threadA.variant],
 							)}
-							key={s}
 						>
-							{s === 'read' && (step === 'waiting' ? 'WAIT' : 'READ')}
-							{s === 'compute' && 'COMPUTE'}
-							{s === 'write' && (step === 'rejected' ? 'REJECT' : 'WRITE')}
+							{row.threadA.text}
 						</div>
-					);
-				})}
-			</div>
-
-			{/* Status badge */}
-			<div
-				className={cn(
-					'rounded-full px-2 py-0.5 text-xs font-semibold shrink-0 w-20 text-center',
-					step === 'done' &&
-						'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300',
-					step === 'waiting' &&
-						'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300',
-					step === 'rejected' && 'bg-destructive/10 text-destructive',
-					step === 'idle' && 'bg-muted/50 text-muted-foreground',
-					!['done', 'waiting', 'rejected', 'idle'].includes(step) &&
-						'bg-primary/10 text-primary',
-				)}
-			>
-				{stepLabels[step]}
+						<div
+							className={cn(
+								'rounded border px-3 py-2 text-xs font-mono text-center font-bold w-28 flex items-center justify-center transition-colors',
+								CELL_STYLES[row.center.variant],
+							)}
+						>
+							{row.center.text}
+						</div>
+						<div
+							className={cn(
+								'rounded border px-3 py-2 text-xs font-mono text-center min-h-[36px] flex items-center justify-center transition-colors',
+								CELL_STYLES[row.threadB.variant],
+							)}
+						>
+							{row.threadB.text}
+						</div>
+					</div>
+				))}
 			</div>
 		</div>
 	);
@@ -950,19 +998,15 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 
-	// Visualization state
+	// Visualization state (observe)
 	const [vizAnimating, setVizAnimating] = useState(false);
-	const [threadA, setThreadA] = useState<LaneStep>('idle');
-	const [threadB, setThreadB] = useState<LaneStep>('idle');
-	const [accountBalance, setAccountBalance] = useState(100);
-	const [accountLocked, setAccountLocked] = useState(false);
+	const [observeRows, setObserveRows] = useState<TimelineRow[] | null>(null);
+	const [observeVisible, setObserveVisible] = useState(0);
 	const animTimerRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-	// Reward visualization state
-	const [rewardThreadA, setRewardThreadA] = useState<LaneStep>('idle');
-	const [rewardThreadB, setRewardThreadB] = useState<LaneStep>('idle');
-	const [rewardBalance, setRewardBalance] = useState(100);
-	const [rewardLocked, setRewardLocked] = useState(false);
+	// Visualization state (reward)
+	const [rewardRows, setRewardRows] = useState<TimelineRow[] | null>(null);
+	const [rewardVisible, setRewardVisible] = useState(0);
 
 	// ── Cleanup timers ──
 	const clearTimers = useCallback(() => {
@@ -986,62 +1030,34 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 			setVizAnimating(true);
 			clearTimers();
 
-			const step = ANIMATION_DURATION_MS;
+			const rows =
+				probeId === 'concurrent-deduct'
+					? OBSERVE_CONCURRENT_ROWS
+					: OBSERVE_STALE_ROWS;
 
-			if (probeId === 'concurrent-deduct') {
-				// Both read at the same time
-				setAccountBalance(100);
-				setThreadA('read');
-				setThreadB('read');
-				const t1 = setTimeout(() => {
-					setThreadA('compute');
-					setThreadB('compute');
-				}, step);
-				const t2 = setTimeout(() => {
-					setThreadA('write');
-					setThreadB('write');
-				}, step * 2);
-				const t3 = setTimeout(() => {
-					setThreadA('done');
-					setThreadB('done');
-					setAccountBalance(50); // Wrong! Should be 20
-				}, step * 3);
-				const t4 = setTimeout(() => {
-					setVizAnimating(false);
-					const discoveries = PROBE_DISCOVERY_MAP[probeId] ?? [];
-					for (const d of discoveries) discoveryGating.discover(d);
-				}, step * 4);
-				animTimerRef.current.push(t1, t2, t3, t4);
-			} else if (probeId === 'stale-edit') {
-				setAccountBalance(100);
-				setThreadA('read');
-				setThreadB('read');
-				const t1 = setTimeout(() => {
-					setThreadA('compute');
-					setThreadB('compute');
-				}, step);
-				const t2 = setTimeout(() => {
-					setThreadA('write');
-				}, step * 2);
-				const t3 = setTimeout(() => {
-					setThreadA('done');
-					setThreadB('write');
-				}, step * 3);
-				const t4 = setTimeout(() => {
-					setThreadB('done');
-				}, step * 4);
-				const t5 = setTimeout(() => {
-					setVizAnimating(false);
-				}, step * 5);
-				animTimerRef.current.push(t1, t2, t3, t4, t5);
-			} else {
-				const t1 = setTimeout(() => {
-					setVizAnimating(false);
-					const discoveries = PROBE_DISCOVERY_MAP[probeId] ?? [];
-					for (const d of discoveries) discoveryGating.discover(d);
-				}, step);
-				animTimerRef.current.push(t1);
+			setObserveRows(rows);
+			setObserveVisible(0);
+
+			const step = ANIMATION_DURATION_MS;
+			for (let i = 0; i < rows.length; i++) {
+				const t = setTimeout(
+					() => {
+						setObserveVisible(i + 1);
+					},
+					step * (i + 1),
+				);
+				animTimerRef.current.push(t);
 			}
+
+			const tFinal = setTimeout(
+				() => {
+					setVizAnimating(false);
+					const discoveries = PROBE_DISCOVERY_MAP[probeId] ?? [];
+					for (const d of discoveries) discoveryGating.discover(d);
+				},
+				step * (rows.length + 1),
+			);
+			animTimerRef.current.push(tFinal);
 		},
 		[vizAnimating, clearTimers, discoveryGating],
 	);
@@ -1068,62 +1084,36 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 			if (!scenario) return;
 
 			setVizAnimating(true);
-			const step = ANIMATION_DURATION_MS;
+			clearTimers();
 
-			if (scenario.expectedResult === 'allowed') {
-				// Thread A gets lock, Thread B waits
-				setRewardBalance(100);
-				setRewardThreadA('read');
-				setRewardThreadB('idle');
-				setRewardLocked(true);
-				const t1 = setTimeout(() => {
-					setRewardThreadA('compute');
-					setRewardThreadB('waiting');
-				}, step);
-				const t2 = setTimeout(() => {
-					setRewardThreadA('write');
-				}, step * 2);
-				const t3 = setTimeout(() => {
-					setRewardThreadA('done');
-					setRewardBalance(70);
-					setRewardLocked(false);
-					setRewardThreadB('read');
-				}, step * 3);
-				const t4 = setTimeout(() => {
-					setRewardThreadB('compute');
-					setRewardLocked(true);
-				}, step * 4);
-				const t5 = setTimeout(() => {
-					setRewardThreadB('write');
-				}, step * 5);
-				const t6 = setTimeout(() => {
-					setRewardThreadB('done');
-					setRewardBalance(20);
-					setRewardLocked(false);
-					setVizAnimating(false);
-				}, step * 6);
-				animTimerRef.current.push(t1, t2, t3, t4, t5, t6);
-			} else {
-				// Rejection scenario
-				setRewardBalance(100);
-				setRewardThreadA('read');
-				setRewardLocked(true);
-				setRewardThreadB('idle');
-				const t1 = setTimeout(() => {
-					setRewardThreadA('compute');
-					setRewardThreadB('waiting');
-				}, step);
-				const t2 = setTimeout(() => {
-					setRewardThreadB('rejected');
-					setRewardLocked(false);
-				}, step * 2);
-				const t3 = setTimeout(() => {
-					setVizAnimating(false);
-				}, step * 3);
-				animTimerRef.current.push(t1, t2, t3);
+			const rows =
+				scenario.expectedResult === 'allowed'
+					? REWARD_ALLOWED_ROWS
+					: REWARD_BLOCKED_ROWS;
+
+			setRewardRows(rows);
+			setRewardVisible(0);
+
+			const step = ANIMATION_DURATION_MS;
+			for (let i = 0; i < rows.length; i++) {
+				const t = setTimeout(
+					() => {
+						setRewardVisible(i + 1);
+					},
+					step * (i + 1),
+				);
+				animTimerRef.current.push(t);
 			}
+
+			const tFinal = setTimeout(
+				() => {
+					setVizAnimating(false);
+				},
+				step * (rows.length + 1),
+			);
+			animTimerRef.current.push(tFinal);
 		},
-		[vizAnimating, stressTest],
+		[vizAnimating, stressTest, clearTimers],
 	);
 
 	const handleToggleAutoFire = useCallback(
@@ -1136,16 +1126,12 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 	// ── Phase transition handlers ──
 	const handleStartBuild = () => {
 		setPhase('build');
-		setThreadA('idle');
-		setThreadB('idle');
 	};
 
 	const handleActivateReward = () => {
 		setPhase('reward');
-		setRewardThreadA('idle');
-		setRewardThreadB('idle');
-		setRewardBalance(100);
-		setRewardLocked(false);
+		setRewardRows(null);
+		setRewardVisible(0);
 	};
 
 	const handleComplete = async () => {
@@ -1177,8 +1163,11 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 	const isTerminalStep = stepper.currentStep <= 1;
 
 	// ──────────────────────────────────────────
-	// Render: Dual Timeline Lanes
+	// Render: Race Timeline
 	// ──────────────────────────────────────────
+
+	const observeCenterLabel =
+		observeRows === OBSERVE_STALE_ROWS ? 'DB Row' : 'Balance';
 
 	const renderObserveVisualization = () => (
 		<div className="flex-1 flex flex-col items-center justify-center gap-4 p-4">
@@ -1192,54 +1181,34 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 				</div>
 			</div>
 
-			{/* Account Row (shared) */}
-			<div
-				className={cn(
-					'rounded-lg border-2 px-6 py-3 text-center transition-colors',
-					accountBalance !== 100
-						? 'border-destructive bg-destructive/10 dark:bg-destructive/20'
-						: 'border-muted-foreground/30 bg-card',
-				)}
-			>
-				<Lock className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
-				<div className="font-bold text-sm text-foreground">Account Row</div>
-				<div
-					className={cn(
-						'text-lg font-mono font-bold mt-1',
-						accountBalance !== 100 ? 'text-destructive' : 'text-foreground',
-					)}
-				>
-					${accountBalance}
+			{/* Timeline table */}
+			{observeRows ? (
+				<RaceTimeline
+					centerLabel={observeCenterLabel}
+					rows={observeRows}
+					visibleCount={observeVisible}
+				/>
+			) : (
+				<div className="w-full max-w-2xl rounded-lg border border-dashed border-muted-foreground/30 p-8 text-center">
+					<Clock className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+					<p className="text-sm text-muted-foreground">
+						Fire a probe to see the race condition unfold step by step.
+					</p>
 				</div>
-				{accountBalance === 50 && (
-					<div className="text-xs text-destructive mt-1">Should be $20!</div>
-				)}
-			</div>
-
-			{/* Timeline lanes */}
-			<div className="w-full max-w-lg space-y-3">
-				<TimelineLane
-					amount="$30"
-					color="border-blue-300 dark:border-blue-500/50 bg-blue-50 dark:bg-blue-900/20"
-					label="Thread A"
-					step={threadA}
-				/>
-				<TimelineLane
-					amount="$50"
-					color="border-purple-300 dark:border-purple-500/50 bg-purple-50 dark:bg-purple-900/20"
-					label="Thread B"
-					step={threadB}
-				/>
-			</div>
+			)}
 
 			{/* Problem callout */}
-			<div className="max-w-lg w-full bg-destructive/5 dark:bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-center">
-				<p className="text-xs text-muted-foreground">
-					{accountBalance === 50
-						? "Without a lock, Thread B overwrites Thread A's deduction. $30 vanished from the ledger."
-						: 'Fire probes to see what happens when two threads modify the same row simultaneously.'}
-				</p>
-			</div>
+			{observeVisible > 0 &&
+				observeRows &&
+				observeVisible >= observeRows.length && (
+					<div className="max-w-2xl w-full bg-destructive/5 dark:bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-center">
+						<p className="text-xs text-muted-foreground">
+							{observeRows === OBSERVE_CONCURRENT_ROWS
+								? "Without a lock, Thread B overwrites Thread A's write. $30 vanished from the ledger."
+								: "Without a lock_version column, Thread B silently overwrites Thread A's edit. No conflict detected."}
+						</p>
+					</div>
+				)}
 		</div>
 	);
 
@@ -1255,46 +1224,21 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 				</div>
 			</div>
 
-			{/* Account Row (shared, with lock indicator) */}
-			<div
-				className={cn(
-					'rounded-lg border-2 px-6 py-3 text-center transition-colors',
-					rewardLocked
-						? 'border-amber-400 bg-amber-50 dark:bg-amber-900/20'
-						: 'border-emerald-500 dark:border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20',
-				)}
-			>
-				{rewardLocked ? (
-					<Lock className="w-5 h-5 mx-auto mb-1 text-amber-600 dark:text-amber-400" />
-				) : (
-					<Unlock className="w-5 h-5 mx-auto mb-1 text-emerald-600 dark:text-emerald-400" />
-				)}
-				<div className="font-bold text-sm text-foreground">Account Row</div>
-				<div className="text-lg font-mono font-bold mt-1 text-foreground">
-					${rewardBalance}
+			{/* Timeline table */}
+			{rewardRows ? (
+				<RaceTimeline
+					centerLabel="Balance"
+					rows={rewardRows}
+					visibleCount={rewardVisible}
+				/>
+			) : (
+				<div className="w-full max-w-2xl rounded-lg border border-dashed border-muted-foreground/30 p-8 text-center">
+					<Lock className="w-6 h-6 mx-auto mb-2 text-muted-foreground" />
+					<p className="text-sm text-muted-foreground">
+						Fire a scenario to see how locking serializes access.
+					</p>
 				</div>
-				{rewardLocked && (
-					<div className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-						FOR UPDATE
-					</div>
-				)}
-			</div>
-
-			{/* Timeline lanes */}
-			<div className="w-full max-w-lg space-y-3">
-				<TimelineLane
-					amount="$30"
-					color="border-blue-300 dark:border-blue-500/50 bg-blue-50 dark:bg-blue-900/20"
-					label="Thread A"
-					step={rewardThreadA}
-				/>
-				<TimelineLane
-					amount="$50"
-					color="border-purple-300 dark:border-purple-500/50 bg-purple-50 dark:bg-purple-900/20"
-					label="Thread B"
-					step={rewardThreadB}
-				/>
-			</div>
+			)}
 		</div>
 	);
 
