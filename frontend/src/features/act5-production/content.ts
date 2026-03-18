@@ -23,14 +23,14 @@ const level32Polymorphic: Level = {
 	trigger: {
 		type: 'new_feature',
 		description:
-			'Users want to comment on Posts, Photos, AND Videos. Three separate comment tables with identical schemas exist. Polymorphic associations can unify them.',
+			'Users want to comment on Posts, Photos, AND Videos. Three separate review tables with identical schemas exist. Polymorphic associations can unify them.',
 	},
 	startingPipeline: standardPipeline(),
 	problem: {
 		observation:
-			'Three separate comment tables exist: post_comments, photo_comments, video_comments. Schema is duplicated, queries are scattered, and adding a new commentable type means a new table and new controller.',
+			'Three separate review tables exist: post_comments, photo_comments, video_comments. Schema is duplicated, queries are scattered, and adding a new commentable type means a new table and new controller.',
 		rootCause:
-			'Each commentable model has its own dedicated comments table instead of using a single polymorphic comments table.',
+			'Each reviewable model has its own dedicated reviews table instead of using a single polymorphic reviews table.',
 		codeExample: `# Three separate service objects doing the same thing!
 # app/services/create_post_comment.rb
 class CreatePostComment < ApplicationService
@@ -53,7 +53,7 @@ end
 # CreatePhotoComment, CreateVideoComment are identical copies!
 # 3 tables, 3 models, 3 contracts, 3 services, 3 controllers
 # Adding "comment on Articles" means ANOTHER full set.`,
-		goal: 'Replace three comment tables with one polymorphic Comment model that can belong to any commentable resource. Build a single CreateComment service with contract validation.',
+		goal: 'Replace three review tables with one polymorphic Review model that can belong to any commentable resource. Build a single CreateReview service with contract validation.',
 		thresholds: {},
 	},
 	successConditions: [],
@@ -61,13 +61,13 @@ end
 	unlockedNodes: [],
 	learningContent: {
 		title: 'Polymorphic Associations',
-		goal: `In this level, you'll:\n- learn how polymorphic associations let a single model belong to multiple different parent types.\n- use commentable_type and commentable_id columns so one Comment model can belong to a Post, Photo, or Video.\n- understand when this pattern is the right choice versus separate tables.`,
+		goal: `In this level, you'll:\n- learn how polymorphic associations let a single model belong to multiple different parent types.\n- use reviewable_type and reviewable_id columns so one Review model can belong to a Product, ProductImage, or ProductVideo.\n- understand when this pattern is the right choice versus separate tables.`,
 		conceptExplanation: `Polymorphic associations let a model belong to more than one other model using a single association.
 
 **How it works:**
-- The child table stores two columns: \`commentable_type\` (string) and \`commentable_id\` (integer)
-- \`commentable_type\` holds the class name ("Post", "Photo", "Video")
-- \`commentable_id\` holds the foreign key
+- The child table stores two columns: \`reviewable_type\` (string) and \`reviewable_id\` (integer)
+- \`reviewable_type\` holds the class name ("Product", "Photo", "Video")
+- \`reviewable_id\` holds the foreign key
 - Rails resolves the correct parent model at runtime
 
 **When to use polymorphic:**
@@ -81,28 +81,28 @@ end
 - When you need database-level foreign key constraints
 - When the number of types is fixed at 2 (just use two belongs_to)`,
 		railsCodeExample: `# Migration
-class CreateComments < ActiveRecord::Migration[8.0]
+class CreateReviews < ActiveRecord::Migration[8.0]
   def change
-    create_table :comments do |t|
+    create_table :reviews do |t|
       t.text :body, null: false
-      t.references :commentable, polymorphic: true, null: false
+      t.references :reviewable, polymorphic: true, null: false
       t.references :user, null: false, foreign_key: true
       t.timestamps
     end
-    add_index :comments, [:commentable_type, :commentable_id]
+    add_index :reviews, [:reviewable_type, :reviewable_id]
   end
 end
 
 # app/models/comment.rb
-class Comment < ApplicationRecord
-  belongs_to :commentable, polymorphic: true
+class Review < ApplicationRecord
+  belongs_to :reviewable, polymorphic: true
   belongs_to :user
   validates :body, presence: true, length: { maximum: 10_000 }
 end
 
 # app/models/post.rb (same for Photo, Video)
-class Post < ApplicationRecord
-  has_many :comments, as: :commentable, dependent: :destroy
+class Product < ApplicationRecord
+  has_many :reviews, as: :reviewable, dependent: :destroy
 end
 
 # app/contracts/comment_contract.rb
@@ -113,11 +113,11 @@ class CommentContract < Dry::Validation::Contract
 end
 
 # app/services/create_comment.rb
-class CreateComment < ApplicationService
+class CreateReview < ApplicationService
   Result = Data.define(:success?, :comment, :errors)
 
   def initialize(commentable:, user:, params:)
-    @commentable = commentable
+    @reviewable = commentable
     @user = user
     @params = params
   end
@@ -126,7 +126,7 @@ class CreateComment < ApplicationService
     v = CommentContract.new.call(@params)
     return Result.new(success?: false,
       comment: nil, errors: v.errors.to_h) if v.failure?
-    comment = @commentable.comments.create!(
+    comment = @reviewable.reviews.create!(
       user: @user, body: v[:body])
     Result.new(success?: true, comment:, errors: [])
   end
@@ -135,7 +135,7 @@ end
 # app/controllers/api/v1/comments_controller.rb
 class Api::V1::CommentsController < ApplicationController
   def create
-    result = CreateComment.call(
+    result = CreateReview.call(
       commentable: find_commentable,
       user: Current.user,
       params: params.expect(comment: [:body]))
@@ -150,14 +150,14 @@ class Api::V1::CommentsController < ApplicationController
   end
 end`,
 		commonMistakes: [
-			'Not adding a composite index on [commentable_type, commentable_id]',
+			'Not adding a composite index on [reviewable_type, reviewable_id]',
 			'Forgetting that database-level foreign keys cannot enforce polymorphic associations',
 			'Not using eager loading with polymorphic associations (causes N+1)',
 			'Storing full namespaced class names when STI is involved',
-			'Not validating that commentable_type is in an allowed list',
+			'Not validating that reviewable_type is in an allowed list',
 		],
 		whenToUse:
-			'When the same child model (comments, tags, attachments) needs to belong to multiple unrelated parent models with identical schemas.',
+			'When the same child model (reviews, tags, attachments) needs to belong to multiple unrelated parent models with identical schemas.',
 		furtherReading: [
 			{
 				title: 'Rails Polymorphic Associations',
@@ -171,7 +171,7 @@ end`,
 	},
 	hint: {
 		delay: 25,
-		text: 'Add a single Comment model with polymorphic: true. Connect it to Post, Photo, and Video using `as: :commentable`.',
+		text: 'Add a single Review model with polymorphic: true. Connect it to Product, ProductImage, and ProductVideo using `as: :reviewable`.',
 	},
 };
 

@@ -1,7 +1,7 @@
 /**
  * Level 3: The Model
  *
- * 4-step progression to create the Post model.
+ * 4-step progression to create the Product model.
  * Steps: Name the Model -> Define Attributes -> Run Generator -> Run Migration
  */
 
@@ -58,7 +58,7 @@ const ATTRIBUTE_SLOTS: AttributeSlot[] = [
 	},
 	{
 		field: 'published_at',
-		description: 'When the post went live',
+		description: 'When the product went live',
 		correctType: 'datetime',
 		assignedType: null,
 	},
@@ -68,7 +68,7 @@ const AVAILABLE_TYPES = ['string', 'text', 'boolean', 'integer', 'datetime'];
 
 const MODEL_NAME_OPTIONS = [
 	{ label: 'Posts', correct: false, feedback: 'Rails models are singular, not plural. Rails auto-pluralizes the table name for you.' },
-	{ label: 'Post', correct: true },
+	{ label: 'Product', correct: true },
 	{ label: 'post', correct: false, feedback: 'Rails models use PascalCase. Check the capitalization convention.' },
 	{ label: 'posts_table', correct: false, feedback: 'You don\'t need to specify the table name. Rails infers it from a singular PascalCase model name.' },
 ];
@@ -77,30 +77,30 @@ const MODEL_NAME_OPTIONS = [
 const generatorCommands: TerminalCommand[] = [
 	{
 		id: 'wrong-types',
-		label: 'rails generate model Post title:text body:string published_at:integer',
-		command: 'rails generate model Post title:text body:string published_at:integer',
+		label: 'rails generate model Product title:text body:string published_at:integer',
+		command: 'rails generate model Product title:text body:string published_at:integer',
 		correct: false,
 		feedback: 'The types are swapped around. Think about which fields are short vs. long, and which stores a point in time.',
 	},
 	{
 		id: 'correct',
-		label: 'rails generate model Post title:string body:text published_at:datetime',
-		command: 'rails generate model Post title:string body:text published_at:datetime',
+		label: 'rails generate model Product title:string body:text published_at:datetime',
+		command: 'rails generate model Product title:string body:text published_at:datetime',
 		correct: true,
 	},
 	{
 		id: 'wrong-missing',
-		label: 'rails generate model Post title:string body:text',
-		command: 'rails generate model Post title:string body:text',
+		label: 'rails generate model Product title:string body:text',
+		command: 'rails generate model Product title:string body:text',
 		correct: false,
-		feedback: 'Missing an attribute. The Post model has three fields, not two.',
+		feedback: 'Missing an attribute. The Product model has three fields, not two.',
 	},
 ];
 
 const generatorOutput: TerminalOutputLine[] = [
 	{ text: '      invoke  active_record', color: 'green' },
 	{ text: '      create    db/migrate/20240101000000_create_posts.rb', color: 'green' },
-	{ text: '      create    app/models/post.rb', color: 'green' },
+	{ text: '      create    app/models/product.rb', color: 'green' },
 	{ text: '      invoke    test_unit', color: 'muted' },
 	{ text: '      create      test/models/post_test.rb', color: 'muted' },
 ];
@@ -166,7 +166,7 @@ const TERMINAL_STEPS: {
 		description: (
 			<p className="text-sm text-muted-foreground">
 				The generator created a migration file. Run it to create the
-				posts table in the database.
+				products table in the database.
 			</p>
 		),
 		commands: migrationCommands,
@@ -222,10 +222,10 @@ export function Level3Model({ onComplete }: LevelComponentProps) {
 					datetime: '"body" stores content, not timestamps.',
 				},
 				published_at: {
-					string: '"published_at" records when the post went live, not text.',
-					text: '"published_at" records when the post went live, not content.',
-					integer: '"published_at" records when the post went live, not a number.',
-					boolean: '"published_at" records when the post went live, not a flag.',
+					string: '"published_at" records when the product went live, not text.',
+					text: '"published_at" records when the product went live, not content.',
+					integer: '"published_at" records when the product went live, not a number.',
+					boolean: '"published_at" records when the product went live, not a flag.',
 				},
 			};
 			const fb = feedbackMap[field]?.[type] || `Wrong type for ${field}.`;
@@ -247,7 +247,7 @@ export function Level3Model({ onComplete }: LevelComponentProps) {
 					.map((s) => s.title),
 			};
 		}
-		return { valid: true, message: 'Your Post model is ready!' };
+		return { valid: true, message: 'Your Product model is ready!' };
 	};
 
 	// Code preview - each completed step adds its output
@@ -264,7 +264,7 @@ export function Level3Model({ onComplete }: LevelComponentProps) {
 			files.push({
 				filename: 'Generator Command',
 				language: 'bash',
-				code: `$ rails generate model Post${attrArgs ? ` ${attrArgs}` : ' ...'}`,
+				code: `$ rails generate model Product${attrArgs ? ` ${attrArgs}` : ' ...'}`,
 				highlight: [1],
 			});
 		}
@@ -275,9 +275,9 @@ export function Level3Model({ onComplete }: LevelComponentProps) {
 		// After running generator (step 2) - show generated files
 		if (stepper.furthestStep >= 3) {
 			files.push({
-				filename: 'app/models/post.rb',
+				filename: 'app/models/product.rb',
 				language: 'ruby',
-				code: `class Post < ApplicationRecord
+				code: `class Product < ApplicationRecord
   # Attributes:
   # - title        (string)
   # - body         (text)
@@ -351,8 +351,8 @@ end`,
 					{/* Scenario */}
 					<div className="p-4 border-b border-border">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							You&apos;re building a blog API. Before writing endpoints, you
-							need to define what a &quot;Post&quot; looks like. In Rails, this
+							You&apos;re building an e-commerce API. Before writing endpoints, you
+							need to define what a &quot;Product&quot; looks like. In Rails, this
 							is a Model.
 						</p>
 					</div>
@@ -562,7 +562,7 @@ end`,
 							Key Concepts
 						</div>
 						<ul className="text-xs text-muted-foreground space-y-2">
-							<li>Model names are singular PascalCase (Post, not Posts)</li>
+							<li>Model names are singular PascalCase (Product, not Products)</li>
 							<li>Table names are auto-pluralized (posts)</li>
 							<li>
 								<span className="font-mono text-primary">string</span> = short

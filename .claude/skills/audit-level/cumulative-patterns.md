@@ -23,11 +23,11 @@ Before auditing or building any level, read this file and check: "Does the code 
 - **Applies to**: All controllers render JSON
 
 ### L7: Serializers (jsonapi-serializer gem)
-- **Pattern**: `PostSerializer`, `has_many :comments`, `attributes :title, :body`
+- **Pattern**: `ProductSerializer`, `has_many :reviews`, `attributes :title, :body`
 - **Applies to**: All JSON responses should reference serializers where applicable
 
 ### L8: Associations
-- **Pattern**: `has_many :comments, dependent: :destroy`, `belongs_to :post`
+- **Pattern**: `has_many :reviews, dependent: :destroy`, `belongs_to :post`
 - **Applies to**: All model code should reflect established associations
 
 ---
@@ -130,7 +130,7 @@ end
 ```
 
 ### L19: Query Objects
-- **Pattern**: `class PostQuery; def initialize(relation = Post.all); end; def published; @relation.where(...); self; end; end`
+- **Pattern**: `class ProductQuery; def initialize(relation = Product.all); end; def published; @relation.where(...); self; end; end`
 - **Chainable**: Methods return `self` for composability
 - **Applies to**: Complex query logic should be extracted to query objects, not inlined in services/controllers
 
@@ -155,7 +155,7 @@ end
 - **Pattern**: `include Prosopite::Detectors`, `strict_loading_by_default = true`
 
 ### L24: Eager Loading
-- **Pattern**: `Post.includes(:comments)`, `preload(:tags)`, `eager_load(:author)`
+- **Pattern**: `Product.includes(:reviews)`, `preload(:categories)`, `eager_load(:user)`
 - **Applies to**: All queries with associations should eager load
 
 ### L26: Database Indexing
@@ -167,7 +167,7 @@ end
 - **Applies to**: Frequently-counted relationships should use counter caches
 
 ### L28: Pagination (Pagy gem)
-- **Pattern**: `include Pagy::Backend`, `pagy(Post.all, items: 20)`, RFC 5988 Link headers
+- **Pattern**: `include Pagy::Backend`, `pagy(Product.all, items: 20)`, RFC 5988 Link headers
 - **Applies to**: Any endpoint returning collections should be paginated
 
 ### L29: Full-Text Search (pg_search gem)
@@ -182,7 +182,7 @@ end
 ## Act 5: Production (L32-L39)
 
 ### L32: Polymorphic Associations
-- **Pattern**: `has_many :comments, as: :commentable`, `polymorphic: true`
+- **Pattern**: `has_many :reviews, as: :commentable`, `polymorphic: true`
 
 ### L33: Transactions (Atomicity)
 - **Pattern**: `ActiveRecord::Base.transaction { ... }`, `raise ActiveRecord::Rollback`
@@ -212,7 +212,7 @@ When auditing Level N:
 **Common violations to watch for:**
 - Controller doing business logic directly (should use service object, L16+)
 - Inline `if param.blank?` validation in a service (should use Dry::Validation contract, L18+)
-- Raw `Post.where(...)` in a controller (should be in a service or query object, L16+/L19+)
+- Raw `Product.where(...)` in a controller (should be in a service or query object, L16+/L19+)
 - Manual SQL in service when a gem scope exists (use the scope through the service)
 - Missing `ApplicationService` inheritance
 - Missing `Result = Data.define(...)` return type

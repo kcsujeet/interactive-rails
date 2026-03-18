@@ -109,7 +109,7 @@ const LAYERS: LayerDef[] = [
 	{
 		id: 'request',
 		label: 'Incoming Request',
-		sublabel: 'GET /api/v1/posts/trending',
+		sublabel: 'GET /api/v1/products/trending',
 		icon: 'globe',
 	},
 	{
@@ -120,7 +120,7 @@ const LAYERS: LayerDef[] = [
 	},
 	{
 		id: 'service',
-		label: 'TrendingPosts Service',
+		label: 'TrendingProducts Service',
 		sublabel: '512ms computation',
 		icon: 'zap',
 	},
@@ -151,13 +151,13 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'trending-first',
 		label: 'GET trending',
-		command: 'GET /api/v1/posts/trending',
+		command: 'GET /api/v1/products/trending',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'yellow' },
 			{ text: 'X-Runtime: 0.512', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'TrendingPosts: joins + group + order on 50K rows',
+				text: 'TrendingProducts: joins + group + order on 50K rows',
 				color: 'muted',
 			},
 			{ text: 'Execution Time: 512ms. Computed from scratch.', color: 'red' },
@@ -166,7 +166,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'trending-repeat',
 		label: 'GET trending (again)',
-		command: 'GET /api/v1/posts/trending (same request, 5s later)',
+		command: 'GET /api/v1/products/trending (same request, 5s later)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'yellow' },
 			{ text: 'X-Runtime: 0.508', color: 'red' },
@@ -211,7 +211,7 @@ const ZONE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		stageId: 'request',
 		title: 'Incoming Request',
 		description:
-			'200 requests/minute to GET /api/v1/posts/trending. Each triggers a full computation cycle through the service and database.',
+			'200 requests/minute to GET /api/v1/products/trending. Each triggers a full computation cycle through the service and database.',
 	},
 	cache: {
 		stageId: 'cache',
@@ -227,11 +227,11 @@ const ZONE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 	},
 	service: {
 		stageId: 'service',
-		title: 'TrendingPosts Service',
+		title: 'TrendingProducts Service',
 		description:
 			'The service computes trending posts from scratch on every call. No caching wrapper around the expensive query.',
-		code: `# app/services/trending_posts.rb
-class TrendingPosts < ApplicationService
+		code: `# app/services/trending_products.rb
+class TrendingProducts < ApplicationService
   Result = Data.define(:posts, :generated_at)
 
   def call
@@ -240,8 +240,8 @@ class TrendingPosts < ApplicationService
       posts: [], generated_at: Time.current
     ) if validation.failure?
 
-    posts = Post
-      .joins(:comments)
+    products = Product
+      .joins(:reviews)
       .where("posts.created_at > ?", 7.days.ago)
       .group("posts.id")
       .select("posts.*, COUNT(comments.id) AS score")
@@ -261,8 +261,8 @@ end`,
 			'Joins posts and comments, groups, aggregates, sorts. 512ms per execution. Running 200 times/minute.',
 		code: `EXPLAIN ANALYZE
 SELECT posts.*, COUNT(comments.id) AS score
-FROM posts
-INNER JOIN comments ON comments.post_id = posts.id
+FROM products
+INNER JOIN comments ON comments.product_id = posts.id
 WHERE posts.created_at > NOW() - INTERVAL '7 days'
 GROUP BY posts.id
 ORDER BY score DESC
@@ -288,7 +288,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET trending (cold)',
 		description: 'First request after cache expiration',
 		method: 'GET',
-		path: '/api/v1/posts/trending',
+		path: '/api/v1/products/trending',
 		actor: 'visitor',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -304,7 +304,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET trending (cached)',
 		description: 'Request served from warm cache',
 		method: 'GET',
-		path: '/api/v1/posts/trending',
+		path: '/api/v1/products/trending',
 		actor: 'visitor',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -317,7 +317,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET trending (second hit)',
 		description: 'Another visitor, same cached result',
 		method: 'GET',
-		path: '/api/v1/posts/trending',
+		path: '/api/v1/products/trending',
 		actor: 'another visitor',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -330,12 +330,12 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'POST comment (touch)',
 		description: 'New comment triggers touch: true',
 		method: 'POST',
-		path: '/api/v1/posts/42/comments',
+		path: '/api/v1/products/42/comments',
 		actor: 'user',
 		expectedResult: 'blocked',
 		responseLines: [
 			{ text: '201 Created', color: 'green' },
-			{ text: 'post.updated_at touched. Cache invalidated.', color: 'yellow' },
+			{ text: 'product.updated_at touched. Cache invalidated.', color: 'yellow' },
 		],
 	},
 	{
@@ -343,7 +343,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET trending (after touch)',
 		description: 'Request after cache was invalidated',
 		method: 'GET',
-		path: '/api/v1/posts/trending',
+		path: '/api/v1/products/trending',
 		actor: 'visitor',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -530,14 +530,14 @@ const CONFIGURE_STORE_OPTIONS: StepOption[] = [
 const CACHE_FETCH_OPTIONS: StepOption[] = [
 	{
 		id: 'wrong-read',
-		label: 'Rails.cache.read("trending_posts") || compute_trending.to_a',
+		label: 'Rails.cache.read("trending_products") || compute_trending.to_a',
 		correct: false,
 		feedback:
 			'read + manual write is fragile. You must remember to write on miss. cache.fetch handles both atomically.',
 	},
 	{
 		id: 'wrong-no-expire',
-		label: 'Rails.cache.fetch("trending_posts") { compute_trending.to_a }',
+		label: 'Rails.cache.fetch("trending_products") { compute_trending.to_a }',
 		correct: false,
 		feedback:
 			'Missing an expiration. Without expires_in, the cache never refreshes and serves stale data forever.',
@@ -545,7 +545,7 @@ const CACHE_FETCH_OPTIONS: StepOption[] = [
 	{
 		id: 'correct',
 		label:
-			'Rails.cache.fetch("trending_posts", expires_in: 5.minutes) { compute_trending.to_a }',
+			'Rails.cache.fetch("trending_products", expires_in: 5.minutes) { compute_trending.to_a }',
 		correct: true,
 	},
 ];
@@ -553,14 +553,14 @@ const CACHE_FETCH_OPTIONS: StepOption[] = [
 const TOUCH_OPTIONS: StepOption[] = [
 	{
 		id: 'wrong-callback',
-		label: 'after_save { Rails.cache.delete("trending_posts") }',
+		label: 'after_save { Rails.cache.delete("trending_products") }',
 		correct: false,
 		feedback:
 			'Manual callbacks are fragile and must be added to every model that affects the cache. touch cascades automatically through associations.',
 	},
 	{
 		id: 'correct',
-		label: 'belongs_to :post, touch: true',
+		label: 'belongs_to :product, touch: true',
 		correct: true,
 	},
 	{
@@ -595,7 +595,7 @@ const OPTION_STEP_CONFIG: Record<
 	5: {
 		title: 'Cache Invalidation',
 		description:
-			'When a new comment is posted, the trending rankings change. The Comment model needs to signal that its parent post has changed so cache keys that depend on updated_at are invalidated.',
+			'When a new comment is posted, the trending rankings change. The Review model needs to signal that its parent product has changed so cache keys that depend on updated_at are invalidated.',
 		options: TOUCH_OPTIONS,
 	},
 };
@@ -623,9 +623,9 @@ end`;
 			code: contractCode,
 		});
 		files.push({
-			filename: 'app/services/trending_posts.rb',
+			filename: 'app/services/trending_products.rb',
 			language: 'ruby',
-			code: `class TrendingPosts < ApplicationService
+			code: `class TrendingProducts < ApplicationService
   Result = Data.define(:posts, :generated_at)
 
   def call
@@ -634,8 +634,8 @@ end`;
       posts: [], generated_at: Time.current
     ) if validation.failure?
 
-    posts = Post
-      .joins(:comments)
+    products = Product
+      .joins(:reviews)
       .where("posts.created_at > ?", 7.days.ago)
       .group("posts.id")
       .select("posts.*, COUNT(comments.id) AS score")
@@ -650,13 +650,13 @@ end`,
 			highlight: [19],
 		});
 		files.push({
-			filename: 'app/controllers/api/v1/posts_controller.rb',
+			filename: 'app/controllers/api/v1/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::PostsController < ApplicationController
+			code: `class Api::V1::ProductsController < ApplicationController
   def trending
-    result = TrendingPosts.call
+    result = TrendingProducts.call
     if result.posts.any?
-      render json: PostSerializer.new(result.posts)
+      render json: ProductSerializer.new(result.posts)
     else
       render json: { data: [] }
     end
@@ -672,9 +672,9 @@ end
 	// Build / activate / reward phases: evolving code
 	if (furthestStep === 0) {
 		files.push({
-			filename: 'app/services/trending_posts.rb',
+			filename: 'app/services/trending_products.rb',
 			language: 'ruby',
-			code: `class TrendingPosts < ApplicationService
+			code: `class TrendingProducts < ApplicationService
   Result = Data.define(:posts, :generated_at)
 
   def call
@@ -683,8 +683,8 @@ end
       posts: [], generated_at: Time.current
     ) if validation.failure?
 
-    posts = Post
-      .joins(:comments)
+    products = Product
+      .joins(:reviews)
       .where("posts.created_at > ?", 7.days.ago)
       .group("posts.id")
       .select("posts.*, COUNT(comments.id) AS score")
@@ -764,9 +764,9 @@ end`,
 
 	if (furthestStep >= 5) {
 		files.push({
-			filename: 'app/services/trending_posts.rb',
+			filename: 'app/services/trending_products.rb',
 			language: 'ruby',
-			code: `class TrendingPosts < ApplicationService
+			code: `class TrendingProducts < ApplicationService
   Result = Data.define(:posts, :generated_at)
 
   def call
@@ -775,12 +775,12 @@ end`,
       posts: [], generated_at: Time.current
     ) if validation.failure?
 
-    posts = Rails.cache.fetch(
-      "trending_posts",
+    products = Rails.cache.fetch(
+      "trending_products",
       expires_in: 5.minutes
     ) do
-      Post
-        .joins(:comments)
+      Product
+        .joins(:reviews)
         .where("posts.created_at > ?", 7.days.ago)
         .group("posts.id")
         .select("posts.*, COUNT(comments.id) AS score")
@@ -799,15 +799,15 @@ end`,
 
 	if (furthestStep >= 6) {
 		files.push({
-			filename: 'app/models/comment.rb',
+			filename: 'app/models/review.rb',
 			language: 'ruby',
-			code: `class Comment < ApplicationRecord
-  belongs_to :post, touch: true
+			code: `class Review < ApplicationRecord
+  belongs_to :product, touch: true
   belongs_to :user
 
   validates :body, presence: true
 
-  # touch: true updates post.updated_at when a
+  # touch: true updates product.updated_at when a
   # comment is created, updated, or destroyed.
   # Cache keys that include updated_at are
   # automatically invalidated.
@@ -824,13 +824,13 @@ end`,
 			code: contractCode,
 		});
 		files.push({
-			filename: 'app/controllers/api/v1/posts_controller.rb',
+			filename: 'app/controllers/api/v1/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::PostsController < ApplicationController
+			code: `class Api::V1::ProductsController < ApplicationController
   def trending
-    result = TrendingPosts.call
+    result = TrendingProducts.call
     if result.posts.any?
-      render json: PostSerializer.new(result.posts)
+      render json: ProductSerializer.new(result.posts)
     else
       render json: { data: [] }
     end
@@ -1414,7 +1414,7 @@ export function Level30Caching({ onComplete }: LevelComponentProps) {
 										<Info className="w-4 h-4" />
 										<AlertDescription className="text-xs">
 											Click the{' '}
-											<span className="font-medium">TrendingPosts Service</span>{' '}
+											<span className="font-medium">TrendingProducts Service</span>{' '}
 											layer in the visualization to inspect its code.
 										</AlertDescription>
 									</Alert>
@@ -1485,7 +1485,7 @@ export function Level30Caching({ onComplete }: LevelComponentProps) {
 							{/* Header */}
 							<div className="px-6 pt-4 pb-2 flex items-center justify-between">
 								<div className="text-sm font-semibold text-foreground">
-									Cache Waterfall: GET /api/v1/posts/trending
+									Cache Waterfall: GET /api/v1/products/trending
 								</div>
 								{vizMode === 'falling' && (
 									<span className="text-xs font-mono font-bold tabular-nums text-destructive">
@@ -1729,7 +1729,7 @@ export function Level30Caching({ onComplete }: LevelComponentProps) {
 					files={getCodeFiles(phase, stepper.furthestStep)}
 					learningGoal={
 						phase === 'observe'
-							? 'TrendingPosts recomputes on every request. No cache store is configured. 200 req/min * 512ms = the database is drowning.'
+							? 'TrendingProducts recomputes on every request. No cache store is configured. 200 req/min * 512ms = the database is drowning.'
 							: 'Solid Cache stores results in the database. Rails.cache.fetch returns cached data on hit, computes and stores on miss. touch: true invalidates stale data.'
 					}
 				>

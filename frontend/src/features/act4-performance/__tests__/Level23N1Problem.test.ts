@@ -68,12 +68,12 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-posts-5',
 		label: 'GET /posts (5 posts)',
-		command: 'GET /api/v1/posts (5 posts in DB)',
+		command: 'GET /api/v1/products (5 posts in DB)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'green' },
 			{ text: '', color: 'muted' },
 			{ text: 'SQL queries executed: 6', color: 'yellow' },
-			{ text: '  SELECT * FROM posts              (1 query)', color: 'muted' },
+			{ text: '  SELECT * FROM products              (1 query)', color: 'muted' },
 			{ text: '  SELECT * FROM users WHERE id = 1 (+1)', color: 'red' },
 			{ text: '  SELECT * FROM users WHERE id = 2 (+1)', color: 'red' },
 			{ text: '  SELECT * FROM users WHERE id = 3 (+1)', color: 'red' },
@@ -84,19 +84,19 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-posts-100',
 		label: 'GET /posts (100 posts)',
-		command: 'GET /api/v1/posts (100 posts in DB)',
+		command: 'GET /api/v1/products (100 posts in DB)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK (850ms)', color: 'yellow' },
 			{ text: '', color: 'muted' },
 			{ text: 'SQL queries executed: 101', color: 'red' },
 			{
-				text: '  SELECT * FROM posts                (1 query)',
+				text: '  SELECT * FROM products                (1 query)',
 				color: 'muted',
 			},
 			{ text: '  SELECT * FROM users WHERE id = ... (x100)', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: '101 queries, 850ms. Each post.user call fires a query.',
+				text: '101 queries, 850ms. Each product.user call fires a query.',
 				color: 'red',
 			},
 		],
@@ -104,7 +104,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-posts-1000',
 		label: 'GET /posts (1000 posts)',
-		command: 'GET /api/v1/posts (1000 posts in DB)',
+		command: 'GET /api/v1/products (1000 posts in DB)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK (4873ms)', color: 'red' },
 			{ text: '', color: 'muted' },
@@ -155,7 +155,7 @@ const addProsopiteCommands: TerminalCommand[] = [
 		command: 'bundle add prosopite',
 		correct: false,
 		feedback:
-			'Prosopite needs pg_query for SQL fingerprinting on PostgreSQL. Without it, Prosopite cannot group similar queries to detect N+1 patterns.',
+			'Prosopite needs pg_query for SQL fingerprinting on ProductgreSQL. Without it, Prosopite cannot group similar queries to detect N+1 patterns.',
 	},
 	{
 		id: 'correct',
@@ -201,12 +201,12 @@ const STRICT_LOADING_OPTIONS: StepOption[] = [
 	{
 		id: 'correct',
 		label:
-			'# app/models/post.rb\nclass Post < ApplicationRecord\n  self.strict_loading_by_default = true\nend',
+			'# app/models/product.rb\nclass Product < ApplicationRecord\n  self.strict_loading_by_default = true\nend',
 		correct: true,
 	},
 	{
 		id: 'wrong-scope',
-		label: '# app/models/post.rb\nscope :safe, -> { strict_loading }',
+		label: '# app/models/product.rb\nscope :safe, -> { strict_loading }',
 		correct: false,
 		feedback:
 			'A scope only applies when explicitly used. Developers will forget to chain it. The default should enforce it.',
@@ -225,7 +225,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		description:
 			'Service loads posts without eager loading, serializer accesses .user',
 		method: 'GET',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'PostList.call',
 		expectedResult: 'blocked',
 	},
@@ -234,7 +234,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'PostList (with includes)',
 		description: 'Service loads posts with eager-loaded users',
 		method: 'GET',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'PostList.call',
 		expectedResult: 'allowed',
 	},
@@ -244,7 +244,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		description:
 			'Service loads posts, serializer counts comments without counter cache',
 		method: 'GET',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'PostList.call',
 		expectedResult: 'blocked',
 	},
@@ -262,7 +262,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'policy_scope + preload',
 		description: 'Scoped query with preloaded associations',
 		method: 'GET',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'scope + preload',
 		expectedResult: 'allowed',
 	},
@@ -537,7 +537,7 @@ describe('Level 23: N+1 Problem', () => {
 		});
 
 		test('service pattern (PostList) referenced in both probes and stress scenarios', () => {
-			// Probes reference the PostList service path
+			// Probes reference the ProductList service path
 			const probeRefsService = PROBES.some(
 				(p) =>
 					p.command.includes('posts') || p.label.includes('posts'),

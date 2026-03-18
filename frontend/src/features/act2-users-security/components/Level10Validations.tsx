@@ -82,7 +82,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'empty-post',
 		label: 'POST empty record',
-		command: 'POST /api/v1/posts (title: "", body: "")',
+		command: 'POST /api/v1/products (title: "", body: "")',
 		responseLines: [
 			{ text: 'HTTP/1.1 201 Created', color: 'red' },
 			{ text: '', color: 'muted' },
@@ -172,7 +172,7 @@ const PROBE_DATA_CARD: Record<string, string> = {
 // Observe phase: 3 zones (Input, Model Gate, Database)
 const OBSERVE_FLOW: Record<string, string[]> = {
 	'empty-post': [
-		'POST /api/v1/posts from client',
+		'POST /api/v1/products from client',
 		'No validations, passes through',
 		'Empty record saved! 201',
 	],
@@ -191,7 +191,7 @@ const OBSERVE_FLOW: Record<string, string[]> = {
 // Reward phase: 3 zones (Input, Validation Gate, Result)
 const REWARD_FLOW: Record<string, string[]> = {
 	'valid-post': ['Valid post: title + body', 'validates :title, :body pass', 'Saved! 201 Created'],
-	'empty-title': ['Post with blank title', 'validates :title FAILS', 'Rejected! 422'],
+	'empty-title': ['Product with blank name', 'validates :name FAILS', 'Rejected! 422'],
 	'valid-user': ['User with valid email', 'validates :email passes', 'Saved! 201 Created'],
 	'duplicate-email': ['Duplicate email signup', 'uniqueness check FAILS', 'Rejected! 422'],
 	'bad-email-format': ['User with "not-an-email"', 'format check FAILS', 'Rejected! 422'],
@@ -208,17 +208,17 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		description:
 			'The controller receives the request, builds a new record, and calls save. It trusts whatever data comes in.',
 		code: `def create
-  post = Post.new(post_params)
-  post.save  # Always succeeds, no checks!
+  post = Product.new(product_params)
+  product.save  # Always succeeds, no checks!
   render json: post, status: :created
 end`,
 	},
 	model: {
 		stageId: 'model',
-		title: 'Post Model (No Validations)',
+		title: 'Product Model (No Validations)',
 		description:
 			'The model has no validations. Any data passes straight through to the database. Empty strings, duplicates, malformed values all get saved.',
-		code: `class Post < ApplicationRecord
+		code: `class Product < ApplicationRecord
   # No validations!
   # Anything gets saved.
 end`,
@@ -246,16 +246,16 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Valid post with title and body',
 		description: 'A complete post with all required fields',
 		method: 'POST',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'authenticated user',
 		expectedResult: 'allowed',
 	},
 	{
 		id: 'empty-title',
-		label: 'Post with blank title',
+		label: 'Product with blank name',
 		description: 'Missing required title field',
 		method: 'POST',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'authenticated user',
 		expectedResult: 'blocked',
 	},
@@ -403,16 +403,16 @@ const testCommands: TerminalCommand[] = [
 	},
 	{
 		id: 'save-bang',
-		label: 'post.save!',
-		command: 'post.save!',
+		label: 'product.save!',
+		command: 'product.save!',
 		correct: false,
 		feedback:
 			'Bang methods raise exceptions on failure. You want to inspect the errors, not crash.',
 	},
 	{
 		id: 'full-messages',
-		label: 'post.errors.full_messages',
-		command: 'post.errors.full_messages',
+		label: 'product.errors.full_messages',
+		command: 'product.errors.full_messages',
 		correct: true,
 	},
 ];
@@ -468,9 +468,9 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 	// Observe phase: show the unvalidated model
 	if (phase === 'observe') {
 		files.push({
-			filename: 'app/models/post.rb',
+			filename: 'app/models/product.rb',
 			language: 'ruby',
-			code: `class Post < ApplicationRecord
+			code: `class Product < ApplicationRecord
   # No validations!
   # Any data gets saved, even blanks and duplicates.
 end`,
@@ -510,12 +510,12 @@ end`,
 	}
 
 	files.push({
-		filename: 'app/models/post.rb',
+		filename: 'app/models/product.rb',
 		language: 'ruby',
 		code:
 			postValidations.length > 0
-				? `class Post < ApplicationRecord\n${postValidations.join('\n')}\nend`
-				: `class Post < ApplicationRecord\n  # No validations yet.\nend`,
+				? `class Product < ApplicationRecord\n${postValidations.join('\n')}\nend`
+				: `class Product < ApplicationRecord\n  # No validations yet.\nend`,
 		highlight:
 			postValidations.length > 0
 				? postValidations.map((_, i) => i + 2)
@@ -537,16 +537,16 @@ end`,
 	// After all steps: show controller error response pattern
 	if (furthestStep >= 4) {
 		files.push({
-			filename: 'app/controllers/api/v1/posts_controller.rb',
+			filename: 'app/controllers/api/v1/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::PostsController < ApplicationController
+			code: `class Api::V1::ProductsController < ApplicationController
   def create
-    post = Post.new(post_params)
+    product = Product.new(product_params)
 
-    if post.save
-      render json: PostSerializer.new(post), status: :created
+    if product.save
+      render json: ProductSerializer.new(product), status: :created
     else
-      render json: { errors: post.errors.full_messages },
+      render json: { errors: product.errors.full_messages },
              status: :unprocessable_entity
     end
   end
@@ -895,7 +895,7 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 									onClick={() => handleStageClick('model')}
 								>
 									<div className="font-mono text-xs text-muted-foreground">
-										class Post &lt; ApplicationRecord
+										class Product &lt; ApplicationRecord
 									</div>
 									<div
 										className={`text-sm font-medium mt-1.5 ${
@@ -1078,7 +1078,7 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 										completed={isViewingCompletedStep}
 										description={
 											<p className="text-sm text-muted-foreground">
-												You have a post with no title and no body. The record
+												You have a product with no title and no body. The record
 												fails validation. How do you inspect the error
 												messages that explain what went wrong?
 											</p>
@@ -1193,7 +1193,7 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 									}`}
 								>
 									<div className="font-mono text-xs text-muted-foreground mb-2">
-										class Post / User &lt;
+										class Product / User &lt;
 										ApplicationRecord
 									</div>
 									<div className="space-y-0.5 font-mono text-xs text-success">

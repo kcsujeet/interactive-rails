@@ -82,7 +82,7 @@ type Phase = 'observe' | 'build' | 'activate' | 'reward';
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{ id: 'credits-no-boost', label: 'Credits deducted but post never boosted' },
-	{ id: 'orphan-boost', label: 'Post boosted without audit trail' },
+	{ id: 'orphan-boost', label: 'Product boosted without audit trail' },
 ];
 
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
@@ -137,7 +137,7 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 			{
-				text: 'Post boosted but no audit trail!',
+				text: 'Product boosted but no audit trail!',
 				color: 'red',
 			},
 			{
@@ -271,9 +271,9 @@ const SERVICE_OPTIONS = [
 		label: `class BoostPost < ApplicationService
   Result = Data.define(:success?, :boost, :errors)
 
-  def initialize(user_id:, post_id:, cost:)
+  def initialize(user_id:, product_id:, cost:)
     @user_id = user_id
-    @post_id = post_id
+    @product_id = product_id
     @cost = cost
   end
 
@@ -282,10 +282,10 @@ const SERVICE_OPTIONS = [
       user = User.find(@user_id)
       user.credits -= @cost
       user.save!
-      boost = Boost.create!(user:, post_id: @post_id,
+      boost = Boost.create!(user:, product_id: @product_id,
         reach: 5000)
       CreditLog.create!(user:, amount: -@cost,
-        reason: "boost_post_#{@post_id}")
+        reason: "boost_post_#{@product_id}")
       Result.new(success?: true, boost:, errors: [])
     end
   rescue ActiveRecord::RecordInvalid => e
@@ -302,16 +302,16 @@ end`,
 		label: `class BoostPost < ApplicationService
   Result = Data.define(:success?, :boost, :errors)
 
-  def initialize(user_id:, post_id:, cost:)
+  def initialize(user_id:, product_id:, cost:)
     @user_id = user_id
-    @post_id = post_id
+    @product_id = product_id
     @cost = cost
   end
 
   def call
     v = BoostContract.new.call(
       user_id: @user_id,
-      post_id: @post_id, cost: @cost)
+      product_id: @product_id, cost: @cost)
     return Result.new(success?: false,
       boost: nil, errors: v.errors.to_h) if v.failure?
 
@@ -320,10 +320,10 @@ end`,
       raise ActiveRecord::Rollback if user.credits < @cost
       user.credits -= @cost
       user.save!
-      boost = Boost.create!(user:, post_id: @post_id,
+      boost = Boost.create!(user:, product_id: @product_id,
         reach: 5000)
       CreditLog.create!(user:, amount: -@cost,
-        reason: "boost_post_#{@post_id}")
+        reason: "boost_post_#{@product_id}")
       Result.new(success?: true, boost:, errors: [])
     end || Result.new(success?: false, boost: nil,
       errors: ["Insufficient credits"])
@@ -380,7 +380,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'valid-boost',
 		label: 'POST boost (50 credits, valid)',
-		description: 'Boost a post with sufficient credits',
+		description: 'Boost a product with sufficient credits',
 		method: 'POST',
 		path: '/api/v1/boosts',
 		actor: 'authenticated user',
@@ -588,7 +588,7 @@ function DatabaseSnapshot({
 			name: 'boosts',
 			headerClass:
 				'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300',
-			columns: ['id', 'user_id', 'post_id', 'reach'],
+			columns: ['id', 'user_id', 'product_id', 'reach'],
 			rows: dbState.boostRow
 				? [
 						{
@@ -787,16 +787,16 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 				code: `class BoostPost < ApplicationService
   Result = Data.define(:success?, :boost, :errors)
 
-  def initialize(user_id:, post_id:, cost:)
+  def initialize(user_id:, product_id:, cost:)
     @user_id = user_id
-    @post_id = post_id
+    @product_id = product_id
     @cost = cost
   end
 
   def call
     v = BoostContract.new.call(
       user_id: @user_id,
-      post_id: @post_id, cost: @cost)
+      product_id: @product_id, cost: @cost)
     return Result.new(success?: false,
       boost: nil, errors: v.errors.to_h) if v.failure?
 
@@ -804,11 +804,11 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
     user.credits -= @cost
     user.save!
     # Step 1 committed. If step 2 fails...
-    boost = Boost.create!(user:, post_id: @post_id,
+    boost = Boost.create!(user:, product_id: @product_id,
       reach: 5000)
     # Step 2 committed. If step 3 fails...
     CreditLog.create!(user:, amount: -@cost,
-      reason: "boost_post_#{@post_id}")
+      reason: "boost_post_#{@product_id}")
     Result.new(success?: true, boost:, errors: [])
   end
 end`,
@@ -852,9 +852,9 @@ CreditLog.create!(...)  # Might fail`,
 					code: `ActiveRecord::Base.transaction do
   user.credits -= cost
   user.save!
-  Boost.create!(user:, post_id:, reach: 5000)
+  Boost.create!(user:, product_id:, reach: 5000)
   CreditLog.create!(user:, amount: -cost,
-    reason: "boost_post_#{post_id}")
+    reason: "boost_post_#{product_id}")
 end
 # If any operation raises, ALL are rolled back.
 # But what about business rule failures?`,
@@ -874,9 +874,9 @@ end
     raise ActiveRecord::Rollback,
       "Insufficient credits"
   end
-  Boost.create!(user:, post_id:, reach: 5000)
+  Boost.create!(user:, product_id:, reach: 5000)
   CreditLog.create!(user:, amount: -cost,
-    reason: "boost_post_#{post_id}")
+    reason: "boost_post_#{product_id}")
 end
 # raise ActiveRecord::Rollback silently aborts
 # the transaction without propagating the error.`,
@@ -894,7 +894,7 @@ end
 			code: `class BoostContract < Dry::Validation::Contract
   params do
     required(:user_id).filled(:integer)
-    required(:post_id).filled(:integer)
+    required(:product_id).filled(:integer)
     required(:cost).filled(:integer, gt?: 0)
   end
 end`,
@@ -905,16 +905,16 @@ end`,
 			code: `class BoostPost < ApplicationService
   Result = Data.define(:success?, :boost, :errors)
 
-  def initialize(user_id:, post_id:, cost:)
+  def initialize(user_id:, product_id:, cost:)
     @user_id = user_id
-    @post_id = post_id
+    @product_id = product_id
     @cost = cost
   end
 
   def call
     v = BoostContract.new.call(
       user_id: @user_id,
-      post_id: @post_id, cost: @cost)
+      product_id: @product_id, cost: @cost)
     return Result.new(success?: false,
       boost: nil, errors: v.errors.to_h) if v.failure?
 
@@ -923,10 +923,10 @@ end`,
       raise ActiveRecord::Rollback if user.credits < @cost
       user.credits -= @cost
       user.save!
-      boost = Boost.create!(user:, post_id: @post_id,
+      boost = Boost.create!(user:, product_id: @product_id,
         reach: 5000)
       CreditLog.create!(user:, amount: -@cost,
-        reason: "boost_post_#{@post_id}")
+        reason: "boost_post_#{@product_id}")
       Result.new(success?: true, boost:, errors: [])
     end || Result.new(success?: false, boost: nil,
       errors: ["Insufficient credits"])
@@ -941,7 +941,7 @@ end`,
   def create
     result = BoostPost.call(
       user_id: Current.user.id,
-      post_id: boost_params[:post_id],
+      product_id: boost_params[:product_id],
       cost: boost_params[:cost])
     if result.success?
       render json: BoostSerializer.new(result.boost),
@@ -958,7 +958,7 @@ end`,
   private
 
   def boost_params
-    params.expect(boost: [:post_id, :cost])
+    params.expect(boost: [:product_id, :cost])
   end
 end`,
 		},
@@ -1140,7 +1140,7 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 
 				const t4 = setTimeout(() => {
 					setProblemCallout(
-						'Post boosted but no audit trail exists. Compliance requires every credit operation to be logged.',
+						'Product boosted but no audit trail exists. Compliance requires every credit operation to be logged.',
 					);
 					setVizAnimating(false);
 					const discoveries = PROBE_DISCOVERY_MAP[probeId] ?? [];

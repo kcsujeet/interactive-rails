@@ -622,9 +622,9 @@ export const levelChallenges: Record<string, LevelChallenge> = {
 		problem: `The code runs 101 queries to display 100 posts:
 
   # Current broken code:
-  @posts = Post.all
-  @posts.each do |post|
-    post.author.name  # ← Extra query for EACH post!
+  @products = Product.all
+  @products.each do |product|
+    product.user.name  # ← Extra query for EACH product!
   end`,
 		goal: 'Reduce the query count from 101 to 2. The database is being hammered - find a way to batch the queries.',
 		initialNodes: [
@@ -734,7 +734,7 @@ export const levelChallenges: Record<string, LevelChallenge> = {
 		problem: `Every visitor triggers the same expensive query:
 
   # Runs on EVERY request!
-  @posts = Post.includes(:author, :comments)
+  @products = Product.includes(:user, :reviews)
                .order(created_at: :desc)
                .limit(10)`,
 		goal: 'Stop the database from being hit on every single request. The same data is being fetched repeatedly.',

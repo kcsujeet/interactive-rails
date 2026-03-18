@@ -13,8 +13,8 @@
  *   Step 1: Define filter method pattern (return self for chaining)
  *   Step 2: Wire controller to query object (proper instantiation + chaining)
  * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Queries" button
- * Phase 4 (ADVANTAGE - reward): Clean consumers with PostQuery delegation
- *   (green borders), extracted PostQuery zone with filter methods, and
+ * Phase 4 (ADVANTAGE - reward): Clean consumers with ProductQuery delegation
+ *   (green borders), extracted ProductQuery zone with filter methods, and
  *   "Problems Solved" checklist closing the loop on intro's stated problems.
  *
  * Visualization approach: Type 2 static intro (refactoring concept).
@@ -66,7 +66,7 @@ const ADMIN_SECTIONS: AnnotatedSection[] = [
 		id: 'admin-core',
 		label: 'Core',
 		variant: 'core',
-		code: '@posts = Post.all',
+		code: '@posts = Product.all',
 	},
 	{
 		id: 'admin-published',
@@ -82,9 +82,9 @@ const ADMIN_SECTIONS: AnnotatedSection[] = [
 	},
 	{
 		id: 'admin-comments',
-		label: 'Duplicated: Comment Count',
+		label: 'Duplicated: Review Count',
 		variant: 'duplicated',
-		code: 'if params[:min_comments].present?\n  @posts = @posts.left_joins(:comments)\n    .group(:id)\n    .having("COUNT(comments.id) >= ?", ...)\nend',
+		code: 'if params[:min_comments].present?\n  @posts = @posts.left_joins(:reviews)\n    .group(:id)\n    .having("COUNT(comments.id) >= ?", ...)\nend',
 	},
 	{
 		id: 'admin-tag',
@@ -99,7 +99,7 @@ const API_SECTIONS: AnnotatedSection[] = [
 		id: 'api-core',
 		label: 'Core',
 		variant: 'core',
-		code: 'posts = Post.all',
+		code: 'posts = Product.all',
 	},
 	{
 		id: 'api-published',
@@ -126,7 +126,7 @@ const CSV_SECTIONS: AnnotatedSection[] = [
 		id: 'csv-core',
 		label: 'Core',
 		variant: 'core',
-		code: 'posts = Post.all',
+		code: 'posts = Product.all',
 	},
 	{
 		id: 'csv-published',
@@ -166,14 +166,14 @@ interface StepOption {
 const PATTERN_OPTIONS: StepOption[] = [
 	{
 		id: 'model-scope',
-		label: 'Add scopes to the Post model for each filter',
+		label: 'Add scopes to the Product model for each filter',
 		correct: false,
 		feedback:
 			'Scopes work for single-purpose filters, but 6+ composable filters with JOINs and GROUP BY would bloat the model. A dedicated object composes better for multi-filter scenarios.',
 	},
 	{
 		id: 'query-object',
-		label: 'Extract into a PostQuery PORO in app/queries/',
+		label: 'Extract into a ProductQuery PORO in app/queries/',
 		correct: true,
 	},
 	{
@@ -202,7 +202,7 @@ const FILTER_METHOD_OPTIONS: StepOption[] = [
 	},
 	{
 		id: 'return-new-query',
-		label: 'Each method returns a new PostQuery instance with a fresh scope',
+		label: 'Each method returns a new ProductQuery instance with a fresh scope',
 		correct: false,
 		feedback:
 			'Creating a new instance on every call loses the accumulated scope from previous filters. The chain would only reflect the last filter applied.',
@@ -224,21 +224,21 @@ const FILTER_METHOD_OPTIONS: StepOption[] = [
 const WIRE_OPTIONS: StepOption[] = [
 	{
 		id: 'pass-params-hash',
-		label: 'PostQuery.new(params).results',
+		label: 'ProductQuery.new(params).results',
 		correct: false,
 		feedback:
 			'Passing the entire params hash to the query object couples it to the controller. Background jobs and rake tasks do not have a params object.',
 	},
 	{
 		id: 'call-class-method',
-		label: 'PostQuery.filter(params[:published], params[:author_id])',
+		label: 'ProductQuery.filter(params[:published], params[:author_id])',
 		correct: false,
 		feedback:
 			'A single class method with positional arguments is not composable. Adding a new filter means changing the method signature everywhere it is called.',
 	},
 	{
 		id: 'chain-methods',
-		label: 'PostQuery.new.published(params[:published]).by_author(params[:author_id]).sorted.results',
+		label: 'ProductQuery.new.published(params[:published]).by_author(params[:author_id]).sorted.results',
 		correct: true,
 	},
 ];
@@ -266,7 +266,7 @@ const OPTION_STEP_CONFIG: Record<
 	2: {
 		title: 'Wire Controller to Query Object',
 		description:
-			'The PostQuery object is ready with chainable filter methods. How should the controller use it to replace the 60-line inline chain?',
+			'The ProductQuery object is ready with chainable filter methods. How should the controller use it to replace the 60-line inline chain?',
 		options: WIRE_OPTIONS,
 	},
 };
@@ -342,44 +342,44 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 
 	if (phase === 'intro') {
 		files.push({
-			filename: 'app/controllers/admin/posts_controller.rb',
+			filename: 'app/controllers/admin/products_controller.rb',
 			language: 'ruby',
 			code: `class Admin::PostsController < ApplicationController
   def index
-    @posts = Post.all
+    @products = Product.all
 
     if params[:published].present?
-      @posts = @posts.where.not(published_at: nil)
+      @products = @posts.where.not(published_at: nil)
     end
 
     if params[:author_id].present?
-      @posts = @posts.where(author_id: params[:author_id])
+      @products = @posts.where(author_id: params[:author_id])
     end
 
     if params[:since].present?
-      @posts = @posts.where("published_at >= ?", params[:since])
+      @products = @posts.where("published_at >= ?", params[:since])
     end
 
     if params[:min_comments].present?
-      @posts = @posts.left_joins(:comments)
+      @products = @posts.left_joins(:reviews)
         .group(:id)
         .having("COUNT(comments.id) >= ?",
                 params[:min_comments])
     end
 
     if params[:tag].present?
-      @posts = @posts.joins(:tags)
+      @products = @posts.joins(:tags)
         .where(tags: { name: params[:tag] })
     end
 
-    @posts = @posts.order(published_at: :desc)
+    @products = @posts.order(published_at: :desc)
 
     render json: @posts
   end
 end
 
 # Same logic copy-pasted in:
-# app/controllers/api/v1/posts_controller.rb
+# app/controllers/api/v1/products_controller.rb
 # app/jobs/csv_export_job.rb`,
 			highlight: [5, 6, 9, 10, 13, 14, 17, 18, 19, 20, 21, 24, 25, 26],
 		});
@@ -388,22 +388,22 @@ end
 
 	if (furthestStep === 0) {
 		files.push({
-			filename: 'app/controllers/admin/posts_controller.rb',
+			filename: 'app/controllers/admin/products_controller.rb',
 			language: 'ruby',
 			code: `class Admin::PostsController < ApplicationController
   def index
-    @posts = Post.all
+    @products = Product.all
 
     if params[:published].present?
-      @posts = @posts.where.not(published_at: nil)
+      @products = @posts.where.not(published_at: nil)
     end
 
     if params[:author_id].present?
-      @posts = @posts.where(author_id: params[:author_id])
+      @products = @posts.where(author_id: params[:author_id])
     end
 
     if params[:min_comments].present?
-      @posts = @posts.left_joins(:comments)
+      @products = @posts.left_joins(:reviews)
         .group(:id)
         .having("COUNT(comments.id) >= ?",
                 params[:min_comments])
@@ -421,11 +421,11 @@ end
 
 	if (furthestStep >= 1) {
 		files.push({
-			filename: 'app/queries/post_query.rb',
+			filename: 'app/queries/product_query.rb',
 			language: 'ruby',
 			code:
 				furthestStep >= 3
-					? `class PostQuery < ApplicationQuery
+					? `class ProductQuery < ApplicationQuery
   def published(flag)
     return self if flag.blank?
 
@@ -451,7 +451,7 @@ end
     return self if count.blank?
 
     @scope = @scope
-      .left_joins(:comments)
+      .left_joins(:reviews)
       .group(:id)
       .having("COUNT(comments.id) >= ?", count)
     self
@@ -473,11 +473,11 @@ end
   private
 
   def default_scope
-    Post.all
+    Product.all
   end
 end`
 					: furthestStep >= 2
-						? `class PostQuery < ApplicationQuery
+						? `class ProductQuery < ApplicationQuery
   def published(flag)
     return self if flag.blank?
 
@@ -498,17 +498,17 @@ end`
   private
 
   def default_scope
-    Post.all
+    Product.all
   end
 end`
-						: `class PostQuery < ApplicationQuery
+						: `class ProductQuery < ApplicationQuery
   # What pattern should each filter method follow?
   # How does chaining work?
 
   private
 
   def default_scope
-    Post.all
+    Product.all
   end
 end`,
 			highlight:
@@ -522,11 +522,11 @@ end`,
 
 	if (furthestStep >= 3) {
 		files.push({
-			filename: 'app/controllers/admin/posts_controller.rb',
+			filename: 'app/controllers/admin/products_controller.rb',
 			language: 'ruby',
 			code: `class Admin::PostsController < ApplicationController
   def index
-    posts = PostQuery.new
+    products = ProductQuery.new
       .published(params[:published])
       .by_author(params[:author_id])
       .since(params[:since])
@@ -540,11 +540,11 @@ end`,
 end
 
 # Reuse in API controller:
-# PostQuery.new(Post.where.not(published_at: nil))
+# ProductQuery.new(Product.where.not(published_at: nil))
 #   .by_tag(params[:tag]).sorted.results
 
 # Reuse in background job:
-# PostQuery.new.published(true).since(date).results`,
+# ProductQuery.new.published(true).since(date).results`,
 			highlight: [3, 4, 5, 6, 7, 8, 9, 10],
 		});
 	}
@@ -624,7 +624,7 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 							controller and CSV export job.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Extract the query logic into a composable PostQuery object
+							Extract the query logic into a composable ProductQuery object
 							so every consumer shares one source of truth.
 						</p>
 					</div>
@@ -798,7 +798,7 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 									))}
 								</div>
 								<p className="text-sm text-muted-foreground">
-									Your PostQuery object is ready. Every consumer now
+									Your ProductQuery object is ready. Every consumer now
 									delegates to one composable query object instead of
 									maintaining its own inline chain.
 								</p>
@@ -821,7 +821,7 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 								{/* Header */}
 								<div className="text-center">
 									<h3 className="text-lg font-semibold text-foreground">
-										The Fix: PostQuery Object
+										The Fix: ProductQuery Object
 									</h3>
 									<p className="text-xs text-muted-foreground mt-1">
 										One composable query object, three clean consumers
@@ -840,9 +840,9 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 												className="text-[10px] mb-1 border-success/50 text-success bg-success/10"
 												variant="outline"
 											>
-												Delegates to PostQuery
+												Delegates to ProductQuery
 											</Badge>
-											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">PostQuery.new{'\n'}  .published(params[:published]){'\n'}  .by_author(params[:author_id]){'\n'}  .sorted.results</pre>
+											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">ProductQuery.new{'\n'}  .published(params[:published]){'\n'}  .by_author(params[:author_id]){'\n'}  .sorted.results</pre>
 										</div>
 										<div className="mt-1 text-xs text-success font-medium px-3">
 											Clean (5 lines)
@@ -859,9 +859,9 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 												className="text-[10px] mb-1 border-success/50 text-success bg-success/10"
 												variant="outline"
 											>
-												Delegates to PostQuery
+												Delegates to ProductQuery
 											</Badge>
-											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">PostQuery.new{'\n'}  .by_tag(params[:tag]){'\n'}  .sorted.results</pre>
+											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">ProductQuery.new{'\n'}  .by_tag(params[:tag]){'\n'}  .sorted.results</pre>
 										</div>
 										<div className="mt-1 text-xs text-success font-medium px-3">
 											Clean (3 lines)
@@ -878,9 +878,9 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 												className="text-[10px] mb-1 border-success/50 text-success bg-success/10"
 												variant="outline"
 											>
-												Delegates to PostQuery
+												Delegates to ProductQuery
 											</Badge>
-											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">PostQuery.new{'\n'}  .published(true){'\n'}  .since(date).results</pre>
+											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">ProductQuery.new{'\n'}  .published(true){'\n'}  .since(date).results</pre>
 										</div>
 										<div className="mt-1 text-xs text-success font-medium px-3">
 											Clean (3 lines)
@@ -888,10 +888,10 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 									</div>
 								</div>
 
-								{/* PostQuery zone */}
+								{/* ProductQuery zone */}
 								<div className="w-full max-w-4xl border-2 border-success/30 bg-success/5 dark:bg-success/10 rounded-lg p-4">
 									<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 text-center">
-										app/queries/post_query.rb
+										app/queries/product_query.rb
 									</div>
 									<div className="grid grid-cols-3 gap-2">
 										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-2 py-1.5">
@@ -935,14 +935,14 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 											<p className="text-sm text-foreground">
 												<span className="font-medium">Change filter logic once, applies everywhere.</span>{' '}
 												<span className="text-muted-foreground">
-													Fix the date comparison in PostQuery, all three consumers get the fix automatically.
+													Fix the date comparison in ProductQuery, all three consumers get the fix automatically.
 												</span>
 											</p>
 										</div>
 										<div className="flex items-start gap-2">
 											<Check className="w-4 h-4 text-success mt-0.5 shrink-0" />
 											<p className="text-sm text-foreground">
-												<span className="font-medium">Add a new filter: one method in PostQuery.</span>{' '}
+												<span className="font-medium">Add a new filter: one method in ProductQuery.</span>{' '}
 												<span className="text-muted-foreground">
 													All consumers can chain it immediately. No copy-paste across controllers and jobs.
 												</span>
@@ -954,7 +954,7 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 												<span className="font-medium">Unit-testable in isolation.</span>{' '}
 												<span className="text-muted-foreground">
 													Test{' '}
-													<code className="text-xs bg-muted px-1 py-0.5 rounded">PostQuery</code>{' '}
+													<code className="text-xs bg-muted px-1 py-0.5 rounded">ProductQuery</code>{' '}
 													directly without controllers or HTTP requests.
 												</span>
 											</p>

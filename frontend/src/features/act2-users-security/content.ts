@@ -4,7 +4,7 @@
  *
  * Levels 9-15: Authentication, Validations, Callbacks & Normalizations,
  * Authorization, Testing, Strong Params, CORS
- * App context: Blog API (continued from Act 1)
+ * App context: E-commerce Product Catalog API (continued from Act 1)
  */
 
 import type { Act, Level } from '@/types';
@@ -35,12 +35,12 @@ const level9Authentication: Level = {
 				locked: true,
 			},
 			{
-				id: 'post-model',
+				id: 'product-model',
 				type: 'model',
 				x: 660,
 				y: 220,
 				locked: true,
-				config: { label: 'Post' },
+				config: { label: 'Product' },
 			},
 			{ id: 'database-node', type: 'database', x: 860, y: 220, locked: true },
 			{
@@ -59,8 +59,8 @@ const level9Authentication: Level = {
 				sourceNodeId: 'router-node',
 				targetNodeId: 'controller-node',
 			},
-			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
-			{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
+			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'product-model' },
+			{ id: 'c4', sourceNodeId: 'product-model', targetNodeId: 'database-node' },
 			{
 				id: 'c5',
 				sourceNodeId: 'controller-node',
@@ -75,12 +75,12 @@ const level9Authentication: Level = {
 	},
 	problem: {
 		observation:
-			'Every endpoint is wide open. GET /api/v1/posts, DELETE /api/v1/posts/1 -- anyone can do anything.',
+			'Every endpoint is wide open. GET /api/v1/products, DELETE /api/v1/products/1 -- anyone can do anything.',
 		rootCause: 'No authentication layer. No User model. No token verification.',
 		codeExample: `# Current state: ZERO authentication
 # Anyone can hit any endpoint:
-curl -X DELETE /api/v1/posts/1   # Deleted! No questions asked.
-curl -X POST /api/v1/posts       # Created! By who? Nobody knows.
+curl -X DELETE /api/v1/products/1   # Deleted! No questions asked.
+curl -X POST /api/v1/products       # Created! By who? Nobody knows.
 
 # Rails 8 ships an auth generator:
 bin/rails generate authentication
@@ -194,7 +194,7 @@ end
 # POST /sessions { email: "...", password: "..." }
 # => { "token": "abc123..." }
 #
-# GET /api/v1/posts -H "Authorization: Bearer abc123..."`,
+# GET /api/v1/products -H "Authorization: Bearer abc123..."`,
 		commonMistakes: [
 			'Using Devise when Rails 8 auth generator is sufficient',
 			'Storing plaintext passwords instead of using has_secure_password',
@@ -237,7 +237,7 @@ const level10Validations: Level = {
 	trigger: {
 		type: 'user_complaint',
 		description:
-			'Authentication is live, but users submit empty posts, duplicate emails, and garbage data. The database is filling up with invalid records. Reject bad data before it hits the DB.',
+			'Authentication is live, but users submit products with missing names, zero prices, and duplicate emails. The database is filling up with invalid records. Reject bad data before it hits the DB.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -252,12 +252,12 @@ const level10Validations: Level = {
 				locked: true,
 			},
 			{
-				id: 'post-model',
+				id: 'product-model',
 				type: 'model',
 				x: 880,
 				y: 220,
 				locked: true,
-				config: { label: 'Post' },
+				config: { label: 'Product' },
 			},
 			{ id: 'database-node', type: 'database', x: 1080, y: 220, locked: true },
 			{
@@ -277,8 +277,8 @@ const level10Validations: Level = {
 				sourceNodeId: 'router-node',
 				targetNodeId: 'controller-node',
 			},
-			{ id: 'c4', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
-			{ id: 'c5', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
+			{ id: 'c4', sourceNodeId: 'controller-node', targetNodeId: 'product-model' },
+			{ id: 'c5', sourceNodeId: 'product-model', targetNodeId: 'database-node' },
 			{
 				id: 'c6',
 				sourceNodeId: 'controller-node',
@@ -293,11 +293,11 @@ const level10Validations: Level = {
 	},
 	problem: {
 		observation:
-			'The database contains posts with blank titles, users with duplicate emails, and body text that is a single character. No data integrity.',
+			'The database contains products with blank names, users with duplicate emails, and prices set to zero or negative. No data integrity.',
 		rootCause:
 			'No model validations. Data flows straight through to the database without any checks.',
 		codeExample: `# Current state: NO validations
-class Post < ApplicationRecord
+class Product < ApplicationRecord
   # Nothing here. Accepts anything!
 end
 
@@ -307,11 +307,11 @@ class User < ApplicationRecord
 end
 
 # What gets through:
-Post.create(title: "", body: "")           # Saved! Empty post.
-Post.create(title: "a" * 1000, body: nil)  # Saved! Absurd title.
-User.create(email: "not-an-email")         # Saved! Invalid email.
-User.create(email: "joe@test.com")         # Saved!
-User.create(email: "joe@test.com")         # Saved again! Duplicate.
+Product.create(name: "", price: nil)        # Saved! No name, no price.
+Product.create(name: "a" * 1000, price: -5) # Saved! Absurd name, negative price.
+User.create(email: "not-an-email")          # Saved! Invalid email.
+User.create(email: "joe@test.com")          # Saved!
+User.create(email: "joe@test.com")          # Saved again! Duplicate.
 
 # The database is full of garbage.`,
 		goal: 'Add presence, uniqueness, and format validations to your models, then inspect error messages in the Rails console.',
@@ -343,14 +343,16 @@ User.create(email: "joe@test.com")         # Saved again! Duplicate.
 **Conditional validations:** \`if:\` and \`unless:\` options
 
 When validation fails, \`save\` returns \`false\` and errors are added to the model's \`errors\` collection.`,
-		railsCodeExample: `# app/models/post.rb
-class Post < ApplicationRecord
+		railsCodeExample: `# app/models/product.rb
+class Product < ApplicationRecord
   belongs_to :user
 
-  validates :title, presence: true,
-                    length: { minimum: 3, maximum: 255 }
-  validates :body, presence: true,
-                   length: { minimum: 10, message: "is too short (minimum 10 characters)" }
+  validates :name, presence: true,
+                   length: { minimum: 3, maximum: 255 }
+  validates :description, presence: true,
+                          length: { minimum: 10, message: "is too short (minimum 10 characters)" }
+  validates :price, presence: true,
+                    numericality: { greater_than: 0 }
 end
 
 # app/models/user.rb
@@ -365,11 +367,11 @@ end
 
 # In the controller, return validation errors as JSON:
 def create
-  post = current_user.posts.build(post_params)
-  if post.save
-    render json: PostSerializer.new(post).serializable_hash.to_json, status: :created
+  product = current_user.products.build(product_params)
+  if product.save
+    render json: ProductSerializer.new(product).serializable_hash.to_json, status: :created
   else
-    render json: { errors: post.errors.full_messages }, status: :unprocessable_entity
+    render json: { errors: product.errors.full_messages }, status: :unprocessable_entity
   end
 end
 
@@ -384,8 +386,8 @@ class NoProfanityValidator < ActiveModel::EachValidator
   end
 end
 
-class Post < ApplicationRecord
-  validates :title, no_profanity: true
+class Product < ApplicationRecord
+  validates :name, no_profanity: true
 end`,
 		commonMistakes: [
 			'Not returning validation errors in API responses (clients see 500 instead of 422)',
@@ -448,12 +450,12 @@ const level11Callbacks: Level = {
 				config: { label: 'User' },
 			},
 			{
-				id: 'post-model',
+				id: 'product-model',
 				type: 'model',
 				x: 900,
 				y: 360,
 				locked: true,
-				config: { label: 'Post' },
+				config: { label: 'Product' },
 			},
 			{ id: 'database-node', type: 'database', x: 1100, y: 250, locked: true },
 			{ id: 'response-node', type: 'response', x: 680, y: 450, locked: true },
@@ -467,9 +469,9 @@ const level11Callbacks: Level = {
 				targetNodeId: 'controller-node',
 			},
 			{ id: 'c4', sourceNodeId: 'controller-node', targetNodeId: 'user-model' },
-			{ id: 'c5', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
+			{ id: 'c5', sourceNodeId: 'controller-node', targetNodeId: 'product-model' },
 			{ id: 'c6', sourceNodeId: 'user-model', targetNodeId: 'database-node' },
-			{ id: 'c7', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
+			{ id: 'c7', sourceNodeId: 'product-model', targetNodeId: 'database-node' },
 		],
 	},
 	problem: {
@@ -553,20 +555,20 @@ class User < ApplicationRecord
   end
 end
 
-# app/models/post.rb
-class Post < ApplicationRecord
-  normalizes :title, with: -> (title) { title.strip }
+# app/models/product.rb
+class Product < ApplicationRecord
+  normalizes :name, with: -> (name) { name.strip }
 
-  before_save :set_published_at, if: :publishing?
+  before_save :set_listed_at, if: :listing?
 
   private
 
-  def publishing?
-    status_changed? && status == "published"
+  def listing?
+    status_changed? && status == "active"
   end
 
-  def set_published_at
-    self.published_at = Time.current
+  def set_listed_at
+    self.listed_at = Time.current
   end
 end
 
@@ -618,18 +620,18 @@ const level12Authorization: Level = {
 	trigger: {
 		type: 'security_incident',
 		description:
-			"Users can authenticate, data is validated, and emails are normalized. But User A can still edit User B's posts. Authentication tells us WHO is making the request, but nothing checks whether they are ALLOWED to do what they are asking.",
+			"Users can authenticate, data is validated, and emails are normalized. But User A can still edit User B's products. Authentication tells us WHO is making the request, but nothing checks whether they are ALLOWED to do what they are asking.",
 	},
 	problem: {
 		observation:
-			'User A logs in and sends DELETE /api/v1/posts/42 -- a post owned by User B. It succeeds. Any authenticated user can modify or destroy any post.',
+			'User A logs in and sends DELETE /api/v1/products/42 -- a product owned by User B. It succeeds. Any authenticated user can modify or destroy any product.',
 		rootCause:
 			'Authentication verifies identity but there is no authorization layer checking ownership or permissions.',
 		codeExample: `# Current state: no authorization
-class Api::V1::PostsController < ApplicationController
+class Api::V1::ProductsController < ApplicationController
   def destroy
-    post = Post.find(params[:id])
-    post.destroy  # Any user can delete ANY post!
+    product = Product.find(params[:id])
+    product.destroy  # Any user can delete ANY product!
     head :no_content
   end
 end
@@ -639,11 +641,11 @@ end
 #
 # Rails ships authentication (Level 9) but NOT authorization.
 # The community standard is Pundit (gem "pundit").
-# Pundit gives each model a policy class (PostPolicy),
+# Pundit gives each model a policy class (ProductPolicy),
 # where each method maps to a controller action:
-#   destroy? -> "Can this user delete this post?"
-#   update?  -> "Can this user edit this post?"`,
-		goal: 'Install Pundit, include its module in ApplicationController, generate the base policy, then build a PostPolicy and watch it filter requests in real-time.',
+#   destroy? -> "Can this user delete this product?"
+#   update?  -> "Can this user edit this product?"`,
+		goal: 'Install Pundit, include its module in ApplicationController, generate the base policy, then build a ProductPolicy and watch it filter requests in real-time.',
 		thresholds: {},
 	},
 	learningContent: {
@@ -652,8 +654,8 @@ end
 		conceptExplanation: `Authorization answers "Can this user do this action on this resource?"
 
 **Pundit** provides a clean, policy-based pattern:
-- One policy class per model, named by convention: \`Post\` -> \`PostPolicy\`, \`Comment\` -> \`CommentPolicy\`
-- When you call \`authorize post\`, Pundit infers \`PostPolicy\` from the record's class and calls the method matching the current action (e.g. \`destroy?\`)
+- One policy class per model, named by convention: \`Product\` -> \`ProductPolicy\`, \`Review\` -> \`ReviewPolicy\`
+- When you call \`authorize product\`, Pundit infers \`ProductPolicy\` from the record's class and calls the method matching the current action (e.g. \`destroy?\`)
 - Each method corresponds to a controller action (\`update?\`, \`destroy?\`)
 - Policies are plain Ruby objects, easy to test
 - Scopes filter collections based on user permissions
@@ -666,10 +668,10 @@ end
 **Authentication vs Authorization:**
 - Authentication: "Who are you?" (Level 9)
 - Authorization: "Are you allowed to do this?" (This level)`,
-		railsCodeExample: `# app/policies/post_policy.rb
-class PostPolicy < ApplicationPolicy
+		railsCodeExample: `# app/policies/product_policy.rb
+class ProductPolicy < ApplicationPolicy
   def show?
-    true  # Anyone can view published posts
+    true  # Anyone can view active products
   end
 
   def create?
@@ -695,7 +697,7 @@ class PostPolicy < ApplicationPolicy
       if user.admin?
         scope.all
       else
-        scope.where(published: true)
+        scope.where(status: "active")
       end
     end
   end
@@ -724,29 +726,29 @@ module ApiAuthentication
   end
 end
 
-# app/controllers/api/v1/posts_controller.rb
-class Api::V1::PostsController < ApplicationController
+# app/controllers/api/v1/products_controller.rb
+class Api::V1::ProductsController < ApplicationController
   include Pundit::Authorization
 
   def index
-    posts = policy_scope(Post)
-    render json: PostSerializer.new(posts).serializable_hash.to_json
+    products = policy_scope(Product)
+    render json: ProductSerializer.new(products).serializable_hash.to_json
   end
 
   def update
-    post = Post.find(params[:id])
-    authorize post  # Raises Pundit::NotAuthorizedError if denied
-    if post.update(post_params)
-      render json: PostSerializer.new(post).serializable_hash.to_json
+    product = Product.find(params[:id])
+    authorize product  # Raises Pundit::NotAuthorizedError if denied
+    if product.update(product_params)
+      render json: ProductSerializer.new(product).serializable_hash.to_json
     else
-      render json: { errors: post.errors.full_messages }, status: :unprocessable_entity
+      render json: { errors: product.errors.full_messages }, status: :unprocessable_entity
     end
   end
 
   def destroy
-    post = Post.find(params[:id])
-    authorize post
-    post.destroy
+    product = Product.find(params[:id])
+    authorize product
+    product.destroy
     head :no_content
   end
 end
@@ -781,7 +783,7 @@ end`,
 	},
 	hint: {
 		delay: 25,
-		text: 'Pundit policy classes are named after the model (PostPolicy for Post). Each method matches a controller action.',
+		text: 'Pundit policy classes are named after the model (ProductPolicy for Product). Each method matches a controller action.',
 	},
 };
 
@@ -814,12 +816,12 @@ const level13Testing: Level = {
 			},
 			{ id: 'policy-node', type: 'policy', x: 680, y: 80, locked: true },
 			{
-				id: 'post-model',
+				id: 'product-model',
 				type: 'model',
 				x: 900,
 				y: 220,
 				locked: true,
-				config: { label: 'Post' },
+				config: { label: 'Product' },
 			},
 			{ id: 'database-node', type: 'database', x: 1100, y: 220, locked: true },
 			{
@@ -844,8 +846,8 @@ const level13Testing: Level = {
 				sourceNodeId: 'controller-node',
 				targetNodeId: 'policy-node',
 			},
-			{ id: 'c5', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
-			{ id: 'c6', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
+			{ id: 'c5', sourceNodeId: 'controller-node', targetNodeId: 'product-model' },
+			{ id: 'c6', sourceNodeId: 'product-model', targetNodeId: 'database-node' },
 			{
 				id: 'c7',
 				sourceNodeId: 'controller-node',
@@ -939,13 +941,14 @@ FactoryBot.define do
   end
 end
 
-# spec/factories/posts.rb
+# spec/factories/products.rb
 FactoryBot.define do
-  factory :post do
+  factory :product do
     user
-    title { Faker::Lorem.sentence }
-    body { Faker::Lorem.paragraphs(number: 3).join("\\n\\n") }
-    status { "published" }
+    name { Faker::Commerce.product_name }
+    description { Faker::Lorem.paragraphs(number: 3).join("\\n\\n") }
+    price { Faker::Commerce.price(range: 10..500.0) }
+    status { "active" }
 
     trait :draft do
       status { "draft" }
@@ -953,51 +956,51 @@ FactoryBot.define do
   end
 end
 
-# spec/requests/api/v1/posts_spec.rb
-RSpec.describe "Posts API", type: :request do
+# spec/requests/api/v1/products_spec.rb
+RSpec.describe "Products API", type: :request do
   let(:user) { create(:user) }
   let(:token) { user.sessions.create!.token }
   let(:headers) { { "Authorization" => "Bearer #{token}" } }
 
-  describe "GET /api/v1/posts" do
-    it "returns published posts" do
-      create_list(:post, 3, user: user)
-      create(:post, :draft, user: user)
+  describe "GET /api/v1/products" do
+    it "returns active products" do
+      create_list(:product, 3, user: user)
+      create(:product, :draft, user: user)
 
-      get "/api/v1/posts", headers: headers
+      get "/api/v1/products", headers: headers
       expect(response).to have_http_status(:ok)
       expect(json_response.length).to eq(3)
     end
   end
 
-  describe "POST /api/v1/posts" do
-    it "creates a post with valid params" do
-      post "/api/v1/posts",
-           params: { post: { title: "Hello", body: "World content here" } },
+  describe "POST /api/v1/products" do
+    it "creates a product with valid params" do
+      post "/api/v1/products",
+           params: { product: { name: "Laptop", description: "16-inch display", price: 999.99 } },
            headers: headers
       expect(response).to have_http_status(:created)
-      expect(json_response["title"]).to eq("Hello")
+      expect(json_response["name"]).to eq("Laptop")
     end
 
     it "returns 422 with invalid params" do
-      post "/api/v1/posts",
-           params: { post: { title: "", body: "" } },
+      post "/api/v1/products",
+           params: { product: { name: "", price: -1 } },
            headers: headers
       expect(response).to have_http_status(:unprocessable_entity)
-      expect(json_response["errors"]).to include("Title can't be blank")
+      expect(json_response["errors"]).to include("Name can't be blank")
     end
 
     it "returns 401 without authentication" do
-      post "/api/v1/posts", params: { post: { title: "Hello", body: "World" } }
+      post "/api/v1/products", params: { product: { name: "Laptop", price: 999 } }
       expect(response).to have_http_status(:unauthorized)
     end
   end
 
-  describe "PATCH /api/v1/posts/:id" do
-    it "forbids updating another user's post" do
-      other_post = create(:post)  # belongs to another user
-      patch "/api/v1/posts/#{other_post.id}",
-            params: { post: { title: "Hacked" } },
+  describe "PATCH /api/v1/products/:id" do
+    it "forbids updating another user's product" do
+      other_product = create(:product)  # belongs to another user
+      patch "/api/v1/products/#{other_product.id}",
+            params: { product: { name: "Hacked" } },
             headers: headers
       expect(response).to have_http_status(:forbidden)
     end
@@ -1060,30 +1063,31 @@ const level14StrongParams: Level = {
 	},
 	problem: {
 		observation:
-			'POST /api/v1/posts accepts ANY field in the request body. A user can set user_id to impersonate another author or set admin: true to escalate privileges. There is no parameter filtering.',
+			'POST /api/v1/products accepts ANY field in the request body. A user can set user_id to impersonate another seller or set admin: true to escalate privileges. There is no parameter filtering.',
 		rootCause:
-			'The controller reads params directly (params[:title], params[:user_id]) and passes them to the model. Every key the attacker includes in the request body gets saved to the database.',
+			'The controller reads params directly (params[:name], params[:user_id]) and passes them to the model. Every key the attacker includes in the request body gets saved to the database.',
 		codeExample: `# Current state: NO parameter filtering
-class Api::V1::PostsController < ApplicationController
+class Api::V1::ProductsController < ApplicationController
   def create
-    post = Post.create!(
-      title: params[:title],
-      body: params[:body],
+    product = Product.create!(
+      name: params[:name],
+      description: params[:description],
+      price: params[:price],
       user_id: params[:user_id],  # Attacker-controlled!
       admin: params[:admin]        # Attacker-controlled!
     )
-    render json: post, status: :created
+    render json: product, status: :created
   end
 end
 
 # What gets through:
-# POST /api/v1/posts
-# { "title": "Hello", "user_id": 42, "admin": true }
+# POST /api/v1/products
+# { "name": "Laptop", "user_id": 42, "admin": true }
 # => user_id set to 42, admin flag set to true!
 #
 # Rails 8 provides params.expect() to filter parameters.
 # It declares which keys are allowed through a whitelist.`,
-		goal: 'Add params.expect to filter incoming parameters, define a safe whitelist of allowed fields, and set post ownership through the current_user association.',
+		goal: 'Add params.expect to filter incoming parameters, define a safe whitelist of allowed fields, and set product ownership through the current_user association.',
 		thresholds: {},
 	},
 	learningContent: {
@@ -1099,56 +1103,57 @@ end
 **Rails 8 \`params.expect()\`:**
 - Declares which keys are allowed through a whitelist
 - Returns only the permitted params, silently dropping everything else
-- Raises an error if the required root key is missing (e.g., \`post:\`)
-- Replaces the older \`params.require(:post).permit(:title, :body)\` pattern
+- Raises an error if the required root key is missing (e.g., \`product:\`)
+- Replaces the older \`params.require(:product).permit(:name, :description, :price)\` pattern
 
 **Building a safe whitelist:**
-- Only include fields the user is meant to edit (title, body)
+- Only include fields the user is meant to edit (name, description, price)
 - Never include ownership fields (user_id), role fields (admin), or internal state
-- Use \`current_user.posts.create!\` to set ownership, not user-submitted params
+- Use \`current_user.products.create!\` to set ownership, not user-submitted params
 
 **Nested params and arrays:**
-- \`params.expect(post: [:title, :body, { tags: [] }])\` allows arrays
-- \`params.expect(post: [:title, { comments_attributes: [:body] }])\` allows nested
+- \`params.expect(product: [:name, :description, :price, { tags: [] }])\` allows arrays
+- \`params.expect(product: [:name, { variants_attributes: [:size, :color] }])\` allows nested
 - Each nesting level needs its own whitelist audit`,
 		railsCodeExample: `# BEFORE: no filtering (vulnerable)
-class Api::V1::PostsController < ApplicationController
+class Api::V1::ProductsController < ApplicationController
   def create
-    post = Post.create!(
-      title: params[:title],
-      body: params[:body],
+    product = Product.create!(
+      name: params[:name],
+      description: params[:description],
+      price: params[:price],
       user_id: params[:user_id]  # attacker sets this!
     )
-    render json: post, status: :created
+    render json: product, status: :created
   end
 end
 
 # AFTER: params.expect + current_user (secure)
-class Api::V1::PostsController < ApplicationController
+class Api::V1::ProductsController < ApplicationController
   def create
-    post = current_user.posts.create!(post_params)
-    render json: post, status: :created
+    product = current_user.products.create!(product_params)
+    render json: product, status: :created
   end
 
   def update
-    post = current_user.posts.find(params[:id])
-    post.update!(post_params)
-    render json: post
+    product = current_user.products.find(params[:id])
+    product.update!(product_params)
+    render json: product
   end
 
   private
 
   # Rails 8: params.expect
-  def post_params
-    params.expect(post: [:title, :body])
+  def product_params
+    params.expect(product: [:name, :description, :price])
   end
-  # Missing :post key -> 400 Bad Request (automatic)
+  # Missing :product key -> 400 Bad Request (automatic)
   # Extra params like user_id, admin -> silently ignored
 end
 
 # Compared to the older pattern:
-# def post_params
-#   params.require(:post).permit(:title, :body)
+# def product_params
+#   params.require(:product).permit(:name, :description, :price)
 # end
 # ^ Raises 500 on missing params unless you add rescue_from`,
 		commonMistakes: [
@@ -1196,7 +1201,7 @@ const level15CORS: Level = {
 		rootCause:
 			'curl sends requests directly, so CORS never mattered until now. Browsers enforce the Same-Origin Policy, blocking requests between different origins (ports count). The API must explicitly allow the frontend origin with CORS headers.',
 		codeExample: `# Browser console:
-# "Access to XMLHttpRequest at 'http://localhost:3000/api/v1/posts'
+# "Access to XMLHttpRequest at 'http://localhost:3000/api/v1/products'
 #  from origin 'http://localhost:3001' has been blocked by CORS policy"
 
 # The React frontend runs on port 3001

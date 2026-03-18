@@ -336,15 +336,15 @@ access an association on each record (N queries).
   `,
   railsCodeExample: `
 # Bad - N+1 queries
-posts = Post.all
-posts.each do |post|
-  puts post.author.name  # Query for EACH post!
+products = Product.all
+products.each do |product|
+  puts product.user.name  # Query for EACH product!
 end
 
 # Good - Eager loading
-posts = Post.includes(:author).all
-posts.each do |post|
-  puts post.author.name  # No additional queries
+products = Product.includes(:user).all
+products.each do |product|
+  puts product.user.name  # No additional queries
 end
   `,
 };
@@ -448,7 +448,7 @@ const successConditions: SuccessCondition[] = [
   { type: 'node_present', nodeType: 'model' },
   { type: 'connection', sourceType: 'controller', targetType: 'model' },
   { type: 'node_count', nodeType: 'service', count: 1 },
-  { type: 'crud_complete', modelType: 'Post' },
+  { type: 'crud_complete', modelType: 'Product' },
 ];
 ```
 

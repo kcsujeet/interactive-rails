@@ -4,7 +4,7 @@
  * Sequential phase flow: observe -> build -> activate -> reward
  *
  * Phase 1 (WHY - observe): "Document Search Grid" visualization.
- *   A single posts table shown as a grid of 100 row blocks.
+ *   A single products table shown as a grid of 100 row blocks.
  *   LIKE search: red wave sweeps through ALL blocks (sequential scan),
  *   then matched blocks turn green. Badges show: no stemming, no ranking.
  *   Player fires 3 search probes and clicks "View Controller Code" to
@@ -14,7 +14,7 @@
  *   Step 0: bundle add pg_search (terminal)
  *   Step 1: Generate migration for tsvector + GIN index (terminal)
  *   Step 2: rails db:migrate (terminal)
- *   Step 3: Include PgSearch::Model in Post (OptionCard)
+ *   Step 3: Include PgSearch::Model in Product (OptionCard)
  *   Step 4: Configure pg_search_scope (OptionCard)
  *   Step 5: Update the service to use the search scope (OptionCard)
  *
@@ -147,7 +147,7 @@ const PROBES: ProbeConfig[] = [
 			{ text: '', color: 'muted' },
 			{ text: '0 results for "running"', color: 'red' },
 			{
-				text: 'Post titled "Running Tests in RSpec" not found.',
+				text: 'Product named "Running Tests in RSpec" not found.',
 				color: 'muted',
 			},
 			{ text: 'LIKE has no stemming: "running" != "run"', color: 'red' },
@@ -244,7 +244,7 @@ const CONTROLLER_INSPECTOR: StageInspectorData = {
     validation = SearchContract.new.call(query: @query)
     return Result.new(...) if validation.failure?
 
-    posts = Post.where(
+    products = Product.where(
       "title LIKE :q OR body LIKE :q",
       q: "%#{@query}%"
     )
@@ -591,7 +591,7 @@ const generateMigrationCommands: TerminalCommand[] = [
 		command: 'rails generate model SearchIndex',
 		correct: false,
 		feedback:
-			'Full-text search does not need a separate model. You add a search column and index to the existing posts table via a migration.',
+			'Full-text search does not need a separate model. You add a search column and index to the existing products table via a migration.',
 	},
 	{
 		id: 'correct',
@@ -741,19 +741,19 @@ const SCOPE_OPTIONS: StepOption[] = [
 const SERVICE_OPTIONS: StepOption[] = [
 	{
 		id: 'wrong-keep-like',
-		label: 'Post.where("title LIKE :q OR body LIKE :q", q: "%#{@query}%")',
+		label: 'Product.where("title LIKE :q OR body LIKE :q", q: "%#{@query}%")',
 		correct: false,
 		feedback:
 			'That is the same LIKE query you are replacing. You just defined a search scope on the model that uses the GIN index.',
 	},
 	{
 		id: 'correct',
-		label: 'Post.search(@query)',
+		label: 'Product.search(@query)',
 		correct: true,
 	},
 	{
 		id: 'wrong-raw-tsquery',
-		label: 'Post.where("searchable @@ plainto_tsquery(?)", @query)',
+		label: 'Product.where("searchable @@ plainto_tsquery(?)", @query)',
 		correct: false,
 		feedback:
 			'Writing raw SQL defeats the purpose of the gem. You already defined a clean search scope that handles tsvector, ranking, and stemming.',
@@ -771,7 +771,7 @@ const OPTION_STEP_CONFIG: Record<
 	3: {
 		title: 'Include Search Module',
 		description:
-			'The gem is installed and the migration is applied. Now the Post model needs to load the search module so you can define search scopes.',
+			'The gem is installed and the migration is applied. Now the Product model needs to load the search module so you can define search scopes.',
 		options: INCLUDE_OPTIONS,
 	},
 	4: {
@@ -825,7 +825,7 @@ end`,
       )
     end
 
-    posts = Post.where(
+    products = Product.where(
       "title LIKE :q OR body LIKE :q",
       q: "%#{@query}%"
     )
@@ -841,9 +841,9 @@ end
 			highlight: [17, 18, 19],
 		});
 		files.push({
-			filename: 'app/controllers/api/v1/posts_controller.rb',
+			filename: 'app/controllers/api/v1/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::PostsController < ApplicationController
+			code: `class Api::V1::ProductsController < ApplicationController
   def index
     result = PostSearch.call(query: params[:q])
 
@@ -880,7 +880,7 @@ end`,
       )
     end
 
-    posts = Post.where(
+    products = Product.where(
       "title LIKE :q OR body LIKE :q",
       q: "%#{@query}%"
     )
@@ -947,11 +947,11 @@ end`,
 
 	if (furthestStep >= 4) {
 		files.push({
-			filename: 'app/models/post.rb',
+			filename: 'app/models/product.rb',
 			language: 'ruby',
 			code:
 				furthestStep >= 5
-					? `class Post < ApplicationRecord
+					? `class Product < ApplicationRecord
   include PgSearch::Model
 
   pg_search_scope :search,
@@ -960,7 +960,7 @@ end`,
       tsearch: { dictionary: 'english' }
     }
 end`
-					: `class Post < ApplicationRecord
+					: `class Product < ApplicationRecord
   include PgSearch::Model
 end`,
 			highlight: furthestStep >= 5 ? [4, 5, 6, 7, 8] : [2],
@@ -987,7 +987,7 @@ end`,
       )
     end
 
-    posts = Post.search(@query)
+    products = Product.search(@query)
     Result.new(success?: true, posts: posts, errors: [])
   end
 end`,
@@ -1803,7 +1803,7 @@ export function Level29Search({ onComplete }: LevelComponentProps) {
 											description={
 												<p className="text-sm text-muted-foreground">
 													Full-text search needs a tsvector column and a GIN
-													index on the posts table. Generate the migration file.
+													index on the products table. Generate the migration file.
 												</p>
 											}
 											hasNext={hasNextStep}

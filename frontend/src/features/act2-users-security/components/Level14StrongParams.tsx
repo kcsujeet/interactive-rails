@@ -82,7 +82,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'inject-user-id',
 		label: 'POST with user_id',
-		command: 'POST /api/v1/posts {title: "Hi", user_id: 42}',
+		command: 'POST /api/v1/products {title: "Hi", user_id: 42}',
 		responseLines: [
 			{ text: 'HTTP/1.1 201 Created', color: 'red' },
 			{
@@ -90,7 +90,7 @@ const PROBES: ProbeConfig[] = [
 				color: 'muted',
 			},
 			{
-				text: 'user_id accepted! Post created as user 42, not the real author.',
+				text: 'user_id accepted! Product created as user 42, not the real author.',
 				color: 'yellow',
 			},
 			{
@@ -102,7 +102,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'escalate-admin',
 		label: 'POST with admin: true',
-		command: 'POST /api/v1/posts {title: "Exploit", admin: true}',
+		command: 'POST /api/v1/products {title: "Exploit", admin: true}',
 		responseLines: [
 			{ text: 'HTTP/1.1 201 Created', color: 'red' },
 			{
@@ -122,7 +122,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'inject-both',
 		label: 'PATCH with both fields',
-		command: 'PATCH /api/v1/posts/1 {user_id: 99, admin: true}',
+		command: 'PATCH /api/v1/products/1 {user_id: 99, admin: true}',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
 			{
@@ -184,7 +184,7 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		description:
 			'The controller reads request params directly with no filtering layer. Any key the attacker sends in the JSON body can be passed to the model.',
 		code: `def create
-  post = Post.create!(title: params[:title], body: params[:body])
+  post = Product.create!(title: params[:title], body: params[:body])
   render json: post, status: :created
 end`,
 	},
@@ -194,14 +194,14 @@ end`,
 		description:
 			'There is no parameter filtering. The controller reads params directly and passes them to the model. Any key the attacker includes in the request body gets saved to the database.',
 		code: `def create
-  post = Post.create!(title: params[:title], body: params[:body],
+  post = Product.create!(title: params[:title], body: params[:body],
                       user_id: params[:user_id], admin: params[:admin])
   # Every param gets through!
 end`,
 	},
 	model: {
 		stageId: 'model',
-		title: 'Post Model',
+		title: 'Product Model',
 		description:
 			'The model receives ALL params and saves them to the database. With no filtering, every value the attacker sends gets persisted, including user_id and admin.',
 	},
@@ -223,7 +223,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Create with safe params',
 		description: 'POST with only title and body',
 		method: 'POST',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'user_3',
 		expectedResult: 'allowed',
 	},
@@ -232,7 +232,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'POST with user_id',
 		description: 'Try to set ownership via params',
 		method: 'POST',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'attacker',
 		expectedResult: 'blocked',
 	},
@@ -241,7 +241,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'POST with admin: true',
 		description: 'Try to escalate privileges via params',
 		method: 'POST',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'attacker',
 		expectedResult: 'blocked',
 	},
@@ -250,7 +250,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Update with safe params',
 		description: 'PATCH with only title and body',
 		method: 'PATCH',
-		path: '/api/v1/posts/1',
+		path: '/api/v1/products/1',
 		actor: 'owner (user_3)',
 		expectedResult: 'allowed',
 	},
@@ -259,7 +259,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'PATCH with user_id + admin',
 		description: 'Try to steal ownership and escalate',
 		method: 'PATCH',
-		path: '/api/v1/posts/1',
+		path: '/api/v1/products/1',
 		actor: 'attacker',
 		expectedResult: 'blocked',
 	},
@@ -304,7 +304,7 @@ const FILTERING_OPTIONS: StepOption[] = [
 	},
 	{
 		id: 'params-expect',
-		label: 'params.expect(post: [:title, :body])',
+		label: 'params.expect(product: [:title, :body])',
 		correct: true,
 	},
 ];
@@ -313,21 +313,21 @@ const FILTERING_OPTIONS: StepOption[] = [
 const WHITELIST_OPTIONS: StepOption[] = [
 	{
 		id: 'everything',
-		label: 'params.expect(post: [:title, :body, :user_id, :admin])',
+		label: 'params.expect(product: [:title, :body, :user_id, :admin])',
 		correct: false,
 		feedback:
 			'user_id and admin are sensitive fields. Users should never set their own ownership or privilege level through request params.',
 	},
 	{
 		id: 'with-user-id',
-		label: 'params.expect(post: [:title, :body, :user_id])',
+		label: 'params.expect(product: [:title, :body, :user_id])',
 		correct: false,
 		feedback:
 			'user_id controls post ownership. If users can set it, they can impersonate other authors.',
 	},
 	{
 		id: 'safe-only',
-		label: 'params.expect(post: [:title, :body])',
+		label: 'params.expect(product: [:title, :body])',
 		correct: true,
 	},
 ];
@@ -336,21 +336,21 @@ const WHITELIST_OPTIONS: StepOption[] = [
 const OWNERSHIP_OPTIONS: StepOption[] = [
 	{
 		id: 'merge-params',
-		label: 'Post.create!(post_params.merge(user_id: params[:user_id]))',
+		label: 'Product.create!(product_params.merge(user_id: params[:user_id]))',
 		correct: false,
 		feedback:
 			'That still reads user_id from the request body. An attacker can send any user_id they want.',
 	},
 	{
 		id: 'no-user',
-		label: 'Post.create!(post_params)',
+		label: 'Product.create!(product_params)',
 		correct: false,
 		feedback:
 			'That does not set user_id at all. The post will not be associated with any user.',
 	},
 	{
 		id: 'current-user',
-		label: 'current_user.posts.create!(post_params)',
+		label: 'current_user.posts.create!(product_params)',
 		correct: true,
 	},
 ];
@@ -373,13 +373,13 @@ const OPTION_STEP_CONFIG: Record<
 	1: {
 		title: 'Define the Whitelist',
 		description:
-			'params.expect filters the request body to only the keys you allow. Which fields should users be able to set on a Post?',
+			'params.expect filters the request body to only the keys you allow. Which fields should users be able to set on a Product?',
 		options: WHITELIST_OPTIONS,
 	},
 	2: {
 		title: 'Set Ownership Safely',
 		description:
-			'user_id is not in the whitelist, but posts still need an owner. How should the create action associate the post with the current user?',
+			'user_id is not in the whitelist, but posts still need an owner. How should the create action associate the product with the current user?',
 		options: OWNERSHIP_OPTIONS,
 	},
 };
@@ -410,11 +410,11 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 	// Observe phase: show controller with raw params (no filtering)
 	if (phase === 'observe') {
 		files.push({
-			filename: 'app/controllers/api/v1/posts_controller.rb',
+			filename: 'app/controllers/api/v1/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::PostsController < ApplicationController
+			code: `class Api::V1::ProductsController < ApplicationController
   def create
-    post = Post.create!(
+    product = Product.create!(
       title: params[:title],
       body: params[:body],
       user_id: params[:user_id],  # Attacker-controlled!
@@ -424,8 +424,8 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
   end
 
   def update
-    post = Post.find(params[:id])
-    post.update!(title: params[:title], body: params[:body])
+    product = Product.find(params[:id])
+    product.update!(title: params[:title], body: params[:body])
     render json: post
   end
 
@@ -440,11 +440,11 @@ end`,
 	if (furthestStep === 0) {
 		// Step 0: same as observe (player is choosing the filtering method)
 		files.push({
-			filename: 'app/controllers/api/v1/posts_controller.rb',
+			filename: 'app/controllers/api/v1/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::PostsController < ApplicationController
+			code: `class Api::V1::ProductsController < ApplicationController
   def create
-    post = Post.create!(
+    product = Product.create!(
       title: params[:title],
       body: params[:body],
       user_id: params[:user_id],  # Attacker-controlled!
@@ -454,8 +454,8 @@ end`,
   end
 
   def update
-    post = Post.find(params[:id])
-    post.update!(title: params[:title], body: params[:body])
+    product = Product.find(params[:id])
+    product.update!(title: params[:title], body: params[:body])
     render json: post
   end
 
@@ -467,67 +467,67 @@ end`,
 
 	if (furthestStep >= 1) {
 		files.push({
-			filename: 'app/controllers/api/v1/posts_controller.rb',
+			filename: 'app/controllers/api/v1/products_controller.rb',
 			language: 'ruby',
 			code:
 				furthestStep >= 3
-					? `class Api::V1::PostsController < ApplicationController
+					? `class Api::V1::ProductsController < ApplicationController
   def create
-    post = current_user.posts.create!(post_params)
+    product = current_user.posts.create!(product_params)
     render json: post, status: :created
   end
 
   def update
-    post = Post.find(params[:id])
-    post.update!(post_params)
+    product = Product.find(params[:id])
+    product.update!(product_params)
     render json: post
   end
 
   private
 
-  def post_params
-    params.expect(post: [:title, :body])
+  def product_params
+    params.expect(product: [:title, :body])
     # user_id and admin removed!
     # Ownership set via current_user.posts association
   end
 end`
 					: furthestStep >= 2
-						? `class Api::V1::PostsController < ApplicationController
+						? `class Api::V1::ProductsController < ApplicationController
   def create
-    post = Post.create!(post_params)
+    product = Product.create!(product_params)
     render json: post, status: :created
   end
 
   def update
-    post = Post.find(params[:id])
-    post.update!(post_params)
+    product = Product.find(params[:id])
+    product.update!(product_params)
     render json: post
   end
 
   private
 
-  def post_params
-    params.expect(post: [:title, :body])
+  def product_params
+    params.expect(product: [:title, :body])
     # user_id and admin removed!
     # But how does user_id get set now?
   end
 end`
-						: `class Api::V1::PostsController < ApplicationController
+						: `class Api::V1::ProductsController < ApplicationController
   def create
-    post = Post.create!(post_params)
+    product = Product.create!(product_params)
     render json: post, status: :created
   end
 
   def update
-    post = Post.find(params[:id])
-    post.update!(post_params)
+    product = Product.find(params[:id])
+    product.update!(product_params)
     render json: post
   end
 
   private
 
-  def post_params
-    params.expect(post: [...])
+  def product_params
+    params.expect(product: [...])
     # Which fields should be allowed?
   end
 end`,
@@ -619,7 +619,7 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 			},
 			{
 				id: 'model',
-				label: 'Post Model',
+				label: 'Product Model',
 				badge: probeDisplay ? probeDisplay.modelBadge : 'SAVES ALL',
 				variant: (probeDisplay ? 'danger' : 'default') as
 					| 'danger'
@@ -647,7 +647,7 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 				variant: wasBlocked ? ('danger' as const) : ('active' as const),
 				badge: wasBlocked ? 'BLOCKED' : undefined,
 			},
-			{ id: 'model', label: 'Post Model' },
+			{ id: 'model', label: 'Product Model' },
 		];
 	}, [lastResult]);
 

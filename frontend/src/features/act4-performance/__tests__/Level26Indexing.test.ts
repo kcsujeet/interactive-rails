@@ -84,14 +84,14 @@ const QUERY_LANES: QueryLane[] = [
 		id: 'fk',
 		label: 'Foreign Key Lookup',
 		table: 'posts',
-		sql: 'SELECT * FROM posts WHERE user_id = 42',
+		sql: 'SELECT * FROM products WHERE user_id = 42',
 		totalRows: 50000,
 	},
 	{
 		id: 'composite',
 		label: 'Composite Query',
 		table: 'posts',
-		sql: 'SELECT * FROM posts WHERE published = true ORDER BY created_at',
+		sql: 'SELECT * FROM products WHERE published = true ORDER BY created_at',
 		totalRows: 50000,
 	},
 ];
@@ -337,7 +337,7 @@ const OPTION_STEP_CONFIG: Record<
 	2: {
 		title: 'Foreign Key Index',
 		description:
-			'Post.where(user_id: 42) scans all 50,000 posts.',
+			'Product.where(user_id: 42) scans all 50,000 posts.',
 		options: [
 			{
 				id: 'wrong-composite',
@@ -363,7 +363,7 @@ const OPTION_STEP_CONFIG: Record<
 	3: {
 		title: 'Composite Index',
 		description:
-			'Post.where(published: true).order(:created_at) does a sort on top of a Seq Scan.',
+			'Product.where(published: true).order(:created_at) does a sort on top of a Seq Scan.',
 		options: [
 			{
 				id: 'wrong-order',

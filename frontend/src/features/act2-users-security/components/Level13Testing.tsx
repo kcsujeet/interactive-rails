@@ -113,7 +113,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'untested-endpoint',
 		label: 'Deploy broken create',
-		command: 'git push origin main (new posts#create with typo)',
+		command: 'git push origin main (new products#create with typo)',
 		responseLines: [
 			{ text: 'Deploying commit 7b2e4d1...', color: 'cyan' },
 			{ text: 'Build: OK', color: 'green' },
@@ -121,7 +121,7 @@ const PROBES: ProbeConfig[] = [
 			{ text: 'Deploy: SUCCESS', color: 'green' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'POST /api/v1/posts => 500 Internal Server Error',
+				text: 'POST /api/v1/products => 500 Internal Server Error',
 				color: 'red',
 			},
 			{
@@ -258,7 +258,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Missing params handling',
 		description: 'Removed strong params, request spec catches 500',
 		method: 'PUSH',
-		path: 'posts_controller.rb',
+		path: 'products_controller.rb',
 		actor: 'dev_charlie',
 		expectedResult: 'blocked',
 	},
@@ -267,7 +267,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Clean new endpoint',
 		description: 'Added show action with passing specs',
 		method: 'PUSH',
-		path: 'posts_controller.rb',
+		path: 'products_controller.rb',
 		actor: 'dev_bob',
 		expectedResult: 'allowed',
 	},

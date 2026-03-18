@@ -56,7 +56,7 @@ const PROBES: ProbeConfig[] = [
 				color: 'yellow',
 			},
 			{
-				text: 'Post unchanged, but full response generated again.',
+				text: 'Product unchanged, but full response generated again.',
 				color: 'red',
 			},
 		],
@@ -117,7 +117,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'post-304',
 		label: 'GET post detail (304)',
-		description: 'Post unchanged since last request, ETag matches',
+		description: 'Product unchanged since last request, ETag matches',
 		method: 'GET',
 		path: '/api/posts/42',
 		actor: 'returning visitor',
@@ -174,7 +174,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'stale-post',
 		label: 'GET post detail (updated)',
-		description: 'Post was updated, ETag changed, full response needed',
+		description: 'Product was updated, ETag changed, full response needed',
 		method: 'GET',
 		path: '/api/posts/42',
 		actor: 'returning visitor',
@@ -182,7 +182,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		responseLines: [
 			{ text: '200 OK (21ms, full response)', color: 'green' },
 			{ text: 'If-None-Match did not match current ETag', color: 'yellow' },
-			{ text: 'Post updated, fresh response generated.', color: 'green' },
+			{ text: 'Product updated, fresh response generated.', color: 'green' },
 		],
 	},
 ];
@@ -225,23 +225,23 @@ const OPTION_STEP_CONFIG: Record<
 		],
 	},
 	1: {
-		title: 'Post Detail Endpoint',
+		title: 'Product Detail Endpoint',
 		description:
-			'Single post detail endpoint. Post changes infrequently. Want to avoid re-serializing unchanged data. Which caching approach?',
+			'Single product detail endpoint. Product changes infrequently. Want to avoid re-serializing unchanged data. Which caching approach?',
 		options: [
 			{
 				id: 'expires-in',
 				label: 'expires_in 24.hours, public: true',
 				correct: false,
 				feedback:
-					'Time-based expiration means clients have no way to know when the post is actually updated. They may serve stale data or miss updates entirely.',
+					'Time-based expiration means clients have no way to know when the product is actually updated. They may serve stale data or miss updates entirely.',
 			},
 			{
 				id: 'fresh-when',
-				label: 'fresh_when last_modified: @post.updated_at',
+				label: 'fresh_when last_modified: @product.updated_at',
 				correct: false,
 				feedback:
-					'Last-Modified only has 1-second precision. If the post is updated twice in the same second, the second update could be missed.',
+					'Last-Modified only has 1-second precision. If the product is updated twice in the same second, the second update could be missed.',
 			},
 			{
 				id: 'stale',
@@ -491,7 +491,7 @@ describe('Level 31: HTTP Caching & CDNs', () => {
 			}
 		});
 
-		test('observe code shows service pattern (no raw Post.find in controller)', () => {
+		test('observe code shows service pattern (no raw Product.find in controller)', () => {
 			// The observe code should delegate to services, not do raw ActiveRecord
 			// This is verified by checking the code preview would reference service calls
 			const serviceNames = ['ProductCatalog', 'PostDetail', 'OrderHistory'];
@@ -516,7 +516,7 @@ describe('Level 31: HTTP Caching & CDNs', () => {
 				(c) => c.title,
 			);
 			expect(buildEndpoints).toContain('Public Product Catalog');
-			expect(buildEndpoints).toContain('Post Detail Endpoint');
+			expect(buildEndpoints).toContain('Product Detail Endpoint');
 			expect(buildEndpoints).toContain('Fingerprinted Static Assets');
 			expect(buildEndpoints).toContain('User Order History');
 

@@ -80,7 +80,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'basic-users',
 		label: 'Load posts with users',
-		command: 'Post.all + post.user.name (basic N+1)',
+		command: 'Product.all + product.user.name (basic N+1)',
 		responseLines: [
 			{
 				text: 'Scenario: 100 posts, each needs .user.name',
@@ -108,7 +108,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'nested-comments',
 		label: 'Load posts + comments + users',
-		command: 'Post.all + post.comments.map(&:user) (nested N+1)',
+		command: 'Product.all + product.reviews.map(&:user) (nested N+1)',
 		responseLines: [
 			{
 				text: 'Scenario: posts -> comments -> comment authors (2 levels deep)',
@@ -128,7 +128,7 @@ const PROBES: ProbeConfig[] = [
 				color: 'yellow',
 			},
 			{
-				text: 'includes(:comments) only  => N+1 on comment.user!',
+				text: 'includes(:reviews) only  => N+1 on comment.user!',
 				color: 'red',
 			},
 		],
@@ -136,7 +136,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'filtered-assoc',
 		label: 'Filter by association column',
-		command: 'Post.where(tags: { active: true }) (filter on assoc)',
+		command: 'Product.where(tags: { active: true }) (filter on assoc)',
 		responseLines: [
 			{
 				text: 'Scenario: filter posts WHERE tags.active = true',
@@ -185,19 +185,19 @@ const STEP_DEFS: StepDef[] = [
 const OPTION_STEP_0: StepOption[] = [
 	{
 		id: 'joins',
-		label: 'Post.joins(:user)',
+		label: 'Product.joins(:user)',
 		correct: false,
 		feedback:
-			'joins creates an INNER JOIN but does NOT load user records into memory. You will still get N+1 when accessing post.user.',
+			'joins creates an INNER JOIN but does NOT load user records into memory. You will still get N+1 when accessing product.user.',
 	},
 	{
 		id: 'includes',
-		label: 'Post.includes(:user)',
+		label: 'Product.includes(:user)',
 		correct: true,
 	},
 	{
 		id: 'find-each',
-		label: 'Post.find_each { |p| p.user }',
+		label: 'Product.find_each { |p| p.user }',
 		correct: false,
 		feedback:
 			'find_each processes records in batches to save memory, but it still lazy-loads each user individually. The association query pattern does not change.',
@@ -207,21 +207,21 @@ const OPTION_STEP_0: StepOption[] = [
 const OPTION_STEP_1: StepOption[] = [
 	{
 		id: 'flat-includes',
-		label: 'Post.includes(:comments)',
+		label: 'Product.includes(:reviews)',
 		correct: false,
 		feedback:
 			'That loads comments but not their users. You will still get N+1 on comment.user. The nested association needs to be specified.',
 	},
 	{
 		id: 'separate',
-		label: 'Post.includes(:comments).includes(:users)',
+		label: 'Product.includes(:reviews).includes(:users)',
 		correct: false,
 		feedback:
 			'Posts do not have a direct :users association. The users belong to comments, so you need to express that nesting in the includes call.',
 	},
 	{
 		id: 'nested-includes',
-		label: 'Post.includes(comments: :user)',
+		label: 'Product.includes(comments: :user)',
 		correct: true,
 	},
 ];
@@ -229,19 +229,19 @@ const OPTION_STEP_1: StepOption[] = [
 const OPTION_STEP_2: StepOption[] = [
 	{
 		id: 'preload',
-		label: 'Post.preload(:tags).where(tags: { active: true })',
+		label: 'Product.preload(:tags).where(tags: { active: true })',
 		correct: false,
 		feedback:
 			'preload always uses separate queries, so it cannot apply a WHERE clause on the associated table. Rails will raise an error.',
 	},
 	{
 		id: 'eager-load',
-		label: 'Post.eager_load(:tags).where(tags: { active: true })',
+		label: 'Product.eager_load(:tags).where(tags: { active: true })',
 		correct: true,
 	},
 	{
 		id: 'includes-where',
-		label: 'Post.includes(:tags).where(tags: { active: true })',
+		label: 'Product.includes(:tags).where(tags: { active: true })',
 		correct: false,
 		feedback:
 			'includes works here (Rails auto-switches to JOIN), but it is implicit. When you filter on an association, being explicit about the JOIN strategy avoids surprises.',
@@ -260,7 +260,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Posts with users (includes)',
 		description: 'Load 100 posts with user names',
 		method: 'GET',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'includes(:user)',
 		expectedResult: 'allowed',
 	},
@@ -269,7 +269,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Posts with nested comments',
 		description: 'Load posts with comments and their users',
 		method: 'GET',
-		path: '/api/v1/posts?include=comments',
+		path: '/api/v1/products?include=comments',
 		actor: 'includes(comments: :user)',
 		expectedResult: 'allowed',
 	},
@@ -278,7 +278,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Filtered by active tags',
 		description: 'Load posts filtered by association column',
 		method: 'GET',
-		path: '/api/v1/posts?tag=active',
+		path: '/api/v1/products?tag=active',
 		actor: 'eager_load(:tags)',
 		expectedResult: 'allowed',
 	},
@@ -287,8 +287,8 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Posts without eager loading',
 		description: 'Forgot to add includes, N+1 detected',
 		method: 'GET',
-		path: '/api/v1/admin/posts',
-		actor: 'Post.all (no includes)',
+		path: '/api/v1/admin/products',
+		actor: 'Product.all (no includes)',
 		expectedResult: 'blocked',
 	},
 	{
@@ -296,8 +296,8 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Using joins (common mistake)',
 		description: 'joins does NOT load associations into memory',
 		method: 'GET',
-		path: '/api/v1/posts?admin=true',
-		actor: 'Post.joins(:user)',
+		path: '/api/v1/products?admin=true',
+		actor: 'Product.joins(:user)',
 		expectedResult: 'blocked',
 	},
 ];
@@ -335,14 +335,14 @@ const REWARD_LANE_DATA: Record<string, RewardLaneData> = {
 		result: 'works',
 	},
 	'no-eager-basic': {
-		strategy: 'Post.all (no includes)',
+		strategy: 'Product.all (no includes)',
 		blocks: [{ label: 'SELECT posts', color: 'amber' }],
 		floodCount: 100,
 		totalLabel: '101 queries!',
 		result: 'fails',
 	},
 	'joins-mistake': {
-		strategy: 'Post.joins(:user)',
+		strategy: 'Product.joins(:user)',
 		blocks: [{ label: 'SELECT posts JOIN users', color: 'amber' }],
 		floodCount: 100,
 		totalLabel: '101 queries!',
@@ -494,12 +494,12 @@ describe('Level 24: Eager Loading', () => {
 
 		test('step 0 correct answer uses includes(:user)', () => {
 			const correct = OPTION_STEP_0.find((o) => o.correct);
-			expect(correct?.label).toBe('Post.includes(:user)');
+			expect(correct?.label).toBe('Product.includes(:user)');
 		});
 
 		test('step 1 correct answer uses nested includes(comments: :user)', () => {
 			const correct = OPTION_STEP_1.find((o) => o.correct);
-			expect(correct?.label).toBe('Post.includes(comments: :user)');
+			expect(correct?.label).toBe('Product.includes(comments: :user)');
 		});
 
 		test('step 2 correct answer uses eager_load for filtering', () => {
@@ -617,25 +617,25 @@ describe('Level 24: Eager Loading', () => {
 		});
 
 		test('observe and reward both cover /api/v1/ endpoints', () => {
-			// Observe probes reference Post queries
+			// Observe probes reference Product queries
 			const probeCommands = PROBES.map((p) => p.command);
-			expect(probeCommands.some((c) => c.includes('Post'))).toBe(true);
+			expect(probeCommands.some((c) => c.includes('Product'))).toBe(true);
 
-			// Reward scenarios all hit /api/v1/ endpoints with posts
+			// Reward scenarios all hit /api/v1/ endpoints with products
 			for (const scenario of STRESS_SCENARIOS) {
 				expect(scenario.path).toContain('/api/v1/');
-				expect(scenario.path).toContain('posts');
+				expect(scenario.path).toContain('products');
 			}
 		});
 
-		test('service pattern (PostList) referenced consistently', () => {
-			// Build steps describe PostList service
+		test('service pattern (ProductList) referenced consistently', () => {
+			// Build steps describe ProductList service
 			const step0 = ALL_OPTION_STEPS[0];
-			// The correct answer for step 0 uses Post.includes(:user) which is what PostList should call
+			// The correct answer for step 0 uses Product.includes(:user) which is what ProductList should call
 			const correct0 = step0.find((o) => o.correct);
-			expect(correct0?.label).toContain('Post.');
+			expect(correct0?.label).toContain('Product.');
 
-			// Reward lane strategies also reference Post/includes patterns
+			// Reward lane strategies also reference Product/includes patterns
 			expect(REWARD_LANE_DATA['basic-includes'].strategy).toContain(
 				'includes',
 			);

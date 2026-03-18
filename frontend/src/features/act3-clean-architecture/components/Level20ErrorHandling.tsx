@@ -82,8 +82,8 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 const PROBES: ProbeConfig[] = [
 	{
 		id: 'missing-post',
-		label: 'GET /api/v1/posts/999',
-		command: 'GET /api/v1/posts/999',
+		label: 'GET /api/v1/products/999',
+		command: 'GET /api/v1/products/999',
 		responseLines: [
 			{ text: 'HTTP/1.1 500 Internal Server Error', color: 'red' },
 			{ text: 'Content-Type: text/html', color: 'muted' },
@@ -92,7 +92,7 @@ const PROBES: ProbeConfig[] = [
 				color: 'yellow',
 			},
 			{
-				text: "app/controllers/api/v1/posts_controller.rb:4:in 'show'",
+				text: "app/controllers/api/v1/products_controller.rb:4:in 'show'",
 				color: 'muted',
 			},
 			{
@@ -103,8 +103,8 @@ const PROBES: ProbeConfig[] = [
 	},
 	{
 		id: 'bad-params',
-		label: 'POST /api/v1/posts (bad params)',
-		command: 'POST /api/v1/posts {}',
+		label: 'POST /api/v1/products (bad params)',
+		command: 'POST /api/v1/products {}',
 		responseLines: [
 			{ text: 'HTTP/1.1 400 Bad Request', color: 'red' },
 			{ text: 'Content-Type: application/json', color: 'muted' },
@@ -178,7 +178,7 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 			'Each controller action has its own begin/rescue block. Some return JSON, some return plain text, some let exceptions bubble up as raw 500s with stack traces.',
 		code: `def show
   begin
-    @post = Post.find(params[:id])
+    @product = Product.find(params[:id])
     render json: @post
   rescue ActiveRecord::RecordNotFound
     render plain: "Not found", status: 500
@@ -187,7 +187,7 @@ end
 
 def create
   begin
-    @post = Post.create!(post_params)
+    @product = Product.create!(product_params)
     render json: @post, status: :created
   rescue ActiveRecord::RecordInvalid => e
     render json: { msg: e.message }, status: 400
@@ -221,19 +221,19 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'valid-create',
-		label: 'Create a post',
+		label: 'Create a product',
 		description: 'POST with valid title and body',
 		method: 'POST',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'user_3',
 		expectedResult: 'allowed',
 	},
 	{
 		id: 'not-found',
 		label: '404 Not Found',
-		description: 'GET a post that does not exist',
+		description: 'GET a product that does not exist',
 		method: 'GET',
-		path: '/api/v1/posts/999',
+		path: '/api/v1/products/999',
 		actor: 'user_3',
 		expectedResult: 'blocked',
 	},
@@ -242,7 +242,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: '422 Unprocessable',
 		description: 'POST with blank title (validation fails)',
 		method: 'POST',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'user_3',
 		expectedResult: 'blocked',
 	},
@@ -251,7 +251,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: '400 Bad Request',
 		description: 'POST with missing post key',
 		method: 'POST',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'attacker',
 		expectedResult: 'blocked',
 	},
@@ -260,16 +260,16 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: '403 Forbidden',
 		description: 'DELETE another user\'s post',
 		method: 'DELETE',
-		path: '/api/v1/posts/1',
+		path: '/api/v1/products/1',
 		actor: 'attacker',
 		expectedResult: 'blocked',
 	},
 	{
 		id: 'valid-show',
-		label: 'Show a post',
+		label: 'Show a product',
 		description: 'GET an existing post',
 		method: 'GET',
-		path: '/api/v1/posts/1',
+		path: '/api/v1/products/1',
 		actor: 'user_3',
 		expectedResult: 'allowed',
 	},
@@ -367,7 +367,7 @@ const SHAPE_OPTIONS: StepOption[] = [
 	},
 	{
 		id: 'structured',
-		label: '{ error: { code: "not_found", message: "Post not found", details: {} } }',
+		label: '{ error: { code: "not_found", message: "Product not found", details: {} } }',
 		correct: true,
 	},
 	{
@@ -436,12 +436,12 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 	// Observe phase: show scattered error handling
 	if (phase === 'observe') {
 		files.push({
-			filename: 'app/controllers/api/v1/posts_controller.rb',
+			filename: 'app/controllers/api/v1/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::PostsController < ApplicationController
+			code: `class Api::V1::ProductsController < ApplicationController
   def show
     begin
-      @post = Post.find(params[:id])
+      @product = Product.find(params[:id])
       render json: @post
     rescue ActiveRecord::RecordNotFound
       render plain: "Not found", status: 500
@@ -450,7 +450,7 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 
   def create
     begin
-      @post = Post.create!(post_params)
+      @product = Product.create!(product_params)
       render json: @post, status: :created
     rescue ActiveRecord::RecordInvalid => e
       render json: { msg: e.message }, status: 400
@@ -469,12 +469,12 @@ end`,
 	if (furthestStep === 0) {
 		// Step 0: same as observe (player is choosing the strategy)
 		files.push({
-			filename: 'app/controllers/api/v1/posts_controller.rb',
+			filename: 'app/controllers/api/v1/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::PostsController < ApplicationController
+			code: `class Api::V1::ProductsController < ApplicationController
   def show
     begin
-      @post = Post.find(params[:id])
+      @product = Product.find(params[:id])
       render json: @post
     rescue ActiveRecord::RecordNotFound
       render plain: "Not found", status: 500
@@ -483,7 +483,7 @@ end`,
 
   def create
     begin
-      @post = Post.create!(post_params)
+      @product = Product.create!(product_params)
       render json: @post, status: :created
     rescue ActiveRecord::RecordInvalid => e
       render json: { msg: e.message }, status: 400
@@ -608,16 +608,16 @@ end`,
 
 	if (furthestStep >= 3) {
 		files.push({
-			filename: 'app/controllers/api/v1/posts_controller.rb',
+			filename: 'app/controllers/api/v1/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::PostsController < ApplicationController
+			code: `class Api::V1::ProductsController < ApplicationController
   def show
-    @post = Post.find(params[:id])
+    @product = Product.find(params[:id])
     render json: @post
   end
 
   def create
-    @post = Post.create!(post_params)
+    @product = Product.create!(product_params)
     render json: @post, status: :created
   end
 

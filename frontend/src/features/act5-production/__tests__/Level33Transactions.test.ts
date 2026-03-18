@@ -16,7 +16,7 @@ import { describe, expect, test } from 'bun:test';
 
 const DISCOVERY_DEFS = [
 	{ id: 'credits-no-boost', label: 'Credits deducted but post never boosted' },
-	{ id: 'orphan-boost', label: 'Post boosted without audit trail' },
+	{ id: 'orphan-boost', label: 'Product boosted without audit trail' },
 ];
 
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
@@ -67,7 +67,7 @@ const PROBES = [
 				color: 'red',
 			},
 			{
-				text: 'Post boosted but no audit trail!',
+				text: 'Product boosted but no audit trail!',
 				color: 'red',
 			},
 			{

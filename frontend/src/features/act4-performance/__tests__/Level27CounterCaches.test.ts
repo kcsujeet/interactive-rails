@@ -63,7 +63,7 @@ const OBSERVE_POST_COUNT = 20;
 const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{
 		id: 'n-plus-one-counts',
-		label: 'Each post fires a separate COUNT(*) to the comments table',
+		label: 'Each post fires a separate COUNT(*) to the reviews table',
 	},
 ];
 
@@ -74,7 +74,7 @@ const PROBES: ProbeConfig[] = [
 		command: 'GET /api/posts?limit=20',
 		responseLines: [
 			{
-				text: 'Post Load (1.2ms)  SELECT "posts".* FROM "posts" LIMIT 20',
+				text: 'Product Load (1.2ms)  SELECT "products".* FROM "products" LIMIT 20',
 				color: 'green',
 			},
 			{
@@ -82,11 +82,11 @@ const PROBES: ProbeConfig[] = [
 				color: 'muted',
 			},
 			{
-				text: '  (0.4ms)  SELECT COUNT(*) FROM "comments" WHERE "post_id" = 1',
+				text: '  (0.4ms)  SELECT COUNT(*) FROM "comments" WHERE "product_id" = 1',
 				color: 'red',
 			},
 			{
-				text: '  (0.3ms)  SELECT COUNT(*) FROM "comments" WHERE "post_id" = 2',
+				text: '  (0.3ms)  SELECT COUNT(*) FROM "comments" WHERE "product_id" = 2',
 				color: 'red',
 			},
 			{
@@ -125,18 +125,18 @@ const MIGRATION_COMMANDS: TerminalCommand[] = [
 	{
 		id: 'generate-migration',
 		label:
-			'rails generate migration AddCommentsCountToPosts comments_count:integer',
+			'rails generate migration AddCommentsCountToPosts reviews_count:integer',
 		command:
-			'rails generate migration AddCommentsCountToPosts comments_count:integer',
+			'rails generate migration AddCommentsCountToPosts reviews_count:integer',
 		correct: true,
 	},
 	{
 		id: 'add-index',
-		label: 'rails generate migration AddIndexToComments post_id:index',
-		command: 'rails generate migration AddIndexToComments post_id:index',
+		label: 'rails generate migration AddIndexToComments product_id:index',
+		command: 'rails generate migration AddIndexToComments product_id:index',
 		correct: false,
 		feedback:
-			'An index on comments.post_id helps query speed, but it does not eliminate the N+1 COUNT queries. You need a column on the parent table.',
+			'An index on comments.product_id helps query speed, but it does not eliminate the N+1 COUNT queries. You need a column on the parent table.',
 	},
 ];
 
@@ -168,21 +168,21 @@ const RUN_MIGRATION_COMMANDS: TerminalCommand[] = [
 const COUNTER_CACHE_OPTIONS: StepOption[] = [
 	{
 		id: 'has-many-counter',
-		label: 'has_many :comments, counter_cache: true',
+		label: 'has_many :reviews, counter_cache: true',
 		correct: false,
 		feedback:
 			'counter_cache is declared on the belongs_to side, not has_many. The child model owns the relationship declaration.',
 	},
 	{
 		id: 'after-create',
-		label: 'after_create { Post.increment_counter(:comments_count, post_id) }',
+		label: 'after_create { Product.increment_counter(:reviews_count, product_id) }',
 		correct: false,
 		feedback:
 			'Manual callbacks are error-prone. You would also need after_destroy, after_update, and handle edge cases. Rails provides a built-in option.',
 	},
 	{
 		id: 'belongs-to-counter',
-		label: 'belongs_to :post, counter_cache: true',
+		label: 'belongs_to :product, counter_cache: true',
 		correct: true,
 	},
 ];
@@ -190,21 +190,21 @@ const COUNTER_CACHE_OPTIONS: StepOption[] = [
 const RESET_OPTIONS: StepOption[] = [
 	{
 		id: 'update-all',
-		label: 'Post.update_all(comments_count: Post.joins(:comments).count)',
+		label: 'Product.update_all(reviews_count: Product.joins(:reviews).count)',
 		correct: false,
 		feedback:
-			'This sets every post to the same total count, not each post to its own count. Rails provides a method that recalculates per-record.',
+			'This sets every product to the same total count, not each product to its own count. Rails provides a method that recalculates per-record.',
 	},
 	{
 		id: 'manual-each',
-		label: 'Post.find_each { |p| p.update(comments_count: p.comments.count) }',
+		label: 'Product.find_each { |p| p.update(reviews_count: p.comments.count) }',
 		correct: false,
 		feedback:
 			'This works but fires N+1 queries and skips the counter cache mechanism. Rails has a dedicated method that uses efficient SQL.',
 	},
 	{
 		id: 'reset-counters',
-		label: 'Post.find_each { |p| Post.reset_counters(p.id, :comments) }',
+		label: 'Product.find_each { |p| Product.reset_counters(p.id, :comments) }',
 		correct: true,
 	},
 ];
@@ -212,21 +212,21 @@ const RESET_OPTIONS: StepOption[] = [
 const SERIALIZER_OPTIONS: StepOption[] = [
 	{
 		id: 'comments-count-method',
-		label: 'post.comments.count',
+		label: 'product.reviews.count',
 		correct: false,
 		feedback:
 			'This always runs a COUNT(*) query, completely bypassing the counter cache column you just added.',
 	},
 	{
 		id: 'comments-length',
-		label: 'post.comments.length',
+		label: 'product.reviews.length',
 		correct: false,
 		feedback:
 			'This loads ALL comment records into memory just to count them. Even worse than COUNT(*) for large collections.',
 	},
 	{
 		id: 'comments-size',
-		label: 'post.comments.size',
+		label: 'product.reviews.size',
 		correct: true,
 	},
 ];
@@ -248,11 +248,11 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'allowed',
 		responseLines: [
 			{
-				text: 'Post Load (1.2ms)  SELECT "posts".* FROM "posts" LIMIT 10',
+				text: 'Product Load (1.2ms)  SELECT "products".* FROM "products" LIMIT 10',
 				color: 'yellow',
 			},
 			{
-				text: '  comments_count read from column (0 queries)',
+				text: '  reviews_count read from column (0 queries)',
 				color: 'green',
 			},
 			{ text: '  Total: 1 query (was 11)', color: 'green' },
@@ -268,11 +268,11 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'allowed',
 		responseLines: [
 			{
-				text: 'Post Load (1.8ms)  SELECT "posts".* FROM "posts" LIMIT 50',
+				text: 'Product Load (1.8ms)  SELECT "products".* FROM "products" LIMIT 50',
 				color: 'yellow',
 			},
 			{
-				text: '  comments_count read from column (0 queries)',
+				text: '  reviews_count read from column (0 queries)',
 				color: 'green',
 			},
 			{ text: '  Total: 1 query (was 51)', color: 'green' },
@@ -288,11 +288,11 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'allowed',
 		responseLines: [
 			{
-				text: 'Post Load (2.4ms)  SELECT "posts".* FROM "posts" LIMIT 100',
+				text: 'Product Load (2.4ms)  SELECT "products".* FROM "products" LIMIT 100',
 				color: 'yellow',
 			},
 			{
-				text: '  comments_count read from column (0 queries)',
+				text: '  reviews_count read from column (0 queries)',
 				color: 'green',
 			},
 			{ text: '  Total: 1 query (was 101)', color: 'green' },
@@ -308,11 +308,11 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'allowed',
 		responseLines: [
 			{
-				text: 'Post Load (5.1ms)  SELECT "posts".* FROM "posts" LIMIT 500',
+				text: 'Product Load (5.1ms)  SELECT "products".* FROM "products" LIMIT 500',
 				color: 'yellow',
 			},
 			{
-				text: '  comments_count read from column (0 queries)',
+				text: '  reviews_count read from column (0 queries)',
 				color: 'green',
 			},
 			{ text: '  Total: 1 query (was 501)', color: 'green' },
@@ -328,11 +328,11 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'blocked',
 		responseLines: [
 			{
-				text: 'Post Load (2.4ms)  SELECT "posts".* FROM "posts" LIMIT 100',
+				text: 'Product Load (2.4ms)  SELECT "products".* FROM "products" LIMIT 100',
 				color: 'yellow',
 			},
 			{
-				text: '  post.comments.count -> 100 COUNT(*) queries!',
+				text: '  product.reviews.count -> 100 COUNT(*) queries!',
 				color: 'red',
 			},
 			{

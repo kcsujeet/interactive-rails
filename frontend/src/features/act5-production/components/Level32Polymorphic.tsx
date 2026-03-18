@@ -12,17 +12,17 @@
  * Phase 2 (HOW - build): 6 steps (2 terminal + 4 OptionCard)
  *   Step 0: Generate polymorphic migration (terminal)
  *   Step 1: Run db:migrate (terminal)
- *   Step 2: Define Comment model with polymorphic belongs_to (OptionCard)
- *   Step 3: Add has_many :comments to parent models (OptionCard)
- *   Step 4: Create CreateComment service object (OptionCard)
+ *   Step 2: Define Review model with polymorphic belongs_to (OptionCard)
+ *   Step 3: Add has_many :reviews to parent models (OptionCard)
+ *   Step 4: Create CreateReview service object (OptionCard)
  *   Step 5: Wire controller to use service (OptionCard)
  *
  * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Polymorphic" button
- * Phase 4 (ADVANTAGE - reward): Single unified Comment table, connected to all
+ * Phase 4 (ADVANTAGE - reward): Single unified Review table, connected to all
  *   3 parent models. StressTestPanel fires comment creation scenarios on
  *   different parent types, including a new Article type to show extensibility.
  *
- * Teaches: polymorphic: true, commentable_type/id columns, has_many as:,
+ * Teaches: polymorphic: true, reviewable_type/id columns, has_many as:,
  *   service objects for comment creation, contract validation
  */
 
@@ -62,7 +62,7 @@ type Phase = 'intro' | 'build' | 'activate' | 'reward';
 const DUPLICATE_TABLES = [
 	{
 		name: 'post_comments',
-		fkColumn: 'post_id',
+		fkColumn: 'product_id',
 		borderColor: 'border-blue-300 dark:border-blue-600',
 		headerBg: 'bg-blue-50 dark:bg-blue-900/30',
 		textColor: 'text-blue-700 dark:text-blue-300',
@@ -105,9 +105,9 @@ const DUPLICATE_TABLES = [
 const STEP_DEFS: StepDef[] = [
 	{ id: 'generate-migration', title: 'Generate Migration' },
 	{ id: 'run-migration', title: 'Run Migration' },
-	{ id: 'comment-model', title: 'Define Comment Model' },
+	{ id: 'review-model', title: 'Define Review Model' },
 	{ id: 'parent-models', title: 'Update Parent Models' },
-	{ id: 'create-service', title: 'Create Comment Service' },
+	{ id: 'create-service', title: 'Create Review Service' },
 	{ id: 'wire-controller', title: 'Wire the Controller' },
 ];
 
@@ -115,8 +115,8 @@ const STEP_DEFS: StepDef[] = [
 const MIGRATION_COMMANDS = [
 	{
 		id: 'wrong-separate',
-		label: 'rails g model Comment body:text post:references',
-		command: 'rails generate model Comment body:text post:references',
+		label: 'rails g model Review body:text product:references',
+		command: 'rails generate model Review body:text product:references',
 		correct: false,
 		feedback:
 			'This creates a foreign key to posts only. You need a polymorphic reference that can point to any parent type.',
@@ -124,17 +124,17 @@ const MIGRATION_COMMANDS = [
 	{
 		id: 'correct-polymorphic',
 		label:
-			'rails g model Comment body:text commentable:references{polymorphic}',
+			'rails g model Review body:text reviewable:references{polymorphic}',
 		command:
-			'rails generate model Comment body:text commentable:references{polymorphic} user:references',
+			'rails generate model Review body:text reviewable:references{polymorphic} user:references',
 		correct: true,
 	},
 	{
 		id: 'wrong-string-columns',
 		label:
-			'rails g model Comment body:text commentable_type:string commentable_id:integer',
+			'rails g model Review body:text reviewable_type:string reviewable_id:integer',
 		command:
-			'rails generate model Comment body:text commentable_type:string commentable_id:integer',
+			'rails generate model Review body:text reviewable_type:string reviewable_id:integer',
 		correct: false,
 		feedback:
 			'Adding columns manually works but misses the index. The {polymorphic} flag generates both columns AND the composite index automatically.',
@@ -147,7 +147,7 @@ const MIGRATION_OUTPUT = [
 		text: '  create    db/migrate/20250314_create_comments.rb',
 		color: 'green' as const,
 	},
-	{ text: '  create    app/models/comment.rb', color: 'green' as const },
+	{ text: '  create    app/models/review.rb', color: 'green' as const },
 ];
 
 // Terminal step 1: Run migration
@@ -172,21 +172,21 @@ const RUN_MIGRATION_COMMANDS = [
 		command: 'rails db:seed',
 		correct: false,
 		feedback:
-			'db:seed populates sample data. The migration still needs to run first to create the comments table.',
+			'db:seed populates sample data. The migration still needs to run first to create the reviews table.',
 	},
 ];
 
 const RUN_MIGRATION_OUTPUT = [
-	{ text: '== CreateComments: migrating ====', color: 'green' as const },
+	{ text: '== CreateReviews: migrating ====', color: 'green' as const },
 	{ text: '-- create_table(:comments)', color: 'green' as const },
 	{ text: '   -> 0.0045s', color: 'muted' as const },
 	{
-		text: '-- add_index(:comments, [:commentable_type, :commentable_id])',
+		text: '-- add_index(:comments, [:reviewable_type, :reviewable_id])',
 		color: 'green' as const,
 	},
 	{ text: '   -> 0.0012s', color: 'muted' as const },
 	{
-		text: '== CreateComments: migrated (0.0057s) ====',
+		text: '== CreateReviews: migrated (0.0057s) ====',
 		color: 'green' as const,
 	},
 ];
@@ -201,12 +201,12 @@ const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
 	null, // step 5: OptionCard
 ];
 
-// OptionCard step 2: Comment model
+// OptionCard step 2: Review model
 const COMMENT_MODEL_OPTIONS = [
 	{
 		id: 'wrong-sti',
-		label: `class Comment < ApplicationRecord
-  belongs_to :post
+		label: `class Review < ApplicationRecord
+  belongs_to :product
   belongs_to :photo
   belongs_to :video
 end`,
@@ -216,8 +216,8 @@ end`,
 	},
 	{
 		id: 'correct-polymorphic',
-		label: `class Comment < ApplicationRecord
-  belongs_to :commentable, polymorphic: true
+		label: `class Review < ApplicationRecord
+  belongs_to :reviewable, polymorphic: true
   belongs_to :user
 
   validates :body, presence: true,
@@ -227,8 +227,8 @@ end`,
 	},
 	{
 		id: 'wrong-no-polymorphic',
-		label: `class Comment < ApplicationRecord
-  belongs_to :commentable
+		label: `class Review < ApplicationRecord
+  belongs_to :reviewable
   belongs_to :user
 end`,
 		correct: false,
@@ -241,26 +241,26 @@ end`,
 const PARENT_MODEL_OPTIONS = [
 	{
 		id: 'wrong-has-one',
-		label: `class Post < ApplicationRecord
-  has_one :comment, as: :commentable
+		label: `class Product < ApplicationRecord
+  has_one :comment, as: :reviewable
 end`,
 		correct: false,
 		feedback:
-			'has_one limits each post to a single comment. Posts can have many comments, so has_many is the correct association.',
+			'has_one limits each product to a single comment. Posts can have many comments, so has_many is the correct association.',
 	},
 	{
 		id: 'wrong-no-as',
-		label: `class Post < ApplicationRecord
-  has_many :comments, dependent: :destroy
+		label: `class Product < ApplicationRecord
+  has_many :reviews, dependent: :destroy
 end`,
 		correct: false,
 		feedback:
-			'Without `as: :commentable`, Rails looks for a `post_id` column on comments. The `as:` option tells Rails to use the polymorphic commentable_type/commentable_id pair.',
+			'Without `as: :reviewable`, Rails looks for a `product_id` column on comments. The `as:` option tells Rails to use the polymorphic reviewable_type/reviewable_id pair.',
 	},
 	{
 		id: 'correct-as-commentable',
-		label: `class Post < ApplicationRecord
-  has_many :comments, as: :commentable,
+		label: `class Product < ApplicationRecord
+  has_many :reviews, as: :reviewable,
     dependent: :destroy
 end
 # Same for Photo and Video`,
@@ -268,21 +268,21 @@ end
 	},
 ];
 
-// OptionCard step 4: CreateComment service
+// OptionCard step 4: CreateReview service
 const SERVICE_OPTIONS = [
 	{
 		id: 'wrong-no-contract',
-		label: `class CreateComment < ApplicationService
+		label: `class CreateReview < ApplicationService
   Result = Data.define(:success?, :comment, :errors)
 
   def initialize(commentable:, user:, body:)
-    @commentable = commentable
+    @reviewable = commentable
     @user = user
     @body = body
   end
 
   def call
-    comment = @commentable.comments.build(
+    review = @reviewable.comments.build(
       user: @user, body: @body
     )
     if comment.save
@@ -299,11 +299,11 @@ end`,
 	},
 	{
 		id: 'correct-with-contract',
-		label: `class CreateComment < ApplicationService
+		label: `class CreateReview < ApplicationService
   Result = Data.define(:success?, :comment, :errors)
 
   def initialize(commentable:, user:, params:)
-    @commentable = commentable
+    @reviewable = commentable
     @user = user
     @params = params
   end
@@ -313,7 +313,7 @@ end`,
     return Result.new(success?: false,
       comment: nil, errors: v.errors.to_h) if v.failure?
 
-    comment = @commentable.comments.create!(
+    review = @reviewable.comments.create!(
       user: @user, body: v[:body]
     )
     Result.new(success?: true, comment:, errors: [])
@@ -323,11 +323,11 @@ end`,
 	},
 	{
 		id: 'wrong-inline-validation',
-		label: `class CreateComment < ApplicationService
+		label: `class CreateReview < ApplicationService
   Result = Data.define(:success?, :comment, :errors)
 
   def initialize(commentable:, user:, params:)
-    @commentable = commentable
+    @reviewable = commentable
     @user = user
     @params = params
   end
@@ -337,7 +337,7 @@ end`,
       return Result.new(success?: false,
         comment: nil, errors: ["Body required"])
     end
-    comment = @commentable.comments.create!(
+    review = @reviewable.comments.create!(
       user: @user, body: @params[:body]
     )
     Result.new(success?: true, comment:, errors: [])
@@ -356,28 +356,28 @@ const CONTROLLER_OPTIONS = [
 		label: `class Api::V1::CommentsController < ApplicationController
   def create
     commentable = find_commentable
-    comment = commentable.comments.create!(
+    review = commentable.comments.create!(
       comment_params.merge(user: Current.user)
     )
-    render json: CommentSerializer.new(comment),
+    render json: ReviewSerializer.new(comment),
       status: :created
   end
 end`,
 		correct: false,
 		feedback:
-			'Business logic belongs in service objects, not controllers. The controller should delegate to CreateComment.call and handle the result.',
+			'Business logic belongs in service objects, not controllers. The controller should delegate to CreateReview.call and handle the result.',
 	},
 	{
 		id: 'correct-service',
 		label: `class Api::V1::CommentsController < ApplicationController
   def create
     commentable = find_commentable
-    result = CreateComment.call(
+    result = CreateReview.call(
       commentable:, user: Current.user,
       params: params.expect(comment: [:body])
     )
     if result.success?
-      render json: CommentSerializer.new(result.comment),
+      render json: ReviewSerializer.new(result.comment),
         status: :created
     else
       render json: { error: { code: "VALIDATION_FAILED",
@@ -405,19 +405,19 @@ const OPTION_STEP_CONFIG: Record<
 	}
 > = {
 	2: {
-		title: 'Define the Comment Model',
+		title: 'Define the Review Model',
 		description:
-			'Choose the correct polymorphic association declaration for the Comment model.',
+			'Choose the correct polymorphic association declaration for the Review model.',
 		options: COMMENT_MODEL_OPTIONS,
 	},
 	3: {
 		title: 'Update Parent Models',
 		description:
-			'Add the polymorphic has_many association to Post, Photo, and Video.',
+			'Add the polymorphic has_many association to Product, ProductImage, and ProductVideo.',
 		options: PARENT_MODEL_OPTIONS,
 	},
 	4: {
-		title: 'Create the Comment Service',
+		title: 'Create the Review Service',
 		description:
 			'Build a service object that creates comments on any commentable parent, using contract validation.',
 		options: SERVICE_OPTIONS,
@@ -425,7 +425,7 @@ const OPTION_STEP_CONFIG: Record<
 	5: {
 		title: 'Wire the Controller',
 		description:
-			'Connect the controller to the CreateComment service, following the established error response shape.',
+			'Connect the controller to the CreateReview service, following the established error response shape.',
 		options: CONTROLLER_OPTIONS,
 	},
 };
@@ -441,8 +441,8 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 			{
 				filename: 'app/models/post_comment.rb',
 				language: 'ruby',
-				code: `class PostComment < ApplicationRecord
-  belongs_to :post
+				code: `class PostReview < ApplicationRecord
+  belongs_to :product
   belongs_to :user
 
   validates :body, presence: true,
@@ -452,7 +452,7 @@ end`,
 			{
 				filename: 'app/models/photo_comment.rb',
 				language: 'ruby',
-				code: `class PhotoComment < ApplicationRecord
+				code: `class PhotoReview < ApplicationRecord
   belongs_to :photo
   belongs_to :user
 
@@ -463,7 +463,7 @@ end`,
 			{
 				filename: 'app/models/video_comment.rb',
 				language: 'ruby',
-				code: `class VideoComment < ApplicationRecord
+				code: `class VideoReview < ApplicationRecord
   belongs_to :video
   belongs_to :user
 
@@ -478,7 +478,7 @@ end`,
   Result = Data.define(:success?, :comment, :errors)
 
   def initialize(post:, user:, params:)
-    @post = post
+    @product = post
     @user = user
     @params = params
   end
@@ -488,7 +488,7 @@ end`,
     return Result.new(success?: false,
       comment: nil, errors: v.errors.to_h) if v.failure?
 
-    comment = @post.post_comments.create!(
+    review = @post.post_comments.create!(
       user: @user, body: v[:body]
     )
     Result.new(success?: true, comment:, errors: [])
@@ -508,8 +508,8 @@ end
 					filename: 'db/migrate/..._create_comments.rb (pending)',
 					language: 'ruby',
 					code: `# Migration will be generated in this step...
-# Goal: single comments table with polymorphic
-# reference columns (commentable_type, commentable_id)`,
+# Goal: single reviews table with polymorphic
+# reference columns (reviewable_type, reviewable_id)`,
 				},
 			];
 		}
@@ -518,16 +518,16 @@ end
 				{
 					filename: 'db/migrate/create_comments.rb',
 					language: 'ruby',
-					code: `class CreateComments < ActiveRecord::Migration[8.0]
+					code: `class CreateReviews < ActiveRecord::Migration[8.0]
   def change
     create_table :comments do |t|
       t.text :body, null: false
-      t.references :commentable, polymorphic: true, null: false
+      t.references :reviewable, polymorphic: true, null: false
       t.references :user, null: false, foreign_key: true
       t.timestamps
     end
     add_index :comments,
-      [:commentable_type, :commentable_id]
+      [:reviewable_type, :reviewable_id]
   end
 end`,
 					highlight: [5],
@@ -539,23 +539,23 @@ end`,
 				{
 					filename: 'db/migrate/create_comments.rb',
 					language: 'ruby',
-					code: `class CreateComments < ActiveRecord::Migration[8.0]
+					code: `class CreateReviews < ActiveRecord::Migration[8.0]
   def change
     create_table :comments do |t|
       t.text :body, null: false
-      t.references :commentable, polymorphic: true, null: false
+      t.references :reviewable, polymorphic: true, null: false
       t.references :user, null: false, foreign_key: true
       t.timestamps
     end
     add_index :comments,
-      [:commentable_type, :commentable_id]
+      [:reviewable_type, :reviewable_id]
   end
 end`,
 				},
 				{
-					filename: 'app/models/comment.rb (next step)',
+					filename: 'app/models/review.rb (next step)',
 					language: 'ruby',
-					code: `# Define the Comment model with
+					code: `# Define the Review model with
 # polymorphic belongs_to...`,
 				},
 			];
@@ -563,10 +563,10 @@ end`,
 		if (furthestStep === 3) {
 			return [
 				{
-					filename: 'app/models/comment.rb',
+					filename: 'app/models/review.rb',
 					language: 'ruby',
-					code: `class Comment < ApplicationRecord
-  belongs_to :commentable, polymorphic: true
+					code: `class Review < ApplicationRecord
+  belongs_to :reviewable, polymorphic: true
   belongs_to :user
 
   validates :body, presence: true,
@@ -575,9 +575,9 @@ end`,
 					highlight: [2],
 				},
 				{
-					filename: 'app/models/post.rb (next step)',
+					filename: 'app/models/product.rb (next step)',
 					language: 'ruby',
-					code: `class Post < ApplicationRecord
+					code: `class Product < ApplicationRecord
   # Add polymorphic has_many...
 end`,
 				},
@@ -586,10 +586,10 @@ end`,
 		if (furthestStep === 4) {
 			return [
 				{
-					filename: 'app/models/comment.rb',
+					filename: 'app/models/review.rb',
 					language: 'ruby',
-					code: `class Comment < ApplicationRecord
-  belongs_to :commentable, polymorphic: true
+					code: `class Review < ApplicationRecord
+  belongs_to :reviewable, polymorphic: true
   belongs_to :user
 
   validates :body, presence: true,
@@ -597,22 +597,22 @@ end`,
 end`,
 				},
 				{
-					filename: 'app/models/post.rb',
+					filename: 'app/models/product.rb',
 					language: 'ruby',
-					code: `class Post < ApplicationRecord
-  has_many :comments, as: :commentable,
+					code: `class Product < ApplicationRecord
+  has_many :reviews, as: :reviewable,
     dependent: :destroy
 end
 
 # app/models/photo.rb
 class Photo < ApplicationRecord
-  has_many :comments, as: :commentable,
+  has_many :reviews, as: :reviewable,
     dependent: :destroy
 end
 
 # app/models/video.rb
 class Video < ApplicationRecord
-  has_many :comments, as: :commentable,
+  has_many :reviews, as: :reviewable,
     dependent: :destroy
 end`,
 					highlight: [2, 8, 14],
@@ -628,10 +628,10 @@ end`,
 		if (furthestStep === 5) {
 			return [
 				{
-					filename: 'app/models/comment.rb',
+					filename: 'app/models/review.rb',
 					language: 'ruby',
-					code: `class Comment < ApplicationRecord
-  belongs_to :commentable, polymorphic: true
+					code: `class Review < ApplicationRecord
+  belongs_to :reviewable, polymorphic: true
   belongs_to :user
 
   validates :body, presence: true,
@@ -650,11 +650,11 @@ end`,
 				{
 					filename: 'app/services/create_comment.rb',
 					language: 'ruby',
-					code: `class CreateComment < ApplicationService
+					code: `class CreateReview < ApplicationService
   Result = Data.define(:success?, :comment, :errors)
 
   def initialize(commentable:, user:, params:)
-    @commentable = commentable
+    @reviewable = commentable
     @user = user
     @params = params
   end
@@ -664,7 +664,7 @@ end`,
     return Result.new(success?: false,
       comment: nil, errors: v.errors.to_h) if v.failure?
 
-    comment = @commentable.comments.create!(
+    review = @reviewable.comments.create!(
       user: @user, body: v[:body]
     )
     Result.new(success?: true, comment:, errors: [])
@@ -673,10 +673,10 @@ end`,
 					highlight: [1, 3, 11],
 				},
 				{
-					filename: 'app/controllers/api/v1/comments_controller.rb (next step)',
+					filename: 'app/controllers/api/v1/reviews_controller.rb (next step)',
 					language: 'ruby',
 					code: `# Wire the controller to delegate to
-# CreateComment.call...`,
+# CreateReview.call...`,
 				},
 			];
 		}
@@ -685,10 +685,10 @@ end`,
 	// Activate + reward: complete solution
 	return [
 		{
-			filename: 'app/models/comment.rb',
+			filename: 'app/models/review.rb',
 			language: 'ruby',
-			code: `class Comment < ApplicationRecord
-  belongs_to :commentable, polymorphic: true
+			code: `class Review < ApplicationRecord
+  belongs_to :reviewable, polymorphic: true
   belongs_to :user
 
   validates :body, presence: true,
@@ -696,15 +696,15 @@ end`,
 end`,
 		},
 		{
-			filename: 'app/models/post.rb',
+			filename: 'app/models/product.rb',
 			language: 'ruby',
-			code: `class Post < ApplicationRecord
-  has_many :comments, as: :commentable,
+			code: `class Product < ApplicationRecord
+  has_many :reviews, as: :reviewable,
     dependent: :destroy
 end
 
 # Photo, Video (same pattern)
-# has_many :comments, as: :commentable`,
+# has_many :reviews, as: :reviewable`,
 		},
 		{
 			filename: 'app/contracts/comment_contract.rb',
@@ -718,11 +718,11 @@ end`,
 		{
 			filename: 'app/services/create_comment.rb',
 			language: 'ruby',
-			code: `class CreateComment < ApplicationService
+			code: `class CreateReview < ApplicationService
   Result = Data.define(:success?, :comment, :errors)
 
   def initialize(commentable:, user:, params:)
-    @commentable = commentable
+    @reviewable = commentable
     @user = user
     @params = params
   end
@@ -732,7 +732,7 @@ end`,
     return Result.new(success?: false,
       comment: nil, errors: v.errors.to_h) if v.failure?
 
-    comment = @commentable.comments.create!(
+    review = @reviewable.comments.create!(
       user: @user, body: v[:body]
     )
     Result.new(success?: true, comment:, errors: [])
@@ -740,19 +740,19 @@ end`,
 end`,
 		},
 		{
-			filename: 'app/controllers/api/v1/comments_controller.rb',
+			filename: 'app/controllers/api/v1/reviews_controller.rb',
 			language: 'ruby',
 			code: `class Api::V1::CommentsController < ApplicationController
   before_action :set_commentable
 
   def create
-    result = CreateComment.call(
-      commentable: @commentable,
+    result = CreateReview.call(
+      commentable: @reviewable,
       user: Current.user,
       params: params.expect(comment: [:body])
     )
     if result.success?
-      render json: CommentSerializer.new(result.comment),
+      render json: ReviewSerializer.new(result.comment),
         status: :created
     else
       render json: { error: {
@@ -767,7 +767,7 @@ end`,
 
   def set_commentable
     resource, id = request.path.split("/")[3..4]
-    @commentable = resource.singularize.classify
+    @reviewable = resource.singularize.classify
       .constantize.find(id)
   end
 end`,
@@ -842,7 +842,7 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 		{
 			id: 1,
 			body: 'Great post!',
-			type: 'Post',
+			type: 'Product',
 			typeId: 1,
 			userId: 5,
 			createdAt: 'Mar 12',
@@ -881,7 +881,7 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 		<LevelLayout>
 			<LeftPanel>
 				<InstructionPanel
-					goal="Replace three separate comment tables with one polymorphic Comment model."
+					goal="Replace three separate comment tables with one polymorphic Review model."
 					instructions={
 						phase === 'intro'
 							? [
@@ -893,7 +893,7 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 								? [
 										'Generate the polymorphic migration',
 										'Run the migration to create the table',
-										'Define the Comment model and parent associations',
+										'Define the Review model and parent associations',
 										'Build a service object with contract validation',
 										'Wire the controller to use the service',
 									]
@@ -912,12 +912,12 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 						{phase === 'intro' && (
 							<div className="p-4 text-xs text-muted-foreground space-y-2">
 								<p>
-									Three models need comments: Post, Photo, and Video. Each has
+									Three models need reviews: Product, ProductImage, and ProductVideo. Each has
 									its own comment table with nearly identical schemas.
 								</p>
 								<p>
 									Polymorphic associations replace all three with a single
-									unified Comment table.
+									unified Review table.
 								</p>
 							</div>
 						)}
@@ -936,7 +936,7 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 							<div className="p-4 text-xs text-muted-foreground space-y-2">
 								<p>
 									Three separate tables consolidated into one. The
-									commentable_type and commentable_id columns replace post_id,
+									reviewable_type and reviewable_id columns replace product_id,
 									photo_id, and video_id.
 								</p>
 								<p>Adding Article comments required zero schema changes.</p>
@@ -964,7 +964,7 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 								<div className="inline-flex items-center gap-2 bg-destructive/10 dark:bg-destructive/20 border border-destructive/30 rounded-lg px-3 py-1.5">
 									<Table2 className="w-4 h-4 text-destructive" />
 									<span className="text-sm font-semibold text-destructive">
-										3 Separate Comment Tables
+										3 Separate Review Tables
 									</span>
 								</div>
 
@@ -1092,12 +1092,12 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 									description={
 										stepper.currentStep === 0 ? (
 											<p className="text-sm text-muted-foreground">
-												Generate a Comment model with a polymorphic reference to
+												Generate a Review model with a polymorphic reference to
 												any commentable parent.
 											</p>
 										) : (
 											<p className="text-sm text-muted-foreground">
-												Run the migration to create the comments table with
+												Run the migration to create the reviews table with
 												polymorphic columns.
 											</p>
 										)
@@ -1294,10 +1294,10 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 															body
 														</th>
 														<th className="px-2 py-1 text-left font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20">
-															commentable_type
+															reviewable_type
 														</th>
 														<th className="px-2 py-1 text-left font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20">
-															commentable_id
+															reviewable_id
 														</th>
 														<th className="px-2 py-1 text-left font-medium text-muted-foreground">
 															user_id
@@ -1353,7 +1353,7 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 					learningGoal={
 						phase === 'intro'
 							? 'Three identical comment tables duplicate schema, validations, and queries. Any new commentable type requires another table.'
-							: 'One polymorphic Comment model handles all parent types. commentable_type + commentable_id columns replace three separate foreign keys.'
+							: 'One polymorphic Review model handles all parent types. reviewable_type + reviewable_id columns replace three separate foreign keys.'
 					}
 				>
 					<div className="p-4 border-t border-border">
@@ -1364,17 +1364,17 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 							<li className="flex items-start gap-1.5">
 								<Database className="w-3 h-3 mt-0.5 shrink-0 text-primary" />
 								<span>
-									commentable_type stores the model name ("Post", "Photo")
+									reviewable_type stores the model name ("Product", "Photo")
 								</span>
 							</li>
 							<li className="flex items-start gap-1.5">
 								<Table2 className="w-3 h-3 mt-0.5 shrink-0 text-primary" />
-								<span>commentable_id stores the record ID</span>
+								<span>reviewable_id stores the record ID</span>
 							</li>
 							<li className="flex items-start gap-1.5">
 								<Zap className="w-3 h-3 mt-0.5 shrink-0 text-primary" />
 								<span>
-									New types need only has_many :comments, as: :commentable
+									New types need only has_many :reviews, as: :reviewable
 								</span>
 							</li>
 						</ul>

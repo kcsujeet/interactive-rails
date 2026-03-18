@@ -560,19 +560,19 @@ end`,
 			code: `# Memory benchmarks (100K posts, 30 columns)
 
 # Wide fetch: loads everything
-Post.all
+Product.all
 #=> 681 MB, 149K objects allocated
 
 # Select: partial AR objects
-Post.select(:id, :title)
+Product.select(:id, :title)
 #=> 12.1 MB, 107K objects  (56x less)
 
 # Pluck: plain Ruby arrays
-Post.pluck(:id, :title)
+Product.pluck(:id, :title)
 #=> 2.35 MB, 45K objects   (290x less)
 
 # Batch: constant memory
-Post.find_in_batches(batch_size: 1000) { |batch|
+Product.find_in_batches(batch_size: 1000) { |batch|
   # ~50 MB per batch regardless of total
 }`,
 			highlight: [4, 8, 12, 16],

@@ -227,8 +227,8 @@ export function createIncident(
 // Pre-defined incident messages for simulation
 export const INCIDENT_MESSAGES: Record<IncidentType, string[]> = {
 	n_plus_one_detected: [
-		'N+1 query detected: Post.find each triggers User.find',
-		'N+1 pattern: Loading comments individually for each post',
+		'N+1 query detected: Product.find each triggers User.find',
+		'N+1 pattern: Loading reviews individually for each product',
 		'Detected 50 individual queries for associated records',
 	],
 	slow_query: [

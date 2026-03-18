@@ -14,15 +14,15 @@ import { describe, expect, test } from 'bun:test';
 // ── Mirror data from component ──
 
 const DUPLICATE_TABLES = [
-	{ name: 'post_comments', fkColumn: 'post_id' },
-	{ name: 'photo_comments', fkColumn: 'photo_id' },
-	{ name: 'video_comments', fkColumn: 'video_id' },
+	{ name: 'product_reviews', fkColumn: 'product_id' },
+	{ name: 'photo_reviews', fkColumn: 'photo_id' },
+	{ name: 'video_reviews', fkColumn: 'video_id' },
 ];
 
 const SHARED_COLUMNS = ['id', 'body', 'user_id', 'created_at'];
 
 const UNIFIED_ROWS = [
-	{ id: 1, body: 'Great post!', type: 'Post', typeId: 1, userId: 5, createdAt: 'Mar 12' },
+	{ id: 1, body: 'Great post!', type: 'Product', typeId: 1, userId: 5, createdAt: 'Mar 12' },
 	{ id: 2, body: 'Beautiful shot!', type: 'Photo', typeId: 3, userId: 5, createdAt: 'Mar 10' },
 	{ id: 3, body: 'Awesome video!', type: 'Video', typeId: 7, userId: 2, createdAt: 'Mar 11' },
 	{ id: 4, body: 'Nice analysis', type: 'Article', typeId: 2, userId: 8, createdAt: 'Mar 15' },
@@ -31,27 +31,27 @@ const UNIFIED_ROWS = [
 const STEP_DEFS = [
 	{ id: 'generate-migration', title: 'Generate Migration' },
 	{ id: 'run-migration', title: 'Run Migration' },
-	{ id: 'comment-model', title: 'Define Comment Model' },
+	{ id: 'review-model', title: 'Define Review Model' },
 	{ id: 'parent-models', title: 'Update Parent Models' },
-	{ id: 'create-service', title: 'Create Comment Service' },
+	{ id: 'create-service', title: 'Create Review Service' },
 	{ id: 'wire-controller', title: 'Wire the Controller' },
 ];
 
 const MIGRATION_COMMANDS = [
 	{
 		id: 'wrong-separate',
-		label: 'rails g model Comment body:text post:references',
+		label: 'rails g model Review body:text product:references',
 		correct: false,
 		feedback: 'This creates a foreign key to posts only. You need a polymorphic reference that can point to any parent type.',
 	},
 	{
 		id: 'correct-polymorphic',
-		label: 'rails g model Comment body:text commentable:references{polymorphic}',
+		label: 'rails g model Review body:text reviewable:references{polymorphic}',
 		correct: true,
 	},
 	{
 		id: 'wrong-string-columns',
-		label: 'rails g model Comment body:text commentable_type:string commentable_id:integer',
+		label: 'rails g model Review body:text reviewable_type:string reviewable_id:integer',
 		correct: false,
 		feedback: 'Adding columns manually works but misses the index. The {polymorphic} flag generates both columns AND the composite index automatically.',
 	},
@@ -60,7 +60,7 @@ const MIGRATION_COMMANDS = [
 const RUN_MIGRATION_COMMANDS = [
 	{ id: 'wrong-setup', label: 'rails db:setup', correct: false, feedback: 'db:setup drops and recreates the database from schema.rb. You only need to run the pending migration.' },
 	{ id: 'correct-migrate', label: 'rails db:migrate', correct: true },
-	{ id: 'wrong-seed', label: 'rails db:seed', correct: false, feedback: 'db:seed populates sample data. The migration still needs to run first to create the comments table.' },
+	{ id: 'wrong-seed', label: 'rails db:seed', correct: false, feedback: 'db:seed populates sample data. The migration still needs to run first to create the reviews table.' },
 ];
 
 const COMMENT_MODEL_OPTIONS = [
@@ -70,8 +70,8 @@ const COMMENT_MODEL_OPTIONS = [
 ];
 
 const PARENT_MODEL_OPTIONS = [
-	{ id: 'wrong-has-one', correct: false, feedback: 'has_one limits each post to a single comment. Posts can have many comments, so has_many is the correct association.' },
-	{ id: 'wrong-no-as', correct: false, feedback: 'Without `as: :commentable`, Rails looks for a `post_id` column on comments. The `as:` option tells Rails to use the polymorphic commentable_type/commentable_id pair.' },
+	{ id: 'wrong-has-one', correct: false, feedback: 'has_one limits each product to a single comment. Posts can have many comments, so has_many is the correct association.' },
+	{ id: 'wrong-no-as', correct: false, feedback: 'Without `as: :reviewable`, Rails looks for a `product_id` column on comments. The `as:` option tells Rails to use the polymorphic reviewable_type/reviewable_id pair.' },
 	{ id: 'correct-as-commentable', correct: true },
 ];
 
@@ -82,7 +82,7 @@ const SERVICE_OPTIONS = [
 ];
 
 const CONTROLLER_OPTIONS = [
-	{ id: 'wrong-direct-create', correct: false, feedback: 'Business logic belongs in service objects, not controllers. The controller should delegate to CreateComment.call and handle the result.' },
+	{ id: 'wrong-direct-create', correct: false, feedback: 'Business logic belongs in service objects, not controllers. The controller should delegate to CreateReview.call and handle the result.' },
 	{ id: 'correct-service', correct: true },
 ];
 
@@ -141,7 +141,7 @@ describe('Level 32: Polymorphic Associations', () => {
 			expect(correctIdx).toBeGreaterThan(0);
 		});
 
-		test('correct Comment model option is never first', () => {
+		test('correct Review model option is never first', () => {
 			const correctIdx = COMMENT_MODEL_OPTIONS.findIndex((c) => c.correct);
 			expect(correctIdx).toBeGreaterThan(0);
 		});
@@ -220,7 +220,7 @@ describe('Level 32: Polymorphic Associations', () => {
 
 	describe('Cross-phase consistency (intro vs reward)', () => {
 		test('reward unified table covers all intro parent types', () => {
-			const introParents = DUPLICATE_TABLES.map((t) => t.name.replace('_comments', ''));
+			const introParents = DUPLICATE_TABLES.map((t) => t.name.replace('_reviews', ''));
 			const rewardTypes = UNIFIED_ROWS.map((r) => r.type.toLowerCase());
 			for (const parent of introParents) {
 				expect(rewardTypes).toContain(parent);
@@ -274,7 +274,7 @@ describe('Level 32: Polymorphic Associations', () => {
 		test('terminal steps are 0 and 1, option steps are 2-5', () => {
 			expect(STEP_DEFS[0].id).toBe('generate-migration');
 			expect(STEP_DEFS[1].id).toBe('run-migration');
-			expect(STEP_DEFS[2].id).toBe('comment-model');
+			expect(STEP_DEFS[2].id).toBe('review-model');
 			expect(STEP_DEFS[3].id).toBe('parent-models');
 			expect(STEP_DEFS[4].id).toBe('create-service');
 			expect(STEP_DEFS[5].id).toBe('wire-controller');

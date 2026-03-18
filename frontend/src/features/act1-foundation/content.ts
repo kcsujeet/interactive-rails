@@ -3,7 +3,7 @@
  * "Build a working API from nothing"
  *
  * Levels 1-8: Environment, First Boot, Model, CRUD, Routes, Controller, Serializers, Associations
- * App context: Blog API
+ * App context: E-commerce Product Catalog API
  */
 
 import type { Act, Level } from '@/types';
@@ -245,14 +245,14 @@ const level3Model: Level = {
 	trigger: {
 		type: 'new_feature',
 		description:
-			'Your app is running but the database is empty: no tables, no schema. Define the Post model, choose attribute types, run the generator, and migrate.',
+			'Your app is running but the database is empty: no tables, no schema. Define the Product model, choose attribute types, run the generator, and migrate.',
 	},
 	startingPipeline: {
 		nodes: [],
 		connections: [],
 	},
 	problem: {
-		observation: 'Empty application with no data structure. You need to define what a Post looks like.',
+		observation: 'Empty application with no data structure. You need to define what a Product looks like.',
 		rootCause: 'No models defined yet.',
 		codeExample: `# Rails model conventions:
 # - Model names are singular PascalCase (not plural)
@@ -262,11 +262,15 @@ const level3Model: Level = {
 
 # string vs text:
 #   string  - short content (titles, names), VARCHAR(255)
-#   text    - long content (articles, bios), unlimited
+#   text    - long content (descriptions, bios), unlimited
+
+# decimal vs float:
+#   decimal - exact precision (prices, money), NUMERIC
+#   float   - approximate (scientific data), not for money
 
 # Your job: name the model, pick the right types,
 # generate it, and migrate.`,
-		goal: 'Create the Post model: name it correctly, define attributes with proper types, run the generator, and migrate the database.',
+		goal: 'Create the Product model: name it correctly, define attributes with proper types, run the generator, and migrate the database.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'node_present', nodeType: 'model' }],
@@ -274,30 +278,30 @@ const level3Model: Level = {
 	unlockedNodes: [],
 	learningContent: {
 		title: 'ActiveRecord Models & Migrations',
-		goal: `In this level, you'll:\n- define your first data model and learn how Rails maps Ruby classes to database tables.\n- use the model generator and choose the right column types (string, text, boolean).\n- run your first migration to create the table in PostgreSQL.`,
+		goal: `In this level, you'll:\n- define your first data model and learn how Rails maps Ruby classes to database tables.\n- use the model generator and choose the right column types (string, text, decimal).\n- run your first migration to create the table in PostgreSQL.`,
 		conceptExplanation: `Models are the M in MVC. They represent your data and business logic.
 
 **Key concepts:**
-- Models map to database tables (Post → posts table)
+- Models map to database tables (Product → products table)
 - Attributes become database columns
-- Each attribute has a type (string, text, integer, boolean, datetime)
+- Each attribute has a type (string, text, integer, decimal, boolean, datetime)
 - Migrations are version-controlled database changes
 
 **Rails conventions:**
-- Model names are singular (Post, User, Comment)
-- Table names are plural (posts, users, comments)
+- Model names are singular (Product, User, Review)
+- Table names are plural (products, users, reviews)
 - Primary key is \`id\` (auto-generated)
 - \`created_at\` and \`updated_at\` are added by \`t.timestamps\``,
 		railsCodeExample: `# Generate a model with attributes
-rails generate model Post title:string body:text published_at:datetime
+rails generate model Product name:string description:text price:decimal
 
 # This creates:
-# - app/models/post.rb
-# - db/migrate/xxx_create_posts.rb
+# - app/models/product.rb
+# - db/migrate/xxx_create_products.rb
 
-# app/models/post.rb
-class Post < ApplicationRecord
-  # Attributes: title, body, published_at, created_at, updated_at
+# app/models/product.rb
+class Product < ApplicationRecord
+  # Attributes: name, description, price, created_at, updated_at
 end
 
 # Run the migration
@@ -308,7 +312,7 @@ rails db:schema:dump`,
 		commonMistakes: [
 			'Too many attributes (start minimal, add later)',
 			'Wrong data types (string vs text for long content)',
-			'Forgetting timestamps',
+			'Using float for prices (use decimal for exact precision)',
 			'Not running migrations after generating them',
 		],
 		whenToUse: 'Create a model for each entity in your domain.',
@@ -341,7 +345,7 @@ const level4CRUD: Level = {
 	trigger: {
 		type: 'new_feature',
 		description:
-			'The Post model exists but the database is empty. Use the Rails console to create, read, update, and destroy your first records.',
+			'The Product model exists but the database is empty. Use the Rails console to create, read, update, and destroy your first records.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -351,7 +355,7 @@ const level4CRUD: Level = {
 				x: 400,
 				y: 250,
 				locked: true,
-				config: { label: 'Post' },
+				config: { label: 'Product' },
 			},
 			{ id: 'database-node', type: 'database', x: 600, y: 250, locked: true },
 		],
@@ -360,7 +364,7 @@ const level4CRUD: Level = {
 		],
 	},
 	problem: {
-		observation: 'Model exists but no data. The console shows Post.count => 0.',
+		observation: 'Model exists but no data. The console shows Product.count => 0.',
 		rootCause: 'No records have been created yet.',
 		codeExample: `# ActiveRecord has methods for each operation:
 #
@@ -378,46 +382,46 @@ const level4CRUD: Level = {
 #
 # Some methods skip validations or callbacks.
 # Your job: pick the right one each time.`,
-		goal: 'Run each CRUD operation in the Rails console: create a post, read it back, update it, destroy it, and verify it is gone.',
+		goal: 'Run each CRUD operation in the Rails console: create a product, read it back, update it, destroy it, and verify it is gone.',
 		thresholds: {},
 	},
-	successConditions: [{ type: 'crud_complete', modelType: 'Post' }],
+	successConditions: [{ type: 'crud_complete', modelType: 'Product' }],
 	availableNodes: [],
 	unlockedNodes: [],
 	learningContent: {
 		title: 'ActiveRecord CRUD',
-		goal: `In this level, you'll:\n- learn the four fundamental database operations: creating, reading, updating, and destroying records.\n- work in the Rails console using ActiveRecord methods like create, find, where, update, and destroy.\n- interact with your Post model directly through CRUD operations.`,
+		goal: `In this level, you'll:\n- learn the four fundamental database operations: creating, reading, updating, and destroying records.\n- work in the Rails console using ActiveRecord methods like create, find, where, update, and destroy.\n- interact with your Product model directly through CRUD operations.`,
 		conceptExplanation: `CRUD = Create, Read, Update, Destroy. Every database-backed app needs these four operations.
 
-**Create:** \`Post.create(attrs)\` or \`Post.new(attrs)\` + \`post.save\`
-**Read:** \`Post.all\`, \`Post.find(id)\`, \`Post.where(conditions)\`, \`Post.find_by(attr)\`
-**Update:** \`post.update(attrs)\` or \`post.attribute = value\` + \`post.save\`
-**Destroy:** \`post.destroy\` (removes from DB)
+**Create:** \`Product.create(attrs)\` or \`Product.new(attrs)\` + \`product.save\`
+**Read:** \`Product.all\`, \`Product.find(id)\`, \`Product.where(conditions)\`, \`Product.find_by(attr)\`
+**Update:** \`product.update(attrs)\` or \`product.attribute = value\` + \`product.save\`
+**Destroy:** \`product.destroy\` (removes from DB)
 
 ActiveRecord translates these into SQL queries automatically.`,
 		railsCodeExample: `# CREATE - two ways
-post = Post.create(title: "Hello", body: "World")
+product = Product.create(name: "Laptop", description: "16-inch display", price: 999.99)
 # or
-post = Post.new(title: "Hello", body: "World")
-post.save
+product = Product.new(name: "Laptop", description: "16-inch display", price: 999.99)
+product.save
 
 # READ - many ways
-Post.all                          # SELECT * FROM posts
-Post.find(1)                      # SELECT * FROM posts WHERE id = 1
-Post.where.not(published_at: nil)  # SELECT * FROM posts WHERE published_at IS NOT NULL
-Post.find_by(title: "Hello")      # LIMIT 1
-Post.order(created_at: :desc)     # ORDER BY created_at DESC
-Post.first                        # LIMIT 1 ORDER BY id ASC
-Post.last                         # LIMIT 1 ORDER BY id DESC
+Product.all                          # SELECT * FROM products
+Product.find(1)                      # SELECT * FROM products WHERE id = 1
+Product.where("price > ?", 100)      # SELECT * FROM products WHERE price > 100
+Product.find_by(name: "Laptop")      # LIMIT 1
+Product.order(created_at: :desc)     # ORDER BY created_at DESC
+Product.first                        # LIMIT 1 ORDER BY id ASC
+Product.last                         # LIMIT 1 ORDER BY id DESC
 
 # UPDATE
-post.update(title: "New Title")   # UPDATE posts SET title = 'New Title' WHERE id = 1
+product.update(price: 899.99)        # UPDATE products SET price = 899.99 WHERE id = 1
 
 # DESTROY
-post.destroy                      # DELETE FROM posts WHERE id = 1
-Post.destroy_all                  # DELETE FROM posts (careful!)`,
+product.destroy                      # DELETE FROM products WHERE id = 1
+Product.destroy_all                  # DELETE FROM products (careful!)`,
 		commonMistakes: [
-			'Using Post.delete instead of Post.destroy (skips callbacks)',
+			'Using Product.delete instead of Product.destroy (skips callbacks)',
 			'Not checking if save/update returns false',
 			'Using find when find_by would be safer (find raises on not found)',
 			'Calling destroy_all without conditions',
@@ -455,7 +459,7 @@ const level5Routes: Level = {
 		connections: [],
 	},
 	problem: {
-		observation: 'GET /posts returns 404. No routes are defined.',
+		observation: 'GET /products returns 404. No routes are defined.',
 		rootCause: 'No routes defined. The outside world cannot reach your app.',
 		codeExample: `# config/routes.rb - currently empty!
 Rails.application.routes.draw do
@@ -470,8 +474,8 @@ end
 #   index, show, create, update, destroy
 #
 # Namespaces nest routes under a URL prefix:
-#   /posts        => posts#index
-#   /api/v1/posts => api/v1/posts#index
+#   /products        => products#index
+#   /api/v1/products => api/v1/products#index
 #
 # Your job: define the resource, nest it properly,
 # and trace each route to its action.`,
@@ -486,7 +490,7 @@ end
 		goal: `In this level, you'll:\n- connect your app to the outside world by defining RESTful routes.\n- learn how Rails maps HTTP verbs and URLs to controller actions using resources.\n- namespace routes under /api/v1/ for versioning.\n- trace a request from the moment it arrives to the response that goes back.`,
 		conceptExplanation: `Every HTTP request follows this path:
 
-1. **Request** arrives (GET /api/v1/posts)
+1. **Request** arrives (GET /api/v1/products)
 2. **Router** maps URL to controller action (\`routes.rb\`)
 3. **Controller** processes the request:
    - Calls **Model** to query/write the database
@@ -495,20 +499,20 @@ end
 
 The **Router** is the gateway. Without it, requests have no way to reach your controller.
 
-**\`resources :posts\`** in an API-only app generates 5 RESTful actions (index, show, create, update, destroy). The \`new\` and \`edit\` actions are excluded because API controllers don't serve HTML forms.
+**\`resources :products\`** in an API-only app generates 5 RESTful actions (index, show, create, update, destroy). The \`new\` and \`edit\` actions are excluded because API controllers don't serve HTML forms.
 **Namespacing** under \`/api/v1/\` keeps API routes organized and versioned.`,
 		railsCodeExample: `# config/routes.rb
 Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
-      resources :posts
+      resources :products
       # Generates:
-      # GET    /api/v1/posts          => api/v1/posts#index
-      # POST   /api/v1/posts          => api/v1/posts#create
-      # GET    /api/v1/posts/:id      => api/v1/posts#show
-      # PATCH  /api/v1/posts/:id      => api/v1/posts#update
-      # PUT    /api/v1/posts/:id      => api/v1/posts#update
-      # DELETE /api/v1/posts/:id      => api/v1/posts#destroy
+      # GET    /api/v1/products          => api/v1/products#index
+      # POST   /api/v1/products          => api/v1/products#create
+      # GET    /api/v1/products/:id      => api/v1/products#show
+      # PATCH  /api/v1/products/:id      => api/v1/products#update
+      # PUT    /api/v1/products/:id      => api/v1/products#update
+      # DELETE /api/v1/products/:id      => api/v1/products#destroy
     end
   end
 end
@@ -517,11 +521,11 @@ end
 rails routes
 
 # The request lifecycle:
-# 1. Client sends: GET /api/v1/posts
-# 2. Router matches: Api::V1::PostsController#index
-# 3. Controller calls Model: @posts = Post.all
-# 4. Model queries DB: SELECT * FROM posts
-# 5. Controller renders: render json: @posts
+# 1. Client sends: GET /api/v1/products
+# 2. Router matches: Api::V1::ProductsController#index
+# 3. Controller calls Model: @products = Product.all
+# 4. Model queries DB: SELECT * FROM products
+# 5. Controller renders: render json: @products
 # 6. Response: 200 OK with JSON body`,
 		commonMistakes: [
 			'Not namespacing API routes under /api/v1',
@@ -540,7 +544,7 @@ rails routes
 	},
 	hint: {
 		delay: 30,
-		text: 'Start with resources :posts, then wrap it in namespace :api and namespace :v1 (outermost first).',
+		text: 'Start with resources :products, then wrap it in namespace :api and namespace :v1 (outermost first).',
 	},
 };
 
@@ -563,7 +567,7 @@ const level6Controller: Level = {
 		connections: [],
 	},
 	problem: {
-		observation: 'Routes exist but return "uninitialized constant Api::V1::PostsController".',
+		observation: 'Routes exist but return "uninitialized constant Api::V1::ProductsController".',
 		rootCause: 'No controller exists to handle the routed requests.',
 		codeExample: `# Controllers handle requests and return JSON.
 # API controllers inherit from ActionController::API
@@ -603,46 +607,46 @@ const level6Controller: Level = {
 - Use curl or Postman to send requests directly
 - No browser frontend is needed yet
 - This keeps things simple: one terminal for Rails, one for curl`,
-		railsCodeExample: `# app/controllers/api/v1/posts_controller.rb
-class Api::V1::PostsController < ApplicationController
+		railsCodeExample: `# app/controllers/api/v1/products_controller.rb
+class Api::V1::ProductsController < ApplicationController
   def index
-    posts = Post.all
-    render json: posts
+    products = Product.all
+    render json: products
   end
 
   def show
-    post = Post.find(params[:id])
-    render json: post
+    product = Product.find(params[:id])
+    render json: product
   end
 
   def create
-    post = Post.new(post_params)
-    if post.save
-      render json: post, status: :created
+    product = Product.new(product_params)
+    if product.save
+      render json: product, status: :created
     else
-      render json: { errors: post.errors }, status: :unprocessable_entity
+      render json: { errors: product.errors }, status: :unprocessable_entity
     end
   end
 
   def update
-    post = Post.find(params[:id])
-    if post.update(post_params)
-      render json: post
+    product = Product.find(params[:id])
+    if product.update(product_params)
+      render json: product
     else
-      render json: { errors: post.errors }, status: :unprocessable_entity
+      render json: { errors: product.errors }, status: :unprocessable_entity
     end
   end
 
   def destroy
-    post = Post.find(params[:id])
-    post.destroy
+    product = Product.find(params[:id])
+    product.destroy
     head :no_content
   end
 
   private
 
-  def post_params
-    params.require(:post).permit(:title, :body, :published_at)
+  def product_params
+    params.require(:product).permit(:name, :description, :price)
   end
 end
 
@@ -669,7 +673,7 @@ end
 	},
 	hint: {
 		delay: 20,
-		text: 'Controller names are plural and must match the route namespace: Api::V1::Posts. Actions use Rails conventions like index, show, create.',
+		text: 'Controller names are plural and must match the route namespace: Api::V1::Products. Actions use Rails conventions like index, show, create.',
 	},
 };
 
@@ -694,12 +698,12 @@ const level7Serializers: Level = {
 	problem: {
 		observation: 'API returns all model attributes including internal ones.',
 		rootCause: 'No serialization layer to shape the JSON output.',
-		codeExample: `# Current: render json: post returns EVERYTHING
+		codeExample: `# Current: render json: product returns EVERYTHING
 {
   "id": 1,
-  "title": "Hello",
-  "body": "World",
-  "published_at": "2024-01-01T00:00:00.000Z",  # Raw!
+  "name": "Laptop",
+  "description": "16-inch display",
+  "price": "999.99",
   "created_at": "2024-01-01T00:00:00.000Z",     # Internal
   "updated_at": "2024-01-01T00:00:00.000Z"      # Internal
 }
@@ -708,15 +712,15 @@ const level7Serializers: Level = {
 {
   "data": {
     "id": "1",
-    "type": "posts",
+    "type": "products",
     "attributes": {
-      "title": "Hello",
-      "body": "World",
-      "published_at": "January 1, 2024"
+      "name": "Laptop",
+      "description": "16-inch display",
+      "price": "999.99"
     }
   }
 }`,
-		goal: 'Choose the right serializer gem, install it, define a PostSerializer with only safe attributes, and update the controller to use it.',
+		goal: 'Choose the right serializer gem, install it, define a ProductSerializer with only safe attributes, and update the controller to use it.',
 		thresholds: {},
 	},
 	successConditions: [],
@@ -724,14 +728,14 @@ const level7Serializers: Level = {
 	unlockedNodes: [],
 	learningContent: {
 		title: 'JSON:API Serialization',
-		goal: `In this level, you'll:\n- learn how to control exactly what your API returns to clients.\n- use the jsonapi-serializer gem to shape JSON responses.\n- declare which domain attributes to expose and format dates for humans.\n- structure your output to follow the JSON:API standard used by production APIs.`,
-		conceptExplanation: `Serializers control what data your API exposes. Without them, \`render json: post\` dumps everything.
+		goal: `In this level, you'll:\n- learn how to control exactly what your API returns to clients.\n- use the jsonapi-serializer gem to shape JSON responses.\n- declare which domain attributes to expose and format prices for display.\n- structure your output to follow the JSON:API standard used by production APIs.`,
+		conceptExplanation: `Serializers control what data your API exposes. Without them, \`render json: product\` dumps everything.
 
 **Why serialize?**
 - Choose which attributes to expose (only domain data, not bookkeeping)
 - Format dates, currencies, names
-- Include computed fields (full_name, time_ago)
-- Nest related data (post with comments)
+- Include computed fields (full_name, display_price)
+- Nest related data (product with reviews)
 
 **The JSON:API standard:**
 The industry-standard response format for REST APIs. Used by Stripe, Ember, and thousands of production APIs. It provides:
@@ -760,28 +764,28 @@ class BaseSerializer
   include JSONAPI::Serializer
 end
 
-# app/serializers/post_serializer.rb
-class PostSerializer < BaseSerializer
-  attribute :title
-  attribute :body
+# app/serializers/product_serializer.rb
+class ProductSerializer < BaseSerializer
+  attribute :name
+  attribute :description
 
-  attribute :published_at do |post|
-    post.published_at&.strftime("%B %d, %Y")
+  attribute :price do |product|
+    product.price.to_s
   end
 
-  has_many :comments, serializer: CommentSerializer
+  has_many :reviews, serializer: ReviewSerializer
 end
 
 # In controller:
-class Api::V1::PostsController < ApplicationController
+class Api::V1::ProductsController < ApplicationController
   def index
-    posts = Post.all
-    render json: PostSerializer.new(posts).serializable_hash.to_json
+    products = Product.all
+    render json: ProductSerializer.new(products).serializable_hash.to_json
   end
 
   def show
-    post = Post.find(params[:id])
-    render json: PostSerializer.new(post).serializable_hash.to_json
+    product = Product.find(params[:id])
+    render json: ProductSerializer.new(product).serializable_hash.to_json
   end
 end
 
@@ -789,11 +793,11 @@ end
 # {
 #   "data": {
 #     "id": "1",
-#     "type": "posts",
+#     "type": "products",
 #     "attributes": {
-#       "title": "Hello",
-#       "body": "World",
-#       "published_at": "January 01, 2024"
+#       "name": "Laptop",
+#       "description": "16-inch display",
+#       "price": "999.99"
 #     }
 #   }
 # }`,
@@ -834,7 +838,7 @@ const level8Associations: Level = {
 	trigger: {
 		type: 'new_feature',
 		description:
-			'Posts need comments! Generate the Comment model, choose the right association type, configure cascade deletion, and test the relationship.',
+			'Products need reviews! Generate the Review model, choose the right association type, configure cascade deletion, and test the relationship.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -848,12 +852,12 @@ const level8Associations: Level = {
 				locked: true,
 			},
 			{
-				id: 'post-model',
+				id: 'product-model',
 				type: 'model',
 				x: 660,
 				y: 220,
 				locked: true,
-				config: { label: 'Post' },
+				config: { label: 'Product' },
 			},
 			{ id: 'database-node', type: 'database', x: 860, y: 220, locked: true },
 			{
@@ -872,8 +876,8 @@ const level8Associations: Level = {
 				sourceNodeId: 'router-node',
 				targetNodeId: 'controller-node',
 			},
-			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
-			{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
+			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'product-model' },
+			{ id: 'c4', sourceNodeId: 'product-model', targetNodeId: 'database-node' },
 			{
 				id: 'c5',
 				sourceNodeId: 'controller-node',
@@ -888,9 +892,9 @@ const level8Associations: Level = {
 	},
 	problem: {
 		observation:
-			'Posts load correctly, but there is no way to include comments in the API response.',
+			'Products load correctly, but there is no way to include reviews in the API response.',
 		rootCause:
-			'No Comment model exists and no association is defined between Post and Comment.',
+			'No Review model exists and no association is defined between Product and Review.',
 		codeExample: `# Associations link models together:
 #   has_many    - one-to-many (parent side)
 #   belongs_to  - inverse (child side)
@@ -898,17 +902,17 @@ const level8Associations: Level = {
 #   has_and_belongs_to_many - many-to-many
 #
 # The foreign key lives on the belongs_to side.
-# Using "post:references" in a generator adds:
-#   - Foreign key column (post_id)
+# Using "product:references" in a generator adds:
+#   - Foreign key column (product_id)
 #   - Database index
 #   - belongs_to association (automatic!)
 #
 # When a parent is destroyed, what happens to children?
 #   dependent: :destroy, :nullify, :restrict_with_error
 #
-# Your job: generate Comment, set up the relationship,
+# Your job: generate Review, set up the relationship,
 # and handle cascade deletion.`,
-		goal: 'Generate the Comment model with post:references, choose the right relationship type, configure dependent destruction, and test the association.',
+		goal: 'Generate the Review model with product:references, choose the right relationship type, configure dependent destruction, and test the association.',
 		thresholds: {},
 	},
 	successConditions: [
@@ -926,21 +930,21 @@ const level8Associations: Level = {
 				{
 					label: 'has_one',
 					value: 'has_one',
-					preview: 'Only one comment per post will appear',
-					consequence: 'This limits posts to a single comment',
+					preview: 'Only one review per product will appear',
+					consequence: 'This limits products to a single review',
 					correct: false,
 				},
 				{
 					label: 'has_many',
 					value: 'has_many',
-					preview: 'All comments for a post will appear',
-					consequence: 'Posts can have unlimited comments',
+					preview: 'All reviews for a product will appear',
+					consequence: 'Products can have unlimited reviews',
 					correct: true,
 				},
 				{
 					label: 'has_and_belongs_to_many',
 					value: 'habtm',
-					preview: 'Comments shared between posts',
+					preview: 'Reviews shared between products',
 					consequence: 'Creates a many-to-many relationship',
 					correct: false,
 				},
@@ -949,43 +953,44 @@ const level8Associations: Level = {
 	],
 	learningContent: {
 		title: 'ActiveRecord Associations',
-		goal: `In this level, you'll:\n- link models together using ActiveRecord associations.\n- learn how has_many and belongs_to create one-to-many relationships.\n- understand where the foreign key lives.\n- set up dependent: :destroy so deleting a post automatically cleans up its comments.`,
+		goal: `In this level, you'll:\n- link models together using ActiveRecord associations.\n- learn how has_many and belongs_to create one-to-many relationships.\n- understand where the foreign key lives.\n- set up dependent: :destroy so deleting a product automatically cleans up its reviews.`,
 		conceptExplanation: `Associations define relationships between models:
 
-**has_many**: A post has many comments (one-to-many)
-**belongs_to**: A comment belongs to a post (the inverse)
+**has_many**: A product has many reviews (one-to-many)
+**belongs_to**: A review belongs to a product (the inverse)
 **has_one**: A user has one profile (one-to-one)
-**has_many :through**: Posts have many tags through taggings (many-to-many)
+**has_many :through**: Products have many categories through categorizations (many-to-many)
 
-The foreign key (\`post_id\`) lives on the \`belongs_to\` side (comments table).
+The foreign key (\`product_id\`) lives on the \`belongs_to\` side (reviews table).
 Always add \`dependent: :destroy\` to clean up child records.`,
-		railsCodeExample: `# app/models/post.rb
-class Post < ApplicationRecord
-  has_many :comments, dependent: :destroy
+		railsCodeExample: `# app/models/product.rb
+class Product < ApplicationRecord
+  has_many :reviews, dependent: :destroy
 end
 
-# app/models/comment.rb
-class Comment < ApplicationRecord
-  belongs_to :post
+# app/models/review.rb
+class Review < ApplicationRecord
+  belongs_to :product
 end
 
-# Migration for comments:
-create_table :comments do |t|
-  t.references :post, null: false, foreign_key: true
+# Migration for reviews:
+create_table :reviews do |t|
+  t.references :product, null: false, foreign_key: true
   t.text :body
+  t.integer :rating
   t.timestamps
 end
 
 # Usage:
-post = Post.find(1)
-post.comments                    # All comments for this post
-post.comments.create(body: "Nice post!")
+product = Product.find(1)
+product.reviews                    # All reviews for this product
+product.reviews.create(body: "Great laptop!", rating: 5)
 
 # In serializer:
-class PostSerializer < BaseSerializer
-  attribute :title
-  attribute :body
-  has_many :comments, serializer: CommentSerializer
+class ProductSerializer < BaseSerializer
+  attribute :name
+  attribute :description
+  has_many :reviews, serializer: ReviewSerializer
 end`,
 		commonMistakes: [
 			'Using has_one when you need has_many',
@@ -1003,7 +1008,7 @@ end`,
 	},
 	hint: {
 		delay: 25,
-		text: 'Use post:references in the generator to automatically add the foreign key, index, and belongs_to. Posts have many comments, not just one.',
+		text: 'Use product:references in the generator to automatically add the foreign key, index, and belongs_to. Products have many reviews, not just one.',
 	},
 };
 
@@ -1016,7 +1021,7 @@ export const actOne: Act = {
 	name: 'The Foundation',
 	tagline: 'Build a working API from nothing.',
 	description:
-		'Build a Rails 8 API from scratch: environment setup, project creation, models, controllers, routes, serializers, and associations. By the end, you have a working blog API.',
+		'Build a Rails 8 API from scratch: environment setup, project creation, models, controllers, routes, serializers, and associations. By the end, you have a working product catalog API.',
 	levels: [
 		level1Environment,
 		level2FirstBoot,

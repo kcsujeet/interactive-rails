@@ -26,11 +26,11 @@ function validateLevel4Solution(state: Level4State): ValidationResult {
 	}
 
 	if (!state.modelsConnectedToDb.has('post-model')) {
-		errors.push('Connect Post model to Database for persistence');
+		errors.push('Connect Product model to Database for persistence');
 	}
 
 	if (!state.modelsConnectedToDb.has('comment-model')) {
-		errors.push('Connect Comment model to Database for persistence');
+		errors.push('Connect Review model to Database for persistence');
 	}
 
 	if (errors.length > 0) {
@@ -75,7 +75,7 @@ describe('Level 4: Persistence', () => {
 				modelsConnectedToDb: new Set(),
 			});
 
-			expect(result.details!.some((d) => d.includes('Post model'))).toBe(true);
+			expect(result.details!.some((d) => d.includes('Product model'))).toBe(true);
 		});
 
 		test('should require connecting comment model', () => {
@@ -84,7 +84,7 @@ describe('Level 4: Persistence', () => {
 				modelsConnectedToDb: new Set(),
 			});
 
-			expect(result.details!.some((d) => d.includes('Comment model'))).toBe(
+			expect(result.details!.some((d) => d.includes('Review model'))).toBe(
 				true,
 			);
 		});
@@ -98,7 +98,7 @@ describe('Level 4: Persistence', () => {
 			});
 
 			expect(result.valid).toBe(false);
-			expect(result.details!.some((d) => d.includes('Comment'))).toBe(true);
+			expect(result.details!.some((d) => d.includes('Review'))).toBe(true);
 		});
 
 		test('should be invalid with only comment connected', () => {
@@ -108,7 +108,7 @@ describe('Level 4: Persistence', () => {
 			});
 
 			expect(result.valid).toBe(false);
-			expect(result.details!.some((d) => d.includes('Post'))).toBe(true);
+			expect(result.details!.some((d) => d.includes('Product'))).toBe(true);
 		});
 
 		test('should be invalid without database', () => {

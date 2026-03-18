@@ -42,7 +42,7 @@ export interface QueryZone {
 	inspectable?: boolean;
 	inspected?: boolean;
 	// ── Content slots (all optional, rendered in order) ──
-	/** Mono code line, e.g. "Post.all" */
+	/** Mono code line, e.g. "Product.all" */
 	codeLine?: string;
 	/** Small colored badge pill, e.g. { text: "1 query", color: "green" } */
 	badge?: { text: string; color: 'green' | 'red' | 'yellow' };

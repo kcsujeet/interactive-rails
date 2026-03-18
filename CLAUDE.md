@@ -193,10 +193,10 @@ reward   -> (click Submit)                                         -> level comp
 
 // GOOD -- verify step reuses the same terminal
 const handleVerify = () => {
-  addConsoleEntry('Post.count', '=> 0');  // Adds to existing irb> history
+  addConsoleEntry('Product.count', '=> 0');  // Adds to existing irb> history
   stepper.completeStep();
 };
-<Button onClick={handleVerify} variant="outline">Post.count</Button>
+<Button onClick={handleVerify} variant="outline">Product.count</Button>
 ```
 
 When creating or redesigning a level component, ensure all three phases are present in the gameplay. Reference `docs/spec.md` for each level's scenario and concept.

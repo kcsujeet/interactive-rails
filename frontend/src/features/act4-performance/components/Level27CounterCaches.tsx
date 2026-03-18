@@ -5,14 +5,14 @@
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): Custom "Query Cascade" visualization.
- *   Two-table layout: posts grid (left) + comments table (right).
- *   Player fires probes and watches COUNT(*) queries cascade from each post
- *   block to the comments table, one by one. The blocks turn red sequentially,
+ *   Two-table layout: posts grid (left) + reviews table (right).
+ *   Player fires probes and watches COUNT(*) queries cascade from each product
+ *   block to the reviews table, one by one. The blocks turn red sequentially,
  *   showing the N+1 mechanism visually. ProbeTerminal sits below the
  *   visualization and drives it via onProbe callbacks.
  *
  * Phase 2 (HOW - build): 4 steps (1 terminal + 3 OptionCard)
- *   Step 0: Generate migration to add comments_count column (terminal)
+ *   Step 0: Generate migration to add reviews_count column (terminal)
  *   Step 1: Add counter_cache: true to belongs_to (OptionCard)
  *   Step 2: Reset existing counters (OptionCard)
  *   Step 3: Update serializer to use .size (OptionCard)
@@ -89,7 +89,7 @@ const OBSERVE_POST_COUNT = 20;
 const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{
 		id: 'n-plus-one-counts',
-		label: 'Each post fires a separate COUNT(*) to the comments table',
+		label: 'Each post fires a separate COUNT(*) to the reviews table',
 	},
 ];
 
@@ -104,7 +104,7 @@ const PROBES: ProbeConfig[] = [
 		command: 'GET /api/posts?limit=20',
 		responseLines: [
 			{
-				text: 'Post Load (1.2ms)  SELECT "posts".* FROM "posts" LIMIT 20',
+				text: 'Product Load (1.2ms)  SELECT "products".* FROM "products" LIMIT 20',
 				color: 'green',
 			},
 			{
@@ -112,11 +112,11 @@ const PROBES: ProbeConfig[] = [
 				color: 'muted',
 			},
 			{
-				text: '  (0.4ms)  SELECT COUNT(*) FROM "comments" WHERE "post_id" = 1',
+				text: '  (0.4ms)  SELECT COUNT(*) FROM "comments" WHERE "product_id" = 1',
 				color: 'red',
 			},
 			{
-				text: '  (0.3ms)  SELECT COUNT(*) FROM "comments" WHERE "post_id" = 2',
+				text: '  (0.3ms)  SELECT COUNT(*) FROM "comments" WHERE "product_id" = 2',
 				color: 'red',
 			},
 			{
@@ -163,25 +163,25 @@ const MIGRATION_COMMANDS = [
 	{
 		id: 'generate-migration',
 		label:
-			'rails generate migration AddCommentsCountToPosts comments_count:integer',
+			'rails generate migration AddCommentsCountToPosts reviews_count:integer',
 		command:
-			'rails generate migration AddCommentsCountToPosts comments_count:integer',
+			'rails generate migration AddCommentsCountToPosts reviews_count:integer',
 		correct: true,
 	},
 	{
 		id: 'add-index',
-		label: 'rails generate migration AddIndexToComments post_id:index',
-		command: 'rails generate migration AddIndexToComments post_id:index',
+		label: 'rails generate migration AddIndexToComments product_id:index',
+		command: 'rails generate migration AddIndexToComments product_id:index',
 		correct: false,
 		feedback:
-			'An index on comments.post_id helps query speed, but it does not eliminate the N+1 COUNT queries. You need a column on the parent table.',
+			'An index on comments.product_id helps query speed, but it does not eliminate the N+1 COUNT queries. You need a column on the parent table.',
 	},
 ];
 
 const MIGRATION_OUTPUT = [
 	{ text: 'invoke  active_record', color: 'green' as const },
 	{
-		text: 'create    db/migrate/20240301_add_comments_count_to_posts.rb',
+		text: 'create    db/migrate/20240301_add_reviews_count_to_posts.rb',
 		color: 'green' as const,
 	},
 ];
@@ -221,7 +221,7 @@ const RUN_MIGRATION_OUTPUT = [
 		color: 'green' as const,
 	},
 	{
-		text: '-- add_column(:posts, :comments_count, :integer, default: 0)',
+		text: '-- add_column(:posts, :reviews_count, :integer, default: 0)',
 		color: 'green' as const,
 	},
 	{
@@ -244,21 +244,21 @@ interface StepOption {
 const COUNTER_CACHE_OPTIONS: StepOption[] = [
 	{
 		id: 'has-many-counter',
-		label: 'has_many :comments, counter_cache: true',
+		label: 'has_many :reviews, counter_cache: true',
 		correct: false,
 		feedback:
 			'counter_cache is declared on the belongs_to side, not has_many. The child model owns the relationship declaration.',
 	},
 	{
 		id: 'after-create',
-		label: 'after_create { Post.increment_counter(:comments_count, post_id) }',
+		label: 'after_create { Product.increment_counter(:reviews_count, product_id) }',
 		correct: false,
 		feedback:
 			'Manual callbacks are error-prone. You would also need after_destroy, after_update, and handle edge cases. Rails provides a built-in option.',
 	},
 	{
 		id: 'belongs-to-counter',
-		label: 'belongs_to :post, counter_cache: true',
+		label: 'belongs_to :product, counter_cache: true',
 		correct: true,
 	},
 ];
@@ -266,21 +266,21 @@ const COUNTER_CACHE_OPTIONS: StepOption[] = [
 const RESET_OPTIONS: StepOption[] = [
 	{
 		id: 'update-all',
-		label: 'Post.update_all(comments_count: Post.joins(:comments).count)',
+		label: 'Product.update_all(reviews_count: Product.joins(:reviews).count)',
 		correct: false,
 		feedback:
-			'This sets every post to the same total count, not each post to its own count. Rails provides a method that recalculates per-record.',
+			'This sets every product to the same total count, not each product to its own count. Rails provides a method that recalculates per-record.',
 	},
 	{
 		id: 'manual-each',
-		label: 'Post.find_each { |p| p.update(comments_count: p.comments.count) }',
+		label: 'Product.find_each { |p| p.update(reviews_count: p.comments.count) }',
 		correct: false,
 		feedback:
 			'This works but fires N+1 queries and skips the counter cache mechanism. Rails has a dedicated method that uses efficient SQL.',
 	},
 	{
 		id: 'reset-counters',
-		label: 'Post.find_each { |p| Post.reset_counters(p.id, :comments) }',
+		label: 'Product.find_each { |p| Product.reset_counters(p.id, :comments) }',
 		correct: true,
 	},
 ];
@@ -288,21 +288,21 @@ const RESET_OPTIONS: StepOption[] = [
 const SERIALIZER_OPTIONS: StepOption[] = [
 	{
 		id: 'comments-count-method',
-		label: 'post.comments.count',
+		label: 'product.reviews.count',
 		correct: false,
 		feedback:
 			'This always runs a COUNT(*) query, completely bypassing the counter cache column you just added.',
 	},
 	{
 		id: 'comments-length',
-		label: 'post.comments.length',
+		label: 'product.reviews.length',
 		correct: false,
 		feedback:
 			'This loads ALL comment records into memory just to count them. Even worse than COUNT(*) for large collections.',
 	},
 	{
 		id: 'comments-size',
-		label: 'post.comments.size',
+		label: 'product.reviews.size',
 		correct: true,
 	},
 ];
@@ -358,10 +358,10 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'allowed',
 		responseLines: [
 			{
-				text: 'Post Load (1.2ms)  SELECT "posts".* FROM "posts" LIMIT 10',
+				text: 'Product Load (1.2ms)  SELECT "products".* FROM "products" LIMIT 10',
 				color: 'yellow',
 			},
-			{ text: '  comments_count read from column (0 queries)', color: 'green' },
+			{ text: '  reviews_count read from column (0 queries)', color: 'green' },
 			{ text: '  Total: 1 query (was 11)', color: 'green' },
 		],
 	},
@@ -375,10 +375,10 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'allowed',
 		responseLines: [
 			{
-				text: 'Post Load (1.8ms)  SELECT "posts".* FROM "posts" LIMIT 50',
+				text: 'Product Load (1.8ms)  SELECT "products".* FROM "products" LIMIT 50',
 				color: 'yellow',
 			},
-			{ text: '  comments_count read from column (0 queries)', color: 'green' },
+			{ text: '  reviews_count read from column (0 queries)', color: 'green' },
 			{ text: '  Total: 1 query (was 51)', color: 'green' },
 		],
 	},
@@ -392,10 +392,10 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'allowed',
 		responseLines: [
 			{
-				text: 'Post Load (2.4ms)  SELECT "posts".* FROM "posts" LIMIT 100',
+				text: 'Product Load (2.4ms)  SELECT "products".* FROM "products" LIMIT 100',
 				color: 'yellow',
 			},
-			{ text: '  comments_count read from column (0 queries)', color: 'green' },
+			{ text: '  reviews_count read from column (0 queries)', color: 'green' },
 			{ text: '  Total: 1 query (was 101)', color: 'green' },
 		],
 	},
@@ -409,10 +409,10 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'allowed',
 		responseLines: [
 			{
-				text: 'Post Load (5.1ms)  SELECT "posts".* FROM "posts" LIMIT 500',
+				text: 'Product Load (5.1ms)  SELECT "products".* FROM "products" LIMIT 500',
 				color: 'yellow',
 			},
-			{ text: '  comments_count read from column (0 queries)', color: 'green' },
+			{ text: '  reviews_count read from column (0 queries)', color: 'green' },
 			{ text: '  Total: 1 query (was 501)', color: 'green' },
 		],
 	},
@@ -426,10 +426,10 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'blocked',
 		responseLines: [
 			{
-				text: 'Post Load (2.4ms)  SELECT "posts".* FROM "posts" LIMIT 100',
+				text: 'Product Load (2.4ms)  SELECT "products".* FROM "products" LIMIT 100',
 				color: 'yellow',
 			},
-			{ text: '  post.comments.count -> 100 COUNT(*) queries!', color: 'red' },
+			{ text: '  product.reviews.count -> 100 COUNT(*) queries!', color: 'red' },
 			{
 				text: '  .count ALWAYS runs SQL, ignoring the cached column',
 				color: 'red',
@@ -465,28 +465,28 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
     contract = ListContract.new.call(params)
     return Result.new(false, [], contract.errors) unless contract.success?
 
-    posts = Post.includes(:user).limit(contract[:limit])
+    products = Product.includes(:user).limit(contract[:limit])
     Result.new(true, posts, [])
   end
 end`,
 			},
 			{
-				filename: 'app/serializers/post_serializer.rb',
+				filename: 'app/serializers/product_serializer.rb',
 				language: 'ruby',
 				highlight: [4],
-				code: `class PostSerializer
+				code: `class ProductSerializer
   include JSONAPI::Serializer
 
   attribute :comment_count do |post|
-    post.comments.count  # COUNT(*) every time!
+    product.reviews.count  # COUNT(*) every time!
   end
 end`,
 			},
 			{
-				filename: 'app/models/comment.rb',
+				filename: 'app/models/review.rb',
 				language: 'ruby',
-				code: `class Comment < ApplicationRecord
-  belongs_to :post
+				code: `class Review < ApplicationRecord
+  belongs_to :product
   belongs_to :user
 end`,
 			},
@@ -497,24 +497,24 @@ end`,
 	if (furthestStep === 0) {
 		return [
 			{
-				filename: 'app/controllers/posts_controller.rb',
+				filename: 'app/controllers/products_controller.rb',
 				language: 'ruby',
 				code: `class PostsController < ApplicationController
   def index
     result = PostList.call(params)
-    render json: PostSerializer.new(result.posts)
+    render json: ProductSerializer.new(result.posts)
   end
 end`,
 			},
 			{
-				filename: 'app/serializers/post_serializer.rb',
+				filename: 'app/serializers/product_serializer.rb',
 				language: 'ruby',
 				highlight: [4, 5],
-				code: `class PostSerializer
+				code: `class ProductSerializer
   include JSONAPI::Serializer
 
   attribute :comment_count do |post|
-    post.comments.count  # N+1 COUNT(*)
+    product.reviews.count  # N+1 COUNT(*)
   end
 end
 
@@ -536,18 +536,18 @@ end
     contract = ListContract.new.call(params)
     return Result.new(false, [], contract.errors) unless contract.success?
 
-    posts = Post.includes(:user).limit(contract[:limit])
+    products = Product.includes(:user).limit(contract[:limit])
     Result.new(true, posts, [])
   end
 end`,
 			},
 			{
-				filename: 'db/migrate/add_comments_count_to_posts.rb',
+				filename: 'db/migrate/add_reviews_count_to_posts.rb',
 				language: 'ruby',
 				highlight: [3, 4],
 				code: `class AddCommentsCountToPosts < ActiveRecord::Migration[8.0]
   def change
-    add_column :posts, :comments_count,
+    add_column :posts, :reviews_count,
                :integer, default: 0, null: false
   end
 end
@@ -569,17 +569,17 @@ end
     contract = ListContract.new.call(params)
     return Result.new(false, [], contract.errors) unless contract.success?
 
-    posts = Post.includes(:user).limit(contract[:limit])
+    products = Product.includes(:user).limit(contract[:limit])
     Result.new(true, posts, [])
   end
 end`,
 			},
 			{
-				filename: 'app/models/comment.rb',
+				filename: 'app/models/review.rb',
 				language: 'ruby',
 				highlight: [2],
-				code: `class Comment < ApplicationRecord
-  belongs_to :post  # Where does counter_cache go?
+				code: `class Review < ApplicationRecord
+  belongs_to :product  # Where does counter_cache go?
   belongs_to :user
 end`,
 			},
@@ -598,17 +598,17 @@ end`,
     contract = ListContract.new.call(params)
     return Result.new(false, [], contract.errors) unless contract.success?
 
-    posts = Post.includes(:user).limit(contract[:limit])
+    products = Product.includes(:user).limit(contract[:limit])
     Result.new(true, posts, [])
   end
 end`,
 			},
 			{
-				filename: 'app/models/comment.rb',
+				filename: 'app/models/review.rb',
 				language: 'ruby',
 				highlight: [2],
-				code: `class Comment < ApplicationRecord
-  belongs_to :post, counter_cache: true
+				code: `class Review < ApplicationRecord
+  belongs_to :product, counter_cache: true
   belongs_to :user
 end
 
@@ -630,20 +630,20 @@ end
     contract = ListContract.new.call(params)
     return Result.new(false, [], contract.errors) unless contract.success?
 
-    posts = Post.includes(:user).limit(contract[:limit])
+    products = Product.includes(:user).limit(contract[:limit])
     Result.new(true, posts, [])
   end
 end`,
 			},
 			{
-				filename: 'app/serializers/post_serializer.rb',
+				filename: 'app/serializers/product_serializer.rb',
 				language: 'ruby',
 				highlight: [4, 5],
-				code: `class PostSerializer
+				code: `class ProductSerializer
   include JSONAPI::Serializer
 
   attribute :comment_count do |post|
-    post.comments.count  # Still using .count!
+    product.reviews.count  # Still using .count!
   end
 end
 
@@ -665,33 +665,33 @@ end
     contract = ListContract.new.call(params)
     return Result.new(false, [], contract.errors) unless contract.success?
 
-    posts = Post.includes(:user).limit(contract[:limit])
+    products = Product.includes(:user).limit(contract[:limit])
     Result.new(true, posts, [])
   end
 end`,
 		},
 		{
-			filename: 'app/models/comment.rb',
+			filename: 'app/models/review.rb',
 			language: 'ruby',
 			highlight: [2],
-			code: `class Comment < ApplicationRecord
-  belongs_to :post, counter_cache: true
+			code: `class Review < ApplicationRecord
+  belongs_to :product, counter_cache: true
   belongs_to :user
 end`,
 		},
 		{
-			filename: 'app/serializers/post_serializer.rb',
+			filename: 'app/serializers/product_serializer.rb',
 			language: 'ruby',
 			highlight: [4],
-			code: `class PostSerializer
+			code: `class ProductSerializer
   include JSONAPI::Serializer
 
   attribute :comment_count do |post|
-    post.comments.size  # Uses counter cache!
+    product.reviews.size  # Uses counter cache!
   end
 end
 
-# .size  -> reads posts.comments_count (0 queries)
+# .size  -> reads posts.reviews_count (0 queries)
 # .count -> always runs COUNT(*) (1 query)
 # .length -> loads all records into memory (bad)`,
 		},
@@ -904,7 +904,7 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 	const isCascadeDone = vizMode === 'cascade' && !vizAnimating;
 	const isCached = vizMode === 'cached';
 
-	// Post block grid data
+	// Product block grid data
 	const postBlocks = useMemo(() => {
 		return Array.from({ length: vizPostCount }, (_, i) => ({
 			id: i,
@@ -913,9 +913,9 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 	}, [vizPostCount]);
 
 	// ── Visualization render helper ──
-	/** Column headers for the posts table */
+	/** Column headers for the products table */
 	const postColumns = showCacheColumn
-		? ['id', 'title', 'user_id', 'comments_count']
+		? ['id', 'title', 'user_id', 'reviews_count']
 		: ['id', 'title', 'user_id'];
 
 	const renderQueryCascade = () => (
@@ -930,7 +930,7 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 									<th
 										className={cn(
 											'px-2 py-1.5 text-left font-medium',
-											col === 'comments_count'
+											col === 'reviews_count'
 												? isCached
 													? 'text-emerald-600 dark:text-emerald-400'
 													: 'text-muted-foreground'
@@ -978,7 +978,7 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 											<td className="px-2 py-1 text-muted-foreground">
 												{block.id + 1}
 											</td>
-											<td className="px-2 py-1">Post #{block.id + 1}</td>
+											<td className="px-2 py-1">Product #{block.id + 1}</td>
 											<td className="px-2 py-1 text-muted-foreground">
 												{(block.id % 5) + 1}
 											</td>
@@ -1048,7 +1048,7 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 								id
 							</th>
 							<th className="px-2 py-1.5 text-left font-medium text-muted-foreground">
-								post_id
+								product_id
 							</th>
 							<th className="px-2 py-1.5 text-left font-medium text-muted-foreground">
 								body
@@ -1069,7 +1069,7 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 								SELECT COUNT(*)
 							</div>
 							<div className="text-xs font-mono text-red-600 dark:text-red-400">
-								WHERE post_id = {cascadeProgress + 1}
+								WHERE product_id = {cascadeProgress + 1}
 							</div>
 							<div className="text-sm font-mono font-bold text-red-700 dark:text-red-300 mt-1">
 								= {postBlocks[cascadeProgress]?.commentCount ?? 0}
@@ -1094,7 +1094,7 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 								Not queried
 							</span>
 							<div className="text-xs text-muted-foreground">
-								counts read from posts table
+								counts read from products table
 							</div>
 						</div>
 					)}
@@ -1112,9 +1112,9 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							The posts index shows comment counts.{' '}
 							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
-								post.comments.count
+								product.reviews.count
 							</code>{' '}
-							fires a separate COUNT(*) query for every post. 100 posts = 101
+							fires a separate COUNT(*) query for every product. 100 posts = 101
 							queries.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
@@ -1258,16 +1258,16 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 												<p className="text-sm text-muted-foreground">
 													You need a{' '}
 													<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
-														comments_count
+														reviews_count
 													</code>{' '}
-													integer column on the posts table. Generate the
+													integer column on the products table. Generate the
 													migration.
 												</p>
 											) : (
 												<p className="text-sm text-muted-foreground">
 													The migration file is ready. Apply it to create the{' '}
 													<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
-														comments_count
+														reviews_count
 													</code>{' '}
 													column in the database.
 												</p>
@@ -1371,7 +1371,7 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 								</div>
 								<p className="text-sm text-muted-foreground">
 									Counter cache is configured. Rails will auto-increment and
-									auto-decrement comments_count on create and destroy. See it
+									auto-decrement reviews_count on create and destroy. See it
 									handle any scale.
 								</p>
 								<Button
@@ -1486,7 +1486,7 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 					files={getCodeFiles(phase, stepper.furthestStep)}
 					learningGoal={
 						phase === 'observe'
-							? 'Each post.comments.count fires a COUNT(*) query. With 100 posts, that is 101 total queries.'
+							? 'Each product.reviews.count fires a COUNT(*) query. With 100 posts, that is 101 total queries.'
 							: 'counter_cache stores the count on the parent table. Rails auto-increments on create, auto-decrements on destroy.'
 					}
 				>
@@ -1539,7 +1539,7 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 						</div>
 						<pre className="text-xs text-muted-foreground bg-secondary p-2 rounded overflow-x-auto">
 							{`# Use a custom column name:
-belongs_to :post,
+belongs_to :product,
   counter_cache: :total_comments
 
 # Column must match on parent:

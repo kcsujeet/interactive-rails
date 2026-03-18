@@ -116,7 +116,7 @@ const QUERY_LANES: QueryLane[] = [
 		id: 'fk',
 		label: 'Foreign Key Lookup',
 		table: 'posts',
-		sql: 'SELECT * FROM posts WHERE user_id = 42',
+		sql: 'SELECT * FROM products WHERE user_id = 42',
 		icon: Table2,
 		totalRows: 50000,
 	},
@@ -124,7 +124,7 @@ const QUERY_LANES: QueryLane[] = [
 		id: 'composite',
 		label: 'Composite Query',
 		table: 'posts',
-		sql: 'SELECT * FROM posts WHERE published = true ORDER BY created_at',
+		sql: 'SELECT * FROM products WHERE published = true ORDER BY created_at',
 		icon: Database,
 		totalRows: 50000,
 	},
@@ -228,7 +228,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'query-fk',
 		label: 'Load user posts',
-		command: 'EXPLAIN ANALYZE SELECT * FROM posts WHERE user_id = 42',
+		command: 'EXPLAIN ANALYZE SELECT * FROM products WHERE user_id = 42',
 		responseLines: [
 			{
 				text: 'Seq Scan on posts  (cost=0.00..1125.00 rows=25 width=128)',
@@ -243,7 +243,7 @@ const PROBES: ProbeConfig[] = [
 		id: 'query-composite',
 		label: 'Published posts by date',
 		command:
-			'EXPLAIN ANALYZE SELECT * FROM posts WHERE published = true ORDER BY created_at',
+			'EXPLAIN ANALYZE SELECT * FROM products WHERE published = true ORDER BY created_at',
 		responseLines: [
 			{
 				text: 'Sort  (cost=1850.00..1862.50 rows=25000 width=128)',
@@ -349,10 +349,10 @@ Seq Scan on users  (cost=0.00..245.00)
 		stageId: 'fk',
 		title: 'Foreign Key Lookup Query',
 		description:
-			'UserPostsLoader.call(user_id:) calls Post.where(user_id: @user_id) inside the service. This filters posts by a foreign key. Rails does NOT automatically create indexes on foreign key columns.',
-		code: `-- UserPostsLoader service calls Post.where(user_id: @user_id)
+			'UserPostsLoader.call(user_id:) calls Product.where(user_id: @user_id) inside the service. This filters posts by a foreign key. Rails does NOT automatically create indexes on foreign key columns.',
+		code: `-- UserPostsLoader service calls Product.where(user_id: @user_id)
 -- Generated SQL:
-SELECT * FROM posts WHERE user_id = 42
+SELECT * FROM products WHERE user_id = 42
 
 -- EXPLAIN output:
 Seq Scan on posts  (cost=0.00..1125.00)
@@ -364,10 +364,10 @@ Seq Scan on posts  (cost=0.00..1125.00)
 		stageId: 'composite',
 		title: 'Composite Query (WHERE + ORDER BY)',
 		description:
-			'PublishedPostsQuery.call filters with Post.where(published: true).order(:created_at) inside the service. Without a composite index, the database does a full scan AND an in-memory sort.',
-		code: `-- PublishedPostsQuery service calls Post.where(published: true).order(:created_at)
+			'PublishedPostsQuery.call filters with Product.where(published: true).order(:created_at) inside the service. Without a composite index, the database does a full scan AND an in-memory sort.',
+		code: `-- PublishedPostsQuery service calls Product.where(published: true).order(:created_at)
 -- Generated SQL:
-SELECT * FROM posts
+SELECT * FROM products
   WHERE published = true
   ORDER BY created_at
 
@@ -723,7 +723,7 @@ const OPTION_STEP_CONFIG: Record<
 	2: {
 		title: 'Foreign Key Index',
 		description:
-			'UserPostsLoader calls Post.where(user_id: @user_id), which scans all 50,000 posts. Rails does not automatically index foreign keys. Which index fixes this?',
+			'UserPostsLoader calls Product.where(user_id: @user_id), which scans all 50,000 posts. Rails does not automatically index foreign keys. Which index fixes this?',
 		options: [
 			{
 				id: 'wrong-composite',
@@ -742,14 +742,14 @@ const OPTION_STEP_CONFIG: Record<
 				label: 'add_index :users, :id',
 				correct: false,
 				feedback:
-					'The primary key already has an index. The slow query is on the posts table, filtering by user_id.',
+					'The primary key already has an index. The slow query is on the products table, filtering by user_id.',
 			},
 		],
 	},
 	3: {
 		title: 'Composite Index',
 		description:
-			'PublishedPostsQuery calls Post.where(published: true).order(:created_at), which does a sort on top of a Seq Scan. A composite index can cover both the WHERE and ORDER BY. Column order matters: the leftmost prefix rule means the first column must match the WHERE clause.',
+			'PublishedPostsQuery calls Product.where(published: true).order(:created_at), which does a sort on top of a Seq Scan. A composite index can cover both the WHERE and ORDER BY. Column order matters: the leftmost prefix rule means the first column must match the WHERE clause.',
 		options: [
 			{
 				id: 'wrong-order',
@@ -921,13 +921,13 @@ Index Scan using index_users_on_email on users
   Execution Time: 0.05 ms  (was 820ms)
 
 -- UserPostsLoader.call(user_id: 42)
--- Service calls Post.where(user_id: @user_id)
+-- Service calls Product.where(user_id: @user_id)
 Index Scan using index_posts_on_user_id on posts
   Index Cond: (user_id = 42)
   Execution Time: 0.10 ms  (was 450ms)
 
 -- PublishedPostsQuery.call
--- Service calls Post.where(published: true).order(:created_at)
+-- Service calls Product.where(published: true).order(:created_at)
 Index Scan using index_posts_on_published_and_created_at
   Index Cond: (published = true)
   Execution Time: 0.20 ms  (was 650ms)`,

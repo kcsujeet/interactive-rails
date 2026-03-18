@@ -8,9 +8,9 @@
  *   inspect code, fire API probes to discover that posts are isolated with no
  *   way to attach comments. Discovery gating controls when "Build the Fix" appears.
  * Phase 2 (HOW - build): 6 steps (3 terminal + 1 informational + 2 OptionCard)
- *   Step 0: Generate Comment model with post:references (terminal)
+ *   Step 0: Generate Review model with product:references (terminal)
  *   Step 1: Run migration (terminal)
- *   Step 2: Choose relationship type for Post model (OptionCard)
+ *   Step 2: Choose relationship type for Product model (OptionCard)
  *   Step 3: Auto belongs_to explanation (informational, "Got It" button)
  *   Step 4: Set dependent option (OptionCard)
  *   Step 5: Test the association in Rails console (terminal, irb> prompt)
@@ -18,7 +18,7 @@
  * Phase 4 (ADVANTAGE - reward): Stress test. Fire request scenarios at the
  *   associated pipeline and watch create/cascade results.
  *
- * Teaches: has_many, belongs_to, dependent: :destroy, post:references
+ * Teaches: has_many, belongs_to, dependent: :destroy, product:references
  */
 
 import { ArrowRight, Check, Play, Star, X } from 'lucide-react';
@@ -74,8 +74,8 @@ type Phase = 'observe' | 'build' | 'activate' | 'reward';
 // ──────────────────────────────────────────────
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
-	{ id: 'no-comment-model', label: 'Comment model does not exist' },
-	{ id: 'no-association', label: 'Post has no associations defined' },
+	{ id: 'no-comment-model', label: 'Review model does not exist' },
+	{ id: 'no-association', label: 'Product has no associations defined' },
 	{ id: 'isolated-posts', label: 'Posts exist in isolation' },
 	{ id: 'no-nested-routes', label: 'No nested routes for comments' },
 ];
@@ -88,12 +88,12 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-comments',
 		label: 'GET comments',
-		command: 'GET /api/v1/posts/1/comments',
+		command: 'GET /api/v1/products/1/comments',
 		responseLines: [
 			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'No route matches GET "/api/v1/posts/1/comments"',
+				text: 'No route matches GET "/api/v1/products/1/comments"',
 				color: 'yellow',
 			},
 			{
@@ -105,16 +105,16 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'post-comment',
 		label: 'POST comment',
-		command: 'POST /api/v1/posts/1/comments (body: "Great post!")',
+		command: 'POST /api/v1/products/1/comments (body: "Great post!")',
 		responseLines: [
 			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'No route matches POST "/api/v1/posts/1/comments"',
+				text: 'No route matches POST "/api/v1/products/1/comments"',
 				color: 'yellow',
 			},
 			{
-				text: 'No Comment model or association exists.',
+				text: 'No Review model or association exists.',
 				color: 'red',
 			},
 		],
@@ -122,13 +122,13 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'console-comments',
 		label: 'Rails console',
-		command: 'rails console: Post.first.comments',
+		command: 'rails console: Product.first.comments',
 		responseLines: [
 			{ text: 'NoMethodError: undefined method `comments\'', color: 'red' },
-			{ text: 'for #<Post id: 1, title: "Hello World">', color: 'muted' },
+			{ text: 'for #<Product id: 1, title: "Laptop Pro">', color: 'muted' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'Post has no "comments" method. No association is defined.',
+				text: 'Product has no "comments" method. No association is defined.',
 				color: 'yellow',
 			},
 		],
@@ -152,7 +152,7 @@ const PROBE_PIPELINE_MAP: Record<
 		modelBadge: '404!',
 	},
 	'post-comment': {
-		modelSublabel: 'No Comment model',
+		modelSublabel: 'No Review model',
 		modelBadge: '404!',
 	},
 	'console-comments': {
@@ -170,13 +170,13 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		stageId: 'request',
 		title: 'Incoming Request',
 		description:
-			'HTTP request targeting comments on a post. The request expects nested resources at /posts/:id/comments.',
+			'HTTP request targeting comments on a product. The request expects nested resources at /posts/:id/comments.',
 	},
 	router: {
 		stageId: 'router',
 		title: 'Router',
 		description:
-			'Routes only define `resources :posts`. There are no nested routes for comments. Add `resources :comments` inside the posts block to create /posts/:id/comments.',
+			'Routes only define `resources :posts`. There are no nested routes for comments. Add `resources :comments` inside the products block to create /posts/:id/comments.',
 		code: `# config/routes.rb
 namespace :api do
   namespace :v1 do
@@ -189,14 +189,14 @@ end`,
 		stageId: 'controller',
 		title: 'PostsController',
 		description:
-			'PostsController handles post CRUD. No CommentsController exists yet.',
+			'PostsController handles post CRUD. No ReviewsController exists yet.',
 	},
 	model: {
 		stageId: 'model',
-		title: 'Post Model (Isolated)',
+		title: 'Product Model (Isolated)',
 		description:
-			'Post model has title, body, published_at but no associations. Each model is isolated. Rails associations (has_many, belongs_to) link models and provide query methods like `post.comments`.',
-		code: `class Post < ApplicationRecord
+			'Product model has title, body, published_at but no associations. Each model is isolated. Rails associations (has_many, belongs_to) link models and provide query methods like `product.reviews`.',
+		code: `class Product < ApplicationRecord
   # No associations defined
 end`,
 	},
@@ -204,7 +204,7 @@ end`,
 		stageId: 'serializer',
 		title: 'Serializer (from Level 7)',
 		description:
-			'PostSerializer shapes output into JSON:API format. Once associations are added, the serializer can include nested comment data in the response.',
+			'ProductSerializer shapes output into JSON:API format. Once associations are added, the serializer can include nested comment data in the response.',
 	},
 	response: {
 		stageId: 'response',
@@ -229,7 +229,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Create comment on post',
 		description: 'Add a new comment through the association',
 		method: 'POST',
-		path: '/api/v1/posts/1/comments',
+		path: '/api/v1/products/1/comments',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
@@ -238,34 +238,34 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'List post comments',
 		description: 'Fetch all comments for a specific post',
 		method: 'GET',
-		path: '/api/v1/posts/1/comments',
+		path: '/api/v1/products/1/comments',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
 	{
 		id: 'delete-post-cascade',
 		label: 'Delete post (cascade)',
-		description: 'Delete a post and cascade-destroy its comments',
+		description: 'Delete a product and cascade-destroy its comments',
 		method: 'DELETE',
-		path: '/api/v1/posts/1',
+		path: '/api/v1/products/1',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
 	{
 		id: 'get-post-with-comments',
 		label: 'Show post with comments',
-		description: 'Fetch a post with its nested comments',
+		description: 'Fetch a product with its nested comments',
 		method: 'GET',
-		path: '/api/v1/posts/1',
+		path: '/api/v1/products/1',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
 	{
 		id: 'comment-invalid-post',
-		label: 'Comment on missing post',
+		label: 'Review on missing product',
 		description: 'Try to create a comment on a non-existent post',
 		method: 'POST',
-		path: '/api/v1/posts/999/comments',
+		path: '/api/v1/products/999/comments',
 		actor: 'client',
 		expectedResult: 'blocked',
 	},
@@ -276,7 +276,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 // ──────────────────────────────────────────────
 
 const STEP_DEFS: StepDef[] = [
-	{ id: 'generate-comment', title: 'Generate Comment' },
+	{ id: 'generate-comment', title: 'Generate Review' },
 	{ id: 'run-migration', title: 'Run Migration' },
 	{ id: 'choose-relationship', title: 'Choose Relationship' },
 	{ id: 'auto-belongs-to', title: 'Auto belongs_to' },
@@ -295,31 +295,31 @@ const STEP_TYPES: ('terminal' | 'option' | 'info')[] = [
 ];
 
 // ──────────────────────────────────────────────
-// Step 0: Generate Comment model (Terminal)
+// Step 0: Generate Review model (Terminal)
 // ──────────────────────────────────────────────
 
 const generateCommands: TerminalCommand[] = [
 	{
 		id: 'wrong-integer',
-		label: 'rails generate model Comment body:text post_id:integer',
-		command: 'rails generate model Comment body:text post_id:integer',
+		label: 'rails generate model Review body:text product_id:integer',
+		command: 'rails generate model Review body:text product_id:integer',
 		correct: false,
 		feedback:
 			'Adding an integer column only gives you the column. You miss the automatic index, foreign key, and model association. There is a better field type for linking models.',
 	},
 	{
 		id: 'correct',
-		label: 'rails generate model Comment body:text post:references',
-		command: 'rails generate model Comment body:text post:references',
+		label: 'rails generate model Review body:text product:references',
+		command: 'rails generate model Review body:text product:references',
 		correct: true,
 	},
 	{
 		id: 'wrong-missing-post',
-		label: 'rails generate model Comment body:text',
-		command: 'rails generate model Comment body:text',
+		label: 'rails generate model Review body:text',
+		command: 'rails generate model Review body:text',
 		correct: false,
 		feedback:
-			'Without a field that links Comment to Post, there is no relationship. You need to declare the connection in the generator.',
+			'Without a field that links Review to Product, there is no relationship. You need to declare the connection in the generator.',
 	},
 ];
 
@@ -329,7 +329,7 @@ const generateOutput: TerminalOutputLine[] = [
 		text: '      create    db/migrate/20240101000001_create_comments.rb',
 		color: 'green',
 	},
-	{ text: '      create    app/models/comment.rb', color: 'green' },
+	{ text: '      create    app/models/review.rb', color: 'green' },
 	{ text: '      invoke    test_unit', color: 'muted' },
 ];
 
@@ -352,7 +352,7 @@ const migrateCommands: TerminalCommand[] = [
 		command: 'rails db:seed',
 		correct: false,
 		feedback:
-			'That populates the database with seed data. The comments table does not exist yet.',
+			'That populates the database with seed data. The reviews table does not exist yet.',
 	},
 	{
 		id: 'correct',
@@ -364,7 +364,7 @@ const migrateCommands: TerminalCommand[] = [
 
 const migrateOutput: TerminalOutputLine[] = [
 	{
-		text: '== CreateComments: migrating =============================',
+		text: '== CreateReviews: migrating =============================',
 		color: 'muted',
 	},
 	{
@@ -376,7 +376,7 @@ const migrateOutput: TerminalOutputLine[] = [
 		color: 'muted',
 	},
 	{
-		text: '== CreateComments: migrated (0.0043s) ====================',
+		text: '== CreateReviews: migrated (0.0043s) ====================',
 		color: 'green',
 	},
 ];
@@ -388,31 +388,31 @@ const migrateOutput: TerminalOutputLine[] = [
 const testCommands: TerminalCommand[] = [
 	{
 		id: 'wrong-orphan',
-		label: 'Comment.create(body: "Nice!")',
-		command: 'Comment.create(body: "Nice!")',
+		label: 'Review.create(body: "Nice!")',
+		command: 'Review.create(body: "Nice!")',
 		correct: false,
 		feedback:
-			'This creates an orphaned Comment with no post_id. Use the association method on the parent object instead.',
+			'This creates an orphaned Review with no product_id. Use the association method on the parent object instead.',
 	},
 	{
 		id: 'wrong-manual',
-		label: 'Comment.create(body: "Nice!", post_id: post.id)',
-		command: 'Comment.create(body: "Nice!", post_id: post.id)',
+		label: 'Review.create(body: "Nice!", product_id: post.id)',
+		command: 'Review.create(body: "Nice!", product_id: post.id)',
 		correct: false,
 		feedback:
 			'This works but bypasses the association. Rails provides a cleaner way to create through the parent object.',
 	},
 	{
 		id: 'correct',
-		label: 'post.comments.create(body: "Nice!")',
-		command: 'post.comments.create(body: "Nice!")',
+		label: 'product.reviews.create(body: "Nice!")',
+		command: 'product.reviews.create(body: "Nice!")',
 		correct: true,
 	},
 ];
 
 const testOutput: TerminalOutputLine[] = [
 	{
-		text: '=> #<Comment id: 1, body: "Nice!", post_id: 1>',
+		text: '=> #<Review id: 1, body: "Nice!", product_id: 1>',
 		color: 'green',
 	},
 ];
@@ -461,11 +461,11 @@ const RELATIONSHIP_OPTIONS: StepOption[] = [
 		label: 'belongs_to :comments',
 		correct: false,
 		feedback:
-			'"belongs_to" goes on the child side (Comment). The parent needs a different declaration to express a one-to-many relationship.',
+			'"belongs_to" goes on the child side (Review). The parent needs a different declaration to express a one-to-many relationship.',
 	},
 	{
 		id: 'has_many',
-		label: 'has_many :comments',
+		label: 'has_many :reviews',
 		correct: true,
 	},
 	{
@@ -494,7 +494,7 @@ const DEPENDENT_OPTIONS: StepOption[] = [
 		label: 'dependent: :nullify',
 		correct: false,
 		feedback:
-			'Orphaned comments with NULL post_id would break your API. You need a strategy that removes them entirely.',
+			'Orphaned comments with NULL product_id would break your API. You need a strategy that removes them entirely.',
 	},
 	{
 		id: 'restrict',
@@ -522,13 +522,13 @@ const OPTION_STEP_CONFIG: Record<
 	2: {
 		title: 'Choose Relationship',
 		description:
-			'A Post _____ Comments. What relationship type goes in the Post model?',
+			'A Product _____ Reviews. What relationship type goes in the Product model?',
 		options: RELATIONSHIP_OPTIONS,
 	},
 	4: {
 		title: 'Set Dependent',
 		description:
-			'When a Post is destroyed, what should happen to its comments?',
+			'When a Product is destroyed, what should happen to its comments?',
 		options: DEPENDENT_OPTIONS,
 	},
 };
@@ -572,12 +572,12 @@ const REWARD_CONNECTIONS: PipelineConnection[] = [
 function getCodeFiles(phase: Phase, furthestStep: number) {
 	const files = [];
 
-	// Observe phase: show the Post model with no associations
+	// Observe phase: show the Product model with no associations
 	if (phase === 'observe') {
 		files.push({
-			filename: 'app/models/post.rb',
+			filename: 'app/models/product.rb',
 			language: 'ruby',
-			code: `class Post < ApplicationRecord
+			code: `class Product < ApplicationRecord
   # No associations defined
   # Posts exist in isolation
 end`,
@@ -589,9 +589,9 @@ end`,
 	// Build / activate / reward phases: show evolving code
 	if (furthestStep === 0) {
 		files.push({
-			filename: 'app/models/post.rb',
+			filename: 'app/models/product.rb',
 			language: 'ruby',
-			code: `class Post < ApplicationRecord
+			code: `class Product < ApplicationRecord
   # No associations yet
 end`,
 			highlight: [],
@@ -603,7 +603,7 @@ end`,
 		files.push({
 			filename: 'db/migrate/create_comments.rb',
 			language: 'ruby',
-			code: `class CreateComments < ActiveRecord::Migration[8.0]
+			code: `class CreateReviews < ActiveRecord::Migration[8.0]
   def change
     create_table :comments do |t|
       t.text :body
@@ -618,37 +618,37 @@ end`,
 	}
 
 	if (furthestStep >= 2) {
-		// After step 1: Comment model with belongs_to (auto-generated)
+		// After step 1: Review model with belongs_to (auto-generated)
 		files.push({
-			filename: 'app/models/comment.rb',
+			filename: 'app/models/review.rb',
 			language: 'ruby',
-			code: `class Comment < ApplicationRecord
-  belongs_to :post
+			code: `class Review < ApplicationRecord
+  belongs_to :product
 end`,
 			highlight: [2],
 		});
 	}
 
 	if (furthestStep >= 3) {
-		// After step 2: Post model with has_many
+		// After step 2: Product model with has_many
 		files.push({
-			filename: 'app/models/post.rb',
+			filename: 'app/models/product.rb',
 			language: 'ruby',
 			code:
 				furthestStep >= 5
-					? `class Post < ApplicationRecord
-  has_many :comments, dependent: :destroy
+					? `class Product < ApplicationRecord
+  has_many :reviews, dependent: :destroy
 end`
-					: `class Post < ApplicationRecord
-  has_many :comments
+					: `class Product < ApplicationRecord
+  has_many :reviews
 end`,
 			highlight: [2],
 		});
 	} else if (furthestStep >= 1) {
 		files.push({
-			filename: 'app/models/post.rb',
+			filename: 'app/models/product.rb',
 			language: 'ruby',
-			code: `class Post < ApplicationRecord
+			code: `class Product < ApplicationRecord
   # No associations yet
 end`,
 			highlight: [],
@@ -660,11 +660,11 @@ end`,
 		files.push({
 			filename: 'Rails Console',
 			language: 'ruby',
-			code: `post = Post.first
-post.comments.create(body: "Nice!")
-# => #<Comment id: 1, body: "Nice!", post_id: 1>
+			code: `post = Product.first
+product.reviews.create(body: "Nice!")
+# => #<Review id: 1, body: "Nice!", product_id: 1>
 
-post.comments.count
+product.reviews.count
 # => 1`,
 			highlight: [2, 3],
 		});
@@ -822,7 +822,7 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 				label: 'Model',
 				position: HUB_POS.model,
 				variant: wasBlocked ? ('danger' as const) : ('active' as const),
-				sublabel: wasBlocked ? '404 Not Found' : 'has_many :comments',
+				sublabel: wasBlocked ? '404 Not Found' : 'has_many :reviews',
 				badge: wasBlocked ? 'BLOCKED' : undefined,
 			},
 			{
@@ -939,12 +939,12 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Your Post API works end-to-end: model (L3), CRUD (L4),
+							Your Product API works end-to-end: model (L3), CRUD (L4),
 							routes (L5), controller (L6), serializer (L7). But posts
 							exist in isolation: no comments, no likes, no tags.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Try accessing comments on a post and see what happens.
+							Try accessing comments on a product and see what happens.
 							Rails{' '}
 							<span className="text-foreground font-medium">
 								associations
@@ -1068,7 +1068,7 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 					{phase === 'build' && (
 						<div className="flex-1 overflow-auto p-6">
 							<div className="max-w-2xl mx-auto space-y-4">
-								{/* Step 0: Generate Comment (Terminal) */}
+								{/* Step 0: Generate Review (Terminal) */}
 								{currentStepType === 'terminal' &&
 									stepper.currentStep === 0 && (
 										<TerminalChoiceStep
@@ -1076,12 +1076,12 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 											completed={isViewingCompletedStep}
 											description={
 												<p className="text-sm text-muted-foreground">
-													In Level 3, you generated Post with{' '}
+													In Level 3, you generated Product with{' '}
 													<span className="font-mono text-primary">
 														rails generate model
 													</span>
-													. Comment follows the same pattern, but
-													needs a field that links it back to Post.
+													. Review follows the same pattern, but
+													needs a field that links it back to Product.
 												</p>
 											}
 											hasNext={hasNextStep}
@@ -1096,7 +1096,7 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 											}
 											outputLines={generateOutput}
 											stepKey={stepper.currentStep}
-											title="Generate Comment Model"
+											title="Generate Review Model"
 										/>
 									)}
 
@@ -1109,7 +1109,7 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 											description={
 												<p className="text-sm text-muted-foreground">
 													The migration file has been created. Now
-													apply it to create the comments table in
+													apply it to create the reviews table in
 													the database.
 												</p>
 											}
@@ -1208,18 +1208,18 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 												<p className="text-sm text-foreground">
 													Because you used{' '}
 													<span className="font-mono text-primary">
-														post:references
+														product:references
 													</span>{' '}
 													in the generator, Rails automatically
 													added:
 												</p>
 												<div className="bg-zinc-900 rounded-lg p-4 font-mono text-sm">
 													<div className="text-zinc-400">
-														class Comment {'<'}{' '}
+														class Review {'<'}{' '}
 														ApplicationRecord
 													</div>
 													<div className="text-emerald-400 ml-4">
-														belongs_to :post
+														belongs_to :product
 													</div>
 													<div className="text-zinc-400">
 														end
@@ -1227,7 +1227,7 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 												</div>
 												<p className="text-sm text-muted-foreground">
 													The inverse relationship is set up for
-													free. Every Comment knows which Post it
+													free. Every Review knows which Product it
 													belongs to.
 												</p>
 											</div>

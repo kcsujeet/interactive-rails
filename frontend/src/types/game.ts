@@ -252,7 +252,7 @@ export interface PlacedNode {
 }
 
 export interface NodeConfig {
-	/** Custom label for the node (e.g. "Post", "Comment") */
+	/** Custom label for the node (e.g. "Product", "Review") */
 	label?: string;
 	/** For eager_load: which associations to load */
 	associations?: string[];

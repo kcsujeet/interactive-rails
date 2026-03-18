@@ -1,7 +1,7 @@
 /**
  * Tests for Level 3: Associations
  *
- * Validates that has_many is the correct relationship for Post → Comment.
+ * Validates that has_many is the correct relationship for Product → Review.
  */
 
 import { describe, expect, test } from 'bun:test';
@@ -22,11 +22,11 @@ function validateLevel3Solution(state: Level3State): ValidationResult {
 	const errors: string[] = [];
 
 	if (!state.commentAdded) {
-		errors.push('Add the Comment model to the canvas');
+		errors.push('Add the Review model to the canvas');
 	}
 
 	if (state.relationshipType === null) {
-		errors.push('Connect Post to Comment and select a relationship type');
+		errors.push('Connect Product to Review and select a relationship type');
 	} else if (state.relationshipType !== 'has_many') {
 		if (state.relationshipType === 'has_one') {
 			errors.push(
@@ -49,7 +49,7 @@ function validateLevel3Solution(state: Level3State): ValidationResult {
 
 	return {
 		valid: true,
-		message: 'Post has_many Comments - correct!',
+		message: 'Product has_many Reviews - correct!',
 	};
 }
 
@@ -70,7 +70,7 @@ describe('Level 3: Associations', () => {
 				relationshipType: null,
 			});
 
-			expect(result.details!.some((d) => d.includes('Comment model'))).toBe(
+			expect(result.details!.some((d) => d.includes('Review model'))).toBe(
 				true,
 			);
 		});
@@ -135,13 +135,13 @@ describe('Level 3: Associations', () => {
 
 	describe('Learning Outcomes', () => {
 		test('has_one creates 1:1 relationship', () => {
-			// has_one means: Post has_one Comment (only one)
+			// has_one means: Product has_one Review (only one)
 			const explanation = 'has_one limits posts to a single comment';
 			expect(explanation).toContain('single');
 		});
 
 		test('has_many creates 1:N relationship', () => {
-			// has_many means: Post has_many Comments (unlimited)
+			// has_many means: Product has_many Reviews (unlimited)
 			const explanation = 'has_many allows unlimited comments per post';
 			expect(explanation).toContain('unlimited');
 		});

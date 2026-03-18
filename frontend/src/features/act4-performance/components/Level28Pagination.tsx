@@ -14,7 +14,7 @@
  *   Step 0: bundle add pagy (terminal)
  *   Step 1: include Pagy::Method in ApplicationController (OptionCard)
  *   Step 2: Configure Pagy::OPTIONS[:limit] = 25 (OptionCard)
- *   Step 3: Wire up pagy(:offset, Post.includes(:user)) (OptionCard)
+ *   Step 3: Wire up pagy(:offset, Product.includes(:user)) (OptionCard)
  *   Step 4: Add response.headers.merge!(@pagy.headers_hash) (OptionCard)
  *
  * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Pagination" button
@@ -126,8 +126,8 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-all-posts',
-		label: 'GET all posts',
-		command: 'GET /api/v1/posts',
+		label: 'GET all products',
+		command: 'GET /api/v1/products',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
 			{ text: 'Content-Length: 12,582,912  (12MB!)', color: 'yellow' },
@@ -146,7 +146,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-mobile',
 		label: 'GET from mobile client',
-		command: 'GET /api/v1/posts (iPhone, 3G connection)',
+		command: 'GET /api/v1/products (iPhone, 3G connection)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
 			{ text: 'Content-Length: 12,582,912', color: 'muted' },
@@ -170,7 +170,7 @@ const PROBES: ProbeConfig[] = [
 			{ text: '=> 2,847,391 live objects', color: 'yellow' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'Post.includes(:user).all loads 50K AR objects + 50K User objects.',
+				text: 'Product.includes(:user).all loads 50K AR objects + 50K User objects.',
 				color: 'muted',
 			},
 			{
@@ -197,20 +197,20 @@ const ZONE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		stageId: 'database',
 		title: 'PostList Service (Query Logic)',
 		description:
-			'The service returns Post.includes(:user) as the scope with no limit. The controller renders the entire scope without pagination, loading all 50K rows and allocating ~180MB per request.',
+			'The service returns Product.includes(:user) as the scope with no limit. The controller renders the entire scope without pagination, loading all 50K rows and allocating ~180MB per request.',
 		code: `# app/services/post_list.rb
 class PostList < ApplicationService
   Result = Data.define(:success?, :scope, :errors)
   def call
     validation = ListContract.new.call({})
-    scope = Post.includes(:user)  # No limit!
+    scope = Product.includes(:user)  # No limit!
     Result.new(success?: true, scope: scope, errors: [])
   end
 end
 
 # Controller renders ALL of result.scope:
-# => SELECT "posts".* FROM "posts"
-# => 50,000 Post + 50,000 User objects loaded`,
+# => SELECT "products".* FROM "products"
+# => 50,000 Product + 50,000 User objects loaded`,
 	},
 	response: {
 		stageId: 'response',
@@ -242,7 +242,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET page 1 (default)',
 		description: 'First page of posts, 25 items',
 		method: 'GET',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'web client',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -259,7 +259,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET page 50',
 		description: 'Middle of the dataset',
 		method: 'GET',
-		path: '/api/v1/posts?page=50',
+		path: '/api/v1/products?page=50',
 		actor: 'web client',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -276,7 +276,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET page 2000 (last)',
 		description: 'Last page of 50K posts',
 		method: 'GET',
-		path: '/api/v1/posts?page=2000',
+		path: '/api/v1/products?page=2000',
 		actor: 'mobile client',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -293,7 +293,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET page 1 (mobile)',
 		description: 'Mobile client gets paginated response',
 		method: 'GET',
-		path: '/api/v1/posts?page=1',
+		path: '/api/v1/products?page=1',
 		actor: 'iPhone (3G)',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -310,7 +310,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET page 99999',
 		description: 'Page beyond dataset range',
 		method: 'GET',
-		path: '/api/v1/posts?page=99999',
+		path: '/api/v1/products?page=99999',
 		actor: 'API client',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -567,24 +567,24 @@ end`;
     )
     if validation.failure?
       return Result.new(
-        success?: false, scope: Post.none,
+        success?: false, scope: Product.none,
         errors: validation.errors.to_h
       )
     end
-    scope = Post.includes(:user)  # No limit!
+    scope = Product.includes(:user)  # No limit!
     Result.new(success?: true, scope: scope, errors: [])
   end
 end`,
 			highlight: [18],
 		});
 		files.push({
-			filename: 'app/controllers/api/v1/posts_controller.rb',
+			filename: 'app/controllers/api/v1/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::PostsController < ApplicationController
+			code: `class Api::V1::ProductsController < ApplicationController
   def index
     result = PostList.call(page: params[:page])
     if result.success?
-      render json: PostSerializer.new(result.scope)
+      render json: ProductSerializer.new(result.scope)
     else
       render json: { errors: result.errors },
              status: :unprocessable_entity
@@ -617,11 +617,11 @@ end
     validation = ListContract.new.call(page: @page)
     if validation.failure?
       return Result.new(
-        success?: false, scope: Post.none,
+        success?: false, scope: Product.none,
         errors: validation.errors.to_h
       )
     end
-    scope = Post.includes(:user)  # No limit!
+    scope = Product.includes(:user)  # No limit!
     Result.new(success?: true, scope: scope, errors: [])
   end
 end`,
@@ -668,17 +668,17 @@ Pagy::OPTIONS[:limit] = 25`,
 
 	if (furthestStep >= 4) {
 		files.push({
-			filename: 'app/controllers/api/v1/posts_controller.rb',
+			filename: 'app/controllers/api/v1/products_controller.rb',
 			language: 'ruby',
 			code:
 				furthestStep >= 5
-					? `class Api::V1::PostsController < ApplicationController
+					? `class Api::V1::ProductsController < ApplicationController
   def index
     result = PostList.call(page: params[:page])
     if result.success?
       @pagy, @posts = pagy(:offset, result.scope)
       response.headers.merge!(@pagy.headers_hash)
-      render json: PostSerializer.new(@posts)
+      render json: ProductSerializer.new(@posts)
     else
       render json: { errors: result.errors },
              status: :unprocessable_entity
@@ -691,12 +691,12 @@ end
 # Link: </posts?page=2>; rel="next",
 #       </posts?page=2000>; rel="last"
 # Content-Length: 6,250  (25 items only!)`
-					: `class Api::V1::PostsController < ApplicationController
+					: `class Api::V1::ProductsController < ApplicationController
   def index
     result = PostList.call(page: params[:page])
     if result.success?
       @pagy, @posts = pagy(:offset, result.scope)
-      render json: PostSerializer.new(@posts)
+      render json: ProductSerializer.new(@posts)
     else
       render json: { errors: result.errors },
              status: :unprocessable_entity
@@ -728,11 +728,11 @@ end`,
     validation = ListContract.new.call(page: @page)
     if validation.failure?
       return Result.new(
-        success?: false, scope: Post.none,
+        success?: false, scope: Product.none,
         errors: validation.errors.to_h
       )
     end
-    scope = Post.includes(:user)
+    scope = Product.includes(:user)
     Result.new(success?: true, scope: scope, errors: [])
   end
 end`,
@@ -1581,7 +1581,7 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 					files={getCodeFiles(phase, stepper.furthestStep)}
 					learningGoal={
 						phase === 'observe'
-							? 'Post.includes(:user).all loads every row. The 12MB JSON response has no pagination headers and no way to request a subset.'
+							? 'Product.includes(:user).all loads every row. The 12MB JSON response has no pagination headers and no way to request a subset.'
 							: 'Pagy paginates with offset strategy, 25 per page, and sends RFC 5988 Link headers so clients can navigate pages.'
 					}
 				>
@@ -1638,7 +1638,7 @@ include Pagy::Method
 Pagy::OPTIONS[:limit] = 25
 
 # v43+ requires strategy argument
-pagy(:offset, Post.all)
+pagy(:offset, Product.all)
 
 # v43+ uses headers_hash method
 @pagy.headers_hash`}

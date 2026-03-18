@@ -3,7 +3,7 @@
  *
  * 1. Environment - Set up Ruby/Rails dev environment
  * 2. First Boot - Create first Rails project
- * 3. The Model - Create the Post model
+ * 3. The Model - Create the Product model
  * 4. CRUD Operations - Create, Read, Update, Delete
  * 5. Routes - Define RESTful routes
  * 6. The Controller - Build the controller

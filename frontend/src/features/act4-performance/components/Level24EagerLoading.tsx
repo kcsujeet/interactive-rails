@@ -85,7 +85,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'basic-users',
 		label: 'Load posts with users',
-		command: 'Post.all + post.user.name (basic N+1)',
+		command: 'Product.all + product.user.name (basic N+1)',
 		responseLines: [
 			{
 				text: 'Scenario: 100 posts, each needs .user.name',
@@ -113,7 +113,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'nested-comments',
 		label: 'Load posts + comments + users',
-		command: 'Post.all + post.comments.map(&:user) (nested N+1)',
+		command: 'Product.all + product.reviews.map(&:user) (nested N+1)',
 		responseLines: [
 			{
 				text: 'Scenario: posts -> comments -> comment authors (2 levels deep)',
@@ -133,7 +133,7 @@ const PROBES: ProbeConfig[] = [
 				color: 'yellow',
 			},
 			{
-				text: 'includes(:comments) only  => N+1 on comment.user!',
+				text: 'includes(:reviews) only  => N+1 on comment.user!',
 				color: 'red',
 			},
 		],
@@ -141,7 +141,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'filtered-assoc',
 		label: 'Filter by association column',
-		command: 'Post.where(tags: { active: true }) (filter on assoc)',
+		command: 'Product.where(tags: { active: true }) (filter on assoc)',
 		responseLines: [
 			{
 				text: 'Scenario: filter posts WHERE tags.active = true',
@@ -200,7 +200,7 @@ const PROBE_LANES: Record<string, StrategyLaneData[]> = {
 		{
 			id: 'includes',
 			name: 'includes',
-			method: 'Post.includes(:user)',
+			method: 'Product.includes(:user)',
 			blocks: [
 				{ label: 'SELECT posts', color: 'green' },
 				{ label: 'SELECT users WHERE id IN(...)', color: 'green' },
@@ -211,7 +211,7 @@ const PROBE_LANES: Record<string, StrategyLaneData[]> = {
 		{
 			id: 'preload',
 			name: 'preload',
-			method: 'Post.preload(:user)',
+			method: 'Product.preload(:user)',
 			blocks: [
 				{ label: 'SELECT posts', color: 'green' },
 				{ label: 'SELECT users WHERE id IN(...)', color: 'green' },
@@ -222,7 +222,7 @@ const PROBE_LANES: Record<string, StrategyLaneData[]> = {
 		{
 			id: 'eager_load',
 			name: 'eager_load',
-			method: 'Post.eager_load(:user)',
+			method: 'Product.eager_load(:user)',
 			blocks: [
 				{
 					label: 'SELECT posts LEFT JOIN users',
@@ -236,7 +236,7 @@ const PROBE_LANES: Record<string, StrategyLaneData[]> = {
 		{
 			id: 'joins',
 			name: 'joins',
-			method: 'Post.joins(:user)',
+			method: 'Product.joins(:user)',
 			blocks: [{ label: 'SELECT posts JOIN users', color: 'amber' }],
 			floodCount: 100,
 			totalLabel: '101 queries!',
@@ -247,7 +247,7 @@ const PROBE_LANES: Record<string, StrategyLaneData[]> = {
 		{
 			id: 'includes',
 			name: 'includes',
-			method: 'Post.includes(comments: :user)',
+			method: 'Product.includes(comments: :user)',
 			blocks: [
 				{ label: 'SELECT posts', color: 'green' },
 				{ label: 'SELECT comments IN(...)', color: 'green' },
@@ -259,7 +259,7 @@ const PROBE_LANES: Record<string, StrategyLaneData[]> = {
 		{
 			id: 'preload',
 			name: 'preload',
-			method: 'Post.preload(comments: :user)',
+			method: 'Product.preload(comments: :user)',
 			blocks: [
 				{ label: 'SELECT posts', color: 'green' },
 				{ label: 'SELECT comments IN(...)', color: 'green' },
@@ -271,7 +271,7 @@ const PROBE_LANES: Record<string, StrategyLaneData[]> = {
 		{
 			id: 'eager_load',
 			name: 'eager_load',
-			method: 'Post.eager_load(comments: :user)',
+			method: 'Product.eager_load(comments: :user)',
 			blocks: [
 				{
 					label: 'SELECT posts LEFT JOIN comments, users',
@@ -285,7 +285,7 @@ const PROBE_LANES: Record<string, StrategyLaneData[]> = {
 		{
 			id: 'joins',
 			name: 'joins',
-			method: 'Post.joins(:comments)',
+			method: 'Product.joins(:reviews)',
 			blocks: [{ label: 'SELECT posts JOIN comments', color: 'amber' }],
 			floodCount: 100,
 			totalLabel: '100+ queries!',
@@ -296,7 +296,7 @@ const PROBE_LANES: Record<string, StrategyLaneData[]> = {
 		{
 			id: 'includes',
 			name: 'includes',
-			method: 'Post.includes(:tags).where(...)',
+			method: 'Product.includes(:tags).where(...)',
 			blocks: [
 				{
 					label: 'SELECT posts LEFT JOIN tags WHERE active',
@@ -310,7 +310,7 @@ const PROBE_LANES: Record<string, StrategyLaneData[]> = {
 		{
 			id: 'preload',
 			name: 'preload',
-			method: 'Post.preload(:tags).where(...)',
+			method: 'Product.preload(:tags).where(...)',
 			blocks: [
 				{
 					label: 'ERROR! Cannot filter with separate queries',
@@ -324,7 +324,7 @@ const PROBE_LANES: Record<string, StrategyLaneData[]> = {
 		{
 			id: 'eager_load',
 			name: 'eager_load',
-			method: 'Post.eager_load(:tags).where(...)',
+			method: 'Product.eager_load(:tags).where(...)',
 			blocks: [
 				{
 					label: 'SELECT posts LEFT JOIN tags WHERE active',
@@ -338,7 +338,7 @@ const PROBE_LANES: Record<string, StrategyLaneData[]> = {
 		{
 			id: 'joins',
 			name: 'joins',
-			method: 'Post.joins(:tags).where(...)',
+			method: 'Product.joins(:tags).where(...)',
 			blocks: [
 				{ label: 'SELECT posts JOIN tags WHERE active', color: 'amber' },
 			],
@@ -362,8 +362,8 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		code: `# In your service object:
 class PostList < ApplicationService
   def call
-    posts = Post.includes(:user)
-    # Query 1: SELECT "posts".* FROM "posts"
+    products = Product.includes(:user)
+    # Query 1: SELECT "products".* FROM "products"
     # Query 2: SELECT "users".* FROM "users"
     #           WHERE "users"."id" IN (1, 2, 3...)
     Result.new(success?: true, posts: posts, errors: [])
@@ -371,8 +371,8 @@ class PostList < ApplicationService
 end
 
 # With filtering (auto-switches to JOIN):
-Post.includes(:user).where(users: { role: 'admin' })
-# SELECT "posts".* LEFT OUTER JOIN "users" ...`,
+Product.includes(:user).where(users: { role: 'admin' })
+# SELECT "products".* LEFT OUTER JOIN "users" ...`,
 	},
 	preload: {
 		stageId: 'preload',
@@ -382,9 +382,9 @@ Post.includes(:user).where(users: { role: 'admin' })
 		code: `# In your service object:
 class PostList < ApplicationService
   def call
-    posts = Post.preload(:user)
+    products = Product.preload(:user)
     # Always 2 separate queries:
-    # Query 1: SELECT "posts".* FROM "posts"
+    # Query 1: SELECT "products".* FROM "products"
     # Query 2: SELECT "users".* FROM "users"
     #           WHERE "users"."id" IN (1, 2, 3...)
     Result.new(success?: true, posts: posts, errors: [])
@@ -392,7 +392,7 @@ class PostList < ApplicationService
 end
 
 # ERROR if you try to filter:
-Post.preload(:user).where(users: { active: true })
+Product.preload(:user).where(users: { active: true })
 # => ActiveRecord::StatementInvalid`,
 	},
 	eager_load: {
@@ -403,11 +403,11 @@ Post.preload(:user).where(users: { active: true })
 		code: `# In your service object:
 class PostList < ApplicationService
   def call(filters: {})
-    posts = Post.eager_load(:tags)
+    products = Product.eager_load(:tags)
                 .where(tags: { active: filters[:tag_active] })
     # Single query with LEFT OUTER JOIN:
-    # SELECT "posts".*, "tags".*
-    #   FROM "posts"
+    # SELECT "products".*, "tags".*
+    #   FROM "products"
     #   LEFT OUTER JOIN "tags"
     #     ON "tags"."post_id" = "posts"."id"
     #   WHERE "tags"."active" = true
@@ -419,13 +419,13 @@ end`,
 		stageId: 'joins',
 		title: 'joins (NOT for N+1 prevention!)',
 		description:
-			'INNER JOINs the table but does NOT load association records into memory. Accessing post.user after joins still triggers a lazy load. This is the most common mistake when trying to fix N+1 queries.',
+			'INNER JOINs the table but does NOT load association records into memory. Accessing product.user after joins still triggers a lazy load. This is the most common mistake when trying to fix N+1 queries.',
 		code: `# Common mistake in a service:
 class PostList < ApplicationService
   def call
-    posts = Post.joins(:user)
+    products = Product.joins(:user)
                 .where(users: { role: 'admin' })
-    # SQL: SELECT "posts".* FROM "posts"
+    # SQL: SELECT "products".* FROM "products"
     #   INNER JOIN "users" ON ...
     #   WHERE "users"."role" = 'admin'
 
@@ -456,7 +456,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Posts with users (includes)',
 		description: 'Load 100 posts with user names',
 		method: 'GET',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'includes(:user)',
 		expectedResult: 'allowed',
 	},
@@ -465,7 +465,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Posts with nested comments',
 		description: 'Load posts with comments and their users',
 		method: 'GET',
-		path: '/api/v1/posts?include=comments',
+		path: '/api/v1/products?include=comments',
 		actor: 'includes(comments: :user)',
 		expectedResult: 'allowed',
 	},
@@ -474,7 +474,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Filtered by active tags',
 		description: 'Load posts filtered by association column',
 		method: 'GET',
-		path: '/api/v1/posts?tag=active',
+		path: '/api/v1/products?tag=active',
 		actor: 'eager_load(:tags)',
 		expectedResult: 'allowed',
 	},
@@ -484,7 +484,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		description: 'Forgot to add includes, N+1 detected',
 		method: 'GET',
 		path: '/api/v1/admin/posts',
-		actor: 'Post.all (no includes)',
+		actor: 'Product.all (no includes)',
 		expectedResult: 'blocked',
 	},
 	{
@@ -492,8 +492,8 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Using joins (common mistake)',
 		description: 'joins does NOT load associations into memory',
 		method: 'GET',
-		path: '/api/v1/posts?admin=true',
-		actor: 'Post.joins(:user)',
+		path: '/api/v1/products?admin=true',
+		actor: 'Product.joins(:user)',
 		expectedResult: 'blocked',
 	},
 ];
@@ -541,14 +541,14 @@ const REWARD_LANE_DATA: Record<
 		result: 'works',
 	},
 	'no-eager-basic': {
-		strategy: 'Post.all (no includes)',
+		strategy: 'Product.all (no includes)',
 		blocks: [{ label: 'SELECT posts', color: 'amber' }],
 		floodCount: 100,
 		totalLabel: '101 queries!',
 		result: 'fails',
 	},
 	'joins-mistake': {
-		strategy: 'Post.joins(:user)',
+		strategy: 'Product.joins(:user)',
 		blocks: [{ label: 'SELECT posts JOIN users', color: 'amber' }],
 		floodCount: 100,
 		totalLabel: '101 queries!',
@@ -588,23 +588,23 @@ const OPTION_STEP_CONFIG: Record<
 	0: {
 		title: 'Fix Posts with Users',
 		description:
-			'PostList service calls Post.all, triggering 101 queries for 100 posts. Each post.user.name fires a separate SELECT. Which method should the service use to batch all user queries into one?',
+			'PostList service calls Product.all, triggering 101 queries for 100 posts. Each product.user.name fires a separate SELECT. Which method should the service use to batch all user queries into one?',
 		options: [
 			{
 				id: 'joins',
-				label: 'Post.joins(:user)',
+				label: 'Product.joins(:user)',
 				correct: false,
 				feedback:
-					'joins creates an INNER JOIN but does NOT load user records into memory. You will still get N+1 when accessing post.user.',
+					'joins creates an INNER JOIN but does NOT load user records into memory. You will still get N+1 when accessing product.user.',
 			},
 			{
 				id: 'includes',
-				label: 'Post.includes(:user)',
+				label: 'Product.includes(:user)',
 				correct: true,
 			},
 			{
 				id: 'find-each',
-				label: 'Post.find_each { |p| p.user }',
+				label: 'Product.find_each { |p| p.user }',
 				correct: false,
 				feedback:
 					'find_each processes records in batches to save memory, but it still lazy-loads each user individually. The association query pattern does not change.',
@@ -614,25 +614,25 @@ const OPTION_STEP_CONFIG: Record<
 	1: {
 		title: 'Fix Nested Associations',
 		description:
-			'Posts have comments, and each comment has a user. The service loading post.comments.map(&:user) fires 1000+ queries. Which call should the service use to eager-load both levels at once?',
+			'Posts have comments, and each comment has a user. The service loading product.reviews.map(&:user) fires 1000+ queries. Which call should the service use to eager-load both levels at once?',
 		options: [
 			{
 				id: 'flat-includes',
-				label: 'Post.includes(:comments)',
+				label: 'Product.includes(:reviews)',
 				correct: false,
 				feedback:
 					'That loads comments but not their users. You will still get N+1 on comment.user. The nested association needs to be specified.',
 			},
 			{
 				id: 'separate',
-				label: 'Post.includes(:comments).includes(:users)',
+				label: 'Product.includes(:reviews).includes(:users)',
 				correct: false,
 				feedback:
 					'Posts do not have a direct :users association. The users belong to comments, so you need to express that nesting in the includes call.',
 			},
 			{
 				id: 'nested-includes',
-				label: 'Post.includes(comments: :user)',
+				label: 'Product.includes(comments: :user)',
 				correct: true,
 			},
 		],
@@ -644,19 +644,19 @@ const OPTION_STEP_CONFIG: Record<
 		options: [
 			{
 				id: 'preload',
-				label: 'Post.preload(:tags).where(tags: { active: true })',
+				label: 'Product.preload(:tags).where(tags: { active: true })',
 				correct: false,
 				feedback:
 					'preload always uses separate queries, so it cannot apply a WHERE clause on the associated table. Rails will raise an error.',
 			},
 			{
 				id: 'eager-load',
-				label: 'Post.eager_load(:tags).where(tags: { active: true })',
+				label: 'Product.eager_load(:tags).where(tags: { active: true })',
 				correct: true,
 			},
 			{
 				id: 'includes-where',
-				label: 'Post.includes(:tags).where(tags: { active: true })',
+				label: 'Product.includes(:tags).where(tags: { active: true })',
 				correct: false,
 				feedback:
 					'includes works here (Rails auto-switches to JOIN), but it is implicit. When you filter on an association, being explicit about the JOIN strategy avoids surprises.',
@@ -680,7 +680,7 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
   Result = Data.define(:success?, :posts, :errors)
 
   def call
-    posts = Post.all  # No eager loading!
+    products = Product.all  # No eager loading!
     Result.new(success?: true, posts: posts, errors: [])
   end
 end
@@ -692,12 +692,12 @@ end
 			highlight: [5],
 		});
 		files.push({
-			filename: 'app/controllers/posts_controller.rb',
+			filename: 'app/controllers/products_controller.rb',
 			language: 'ruby',
 			code: `class PostsController < ApplicationController
   def index
     result = PostList.call
-    render json: PostSerializer.new(result.posts)
+    render json: ProductSerializer.new(result.posts)
   end
 end`,
 		});
@@ -713,19 +713,19 @@ end`,
   Result = Data.define(:success?, :posts, :errors)
 
   def call
-    posts = Post.all  # 101 queries!
+    products = Product.all  # 101 queries!
     Result.new(success?: true, posts: posts, errors: [])
   end
 end`,
 			highlight: [5],
 		});
 		files.push({
-			filename: 'app/controllers/posts_controller.rb',
+			filename: 'app/controllers/products_controller.rb',
 			language: 'ruby',
 			code: `class PostsController < ApplicationController
   def index
     result = PostList.call
-    render json: PostSerializer.new(result.posts)
+    render json: ProductSerializer.new(result.posts)
   end
 end`,
 		});
@@ -741,15 +741,15 @@ end`,
   Result = Data.define(:success?, :posts, :errors)
 
   def call(scope: :index, filters: {})
-    posts = case scope
+    products = case scope
     when :index
-      Post.includes(:user)
+      Product.includes(:user)
       # 2 queries instead of 101
     when :feed
-      Post.includes(comments: :user)
+      Product.includes(comments: :user)
       # 3 queries instead of 1001
     when :tagged
-      Post.eager_load(:tags)
+      Product.eager_load(:tags)
           .where(tags: { active: filters[:tag_active] })
       # 1 query with LEFT OUTER JOIN
     end
@@ -762,12 +762,12 @@ end`
   Result = Data.define(:success?, :posts, :errors)
 
   def call(scope: :index)
-    posts = case scope
+    products = case scope
     when :index
-      Post.includes(:user)
+      Product.includes(:user)
       # 2 queries instead of 101
     when :feed
-      Post.includes(comments: :user)
+      Product.includes(comments: :user)
       # 3 queries instead of 1001
     end
 
@@ -778,7 +778,7 @@ end`
   Result = Data.define(:success?, :posts, :errors)
 
   def call
-    posts = Post.includes(:user)
+    products = Product.includes(:user)
     # 2 queries instead of 101
     Result.new(success?: true, posts: posts, errors: [])
   end
@@ -787,14 +787,14 @@ end`,
 				furthestStep >= 3 ? [7, 10, 13, 14] : furthestStep >= 2 ? [7, 10] : [5],
 		});
 		files.push({
-			filename: 'app/controllers/posts_controller.rb',
+			filename: 'app/controllers/products_controller.rb',
 			language: 'ruby',
 			code:
 				furthestStep >= 3
 					? `class PostsController < ApplicationController
   def index
     result = PostList.call(scope: :index)
-    render json: PostSerializer.new(result.posts)
+    render json: ProductSerializer.new(result.posts)
   end
 
   def feed
@@ -806,14 +806,14 @@ end`,
     result = PostList.call(
       scope: :tagged, filters: { tag_active: true }
     )
-    render json: PostSerializer.new(result.posts)
+    render json: ProductSerializer.new(result.posts)
   end
 end`
 					: furthestStep >= 2
 						? `class PostsController < ApplicationController
   def index
     result = PostList.call(scope: :index)
-    render json: PostSerializer.new(result.posts)
+    render json: ProductSerializer.new(result.posts)
   end
 
   def feed
@@ -824,7 +824,7 @@ end`
 						: `class PostsController < ApplicationController
   def index
     result = PostList.call
-    render json: PostSerializer.new(result.posts)
+    render json: ProductSerializer.new(result.posts)
   end
 end`,
 		});
@@ -832,11 +832,11 @@ end`,
 
 	if (furthestStep >= 1) {
 		files.push({
-			filename: 'app/models/post.rb',
+			filename: 'app/models/product.rb',
 			language: 'ruby',
-			code: `class Post < ApplicationRecord
+			code: `class Product < ApplicationRecord
   belongs_to :user
-  has_many :comments
+  has_many :reviews
   has_many :tags
 
   # strict_loading catches forgotten eager loads

@@ -65,7 +65,7 @@ Write this out explicitly as a table:
 ```
 | After Level | Models | Gems | Concepts | Architecture |
 |-------------|--------|------|----------|--------------|
-| L8 (prev act) | Post (title, body), Comment (body, post_id) | jsonapi-serializer | MVC, CRUD, associations | Routes, Controller, Serializer |
+| L8 (prev act) | Product (name, description, price), Review (body, rating, product_id) | jsonapi-serializer | MVC, CRUD, associations | Routes, Controller, Serializer |
 | L9 Auth | + User (email, password_digest) | + bcrypt | + auth, sessions, tokens | + Authentication middleware |
 | L10 Validations | (same) | (same) | + model validations | + Validation layer |
 | ... | ... | ... | ... | ... |
@@ -194,9 +194,9 @@ end
 
 **Case study: L20 Error Handling with simple CRUD.**
 
-L16 teaches service objects for multi-step workflows (80+ lines). L20 shows `PostsController` with `Post.find(params[:id])` directly in the controller. Is this a narrative inconsistency?
+L16 teaches service objects for multi-step workflows (80+ lines). L20 shows `ProductsController` with `Product.find(params[:id])` directly in the controller. Is this a narrative inconsistency?
 
-No. L16's own guidelines say "Extract when a controller exceeds ~15 lines." A `show` action with `Post.find + render` is 2 lines. Simple CRUD stays in controllers. Service objects are for multi-step workflows, not one-liners.
+No. L16's own guidelines say "Extract when a controller exceeds ~15 lines." A `show` action with `Product.find + render` is 2 lines. Simple CRUD stays in controllers. Service objects are for multi-step workflows, not one-liners.
 
 However, the "after" code in `railsCodeExample` should briefly acknowledge the pattern exists:
 
@@ -206,7 +206,7 @@ class Api::V1::PostsController < ApplicationController
   # Simple CRUD stays in the controller.
   # Multi-step workflows (like registration) use service objects.
   def show
-    post = Post.find(params[:id])
+    product = Product.find(params[:id])
     render json: PostSerializer.new(post).serializable_hash.to_json
   end
 end
@@ -235,7 +235,7 @@ end
 - Result type: L16 uses `Result = Data.define(:success?, :user, :errors)`, L18 uses `Result.new(success?: false, errors: [...])`
 - Call pattern: L16 uses `UserRegistration.call(params)`, L22 uses `RegistrationService.new(params).call`
 
-**The scope is the entire game, not just one act.** If Act 1 L3 creates a `Post` model, Act 3 L19 cannot call it `Article`. If Act 2 L9 adds `User` with `has_secure_password`, Act 3 L21 cannot reference `User.authenticate` (a method that does not exist in `has_secure_password`). Trace entities from their origin level forward.
+**The scope is the entire game, not just one act.** If Act 1 L3 creates a `Product` model, Act 3 L19 cannot call it `Article`. If Act 2 L9 adds `User` with `has_secure_password`, Act 3 L21 cannot reference `User.authenticate` (a method that does not exist in `has_secure_password`). Trace entities from their origin level forward.
 
 **Case study: L16 `UserRegistration` vs L18/L22 `RegistrationService`.**
 
@@ -327,9 +327,9 @@ end
 
 For each level, verify every model, column, and association it references actually exists at that point:
 
-- [ ] **No phantom columns.** If L15 references `Post.status`, a prior level must add that column via migration. If not, L15 must include the migration as its first step.
+- [ ] **No phantom columns.** If L15 references `Product.status`, a prior level must add that column via migration. If not, L15 must include the migration as its first step.
 - [ ] **No phantom models.** If a level references a User model, verify it was created in a prior level.
-- [ ] **No phantom gems.** If a level's codeExample uses `policy_scope(Post)`, verify Pundit was installed in a prior level.
+- [ ] **No phantom gems.** If a level's codeExample uses `policy_scope(Product)`, verify Pundit was installed in a prior level.
 
 **CRITICAL: Check both content.ts AND component .tsx files.** Content definitions and interactive components are separate files that can drift. A level's `content.ts` may be fixed but the component's data arrays, code preview generators, left panel text, or step options may still reference phantom models or columns. Grep the component for any flagged terms.
 

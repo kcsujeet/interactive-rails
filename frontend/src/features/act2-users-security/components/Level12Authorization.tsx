@@ -7,7 +7,7 @@
  * Phase 1 (WHY - observe): Interactive exploration. Click pipeline stages to
  *   inspect code, fire API probes to discover vulnerabilities. Discovery gating
  *   controls when "Build the Fix" appears.
- * Phase 2 (HOW - build): 7 steps (2 terminal + 5 OptionCard) building a Pundit PostPolicy
+ * Phase 2 (HOW - build): 7 steps (2 terminal + 5 OptionCard) building a Pundit ProductPolicy
  *   Step 0: bundle add pundit (terminal)
  *   Step 1: include Pundit::Authorization in ApplicationController (OptionCard)
  *   Step 2: rails generate pundit:install (terminal)
@@ -77,7 +77,7 @@ type Phase = 'observe' | 'build' | 'activate' | 'reward';
 const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{ id: 'no-policy', label: 'No authorization policy exists' },
 	{ id: 'any-delete', label: 'Any user can delete any post' },
-	{ id: 'index-leaks', label: 'Index returns all posts including drafts' },
+	{ id: 'index-leaks', label: 'Index returns all products including drafts' },
 	{ id: 'no-authorize', label: 'Controller has no authorize call' },
 ];
 
@@ -89,12 +89,12 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'delete-nonowner',
 		label: 'DELETE as non-owner',
-		command: 'DELETE /api/v1/posts/42 (as user_7, not the owner)',
+		command: 'DELETE /api/v1/products/42 (as user_7, not the owner)',
 		responseLines: [
 			{ text: 'HTTP/1.1 204 No Content', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'Post #42 deleted. user_7 was NOT the owner.',
+				text: 'Product #42 deleted. user_7 was NOT the owner.',
 				color: 'yellow',
 			},
 			{
@@ -106,7 +106,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-drafts',
 		label: 'GET drafts as stranger',
-		command: 'GET /api/v1/posts (as visitor, no auth)',
+		command: 'GET /api/v1/products (as visitor, no auth)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
 			{
@@ -118,11 +118,11 @@ const PROBES: ProbeConfig[] = [
 				color: 'muted',
 			},
 			{
-				text: ' {"id":3,"title":"Public Post","published":true}]',
+				text: ' {"id":3,"title":"Featured Product","published":true}]',
 				color: 'muted',
 			},
 			{
-				text: 'Post.all returns everything. Drafts are visible to anyone.',
+				text: 'Product.all returns everything. Drafts are visible to anyone.',
 				color: 'yellow',
 			},
 		],
@@ -130,7 +130,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'patch-nonowner',
 		label: 'PATCH as non-owner',
-		command: 'PATCH /api/v1/posts/42 (as user_7, body: {title: "Hacked"})',
+		command: 'PATCH /api/v1/products/42 (as user_7, body: {title: "Hacked"})',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
 			{
@@ -186,10 +186,10 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		stageId: 'controller',
 		title: 'PostsController',
 		description:
-			'The controller finds the post and immediately runs the action. There is no authorize call. Any authenticated user can destroy, update, or read any record.',
+			'The controller finds the product and immediately runs the action. There is no authorize call. Any authenticated user can destroy, update, or read any record.',
 		code: `def destroy
-  post = Post.find(params[:id])
-  post.destroy  # No permission check!
+  post = Product.find(params[:id])
+  product.destroy  # No permission check!
   head :no_content
 end`,
 	},
@@ -221,9 +221,9 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'owner-edit',
 		label: 'Owner edits own post',
-		description: 'Post author updates their own content',
+		description: 'Product owner updates their own content',
 		method: 'PATCH',
-		path: '/api/v1/posts/42',
+		path: '/api/v1/products/42',
 		actor: 'owner (user_3)',
 		expectedResult: 'allowed',
 	},
@@ -232,7 +232,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Admin deletes flagged post',
 		description: 'Admin removes a flagged post',
 		method: 'DELETE',
-		path: '/api/v1/posts/99',
+		path: '/api/v1/products/99',
 		actor: 'admin',
 		expectedResult: 'allowed',
 	},
@@ -241,7 +241,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Stranger deletes post',
 		description: 'Random user tries to delete another user\'s post',
 		method: 'DELETE',
-		path: '/api/v1/posts/42',
+		path: '/api/v1/products/42',
 		actor: 'stranger (user_7)',
 		expectedResult: 'blocked',
 	},
@@ -250,7 +250,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Stranger updates post',
 		description: 'Random user tries to edit another user\'s post',
 		method: 'PATCH',
-		path: '/api/v1/posts/42',
+		path: '/api/v1/products/42',
 		actor: 'stranger (user_7)',
 		expectedResult: 'blocked',
 	},
@@ -259,7 +259,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Visitor sees published only',
 		description: 'Unauthenticated visitor views the index',
 		method: 'GET',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'visitor (no auth)',
 		expectedResult: 'allowed',
 	},
@@ -369,8 +369,8 @@ const INCLUDE_OPTIONS: StepOption[] = [
 const generateInstallCommands: TerminalCommand[] = [
 	{
 		id: 'wrong-policy-post',
-		label: 'rails generate pundit:policy Post',
-		command: 'rails generate pundit:policy Post',
+		label: 'rails generate pundit:policy Product',
+		command: 'rails generate pundit:policy Product',
 		correct: false,
 		feedback:
 			'That generates a single policy file. You need the base setup first, which creates the ApplicationPolicy all policies inherit from.',
@@ -414,14 +414,14 @@ const STEP_OPTIONS: StepOption[][] = [
 	[
 		{
 			id: 'action-policy',
-			label: 'class PostPolicy < ActionPolicy::Base\n  # ...\nend',
+			label: 'class ProductPolicy < ActionPolicy::Base\n  # ...\nend',
 			correct: false,
 			feedback:
 				'ActionPolicy is a different gem. Pundit policies inherit from a shared base class in your app.',
 		},
 		{
 			id: 'application-policy',
-			label: 'class PostPolicy < ApplicationPolicy\n  # ...\nend',
+			label: 'class ProductPolicy < ApplicationPolicy\n  # ...\nend',
 			correct: true,
 		},
 		{
@@ -429,7 +429,7 @@ const STEP_OPTIONS: StepOption[][] = [
 			label: 'class PostsPolicy < ApplicationPolicy\n  # ...\nend',
 			correct: false,
 			feedback:
-				'Pundit policy names are singular, matching the model name. Post, not Posts.',
+				'Pundit policy names are singular, matching the model name. Product, not Products.',
 		},
 	],
 	// Step 4: Define the destroy? Method
@@ -439,7 +439,7 @@ const STEP_OPTIONS: StepOption[][] = [
 			label: 'def destroy?\n  user.admin?\nend',
 			correct: false,
 			feedback:
-				'That only allows admins. Post owners should also be able to delete their own posts.',
+				'That only allows admins. Product owners should also be able to delete their own products.',
 		},
 		{
 			id: 'allow-all',
@@ -459,7 +459,7 @@ const STEP_OPTIONS: StepOption[][] = [
 		{
 			id: 'inline-check',
 			label:
-				'if current_user.admin? || post.user == current_user\n  post.destroy\nend',
+				'if current_user.admin? || product.user == current_user\n  product.destroy\nend',
 			correct: false,
 			feedback:
 				'Inline permission checks duplicate logic that belongs in the policy. The controller should delegate.',
@@ -473,7 +473,7 @@ const STEP_OPTIONS: StepOption[][] = [
 		},
 		{
 			id: 'authorize',
-			label: 'authorize post',
+			label: 'authorize product',
 			correct: true,
 		},
 	],
@@ -481,21 +481,21 @@ const STEP_OPTIONS: StepOption[][] = [
 	[
 		{
 			id: 'where-user',
-			label: 'Post.where(user: current_user)',
+			label: 'Product.where(user: current_user)',
 			correct: false,
 			feedback:
 				'Hardcoded queries in the controller bypass the policy. Scoping logic belongs in the policy class.',
 		},
 		{
 			id: 'cancancan',
-			label: 'Post.accessible_by(current_user)',
+			label: 'Product.accessible_by(current_user)',
 			correct: false,
 			feedback:
 				'That is a CanCanCan pattern, not Pundit. Pundit has its own scoping mechanism.',
 		},
 		{
 			id: 'policy-scope',
-			label: 'policy_scope(Post)',
+			label: 'policy_scope(Product)',
 			correct: true,
 		},
 	],
@@ -520,25 +520,25 @@ const OPTION_STEP_CONFIG: Record<
 	3: {
 		title: 'Choose the Policy Class',
 		description:
-			'Pundit looks up a policy class by model name. Which class definition will Pundit find for the Post model?',
+			'Pundit looks up a policy class by model name. Which class definition will Pundit find for the Product model?',
 		options: STEP_OPTIONS[0],
 	},
 	4: {
 		title: 'Define the destroy? Method',
 		description:
-			'Post owners and admins should be able to delete. Everyone else should be blocked. Which permission logic is correct?',
+			'Product owners and admins should be able to delete. Everyone else should be blocked. Which permission logic is correct?',
 		options: STEP_OPTIONS[1],
 	},
 	5: {
 		title: 'Wire Up the Controller',
 		description:
-			'Your PostPolicy exists but the controller still runs post.destroy without checking permissions. Pundit infers the policy class from the record you pass: a Post instance resolves to PostPolicy, calling destroy? automatically. How should the controller delegate?',
+			'Your ProductPolicy exists but the controller still runs product.destroy without checking permissions. Pundit infers the policy class from the record you pass: a Product instance resolves to ProductPolicy, calling destroy? automatically. How should the controller delegate?',
 		options: STEP_OPTIONS[2],
 	},
 	6: {
 		title: 'Scope the Index Query',
 		description:
-			'The index action does Post.all, leaking drafts and private posts. How do you filter the collection through the policy?',
+			'The index action does Product.all, leaking drafts and private posts. How do you filter the collection through the policy?',
 		options: STEP_OPTIONS[3],
 	},
 };
@@ -569,12 +569,12 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 	// Observe phase: show the unprotected controller
 	if (phase === 'observe') {
 		files.push({
-			filename: 'app/controllers/api/v1/posts_controller.rb',
+			filename: 'app/controllers/api/v1/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::PostsController < ApplicationController
+			code: `class Api::V1::ProductsController < ApplicationController
   def destroy
-    post = Post.find(params[:id])
-    post.destroy  # Any user can delete ANY post!
+    product = Product.find(params[:id])
+    product.destroy  # Any user can delete ANY post!
     head :no_content
   end
 end`,
@@ -588,19 +588,19 @@ end`,
 	// furthestStep 1: Gemfile after bundle add pundit
 	// furthestStep 2: ApplicationController with include Pundit::Authorization
 	// furthestStep 3: ApplicationPolicy after generator
-	// furthestStep 4: PostPolicy skeleton after choosing class
-	// furthestStep 5: PostPolicy with destroy? method
+	// furthestStep 4: ProductPolicy skeleton after choosing class
+	// furthestStep 5: ProductPolicy with destroy? method
 	// furthestStep 6: Controller with authorize
 	// furthestStep 7: Controller with policy_scope + ApplicationController rescue_from
 
 	if (furthestStep === 0) {
 		files.push({
-			filename: 'app/controllers/api/v1/posts_controller.rb',
+			filename: 'app/controllers/api/v1/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::PostsController < ApplicationController
+			code: `class Api::V1::ProductsController < ApplicationController
   def destroy
-    post = Post.find(params[:id])
-    post.destroy  # Any user can delete ANY post!
+    product = Product.find(params[:id])
+    product.destroy  # Any user can delete ANY post!
     head :no_content
   end
 end`,
@@ -689,15 +689,15 @@ end`,
 	}
 
 	if (furthestStep >= 4) {
-		// After step 3: PostPolicy skeleton
+		// After step 3: ProductPolicy skeleton
 		files.push({
 			filename: 'app/policies/post_policy.rb',
 			language: 'ruby',
 			code:
 				furthestStep >= 7
-					? `class PostPolicy < ApplicationPolicy
+					? `class ProductPolicy < ApplicationPolicy
   # user  - the signed-in user (from Pundit)
-  # record - the Post instance being checked
+  # record - the Product instance being checked
 
   def destroy?
     record.user == user || user.admin?
@@ -714,17 +714,17 @@ end`,
   end
 end`
 					: furthestStep >= 5
-						? `class PostPolicy < ApplicationPolicy
+						? `class ProductPolicy < ApplicationPolicy
   # user  - the signed-in user (from Pundit)
-  # record - the Post instance being checked
+  # record - the Product instance being checked
 
   def destroy?
     record.user == user || user.admin?
   end
 end`
-						: `class PostPolicy < ApplicationPolicy
+						: `class ProductPolicy < ApplicationPolicy
   # user  - the signed-in user (from Pundit)
-  # record - the Post instance being checked
+  # record - the Product instance being checked
 end`,
 			highlight:
 				furthestStep >= 7
@@ -738,28 +738,28 @@ end`,
 	if (furthestStep >= 6) {
 		// After step 5: controller with authorize
 		files.push({
-			filename: 'app/controllers/api/v1/posts_controller.rb',
+			filename: 'app/controllers/api/v1/products_controller.rb',
 			language: 'ruby',
 			code:
 				furthestStep >= 7
-					? `class Api::V1::PostsController < ApplicationController
+					? `class Api::V1::ProductsController < ApplicationController
   def index
-    posts = policy_scope(Post)
-    render json: PostSerializer.new(posts)
+    products = policy_scope(Product)
+    render json: ProductSerializer.new(products)
   end
 
   def destroy
-    post = Post.find(params[:id])
-    authorize post
-    post.destroy
+    product = Product.find(params[:id])
+    authorize product
+    product.destroy
     head :no_content
   end
 end`
-					: `class Api::V1::PostsController < ApplicationController
+					: `class Api::V1::ProductsController < ApplicationController
   def destroy
-    post = Post.find(params[:id])
-    authorize post
-    post.destroy
+    product = Product.find(params[:id])
+    authorize product
+    product.destroy
     head :no_content
   end
 end`,

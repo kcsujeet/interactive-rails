@@ -74,9 +74,9 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'fetch-posts',
 		label: 'GET /posts from React',
-		command: 'fetch("http://localhost:3000/api/v1/posts") // from localhost:3001',
+		command: 'fetch("http://localhost:3000/api/v1/products") // from localhost:3001',
 		responseLines: [
-			{ text: 'Access to fetch at http://localhost:3000/api/v1/posts', color: 'red' },
+			{ text: 'Access to fetch at http://localhost:3000/api/v1/products', color: 'red' },
 			{ text: "from origin 'http://localhost:3001' has been blocked", color: 'red' },
 			{ text: 'by CORS policy: No Access-Control-Allow-Origin header', color: 'red' },
 			{ text: 'Response Status: (blocked by browser)', color: 'yellow' },
@@ -85,9 +85,9 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'preflight-delete',
 		label: 'DELETE /posts/1 from React',
-		command: 'fetch("http://localhost:3000/api/v1/posts/1", { method: "DELETE" })',
+		command: 'fetch("http://localhost:3000/api/v1/products/1", { method: "DELETE" })',
 		responseLines: [
-			{ text: 'Preflight OPTIONS /api/v1/posts/1', color: 'cyan' },
+			{ text: 'Preflight OPTIONS /api/v1/products/1', color: 'cyan' },
 			{ text: 'Response to preflight: no Access-Control-Allow-Origin', color: 'red' },
 			{ text: 'DELETE request never sent (preflight rejected)', color: 'yellow' },
 		],
@@ -95,7 +95,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'curl-bypass',
 		label: 'GET /posts via curl',
-		command: 'curl http://localhost:3000/api/v1/posts',
+		command: 'curl http://localhost:3000/api/v1/products',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'green' },
 			{ text: '[{"id":1,"title":"Hello World"}, ...]', color: 'green' },
@@ -347,25 +347,25 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET /posts (from localhost)',
 		description: 'React frontend fetches posts',
 		method: 'GET',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'localhost:3001',
 		expectedResult: 'allowed',
 	},
 	{
 		id: 'frontend-post',
 		label: 'POST /posts (from localhost)',
-		description: 'React frontend creates a post',
+		description: 'React frontend creates a product',
 		method: 'POST',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'localhost:3001',
 		expectedResult: 'allowed',
 	},
 	{
 		id: 'frontend-delete',
 		label: 'DELETE /posts/1 (from localhost)',
-		description: 'React frontend deletes a post',
+		description: 'React frontend deletes a product',
 		method: 'DELETE',
-		path: '/api/v1/posts/1',
+		path: '/api/v1/products/1',
 		actor: 'localhost:3001',
 		expectedResult: 'allowed',
 	},
@@ -374,7 +374,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET /posts (from evil.com)',
 		description: 'Malicious site reads posts',
 		method: 'GET',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'evil.example.com',
 		expectedResult: 'blocked',
 	},
@@ -383,16 +383,16 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'DELETE /posts/1 (from evil.com)',
 		description: 'Malicious site tries to delete',
 		method: 'DELETE',
-		path: '/api/v1/posts/1',
+		path: '/api/v1/products/1',
 		actor: 'evil.example.com',
 		expectedResult: 'blocked',
 	},
 	{
 		id: 'unknown-post',
 		label: 'POST /posts (from unknown)',
-		description: 'Unknown origin creates a post',
+		description: 'Unknown origin creates a product',
 		method: 'POST',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'unknown.site.io',
 		expectedResult: 'blocked',
 	},
@@ -816,9 +816,9 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 										</div>
 										<pre className="text-[10px] font-mono text-foreground/70 leading-relaxed whitespace-pre-wrap">
 {isCurlProbe
-	? 'curl http://localhost:3000\n  /api/v1/posts'
+	? 'curl http://localhost:3000\n  /api/v1/products'
 	: `fetch("http://localhost:3000
-  /api/v1/posts")`}
+  /api/v1/products")`}
 										</pre>
 										{flowMessages[0] && (flowPhase >= 0 || flowPhase === -1) && (
 											<div className={`text-[10px] text-primary font-medium ${flowPhase === 0 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}>

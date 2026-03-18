@@ -68,8 +68,8 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-all-posts',
-		label: 'GET all posts',
-		command: 'GET /api/v1/posts',
+		label: 'GET all products',
+		command: 'GET /api/v1/products',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
 			{ text: 'Content-Length: 12,582,912  (12MB!)', color: 'yellow' },
@@ -88,7 +88,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-mobile',
 		label: 'GET from mobile client',
-		command: 'GET /api/v1/posts (iPhone, 3G connection)',
+		command: 'GET /api/v1/products (iPhone, 3G connection)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
 			{ text: 'Content-Length: 12,582,912', color: 'muted' },
@@ -112,7 +112,7 @@ const PROBES: ProbeConfig[] = [
 			{ text: '=> 2,847,391 live objects', color: 'yellow' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'Post.includes(:user).all loads 50K AR objects + 50K User objects.',
+				text: 'Product.includes(:user).all loads 50K AR objects + 50K User objects.',
 				color: 'muted',
 			},
 			{
@@ -267,7 +267,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET page 1 (default)',
 		description: 'First page of posts, 25 items',
 		method: 'GET',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'web client',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -284,7 +284,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET page 50',
 		description: 'Middle of the dataset',
 		method: 'GET',
-		path: '/api/v1/posts?page=50',
+		path: '/api/v1/products?page=50',
 		actor: 'web client',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -301,7 +301,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET page 2000 (last)',
 		description: 'Last page of 50K posts',
 		method: 'GET',
-		path: '/api/v1/posts?page=2000',
+		path: '/api/v1/products?page=2000',
 		actor: 'mobile client',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -318,7 +318,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET page 1 (mobile)',
 		description: 'Mobile client gets paginated response',
 		method: 'GET',
-		path: '/api/v1/posts?page=1',
+		path: '/api/v1/products?page=1',
 		actor: 'iPhone (3G)',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -335,7 +335,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET page 99999',
 		description: 'Page beyond dataset range',
 		method: 'GET',
-		path: '/api/v1/posts?page=99999',
+		path: '/api/v1/products?page=99999',
 		actor: 'API client',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -714,13 +714,13 @@ describe('Level 28: Pagination', () => {
 		});
 
 		test('observe and reward cover the same endpoint', () => {
-			// Observe probes hit /api/v1/posts
+			// Observe probes hit /api/v1/products
 			const observeEndpoint = PROBES[0].command;
-			expect(observeEndpoint).toContain('/api/v1/posts');
+			expect(observeEndpoint).toContain('/api/v1/products');
 
-			// Reward scenarios also hit /api/v1/posts
+			// Reward scenarios also hit /api/v1/products
 			for (const scenario of STRESS_SCENARIOS) {
-				expect(scenario.path).toContain('/api/v1/posts');
+				expect(scenario.path).toContain('/api/v1/products');
 			}
 		});
 	});

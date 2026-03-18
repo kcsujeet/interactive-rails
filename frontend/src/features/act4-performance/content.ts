@@ -34,12 +34,12 @@ const level23N1Problem: Level = {
 				locked: true,
 			},
 			{
-				id: 'post-model',
+				id: 'product-model',
 				type: 'model',
 				x: 720,
 				y: 140,
 				locked: true,
-				config: { label: 'Post' },
+				config: { label: 'Product' },
 			},
 			{
 				id: 'author-model',
@@ -66,9 +66,9 @@ const level23N1Problem: Level = {
 				sourceNodeId: 'router-node',
 				targetNodeId: 'controller-node',
 			},
-			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
-			{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
-			{ id: 'c5', sourceNodeId: 'post-model', targetNodeId: 'author-model' },
+			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'product-model' },
+			{ id: 'c4', sourceNodeId: 'product-model', targetNodeId: 'database-node' },
+			{ id: 'c5', sourceNodeId: 'product-model', targetNodeId: 'author-model' },
 			{ id: 'c6', sourceNodeId: 'author-model', targetNodeId: 'database-node' },
 			{
 				id: 'c7',
@@ -95,30 +95,30 @@ class PostList < ApplicationService
     validation = ListContract.new.call({})
     return Result.new(...) if validation.failure?
 
-    posts = Post.all  # No eager loading!
+    products = Product.all  # No eager loading!
     Result.new(success?: true, posts: posts, errors: [])
   end
 end
 
-# app/serializers/post_serializer.rb
-class PostSerializer < BaseSerializer
+# app/serializers/product_serializer.rb
+class ProductSerializer < BaseSerializer
   attribute :title
   attribute :body
 
   attribute :author_name do |post|
-    post.user.name  # <-- triggers a query PER POST
+    product.user.name  # <-- triggers a query PER POST
   end
 end
 
 # Database log:
-#   Post Load (2.1ms)  SELECT "posts".* FROM "posts"
+#   Product Load (2.1ms)  SELECT "posts".* FROM "posts"
 #   User Load (0.3ms)  SELECT "users".* FROM "users" WHERE "users"."id" = 1
 #   User Load (0.2ms)  SELECT "users".* FROM "users" WHERE "users"."id" = 2
 #   User Load (0.3ms)  SELECT "users".* FROM "users" WHERE "users"."id" = 3
 #   ... 97 more queries
 #
 # Total: 101 queries, 850ms`,
-		goal: 'Explore the pipeline to find the N+1 pattern. Then install Prosopite to detect N+1 queries automatically, and enable strict_loading on the Post model.',
+		goal: 'Explore the pipeline to find the N+1 pattern. Then install Prosopite to detect N+1 queries automatically, and enable strict_loading on the Product model.',
 		thresholds: { maxQueriesPerRequest: 5 },
 	},
 	successConditions: [{ type: 'n1_identified' }],
@@ -155,12 +155,12 @@ Preload: 0.195s |   682 MB |   148,827 objects allocated
 - Callbacks that touch associations
 - \`find_each\` blocks with association access`,
 		railsCodeExample: `# The problem: N+1 queries
-@posts = Post.all  # 1 query: SELECT * FROM posts
+@posts = Product.all  # 1 query: SELECT * FROM posts
 
 # In serializer or view:
 @posts.each do |post|
-  post.user.name       # +1 query per post
-  post.comments.count  # +1 query per post (even worse: N+1+N)
+  product.user.name       # +1 query per post
+  product.reviews.count  # +1 query per post (even worse: N+1+N)
 end
 # Total: 1 + N + N queries!
 
@@ -187,12 +187,12 @@ Prosopite.raise = true
 
 # === strict_loading (Rails built-in) ===
 # Per-model default:
-class Post < ApplicationRecord
+class Product < ApplicationRecord
   self.strict_loading_by_default = true
 end
 
 # Per-query:
-Post.strict_loading.includes(:user).each { |p| p.user }
+Product.strict_loading.includes(:user).each { |p| p.user }
 # Without includes, this raises StrictLoadingViolationError`,
 		commonMistakes: [
 			'Not using Prosopite in development (catches N+1 patterns automatically)',
@@ -250,18 +250,18 @@ class PostList < ApplicationService
     validation = ListContract.new.call({})
     return Result.new(...) if validation.failure?
 
-    posts = Post.all  # No eager loading!
+    products = Product.all  # No eager loading!
     Result.new(success?: true, posts: posts, errors: [])
   end
 end
 
 # Rails provides three strategies:
-Post.includes(:user)     # Smart default: 2 queries or JOIN
-Post.preload(:user)      # Always 2 separate queries
-Post.eager_load(:user)   # Always LEFT OUTER JOIN (1 query)
+Product.includes(:user)     # Smart default: 2 queries or JOIN
+Product.preload(:user)      # Always 2 separate queries
+Product.eager_load(:user)   # Always LEFT OUTER JOIN (1 query)
 
 # Common trap: joins does NOT prevent N+1!
-Post.joins(:user)  # INNER JOINs but does NOT load user records`,
+Product.joins(:user)  # INNER JOINs but does NOT load user records`,
 		goal: 'Test four loading strategies against three scenarios, discover why each strategy fits different situations, then apply the right fix for basic includes, nested associations, and filtered queries.',
 		thresholds: { maxQueriesPerRequest: 3, maxLatency: 50 },
 	},
@@ -286,7 +286,7 @@ Post.joins(:user)  # INNER JOINs but does NOT load user records`,
 
 **\`eager_load\`** (force JOIN, 20x faster, MORE memory):
 - Always uses LEFT OUTER JOIN in a single query
-- Required when filtering/ordering by the association (\`Post.eager_load(:user).where(users: {role: 'admin'})\`)
+- Required when filtering/ordering by the association (\`Product.eager_load(:user).where(users: {role: 'admin'})\`)
 - Allocates more objects because the JOIN returns wider result rows
 
 **\`joins\`** (NEVER for preventing N+1):
@@ -311,8 +311,8 @@ Eager Load: Real 16.898s → 16x faster
 \`\`\`
 
 **Nested eager loading:**
-- \`Post.includes(comments: :user)\`: load comments AND each comment's user
-- \`Post.includes(:user, :tags, comments: [:user, :likes])\`: multiple levels
+- \`Product.includes(comments: :user)\`: load comments AND each comment's user
+- \`Product.includes(:user, :tags, comments: [:user, :likes])\`: multiple levels
 
 **strict_loading (Rails 6.1+):**
 - Raises an error if you access a non-eager-loaded association
@@ -326,42 +326,42 @@ Eager Load: Real 16.898s → 16x faster
 #         NO  → pluck (raw arrays, minimal memory)
 
 # includes: smart default (use this most of the time)
-Post.includes(:user)
+Product.includes(:user)
 # Query 1: SELECT "posts".* FROM "posts"
 # Query 2: SELECT "users".* FROM "users" WHERE "users"."id" IN (1, 2, 3...)
 
 # includes with filtering (auto-switches to JOIN)
-Post.includes(:user).where(users: { role: 'admin' })
+Product.includes(:user).where(users: { role: 'admin' })
 # SELECT "posts".* FROM "posts"
 #   LEFT OUTER JOIN "users" ON "users"."id" = "posts"."user_id"
 #   WHERE "users"."role" = 'admin'
 
 # preload: force 2 queries (less memory than eager_load)
-Post.preload(:user)
+Product.preload(:user)
 # Always 2 separate queries, even with .where
 # 148K objects vs 250K for eager_load
 
 # eager_load: force JOIN (required for filtering)
-Post.eager_load(:user).where(users: { active: true })
+Product.eager_load(:user).where(users: { active: true })
 # Always 1 query with LEFT OUTER JOIN
 
 # joins: DOES NOT prevent N+1 (common mistake!)
-Post.joins(:user).where(users: { role: 'admin' })
+Product.joins(:user).where(users: { role: 'admin' })
 # INNER JOINs but does NOT load user records into memory
-# post.user.name → STILL triggers a separate query!
+# product.user.name → STILL triggers a separate query!
 
 # Nested eager loading
-Post.includes(comments: :user)
+Product.includes(comments: :user)
 # Query 1: SELECT "posts".* FROM "posts"
 # Query 2: SELECT "comments".* FROM "comments" WHERE post_id IN (...)
 # Query 3: SELECT "users".* FROM "users" WHERE id IN (...)
 
 # strict_loading: catch N+1 at runtime
-Post.strict_loading.all
-# Raises ActiveRecord::StrictLoadingViolationError if you access post.user
+Product.strict_loading.all
+# Raises ActiveRecord::StrictLoadingViolationError if you access product.user
 
 # Per-model strict loading
-class Post < ApplicationRecord
+class Product < ApplicationRecord
   self.strict_loading_by_default = true
 end
 # Next level: narrow fetching (select/pluck) to fetch only needed columns`,
@@ -456,15 +456,15 @@ User.all.each { |u| SyncService.process(u) }
 
 **Production benchmarks (10K posts with 75KB body column):**
 \`\`\`
-Post.all (wide):           212ms | 681 MB  | 149,000 objects
-Post.select(:id, :title):  53ms |  12 MB  | 107,000 objects → 4x faster, 56x less memory
-Post.pluck(:id, :title):   18ms |   2 MB  |  45,000 objects → 12x faster, 290x less memory
+Product.all (wide):           212ms | 681 MB  | 149,000 objects
+Product.select(:id, :title):  53ms |  12 MB  | 107,000 objects → 4x faster, 56x less memory
+Product.pluck(:id, :title):   18ms |   2 MB  |  45,000 objects → 12x faster, 290x less memory
 \`\`\`
 
 **Real-world endpoint comparison at scale:**
 \`\`\`
-Post.all (wide):     1,101ms (742ms in DB)
-Post.pluck (narrow): 76ms → 14x improvement
+Product.all (wide):     1,101ms (742ms in DB)
+Product.pluck (narrow): 76ms → 14x improvement
 \`\`\`
 
 **Three tools for narrow fetching:**
@@ -491,19 +491,19 @@ Post.pluck (narrow): 76ms → 14x improvement
 
 **Real-world story:** An unpaginated endpoint returning only \`id\` and \`name\` was timing out. Root cause: table had 30+ columns including serialized objects in TEXT fields. One user had stored the entire U.S. Constitution in a text field. The \`SELECT *\` forced the DB to write to disk mid-response.`,
 		railsCodeExample: `# === pluck: raw arrays, minimal memory ===
-Post.where(published: true).pluck(:id, :title)
-# => [[1, "First Post"], [2, "Second Post"]]
+Product.where(published: true).pluck(:id, :title)
+# => [[1, "Laptop"], [2, "Phone"]]
 # SELECT id, title FROM posts WHERE published = true
 # No AR objects! Just arrays.
 
 # === select: lightweight AR objects ===
-Post.select(:id, :title, :user_id).includes(:user)
+Product.select(:id, :title, :user_id).includes(:user)
 # SELECT id, title, user_id FROM posts
 # AR objects with only 3 columns loaded
 # post.body → raises ActiveModel::MissingAttributeError
 
 # === find_in_batches: process huge datasets ===
-Post.find_in_batches(batch_size: 1000) do |batch|
+Product.find_in_batches(batch_size: 1000) do |batch|
   csv_rows = batch.pluck(:id, :title).map { |r| r.join(",") }
   File.open("export.csv", "a") { |f| f.write(csv_rows.join("\\n")) }
 end
@@ -518,7 +518,7 @@ def export
   headers["Content-Disposition"] = "attachment; filename=posts.csv"
 
   # Stream CSV in batches, never loads all records at once
-  Post.published.find_in_batches(batch_size: 2000) do |batch|
+  Product.active.find_in_batches(batch_size: 2000) do |batch|
     rows = batch.pluck(:id, :title, :created_at)
     response.stream.write(rows.map { |r| r.join(",") }.join("\\n") + "\\n")
   end
@@ -532,7 +532,7 @@ User.all.map { |u| [u.id, u.name] }
 # GOOD: returns just the data you need
 User.pluck(:id, :name)`,
 		commonMistakes: [
-			'Using Post.all when you only need 2-3 columns (loads all 30 columns)',
+			'Using Product.all when you only need 2-3 columns (loads all 30 columns)',
 			'Not using find_in_batches for large dataset processing (memory explosion)',
 			'Using .length on a collection to get count (loads all records, use .count)',
 			'Forgetting that select raises MissingAttributeError for unselected columns',
@@ -605,8 +605,8 @@ end
 
 # Common queries that need indexes:
 User.find_by(email: params[:email])          # WHERE email = ?
-Post.where(user_id: user.id)                 # Foreign key lookup
-Post.where(published: true).order(:created_at) # Composite query`,
+Product.where(user_id: user.id)                 # Foreign key lookup
+Product.where(published: true).order(:created_at) # Composite query`,
 		goal: 'Generate a migration, add unique/B-tree/composite indexes to the right columns, and run the migration. Verify EXPLAIN shows Index Scan.',
 		thresholds: { maxLatency: 10 },
 	},
@@ -746,7 +746,7 @@ const level27CounterCaches: Level = {
 	},
 	problem: {
 		observation:
-			'`post.comments.count` runs a COUNT(*) query for every post on the index page. 100 posts = 100 extra COUNT queries.',
+			'`product.reviews.count` runs a COUNT(*) query for every post on the index page. 100 posts = 100 extra COUNT queries.',
 		rootCause:
 			'No denormalized count column. Rails must query the comments table for every post to get the count.',
 		codeExample: `# app/services/post_list.rb
@@ -757,25 +757,25 @@ class PostList < ApplicationService
     validation = ListContract.new.call({})
     return Result.new(...) if validation.failure?
 
-    posts = Post.includes(:user)
+    products = Product.includes(:user)
     Result.new(success?: true, posts: posts, errors: [])
   end
 end
 
-# app/serializers/post_serializer.rb
-class PostSerializer < BaseSerializer
-  attribute :comments_count do |post|
-    post.comments.count  # <-- COUNT(*) query per post!
+# app/serializers/product_serializer.rb
+class ProductSerializer < BaseSerializer
+  attribute :reviews_count do |post|
+    product.reviews.count  # <-- COUNT(*) query per post!
   end
 end
 
 # Database log for 100 posts:
-#   Post Load (1.2ms)  SELECT "posts".* FROM "posts"
+#   Product Load (1.2ms)  SELECT "posts".* FROM "posts"
 #   (0.4ms)  SELECT COUNT(*) FROM "comments" WHERE post_id = 1
 #   (0.3ms)  SELECT COUNT(*) FROM "comments" WHERE post_id = 2
 #   ... 97 more COUNT queries
 #
-# includes(:comments) loads ALL records just to count them!`,
+# includes(:reviews) loads ALL records just to count them!`,
 		goal: 'Generate the counter cache migration, add counter_cache: true to belongs_to, reset existing counters, and update the serializer.',
 		thresholds: { maxQueriesPerRequest: 3 },
 	},
@@ -784,13 +784,13 @@ end
 	learningContent: {
 		title: 'Counter Caches & Denormalization',
 		goal: `In this level, you'll:\n- eliminate expensive COUNT queries by storing the count directly on the parent table.\n- learn how Rails counter caches work.\n- set up counter_cache: true on a belongs_to association.\n- see how reading a pre-computed column is orders of magnitude faster than counting rows on every request.`,
-		conceptExplanation: `A counter cache stores the count of associated records directly on the parent table. Instead of running COUNT(*) on comments every time, Rails maintains a \`comments_count\` column on the posts table.
+		conceptExplanation: `A counter cache stores the count of associated records directly on the parent table. Instead of running COUNT(*) on comments every time, Rails maintains a \`reviews_count\` column on the posts table.
 
 **How it works:**
-- Add a \`comments_count\` integer column to the posts table (default: 0)
+- Add a \`reviews_count\` integer column to the posts table (default: 0)
 - Add \`counter_cache: true\` to the \`belongs_to\` association
 - Rails automatically increments/decrements the count on create/destroy
-- \`post.comments.count\` reads the column instead of running a query. Zero queries!
+- \`product.reviews.count\` reads the column instead of running a query. Zero queries!
 
 **Production benchmarks:**
 \`\`\`
@@ -807,13 +807,13 @@ WITH counter_cache:
 \`\`\`sql
 -- Creating a comment triggers both in one transaction:
 INSERT INTO comments (...)
-UPDATE posts SET comments_count = COALESCE(comments_count, 0) + 1 WHERE id = 42
+UPDATE posts SET reviews_count = COALESCE(reviews_count, 0) + 1 WHERE id = 42
 \`\`\`
 
 **Denormalization trade-offs:**
 - **Not source of truth**: The count is a cached value. Could diverge if someone runs a bad backfill or manually modifies data. Use \`reset_counters\` to fix
 - **Write penalty**: Every create/destroy adds an UPDATE to the parent row
-- **Locking at scale (the critical issue)**: A viral post with thousands of simultaneous comments, all trying to \`UPDATE posts SET comments_count = ... WHERE id = viral_post_id\`. They all compete to lock the same row, leading to lock contention, deadlocks, and failed transactions. Same problem Twitter faced with \`followers_count\` on celebrity accounts. At that scale, you need async counter updates (batch increment every N seconds)
+- **Locking at scale (the critical issue)**: A viral post with thousands of simultaneous comments, all trying to \`UPDATE posts SET reviews_count = ... WHERE id = viral_post_id\`. They all compete to lock the same row, leading to lock contention, deadlocks, and failed transactions. Same problem Twitter faced with \`followers_count\` on celebrity accounts. At that scale, you need async counter updates (batch increment every N seconds)
 
 **When to use counter_cache vs other approaches:**
 - Counter cache: Simple count, frequently displayed, moderate write volume
@@ -824,46 +824,46 @@ UPDATE posts SET comments_count = COALESCE(comments_count, 0) + 1 WHERE id = 42
 		railsCodeExample: `# Step 1: Migration, add counter column
 class AddCommentsCountToPosts < ActiveRecord::Migration[8.0]
   def change
-    add_column :posts, :comments_count, :integer, default: 0, null: false
+    add_column :posts, :reviews_count, :integer, default: 0, null: false
   end
 end
 
 # Step 2: Backfill existing counts
 class BackfillCommentsCount < ActiveRecord::Migration[8.0]
   def up
-    Post.find_each do |post|
-      Post.reset_counters(post.id, :comments)
+    Product.find_each do |post|
+      Product.reset_counters(post.id, :comments)
     end
   end
 end
 
 # Step 3: Add counter_cache to belongs_to
-class Comment < ApplicationRecord
-  belongs_to :post, counter_cache: true
+class Review < ApplicationRecord
+  belongs_to :product, counter_cache: true
 end
 
-class Post < ApplicationRecord
-  has_many :comments, dependent: :destroy
+class Product < ApplicationRecord
+  has_many :reviews, dependent: :destroy
 end
 
-# Now post.comments.count uses the cached column:
-post.comments.count
-# No query! Reads posts.comments_count directly.
+# Now product.reviews.count uses the cached column:
+product.reviews.count
+# No query! Reads posts.reviews_count directly.
 
 # Custom column name:
-belongs_to :post, counter_cache: :replies_count
+belongs_to :product, counter_cache: :replies_count
 
 # Fix out-of-sync counters:
-Post.reset_counters(post_id, :comments)
+Product.reset_counters(post_id, :comments)
 
 # Bulk reset all:
-Post.find_each { |p| Post.reset_counters(p.id, :comments) }
+Product.find_each { |p| Product.reset_counters(p.id, :comments) }
 
 # In serializer, no query needed:
-class PostSerializer < BaseSerializer
+class ProductSerializer < BaseSerializer
   attribute :title
   attribute :body
-  attribute :comments_count
+  attribute :reviews_count
 end`,
 		commonMistakes: [
 			'Using .length instead of .count (.length loads all records into memory)',
@@ -921,12 +921,12 @@ const level28Pagination: Level = {
 				locked: true,
 			},
 			{
-				id: 'post-model',
+				id: 'product-model',
 				type: 'model',
 				x: 660,
 				y: 220,
 				locked: true,
-				config: { label: 'Post' },
+				config: { label: 'Product' },
 			},
 			{ id: 'database-node', type: 'database', x: 860, y: 220, locked: true },
 			{
@@ -945,8 +945,8 @@ const level28Pagination: Level = {
 				sourceNodeId: 'router-node',
 				targetNodeId: 'controller-node',
 			},
-			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
-			{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
+			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'product-model' },
+			{ id: 'c4', sourceNodeId: 'product-model', targetNodeId: 'database-node' },
 			{
 				id: 'c5',
 				sourceNodeId: 'controller-node',
@@ -961,7 +961,7 @@ const level28Pagination: Level = {
 	},
 	problem: {
 		observation:
-			'The PostList service returns `Post.includes(:user)` as the scope with no limit. The controller renders the entire scope, loading 50K ActiveRecord objects into memory and sending a 12MB JSON array. There is no way for clients to request a specific page.',
+			'The PostList service returns `Product.includes(:user)` as the scope with no limit. The controller renders the entire scope, loading 50K ActiveRecord objects into memory and sending a 12MB JSON array. There is no way for clients to request a specific page.',
 		rootCause:
 			'No pagination. The service scope loads the entire table and the controller renders it all.',
 		codeExample: `# app/services/post_list.rb
@@ -970,13 +970,13 @@ class PostList < ApplicationService
   def call
     validation = ListContract.new.call(page: @page)
     return Result.new(...) if validation.failure?
-    scope = Post.includes(:user)  # No limit!
+    scope = Product.includes(:user)  # No limit!
     Result.new(success?: true, scope: scope, errors: [])
   end
 end
 
 # Controller renders ALL of result.scope:
-# render json: PostSerializer.new(result.scope)
+# render json: ProductSerializer.new(result.scope)
 #
 # Problems:
 # 1. Database loads 50K rows into memory
@@ -1052,19 +1052,19 @@ class PostList < ApplicationService
   def call
     validation = ListContract.new.call(page: @page)
     return Result.new(success?: false, ...) if validation.failure?
-    scope = Post.includes(:user)
+    scope = Product.includes(:user)
     Result.new(success?: true, scope: scope, errors: [])
   end
 end
 
 # Controller paginates the service scope:
-class Api::V1::PostsController < ApplicationController
+class Api::V1::ProductsController < ApplicationController
   def index
     result = PostList.call(page: params[:page])
     if result.success?
       @pagy, @posts = pagy(:offset, result.scope)
       response.headers.merge!(@pagy.headers_hash)
-      render json: PostSerializer.new(@posts)
+      render json: ProductSerializer.new(@posts)
     else
       render json: { errors: result.errors },
              status: :unprocessable_entity
@@ -1131,12 +1131,12 @@ const level29Search: Level = {
 				locked: true,
 			},
 			{
-				id: 'post-model',
+				id: 'product-model',
 				type: 'model',
 				x: 660,
 				y: 220,
 				locked: true,
-				config: { label: 'Post' },
+				config: { label: 'Product' },
 			},
 			{ id: 'database-node', type: 'database', x: 860, y: 220, locked: true },
 			{
@@ -1155,8 +1155,8 @@ const level29Search: Level = {
 				sourceNodeId: 'router-node',
 				targetNodeId: 'controller-node',
 			},
-			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
-			{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
+			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'product-model' },
+			{ id: 'c4', sourceNodeId: 'product-model', targetNodeId: 'database-node' },
 			{
 				id: 'c5',
 				sourceNodeId: 'controller-node',
@@ -1182,7 +1182,7 @@ class PostSearch < ApplicationService
     validation = SearchContract.new.call(query: @query)
     return Result.new(...) if validation.failure?
 
-    posts = Post.where(
+    products = Product.where(
       "title LIKE :q OR body LIKE :q",
       q: "%#{@query}%"
     )
@@ -1237,7 +1237,7 @@ end
 		railsCodeExample: `# === PostgreSQL Full-Text Search ===
 
 # Migration: add tsvector column with GIN index
-class AddSearchToPost < ActiveRecord::Migration[8.0]
+class AddSearchToProduct < ActiveRecord::Migration[8.0]
   def change
     add_column :posts, :searchable, :tsvector
     add_index :posts, :searchable, using: :gin
@@ -1258,8 +1258,8 @@ class AddSearchToPost < ActiveRecord::Migration[8.0]
   end
 end
 
-# app/models/post.rb (manual approach)
-class Post < ApplicationRecord
+# app/models/product.rb (manual approach)
+class Product < ApplicationRecord
   scope :search, ->(query) {
     sanitized = connection.quote(query)
     where("searchable @@ plainto_tsquery('english', ?)", query)
@@ -1271,8 +1271,8 @@ end
 # Gemfile
 gem 'pg_search'
 
-# app/models/post.rb
-class Post < ApplicationRecord
+# app/models/product.rb
+class Product < ApplicationRecord
   include PgSearch::Model
 
   pg_search_scope :search,
@@ -1291,7 +1291,7 @@ class PostSearch < ApplicationService
     validation = SearchContract.new.call(query: @query)
     return Result.new(success?: false, posts: [], errors: validation.errors.to_h) if validation.failure?
 
-    posts = Post.search(@query)
+    products = Product.search(@query)
     Result.new(success?: true, posts: posts, errors: [])
   end
 end
@@ -1307,7 +1307,7 @@ class CreatePostsSearchIndex < ActiveRecord::Migration[8.0]
 end
 
 # Query FTS5:
-Post.where(id: Post.connection.select_values(
+Product.where(id: Product.connection.select_values(
   "SELECT rowid FROM posts_fts WHERE posts_fts MATCH ?", query
 ))`,
 		commonMistakes: [
@@ -1370,12 +1370,12 @@ const level30Caching: Level = {
 				locked: true,
 			},
 			{
-				id: 'post-model',
+				id: 'product-model',
 				type: 'model',
 				x: 660,
 				y: 220,
 				locked: true,
-				config: { label: 'Post' },
+				config: { label: 'Product' },
 			},
 			{ id: 'database-node', type: 'database', x: 860, y: 220, locked: true },
 			{
@@ -1394,8 +1394,8 @@ const level30Caching: Level = {
 				sourceNodeId: 'router-node',
 				targetNodeId: 'controller-node',
 			},
-			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
-			{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
+			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'product-model' },
+			{ id: 'c4', sourceNodeId: 'product-model', targetNodeId: 'database-node' },
 			{
 				id: 'c5',
 				sourceNodeId: 'controller-node',
@@ -1410,11 +1410,11 @@ const level30Caching: Level = {
 	},
 	problem: {
 		observation:
-			'The TrendingPosts service recomputes rankings on every request. 200 requests/minute, each taking 512ms. Database at 170% capacity.',
+			'The TrendingProducts service recomputes rankings on every request. 200 requests/minute, each taking 512ms. Database at 170% capacity.',
 		rootCause:
 			'No caching layer. Every request recomputes the same result from scratch.',
-		codeExample: `# app/services/trending_posts.rb
-class TrendingPosts < ApplicationService
+		codeExample: `# app/services/trending_products.rb
+class TrendingProducts < ApplicationService
   Result = Data.define(:posts, :generated_at)
 
   def call
@@ -1424,8 +1424,8 @@ class TrendingPosts < ApplicationService
     ) if validation.failure?
 
     # Runs on EVERY request, 200 times/minute
-    posts = Post
-      .joins(:comments)
+    products = Product
+      .joins(:reviews)
       .where("posts.created_at > ?", 7.days.ago)
       .group("posts.id")
       .select("posts.*, COUNT(comments.id) AS score")
@@ -1448,7 +1448,7 @@ end
 	unlockedNodes: ['cache'],
 	learningContent: {
 		title: 'Caching: Fragment, Russian Doll & Solid Cache',
-		goal: `In this level, you'll:\n- install Solid Cache, Rails 8's database-backed cache store.\n- run the Solid Cache installer and prepare the cache database.\n- configure the production cache store.\n- wrap the trending query in Rails.cache.fetch with expiration.\n- add touch: true on Comment for automatic cache invalidation.`,
+		goal: `In this level, you'll:\n- install Solid Cache, Rails 8's database-backed cache store.\n- run the Solid Cache installer and prepare the cache database.\n- configure the production cache store.\n- wrap the trending query in Rails.cache.fetch with expiration.\n- add touch: true on Review for automatic cache invalidation.`,
 		conceptExplanation: `Rails 8 introduces **Solid Cache**, a database-backed cache store that replaces Redis for most caching needs. No additional infrastructure required.
 
 **Production benchmarks:**
@@ -1491,10 +1491,10 @@ Fragment cache (cache hit):    17ms → 317x faster
 - Time-based: \`expires_in: 5.minutes\`
 - Key-based: Include the record's \`updated_at\` in the cache key
 - Manual: \`Rails.cache.delete("key")\`
-- Touch: \`belongs_to :post, touch: true\` cascades cache invalidation
+- Touch: \`belongs_to :product, touch: true\` cascades cache invalidation
 
 **Real-world pattern, fan-out writing (how Twitter worked with Rails):**
-On each new post, write the post ID into a cached "timeline" list for every follower. Reading a feed becomes \`Post.where(id: cached_ids)\`, trivial. The "Justin Bieber problem": celebrity with millions of followers, each post triggers millions of cache writes. Solution: mixed fan-out. Regular users get fan-out writes; celebrities are exempt (their posts fetched via direct DB query at read time).`,
+On each new post, write the post ID into a cached "timeline" list for every follower. Reading a feed becomes \`Product.where(id: cached_ids)\`, trivial. The "Justin Bieber problem": celebrity with millions of followers, each post triggers millions of cache writes. Solution: mixed fan-out. Regular users get fan-out writes; celebrities are exempt (their posts fetched via direct DB query at read time).`,
 		railsCodeExample: `# === Solid Cache Setup (Rails 8) ===
 
 # Gemfile
@@ -1509,8 +1509,8 @@ config.cache_store = :solid_cache_store
 
 # === Service with Caching ===
 
-# app/services/trending_posts.rb
-class TrendingPosts < ApplicationService
+# app/services/trending_products.rb
+class TrendingProducts < ApplicationService
   Result = Data.define(:posts, :generated_at)
 
   def call
@@ -1519,11 +1519,11 @@ class TrendingPosts < ApplicationService
       posts: [], generated_at: Time.current
     ) if validation.failure?
 
-    posts = Rails.cache.fetch(
-      "trending_posts", expires_in: 5.minutes
+    products = Rails.cache.fetch(
+      "trending_products", expires_in: 5.minutes
     ) do
-      Post
-        .joins(:comments)
+      Product
+        .joins(:reviews)
         .where("posts.created_at > ?", 7.days.ago)
         .group("posts.id")
         .select("posts.*, COUNT(comments.id) AS score")
@@ -1538,12 +1538,12 @@ class TrendingPosts < ApplicationService
 end
 
 # Controller stays thin:
-result = TrendingPosts.call
-render json: PostSerializer.new(result.posts)
+result = TrendingProducts.call
+render json: ProductSerializer.new(result.posts)
 
 # === Cache Invalidation ===
-class Comment < ApplicationRecord
-  belongs_to :post, touch: true
+class Review < ApplicationRecord
+  belongs_to :product, touch: true
 end
 
 # Next level: HTTP caching (ETags, Cache-Control, CDNs)
@@ -1605,12 +1605,12 @@ const level31HTTPCaching: Level = {
 				locked: true,
 			},
 			{
-				id: 'post-model',
+				id: 'product-model',
 				type: 'model',
 				x: 660,
 				y: 220,
 				locked: true,
-				config: { label: 'Post' },
+				config: { label: 'Product' },
 			},
 			{ id: 'database-node', type: 'database', x: 860, y: 220, locked: true },
 			{
@@ -1629,8 +1629,8 @@ const level31HTTPCaching: Level = {
 				sourceNodeId: 'router-node',
 				targetNodeId: 'controller-node',
 			},
-			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'post-model' },
-			{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
+			{ id: 'c3', sourceNodeId: 'controller-node', targetNodeId: 'product-model' },
+			{ id: 'c4', sourceNodeId: 'product-model', targetNodeId: 'database-node' },
 			{
 				id: 'c5',
 				sourceNodeId: 'controller-node',
@@ -1652,12 +1652,12 @@ const level31HTTPCaching: Level = {
 class PostDetail < ApplicationService
   Result = Data.define(:post)
   def call
-    post = Post.find(@id)
+    product = Product.find(@id)
     Result.new(post: post)
   end
 end
 
-# app/controllers/api/v1/posts_controller.rb
+# app/controllers/api/v1/products_controller.rb
 def show
   result = PostDetail.call(id: params[:id])
   render json: result.post  # No caching headers!
@@ -1725,12 +1725,12 @@ With CDN:
 class PostDetail < ApplicationService
   Result = Data.define(:post)
   def call
-    post = Post.find(@id)
+    product = Product.find(@id)
     Result.new(post: post)
   end
 end
 
-# app/controllers/api/v1/posts_controller.rb
+# app/controllers/api/v1/products_controller.rb
 def show
   result = PostDetail.call(id: params[:id])
 

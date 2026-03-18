@@ -676,7 +676,7 @@ end`,
 												Structured log:
 											</div>
 											<div className="text-amber-400 text-[11px] ml-2">
-												{`{"method":"GET","path":"/api/v1/posts",`}
+												{`{"method":"GET","path":"/api/v1/products",`}
 											</div>
 											<div className="text-amber-400 text-[11px] ml-2">
 												{` "status":200,"duration_ms":23.4,`}

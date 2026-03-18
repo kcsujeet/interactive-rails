@@ -4,7 +4,7 @@
  *
  * Levels 16-22: Service Objects, Concerns & Modules, Validation Contracts, Query Objects,
  * Error Handling, Action Mailer, Background Jobs
- * App context: Social platform API with code quality problems
+ * App context: E-commerce API with code quality problems
  */
 
 import type { Act, Level } from '@/types';
@@ -224,44 +224,44 @@ const level17Concerns: Level = {
 	trigger: {
 		type: 'code_review',
 		description:
-			'Tagging logic is copy-pasted across Post and Comment models. Two copies of the same 40 lines. DRY it up with a Taggable concern.',
+			'Tagging logic is copy-pasted across Product and Review models. Two copies of the same 40 lines. DRY it up with a Taggable concern.',
 	},
 	startingPipeline: {
 		nodes: [
 			{
-				id: 'post-model',
+				id: 'product-model',
 				type: 'model',
 				x: 200,
 				y: 150,
 				locked: true,
-				config: { label: 'Post' },
+				config: { label: 'Product' },
 			},
 			{
-				id: 'comment-model',
+				id: 'review-model',
 				type: 'model',
 				x: 200,
 				y: 300,
 				locked: true,
-				config: { label: 'Comment' },
+				config: { label: 'Review' },
 			},
 			{ id: 'database-node', type: 'database', x: 500, y: 225, locked: true },
 		],
 		connections: [
-			{ id: 'c1', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
+			{ id: 'c1', sourceNodeId: 'product-model', targetNodeId: 'database-node' },
 			{
 				id: 'c2',
-				sourceNodeId: 'comment-model',
+				sourceNodeId: 'review-model',
 				targetNodeId: 'database-node',
 			},
 		],
 	},
 	problem: {
 		observation:
-			'Two models have identical tagging code: has_many :taggings, has_many :tags, scope :tagged_with, and #tag_list. 80 lines of duplication across Post and Comment.',
+			'Two models have identical tagging code: has_many :taggings, has_many :tags, scope :tagged_with, and #tag_list. 80 lines of duplication across Product and Review.',
 		rootCause:
 			'Shared behavior is duplicated across models instead of being extracted into an ActiveSupport::Concern.',
-		codeExample: `# app/models/post.rb
-class Post < ApplicationRecord
+		codeExample: `# app/models/product.rb
+class Product < ApplicationRecord
   has_many :taggings, as: :taggable, dependent: :destroy
   has_many :tags, through: :taggings
 
@@ -280,8 +280,8 @@ class Post < ApplicationRecord
   end
 end
 
-# app/models/comment.rb -- EXACT SAME CODE
-class Comment < ApplicationRecord
+# app/models/review.rb -- EXACT SAME CODE
+class Review < ApplicationRecord
   has_many :taggings, as: :taggable, dependent: :destroy
   has_many :tags, through: :taggings
   # ... identical 40 lines ...
@@ -345,19 +345,19 @@ module Taggable
   end
 end
 
-# app/models/post.rb -- clean!
-class Post < ApplicationRecord
+# app/models/product.rb -- clean!
+class Product < ApplicationRecord
   include Taggable
 
   belongs_to :author, class_name: "User"
-  has_many :comments, dependent: :destroy
+  has_many :reviews, dependent: :destroy
 end
 
-# app/models/comment.rb -- clean!
-class Comment < ApplicationRecord
+# app/models/review.rb -- clean!
+class Review < ApplicationRecord
   include Taggable
 
-  belongs_to :post
+  belongs_to :product
   belongs_to :user
 end
 
@@ -365,26 +365,26 @@ end
 # test/models/concerns/taggable_test.rb
 class TaggableTest < ActiveSupport::TestCase
   test "tag_list returns comma-separated tags" do
-    post = Post.create!(title: "Test", body: "Body", author: users(:alice))
-    post.tag_list = "ruby, rails, api"
+    product = Product.create!(title: "Test", body: "Body", author: users(:alice))
+    product.tag_list = "ruby, rails, api"
 
-    assert_equal 3, post.tags.count
-    assert_includes post.tag_list, "ruby"
+    assert_equal 3, product.tags.count
+    assert_includes product.tag_list, "ruby"
   end
 
   test "tagged_with scope returns matching records" do
-    post = posts(:tagged_post)
-    post.tag_list = "ruby, rails"
+    product = products(:tagged_product)
+    product.tag_list = "ruby, rails"
 
-    results = Post.tagged_with("ruby")
-    assert_includes results, post
+    results = Product.tagged_with("ruby")
+    assert_includes results, product
   end
 
   test "most_tagged returns records ordered by tag count" do
-    popular = Post.create!(title: "Popular", body: "Body", author: users(:alice))
+    popular = Product.create!(title: "Popular", body: "Body", author: users(:alice))
     popular.tag_list = "ruby, rails, api, testing"
 
-    top = Post.most_tagged(1).first
+    top = Product.most_tagged(1).first
     assert_equal popular, top
   end
 end`,
@@ -764,15 +764,15 @@ const level19QueryObjects: Level = {
 				x: 460,
 				y: 250,
 				locked: true,
-				config: { label: 'Admin::PostsController' },
+				config: { label: 'Admin::ProductsController' },
 			},
 			{
-				id: 'post-model',
+				id: 'product-model',
 				type: 'model',
 				x: 680,
 				y: 250,
 				locked: true,
-				config: { label: 'Post' },
+				config: { label: 'Product' },
 			},
 			{ id: 'database-node', type: 'database', x: 880, y: 250, locked: true },
 		],
@@ -786,9 +786,9 @@ const level19QueryObjects: Level = {
 			{
 				id: 'c3',
 				sourceNodeId: 'controller-node',
-				targetNodeId: 'post-model',
+				targetNodeId: 'product-model',
 			},
-			{ id: 'c4', sourceNodeId: 'post-model', targetNodeId: 'database-node' },
+			{ id: 'c4', sourceNodeId: 'product-model', targetNodeId: 'database-node' },
 		],
 	},
 	problem: {
@@ -796,44 +796,44 @@ const level19QueryObjects: Level = {
 			'The admin dashboard controller has a 60-line index action with inline .where().joins().group().order() chains. The same filtering logic is copy-pasted in the API controller and CSV export job with slight inconsistencies.',
 		rootCause:
 			'Complex query logic is embedded in the controller instead of being extracted into a composable query object in app/queries/.',
-		codeExample: `# app/controllers/api/v1/admin/posts_controller.rb
-class Api::V1::Admin::PostsController < ApplicationController
+		codeExample: `# app/controllers/api/v1/admin/products_controller.rb
+class Api::V1::Admin::ProductsController < ApplicationController
   def index
-    @posts = Post.all
+    @products = Product.all
 
     # 60 lines of inline query chains!
     if params[:published].present?
-      @posts = @posts.where.not(published_at: nil)
+      @products = @products.where.not(published_at: nil)
     end
 
     if params[:author_id].present?
-      @posts = @posts.where(author_id: params[:author_id])
+      @products = @products.where(author_id: params[:author_id])
     end
 
     if params[:since].present?
-      @posts = @posts.where("published_at >= ?", params[:since])
+      @products = @products.where("published_at >= ?", params[:since])
     end
 
-    if params[:min_comments].present?
-      @posts = @posts
-        .left_joins(:comments)
+    if params[:min_reviews].present?
+      @products = @products
+        .left_joins(:reviews)
         .group(:id)
-        .having("COUNT(comments.id) >= ?", params[:min_comments])
+        .having("COUNT(reviews.id) >= ?", params[:min_reviews])
     end
 
     if params[:tag].present?
-      @posts = @posts.joins(:tags).where(tags: { name: params[:tag] })
+      @products = @products.joins(:tags).where(tags: { name: params[:tag] })
     end
 
-    @posts = @posts.order(params[:sort] || :published_at => :desc)
+    @products = @products.order(params[:sort] || :published_at => :desc)
 
-    render json: @posts
+    render json: @products
   end
 end
 
-# app/controllers/api/v1/posts_controller.rb -- SAME LOGIC COPY-PASTED
+# app/controllers/api/v1/products_controller.rb -- SAME LOGIC COPY-PASTED
 # app/jobs/csv_export_job.rb -- AND AGAIN with slight differences`,
-		goal: 'Extract query logic into a composable PostQuery object with chainable filter methods that returns ActiveRecord::Relation.',
+		goal: 'Extract query logic into a composable ProductQuery object with chainable filter methods that returns ActiveRecord::Relation.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'query_object_created' }],
@@ -852,7 +852,7 @@ end
 
 **Structure:**
 1. \`ApplicationQuery\` base class with \`#initialize(scope)\` and \`#results\`
-2. Concrete query classes (e.g., \`PostQuery\`) with filter methods
+2. Concrete query classes (e.g., \`ProductQuery\`) with filter methods
 3. Each method guards blank params: \`return self if param.blank?\`
 4. \`#results\` returns \`ActiveRecord::Relation\` (not Array!) so pagination, further scopes, and eager loading still work
 
@@ -883,8 +883,8 @@ class ApplicationQuery
   end
 end
 
-# app/queries/post_query.rb
-class PostQuery < ApplicationQuery
+# app/queries/product_query.rb
+class ProductQuery < ApplicationQuery
   def published_only
     @scope = @scope.where.not(published_at: nil)
     self
@@ -904,13 +904,13 @@ class PostQuery < ApplicationQuery
     self
   end
 
-  def with_min_comments(count)
+  def with_min_reviews(count)
     return self if count.blank?
 
     @scope = @scope
-      .left_joins(:comments)
+      .left_joins(:reviews)
       .group(:id)
-      .having("COUNT(comments.id) >= ?", count)
+      .having("COUNT(reviews.id) >= ?", count)
     self
   end
 
@@ -934,73 +934,73 @@ class PostQuery < ApplicationQuery
   private
 
   def default_scope
-    Post.all
+    Product.all
   end
 end
 
-# app/controllers/api/v1/admin/posts_controller.rb -- clean!
-class Api::V1::Admin::PostsController < ApplicationController
+# app/controllers/api/v1/admin/products_controller.rb -- clean!
+class Api::V1::Admin::ProductsController < ApplicationController
   def index
-    posts = PostQuery.new
+    products = ProductQuery.new
       .published_only
       .by_author(params[:author_id])
       .since(params[:since])
-      .with_min_comments(params[:min_comments])
+      .with_min_reviews(params[:min_reviews])
       .by_tag(params[:tag])
       .sorted(params[:sort], params[:direction])
       .results
 
-    render json: PostSerializer.new(posts).serializable_hash.to_json
+    render json: ProductSerializer.new(products).serializable_hash.to_json
   end
 end
 
 # Reuse in API controller with different base scope:
-class Api::V1::PostsController < ApplicationController
+class Api::V1::ProductsController < ApplicationController
   def index
-    posts = PostQuery.new(Post.where.not(published_at: nil))
+    products = ProductQuery.new(Product.where.not(published_at: nil))
       .by_author(params[:author_id])
       .by_tag(params[:tag])
       .sorted
       .results
 
-    render json: PostSerializer.new(posts).serializable_hash.to_json
+    render json: ProductSerializer.new(products).serializable_hash.to_json
   end
 end
 
 # Reuse in background job:
 class CsvExportJob < ApplicationJob
   def perform(filters)
-    posts = PostQuery.new
+    products = ProductQuery.new
       .published_only
       .since(filters[:since])
       .sorted(:created_at, :asc)
       .results
 
-    CsvGenerator.new(posts).generate
+    CsvGenerator.new(products).generate
   end
 end
 
 # test/queries/post_query_test.rb
-class PostQueryTest < ActiveSupport::TestCase
-  test "published_only filters to posts with published_at" do
-    published = posts(:with_published_at)
-    unpublished = posts(:without_published_at)
+class ProductQueryTest < ActiveSupport::TestCase
+  test "published_only filters to products with published_at" do
+    published = products(:with_published_at)
+    unpublished = products(:without_published_at)
 
-    results = PostQuery.new.published_only.results
+    results = ProductQuery.new.published_only.results
 
     assert_includes results, published
     refute_includes results, unpublished
   end
 
   test "blank params are skipped" do
-    all_posts = Post.count
-    results = PostQuery.new.by_author("").results
+    all_products = Product.count
+    results = ProductQuery.new.by_author("").results
 
-    assert_equal all_posts, results.count
+    assert_equal all_products, results.count
   end
 
   test "methods are chainable" do
-    results = PostQuery.new
+    results = ProductQuery.new
       .published_only
       .by_author(users(:alice).id)
       .sorted
@@ -1009,15 +1009,15 @@ class PostQueryTest < ActiveSupport::TestCase
     assert results.is_a?(ActiveRecord::Relation)
   end
 
-  test "with_min_comments uses GROUP + HAVING" do
-    popular = posts(:popular)  # has 5 comments
-    results = PostQuery.new.with_min_comments(3).results
+  test "with_min_reviews uses GROUP + HAVING" do
+    popular = products(:popular)  # has 5 reviews
+    results = ProductQuery.new.with_min_reviews(3).results
 
     assert_includes results, popular
   end
 
   test "custom base scope narrows results" do
-    results = PostQuery.new(Post.where.not(published_at: nil)).results
+    results = ProductQuery.new(Product.where.not(published_at: nil)).results
     assert results.all? { |p| p.published_at.present? }
   end
 end`,
@@ -1063,24 +1063,24 @@ const level20ErrorHandling: Level = {
 		description:
 			'A client reports that the API returns raw 500 errors with Ruby stack traces in production. Another endpoint returns a 404 as plain text. The error format is different on every endpoint.',
 	},
-	startingPipeline: standardPipeline({ modelLabel: 'Post' }),
+	startingPipeline: standardPipeline({ modelLabel: 'Product' }),
 	problem: {
 		observation:
 			'API returns inconsistent error formats: sometimes HTML stack traces, sometimes plain text, sometimes JSON with different shapes. Clients cannot reliably parse error responses.',
 		rootCause:
 			'No centralized error handling. Each controller rescues exceptions differently (or not at all), resulting in three different error formats.',
-		codeExample: `# app/controllers/api/v1/posts_controller.rb
-class Api::V1::PostsController < ApplicationController
+		codeExample: `# app/controllers/api/v1/products_controller.rb
+class Api::V1::ProductsController < ApplicationController
   def show
-    @post = Post.find(params[:id])  # Raises ActiveRecord::RecordNotFound
-    render json: @post
+    @product = Product.find(params[:id])  # Raises ActiveRecord::RecordNotFound
+    render json: @product
     # No rescue -- returns raw 500 with HTML stack trace!
   end
 
   def update
-    @post = Post.find(params[:id])
-    @post.update!(post_params)  # Raises ActiveRecord::RecordInvalid
-    render json: @post
+    @product = Product.find(params[:id])
+    @product.update!(product_params)  # Raises ActiveRecord::RecordInvalid
+    render json: @product
   rescue ActiveRecord::RecordInvalid => e
     render json: { message: e.message }, status: 422  # Different shape!
   end
@@ -1123,7 +1123,7 @@ end
 {
   "error": {
     "code": "not_found",
-    "message": "Post not found",
+    "message": "Product not found",
     "details": {}
   }
 }
@@ -1210,57 +1210,57 @@ class ApplicationController < ActionController::API
 end
 
 # Now controllers are clean -- no rescue blocks needed:
-# app/controllers/api/v1/posts_controller.rb
+# app/controllers/api/v1/products_controller.rb
 # (Simple CRUD stays in controllers; multi-step workflows use service objects)
-class Api::V1::PostsController < ApplicationController
+class Api::V1::ProductsController < ApplicationController
   def show
-    post = Post.find(params[:id])  # RecordNotFound -> 404 JSON
-    render json: PostSerializer.new(post).serializable_hash.to_json
+    product = Product.find(params[:id])  # RecordNotFound -> 404 JSON
+    render json: ProductSerializer.new(product).serializable_hash.to_json
   end
 
   def create
-    post = current_user.posts.new(post_params)
-    post.save!  # RecordInvalid -> 422 JSON
-    render json: PostSerializer.new(post).serializable_hash.to_json, status: :created
+    product = current_user.products.new(product_params)
+    product.save!  # RecordInvalid -> 422 JSON
+    render json: ProductSerializer.new(product).serializable_hash.to_json, status: :created
   end
 
   def update
-    post = Post.find(params[:id])
-    authorize post  # NotAuthorizedError -> 403 JSON
-    post.update!(post_params)
-    render json: PostSerializer.new(post).serializable_hash.to_json
+    product = Product.find(params[:id])
+    authorize product  # NotAuthorizedError -> 403 JSON
+    product.update!(product_params)
+    render json: ProductSerializer.new(product).serializable_hash.to_json
   end
 
   private
 
-  def post_params
-    params.expect(post: [:title, :body])  # ParameterMissing -> 400 JSON
+  def product_params
+    params.expect(product: [:name, :description, :price])  # ParameterMissing -> 400 JSON
   end
 end
 
 # All errors now return consistent JSON:
-# GET /api/v1/posts/999
-# => 404 { "error": { "code": "not_found", "message": "Post not found" } }
+# GET /api/v1/products/999
+# => 404 { "error": { "code": "not_found", "message": "Product not found" } }
 #
-# POST /api/v1/posts with invalid data
+# POST /api/v1/products with invalid data
 # => 422 { "error": { "code": "validation_failed", "message": "...", "details": {...} } }
 #
-# POST /api/v1/posts without params key
-# => 400 { "error": { "code": "bad_request", "message": "Missing parameter: post" } }
+# POST /api/v1/products without params key
+# => 400 { "error": { "code": "bad_request", "message": "Missing parameter: product" } }
 
 # test/controllers/error_handling_test.rb
 class ErrorHandlingTest < ActionDispatch::IntegrationTest
   test "returns 404 JSON for missing records" do
-    get api_v1_post_path(id: 999999), as: :json
+    get api_v1_product_path(id: 999999), as: :json
 
     assert_response :not_found
     json = JSON.parse(response.body)
     assert_equal "not_found", json.dig("error", "code")
-    assert_match "Post", json.dig("error", "message")
+    assert_match "Product", json.dig("error", "message")
   end
 
   test "returns 422 JSON for validation errors" do
-    post api_v1_posts_path, params: { post: { title: "" } }, as: :json
+    post api_v1_products_path, params: { product: { name: "" } }, as: :json
 
     assert_response :unprocessable_entity
     json = JSON.parse(response.body)
@@ -1269,7 +1269,7 @@ class ErrorHandlingTest < ActionDispatch::IntegrationTest
   end
 
   test "returns 400 JSON for missing parameters" do
-    post api_v1_posts_path, params: {}, as: :json
+    post api_v1_products_path, params: {}, as: :json
 
     assert_response :bad_request
     json = JSON.parse(response.body)
@@ -1278,8 +1278,8 @@ class ErrorHandlingTest < ActionDispatch::IntegrationTest
 
   test "never leaks stack traces in production" do
     # Simulate an unexpected error
-    Post.stub(:find, -> (_) { raise "Boom!" }) do
-      get api_v1_post_path(id: 1), as: :json
+    Product.stub(:find, -> (_) { raise "Boom!" }) do
+      get api_v1_product_path(id: 1), as: :json
     end
 
     assert_response :internal_server_error

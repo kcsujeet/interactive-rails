@@ -6,7 +6,7 @@
  *
  * Phase 1 (WHY - intro): Static annotated code display (Type 2).
  *   Side-by-side annotated code blocks showing identical tagging methods
- *   in Post and Comment with destructive left borders. Callout states
+ *   in Product and Review with destructive left borders. Callout states
  *   the structural problem. "Build the Fix" always visible (no gating).
  * Phase 2 (HOW - build): 3 OptionCard steps
  *   Step 0: Choose where to put shared behavior (ActiveSupport::Concern)
@@ -65,7 +65,7 @@ const POST_SECTIONS: AnnotatedSection[] = [
 		id: 'post-core',
 		label: 'Core',
 		variant: 'core',
-		code: 'belongs_to :user\nhas_many :comments',
+		code: 'belongs_to :user\nhas_many :reviews',
 	},
 	{
 		id: 'post-tagging-assoc',
@@ -92,7 +92,7 @@ const COMMENT_SECTIONS: AnnotatedSection[] = [
 		id: 'comment-core',
 		label: 'Core',
 		variant: 'core',
-		code: 'belongs_to :post\nbelongs_to :user',
+		code: 'belongs_to :product\nbelongs_to :user',
 	},
 	{
 		id: 'comment-tagging-assoc',
@@ -198,7 +198,7 @@ const PATTERN_OPTIONS: StepOption[] = [
 		label: 'Create a TaggableRecord base class',
 		correct: false,
 		feedback:
-			'Ruby only supports single inheritance. Post already inherits from ApplicationRecord, so it cannot also inherit from TaggableRecord.',
+			'Ruby only supports single inheritance. Product already inherits from ApplicationRecord, so it cannot also inherit from TaggableRecord.',
 	},
 	{
 		id: 'concern',
@@ -274,7 +274,7 @@ end`,
 const INCLUDE_OPTIONS: StepOption[] = [
 	{
 		id: 'require-extend',
-		label: `class Post < ApplicationRecord
+		label: `class Product < ApplicationRecord
   require "taggable"
   extend Taggable
 end`,
@@ -284,7 +284,7 @@ end`,
 	},
 	{
 		id: 'prepend',
-		label: `class Post < ApplicationRecord
+		label: `class Product < ApplicationRecord
   prepend Taggable
 end`,
 		correct: false,
@@ -293,11 +293,11 @@ end`,
 	},
 	{
 		id: 'include-taggable',
-		label: `class Post < ApplicationRecord
+		label: `class Product < ApplicationRecord
   include Taggable
 
   belongs_to :user
-  has_many :comments
+  has_many :reviews
 end`,
 		correct: true,
 	},
@@ -315,7 +315,7 @@ const OPTION_STEP_CONFIG: Record<
 	0: {
 		title: 'Choose Extraction Pattern',
 		description:
-			'Post and Comment have identical tagging code. You need to extract this shared behavior into a reusable module. What pattern does Rails provide for this?',
+			'Product and Review have identical tagging code. You need to extract this shared behavior into a reusable module. What pattern does Rails provide for this?',
 		options: PATTERN_OPTIONS,
 	},
 	1: {
@@ -342,11 +342,11 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 	// Intro phase: show duplicated code in both models
 	if (phase === 'intro') {
 		files.push({
-			filename: 'app/models/post.rb',
+			filename: 'app/models/product.rb',
 			language: 'ruby',
-			code: `class Post < ApplicationRecord
+			code: `class Product < ApplicationRecord
   belongs_to :user
-  has_many :comments
+  has_many :reviews
 
   # Tagging (duplicated!)
   has_many :taggings, as: :taggable
@@ -369,10 +369,10 @@ end`,
 			highlight: [6, 7, 9, 10, 13, 14, 17, 18, 19, 20],
 		});
 		files.push({
-			filename: 'app/models/comment.rb',
+			filename: 'app/models/review.rb',
 			language: 'ruby',
-			code: `class Comment < ApplicationRecord
-  belongs_to :post
+			code: `class Review < ApplicationRecord
+  belongs_to :product
   belongs_to :user
 
   # Tagging (duplicated!)
@@ -401,11 +401,11 @@ end`,
 	// Build / activate / reward phases: show evolving code
 	if (furthestStep === 0) {
 		files.push({
-			filename: 'app/models/post.rb',
+			filename: 'app/models/product.rb',
 			language: 'ruby',
-			code: `class Post < ApplicationRecord
+			code: `class Product < ApplicationRecord
   belongs_to :user
-  has_many :comments
+  has_many :reviews
 
   # Tagging (duplicated!)
   has_many :taggings, as: :taggable
@@ -475,13 +475,13 @@ end`,
 
 	if (furthestStep >= 3) {
 		files.push({
-			filename: 'app/models/post.rb',
+			filename: 'app/models/product.rb',
 			language: 'ruby',
-			code: `class Post < ApplicationRecord
+			code: `class Product < ApplicationRecord
   include Taggable
 
   belongs_to :user
-  has_many :comments
+  has_many :reviews
 end
 
 # Clean! All tagging logic lives in
@@ -489,12 +489,12 @@ end
 			highlight: [2],
 		});
 		files.push({
-			filename: 'app/models/comment.rb',
+			filename: 'app/models/review.rb',
 			language: 'ruby',
-			code: `class Comment < ApplicationRecord
+			code: `class Review < ApplicationRecord
   include Taggable
 
-  belongs_to :post
+  belongs_to :product
   belongs_to :user
 end
 
@@ -570,7 +570,7 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Your Post and Comment models both need tagging. Right
+							Your Product and Review models both need tagging. Right
 							now, both define the exact same{' '}
 							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
 								has_many :taggings
@@ -638,12 +638,12 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 								<div className="w-full max-w-3xl flex gap-4">
 									<AnnotatedCodeBlock
 										borderColor="destructive"
-										modelName="app/models/post.rb"
+										modelName="app/models/product.rb"
 										sections={POST_SECTIONS}
 									/>
 									<AnnotatedCodeBlock
 										borderColor="destructive"
-										modelName="app/models/comment.rb"
+										modelName="app/models/review.rb"
 										sections={COMMENT_SECTIONS}
 									/>
 								</div>
@@ -782,10 +782,10 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 
 								{/* Side-by-side clean models */}
 								<div className="w-full max-w-3xl flex gap-4">
-									{/* Post (clean) */}
+									{/* Product (clean) */}
 									<div className="flex-1 space-y-1.5">
 										<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-											app/models/post.rb
+											app/models/product.rb
 										</div>
 										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-3 py-2">
 											<Badge
@@ -803,17 +803,17 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 											>
 												Core
 											</Badge>
-											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">belongs_to :user{'\n'}has_many :comments</pre>
+											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">belongs_to :user{'\n'}has_many :reviews</pre>
 										</div>
 										<div className="mt-1 text-xs text-success font-medium px-3">
 											Clean (6 lines)
 										</div>
 									</div>
 
-									{/* Comment (clean) */}
+									{/* Review (clean) */}
 									<div className="flex-1 space-y-1.5">
 										<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-											app/models/comment.rb
+											app/models/review.rb
 										</div>
 										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-3 py-2">
 											<Badge
@@ -831,7 +831,7 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 											>
 												Core
 											</Badge>
-											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">belongs_to :post{'\n'}belongs_to :user</pre>
+											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">belongs_to :product{'\n'}belongs_to :user</pre>
 										</div>
 										<div className="mt-1 text-xs text-success font-medium px-3">
 											Clean (6 lines)
@@ -886,7 +886,7 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 											<p className="text-sm text-foreground">
 												<span className="font-medium">Fix once, applies everywhere.</span>{' '}
 												<span className="text-muted-foreground">
-													Change the Taggable concern, both Post and Comment update automatically.
+													Change the Taggable concern, both Product and Review update automatically.
 												</span>
 											</p>
 										</div>

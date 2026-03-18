@@ -83,14 +83,14 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-index',
-		label: 'GET /api/v1/posts',
-		command: 'GET /api/v1/posts',
+		label: 'GET /api/v1/products',
+		command: 'GET /api/v1/products',
 		responseLines: [
 			{ text: 'Routing... matched posts#index', color: 'green' },
 			{ text: 'HTTP/1.1 500 Internal Server Error', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'NameError: uninitialized constant Api::V1::PostsController',
+				text: 'NameError: uninitialized constant Api::V1::ProductsController',
 				color: 'red',
 			},
 			{
@@ -101,14 +101,14 @@ const PROBES: ProbeConfig[] = [
 	},
 	{
 		id: 'post-create',
-		label: 'POST /api/v1/posts',
-		command: 'POST /api/v1/posts (body: {title: "Hello"})',
+		label: 'POST /api/v1/products',
+		command: 'POST /api/v1/products (body: {title: "Hello"})',
 		responseLines: [
 			{ text: 'Routing... matched posts#create', color: 'green' },
 			{ text: 'HTTP/1.1 500 Internal Server Error', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'NameError: uninitialized constant Api::V1::PostsController',
+				text: 'NameError: uninitialized constant Api::V1::ProductsController',
 				color: 'red',
 			},
 			{
@@ -119,14 +119,14 @@ const PROBES: ProbeConfig[] = [
 	},
 	{
 		id: 'delete-destroy',
-		label: 'DELETE /api/v1/posts/1',
-		command: 'DELETE /api/v1/posts/1',
+		label: 'DELETE /api/v1/products/1',
+		command: 'DELETE /api/v1/products/1',
 		responseLines: [
 			{ text: 'Routing... matched posts#destroy', color: 'green' },
 			{ text: 'HTTP/1.1 500 Internal Server Error', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'NameError: uninitialized constant Api::V1::PostsController',
+				text: 'NameError: uninitialized constant Api::V1::ProductsController',
 				color: 'red',
 			},
 			{
@@ -198,15 +198,15 @@ end`,
 		stageId: 'controller',
 		title: 'Controller (Missing!)',
 		description:
-			'uninitialized constant Api::V1::PostsController. The file app/controllers/api/v1/posts_controller.rb does not exist. You need to generate it.',
-		code: `# app/controllers/api/v1/posts_controller.rb
+			'uninitialized constant Api::V1::ProductsController. The file app/controllers/api/v1/products_controller.rb does not exist. You need to generate it.',
+		code: `# app/controllers/api/v1/products_controller.rb
 # File not found!`,
 	},
 	model: {
 		stageId: 'model',
-		title: 'Post Model',
+		title: 'Product Model',
 		description:
-			'The Post model is ready (from Level 3). It has title, body, and published_at columns. But requests never reach the model because the controller is missing.',
+			'The Product model is ready (from Level 3). It has title, body, and published_at columns. But requests never reach the model because the controller is missing.',
 	},
 	response: {
 		stageId: 'response',
@@ -230,46 +230,46 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'get-index',
-		label: 'GET /api/v1/posts',
-		description: 'List all posts',
+		label: 'GET /api/v1/products',
+		description: 'List all products',
 		method: 'GET',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
 	{
 		id: 'post-create',
-		label: 'POST /api/v1/posts',
-		description: 'Create a new post',
+		label: 'POST /api/v1/products',
+		description: 'Create a new product',
 		method: 'POST',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
 	{
 		id: 'get-show',
-		label: 'GET /api/v1/posts/1',
+		label: 'GET /api/v1/products/1',
 		description: 'Show a single post',
 		method: 'GET',
-		path: '/api/v1/posts/1',
+		path: '/api/v1/products/1',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
 	{
 		id: 'patch-update',
-		label: 'PATCH /api/v1/posts/1',
+		label: 'PATCH /api/v1/products/1',
 		description: 'Update an existing post',
 		method: 'PATCH',
-		path: '/api/v1/posts/1',
+		path: '/api/v1/products/1',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
 	{
 		id: 'delete-destroy',
-		label: 'DELETE /api/v1/posts/1',
-		description: 'Delete a post',
+		label: 'DELETE /api/v1/products/1',
+		description: 'Delete a product',
 		method: 'DELETE',
-		path: '/api/v1/posts/1',
+		path: '/api/v1/products/1',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
@@ -292,8 +292,8 @@ const STEP_DEFS: StepDef[] = [
 const generateCommands: TerminalCommand[] = [
 	{
 		id: 'wrong-singular',
-		label: 'rails generate controller Post',
-		command: 'rails generate controller Post',
+		label: 'rails generate controller Product',
+		command: 'rails generate controller Product',
 		correct: false,
 		feedback:
 			'Controller names are plural and must include the full route namespace, not just a singular model name.',
@@ -306,8 +306,8 @@ const generateCommands: TerminalCommand[] = [
 	},
 	{
 		id: 'wrong-no-namespace',
-		label: 'rails generate controller Posts',
-		command: 'rails generate controller Posts',
+		label: 'rails generate controller Products',
+		command: 'rails generate controller Products',
 		correct: false,
 		feedback:
 			'The controller name must include namespaces to match your route structure, not just the resource name alone.',
@@ -316,12 +316,12 @@ const generateCommands: TerminalCommand[] = [
 
 const generateOutput: TerminalOutputLine[] = [
 	{
-		text: '      create  app/controllers/api/v1/posts_controller.rb',
+		text: '      create  app/controllers/api/v1/products_controller.rb',
 		color: 'green',
 	},
 	{ text: '      invoke  test_unit', color: 'muted' },
 	{
-		text: '      create    test/controllers/api/v1/posts_controller_test.rb',
+		text: '      create    test/controllers/api/v1/products_controller_test.rb',
 		color: 'muted',
 	},
 ];
@@ -333,16 +333,16 @@ const generateOutput: TerminalOutputLine[] = [
 const testCommands: TerminalCommand[] = [
 	{
 		id: 'wrong-browser',
-		label: 'open http://localhost:3000/api/v1/posts',
-		command: 'open http://localhost:3000/api/v1/posts',
+		label: 'open http://localhost:3000/api/v1/products',
+		command: 'open http://localhost:3000/api/v1/products',
 		correct: false,
 		feedback:
 			'Opening in a browser works for viewing HTML, but API endpoints return JSON. Use a command-line HTTP client to see headers and status codes.',
 	},
 	{
 		id: 'correct',
-		label: 'curl localhost:3000/api/v1/posts',
-		command: 'curl localhost:3000/api/v1/posts',
+		label: 'curl localhost:3000/api/v1/products',
+		command: 'curl localhost:3000/api/v1/products',
 		correct: true,
 	},
 	{
@@ -424,15 +424,15 @@ const REWARD_CONNECTIONS: PipelineConnection[] = [
 function getActionBody(action: string): string {
 	switch (action) {
 		case 'index':
-			return 'render json: Post.all';
+			return 'render json: Product.all';
 		case 'show':
-			return 'render json: Post.find(params[:id])';
+			return 'render json: Product.find(params[:id])';
 		case 'create':
-			return 'post = Post.new(post_params)\n      if post.save\n        render json: post, status: :created\n      else\n        render json: { errors: post.errors }, status: :unprocessable_entity\n      end';
+			return 'post = Product.new(product_params)\n      if product.save\n        render json: post, status: :created\n      else\n        render json: { errors: product.errors }, status: :unprocessable_entity\n      end';
 		case 'update':
-			return 'post = Post.find(params[:id])\n      if post.update(post_params)\n        render json: post\n      else\n        render json: { errors: post.errors }, status: :unprocessable_entity\n      end';
+			return 'post = Product.find(params[:id])\n      if product.update(product_params)\n        render json: post\n      else\n        render json: { errors: product.errors }, status: :unprocessable_entity\n      end';
 		case 'destroy':
-			return 'Post.find(params[:id]).destroy\n      head :no_content';
+			return 'Product.find(params[:id]).destroy\n      head :no_content';
 		default:
 			return '# ...';
 	}
@@ -464,10 +464,10 @@ end`,
 			highlight: [2, 3, 4],
 		});
 		files.push({
-			filename: 'app/controllers/api/v1/posts_controller.rb',
+			filename: 'app/controllers/api/v1/products_controller.rb',
 			language: 'ruby',
 			code: `# File not found!
-# uninitialized constant Api::V1::PostsController
+# uninitialized constant Api::V1::ProductsController
 #
 # The router maps routes to this controller,
 # but the file does not exist yet.`,
@@ -479,7 +479,7 @@ end`,
 	// Build / activate / reward: evolving code preview
 	if (furthestStep === 0) {
 		files.push({
-			filename: 'app/controllers/api/v1/posts_controller.rb',
+			filename: 'app/controllers/api/v1/products_controller.rb',
 			language: 'ruby',
 			code: `# Generate the controller first...`,
 			highlight: [],
@@ -500,13 +500,13 @@ end`,
 		const needsPostParams =
 			placedActions.includes('create') || placedActions.includes('update');
 		const privateSection = needsPostParams
-			? `\n\n  private\n\n  def post_params\n    params.require(:post).permit(:title, :body, :published_at)\n  end`
+			? `\n\n  private\n\n  def product_params\n    params.require(:product).permit(:title, :body, :published_at)\n  end`
 			: '';
 
 		files.push({
-			filename: 'app/controllers/api/v1/posts_controller.rb',
+			filename: 'app/controllers/api/v1/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::PostsController < ApplicationController
+			code: `class Api::V1::ProductsController < ApplicationController
 ${actionCode}${privateSection}
 end`,
 			highlight: placedActions.map((_, i) => i * 3 + 2),
@@ -517,7 +517,7 @@ end`,
 		files.push({
 			filename: 'Test Results',
 			language: 'ruby',
-			code: `# curl localhost:3000/api/v1/posts
+			code: `# curl localhost:3000/api/v1/products
 # => 200 OK
 # []
 #
@@ -804,7 +804,7 @@ export function Level6Controller({ onComplete }: LevelComponentProps) {
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							In Level 5, you mapped 5 RESTful routes under /api/v1/posts.
+							In Level 5, you mapped 5 RESTful routes under /api/v1/products.
 							But hitting any of those URLs returns a 500 error because the
 							controller class does not exist yet.
 						</p>
@@ -998,7 +998,7 @@ export function Level6Controller({ onComplete }: LevelComponentProps) {
 										{/* Controller skeleton */}
 										<div className="bg-card rounded-lg p-4 font-mono text-sm">
 											<div className="text-zinc-400">
-												class Api::V1::PostsController {'<'}{' '}
+												class Api::V1::ProductsController {'<'}{' '}
 												ApplicationController
 											</div>
 											{placedActions.map((action) => (

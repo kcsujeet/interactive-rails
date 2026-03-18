@@ -113,12 +113,12 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-posts-5',
 		label: 'GET /posts (5 posts)',
-		command: 'GET /api/v1/posts (5 posts in DB)',
+		command: 'GET /api/v1/products (5 posts in DB)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'green' },
 			{ text: '', color: 'muted' },
 			{ text: 'SQL queries executed: 6', color: 'yellow' },
-			{ text: '  SELECT * FROM posts              (1 query)', color: 'muted' },
+			{ text: '  SELECT * FROM products              (1 query)', color: 'muted' },
 			{ text: '  SELECT * FROM users WHERE id = 1 (+1)', color: 'red' },
 			{ text: '  SELECT * FROM users WHERE id = 2 (+1)', color: 'red' },
 			{ text: '  SELECT * FROM users WHERE id = 3 (+1)', color: 'red' },
@@ -129,19 +129,19 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-posts-100',
 		label: 'GET /posts (100 posts)',
-		command: 'GET /api/v1/posts (100 posts in DB)',
+		command: 'GET /api/v1/products (100 posts in DB)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK (850ms)', color: 'yellow' },
 			{ text: '', color: 'muted' },
 			{ text: 'SQL queries executed: 101', color: 'red' },
 			{
-				text: '  SELECT * FROM posts                (1 query)',
+				text: '  SELECT * FROM products                (1 query)',
 				color: 'muted',
 			},
 			{ text: '  SELECT * FROM users WHERE id = ... (x100)', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: '101 queries, 850ms. Each post.user call fires a query.',
+				text: '101 queries, 850ms. Each product.user call fires a query.',
 				color: 'red',
 			},
 		],
@@ -149,7 +149,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-posts-1000',
 		label: 'GET /posts (1000 posts)',
-		command: 'GET /api/v1/posts (1000 posts in DB)',
+		command: 'GET /api/v1/products (1000 posts in DB)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK (4873ms)', color: 'red' },
 			{ text: '', color: 'muted' },
@@ -214,11 +214,11 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		stageId: 'controller',
 		title: 'PostsController#index',
 		description:
-			'The controller delegates to PostList service. The service loads posts with Post.all, firing just 1 query. The problem is not here.',
-		code: `# app/controllers/api/v1/posts_controller.rb
+			'The controller delegates to PostList service. The service loads posts with Product.all, firing just 1 query. The problem is not here.',
+		code: `# app/controllers/api/v1/products_controller.rb
 def index
   result = PostList.call(params:)
-  render json: PostSerializer.new(result.posts)
+  render json: ProductSerializer.new(result.posts)
 end
 
 # app/services/post_list.rb
@@ -227,20 +227,20 @@ class PostList < ApplicationService
 
   def call
     contract = ListContract.new.call(params)
-    posts = Post.all  # 1 query, no includes
+    products = Product.all  # 1 query, no includes
     Result.new(success?: true, posts:, errors: [])
   end
 end`,
 	},
 	serializer: {
 		stageId: 'serializer',
-		title: 'PostSerializer (the culprit)',
+		title: 'ProductSerializer (the culprit)',
 		description:
-			'The serializer accesses post.user.name for every post. Each call triggers a separate SELECT query because the user association was never preloaded.',
-		code: `class PostSerializer < BaseSerializer
+			'The serializer accesses product.user.name for every product. Each call triggers a separate SELECT query because the user association was never preloaded.',
+		code: `class ProductSerializer < BaseSerializer
   attribute :title
   attribute :author_name do |post|
-    post.user.name  # <-- N+1 trigger!
+    product.user.name  # <-- N+1 trigger!
   end
 end`,
 	},
@@ -269,7 +269,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		description:
 			'Service loads posts without eager loading, serializer accesses .user',
 		method: 'GET',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'PostList.call',
 		expectedResult: 'blocked',
 	},
@@ -278,7 +278,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'PostList (with includes)',
 		description: 'Service loads posts with eager-loaded users',
 		method: 'GET',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'PostList.call',
 		expectedResult: 'allowed',
 	},
@@ -288,7 +288,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		description:
 			'Service loads posts, serializer counts comments without counter cache',
 		method: 'GET',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'PostList.call',
 		expectedResult: 'blocked',
 	},
@@ -306,7 +306,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'policy_scope + preload',
 		description: 'Scoped query with preloaded associations',
 		method: 'GET',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'scope + preload',
 		expectedResult: 'allowed',
 	},
@@ -348,7 +348,7 @@ const addProsopiteCommands: TerminalCommand[] = [
 		command: 'bundle add prosopite',
 		correct: false,
 		feedback:
-			'Prosopite needs pg_query for SQL fingerprinting on PostgreSQL. Without it, Prosopite cannot group similar queries to detect N+1 patterns.',
+			'Prosopite needs pg_query for SQL fingerprinting on ProductgreSQL. Without it, Prosopite cannot group similar queries to detect N+1 patterns.',
 	},
 	{
 		id: 'correct',
@@ -427,12 +427,12 @@ const STRICT_LOADING_OPTIONS: StepOption[] = [
 	{
 		id: 'correct',
 		label:
-			'# app/models/post.rb\nclass Post < ApplicationRecord\n  self.strict_loading_by_default = true\nend',
+			'# app/models/product.rb\nclass Product < ApplicationRecord\n  self.strict_loading_by_default = true\nend',
 		correct: true,
 	},
 	{
 		id: 'wrong-scope',
-		label: '# app/models/post.rb\nscope :safe, -> { strict_loading }',
+		label: '# app/models/product.rb\nscope :safe, -> { strict_loading }',
 		correct: false,
 		feedback:
 			'A scope only applies when explicitly used. Developers will forget to chain it. The default should enforce it.',
@@ -455,7 +455,7 @@ const OPTION_STEP_CONFIG: Record<
 		options: PROSOPITE_CONFIG_OPTIONS,
 	},
 	2: {
-		title: 'Enable strict_loading on Post',
+		title: 'Enable strict_loading on Product',
 		description:
 			'Rails supports strict_loading, which raises an error when you lazy-load an association that was not eager-loaded. Where should you enable it?',
 		options: STRICT_LOADING_OPTIONS,
@@ -467,7 +467,7 @@ const OPTION_STEP_CONFIG: Record<
 // ──────────────────────────────────────────────
 
 function generateQueryLines(count: number): string[] {
-	const lines: string[] = ['SELECT * FROM posts'];
+	const lines: string[] = ['SELECT * FROM products'];
 	const show = Math.min(count, 6);
 	for (let i = 1; i <= show; i++) {
 		lines.push(`SELECT * FROM users WHERE id = ${i}`);
@@ -488,12 +488,12 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 	// Observe phase: show the unoptimized controller + service + serializer
 	if (phase === 'observe') {
 		files.push({
-			filename: 'app/controllers/api/v1/posts_controller.rb',
+			filename: 'app/controllers/api/v1/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::PostsController < ApplicationController
+			code: `class Api::V1::ProductsController < ApplicationController
   def index
     result = PostList.call(params:)
-    render json: PostSerializer.new(result.posts)
+    render json: ProductSerializer.new(result.posts)
   end
 end`,
 			highlight: [3],
@@ -506,21 +506,21 @@ end`,
 
   def call
     contract = ListContract.new.call(params)
-    posts = Post.all  # 1 query, no includes!
+    products = Product.all  # 1 query, no includes!
     Result.new(success?: true, posts:, errors: [])
   end
 end`,
 			highlight: [6],
 		});
 		files.push({
-			filename: 'app/serializers/post_serializer.rb',
+			filename: 'app/serializers/product_serializer.rb',
 			language: 'ruby',
-			code: `class PostSerializer < BaseSerializer
+			code: `class ProductSerializer < BaseSerializer
   attribute :title
   attribute :body
 
   attribute :author_name do |post|
-    post.user.name  # +1 query PER POST!
+    product.user.name  # +1 query PER POST!
   end
 end`,
 			highlight: [6],
@@ -538,21 +538,21 @@ end`,
 
   def call
     contract = ListContract.new.call(params)
-    posts = Post.all  # no includes!
+    products = Product.all  # no includes!
     Result.new(success?: true, posts:, errors: [])
   end
 end`,
 			highlight: [6],
 		});
 		files.push({
-			filename: 'app/serializers/post_serializer.rb',
+			filename: 'app/serializers/product_serializer.rb',
 			language: 'ruby',
-			code: `class PostSerializer < BaseSerializer
+			code: `class ProductSerializer < BaseSerializer
   attribute :title
   attribute :body
 
   attribute :author_name do |post|
-    post.user.name  # +1 query PER POST!
+    product.user.name  # +1 query PER POST!
   end
 end`,
 			highlight: [6],
@@ -591,11 +591,11 @@ end`,
 
 	if (furthestStep >= 3) {
 		files.push({
-			filename: 'app/models/post.rb',
+			filename: 'app/models/product.rb',
 			language: 'ruby',
-			code: `class Post < ApplicationRecord
+			code: `class Product < ApplicationRecord
   belongs_to :user
-  has_many :comments, dependent: :destroy
+  has_many :reviews, dependent: :destroy
 
   self.strict_loading_by_default = true
 end`,
@@ -776,7 +776,7 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 					zone.badge = { text: probeZoneData.controllerBadge, color: 'green' };
 				}
 			} else if (zoneId === 'serializer') {
-				zone.codeLine = 'post.user.name';
+				zone.codeLine = 'product.user.name';
 				if (isActive && probeZoneData) {
 					zone.loopCounter = {
 						current: loopCounter,
@@ -1024,7 +1024,7 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Your PostList service loads posts for the API index endpoint.
+							Your ProductList service loads posts for the API index endpoint.
 							Response times have crept above 2 seconds. The database log
 							reveals a devastating pattern: 1 query for posts, then 1 query for
 							EACH author.
@@ -1191,7 +1191,7 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 												<p className="text-sm text-muted-foreground">
 													Prosopite monitors SQL patterns to detect N+1 queries,
 													including raw SQL and find_each blocks. It needs
-													pg_query for SQL fingerprinting on PostgreSQL.
+													pg_query for SQL fingerprinting on ProductgreSQL.
 												</p>
 											}
 											hasNext={hasNextStep}

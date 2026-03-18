@@ -79,13 +79,13 @@ const room2: Room = {
 		{
 			type: 'model',
 			position: { x: 400, y: 250 },
-			config: { name: 'Post' },
+			config: { name: 'Product' },
 			locked: false,
 		},
 		{
 			type: 'model',
 			position: { x: 400, y: 350 },
-			config: { name: 'Comment' },
+			config: { name: 'Review' },
 			locked: false,
 		},
 		{ type: 'database', position: { x: 550, y: 300 }, locked: true },

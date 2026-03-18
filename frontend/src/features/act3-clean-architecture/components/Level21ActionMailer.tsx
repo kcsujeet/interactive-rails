@@ -205,8 +205,8 @@ end`,
 			'The User model has has_secure_password for authentication, but no token generation for password recovery. There is no generates_token_for, no reset method, and no mailer integration.',
 		code: `class User < ApplicationRecord
   has_secure_password
-  has_many :posts
-  has_many :comments
+  has_many :products
+  has_many :reviews
 
   # No generates_token_for!
   # No password reset support at all.
@@ -492,8 +492,8 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 			language: 'ruby',
 			code: `class User < ApplicationRecord
   has_secure_password
-  has_many :posts
-  has_many :comments
+  has_many :products
+  has_many :reviews
 
   # No generates_token_for!
   # No password reset support.
@@ -526,8 +526,8 @@ end`,
 			language: 'ruby',
 			code: `class User < ApplicationRecord
   has_secure_password
-  has_many :posts
-  has_many :comments
+  has_many :products
+  has_many :reviews
 
   # Add token generation here...
 end`,
@@ -541,8 +541,8 @@ end`,
 			language: 'ruby',
 			code: `class User < ApplicationRecord
   has_secure_password
-  has_many :posts
-  has_many :comments
+  has_many :products
+  has_many :reviews
 
   generates_token_for :password_reset,
                       expires_in: 15.minutes do

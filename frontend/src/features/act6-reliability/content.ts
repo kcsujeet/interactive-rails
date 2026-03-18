@@ -226,7 +226,7 @@ const level38RateLimiting: Level = {
 # ... (10,000 per second)
 
 # Meanwhile, real users:
-# 203.0.113.5 - GET /api/v1/posts - 504 Gateway Timeout
+# 203.0.113.5 - GET /api/v1/products - 504 Gateway Timeout
 
 # Rails 8 has a built-in rate_limit macro:
 class SessionsController < ApplicationController
@@ -297,7 +297,7 @@ class SessionsController < ApplicationController
     with: -> { render json: { error: "Too many login attempts. Try again later." }, status: :too_many_requests }
 end
 
-# app/controllers/api/v1/posts_controller.rb
+# app/controllers/api/v1/products_controller.rb
 class Api::V1::PostsController < ApplicationController
   # 100 requests per minute per user
   rate_limit to: 100, within: 1.minute, only: [:index, :show],
@@ -700,7 +700,7 @@ const level40SafeMigrations: Level = {
 class ChangeViewsToBigint < ActiveRecord::Migration[8.0]
   def change
     # This locks the entire table while rewriting every row!
-    change_column :posts, :views, :bigint
+    change_column :products, :views, :bigint
   end
 end
 
@@ -751,7 +751,7 @@ StrongMigrations.target_postgresql_version = "16"
 # UNSAFE: Rewrites the entire table (locks it for duration)
 class ChangeViewsToBigint < ActiveRecord::Migration[8.0]
   def change
-    change_column :posts, :views, :bigint  # REWRITES ALL ROWS!
+    change_column :products, :views, :bigint  # REWRITES ALL ROWS!
   end
 end
 
@@ -760,7 +760,7 @@ end
 # Step 1: Add new column (instant, no lock)
 class AddViewsBigintToPosts < ActiveRecord::Migration[8.0]
   def change
-    add_column :posts, :views_bigint, :bigint
+    add_column :products, :views_bigint, :bigint
   end
 end
 
@@ -769,7 +769,7 @@ class BackfillViewsBigintOnPosts < ActiveRecord::Migration[8.0]
   disable_ddl_transaction!
 
   def up
-    Post.in_batches(of: 10_000) do |batch|
+    Product.in_batches(of: 10_000) do |batch|
       batch.update_all("views_bigint = views")
       sleep(0.1)  # Reduce DB load between batches
     end
@@ -780,8 +780,8 @@ end
 class SwapViewsColumns < ActiveRecord::Migration[8.0]
   def change
     safety_assured do
-      rename_column :posts, :views, :views_old
-      rename_column :posts, :views_bigint, :views
+      rename_column :products, :views, :views_old
+      rename_column :products, :views_bigint, :views
     end
   end
 end
@@ -1424,15 +1424,15 @@ const level42ErrorMonitoring: Level = {
 		codeExample: `# Current error handling: nothing
 class Api::V1::PostsController < ApplicationController
   def show
-    post = Post.find(params[:id])
-    render json: PostSerializer.new(post).serializable_hash.to_json
+    product = Product.find(params[:id])
+    render json: ProductSerializer.new(product).serializable_hash.to_json
   end
   # ActiveRecord::RecordNotFound => 500 Internal Server Error
   # No context, no alert, no grouping
 end
 
 # Production log:
-# [ERROR] ActiveRecord::RecordNotFound: Couldn't find Post with 'id'=999
+# [ERROR] ActiveRecord::RecordNotFound: Couldn't find Product with 'id'=999
 # ...and that's it. No user context, no request ID, no breadcrumbs.
 
 # Questions we can't answer:
@@ -1571,7 +1571,7 @@ end
 
 class Api::V1::PostsController < ApplicationController
   def create
-    post = Post.new(post_params)
+    product = Product.new(product_params)
 
     # Rails.error.handle: captures error but continues execution
     Rails.error.handle(fallback: nil) do
@@ -1579,7 +1579,7 @@ class Api::V1::PostsController < ApplicationController
     end
 
     if post.save
-      render json: PostSerializer.new(post).serializable_hash.to_json, status: :created
+      render json: ProductSerializer.new(product).serializable_hash.to_json, status: :created
     else
       render json: { errors: post.errors }, status: :unprocessable_entity
     end

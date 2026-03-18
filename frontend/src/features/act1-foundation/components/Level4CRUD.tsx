@@ -28,36 +28,36 @@ const STEPS: TerminalStep[] = [
 		title: 'Create',
 		description: (
 			<p className="text-sm text-muted-foreground">
-				Which command creates a new Post and saves it to the database?
+				Which command creates a new Product and saves it to the database?
 			</p>
 		),
 		commands: [
 			{
 				id: 'new',
-				label: 'Post.new(title: "Hello", body: "My first post")',
-				command: 'Post.new(title: "Hello", body: "My first post")',
+				label: 'Product.new(title: "Hello", body: "My first post")',
+				command: 'Product.new(title: "Hello", body: "My first post")',
 				correct: false,
 				feedback:
 					'"new" builds the object in memory but doesn\'t save it to the database. You need the method that persists immediately.',
 			},
 			{
 				id: 'insert',
-				label: 'Post.insert(title: "Hello", body: "My first post")',
-				command: 'Post.insert(title: "Hello", body: "My first post")',
+				label: 'Product.insert(title: "Hello", body: "My first post")',
+				command: 'Product.insert(title: "Hello", body: "My first post")',
 				correct: false,
 				feedback:
 					'"insert" does a raw SQL INSERT, skipping validations and callbacks. For the full lifecycle, pick the method that validates and saves in one step.',
 			},
 			{
 				id: 'create',
-				label: 'Post.create(title: "Hello", body: "My first post")',
-				command: 'Post.create(title: "Hello", body: "My first post")',
+				label: 'Product.create(title: "Hello", body: "My first post")',
+				command: 'Product.create(title: "Hello", body: "My first post")',
 				correct: true,
 			},
 		],
 		outputLines: [
 			{
-				text: '=> #<Post id: 1, title: "Hello", body: "My first post">',
+				text: '=> #<Product id: 1, title: "Hello", body: "My first post">',
 				color: 'cyan',
 			},
 		],
@@ -67,28 +67,28 @@ const STEPS: TerminalStep[] = [
 		title: 'Read',
 		description: (
 			<p className="text-sm text-muted-foreground">
-				Which command finds a post by its ID?
+				Which command finds a product by its ID?
 			</p>
 		),
 		commands: [
 			{
 				id: 'select',
-				label: 'Post.select(1)',
-				command: 'Post.select(1)',
+				label: 'Product.select(1)',
+				command: 'Product.select(1)',
 				correct: false,
 				feedback:
 					'"select" filters columns (like SQL SELECT columns), not records. You need the method that fetches a single record by primary key.',
 			},
 			{
 				id: 'find',
-				label: 'Post.find(1)',
-				command: 'Post.find(1)',
+				label: 'Product.find(1)',
+				command: 'Product.find(1)',
 				correct: true,
 			},
 			{
 				id: 'where',
-				label: 'Post.where(1)',
-				command: 'Post.where(1)',
+				label: 'Product.where(1)',
+				command: 'Product.where(1)',
 				correct: false,
 				feedback:
 					'"where" takes conditions like where(title: "Hello"), not a bare ID. You need the method designed for primary key lookups.',
@@ -96,7 +96,7 @@ const STEPS: TerminalStep[] = [
 		],
 		outputLines: [
 			{
-				text: '=> #<Post id: 1, title: "Hello", body: "My first post">',
+				text: '=> #<Product id: 1, title: "Hello", body: "My first post">',
 				color: 'cyan',
 			},
 		],
@@ -112,24 +112,24 @@ const STEPS: TerminalStep[] = [
 		commands: [
 			{
 				id: 'assign',
-				label: 'post.title = "Updated"',
-				command: 'post.title = "Updated"',
+				label: 'product.name = "Updated"',
+				command: 'product.name = "Updated"',
 				correct: false,
 				feedback:
 					'Assignment only changes the Ruby object in memory. You need the method that validates and persists to the DB in one call.',
 			},
 			{
 				id: 'update_column',
-				label: 'post.update_column(:title, "Updated")',
-				command: 'post.update_column(:title, "Updated")',
+				label: 'product.update_column(:title, "Updated")',
+				command: 'product.update_column(:title, "Updated")',
 				correct: false,
 				feedback:
 					'"update_column" skips validations and callbacks. You need the method that goes through the full Rails lifecycle.',
 			},
 			{
 				id: 'update',
-				label: 'post.update(title: "Updated")',
-				command: 'post.update(title: "Updated")',
+				label: 'product.update(title: "Updated")',
+				command: 'product.update(title: "Updated")',
 				correct: true,
 			},
 		],
@@ -140,7 +140,7 @@ const STEPS: TerminalStep[] = [
 		title: 'Destroy',
 		description: (
 			<p className="text-sm text-muted-foreground">
-				Which command removes the post and runs lifecycle callbacks?
+				Which command removes the product and runs lifecycle callbacks?
 			</p>
 		),
 		commands: [
@@ -154,14 +154,14 @@ const STEPS: TerminalStep[] = [
 			},
 			{
 				id: 'destroy',
-				label: 'post.destroy',
-				command: 'post.destroy',
+				label: 'product.destroy',
+				command: 'product.destroy',
 				correct: true,
 			},
 		],
 		outputLines: [
 			{
-				text: '=> #<Post id: 1, title: "Updated"> (destroyed)',
+				text: '=> #<Product id: 1, title: "Updated"> (destroyed)',
 				color: 'cyan',
 			},
 		],
@@ -171,30 +171,30 @@ const STEPS: TerminalStep[] = [
 		title: 'Verify',
 		description: (
 			<p className="text-sm text-muted-foreground">
-				Confirm the post was destroyed. Check the count.
+				Confirm the product was destroyed. Check the count.
 			</p>
 		),
 		commands: [
 			{
 				id: 'all-length',
-				label: 'Post.all.length',
-				command: 'Post.all.length',
+				label: 'Product.all.length',
+				command: 'Product.all.length',
 				correct: false,
 				feedback:
 					"all.length loads every record into memory just to count them. There's a more efficient way.",
 			},
 			{
 				id: 'exists',
-				label: 'Post.exists?',
-				command: 'Post.exists?',
+				label: 'Product.exists?',
+				command: 'Product.exists?',
 				correct: false,
 				feedback:
 					'exists? returns true/false, not a count. You need to see how many records remain.',
 			},
 			{
 				id: 'count',
-				label: 'Post.count',
-				command: 'Post.count',
+				label: 'Product.count',
+				command: 'Product.count',
 				correct: true,
 			},
 		],
@@ -214,20 +214,20 @@ function getCodeFiles({ currentStep }: { currentStep: number }) {
 			filename: 'CRUD_cheatsheet.rb',
 			language: 'ruby',
 			code: `# CREATE - Make new records
-Post.create(title: "Hello", body: "World")
-Post.new(title: "Draft").save
+Product.create(title: "Hello", body: "World")
+Product.new(title: "Draft").save
 
 # READ - Fetch records
-Post.all                    # All posts
-Post.find(1)               # By ID
-Post.find_by(title: "Hi")  # By attribute
+Product.all                    # All posts
+Product.find(1)               # By ID
+Product.find_by(title: "Hi")  # By attribute
 
 # UPDATE - Modify records
-post = Post.find(1)
-post.update(title: "New Title")
+post = Product.find(1)
+product.update(title: "New Title")
 
 # DELETE - Remove records
-post.destroy       # Runs callbacks
+product.destroy       # Runs callbacks
 post.delete        # Skips callbacks (avoid)`,
 			highlight: highlightLines,
 		},
@@ -238,7 +238,7 @@ function getDbState(furthestStep: number) {
 	if (furthestStep === 0) return 'No records yet';
 	if (furthestStep >= 1 && furthestStep <= 2) return '#1 "Hello"';
 	if (furthestStep === 3) return '#1 "Updated"';
-	return 'Table is empty (Post.count => 0)';
+	return 'Table is empty (Product.count => 0)';
 }
 
 export function Level4CRUD({ onComplete }: LevelComponentProps) {
@@ -270,7 +270,7 @@ export function Level4CRUD({ onComplete }: LevelComponentProps) {
 				<InstructionPanel>
 					<div className="p-4 border-b border-border">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							In Level 3, you created the Post model and ran the migration.
+							In Level 3, you created the Product model and ran the migration.
 							The table exists but it's empty. Open the Rails console and
 							learn the four operations every model needs: Create, Read,
 							Update, Delete.

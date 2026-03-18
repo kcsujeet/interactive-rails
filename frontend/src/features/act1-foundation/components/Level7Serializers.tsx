@@ -87,8 +87,8 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-single',
-		label: 'GET /api/v1/posts/1',
-		command: 'GET /api/v1/posts/1',
+		label: 'GET /api/v1/products/1',
+		command: 'GET /api/v1/products/1',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
 			{ text: '{"id":1,"title":"Hello","body":"World",', color: 'muted' },
@@ -103,8 +103,8 @@ const PROBES: ProbeConfig[] = [
 	},
 	{
 		id: 'get-collection',
-		label: 'GET /api/v1/posts',
-		command: 'GET /api/v1/posts',
+		label: 'GET /api/v1/products',
+		command: 'GET /api/v1/products',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
 			{
@@ -116,7 +116,7 @@ const PROBES: ProbeConfig[] = [
 				color: 'yellow',
 			},
 			{
-				text: ' {"id":2,"title":"Second","body":"Post","published_at":...,',
+				text: ' {"id":2,"title":"Second","body":"Product","published_at":...,',
 				color: 'muted',
 			},
 			{ text: '  "created_at":"...","updated_at":"..."}]', color: 'yellow' },
@@ -129,7 +129,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-mobile',
 		label: 'GET /posts/1 (mobile)',
-		command: 'GET /api/v1/posts/1 (mobile client)',
+		command: 'GET /api/v1/products/1 (mobile client)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
 			{
@@ -188,13 +188,13 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		stageId: 'request',
 		title: 'Incoming Request',
 		description:
-			'HTTP GET request for a post resource. The client expects clean, structured JSON.',
+			'HTTP GET request for a product resource. The client expects clean, structured JSON.',
 	},
 	router: {
 		stageId: 'router',
 		title: 'Router (from Level 5)',
 		description:
-			'Routes match correctly. GET /api/v1/posts/1 maps to posts#show. This stage works as expected.',
+			'Routes match correctly. GET /api/v1/products/1 maps to posts#show. This stage works as expected.',
 	},
 	controller: {
 		stageId: 'controller',
@@ -202,15 +202,15 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		description:
 			'The show action calls `render json: post`. This dumps the entire model as flat JSON with no filtering or structure.',
 		code: `def show
-  post = Post.find(params[:id])
+  post = Product.find(params[:id])
   render json: post  # Dumps everything!
 end`,
 	},
 	model: {
 		stageId: 'model',
-		title: 'Post Model (from Level 3)',
+		title: 'Product Model (from Level 3)',
 		description:
-			'The Post model stores title, body, and published_at. It works correctly. The problem is not the model itself, but how the controller renders it: every column is dumped without filtering.',
+			'The Product model stores title, body, and published_at. It works correctly. The problem is not the model itself, but how the controller renders it: every column is dumped without filtering.',
 	},
 	serializer: {
 		stageId: 'serializer',
@@ -243,25 +243,25 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET single post',
 		description: 'Fetch a single post resource',
 		method: 'GET',
-		path: '/api/v1/posts/1',
+		path: '/api/v1/products/1',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
 	{
 		id: 'get-index',
 		label: 'GET collection',
-		description: 'Fetch all posts as a collection',
+		description: 'Fetch all products as a collection',
 		method: 'GET',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
 	{
 		id: 'post-create',
 		label: 'POST create',
-		description: 'Create a new post resource',
+		description: 'Create a new product resource',
 		method: 'POST',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'author',
 		expectedResult: 'allowed',
 	},
@@ -270,7 +270,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'PATCH update',
 		description: 'Update an existing post',
 		method: 'PATCH',
-		path: '/api/v1/posts/1',
+		path: '/api/v1/products/1',
 		actor: 'author',
 		expectedResult: 'allowed',
 	},
@@ -279,7 +279,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET raw check',
 		description: 'Verify no timestamps leak through',
 		method: 'GET',
-		path: '/api/v1/posts/1',
+		path: '/api/v1/products/1',
 		actor: 'auditor',
 		expectedResult: 'allowed',
 	},
@@ -366,8 +366,8 @@ const installCommands: TerminalCommand[] = [
 	},
 	{
 		id: 'generate',
-		label: 'rails generate serializer Post',
-		command: 'rails generate serializer Post',
+		label: 'rails generate serializer Product',
+		command: 'rails generate serializer Product',
 		correct: false,
 		feedback:
 			'No generator is available yet. The gem must be installed first.',
@@ -480,7 +480,7 @@ const RENDER_OPTIONS: StepOption[] = [
 	},
 	{
 		id: 'serializer',
-		label: 'render json: PostSerializer.new(post)\n  .serializable_hash.to_json',
+		label: 'render json: ProductSerializer.new(product)\n  .serializable_hash.to_json',
 		correct: true,
 	},
 ];
@@ -575,16 +575,16 @@ function getCodeFiles(
 	// Observe phase: show the broken controller
 	if (phase === 'observe') {
 		files.push({
-			filename: 'app/controllers/api/v1/posts_controller.rb',
+			filename: 'app/controllers/api/v1/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::PostsController < ApplicationController
+			code: `class Api::V1::ProductsController < ApplicationController
   def show
-    post = Post.find(params[:id])
+    product = Product.find(params[:id])
     render json: post  # Dumps everything!
   end
 
   def index
-    posts = Post.all
+    products = Product.all
     render json: posts  # Raw array dump
   end
 end`,
@@ -597,11 +597,11 @@ end`,
 
 	if (furthestStep === 0) {
 		files.push({
-			filename: 'app/controllers/api/v1/posts_controller.rb',
+			filename: 'app/controllers/api/v1/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::PostsController < ApplicationController
+			code: `class Api::V1::ProductsController < ApplicationController
   def show
-    post = Post.find(params[:id])
+    product = Product.find(params[:id])
     render json: post  # Dumps everything!
   end
 end`,
@@ -654,7 +654,7 @@ end`,
 				? selectedAttrs
 						.map((a) => {
 							if (a === 'published_at') {
-								return `  attribute :published_at do |post|\n    post.published_at&.strftime("%B %d, %Y")\n  end`;
+								return `  attribute :published_at do |post|\n    product.listed_at&.strftime("%B %d, %Y")\n  end`;
 							}
 							return `  attribute :${a}`;
 						})
@@ -662,9 +662,9 @@ end`,
 				: '  # attributes...';
 
 		files.push({
-			filename: 'app/serializers/post_serializer.rb',
+			filename: 'app/serializers/product_serializer.rb',
 			language: 'ruby',
-			code: `class PostSerializer < BaseSerializer
+			code: `class ProductSerializer < BaseSerializer
 ${attrLines}
 end`,
 			highlight: selectedAttrs.map((_, i) => i + 2),
@@ -673,18 +673,18 @@ end`,
 
 	if (furthestStep >= 5) {
 		files.push({
-			filename: 'app/controllers/api/v1/posts_controller.rb',
+			filename: 'app/controllers/api/v1/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::PostsController < ApplicationController
+			code: `class Api::V1::ProductsController < ApplicationController
   def show
-    post = Post.find(params[:id])
-    render json: PostSerializer.new(post)
+    product = Product.find(params[:id])
+    render json: ProductSerializer.new(product)
                    .serializable_hash.to_json
   end
 
   def index
-    posts = Post.all
-    render json: PostSerializer.new(posts)
+    products = Product.all
+    render json: ProductSerializer.new(products)
                    .serializable_hash.to_json
   end
 end`,
@@ -1319,7 +1319,7 @@ export function Level7Serializers({ onComplete }: LevelComponentProps) {
 												Define Attributes
 											</h3>
 											<p className="text-sm text-muted-foreground">
-												Your Post model has{' '}
+												Your Product model has{' '}
 												{ATTRIBUTES.length} columns.
 												Pick the domain attributes
 												clients need. Skip bookkeeping
@@ -1366,7 +1366,7 @@ export function Level7Serializers({ onComplete }: LevelComponentProps) {
 											{/* Live serializer preview */}
 											<div className="bg-zinc-100 dark:bg-zinc-900 rounded-lg p-4 font-mono text-sm">
 												<div className="text-zinc-500 dark:text-zinc-400">
-													class PostSerializer {'<'}{' '}
+													class ProductSerializer {'<'}{' '}
 													BaseSerializer
 												</div>
 												<div className="mt-2">

@@ -59,7 +59,7 @@ const PROBES = [
 			{ text: '', color: 'muted' },
 			{ text: '0 results for "running"', color: 'red' },
 			{
-				text: 'Post titled "Running Tests in RSpec" not found.',
+				text: 'Product named "Running Tests in RSpec" not found.',
 				color: 'muted',
 			},
 			{ text: 'LIKE has no stemming: "running" != "run"', color: 'red' },
@@ -283,7 +283,7 @@ const generateMigrationCommands = [
 		label: 'rails generate model SearchIndex',
 		correct: false,
 		feedback:
-			'Full-text search does not need a separate model. You add a search column and index to the existing posts table via a migration.',
+			'Full-text search does not need a separate model. You add a search column and index to the existing products table via a migration.',
 	},
 	{
 		id: 'correct',
@@ -362,15 +362,15 @@ const SCOPE_OPTIONS = [
 const SERVICE_OPTIONS = [
 	{
 		id: 'wrong-keep-like',
-		label: 'Post.where("title LIKE :q OR body LIKE :q", q: "%#{@query}%")',
+		label: 'Product.where("title LIKE :q OR body LIKE :q", q: "%#{@query}%")',
 		correct: false,
 		feedback:
 			'That is the same LIKE query you are replacing. You just defined a search scope on the model that uses the GIN index.',
 	},
-	{ id: 'correct', label: 'Post.search(@query)', correct: true },
+	{ id: 'correct', label: 'Product.search(@query)', correct: true },
 	{
 		id: 'wrong-raw-tsquery',
-		label: 'Post.where("searchable @@ plainto_tsquery(?)", @query)',
+		label: 'Product.where("searchable @@ plainto_tsquery(?)", @query)',
 		correct: false,
 		feedback:
 			'Writing raw SQL defeats the purpose of the gem. You already defined a clean search scope that handles tsvector, ranking, and stemming.',

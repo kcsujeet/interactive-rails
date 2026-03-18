@@ -14,7 +14,7 @@ const room1: Room = {
 	briefing: `
     Welcome to your first Rails optimization challenge!
 
-    The Post model is querying its associated Author for each post - a classic N+1 pattern.
+    The Product model is querying its associated Author for each post - a classic N+1 pattern.
     Watch the metrics panel and notice how the query count increases linearly with the number of posts.
   `,
 	objective: {
@@ -32,7 +32,7 @@ const room1: Room = {
 		{
 			type: 'model',
 			position: { x: 550, y: 250 },
-			config: { name: 'Post', hasMany: ['author'] },
+			config: { name: 'Product', hasMany: ['author'] },
 			locked: true,
 		},
 		{
@@ -51,7 +51,7 @@ const room1: Room = {
 	stabilityThreshold: 0,
 	timeLimit: 15,
 	successMessage:
-		'You observed the N+1 pattern! Notice how each Post generates an extra Author query.',
+		'You observed the N+1 pattern! Notice how each Product generates an extra Author query.',
 };
 
 const room2: Room = {
@@ -62,7 +62,7 @@ const room2: Room = {
     Now that you've seen the problem, let's fix it!
 
     In Rails, you can use includes(:author) to eager load associations.
-    Click on the Post model and enable eager loading for the Author association.
+    Click on the Product model and enable eager loading for the Author association.
 
     Watch the query count drop dramatically!
   `,
@@ -74,9 +74,9 @@ const room2: Room = {
 			minStability: 70,
 		},
 		hints: [
-			'Click on the Post model node',
+			'Click on the Product model node',
 			'Enable "eager load" for the Author association',
-			'This is equivalent to Post.includes(:author)',
+			'This is equivalent to Product.includes(:author)',
 		],
 	},
 	initialNodes: [
@@ -86,7 +86,7 @@ const room2: Room = {
 		{
 			type: 'model',
 			position: { x: 550, y: 250 },
-			config: { name: 'Post', hasMany: ['author'], eagerLoad: [] },
+			config: { name: 'Product', hasMany: ['author'], eagerLoad: [] },
 			locked: false,
 		},
 		{
@@ -137,7 +137,7 @@ const room3: Room = {
 		{
 			type: 'model',
 			position: { x: 550, y: 250 },
-			config: { name: 'Post', hasMany: ['author'], eagerLoad: ['author'] },
+			config: { name: 'Product', hasMany: ['author'], eagerLoad: ['author'] },
 			locked: false,
 		},
 		{
@@ -195,7 +195,7 @@ const bossRoom: BossRoom = {
 		{
 			type: 'model',
 			position: { x: 500, y: 200 },
-			config: { name: 'Post', hasMany: ['author', 'comments'], eagerLoad: [] },
+			config: { name: 'Product', hasMany: ['author', 'comments'], eagerLoad: [] },
 			locked: false,
 		},
 		{
@@ -207,7 +207,7 @@ const bossRoom: BossRoom = {
 		{
 			type: 'model',
 			position: { x: 500, y: 400 },
-			config: { name: 'Comment', hasMany: ['replies'], eagerLoad: [] },
+			config: { name: 'Review', hasMany: ['replies'], eagerLoad: [] },
 			locked: false,
 		},
 		{ type: 'database', position: { x: 700, y: 300 }, locked: false },

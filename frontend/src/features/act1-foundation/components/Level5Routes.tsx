@@ -119,13 +119,13 @@ const PROBES: ProbeConfig[] = [
 	},
 	{
 		id: 'get-api-posts',
-		label: 'GET /api/v1/posts',
-		command: 'GET /api/v1/posts',
+		label: 'GET /api/v1/products',
+		command: 'GET /api/v1/products',
 		responseLines: [
 			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'No route matches [GET] "/api/v1/posts"',
+				text: 'No route matches [GET] "/api/v1/products"',
 				color: 'yellow',
 			},
 			{
@@ -157,7 +157,7 @@ const PROBE_PIPELINE_MAP: Record<
 		routerBadge: '404!',
 	},
 	'get-api-posts': {
-		routerSublabel: 'GET /api/v1/posts',
+		routerSublabel: 'GET /api/v1/products',
 		routerBadge: '404!',
 	},
 };
@@ -191,9 +191,9 @@ end`,
 	},
 	model: {
 		stageId: 'model',
-		title: 'Post Model',
+		title: 'Product Model',
 		description:
-			'The Post model works perfectly in the console (Level 3-4). But the outside world cannot trigger it because requests never reach the controller.',
+			'The Product model works perfectly in the console (Level 3-4). But the outside world cannot trigger it because requests never reach the controller.',
 	},
 	response: {
 		stageId: 'response',
@@ -215,19 +215,19 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'get-index',
-		label: 'List all posts',
+		label: 'List all products',
 		description: 'Fetch the collection of posts',
 		method: 'GET',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
 	{
 		id: 'post-create',
-		label: 'Create a post',
-		description: 'Submit a new post',
+		label: 'Create a product',
+		description: 'Submit a new product',
 		method: 'POST',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
@@ -236,25 +236,25 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Show one post',
 		description: 'Fetch a single post by ID',
 		method: 'GET',
-		path: '/api/v1/posts/1',
+		path: '/api/v1/products/1',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
 	{
 		id: 'patch-update',
-		label: 'Update a post',
+		label: 'Update a product',
 		description: 'Modify an existing post',
 		method: 'PATCH',
-		path: '/api/v1/posts/1',
+		path: '/api/v1/products/1',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
 	{
 		id: 'delete-destroy',
-		label: 'Delete a post',
-		description: 'Remove a post by ID',
+		label: 'Delete a product',
+		description: 'Remove a product by ID',
 		method: 'DELETE',
-		path: '/api/v1/posts/1',
+		path: '/api/v1/products/1',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
@@ -377,23 +377,23 @@ const viewRoutesOutput: TerminalOutputLine[] = [
 		color: 'muted',
 	},
 	{
-		text: '  api_v1_posts  GET     /api/v1/posts(.:format)        api/v1/posts#index',
+		text: '  api_v1_posts  GET     /api/v1/products(.:format)        api/v1/posts#index',
 		color: 'green',
 	},
 	{
-		text: '               POST    /api/v1/posts(.:format)        api/v1/posts#create',
+		text: '               POST    /api/v1/products(.:format)        api/v1/posts#create',
 		color: 'cyan',
 	},
 	{
-		text: '   api_v1_post  GET     /api/v1/posts/:id(.:format)    api/v1/posts#show',
+		text: '   api_v1_post  GET     /api/v1/products/:id(.:format)    api/v1/posts#show',
 		color: 'green',
 	},
 	{
-		text: '               PATCH   /api/v1/posts/:id(.:format)    api/v1/posts#update',
+		text: '               PATCH   /api/v1/products/:id(.:format)    api/v1/posts#update',
 		color: 'yellow',
 	},
 	{
-		text: '               DELETE  /api/v1/posts/:id(.:format)    api/v1/posts#destroy',
+		text: '               DELETE  /api/v1/products/:id(.:format)    api/v1/posts#destroy',
 		color: 'red',
 	},
 ];
@@ -456,13 +456,13 @@ const OPTION_STEP_CONFIG: Record<
 	1: {
 		title: 'Add Namespace',
 		description:
-			'The resource creates /posts, but your API controller lives at Api::V1::PostsController. How do you nest routes under /api/v1/?',
+			'The resource creates /posts, but your API controller lives at Api::V1::ProductsController. How do you nest routes under /api/v1/?',
 		options: NAMESPACE_OPTIONS,
 	},
 	3: {
 		title: 'Trace the Request Lifecycle',
 		description:
-			'When a client sends GET /api/v1/posts, what is the correct order of the request lifecycle?',
+			'When a client sends GET /api/v1/products, what is the correct order of the request lifecycle?',
 		options: TRACE_OPTIONS,
 	},
 };
@@ -534,7 +534,7 @@ end`,
 			language: 'ruby',
 			code: `Rails.application.routes.draw do
   resources :posts
-  # But this creates /posts, not /api/v1/posts
+  # But this creates /posts, not /api/v1/products
   # We need namespaces!
 end`,
 			highlight: [2],
@@ -562,11 +562,11 @@ end`,
 			language: 'ruby',
 			code: `# rails routes
 #
-# GET    /api/v1/posts          => api/v1/posts#index
-# POST   /api/v1/posts          => api/v1/posts#create
-# GET    /api/v1/posts/:id      => api/v1/posts#show
-# PATCH  /api/v1/posts/:id      => api/v1/posts#update
-# DELETE /api/v1/posts/:id      => api/v1/posts#destroy`,
+# GET    /api/v1/products          => api/v1/posts#index
+# POST   /api/v1/products          => api/v1/posts#create
+# GET    /api/v1/products/:id      => api/v1/posts#show
+# PATCH  /api/v1/products/:id      => api/v1/posts#update
+# DELETE /api/v1/products/:id      => api/v1/posts#destroy`,
 			highlight: [3, 4, 5, 6, 7],
 		});
 	}
@@ -575,12 +575,12 @@ end`,
 		files.push({
 			filename: 'Request Lifecycle',
 			language: 'ruby',
-			code: `# GET /api/v1/posts
+			code: `# GET /api/v1/products
 #
-# 1. Request arrives (GET /api/v1/posts)
-# 2. Router matches: Api::V1::PostsController#index
-# 3. Controller calls: @posts = Post.all
-# 4. Model queries DB: SELECT * FROM posts
+# 1. Request arrives (GET /api/v1/products)
+# 2. Router matches: Api::V1::ProductsController#index
+# 3. Controller calls: @posts = Product.all
+# 4. Model queries DB: SELECT * FROM products
 # 5. Controller renders: render json: @posts
 # 6. Response: 200 OK with JSON body`,
 			highlight: [3, 4, 5, 6, 7, 8],

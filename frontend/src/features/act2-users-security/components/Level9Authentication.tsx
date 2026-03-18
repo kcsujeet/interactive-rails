@@ -89,11 +89,11 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'delete-no-token',
 		label: 'DELETE without token',
-		command: 'DELETE /api/v1/posts/1 (no Authorization header)',
+		command: 'DELETE /api/v1/products/1 (no Authorization header)',
 		responseLines: [
 			{ text: 'HTTP/1.1 204 No Content', color: 'red' },
 			{ text: '', color: 'muted' },
-			{ text: 'Post #1 deleted. No token was required.', color: 'yellow' },
+			{ text: 'Product #1 deleted. No token was required.', color: 'yellow' },
 			{
 				text: 'Anyone on the internet can destroy your data.',
 				color: 'red',
@@ -103,7 +103,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'create-no-token',
 		label: 'POST without token',
-		command: 'POST /api/v1/posts (no Authorization header)',
+		command: 'POST /api/v1/products (no Authorization header)',
 		responseLines: [
 			{ text: 'HTTP/1.1 201 Created', color: 'red' },
 			{
@@ -111,7 +111,7 @@ const PROBES: ProbeConfig[] = [
 				color: 'muted',
 			},
 			{
-				text: 'Post created with no user attached. Who wrote it? Nobody knows.',
+				text: 'Product created with no user attached. Who wrote it? Nobody knows.',
 				color: 'yellow',
 			},
 		],
@@ -184,15 +184,15 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 			'The controller processes every request blindly. It cannot tell if the requester is a logged-in user, an admin, or a random stranger. current_user is always nil.',
 		code: `class PostsController < ApplicationController
   def destroy
-    post = Post.find(params[:id])
-    post.destroy  # Who deleted this? No idea.
+    product = Product.find(params[:id])
+    product.destroy  # Who deleted this? No idea.
     head :no_content
   end
 end`,
 	},
 	model: {
 		stageId: 'model',
-		title: 'Post Model',
+		title: 'Product Model',
 		description:
 			'The model executes every operation the controller asks for. Posts are created with user_id: nil because there is no authenticated user to attach.',
 	},
@@ -214,16 +214,16 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET with valid token',
 		description: 'Authenticated user fetches posts',
 		method: 'GET',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'user_1 (valid token)',
 		expectedResult: 'allowed',
 	},
 	{
 		id: 'valid-create',
 		label: 'POST with valid token',
-		description: 'Authenticated user creates a post',
+		description: 'Authenticated user creates a product',
 		method: 'POST',
-		path: '/api/v1/posts',
+		path: '/api/v1/products',
 		actor: 'user_1 (valid token)',
 		expectedResult: 'allowed',
 	},
@@ -232,7 +232,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'DELETE without token',
 		description: 'Anonymous request tries to delete',
 		method: 'DELETE',
-		path: '/api/v1/posts/1',
+		path: '/api/v1/products/1',
 		actor: 'anonymous (no token)',
 		expectedResult: 'blocked',
 	},
@@ -241,7 +241,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'PATCH with expired token',
 		description: 'Revoked session token tries to update',
 		method: 'PATCH',
-		path: '/api/v1/posts/1',
+		path: '/api/v1/products/1',
 		actor: 'user_2 (expired token)',
 		expectedResult: 'blocked',
 	},
@@ -250,7 +250,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'DELETE with valid token',
 		description: 'Authenticated user deletes own post',
 		method: 'DELETE',
-		path: '/api/v1/posts/5',
+		path: '/api/v1/products/5',
 		actor: 'user_1 (valid token)',
 		expectedResult: 'allowed',
 	},
@@ -530,18 +530,18 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 	// Observe phase: show the unprotected controller
 	if (phase === 'observe') {
 		files.push({
-			filename: 'app/controllers/posts_controller.rb',
+			filename: 'app/controllers/products_controller.rb',
 			language: 'ruby',
 			code: `class PostsController < ApplicationController
   # No authentication. Anyone can do anything.
 
   def create
-    post = Post.create!(post_params)
+    product = Product.create!(product_params)
     render json: post, status: :created
   end
 
   def destroy
-    Post.find(params[:id]).destroy
+    Product.find(params[:id]).destroy
     head :no_content
   end
 end`,
@@ -553,18 +553,18 @@ end`,
 	// Build / activate / reward phases: evolving code
 	if (furthestStep <= 1) {
 		files.push({
-			filename: 'app/controllers/posts_controller.rb',
+			filename: 'app/controllers/products_controller.rb',
 			language: 'ruby',
 			code: `class PostsController < ApplicationController
   # No authentication. Anyone can do anything.
 
   def create
-    post = Post.create!(post_params)
+    product = Product.create!(product_params)
     render json: post, status: :created
   end
 
   def destroy
-    Post.find(params[:id]).destroy
+    Product.find(params[:id]).destroy
     head :no_content
   end
 end`,
