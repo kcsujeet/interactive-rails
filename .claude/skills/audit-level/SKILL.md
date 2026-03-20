@@ -45,6 +45,26 @@ The visualization shape, direction, and structure should emerge from the concept
 
 **Visualization uniqueness is non-negotiable.** Before designing or approving a visualization, check adjacent levels (N-2 to N+2) for visual similarity. If two levels use the same shape (e.g., both use block grids, both use stacked bars, both use left-to-right pipelines), redesign one of them. Each level's visualization must be visually distinct at a glance. Ask: "If I showed a player screenshots of levels N-1, N, and N+1 side by side, could they tell which is which without reading the title?" If not, the visualizations are too similar and at least one needs a redesign. Always think about what visual metaphor best represents the specific concept, not what is easiest to build.
 
+## CRITICAL: These Rules Apply During Implementation, Not Just Audits
+
+**Every check in this skill applies when BUILDING a level, not just when reviewing one.** The audit skill is not a post-hoc review tool. It is the standard for how levels are built. If you are writing animation frame arrays, code preview boundaries, connector definitions, or zone layouts, you must verify them against these checks AS YOU WRITE THEM.
+
+The following bugs were all caused by skipping implementation-time verification and treating this skill as audit-only:
+
+| Bug | What went wrong | What should have happened |
+|-----|----------------|--------------------------|
+| Observe frames referenced S3 | Frames were copied mechanically without checking if S3 exists in the "before" state | Zone existence check (section 3 below) before writing any frame |
+| Code preview revealed answers | Used `furthestStep` as code preview index without checking what the player sees | Code preview boundary check (Phase 2 checklist) before writing `getCodeFiles` |
+| Direct upload used wrong connector | Reused connB (App<->S3) for Client->S3 flow without checking the data path | Connector accuracy check (visualization accuracy checklist) before writing each frame |
+| Fabricated technical claim about `create_before_direct_upload!` | Assumed API behavior instead of verifying | Technical claims must be verified against docs/source before writing frames |
+| Reward animation skipped steps in real flow | Concurrent upload animation stopped at "stored on S3" without the attach step. An orphaned blob on S3 is not a completed upload. | Write out the COMPLETE real-world flow before writing frames. Every step the real system performs must have a frame. |
+| Reward scenarios split one user action into multiple buttons | "Direct upload" and "Attach blob" were separate buttons, but a user just clicks "Upload photo" | Each stress test button = one user action. The animation plays the full technical flow triggered by that action. |
+| React Flow container used fixed height | Used `h-72` instead of `flex-1 relative`, unlike every other PipelineFlow level | Always use `flex-1 relative` for React Flow containers so they fill available space. Check how the canonical reference (L12) renders its PipelineFlow before building a custom React Flow visualization. |
+
+**Do not treat frame arrays as mechanical data to wire up.** Each frame is a claim about how the real system works. Verify the claim before writing the frame.
+
+**Every animation must show the COMPLETE flow for its user action.** Before writing frames, write out every step the real system performs for that action. If the flow has 5 steps and you only animate 3, the player learns an incomplete concept. An upload that stops at "stored on S3" without attaching the blob teaches the player that direct upload ends at S3, which is wrong.
+
 ## Step -1: Narrative Reasoning (DO THIS BEFORE ANYTHING ELSE)
 
 **Before any structural check, before any visualization review, before reading the code: answer these questions about the level's story.** This is the foundation everything else is built on. If the story is wrong, no amount of correct animation or structural compliance matters.
@@ -68,6 +88,10 @@ Example of getting this RIGHT: The player has been saving files manually to disk
 ### 3. Does the visualization match the "before" state?
 
 The zones, nodes, and flow in the observe phase must reflect what actually exists in the "before" code. If the code saves files to the app server's local disk, the visualization should NOT show an S3 zone. If Active Storage isn't installed, there's no blob tracking. The visualization must be honest about what the player's app looks like right now.
+
+**Check observe probe animation frames.** For each probe, verify that the animation frame data only references zones/connectors that exist in the "before" state. If a zone (e.g., S3 Storage) is introduced by the build phase, no observe probe frame should set state on that zone. Case study: L35's observe probes originally set `s3` and `connB` state, but S3 doesn't exist until Active Storage is configured in the build phase.
+
+**Check zone rendering is conditional.** If the observe and reward phases show different numbers of zones (e.g., 2 zones in observe, 3 in reward), verify that `renderUploadPipeline` (or equivalent) conditionally renders zones based on phase. Don't render zones that don't exist in the current narrative state.
 
 ### 4. Does the build phase bridge from "before" to "after"?
 
@@ -260,6 +284,7 @@ For hub-and-spoke coordinates, bidirectional edges, satellite state rules, and s
 - [ ] **Each zone/box represents a real architectural component**, not an abstract concept or a type of request.
 - [ ] **The order of zones matches the real processing order.**
 - [ ] **Connectors exist between every adjacent zone.**
+- [ ] **Connectors accurately represent the data path for each animation.** If a scenario's data flow bypasses a zone (e.g., "direct upload" bypasses the App Server), the animation must NOT use the connector that goes through that zone. Add a separate bypass connector if needed. Case study: L35's direct upload animation originally used `connB` (App Server <-> S3), which visually showed data flowing through the App Server to S3. The fix was adding `connC` (Client <-> S3 direct) rendered below the zone row. Apply the same principle to any scenario where data skips a zone: CDN redirects (client fetches from CDN, not through app), webhook callbacks (external service -> app directly), background job results (worker -> storage directly).
 - [ ] **Bypass/skip scenarios are visually distinct** (dashed border, muted label, "(bypassed)").
 - [ ] **The "not reached" state is shown** (dimmed/muted with "not reached" label).
 - [ ] **The idle state shows the same structural elements as the active state.** Table headers, zone outlines, node shapes, and lane labels must be visible before any probe fires. Use placeholder rows inside the existing structure, not a different render path.
@@ -371,8 +396,10 @@ The build phase must cover the **complete workflow**:
 - [ ] Terminal steps use `TerminalChoiceStep` with `buildTerminalHistory` for cumulative shell history
 - [ ] Code selection steps use `OptionCard`
 - [ ] Left panel shows scenario text + `StepProgress` pills
-- [ ] Right panel code preview evolves with `stepper.furthestStep`
-- [ ] **Code preview has no empty states.** Check the `getCodeFiles` function: every value of `furthestStep` (0, 1, 2, ... N) must produce non-empty code. A common bug is a ternary chain (`furthestStep >= 3 ? ... : furthestStep >= 2 ? ... : ''`) where the fallback is an empty string, leaving the code panel blank after completing a step. Every step completion should show a meaningful code snapshot (skeleton with placeholder comments for what comes next).
+- [ ] Right panel code preview evolves progressively as steps are completed
+- [ ] **Code preview has no empty states.** Check the `getCodeFiles` function: every step state must produce non-empty code. A common bug is a ternary chain where the fallback is an empty string, leaving the code panel blank after completing a step. Every step completion should show a meaningful code snapshot (skeleton with placeholder comments for what comes next).
+- [ ] **Code preview does not reveal the answer for the current step (non-negotiable).** While the player is WORKING ON step N (not yet completed), the right panel must show the result of step N-1 (context), NOT the result of step N (the answer). Common bug: using `stepper.furthestStep` or `stepper.currentStep` directly as the code preview index, which shows the current step's result code before the player has selected it. Fix: pass `isCurrentStepCompleted ? currentStep : currentStep - 1` as the "completedStep" to `getCodeFiles`. Case study: L35 showed the correct `has_one_attached` model code in the right panel while the player was still choosing between model attachment options.
+- [ ] **Verify by mental walkthrough.** For each OptionCard step, compare: (a) the correct answer's code snippet, and (b) the code preview shown while working on that step. If any distinctive string from (a) appears in (b), the answer is revealed.
 - [ ] `ErrorFeedback` component is used for wrong-answer feedback (not inline error divs)
 - [ ] Correct answer is never the first option
 - [ ] All options use the same color
@@ -476,6 +503,7 @@ For StressTestPanel response lines rules, button label conventions, and custom r
 - [ ] **Every step requires a real decision.** If a step's correct answer is "do nothing" or "let it happen automatically," it's not a real step. The player should actively build something at every step.
 - [ ] **Steps don't reveal each other's answers.** If Step 0's correct option contains the exact code Step 1 will ask about, the player can read ahead. Use placeholders (`[...]`, `...`) in earlier steps when later steps will fill in the details.
 - [ ] **Code preview evolves progressively.** Each completed step should visibly change the right panel code. If two steps produce the same code preview, one of them feels invisible.
+- [ ] **Code preview never reveals the current step's answer.** The right panel must show the result of the PREVIOUS step while the player works on the current step. Only after completion should it update to show what was just built. See the Phase 2 checklist for implementation details.
 - [ ] **Wrong options have distinct, teaching feedback.** Each wrong option should fail for a different reason that teaches something specific. Don't have two wrong options that are wrong for essentially the same reason.
 - [ ] **The reward phase matches the level type.** Types 3/4: interactive (StressTestPanel or custom controls). Type 2: static before/after. Passive auto-incrementing counters are never allowed for any type.
 
@@ -526,6 +554,7 @@ Verify that any custom animations follow Tailwind v4 / Lightning CSS constraints
 - [ ] **No inline `style` attributes for animations.** Use Tailwind `animate-*` classes instead of inline `animation:` styles, so the build system includes the referenced keyframes.
 - [ ] **`FlowConnector` used instead of `ArrowDown` icons.**
 - [ ] **`FlowConnector` direction matches the visualization's data flow.** Dots must travel in the same direction data flows in the visualization. A mismatch (e.g., vertical dots in a left-to-right layout) breaks the visual metaphor.
+- [ ] **React Flow containers use `flex-1 relative`, never fixed heights.** The React Flow `<div>` wrapper must use `flex-1 relative` so it fills available space, matching how PipelineFlow levels (L12 canonical) render. Never use fixed heights like `h-56`, `h-72`, etc. Fixed heights waste space or clip the canvas depending on panel size.
 
 ### Color Contrast Checks (Light + Dark Mode)
 

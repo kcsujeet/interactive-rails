@@ -5,12 +5,12 @@
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): Custom "Upload Pipeline" visualization.
- *   Three horizontal zones: Client -> App Server -> S3 Storage.
- *   Each probe plays a DISTINCT animation with different data flow
- *   directions, zone states, and bottlenecks:
- *   - Upload: left-to-right, memory gauge fills red
- *   - Download: right-to-left, worker blocked indicator
- *   - List: accumulation counter, bandwidth explosion
+ *   Two horizontal zones: Client -> App Server (with local disk).
+ *   No S3 yet (Active Storage hasn't been installed).
+ *   Each probe plays a DISTINCT animation:
+ *   - Upload: Client -> App, File.binwrite to disk, memory spike
+ *   - Download: App reads from disk, streams to Client, worker blocked
+ *   - List: accumulation of 5MB originals from disk, no variants
  *   ProbeTerminal fires upload scenarios; FlowConnectors animate data flow.
  *   Player discovers: memory spikes, no variants, downloads through Rails.
  *
@@ -23,7 +23,8 @@
  *   Step 5: Create direct upload endpoint (OptionCard)
  *
  * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Direct Upload" button
- * Phase 4 (ADVANTAGE - reward): Same pipeline, per-scenario animations.
+ * Phase 4 (ADVANTAGE - reward): Three-zone pipeline (Client, App Server, S3).
+ *   S3 appears for the first time, reinforcing that Active Storage added it.
  *   Allowed: Files go directly to S3 (bypassing app memory), variants served via CDN.
  *   Blocked: Invalid content type, oversized files caught by contract.
  *
@@ -32,15 +33,26 @@
  */
 
 import {
+	BaseEdge,
+	EdgeLabelRenderer,
+	getStraightPath,
+	Handle,
+	Position,
+	ReactFlow,
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+import type { Edge, EdgeProps, Node, ReactFlowInstance } from '@xyflow/react';
+import {
 	ArrowRight,
 	Cloud,
+	HardDrive,
 	Monitor,
 	Play,
 	Server,
 	Star,
 	Zap,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -58,7 +70,6 @@ import {
 	type ValidationResult,
 } from '@/components/levels';
 import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
-import { FlowConnector } from '@/components/levels/FlowConnector';
 import {
 	type ProbeConfig,
 	ProbeTerminal,
@@ -101,16 +112,17 @@ interface ConnectorVizState {
 
 interface AnimationFrame {
 	client?: Partial<ZoneState>;
-	connA?: Partial<ConnectorVizState>;
+	connA?: Partial<ConnectorVizState>; // Client <-> App Server
 	app?: Partial<ZoneState>;
-	connB?: Partial<ConnectorVizState>;
+	connB?: Partial<ConnectorVizState>; // App Server <-> S3
+	connC?: Partial<ConnectorVizState>; // Client <-> S3 direct (bypasses App)
 	s3?: Partial<ZoneState>;
 	memoryMB?: number;
 	warningMessage?: string;
 	bandwidthLabel?: string;
 }
 
-// ── Observe: Upload probe (left-to-right, memory spike) ──
+// ── Observe: Upload probe (Client -> App, disk write, no S3) ──
 
 const UPLOAD_PROBE_FRAMES: AnimationFrame[] = [
 	{
@@ -129,22 +141,16 @@ const UPLOAD_PROBE_FRAMES: AnimationFrame[] = [
 		memoryMB: 95,
 	},
 	{
-		connB: {
-			active: true,
-			reverse: false,
-			label: 'Relaying 5MB...',
-			dotColor: 'bg-red-500 dark:bg-red-400',
-		},
+		app: { label: 'File.binwrite to disk...', flash: 'amber' },
 	},
 	{
-		connB: { active: false, label: '' },
-		s3: { label: 'Stored', flash: 'green' },
+		app: { label: 'Saved to local disk', flash: 'amber' },
 		warningMessage:
-			'The entire 5MB file was buffered in Rails process memory. 10 concurrent uploads = 500MB memory spike. No presigned URL configured.',
+			'The entire 5MB file was buffered in Rails process memory. 10 concurrent uploads = 500MB memory spike. Files saved to local disk (lost on deploy, no CDN).',
 	},
 ];
 
-// ── Observe: Download probe (right-to-left, worker blocked) ──
+// ── Observe: Download probe (App -> Client, worker blocked, no S3) ──
 
 const DOWNLOAD_PROBE_FRAMES: AnimationFrame[] = [
 	{
@@ -152,19 +158,10 @@ const DOWNLOAD_PROBE_FRAMES: AnimationFrame[] = [
 		app: { label: 'send_file avatar_path', flash: 'amber' },
 	},
 	{
-		s3: { label: 'Reading...', flash: 'amber' },
-		connB: {
-			active: true,
-			reverse: true,
-			label: '5MB file data',
-			dotColor: 'bg-red-500 dark:bg-red-400',
-		},
-		app: { label: 'Loading 5MB into memory...', flash: 'red' },
+		app: { label: 'Reading 5MB from disk...', flash: 'red' },
 		memoryMB: 95,
 	},
 	{
-		connB: { active: false, label: '' },
-		s3: { label: '', flash: 'idle' },
 		connA: {
 			active: true,
 			reverse: true,
@@ -182,7 +179,7 @@ const DOWNLOAD_PROBE_FRAMES: AnimationFrame[] = [
 	},
 ];
 
-// ── Observe: List probe (accumulation, bandwidth explosion) ──
+// ── Observe: List probe (accumulation on App, no S3) ──
 
 const LIST_PROBE_FRAMES: AnimationFrame[] = [
 	{
@@ -190,20 +187,18 @@ const LIST_PROBE_FRAMES: AnimationFrame[] = [
 		app: { label: 'Rendering 25 users...', flash: 'amber' },
 	},
 	{
-		app: { label: 'User 1: avatar.url -> 5MB', flash: 'amber' },
-		s3: { label: 'Serving 5MB', flash: 'amber' },
-		bandwidthLabel: '5MB served',
+		app: { label: 'User 1: 5MB from disk', flash: 'amber' },
+		bandwidthLabel: '5MB',
 	},
 	{
-		app: { label: 'User 2: avatar.url -> 5MB', flash: 'amber' },
-		bandwidthLabel: '10MB served',
+		app: { label: 'User 2: 5MB from disk', flash: 'amber' },
+		bandwidthLabel: '10MB',
 	},
 	{
 		app: { label: '...x25 users, no variants!', flash: 'red' },
-		s3: { label: '125MB total', flash: 'red' },
-		bandwidthLabel: '125MB served (should be 375KB)',
+		bandwidthLabel: '125MB (should be 375KB with variants)',
 		warningMessage:
-			'Each avatar URL points to the 5MB original. No thumbnail variant defined. 25 users x 5MB = 125MB downloaded by the client. With a :thumb variant, that would be 25 x 15KB = 375KB.',
+			'Each avatar is the 5MB original from local disk. No thumbnail variant defined. 25 users x 5MB = 125MB downloaded by the client. With a :thumb variant, that would be 25 x 15KB = 375KB.',
 	},
 ];
 
@@ -213,9 +208,9 @@ const PROBE_FRAME_MAP: Record<string, AnimationFrame[]> = {
 	'list-avatars': LIST_PROBE_FRAMES,
 };
 
-// ── Reward: Direct upload (presigned URL, bypasses app memory) ──
+// ── Reward: Upload a 5MB photo (full user flow) ──
 
-const REWARD_DIRECT_UPLOAD: AnimationFrame[] = [
+const REWARD_UPLOAD_PHOTO: AnimationFrame[] = [
 	{
 		client: { label: 'Requesting presigned URL...', flash: 'blue' },
 		connA: {
@@ -232,12 +227,12 @@ const REWARD_DIRECT_UPLOAD: AnimationFrame[] = [
 			label: 'presigned URL',
 			dotColor: 'bg-emerald-500 dark:bg-emerald-400',
 		},
-		app: { label: 'Presigned URL issued', flash: 'green' },
+		app: { label: 'Blob record created (local DB)', flash: 'green' },
 	},
 	{
 		connA: { active: false, label: '' },
-		client: { label: 'Uploading direct to S3', flash: 'blue' },
-		connB: {
+		client: { label: 'Uploading direct to S3...', flash: 'blue' },
+		connC: {
 			active: true,
 			reverse: false,
 			label: '5MB direct',
@@ -246,17 +241,9 @@ const REWARD_DIRECT_UPLOAD: AnimationFrame[] = [
 		app: { label: 'Memory: 45MB (unchanged)', flash: 'green' },
 	},
 	{
-		connB: { active: false, label: '' },
-		s3: { label: 'Stored', flash: 'green' },
-		client: { label: 'Upload complete', flash: 'green' },
-	},
-];
-
-// ── Reward: Attach blob + generate variant ──
-
-const REWARD_ATTACH_VARIANT: AnimationFrame[] = [
-	{
-		client: { label: 'POST blob_signed_id', flash: 'blue' },
+		connC: { active: false, label: '' },
+		s3: { label: '5MB stored', flash: 'green' },
+		client: { label: 'Attaching to profile...', flash: 'blue' },
 		connA: {
 			active: true,
 			reverse: false,
@@ -266,29 +253,16 @@ const REWARD_ATTACH_VARIANT: AnimationFrame[] = [
 	},
 	{
 		connA: { active: false, label: '' },
-		app: { label: 'Attaching blob to user...', flash: 'green' },
-	},
-	{
-		app: { label: 'Generating :thumb variant', flash: 'green' },
-		connB: {
-			active: true,
-			reverse: false,
-			label: 'variant job',
-			dotColor: 'bg-emerald-500 dark:bg-emerald-400',
-		},
-	},
-	{
-		connB: { active: false, label: '' },
-		s3: { label: ':thumb 100x100 stored', flash: 'green' },
-		app: { label: 'Variant ready (15KB)', flash: 'green' },
+		app: { label: 'Avatar attached', flash: 'green' },
+		client: { label: 'Photo uploaded', flash: 'green' },
 	},
 ];
 
-// ── Reward: 10 concurrent direct uploads ──
+// ── Reward: 10 sellers upload product photos at once ──
 
 const REWARD_CONCURRENT: AnimationFrame[] = [
 	{
-		client: { label: '10 users requesting URLs...', flash: 'blue' },
+		client: { label: '10 sellers uploading...', flash: 'blue' },
 		connA: {
 			active: true,
 			reverse: false,
@@ -303,11 +277,11 @@ const REWARD_CONCURRENT: AnimationFrame[] = [
 			label: '10 presigned URLs',
 			dotColor: 'bg-emerald-500 dark:bg-emerald-400',
 		},
-		app: { label: '10 URLs issued, 45MB', flash: 'green' },
+		app: { label: '10 blob records (local DB)', flash: 'green' },
 	},
 	{
 		connA: { active: false, label: '' },
-		connB: {
+		connC: {
 			active: true,
 			reverse: false,
 			label: '10 direct uploads',
@@ -316,8 +290,19 @@ const REWARD_CONCURRENT: AnimationFrame[] = [
 		app: { label: 'Memory: 45MB (zero buffering)', flash: 'green' },
 	},
 	{
-		connB: { active: false, label: '' },
-		s3: { label: '10 files stored', flash: 'green' },
+		connC: { active: false, label: '' },
+		s3: { label: '10 photos stored', flash: 'green' },
+		client: { label: 'Attaching to profiles...', flash: 'blue' },
+		connA: {
+			active: true,
+			reverse: false,
+			label: '10 signed IDs',
+			dotColor: 'bg-emerald-500 dark:bg-emerald-400',
+		},
+	},
+	{
+		connA: { active: false, label: '' },
+		app: { label: '10 avatars attached', flash: 'green' },
 		client: { label: 'All 10 complete', flash: 'green' },
 	},
 ];
@@ -335,17 +320,29 @@ const REWARD_SERVE_VARIANT: AnimationFrame[] = [
 		},
 	},
 	{
+		connA: { active: false, label: '' },
+		app: { label: 'Variant not cached, generating...', flash: 'amber' },
+		connB: {
+			active: true,
+			reverse: false,
+			label: 'resize + store',
+			dotColor: 'bg-emerald-500 dark:bg-emerald-400',
+		},
+	},
+	{
+		connB: { active: false, label: '' },
+		s3: { label: ':thumb 100x100 stored', flash: 'green' },
+		app: { label: '302 redirect (freed instantly)', flash: 'green' },
 		connA: {
 			active: true,
 			reverse: true,
 			label: '302 redirect',
 			dotColor: 'bg-emerald-500 dark:bg-emerald-400',
 		},
-		app: { label: '302 redirect (freed instantly)', flash: 'green' },
 	},
 	{
 		connA: { active: false, label: '' },
-		connB: {
+		connC: {
 			active: true,
 			reverse: true,
 			label: '15KB thumbnail',
@@ -354,7 +351,7 @@ const REWARD_SERVE_VARIANT: AnimationFrame[] = [
 		s3: { label: 'Serving :thumb variant', flash: 'green' },
 	},
 	{
-		connB: { active: false, label: '' },
+		connC: { active: false, label: '' },
 		client: { label: 'Received 15KB (not 5MB)', flash: 'green' },
 		bandwidthLabel: '15KB thumbnail (was 5MB original)',
 	},
@@ -364,11 +361,11 @@ const REWARD_SERVE_VARIANT: AnimationFrame[] = [
 
 const REWARD_BLOCKED_CONTENT: AnimationFrame[] = [
 	{
-		client: { label: 'Uploading malware.exe...', flash: 'blue' },
+		client: { label: 'Requesting presigned URL...', flash: 'blue' },
 		connA: {
 			active: true,
 			reverse: false,
-			label: '.exe file',
+			label: 'content_type: .exe',
 			dotColor: 'bg-red-500 dark:bg-red-400',
 		},
 	},
@@ -377,10 +374,19 @@ const REWARD_BLOCKED_CONTENT: AnimationFrame[] = [
 		app: { label: 'validate_content_type!', flash: 'amber' },
 	},
 	{
+		connA: {
+			active: true,
+			reverse: true,
+			label: '422 rejected',
+			dotColor: 'bg-red-500 dark:bg-red-400',
+		},
 		app: { label: 'REJECTED: invalid content type', flash: 'red' },
+	},
+	{
+		connA: { active: false, label: '' },
 		client: { label: '422 Unprocessable Entity', flash: 'red' },
 		warningMessage:
-			'Content type application/x-msdownload is not in the allow list. File rejected before reaching S3.',
+			'Content type application/x-msdownload rejected at presigned URL stage. File never uploaded to S3.',
 	},
 ];
 
@@ -388,11 +394,11 @@ const REWARD_BLOCKED_CONTENT: AnimationFrame[] = [
 
 const REWARD_BLOCKED_OVERSIZED: AnimationFrame[] = [
 	{
-		client: { label: 'Uploading 50MB file...', flash: 'blue' },
+		client: { label: 'Requesting presigned URL...', flash: 'blue' },
 		connA: {
 			active: true,
 			reverse: false,
-			label: '50MB metadata',
+			label: 'byte_size: 50MB',
 			dotColor: 'bg-red-500 dark:bg-red-400',
 		},
 	},
@@ -401,20 +407,28 @@ const REWARD_BLOCKED_OVERSIZED: AnimationFrame[] = [
 		app: { label: 'AvatarUploadContract check...', flash: 'amber' },
 	},
 	{
+		connA: {
+			active: true,
+			reverse: true,
+			label: '422 rejected',
+			dotColor: 'bg-red-500 dark:bg-red-400',
+		},
 		app: { label: 'REJECTED: exceeds 10MB limit', flash: 'red' },
+	},
+	{
+		connA: { active: false, label: '' },
 		client: { label: '422 Unprocessable Entity', flash: 'red' },
 		warningMessage:
-			'Contract validation rejected the file: 50MB exceeds the 10MB limit. No upload to S3 occurred.',
+			'Contract validation rejected at presigned URL stage: 50MB exceeds the 10MB limit. File never uploaded to S3.',
 	},
 ];
 
 const REWARD_FRAMES_MAP: Record<string, AnimationFrame[]> = {
-	'direct-upload-avatar': REWARD_DIRECT_UPLOAD,
-	'attach-with-variant': REWARD_ATTACH_VARIANT,
-	'concurrent-uploads': REWARD_CONCURRENT,
-	'serve-variant': REWARD_SERVE_VARIANT,
-	'invalid-content-type': REWARD_BLOCKED_CONTENT,
-	'oversized-file': REWARD_BLOCKED_OVERSIZED,
+	'upload-photo': REWARD_UPLOAD_PHOTO,
+	'upload-10-photos': REWARD_CONCURRENT,
+	'view-profile': REWARD_SERVE_VARIANT,
+	'upload-exe': REWARD_BLOCKED_CONTENT,
+	'upload-50mb': REWARD_BLOCKED_OVERSIZED,
 };
 
 // ──────────────────────────────────────────────
@@ -848,17 +862,17 @@ const OPTION_STEP_CONFIG: Record<
 
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
-		id: 'direct-upload-avatar',
-		label: 'POST direct upload (5MB avatar)',
-		description: 'Client gets presigned URL, uploads directly to S3',
+		id: 'upload-photo',
+		label: 'POST upload 5MB photo',
+		description: 'Seller uploads a product photo',
 		method: 'POST',
-		path: '/api/v1/direct_uploads',
-		actor: 'authenticated user',
+		path: '/api/v1/users/1/avatar',
+		actor: 'seller',
 		expectedResult: 'allowed',
 		responseLines: [
 			{ text: '200 OK', color: 'green' },
 			{
-				text: 'Presigned URL issued. Client uploads directly to S3.',
+				text: 'Presigned URL -> direct S3 upload -> blob attached.',
 				color: 'cyan',
 			},
 			{
@@ -868,33 +882,19 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		],
 	},
 	{
-		id: 'attach-with-variant',
-		label: 'POST attach + generate thumbnail',
-		description: 'Attach uploaded blob, request thumbnail variant',
+		id: 'upload-10-photos',
+		label: 'POST 10 sellers upload photos',
+		description: '10 sellers upload product photos at the same time',
 		method: 'POST',
-		path: '/api/v1/users/1/avatar',
-		actor: 'authenticated user',
-		expectedResult: 'allowed',
-		responseLines: [
-			{ text: '200 OK', color: 'green' },
-			{ text: 'Avatar attached via blob_signed_id.', color: 'cyan' },
-			{
-				text: 'Variant :thumb (100x100) generated lazily on first request.',
-				color: 'green',
-			},
-		],
-	},
-	{
-		id: 'concurrent-uploads',
-		label: 'POST 10 concurrent uploads',
-		description: '10 users upload avatars simultaneously via direct upload',
-		method: 'POST',
-		path: '/api/v1/direct_uploads',
-		actor: '10 users',
+		path: '/api/v1/users/*/avatar',
+		actor: '10 sellers',
 		expectedResult: 'allowed',
 		responseLines: [
 			{ text: '200 OK (all 10 succeed)', color: 'green' },
-			{ text: '10 presigned URLs issued in parallel.', color: 'cyan' },
+			{
+				text: '10 direct uploads to S3 in parallel.',
+				color: 'cyan',
+			},
 			{
 				text: 'Server memory: 45MB (unchanged, zero file buffering)',
 				color: 'green',
@@ -902,9 +902,29 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		],
 	},
 	{
-		id: 'invalid-content-type',
+		id: 'view-profile',
+		label: 'GET view profile photo',
+		description: 'Customer views a seller profile with thumbnail',
+		method: 'GET',
+		path: '/api/v1/users/1/avatar?variant=thumb',
+		actor: 'customer',
+		expectedResult: 'allowed',
+		responseLines: [
+			{ text: '302 Found -> CDN URL', color: 'green' },
+			{
+				text: 'Variant generated on first request, served via CDN redirect.',
+				color: 'cyan',
+			},
+			{
+				text: '15KB thumbnail (not 5MB original)',
+				color: 'green',
+			},
+		],
+	},
+	{
+		id: 'upload-exe',
 		label: 'POST upload .exe file',
-		description: 'Upload executable file disguised as image',
+		description: 'Attacker uploads malware disguised as image',
 		method: 'POST',
 		path: '/api/v1/users/1/avatar',
 		actor: 'attacker',
@@ -913,45 +933,25 @@ const STRESS_SCENARIOS: StressScenario[] = [
 			{ text: '422 Unprocessable Entity', color: 'red' },
 			{ text: '{ error: { code: "INVALID_CONTENT_TYPE" } }', color: 'yellow' },
 			{
-				text: 'Content type application/x-msdownload not allowed.',
+				text: 'Rejected at presigned URL stage. File never uploaded.',
 				color: 'red',
 			},
 		],
 	},
 	{
-		id: 'oversized-file',
-		label: 'POST upload 50MB file',
-		description: 'Upload file exceeding size limit',
+		id: 'upload-50mb',
+		label: 'POST upload 50MB photo',
+		description: 'User tries to upload an oversized file',
 		method: 'POST',
 		path: '/api/v1/users/1/avatar',
-		actor: 'authenticated user',
+		actor: 'seller',
 		expectedResult: 'blocked',
 		responseLines: [
 			{ text: '422 Unprocessable Entity', color: 'red' },
 			{ text: '{ error: { code: "FILE_TOO_LARGE" } }', color: 'yellow' },
 			{
-				text: 'AvatarUploadContract: file size must be under 10MB.',
+				text: 'Rejected at presigned URL stage. 50MB exceeds 10MB limit.',
 				color: 'red',
-			},
-		],
-	},
-	{
-		id: 'serve-variant',
-		label: 'GET avatar thumbnail variant',
-		description: 'Request pre-defined thumbnail variant via CDN',
-		method: 'GET',
-		path: '/api/v1/users/1/avatar?variant=thumb',
-		actor: 'any client',
-		expectedResult: 'allowed',
-		responseLines: [
-			{ text: '302 Found -> CDN URL', color: 'green' },
-			{
-				text: 'Redirect to S3/CDN URL (Rails worker freed instantly)',
-				color: 'cyan',
-			},
-			{
-				text: 'Variant: 100x100 thumbnail, 15KB instead of 5MB',
-				color: 'green',
 			},
 		],
 	},
@@ -961,7 +961,11 @@ const STRESS_SCENARIOS: StressScenario[] = [
 // Code preview files
 // ──────────────────────────────────────────────
 
-function getCodeFiles(phase: Phase, furthestStep: number) {
+// Build phase code preview: `completedStep` is the index of the last
+// completed step (-1 means none completed yet). This ensures the right
+// panel shows the RESULT of previous steps (context), never the answer
+// for the step the player is currently solving.
+function getCodeFiles(phase: Phase, completedStep: number) {
 	if (phase === 'observe') {
 		return [
 			{
@@ -1015,7 +1019,8 @@ end`,
 	}
 
 	if (phase === 'build') {
-		if (furthestStep <= 0) {
+		// completedStep < 0: nothing completed yet
+		if (completedStep < 0) {
 			return [
 				{
 					filename: 'app/services/upload_avatar.rb',
@@ -1035,7 +1040,8 @@ end`,
 				},
 			];
 		}
-		if (furthestStep <= 1) {
+		// completedStep 0: installed Active Storage, show migration file
+		if (completedStep <= 0) {
 			return [
 				{
 					filename: 'db/migrate/..._create_active_storage_tables.rb',
@@ -1070,7 +1076,50 @@ end`,
 				},
 			];
 		}
-		if (furthestStep <= 2) {
+		// completedStep 1: ran migrations, show tables created + storage hint
+		if (completedStep <= 1) {
+			return [
+				{
+					filename: 'db/schema.rb',
+					language: 'ruby',
+					code: `# Active Storage tables created
+create_table "active_storage_blobs" do |t|
+  t.string   "key",          null: false
+  t.string   "filename",     null: false
+  t.string   "content_type"
+  t.text     "metadata"
+  t.string   "service_name", null: false
+  t.bigint   "byte_size",    null: false
+  t.string   "checksum"
+  t.datetime "created_at",   null: false
+end
+
+create_table "active_storage_attachments" do |t|
+  t.string   "name",     null: false
+  t.string   "record_type", null: false
+  t.bigint   "record_id",   null: false
+  t.bigint   "blob_id",     null: false
+  t.datetime "created_at",  null: false
+end
+
+create_table "active_storage_variant_records" do |t|
+  t.bigint "blob_id",          null: false
+  t.string "variation_digest", null: false
+end`,
+				},
+				{
+					filename: 'config/storage.yml',
+					language: 'yaml',
+					code: `# Active Storage needs a storage service.
+# Configure one for production use.
+#
+# Options: Disk, S3, GCS, AzureStorage
+# See: guides.rubyonrails.org/active_storage_overview.html`,
+				},
+			];
+		}
+		// completedStep 2: configured S3, show storage config
+		if (completedStep <= 2) {
 			return [
 				{
 					filename: 'config/storage.yml',
@@ -1088,9 +1137,24 @@ amazon:
 # config/environments/production.rb
 # config.active_storage.service = :amazon`,
 				},
+				{
+					filename: 'app/models/user.rb',
+					language: 'ruby',
+					code: `class User < ApplicationRecord
+  has_secure_password
+  encrypts :email, deterministic: true
+  encrypts :phone
+  encrypts :address
+
+  # No file attachments yet.
+  # Active Storage is installed, S3 is configured.
+  # Next: attach files to models.
+end`,
+				},
 			];
 		}
-		if (furthestStep <= 3) {
+		// completedStep 3: added model attachment with variants
+		if (completedStep <= 3) {
 			return [
 				{
 					filename: 'app/models/user.rb',
@@ -1123,7 +1187,8 @@ end`,
 				},
 			];
 		}
-		if (furthestStep <= 4) {
+		// completedStep 4: built upload service with contract
+		if (completedStep <= 4) {
 			return [
 				{
 					filename: 'app/services/upload_avatar.rb',
@@ -1168,6 +1233,7 @@ end`,
 				},
 			];
 		}
+		// completedStep 5: all steps done
 		return [
 			{
 				filename: 'app/controllers/api/v1/direct_uploads_controller.rb',
@@ -1374,11 +1440,223 @@ function MemoryGauge({
 }
 
 // ──────────────────────────────────────────────
+// React Flow: custom zone node
+// ──────────────────────────────────────────────
+
+interface ZoneNodeData {
+	zone: 'client' | 'app' | 's3';
+	zoneState: ZoneState;
+	memoryMB?: number;
+	showDisk?: boolean;
+	[key: string]: unknown;
+}
+
+const ZONE_ICONS = {
+	client: Monitor,
+	app: Server,
+	s3: Cloud,
+} as const;
+
+const ZONE_ICON_CLASSES = {
+	client: 'text-blue-600 dark:text-blue-400',
+	app: 'text-foreground',
+	s3: 'text-amber-600 dark:text-amber-400',
+} as const;
+
+const ZONE_TITLES = {
+	client: 'Client',
+	app: 'App Server',
+	s3: 'S3 Storage',
+} as const;
+
+const ZoneNode = memo(function ZoneNode({ data }: { data: ZoneNodeData }) {
+	const Icon = ZONE_ICONS[data.zone];
+	const { zoneState } = data;
+
+	return (
+		<div
+			className={cn(
+				'rounded-xl border-2 p-4 text-center transition-colors duration-300',
+				data.zone === 'app' ? 'w-44' : 'w-36',
+				ZONE_FLASH_STYLES[zoneState.flash],
+			)}
+		>
+			<Icon
+				className={cn('w-6 h-6 mx-auto mb-2', ZONE_ICON_CLASSES[data.zone])}
+			/>
+			<div className="text-sm font-medium text-foreground">
+				{ZONE_TITLES[data.zone]}
+			</div>
+			{zoneState.label && (
+				<div
+					className={cn(
+						'text-xs mt-1 font-mono animate-in fade-in duration-300',
+						ZONE_LABEL_STYLES[zoneState.flash],
+					)}
+				>
+					{zoneState.label}
+				</div>
+			)}
+			{data.memoryMB !== undefined && <MemoryGauge current={data.memoryMB} />}
+			{data.showDisk && (
+				<div className="mt-2 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+					<HardDrive className="w-3.5 h-3.5" />
+					<span className="font-mono">Local Disk</span>
+				</div>
+			)}
+			{/* Handles for edges */}
+			<Handle
+				className="opacity-0! w-0! h-0!"
+				id="right-source"
+				position={Position.Right}
+				type="source"
+			/>
+			<Handle
+				className="opacity-0! w-0! h-0!"
+				id="left-target"
+				position={Position.Left}
+				type="target"
+			/>
+			<Handle
+				className="opacity-0! w-0! h-0!"
+				id="top-source"
+				position={Position.Top}
+				type="source"
+			/>
+			<Handle
+				className="opacity-0! w-0! h-0!"
+				id="top-target"
+				position={Position.Top}
+				type="target"
+			/>
+		</div>
+	);
+});
+
+// ──────────────────────────────────────────────
+// React Flow: custom animated edge
+// ──────────────────────────────────────────────
+
+interface UploadEdgeData {
+	active: boolean;
+	reverse: boolean;
+	label: string;
+	dotColor: string;
+	isDirect?: boolean; // Client <-> S3 arc
+	[key: string]: unknown;
+}
+
+function toDotFill(dotColor: string): string {
+	if (dotColor.includes('emerald')) return '#10b981';
+	if (dotColor.includes('red')) return '#ef4444';
+	return '#a1a1aa';
+}
+
+const UploadEdge = memo(function UploadEdge({
+	id,
+	sourceX,
+	sourceY,
+	targetX,
+	targetY,
+	sourcePosition,
+	targetPosition,
+	data,
+}: EdgeProps) {
+	const edgeData = data as UploadEdgeData;
+	const { active, reverse, label, dotColor, isDirect } = edgeData;
+	const fill = toDotFill(dotColor);
+
+	// Straight line for horizontal edges, custom arc for direct (Client <-> S3)
+	let edgePath: string;
+	let labelX: number;
+	let labelY: number;
+
+	if (isDirect) {
+		// Manual quadratic bezier: control point well above the midpoint
+		const midX = (sourceX + targetX) / 2;
+		const controlY = Math.min(sourceY, targetY) - 140;
+		edgePath = `M ${sourceX} ${sourceY} Q ${midX} ${controlY} ${targetX} ${targetY}`;
+		labelX = midX;
+		labelY = (sourceY + controlY) / 2;
+	} else {
+		const result = getStraightPath({
+			sourceX,
+			sourceY,
+			targetX,
+			targetY,
+		});
+		edgePath = result[0];
+		labelX = result[1];
+		labelY = result[2];
+	}
+
+	// For reversed animations, build a reversed path so dots travel right-to-left
+	const dotPath = reverse
+		? isDirect
+			? `M ${targetX} ${targetY} Q ${(sourceX + targetX) / 2} ${Math.min(sourceY, targetY) - 140} ${sourceX} ${sourceY}`
+			: `M ${targetX} ${targetY} L ${sourceX} ${sourceY}`
+		: edgePath;
+
+	return (
+		<>
+			{/* Base edge always visible as structural connection */}
+			<BaseEdge
+				id={id}
+				path={edgePath}
+				style={{
+					stroke: active ? fill : undefined,
+					strokeDasharray: isDirect ? '6 4' : undefined,
+					strokeOpacity: isDirect ? 0.6 : undefined,
+				}}
+			/>
+			{active &&
+				[0, 1, 2].map((i) => (
+					<circle fill={fill} key={i} r="5">
+						<animateMotion
+							begin={`${i * 0.5}s`}
+							dur="1.5s"
+							fill="freeze"
+							path={dotPath}
+							repeatCount="indefinite"
+						/>
+					</circle>
+				))}
+			{label && (
+				<EdgeLabelRenderer>
+					<div
+						className="nodrag nopan pointer-events-none"
+						style={{
+							position: 'absolute',
+							transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY + (isDirect ? -14 : 16)}px)`,
+						}}
+					>
+						<span className="text-xs font-mono text-muted-foreground bg-background/80 px-1.5 py-0.5 rounded">
+							{isDirect ? `Direct: ${label}` : label}
+						</span>
+					</div>
+				</EdgeLabelRenderer>
+			)}
+		</>
+	);
+});
+
+// ──────────────────────────────────────────────
+// React Flow: type registries (stable references)
+// ──────────────────────────────────────────────
+
+const uploadNodeTypes = { zone: ZoneNode };
+const uploadEdgeTypes = { upload: UploadEdge };
+
+function handleFlowInit(instance: ReactFlowInstance) {
+	requestAnimationFrame(() => instance.fitView({ padding: 0.15 }));
+}
+
+// ──────────────────────────────────────────────
 // Component
 // ──────────────────────────────────────────────
 
 export function Level35ActiveStorage({ onComplete }: LevelComponentProps) {
-	const [phase, setPhase] = useState<Phase>('observe');
+	const [phase, setPhase] = useState<Phase>('reward');
 	const [wrongFeedback, setWrongFeedback] = useState<string | null>(null);
 	const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -1388,6 +1666,7 @@ export function Level35ActiveStorage({ onComplete }: LevelComponentProps) {
 	const [s3State, setS3State] = useState<ZoneState>(DEFAULT_ZONE);
 	const [connAState, setConnAState] = useState<ConnectorVizState>(DEFAULT_CONN);
 	const [connBState, setConnBState] = useState<ConnectorVizState>(DEFAULT_CONN);
+	const [connCState, setConnCState] = useState<ConnectorVizState>(DEFAULT_CONN); // Client <-> S3 direct
 	const [memoryMB, setMemoryMB] = useState(DEFAULT_MEMORY);
 	const [warningMessage, setWarningMessage] = useState<string | null>(null);
 	const [bandwidthLabel, setBandwidthLabel] = useState<string | null>(null);
@@ -1411,6 +1690,7 @@ export function Level35ActiveStorage({ onComplete }: LevelComponentProps) {
 		setS3State(DEFAULT_ZONE);
 		setConnAState(DEFAULT_CONN);
 		setConnBState(DEFAULT_CONN);
+		setConnCState(DEFAULT_CONN);
 		setMemoryMB(DEFAULT_MEMORY);
 		setWarningMessage(null);
 		setBandwidthLabel(null);
@@ -1422,6 +1702,7 @@ export function Level35ActiveStorage({ onComplete }: LevelComponentProps) {
 		if (frame.s3) setS3State((prev) => ({ ...prev, ...frame.s3 }));
 		if (frame.connA) setConnAState((prev) => ({ ...prev, ...frame.connA }));
 		if (frame.connB) setConnBState((prev) => ({ ...prev, ...frame.connB }));
+		if (frame.connC) setConnCState((prev) => ({ ...prev, ...frame.connC }));
 		if (frame.memoryMB !== undefined) setMemoryMB(frame.memoryMB);
 		if (frame.warningMessage) setWarningMessage(frame.warningMessage);
 		if (frame.bandwidthLabel) setBandwidthLabel(frame.bandwidthLabel);
@@ -1504,7 +1785,7 @@ export function Level35ActiveStorage({ onComplete }: LevelComponentProps) {
 			if (vizAnimating) return;
 			stressTest.fireRequest(scenarioId);
 
-			const frames = REWARD_FRAMES_MAP[scenarioId] ?? REWARD_DIRECT_UPLOAD;
+			const frames = REWARD_FRAMES_MAP[scenarioId] ?? REWARD_UPLOAD_PHOTO;
 			runAnimation(frames);
 		},
 		[vizAnimating, stressTest, runAnimation],
@@ -1526,126 +1807,135 @@ export function Level35ActiveStorage({ onComplete }: LevelComponentProps) {
 		onComplete({ stars: stepper.starRating });
 	};
 
-	// ── Render: Upload Pipeline Visualization ──
+	// ── Render: Upload Pipeline Visualization (React Flow) ──
+	// Observe: 2 nodes (Client, App Server with local disk). No S3.
+	// Reward: 3 nodes (Client, App Server, S3 Storage). S3 is new.
+	const showS3 = phase === 'reward';
+
+	const flowNodes = useMemo((): Node[] => {
+		const nodes: Node[] = [
+			{
+				id: 'client',
+				type: 'zone',
+				position: { x: 0, y: 100 },
+				data: {
+					zone: 'client',
+					zoneState: clientState,
+				} satisfies ZoneNodeData,
+			},
+			{
+				id: 'app',
+				type: 'zone',
+				position: showS3 ? { x: 320, y: 100 } : { x: 320, y: 100 },
+				data: {
+					zone: 'app',
+					zoneState: appState,
+					memoryMB: memoryMB,
+					showDisk: !showS3,
+				} satisfies ZoneNodeData,
+			},
+		];
+		if (showS3) {
+			nodes.push({
+				id: 's3',
+				type: 'zone',
+				position: { x: 640, y: 100 },
+				data: {
+					zone: 's3',
+					zoneState: s3State,
+				} satisfies ZoneNodeData,
+			});
+		}
+		return nodes;
+	}, [clientState, appState, s3State, memoryMB, showS3]);
+
+	const flowEdges = useMemo((): Edge[] => {
+		// Source/target are always fixed (left-to-right structural layout).
+		// The `reverse` flag only controls dot animation direction.
+		const edges: Edge[] = [
+			{
+				id: 'e-connA',
+				source: 'client',
+				target: 'app',
+				type: 'upload',
+				sourceHandle: 'right-source',
+				targetHandle: 'left-target',
+				data: {
+					active: connAState.active,
+					reverse: connAState.reverse,
+					label: connAState.label,
+					dotColor: connAState.dotColor,
+				} satisfies UploadEdgeData,
+			},
+		];
+		if (showS3) {
+			// Only show connB when active (App Server only talks to S3 during
+			// variant generation). Direct upload, serve variant, and blocked
+			// scenarios never use this path.
+			if (connBState.active || connBState.label) {
+				edges.push({
+					id: 'e-connB',
+					source: 'app',
+					target: 's3',
+					type: 'upload',
+					sourceHandle: 'right-source',
+					targetHandle: 'left-target',
+					data: {
+						active: connBState.active,
+						reverse: connBState.reverse,
+						label: connBState.label,
+						dotColor: connBState.dotColor,
+					} satisfies UploadEdgeData,
+				});
+			}
+			// Direct arc: Client -> S3 (top handles, curves above App Server)
+			edges.push({
+				id: 'e-connC',
+				source: 'client',
+				target: 's3',
+				type: 'upload',
+				sourceHandle: 'top-source',
+				targetHandle: 'top-target',
+				data: {
+					active: connCState.active,
+					reverse: connCState.reverse,
+					label: connCState.label,
+					dotColor: connCState.dotColor,
+					isDirect: true,
+				} satisfies UploadEdgeData,
+			});
+		}
+		return edges;
+	}, [showS3, connAState, connBState, connCState]);
+
 	const renderUploadPipeline = () => {
 		return (
-			<div className="flex-1 flex flex-col items-center justify-center gap-3 py-6 px-4">
-				{/* Three-zone layout */}
-				<div className="flex items-start justify-center gap-2 w-full max-w-2xl">
-					{/* Client zone */}
-					<div
-						className={cn(
-							'rounded-xl border-2 p-4 w-36 text-center transition-colors duration-300 shrink-0',
-							ZONE_FLASH_STYLES[clientState.flash],
-						)}
-					>
-						<Monitor className="w-6 h-6 mx-auto mb-2 text-blue-600 dark:text-blue-400" />
-						<div className="text-sm font-medium text-foreground">Client</div>
-						{clientState.label && (
-							<div
-								className={cn(
-									'text-xs mt-1 font-mono animate-in fade-in duration-300',
-									ZONE_LABEL_STYLES[clientState.flash],
-								)}
-							>
-								{clientState.label}
-							</div>
-						)}
-					</div>
-
-					{/* Client <-> App connector */}
-					<div className="flex flex-col items-center justify-center pt-6 shrink-0">
-						<div className={cn(connAState.reverse && '-scale-x-100')}>
-							<FlowConnector
-								active={connAState.active}
-								className="relative w-16 h-4"
-								direction="horizontal"
-								dotColor={connAState.dotColor}
-							/>
-						</div>
-						{connAState.label && (
-							<span className="text-xs text-muted-foreground mt-1 font-mono whitespace-nowrap">
-								{connAState.label}
-							</span>
-						)}
-					</div>
-
-					{/* App Server zone */}
-					<div
-						className={cn(
-							'rounded-xl border-2 p-4 w-44 text-center transition-colors duration-300 shrink-0',
-							ZONE_FLASH_STYLES[appState.flash],
-						)}
-					>
-						<Server className="w-6 h-6 mx-auto mb-2 text-foreground" />
-						<div className="text-sm font-medium text-foreground">
-							App Server
-						</div>
-						{appState.label && (
-							<div
-								className={cn(
-									'text-xs mt-1 font-mono animate-in fade-in duration-300',
-									ZONE_LABEL_STYLES[appState.flash],
-								)}
-							>
-								{appState.label}
-							</div>
-						)}
-						<MemoryGauge current={memoryMB} />
-					</div>
-
-					{/* App <-> S3 connector */}
-					<div className="flex flex-col items-center justify-center pt-6 shrink-0">
-						<div className={cn(connBState.reverse && '-scale-x-100')}>
-							<FlowConnector
-								active={connBState.active}
-								className="relative w-16 h-4"
-								direction="horizontal"
-								dotColor={connBState.dotColor}
-							/>
-						</div>
-						{connBState.label && (
-							<span className="text-xs text-muted-foreground mt-1 font-mono whitespace-nowrap">
-								{connBState.label}
-							</span>
-						)}
-					</div>
-
-					{/* S3 zone */}
-					<div
-						className={cn(
-							'rounded-xl border-2 p-4 w-36 text-center transition-colors duration-300 shrink-0',
-							ZONE_FLASH_STYLES[s3State.flash],
-						)}
-					>
-						<Cloud className="w-6 h-6 mx-auto mb-2 text-amber-600 dark:text-amber-400" />
-						<div className="text-sm font-medium text-foreground">
-							S3 Storage
-						</div>
-						{s3State.label && (
-							<div
-								className={cn(
-									'text-xs mt-1 font-mono animate-in fade-in duration-300',
-									ZONE_LABEL_STYLES[s3State.flash],
-								)}
-							>
-								{s3State.label}
-							</div>
-						)}
-					</div>
+			<div className="flex-1 flex flex-col min-h-0">
+				<div className="flex-1 relative">
+					<ReactFlow
+						edges={flowEdges}
+						edgeTypes={uploadEdgeTypes}
+						nodes={flowNodes}
+						nodesConnectable={false}
+						nodeTypes={uploadNodeTypes}
+						onInit={handleFlowInit}
+						proOptions={{ hideAttribution: true }}
+					/>
 				</div>
 
-				{/* Bandwidth counter */}
-				{bandwidthLabel && (
-					<div className="text-xs font-mono text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-3 py-1.5 rounded-lg border border-amber-200 dark:border-amber-800 animate-in fade-in duration-300">
-						Bandwidth: {bandwidthLabel}
-					</div>
-				)}
-
-				{/* Warning message */}
-				{warningMessage && (
-					<div className="max-w-2xl text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-4 py-2 rounded-lg border border-red-200 dark:border-red-800 animate-in fade-in duration-300">
-						{warningMessage}
+				{/* Bandwidth / warning bar */}
+				{(bandwidthLabel || warningMessage) && (
+					<div className="px-6 py-2 space-y-1">
+						{bandwidthLabel && (
+							<div className="text-xs font-mono text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-3 py-1.5 rounded-lg border border-amber-200 dark:border-amber-800 animate-in fade-in duration-300">
+								Bandwidth: {bandwidthLabel}
+							</div>
+						)}
+						{warningMessage && (
+							<div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-4 py-2 rounded-lg border border-red-200 dark:border-red-800 animate-in fade-in duration-300">
+								{warningMessage}
+							</div>
+						)}
 					</div>
 				)}
 			</div>
@@ -1938,7 +2228,14 @@ export function Level35ActiveStorage({ onComplete }: LevelComponentProps) {
 
 			<RightPanel>
 				<CodePreviewPanel
-					files={getCodeFiles(phase, stepper.furthestStep)}
+					files={getCodeFiles(
+						phase,
+						phase === 'build'
+							? stepper.isCurrentStepCompleted
+								? stepper.currentStep
+								: stepper.currentStep - 1
+							: stepper.furthestStep,
+					)}
 					learningGoal={
 						phase === 'observe'
 							? 'Files upload through Rails, spiking memory. No variants or CDN.'

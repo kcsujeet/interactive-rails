@@ -108,13 +108,97 @@ const DIRECT_UPLOAD_OPTIONS = [
 ];
 
 const STRESS_SCENARIOS = [
-	{ id: 'direct-upload-avatar', label: 'POST direct upload (5MB avatar)', expectedResult: 'allowed' as const },
-	{ id: 'attach-with-variant', label: 'POST attach + generate thumbnail', expectedResult: 'allowed' as const },
-	{ id: 'concurrent-uploads', label: 'POST 10 concurrent uploads', expectedResult: 'allowed' as const },
-	{ id: 'invalid-content-type', label: 'POST upload .exe file', expectedResult: 'blocked' as const },
-	{ id: 'oversized-file', label: 'POST upload 50MB file', expectedResult: 'blocked' as const },
-	{ id: 'serve-variant', label: 'GET avatar thumbnail variant', expectedResult: 'allowed' as const },
+	{ id: 'upload-photo', label: 'POST upload 5MB photo', expectedResult: 'allowed' as const },
+	{ id: 'upload-10-photos', label: 'POST 10 sellers upload photos', expectedResult: 'allowed' as const },
+	{ id: 'view-profile', label: 'GET view profile photo', expectedResult: 'allowed' as const },
+	{ id: 'upload-exe', label: 'POST upload .exe file', expectedResult: 'blocked' as const },
+	{ id: 'upload-50mb', label: 'POST upload 50MB photo', expectedResult: 'blocked' as const },
 ];
+
+// ── Observe probe animation frames (mirrored from component) ──
+// Observe phase: 2 zones only (Client + App Server with local disk). No S3.
+
+interface AnimationFrame {
+	client?: { label?: string; flash?: string };
+	connA?: { active?: boolean; reverse?: boolean; label?: string; dotColor?: string };
+	app?: { label?: string; flash?: string };
+	connB?: { active?: boolean; reverse?: boolean; label?: string; dotColor?: string };
+	s3?: { label?: string; flash?: string };
+	memoryMB?: number;
+	warningMessage?: string;
+	bandwidthLabel?: string;
+}
+
+const UPLOAD_PROBE_FRAMES: AnimationFrame[] = [
+	{ client: { label: 'Uploading...', flash: 'blue' }, connA: { active: true, reverse: false, label: '5MB file data', dotColor: 'bg-red-500 dark:bg-red-400' } },
+	{ client: { label: '', flash: 'idle' }, connA: { active: false, label: '' }, app: { label: 'Buffering 5MB...', flash: 'red' }, memoryMB: 95 },
+	{ app: { label: 'File.binwrite to disk...', flash: 'amber' } },
+	{ app: { label: 'Saved to local disk', flash: 'amber' }, warningMessage: 'The entire 5MB file was buffered in Rails process memory. 10 concurrent uploads = 500MB memory spike. Files saved to local disk (lost on deploy, no CDN).' },
+];
+
+const DOWNLOAD_PROBE_FRAMES: AnimationFrame[] = [
+	{ client: { label: 'Requesting avatar...', flash: 'blue' }, app: { label: 'send_file avatar_path', flash: 'amber' } },
+	{ app: { label: 'Reading 5MB from disk...', flash: 'red' }, memoryMB: 95 },
+	{ connA: { active: true, reverse: true, label: '5MB streaming...', dotColor: 'bg-red-500 dark:bg-red-400' }, app: { label: 'Worker BLOCKED 3s', flash: 'red' } },
+	{ connA: { active: false, label: '' }, client: { label: 'Received 5MB original', flash: 'amber' }, app: { label: 'Worker freed', flash: 'amber' }, warningMessage: 'Rails read the entire 5MB from disk and streamed it to the client. The worker was blocked for 3 seconds. No CDN or redirect configured.' },
+];
+
+const LIST_PROBE_FRAMES: AnimationFrame[] = [
+	{ client: { label: 'GET /users?per_page=25', flash: 'blue' }, app: { label: 'Rendering 25 users...', flash: 'amber' } },
+	{ app: { label: 'User 1: 5MB from disk', flash: 'amber' }, bandwidthLabel: '5MB' },
+	{ app: { label: 'User 2: 5MB from disk', flash: 'amber' }, bandwidthLabel: '10MB' },
+	{ app: { label: '...x25 users, no variants!', flash: 'red' }, bandwidthLabel: '125MB (should be 375KB with variants)', warningMessage: 'Each avatar is the 5MB original from local disk. No thumbnail variant defined. 25 users x 5MB = 125MB downloaded by the client. With a :thumb variant, that would be 25 x 15KB = 375KB.' },
+];
+
+const ALL_OBSERVE_PROBE_FRAMES = [
+	{ name: 'upload', frames: UPLOAD_PROBE_FRAMES },
+	{ name: 'download', frames: DOWNLOAD_PROBE_FRAMES },
+	{ name: 'list', frames: LIST_PROBE_FRAMES },
+];
+
+// ── Code preview content per completed step (mirrored from getCodeFiles) ──
+// completedStep = -1 means nothing completed (working on step 0)
+// completedStep = N means step N was just completed
+
+// Correct answer snippets for each OptionCard step (steps 2-5)
+// These strings MUST NOT appear in the code preview while working on that step
+const STEP_CORRECT_ANSWER_SIGNATURES: Record<number, string[]> = {
+	// Step 2: Configure S3 - correct answer has credentials.dig
+	2: ['Rails.application.credentials', 'service: S3', 'bucket: myapp-production'],
+	// Step 3: Model attachment - correct answer has has_one_attached with variants
+	3: ['has_one_attached :avatar', 'attachable.variant :thumb', 'attachable.variant :medium'],
+	// Step 4: Build service - correct answer has contract validation
+	4: ['AvatarUploadContract.new.call', 'validate_content_type!(blob)', 'validate_file_size!(blob)'],
+	// Step 5: Direct upload endpoint - correct answer has create_before_direct_upload!
+	5: ['create_before_direct_upload!', 'service_url_for_direct_upload', 'service_headers_for_direct_upload'],
+};
+
+// Code preview content for each completedStep value
+// We mirror the filenames + key content identifiers (not full code)
+const CODE_PREVIEW_FILES: Record<number, { filename: string; containsSnippet: string }[]> = {
+	[-1]: [{ filename: 'app/services/upload_avatar.rb', containsSnippet: 'No Active Storage yet' }],
+	0: [{ filename: 'db/migrate/..._create_active_storage_tables.rb', containsSnippet: 'create_table :active_storage_blobs' }],
+	1: [
+		{ filename: 'db/schema.rb', containsSnippet: 'active_storage_blobs' },
+		{ filename: 'config/storage.yml', containsSnippet: 'Active Storage needs a storage service' },
+	],
+	2: [
+		{ filename: 'config/storage.yml', containsSnippet: 'service: S3' },
+		{ filename: 'app/models/user.rb', containsSnippet: 'No file attachments yet' },
+	],
+	3: [
+		{ filename: 'app/models/user.rb', containsSnippet: 'has_one_attached :avatar' },
+		{ filename: 'config/storage.yml', containsSnippet: 'service: S3' },
+	],
+	4: [
+		{ filename: 'app/services/upload_avatar.rb', containsSnippet: 'AvatarUploadContract' },
+		{ filename: 'app/contracts/avatar_upload_contract.rb', containsSnippet: 'Dry::Validation::Contract' },
+	],
+	5: [
+		{ filename: 'app/controllers/api/v1/direct_uploads_controller.rb', containsSnippet: 'create_before_direct_upload!' },
+		{ filename: 'app/services/upload_avatar.rb', containsSnippet: 'AvatarUploadContract' },
+	],
+};
 
 // ── Tests ──
 
@@ -319,8 +403,8 @@ describe('Level 35: Active Storage', () => {
 	});
 
 	describe('Stress test scenarios', () => {
-		test('has 6 scenarios', () => {
-			expect(STRESS_SCENARIOS).toHaveLength(6);
+		test('has 5 scenarios', () => {
+			expect(STRESS_SCENARIOS).toHaveLength(5);
 		});
 
 		test('all scenario IDs are unique', () => {
@@ -340,41 +424,41 @@ describe('Level 35: Active Storage', () => {
 			expect(blocked.length).toBeGreaterThan(0);
 		});
 
-		test('has 4 allowed and 2 blocked scenarios', () => {
+		test('has 3 allowed and 2 blocked scenarios', () => {
 			const allowed = STRESS_SCENARIOS.filter((s) => s.expectedResult === 'allowed');
 			const blocked = STRESS_SCENARIOS.filter((s) => s.expectedResult === 'blocked');
-			expect(allowed).toHaveLength(4);
+			expect(allowed).toHaveLength(3);
 			expect(blocked).toHaveLength(2);
 		});
 
-		test('includes direct upload scenario', () => {
-			const direct = STRESS_SCENARIOS.find((s) => s.id === 'direct-upload-avatar');
-			expect(direct).toBeDefined();
-			expect(direct?.expectedResult).toBe('allowed');
+		test('includes photo upload scenario (full user flow)', () => {
+			const upload = STRESS_SCENARIOS.find((s) => s.id === 'upload-photo');
+			expect(upload).toBeDefined();
+			expect(upload?.expectedResult).toBe('allowed');
 		});
 
-		test('includes variant generation scenario', () => {
-			const variant = STRESS_SCENARIOS.find((s) => s.id === 'attach-with-variant');
-			expect(variant).toBeDefined();
-			expect(variant?.expectedResult).toBe('allowed');
+		test('includes concurrent uploads scenario', () => {
+			const concurrent = STRESS_SCENARIOS.find((s) => s.id === 'upload-10-photos');
+			expect(concurrent).toBeDefined();
+			expect(concurrent?.expectedResult).toBe('allowed');
+		});
+
+		test('includes profile view with variant scenario', () => {
+			const view = STRESS_SCENARIOS.find((s) => s.id === 'view-profile');
+			expect(view).toBeDefined();
+			expect(view?.expectedResult).toBe('allowed');
 		});
 
 		test('includes content type validation (blocked)', () => {
-			const invalid = STRESS_SCENARIOS.find((s) => s.id === 'invalid-content-type');
-			expect(invalid).toBeDefined();
-			expect(invalid?.expectedResult).toBe('blocked');
+			const exe = STRESS_SCENARIOS.find((s) => s.id === 'upload-exe');
+			expect(exe).toBeDefined();
+			expect(exe?.expectedResult).toBe('blocked');
 		});
 
 		test('includes file size validation (blocked)', () => {
-			const oversized = STRESS_SCENARIOS.find((s) => s.id === 'oversized-file');
+			const oversized = STRESS_SCENARIOS.find((s) => s.id === 'upload-50mb');
 			expect(oversized).toBeDefined();
 			expect(oversized?.expectedResult).toBe('blocked');
-		});
-
-		test('includes CDN variant serving', () => {
-			const serve = STRESS_SCENARIOS.find((s) => s.id === 'serve-variant');
-			expect(serve).toBeDefined();
-			expect(serve?.expectedResult).toBe('allowed');
 		});
 	});
 
@@ -396,17 +480,14 @@ describe('Level 35: Active Storage', () => {
 		});
 
 		test('reward scenarios address all observe problems', () => {
-			// Memory spike -> direct upload (no memory spike)
-			const direct = STRESS_SCENARIOS.find((s) => s.id === 'direct-upload-avatar');
-			expect(direct).toBeDefined();
-			// No variants -> variant generation
-			const variant = STRESS_SCENARIOS.find((s) => s.id === 'attach-with-variant');
-			expect(variant).toBeDefined();
-			// Serving through Rails -> CDN redirect
-			const serve = STRESS_SCENARIOS.find((s) => s.id === 'serve-variant');
-			expect(serve).toBeDefined();
-			// Concurrent memory spikes -> concurrent direct uploads
-			const concurrent = STRESS_SCENARIOS.find((s) => s.id === 'concurrent-uploads');
+			// Memory spike -> upload photo (direct upload, no memory spike)
+			const upload = STRESS_SCENARIOS.find((s) => s.id === 'upload-photo');
+			expect(upload).toBeDefined();
+			// No variants -> view profile (lazy variant generation + CDN)
+			const view = STRESS_SCENARIOS.find((s) => s.id === 'view-profile');
+			expect(view).toBeDefined();
+			// Concurrent memory spikes -> 10 sellers upload (zero buffering)
+			const concurrent = STRESS_SCENARIOS.find((s) => s.id === 'upload-10-photos');
 			expect(concurrent).toBeDefined();
 		});
 	});
@@ -456,6 +537,114 @@ describe('Level 35: Active Storage', () => {
 			expect(stepIds.indexOf('model-attachment')).toBeLessThan(stepIds.indexOf('build-service'));
 			// Service before direct upload endpoint
 			expect(stepIds.indexOf('build-service')).toBeLessThan(stepIds.indexOf('direct-upload'));
+		});
+	});
+
+	describe('Observe probe frames: narrative consistency (no S3 in before state)', () => {
+		for (const { name, frames } of ALL_OBSERVE_PROBE_FRAMES) {
+			test(`${name} probe frames have no s3 zone state`, () => {
+				for (const frame of frames) {
+					expect(frame.s3).toBeUndefined();
+				}
+			});
+
+			test(`${name} probe frames have no connB (App <-> S3) state`, () => {
+				for (const frame of frames) {
+					expect(frame.connB).toBeUndefined();
+				}
+			});
+		}
+
+		test('upload probe shows local disk write (not S3 store)', () => {
+			const labels = UPLOAD_PROBE_FRAMES.map((f) => f.app?.label ?? '').join(' ');
+			expect(labels).toContain('disk');
+			expect(labels).not.toContain('S3');
+		});
+
+		test('download probe shows reading from disk (not S3)', () => {
+			const labels = DOWNLOAD_PROBE_FRAMES.map((f) => f.app?.label ?? '').join(' ');
+			expect(labels).toContain('disk');
+			expect(labels).not.toContain('S3');
+		});
+
+		test('list probe shows disk-based accumulation (not S3)', () => {
+			const labels = LIST_PROBE_FRAMES.map((f) => f.app?.label ?? '').join(' ');
+			expect(labels).toContain('disk');
+			expect(labels).not.toContain('S3');
+		});
+
+		test('each observe probe has a warning message in its final frame', () => {
+			for (const { name, frames } of ALL_OBSERVE_PROBE_FRAMES) {
+				const lastFrame = frames[frames.length - 1];
+				expect(lastFrame.warningMessage).toBeDefined();
+				expect(lastFrame.warningMessage?.length).toBeGreaterThan(0);
+			}
+		});
+	});
+
+	describe('Code preview does not reveal answers for current step', () => {
+		// For each OptionCard step (2-5), verify that the code preview shown
+		// while WORKING ON that step does not contain the correct answer.
+		// The code preview for "working on step N" = completedStep N-1.
+		for (const stepIdx of [2, 3, 4, 5]) {
+			test(`step ${stepIdx} (${STEP_DEFS[stepIdx].title}): code preview while working does not reveal the answer`, () => {
+				const completedStep = stepIdx - 1;
+				const previewFiles = CODE_PREVIEW_FILES[completedStep];
+				expect(previewFiles).toBeDefined();
+
+				const answerSignatures = STEP_CORRECT_ANSWER_SIGNATURES[stepIdx];
+				expect(answerSignatures).toBeDefined();
+
+				// None of the answer signatures should appear in the code preview
+				// shown while working on this step
+				for (const file of previewFiles) {
+					for (const signature of answerSignatures) {
+						expect(file.containsSnippet).not.toContain(signature);
+					}
+				}
+			});
+		}
+
+		test('step 2: code preview before answering shows schema + hint, not configured S3', () => {
+			// completedStep = 1 (after running migrations, before configuring S3)
+			const files = CODE_PREVIEW_FILES[1];
+			const filenames = files.map((f) => f.filename);
+			expect(filenames).toContain('db/schema.rb');
+			expect(filenames).toContain('config/storage.yml');
+			// The storage.yml should be a hint, not the configured answer
+			const storageFile = files.find((f) => f.filename === 'config/storage.yml');
+			expect(storageFile?.containsSnippet).not.toContain('service: S3');
+			expect(storageFile?.containsSnippet).not.toContain('bucket');
+		});
+
+		test('step 3: code preview before answering shows configured S3, not model with variants', () => {
+			// completedStep = 2 (after configuring S3, before adding model attachment)
+			const files = CODE_PREVIEW_FILES[2];
+			const userFile = files.find((f) => f.filename === 'app/models/user.rb');
+			expect(userFile).toBeDefined();
+			// user.rb should show "no file attachments yet", not has_one_attached
+			expect(userFile?.containsSnippet).toContain('No file attachments yet');
+			expect(userFile?.containsSnippet).not.toContain('has_one_attached');
+		});
+
+		test('after completing a step, code preview shows the result', () => {
+			// completedStep = 3 (after adding model attachment)
+			const files = CODE_PREVIEW_FILES[3];
+			const userFile = files.find((f) => f.filename === 'app/models/user.rb');
+			expect(userFile).toBeDefined();
+			expect(userFile?.containsSnippet).toContain('has_one_attached');
+		});
+
+		test('every completedStep value (-1 through 5) has non-empty code preview', () => {
+			for (let step = -1; step <= 5; step++) {
+				const files = CODE_PREVIEW_FILES[step];
+				expect(files).toBeDefined();
+				expect(files.length).toBeGreaterThan(0);
+				for (const file of files) {
+					expect(file.filename.length).toBeGreaterThan(0);
+					expect(file.containsSnippet.length).toBeGreaterThan(0);
+				}
+			}
 		});
 	});
 });

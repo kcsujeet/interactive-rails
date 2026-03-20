@@ -117,6 +117,22 @@ Two reusable React Flow components exist. Use one of these before building a cus
 - `STAGE_DISCOVERY_MAP`: maps stage IDs to discovery IDs they trigger
 - `PROBE_PIPELINE_MAP`: (PipelineFlow levels) maps probe IDs to `{ policySublabel, modelBadge }` for node display during probes
 
+**Implementation-time verification (non-negotiable):**
+
+These checks must happen WHILE WRITING the code, not as a post-hoc audit. Every animation frame array, every code preview boundary, every connector definition must be verified against reality before it is committed.
+
+1. **Frame-by-frame playthrough.** Before writing any animation frame array (`PROBE_FRAMES`, `REWARD_FRAMES`), write down in comments what the player sees at each frame: which zones are active, which connectors have dots, what labels say, what direction data flows. Then ask: "Does this match how the real system works?" If a frame shows data flowing through a connector between two components that don't communicate in this scenario, the frame is wrong.
+
+2. **Connector accuracy.** For each connector in each frame, ask: "Does data actually flow between these two components in this specific scenario?" A direct upload bypasses the app server, so no connector between app and S3 should activate. A CDN redirect means the client fetches from the CDN directly, not through the app. Do not reuse connectors from one scenario in another without verifying the data path is the same.
+
+3. **Zone existence.** Observe phase frames must only reference zones that exist in the "before" state. If the build phase introduces a new component (S3, Redis, a cache layer), no observe frame should set state on that zone.
+
+4. **Code preview boundaries.** For each OptionCard step, verify that the code preview shown while the player is working on that step does NOT contain distinctive strings from the correct answer. The code preview for "working on step N" = result of step N-1.
+
+5. **Technical claims.** If you write a frame that shows a specific technical behavior (e.g., "App Server talks to S3 to generate presigned URL"), verify the claim against the actual Rails/gem source or documentation before writing the frame. Do not guess. `create_before_direct_upload!` writes a local DB record and computes the URL from stored credentials. It does not make a network call to S3.
+
+6. **Complete flows.** Every animation must show the COMPLETE real-world flow for its user action. Before writing frames, write out every step the real system performs. If the flow has 5 steps and you only animate 3, the player learns an incomplete concept. A direct upload that stops at "stored on S3" without the attach step teaches the player that blobs magically attach themselves. Each stress test button represents one user action (e.g., "Upload photo"), and the animation plays the full technical flow that action triggers (presigned URL, direct upload, attach).
+
 **Every level needs its own unique visualization concept.** Do NOT reuse the same "dots flowing through a pipeline" pattern everywhere. The visualization must teach the specific concept of that level. Examples:
 - MVC/architecture levels: `PipelineFlow` showing where this piece fits in the request cycle
 - Security levels: `PipelineFlow` with animated requests/actors showing what gets through
@@ -144,7 +160,7 @@ The player builds the solution step by step. **This phase must cover the COMPLET
 
 - Center panel: step UI fills the space (no animation visible)
 - Left panel: scenario text + StepProgress pills
-- Right panel: code preview evolves with `stepper.furthestStep`
+- Right panel: code preview evolves as steps are completed. Use `isCurrentStepCompleted ? currentStep : currentStep - 1` as the completed step index for `getCodeFiles`. This ensures the player sees the result of previous steps (context) while working, and only sees the current step's result after completing it. Never use `furthestStep` or `currentStep` directly as the code preview index.
 
 #### Phase 3: Solution Visualization (ADVANTAGE)
 
