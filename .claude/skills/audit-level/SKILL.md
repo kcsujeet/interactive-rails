@@ -11,6 +11,7 @@ Audit a level component to verify it follows the mandatory three-phase sequentia
 
 This skill is split across multiple files. SKILL.md contains the core audit flow and all checklists. Supporting files contain detailed guidance, case studies, and implementation patterns:
 
+- [implementation-rules.md](implementation-rules.md): **Non-negotiable. Read before building any level.** Pre-flight checklist, bug table of past mistakes, and core principles for writing animation frames, code previews, and connectors. These rules apply during implementation, not just audits.
 - [cumulative-patterns.md](cumulative-patterns.md): **Non-negotiable.** Complete reference of every architectural pattern, gem, and code convention established in each level. Every audit must check code previews against patterns from earlier levels. Violations (e.g., inline validation instead of dry-validation contracts, direct model calls instead of service objects) are Critical severity. **You must update this file whenever you create, redesign, or modify a level that changes what patterns are taught.** This file must always reflect the current state of the curriculum.
 - [observe-phase-guide.md](observe-phase-guide.md): Type 2/3/4 deep dives, visualization accuracy case studies (L15, L25, L26, L27), mechanism vs metric principles, shared terminal components, flow animation patterns, discovery hint patterns
 - [pipelineflow-guide.md](pipelineflow-guide.md): Hub-and-spoke layout coordinates, bidirectional edge rendering, satellite state rules, node color rules, sequential edge animation API
@@ -21,49 +22,11 @@ This skill is split across multiple files. SKILL.md contains the core audit flow
 
 ## Reference Implementations
 
-**PipelineFlow-based (request lifecycle concepts):**
-Read Level 12 (Authorization) as the canonical example:
-`frontend/src/features/act2-users-security/components/Level12Authorization.tsx`
-
-**Custom visualization (non-pipeline concepts):**
-Each custom visualization level is a reference for how to tailor the visualization to the concept being taught. No two should look the same.
-
-- Level 10 (Validations): "Data Gate" with vertical zones (Input -> Model Gate -> Database), because validations are about filtering data at the model layer before it reaches storage.
-  `frontend/src/features/act2-users-security/components/Level10Validations.tsx`
-- Level 15 (CORS): 3-zone horizontal flow (Client -> CORS Middleware Gate -> Rails API) with 2 FlowConnectors, because CORS is about a request crossing the network, hitting a middleware gate first, and only reaching the API if allowed. The client zone switches between browser chrome and terminal style depending on the probe (curl vs fetch).
-  `frontend/src/features/act2-users-security/components/Level15CORS.tsx`
-- Level 26 (Database Indexing): "Table Row Grid" with 100 blocks per table + IndexLookupCard, because indexing is about how the database searches rows. Seq Scan = red wave sweeps through all blocks. Index Scan = B-tree index card points directly to the match (green block). The visualization shows the mechanism (scanning vs looking up), not just the metric (820ms vs 0.05ms).
-  `frontend/src/features/act4-performance/components/Level26Indexing.tsx`
-- Level 27 (Counter Caches): "Database Table View" showing the actual posts schema (id, title, user_id) where the ABSENCE of the `comments_count` column is the teaching moment. Firing the probe triggers a cascade animation: each post row turns red sequentially as it fires a separate COUNT(*) query to the comments table. The reward phase adds the `comments_count` column to the table, and cached loads show all rows green instantly (no cross-table queries). Single probe design: one probe teaches the N+1 COUNT mechanism; multiple probes with different row counts would be metric repetition.
-  `frontend/src/features/act4-performance/components/Level27CounterCaches.tsx`
-- Level 28 (Pagination): "Page Stack" with 20 horizontal bars stacked vertically (each bar = 2,500 records out of 50K). Problem: all 20 bars cascade red top-to-bottom (loading everything). Solution: only 1 bar glows green (the page chunk requested), rest stay dim. Visually distinct from L26's block grid and L29's document grid because bars are wide horizontal slices that communicate "cutting data into pages."
-  `frontend/src/features/act4-performance/components/Level28Pagination.tsx`
-- Level 29 (Search): "Document Search Grid" with a 100-block grid (20x5). Problem: red wave sweeps ALL blocks (sequential scan with LIKE). Solution: GIN Index Card appears showing stemmed terms -> row IDs, matching blocks go green instantly. Visually distinct from L28's page stack because the grid represents database rows being scanned, not pages being sliced.
-  `frontend/src/features/act4-performance/components/Level29Search.tsx`
-
-The visualization shape, direction, and structure should emerge from the concept itself. L10 flows top-to-bottom because data moves through layers. L15 flows left-to-right because a request travels from client through a gate to the API. L26 shows a grid of row blocks because indexing is about how many rows the database touches. L27 shows a database table with schema columns because counter caches are about adding a column to avoid cross-table queries. Don't copy one level's layout onto another. Design the visualization that best helps the player understand the specific problem.
-
-**Visualization uniqueness is non-negotiable.** Before designing or approving a visualization, check adjacent levels (N-2 to N+2) for visual similarity. If two levels use the same shape (e.g., both use block grids, both use stacked bars, both use left-to-right pipelines), redesign one of them. Each level's visualization must be visually distinct at a glance. Ask: "If I showed a player screenshots of levels N-1, N, and N+1 side by side, could they tell which is which without reading the title?" If not, the visualizations are too similar and at least one needs a redesign. Always think about what visual metaphor best represents the specific concept, not what is easiest to build.
+See [reference-implementations.md](reference-implementations.md) for canonical examples (L12 PipelineFlow, L10/L15/L26/L27/L28/L29 custom) and visualization design principles.
 
 ## CRITICAL: These Rules Apply During Implementation, Not Just Audits
 
-**Every check in this skill applies when BUILDING a level, not just when reviewing one.** The audit skill is not a post-hoc review tool. It is the standard for how levels are built. If you are writing animation frame arrays, code preview boundaries, connector definitions, or zone layouts, you must verify them against these checks AS YOU WRITE THEM.
-
-The following bugs were all caused by skipping implementation-time verification and treating this skill as audit-only:
-
-| Bug | What went wrong | What should have happened |
-|-----|----------------|--------------------------|
-| Observe frames referenced S3 | Frames were copied mechanically without checking if S3 exists in the "before" state | Zone existence check (section 3 below) before writing any frame |
-| Code preview revealed answers | Used `furthestStep` as code preview index without checking what the player sees | Code preview boundary check (Phase 2 checklist) before writing `getCodeFiles` |
-| Direct upload used wrong connector | Reused connB (App<->S3) for Client->S3 flow without checking the data path | Connector accuracy check (visualization accuracy checklist) before writing each frame |
-| Fabricated technical claim about `create_before_direct_upload!` | Assumed API behavior instead of verifying | Technical claims must be verified against docs/source before writing frames |
-| Reward animation skipped steps in real flow | Concurrent upload animation stopped at "stored on S3" without the attach step. An orphaned blob on S3 is not a completed upload. | Write out the COMPLETE real-world flow before writing frames. Every step the real system performs must have a frame. |
-| Reward scenarios split one user action into multiple buttons | "Direct upload" and "Attach blob" were separate buttons, but a user just clicks "Upload photo" | Each stress test button = one user action. The animation plays the full technical flow triggered by that action. |
-| React Flow container used fixed height | Used `h-72` instead of `flex-1 relative`, unlike every other PipelineFlow level | Always use `flex-1 relative` for React Flow containers so they fill available space. Check how the canonical reference (L12) renders its PipelineFlow before building a custom React Flow visualization. |
-
-**Do not treat frame arrays as mechanical data to wire up.** Each frame is a claim about how the real system works. Verify the claim before writing the frame.
-
-**Every animation must show the COMPLETE flow for its user action.** Before writing frames, write out every step the real system performs for that action. If the flow has 5 steps and you only animate 3, the player learns an incomplete concept. An upload that stops at "stored on S3" without attaching the blob teaches the player that direct upload ends at S3, which is wrong.
+**Read [implementation-rules.md](implementation-rules.md) before building or modifying any level.** It contains the pre-flight checklist, bug table of past mistakes, and core principles for writing animation frames, code previews, and connectors. Every check in this audit skill applies when BUILDING a level, not just when reviewing one.
 
 ## Step -1: Narrative Reasoning (DO THIS BEFORE ANYTHING ELSE)
 
@@ -219,20 +182,13 @@ There are exactly **four types** of observe phase. Every level falls into one.
 3. Does the concept have a unique spatial metaphor (not MVC)? **Yes** -> Type 3
 4. Is it about something missing/broken in the request lifecycle? **Yes** -> Type 4
 
-**Mandatory type justification (non-negotiable):** Before proceeding with any type, write a one-sentence justification answering: **"What runtime behavior does this level need to animate?"** If the answer is "none, the problem is visible in the code structure," it is Type 2. If you cannot name a specific runtime mechanism (request flow, query execution, data race, network call), do not use Type 3 or Type 4.
+**Mandatory type justification (non-negotiable):** Write a one-sentence answer to: **"What runtime behavior does this level need to animate?"** If the answer is "none," it is Type 2.
 
-**The "pattern matching" trap:** Do not choose Type 3 just because adjacent levels in the same act use Type 3. Each level's type is determined by its concept, not by what its neighbors do. A schema duplication problem (Type 2) surrounded by runtime behavior levels (Type 3) is still Type 2.
+**Type 2 vs Type 3:** If the problem is visible by reading code side by side (structure, duplication, missing abstractions), it's Type 2. If it requires showing numbers (memory, latency, query count) or runtime flow, it's Type 3. Don't choose Type 3 just because adjacent levels use it.
 
-**Type 2 litmus test (apply before choosing Type 3):** Ask these questions in order. If ANY answer is "yes," the level is Type 2, not Type 3:
-1. Can the player fully understand the problem by reading two code snippets side by side? (e.g., duplicate schemas, fat controller, scattered validations)
-2. Is the problem about code organization, duplication, or missing abstractions rather than what happens at runtime?
-3. Would adding probes and animations feel forced, like inventing fake runtime behavior to justify interactivity?
+**Types 3 and 4 have discovery gating. Types 1 and 2 do not.** Do not add `useDiscoveryGating`, `ProbeTerminal`, or `DiscoveryChecklist` to Type 1 or Type 2 levels.
 
-**Case study: L32 Polymorphic Associations.** Polymorphic associations solve schema duplication (3 identical comment tables). This is a code-structure problem visible by reading the schema. There is no runtime behavior to animate: no requests to fire, no race conditions, no performance degradation to measure. Adding probes ("fire a query at post_comments!") and discovery gating would be inventing fake interactivity. Type 2 static intro with annotated schema tables is the correct choice.
-
-**Critical distinction between Type 2 and Type 3:** If explaining the problem requires showing numbers (memory, latency, query count) rather than code structure (responsibilities, abstractions, duplication), it needs Type 3, not Type 2.
-
-**Critical: Types 3 and 4 are both interactive with discovery gating. Types 1 and 2 have no discovery gating.** Do not add `useDiscoveryGating`, `DiscoveryChecklist`, `ProbeTerminal`, or `ScenarioCards` to Type 1 or Type 2 levels.
+For detailed type selection guidance, litmus tests, and case studies (L32 Polymorphic), see [observe-phase-guide.md](observe-phase-guide.md).
 
 #### Type 1: No observe phase
 
@@ -258,26 +214,9 @@ For detailed examples and flow animation patterns, see [observe-phase-guide.md](
 
 #### Type 4: PipelineFlow (hub-and-spoke MVC architecture)
 
-**Critical: PipelineFlow always uses hub-and-spoke layout, never linear.** The Controller is the hub that orchestrates satellites (Model, Database, Serializer) on vertical branches.
+**Always hub-and-spoke layout, never linear.** Controller is the hub. Required: discovery gating, clickable nodes with `StageInspector`, probes. If a level already has a working Type 3 custom visualization, keep it.
 
-```
-                 Serializer (L7+)
-                    ^  |
-                    |  v
-Request -> Router -> Controller -> Response
-                    ^  |
-                    |  v
-                   Model (L5+)
-                    ^  |
-                    |  v
-                  Database (L5+)
-```
-
-**Required:** Discovery gating, clickable nodes with `StageInspector`, probes, flow animation. **Reference implementations:** L5, L6, L7, L8.
-
-**If a level already has a custom visualization (Type 3) that teaches the concept well, keep it.** Do not replace it with PipelineFlow.
-
-For hub-and-spoke coordinates, bidirectional edges, satellite state rules, and sequential edge animation, see [pipelineflow-guide.md](pipelineflow-guide.md).
+For layout coordinates, edges, and state rules, see [pipelineflow-guide.md](pipelineflow-guide.md).
 
 #### Visualization accuracy checklist
 
@@ -338,33 +277,12 @@ For detailed layout patterns, code examples, and common mistakes, see [terminal-
 
 #### Animation locking (non-negotiable, all phases)
 
-**When a flow animation is running, all probe/fire buttons MUST be disabled.**
-
-```tsx
-// GOOD: probes disabled during animation
-<ProbeTerminal disabled={flowPhase !== -1} onProbe={handleProbe} probes={PROBES} />
-<StressTestPanel disabled={flowPhase !== -1} onFire={handleFireScenario} ... />
-
-// BAD: no disabled prop, player can fire overlapping probes
-<ProbeTerminal onProbe={handleProbe} probes={PROBES} />
-```
-
-- [ ] ProbeTerminal has `disabled={flowPhase !== -1}` (or equivalent)
-- [ ] StressTestPanel has `disabled={flowPhase !== -1}` (or equivalent)
-- [ ] No custom fire buttons are clickable during animation
-- [ ] Auto-fire timing accounts for animation duration
-
-#### Animation timing constant
-
-```tsx
-import { ANIMATION_DURATION_MS } from '@/lib/animation'; // 1500ms per element
-```
-
-- [ ] Level imports `ANIMATION_DURATION_MS` from `@/lib/animation`
-- [ ] Per-element stagger uses `ANIMATION_DURATION_MS` directly (not divided)
+- [ ] ProbeTerminal and StressTestPanel have `disabled` prop set during animation
+- [ ] No custom fire buttons clickable during animation
+- [ ] Uses `ANIMATION_DURATION_MS` from `@/lib/animation` for timing
 - [ ] Total lockout = `elementCount * ANIMATION_DURATION_MS`
 
-For flow animation patterns (flowPhase, FlowConnector, zone gating), see [observe-phase-guide.md](observe-phase-guide.md).
+For code examples and flow animation patterns, see [observe-phase-guide.md](observe-phase-guide.md).
 
 #### Left panel (observe)
 
@@ -448,9 +366,7 @@ Type 2 levels (static intro) use a **static before/after comparison**, not Stres
 - [ ] No StressTestPanel, no useStressTest, no STRESS_SCENARIOS
 - [ ] Left panel shows explanatory text about the improvement, not counters
 
-**Case study: L32 Polymorphic Associations.** Before: 3 separate comment tables (compact, dimmed). After: 1 unified comments table with polymorphic columns (`commentable_type`, `commentable_id`) highlighted in green, plus an extensibility row (Article) showing the pattern works for new types without new tables.
-
-**Do not add StressTestPanel to Type 2 levels.** There is no runtime behavior to stress-test. Firing fake "requests" at a schema change is contrived and teaches nothing. The static comparison IS the reward: the player sees their structural improvement directly.
+**Do not add StressTestPanel to Type 2 levels.** The static comparison IS the reward.
 
 #### Types 3 and 4 levels: Interactive reward
 
@@ -563,26 +479,7 @@ Verify that any custom animations follow Tailwind v4 / Lightning CSS constraints
 - [ ] **Zone/node backgrounds adapt to theme.** `bg-emerald-100 dark:bg-emerald-900/40`.
 - [ ] **Semi-transparent backgrounds do not leak.** If a node/zone uses a semi-transparent background (e.g., `bg-red-900/40`), verify the underlying canvas color does not bleed through and create unreadable contrast. Prefer opaque backgrounds for states like panic/danger.
 - [ ] **Scrollbar artifacts.** If a node/zone has scrollable content (`overflow-y-auto`, `max-h-*`), check that the scrollbar track does not create visible contrast artifacts against the node background. Prefer expanding height over scrolling when content is short.
-- [ ] **Terminal components use adaptive colors.** The shared terminal components (ProbeTerminal, StressTestPanel, SimulatedTerminal) use adaptive light/dark styling. They are light in light mode (`bg-zinc-50`) and dark in dark mode (`dark:bg-zinc-900`). If a level builds custom terminal-like UI, it must follow the same pattern. Never use always-dark terminal colors like `bg-zinc-900` without a `bg-zinc-50` light-mode counterpart.
-
-**Terminal adaptive color reference (built into shared components):**
-
-| Element | Light mode | Dark mode |
-|---------|-----------|-----------|
-| Container | `bg-zinc-50` | `dark:bg-zinc-900` |
-| Border | `border-border` | (semantic, auto) |
-| Header | `bg-muted` | (semantic, auto) |
-| Header text | `text-muted-foreground` | (semantic, auto) |
-| Body text | `text-foreground` | (semantic, auto) |
-| Footer | `bg-muted/50` | (semantic, auto) |
-| Green text | `text-emerald-600` | `dark:text-emerald-400` |
-| Amber text | `text-amber-600` | `dark:text-amber-400` |
-| Red text | `text-red-600` | `dark:text-red-400` |
-| Cyan text | `text-cyan-600` | `dark:text-cyan-400` |
-| Cursor | `bg-foreground/50` | (semantic, auto) |
-| Probe buttons | `bg-amber-100 text-amber-700 border-amber-300` | `dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700/50` |
-| Allowed buttons | `bg-emerald-100 text-emerald-700 border-emerald-300` | `dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700/50` |
-| Blocked buttons | `bg-red-100 text-red-700 border-red-300` | `dark:bg-red-900/30 dark:text-red-300 dark:border-red-700/50` |
+- [ ] **Terminal components use adaptive colors.** See [terminal-layout-guide.md](terminal-layout-guide.md) for the full color reference table. Custom terminal-like UI must follow the same adaptive light/dark pattern.
 
 ## Output Format
 

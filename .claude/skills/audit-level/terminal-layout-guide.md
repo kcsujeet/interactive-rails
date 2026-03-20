@@ -91,3 +91,24 @@ The header and footer sections have `shrink-0` so they never compress when the r
 - [ ] **Pattern B (PipelineFlow):** terminal wrapper is a plain div, terminal gets NO `className` prop
 - [ ] Terminal results log scrolls instead of growing (verify by firing 6+ requests)
 - [ ] Visualization remains visible at all times regardless of terminal content
+
+## Adaptive Color Reference (built into shared components)
+
+Terminal components use adaptive light/dark styling. If a level builds custom terminal-like UI, it must follow the same pattern. Never use always-dark terminal colors like `bg-zinc-900` without a `bg-zinc-50` light-mode counterpart.
+
+| Element | Light mode | Dark mode |
+|---------|-----------|-----------|
+| Container | `bg-zinc-50` | `dark:bg-zinc-900` |
+| Border | `border-border` | (semantic, auto) |
+| Header | `bg-muted` | (semantic, auto) |
+| Header text | `text-muted-foreground` | (semantic, auto) |
+| Body text | `text-foreground` | (semantic, auto) |
+| Footer | `bg-muted/50` | (semantic, auto) |
+| Green text | `text-emerald-600` | `dark:text-emerald-400` |
+| Amber text | `text-amber-600` | `dark:text-amber-400` |
+| Red text | `text-red-600` | `dark:text-red-400` |
+| Cyan text | `text-cyan-600` | `dark:text-cyan-400` |
+| Cursor | `bg-foreground/50` | (semantic, auto) |
+| Probe buttons | `bg-amber-100 text-amber-700 border-amber-300` | `dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700/50` |
+| Allowed buttons | `bg-emerald-100 text-emerald-700 border-emerald-300` | `dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700/50` |
+| Blocked buttons | `bg-red-100 text-red-700 border-red-300` | `dark:bg-red-900/30 dark:text-red-300 dark:border-red-700/50` |
