@@ -1656,7 +1656,7 @@ function handleFlowInit(instance: ReactFlowInstance) {
 // ──────────────────────────────────────────────
 
 export function Level35ActiveStorage({ onComplete }: LevelComponentProps) {
-	const [phase, setPhase] = useState<Phase>('reward');
+	const [phase, setPhase] = useState<Phase>('observe');
 	const [wrongFeedback, setWrongFeedback] = useState<string | null>(null);
 	const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
