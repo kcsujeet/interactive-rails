@@ -510,7 +510,7 @@ const level35ActiveStorage: Level = {
 			'Users upload 5MB profile photos through the Rails server via the UploadAvatar service. Memory spikes on every upload. No thumbnails generated. Serving originals costs bandwidth.',
 		rootCause:
 			'Files are uploaded through the application server instead of directly to object storage. No variant processing for thumbnails or resized images.',
-		codeExample: `# UploadAvatar service buffers entire file in memory!
+		codeExample: `# No Active Storage. Manual file handling.
 class UploadAvatar < ApplicationService
   Result = Data.define(:success?, :user, :errors)
 
@@ -520,20 +520,18 @@ class UploadAvatar < ApplicationService
   end
 
   def call
-    v = AvatarUploadContract.new.call(
-      user_id: @user_id, file: @file)
-    return Result.new(success?: false,
-      user: nil, errors: v.errors.to_h) if v.failure?
-
     user = User.find(@user_id)
-    user.avatar.attach(@file)  # Buffered in Rails!
+    path = Rails.root.join(
+      "storage/avatars/#{user.id}.jpg")
+    File.binwrite(path, @file.read)  # 5MB buffered!
     # 10 concurrent uploads = 50MB memory spike
+    user.update!(avatar_path: path.to_s)
     Result.new(success?: true, user:, errors: [])
   end
 end
 
 # No thumbnails, no variants, no CDN redirect
-# Downloads also go through Rails: send_data user.avatar.download`,
+# Downloads also go through Rails: send_file user.avatar_path`,
 		goal: 'Configure Active Storage with direct uploads via presigned URLs, generate image variants for thumbnails, and serve files through a CDN.',
 		thresholds: {},
 	},

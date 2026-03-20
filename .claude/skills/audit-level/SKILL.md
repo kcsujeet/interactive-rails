@@ -45,7 +45,39 @@ The visualization shape, direction, and structure should emerge from the concept
 
 **Visualization uniqueness is non-negotiable.** Before designing or approving a visualization, check adjacent levels (N-2 to N+2) for visual similarity. If two levels use the same shape (e.g., both use block grids, both use stacked bars, both use left-to-right pipelines), redesign one of them. Each level's visualization must be visually distinct at a glance. Ask: "If I showed a player screenshots of levels N-1, N, and N+1 side by side, could they tell which is which without reading the title?" If not, the visualizations are too similar and at least one needs a redesign. Always think about what visual metaphor best represents the specific concept, not what is easiest to build.
 
-## Step 0: Read the Official Documentation (MANDATORY)
+## Step -1: Narrative Reasoning (DO THIS BEFORE ANYTHING ELSE)
+
+**Before any structural check, before any visualization review, before reading the code: answer these questions about the level's story.** This is the foundation everything else is built on. If the story is wrong, no amount of correct animation or structural compliance matters.
+
+### 1. What is the problem this level presents?
+
+State it in one sentence. Not the Rails concept ("Active Storage"), but the concrete problem the player is experiencing in their app. Example: "Product photos are being uploaded through the Rails server, spiking memory and blocking workers."
+
+### 2. How did the player get into this situation?
+
+Think about the act context and what came before. By Act 5, the player has built a full e-commerce app with models, controllers, services, validations, associations, testing, and performance optimizations across 34 levels. Ask:
+
+- **What would the app realistically look like right now?** What features exist? What tech is already in place?
+- **How would the player have implemented the "before" state?** Would they have used the naive approach, a partially-correct approach, or no implementation at all?
+- **Does the "before" code make sense for someone at this skill level and stage of the app?**
+
+Example of getting this WRONG: L35 showed `user.avatar.attach(@file)` (Active Storage API) in the observe phase, then asked the player to "Install Active Storage" in the build phase. If Active Storage is already being used, why are we installing it? The "before" state contradicted the build steps.
+
+Example of getting this RIGHT: The player has been saving files manually to disk (naive approach). The problem is memory spikes, no CDN, no variants. The build phase introduces Active Storage as the upgrade.
+
+### 3. Does the visualization match the "before" state?
+
+The zones, nodes, and flow in the observe phase must reflect what actually exists in the "before" code. If the code saves files to the app server's local disk, the visualization should NOT show an S3 zone. If Active Storage isn't installed, there's no blob tracking. The visualization must be honest about what the player's app looks like right now.
+
+### 4. Does the build phase bridge from "before" to "after"?
+
+The build steps should transform the "before" state into the "after" state. Every step should make sense in sequence. If step 1 is "Install Active Storage" but the observe code already uses Active Storage APIs, the bridge is broken.
+
+**If any of these questions reveal an inconsistency, stop and fix the narrative before proceeding with the rest of the audit.** Structural compliance, animation quality, and visualization design are all downstream of narrative coherence.
+
+---
+
+
 
 Before auditing or building any level that involves a gem, library, or Rails feature:
 
@@ -94,6 +126,22 @@ This step is non-negotiable. Skipping it has caused bugs in the past (wrong Scop
 3. **Does StageInspector reveal meaningful code on click?**
 
 **If any sub-check fails, do not proceed with the rest of the audit.** Flag the observe phase as fundamentally broken and redesign it before checking anything else.
+
+### Step 3: Probe-by-probe playthrough (MANDATORY for Types 3 and 4)
+
+**Structural compliance is not a real audit.** Verifying that hooks exist, props are passed, and components are imported tells you nothing about whether the visualization teaches the concept. You MUST mentally (or actually) play through each probe and write down what the player sees.
+
+**For each probe, answer these questions in writing:**
+1. What animation plays when this probe fires? (Describe the specific zone/node states, text labels, colors, and timing.)
+2. How is this animation DIFFERENT from every other probe's animation?
+3. Does the animation content match what the probe label claims to test? (e.g., a "Download avatar" probe should not show "Sending file..." and "Stored")
+4. After watching this probe's animation, could a newcomer explain what went wrong?
+
+**If any two probes produce the same animation, the visualization fails.** Each probe exists to teach a different aspect of the problem. Identical animations mean the visualization is generic instead of specific.
+
+**If the animation content contradicts the probe label, the visualization fails.** A download probe that shows upload animation, or a listing probe that shows single-file flow, teaches the wrong concept.
+
+**Do not skip this step.** Case study: L35 Active Storage passed all structural checks (ProbeTerminal present, FlowConnector present, discoveries defined, animation locking correct) but all three probes played the exact same animation. See [visualization-examples.md](visualization-examples.md) "Audit Trap" section.
 
 For detailed case studies (L27 terminal-only failure, ProbeTerminal-is-not-a-visualization architecture), see [observe-phase-guide.md](observe-phase-guide.md).
 

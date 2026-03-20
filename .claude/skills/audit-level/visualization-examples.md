@@ -115,6 +115,23 @@ The level has two probes. The first teaches stock count races, the second teache
 
 **Rule:** When designing probe scenarios, the wrong outcome must be wrong in a way that is SELF-EVIDENT without domain knowledge. "18 units sold, 8 deducted" is self-evidently wrong. "$39.99 instead of $29.99" is not. Ask: "Would a non-technical person understand why this result is bad?"
 
+### Audit Trap: Structural Compliance is Not a Real Audit
+
+**This is the most common audit failure mode. Do not skip this section.**
+
+An audit can mark an observe phase as "PASS" because all the structural pieces are present (ProbeTerminal exists, FlowConnector exists, discoveries are defined, animation locking works) while completely missing that the visualization teaches nothing.
+
+**Case study: L35 Active Storage.** The level had three probes: "Upload 5MB photo", "Download user avatar", "List users with avatars." All three played the exact same animation: Client zone lights up ("Sending file..."), App Server zone lights up ("Memory spike!"), S3 zone lights up ("Stored"). The audit checked that ProbeTerminal was disabled during animation, that discoveries mapped to probes, that FlowConnector direction was correct, and marked the observe phase as "PASS."
+
+But a player firing "Download user avatar" sees "Sending file..." and "Stored." That makes no sense for a download. The animation doesn't show what downloading does differently from uploading, doesn't show the data flowing in the opposite direction, doesn't show the worker blocking. All three probes are visually identical. The visualization is structurally present but semantically empty.
+
+**The fix:** Before marking any observe phase as "PASS", write out what the player sees for EACH probe:
+1. Fire probe X. What animation plays? What text appears on each zone?
+2. Fire probe Y. Is the animation DIFFERENT from probe X?
+3. If all probes play the same animation, the visualization is broken regardless of how many correct hooks and components it uses.
+
+**Rule:** Structural compliance (correct imports, correct hooks, correct props) is necessary but not sufficient. The audit must evaluate what the player actually sees, probe by probe. A generic animation that plays the same way for every probe is equivalent to having no visualization at all.
+
 ### Build Phase: Narrative Consistency Failures
 
 **5. Code snippets must use the level's domain, not a different domain (FAILED then FIXED).**

@@ -44,10 +44,10 @@ const PROBES = [
 		label: 'Download user avatar',
 		command: 'curl GET /api/v1/users/1/avatar',
 		responseLines: [
-			{ text: 'send_data @user.avatar.download', color: 'yellow' },
-			{ text: 'Entire 5MB loaded into memory, streamed to client', color: 'red' },
+			{ text: 'send_file user.avatar_path', color: 'yellow' },
+			{ text: 'Entire 5MB read from disk, streamed to client', color: 'red' },
 			{ text: 'Rails worker blocked for 3 seconds during download!', color: 'red' },
-			{ text: 'No CDN or redirect_to service_url configured.', color: 'red' },
+			{ text: 'No CDN or redirect configured.', color: 'red' },
 		],
 	},
 	{
