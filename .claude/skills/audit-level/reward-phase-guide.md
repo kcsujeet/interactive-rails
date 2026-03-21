@@ -1,6 +1,19 @@
 # Reward Phase Design Guide
 
-Detailed guidance for the reward (Phase 3) visualization: StressTestPanel response lines, button labels, custom reward visualization, and reward flow animation.
+Detailed guidance for the reward (Phase 3) visualization: interactivity requirements, StressTestPanel response lines, button labels, custom reward visualization, and reward flow animation.
+
+## Reward Phase Type Rules
+
+The reward style depends on the observe phase type:
+
+**Type 2 levels: Static before/after reward.** Type 2 levels (static intro) use a static before/after comparison, not StressTestPanel. The reward shows the problem state and solution state side by side or stacked. **Do not add StressTestPanel to Type 2 levels.** The static comparison IS the reward.
+
+**Types 3 and 4 levels: Interactive reward.** The reward phase MUST be interactive. Passive auto-incrementing counters (`setInterval`) are never acceptable. Options:
+- **StressTestPanel + useStressTest**: Player fires scenarios. `toggleAutoFire` accepts the same `onFire` handler used for manual fires, so animations trigger during auto-fire. Auto-fire cycles through all scenarios once, then stops. Must be disabled during flow animations.
+- **Custom interactive controls**: Buttons, toggles, inputs on the custom visualization. E.g., clicking different browser origins in a CORS visualization and watching them get allowed/blocked.
+- **Replay/comparison controls**: Toggle between before/after states, or replay scenarios at different scales.
+
+The key rule: **every click from the player must produce a visible reaction in the visualization.**
 
 ## Flow Animation in Reward Phase
 
@@ -96,6 +109,7 @@ StressTestPanel buttons display `scenario.label` as the button text. The `label`
 - [ ] Each `label` is unique within the scenario array (no duplicate button text)
 - [ ] Labels include actor context only when the actor is relevant to the concept being taught
 - [ ] Labels match the corresponding observe-phase probe labels for overlapping endpoints
+- [ ] **Button label format is consistent between ProbeTerminal and StressTestPanel.** If probe buttons use short labels without URL paths (e.g., `GET trending`), stress scenario buttons must use the same style (e.g., `GET trending (cached)`), not path-style labels (e.g., `GET /trending (cached)`). The two terminals appear in the same center panel across phases and must look like they belong to the same UI.
 - [ ] Labels are concise enough to fit in a button without truncation
 
 ## Reward Animations Must Match the Built Code (Non-Negotiable)

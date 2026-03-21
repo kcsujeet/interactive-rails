@@ -59,11 +59,37 @@ If the visualization has a **natural/intrinsic height** (custom zones, grids, st
 
 If the visualization uses **`flex-1` to fill available space** (PipelineFlow, ReactFlow), use **Pattern B**.
 
+### Pattern C: Short Custom Visualization (terminal anchored at bottom)
+
+Use when the visualization has a short natural height (e.g., L36's database table with 3 rows) and the terminal should NOT fill remaining space (it would be huge) but instead sit at the bottom of the panel. The gap between the visualization and the terminal is intentional, matching how every other level positions its terminal.
+
+```tsx
+// Pattern C: terminal pinned to bottom, viz at top (L36-style)
+<div className="flex-1 flex flex-col">
+  <DatabaseTable />                               {/* Short natural height */}
+  <div className="mt-auto px-6 pb-2">             {/* mt-auto pushes to bottom */}
+    <StressTestPanel ... />                        {/* No className prop */}
+  </div>
+</div>
+```
+
+The `mt-auto` on the terminal wrapper consumes all remaining flex space as top margin, pushing the terminal to the bottom edge. The terminal uses Pattern B sizing (bounded, no `className` prop) so it does not grow.
+
+### How to Choose
+
+If the visualization has a **natural/intrinsic height and fills most of the panel** (custom zones, grids, stacked layers), use **Pattern A**.
+
+If the visualization uses **`flex-1` to fill available space** (PipelineFlow, ReactFlow), use **Pattern B**.
+
+If the visualization has a **short natural height** (small table, compact diagram) and the terminal should anchor at the bottom, use **Pattern C**.
+
 ### Common Mistakes
 
 **Mistake: Using Pattern A with PipelineFlow.** The terminal gets `flex-1` and competes with the pipeline for space. With enough results, the terminal pushes the pipeline off screen.
 
 **Mistake: Using Pattern B with a custom visualization.** The terminal is bounded at `max-h-64` (256px) and leaves large empty gaps below when the visualization is short.
+
+**Mistake: Omitting `mt-auto` for short visualizations.** The visualization and terminal bunch together at the top of the panel with a huge empty gap below. Case study: L36's 3-row database table and ProbeTerminal sat adjacent with no spacing, wasting 60% of the panel. Fix: add `mt-auto` to the terminal wrapper (Pattern C).
 
 **Mistake: Flex wrapper without `min-h-0`.** The wrapper div has `flex-1 flex flex-col` but no `min-h-0`. Without `min-h-0`, the flex child cannot shrink below its content height, so `overflow-y-auto` on the results log never activates.
 
@@ -87,8 +113,9 @@ The header and footer sections have `shrink-0` so they never compress when the r
 
 ## Checklist
 
-- [ ] **Pattern A (custom viz):** terminal wrapper has `flex-1 min-h-0 flex flex-col`, terminal gets `className="flex-1 flex flex-col"`
+- [ ] **Pattern A (custom viz, fills panel):** terminal wrapper has `flex-1 min-h-0 flex flex-col`, terminal gets `className="flex-1 flex flex-col"`
 - [ ] **Pattern B (PipelineFlow):** terminal wrapper is a plain div, terminal gets NO `className` prop
+- [ ] **Pattern C (short custom viz):** terminal wrapper has `mt-auto`, terminal gets NO `className` prop
 - [ ] Terminal results log scrolls instead of growing (verify by firing 6+ requests)
 - [ ] Visualization remains visible at all times regardless of terminal content
 

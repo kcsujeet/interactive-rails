@@ -1,8 +1,10 @@
 /**
  * Error Feedback Component
  *
- * Animated inline error card that shows what the correct action is.
- * Slides in from bottom, auto-dismisses after 3 seconds.
+ * Animated inline error card that explains why a wrong option was wrong.
+ * Slides in from top. Stays visible until the player selects another option
+ * or gets the correct answer (parent sets message to null).
+ * Never auto-dismisses.
  */
 
 import { AlertCircle } from 'lucide-react';
@@ -21,18 +23,14 @@ export function ErrorFeedback({ message, onDismiss }: ErrorFeedbackProps) {
 		if (message) {
 			setDisplayMessage(message);
 			setVisible(true);
-
+		} else {
+			setVisible(false);
 			const timer = setTimeout(() => {
-				setVisible(false);
-				setTimeout(() => {
-					setDisplayMessage(null);
-					onDismiss?.();
-				}, 200);
-			}, 3000);
-
+				setDisplayMessage(null);
+				onDismiss?.();
+			}, 200);
 			return () => clearTimeout(timer);
 		}
-		setVisible(false);
 	}, [message, onDismiss]);
 
 	if (!displayMessage) return null;
@@ -41,8 +39,8 @@ export function ErrorFeedback({ message, onDismiss }: ErrorFeedbackProps) {
 		<div
 			className={`transition-all duration-200 ${
 				visible
-					? 'animate-in slide-in-from-bottom-3 opacity-100'
-					: 'opacity-0 translate-y-1'
+					? 'animate-in slide-in-from-top-3 opacity-100'
+					: 'opacity-0 -translate-y-1'
 			}`}
 		>
 			<div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 flex items-start gap-2">

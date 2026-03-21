@@ -15,6 +15,7 @@ This skill is split across multiple files. SKILL.md contains the core audit flow
 - [cumulative-patterns.md](cumulative-patterns.md): **Non-negotiable.** Complete reference of every architectural pattern, gem, and code convention established in each level. Every audit must check code previews against patterns from earlier levels. Violations (e.g., inline validation instead of dry-validation contracts, direct model calls instead of service objects) are Critical severity. **You must update this file whenever you create, redesign, or modify a level that changes what patterns are taught.** This file must always reflect the current state of the curriculum.
 - [observe-phase-guide.md](observe-phase-guide.md): Type 2/3/4 deep dives, visualization accuracy case studies (L15, L25, L26, L27), mechanism vs metric principles, shared terminal components, flow animation patterns, discovery hint patterns
 - [pipelineflow-guide.md](pipelineflow-guide.md): Hub-and-spoke layout coordinates, bidirectional edge rendering, satellite state rules, node color rules, sequential edge animation API
+- [build-phase-guide.md](build-phase-guide.md): Code preview accuracy (transition table technique, no fabricated changes), option card quality (3 options, no answer-revealing comments), feedback consistency (no cross-step contradictions), documentation verification, step progression, UI consistency
 - [reward-phase-guide.md](reward-phase-guide.md): StressTestPanel response lines, button labels, custom reward visualization rules, reward flow animation
 - [cross-phase-consistency.md](cross-phase-consistency.md): Visual language consistency, same component different state, build-intro alignment, reward loop closure, scenario data consistency (all with case studies)
 - [terminal-layout-guide.md](terminal-layout-guide.md): Terminal panel sizing patterns (Pattern A for custom viz, Pattern B for PipelineFlow), shared component usage rules, flex layout common mistakes
@@ -277,6 +278,7 @@ For detailed layout patterns, code examples, and common mistakes, see [terminal-
 - [ ] **Terminal never hides the visualization.** Verify by firing 6+ requests; the diagram must remain visible.
 - [ ] **Custom viz levels (Pattern A):** terminal wrapper has `flex-1 min-h-0 flex flex-col`, terminal gets `className="flex-1 flex flex-col"`
 - [ ] **PipelineFlow levels (Pattern B):** terminal wrapper is a plain div, terminal gets NO `className` prop
+- [ ] **Short custom viz levels (Pattern C):** terminal wrapper has `mt-auto` to anchor at bottom, terminal gets NO `className` prop. Use when the visualization has a short natural height (small table, compact diagram) and would otherwise bunch up against the terminal at the top of the panel.
 
 #### Animation locking (non-negotiable, all phases)
 
@@ -309,118 +311,79 @@ For hub-and-spoke layout, satellite state rules, and sequential edge animation, 
 
 ### Phase 2: Problem Solving (HOW)
 
+For detailed guidance on code preview accuracy, option quality, feedback consistency, documentation verification, and step progression, see [build-phase-guide.md](build-phase-guide.md).
+
 The build phase must cover the **complete workflow**:
 
+#### Structure
 - [ ] **Gem/dependency installation is included** if the feature requires a gem (`bundle add <gem>`). Non-negotiable.
 - [ ] **Generator/setup commands are included** if the gem has one (`rails generate <gem>:install`). Non-negotiable.
+- [ ] **Every migration generation must be followed by `rails db:migrate`** (non-negotiable).
 - [ ] Center panel shows ONLY the step UI (no animation running in background)
 - [ ] Terminal steps use `TerminalChoiceStep` with `buildTerminalHistory` for cumulative shell history
 - [ ] Code selection steps use `OptionCard`
 - [ ] Left panel shows scenario text + `StepProgress` pills
 - [ ] Right panel code preview evolves progressively as steps are completed
-- [ ] **Code preview has no empty states.** Check the `getCodeFiles` function: every step state must produce non-empty code. A common bug is a ternary chain where the fallback is an empty string, leaving the code panel blank after completing a step. Every step completion should show a meaningful code snapshot (skeleton with placeholder comments for what comes next).
-- [ ] **Code preview does not reveal the answer for the current step (non-negotiable).** While the player is WORKING ON step N (not yet completed), the right panel must show the result of step N-1 (context), NOT the result of step N (the answer). Common bug: using `stepper.furthestStep` or `stepper.currentStep` directly as the code preview index, which shows the current step's result code before the player has selected it. Fix: pass `isCurrentStepCompleted ? currentStep : currentStep - 1` as the "completedStep" to `getCodeFiles`. Case study: L35 showed the correct `has_one_attached` model code in the right panel while the player was still choosing between model attachment options.
-- [ ] **Verify by mental walkthrough.** For each OptionCard step, compare: (a) the correct answer's code snippet, and (b) the code preview shown while working on that step. If any distinctive string from (a) appears in (b), the answer is revealed.
+
+#### Code preview (see [build-phase-guide.md](build-phase-guide.md) for case studies and transition table technique)
+- [ ] **Code preview has no empty states.**
+- [ ] **Code preview reflects what the step actually changed.** If a step doesn't modify code files, the preview stays unchanged.
+- [ ] **Code preview does not reveal the answer for the current step.** Use `isCurrentStepCompleted ? currentStep : currentStep - 1`.
+- [ ] **Code preview transition table verified.** Build the table, check every row for answer leaks, filename leaks, and fabricated changes.
+
+#### Option quality (see [build-phase-guide.md](build-phase-guide.md) for detailed rules)
 - [ ] `ErrorFeedback` component is used for wrong-answer feedback (not inline error divs)
+- [ ] **ErrorFeedback is positioned above the options**, not below or between them. It stays visible until the player picks another option or gets it right (no auto-dismiss). Cleared on step advance.
 - [ ] Correct answer is never the first option
+- [ ] **Every OptionCard step has exactly 3 options.**
 - [ ] All options use the same color
 - [ ] Feedback never reveals the correct answer
-- [ ] **Step labels do not reveal answers.** StepProgress pill titles (shown in the left panel) must describe the task generically, not name the specific gem, module, or method the player will choose. E.g., "Install Pagination Gem" not "Add the Pagy Gem"; "Include Controller Module" not "Include Pagy::Method".
-- [ ] **Scenario text and descriptions do not reveal answers.** The left panel scenario text, step descriptions, and hint text must never name the correct gem, class, method, or command that the player will select. Describe the requirements and constraints instead. E.g., "Choose the right pagination gem" not "Pagy is the fastest pagination gem. Add it to your project."
-- [ ] **Wrong options are contextually plausible.** After the player has already chosen a gem/library in an earlier step, wrong options in later steps must be from that same gem (e.g., old API names, wrong modules), not from a completely different gem they did not install.
+- [ ] **Feedback does not contradict earlier steps.** If a technique was correct in step M, step N's feedback must frame it as a context-dependent tradeoff, not as universally bad.
+- [ ] **Inline comments within option labels do not reveal answers.** Describe the mechanism, not why it's right or wrong for this step.
+- [ ] **Step labels do not reveal answers.** Use generic task descriptions, not specific gem/method names.
+- [ ] **Scenario text and descriptions do not reveal answers.**
+- [ ] **Wrong options are contextually plausible.**
 
-**Documentation verification (non-negotiable):**
-- [ ] Before writing ANY step content, **fetch and read the full README** of the gem/library from its official GitHub repo using `WebFetch` (not just the repo landing page, not a summary)
-- [ ] Verify exact installation steps from the README
-- [ ] Verify generated file contents match actual template files in the gem's source code (check `lib/generators/` in the repo)
-- [ ] Verify class names, module names, method signatures against the README
-- [ ] Do NOT rely on AI knowledge of gem APIs. The README is the source of truth
+#### Documentation verification (non-negotiable)
+- [ ] Before writing ANY step content, **fetch and read the full README** of the gem/library from its official GitHub repo
+- [ ] Verify installation steps, class names, method signatures against the README
 - [ ] If the README shows N installation steps, the level must have at least N steps
-- [ ] Any step listed in the gem's README "Getting Started" / "Installation" section that is not represented in the level must be flagged
-
-**Typical step progression for a gem-based feature:**
-1. Install the gem (`bundle add ...`) - TerminalChoiceStep
-2. Include module / configure controller (if README requires it) - OptionCard step
-3. Run the generator (`rails generate ...`) - TerminalChoiceStep
-4. Configure/customize the generated code - OptionCard steps
-5. Wire it into the application - OptionCard steps
-
-**Common missing steps to flag:**
-- Missing `bundle add <gem>` step
-- Missing `include <Gem>::<Module>` in ApplicationController (many gems require this, e.g., Pundit, Devise)
-- Missing `rails generate <gem>:install` step
-- Missing `rails db:migrate` step after any generator that creates migrations (non-negotiable)
-- Missing configuration steps (initializers, environment config)
-
-**Every migration generation must be followed by `rails db:migrate` (non-negotiable):**
-If any build step generates a migration file, the very next step MUST be running `rails db:migrate`. Without it, the column/table does not exist in the database. Case study: L27 Counter Caches originally had "Generate the counter cache migration" immediately followed by "Enable counter_cache on the association," skipping the migration run.
 
 ### Phase 3: Solution Visualization (ADVANTAGE) - Reward
 
-The level must have a dedicated reward phase. **The reward style depends on the observe phase type.**
+The level must have a dedicated reward phase. **The reward style depends on the observe phase type.** For detailed guidance on StressTestPanel, response lines, button labels, custom reward visualizations, and reward animation accuracy, see [reward-phase-guide.md](reward-phase-guide.md).
 
 #### Type 2 levels: Static before/after reward
 
-Type 2 levels (static intro) use a **static before/after comparison**, not StressTestPanel. The reward shows the problem state and solution state side by side or stacked, so the player sees the structural improvement at a glance.
-
-- [ ] "Before" section shows the problem (compact, dimmed with `opacity-60`)
-- [ ] Arrow or separator between before and after
-- [ ] "After" section shows the solution (full detail, highlighted improvements in green)
+- [ ] "Before" section (compact, dimmed with `opacity-60`) + "After" section (highlighted improvements in green)
 - [ ] No StressTestPanel, no useStressTest, no STRESS_SCENARIOS
 - [ ] Left panel shows explanatory text about the improvement, not counters
 
-**Do not add StressTestPanel to Type 2 levels.** The static comparison IS the reward.
-
 #### Types 3 and 4 levels: Interactive reward
 
-For levels with interactive observe phases (Types 3 and 4), the player **interactively verifies** their solution works.
+- [ ] Star rating + "Visualize ___" button in activate sub-phase (centered, no animation)
+- [ ] Same visualization from Phase 1 returns, now showing the solution working
+- [ ] **The player interacts** to verify the fix works. This is NOT passive. Every click must produce a visible reaction.
 
-#### Sub-phase a (activate)
+#### StressTestPanel checklist (see [reward-phase-guide.md](reward-phase-guide.md) for details)
 
-- [ ] Star rating display + "Visualize ___" button (centered, no animation)
-- [ ] No visualization running yet
-
-#### Sub-phase b (reward) - visualization returns
-
-- [ ] The same visualization from Phase 1 returns, now showing the solution working
-- [ ] The contrast between Phase 1 (broken) and Phase 3b (fixed) is the reward
-- [ ] **The player interacts** to verify the fix works. This is NOT passive.
-
-#### Interactivity requirement (Types 3 and 4 only)
-
-The reward phase MUST be interactive for Types 3 and 4. Passive auto-incrementing counters (`setInterval`) are never acceptable. Options:
-- **StressTestPanel + useStressTest**: Player fires scenarios. Provides `fireRequest()`, `toggleAutoFire(onFire)`, dual counters. `toggleAutoFire` accepts the same `onFire` handler used for manual fires, so animations trigger during auto-fire. Auto-fire cycles through all scenarios once, then stops. Must be disabled during flow animations.
-- **Custom interactive controls**: Buttons, toggles, inputs on the custom visualization. E.g., clicking different browser origins in a CORS visualization and watching them get allowed/blocked. Clicking different query patterns in a performance visualization and seeing response times.
-- **Replay/comparison controls**: Toggle between before/after states, or replay scenarios at different scales.
-
-The key rule: **every click from the player must produce a visible reaction in the visualization.**
-
-#### StressTestPanel checklist
-
-- [ ] `useStressTest(scenarios)` hook manages state
-- [ ] `STRESS_SCENARIOS` array defined
-- [ ] Scenario buttons use `label` field, color-coded by expected result
-- [ ] Auto-fire toggle gated behind 3+ manual fires
+- [ ] `useStressTest(scenarios)` hook manages state, `STRESS_SCENARIOS` array defined
 - [ ] `disabled={flowPhase !== -1}` blocks fire during flow animations
-- [ ] Response lines present on all scenarios when observe probes have them
-- [ ] Labels are self-descriptive and match observe-phase probe labels
-- [ ] **Button label format is consistent between ProbeTerminal and StressTestPanel.** If probe buttons use short labels without URL paths (e.g., `GET trending`), stress scenario buttons must use the same style (e.g., `GET trending (cached)`), not path-style labels (e.g., `GET /trending (cached)`). The two terminals appear in the same center panel across phases and must look like they belong to the same UI.
-
-For StressTestPanel response lines rules, button label conventions, and custom reward visualization details, see [reward-phase-guide.md](reward-phase-guide.md).
+- [ ] Auto-fire toggle gated behind 3+ manual fires
+- [ ] Response lines present on all scenarios
+- [ ] **Button label format is consistent with ProbeTerminal.**
 
 #### Reward animation vs built code (non-negotiable)
 
-- [ ] **Read the final code preview and cross-reference every reward animation against it.** For each scenario, identify which class and method handles the request. The animation must name the correct component.
-- [ ] **If the built code defines cached/lazy behavior, show the cached case.** Named variants, memoized queries, cached responses: the stress test represents repeated usage, not first-time setup. Do not show cold-start behavior (e.g., "generating variant...") when the code defines pre-cached named variants.
-- [ ] **Validation labels must trace to the correct class and method.** If `validate_content_type!` lives in `UploadAvatar` service, the animation must say "UploadAvatar: validate_content_type!", not "rejected at presigned URL stage."
-- [ ] **No animation shows behavior the built code doesn't implement.** If the controller has no validation logic, the animation cannot show rejection at that endpoint.
-
-See [reward-phase-guide.md](reward-phase-guide.md) "Reward Animations Must Match the Built Code" for case studies.
+- [ ] **Cross-reference every reward animation against the final code preview.**
+- [ ] **Show cached case for cached/lazy behavior.** Stress tests represent repeated usage.
+- [ ] **Validation labels trace to the correct class and method.**
+- [ ] **No animation shows behavior the built code doesn't implement.**
 
 #### Left panel (reward)
 
 - [ ] Legend or explanation of what visual states mean
-- [ ] Counters showing cumulative results (e.g., Allowed/Blocked, Saved/Rejected, Fast/Slow)
+- [ ] Counters showing cumulative results (e.g., Allowed/Blocked)
 
 #### Right panel (reward)
 
@@ -428,12 +391,14 @@ See [reward-phase-guide.md](reward-phase-guide.md) "Reward Animations Must Match
 
 ### Step Quality (Is the Build Phase Satisfying?)
 
-- [ ] **Every step requires a real decision.** If a step's correct answer is "do nothing" or "let it happen automatically," it's not a real step. The player should actively build something at every step.
-- [ ] **Steps don't reveal each other's answers.** If Step 0's correct option contains the exact code Step 1 will ask about, the player can read ahead. Use placeholders (`[...]`, `...`) in earlier steps when later steps will fill in the details.
-- [ ] **Code preview evolves progressively.** Each completed step should visibly change the right panel code. If two steps produce the same code preview, one of them feels invisible.
-- [ ] **Code preview never reveals the current step's answer.** The right panel must show the result of the PREVIOUS step while the player works on the current step. Only after completion should it update to show what was just built. See the Phase 2 checklist for implementation details.
-- [ ] **Wrong options have distinct, teaching feedback.** Each wrong option should fail for a different reason that teaches something specific. Don't have two wrong options that are wrong for essentially the same reason.
-- [ ] **The reward phase matches the level type.** Types 3/4: interactive (StressTestPanel or custom controls). Type 2: static before/after. Passive auto-incrementing counters are never allowed for any type.
+See [build-phase-guide.md](build-phase-guide.md) for detailed rules and case studies.
+
+- [ ] **Every step requires a real decision.**
+- [ ] **Steps don't reveal each other's answers.**
+- [ ] **Code preview evolves progressively.** If two steps produce the same preview, one feels invisible.
+- [ ] **Wrong options have distinct, teaching feedback.**
+- [ ] **"Next Step" button is consistent across step types.** Default variant, `size="sm"`, `className="gap-2"`.
+- [ ] **The reward phase matches the level type.** Types 3/4: interactive. Type 2: static before/after.
 
 ### Cross-Phase Consistency (Non-Negotiable)
 

@@ -185,7 +185,7 @@ const PROBES: ProbeConfig[] = [
 
 const STEP_DEFS: StepDef[] = [
 	{ id: 'generate-keys', title: 'Generate Encryption Keys' },
-	{ id: 'add-credentials', title: 'Store Keys in Credentials' },
+	{ id: 'add-credentials', title: 'Secure Key Storage' },
 	{ id: 'encrypt-email', title: 'Encrypt Email Column' },
 	{ id: 'encrypt-pii', title: 'Encrypt Phone & Address' },
 	{ id: 'update-service', title: 'Update Lookup Service' },
@@ -294,9 +294,8 @@ const EMAIL_ENCRYPTION_OPTIONS = [
 		id: 'wrong-non-deterministic',
 		label: `class User < ApplicationRecord
   encrypts :email
-  # Non-deterministic (default)
-  # Cannot use find_by(email: ...)
-  # Cannot validate uniqueness
+  # Default mode: each encryption produces
+  # a unique ciphertext, even for the same value
 end`,
 		correct: false,
 		feedback:
@@ -306,11 +305,20 @@ end`,
 		id: 'correct-deterministic',
 		label: `class User < ApplicationRecord
   encrypts :email, deterministic: true
-  # Same email always produces same ciphertext
-  # Allows: find_by(email:), where(email:)
-  # Allows: validates :email, uniqueness: true
+  # Deterministic mode: same plaintext always
+  # produces the same ciphertext
 end`,
 		correct: true,
+	},
+	{
+		id: 'wrong-downcase-only',
+		label: `class User < ApplicationRecord
+  encrypts :email, downcase: true
+  # Normalize to lowercase before encrypting
+end`,
+		correct: false,
+		feedback:
+			'The downcase option normalizes the value but does not set the encryption mode. Without deterministic: true, this still uses non-deterministic encryption by default.',
 	},
 ];
 
@@ -322,19 +330,17 @@ const PII_ENCRYPTION_OPTIONS = [
   encrypts :email, deterministic: true
   encrypts :phone, deterministic: true
   encrypts :address, deterministic: true
-  # All fields deterministic
 end`,
 		correct: false,
 		feedback:
-			'Deterministic encryption is less secure because identical values produce identical ciphertext. An attacker can perform frequency analysis. Only use deterministic for fields that need querying.',
+			'Deterministic mode is a tradeoff: it enables querying but identical values produce identical ciphertext. Email needed that tradeoff for login lookups. Phone and address are never queried, so there is no reason to accept weaker encryption for them.',
 	},
 	{
 		id: 'correct-non-deterministic',
 		label: `class User < ApplicationRecord
   encrypts :email, deterministic: true
-  encrypts :phone          # non-deterministic (default)
-  encrypts :address        # non-deterministic (default)
-  # Phone/address: max security, no querying needed
+  encrypts :phone
+  encrypts :address
 end`,
 		correct: true,
 	},
@@ -344,7 +350,7 @@ end`,
   encrypts :email, deterministic: true
   encrypts :phone
   encrypts :address
-  encrypts :name  # Encrypt everything!
+  encrypts :name
 end`,
 		correct: false,
 		feedback:
@@ -375,6 +381,30 @@ end`,
 			'Raw SQL queries bypass ActiveRecord encryption entirely. The database stores ciphertext, so a plaintext WHERE clause will never match. Use ActiveRecord query methods which handle encryption transparently.',
 	},
 	{
+		id: 'wrong-manual-encrypt',
+		label: `class FindUser < ApplicationService
+  Result = Data.define(:success?, :user, :errors)
+
+  def initialize(email:)
+    @email = email
+  end
+
+  def call
+    v = FindUserContract.new.call(email: @email)
+    return Result.new(success?: false,
+      user: nil, errors: v.errors.to_h) if v.failure?
+
+    cipher = ActiveRecord::Encryption.encryptor
+    encrypted = cipher.encrypt(@email)
+    user = User.find_by(email: encrypted)
+    Result.new(success?: true, user:, errors: [])
+  end
+end`,
+		correct: false,
+		feedback:
+			'You do not need to manually encrypt query values. ActiveRecord handles encryption and decryption transparently when you use standard query methods like find_by.',
+	},
+	{
 		id: 'correct-activerecord',
 		label: `class FindUser < ApplicationService
   Result = Data.define(:success?, :user, :errors)
@@ -388,7 +418,6 @@ end`,
     return Result.new(success?: false,
       user: nil, errors: v.errors.to_h) if v.failure?
 
-    # ActiveRecord encrypts the query value automatically
     user = User.find_by(email: @email)
     return Result.new(success?: false,
       user: nil, errors: ["Not found"]) unless user
@@ -480,7 +509,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'attacker-dump',
-		label: 'SQL injection attempt',
+		label: 'SQL injection attack',
 		description: 'Attacker tries to dump user table',
 		method: 'GET',
 		path: "/api/v1/users?id=1' OR 1=1",
@@ -543,13 +572,29 @@ const STRESS_SCENARIOS: StressScenario[] = [
 			{ text: 'GDPR compliance: PASS', color: 'green' },
 		],
 	},
+	{
+		id: 'encryption-config',
+		label: 'Check encryption config',
+		description: 'Verify encryption keys are configured',
+		method: 'GET',
+		path: '/admin/audit/encryption-status',
+		actor: 'security auditor',
+		expectedResult: 'allowed',
+		responseLines: [
+			{ text: '200 OK', color: 'green' },
+			{ text: 'primary_key: configured', color: 'cyan' },
+			{ text: 'deterministic_key: configured', color: 'cyan' },
+			{ text: 'key_derivation_salt: configured', color: 'cyan' },
+			{ text: 'ActiveRecord::Encryption: ACTIVE', color: 'green' },
+		],
+	},
 ];
 
 // ──────────────────────────────────────────────
 // Code preview files
 // ──────────────────────────────────────────────
 
-function getCodeFiles(phase: Phase, furthestStep: number) {
+function getCodeFiles(phase: Phase, completedStep: number) {
 	if (phase === 'observe') {
 		return [
 			{
@@ -566,6 +611,11 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
   # No encrypts declarations
   # No encryption keys configured
   # Database breach = full PII exposure
+
+  has_one_attached :avatar do |attachable|
+    attachable.variant :thumb, resize_to_limit: [100, 100]
+    attachable.variant :medium, resize_to_limit: [300, 300]
+  end
 
   validates :email, uniqueness: true
   validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }
@@ -596,36 +646,9 @@ end`,
 	}
 
 	if (phase === 'build') {
-		if (furthestStep <= 0) {
-			return [
-				{
-					filename: 'app/models/user.rb',
-					language: 'ruby',
-					code: `class User < ApplicationRecord
-  has_secure_password
-  # No encryption keys generated yet.
-  # Run: bin/rails db:encryption:init
-  # to generate primary_key, deterministic_key,
-  # and key_derivation_salt.
-end`,
-				},
-			];
-		}
-		if (furthestStep <= 1) {
-			return [
-				{
-					filename: 'config/credentials.yml.enc',
-					language: 'yaml',
-					code: `# Keys generated, now store them securely.
-# Choose the right storage mechanism.
-active_record_encryption:
-  primary_key: EGY8WhulUOXixybod7ZWwMIL68R9o5kC
-  deterministic_key: aPA5XyALhf75NNnMzaspW7akTfZp0lPY
-  key_derivation_salt: xEY0dt6TZcAMg52K7O84wYzkjvbA62Hz`,
-				},
-			];
-		}
-		if (furthestStep <= 2) {
+		// Step 0 (generate keys): db:encryption:init prints to stdout,
+		// no files are modified. Show unchanged "before" model.
+		if (completedStep < 0) {
 			return [
 				{
 					filename: 'app/models/user.rb',
@@ -633,29 +656,10 @@ active_record_encryption:
 					code: `class User < ApplicationRecord
   has_secure_password
 
-  encrypts :email, deterministic: true
-  # Same email -> same ciphertext
-  # Allows: find_by(email:), validates uniqueness
-
-  # phone and address still plaintext...
-
-  validates :email, uniqueness: true
-end`,
-				},
-			];
-		}
-		if (furthestStep <= 3) {
-			return [
-				{
-					filename: 'app/models/user.rb',
-					language: 'ruby',
-					code: `class User < ApplicationRecord
-  has_secure_password
-
-  encrypts :email, deterministic: true
-  encrypts :phone          # non-deterministic (default)
-  encrypts :address        # non-deterministic (default)
-  # name: plaintext (not PII)
+  # PII stored in PLAINTEXT!
+  # email: "alice@example.com"
+  # phone: "+1-555-0123"
+  # address: "123 Main St, NYC"
 
   has_one_attached :avatar do |attachable|
     attachable.variant :thumb, resize_to_limit: [100, 100]
@@ -663,10 +667,145 @@ end`,
   end
 
   validates :email, uniqueness: true
+  validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }
 end`,
 				},
 			];
 		}
+		// Step 1 (store keys): still working on WHERE to store them.
+		// Keep showing unchanged model; don't show credentials.yml.enc
+		// (that would reveal the answer).
+		if (completedStep < 1) {
+			return [
+				{
+					filename: 'app/models/user.rb',
+					language: 'ruby',
+					code: `class User < ApplicationRecord
+  has_secure_password
+
+  # PII stored in PLAINTEXT!
+  # email: "alice@example.com"
+  # phone: "+1-555-0123"
+  # address: "123 Main St, NYC"
+
+  has_one_attached :avatar do |attachable|
+    attachable.variant :thumb, resize_to_limit: [100, 100]
+    attachable.variant :medium, resize_to_limit: [300, 300]
+  end
+
+  validates :email, uniqueness: true
+  validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }
+end`,
+				},
+			];
+		}
+		// After step 1 completed: keys stored in credentials.
+		// Show the credentials file + unchanged model.
+		if (completedStep < 2) {
+			return [
+				{
+					filename: 'config/credentials.yml.enc',
+					language: 'yaml',
+					code: `active_record_encryption:
+  primary_key: EGY8WhulUOXixybod7ZWwMIL68R9o5kC
+  deterministic_key: aPA5XyALhf75NNnMzaspW7akTfZp0lPY
+  key_derivation_salt: xEY0dt6TZcAMg52K7O84wYzkjvbA62Hz`,
+				},
+				{
+					filename: 'app/models/user.rb',
+					language: 'ruby',
+					code: `class User < ApplicationRecord
+  has_secure_password
+
+  # Keys are stored. Now encrypt the PII columns.
+  # email: "alice@example.com"  (still plaintext)
+  # phone: "+1-555-0123"        (still plaintext)
+  # address: "123 Main St, NYC" (still plaintext)
+
+  has_one_attached :avatar do |attachable|
+    attachable.variant :thumb, resize_to_limit: [100, 100]
+    attachable.variant :medium, resize_to_limit: [300, 300]
+  end
+
+  validates :email, uniqueness: true
+  validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }
+end`,
+				},
+			];
+		}
+		if (completedStep < 3) {
+			return [
+				{
+					filename: 'app/models/user.rb',
+					language: 'ruby',
+					code: `class User < ApplicationRecord
+  has_secure_password
+
+  encrypts :email, deterministic: true
+
+  # phone and address are still plaintext.
+  # They need encryption too.
+
+  has_one_attached :avatar do |attachable|
+    attachable.variant :thumb, resize_to_limit: [100, 100]
+    attachable.variant :medium, resize_to_limit: [300, 300]
+  end
+
+  validates :email, uniqueness: true
+  validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }
+end`,
+				},
+			];
+		}
+		// After step 3 completed, working on step 4: show model with
+		// all encrypts declarations + the UNCHANGED service (before fix).
+		// Do NOT show the corrected service -- that's the step 4 answer.
+		if (completedStep < 4) {
+			return [
+				{
+					filename: 'app/models/user.rb',
+					language: 'ruby',
+					code: `class User < ApplicationRecord
+  has_secure_password
+
+  encrypts :email, deterministic: true
+  encrypts :phone
+  encrypts :address
+
+  has_one_attached :avatar do |attachable|
+    attachable.variant :thumb, resize_to_limit: [100, 100]
+    attachable.variant :medium, resize_to_limit: [300, 300]
+  end
+
+  validates :email, uniqueness: true
+  validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }
+end`,
+				},
+				{
+					filename: 'app/services/find_user.rb',
+					language: 'ruby',
+					code: `class FindUser < ApplicationService
+  Result = Data.define(:success?, :user, :errors)
+
+  def initialize(email:)
+    @email = email
+  end
+
+  def call
+    v = FindUserContract.new.call(email: @email)
+    return Result.new(success?: false,
+      user: nil, errors: v.errors.to_h) if v.failure?
+
+    user = User.find_by(email: @email)
+    # Works with plaintext... but data is now encrypted!
+    # Does this query approach still work?
+    Result.new(success?: true, user:, errors: [])
+  end
+end`,
+				},
+			];
+		}
+		// All steps complete: show the final corrected code.
 		return [
 			{
 				filename: 'app/services/find_user.rb',
@@ -776,10 +915,12 @@ end`,
 // ──────────────────────────────────────────────
 
 export function Level36Encryption({ onComplete }: LevelComponentProps) {
-	const [phase, setPhase] = useState<Phase>('observe');
+	const [phase, setPhase] = useState<Phase>('build');
 	const [flowPhase, setFlowPhase] = useState(-1);
 	const [wrongFeedback, setWrongFeedback] = useState<string | null>(null);
 	const [highlightedRow, setHighlightedRow] = useState<number | null>(null);
+	const [highlightedCols, setHighlightedCols] = useState<string[]>([]);
+	const [lastScenarioBlocked, setLastScenarioBlocked] = useState(false);
 	const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
 	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
@@ -812,20 +953,37 @@ export function Level36Encryption({ onComplete }: LevelComponentProps) {
 				for (const d of discoveries) discoveryGating.discover(d);
 			}
 
-			// Animate: rows flash red sequentially
 			setFlowPhase(0);
 			const timers: ReturnType<typeof setTimeout>[] = [];
-			for (let i = 0; i < SAMPLE_USERS.length; i++) {
-				const t = setTimeout(() => {
-					setHighlightedRow(SAMPLE_USERS[i].id);
-				}, i * ANIMATION_DURATION_MS);
-				timers.push(t);
+
+			if (probeId === 'inspect-config') {
+				// Config check: no table highlight, just a brief flash on the header
+				setHighlightedCols([]);
+				const tEnd = setTimeout(() => {
+					setFlowPhase(-1);
+				}, ANIMATION_DURATION_MS * 2);
+				timers.push(tEnd);
+			} else {
+				// Determine which columns to highlight based on probe
+				const cols =
+					probeId === 'sql-injection' ? ['email', 'phone'] : ['address'];
+				setHighlightedCols(cols);
+
+				// Animate rows sequentially
+				for (let i = 0; i < SAMPLE_USERS.length; i++) {
+					const t = setTimeout(() => {
+						setHighlightedRow(SAMPLE_USERS[i].id);
+					}, i * ANIMATION_DURATION_MS);
+					timers.push(t);
+				}
+				const tEnd = setTimeout(() => {
+					setHighlightedRow(null);
+					setHighlightedCols([]);
+					setFlowPhase(-1);
+				}, SAMPLE_USERS.length * ANIMATION_DURATION_MS);
+				timers.push(tEnd);
 			}
-			const tEnd = setTimeout(() => {
-				setHighlightedRow(null);
-				setFlowPhase(-1);
-			}, SAMPLE_USERS.length * ANIMATION_DURATION_MS);
-			timers.push(tEnd);
+
 			timersRef.current.push(...timers);
 		},
 		[flowPhase, discoveryGating],
@@ -856,13 +1014,16 @@ export function Level36Encryption({ onComplete }: LevelComponentProps) {
 			if (flowPhase !== -1) return;
 			stressTest.fireRequest(scenarioId);
 
-			const _scenario = STRESS_SCENARIOS.find((s) => s.id === scenarioId);
+			const scenario = STRESS_SCENARIOS.find((s) => s.id === scenarioId);
+			const isBlocked = scenario?.expectedResult === 'blocked';
+			setLastScenarioBlocked(isBlocked);
 			setFlowPhase(0);
 
 			if (
 				scenarioId === 'attacker-dump' ||
 				scenarioId === 'transparent-read' ||
-				scenarioId === 'backup-safe'
+				scenarioId === 'backup-safe' ||
+				scenarioId === 'encryption-config'
 			) {
 				// Animate all rows
 				const timers: ReturnType<typeof setTimeout>[] = [];
@@ -874,6 +1035,7 @@ export function Level36Encryption({ onComplete }: LevelComponentProps) {
 				}
 				const tEnd = setTimeout(() => {
 					setHighlightedRow(null);
+					setLastScenarioBlocked(false);
 					setFlowPhase(-1);
 				}, SAMPLE_USERS.length * ANIMATION_DURATION_MS);
 				timers.push(tEnd);
@@ -883,6 +1045,7 @@ export function Level36Encryption({ onComplete }: LevelComponentProps) {
 				setHighlightedRow(1);
 				const t1 = setTimeout(() => {
 					setHighlightedRow(null);
+					setLastScenarioBlocked(false);
 					setFlowPhase(-1);
 				}, ANIMATION_DURATION_MS * 2);
 				timersRef.current.push(t1);
@@ -917,6 +1080,36 @@ export function Level36Encryption({ onComplete }: LevelComponentProps) {
 	const renderDatabaseTable = (encrypted: boolean) => {
 		const lastScenarioId = lastResult?.scenarioId;
 		const isAttackerView = encrypted && lastScenarioId === 'attacker-dump';
+
+		// In observe phase, only highlight specific columns per probe
+		// In reward phase, use green for allowed, red for blocked
+		const isColHighlighted = (col: string) =>
+			!encrypted && highlightedCols.length > 0
+				? highlightedCols.includes(col)
+				: true;
+
+		const rowHighlightClass = (isHighlighted: boolean) => {
+			if (!isHighlighted) return '';
+			if (!encrypted) return 'bg-red-100 dark:bg-red-900/30';
+			if (lastScenarioBlocked) return 'bg-red-100 dark:bg-red-900/30';
+			return 'bg-emerald-100 dark:bg-emerald-900/30';
+		};
+
+		const cellClass = (col: string, isHighlighted: boolean) => {
+			const base = 'px-3 py-2 font-mono transition-colors';
+			if (encrypted) {
+				if (isHighlighted && lastScenarioBlocked)
+					return cn(base, 'text-red-700 dark:text-red-400');
+				return cn(base, 'text-emerald-700 dark:text-emerald-400');
+			}
+			// Observe: flash only targeted columns
+			if (isHighlighted && isColHighlighted(col))
+				return cn(
+					base,
+					'text-red-700 dark:text-red-400 bg-red-100 dark:bg-red-900/30',
+				);
+			return cn(base, 'text-red-700 dark:text-red-400');
+		};
 
 		return (
 			<div className="mx-auto max-w-3xl py-4">
@@ -1010,26 +1203,14 @@ export function Level36Encryption({ onComplete }: LevelComponentProps) {
 									<tr
 										className={cn(
 											'border-b border-border last:border-0 transition-colors',
-											isHighlighted &&
-												!encrypted &&
-												'bg-red-100 dark:bg-red-900/30',
-											isHighlighted &&
-												encrypted &&
-												'bg-emerald-100 dark:bg-emerald-900/30',
+											rowHighlightClass(isHighlighted),
 										)}
 										key={user.id}
 									>
 										<td className="px-3 py-2 font-mono text-muted-foreground">
 											{user.id}
 										</td>
-										<td
-											className={cn(
-												'px-3 py-2 font-mono',
-												encrypted
-													? 'text-emerald-700 dark:text-emerald-400'
-													: 'text-red-700 dark:text-red-400',
-											)}
-										>
+										<td className={cellClass('email', isHighlighted)}>
 											{encrypted ? (
 												<span className="flex items-center gap-1">
 													<Lock className="w-3 h-3 shrink-0" />
@@ -1041,14 +1222,7 @@ export function Level36Encryption({ onComplete }: LevelComponentProps) {
 												user.email
 											)}
 										</td>
-										<td
-											className={cn(
-												'px-3 py-2 font-mono',
-												encrypted
-													? 'text-emerald-700 dark:text-emerald-400'
-													: 'text-red-700 dark:text-red-400',
-											)}
-										>
+										<td className={cellClass('phone', isHighlighted)}>
 											{encrypted ? (
 												<span className="flex items-center gap-1">
 													<Lock className="w-3 h-3 shrink-0" />
@@ -1060,14 +1234,7 @@ export function Level36Encryption({ onComplete }: LevelComponentProps) {
 												user.phone
 											)}
 										</td>
-										<td
-											className={cn(
-												'px-3 py-2 font-mono',
-												encrypted
-													? 'text-emerald-700 dark:text-emerald-400'
-													: 'text-red-700 dark:text-red-400',
-											)}
-										>
+										<td className={cellClass('address', isHighlighted)}>
 											{encrypted ? (
 												<span className="flex items-center gap-1">
 													<Lock className="w-3 h-3 shrink-0" />
@@ -1107,8 +1274,9 @@ export function Level36Encryption({ onComplete }: LevelComponentProps) {
 				>
 					<div className="p-4 border-t border-border">
 						<DiscoveryChecklist
-							definitions={DISCOVERY_DEFS}
-							isDiscovered={discoveryGating.isDiscovered}
+							discoveredCount={discoveryGating.discoveredCount}
+							discoveries={discoveryGating.discoveries}
+							minRequired={discoveryGating.minRequired}
 						/>
 					</div>
 				</InstructionPanel>
@@ -1131,8 +1299,7 @@ export function Level36Encryption({ onComplete }: LevelComponentProps) {
 					<div className="p-4 border-t border-border">
 						<StepProgress
 							currentStep={stepper.currentStep}
-							furthestStep={stepper.furthestStep}
-							steps={STEP_DEFS}
+							steps={stepper.steps}
 						/>
 					</div>
 				</InstructionPanel>
@@ -1210,7 +1377,7 @@ export function Level36Encryption({ onComplete }: LevelComponentProps) {
 				<div className="flex-1 flex flex-col">
 					{renderDatabaseTable(false)}
 
-					<div className="px-6 pb-2">
+					<div className="mt-auto px-6 pb-2">
 						<ProbeTerminal
 							disabled={flowPhase !== -1}
 							onProbe={handleProbe}
@@ -1281,7 +1448,7 @@ export function Level36Encryption({ onComplete }: LevelComponentProps) {
 					{wrongFeedback && (
 						<div className="mb-4">
 							<ErrorFeedback
-								feedback={wrongFeedback}
+								message={wrongFeedback}
 								onDismiss={() => setWrongFeedback(null)}
 							/>
 						</div>
@@ -1304,9 +1471,16 @@ export function Level36Encryption({ onComplete }: LevelComponentProps) {
 					{stepper.isCurrentStepCompleted &&
 						currentStep < STEP_DEFS.length - 1 && (
 							<div className="mt-4 flex justify-end">
-								<Button onClick={stepper.nextStep} variant="outline">
+								<Button
+									className="gap-2"
+									onClick={() => {
+										setWrongFeedback(null);
+										stepper.nextStep();
+									}}
+									size="sm"
+								>
 									Next Step
-									<ArrowRight className="w-4 h-4 ml-2" />
+									<ArrowRight className="w-4 h-4" />
 								</Button>
 							</div>
 						)}
@@ -1335,8 +1509,10 @@ export function Level36Encryption({ onComplete }: LevelComponentProps) {
 			<div className="flex-1 flex flex-col">
 				{renderDatabaseTable(true)}
 
-				<div className="px-6 pb-2">
+				<div className="mt-auto px-6 pb-2">
 					<StressTestPanel
+						allowedCount={stressTest.allowedCount}
+						blockedCount={stressTest.blockedCount}
 						canAutoFire={stressTest.canAutoFire}
 						disabled={flowPhase !== -1}
 						isAutoFiring={stressTest.isAutoFiring}
@@ -1360,15 +1536,15 @@ export function Level36Encryption({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={5}
 					levelName="Encrypted Attributes"
-					levelNumber={35}
+					levelNumber={36}
 					onComplete={handleComplete}
 					onReset={() => {
 						setPhase('observe');
 						setFlowPhase(-1);
 						setWrongFeedback(null);
 						setHighlightedRow(null);
-						discoveryGating.reset();
-						stepper.reset();
+						setHighlightedCols([]);
+						setLastScenarioBlocked(false);
 						stressTest.reset();
 					}}
 					onValidate={handleValidate}
@@ -1378,7 +1554,12 @@ export function Level36Encryption({ onComplete }: LevelComponentProps) {
 
 			<RightPanel>
 				<CodePreviewPanel
-					files={getCodeFiles(phase, stepper.furthestStep)}
+					files={getCodeFiles(
+						phase,
+						stepper.isCurrentStepCompleted
+							? stepper.currentStep
+							: stepper.currentStep - 1,
+					)}
 					learningGoal={
 						phase === 'observe'
 							? 'All PII is stored in plaintext. A database breach exposes everything.'
