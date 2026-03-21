@@ -319,27 +319,20 @@ const REWARD_SERVE_VARIANT: AnimationFrame[] = [
 	},
 	{
 		connA: { active: false, label: '' },
-		app: { label: 'Variant not cached, generating...', flash: 'amber' },
-		connB: {
-			active: true,
-			reverse: false,
-			label: 'resize + store',
-			dotColor: 'bg-emerald-500 dark:bg-emerald-400',
-		},
+		app: { label: 'Variant exists, 302 redirect', flash: 'green' },
 	},
 	{
-		connB: { active: false, label: '' },
-		s3: { label: ':thumb 100x100 stored', flash: 'green' },
-		app: { label: '302 redirect (freed instantly)', flash: 'green' },
 		connA: {
 			active: true,
 			reverse: true,
-			label: '302 redirect',
+			label: '302 -> CDN URL',
 			dotColor: 'bg-emerald-500 dark:bg-emerald-400',
 		},
+		app: { label: 'Worker freed instantly', flash: 'green' },
 	},
 	{
 		connA: { active: false, label: '' },
+		client: { label: 'Following redirect to S3...', flash: 'blue' },
 		connC: {
 			active: true,
 			reverse: true,
@@ -369,19 +362,28 @@ const REWARD_LIST_AVATARS: AnimationFrame[] = [
 	},
 	{
 		connA: { active: false, label: '' },
-		app: { label: 'Rendering 25 users...', flash: 'amber' },
+		app: { label: '25 variant URLs from DB', flash: 'green' },
 	},
 	{
-		app: { label: '25 CDN redirect URLs generated', flash: 'green' },
 		connA: {
 			active: true,
 			reverse: true,
-			label: '25 variant URLs',
+			label: 'JSON + 25 CDN URLs',
 			dotColor: 'bg-emerald-500 dark:bg-emerald-400',
 		},
 	},
 	{
 		connA: { active: false, label: '' },
+		client: { label: 'Fetching 25 thumbnails...', flash: 'blue' },
+		connC: {
+			active: true,
+			reverse: false,
+			label: '25 requests',
+			dotColor: 'bg-emerald-500 dark:bg-emerald-400',
+		},
+		app: { label: 'Workers free (no file I/O)', flash: 'green' },
+	},
+	{
 		connC: {
 			active: true,
 			reverse: true,
@@ -411,7 +413,7 @@ const REWARD_BLOCKED_CONTENT: AnimationFrame[] = [
 	},
 	{
 		connA: { active: false, label: '' },
-		app: { label: 'validate_content_type!', flash: 'amber' },
+		app: { label: 'UploadAvatar: validate_content_type!', flash: 'amber' },
 	},
 	{
 		connA: {
@@ -426,7 +428,7 @@ const REWARD_BLOCKED_CONTENT: AnimationFrame[] = [
 		connA: { active: false, label: '' },
 		client: { label: '422 Unprocessable Entity', flash: 'red' },
 		warningMessage:
-			'Content type application/x-msdownload rejected at presigned URL stage. File never uploaded to S3.',
+			'Content type application/x-msdownload rejected by UploadAvatar service. validate_content_type! blocks non-image files.',
 	},
 ];
 
@@ -444,7 +446,7 @@ const REWARD_BLOCKED_OVERSIZED: AnimationFrame[] = [
 	},
 	{
 		connA: { active: false, label: '' },
-		app: { label: 'AvatarUploadContract check...', flash: 'amber' },
+		app: { label: 'UploadAvatar: validate_file_size!', flash: 'amber' },
 	},
 	{
 		connA: {
@@ -459,7 +461,7 @@ const REWARD_BLOCKED_OVERSIZED: AnimationFrame[] = [
 		connA: { active: false, label: '' },
 		client: { label: '422 Unprocessable Entity', flash: 'red' },
 		warningMessage:
-			'Contract validation rejected at presigned URL stage: 50MB exceeds the 10MB limit. File never uploaded to S3.',
+			'UploadAvatar service rejected: validate_file_size! blocks files over 10MB.',
 	},
 ];
 
@@ -933,11 +935,11 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		responseLines: [
 			{ text: '302 Found -> CDN URL', color: 'green' },
 			{
-				text: 'Variant generated on first request, served via CDN redirect.',
+				text: ':thumb variant already cached on S3. Instant 302 redirect.',
 				color: 'cyan',
 			},
 			{
-				text: '15KB thumbnail (not 5MB original)',
+				text: '15KB thumbnail via CDN (not 5MB original through Rails)',
 				color: 'green',
 			},
 		],
@@ -994,7 +996,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 			{ text: '422 Unprocessable Entity', color: 'red' },
 			{ text: '{ error: { code: "INVALID_CONTENT_TYPE" } }', color: 'yellow' },
 			{
-				text: 'Rejected at presigned URL stage. File never uploaded.',
+				text: 'UploadAvatar service: validate_content_type! rejected .exe',
 				color: 'red',
 			},
 		],
@@ -1011,7 +1013,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 			{ text: '422 Unprocessable Entity', color: 'red' },
 			{ text: '{ error: { code: "FILE_TOO_LARGE" } }', color: 'yellow' },
 			{
-				text: 'Rejected at presigned URL stage. 50MB exceeds 10MB limit.',
+				text: 'UploadAvatar service: validate_file_size! rejected 50MB (limit: 10MB)',
 				color: 'red',
 			},
 		],
@@ -1631,9 +1633,10 @@ const UploadEdge = memo(function UploadEdge({
 	const dotPath = reverse ? reversePath(edgePath) : edgePath;
 
 	// 3 dots, staggered 0.5s apart
+	const dir = reverse ? 'rev' : 'fwd';
 	const dots = active
 		? [0, 1, 2].map((i) => ({
-				id: `${id}-d${i}`,
+				id: `${id}-${dir}-d${i}`,
 				color: fill,
 				r: 5,
 				dur: '1.5s',
@@ -1898,25 +1901,22 @@ export function Level35ActiveStorage({ onComplete }: LevelComponentProps) {
 			},
 		];
 		if (showS3) {
-			// Only show connB when active (App Server only talks to S3 during
-			// variant generation). Direct upload, serve variant, and blocked
-			// scenarios never use this path.
-			if (connBState.active || connBState.label) {
-				edges.push({
-					id: 'e-connB',
-					source: 'app',
-					target: 's3',
-					type: 'upload',
-					sourceHandle: 'right-source',
-					targetHandle: 'left-target',
-					data: {
-						active: connBState.active,
-						reverse: connBState.reverse,
-						label: connBState.label,
-						dotColor: connBState.dotColor,
-					} satisfies UploadEdgeData,
-				});
-			}
+			// Always render connB when S3 is visible so the structural line
+			// stays consistent. Dots and label toggle via active/label state.
+			edges.push({
+				id: 'e-connB',
+				source: 'app',
+				target: 's3',
+				type: 'upload',
+				sourceHandle: 'right-source',
+				targetHandle: 'left-target',
+				data: {
+					active: connBState.active,
+					reverse: connBState.reverse,
+					label: connBState.label,
+					dotColor: connBState.dotColor,
+				} satisfies UploadEdgeData,
+			});
 			// Direct arc: Client -> S3 (top handles, curves above App Server)
 			edges.push({
 				id: 'e-connC',

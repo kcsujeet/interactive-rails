@@ -408,6 +408,15 @@ The key rule: **every click from the player must produce a visible reaction in t
 
 For StressTestPanel response lines rules, button label conventions, and custom reward visualization details, see [reward-phase-guide.md](reward-phase-guide.md).
 
+#### Reward animation vs built code (non-negotiable)
+
+- [ ] **Read the final code preview and cross-reference every reward animation against it.** For each scenario, identify which class and method handles the request. The animation must name the correct component.
+- [ ] **If the built code defines cached/lazy behavior, show the cached case.** Named variants, memoized queries, cached responses: the stress test represents repeated usage, not first-time setup. Do not show cold-start behavior (e.g., "generating variant...") when the code defines pre-cached named variants.
+- [ ] **Validation labels must trace to the correct class and method.** If `validate_content_type!` lives in `UploadAvatar` service, the animation must say "UploadAvatar: validate_content_type!", not "rejected at presigned URL stage."
+- [ ] **No animation shows behavior the built code doesn't implement.** If the controller has no validation logic, the animation cannot show rejection at that endpoint.
+
+See [reward-phase-guide.md](reward-phase-guide.md) "Reward Animations Must Match the Built Code" for case studies.
+
 #### Left panel (reward)
 
 - [ ] Legend or explanation of what visual states mean

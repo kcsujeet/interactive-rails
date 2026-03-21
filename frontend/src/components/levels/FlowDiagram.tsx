@@ -238,13 +238,13 @@ export function reversePath(path: string): string {
 		return `M ${ex} ${ey} Q ${cx} ${cy} ${sx} ${sy}`;
 	}
 
-	// Straight line: M sx sy L ex ey
+	// Straight line: M sx sy L ex ey (handles both "M x y L x y" and "M x,yL x,y")
 	const lMatch = trimmed.match(
-		/^M\s+([\d.-]+)\s+([\d.-]+)\s+L\s+([\d.-]+)\s+([\d.-]+)$/,
+		/^M\s*([\d.-]+)[,\s]+([\d.-]+)\s*L\s*([\d.-]+)[,\s]+([\d.-]+)$/,
 	);
 	if (lMatch) {
 		const [, sx, sy, ex, ey] = lMatch;
-		return `M ${ex} ${ey} L ${sx} ${sy}`;
+		return `M ${ex},${ey}L ${sx},${sy}`;
 	}
 
 	// Fallback: return as-is (caller should handle complex paths manually)

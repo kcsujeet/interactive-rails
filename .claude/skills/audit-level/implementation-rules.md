@@ -15,6 +15,9 @@ All of these bugs were caused by skipping implementation-time verification and t
 | Reward animation skipped steps in real flow | Concurrent upload animation stopped at "stored on S3" without the attach step. An orphaned blob on S3 is not a completed upload. | Write out the COMPLETE real-world flow before writing frames. Every step the real system performs must have a frame. |
 | Reward scenarios split one user action into multiple buttons | "Direct upload" and "Attach blob" were separate buttons, but a user just clicks "Upload photo" | Each stress test button = one user action. The animation plays the full technical flow triggered by that action. |
 | React Flow container used fixed height | Used `h-72` instead of `flex-1 relative`, unlike every other PipelineFlow level | Always use `flex-1 relative` for React Flow containers so they fill available space. Check how the canonical reference (L12) renders its PipelineFlow before building a custom React Flow visualization. |
+| Reward animation contradicted built code | L35 "Download avatar" showed "Variant not cached, generating..." every time, but the player defined named variants (`:thumb`, `:medium`) which are cached after first access. Also showed connB (App->S3) for variant generation, but real flow is bidirectional. | Cross-reference every reward animation against the code the player built. If the build phase defines named variants, the reward must show the cached case, not cold-start generation. |
+| Validation attributed to wrong component | L35 blocked scenarios said "rejected at presigned URL stage" but `validate_content_type!` and `validate_file_size!` live in the `UploadAvatar` service, not in `DirectUploadsController`. | Trace each validation shown in reward animations back to the exact method and class in the built code. The animation label must name the correct component. |
+| Reward showed behavior the code doesn't implement | L35 claimed content type validation happens before upload, but the built `DirectUploadsController` has no validation, only `create_before_direct_upload!`. | Read the final code preview (`getCodeFiles` for the last step) and verify every reward claim is supported by that code. |
 
 ## Core Principles
 
@@ -37,3 +40,9 @@ All of these bugs were caused by skipping implementation-time verification and t
 6. **Technical accuracy.** If a frame claims a specific technical behavior, verify it against docs or source. Do not guess how an API works.
 
 7. **Layout consistency.** Check how the canonical reference implementation (L12 for PipelineFlow) renders its visualization container before building a custom one. Match the same flex/relative pattern. Never use fixed heights for React Flow containers.
+
+8. **Cross-reference reward animations against built code (non-negotiable).** Read the final code preview (`getCodeFiles` for the last completed step) and verify every reward animation claim is supported by that code. For each scenario, ask:
+   - Which class/method handles this request? Does the animation label name the correct one?
+   - Does the built code define cached behavior (named variants, memoized results)? If so, the animation must show the cached case, not the cold-start case.
+   - Where does validation happen? Trace each rejection to the exact method (`validate_content_type!`, `validate_file_size!`) and class (`UploadAvatar`). The animation must attribute it correctly.
+   - Does the animation show behavior the built code doesn't implement? If the controller has no validation logic, the animation cannot claim rejection happens there.

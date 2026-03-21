@@ -98,6 +98,29 @@ StressTestPanel buttons display `scenario.label` as the button text. The `label`
 - [ ] Labels match the corresponding observe-phase probe labels for overlapping endpoints
 - [ ] Labels are concise enough to fit in a button without truncation
 
+## Reward Animations Must Match the Built Code (Non-Negotiable)
+
+Every reward animation is a visual claim about how the player's code works. Before writing or auditing any reward animation, read the final code the player built (the last `getCodeFiles` output) and verify the animation against it.
+
+**Common mistakes:**
+
+1. **Showing cold-start behavior when the code defines cached behavior.** If the build phase defines named variants (`attachable.variant :thumb, resize_to_limit: [100, 100]`), the reward animation must show the cached case (instant redirect), not "Variant not cached, generating..." every time. Named variants are generated on first access and cached. The stress test represents repeated usage, not first-time setup.
+
+2. **Attributing validation to the wrong component.** If `validate_content_type!` lives in the `UploadAvatar` service but the animation says "rejected at presigned URL stage," that's wrong. Trace each validation to the exact class and method in the built code. The animation label must name the correct component (e.g., "UploadAvatar: validate_content_type!").
+
+3. **Showing behavior the code doesn't implement.** If `DirectUploadsController#create` only calls `create_before_direct_upload!` with no validation, the animation cannot show content type rejection at that endpoint. The rejection happens later, in a different class.
+
+**Checklist:**
+- [ ] Read the final code preview for the reward/activate phase
+- [ ] For each reward scenario, identify which class and method handles the request
+- [ ] Verify animation labels name the correct class/method
+- [ ] If the built code defines cached/lazy behavior, show the cached case
+- [ ] No animation shows behavior that the built code doesn't implement
+
+**Case study: L35 Active Storage**
+- "Download avatar" showed variant generation on every stress test fire, but the player defined `:thumb` as a named variant (cached after first access). Fixed to show instant 302 redirect.
+- "Upload .exe" said "rejected at presigned URL stage" but `validate_content_type!` is in `UploadAvatar` service, not `DirectUploadsController`. Fixed to reference the correct service.
+
 ## When Custom Visualization IS Used
 
 If the level uses a custom visualization for the reward:
