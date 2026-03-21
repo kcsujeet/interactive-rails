@@ -84,6 +84,8 @@ This step is non-negotiable. Skipping it has caused bugs in the past (wrong Scop
 
 **This is the single most important check in the entire audit. Evaluate it BEFORE any structural compliance checks. If this fails, nothing else matters.**
 
+**Do NOT skip this to fix TS errors or prop mismatches first.** Mechanical issues (wrong props, missing imports, type errors) are tempting to fix immediately because they have clear, satisfying solutions. But fixing 11 type errors on a visualization that doesn't teach anything produces a level that compiles but still fails. Evaluate the visualization FIRST. If it's broken, flag it as FAIL and redesign before touching any code. Case study: L37 had 11 critical TS errors that consumed the entire audit's attention. The visualization (text lines in boxes with static numbers) got a "conditional pass" because the concept description sounded good. But the player saw nothing that taught them what polling waste looks like.
+
 **Before designing or evaluating any visualization, read [visualization-examples.md](visualization-examples.md).** It contains real case studies of visualizations that failed the zero-knowledge test and how they were fixed. The core principle: every visualization must be understandable by a player who has never encountered the concept.
 
 ### Step 1: Identify the observe phase type
@@ -124,6 +126,8 @@ This step is non-negotiable. Skipping it has caused bugs in the past (wrong Scop
 2. How is this animation DIFFERENT from every other probe's animation?
 3. Does the animation content match what the probe label claims to test? (e.g., a "Download avatar" probe should not show "Sending file..." and "Stored")
 4. After watching this probe's animation, could a newcomer explain what went wrong?
+
+**Honesty test for question 1:** Describe what the player LITERALLY SEES on screen, not what the code does. "8 PollArrow objects appear in the polling lane" is a code description. "8 lines of monospace text saying `GET /notifications -> [ ]` appear inside a dark box" is what the player sees. If your honest description sounds like "text appears in a box," the visualization is a log, not a visualization. Case study: L37's probe-by-probe description said "8 arrows appear in polling lane, 7 empty" which sounded visual, but the actual screen showed monospace text lines inside a dark rectangle. The word "arrows" made it sound more visual than it was.
 
 **If any two probes produce the same animation, the visualization fails.** Each probe exists to teach a different aspect of the problem. Identical animations mean the visualization is generic instead of specific.
 

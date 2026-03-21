@@ -11,7 +11,6 @@
  */
 
 import {
-	Activity,
 	ArrowRight,
 	Globe,
 	Radio,
@@ -37,7 +36,10 @@ import {
 } from '@/components/levels';
 import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
 import { FlowConnector } from '@/components/levels/FlowConnector';
-import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
+import {
+	type ProbeConfig,
+	ProbeTerminal,
+} from '@/components/levels/ProbeTerminal';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -53,17 +55,17 @@ const DISCOVERY_DEFS = [
 	{ id: 'cpu-spike', label: '25K req/sec exhausts server CPU' },
 	{ id: 'no-push', label: 'No server-push mechanism exists' },
 	{ id: 'latency-delay', label: 'Notifications delayed by poll interval' },
-] as const;
+];
 
 // ─── Probe definitions ─────────────────────────────────────────────────
-const PROBES = [
+const PROBES: ProbeConfig[] = [
 	{
 		id: 'check-polling',
 		label: 'GET notifications (poll)',
 		command: 'curl -s localhost:3000/api/v1/notifications | jq',
 		responseLines: [
 			{ text: '200 OK', color: 'cyan' as const },
-			{ text: '{ "notifications": [] }', color: 'amber' as const },
+			{ text: '{ "notifications": [] }', color: 'yellow' as const },
 			{ text: '# Empty. 99% of polls return nothing.', color: 'red' as const },
 			{
 				text: '# 50K users x 0.5 req/sec = 25,000 requests/sec wasted',
@@ -86,7 +88,7 @@ const PROBES = [
 			},
 			{
 				text: '# Each poll hits: authenticate -> query -> serialize -> respond',
-				color: 'amber' as const,
+				color: 'yellow' as const,
 			},
 		],
 	},
@@ -103,7 +105,7 @@ const PROBES = [
 			},
 			{
 				text: '# Payment completed... but how does the user find out?',
-				color: 'amber' as const,
+				color: 'yellow' as const,
 			},
 			{
 				text: '# They must wait for their next poll cycle (up to 2 seconds)',
@@ -115,7 +117,7 @@ const PROBES = [
 			},
 		],
 	},
-] as const;
+];
 
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 	'check-polling': ['polling-waste'],
@@ -125,13 +127,13 @@ const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 
 // ─── Build step definitions ────────────────────────────────────────────
 const STEP_DEFS = [
-	{ id: 'install-cable', label: 'Install Cable Adapter' },
-	{ id: 'run-install', label: 'Run Installer' },
-	{ id: 'configure-adapter', label: 'Configure Adapter' },
-	{ id: 'generate-channel', label: 'Generate Channel' },
-	{ id: 'authenticate-connection', label: 'Authenticate Connection' },
-	{ id: 'build-broadcast-service', label: 'Build Broadcast Service' },
-] as const;
+	{ id: 'install-cable', title: 'Install Cable Adapter' },
+	{ id: 'run-install', title: 'Run Installer' },
+	{ id: 'configure-adapter', title: 'Configure Adapter' },
+	{ id: 'generate-channel', title: 'Generate Channel' },
+	{ id: 'authenticate-connection', title: 'Authenticate Connection' },
+	{ id: 'build-broadcast-service', title: 'Build Broadcast Service' },
+];
 
 const INSTALL_CABLE_COMMANDS = [
 	{
@@ -486,8 +488,8 @@ interface WsMessage {
 
 // ─── Code preview builder ──────────────────────────────────────────────
 function getCodeFiles(
-	phase: 'observe' | 'build' | 'activate' | 'reward',
-	furthestStep: number,
+	phase: 'observe' | 'build' | 'reward',
+	completedStep: number,
 ) {
 	if (phase === 'observe') {
 		return [
@@ -539,16 +541,16 @@ end`,
 	if (phase === 'build') {
 		const files: { filename: string; language: string; code: string }[] = [];
 
-		if (furthestStep >= 0) {
+		if (completedStep >= 0) {
 			files.push({
 				filename: 'Gemfile',
 				language: 'ruby',
 				code: `# Gemfile
-gem "solid_cable"${furthestStep >= 1 ? '\n# Installed + solid_cable:install run' : ''}`,
+gem "solid_cable"${completedStep >= 1 ? '\n# Installed + solid_cable:install run' : ''}`,
 			});
 		}
 
-		if (furthestStep >= 2) {
+		if (completedStep >= 2) {
 			files.push({
 				filename: 'config/cable.yml',
 				language: 'yaml',
@@ -559,7 +561,7 @@ gem "solid_cable"${furthestStep >= 1 ? '\n# Installed + solid_cable:install run'
 			});
 		}
 
-		if (furthestStep >= 3) {
+		if (completedStep >= 3) {
 			files.push({
 				filename: 'app/channels/notifications_channel.rb',
 				language: 'ruby',
@@ -575,7 +577,7 @@ end`,
 			});
 		}
 
-		if (furthestStep >= 4) {
+		if (completedStep >= 4) {
 			files.push({
 				filename: 'app/channels/application_cable/connection.rb',
 				language: 'ruby',
@@ -598,7 +600,7 @@ end`,
 			});
 		}
 
-		if (furthestStep >= 5) {
+		if (completedStep >= 5) {
 			files.push({
 				filename: 'app/services/broadcast_notification.rb',
 				language: 'ruby',
@@ -663,7 +665,7 @@ end`,
 		return files;
 	}
 
-	// activate + reward: full solution
+	// reward: full solution
 	return [
 		{
 			filename: 'config/cable.yml',
@@ -775,9 +777,7 @@ end`,
 
 // ─── Main component ────────────────────────────────────────────────────
 export function Level37RealTime({ onComplete }: LevelComponentProps) {
-	const [phase, setPhase] = useState<
-		'observe' | 'build' | 'activate' | 'reward'
-	>('observe');
+	const [phase, setPhase] = useState<'observe' | 'build' | 'reward'>('observe');
 
 	// ── Observe phase ──
 	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
@@ -836,11 +836,7 @@ export function Level37RealTime({ onComplete }: LevelComponentProps) {
 	// ── Build phase ──
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 
-	useEffect(() => {
-		if (stepper.isComplete && phase === 'build') {
-			setPhase('activate');
-		}
-	}, [stepper.isComplete, phase]);
+	// No auto-advance. Player clicks "Next Step" on last step to go to reward.
 
 	// ── Reward phase ──
 	const stressTest = useStressTest(STRESS_SCENARIOS);
@@ -905,12 +901,10 @@ export function Level37RealTime({ onComplete }: LevelComponentProps) {
 		setFlowPhase(-1);
 		setPollArrows([]);
 		setWsMessages([]);
-		discoveryGating.reset();
-		stepper.reset();
 		stressTest.reset();
 		setRewardFlowPhase(-1);
 		setRewardWsMessages([]);
-	}, [discoveryGating, stepper, stressTest]);
+	}, [stressTest]);
 
 	// ── Render helpers ──
 	const renderConnectionComparison = (isReward: boolean) => {
@@ -1019,14 +1013,14 @@ export function Level37RealTime({ onComplete }: LevelComponentProps) {
 				<div className="flex flex-col items-center justify-center gap-2">
 					<FlowConnector
 						active={probeActive}
-						direction="right"
-						variant={isReward ? 'success' : 'danger'}
+						direction="horizontal"
+						dotColor={isReward ? 'bg-emerald-500' : 'bg-destructive'}
 					/>
 					<span className="text-xs text-muted-foreground font-medium">vs</span>
 					<FlowConnector
 						active={probeActive}
-						direction="right"
-						variant={isReward ? 'success' : 'default'}
+						direction="horizontal"
+						dotColor={isReward ? 'bg-emerald-500' : 'bg-primary'}
 					/>
 				</div>
 
@@ -1192,11 +1186,9 @@ export function Level37RealTime({ onComplete }: LevelComponentProps) {
 						</p>
 					</div>
 					<DiscoveryChecklist
-						discoveries={DISCOVERY_DEFS.map((d) => ({
-							id: d.id,
-							label: d.label,
-							found: discoveryGating.isDiscovered(d.id),
-						}))}
+						discoveredCount={discoveryGating.discoveredCount}
+						discoveries={discoveryGating.discoveries}
+						minRequired={discoveryGating.minRequired}
 					/>
 					{discoveryGating.isUnlocked && (
 						<Button
@@ -1224,25 +1216,8 @@ export function Level37RealTime({ onComplete }: LevelComponentProps) {
 					</div>
 					<StepProgress
 						currentStep={stepper.currentStep}
-						furthestStep={stepper.furthestStep}
-						steps={STEP_DEFS.map((s) => s.label)}
+						steps={stepper.steps}
 					/>
-				</div>
-			);
-		}
-
-		if (phase === 'activate') {
-			return (
-				<div className="space-y-4 p-4">
-					<div>
-						<h3 className="text-sm font-semibold text-foreground mb-2">
-							Solution Complete
-						</h3>
-						<p className="text-sm text-muted-foreground">
-							Action Cable with Solid Cable is configured. Visualize the
-							improvement.
-						</p>
-					</div>
 				</div>
 			);
 		}
@@ -1334,9 +1309,9 @@ export function Level37RealTime({ onComplete }: LevelComponentProps) {
 							onCorrect={() => stepper.completeStep()}
 							onNext={stepper.nextStep}
 							onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-							outputLines={currentStepConfig.outputLines}
+							outputLines={currentStepConfig.outputLines ?? []}
 							stepKey={stepper.currentStep}
-							title={STEP_DEFS[stepper.currentStep].label}
+							title={STEP_DEFS[stepper.currentStep].title}
 						/>
 					</div>
 				);
@@ -1347,7 +1322,7 @@ export function Level37RealTime({ onComplete }: LevelComponentProps) {
 					<div className="flex-1 flex flex-col p-4 gap-4">
 						<div>
 							<h3 className="text-lg font-semibold text-foreground">
-								{STEP_DEFS[stepper.currentStep].label}
+								{STEP_DEFS[stepper.currentStep].title}
 							</h3>
 							<p className="text-sm text-muted-foreground mt-1">
 								{stepper.currentStep === 2 &&
@@ -1358,56 +1333,63 @@ export function Level37RealTime({ onComplete }: LevelComponentProps) {
 									'Build a service that creates notifications and broadcasts them via the channel.'}
 							</p>
 						</div>
+						{stepper.lastFeedback && !stepper.isCurrentStepCompleted && (
+							<div className="mb-4">
+								<ErrorFeedback message={stepper.lastFeedback} />
+							</div>
+						)}
 						<div className="space-y-3">
 							{currentStepConfig.options.map((opt) => (
 								<OptionCard
-									code={opt.code}
 									disabled={stepper.isCurrentStepCompleted}
 									key={opt.id}
-									label={opt.label}
-									language="ruby"
+									mono
+									name={opt.code ?? opt.label}
 									onClick={() => {
 										if (opt.correct) {
 											stepper.completeStep();
 										} else {
-											stepper.recordWrongAttempt(opt.feedback);
+											stepper.recordWrongAttempt(
+												opt.feedback ?? 'Not quite right.',
+											);
 										}
 									}}
+									selected={stepper.isCurrentStepCompleted && opt.correct}
 								/>
 							))}
 						</div>
-						{stepper.lastFeedback && !stepper.isCurrentStepCompleted && (
-							<ErrorFeedback message={stepper.lastFeedback} />
-						)}
 						{stepper.isCurrentStepCompleted &&
 							stepper.currentStep < STEP_DEFS.length - 1 && (
-								<Button className="w-fit" onClick={stepper.nextStep}>
-									Next Step <ArrowRight className="w-4 h-4 ml-2" />
-								</Button>
+								<div className="mt-4 flex justify-end">
+									<Button
+										className="gap-2"
+										onClick={() => {
+											stepper.clearFeedback();
+											stepper.nextStep();
+										}}
+										size="sm"
+									>
+										Next Step
+										<ArrowRight className="w-4 h-4" />
+									</Button>
+								</div>
+							)}
+						{stepper.isCurrentStepCompleted &&
+							stepper.currentStep === STEP_DEFS.length - 1 && (
+								<div className="mt-4 flex justify-end">
+									<Button
+										className="gap-2"
+										onClick={() => setPhase('reward')}
+										size="sm"
+									>
+										Next Step
+										<ArrowRight className="w-4 h-4" />
+									</Button>
+								</div>
 							)}
 					</div>
 				);
 			}
-		}
-
-		if (phase === 'activate') {
-			return (
-				<div className="flex-1 flex items-center justify-center">
-					<div className="text-center space-y-4">
-						<div className="flex justify-center gap-1">
-							{[1, 2, 3].map((star) => (
-								<Activity
-									className="w-8 h-8 text-amber-400 fill-amber-400"
-									key={star}
-								/>
-							))}
-						</div>
-						<Button onClick={() => setPhase('reward')}>
-							Visualize Real-Time <Zap className="w-4 h-4 ml-2" />
-						</Button>
-					</div>
-				</div>
-			);
 		}
 
 		// reward
@@ -1416,8 +1398,13 @@ export function Level37RealTime({ onComplete }: LevelComponentProps) {
 				<div className="flex-1 min-h-0">{renderConnectionComparison(true)}</div>
 				<div className="px-6 pb-2">
 					<StressTestPanel
+						allowedCount={stressTest.allowedCount}
+						blockedCount={stressTest.blockedCount}
+						canAutoFire={stressTest.canAutoFire}
 						disabled={rewardFlowPhase !== -1}
+						isAutoFiring={stressTest.isAutoFiring}
 						onFire={handleStressFire}
+						onToggleAutoFire={() => stressTest.toggleAutoFire(handleStressFire)}
 						results={stressTest.results}
 						scenarios={STRESS_SCENARIOS}
 					/>
@@ -1433,7 +1420,7 @@ export function Level37RealTime({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={5}
 					levelName="Real-Time"
-					levelNumber={36}
+					levelNumber={37}
 					onComplete={handleComplete}
 					onReset={handleReset}
 					onValidate={handleValidate}
@@ -1442,7 +1429,12 @@ export function Level37RealTime({ onComplete }: LevelComponentProps) {
 			</CenterPanel>
 			<RightPanel>
 				<CodePreviewPanel
-					files={getCodeFiles(phase, stepper.furthestStep)}
+					files={getCodeFiles(
+						phase,
+						stepper.isCurrentStepCompleted
+							? stepper.currentStep
+							: stepper.currentStep - 1,
+					)}
 					learningGoal="Action Cable + Solid Cable replaces HTTP polling with WebSocket push. No Redis needed."
 				/>
 			</RightPanel>

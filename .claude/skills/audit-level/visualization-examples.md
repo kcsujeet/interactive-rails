@@ -115,11 +115,19 @@ The level has two probes. The first teaches stock count races, the second teache
 
 **Rule:** When designing probe scenarios, the wrong outcome must be wrong in a way that is SELF-EVIDENT without domain knowledge. "18 units sold, 8 deducted" is self-evidently wrong. "$39.99 instead of $29.99" is not. Ask: "Would a non-technical person understand why this result is bad?"
 
-### Audit Trap: Structural Compliance is Not a Real Audit
+### Audit Trap 1: TS Errors Distract from Visualization Evaluation
+
+**When a level has many mechanical issues (wrong props, TS errors, missing imports), the temptation is to fix those first and evaluate the visualization later. This is backwards.**
+
+Case study: L37 (Real-Time) had 11 critical TS errors (wrong props on every shared component). The audit spent its entire attention on those mechanical fixes and gave the visualization a "conditional pass" because the concept description ("two-lane polling vs WebSocket comparison") sounded good. But the actual screen showed monospace text lines inside dark rectangles with static number boxes (CPU 95%, Latency ~2s). The player saw text in boxes, not a visualization of polling waste. The probe-by-probe description said "8 arrows appear" but the literal screen showed `GET /notifications -> [ ]` repeated as text. The word "arrows" in the audit made it sound more visual than it was.
+
+**Rule:** Evaluate the visualization FIRST. Describe what the player LITERALLY SEES on screen (not what the code does, not what the concept is). If the description sounds like "text appears in a box" or "numbers update," it's a metric display, not a mechanism visualization. Flag it as FAIL and redesign before fixing any TS errors.
+
+### Audit Trap 2: Structural Compliance is Not a Real Audit
 
 **This is the most common audit failure mode. Do not skip this section.**
 
-An audit can mark an observe phase as "PASS" because all the structural pieces are present (ProbeTerminal exists, FlowConnector exists, discoveries are defined, animation locking works) while completely missing that the visualization teaches nothing.
+An audit can mark an observe phase as "PASS" because all the structural pieces are present (ProbeTerminal exists, FlowConnector present, discoveries are defined, animation locking works) while completely missing that the visualization teaches nothing.
 
 **Case study: L35 Active Storage.** The level had three probes: "Upload 5MB photo", "Download user avatar", "List users with avatars." All three played the exact same animation: Client zone lights up ("Sending file..."), App Server zone lights up ("Memory spike!"), S3 zone lights up ("Stored"). The audit checked that ProbeTerminal was disabled during animation, that discoveries mapped to probes, that FlowConnector direction was correct, and marked the observe phase as "PASS."
 
