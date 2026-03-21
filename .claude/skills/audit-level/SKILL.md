@@ -128,6 +128,8 @@ This step is non-negotiable. Skipping it has caused bugs in the past (wrong Scop
 
 **If the animation content contradicts the probe label, the visualization fails.** A download probe that shows upload animation, or a listing probe that shows single-file flow, teaches the wrong concept.
 
+**If visual signals within a node contradict each other, the visualization fails.** Every visual indicator inside a node (gauges, progress bars, badges, labels, border color) must agree on whether the state is healthy or dangerous. A node with a red danger border but a green memory gauge, or a "BLOCKED" label with a healthy progress bar, sends mixed signals. When a probe frame sets `flash: 'red'` on a zone, check that ALL internal indicators (memoryMB, bandwidthLabel, badges) also reflect the danger state. Case study: L35's list probe set `flash: 'red'` on the App Server (red border, red label text) but never set `memoryMB`, so the memory gauge stayed at 45MB (green). The node screamed danger at the border but showed "everything is fine" inside.
+
 **Do not skip this step.** Case study: L35 Active Storage passed all structural checks (ProbeTerminal present, FlowConnector present, discoveries defined, animation locking correct) but all three probes played the exact same animation. See [visualization-examples.md](visualization-examples.md) "Audit Trap" section.
 
 For detailed case studies (L27 terminal-only failure, ProbeTerminal-is-not-a-visualization architecture), see [observe-phase-guide.md](observe-phase-guide.md).
@@ -227,6 +229,7 @@ For layout coordinates, edges, and state rules, see [pipelineflow-guide.md](pipe
 - [ ] **Bypass/skip scenarios are visually distinct** (dashed border, muted label, "(bypassed)").
 - [ ] **The "not reached" state is shown** (dimmed/muted with "not reached" label).
 - [ ] **The idle state shows the same structural elements as the active state.** Table headers, zone outlines, node shapes, and lane labels must be visible before any probe fires. Use placeholder rows inside the existing structure, not a different render path.
+- [ ] **Internal node indicators agree with the node's overall state.** When a probe sets a danger state on a node (red border, red flash), every internal indicator (memory gauges, progress bars, bandwidth labels, status badges) must also reflect danger. A green gauge inside a red-bordered node is a visual contradiction. For each danger-state frame, verify that `memoryMB`, badge colors, and label text all match the intended severity.
 
 For visualization accuracy case studies (L15 CORS, L27 idle state), see [observe-phase-guide.md](observe-phase-guide.md).
 
@@ -429,6 +432,8 @@ For StressTestPanel response lines rules, button label conventions, and custom r
 - [ ] **Same component, different visual state.** Observe = red/alarming, reward = green/calm. A screenshot of each phase must look visibly different.
 - [ ] **Build steps address all problems shown in the intro.** Every highlighted problem gets a player decision.
 - [ ] **Reward closes the loop on intro's stated problems.** Each stated problem gets a concrete resolution.
+- [ ] **Every observe probe has a matching reward scenario (non-negotiable).** Build a two-column table mapping each observe probe to the reward scenario that demonstrates its fix. If any probe has no matching scenario, the player discovers a problem but never sees it resolved. The reward scenario must demonstrate the fix at the same scale as the probe (if the probe showed 25 users, the scenario should show 25 users with the fix, not just 1). See [cross-phase-consistency.md](cross-phase-consistency.md) "Every Observe Probe Must Have a Corresponding Reward Scenario" for case study.
+- [ ] **Reward-only scenarios are justified.** If a reward scenario tests something not shown in observe (e.g., file validation), verify the build phase explicitly taught it. If neither observe nor build introduced the concept, the scenario is orphaned.
 - [ ] **Reward scenario data does not contradict shared visualization components.** If a scenario reuses a lane/zone, check SQL, labels, and banners for consistency.
 - [ ] **Probe and stress test button labels use the same format.** Compare the `label` fields in `PROBES` and `STRESS_SCENARIOS`. They must use the same naming convention (e.g., both short like `GET trending`, not probes short and scenarios with full paths like `GET /api/v1/posts/trending`). Mismatched label styles make the observe and reward phases look like different UIs.
 - [ ] **Reward phase type matches observe type.** Type 3/4 -> StressTestPanel (interactive). Type 2 -> static before/after (no StressTestPanel, no useStressTest). Type 1 -> may not need reward. If a Type 2 level has StressTestPanel, that is a bug.

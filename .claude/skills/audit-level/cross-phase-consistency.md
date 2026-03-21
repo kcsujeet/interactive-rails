@@ -95,6 +95,48 @@ GOOD: Intro says "can't be reused, can't be tested, can't be read"
 
 **Case study:** L16's intro callout stated three specific problems but the reward had a one-line generic message. Now it has a checklist mapping each problem to its solution.
 
+## Every Observe Probe Must Have a Corresponding Reward Scenario (Non-Negotiable)
+
+**For every observe probe that demonstrates a problem, the reward phase must have a stress scenario that demonstrates the fix for that same problem.** The player discovers problems by firing probes, then verifies those problems are solved by firing stress scenarios. If a probe has no matching reward scenario, the player discovers a problem but never sees it resolved. The loop is broken.
+
+**How to check:** Build a two-column table mapping each observe probe to its reward counterpart:
+
+```
+Observe probe              ->  Reward scenario that shows the fix
+─────────────────────────────────────────────────────────────────
+Upload 5MB profile photo   ->  Upload 5MB photo (direct S3 upload)
+Download user avatar       ->  View profile photo (CDN redirect)
+List users with avatars    ->  ??? (NO MATCHING SCENARIO)
+```
+
+If any probe has no matching reward scenario, that is a bug. The player discovered "25 users x 5MB = 125MB, no variants" but never gets to see "25 users x 15KB = 375KB, with variants." The reward feels incomplete.
+
+**The reverse also matters:** reward scenarios that test something never shown in the observe phase confuse the player. If a reward scenario tests file validation (upload .exe, upload 50MB), but the observe phase never demonstrated the vulnerability, the player is testing a fix for a problem they never saw. This is acceptable only when the build phase explicitly taught the concept (e.g., adding content type validation as a build step). In that case, the reward scenario validates what was built, even though it was not an observe-phase problem.
+
+**Case study: L35 Active Storage (broken probe-to-scenario mapping)**
+
+L35's observe phase had 3 probes discovering 3 distinct problems:
+1. `upload-photo`: Memory spike from buffering files through Rails (no presigned URL)
+2. `request-avatar`: Downloads block Rails workers (no CDN/redirect)
+3. `list-avatars`: No thumbnail variants, 25 x 5MB = 125MB bandwidth waste
+
+L35's reward phase had 5 stress scenarios:
+1. `upload-photo`: Direct S3 upload (fixes probe 1) ✓
+2. `upload-10-photos`: 10 concurrent uploads (extends probe 1 at scale) ✓
+3. `view-profile`: CDN redirect with thumbnail (partially fixes probe 2 + 3, but only for a single user) ~
+4. `upload-exe`: Content type validation (new, not in observe) -
+5. `upload-50mb`: File size validation (new, not in observe) -
+
+Problems:
+- The `list-avatars` probe showed 25 users x 5MB = 125MB bandwidth waste. No reward scenario showed "25 users x 15KB = 375KB with variants." The `view-profile` scenario only showed a single thumbnail, not the list page improvement. The player discovered a page-level bandwidth problem but only saw a single-image fix.
+- `upload-exe` and `upload-50mb` tested validations the player never saw as problems. These are acceptable because the build phase taught content type and size validation, but the mapping gap for `list-avatars` is not.
+
+**Checklist:**
+- [ ] **Build a probe-to-scenario mapping table.** For each observe probe, identify the reward scenario that demonstrates its fix.
+- [ ] **Every observe probe has at least one matching reward scenario.** No probe should be left without a reward counterpart.
+- [ ] **The reward scenario demonstrates the fix at the same scale as the probe.** If the probe showed 25 users, the reward scenario should show 25 users (now with variants), not just 1 user with a variant.
+- [ ] **Reward scenarios without observe probes are justified.** If a reward scenario tests something not shown in observe, verify the build phase explicitly taught it. If neither observe nor build introduced the concept, the scenario is orphaned.
+
 ## Reward Scenario Data Must Not Contradict Shared Visualization Components (Non-Negotiable)
 
 When the reward phase reuses a shared visualization component (lanes, zones, nodes) across multiple scenarios, each scenario's data must be consistent with what the component displays. A common bug: a scenario maps to a lane/zone whose header shows static data (SQL query, label, table name) that contradicts the scenario's actual behavior.
