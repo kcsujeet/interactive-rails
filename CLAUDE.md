@@ -175,8 +175,8 @@ The player builds the solution step by step. **This phase must cover the COMPLET
 
 The player **stress-tests** their solution by firing different request scenarios and watching the fix handle each one. This is interactive, not passive.
 
-- Sub-phase a (activate): star rating display + "Visualize ___" button (centered, no animation)
-- Sub-phase b (reward): full-screen visualization returns in center panel, now showing the solution working. Below the visualization, a `StressTestPanel` (terminal-style, dark bg, traffic-light header) lets the player fire request scenarios.
+- The last build step's "Next Step" button transitions directly to the reward phase. No intermediate screen, no star rating, no "Visualize ___" button.
+- Full-screen visualization returns in center panel, now showing the solution working. Below the visualization, a `StressTestPanel` (terminal-style, dark bg, traffic-light header) lets the player fire request scenarios.
 - Visualization nodes react dynamically to each fired scenario. For `PipelineFlow`: the key node flips between `'active'` (green, sublabel "authorize!") and `'danger'` (red, sublabel "403 Forbidden", badge "BLOCKED"). For `QueryZoneFlow`: zones update `highlighted`/`highlightColor`, `statusText`, `statusBadge`, and edges toggle `danger` flag. Both give immediate visual feedback per request.
 - Left panel: legend + dual counters (Allowed/Blocked in green/red grid)
 - Right panel: final complete code
@@ -191,13 +191,14 @@ The player **stress-tests** their solution by firing different request scenarios
 #### Phase state machine
 
 ```
-phase: 'observe' | 'build' | 'activate' | 'reward'
+phase: 'observe' | 'build' | 'reward'
 
 observe  -> (discoveryGating.isUnlocked && click "Build the Fix") -> build
-build    -> (all steps complete via useEffect)                     -> activate
-activate -> (click "Visualize ___")                                -> reward
+build    -> (last step completed && click "Next Step")             -> reward
 reward   -> (click Submit)                                         -> level complete
 ```
+
+**No activate phase.** The build phase's last step has the same "Next Step" button as every other step. Clicking it transitions directly to the reward phase. No star rating screen, no "Visualize ___" interstitial. Existing levels that still have an activate phase should be updated to remove it during their next audit.
 
 **Act calibration:**
 - Acts 1-2: Pure fundamentals. No anti-patterns, no debugging. Happy path.

@@ -7,6 +7,7 @@
  */
 
 import { Pause, Shield, Zap } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 
 import { Button } from '@/components/ui/Button';
 import type { RequestResult, StressScenario } from '@/hooks/useStressTest';
@@ -40,6 +41,18 @@ export function StressTestPanel({
 	className,
 }: StressTestPanelProps) {
 	const recentResults = results.slice(-10);
+	const resultsLogRef = useRef<HTMLDivElement>(null);
+	const resultCount = results.length;
+
+	// Auto-scroll results log to bottom when new results arrive
+	useEffect(() => {
+		if (resultCount > 0 && resultsLogRef.current) {
+			resultsLogRef.current.scrollTo({
+				top: resultsLogRef.current.scrollHeight,
+				behavior: 'smooth',
+			});
+		}
+	}, [resultCount]);
 
 	return (
 		<div
@@ -85,6 +98,7 @@ export function StressTestPanel({
 					'p-3 font-mono text-sm overflow-y-auto',
 					className ? 'flex-1 min-h-0' : 'min-h-36 max-h-64',
 				)}
+				ref={resultsLogRef}
 			>
 				{recentResults.length === 0 && (
 					<div className="text-muted-foreground text-xs">

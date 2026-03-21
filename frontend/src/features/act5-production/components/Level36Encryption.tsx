@@ -1,7 +1,7 @@
 /**
  * Level 36: Encrypted Attributes
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): Custom "Database Breach View" visualization.
@@ -16,8 +16,7 @@
  *   Step 3: Encrypt phone and address with non-deterministic mode (OptionCard)
  *   Step 4: Update service to handle encrypted queries (OptionCard)
  *
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Encryption" button
- * Phase 4 (ADVANTAGE - reward): Same table, now showing ciphertext for PII.
+ * Phase 3 (ADVANTAGE - reward): Same table, now showing ciphertext for PII.
  *   Allowed: Deterministic find_by works, app code reads plaintext.
  *   Blocked: Non-deterministic find_by fails, attacker sees gibberish.
  *
@@ -25,16 +24,7 @@
  *   db:encryption:init, credentials, transparent encryption
  */
 
-import {
-	ArrowRight,
-	Database,
-	Eye,
-	Key,
-	Lock,
-	Play,
-	Star,
-	Zap,
-} from 'lucide-react';
+import { ArrowRight, Database, Eye, Key, Lock, Zap } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
@@ -73,7 +63,7 @@ import { cn } from '@/lib/utils';
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'observe' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Sample data for visualization
@@ -591,6 +581,78 @@ const STRESS_SCENARIOS: StressScenario[] = [
 ];
 
 // ──────────────────────────────────────────────
+// Reward: per-scenario visualization config
+// ──────────────────────────────────────────────
+
+interface RewardVizConfig {
+	banner: string;
+	bannerType: 'success' | 'danger' | 'info';
+	/** Which perspective to highlight: 'app' shows plaintext, 'db' shows ciphertext, 'both' shows split */
+	perspective: 'app' | 'db' | 'both';
+	/** Which columns to highlight in the active perspective */
+	highlightCols: string[];
+	/** Which row to focus (null = all rows) */
+	focusRow: number | null;
+}
+
+const REWARD_VIZ: Record<string, RewardVizConfig> = {
+	'find-by-email': {
+		banner: 'Deterministic: query encrypted, matched in DB. User found.',
+		bannerType: 'success',
+		perspective: 'both',
+		highlightCols: ['email'],
+		focusRow: 1,
+	},
+	'find-by-phone': {
+		banner:
+			'Non-deterministic: same phone encrypts differently each time. No match possible.',
+		bannerType: 'danger',
+		perspective: 'db',
+		highlightCols: ['phone'],
+		focusRow: null,
+	},
+	'attacker-dump': {
+		banner:
+			'Attacker dumped the table but sees only ciphertext. No PII exposed.',
+		bannerType: 'success',
+		perspective: 'db',
+		highlightCols: ['email', 'phone', 'address'],
+		focusRow: null,
+	},
+	'uniqueness-validation': {
+		banner:
+			'Deterministic email: duplicate detected via ciphertext match. 422 rejected.',
+		bannerType: 'danger',
+		perspective: 'both',
+		highlightCols: ['email'],
+		focusRow: 1,
+	},
+	'transparent-read': {
+		banner:
+			'App reads plaintext automatically. Encryption is invisible to application code.',
+		bannerType: 'success',
+		perspective: 'both',
+		highlightCols: ['email', 'phone', 'address'],
+		focusRow: 1,
+	},
+	'backup-safe': {
+		banner: 'Database backup contains only ciphertext. GDPR compliance: PASS.',
+		bannerType: 'success',
+		perspective: 'db',
+		highlightCols: ['email', 'phone', 'address'],
+		focusRow: null,
+	},
+	'encryption-config': {
+		banner:
+			'All three encryption keys configured. ActiveRecord::Encryption is active.',
+		bannerType: 'info',
+		perspective: 'app',
+		highlightCols: [],
+		focusRow: null,
+	},
+};
+
+// ──────────────────────────────────────────────
 // Code preview files
 // ──────────────────────────────────────────────
 
@@ -852,7 +914,7 @@ end`,
 		];
 	}
 
-	// reward / activate
+	// reward
 	return [
 		{
 			filename: 'app/models/user.rb',
@@ -915,12 +977,13 @@ end`,
 // ──────────────────────────────────────────────
 
 export function Level36Encryption({ onComplete }: LevelComponentProps) {
-	const [phase, setPhase] = useState<Phase>('build');
+	const [phase, setPhase] = useState<Phase>('reward');
 	const [flowPhase, setFlowPhase] = useState(-1);
 	const [wrongFeedback, setWrongFeedback] = useState<string | null>(null);
 	const [highlightedRow, setHighlightedRow] = useState<number | null>(null);
 	const [highlightedCols, setHighlightedCols] = useState<string[]>([]);
 	const [lastScenarioBlocked, setLastScenarioBlocked] = useState(false);
+	const [rewardScenarioId, setRewardScenarioId] = useState<string | null>(null);
 	const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
 	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
@@ -936,12 +999,7 @@ export function Level36Encryption({ onComplete }: LevelComponentProps) {
 		};
 	}, []);
 
-	// Auto-advance to activate when build completes
-	useEffect(() => {
-		if (stepper.isComplete && phase === 'build') {
-			setPhase('activate');
-		}
-	}, [stepper.isComplete, phase]);
+	// No auto-advance. Player clicks "Next Step" on the last step to go to reward.
 
 	// ── Observe phase: probe handler ──
 	const handleProbe = useCallback(
@@ -1013,43 +1071,14 @@ export function Level36Encryption({ onComplete }: LevelComponentProps) {
 		(scenarioId: string) => {
 			if (flowPhase !== -1) return;
 			stressTest.fireRequest(scenarioId);
+			setRewardScenarioId(scenarioId);
 
-			const scenario = STRESS_SCENARIOS.find((s) => s.id === scenarioId);
-			const isBlocked = scenario?.expectedResult === 'blocked';
-			setLastScenarioBlocked(isBlocked);
+			// Brief animation lock so the UI doesn't allow rapid double-fires
 			setFlowPhase(0);
-
-			if (
-				scenarioId === 'attacker-dump' ||
-				scenarioId === 'transparent-read' ||
-				scenarioId === 'backup-safe' ||
-				scenarioId === 'encryption-config'
-			) {
-				// Animate all rows
-				const timers: ReturnType<typeof setTimeout>[] = [];
-				for (let i = 0; i < SAMPLE_USERS.length; i++) {
-					const t = setTimeout(() => {
-						setHighlightedRow(SAMPLE_USERS[i].id);
-					}, i * ANIMATION_DURATION_MS);
-					timers.push(t);
-				}
-				const tEnd = setTimeout(() => {
-					setHighlightedRow(null);
-					setLastScenarioBlocked(false);
-					setFlowPhase(-1);
-				}, SAMPLE_USERS.length * ANIMATION_DURATION_MS);
-				timers.push(tEnd);
-				timersRef.current.push(...timers);
-			} else {
-				// Single row flash
-				setHighlightedRow(1);
-				const t1 = setTimeout(() => {
-					setHighlightedRow(null);
-					setLastScenarioBlocked(false);
-					setFlowPhase(-1);
-				}, ANIMATION_DURATION_MS * 2);
-				timersRef.current.push(t1);
-			}
+			const t = setTimeout(() => {
+				setFlowPhase(-1);
+			}, ANIMATION_DURATION_MS);
+			timersRef.current.push(t);
 		},
 		[flowPhase, stressTest],
 	);
@@ -1306,16 +1335,6 @@ export function Level36Encryption({ onComplete }: LevelComponentProps) {
 			);
 		}
 
-		if (phase === 'activate') {
-			return (
-				<InstructionPanel
-					goal="Encryption configured. Test the encrypted database."
-					instructions={[]}
-					scenario="All PII is encrypted at rest. Deterministic email allows login lookups. Non-deterministic phone/address provides maximum security."
-				/>
-			);
-		}
-
 		// reward
 		return (
 			<InstructionPanel
@@ -1484,30 +1503,182 @@ export function Level36Encryption({ onComplete }: LevelComponentProps) {
 								</Button>
 							</div>
 						)}
+					{stepper.isCurrentStepCompleted &&
+						currentStep === STEP_DEFS.length - 1 && (
+							<div className="mt-4 flex justify-end">
+								<Button
+									className="gap-2"
+									onClick={() => {
+										setWrongFeedback(null);
+										setPhase('reward');
+									}}
+									size="sm"
+								>
+									Next Step
+									<ArrowRight className="w-4 h-4" />
+								</Button>
+							</div>
+						)}
 				</div>
 			);
 		}
 
-		if (phase === 'activate') {
-			return (
-				<div className="flex-1 flex flex-col items-center justify-center gap-6">
-					<div className="flex gap-1">
-						{[1, 2, 3].map((s) => (
-							<Star className="w-8 h-8 fill-amber-400 text-amber-400" key={s} />
-						))}
-					</div>
-					<Button onClick={() => setPhase('reward')} size="lg">
-						<Play className="w-4 h-4 mr-2" />
-						Visualize Encryption
-					</Button>
-				</div>
-			);
-		}
+		// reward: dual-perspective visualization
+		const vizConfig = rewardScenarioId ? REWARD_VIZ[rewardScenarioId] : null;
+		const showApp =
+			!vizConfig ||
+			vizConfig.perspective === 'app' ||
+			vizConfig.perspective === 'both';
+		const showDb =
+			!vizConfig ||
+			vizConfig.perspective === 'db' ||
+			vizConfig.perspective === 'both';
 
-		// reward
+		const renderMiniTable = (
+			title: string,
+			icon: React.ReactNode,
+			borderColor: string,
+			showCiphertext: boolean,
+			cols: string[],
+		) => (
+			<div className={cn('rounded-lg border overflow-hidden', borderColor)}>
+				<div
+					className={cn(
+						'px-3 py-1.5 flex items-center gap-2 text-xs font-semibold border-b',
+						borderColor,
+						showCiphertext
+							? 'bg-amber-50 dark:bg-amber-900/20'
+							: 'bg-emerald-50 dark:bg-emerald-900/20',
+					)}
+				>
+					{icon}
+					<span className="text-foreground">{title}</span>
+				</div>
+				<table className="w-full text-xs">
+					<thead>
+						<tr className="bg-muted/50 border-b border-border">
+							<th className="px-2 py-1 text-left font-medium text-muted-foreground">
+								id
+							</th>
+							{cols.map((col) => (
+								<th
+									className="px-2 py-1 text-left font-medium text-muted-foreground"
+									key={col}
+								>
+									{col}
+								</th>
+							))}
+						</tr>
+					</thead>
+					<tbody>
+						{SAMPLE_USERS.map((user) => {
+							const isFocused =
+								vizConfig &&
+								(vizConfig.focusRow === null || vizConfig.focusRow === user.id);
+							return (
+								<tr
+									className={cn(
+										'border-b border-border last:border-0 transition-colors',
+										isFocused && vizConfig
+											? showCiphertext
+												? 'bg-amber-50 dark:bg-amber-900/20'
+												: 'bg-emerald-50 dark:bg-emerald-900/20'
+											: '',
+									)}
+									key={user.id}
+								>
+									<td className="px-2 py-1 font-mono text-muted-foreground">
+										{user.id}
+									</td>
+									{cols.map((col) => {
+										const val = user[col as keyof typeof user];
+										const isHighlighted =
+											vizConfig?.highlightCols.includes(col) && isFocused;
+										return (
+											<td
+												className={cn(
+													'px-2 py-1 font-mono transition-colors',
+													isHighlighted
+														? showCiphertext
+															? 'text-amber-700 dark:text-amber-300 font-semibold'
+															: 'text-emerald-700 dark:text-emerald-300 font-semibold'
+														: 'text-muted-foreground',
+												)}
+												key={col}
+											>
+												{showCiphertext ? (
+													<span className="flex items-center gap-1">
+														<Lock className="w-3 h-3 shrink-0 opacity-60" />
+														<span className="truncate max-w-24">
+															{CIPHERTEXT[String(val)] ?? '...'}
+														</span>
+													</span>
+												) : (
+													String(val)
+												)}
+											</td>
+										);
+									})}
+								</tr>
+							);
+						})}
+					</tbody>
+				</table>
+			</div>
+		);
+
 		return (
 			<div className="flex-1 flex flex-col">
-				{renderDatabaseTable(true)}
+				<div className="px-6 py-3 space-y-3 overflow-y-auto">
+					{/* Scenario result banner */}
+					{vizConfig && (
+						<div
+							className={cn(
+								'rounded-lg px-4 py-2.5 text-sm font-medium animate-in fade-in duration-300',
+								vizConfig.bannerType === 'success' &&
+									'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700',
+								vizConfig.bannerType === 'danger' &&
+									'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border border-red-300 dark:border-red-700',
+								vizConfig.bannerType === 'info' &&
+									'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border border-blue-300 dark:border-blue-700',
+							)}
+						>
+							{vizConfig.banner}
+						</div>
+					)}
+
+					{!vizConfig && (
+						<div className="rounded-lg border border-border bg-muted/30 px-4 py-2.5 text-sm text-muted-foreground">
+							Fire a scenario below to see how encryption protects data at each
+							layer.
+						</div>
+					)}
+
+					{/* Dual perspective tables */}
+					<div
+						className={cn(
+							'grid gap-3',
+							showApp && showDb ? 'grid-cols-2' : 'grid-cols-1',
+						)}
+					>
+						{showApp &&
+							renderMiniTable(
+								'What the App Sees',
+								<Eye className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />,
+								'border-emerald-300 dark:border-emerald-700',
+								false,
+								['email', 'phone', 'address'],
+							)}
+						{showDb &&
+							renderMiniTable(
+								'What the Database Stores',
+								<Database className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />,
+								'border-amber-300 dark:border-amber-700',
+								true,
+								['email', 'phone', 'address'],
+							)}
+					</div>
+				</div>
 
 				<div className="mt-auto px-6 pb-2">
 					<StressTestPanel
@@ -1545,6 +1716,7 @@ export function Level36Encryption({ onComplete }: LevelComponentProps) {
 						setHighlightedRow(null);
 						setHighlightedCols([]);
 						setLastScenarioBlocked(false);
+						setRewardScenarioId(null);
 						stressTest.reset();
 					}}
 					onValidate={handleValidate}

@@ -2,6 +2,10 @@
 
 Detailed guidance for the reward (Phase 3) visualization: interactivity requirements, StressTestPanel response lines, button labels, custom reward visualization, and reward flow animation.
 
+## Pre-Flight: Read cumulative-patterns.md (Non-Negotiable)
+
+**Before writing ANY content for a level, read [cumulative-patterns.md](cumulative-patterns.md).** If the player can see it, it must follow every pattern established in earlier levels. No exceptions.
+
 ## Reward Phase Type Rules
 
 The reward style depends on the observe phase type:
@@ -125,7 +129,7 @@ Every reward animation is a visual claim about how the player's code works. Befo
 3. **Showing behavior the code doesn't implement.** If `DirectUploadsController#create` only calls `create_before_direct_upload!` with no validation, the animation cannot show content type rejection at that endpoint. The rejection happens later, in a different class.
 
 **Checklist:**
-- [ ] Read the final code preview for the reward/activate phase
+- [ ] Read the final code preview for the reward phase
 - [ ] For each reward scenario, identify which class and method handles the request
 - [ ] Verify animation labels name the correct class/method
 - [ ] If the built code defines cached/lazy behavior, show the cached case

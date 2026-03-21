@@ -159,12 +159,12 @@ Read the content definition in `content.ts` alongside the component. Check for t
 
 **CRITICAL: Check both content.ts AND the component .tsx file.** Common drift points: attribute lists, code snippets in Before/After comparisons, left panel instruction text, step descriptions, code preview strings.
 
-- [ ] **Code previews use ALL patterns established in earlier levels (non-negotiable).** Read [cumulative-patterns.md](cumulative-patterns.md) and verify every code preview (observe "before" code, build step previews, reward "after" code) is consistent with patterns from earlier levels. Common violations:
+- [ ] **Everything the player sees follows cumulative patterns (non-negotiable).** Read [cumulative-patterns.md](cumulative-patterns.md) before writing or reviewing ANY content. Every string, every code snippet, every data structure, every response, every label that appears on screen must be consistent with every pattern established in earlier levels. No exceptions. No "this is just a visual element." No "this is just placeholder data." If the player can see it, it must follow the patterns. Common violations:
   - **L16+ (Service Objects):** Controllers must delegate to `ServiceName.call(args)`, never do business logic directly. Service inherits from `ApplicationService`, returns `Result = Data.define(...)`. The observe phase "before" code must also use services (the problem is in the service logic, not controller structure).
   - **L18+ (Dry-Validation):** Services must validate input via `MyContract.new.call(params)` with `validation.failure?` check, never inline `if param.blank?`. Contract file (`app/contracts/`) must appear in code previews.
   - **L19+ (Query Objects):** Complex queries should use query objects, not be inlined in services.
   - **L20+ (Error Handling):** Error responses follow the `{ error: { code, message, details } }` shape.
-  This applies to ALL code shown to the player: observe phase, build step options, code preview evolution, and reward phase final code.
+  - **L7+ (JSON:API format):** API responses use JSON:API format (`{ "data": { "type": "...", "id": "...", "attributes": { ... } } }`), never vanilla JSON (`{ "user": { ... } }`). Case study: L36 reward phase showed vanilla JSON, breaking 35 levels of consistent API format.
 
 ### Phase 1: Problem Visualization (WHY)
 
@@ -361,7 +361,7 @@ The level must have a dedicated reward phase. **The reward style depends on the 
 
 #### Types 3 and 4 levels: Interactive reward
 
-- [ ] Star rating + "Visualize ___" button in activate sub-phase (centered, no animation)
+- [ ] **No activate phase.** No star rating, no "Visualize ___" button. The last build step's "Next Step" button goes directly to reward.
 - [ ] Same visualization from Phase 1 returns, now showing the solution working
 - [ ] **The player interacts** to verify the fix works. This is NOT passive. Every click must produce a visible reaction.
 
@@ -416,26 +416,27 @@ For detailed guidance with case studies (L16, L25, L26), see [cross-phase-consis
 
 ### State Machine
 
-Three valid patterns exist (matching the four observe types):
+Three valid patterns exist (matching the four observe types). **There is no activate phase.** The build phase's last step transitions directly to reward.
 
 **Type 1: No observe (setup levels):**
-- [ ] State uses `phase: 'build' | 'activate' | 'reward'` or `phase: 'build' | 'complete'`
+- [ ] State uses `phase: 'build' | 'reward'` or `phase: 'build' | 'complete'`
 - [ ] Level starts directly in `'build'` phase
 
 **Type 2: Static intro (refactoring / code-structure levels):**
-- [ ] State uses `phase: 'intro' | 'build' | 'activate' | 'reward'`
+- [ ] State uses `phase: 'intro' | 'build' | 'reward'`
 - [ ] `intro -> build`: triggered by "Build the Fix" button click, **no gating** (always visible)
-- [ ] `build -> activate`: triggered by `useEffect` watching `stepper.isComplete`
-- [ ] `activate -> reward`: triggered by "Visualize ___" button click
+- [ ] `build -> reward`: triggered by "Next Step" button on the last completed step
 
 **Types 3 and 4: Full interactive observe (custom visualization or PipelineFlow):**
-- [ ] State uses `phase: 'observe' | 'build' | 'activate' | 'reward'`
+- [ ] State uses `phase: 'observe' | 'build' | 'reward'`
 - [ ] `observe -> build`: triggered by "Build the Fix" button click, **gated behind `discoveryGating.isUnlocked`** (NOT a timer)
-- [ ] `build -> activate`: triggered by `useEffect` watching `stepper.isComplete`
-- [ ] `activate -> reward`: triggered by "Visualize ___" button click
+- [ ] `build -> reward`: triggered by "Next Step" button on the last completed step
+
+**No activate phase (non-negotiable).** Do not add a star rating screen or "Visualize ___" interstitial between build and reward. The last build step uses the same "Next Step" button as every other step, and clicking it goes straight to reward. No `useEffect` auto-advance. If an existing level has an activate phase, remove it during the audit.
 
 **Common to all:**
 - [ ] Phase state uses a union type (not boolean flags)
+- [ ] **No `'activate'` in the phase union type.** Flag it if found.
 - [ ] Visualizations are declarative (no manual animation intervals or mutable request state to manage)
 - [ ] Observe/intro visualization state built with `useMemo` reacting to player interactions
 - [ ] Reward visualization state built with `useMemo` reacting to player actions

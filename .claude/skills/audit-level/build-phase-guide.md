@@ -2,6 +2,10 @@
 
 Detailed guidance for the Problem Solving (HOW) phase: step design, code preview accuracy, option quality, feedback consistency, and documentation verification.
 
+## Pre-Flight: Read cumulative-patterns.md (Non-Negotiable)
+
+**Before writing ANY content for a level, read [cumulative-patterns.md](cumulative-patterns.md).** If the player can see it, it must follow every pattern established in earlier levels. No exceptions.
+
 ## Code Preview Accuracy
 
 ### No empty states
