@@ -181,6 +181,67 @@ The fixed version shows the complete flow:
 
 **Rule:** When a concept has a lifecycle (data travels between client and server), the visualization must show the full round trip. Don't skip steps that the player needs to understand.
 
+## Example 2: Level 36 (Encrypted Attributes) - Reward Phase
+
+### The Problem
+
+The reward phase needed to show that encryption protects PII at rest: the app sees plaintext, the database stores ciphertext, and attackers see gibberish.
+
+### Initial Design (FAILED)
+
+A single database table (identical to the observe phase) with green border instead of red. When a scenario fires, rows flash with a faint green highlight, then return to normal.
+
+**Why it failed:**
+
+1. **No visible change per scenario.** All scenarios produced the same animation: rows flash green briefly. "Find by email" looked identical to "SQL injection attack" looked identical to "backup audit." The player clicks different buttons and sees the same thing every time.
+
+2. **Faint highlights were invisible.** The row highlight used `bg-emerald-100 dark:bg-emerald-900/30` which was barely distinguishable from the base table background. The player couldn't tell when an animation was playing.
+
+3. **No teaching of the core concept.** Encryption's key insight is the CONTRAST between what the app sees (plaintext) and what the database stores (ciphertext). A single table can only show one perspective at a time. The player never sees both perspectives simultaneously, so they never internalize the duality.
+
+4. **Blocked scenarios flashed green.** When "find by phone" (blocked, non-deterministic can't be queried) fired, the row flashed green just like successful scenarios. There was no visual distinction between "this worked" and "this failed."
+
+### Redesigned Version (PASSED)
+
+A **dual-perspective split view** with per-scenario behavior:
+
+**1. Two tables side by side: "What the App Sees" vs "What the Database Stores"**
+- Left table (emerald border): always shows plaintext values. This is what application code sees after automatic decryption.
+- Right table (amber border): always shows ciphertext blobs with lock icons. This is what's actually stored on disk.
+- The player sees both perspectives simultaneously. The contrast IS the lesson.
+
+**2. Per-scenario perspective selection:**
+Not every scenario needs both tables. The visualization config controls which perspectives appear:
+- "Find by email" (deterministic query): BOTH tables, email column highlighted. Player sees the same email produces the same ciphertext, enabling the match.
+- "Find by phone" (non-deterministic failure): DB table ONLY, phone column highlighted, red banner. Player sees each encryption is unique, no match possible.
+- "SQL injection attack": DB table ONLY, all PII columns highlighted. Player sees the attacker's view: nothing but ciphertext.
+- "Transparent read": BOTH tables, all PII columns. Player sees the app reads plaintext while the DB stores ciphertext.
+
+**3. Scenario result banner with strong colors:**
+A colored banner above the tables explains what happened:
+- Green: "Deterministic: query encrypted, matched in DB. User found."
+- Red: "Non-deterministic: same phone encrypts differently each time. No match possible."
+- Green: "Attacker dumped the table but sees only ciphertext. No PII exposed."
+
+The banner uses solid background colors (`bg-emerald-100`, `bg-red-100`) that are clearly visible, not faint semi-transparent overlays.
+
+**4. Idle state guidance:**
+Before any scenario is fired, a neutral prompt says "Fire a scenario below to see how encryption protects data at each layer." The player knows what to do.
+
+### Key Takeaways
+
+| Principle | Bad (single table with flash) | Good (dual-perspective split) |
+|-----------|------|------|
+| **Show the core duality** | One table can only show one perspective | Two tables show both perspectives simultaneously |
+| **Differentiate scenarios** | All scenarios flash the same way | Each scenario shows different perspectives and highlights different columns |
+| **Strong visual feedback** | Faint highlight barely visible | Solid banner colors, bold highlighted text, clear column focus |
+| **Distinguish success/failure** | Both flash green | Success = emerald banner, failure = red banner |
+| **Teach without labels** | Player sees green flash, learns nothing | Player sees plaintext next to ciphertext, understands the contrast |
+
+**Rule:** When a concept is about a duality or contrast (encrypted vs plaintext, cached vs uncached, authorized vs unauthorized), the visualization must show BOTH sides simultaneously so the player can compare. A single view that toggles between states forces the player to remember the previous state. Side-by-side comparison makes the contrast self-evident.
+
+**Rule:** Reward phase visualizations must be visually distinct PER SCENARIO. If every scenario produces the same animation (rows flash, same color, same duration), the stress test is visual noise. Each scenario exists to teach a different aspect of the solution. The visualization must reflect that difference.
+
 ## Checklist for New Visualizations
 
 When designing any observe phase visualization, verify:
@@ -195,6 +256,8 @@ When designing any observe phase visualization, verify:
 - [ ] **Concrete consequence.** Does the visualization state the real-world impact in plain language? "18 units sold, only 8 deducted" makes the business impact clear. A technical label like "(LOST!)" or "OVERWRITE" does not.
 - [ ] **Scenario plausibility.** Would a real developer encounter this exact scenario? If the scenario requires a broken API, a contrived setup, or unusual user behavior to work, rethink it. The probe should model realistic conditions where the problem naturally occurs.
 - [ ] **Self-evident wrongness.** Would a non-technical person understand why the outcome is bad? "18 units sold, 8 deducted" is self-evident. "$39.99 instead of $29.99" requires domain context to judge. The wrongness should be obvious from the numbers alone.
+- [ ] **Duality shown simultaneously.** If the concept is about a contrast (encrypted vs plaintext, cached vs uncached, before vs after), does the visualization show BOTH sides at the same time? A single view that toggles between states forces the player to remember. Side-by-side comparison makes the contrast self-evident.
+- [ ] **Reward scenarios visually distinct.** Does each reward scenario produce a different visual result? If every scenario plays the same animation (same rows flash, same color, same duration), the stress test is visual noise. Check by firing each scenario and writing down what changes on screen. If two descriptions are identical, redesign.
 
 ### Build phase checks
 
