@@ -10,18 +10,16 @@
  * Auto-layouts zones horizontally, 350px apart.
  */
 
-import {
-	BaseEdge,
-	getSmoothStepPath,
-	Handle,
-	Position,
-	ReactFlow,
-} from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
-import type { Edge, EdgeProps, Node, ReactFlowInstance } from '@xyflow/react';
+import type { Edge, EdgeProps, Node } from '@xyflow/react';
+import { BaseEdge, getSmoothStepPath } from '@xyflow/react';
 import { Database, type LucideIcon, Search, Server } from 'lucide-react';
 import { memo, useMemo } from 'react';
 
+import {
+	AnimatedDots,
+	FlowDiagram,
+	FlowHandles,
+} from '@/components/levels/FlowDiagram';
 import { cn } from '@/lib/utils';
 
 // ──────────────────────────────────────────────
@@ -171,9 +169,12 @@ const QueryZoneNode = memo(function QueryZoneNode({
 			className={cn(
 				'rounded-xl border-2 p-4 min-w-[200px] text-left transition-all duration-300 relative',
 				clickable && 'cursor-pointer hover:ring-2 hover:ring-primary/50',
-				isGreen && !zone.panic && 'border-emerald-500 bg-emerald-100 dark:bg-emerald-900/40',
+				isGreen &&
+					!zone.panic &&
+					'border-emerald-500 bg-emerald-100 dark:bg-emerald-900/40',
 				isRed && !zone.panic && 'border-red-500 bg-red-100 dark:bg-red-900/40',
-				zone.panic && 'animate-db-panic border-red-500 bg-red-200 dark:bg-red-950',
+				zone.panic &&
+					'animate-db-panic border-red-500 bg-red-200 dark:bg-red-950',
 				!zone.highlighted && 'border-border bg-card',
 			)}
 		>
@@ -193,9 +194,7 @@ const QueryZoneNode = memo(function QueryZoneNode({
 
 			{/* Code line */}
 			{zone.codeLine && (
-				<div className="text-sm font-mono text-foreground">
-					{zone.codeLine}
-				</div>
+				<div className="text-sm font-mono text-foreground">{zone.codeLine}</div>
 			)}
 
 			{/* Loop counter */}
@@ -230,12 +229,8 @@ const QueryZoneNode = memo(function QueryZoneNode({
 							.slice(0, zone.queryLog.visibleCount)
 							.map((line, i) => (
 								<div
-									className={
-										i === 0
-											? 'text-emerald-400'
-											: 'text-red-400'
-									}
-									key={i}
+									className={i === 0 ? 'text-emerald-400' : 'text-red-400'}
+									key={`${i}-${line}`}
 								>
 									{line}
 								</div>
@@ -272,24 +267,10 @@ const QueryZoneNode = memo(function QueryZoneNode({
 
 			{/* Waiting text */}
 			{zone.waitingText && (
-				<div className="text-sm text-muted-foreground">
-					{zone.waitingText}
-				</div>
+				<div className="text-sm text-muted-foreground">{zone.waitingText}</div>
 			)}
 
-			{/* Handles */}
-			<Handle
-				className="opacity-0! w-0! h-0!"
-				id="left-target"
-				position={Position.Left}
-				type="target"
-			/>
-			<Handle
-				className="opacity-0! w-0! h-0!"
-				id="right-source"
-				position={Position.Right}
-				type="source"
-			/>
+			<FlowHandles />
 		</div>
 	);
 });
@@ -315,7 +296,11 @@ function QueryZoneFlowEdge({
 	targetPosition,
 	data,
 }: EdgeProps) {
-	const { dots = [], active = false, danger = false } = (data ?? {}) as InternalEdgeData;
+	const {
+		dots = [],
+		active = false,
+		danger = false,
+	} = (data ?? {}) as InternalEdgeData;
 
 	const [edgePath] = getSmoothStepPath({
 		sourceX,
@@ -339,18 +324,15 @@ function QueryZoneFlowEdge({
 			) : (
 				<BaseEdge id={id} path={edgePath} />
 			)}
-			{active &&
-				dots.map((dot) => (
-					<circle fill={dot.color} key={dot.id} r={dot.r}>
-						<animateMotion
-							begin={dot.begin}
-							dur={dot.dur}
-							fill="freeze"
-							path={edgePath}
-							repeatCount="indefinite"
-						/>
-					</circle>
-				))}
+			{active && dots.length > 0 && (
+				<AnimatedDots
+					dots={dots.map((dot) => ({
+						...dot,
+						r: dot.r,
+					}))}
+					path={edgePath}
+				/>
+			)}
 		</>
 	);
 }
@@ -368,10 +350,7 @@ const zoneEdgeTypes = { queryZoneFlow: QueryZoneFlowEdge };
 
 const ZONE_SPACING = 350;
 
-function buildZoneNodes(
-	zones: QueryZone[],
-	clickable: boolean,
-): Node[] {
+function buildZoneNodes(zones: QueryZone[], clickable: boolean): Node[] {
 	return zones.map((zone, i) => ({
 		id: zone.id,
 		type: 'queryZone',
@@ -396,10 +375,6 @@ function buildZoneEdges(edges: QueryZoneEdge[]): Edge[] {
 	}));
 }
 
-function handleInit(instance: ReactFlowInstance) {
-	requestAnimationFrame(() => instance.fitView({ padding: 0.2 }));
-}
-
 // ──────────────────────────────────────────────
 // Component
 // ──────────────────────────────────────────────
@@ -417,27 +392,15 @@ export function QueryZoneFlow({
 	);
 	const flowEdges = useMemo(() => buildZoneEdges(edges), [edges]);
 
-	const handleNodeClick = useMemo(() => {
-		if (!onZoneClick) return undefined;
-		return (_event: React.MouseEvent, node: Node) => {
-			onZoneClick(node.id);
-		};
-	}, [onZoneClick]);
-
 	return (
-		<ReactFlow
+		<FlowDiagram
 			className={className}
 			edges={flowEdges}
 			edgeTypes={zoneEdgeTypes}
-			elementsSelectable={isClickable}
+			fitViewPadding={0.2}
 			nodes={nodes}
-			nodesConnectable={false}
-			nodesDraggable={false}
-			nodesFocusable={false}
 			nodeTypes={zoneNodeTypes}
-			onInit={handleInit}
-			onNodeClick={handleNodeClick}
-			proOptions={{ hideAttribution: true }}
+			onNodeClick={onZoneClick}
 		/>
 	);
 }

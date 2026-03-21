@@ -5,17 +5,16 @@
  * Auto-layouts stages in a horizontal row, 250px apart.
  */
 
-import {
-	BaseEdge,
-	getSmoothStepPath,
-	Handle,
-	Position,
-	ReactFlow,
-} from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
-import type { Edge, EdgeProps, Node, ReactFlowInstance } from '@xyflow/react';
+import type { Edge, EdgeProps, Node } from '@xyflow/react';
+import { BaseEdge, getSmoothStepPath, Position } from '@xyflow/react';
 import { memo, useMemo } from 'react';
 
+import {
+	AnimatedDots,
+	type DotConfig,
+	FlowDiagram,
+	FlowHandles,
+} from '@/components/levels/FlowDiagram';
 import { cn } from '@/lib/utils';
 
 // ──────────────────────────────────────────────
@@ -95,18 +94,11 @@ export const PIPELINE_DOTS_CLEAN: PipelineDot[] = [
 // Internal types
 // ──────────────────────────────────────────────
 
-interface InternalDotConfig {
-	id: string;
-	color: string;
-	dur: string;
-	begin: string;
-}
-
 /** Edge animation mode: idle = subtle always-on, active = single-pass, dormant = no dots */
 type EdgeMode = 'idle' | 'active' | 'dormant';
 
 interface PipelineEdgeData {
-	dots?: InternalDotConfig[];
+	dots?: DotConfig[];
 	mode: EdgeMode;
 	/** True for return edges (dashed line, shifted right/down) */
 	isReturn?: boolean;
@@ -187,16 +179,7 @@ const PipelineStageNode = memo(function PipelineStageNode({
 					{data.badge}
 				</div>
 			)}
-			{/* Horizontal handles */}
-			<Handle className="opacity-0! w-0! h-0!" position={Position.Left} type="target" id="left-target" />
-			<Handle className="opacity-0! w-0! h-0!" position={Position.Left} type="source" id="left-source" />
-			<Handle className="opacity-0! w-0! h-0!" position={Position.Right} type="source" id="right-source" />
-			<Handle className="opacity-0! w-0! h-0!" position={Position.Right} type="target" id="right-target" />
-			{/* Vertical handles */}
-			<Handle className="opacity-0! w-0! h-0!" position={Position.Top} type="target" id="top-target" />
-			<Handle className="opacity-0! w-0! h-0!" position={Position.Top} type="source" id="top-source" />
-			<Handle className="opacity-0! w-0! h-0!" position={Position.Bottom} type="source" id="bottom-source" />
-			<Handle className="opacity-0! w-0! h-0!" position={Position.Bottom} type="target" id="bottom-target" />
+			<FlowHandles />
 		</div>
 	);
 });
@@ -221,7 +204,12 @@ function PipelineFlowEdge({
 	targetPosition,
 	data,
 }: EdgeProps) {
-	const { dots, mode = 'idle', isReturn = false, isBidirectional = false } = (data ?? {}) as PipelineEdgeData;
+	const {
+		dots,
+		mode = 'idle',
+		isReturn = false,
+		isBidirectional = false,
+	} = (data ?? {}) as PipelineEdgeData;
 
 	// Only offset edges that are part of a bidirectional pair
 	const needsOffset = isReturn || isBidirectional;
@@ -256,18 +244,17 @@ function PipelineFlowEdge({
 			) : (
 				<BaseEdge id={id} path={edgePath} />
 			)}
-			{mode !== 'dormant' &&
-				dots?.map((dot) => (
-					<circle fill={dot.color} key={dot.id} r="8">
-						<animateMotion
-							begin={dot.begin}
-							dur={mode === 'active' ? '0.8s' : dot.dur}
-							path={edgePath}
-							repeatCount={mode === 'active' ? '1' : 'indefinite'}
-							fill="freeze"
-						/>
-					</circle>
-				))}
+			{mode !== 'dormant' && dots && (
+				<AnimatedDots
+					dots={dots.map((dot) => ({
+						...dot,
+						r: 8,
+						dur: mode === 'active' ? '0.8s' : dot.dur,
+						repeatCount: mode === 'active' ? '1' : 'indefinite',
+					}))}
+					path={edgePath}
+				/>
+			)}
 		</>
 	);
 }
@@ -286,7 +273,7 @@ const pipelineEdgeTypes = { pipelineFlow: PipelineFlowEdge };
 function resolveDots(
 	dots: PipelineDot[] | 'mixed' | 'clean' | undefined,
 	edgeIndex: number,
-): InternalDotConfig[] | undefined {
+): DotConfig[] | undefined {
 	if (!dots) return undefined;
 
 	let resolved: PipelineDot[];
@@ -302,10 +289,7 @@ function resolveDots(
 	}));
 }
 
-function buildNodes(
-	stages: PipelineStage[],
-	clickable: boolean,
-): Node[] {
+function buildNodes(stages: PipelineStage[], clickable: boolean): Node[] {
 	let autoX = 0;
 	return stages.map((stage) => {
 		const pos = stage.position ?? { x: autoX, y: 0 };
@@ -399,10 +383,6 @@ function buildEdges(
 // Component
 // ──────────────────────────────────────────────
 
-function handleInit(instance: ReactFlowInstance) {
-	requestAnimationFrame(() => instance.fitView({ padding: 0.15 }));
-}
-
 export function PipelineFlow({
 	stages,
 	connections,
@@ -420,26 +400,14 @@ export function PipelineFlow({
 		[connections, activeConnections],
 	);
 
-	const handleNodeClick = useMemo(() => {
-		if (!onNodeClick) return undefined;
-		return (_event: MouseEvent, node: Node) => {
-			onNodeClick(node.id);
-		};
-	}, [onNodeClick]);
-
 	return (
-		<ReactFlow
+		<FlowDiagram
 			className={className}
 			edges={edges}
 			edgeTypes={pipelineEdgeTypes}
-			elementsSelectable={isClickable}
 			nodes={nodes}
-			nodesConnectable={false}
-			nodesFocusable={false}
 			nodeTypes={pipelineNodeTypes}
-			onInit={handleInit}
-			onNodeClick={handleNodeClick}
-			proOptions={{ hideAttribution: true }}
+			onNodeClick={onNodeClick}
 		/>
 	);
 }

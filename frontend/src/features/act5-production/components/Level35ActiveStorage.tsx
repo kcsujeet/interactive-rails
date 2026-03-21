@@ -32,16 +32,8 @@
  *   image variants, content validation
  */
 
-import {
-	BaseEdge,
-	EdgeLabelRenderer,
-	getStraightPath,
-	Handle,
-	Position,
-	ReactFlow,
-} from '@xyflow/react';
-import '@xyflow/react/dist/style.css';
-import type { Edge, EdgeProps, Node, ReactFlowInstance } from '@xyflow/react';
+import type { Edge, EdgeProps, Node } from '@xyflow/react';
+import { BaseEdge, EdgeLabelRenderer, getStraightPath } from '@xyflow/react';
 import {
 	ArrowRight,
 	Cloud,
@@ -70,6 +62,12 @@ import {
 	type ValidationResult,
 } from '@/components/levels';
 import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
+import {
+	AnimatedDots,
+	FlowDiagram,
+	FlowHandles,
+	reversePath,
+} from '@/components/levels/FlowDiagram';
 import {
 	type ProbeConfig,
 	ProbeTerminal,
@@ -1504,31 +1502,7 @@ const ZoneNode = memo(function ZoneNode({ data }: { data: ZoneNodeData }) {
 					<span className="font-mono">Local Disk</span>
 				</div>
 			)}
-			{/* Handles for edges */}
-			<Handle
-				className="opacity-0! w-0! h-0!"
-				id="right-source"
-				position={Position.Right}
-				type="source"
-			/>
-			<Handle
-				className="opacity-0! w-0! h-0!"
-				id="left-target"
-				position={Position.Left}
-				type="target"
-			/>
-			<Handle
-				className="opacity-0! w-0! h-0!"
-				id="top-source"
-				position={Position.Top}
-				type="source"
-			/>
-			<Handle
-				className="opacity-0! w-0! h-0!"
-				id="top-target"
-				position={Position.Top}
-				type="target"
-			/>
+			<FlowHandles />
 		</div>
 	);
 });
@@ -1558,8 +1532,8 @@ const UploadEdge = memo(function UploadEdge({
 	sourceY,
 	targetX,
 	targetY,
-	sourcePosition,
-	targetPosition,
+	sourcePosition: _sourcePosition,
+	targetPosition: _targetPosition,
 	data,
 }: EdgeProps) {
 	const edgeData = data as UploadEdgeData;
@@ -1590,12 +1564,19 @@ const UploadEdge = memo(function UploadEdge({
 		labelY = result[2];
 	}
 
-	// For reversed animations, build a reversed path so dots travel right-to-left
-	const dotPath = reverse
-		? isDirect
-			? `M ${targetX} ${targetY} Q ${(sourceX + targetX) / 2} ${Math.min(sourceY, targetY) - 140} ${sourceX} ${sourceY}`
-			: `M ${targetX} ${targetY} L ${sourceX} ${sourceY}`
-		: edgePath;
+	// For reversed animations, reverse the path so dots travel right-to-left
+	const dotPath = reverse ? reversePath(edgePath) : edgePath;
+
+	// 3 dots, staggered 0.5s apart
+	const dots = active
+		? [0, 1, 2].map((i) => ({
+				id: `${id}-d${i}`,
+				color: fill,
+				r: 5,
+				dur: '1.5s',
+				begin: `${i * 0.5}s`,
+			}))
+		: [];
 
 	return (
 		<>
@@ -1609,18 +1590,7 @@ const UploadEdge = memo(function UploadEdge({
 					strokeOpacity: isDirect ? 0.6 : undefined,
 				}}
 			/>
-			{active &&
-				[0, 1, 2].map((i) => (
-					<circle fill={fill} key={i} r="5">
-						<animateMotion
-							begin={`${i * 0.5}s`}
-							dur="1.5s"
-							fill="freeze"
-							path={dotPath}
-							repeatCount="indefinite"
-						/>
-					</circle>
-				))}
+			{dots.length > 0 && <AnimatedDots dots={dots} path={dotPath} />}
 			{label && (
 				<EdgeLabelRenderer>
 					<div
@@ -1646,10 +1616,6 @@ const UploadEdge = memo(function UploadEdge({
 
 const uploadNodeTypes = { zone: ZoneNode };
 const uploadEdgeTypes = { upload: UploadEdge };
-
-function handleFlowInit(instance: ReactFlowInstance) {
-	requestAnimationFrame(() => instance.fitView({ padding: 0.15 }));
-}
 
 // ──────────────────────────────────────────────
 // Component
@@ -1912,14 +1878,11 @@ export function Level35ActiveStorage({ onComplete }: LevelComponentProps) {
 		return (
 			<div className="flex-1 flex flex-col min-h-0">
 				<div className="flex-1 relative">
-					<ReactFlow
+					<FlowDiagram
 						edges={flowEdges}
 						edgeTypes={uploadEdgeTypes}
 						nodes={flowNodes}
-						nodesConnectable={false}
 						nodeTypes={uploadNodeTypes}
-						onInit={handleFlowInit}
-						proOptions={{ hideAttribution: true }}
 					/>
 				</div>
 
@@ -1981,8 +1944,7 @@ export function Level35ActiveStorage({ onComplete }: LevelComponentProps) {
 					<div className="p-4 border-t border-border">
 						<StepProgress
 							currentStep={stepper.currentStep}
-							furthestStep={stepper.furthestStep}
-							steps={STEP_DEFS}
+							steps={stepper.steps}
 						/>
 					</div>
 				</InstructionPanel>
@@ -2130,7 +2092,7 @@ export function Level35ActiveStorage({ onComplete }: LevelComponentProps) {
 					{wrongFeedback && (
 						<div className="mb-4">
 							<ErrorFeedback
-								feedback={wrongFeedback}
+								message={wrongFeedback}
 								onDismiss={() => setWrongFeedback(null)}
 							/>
 						</div>
@@ -2186,6 +2148,8 @@ export function Level35ActiveStorage({ onComplete }: LevelComponentProps) {
 
 				<div className="px-6 pb-2">
 					<StressTestPanel
+						allowedCount={stressTest.allowedCount}
+						blockedCount={stressTest.blockedCount}
 						canAutoFire={stressTest.canAutoFire}
 						disabled={vizAnimating}
 						isAutoFiring={stressTest.isAutoFiring}
@@ -2217,9 +2181,6 @@ export function Level35ActiveStorage({ onComplete }: LevelComponentProps) {
 						resetViz();
 						clearTimers();
 						setWrongFeedback(null);
-						discoveryGating.reset();
-						stepper.reset();
-						stressTest.reset();
 					}}
 					onValidate={handleValidate}
 				/>
