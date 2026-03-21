@@ -355,6 +355,48 @@ const REWARD_SERVE_VARIANT: AnimationFrame[] = [
 	},
 ];
 
+// ── Reward: List users with thumbnail variants via CDN ──
+
+const REWARD_LIST_AVATARS: AnimationFrame[] = [
+	{
+		client: { label: 'GET /users?per_page=25', flash: 'blue' },
+		connA: {
+			active: true,
+			reverse: false,
+			label: 'request',
+			dotColor: 'bg-emerald-500 dark:bg-emerald-400',
+		},
+	},
+	{
+		connA: { active: false, label: '' },
+		app: { label: 'Rendering 25 users...', flash: 'amber' },
+	},
+	{
+		app: { label: '25 CDN redirect URLs generated', flash: 'green' },
+		connA: {
+			active: true,
+			reverse: true,
+			label: '25 variant URLs',
+			dotColor: 'bg-emerald-500 dark:bg-emerald-400',
+		},
+	},
+	{
+		connA: { active: false, label: '' },
+		connC: {
+			active: true,
+			reverse: true,
+			label: '25 x 15KB thumbnails',
+			dotColor: 'bg-emerald-500 dark:bg-emerald-400',
+		},
+		s3: { label: 'Serving :thumb variants', flash: 'green' },
+	},
+	{
+		connC: { active: false, label: '' },
+		client: { label: 'Received 375KB (not 125MB)', flash: 'green' },
+		bandwidthLabel: '375KB total (was 125MB without variants)',
+	},
+];
+
 // ── Reward: Blocked - invalid content type ──
 
 const REWARD_BLOCKED_CONTENT: AnimationFrame[] = [
@@ -423,8 +465,9 @@ const REWARD_BLOCKED_OVERSIZED: AnimationFrame[] = [
 
 const REWARD_FRAMES_MAP: Record<string, AnimationFrame[]> = {
 	'upload-photo': REWARD_UPLOAD_PHOTO,
+	'request-avatar': REWARD_SERVE_VARIANT,
+	'list-avatars': REWARD_LIST_AVATARS,
 	'upload-10-photos': REWARD_CONCURRENT,
-	'view-profile': REWARD_SERVE_VARIANT,
 	'upload-exe': REWARD_BLOCKED_CONTENT,
 	'upload-50mb': REWARD_BLOCKED_OVERSIZED,
 };
@@ -861,7 +904,7 @@ const OPTION_STEP_CONFIG: Record<
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'upload-photo',
-		label: 'Upload 5MB photo',
+		label: 'Upload 5MB profile photo',
 		description: 'Seller uploads a product photo',
 		method: 'POST',
 		path: '/api/v1/users/1/avatar',
@@ -875,6 +918,46 @@ const STRESS_SCENARIOS: StressScenario[] = [
 			},
 			{
 				text: 'Server memory: 45MB (unchanged, file never touches Rails)',
+				color: 'green',
+			},
+		],
+	},
+	{
+		id: 'request-avatar',
+		label: 'Download user avatar',
+		description: 'Customer downloads a single user avatar via CDN',
+		method: 'GET',
+		path: '/api/v1/users/1/avatar?variant=thumb',
+		actor: 'customer',
+		expectedResult: 'allowed',
+		responseLines: [
+			{ text: '302 Found -> CDN URL', color: 'green' },
+			{
+				text: 'Variant generated on first request, served via CDN redirect.',
+				color: 'cyan',
+			},
+			{
+				text: '15KB thumbnail (not 5MB original)',
+				color: 'green',
+			},
+		],
+	},
+	{
+		id: 'list-avatars',
+		label: 'List users with avatars',
+		description: 'Customer views user listing page with 25 avatar thumbnails',
+		method: 'GET',
+		path: '/api/v1/users?per_page=25',
+		actor: 'customer',
+		expectedResult: 'allowed',
+		responseLines: [
+			{ text: '200 OK', color: 'green' },
+			{
+				text: '25 users with :thumb variant URLs via CDN redirect.',
+				color: 'cyan',
+			},
+			{
+				text: '25 x 15KB = 375KB total (was 25 x 5MB = 125MB)',
 				color: 'green',
 			},
 		],
@@ -895,26 +978,6 @@ const STRESS_SCENARIOS: StressScenario[] = [
 			},
 			{
 				text: 'Server memory: 45MB (unchanged, zero file buffering)',
-				color: 'green',
-			},
-		],
-	},
-	{
-		id: 'view-profile',
-		label: 'View profile photo',
-		description: 'Customer views a seller profile with thumbnail',
-		method: 'GET',
-		path: '/api/v1/users/1/avatar?variant=thumb',
-		actor: 'customer',
-		expectedResult: 'allowed',
-		responseLines: [
-			{ text: '302 Found -> CDN URL', color: 'green' },
-			{
-				text: 'Variant generated on first request, served via CDN redirect.',
-				color: 'cyan',
-			},
-			{
-				text: '15KB thumbnail (not 5MB original)',
 				color: 'green',
 			},
 		],
@@ -1574,7 +1637,7 @@ const UploadEdge = memo(function UploadEdge({
 				color: fill,
 				r: 5,
 				dur: '1.5s',
-				begin: `${i * 0.5}s`,
+				begin: `${i === 0 ? '0s' : `-${i * 0.5}s`}`,
 			}))
 		: [];
 
@@ -1622,7 +1685,7 @@ const uploadEdgeTypes = { upload: UploadEdge };
 // ──────────────────────────────────────────────
 
 export function Level35ActiveStorage({ onComplete }: LevelComponentProps) {
-	const [phase, setPhase] = useState<Phase>('observe');
+	const [phase, setPhase] = useState<Phase>('reward');
 	const [wrongFeedback, setWrongFeedback] = useState<string | null>(null);
 	const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
