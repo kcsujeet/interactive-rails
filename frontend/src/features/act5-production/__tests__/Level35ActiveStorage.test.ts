@@ -108,11 +108,11 @@ const DIRECT_UPLOAD_OPTIONS = [
 ];
 
 const STRESS_SCENARIOS = [
-	{ id: 'upload-photo', label: 'POST upload 5MB photo', expectedResult: 'allowed' as const },
-	{ id: 'upload-10-photos', label: 'POST 10 sellers upload photos', expectedResult: 'allowed' as const },
-	{ id: 'view-profile', label: 'GET view profile photo', expectedResult: 'allowed' as const },
-	{ id: 'upload-exe', label: 'POST upload .exe file', expectedResult: 'blocked' as const },
-	{ id: 'upload-50mb', label: 'POST upload 50MB photo', expectedResult: 'blocked' as const },
+	{ id: 'upload-photo', label: 'Upload 5MB photo', expectedResult: 'allowed' as const },
+	{ id: 'upload-10-photos', label: '10 sellers upload photos', expectedResult: 'allowed' as const },
+	{ id: 'view-profile', label: 'View profile photo', expectedResult: 'allowed' as const },
+	{ id: 'upload-exe', label: 'Upload .exe file', expectedResult: 'blocked' as const },
+	{ id: 'upload-50mb', label: 'Upload 50MB photo', expectedResult: 'blocked' as const },
 ];
 
 // ── Observe probe animation frames (mirrored from component) ──

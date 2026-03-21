@@ -863,7 +863,7 @@ const OPTION_STEP_CONFIG: Record<
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'upload-photo',
-		label: 'POST upload 5MB photo',
+		label: 'Upload 5MB photo',
 		description: 'Seller uploads a product photo',
 		method: 'POST',
 		path: '/api/v1/users/1/avatar',
@@ -883,7 +883,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'upload-10-photos',
-		label: 'POST 10 sellers upload photos',
+		label: '10 sellers upload photos',
 		description: '10 sellers upload product photos at the same time',
 		method: 'POST',
 		path: '/api/v1/users/*/avatar',
@@ -903,7 +903,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'view-profile',
-		label: 'GET view profile photo',
+		label: 'View profile photo',
 		description: 'Customer views a seller profile with thumbnail',
 		method: 'GET',
 		path: '/api/v1/users/1/avatar?variant=thumb',
@@ -923,7 +923,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'upload-exe',
-		label: 'POST upload .exe file',
+		label: 'Upload .exe file',
 		description: 'Attacker uploads malware disguised as image',
 		method: 'POST',
 		path: '/api/v1/users/1/avatar',
@@ -940,7 +940,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'upload-50mb',
-		label: 'POST upload 50MB photo',
+		label: 'Upload 50MB photo',
 		description: 'User tries to upload an oversized file',
 		method: 'POST',
 		path: '/api/v1/users/1/avatar',
