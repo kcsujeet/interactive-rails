@@ -117,6 +117,8 @@ Read [visualization-examples.md](visualization-examples.md) for case studies. Ke
 
 6. **Show duality simultaneously.** When the concept is about a contrast (encrypted vs plaintext, polling vs push, cached vs uncached), show BOTH sides at the same time. Side-by-side comparison makes the contrast self-evident. A single view that toggles forces the player to remember.
 
+7. **Make the "why should I care?" obvious.** Every visual element must answer not just "what happened" but "why is this bad?" Show the cost alongside the outcome, not just the outcome. If you have to explain why something is a problem in a separate label, the visualization hasn't shown it yet. Example: L37's polling visualization shows the server doing full work (authenticate -> query -> serialize -> respond) for each request, then returning "No new notifications." The player sees the effort wasted, not just an abstract "empty" label.
+
 ### The Literal Screen Test
 
 After designing, describe what the player LITERALLY SEES on screen. Not what the code does. Not what the concept is.
@@ -247,6 +249,7 @@ After designing and implementing, run `audit-level` to verify compliance with al
 - [ ] Each probe produces a different visual result (written out per probe)
 - [ ] Visualization shows mechanism, not metric
 - [ ] Duality shown simultaneously if the concept is about contrast
+- [ ] "Why should I care?" is visually obvious for every element (show cost alongside outcome, not just outcome)
 
 ### Build phase design
 - [ ] Code preview transition table built and verified
