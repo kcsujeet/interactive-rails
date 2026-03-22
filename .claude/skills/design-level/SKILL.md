@@ -237,6 +237,38 @@ If the polling probe were first, the player would see a dimmed "Stripe" node for
 
 The same principle applies to stress test scenarios in the reward phase: lead with the scenario that best demonstrates the solution, not the simplest one.
 
+### Design Probes and Reward Scenarios Together as Pairs (Non-Negotiable)
+
+**This is a process rule, not a content rule.** The most common design mistake is designing observe probes in Step 3 and reward scenarios in Step 5 as separate exercises. When you design them separately, you unconsciously shift from "replaying the story" to "demoing the feature." Every time this has happened, the reward scenarios ended up showcasing feature capabilities instead of resolving the stories the player discovered.
+
+**The fix: design each probe and its matching reward scenario at the same time, as a pair.** Do not move on to the next probe until the current probe's reward scenario is written. Use this format:
+
+```
+PAIR 1:
+  Observe: "POST create payment (slow response)"
+    Story: Customer pays, Stripe is slow, thread blocked 30s
+    Frames: [request] -> [waiting 15s] -> [30s timeout] -> [504]
+  Reward:  "POST create payment (with timeout)"
+    Story: Same customer, same slow Stripe, but timeout kills it at 10s
+    Frames: [request] -> [waiting] -> [TIMEOUT at 10s] -> [thread freed]
+    Diverges at: frame 3 (timeout kicks in instead of waiting 30s)
+
+PAIR 2:
+  Observe: "GET check payment status (Stripe 503)"
+    ...
+  Reward:  "GET check payment status (with retry)"
+    ...
+    Diverges at: ...
+```
+
+**Why pairs prevent the mistake:** When you write the reward scenario right next to the observe probe, you naturally copy the flow and change only the ending. When you write all reward scenarios in a separate section, you naturally think "what should the reward phase demonstrate?" and design around feature capabilities instead.
+
+**After all pairs are written,** you may add reward-only scenarios for concepts taught in the build phase but not shown in observe. These come AFTER the paired scenarios.
+
+**Verification:** After designing all pairs, build the cross-phase consistency table. If any observe probe has no matching reward scenario with the same label pattern, the design is broken. If any reward scenario's story doesn't start with "Same [person] doing [same thing]...", it's a feature demo, not a story continuation.
+
+Case study: L38's design had probes "POST create payment (slow response)", "POST create payment (Stripe 503)", and "Black Friday traffic (Stripe outage)." The reward scenarios were "POST charge (fast response)", "POST charge (slow, timeout)", "GET balance (503, retried)", "POST charge (circuit open)." The labels didn't match, the stories didn't continue, and "GET balance" was a completely different request from the probe's "POST create payment." This happened because probes and scenarios were designed in separate passes. If they had been designed as pairs, "POST create payment (Stripe 503)" would have immediately been paired with "POST create payment (with retry)" using the same request.
+
 ### Probe Differentiation
 
 Each probe must produce a DIFFERENT visual result. If you fire three probes and write down what changes on screen, and two descriptions are identical, redesign.
@@ -380,7 +412,8 @@ After designing and implementing, run `audit-level` to verify compliance with al
 - [ ] Answer the 4 narrative reasoning questions in writing
 - [ ] Choose the visualization type with one-sentence justification
 
-### Observe phase design
+### Observe phase design (probes and reward scenarios designed together as pairs)
+- [ ] **Each probe is designed alongside its matching reward scenario as a pair before moving to the next probe**
 - [ ] Zero-knowledge test passes
 - [ ] Literal screen test passes (describe what the player SEES, not what the code does)
 - [ ] Every probe tells a user story (who, what, why, what goes wrong) -- not abstract API calls
@@ -408,11 +441,12 @@ After designing and implementing, run `audit-level` to verify compliance with al
 - [ ] Feedback doesn't contradict earlier steps
 - [ ] ErrorFeedback above options, no auto-dismiss
 
-### Reward phase design
+### Reward phase design (already designed as pairs above, verify here)
 - [ ] No activate phase
 - [ ] Same visualization, different state (red -> green)
-- [ ] Every probe has a matching reward scenario that REPLAYS the same flow with the fix applied (same start, same path, different ending)
-- [ ] Reward scenarios designed by copying observe probe frames and changing only the frames where the fix applies
-- [ ] Reward scenario labels mirror observe probe labels (e.g., "POST create payment" -> "POST create payment (with push)")
+- [ ] Every probe has a matching reward scenario (designed as a pair in observe phase, not separately)
+- [ ] Each reward scenario's story starts with "Same [person] doing [same thing]..." (if it doesn't, it's a feature demo, not a story continuation)
+- [ ] Reward scenario labels mirror observe probe labels (e.g., "POST create payment" -> "POST create payment (with timeout)")
+- [ ] Each pair has a "Diverges at" annotation showing exactly which frame changes
 - [ ] Each scenario produces a different visual result
 - [ ] Animations match the built code
