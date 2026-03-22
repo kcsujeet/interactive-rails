@@ -227,17 +227,47 @@ Build transitions directly to reward. The last build step's "Next Step" button g
 - Type 2 (static intro) -> Static before/after comparison. No StressTestPanel.
 - Types 3/4 (interactive observe) -> Interactive reward with StressTestPanel.
 
-### Same Visualization, Different State
+### Reward Scenarios Replay Observe Probes with the Fix Applied (Non-Negotiable)
 
-The reward phase reuses the same visualization component from the observe phase but shows the solution working. Observe = red/alarming. Reward = green/calm.
+**This is one of the biggest requirements in level design.** The reward phase is NOT a feature demo. It replays the SAME story the player saw in the observe phase, but with the solution working. Same flow, same actors, same sequence of events, different ending.
+
+For each observe probe, the matching reward scenario must:
+1. **Start the same way.** If the observe probe began with "Client sends POST /payments to Server," the reward scenario begins with the same request.
+2. **Follow the same path.** If the observe flow went Client -> Server -> Stripe -> Server, the reward flow goes through the same nodes.
+3. **Diverge only where the fix changes the outcome.** The moment where the observe probe showed the problem (notification stuck, 2s delay, CPU spike) is the moment where the reward shows the fix (instant push, 0 polling, CPU 3%).
+
+**Why this matters:** The player discovered specific problems by watching specific flows. If the reward shows a completely different flow, the player never sees their discovered problems resolved. They learned "polling wastes 99% of requests" but the reward shows "here's a push notification arriving" -- that's a different story, not a resolution.
+
+**How to design:** For each observe probe, copy its frame sequence and annotate where the fix changes the outcome:
+
+```
+Observe probe: POST create payment
+  Frame 1: Client -> Server: POST /payments          (SAME in reward)
+  Frame 2: Server -> Stripe: Charge $99.99            (SAME in reward)
+  Frame 3: Server -> Client: 202 Accepted             (SAME in reward)
+  Frame 4: Client: Waiting for confirmation...         (SAME in reward)
+  Frame 5: Stripe -> Server: Payment succeeded         (SAME in reward)
+  Frame 6: Notification STUCK, clock starts            (DIFFERENT: Server PUSHES instantly)
+  Frame 7-10: Clock ticks 0s -> 2s                     (DIFFERENT: Client receives in <15ms)
+  Frame 11: Poll finally picks it up                   (DIFFERENT: No poll needed)
+```
+
+The reward scenario has the same first 5 frames and changes only frames 6+. The player sees: "Oh, the flow is the same up until the fix -- and THAT's where WebSocket makes the difference."
+
+Case study: L37's original reward had scenarios like "New message (push)" and "Activity update (push)" that showed Action Cable features but never replayed the observe flows. The player discovered "payment stuck for 2s" but the reward showed a generic push notification. The fix: replay the exact payment flow (Client -> Server -> Stripe -> Server -> PUSH to Client) with only the ending changed.
+
+**Wrong approach:** List what the feature can do and create a scenario for each capability.
+**Right approach:** Copy each observe probe's flow and change only the frames where the fix applies.
+
+Additional reward-only scenarios (for concepts taught in the build phase but not shown in observe) are allowed, but they come AFTER the probe-resolving scenarios.
 
 ### StressTestPanel
 
 See [reward-phase-guide.md](reward-phase-guide.md) for detailed rules.
 
-- Every observe probe must have a matching reward scenario
+- Every observe probe must have a matching reward scenario that replays its flow
 - Reward-only scenarios must be justified by build steps
-- Button labels must match probe labels in format
+- Button labels should mirror observe probe labels (e.g., "POST create payment" -> "POST create payment (with push)")
 - All scenarios must have `responseLines`
 
 ### Reward Animations Must Match Built Code
@@ -286,6 +316,8 @@ After designing and implementing, run `audit-level` to verify compliance with al
 ### Reward phase design
 - [ ] No activate phase
 - [ ] Same visualization, different state (red -> green)
-- [ ] Every probe has a matching reward scenario
+- [ ] Every probe has a matching reward scenario that REPLAYS the same flow with the fix applied (same start, same path, different ending)
+- [ ] Reward scenarios designed by copying observe probe frames and changing only the frames where the fix applies
+- [ ] Reward scenario labels mirror observe probe labels (e.g., "POST create payment" -> "POST create payment (with push)")
 - [ ] Each scenario produces a different visual result
 - [ ] Animations match the built code

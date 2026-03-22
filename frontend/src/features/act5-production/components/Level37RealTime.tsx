@@ -839,49 +839,159 @@ const PROBE_FRAMES: Record<string, AnimFrame[]> = {
 // ──────────────────────────────────────────────
 // Reward animation frames
 // ──────────────────────────────────────────────
+// Each reward scenario replays the SAME flow as its observe probe,
+// but with WebSocket push replacing the broken part.
+// Same story, different ending.
 
-const REWARD_ALLOWED_FRAMES: AnimFrame[] = [
+// Mirrors: POST create payment probe
+// Same: Client -> Server -> Stripe -> Server. Stripe confirms.
+// Different: Server pushes instantly via WebSocket instead of notification stuck + 2s poll delay.
+const REWARD_PAYMENT_FRAMES: AnimFrame[] = [
+	// Client sends payment (Client -> Server) -- same as observe
+	{
+		edge: {
+			active: true,
+			reverse: false,
+			label: 'POST /payments',
+			dotColor: 'bg-cyan-500',
+		},
+	},
+	// Server forwards to Stripe (Server -> Processor) -- same as observe
+	{
+		server: { label: 'Forwarding to Stripe', flash: 'amber' as const },
+		edge: { active: false, label: '' },
+		edgeB: {
+			active: true,
+			reverse: false,
+			label: 'Charge $99.99',
+			dotColor: 'bg-amber-500',
+		},
+	},
+	// Server responds 202 (Server -> Client) -- same as observe
+	{
+		server: { label: '' },
+		edge: {
+			active: true,
+			reverse: true,
+			label: '202 Accepted (processing...)',
+			dotColor: 'bg-amber-500',
+		},
+		edgeB: { active: false, label: '' },
+		processor: { label: 'Processing...', flash: 'amber' as const },
+	},
+	// Client waits -- same as observe
+	{
+		client: { label: 'Waiting for confirmation...' },
+		edge: { active: false, label: '' },
+	},
+	// Stripe confirms (Processor -> Server) -- same as observe
+	{
+		processor: { label: 'Confirmed!', flash: 'green' as const },
+		edgeB: {
+			active: true,
+			reverse: true,
+			label: 'Payment succeeded',
+			dotColor: 'bg-green-500',
+		},
+	},
+	// DIFFERENT: Server pushes instantly via WebSocket (no stuck notification, no clock)
 	{
 		server: {
 			flash: 'green' as const,
 			rewardLabel: 'after_create_commit -> broadcast',
 		},
+		edgeB: { active: false, label: '' },
 		edge: {
 			active: true,
 			reverse: true,
-			label: '',
+			label: 'PUSH: Payment confirmed!',
 			dotColor: 'bg-emerald-500',
 		},
 	},
+	// Client receives instantly (no 2s delay!)
 	{
-		client: { label: 'Received instantly', flash: 'green' as const },
-		edge: { active: false },
+		client: { label: 'Confirmed instantly!', flash: 'green' as const },
+		processor: { label: '', flash: 'idle' as const },
+		server: { rewardLabel: '' },
+		edge: { active: false, label: '<15ms (was 2s with polling)' },
 	},
 ];
 
-const REWARD_BATCH_FRAMES: AnimFrame[] = [
+// Mirrors: GET notifications (poll) probe
+// Same: Client asks server for notifications.
+// Different: Instead of 5 wasted round-trips, server pushes only when an event happens.
+const REWARD_POLLING_FRAMES: AnimFrame[] = [
+	// Server sits idle, no polling requests coming in (contrast with observe's flood)
 	{
-		server: { flash: 'green' as const, rewardLabel: '1000 users notified' },
+		server: {
+			flash: 'green' as const,
+			cpu: 3,
+			requestCount: '0 req/sec (was 25K)',
+			rewardLabel: 'No polling endpoint hit',
+		},
+		edge: { active: false, label: 'No polling needed' },
+	},
+	// An event happens: server pushes it instantly (Server -> Client)
+	{
+		server: { rewardLabel: 'after_create_commit -> broadcast' },
 		edge: {
 			active: true,
 			reverse: true,
-			label: 'Broadcast',
+			label: 'PUSH: New notification',
 			dotColor: 'bg-emerald-500',
 		},
 	},
+	// Client receives instantly -- no wasted round-trips
 	{
-		client: { label: '1000 delivered, CPU 3%', flash: 'green' as const },
-		edge: { active: false },
+		client: { label: 'Received instantly!', flash: 'green' as const },
+		server: { rewardLabel: '0% wasted (was 99%)' },
+		edge: { active: false, label: 'Push only when events happen' },
 	},
 ];
 
+// Mirrors: GET server health probe
+// Same: Check server stats.
+// Different: CPU 3%, pool healthy, no 503s. Then demonstrate it handles load.
+const REWARD_HEALTH_FRAMES: AnimFrame[] = [
+	// Server healthy (contrast with observe's 95% CPU, pool exhausted, 503s)
+	{
+		server: {
+			flash: 'green' as const,
+			cpu: 3,
+			connections: '50K',
+			poolExhausted: false,
+			queueSize: 0,
+			status503: false,
+			requestCount: '0 polling overhead',
+			rewardLabel: 'Pool: 50/850 (healthy)',
+		},
+	},
+	// Push to all 50K users to show it handles load
+	{
+		server: { rewardLabel: 'Broadcasting to 50K users...' },
+		edge: {
+			active: true,
+			reverse: true,
+			label: 'PUSH to 50K connections',
+			dotColor: 'bg-emerald-500',
+		},
+	},
+	// Server stays healthy after push
+	{
+		client: { label: '50K delivered, CPU still 3%', flash: 'green' as const },
+		server: { rewardLabel: 'CPU 3% (was 95%)' },
+		edge: { active: false, label: 'WebSocket = no polling overhead' },
+	},
+];
+
+// Resolves: build step (authenticate connection)
 const REWARD_BLOCKED_FRAMES: AnimFrame[] = [
 	{
 		client: { flash: 'red' as const },
 		edge: {
 			active: true,
 			reverse: false,
-			label: 'Connect attempt',
+			label: 'Connect attempt (no cookies)',
 			dotColor: 'bg-red-500',
 		},
 	},
@@ -892,10 +1002,11 @@ const REWARD_BLOCKED_FRAMES: AnimFrame[] = [
 			rewardBlocked: true,
 		},
 		client: { label: 'Connection refused' },
-		edge: { active: false, label: 'Rejected' },
+		edge: { active: false, label: 'Rejected: no auth' },
 	},
 ];
 
+// Resolves: build step (channel scoping)
 const REWARD_WRONG_USER_FRAMES: AnimFrame[] = [
 	{
 		edge: {
@@ -916,10 +1027,9 @@ const REWARD_WRONG_USER_FRAMES: AnimFrame[] = [
 ];
 
 const REWARD_FRAME_MAP: Record<string, AnimFrame[]> = {
-	'payment-push': REWARD_ALLOWED_FRAMES,
-	'message-push': REWARD_ALLOWED_FRAMES,
-	'activity-push': REWARD_ALLOWED_FRAMES,
-	'batch-broadcast': REWARD_BATCH_FRAMES,
+	'payment-push': REWARD_PAYMENT_FRAMES,
+	'zero-polling': REWARD_POLLING_FRAMES,
+	'server-healthy': REWARD_HEALTH_FRAMES,
 	unauthenticated: REWARD_BLOCKED_FRAMES,
 	'wrong-user': REWARD_WRONG_USER_FRAMES,
 };
@@ -1227,44 +1337,57 @@ const OPTION_STEP_CONFIG: Record<
 // Stress test scenarios
 // ──────────────────────────────────────────────
 
+// Scenarios ordered to match observe probes first, then build-phase concepts:
+// 1. payment-push resolves "POST create payment" probe
+// 2. zero-polling resolves "GET notifications (poll)" probe
+// 3. server-healthy resolves "GET server health" probe
+// 4-5. auth scenarios resolve build steps
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'payment-push',
-		label: 'Payment completed (push)',
-		description: 'Instant push via WebSocket',
+		label: 'POST create payment (with push)',
+		description: 'Same flow as observe, but server pushes instantly',
 		method: 'WS' as 'GET',
-		path: '/cable',
+		path: '/cable -> NotificationsChannel',
 		actor: 'server',
 		expectedResult: 'allowed',
 		responseLines: [
-			{ text: 'after_create_commit -> broadcast_to_user', color: 'cyan' },
-			{ text: 'Delivered in <15ms. No polling.', color: 'green' },
+			{
+				text: 'Stripe -> after_create_commit -> broadcast_to_user',
+				color: 'cyan',
+			},
+			{ text: 'Delivered in <15ms (was 2s with polling)', color: 'green' },
 		],
 	},
 	{
-		id: 'message-push',
-		label: 'New message (push)',
-		description: 'Direct message pushed instantly',
+		id: 'zero-polling',
+		label: 'GET notifications (no polling)',
+		description: '50K users, zero polling requests, push only',
 		method: 'WS' as 'GET',
 		path: '/cable',
 		actor: 'server',
 		expectedResult: 'allowed',
 		responseLines: [
-			{ text: 'Notification.create! triggers callback', color: 'cyan' },
-			{ text: 'Push delivered via persistent WebSocket', color: 'green' },
+			{ text: '50K WebSocket connections active', color: 'cyan' },
+			{ text: '0 polling requests/sec (was 25K)', color: 'green' },
+			{ text: '0% wasted work (was 99%)', color: 'green' },
 		],
 	},
 	{
-		id: 'batch-broadcast',
-		label: 'Batch broadcast (1000)',
-		description: '1000 users notified simultaneously',
+		id: 'server-healthy',
+		label: 'GET server health (with WebSocket)',
+		description: 'Same check, but polling replaced by WebSocket',
 		method: 'WS' as 'GET',
 		path: '/cable',
 		actor: 'server',
 		expectedResult: 'allowed',
 		responseLines: [
-			{ text: '1000 users notified via broadcast', color: 'green' },
-			{ text: 'CPU: 3%. Zero polling overhead.', color: 'green' },
+			{ text: 'CPU: 3% (was 95%)', color: 'green' },
+			{
+				text: 'Connection pool: 50/850 (was 847/850 EXHAUSTED)',
+				color: 'green',
+			},
+			{ text: 'Zero 503 errors', color: 'green' },
 		],
 	},
 	{
@@ -1291,19 +1414,6 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		responseLines: [
 			{ text: 'stream_for current_user (not target)', color: 'yellow' },
 			{ text: 'Cannot subscribe to another user', color: 'red' },
-		],
-	},
-	{
-		id: 'activity-push',
-		label: 'Activity update (push)',
-		description: 'Broadcast to followers',
-		method: 'WS' as 'GET',
-		path: '/cable',
-		actor: 'server',
-		expectedResult: 'allowed',
-		responseLines: [
-			{ text: 'Activity -> broadcast to followers', color: 'cyan' },
-			{ text: 'All followers receive instantly', color: 'green' },
 		],
 	},
 ];
@@ -1406,7 +1516,7 @@ function getCodeFiles(phase: Phase, completedStep: number) {
 // ──────────────────────────────────────────────
 
 export function Level37RealTime({ onComplete }: LevelComponentProps) {
-	const [phase, setPhase] = useState<Phase>('observe');
+	const [phase, setPhase] = useState<Phase>('reward');
 	const [wrongFeedback, setWrongFeedback] = useState<string | null>(null);
 	const [vizAnimating, setVizAnimating] = useState(false);
 	const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -1523,6 +1633,8 @@ export function Level37RealTime({ onComplete }: LevelComponentProps) {
 				setClientState(DEFAULT_CLIENT);
 				setServerVizState({ ...DEFAULT_SERVER, cpu: 3, connections: '50K' });
 				setEdgeState(DEFAULT_EDGE);
+				setProcessorState(DEFAULT_PROCESSOR);
+				setEdgeBState(DEFAULT_EDGE_B);
 				runAnimation(frames);
 			}
 		},
