@@ -9,21 +9,16 @@ Audit a level component to verify it follows the mandatory three-phase sequentia
 
 ## Supporting Files
 
-This skill is split across multiple files. SKILL.md contains the core audit flow and all checklists. Supporting files contain detailed guidance, case studies, and implementation patterns:
+**Supporting files in this directory:**
+- [implementation-rules.md](implementation-rules.md): Pre-flight checklist, bug table of past mistakes, core implementation principles.
+- [cumulative-patterns.md](cumulative-patterns.md): **Non-negotiable.** Every architectural pattern, gem, and convention established per level. Read before every audit.
+- [pipelineflow-guide.md](pipelineflow-guide.md): Hub-and-spoke layout, node state rules, edge animation specs.
+- [cross-phase-consistency.md](cross-phase-consistency.md): Visual language consistency, probe-to-scenario mapping, reward loop closure.
+- [terminal-layout-guide.md](terminal-layout-guide.md): Terminal sizing patterns (A/B/C), flex layout rules.
 
-- [implementation-rules.md](implementation-rules.md): **Non-negotiable. Read before building any level.** Pre-flight checklist, bug table of past mistakes, and core principles for writing animation frames, code previews, and connectors. These rules apply during implementation, not just audits.
-- [cumulative-patterns.md](cumulative-patterns.md): **Non-negotiable.** Complete reference of every architectural pattern, gem, and code convention established in each level. Every audit must check code previews against patterns from earlier levels. Violations (e.g., inline validation instead of dry-validation contracts, direct model calls instead of service objects) are Critical severity. **You must update this file whenever you create, redesign, or modify a level that changes what patterns are taught.** This file must always reflect the current state of the curriculum.
-- [observe-phase-guide.md](observe-phase-guide.md): Type 2/3/4 deep dives, visualization accuracy case studies (L15, L25, L26, L27), mechanism vs metric principles, shared terminal components, flow animation patterns, discovery hint patterns
-- [pipelineflow-guide.md](pipelineflow-guide.md): Hub-and-spoke layout coordinates, bidirectional edge rendering, satellite state rules, node color rules, sequential edge animation API
-- [build-phase-guide.md](build-phase-guide.md): Code preview accuracy (transition table technique, no fabricated changes), option card quality (3 options, no answer-revealing comments), feedback consistency (no cross-step contradictions), documentation verification, step progression, UI consistency
-- [reward-phase-guide.md](reward-phase-guide.md): StressTestPanel response lines, button labels, custom reward visualization rules, reward flow animation
-- [cross-phase-consistency.md](cross-phase-consistency.md): Visual language consistency, same component different state, build-intro alignment, reward loop closure, scenario data consistency (all with case studies)
-- [terminal-layout-guide.md](terminal-layout-guide.md): Terminal panel sizing patterns (Pattern A for custom viz, Pattern B for PipelineFlow), shared component usage rules, flex layout common mistakes
-- [visualization-examples.md](visualization-examples.md): **Read before designing any visualization.** Real examples of failed visualizations and how they were fixed. Covers the zero-knowledge principle: every visualization must be understandable by someone who has never encountered the concept. Includes L34 Locking case study (invisible same-value conflicts, abstract labels, implausible scenarios) and a checklist for new visualizations.
+## Related Skill: design-level
 
-## Reference Implementations
-
-See [reference-implementations.md](reference-implementations.md) for canonical examples (L12 PipelineFlow, L10/L15/L26/L27/L28/L29 custom) and visualization design principles.
+For **designing** a new level or **redesigning** a broken visualization, use the `design-level` skill. It provides the creative design workflow (visualization concept, probe design, build step design, reward design). This skill (`audit-level`) focuses on **reviewing and verifying** an existing level against the standards.
 
 ## CRITICAL: These Rules Apply During Implementation, Not Just Audits
 
@@ -86,7 +81,7 @@ This step is non-negotiable. Skipping it has caused bugs in the past (wrong Scop
 
 **Do NOT skip this to fix TS errors or prop mismatches first.** Mechanical issues (wrong props, missing imports, type errors) are tempting to fix immediately because they have clear, satisfying solutions. But fixing 11 type errors on a visualization that doesn't teach anything produces a level that compiles but still fails. Evaluate the visualization FIRST. If it's broken, flag it as FAIL and redesign before touching any code. Case study: L37 had 11 critical TS errors that consumed the entire audit's attention. The visualization (text lines in boxes with static numbers) got a "conditional pass" because the concept description sounded good. But the player saw nothing that taught them what polling waste looks like.
 
-**Before designing or evaluating any visualization, read [visualization-examples.md](visualization-examples.md).** It contains real case studies of visualizations that failed the zero-knowledge test and how they were fixed. The core principle: every visualization must be understandable by a player who has never encountered the concept.
+The core principle: every visualization must be understandable by a player who has never encountered the concept. If the visualization needs redesign, use the `design-level` skill.
 
 ### Step 1: Identify the observe phase type
 
@@ -135,9 +130,9 @@ This step is non-negotiable. Skipping it has caused bugs in the past (wrong Scop
 
 **If visual signals within a node contradict each other, the visualization fails.** Every visual indicator inside a node (gauges, progress bars, badges, labels, border color) must agree on whether the state is healthy or dangerous. A node with a red danger border but a green memory gauge, or a "BLOCKED" label with a healthy progress bar, sends mixed signals. When a probe frame sets `flash: 'red'` on a zone, check that ALL internal indicators (memoryMB, bandwidthLabel, badges) also reflect the danger state. Case study: L35's list probe set `flash: 'red'` on the App Server (red border, red label text) but never set `memoryMB`, so the memory gauge stayed at 45MB (green). The node screamed danger at the border but showed "everything is fine" inside.
 
-**Do not skip this step.** Case study: L35 Active Storage passed all structural checks (ProbeTerminal present, FlowConnector present, discoveries defined, animation locking correct) but all three probes played the exact same animation. See [visualization-examples.md](visualization-examples.md) "Audit Trap" section.
+**Do not skip this step.** Case study: L35 Active Storage passed all structural checks (ProbeTerminal present, FlowConnector present, discoveries defined, animation locking correct) but all three probes played the exact same animation. See the `design-level` skill's visualization-examples.md "Audit Trap" section.
 
-For detailed case studies (L27 terminal-only failure, ProbeTerminal-is-not-a-visualization architecture), see [observe-phase-guide.md](observe-phase-guide.md).
+For detailed case studies (L27 terminal-only failure, ProbeTerminal-is-not-a-visualization architecture), see the `design-level` skill's observe-phase-guide.md.
 
 ## Checklist
 
@@ -195,7 +190,7 @@ There are exactly **four types** of observe phase. Every level falls into one.
 
 **Types 3 and 4 have discovery gating. Types 1 and 2 do not.** Do not add `useDiscoveryGating`, `ProbeTerminal`, or `DiscoveryChecklist` to Type 1 or Type 2 levels.
 
-For detailed type selection guidance, litmus tests, and case studies (L32 Polymorphic), see [observe-phase-guide.md](observe-phase-guide.md).
+For detailed type selection guidance, litmus tests, and case studies (L32 Polymorphic), see the `design-level` skill's observe-phase-guide.md.
 
 #### Type 1: No observe phase
 
@@ -209,7 +204,7 @@ Static annotated code display. No animation, no interactive discovery.
 
 **What it looks like:** Colored left borders, Badge labels, callout, "Build the Fix" button always visible (no gating), phase type `'intro'`.
 
-**Reference implementation:** Level 16 (Service Objects). For detailed code examples, see [observe-phase-guide.md](observe-phase-guide.md).
+**Reference implementation:** Level 16 (Service Objects). For detailed code examples, see the `design-level` skill's observe-phase-guide.md.
 
 #### Type 3: Custom visualization (bespoke layout with state machine)
 
@@ -217,7 +212,7 @@ Each custom visualization is different; the layout shape emerges from the concep
 
 **When:** Security concepts, data flow concepts, any level with a specific spatial relationship. **Required:** Discovery gating, interactive elements, flow animation state machine.
 
-For detailed examples and flow animation patterns, see [observe-phase-guide.md](observe-phase-guide.md).
+For detailed examples and flow animation patterns, see the `design-level` skill's observe-phase-guide.md.
 
 #### Type 4: PipelineFlow (hub-and-spoke MVC architecture)
 
@@ -236,7 +231,7 @@ For layout coordinates, edges, and state rules, see [pipelineflow-guide.md](pipe
 - [ ] **The idle state shows the same structural elements as the active state.** Table headers, zone outlines, node shapes, and lane labels must be visible before any probe fires. Use placeholder rows inside the existing structure, not a different render path.
 - [ ] **Internal node indicators agree with the node's overall state.** When a probe sets a danger state on a node (red border, red flash), every internal indicator (memory gauges, progress bars, bandwidth labels, status badges) must also reflect danger. A green gauge inside a red-bordered node is a visual contradiction. For each danger-state frame, verify that `memoryMB`, badge colors, and label text all match the intended severity.
 
-For visualization accuracy case studies (L15 CORS, L27 idle state), see [observe-phase-guide.md](observe-phase-guide.md).
+For visualization accuracy case studies (L15 CORS, L27 idle state), see the `design-level` skill's observe-phase-guide.md.
 
 #### Mechanism vs metric checklist
 
@@ -247,7 +242,7 @@ For visualization accuracy case studies (L15 CORS, L27 idle state), see [observe
 - [ ] **Could a player explain the mechanism after watching?** If they can only cite a number, the visualization taught a metric.
 - [ ] **Are progress bars, gauges, or terminal logs the primary element?** Replace with visual representations of the actual objects.
 
-For mechanism vs metric case studies (L26 indexing, L27 counter caches), see [observe-phase-guide.md](observe-phase-guide.md).
+For mechanism vs metric case studies (L26 indexing, L27 counter caches), see the `design-level` skill's observe-phase-guide.md.
 
 #### Visualization uniqueness checklist (non-negotiable)
 
@@ -269,7 +264,7 @@ For mechanism vs metric case studies (L26 indexing, L27 counter caches), see [ob
 - **ProbeTerminal**: Terminal-style probe firing. **Always use this shared component, never build a custom terminal.** Must be disabled during flow animations.
 - **Interactive controls**: Buttons, toggles, inputs that manipulate the visualization.
 
-For progressive hint patterns and shared terminal component details, see [observe-phase-guide.md](observe-phase-guide.md).
+For progressive hint patterns and shared terminal component details, see the `design-level` skill's observe-phase-guide.md.
 
 #### Shared terminal components and layout checklist
 
@@ -291,7 +286,7 @@ For detailed layout patterns, code examples, and common mistakes, see [terminal-
 - [ ] Uses `ANIMATION_DURATION_MS` from `@/lib/animation` for timing
 - [ ] Total lockout = `elementCount * ANIMATION_DURATION_MS`
 
-For code examples and flow animation patterns, see [observe-phase-guide.md](observe-phase-guide.md).
+For code examples and flow animation patterns, see the `design-level` skill's observe-phase-guide.md.
 
 #### Left panel (observe)
 
@@ -315,7 +310,7 @@ For hub-and-spoke layout, satellite state rules, and sequential edge animation, 
 
 ### Phase 2: Problem Solving (HOW)
 
-For detailed guidance on code preview accuracy, option quality, feedback consistency, documentation verification, and step progression, see [build-phase-guide.md](build-phase-guide.md).
+For detailed guidance on code preview accuracy, option quality, feedback consistency, documentation verification, and step progression, see the `design-level` skill's build-phase-guide.md.
 
 The build phase must cover the **complete workflow**:
 
@@ -329,13 +324,13 @@ The build phase must cover the **complete workflow**:
 - [ ] Left panel shows scenario text + `StepProgress` pills
 - [ ] Right panel code preview evolves progressively as steps are completed
 
-#### Code preview (see [build-phase-guide.md](build-phase-guide.md) for case studies and transition table technique)
+#### Code preview (if redesign needed, use `design-level` skill for case studies and transition table technique)
 - [ ] **Code preview has no empty states.**
 - [ ] **Code preview reflects what the step actually changed.** If a step doesn't modify code files, the preview stays unchanged.
 - [ ] **Code preview does not reveal the answer for the current step.** Use `isCurrentStepCompleted ? currentStep : currentStep - 1`.
 - [ ] **Code preview transition table verified.** Build the table, check every row for answer leaks, filename leaks, and fabricated changes.
 
-#### Option quality (see [build-phase-guide.md](build-phase-guide.md) for detailed rules)
+#### Option quality (if redesign needed, use `design-level` skill for detailed rules)
 - [ ] `ErrorFeedback` component is used for wrong-answer feedback (not inline error divs)
 - [ ] **ErrorFeedback is positioned above the options**, not below or between them. It stays visible until the player picks another option or gets it right (no auto-dismiss). Cleared on step advance.
 - [ ] Correct answer is never the first option
@@ -355,7 +350,7 @@ The build phase must cover the **complete workflow**:
 
 ### Phase 3: Solution Visualization (ADVANTAGE) - Reward
 
-The level must have a dedicated reward phase. **The reward style depends on the observe phase type.** For detailed guidance on StressTestPanel, response lines, button labels, custom reward visualizations, and reward animation accuracy, see [reward-phase-guide.md](reward-phase-guide.md).
+The level must have a dedicated reward phase. **The reward style depends on the observe phase type.** For detailed guidance on StressTestPanel, response lines, button labels, custom reward visualizations, and reward animation accuracy, see the `design-level` skill's reward-phase-guide.md.
 
 #### Type 2 levels: Static before/after reward
 
@@ -369,7 +364,7 @@ The level must have a dedicated reward phase. **The reward style depends on the 
 - [ ] Same visualization from Phase 1 returns, now showing the solution working
 - [ ] **The player interacts** to verify the fix works. This is NOT passive. Every click must produce a visible reaction.
 
-#### StressTestPanel checklist (see [reward-phase-guide.md](reward-phase-guide.md) for details)
+#### StressTestPanel checklist (if redesign needed, use `design-level` skill for details)
 
 - [ ] `useStressTest(scenarios)` hook manages state, `STRESS_SCENARIOS` array defined
 - [ ] `disabled={flowPhase !== -1}` blocks fire during flow animations
@@ -395,7 +390,7 @@ The level must have a dedicated reward phase. **The reward style depends on the 
 
 ### Step Quality (Is the Build Phase Satisfying?)
 
-See [build-phase-guide.md](build-phase-guide.md) for detailed rules and case studies.
+If redesign is needed, use the `design-level` skill.
 
 - [ ] **Every step requires a real decision.**
 - [ ] **Steps don't reveal each other's answers.**
