@@ -6,10 +6,17 @@
  * scenario buttons in footer, results log in the scrollable body.
  */
 
-import { Pause, Shield, Zap } from 'lucide-react';
+import { Info, Pause, Shield, Zap } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 
 import { Button } from '@/components/ui/Button';
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from '@/components/ui/dialog';
 import type { RequestResult, StressScenario } from '@/hooks/useStressTest';
 import { cn } from '@/lib/utils';
 
@@ -169,20 +176,40 @@ export function StressTestPanel({
 				</div>
 				<div className="flex flex-wrap gap-2">
 					{scenarios.map((scenario) => (
-						<Button
-							className={`font-mono text-xs ${
-								scenario.expectedResult === 'allowed'
-									? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-700 border-emerald-300 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-700/50'
-									: 'bg-red-100 hover:bg-red-200 text-red-700 border-red-300 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-300 dark:border-red-700/50'
-							}`}
-							disabled={isAutoFiring || disabled}
-							key={scenario.id}
-							onClick={() => onFire(scenario.id)}
-							size="sm"
-							variant="outline"
-						>
-							{scenario.label}
-						</Button>
+						<div className="flex items-center gap-1" key={scenario.id}>
+							<Button
+								className={`font-mono text-xs ${
+									scenario.expectedResult === 'allowed'
+										? 'bg-emerald-100 hover:bg-emerald-200 text-emerald-700 border-emerald-300 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-700/50'
+										: 'bg-red-100 hover:bg-red-200 text-red-700 border-red-300 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-300 dark:border-red-700/50'
+								}`}
+								disabled={isAutoFiring || disabled}
+								onClick={() => onFire(scenario.id)}
+								size="sm"
+								variant="outline"
+							>
+								{scenario.label}
+							</Button>
+							{scenario.story && (
+								<Dialog>
+									<DialogTrigger>
+										<span className="inline-flex items-center justify-center w-5 h-5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer">
+											<Info className="w-3 h-3" />
+										</span>
+									</DialogTrigger>
+									<DialogContent>
+										<DialogHeader>
+											<DialogTitle>{scenario.label}</DialogTitle>
+										</DialogHeader>
+										<ul className="list-disc pl-5 space-y-1.5 text-sm text-muted-foreground">
+											{scenario.story.map((point) => (
+												<li key={point}>{point}</li>
+											))}
+										</ul>
+									</DialogContent>
+								</Dialog>
+							)}
+						</div>
 					))}
 
 					{/* Auto-fire toggle */}

@@ -8,10 +8,17 @@
  * Visually matches SimulatedTerminal (dark bg, monospace, traffic-light dots).
  */
 
-import { Crosshair } from 'lucide-react';
+import { Crosshair, Info } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/Button';
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
 export interface ProbeConfig {
@@ -19,6 +26,8 @@ export interface ProbeConfig {
 	label: string;
 	command: string;
 	responseLines: ProbeResponseLine[];
+	/** Optional user story shown as bullet points in info modal. */
+	story?: string[];
 }
 
 export interface ProbeResponseLine {
@@ -60,7 +69,7 @@ export function ProbeTerminal({
 		if (scrollRef.current) {
 			scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
 		}
-	}, [history, visibleLines]);
+	}, []);
 
 	// Animate output lines
 	useEffect(() => {
@@ -80,7 +89,7 @@ export function ProbeTerminal({
 			}
 		}, 60);
 		return () => clearInterval(interval);
-	}, [animating, history.length]);
+	}, [animating, history.length, history]);
 
 	const handleProbe = (probe: ProbeConfig) => {
 		if (firedIds.has(probe.id) || animating || disabled) return;
@@ -193,16 +202,36 @@ export function ProbeTerminal({
 					</div>
 					<div className="flex flex-wrap gap-2">
 						{availableProbes.map((probe) => (
-							<Button
-								className="font-mono text-xs bg-amber-100 hover:bg-amber-200 text-amber-700 border-amber-300 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700/50"
-								disabled={animating || disabled}
-								key={probe.id}
-								onClick={() => handleProbe(probe)}
-								size="sm"
-								variant="outline"
-							>
-								{probe.label}
-							</Button>
+							<div className="flex items-center gap-1" key={probe.id}>
+								<Button
+									className="font-mono text-xs bg-amber-100 hover:bg-amber-200 text-amber-700 border-amber-300 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700/50"
+									disabled={animating || disabled}
+									onClick={() => handleProbe(probe)}
+									size="sm"
+									variant="outline"
+								>
+									{probe.label}
+								</Button>
+								{probe.story && (
+									<Dialog>
+										<DialogTrigger>
+											<span className="inline-flex items-center justify-center w-5 h-5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer">
+												<Info className="w-3 h-3" />
+											</span>
+										</DialogTrigger>
+										<DialogContent>
+											<DialogHeader>
+												<DialogTitle>{probe.label}</DialogTitle>
+											</DialogHeader>
+											<ul className="list-disc pl-5 space-y-1.5 text-sm text-muted-foreground">
+												{probe.story.map((point) => (
+													<li key={point}>{point}</li>
+												))}
+											</ul>
+										</DialogContent>
+									</Dialog>
+								)}
+							</div>
 						))}
 					</div>
 				</div>

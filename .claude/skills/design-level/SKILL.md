@@ -125,6 +125,19 @@ Read [visualization-examples.md](visualization-examples.md) for case studies. Ke
 
 10. **Visual elements must match the scale they claim.** If a node says "50K users" but has one connection line, the player reasonably asks "are 50K users sharing one connection?" Make the visual honest about what it represents. Either label it clearly ("50K users polling" explains they're all hitting the same endpoint repeatedly) or show multiple connections. Don't let a static label contradict the visual structure.
 
+11. **No node should ever be blank during an animation.** Every node must always show its current state in every frame. If the server is processing, it says "Processing...". If it's waiting, it says "Awaiting response...". If the client is idle, it says "Waiting for shipment...". Blank nodes make the player lose track of what's happening. This applies to ALL nodes (Client, Server, Payment Processor, etc.) in ALL phases (observe and reward). If a frame only updates one node, the other nodes keep their previous labels via partial merge -- which is fine, as long as the previous label still makes sense for the current moment.
+
+12. **Animations must match the story, not just describe it (Non-Negotiable).** This is the master rule that ties everything together. The story (info modal) and the animation (what plays on screen) must tell the SAME narrative. If the story says "customer places an order, waits for it to ship, then keeps refreshing," the animation must show: (a) customer placing the order, (b) server confirming, (c) TIME PASSING while the warehouse processes, (d) customer starting to refresh, (e) server doing wasted work, (f) finally getting the update. Every beat in the story must have a corresponding frame in the animation.
+
+    **What this means in practice:**
+    - If the story has a time gap (order placed -> time passes -> customer starts refreshing), the animation must show that gap. Skipping from "order confirmed" straight to "refreshing" makes it look instant and misleads the player about why polling is needed.
+    - If the story involves an external service (Stripe, S3), that service needs its own node so the player can see the data traveling there and back.
+    - If the story says the server is doing work, the server node must say what work (not blank).
+    - If the story says a response comes back, the dots must flow in the response direction with a response-appropriate label.
+    - The reward animation tells the SAME story with the fix applied. Same beginning, same characters, different ending at the point where the solution changes things.
+
+    **How to verify:** Read the story (info modal bullet points) and the frame sequence side by side. For each story bullet, there must be at least one corresponding frame. For each frame, there must be a corresponding story bullet. If a frame exists that the story doesn't mention, either the frame is wrong or the story is incomplete.
+
 ### The Literal Screen Test
 
 After designing, describe what the player LITERALLY SEES on screen. Not what the code does. Not what the concept is.
@@ -135,6 +148,71 @@ After designing, describe what the player LITERALLY SEES on screen. Not what the
 If your honest description sounds like "text appears in a box" or "numbers update in a stat card," the visualization is a log or a metric display, not a visualization. Redesign.
 
 Case study: L37's visualization described as "two-lane comparison with arrows" was actually monospace text lines inside dark rectangles with static CPU/Latency number boxes. The description made it sound visual, but the screen showed text in boxes.
+
+### Every Probe Must Tell a User Story (Non-Negotiable)
+
+**This is a top-level requirement.** Every probe and every stress test scenario must be grounded in a real user action with a human motivation. Not an abstract API call, but a person doing something for a reason.
+
+**Wrong:** "GET notifications (poll)" -- Why is the client polling? Who is this person? What are they trying to accomplish? The probe is an abstract HTTP verb with no story.
+
+**Right:** "Customer checks order status" -- A customer ordered a product and keeps refreshing the page to see if it shipped. Thousands of customers do the same thing. Each refresh is a poll. 99% return "No updates yet." The player understands who is doing what, why, and why it's a problem.
+
+For each probe, answer before writing any animation frames:
+1. **Who** is the user? (Customer, admin, attacker, new visitor)
+2. **What** are they trying to do? (Check if order shipped, browse products, pay for something)
+3. **Why** are they doing it? (Anxious about delivery, shopping on Black Friday, buying a product)
+4. **What goes wrong** because of the current system? (They have to keep refreshing, the server crashes, they wait 2 seconds)
+
+The probe label, the edge labels during animation, and the client node text should all reflect this story. "Check order status" and "No updates yet" tell a story. "Any notifications?" and "No new notifications" are abstract.
+
+### Every Probe and Scenario Must Have an Info Story (Non-Negotiable)
+
+Every probe (observe phase) and every stress test scenario (reward phase) must include a `story` field: an array of short bullet points that explain the user story behind the action. The `ProbeConfig` and `StressScenario` types both support `story?: string[]`.
+
+When the player clicks the info icon next to a probe/scenario button, a Dialog opens showing these bullet points. This gives the player full context without cluttering the button label.
+
+**Observe probe stories** explain: who the user is, what they're doing, and what goes wrong because of the current system.
+
+**Reward scenario stories** explain: the same situation, but how the solution changes the outcome.
+
+Example (L37):
+```typescript
+// Observe probe
+{
+  id: 'check-polling',
+  label: 'Customer checks order status',
+  story: [
+    'A customer placed an order and keeps refreshing to check if it shipped.',
+    'Thousands of customers do the same thing every 2 seconds.',
+    'Each refresh triggers a GET /notifications poll to the server.',
+    '99% of the time, nothing has changed.',
+    'But the server still runs the full pipeline for each one.',
+  ],
+}
+
+// Matching reward scenario
+{
+  id: 'zero-polling',
+  label: 'Customer checks order status (with push)',
+  story: [
+    'Same customer waiting for their order to ship.',
+    'But now they do not need to keep refreshing.',
+    'The server pushes the shipping update instantly via WebSocket.',
+    'Zero polling requests, zero wasted server work.',
+  ],
+}
+```
+
+Each bullet should be one short sentence. Aim for 3-6 bullets per story.
+
+Case study: L37's probes evolved from abstract API calls to user stories:
+- "GET notifications (poll)" -> "Customer checks order status" (customer refreshing order page)
+- "GET server health" -> "Black Friday traffic spike" (50K customers crash the site)
+- "POST create payment" was already a story (user buying something through Stripe)
+
+The reward scenarios mirror these stories with the fix applied:
+- "Customer checks order status (with push)" -- same customer, but server pushes updates instead of waiting for refresh
+- "Black Friday traffic (with WebSocket)" -- same 50K customers, but site stays up at 3% CPU
 
 ### Probe and Scenario Ordering
 
@@ -295,6 +373,9 @@ After designing and implementing, run `audit-level` to verify compliance with al
 ### Observe phase design
 - [ ] Zero-knowledge test passes
 - [ ] Literal screen test passes (describe what the player SEES, not what the code does)
+- [ ] Every probe tells a user story (who, what, why, what goes wrong) -- not abstract API calls
+- [ ] Every probe and scenario has a `story: string[]` field with 3-6 bullet points for the info modal
+- [ ] Probe labels, edge labels, and node text reflect the story ("Check order status" not "GET notifications")
 - [ ] Probes and scenarios ordered logically (first probe introduces key visual elements and sets context for the rest)
 - [ ] Each probe produces a different visual result (written out per probe)
 - [ ] Visualization shows mechanism, not metric
@@ -305,6 +386,9 @@ After designing and implementing, run `audit-level` to verify compliance with al
 - [ ] Last frame of every animation sets `edge.active: false` to stop dots from looping indefinitely
 - [ ] Every metric (CPU, latency, queue) traces back to its visible cause
 - [ ] Visual scale matches claimed scale (if it says "50K users," explain the single connection)
+- [ ] No node is ever blank during an animation (every node shows its current state in every frame)
+- [ ] Animation frames match the story bullet-for-bullet (read story and frames side by side, every story beat has a frame, every frame has a story beat)
+- [ ] Time gaps in the story are visible in the animation (if an order takes time to ship, show "Warehouse processing..." frames, don't skip from order placed to customer refreshing)
 
 ### Build phase design
 - [ ] Code preview transition table built and verified

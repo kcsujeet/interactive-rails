@@ -21,6 +21,8 @@ export interface StressScenario {
 	expectedResult: 'allowed' | 'blocked';
 	/** Optional terminal-style response lines shown in the results log after firing. */
 	responseLines?: { text: string; color?: string }[];
+	/** Optional user story shown as bullet points in info modal. */
+	story?: string[];
 }
 
 export interface RequestResult {
@@ -139,10 +141,7 @@ export function useStressTest(
 						600,
 						autoFireSpeedRef.current - 100,
 					);
-					autoFireRef.current = setTimeout(
-						tick,
-						autoFireSpeedRef.current,
-					);
+					autoFireRef.current = setTimeout(tick, autoFireSpeedRef.current);
 				} else {
 					// Final scenario just fired, stop after a brief delay
 					autoFireRef.current = setTimeout(stopAutoFire, 500);

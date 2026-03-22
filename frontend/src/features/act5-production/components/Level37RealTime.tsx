@@ -350,9 +350,12 @@ const ServerNode = memo(function ServerNode({
 				</div>
 			)}
 
-			{/* Work pipeline */}
-			{data.label && !data.isReward && (
-				<div className="text-xs font-mono text-amber-600 dark:text-amber-400 truncate animate-in fade-in duration-200">
+			{/* Work pipeline / status */}
+			{data.label && (
+				<div className={cn(
+					'text-xs font-mono truncate animate-in fade-in duration-200',
+					data.isReward ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400',
+				)}>
 					{data.label}
 				</div>
 			)}
@@ -536,16 +539,46 @@ const realtimeEdgeTypes = { connection: ConnectionEdge };
 // Probe animation frames
 // ──────────────────────────────────────────────
 
-// Each poll = 2 frames: request (Client->Server) + response (Server->Client).
-// The label changes per phase so the player sees the round-trip.
-// Request count shows why CPU is spiking (50K users doing this simultaneously).
+// Story: Customer places an order. Server confirms. Customer starts refreshing
+// the order page to check if it shipped. Thousands of customers do the same.
 const POLLING_FRAMES: AnimFrame[] = [
-	// Poll 1: request
+	// Step 1: Customer places an order (Client -> Server)
 	{
-		client: { label: 'Polling...' },
+		client: { label: 'Placing order...' },
+		edge: {
+			active: true,
+			reverse: false,
+			label: 'POST /orders',
+			dotColor: 'bg-cyan-500',
+		},
+	},
+	// Step 2: Server confirms order (Server -> Client)
+	{
+		server: { label: 'Order created' },
+		edge: {
+			active: true,
+			reverse: true,
+			label: 'Order placed! Processing...',
+			dotColor: 'bg-green-500',
+		},
+	},
+	// Step 3: Time passes. Warehouse is processing. Customer waits.
+	{
+		client: { label: 'Waiting for shipment...' },
+		server: { label: 'Warehouse processing...' },
+		edge: { active: false, label: '' },
+	},
+	// Step 4: More time passes. Customer gets anxious.
+	{
+		client: { label: 'Still waiting...' },
+		server: { label: 'Warehouse processing...' },
+	},
+	// Customer starts refreshing (Client -> Server)
+	{
+		client: { label: 'Did my order ship?' },
 		server: {
+			label: 'Handling poll request...',
 			requestCount: '1 of 25K req/sec',
-			label: 'auth -> query -> serialize',
 			cpu: 45,
 			connections: '280',
 			queueSize: 1,
@@ -553,51 +586,26 @@ const POLLING_FRAMES: AnimFrame[] = [
 		edge: {
 			active: true,
 			reverse: false,
-			label: 'Any notifications?',
+			label: 'Check order status',
 			dotColor: 'bg-amber-500',
 		},
 	},
-	// Poll 1: response (empty)
+	// Server responds: not yet (Server -> Client)
 	{
-		server: { label: '' },
+		server: { label: 'Preparing response...' },
 		edge: {
 			active: true,
 			reverse: true,
-			label: 'No new notifications',
+			label: 'Not shipped yet',
 			dotColor: 'bg-red-500',
 		},
 	},
-	// Poll 2: request
+	// Refreshes again (thousands doing the same)
 	{
-		server: {
-			requestCount: '3,500 of 25K req/sec',
-			label: 'auth -> query -> serialize',
-			cpu: 55,
-			connections: '400',
-			queueSize: 2,
-		},
-		edge: {
-			active: true,
-			reverse: false,
-			label: 'Any notifications?',
-			dotColor: 'bg-amber-500',
-		},
-	},
-	// Poll 2: response (empty)
-	{
-		server: { label: '' },
-		edge: {
-			active: true,
-			reverse: true,
-			label: 'No new notifications',
-			dotColor: 'bg-red-500',
-		},
-	},
-	// Poll 3: request
-	{
+		client: { label: 'Refreshing again...' },
 		server: {
 			requestCount: '10K of 25K req/sec',
-			label: 'auth -> query -> serialize',
+			label: 'Handling 10K polls/sec...',
 			cpu: 70,
 			connections: '560',
 			queueSize: 4,
@@ -605,52 +613,24 @@ const POLLING_FRAMES: AnimFrame[] = [
 		edge: {
 			active: true,
 			reverse: false,
-			label: 'Any notifications?',
+			label: 'Check order status',
 			dotColor: 'bg-amber-500',
 		},
 	},
-	// Poll 3: response (empty)
 	{
-		server: { label: '' },
+		server: { label: 'Preparing 10K responses...' },
 		edge: {
 			active: true,
 			reverse: true,
-			label: 'No new notifications',
+			label: 'Still not shipped',
 			dotColor: 'bg-red-500',
 		},
 	},
-	// Poll 4: request
-	{
-		server: {
-			requestCount: '20K of 25K req/sec',
-			label: 'auth -> query -> serialize',
-			cpu: 85,
-			connections: '720',
-			queueSize: 6,
-			flash: 'amber' as const,
-		},
-		edge: {
-			active: true,
-			reverse: false,
-			label: 'Any notifications?',
-			dotColor: 'bg-amber-500',
-		},
-	},
-	// Poll 4: response (empty)
-	{
-		server: { label: '' },
-		edge: {
-			active: true,
-			reverse: true,
-			label: 'No new notifications',
-			dotColor: 'bg-red-500',
-		},
-	},
-	// Poll 5: request (server at max)
+	// Server struggling, 50K customers all refreshing
 	{
 		server: {
 			requestCount: '25K req/sec (99% wasted)',
-			label: 'auth -> query -> serialize',
+			label: 'Drowning in polls...',
 			cpu: 95,
 			connections: '847',
 			queueSize: 8,
@@ -659,76 +639,118 @@ const POLLING_FRAMES: AnimFrame[] = [
 		edge: {
 			active: true,
 			reverse: false,
-			label: 'Any notifications?',
+			label: 'Check order status',
 			dotColor: 'bg-amber-500',
 		},
 	},
-	// Poll 5: response (finally has data!)
 	{
-		client: { label: '' },
-		server: { label: '' },
+		server: { label: 'Still responding to polls...' },
 		edge: {
 			active: true,
 			reverse: true,
-			label: '1 notification (finally!)',
+			label: 'Still not shipped',
+			dotColor: 'bg-red-500',
+		},
+	},
+	// Finally ships, customer finds out on next poll
+	{
+		server: { label: 'Order shipped!' },
+		edge: {
+			active: true,
+			reverse: true,
+			label: 'Shipped! (after many wasted polls)',
 			dotColor: 'bg-amber-500',
 		},
 	},
-	// Cleanup: stop dots
 	{ edge: { active: false } },
 ];
 
-// Each frame: ask "which direction is data flowing?" and set reverse accordingly.
-// Client->Server (request) = reverse: false. Server->Client (response) = reverse: true.
+// Story: Black Friday sale launches. Customers flood the site to buy products.
+// After buying, they all start refreshing order status. The polling overwhelms
+// the server. New customers can't even browse. Site goes down.
 const OVERLOAD_FRAMES: AnimFrame[] = [
-	// Requests flood in (Client -> Server)
+	// Step 1: Black Friday sale starts (Client -> Server)
+	{
+		client: { label: 'Black Friday sale!' },
+		edge: {
+			active: true,
+			reverse: false,
+			label: 'Customers buying products',
+			dotColor: 'bg-cyan-500',
+		},
+	},
+	// Step 2: Orders flood in (Server -> Client)
 	{
 		server: {
-			flash: 'red' as const,
+			label: 'Processing orders',
+			flash: 'amber' as const,
+			cpu: 60,
+			connections: '400',
+		},
+		edge: {
+			active: true,
+			reverse: true,
+			label: 'Orders confirmed',
+			dotColor: 'bg-green-500',
+		},
+	},
+	// Step 3: Time passes. Customers waiting for their orders to ship.
+	{
+		client: { label: '50K customers waiting...' },
+		server: { label: 'Warehouse processing 50K orders...' },
+		edge: { active: false, label: '' },
+	},
+	// Step 4: Customers get anxious, start refreshing
+	{
+		client: { label: '50K checking orders' },
+		server: {
+			requestCount: '25K req/sec from 50K users',
 			cpu: 95,
 			connections: '847',
 			poolExhausted: true,
-			queueSize: 2,
-			requestCount: '25K req/sec from 50K users',
+			queueSize: 4,
+			flash: 'red' as const,
+			label: 'Drowning in polls...',
 		},
 		edge: {
 			active: true,
 			reverse: false,
-			label: 'Requests flooding in...',
+			label: 'All refreshing order status...',
 			dotColor: 'bg-amber-500',
 		},
 	},
-	// Server tries to respond but pool is full
+	// Server overwhelmed (Server -> Client)
 	{
-		server: { queueSize: 4 },
+		server: { queueSize: 6, label: 'Pool exhausted...' },
 		edge: { reverse: true, label: 'All 850 DB connections used' },
 	},
-	// More requests pile up (Client -> Server)
+	// New customer tries to browse but can't (Client -> Server)
 	{
-		server: { queueSize: 6 },
-		edge: { reverse: false, label: 'More requests queuing...' },
+		client: { label: 'New customer browsing' },
+		server: { queueSize: 8, label: 'Cannot serve new requests...' },
+		edge: {
+			reverse: false,
+			label: 'GET /products (stuck in queue)',
+			dotColor: 'bg-amber-500',
+		},
 	},
-	// Queue full
-	{
-		server: { queueSize: 8 },
-		edge: { reverse: true, label: 'Queue full! Cannot process.' },
-	},
-	// Server drops requests, sends 503 (Server -> Client)
+	// Site crashes (Server -> Client)
 	{
 		server: {
 			status503: true,
 			queueSize: 10,
-			requestCount: "25K req/sec (server can't keep up)",
+			requestCount: 'Site down: polling killed it',
+			label: 'CRASHED',
 		},
 		edge: { reverse: true, label: 'DROPPED: 503', dotColor: 'bg-red-500' },
 	},
-	// Client receives timeout (Server -> Client)
+	// Step 7: Everyone sees error page
 	{
-		client: { label: 'Timeout...', flash: 'red' as const },
+		client: { label: 'Site unavailable!', flash: 'red' as const },
 		edge: {
 			active: false,
 			reverse: true,
-			label: '503 Service Unavailable',
+			label: '503: polling crashed the server',
 			dotColor: 'bg-red-500',
 		},
 	},
@@ -760,7 +782,7 @@ const PAYMENT_FRAMES: AnimFrame[] = [
 	},
 	// Server responds 202 to client (Server -> Client) while Stripe processes
 	{
-		server: { label: '' },
+		server: { label: 'Awaiting Stripe...' },
 		edge: {
 			active: true,
 			reverse: true,
@@ -773,6 +795,7 @@ const PAYMENT_FRAMES: AnimFrame[] = [
 	// Client waits. Stripe still processing.
 	{
 		client: { label: 'Waiting for confirmation...' },
+		server: { label: 'Awaiting Stripe response...' },
 		edge: { active: false, label: '' },
 	},
 	// Stripe confirms! (Processor -> Server via edgeB)
@@ -787,20 +810,31 @@ const PAYMENT_FRAMES: AnimFrame[] = [
 	},
 	// Notification created on server, stuck. No push to client.
 	{
-		server: { flash: 'green' as const, stuckNotification: true },
-		processor: { label: '' },
+		server: {
+			label: 'Notification ready!',
+			flash: 'green' as const,
+			stuckNotification: true,
+		},
+		processor: { label: 'Done' },
 		edgeB: { active: false, label: '' },
 		edge: { label: 'Notification ready, but no push!' },
 	},
 	// Clock starts -- client polling cycle hasn't fired yet
-	{ client: { waitingClock: 0 } },
+	{
+		server: { label: 'Waiting for client to poll...' },
+		client: { waitingClock: 0 },
+	},
 	{ client: { waitingClock: 0.5 } },
 	{ client: { waitingClock: 1.0 } },
 	{ client: { waitingClock: 1.5 } },
 	// Poll fires (Client -> Server)
 	{
 		client: { waitingClock: 2.0, flash: 'red' as const },
-		server: { stuckNotification: false, flash: 'idle' as const },
+		server: {
+			stuckNotification: false,
+			flash: 'idle' as const,
+			label: 'Handling poll request...',
+		},
 		edge: {
 			active: true,
 			reverse: false,
@@ -825,7 +859,7 @@ const PAYMENT_FRAMES: AnimFrame[] = [
 			label: 'Confirmed (2s late!)',
 			flash: 'red' as const,
 		},
-		server: { label: '' },
+		server: { label: 'Delivered (via poll)' },
 		edge: { active: false, label: '2s delay because no server push' },
 	},
 ];
@@ -869,7 +903,7 @@ const REWARD_PAYMENT_FRAMES: AnimFrame[] = [
 	},
 	// Server responds 202 (Server -> Client) -- same as observe
 	{
-		server: { label: '' },
+		server: { label: 'Awaiting Stripe...' },
 		edge: {
 			active: true,
 			reverse: true,
@@ -882,6 +916,7 @@ const REWARD_PAYMENT_FRAMES: AnimFrame[] = [
 	// Client waits -- same as observe
 	{
 		client: { label: 'Waiting for confirmation...' },
+		server: { label: 'Awaiting Stripe response...' },
 		edge: { active: false, label: '' },
 	},
 	// Stripe confirms (Processor -> Server) -- same as observe
@@ -911,51 +946,83 @@ const REWARD_PAYMENT_FRAMES: AnimFrame[] = [
 	// Client receives instantly (no 2s delay!)
 	{
 		client: { label: 'Confirmed instantly!', flash: 'green' as const },
-		processor: { label: '', flash: 'idle' as const },
-		server: { rewardLabel: '' },
+		processor: { label: 'Done', flash: 'idle' as const },
+		server: { label: 'Delivered (via push)', rewardLabel: '' },
 		edge: { active: false, label: '<15ms (was 2s with polling)' },
 	},
 ];
 
-// Mirrors: GET notifications (poll) probe
-// Same: Client asks server for notifications.
-// Different: Instead of 5 wasted round-trips, server pushes only when an event happens.
+// Mirrors: Customer checks order status probe
+// Same start: customer places order, server confirms.
+// Different: when order ships, server pushes instantly. No refreshing needed.
 const REWARD_POLLING_FRAMES: AnimFrame[] = [
-	// Server sits idle, no polling requests coming in (contrast with observe's flood)
+	// Step 1: Same -- customer places order (Client -> Server)
+	{
+		client: { label: 'Placing order...' },
+		edge: {
+			active: true,
+			reverse: false,
+			label: 'POST /orders',
+			dotColor: 'bg-cyan-500',
+		},
+	},
+	// Step 2: Same -- server confirms (Server -> Client)
 	{
 		server: {
+			label: 'Order created',
 			flash: 'green' as const,
 			cpu: 3,
-			requestCount: '0 req/sec (was 25K)',
-			rewardLabel: 'No polling endpoint hit',
+			requestCount: '0 polling req/sec',
 		},
-		edge: { active: false, label: 'No polling needed' },
-	},
-	// An event happens: server pushes it instantly (Server -> Client)
-	{
-		server: { rewardLabel: 'after_create_commit -> broadcast' },
 		edge: {
 			active: true,
 			reverse: true,
-			label: 'PUSH: New notification',
+			label: 'Order placed! Processing...',
+			dotColor: 'bg-green-500',
+		},
+	},
+	// Same: time passes, warehouse processes
+	{
+		client: { label: 'Waiting for shipment...' },
+		server: { label: 'Warehouse processing...' },
+		edge: { active: false, label: '' },
+	},
+	// DIFFERENT: When order ships, server pushes instantly. No refreshing needed.
+	{
+		server: { label: 'Broadcasting update...', rewardLabel: 'Order shipped -> broadcast' },
+		edge: {
+			active: true,
+			reverse: true,
+			label: 'PUSH: Order shipped!',
 			dotColor: 'bg-emerald-500',
 		},
 	},
-	// Client receives instantly -- no wasted round-trips
+	// Client receives instantly
 	{
-		client: { label: 'Received instantly!', flash: 'green' as const },
-		server: { rewardLabel: '0% wasted (was 99%)' },
-		edge: { active: false, label: 'Push only when events happen' },
+		client: { label: 'Notified instantly!', flash: 'green' as const },
+		server: { rewardLabel: '0 wasted polls (was 99%)' },
+		edge: { active: false, label: 'No refreshing needed' },
 	},
 ];
 
-// Mirrors: GET server health probe
-// Same: Check server stats.
-// Different: CPU 3%, pool healthy, no 503s. Then demonstrate it handles load.
+// Mirrors: Black Friday traffic spike probe
+// Same start: Black Friday, customers buy, then check order status.
+// Different: no polling flood. Server pushes status updates. Site stays up.
 const REWARD_HEALTH_FRAMES: AnimFrame[] = [
-	// Server healthy (contrast with observe's 95% CPU, pool exhausted, 503s)
+	// Step 1: Same -- Black Friday customers buying (Client -> Server)
+	{
+		client: { label: 'Black Friday sale!' },
+		edge: {
+			active: true,
+			reverse: false,
+			label: 'Customers buying products',
+			dotColor: 'bg-cyan-500',
+		},
+	},
+	// Step 2: Same -- orders confirmed (Server -> Client)
 	{
 		server: {
+			label: 'Processing orders',
 			flash: 'green' as const,
 			cpu: 3,
 			connections: '50K',
@@ -963,24 +1030,55 @@ const REWARD_HEALTH_FRAMES: AnimFrame[] = [
 			queueSize: 0,
 			status503: false,
 			requestCount: '0 polling overhead',
-			rewardLabel: 'Pool: 50/850 (healthy)',
 		},
-	},
-	// Push to all 50K users to show it handles load
-	{
-		server: { rewardLabel: 'Broadcasting to 50K users...' },
 		edge: {
 			active: true,
 			reverse: true,
-			label: 'PUSH to 50K connections',
+			label: 'Orders confirmed',
+			dotColor: 'bg-green-500',
+		},
+	},
+	// Same: customers waiting for orders to ship
+	{
+		client: { label: '50K customers waiting...' },
+		server: { label: 'Warehouse processing...' },
+		edge: { active: false, label: '' },
+	},
+	// DIFFERENT: No polling flood. Server pushes order updates via WebSocket.
+	{
+		server: { label: 'Pushing updates...', rewardLabel: 'Broadcasting order updates...' },
+		edge: {
+			active: true,
+			reverse: true,
+			label: 'PUSH: Order shipped!',
 			dotColor: 'bg-emerald-500',
 		},
 	},
-	// Server stays healthy after push
+	// New customer can browse fine (Client -> Server)
 	{
-		client: { label: '50K delivered, CPU still 3%', flash: 'green' as const },
+		client: { label: 'New customer browsing' },
+		edge: {
+			active: true,
+			reverse: false,
+			label: 'GET /products',
+			dotColor: 'bg-cyan-500',
+		},
+	},
+	// Server responds instantly, no queue (Server -> Client)
+	{
 		server: { rewardLabel: 'CPU 3% (was 95%)' },
-		edge: { active: false, label: 'WebSocket = no polling overhead' },
+		edge: {
+			active: true,
+			reverse: true,
+			label: 'Products loaded instantly',
+			dotColor: 'bg-green-500',
+		},
+	},
+	// Site stays up
+	{
+		client: { label: 'Site works perfectly!', flash: 'green' as const },
+		server: { rewardLabel: 'Pool: 50/850 (healthy)' },
+		edge: { active: false, label: 'No 503s. Site stays up.' },
 	},
 ];
 
@@ -1040,9 +1138,12 @@ const REWARD_FRAME_MAP: Record<string, AnimFrame[]> = {
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{ id: 'no-push', label: 'No server-push mechanism exists' },
-	{ id: 'latency-delay', label: 'Notifications delayed by poll interval' },
-	{ id: 'polling-waste', label: 'Polling returns 99% empty responses' },
-	{ id: 'cpu-spike', label: '25K req/sec exhausts server CPU' },
+	{ id: 'latency-delay', label: 'Payment confirmation delayed by poll cycle' },
+	{ id: 'polling-waste', label: 'Order status refreshes are 99% empty' },
+	{
+		id: 'cpu-spike',
+		label: 'Polling traffic crashes the site on Black Friday',
+	},
 ];
 
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
@@ -1059,6 +1160,13 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'trigger-event',
 		label: 'POST create payment',
+		story: [
+			'A customer is buying a product for $99.99.',
+			'The server sends the payment to Stripe for async processing.',
+			'Stripe confirms, and a notification is created on the server.',
+			'But without WebSocket push, the customer has to keep refreshing.',
+			'They wait up to 2 seconds for their next poll cycle to find out if the payment succeeded.',
+		],
 		command:
 			'curl -X POST localhost:3000/api/v1/payments -d \'{"amount": 99.99}\'',
 		responseLines: [
@@ -1076,33 +1184,59 @@ const PROBES: ProbeConfig[] = [
 	},
 	{
 		id: 'check-polling',
-		label: 'GET notifications (poll)',
+		label: 'Customer checks order status',
+		story: [
+			'A customer placed an order and keeps refreshing the page to check if it shipped.',
+			'Thousands of customers do the same thing every 2 seconds.',
+			'Each refresh triggers a GET /notifications poll to the server.',
+			'99% of the time, nothing has changed.',
+			'But the server still runs the full pipeline (auth, query, serialize) for each one.',
+		],
 		command: 'curl -s localhost:3000/api/v1/notifications | jq',
 		responseLines: [
 			{ text: '200 OK', color: 'cyan' },
 			{ text: '{ "data": [] }', color: 'yellow' },
 			{
-				text: '# No new notifications. 99% of polls return nothing.',
+				text: '# Customer refreshed order page. No updates yet.',
 				color: 'red',
 			},
 			{
-				text: '# Server still ran: auth -> query -> serialize -> respond',
+				text: '# 50K customers doing this every 2 seconds = 25K req/sec',
+				color: 'red',
+			},
+			{
+				text: '# Server ran full pipeline for nothing: auth -> query -> serialize',
 				color: 'red',
 			},
 		],
 	},
 	{
 		id: 'check-cpu',
-		label: 'GET server health',
+		label: 'Black Friday traffic spike',
+		story: [
+			'It is Black Friday. 50,000 customers are on the site.',
+			'All of them are refreshing their order status pages every 2 seconds.',
+			'That is 25,000 requests per second hitting the server.',
+			'The database connection pool is exhausted.',
+			'New customers trying to browse or check out get 503 errors.',
+			'The site is effectively down because of order status refreshes.',
+		],
 		command: 'curl -s localhost:3000/api/v1/health | jq .server',
 		responseLines: [
 			{
 				text: '{ "cpu": "95%", "connections": 847, "pool_exhausted": true }',
 				color: 'red',
 			},
-			{ text: '# Connection pool exhausted from polling load', color: 'red' },
 			{
-				text: '# 25,000 req/sec. Each one hits the full pipeline.',
+				text: '# Black Friday: 50K customers refreshing order status',
+				color: 'red',
+			},
+			{
+				text: '# Polling killed the server. New customers get 503.',
+				color: 'red',
+			},
+			{
+				text: '# Site is effectively down because of status refreshes.',
 				color: 'yellow',
 			},
 		],
@@ -1347,6 +1481,12 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		id: 'payment-push',
 		label: 'POST create payment (with push)',
 		description: 'Same flow as observe, but server pushes instantly',
+		story: [
+			'Same flow: customer pays $99.99, server sends to Stripe.',
+			'Stripe confirms asynchronously, notification created on server.',
+			'But now: after_create_commit broadcasts it instantly via WebSocket.',
+			'The customer knows within milliseconds, not seconds.',
+		],
 		method: 'WS' as 'GET',
 		path: '/cable -> NotificationsChannel',
 		actor: 'server',
@@ -1361,8 +1501,15 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'zero-polling',
-		label: 'GET notifications (no polling)',
-		description: '50K users, zero polling requests, push only',
+		label: 'Customer checks order status (with push)',
+		description: 'Same scenario, but server pushes updates instantly',
+		story: [
+			'Same customer waiting for their order to ship.',
+			'But now they do not need to keep refreshing.',
+			'The server pushes the shipping update instantly via WebSocket.',
+			'Zero polling requests, zero wasted server work.',
+			'The customer gets notified the moment their order ships.',
+		],
 		method: 'WS' as 'GET',
 		path: '/cable',
 		actor: 'server',
@@ -1375,8 +1522,16 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'server-healthy',
-		label: 'GET server health (with WebSocket)',
-		description: 'Same check, but polling replaced by WebSocket',
+		label: 'Black Friday traffic (with WebSocket)',
+		description: 'Same traffic, but no polling overhead',
+		story: [
+			'Same Black Friday, same 50K customers.',
+			'But now order status updates are pushed via WebSocket.',
+			'The 25K req/sec polling flood is gone.',
+			'CPU drops from 95% to 3%. Connection pool is healthy.',
+			'New customers can browse and check out without 503 errors.',
+			'The site stays up.',
+		],
 		method: 'WS' as 'GET',
 		path: '/cable',
 		actor: 'server',
@@ -1394,6 +1549,12 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		id: 'unauthenticated',
 		label: 'Anonymous connect',
 		description: 'No authentication cookies',
+		story: [
+			'Someone tries to open a WebSocket connection without being logged in.',
+			'The find_verified_user method checks cookies.encrypted[:user_id].',
+			'It finds nothing. The connection is rejected immediately.',
+			'No anonymous users can subscribe to notification channels.',
+		],
 		method: 'WS' as 'GET',
 		path: '/cable',
 		actor: 'anonymous',
@@ -1407,6 +1568,12 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		id: 'wrong-user',
 		label: 'Subscribe to other user',
 		description: 'Try to eavesdrop on another channel',
+		story: [
+			"An authenticated user tries to subscribe to another user's notification channel.",
+			'They want to eavesdrop on payment confirmations.',
+			'The channel uses stream_for current_user, which only streams for the authenticated user.',
+			"The subscription to user_42's channel is rejected because the attacker is not user_42.",
+		],
 		method: 'WS' as 'GET',
 		path: '/cable',
 		actor: 'attacker',
@@ -1516,7 +1683,7 @@ function getCodeFiles(phase: Phase, completedStep: number) {
 // ──────────────────────────────────────────────
 
 export function Level37RealTime({ onComplete }: LevelComponentProps) {
-	const [phase, setPhase] = useState<Phase>('reward');
+	const [phase, setPhase] = useState<Phase>('observe');
 	const [wrongFeedback, setWrongFeedback] = useState<string | null>(null);
 	const [vizAnimating, setVizAnimating] = useState(false);
 	const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
