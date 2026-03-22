@@ -250,6 +250,104 @@ Before any scenario is fired, a neutral prompt says "Fire a scenario below to se
 
 **Rule:** Reward phase visualizations must be visually distinct PER SCENARIO. If every scenario produces the same animation (rows flash, same color, same duration), the stress test is visual noise. Each scenario exists to teach a different aspect of the solution. The visualization must reflect that difference.
 
+## Example 3: Level 37 (Real-Time / WebSocket) - Observe + Reward Phase
+
+### The Problem
+
+HTTP polling wastes 25K req/sec (99% empty). When a payment completes asynchronously, the user waits up to 2 seconds for their next poll cycle to discover it. The server has the answer but can't push it.
+
+### Initial Design (FAILED - Multiple Rounds of Fixes)
+
+**Attempt 1: Two-lane text comparison.** Two side-by-side boxes: "HTTP Polling" (left) and "WebSocket (not configured)" (right). Probes added monospace text lines like `GET /notifications -> [ ]` inside the left box. Static CPU/Latency number cards below.
+
+**Why it failed:**
+1. **Text in boxes, not a visualization.** The "arrows" were `← No new notifications` text lines inside dark rectangles. The player saw text, not a visual representation of requests flooding a server.
+2. **Static numbers with no explanation.** CPU showed "95%" but the player didn't know why. No connection between the polling flood and the CPU spike.
+3. **One connection for "50K users."** The Client box said "50K users" but had one connection line. Misleading about what the polling traffic looks like.
+4. **All probes looked the same.** All three probes added similar text lines to the left box. No visual differentiation between "polling waste," "server overload," and "stuck notification."
+
+**Attempt 2: React Flow nodes (Client + Server) with animated dots.** Two custom nodes connected by an animated edge. Probes triggered dot animations and updated the server's CPU gauge.
+
+**Why it still needed fixes (6 rounds of iteration):**
+
+1. **Edge label never changed.** All polling frames showed "No new notifications" as a static label, even during the request phase. The player couldn't tell when the client was asking vs when the server was responding. **Fix:** Two frames per round-trip. Request frame: dots go Client->Server, label "Any notifications?" Response frame: dots go Server->Client, label "No new notifications."
+
+2. **Animation too fast.** Each frame played at the default `ANIMATION_DURATION_MS` (~400ms). With 8 frames, the whole polling sequence finished in 3 seconds. The player couldn't follow the round-trips. **Fix:** 1.5x frame delay for the polling probe.
+
+3. **Dots never stopped.** The last frame set `edge.active: true` but no cleanup frame set it to `false`. Dots looped indefinitely after the animation "ended." **Fix:** Every animation must end with a frame that sets `edge.active: false`.
+
+4. **Overload probe: dots only flowed one direction.** All frames had `reverse: false` (Client->Server). When the server responded with 503, dots should have flowed Server->Client. **Fix:** Set `reverse` correctly per frame based on data flow direction. Request = `false`, response = `true`.
+
+5. **Payment probe: no server response after POST.** Client sent POST, server processed, but no 201/202 response came back. The client jumped straight to "notification stuck" without the server ever acknowledging the payment. **Fix:** Added a response frame (Server->Client, "202 Accepted").
+
+6. **Payment probe: narrative contradiction (the most instructive failure).** The original flow was: Client sends POST -> Server returns "201 Created" -> Server creates notification -> notification is "stuck" -> client has to poll. But the user pointed out: if the client already received "201 Created," they already KNOW the payment is done. Why would they need a notification about it? The probe's entire premise collapsed because the narrative contradicted itself.
+
+   **First fix (insufficient):** Changed 201 to "202 Accepted (processing...)" to make it async. But Stripe's confirmation still happened invisibly inside the Server node -- the player saw "Stripe confirms payment!" as a label on the server, but couldn't see WHERE that confirmation came from. It looked like the server magically knew.
+
+   **Second fix (correct):** Added a third node: **Payment Processor (Stripe)**. Now the player sees the complete async flow: Client -> Server -> Stripe (via a second edge), then Stripe -> Server (confirmation comes BACK along that edge), then Server has the notification but no path to push it to Client. The three-node layout makes the async handoff visible. The player can SEE that the information travels Server -> Stripe -> Server -> (stuck, no push to Client). This is the core teaching moment: the server knows, but can't tell the client without polling.
+
+   **Lesson:** When designing a probe's narrative, read the entire frame sequence as a story from the player's perspective. At each frame, ask: "Given what the player has already seen, does this next frame make sense?" If the server already told the client the answer in frame 3, the client shouldn't be polling for it in frame 7. And when an async process involves external actors, those actors need their own nodes so the player can see the data traveling between them.
+
+### Final Design (PASSED)
+
+**Three-probe observe phase using React Flow:**
+
+**Probe 1 (Polling waste):** Client and Server nodes connected by a dashed edge. 10 frames (5 round-trips), each with two phases:
+- Request: dots flow Client->Server, label "Any notifications?", server shows "auth -> query -> serialize"
+- Response: dots flow Server->Client, label "No new notifications" (4 times) then "1 notification (finally!)"
+- Server's request counter escalates: "1 of 25K req/sec" -> "10K of 25K" -> "25K req/sec (99% wasted)"
+- CPU gauge rises visibly from 40% to 95%
+- Client label: "50K users polling" (explains the single-line-for-many-users)
+
+**Probe 2 (Server overload):** Same two nodes. Frames alternate direction:
+- Client->Server: "Requests flooding in..."
+- Server->Client: "All 850 DB connections used"
+- Client->Server: "More requests queuing..."
+- Server->Client: "Queue full! Cannot process."
+- Server->Client: "DROPPED: 503" (red dots)
+- Client receives "503 Service Unavailable," dots stop
+- Server shows request counter: "25K req/sec from 50K users"
+
+**Probe 3 (Stuck notification):** Three nodes appear: Client, Server, Payment Processor (Stripe).
+- Client->Server: "POST /payments"
+- Server->Stripe: "Charge $99.99" (via second edge)
+- Server->Client: "202 Accepted (processing...)"
+- Client: "Waiting for confirmation..." Stripe: "Processing..."
+- Stripe->Server: "Payment succeeded" (green dots)
+- Server: notification stuck, "Notification ready, but no push!"
+- Clock ticks: 0s -> 0.5s -> 1.0s -> 1.5s -> 2.0s
+- Client->Server: "GET /notifications (2s later)" (red dots)
+- Server->Client: "Payment confirmed! (2s late)"
+- Final: "2s delay because no server push"
+
+### Key Takeaways
+
+| Principle | Bad | Good |
+|-----------|-----|------|
+| **Text is not a visualization** | Monospace text lines in a dark box | React Flow nodes with animated dots traveling along edges |
+| **Labels must change per phase** | Static "No new notifications" for entire animation | "Any notifications?" (request) then "No new notifications" (response) |
+| **Dot direction = data direction** | All dots flow one way regardless of request vs response | `reverse: false` for requests, `reverse: true` for responses |
+| **Animations must end** | Last frame has `active: true`, dots loop forever | Cleanup frame sets `active: false` |
+| **Metrics need visible causes** | CPU gauge shows "95%" with no explanation | Request counter "25K req/sec from 50K users" explains the spike |
+| **Scale claims must be honest** | "50K users" with one connection line | "50K users polling" explains they all hit the same endpoint |
+| **Async flows need all actors** | Payment confirmed invisibly inside server node | Third node (Stripe) makes async handoff visible |
+| **Narrative must be coherent** | Server returns 201 then asks "how does user know?" (they already know!) | Server returns 202 (async), Stripe confirms later, user has to poll |
+| **Speed must allow reading** | Default frame delay, 3-second total animation | 1.5x delay for complex probes, each phase readable |
+
+**Rules extracted from L37:**
+
+1. **Every animation frame must have `reverse` set correctly.** Before writing each frame, ask: "Is data flowing Client->Server (request, `reverse: false`) or Server->Client (response, `reverse: true`)?" Write it down per frame.
+
+2. **Every animation sequence must end with `active: false`.** Without this, animated dots loop indefinitely after the animation "finishes."
+
+3. **Each round-trip needs two frames minimum.** One for the request phase (with request-appropriate label) and one for the response phase (with response-appropriate label). A single frame with a static label is ambiguous.
+
+4. **When a flow involves async external services, add a node for each actor.** If Stripe processes a payment, show a Stripe node. If S3 stores a file, show an S3 node. Invisible processing inside a single node hides the mechanism the player needs to learn.
+
+5. **Extra nodes must always be present in the layout, dimmed when not in use.** Do not add or remove nodes dynamically during animations. React Flow recomputes `fitView` when nodes appear/disappear, which causes the viewport to shift or nodes to overflow outside the visible area. Instead, include all nodes in every phase and dim the unused ones (idle flash, no label, muted border). They sit there quietly, and the player can see they exist. When a probe activates them, they light up with labels and color. Case study: L37's Payment Processor node was originally hidden and only appeared during the payment probe. It overflowed the viewport when it appeared mid-animation. The fix: always render it, dim it during polling/overload probes, activate it during the payment probe.
+
+6. **Verify the narrative makes sense as a story.** Read through the frames like a screenplay: "Client sends payment. Server returns 201." Stop. If the server already told the client the payment is done, why would the client need a notification? The narrative is broken. Fix the story before fixing the animation.
+
 ## Checklist for New Visualizations
 
 When designing any observe phase visualization, verify:
@@ -266,6 +364,13 @@ When designing any observe phase visualization, verify:
 - [ ] **Self-evident wrongness.** Would a non-technical person understand why the outcome is bad? "18 units sold, 8 deducted" is self-evident. "$39.99 instead of $29.99" requires domain context to judge. The wrongness should be obvious from the numbers alone.
 - [ ] **Duality shown simultaneously.** If the concept is about a contrast (encrypted vs plaintext, cached vs uncached, before vs after), does the visualization show BOTH sides at the same time? A single view that toggles between states forces the player to remember. Side-by-side comparison makes the contrast self-evident.
 - [ ] **Reward scenarios visually distinct.** Does each reward scenario produce a different visual result? If every scenario plays the same animation (same rows flash, same color, same duration), the stress test is visual noise. Check by firing each scenario and writing down what changes on screen. If two descriptions are identical, redesign.
+- [ ] **Edge direction matches data flow per frame.** For every animation frame with `active: true`, verify `reverse` is correct. Request (Client->Server) = `false`. Response (Server->Client) = `true`. Write it down per frame.
+- [ ] **Every animation ends with `active: false`.** The last frame (or a cleanup frame) must stop dots. Without this, animated dots loop forever.
+- [ ] **Round-trips have two frames.** Each request-response cycle needs at least two frames: one for the request (with a request label) and one for the response (with a response label). A single frame with a static label is ambiguous.
+- [ ] **Edge labels change between request and response.** "Any notifications?" on the request phase, "No new notifications" on the response phase. Not the same label for both.
+- [ ] **Async external services have their own nodes.** If Stripe processes a payment or S3 stores a file, show a separate node for that actor. Don't hide the async handoff inside a single node.
+- [ ] **All nodes always present, dimmed when unused.** Never add/remove nodes dynamically during animations. Include all nodes in every phase, dim unused ones (idle flash, no label). This prevents React Flow viewport shifts and overflow.
+- [ ] **Narrative coherence.** Read the frame sequence like a screenplay. Does the story make sense? If the server already told the client the answer, the client shouldn't need to poll for it. Fix the story before fixing the animation.
 
 ### Build phase checks
 

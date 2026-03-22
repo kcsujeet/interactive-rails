@@ -119,6 +119,12 @@ Read [visualization-examples.md](visualization-examples.md) for case studies. Ke
 
 7. **Make the "why should I care?" obvious.** Every visual element must answer not just "what happened" but "why is this bad?" Show the cost alongside the outcome, not just the outcome. If you have to explain why something is a problem in a separate label, the visualization hasn't shown it yet. Example: L37's polling visualization shows the server doing full work (authenticate -> query -> serialize -> respond) for each request, then returning "No new notifications." The player sees the effort wasted, not just an abstract "empty" label.
 
+8. **Animations must tell a two-phase story.** When a visualization shows a request-response cycle, the animation must have distinct phases: the request going out (with a label like "Any notifications?") and the response coming back (with a label like "No new notifications"). If dots continuously flow in one direction with a static label, the player cannot tell whether they're seeing requests, responses, or just decorative motion. Each phase needs its own label, its own dot direction, and enough time to read before the next phase starts. Case study: L37's original polling animation showed dots flowing with a fixed "No new notifications" label for the entire sequence. The player couldn't tell that the client was asking and the server was answering -- it looked like a continuous stream of responses.
+
+9. **Numbers need context, not just values.** A CPU gauge showing "95%" is a metric. A CPU gauge showing "95%" with a label "25K req/sec from 50K users" underneath is a mechanism -- the player knows WHY it's at 95%. Every metric in the visualization should trace back to its cause. If a server shows high CPU, show the request count. If a queue is full, show what's filling it. If latency is high, show what's blocking. Case study: L37's server node shows a request counter that escalates ("1 of 25K req/sec" -> "10K of 25K req/sec" -> "25K req/sec (99% wasted)") so the player sees the CPU rising because of the polling flood, not as an abstract number.
+
+10. **Visual elements must match the scale they claim.** If a node says "50K users" but has one connection line, the player reasonably asks "are 50K users sharing one connection?" Make the visual honest about what it represents. Either label it clearly ("50K users polling" explains they're all hitting the same endpoint repeatedly) or show multiple connections. Don't let a static label contradict the visual structure.
+
 ### The Literal Screen Test
 
 After designing, describe what the player LITERALLY SEES on screen. Not what the code does. Not what the concept is.
@@ -129,6 +135,19 @@ After designing, describe what the player LITERALLY SEES on screen. Not what the
 If your honest description sounds like "text appears in a box" or "numbers update in a stat card," the visualization is a log or a metric display, not a visualization. Redesign.
 
 Case study: L37's visualization described as "two-lane comparison with arrows" was actually monospace text lines inside dark rectangles with static CPU/Latency number boxes. The description made it sound visual, but the screen showed text in boxes.
+
+### Probe and Scenario Ordering
+
+Arrange probes and stress test scenarios in a logical order that builds understanding. The first probe should introduce the most important visual elements and set context for the ones that follow.
+
+Example: L37 has three nodes (Client, Server, Payment Processor). The Payment Processor is always visible but dimmed when unused. The probes are ordered:
+1. **POST create payment** (first) -- uses all three nodes, immediately shows the player why the Payment Processor node exists
+2. **GET notifications (poll)** -- shows polling waste (Processor node dimmed, player already knows what it is)
+3. **GET server health** -- shows overload (Processor node dimmed)
+
+If the polling probe were first, the player would see a dimmed "Stripe" node for two probes and wonder what it's for. Putting the payment probe first answers that question immediately.
+
+The same principle applies to stress test scenarios in the reward phase: lead with the scenario that best demonstrates the solution, not the simplest one.
 
 ### Probe Differentiation
 
@@ -246,10 +265,16 @@ After designing and implementing, run `audit-level` to verify compliance with al
 ### Observe phase design
 - [ ] Zero-knowledge test passes
 - [ ] Literal screen test passes (describe what the player SEES, not what the code does)
+- [ ] Probes and scenarios ordered logically (first probe introduces key visual elements and sets context for the rest)
 - [ ] Each probe produces a different visual result (written out per probe)
 - [ ] Visualization shows mechanism, not metric
 - [ ] Duality shown simultaneously if the concept is about contrast
 - [ ] "Why should I care?" is visually obvious for every element (show cost alongside outcome, not just outcome)
+- [ ] Request-response animations have distinct phases with different labels and dot directions
+- [ ] Every animation frame has `reverse` set correctly for its data flow direction (request = Client→Server = false, response = Server→Client = true)
+- [ ] Last frame of every animation sets `edge.active: false` to stop dots from looping indefinitely
+- [ ] Every metric (CPU, latency, queue) traces back to its visible cause
+- [ ] Visual scale matches claimed scale (if it says "50K users," explain the single connection)
 
 ### Build phase design
 - [ ] Code preview transition table built and verified
