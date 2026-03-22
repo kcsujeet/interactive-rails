@@ -371,6 +371,7 @@ When designing any observe phase visualization, verify:
 - [ ] **Async external services have their own nodes.** If Stripe processes a payment or S3 stores a file, show a separate node for that actor. Don't hide the async handoff inside a single node.
 - [ ] **All nodes always present, dimmed when unused.** Never add/remove nodes dynamically during animations. Include all nodes in every phase, dim unused ones (idle flash, no label). This prevents React Flow viewport shifts and overflow.
 - [ ] **Narrative coherence.** Read the frame sequence like a screenplay. Does the story make sense? If the server already told the client the answer, the client shouldn't need to poll for it. Fix the story before fixing the animation.
+- [ ] **Nodes represent real infrastructure, not code.** For every node in the visualization, ask: "Could I SSH into this?" If yes (server, database, external API, CDN), it deserves its own node. If no (middleware, validation, callback, policy), it belongs inside the node it runs on. A Faraday timeout is code inside the Rails app, not a separate box between App and Stripe. Show code-level concepts as sub-elements inside their parent node. Case study: L38's original design had separate Timeout, Retry, and Circuit Breaker nodes at the same visual level as the App Server and Stripe nodes, implying they were separate services. The fix: keep only App and Stripe as nodes, show the middleware stack inside the App Server node.
 
 ### Build phase checks
 

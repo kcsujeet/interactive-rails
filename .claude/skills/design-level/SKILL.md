@@ -138,6 +138,16 @@ Read [visualization-examples.md](visualization-examples.md) for case studies. Ke
 
     **How to verify:** Read the story (info modal bullet points) and the frame sequence side by side. For each story bullet, there must be at least one corresponding frame. For each frame, there must be a corresponding story bullet. If a frame exists that the story doesn't mention, either the frame is wrong or the story is incomplete.
 
+13. **Nodes must represent real infrastructure, not code abstractions.** When the player sees a node in a visualization, they interpret it as a real service running somewhere (a server, a database, an external API). If two nodes look the same, the player assumes they are the same kind of thing. So a "Timeout" node sitting next to a "Rails App" node implies the timeout is a separate service, like a proxy or gateway. But a timeout is just middleware code running *inside* the app server. It's not a separate box on a network diagram.
+
+    **The rule:** Every node in the visualization must represent a distinct piece of real infrastructure (app server, database, external API, CDN, cache server, message queue). Code-level concepts (middleware, validations, callbacks, concerns, policies) are not nodes. They live *inside* the node they run on.
+
+    **How to show code-level concepts:** Make the parent node expand or change its internal content to reveal the concept. For example, a Faraday timeout middleware should appear as a sub-element inside the App Server node, not as a separate node between App and Stripe. In the observe phase, the App Server node is simple (no protection). In the reward phase, the same node expands to show its internal middleware stack (timeout, retry, circuit breaker). The player sees the app got smarter, not that new infrastructure appeared.
+
+    **Case study:** L38's original design had 5 nodes in the reward phase: App -> Timeout -> Retry -> Circuit Breaker -> Stripe. This implied timeout, retry, and circuit breaker were separate services that requests physically traveled through. In reality, they're all Faraday middleware running inside the Rails app process. The fix: keep 2 nodes (App, Stripe) and show the middleware as labeled sub-elements inside the App Server node. The App node grows in the reward phase to accommodate its new protection layers.
+
+    **Quick test:** For each node, ask: "Could I SSH into this?" If yes, it's a real service and deserves its own node. If no (you can't SSH into a timeout), it belongs inside another node.
+
 ### The Literal Screen Test
 
 After designing, describe what the player LITERALLY SEES on screen. Not what the code does. Not what the concept is.
@@ -389,6 +399,7 @@ After designing and implementing, run `audit-level` to verify compliance with al
 - [ ] No node is ever blank during an animation (every node shows its current state in every frame)
 - [ ] Animation frames match the story bullet-for-bullet (read story and frames side by side, every story beat has a frame, every frame has a story beat)
 - [ ] Time gaps in the story are visible in the animation (if an order takes time to ship, show "Warehouse processing..." frames, don't skip from order placed to customer refreshing)
+- [ ] Every node represents real infrastructure you could SSH into (servers, databases, external APIs), not code abstractions (middleware, validations, policies). Code-level concepts live inside the node they run on, not as separate nodes.
 
 ### Build phase design
 - [ ] Code preview transition table built and verified
