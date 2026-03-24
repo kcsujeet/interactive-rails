@@ -1816,10 +1816,11 @@ export function Level38ExternalAPIs({ onComplete }: LevelComponentProps) {
 				for (const d of discoveries) discoveryGating.discover(d);
 			}
 			const frames = PROBE_FRAMES[probeId];
+			// 3 nodes + 2 edges = lots to read per frame, so slow down
 			const delay =
 				probeId === 'stripe-down'
-					? ANIMATION_DURATION_MS * 1.5
-					: ANIMATION_DURATION_MS;
+					? ANIMATION_DURATION_MS * 2
+					: ANIMATION_DURATION_MS * 1.5;
 			if (frames) runAnimation(frames, undefined, delay);
 		},
 		[vizAnimating, discoveryGating, runAnimation],
@@ -1866,7 +1867,7 @@ export function Level38ExternalAPIs({ onComplete }: LevelComponentProps) {
 				setStripeState(DEFAULT_STRIPE);
 				setEdgeState(DEFAULT_EDGE);
 				setEdgeBState(DEFAULT_EDGE);
-				runAnimation(frames);
+				runAnimation(frames, undefined, ANIMATION_DURATION_MS * 1.5);
 			}
 		},
 		[vizAnimating, stressTest, runAnimation],

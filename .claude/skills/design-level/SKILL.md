@@ -166,6 +166,18 @@ Read [visualization-examples.md](visualization-examples.md) for case studies. Ke
 
     **Case study:** L38's original layout had the App node (w-56 = 224px) and Stripe node (w-40 = 160px) with only 96px gap between them. Edge labels were hidden behind the nodes. The fix: moved the payload (`{ amount: 5000 }`) into the App node's status text, shortened edge labels to just the route (`POST /v1/charges`), reduced nodes to w-48/w-36, and moved Stripe to x=480 (creating ~290px gap).
 
+15. **Animation speed must scale with visual complexity.** The player needs to read every label on every node and edge before the next frame replaces them. The more nodes and edges in the visualization, the slower each frame must be. Do not use a fixed frame delay across all levels.
+
+    **Guideline:** Count the total number of elements (nodes + edges) that change per frame. Multiply `ANIMATION_DURATION_MS` by a factor based on complexity:
+    - 2 nodes, 1 edge: `1x` (base speed)
+    - 3 nodes, 2 edges: `1.5x` (50% slower)
+    - 4+ nodes, 3+ edges: `2x` (double the time)
+    - Probes with extra narrative weight (cascade failures, multi-step flows): add another `0.5x` on top
+
+    This is a starting point. Playtest each probe: fire it and try to read every label before the next frame. If you cannot, slow it down.
+
+    **Case study:** L38 has 3 nodes (Client, App, Stripe) and 2 edges. At `1x` speed (1500ms/frame), labels were unreadable because the player had to scan 5 elements before the next frame. At `1.5x` (2250ms/frame), each frame is readable. The outage probe uses `2x` (3000ms/frame) because it has the most dramatic changes per frame (thread pool draining, queue filling).
+
 ### The Literal Screen Test
 
 After designing, describe what the player LITERALLY SEES on screen. Not what the code does. Not what the concept is.
@@ -453,6 +465,7 @@ After designing and implementing, run `audit-level` to verify compliance with al
 - [ ] All nodes at the same visual level are the same kind of thing (all pipeline stages, or all systems, or all actors). If a node is a different category from its peers (e.g., middleware among systems), show it as a sub-element inside its parent node instead.
 - [ ] Every actor identified in narrative reasoning (Step 1) has its own node. If the story involves a customer, a server, and an external API, that's 3 nodes.
 - [ ] Edge labels never hidden behind nodes. Write out every edge label, find the longest, verify the gap between connected nodes is wider than that label. For 4+ node layouts, shorten labels (abbreviations, move details into nodes) rather than shrinking nodes.
+- [ ] Animation speed scaled to visual complexity: 1x for 2 nodes/1 edge, 1.5x for 3 nodes/2 edges, 2x for 4+ nodes. Playtest: fire each probe and try to read every label before the next frame.
 
 ### Build phase design
 - [ ] Code preview transition table built and verified
