@@ -456,7 +456,7 @@ After designing and implementing, run `audit-level` to verify compliance with al
 - [ ] "Why should I care?" is visually obvious for every element (show cost alongside outcome, not just outcome)
 - [ ] Request-response animations have distinct phases with different labels and dot directions
 - [ ] Every animation frame has `reverse` set correctly for its data flow direction (request = Client→Server = false, response = Server→Client = true)
-- [ ] Last frame of every animation sets `edge.active: false` to stop dots from looping indefinitely
+- [ ] `runAnimation` automatically stops all edge dots after the last frame (safety net). Do this in the implementation: after scheduling all frames, schedule a cleanup that sets `active: false` on every edge. This prevents dots from looping even if individual frame arrays forget. Individual frames should still set `active: false` where narratively appropriate (e.g., "connection dropped"), but the automatic cleanup catches anything missed.
 - [ ] Every metric (CPU, latency, queue) traces back to its visible cause
 - [ ] Visual scale matches claimed scale (if it says "50K users," explain the single connection)
 - [ ] No node is ever blank during an animation (every node shows its current state in every frame)
