@@ -1787,10 +1787,16 @@ export function Level38ExternalAPIs({ onComplete }: LevelComponentProps) {
 				const t = setTimeout(() => applyFrame(frames[i]), i * delay);
 				newTimers.push(t);
 			}
+			// Stop all dots after last frame so animations don't loop indefinitely
+			const tCleanup = setTimeout(() => {
+				setEdgeState((prev) => ({ ...prev, active: false }));
+				setEdgeBState((prev) => ({ ...prev, active: false }));
+			}, frames.length * delay);
+			newTimers.push(tCleanup);
 			const tEnd = setTimeout(() => {
 				setVizAnimating(false);
 				onDone?.();
-			}, frames.length * delay);
+			}, frames.length * delay + 100);
 			newTimers.push(tEnd);
 			timersRef.current = newTimers;
 		},
