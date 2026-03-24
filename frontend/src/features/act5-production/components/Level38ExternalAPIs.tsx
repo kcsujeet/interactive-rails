@@ -1,37 +1,39 @@
 /**
  * Level 38: External APIs (Resilient Integration)
  *
- * Three-phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: observe -> build -> reward
  *
- * Phase 1 (observe): "Resilience Pipeline" visualization.
- *   Horizontal flow: App -> [no timeout] -> [no retry] -> [no circuit breaker] -> Stripe API
- *   Probes fire requests that hang, fail, or cascade. No resilience gates exist.
- *   The visualization shows requests getting stuck at Stripe, blocking Puma threads.
+ * Phase 1 (WHY - observe): "Thread Pool Drain" React Flow visualization.
+ *   AppServerNode (large, left) with thread pool bars + StripeNode (compact, right).
+ *   Probes show requests hanging, 503 errors, and cascade failure.
+ *   The thread pool visually drains as requests block.
  *
- * Phase 2 (build): 6 steps
- *   Step 0: Install Faraday HTTP client (terminal)
- *   Step 1: Install Stoplight circuit breaker gem (terminal)
- *   Step 2: Configure timeout (option)
- *   Step 3: Configure retry with backoff (option)
- *   Step 4: Configure circuit breaker (option)
- *   Step 5: Build the payment service (option)
+ * Phase 2 (HOW - build): 6 steps (2 terminal + 4 OptionCard)
+ *   Install Faraday, install Stoplight, configure timeout, retry, circuit breaker,
+ *   build the payment service.
  *
- * Phase 3 (reward): Same pipeline, now with active gates.
- *   Timeouts cut slow requests. Retries handle transient errors.
- *   Circuit breaker fails fast when Stripe is down. Requests flow green.
+ * Phase 3 (ADVANTAGE - reward): Same 2 nodes, but App node expands with
+ *   middleware sub-panels (timeout, retry, circuit breaker) inside it.
+ *   Stress test replays observe flows with fix applied.
  */
 
 import {
-	Activity,
+	BaseEdge,
+	type Edge,
+	EdgeLabelRenderer,
+	type EdgeProps,
+	getStraightPath,
+	type Node,
+} from '@xyflow/react';
+import {
 	ArrowRight,
 	Globe,
 	RefreshCw,
 	Server,
 	Timer,
 	Unplug,
-	Zap,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -43,9 +45,16 @@ import {
 	RightPanel,
 	StepProgress,
 	TerminalChoiceStep,
+	type TerminalStepData,
 } from '@/components/levels';
 import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
-import { FlowConnector } from '@/components/levels/FlowConnector';
+import {
+	AnimatedDots,
+	type DotConfig,
+	FlowDiagram,
+	FlowHandles,
+	reversePath,
+} from '@/components/levels/FlowDiagram';
 import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Badge } from '@/components/ui/Badge';
@@ -56,23 +65,110 @@ import { useStepGating } from '@/hooks/useStepGating';
 import { useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 
+// ─── Types ────────────────────────────────────────────────────────────
+
+type ZoneFlash = 'idle' | 'red' | 'green' | 'amber';
+
+interface AppServerVizState {
+	label: string;
+	flash: ZoneFlash;
+	threads: ('available' | 'blocked' | 'freed')[];
+	queueLabel: string | null;
+	// Middleware sub-panels (reward only)
+	timeoutLabel: string | null;
+	timeoutFlash: ZoneFlash;
+	retryLabel: string | null;
+	retryFlash: ZoneFlash;
+	circuitLabel: string | null;
+	circuitFlash: ZoneFlash;
+}
+
+interface StripeVizState {
+	label: string;
+	flash: ZoneFlash;
+	status: string;
+}
+
+interface EdgeVizState {
+	active: boolean;
+	reverse: boolean;
+	label: string;
+	dotColor: string;
+}
+
+interface AnimFrame {
+	app?: Partial<AppServerVizState>;
+	stripe?: Partial<StripeVizState>;
+	edge?: Partial<EdgeVizState>;
+}
+
+// ─── Defaults ─────────────────────────────────────────────────────────
+
+const THREAD_KEYS = ['t1', 't2', 't3', 't4', 't5'];
+
+const DEFAULT_THREADS: AppServerVizState['threads'] = [
+	'available',
+	'available',
+	'available',
+	'available',
+	'available',
+];
+
+const DEFAULT_APP: AppServerVizState = {
+	label: 'Idle',
+	flash: 'idle',
+	threads: [...DEFAULT_THREADS],
+	queueLabel: null,
+	timeoutLabel: null,
+	timeoutFlash: 'idle',
+	retryLabel: null,
+	retryFlash: 'idle',
+	circuitLabel: null,
+	circuitFlash: 'idle',
+};
+
+const DEFAULT_STRIPE: StripeVizState = {
+	label: 'Idle',
+	flash: 'idle',
+	status: 'Healthy',
+};
+
+const DEFAULT_EDGE: EdgeVizState = {
+	active: false,
+	reverse: false,
+	label: '',
+	dotColor: 'bg-cyan-500',
+};
+
+const DEFAULT_APP_REWARD: AppServerVizState = {
+	...DEFAULT_APP,
+	timeoutLabel: '10s limit',
+	timeoutFlash: 'green',
+	retryLabel: '3x backoff',
+	retryFlash: 'green',
+	circuitLabel: 'CLOSED',
+	circuitFlash: 'green',
+};
+
 // ─── Discovery definitions ─────────────────────────────────────────────
+
 const DISCOVERY_DEFS = [
 	{ id: 'no-timeout', label: 'No timeout on HTTP requests' },
-	{ id: 'thread-blocking', label: 'Slow API blocks all Puma threads' },
+	{ id: 'thread-blocking', label: 'Slow API blocks Puma threads' },
 	{ id: 'no-retry', label: 'Transient errors not retried' },
 	{ id: 'cascade-failure', label: 'One failing API takes down entire app' },
-] as const;
+];
 
 // ─── Probe definitions ─────────────────────────────────────────────────
+
 const PROBES = [
 	{
 		id: 'slow-stripe',
-		label: 'POST charge (Stripe slow)',
+		label: 'POST create payment (slow response)',
 		command:
-			'curl -X POST localhost:3000/api/v1/payments -d \'{"amount": 50}\'',
+			'curl -X POST localhost:3000/api/v1/payments -d \'{"amount": 5000}\'',
 		responseLines: [
-			{ text: '# Waiting... 10s... 20s... 30s...', color: 'amber' as const },
+			{ text: '# Waiting... 10s... 20s... 30s...', color: 'yellow' as const },
 			{
 				text: '# Thread blocked. No timeout configured.',
 				color: 'red' as const,
@@ -83,37 +179,50 @@ const PROBES = [
 				color: 'red' as const,
 			},
 		],
+		story: [
+			'Customer clicks "Pay Now" for a $50.00 Laptop Pro.',
+			'Stripe is running slow today, taking 15+ seconds to respond.',
+			'No timeout is configured, so the Puma thread just waits.',
+			'One of your 5 threads is blocked for 30 seconds on a single request.',
+			'Customer sees a loading spinner the whole time, then a 504 error.',
+		],
 	},
 	{
 		id: 'stripe-503',
-		label: 'POST charge (Stripe 503)',
-		command:
-			'curl -X POST localhost:3000/api/v1/payments -d \'{"amount": 75}\'',
+		label: 'GET check payment status (Stripe 503)',
+		command: 'curl localhost:3000/api/v1/payments/ch_abc/status',
 		responseLines: [
 			{ text: '503 Service Unavailable', color: 'red' as const },
 			{
-				text: '{ "error": "Stripe is temporarily unavailable" }',
+				text: '{ "error": { "code": "SERVICE_UNAVAILABLE", "message": "Stripe temporarily unavailable" } }',
 				color: 'red' as const,
 			},
 			{
 				text: '# No retry attempted. Request fails immediately.',
-				color: 'amber' as const,
+				color: 'yellow' as const,
 			},
 			{
 				text: '# A simple retry would likely succeed (transient error)',
-				color: 'amber' as const,
+				color: 'yellow' as const,
 			},
+		],
+		story: [
+			'Customer paid earlier, now checking if the charge went through.',
+			'Stripe returns 503, a temporary server hiccup.',
+			'This is a transient error that would succeed if retried.',
+			'But the app gives up immediately, shows "Unable to check status".',
+			'Customer panics: "Did my payment go through or not?"',
 		],
 	},
 	{
 		id: 'stripe-down',
-		label: 'POST charge (Stripe outage)',
+		label: 'Black Friday traffic (Stripe outage)',
 		command:
 			'for i in {1..50}; do curl -X POST localhost:3000/api/v1/payments; done',
 		responseLines: [
 			{
 				text: '# 50 concurrent checkout requests during Stripe outage',
-				color: 'amber' as const,
+				color: 'yellow' as const,
 			},
 			{
 				text: '# Each request hangs for 30 seconds (no timeout)',
@@ -124,7 +233,7 @@ const PROBES = [
 				color: 'red' as const,
 			},
 			{
-				text: '# App is completely unresponsive, not just payments',
+				text: '# GET /products, GET /search... nothing works!',
 				color: 'red' as const,
 			},
 			{
@@ -132,8 +241,16 @@ const PROBES = [
 				color: 'red' as const,
 			},
 		],
+		story: [
+			'Black Friday. 50 customers checking out simultaneously.',
+			'Stripe is completely down, not responding at all.',
+			'Each checkout blocks a Puma thread waiting for Stripe.',
+			'Within seconds, all 5 threads are consumed.',
+			'A customer trying to browse products cannot even load the homepage.',
+			'The entire app is dead, not just payments.',
+		],
 	},
-] as const;
+];
 
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 	'slow-stripe': ['no-timeout', 'thread-blocking'],
@@ -141,15 +258,463 @@ const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 	'stripe-down': ['cascade-failure'],
 };
 
+// ─── Observe animation frames ─────────────────────────────────────────
+
+const SLOW_STRIPE_FRAMES: AnimFrame[] = [
+	{
+		app: {
+			label: 'Processing checkout...',
+			flash: 'idle',
+			threads: [...DEFAULT_THREADS],
+		},
+		edge: {
+			active: true,
+			reverse: false,
+			label: 'POST /v1/charges { amount: 5000 }',
+			dotColor: 'bg-cyan-500',
+		},
+		stripe: { label: 'Responding slowly...', flash: 'amber', status: 'Slow' },
+	},
+	{
+		app: {
+			label: 'Waiting for Stripe...',
+			flash: 'amber',
+			threads: ['available', 'available', 'available', 'available', 'blocked'],
+		},
+		edge: { active: false, label: 'Waiting... 5s' },
+		stripe: { label: 'Still processing...', flash: 'amber' },
+	},
+	{
+		app: { label: 'Thread blocked 15s...', flash: 'red' },
+		edge: { label: 'Waiting... 15s...' },
+		stripe: { label: 'Still processing...' },
+	},
+	{
+		app: { label: 'Thread blocked 30s!', flash: 'red' },
+		edge: { label: '30s... no timeout!', dotColor: 'bg-red-500' },
+		stripe: { label: 'Finally responding', flash: 'idle' },
+	},
+	{
+		app: {
+			label: '504 Gateway Timeout',
+			flash: 'red',
+			threads: [...DEFAULT_THREADS],
+			queueLabel: 'Customer lost',
+		},
+		edge: { active: false, label: '30s wasted, thread freed' },
+		stripe: { label: 'Response wasted', flash: 'idle', status: 'Healthy' },
+	},
+];
+
+const STRIPE_503_FRAMES: AnimFrame[] = [
+	{
+		app: {
+			label: 'Checking payment status...',
+			flash: 'idle',
+			threads: [...DEFAULT_THREADS],
+		},
+		edge: {
+			active: true,
+			reverse: false,
+			label: 'GET /v1/charges/ch_abc',
+			dotColor: 'bg-cyan-500',
+		},
+		stripe: { label: 'Temporary error', flash: 'amber', status: '503' },
+	},
+	{
+		app: { label: 'Error received', flash: 'amber' },
+		edge: {
+			active: true,
+			reverse: true,
+			label: '503 Service Unavailable',
+			dotColor: 'bg-red-500',
+		},
+		stripe: { label: '503 Service Unavailable', flash: 'red' },
+	},
+	{
+		app: { label: 'No retry attempted', flash: 'red' },
+		edge: { active: false, label: 'Gave up after 1 try' },
+		stripe: {
+			label: 'Would succeed on retry...',
+			flash: 'idle',
+			status: 'Recovering',
+		},
+	},
+	{
+		app: {
+			label: 'Customer left wondering',
+			flash: 'red',
+			queueLabel: '"Did my payment go through?"',
+		},
+		edge: { active: false, label: '' },
+		stripe: { label: 'Back to healthy', flash: 'idle', status: 'Healthy' },
+	},
+];
+
+const STRIPE_DOWN_FRAMES: AnimFrame[] = [
+	{
+		app: {
+			label: 'Black Friday! 50 checkouts',
+			flash: 'idle',
+			threads: [...DEFAULT_THREADS],
+		},
+		edge: {
+			active: true,
+			reverse: false,
+			label: '50x POST /v1/charges',
+			dotColor: 'bg-red-500',
+		},
+		stripe: { label: 'COMPLETE OUTAGE', flash: 'red', status: 'Down' },
+	},
+	{
+		app: {
+			label: 'Threads draining...',
+			flash: 'amber',
+			threads: ['available', 'available', 'available', 'blocked', 'blocked'],
+		},
+		edge: { active: true, label: 'All requests hanging...' },
+		stripe: { label: 'No response', flash: 'red' },
+	},
+	{
+		app: {
+			label: '1 thread left!',
+			flash: 'red',
+			threads: ['available', 'blocked', 'blocked', 'blocked', 'blocked'],
+			queueLabel: '45 requests waiting',
+		},
+		edge: { label: 'Still no response...' },
+		stripe: { label: 'No response', flash: 'red' },
+	},
+	{
+		app: {
+			label: 'ALL THREADS BLOCKED',
+			flash: 'red',
+			threads: ['blocked', 'blocked', 'blocked', 'blocked', 'blocked'],
+			queueLabel: 'GET /products... blocked!',
+		},
+		edge: { active: false, label: '' },
+		stripe: { label: 'No response', flash: 'red' },
+	},
+	{
+		app: {
+			label: 'Entire app unresponsive',
+			flash: 'red',
+			queueLabel: 'Nothing works',
+		},
+		edge: { label: 'No circuit breaker to stop this' },
+		stripe: { label: 'No response', flash: 'red' },
+	},
+];
+
+const PROBE_FRAMES: Record<string, AnimFrame[]> = {
+	'slow-stripe': SLOW_STRIPE_FRAMES,
+	'stripe-503': STRIPE_503_FRAMES,
+	'stripe-down': STRIPE_DOWN_FRAMES,
+};
+
+// ─── Reward animation frames ──────────────────────────────────────────
+
+const REWARD_SLOW_FRAMES: AnimFrame[] = [
+	{
+		app: {
+			label: 'Processing checkout...',
+			flash: 'idle',
+			threads: [...DEFAULT_THREADS],
+			timeoutLabel: '10s limit',
+			timeoutFlash: 'green',
+			retryLabel: '3x backoff',
+			retryFlash: 'green',
+			circuitLabel: 'CLOSED',
+			circuitFlash: 'green',
+		},
+		edge: {
+			active: true,
+			reverse: false,
+			label: 'POST /v1/charges { amount: 5000 }',
+			dotColor: 'bg-cyan-500',
+		},
+		stripe: { label: 'Responding slowly...', flash: 'amber', status: 'Slow' },
+	},
+	{
+		app: {
+			label: 'Waiting for Stripe...',
+			flash: 'amber',
+			threads: ['available', 'available', 'available', 'available', 'blocked'],
+		},
+		edge: { active: false, label: 'Waiting... 5s' },
+		stripe: { label: 'Still processing...', flash: 'amber' },
+	},
+	{
+		app: {
+			label: 'Timeout triggered!',
+			flash: 'amber',
+			timeoutLabel: 'TIMEOUT!',
+			timeoutFlash: 'amber',
+			threads: [...DEFAULT_THREADS],
+		},
+		edge: {
+			active: true,
+			reverse: true,
+			label: 'Faraday::TimeoutError',
+			dotColor: 'bg-amber-500',
+		},
+		stripe: { label: 'Still processing...', flash: 'amber' },
+	},
+	{
+		app: {
+			label: 'Thread freed in 10s (was 30s)',
+			flash: 'green',
+			timeoutLabel: '10s limit',
+			timeoutFlash: 'green',
+		},
+		edge: { active: false, label: 'Thread freed, customer gets clean error' },
+		stripe: { label: 'Never finished', flash: 'idle', status: 'Slow' },
+	},
+];
+
+const REWARD_503_FRAMES: AnimFrame[] = [
+	{
+		app: {
+			label: 'Checking payment status...',
+			flash: 'idle',
+			threads: [...DEFAULT_THREADS],
+			timeoutLabel: '10s limit',
+			timeoutFlash: 'green',
+			retryLabel: '3x backoff',
+			retryFlash: 'green',
+			circuitLabel: 'CLOSED',
+			circuitFlash: 'green',
+		},
+		edge: {
+			active: true,
+			reverse: false,
+			label: 'GET /v1/charges/ch_abc',
+			dotColor: 'bg-cyan-500',
+		},
+		stripe: { label: 'Temporary error', flash: 'amber', status: '503' },
+	},
+	{
+		app: { label: 'Error received', flash: 'amber' },
+		edge: {
+			active: true,
+			reverse: true,
+			label: '503 Service Unavailable',
+			dotColor: 'bg-red-500',
+		},
+		stripe: { label: '503 Service Unavailable', flash: 'red' },
+	},
+	{
+		app: {
+			label: 'Retrying...',
+			flash: 'amber',
+			retryLabel: 'RETRYING (1/3)',
+			retryFlash: 'amber',
+		},
+		edge: { active: false, label: 'Backing off 0.5s...' },
+		stripe: { label: 'Recovering...', flash: 'amber' },
+	},
+	{
+		app: {
+			label: 'Retry sent',
+			flash: 'idle',
+			retryLabel: '3x backoff',
+			retryFlash: 'green',
+		},
+		edge: {
+			active: true,
+			reverse: false,
+			label: 'GET /v1/charges/ch_abc (retry)',
+			dotColor: 'bg-cyan-500',
+		},
+		stripe: { label: 'Back to healthy', flash: 'idle', status: 'Healthy' },
+	},
+	{
+		app: { label: 'Payment status retrieved!', flash: 'green' },
+		edge: {
+			active: true,
+			reverse: true,
+			label: '200 OK',
+			dotColor: 'bg-emerald-500',
+		},
+		stripe: { label: '200 OK', flash: 'green' },
+	},
+	{
+		app: { label: 'Customer never noticed', flash: 'green' },
+		edge: { active: false, label: '' },
+		stripe: { label: 'Healthy', flash: 'idle', status: 'Healthy' },
+	},
+];
+
+const REWARD_CIRCUIT_FRAMES: AnimFrame[] = [
+	{
+		app: {
+			label: 'Black Friday! 50 checkouts',
+			flash: 'idle',
+			threads: [...DEFAULT_THREADS],
+			timeoutLabel: '10s limit',
+			timeoutFlash: 'green',
+			retryLabel: '3x backoff',
+			retryFlash: 'green',
+			circuitLabel: 'CLOSED',
+			circuitFlash: 'green',
+		},
+		edge: {
+			active: true,
+			reverse: false,
+			label: '50x POST /v1/charges',
+			dotColor: 'bg-red-500',
+		},
+		stripe: { label: 'COMPLETE OUTAGE', flash: 'red', status: 'Down' },
+	},
+	{
+		app: {
+			label: '5 failures counted...',
+			flash: 'amber',
+			threads: ['available', 'available', 'available', 'blocked', 'blocked'],
+			circuitLabel: '3/5 failures',
+			circuitFlash: 'amber',
+		},
+		edge: { active: true, label: 'Requests failing...' },
+		stripe: { label: 'No response', flash: 'red' },
+	},
+	{
+		app: {
+			label: 'Circuit breaker OPEN!',
+			flash: 'amber',
+			threads: [...DEFAULT_THREADS],
+			circuitLabel: 'OPEN (5 failures)',
+			circuitFlash: 'red',
+		},
+		edge: {
+			active: true,
+			reverse: true,
+			label: 'Stoplight::Error::RedLight',
+			dotColor: 'bg-red-500',
+		},
+		stripe: { label: 'Not contacted', flash: 'idle', status: 'Down' },
+	},
+	{
+		app: {
+			label: 'Fail-fast: 2ms per request',
+			flash: 'green',
+			queueLabel: '45 requests handled instantly',
+			circuitLabel: 'OPEN',
+			circuitFlash: 'red',
+		},
+		edge: { active: false, label: 'Circuit open, Stripe bypassed' },
+		stripe: { label: 'Not contacted', flash: 'idle' },
+	},
+	{
+		app: {
+			label: 'App healthy! Only payments degraded',
+			flash: 'green',
+			threads: [...DEFAULT_THREADS],
+			queueLabel: 'Homepage, search still work',
+		},
+		edge: { active: false, label: '' },
+		stripe: { label: 'Not contacted', flash: 'idle' },
+	},
+];
+
+const REWARD_FAST_FRAMES: AnimFrame[] = [
+	{
+		app: {
+			label: 'Processing checkout...',
+			flash: 'idle',
+			threads: [...DEFAULT_THREADS],
+			timeoutLabel: '10s limit',
+			timeoutFlash: 'green',
+			retryLabel: '3x backoff',
+			retryFlash: 'green',
+			circuitLabel: 'CLOSED',
+			circuitFlash: 'green',
+		},
+		edge: {
+			active: true,
+			reverse: false,
+			label: 'POST /v1/charges { amount: 5000 }',
+			dotColor: 'bg-cyan-500',
+		},
+		stripe: { label: 'Processing...', flash: 'idle', status: 'Healthy' },
+	},
+	{
+		app: { label: 'Response in 200ms', flash: 'green' },
+		edge: {
+			active: true,
+			reverse: true,
+			label: '200 OK',
+			dotColor: 'bg-emerald-500',
+		},
+		stripe: { label: '200 OK', flash: 'green' },
+	},
+	{
+		app: { label: 'Payment created!', flash: 'green' },
+		edge: { active: false, label: '' },
+		stripe: { label: 'Healthy', flash: 'idle', status: 'Healthy' },
+	},
+];
+
+const REWARD_400_FRAMES: AnimFrame[] = [
+	{
+		app: {
+			label: 'Processing checkout...',
+			flash: 'idle',
+			threads: [...DEFAULT_THREADS],
+			timeoutLabel: '10s limit',
+			timeoutFlash: 'green',
+			retryLabel: '3x backoff',
+			retryFlash: 'green',
+			circuitLabel: 'CLOSED',
+			circuitFlash: 'green',
+		},
+		edge: {
+			active: true,
+			reverse: false,
+			label: 'POST /v1/charges (bad params)',
+			dotColor: 'bg-cyan-500',
+		},
+		stripe: { label: 'Validating...', flash: 'idle', status: 'Healthy' },
+	},
+	{
+		app: { label: 'Client error received', flash: 'amber' },
+		edge: {
+			active: true,
+			reverse: true,
+			label: '400 Bad Request',
+			dotColor: 'bg-red-500',
+		},
+		stripe: { label: '400 Bad Request', flash: 'amber' },
+	},
+	{
+		app: {
+			label: 'Circuit: NOT counted (4xx filtered)',
+			flash: 'idle',
+			circuitLabel: 'CLOSED (4xx filtered)',
+			circuitFlash: 'green',
+		},
+		edge: { active: false, label: '' },
+		stripe: { label: 'Healthy', flash: 'idle', status: 'Healthy' },
+	},
+];
+
+const REWARD_FRAME_MAP: Record<string, AnimFrame[]> = {
+	'slow-timeout': REWARD_SLOW_FRAMES,
+	'retry-503': REWARD_503_FRAMES,
+	'circuit-open': REWARD_CIRCUIT_FRAMES,
+	'fast-charge': REWARD_FAST_FRAMES,
+	'client-error': REWARD_400_FRAMES,
+};
+
 // ─── Build step definitions ────────────────────────────────────────────
+
 const STEP_DEFS = [
-	{ id: 'install-faraday', label: 'Install HTTP Client' },
-	{ id: 'install-stoplight', label: 'Install Circuit Breaker' },
-	{ id: 'configure-timeout', label: 'Configure Timeout' },
-	{ id: 'configure-retry', label: 'Configure Retry' },
-	{ id: 'configure-circuit', label: 'Configure Circuit Breaker' },
-	{ id: 'build-service', label: 'Build Payment Service' },
-] as const;
+	{ id: 'install-faraday', title: 'Install HTTP Client' },
+	{ id: 'install-stoplight', title: 'Install Circuit Breaker' },
+	{ id: 'configure-timeout', title: 'Configure Timeout' },
+	{ id: 'configure-retry', title: 'Configure Retry' },
+	{ id: 'configure-circuit', title: 'Configure Circuit Breaker' },
+	{ id: 'build-service', title: 'Build Payment Service' },
+];
 
 const INSTALL_FARADAY_COMMANDS = [
 	{
@@ -215,17 +780,6 @@ end`,
 			'Default timeouts are 60+ seconds. A stuck request blocks a thread that long, exhausting your thread pool under load.',
 	},
 	{
-		id: 'correct',
-		label: 'Set open_timeout and timeout',
-		code: `@connection = Faraday.new(url: base_url) do |f|
-  f.request :json
-  f.response :json
-  f.options.open_timeout = 3   # 3s to connect
-  f.options.timeout = 10       # 10s total response
-end`,
-		correct: true,
-	},
-	{
 		id: 'wrong-too-long',
 		label: 'Set timeout to 60 seconds',
 		code: `@connection = Faraday.new(url: base_url) do |f|
@@ -236,6 +790,17 @@ end`,
 		correct: false,
 		feedback:
 			'60 seconds is far too long. Under load, slow requests pile up and exhaust your thread pool. Keep timeouts under 15 seconds.',
+	},
+	{
+		id: 'correct',
+		label: 'Set open_timeout and timeout',
+		code: `@connection = Faraday.new(url: base_url) do |f|
+  f.request :json
+  f.response :json
+  f.options.open_timeout = 3   # 3s to connect
+  f.options.timeout = 10       # 10s total response
+end`,
+		correct: true,
 	},
 ];
 
@@ -254,6 +819,19 @@ const CONFIGURE_RETRY_OPTIONS = [
 			'Retrying POST requests without idempotency is dangerous. A successful charge that timed out would be charged again on retry.',
 	},
 	{
+		id: 'wrong-no-backoff',
+		label: 'Retry immediately (no backoff)',
+		code: `f.request :retry, {
+  max: 3,
+  interval: 0,
+  retry_statuses: [429, 500, 502, 503, 504],
+  methods: [:get, :put, :delete]
+}`,
+		correct: false,
+		feedback:
+			'Retrying immediately creates a thundering herd. All clients retry at the same time, overwhelming the recovering service.',
+	},
+	{
 		id: 'correct',
 		label: 'Retry with backoff, skip non-idempotent',
 		code: `f.request :retry, {
@@ -266,19 +844,6 @@ const CONFIGURE_RETRY_OPTIONS = [
   # POST excluded: not safe without idempotency key
 }`,
 		correct: true,
-	},
-	{
-		id: 'wrong-no-backoff',
-		label: 'Retry immediately (no backoff)',
-		code: `f.request :retry, {
-  max: 3,
-  interval: 0,
-  retry_statuses: [429, 500, 502, 503, 504],
-  methods: [:get, :put, :delete]
-}`,
-		correct: false,
-		feedback:
-			'Retrying immediately creates a thundering herd. All clients retry at the same time, overwhelming the recovering service.',
 	},
 ];
 
@@ -341,6 +906,35 @@ end`,
 			'HTTP calls in controllers violate the service object pattern. Business logic and external integrations belong in services.',
 	},
 	{
+		id: 'wrong-no-circuit',
+		label: 'Service without circuit breaker',
+		code: `class ProcessPayment < ApplicationService
+  Result = Data.define(:success?, :payment, :errors)
+
+  def initialize(user:, params:)
+    @user = user
+    @params = params
+  end
+
+  def call
+    validation = PaymentContract.new.call(@params)
+    if validation.failure?
+      return Result.new(success?: false, payment: nil,
+        errors: validation.errors.to_h)
+    end
+
+    response = stripe_client.create_charge(@params)
+    payment = @user.payments.create!(
+      amount: @params[:amount], stripe_id: response.body["id"]
+    )
+    Result.new(success?: true, payment:, errors: {})
+  end
+end`,
+		correct: false,
+		feedback:
+			'This service has no circuit breaker. During an outage, every request still hits the failing API, wasting threads and amplifying the problem.',
+	},
+	{
 		id: 'correct',
 		label: 'Service with contract, circuit breaker, and Result',
 		code: `class ProcessPayment < ApplicationService
@@ -368,51 +962,25 @@ end`,
       .run { stripe_client.create_charge(@params) }
 
     payment = @user.payments.create!(
-      amount: @params[:amount], stripe_id: response["id"]
+      amount: @params[:amount], stripe_id: response.body["id"]
     )
     Result.new(success?: true, payment:, errors: {})
   rescue Stoplight::Error::RedLight
     Result.new(success?: false, payment: nil,
       errors: { payment: ["Service temporarily unavailable"] })
   end
+
+  private
+
+  def stripe_client
+    @stripe_client ||= StripeClient.new
+  end
 end`,
 		correct: true,
 	},
-	{
-		id: 'wrong-no-circuit',
-		label: 'Service without circuit breaker',
-		code: `class ProcessPayment < ApplicationService
-  Result = Data.define(:success?, :payment, :errors)
-
-  def initialize(user:, params:)
-    @user = user
-    @params = params
-  end
-
-  def call
-    validation = PaymentContract.new.call(@params)
-    if validation.failure?
-      return Result.new(success?: false, payment: nil,
-        errors: validation.errors.to_h)
-    end
-
-    response = stripe_client.create_charge(@params)
-    payment = @user.payments.create!(
-      amount: @params[:amount], stripe_id: response["id"]
-    )
-    Result.new(success?: true, payment:, errors: {})
-  end
-end`,
-		correct: false,
-		feedback:
-			'This service has no circuit breaker. During an outage, every request still hits the failing API, wasting threads and amplifying the problem.',
-	},
 ];
 
-const TERMINAL_STEP_MAP: ({
-	commands: typeof INSTALL_FARADAY_COMMANDS;
-	outputLines: { text: string; color: 'green' | 'cyan' }[];
-} | null)[] = [
+const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
 	{
 		commands: INSTALL_FARADAY_COMMANDS,
 		outputLines: [
@@ -438,74 +1006,128 @@ const TERMINAL_STEP_MAP: ({
 ];
 
 // ─── Stress test scenarios ─────────────────────────────────────────────
+
 const STRESS_SCENARIOS = [
 	{
-		id: 'fast-charge',
-		label: 'POST charge (fast response)',
-		description: 'Stripe responds in 200ms, charge succeeds',
-		method: 'POST' as const,
+		id: 'slow-timeout',
+		label: 'POST create payment (with timeout)',
+		description: 'Same slow Stripe, but timeout kills it at 10s',
+		method: 'POST',
 		path: '/api/v1/payments',
-		actor: 'user',
-		expectedResult: 'allowed' as const,
-	},
-	{
-		id: 'slow-charge',
-		label: 'POST charge (slow, timeout)',
-		description: 'Stripe takes 15s, timeout kicks in at 10s',
-		method: 'POST' as const,
-		path: '/api/v1/payments',
-		actor: 'user',
+		actor: 'customer',
 		expectedResult: 'blocked' as const,
+		responseLines: [
+			{ text: 'POST /api/v1/payments -> Stripe API', color: 'cyan' },
+			{ text: 'Timeout: 10s limit reached!', color: 'yellow' },
+			{ text: 'Thread freed after 10s (was 30s before)', color: 'green' },
+			{ text: '503 - { "error": { "code": "TIMEOUT" } }', color: 'red' },
+		],
+		story: [
+			'Same customer, same slow Stripe.',
+			'But now the 10-second timeout catches it.',
+			'Thread freed after 10s instead of 30s.',
+			'Customer gets a clean error: "Please try again."',
+			'4 out of 5 threads stayed available the entire time.',
+		],
 	},
 	{
-		id: 'transient-503',
-		label: 'GET balance (503, retried)',
-		description: 'First attempt 503, retry succeeds',
-		method: 'GET' as const,
-		path: '/api/v1/balance',
-		actor: 'user',
+		id: 'retry-503',
+		label: 'GET check payment status (with retry)',
+		description: 'Same 503, but retry middleware handles it',
+		method: 'GET',
+		path: '/api/v1/payments/ch_abc/status',
+		actor: 'customer',
 		expectedResult: 'allowed' as const,
+		responseLines: [
+			{
+				text: 'GET /api/v1/payments/ch_abc/status -> Stripe API',
+				color: 'cyan',
+			},
+			{ text: 'Attempt 1: 503 Service Unavailable', color: 'yellow' },
+			{ text: 'Retry middleware: backing off 0.5s...', color: 'yellow' },
+			{ text: 'Attempt 2: 200 OK', color: 'green' },
+		],
+		story: [
+			'Same customer checking the same payment.',
+			'Same 503 from Stripe on the first attempt.',
+			'But now retry middleware catches it, waits 0.5s, retries.',
+			'Second attempt succeeds.',
+			'Customer sees their payment status without ever knowing anything went wrong.',
+		],
 	},
 	{
 		id: 'circuit-open',
-		label: 'POST charge (circuit open)',
-		description: 'Circuit breaker is open, fails fast without calling Stripe',
-		method: 'POST' as const,
+		label: 'Black Friday traffic (with circuit breaker)',
+		description: 'Same outage, but circuit breaker protects the app',
+		method: 'POST',
 		path: '/api/v1/payments',
-		actor: 'user',
+		actor: 'customer',
 		expectedResult: 'blocked' as const,
+		responseLines: [
+			{ text: 'POST /api/v1/payments -> Circuit breaker', color: 'cyan' },
+			{ text: 'Stoplight: circuit OPEN (5 failures)', color: 'red' },
+			{ text: 'Fail-fast: 2ms (was 30s before!)', color: 'green' },
+			{ text: '503 - { "error": { "code": "CIRCUIT_OPEN" } }', color: 'red' },
+		],
+		story: [
+			'Same Black Friday, same Stripe outage, same 50 customers.',
+			'First 5 requests fail (circuit breaker counting: 1, 2, 3, 4, 5).',
+			'After 5 failures, circuit breaker opens.',
+			'Requests 6-50 fail instantly in milliseconds, never reaching Stripe.',
+			'All threads stay free. Homepage, search, everything still works.',
+			'Only payments are degraded. The rest of the app is fine.',
+		],
 	},
 	{
-		id: 'idempotent-retry',
-		label: 'GET invoice (timeout, retried)',
-		description: 'GET request times out, safely retried with backoff',
-		method: 'GET' as const,
-		path: '/api/v1/invoices/42',
-		actor: 'user',
+		id: 'fast-charge',
+		label: 'POST charge (fast response)',
+		description: 'Stripe responds in 200ms, all middleware passes through',
+		method: 'POST',
+		path: '/api/v1/payments',
+		actor: 'customer',
 		expectedResult: 'allowed' as const,
+		responseLines: [
+			{ text: 'POST /api/v1/payments -> Stripe API', color: 'cyan' },
+			{ text: 'Timeout: 200ms (within 10s limit)', color: 'green' },
+			{ text: 'Circuit breaker: CLOSED (healthy)', color: 'green' },
+			{ text: '200 OK - Payment ch_abc123 created', color: 'green' },
+		],
+		story: [
+			'Normal day, Stripe is healthy.',
+			'Customer pays, response in 200ms.',
+			'All three middleware layers pass through without triggering.',
+			'Resilience adds no overhead when things work.',
+		],
 	},
 	{
 		id: 'client-error',
 		label: 'POST charge (400 bad params)',
 		description: 'Client error, circuit breaker ignores it',
-		method: 'POST' as const,
+		method: 'POST',
 		path: '/api/v1/payments',
-		actor: 'user',
+		actor: 'customer',
 		expectedResult: 'blocked' as const,
+		responseLines: [
+			{ text: 'POST /api/v1/payments -> Stripe API', color: 'cyan' },
+			{ text: 'Stripe: 400 Bad Request (missing amount)', color: 'red' },
+			{ text: 'Circuit breaker: NOT counted (client error)', color: 'green' },
+			{ text: '400 - { "error": { "code": "VALIDATION" } }', color: 'red' },
+		],
+		story: [
+			'Customer submits invalid payment data (missing amount).',
+			'Stripe returns 400 Bad Request.',
+			'Circuit breaker does NOT count this failure.',
+			'Only server errors (5xx) and timeouts trip the breaker.',
+			'Bad user input will not accidentally open the circuit.',
+		],
 	},
 ];
 
-// ─── Visualization types ───────────────────────────────────────────────
-interface GateState {
-	timeout: 'inactive' | 'active' | 'triggered';
-	retry: 'inactive' | 'active' | 'triggered';
-	circuit: 'inactive' | 'closed' | 'open' | 'half-open';
-}
-
 // ─── Code preview builder ──────────────────────────────────────────────
+
 function getCodeFiles(
-	phase: 'observe' | 'build' | 'activate' | 'reward',
-	furthestStep: number,
+	phase: 'observe' | 'build' | 'reward',
+	completedStep: number,
 ) {
 	if (phase === 'observe') {
 		return [
@@ -548,27 +1170,28 @@ end`,
 	if (phase === 'build') {
 		const files: { filename: string; language: string; code: string }[] = [];
 
-		if (furthestStep >= 0) {
+		if (completedStep >= 0) {
 			files.push({
 				filename: 'Gemfile',
 				language: 'ruby',
-				code: `gem "faraday"${furthestStep >= 1 ? '\ngem "stoplight"' : ''}`,
+				code: `gem "faraday"${completedStep >= 1 ? '\ngem "stoplight"' : ''}`,
 			});
 		}
 
-		if (furthestStep >= 2) {
+		if (completedStep >= 2) {
 			files.push({
 				filename: 'app/clients/stripe_client.rb',
 				language: 'ruby',
 				code: `class StripeClient
   def initialize
     @connection = Faraday.new(url: 'https://api.stripe.com') do |f|
-      f.request :authorization, 'Bearer', Rails.application.credentials.stripe[:secret_key]
+      f.request :authorization, 'Bearer',
+        Rails.application.credentials.stripe[:secret_key]
       f.request :json
       f.response :json
       f.options.open_timeout = 3
       f.options.timeout = 10${
-				furthestStep >= 3
+				completedStep >= 3
 					? `
       f.request :retry, {
         max: 3,
@@ -590,18 +1213,7 @@ end`,
 			});
 		}
 
-		if (furthestStep >= 4) {
-			files.push({
-				filename: 'app/services/process_payment.rb',
-				language: 'ruby',
-				code: `class ProcessPayment < ApplicationService
-  Result = Data.define(:success?, :payment, :errors)
-  # ... (circuit breaker wraps stripe_client calls)
-end`,
-			});
-		}
-
-		if (furthestStep >= 5) {
+		if (completedStep >= 5) {
 			files.push({
 				filename: 'app/services/process_payment.rb',
 				language: 'ruby',
@@ -648,17 +1260,22 @@ end`,
 		}
 
 		if (files.length === 0) {
-			files.push({
-				filename: 'Gemfile',
-				language: 'ruby',
-				code: '# Step 1: Install the HTTP client gem...',
-			});
+			return [
+				{
+					filename: 'app/services/process_payment.rb',
+					language: 'ruby',
+					code: `class ProcessPayment < ApplicationService
+  # Currently using HTTParty with no resilience...
+  # Step 1: Install an HTTP client with middleware support
+end`,
+				},
+			];
 		}
 
 		return files;
 	}
 
-	// activate + reward
+	// reward
 	return [
 		{
 			filename: 'app/clients/stripe_client.rb',
@@ -748,303 +1365,401 @@ end`,
 	];
 }
 
+// ─── Custom React Flow nodes ──────────────────────────────────────────
+
+const FLASH_BORDER: Record<ZoneFlash, string> = {
+	idle: 'border-border',
+	red: 'border-red-500 dark:border-red-400',
+	green: 'border-emerald-500 dark:border-emerald-400',
+	amber: 'border-amber-500 dark:border-amber-400',
+};
+
+const FLASH_BG: Record<ZoneFlash, string> = {
+	idle: 'bg-card',
+	red: 'bg-red-50 dark:bg-red-950/30',
+	green: 'bg-emerald-50 dark:bg-emerald-950/30',
+	amber: 'bg-amber-50 dark:bg-amber-950/30',
+};
+
+interface AppServerNodeData extends AppServerVizState {
+	isReward: boolean;
+	[key: string]: unknown;
+}
+
+const AppServerNode = memo(({ data }: { data: AppServerNodeData }) => {
+	const d = data as AppServerNodeData;
+	const showMiddleware = d.isReward && d.timeoutLabel;
+
+	return (
+		<div
+			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 ${showMiddleware ? 'w-72' : 'w-56'} p-3`}
+		>
+			<FlowHandles />
+			{/* Header */}
+			<div className="flex items-center gap-2 mb-2">
+				<Server className="w-4 h-4 text-foreground shrink-0" />
+				<span className="text-xs font-semibold text-foreground">
+					Rails App (Puma)
+				</span>
+			</div>
+
+			{/* Thread pool */}
+			<div className="mb-2">
+				<div className="text-[10px] text-muted-foreground mb-1">
+					Thread Pool
+				</div>
+				<div className="flex gap-1">
+					{THREAD_KEYS.map((key, idx) => {
+						const t = d.threads[idx] ?? 'available';
+						return (
+							<div
+								className={`h-5 flex-1 rounded text-[9px] font-mono flex items-center justify-center transition-colors duration-300 ${
+									t === 'available'
+										? 'bg-emerald-200 dark:bg-emerald-800/50 text-emerald-700 dark:text-emerald-300'
+										: t === 'freed'
+											? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
+											: 'bg-red-200 dark:bg-red-800/50 text-red-700 dark:text-red-300'
+								}`}
+								key={key}
+							>
+								T{idx + 1}
+							</div>
+						);
+					})}
+				</div>
+			</div>
+
+			{/* Status */}
+			<div className="text-xs text-foreground font-medium truncate">
+				{d.label}
+			</div>
+			{d.queueLabel && (
+				<div className="text-[10px] text-muted-foreground mt-0.5 truncate">
+					{d.queueLabel}
+				</div>
+			)}
+
+			{/* Middleware sub-panels (reward only) */}
+			{showMiddleware && (
+				<div className="flex gap-1 mt-2 pt-2 border-t border-border">
+					{[
+						{
+							icon: Timer,
+							label: 'Timeout',
+							value: d.timeoutLabel,
+							flash: d.timeoutFlash,
+						},
+						{
+							icon: RefreshCw,
+							label: 'Retry',
+							value: d.retryLabel,
+							flash: d.retryFlash,
+						},
+						{
+							icon: Unplug,
+							label: 'Circuit',
+							value: d.circuitLabel,
+							flash: d.circuitFlash,
+						},
+					].map((mw) => (
+						<div
+							className={`flex-1 rounded border ${FLASH_BORDER[mw.flash]} ${FLASH_BG[mw.flash]} p-1 text-center transition-colors duration-300`}
+							key={mw.label}
+						>
+							<mw.icon className="w-3 h-3 mx-auto text-muted-foreground" />
+							<div className="text-[8px] text-muted-foreground">{mw.label}</div>
+							<div className="text-[9px] font-semibold text-foreground truncate">
+								{mw.value}
+							</div>
+						</div>
+					))}
+				</div>
+			)}
+		</div>
+	);
+});
+
+interface StripeNodeData extends StripeVizState {
+	[key: string]: unknown;
+}
+
+const StripeNode = memo(({ data }: { data: StripeNodeData }) => {
+	const d = data as StripeNodeData;
+
+	return (
+		<div
+			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-40 p-3`}
+		>
+			<FlowHandles />
+			<div className="flex items-center gap-2 mb-2">
+				<Globe className="w-4 h-4 text-foreground shrink-0" />
+				<span className="text-xs font-semibold text-foreground">
+					Stripe API
+				</span>
+			</div>
+			<Badge
+				className={`text-[10px] ${
+					d.status === 'Healthy'
+						? 'text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700'
+						: d.status === 'Down' || d.status === '503'
+							? 'text-red-700 dark:text-red-400 border-red-300 dark:border-red-700'
+							: 'text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700'
+				}`}
+				variant="outline"
+			>
+				{d.status}
+			</Badge>
+			<div className="text-xs text-foreground font-medium mt-2 truncate">
+				{d.label}
+			</div>
+		</div>
+	);
+});
+
+// ─── Custom edge ──────────────────────────────────────────────────────
+
+function toDotFill(twClass: string): string {
+	if (twClass.includes('emerald')) return '#10b981';
+	if (twClass.includes('red')) return '#ef4444';
+	if (twClass.includes('amber')) return '#f59e0b';
+	if (twClass.includes('cyan')) return '#06b6d4';
+	return '#a1a1aa';
+}
+
+interface ApiEdgeData extends EdgeVizState {
+	[key: string]: unknown;
+}
+
+const ApiEdge = memo(
+	({ id, sourceX, sourceY, targetX, targetY, data }: EdgeProps) => {
+		const d = (data ?? DEFAULT_EDGE) as ApiEdgeData;
+		const [edgePath, labelX, labelY] = getStraightPath({
+			sourceX,
+			sourceY,
+			targetX,
+			targetY,
+		});
+
+		const fill = toDotFill(d.dotColor);
+		const dotPath = d.reverse ? reversePath(edgePath) : edgePath;
+
+		const dots: DotConfig[] = d.active
+			? [0, 1, 2].map((i) => ({
+					id: `${id}-d${i}`,
+					color: fill,
+					r: 5,
+					dur: '1.2s',
+					begin: i === 0 ? '0s' : `-${i * 0.4}s`,
+				}))
+			: [];
+
+		return (
+			<>
+				<BaseEdge
+					id={id}
+					path={edgePath}
+					style={{
+						stroke: d.active ? fill : '#a1a1aa',
+						strokeWidth: 2,
+						strokeDasharray: '6 4',
+					}}
+				/>
+				{dots.length > 0 && <AnimatedDots dots={dots} path={dotPath} />}
+				{d.label && (
+					<EdgeLabelRenderer>
+						<div
+							className="nodrag nopan pointer-events-none absolute text-[10px] font-mono text-foreground bg-background/90 px-1.5 py-0.5 rounded border border-border max-w-48 text-center"
+							style={{
+								transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY + 20}px)`,
+							}}
+						>
+							{d.label}
+						</div>
+					</EdgeLabelRenderer>
+				)}
+			</>
+		);
+	},
+);
+
+const apiNodeTypes = { appServer: AppServerNode, stripe: StripeNode };
+const apiEdgeTypes = { api: ApiEdge };
+
 // ─── Main component ────────────────────────────────────────────────────
+
 export function Level38ExternalAPIs({ onComplete }: LevelComponentProps) {
-	const [phase, setPhase] = useState<
-		'observe' | 'build' | 'activate' | 'reward'
-	>('observe');
+	const [phase, setPhase] = useState<'observe' | 'build' | 'reward'>('observe');
+	const isReward = phase === 'reward';
+
+	// ── Viz state ──
+	const [appState, setAppState] = useState<AppServerVizState>(DEFAULT_APP);
+	const [stripeState, setStripeState] =
+		useState<StripeVizState>(DEFAULT_STRIPE);
+	const [edgeState, setEdgeState] = useState<EdgeVizState>(DEFAULT_EDGE);
+	const [vizAnimating, setVizAnimating] = useState(false);
+	const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+	const resetViz = useCallback(() => {
+		setAppState(isReward ? DEFAULT_APP_REWARD : DEFAULT_APP);
+		setStripeState(DEFAULT_STRIPE);
+		setEdgeState(DEFAULT_EDGE);
+	}, [isReward]);
+
+	const applyFrame = useCallback((frame: AnimFrame) => {
+		if (frame.app) setAppState((prev) => ({ ...prev, ...frame.app }));
+		if (frame.stripe) setStripeState((prev) => ({ ...prev, ...frame.stripe }));
+		if (frame.edge) setEdgeState((prev) => ({ ...prev, ...frame.edge }));
+	}, []);
+
+	const runAnimation = useCallback(
+		(frames: AnimFrame[], onDone?: () => void, frameDelay?: number) => {
+			const delay = frameDelay ?? ANIMATION_DURATION_MS;
+			for (const t of timersRef.current) clearTimeout(t);
+			timersRef.current = [];
+			resetViz();
+			setVizAnimating(true);
+
+			const newTimers: ReturnType<typeof setTimeout>[] = [];
+			for (let i = 0; i < frames.length; i++) {
+				const t = setTimeout(() => applyFrame(frames[i]), i * delay);
+				newTimers.push(t);
+			}
+			const tEnd = setTimeout(() => {
+				setVizAnimating(false);
+				onDone?.();
+			}, frames.length * delay);
+			newTimers.push(tEnd);
+			timersRef.current = newTimers;
+		},
+		[resetViz, applyFrame],
+	);
+
+	useEffect(() => {
+		return () => {
+			for (const t of timersRef.current) clearTimeout(t);
+		};
+	}, []);
 
 	// ── Observe phase ──
 	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
 		minRequired: DISCOVERY_DEFS.length,
 	});
 
-	const [flowPhase, setFlowPhase] = useState(-1);
-	const [gateState, setGateState] = useState<GateState>({
-		timeout: 'inactive',
-		retry: 'inactive',
-		circuit: 'inactive',
-	});
-	const [_lastProbeId, setLastProbeId] = useState<string | null>(null);
-	const flowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
 	const handleProbe = useCallback(
 		(probeId: string) => {
-			setLastProbeId(probeId);
+			if (vizAnimating) return;
 			const discoveries = PROBE_DISCOVERY_MAP[probeId];
 			if (discoveries) {
 				for (const d of discoveries) discoveryGating.discover(d);
 			}
-
-			setFlowPhase(0);
-
-			// Show different gate states based on probe
-			if (probeId === 'slow-stripe') {
-				setGateState({
-					timeout: 'inactive',
-					retry: 'inactive',
-					circuit: 'inactive',
-				});
-			} else if (probeId === 'stripe-503') {
-				setGateState({
-					timeout: 'inactive',
-					retry: 'inactive',
-					circuit: 'inactive',
-				});
-			} else if (probeId === 'stripe-down') {
-				setGateState({
-					timeout: 'inactive',
-					retry: 'inactive',
-					circuit: 'inactive',
-				});
-			}
-
-			if (flowTimerRef.current) clearTimeout(flowTimerRef.current);
-			flowTimerRef.current = setTimeout(() => {
-				setFlowPhase(-1);
-			}, ANIMATION_DURATION_MS * 3);
+			const frames = PROBE_FRAMES[probeId];
+			const delay =
+				probeId === 'stripe-down'
+					? ANIMATION_DURATION_MS * 1.5
+					: ANIMATION_DURATION_MS;
+			if (frames) runAnimation(frames, undefined, delay);
 		},
-		[discoveryGating],
+		[vizAnimating, discoveryGating, runAnimation],
 	);
-
-	useEffect(() => {
-		return () => {
-			if (flowTimerRef.current) clearTimeout(flowTimerRef.current);
-		};
-	}, []);
 
 	// ── Build phase ──
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
+	const [wrongFeedback, setWrongFeedback] = useState<string | null>(null);
 
-	useEffect(() => {
-		if (stepper.isComplete && phase === 'build') {
-			setPhase('activate');
-		}
-	}, [stepper.isComplete, phase]);
+	const handleOptionSelect = useCallback(
+		(optionId: string) => {
+			const allOptions: Record<number, typeof CONFIGURE_TIMEOUT_OPTIONS> = {
+				2: CONFIGURE_TIMEOUT_OPTIONS,
+				3: CONFIGURE_RETRY_OPTIONS,
+				4: CONFIGURE_CIRCUIT_OPTIONS,
+				5: BUILD_SERVICE_OPTIONS,
+			};
+			const options = allOptions[stepper.currentStep];
+			if (!options) return;
+			const option = options.find((o) => o.id === optionId);
+			if (!option) return;
+			if (option.correct) {
+				setWrongFeedback(null);
+				stepper.completeStep();
+			} else {
+				setWrongFeedback(option.feedback ?? 'Not quite right.');
+				stepper.recordWrongAttempt(option.feedback ?? 'Not quite right.');
+			}
+		},
+		[stepper],
+	);
 
 	// ── Reward phase ──
 	const stressTest = useStressTest(STRESS_SCENARIOS);
-	const [rewardFlowPhase, setRewardFlowPhase] = useState(-1);
-	const [rewardGateState, setRewardGateState] = useState<GateState>({
-		timeout: 'active',
-		retry: 'active',
-		circuit: 'closed',
-	});
-	const rewardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-	const handleStressFire = useCallback(
+	const handleFireScenario = useCallback(
 		(scenarioId: string) => {
+			if (vizAnimating) return;
 			stressTest.fireRequest(scenarioId);
-			const scenario = STRESS_SCENARIOS.find((s) => s.id === scenarioId);
-			if (!scenario) return;
-
-			setRewardFlowPhase(0);
-
-			// Update gate visualization based on scenario
-			if (scenarioId === 'slow-charge') {
-				setRewardGateState({
-					timeout: 'triggered',
-					retry: 'active',
-					circuit: 'closed',
-				});
-			} else if (scenarioId === 'circuit-open') {
-				setRewardGateState({
-					timeout: 'active',
-					retry: 'active',
-					circuit: 'open',
-				});
-			} else if (
-				scenarioId === 'transient-503' ||
-				scenarioId === 'idempotent-retry'
-			) {
-				setRewardGateState({
-					timeout: 'active',
-					retry: 'triggered',
-					circuit: 'closed',
-				});
-			} else {
-				setRewardGateState({
-					timeout: 'active',
-					retry: 'active',
-					circuit: 'closed',
-				});
+			const frames = REWARD_FRAME_MAP[scenarioId];
+			if (frames) {
+				setAppState(DEFAULT_APP_REWARD);
+				setStripeState(DEFAULT_STRIPE);
+				setEdgeState(DEFAULT_EDGE);
+				runAnimation(frames);
 			}
-
-			if (rewardTimerRef.current) clearTimeout(rewardTimerRef.current);
-			rewardTimerRef.current = setTimeout(() => {
-				setRewardFlowPhase(-1);
-			}, ANIMATION_DURATION_MS * 2);
 		},
-		[stressTest],
+		[vizAnimating, stressTest, runAnimation],
 	);
 
-	useEffect(() => {
-		return () => {
-			if (rewardTimerRef.current) clearTimeout(rewardTimerRef.current);
-		};
-	}, []);
+	// ── Flow nodes & edges ──
+	const flowNodes = useMemo(
+		(): Node[] => [
+			{
+				id: 'appServer',
+				type: 'appServer',
+				position: { x: 0, y: 0 },
+				data: { ...appState, isReward } satisfies AppServerNodeData,
+			},
+			{
+				id: 'stripe',
+				type: 'stripe',
+				position: { x: isReward ? 400 : 320, y: 30 },
+				data: { ...stripeState } satisfies StripeNodeData,
+			},
+		],
+		[appState, stripeState, isReward],
+	);
 
-	// ── Render: Resilience Pipeline visualization ──
-	const renderResiliencePipeline = (isReward: boolean) => {
-		const probeActive = isReward ? rewardFlowPhase !== -1 : flowPhase !== -1;
-		const gates = isReward ? rewardGateState : gateState;
+	const flowEdges = useMemo(
+		(): Edge[] => [
+			{
+				id: 'e-api',
+				source: 'appServer',
+				target: 'stripe',
+				type: 'api',
+				sourceHandle: 'right-source',
+				targetHandle: 'left-target',
+				data: { ...edgeState } satisfies ApiEdgeData,
+			},
+		],
+		[edgeState],
+	);
 
-		const gateColor = (state: string) => {
-			if (state === 'inactive')
-				return 'border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800/50';
-			if (state === 'triggered' || state === 'open')
-				return 'border-red-400 dark:border-red-600 bg-red-50 dark:bg-red-950/30';
-			return 'border-emerald-400 dark:border-emerald-600 bg-emerald-50 dark:bg-emerald-950/30';
-		};
-
-		const gateTextColor = (state: string) => {
-			if (state === 'inactive') return 'text-muted-foreground';
-			if (state === 'triggered' || state === 'open')
-				return 'text-red-600 dark:text-red-400';
-			return 'text-emerald-600 dark:text-emerald-400';
-		};
-
-		return (
-			<div className="flex items-center gap-2 h-full px-2">
-				{/* App Server */}
-				<div className="flex flex-col items-center gap-1 shrink-0">
-					<div className="w-14 h-14 rounded-lg border-2 border-border bg-card flex items-center justify-center">
-						<Server className="w-6 h-6 text-foreground" />
-					</div>
-					<span className="text-xs text-muted-foreground font-medium">App</span>
-				</div>
-
-				<FlowConnector
-					active={probeActive}
-					direction="right"
-					variant={isReward ? 'success' : 'danger'}
-				/>
-
-				{/* Timeout Gate */}
-				<div className="flex flex-col items-center gap-1 shrink-0">
-					<div
-						className={`w-20 h-14 rounded-lg border-2 flex flex-col items-center justify-center ${gateColor(gates.timeout)}`}
-					>
-						<Timer className={`w-5 h-5 ${gateTextColor(gates.timeout)}`} />
-						<span
-							className={`text-[10px] font-semibold ${gateTextColor(gates.timeout)}`}
-						>
-							{gates.timeout === 'inactive'
-								? 'No Timeout'
-								: gates.timeout === 'triggered'
-									? 'TIMEOUT!'
-									: '10s limit'}
-						</span>
-					</div>
-					<span className="text-xs text-muted-foreground">Timeout</span>
-				</div>
-
-				<FlowConnector
-					active={probeActive}
-					direction="right"
-					variant={isReward ? 'success' : 'danger'}
-				/>
-
-				{/* Retry Gate */}
-				<div className="flex flex-col items-center gap-1 shrink-0">
-					<div
-						className={`w-20 h-14 rounded-lg border-2 flex flex-col items-center justify-center ${gateColor(gates.retry)}`}
-					>
-						<RefreshCw className={`w-5 h-5 ${gateTextColor(gates.retry)}`} />
-						<span
-							className={`text-[10px] font-semibold ${gateTextColor(gates.retry)}`}
-						>
-							{gates.retry === 'inactive'
-								? 'No Retry'
-								: gates.retry === 'triggered'
-									? 'RETRYING'
-									: '3x backoff'}
-						</span>
-					</div>
-					<span className="text-xs text-muted-foreground">Retry</span>
-				</div>
-
-				<FlowConnector
-					active={probeActive}
-					direction="right"
-					variant={isReward ? 'success' : 'danger'}
-				/>
-
-				{/* Circuit Breaker Gate */}
-				<div className="flex flex-col items-center gap-1 shrink-0">
-					<div
-						className={`w-20 h-14 rounded-lg border-2 flex flex-col items-center justify-center ${gateColor(gates.circuit)}`}
-					>
-						<Unplug className={`w-5 h-5 ${gateTextColor(gates.circuit)}`} />
-						<span
-							className={`text-[10px] font-semibold ${gateTextColor(gates.circuit)}`}
-						>
-							{gates.circuit === 'inactive'
-								? 'No Breaker'
-								: gates.circuit === 'open'
-									? 'OPEN'
-									: gates.circuit === 'half-open'
-										? 'HALF'
-										: 'CLOSED'}
-						</span>
-					</div>
-					<span className="text-xs text-muted-foreground">Circuit</span>
-				</div>
-
-				<FlowConnector
-					active={probeActive}
-					direction="right"
-					variant={isReward ? 'success' : 'danger'}
-				/>
-
-				{/* External API (Stripe) */}
-				<div className="flex flex-col items-center gap-1 shrink-0">
-					<div
-						className={`w-14 h-14 rounded-lg border-2 flex items-center justify-center ${
-							isReward
-								? 'border-emerald-400 dark:border-emerald-600 bg-emerald-50 dark:bg-emerald-950/30'
-								: 'border-red-400 dark:border-red-600 bg-red-50 dark:bg-red-950/30'
-						}`}
-					>
-						<Globe
-							className={`w-6 h-6 ${isReward ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}
-						/>
-					</div>
-					<span className="text-xs text-muted-foreground font-medium">
-						Stripe
-					</span>
-					{!isReward && (
-						<Badge
-							className="text-[10px] text-red-600 dark:text-red-400 border-red-300 dark:border-red-700"
-							variant="outline"
-						>
-							Unreliable
-						</Badge>
-					)}
-				</div>
-			</div>
-		);
-	};
-
-	// ── Build phase: current step config ──
+	// ── Build step config ──
 	const currentStepConfig = useMemo(() => {
 		const idx = stepper.currentStep;
-		if (idx === 0)
-			return { type: 'terminal' as const, ...TERMINAL_STEP_MAP[0] };
-		if (idx === 1)
-			return { type: 'terminal' as const, ...TERMINAL_STEP_MAP[1] };
-		if (idx === 2)
-			return { type: 'option' as const, options: CONFIGURE_TIMEOUT_OPTIONS };
-		if (idx === 3)
-			return { type: 'option' as const, options: CONFIGURE_RETRY_OPTIONS };
-		if (idx === 4)
-			return { type: 'option' as const, options: CONFIGURE_CIRCUIT_OPTIONS };
-		if (idx === 5)
-			return { type: 'option' as const, options: BUILD_SERVICE_OPTIONS };
-		return null;
+		if (idx <= 1)
+			return { type: 'terminal' as const, ...TERMINAL_STEP_MAP[idx] };
+		const stepOptions: Record<number, typeof CONFIGURE_TIMEOUT_OPTIONS> = {
+			2: CONFIGURE_TIMEOUT_OPTIONS,
+			3: CONFIGURE_RETRY_OPTIONS,
+			4: CONFIGURE_CIRCUIT_OPTIONS,
+			5: BUILD_SERVICE_OPTIONS,
+		};
+		return { type: 'option' as const, options: stepOptions[idx] };
 	}, [stepper.currentStep]);
 
-	// ── Left panel ──
+	const buildCodePreviewStep = stepper.isCurrentStepCompleted
+		? stepper.currentStep
+		: stepper.currentStep - 1;
+
+	// ── Render ──
 	const renderLeftPanel = () => {
 		if (phase === 'observe') {
 			return (
@@ -1060,11 +1775,9 @@ export function Level38ExternalAPIs({ onComplete }: LevelComponentProps) {
 						</p>
 					</div>
 					<DiscoveryChecklist
-						discoveries={DISCOVERY_DEFS.map((d) => ({
-							id: d.id,
-							label: d.label,
-							found: discoveryGating.isDiscovered(d.id),
-						}))}
+						discoveredCount={discoveryGating.discoveredCount}
+						discoveries={discoveryGating.discoveries}
+						minRequired={discoveryGating.minRequired}
 					/>
 					{discoveryGating.isUnlocked && (
 						<Button
@@ -1092,25 +1805,8 @@ export function Level38ExternalAPIs({ onComplete }: LevelComponentProps) {
 					</div>
 					<StepProgress
 						currentStep={stepper.currentStep}
-						furthestStep={stepper.furthestStep}
-						steps={STEP_DEFS.map((s) => s.label)}
+						steps={stepper.steps}
 					/>
-				</div>
-			);
-		}
-
-		if (phase === 'activate') {
-			return (
-				<div className="space-y-4 p-4">
-					<div>
-						<h3 className="text-sm font-semibold text-foreground mb-2">
-							Solution Complete
-						</h3>
-						<p className="text-sm text-muted-foreground">
-							Faraday with timeouts, retries, and Stoplight circuit breaker
-							configured.
-						</p>
-					</div>
 				</div>
 			);
 		}
@@ -1145,15 +1841,6 @@ export function Level38ExternalAPIs({ onComplete }: LevelComponentProps) {
 						<div className="text-xs text-muted-foreground">Handled</div>
 					</div>
 				</div>
-				{stressTest.canAutoFire && (
-					<Button
-						className="w-full"
-						onClick={() => stressTest.toggleAutoFire(handleStressFire)}
-						variant="outline"
-					>
-						{stressTest.isAutoFiring ? 'Stop Auto-Fire' : 'Auto-Fire All'}
-					</Button>
-				)}
 				<Button
 					className="w-full"
 					onClick={() => onComplete({ stars: stepper.starRating })}
@@ -1164,17 +1851,21 @@ export function Level38ExternalAPIs({ onComplete }: LevelComponentProps) {
 		);
 	};
 
-	// ── Center panel ──
 	const renderCenterPanel = () => {
 		if (phase === 'observe') {
 			return (
-				<div className="flex-1 flex flex-col p-4 gap-4">
-					<div className="flex-1 min-h-0 flex items-center">
-						{renderResiliencePipeline(false)}
+				<div className="flex-1 flex flex-col">
+					<div className="flex-1 relative">
+						<FlowDiagram
+							edges={flowEdges}
+							edgeTypes={apiEdgeTypes}
+							nodes={flowNodes}
+							nodeTypes={apiNodeTypes}
+						/>
 					</div>
 					<div className="px-6 pb-2">
 						<ProbeTerminal
-							disabled={flowPhase !== -1}
+							disabled={vizAnimating}
 							onProbe={handleProbe}
 							probes={PROBES}
 						/>
@@ -1184,7 +1875,11 @@ export function Level38ExternalAPIs({ onComplete }: LevelComponentProps) {
 		}
 
 		if (phase === 'build' && currentStepConfig) {
-			if (currentStepConfig.type === 'terminal' && currentStepConfig.commands) {
+			if (
+				currentStepConfig.type === 'terminal' &&
+				currentStepConfig.commands &&
+				currentStepConfig.outputLines
+			) {
 				return (
 					<div className="flex-1 flex flex-col p-4">
 						<TerminalChoiceStep
@@ -1208,18 +1903,18 @@ export function Level38ExternalAPIs({ onComplete }: LevelComponentProps) {
 							onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 							outputLines={currentStepConfig.outputLines}
 							stepKey={stepper.currentStep}
-							title={STEP_DEFS[stepper.currentStep].label}
+							title={STEP_DEFS[stepper.currentStep].title}
 						/>
 					</div>
 				);
 			}
 
-			if (currentStepConfig.type === 'option') {
+			if (currentStepConfig.type === 'option' && currentStepConfig.options) {
 				return (
-					<div className="flex-1 flex flex-col p-4 gap-4 overflow-auto">
+					<div className="flex-1 flex flex-col p-4 gap-4 overflow-auto min-h-0">
 						<div>
 							<h3 className="text-lg font-semibold text-foreground">
-								{STEP_DEFS[stepper.currentStep].label}
+								{STEP_DEFS[stepper.currentStep].title}
 							</h3>
 							<p className="text-sm text-muted-foreground mt-1">
 								{stepper.currentStep === 2 &&
@@ -1232,68 +1927,63 @@ export function Level38ExternalAPIs({ onComplete }: LevelComponentProps) {
 									'Build the payment service with all resilience patterns integrated.'}
 							</p>
 						</div>
+						{wrongFeedback && !stepper.isCurrentStepCompleted && (
+							<ErrorFeedback message={wrongFeedback} />
+						)}
 						<div className="space-y-3">
 							{currentStepConfig.options.map((opt) => (
 								<OptionCard
-									code={opt.code}
 									disabled={stepper.isCurrentStepCompleted}
 									key={opt.id}
-									label={opt.label}
-									language="ruby"
-									onClick={() => {
-										if (opt.correct) {
-											stepper.completeStep();
-										} else {
-											stepper.recordWrongAttempt(opt.feedback);
-										}
-									}}
+									mono
+									name={opt.label}
+									onClick={() => handleOptionSelect(opt.id)}
+									selected={stepper.isCurrentStepCompleted && opt.correct}
 								/>
 							))}
 						</div>
-						{stepper.lastFeedback && !stepper.isCurrentStepCompleted && (
-							<ErrorFeedback message={stepper.lastFeedback} />
+						{stepper.isCurrentStepCompleted && (
+							<Button
+								className="w-fit gap-2"
+								onClick={
+									stepper.currentStep < STEP_DEFS.length - 1
+										? () => {
+												setWrongFeedback(null);
+												stepper.nextStep();
+											}
+										: () => setPhase('reward')
+								}
+								size="sm"
+							>
+								Next Step <ArrowRight className="w-4 h-4" />
+							</Button>
 						)}
-						{stepper.isCurrentStepCompleted &&
-							stepper.currentStep < STEP_DEFS.length - 1 && (
-								<Button className="w-fit" onClick={stepper.nextStep}>
-									Next Step <ArrowRight className="w-4 h-4 ml-2" />
-								</Button>
-							)}
 					</div>
 				);
 			}
 		}
 
-		if (phase === 'activate') {
-			return (
-				<div className="flex-1 flex items-center justify-center">
-					<div className="text-center space-y-4">
-						<div className="flex justify-center gap-1">
-							{[1, 2, 3].map((star) => (
-								<Activity
-									className="w-8 h-8 text-amber-400 fill-amber-400"
-									key={star}
-								/>
-							))}
-						</div>
-						<Button onClick={() => setPhase('reward')}>
-							Visualize Resilience <Zap className="w-4 h-4 ml-2" />
-						</Button>
-					</div>
-				</div>
-			);
-		}
-
 		// reward
 		return (
-			<div className="flex-1 flex flex-col p-4 gap-4">
-				<div className="flex-1 min-h-0 flex items-center">
-					{renderResiliencePipeline(true)}
+			<div className="flex-1 flex flex-col">
+				<div className="flex-1 relative">
+					<FlowDiagram
+						edges={flowEdges}
+						edgeTypes={apiEdgeTypes}
+						nodes={flowNodes}
+						nodeTypes={apiNodeTypes}
+					/>
 				</div>
-				<div className="px-6 pb-2">
+				<div className="flex-1 min-h-0 flex flex-col px-6 pb-2">
 					<StressTestPanel
-						disabled={rewardFlowPhase !== -1}
-						onFire={handleStressFire}
+						allowedCount={stressTest.allowedCount}
+						blockedCount={stressTest.blockedCount}
+						canAutoFire={stressTest.canAutoFire}
+						className="flex-1 flex flex-col"
+						disabled={vizAnimating}
+						isAutoFiring={stressTest.isAutoFiring}
+						onFire={handleFireScenario}
+						onToggleAutoFire={stressTest.toggleAutoFire}
 						results={stressTest.results}
 						scenarios={STRESS_SCENARIOS}
 					/>
@@ -1308,7 +1998,7 @@ export function Level38ExternalAPIs({ onComplete }: LevelComponentProps) {
 			<CenterPanel>{renderCenterPanel()}</CenterPanel>
 			<RightPanel>
 				<CodePreviewPanel
-					files={getCodeFiles(phase, stepper.furthestStep)}
+					files={getCodeFiles(phase, buildCodePreviewStep)}
 					learningGoal="Every external API call needs timeouts, retries with backoff, and a circuit breaker."
 				/>
 			</RightPanel>
