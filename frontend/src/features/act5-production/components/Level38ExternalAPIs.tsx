@@ -270,7 +270,7 @@ const SLOW_STRIPE_FRAMES: AnimFrame[] = [
 		edge: {
 			active: true,
 			reverse: false,
-			label: 'POST /v1/charges { amount: 5000 }',
+			label: 'POST /v1/charges',
 			dotColor: 'bg-cyan-500',
 		},
 		stripe: { label: 'Responding slowly...', flash: 'amber', status: 'Slow' },
@@ -430,7 +430,7 @@ const REWARD_SLOW_FRAMES: AnimFrame[] = [
 		edge: {
 			active: true,
 			reverse: false,
-			label: 'POST /v1/charges { amount: 5000 }',
+			label: 'POST /v1/charges',
 			dotColor: 'bg-cyan-500',
 		},
 		stripe: { label: 'Responding slowly...', flash: 'amber', status: 'Slow' },
@@ -632,7 +632,7 @@ const REWARD_FAST_FRAMES: AnimFrame[] = [
 		edge: {
 			active: true,
 			reverse: false,
-			label: 'POST /v1/charges { amount: 5000 }',
+			label: 'POST /v1/charges',
 			dotColor: 'bg-cyan-500',
 		},
 		stripe: { label: 'Processing...', flash: 'idle', status: 'Healthy' },

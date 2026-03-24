@@ -148,6 +148,20 @@ Read [visualization-examples.md](visualization-examples.md) for case studies. Ke
 
     **Quick test:** Write out what each node IS in one sentence. If the sentences use different categories ("App Server is a system that runs Rails" vs "Timeout is a configuration that limits request duration"), they shouldn't look the same. Either change the visual treatment (sub-element, badge, internal panel) or reconsider whether they belong at the same level.
 
+14. **Edge labels must never be hidden behind nodes.** The gap between two connected nodes must be wide enough for the longest edge label that will appear during any animation. If a label is hidden behind a node, the player misses critical information.
+
+    **How to size the gap:** Before setting node positions, write out every edge label that will appear across all probes and reward scenarios. Find the longest one. The gap between the right edge of the source node and the left edge of the target node must be at least as wide as that label (plus padding).
+
+    **The tradeoff with many nodes:** When a visualization has 2-3 nodes, you have plenty of horizontal space, so use it for generous gaps. When it has 4+ nodes, space is tight. Do NOT shrink nodes to make room for long labels. Instead, shorten the labels themselves:
+    - Move details to node content: show the payload (`{ amount: 5000 }`) inside the sending node, keep the edge label to just the route (`POST /v1/charges`)
+    - Use two-line labels: shorter width, same information
+    - Use shorthand for status text: `503 Unavailable` instead of `503 Service Unavailable`
+    - Never drop the API version prefix. `/api/v1/charges` must stay `/api/v1/charges`, not `/charges`. Dropping it breaks cumulative API versioning patterns and confuses the player about which API version they're hitting.
+
+    The goal is balance: nodes must stay large enough to show their content (thread pools, gauges, status), and edges must stay long enough to show their labels. Neither should sacrifice for the other. Adjust labels first, node positions second, node sizes last.
+
+    **Case study:** L38's original layout had the App node (w-56 = 224px) and Stripe node (w-40 = 160px) with only 96px gap between them. Edge labels were hidden behind the nodes. The fix: moved the payload (`{ amount: 5000 }`) into the App node's status text, shortened edge labels to just the route (`POST /v1/charges`), reduced nodes to w-48/w-36, and moved Stripe to x=480 (creating ~290px gap).
+
 ### The Literal Screen Test
 
 After designing, describe what the player LITERALLY SEES on screen. Not what the code does. Not what the concept is.
@@ -433,6 +447,7 @@ After designing and implementing, run `audit-level` to verify compliance with al
 - [ ] Animation frames match the story bullet-for-bullet (read story and frames side by side, every story beat has a frame, every frame has a story beat)
 - [ ] Time gaps in the story are visible in the animation (if an order takes time to ship, show "Warehouse processing..." frames, don't skip from order placed to customer refreshing)
 - [ ] All nodes at the same visual level are the same kind of thing (all pipeline stages, or all systems, or all actors). If a node is a different category from its peers (e.g., middleware among systems), show it as a sub-element inside its parent node instead.
+- [ ] Edge labels never hidden behind nodes. Write out every edge label, find the longest, verify the gap between connected nodes is wider than that label. For 4+ node layouts, shorten labels (abbreviations, move details into nodes) rather than shrinking nodes.
 
 ### Build phase design
 - [ ] Code preview transition table built and verified
