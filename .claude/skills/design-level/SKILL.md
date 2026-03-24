@@ -107,7 +107,11 @@ Read [visualization-examples.md](visualization-examples.md) for case studies. Ke
 
 1. **Show the mechanism, not the metric.** The player must see WHAT the system is doing, not just a number. A progress bar filling up is a metric. Requests flooding a server and getting queued is a mechanism.
 
-2. **Show origin and intent.** Every action must show WHERE it comes from and WHAT it's trying to do. HTTP request cards with method, endpoint, and payload. Not abstract labels.
+2. **Show origin and intent. Every actor in the story gets a node.** Every action must show WHERE it comes from and WHAT it's trying to do. If the story says "a customer clicks Pay Now," the customer is an actor and needs a node. If the server forwards the request to Stripe, that's a second actor. Don't collapse two actors into one node for simplicity. Each node should represent exactly one actor's perspective.
+
+    **How to identify actors:** During narrative reasoning (Step 1), list every entity that initiates, processes, or receives something in the story. A customer clicking a button is an actor. A server processing a request is an actor. An external API charging a card is an actor. If the entity has its own perspective on what's happening (the customer is waiting, the server is processing, Stripe is slow), it's an actor and needs a node.
+
+    **Case study:** L38 originally had 2 nodes (App, Stripe). The App node showed "Processing checkout..." and then "Customer left wondering." But the customer and the server are different actors with different perspectives: the customer is waiting with a spinner, the server has a blocked thread. Collapsing them made it look like the Rails app was the one wondering about the payment. The fix: 3 nodes (Client, App, Stripe).
 
 3. **Use different values to make conflicts visible.** If two operations produce the same result, the conflict is invisible. Use different inputs so the problem shows in the data itself.
 
@@ -447,6 +451,7 @@ After designing and implementing, run `audit-level` to verify compliance with al
 - [ ] Animation frames match the story bullet-for-bullet (read story and frames side by side, every story beat has a frame, every frame has a story beat)
 - [ ] Time gaps in the story are visible in the animation (if an order takes time to ship, show "Warehouse processing..." frames, don't skip from order placed to customer refreshing)
 - [ ] All nodes at the same visual level are the same kind of thing (all pipeline stages, or all systems, or all actors). If a node is a different category from its peers (e.g., middleware among systems), show it as a sub-element inside its parent node instead.
+- [ ] Every actor identified in narrative reasoning (Step 1) has its own node. If the story involves a customer, a server, and an external API, that's 3 nodes.
 - [ ] Edge labels never hidden behind nodes. Write out every edge label, find the longest, verify the gap between connected nodes is wider than that label. For 4+ node layouts, shorten labels (abbreviations, move details into nodes) rather than shrinking nodes.
 
 ### Build phase design

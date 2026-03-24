@@ -28,6 +28,7 @@ import {
 import {
 	ArrowRight,
 	Globe,
+	Monitor,
 	RefreshCw,
 	Server,
 	Timer,
@@ -69,6 +70,11 @@ import { ANIMATION_DURATION_MS } from '@/lib/animation';
 
 type ZoneFlash = 'idle' | 'red' | 'green' | 'amber';
 
+interface ClientVizState {
+	label: string;
+	flash: ZoneFlash;
+}
+
 interface AppServerVizState {
 	label: string;
 	flash: ZoneFlash;
@@ -97,9 +103,13 @@ interface EdgeVizState {
 }
 
 interface AnimFrame {
+	client?: Partial<ClientVizState>;
 	app?: Partial<AppServerVizState>;
 	stripe?: Partial<StripeVizState>;
+	/** Client <-> App edge */
 	edge?: Partial<EdgeVizState>;
+	/** App <-> Stripe edge */
+	edgeB?: Partial<EdgeVizState>;
 }
 
 // ─── Defaults ─────────────────────────────────────────────────────────
@@ -113,6 +123,11 @@ const DEFAULT_THREADS: AppServerVizState['threads'] = [
 	'available',
 	'available',
 ];
+
+const DEFAULT_CLIENT: ClientVizState = {
+	label: 'Idle',
+	flash: 'idle',
+};
 
 const DEFAULT_APP: AppServerVizState = {
 	label: 'Idle',
@@ -259,9 +274,11 @@ const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 };
 
 // ─── Observe animation frames ─────────────────────────────────────────
+// edge = Client<->App, edgeB = App<->Stripe
 
 const SLOW_STRIPE_FRAMES: AnimFrame[] = [
 	{
+		client: { label: 'Clicking "Pay Now"...', flash: 'idle' },
 		app: {
 			label: 'Processing checkout...',
 			flash: 'idle',
@@ -270,50 +287,71 @@ const SLOW_STRIPE_FRAMES: AnimFrame[] = [
 		edge: {
 			active: true,
 			reverse: false,
+			label: 'POST /api/v1/payments',
+			dotColor: 'bg-cyan-500',
+		},
+		edgeB: {
+			active: true,
+			reverse: false,
 			label: 'POST /v1/charges',
 			dotColor: 'bg-cyan-500',
 		},
 		stripe: { label: 'Responding slowly...', flash: 'amber', status: 'Slow' },
 	},
 	{
+		client: { label: 'Waiting...', flash: 'amber' },
 		app: {
-			label: 'Waiting for Stripe...',
+			label: 'Thread blocked...',
 			flash: 'amber',
 			threads: ['available', 'available', 'available', 'available', 'blocked'],
 		},
-		edge: { active: false, label: 'Waiting... 5s' },
+		edge: { active: false, label: '' },
+		edgeB: { active: false, label: 'Waiting... 5s' },
 		stripe: { label: 'Still processing...', flash: 'amber' },
 	},
 	{
+		client: { label: 'Still waiting (15s)...', flash: 'red' },
 		app: { label: 'Thread blocked 15s...', flash: 'red' },
-		edge: { label: 'Waiting... 15s...' },
-		stripe: { label: 'Still processing...' },
+		edgeB: { label: 'Waiting... 15s...' },
 	},
 	{
+		client: { label: 'Loading spinner (30s)...', flash: 'red' },
 		app: { label: 'Thread blocked 30s!', flash: 'red' },
-		edge: { label: '30s... no timeout!', dotColor: 'bg-red-500' },
-		stripe: { label: 'Finally responding', flash: 'idle' },
+		edgeB: { label: '30s... no timeout!' },
 	},
 	{
+		client: { label: '504 error. Payment failed.', flash: 'red' },
 		app: {
 			label: '504 Gateway Timeout',
 			flash: 'red',
 			threads: [...DEFAULT_THREADS],
-			queueLabel: 'Customer lost',
 		},
-		edge: { active: false, label: '30s wasted, thread freed' },
+		edge: {
+			active: true,
+			reverse: true,
+			label: '504 Timeout',
+			dotColor: 'bg-red-500',
+		},
+		edgeB: { active: false, label: '30s wasted' },
 		stripe: { label: 'Response wasted', flash: 'idle', status: 'Healthy' },
 	},
 ];
 
 const STRIPE_503_FRAMES: AnimFrame[] = [
 	{
+		client: { label: 'Checking payment...', flash: 'idle' },
 		app: {
-			label: 'Checking payment status...',
+			label: 'Forwarding to Stripe...',
 			flash: 'idle',
 			threads: [...DEFAULT_THREADS],
 		},
 		edge: {
+			active: true,
+			reverse: false,
+			label: 'GET /api/v1/payments/status',
+			dotColor: 'bg-cyan-500',
+		},
+		edgeB: {
 			active: true,
 			reverse: false,
 			label: 'GET /v1/charges/ch_abc',
@@ -322,18 +360,21 @@ const STRIPE_503_FRAMES: AnimFrame[] = [
 		stripe: { label: 'Temporary error', flash: 'amber', status: '503' },
 	},
 	{
+		client: { label: 'Waiting for response...', flash: 'idle' },
 		app: { label: 'Error received', flash: 'amber' },
-		edge: {
+		edge: { active: false, label: '' },
+		edgeB: {
 			active: true,
 			reverse: true,
-			label: '503 Service Unavailable',
+			label: '503 Unavailable',
 			dotColor: 'bg-red-500',
 		},
 		stripe: { label: '503 Service Unavailable', flash: 'red' },
 	},
 	{
+		client: { label: 'Waiting...', flash: 'amber' },
 		app: { label: 'No retry attempted', flash: 'red' },
-		edge: { active: false, label: 'Gave up after 1 try' },
+		edgeB: { active: false, label: 'Gave up after 1 try' },
 		stripe: {
 			label: 'Would succeed on retry...',
 			flash: 'idle',
@@ -341,24 +382,34 @@ const STRIPE_503_FRAMES: AnimFrame[] = [
 		},
 	},
 	{
-		app: {
-			label: 'Customer left wondering',
-			flash: 'red',
-			queueLabel: '"Did my payment go through?"',
+		client: { label: '"Did my payment go through?"', flash: 'red' },
+		app: { label: 'Returning error to client', flash: 'red' },
+		edge: {
+			active: true,
+			reverse: true,
+			label: 'Error: check failed',
+			dotColor: 'bg-red-500',
 		},
-		edge: { active: false, label: '' },
+		edgeB: { active: false, label: '' },
 		stripe: { label: 'Back to healthy', flash: 'idle', status: 'Healthy' },
 	},
 ];
 
 const STRIPE_DOWN_FRAMES: AnimFrame[] = [
 	{
+		client: { label: '50 customers checking out', flash: 'idle' },
 		app: {
-			label: 'Black Friday! 50 checkouts',
+			label: 'Black Friday load',
 			flash: 'idle',
 			threads: [...DEFAULT_THREADS],
 		},
 		edge: {
+			active: true,
+			reverse: false,
+			label: '50 checkout requests',
+			dotColor: 'bg-red-500',
+		},
+		edgeB: {
 			active: true,
 			reverse: false,
 			label: '50x POST /v1/charges',
@@ -367,41 +418,51 @@ const STRIPE_DOWN_FRAMES: AnimFrame[] = [
 		stripe: { label: 'COMPLETE OUTAGE', flash: 'red', status: 'Down' },
 	},
 	{
+		client: { label: 'Everyone waiting...', flash: 'amber' },
 		app: {
 			label: 'Threads draining...',
 			flash: 'amber',
 			threads: ['available', 'available', 'available', 'blocked', 'blocked'],
 		},
-		edge: { active: true, label: 'All requests hanging...' },
+		edge: { active: false, label: '' },
+		edgeB: { active: true, label: 'All requests hanging...' },
 		stripe: { label: 'No response', flash: 'red' },
 	},
 	{
+		client: { label: 'Pages not loading...', flash: 'red' },
 		app: {
 			label: '1 thread left!',
 			flash: 'red',
 			threads: ['available', 'blocked', 'blocked', 'blocked', 'blocked'],
-			queueLabel: '45 requests waiting',
+			queueLabel: '45 waiting',
 		},
-		edge: { label: 'Still no response...' },
-		stripe: { label: 'No response', flash: 'red' },
+		edgeB: { label: 'Still no response...' },
 	},
 	{
+		client: { label: 'Nothing works!', flash: 'red' },
 		app: {
 			label: 'ALL THREADS BLOCKED',
 			flash: 'red',
 			threads: ['blocked', 'blocked', 'blocked', 'blocked', 'blocked'],
-			queueLabel: 'GET /products... blocked!',
+			queueLabel: 'GET /products blocked!',
 		},
-		edge: { active: false, label: '' },
-		stripe: { label: 'No response', flash: 'red' },
+		edge: {
+			active: true,
+			reverse: false,
+			label: 'GET /products',
+			dotColor: 'bg-red-500',
+		},
+		edgeB: { active: false, label: '' },
 	},
 	{
+		client: { label: 'Site is down!', flash: 'red' },
 		app: {
 			label: 'Entire app unresponsive',
 			flash: 'red',
-			queueLabel: 'Nothing works',
+			queueLabel: 'No threads available',
 		},
-		edge: { label: 'No circuit breaker to stop this' },
+		edge: { active: false, label: 'No response' },
+		edgeB: { label: 'No circuit breaker' },
 		stripe: { label: 'No response', flash: 'red' },
 	},
 ];
@@ -414,20 +475,31 @@ const PROBE_FRAMES: Record<string, AnimFrame[]> = {
 
 // ─── Reward animation frames ──────────────────────────────────────────
 
+const MW_DEFAULTS = {
+	timeoutLabel: '10s limit',
+	timeoutFlash: 'green' as const,
+	retryLabel: '3x backoff',
+	retryFlash: 'green' as const,
+	circuitLabel: 'CLOSED',
+	circuitFlash: 'green' as const,
+};
+
 const REWARD_SLOW_FRAMES: AnimFrame[] = [
 	{
+		client: { label: 'Clicking "Pay Now"...', flash: 'idle' },
 		app: {
 			label: 'Processing checkout...',
 			flash: 'idle',
 			threads: [...DEFAULT_THREADS],
-			timeoutLabel: '10s limit',
-			timeoutFlash: 'green',
-			retryLabel: '3x backoff',
-			retryFlash: 'green',
-			circuitLabel: 'CLOSED',
-			circuitFlash: 'green',
+			...MW_DEFAULTS,
 		},
 		edge: {
+			active: true,
+			reverse: false,
+			label: 'POST /api/v1/payments',
+			dotColor: 'bg-cyan-500',
+		},
+		edgeB: {
 			active: true,
 			reverse: false,
 			label: 'POST /v1/charges',
@@ -436,15 +508,18 @@ const REWARD_SLOW_FRAMES: AnimFrame[] = [
 		stripe: { label: 'Responding slowly...', flash: 'amber', status: 'Slow' },
 	},
 	{
+		client: { label: 'Waiting...', flash: 'amber' },
 		app: {
 			label: 'Waiting for Stripe...',
 			flash: 'amber',
 			threads: ['available', 'available', 'available', 'available', 'blocked'],
 		},
-		edge: { active: false, label: 'Waiting... 5s' },
+		edge: { active: false, label: '' },
+		edgeB: { active: false, label: 'Waiting... 5s' },
 		stripe: { label: 'Still processing...', flash: 'amber' },
 	},
 	{
+		client: { label: 'Waiting...', flash: 'amber' },
 		app: {
 			label: 'Timeout triggered!',
 			flash: 'amber',
@@ -452,40 +527,49 @@ const REWARD_SLOW_FRAMES: AnimFrame[] = [
 			timeoutFlash: 'amber',
 			threads: [...DEFAULT_THREADS],
 		},
-		edge: {
+		edgeB: {
 			active: true,
 			reverse: true,
-			label: 'Faraday::TimeoutError',
+			label: 'TimeoutError',
 			dotColor: 'bg-amber-500',
 		},
 		stripe: { label: 'Still processing...', flash: 'amber' },
 	},
 	{
+		client: { label: 'Try again later', flash: 'amber' },
 		app: {
-			label: 'Thread freed in 10s (was 30s)',
+			label: 'Thread freed in 10s',
 			flash: 'green',
 			timeoutLabel: '10s limit',
 			timeoutFlash: 'green',
 		},
-		edge: { active: false, label: 'Thread freed, customer gets clean error' },
+		edge: {
+			active: true,
+			reverse: true,
+			label: 'Please try again',
+			dotColor: 'bg-amber-500',
+		},
+		edgeB: { active: false, label: '' },
 		stripe: { label: 'Never finished', flash: 'idle', status: 'Slow' },
 	},
 ];
 
 const REWARD_503_FRAMES: AnimFrame[] = [
 	{
+		client: { label: 'Checking payment...', flash: 'idle' },
 		app: {
-			label: 'Checking payment status...',
+			label: 'Forwarding to Stripe...',
 			flash: 'idle',
 			threads: [...DEFAULT_THREADS],
-			timeoutLabel: '10s limit',
-			timeoutFlash: 'green',
-			retryLabel: '3x backoff',
-			retryFlash: 'green',
-			circuitLabel: 'CLOSED',
-			circuitFlash: 'green',
+			...MW_DEFAULTS,
 		},
 		edge: {
+			active: true,
+			reverse: false,
+			label: 'GET /api/v1/payments/status',
+			dotColor: 'bg-cyan-500',
+		},
+		edgeB: {
 			active: true,
 			reverse: false,
 			label: 'GET /v1/charges/ch_abc',
@@ -494,43 +578,48 @@ const REWARD_503_FRAMES: AnimFrame[] = [
 		stripe: { label: 'Temporary error', flash: 'amber', status: '503' },
 	},
 	{
+		client: { label: 'Waiting for response...', flash: 'idle' },
 		app: { label: 'Error received', flash: 'amber' },
-		edge: {
+		edge: { active: false, label: '' },
+		edgeB: {
 			active: true,
 			reverse: true,
-			label: '503 Service Unavailable',
+			label: '503 Unavailable',
 			dotColor: 'bg-red-500',
 		},
 		stripe: { label: '503 Service Unavailable', flash: 'red' },
 	},
 	{
+		client: { label: 'Waiting...', flash: 'idle' },
 		app: {
 			label: 'Retrying...',
 			flash: 'amber',
 			retryLabel: 'RETRYING (1/3)',
 			retryFlash: 'amber',
 		},
-		edge: { active: false, label: 'Backing off 0.5s...' },
+		edgeB: { active: false, label: 'Backing off 0.5s...' },
 		stripe: { label: 'Recovering...', flash: 'amber' },
 	},
 	{
+		client: { label: 'Waiting...', flash: 'idle' },
 		app: {
 			label: 'Retry sent',
 			flash: 'idle',
 			retryLabel: '3x backoff',
 			retryFlash: 'green',
 		},
-		edge: {
+		edgeB: {
 			active: true,
 			reverse: false,
-			label: 'GET /v1/charges/ch_abc (retry)',
+			label: 'GET /v1/charges (retry)',
 			dotColor: 'bg-cyan-500',
 		},
 		stripe: { label: 'Back to healthy', flash: 'idle', status: 'Healthy' },
 	},
 	{
-		app: { label: 'Payment status retrieved!', flash: 'green' },
-		edge: {
+		client: { label: 'Waiting...', flash: 'idle' },
+		app: { label: 'Status retrieved!', flash: 'green' },
+		edgeB: {
 			active: true,
 			reverse: true,
 			label: '200 OK',
@@ -539,26 +628,35 @@ const REWARD_503_FRAMES: AnimFrame[] = [
 		stripe: { label: '200 OK', flash: 'green' },
 	},
 	{
-		app: { label: 'Customer never noticed', flash: 'green' },
-		edge: { active: false, label: '' },
+		client: { label: 'Payment confirmed!', flash: 'green' },
+		app: { label: 'Returning to client', flash: 'green' },
+		edge: {
+			active: true,
+			reverse: true,
+			label: '200 OK',
+			dotColor: 'bg-emerald-500',
+		},
+		edgeB: { active: false, label: '' },
 		stripe: { label: 'Healthy', flash: 'idle', status: 'Healthy' },
 	},
 ];
 
 const REWARD_CIRCUIT_FRAMES: AnimFrame[] = [
 	{
+		client: { label: '50 customers checking out', flash: 'idle' },
 		app: {
-			label: 'Black Friday! 50 checkouts',
+			label: 'Black Friday load',
 			flash: 'idle',
 			threads: [...DEFAULT_THREADS],
-			timeoutLabel: '10s limit',
-			timeoutFlash: 'green',
-			retryLabel: '3x backoff',
-			retryFlash: 'green',
-			circuitLabel: 'CLOSED',
-			circuitFlash: 'green',
+			...MW_DEFAULTS,
 		},
 		edge: {
+			active: true,
+			reverse: false,
+			label: '50 checkout requests',
+			dotColor: 'bg-red-500',
+		},
+		edgeB: {
 			active: true,
 			reverse: false,
 			label: '50x POST /v1/charges',
@@ -567,6 +665,7 @@ const REWARD_CIRCUIT_FRAMES: AnimFrame[] = [
 		stripe: { label: 'COMPLETE OUTAGE', flash: 'red', status: 'Down' },
 	},
 	{
+		client: { label: 'Everyone waiting...', flash: 'amber' },
 		app: {
 			label: '5 failures counted...',
 			flash: 'amber',
@@ -574,10 +673,12 @@ const REWARD_CIRCUIT_FRAMES: AnimFrame[] = [
 			circuitLabel: '3/5 failures',
 			circuitFlash: 'amber',
 		},
-		edge: { active: true, label: 'Requests failing...' },
+		edge: { active: false, label: '' },
+		edgeB: { active: true, label: 'Requests failing...' },
 		stripe: { label: 'No response', flash: 'red' },
 	},
 	{
+		client: { label: 'Waiting...', flash: 'amber' },
 		app: {
 			label: 'Circuit breaker OPEN!',
 			flash: 'amber',
@@ -585,51 +686,60 @@ const REWARD_CIRCUIT_FRAMES: AnimFrame[] = [
 			circuitLabel: 'OPEN (5 failures)',
 			circuitFlash: 'red',
 		},
-		edge: {
-			active: true,
-			reverse: true,
-			label: 'Stoplight::Error::RedLight',
-			dotColor: 'bg-red-500',
-		},
+		edgeB: { active: false, label: 'Stripe bypassed' },
 		stripe: { label: 'Not contacted', flash: 'idle', status: 'Down' },
 	},
 	{
+		client: { label: 'Got "try again later"', flash: 'amber' },
 		app: {
-			label: 'Fail-fast: 2ms per request',
+			label: 'Fail-fast: 2ms each',
 			flash: 'green',
-			queueLabel: '45 requests handled instantly',
+			queueLabel: '45 handled instantly',
 			circuitLabel: 'OPEN',
 			circuitFlash: 'red',
 		},
-		edge: { active: false, label: 'Circuit open, Stripe bypassed' },
-		stripe: { label: 'Not contacted', flash: 'idle' },
+		edge: {
+			active: true,
+			reverse: true,
+			label: 'Try again later',
+			dotColor: 'bg-amber-500',
+		},
 	},
 	{
+		client: { label: 'Browsing products (works!)', flash: 'green' },
 		app: {
-			label: 'App healthy! Only payments degraded',
+			label: 'App healthy!',
 			flash: 'green',
 			threads: [...DEFAULT_THREADS],
-			queueLabel: 'Homepage, search still work',
+			queueLabel: 'Only payments degraded',
 		},
-		edge: { active: false, label: '' },
+		edge: {
+			active: true,
+			reverse: false,
+			label: 'GET /api/v1/products',
+			dotColor: 'bg-emerald-500',
+		},
+		edgeB: { active: false, label: '' },
 		stripe: { label: 'Not contacted', flash: 'idle' },
 	},
 ];
 
 const REWARD_FAST_FRAMES: AnimFrame[] = [
 	{
+		client: { label: 'Clicking "Pay Now"...', flash: 'idle' },
 		app: {
 			label: 'Processing checkout...',
 			flash: 'idle',
 			threads: [...DEFAULT_THREADS],
-			timeoutLabel: '10s limit',
-			timeoutFlash: 'green',
-			retryLabel: '3x backoff',
-			retryFlash: 'green',
-			circuitLabel: 'CLOSED',
-			circuitFlash: 'green',
+			...MW_DEFAULTS,
 		},
 		edge: {
+			active: true,
+			reverse: false,
+			label: 'POST /api/v1/payments',
+			dotColor: 'bg-cyan-500',
+		},
+		edgeB: {
 			active: true,
 			reverse: false,
 			label: 'POST /v1/charges',
@@ -638,8 +748,10 @@ const REWARD_FAST_FRAMES: AnimFrame[] = [
 		stripe: { label: 'Processing...', flash: 'idle', status: 'Healthy' },
 	},
 	{
+		client: { label: 'Waiting...', flash: 'idle' },
 		app: { label: 'Response in 200ms', flash: 'green' },
-		edge: {
+		edge: { active: false, label: '' },
+		edgeB: {
 			active: true,
 			reverse: true,
 			label: '200 OK',
@@ -648,36 +760,47 @@ const REWARD_FAST_FRAMES: AnimFrame[] = [
 		stripe: { label: '200 OK', flash: 'green' },
 	},
 	{
+		client: { label: 'Payment confirmed!', flash: 'green' },
 		app: { label: 'Payment created!', flash: 'green' },
-		edge: { active: false, label: '' },
+		edge: {
+			active: true,
+			reverse: true,
+			label: '200 Created',
+			dotColor: 'bg-emerald-500',
+		},
+		edgeB: { active: false, label: '' },
 		stripe: { label: 'Healthy', flash: 'idle', status: 'Healthy' },
 	},
 ];
 
 const REWARD_400_FRAMES: AnimFrame[] = [
 	{
+		client: { label: 'Submitting bad data...', flash: 'idle' },
 		app: {
-			label: 'Processing checkout...',
+			label: 'Forwarding to Stripe...',
 			flash: 'idle',
 			threads: [...DEFAULT_THREADS],
-			timeoutLabel: '10s limit',
-			timeoutFlash: 'green',
-			retryLabel: '3x backoff',
-			retryFlash: 'green',
-			circuitLabel: 'CLOSED',
-			circuitFlash: 'green',
+			...MW_DEFAULTS,
 		},
 		edge: {
 			active: true,
 			reverse: false,
-			label: 'POST /v1/charges (bad params)',
+			label: 'POST /api/v1/payments',
+			dotColor: 'bg-cyan-500',
+		},
+		edgeB: {
+			active: true,
+			reverse: false,
+			label: 'POST /v1/charges',
 			dotColor: 'bg-cyan-500',
 		},
 		stripe: { label: 'Validating...', flash: 'idle', status: 'Healthy' },
 	},
 	{
+		client: { label: 'Waiting...', flash: 'idle' },
 		app: { label: 'Client error received', flash: 'amber' },
-		edge: {
+		edge: { active: false, label: '' },
+		edgeB: {
 			active: true,
 			reverse: true,
 			label: '400 Bad Request',
@@ -686,13 +809,20 @@ const REWARD_400_FRAMES: AnimFrame[] = [
 		stripe: { label: '400 Bad Request', flash: 'amber' },
 	},
 	{
+		client: { label: 'Fix your input', flash: 'amber' },
 		app: {
-			label: 'Circuit: NOT counted (4xx filtered)',
+			label: 'Circuit: NOT counted',
 			flash: 'idle',
 			circuitLabel: 'CLOSED (4xx filtered)',
 			circuitFlash: 'green',
 		},
-		edge: { active: false, label: '' },
+		edge: {
+			active: true,
+			reverse: true,
+			label: '422 Validation error',
+			dotColor: 'bg-red-500',
+		},
+		edgeB: { active: false, label: '' },
 		stripe: { label: 'Healthy', flash: 'idle', status: 'Healthy' },
 	},
 ];
@@ -1381,6 +1511,28 @@ const FLASH_BG: Record<ZoneFlash, string> = {
 	amber: 'bg-amber-50 dark:bg-amber-950/30',
 };
 
+interface ClientNodeData extends ClientVizState {
+	[key: string]: unknown;
+}
+
+const ClientNode = memo(({ data }: { data: ClientNodeData }) => {
+	const d = data as ClientNodeData;
+	return (
+		<div
+			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-36 p-2.5`}
+		>
+			<FlowHandles />
+			<div className="flex items-center gap-2 mb-1.5">
+				<Monitor className="w-4 h-4 text-foreground shrink-0" />
+				<span className="text-xs font-semibold text-foreground">Client</span>
+			</div>
+			<div className="text-xs text-foreground font-medium truncate">
+				{d.label}
+			</div>
+		</div>
+	);
+});
+
 interface AppServerNodeData extends AppServerVizState {
 	isReward: boolean;
 	[key: string]: unknown;
@@ -1582,7 +1734,11 @@ const ApiEdge = memo(
 	},
 );
 
-const apiNodeTypes = { appServer: AppServerNode, stripe: StripeNode };
+const apiNodeTypes = {
+	client: ClientNode,
+	appServer: AppServerNode,
+	stripe: StripeNode,
+};
 const apiEdgeTypes = { api: ApiEdge };
 
 // ─── Main component ────────────────────────────────────────────────────
@@ -1592,23 +1748,30 @@ export function Level38ExternalAPIs({ onComplete }: LevelComponentProps) {
 	const isReward = phase === 'reward';
 
 	// ── Viz state ──
+	const [clientState, setClientState] =
+		useState<ClientVizState>(DEFAULT_CLIENT);
 	const [appState, setAppState] = useState<AppServerVizState>(DEFAULT_APP);
 	const [stripeState, setStripeState] =
 		useState<StripeVizState>(DEFAULT_STRIPE);
 	const [edgeState, setEdgeState] = useState<EdgeVizState>(DEFAULT_EDGE);
+	const [edgeBState, setEdgeBState] = useState<EdgeVizState>(DEFAULT_EDGE);
 	const [vizAnimating, setVizAnimating] = useState(false);
 	const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
 	const resetViz = useCallback(() => {
+		setClientState(DEFAULT_CLIENT);
 		setAppState(isReward ? DEFAULT_APP_REWARD : DEFAULT_APP);
 		setStripeState(DEFAULT_STRIPE);
 		setEdgeState(DEFAULT_EDGE);
+		setEdgeBState(DEFAULT_EDGE);
 	}, [isReward]);
 
 	const applyFrame = useCallback((frame: AnimFrame) => {
+		if (frame.client) setClientState((prev) => ({ ...prev, ...frame.client }));
 		if (frame.app) setAppState((prev) => ({ ...prev, ...frame.app }));
 		if (frame.stripe) setStripeState((prev) => ({ ...prev, ...frame.stripe }));
 		if (frame.edge) setEdgeState((prev) => ({ ...prev, ...frame.edge }));
+		if (frame.edgeB) setEdgeBState((prev) => ({ ...prev, ...frame.edgeB }));
 	}, []);
 
 	const runAnimation = useCallback(
@@ -1698,9 +1861,11 @@ export function Level38ExternalAPIs({ onComplete }: LevelComponentProps) {
 			stressTest.fireRequest(scenarioId);
 			const frames = REWARD_FRAME_MAP[scenarioId];
 			if (frames) {
+				setClientState(DEFAULT_CLIENT);
 				setAppState(DEFAULT_APP_REWARD);
 				setStripeState(DEFAULT_STRIPE);
 				setEdgeState(DEFAULT_EDGE);
+				setEdgeBState(DEFAULT_EDGE);
 				runAnimation(frames);
 			}
 		},
@@ -1711,34 +1876,49 @@ export function Level38ExternalAPIs({ onComplete }: LevelComponentProps) {
 	const flowNodes = useMemo(
 		(): Node[] => [
 			{
+				id: 'client',
+				type: 'client',
+				position: { x: 0, y: 30 },
+				data: { ...clientState } satisfies ClientNodeData,
+			},
+			{
 				id: 'appServer',
 				type: 'appServer',
-				position: { x: 0, y: 0 },
+				position: { x: 260, y: 0 },
 				data: { ...appState, isReward } satisfies AppServerNodeData,
 			},
 			{
 				id: 'stripe',
 				type: 'stripe',
-				position: { x: isReward ? 550 : 480, y: 30 },
+				position: { x: isReward ? 600 : 550, y: 30 },
 				data: { ...stripeState } satisfies StripeNodeData,
 			},
 		],
-		[appState, stripeState, isReward],
+		[clientState, appState, stripeState, isReward],
 	);
 
 	const flowEdges = useMemo(
 		(): Edge[] => [
 			{
-				id: 'e-api',
-				source: 'appServer',
-				target: 'stripe',
+				id: 'e-client-app',
+				source: 'client',
+				target: 'appServer',
 				type: 'api',
 				sourceHandle: 'right-source',
 				targetHandle: 'left-target',
 				data: { ...edgeState } satisfies ApiEdgeData,
 			},
+			{
+				id: 'e-app-stripe',
+				source: 'appServer',
+				target: 'stripe',
+				type: 'api',
+				sourceHandle: 'right-source',
+				targetHandle: 'left-target',
+				data: { ...edgeBState } satisfies ApiEdgeData,
+			},
 		],
-		[edgeState],
+		[edgeState, edgeBState],
 	);
 
 	// ── Build step config ──
