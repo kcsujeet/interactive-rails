@@ -22,7 +22,13 @@
  *   <FlowDiagram nodes={nodes} edges={edges} nodeTypes={myNodeTypes} edgeTypes={myEdgeTypes} />
  */
 
-import { Handle, Position, ReactFlow } from '@xyflow/react';
+import {
+	applyNodeChanges,
+	Handle,
+	type NodeChange,
+	Position,
+	ReactFlow,
+} from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import type {
 	Edge,
@@ -31,7 +37,7 @@ import type {
 	NodeTypes,
 	ReactFlowInstance,
 } from '@xyflow/react';
-import { useMemo } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
 // ──────────────────────────────────────────────
 // FlowDiagram props
@@ -49,7 +55,7 @@ export interface FlowDiagramProps {
 	className?: string;
 	/** fitView padding (default: 0.15) */
 	fitViewPadding?: number;
-	/** Allow node dragging (default: false) */
+	/** Allow node dragging (default: true) */
 	nodesDraggable?: boolean;
 }
 
@@ -71,9 +77,33 @@ export function FlowDiagram({
 	onNodeClick,
 	className,
 	fitViewPadding = 0.15,
-	nodesDraggable = false,
+	nodesDraggable = true,
 }: FlowDiagramProps) {
 	const isClickable = !!onNodeClick;
+
+	// Internal node state: syncs data/type from parent, preserves drag positions.
+	// When parent updates nodes (animation frames), we merge new data onto
+	// the current positions so user drag offsets are not lost.
+	const [internalNodes, setInternalNodes] = useState<Node[]>(nodes);
+	const prevNodesRef = useRef(nodes);
+
+	// Sync parent prop changes into internal state, preserving drag positions
+	if (nodes !== prevNodesRef.current) {
+		prevNodesRef.current = nodes;
+		setInternalNodes((prev) => {
+			const posMap = new Map(prev.map((n) => [n.id, n.position]));
+			return nodes.map((n) => ({
+				...n,
+				// Keep dragged position if user moved this node, otherwise use parent position
+				position: posMap.get(n.id) ?? n.position,
+			}));
+		});
+	}
+
+	// Apply React Flow changes (drag, select, etc.) to internal state
+	const handleNodesChange = useCallback((changes: NodeChange[]) => {
+		setInternalNodes((nds) => applyNodeChanges(changes, nds));
+	}, []);
 
 	const handleNodeClick = useMemo(() => {
 		if (!onNodeClick) return undefined;
@@ -93,13 +123,14 @@ export function FlowDiagram({
 			edges={edges}
 			edgeTypes={edgeTypes}
 			elementsSelectable={isClickable}
-			nodes={nodes}
+			nodes={internalNodes}
 			nodesConnectable={false}
 			nodesDraggable={nodesDraggable}
 			nodesFocusable={false}
 			nodeTypes={nodeTypes}
 			onInit={handleInit}
 			onNodeClick={handleNodeClick}
+			onNodesChange={handleNodesChange}
 			proOptions={{ hideAttribution: true }}
 		/>
 	);
