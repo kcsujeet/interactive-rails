@@ -8,7 +8,7 @@
  * Visually matches SimulatedTerminal (dark bg, monospace, traffic-light dots).
  */
 
-import { Crosshair, Info } from 'lucide-react';
+import { Check, Crosshair, Info } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/Button';
@@ -64,12 +64,15 @@ export function ProbeTerminal({
 	const [visibleLines, setVisibleLines] = useState(0);
 	const scrollRef = useRef<HTMLDivElement>(null);
 
-	// Auto-scroll to bottom
+	// Auto-scroll to bottom when new output appears
 	useEffect(() => {
 		if (scrollRef.current) {
-			scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+			scrollRef.current.scrollTo({
+				top: scrollRef.current.scrollHeight,
+				behavior: 'smooth',
+			});
 		}
-	}, []);
+	}, [history.length, visibleLines]);
 
 	// Animate output lines
 	useEffect(() => {
@@ -92,7 +95,7 @@ export function ProbeTerminal({
 	}, [animating, history.length, history]);
 
 	const handleProbe = (probe: ProbeConfig) => {
-		if (firedIds.has(probe.id) || animating || disabled) return;
+		if (animating || disabled) return;
 
 		setFiredIds((prev) => new Set(prev).add(probe.id));
 		setHistory((prev) => [
@@ -195,13 +198,16 @@ export function ProbeTerminal({
 			</div>
 
 			{/* Probe buttons */}
-			{!allFired && (
-				<div className="p-3 border-t border-border bg-muted/50">
+			<div className="p-3 border-t border-border bg-muted/50">
+				{!allFired && (
 					<div className="text-xs text-zinc-500 mb-2">
 						Fire a probe to test the API:
 					</div>
-					<div className="flex flex-wrap gap-2">
-						{availableProbes.map((probe) => (
+				)}
+				<div className="flex flex-wrap gap-2">
+					{probes.map((probe) => {
+						const fired = firedIds.has(probe.id);
+						return (
 							<div className="flex items-center gap-1" key={probe.id}>
 								<Button
 									className="font-mono text-xs bg-amber-100 hover:bg-amber-200 text-amber-700 border-amber-300 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700/50"
@@ -210,6 +216,7 @@ export function ProbeTerminal({
 									size="sm"
 									variant="outline"
 								>
+									{fired && <Check className="w-3 h-3 mr-1" />}
 									{probe.label}
 								</Button>
 								{probe.story && (
@@ -232,10 +239,10 @@ export function ProbeTerminal({
 									</Dialog>
 								)}
 							</div>
-						))}
-					</div>
+						)
+					})}
 				</div>
-			)}
+			</div>
 		</div>
 	);
 }
