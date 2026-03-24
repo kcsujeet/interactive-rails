@@ -1392,7 +1392,7 @@ const AppServerNode = memo(({ data }: { data: AppServerNodeData }) => {
 
 	return (
 		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 ${showMiddleware ? 'w-72' : 'w-56'} p-3`}
+			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 ${showMiddleware ? 'w-64' : 'w-48'} p-2.5`}
 		>
 			<FlowHandles />
 			{/* Header */}
@@ -1488,7 +1488,7 @@ const StripeNode = memo(({ data }: { data: StripeNodeData }) => {
 
 	return (
 		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-40 p-3`}
+			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-36 p-2.5`}
 		>
 			<FlowHandles />
 			<div className="flex items-center gap-2 mb-2">
@@ -1568,7 +1568,7 @@ const ApiEdge = memo(
 				{d.label && (
 					<EdgeLabelRenderer>
 						<div
-							className="nodrag nopan pointer-events-none absolute text-[10px] font-mono text-foreground bg-background/90 px-1.5 py-0.5 rounded border border-border max-w-48 text-center"
+							className="nodrag nopan pointer-events-none absolute text-[10px] font-mono text-foreground bg-background/90 px-1.5 py-0.5 rounded border border-border max-w-64 text-center whitespace-nowrap"
 							style={{
 								transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY + 20}px)`,
 							}}
@@ -1719,7 +1719,7 @@ export function Level38ExternalAPIs({ onComplete }: LevelComponentProps) {
 			{
 				id: 'stripe',
 				type: 'stripe',
-				position: { x: isReward ? 400 : 320, y: 30 },
+				position: { x: isReward ? 550 : 480, y: 30 },
 				data: { ...stripeState } satisfies StripeNodeData,
 			},
 		],
