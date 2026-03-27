@@ -32,7 +32,22 @@ For **designing** a new level or **redesigning** a broken visualization, use the
 
 State it in one sentence. Not the Rails concept ("Active Storage"), but the concrete problem the player is experiencing in their app. Example: "Product photos are being uploaded through the Rails server, spiking memory and blocking workers."
 
-### 2. How did the player get into this situation?
+### 2. Would the player even know what this concept is?
+
+**This is the most commonly missed check.** Before asking whether the visualization is good or the build steps are correct, ask: **"Has the player been introduced to this concept before? Would they understand the level's premise?"**
+
+Trace the concept back through earlier levels. If Level N assumes the player knows X, there must be a level before N that taught X, or Level N itself must introduce X before showing its problems.
+
+**What to check:**
+- **Does the level assume familiarity with a concept never taught?** If the level says "Stripe webhook fires twice," but no earlier level explained what a webhook is, why Stripe sends them, or how the player's app receives them, the player is lost before the first probe fires.
+- **Is there a "how did this get here?" gap?** If the observe phase shows code that already exists (a webhook controller, a payment processor, an S3 bucket), ask: "When did the player build this?" If the answer is "they didn't, it was assumed to exist," the level has a foundation gap.
+- **Does the level introduce a new external system without context?** If L38 taught outbound Stripe calls, L39 cannot assume the player understands inbound Stripe callbacks. Outbound and inbound are fundamentally different concepts. The level must bridge from "we call Stripe" to "Stripe calls us" before showing what goes wrong.
+
+**How to fix foundation gaps:** The observe phase must include introductory context. Before showing problems, establish: What is this thing? Why does the app need it? How was it set up? This can be done through scenario text, the first probe's story, or an introductory animation sequence that shows the happy path before revealing the vulnerability.
+
+Case study: L39 originally jumped straight to "Stripe webhook fires twice, customer charged twice." But the player had never learned what a webhook is, why Stripe needs to call back, or when the webhook handler was set up. The level taught how to secure a webhook handler without first teaching what a webhook handler is. The fix: restructure the observe phase to first show the async payment flow (customer pays -> Stripe processes -> Stripe calls back with result), establishing why webhooks exist, before revealing the three vulnerabilities.
+
+### 3. How did the player get into this situation?
 
 Think about the act context and what came before. By Act 5, the player has built a full e-commerce app with models, controllers, services, validations, associations, testing, and performance optimizations across 34 levels. Ask:
 
@@ -44,7 +59,7 @@ Example of getting this WRONG: L35 showed `user.avatar.attach(@file)` (Active St
 
 Example of getting this RIGHT: The player has been saving files manually to disk (naive approach). The problem is memory spikes, no CDN, no variants. The build phase introduces Active Storage as the upgrade.
 
-### 3. Does the visualization match the "before" state?
+### 4. Does the visualization match the "before" state?
 
 The zones, nodes, and flow in the observe phase must reflect what actually exists in the "before" code. If the code saves files to the app server's local disk, the visualization should NOT show an S3 zone. If Active Storage isn't installed, there's no blob tracking. The visualization must be honest about what the player's app looks like right now.
 
@@ -52,7 +67,7 @@ The zones, nodes, and flow in the observe phase must reflect what actually exist
 
 **Check zone rendering is conditional.** If the observe and reward phases show different numbers of zones (e.g., 2 zones in observe, 3 in reward), verify that `renderUploadPipeline` (or equivalent) conditionally renders zones based on phase. Don't render zones that don't exist in the current narrative state.
 
-### 4. Does the build phase bridge from "before" to "after"?
+### 5. Does the build phase bridge from "before" to "after"?
 
 The build steps should transform the "before" state into the "after" state. Every step should make sense in sequence. If step 1 is "Install Active Storage" but the observe code already uses Active Storage APIs, the bridge is broken.
 

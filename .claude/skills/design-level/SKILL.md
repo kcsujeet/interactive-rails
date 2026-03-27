@@ -58,15 +58,28 @@ State it in one sentence. Not the Rails concept, but the concrete problem in the
 - Good: "50,000 users polling every 2 seconds creates 25K wasted requests/sec and 95% CPU."
 - Bad: "The app needs Action Cable."
 
-### 2. How did the player get here?
+### 2. Would the player even know what this concept is?
 
-Think about what the app looks like after 36 levels of building. What features exist? What would the "before" code realistically look like? Would the player have used the naive approach, a partial approach, or no implementation at all?
+**This is the most commonly missed question.** Before designing anything, ask: has the player been introduced to this concept? Would they understand the level's premise?
 
-### 3. What does the "before" state look like?
+Trace the concept back through earlier levels. If L38 taught outbound Stripe API calls, L39 cannot assume the player understands inbound Stripe webhooks. Those are fundamentally different concepts. The level must bridge the gap.
+
+**Check for these foundation gaps:**
+- **Concept never introduced.** If the level says "webhook fires twice" but no earlier level explained what a webhook is, the player is confused before the first probe.
+- **"How did this get here?" gap.** If the observe code shows a webhook controller, when did the player build it? If the answer is "it was assumed to exist," the level has a gap.
+- **New external system without context.** If a level introduces a new direction of communication (outbound -> inbound), a new service (S3, Redis, CDN), or a new pattern (pub/sub, event sourcing), the level must explain what it is and why the app needs it before showing what goes wrong with it.
+
+**How to bridge gaps:** The observe phase scenario text, probe stories, and initial animation sequence must establish the concept's purpose before revealing vulnerabilities. Show the happy path first ("this is how webhooks work and why we need them"), then show what breaks ("but here's what happens when the same event arrives twice").
+
+### 3. How did the player get here?
+
+Think about what the app looks like after N levels of building. What features exist? What would the "before" code realistically look like? Would the player have used the naive approach, a partial approach, or no implementation at all?
+
+### 4. What does the "before" state look like?
 
 The observe phase visualization must only show components that exist in the "before" state. If WebSocket isn't configured yet, don't show a WebSocket lane. If S3 isn't installed, don't show an S3 zone.
 
-### 4. What does the "after" state look like?
+### 5. What does the "after" state look like?
 
 The reward phase shows the same visualization with the solution working. The contrast between "before" and "after" IS the reward.
 
@@ -439,7 +452,8 @@ After designing and implementing, run `audit-level` to verify compliance with al
 - [ ] Read visualization-examples.md
 - [ ] Read the spec for this level
 - [ ] Read adjacent levels (N-2 to N+2) for visual uniqueness
-- [ ] Answer the 4 narrative reasoning questions in writing
+- [ ] Answer the 5 narrative reasoning questions in writing
+- [ ] **Question 2 (concept foundation) explicitly verified**: Would the player know what this concept is? Has it been introduced in a prior level? If not, the observe phase must introduce it before showing problems.
 - [ ] Choose the visualization type with one-sentence justification
 
 ### Observe phase design (probes and reward scenarios designed together as pairs)
