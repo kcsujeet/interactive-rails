@@ -41,11 +41,12 @@ These files are shared between both skills. They live in `audit-level/` and are 
 
 Before designing anything:
 
-1. **Read [cumulative-patterns.md](../audit-level/cumulative-patterns.md).** If the player can see it, it must follow every pattern established in earlier levels. No exceptions. This applies to everything: code previews, option card snippets, visualization data, JSON responses, animation labels, banners, probe response lines. Not just code preview panels.
-2. **Read [visualization-examples.md](visualization-examples.md).** Learn from past failures before repeating them.
-3. **Read [implementation-rules.md](../audit-level/implementation-rules.md).** The bug table lists mistakes that have already been made. Don't add to it.
-4. **Read the spec for this level** in `docs/spec.md`. Understand the concept, scenario, and what the player should learn.
-5. **Read adjacent levels (N-2 to N+2).** Your visualization must be visually distinct from neighbors.
+1. **Open [design-checklist.md](design-checklist.md) and fill it out as you go.** This is a fill-in worksheet, not a reference. Every section requires written output. Do not proceed to the next section until the current one is complete. Do not do any section "in your head." The checklist is the primary defense against every mistake documented in this skill.
+2. **Read [cumulative-patterns.md](../audit-level/cumulative-patterns.md).** If the player can see it, it must follow every pattern established in earlier levels. No exceptions. This applies to everything: code previews, option card snippets, visualization data, JSON responses, animation labels, banners, probe response lines. Not just code preview panels.
+3. **Read [visualization-examples.md](visualization-examples.md).** Learn from past failures before repeating them.
+4. **Read [implementation-rules.md](../audit-level/implementation-rules.md).** The bug table lists mistakes that have already been made. Don't add to it.
+5. **Read the spec for this level** in `docs/spec.md`. Understand the concept, scenario, and what the player should learn.
+6. **Read adjacent levels (N-2 to N+2).** Your visualization must be visually distinct from neighbors.
 
 ## Step 1: Narrative Reasoning (Story First)
 
