@@ -169,6 +169,7 @@ _(Copy this section for each additional probe.)_
 - [ ] ProbeTerminal and StressTestPanel `disabled` during animation
 - [ ] Edge dot cleanup after last frame
 - [ ] Timer cleanup on unmount
+- [ ] FlowDiagram nodes are draggable (do NOT pass `nodesDraggable={false}`)
 - [ ] Code preview index: `isCurrentStepCompleted ? currentStep : currentStep - 1`
 - [ ] ErrorFeedback above options
 - [ ] "Next Step" button: `className="gap-2" size="sm"`

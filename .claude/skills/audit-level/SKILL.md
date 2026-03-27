@@ -472,6 +472,7 @@ Verify that any custom animations follow Tailwind v4 / Lightning CSS constraints
 - [ ] **`FlowConnector` used instead of `ArrowDown` icons.**
 - [ ] **`FlowConnector` direction matches the visualization's data flow.** Dots must travel in the same direction data flows in the visualization. A mismatch (e.g., vertical dots in a left-to-right layout) breaks the visual metaphor.
 - [ ] **React Flow containers use `flex-1 relative`, never fixed heights.** The React Flow `<div>` wrapper must use `flex-1 relative` so it fills available space, matching how PipelineFlow levels (L12 canonical) render. Never use fixed heights like `h-56`, `h-72`, etc. Fixed heights waste space or clip the canvas depending on panel size.
+- [ ] **React Flow nodes are draggable by default.** Do not pass `nodesDraggable={false}` to `FlowDiagram`. The default (`true`) lets players rearrange nodes to better read edge labels and understand the layout. Only disable dragging if the level has a specific reason (none currently do).
 
 ### Color Contrast Checks (Light + Dark Mode)
 
