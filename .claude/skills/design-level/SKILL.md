@@ -49,14 +49,32 @@ Before designing anything:
 
 ## Step 1: Narrative Reasoning (Story First)
 
-Before any visual design, answer these four questions. Write the answers down.
+Before any visual design, answer these five questions. **Write the answers down explicitly in your response, not just in your head.** Do not proceed to Step 2 until all five are answered in writing. This is the single most effective defense against narrative and visualization bugs.
 
-### 1. What is the problem?
+**Mandatory output for Question 1:** Write the actor table (see below). This table is referenced in Step 3 to verify every actor has a node. If you skip it, you will forget actors and the visualization will collapse distinct entities into one node.
 
-State it in one sentence. Not the Rails concept, but the concrete problem in the player's app.
+### 1. What is the problem? Who are the actors?
+
+State the problem in one sentence. Not the Rails concept, but the concrete problem in the player's app.
 
 - Good: "50,000 users polling every 2 seconds creates 25K wasted requests/sec and 95% CPU."
 - Bad: "The app needs Action Cable."
+
+**Then write the actor table.** List every entity that initiates, processes, or receives something in this level's story. This is mandatory output, not optional reasoning. The table is cross-referenced in Step 3 to verify every actor has a node.
+
+```
+| Actor | Role | Appears in which probes? |
+|-------|------|--------------------------|
+| Customer | Initiates payment | All |
+| Rails App | Processes webhook | All |
+| Stripe | Sends legitimate callbacks | Probes 2, 3 |
+| Attacker | Sends forged callbacks | Probe 1 |
+| Database | Stores credits/events | All |
+```
+
+**If two actors use the same communication channel but have different identities or motivations, they are separate actors and need separate nodes.** Stripe sending a legitimate callback and an attacker sending a forged POST are different actors even though both hit the same endpoint. Collapsing them into one node makes it impossible for the player to see where the forged event comes from.
+
+Case study: L39 originally had 4 nodes with Stripe doubling as the Attacker (same node, different label). When the forged-webhook probe fired, the "Stripe" node changed its icon to a shield and label to "Attacker." This was confusing: Is Stripe the attacker? Where is Stripe during the attack? The fix: add a dedicated Attacker node that's visible (dimmed) at all times, separate from Stripe.
 
 ### 2. Would the player even know what this concept is?
 
@@ -109,6 +127,23 @@ See [observe-phase-guide.md](observe-phase-guide.md) for detailed type selection
 ---
 
 ## Step 3: Design the Visualization (Types 3 and 4)
+
+### Actor-to-Node Cross-Reference (Do This First)
+
+**Before designing any layout, cross-reference the actor table from Step 1 against your planned nodes.** Write this out explicitly:
+
+```
+| Actor (from Step 1) | Node in visualization? | If no, why not? |
+|---------------------|----------------------|-----------------|
+| Stripe              | Yes: "Stripe" node   |                 |
+| Attacker            | Yes: "Attacker" node |                 |
+| Rails App           | Yes: "App Server"    |                 |
+| Database            | Yes: "Database"      |                 |
+```
+
+**If any actor from the table does not have a corresponding node, you must justify why.** Valid reasons: "This actor is a sub-element inside another node (e.g., middleware inside App)" per principle 13. Invalid reasons: "I combined them to keep it simple" or "they use the same endpoint."
+
+**If the node count is less than the actor count and you cannot justify each missing actor, stop and add nodes until they match.** This check exists because the most common visualization mistake is collapsing two distinct actors into one node for convenience, which destroys the player's ability to see where actions originate.
 
 ### The Zero-Knowledge Test
 

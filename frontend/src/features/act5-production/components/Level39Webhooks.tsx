@@ -1173,8 +1173,26 @@ function getCodeFiles(
   skip_before_action :verify_authenticity_token
 
   def stripe
-    event = JSON.parse(request.body.read)
-    # No signature verification! Anyone can spoof events!
+    result = HandleStripeWebhook.call(
+      payload: request.body.read)
+
+    head :ok
+  end
+end`,
+			},
+			{
+				filename: 'app/services/handle_stripe_webhook.rb',
+				language: 'ruby',
+				code: `class HandleStripeWebhook < ApplicationService
+  Result = Data.define(:success?, :resource, :errors)
+
+  def initialize(payload:)
+    @payload = payload
+  end
+
+  def call
+    event = JSON.parse(@payload)
+    # No signature verification! Anyone can spoof!
 
     case event['type']
     when 'payment_intent.succeeded'
@@ -1186,7 +1204,7 @@ function getCodeFiles(
       # Duplicate webhook = duplicate credit!
     end
 
-    head :ok
+    Result.new(success?: true, resource: nil, errors: {})
     # No idempotency check, no async processing
     # Stripe times out at 20s, retries up to 7 times
   end
@@ -1923,10 +1941,17 @@ export function Level39Webhooks({ onComplete }: LevelComponentProps) {
 						<h3 className="text-sm font-semibold text-foreground mb-2">
 							Scenario
 						</h3>
+						<p className="text-sm text-muted-foreground mb-2">
+							In Level 38, your app learned to call Stripe reliably. But
+							payments are asynchronous: Stripe processes the charge and then
+							notifies your app by sending an HTTP POST to your /webhooks/stripe
+							endpoint. This inbound callback is called a webhook.
+						</p>
 						<p className="text-sm text-muted-foreground">
-							Stripe fires a payment.succeeded webhook. Your handler credits the
-							user $50. A network hiccup causes Stripe to retry the same event.
-							Your handler credits another $50. User now has $100 instead of
+							A naive webhook handler was added to receive these events. Stripe
+							fired a payment.succeeded webhook and your handler credited the
+							user $50. A network hiccup caused Stripe to retry the same event.
+							Your handler credited another $50. User now has $100 instead of
 							$50.
 						</p>
 					</div>

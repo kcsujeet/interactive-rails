@@ -1179,7 +1179,7 @@ const level39Webhooks: Level = {
 	trigger: {
 		type: 'incident',
 		description:
-			'Stripe webhook fires twice for the same payment.succeeded event. User is charged once but credited twice in the system. Support tickets flooding in.',
+			'Stripe sends payment results to your app via webhook callbacks (HTTP POST to /webhooks/stripe). A network hiccup caused Stripe to retry the same event. The handler processed it twice, double-crediting the customer. Support tickets flooding in.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -1248,29 +1248,47 @@ const level39Webhooks: Level = {
 	},
 	problem: {
 		observation:
-			'Stripe sends payment.succeeded webhook. System credits user account $50. Network hiccup causes Stripe to retry the same webhook. System credits another $50. User now has $100 credit instead of $50.',
+			'When a payment succeeds, Stripe POSTs a payment.succeeded event to your webhook endpoint. The handler credits the user $50. A network hiccup causes Stripe to retry the same event. The handler credits another $50. User now has $100 instead of $50.',
 		rootCause:
 			'Webhook handler is not idempotent. No signature verification (anyone could spoof webhooks). No deduplication of already-processed events. Processing happens synchronously, risking timeout.',
-		codeExample: `# BAD: Not idempotent, not secure
+		codeExample: `# app/controllers/webhooks_controller.rb
 class WebhooksController < ApplicationController
+  skip_before_action :verify_authenticity_token
+
   def stripe
-    event = JSON.parse(request.body.read)
-    # No signature verification! Anyone can POST fake events!
+    result = HandleStripeWebhook.call(
+      payload: request.body.read)
+    head :ok
+  end
+end
+
+# app/services/handle_stripe_webhook.rb
+# BAD: Not idempotent, not secure
+class HandleStripeWebhook < ApplicationService
+  Result = Data.define(:success?, :resource, :errors)
+
+  def initialize(payload:)
+    @payload = payload
+  end
+
+  def call
+    event = JSON.parse(@payload)
+    # No signature verification! Anyone can spoof!
 
     case event['type']
     when 'payment_intent.succeeded'
-      payment = Payment.find_by(stripe_id: event['data']['object']['id'])
+      payment = Payment.find_by(
+        stripe_id: event['data']['object']['id'])
       payment.mark_completed!
       payment.user.credits.create!(amount: payment.amount)
       # Duplicate webhook = duplicate credit!
     end
 
-    head :ok
+    Result.new(success?: true, resource: nil, errors: {})
   end
 end
 
 # Stripe retries webhooks up to 7 times over 72 hours
-# Network issues, slow responses, and bugs all cause retries
 # Your handler MUST handle duplicates gracefully`,
 		goal: 'Build a secure, idempotent webhook handler: verify signatures, deduplicate events, and process asynchronously.',
 		thresholds: {},
