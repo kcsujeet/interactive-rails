@@ -1,10 +1,9 @@
 /**
  * Level 39: Webhooks & Idempotency
  *
- * Three-phase flow: observe -> build -> activate -> reward
+ * Three-phase flow: observe -> build -> reward
  *
- * Phase 1 (observe): "Webhook Event Queue" visualization.
- *   Vertical top-to-bottom flow: Incoming Event -> [no signature gate] -> [no dedup gate] -> [sync processing]
+ * Phase 1 (observe): 4-node horizontal visualization (Stripe -> App -> Database, App -> Job Queue).
  *   Probes fire webhook events that expose: forged events accepted, duplicates double-credited,
  *   synchronous processing blocking the response.
  *
@@ -16,27 +15,51 @@
  *   Step 4: Configure async job processing (option)
  *   Step 5: Build the webhook handler service (option)
  *
- * Phase 3 (reward): Same event queue, now with active gates.
+ * Phase 3 (reward): Same 4 nodes, now with active gates.
  *   Signature gate rejects forged events. Idempotency gate catches duplicates.
  *   Valid events enqueued to background job. Fast 200 response.
  */
 
-import { ArrowRight, Fingerprint, Layers, Mail, Zap } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+	BaseEdge,
+	type Edge,
+	EdgeLabelRenderer,
+	type EdgeProps,
+	getStraightPath,
+	type Node,
+} from '@xyflow/react';
+import {
+	ArrowRight,
+	Database,
+	Globe,
+	ListTodo,
+	Server,
+	ShieldAlert,
+} from 'lucide-react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
 	CodePreviewPanel,
 	ErrorFeedback,
 	LeftPanel,
+	LevelHeader,
 	LevelLayout,
 	OptionCard,
 	RightPanel,
 	StepProgress,
 	TerminalChoiceStep,
+	type TerminalStepData,
+	type ValidationResult,
 } from '@/components/levels';
 import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
-import { FlowConnector } from '@/components/levels/FlowConnector';
+import {
+	AnimatedDots,
+	type DotConfig,
+	FlowDiagram,
+	FlowHandles,
+	reversePath,
+} from '@/components/levels/FlowDiagram';
 import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Badge } from '@/components/ui/Badge';
@@ -47,48 +70,140 @@ import { useStepGating } from '@/hooks/useStepGating';
 import { useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 
+// ─── Types ────────────────────────────────────────────────────────────
+
+type ZoneFlash = 'idle' | 'red' | 'green' | 'amber';
+
+interface StripeVizState {
+	label: string;
+	flash: ZoneFlash;
+	isAttacker: boolean;
+}
+
+interface AppVizState {
+	label: string;
+	flash: ZoneFlash;
+	badge: string | null;
+}
+
+interface DbVizState {
+	label: string;
+	flash: ZoneFlash;
+	rows: { text: string; color: 'default' | 'red' | 'green' }[];
+}
+
+interface QueueVizState {
+	label: string;
+	flash: ZoneFlash;
+}
+
+interface EdgeVizState {
+	active: boolean;
+	reverse: boolean;
+	label: string;
+	dotColor: string;
+}
+
+interface AnimFrame {
+	stripe?: Partial<StripeVizState>;
+	app?: Partial<AppVizState>;
+	db?: Partial<DbVizState>;
+	queue?: Partial<QueueVizState>;
+	/** Stripe <-> App edge */
+	edge1?: Partial<EdgeVizState>;
+	/** App <-> Database edge */
+	edge2?: Partial<EdgeVizState>;
+	/** App <-> Job Queue edge */
+	edge3?: Partial<EdgeVizState>;
+}
+
+// ─── Defaults ─────────────────────────────────────────────────────────
+
+const DEFAULT_STRIPE: StripeVizState = {
+	label: 'Idle',
+	flash: 'idle',
+	isAttacker: false,
+};
+
+const DEFAULT_APP: AppVizState = {
+	label: 'Idle',
+	flash: 'idle',
+	badge: null,
+};
+
+const DEFAULT_DB: DbVizState = {
+	label: 'Credits Table',
+	flash: 'idle',
+	rows: [],
+};
+
+const DEFAULT_QUEUE: QueueVizState = {
+	label: 'No webhook jobs',
+	flash: 'idle',
+};
+
+const DEFAULT_EDGE: EdgeVizState = {
+	active: false,
+	reverse: false,
+	label: '',
+	dotColor: 'bg-cyan-500',
+};
+
+const DEFAULT_DB_REWARD: DbVizState = {
+	label: 'webhook_events',
+	flash: 'idle',
+	rows: [],
+};
+
+const DEFAULT_QUEUE_REWARD: QueueVizState = {
+	label: 'Solid Queue',
+	flash: 'idle',
+};
+
 // ─── Discovery definitions ─────────────────────────────────────────────
+
 const DISCOVERY_DEFS = [
 	{ id: 'no-signature', label: 'No signature verification on webhooks' },
 	{ id: 'duplicate-credit', label: 'Duplicate webhook doubles user credit' },
 	{ id: 'sync-timeout', label: 'Synchronous processing risks timeout' },
 	{ id: 'no-dedup', label: 'No event deduplication (event_id not tracked)' },
-] as const;
+];
 
 // ─── Probe definitions ────────────────────────────────────────────────
+
 const PROBES = [
 	{
 		id: 'forged-webhook',
-		label: 'POST webhook (forged, no signature)',
+		label: 'Attacker forges payment webhook',
 		command:
-			'curl -X POST localhost:3000/webhooks/stripe -d \'{"type": "payment_intent.succeeded"}\'',
+			'curl -X POST localhost:3000/webhooks/stripe -d \'{"type": "payment_intent.succeeded", "amount": 1000000}\'',
 		responseLines: [
-			{ text: '200 OK', color: 'amber' as const },
-			{
-				text: '# No signature header checked!',
-				color: 'red' as const,
-			},
+			{ text: '200 OK', color: 'yellow' as const },
+			{ text: '# No Stripe-Signature header checked!', color: 'red' as const },
 			{
 				text: '# Anyone can POST fake events to this endpoint',
 				color: 'red' as const,
 			},
-			{
-				text: '# Attacker credits themselves $10,000',
-				color: 'red' as const,
-			},
+			{ text: '# Attacker credits themselves $10,000', color: 'red' as const },
+		],
+		story: [
+			'A bad actor discovers the /webhooks/stripe endpoint URL.',
+			'They craft a fake payment.succeeded event for $10,000.',
+			'They POST it directly with curl, with no Stripe-Signature header.',
+			'The naive handler accepts it and credits $10,000 to the attacker.',
 		],
 	},
 	{
 		id: 'duplicate-event',
-		label: 'POST webhook (duplicate event_id)',
+		label: 'Stripe retries payment event (network hiccup)',
 		command:
 			'curl -X POST localhost:3000/webhooks/stripe -d \'{"id": "evt_123", "type": "payment_intent.succeeded"}\'',
 		responseLines: [
 			{
 				text: '# Stripe retries evt_123 (network hiccup)',
-				color: 'amber' as const,
+				color: 'yellow' as const,
 			},
-			{ text: '200 OK', color: 'amber' as const },
+			{ text: '200 OK', color: 'yellow' as const },
 			{
 				text: '# User credited AGAIN for the same payment!',
 				color: 'red' as const,
@@ -98,16 +213,24 @@ const PROBES = [
 				color: 'red' as const,
 			},
 		],
+		story: [
+			'Customer pays $50 for an order. Stripe sends payment.succeeded (evt_123).',
+			'The handler processes it: credits $50 to the customer.',
+			'But the 200 OK response is lost due to a network blip.',
+			'Stripe thinks delivery failed and retries the same evt_123.',
+			'The handler processes it AGAIN: another $50 credit.',
+			'Customer now has $100 instead of $50.',
+		],
 	},
 	{
 		id: 'slow-processing',
-		label: 'POST webhook (slow handler)',
+		label: 'Monthly invoice webhook (slow handler)',
 		command:
 			'curl -X POST localhost:3000/webhooks/stripe -d \'{"type": "invoice.paid"}\' --max-time 25',
 		responseLines: [
 			{
-				text: '# Processing synchronously: query user, update payment, send email...',
-				color: 'amber' as const,
+				text: '# Processing synchronously: query user, update 12 line items, send email...',
+				color: 'yellow' as const,
 			},
 			{
 				text: '# 15 seconds elapsed... Stripe timeout is 20 seconds',
@@ -122,8 +245,15 @@ const PROBES = [
 				color: 'red' as const,
 			},
 		],
+		story: [
+			'A business customer is invoiced monthly. Stripe sends invoice.paid.',
+			'The handler processes synchronously: queries user, updates 12 line items, sends email.',
+			'15 seconds pass. Stripe timeout is 20 seconds.',
+			'If the handler does not respond in time, Stripe marks delivery as failed.',
+			'Stripe will retry in 1 hour, risking duplicate processing.',
+		],
 	},
-] as const;
+];
 
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 	'forged-webhook': ['no-signature'],
@@ -131,15 +261,444 @@ const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 	'slow-processing': ['sync-timeout'],
 };
 
+// ─── Observe animation frames ─────────────────────────────────────────
+
+const PROBE_FRAMES: Record<string, AnimFrame[]> = {
+	'forged-webhook': [
+		{
+			stripe: { label: 'Attacker', flash: 'red', isAttacker: true },
+			edge1: {
+				active: true,
+				reverse: false,
+				label: 'POST (no signature)',
+				dotColor: 'bg-red-500',
+			},
+			app: { label: 'Received POST...', flash: 'idle', badge: null },
+			db: { label: 'Credits Table', flash: 'idle', rows: [] },
+		},
+		{
+			app: { label: 'No signature check!', flash: 'red' },
+			edge1: { active: false },
+			edge2: {
+				active: true,
+				reverse: false,
+				label: 'INSERT credit $10,000',
+				dotColor: 'bg-red-500',
+			},
+			db: { label: 'Processing...', flash: 'amber' },
+		},
+		{
+			edge2: { active: false },
+			db: {
+				label: 'Credits Table',
+				flash: 'red',
+				rows: [{ text: '+$10,000 (FORGED)', color: 'red' as const }],
+			},
+			app: { label: '200 OK', flash: 'red', badge: 'NO VERIFICATION' },
+		},
+		{
+			stripe: { label: 'Forged event accepted!' },
+			db: {
+				rows: [{ text: '+$10,000 STOLEN', color: 'red' as const }],
+			},
+		},
+	],
+	'duplicate-event': [
+		{
+			stripe: { label: 'Sending evt_123', flash: 'idle', isAttacker: false },
+			edge1: {
+				active: true,
+				reverse: false,
+				label: 'POST /webhooks/stripe',
+				dotColor: 'bg-cyan-500',
+			},
+			app: { label: 'Received evt_123', flash: 'idle', badge: null },
+			db: { label: 'Credits Table', flash: 'idle', rows: [] },
+		},
+		{
+			edge1: { active: false },
+			app: { label: 'Processing payment...', flash: 'amber' },
+			edge2: {
+				active: true,
+				reverse: false,
+				label: 'INSERT credit $50',
+				dotColor: 'bg-cyan-500',
+			},
+			db: { label: 'Updating...', flash: 'amber' },
+		},
+		{
+			edge2: { active: false },
+			db: {
+				label: 'Credits Table',
+				flash: 'green',
+				rows: [{ text: 'credit: +$50', color: 'green' as const }],
+			},
+			app: { label: '200 OK', flash: 'green' },
+			edge1: {
+				active: true,
+				reverse: true,
+				label: '200 OK',
+				dotColor: 'bg-emerald-500',
+			},
+		},
+		{
+			edge1: { active: false },
+			stripe: { label: '200 lost! Retrying...', flash: 'amber' },
+		},
+		{
+			edge1: {
+				active: true,
+				reverse: false,
+				label: 'POST (RETRY evt_123)',
+				dotColor: 'bg-amber-500',
+			},
+			app: { label: 'evt_123 again...', flash: 'amber', badge: null },
+		},
+		{
+			edge1: { active: false },
+			app: { label: 'Processing AGAIN!', flash: 'red' },
+			edge2: {
+				active: true,
+				reverse: false,
+				label: 'INSERT credit $50',
+				dotColor: 'bg-red-500',
+			},
+			db: { label: 'Updating...', flash: 'amber' },
+		},
+		{
+			edge2: { active: false },
+			db: {
+				label: 'DOUBLE CREDIT',
+				flash: 'red',
+				rows: [
+					{ text: 'credit: +$50', color: 'green' as const },
+					{ text: 'credit: +$50 (DUPLICATE)', color: 'red' as const },
+				],
+			},
+			app: { label: '200 OK (duplicate)', flash: 'red', badge: 'NO DEDUP' },
+		},
+	],
+	'slow-processing': [
+		{
+			stripe: {
+				label: 'Sending invoice.paid',
+				flash: 'idle',
+				isAttacker: false,
+			},
+			edge1: {
+				active: true,
+				reverse: false,
+				label: 'POST /webhooks/stripe',
+				dotColor: 'bg-cyan-500',
+			},
+			app: { label: 'Received invoice.paid', flash: 'idle', badge: null },
+			db: { label: 'Credits Table', flash: 'idle', rows: [] },
+		},
+		{
+			edge1: { active: false },
+			app: { label: 'Processing sync... 0s', flash: 'amber' },
+			edge2: {
+				active: true,
+				reverse: false,
+				label: 'UPDATE items * 12',
+				dotColor: 'bg-amber-500',
+			},
+			db: { label: 'Updating 12 rows...', flash: 'amber' },
+		},
+		{
+			app: { label: 'Sending email... 5s', flash: 'amber', badge: '5s' },
+			edge2: { active: false },
+			db: { label: '12 rows updated', flash: 'green', rows: [] },
+		},
+		{
+			app: { label: 'Still processing... 10s', flash: 'amber', badge: '10s' },
+			stripe: { label: 'Waiting for response...' },
+		},
+		{
+			app: { label: '15s elapsed...', flash: 'red', badge: 'TIMEOUT RISK' },
+			stripe: { label: 'No response yet...' },
+			queue: { label: 'Not used', flash: 'idle' },
+		},
+		{
+			app: { label: 'Done! 200 OK (18s)', flash: 'red', badge: '18s' },
+			edge1: {
+				active: true,
+				reverse: true,
+				label: '200 OK (18s)',
+				dotColor: 'bg-amber-500',
+			},
+			stripe: { label: 'Close call! (timeout: 20s)', flash: 'amber' },
+		},
+	],
+};
+
+// ─── Reward animation frames ──────────────────────────────────────────
+
+const REWARD_FRAMES: Record<string, AnimFrame[]> = {
+	'forged-webhook': [
+		{
+			stripe: { label: 'Attacker', flash: 'red', isAttacker: true },
+			edge1: {
+				active: true,
+				reverse: false,
+				label: 'POST (no signature)',
+				dotColor: 'bg-red-500',
+			},
+			app: { label: 'Received POST...', flash: 'idle', badge: null },
+		},
+		{
+			edge1: { active: false },
+			app: {
+				label: 'Verifying signature... INVALID!',
+				flash: 'amber',
+				badge: 'REJECTED',
+			},
+		},
+		{
+			edge1: {
+				active: true,
+				reverse: true,
+				label: '401 Unauthorized',
+				dotColor: 'bg-red-500',
+			},
+			app: { label: 'Blocked at signature', flash: 'green' },
+			stripe: { label: 'Rejected!' },
+			db: { label: 'No changes', flash: 'idle', rows: [] },
+			queue: { label: 'Solid Queue', flash: 'idle' },
+		},
+	],
+	'duplicate-event': [
+		{
+			stripe: { label: 'Sending evt_123', flash: 'idle', isAttacker: false },
+			edge1: {
+				active: true,
+				reverse: false,
+				label: 'POST /webhooks/stripe',
+				dotColor: 'bg-cyan-500',
+			},
+			app: { label: 'Signature verified', flash: 'green', badge: null },
+		},
+		{
+			edge1: { active: false },
+			app: { label: 'Checking dedup...' },
+			edge2: {
+				active: true,
+				reverse: false,
+				label: 'INSERT evt_123 (new)',
+				dotColor: 'bg-emerald-500',
+			},
+			db: { label: 'webhook_events', flash: 'amber', rows: [] },
+		},
+		{
+			edge2: { active: false },
+			db: {
+				label: 'webhook_events',
+				flash: 'green',
+				rows: [{ text: 'evt_123: pending', color: 'green' as const }],
+			},
+			app: { label: 'Enqueueing job', flash: 'green' },
+			edge3: {
+				active: true,
+				reverse: false,
+				label: 'perform_later',
+				dotColor: 'bg-emerald-500',
+			},
+			queue: { label: 'Enqueued', flash: 'green' },
+		},
+		{
+			edge3: { active: false },
+			app: { label: '200 OK (<50ms)', flash: 'green', badge: '<50ms' },
+			stripe: { label: 'Retrying evt_123...', flash: 'amber' },
+		},
+		{
+			edge1: {
+				active: true,
+				reverse: false,
+				label: 'POST (RETRY evt_123)',
+				dotColor: 'bg-amber-500',
+			},
+			app: { label: 'Signature verified', flash: 'green', badge: null },
+		},
+		{
+			edge1: { active: false },
+			app: { label: 'Checking dedup...' },
+			edge2: {
+				active: true,
+				reverse: false,
+				label: 'SELECT evt_123',
+				dotColor: 'bg-amber-500',
+			},
+			db: { label: 'Checking...', flash: 'amber' },
+		},
+		{
+			edge2: { active: false },
+			db: {
+				label: 'webhook_events',
+				flash: 'green',
+				rows: [{ text: 'evt_123: completed (skip!)', color: 'green' as const }],
+			},
+			app: {
+				label: 'Already processed! 200 OK',
+				flash: 'green',
+				badge: 'DEDUP',
+			},
+			stripe: { label: 'Retry acknowledged', flash: 'green' },
+		},
+	],
+	'slow-processing': [
+		{
+			stripe: {
+				label: 'Sending invoice.paid',
+				flash: 'idle',
+				isAttacker: false,
+			},
+			edge1: {
+				active: true,
+				reverse: false,
+				label: 'POST /webhooks/stripe',
+				dotColor: 'bg-cyan-500',
+			},
+			app: { label: 'Signature verified', flash: 'green', badge: null },
+		},
+		{
+			edge1: { active: false },
+			app: { label: 'Event stored' },
+			edge2: {
+				active: true,
+				reverse: false,
+				label: 'INSERT webhook_event',
+				dotColor: 'bg-emerald-500',
+			},
+			db: {
+				label: 'webhook_events',
+				flash: 'amber',
+				rows: [],
+			},
+		},
+		{
+			edge2: { active: false },
+			db: {
+				flash: 'green',
+				rows: [{ text: 'evt_789: pending', color: 'green' as const }],
+			},
+			app: { label: 'Enqueueing job', flash: 'green' },
+			edge3: {
+				active: true,
+				reverse: false,
+				label: 'perform_later',
+				dotColor: 'bg-emerald-500',
+			},
+			queue: { label: 'Processing 12 items...', flash: 'green' },
+		},
+		{
+			edge3: { active: false },
+			app: { label: '200 OK (<50ms!)', flash: 'green', badge: '<50ms' },
+			edge1: {
+				active: true,
+				reverse: true,
+				label: '200 OK',
+				dotColor: 'bg-emerald-500',
+			},
+			stripe: { label: 'Acknowledged instantly', flash: 'green' },
+		},
+		{
+			edge1: { active: false },
+			queue: { label: 'Completed', flash: 'green' },
+			db: {
+				rows: [{ text: 'evt_789: completed', color: 'green' as const }],
+			},
+		},
+	],
+	'valid-subscription': [
+		{
+			stripe: {
+				label: 'subscription.created',
+				flash: 'idle',
+				isAttacker: false,
+			},
+			edge1: {
+				active: true,
+				reverse: false,
+				label: 'POST /webhooks/stripe',
+				dotColor: 'bg-cyan-500',
+			},
+			app: { label: 'Signature verified', flash: 'green', badge: null },
+		},
+		{
+			edge1: { active: false },
+			app: { label: 'New event' },
+			edge2: {
+				active: true,
+				reverse: false,
+				label: 'INSERT evt_456',
+				dotColor: 'bg-emerald-500',
+			},
+			db: {
+				label: 'webhook_events',
+				flash: 'amber',
+				rows: [],
+			},
+		},
+		{
+			edge2: { active: false },
+			db: {
+				flash: 'green',
+				rows: [{ text: 'evt_456: pending', color: 'green' as const }],
+			},
+			edge3: {
+				active: true,
+				reverse: false,
+				label: 'perform_later',
+				dotColor: 'bg-emerald-500',
+			},
+			queue: { label: 'Enqueued', flash: 'green' },
+			app: { label: '200 OK', flash: 'green' },
+		},
+	],
+	'bad-payload': [
+		{
+			stripe: { label: 'Garbled payload', flash: 'red', isAttacker: true },
+			edge1: {
+				active: true,
+				reverse: false,
+				label: 'POST (malformed JSON)',
+				dotColor: 'bg-red-500',
+			},
+			app: { label: 'Parsing...', flash: 'idle', badge: null },
+		},
+		{
+			edge1: { active: false },
+			app: {
+				label: 'JSON::ParserError!',
+				flash: 'red',
+				badge: 'BAD REQUEST',
+			},
+		},
+		{
+			edge1: {
+				active: true,
+				reverse: true,
+				label: '400 Bad Request',
+				dotColor: 'bg-red-500',
+			},
+			app: { label: 'Blocked at parse', flash: 'green' },
+			stripe: { label: 'Rejected' },
+			db: { label: 'No changes', flash: 'idle', rows: [] },
+			queue: { label: 'Solid Queue', flash: 'idle' },
+		},
+	],
+};
+
 // ─── Build step definitions ────────────────────────────────────────────
+
 const STEP_DEFS = [
-	{ id: 'generate-migration', label: 'Generate Events Table' },
-	{ id: 'run-migration', label: 'Run Migration' },
-	{ id: 'configure-signature', label: 'Verify Signature' },
-	{ id: 'configure-idempotency', label: 'Check Idempotency' },
-	{ id: 'configure-async', label: 'Process Asynchronously' },
-	{ id: 'build-service', label: 'Build Webhook Service' },
-] as const;
+	{ id: 'generate-migration', title: 'Generate Events Table' },
+	{ id: 'run-migration', title: 'Run Migration' },
+	{ id: 'configure-signature', title: 'Verify Signature' },
+	{ id: 'configure-idempotency', title: 'Check Idempotency' },
+	{ id: 'configure-async', title: 'Process Asynchronously' },
+	{ id: 'build-service', title: 'Build Webhook Service' },
+];
 
 const GENERATE_MIGRATION_COMMANDS = [
 	{
@@ -152,20 +711,20 @@ const GENERATE_MIGRATION_COMMANDS = [
 			'Without a unique index on [provider, event_id], race conditions between concurrent webhooks can insert duplicates before your code checks.',
 	},
 	{
-		id: 'wrong-wrong-columns',
-		label: 'rails g migration CreateWebhookLogs url method response_code',
-		command: 'rails g migration CreateWebhookLogs url method response_code',
-		correct: false,
-		feedback:
-			'This tracks outgoing HTTP requests, not incoming webhook events. You need to store the event ID from the provider for deduplication.',
-	},
-	{
 		id: 'correct',
 		label:
 			'rails g migration CreateWebhookEvents provider:string event_id:string event_type:string payload:jsonb status:string processed_at:datetime',
 		command:
 			'rails g migration CreateWebhookEvents provider:string event_id:string event_type:string payload:jsonb status:string processed_at:datetime',
 		correct: true,
+	},
+	{
+		id: 'wrong-wrong-columns',
+		label: 'rails g migration CreateWebhookLogs url method response_code',
+		command: 'rails g migration CreateWebhookLogs url method response_code',
+		correct: false,
+		feedback:
+			'This tracks outgoing HTTP requests, not incoming webhook events. You need to store the event ID from the provider for deduplication.',
 	},
 ];
 
@@ -179,18 +738,18 @@ const RUN_MIGRATION_COMMANDS = [
 			'db:seed loads seed data. The migration file still needs to be applied to create the webhook_events table.',
 	},
 	{
-		id: 'correct',
-		label: 'rails db:migrate',
-		command: 'rails db:migrate',
-		correct: true,
-	},
-	{
 		id: 'wrong-reset',
 		label: 'rails db:reset',
 		command: 'rails db:reset',
 		correct: false,
 		feedback:
 			'db:reset drops and recreates the entire database. You only need to apply the new migration, not destroy existing data.',
+	},
+	{
+		id: 'correct',
+		label: 'rails db:migrate',
+		command: 'rails db:migrate',
+		correct: true,
 	},
 ];
 
@@ -207,6 +766,22 @@ end`,
 		correct: false,
 		feedback:
 			'Without signature verification, anyone can POST fake webhook events. The payload must be verified against a cryptographic signature before processing.',
+	},
+	{
+		id: 'wrong-manual-hmac',
+		label: 'Compare raw HMAC manually',
+		code: `def create
+  payload = request.body.read
+  expected = OpenSSL::HMAC.hexdigest(
+    'sha256', ENV['STRIPE_SECRET'], payload)
+  if request.headers['Stripe-Signature'] != expected
+    return head :unauthorized
+  end
+  event = JSON.parse(payload)
+end`,
+		correct: false,
+		feedback:
+			'Stripe signatures use a timestamp-based scheme (t=...,v1=...) to prevent replay attacks. Manual HMAC comparison misses the timestamp check and is vulnerable to replay.',
 	},
 	{
 		id: 'correct',
@@ -228,22 +803,6 @@ end`,
   # event is now verified authentic
 end`,
 		correct: true,
-	},
-	{
-		id: 'wrong-manual-hmac',
-		label: 'Compare raw HMAC manually',
-		code: `def create
-  payload = request.body.read
-  expected = OpenSSL::HMAC.hexdigest(
-    'sha256', ENV['STRIPE_SECRET'], payload)
-  if request.headers['Stripe-Signature'] != expected
-    return head :unauthorized
-  end
-  event = JSON.parse(payload)
-end`,
-		correct: false,
-		feedback:
-			'Stripe signatures use a timestamp-based scheme (t=...,v1=...) to prevent replay attacks. Manual HMAC comparison misses the timestamp check and is vulnerable to replay.',
 	},
 ];
 
@@ -455,10 +1014,7 @@ end`,
 	},
 ];
 
-const TERMINAL_STEP_MAP: ({
-	commands: typeof GENERATE_MIGRATION_COMMANDS;
-	outputLines: { text: string; color: 'green' | 'cyan' }[];
-} | null)[] = [
+const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
 	{
 		commands: GENERATE_MIGRATION_COMMANDS,
 		outputLines: [
@@ -492,74 +1048,121 @@ const TERMINAL_STEP_MAP: ({
 ];
 
 // ─── Stress test scenarios ─────────────────────────────────────────────
+
 const STRESS_SCENARIOS = [
 	{
-		id: 'valid-payment',
-		label: 'POST payment.succeeded (valid)',
-		description: 'Authentic webhook with valid HMAC signature, new event',
-		method: 'POST' as const,
-		path: '/webhooks/stripe',
-		actor: 'stripe',
-		expectedResult: 'allowed' as const,
-	},
-	{
-		id: 'valid-subscription',
-		label: 'POST subscription.created (valid)',
-		description: 'Valid new subscription webhook, enqueued to background job',
-		method: 'POST' as const,
-		path: '/webhooks/stripe',
-		actor: 'stripe',
-		expectedResult: 'allowed' as const,
-	},
-	{
-		id: 'forged-event',
-		label: 'POST payment.succeeded (forged)',
-		description: 'No valid Stripe-Signature header, rejected immediately',
+		id: 'forged-webhook',
+		label: 'Attacker forges payment webhook (with verification)',
+		description: 'No valid Stripe-Signature header, rejected at signature gate',
 		method: 'POST' as const,
 		path: '/webhooks/stripe',
 		actor: 'attacker',
 		expectedResult: 'blocked' as const,
+		responseLines: [
+			{ text: '401 Unauthorized', color: 'red' },
+			{ text: '# Stripe-Signature missing or invalid', color: 'red' },
+			{ text: '# Blocked at HMAC verification', color: 'muted' },
+		],
+		story: [
+			'Same attacker sends the same forged payment.succeeded event.',
+			'But now the handler verifies the HMAC-SHA256 signature first.',
+			'No valid Stripe-Signature header found.',
+			'Handler returns 401 Unauthorized immediately. Nothing processed.',
+		],
 	},
 	{
 		id: 'duplicate-event',
-		label: 'POST payment.succeeded (duplicate)',
+		label: 'Stripe retries payment event (with dedup)',
 		description: 'Same event_id already processed, returns 200 and skips',
 		method: 'POST' as const,
 		path: '/webhooks/stripe',
 		actor: 'stripe',
 		expectedResult: 'allowed' as const,
+		responseLines: [
+			{ text: '200 OK', color: 'green' },
+			{
+				text: '# evt_123: already in webhook_events (completed)',
+				color: 'muted',
+			},
+			{ text: '# Duplicate skipped. No reprocessing.', color: 'green' },
+		],
+		story: [
+			'Same customer, same $50 payment, same network hiccup.',
+			'First delivery: evt_123 verified, stored in webhook_events, job enqueued.',
+			'Stripe retries evt_123 after the network blip.',
+			'Handler checks webhook_events: evt_123 already exists, status: completed.',
+			'Returns 200 OK immediately. No duplicate processing.',
+		],
 	},
 	{
-		id: 'valid-refund',
-		label: 'POST charge.refunded (valid)',
-		description: 'Valid refund webhook, processed asynchronously',
+		id: 'slow-processing',
+		label: 'Monthly invoice webhook (with async)',
+		description: 'Event verified, stored, and enqueued in <50ms',
 		method: 'POST' as const,
 		path: '/webhooks/stripe',
 		actor: 'stripe',
 		expectedResult: 'allowed' as const,
+		responseLines: [
+			{ text: '200 OK (47ms)', color: 'green' },
+			{
+				text: '# Signature verified, event stored, job enqueued',
+				color: 'muted',
+			},
+			{ text: '# 12 line items processed in background', color: 'green' },
+		],
+		story: [
+			'Same monthly invoice, same 12 line items.',
+			'But now the handler verifies, stores the event, and enqueues a job.',
+			'Returns 200 OK in under 50 milliseconds.',
+			'The background job processes the 12 line items at its own pace.',
+			'If the job fails, it retries automatically. Stripe never needs to retry.',
+		],
+	},
+	{
+		id: 'valid-subscription',
+		label: 'Valid subscription webhook (new event)',
+		description: 'Authentic webhook, new event, full pipeline',
+		method: 'POST' as const,
+		path: '/webhooks/stripe',
+		actor: 'stripe',
+		expectedResult: 'allowed' as const,
+		responseLines: [
+			{ text: '200 OK', color: 'green' },
+			{ text: '# subscription.created verified and enqueued', color: 'green' },
+		],
+		story: [
+			'A new customer subscribes to a plan.',
+			'Stripe sends a subscription.created webhook.',
+			'Signature verified, new event stored, job enqueued.',
+			'Full pipeline working as designed.',
+		],
 	},
 	{
 		id: 'bad-payload',
-		label: 'POST malformed JSON (invalid)',
-		description: 'Garbled payload, rejected at signature verification',
+		label: 'Malformed JSON payload (rejected)',
+		description: 'Garbled payload fails JSON parsing, 400 Bad Request',
 		method: 'POST' as const,
 		path: '/webhooks/stripe',
 		actor: 'attacker',
 		expectedResult: 'blocked' as const,
+		responseLines: [
+			{ text: '400 Bad Request', color: 'red' },
+			{ text: '# JSON::ParserError raised', color: 'red' },
+			{ text: '# Blocked before signature verification', color: 'muted' },
+		],
+		story: [
+			'A garbled payload arrives at the webhook endpoint.',
+			'JSON parsing fails before signature verification even begins.',
+			'Handler returns 400 Bad Request. Nothing processed.',
+		],
 	},
 ];
 
-// ─── Visualization types ───────────────────────────────────────────────
-interface GateState {
-	signature: 'absent' | 'active' | 'rejected';
-	idempotency: 'absent' | 'active' | 'skipped';
-	processing: 'sync' | 'async' | 'enqueued';
-}
-
 // ─── Code preview builder ──────────────────────────────────────────────
+
 function getCodeFiles(
-	phase: 'observe' | 'build' | 'activate' | 'reward',
-	furthestStep: number,
+	phase: 'observe' | 'build' | 'reward',
+	completedStep: number,
 ) {
 	if (phase === 'observe') {
 		return [
@@ -595,7 +1198,7 @@ end`,
 	if (phase === 'build') {
 		const files: { filename: string; language: string; code: string }[] = [];
 
-		if (furthestStep >= 0) {
+		if (completedStep >= 0) {
 			files.push({
 				filename: 'db/migrate/create_webhook_events.rb',
 				language: 'ruby',
@@ -614,11 +1217,11 @@ end`,
     add_index :webhook_events,
       [:provider, :event_id], unique: true
   end
-end${furthestStep >= 1 ? '\n# Migration applied. Table created.' : ''}`,
+end${completedStep >= 1 ? '\n# Migration applied. Table created.' : ''}`,
 			});
 		}
 
-		if (furthestStep >= 2) {
+		if (completedStep >= 2) {
 			files.push({
 				filename: 'app/controllers/webhooks/stripe_controller.rb',
 				language: 'ruby',
@@ -635,7 +1238,7 @@ end${furthestStep >= 1 ? '\n# Migration applied. Table created.' : ''}`,
         Rails.application.credentials.stripe[:webhook_secret]
       )
       # Signature verified!${
-				furthestStep >= 3
+				completedStep >= 3
 					? `
 
       webhook_event = WebhookEvent.create_with(
@@ -648,13 +1251,13 @@ end${furthestStep >= 1 ? '\n# Migration applied. Table created.' : ''}`,
       return head :ok if webhook_event.completed?`
 					: '\n      # Next: idempotency check...'
 			}${
-				furthestStep >= 4
+				completedStep >= 4
 					? `
 
       ProcessStripeWebhookJob.perform_later(
         webhook_event.id)
       head :ok`
-					: furthestStep >= 3
+					: completedStep >= 3
 						? '\n      # Next: async processing...'
 						: ''
 			}
@@ -668,7 +1271,7 @@ end`,
 			});
 		}
 
-		if (furthestStep >= 5) {
+		if (completedStep >= 5) {
 			files.push({
 				filename: 'app/services/ingest_stripe_webhook.rb',
 				language: 'ruby',
@@ -727,7 +1330,7 @@ end`,
 		return files;
 	}
 
-	// activate + reward: full solution
+	// reward: full solution
 	return [
 		{
 			filename: 'app/services/ingest_stripe_webhook.rb',
@@ -830,319 +1433,488 @@ end`,
 	];
 }
 
+// ─── Custom React Flow nodes ──────────────────────────────────────────
+
+const FLASH_BORDER: Record<ZoneFlash, string> = {
+	idle: 'border-border',
+	red: 'border-red-500 dark:border-red-400',
+	green: 'border-emerald-500 dark:border-emerald-400',
+	amber: 'border-amber-500 dark:border-amber-400',
+};
+
+const FLASH_BG: Record<ZoneFlash, string> = {
+	idle: 'bg-card',
+	red: 'bg-red-50 dark:bg-red-950/30',
+	green: 'bg-emerald-50 dark:bg-emerald-950/30',
+	amber: 'bg-amber-50 dark:bg-amber-950/30',
+};
+
+// ── Stripe / Attacker node ──
+
+interface StripeNodeData extends StripeVizState {
+	[key: string]: unknown;
+}
+
+const WebhookStripeNode = memo(({ data }: { data: StripeNodeData }) => {
+	const d = data as StripeNodeData;
+	return (
+		<div
+			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-40 p-2.5`}
+		>
+			<FlowHandles />
+			<div className="flex items-center gap-2 mb-1.5">
+				{d.isAttacker ? (
+					<ShieldAlert className="w-4 h-4 text-red-500 dark:text-red-400 shrink-0" />
+				) : (
+					<Globe className="w-4 h-4 text-foreground shrink-0" />
+				)}
+				<span className="text-xs font-semibold text-foreground">
+					{d.isAttacker ? 'Attacker' : 'Stripe'}
+				</span>
+			</div>
+			<div className="text-xs text-foreground font-medium truncate">
+				{d.label}
+			</div>
+		</div>
+	);
+});
+
+// ── App Server node ──
+
+interface AppNodeData extends AppVizState {
+	[key: string]: unknown;
+}
+
+const WebhookAppNode = memo(({ data }: { data: AppNodeData }) => {
+	const d = data as AppNodeData;
+	return (
+		<div
+			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-48 p-2.5`}
+		>
+			<FlowHandles />
+			<div className="flex items-center gap-2 mb-1.5">
+				<Server className="w-4 h-4 text-foreground shrink-0" />
+				<span className="text-xs font-semibold text-foreground">Rails App</span>
+				{d.badge && (
+					<Badge
+						className={`text-[9px] ml-auto ${
+							d.badge === '<50ms' || d.badge === 'DEDUP'
+								? 'text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700'
+								: 'text-red-700 dark:text-red-400 border-red-300 dark:border-red-700'
+						}`}
+						variant="outline"
+					>
+						{d.badge}
+					</Badge>
+				)}
+			</div>
+			<div className="text-xs text-foreground font-medium truncate">
+				{d.label}
+			</div>
+		</div>
+	);
+});
+
+// ── Database node ──
+
+interface DbNodeData extends DbVizState {
+	[key: string]: unknown;
+}
+
+const WebhookDbNode = memo(({ data }: { data: DbNodeData }) => {
+	const d = data as DbNodeData;
+	return (
+		<div
+			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-44 p-2.5`}
+		>
+			<FlowHandles />
+			<div className="flex items-center gap-2 mb-1.5">
+				<Database className="w-4 h-4 text-foreground shrink-0" />
+				<span className="text-xs font-semibold text-foreground truncate">
+					{d.label}
+				</span>
+			</div>
+			{d.rows.length > 0 && (
+				<div className="space-y-0.5 mt-1">
+					{d.rows.map((row, i) => (
+						<div
+							className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+								row.color === 'red'
+									? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
+									: row.color === 'green'
+										? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300'
+										: 'bg-muted text-muted-foreground'
+							}`}
+							key={`${row.text}-${i}`}
+						>
+							{row.text}
+						</div>
+					))}
+				</div>
+			)}
+		</div>
+	);
+});
+
+// ── Job Queue node ──
+
+interface QueueNodeData extends QueueVizState {
+	[key: string]: unknown;
+}
+
+const WebhookQueueNode = memo(({ data }: { data: QueueNodeData }) => {
+	const d = data as QueueNodeData;
+	return (
+		<div
+			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-40 p-2.5`}
+		>
+			<FlowHandles />
+			<div className="flex items-center gap-2 mb-1.5">
+				<ListTodo className="w-4 h-4 text-foreground shrink-0" />
+				<span className="text-xs font-semibold text-foreground">Job Queue</span>
+			</div>
+			<div className="text-xs text-foreground font-medium truncate">
+				{d.label}
+			</div>
+		</div>
+	);
+});
+
+// ── Custom edge ──
+
+function toDotFill(twClass: string): string {
+	if (twClass.includes('emerald')) return '#10b981';
+	if (twClass.includes('red')) return '#ef4444';
+	if (twClass.includes('amber')) return '#f59e0b';
+	if (twClass.includes('cyan')) return '#06b6d4';
+	return '#a1a1aa';
+}
+
+interface WebhookEdgeData extends EdgeVizState {
+	[key: string]: unknown;
+}
+
+const WebhookEdge = memo(
+	({ id, sourceX, sourceY, targetX, targetY, data }: EdgeProps) => {
+		const d = (data ?? DEFAULT_EDGE) as WebhookEdgeData;
+		const [edgePath, labelX, labelY] = getStraightPath({
+			sourceX,
+			sourceY,
+			targetX,
+			targetY,
+		});
+
+		const fill = toDotFill(d.dotColor);
+		const dotPath = d.reverse ? reversePath(edgePath) : edgePath;
+
+		const dots: DotConfig[] = d.active
+			? [0, 1, 2].map((i) => ({
+					id: `${id}-d${i}`,
+					color: fill,
+					r: 5,
+					dur: '1.2s',
+					begin: i === 0 ? '0s' : `-${i * 0.4}s`,
+				}))
+			: [];
+
+		return (
+			<>
+				<BaseEdge
+					id={id}
+					path={edgePath}
+					style={{
+						stroke: d.active ? fill : '#a1a1aa',
+						strokeWidth: 2,
+						strokeDasharray: '6 4',
+					}}
+				/>
+				{dots.length > 0 && <AnimatedDots dots={dots} path={dotPath} />}
+				{d.label && (
+					<EdgeLabelRenderer>
+						<div
+							className="nodrag nopan pointer-events-none absolute text-[10px] font-mono text-foreground bg-background/90 px-1.5 py-0.5 rounded border border-border max-w-64 text-center whitespace-nowrap"
+							style={{
+								transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY + 18}px)`,
+							}}
+						>
+							{d.label}
+						</div>
+					</EdgeLabelRenderer>
+				)}
+			</>
+		);
+	},
+);
+
+// ── Node and edge type registries (stable module-scope references) ──
+
+const webhookNodeTypes = {
+	stripe: WebhookStripeNode,
+	app: WebhookAppNode,
+	db: WebhookDbNode,
+	queue: WebhookQueueNode,
+};
+const webhookEdgeTypes = { webhook: WebhookEdge };
+
 // ─── Main component ────────────────────────────────────────────────────
-export function Level39Webhooks(_props: LevelComponentProps) {
-	const [phase, setPhase] = useState<
-		'observe' | 'build' | 'activate' | 'reward'
-	>('observe');
+
+export function Level39Webhooks({ onComplete }: LevelComponentProps) {
+	const [phase, setPhase] = useState<'observe' | 'build' | 'reward'>('observe');
+	const isReward = phase === 'reward';
+
+	// ── Visualization state ──
+	const [stripeState, setStripeState] =
+		useState<StripeVizState>(DEFAULT_STRIPE);
+	const [appState, setAppState] = useState<AppVizState>(DEFAULT_APP);
+	const [dbState, setDbState] = useState<DbVizState>(DEFAULT_DB);
+	const [queueState, setQueueState] = useState<QueueVizState>(DEFAULT_QUEUE);
+	const [edge1State, setEdge1State] = useState<EdgeVizState>(DEFAULT_EDGE);
+	const [edge2State, setEdge2State] = useState<EdgeVizState>(DEFAULT_EDGE);
+	const [edge3State, setEdge3State] = useState<EdgeVizState>(DEFAULT_EDGE);
+	const [vizAnimating, setVizAnimating] = useState(false);
+	const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+	const resetViz = useCallback(() => {
+		setStripeState(DEFAULT_STRIPE);
+		setAppState(DEFAULT_APP);
+		setDbState(isReward ? DEFAULT_DB_REWARD : DEFAULT_DB);
+		setQueueState(isReward ? DEFAULT_QUEUE_REWARD : DEFAULT_QUEUE);
+		setEdge1State(DEFAULT_EDGE);
+		setEdge2State(DEFAULT_EDGE);
+		setEdge3State(DEFAULT_EDGE);
+	}, [isReward]);
+
+	const applyFrame = useCallback((frame: AnimFrame) => {
+		if (frame.stripe) setStripeState((prev) => ({ ...prev, ...frame.stripe }));
+		if (frame.app) setAppState((prev) => ({ ...prev, ...frame.app }));
+		if (frame.db) setDbState((prev) => ({ ...prev, ...frame.db }));
+		if (frame.queue) setQueueState((prev) => ({ ...prev, ...frame.queue }));
+		if (frame.edge1) setEdge1State((prev) => ({ ...prev, ...frame.edge1 }));
+		if (frame.edge2) setEdge2State((prev) => ({ ...prev, ...frame.edge2 }));
+		if (frame.edge3) setEdge3State((prev) => ({ ...prev, ...frame.edge3 }));
+	}, []);
+
+	const runAnimation = useCallback(
+		(frames: AnimFrame[], onDone?: () => void, frameDelay?: number) => {
+			const delay = frameDelay ?? ANIMATION_DURATION_MS;
+			for (const t of timersRef.current) clearTimeout(t);
+			timersRef.current = [];
+			resetViz();
+			setVizAnimating(true);
+
+			const newTimers: ReturnType<typeof setTimeout>[] = [];
+			for (let i = 0; i < frames.length; i++) {
+				const t = setTimeout(() => applyFrame(frames[i]), i * delay);
+				newTimers.push(t);
+			}
+			// Stop all edge dots after last frame
+			const tCleanup = setTimeout(() => {
+				setEdge1State((prev) => ({ ...prev, active: false }));
+				setEdge2State((prev) => ({ ...prev, active: false }));
+				setEdge3State((prev) => ({ ...prev, active: false }));
+			}, frames.length * delay);
+			newTimers.push(tCleanup);
+			const tEnd = setTimeout(
+				() => {
+					setVizAnimating(false);
+					onDone?.();
+				},
+				frames.length * delay + 100,
+			);
+			newTimers.push(tEnd);
+			timersRef.current = newTimers;
+		},
+		[resetViz, applyFrame],
+	);
+
+	useEffect(() => {
+		return () => {
+			for (const t of timersRef.current) clearTimeout(t);
+		};
+	}, []);
 
 	// ── Observe phase ──
 	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
 		minRequired: DISCOVERY_DEFS.length,
 	});
 
-	const [flowPhase, setFlowPhase] = useState(-1);
-	const [gateState, setGateState] = useState<GateState>({
-		signature: 'absent',
-		idempotency: 'absent',
-		processing: 'sync',
-	});
-	const flowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
 	const handleProbe = useCallback(
 		(probeId: string) => {
+			if (vizAnimating) return;
 			const discoveries = PROBE_DISCOVERY_MAP[probeId];
 			if (discoveries) {
 				for (const d of discoveries) discoveryGating.discover(d);
 			}
-
-			setFlowPhase(0);
-
-			// All observe probes show absent gates
-			setGateState({
-				signature: 'absent',
-				idempotency: 'absent',
-				processing: 'sync',
-			});
-
-			if (flowTimerRef.current) clearTimeout(flowTimerRef.current);
-			flowTimerRef.current = setTimeout(() => {
-				setFlowPhase(-1);
-			}, ANIMATION_DURATION_MS * 3);
+			const frames = PROBE_FRAMES[probeId];
+			// 4 nodes + 3 edges = 7 elements. Use 2x speed. Duplicate probe has most frames.
+			const delay =
+				probeId === 'duplicate-event'
+					? ANIMATION_DURATION_MS * 2.5
+					: ANIMATION_DURATION_MS * 2;
+			if (frames) runAnimation(frames, undefined, delay);
 		},
-		[discoveryGating],
+		[vizAnimating, discoveryGating, runAnimation],
 	);
-
-	useEffect(() => {
-		return () => {
-			if (flowTimerRef.current) clearTimeout(flowTimerRef.current);
-		};
-	}, []);
 
 	// ── Build phase ──
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 
-	useEffect(() => {
-		if (stepper.isComplete && phase === 'build') {
-			setPhase('activate');
-		}
-	}, [stepper.isComplete, phase]);
+	const handleOptionSelect = useCallback(
+		(optionId: string) => {
+			const allOptions: Record<number, typeof CONFIGURE_SIGNATURE_OPTIONS> = {
+				2: CONFIGURE_SIGNATURE_OPTIONS,
+				3: CONFIGURE_IDEMPOTENCY_OPTIONS,
+				4: CONFIGURE_ASYNC_OPTIONS,
+				5: BUILD_SERVICE_OPTIONS,
+			};
+			const options = allOptions[stepper.currentStep];
+			if (!options) return;
+			const option = options.find((o) => o.id === optionId);
+			if (!option) return;
+			if (option.correct) {
+				stepper.completeStep();
+			} else {
+				stepper.recordWrongAttempt(option.feedback ?? 'Not quite right.');
+			}
+		},
+		[stepper],
+	);
 
 	// ── Reward phase ──
 	const stressTest = useStressTest(STRESS_SCENARIOS);
-	const [rewardFlowPhase, setRewardFlowPhase] = useState(-1);
-	const [rewardGateState, setRewardGateState] = useState<GateState>({
-		signature: 'active',
-		idempotency: 'active',
-		processing: 'async',
-	});
-	const rewardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-	const handleStressFire = useCallback(
+	const handleFireScenario = useCallback(
 		(scenarioId: string) => {
+			if (vizAnimating) return;
 			stressTest.fireRequest(scenarioId);
-			const scenario = STRESS_SCENARIOS.find((s) => s.id === scenarioId);
-			if (!scenario) return;
-
-			setRewardFlowPhase(0);
-
-			// Update gate visualization based on scenario
-			if (scenarioId === 'forged-event' || scenarioId === 'bad-payload') {
-				setRewardGateState({
-					signature: 'rejected',
-					idempotency: 'active',
-					processing: 'async',
-				});
-			} else if (scenarioId === 'duplicate-event') {
-				setRewardGateState({
-					signature: 'active',
-					idempotency: 'skipped',
-					processing: 'async',
-				});
-			} else {
-				setRewardGateState({
-					signature: 'active',
-					idempotency: 'active',
-					processing: 'enqueued',
-				});
+			const frames = REWARD_FRAMES[scenarioId];
+			if (frames) {
+				setStripeState(DEFAULT_STRIPE);
+				setAppState(DEFAULT_APP);
+				setDbState(DEFAULT_DB_REWARD);
+				setQueueState(DEFAULT_QUEUE_REWARD);
+				setEdge1State(DEFAULT_EDGE);
+				setEdge2State(DEFAULT_EDGE);
+				setEdge3State(DEFAULT_EDGE);
+				runAnimation(frames, undefined, ANIMATION_DURATION_MS * 2);
 			}
-
-			if (rewardTimerRef.current) clearTimeout(rewardTimerRef.current);
-			rewardTimerRef.current = setTimeout(() => {
-				setRewardFlowPhase(-1);
-			}, ANIMATION_DURATION_MS * 2);
 		},
-		[stressTest],
+		[vizAnimating, stressTest, runAnimation],
 	);
 
-	useEffect(() => {
-		return () => {
-			if (rewardTimerRef.current) clearTimeout(rewardTimerRef.current);
+	// ── Header handlers ──
+	const handleValidate = useCallback((): ValidationResult => {
+		if (phase !== 'reward') {
+			return { valid: false, message: 'Complete all phases first.' };
+		}
+		if (stressTest.results.length < 3) {
+			return {
+				valid: false,
+				message: 'Fire at least 3 stress test scenarios.',
+			};
+		}
+		return {
+			valid: true,
+			message: 'Webhook handler is secure and idempotent!',
 		};
-	}, []);
+	}, [phase, stressTest.results.length]);
 
-	// ── Render: Webhook Event Queue visualization ──
-	const renderWebhookQueue = (isReward: boolean) => {
-		const probeActive = isReward ? rewardFlowPhase !== -1 : flowPhase !== -1;
-		const gates = isReward ? rewardGateState : gateState;
+	const handleComplete = useCallback(() => {
+		onComplete?.({ stars: stepper.starRating });
+	}, [onComplete, stepper.starRating]);
 
-		const gateColor = (
-			state: string,
-			_type: 'signature' | 'idempotency' | 'processing',
-		) => {
-			if (state === 'absent' || state === 'sync')
-				return 'border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800/50';
-			if (state === 'rejected' || state === 'skipped')
-				return 'border-amber-400 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/30';
-			if (state === 'enqueued')
-				return 'border-emerald-400 dark:border-emerald-600 bg-emerald-50 dark:bg-emerald-950/30';
-			return 'border-emerald-400 dark:border-emerald-600 bg-emerald-50 dark:bg-emerald-950/30';
-		};
+	const handleReset = useCallback(() => {
+		setPhase('observe');
+		setVizAnimating(false);
+		resetViz();
+		stressTest.reset();
+		for (const t of timersRef.current) clearTimeout(t);
+		timersRef.current = [];
+	}, [resetViz, stressTest]);
 
-		const gateTextColor = (state: string) => {
-			if (state === 'absent' || state === 'sync')
-				return 'text-muted-foreground';
-			if (state === 'rejected' || state === 'skipped')
-				return 'text-amber-600 dark:text-amber-400';
-			return 'text-emerald-600 dark:text-emerald-400';
-		};
+	// ── Flow nodes & edges ──
+	const flowNodes = useMemo(
+		(): Node[] => [
+			{
+				id: 'stripe',
+				type: 'stripe',
+				position: { x: 0, y: 50 },
+				data: { ...stripeState } satisfies StripeNodeData,
+			},
+			{
+				id: 'app',
+				type: 'app',
+				position: { x: 260, y: 40 },
+				data: { ...appState } satisfies AppNodeData,
+			},
+			{
+				id: 'db',
+				type: 'db',
+				position: { x: 530, y: 0 },
+				data: { ...dbState } satisfies DbNodeData,
+			},
+			{
+				id: 'queue',
+				type: 'queue',
+				position: { x: 530, y: 130 },
+				data: { ...queueState } satisfies QueueNodeData,
+			},
+		],
+		[stripeState, appState, dbState, queueState],
+	);
 
-		return (
-			<div className="flex flex-col items-center gap-1 h-full py-2">
-				{/* Incoming Webhook Event */}
-				<div className="flex items-center gap-2 shrink-0">
-					<div
-						className={`w-48 h-12 rounded-lg border-2 flex items-center justify-center gap-2 ${
-							isReward
-								? 'border-emerald-400 dark:border-emerald-600 bg-emerald-50 dark:bg-emerald-950/30'
-								: 'border-red-400 dark:border-red-600 bg-red-50 dark:bg-red-950/30'
-						}`}
-					>
-						<Mail
-							className={`w-5 h-5 ${isReward ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}
-						/>
-						<span
-							className={`text-sm font-semibold ${isReward ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}
-						>
-							Stripe Webhook
-						</span>
-					</div>
-					{!isReward && (
-						<Badge
-							className="text-[10px] text-red-600 dark:text-red-400 border-red-300 dark:border-red-700"
-							variant="outline"
-						>
-							Unverified
-						</Badge>
-					)}
-				</div>
+	const flowEdges = useMemo(
+		(): Edge[] => [
+			{
+				id: 'e-stripe-app',
+				source: 'stripe',
+				target: 'app',
+				type: 'webhook',
+				sourceHandle: 'right-source',
+				targetHandle: 'left-target',
+				data: { ...edge1State } satisfies WebhookEdgeData,
+			},
+			{
+				id: 'e-app-db',
+				source: 'app',
+				target: 'db',
+				type: 'webhook',
+				sourceHandle: 'right-source',
+				targetHandle: 'left-target',
+				data: { ...edge2State } satisfies WebhookEdgeData,
+			},
+			{
+				id: 'e-app-queue',
+				source: 'app',
+				target: 'queue',
+				type: 'webhook',
+				sourceHandle: 'bottom-source',
+				targetHandle: 'left-target',
+				data: { ...edge3State } satisfies WebhookEdgeData,
+			},
+		],
+		[edge1State, edge2State, edge3State],
+	);
 
-				<FlowConnector
-					active={probeActive}
-					direction="down"
-					variant={isReward ? 'success' : 'danger'}
-				/>
-
-				{/* Gate 1: Signature Verification */}
-				<div className="flex items-center gap-2 shrink-0">
-					<div
-						className={`w-48 h-14 rounded-lg border-2 flex flex-col items-center justify-center ${gateColor(gates.signature, 'signature')}`}
-					>
-						<Fingerprint
-							className={`w-5 h-5 ${gateTextColor(gates.signature)}`}
-						/>
-						<span
-							className={`text-[10px] font-semibold ${gateTextColor(gates.signature)}`}
-						>
-							{gates.signature === 'absent'
-								? 'No Verification'
-								: gates.signature === 'rejected'
-									? 'REJECTED (bad sig)'
-									: 'HMAC Verified'}
-						</span>
-					</div>
-					<span className="text-xs text-muted-foreground w-16">Signature</span>
-				</div>
-
-				<FlowConnector
-					active={probeActive}
-					direction="down"
-					variant={
-						isReward
-							? gates.signature === 'rejected'
-								? 'danger'
-								: 'success'
-							: 'danger'
-					}
-				/>
-
-				{/* Gate 2: Idempotency Check */}
-				<div className="flex items-center gap-2 shrink-0">
-					<div
-						className={`w-48 h-14 rounded-lg border-2 flex flex-col items-center justify-center ${gateColor(gates.idempotency, 'idempotency')}`}
-					>
-						<Layers className={`w-5 h-5 ${gateTextColor(gates.idempotency)}`} />
-						<span
-							className={`text-[10px] font-semibold ${gateTextColor(gates.idempotency)}`}
-						>
-							{gates.idempotency === 'absent'
-								? 'No Dedup Check'
-								: gates.idempotency === 'skipped'
-									? 'DUPLICATE (skip)'
-									: 'Event ID Checked'}
-						</span>
-					</div>
-					<span className="text-xs text-muted-foreground w-16">
-						Idempotency
-					</span>
-				</div>
-
-				<FlowConnector
-					active={probeActive}
-					direction="down"
-					variant={
-						isReward
-							? gates.signature === 'rejected' ||
-								gates.idempotency === 'skipped'
-								? 'muted'
-								: 'success'
-							: 'danger'
-					}
-				/>
-
-				{/* Gate 3: Processing Mode */}
-				<div className="flex items-center gap-2 shrink-0">
-					<div
-						className={`w-48 h-14 rounded-lg border-2 flex flex-col items-center justify-center ${gateColor(gates.processing, 'processing')}`}
-					>
-						<Zap className={`w-5 h-5 ${gateTextColor(gates.processing)}`} />
-						<span
-							className={`text-[10px] font-semibold ${gateTextColor(gates.processing)}`}
-						>
-							{gates.processing === 'sync'
-								? 'Sync (blocks 15s)'
-								: gates.processing === 'enqueued'
-									? 'ENQUEUED (200 OK)'
-									: 'Async Job Queue'}
-						</span>
-					</div>
-					<span className="text-xs text-muted-foreground w-16">Processing</span>
-				</div>
-
-				<FlowConnector
-					active={probeActive}
-					direction="down"
-					variant={isReward ? 'success' : 'danger'}
-				/>
-
-				{/* Result */}
-				<div className="shrink-0">
-					<div
-						className={`w-48 h-10 rounded-lg border-2 flex items-center justify-center ${
-							isReward
-								? 'border-emerald-400 dark:border-emerald-600 bg-emerald-50 dark:bg-emerald-950/30'
-								: 'border-red-400 dark:border-red-600 bg-red-50 dark:bg-red-950/30'
-						}`}
-					>
-						<span
-							className={`text-xs font-semibold ${isReward ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}
-						>
-							{isReward ? '200 OK (fast)' : '200 OK (after 15s)'}
-						</span>
-					</div>
-				</div>
-			</div>
-		);
-	};
-
-	// ── Build phase: current step config ──
+	// ── Build step config ──
 	const currentStepConfig = useMemo(() => {
 		const idx = stepper.currentStep;
-		if (idx === 0)
-			return { type: 'terminal' as const, ...TERMINAL_STEP_MAP[0] };
-		if (idx === 1)
-			return { type: 'terminal' as const, ...TERMINAL_STEP_MAP[1] };
-		if (idx === 2)
-			return {
-				type: 'option' as const,
-				options: CONFIGURE_SIGNATURE_OPTIONS,
-			};
-		if (idx === 3)
-			return {
-				type: 'option' as const,
-				options: CONFIGURE_IDEMPOTENCY_OPTIONS,
-			};
-		if (idx === 4)
-			return { type: 'option' as const, options: CONFIGURE_ASYNC_OPTIONS };
-		if (idx === 5)
-			return {
-				type: 'option' as const,
-				options: BUILD_SERVICE_OPTIONS,
-			};
-		return null;
+		if (idx <= 1)
+			return { type: 'terminal' as const, ...TERMINAL_STEP_MAP[idx] };
+		const stepOptions: Record<number, typeof CONFIGURE_SIGNATURE_OPTIONS> = {
+			2: CONFIGURE_SIGNATURE_OPTIONS,
+			3: CONFIGURE_IDEMPOTENCY_OPTIONS,
+			4: CONFIGURE_ASYNC_OPTIONS,
+			5: BUILD_SERVICE_OPTIONS,
+		};
+		return { type: 'option' as const, options: stepOptions[idx] };
 	}, [stepper.currentStep]);
 
-	// ── Left panel ──
+	const buildCodePreviewStep = stepper.isCurrentStepCompleted
+		? stepper.currentStep
+		: stepper.currentStep - 1;
+
+	// ── Render: Left panel ──
 	const renderLeftPanel = () => {
 		if (phase === 'observe') {
 			return (
@@ -1159,11 +1931,9 @@ export function Level39Webhooks(_props: LevelComponentProps) {
 						</p>
 					</div>
 					<DiscoveryChecklist
-						discoveries={DISCOVERY_DEFS.map((d) => ({
-							id: d.id,
-							label: d.label,
-							found: discoveryGating.isDiscovered(d.id),
-						}))}
+						discoveredCount={discoveryGating.discoveredCount}
+						discoveries={discoveryGating.discoveries}
+						minRequired={discoveryGating.minRequired}
 					/>
 					{discoveryGating.isUnlocked && (
 						<Button
@@ -1191,25 +1961,8 @@ export function Level39Webhooks(_props: LevelComponentProps) {
 					</div>
 					<StepProgress
 						currentStep={stepper.currentStep}
-						furthestStep={stepper.furthestStep}
-						steps={STEP_DEFS.map((s) => s.label)}
+						steps={stepper.steps}
 					/>
-				</div>
-			);
-		}
-
-		if (phase === 'activate') {
-			return (
-				<div className="space-y-4 p-4">
-					<div>
-						<h3 className="text-sm font-semibold text-foreground mb-2">
-							Solution Complete
-						</h3>
-						<p className="text-sm text-muted-foreground">
-							Webhook handler with signature verification, idempotency via
-							WebhookEvent table, and async processing via background jobs.
-						</p>
-					</div>
 				</div>
 			);
 		}
@@ -1229,7 +1982,7 @@ export function Level39Webhooks(_props: LevelComponentProps) {
 						<div className="flex items-center gap-2">
 							<span className="w-3 h-3 rounded-full bg-amber-500" />
 							<span className="text-muted-foreground">
-								Rejected or deduplicated
+								Deduplicated (skipped)
 							</span>
 						</div>
 						<div className="flex items-center gap-2">
@@ -1254,30 +2007,27 @@ export function Level39Webhooks(_props: LevelComponentProps) {
 						<div className="text-xs text-muted-foreground">Rejected</div>
 					</div>
 				</div>
-				{stressTest.canAutoFire && (
-					<Button
-						className="w-full"
-						onClick={() => stressTest.toggleAutoFire(handleStressFire)}
-						variant="outline"
-					>
-						{stressTest.isAutoFiring ? 'Stop Auto-Fire' : 'Auto-Fire All'}
-					</Button>
-				)}
 			</div>
 		);
 	};
 
-	// ── Center panel ──
+	// ── Render: Center panel ──
 	const renderCenterPanel = () => {
 		if (phase === 'observe') {
 			return (
 				<div className="flex-1 flex flex-col p-4 gap-4">
-					<div className="flex-1 min-h-0 flex items-center justify-center">
-						{renderWebhookQueue(false)}
+					<div className="flex-1 min-h-0">
+						<FlowDiagram
+							edges={flowEdges}
+							edgeTypes={webhookEdgeTypes}
+							nodes={flowNodes}
+							nodesDraggable={false}
+							nodeTypes={webhookNodeTypes}
+						/>
 					</div>
 					<div className="px-6 pb-2">
 						<ProbeTerminal
-							disabled={flowPhase !== -1}
+							disabled={vizAnimating}
 							onProbe={handleProbe}
 							probes={PROBES}
 						/>
@@ -1286,8 +2036,12 @@ export function Level39Webhooks(_props: LevelComponentProps) {
 			);
 		}
 
-		if (phase === 'build' && currentStepConfig) {
-			if (currentStepConfig.type === 'terminal' && currentStepConfig.commands) {
+		if (phase === 'build') {
+			if (
+				currentStepConfig.type === 'terminal' &&
+				currentStepConfig.commands &&
+				currentStepConfig.outputLines
+			) {
 				return (
 					<div className="flex-1 flex flex-col p-4">
 						<TerminalChoiceStep
@@ -1311,18 +2065,18 @@ export function Level39Webhooks(_props: LevelComponentProps) {
 							onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 							outputLines={currentStepConfig.outputLines}
 							stepKey={stepper.currentStep}
-							title={STEP_DEFS[stepper.currentStep].label}
+							title={STEP_DEFS[stepper.currentStep].title}
 						/>
 					</div>
 				);
 			}
 
-			if (currentStepConfig.type === 'option') {
+			if (currentStepConfig.type === 'option' && currentStepConfig.options) {
 				return (
 					<div className="flex-1 flex flex-col p-4 gap-4 overflow-auto">
 						<div>
 							<h3 className="text-lg font-semibold text-foreground">
-								{STEP_DEFS[stepper.currentStep].label}
+								{STEP_DEFS[stepper.currentStep].title}
 							</h3>
 							<p className="text-sm text-muted-foreground mt-1">
 								{stepper.currentStep === 2 &&
@@ -1335,30 +2089,35 @@ export function Level39Webhooks(_props: LevelComponentProps) {
 									'Where should the webhook ingestion logic live?'}
 							</p>
 						</div>
-						<div className="space-y-3">
-							{currentStepConfig.options.map((opt) => (
-								<OptionCard
-									code={opt.code}
-									correct={opt.correct}
-									key={opt.id}
-									label={opt.label}
-									onSelect={() => {
-										if (opt.correct) {
-											stepper.completeStep();
-										} else if (opt.feedback) {
-											stepper.recordWrongAttempt(opt.feedback);
-										}
-									}}
-								/>
-							))}
-						</div>
 						{stepper.lastFeedback && (
 							<ErrorFeedback message={stepper.lastFeedback} />
 						)}
+						<div className="space-y-3">
+							{currentStepConfig.options.map((opt) => (
+								<OptionCard
+									disabled={stepper.isCurrentStepCompleted}
+									key={opt.id}
+									mono
+									name={opt.label}
+									onClick={() => handleOptionSelect(opt.id)}
+									selected={stepper.isCurrentStepCompleted && opt.correct}
+								/>
+							))}
+						</div>
 						{stepper.isCurrentStepCompleted &&
 							stepper.currentStep < STEP_DEFS.length - 1 && (
-								<Button onClick={stepper.nextStep} variant="outline">
-									Next Step <ArrowRight className="w-4 h-4 ml-2" />
+								<Button className="gap-2" onClick={stepper.nextStep} size="sm">
+									Next Step <ArrowRight className="w-4 h-4" />
+								</Button>
+							)}
+						{stepper.isCurrentStepCompleted &&
+							stepper.currentStep === STEP_DEFS.length - 1 && (
+								<Button
+									className="gap-2"
+									onClick={() => setPhase('reward')}
+									size="sm"
+								>
+									Next Step <ArrowRight className="w-4 h-4" />
 								</Button>
 							)}
 					</div>
@@ -1366,36 +2125,30 @@ export function Level39Webhooks(_props: LevelComponentProps) {
 			}
 		}
 
-		if (phase === 'activate') {
-			return (
-				<div className="flex-1 flex flex-col items-center justify-center gap-6 p-4">
-					<div className="flex items-center gap-1">
-						{[1, 2, 3].map((star) => (
-							<Zap
-								className="w-8 h-8 text-amber-400 fill-amber-400"
-								key={star}
-							/>
-						))}
-					</div>
-					<Button onClick={() => setPhase('reward')} size="lg">
-						Visualize Webhook Security <ArrowRight className="w-4 h-4 ml-2" />
-					</Button>
-				</div>
-			);
-		}
-
 		// reward
 		return (
 			<div className="flex-1 flex flex-col p-4 gap-4">
-				<div className="flex-1 min-h-0 flex items-center justify-center">
-					{renderWebhookQueue(true)}
+				<div className="flex-1 min-h-0">
+					<FlowDiagram
+						edges={flowEdges}
+						edgeTypes={webhookEdgeTypes}
+						nodes={flowNodes}
+						nodesDraggable={false}
+						nodeTypes={webhookNodeTypes}
+					/>
 				</div>
-				<div className="px-6 pb-2">
+				<div className="flex-1 min-h-0 flex flex-col px-6 pb-2">
 					<StressTestPanel
-						disabled={rewardFlowPhase !== -1}
-						onFire={handleStressFire}
+						allowedCount={stressTest.allowedCount}
+						blockedCount={stressTest.blockedCount}
+						canAutoFire={stressTest.canAutoFire}
+						className="flex-1 flex flex-col"
+						disabled={vizAnimating}
+						isAutoFiring={stressTest.isAutoFiring}
+						onFire={handleFireScenario}
+						onToggleAutoFire={stressTest.toggleAutoFire}
+						results={stressTest.results}
 						scenarios={STRESS_SCENARIOS}
-						stressTest={stressTest}
 					/>
 				</div>
 			</div>
@@ -1405,12 +2158,22 @@ export function Level39Webhooks(_props: LevelComponentProps) {
 	return (
 		<LevelLayout>
 			<LeftPanel>{renderLeftPanel()}</LeftPanel>
-			<CenterPanel>{renderCenterPanel()}</CenterPanel>
+			<CenterPanel>
+				<LevelHeader
+					actNumber={5}
+					levelName="Webhooks & Idempotency"
+					levelNumber={39}
+					onComplete={handleComplete}
+					onReset={handleReset}
+					onValidate={handleValidate}
+				/>
+				{renderCenterPanel()}
+			</CenterPanel>
 			<RightPanel>
 				<CodePreviewPanel
 					files={getCodeFiles(
 						phase,
-						phase === 'build' ? stepper.furthestStep : 0,
+						phase === 'build' ? buildCodePreviewStep : 0,
 					)}
 					learningGoal="Webhooks need signature verification (HMAC), idempotency (event dedup), and async processing (background jobs)."
 				/>

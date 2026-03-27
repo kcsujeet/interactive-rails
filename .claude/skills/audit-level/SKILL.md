@@ -165,6 +165,13 @@ Read the content definition in `content.ts` alongside the component. Check for t
   - **L20+ (Error Handling):** Error responses follow the `{ error: { code, message, details } }` shape.
   - **L7+ (JSON:API format):** API responses use JSON:API format (`{ "data": { "type": "...", "id": "...", "attributes": { ... } } }`), never vanilla JSON (`{ "user": { ... } }`). Case study: L36 reward phase showed vanilla JSON, breaking 35 levels of consistent API format.
 
+### Component Structure (check first, non-negotiable)
+
+- [ ] **`LevelHeader` is present inside `CenterPanel`.** Custom level components are rendered by `LevelPlayApp` without any wrapper. The level itself MUST include `<LevelHeader>` as the first child of `<CenterPanel>`. Without it, the level has no title bar, no Submit button, and no Reset button. Pattern: `<CenterPanel><LevelHeader actNumber={N} levelName="..." levelNumber={NN} onComplete={handleComplete} onReset={handleReset} onValidate={handleValidate} />{renderCenterPanel()}</CenterPanel>`.
+- [ ] `onValidate` gates submission: returns `{ valid: false }` unless the player is in the reward phase with 3+ stress test fires (Types 3/4) or has completed all steps (Type 2).
+- [ ] `onComplete` calls `onComplete?.({ stars: stepper.starRating })`.
+- [ ] `onReset` resets phase to observe, clears animation timers, resets stressTest, and resets viz state.
+
 ### Phase 1: Problem Visualization (WHY)
 
 #### Step 0: Pick the observe phase type

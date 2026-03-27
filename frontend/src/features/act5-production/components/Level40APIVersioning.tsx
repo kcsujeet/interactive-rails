@@ -36,11 +36,13 @@ import {
 	CodePreviewPanel,
 	ErrorFeedback,
 	LeftPanel,
+	LevelHeader,
 	LevelLayout,
 	OptionCard,
 	RightPanel,
 	StepProgress,
 	TerminalChoiceStep,
+	type ValidationResult,
 } from '@/components/levels';
 import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
 import { FlowConnector } from '@/components/levels/FlowConnector';
@@ -757,7 +759,7 @@ end`,
 }
 
 // ─── Main component ────────────────────────────────────────────────────
-export function Level40APIVersioning(_props: LevelComponentProps) {
+export function Level40APIVersioning({ onComplete }: LevelComponentProps) {
 	const [phase, setPhase] = useState<
 		'observe' | 'build' | 'activate' | 'reward'
 	>('observe');
@@ -863,6 +865,30 @@ export function Level40APIVersioning(_props: LevelComponentProps) {
 			if (rewardTimerRef.current) clearTimeout(rewardTimerRef.current);
 		};
 	}, []);
+
+	// ── Header handlers ──
+	const handleValidate = useCallback((): ValidationResult => {
+		if (phase !== 'reward') {
+			return { valid: false, message: 'Complete all phases first.' };
+		}
+		if (stressTest.results.length < 3) {
+			return {
+				valid: false,
+				message: 'Fire at least 3 stress test scenarios.',
+			};
+		}
+		return { valid: true, message: 'API versioning is working!' };
+	}, [phase, stressTest.results.length]);
+
+	const handleComplete = useCallback(() => {
+		onComplete?.({ stars: stepper.starRating });
+	}, [onComplete, stepper.starRating]);
+
+	const handleReset = useCallback(() => {
+		setPhase('observe');
+		if (rewardTimerRef.current) clearTimeout(rewardTimerRef.current);
+		stressTest.reset();
+	}, [stressTest]);
 
 	// ── Render: Version Router visualization ──
 	const renderVersionRouter = (isReward: boolean) => {
@@ -1331,7 +1357,17 @@ export function Level40APIVersioning(_props: LevelComponentProps) {
 	return (
 		<LevelLayout>
 			<LeftPanel>{renderLeftPanel()}</LeftPanel>
-			<CenterPanel>{renderCenterPanel()}</CenterPanel>
+			<CenterPanel>
+				<LevelHeader
+					actNumber={5}
+					levelName="API Versioning"
+					levelNumber={40}
+					onComplete={handleComplete}
+					onReset={handleReset}
+					onValidate={handleValidate}
+				/>
+				{renderCenterPanel()}
+			</CenterPanel>
 			<RightPanel>
 				<CodePreviewPanel
 					files={getCodeFiles(

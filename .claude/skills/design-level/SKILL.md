@@ -474,6 +474,12 @@ After designing and implementing, run `audit-level` to verify compliance with al
 - [ ] Feedback doesn't contradict earlier steps
 - [ ] ErrorFeedback above options, no auto-dismiss
 
+### Component structure (non-negotiable)
+- [ ] **`LevelHeader` inside `CenterPanel`.** Every level MUST include `<LevelHeader>` as the first child of `<CenterPanel>`. Custom level components are rendered without any wrapper, so the header is the level's responsibility. Without it, the level has no title bar, no Submit button, and no Reset button. Use: `<CenterPanel><LevelHeader actNumber={N} levelName="..." levelNumber={NN} onComplete={handleComplete} onReset={handleReset} onValidate={handleValidate} />{renderCenterPanel()}</CenterPanel>`.
+- [ ] `onValidate` returns `{ valid: true, message }` only when the player is in the reward phase and has fired 3+ stress test scenarios
+- [ ] `onComplete` calls `onComplete?.({ stars: stepper.starRating })`
+- [ ] `onReset` resets phase to observe, clears animation state, resets stressTest
+
 ### Reward phase design (already designed as pairs above, verify here)
 - [ ] No activate phase
 - [ ] Same visualization, different state (red -> green)

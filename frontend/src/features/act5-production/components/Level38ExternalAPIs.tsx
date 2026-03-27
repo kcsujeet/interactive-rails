@@ -41,12 +41,14 @@ import {
 	CodePreviewPanel,
 	ErrorFeedback,
 	LeftPanel,
+	LevelHeader,
 	LevelLayout,
 	OptionCard,
 	RightPanel,
 	StepProgress,
 	TerminalChoiceStep,
 	type TerminalStepData,
+	type ValidationResult,
 } from '@/components/levels';
 import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
 import {
@@ -1793,10 +1795,13 @@ export function Level38ExternalAPIs({ onComplete }: LevelComponentProps) {
 				setEdgeBState((prev) => ({ ...prev, active: false }));
 			}, frames.length * delay);
 			newTimers.push(tCleanup);
-			const tEnd = setTimeout(() => {
-				setVizAnimating(false);
-				onDone?.();
-			}, frames.length * delay + 100);
+			const tEnd = setTimeout(
+				() => {
+					setVizAnimating(false);
+					onDone?.();
+				},
+				frames.length * delay + 100,
+			);
 			newTimers.push(tEnd);
 			timersRef.current = newTimers;
 		},
@@ -1878,6 +1883,36 @@ export function Level38ExternalAPIs({ onComplete }: LevelComponentProps) {
 		},
 		[vizAnimating, stressTest, runAnimation],
 	);
+
+	// ── Header handlers ──
+	const handleValidate = useCallback((): ValidationResult => {
+		if (phase !== 'reward') {
+			return { valid: false, message: 'Complete all phases first.' };
+		}
+		if (stressTest.results.length < 3) {
+			return {
+				valid: false,
+				message: 'Fire at least 3 stress test scenarios.',
+			};
+		}
+		return {
+			valid: true,
+			message: 'External API integration is resilient!',
+		};
+	}, [phase, stressTest.results.length]);
+
+	const handleComplete = useCallback(() => {
+		onComplete?.({ stars: stepper.starRating });
+	}, [onComplete, stepper.starRating]);
+
+	const handleReset = useCallback(() => {
+		setPhase('observe');
+		setVizAnimating(false);
+		resetViz();
+		stressTest.reset();
+		for (const t of timersRef.current) clearTimeout(t);
+		timersRef.current = [];
+	}, [resetViz, stressTest]);
 
 	// ── Flow nodes & edges ──
 	const flowNodes = useMemo(
@@ -2028,12 +2063,15 @@ export function Level38ExternalAPIs({ onComplete }: LevelComponentProps) {
 						<div className="text-xs text-muted-foreground">Handled</div>
 					</div>
 				</div>
-				<Button
-					className="w-full"
-					onClick={() => onComplete({ stars: stepper.starRating })}
-				>
-					Submit
-				</Button>
+				{stressTest.canAutoFire && (
+					<Button
+						className="w-full"
+						onClick={() => stressTest.toggleAutoFire(handleFireScenario)}
+						variant="outline"
+					>
+						{stressTest.isAutoFiring ? 'Stop Auto-Fire' : 'Auto-Fire All'}
+					</Button>
+				)}
 			</div>
 		);
 	};
@@ -2182,7 +2220,17 @@ export function Level38ExternalAPIs({ onComplete }: LevelComponentProps) {
 	return (
 		<LevelLayout>
 			<LeftPanel>{renderLeftPanel()}</LeftPanel>
-			<CenterPanel>{renderCenterPanel()}</CenterPanel>
+			<CenterPanel>
+				<LevelHeader
+					actNumber={5}
+					levelName="External APIs"
+					levelNumber={38}
+					onComplete={handleComplete}
+					onReset={handleReset}
+					onValidate={handleValidate}
+				/>
+				{renderCenterPanel()}
+			</CenterPanel>
 			<RightPanel>
 				<CodePreviewPanel
 					files={getCodeFiles(phase, buildCodePreviewStep)}
