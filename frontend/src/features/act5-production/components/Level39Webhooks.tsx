@@ -3,9 +3,10 @@
  *
  * Three-phase flow: observe -> build -> reward
  *
- * Phase 1 (observe): 4-node horizontal visualization (Stripe -> App -> Database, App -> Job Queue).
- *   Probes fire webhook events that expose: forged events accepted, duplicates double-credited,
- *   synchronous processing blocking the response.
+ * Phase 1 (observe): 6-node visualization.
+ *   Left column: Customer, Attacker, Stripe. Center: App Server. Right: Database, Job Queue.
+ *   Probes show the full causal chain (Customer pays -> App -> Stripe -> webhook callback)
+ *   and expose: forged events accepted, duplicates double-credited, sync processing timeout.
  *
  * Phase 2 (build): 6 steps
  *   Step 0: Generate webhook_events migration (terminal)
@@ -15,7 +16,7 @@
  *   Step 4: Configure async job processing (option)
  *   Step 5: Build the webhook handler service (option)
  *
- * Phase 3 (reward): Same 4 nodes, now with active gates.
+ * Phase 3 (reward): Same 6 nodes, now with active gates.
  *   Signature gate rejects forged events. Idempotency gate catches duplicates.
  *   Valid events enqueued to background job. Fast 200 response.
  */
