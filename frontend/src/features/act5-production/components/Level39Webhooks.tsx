@@ -70,6 +70,7 @@ import { useDiscoveryGating } from '@/hooks/useDiscoveryGating';
 import { useStepGating } from '@/hooks/useStepGating';
 import { useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { shuffleOptions } from '@/lib/shuffleOptions';
 
 // ─── Types ────────────────────────────────────────────────────────────
 
@@ -2104,15 +2105,26 @@ export function Level39Webhooks({ onComplete }: LevelComponentProps) {
 	// ── Build step config ──
 	const currentStepConfig = useMemo(() => {
 		const idx = stepper.currentStep;
-		if (idx <= 1)
-			return { type: 'terminal' as const, ...TERMINAL_STEP_MAP[idx] };
+		if (idx <= 1) {
+			const termData = TERMINAL_STEP_MAP[idx];
+			return {
+				type: 'terminal' as const,
+				commands: termData?.commands
+					? shuffleOptions(termData.commands, idx)
+					: undefined,
+				outputLines: termData?.outputLines,
+			};
+		}
 		const stepOptions: Record<number, typeof CONFIGURE_SIGNATURE_OPTIONS> = {
 			2: CONFIGURE_SIGNATURE_OPTIONS,
 			3: CONFIGURE_IDEMPOTENCY_OPTIONS,
 			4: CONFIGURE_ASYNC_OPTIONS,
 			5: BUILD_SERVICE_OPTIONS,
 		};
-		return { type: 'option' as const, options: stepOptions[idx] };
+		return {
+			type: 'option' as const,
+			options: shuffleOptions(stepOptions[idx], idx),
+		};
 	}, [stepper.currentStep]);
 
 	const buildCodePreviewStep = stepper.isCurrentStepCompleted

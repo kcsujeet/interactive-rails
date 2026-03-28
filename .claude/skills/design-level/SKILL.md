@@ -400,7 +400,7 @@ For each row:
 ### Option Quality Rules
 
 - **Exactly 3 options per OptionCard step.** Two is a coin flip.
-- **Correct answer never first.**
+- **Shuffle all option arrays with `shuffleOptions(options, stepIndex)` from `@/lib/shuffleOptions`.** This randomizes answer positions per session while ensuring the correct answer is never first. Do NOT hand-position correct answers at index 2 or 3: hand-positioned answers create predictable patterns across steps. Always use `shuffleOptions` in a `useMemo` keyed to the step index. This applies to both OptionCard arrays and terminal command arrays.
 - **Comments describe mechanism, not consequences.** "Same plaintext produces same ciphertext" not "Allows: find_by, uniqueness."
 - **Feedback never contradicts earlier steps.** If deterministic was correct in step 2, step 3 can't say "deterministic is less secure." Frame as tradeoff.
 - **Feedback never reveals the answer.**

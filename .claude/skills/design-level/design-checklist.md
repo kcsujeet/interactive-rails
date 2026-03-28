@@ -129,11 +129,22 @@ _(Copy this section for each additional probe.)_
 > | 0 | Step 0 | _[fill in]_ | _[check]_ |
 > | ... | ... | ... | ... |
 
-### 4C. Option quality (per OptionCard step)
-> | Step | # options | Correct position | Feedback reveals answer? |
-> |------|-----------|-----------------|-------------------------|
-> | _[N]_ | 3 | _[not first]_ | _[no]_ |
-> | ... | ... | ... | ... |
+### 4C. Option shuffling (non-negotiable)
+> All option arrays (OptionCard and terminal commands) MUST be wrapped with `shuffleOptions(options, stepIndex)` from `@/lib/shuffleOptions`. This randomizes answer positions per session while ensuring the correct answer is never first. Do NOT rely on hand-positioned correct answers.
+>
+> ```tsx
+> import { shuffleOptions } from '@/lib/shuffleOptions';
+> const shuffled = useMemo(() => shuffleOptions(MY_OPTIONS, stepIndex), [stepIndex]);
+> ```
+>
+> - [ ] Every OptionCard step uses `shuffleOptions`
+> - [ ] Every terminal command step uses `shuffleOptions`
+
+### 4D. Option quality (per OptionCard step)
+> | Step | # options | Feedback reveals answer? |
+> |------|-----------|-------------------------|
+> | _[N]_ | 3 | _[no]_ |
+> | ... | ... | ... |
 
 ---
 

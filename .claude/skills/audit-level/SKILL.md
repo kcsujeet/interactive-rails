@@ -355,7 +355,7 @@ The build phase must cover the **complete workflow**:
 #### Option quality (if redesign needed, use `design-level` skill for detailed rules)
 - [ ] `ErrorFeedback` component is used for wrong-answer feedback (not inline error divs)
 - [ ] **ErrorFeedback is positioned above the options**, not below or between them. It stays visible until the player picks another option or gets it right (no auto-dismiss). Cleared on step advance.
-- [ ] Correct answer is never the first option
+- [ ] **Options are shuffled with `shuffleOptions(options, stepIndex)` from `@/lib/shuffleOptions`.** This ensures the correct answer position varies per session. Hand-positioned answers create predictable patterns. Check that both OptionCard and terminal command arrays pass through `shuffleOptions` in a `useMemo`.
 - [ ] **Every OptionCard step has exactly 3 options.**
 - [ ] All options use the same color
 - [ ] Feedback never reveals the correct answer

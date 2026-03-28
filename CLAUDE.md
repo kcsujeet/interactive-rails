@@ -238,7 +238,7 @@ Every performance-related level must have a full ADVANTAGE phase in its `learnin
 
 **Error feedback must NEVER contain the correct answer.** This is non-negotiable. Feedback should explain *why the chosen option is wrong*, not what the right one is. The player must figure out the answer themselves.
 
-**The correct answer must NEVER be the first option.** Vary its position across steps so there is no predictable pattern.
+**The correct answer must NEVER be the first option.** Use `shuffleOptions(options, stepIndex)` from `@/lib/shuffleOptions` to randomize positions per session. Do NOT hand-position correct answers: hand-positioned patterns (e.g., 2nd, 3rd, 3rd, 3rd, 2nd) are predictable across steps.
 
 **Option colors must NEVER hint at the answer.** All options in a set must use the same color (or omit color entirely to use the default). Don't use `green` for the correct answer or `red`/`rose` for wrong ones. That's a visual giveaway.
 
