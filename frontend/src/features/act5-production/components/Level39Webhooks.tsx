@@ -35,6 +35,7 @@ import {
 	ListTodo,
 	Server,
 	ShieldAlert,
+	User,
 } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -99,14 +100,17 @@ interface EdgeVizState {
 }
 
 interface AnimFrame {
+	customer?: Partial<SimpleNodeState>;
 	attacker?: Partial<SimpleNodeState>;
 	stripe?: Partial<SimpleNodeState>;
 	app?: Partial<AppVizState>;
 	db?: Partial<DbVizState>;
 	queue?: Partial<SimpleNodeState>;
+	/** Customer <-> App edge */
+	edgeC?: Partial<EdgeVizState>;
 	/** Attacker <-> App edge */
 	edge0?: Partial<EdgeVizState>;
-	/** Stripe <-> App edge */
+	/** Stripe <-> App edge (outbound payment + inbound webhook) */
 	edge1?: Partial<EdgeVizState>;
 	/** App <-> Database edge */
 	edge2?: Partial<EdgeVizState>;
@@ -115,6 +119,11 @@ interface AnimFrame {
 }
 
 // ─── Defaults ─────────────────────────────────────────────────────────
+
+const DEFAULT_CUSTOMER: SimpleNodeState = {
+	label: 'Idle',
+	flash: 'idle',
+};
 
 const DEFAULT_ATTACKER: SimpleNodeState = {
 	label: 'Idle',
@@ -263,9 +272,12 @@ const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 };
 
 // ─── Observe animation frames ─────────────────────────────────────────
+// Layout: Customer(top-left), Attacker(mid-left), Stripe(bot-left) -> App(center) -> DB(top-right), Queue(bot-right)
+// Edges: edgeC=Customer<->App, edge0=Attacker<->App, edge1=App<->Stripe, edge2=App<->DB, edge3=App<->Queue
 
 const PROBE_FRAMES: Record<string, AnimFrame[]> = {
 	'forged-webhook': [
+		// Attacker discovers the endpoint and sends a fake event. Customer and Stripe are not involved.
 		{
 			attacker: { label: 'Sending forged event', flash: 'red' },
 			edge0: {
@@ -305,20 +317,48 @@ const PROBE_FRAMES: Record<string, AnimFrame[]> = {
 		},
 	],
 	'duplicate-event': [
+		// Full flow: Customer pays -> App -> Stripe -> webhook callback -> double credit
+		{
+			customer: { label: 'Pays $50 for order', flash: 'idle' },
+			edgeC: {
+				active: true,
+				reverse: false,
+				label: 'POST /api/v1/payments',
+				dotColor: 'bg-cyan-500',
+			},
+			app: { label: 'Processing payment...', flash: 'idle', badge: null },
+			db: { label: 'Credits Table', flash: 'idle', rows: [] },
+		},
+		{
+			edgeC: { active: false },
+			app: { label: 'Forwarding to Stripe...' },
+			edge1: {
+				active: true,
+				reverse: false,
+				label: 'POST /v1/charges ($50)',
+				dotColor: 'bg-cyan-500',
+			},
+			stripe: { label: 'Processing charge...', flash: 'amber' },
+		},
+		{
+			edge1: { active: false },
+			stripe: { label: 'Charge succeeded', flash: 'green' },
+			customer: { label: 'Waiting for confirmation...' },
+			app: { label: 'Awaiting webhook...' },
+		},
 		{
 			stripe: { label: 'Sending evt_123', flash: 'idle' },
 			edge1: {
 				active: true,
-				reverse: false,
-				label: 'POST /webhooks/stripe',
+				reverse: true,
+				label: 'payment.succeeded',
 				dotColor: 'bg-cyan-500',
 			},
-			app: { label: 'Received evt_123', flash: 'idle', badge: null },
-			db: { label: 'Credits Table', flash: 'idle', rows: [] },
+			app: { label: 'Webhook received', flash: 'idle' },
 		},
 		{
 			edge1: { active: false },
-			app: { label: 'Processing payment...', flash: 'amber' },
+			app: { label: 'Crediting user...', flash: 'amber' },
 			edge2: {
 				active: true,
 				reverse: false,
@@ -334,30 +374,26 @@ const PROBE_FRAMES: Record<string, AnimFrame[]> = {
 				flash: 'green',
 				rows: [{ text: 'credit: +$50', color: 'green' as const }],
 			},
-			app: { label: '200 OK', flash: 'green' },
+			app: { label: 'Done. Sending 200...', flash: 'green' },
+		},
+		// Network hiccup: 200 never reaches Stripe
+		{
+			stripe: { label: 'No 200 received...', flash: 'amber' },
+			app: { label: '200 OK sent', flash: 'idle' },
+		},
+		{
+			stripe: { label: 'Retrying evt_123...', flash: 'amber' },
 			edge1: {
 				active: true,
 				reverse: true,
-				label: '200 OK',
-				dotColor: 'bg-emerald-500',
-			},
-		},
-		{
-			edge1: { active: false },
-			stripe: { label: '200 lost! Retrying...', flash: 'amber' },
-		},
-		{
-			edge1: {
-				active: true,
-				reverse: false,
-				label: 'POST (RETRY evt_123)',
+				label: 'payment.succeeded (RETRY)',
 				dotColor: 'bg-amber-500',
 			},
-			app: { label: 'evt_123 again...', flash: 'amber', badge: null },
+			app: { label: 'Webhook received again', flash: 'amber', badge: null },
 		},
 		{
 			edge1: { active: false },
-			app: { label: 'Processing AGAIN!', flash: 'red' },
+			app: { label: 'Crediting user AGAIN!', flash: 'red' },
 			edge2: {
 				active: true,
 				reverse: false,
@@ -377,22 +413,42 @@ const PROBE_FRAMES: Record<string, AnimFrame[]> = {
 				],
 			},
 			app: { label: '200 OK (duplicate)', flash: 'red', badge: 'NO DEDUP' },
+			customer: { label: '$100 credit instead of $50!', flash: 'red' },
 		},
 	],
 	'slow-processing': [
+		// Full flow: Customer subscribes -> App -> Stripe -> webhook callback -> slow sync processing
 		{
-			stripe: {
-				label: 'Sending invoice.paid',
-				flash: 'idle',
+			customer: { label: 'Subscribes to plan', flash: 'idle' },
+			edgeC: {
+				active: true,
+				reverse: false,
+				label: 'POST /api/v1/subscriptions',
+				dotColor: 'bg-cyan-500',
 			},
+			app: { label: 'Creating subscription...', flash: 'idle', badge: null },
+			db: { label: 'Credits Table', flash: 'idle', rows: [] },
+		},
+		{
+			edgeC: { active: false },
+			app: { label: 'Forwarding to Stripe...' },
 			edge1: {
 				active: true,
 				reverse: false,
-				label: 'POST /webhooks/stripe',
+				label: 'Create subscription',
 				dotColor: 'bg-cyan-500',
 			},
-			app: { label: 'Received invoice.paid', flash: 'idle', badge: null },
-			db: { label: 'Credits Table', flash: 'idle', rows: [] },
+			stripe: { label: 'Processing...', flash: 'amber' },
+		},
+		{
+			stripe: { label: 'Invoice finalized', flash: 'idle' },
+			edge1: {
+				active: true,
+				reverse: true,
+				label: 'invoice.paid (12 items)',
+				dotColor: 'bg-cyan-500',
+			},
+			app: { label: 'Webhook received', flash: 'idle' },
 		},
 		{
 			edge1: { active: false },
@@ -412,21 +468,15 @@ const PROBE_FRAMES: Record<string, AnimFrame[]> = {
 		},
 		{
 			app: { label: 'Still processing... 10s', flash: 'amber', badge: '10s' },
-			stripe: { label: 'Waiting for response...' },
+			stripe: { label: 'Waiting for 200...' },
 		},
 		{
 			app: { label: '15s elapsed...', flash: 'red', badge: 'TIMEOUT RISK' },
 			stripe: { label: 'No response yet...' },
-			queue: { label: 'Not used', flash: 'idle' },
+			customer: { label: 'Waiting...' },
 		},
 		{
 			app: { label: 'Done! 200 OK (18s)', flash: 'red', badge: '18s' },
-			edge1: {
-				active: true,
-				reverse: true,
-				label: '200 OK (18s)',
-				dotColor: 'bg-amber-500',
-			},
 			stripe: { label: 'Close call! (timeout: 20s)', flash: 'amber' },
 		},
 	],
@@ -436,6 +486,7 @@ const PROBE_FRAMES: Record<string, AnimFrame[]> = {
 
 const REWARD_FRAMES: Record<string, AnimFrame[]> = {
 	'forged-webhook': [
+		// Same start: attacker sends forged event
 		{
 			attacker: { label: 'Sending forged event', flash: 'red' },
 			edge0: {
@@ -446,6 +497,7 @@ const REWARD_FRAMES: Record<string, AnimFrame[]> = {
 			},
 			app: { label: 'Received POST...', flash: 'idle', badge: null },
 		},
+		// Divergence: signature check rejects
 		{
 			edge0: { active: false },
 			app: {
@@ -468,16 +520,39 @@ const REWARD_FRAMES: Record<string, AnimFrame[]> = {
 		},
 	],
 	'duplicate-event': [
+		// Same start: Customer pays, App forwards to Stripe
+		{
+			customer: { label: 'Pays $50 for order', flash: 'idle' },
+			edgeC: {
+				active: true,
+				reverse: false,
+				label: 'POST /api/v1/payments',
+				dotColor: 'bg-cyan-500',
+			},
+			app: { label: 'Processing payment...', flash: 'idle', badge: null },
+		},
+		{
+			edgeC: { active: false },
+			app: { label: 'Forwarding to Stripe...' },
+			edge1: {
+				active: true,
+				reverse: false,
+				label: 'POST /v1/charges ($50)',
+				dotColor: 'bg-cyan-500',
+			},
+			stripe: { label: 'Processing charge...', flash: 'amber' },
+		},
 		{
 			stripe: { label: 'Sending evt_123', flash: 'idle' },
 			edge1: {
 				active: true,
-				reverse: false,
-				label: 'POST /webhooks/stripe',
+				reverse: true,
+				label: 'payment.succeeded',
 				dotColor: 'bg-cyan-500',
 			},
-			app: { label: 'Signature verified', flash: 'green', badge: null },
+			app: { label: 'Signature verified', flash: 'green' },
 		},
+		// Divergence: dedup check + async processing
 		{
 			edge1: { active: false },
 			app: { label: 'Checking dedup...' },
@@ -508,13 +583,15 @@ const REWARD_FRAMES: Record<string, AnimFrame[]> = {
 		{
 			edge3: { active: false },
 			app: { label: '200 OK (<50ms)', flash: 'green', badge: '<50ms' },
-			stripe: { label: 'Retrying evt_123...', flash: 'amber' },
+			stripe: { label: 'No 200 received...', flash: 'amber' },
 		},
+		// Stripe retries - dedup catches it
 		{
+			stripe: { label: 'Retrying evt_123...', flash: 'amber' },
 			edge1: {
 				active: true,
-				reverse: false,
-				label: 'POST (RETRY evt_123)',
+				reverse: true,
+				label: 'payment.succeeded (RETRY)',
 				dotColor: 'bg-amber-500',
 			},
 			app: { label: 'Signature verified', flash: 'green', badge: null },
@@ -543,22 +620,43 @@ const REWARD_FRAMES: Record<string, AnimFrame[]> = {
 				badge: 'DEDUP',
 			},
 			stripe: { label: 'Retry acknowledged', flash: 'green' },
+			customer: { label: 'Exactly $50 credit', flash: 'green' },
 		},
 	],
 	'slow-processing': [
+		// Same start: Customer subscribes, App forwards to Stripe
 		{
-			stripe: {
-				label: 'Sending invoice.paid',
-				flash: 'idle',
+			customer: { label: 'Subscribes to plan', flash: 'idle' },
+			edgeC: {
+				active: true,
+				reverse: false,
+				label: 'POST /api/v1/subscriptions',
+				dotColor: 'bg-cyan-500',
 			},
+			app: { label: 'Creating subscription...', flash: 'idle', badge: null },
+		},
+		{
+			edgeC: { active: false },
+			app: { label: 'Forwarding to Stripe...' },
 			edge1: {
 				active: true,
 				reverse: false,
-				label: 'POST /webhooks/stripe',
+				label: 'Create subscription',
 				dotColor: 'bg-cyan-500',
 			},
-			app: { label: 'Signature verified', flash: 'green', badge: null },
+			stripe: { label: 'Processing...', flash: 'amber' },
 		},
+		{
+			stripe: { label: 'Invoice finalized', flash: 'idle' },
+			edge1: {
+				active: true,
+				reverse: true,
+				label: 'invoice.paid (12 items)',
+				dotColor: 'bg-cyan-500',
+			},
+			app: { label: 'Signature verified', flash: 'green' },
+		},
+		// Divergence: async processing instead of sync
 		{
 			edge1: { active: false },
 			app: { label: 'Event stored' },
@@ -592,16 +690,10 @@ const REWARD_FRAMES: Record<string, AnimFrame[]> = {
 		{
 			edge3: { active: false },
 			app: { label: '200 OK (<50ms!)', flash: 'green', badge: '<50ms' },
-			edge1: {
-				active: true,
-				reverse: true,
-				label: '200 OK',
-				dotColor: 'bg-emerald-500',
-			},
 			stripe: { label: 'Acknowledged instantly', flash: 'green' },
+			customer: { label: 'Subscription active', flash: 'green' },
 		},
 		{
-			edge1: { active: false },
 			queue: { label: 'Completed', flash: 'green' },
 			db: {
 				rows: [{ text: 'evt_789: completed', color: 'green' as const }],
@@ -610,14 +702,11 @@ const REWARD_FRAMES: Record<string, AnimFrame[]> = {
 	],
 	'valid-subscription': [
 		{
-			stripe: {
-				label: 'subscription.created',
-				flash: 'idle',
-			},
+			stripe: { label: 'subscription.created', flash: 'idle' },
 			edge1: {
 				active: true,
-				reverse: false,
-				label: 'POST /webhooks/stripe',
+				reverse: true,
+				label: 'subscription.created',
 				dotColor: 'bg-cyan-500',
 			},
 			app: { label: 'Signature verified', flash: 'green', badge: null },
@@ -1465,6 +1554,30 @@ const FLASH_BG: Record<ZoneFlash, string> = {
 	amber: 'bg-amber-50 dark:bg-amber-950/30',
 };
 
+// ── Customer node ──
+
+interface CustomerNodeData extends SimpleNodeState {
+	[key: string]: unknown;
+}
+
+const WebhookCustomerNode = memo(({ data }: { data: CustomerNodeData }) => {
+	const d = data as CustomerNodeData;
+	return (
+		<div
+			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-36 p-2.5`}
+		>
+			<FlowHandles />
+			<div className="flex items-center gap-2 mb-1.5">
+				<User className="w-4 h-4 text-foreground shrink-0" />
+				<span className="text-xs font-semibold text-foreground">Customer</span>
+			</div>
+			<div className="text-xs text-foreground font-medium truncate">
+				{d.label}
+			</div>
+		</div>
+	);
+});
+
 // ── Attacker node ──
 
 interface AttackerNodeData extends SimpleNodeState {
@@ -1683,6 +1796,7 @@ const WebhookEdge = memo(
 // ── Node and edge type registries (stable module-scope references) ──
 
 const webhookNodeTypes = {
+	customer: WebhookCustomerNode,
 	attacker: WebhookAttackerNode,
 	stripe: WebhookStripeNode,
 	app: WebhookAppNode,
@@ -1698,6 +1812,8 @@ export function Level39Webhooks({ onComplete }: LevelComponentProps) {
 	const isReward = phase === 'reward';
 
 	// ── Visualization state ──
+	const [customerState, setCustomerState] =
+		useState<SimpleNodeState>(DEFAULT_CUSTOMER);
 	const [attackerState, setAttackerState] =
 		useState<SimpleNodeState>(DEFAULT_ATTACKER);
 	const [stripeState, setStripeState] =
@@ -1705,6 +1821,7 @@ export function Level39Webhooks({ onComplete }: LevelComponentProps) {
 	const [appState, setAppState] = useState<AppVizState>(DEFAULT_APP);
 	const [dbState, setDbState] = useState<DbVizState>(DEFAULT_DB);
 	const [queueState, setQueueState] = useState<SimpleNodeState>(DEFAULT_QUEUE);
+	const [edgeCState, setEdgeCState] = useState<EdgeVizState>(DEFAULT_EDGE);
 	const [edge0State, setEdge0State] = useState<EdgeVizState>(DEFAULT_EDGE);
 	const [edge1State, setEdge1State] = useState<EdgeVizState>(DEFAULT_EDGE);
 	const [edge2State, setEdge2State] = useState<EdgeVizState>(DEFAULT_EDGE);
@@ -1713,11 +1830,13 @@ export function Level39Webhooks({ onComplete }: LevelComponentProps) {
 	const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
 	const resetViz = useCallback(() => {
+		setCustomerState(DEFAULT_CUSTOMER);
 		setAttackerState(DEFAULT_ATTACKER);
 		setStripeState(DEFAULT_STRIPE);
 		setAppState(DEFAULT_APP);
 		setDbState(isReward ? DEFAULT_DB_REWARD : DEFAULT_DB);
 		setQueueState(isReward ? DEFAULT_QUEUE_REWARD : DEFAULT_QUEUE);
+		setEdgeCState(DEFAULT_EDGE);
 		setEdge0State(DEFAULT_EDGE);
 		setEdge1State(DEFAULT_EDGE);
 		setEdge2State(DEFAULT_EDGE);
@@ -1725,12 +1844,15 @@ export function Level39Webhooks({ onComplete }: LevelComponentProps) {
 	}, [isReward]);
 
 	const applyFrame = useCallback((frame: AnimFrame) => {
+		if (frame.customer)
+			setCustomerState((prev) => ({ ...prev, ...frame.customer }));
 		if (frame.attacker)
 			setAttackerState((prev) => ({ ...prev, ...frame.attacker }));
 		if (frame.stripe) setStripeState((prev) => ({ ...prev, ...frame.stripe }));
 		if (frame.app) setAppState((prev) => ({ ...prev, ...frame.app }));
 		if (frame.db) setDbState((prev) => ({ ...prev, ...frame.db }));
 		if (frame.queue) setQueueState((prev) => ({ ...prev, ...frame.queue }));
+		if (frame.edgeC) setEdgeCState((prev) => ({ ...prev, ...frame.edgeC }));
 		if (frame.edge0) setEdge0State((prev) => ({ ...prev, ...frame.edge0 }));
 		if (frame.edge1) setEdge1State((prev) => ({ ...prev, ...frame.edge1 }));
 		if (frame.edge2) setEdge2State((prev) => ({ ...prev, ...frame.edge2 }));
@@ -1752,6 +1874,7 @@ export function Level39Webhooks({ onComplete }: LevelComponentProps) {
 			}
 			// Stop all edge dots after last frame
 			const tCleanup = setTimeout(() => {
+				setEdgeCState((prev) => ({ ...prev, active: false }));
 				setEdge0State((prev) => ({ ...prev, active: false }));
 				setEdge1State((prev) => ({ ...prev, active: false }));
 				setEdge2State((prev) => ({ ...prev, active: false }));
@@ -1790,11 +1913,11 @@ export function Level39Webhooks({ onComplete }: LevelComponentProps) {
 				for (const d of discoveries) discoveryGating.discover(d);
 			}
 			const frames = PROBE_FRAMES[probeId];
-			// 4 nodes + 3 edges = 7 elements. Use 2x speed. Duplicate probe has most frames.
+			// 6 nodes + 5 edges. Use 2.5x speed. Duplicate probe has most frames (3x).
 			const delay =
 				probeId === 'duplicate-event'
-					? ANIMATION_DURATION_MS * 2.5
-					: ANIMATION_DURATION_MS * 2;
+					? ANIMATION_DURATION_MS * 3
+					: ANIMATION_DURATION_MS * 2.5;
 			if (frames) runAnimation(frames, undefined, delay);
 		},
 		[vizAnimating, discoveryGating, runAnimation],
@@ -1833,11 +1956,13 @@ export function Level39Webhooks({ onComplete }: LevelComponentProps) {
 			stressTest.fireRequest(scenarioId);
 			const frames = REWARD_FRAMES[scenarioId];
 			if (frames) {
+				setCustomerState(DEFAULT_CUSTOMER);
 				setAttackerState(DEFAULT_ATTACKER);
 				setStripeState(DEFAULT_STRIPE);
 				setAppState(DEFAULT_APP);
 				setDbState(DEFAULT_DB_REWARD);
 				setQueueState(DEFAULT_QUEUE_REWARD);
+				setEdgeCState(DEFAULT_EDGE);
 				setEdge0State(DEFAULT_EDGE);
 				setEdge1State(DEFAULT_EDGE);
 				setEdge2State(DEFAULT_EDGE);
@@ -1879,44 +2004,63 @@ export function Level39Webhooks({ onComplete }: LevelComponentProps) {
 	}, [resetViz, stressTest]);
 
 	// ── Flow nodes & edges ──
+	// Layout: 6 nodes
+	// Left column: Customer(top), Attacker(mid), Stripe(bottom)
+	// Center: App Server
+	// Right column: Database(top), Job Queue(bottom)
 	const flowNodes = useMemo(
 		(): Node[] => [
 			{
+				id: 'customer',
+				type: 'customer',
+				position: { x: 0, y: 0 },
+				data: { ...customerState } satisfies CustomerNodeData,
+			},
+			{
 				id: 'attacker',
 				type: 'attacker',
-				position: { x: 0, y: 0 },
+				position: { x: 0, y: 80 },
 				data: { ...attackerState } satisfies AttackerNodeData,
 			},
 			{
 				id: 'stripe',
 				type: 'stripe',
-				position: { x: 0, y: 100 },
+				position: { x: 0, y: 160 },
 				data: { ...stripeState } satisfies StripeNodeData,
 			},
 			{
 				id: 'app',
 				type: 'app',
-				position: { x: 260, y: 40 },
+				position: { x: 260, y: 60 },
 				data: { ...appState } satisfies AppNodeData,
 			},
 			{
 				id: 'db',
 				type: 'db',
-				position: { x: 530, y: 0 },
+				position: { x: 530, y: 10 },
 				data: { ...dbState } satisfies DbNodeData,
 			},
 			{
 				id: 'queue',
 				type: 'queue',
-				position: { x: 530, y: 130 },
+				position: { x: 530, y: 140 },
 				data: { ...queueState } satisfies QueueNodeData,
 			},
 		],
-		[attackerState, stripeState, appState, dbState, queueState],
+		[customerState, attackerState, stripeState, appState, dbState, queueState],
 	);
 
 	const flowEdges = useMemo(
 		(): Edge[] => [
+			{
+				id: 'e-customer-app',
+				source: 'customer',
+				target: 'app',
+				type: 'webhook',
+				sourceHandle: 'right-source',
+				targetHandle: 'left-target',
+				data: { ...edgeCState } satisfies WebhookEdgeData,
+			},
 			{
 				id: 'e-attacker-app',
 				source: 'attacker',
@@ -1927,12 +2071,12 @@ export function Level39Webhooks({ onComplete }: LevelComponentProps) {
 				data: { ...edge0State } satisfies WebhookEdgeData,
 			},
 			{
-				id: 'e-stripe-app',
-				source: 'stripe',
-				target: 'app',
+				id: 'e-app-stripe',
+				source: 'app',
+				target: 'stripe',
 				type: 'webhook',
-				sourceHandle: 'right-source',
-				targetHandle: 'left-target',
+				sourceHandle: 'left-source',
+				targetHandle: 'right-target',
 				data: { ...edge1State } satisfies WebhookEdgeData,
 			},
 			{
@@ -1954,7 +2098,7 @@ export function Level39Webhooks({ onComplete }: LevelComponentProps) {
 				data: { ...edge3State } satisfies WebhookEdgeData,
 			},
 		],
-		[edge0State, edge1State, edge2State, edge3State],
+		[edgeCState, edge0State, edge1State, edge2State, edge3State],
 	);
 
 	// ── Build step config ──

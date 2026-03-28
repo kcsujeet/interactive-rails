@@ -75,7 +75,9 @@ State the problem in one sentence. Not the Rails concept, but the concrete probl
 
 **If two actors use the same communication channel but have different identities or motivations, they are separate actors and need separate nodes.** Stripe sending a legitimate callback and an attacker sending a forged POST are different actors even though both hit the same endpoint. Collapsing them into one node makes it impossible for the player to see where the forged event comes from.
 
-Case study: L39 originally had 4 nodes with Stripe doubling as the Attacker (same node, different label). When the forged-webhook probe fired, the "Stripe" node changed its icon to a shield and label to "Attacker." This was confusing: Is Stripe the attacker? Where is Stripe during the attack? The fix: add a dedicated Attacker node that's visible (dimmed) at all times, separate from Stripe.
+Case study (collapsed actors): L39 originally had 4 nodes with Stripe doubling as the Attacker (same node, different label). When the forged-webhook probe fired, the "Stripe" node changed its icon to a shield and label to "Attacker." This was confusing: Is Stripe the attacker? Where is Stripe during the attack? The fix: add a dedicated Attacker node, separate from Stripe.
+
+Case study (missing actor): L39 also omitted the Customer node entirely. The "duplicate event" probe showed Stripe sending a webhook, but never showed WHY Stripe was sending it (customer paid for something). The animation started mid-flow, leaving the player to imagine the triggering action. If the actor is invisible, the causal chain is broken. The fix: add a Customer node showing "Pays $50 for order" with dots flowing Customer -> App -> Stripe before the webhook callback flows back. Every causal chain in the animation must start from its origin, not from the middle.
 
 ### 2. Would the player even know what this concept is?
 
