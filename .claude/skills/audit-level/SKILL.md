@@ -47,6 +47,18 @@ Trace the concept back through earlier levels. If Level N assumes the player kno
 
 Case study: L39 originally jumped straight to "Stripe webhook fires twice, customer charged twice." But the player had never learned what a webhook is, why Stripe needs to call back, or when the webhook handler was set up. The level taught how to secure a webhook handler without first teaching what a webhook handler is. The fix: restructure the observe phase to first show the async payment flow (customer pays -> Stripe processes -> Stripe calls back with result), establishing why webhooks exist, before revealing the three vulnerabilities.
 
+**Check ALL player-facing text for solution leakage (non-negotiable).** The solution name (e.g., "v2", "webhook", "circuit breaker") must not appear as assumed knowledge in any of these locations. The trigger and problem describe what's WRONG using concepts the player already knows. The SOLUTION is what they discover by playing.
+
+Scan each of these in content.ts AND the component:
+- `trigger.description`
+- `problem.observation`
+- `problem.goal` (can name the solution since it describes what the player will build)
+- Left panel scenario text
+- Probe labels and story fields
+- `hint.text` (acceptable with delay, but check)
+
+Case study: L40 had "v2" as assumed knowledge in three separate places: trigger ("Product wants breaking changes for v2"), problem.observation ("Product wants v2 to return..."), and scenario text. Each was caught and fixed separately because the check was only applied to the trigger the first time. Check all locations in one pass.
+
 ### 3. How did the player get into this situation?
 
 Think about the act context and what came before. By Act 5, the player has built a full e-commerce app with models, controllers, services, validations, associations, testing, and performance optimizations across 34 levels. Ask:

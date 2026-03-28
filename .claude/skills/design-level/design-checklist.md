@@ -24,6 +24,19 @@ Complete these before any visual design. Write the answers, not just "yes/no."
 > - What the player does NOT know yet: _[fill in]_
 > - Foundation gap? _[yes/no]_
 > - If yes, how will the observe phase introduce the concept before showing problems? _[fill in]_
+>
+> **Now re-read your trigger description and scenario text word by word.** Does any word or phrase reference a concept the player has not encountered? The solution name (e.g., "v2", "webhook", "circuit breaker") must NEVER appear in the trigger or scenario text as assumed knowledge. The trigger describes the PROBLEM using concepts the player already knows. The SOLUTION is what they discover by playing the level.
+>
+> Check EVERY piece of player-facing text. The solution name must not appear as assumed knowledge in any of these:
+>
+> - Does `trigger.description` assume knowledge of the solution? _[yes/no, quote the phrase]_
+> - Does `problem.observation` assume knowledge of the solution? _[yes/no, quote the phrase]_
+> - Does `problem.goal` name the solution before the player discovers it? _[yes/no]_ (Goal can name the solution since it describes what the player will build, but should not assume they already know it)
+> - Does the left panel scenario text assume knowledge of the solution? _[yes/no, quote the phrase]_
+> - Do probe labels or story fields reference the solution as known? _[yes/no]_
+> - Does `hint.text` reveal the solution name? _[acceptable if hint has delay, but check]_
+>
+> Case study: L40 had "v2" referenced as assumed knowledge in THREE places: trigger ("Product wants breaking changes for v2"), problem.observation ("Product wants v2 to return..."), and scenario text ("Now product needs a breaking change for v2"). Each was caught and fixed separately. Check all locations in one pass, not one at a time.
 
 ### 1C. Actor table
 > List every entity that initiates, processes, or receives something in this level's story.

@@ -1483,7 +1483,7 @@ const level40APIVersioning: Level = {
 	trigger: {
 		type: 'new_feature',
 		description:
-			'Partners integrated with v1 of your API six months ago. Product wants breaking changes for v2, but you cannot break existing clients.',
+			'Product needs to change the order total from integer cents (1999) to a money object ({ amount: "19.99", currency: "USD" }). But 200 partners depend on the current /api/v1 format. Changing it breaks them all.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -1541,7 +1541,7 @@ const level40APIVersioning: Level = {
 	},
 	problem: {
 		observation:
-			'v1 API returns `{ "total": 1999 }` (cents). Product wants v2 to return `{ "total": { "amount": "19.99", "currency": "USD" } }` (object). 200 partners use v1. Changing the shape breaks their integrations.',
+			'The API returns `{ "total": 1999 }` (integer cents). Product wants to change it to `{ "total": { "amount": "19.99", "currency": "USD" } }` (structured object). 200 partners parse the current format. Deploying the new shape breaks all of them.',
 		rootCause:
 			'No API versioning strategy. A single controller serves all clients. Any change to the response shape is a breaking change for everyone.',
 		codeExample: `# Current: One controller, one version
