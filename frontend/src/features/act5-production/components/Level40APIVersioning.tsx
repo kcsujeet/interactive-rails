@@ -1046,21 +1046,31 @@ end`,
 			{
 				filename: 'app/controllers/api/orders_controller.rb',
 				language: 'ruby',
-				code: `# Single controller for all versions
+				code: `# Single controller, one serializer for all clients
 class Api::OrdersController < ApplicationController
   def show
     result = FetchOrder.call(id: params[:id])
     if result.success?
-      render json: {
-        id: result.order.id,
-        total: result.order.total_cents
-        # Change this to an object = break 200 partners
-      }
+      render json: OrderSerializer
+        .new(result.order).serializable_hash
     else
       render json: { error: { code: "NOT_FOUND",
         message: "Order not found" } },
         status: :not_found
     end
+  end
+end`,
+			},
+			{
+				filename: 'app/serializers/order_serializer.rb',
+				language: 'ruby',
+				code: `# One serializer shared by all clients
+class OrderSerializer < BaseSerializer
+  attributes :id, :status
+  attribute :total do |order|
+    order.total_cents  # Integer cents (1999)
+    # Changing this to a money object breaks
+    # every partner parsing this response
   end
 end`,
 			},

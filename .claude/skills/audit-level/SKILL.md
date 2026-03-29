@@ -190,7 +190,10 @@ Read the content definition in `content.ts` alongside the component. Check for t
   - **L18+ (Dry-Validation):** Services must validate input via `MyContract.new.call(params)` with `validation.failure?` check, never inline `if param.blank?`. Contract file (`app/contracts/`) must appear in code previews.
   - **L19+ (Query Objects):** Complex queries should use query objects, not be inlined in services.
   - **L20+ (Error Handling):** Error responses follow the `{ error: { code, message, details } }` shape.
+  - **L7+ (Serializers):** Controllers render via serializers (`OrderSerializer.new(result.order).serializable_hash`), never inline `render json: { id: ..., total: ... }`. If a level is about changing response formats (like API versioning), the serializer IS the thing being changed. Showing inline JSON in the controller skips the very layer the level should be teaching about.
   - **L7+ (JSON:API format):** API responses use JSON:API format (`{ "data": { "type": "...", "id": "...", "attributes": { ... } } }`), never vanilla JSON (`{ "user": { ... } }`). Case study: L36 reward phase showed vanilla JSON, breaking 35 levels of consistent API format.
+
+**Cumulative pattern violations are BLOCKING, not medium severity.** A pattern established 30+ levels ago is as fundamental as the phase state machine. If the player has used serializers since L7, showing inline `render json:` at L40 teaches the wrong thing. It's not a style nit. It contradicts what the player learned and undermines the level's own concept. Case study: L40's observe code originally used `render json: { total: order.total_cents }` inline. The level was about changing response formats, but the "before" code didn't use the layer where formats are defined (serializers). The fix: show `OrderSerializer` in the observe code so the problem is "changing THIS serializer breaks partners" and the solution is "create versioned serializers."
 
 ### Component Structure (check first, non-negotiable)
 

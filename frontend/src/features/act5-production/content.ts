@@ -1544,25 +1544,27 @@ const level40APIVersioning: Level = {
 			'The API returns `{ "total": 1999 }` (integer cents). Product wants to change it to `{ "total": { "amount": "19.99", "currency": "USD" } }` (structured object). 200 partners parse the current format. Deploying the new shape breaks all of them.',
 		rootCause:
 			'No API versioning strategy. A single controller serves all clients. Any change to the response shape is a breaking change for everyone.',
-		codeExample: `# Current: One controller, one version
-# app/controllers/api/orders_controller.rb
+		codeExample: `# app/controllers/api/orders_controller.rb
 class Api::OrdersController < ApplicationController
   def show
-    order = Order.find(params[:id])
-    render json: {
-      id: order.id,
-      total: order.total_cents  # Cents as integer
-    }
+    result = FetchOrder.call(id: params[:id])
+    if result.success?
+      render json: OrderSerializer
+        .new(result.order).serializable_hash
+    end
+  end
+end
+
+# app/serializers/order_serializer.rb
+class OrderSerializer < BaseSerializer
+  attribute :total do |order|
+    order.total_cents  # Integer cents (1999)
   end
 end
 
 # Partner A expects: { "total": 1999 }
 # Product wants:     { "total": { "amount": "19.99", "currency": "USD" } }
-# Changing this breaks Partner A!
-
-# We need BOTH responses to coexist:
-# GET /api/v1/orders/1 => { "total": 1999 }
-# GET /api/v2/orders/1 => { "total": { "amount": "19.99", "currency": "USD" } }`,
+# Changing the serializer breaks Partner A!`,
 		goal: 'Implement API versioning with namespaced routes and controllers so v1 and v2 coexist. Add deprecation headers to v1 responses.',
 		thresholds: {},
 	},

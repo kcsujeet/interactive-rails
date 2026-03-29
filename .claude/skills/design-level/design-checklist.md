@@ -176,11 +176,15 @@ _(Copy this section for each additional probe.)_
 > |---|---|
 > | _[fill in]_ | _[fill in]_ |
 
-### 5C. Cumulative pattern check
+### 5C. Cumulative pattern check (violations are BLOCKING, not medium)
+> A pattern taught 30+ levels ago is as fundamental as the phase state machine. Skipping a serializer at L40 after 33 levels of serializer use teaches the wrong thing and undermines the level's concept.
+>
+> - L7+ serializers in all controller responses? (never inline `render json: { ... }`) _[yes/no]_
 > - L16+ service pattern in all code previews? _[yes/no]_
 > - L18+ contract pattern where applicable? _[yes/no]_
 > - L7+ JSON:API format in any API responses? _[yes/no]_
 > - L20+ error shape in any error responses? _[yes/no]_
+> - Does the level's concept DEPEND on a cumulative pattern? (e.g., API versioning depends on serializers being the response layer) _[yes/no, which pattern]_
 
 ---
 
