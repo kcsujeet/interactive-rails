@@ -55,6 +55,17 @@ Complete these before any visual design. Write the answers, not just "yes/no."
 > - Existing code/features: _[fill in]_
 > - Does the "before" code follow cumulative patterns (L16+ services, L18+ contracts)? _[yes/no, explain]_
 > - When was this code "built"? (Which earlier level established it?) _[fill in]_
+>
+> **Cumulative infrastructure check (ALL previous levels, not just same act).** Read the "Cumulative Infrastructure" section in cumulative-patterns.md. Infrastructure the player has built persists across all future levels, the same way code patterns do. If L41 built structured logging, L47 cannot say "no logging exists." If L22 built Solid Queue, L45 cannot introduce background jobs as a new concept.
+>
+> | Relevant infrastructure from earlier levels | What it built | Does this level's "before state" and probe text acknowledge it? |
+> |---------------------------------------------|---------------|--------------------------------------------------------------|
+> | _[fill in]_ | _[fill in]_ | _[yes/no]_ |
+> | ... | ... | ... |
+>
+> **If any probe story, scenario text, or "before" code claims something does not exist that an earlier level already built, that is a blocking contradiction.** This is the same severity as a cumulative pattern violation (L7+ serializers, L16+ services). Infrastructure is cumulative.
+>
+> Case study: L47 (Error Monitoring) originally said "errors go to stdout, nobody sees them." But L41 (Middleware) had already built structured request logging with request IDs. L47's "before state" ignored 6 levels of infrastructure the player just built. The fix: L47 acknowledges "your request logger from L41 captures requests, but exceptions are not captured with context."
 
 ### 1E. After state
 > What will the app look like after the build phase?

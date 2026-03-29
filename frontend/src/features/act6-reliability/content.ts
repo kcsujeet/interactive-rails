@@ -1413,14 +1413,14 @@ const level42ErrorMonitoring: Level = {
 	trigger: {
 		type: 'user_complaint',
 		description:
-			'500 errors in production but nobody notices until users complain on Twitter. Need structured error tracking with context, grouping, and alerting.',
+			'500 errors in production but nobody notices until users complain on Twitter. Request logging (L41) captures requests, but exceptions are not tracked with context, grouped, or alerted on.',
 	},
 	startingPipeline: middlewarePipeline({ modelLabel: 'User' }),
 	problem: {
 		observation:
-			'Production logs show intermittent 500 errors but the team only finds out when users tweet about it. Errors lack context: no user ID, no request params, no breadcrumbs showing what led to the failure.',
+			'Request logging from L41 captures requests, but when exceptions occur, they are written to the log with no error-specific context. The team only finds out about 500 errors when users tweet about it.',
 		rootCause:
-			'No structured error monitoring. Errors go to stdout logs with no grouping, alerting, or context.',
+			'No structured error monitoring. Exceptions are logged but not captured with user context, grouped by type, or alerted on. Request logging shows what happened, but not why it failed.',
 		codeExample: `# Current error handling: nothing
 class Api::V1::PostsController < ApplicationController
   def show

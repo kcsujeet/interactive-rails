@@ -170,11 +170,11 @@ const PROBES = [
 				color: 'red' as const,
 			},
 			{
-				text: '# Error written to stdout, nobody sees it',
+				text: '# Request logged (L41), but exception not captured',
 				color: 'yellow' as const,
 			},
 			{
-				text: '# No user_id, no request_id, no breadcrumbs',
+				text: '# No error context, no grouping, no alert triggered',
 				color: 'red' as const,
 			},
 			{
@@ -185,9 +185,9 @@ const PROBES = [
 		story: [
 			'Customer browses your store, clicks on product #999.',
 			'Product was deleted last week. Rails raises RecordNotFound.',
-			'Error goes to Rails.logger (stdout). No one is watching.',
-			'No user_id attached. No request_id for tracing.',
-			'Customer sees a blank 500 page and leaves.',
+			'L41 request logger captures the request, but not the exception itself.',
+			'No error context: no user_id, no breadcrumbs, no stack trace captured.',
+			'The team finds out when the customer tweets about it.',
 		],
 	},
 	{
@@ -1651,9 +1651,9 @@ export function Level47ErrorMonitoring({ onComplete }: LevelComponentProps) {
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground">
-							500 errors happen in production but nobody notices until customers
-							complain on Twitter. Errors lack context: no user ID, no request
-							params, no breadcrumbs.
+							Your request logger from Level 41 captures requests, but when
+							exceptions occur, they vanish into the log with no error-specific
+							context. Nobody notices 500 errors until customers complain.
 						</p>
 					</div>
 					<DiscoveryChecklist

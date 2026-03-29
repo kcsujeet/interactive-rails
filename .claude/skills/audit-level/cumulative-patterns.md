@@ -201,13 +201,63 @@ end
 
 ---
 
+## Cumulative Infrastructure (Not Just Code Patterns)
+
+Patterns above track code conventions (service objects, contracts, serializers). But players also BUILD infrastructure that persists across all future levels. If a level's "before state" ignores infrastructure the player already built, it contradicts their experience.
+
+**Infrastructure is cumulative the same way patterns are.** Once the player builds structured logging in L41, every future level's "before state" includes structured logging. A level cannot say "errors go to stdout with no logging" if L41 already added a RequestLogger middleware.
+
+### L22+: Background Jobs (Solid Queue)
+- **Infrastructure**: `ApplicationJob`, `perform_later`, Solid Queue processing
+- **Applies to**: Any level mentioning async work must acknowledge Solid Queue exists
+
+### L37+: Real-Time (Action Cable)
+- **Infrastructure**: WebSocket channels, `broadcast_to`, Solid Cable
+- **Applies to**: Any level mentioning push notifications must acknowledge Action Cable exists
+
+### L38+: Resilient HTTP Clients (Faraday + Stoplight)
+- **Infrastructure**: Timeouts, retries, circuit breakers on outbound API calls
+- **Applies to**: Any level calling external APIs must show resilient clients, not raw HTTP
+
+### L39+: Webhook Handler (Signature + Dedup + Async)
+- **Infrastructure**: WebhookEvent table, HMAC verification, idempotency
+- **Applies to**: Any level receiving webhooks must show the secure handler
+
+### L40+: API Versioning (v1 + v2 Namespaces)
+- **Infrastructure**: `/api/v1/` and `/api/v2/` routes, versioned controllers and serializers, deprecation headers
+- **Applies to**: Any level showing routes or controllers must show versioned namespaces
+
+### L41+: Middleware Stack (Request ID, Logger, Bot Detection)
+- **Infrastructure**: RequestIdTracker, RequestLogger (structured JSON), BotDetector middleware
+- **Applies to**: Any level mentioning logging, request tracing, or bot traffic must acknowledge these exist
+
+### L42+: Rate Limiting (Rails 8 rate_limit + Rack::Attack)
+- **Infrastructure**: Per-IP throttling, login rate limit, safelist, 429 responses
+- **Applies to**: Any level mentioning API abuse or brute force must acknowledge rate limiting exists
+
+### L43+: Soft Deletes + Audit Trails (Discard + PaperTrail)
+- **Infrastructure**: `discarded_at` column, `has_paper_trail`, version history
+- **Applies to**: Any level mentioning deletions must use `discard` not `destroy`
+
+### L44+: Safe Migrations (strong_migrations)
+- **Infrastructure**: strong_migrations gem blocking unsafe patterns
+- **Applies to**: Any level with migrations must follow safe migration patterns
+
+### L45+: Recurring Jobs (Solid Queue recurring.yml)
+- **Infrastructure**: Scheduled cleanup jobs, config/recurring.yml
+- **Applies to**: Any level mentioning scheduled tasks must reference Solid Queue recurring
+
+---
+
 ## How to Use This File During Audits
 
 When auditing Level N:
 
 1. **Find all patterns from levels < N** that are relevant to the code being shown
-2. **Check every code preview** (observe phase "before" code, build step previews, reward phase "after" code) against these patterns
-3. **Flag any violation** where code uses an older/simpler approach when a newer pattern has been established
+2. **Find all infrastructure from levels < N** that the "before state" should reference
+3. **Check every code preview** (observe phase "before" code, build step previews, reward phase "after" code) against these patterns
+4. **Check every probe story and scenario text** against infrastructure - if the level claims something does not exist but an earlier level built it, that is a contradiction
+5. **Flag any violation** where code uses an older/simpler approach when a newer pattern has been established
 
 **Common violations to watch for:**
 - Controller doing business logic directly (should use service object, L16+)
@@ -218,3 +268,5 @@ When auditing Level N:
 - Missing `Result = Data.define(...)` return type
 - Controller not using `ServiceName.call(...)` pattern
 - No contract file shown when service validates input
+- "Before state" claims infrastructure does not exist when an earlier level built it (e.g., "no logging" after L41 added RequestLogger)
+- "Before state" ignores gems/tools from earlier levels in the same act
