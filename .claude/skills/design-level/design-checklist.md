@@ -223,6 +223,13 @@ _(Copy this section for each additional probe.)_
 - [ ] Last build step transitions directly to reward (no activate phase)
 - [ ] All colors use light+dark variants (no hardcoded dark-only)
 
+### Code style compliance (re-read `.claude/rules/code-style.md` before writing)
+- [ ] **Components > 20 lines in their own file.** Custom React Flow nodes and edges that exceed 20 lines must be extracted to separate files, not inlined in the level component.
+- [ ] **Reuse, don't duplicate.** Before writing a custom edge, toDotFill, FLASH_BORDER/FLASH_BG, or any utility, check if it already exists in a shared location. If another level has the same code, extract it to a shared file and import.
+- [ ] **No arbitrary Tailwind values.** Use `text-xs` not `text-[10px]`, `text-[9px]`. If a design token exists, use it.
+- [ ] **Semantic colors over hardcoded.** Use `text-foreground`, `bg-card`, `text-muted-foreground` instead of `text-zinc-*`, `bg-zinc-*`.
+- [ ] **No non-null assertions (`!`).** Use `?.` or `??` instead.
+
 ---
 
 ## Section 7: Tests (write WHILE building, not after)

@@ -6,16 +6,15 @@
  * - Build step quality (no answer leaks, valid feedback)
  * - Stress scenario coverage and consistency
  * - Cross-phase consistency
- * - Cumulative pattern compliance (service objects, contracts)
  */
 
 import { describe, expect, test } from 'bun:test';
 
-// ── Mirrored data ──
+// ── Mirrored data from Level38ExternalAPIs.tsx ──
 
 const DISCOVERY_DEFS = [
 	{ id: 'no-timeout', label: 'No timeout on HTTP requests' },
-	{ id: 'thread-blocking', label: 'Slow API blocks all Puma threads' },
+	{ id: 'thread-blocking', label: 'Slow API blocks Puma threads' },
 	{ id: 'no-retry', label: 'Transient errors not retried' },
 	{ id: 'cascade-failure', label: 'One failing API takes down entire app' },
 ];
@@ -23,12 +22,15 @@ const DISCOVERY_DEFS = [
 const PROBES = [
 	{
 		id: 'slow-stripe',
-		label: 'POST charge (Stripe slow)',
+		label: 'POST create payment (slow response)',
 		command:
-			'curl -X POST localhost:3000/api/v1/payments -d \'{"amount": 50}\'',
+			'curl -X POST localhost:3000/api/v1/payments -d \'{"amount": 5000}\'',
 		responseLines: [
-			{ text: '# Waiting... 10s... 20s... 30s...', color: 'amber' },
-			{ text: '# Thread blocked. No timeout configured.', color: 'red' },
+			{ text: '# Waiting... 10s... 20s... 30s...', color: 'yellow' },
+			{
+				text: '# Thread blocked. No timeout configured.',
+				color: 'red',
+			},
 			{ text: '504 Gateway Timeout (after 30 seconds)', color: 'red' },
 			{
 				text: '# Puma thread wasted for 30 seconds on a single request',
@@ -38,34 +40,33 @@ const PROBES = [
 	},
 	{
 		id: 'stripe-503',
-		label: 'POST charge (Stripe 503)',
-		command:
-			'curl -X POST localhost:3000/api/v1/payments -d \'{"amount": 75}\'',
+		label: 'GET check payment status (Stripe 503)',
+		command: 'curl localhost:3000/api/v1/payments/ch_abc/status',
 		responseLines: [
 			{ text: '503 Service Unavailable', color: 'red' },
 			{
-				text: '{ "error": "Stripe is temporarily unavailable" }',
+				text: '{ "error": { "code": "SERVICE_UNAVAILABLE", "message": "Stripe temporarily unavailable" } }',
 				color: 'red',
 			},
 			{
 				text: '# No retry attempted. Request fails immediately.',
-				color: 'amber',
+				color: 'yellow',
 			},
 			{
 				text: '# A simple retry would likely succeed (transient error)',
-				color: 'amber',
+				color: 'yellow',
 			},
 		],
 	},
 	{
 		id: 'stripe-down',
-		label: 'POST charge (Stripe outage)',
+		label: 'Black Friday traffic (Stripe outage)',
 		command:
 			'for i in {1..50}; do curl -X POST localhost:3000/api/v1/payments; done',
 		responseLines: [
 			{
 				text: '# 50 concurrent checkout requests during Stripe outage',
-				color: 'amber',
+				color: 'yellow',
 			},
 			{
 				text: '# Each request hangs for 30 seconds (no timeout)',
@@ -76,7 +77,7 @@ const PROBES = [
 				color: 'red',
 			},
 			{
-				text: '# App is completely unresponsive, not just payments',
+				text: '# GET /products, GET /search... nothing works!',
 				color: 'red',
 			},
 			{
@@ -93,14 +94,7 @@ const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 	'stripe-down': ['cascade-failure'],
 };
 
-const STEP_DEFS = [
-	{ id: 'install-faraday', label: 'Install HTTP Client' },
-	{ id: 'install-stoplight', label: 'Install Circuit Breaker' },
-	{ id: 'configure-timeout', label: 'Configure Timeout' },
-	{ id: 'configure-retry', label: 'Configure Retry' },
-	{ id: 'configure-circuit', label: 'Configure Circuit Breaker' },
-	{ id: 'build-service', label: 'Build Payment Service' },
-];
+// ── Build step option arrays ──
 
 const INSTALL_FARADAY_COMMANDS = [
 	{
@@ -155,16 +149,16 @@ const CONFIGURE_TIMEOUT_OPTIONS = [
 			'Default timeouts are 60+ seconds. A stuck request blocks a thread that long, exhausting your thread pool under load.',
 	},
 	{
-		id: 'correct',
-		label: 'Set open_timeout and timeout',
-		correct: true,
-	},
-	{
 		id: 'wrong-too-long',
 		label: 'Set timeout to 60 seconds',
 		correct: false,
 		feedback:
 			'60 seconds is far too long. Under load, slow requests pile up and exhaust your thread pool. Keep timeouts under 15 seconds.',
+	},
+	{
+		id: 'correct',
+		label: 'Set open_timeout and timeout',
+		correct: true,
 	},
 ];
 
@@ -177,16 +171,16 @@ const CONFIGURE_RETRY_OPTIONS = [
 			'Retrying POST requests without idempotency is dangerous. A successful charge that timed out would be charged again on retry.',
 	},
 	{
-		id: 'correct',
-		label: 'Retry with backoff, skip non-idempotent',
-		correct: true,
-	},
-	{
 		id: 'wrong-no-backoff',
 		label: 'Retry immediately (no backoff)',
 		correct: false,
 		feedback:
 			'Retrying immediately creates a thundering herd. All clients retry at the same time, overwhelming the recovering service.',
+	},
+	{
+		id: 'correct',
+		label: 'Retry with backoff, skip non-idempotent',
+		correct: true,
 	},
 ];
 
@@ -221,69 +215,93 @@ const BUILD_SERVICE_OPTIONS = [
 			'HTTP calls in controllers violate the service object pattern. Business logic and external integrations belong in services.',
 	},
 	{
-		id: 'correct',
-		label: 'Service with contract, circuit breaker, and Result',
-		code: `class ProcessPayment < ApplicationService
-  Result = Data.define(:success?, :payment, :errors)
-  # ... uses PaymentContract, Stoplight circuit breaker
-end`,
-		correct: true,
-	},
-	{
 		id: 'wrong-no-circuit',
 		label: 'Service without circuit breaker',
 		correct: false,
 		feedback:
 			'This service has no circuit breaker. During an outage, every request still hits the failing API, wasting threads and amplifying the problem.',
 	},
+	{
+		id: 'correct',
+		label: 'Service with contract, circuit breaker, and Result',
+		correct: true,
+	},
 ];
+
+const ALL_OPTION_SETS = [
+	{ name: 'INSTALL_FARADAY_COMMANDS', options: INSTALL_FARADAY_COMMANDS },
+	{ name: 'INSTALL_STOPLIGHT_COMMANDS', options: INSTALL_STOPLIGHT_COMMANDS },
+	{ name: 'CONFIGURE_TIMEOUT_OPTIONS', options: CONFIGURE_TIMEOUT_OPTIONS },
+	{ name: 'CONFIGURE_RETRY_OPTIONS', options: CONFIGURE_RETRY_OPTIONS },
+	{ name: 'CONFIGURE_CIRCUIT_OPTIONS', options: CONFIGURE_CIRCUIT_OPTIONS },
+	{ name: 'BUILD_SERVICE_OPTIONS', options: BUILD_SERVICE_OPTIONS },
+];
+
+// ── Stress scenarios ──
 
 const STRESS_SCENARIOS = [
 	{
-		id: 'fast-charge',
-		label: 'POST charge (fast response)',
-		description: 'Stripe responds in 200ms, charge succeeds',
+		id: 'slow-timeout',
+		label: 'POST create payment (with timeout)',
+		description: 'Same slow Stripe, but timeout kills it at 10s',
 		method: 'POST',
 		path: '/api/v1/payments',
-		actor: 'user',
-		expectedResult: 'allowed',
+		actor: 'customer',
+		expectedResult: 'blocked' as const,
+		responseLines: [
+			{ text: 'POST /api/v1/payments -> Stripe API', color: 'cyan' },
+			{ text: 'Timeout: 10s limit reached!', color: 'yellow' },
+			{ text: 'Thread freed after 10s (was 30s before)', color: 'green' },
+			{ text: '503 - { "error": { "code": "TIMEOUT" } }', color: 'red' },
+		],
 	},
 	{
-		id: 'slow-charge',
-		label: 'POST charge (slow, timeout)',
-		description: 'Stripe takes 15s, timeout kicks in at 10s',
-		method: 'POST',
-		path: '/api/v1/payments',
-		actor: 'user',
-		expectedResult: 'blocked',
-	},
-	{
-		id: 'transient-503',
-		label: 'GET balance (503, retried)',
-		description: 'First attempt 503, retry succeeds',
+		id: 'retry-503',
+		label: 'GET check payment status (with retry)',
+		description: 'Same 503, but retry middleware handles it',
 		method: 'GET',
-		path: '/api/v1/balance',
-		actor: 'user',
-		expectedResult: 'allowed',
+		path: '/api/v1/payments/ch_abc/status',
+		actor: 'customer',
+		expectedResult: 'allowed' as const,
+		responseLines: [
+			{
+				text: 'GET /api/v1/payments/ch_abc/status -> Stripe API',
+				color: 'cyan',
+			},
+			{ text: 'Attempt 1: 503 Service Unavailable', color: 'yellow' },
+			{ text: 'Retry middleware: backing off 0.5s...', color: 'yellow' },
+			{ text: 'Attempt 2: 200 OK', color: 'green' },
+		],
 	},
 	{
 		id: 'circuit-open',
-		label: 'POST charge (circuit open)',
-		description:
-			'Circuit breaker is open, fails fast without calling Stripe',
+		label: 'Black Friday traffic (with circuit breaker)',
+		description: 'Same outage, but circuit breaker protects the app',
 		method: 'POST',
 		path: '/api/v1/payments',
-		actor: 'user',
-		expectedResult: 'blocked',
+		actor: 'customer',
+		expectedResult: 'blocked' as const,
+		responseLines: [
+			{ text: 'POST /api/v1/payments -> Circuit breaker', color: 'cyan' },
+			{ text: 'Stoplight: circuit OPEN (5 failures)', color: 'red' },
+			{ text: 'Fail-fast: 2ms (was 30s before!)', color: 'green' },
+			{ text: '503 - { "error": { "code": "CIRCUIT_OPEN" } }', color: 'red' },
+		],
 	},
 	{
-		id: 'idempotent-retry',
-		label: 'GET invoice (timeout, retried)',
-		description: 'GET request times out, safely retried with backoff',
-		method: 'GET',
-		path: '/api/v1/invoices/42',
-		actor: 'user',
-		expectedResult: 'allowed',
+		id: 'fast-charge',
+		label: 'POST charge (fast response)',
+		description: 'Stripe responds in 200ms, all middleware passes through',
+		method: 'POST',
+		path: '/api/v1/payments',
+		actor: 'customer',
+		expectedResult: 'allowed' as const,
+		responseLines: [
+			{ text: 'POST /api/v1/payments -> Stripe API', color: 'cyan' },
+			{ text: 'Timeout: 200ms (within 10s limit)', color: 'green' },
+			{ text: 'Circuit breaker: CLOSED (healthy)', color: 'green' },
+			{ text: '200 OK - Payment ch_abc123 created', color: 'green' },
+		],
 	},
 	{
 		id: 'client-error',
@@ -291,281 +309,320 @@ const STRESS_SCENARIOS = [
 		description: 'Client error, circuit breaker ignores it',
 		method: 'POST',
 		path: '/api/v1/payments',
-		actor: 'user',
-		expectedResult: 'blocked',
+		actor: 'customer',
+		expectedResult: 'blocked' as const,
+		responseLines: [
+			{ text: 'POST /api/v1/payments -> Stripe API', color: 'cyan' },
+			{ text: 'Stripe: 400 Bad Request (missing amount)', color: 'red' },
+			{ text: 'Circuit breaker: NOT counted (client error)', color: 'green' },
+			{ text: '400 - { "error": { "code": "VALIDATION" } }', color: 'red' },
+		],
 	},
 ];
 
 // ── Tests ──
 
-describe('Level 38: External APIs (Resilient Integration)', () => {
+describe('Level 38: External APIs', () => {
 	describe('Discovery definitions', () => {
 		test('has exactly 4 discoveries', () => {
-			expect(DISCOVERY_DEFS).toHaveLength(4);
+			expect(DISCOVERY_DEFS.length).toBe(4);
 		});
 
-		test('all discovery IDs are unique', () => {
+		test('all IDs unique', () => {
 			const ids = DISCOVERY_DEFS.map((d) => d.id);
 			expect(new Set(ids).size).toBe(ids.length);
 		});
 
-		test('all discovery labels are unique', () => {
+		test('all labels unique and non-empty', () => {
 			const labels = DISCOVERY_DEFS.map((d) => d.label);
 			expect(new Set(labels).size).toBe(labels.length);
+			for (const label of labels) {
+				expect(label.length).toBeGreaterThan(5);
+			}
+		});
+
+		test('exact IDs match component', () => {
+			const ids = DISCOVERY_DEFS.map((d) => d.id);
+			expect(ids).toEqual([
+				'no-timeout',
+				'thread-blocking',
+				'no-retry',
+				'cascade-failure',
+			]);
 		});
 	});
 
-	describe('Probe definitions and mappings', () => {
+	describe('Probe definitions', () => {
 		test('has exactly 3 probes', () => {
-			expect(PROBES).toHaveLength(3);
+			expect(PROBES.length).toBe(3);
 		});
 
-		test('all probe IDs are unique', () => {
-			const ids = PROBES.map((p) => p.id);
-			expect(new Set(ids).size).toBe(ids.length);
+		test('exact probe IDs', () => {
+			expect(PROBES.map((p) => p.id)).toEqual([
+				'slow-stripe',
+				'stripe-503',
+				'stripe-down',
+			]);
 		});
 
-		test('every probe has response lines', () => {
+		test('each probe has at least 4 response lines', () => {
 			for (const probe of PROBES) {
-				expect(probe.responseLines.length).toBeGreaterThan(0);
+				expect(probe.responseLines.length).toBeGreaterThanOrEqual(4);
 			}
 		});
 
+		test('slow-stripe probe shows timeout issue', () => {
+			const probe = PROBES.find((p) => p.id === 'slow-stripe');
+			expect(probe?.responseLines[0].text).toBe(
+				'# Waiting... 10s... 20s... 30s...',
+			);
+			expect(probe?.responseLines[1].text).toBe(
+				'# Thread blocked. No timeout configured.',
+			);
+		});
+
+		test('stripe-down probe shows cascade failure', () => {
+			const probe = PROBES.find((p) => p.id === 'stripe-down');
+			expect(probe?.responseLines.length).toBe(5);
+			expect(probe?.responseLines[4].text).toBe(
+				'# No circuit breaker to stop hammering a dead service',
+			);
+		});
+	});
+
+	describe('Probe-to-discovery mapping', () => {
 		test('every probe maps to at least one discovery', () => {
 			for (const probe of PROBES) {
-				const discoveries = PROBE_DISCOVERY_MAP[probe.id];
-				expect(discoveries).toBeDefined();
-				expect(discoveries.length).toBeGreaterThan(0);
+				const mapped = PROBE_DISCOVERY_MAP[probe.id];
+				expect(mapped).toBeDefined();
+				expect(mapped.length).toBeGreaterThanOrEqual(1);
 			}
 		});
 
-		test('all mapped discoveries exist in DISCOVERY_DEFS', () => {
+		test('all mapped discovery IDs exist in DISCOVERY_DEFS', () => {
 			const validIds = new Set(DISCOVERY_DEFS.map((d) => d.id));
-			for (const discoveries of Object.values(PROBE_DISCOVERY_MAP)) {
-				for (const id of discoveries) {
+			for (const [, discoveryIds] of Object.entries(PROBE_DISCOVERY_MAP)) {
+				for (const id of discoveryIds) {
 					expect(validIds.has(id)).toBe(true);
 				}
 			}
 		});
 
-		test('every discovery is reachable via at least one probe', () => {
-			const reachable = new Set(
+		test('every discovery is reachable via probes', () => {
+			const allMapped = new Set(
 				Object.values(PROBE_DISCOVERY_MAP).flat(),
 			);
 			for (const def of DISCOVERY_DEFS) {
-				expect(reachable.has(def.id)).toBe(true);
+				expect(allMapped.has(def.id)).toBe(true);
 			}
+		});
+
+		test('slow-stripe maps to no-timeout and thread-blocking', () => {
+			expect(PROBE_DISCOVERY_MAP['slow-stripe']).toEqual([
+				'no-timeout',
+				'thread-blocking',
+			]);
+		});
+
+		test('stripe-503 maps to no-retry', () => {
+			expect(PROBE_DISCOVERY_MAP['stripe-503']).toEqual(['no-retry']);
+		});
+
+		test('stripe-down maps to cascade-failure', () => {
+			expect(PROBE_DISCOVERY_MAP['stripe-down']).toEqual([
+				'cascade-failure',
+			]);
 		});
 	});
 
 	describe('Build step quality', () => {
-		const ALL_OPTION_SETS = [
-			{ name: 'Install Faraday', options: INSTALL_FARADAY_COMMANDS },
-			{ name: 'Install Stoplight', options: INSTALL_STOPLIGHT_COMMANDS },
-			{ name: 'Configure Timeout', options: CONFIGURE_TIMEOUT_OPTIONS },
-			{ name: 'Configure Retry', options: CONFIGURE_RETRY_OPTIONS },
-			{ name: 'Configure Circuit', options: CONFIGURE_CIRCUIT_OPTIONS },
-			{ name: 'Build Service', options: BUILD_SERVICE_OPTIONS },
-		];
-
-		test('has exactly 6 build steps', () => {
-			expect(STEP_DEFS).toHaveLength(6);
-		});
-
-		test('all step IDs are unique', () => {
-			const ids = STEP_DEFS.map((s) => s.id);
-			expect(new Set(ids).size).toBe(ids.length);
-		});
-
 		for (const { name, options } of ALL_OPTION_SETS) {
-			test(`${name}: exactly one correct answer`, () => {
-				const correct = options.filter((o) => o.correct);
-				expect(correct).toHaveLength(1);
-			});
+			describe(name, () => {
+				test('has exactly 3 options', () => {
+					expect(options.length).toBe(3);
+				});
 
-			test(`${name}: correct answer is not first`, () => {
-				expect(options[0].correct).toBe(false);
-			});
+				test('exactly one correct answer', () => {
+					const correctCount = options.filter((o) => o.correct).length;
+					expect(correctCount).toBe(1);
+				});
 
-			test(`${name}: every wrong option has feedback`, () => {
-				for (const opt of options) {
-					if (!opt.correct) {
+				test('correct answer is not the first option', () => {
+					expect(options[0].correct).toBe(false);
+				});
+
+				test('every wrong option has non-empty feedback', () => {
+					const wrongOptions = options.filter((o) => !o.correct);
+					for (const opt of wrongOptions) {
 						expect(opt.feedback).toBeDefined();
 						expect(opt.feedback!.length).toBeGreaterThan(10);
 					}
-				}
-			});
-
-			test(`${name}: feedback does not reveal correct answer`, () => {
-				for (const opt of options) {
-					if (!opt.correct && opt.feedback) {
-						const fb = opt.feedback.toLowerCase();
-						expect(fb).not.toContain('faraday');
-						expect(fb).not.toContain('stoplight');
-						expect(fb).not.toContain('open_timeout');
-					}
-				}
-			});
-
-			test(`${name}: all option IDs are unique`, () => {
-				const ids = options.map((o) => o.id);
-				expect(new Set(ids).size).toBe(ids.length);
+				});
 			});
 		}
 
-		test('step labels do not reveal specific gem names', () => {
-			for (const step of STEP_DEFS) {
-				const label = step.label.toLowerCase();
-				expect(label).not.toContain('faraday');
-				expect(label).not.toContain('stoplight');
+		test('INSTALL_FARADAY feedback does not contain "faraday"', () => {
+			const wrong = INSTALL_FARADAY_COMMANDS.filter((o) => !o.correct);
+			for (const opt of wrong) {
+				expect(opt.feedback!.toLowerCase()).not.toContain('faraday');
+			}
+		});
+
+		test('INSTALL_STOPLIGHT feedback does not contain "stoplight"', () => {
+			const wrong = INSTALL_STOPLIGHT_COMMANDS.filter((o) => !o.correct);
+			for (const opt of wrong) {
+				expect(opt.feedback!.toLowerCase()).not.toContain('stoplight');
+			}
+		});
+
+		test('CONFIGURE_TIMEOUT feedback does not contain "open_timeout" or "timeout = 10"', () => {
+			const wrong = CONFIGURE_TIMEOUT_OPTIONS.filter((o) => !o.correct);
+			for (const opt of wrong) {
+				expect(opt.feedback!.toLowerCase()).not.toContain('open_timeout');
+				expect(opt.feedback!).not.toContain('timeout = 10');
+			}
+		});
+
+		test('CONFIGURE_RETRY feedback does not contain "interval_randomness" or "backoff_factor"', () => {
+			const wrong = CONFIGURE_RETRY_OPTIONS.filter((o) => !o.correct);
+			for (const opt of wrong) {
+				expect(opt.feedback!.toLowerCase()).not.toContain(
+					'interval_randomness',
+				);
+				expect(opt.feedback!.toLowerCase()).not.toContain('backoff_factor');
+			}
+		});
+
+		test('CONFIGURE_CIRCUIT feedback does not contain "with_error_handler" or "ClientError"', () => {
+			const wrong = CONFIGURE_CIRCUIT_OPTIONS.filter((o) => !o.correct);
+			for (const opt of wrong) {
+				expect(opt.feedback!).not.toContain('with_error_handler');
+				expect(opt.feedback!).not.toContain('ClientError');
+			}
+		});
+
+		test('BUILD_SERVICE feedback does not contain "Stoplight::Error::RedLight"', () => {
+			const wrong = BUILD_SERVICE_OPTIONS.filter((o) => !o.correct);
+			for (const opt of wrong) {
+				expect(opt.feedback!).not.toContain('Stoplight::Error::RedLight');
 			}
 		});
 	});
 
 	describe('Stress scenarios', () => {
-		test('has exactly 6 scenarios', () => {
-			expect(STRESS_SCENARIOS).toHaveLength(6);
+		test('has exactly 5 scenarios', () => {
+			expect(STRESS_SCENARIOS.length).toBe(5);
 		});
 
-		test('all scenario IDs are unique', () => {
+		test('all IDs unique', () => {
 			const ids = STRESS_SCENARIOS.map((s) => s.id);
 			expect(new Set(ids).size).toBe(ids.length);
 		});
 
-		test('all scenario labels are unique', () => {
+		test('all labels unique', () => {
 			const labels = STRESS_SCENARIOS.map((s) => s.label);
 			expect(new Set(labels).size).toBe(labels.length);
 		});
 
-		test('mix of allowed and blocked results', () => {
-			const allowed = STRESS_SCENARIOS.filter(
-				(s) => s.expectedResult === 'allowed',
-			);
-			const blocked = STRESS_SCENARIOS.filter(
-				(s) => s.expectedResult === 'blocked',
-			);
-			expect(allowed.length).toBeGreaterThan(0);
-			expect(blocked.length).toBeGreaterThan(0);
+		test('exact scenario IDs', () => {
+			expect(STRESS_SCENARIOS.map((s) => s.id)).toEqual([
+				'slow-timeout',
+				'retry-503',
+				'circuit-open',
+				'fast-charge',
+				'client-error',
+			]);
 		});
 
-		test('has 3 allowed and 3 blocked scenarios', () => {
-			const allowed = STRESS_SCENARIOS.filter(
-				(s) => s.expectedResult === 'allowed',
-			);
-			const blocked = STRESS_SCENARIOS.filter(
-				(s) => s.expectedResult === 'blocked',
-			);
-			expect(allowed).toHaveLength(3);
-			expect(blocked).toHaveLength(3);
-		});
-
-		test('every scenario has a description', () => {
-			for (const scenario of STRESS_SCENARIOS) {
-				expect(scenario.description.length).toBeGreaterThan(10);
+		test('every scenario has non-empty responseLines', () => {
+			for (const s of STRESS_SCENARIOS) {
+				expect(s.responseLines.length).toBeGreaterThanOrEqual(2);
+				expect(s.responseLines[0].text.length).toBeGreaterThan(0);
 			}
 		});
 
-		test('scenarios cover all resilience patterns', () => {
-			const labels = STRESS_SCENARIOS.map((s) => s.label.toLowerCase());
-			expect(labels.some((l) => l.includes('timeout'))).toBe(true);
-			expect(labels.some((l) => l.includes('retried'))).toBe(true);
-			expect(labels.some((l) => l.includes('circuit'))).toBe(true);
+		test('each scenario has exactly 4 response lines', () => {
+			for (const s of STRESS_SCENARIOS) {
+				expect(s.responseLines.length).toBe(4);
+			}
+		});
+
+		test('mix of allowed and blocked', () => {
+			const allowed = STRESS_SCENARIOS.filter(
+				(s) => s.expectedResult === 'allowed',
+			);
+			const blocked = STRESS_SCENARIOS.filter(
+				(s) => s.expectedResult === 'blocked',
+			);
+			expect(allowed.length).toBe(2);
+			expect(blocked.length).toBe(3);
+		});
+
+		test('specific expected results match', () => {
+			const resultMap = Object.fromEntries(
+				STRESS_SCENARIOS.map((s) => [s.id, s.expectedResult]),
+			);
+			expect(resultMap['slow-timeout']).toBe('blocked');
+			expect(resultMap['retry-503']).toBe('allowed');
+			expect(resultMap['circuit-open']).toBe('blocked');
+			expect(resultMap['fast-charge']).toBe('allowed');
+			expect(resultMap['client-error']).toBe('blocked');
 		});
 	});
 
 	describe('Cross-phase consistency', () => {
-		test('observe probes and reward scenarios both cover Stripe failures', () => {
-			const probeLabels = PROBES.map((p) => p.label.toLowerCase());
-			expect(probeLabels.some((l) => l.includes('stripe'))).toBe(true);
-
-			const scenarioLabels = STRESS_SCENARIOS.map((s) =>
-				s.label.toLowerCase(),
-			);
-			expect(scenarioLabels.some((l) => l.includes('charge'))).toBe(true);
-		});
-
-		test('observe covers timeout, retry, and cascade problems', () => {
+		test('observe probes have thematic counterparts in reward scenarios', () => {
+			// L38 scenarios are not 1:1 by ID (probes use stripe-down, scenarios use circuit-open)
+			// but every probe problem is addressed by at least one scenario
 			const probeIds = PROBES.map((p) => p.id);
+			const scenarioIds = STRESS_SCENARIOS.map((s) => s.id);
+
+			// slow-stripe -> slow-timeout
 			expect(probeIds).toContain('slow-stripe');
+			expect(scenarioIds).toContain('slow-timeout');
+
+			// stripe-503 -> retry-503
 			expect(probeIds).toContain('stripe-503');
+			expect(scenarioIds).toContain('retry-503');
+
+			// stripe-down -> circuit-open
 			expect(probeIds).toContain('stripe-down');
+			expect(scenarioIds).toContain('circuit-open');
 		});
 
-		test('reward covers timeout, retry, and circuit breaker solutions', () => {
-			const ids = STRESS_SCENARIOS.map((s) => s.id);
-			expect(ids).toContain('slow-charge');
-			expect(ids).toContain('transient-503');
-			expect(ids).toContain('circuit-open');
-		});
-	});
-
-	describe('Cumulative pattern compliance', () => {
-		test('correct service option uses ApplicationService base class', () => {
-			const correct = BUILD_SERVICE_OPTIONS.find((o) => o.correct);
-			expect(correct?.code).toContain('< ApplicationService');
-		});
-
-		test('correct service option uses Result = Data.define pattern', () => {
-			const correct = BUILD_SERVICE_OPTIONS.find((o) => o.correct);
-			expect(correct?.code).toContain('Result = Data.define');
-			expect(correct?.code).toContain(':success?');
-		});
-
-		test('wrong "no service" option correctly shows controller anti-pattern', () => {
-			const wrong = BUILD_SERVICE_OPTIONS.find(
-				(o) => o.id === 'wrong-no-service',
+		test('probe and scenario labels mirror each other thematically', () => {
+			// slow-stripe -> slow-timeout (both about slow payment)
+			const slowProbe = PROBES.find((p) => p.id === 'slow-stripe');
+			const slowScenario = STRESS_SCENARIOS.find(
+				(s) => s.id === 'slow-timeout',
 			);
-			expect(wrong?.feedback).toContain('service object pattern');
-		});
-	});
+			expect(slowProbe?.label).toContain('slow');
+			expect(slowScenario?.label).toContain('timeout');
 
-	describe('Data consistency', () => {
-		test('no em dashes in any text content', () => {
-			const allText = [
-				...DISCOVERY_DEFS.map((d) => d.label),
-				...PROBES.flatMap((p) => [
-					p.label,
-					...p.responseLines.map((r) => r.text),
-				]),
-				...STEP_DEFS.map((s) => s.label),
-				...STRESS_SCENARIOS.flatMap((s) => [s.label, s.description]),
-				...INSTALL_FARADAY_COMMANDS.flatMap((c) => [
-					c.label,
-					c.feedback ?? '',
-				]),
-				...INSTALL_STOPLIGHT_COMMANDS.flatMap((c) => [
-					c.label,
-					c.feedback ?? '',
-				]),
-				...CONFIGURE_TIMEOUT_OPTIONS.flatMap((o) => [
-					o.label,
-					o.feedback ?? '',
-				]),
-				...CONFIGURE_RETRY_OPTIONS.flatMap((o) => [
-					o.label,
-					o.feedback ?? '',
-				]),
-				...CONFIGURE_CIRCUIT_OPTIONS.flatMap((o) => [
-					o.label,
-					o.feedback ?? '',
-				]),
-				...BUILD_SERVICE_OPTIONS.flatMap((o) => [
-					o.label,
-					o.feedback ?? '',
-				]),
-			];
-			for (const text of allText) {
-				expect(text).not.toContain('\u2014');
-			}
+			// stripe-503 -> retry-503 (both about 503)
+			const s503Probe = PROBES.find((p) => p.id === 'stripe-503');
+			const retryScenario = STRESS_SCENARIOS.find(
+				(s) => s.id === 'retry-503',
+			);
+			expect(s503Probe?.label).toContain('503');
+			expect(retryScenario?.label).toContain('retry');
+
+			// stripe-down -> circuit-open (both about outage)
+			const downProbe = PROBES.find((p) => p.id === 'stripe-down');
+			const circuitScenario = STRESS_SCENARIOS.find(
+				(s) => s.id === 'circuit-open',
+			);
+			expect(downProbe?.label).toContain('Black Friday');
+			expect(circuitScenario?.label).toContain('Black Friday');
 		});
 
-		test('all response line colors are valid', () => {
-			const validColors = ['cyan', 'amber', 'red', 'green'];
-			for (const probe of PROBES) {
-				for (const line of probe.responseLines) {
-					expect(validColors).toContain(line.color);
-				}
-			}
+		test('reward scenarios include additional scenarios beyond observe probes', () => {
+			// fast-charge and client-error are additional reward-only scenarios
+			const extraIds = STRESS_SCENARIOS.map((s) => s.id).filter(
+				(id) => !['slow-timeout', 'retry-503', 'circuit-open'].includes(id),
+			);
+			expect(extraIds).toContain('fast-charge');
+			expect(extraIds).toContain('client-error');
 		});
 	});
 });

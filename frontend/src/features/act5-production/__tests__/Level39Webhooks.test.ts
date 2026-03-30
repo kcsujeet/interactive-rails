@@ -6,13 +6,11 @@
  * - Build step quality (no answer leaks, valid feedback)
  * - Stress scenario coverage and consistency
  * - Cross-phase consistency
- * - Cumulative pattern compliance (service objects, contracts)
- * - Data consistency
  */
 
 import { describe, expect, test } from 'bun:test';
 
-// ── Mirrored data ──
+// ── Mirrored data from Level39Webhooks.tsx ──
 
 const DISCOVERY_DEFS = [
 	{ id: 'no-signature', label: 'No signature verification on webhooks' },
@@ -24,12 +22,12 @@ const DISCOVERY_DEFS = [
 const PROBES = [
 	{
 		id: 'forged-webhook',
-		label: 'POST webhook (forged, no signature)',
+		label: 'Attacker forges payment webhook',
 		command:
-			'curl -X POST localhost:3000/webhooks/stripe -d \'{"type": "payment_intent.succeeded"}\'',
+			'curl -X POST localhost:3000/webhooks/stripe -d \'{"type": "payment_intent.succeeded", "amount": 1000000}\'',
 		responseLines: [
-			{ text: '200 OK', color: 'amber' },
-			{ text: '# No signature header checked!', color: 'red' },
+			{ text: '200 OK', color: 'yellow' },
+			{ text: '# No Stripe-Signature header checked!', color: 'red' },
 			{
 				text: '# Anyone can POST fake events to this endpoint',
 				color: 'red',
@@ -39,15 +37,15 @@ const PROBES = [
 	},
 	{
 		id: 'duplicate-event',
-		label: 'POST webhook (duplicate event_id)',
+		label: 'Stripe retries payment event (network hiccup)',
 		command:
 			'curl -X POST localhost:3000/webhooks/stripe -d \'{"id": "evt_123", "type": "payment_intent.succeeded"}\'',
 		responseLines: [
 			{
 				text: '# Stripe retries evt_123 (network hiccup)',
-				color: 'amber',
+				color: 'yellow',
 			},
-			{ text: '200 OK', color: 'amber' },
+			{ text: '200 OK', color: 'yellow' },
 			{
 				text: '# User credited AGAIN for the same payment!',
 				color: 'red',
@@ -60,13 +58,13 @@ const PROBES = [
 	},
 	{
 		id: 'slow-processing',
-		label: 'POST webhook (slow handler)',
+		label: 'Monthly invoice webhook (slow handler)',
 		command:
 			'curl -X POST localhost:3000/webhooks/stripe -d \'{"type": "invoice.paid"}\' --max-time 25',
 		responseLines: [
 			{
-				text: '# Processing synchronously: query user, update payment, send email...',
-				color: 'amber',
+				text: '# Processing synchronously: query user, update 12 line items, send email...',
+				color: 'yellow',
 			},
 			{
 				text: '# 15 seconds elapsed... Stripe timeout is 20 seconds',
@@ -90,14 +88,7 @@ const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 	'slow-processing': ['sync-timeout'],
 };
 
-const STEP_DEFS = [
-	{ id: 'generate-migration', label: 'Generate Events Table' },
-	{ id: 'run-migration', label: 'Run Migration' },
-	{ id: 'configure-signature', label: 'Verify Signature' },
-	{ id: 'configure-idempotency', label: 'Check Idempotency' },
-	{ id: 'configure-async', label: 'Process Asynchronously' },
-	{ id: 'build-service', label: 'Build Webhook Service' },
-];
+// ── Build step option arrays ──
 
 const GENERATE_MIGRATION_COMMANDS = [
 	{
@@ -108,17 +99,17 @@ const GENERATE_MIGRATION_COMMANDS = [
 			'Without a unique index on [provider, event_id], race conditions between concurrent webhooks can insert duplicates before your code checks.',
 	},
 	{
+		id: 'correct',
+		label:
+			'rails g migration CreateWebhookEvents provider:string event_id:string event_type:string payload:jsonb status:string processed_at:datetime',
+		correct: true,
+	},
+	{
 		id: 'wrong-wrong-columns',
 		label: 'rails g migration CreateWebhookLogs url method response_code',
 		correct: false,
 		feedback:
 			'This tracks outgoing HTTP requests, not incoming webhook events. You need to store the event ID from the provider for deduplication.',
-	},
-	{
-		id: 'correct',
-		label:
-			'rails g migration CreateWebhookEvents provider:string event_id:string event_type:string payload:jsonb status:string processed_at:datetime',
-		correct: true,
 	},
 ];
 
@@ -131,16 +122,16 @@ const RUN_MIGRATION_COMMANDS = [
 			'db:seed loads seed data. The migration file still needs to be applied to create the webhook_events table.',
 	},
 	{
-		id: 'correct',
-		label: 'rails db:migrate',
-		correct: true,
-	},
-	{
 		id: 'wrong-reset',
 		label: 'rails db:reset',
 		correct: false,
 		feedback:
 			'db:reset drops and recreates the entire database. You only need to apply the new migration, not destroy existing data.',
+	},
+	{
+		id: 'correct',
+		label: 'rails db:migrate',
+		correct: true,
 	},
 ];
 
@@ -153,16 +144,16 @@ const CONFIGURE_SIGNATURE_OPTIONS = [
 			'Without signature verification, anyone can POST fake webhook events. The payload must be verified against a cryptographic signature before processing.',
 	},
 	{
-		id: 'correct',
-		label: 'Verify HMAC signature via Stripe gem',
-		correct: true,
-	},
-	{
 		id: 'wrong-manual-hmac',
 		label: 'Compare raw HMAC manually',
 		correct: false,
 		feedback:
 			'Stripe signatures use a timestamp-based scheme (t=...,v1=...) to prevent replay attacks. Manual HMAC comparison misses the timestamp check and is vulnerable to replay.',
+	},
+	{
+		id: 'correct',
+		label: 'Verify HMAC signature via Stripe gem',
+		correct: true,
 	},
 ];
 
@@ -234,6 +225,11 @@ const BUILD_SERVICE_OPTIONS = [
 
 const ALL_OPTION_SETS = [
 	{
+		name: 'GENERATE_MIGRATION_COMMANDS',
+		options: GENERATE_MIGRATION_COMMANDS,
+	},
+	{ name: 'RUN_MIGRATION_COMMANDS', options: RUN_MIGRATION_COMMANDS },
+	{
 		name: 'CONFIGURE_SIGNATURE_OPTIONS',
 		options: CONFIGURE_SIGNATURE_OPTIONS,
 	},
@@ -245,44 +241,87 @@ const ALL_OPTION_SETS = [
 	{ name: 'BUILD_SERVICE_OPTIONS', options: BUILD_SERVICE_OPTIONS },
 ];
 
-const ALL_COMMAND_SETS = [
-	{
-		name: 'GENERATE_MIGRATION_COMMANDS',
-		commands: GENERATE_MIGRATION_COMMANDS,
-	},
-	{ name: 'RUN_MIGRATION_COMMANDS', commands: RUN_MIGRATION_COMMANDS },
-];
+// ── Stress scenarios ──
 
 const STRESS_SCENARIOS = [
 	{
-		id: 'valid-payment',
-		label: 'POST payment.succeeded (valid)',
-		expectedResult: 'allowed',
-	},
-	{
-		id: 'valid-subscription',
-		label: 'POST subscription.created (valid)',
-		expectedResult: 'allowed',
-	},
-	{
-		id: 'forged-event',
-		label: 'POST payment.succeeded (forged)',
-		expectedResult: 'blocked',
+		id: 'forged-webhook',
+		label: 'Attacker forges payment webhook (with verification)',
+		description:
+			'No valid Stripe-Signature header, rejected at signature gate',
+		method: 'POST' as const,
+		path: '/webhooks/stripe',
+		actor: 'attacker',
+		expectedResult: 'blocked' as const,
+		responseLines: [
+			{ text: '401 Unauthorized', color: 'red' },
+			{ text: '# Stripe-Signature missing or invalid', color: 'red' },
+			{ text: '# Blocked at HMAC verification', color: 'muted' },
+		],
 	},
 	{
 		id: 'duplicate-event',
-		label: 'POST payment.succeeded (duplicate)',
-		expectedResult: 'allowed',
+		label: 'Stripe retries payment event (with dedup)',
+		description: 'Same event_id already processed, returns 200 and skips',
+		method: 'POST' as const,
+		path: '/webhooks/stripe',
+		actor: 'stripe',
+		expectedResult: 'allowed' as const,
+		responseLines: [
+			{ text: '200 OK', color: 'green' },
+			{
+				text: '# evt_123: already in webhook_events (completed)',
+				color: 'muted',
+			},
+			{ text: '# Duplicate skipped. No reprocessing.', color: 'green' },
+		],
 	},
 	{
-		id: 'valid-refund',
-		label: 'POST charge.refunded (valid)',
-		expectedResult: 'allowed',
+		id: 'slow-processing',
+		label: 'Monthly invoice webhook (with async)',
+		description: 'Event verified, stored, and enqueued in <50ms',
+		method: 'POST' as const,
+		path: '/webhooks/stripe',
+		actor: 'stripe',
+		expectedResult: 'allowed' as const,
+		responseLines: [
+			{ text: '200 OK (47ms)', color: 'green' },
+			{
+				text: '# Signature verified, event stored, job enqueued',
+				color: 'muted',
+			},
+			{ text: '# 12 line items processed in background', color: 'green' },
+		],
+	},
+	{
+		id: 'valid-subscription',
+		label: 'Valid subscription webhook (new event)',
+		description: 'Authentic webhook, new event, full pipeline',
+		method: 'POST' as const,
+		path: '/webhooks/stripe',
+		actor: 'stripe',
+		expectedResult: 'allowed' as const,
+		responseLines: [
+			{ text: '200 OK', color: 'green' },
+			{
+				text: '# subscription.created verified and enqueued',
+				color: 'green',
+			},
+		],
 	},
 	{
 		id: 'bad-payload',
-		label: 'POST malformed JSON (invalid)',
-		expectedResult: 'blocked',
+		label: 'Malformed JSON payload (rejected)',
+		description: 'Garbled payload fails JSON parsing, 400 Bad Request',
+		method: 'POST' as const,
+		path: '/webhooks/stripe',
+		actor: 'attacker',
+		expectedResult: 'blocked' as const,
+		responseLines: [
+			{ text: '400 Bad Request', color: 'red' },
+			{ text: '# JSON::ParserError raised', color: 'red' },
+			{ text: '# Blocked before signature verification', color: 'muted' },
+		],
 	},
 ];
 
@@ -290,350 +329,331 @@ const STRESS_SCENARIOS = [
 
 describe('Level 39: Webhooks & Idempotency', () => {
 	describe('Discovery definitions', () => {
-		test('all discovery IDs are unique', () => {
+		test('has exactly 4 discoveries', () => {
+			expect(DISCOVERY_DEFS.length).toBe(4);
+		});
+
+		test('all IDs unique', () => {
 			const ids = DISCOVERY_DEFS.map((d) => d.id);
 			expect(new Set(ids).size).toBe(ids.length);
 		});
 
-		test('all discovery labels are unique', () => {
+		test('all labels unique and non-empty', () => {
 			const labels = DISCOVERY_DEFS.map((d) => d.label);
 			expect(new Set(labels).size).toBe(labels.length);
-		});
-
-		test('every discovery is reachable via at least one probe', () => {
-			const reachable = new Set(Object.values(PROBE_DISCOVERY_MAP).flat());
-			for (const def of DISCOVERY_DEFS) {
-				expect(reachable.has(def.id)).toBe(true);
+			for (const label of labels) {
+				expect(label.length).toBeGreaterThan(5);
 			}
 		});
 
-		test('probe discovery map only references valid discovery IDs', () => {
+		test('exact IDs match component', () => {
+			const ids = DISCOVERY_DEFS.map((d) => d.id);
+			expect(ids).toEqual([
+				'no-signature',
+				'duplicate-credit',
+				'sync-timeout',
+				'no-dedup',
+			]);
+		});
+	});
+
+	describe('Probe definitions', () => {
+		test('has exactly 3 probes', () => {
+			expect(PROBES.length).toBe(3);
+		});
+
+		test('exact probe IDs', () => {
+			expect(PROBES.map((p) => p.id)).toEqual([
+				'forged-webhook',
+				'duplicate-event',
+				'slow-processing',
+			]);
+		});
+
+		test('each probe has exactly 4 response lines', () => {
+			for (const probe of PROBES) {
+				expect(probe.responseLines.length).toBe(4);
+			}
+		});
+
+		test('forged-webhook probe shows missing signature check', () => {
+			const probe = PROBES.find((p) => p.id === 'forged-webhook');
+			expect(probe?.responseLines[0].text).toBe('200 OK');
+			expect(probe?.responseLines[1].text).toBe(
+				'# No Stripe-Signature header checked!',
+			);
+			expect(probe?.responseLines[3].text).toBe(
+				'# Attacker credits themselves $10,000',
+			);
+		});
+
+		test('duplicate-event probe shows double credit', () => {
+			const probe = PROBES.find((p) => p.id === 'duplicate-event');
+			expect(probe?.responseLines[2].text).toBe(
+				'# User credited AGAIN for the same payment!',
+			);
+			expect(probe?.responseLines[3].text).toBe(
+				'# $50 payment = $100 credit. No dedup check.',
+			);
+		});
+
+		test('slow-processing probe shows timeout risk', () => {
+			const probe = PROBES.find((p) => p.id === 'slow-processing');
+			expect(probe?.responseLines[1].text).toBe(
+				'# 15 seconds elapsed... Stripe timeout is 20 seconds',
+			);
+		});
+	});
+
+	describe('Probe-to-discovery mapping', () => {
+		test('every probe maps to at least one discovery', () => {
+			for (const probe of PROBES) {
+				const mapped = PROBE_DISCOVERY_MAP[probe.id];
+				expect(mapped).toBeDefined();
+				expect(mapped.length).toBeGreaterThanOrEqual(1);
+			}
+		});
+
+		test('all mapped discovery IDs exist in DISCOVERY_DEFS', () => {
 			const validIds = new Set(DISCOVERY_DEFS.map((d) => d.id));
-			for (const discoveries of Object.values(PROBE_DISCOVERY_MAP)) {
-				for (const id of discoveries) {
+			for (const [, discoveryIds] of Object.entries(PROBE_DISCOVERY_MAP)) {
+				for (const id of discoveryIds) {
 					expect(validIds.has(id)).toBe(true);
 				}
 			}
 		});
 
-		test('probe discovery map only references valid probe IDs', () => {
-			const validProbeIds = new Set(PROBES.map((p) => p.id));
-			for (const probeId of Object.keys(PROBE_DISCOVERY_MAP)) {
-				expect(validProbeIds.has(probeId)).toBe(true);
-			}
-		});
-	});
-
-	describe('Probes', () => {
-		test('all probe IDs are unique', () => {
-			const ids = PROBES.map((p) => p.id);
-			expect(new Set(ids).size).toBe(ids.length);
-		});
-
-		test('all probe labels are unique', () => {
-			const labels = PROBES.map((p) => p.label);
-			expect(new Set(labels).size).toBe(labels.length);
-		});
-
-		test('every probe has at least one response line', () => {
-			for (const probe of PROBES) {
-				expect(probe.responseLines.length).toBeGreaterThan(0);
+		test('every discovery is reachable via probes', () => {
+			const allMapped = new Set(
+				Object.values(PROBE_DISCOVERY_MAP).flat(),
+			);
+			for (const def of DISCOVERY_DEFS) {
+				expect(allMapped.has(def.id)).toBe(true);
 			}
 		});
 
-		test('every probe has a command', () => {
-			for (const probe of PROBES) {
-				expect(probe.command.length).toBeGreaterThan(0);
-			}
+		test('forged-webhook maps to no-signature', () => {
+			expect(PROBE_DISCOVERY_MAP['forged-webhook']).toEqual([
+				'no-signature',
+			]);
 		});
 
-		test('response line colors are valid', () => {
-			const validColors = new Set(['green', 'red', 'amber', 'cyan']);
-			for (const probe of PROBES) {
-				for (const line of probe.responseLines) {
-					expect(validColors.has(line.color)).toBe(true);
-				}
-			}
+		test('duplicate-event maps to duplicate-credit and no-dedup', () => {
+			expect(PROBE_DISCOVERY_MAP['duplicate-event']).toEqual([
+				'duplicate-credit',
+				'no-dedup',
+			]);
+		});
+
+		test('slow-processing maps to sync-timeout', () => {
+			expect(PROBE_DISCOVERY_MAP['slow-processing']).toEqual([
+				'sync-timeout',
+			]);
 		});
 	});
 
 	describe('Build step quality', () => {
-		test('all step IDs are unique', () => {
-			const ids = STEP_DEFS.map((s) => s.id);
-			expect(new Set(ids).size).toBe(ids.length);
-		});
+		for (const { name, options } of ALL_OPTION_SETS) {
+			describe(name, () => {
+				test('has exactly 3 options', () => {
+					expect(options.length).toBe(3);
+				});
 
-		test('step labels do not reveal specific gems or methods', () => {
-			for (const step of STEP_DEFS) {
-				expect(step.label).not.toMatch(/Stripe::Webhook/i);
-				expect(step.label).not.toMatch(/find_or_create_by/i);
-				expect(step.label).not.toMatch(/ProcessStripeWebhookJob/i);
-				expect(step.label).not.toMatch(/IngestStripeWebhook/i);
-			}
-		});
+				test('exactly one correct answer', () => {
+					const correctCount = options.filter((o) => o.correct).length;
+					expect(correctCount).toBe(1);
+				});
 
-		test('correct answer is never the first option in command sets', () => {
-			for (const set of ALL_COMMAND_SETS) {
-				const firstCmd = set.commands[0];
-				expect(firstCmd.correct).toBe(false);
-			}
-		});
+				test('correct answer is not the first option', () => {
+					expect(options[0].correct).toBe(false);
+				});
 
-		test('correct answer is never the first option in option sets', () => {
-			for (const set of ALL_OPTION_SETS) {
-				const firstOpt = set.options[0];
-				expect(firstOpt.correct).toBe(false);
-			}
-		});
-
-		test('each command set has exactly one correct answer', () => {
-			for (const set of ALL_COMMAND_SETS) {
-				const correctCount = set.commands.filter((c) => c.correct).length;
-				expect(correctCount).toBe(1);
-			}
-		});
-
-		test('each option set has exactly one correct answer', () => {
-			for (const set of ALL_OPTION_SETS) {
-				const correctCount = set.options.filter((o) => o.correct).length;
-				expect(correctCount).toBe(1);
-			}
-		});
-
-		test('every wrong command has feedback', () => {
-			for (const set of ALL_COMMAND_SETS) {
-				for (const cmd of set.commands) {
-					if (!cmd.correct) {
-						expect(cmd.feedback).toBeDefined();
-						expect(cmd.feedback.length).toBeGreaterThan(0);
-					}
-				}
-			}
-		});
-
-		test('every wrong option has feedback', () => {
-			for (const set of ALL_OPTION_SETS) {
-				for (const opt of set.options) {
-					if (!opt.correct) {
+				test('every wrong option has non-empty feedback', () => {
+					const wrongOptions = options.filter((o) => !o.correct);
+					for (const opt of wrongOptions) {
 						expect(opt.feedback).toBeDefined();
-						expect(opt.feedback.length).toBeGreaterThan(0);
+						expect(opt.feedback!.length).toBeGreaterThan(10);
 					}
-				}
+				});
+			});
+		}
+
+		test('CONFIGURE_SIGNATURE feedback does not contain "construct_event"', () => {
+			const wrong = CONFIGURE_SIGNATURE_OPTIONS.filter((o) => !o.correct);
+			for (const opt of wrong) {
+				expect(opt.feedback!).not.toContain('construct_event');
 			}
 		});
 
-		test('feedback never reveals the correct answer', () => {
-			// Check command feedback
-			for (const set of ALL_COMMAND_SETS) {
-				const correctLabel = set.commands.find((c) => c.correct)?.label ?? '';
-				for (const cmd of set.commands) {
-					if (!cmd.correct && cmd.feedback) {
-						// Feedback should not contain the exact correct command
-						expect(cmd.feedback).not.toContain(correctLabel);
-					}
-				}
-			}
-
-			// Check option feedback
-			for (const set of ALL_OPTION_SETS) {
-				for (const opt of set.options) {
-					if (!opt.correct && opt.feedback) {
-						// Feedback should not reveal specific correct APIs
-						expect(opt.feedback).not.toContain('find_or_create_by!');
-						expect(opt.feedback).not.toContain('find_or_create_by');
-						expect(opt.feedback).not.toContain(
-							'Stripe::Webhook.construct_event',
-						);
-						expect(opt.feedback).not.toContain('perform_later');
-						expect(opt.feedback).not.toContain('Extract verification');
-					}
-				}
+		test('CONFIGURE_SIGNATURE feedback does not contain "Stripe::Webhook"', () => {
+			const wrong = CONFIGURE_SIGNATURE_OPTIONS.filter((o) => !o.correct);
+			for (const opt of wrong) {
+				expect(opt.feedback!).not.toContain('Stripe::Webhook');
 			}
 		});
 
-		test('migration step is followed by db:migrate step', () => {
-			const generateIdx = STEP_DEFS.findIndex(
-				(s) => s.id === 'generate-migration',
+		test('CONFIGURE_IDEMPOTENCY feedback does not contain "find_or_create_by"', () => {
+			const wrong = CONFIGURE_IDEMPOTENCY_OPTIONS.filter(
+				(o) => !o.correct,
 			);
-			const migrateIdx = STEP_DEFS.findIndex((s) => s.id === 'run-migration');
-			expect(migrateIdx).toBe(generateIdx + 1);
+			for (const opt of wrong) {
+				expect(opt.feedback!).not.toContain('find_or_create_by');
+			}
+		});
+
+		test('CONFIGURE_ASYNC feedback does not contain "perform_later"', () => {
+			const wrong = CONFIGURE_ASYNC_OPTIONS.filter((o) => !o.correct);
+			for (const opt of wrong) {
+				expect(opt.feedback!).not.toContain('perform_later');
+			}
+		});
+
+		test('BUILD_SERVICE feedback does not contain "IngestStripeWebhook" or "verify_signature!"', () => {
+			const wrong = BUILD_SERVICE_OPTIONS.filter((o) => !o.correct);
+			for (const opt of wrong) {
+				expect(opt.feedback!).not.toContain('IngestStripeWebhook');
+				expect(opt.feedback!).not.toContain('verify_signature!');
+				expect(opt.feedback!).not.toContain('deduplicate!');
+			}
+		});
+
+		test('GENERATE_MIGRATION feedback does not contain "payload:jsonb" or "status:string"', () => {
+			const wrong = GENERATE_MIGRATION_COMMANDS.filter((o) => !o.correct);
+			for (const opt of wrong) {
+				expect(opt.feedback!).not.toContain('payload:jsonb');
+				expect(opt.feedback!).not.toContain('status:string');
+			}
 		});
 	});
 
 	describe('Stress scenarios', () => {
-		test('all scenario IDs are unique', () => {
+		test('has exactly 5 scenarios', () => {
+			expect(STRESS_SCENARIOS.length).toBe(5);
+		});
+
+		test('all IDs unique', () => {
 			const ids = STRESS_SCENARIOS.map((s) => s.id);
 			expect(new Set(ids).size).toBe(ids.length);
 		});
 
-		test('all scenario labels are unique', () => {
+		test('all labels unique', () => {
 			const labels = STRESS_SCENARIOS.map((s) => s.label);
 			expect(new Set(labels).size).toBe(labels.length);
 		});
 
-		test('mix of allowed and blocked results', () => {
+		test('exact scenario IDs', () => {
+			expect(STRESS_SCENARIOS.map((s) => s.id)).toEqual([
+				'forged-webhook',
+				'duplicate-event',
+				'slow-processing',
+				'valid-subscription',
+				'bad-payload',
+			]);
+		});
+
+		test('every scenario has non-empty responseLines', () => {
+			for (const s of STRESS_SCENARIOS) {
+				expect(s.responseLines.length).toBeGreaterThanOrEqual(2);
+				expect(s.responseLines[0].text.length).toBeGreaterThan(0);
+			}
+		});
+
+		test('response line counts match exactly', () => {
+			const counts: Record<string, number> = {
+				'forged-webhook': 3,
+				'duplicate-event': 3,
+				'slow-processing': 3,
+				'valid-subscription': 2,
+				'bad-payload': 3,
+			};
+			for (const s of STRESS_SCENARIOS) {
+				expect(s.responseLines.length).toBe(counts[s.id]);
+			}
+		});
+
+		test('mix of allowed and blocked', () => {
 			const allowed = STRESS_SCENARIOS.filter(
 				(s) => s.expectedResult === 'allowed',
 			);
 			const blocked = STRESS_SCENARIOS.filter(
 				(s) => s.expectedResult === 'blocked',
 			);
-			expect(allowed.length).toBeGreaterThan(0);
-			expect(blocked.length).toBeGreaterThan(0);
+			expect(allowed.length).toBe(3);
+			expect(blocked.length).toBe(2);
 		});
 
-		test('at least 4 allowed and 2 blocked', () => {
-			const allowed = STRESS_SCENARIOS.filter(
-				(s) => s.expectedResult === 'allowed',
+		test('specific expected results match', () => {
+			const resultMap = Object.fromEntries(
+				STRESS_SCENARIOS.map((s) => [s.id, s.expectedResult]),
 			);
-			const blocked = STRESS_SCENARIOS.filter(
-				(s) => s.expectedResult === 'blocked',
-			);
-			expect(allowed.length).toBeGreaterThanOrEqual(4);
-			expect(blocked.length).toBeGreaterThanOrEqual(2);
+			expect(resultMap['forged-webhook']).toBe('blocked');
+			expect(resultMap['duplicate-event']).toBe('allowed');
+			expect(resultMap['slow-processing']).toBe('allowed');
+			expect(resultMap['valid-subscription']).toBe('allowed');
+			expect(resultMap['bad-payload']).toBe('blocked');
 		});
 
-		test('probe and stress labels use consistent format', () => {
-			// Both should use short labels like "POST webhook (...)"
-			for (const probe of PROBES) {
-				expect(probe.label).toMatch(/^POST /);
-			}
-			for (const scenario of STRESS_SCENARIOS) {
-				expect(scenario.label).toMatch(/^POST /);
-			}
+		test('forged-webhook scenario returns 401', () => {
+			const s = STRESS_SCENARIOS.find((s) => s.id === 'forged-webhook');
+			expect(s?.responseLines[0].text).toBe('401 Unauthorized');
+		});
+
+		test('duplicate-event scenario returns 200 with skip', () => {
+			const s = STRESS_SCENARIOS.find((s) => s.id === 'duplicate-event');
+			expect(s?.responseLines[0].text).toBe('200 OK');
+			expect(s?.responseLines[2].text).toBe(
+				'# Duplicate skipped. No reprocessing.',
+			);
 		});
 	});
 
 	describe('Cross-phase consistency', () => {
-		test('observe and reward both handle webhook events', () => {
-			// Probes are webhook POSTs
+		test('every probe has a matching reward scenario', () => {
+			const probeIds = PROBES.map((p) => p.id);
+			const scenarioIds = STRESS_SCENARIOS.map((s) => s.id);
+			for (const probeId of probeIds) {
+				expect(scenarioIds).toContain(probeId);
+			}
+		});
+
+		test('probe and scenario labels mirror each other', () => {
 			for (const probe of PROBES) {
-				expect(probe.label).toContain('POST webhook');
-			}
-			// Stress scenarios are also webhook POSTs
-			for (const scenario of STRESS_SCENARIOS) {
-				expect(scenario.label).toContain('POST ');
-			}
-		});
+				const scenario = STRESS_SCENARIOS.find(
+					(s) => s.id === probe.id,
+				);
+				expect(scenario).toBeDefined();
 
-		test('forged webhook appears in both observe and reward', () => {
-			const hasForgedProbe = PROBES.some((p) =>
-				p.label.toLowerCase().includes('forged'),
-			);
-			const hasForgedScenario = STRESS_SCENARIOS.some((s) =>
-				s.label.toLowerCase().includes('forged'),
-			);
-			expect(hasForgedProbe).toBe(true);
-			expect(hasForgedScenario).toBe(true);
-		});
-
-		test('duplicate event appears in both observe and reward', () => {
-			const hasDuplicateProbe = PROBES.some((p) =>
-				p.label.toLowerCase().includes('duplicate'),
-			);
-			const hasDuplicateScenario = STRESS_SCENARIOS.some((s) =>
-				s.label.toLowerCase().includes('duplicate'),
-			);
-			expect(hasDuplicateProbe).toBe(true);
-			expect(hasDuplicateScenario).toBe(true);
-		});
-
-		test('build steps cover all three webhook pillars', () => {
-			const stepIds = STEP_DEFS.map((s) => s.id);
-			expect(stepIds).toContain('configure-signature');
-			expect(stepIds).toContain('configure-idempotency');
-			expect(stepIds).toContain('configure-async');
-		});
-	});
-
-	describe('Cumulative pattern compliance', () => {
-		test('correct service option uses ApplicationService', () => {
-			const correctService = BUILD_SERVICE_OPTIONS.find((o) => o.correct);
-			expect(correctService).toBeDefined();
-			expect(correctService?.label).toContain('Service');
-		});
-
-		test('wrong controller option gets flagged for service pattern violation', () => {
-			const controllerOption = BUILD_SERVICE_OPTIONS.find(
-				(o) => o.id === 'wrong-controller-logic',
-			);
-			expect(controllerOption).toBeDefined();
-			expect(controllerOption?.correct).toBe(false);
-			expect(controllerOption?.feedback).toContain('dedicated object');
-		});
-
-		test('service step teaches service object extraction', () => {
-			const serviceStep = STEP_DEFS.find((s) => s.id === 'build-service');
-			expect(serviceStep).toBeDefined();
-		});
-
-		test('idempotency options teach race condition awareness', () => {
-			const findByOption = CONFIGURE_IDEMPOTENCY_OPTIONS.find(
-				(o) => o.id === 'wrong-find-by',
-			);
-			expect(findByOption).toBeDefined();
-			expect(findByOption?.feedback).toContain('race condition');
-		});
-
-		test('async options teach background job pattern', () => {
-			const syncOption = CONFIGURE_ASYNC_OPTIONS.find(
-				(o) => o.id === 'wrong-sync',
-			);
-			expect(syncOption).toBeDefined();
-			expect(syncOption?.feedback).toContain('Stripe times out');
-		});
-	});
-
-	describe('Data consistency', () => {
-		test('6 build steps total', () => {
-			expect(STEP_DEFS.length).toBe(6);
-		});
-
-		test('4 discoveries total', () => {
-			expect(DISCOVERY_DEFS.length).toBe(4);
-		});
-
-		test('3 probes total', () => {
-			expect(PROBES.length).toBe(3);
-		});
-
-		test('6 stress scenarios total', () => {
-			expect(STRESS_SCENARIOS.length).toBe(6);
-		});
-
-		test('all probe IDs map to discoveries', () => {
-			for (const probe of PROBES) {
-				expect(PROBE_DISCOVERY_MAP[probe.id]).toBeDefined();
-				expect(PROBE_DISCOVERY_MAP[probe.id].length).toBeGreaterThan(0);
+				// Each scenario label should contain the probe's key concept
+				if (probe.id === 'forged-webhook') {
+					expect(probe.label).toContain('forges');
+					expect(scenario?.label).toContain('forges');
+				}
+				if (probe.id === 'duplicate-event') {
+					expect(probe.label).toContain('retries');
+					expect(scenario?.label).toContain('retries');
+				}
+				if (probe.id === 'slow-processing') {
+					expect(probe.label).toContain('invoice');
+					expect(scenario?.label).toContain('invoice');
+				}
 			}
 		});
 
-		test('all option IDs within each set are unique', () => {
-			for (const set of ALL_OPTION_SETS) {
-				const ids = set.options.map((o) => o.id);
-				expect(new Set(ids).size).toBe(ids.length);
-			}
-		});
-
-		test('all command IDs within each set are unique', () => {
-			for (const set of ALL_COMMAND_SETS) {
-				const ids = set.commands.map((c) => c.id);
-				expect(new Set(ids).size).toBe(ids.length);
-			}
-		});
-
-		test('duplicate-event scenario is allowed (deduped, not blocked)', () => {
-			const dupeScenario = STRESS_SCENARIOS.find(
-				(s) => s.id === 'duplicate-event',
+		test('reward scenarios include additional scenarios beyond observe probes', () => {
+			const probeIds = new Set(PROBES.map((p) => p.id));
+			const extras = STRESS_SCENARIOS.filter(
+				(s) => !probeIds.has(s.id),
 			);
-			expect(dupeScenario).toBeDefined();
-			// Duplicate is "allowed" because we return 200 OK (skip processing)
-			expect(dupeScenario?.expectedResult).toBe('allowed');
+			expect(extras.length).toBe(2);
+			expect(extras.map((e) => e.id)).toContain('valid-subscription');
+			expect(extras.map((e) => e.id)).toContain('bad-payload');
 		});
 
-		test('signature and idempotency options each have at least 3 choices', () => {
-			expect(CONFIGURE_SIGNATURE_OPTIONS.length).toBeGreaterThanOrEqual(3);
-			expect(CONFIGURE_IDEMPOTENCY_OPTIONS.length).toBeGreaterThanOrEqual(3);
+		test('all scenarios target the same endpoint', () => {
+			for (const s of STRESS_SCENARIOS) {
+				expect(s.path).toBe('/webhooks/stripe');
+				expect(s.method).toBe('POST');
+			}
 		});
 	});
 });

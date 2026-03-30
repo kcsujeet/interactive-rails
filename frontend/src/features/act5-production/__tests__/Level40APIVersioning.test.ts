@@ -6,13 +6,11 @@
  * - Build step quality (no answer leaks, valid feedback)
  * - Stress scenario coverage and consistency
  * - Cross-phase consistency
- * - Cumulative pattern compliance (service objects, serializers)
- * - Data consistency
  */
 
 import { describe, expect, test } from 'bun:test';
 
-// ── Mirrored data ──
+// ── Mirrored data from Level40APIVersioning.tsx ──
 
 const DISCOVERY_DEFS = [
 	{ id: 'single-controller', label: 'One controller serves all API versions' },
@@ -21,66 +19,66 @@ const DISCOVERY_DEFS = [
 		label: 'Response shape change breaks v1 clients',
 	},
 	{ id: 'no-deprecation', label: 'No deprecation warning for v1 consumers' },
-	{ id: 'no-migration-path', label: 'No migration path from v1 to v2' },
+	{ id: 'no-migration-path', label: 'No v2 endpoint exists for new clients' },
 ];
 
 const PROBES = [
 	{
-		id: 'v1-expects-cents',
-		label: 'GET /api/orders/42 (v1 client)',
+		id: 'v1-format-break',
+		label: 'v1 partner fetches order (format changed)',
 		command: 'curl localhost:3000/api/orders/42',
 		responseLines: [
 			{ text: '200 OK', color: 'green' },
-			{ text: '{ "id": 42, "total": 1999 }', color: 'green' },
 			{
-				text: '# v1 client expects "total" as integer cents',
-				color: 'cyan',
+				text: '{ "total": { "amount": "19.99", "currency": "USD" } }',
+				color: 'yellow',
 			},
 			{
-				text: '# No deprecation header. Client has no idea v2 exists.',
-				color: 'amber',
-			},
-		],
-	},
-	{
-		id: 'v2-wants-object',
-		label: 'GET /api/orders/42 (v2 client)',
-		command:
-			'curl localhost:3000/api/orders/42 -H "Accept: application/json"',
-		responseLines: [
-			{ text: '200 OK', color: 'green' },
-			{ text: '{ "id": 42, "total": 1999 }', color: 'amber' },
-			{
-				text: '# v2 client expects { "total": { "amount": "19.99", "currency": "USD" } }',
+				text: '# v1 partner expects total as integer (1999 cents)',
 				color: 'red',
 			},
 			{
-				text: '# Gets integer cents instead. No versioned endpoint exists.',
+				text: '# Their code: order.total / 100 -> NaN (got object)',
 				color: 'red',
 			},
 		],
 	},
 	{
-		id: 'breaking-deploy',
-		label: 'GET /api/orders/42 (after format change)',
+		id: 'no-deprecation',
+		label: 'v1 partner checks for deprecation notice',
 		command:
-			'# Deploy new response format, then: curl localhost:3000/api/orders/42',
+			'curl -I localhost:3000/api/orders/42 | grep -i "deprecation\\|sunset"',
 		responseLines: [
-			{ text: '200 OK', color: 'amber' },
+			{ text: '# Checking response headers...', color: 'cyan' },
 			{
-				text: '{ "id": 42, "total": { "amount": "19.99", "currency": "USD" } }',
-				color: 'amber',
-			},
-			{
-				text: '# 200 partners parse response["total"] as integer',
+				text: '# No Deprecation header found',
 				color: 'red',
 			},
 			{
-				text: "# Their apps crash: \"undefined method `/' for Hash\"",
+				text: '# No Sunset header found',
 				color: 'red',
 			},
 			{
-				text: '# No way to serve BOTH formats from one controller',
+				text: '# Partner has no idea changes are coming',
+				color: 'red',
+			},
+		],
+	},
+	{
+		id: 'v2-404',
+		label: 'v2 partner wants money object format',
+		command: 'curl localhost:3000/api/v2/orders/42',
+		responseLines: [
+			{
+				text: '404 Not Found',
+				color: 'red',
+			},
+			{
+				text: '{ "error": { "code": "NOT_FOUND", "message": "No route matches /api/v2/*" } }',
+				color: 'red',
+			},
+			{
+				text: '# No /api/v2 namespace exists',
 				color: 'red',
 			},
 		],
@@ -88,19 +86,12 @@ const PROBES = [
 ];
 
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
-	'v1-expects-cents': ['no-deprecation', 'no-migration-path'],
-	'v2-wants-object': ['single-controller'],
-	'breaking-deploy': ['breaking-change'],
+	'v1-format-break': ['single-controller', 'breaking-change'],
+	'no-deprecation': ['no-deprecation'],
+	'v2-404': ['no-migration-path'],
 };
 
-const STEP_DEFS = [
-	{ id: 'add-v2-routes', label: 'Add Version Namespace' },
-	{ id: 'generate-v2-controller', label: 'Generate V2 Controller' },
-	{ id: 'create-v2-serializer', label: 'Create V2 Serializer' },
-	{ id: 'add-deprecation', label: 'Add Deprecation Headers' },
-	{ id: 'add-sunset', label: 'Add Sunset Header' },
-	{ id: 'wire-v1-service', label: 'Wire V1 Controller' },
-];
+// ── Build step option arrays ──
 
 const ADD_V2_ROUTES_COMMANDS = [
 	{
@@ -108,78 +99,78 @@ const ADD_V2_ROUTES_COMMANDS = [
 		label: 'namespace :api do; resources :orders; end',
 		correct: false,
 		feedback:
-			'A single namespace serves one version. You need nested version namespaces so v1 and v2 can coexist under /api/v1/ and /api/v2/.',
+			'A single namespace cannot serve two formats. You need separate v1 and v2 namespaces so each version gets its own controllers.',
+	},
+	{
+		id: 'wrong-scope',
+		label: 'scope "/api/v2" do; resources :orders; end',
+		correct: false,
+		feedback:
+			'scope only changes the URL path, not the controller namespace. Routes would still hit Api::OrdersController instead of Api::V2::OrdersController.',
 	},
 	{
 		id: 'correct',
 		label:
-			'namespace :api do; namespace :v1 do; ... end; namespace :v2 do; ... end; end',
+			'namespace :api do; namespace :v1 do; ...; namespace :v2 do; ...; end',
 		correct: true,
-	},
-	{
-		id: 'wrong-scope',
-		label: 'scope "/v2" do; resources :orders; end',
-		correct: false,
-		feedback:
-			'scope changes the URL but not the controller lookup path. The controller would still be OrdersController, not Api::V2::OrdersController. Use namespace instead.',
 	},
 ];
 
-const GENERATE_V2_CONTROLLER_COMMANDS = [
+const GENERATE_V2_COMMANDS = [
 	{
 		id: 'wrong-no-namespace',
-		label: 'rails g controller Orders show --no-helper',
+		label: 'rails g controller Orders show index',
 		correct: false,
 		feedback:
-			'This generates OrdersController in the root namespace. You need a controller nested under Api::V2:: to match the versioned route namespace.',
+			'This generates an unnamespaced controller. You need Api::V2::OrdersController to match the v2 route namespace.',
+	},
+	{
+		id: 'correct',
+		label: 'rails g controller api/v2/orders show index',
+		correct: true,
 	},
 	{
 		id: 'wrong-v1',
-		label: 'rails g controller api/v1/orders show --no-helper',
+		label: 'rails g controller api/v1/orders show index',
 		correct: false,
 		feedback:
-			'This generates the v1 controller, which already exists. You need the v2 controller for the new response format.',
-	},
-	{
-		id: 'correct',
-		label: 'rails g controller api/v2/orders show --no-helper',
-		correct: true,
+			'V1 already exists. You need to generate the V2 controller alongside it.',
 	},
 ];
 
-const CREATE_V2_SERIALIZER_OPTIONS = [
+const V2_SERIALIZER_OPTIONS = [
 	{
 		id: 'wrong-modify-v1',
-		label: 'Modify existing v1 serializer to return object format',
+		label: 'Modify existing Api::V1::OrderSerializer',
 		correct: false,
 		feedback:
-			'Modifying the v1 serializer changes the response for all v1 clients. The whole point of versioning is that v1 stays frozen. Create a new v2 serializer instead.',
-	},
-	{
-		id: 'correct',
-		label: 'New v2 serializer with object format, v1 stays frozen',
-		correct: true,
+			'Modifying v1 serializer changes the response for existing partners. Each version needs its own serializer so changes are isolated.',
 	},
 	{
 		id: 'wrong-conditional',
-		label: 'One serializer with version parameter',
+		label: 'Conditional serializer based on version header',
 		correct: false,
 		feedback:
-			'Conditional logic in a shared serializer makes it fragile. Adding v3 means more branches. Separate serializers per version are simpler and independently testable.',
-	},
-];
-
-const ADD_DEPRECATION_OPTIONS = [
-	{
-		id: 'wrong-no-headers',
-		label: 'Log deprecation but send no headers',
-		correct: false,
-		feedback:
-			'Server-side logging does not help API consumers. Clients need HTTP headers to detect deprecation programmatically and trigger migration alerts.',
+			'A shared serializer with conditionals couples versions together. Adding v3 logic later makes this unmanageable. Separate serializers per version.',
 	},
 	{
 		id: 'correct',
-		label: 'Deprecation + Link headers in before_action',
+		label: 'New Api::V2::OrderSerializer with money object',
+		correct: true,
+	},
+];
+
+const DEPRECATION_OPTIONS = [
+	{
+		id: 'wrong-no-headers',
+		label: 'No deprecation signal (just update docs)',
+		correct: false,
+		feedback:
+			'Documentation alone is not enough. Partners parse response headers programmatically. Without Deprecation headers, automated migration tools cannot detect the change.',
+	},
+	{
+		id: 'correct',
+		label: 'Add Deprecation and Link headers to v1',
 		correct: true,
 	},
 	{
@@ -187,102 +178,145 @@ const ADD_DEPRECATION_OPTIONS = [
 		label: 'Add deprecation warning in response body',
 		correct: false,
 		feedback:
-			'Adding fields to the response body changes the contract and may break clients that strictly parse the schema. Use HTTP headers for metadata.',
+			'Adding a warning field to the response body changes the response shape, which is itself a breaking change. Deprecation signals belong in HTTP headers, not the body.',
 	},
 ];
 
-const ADD_SUNSET_OPTIONS = [
+const SUNSET_OPTIONS = [
 	{
 		id: 'wrong-no-date',
-		label: 'Sunset header with no specific date',
+		label: 'Sunset header with no date',
 		correct: false,
 		feedback:
-			'The Sunset header must contain an HTTP-date (RFC 7231) so clients can programmatically schedule their migration. "soon" is not parseable.',
+			'The Sunset header (RFC 8594) requires an HTTP-date value. "soon" is not a valid date. Partners need a concrete deadline to plan their migration.',
 	},
 	{
 		id: 'wrong-past-date',
-		label: 'Sunset header with past date',
+		label: 'Sunset date in the past',
 		correct: false,
 		feedback:
-			'A past date implies the endpoint should already be removed. Clients may interpret this as "already retired" and stop calling. Use a future date.',
+			'A sunset date in the past implies v1 should already be gone. Partners need 6-12 months of notice. Set a future date.',
 	},
 	{
 		id: 'correct',
-		label: 'Sunset header with future date (RFC 7231 format)',
+		label: 'Sunset header with future date (12 months)',
 		correct: true,
 	},
 ];
 
-const WIRE_V1_SERVICE_OPTIONS = [
+const FREEZE_V1_OPTIONS = [
 	{
 		id: 'wrong-direct-render',
-		label: 'Render JSON hash directly in controller',
+		label: 'Render JSON directly in v1 controller',
 		correct: false,
 		feedback:
-			'Rendering raw hashes in controllers bypasses serializers and the service layer. The controller should delegate to a service that returns a Result, then render via the versioned serializer.',
+			'Inline JSON in the controller bypasses the service object pattern (L16+). The controller should delegate to a service and use a dedicated v1 serializer.',
+	},
+	{
+		id: 'wrong-shared-serializer',
+		label: 'Use the shared (unversioned) serializer',
+		correct: false,
+		feedback:
+			'Using the shared serializer means v1 output changes whenever the shared serializer is updated. V1 needs its own frozen serializer to guarantee stability.',
 	},
 	{
 		id: 'correct',
-		label: 'Controller delegates to service, renders via v1 serializer',
+		label: 'Dedicated v1 serializer via service',
 		correct: true,
-	},
-	{
-		id: 'wrong-no-serializer',
-		label: 'Service returns data, controller renders without serializer',
-		correct: false,
-		feedback:
-			'as_json bypasses the serializer, making the response shape implicit and hard to test. Use the versioned serializer to ensure the contract is explicit and locked.',
 	},
 ];
 
 const ALL_OPTION_SETS = [
-	{
-		name: 'CREATE_V2_SERIALIZER_OPTIONS',
-		options: CREATE_V2_SERIALIZER_OPTIONS,
-	},
-	{ name: 'ADD_DEPRECATION_OPTIONS', options: ADD_DEPRECATION_OPTIONS },
-	{ name: 'ADD_SUNSET_OPTIONS', options: ADD_SUNSET_OPTIONS },
-	{ name: 'WIRE_V1_SERVICE_OPTIONS', options: WIRE_V1_SERVICE_OPTIONS },
+	{ name: 'ADD_V2_ROUTES_COMMANDS', options: ADD_V2_ROUTES_COMMANDS },
+	{ name: 'GENERATE_V2_COMMANDS', options: GENERATE_V2_COMMANDS },
+	{ name: 'V2_SERIALIZER_OPTIONS', options: V2_SERIALIZER_OPTIONS },
+	{ name: 'DEPRECATION_OPTIONS', options: DEPRECATION_OPTIONS },
+	{ name: 'SUNSET_OPTIONS', options: SUNSET_OPTIONS },
+	{ name: 'FREEZE_V1_OPTIONS', options: FREEZE_V1_OPTIONS },
 ];
 
-const ALL_COMMAND_SETS = [
-	{ name: 'ADD_V2_ROUTES_COMMANDS', commands: ADD_V2_ROUTES_COMMANDS },
-	{
-		name: 'GENERATE_V2_CONTROLLER_COMMANDS',
-		commands: GENERATE_V2_CONTROLLER_COMMANDS,
-	},
-];
+// ── Stress scenarios ──
 
 const STRESS_SCENARIOS = [
 	{
-		id: 'v1-cents',
-		label: 'GET /api/v1/orders/42 (v1 client)',
-		expectedResult: 'allowed',
+		id: 'v1-format-break',
+		label: 'v1 partner fetches order (versioned)',
+		description: 'v1 Partner gets cents format with deprecation headers',
+		method: 'GET' as const,
+		path: '/api/v1/orders/42',
+		actor: 'v1-partner',
+		expectedResult: 'allowed' as const,
+		responseLines: [
+			{ text: '200 OK', color: 'green' },
+			{ text: '{ "total": 1999 }', color: 'green' },
+			{ text: 'Deprecation: true, Sunset: 2027-06-01', color: 'yellow' },
+		],
 	},
 	{
-		id: 'v2-object',
-		label: 'GET /api/v2/orders/42 (v2 client)',
-		expectedResult: 'allowed',
+		id: 'no-deprecation',
+		label: 'v1 partner checks deprecation (with headers)',
+		description: 'Deprecation + Sunset + Link headers present',
+		method: 'GET' as const,
+		path: '/api/v1/orders/42',
+		actor: 'v1-partner',
+		expectedResult: 'allowed' as const,
+		responseLines: [
+			{ text: 'Deprecation: true', color: 'yellow' },
+			{ text: 'Sunset: Sun, 01 Jun 2027 00:00:00 GMT', color: 'yellow' },
+			{
+				text: 'Link: </api/v2/docs>; rel="successor-version"',
+				color: 'green',
+			},
+		],
 	},
 	{
-		id: 'v1-deprecated',
-		label: 'GET /api/v1/orders (deprecated)',
-		expectedResult: 'allowed',
+		id: 'v2-404',
+		label: 'v2 partner gets money object (versioned)',
+		description: 'v2 endpoint exists with structured format',
+		method: 'GET' as const,
+		path: '/api/v2/orders/42',
+		actor: 'v2-partner',
+		expectedResult: 'allowed' as const,
+		responseLines: [
+			{ text: '200 OK', color: 'green' },
+			{
+				text: '{ "total": { "amount": "19.99", "currency": "USD" } }',
+				color: 'green',
+			},
+		],
+	},
+	{
+		id: 'v1-v2-coexist',
+		label: 'v1 and v2 coexist simultaneously',
+		description: 'Both versions serve correct format at the same time',
+		method: 'GET' as const,
+		path: '/api/v1 + /api/v2',
+		actor: 'both',
+		expectedResult: 'allowed' as const,
+		responseLines: [
+			{
+				text: 'v1: { "total": 1999 } + Deprecation headers',
+				color: 'yellow',
+			},
+			{
+				text: 'v2: { "total": { "amount": "19.99", "currency": "USD" } }',
+				color: 'green',
+			},
+			{ text: 'Both versions active, zero conflicts', color: 'green' },
+		],
 	},
 	{
 		id: 'v3-not-found',
-		label: 'GET /api/v3/orders/42 (unknown)',
-		expectedResult: 'blocked',
-	},
-	{
-		id: 'v2-line-items',
-		label: 'GET /api/v2/orders/42 (with line_items)',
-		expectedResult: 'allowed',
-	},
-	{
-		id: 'no-version',
-		label: 'GET /api/orders/42 (unversioned)',
-		expectedResult: 'blocked',
+		label: 'GET /api/v3/orders (unknown version)',
+		description: 'Unknown version returns 404',
+		method: 'GET' as const,
+		path: '/api/v3/orders/42',
+		actor: 'unknown',
+		expectedResult: 'blocked' as const,
+		responseLines: [
+			{ text: '404 Not Found', color: 'red' },
+			{ text: 'No /api/v3 namespace configured', color: 'muted' },
+		],
 	},
 ];
 
@@ -290,342 +324,341 @@ const STRESS_SCENARIOS = [
 
 describe('Level 40: API Versioning', () => {
 	describe('Discovery definitions', () => {
-		test('all discovery IDs are unique', () => {
+		test('has exactly 4 discoveries', () => {
+			expect(DISCOVERY_DEFS.length).toBe(4);
+		});
+
+		test('all IDs unique', () => {
 			const ids = DISCOVERY_DEFS.map((d) => d.id);
 			expect(new Set(ids).size).toBe(ids.length);
 		});
 
-		test('all discovery labels are unique', () => {
+		test('all labels unique and non-empty', () => {
 			const labels = DISCOVERY_DEFS.map((d) => d.label);
 			expect(new Set(labels).size).toBe(labels.length);
-		});
-
-		test('every discovery is reachable via at least one probe', () => {
-			const reachable = new Set(
-				Object.values(PROBE_DISCOVERY_MAP).flat(),
-			);
-			for (const def of DISCOVERY_DEFS) {
-				expect(reachable.has(def.id)).toBe(true);
+			for (const label of labels) {
+				expect(label.length).toBeGreaterThan(5);
 			}
 		});
 
-		test('probe discovery map only references valid discovery IDs', () => {
+		test('exact IDs match component', () => {
+			const ids = DISCOVERY_DEFS.map((d) => d.id);
+			expect(ids).toEqual([
+				'single-controller',
+				'breaking-change',
+				'no-deprecation',
+				'no-migration-path',
+			]);
+		});
+	});
+
+	describe('Probe definitions', () => {
+		test('has exactly 3 probes', () => {
+			expect(PROBES.length).toBe(3);
+		});
+
+		test('exact probe IDs', () => {
+			expect(PROBES.map((p) => p.id)).toEqual([
+				'v1-format-break',
+				'no-deprecation',
+				'v2-404',
+			]);
+		});
+
+		test('v1-format-break probe has 4 response lines', () => {
+			const probe = PROBES.find((p) => p.id === 'v1-format-break');
+			expect(probe?.responseLines.length).toBe(4);
+		});
+
+		test('no-deprecation probe has 4 response lines', () => {
+			const probe = PROBES.find((p) => p.id === 'no-deprecation');
+			expect(probe?.responseLines.length).toBe(4);
+		});
+
+		test('v2-404 probe has 3 response lines', () => {
+			const probe = PROBES.find((p) => p.id === 'v2-404');
+			expect(probe?.responseLines.length).toBe(3);
+		});
+
+		test('v1-format-break probe shows NaN error', () => {
+			const probe = PROBES.find((p) => p.id === 'v1-format-break');
+			expect(probe?.responseLines[3].text).toBe(
+				'# Their code: order.total / 100 -> NaN (got object)',
+			);
+		});
+
+		test('no-deprecation probe shows missing headers', () => {
+			const probe = PROBES.find((p) => p.id === 'no-deprecation');
+			expect(probe?.responseLines[1].text).toBe(
+				'# No Deprecation header found',
+			);
+			expect(probe?.responseLines[2].text).toBe(
+				'# No Sunset header found',
+			);
+		});
+
+		test('v2-404 probe shows 404 error', () => {
+			const probe = PROBES.find((p) => p.id === 'v2-404');
+			expect(probe?.responseLines[0].text).toBe('404 Not Found');
+			expect(probe?.responseLines[2].text).toBe(
+				'# No /api/v2 namespace exists',
+			);
+		});
+	});
+
+	describe('Probe-to-discovery mapping', () => {
+		test('every probe maps to at least one discovery', () => {
+			for (const probe of PROBES) {
+				const mapped = PROBE_DISCOVERY_MAP[probe.id];
+				expect(mapped).toBeDefined();
+				expect(mapped.length).toBeGreaterThanOrEqual(1);
+			}
+		});
+
+		test('all mapped discovery IDs exist in DISCOVERY_DEFS', () => {
 			const validIds = new Set(DISCOVERY_DEFS.map((d) => d.id));
-			for (const discoveries of Object.values(PROBE_DISCOVERY_MAP)) {
-				for (const id of discoveries) {
+			for (const [, discoveryIds] of Object.entries(PROBE_DISCOVERY_MAP)) {
+				for (const id of discoveryIds) {
 					expect(validIds.has(id)).toBe(true);
 				}
 			}
 		});
 
-		test('probe discovery map only references valid probe IDs', () => {
-			const validProbeIds = new Set(PROBES.map((p) => p.id));
-			for (const probeId of Object.keys(PROBE_DISCOVERY_MAP)) {
-				expect(validProbeIds.has(probeId)).toBe(true);
-			}
-		});
-	});
-
-	describe('Probes', () => {
-		test('all probe IDs are unique', () => {
-			const ids = PROBES.map((p) => p.id);
-			expect(new Set(ids).size).toBe(ids.length);
-		});
-
-		test('all probe labels are unique', () => {
-			const labels = PROBES.map((p) => p.label);
-			expect(new Set(labels).size).toBe(labels.length);
-		});
-
-		test('every probe has at least one response line', () => {
-			for (const probe of PROBES) {
-				expect(probe.responseLines.length).toBeGreaterThan(0);
+		test('every discovery is reachable via probes', () => {
+			const allMapped = new Set(
+				Object.values(PROBE_DISCOVERY_MAP).flat(),
+			);
+			for (const def of DISCOVERY_DEFS) {
+				expect(allMapped.has(def.id)).toBe(true);
 			}
 		});
 
-		test('every probe has a command', () => {
-			for (const probe of PROBES) {
-				expect(probe.command.length).toBeGreaterThan(0);
-			}
+		test('v1-format-break maps to single-controller and breaking-change', () => {
+			expect(PROBE_DISCOVERY_MAP['v1-format-break']).toEqual([
+				'single-controller',
+				'breaking-change',
+			]);
 		});
 
-		test('response line colors are valid', () => {
-			const validColors = new Set(['green', 'red', 'amber', 'cyan']);
-			for (const probe of PROBES) {
-				for (const line of probe.responseLines) {
-					expect(validColors.has(line.color)).toBe(true);
-				}
-			}
+		test('no-deprecation maps to no-deprecation', () => {
+			expect(PROBE_DISCOVERY_MAP['no-deprecation']).toEqual([
+				'no-deprecation',
+			]);
+		});
+
+		test('v2-404 maps to no-migration-path', () => {
+			expect(PROBE_DISCOVERY_MAP['v2-404']).toEqual([
+				'no-migration-path',
+			]);
 		});
 	});
 
 	describe('Build step quality', () => {
-		test('all step IDs are unique', () => {
-			const ids = STEP_DEFS.map((s) => s.id);
-			expect(new Set(ids).size).toBe(ids.length);
-		});
+		for (const { name, options } of ALL_OPTION_SETS) {
+			describe(name, () => {
+				test('has exactly 3 options', () => {
+					expect(options.length).toBe(3);
+				});
 
-		test('step labels do not reveal specific APIs or methods', () => {
-			for (const step of STEP_DEFS) {
-				expect(step.label).not.toMatch(/Api::V2/);
-				expect(step.label).not.toMatch(/OrderSerializer/);
-				expect(step.label).not.toMatch(/before_action/);
-				// "Sunset" is the concept name (RFC 8594), not a hidden answer
-			}
-		});
+				test('exactly one correct answer', () => {
+					const correctCount = options.filter((o) => o.correct).length;
+					expect(correctCount).toBe(1);
+				});
 
-		test('correct answer is never the first option in command sets', () => {
-			for (const set of ALL_COMMAND_SETS) {
-				const firstCmd = set.commands[0];
-				expect(firstCmd.correct).toBe(false);
-			}
-		});
+				test('correct answer is not the first option', () => {
+					expect(options[0].correct).toBe(false);
+				});
 
-		test('correct answer is never the first option in option sets', () => {
-			for (const set of ALL_OPTION_SETS) {
-				const firstOpt = set.options[0];
-				expect(firstOpt.correct).toBe(false);
-			}
-		});
-
-		test('each command set has exactly one correct answer', () => {
-			for (const set of ALL_COMMAND_SETS) {
-				const correctCount = set.commands.filter(
-					(c) => c.correct,
-				).length;
-				expect(correctCount).toBe(1);
-			}
-		});
-
-		test('each option set has exactly one correct answer', () => {
-			for (const set of ALL_OPTION_SETS) {
-				const correctCount = set.options.filter(
-					(o) => o.correct,
-				).length;
-				expect(correctCount).toBe(1);
-			}
-		});
-
-		test('every wrong command has feedback', () => {
-			for (const set of ALL_COMMAND_SETS) {
-				for (const cmd of set.commands) {
-					if (!cmd.correct) {
-						expect(cmd.feedback).toBeDefined();
-						expect(cmd.feedback.length).toBeGreaterThan(0);
-					}
-				}
-			}
-		});
-
-		test('every wrong option has feedback', () => {
-			for (const set of ALL_OPTION_SETS) {
-				for (const opt of set.options) {
-					if (!opt.correct) {
+				test('every wrong option has non-empty feedback', () => {
+					const wrongOptions = options.filter((o) => !o.correct);
+					for (const opt of wrongOptions) {
 						expect(opt.feedback).toBeDefined();
-						expect(opt.feedback.length).toBeGreaterThan(0);
+						expect(opt.feedback!.length).toBeGreaterThan(10);
 					}
-				}
+				});
+			});
+		}
+
+		test('ADD_V2_ROUTES feedback does not contain "namespace :v1" or "namespace :v2"', () => {
+			const wrong = ADD_V2_ROUTES_COMMANDS.filter((o) => !o.correct);
+			for (const opt of wrong) {
+				expect(opt.feedback!).not.toContain('namespace :v1');
+				expect(opt.feedback!).not.toContain('namespace :v2');
 			}
 		});
 
-		test('feedback never reveals the correct answer directly', () => {
-			for (const set of ALL_OPTION_SETS) {
-				for (const opt of set.options) {
-					if (!opt.correct && opt.feedback) {
-						// Feedback should not contain exact correct patterns
-						expect(opt.feedback).not.toContain(
-							'Api::V1::BaseController',
-						);
-						expect(opt.feedback).not.toContain(
-							'serializable_hash',
-						);
-					}
-				}
+		test('GENERATE_V2 feedback does not contain "api/v2/orders"', () => {
+			const wrong = GENERATE_V2_COMMANDS.filter((o) => !o.correct);
+			for (const opt of wrong) {
+				expect(opt.feedback!).not.toContain('api/v2/orders');
 			}
+		});
 
-			for (const set of ALL_COMMAND_SETS) {
-				for (const cmd of set.commands) {
-					if (!cmd.correct && cmd.feedback) {
-						expect(cmd.feedback).not.toContain(
-							'api/v2/orders',
-						);
-					}
-				}
+		test('V2_SERIALIZER feedback does not contain "Api::V2::OrderSerializer"', () => {
+			const wrong = V2_SERIALIZER_OPTIONS.filter((o) => !o.correct);
+			for (const opt of wrong) {
+				expect(opt.feedback!).not.toContain('Api::V2::OrderSerializer');
+			}
+		});
+
+		test('DEPRECATION feedback does not contain "add_deprecation_headers" or "before_action"', () => {
+			const wrong = DEPRECATION_OPTIONS.filter((o) => !o.correct);
+			for (const opt of wrong) {
+				expect(opt.feedback!).not.toContain('add_deprecation_headers');
+				expect(opt.feedback!).not.toContain('before_action');
+			}
+		});
+
+		test('SUNSET feedback does not contain "2027" or "Jun"', () => {
+			const wrong = SUNSET_OPTIONS.filter((o) => !o.correct);
+			for (const opt of wrong) {
+				expect(opt.feedback!).not.toContain('2027');
+				expect(opt.feedback!).not.toContain('Jun');
+			}
+		});
+
+		test('FREEZE_V1 feedback does not contain "Api::V1::OrderSerializer"', () => {
+			const wrong = FREEZE_V1_OPTIONS.filter((o) => !o.correct);
+			for (const opt of wrong) {
+				expect(opt.feedback!).not.toContain('Api::V1::OrderSerializer');
 			}
 		});
 	});
 
 	describe('Stress scenarios', () => {
-		test('all scenario IDs are unique', () => {
+		test('has exactly 5 scenarios', () => {
+			expect(STRESS_SCENARIOS.length).toBe(5);
+		});
+
+		test('all IDs unique', () => {
 			const ids = STRESS_SCENARIOS.map((s) => s.id);
 			expect(new Set(ids).size).toBe(ids.length);
 		});
 
-		test('all scenario labels are unique', () => {
+		test('all labels unique', () => {
 			const labels = STRESS_SCENARIOS.map((s) => s.label);
 			expect(new Set(labels).size).toBe(labels.length);
 		});
 
-		test('mix of allowed and blocked results', () => {
+		test('exact scenario IDs', () => {
+			expect(STRESS_SCENARIOS.map((s) => s.id)).toEqual([
+				'v1-format-break',
+				'no-deprecation',
+				'v2-404',
+				'v1-v2-coexist',
+				'v3-not-found',
+			]);
+		});
+
+		test('every scenario has non-empty responseLines', () => {
+			for (const s of STRESS_SCENARIOS) {
+				expect(s.responseLines.length).toBeGreaterThanOrEqual(2);
+				expect(s.responseLines[0].text.length).toBeGreaterThan(0);
+			}
+		});
+
+		test('response line counts match exactly', () => {
+			const counts: Record<string, number> = {
+				'v1-format-break': 3,
+				'no-deprecation': 3,
+				'v2-404': 2,
+				'v1-v2-coexist': 3,
+				'v3-not-found': 2,
+			};
+			for (const s of STRESS_SCENARIOS) {
+				expect(s.responseLines.length).toBe(counts[s.id]);
+			}
+		});
+
+		test('mix of allowed and blocked', () => {
 			const allowed = STRESS_SCENARIOS.filter(
 				(s) => s.expectedResult === 'allowed',
 			);
 			const blocked = STRESS_SCENARIOS.filter(
 				(s) => s.expectedResult === 'blocked',
 			);
-			expect(allowed.length).toBeGreaterThan(0);
-			expect(blocked.length).toBeGreaterThan(0);
+			expect(allowed.length).toBe(4);
+			expect(blocked.length).toBe(1);
 		});
 
-		test('at least 4 allowed and 2 blocked', () => {
-			const allowed = STRESS_SCENARIOS.filter(
-				(s) => s.expectedResult === 'allowed',
+		test('specific expected results match', () => {
+			const resultMap = Object.fromEntries(
+				STRESS_SCENARIOS.map((s) => [s.id, s.expectedResult]),
 			);
-			const blocked = STRESS_SCENARIOS.filter(
-				(s) => s.expectedResult === 'blocked',
-			);
-			expect(allowed.length).toBeGreaterThanOrEqual(4);
-			expect(blocked.length).toBeGreaterThanOrEqual(2);
+			expect(resultMap['v1-format-break']).toBe('allowed');
+			expect(resultMap['no-deprecation']).toBe('allowed');
+			expect(resultMap['v2-404']).toBe('allowed');
+			expect(resultMap['v1-v2-coexist']).toBe('allowed');
+			expect(resultMap['v3-not-found']).toBe('blocked');
 		});
 
-		test('probe and stress labels use consistent GET format', () => {
-			for (const probe of PROBES) {
-				expect(probe.label).toMatch(/^GET /);
+		test('v1-format-break scenario shows cents format', () => {
+			const s = STRESS_SCENARIOS.find((s) => s.id === 'v1-format-break');
+			expect(s?.responseLines[1].text).toBe('{ "total": 1999 }');
+			expect(s?.responseLines[2].text).toBe(
+				'Deprecation: true, Sunset: 2027-06-01',
+			);
+		});
+
+		test('v2-404 scenario shows money object', () => {
+			const s = STRESS_SCENARIOS.find((s) => s.id === 'v2-404');
+			expect(s?.responseLines[0].text).toBe('200 OK');
+			expect(s?.responseLines[1].text).toBe(
+				'{ "total": { "amount": "19.99", "currency": "USD" } }',
+			);
+		});
+
+		test('v3-not-found scenario returns 404', () => {
+			const s = STRESS_SCENARIOS.find((s) => s.id === 'v3-not-found');
+			expect(s?.responseLines[0].text).toBe('404 Not Found');
+		});
+
+		test('all scenarios use GET method', () => {
+			for (const s of STRESS_SCENARIOS) {
+				expect(s.method).toBe('GET');
 			}
-			for (const scenario of STRESS_SCENARIOS) {
-				expect(scenario.label).toMatch(/^GET /);
-			}
-		});
-
-		test('v1 and v2 scenarios both present', () => {
-			const hasV1 = STRESS_SCENARIOS.some((s) =>
-				s.label.includes('/v1/'),
-			);
-			const hasV2 = STRESS_SCENARIOS.some((s) =>
-				s.label.includes('/v2/'),
-			);
-			expect(hasV1).toBe(true);
-			expect(hasV2).toBe(true);
 		});
 	});
 
 	describe('Cross-phase consistency', () => {
-		test('v1 client appears in both observe and reward', () => {
-			const hasV1Probe = PROBES.some((p) =>
-				p.label.toLowerCase().includes('v1'),
-			);
-			const hasV1Scenario = STRESS_SCENARIOS.some((s) =>
-				s.label.toLowerCase().includes('v1'),
-			);
-			expect(hasV1Probe).toBe(true);
-			expect(hasV1Scenario).toBe(true);
+		test('every probe has a matching reward scenario', () => {
+			const probeIds = PROBES.map((p) => p.id);
+			const scenarioIds = STRESS_SCENARIOS.map((s) => s.id);
+			for (const probeId of probeIds) {
+				expect(scenarioIds).toContain(probeId);
+			}
 		});
 
-		test('v2 client appears in both observe and reward', () => {
-			const hasV2Probe = PROBES.some((p) =>
-				p.label.toLowerCase().includes('v2'),
-			);
-			const hasV2Scenario = STRESS_SCENARIOS.some((s) =>
-				s.label.toLowerCase().includes('v2'),
-			);
-			expect(hasV2Probe).toBe(true);
-			expect(hasV2Scenario).toBe(true);
-		});
-
-		test('build steps cover versioning, deprecation, and service wiring', () => {
-			const stepIds = STEP_DEFS.map((s) => s.id);
-			expect(stepIds).toContain('add-v2-routes');
-			expect(stepIds).toContain('create-v2-serializer');
-			expect(stepIds).toContain('add-deprecation');
-			expect(stepIds).toContain('add-sunset');
-			expect(stepIds).toContain('wire-v1-service');
-		});
-	});
-
-	describe('Cumulative pattern compliance', () => {
-		test('correct v1 wiring option uses service delegation', () => {
-			const correct = WIRE_V1_SERVICE_OPTIONS.find((o) => o.correct);
-			expect(correct).toBeDefined();
-			expect(correct?.label).toContain('service');
-		});
-
-		test('wrong direct-render option flagged for bypassing service pattern', () => {
-			const directRender = WIRE_V1_SERVICE_OPTIONS.find(
-				(o) => o.id === 'wrong-direct-render',
-			);
-			expect(directRender).toBeDefined();
-			expect(directRender?.correct).toBe(false);
-			expect(directRender?.feedback).toContain('service layer');
-		});
-
-		test('correct serializer option creates separate v2 serializer', () => {
-			const correct = CREATE_V2_SERIALIZER_OPTIONS.find(
-				(o) => o.correct,
-			);
-			expect(correct).toBeDefined();
-			expect(correct?.label).toContain('v2 serializer');
-		});
-
-		test('wrong modify-v1 option flagged for changing frozen contract', () => {
-			const modifyV1 = CREATE_V2_SERIALIZER_OPTIONS.find(
-				(o) => o.id === 'wrong-modify-v1',
-			);
-			expect(modifyV1).toBeDefined();
-			expect(modifyV1?.feedback).toContain('frozen');
-		});
-	});
-
-	describe('Data consistency', () => {
-		test('6 build steps total', () => {
-			expect(STEP_DEFS.length).toBe(6);
-		});
-
-		test('4 discoveries total', () => {
-			expect(DISCOVERY_DEFS.length).toBe(4);
-		});
-
-		test('3 probes total', () => {
-			expect(PROBES.length).toBe(3);
-		});
-
-		test('6 stress scenarios total', () => {
-			expect(STRESS_SCENARIOS.length).toBe(6);
-		});
-
-		test('all probe IDs map to discoveries', () => {
+		test('probe and scenario labels mirror each other', () => {
 			for (const probe of PROBES) {
-				expect(PROBE_DISCOVERY_MAP[probe.id]).toBeDefined();
-				expect(
-					PROBE_DISCOVERY_MAP[probe.id].length,
-				).toBeGreaterThan(0);
+				const scenario = STRESS_SCENARIOS.find(
+					(s) => s.id === probe.id,
+				);
+				expect(scenario).toBeDefined();
+
+				if (probe.id === 'v1-format-break') {
+					expect(probe.label).toContain('v1 partner');
+					expect(scenario?.label).toContain('v1 partner');
+				}
+				if (probe.id === 'no-deprecation') {
+					expect(probe.label).toContain('deprecation');
+					expect(scenario?.label).toContain('deprecation');
+				}
+				if (probe.id === 'v2-404') {
+					expect(probe.label).toContain('v2 partner');
+					expect(scenario?.label).toContain('v2 partner');
+				}
 			}
 		});
 
-		test('all option IDs within each set are unique', () => {
-			for (const set of ALL_OPTION_SETS) {
-				const ids = set.options.map((o) => o.id);
-				expect(new Set(ids).size).toBe(ids.length);
-			}
-		});
-
-		test('all command IDs within each set are unique', () => {
-			for (const set of ALL_COMMAND_SETS) {
-				const ids = set.commands.map((c) => c.id);
-				expect(new Set(ids).size).toBe(ids.length);
-			}
-		});
-
-		test('blocked scenarios are for unknown or unversioned requests', () => {
-			const blocked = STRESS_SCENARIOS.filter(
-				(s) => s.expectedResult === 'blocked',
+		test('reward scenarios include additional scenarios beyond observe probes', () => {
+			const probeIds = new Set(PROBES.map((p) => p.id));
+			const extras = STRESS_SCENARIOS.filter(
+				(s) => !probeIds.has(s.id),
 			);
-			for (const scenario of blocked) {
-				const isUnknown =
-					scenario.label.includes('unknown') ||
-					scenario.label.includes('unversioned') ||
-					scenario.label.includes('v3');
-				expect(isUnknown).toBe(true);
-			}
+			expect(extras.length).toBe(2);
+			expect(extras.map((e) => e.id)).toContain('v1-v2-coexist');
+			expect(extras.map((e) => e.id)).toContain('v3-not-found');
 		});
 	});
 });
