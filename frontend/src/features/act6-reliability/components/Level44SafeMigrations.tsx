@@ -1458,13 +1458,13 @@ export function Level44SafeMigrations({ onComplete }: LevelComponentProps) {
 			{
 				id: 'database',
 				type: 'database',
-				position: { x: 200, y: 40 },
+				position: { x: 300, y: 40 },
 				data: { ...dbState } satisfies DatabaseNodeData,
 			},
 			{
 				id: 'api',
 				type: 'api',
-				position: { x: 420, y: 55 },
+				position: { x: 600, y: 55 },
 				data: { ...apiState } satisfies ApiNodeData,
 			},
 		],

@@ -1552,19 +1552,19 @@ export function Level46DataLifecycle({ onComplete }: LevelComponentProps) {
 				{
 					id: 'app',
 					type: 'app',
-					position: { x: 180, y: 70 },
+					position: { x: 280, y: 70 },
 					data: { ...appState } satisfies AppNodeData,
 				},
 				{
 					id: 'hotDb',
 					type: 'hotDb',
-					position: { x: 360, y: 0 },
+					position: { x: 550, y: 0 },
 					data: { ...hotDbState } satisfies DbNodeData,
 				},
 				{
 					id: 'archiveDb',
 					type: 'archiveDb',
-					position: { x: 360, y: 140 },
+					position: { x: 550, y: 140 },
 					data: { ...archiveDbState } satisfies DbNodeData,
 				},
 			];
@@ -1581,13 +1581,13 @@ export function Level46DataLifecycle({ onComplete }: LevelComponentProps) {
 			{
 				id: 'app',
 				type: 'app',
-				position: { x: 190, y: 50 },
+				position: { x: 300, y: 50 },
 				data: { ...appState } satisfies AppNodeData,
 			},
 			{
 				id: 'db',
 				type: 'db',
-				position: { x: 380, y: 40 },
+				position: { x: 600, y: 40 },
 				data: { ...dbState } satisfies DbNodeData,
 			},
 		];

@@ -1273,13 +1273,13 @@ export function Level43SoftDeletes({ onComplete }: LevelComponentProps) {
 			{
 				id: 'app',
 				type: 'app',
-				position: { x: 220, y: 40 },
+				position: { x: 300, y: 40 },
 				data: { ...appState } satisfies AppNodeData,
 			},
 			{
 				id: 'db',
 				type: 'db',
-				position: { x: 440, y: 20 },
+				position: { x: 600, y: 20 },
 				data: { ...dbState } satisfies DbNodeData,
 			},
 		],
