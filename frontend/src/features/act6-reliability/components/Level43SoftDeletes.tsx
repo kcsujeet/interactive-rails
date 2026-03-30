@@ -1346,9 +1346,9 @@ export function Level43SoftDeletes({ onComplete }: LevelComponentProps) {
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground mb-2">
-							An admin accidentally runs User.find(42).destroy. The user and all
-							their data are permanently deleted. No undo. No record of who did
-							it.
+							Your API is protected from bots (L42), but internal mistakes are
+							just as dangerous. An admin runs User.find(42).destroy and the
+							user is permanently deleted. No undo. No record of who did it.
 						</p>
 						<p className="text-sm text-muted-foreground">
 							This is the third time this month. You need soft deletes so

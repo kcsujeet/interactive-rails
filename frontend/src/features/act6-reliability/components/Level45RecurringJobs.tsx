@@ -1596,10 +1596,11 @@ export function Level45RecurringJobs({ onComplete }: LevelComponentProps) {
 						<p className="text-sm text-muted-foreground mb-2">
 							Your database has 2M expired session tokens, 500K orphaned
 							records, and 100K stale cache entries. Storage is growing 5% per
-							week.
+							week. You have Solid Queue from Level 22 for one-off background
+							jobs, but nothing runs on a recurring schedule.
 						</p>
 						<p className="text-sm text-muted-foreground">
-							Nobody cleans up because there is no automated maintenance. Fire
+							Nobody cleans up because cleanup never happens automatically. Fire
 							probes to see the damage.
 						</p>
 					</div>

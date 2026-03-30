@@ -25,7 +25,7 @@ const level37Middleware: Level = {
 	trigger: {
 		type: 'incident',
 		description:
-			'Need request logging, bot detection, and request ID tracking before requests hit Rails. The default middleware stack is not enough.',
+			'Production errors are untraceable, bots scrape the catalog undetected, and there is no structured request data. Requests arrive and leave with no visibility.',
 	},
 	startingPipeline: standardPipeline({ modelLabel: 'User' }),
 	problem: {
@@ -211,7 +211,7 @@ const level38RateLimiting: Level = {
 	trigger: {
 		type: 'attack',
 		description:
-			'Bots hammer the API. 10K req/sec from one IP. The login endpoint is getting brute-forced. Need to throttle by IP and by user.',
+			'Bots hammer the API at 10K req/sec from one IP. The login endpoint is being brute-forced. Legitimate users are locked out because the server is overloaded.',
 	},
 	startingPipeline: middlewarePipeline({ modelLabel: 'User' }),
 	problem: {
@@ -229,9 +229,11 @@ const level38RateLimiting: Level = {
 # 203.0.113.5 - GET /api/v1/products - 504 Gateway Timeout
 
 # Rails 8 has a built-in rate_limit macro:
-class SessionsController < ApplicationController
-  rate_limit to: 10, within: 3.minutes, only: :create
-  # But we also need IP-level and user-level throttling
+module Api::V1
+  class SessionsController < Api::BaseController
+    rate_limit to: 10, within: 3.minutes, only: :create
+    # But we also need IP-level and user-level throttling
+  end
 end
 
 # Problem: No per-IP throttling, no per-user API limits,
@@ -417,7 +419,8 @@ end`,
 				url: 'https://github.com/rack/rack-attack',
 			},
 			{
-				title: 'Book: "Rails Scales!", Chapter 7: Rate Limits with Rack::Attack',
+				title:
+					'Book: "Rails Scales!", Chapter 7: Rate Limits with Rack::Attack',
 				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],
@@ -449,25 +452,30 @@ const level39SoftDeletes: Level = {
 			'A support admin ran User.find(42).destroy and the user is gone. No way to recover the data. No log of who did it or when. This is the third time this month.',
 		rootCause:
 			'Hard deletes permanently remove records. No audit trail tracks changes or who made them.',
-		codeExample: `# Current code: hard delete
-class Admin::UsersController < ApplicationController
-  def destroy
-    user = User.find(params[:id])
+		codeExample: `# Current code: hard delete via service
+class DestroyUser < ApplicationService
+  Result = Data.define(:success?, :resource, :errors)
+
+  def call
+    user = User.find(@params[:id])
     user.destroy  # GONE FOREVER
-    head :no_content
+    Result.new(success?: true, resource: nil, errors: {})
   end
 end
 
-# Rails console:
-# User.find(42).destroy
-# => #<User id: 42, email: "vip@customer.com">
-# User.find(42)
-# => ActiveRecord::RecordNotFound
+# Admin controller delegates to service (L16+)
+module Admin
+  class UsersController < ApplicationController
+    def destroy
+      result = DestroyUser.call(id: params[:id])
+      head :no_content
+    end
+  end
+end
 
 # Questions we can't answer:
 # - Who deleted this user?
 # - When was it deleted?
-# - What did the user record look like before deletion?
 # - Can we undo it?
 
 # All answers: "We don't know" and "No"`,
@@ -912,7 +920,7 @@ const level41RecurringJobs: Level = {
 	trigger: {
 		type: 'data_growth',
 		description:
-			'Expired tokens pile up. Old sessions never cleaned. Stale cache entries bloat the database. Need automated recurring maintenance.',
+			'Expired tokens pile up. Old sessions never cleaned. Stale cache entries bloat the database. You have Solid Queue (L22) for one-off jobs, but nothing runs on a schedule.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -1390,7 +1398,8 @@ Order.where(status: "shipped").order(created_at: :desc).limit(25)
 				url: 'https://www.postgresql.org/docs/current/ddl-partitioning.html',
 			},
 			{
-				title: 'Book: "Rails Scales!", Chapter 7: Hot/Warm/Cold Data & Archiving',
+				title:
+					'Book: "Rails Scales!", Chapter 7: Hot/Warm/Cold Data & Archiving',
 				url: 'https://pragprog.com/titles/cpscaling/rails-scales/',
 			},
 		],
@@ -1422,10 +1431,13 @@ const level42ErrorMonitoring: Level = {
 		rootCause:
 			'No structured error monitoring. Exceptions are logged but not captured with user context, grouped by type, or alerted on. Request logging shows what happened, but not why it failed.',
 		codeExample: `# Current error handling: nothing
-class Api::V1::PostsController < ApplicationController
+class Api::V1::ProductsController < Api::BaseController
   def show
-    product = Product.find(params[:id])
-    render json: ProductSerializer.new(product).serializable_hash.to_json
+    result = FetchProduct.call(id: params[:id])
+    if result.success?
+      render json: Api::V1::ProductSerializer
+        .new(result.resource).serializable_hash
+    end
   end
   # ActiveRecord::RecordNotFound => 500 Internal Server Error
   # No context, no alert, no grouping

@@ -1688,13 +1688,13 @@ export function Level46DataLifecycle({ onComplete }: LevelComponentProps) {
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground mb-2">
-							Your orders table has 50M rows. 95% are older than 1 year and
-							never accessed. Queries are slow, backups take 8 hours, and
-							migrations lock the table for hours.
+							Level 45 added recurring cleanup jobs, but they only purge expired
+							tokens and orphans. The orders table itself has 50M rows, 95%
+							older than 1 year and never accessed.
 						</p>
 						<p className="text-sm text-muted-foreground">
-							Fire probes to see how a single bloated table affects everything:
-							query speed, backup windows, and migration safety.
+							Queries are slow, backups take 8 hours, and migrations lock for
+							minutes. All data lives in one table with no lifecycle policy.
 						</p>
 					</div>
 					<DiscoveryChecklist
