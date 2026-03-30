@@ -225,7 +225,33 @@ _(Copy this section for each additional probe.)_
 
 ---
 
-## Section 7: Final Verification
+## Section 7: Tests (write WHILE building, not after)
+
+**Tests are part of building the level, not a post-implementation step.** Write the test file alongside the component. If you cannot write a passing test for a data structure, the data structure is wrong.
+
+**Strict tests only. Lax tests are not tolerated.** Every assertion must test something the player would see and feel. If a test passes when the data is wrong, the test is useless. If a test only checks that an array has length > 0, it catches nothing. Tests must verify exact values, exact strings, exact matches.
+
+**Test what the player experiences, not implementation details:**
+- GOOD: "The feedback for the wrong option about rack-throttle says 'unmaintained'" (player reads this exact text)
+- GOOD: "The duplicate-event probe has a matching reward scenario with 'with dedup' in the label" (player sees these labels)
+- GOOD: "The observe code preview at completedStep 2 does NOT contain 'Stoplight' (which is the step 4 answer)" (player would see the answer leak)
+- BAD: "PROBES array has length 3" (tells you nothing about quality)
+- BAD: "STRESS_SCENARIOS is defined" (existence check catches nothing)
+
+Test file location: `src/features/actN-*/` `__tests__/LevelNNName.test.ts`
+
+Mirror the component's data into the test file (do NOT import from the component). Test:
+
+- [ ] **Build step quality:** correct answer is never first (before shuffle), every wrong option has non-empty feedback, feedback never contains the correct answer's distinctive strings, each step has exactly one correct answer, exactly 3 options per OptionCard step
+- [ ] **Probe-to-scenario coverage:** every observe probe ID exists in stress scenarios, every probe label has a matching scenario label pattern (e.g., "X (problem)" matches "X (with fix)")
+- [ ] **Data consistency:** every stress scenario has non-empty responseLines, all scenario IDs are unique, all labels are unique, mix of allowed/blocked expectedResults
+- [ ] **Discovery coverage:** every probe maps to at least one discovery via PROBE_DISCOVERY_MAP, all discovery IDs are reachable by firing all probes
+- [ ] **Code preview does not leak answers:** for each OptionCard step, the code preview shown while WORKING on that step (completedStep = currentStep - 1) must not contain distinctive strings from the correct answer
+- [ ] **Cross-phase consistency:** scenario labels mirror probe labels, reward-only scenarios are justified
+
+---
+
+## Section 8: Final Verification
 
 After implementation, before reporting done:
 
@@ -233,4 +259,5 @@ After implementation, before reporting done:
 - [ ] `bunx biome check --write` (zero errors)
 - [ ] `bun run build` (succeeds)
 - [ ] `bun test` (all pass)
+- [ ] Test file written and passing (Section 7)
 - [ ] Session log updated

@@ -437,6 +437,21 @@ If redesign is needed, use the `design-level` skill.
 - [ ] **"Next Step" button is consistent across step types.** Default variant, `size="sm"`, `className="gap-2"`.
 - [ ] **The reward phase matches the level type.** Types 3/4: interactive. Type 2: static before/after.
 
+### Tests (non-negotiable, strict only)
+
+**Lax tests are not tolerated.** A test that checks `array.length > 0` or `expect(PROBES).toBeDefined()` catches nothing. Every assertion must verify something the player would see and feel: exact feedback text, exact label matches, exact absence of answer leaks.
+
+- [ ] **Test file exists** at `src/features/actN-*/__tests__/LevelNNName.test.ts`. If a level was created or modified, it must have a test file. Missing test file = audit FAIL.
+- [ ] **Tests are strict, not lax.** Every test asserts on exact values (strings, IDs, counts), not just existence. Tests must fail when the data is wrong, not just when the data is missing.
+- [ ] **Tests cover what the player sees:**
+  - Build step quality: correct answer never first (check index), every wrong option has feedback that does NOT contain the correct answer's distinctive strings, exactly 3 options, exactly 1 correct
+  - Probe-to-scenario: every probe ID appears in scenarios, label patterns match ("X (problem)" -> "X (with fix)")
+  - Data consistency: all IDs unique, all labels unique, all scenarios have non-empty responseLines, mix of allowed/blocked
+  - Code preview answer leaks: for each OptionCard step, the code preview at completedStep N-1 does NOT contain step N's correct answer strings
+  - Discovery reachability: every discovery ID is reachable by firing all probes through PROBE_DISCOVERY_MAP
+- [ ] **Tests use mirrored data (not imported).** Data structures are copied into the test file as a snapshot.
+- [ ] **Tests pass.** Run `bun test path/to/test.ts` and verify.
+
 ### Cross-Phase Consistency (Non-Negotiable)
 
 - [ ] **Visual language is consistent across phases.** Observe/intro and reward use the same visual components and the same visual style. If the intro shows static annotated tables, the reward shows static annotated tables. If the intro shows an animated pipeline, the reward shows the same animated pipeline. Mixing styles (e.g., static tables in intro, terminal-based stress test in reward) is a cross-phase inconsistency.

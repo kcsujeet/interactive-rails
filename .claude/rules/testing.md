@@ -7,6 +7,7 @@ paths:
 
 - **Every level must have tests.** When creating or modifying a level component, write or update its test file. Tests catch data consistency bugs (contradictory SQL, wrong labels, missing response lines) that are invisible in code review but obvious in the UI.
 - **Write tests WHILE building, not after.** Tests are not a post-hoc validation step. Write the test data (mirrored frame arrays, code preview signatures, connector expectations) alongside the component data. If you cannot write a passing test for a frame array, the frame array is wrong. This is the primary defense against narrative and data flow bugs that are easy to introduce during implementation and hard to spot in review.
+- **Strict tests only. Lax tests are not tolerated.** Every assertion must test something the player would see and feel. Tests that check `array.length > 0` or `expect(X).toBeDefined()` catch nothing. Assert on exact strings, exact IDs, exact matches. If a test passes when the data is wrong, delete it and write a real one.
 - **Test file location:** `src/features/actN-*/` `__tests__/LevelNNName.test.ts` (next to the component, inside a `__tests__` directory).
 - **Use `bun:test`.** Import `describe`, `expect`, `test` from `'bun:test'`. Run with `bun test`. No Jest, Vitest, or other frameworks.
 - **Test pure logic, not React rendering.** No `@testing-library/react`, no DOM rendering. Mirror the data structures and validation logic from the component into the test file, then test them directly.
