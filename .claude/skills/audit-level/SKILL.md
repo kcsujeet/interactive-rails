@@ -267,6 +267,7 @@ For layout coordinates, edges, and state rules, see [pipelineflow-guide.md](pipe
 - [ ] **The "not reached" state is shown** (dimmed/muted with "not reached" label).
 - [ ] **The idle state shows the same structural elements as the active state.** Table headers, zone outlines, node shapes, and lane labels must be visible before any probe fires. Use placeholder rows inside the existing structure, not a different render path.
 - [ ] **Internal node indicators agree with the node's overall state.** When a probe sets a danger state on a node (red border, red flash), every internal indicator (memory gauges, progress bars, bandwidth labels, status badges) must also reflect danger. A green gauge inside a red-bordered node is a visual contradiction. For each danger-state frame, verify that `memoryMB`, badge colors, and label text all match the intended severity.
+- [ ] **Edge labels are not clipped behind nodes.** Check the x-position gap between every pair of connected nodes. The gap must be at least 300px for horizontal layouts (node widths are typically 160-208px, so 300px gap leaves ~100-140px visible for labels). Write out the longest edge label for each edge and verify it fits. Case study: L43 had nodes at x=0, x=220, x=440 (220px gaps). Edge labels "destroy(42)" and "DELETE WHERE id=42" were hidden behind nodes. Users had to drag nodes apart to read them.
 
 For visualization accuracy case studies (L15 CORS, L27 idle state), see the `design-level` skill's observe-phase-guide.md.
 

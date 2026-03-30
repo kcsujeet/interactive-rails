@@ -96,12 +96,20 @@ Complete these before any visual design. Write the answers, not just "yes/no."
 > Valid justification: "Sub-element inside [parent node] per principle 13" (e.g., middleware inside App).
 > Invalid justification: "Combined for simplicity" or "they use the same endpoint."
 
-### 2C. Node layout
+### 2C. Node layout and edge label spacing
 > Draw the layout (text diagram). Label every node and edge.
 >
 > ```
 > _[fill in]_
 > ```
+>
+> **Minimum 300px horizontal gap between connected nodes.** Write out the longest edge label that will appear during any animation. The gap between connected nodes must be wider than that label. Node widths are typically w-40 (160px) to w-52 (208px). With 300px between x-positions, the visible gap is ~100-140px which fits most labels. If your longest label exceeds that, increase the gap.
+>
+> | Node pair | x-positions | Gap (px) | Longest edge label | Fits? |
+> |-----------|-------------|----------|-------------------|-------|
+> | _[fill in]_ | _[fill in]_ | _[fill in]_ | _[fill in]_ | _[yes/no]_ |
+>
+> Case study: L43 originally placed nodes at x=0, x=220, x=440 (220px gaps). With w-40/w-44 nodes, only ~60px was visible between them. Edge labels like "DELETE WHERE id=42" were clipped behind nodes. The fix: x=0, x=300, x=600 (300px gaps).
 
 ### 2D. Visual uniqueness
 > What do adjacent levels (N-2 to N+2) look like?
