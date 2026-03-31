@@ -1,7 +1,7 @@
 /**
  * Level 30: Caching
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): Custom "Cache Waterfall" visualization.
@@ -18,8 +18,7 @@
  *   Step 4: Wrap service query in Rails.cache.fetch (OptionCard)
  *   Step 5: Add touch: true for cache invalidation (OptionCard)
  *
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Caching" button
- * Phase 4 (ADVANTAGE - reward): Same waterfall layout, now with cache layer active.
+ * Phase 3 (ADVANTAGE - reward): Same waterfall layout, now with cache layer active.
  *   Cache hits bounce back from cache layer (green). Misses fall through to DB.
  *   Invalidation scenarios flash the cache layer, then next request is a miss.
  *
@@ -35,9 +34,7 @@ import {
 	Globe,
 	HardDrive,
 	Info,
-	Play,
 	Search,
-	Star,
 	Zap,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -86,7 +83,7 @@ import { cn } from '@/lib/utils';
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'observe' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Visualization state types
@@ -335,7 +332,10 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'blocked',
 		responseLines: [
 			{ text: '201 Created', color: 'green' },
-			{ text: 'product.updated_at touched. Cache invalidated.', color: 'yellow' },
+			{
+				text: 'product.updated_at touched. Cache invalidated.',
+				color: 'yellow',
+			},
 		],
 	},
 	{
@@ -669,7 +669,7 @@ end
 		return files;
 	}
 
-	// Build / activate / reward phases: evolving code
+	// Build / reward phases: evolving code
 	if (furthestStep === 0) {
 		files.push({
 			filename: 'app/services/trending_products.rb',
@@ -1022,13 +1022,6 @@ export function Level30Caching({ onComplete }: LevelComponentProps) {
 		setVizAnimating(false);
 	}, [clearTimers]);
 
-	// ── Transition: build -> activate when all steps complete ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
-
 	// Cleanup timers on unmount
 	useEffect(() => {
 		return () => clearTimers();
@@ -1114,7 +1107,7 @@ export function Level30Caching({ onComplete }: LevelComponentProps) {
 		setPhase('build');
 	};
 
-	const handleActivateCaching = () => {
+	const handleStartReward = () => {
 		resetVisualization();
 		setPhase('reward');
 		stressTest.reset();
@@ -1414,7 +1407,9 @@ export function Level30Caching({ onComplete }: LevelComponentProps) {
 										<Info className="w-4 h-4" />
 										<AlertDescription className="text-xs">
 											Click the{' '}
-											<span className="font-medium">TrendingProducts Service</span>{' '}
+											<span className="font-medium">
+												TrendingProducts Service
+											</span>{' '}
 											layer in the visualization to inspect its code.
 										</AlertDescription>
 									</Alert>
@@ -1422,8 +1417,8 @@ export function Level30Caching({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* Build / activate phases: step progress */}
-					{(phase === 'build' || phase === 'activate') && (
+					{/* Build phase: step progress */}
+					{phase === 'build' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -1609,11 +1604,13 @@ export function Level30Caching({ onComplete }: LevelComponentProps) {
 											</>
 										)}
 
-										{isViewingCompletedStep && hasNextStep && (
+										{isViewingCompletedStep && (
 											<div className="flex justify-end">
 												<Button
 													className="gap-2"
-													onClick={stepper.nextStep}
+													onClick={
+														hasNextStep ? stepper.nextStep : handleStartReward
+													}
 													size="sm"
 												>
 													Next Step
@@ -1627,39 +1624,7 @@ export function Level30Caching({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* ── Phase 3: Activate (ADVANTAGE sub-phase a) ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex items-center justify-center p-6">
-							<div className="max-w-md text-center space-y-6">
-								<div className="flex justify-center gap-1">
-									{[1, 2, 3].map((s) => (
-										<Star
-											className={`w-8 h-8 ${
-												s <= stepper.starRating
-													? 'text-yellow-400 fill-yellow-400'
-													: 'text-muted-foreground/30'
-											}`}
-											key={s}
-										/>
-									))}
-								</div>
-								<p className="text-sm text-muted-foreground">
-									Solid Cache is configured. See how cache hits skip the
-									database entirely while invalidation keeps data fresh.
-								</p>
-								<Button
-									className="gap-2"
-									onClick={handleActivateCaching}
-									size="lg"
-								>
-									<Play className="w-4 h-4" />
-									Visualize Caching
-								</Button>
-							</div>
-						</div>
-					)}
-
-					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
+					{/* ── Phase 3: Reward (ADVANTAGE) ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
 							{/* Header */}

@@ -1,7 +1,7 @@
 /**
  * Level 25: Narrow Fetching
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): Data Table Heatmap visualization. A stylized
@@ -12,23 +12,14 @@
  * Phase 2 (HOW - build): 4 OptionCard steps. Pick the right fetching strategy
  *   (pluck, select, find_in_batches) for each scenario.
  *
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Savings" button
- * Phase 4 (ADVANTAGE - reward): Same heatmap returns, now showing narrow
+ * Phase 3 (ADVANTAGE - reward): Same heatmap returns, now showing narrow
  *   fetches working. StressTestPanel lets player fire scenarios.
  *
  * Teaches: pluck, select, find_in_batches for memory-efficient data fetching
  */
 
-import {
-	ArrowRight,
-	Database,
-	Info,
-	Layers,
-	Play,
-	Star,
-	Zap,
-} from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowRight, Database, Info, Layers, Zap } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -69,7 +60,7 @@ import { cn } from '@/lib/utils';
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'observe' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Table column schema
@@ -580,7 +571,7 @@ Product.find_in_batches(batch_size: 1000) { |batch|
 		return files;
 	}
 
-	// Activate / reward: show the fixed code
+	// Reward phase: show the fixed code
 	files.push({
 		filename: 'app/services/user_export.rb',
 		language: 'ruby',
@@ -1106,13 +1097,6 @@ export function Level25NarrowFetching({ onComplete }: LevelComponentProps) {
 		[stressTest, runRewardAnimation],
 	);
 
-	// ── Transition: build -> activate when all steps complete ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
-
 	// ── OptionCard step handler ──
 	const handleOptionClick = useCallback(
 		(option: StepOption) => {
@@ -1128,11 +1112,6 @@ export function Level25NarrowFetching({ onComplete }: LevelComponentProps) {
 	// ── Phase transition handlers ──
 	const handleStartBuild = () => {
 		setPhase('build');
-	};
-
-	const handleActivateSavings = () => {
-		setPhase('reward');
-		stressTest.reset();
 	};
 
 	// ── Completion ──
@@ -1206,8 +1185,8 @@ export function Level25NarrowFetching({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* Build / activate phases: step progress */}
-					{(phase === 'build' || phase === 'activate') && (
+					{/* Build phase: step progress */}
+					{phase === 'build' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Scenarios
@@ -1402,11 +1381,18 @@ export function Level25NarrowFetching({ onComplete }: LevelComponentProps) {
 									</>
 								)}
 
-								{isViewingCompletedStep && hasNextStep && (
+								{isViewingCompletedStep && (
 									<div className="flex justify-end">
 										<Button
 											className="gap-2"
-											onClick={stepper.nextStep}
+											onClick={
+												hasNextStep
+													? stepper.nextStep
+													: () => {
+															setPhase('reward');
+															stressTest.reset();
+														}
+											}
 											size="sm"
 										>
 											Next Step
@@ -1418,39 +1404,7 @@ export function Level25NarrowFetching({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* ── Phase 3: Activate ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex items-center justify-center p-6">
-							<div className="max-w-md text-center space-y-6">
-								<div className="flex justify-center gap-1">
-									{[1, 2, 3].map((s) => (
-										<Star
-											className={`w-8 h-8 ${
-												s <= stepper.starRating
-													? 'text-yellow-400 fill-yellow-400'
-													: 'text-muted-foreground/30'
-											}`}
-											key={s}
-										/>
-									))}
-								</div>
-								<p className="text-sm text-muted-foreground">
-									Every endpoint is now using the narrowest fetch possible. See
-									the memory savings in action.
-								</p>
-								<Button
-									className="gap-2"
-									onClick={handleActivateSavings}
-									size="lg"
-								>
-									<Play className="w-4 h-4" />
-									Visualize Savings
-								</Button>
-							</div>
-						</div>
-					)}
-
-					{/* ── Phase 4: Reward ── */}
+					{/* ── Phase 3: Reward ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col overflow-auto">
 							{/* Header */}

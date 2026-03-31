@@ -1,7 +1,7 @@
 /**
  * Level 23: The N+1 Problem
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): Interactive exploration. Click 3 spatial zones
@@ -13,14 +13,13 @@
  *   Step 0: bundle add prosopite pg_query (terminal)
  *   Step 1: Configure Prosopite in development.rb (OptionCard)
  *   Step 2: Enable strict_loading on the model (OptionCard)
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Detection" button
- * Phase 4 (ADVANTAGE - reward): Stress test. Same 3-zone React Flow layout
+ * Phase 3 (ADVANTAGE - reward): Stress test. Same 3-zone React Flow layout
  *   shows the fix. Fire patterns and watch Prosopite detect N+1 vs. safe.
  *
  * Teaches: N+1 query problem, Prosopite gem, pg_query, strict_loading
  */
 
-import { ArrowRight, Check, Info, Play, Star, X } from 'lucide-react';
+import { ArrowRight, Check, Info, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
@@ -71,7 +70,7 @@ import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'observe' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Flow animation: phase thresholds per zone
@@ -118,7 +117,10 @@ const PROBES: ProbeConfig[] = [
 			{ text: 'HTTP/1.1 200 OK', color: 'green' },
 			{ text: '', color: 'muted' },
 			{ text: 'SQL queries executed: 6', color: 'yellow' },
-			{ text: '  SELECT * FROM products              (1 query)', color: 'muted' },
+			{
+				text: '  SELECT * FROM products              (1 query)',
+				color: 'muted',
+			},
 			{ text: '  SELECT * FROM users WHERE id = 1 (+1)', color: 'red' },
 			{ text: '  SELECT * FROM users WHERE id = 2 (+1)', color: 'red' },
 			{ text: '  SELECT * FROM users WHERE id = 3 (+1)', color: 'red' },
@@ -528,7 +530,7 @@ end`,
 		return files;
 	}
 
-	// Build / activate / reward phases: show evolving code
+	// Build / reward phases: show evolving code
 	if (furthestStep === 0) {
 		files.push({
 			filename: 'app/services/post_list.rb',
@@ -838,7 +840,7 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 		const zoneIds = ['controller', 'serializer', 'database'] as const;
 		return zoneIds.map((zoneId) => {
 			const isActive = flowPhase >= ZONE_PHASE_THRESHOLD[zoneId];
-			const isAllowed = lastRewardResult === 'allowed';
+			const _isAllowed = lastRewardResult === 'allowed';
 			const isBlocked = lastRewardResult === 'blocked';
 
 			const zone: QueryZone = {
@@ -913,13 +915,6 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 		];
 	}, [flowPhase, lastRewardResult]);
 
-	// ── Transition: build -> activate when all steps complete ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
-
 	// ── Stage click handler (observe phase) ──
 	const handleStageClick = useCallback(
 		(stageId: string) => {
@@ -973,11 +968,6 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 	// ── Phase transition handlers ──
 	const handleStartBuild = () => {
 		setPhase('build');
-	};
-
-	const handleActivateDetection = () => {
-		setPhase('reward');
-		stressTest.reset();
 	};
 
 	// ── Stress test fire handler ──
@@ -1076,8 +1066,8 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* Build / activate phases: step progress */}
-					{(phase === 'build' || phase === 'activate') && (
+					{/* Build phase: step progress */}
+					{phase === 'build' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -1254,11 +1244,18 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 											</>
 										)}
 
-										{isViewingCompletedStep && hasNextStep && (
+										{isViewingCompletedStep && (
 											<div className="flex justify-end">
 												<Button
 													className="gap-2"
-													onClick={stepper.nextStep}
+													onClick={
+														hasNextStep
+															? stepper.nextStep
+															: () => {
+																	setPhase('reward');
+																	stressTest.reset();
+																}
+													}
 													size="sm"
 												>
 													Next Step
@@ -1272,39 +1269,7 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* ── Phase 3: Activate (ADVANTAGE sub-phase a) ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex items-center justify-center p-6">
-							<div className="max-w-md text-center space-y-6">
-								<div className="flex justify-center gap-1">
-									{[1, 2, 3].map((s) => (
-										<Star
-											className={`w-8 h-8 ${
-												s <= stepper.starRating
-													? 'text-yellow-400 fill-yellow-400'
-													: 'text-muted-foreground/30'
-											}`}
-											key={s}
-										/>
-									))}
-								</div>
-								<p className="text-sm text-muted-foreground">
-									Prosopite is configured and strict_loading is enabled. Fire
-									query patterns and watch N+1 detection catch the slow ones.
-								</p>
-								<Button
-									className="gap-2"
-									onClick={handleActivateDetection}
-									size="lg"
-								>
-									<Play className="w-4 h-4" />
-									Visualize Detection
-								</Button>
-							</div>
-						</div>
-					)}
-
-					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
+					{/* ── Phase 3: Reward (ADVANTAGE) ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col">
 							{/* Query zone flow showing the fix */}

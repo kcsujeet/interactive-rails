@@ -1,7 +1,7 @@
 /**
  * Level 29: Search
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: observe -> build -> reward
  *
  * Phase 1 (WHY - observe): "Document Search Grid" visualization.
  *   A single products table shown as a grid of 100 row blocks.
@@ -18,9 +18,7 @@
  *   Step 4: Configure pg_search_scope (OptionCard)
  *   Step 5: Update the service to use the search scope (OptionCard)
  *
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Search" button
- *
- * Phase 4 (ADVANTAGE - reward): Same grid returns. GIN Index Card appears
+ * Phase 3 (ADVANTAGE - reward): Same grid returns. GIN Index Card appears
  *   (inverted index showing stemmed terms -> row IDs). Matching blocks go
  *   green instantly (no red wave). The contrast teaches what a GIN index
  *   does: skip the scan, look up terms, jump to matching documents.
@@ -32,9 +30,7 @@ import {
 	ArrowRight,
 	FileCode,
 	Info,
-	Play,
 	Search,
-	Star,
 	Table2,
 	X,
 	Zap,
@@ -83,7 +79,7 @@ import { cn } from '@/lib/utils';
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'observe' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Row grid config (visual representation of table rows)
@@ -859,7 +855,7 @@ end`,
 		return files;
 	}
 
-	// Build / activate / reward phases: evolving code
+	// Build / reward phases: evolving code
 	if (furthestStep === 0) {
 		files.push({
 			filename: 'app/services/post_search.rb',
@@ -1403,13 +1399,6 @@ export function Level29Search({ onComplete }: LevelComponentProps) {
 		[lastRewardScenarioId],
 	);
 
-	// ── Transition: build -> activate when all steps complete ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
-
 	// ── Probe handler (observe phase) ──
 	const handleProbe = useCallback(
 		(probeId: string) => {
@@ -1456,7 +1445,7 @@ export function Level29Search({ onComplete }: LevelComponentProps) {
 		setPhase('build');
 	};
 
-	const handleActivateSearch = () => {
+	const handleStartReward = () => {
 		setPhase('reward');
 		stressTest.reset();
 		setLastRewardScenarioId(null);
@@ -1585,8 +1574,8 @@ export function Level29Search({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* Build / activate phases: step progress */}
-					{(phase === 'build' || phase === 'activate') && (
+					{/* Build phase: step progress */}
+					{phase === 'build' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -1803,7 +1792,8 @@ export function Level29Search({ onComplete }: LevelComponentProps) {
 											description={
 												<p className="text-sm text-muted-foreground">
 													Full-text search needs a tsvector column and a GIN
-													index on the products table. Generate the migration file.
+													index on the products table. Generate the migration
+													file.
 												</p>
 											}
 											hasNext={hasNextStep}
@@ -1892,11 +1882,13 @@ export function Level29Search({ onComplete }: LevelComponentProps) {
 											</>
 										)}
 
-										{isViewingCompletedStep && hasNextStep && (
+										{isViewingCompletedStep && (
 											<div className="flex justify-end">
 												<Button
 													className="gap-2"
-													onClick={stepper.nextStep}
+													onClick={
+														hasNextStep ? stepper.nextStep : handleStartReward
+													}
 													size="sm"
 												>
 													Next Step
@@ -1910,39 +1902,7 @@ export function Level29Search({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* ── Phase 3: Activate (ADVANTAGE sub-phase a) ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex items-center justify-center p-6">
-							<div className="max-w-md text-center space-y-6">
-								<div className="flex justify-center gap-1">
-									{[1, 2, 3].map((s) => (
-										<Star
-											className={`w-8 h-8 ${
-												s <= stepper.starRating
-													? 'text-yellow-400 fill-yellow-400'
-													: 'text-muted-foreground/30'
-											}`}
-											key={s}
-										/>
-									))}
-								</div>
-								<p className="text-sm text-muted-foreground">
-									Full-text search with GIN index is ready. Fire search queries
-									and watch results return in under 2ms.
-								</p>
-								<Button
-									className="gap-2"
-									onClick={handleActivateSearch}
-									size="lg"
-								>
-									<Play className="w-4 h-4" />
-									Visualize Search
-								</Button>
-							</div>
-						</div>
-					)}
-
-					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
+					{/* ── Phase 3: Reward (ADVANTAGE) ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col min-h-0">
 							<div className="flex-1 overflow-auto min-h-0 p-4 space-y-3">

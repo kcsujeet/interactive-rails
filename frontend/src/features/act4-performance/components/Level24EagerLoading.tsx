@@ -1,7 +1,7 @@
 /**
  * Level 24: Eager Loading
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): "SQL Timeline" visualization. 4 horizontal lanes
@@ -12,14 +12,13 @@
  *   strategy's SQL pattern via StageInspector.
  * Phase 2 (HOW - build): 3 OptionCard steps picking the right eager loading
  *   strategy for each scenario (basic includes, nested includes, eager_load).
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Optimization" button
- * Phase 4 (ADVANTAGE - reward): Stress test. Fire query scenarios and see a
+ * Phase 3 (ADVANTAGE - reward): Stress test. Fire query scenarios and see a
  *   result lane showing the applied strategy with its query pattern.
  *
  * Teaches: includes, preload, eager_load, nested eager loading
  */
 
-import { ArrowRight, Check, Info, Play, Star, X } from 'lucide-react';
+import { ArrowRight, Check, Info, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	CenterPanel,
@@ -58,7 +57,7 @@ import { cn } from '@/lib/utils';
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'observe' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Discovery definitions (observe phase)
@@ -704,7 +703,7 @@ end`,
 		return files;
 	}
 
-	// Build / activate / reward phases
+	// Build / reward phases
 	if (furthestStep === 0) {
 		files.push({
 			filename: 'app/services/post_list.rb',
@@ -1209,13 +1208,6 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 		);
 	}, [clearAnimations]);
 
-	// ── Transition: build -> activate when all steps complete ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
-
 	// ── Cleanup animation timeouts on unmount ──
 	useEffect(() => {
 		return () => clearAnimations();
@@ -1276,11 +1268,6 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 	// ── Phase transition handlers ──
 	const handleStartBuild = () => {
 		setPhase('build');
-	};
-
-	const handleActivateReward = () => {
-		setPhase('reward');
-		stressTest.reset();
 	};
 
 	// ── Stress test fire handler ──
@@ -1380,8 +1367,8 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* Build / activate phases: step progress */}
-					{(phase === 'build' || phase === 'activate') && (
+					{/* Build phase: step progress */}
+					{phase === 'build' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -1571,11 +1558,18 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 											</>
 										)}
 
-										{isViewingCompletedStep && hasNextStep && (
+										{isViewingCompletedStep && (
 											<div className="flex justify-end">
 												<Button
 													className="gap-2"
-													onClick={stepper.nextStep}
+													onClick={
+														hasNextStep
+															? stepper.nextStep
+															: () => {
+																	setPhase('reward');
+																	stressTest.reset();
+																}
+													}
 													size="sm"
 												>
 													Next Step
@@ -1589,39 +1583,7 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* ── Phase 3: Activate (ADVANTAGE sub-phase a) ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex items-center justify-center p-6">
-							<div className="max-w-md text-center space-y-6">
-								<div className="flex justify-center gap-1">
-									{[1, 2, 3].map((s) => (
-										<Star
-											className={`w-8 h-8 ${
-												s <= stepper.starRating
-													? 'text-yellow-400 fill-yellow-400'
-													: 'text-muted-foreground/30'
-											}`}
-											key={s}
-										/>
-									))}
-								</div>
-								<p className="text-sm text-muted-foreground">
-									Your eager loading strategies are set. Stress-test the
-									optimized queries and watch N+1 problems get caught.
-								</p>
-								<Button
-									className="gap-2"
-									onClick={handleActivateReward}
-									size="lg"
-								>
-									<Play className="w-4 h-4" />
-									Visualize Optimization
-								</Button>
-							</div>
-						</div>
-					)}
-
-					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
+					{/* ── Phase 3: Reward (ADVANTAGE) ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col">
 							{/* Result lane */}
@@ -1664,7 +1626,7 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 					files={getCodeFiles(phase, stepper.furthestStep)}
 					learningGoal="includes is usually right. Use eager_load when filtering on associations. Use preload when you need separate queries."
 				>
-					{(phase === 'activate' || phase === 'reward') && (
+					{phase === 'reward' && (
 						<>
 							<div className="p-4 border-t border-border">
 								<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">

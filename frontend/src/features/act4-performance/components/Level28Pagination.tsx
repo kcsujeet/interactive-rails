@@ -1,7 +1,7 @@
 /**
  * Level 28: Pagination
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): Custom "Page Stack + Response Payload" visualization.
@@ -17,24 +17,14 @@
  *   Step 3: Wire up pagy(:offset, Product.includes(:user)) (OptionCard)
  *   Step 4: Add response.headers.merge!(@pagy.headers_hash) (OptionCard)
  *
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Pagination" button
- * Phase 4 (ADVANTAGE - reward): Same two-zone layout, now showing the fix.
+ * Phase 3 (ADVANTAGE - reward): Same two-zone layout, now showing the fix.
  *   Allowed: one bar glows green (page window), response shows 6KB.
  *   Blocked (page 99999): all bars dim, response shows overflow error.
  *
  * Teaches: Pagy v43 gem, Pagy::Method, Pagy::OPTIONS, pagy(:offset, ...), headers_hash
  */
 
-import {
-	ArrowRight,
-	Database,
-	Globe,
-	Info,
-	Play,
-	Search,
-	Star,
-	Zap,
-} from 'lucide-react';
+import { ArrowRight, Database, Globe, Info, Search, Zap } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
@@ -81,7 +71,7 @@ import { cn } from '@/lib/utils';
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'observe' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Visualization state types
@@ -600,7 +590,7 @@ end
 		return files;
 	}
 
-	// Build / activate / reward phases: evolving code
+	// Build / reward phases: evolving code
 	if (furthestStep === 0) {
 		// Show the broken service (same as observe)
 		files.push({
@@ -881,13 +871,6 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 		setVizAnimating(false);
 	}, [clearCascadeTimers]);
 
-	// ── Transition: build -> activate when all steps complete ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
-
 	// Cleanup timers on unmount
 	useEffect(() => {
 		return () => clearCascadeTimers();
@@ -969,7 +952,7 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 		setPhase('build');
 	};
 
-	const handleActivatePagination = () => {
+	const handleStartReward = () => {
 		resetVisualization();
 		setPhase('reward');
 		stressTest.reset();
@@ -1276,8 +1259,8 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* Build / activate phases: step progress */}
-					{(phase === 'build' || phase === 'activate') && (
+					{/* Build phase: step progress */}
+					{phase === 'build' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -1470,11 +1453,13 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 											</>
 										)}
 
-										{isViewingCompletedStep && hasNextStep && (
+										{isViewingCompletedStep && (
 											<div className="flex justify-end">
 												<Button
 													className="gap-2"
-													onClick={stepper.nextStep}
+													onClick={
+														hasNextStep ? stepper.nextStep : handleStartReward
+													}
 													size="sm"
 												>
 													Next Step
@@ -1488,39 +1473,7 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* ── Phase 3: Activate (ADVANTAGE sub-phase a) ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex items-center justify-center p-6">
-							<div className="max-w-md text-center space-y-6">
-								<div className="flex justify-center gap-1">
-									{[1, 2, 3].map((s) => (
-										<Star
-											className={`w-8 h-8 ${
-												s <= stepper.starRating
-													? 'text-yellow-400 fill-yellow-400'
-													: 'text-muted-foreground/30'
-											}`}
-											key={s}
-										/>
-									))}
-								</div>
-								<p className="text-sm text-muted-foreground">
-									Pagy is wired up. See how paginated responses stay small
-									regardless of dataset size.
-								</p>
-								<Button
-									className="gap-2"
-									onClick={handleActivatePagination}
-									size="lg"
-								>
-									<Play className="w-4 h-4" />
-									Visualize Pagination
-								</Button>
-							</div>
-						</div>
-					)}
-
-					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
+					{/* ── Phase 3: Reward (ADVANTAGE) ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
 							{/* Header */}

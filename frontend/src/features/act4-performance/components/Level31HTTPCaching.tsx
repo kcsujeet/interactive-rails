@@ -1,7 +1,7 @@
 /**
  * Level 31: HTTP Caching & CDNs
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): Interactive exploration of uncached HTTP requests.
@@ -9,15 +9,14 @@
  *   hitting the origin server at full cost. Discovery gating unlocks build.
  * Phase 2 (HOW - build): 4 OptionCard steps choosing Cache-Control strategies
  *   for different endpoint types (public catalog, ETag, static assets, private data).
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Caching" button
- * Phase 4 (ADVANTAGE - reward): Stress test. Fire request scenarios and watch
+ * Phase 3 (ADVANTAGE - reward): Stress test. Fire request scenarios and watch
  *   cache hits, 304s, and CDN edge responses.
  *
  * Teaches: Cache-Control, ETags, 304 responses, CDN configuration, stale?
  */
 
-import { ArrowRight, Check, Play, Star, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowRight, Check, X } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -57,7 +56,7 @@ import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'observe' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Discovery definitions (observe phase)
@@ -497,7 +496,7 @@ end`,
 		return files;
 	}
 
-	// Build / activate / reward: show evolving code with service pattern
+	// Build / reward: show evolving code with service pattern
 	if (furthestStep === 0) {
 		files.push({
 			filename: 'app/controllers/api/v1/products_controller.rb',
@@ -742,13 +741,6 @@ export function Level31HTTPCaching({ onComplete }: LevelComponentProps) {
 		];
 	}, [lastResult]);
 
-	// ── Transition: build -> activate when all steps complete ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
-
 	// ── Stage click handler (observe phase) ──
 	const handleStageClick = useCallback(
 		(stageId: string) => {
@@ -803,7 +795,7 @@ export function Level31HTTPCaching({ onComplete }: LevelComponentProps) {
 		setPhase('build');
 	};
 
-	const handleActivateCaching = () => {
+	const handleStartReward = () => {
 		setPhase('reward');
 		stressTest.reset();
 	};
@@ -869,8 +861,8 @@ export function Level31HTTPCaching({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* Build / activate phases: step progress */}
-					{(phase === 'build' || phase === 'activate') && (
+					{/* Build phase: step progress */}
+					{phase === 'build' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -1009,11 +1001,13 @@ export function Level31HTTPCaching({ onComplete }: LevelComponentProps) {
 									</>
 								)}
 
-								{isViewingCompletedStep && hasNextStep && (
+								{isViewingCompletedStep && (
 									<div className="flex justify-end">
 										<Button
 											className="gap-2"
-											onClick={stepper.nextStep}
+											onClick={
+												hasNextStep ? stepper.nextStep : handleStartReward
+											}
 											size="sm"
 										>
 											Next Step
@@ -1025,39 +1019,7 @@ export function Level31HTTPCaching({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* ── Phase 3: Activate (ADVANTAGE sub-phase a) ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex items-center justify-center p-6">
-							<div className="max-w-md text-center space-y-6">
-								<div className="flex justify-center gap-1">
-									{[1, 2, 3].map((s) => (
-										<Star
-											className={`w-8 h-8 ${
-												s <= stepper.starRating
-													? 'text-yellow-400 fill-yellow-400'
-													: 'text-muted-foreground/30'
-											}`}
-											key={s}
-										/>
-									))}
-								</div>
-								<p className="text-sm text-muted-foreground">
-									Your caching strategy is configured. See CDN hits, 304
-									responses, and browser cache serving requests instantly.
-								</p>
-								<Button
-									className="gap-2"
-									onClick={handleActivateCaching}
-									size="lg"
-								>
-									<Play className="w-4 h-4" />
-									Visualize Caching
-								</Button>
-							</div>
-						</div>
-					)}
-
-					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
+					{/* ── Phase 3: Reward (ADVANTAGE) ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">

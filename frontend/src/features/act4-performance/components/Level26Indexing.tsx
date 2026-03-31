@@ -1,7 +1,7 @@
 /**
  * Level 26: Database Indexing
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: observe -> build -> reward
  *
  * Phase 1 (WHY - observe): "Table Row Grid" visualization.
  *   3 lanes, each showing a database table as a grid of row blocks.
@@ -11,9 +11,7 @@
  *
  * Phase 2 (HOW - build): 5 steps building database indexes via migrations
  *
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Performance" button
- *
- * Phase 4 (ADVANTAGE - reward): Same lanes return. Index Scan shows an
+ * Phase 3 (ADVANTAGE - reward): Same lanes return. Index Scan shows an
  *   IndexLookupCard (sorted B-tree entries with arrow to match), then ONLY the
  *   match block(s) turn green instantly. No red wave. The contrast teaches
  *   what an index does: skip the scan, jump to the answer.
@@ -25,9 +23,7 @@ import {
 	ArrowRight,
 	Database,
 	Info,
-	Play,
 	Search,
-	Star,
 	Table2,
 	X,
 	Zap,
@@ -76,7 +72,7 @@ import { cn } from '@/lib/utils';
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'observe' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Query lane data types
@@ -838,7 +834,7 @@ end`,
 		return files;
 	}
 
-	// Build / activate / reward phases: evolving migration code
+	// Build / reward phases: evolving migration code
 	if (furthestStep === 0) {
 		files.push({
 			filename: 'db/migrate/add_indexes.rb',
@@ -1461,13 +1457,6 @@ export function Level26Indexing({ onComplete }: LevelComponentProps) {
 		[clearAnimations],
 	);
 
-	// ── Transition: build -> activate when all steps complete ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
-
 	// ── Probe handler (observe phase) ──
 	const handleProbe = useCallback(
 		(probeId: string) => {
@@ -1536,7 +1525,7 @@ export function Level26Indexing({ onComplete }: LevelComponentProps) {
 		setPhase('build');
 	};
 
-	const handleActivateIndexes = () => {
+	const handleStartReward = () => {
 		setPhase('reward');
 		stressTest.reset();
 		setLastRewardScenarioId(null);
@@ -1653,8 +1642,8 @@ export function Level26Indexing({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* Build / activate phases: step progress */}
-					{(phase === 'build' || phase === 'activate') && (
+					{/* Build phase: step progress */}
+					{phase === 'build' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -1832,13 +1821,13 @@ export function Level26Indexing({ onComplete }: LevelComponentProps) {
 													migration to create the indexes in the database.
 												</p>
 											}
-											hasNext={hasNextStep}
+											hasNext
 											initialHistory={buildTerminalHistory(
 												SHELL_STEP_MAP,
 												stepper.currentStep,
 											)}
 											onCorrect={() => stepper.completeStep()}
-											onNext={stepper.nextStep}
+											onNext={handleStartReward}
 											onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 											outputLines={runMigrationOutput}
 											stepKey={stepper.currentStep}
@@ -1891,11 +1880,13 @@ export function Level26Indexing({ onComplete }: LevelComponentProps) {
 											</>
 										)}
 
-										{isViewingCompletedStep && hasNextStep && (
+										{isViewingCompletedStep && (
 											<div className="flex justify-end">
 												<Button
 													className="gap-2"
-													onClick={stepper.nextStep}
+													onClick={
+														hasNextStep ? stepper.nextStep : handleStartReward
+													}
 													size="sm"
 												>
 													Next Step
@@ -1909,39 +1900,7 @@ export function Level26Indexing({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* ── Phase 3: Activate (ADVANTAGE sub-phase a) ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex items-center justify-center p-6">
-							<div className="max-w-md text-center space-y-6">
-								<div className="flex justify-center gap-1">
-									{[1, 2, 3].map((s) => (
-										<Star
-											className={`w-8 h-8 ${
-												s <= stepper.starRating
-													? 'text-yellow-400 fill-yellow-400'
-													: 'text-muted-foreground/30'
-											}`}
-											key={s}
-										/>
-									))}
-								</div>
-								<p className="text-sm text-muted-foreground">
-									Your indexes are ready. Watch queries switch from Seq Scan to
-									Index Scan across different scenarios.
-								</p>
-								<Button
-									className="gap-2"
-									onClick={handleActivateIndexes}
-									size="lg"
-								>
-									<Play className="w-4 h-4" />
-									Visualize Performance
-								</Button>
-							</div>
-						</div>
-					)}
-
-					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
+					{/* ── Phase 3: Reward (ADVANTAGE) ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col min-h-0">
 							<div className="flex-1 overflow-auto min-h-0 p-4 space-y-3">
@@ -1985,7 +1944,7 @@ export function Level26Indexing({ onComplete }: LevelComponentProps) {
 									disabled={isAnimating}
 									isAutoFiring={stressTest.isAutoFiring}
 									onFire={handleFireScenario}
-									onToggleAutoFire={stressTest.toggleAutoFire}
+									onToggleAutoFire={() => stressTest.toggleAutoFire(handleFireScenario)}
 									results={stressTest.results}
 									scenarios={STRESS_SCENARIOS}
 								/>

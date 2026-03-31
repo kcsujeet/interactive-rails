@@ -1,7 +1,7 @@
 /**
  * Level 27: Counter Caches
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): Custom "Query Cascade" visualization.
@@ -17,22 +17,14 @@
  *   Step 2: Reset existing counters (OptionCard)
  *   Step 3: Update serializer to use .size (OptionCard)
  *
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Counter Cache" button
- * Phase 4 (ADVANTAGE - reward): Same visualization, now showing the fix.
+ * Phase 3 (ADVANTAGE - reward): Same visualization, now showing the fix.
  *   Allowed: all blocks appear green instantly (counts embedded in posts.*).
  *   Blocked (.count bypasses): red cascade returns, showing the problem persists.
  *
  * Teaches: counter_cache: true, migration conventions, reset_counters, .size vs .count
  */
 
-import {
-	ArrowRight,
-	Database,
-	Play,
-	Star,
-	TrendingDown,
-	Zap,
-} from 'lucide-react';
+import { ArrowRight, Database, TrendingDown, Zap } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
@@ -72,7 +64,7 @@ import { cn } from '@/lib/utils';
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'observe' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Visualization state types
@@ -251,7 +243,8 @@ const COUNTER_CACHE_OPTIONS: StepOption[] = [
 	},
 	{
 		id: 'after-create',
-		label: 'after_create { Product.increment_counter(:reviews_count, product_id) }',
+		label:
+			'after_create { Product.increment_counter(:reviews_count, product_id) }',
 		correct: false,
 		feedback:
 			'Manual callbacks are error-prone. You would also need after_destroy, after_update, and handle edge cases. Rails provides a built-in option.',
@@ -429,7 +422,10 @@ const STRESS_SCENARIOS: StressScenario[] = [
 				text: 'Product Load (2.4ms)  SELECT "products".* FROM "products" LIMIT 100',
 				color: 'yellow',
 			},
-			{ text: '  product.reviews.count -> 100 COUNT(*) queries!', color: 'red' },
+			{
+				text: '  product.reviews.count -> 100 COUNT(*) queries!',
+				color: 'red',
+			},
 			{
 				text: '  .count ALWAYS runs SQL, ignoring the cached column',
 				color: 'red',
@@ -653,7 +649,7 @@ end
 		];
 	}
 
-	// All steps complete (activate + reward)
+	// All steps complete (reward)
 	return [
 		{
 			filename: 'app/services/post_list.rb',
@@ -788,13 +784,6 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 		setVizAnimating(false);
 	}, [clearCascadeTimers]);
 
-	// ── Transition: build -> activate when all steps complete ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
-
 	// Cleanup timers on unmount
 	useEffect(() => {
 		return () => clearCascadeTimers();
@@ -858,7 +847,7 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 		resetVisualization();
 		setPhase('build');
 	};
-	const handleActivateReward = () => {
+	const handleStartReward = () => {
 		resetVisualization();
 		setPhase('reward');
 		stressTest.reset();
@@ -1140,7 +1129,7 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 					)}
 
 					{/* Build: Step progress */}
-					{(phase === 'build' || phase === 'activate') && (
+					{phase === 'build' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -1335,11 +1324,13 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 											</>
 										)}
 
-										{isViewingCompletedStep && hasNextStep && (
+										{isViewingCompletedStep && (
 											<div className="flex justify-end">
 												<Button
 													className="gap-2"
-													onClick={stepper.nextStep}
+													onClick={
+														hasNextStep ? stepper.nextStep : handleStartReward
+													}
 													size="sm"
 												>
 													Next Step
@@ -1353,40 +1344,7 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* ── Phase 3: Activate ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex items-center justify-center p-6">
-							<div className="max-w-md text-center space-y-6">
-								<div className="flex justify-center gap-1">
-									{[1, 2, 3].map((s) => (
-										<Star
-											className={`w-8 h-8 ${
-												s <= stepper.starRating
-													? 'text-yellow-400 fill-yellow-400'
-													: 'text-muted-foreground/30'
-											}`}
-											key={s}
-										/>
-									))}
-								</div>
-								<p className="text-sm text-muted-foreground">
-									Counter cache is configured. Rails will auto-increment and
-									auto-decrement reviews_count on create and destroy. See it
-									handle any scale.
-								</p>
-								<Button
-									className="gap-2"
-									onClick={handleActivateReward}
-									size="lg"
-								>
-									<Play className="w-4 h-4" />
-									Visualize Counter Cache
-								</Button>
-							</div>
-						</div>
-					)}
-
-					{/* ── Phase 4: Reward ── */}
+					{/* ── Phase 3: Reward ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col min-h-0">
 							{/* Header */}
