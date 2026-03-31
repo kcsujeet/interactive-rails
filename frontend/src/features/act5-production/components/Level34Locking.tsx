@@ -1,7 +1,7 @@
 /**
  * Level 34: Locking (Concurrency Control)
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): Split-screen concurrency visualization.
@@ -17,8 +17,7 @@
  *   Step 3: Build PlaceOrder service with contract + lock (OptionCard)
  *   Step 4: Handle StaleObjectError for optimistic locking (OptionCard)
  *
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Locking" button
- * Phase 4 (ADVANTAGE - reward): Same layout, now showing locks working.
+ * Phase 3 (ADVANTAGE - reward): Same layout, now showing locks working.
  *   Request A acquires lock, Request B waits, then processes with fresh data.
  *
  * Teaches: Product.lock.find, with_lock, lock_version, optimistic vs
@@ -32,10 +31,8 @@ import {
 	Cpu,
 	Database,
 	Lock,
-	Play,
 	Save,
 	ShieldCheck,
-	Star,
 	Unlock,
 	Zap,
 } from 'lucide-react';
@@ -77,7 +74,7 @@ import { cn } from '@/lib/utils';
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'observe' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Discovery definitions (observe phase)
@@ -1434,13 +1431,6 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 
 	useEffect(() => () => clearTimers(), [clearTimers]);
 
-	// ── Phase transitions ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
-
 	// ── Apply a single animation frame ──
 	const applyFrame = useCallback((frame: AnimationFrame) => {
 		if (frame.dbRow) {
@@ -1663,8 +1653,9 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 		setPhase('build');
 	};
 
-	const handleActivateReward = () => {
+	const handleStartReward = () => {
 		setPhase('reward');
+		stressTest.reset();
 		setVizStarted(false);
 		setShowRequestB(true);
 		setDbRow({
@@ -1824,13 +1815,14 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 						{phase === 'observe' && (
 							<div className="p-4">
 								<DiscoveryChecklist
+									discoveredCount={discoveryGating.discoveredCount}
 									discoveries={discoveryGating.discoveries}
 									minRequired={discoveryGating.minRequired}
 								/>
 							</div>
 						)}
 
-						{(phase === 'build' || phase === 'activate') && (
+						{phase === 'build' && (
 							<div className="p-4">
 								<StepProgress
 									currentStep={stepper.currentStep}
@@ -1978,9 +1970,14 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 										)}
 									</div>
 
-									{isViewingCompletedStep && hasNextStep && (
+									{isViewingCompletedStep && (
 										<div className="flex justify-end">
-											<Button onClick={stepper.nextStep} variant="outline">
+											<Button
+												onClick={
+													hasNextStep ? stepper.nextStep : handleStartReward
+												}
+												variant="outline"
+											>
 												Next Step
 												<ArrowRight className="w-4 h-4" />
 											</Button>
@@ -1988,36 +1985,6 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 									)}
 								</div>
 							) : null}
-						</div>
-					)}
-
-					{/* ── ACTIVATE PHASE ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex flex-col items-center justify-center gap-6">
-							<div className="flex items-center gap-1">
-								{[1, 2, 3].map((s) => (
-									<Star
-										className={cn(
-											'w-8 h-8',
-											s <= stepper.starRating
-												? 'text-yellow-500 fill-yellow-500'
-												: 'text-muted-foreground',
-										)}
-										key={s}
-									/>
-								))}
-							</div>
-							<p className="text-muted-foreground text-sm">
-								{stepper.starRating === 3
-									? 'Perfect! No wrong attempts.'
-									: stepper.starRating === 2
-										? 'Good work! A couple of missteps.'
-										: 'Complete! Room for improvement.'}
-							</p>
-							<Button onClick={handleActivateReward} size="lg">
-								<Play className="w-4 h-4" />
-								Visualize Locking
-							</Button>
 						</div>
 					)}
 
@@ -2067,7 +2034,9 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 							</li>
 							<li className="flex items-start gap-1.5">
 								<Unlock className="w-3 h-3 mt-0.5 shrink-0 text-primary" />
-								<span>Optimistic (lock_version): product listings, CMS pages</span>
+								<span>
+									Optimistic (lock_version): product listings, CMS pages
+								</span>
 							</li>
 							<li className="flex items-start gap-1.5">
 								<Clock className="w-3 h-3 mt-0.5 shrink-0 text-primary" />

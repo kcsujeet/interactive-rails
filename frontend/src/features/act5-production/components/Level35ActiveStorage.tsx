@@ -1,7 +1,7 @@
 /**
  * Level 35: Active Storage
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): Custom "Upload Pipeline" visualization.
@@ -22,8 +22,7 @@
  *   Step 4: Build UploadAvatar service with contract (OptionCard)
  *   Step 5: Create direct upload endpoint (OptionCard)
  *
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Direct Upload" button
- * Phase 4 (ADVANTAGE - reward): Three-zone pipeline (Client, App Server, S3).
+ * Phase 3 (ADVANTAGE - reward): Three-zone pipeline (Client, App Server, S3).
  *   S3 appears for the first time, reinforcing that Active Storage added it.
  *   Allowed: Files go directly to S3 (bypassing app memory), variants served via CDN.
  *   Blocked: Invalid content type, oversized files caught by contract.
@@ -39,9 +38,7 @@ import {
 	Cloud,
 	HardDrive,
 	Monitor,
-	Play,
 	Server,
-	Star,
 	Zap,
 } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -88,7 +85,7 @@ import { cn } from '@/lib/utils';
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'observe' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Animation types and frame data
@@ -1357,7 +1354,7 @@ end`,
 		];
 	}
 
-	// reward / activate
+	// reward
 	return [
 		{
 			filename: 'app/controllers/api/v1/direct_uploads_controller.rb',
@@ -1767,12 +1764,10 @@ export function Level35ActiveStorage({ onComplete }: LevelComponentProps) {
 	// Clear timers on unmount
 	useEffect(() => () => clearTimers(), [clearTimers]);
 
-	// Auto-advance to activate when build completes
-	useEffect(() => {
-		if (stepper.isComplete && phase === 'build') {
-			setPhase('activate');
-		}
-	}, [stepper.isComplete, phase]);
+	const handleStartReward = useCallback(() => {
+		setPhase('reward');
+		stressTest.reset();
+	}, [stressTest]);
 
 	// ── Observe phase: probe handler ──
 	const handleProbe = useCallback(
@@ -2014,16 +2009,6 @@ export function Level35ActiveStorage({ onComplete }: LevelComponentProps) {
 			);
 		}
 
-		if (phase === 'activate') {
-			return (
-				<InstructionPanel
-					goal="Active Storage is configured. Test the direct upload pipeline."
-					instructions={[]}
-					scenario="Direct upload with presigned URLs, image variants, and content validation are all in place."
-				/>
-			);
-		}
-
 		// reward
 		return (
 			<InstructionPanel
@@ -2175,31 +2160,21 @@ export function Level35ActiveStorage({ onComplete }: LevelComponentProps) {
 						))}
 					</div>
 
-					{stepper.isCurrentStepCompleted &&
-						currentStep < STEP_DEFS.length - 1 && (
-							<div className="mt-4 flex justify-end">
-								<Button onClick={stepper.nextStep} variant="outline">
-									Next Step
-									<ArrowRight className="w-4 h-4 ml-2" />
-								</Button>
-							</div>
-						)}
-				</div>
-			);
-		}
-
-		if (phase === 'activate') {
-			return (
-				<div className="flex-1 flex flex-col items-center justify-center gap-6">
-					<div className="flex gap-1">
-						{[1, 2, 3].map((s) => (
-							<Star className="w-8 h-8 fill-amber-400 text-amber-400" key={s} />
-						))}
-					</div>
-					<Button onClick={() => setPhase('reward')} size="lg">
-						<Play className="w-4 h-4 mr-2" />
-						Visualize Direct Upload
-					</Button>
+					{stepper.isCurrentStepCompleted && (
+						<div className="mt-4 flex justify-end">
+							<Button
+								onClick={
+									currentStep < STEP_DEFS.length - 1
+										? stepper.nextStep
+										: handleStartReward
+								}
+								variant="outline"
+							>
+								Next Step
+								<ArrowRight className="w-4 h-4 ml-2" />
+							</Button>
+						</div>
+					)}
 				</div>
 			);
 		}

@@ -1,7 +1,7 @@
 /**
  * Level 33: Transactions (Atomicity)
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): "Database Snapshot" visualization.
@@ -16,8 +16,7 @@
  *   Step 2: Handle custom abort with raise ActiveRecord::Rollback
  *   Step 3: Build BoostPost service with contract + transaction
  *
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Transactions" button
- * Phase 4 (ADVANTAGE - reward): Same DB snapshot, now with transaction boundary
+ * Phase 3 (ADVANTAGE - reward): Same DB snapshot, now with transaction boundary
  *   (dashed border). On success, all tables update + COMMIT label. On failure,
  *   tables flash red then revert to original values + ROLLBACK label.
  *
@@ -33,10 +32,8 @@ import {
 	Database,
 	FileText,
 	Loader2,
-	Play,
 	Rocket,
 	ShieldCheck,
-	Star,
 	Zap,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -74,7 +71,7 @@ import { cn } from '@/lib/utils';
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'observe' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Discovery definitions (observe phase)
@@ -886,7 +883,7 @@ end
 		}
 	}
 
-	// Activate + reward: complete solution
+	// Reward: complete solution
 	return [
 		{
 			filename: 'app/contracts/boost_contract.rb',
@@ -1030,13 +1027,6 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 	}, []);
 
 	useEffect(() => () => clearTimers(), [clearTimers]);
-
-	// ── Phase transitions ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
 
 	// ── Observe: probe handler ──
 	const handleProbe = useCallback(
@@ -1301,8 +1291,9 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 		setOpStates(['idle', 'idle', 'idle']);
 	};
 
-	const handleActivateReward = () => {
+	const handleStartReward = () => {
 		setPhase('reward');
+		stressTest.reset();
 		setRewardDb({ ...INITIAL_DB });
 		setRewardFlash({ ...INITIAL_FLASH });
 		setRewardOps(['idle', 'idle', 'idle']);
@@ -1417,13 +1408,11 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 										'Handle business rule failures with rollback',
 										'Build a service with contract and transaction',
 									]
-								: phase === 'reward'
-									? [
-											'Fire scenarios to verify transactions protect integrity',
-											'Watch failures trigger rollbacks across all operations',
-											'See how the pipeline handles edge cases atomically',
-										]
-									: ['Review your star rating and visualize the solution']
+								: [
+										'Fire scenarios to verify transactions protect integrity',
+										'Watch failures trigger rollbacks across all operations',
+										'See how the pipeline handles edge cases atomically',
+									]
 					}
 					scenario="The boost pipeline deducts user credits, creates a boost record, and logs a credit entry. Without a transaction, a failure at step 2 or 3 leaves the database in an inconsistent state."
 				>
@@ -1431,13 +1420,14 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 						{phase === 'observe' && (
 							<div className="p-4">
 								<DiscoveryChecklist
+									discoveredCount={discoveryGating.discoveredCount}
 									discoveries={discoveryGating.discoveries}
 									minRequired={discoveryGating.minRequired}
 								/>
 							</div>
 						)}
 
-						{(phase === 'build' || phase === 'activate') && (
+						{phase === 'build' && (
 							<div className="p-4">
 								<StepProgress
 									currentStep={stepper.currentStep}
@@ -1553,45 +1543,20 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 									)}
 								</div>
 
-								{isViewingCompletedStep && hasNextStep && (
+								{isViewingCompletedStep && (
 									<div className="flex justify-end">
-										<Button onClick={stepper.nextStep} variant="outline">
+										<Button
+											onClick={
+												hasNextStep ? stepper.nextStep : handleStartReward
+											}
+											variant="outline"
+										>
 											Next Step
 											<ArrowRight className="w-4 h-4" />
 										</Button>
 									</div>
 								)}
 							</div>
-						</div>
-					)}
-
-					{/* ── ACTIVATE PHASE ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex flex-col items-center justify-center gap-6">
-							<div className="flex items-center gap-1">
-								{[1, 2, 3].map((s) => (
-									<Star
-										className={cn(
-											'w-8 h-8',
-											s <= stepper.starRating
-												? 'text-yellow-500 fill-yellow-500'
-												: 'text-muted-foreground',
-										)}
-										key={s}
-									/>
-								))}
-							</div>
-							<p className="text-muted-foreground text-sm">
-								{stepper.starRating === 3
-									? 'Perfect! No wrong attempts.'
-									: stepper.starRating === 2
-										? 'Good work! A couple of missteps.'
-										: 'Complete! Room for improvement.'}
-							</p>
-							<Button onClick={handleActivateReward} size="lg">
-								<Play className="w-4 h-4" />
-								Visualize Transactions
-							</Button>
 						</div>
 					)}
 

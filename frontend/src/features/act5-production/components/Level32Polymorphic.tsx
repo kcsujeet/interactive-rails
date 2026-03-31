@@ -1,7 +1,7 @@
 /**
  * Level 32: Polymorphic Associations
  *
- * Sequential phase flow: intro -> build -> activate -> reward
+ * Sequential phase flow: intro -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - intro): Type 2 static intro. Annotated schema display showing
@@ -17,17 +17,15 @@
  *   Step 4: Create CreateReview service object (OptionCard)
  *   Step 5: Wire controller to use service (OptionCard)
  *
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Polymorphic" button
- * Phase 4 (ADVANTAGE - reward): Single unified Review table, connected to all
- *   3 parent models. StressTestPanel fires review creation scenarios on
- *   different parent types, including a new Article type to show extensibility.
+ * Phase 3 (ADVANTAGE - reward): Single unified Review table, connected to all
+ *   3 parent models. Before/after comparison showing consolidation.
  *
  * Teaches: polymorphic: true, reviewable_type/id columns, has_many as:,
  *   service objects for review creation, contract validation
  */
 
-import { ArrowRight, Database, Play, Star, Table2, Zap } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { ArrowRight, Database, Table2, Zap } from 'lucide-react';
+import { useCallback, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -53,7 +51,7 @@ import { cn } from '@/lib/utils';
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'intro' | 'build' | 'activate' | 'reward';
+type Phase = 'intro' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Table schema definitions (static intro display)
@@ -123,8 +121,7 @@ const MIGRATION_COMMANDS = [
 	},
 	{
 		id: 'correct-polymorphic',
-		label:
-			'rails g model Review body:text reviewable:references{polymorphic}',
+		label: 'rails g model Review body:text reviewable:references{polymorphic}',
 		command:
 			'rails generate model Review body:text reviewable:references{polymorphic} user:references',
 		correct: true,
@@ -682,7 +679,7 @@ end`,
 		}
 	}
 
-	// Activate + reward: complete solution
+	// Reward: complete solution
 	return [
 		{
 			filename: 'app/models/review.rb',
@@ -786,13 +783,6 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 	// Gating hooks
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 
-	// ── Phase transitions ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
-
 	// ── Build: option click handler ──
 	const handleOptionClick = useCallback(
 		(option: { correct: boolean; feedback?: string }) => {
@@ -808,10 +798,6 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 	// ── Phase transition handlers ──
 	const handleStartBuild = () => {
 		setPhase('build');
-	};
-
-	const handleActivateReward = () => {
-		setPhase('reward');
 	};
 
 	const handleComplete = async () => {
@@ -897,13 +883,11 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 										'Build a service object with contract validation',
 										'Wire the controller to use the service',
 									]
-								: phase === 'reward'
-									? [
-											'Compare the before (3 tables) and after (1 table)',
-											'Notice the polymorphic columns replace separate foreign keys',
-											'New types like Article need zero schema changes',
-										]
-									: ['Review your star rating and visualize the solution']
+								: [
+										'Compare the before (3 tables) and after (1 table)',
+										'Notice the polymorphic columns replace separate foreign keys',
+										'New types like Article need zero schema changes',
+									]
 					}
 					scenario="Photos and Videos now need reviews alongside Posts. Three separate review tables with identical schemas, duplicated validations, and scattered queries. Polymorphic associations can unify them."
 				>
@@ -912,8 +896,9 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 						{phase === 'intro' && (
 							<div className="p-4 text-xs text-muted-foreground space-y-2">
 								<p>
-									Three models need reviews: Product, ProductImage, and ProductVideo. Each has
-									its own review table with nearly identical schemas.
+									Three models need reviews: Product, ProductImage, and
+									ProductVideo. Each has its own review table with nearly
+									identical schemas.
 								</p>
 								<p>
 									Polymorphic associations replace all three with a single
@@ -922,7 +907,7 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 							</div>
 						)}
 
-						{(phase === 'build' || phase === 'activate') && (
+						{phase === 'build' && (
 							<div className="p-4">
 								<StepProgress
 									currentStep={stepper.currentStep}
@@ -1160,9 +1145,16 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 										)}
 									</div>
 
-									{isViewingCompletedStep && hasNextStep && (
+									{isViewingCompletedStep && (
 										<div className="flex justify-end">
-											<Button onClick={stepper.nextStep} variant="outline">
+											<Button
+												onClick={
+													hasNextStep
+														? stepper.nextStep
+														: () => setPhase('reward')
+												}
+												variant="outline"
+											>
 												Next Step
 												<ArrowRight className="w-4 h-4" />
 											</Button>
@@ -1170,36 +1162,6 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 									)}
 								</div>
 							) : null}
-						</div>
-					)}
-
-					{/* ── ACTIVATE PHASE ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex flex-col items-center justify-center gap-6">
-							<div className="flex items-center gap-1">
-								{[1, 2, 3].map((s) => (
-									<Star
-										className={cn(
-											'w-8 h-8',
-											s <= stepper.starRating
-												? 'text-yellow-500 fill-yellow-500'
-												: 'text-muted-foreground',
-										)}
-										key={s}
-									/>
-								))}
-							</div>
-							<p className="text-muted-foreground text-sm">
-								{stepper.starRating === 3
-									? 'Perfect! No wrong attempts.'
-									: stepper.starRating === 2
-										? 'Good work! A couple of missteps.'
-										: 'Complete! Room for improvement.'}
-							</p>
-							<Button onClick={handleActivateReward} size="lg">
-								<Play className="w-4 h-4" />
-								Visualize Polymorphic Reviews
-							</Button>
 						</div>
 					)}
 
