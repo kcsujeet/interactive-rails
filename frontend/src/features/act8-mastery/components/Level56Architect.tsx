@@ -1,946 +1,2626 @@
 /**
- * Level 51: The Architect (Capstone)
+ * Level 56: The Architect (Capstone)
  *
- * Full architecture canvas. Apply every concept from the game.
- * Extract billing from a monolith using state machines, domain events,
- * API gateway, multi-database, observability, tenant isolation,
- * background jobs, and circuit breakers.
+ * Sequential phase flow: observe -> build -> reward
+ *
+ * Phase 1 (WHY - observe): Custom visualization showing Order monolith coupled
+ *   to 5 services (Stripe, Email, Inventory, Analytics, Loyalty). All calls
+ *   synchronous. Probes reveal sync blocking, missing state guards, deploy
+ *   entanglement, and cascade failures.
+ *
+ * Phase 2 (HOW - build): 7 steps (1 terminal + 6 OptionCard)
+ *   Step 0: bin/packwerk init (Terminal)
+ *   Step 1: AASM state machine on Payment (OptionCard)
+ *   Step 2: Domain events with Wisper (OptionCard)
+ *   Step 3: Billing service with own DB via connects_to (OptionCard)
+ *   Step 4: API gateway proxy controller (OptionCard)
+ *   Step 5: Observability with OpenTelemetry + Lograge (OptionCard)
+ *   Step 6: Gradual rollout with Flipper feature flags (OptionCard)
+ *
+ * Phase 3 (ADVANTAGE - reward): Topology transforms to
+ *   Client -> API Gateway -> Billing Service (AASM, own DB) -> Event Bus ->
+ *   4 subscriber services (Email, Inventory, Analytics, Loyalty).
+ *   8 stress scenarios test the extracted architecture.
  */
 
-import type { LucideIcon } from 'lucide-react';
 import {
-	Activity,
+	BaseEdge,
+	type Edge,
+	EdgeLabelRenderer,
+	type EdgeProps,
+	getStraightPath,
+	type Node,
+} from '@xyflow/react';
+import {
 	ArrowRight,
-	Award,
-	Building2,
-	Check,
-	ChevronRight,
+	BarChart3,
+	Box,
+	CreditCard,
 	Database,
 	Eye,
-	GitBranch,
+	Flag,
+	Gift,
+	Globe,
+	Mail,
 	Radio,
 	Server,
 	ShieldCheck,
-	Zap,
 } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+	buildTerminalHistory,
 	CenterPanel,
 	CodePreviewPanel,
-	InstructionPanel,
+	ErrorFeedback,
 	LeftPanel,
 	LevelHeader,
 	LevelLayout,
+	OptionCard,
 	RightPanel,
-	useLevelCompletion,
+	StepProgress,
+	TerminalChoiceStep,
+	type TerminalCommand,
+	type TerminalOutputLine,
+	type TerminalStepData,
 	type ValidationResult,
 } from '@/components/levels';
+import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
+import {
+	AnimatedDots,
+	type DotConfig,
+	FlowDiagram,
+	FlowHandles,
+	reversePath,
+} from '@/components/levels/FlowDiagram';
+import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
+import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
+import {
+	StageInspector,
+	type StageInspectorData,
+} from '@/components/levels/StageInspector';
+import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
+import {
+	type DiscoveryDef,
+	useDiscoveryGating,
+} from '@/hooks/useDiscoveryGating';
+import { type StepDef, useStepGating } from '@/hooks/useStepGating';
+import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { shuffleOptions } from '@/lib/shuffleOptions';
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+// ─── Types ────────────────────────────────────────────────────────────
 
-interface ArchComponent {
-	id: string;
-	name: string;
-	description: string;
-	Icon: LucideIcon;
-	enabled: boolean;
-	required: boolean;
-	color: string;
-}
+type Phase = 'observe' | 'build' | 'reward';
 
-interface SimulationStep {
+type ZoneFlash = 'idle' | 'red' | 'green' | 'amber';
+
+interface OrderVizState {
+	[key: string]: unknown;
 	label: string;
-	component: string;
-	status: 'pending' | 'active' | 'done';
+	flash: ZoneFlash;
+	sublabel: string | null;
+	badge: string | null;
 }
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
+interface ServiceVizState {
+	[key: string]: unknown;
+	label: string;
+	flash: ZoneFlash;
+	sublabel: string | null;
+	badge: string | null;
+}
 
-const REQUIRED_IDS = [
-	'state-machine',
-	'domain-events',
-	'api-gateway',
-	'observability',
+interface GatewayVizState {
+	[key: string]: unknown;
+	label: string;
+	flash: ZoneFlash;
+	sublabel: string | null;
+	badge: string | null;
+}
+
+interface BillingVizState {
+	[key: string]: unknown;
+	label: string;
+	flash: ZoneFlash;
+	sublabel: string | null;
+	badge: string | null;
+	hasStateMachine: boolean;
+}
+
+interface EventBusVizState {
+	[key: string]: unknown;
+	label: string;
+	flash: ZoneFlash;
+	sublabel: string | null;
+}
+
+interface EdgeVizState {
+	[key: string]: unknown;
+	active: boolean;
+	reverse: boolean;
+	label: string;
+	dotColor: string;
+}
+
+interface AnimFrame {
+	order?: Partial<OrderVizState>;
+	stripe?: Partial<ServiceVizState>;
+	email?: Partial<ServiceVizState>;
+	inventory?: Partial<ServiceVizState>;
+	analytics?: Partial<ServiceVizState>;
+	loyalty?: Partial<ServiceVizState>;
+	gateway?: Partial<GatewayVizState>;
+	billing?: Partial<BillingVizState>;
+	eventBus?: Partial<EventBusVizState>;
+	edgeStripe?: Partial<EdgeVizState>;
+	edgeEmail?: Partial<EdgeVizState>;
+	edgeInventory?: Partial<EdgeVizState>;
+	edgeAnalytics?: Partial<EdgeVizState>;
+	edgeLoyalty?: Partial<EdgeVizState>;
+	edgeGwBilling?: Partial<EdgeVizState>;
+	edgeBillingBus?: Partial<EdgeVizState>;
+	edgeBusEmail?: Partial<EdgeVizState>;
+	edgeBusInventory?: Partial<EdgeVizState>;
+	edgeBusAnalytics?: Partial<EdgeVizState>;
+	edgeBusLoyalty?: Partial<EdgeVizState>;
+}
+
+// ─── Defaults ─────────────────────────────────────────────────────────
+
+const DEFAULT_ORDER: OrderVizState = {
+	label: 'Order#charge!',
+	flash: 'red',
+	sublabel: 'Synchronous calls',
+	badge: '4.5s total',
+};
+
+const DEFAULT_SERVICE: ServiceVizState = {
+	label: '',
+	flash: 'idle',
+	sublabel: null,
+	badge: null,
+};
+
+const DEFAULT_EDGE: EdgeVizState = {
+	active: false,
+	reverse: false,
+	label: '',
+	dotColor: '#ef4444',
+};
+
+// Reward defaults
+const DEFAULT_GATEWAY_REWARD: GatewayVizState = {
+	label: 'API Gateway',
+	flash: 'green',
+	sublabel: 'Auth at edge',
+	badge: null,
+};
+
+const DEFAULT_BILLING_REWARD: BillingVizState = {
+	label: 'Billing Service',
+	flash: 'green',
+	sublabel: 'AASM + own DB',
+	badge: null,
+	hasStateMachine: true,
+};
+
+const DEFAULT_EVENT_BUS_REWARD: EventBusVizState = {
+	label: 'Event Bus',
+	flash: 'idle',
+	sublabel: 'Wisper broadcast',
+};
+
+const DEFAULT_SUB_EMAIL: ServiceVizState = {
+	label: 'EmailSubscriber',
+	flash: 'idle',
+	sublabel: 'Async listener',
+	badge: null,
+};
+
+const DEFAULT_SUB_INVENTORY: ServiceVizState = {
+	label: 'InventorySubscriber',
+	flash: 'idle',
+	sublabel: 'Async listener',
+	badge: null,
+};
+
+const DEFAULT_SUB_ANALYTICS: ServiceVizState = {
+	label: 'AnalyticsSubscriber',
+	flash: 'idle',
+	sublabel: 'Async listener',
+	badge: null,
+};
+
+const DEFAULT_SUB_LOYALTY: ServiceVizState = {
+	label: 'LoyaltySubscriber',
+	flash: 'idle',
+	sublabel: 'Async listener',
+	badge: null,
+};
+
+// ─── Discovery definitions ────────────────────────────────────────────
+
+const DISCOVERY_DEFS: DiscoveryDef[] = [
+	{ id: 'sync-coupling', label: 'All calls are synchronous and blocking' },
+	{ id: 'no-state-machine', label: 'No state machine guards transitions' },
+	{ id: 'deploy-entangled', label: 'Changes require full monolith deploy' },
+	{ id: 'cascade-failure', label: 'Service failure cascades to payment' },
 ];
 
-const INITIAL_COMPONENTS: ArchComponent[] = [
+// ─── Probe definitions ───────────────────────────────────────────────
+
+const PROBES: ProbeConfig[] = [
 	{
-		id: 'api-gateway',
-		name: 'API Gateway',
-		description: 'Routes billing requests, auth at edge',
-		Icon: Server,
-		enabled: false,
-		required: true,
-		color: 'text-purple-400',
+		id: 'sync-blocking',
+		label: 'Time a full payment flow',
+		command: 'curl -w "%{time_total}s" -X POST /api/v1/orders/42/charge',
+		responseLines: [
+			{ text: 'HTTP/1.1 200 OK (4.5s)', color: 'red' },
+			{ text: '', color: 'muted' },
+			{
+				text: 'Stripe charge: 1.2s, Email receipt: 0.8s, Inventory update: 1.0s',
+				color: 'red',
+			},
+			{ text: 'Analytics track: 0.7s, Loyalty credit: 0.8s', color: 'red' },
+			{
+				text: 'All 5 service calls run synchronously in sequence.',
+				color: 'yellow',
+			},
+		],
+		story: [
+			'Customer clicks "Pay Now" on their order.',
+			'Order#charge! calls Stripe, waits 1.2s for the charge.',
+			'Then sends an email receipt, waits 0.8s.',
+			'Then updates inventory, waits 1.0s.',
+			'Then tracks analytics (0.7s) and credits loyalty (0.8s).',
+			'Total: 4.5 seconds of synchronous blocking.',
+		],
 	},
 	{
-		id: 'state-machine',
-		name: 'State Machine',
-		description: 'Payment status: pending → processing → completed/failed',
-		Icon: GitBranch,
-		enabled: false,
-		required: true,
-		color: 'text-blue-400',
+		id: 'no-state-guard',
+		label: 'Replay a completed payment',
+		command:
+			'rails runner "Order.find(42).update!(status: :pending); Order.find(42).charge!"',
+		responseLines: [
+			{ text: 'Order #42 status changed: completed -> pending', color: 'red' },
+			{ text: 'Stripe charge processed AGAIN for $149.99', color: 'red' },
+			{ text: '', color: 'muted' },
+			{
+				text: 'No state machine. Status can be set to anything.',
+				color: 'yellow',
+			},
+			{ text: 'Customer double-charged. Refund required.', color: 'red' },
+		],
+		story: [
+			'A bug sets an already-completed order back to pending.',
+			'Without a state machine, the status column is a plain string.',
+			'Any code can write any value: completed -> pending.',
+			'Order#charge! runs again on the "pending" order.',
+			'The customer is charged twice. A refund ticket is created.',
+		],
 	},
 	{
-		id: 'domain-events',
-		name: 'Domain Events',
-		description: 'payment.succeeded publishes events, subscribers react',
-		Icon: Zap,
-		enabled: false,
-		required: true,
-		color: 'text-yellow-400',
+		id: 'deploy-coupling',
+		label: 'Deploy a billing hotfix',
+		command: 'git log --oneline billing-hotfix..HEAD | wc -l',
+		responseLines: [
+			{ text: '47 commits since billing-hotfix branch', color: 'yellow' },
+			{ text: '', color: 'muted' },
+			{
+				text: 'Billing code lives in the monolith. A one-line fix requires deploying all 47 commits.',
+				color: 'red',
+			},
+			{
+				text: 'Full deploy pipeline: 45 min CI + 30 min staging + 45 min canary.',
+				color: 'red',
+			},
+			{ text: 'Total: ~2 hours for a billing bugfix.', color: 'yellow' },
+		],
+		story: [
+			'A billing rounding error is found in production.',
+			'The fix is a one-line change to a currency helper.',
+			'But billing code lives in the main Rails monolith.',
+			'Deploying means shipping 47 unrelated commits too.',
+			'CI, staging, canary: 2 hours for a one-line fix.',
+		],
 	},
 	{
-		id: 'multi-database',
-		name: 'Multi-Database',
-		description: 'Billing gets own DB, read replicas for reporting',
-		Icon: Database,
-		enabled: false,
-		required: false,
-		color: 'text-green-400',
+		id: 'email-blocks-payment',
+		label: 'Simulate email service outage',
+		command:
+			'curl -X POST /api/v1/orders/43/charge # email service returning 503',
+		responseLines: [
+			{ text: 'HTTP/1.1 500 Internal Server Error', color: 'red' },
+			{ text: '', color: 'muted' },
+			{
+				text: 'Stripe charge succeeded ($89.99 captured).',
+				color: 'green',
+			},
+			{
+				text: 'EmailService#send_receipt raised Net::ReadTimeout after 30s.',
+				color: 'red',
+			},
+			{
+				text: 'Entire transaction rolled back. Customer charged but order not saved.',
+				color: 'red',
+			},
+		],
+		story: [
+			'Customer places an order during an email service outage.',
+			'Stripe charge succeeds: $89.99 captured from their card.',
+			'Order#charge! then calls EmailService#send_receipt.',
+			'The email service is down. The call times out after 30 seconds.',
+			'The exception rolls back the transaction. Money taken, no order.',
+		],
+	},
+];
+
+const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
+	'sync-blocking': ['sync-coupling'],
+	'no-state-guard': ['no-state-machine'],
+	'deploy-coupling': ['deploy-entangled'],
+	'email-blocks-payment': ['cascade-failure'],
+};
+
+// ─── Observe animation frames ─────────────────────────────────────────
+// Observe: 6 nodes (Order, Stripe, Email, Inventory, Analytics, Loyalty)
+// Edges: edgeStripe, edgeEmail, edgeInventory, edgeAnalytics, edgeLoyalty
+// Frame playthrough:
+//   sync-blocking: Order calls each service in sequence, showing cumulative time
+//   no-state-guard: Order status forced back to pending, double charge
+//   deploy-coupling: Monolith shows all services waiting for deploy
+//   email-blocks-payment: Stripe succeeds, email fails, transaction rolls back
+
+const SYNC_FRAMES: AnimFrame[] = [
+	{
+		order: {
+			label: 'Order#charge!',
+			flash: 'amber',
+			sublabel: 'Calling Stripe...',
+			badge: '0s',
+		},
+		stripe: { flash: 'amber', sublabel: 'Processing...', badge: '1.2s' },
+		edgeStripe: {
+			active: true,
+			reverse: false,
+			label: 'Stripe.charge!',
+			dotColor: '#ef4444',
+		},
 	},
 	{
-		id: 'observability',
-		name: 'Observability',
-		description: 'Structured logging, distributed tracing, health checks',
-		Icon: Eye,
-		enabled: false,
-		required: true,
-		color: 'text-cyan-400',
+		order: {
+			label: 'Order#charge!',
+			flash: 'amber',
+			sublabel: 'Calling Email...',
+			badge: '1.2s',
+		},
+		stripe: { flash: 'green', sublabel: 'Done', badge: '1.2s' },
+		edgeStripe: { active: false, label: '' },
+		email: { flash: 'amber', sublabel: 'Sending...', badge: '0.8s' },
+		edgeEmail: {
+			active: true,
+			reverse: false,
+			label: 'send_receipt',
+			dotColor: '#ef4444',
+		},
+	},
+	{
+		order: {
+			label: 'Order#charge!',
+			flash: 'amber',
+			sublabel: 'Calling Inventory...',
+			badge: '2.0s',
+		},
+		email: { flash: 'green', sublabel: 'Done', badge: '0.8s' },
+		edgeEmail: { active: false, label: '' },
+		inventory: { flash: 'amber', sublabel: 'Updating...', badge: '1.0s' },
+		edgeInventory: {
+			active: true,
+			reverse: false,
+			label: 'decrement_stock',
+			dotColor: '#ef4444',
+		},
+	},
+	{
+		order: {
+			label: 'Order#charge!',
+			flash: 'red',
+			sublabel: '4.5s total!',
+			badge: '4.5s',
+		},
+		inventory: { flash: 'green', sublabel: 'Done', badge: '1.0s' },
+		edgeInventory: { active: false, label: '' },
+		analytics: { flash: 'amber', sublabel: 'Tracking...', badge: '0.7s' },
+		loyalty: { flash: 'amber', sublabel: 'Crediting...', badge: '0.8s' },
+		edgeAnalytics: {
+			active: true,
+			reverse: false,
+			label: 'track_purchase',
+			dotColor: '#ef4444',
+		},
+		edgeLoyalty: {
+			active: true,
+			reverse: false,
+			label: 'credit_points',
+			dotColor: '#ef4444',
+		},
+	},
+];
+
+const STATE_GUARD_FRAMES: AnimFrame[] = [
+	{
+		order: {
+			label: 'Order#42',
+			flash: 'green',
+			sublabel: 'status: completed',
+			badge: 'PAID',
+		},
+	},
+	{
+		order: {
+			label: 'Order#42',
+			flash: 'red',
+			sublabel: 'status: pending (forced!)',
+			badge: 'NO GUARD',
+		},
+	},
+	{
+		order: {
+			label: 'Order#42.charge!',
+			flash: 'red',
+			sublabel: 'DOUBLE CHARGE!',
+			badge: '$149.99 AGAIN',
+		},
+		stripe: {
+			flash: 'red',
+			sublabel: 'Charged again!',
+			badge: '$149.99',
+		},
+		edgeStripe: {
+			active: true,
+			reverse: false,
+			label: 'duplicate charge!',
+			dotColor: '#ef4444',
+		},
+	},
+];
+
+const DEPLOY_FRAMES: AnimFrame[] = [
+	{
+		order: {
+			label: 'Monolith',
+			flash: 'amber',
+			sublabel: '47 commits queued',
+			badge: 'CI running',
+		},
+	},
+	{
+		order: {
+			label: 'Monolith',
+			flash: 'amber',
+			sublabel: 'Full deploy pipeline',
+			badge: '~2 hours',
+		},
+		stripe: { flash: 'amber', sublabel: 'Waiting...' },
+		email: { flash: 'amber', sublabel: 'Waiting...' },
+		inventory: { flash: 'amber', sublabel: 'Waiting...' },
+		analytics: { flash: 'amber', sublabel: 'Waiting...' },
+		loyalty: { flash: 'amber', sublabel: 'Waiting...' },
+	},
+	{
+		order: {
+			label: 'Monolith',
+			flash: 'red',
+			sublabel: '1-line fix, 2-hour deploy',
+			badge: 'COUPLED',
+		},
+	},
+];
+
+const CASCADE_FRAMES: AnimFrame[] = [
+	{
+		order: {
+			label: 'Order#charge!',
+			flash: 'amber',
+			sublabel: 'Charging...',
+			badge: null,
+		},
+		stripe: { flash: 'green', sublabel: 'Charged $89.99', badge: 'OK' },
+		edgeStripe: {
+			active: true,
+			reverse: true,
+			label: 'charge OK',
+			dotColor: '#22c55e',
+		},
+	},
+	{
+		order: {
+			label: 'Order#charge!',
+			flash: 'amber',
+			sublabel: 'Sending receipt...',
+			badge: null,
+		},
+		edgeStripe: { active: false, label: '' },
+		email: { flash: 'red', sublabel: '503 Service Down!', badge: 'TIMEOUT' },
+		edgeEmail: {
+			active: true,
+			reverse: false,
+			label: 'send_receipt -> TIMEOUT',
+			dotColor: '#ef4444',
+		},
+	},
+	{
+		order: {
+			label: 'ROLLBACK!',
+			flash: 'red',
+			sublabel: 'Money taken, no order!',
+			badge: '500 ERROR',
+		},
+		stripe: {
+			flash: 'red',
+			sublabel: '$89.99 captured',
+			badge: 'NOT REFUNDED',
+		},
+		email: { flash: 'red', sublabel: 'Service down', badge: '503' },
+		edgeEmail: { active: false, label: '' },
+	},
+];
+
+const OBSERVE_PROBE_FRAMES: Record<string, AnimFrame[]> = {
+	'sync-blocking': SYNC_FRAMES,
+	'no-state-guard': STATE_GUARD_FRAMES,
+	'deploy-coupling': DEPLOY_FRAMES,
+	'email-blocks-payment': CASCADE_FRAMES,
+};
+
+// ─── Reward animation frames ─────────────────────────────────────────
+// Reward topology: Gateway -> Billing -> EventBus -> 4 subscribers
+// Frame playthrough per scenario:
+//   normal-payment: Gateway auth -> Billing AASM -> EventBus broadcast -> all 4 subscribers
+//   payment-failed: Gateway -> Billing fails -> EventBus broadcasts failure -> email notifies
+//   email-down: Gateway -> Billing succeeds -> EventBus -> email fails independently
+//   gateway-auth: Gateway verifies JWT -> forwards to billing
+//   direct-billing-access: Gateway blocks direct access
+//   invalid-transition: AASM blocks completed->pending
+//   tenant-isolation: acts_as_tenant blocks cross-tenant
+//   gradual-rollout: Flipper routes 5% to new service
+
+const REWARD_NORMAL_FRAMES: AnimFrame[] = [
+	{
+		gateway: {
+			label: 'API Gateway',
+			flash: 'green',
+			sublabel: 'Auth verified',
+			badge: null,
+		},
+		edgeGwBilling: {
+			active: true,
+			reverse: false,
+			label: 'POST /billing/charge',
+			dotColor: '#22c55e',
+		},
+	},
+	{
+		billing: {
+			label: 'Billing Service',
+			flash: 'green',
+			sublabel: 'pending -> processing -> completed',
+			badge: 'AASM',
+			hasStateMachine: true,
+		},
+		edgeGwBilling: { active: false, label: '' },
+		edgeBillingBus: {
+			active: true,
+			reverse: false,
+			label: 'payment.completed',
+			dotColor: '#22c55e',
+		},
+	},
+	{
+		eventBus: { flash: 'green', sublabel: 'Broadcasting...' },
+		edgeBillingBus: { active: false, label: '' },
+		email: { flash: 'green', sublabel: 'Receipt sent', badge: null },
+		inventory: { flash: 'green', sublabel: 'Stock updated', badge: null },
+		analytics: { flash: 'green', sublabel: 'Tracked', badge: null },
+		loyalty: { flash: 'green', sublabel: 'Points credited', badge: null },
+		edgeBusEmail: {
+			active: true,
+			reverse: false,
+			label: 'async',
+			dotColor: '#22c55e',
+		},
+		edgeBusInventory: {
+			active: true,
+			reverse: false,
+			label: 'async',
+			dotColor: '#22c55e',
+		},
+		edgeBusAnalytics: {
+			active: true,
+			reverse: false,
+			label: 'async',
+			dotColor: '#22c55e',
+		},
+		edgeBusLoyalty: {
+			active: true,
+			reverse: false,
+			label: 'async',
+			dotColor: '#22c55e',
+		},
+	},
+];
+
+const REWARD_FAILED_FRAMES: AnimFrame[] = [
+	{
+		gateway: { flash: 'green', sublabel: 'Auth verified' },
+		edgeGwBilling: {
+			active: true,
+			reverse: false,
+			label: 'POST /billing/charge',
+			dotColor: '#f59e0b',
+		},
+	},
+	{
+		billing: {
+			label: 'Billing Service',
+			flash: 'amber',
+			sublabel: 'pending -> processing -> failed',
+			badge: 'AASM',
+			hasStateMachine: true,
+		},
+		edgeGwBilling: { active: false, label: '' },
+		edgeBillingBus: {
+			active: true,
+			reverse: false,
+			label: 'payment.failed',
+			dotColor: '#f59e0b',
+		},
+	},
+	{
+		eventBus: { flash: 'amber', sublabel: 'Broadcasting failure...' },
+		edgeBillingBus: { active: false, label: '' },
+		email: { flash: 'amber', sublabel: 'Failure notice sent', badge: null },
+		edgeBusEmail: {
+			active: true,
+			reverse: false,
+			label: 'async',
+			dotColor: '#f59e0b',
+		},
+	},
+];
+
+const REWARD_EMAIL_DOWN_FRAMES: AnimFrame[] = [
+	{
+		gateway: { flash: 'green', sublabel: 'Auth verified' },
+		edgeGwBilling: {
+			active: true,
+			reverse: false,
+			label: 'POST /billing/charge',
+			dotColor: '#22c55e',
+		},
+	},
+	{
+		billing: {
+			flash: 'green',
+			sublabel: 'completed (decoupled!)',
+			badge: 'AASM',
+			hasStateMachine: true,
+		},
+		edgeGwBilling: { active: false, label: '' },
+		edgeBillingBus: {
+			active: true,
+			reverse: false,
+			label: 'payment.completed',
+			dotColor: '#22c55e',
+		},
+	},
+	{
+		eventBus: { flash: 'amber', sublabel: 'Broadcasting...' },
+		edgeBillingBus: { active: false, label: '' },
+		email: { flash: 'red', sublabel: '503 (retries later)', badge: 'DOWN' },
+		inventory: { flash: 'green', sublabel: 'Stock updated', badge: null },
+		analytics: { flash: 'green', sublabel: 'Tracked', badge: null },
+		loyalty: { flash: 'green', sublabel: 'Points credited', badge: null },
+		edgeBusEmail: {
+			active: true,
+			reverse: false,
+			label: 'retry queued',
+			dotColor: '#ef4444',
+		},
+		edgeBusInventory: {
+			active: true,
+			reverse: false,
+			label: 'async',
+			dotColor: '#22c55e',
+		},
+		edgeBusAnalytics: {
+			active: true,
+			reverse: false,
+			label: 'async',
+			dotColor: '#22c55e',
+		},
+		edgeBusLoyalty: {
+			active: true,
+			reverse: false,
+			label: 'async',
+			dotColor: '#22c55e',
+		},
+	},
+];
+
+const REWARD_GATEWAY_AUTH_FRAMES: AnimFrame[] = [
+	{
+		gateway: {
+			flash: 'green',
+			sublabel: 'JWT verified at edge',
+			badge: 'AUTH OK',
+		},
+		edgeGwBilling: {
+			active: true,
+			reverse: false,
+			label: 'Authenticated request',
+			dotColor: '#22c55e',
+		},
+	},
+	{
+		billing: { flash: 'green', sublabel: 'Processing...' },
+		edgeGwBilling: { active: false, label: '' },
+	},
+];
+
+const REWARD_DIRECT_ACCESS_FRAMES: AnimFrame[] = [
+	{
+		gateway: {
+			flash: 'red',
+			sublabel: 'Direct access attempt!',
+			badge: 'BLOCKED',
+		},
+		billing: { flash: 'idle', sublabel: 'Never reached' },
+	},
+];
+
+const REWARD_INVALID_TRANSITION_FRAMES: AnimFrame[] = [
+	{
+		billing: {
+			flash: 'red',
+			sublabel: 'completed -> pending',
+			badge: 'AASM BLOCKED',
+			hasStateMachine: true,
+		},
+		gateway: { flash: 'green', sublabel: 'Request forwarded' },
+		edgeGwBilling: {
+			active: true,
+			reverse: true,
+			label: '422 Invalid transition',
+			dotColor: '#ef4444',
+		},
+	},
+];
+
+const REWARD_TENANT_ISOLATION_FRAMES: AnimFrame[] = [
+	{
+		gateway: { flash: 'green', sublabel: 'Auth OK (Tenant A)' },
+		edgeGwBilling: {
+			active: true,
+			reverse: false,
+			label: 'GET /billing?tenant=B',
+			dotColor: '#ef4444',
+		},
+	},
+	{
+		billing: {
+			flash: 'red',
+			sublabel: 'acts_as_tenant blocks cross-tenant access',
+			badge: '403',
+			hasStateMachine: true,
+		},
+		edgeGwBilling: {
+			active: true,
+			reverse: true,
+			label: '403 Forbidden',
+			dotColor: '#ef4444',
+		},
+	},
+];
+
+const REWARD_ROLLOUT_FRAMES: AnimFrame[] = [
+	{
+		gateway: {
+			flash: 'green',
+			sublabel: 'Flipper: billing_v2 = 5%',
+			badge: 'FLAG ON',
+		},
+		edgeGwBilling: {
+			active: true,
+			reverse: false,
+			label: 'Routed to new service',
+			dotColor: '#22c55e',
+		},
+	},
+	{
+		billing: {
+			flash: 'green',
+			sublabel: 'New service handling 5%',
+			badge: 'CANARY',
+			hasStateMachine: true,
+		},
+		edgeGwBilling: { active: false, label: '' },
+		edgeBillingBus: {
+			active: true,
+			reverse: false,
+			label: 'payment.completed',
+			dotColor: '#22c55e',
+		},
+	},
+];
+
+const REWARD_PROBE_FRAMES: Record<string, AnimFrame[]> = {
+	'normal-payment': REWARD_NORMAL_FRAMES,
+	'payment-failed': REWARD_FAILED_FRAMES,
+	'email-down': REWARD_EMAIL_DOWN_FRAMES,
+	'gateway-auth': REWARD_GATEWAY_AUTH_FRAMES,
+	'direct-billing-access': REWARD_DIRECT_ACCESS_FRAMES,
+	'invalid-transition': REWARD_INVALID_TRANSITION_FRAMES,
+	'tenant-isolation': REWARD_TENANT_ISOLATION_FRAMES,
+	'gradual-rollout': REWARD_ROLLOUT_FRAMES,
+};
+
+// ─── Stage inspector data ─────────────────────────────────────────────
+
+const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
+	order: {
+		stageId: 'order',
+		title: 'Order Model (Monolith)',
+		description:
+			'The Order model calls 5 services synchronously in its charge! method. Stripe, email, inventory, analytics, and loyalty are all called in sequence. Total time: 4.5 seconds per charge.',
+		code: `class Order < ApplicationRecord
+  def charge!
+    Stripe::Charge.create(amount: total)
+    EmailService.send_receipt(self)
+    InventoryService.decrement(line_items)
+    AnalyticsService.track(:purchase, self)
+    LoyaltyService.credit_points(user, total)
+  end
+end`,
+	},
+	stripe: {
+		stageId: 'stripe',
+		title: 'Stripe Service',
+		description:
+			'Payment processing via Stripe API. Takes 1.2 seconds on average. Called synchronously from Order#charge!, blocking the thread until Stripe responds.',
+	},
+	email: {
+		stageId: 'email',
+		title: 'Email Service',
+		description:
+			'Sends receipt emails. Takes 0.8 seconds per call. If the email service is down, the entire charge! transaction fails and rolls back, even though the Stripe charge already succeeded.',
+	},
+	inventory: {
+		stageId: 'inventory',
+		title: 'Inventory Service',
+		description:
+			'Decrements stock counts for purchased items. Takes 1.0 second. Called after email, so it waits for both Stripe and email to complete before it can start.',
+	},
+	analytics: {
+		stageId: 'analytics',
+		title: 'Analytics Service',
+		description:
+			'Tracks purchase events for reporting. Takes 0.7 seconds. Not critical for the order, but still blocks the response because it runs synchronously.',
+	},
+	loyalty: {
+		stageId: 'loyalty',
+		title: 'Loyalty Service',
+		description:
+			'Credits loyalty points to the customer. Takes 0.8 seconds. The last service in the chain. If this fails, the entire 4.5-second transaction rolls back.',
+	},
+};
+
+const STAGE_DISCOVERY_MAP: Record<string, string> = {
+	order: 'sync-coupling',
+};
+
+// ─── Stress test scenarios (reward) ───────────────────────────────────
+
+const STRESS_SCENARIOS: StressScenario[] = [
+	{
+		id: 'normal-payment',
+		label: 'Process a normal payment',
+		description: 'Full flow through extracted billing service',
+		method: 'POST',
+		path: '/api/v1/billing/charge',
+		actor: 'customer',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'payment-failed',
+		label: 'Handle payment failure',
+		description: 'State machine guards transition, event published',
+		method: 'POST',
+		path: '/api/v1/billing/charge (card declined)',
+		actor: 'customer',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'email-down',
+		label: 'Payment with email service down',
+		description: 'Email subscriber fails independently, payment succeeds',
+		method: 'POST',
+		path: '/api/v1/billing/charge (email 503)',
+		actor: 'customer',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'gateway-auth',
+		label: 'Authenticated request via gateway',
+		description: 'Unified auth at edge before billing',
+		method: 'POST',
+		path: '/api/v1/billing/charge (JWT)',
+		actor: 'customer',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'direct-billing-access',
+		label: 'Bypass gateway to billing service',
+		description: 'Direct access without gateway auth blocked',
+		method: 'POST',
+		path: 'billing-service:3001/charge (direct)',
+		actor: 'attacker',
+		expectedResult: 'blocked',
+	},
+	{
+		id: 'invalid-transition',
+		label: 'Force completed -> pending transition',
+		description: 'AASM blocks invalid state transition',
+		method: 'PATCH',
+		path: '/api/v1/billing/payments/42 (status: pending)',
+		actor: 'attacker',
+		expectedResult: 'blocked',
 	},
 	{
 		id: 'tenant-isolation',
-		name: 'Tenant Isolation',
-		description: 'Billing data scoped per company',
-		Icon: ShieldCheck,
-		enabled: false,
-		required: false,
-		color: 'text-orange-400',
+		label: 'Access another tenant billing data',
+		description: 'acts_as_tenant blocks cross-tenant read',
+		method: 'GET',
+		path: '/api/v1/billing/payments?tenant=other',
+		actor: 'attacker',
+		expectedResult: 'blocked',
 	},
 	{
-		id: 'background-jobs',
-		name: 'Background Jobs',
-		description: 'Async event processing',
-		Icon: Radio,
-		enabled: false,
-		required: false,
-		color: 'text-pink-400',
-	},
-	{
-		id: 'circuit-breaker',
-		name: 'Circuit Breaker',
-		description: 'Protect against gateway/billing service failures',
-		Icon: Activity,
-		enabled: false,
-		required: false,
-		color: 'text-red-400',
+		id: 'gradual-rollout',
+		label: 'Gradual rollout (5% canary)',
+		description: 'Flipper routes 5% of traffic to new service',
+		method: 'POST',
+		path: '/api/v1/billing/charge (flagged)',
+		actor: 'customer',
+		expectedResult: 'allowed',
 	},
 ];
 
-function buildSimulationSteps(enabled: string[]): SimulationStep[] {
-	const steps: SimulationStep[] = [];
+// ─── Build step definitions ───────────────────────────────────────────
 
-	if (enabled.includes('api-gateway')) {
-		steps.push({
-			label: 'API Gateway authenticates request',
-			component: 'api-gateway',
-			status: 'pending',
-		});
-	}
-	if (enabled.includes('circuit-breaker')) {
-		steps.push({
-			label: 'Circuit breaker checks service health',
-			component: 'circuit-breaker',
-			status: 'pending',
-		});
-	}
-	if (enabled.includes('tenant-isolation')) {
-		steps.push({
-			label: 'Tenant scope applied (company_id)',
-			component: 'tenant-isolation',
-			status: 'pending',
-		});
-	}
-	if (enabled.includes('state-machine')) {
-		steps.push({
-			label: 'Payment transitions pending → processing → completed',
-			component: 'state-machine',
-			status: 'pending',
-		});
-	}
-	if (enabled.includes('multi-database')) {
-		steps.push({
-			label: 'Write to billing DB, replicate for reporting',
-			component: 'multi-database',
-			status: 'pending',
-		});
-	}
-	if (enabled.includes('domain-events')) {
-		steps.push({
-			label: 'Publish payment.completed event to bus',
-			component: 'domain-events',
-			status: 'pending',
-		});
-	}
-	if (enabled.includes('background-jobs')) {
-		steps.push({
-			label: 'Enqueue NotificationJob, InventoryJob, AnalyticsJob',
-			component: 'background-jobs',
-			status: 'pending',
-		});
-	}
-	if (enabled.includes('observability')) {
-		steps.push({
-			label: 'Log structured trace, emit metrics',
-			component: 'observability',
-			status: 'pending',
-		});
-	}
+const STEP_DEFS: StepDef[] = [
+	{ id: 'packwerk-init', title: 'Initialize Bounded Contexts' },
+	{ id: 'aasm-state-machine', title: 'Add AASM State Machine' },
+	{ id: 'domain-events', title: 'Replace Sync with Domain Events' },
+	{ id: 'billing-database', title: 'Create Billing Database' },
+	{ id: 'api-gateway', title: 'Route Through API Gateway' },
+	{ id: 'observability', title: 'Add Observability' },
+	{ id: 'feature-flags', title: 'Set Up Gradual Rollout' },
+];
 
-	return steps;
+const STEP_TYPES: ('terminal' | 'option')[] = [
+	'terminal', // 0: packwerk init
+	'option', // 1: AASM
+	'option', // 2: Wisper events
+	'option', // 3: connects_to
+	'option', // 4: gateway
+	'option', // 5: observability
+	'option', // 6: Flipper
+];
+
+// ─── Step 0: packwerk init (Terminal) ─────────────────────────────────
+
+const packwerkCommands: TerminalCommand[] = [
+	{
+		id: 'wrong-scaffold',
+		label: 'rails generate scaffold BillingService',
+		command: 'rails generate scaffold BillingService',
+		correct: false,
+		feedback:
+			'Scaffolding creates CRUD resources, not bounded contexts. You need a tool that enforces package boundaries within the monolith.',
+	},
+	{
+		id: 'wrong-engine',
+		label: 'rails plugin new billing --mountable',
+		command: 'rails plugin new billing --mountable',
+		correct: false,
+		feedback:
+			'A mountable engine is heavier than needed for internal boundaries. Start with package-level enforcement before extracting to a separate engine.',
+	},
+	{
+		id: 'correct',
+		label: 'bin/packwerk init',
+		command: 'bin/packwerk init',
+		correct: true,
+	},
+];
+
+const packwerkOutput: TerminalOutputLine[] = [
+	{
+		text: 'Created packwerk.yml with default configuration',
+		color: 'green',
+	},
+	{ text: 'Created packs/billing/package.yml', color: 'green' },
+	{ text: 'Bounded context "billing" initialized.', color: 'cyan' },
+];
+
+// ─── Step 1: AASM state machine (OptionCard) ─────────────────────────
+
+interface StepOption {
+	id: string;
+	name: string;
+	correct: boolean;
+	feedback?: string;
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
+const AASM_OPTIONS: StepOption[] = [
+	{
+		id: 'enum-only',
+		name: 'enum :status, { pending: 0, completed: 1, failed: 2 }',
+		correct: false,
+		feedback:
+			'An enum defines valid values but does not enforce transition rules. Any code can set status to any value. You need a state machine that guards which transitions are allowed.',
+	},
+	{
+		id: 'correct',
+		name: `include AASM
+
+aasm column: :status do
+  state :pending, initial: true
+  state :processing, :completed, :failed
+
+  event :process do
+    transitions from: :pending, to: :processing
+  end
+  event :complete do
+    transitions from: :processing, to: :completed
+  end
+  event :fail do
+    transitions from: :processing, to: :failed
+  end
+end`,
+		correct: true,
+	},
+	{
+		id: 'before-save',
+		name: `before_save :validate_transition
+
+def validate_transition
+  raise "Invalid" unless valid_transition?
+end`,
+		correct: false,
+		feedback:
+			'Hand-rolled validation misses edge cases and does not provide a declarative DSL. A state machine gem gives you events, guards, callbacks, and automatic validation out of the box.',
+	},
+];
+
+// ─── Step 2: Domain events with Wisper (OptionCard) ──────────────────
+
+const WISPER_OPTIONS: StepOption[] = [
+	{
+		id: 'after-commit',
+		name: `after_commit :send_receipt
+after_commit :update_inventory
+after_commit :track_analytics
+after_commit :credit_loyalty`,
+		correct: false,
+		feedback:
+			'after_commit callbacks still couple the model to every subscriber. Adding a new side effect means editing the Payment model. You need a publish/subscribe pattern where the model broadcasts and subscribers register independently.',
+	},
+	{
+		id: 'wrong-activesupport',
+		name: `ActiveSupport::Notifications.instrument(
+  "payment.completed", payment: self
+)`,
+		correct: false,
+		feedback:
+			'ActiveSupport::Notifications is for instrumentation and monitoring, not domain events. It lacks subscriber lifecycle management and is not designed for business logic.',
+	},
+	{
+		id: 'correct',
+		name: `include Wisper::Publisher
+
+event :complete do
+  transitions from: :processing,
+              to: :completed,
+              after: -> { broadcast(:payment_completed, self) }
+end`,
+		correct: true,
+	},
+];
+
+// ─── Step 3: Billing database (OptionCard) ───────────────────────────
+
+const BILLING_DB_OPTIONS: StepOption[] = [
+	{
+		id: 'establish',
+		name: `establish_connection(
+  adapter: "postgresql",
+  database: "billing_production"
+)`,
+		correct: false,
+		feedback:
+			'establish_connection is for one-off manual connections. For a permanent database mapping with role-based routing, Rails provides a declarative method in ApplicationRecord.',
+	},
+	{
+		id: 'correct',
+		name: `class BillingRecord < ApplicationRecord
+  self.abstract_class = true
+
+  connects_to database: {
+    writing: :billing,
+    reading: :billing_replica
+  }
+end`,
+		correct: true,
+	},
+	{
+		id: 'separate-app',
+		name: `# billing-service/config/database.yml
+production:
+  adapter: postgresql
+  database: billing_production`,
+		correct: false,
+		feedback:
+			'A completely separate Rails app is the end state, not the first step. Start by isolating the database connection within the monolith, then extract later.',
+	},
+];
+
+// ─── Step 4: API Gateway (OptionCard) ────────────────────────────────
+
+const GATEWAY_OPTIONS: StepOption[] = [
+	{
+		id: 'wrong-direct',
+		name: `# config/routes.rb
+namespace :billing do
+  resources :payments
+  resources :charges
+end`,
+		correct: false,
+		feedback:
+			'Direct routes expose billing endpoints without a unified auth layer. You need a single entry point that handles authentication, rate limiting, and request forwarding.',
+	},
+	{
+		id: 'correct',
+		name: `class BillingGatewayController < ApplicationController
+  before_action :authenticate_api_client!
+  before_action :rate_limit!
+
+  def proxy
+    response = BillingClient.forward(
+      method: request.method,
+      path: billing_path,
+      headers: authorized_headers
+    )
+    render json: response.body,
+           status: response.status
+  end
+end`,
+		correct: true,
+	},
+	{
+		id: 'wrong-rack',
+		name: `# config/application.rb
+config.middleware.use BillingProxy`,
+		correct: false,
+		feedback:
+			'Rack middleware runs on every request, not just billing requests. A controller-based approach gives you Rails routing, authentication, and action callbacks for billing-specific traffic only.',
+	},
+];
+
+// ─── Step 5: Observability (OptionCard) ──────────────────────────────
+
+const OBSERVABILITY_OPTIONS: StepOption[] = [
+	{
+		id: 'wrong-puts',
+		name: `def charge!
+  puts "Starting charge for order #{id}"
+  # ... charge logic
+  puts "Charge completed in #{elapsed}ms"
+end`,
+		correct: false,
+		feedback:
+			'puts output is unstructured, has no trace correlation, and disappears in production log aggregation. You need structured logging with distributed tracing.',
+	},
+	{
+		id: 'correct',
+		name: `# Gemfile
+gem "opentelemetry-sdk"
+gem "opentelemetry-instrumentation-rails"
+gem "lograge"
+
+# config/initializers/opentelemetry.rb
+OpenTelemetry::SDK.configure do |c|
+  c.use "OpenTelemetry::Instrumentation::Rails"
+end
+
+# config/environments/production.rb
+config.lograge.enabled = true
+config.lograge.custom_payload do |controller|
+  { trace_id: OpenTelemetry::Trace.current_span
+      .context.hex_trace_id }
+end`,
+		correct: true,
+	},
+	{
+		id: 'wrong-custom',
+		name: `class BillingLogger
+  def self.log(event, data)
+    File.write("log/billing.log",
+      "#{Time.now}: #{event} #{data}\\n",
+      mode: "a")
+  end
+end`,
+		correct: false,
+		feedback:
+			'Custom file logging has no trace correlation, no structured format, and does not integrate with log aggregation services. You need industry-standard observability tooling.',
+	},
+];
+
+// ─── Step 6: Feature flags (OptionCard) ──────────────────────────────
+
+const FLIPPER_OPTIONS: StepOption[] = [
+	{
+		id: 'wrong-env',
+		name: `if ENV["USE_NEW_BILLING"] == "true"
+  BillingService.charge(order)
+else
+  order.charge!
+end`,
+		correct: false,
+		feedback:
+			'Environment variables require a deploy to change and apply to 100% of traffic immediately. You need percentage-based rollout that can be toggled without deploying.',
+	},
+	{
+		id: 'wrong-random',
+		name: `if rand(100) < 5
+  BillingService.charge(order)
+else
+  order.charge!
+end`,
+		correct: false,
+		feedback:
+			'rand() is not deterministic per user and cannot be monitored or toggled. A feature flag library gives you consistent bucketing, a dashboard, and instant rollback.',
+	},
+	{
+		id: 'correct',
+		name: `# Gemfile
+gem "flipper"
+gem "flipper-active_record"
+
+# config/initializers/flipper.rb
+Flipper.register(:billing_beta) do |actor|
+  actor.respond_to?(:beta_tester?) &&
+    actor.beta_tester?
+end
+
+# Gateway controller
+if Flipper.enabled?(:billing_v2, current_user)
+  BillingClient.forward(request)
+else
+  legacy_charge(order)
+end`,
+		correct: true,
+	},
+];
+
+// ─── Option step config map ───────────────────────────────────────────
+
+const OPTION_STEP_CONFIG: Record<
+	number,
+	{ title: string; description: string; options: StepOption[] }
+> = {
+	1: {
+		title: 'Add State Machine to Payment',
+		description:
+			'The payment status is a plain string column that any code can overwrite. You need to enforce a strict lifecycle: pending -> processing -> completed or failed. Which approach prevents invalid transitions?',
+		options: AASM_OPTIONS,
+	},
+	2: {
+		title: 'Replace Synchronous Side Effects',
+		description:
+			'Order#charge! calls 5 services synchronously. If any fails, everything rolls back. Replace direct calls with a publish/subscribe pattern where the payment model broadcasts events and subscribers react independently.',
+		options: WISPER_OPTIONS,
+	},
+	3: {
+		title: 'Create Billing Database',
+		description:
+			'Billing data needs its own database so the billing service can scale independently. Rails supports multiple databases natively. Which approach isolates billing data within the monolith?',
+		options: BILLING_DB_OPTIONS,
+	},
+	4: {
+		title: 'Route Through API Gateway',
+		description:
+			'External clients should not access the billing service directly. All billing traffic needs to pass through a single entry point that handles authentication, rate limiting, and request forwarding.',
+		options: GATEWAY_OPTIONS,
+	},
+	5: {
+		title: 'Add Observability',
+		description:
+			'The extracted billing service needs structured logging with distributed tracing so you can follow a payment request across services. Which setup provides production-grade observability?',
+		options: OBSERVABILITY_OPTIONS,
+	},
+	6: {
+		title: 'Set Up Gradual Rollout',
+		description:
+			'You cannot switch 100% of traffic to the new billing service at once. You need percentage-based rollout that can be toggled without deploying. Which approach enables safe, gradual migration?',
+		options: FLIPPER_OPTIONS,
+	},
+};
+
+// ─── Terminal step map for history ────────────────────────────────────
+
+const SHELL_STEP_MAP: (TerminalStepData | null)[] = [
+	{ commands: packwerkCommands, outputLines: packwerkOutput },
+	null, // step 1: OptionCard
+	null, // step 2: OptionCard
+	null, // step 3: OptionCard
+	null, // step 4: OptionCard
+	null, // step 5: OptionCard
+	null, // step 6: OptionCard
+];
+
+// ─── Code preview per phase/step ──────────────────────────────────────
+
+function getCodeFiles(phase: Phase, completedStep: number) {
+	if (phase === 'observe') {
+		return [
+			{
+				filename: 'app/models/order.rb',
+				language: 'ruby',
+				code: `class Order < ApplicationRecord
+  belongs_to :user
+  belongs_to :company
+
+  def charge!
+    Stripe::Charge.create(amount: total)
+    EmailService.send_receipt(self)
+    InventoryService.decrement(line_items)
+    AnalyticsService.track(:purchase, self)
+    LoyaltyService.credit_points(user, total)
+  end
+end`,
+				highlight: [6, 7, 8, 9, 10],
+			},
+		];
+	}
+
+	const files = [];
+
+	// Step 0 complete: packwerk initialized
+	if (completedStep >= 0) {
+		files.push({
+			filename: 'packs/billing/package.yml',
+			language: 'yaml',
+			code: `# packs/billing/package.yml
+enforce_dependencies: true
+enforce_privacy: true
+dependencies:
+  - packs/core`,
+			highlight: [2, 3],
+		});
+	}
+
+	// Step 1 complete: AASM state machine
+	// Step 2 adds Wisper::Publisher + broadcast
+	// Step 3 switches to BillingRecord base class (defined in that step)
+	if (completedStep >= 1) {
+		const baseClass =
+			completedStep >= 3 ? 'BillingRecord' : 'ApplicationRecord';
+		const hasWisper = completedStep >= 2;
+		files.push({
+			filename: 'packs/billing/app/models/payment.rb',
+			language: 'ruby',
+			code: hasWisper
+				? `class Payment < ${baseClass}
+  include AASM
+  include Wisper::Publisher
+  acts_as_tenant :company
+
+  aasm column: :status do
+    state :pending, initial: true
+    state :processing, :completed, :failed
+
+    event :process do
+      transitions from: :pending, to: :processing
+    end
+    event :complete do
+      transitions from: :processing,
+                  to: :completed,
+                  after: -> { broadcast(:payment_completed, self) }
+    end
+    event :fail do
+      transitions from: :processing, to: :failed
+    end
+  end
+end
+
+# Subscribers enqueue Solid Queue jobs (L22+)
+Wisper.subscribe(ReceiptSubscriber.new)
+
+class ReceiptSubscriber
+  def payment_completed(payment)
+    SendReceiptJob.perform_later(payment.id)
+  end
+end`
+				: `class Payment < ApplicationRecord
+  include AASM
+  acts_as_tenant :company
+
+  aasm column: :status do
+    state :pending, initial: true
+    state :processing, :completed, :failed
+
+    event :process do
+      transitions from: :pending, to: :processing
+    end
+    event :complete do
+      transitions from: :processing, to: :completed
+    end
+    event :fail do
+      transitions from: :processing, to: :failed
+    end
+  end
+end`,
+			highlight: hasWisper ? [2, 3, 14, 15, 16, 26, 30] : [2, 5, 6, 7],
+		});
+	}
+
+	// Step 3 complete: BillingRecord with connects_to
+	if (completedStep >= 3) {
+		files.push({
+			filename: 'packs/billing/app/models/billing_record.rb',
+			language: 'ruby',
+			code: `class BillingRecord < ApplicationRecord
+  self.abstract_class = true
+
+  connects_to database: {
+    writing: :billing,
+    reading: :billing_replica
+  }
+end`,
+			highlight: [4, 5, 6],
+		});
+	}
+
+	// Step 4 complete: API Gateway controller
+	if (completedStep >= 4) {
+		files.push({
+			filename: 'app/controllers/billing_gateway_controller.rb',
+			language: 'ruby',
+			code:
+				completedStep >= 6
+					? `class BillingGatewayController < ApplicationController
+  before_action :authenticate_api_client!
+  before_action :rate_limit!
+
+  def proxy
+    if Flipper.enabled?(:billing_v2, current_user)
+      response = BillingClient.forward(
+        method: request.method,
+        path: billing_path,
+        headers: authorized_headers
+      )
+      render json: response.body, status: response.status
+    else
+      legacy_charge(params[:order_id])
+    end
+  end
+end`
+					: `class BillingGatewayController < ApplicationController
+  before_action :authenticate_api_client!
+  before_action :rate_limit!
+
+  def proxy
+    response = BillingClient.forward(
+      method: request.method,
+      path: billing_path,
+      headers: authorized_headers
+    )
+    render json: response.body, status: response.status
+  end
+end`,
+			highlight: completedStep >= 6 ? [2, 3, 6] : [2, 3],
+		});
+	}
+
+	// Step 5 complete: Observability
+	if (completedStep >= 5) {
+		files.push({
+			filename: 'config/initializers/opentelemetry.rb',
+			language: 'ruby',
+			code: `# config/initializers/opentelemetry.rb
+require "opentelemetry/sdk"
+require "opentelemetry/instrumentation/rails"
+
+OpenTelemetry::SDK.configure do |c|
+  c.use "OpenTelemetry::Instrumentation::Rails"
+  c.service_name = "billing-service"
+end
+
+# config/environments/production.rb
+config.lograge.enabled = true
+config.lograge.custom_payload do |controller|
+  { trace_id: OpenTelemetry::Trace.current_span
+      .context.hex_trace_id }
+end`,
+			highlight: [5, 6, 7, 11, 12, 13, 14],
+		});
+	}
+
+	// Step 6 complete: Flipper feature flags
+	if (completedStep >= 6) {
+		files.push({
+			filename: 'config/initializers/flipper.rb',
+			language: 'ruby',
+			code: `# config/initializers/flipper.rb
+Flipper.register(:billing_beta) do |actor|
+  actor.respond_to?(:beta_tester?) &&
+    actor.beta_tester?
+end
+
+# Enable for 5% of traffic
+Flipper.enable_percentage_of_actors(
+  :billing_v2, 5
+)`,
+			highlight: [2, 3, 4, 8, 9],
+		});
+	}
+
+	// If nothing completed yet, show TODO
+	if (files.length === 0) {
+		files.push({
+			filename: 'app/models/order.rb',
+			language: 'ruby',
+			code: `class Order < ApplicationRecord
+  # TODO: extract billing into bounded context
+  def charge!
+    Stripe::Charge.create(amount: total)
+    EmailService.send_receipt(self)
+    InventoryService.decrement(line_items)
+    AnalyticsService.track(:purchase, self)
+    LoyaltyService.credit_points(user, total)
+  end
+end`,
+			highlight: [2],
+		});
+	}
+
+	return files;
+}
+
+// ─── Custom React Flow nodes ──────────────────────────────────────────
+
+function flashToClasses(flash: ZoneFlash) {
+	const border =
+		flash === 'green'
+			? 'border-success bg-success/10'
+			: flash === 'red'
+				? 'border-destructive bg-destructive/10'
+				: flash === 'amber'
+					? 'border-warning bg-warning/10'
+					: 'border-zinc-500 bg-zinc-500/10 dark:border-zinc-600 dark:bg-zinc-600/10';
+	const icon =
+		flash === 'green'
+			? 'text-success'
+			: flash === 'red'
+				? 'text-destructive'
+				: flash === 'amber'
+					? 'text-warning'
+					: 'text-zinc-500 dark:text-zinc-400';
+	return { border, icon };
+}
+
+const OrderNode = memo(function OrderNode({ data }: { data: OrderVizState }) {
+	const { border, icon } = flashToClasses(data.flash);
+	return (
+		<div
+			className={`rounded-xl border-2 px-6 py-4 text-center min-w-44 transition-all duration-300 ${border}`}
+		>
+			<FlowHandles />
+			<Box className={`w-5 h-5 mx-auto mb-1 ${icon}`} />
+			<div className="text-sm font-semibold text-foreground">{data.label}</div>
+			{data.sublabel && (
+				<div className="text-xs text-muted-foreground mt-0.5">
+					{data.sublabel}
+				</div>
+			)}
+			{data.badge && (
+				<div className="mt-1 inline-block px-2 py-0.5 rounded-full bg-destructive/20 text-destructive text-xs font-mono">
+					{data.badge}
+				</div>
+			)}
+		</div>
+	);
+});
+
+const SERVICE_ICON_MAP: Record<string, typeof Server> = {
+	Stripe: CreditCard,
+	EmailService: Mail,
+	InventoryService: Box,
+	AnalyticsService: BarChart3,
+	LoyaltyService: Gift,
+	EmailSubscriber: Mail,
+	InventorySubscriber: Box,
+	AnalyticsSubscriber: BarChart3,
+	LoyaltySubscriber: Gift,
+};
+
+const ServiceNode = memo(function ServiceNode({
+	data,
+}: {
+	data: ServiceVizState;
+}) {
+	const { border, icon } = flashToClasses(data.flash);
+	const IconComp = SERVICE_ICON_MAP[data.label] ?? Server;
+	return (
+		<div
+			className={`rounded-xl border-2 px-5 py-3 text-center min-w-36 transition-all duration-300 ${border}`}
+		>
+			<FlowHandles />
+			<IconComp className={`w-4 h-4 mx-auto mb-1 ${icon}`} />
+			<div className="text-xs font-semibold text-foreground">{data.label}</div>
+			{data.sublabel && (
+				<div className="text-xs text-muted-foreground mt-0.5">
+					{data.sublabel}
+				</div>
+			)}
+			{data.badge && (
+				<div className="mt-1 inline-block px-2 py-0.5 rounded-full bg-warning/20 text-warning text-xs font-mono">
+					{data.badge}
+				</div>
+			)}
+		</div>
+	);
+});
+
+const GatewayNode = memo(function GatewayNode({
+	data,
+}: {
+	data: GatewayVizState;
+}) {
+	const { border, icon } = flashToClasses(data.flash);
+	return (
+		<div
+			className={`rounded-xl border-2 px-6 py-4 text-center min-w-44 transition-all duration-300 ${border}`}
+		>
+			<FlowHandles />
+			<Globe className={`w-5 h-5 mx-auto mb-1 ${icon}`} />
+			<div className="text-sm font-semibold text-foreground">{data.label}</div>
+			{data.sublabel && (
+				<div className="text-xs text-muted-foreground mt-0.5">
+					{data.sublabel}
+				</div>
+			)}
+			{data.badge && (
+				<div className="mt-1 inline-block px-2 py-0.5 rounded-full bg-success/20 text-success text-xs font-mono">
+					{data.badge}
+				</div>
+			)}
+		</div>
+	);
+});
+
+const BillingNode = memo(function BillingNode({
+	data,
+}: {
+	data: BillingVizState;
+}) {
+	const { border, icon } = flashToClasses(data.flash);
+	return (
+		<div
+			className={`rounded-xl border-2 px-6 py-4 text-center min-w-44 transition-all duration-300 ${border}`}
+		>
+			<FlowHandles />
+			<Database className={`w-5 h-5 mx-auto mb-1 ${icon}`} />
+			<div className="text-sm font-semibold text-foreground">{data.label}</div>
+			{data.sublabel && (
+				<div className="text-xs text-muted-foreground mt-0.5">
+					{data.sublabel}
+				</div>
+			)}
+			{data.badge && (
+				<div className="mt-1 inline-block px-2 py-0.5 rounded-full bg-primary/20 text-primary text-xs font-mono">
+					{data.badge}
+				</div>
+			)}
+			{data.hasStateMachine && (
+				<div className="mt-1 flex items-center justify-center gap-1 text-xs text-primary">
+					<ShieldCheck className="w-3 h-3" />
+					AASM
+				</div>
+			)}
+		</div>
+	);
+});
+
+const EventBusNode = memo(function EventBusNode({
+	data,
+}: {
+	data: EventBusVizState;
+}) {
+	const { border, icon } = flashToClasses(data.flash);
+	return (
+		<div
+			className={`rounded-xl border-2 px-5 py-3 text-center min-w-36 transition-all duration-300 ${border}`}
+		>
+			<FlowHandles />
+			<Radio className={`w-4 h-4 mx-auto mb-1 ${icon}`} />
+			<div className="text-xs font-semibold text-foreground">{data.label}</div>
+			{data.sublabel && (
+				<div className="text-xs text-muted-foreground mt-0.5">
+					{data.sublabel}
+				</div>
+			)}
+		</div>
+	);
+});
+
+// ─── Custom edge ──────────────────────────────────────────────────────
+
+const ArchEdge = memo(function ArchEdge(props: EdgeProps) {
+	const { id, sourceX, sourceY, targetX, targetY, data } = props;
+	const d = (data ?? DEFAULT_EDGE) as EdgeVizState;
+
+	const [edgePath, labelX, labelY] = getStraightPath({
+		sourceX,
+		sourceY,
+		targetX,
+		targetY,
+	});
+
+	const dotPath = d.reverse ? reversePath(edgePath) : edgePath;
+	const fill = d.dotColor || '#ef4444';
+
+	const dots: DotConfig[] = d.active
+		? Array.from({ length: 3 }, (_, i) => ({
+				id: `${id}-d${i}`,
+				color: fill,
+				r: 5,
+				dur: '1.2s',
+				begin: i === 0 ? '0s' : `-${i * 0.4}s`,
+			}))
+		: [];
+
+	return (
+		<>
+			<BaseEdge
+				id={id}
+				path={edgePath}
+				style={{
+					stroke: d.active ? fill : '#a1a1aa',
+					strokeWidth: 2,
+					strokeDasharray: d.active ? undefined : '6 4',
+				}}
+			/>
+			{dots.length > 0 && <AnimatedDots dots={dots} path={dotPath} />}
+			{d.label && (
+				<EdgeLabelRenderer>
+					<div
+						className="nodrag nopan pointer-events-none absolute text-xs font-mono text-foreground bg-background/90 px-1.5 py-0.5 rounded border border-border max-w-64 text-center whitespace-nowrap"
+						style={{
+							transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY + 20}px)`,
+						}}
+					>
+						{d.label}
+					</div>
+				</EdgeLabelRenderer>
+			)}
+		</>
+	);
+});
+
+const observeNodeTypes = {
+	order: OrderNode,
+	service: ServiceNode,
+};
+
+const rewardNodeTypes = {
+	gateway: GatewayNode,
+	billing: BillingNode,
+	eventBus: EventBusNode,
+	service: ServiceNode,
+};
+
+const archEdgeTypes = { arch: ArchEdge };
+
+// ─── Main component ───────────────────────────────────────────────────
 
 export function Level56Architect({ onComplete }: LevelComponentProps) {
-	const { completeLevel } = useLevelCompletion();
-	const [components, setComponents] =
-		useState<ArchComponent[]>(INITIAL_COMPONENTS);
-	const [simulationSteps, setSimulationSteps] = useState<SimulationStep[]>([]);
-	const [isSimulating, setIsSimulating] = useState(false);
+	const [phase, setPhase] = useState<Phase>('observe');
+	const isReward = phase === 'reward';
 
-	const enabledComponents = components.filter((c) => c.enabled);
-	const enabledIds = enabledComponents.map((c) => c.id);
-	const enabledCount = enabledComponents.length;
+	// ── Viz state ──
+	const [orderState, setOrderState] = useState<OrderVizState>(DEFAULT_ORDER);
+	const [stripeState, setStripeState] = useState<ServiceVizState>({
+		...DEFAULT_SERVICE,
+		label: 'Stripe',
+	});
+	const [emailState, setEmailState] = useState<ServiceVizState>({
+		...DEFAULT_SERVICE,
+		label: 'EmailService',
+	});
+	const [inventoryState, setInventoryState] = useState<ServiceVizState>({
+		...DEFAULT_SERVICE,
+		label: 'InventoryService',
+	});
+	const [analyticsState, setAnalyticsState] = useState<ServiceVizState>({
+		...DEFAULT_SERVICE,
+		label: 'AnalyticsService',
+	});
+	const [loyaltyState, setLoyaltyState] = useState<ServiceVizState>({
+		...DEFAULT_SERVICE,
+		label: 'LoyaltyService',
+	});
+	const [gatewayState, setGatewayState] = useState<GatewayVizState>(
+		DEFAULT_GATEWAY_REWARD,
+	);
+	const [billingState, setBillingState] = useState<BillingVizState>(
+		DEFAULT_BILLING_REWARD,
+	);
+	const [eventBusState, setEventBusState] = useState<EventBusVizState>(
+		DEFAULT_EVENT_BUS_REWARD,
+	);
 
-	const toggleComponent = (componentId: string) => {
-		if (isSimulating) return;
-		setComponents((prev) =>
-			prev.map((c) =>
-				c.id === componentId ? { ...c, enabled: !c.enabled } : c,
-			),
-		);
-		// Clear previous simulation when architecture changes
-		setSimulationSteps([]);
+	// Observe edges
+	const [edgeStripeState, setEdgeStripeState] =
+		useState<EdgeVizState>(DEFAULT_EDGE);
+	const [edgeEmailState, setEdgeEmailState] =
+		useState<EdgeVizState>(DEFAULT_EDGE);
+	const [edgeInventoryState, setEdgeInventoryState] =
+		useState<EdgeVizState>(DEFAULT_EDGE);
+	const [edgeAnalyticsState, setEdgeAnalyticsState] =
+		useState<EdgeVizState>(DEFAULT_EDGE);
+	const [edgeLoyaltyState, setEdgeLoyaltyState] =
+		useState<EdgeVizState>(DEFAULT_EDGE);
+
+	// Reward edges
+	const [edgeGwBillingState, setEdgeGwBillingState] =
+		useState<EdgeVizState>(DEFAULT_EDGE);
+	const [edgeBillingBusState, setEdgeBillingBusState] =
+		useState<EdgeVizState>(DEFAULT_EDGE);
+	const [edgeBusEmailState, setEdgeBusEmailState] =
+		useState<EdgeVizState>(DEFAULT_EDGE);
+	const [edgeBusInventoryState, setEdgeBusInventoryState] =
+		useState<EdgeVizState>(DEFAULT_EDGE);
+	const [edgeBusAnalyticsState, setEdgeBusAnalyticsState] =
+		useState<EdgeVizState>(DEFAULT_EDGE);
+	const [edgeBusLoyaltyState, setEdgeBusLoyaltyState] =
+		useState<EdgeVizState>(DEFAULT_EDGE);
+
+	const [vizAnimating, setVizAnimating] = useState(false);
+	const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+	const resetViz = useCallback(() => {
+		if (isReward) {
+			setGatewayState(DEFAULT_GATEWAY_REWARD);
+			setBillingState(DEFAULT_BILLING_REWARD);
+			setEventBusState(DEFAULT_EVENT_BUS_REWARD);
+			setEmailState(DEFAULT_SUB_EMAIL);
+			setInventoryState(DEFAULT_SUB_INVENTORY);
+			setAnalyticsState(DEFAULT_SUB_ANALYTICS);
+			setLoyaltyState(DEFAULT_SUB_LOYALTY);
+			setEdgeGwBillingState(DEFAULT_EDGE);
+			setEdgeBillingBusState(DEFAULT_EDGE);
+			setEdgeBusEmailState(DEFAULT_EDGE);
+			setEdgeBusInventoryState(DEFAULT_EDGE);
+			setEdgeBusAnalyticsState(DEFAULT_EDGE);
+			setEdgeBusLoyaltyState(DEFAULT_EDGE);
+		} else {
+			setOrderState(DEFAULT_ORDER);
+			setStripeState({ ...DEFAULT_SERVICE, label: 'Stripe' });
+			setEmailState({ ...DEFAULT_SERVICE, label: 'EmailService' });
+			setInventoryState({ ...DEFAULT_SERVICE, label: 'InventoryService' });
+			setAnalyticsState({ ...DEFAULT_SERVICE, label: 'AnalyticsService' });
+			setLoyaltyState({ ...DEFAULT_SERVICE, label: 'LoyaltyService' });
+			setEdgeStripeState(DEFAULT_EDGE);
+			setEdgeEmailState(DEFAULT_EDGE);
+			setEdgeInventoryState(DEFAULT_EDGE);
+			setEdgeAnalyticsState(DEFAULT_EDGE);
+			setEdgeLoyaltyState(DEFAULT_EDGE);
+		}
+	}, [isReward]);
+
+	const applyFrame = useCallback((frame: AnimFrame) => {
+		if (frame.order) setOrderState((prev) => ({ ...prev, ...frame.order }));
+		if (frame.stripe) setStripeState((prev) => ({ ...prev, ...frame.stripe }));
+		if (frame.email) setEmailState((prev) => ({ ...prev, ...frame.email }));
+		if (frame.inventory)
+			setInventoryState((prev) => ({ ...prev, ...frame.inventory }));
+		if (frame.analytics)
+			setAnalyticsState((prev) => ({ ...prev, ...frame.analytics }));
+		if (frame.loyalty)
+			setLoyaltyState((prev) => ({ ...prev, ...frame.loyalty }));
+		if (frame.gateway)
+			setGatewayState((prev) => ({ ...prev, ...frame.gateway }));
+		if (frame.billing)
+			setBillingState((prev) => ({ ...prev, ...frame.billing }));
+		if (frame.eventBus)
+			setEventBusState((prev) => ({ ...prev, ...frame.eventBus }));
+		if (frame.edgeStripe)
+			setEdgeStripeState((prev) => ({ ...prev, ...frame.edgeStripe }));
+		if (frame.edgeEmail)
+			setEdgeEmailState((prev) => ({ ...prev, ...frame.edgeEmail }));
+		if (frame.edgeInventory)
+			setEdgeInventoryState((prev) => ({ ...prev, ...frame.edgeInventory }));
+		if (frame.edgeAnalytics)
+			setEdgeAnalyticsState((prev) => ({ ...prev, ...frame.edgeAnalytics }));
+		if (frame.edgeLoyalty)
+			setEdgeLoyaltyState((prev) => ({ ...prev, ...frame.edgeLoyalty }));
+		if (frame.edgeGwBilling)
+			setEdgeGwBillingState((prev) => ({ ...prev, ...frame.edgeGwBilling }));
+		if (frame.edgeBillingBus)
+			setEdgeBillingBusState((prev) => ({
+				...prev,
+				...frame.edgeBillingBus,
+			}));
+		if (frame.edgeBusEmail)
+			setEdgeBusEmailState((prev) => ({ ...prev, ...frame.edgeBusEmail }));
+		if (frame.edgeBusInventory)
+			setEdgeBusInventoryState((prev) => ({
+				...prev,
+				...frame.edgeBusInventory,
+			}));
+		if (frame.edgeBusAnalytics)
+			setEdgeBusAnalyticsState((prev) => ({
+				...prev,
+				...frame.edgeBusAnalytics,
+			}));
+		if (frame.edgeBusLoyalty)
+			setEdgeBusLoyaltyState((prev) => ({
+				...prev,
+				...frame.edgeBusLoyalty,
+			}));
+	}, []);
+
+	const runAnimation = useCallback(
+		(frames: AnimFrame[], onDone?: () => void) => {
+			for (const t of timersRef.current) clearTimeout(t);
+			timersRef.current = [];
+			setVizAnimating(true);
+			resetViz();
+
+			for (const [i, frame] of frames.entries()) {
+				const t = setTimeout(() => {
+					applyFrame(frame);
+					if (i === frames.length - 1) {
+						const cleanup = setTimeout(() => {
+							setVizAnimating(false);
+							onDone?.();
+						}, ANIMATION_DURATION_MS);
+						timersRef.current.push(cleanup);
+					}
+				}, i * ANIMATION_DURATION_MS);
+				timersRef.current.push(t);
+			}
+		},
+		[applyFrame, resetViz],
+	);
+
+	useEffect(() => {
+		return () => {
+			for (const t of timersRef.current) clearTimeout(t);
+		};
+	}, []);
+
+	// ── Hooks ──
+	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
+		minRequired: 3,
+	});
+	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
+	const stressTest = useStressTest(STRESS_SCENARIOS);
+
+	// ── Inspector ──
+	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(
+		null,
+	);
+
+	// ── Flow nodes/edges ──
+	const flowNodes: Node[] = useMemo(() => {
+		if (isReward) {
+			return [
+				{
+					id: 'gateway',
+					type: 'gateway',
+					position: { x: 250, y: 10 },
+					data: gatewayState,
+				},
+				{
+					id: 'billing',
+					type: 'billing',
+					position: { x: 250, y: 140 },
+					data: billingState,
+				},
+				{
+					id: 'eventBus',
+					type: 'eventBus',
+					position: { x: 250, y: 280 },
+					data: eventBusState,
+				},
+				{
+					id: 'email',
+					type: 'service',
+					position: { x: 20, y: 400 },
+					data: emailState,
+				},
+				{
+					id: 'inventory',
+					type: 'service',
+					position: { x: 180, y: 400 },
+					data: inventoryState,
+				},
+				{
+					id: 'analytics',
+					type: 'service',
+					position: { x: 340, y: 400 },
+					data: analyticsState,
+				},
+				{
+					id: 'loyalty',
+					type: 'service',
+					position: { x: 500, y: 400 },
+					data: loyaltyState,
+				},
+			];
+		}
+		// Observe: star topology with Order at center-top
+		return [
+			{
+				id: 'order',
+				type: 'order',
+				position: { x: 230, y: 10 },
+				data: orderState,
+			},
+			{
+				id: 'stripe',
+				type: 'service',
+				position: { x: 20, y: 180 },
+				data: stripeState,
+			},
+			{
+				id: 'email',
+				type: 'service',
+				position: { x: 160, y: 180 },
+				data: emailState,
+			},
+			{
+				id: 'inventory',
+				type: 'service',
+				position: { x: 300, y: 180 },
+				data: inventoryState,
+			},
+			{
+				id: 'analytics',
+				type: 'service',
+				position: { x: 120, y: 310 },
+				data: analyticsState,
+			},
+			{
+				id: 'loyalty',
+				type: 'service',
+				position: { x: 320, y: 310 },
+				data: loyaltyState,
+			},
+		];
+	}, [
+		isReward,
+		orderState,
+		stripeState,
+		emailState,
+		inventoryState,
+		analyticsState,
+		loyaltyState,
+		gatewayState,
+		billingState,
+		eventBusState,
+	]);
+
+	const flowEdges: Edge[] = useMemo(() => {
+		if (isReward) {
+			return [
+				{
+					id: 'edgeGwBilling',
+					source: 'gateway',
+					target: 'billing',
+					type: 'arch',
+					data: edgeGwBillingState,
+				},
+				{
+					id: 'edgeBillingBus',
+					source: 'billing',
+					target: 'eventBus',
+					type: 'arch',
+					data: edgeBillingBusState,
+				},
+				{
+					id: 'edgeBusEmail',
+					source: 'eventBus',
+					target: 'email',
+					type: 'arch',
+					data: edgeBusEmailState,
+				},
+				{
+					id: 'edgeBusInventory',
+					source: 'eventBus',
+					target: 'inventory',
+					type: 'arch',
+					data: edgeBusInventoryState,
+				},
+				{
+					id: 'edgeBusAnalytics',
+					source: 'eventBus',
+					target: 'analytics',
+					type: 'arch',
+					data: edgeBusAnalyticsState,
+				},
+				{
+					id: 'edgeBusLoyalty',
+					source: 'eventBus',
+					target: 'loyalty',
+					type: 'arch',
+					data: edgeBusLoyaltyState,
+				},
+			];
+		}
+		// Observe: star topology
+		return [
+			{
+				id: 'edgeStripe',
+				source: 'order',
+				target: 'stripe',
+				type: 'arch',
+				data: edgeStripeState,
+			},
+			{
+				id: 'edgeEmail',
+				source: 'order',
+				target: 'email',
+				type: 'arch',
+				data: edgeEmailState,
+			},
+			{
+				id: 'edgeInventory',
+				source: 'order',
+				target: 'inventory',
+				type: 'arch',
+				data: edgeInventoryState,
+			},
+			{
+				id: 'edgeAnalytics',
+				source: 'order',
+				target: 'analytics',
+				type: 'arch',
+				data: edgeAnalyticsState,
+			},
+			{
+				id: 'edgeLoyalty',
+				source: 'order',
+				target: 'loyalty',
+				type: 'arch',
+				data: edgeLoyaltyState,
+			},
+		];
+	}, [
+		isReward,
+		edgeStripeState,
+		edgeEmailState,
+		edgeInventoryState,
+		edgeAnalyticsState,
+		edgeLoyaltyState,
+		edgeGwBillingState,
+		edgeBillingBusState,
+		edgeBusEmailState,
+		edgeBusInventoryState,
+		edgeBusAnalyticsState,
+		edgeBusLoyaltyState,
+	]);
+
+	// ── Handlers ──
+	const handleNodeClick = useCallback(
+		(nodeId: string) => {
+			if (phase !== 'observe') return;
+			const data = STAGE_INSPECTOR_MAP[nodeId];
+			if (!data) return;
+			setInspectorData(data);
+			const discoveryId = STAGE_DISCOVERY_MAP[nodeId];
+			if (discoveryId) discoveryGating.discover(discoveryId);
+		},
+		[phase, discoveryGating],
+	);
+
+	const handleProbe = useCallback(
+		(probeId: string) => {
+			const discoveries = PROBE_DISCOVERY_MAP[probeId];
+			if (discoveries) {
+				for (const d of discoveries) discoveryGating.discover(d);
+			}
+			const frames = OBSERVE_PROBE_FRAMES[probeId];
+			if (frames) runAnimation(frames);
+		},
+		[discoveryGating, runAnimation],
+	);
+
+	const handleFireScenario = useCallback(
+		(scenarioId: string) => {
+			stressTest.fireRequest(scenarioId);
+			const frames = REWARD_PROBE_FRAMES[scenarioId];
+			if (frames) runAnimation(frames);
+		},
+		[stressTest, runAnimation],
+	);
+
+	const handleOptionSelect = useCallback(
+		(optionId: string) => {
+			const config = OPTION_STEP_CONFIG[stepper.currentStep];
+			if (!config) return;
+			const option = config.options.find((o) => o.id === optionId);
+			if (!option) return;
+			if (option.correct) {
+				stepper.completeStep();
+			} else if (option.feedback) {
+				stepper.recordWrongAttempt(option.feedback);
+			}
+		},
+		[stepper],
+	);
+
+	const handleComplete = () => {
+		onComplete({ stars: stepper.starRating });
 	};
 
-	const simulateRequest = useCallback(() => {
-		if (isSimulating || enabledCount === 0) return;
-
-		const steps = buildSimulationSteps(enabledIds);
-		if (steps.length === 0) return;
-
-		setSimulationSteps(steps);
-		setIsSimulating(true);
-
-		// Animate steps one at a time
-		steps.forEach((_, index) => {
-			// Set step to active
-			setTimeout(() => {
-				setSimulationSteps((prev) =>
-					prev.map((s, i) => (i === index ? { ...s, status: 'active' } : s)),
-				);
-			}, index * 600);
-
-			// Set step to done
-			setTimeout(
-				() => {
-					setSimulationSteps((prev) =>
-						prev.map((s, i) => (i === index ? { ...s, status: 'done' } : s)),
-					);
-
-					// Finish simulation after the last step
-					if (index === steps.length - 1) {
-						setTimeout(() => setIsSimulating(false), 400);
-					}
-				},
-				index * 600 + 400,
-			);
-		});
-	}, [isSimulating, enabledCount, enabledIds]);
-
 	const validateSolution = (): ValidationResult => {
-		const missingRequired = REQUIRED_IDS.filter(
-			(id) => !enabledIds.includes(id),
-		);
-		if (missingRequired.length > 0) {
-			const names = missingRequired.map(
-				(id) => components.find((c) => c.id === id)?.name ?? id,
-			);
+		if (!stepper.isComplete) {
 			return {
 				valid: false,
-				message: 'Missing required architecture components',
-				details: names.map((n) => `${n} must be enabled`),
-			};
-		}
-		if (enabledCount < 6) {
-			return {
-				valid: false,
-				message: `Enable at least 6 components (${enabledCount}/6)`,
-				details: ['A complete extracted service needs most of these patterns'],
+				message: 'Complete all build steps first',
+				details: stepper.steps
+					.filter((s) => s.status !== 'completed')
+					.map((s) => s.title),
 			};
 		}
 		return {
 			valid: true,
-			message: 'Architecture complete! You are The Architect.',
+			message:
+				'Architecture complete! Billing extracted with state machines, domain events, API gateway, observability, and feature flags.',
 		};
 	};
 
-	const handleComplete = async () => {
-		const success = await completeLevel('act8-level55-architect', { stars: 3 });
-		if (success) {
-			onComplete({ stars: 3 });
-		}
-	};
+	// ── Code preview index ──
+	const codePreviewStep = stepper.isCurrentStepCompleted
+		? stepper.currentStep
+		: stepper.currentStep - 1;
 
-	// Determine which code file to show based on enabled components
-	const codeFiles = buildCodeFiles(enabledIds);
+	// ── Render ──
+	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
+	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
+	const currentStepType = STEP_TYPES[stepper.currentStep];
+	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep];
+
+	// ── Center panel content ──
+	function renderCenter() {
+		// Observe phase
+		if (phase === 'observe') {
+			return (
+				<div className="flex-1 flex flex-col">
+					<div className="flex-1 relative">
+						<FlowDiagram
+							edges={flowEdges}
+							edgeTypes={archEdgeTypes}
+							nodes={flowNodes}
+							nodeTypes={observeNodeTypes}
+							onNodeClick={handleNodeClick}
+						/>
+						{inspectorData && (
+							<StageInspector
+								data={inspectorData}
+								onClose={() => setInspectorData(null)}
+							/>
+						)}
+					</div>
+					<div className="px-6 pb-2">
+						<ProbeTerminal
+							disabled={vizAnimating}
+							onProbe={handleProbe}
+							probes={PROBES}
+							title="Architecture Probe"
+						/>
+					</div>
+					{discoveryGating.isUnlocked && (
+						<div className="p-4 flex justify-center animate-in fade-in duration-500">
+							<Button
+								className="gap-2"
+								onClick={() => setPhase('build')}
+								size="lg"
+							>
+								Build the Fix
+								<ArrowRight className="w-4 h-4" />
+							</Button>
+						</div>
+					)}
+				</div>
+			);
+		}
+
+		// Build phase
+		if (phase === 'build') {
+			return (
+				<div className="flex-1 overflow-auto p-6">
+					<div className="max-w-2xl mx-auto space-y-4">
+						{/* Step 0: Terminal */}
+						{currentStepType === 'terminal' && stepper.currentStep === 0 && (
+							<TerminalChoiceStep
+								commands={packwerkCommands}
+								completed={isViewingCompletedStep}
+								description={
+									<p className="text-sm text-muted-foreground">
+										Before extracting billing, define package boundaries within
+										the monolith. This enforces that billing code does not leak
+										dependencies to unrelated packages.
+									</p>
+								}
+								hasNext={hasNextStep}
+								initialHistory={buildTerminalHistory(
+									SHELL_STEP_MAP,
+									stepper.currentStep,
+								)}
+								onCorrect={() => stepper.completeStep()}
+								onNext={stepper.nextStep}
+								onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+								outputLines={packwerkOutput}
+								stepKey={stepper.currentStep}
+								title="Initialize Bounded Contexts"
+							/>
+						)}
+
+						{/* OptionCard steps (1-6) */}
+						{currentStepType === 'option' && currentOptionConfig && (
+							<>
+								<h3 className="text-lg font-semibold text-foreground">
+									{currentOptionConfig.title}
+								</h3>
+								<p className="text-sm text-muted-foreground">
+									{currentOptionConfig.description}
+								</p>
+
+								{isViewingCompletedStep ? (
+									<div className="space-y-2">
+										{shuffleOptions(
+											currentOptionConfig.options,
+											stepper.currentStep,
+										).map((opt) => (
+											<OptionCard
+												color="violet"
+												disabled={!opt.correct}
+												key={opt.id}
+												mono
+												name={opt.name}
+												selected={opt.correct}
+												size="lg"
+											/>
+										))}
+									</div>
+								) : (
+									<>
+										<div className="space-y-2">
+											{shuffleOptions(
+												currentOptionConfig.options,
+												stepper.currentStep,
+											).map((opt) => (
+												<OptionCard
+													color="violet"
+													key={opt.id}
+													mono
+													name={opt.name}
+													onClick={() => handleOptionSelect(opt.id)}
+													size="lg"
+												/>
+											))}
+										</div>
+										<ErrorFeedback
+											message={stepper.lastFeedback}
+											onDismiss={stepper.clearFeedback}
+										/>
+									</>
+								)}
+
+								{isViewingCompletedStep && (
+									<div className="flex justify-end">
+										<Button
+											className="gap-2"
+											onClick={
+												hasNextStep
+													? stepper.nextStep
+													: () => setPhase('reward')
+											}
+											size="sm"
+										>
+											Next Step
+											<ArrowRight className="w-4 h-4" />
+										</Button>
+									</div>
+								)}
+							</>
+						)}
+					</div>
+				</div>
+			);
+		}
+
+		// Reward phase
+		return (
+			<div className="flex-1 flex flex-col">
+				<div className="flex-1 relative">
+					<FlowDiagram
+						edges={flowEdges}
+						edgeTypes={archEdgeTypes}
+						nodes={flowNodes}
+						nodeTypes={rewardNodeTypes}
+					/>
+				</div>
+				<div className="px-6 pb-2">
+					<StressTestPanel
+						allowedCount={stressTest.allowedCount}
+						blockedCount={stressTest.blockedCount}
+						canAutoFire={stressTest.canAutoFire}
+						disabled={vizAnimating}
+						isAutoFiring={stressTest.isAutoFiring}
+						onFire={handleFireScenario}
+						onToggleAutoFire={stressTest.toggleAutoFire}
+						results={stressTest.results}
+						scenarios={STRESS_SCENARIOS}
+					/>
+				</div>
+			</div>
+		);
+	}
 
 	return (
 		<LevelLayout>
 			<LeftPanel>
-				<InstructionPanel
-					goal="Extract billing from a monolith into a fully-architected service using every concept you've learned."
-					instructions={[
-						'Enable architecture components to build the billing service',
-						'All 4 required components must be present',
-						'Enable at least 6 of 8 total components',
-						'Simulate a billing request to see the full flow',
-					]}
-					scenario="The billing code is coupled to everything in the monolith. Apply state machines, domain events, API gateway, multi-database, observability, tenant isolation, background jobs, and circuit breakers to extract it into a clean, independent service."
-				>
-					{/* Component palette */}
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-							Architecture Components
-						</div>
-						<div className="space-y-2">
-							{components.map((comp) => (
-								<Button
-									className={`w-full text-left rounded-lg border p-3 transition-all h-auto whitespace-normal justify-start ${
-										comp.enabled
-											? 'border-success bg-success/10'
-											: 'border-border bg-card hover:border-muted-foreground/50'
-									} ${isSimulating ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
-									key={comp.id}
-									onClick={() => toggleComponent(comp.id)}
-						variant="ghost"
-								>
-									<div className="flex items-center gap-2">
-										<comp.Icon
-											className={`w-4 h-4 shrink-0 ${comp.enabled ? 'text-success' : comp.color}`}
-										/>
-										<div className="flex-1 min-w-0">
-											<div className="flex items-center gap-1.5">
-												<span
-													className={`text-sm font-medium ${comp.enabled ? 'text-success' : 'text-foreground'}`}
-												>
-													{comp.name}
-												</span>
-												{comp.required && (
-													<span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary font-medium">
-														required
-													</span>
-												)}
-											</div>
-											<div className="text-xs text-muted-foreground truncate">
-												{comp.description}
-											</div>
-										</div>
-										{comp.enabled && (
-											<Check className="w-4 h-4 text-success shrink-0" />
-										)}
-									</div>
-								</Button>
-							))}
-						</div>
+				<div className="flex flex-col h-full overflow-y-auto">
+					{/* Scenario text */}
+					<div className="p-4 border-b border-border space-y-3">
+						<p className="text-sm text-muted-foreground leading-relaxed">
+							The Order model calls 5 services synchronously in its charge!
+							method. Payment, email, inventory, analytics, and loyalty are all
+							coupled together. A failure in any service rolls back the entire
+							transaction.
+						</p>
+						<p className="text-sm text-muted-foreground leading-relaxed">
+							Extract billing into a clean, independent service using every
+							architecture pattern you have learned: state machines, domain
+							events, API gateway, multi-database, observability, tenant
+							isolation, and feature flags.
+						</p>
 					</div>
 
-					{/* Progress */}
-					<div className="p-4 border-t border-border">
-						<div className="flex justify-between text-sm mb-2">
-							<span className="text-muted-foreground">
-								Components configured
-							</span>
-							<span
-								className={
-									enabledCount >= 6
-										? 'text-success font-semibold'
-										: 'text-foreground'
-								}
-							>
-								{enabledCount} / 8
-							</span>
-						</div>
-						<div className="bg-secondary rounded-full h-2 overflow-hidden">
-							<div
-								className={`h-full transition-all duration-300 ${enabledCount >= 6 ? 'bg-success' : 'bg-primary'}`}
-								style={{ width: `${(enabledCount / 8) * 100}%` }}
+					{/* Observe: discovery checklist */}
+					{phase === 'observe' && (
+						<div className="p-4 border-b border-border">
+							<DiscoveryChecklist
+								discoveredCount={discoveryGating.discoveredCount}
+								discoveries={discoveryGating.discoveries}
+								minRequired={discoveryGating.minRequired}
 							/>
 						</div>
-						<div className="flex justify-between mt-2">
-							<span className="text-xs text-muted-foreground">
-								{REQUIRED_IDS.filter((id) => enabledIds.includes(id)).length}/4
-								required
-							</span>
-							<span className="text-xs text-muted-foreground">
-								{enabledCount >= 6
-									? 'Ready'
-									: `${6 - enabledCount} more needed`}
-							</span>
+					)}
+
+					{/* Build: step progress */}
+					{phase === 'build' && (
+						<div className="p-4 border-b border-border">
+							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+								Build Steps
+							</div>
+							<StepProgress
+								currentStep={stepper.currentStep}
+								onStepClick={stepper.goToStep}
+								steps={stepper.steps}
+							/>
 						</div>
-					</div>
-				</InstructionPanel>
+					)}
+
+					{/* Reward: architecture legend + counters */}
+					{phase === 'reward' && (
+						<>
+							<div className="p-4 border-b border-border">
+								<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+									Architecture Legend
+								</div>
+								<div className="space-y-2 text-sm">
+									<div className="flex items-center gap-2">
+										<Globe className="w-4 h-4 text-success" />
+										<span className="text-foreground">
+											API Gateway (auth at edge)
+										</span>
+									</div>
+									<div className="flex items-center gap-2">
+										<Database className="w-4 h-4 text-primary" />
+										<span className="text-foreground">
+											Billing Service (AASM + own DB)
+										</span>
+									</div>
+									<div className="flex items-center gap-2">
+										<Radio className="w-4 h-4 text-warning" />
+										<span className="text-foreground">
+											Event Bus (Wisper broadcast)
+										</span>
+									</div>
+									<div className="flex items-center gap-2">
+										<Eye className="w-4 h-4 text-muted-foreground" />
+										<span className="text-foreground">
+											OpenTelemetry tracing
+										</span>
+									</div>
+									<div className="flex items-center gap-2">
+										<Flag className="w-4 h-4 text-muted-foreground" />
+										<span className="text-foreground">
+											Flipper feature flag routing
+										</span>
+									</div>
+								</div>
+							</div>
+							<div className="p-4">
+								<div className="grid grid-cols-2 gap-3">
+									<div className="bg-success/20 rounded-lg p-3 text-center">
+										<div className="text-2xl font-bold text-success">
+											{stressTest.allowedCount}
+										</div>
+										<div className="text-xs text-success/70">Allowed</div>
+									</div>
+									<div className="bg-destructive/20 rounded-lg p-3 text-center">
+										<div className="text-2xl font-bold text-destructive">
+											{stressTest.blockedCount}
+										</div>
+										<div className="text-xs text-destructive/70">Blocked</div>
+									</div>
+								</div>
+							</div>
+						</>
+					)}
+				</div>
 			</LeftPanel>
 
 			<CenterPanel>
 				<LevelHeader
 					actNumber={8}
 					levelName="The Architect"
-					levelNumber={55}
+					levelNumber={56}
 					onComplete={handleComplete}
-					onReset={() => {
-						setComponents(INITIAL_COMPONENTS);
-						setSimulationSteps([]);
-						setIsSimulating(false);
-					}}
+					onReset={() => window.location.reload()}
 					onValidate={validateSolution}
 				/>
-
-				<div className="flex-1 relative bg-background p-6 overflow-auto">
-					<div className="max-w-5xl mx-auto space-y-6">
-						{/* Architecture Diagram */}
-						<div className="bg-card rounded-xl border border-border overflow-hidden">
-							<div className="bg-secondary px-4 py-3 border-b border-border flex items-center justify-between">
-								<div className="flex items-center gap-2">
-									<Building2 className="w-4 h-4 text-primary" />
-									<span className="text-foreground font-semibold">
-										Billing Service Architecture
-									</span>
-								</div>
-								<div className="flex items-center gap-2">
-									<Award
-										className={`w-4 h-4 ${enabledCount >= 6 ? 'text-yellow-400' : 'text-muted-foreground'}`}
-									/>
-									<span
-										className={`text-xs ${enabledCount >= 6 ? 'text-yellow-400' : 'text-muted-foreground'}`}
-									>
-										{enabledCount >= 8
-											? 'Perfect Architecture'
-											: enabledCount >= 6
-												? 'Solid Architecture'
-												: 'In Progress'}
-									</span>
-								</div>
-							</div>
-
-							<div className="p-6">
-								{enabledCount === 0 ? (
-									<div className="text-center py-12 text-muted-foreground">
-										<Building2 className="w-12 h-12 mx-auto mb-3 opacity-30" />
-										<p className="text-sm">
-											Enable components from the left panel to build the
-											architecture
-										</p>
-									</div>
-								) : (
-									<div className="space-y-4">
-										{/* Top row: Gateway → Billing Service → DB */}
-										<div className="flex items-center justify-center gap-3 flex-wrap">
-											{/* API Gateway */}
-											{enabledIds.includes('api-gateway') && (
-												<ArchNode
-													color="bg-purple-600"
-													Icon={Server}
-													label="API Gateway"
-													sublabel="Auth + Routing"
-												/>
-											)}
-
-											{enabledIds.includes('api-gateway') && (
-												<ArrowRight className="w-5 h-5 text-muted-foreground shrink-0" />
-											)}
-
-											{/* Circuit Breaker */}
-											{enabledIds.includes('circuit-breaker') && (
-												<>
-													<ArchNode
-														color="bg-red-600"
-														Icon={Activity}
-														label="Circuit Breaker"
-														sublabel="Failure protection"
-													/>
-													<ArrowRight className="w-5 h-5 text-muted-foreground shrink-0" />
-												</>
-											)}
-
-											{/* Billing Service (always shown when at least 1 component is enabled) */}
-											<div className="bg-blue-600 rounded-xl p-4 text-center min-w-[160px]">
-												<Building2 className="w-6 h-6 text-white mx-auto mb-1" />
-												<div className="text-sm font-semibold text-white">
-													Billing Service
-												</div>
-												<div className="flex flex-wrap justify-center gap-1 mt-2">
-													{enabledIds.includes('state-machine') && (
-														<span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-400/30 text-blue-200">
-															<GitBranch className="w-3 h-3 inline mr-0.5" />
-															AASM
-														</span>
-													)}
-													{enabledIds.includes('tenant-isolation') && (
-														<span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-400/30 text-orange-200">
-															<ShieldCheck className="w-3 h-3 inline mr-0.5" />
-															Tenancy
-														</span>
-													)}
-													{enabledIds.includes('observability') && (
-														<span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-400/30 text-cyan-200">
-															<Eye className="w-3 h-3 inline mr-0.5" />
-															Traced
-														</span>
-													)}
-												</div>
-											</div>
-
-											<ArrowRight className="w-5 h-5 text-muted-foreground shrink-0" />
-
-											{/* Database(s) */}
-											{enabledIds.includes('multi-database') ? (
-												<div className="flex flex-col gap-2">
-													<ArchNode
-														color="bg-green-600"
-														Icon={Database}
-														label="Primary DB"
-														sublabel="Writes"
-													/>
-													<ArchNode
-														color="bg-green-800"
-														Icon={Database}
-														label="Replica DB"
-														sublabel="Reads / Reporting"
-													/>
-												</div>
-											) : (
-												<ArchNode
-													color="bg-green-600"
-													Icon={Database}
-													label="Database"
-													sublabel="Billing data"
-												/>
-											)}
-										</div>
-
-										{/* Bottom row: Event Bus + Background Jobs */}
-										{(enabledIds.includes('domain-events') ||
-											enabledIds.includes('background-jobs')) && (
-											<div className="flex items-center justify-center gap-3 pt-2 border-t border-border/50 flex-wrap">
-												<div className="text-xs text-muted-foreground mr-2">
-													Side effects:
-												</div>
-
-												{enabledIds.includes('domain-events') && (
-													<ArchNode
-														color="bg-yellow-600"
-														Icon={Zap}
-														label="Event Bus"
-														sublabel="payment.completed"
-													/>
-												)}
-
-												{enabledIds.includes('domain-events') &&
-													enabledIds.includes('background-jobs') && (
-														<ArrowRight className="w-5 h-5 text-muted-foreground shrink-0" />
-													)}
-
-												{enabledIds.includes('background-jobs') && (
-													<div className="flex gap-2">
-														<ArchNode
-															color="bg-pink-600"
-															Icon={Radio}
-															label="NotificationJob"
-															sublabel=""
-														/>
-														<ArchNode
-															color="bg-pink-600"
-															Icon={Radio}
-															label="InventoryJob"
-															sublabel=""
-														/>
-														<ArchNode
-															color="bg-pink-600"
-															Icon={Radio}
-															label="AnalyticsJob"
-															sublabel=""
-														/>
-													</div>
-												)}
-											</div>
-										)}
-									</div>
-								)}
-							</div>
-						</div>
-
-						{/* Request Simulation */}
-						<div className="bg-card rounded-xl border border-border overflow-hidden">
-							<div className="bg-secondary px-4 py-3 border-b border-border flex items-center justify-between">
-								<div className="flex items-center gap-2">
-									<Zap className="w-4 h-4 text-warning" />
-									<span className="text-foreground font-semibold">
-										Simulate Billing Request
-									</span>
-								</div>
-								<Button
-									className="text-sm"
-									disabled={isSimulating || enabledCount === 0}
-									onClick={simulateRequest}
-									size="sm"
-									variant="outline"
-								>
-									{isSimulating ? 'Simulating...' : 'Simulate Request'}
-								</Button>
-							</div>
-
-							<div className="p-4">
-								{simulationSteps.length === 0 ? (
-									<div className="text-center py-6 text-muted-foreground text-sm">
-										{enabledCount === 0
-											? 'Enable components first, then simulate a billing request'
-											: 'Click "Simulate Request" to see a billing request flow through the architecture'}
-									</div>
-								) : (
-									<div className="space-y-2">
-										{simulationSteps.map((step, index) => {
-											const comp = components.find(
-												(c) => c.id === step.component,
-											);
-											const StepIcon = comp?.Icon ?? ChevronRight;
-											return (
-												<div
-													className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-300 ${
-														step.status === 'active'
-															? 'bg-primary/20 border border-primary/40'
-															: step.status === 'done'
-																? 'bg-success/10 border border-success/30'
-																: 'bg-secondary/50 border border-transparent'
-													}`}
-													key={step.component}
-												>
-													<StepIcon
-														className={`w-4 h-4 shrink-0 ${
-															step.status === 'done'
-																? 'text-success'
-																: step.status === 'active'
-																	? 'text-primary'
-																	: 'text-muted-foreground'
-														}`}
-													/>
-													<span
-														className={`text-sm flex-1 ${
-															step.status === 'done'
-																? 'text-success'
-																: step.status === 'active'
-																	? 'text-primary font-medium'
-																	: 'text-muted-foreground'
-														}`}
-													>
-														{step.label}
-													</span>
-													<span className="text-xs text-muted-foreground tabular-nums w-6 text-right">
-														{step.status === 'done' ? (
-															<Check className="w-4 h-4 text-success inline" />
-														) : step.status === 'active' ? (
-															<span className="inline-block w-2 h-2 rounded-full bg-primary animate-pulse" />
-														) : (
-															<span className="text-muted-foreground">
-																{index + 1}
-															</span>
-														)}
-													</span>
-												</div>
-											);
-										})}
-									</div>
-								)}
-							</div>
-						</div>
-					</div>
+				<div className="flex-1 flex flex-col bg-background overflow-hidden">
+					{renderCenter()}
 				</div>
 			</CenterPanel>
 
 			<RightPanel>
 				<CodePreviewPanel
-					files={codeFiles}
-					learningGoal="The Architect extracts a billing service from a monolith by applying state machines, domain events, API gateway, multi-database, observability, tenant isolation, background jobs, and circuit breakers."
-				>
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-							Extraction Checklist
-						</div>
-						<ul className="text-xs text-muted-foreground space-y-1.5">
-							{components.map((comp) => (
-								<li className="flex items-center gap-2" key={comp.id}>
-									{comp.enabled ? (
-										<Check className="w-3 h-3 text-success shrink-0" />
-									) : (
-										<span className="w-3 h-3 rounded-full border border-muted-foreground/40 shrink-0 inline-block" />
-									)}
-									<span className={comp.enabled ? 'text-foreground' : ''}>
-										{comp.name}
-									</span>
-									{comp.required && !comp.enabled && (
-										<span className="text-[10px] text-primary">required</span>
-									)}
-								</li>
-							))}
-						</ul>
-					</div>
-
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-							Patterns Applied
-						</div>
-						<ul className="text-xs text-muted-foreground space-y-1">
-							<li>* AASM state machine for payment lifecycle</li>
-							<li>* acts_as_tenant for data isolation</li>
-							<li>* EventBus for loose coupling</li>
-							<li>* ActiveJob for async processing</li>
-							<li>* Multi-database for scale</li>
-							<li>* Structured logging + tracing</li>
-						</ul>
-					</div>
-				</CodePreviewPanel>
+					files={getCodeFiles(
+						phase,
+						phase === 'build'
+							? codePreviewStep
+							: phase === 'reward'
+								? STEP_DEFS.length - 1
+								: -1,
+					)}
+					learningGoal="The capstone level brings together every architecture pattern: AASM state machines guard payment transitions, Wisper broadcasts domain events to async subscribers, connects_to isolates the billing database, an API gateway handles auth at the edge, OpenTelemetry provides distributed tracing, and Flipper enables gradual rollout."
+				/>
 			</RightPanel>
 		</LevelLayout>
 	);
-}
-
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
-function ArchNode({
-	Icon,
-	label,
-	sublabel,
-	color,
-}: {
-	Icon: LucideIcon;
-	label: string;
-	sublabel: string;
-	color: string;
-}) {
-	return (
-		<div className={`${color} rounded-lg px-4 py-3 text-center min-w-[110px]`}>
-			<Icon className="w-5 h-5 text-white mx-auto mb-1" />
-			<div className="text-xs font-semibold text-white">{label}</div>
-			{sublabel && <div className="text-[10px] text-white/70">{sublabel}</div>}
-		</div>
-	);
-}
-
-// ---------------------------------------------------------------------------
-// Code file builder
-// ---------------------------------------------------------------------------
-
-function buildCodeFiles(enabledIds: string[]) {
-	const paymentModelLines: string[] = [
-		'# billing-service/app/models/payment.rb',
-		'class Payment < ApplicationRecord',
-	];
-
-	if (enabledIds.includes('state-machine')) {
-		paymentModelLines.push('  include AASM');
-	}
-
-	if (enabledIds.includes('tenant-isolation')) {
-		paymentModelLines.push('  acts_as_tenant :company');
-	}
-
-	paymentModelLines.push('');
-
-	if (enabledIds.includes('state-machine')) {
-		paymentModelLines.push(
-			'  aasm column: :status do',
-			'    state :pending, initial: true',
-			'    state :processing, :completed, :failed, :refunded',
-			'',
-			'    event :process do',
-			'      transitions from: :pending, to: :processing',
-			'    end',
-			'',
-			'    event :complete do',
-			'      transitions from: :processing, to: :completed,',
-			'                  after: :publish_success_event',
-			'    end',
-			'',
-			'    event :fail do',
-			'      transitions from: :processing, to: :failed',
-			'    end',
-			'  end',
-		);
-	}
-
-	if (enabledIds.includes('domain-events')) {
-		paymentModelLines.push(
-			'',
-			'  private',
-			'',
-			'  def publish_success_event',
-			"    EventBus.publish('payment.completed', {",
-			'      payment_id: id, tenant_id: company_id',
-			'    })',
-			'  end',
-		);
-	}
-
-	paymentModelLines.push('end');
-
-	const files = [
-		{
-			filename: 'billing-service/app/models/payment.rb',
-			language: 'ruby',
-			code: paymentModelLines.join('\n'),
-			highlight: enabledIds.includes('state-machine')
-				? [3, 7, 8, 9, 14, 15]
-				: [],
-		},
-	];
-
-	if (
-		enabledIds.includes('domain-events') ||
-		enabledIds.includes('background-jobs')
-	) {
-		const eventLines: string[] = [
-			'# Event-driven side effects',
-			"EventBus.subscribe('payment.completed') do |payload|",
-		];
-
-		if (enabledIds.includes('background-jobs')) {
-			eventLines.push(
-				'  NotificationJob.perform_later(payload)',
-				'  InventoryJob.perform_later(payload)',
-				'  AnalyticsJob.perform_later(payload)',
-			);
-		} else {
-			eventLines.push(
-				'  Notification.send_receipt(payload)',
-				'  Inventory.adjust(payload)',
-				'  Analytics.track(payload)',
-			);
-		}
-
-		eventLines.push('end');
-
-		files.push({
-			filename: 'billing-service/config/initializers/events.rb',
-			language: 'ruby',
-			code: eventLines.join('\n'),
-			highlight: enabledIds.includes('background-jobs') ? [3, 4, 5] : [],
-		});
-	}
-
-	if (enabledIds.includes('multi-database')) {
-		files.push({
-			filename: 'billing-service/config/database.yml',
-			language: 'ruby',
-			code: `# Multi-database configuration
-production:
-  primary:
-    database: billing_production
-    adapter: postgresql
-  primary_replica:
-    database: billing_production
-    adapter: postgresql
-    replica: true
-  # Reporting reads from replica
-  # Writes go to primary`,
-			highlight: [3, 4, 7, 8, 9],
-		});
-	}
-
-	if (enabledIds.includes('observability')) {
-		files.push({
-			filename: 'billing-service/app/middleware/tracing.rb',
-			language: 'ruby',
-			code: `class TracingMiddleware
-  def call(env)
-    trace_id = env['HTTP_X_TRACE_ID'] || SecureRandom.uuid
-    Rails.logger.tagged(trace_id: trace_id) do
-      status, headers, body = @app.call(env)
-      headers['X-Trace-ID'] = trace_id
-      [status, headers, body]
-    end
-  end
-end
-
-# Health check endpoint
-# GET /health => { status: "ok", db: "connected" }`,
-			highlight: [3, 4, 6],
-		});
-	}
-
-	if (enabledIds.includes('circuit-breaker')) {
-		files.push({
-			filename: 'billing-service/app/services/circuit_breaker.rb',
-			language: 'ruby',
-			code: `class CircuitBreaker
-  THRESHOLD = 5
-  TIMEOUT = 30.seconds
-
-  def call(service, &block)
-    if open?(service)
-      raise ServiceUnavailableError
-    end
-    begin
-      result = block.call
-      reset!(service)
-      result
-    rescue => e
-      record_failure(service)
-      raise
-    end
-  end
-end`,
-			highlight: [2, 3, 6, 7, 10],
-		});
-	}
-
-	// If nothing is enabled, show the monolith code to motivate extraction
-	if (files.length === 1 && enabledIds.length === 0) {
-		return [
-			{
-				filename: 'app/models/payment.rb (monolith)',
-				language: 'ruby',
-				code: `# Everything coupled in the monolith
-class Payment < ApplicationRecord
-  belongs_to :user
-  belongs_to :order
-  belongs_to :company
-
-  after_save :send_notification
-  after_save :update_inventory
-  after_save :track_analytics
-  after_save :sync_reporting
-
-  # Tightly coupled to everything...
-  # Time to extract into a clean service!
-end`,
-				highlight: [7, 8, 9, 10],
-			},
-		];
-	}
-
-	return files;
 }
 
 export default Level56Architect;
