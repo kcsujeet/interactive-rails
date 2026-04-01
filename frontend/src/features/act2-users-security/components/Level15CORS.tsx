@@ -1,7 +1,7 @@
 /**
  * Level 15: CORS
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): Probe the API from different origins, discover CORS is missing
@@ -9,8 +9,7 @@
  *   Step 0: bundle add rack-cors (terminal)
  *   Step 1: Configure CORS Origins (OptionCard)
  *   Step 2: Allow HTTP Methods (OptionCard)
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Protection" button
- * Phase 4 (ADVANTAGE - reward): Stress test CORS with requests from various origins
+ * Phase 3 (ADVANTAGE - reward): Stress test CORS with requests from various origins
  *
  * Visualization: 3-zone horizontal flow
  *   [Browser/Client] --FC1--> [CORS Middleware Gate] --FC2--> [Rails API]
@@ -18,8 +17,16 @@
  * Teaches: rack-cors gem, CORS origin configuration, allowed HTTP methods
  */
 
-import { ArrowRight, Check, Globe, Play, Server, Shield, Star, Terminal, X } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+	ArrowRight,
+	Check,
+	Globe,
+	Server,
+	Shield,
+	Terminal,
+	X,
+} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -40,20 +47,30 @@ import {
 } from '@/components/levels';
 import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
 import { FlowConnector } from '@/components/levels/FlowConnector';
-import { ProbeTerminal, type ProbeConfig } from '@/components/levels/ProbeTerminal';
-import { StageInspector, type StageInspectorData } from '@/components/levels/StageInspector';
+import {
+	type ProbeConfig,
+	ProbeTerminal,
+} from '@/components/levels/ProbeTerminal';
+import {
+	StageInspector,
+	type StageInspectorData,
+} from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
-import { useDiscoveryGating, type DiscoveryDef } from '@/hooks/useDiscoveryGating';
+import {
+	type DiscoveryDef,
+	useDiscoveryGating,
+} from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
-import { useStressTest, type StressScenario } from '@/hooks/useStressTest';
+import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { shuffleOptions } from '@/lib/shuffleOptions';
 
 // ──────────────────────────────────────────────
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'observe' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Discovery definitions (observe phase)
@@ -74,22 +91,39 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'fetch-posts',
 		label: 'GET /posts from React',
-		command: 'fetch("http://localhost:3000/api/v1/products") // from localhost:3001',
+		command:
+			'fetch("http://localhost:3000/api/v1/products") // from localhost:3001',
 		responseLines: [
-			{ text: 'Access to fetch at http://localhost:3000/api/v1/products', color: 'red' },
-			{ text: "from origin 'http://localhost:3001' has been blocked", color: 'red' },
-			{ text: 'by CORS policy: No Access-Control-Allow-Origin header', color: 'red' },
+			{
+				text: 'Access to fetch at http://localhost:3000/api/v1/products',
+				color: 'red',
+			},
+			{
+				text: "from origin 'http://localhost:3001' has been blocked",
+				color: 'red',
+			},
+			{
+				text: 'by CORS policy: No Access-Control-Allow-Origin header',
+				color: 'red',
+			},
 			{ text: 'Response Status: (blocked by browser)', color: 'yellow' },
 		],
 	},
 	{
 		id: 'preflight-delete',
 		label: 'DELETE /posts/1 from React',
-		command: 'fetch("http://localhost:3000/api/v1/products/1", { method: "DELETE" })',
+		command:
+			'fetch("http://localhost:3000/api/v1/products/1", { method: "DELETE" })',
 		responseLines: [
 			{ text: 'Preflight OPTIONS /api/v1/products/1', color: 'cyan' },
-			{ text: 'Response to preflight: no Access-Control-Allow-Origin', color: 'red' },
-			{ text: 'DELETE request never sent (preflight rejected)', color: 'yellow' },
+			{
+				text: 'Response to preflight: no Access-Control-Allow-Origin',
+				color: 'red',
+			},
+			{
+				text: 'DELETE request never sent (preflight rejected)',
+				color: 'yellow',
+			},
 		],
 	},
 	{
@@ -99,7 +133,10 @@ const PROBES: ProbeConfig[] = [
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'green' },
 			{ text: '[{"id":1,"title":"Hello World"}, ...]', color: 'green' },
-			{ text: 'curl ignores CORS (no browser = no Same-Origin Policy)', color: 'muted' },
+			{
+				text: 'curl ignores CORS (no browser = no Same-Origin Policy)',
+				color: 'muted',
+			},
 		],
 	},
 ];
@@ -143,9 +180,15 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 };
 
 // Maps probe IDs to CORS gate display state during observe
-const PROBE_PIPELINE_MAP: Record<string, { gateSublabel: string; gateBadge: string }> = {
+const PROBE_PIPELINE_MAP: Record<
+	string,
+	{ gateSublabel: string; gateBadge: string }
+> = {
 	'fetch-posts': { gateSublabel: 'No headers sent', gateBadge: 'BLOCKED' },
-	'preflight-delete': { gateSublabel: 'OPTIONS rejected', gateBadge: 'BLOCKED' },
+	'preflight-delete': {
+		gateSublabel: 'OPTIONS rejected',
+		gateBadge: 'BLOCKED',
+	},
 	'curl-bypass': { gateSublabel: '(bypassed)', gateBadge: '200' },
 };
 
@@ -173,7 +216,11 @@ const OBSERVE_FLOW: Record<string, string[]> = {
 };
 
 const REWARD_FLOW: Record<string, string[]> = {
-	'frontend-get': ['GET from localhost:3001', 'rack-cors: origin allowed', '200 OK'],
+	'frontend-get': [
+		'GET from localhost:3001',
+		'rack-cors: origin allowed',
+		'200 OK',
+	],
 	'frontend-post': [
 		'POST from localhost:3001',
 		'Preflight passes, origin allowed',
@@ -184,13 +231,21 @@ const REWARD_FLOW: Record<string, string[]> = {
 		'Preflight passes, origin allowed',
 		'200 OK',
 	],
-	'evil-get': ['GET from evil.example.com', 'rack-cors: origin rejected', 'BLOCKED'],
+	'evil-get': [
+		'GET from evil.example.com',
+		'rack-cors: origin rejected',
+		'BLOCKED',
+	],
 	'evil-delete': [
 		'DELETE from evil.example.com',
 		'Preflight fails, origin rejected',
 		'BLOCKED',
 	],
-	'unknown-post': ['POST from unknown.site.io', 'rack-cors: origin rejected', 'BLOCKED'],
+	'unknown-post': [
+		'POST from unknown.site.io',
+		'rack-cors: origin rejected',
+		'BLOCKED',
+	],
 };
 
 // ──────────────────────────────────────────────
@@ -228,7 +283,7 @@ const addGemCommands: TerminalCommand[] = [
 		command: 'gem install rack-cors',
 		correct: false,
 		feedback:
-			"That installs globally, not into your project. Bundler manages project dependencies.",
+			'That installs globally, not into your project. Bundler manages project dependencies.',
 	},
 	{
 		id: 'correct',
@@ -411,11 +466,15 @@ function PipelineLegend() {
 			<div className="space-y-2 text-sm">
 				<div className="flex items-center gap-2">
 					<Check className="w-4 h-4 text-success" />
-					<span className="text-foreground">Allowed origin (passes through)</span>
+					<span className="text-foreground">
+						Allowed origin (passes through)
+					</span>
 				</div>
 				<div className="flex items-center gap-2">
 					<X className="w-4 h-4 text-destructive" />
-					<span className="text-foreground">Blocked origin (rejected by CORS)</span>
+					<span className="text-foreground">
+						Blocked origin (rejected by CORS)
+					</span>
 				</div>
 			</div>
 		</div>
@@ -498,13 +557,19 @@ end`,
 
 export function Level15CORS({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
-	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, { minRequired: 3 });
+	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
+		minRequired: 3,
+	});
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
 
 	// Observe phase state
-	const [inspectedStages, setInspectedStages] = useState<Set<string>>(new Set());
-	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(null);
+	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
+		new Set(),
+	);
+	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(
+		null,
+	);
 	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
 
 	// ── Flow animation state ──
@@ -533,9 +598,12 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 				flowTimeoutsRef.current.push(t);
 			}
 
-			const endT = setTimeout(() => {
-				setFlowPhase(-1);
-			}, delay * (totalPhases + 1));
+			const endT = setTimeout(
+				() => {
+					setFlowPhase(-1);
+				},
+				delay * (totalPhases + 1),
+			);
 			flowTimeoutsRef.current.push(endT);
 		},
 		[clearFlow],
@@ -544,13 +612,6 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 	useEffect(() => {
 		return () => clearFlow();
 	}, [clearFlow]);
-
-	// ── Transition: build -> activate when all steps complete ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
 
 	// ── Observe phase: handle stage click ──
 	const handleStageClick = useCallback(
@@ -633,7 +694,7 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 		setPhase('build');
 	};
 
-	const handleActivateProtection = () => {
+	const handleStartReward = () => {
 		stressTest.reset();
 		setPhase('reward');
 	};
@@ -660,6 +721,13 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 	const currentStepType = STEP_TYPES[stepper.currentStep];
 	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep];
+	const shuffledOptions = useMemo(
+		() =>
+			currentOptionConfig
+				? shuffleOptions(currentOptionConfig.options, stepper.currentStep)
+				: [],
+		[currentOptionConfig, stepper.currentStep],
+	);
 
 	// ── Render ──
 	return (
@@ -684,12 +752,10 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 							. Browsers block cross-origin requests by default.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							curl bypasses this entirely, which is why you never noticed. You need
-							the{' '}
-							<span className="text-foreground font-medium">
-								rack-cors
-							</span>{' '}
-							gem to tell the browser which origins are allowed.
+							curl bypasses this entirely, which is why you never noticed. You
+							need the{' '}
+							<span className="text-foreground font-medium">rack-cors</span> gem
+							to tell the browser which origins are allowed.
 						</p>
 					</div>
 
@@ -697,15 +763,15 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 					{phase === 'observe' && (
 						<div className="p-4 border-b border-border">
 							<DiscoveryChecklist
-								discoveries={discoveryGating.discoveries}
 								discoveredCount={discoveryGating.discoveredCount}
+								discoveries={discoveryGating.discoveries}
 								minRequired={discoveryGating.minRequired}
 							/>
 						</div>
 					)}
 
-					{/* Build / activate phases: step progress */}
-					{(phase === 'build' || phase === 'activate') && (
+					{/* Build phase: step progress */}
+					{phase === 'build' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -729,17 +795,13 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 										<div className="text-2xl font-bold text-success">
 											{stressTest.allowedCount}
 										</div>
-										<div className="text-xs text-success/70">
-											Allowed
-										</div>
+										<div className="text-xs text-success/70">Allowed</div>
 									</div>
 									<div className="bg-destructive/20 rounded-lg p-3 text-center">
 										<div className="text-2xl font-bold text-destructive">
 											{stressTest.blockedCount}
 										</div>
-										<div className="text-xs text-destructive/70">
-											Blocked
-										</div>
+										<div className="text-xs text-destructive/70">Blocked</div>
 									</div>
 								</div>
 							</div>
@@ -768,7 +830,6 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 							<div className="flex-1 flex items-center gap-0 px-4 py-4 relative">
 								{/* Zone 0: Client (Browser / curl) */}
 								<button
-									type="button"
 									className={`flex-1 flex flex-col border rounded-lg bg-card overflow-hidden cursor-pointer transition-all duration-300 hover:ring-2 hover:ring-ring/30 self-stretch ${
 										flowPhase === 0
 											? 'ring-2 ring-primary/60 shadow-lg shadow-primary/10'
@@ -777,12 +838,13 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 												: ''
 									}`}
 									onClick={() => handleStageClick('browser')}
+									type="button"
 								>
 									{/* Header: browser chrome or terminal style */}
 									{isCurlProbe ? (
 										<div className="flex items-center gap-1.5 px-3 py-2 border-b bg-card">
 											<Terminal className="w-3 h-3 text-zinc-400" />
-											<div className="text-[10px] text-zinc-400 ml-auto font-mono">
+											<div className="text-xs text-zinc-400 ml-auto font-mono">
 												$ curl
 											</div>
 										</div>
@@ -793,7 +855,7 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 												<div className="w-2 h-2 rounded-full bg-yellow-400/70 dark:bg-yellow-400/50" />
 												<div className="w-2 h-2 rounded-full bg-green-400/70 dark:bg-green-400/50" />
 											</div>
-											<div className="text-[10px] text-muted-foreground ml-auto font-mono">
+											<div className="text-xs text-muted-foreground ml-auto font-mono">
 												localhost:3001
 											</div>
 										</div>
@@ -814,17 +876,20 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 												</span>
 											)}
 										</div>
-										<pre className="text-[10px] font-mono text-foreground/70 leading-relaxed whitespace-pre-wrap">
-{isCurlProbe
-	? 'curl http://localhost:3000\n  /api/v1/products'
-	: `fetch("http://localhost:3000
+										<pre className="text-xs font-mono text-foreground/70 leading-relaxed whitespace-pre-wrap">
+											{isCurlProbe
+												? 'curl http://localhost:3000\n  /api/v1/products'
+												: `fetch("http://localhost:3000
   /api/v1/products")`}
 										</pre>
-										{flowMessages[0] && (flowPhase >= 0 || flowPhase === -1) && (
-											<div className={`text-[10px] text-primary font-medium ${flowPhase === 0 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}>
-												{flowMessages[0]}
-											</div>
-										)}
+										{flowMessages[0] &&
+											(flowPhase >= 0 || flowPhase === -1) && (
+												<div
+													className={`text-xs text-primary font-medium ${flowPhase === 0 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}
+												>
+													{flowMessages[0]}
+												</div>
+											)}
 									</div>
 								</button>
 
@@ -846,7 +911,6 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 
 								{/* Zone 1: CORS Middleware Gate */}
 								<button
-									type="button"
 									className={`flex-1 flex flex-col items-center justify-center border-2 rounded-lg p-4 cursor-pointer transition-all duration-300 hover:ring-2 hover:ring-ring/30 self-stretch ${
 										flowPhase === 2
 											? isCurlProbe
@@ -863,37 +927,42 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 											: ''
 									}`}
 									onClick={() => handleStageClick('cors')}
+									type="button"
 								>
 									<div className="flex items-center justify-center gap-1.5">
-										<Shield className={`w-4 h-4 ${
-											gateRevealed && !isCurlProbe
-												? 'text-destructive'
-												: 'text-muted-foreground/50'
-										}`} />
+										<Shield
+											className={`w-4 h-4 ${
+												gateRevealed && !isCurlProbe
+													? 'text-destructive'
+													: 'text-muted-foreground/50'
+											}`}
+										/>
 										<span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
 											CORS Middleware
 										</span>
 									</div>
 									<div
-										className={`text-[10px] font-mono mt-1.5 ${
+										className={`text-xs font-mono mt-1.5 ${
 											gateRevealed && !isCurlProbe
 												? 'text-destructive'
 												: 'text-muted-foreground/50'
 										}`}
 									>
-										{gateRevealed
-											? probeState.gateSublabel
-											: '(not installed)'}
+										{gateRevealed ? probeState.gateSublabel : '(not installed)'}
 									</div>
 									{gateRevealed && !isCurlProbe && (
-										<div className="text-[10px] font-bold text-destructive mt-0.5">
+										<div className="text-xs font-bold text-destructive mt-0.5">
 											{probeState.gateBadge}
 										</div>
 									)}
 									{flowMessages[1] && (flowPhase >= 2 || flowPhase === -1) && (
-										<div className={`text-[10px] font-medium mt-1.5 ${flowPhase === 2 ? 'animate-in fade-in duration-300' : 'opacity-70'} ${
-											isCurlProbe ? 'text-muted-foreground' : 'text-destructive'
-										}`}>
+										<div
+											className={`text-xs font-medium mt-1.5 ${flowPhase === 2 ? 'animate-in fade-in duration-300' : 'opacity-70'} ${
+												isCurlProbe
+													? 'text-muted-foreground'
+													: 'text-destructive'
+											}`}
+										>
 											{flowMessages[1]}
 										</div>
 									)}
@@ -922,7 +991,6 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 
 								{/* Zone 2: Rails API */}
 								<button
-									type="button"
 									className={`flex-1 flex flex-col items-center justify-center border rounded-lg p-4 cursor-pointer transition-all duration-300 hover:ring-2 hover:ring-ring/30 self-stretch ${
 										flowPhase === 4
 											? isCurlProbe
@@ -939,22 +1007,29 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 											: ''
 									}`}
 									onClick={() => handleStageClick('api')}
+									type="button"
 								>
 									<div className="flex items-center justify-center gap-1.5">
-										<Server className={`w-4 h-4 ${
-											isCurlProbe && apiRevealed ? 'text-success' : 'text-muted-foreground'
-										}`} />
+										<Server
+											className={`w-4 h-4 ${
+												isCurlProbe && apiRevealed
+													? 'text-success'
+													: 'text-muted-foreground'
+											}`}
+										/>
 										<span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
 											Rails API
 										</span>
 									</div>
-									<div className={`text-[10px] font-mono mt-1.5 ${
-										isCurlProbe && apiRevealed
-											? 'text-success font-bold'
-											: apiRevealed && !isCurlProbe
-												? 'text-destructive'
-												: 'text-muted-foreground'
-									}`}>
+									<div
+										className={`text-xs font-mono mt-1.5 ${
+											isCurlProbe && apiRevealed
+												? 'text-success font-bold'
+												: apiRevealed && !isCurlProbe
+													? 'text-destructive'
+													: 'text-muted-foreground'
+										}`}
+									>
 										{apiRevealed
 											? isCurlProbe
 												? '200 OK'
@@ -962,9 +1037,11 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 											: 'localhost:3000'}
 									</div>
 									{flowMessages[2] && (flowPhase >= 4 || flowPhase === -1) && (
-										<div className={`text-[10px] font-medium mt-1.5 ${flowPhase === 4 ? 'animate-in fade-in duration-300' : 'opacity-70'} ${
-											isCurlProbe ? 'text-success' : 'text-destructive'
-										}`}>
+										<div
+											className={`text-xs font-medium mt-1.5 ${flowPhase === 4 ? 'animate-in fade-in duration-300' : 'opacity-70'} ${
+												isCurlProbe ? 'text-success' : 'text-destructive'
+											}`}
+										>
 											{flowMessages[2]}
 										</div>
 									)}
@@ -1024,9 +1101,8 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 											completed={isViewingCompletedStep}
 											description={
 												<p className="text-sm text-muted-foreground">
-													CORS must be handled at the Rack
-													middleware level. Install the gem
-													that provides CORS headers for your
+													CORS must be handled at the Rack middleware level.
+													Install the gem that provides CORS headers for your
 													API.
 												</p>
 											}
@@ -1035,13 +1111,9 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 												SHELL_STEP_MAP,
 												stepper.currentStep,
 											)}
-											onCorrect={() =>
-												stepper.completeStep()
-											}
+											onCorrect={() => stepper.completeStep()}
 											onNext={stepper.nextStep}
-											onWrong={(fb) =>
-												stepper.recordWrongAttempt(fb)
-											}
+											onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 											outputLines={addGemOutput}
 											stepKey={stepper.currentStep}
 											title="Add the rack-cors Gem"
@@ -1049,124 +1121,83 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 									)}
 
 								{/* OptionCard steps (1: origins, 2: methods) */}
-								{currentStepType === 'option' &&
-									currentOptionConfig && (
-										<>
-											<h3 className="text-lg font-semibold text-foreground">
-												{currentOptionConfig.title}
-											</h3>
-											<p className="text-sm text-muted-foreground">
-												{currentOptionConfig.description}
-											</p>
+								{currentStepType === 'option' && currentOptionConfig && (
+									<>
+										<h3 className="text-lg font-semibold text-foreground">
+											{currentOptionConfig.title}
+										</h3>
+										<p className="text-sm text-muted-foreground">
+											{currentOptionConfig.description}
+										</p>
 
-											{isViewingCompletedStep ? (
-												<div className="space-y-2">
-													{currentOptionConfig.options.map(
-														(opt) => (
-															<OptionCard
-																color="violet"
-																disabled={
-																	!opt.correct
-																}
-																key={opt.id}
-																mono
-																name={opt.label}
-																selected={
-																	opt.correct
-																}
-																size="lg"
-															/>
-														),
-													)}
-												</div>
-											) : (
-												<>
-													<div className="space-y-2">
-														{currentOptionConfig.options.map(
-															(opt) => (
-																<OptionCard
-																	color="violet"
-																	key={opt.id}
-																	mono
-																	name={
-																		opt.label
-																	}
-																	onClick={() =>
-																		handleOptionClick(
-																			opt,
-																		)
-																	}
-																	size="lg"
-																/>
-															),
-														)}
-													</div>
-
-													<ErrorFeedback
-														message={
-															stepper.lastFeedback
-														}
-														onDismiss={
-															stepper.clearFeedback
-														}
+										{isViewingCompletedStep ? (
+											<div className="space-y-2">
+												{shuffledOptions.map((opt) => (
+													<OptionCard
+														color="violet"
+														disabled={!opt.correct}
+														key={opt.id}
+														mono
+														name={opt.label}
+														selected={opt.correct}
+														size="lg"
 													/>
-												</>
-											)}
+												))}
+											</div>
+										) : (
+											<>
+												<div className="space-y-2">
+													{shuffledOptions.map((opt) => (
+														<OptionCard
+															color="violet"
+															key={opt.id}
+															mono
+															name={opt.label}
+															onClick={() => handleOptionClick(opt)}
+															size="lg"
+														/>
+													))}
+												</div>
 
-											{isViewingCompletedStep &&
-												hasNextStep && (
-													<div className="flex justify-end">
-														<Button
-															className="gap-2"
-															onClick={
-																stepper.nextStep
-															}
-															size="sm"
-														>
-															Next Step
-															<ArrowRight className="w-4 h-4" />
-														</Button>
-													</div>
-												)}
-										</>
-									)}
+												<ErrorFeedback
+													message={stepper.lastFeedback}
+													onDismiss={stepper.clearFeedback}
+												/>
+											</>
+										)}
+
+										{isViewingCompletedStep && hasNextStep && (
+											<div className="flex justify-end">
+												<Button
+													className="gap-2"
+													onClick={stepper.nextStep}
+													size="sm"
+												>
+													Next Step
+													<ArrowRight className="w-4 h-4" />
+												</Button>
+											</div>
+										)}
+
+										{isViewingCompletedStep && !hasNextStep && (
+											<div className="flex justify-end">
+												<Button
+													className="gap-2"
+													onClick={handleStartReward}
+													size="sm"
+												>
+													Next Step
+													<ArrowRight className="w-4 h-4" />
+												</Button>
+											</div>
+										)}
+									</>
+								)}
 							</div>
 						</div>
 					)}
 
-					{/* ── Phase 3: Activate (ADVANTAGE sub-phase a) ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex items-center justify-center p-6">
-							<div className="max-w-md text-center space-y-6">
-								<div className="flex justify-center gap-1">
-									{[1, 2, 3].map((s) => (
-										<Star
-											className={`w-8 h-8 ${
-												s <= stepper.starRating
-													? 'text-yellow-400 fill-yellow-400'
-													: 'text-muted-foreground/30'
-											}`}
-											key={s}
-										/>
-									))}
-								</div>
-								<p className="text-sm text-muted-foreground">
-									CORS is configured. Watch the shield block
-									requests from unauthorized origins.
-								</p>
-								<Button
-									className="gap-2"
-									onClick={handleActivateProtection}
-									size="lg"
-								>
-									<Play className="w-4 h-4" />
-									Visualize Protection
-								</Button>
-							</div>
-						</div>
-					)}
-
-					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) - 3-Zone with active CORS ── */}
+					{/* ── Phase 3: Reward (ADVANTAGE) - 3-Zone with active CORS ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col">
 							{/* 3-Zone Horizontal Flow: Client -> CORS Gate -> API */}
@@ -1186,10 +1217,8 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 											<div className="w-2 h-2 rounded-full bg-yellow-400/70 dark:bg-yellow-400/50" />
 											<div className="w-2 h-2 rounded-full bg-green-400/70 dark:bg-green-400/50" />
 										</div>
-										<div className="text-[10px] text-muted-foreground ml-auto font-mono">
-											{lastScenario
-												? lastScenario.actor
-												: 'Any Origin'}
+										<div className="text-xs text-muted-foreground ml-auto font-mono">
+											{lastScenario ? lastScenario.actor : 'Any Origin'}
 										</div>
 									</div>
 									<div className="flex-1 p-3 flex flex-col items-center justify-center gap-2">
@@ -1206,16 +1235,18 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 											Browser
 										</div>
 										{lastScenario && (
-											<div className="text-[10px] font-mono text-muted-foreground">
-												{lastScenario.method}{' '}
-												{lastScenario.path}
+											<div className="text-xs font-mono text-muted-foreground">
+												{lastScenario.method} {lastScenario.path}
 											</div>
 										)}
-										{flowMessages[0] && (flowPhase >= 0 || flowPhase === -1) && (
-											<div className={`text-[10px] text-primary font-medium ${flowPhase === 0 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}>
-												{flowMessages[0]}
-											</div>
-										)}
+										{flowMessages[0] &&
+											(flowPhase >= 0 || flowPhase === -1) && (
+												<div
+													className={`text-xs text-primary font-medium ${flowPhase === 0 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}
+												>
+													{flowMessages[0]}
+												</div>
+											)}
 									</div>
 								</div>
 
@@ -1264,7 +1295,7 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 										</span>
 									</div>
 									<div
-										className={`text-[10px] font-mono mt-1.5 ${
+										className={`text-xs font-mono mt-1.5 ${
 											lastResult
 												? isAllowed
 													? 'text-success'
@@ -1279,14 +1310,16 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 											: 'Active'}
 									</div>
 									{lastResult && !isAllowed && (
-										<div className="text-[10px] font-bold text-destructive mt-0.5">
+										<div className="text-xs font-bold text-destructive mt-0.5">
 											BLOCKED
 										</div>
 									)}
 									{flowMessages[1] && (flowPhase >= 2 || flowPhase === -1) && (
-										<div className={`text-[10px] font-medium mt-1.5 ${flowPhase === 2 ? 'animate-in fade-in duration-300' : 'opacity-70'} ${
-											isAllowed ? 'text-success' : 'text-destructive'
-										}`}>
+										<div
+											className={`text-xs font-medium mt-1.5 ${flowPhase === 2 ? 'animate-in fade-in duration-300' : 'opacity-70'} ${
+												isAllowed ? 'text-success' : 'text-destructive'
+											}`}
+										>
 											{flowMessages[1]}
 										</div>
 									)}
@@ -1323,20 +1356,26 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 									}`}
 								>
 									<div className="flex items-center justify-center gap-1.5">
-										<Server className={`w-4 h-4 ${
-											lastResult && isAllowed ? 'text-success' : 'text-muted-foreground'
-										}`} />
+										<Server
+											className={`w-4 h-4 ${
+												lastResult && isAllowed
+													? 'text-success'
+													: 'text-muted-foreground'
+											}`}
+										/>
 										<span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
 											Rails API
 										</span>
 									</div>
-									<div className={`text-[10px] font-mono mt-1.5 ${
-										lastResult
-											? isAllowed
-												? 'text-success font-bold'
-												: 'text-destructive'
-											: 'text-muted-foreground'
-									}`}>
+									<div
+										className={`text-xs font-mono mt-1.5 ${
+											lastResult
+												? isAllowed
+													? 'text-success font-bold'
+													: 'text-destructive'
+												: 'text-muted-foreground'
+										}`}
+									>
 										{lastResult
 											? isAllowed
 												? `${lastScenario?.method} ${lastScenario?.path}`
@@ -1344,9 +1383,11 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 											: 'Protected'}
 									</div>
 									{flowMessages[2] && (flowPhase >= 4 || flowPhase === -1) && (
-										<div className={`text-[10px] font-medium mt-1.5 ${flowPhase === 4 ? 'animate-in fade-in duration-300' : 'opacity-70'} ${
-											isAllowed ? 'text-success' : 'text-destructive'
-										}`}>
+										<div
+											className={`text-xs font-medium mt-1.5 ${flowPhase === 4 ? 'animate-in fade-in duration-300' : 'opacity-70'} ${
+												isAllowed ? 'text-success' : 'text-destructive'
+											}`}
+										>
 											{flowMessages[2]}
 										</div>
 									)}
@@ -1377,7 +1418,14 @@ export function Level15CORS({ onComplete }: LevelComponentProps) {
 
 			<RightPanel>
 				<CodePreviewPanel
-					files={getCodeFiles(phase, stepper.furthestStep)}
+					files={getCodeFiles(
+						phase,
+						phase === 'reward'
+							? STEP_DEFS.length - 1
+							: stepper.isCurrentStepCompleted
+								? stepper.currentStep
+								: stepper.currentStep - 1,
+					)}
 				/>
 			</RightPanel>
 		</LevelLayout>

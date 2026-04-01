@@ -1,7 +1,7 @@
 /**
  * Level 13: Testing
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): Interactive exploration of a deploy pipeline with
@@ -15,15 +15,14 @@
  *   Step 3: Configure FactoryBot in RSpec (OptionCard)
  *   Step 4: Write the User Factory (OptionCard)
  *   Step 5: Write the Request Spec (OptionCard)
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Testing" button
- * Phase 4 (ADVANTAGE - reward): Stress test. Fire commits at the test gate
+ * Phase 3 (ADVANTAGE - reward): Stress test. Fire commits at the test gate
  *   and watch clean ones deploy while broken ones get caught.
  *
  * Teaches: RSpec, FactoryBot, request specs
  */
 
-import { ArrowRight, Check, Play, Star, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowRight, Check, X } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -48,8 +47,8 @@ import {
 	PipelineFlow,
 	type PipelineStage,
 } from '@/components/levels/PipelineFlow';
-import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
+import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import {
 	StageInspector,
 	type StageInspectorData,
@@ -63,12 +62,13 @@ import {
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { shuffleOptions } from '@/lib/shuffleOptions';
 
 // ──────────────────────────────────────────────
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'observe' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Discovery definitions (observe phase)
@@ -227,6 +227,33 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
+		id: 'broken-login',
+		label: 'Deploy token rename',
+		description: 'Renamed token column but forgot to update controller',
+		method: 'PUSH',
+		path: 'sessions_controller.rb',
+		actor: 'dev_bob',
+		expectedResult: 'blocked',
+	},
+	{
+		id: 'untested-endpoint',
+		label: 'Deploy broken create',
+		description: 'New products#create with typo, request spec catches it',
+		method: 'PUSH',
+		path: 'products_controller.rb',
+		actor: 'dev_charlie',
+		expectedResult: 'blocked',
+	},
+	{
+		id: 'bad-migration',
+		label: 'Deploy dropped column',
+		description: 'Removed email column by accident, model spec catches it',
+		method: 'PUSH',
+		path: 'user.rb',
+		actor: 'dev_alice',
+		expectedResult: 'blocked',
+	},
+	{
 		id: 'clean-refactor',
 		label: 'Clean model refactor',
 		description: 'Refactored session creation, all specs still pass',
@@ -236,15 +263,6 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'allowed',
 	},
 	{
-		id: 'broken-token',
-		label: 'Broken token rename',
-		description: 'Renamed column but forgot to update controller',
-		method: 'PUSH',
-		path: 'sessions_controller.rb',
-		actor: 'dev_bob',
-		expectedResult: 'blocked',
-	},
-	{
 		id: 'clean-validation',
 		label: 'Clean validation add',
 		description: 'Added email format validation, specs pass',
@@ -252,15 +270,6 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		path: 'user.rb',
 		actor: 'dev_alice',
 		expectedResult: 'allowed',
-	},
-	{
-		id: 'broken-params',
-		label: 'Missing params handling',
-		description: 'Removed strong params, request spec catches 500',
-		method: 'PUSH',
-		path: 'products_controller.rb',
-		actor: 'dev_charlie',
-		expectedResult: 'blocked',
 	},
 	{
 		id: 'clean-endpoint',
@@ -622,7 +631,7 @@ end
 		return files;
 	}
 
-	// Build / activate / reward phases: show evolving code
+	// Build / reward phases: show evolving code
 	if (furthestStep === 0) {
 		files.push({
 			filename: 'app/controllers/api/v1/sessions_controller.rb',
@@ -813,17 +822,16 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 	});
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
-	const [inspectorData, setInspectorData] =
-		useState<StageInspectorData | null>(null);
+	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(
+		null,
+	);
 	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
 		new Set(),
 	);
 	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
 
 	// ── Build observe stages dynamically (tracks inspected + last probe) ──
-	const probeDisplay = lastProbeId
-		? PROBE_PIPELINE_MAP[lastProbeId]
-		: null;
+	const probeDisplay = lastProbeId ? PROBE_PIPELINE_MAP[lastProbeId] : null;
 	const observeStages: PipelineStage[] = useMemo(
 		() => [
 			{
@@ -850,9 +858,7 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 				id: 'prod',
 				label: 'Production',
 				badge: probeDisplay ? probeDisplay.prodBadge : undefined,
-				variant: (probeDisplay ? 'danger' : 'default') as
-					| 'danger'
-					| 'default',
+				variant: (probeDisplay ? 'danger' : 'default') as 'danger' | 'default',
 				inspectable: true,
 				inspected: inspectedStages.has('prod'),
 			},
@@ -882,13 +888,6 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 			},
 		];
 	}, [lastResult]);
-
-	// ── Transition: build -> activate when all steps complete ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
 
 	// ── Stage click handler (observe phase) ──
 	const handleStageClick = useCallback(
@@ -944,7 +943,7 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 		setPhase('build');
 	};
 
-	const handleActivateTesting = () => {
+	const handleStartReward = () => {
 		setPhase('reward');
 		stressTest.reset();
 	};
@@ -979,6 +978,13 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 	const currentStepType = STEP_TYPES[stepper.currentStep];
 	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep];
+	const shuffledOptions = useMemo(
+		() =>
+			currentOptionConfig
+				? shuffleOptions(currentOptionConfig.options, stepper.currentStep)
+				: [],
+		[currentOptionConfig, stepper.currentStep],
+	);
 
 	// ── Render ──
 	return (
@@ -1006,15 +1012,15 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 					{phase === 'observe' && (
 						<div className="p-4 border-b border-border">
 							<DiscoveryChecklist
-								discoveries={discoveryGating.discoveries}
 								discoveredCount={discoveryGating.discoveredCount}
+								discoveries={discoveryGating.discoveries}
 								minRequired={discoveryGating.minRequired}
 							/>
 						</div>
 					)}
 
-					{/* Build / activate phases: step progress */}
-					{(phase === 'build' || phase === 'activate') && (
+					{/* Build phase: step progress */}
+					{phase === 'build' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -1200,7 +1206,7 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 
 										{isViewingCompletedStep ? (
 											<div className="space-y-2">
-												{currentOptionConfig.options.map((opt) => (
+												{shuffledOptions.map((opt) => (
 													<OptionCard
 														color="emerald"
 														disabled={!opt.correct}
@@ -1215,7 +1221,7 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 										) : (
 											<>
 												<div className="space-y-2">
-													{currentOptionConfig.options.map((opt) => (
+													{shuffledOptions.map((opt) => (
 														<OptionCard
 															color="emerald"
 															key={opt.id}
@@ -1246,45 +1252,26 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 												</Button>
 											</div>
 										)}
+
+										{isViewingCompletedStep && !hasNextStep && (
+											<div className="flex justify-end">
+												<Button
+													className="gap-2"
+													onClick={handleStartReward}
+													size="sm"
+												>
+													Next Step
+													<ArrowRight className="w-4 h-4" />
+												</Button>
+											</div>
+										)}
 									</>
 								)}
 							</div>
 						</div>
 					)}
 
-					{/* ── Phase 3: Activate (ADVANTAGE sub-phase a) ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex items-center justify-center p-6">
-							<div className="max-w-md text-center space-y-6">
-								<div className="flex justify-center gap-1">
-									{[1, 2, 3].map((s) => (
-										<Star
-											className={`w-8 h-8 ${
-												s <= stepper.starRating
-													? 'text-yellow-400 fill-yellow-400'
-													: 'text-muted-foreground/30'
-											}`}
-											key={s}
-										/>
-									))}
-								</div>
-								<p className="text-sm text-muted-foreground">
-									Your test suite is ready. See broken commits get caught at the
-									test gate before they reach production.
-								</p>
-								<Button
-									className="gap-2"
-									onClick={handleActivateTesting}
-									size="lg"
-								>
-									<Play className="w-4 h-4" />
-									Visualize Testing
-								</Button>
-							</div>
-						</div>
-					)}
-
-					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
+					{/* ── Phase 3: Reward (ADVANTAGE) ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">
@@ -1313,7 +1300,16 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 			</CenterPanel>
 
 			<RightPanel>
-				<CodePreviewPanel files={getCodeFiles(phase, stepper.furthestStep)} />
+				<CodePreviewPanel
+					files={getCodeFiles(
+						phase,
+						phase === 'reward'
+							? STEP_DEFS.length - 1
+							: stepper.isCurrentStepCompleted
+								? stepper.currentStep
+								: stepper.currentStep - 1,
+					)}
+				/>
 			</RightPanel>
 		</LevelLayout>
 	);

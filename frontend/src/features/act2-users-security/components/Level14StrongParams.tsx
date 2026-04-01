@@ -1,7 +1,7 @@
 /**
  * Level 14: Strong Params
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): Interactive exploration. Click pipeline stages to
@@ -12,16 +12,15 @@
  *   Step 0: Introduce params.expect (choose the right filtering method)
  *   Step 1: Define the Whitelist (choose which fields to allow)
  *   Step 2: Set Ownership Safely (current_user association)
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Filtering" button
- * Phase 4 (ADVANTAGE - reward): Stress test. Fire param payloads at the
+ * Phase 3 (ADVANTAGE - reward): Stress test. Fire param payloads at the
  *   tightened filter and watch allowed/blocked results.
  *
  * Introduces params.expect as the solution to mass assignment.
  * Teaches: parameter filtering, whitelist definition, ownership via association
  */
 
-import { ArrowRight, Check, Play, Star, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowRight, Check, X } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -41,8 +40,8 @@ import {
 	PipelineFlow,
 	type PipelineStage,
 } from '@/components/levels/PipelineFlow';
-import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
+import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import {
 	StageInspector,
 	type StageInspectorData,
@@ -56,12 +55,13 @@ import {
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { shuffleOptions } from '@/lib/shuffleOptions';
 
 // ──────────────────────────────────────────────
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'observe' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Discovery definitions (observe phase)
@@ -436,7 +436,7 @@ end`,
 		return files;
 	}
 
-	// Build / activate / reward phases: show evolving code
+	// Build / reward phases: show evolving code
 	if (furthestStep === 0) {
 		// Step 0: same as observe (player is choosing the filtering method)
 		files.push({
@@ -582,17 +582,16 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 	});
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
-	const [inspectorData, setInspectorData] =
-		useState<StageInspectorData | null>(null);
+	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(
+		null,
+	);
 	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
 		new Set(),
 	);
 	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
 
 	// ── Build observe stages dynamically (tracks inspected + last probe) ──
-	const probeDisplay = lastProbeId
-		? PROBE_PIPELINE_MAP[lastProbeId]
-		: null;
+	const probeDisplay = lastProbeId ? PROBE_PIPELINE_MAP[lastProbeId] : null;
 	const observeStages: PipelineStage[] = useMemo(
 		() => [
 			{
@@ -621,9 +620,7 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 				id: 'model',
 				label: 'Product Model',
 				badge: probeDisplay ? probeDisplay.modelBadge : 'SAVES ALL',
-				variant: (probeDisplay ? 'danger' : 'default') as
-					| 'danger'
-					| 'default',
+				variant: (probeDisplay ? 'danger' : 'default') as 'danger' | 'default',
 				inspectable: true,
 				inspected: inspectedStages.has('model'),
 			},
@@ -641,22 +638,13 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 			{
 				id: 'filter',
 				label: 'params.expect',
-				sublabel: wasBlocked
-					? 'STRIPPED'
-					: '[:title, :body]',
+				sublabel: wasBlocked ? 'STRIPPED' : '[:title, :body]',
 				variant: wasBlocked ? ('danger' as const) : ('active' as const),
 				badge: wasBlocked ? 'BLOCKED' : undefined,
 			},
 			{ id: 'model', label: 'Product Model' },
 		];
 	}, [lastResult]);
-
-	// ── Transition: build -> activate when all steps complete ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
 
 	// ── Stage click handler (observe phase) ──
 	const handleStageClick = useCallback(
@@ -712,7 +700,7 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 		setPhase('build');
 	};
 
-	const handleActivateFilter = () => {
+	const handleStartReward = () => {
 		setPhase('reward');
 		stressTest.reset();
 	};
@@ -746,6 +734,13 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
 	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep];
+	const shuffledOptions = useMemo(
+		() =>
+			currentOptionConfig
+				? shuffleOptions(currentOptionConfig.options, stepper.currentStep)
+				: [],
+		[currentOptionConfig, stepper.currentStep],
+	);
 
 	// ── Render ──
 	return (
@@ -755,9 +750,9 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Your controller passes raw request params directly to the
-							model with no filtering. A malicious user can send any field
-							they want, including{' '}
+							Your controller passes raw request params directly to the model
+							with no filtering. A malicious user can send any field they want,
+							including{' '}
 							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
 								user_id
 							</code>{' '}
@@ -777,15 +772,15 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 					{phase === 'observe' && (
 						<div className="p-4 border-b border-border">
 							<DiscoveryChecklist
-								discoveries={discoveryGating.discoveries}
 								discoveredCount={discoveryGating.discoveredCount}
+								discoveries={discoveryGating.discoveries}
 								minRequired={discoveryGating.minRequired}
 							/>
 						</div>
 					)}
 
-					{/* Build / activate phases: step progress */}
-					{(phase === 'build' || phase === 'activate') && (
+					{/* Build phase: step progress */}
+					{phase === 'build' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -892,7 +887,7 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 
 								{isViewingCompletedStep ? (
 									<div className="space-y-2">
-										{currentOptionConfig.options.map((opt) => (
+										{shuffledOptions.map((opt) => (
 											<OptionCard
 												color="violet"
 												disabled={!opt.correct}
@@ -907,7 +902,7 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 								) : (
 									<>
 										<div className="space-y-2">
-											{currentOptionConfig.options.map((opt) => (
+											{shuffledOptions.map((opt) => (
 												<OptionCard
 													color="violet"
 													key={opt.id}
@@ -938,43 +933,24 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 										</Button>
 									</div>
 								)}
+
+								{isViewingCompletedStep && !hasNextStep && (
+									<div className="flex justify-end">
+										<Button
+											className="gap-2"
+											onClick={handleStartReward}
+											size="sm"
+										>
+											Next Step
+											<ArrowRight className="w-4 h-4" />
+										</Button>
+									</div>
+								)}
 							</div>
 						</div>
 					)}
 
-					{/* ── Phase 3: Activate (ADVANTAGE sub-phase a) ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex items-center justify-center p-6">
-							<div className="max-w-md text-center space-y-6">
-								<div className="flex justify-center gap-1">
-									{[1, 2, 3].map((s) => (
-										<Star
-											className={`w-8 h-8 ${
-												s <= stepper.starRating
-													? 'text-yellow-400 fill-yellow-400'
-													: 'text-muted-foreground/30'
-											}`}
-											key={s}
-										/>
-									))}
-								</div>
-								<p className="text-sm text-muted-foreground">
-									Your params filter is locked down. Watch dangerous params
-									like user_id and admin get stripped at the gate.
-								</p>
-								<Button
-									className="gap-2"
-									onClick={handleActivateFilter}
-									size="lg"
-								>
-									<Play className="w-4 h-4" />
-									Visualize Filtering
-								</Button>
-							</div>
-						</div>
-					)}
-
-					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
+					{/* ── Phase 3: Reward (ADVANTAGE) ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">
@@ -1003,7 +979,16 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 			</CenterPanel>
 
 			<RightPanel>
-				<CodePreviewPanel files={getCodeFiles(phase, stepper.furthestStep)} />
+				<CodePreviewPanel
+					files={getCodeFiles(
+						phase,
+						phase === 'reward'
+							? STEP_DEFS.length - 1
+							: stepper.isCurrentStepCompleted
+								? stepper.currentStep
+								: stepper.currentStep - 1,
+					)}
+				/>
 			</RightPanel>
 		</LevelLayout>
 	);

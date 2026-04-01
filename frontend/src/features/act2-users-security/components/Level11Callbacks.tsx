@@ -1,7 +1,7 @@
 /**
  * Level 11: Callbacks & Normalizations
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): Interactive exploration of the data lifecycle.
@@ -13,15 +13,14 @@
  *   Step 1: Add Callback (after_create vs after_initialize vs after_save)
  *   Step 2: Order Callbacks (lifecycle ordering quiz)
  *   Step 3: Avoid Pitfall (after_commit vs after_save for external calls)
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Lifecycle" button
- * Phase 4 (ADVANTAGE - reward): Stress test. Fire data scenarios at the
+ * Phase 3 (ADVANTAGE - reward): Stress test. Fire data scenarios at the
  *   lifecycle pipeline and watch normalizes/callbacks handle each one.
  *
  * Teaches: Rails 8 normalizes, after_create, callback ordering, after_commit
  */
 
-import { ArrowRight, Check, Play, Star, X } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { ArrowRight, Check, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -37,8 +36,8 @@ import {
 } from '@/components/levels';
 import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
 import { FlowConnector } from '@/components/levels/FlowConnector';
-import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
+import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import {
 	StageInspector,
 	type StageInspectorData,
@@ -52,12 +51,13 @@ import {
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { shuffleOptions } from '@/lib/shuffleOptions';
 
 // ──────────────────────────────────────────────
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'observe' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Discovery definitions (observe phase)
@@ -189,19 +189,19 @@ const OBSERVE_FLOW: Record<string, string[]> = {
 
 // Reward phase: 4 zones (Input, Normalizes, Model, Callbacks)
 const REWARD_FLOW: Record<string, string[]> = {
-	'messy-signup': [
+	'signup-messy': [
 		'"  JOE@GMAIL.COM  " from signup',
 		'strip + downcase: "joe@gmail.com"',
 		'Cleaned email saved to DB',
 		'after_create: welcome email queued',
 	],
-	'clean-lookup': [
+	'lookup-clean': [
 		'find_by(email: "joe@gmail.com")',
 		'Query value normalized automatically',
 		'Match found in database',
 		'No callback needed for reads',
 	],
-	'welcome-email': [
+	'check-mailer': [
 		'New user registration',
 		'Email normalized on write',
 		'User record persisted',
@@ -270,8 +270,8 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
-		id: 'messy-signup',
-		label: 'Messy email signup',
+		id: 'signup-messy',
+		label: 'POST signup with messy email',
 		description: 'Email with spaces and uppercase gets normalized',
 		method: 'POST',
 		path: '/api/v1/users',
@@ -279,8 +279,8 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'allowed',
 	},
 	{
-		id: 'clean-lookup',
-		label: 'Lookup by different case',
+		id: 'lookup-clean',
+		label: 'GET user by clean email',
 		description: 'Query value normalized automatically by Rails',
 		method: 'GET',
 		path: '/api/v1/users?email=joe@gmail.com',
@@ -288,8 +288,8 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'allowed',
 	},
 	{
-		id: 'welcome-email',
-		label: 'Welcome email on create',
+		id: 'check-mailer',
+		label: 'Check mailer queue after signup',
 		description: 'after_create fires and queues the mailer',
 		method: 'POST',
 		path: '/api/v1/users',
@@ -486,7 +486,7 @@ end`,
 		return files;
 	}
 
-	// Build / activate / reward phases: show evolving code
+	// Build / reward phases: show evolving code
 	if (furthestStep === 0) {
 		files.push({
 			filename: 'app/models/user.rb',
@@ -642,17 +642,16 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 	});
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
-	const [inspectorData, setInspectorData] =
-		useState<StageInspectorData | null>(null);
+	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(
+		null,
+	);
 	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
 		new Set(),
 	);
 	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
 
 	// ── Probe display state (tracks last probe for visualization) ──
-	const probeDisplay = lastProbeId
-		? PROBE_PIPELINE_MAP[lastProbeId]
-		: null;
+	const probeDisplay = lastProbeId ? PROBE_PIPELINE_MAP[lastProbeId] : null;
 
 	// ── Latest stress test result (for reward visualization) ──
 	const lastResult = stressTest.results[stressTest.results.length - 1];
@@ -687,9 +686,12 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 				flowTimeoutsRef.current.push(t);
 			}
 
-			const endT = setTimeout(() => {
-				setFlowPhase(-1);
-			}, delay * (totalPhases + 2));
+			const endT = setTimeout(
+				() => {
+					setFlowPhase(-1);
+				},
+				delay * (totalPhases + 2),
+			);
 			flowTimeoutsRef.current.push(endT);
 		},
 		[clearFlow],
@@ -698,13 +700,6 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 	useEffect(() => {
 		return () => clearFlow();
 	}, [clearFlow]);
-
-	// ── Transition: build -> activate when all steps complete ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
 
 	// ── Stage click handler (observe phase) ──
 	const handleStageClick = useCallback(
@@ -742,7 +737,9 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 			const messages = OBSERVE_FLOW[probeId];
 			if (messages) runFlow(messages);
 			// Mark all zones as inspected after animation reveals them
-			setInspectedStages(new Set(['input', 'normalizes', 'model', 'callbacks']));
+			setInspectedStages(
+				new Set(['input', 'normalizes', 'model', 'callbacks']),
+			);
 		},
 		[discoveryGating, runFlow],
 	);
@@ -762,11 +759,6 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 	// ── Phase transition handlers ──
 	const handleStartBuild = () => {
 		setPhase('build');
-	};
-
-	const handleActivateLifecycle = () => {
-		setPhase('reward');
-		stressTest.reset();
 	};
 
 	// ── Stress test fire handler ──
@@ -801,6 +793,20 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep];
 
+	// Shuffle OptionCard options per step
+	const shuffledOptions = useMemo(
+		() =>
+			currentOptionConfig
+				? shuffleOptions(currentOptionConfig.options, stepper.currentStep)
+				: [],
+		[currentOptionConfig, stepper.currentStep],
+	);
+
+	// Code preview index: show result of previous steps while working, current step after completing
+	const codePreviewStep = stepper.isCurrentStepCompleted
+		? stepper.currentStep
+		: stepper.currentStep - 1;
+
 	// ── Render ──
 	return (
 		<LevelLayout>
@@ -809,14 +815,13 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Your User model stores emails exactly as typed. Signups arrive
-							as{' '}
+							Your User model stores emails exactly as typed. Signups arrive as{' '}
 							<span className="font-mono text-primary">
 								&quot; JOE@GMAIL.COM &quot;
 							</span>{' '}
 							with extra whitespace and mixed case. Lookups by{' '}
-							<span className="font-mono text-primary">joe@gmail.com</span>{' '}
-							fail because the stored value does not match.
+							<span className="font-mono text-primary">joe@gmail.com</span> fail
+							because the stored value does not match.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							No welcome email fires on signup either. The model has no
@@ -832,15 +837,15 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 					{phase === 'observe' && (
 						<div className="p-4 border-b border-border">
 							<DiscoveryChecklist
-								discoveries={discoveryGating.discoveries}
 								discoveredCount={discoveryGating.discoveredCount}
+								discoveries={discoveryGating.discoveries}
 								minRequired={discoveryGating.minRequired}
 							/>
 						</div>
 					)}
 
-					{/* Build / activate phases: step progress */}
-					{(phase === 'build' || phase === 'activate') && (
+					{/* Build phase: step progress */}
+					{phase === 'build' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -899,7 +904,6 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 							<div className="flex-1 flex flex-col items-center justify-center gap-2.5 px-6 relative">
 								{/* Input Zone */}
 								<button
-									type="button"
 									className={`w-full max-w-sm border rounded-lg p-3 bg-card text-left transition-all duration-300 hover:ring-2 hover:ring-ring/30 cursor-pointer ${
 										flowPhase === 0
 											? 'ring-2 ring-primary/60 shadow-lg shadow-primary/10'
@@ -908,6 +912,7 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 												: ''
 									}`}
 									onClick={() => handleStageClick('input')}
+									type="button"
 								>
 									<div className="flex items-center justify-between mb-1.5">
 										<span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -925,7 +930,9 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 											: '"  JOE@GMAIL.COM  "'}
 									</pre>
 									{flowMessages[0] && (flowPhase >= 0 || flowPhase === -1) && (
-										<div className={`text-xs text-primary font-medium mt-1.5 ${flowPhase === 0 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}>
+										<div
+											className={`text-xs text-primary font-medium mt-1.5 ${flowPhase === 0 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}
+										>
 											{flowMessages[0]}
 										</div>
 									)}
@@ -939,7 +946,6 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 
 								{/* Normalizes Zone */}
 								<button
-									type="button"
 									className={`w-full max-w-sm border-2 rounded-lg p-3 text-center transition-all duration-300 hover:ring-2 hover:ring-ring/30 cursor-pointer ${
 										flowPhase === 2
 											? 'ring-2 ring-primary/60 shadow-lg shadow-primary/10 border-destructive/50 bg-destructive/5 dark:bg-destructive/10'
@@ -952,6 +958,7 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 											: ''
 									}`}
 									onClick={() => handleStageClick('normalizes')}
+									type="button"
 								>
 									<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
 										Normalizes
@@ -968,7 +975,9 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 											: '(no normalizes)'}
 									</div>
 									{flowMessages[1] && (flowPhase >= 2 || flowPhase === -1) && (
-										<div className={`text-xs text-destructive font-medium mt-1 ${flowPhase === 2 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}>
+										<div
+											className={`text-xs text-destructive font-medium mt-1 ${flowPhase === 2 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}
+										>
 											{flowMessages[1]}
 										</div>
 									)}
@@ -980,13 +989,10 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 								</button>
 
 								{/* Flow connector */}
-								<FlowConnector
-									active={flowPhase === 3}
-								/>
+								<FlowConnector active={flowPhase === 3} />
 
 								{/* Model Zone */}
 								<button
-									type="button"
 									className={`w-full max-w-sm border rounded-lg p-3 text-center transition-all duration-300 hover:ring-2 hover:ring-ring/30 cursor-pointer ${
 										flowPhase === 4
 											? 'ring-2 ring-primary/60 shadow-lg shadow-primary/10'
@@ -995,6 +1001,7 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 												: ''
 									}`}
 									onClick={() => handleStageClick('model')}
+									type="button"
 								>
 									<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
 										User Model
@@ -1003,7 +1010,9 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 										validates + saves
 									</div>
 									{flowMessages[2] && (flowPhase >= 4 || flowPhase === -1) && (
-										<div className={`text-xs text-primary font-medium mt-1 ${flowPhase === 4 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}>
+										<div
+											className={`text-xs text-primary font-medium mt-1 ${flowPhase === 4 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}
+										>
 											{flowMessages[2]}
 										</div>
 									)}
@@ -1022,7 +1031,6 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 
 								{/* Callbacks Zone */}
 								<button
-									type="button"
 									className={`w-full max-w-sm border-2 rounded-lg p-3 text-center transition-all duration-300 hover:ring-2 hover:ring-ring/30 cursor-pointer ${
 										flowPhase === 6
 											? 'ring-2 ring-destructive/60 shadow-lg shadow-destructive/10 border-destructive/50 bg-destructive/5 dark:bg-destructive/10'
@@ -1035,6 +1043,7 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 											: ''
 									}`}
 									onClick={() => handleStageClick('callbacks')}
+									type="button"
 								>
 									<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
 										Callbacks
@@ -1051,7 +1060,9 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 											: '(no callbacks)'}
 									</div>
 									{flowMessages[3] && (flowPhase >= 6 || flowPhase === -1) && (
-										<div className={`text-xs text-destructive font-medium mt-1 ${flowPhase === 6 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}>
+										<div
+											className={`text-xs text-destructive font-medium mt-1 ${flowPhase === 6 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}
+										>
 											{flowMessages[3]}
 										</div>
 									)}
@@ -1112,7 +1123,7 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 
 										{isViewingCompletedStep ? (
 											<div className="space-y-2">
-												{currentOptionConfig.options.map((opt) => (
+												{shuffledOptions.map((opt) => (
 													<OptionCard
 														color="violet"
 														disabled={!opt.correct}
@@ -1127,7 +1138,7 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 										) : (
 											<>
 												<div className="space-y-2">
-													{currentOptionConfig.options.map((opt) => (
+													{shuffledOptions.map((opt) => (
 														<OptionCard
 															color="violet"
 															key={opt.id}
@@ -1158,46 +1169,28 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 												</Button>
 											</div>
 										)}
+										{isViewingCompletedStep && !hasNextStep && (
+											<div className="flex justify-end">
+												<Button
+													className="gap-2"
+													onClick={() => {
+														setPhase('reward');
+														stressTest.reset();
+													}}
+													size="sm"
+												>
+													Next Step
+													<ArrowRight className="w-4 h-4" />
+												</Button>
+											</div>
+										)}
 									</>
 								)}
 							</div>
 						</div>
 					)}
 
-					{/* ── Phase 3: Activate (ADVANTAGE sub-phase a) ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex items-center justify-center p-6">
-							<div className="max-w-md text-center space-y-6">
-								<div className="flex justify-center gap-1">
-									{[1, 2, 3].map((s) => (
-										<Star
-											className={`w-8 h-8 ${
-												s <= stepper.starRating
-													? 'text-yellow-400 fill-yellow-400'
-													: 'text-muted-foreground/30'
-											}`}
-											key={s}
-										/>
-									))}
-								</div>
-								<p className="text-sm text-muted-foreground">
-									Your model now normalizes data and fires lifecycle callbacks.
-									Watch how messy inputs get cleaned and side effects fire
-									safely.
-								</p>
-								<Button
-									className="gap-2"
-									onClick={handleActivateLifecycle}
-									size="lg"
-								>
-									<Play className="w-4 h-4" />
-									Visualize Lifecycle
-								</Button>
-							</div>
-						</div>
-					)}
-
-					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
+					{/* ── Phase 3: Reward (ADVANTAGE) ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col">
 							{/* Data Transform Lane: active normalizes + callbacks */}
@@ -1219,23 +1212,23 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 											: 'Fire a scenario below'}
 									</div>
 									{flowMessages[0] && (flowPhase >= 0 || flowPhase === -1) && (
-										<div className={`text-xs text-primary font-medium mt-1.5 ${flowPhase === 0 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}>
+										<div
+											className={`text-xs text-primary font-medium mt-1.5 ${flowPhase === 0 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}
+										>
 											{flowMessages[0]}
 										</div>
 									)}
 								</div>
 
 								{/* Flow connector */}
-								<FlowConnector
-									active={flowPhase === 1}
-								/>
+								<FlowConnector active={flowPhase === 1} />
 
 								{/* Normalizes Zone (active) */}
 								<div
 									className={`w-full max-w-sm border-2 rounded-lg p-3 text-center transition-all duration-300 ${
 										flowPhase === 2
 											? 'ring-2 ring-success/60 shadow-lg shadow-success/10 border-success bg-success/10 dark:bg-success/15'
-											: lastScenario?.id === 'messy-signup'
+											: lastScenario?.id === 'signup-messy'
 												? 'border-success bg-success/10 dark:bg-success/15'
 												: 'border-success/40 bg-success/5 dark:bg-success/10'
 									}`}
@@ -1244,24 +1237,23 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 										Normalizes
 									</div>
 									<div className="font-mono text-xs text-success mt-1">
-										{lastScenario?.id === 'messy-signup'
+										{lastScenario?.id === 'signup-messy'
 											? 'strip + downcase'
-											: lastScenario?.id ===
-												  'clean-lookup'
+											: lastScenario?.id === 'lookup-clean'
 												? 'query normalized'
 												: 'e.strip.downcase'}
 									</div>
 									{flowMessages[1] && (flowPhase >= 2 || flowPhase === -1) && (
-										<div className={`text-xs text-success font-medium mt-1 ${flowPhase === 2 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}>
+										<div
+											className={`text-xs text-success font-medium mt-1 ${flowPhase === 2 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}
+										>
 											{flowMessages[1]}
 										</div>
 									)}
 								</div>
 
 								{/* Flow connector */}
-								<FlowConnector
-									active={flowPhase === 3}
-								/>
+								<FlowConnector active={flowPhase === 3} />
 
 								{/* Model Zone */}
 								<div
@@ -1278,7 +1270,9 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 										validates + saves
 									</div>
 									{flowMessages[2] && (flowPhase >= 4 || flowPhase === -1) && (
-										<div className={`text-xs text-primary font-medium mt-1 ${flowPhase === 4 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}>
+										<div
+											className={`text-xs text-primary font-medium mt-1 ${flowPhase === 4 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}
+										>
 											{flowMessages[2]}
 										</div>
 									)}
@@ -1305,8 +1299,7 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 												: 'ring-2 ring-success/60 shadow-lg shadow-success/10 border-success bg-success/10 dark:bg-success/15'
 											: wasBlocked
 												? 'border-destructive bg-destructive/5 dark:bg-destructive/10'
-												: lastScenario?.id ===
-													  'welcome-email'
+												: lastScenario?.id === 'check-mailer'
 													? 'border-success bg-success/10 dark:bg-success/15'
 													: 'border-success/40 bg-success/5 dark:bg-success/10'
 									}`}
@@ -1316,25 +1309,23 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 									</div>
 									<div
 										className={`font-mono text-xs mt-1 ${
-											wasBlocked
-												? 'text-destructive font-bold'
-												: 'text-success'
+											wasBlocked ? 'text-destructive font-bold' : 'text-success'
 										}`}
 									>
 										{wasBlocked
 											? 'after_commit: PREVENTED'
-											: lastScenario?.id ===
-												  'welcome-email'
+											: lastScenario?.id === 'check-mailer'
 												? 'welcome queued'
-												: lastScenario?.id ===
-													  'update-no-welcome'
+												: lastScenario?.id === 'update-no-welcome'
 													? 'skipped (update)'
 													: 'after_create'}
 									</div>
 									{flowMessages[3] && (flowPhase >= 6 || flowPhase === -1) && (
-										<div className={`text-xs font-medium mt-1 ${flowPhase === 6 ? 'animate-in fade-in duration-300' : 'opacity-70'} ${
-											wasBlocked ? 'text-destructive' : 'text-success'
-										}`}>
+										<div
+											className={`text-xs font-medium mt-1 ${flowPhase === 6 ? 'animate-in fade-in duration-300' : 'opacity-70'} ${
+												wasBlocked ? 'text-destructive' : 'text-success'
+											}`}
+										>
 											{flowMessages[3]}
 										</div>
 									)}
@@ -1366,7 +1357,12 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 			</CenterPanel>
 
 			<RightPanel>
-				<CodePreviewPanel files={getCodeFiles(phase, stepper.furthestStep)} />
+				<CodePreviewPanel
+					files={getCodeFiles(
+						phase,
+						phase === 'reward' ? STEP_DEFS.length : codePreviewStep,
+					)}
+				/>
 			</RightPanel>
 		</LevelLayout>
 	);

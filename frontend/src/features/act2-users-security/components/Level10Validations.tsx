@@ -1,7 +1,7 @@
 /**
  * Level 10: Validations
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): Interactive exploration. Click pipeline stages to
@@ -12,15 +12,14 @@
  *   Step 1: Add uniqueness validation (OptionCard)
  *   Step 2: Add format validation (OptionCard)
  *   Step 3: Test invalid record in Rails Console (TerminalChoiceStep)
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Validations" button
- * Phase 4 (ADVANTAGE - reward): Stress test. Fire data payloads at the
+ * Phase 3 (ADVANTAGE - reward): Stress test. Fire data payloads at the
  *   validated model and watch accepted/rejected results.
  *
  * Teaches: validates, presence, uniqueness, format, errors.full_messages
  */
 
-import { ArrowRight, Check, Database, Play, Star, X } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { ArrowRight, Check, Database, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -41,8 +40,8 @@ import {
 } from '@/components/levels';
 import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
 import { FlowConnector } from '@/components/levels/FlowConnector';
-import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
+import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import {
 	StageInspector,
 	type StageInspectorData,
@@ -56,12 +55,13 @@ import {
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { shuffleOptions } from '@/lib/shuffleOptions';
 
 // ──────────────────────────────────────────────
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'observe' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Discovery definitions (observe phase)
@@ -190,11 +190,41 @@ const OBSERVE_FLOW: Record<string, string[]> = {
 
 // Reward phase: 3 zones (Input, Validation Gate, Result)
 const REWARD_FLOW: Record<string, string[]> = {
-	'valid-post': ['Valid post: title + body', 'validates :title, :body pass', 'Saved! 201 Created'],
-	'empty-title': ['Product with blank name', 'validates :name FAILS', 'Rejected! 422'],
-	'valid-user': ['User with valid email', 'validates :email passes', 'Saved! 201 Created'],
-	'duplicate-email': ['Duplicate email signup', 'uniqueness check FAILS', 'Rejected! 422'],
-	'bad-email-format': ['User with "not-an-email"', 'format check FAILS', 'Rejected! 422'],
+	'valid-post': [
+		'Valid post: title + body',
+		'validates :title, :body pass',
+		'Saved! 201 Created',
+	],
+	'empty-title': [
+		'Product with blank name',
+		'validates :name FAILS',
+		'Rejected! 422',
+	],
+	'valid-user': [
+		'User with valid email',
+		'validates :email passes',
+		'Saved! 201 Created',
+	],
+	'duplicate-email': [
+		'Duplicate email signup',
+		'uniqueness check FAILS',
+		'Rejected! 422',
+	],
+	'bad-email-format': [
+		'User with "not-an-email"',
+		'format check FAILS',
+		'Rejected! 422',
+	],
+	'empty-post': [
+		'Post with blank title + body',
+		'validates :title, :body FAILS',
+		'Rejected! 422',
+	],
+	'bad-email': [
+		'User with "not-an-email"',
+		'format check FAILS',
+		'Rejected! 422',
+	],
 };
 
 // ──────────────────────────────────────────────
@@ -251,6 +281,15 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'allowed',
 	},
 	{
+		id: 'empty-post',
+		label: 'POST empty record',
+		description: 'Post with blank title and body fields',
+		method: 'POST',
+		path: '/api/v1/products',
+		actor: 'authenticated user',
+		expectedResult: 'blocked',
+	},
+	{
 		id: 'empty-title',
 		label: 'Product with blank name',
 		description: 'Missing required title field',
@@ -270,7 +309,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'duplicate-email',
-		label: 'User with duplicate email',
+		label: 'POST duplicate email',
 		description: 'Email already exists in the database',
 		method: 'POST',
 		path: '/api/v1/users',
@@ -278,8 +317,8 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'blocked',
 	},
 	{
-		id: 'bad-email-format',
-		label: 'User with malformed email',
+		id: 'bad-email',
+		label: 'POST invalid email',
 		description: 'Email fails format validation',
 		method: 'POST',
 		path: '/api/v1/users',
@@ -488,7 +527,7 @@ end`,
 		return files;
 	}
 
-	// Build / activate / reward phases: show evolving code
+	// Build / reward phases: show evolving code
 	const postValidations: string[] = [];
 	const userValidations: string[] = [];
 
@@ -517,9 +556,7 @@ end`,
 				? `class Product < ApplicationRecord\n${postValidations.join('\n')}\nend`
 				: `class Product < ApplicationRecord\n  # No validations yet.\nend`,
 		highlight:
-			postValidations.length > 0
-				? postValidations.map((_, i) => i + 2)
-				: [],
+			postValidations.length > 0 ? postValidations.map((_, i) => i + 2) : [],
 	});
 
 	if (furthestStep >= 2) {
@@ -595,17 +632,16 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 	});
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
-	const [inspectorData, setInspectorData] =
-		useState<StageInspectorData | null>(null);
+	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(
+		null,
+	);
 	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
 		new Set(),
 	);
 	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
 
 	// ── Probe display state (tracks last probe for visualization) ──
-	const probeDisplay = lastProbeId
-		? PROBE_PIPELINE_MAP[lastProbeId]
-		: null;
+	const probeDisplay = lastProbeId ? PROBE_PIPELINE_MAP[lastProbeId] : null;
 
 	// ── Latest stress test result (for reward visualization) ──
 	const lastResult = stressTest.results[stressTest.results.length - 1];
@@ -636,9 +672,12 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 				flowTimeoutsRef.current.push(t);
 			}
 
-			const endT = setTimeout(() => {
-				setFlowPhase(-1);
-			}, delay * (totalPhases + 2));
+			const endT = setTimeout(
+				() => {
+					setFlowPhase(-1);
+				},
+				delay * (totalPhases + 2),
+			);
 			flowTimeoutsRef.current.push(endT);
 		},
 		[clearFlow],
@@ -647,13 +686,6 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 	useEffect(() => {
 		return () => clearFlow();
 	}, [clearFlow]);
-
-	// ── Transition: build -> activate when all steps complete ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
 
 	// ── Stage click handler (observe phase) ──
 	const handleStageClick = useCallback(
@@ -713,11 +745,6 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 		setPhase('build');
 	};
 
-	const handleActivateValidations = () => {
-		setPhase('reward');
-		stressTest.reset();
-	};
-
 	// ── Stress test fire handler ──
 	const handleFireScenario = useCallback(
 		(scenarioId: string) => {
@@ -750,6 +777,20 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep];
 
+	// Shuffle OptionCard options per step
+	const shuffledOptions = useMemo(
+		() =>
+			currentOptionConfig
+				? shuffleOptions(currentOptionConfig.options, stepper.currentStep)
+				: [],
+		[currentOptionConfig, stepper.currentStep],
+	);
+
+	// Code preview index: show result of previous steps while working, current step after completing
+	const codePreviewStep = stepper.isCurrentStepCompleted
+		? stepper.currentStep
+		: stepper.currentStep - 1;
+
 	// ── Render ──
 	return (
 		<LevelLayout>
@@ -758,8 +799,8 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Your database is full of garbage data: empty posts with no
-							title, duplicate emails, and malformed addresses.
+							Your database is full of garbage data: empty posts with no title,
+							duplicate emails, and malformed addresses.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							ActiveRecord{' '}
@@ -773,15 +814,15 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 					{phase === 'observe' && (
 						<div className="p-4 border-b border-border">
 							<DiscoveryChecklist
-								discoveries={discoveryGating.discoveries}
 								discoveredCount={discoveryGating.discoveredCount}
+								discoveries={discoveryGating.discoveries}
 								minRequired={discoveryGating.minRequired}
 							/>
 						</div>
 					)}
 
-					{/* Build / activate phases: step progress */}
-					{(phase === 'build' || phase === 'activate') && (
+					{/* Build phase: step progress */}
+					{phase === 'build' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -840,7 +881,6 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 							<div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 relative">
 								{/* Input Zone (Controller) */}
 								<button
-									type="button"
 									className={`w-full max-w-sm border rounded-lg p-3 bg-card text-left transition-all duration-300 hover:ring-2 hover:ring-ring/30 cursor-pointer ${
 										flowPhase === 0
 											? 'ring-2 ring-primary/60 shadow-lg shadow-primary/10'
@@ -849,6 +889,7 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 												: ''
 									}`}
 									onClick={() => handleStageClick('controller')}
+									type="button"
 								>
 									<div className="flex items-center justify-between mb-1.5">
 										<span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -866,7 +907,9 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 											: '{ title: "...", body: "..." }'}
 									</pre>
 									{flowMessages[0] && (flowPhase >= 0 || flowPhase === -1) && (
-										<div className={`text-xs text-primary font-medium mt-1.5 ${flowPhase === 0 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}>
+										<div
+											className={`text-xs text-primary font-medium mt-1.5 ${flowPhase === 0 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}
+										>
 											{flowMessages[0]}
 										</div>
 									)}
@@ -880,7 +923,6 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 
 								{/* Model Gate Zone */}
 								<button
-									type="button"
 									className={`w-full max-w-sm border-2 rounded-lg p-4 text-center transition-all duration-300 hover:ring-2 hover:ring-ring/30 cursor-pointer ${
 										flowPhase === 2
 											? 'ring-2 ring-primary/60 shadow-lg shadow-primary/10 border-destructive/50 bg-destructive/5 dark:bg-destructive/10'
@@ -893,6 +935,7 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 											: ''
 									}`}
 									onClick={() => handleStageClick('model')}
+									type="button"
 								>
 									<div className="font-mono text-xs text-muted-foreground">
 										class Product &lt; ApplicationRecord
@@ -909,7 +952,9 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 											: '(no validations)'}
 									</div>
 									{flowMessages[1] && (flowPhase >= 2 || flowPhase === -1) && (
-										<div className={`text-xs text-destructive font-medium mt-1 ${flowPhase === 2 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}>
+										<div
+											className={`text-xs text-destructive font-medium mt-1 ${flowPhase === 2 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}
+										>
 											{flowMessages[1]}
 										</div>
 									)}
@@ -928,7 +973,6 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 
 								{/* Database Zone */}
 								<button
-									type="button"
 									className={`w-full max-w-sm border rounded-lg p-3 text-center transition-all duration-300 hover:ring-2 hover:ring-ring/30 cursor-pointer ${
 										flowPhase === 4
 											? 'ring-2 ring-destructive/60 shadow-lg shadow-destructive/10 border-destructive/50 bg-destructive/5 dark:bg-destructive/10'
@@ -941,6 +985,7 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 											: ''
 									}`}
 									onClick={() => handleStageClick('database')}
+									type="button"
 								>
 									<Database
 										className={`w-5 h-5 mx-auto mb-1 ${
@@ -960,7 +1005,9 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 										</div>
 									)}
 									{flowMessages[2] && (flowPhase >= 4 || flowPhase === -1) && (
-										<div className={`text-xs text-destructive font-medium mt-1 ${flowPhase === 4 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}>
+										<div
+											className={`text-xs text-destructive font-medium mt-1 ${flowPhase === 4 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}
+										>
 											{flowMessages[2]}
 										</div>
 									)}
@@ -1022,7 +1069,7 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 
 										{isViewingCompletedStep ? (
 											<div className="space-y-2">
-												{currentOptionConfig.options.map((opt) => (
+												{shuffledOptions.map((opt) => (
 													<OptionCard
 														color="violet"
 														disabled={!opt.correct}
@@ -1037,7 +1084,7 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 										) : (
 											<>
 												<div className="space-y-2">
-													{currentOptionConfig.options.map((opt) => (
+													{shuffledOptions.map((opt) => (
 														<OptionCard
 															color="violet"
 															key={opt.id}
@@ -1071,7 +1118,7 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 									</>
 								)}
 
-								{/* Terminal step (3: test invalid record) */}
+								{/* Terminal step (3: test invalid record, last step -> reward) */}
 								{stepper.currentStep === 3 && (
 									<TerminalChoiceStep
 										commands={testCommands}
@@ -1079,17 +1126,17 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 										description={
 											<p className="text-sm text-muted-foreground">
 												You have a product with no title and no body. The record
-												fails validation. How do you inspect the error
-												messages that explain what went wrong?
+												fails validation. How do you inspect the error messages
+												that explain what went wrong?
 											</p>
 										}
-										hasNext={false}
-										initialHistory={buildTerminalHistory(
-											CONSOLE_STEP_MAP,
-											0,
-										)}
+										hasNext
+										initialHistory={buildTerminalHistory(CONSOLE_STEP_MAP, 0)}
 										onCorrect={() => stepper.completeStep()}
-										onNext={stepper.nextStep}
+										onNext={() => {
+											setPhase('reward');
+											stressTest.reset();
+										}}
 										onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 										outputLines={testOutput}
 										prompt="irb>"
@@ -1102,39 +1149,7 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* ── Phase 3: Activate (ADVANTAGE sub-phase a) ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex items-center justify-center p-6">
-							<div className="max-w-md text-center space-y-6">
-								<div className="flex justify-center gap-1">
-									{[1, 2, 3].map((s) => (
-										<Star
-											className={`w-8 h-8 ${
-												s <= stepper.starRating
-													? 'text-yellow-400 fill-yellow-400'
-													: 'text-muted-foreground/30'
-											}`}
-											key={s}
-										/>
-									))}
-								</div>
-								<p className="text-sm text-muted-foreground">
-									Your validations are in place. Watch invalid data get
-									rejected at the model layer.
-								</p>
-								<Button
-									className="gap-2"
-									onClick={handleActivateValidations}
-									size="lg"
-								>
-									<Play className="w-4 h-4" />
-									Visualize Validations
-								</Button>
-							</div>
-						</div>
-					)}
-
-					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) - Data Gate with Validations ── */}
+					{/* ── Phase 3: Reward (ADVANTAGE) ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col">
 							{/* Data Gate: now with active validations */}
@@ -1153,14 +1168,14 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 									<div className="text-xs font-mono text-foreground">
 										{lastResult
 											? STRESS_SCENARIOS.find(
-													(s) =>
-														s.id ===
-														lastResult.scenarioId,
+													(s) => s.id === lastResult.scenarioId,
 												)?.label
 											: 'Fire a scenario below'}
 									</div>
 									{flowMessages[0] && (flowPhase >= 0 || flowPhase === -1) && (
-										<div className={`text-xs text-primary font-medium mt-1.5 ${flowPhase === 0 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}>
+										<div
+											className={`text-xs text-primary font-medium mt-1.5 ${flowPhase === 0 ? 'animate-in fade-in duration-300' : 'opacity-70'}`}
+										>
 											{flowMessages[0]}
 										</div>
 									)}
@@ -1193,24 +1208,21 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 									}`}
 								>
 									<div className="font-mono text-xs text-muted-foreground mb-2">
-										class Product / User &lt;
-										ApplicationRecord
+										class Product / User &lt; ApplicationRecord
 									</div>
 									<div className="space-y-0.5 font-mono text-xs text-success">
-										<div>
-											validates :title, presence: true
-										</div>
-										<div>
-											validates :email, uniqueness: true
-										</div>
-										<div>
-											validates :email, format: {'{ ... }'}
-										</div>
+										<div>validates :title, presence: true</div>
+										<div>validates :email, uniqueness: true</div>
+										<div>validates :email, format: {'{ ... }'}</div>
 									</div>
 									{flowMessages[1] && (flowPhase >= 2 || flowPhase === -1) && (
-										<div className={`text-xs font-medium mt-2 ${flowPhase === 2 ? 'animate-in fade-in duration-300' : 'opacity-70'} ${
-											lastResult?.result === 'blocked' ? 'text-destructive' : 'text-success'
-										}`}>
+										<div
+											className={`text-xs font-medium mt-2 ${flowPhase === 2 ? 'animate-in fade-in duration-300' : 'opacity-70'} ${
+												lastResult?.result === 'blocked'
+													? 'text-destructive'
+													: 'text-success'
+											}`}
+										>
 											{flowMessages[1]}
 										</div>
 									)}
@@ -1243,9 +1255,13 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 									}`}
 								>
 									{flowMessages[2] && (flowPhase >= 4 || flowPhase === -1) && (
-										<div className={`text-xs font-medium mb-1 ${flowPhase === 4 ? 'animate-in fade-in duration-300' : 'opacity-70'} ${
-											lastResult?.result === 'blocked' ? 'text-destructive' : 'text-success'
-										}`}>
+										<div
+											className={`text-xs font-medium mb-1 ${flowPhase === 4 ? 'animate-in fade-in duration-300' : 'opacity-70'} ${
+												lastResult?.result === 'blocked'
+													? 'text-destructive'
+													: 'text-success'
+											}`}
+										>
 											{flowMessages[2]}
 										</div>
 									)}
@@ -1302,7 +1318,12 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 			</CenterPanel>
 
 			<RightPanel>
-				<CodePreviewPanel files={getCodeFiles(phase, stepper.furthestStep)} />
+				<CodePreviewPanel
+					files={getCodeFiles(
+						phase,
+						phase === 'reward' ? STEP_DEFS.length : codePreviewStep,
+					)}
+				/>
 			</RightPanel>
 		</LevelLayout>
 	);

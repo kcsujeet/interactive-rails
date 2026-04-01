@@ -1,19 +1,19 @@
 /**
  * Level 9: Authentication
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): Interactive exploration. Click pipeline stages to
  *   inspect code, fire API probes to discover that anyone can hit any endpoint.
  *   Discovery gating controls when "Build the Fix" appears.
- * Phase 2 (HOW - build): 4 steps building Rails 8 built-in authentication.
+ * Phase 2 (HOW - build): 5 steps building Rails 8 built-in authentication.
  *   Step 0: Generate Auth Scaffolding (terminal)
- *   Step 1: Choose Password Strategy (OptionCard)
- *   Step 2: Create Session (terminal, irb> prompt)
- *   Step 3: Protect Endpoint (OptionCard)
- * Phase 3a (ADVANTAGE - activate): Star rating + "Visualize Authentication" button
- * Phase 3b (ADVANTAGE - reward): Stress test. Fire request scenarios at the
+ *   Step 1: Run Migrations (terminal)
+ *   Step 2: Choose Password Strategy (OptionCard)
+ *   Step 3: Create Session (terminal, irb> prompt)
+ *   Step 4: Protect Endpoint (OptionCard)
+ * Phase 3 (ADVANTAGE - reward): Stress test. Fire request scenarios at the
  *   protected pipeline and watch authenticated/rejected results.
  *
  * Teaches: Rails 8 auth generator, has_secure_password, Bearer tokens,
@@ -22,8 +22,8 @@
  * ID: "act2-level9-authentication"
  */
 
-import { ArrowRight, Check, Play, Star, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowRight, Check, X } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -48,8 +48,8 @@ import {
 	PipelineFlow,
 	type PipelineStage,
 } from '@/components/levels/PipelineFlow';
-import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
+import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import {
 	StageInspector,
 	type StageInspectorData,
@@ -63,12 +63,13 @@ import {
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { shuffleOptions } from '@/lib/shuffleOptions';
 
 // ──────────────────────────────────────────────
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'observe' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Discovery definitions (observe phase)
@@ -228,11 +229,29 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'allowed',
 	},
 	{
-		id: 'no-token-delete',
+		id: 'delete-no-token',
 		label: 'DELETE without token',
 		description: 'Anonymous request tries to delete',
 		method: 'DELETE',
 		path: '/api/v1/products/1',
+		actor: 'anonymous (no token)',
+		expectedResult: 'blocked',
+	},
+	{
+		id: 'create-no-token',
+		label: 'POST without token',
+		description: 'Anonymous request tries to create a product',
+		method: 'POST',
+		path: '/api/v1/products',
+		actor: 'anonymous (no token)',
+		expectedResult: 'blocked',
+	},
+	{
+		id: 'check-identity',
+		label: 'Check current_user',
+		description: 'Anonymous request checks identity endpoint',
+		method: 'GET',
+		path: '/api/v1/me',
 		actor: 'anonymous (no token)',
 		expectedResult: 'blocked',
 	},
@@ -393,7 +412,7 @@ const PASSWORD_OPTIONS: PasswordOption[] = [
 		description: 'Full-featured third-party authentication engine',
 		correct: false,
 		feedback:
-			'Devise is powerful but adds complexity. Rails 8 has built-in auth. Use the framework\'s own tools first.',
+			"Devise is powerful but adds complexity. Rails 8 has built-in auth. Use the framework's own tools first.",
 	},
 	{
 		id: 'manual-bcrypt',
@@ -550,7 +569,7 @@ end`,
 		return files;
 	}
 
-	// Build / activate / reward phases: evolving code
+	// Build / reward phases: evolving code
 	if (furthestStep <= 1) {
 		files.push({
 			filename: 'app/controllers/products_controller.rb',
@@ -706,17 +725,16 @@ export function Level9Authentication({ onComplete }: LevelComponentProps) {
 	});
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
-	const [inspectorData, setInspectorData] =
-		useState<StageInspectorData | null>(null);
+	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(
+		null,
+	);
 	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
 		new Set(),
 	);
 	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
 
 	// ── Build observe stages dynamically (tracks inspected + last probe) ──
-	const probeDisplay = lastProbeId
-		? PROBE_PIPELINE_MAP[lastProbeId]
-		: null;
+	const probeDisplay = lastProbeId ? PROBE_PIPELINE_MAP[lastProbeId] : null;
 	const observeStages: PipelineStage[] = useMemo(
 		() => [
 			{
@@ -773,13 +791,6 @@ export function Level9Authentication({ onComplete }: LevelComponentProps) {
 		];
 	}, [lastResult]);
 
-	// ── Transition: build -> activate when all steps complete ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
-
 	// ── Stage click handler (observe phase) ──
 	const handleStageClick = useCallback(
 		(stageId: string) => {
@@ -820,11 +831,6 @@ export function Level9Authentication({ onComplete }: LevelComponentProps) {
 	// ── Phase transition handlers ──
 	const handleStartBuild = () => {
 		setPhase('build');
-	};
-
-	const handleActivateAuth = () => {
-		setPhase('reward');
-		stressTest.reset();
 	};
 
 	// ── Step handlers ──
@@ -881,6 +887,21 @@ export function Level9Authentication({ onComplete }: LevelComponentProps) {
 	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
 	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 
+	// Shuffle OptionCard options per step
+	const shuffledPasswordOptions = useMemo(
+		() => shuffleOptions(PASSWORD_OPTIONS, 2),
+		[],
+	);
+	const shuffledProtectOptions = useMemo(
+		() => shuffleOptions(PROTECT_OPTIONS, 4),
+		[],
+	);
+
+	// Code preview index: show result of previous steps while working, current step after completing
+	const codePreviewStep = stepper.isCurrentStepCompleted
+		? stepper.currentStep
+		: stepper.currentStep - 1;
+
 	// ── Render ──
 	return (
 		<LevelLayout>
@@ -889,14 +910,14 @@ export function Level9Authentication({ onComplete }: LevelComponentProps) {
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Your API has no authentication. Anyone can create, update,
-							or delete posts without identifying themselves. There is
-							no User model, no sessions, and no token verification.
+							Your API has no authentication. Anyone can create, update, or
+							delete posts without identifying themselves. There is no User
+							model, no sessions, and no token verification.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Rails 8 ships a built-in authentication generator that
-							creates User and Session models, a bcrypt-backed password
-							system, and a concern that protects your controllers.
+							Rails 8 ships a built-in authentication generator that creates
+							User and Session models, a bcrypt-backed password system, and a
+							concern that protects your controllers.
 						</p>
 					</div>
 
@@ -904,15 +925,15 @@ export function Level9Authentication({ onComplete }: LevelComponentProps) {
 					{phase === 'observe' && (
 						<div className="p-4 border-b border-border">
 							<DiscoveryChecklist
-								discoveries={discoveryGating.discoveries}
 								discoveredCount={discoveryGating.discoveredCount}
+								discoveries={discoveryGating.discoveries}
 								minRequired={discoveryGating.minRequired}
 							/>
 						</div>
 					)}
 
-					{/* Build / activate phases: step progress */}
-					{(phase === 'build' || phase === 'activate') && (
+					{/* Build phase: step progress */}
+					{phase === 'build' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -1017,17 +1038,14 @@ export function Level9Authentication({ onComplete }: LevelComponentProps) {
 										completed={isViewingCompletedStep}
 										description={
 											<p className="text-sm text-muted-foreground">
-												Your API endpoints are wide open. Rails 8 includes
-												a generator that creates everything you need:
-												User model, Session model, controllers, and an
-												Authentication concern. Run it.
+												Your API endpoints are wide open. Rails 8 includes a
+												generator that creates everything you need: User model,
+												Session model, controllers, and an Authentication
+												concern. Run it.
 											</p>
 										}
 										hasNext={hasNextStep}
-										initialHistory={buildTerminalHistory(
-											SHELL_STEP_MAP,
-											0,
-										)}
+										initialHistory={buildTerminalHistory(SHELL_STEP_MAP, 0)}
 										onCorrect={() => stepper.completeStep()}
 										onNext={stepper.nextStep}
 										onWrong={(fb) => stepper.recordWrongAttempt(fb)}
@@ -1044,16 +1062,13 @@ export function Level9Authentication({ onComplete }: LevelComponentProps) {
 										completed={isViewingCompletedStep}
 										description={
 											<p className="text-sm text-muted-foreground">
-												The generator created migration files for the
-												users and sessions tables. The tables do not
-												exist in the database yet. Run the migrations.
+												The generator created migration files for the users and
+												sessions tables. The tables do not exist in the database
+												yet. Run the migrations.
 											</p>
 										}
 										hasNext={hasNextStep}
-										initialHistory={buildTerminalHistory(
-											SHELL_STEP_MAP,
-											1,
-										)}
+										initialHistory={buildTerminalHistory(SHELL_STEP_MAP, 1)}
 										onCorrect={() => stepper.completeStep()}
 										onNext={stepper.nextStep}
 										onWrong={(fb) => stepper.recordWrongAttempt(fb)}
@@ -1070,13 +1085,13 @@ export function Level9Authentication({ onComplete }: LevelComponentProps) {
 											Choose Password Strategy
 										</h3>
 										<p className="text-sm text-muted-foreground">
-											The User model needs a way to hash and verify
-											passwords. Pick the approach that keeps passwords
-											secure with the least amount of manual code.
+											The User model needs a way to hash and verify passwords.
+											Pick the approach that keeps passwords secure with the
+											least amount of manual code.
 										</p>
 
 										<div className="grid gap-2">
-											{PASSWORD_OPTIONS.map((option) => (
+											{shuffledPasswordOptions.map((option) => (
 												<OptionCard
 													color="blue"
 													description={option.description}
@@ -1084,9 +1099,7 @@ export function Level9Authentication({ onComplete }: LevelComponentProps) {
 													key={option.id}
 													name={option.name}
 													onClick={() => handlePasswordChoice(option)}
-													selected={
-														isViewingCompletedStep && option.correct
-													}
+													selected={isViewingCompletedStep && option.correct}
 												/>
 											))}
 										</div>
@@ -1117,16 +1130,13 @@ export function Level9Authentication({ onComplete }: LevelComponentProps) {
 										completed={isViewingCompletedStep}
 										description={
 											<p className="text-sm text-muted-foreground">
-												A user just authenticated with their email and
-												password. Now create a server-side session that
-												generates a Bearer token for subsequent API requests.
+												A user just authenticated with their email and password.
+												Now create a server-side session that generates a Bearer
+												token for subsequent API requests.
 											</p>
 										}
 										hasNext={hasNextStep}
-										initialHistory={buildTerminalHistory(
-											CONSOLE_STEP_MAP,
-											0,
-										)}
+										initialHistory={buildTerminalHistory(CONSOLE_STEP_MAP, 0)}
 										onCorrect={() => stepper.completeStep()}
 										onNext={stepper.nextStep}
 										onWrong={(fb) => stepper.recordWrongAttempt(fb)}
@@ -1145,13 +1155,13 @@ export function Level9Authentication({ onComplete }: LevelComponentProps) {
 											Protect Your Endpoints
 										</h3>
 										<p className="text-sm text-muted-foreground">
-											Sessions are working. Now lock down your controllers
-											so only authenticated users can access them. Pick
-											the callback from the Authentication concern.
+											Sessions are working. Now lock down your controllers so
+											only authenticated users can access them. Pick the
+											callback from the Authentication concern.
 										</p>
 
 										<div className="grid gap-2">
-											{PROTECT_OPTIONS.map((option) => (
+											{shuffledProtectOptions.map((option) => (
 												<OptionCard
 													color="blue"
 													description={option.description}
@@ -1160,9 +1170,7 @@ export function Level9Authentication({ onComplete }: LevelComponentProps) {
 													mono
 													name={option.name}
 													onClick={() => handleProtectChoice(option)}
-													selected={
-														isViewingCompletedStep && option.correct
-													}
+													selected={isViewingCompletedStep && option.correct}
 												/>
 											))}
 										</div>
@@ -1175,7 +1183,10 @@ export function Level9Authentication({ onComplete }: LevelComponentProps) {
 											<div className="flex justify-end">
 												<Button
 													className="gap-2"
-													onClick={stepper.nextStep}
+													onClick={() => {
+														setPhase('reward');
+														stressTest.reset();
+													}}
 													size="sm"
 												>
 													Next Step
@@ -1189,39 +1200,7 @@ export function Level9Authentication({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* ── Phase 3a: Activate (ADVANTAGE sub-phase a) ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex items-center justify-center p-6">
-							<div className="max-w-md text-center space-y-6">
-								<div className="flex justify-center gap-1">
-									{[1, 2, 3].map((s) => (
-										<Star
-											className={`w-8 h-8 ${
-												s <= stepper.starRating
-													? 'text-yellow-400 fill-yellow-400'
-													: 'text-muted-foreground/30'
-											}`}
-											key={s}
-										/>
-									))}
-								</div>
-								<p className="text-sm text-muted-foreground">
-									Your authentication layer is in place. Watch
-									unauthenticated requests bounce off the Auth gate.
-								</p>
-								<Button
-									className="gap-2"
-									onClick={handleActivateAuth}
-									size="lg"
-								>
-									<Play className="w-4 h-4" />
-									Visualize Authentication
-								</Button>
-							</div>
-						</div>
-					)}
-
-					{/* ── Phase 3b: Reward (ADVANTAGE sub-phase b) ── */}
+					{/* ── Phase 3: Reward (ADVANTAGE) ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">
@@ -1251,7 +1230,10 @@ export function Level9Authentication({ onComplete }: LevelComponentProps) {
 
 			<RightPanel>
 				<CodePreviewPanel
-					files={getCodeFiles(phase, stepper.furthestStep)}
+					files={getCodeFiles(
+						phase,
+						phase === 'reward' ? STEP_DEFS.length : codePreviewStep,
+					)}
 				/>
 			</RightPanel>
 		</LevelLayout>
