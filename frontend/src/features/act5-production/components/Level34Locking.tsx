@@ -36,7 +36,7 @@ import {
 	Unlock,
 	Zap,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -68,6 +68,7 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { shuffleOptions } from '@/lib/shuffleOptions';
 import { cn } from '@/lib/utils';
 
 // ──────────────────────────────────────────────
@@ -500,7 +501,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'transfer',
 		label: 'POST order (buy 5 units)',
-		description: 'Single checkout: lock product, deduct stock -> create order',
+		description: 'Single checkout: lock product, deduct stock, create order',
 		method: 'POST',
 		path: '/api/v1/orders',
 		actor: 'Customer A',
@@ -508,8 +509,37 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		responseLines: [
 			{ text: '200 OK', color: 'green' },
 			{
-				text: 'Transaction: lock both -> debit sender -> credit receiver -> commit',
+				text: 'Transaction: lock -> deduct 5 -> create order -> audit log -> commit',
 				color: 'cyan',
+			},
+			{ text: 'Stock: 15 -> 10', color: 'green' },
+		],
+	},
+	{
+		id: 'concurrent-checkout',
+		label: 'POST concurrent checkouts (locked)',
+		description:
+			'Two customers check out simultaneously, both correctly serialized',
+		method: 'POST',
+		path: '/api/v1/orders',
+		actor: 'Customer A + Customer B',
+		expectedResult: 'allowed',
+		responseLines: [
+			{
+				text: '200 OK (both succeed, serialized)',
+				color: 'green',
+			},
+			{
+				text: 'Customer A: lock -> 15 - 10 = 5 -> commit',
+				color: 'cyan',
+			},
+			{
+				text: 'Customer B: waits... lock -> 5 - 8 = insufficient!',
+				color: 'yellow',
+			},
+			{
+				text: 'Customer A committed, Customer B rejected. No lost update.',
+				color: 'green',
 			},
 		],
 	},
@@ -1300,7 +1330,7 @@ end`,
 		}
 	}
 
-	// Activate + reward: complete solution
+	// Reward: complete solution
 	return [
 		{
 			filename: 'app/contracts/order_contract.rb',
@@ -1573,7 +1603,10 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 			if (!scenario) return;
 
 			setVizStarted(true);
-			setShowRequestB(scenarioId === 'concurrent-order-locked');
+			setShowRequestB(
+				scenarioId === 'concurrent-order-locked' ||
+					scenarioId === 'concurrent-checkout',
+			);
 			setMismatchCounter(null);
 			setWarningMessage(null);
 
@@ -1586,6 +1619,10 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 				'concurrent-order-locked': {
 					a: '{ product_id: 1, qty: 10 }',
 					b: '{ product_id: 1, qty: 3 }',
+				},
+				'concurrent-checkout': {
+					a: '{ product_id: 1, qty: 10 }',
+					b: '{ product_id: 1, qty: 8 }',
 				},
 				transfer: {
 					a: '{ product_id: 1, qty: 5 }',
@@ -1695,6 +1732,13 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
 	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep] ?? null;
+	const shuffledOptions = useMemo(
+		() =>
+			currentOptionConfig
+				? shuffleOptions(currentOptionConfig.options, stepper.currentStep)
+				: [],
+		[currentOptionConfig, stepper.currentStep],
+	);
 	const isTerminalStep = stepper.currentStep <= 1;
 
 	// ──────────────────────────────────────────
@@ -1801,13 +1845,11 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 										'Build a service with contract validation',
 										'Handle StaleObjectError for conflict resolution',
 									]
-								: phase === 'reward'
-									? [
-											'Fire scenarios to verify locking prevents lost updates',
-											'Test insufficient funds and stale version handling',
-											'See how concurrent users are safely serialized',
-										]
-									: ['Review your star rating and visualize the solution']
+								: [
+										'Fire scenarios to verify locking prevents lost updates',
+										'Test insufficient funds and stale version handling',
+										'See how concurrent users are safely serialized',
+									]
 					}
 					scenario="Two customers check out the same product simultaneously. Without locking, the last write wins and stock goes negative. Locks serialize access so each request sees the correct inventory."
 				>
@@ -1941,7 +1983,7 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 
 									<div className="space-y-3">
 										{isViewingCompletedStep ? (
-											currentOptionConfig.options.map((opt) => (
+											shuffledOptions.map((opt) => (
 												<OptionCard
 													disabled={!opt.correct}
 													key={opt.id}
@@ -1953,7 +1995,7 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 											))
 										) : (
 											<>
-												{currentOptionConfig.options.map((opt) => (
+												{shuffledOptions.map((opt) => (
 													<OptionCard
 														key={opt.id}
 														mono
@@ -2015,7 +2057,11 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 				<CodePreviewPanel
 					files={getCodeFiles(
 						phase,
-						phase === 'build' ? stepper.furthestStep : 0,
+						phase === 'build'
+							? stepper.isCurrentStepCompleted
+								? stepper.currentStep
+								: stepper.currentStep - 1
+							: 0,
 					)}
 					learningGoal={
 						phase === 'observe'

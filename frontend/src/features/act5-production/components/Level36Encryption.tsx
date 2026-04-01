@@ -57,6 +57,7 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { shuffleOptions } from '@/lib/shuffleOptions';
 import { cn } from '@/lib/utils';
 
 // ──────────────────────────────────────────────
@@ -578,6 +579,54 @@ const STRESS_SCENARIOS: StressScenario[] = [
 			{ text: 'ActiveRecord::Encryption: ACTIVE', color: 'green' },
 		],
 	},
+	{
+		id: 'sql-injection',
+		label: 'SQL injection attack',
+		description: 'Attacker exploits SQL injection to dump user table',
+		method: 'GET',
+		path: "/api/v1/users?id=1' OR 1=1",
+		actor: 'attacker',
+		expectedResult: 'allowed',
+		responseLines: [
+			{ text: '200 OK (but data is encrypted!)', color: 'green' },
+			{ text: 'email: {"p":"dB3dhj...","h":{"iv":"f9w..."}}', color: 'cyan' },
+			{ text: 'phone: {"p":"aX4kLm...","h":{"iv":"j8r..."}}', color: 'cyan' },
+			{ text: 'Attacker sees ciphertext, not PII.', color: 'green' },
+		],
+	},
+	{
+		id: 'backup-leak',
+		label: 'Database backup exposed',
+		description: 'Database backup file is leaked externally',
+		method: 'GET',
+		path: '/admin/audit/backup-check',
+		actor: 'attacker',
+		expectedResult: 'allowed',
+		responseLines: [
+			{
+				text: 'Backup contains only ciphertext for PII columns.',
+				color: 'green',
+			},
+			{ text: 'email: {"p":"dB3dhj...","h":{"iv":"f9w..."}}', color: 'cyan' },
+			{ text: 'address: {"p":"nQ2zRt...","h":{"iv":"w7k..."}}', color: 'cyan' },
+			{ text: 'No plaintext PII in backup. GDPR safe.', color: 'green' },
+		],
+	},
+	{
+		id: 'inspect-config',
+		label: 'Check encryption config',
+		description: 'Verify encryption keys are properly configured',
+		method: 'GET',
+		path: '/admin/audit/encryption-status',
+		actor: 'security auditor',
+		expectedResult: 'allowed',
+		responseLines: [
+			{ text: '200 OK', color: 'green' },
+			{ text: 'primary_key: configured', color: 'cyan' },
+			{ text: 'deterministic_key: configured', color: 'cyan' },
+			{ text: 'ActiveRecord::Encryption: ACTIVE', color: 'green' },
+		],
+	},
 ];
 
 // ──────────────────────────────────────────────
@@ -645,6 +694,29 @@ const REWARD_VIZ: Record<string, RewardVizConfig> = {
 	'encryption-config': {
 		banner:
 			'All three encryption keys configured. ActiveRecord::Encryption is active.',
+		bannerType: 'info',
+		perspective: 'app',
+		highlightCols: [],
+		focusRow: null,
+	},
+	'sql-injection': {
+		banner:
+			'Attacker dumped the table but sees only ciphertext. No PII exposed.',
+		bannerType: 'success',
+		perspective: 'db',
+		highlightCols: ['email', 'phone', 'address'],
+		focusRow: null,
+	},
+	'backup-leak': {
+		banner: 'Database backup contains only ciphertext. GDPR compliance: PASS.',
+		bannerType: 'success',
+		perspective: 'db',
+		highlightCols: ['email', 'phone', 'address'],
+		focusRow: null,
+	},
+	'inspect-config': {
+		banner:
+			'All encryption keys configured. ActiveRecord::Encryption is active.',
 		bannerType: 'info',
 		perspective: 'app',
 		highlightCols: [],
@@ -977,7 +1049,7 @@ end`,
 // ──────────────────────────────────────────────
 
 export function Level36Encryption({ onComplete }: LevelComponentProps) {
-	const [phase, setPhase] = useState<Phase>('reward');
+	const [phase, setPhase] = useState<Phase>('observe');
 	const [flowPhase, setFlowPhase] = useState(-1);
 	const [wrongFeedback, setWrongFeedback] = useState<string | null>(null);
 	const [highlightedRow, setHighlightedRow] = useState<number | null>(null);
@@ -1070,8 +1142,9 @@ export function Level36Encryption({ onComplete }: LevelComponentProps) {
 	const handleFireScenario = useCallback(
 		(scenarioId: string) => {
 			if (flowPhase !== -1) return;
-			stressTest.fireRequest(scenarioId);
+			const result = stressTest.fireRequest(scenarioId);
 			setRewardScenarioId(scenarioId);
+			setLastScenarioBlocked(result.result === 'blocked');
 
 			// Brief animation lock so the UI doesn't allow rapid double-fires
 			setFlowPhase(0);
@@ -1096,7 +1169,7 @@ export function Level36Encryption({ onComplete }: LevelComponentProps) {
 	}, [phase]);
 
 	const handleComplete = async () => {
-		onComplete({ stars: 3 });
+		onComplete({ stars: stepper.starRating });
 	};
 
 	// ── Determine last scenario for reward viz ──
@@ -1474,7 +1547,7 @@ export function Level36Encryption({ onComplete }: LevelComponentProps) {
 					)}
 
 					<div className="space-y-3">
-						{config.options.map((opt) => (
+						{shuffleOptions(config.options, currentStep).map((opt) => (
 							<OptionCard
 								description=""
 								disabled={stepper.isCurrentStepCompleted}
@@ -1510,6 +1583,7 @@ export function Level36Encryption({ onComplete }: LevelComponentProps) {
 									className="gap-2"
 									onClick={() => {
 										setWrongFeedback(null);
+										stressTest.reset();
 										setPhase('reward');
 									}}
 									size="sm"

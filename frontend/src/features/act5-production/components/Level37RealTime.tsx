@@ -70,6 +70,7 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { shuffleOptions } from '@/lib/shuffleOptions';
 import { cn } from '@/lib/utils';
 
 // ──────────────────────────────────────────────
@@ -352,10 +353,14 @@ const ServerNode = memo(function ServerNode({
 
 			{/* Work pipeline / status */}
 			{data.label && (
-				<div className={cn(
-					'text-xs font-mono truncate animate-in fade-in duration-200',
-					data.isReward ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400',
-				)}>
+				<div
+					className={cn(
+						'text-xs font-mono truncate animate-in fade-in duration-200',
+						data.isReward
+							? 'text-emerald-600 dark:text-emerald-400'
+							: 'text-amber-600 dark:text-amber-400',
+					)}
+				>
 					{data.label}
 				</div>
 			)}
@@ -989,7 +994,10 @@ const REWARD_POLLING_FRAMES: AnimFrame[] = [
 	},
 	// DIFFERENT: When order ships, server pushes instantly. No refreshing needed.
 	{
-		server: { label: 'Broadcasting update...', rewardLabel: 'Order shipped -> broadcast' },
+		server: {
+			label: 'Broadcasting update...',
+			rewardLabel: 'Order shipped -> broadcast',
+		},
 		edge: {
 			active: true,
 			reverse: true,
@@ -1046,7 +1054,10 @@ const REWARD_HEALTH_FRAMES: AnimFrame[] = [
 	},
 	// DIFFERENT: No polling flood. Server pushes order updates via WebSocket.
 	{
-		server: { label: 'Pushing updates...', rewardLabel: 'Broadcasting order updates...' },
+		server: {
+			label: 'Pushing updates...',
+			rewardLabel: 'Broadcasting order updates...',
+		},
 		edge: {
 			active: true,
 			reverse: true,
@@ -1583,6 +1594,48 @@ const STRESS_SCENARIOS: StressScenario[] = [
 			{ text: 'Cannot subscribe to another user', color: 'red' },
 		],
 	},
+	{
+		id: 'trigger-event',
+		label: 'POST create payment (with push)',
+		description: 'Payment created, server pushes notification instantly',
+		method: 'WS' as 'GET',
+		path: '/cable -> NotificationsChannel',
+		actor: 'server',
+		expectedResult: 'allowed',
+		responseLines: [
+			{ text: 'after_create_commit -> broadcast_to_user', color: 'cyan' },
+			{
+				text: 'Customer notified in <15ms (was 2s with polling)',
+				color: 'green',
+			},
+		],
+	},
+	{
+		id: 'check-polling',
+		label: 'Customer checks order status (with push)',
+		description: 'No polling needed, server pushes updates',
+		method: 'WS' as 'GET',
+		path: '/cable',
+		actor: 'server',
+		expectedResult: 'allowed',
+		responseLines: [
+			{ text: '0 polling requests/sec (was 25K)', color: 'green' },
+			{ text: 'Server pushes updates instantly via WebSocket', color: 'green' },
+		],
+	},
+	{
+		id: 'check-cpu',
+		label: 'Black Friday traffic (with WebSocket)',
+		description: 'Same traffic spike, no polling overhead',
+		method: 'WS' as 'GET',
+		path: '/cable',
+		actor: 'server',
+		expectedResult: 'allowed',
+		responseLines: [
+			{ text: 'CPU: 3% (was 95%)', color: 'green' },
+			{ text: 'Connection pool healthy. Zero 503 errors.', color: 'green' },
+		],
+	},
 ];
 
 // ──────────────────────────────────────────────
@@ -2062,7 +2115,7 @@ export function Level37RealTime({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 					<div className="space-y-3">
-						{config.options.map((opt) => (
+						{shuffleOptions(config.options, currentStep).map((opt) => (
 							<OptionCard
 								disabled={stepper.isCurrentStepCompleted}
 								key={opt.id}
@@ -2096,6 +2149,7 @@ export function Level37RealTime({ onComplete }: LevelComponentProps) {
 									className="gap-2"
 									onClick={() => {
 										setWrongFeedback(null);
+										stressTest.reset();
 										setPhase('reward');
 									}}
 									size="sm"

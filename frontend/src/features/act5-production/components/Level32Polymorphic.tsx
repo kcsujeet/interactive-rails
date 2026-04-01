@@ -25,7 +25,7 @@
  */
 
 import { ArrowRight, Database, Table2, Zap } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -45,6 +45,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
+import { shuffleOptions } from '@/lib/shuffleOptions';
 import { cn } from '@/lib/utils';
 
 // ──────────────────────────────────────────────
@@ -821,6 +822,13 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
 	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep] ?? null;
+	const shuffledOptions = useMemo(
+		() =>
+			currentOptionConfig
+				? shuffleOptions(currentOptionConfig.options, stepper.currentStep)
+				: [],
+		[currentOptionConfig, stepper.currentStep],
+	);
 	const isTerminalStep = stepper.currentStep <= 1;
 
 	// Reward: unified table rows (solution visualization)
@@ -1116,7 +1124,7 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 
 									<div className="space-y-3">
 										{isViewingCompletedStep ? (
-											currentOptionConfig.options.map((opt) => (
+											shuffledOptions.map((opt) => (
 												<OptionCard
 													disabled={!opt.correct}
 													key={opt.id}
@@ -1128,7 +1136,7 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 											))
 										) : (
 											<>
-												{currentOptionConfig.options.map((opt) => (
+												{shuffledOptions.map((opt) => (
 													<OptionCard
 														key={opt.id}
 														mono
@@ -1310,7 +1318,11 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 				<CodePreviewPanel
 					files={getCodeFiles(
 						phase,
-						phase === 'build' ? stepper.furthestStep : 0,
+						phase === 'build'
+							? stepper.isCurrentStepCompleted
+								? stepper.currentStep
+								: stepper.currentStep - 1
+							: 0,
 					)}
 					learningGoal={
 						phase === 'intro'

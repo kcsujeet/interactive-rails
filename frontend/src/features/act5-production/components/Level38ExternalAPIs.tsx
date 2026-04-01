@@ -67,6 +67,7 @@ import { useDiscoveryGating } from '@/hooks/useDiscoveryGating';
 import { useStepGating } from '@/hooks/useStepGating';
 import { useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { shuffleOptions } from '@/lib/shuffleOptions';
 
 // ─── Types ────────────────────────────────────────────────────────────
 
@@ -1253,6 +1254,69 @@ const STRESS_SCENARIOS = [
 			'Bad user input will not accidentally open the circuit.',
 		],
 	},
+	{
+		id: 'slow-stripe',
+		label: 'POST create payment (slow response)',
+		description: 'Same slow Stripe, timeout now frees the thread',
+		method: 'POST',
+		path: '/api/v1/payments',
+		actor: 'customer',
+		expectedResult: 'blocked' as const,
+		responseLines: [
+			{ text: 'POST /api/v1/payments -> Stripe API', color: 'cyan' },
+			{ text: 'Timeout: 10s limit reached!', color: 'yellow' },
+			{ text: 'Thread freed after 10s (was 30s before)', color: 'green' },
+			{ text: '503 - { "error": { "code": "TIMEOUT" } }', color: 'red' },
+		],
+		story: [
+			'Same slow Stripe from the observe phase.',
+			'Timeout catches it at 10s instead of blocking for 30s.',
+			'Thread freed quickly, other requests keep flowing.',
+		],
+	},
+	{
+		id: 'stripe-503',
+		label: 'GET check payment status (Stripe 503)',
+		description: 'Same 503, retry middleware now handles it',
+		method: 'GET',
+		path: '/api/v1/payments/ch_abc/status',
+		actor: 'customer',
+		expectedResult: 'allowed' as const,
+		responseLines: [
+			{
+				text: 'GET /api/v1/payments/ch_abc/status -> Stripe API',
+				color: 'cyan',
+			},
+			{ text: 'Attempt 1: 503 Service Unavailable', color: 'yellow' },
+			{ text: 'Retry middleware: backing off 0.5s...', color: 'yellow' },
+			{ text: 'Attempt 2: 200 OK', color: 'green' },
+		],
+		story: [
+			'Same transient 503 from the observe phase.',
+			'Retry middleware catches it and retries automatically.',
+			'Customer gets their payment status on the second attempt.',
+		],
+	},
+	{
+		id: 'stripe-down',
+		label: 'Black Friday traffic (Stripe outage)',
+		description: 'Same outage, circuit breaker now protects the app',
+		method: 'POST',
+		path: '/api/v1/payments',
+		actor: 'customer',
+		expectedResult: 'blocked' as const,
+		responseLines: [
+			{ text: 'POST /api/v1/payments -> Circuit breaker', color: 'cyan' },
+			{ text: 'Stoplight: circuit OPEN (5 failures)', color: 'red' },
+			{ text: 'Fail-fast: 2ms (was 30s before!)', color: 'green' },
+			{ text: '503 - { "error": { "code": "CIRCUIT_OPEN" } }', color: 'red' },
+		],
+		story: [
+			'Same Black Friday outage from the observe phase.',
+			'Circuit breaker opens after 5 failures, all subsequent requests fail fast.',
+			'Rest of the app stays responsive.',
+		],
+	},
 ];
 
 // ─── Code preview builder ──────────────────────────────────────────────
@@ -1559,15 +1623,13 @@ const AppServerNode = memo(({ data }: { data: AppServerNodeData }) => {
 
 			{/* Thread pool */}
 			<div className="mb-2">
-				<div className="text-[10px] text-muted-foreground mb-1">
-					Thread Pool
-				</div>
+				<div className="text-xs text-muted-foreground mb-1">Thread Pool</div>
 				<div className="flex gap-1">
 					{THREAD_KEYS.map((key, idx) => {
 						const t = d.threads[idx] ?? 'available';
 						return (
 							<div
-								className={`h-5 flex-1 rounded text-[9px] font-mono flex items-center justify-center transition-colors duration-300 ${
+								className={`h-5 flex-1 rounded text-xs font-mono flex items-center justify-center transition-colors duration-300 ${
 									t === 'available'
 										? 'bg-emerald-200 dark:bg-emerald-800/50 text-emerald-700 dark:text-emerald-300'
 										: t === 'freed'
@@ -1588,7 +1650,7 @@ const AppServerNode = memo(({ data }: { data: AppServerNodeData }) => {
 				{d.label}
 			</div>
 			{d.queueLabel && (
-				<div className="text-[10px] text-muted-foreground mt-0.5 truncate">
+				<div className="text-xs text-muted-foreground mt-0.5 truncate">
 					{d.queueLabel}
 				</div>
 			)}
@@ -1621,8 +1683,8 @@ const AppServerNode = memo(({ data }: { data: AppServerNodeData }) => {
 							key={mw.label}
 						>
 							<mw.icon className="w-3 h-3 mx-auto text-muted-foreground" />
-							<div className="text-[8px] text-muted-foreground">{mw.label}</div>
-							<div className="text-[9px] font-semibold text-foreground truncate">
+							<div className="text-xs text-muted-foreground">{mw.label}</div>
+							<div className="text-xs font-semibold text-foreground truncate">
 								{mw.value}
 							</div>
 						</div>
@@ -1652,7 +1714,7 @@ const StripeNode = memo(({ data }: { data: StripeNodeData }) => {
 				</span>
 			</div>
 			<Badge
-				className={`text-[10px] ${
+				className={`text-xs ${
 					d.status === 'Healthy'
 						? 'text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700'
 						: d.status === 'Down' || d.status === '503'
@@ -1722,7 +1784,7 @@ const ApiEdge = memo(
 				{d.label && (
 					<EdgeLabelRenderer>
 						<div
-							className="nodrag nopan pointer-events-none absolute text-[10px] font-mono text-foreground bg-background/90 px-1.5 py-0.5 rounded border border-border max-w-64 text-center whitespace-nowrap"
+							className="nodrag nopan pointer-events-none absolute text-xs font-mono text-foreground bg-background/90 px-1.5 py-0.5 rounded border border-border max-w-64 text-center whitespace-nowrap"
 							style={{
 								transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY + 20}px)`,
 							}}
@@ -1966,15 +2028,24 @@ export function Level38ExternalAPIs({ onComplete }: LevelComponentProps) {
 	// ── Build step config ──
 	const currentStepConfig = useMemo(() => {
 		const idx = stepper.currentStep;
-		if (idx <= 1)
-			return { type: 'terminal' as const, ...TERMINAL_STEP_MAP[idx] };
+		if (idx <= 1) {
+			const termData = TERMINAL_STEP_MAP[idx];
+			return {
+				type: 'terminal' as const,
+				...termData,
+				commands: termData ? shuffleOptions(termData.commands, idx) : [],
+			};
+		}
 		const stepOptions: Record<number, typeof CONFIGURE_TIMEOUT_OPTIONS> = {
 			2: CONFIGURE_TIMEOUT_OPTIONS,
 			3: CONFIGURE_RETRY_OPTIONS,
 			4: CONFIGURE_CIRCUIT_OPTIONS,
 			5: BUILD_SERVICE_OPTIONS,
 		};
-		return { type: 'option' as const, options: stepOptions[idx] };
+		return {
+			type: 'option' as const,
+			options: shuffleOptions(stepOptions[idx], idx),
+		};
 	}, [stepper.currentStep]);
 
 	const buildCodePreviewStep = stepper.isCurrentStepCompleted
@@ -2176,7 +2247,10 @@ export function Level38ExternalAPIs({ onComplete }: LevelComponentProps) {
 												setWrongFeedback(null);
 												stepper.nextStep();
 											}
-										: () => setPhase('reward')
+										: () => {
+												stressTest.reset();
+												setPhase('reward');
+											}
 								}
 								size="sm"
 							>

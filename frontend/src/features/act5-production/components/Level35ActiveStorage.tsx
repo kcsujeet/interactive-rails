@@ -79,6 +79,7 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { shuffleOptions } from '@/lib/shuffleOptions';
 import { cn } from '@/lib/utils';
 
 // ──────────────────────────────────────────────
@@ -1685,7 +1686,7 @@ const uploadEdgeTypes = { upload: UploadEdge };
 // ──────────────────────────────────────────────
 
 export function Level35ActiveStorage({ onComplete }: LevelComponentProps) {
-	const [phase, setPhase] = useState<Phase>('reward');
+	const [phase, setPhase] = useState<Phase>('observe');
 	const [wrongFeedback, setWrongFeedback] = useState<string | null>(null);
 	const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -2147,7 +2148,7 @@ export function Level35ActiveStorage({ onComplete }: LevelComponentProps) {
 					)}
 
 					<div className="space-y-3">
-						{config.options.map((opt) => (
+						{shuffleOptions(config.options, currentStep).map((opt) => (
 							<OptionCard
 								description=""
 								disabled={stepper.isCurrentStepCompleted}

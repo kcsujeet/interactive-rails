@@ -36,7 +36,7 @@ import {
 	ShieldCheck,
 	Zap,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -65,6 +65,7 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { shuffleOptions } from '@/lib/shuffleOptions';
 import { cn } from '@/lib/utils';
 
 // ──────────────────────────────────────────────
@@ -404,6 +405,47 @@ const STRESS_SCENARIOS: StressScenario[] = [
 			{
 				text: 'Transaction: validate promo -> deduct 30 -> boost -> log -> commit',
 				color: 'cyan',
+			},
+		],
+	},
+	{
+		id: 'boost-fail',
+		label: 'POST boost (Boost.create! fails)',
+		description: 'Boost creation fails mid-transaction, triggering rollback',
+		method: 'POST',
+		path: '/api/v1/boosts',
+		actor: 'authenticated user',
+		expectedResult: 'blocked',
+		responseLines: [
+			{ text: '422 Unprocessable Entity', color: 'red' },
+			{
+				text: 'Boost.create! raised RecordInvalid inside transaction',
+				color: 'yellow',
+			},
+			{
+				text: 'Transaction ROLLED BACK. Credits unchanged.',
+				color: 'green',
+			},
+		],
+	},
+	{
+		id: 'log-fail',
+		label: 'POST boost (CreditLog fails)',
+		description:
+			'Credit log creation fails mid-transaction, entire operation rolled back',
+		method: 'POST',
+		path: '/api/v1/boosts',
+		actor: 'authenticated user',
+		expectedResult: 'blocked',
+		responseLines: [
+			{ text: '422 Unprocessable Entity', color: 'red' },
+			{
+				text: 'CreditLog.create! raised ConnectionError inside transaction',
+				color: 'yellow',
+			},
+			{
+				text: 'Transaction ROLLED BACK. Credits and boost both undone.',
+				color: 'green',
 			},
 		],
 	},
@@ -1216,7 +1258,10 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 
 				const t1 = setTimeout(() => {
 					// Tentative write, then failure
-					if (scenarioId === 'boost-creation-fails') {
+					if (
+						scenarioId === 'boost-creation-fails' ||
+						scenarioId === 'boost-fail'
+					) {
 						setRewardDb((prev) => ({ ...prev, usersCredits: 40 }));
 						setRewardFlash({
 							users: 'success',
@@ -1226,7 +1271,10 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 						setRewardOps(['success', 'failed', 'skipped']);
 						setRewardError('boosts');
 						setRewardErrorMsg('RecordInvalid');
-					} else if (scenarioId === 'log-fails-rollback') {
+					} else if (
+						scenarioId === 'log-fails-rollback' ||
+						scenarioId === 'log-fail'
+					) {
 						setRewardDb({
 							usersCredits: 40,
 							boostRow: { userId: 1, postId: 42, reach: 5000 },
@@ -1328,6 +1376,13 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
 	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep] ?? null;
+	const shuffledOptions = useMemo(
+		() =>
+			currentOptionConfig
+				? shuffleOptions(currentOptionConfig.options, stepper.currentStep)
+				: [],
+		[currentOptionConfig, stepper.currentStep],
+	);
 
 	// ──────────────────────────────────────────
 	// Render: Observe visualization
@@ -1514,7 +1569,7 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 
 								<div className="space-y-3">
 									{isViewingCompletedStep ? (
-										currentOptionConfig.options.map((opt) => (
+										shuffledOptions.map((opt) => (
 											<OptionCard
 												disabled={!opt.correct}
 												key={opt.id}
@@ -1526,7 +1581,7 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 										))
 									) : (
 										<>
-											{currentOptionConfig.options.map((opt) => (
+											{shuffledOptions.map((opt) => (
 												<OptionCard
 													key={opt.id}
 													mono
@@ -1587,7 +1642,11 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 				<CodePreviewPanel
 					files={getCodeFiles(
 						phase,
-						phase === 'build' ? stepper.furthestStep : 0,
+						phase === 'build'
+							? stepper.isCurrentStepCompleted
+								? stepper.currentStep
+								: stepper.currentStep - 1
+							: 0,
 					)}
 					learningGoal={
 						phase === 'observe'

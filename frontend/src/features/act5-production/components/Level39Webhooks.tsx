@@ -1646,7 +1646,7 @@ const WebhookAppNode = memo(({ data }: { data: AppNodeData }) => {
 				<span className="text-xs font-semibold text-foreground">Rails App</span>
 				{d.badge && (
 					<Badge
-						className={`text-[9px] ml-auto ${
+						className={`text-xs ml-auto ${
 							d.badge === '<50ms' || d.badge === 'DEDUP'
 								? 'text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700'
 								: 'text-red-700 dark:text-red-400 border-red-300 dark:border-red-700'
@@ -1687,7 +1687,7 @@ const WebhookDbNode = memo(({ data }: { data: DbNodeData }) => {
 				<div className="space-y-0.5 mt-1">
 					{d.rows.map((row, i) => (
 						<div
-							className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+							className={`text-xs font-mono px-1.5 py-0.5 rounded ${
 								row.color === 'red'
 									? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
 									: row.color === 'green'
@@ -1781,7 +1781,7 @@ const WebhookEdge = memo(
 				{d.label && (
 					<EdgeLabelRenderer>
 						<div
-							className="nodrag nopan pointer-events-none absolute text-[10px] font-mono text-foreground bg-background/90 px-1.5 py-0.5 rounded border border-border max-w-64 text-center whitespace-nowrap"
+							className="nodrag nopan pointer-events-none absolute text-xs font-mono text-foreground bg-background/90 px-1.5 py-0.5 rounded border border-border max-w-64 text-center whitespace-nowrap"
 							style={{
 								transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY + 18}px)`,
 							}}
@@ -2338,7 +2338,10 @@ export function Level39Webhooks({ onComplete }: LevelComponentProps) {
 							stepper.currentStep === STEP_DEFS.length - 1 && (
 								<Button
 									className="gap-2"
-									onClick={() => setPhase('reward')}
+									onClick={() => {
+										stressTest.reset();
+										setPhase('reward');
+									}}
 									size="sm"
 								>
 									Next Step <ArrowRight className="w-4 h-4" />

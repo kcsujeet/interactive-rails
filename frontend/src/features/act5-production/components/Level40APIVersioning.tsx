@@ -1307,7 +1307,7 @@ const PartnerNode = memo(({ data }: { data: PartnerNodeData }) => {
 				{d.label}
 			</div>
 			{d.responseJson && (
-				<div className="text-[10px] font-mono mt-1 px-1.5 py-0.5 rounded bg-muted text-muted-foreground truncate">
+				<div className="text-xs font-mono mt-1 px-1.5 py-0.5 rounded bg-muted text-muted-foreground truncate">
 					{d.responseJson}
 				</div>
 			)}
@@ -1335,7 +1335,7 @@ const VersionAppNode = memo(({ data }: { data: AppNodeData }) => {
 				<span className="text-xs font-semibold text-foreground">Rails App</span>
 				{d.badge && (
 					<Badge
-						className={`text-[9px] ml-auto ${
+						className={`text-xs ml-auto ${
 							d.badge === 'VERSIONED' || d.badge === 'DEPRECATED'
 								? 'text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700'
 								: 'text-red-700 dark:text-red-400 border-red-300 dark:border-red-700'
@@ -1356,7 +1356,7 @@ const VersionAppNode = memo(({ data }: { data: AppNodeData }) => {
 						<div
 							className={`flex-1 rounded border ${FLASH_BORDER[d.v1Flash]} ${FLASH_BG[d.v1Flash]} p-1 text-center transition-colors duration-300`}
 						>
-							<div className="text-[9px] font-semibold text-foreground truncate">
+							<div className="text-xs font-semibold text-foreground truncate">
 								{d.v1Label}
 							</div>
 						</div>
@@ -1365,7 +1365,7 @@ const VersionAppNode = memo(({ data }: { data: AppNodeData }) => {
 						<div
 							className={`flex-1 rounded border ${FLASH_BORDER[d.v2Flash]} ${FLASH_BG[d.v2Flash]} p-1 text-center transition-colors duration-300`}
 						>
-							<div className="text-[9px] font-semibold text-foreground truncate">
+							<div className="text-xs font-semibold text-foreground truncate">
 								{d.v2Label}
 							</div>
 						</div>
@@ -1428,7 +1428,7 @@ const VersionEdge = memo(
 				{d.label && (
 					<EdgeLabelRenderer>
 						<div
-							className="nodrag nopan pointer-events-none absolute text-[10px] font-mono text-foreground bg-background/90 px-1.5 py-0.5 rounded border border-border max-w-64 text-center whitespace-nowrap"
+							className="nodrag nopan pointer-events-none absolute text-xs font-mono text-foreground bg-background/90 px-1.5 py-0.5 rounded border border-border max-w-64 text-center whitespace-nowrap"
 							style={{
 								transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY + 18}px)`,
 							}}
@@ -1890,7 +1890,10 @@ export function Level40APIVersioning({ onComplete }: LevelComponentProps) {
 							stepper.currentStep === STEP_DEFS.length - 1 && (
 								<Button
 									className="gap-2"
-									onClick={() => setPhase('reward')}
+									onClick={() => {
+										stressTest.reset();
+										setPhase('reward');
+									}}
 									size="sm"
 								>
 									Next Step <ArrowRight className="w-4 h-4" />
