@@ -13,8 +13,8 @@
  * Teaches: Service object pattern, Result pattern with Data.define, thin controllers
  */
 
-import { ArrowRight } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { ArrowRight, Check } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -32,6 +32,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
+import { shuffleOptions } from '@/lib/shuffleOptions';
 
 // ──────────────────────────────────────────────
 // Phase type
@@ -602,6 +603,13 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
 	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep];
+	const shuffledOptions = useMemo(
+		() =>
+			currentOptionConfig
+				? shuffleOptions(currentOptionConfig.options, stepper.currentStep)
+				: [],
+		[currentOptionConfig, stepper.currentStep],
+	);
 
 	// ── Render ──
 	return (
@@ -747,7 +755,7 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 
 								{isViewingCompletedStep ? (
 									<div className="space-y-2">
-										{currentOptionConfig.options.map((opt) => (
+										{shuffledOptions.map((opt) => (
 											<OptionCard
 												color="violet"
 												disabled={!opt.correct}
@@ -762,7 +770,7 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 								) : (
 									<>
 										<div className="space-y-2">
-											{currentOptionConfig.options.map((opt) => (
+											{shuffledOptions.map((opt) => (
 												<OptionCard
 													color="violet"
 													key={opt.id}
@@ -902,9 +910,7 @@ return Result.new(failure) unless user.save`}</pre>
 										</div>
 										<div className="space-y-1.5 text-sm text-foreground">
 											<div className="flex items-start gap-2">
-												<span className="text-success shrink-0 mt-0.5">
-													&#10003;
-												</span>
+												<Check className="w-4 h-4 text-success shrink-0 mt-0.5" />
 												<span>
 													<strong>Reusable by a rake task:</strong>{' '}
 													<code className="text-xs bg-muted px-1 py-0.5 rounded">
@@ -914,9 +920,7 @@ return Result.new(failure) unless user.save`}</pre>
 												</span>
 											</div>
 											<div className="flex items-start gap-2">
-												<span className="text-success shrink-0 mt-0.5">
-													&#10003;
-												</span>
+												<Check className="w-4 h-4 text-success shrink-0 mt-0.5" />
 												<span>
 													<strong>Testable without HTTP:</strong> Unit test
 													calls{' '}
@@ -927,9 +931,7 @@ return Result.new(failure) unless user.save`}</pre>
 												</span>
 											</div>
 											<div className="flex items-start gap-2">
-												<span className="text-success shrink-0 mt-0.5">
-													&#10003;
-												</span>
+												<Check className="w-4 h-4 text-success shrink-0 mt-0.5" />
 												<span>
 													<strong>Readable at a glance:</strong> Controller is 8
 													lines. Service has one public method with clear inputs
@@ -946,7 +948,16 @@ return Result.new(failure) unless user.save`}</pre>
 			</CenterPanel>
 
 			<RightPanel>
-				<CodePreviewPanel files={getCodeFiles(phase, stepper.furthestStep)} />
+				<CodePreviewPanel
+					files={getCodeFiles(
+						phase,
+						phase === 'reward'
+							? STEP_DEFS.length
+							: stepper.isCurrentStepCompleted
+								? stepper.currentStep
+								: stepper.currentStep - 1,
+					)}
+				/>
 			</RightPanel>
 		</LevelLayout>
 	);

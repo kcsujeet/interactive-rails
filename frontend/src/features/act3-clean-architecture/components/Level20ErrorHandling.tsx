@@ -56,6 +56,7 @@ import {
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { shuffleOptions } from '@/lib/shuffleOptions';
 
 // ──────────────────────────────────────────────
 // Phase type
@@ -219,6 +220,33 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
+		id: 'missing-post',
+		label: 'GET /api/v1/products/999',
+		description: 'Request a product that does not exist (was raw 500)',
+		method: 'GET',
+		path: '/api/v1/products/999',
+		actor: 'user_3',
+		expectedResult: 'blocked',
+	},
+	{
+		id: 'bad-params',
+		label: 'POST /api/v1/products (bad params)',
+		description: 'POST with missing product key (was inconsistent JSON)',
+		method: 'POST',
+		path: '/api/v1/products',
+		actor: 'attacker',
+		expectedResult: 'blocked',
+	},
+	{
+		id: 'missing-user',
+		label: 'GET /api/v1/users/999',
+		description: 'Request a user that does not exist (was plain text)',
+		method: 'GET',
+		path: '/api/v1/users/999',
+		actor: 'user_3',
+		expectedResult: 'blocked',
+	},
+	{
 		id: 'valid-create',
 		label: 'Create a product',
 		description: 'POST with valid title and body',
@@ -228,30 +256,12 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'allowed',
 	},
 	{
-		id: 'not-found',
-		label: '404 Not Found',
-		description: 'GET a product that does not exist',
-		method: 'GET',
-		path: '/api/v1/products/999',
-		actor: 'user_3',
-		expectedResult: 'blocked',
-	},
-	{
 		id: 'invalid-record',
 		label: '422 Unprocessable',
 		description: 'POST with blank title (validation fails)',
 		method: 'POST',
 		path: '/api/v1/products',
 		actor: 'user_3',
-		expectedResult: 'blocked',
-	},
-	{
-		id: 'missing-params',
-		label: '400 Bad Request',
-		description: 'POST with missing post key',
-		method: 'POST',
-		path: '/api/v1/products',
-		actor: 'attacker',
 		expectedResult: 'blocked',
 	},
 	{
@@ -982,7 +992,10 @@ export function Level20ErrorHandling({ onComplete }: LevelComponentProps) {
 
 								{isViewingCompletedStep ? (
 									<div className="space-y-2">
-										{currentOptionConfig.options.map((opt) => (
+										{shuffleOptions(
+											currentOptionConfig.options,
+											stepper.currentStep,
+										).map((opt) => (
 											<OptionCard
 												color="violet"
 												disabled={!opt.correct}
@@ -997,7 +1010,10 @@ export function Level20ErrorHandling({ onComplete }: LevelComponentProps) {
 								) : (
 									<>
 										<div className="space-y-2">
-											{currentOptionConfig.options.map((opt) => (
+											{shuffleOptions(
+												currentOptionConfig.options,
+												stepper.currentStep,
+											).map((opt) => (
 												<OptionCard
 													color="violet"
 													key={opt.id}
@@ -1063,7 +1079,16 @@ export function Level20ErrorHandling({ onComplete }: LevelComponentProps) {
 			</CenterPanel>
 
 			<RightPanel>
-				<CodePreviewPanel files={getCodeFiles(phase, stepper.furthestStep)} />
+				<CodePreviewPanel
+					files={getCodeFiles(
+						phase,
+						phase === 'reward'
+							? STEP_DEFS.length - 1
+							: stepper.isCurrentStepCompleted
+								? stepper.currentStep
+								: stepper.currentStep - 1,
+					)}
+				/>
 			</RightPanel>
 		</LevelLayout>
 	);

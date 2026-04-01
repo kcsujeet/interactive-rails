@@ -42,6 +42,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
+import { shuffleOptions } from '@/lib/shuffleOptions';
 
 // ──────────────────────────────────────────────
 // Phase type
@@ -721,7 +722,10 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 
 								{isViewingCompletedStep ? (
 									<div className="space-y-2">
-										{currentOptionConfig.options.map((opt) => (
+										{shuffleOptions(
+											currentOptionConfig.options,
+											stepper.currentStep,
+										).map((opt) => (
 											<OptionCard
 												color="violet"
 												disabled={!opt.correct}
@@ -736,7 +740,10 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 								) : (
 									<>
 										<div className="space-y-2">
-											{currentOptionConfig.options.map((opt) => (
+											{shuffleOptions(
+												currentOptionConfig.options,
+												stepper.currentStep,
+											).map((opt) => (
 												<OptionCard
 													color="violet"
 													key={opt.id}
@@ -953,7 +960,16 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 			</CenterPanel>
 
 			<RightPanel>
-				<CodePreviewPanel files={getCodeFiles(phase, stepper.furthestStep)} />
+				<CodePreviewPanel
+					files={getCodeFiles(
+						phase,
+						phase === 'reward'
+							? STEP_DEFS.length - 1
+							: stepper.isCurrentStepCompleted
+								? stepper.currentStep
+								: stepper.currentStep - 1,
+					)}
+				/>
 			</RightPanel>
 		</LevelLayout>
 	);

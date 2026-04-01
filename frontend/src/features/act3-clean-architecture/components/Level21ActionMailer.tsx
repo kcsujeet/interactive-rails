@@ -58,6 +58,7 @@ import {
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { shuffleOptions } from '@/lib/shuffleOptions';
 
 // ──────────────────────────────────────────────
 // Phase type
@@ -231,6 +232,33 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 // ──────────────────────────────────────────────
 
 const STRESS_SCENARIOS: StressScenario[] = [
+	{
+		id: 'post-password-reset',
+		label: 'POST /api/v1/password_resets',
+		description: 'Password reset endpoint now exists (was 404)',
+		method: 'POST',
+		path: '/api/v1/password_resets',
+		actor: 'user@example.com',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'check-support',
+		label: 'Check support tickets',
+		description: 'Manual resets no longer needed (self-service works)',
+		method: 'GET',
+		path: '/admin/support_tickets?tag=password_reset',
+		actor: 'admin',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'inspect-user',
+		label: 'Inspect User model',
+		description: 'User now has generates_token_for (was missing)',
+		method: 'GET',
+		path: '/api/v1/user/token_methods',
+		actor: 'admin',
+		expectedResult: 'allowed',
+	},
 	{
 		id: 'valid-email',
 		label: 'Valid email reset',
@@ -994,7 +1022,10 @@ export function Level21ActionMailer({ onComplete }: LevelComponentProps) {
 
 										{isViewingCompletedStep ? (
 											<div className="space-y-2">
-												{currentOptionConfig.options.map((opt) => (
+												{shuffleOptions(
+													currentOptionConfig.options,
+													stepper.currentStep,
+												).map((opt) => (
 													<OptionCard
 														color="violet"
 														disabled={!opt.correct}
@@ -1009,7 +1040,10 @@ export function Level21ActionMailer({ onComplete }: LevelComponentProps) {
 										) : (
 											<>
 												<div className="space-y-2">
-													{currentOptionConfig.options.map((opt) => (
+													{shuffleOptions(
+														currentOptionConfig.options,
+														stepper.currentStep,
+													).map((opt) => (
 														<OptionCard
 															color="violet"
 															key={opt.id}
@@ -1077,7 +1111,16 @@ export function Level21ActionMailer({ onComplete }: LevelComponentProps) {
 			</CenterPanel>
 
 			<RightPanel>
-				<CodePreviewPanel files={getCodeFiles(phase, stepper.furthestStep)} />
+				<CodePreviewPanel
+					files={getCodeFiles(
+						phase,
+						phase === 'reward'
+							? STEP_DEFS.length - 1
+							: stepper.isCurrentStepCompleted
+								? stepper.currentStep
+								: stepper.currentStep - 1,
+					)}
+				/>
 			</RightPanel>
 		</LevelLayout>
 	);

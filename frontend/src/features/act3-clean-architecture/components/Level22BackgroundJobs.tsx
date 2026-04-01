@@ -58,6 +58,7 @@ import {
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { shuffleOptions } from '@/lib/shuffleOptions';
 
 // ──────────────────────────────────────────────
 // Phase type
@@ -222,30 +223,31 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
-		id: 'register-user-1',
-		label: 'Register new user',
-		description: 'POST registration with valid params',
+		id: 'register-alice',
+		label: 'Register new user (Alice)',
+		description: 'POST registration, instant response (was 3.2s)',
 		method: 'POST',
 		path: '/api/v1/registrations',
-		actor: 'visitor',
+		actor: 'alice@example.com',
 		expectedResult: 'allowed',
 	},
 	{
-		id: 'register-user-2',
-		label: 'Register another user',
-		description: 'POST registration, jobs enqueued async',
+		id: 'register-bob',
+		label: 'Register new user (Bob)',
+		description: 'POST registration, jobs enqueued async (was 4.1s)',
 		method: 'POST',
 		path: '/api/v1/registrations',
-		actor: 'visitor',
+		actor: 'bob@example.com',
 		expectedResult: 'allowed',
 	},
 	{
-		id: 'register-smtp-down',
-		label: 'Register (SMTP down)',
-		description: 'POST registration when email server is offline',
+		id: 'register-fail',
+		label: 'Register when SMTP is down',
+		description:
+			'POST registration succeeds, email retried in background (was 500)',
 		method: 'POST',
 		path: '/api/v1/registrations',
-		actor: 'visitor',
+		actor: 'carol@example.com',
 		expectedResult: 'allowed',
 	},
 	{
@@ -993,7 +995,10 @@ export function Level22BackgroundJobs({ onComplete }: LevelComponentProps) {
 
 										{isViewingCompletedStep ? (
 											<div className="space-y-2">
-												{currentOptionConfig.options.map((opt) => (
+												{shuffleOptions(
+													currentOptionConfig.options,
+													stepper.currentStep,
+												).map((opt) => (
 													<OptionCard
 														color="violet"
 														disabled={!opt.correct}
@@ -1008,7 +1013,10 @@ export function Level22BackgroundJobs({ onComplete }: LevelComponentProps) {
 										) : (
 											<>
 												<div className="space-y-2">
-													{currentOptionConfig.options.map((opt) => (
+													{shuffleOptions(
+														currentOptionConfig.options,
+														stepper.currentStep,
+													).map((opt) => (
 														<OptionCard
 															color="violet"
 															key={opt.id}
@@ -1076,7 +1084,16 @@ export function Level22BackgroundJobs({ onComplete }: LevelComponentProps) {
 			</CenterPanel>
 
 			<RightPanel>
-				<CodePreviewPanel files={getCodeFiles(phase, stepper.furthestStep)} />
+				<CodePreviewPanel
+					files={getCodeFiles(
+						phase,
+						phase === 'reward'
+							? STEP_DEFS.length - 1
+							: stepper.isCurrentStepCompleted
+								? stepper.currentStep
+								: stepper.currentStep - 1,
+					)}
+				/>
 			</RightPanel>
 		</LevelLayout>
 	);
