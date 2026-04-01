@@ -1,7 +1,7 @@
 /**
  * Level 17: Concerns & Modules
  *
- * Sequential phase flow: intro -> build -> activate -> reward
+ * Sequential phase flow: intro -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - intro): Static annotated code display (Type 2).
@@ -12,8 +12,7 @@
  *   Step 0: Choose where to put shared behavior (ActiveSupport::Concern)
  *   Step 1: Define the concern's included block (has_many + scope + methods)
  *   Step 2: Include the concern in models (include Taggable)
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Concern" button
- * Phase 4 (ADVANTAGE - reward): Same side-by-side layout as intro, now
+ * Phase 3 (ADVANTAGE - reward): Same side-by-side layout as intro, now
  *   showing clean models with "include Taggable" (green borders) and the
  *   extracted Taggable concern below. "Problems Solved" checklist.
  *
@@ -23,8 +22,8 @@
  * Teaches: ActiveSupport::Concern, DRY, included block, module extraction
  */
 
-import { ArrowRight, Check, Play, Star } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ArrowRight, Check } from 'lucide-react';
+import { useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -47,7 +46,7 @@ import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'intro' | 'build' | 'activate' | 'reward';
+type Phase = 'intro' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Annotated code sections (intro + reward)
@@ -144,8 +143,8 @@ function AnnotatedCodeBlock({
 
 				return (
 					<div
-						key={section.id}
 						className={`border-l-2 rounded-r-md px-3 py-2 ${borderClass}`}
+						key={section.id}
 					>
 						<Badge
 							className={`text-[10px] mb-1 ${badgeClass}`}
@@ -398,7 +397,7 @@ end`,
 		return files;
 	}
 
-	// Build / activate / reward phases: show evolving code
+	// Build / reward phases: show evolving code
 	if (furthestStep === 0) {
 		files.push({
 			filename: 'app/models/product.rb',
@@ -515,13 +514,6 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const [phase, setPhase] = useState<Phase>('intro');
 
-	// ── Transition: build -> activate when all steps complete ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
-
 	// ── OptionCard step handler ──
 	const handleOptionClick = (option: StepOption) => {
 		if (option.correct) {
@@ -534,10 +526,6 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 	// ── Phase transition handlers ──
 	const handleStartBuild = () => {
 		setPhase('build');
-	};
-
-	const handleActivateConcern = () => {
-		setPhase('reward');
 	};
 
 	// ── Completion ──
@@ -570,8 +558,8 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Your Product and Review models both need tagging. Right
-							now, both define the exact same{' '}
+							Your Product and Review models both need tagging. Right now, both
+							define the exact same{' '}
 							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
 								has_many :taggings
 							</code>
@@ -591,8 +579,8 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 						</p>
 					</div>
 
-					{/* Build / activate phases: step progress */}
-					{(phase === 'build' || phase === 'activate') && (
+					{/* Build phases: step progress */}
+					{phase === 'build' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -651,19 +639,14 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 								{/* Callout */}
 								<div className="w-full max-w-3xl rounded-lg border border-destructive/30 bg-destructive/5 dark:bg-destructive/10 p-3">
 									<p className="text-sm text-destructive font-medium">
-										Same 4 methods in both models. Fix a bug?
-										Fix it twice. Add a third model? Copy-paste
-										again. No single source of truth to test or
-										review.
+										Same 4 methods in both models. Fix a bug? Fix it twice. Add
+										a third model? Copy-paste again. No single source of truth
+										to test or review.
 									</p>
 								</div>
 
 								{/* Build the Fix button (always visible) */}
-								<Button
-									className="gap-2"
-									onClick={handleStartBuild}
-									size="lg"
-								>
+								<Button className="gap-2" onClick={handleStartBuild} size="lg">
 									Build the Fix
 									<ArrowRight className="w-4 h-4" />
 								</Button>
@@ -718,11 +701,17 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 									</>
 								)}
 
-								{isViewingCompletedStep && hasNextStep && (
+								{isViewingCompletedStep && (
 									<div className="flex justify-end">
 										<Button
 											className="gap-2"
-											onClick={stepper.nextStep}
+											onClick={
+												hasNextStep
+													? stepper.nextStep
+													: () => {
+															setPhase('reward');
+														}
+											}
 											size="sm"
 										>
 											Next Step
@@ -734,39 +723,7 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* ── Phase 3: Activate (ADVANTAGE sub-phase a) ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex items-center justify-center p-6">
-							<div className="max-w-md text-center space-y-6">
-								<div className="flex justify-center gap-1">
-									{[1, 2, 3].map((s) => (
-										<Star
-											className={`w-8 h-8 ${
-												s <= stepper.starRating
-													? 'text-yellow-400 fill-yellow-400'
-													: 'text-muted-foreground/30'
-											}`}
-											key={s}
-										/>
-									))}
-								</div>
-								<p className="text-sm text-muted-foreground">
-									The Taggable concern is extracted. Both models now share
-									one source of truth for tagging behavior.
-								</p>
-								<Button
-									className="gap-2"
-									onClick={handleActivateConcern}
-									size="lg"
-								>
-									<Play className="w-4 h-4" />
-									Visualize Concern
-								</Button>
-							</div>
-						</div>
-					)}
-
-					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
+					{/* ── Phase 3: Reward (ADVANTAGE) ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col overflow-auto">
 							<div className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
@@ -794,7 +751,9 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 											>
 												Delegates to Concern
 											</Badge>
-											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">include Taggable</pre>
+											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">
+												include Taggable
+											</pre>
 										</div>
 										<div className="border-l-2 border-l-zinc-400 dark:border-l-zinc-600 bg-muted/30 rounded-r-md px-3 py-2">
 											<Badge
@@ -803,7 +762,9 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 											>
 												Core
 											</Badge>
-											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">belongs_to :user{'\n'}has_many :reviews</pre>
+											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">
+												belongs_to :user{'\n'}has_many :reviews
+											</pre>
 										</div>
 										<div className="mt-1 text-xs text-success font-medium px-3">
 											Clean (6 lines)
@@ -822,7 +783,9 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 											>
 												Delegates to Concern
 											</Badge>
-											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">include Taggable</pre>
+											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">
+												include Taggable
+											</pre>
 										</div>
 										<div className="border-l-2 border-l-zinc-400 dark:border-l-zinc-600 bg-muted/30 rounded-r-md px-3 py-2">
 											<Badge
@@ -831,7 +794,9 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 											>
 												Core
 											</Badge>
-											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">belongs_to :product{'\n'}belongs_to :user</pre>
+											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">
+												belongs_to :product{'\n'}belongs_to :user
+											</pre>
 										</div>
 										<div className="mt-1 text-xs text-success font-medium px-3">
 											Clean (6 lines)
@@ -852,7 +817,9 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 											>
 												Associations
 											</Badge>
-											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">has_many :taggings{'\n'}has_many :tags</pre>
+											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">
+												has_many :taggings{'\n'}has_many :tags
+											</pre>
 										</div>
 										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-2 py-1.5">
 											<Badge
@@ -861,7 +828,9 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 											>
 												Scope
 											</Badge>
-											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">scope :tagged_with</pre>
+											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">
+												scope :tagged_with
+											</pre>
 										</div>
 										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-2 py-1.5">
 											<Badge
@@ -870,7 +839,9 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 											>
 												Methods
 											</Badge>
-											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">def tag_list{'\n'}def tag_list=</pre>
+											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">
+												def tag_list{'\n'}def tag_list=
+											</pre>
 										</div>
 									</div>
 								</div>
@@ -884,27 +855,42 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 										<div className="flex items-start gap-2">
 											<Check className="w-4 h-4 text-success mt-0.5 shrink-0" />
 											<p className="text-sm text-foreground">
-												<span className="font-medium">Fix once, applies everywhere.</span>{' '}
+												<span className="font-medium">
+													Fix once, applies everywhere.
+												</span>{' '}
 												<span className="text-muted-foreground">
-													Change the Taggable concern, both Product and Review update automatically.
+													Change the Taggable concern, both Product and Review
+													update automatically.
 												</span>
 											</p>
 										</div>
 										<div className="flex items-start gap-2">
 											<Check className="w-4 h-4 text-success mt-0.5 shrink-0" />
 											<p className="text-sm text-foreground">
-												<span className="font-medium">Add Article model with tagging.</span>{' '}
+												<span className="font-medium">
+													Add Article model with tagging.
+												</span>{' '}
 												<span className="text-muted-foreground">
-													Just <code className="text-xs bg-muted px-1 py-0.5 rounded">include Taggable</code>, done. No copy-paste.
+													Just{' '}
+													<code className="text-xs bg-muted px-1 py-0.5 rounded">
+														include Taggable
+													</code>
+													, done. No copy-paste.
 												</span>
 											</p>
 										</div>
 										<div className="flex items-start gap-2">
 											<Check className="w-4 h-4 text-success mt-0.5 shrink-0" />
 											<p className="text-sm text-foreground">
-												<span className="font-medium">One file to audit and test.</span>{' '}
+												<span className="font-medium">
+													One file to audit and test.
+												</span>{' '}
 												<span className="text-muted-foreground">
-													All tagging logic lives in <code className="text-xs bg-muted px-1 py-0.5 rounded">app/models/concerns/taggable.rb</code>.
+													All tagging logic lives in{' '}
+													<code className="text-xs bg-muted px-1 py-0.5 rounded">
+														app/models/concerns/taggable.rb
+													</code>
+													.
 												</span>
 											</p>
 										</div>

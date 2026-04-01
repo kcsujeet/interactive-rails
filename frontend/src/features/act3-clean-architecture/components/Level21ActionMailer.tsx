@@ -1,7 +1,7 @@
 /**
  * Level 21: Action Mailer
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): Interactive exploration. Click pipeline stages to
@@ -13,15 +13,14 @@
  *   Step 1: Generate the mailer (TerminalChoiceStep)
  *   Step 2: Build the password reset email (OptionCard)
  *   Step 3: Create the password reset controller (OptionCard)
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Password Reset" button
- * Phase 4 (ADVANTAGE - reward): Stress test. Fire password reset scenarios at
+ * Phase 3 (ADVANTAGE - reward): Stress test. Fire password reset scenarios at
  *   the new flow and watch allowed/blocked results.
  *
  * Teaches: Action Mailer, generates_token_for, deliver_later, stateless tokens
  */
 
-import { ArrowRight, Check, Play, Star, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowRight, Check, X } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -44,8 +43,8 @@ import {
 	PipelineFlow,
 	type PipelineStage,
 } from '@/components/levels/PipelineFlow';
-import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
+import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import {
 	StageInspector,
 	type StageInspectorData,
@@ -64,7 +63,7 @@ import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'observe' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Discovery definitions (observe phase)
@@ -518,7 +517,7 @@ end`,
 		return files;
 	}
 
-	// Build / activate / reward phases: show evolving code
+	// Build / reward phases: show evolving code
 	if (furthestStep === 0) {
 		// Step 0: player is choosing the token config
 		files.push({
@@ -645,17 +644,16 @@ export function Level21ActionMailer({ onComplete }: LevelComponentProps) {
 	});
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
-	const [inspectorData, setInspectorData] =
-		useState<StageInspectorData | null>(null);
+	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(
+		null,
+	);
 	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
 		new Set(),
 	);
 	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
 
 	// ── Build observe stages dynamically (tracks inspected + last probe) ──
-	const probeDisplay = lastProbeId
-		? PROBE_PIPELINE_MAP[lastProbeId]
-		: null;
+	const probeDisplay = lastProbeId ? PROBE_PIPELINE_MAP[lastProbeId] : null;
 	const observeStages: PipelineStage[] = useMemo(
 		() => [
 			{
@@ -684,9 +682,7 @@ export function Level21ActionMailer({ onComplete }: LevelComponentProps) {
 				id: 'model',
 				label: 'User Model',
 				badge: probeDisplay ? probeDisplay.modelBadge : 'NO RESET',
-				variant: (probeDisplay ? 'danger' : 'default') as
-					| 'danger'
-					| 'default',
+				variant: (probeDisplay ? 'danger' : 'default') as 'danger' | 'default',
 				inspectable: true,
 				inspected: inspectedStages.has('model'),
 			},
@@ -710,25 +706,19 @@ export function Level21ActionMailer({ onComplete }: LevelComponentProps) {
 			{
 				id: 'controller',
 				label: 'PasswordResets',
-				sublabel: wasBlocked
-					? 'Token Invalid'
-					: 'find_by_token_for',
+				sublabel: wasBlocked ? 'Token Invalid' : 'find_by_token_for',
 				variant: wasBlocked ? ('danger' as const) : ('active' as const),
 				badge: wasBlocked ? 'REJECTED' : undefined,
 			},
 			{
 				id: 'model',
 				label: 'User Model',
-				sublabel: wasBlocked
-					? 'nil (not found)'
-					: 'generate_token_for',
+				sublabel: wasBlocked ? 'nil (not found)' : 'generate_token_for',
 			},
 			{
 				id: 'mailer',
 				label: 'Mailer',
-				sublabel: wasBlocked
-					? 'skipped'
-					: 'deliver_later',
+				sublabel: wasBlocked ? 'skipped' : 'deliver_later',
 				variant: wasBlocked ? ('danger' as const) : ('active' as const),
 				badge: wasBlocked ? 'BLOCKED' : 'SENT',
 			},
@@ -739,13 +729,6 @@ export function Level21ActionMailer({ onComplete }: LevelComponentProps) {
 			},
 		];
 	}, [lastResult]);
-
-	// ── Transition: build -> activate when all steps complete ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
 
 	// ── Stage click handler (observe phase) ──
 	const handleStageClick = useCallback(
@@ -801,7 +784,7 @@ export function Level21ActionMailer({ onComplete }: LevelComponentProps) {
 		setPhase('build');
 	};
 
-	const handleActivateReset = () => {
+	const handleStartReward = () => {
 		setPhase('reward');
 		stressTest.reset();
 	};
@@ -845,9 +828,9 @@ export function Level21ActionMailer({ onComplete }: LevelComponentProps) {
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Users who forget their password are completely locked out.
-							There is no self-service recovery flow. Support tickets for
-							manual password resets are piling up, averaging 12 per week.
+							Users who forget their password are completely locked out. There
+							is no self-service recovery flow. Support tickets for manual
+							password resets are piling up, averaging 12 per week.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							You need to build a secure password reset flow using Rails 8{' '}
@@ -866,15 +849,15 @@ export function Level21ActionMailer({ onComplete }: LevelComponentProps) {
 					{phase === 'observe' && (
 						<div className="p-4 border-b border-border">
 							<DiscoveryChecklist
-								discoveries={discoveryGating.discoveries}
 								discoveredCount={discoveryGating.discoveredCount}
+								discoveries={discoveryGating.discoveries}
 								minRequired={discoveryGating.minRequired}
 							/>
 						</div>
 					)}
 
-					{/* Build / activate phases: step progress */}
-					{(phase === 'build' || phase === 'activate') && (
+					{/* Build phase: step progress */}
+					{phase === 'build' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -975,27 +958,27 @@ export function Level21ActionMailer({ onComplete }: LevelComponentProps) {
 								{/* Terminal step (Step 1) */}
 								{isTerminalStep && (
 									<TerminalChoiceStep
-										title="Generate the Mailer"
+										commands={MAILER_TERMINAL_COMMANDS}
+										completed={isViewingCompletedStep}
 										description={
 											<p className="text-sm text-muted-foreground">
-												Rails has a dedicated generator for mailer classes. It creates the
-												mailer file, email templates (HTML and text), a test file, and a
-												preview file. Which command generates the UserMailer with a
-												password_reset method?
+												Rails has a dedicated generator for mailer classes. It
+												creates the mailer file, email templates (HTML and
+												text), a test file, and a preview file. Which command
+												generates the UserMailer with a password_reset method?
 											</p>
 										}
-										commands={MAILER_TERMINAL_COMMANDS}
-										outputLines={MAILER_TERMINAL_OUTPUT}
+										hasNext={hasNextStep}
 										initialHistory={buildTerminalHistory(
 											TERMINAL_STEP_MAP,
 											stepper.currentStep,
 										)}
-										completed={isViewingCompletedStep}
-										hasNext={hasNextStep}
 										onCorrect={() => stepper.completeStep()}
-										onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 										onNext={stepper.nextStep}
+										onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+										outputLines={MAILER_TERMINAL_OUTPUT}
 										stepKey={stepper.currentStep}
+										title="Generate the Mailer"
 									/>
 								)}
 
@@ -1045,11 +1028,13 @@ export function Level21ActionMailer({ onComplete }: LevelComponentProps) {
 											</>
 										)}
 
-										{isViewingCompletedStep && hasNextStep && (
+										{isViewingCompletedStep && (
 											<div className="flex justify-end">
 												<Button
 													className="gap-2"
-													onClick={stepper.nextStep}
+													onClick={
+														hasNextStep ? stepper.nextStep : handleStartReward
+													}
 													size="sm"
 												>
 													Next Step
@@ -1063,39 +1048,7 @@ export function Level21ActionMailer({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* ── Phase 3: Activate (ADVANTAGE sub-phase a) ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex items-center justify-center p-6">
-							<div className="max-w-md text-center space-y-6">
-								<div className="flex justify-center gap-1">
-									{[1, 2, 3].map((s) => (
-										<Star
-											className={`w-8 h-8 ${
-												s <= stepper.starRating
-													? 'text-yellow-400 fill-yellow-400'
-													: 'text-muted-foreground/30'
-											}`}
-											key={s}
-										/>
-									))}
-								</div>
-								<p className="text-sm text-muted-foreground">
-									Your password reset flow is built. Watch tokens get generated,
-									emails get queued, and expired tokens get rejected.
-								</p>
-								<Button
-									className="gap-2"
-									onClick={handleActivateReset}
-									size="lg"
-								>
-									<Play className="w-4 h-4" />
-									Visualize Password Reset
-								</Button>
-							</div>
-						</div>
-					)}
-
-					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
+					{/* ── Phase 3: Reward (ADVANTAGE) ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">

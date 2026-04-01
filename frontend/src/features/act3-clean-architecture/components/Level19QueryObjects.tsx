@@ -1,7 +1,7 @@
 /**
  * Level 19: Query Objects
  *
- * Sequential phase flow: intro -> build -> activate -> reward
+ * Sequential phase flow: intro -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - intro): Static annotated code display (Type 2).
@@ -12,8 +12,7 @@
  *   Step 0: Choose extraction pattern (PORO query object)
  *   Step 1: Define filter method pattern (return self for chaining)
  *   Step 2: Wire controller to query object (proper instantiation + chaining)
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Queries" button
- * Phase 4 (ADVANTAGE - reward): Clean consumers with ProductQuery delegation
+ * Phase 3 (ADVANTAGE - reward): Clean consumers with ProductQuery delegation
  *   (green borders), extracted ProductQuery zone with filter methods, and
  *   "Problems Solved" checklist closing the loop on intro's stated problems.
  *
@@ -24,8 +23,8 @@
  * reuse across controllers/jobs.
  */
 
-import { ArrowRight, Check, Play, Star } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ArrowRight, Check } from 'lucide-react';
+import { useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -48,7 +47,7 @@ import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'intro' | 'build' | 'activate' | 'reward';
+type Phase = 'intro' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Annotated code sections (intro)
@@ -238,7 +237,8 @@ const WIRE_OPTIONS: StepOption[] = [
 	},
 	{
 		id: 'chain-methods',
-		label: 'ProductQuery.new.published(params[:published]).by_author(params[:author_id]).sorted.results',
+		label:
+			'ProductQuery.new.published(params[:published]).by_author(params[:author_id]).sorted.results',
 		correct: true,
 	},
 ];
@@ -294,7 +294,9 @@ function AnnotatedCodeBlock({
 					{fileName}
 				</div>
 				{lineCount && (
-					<div className={`text-xs font-mono ${isDestructive ? 'text-destructive' : 'text-success'}`}>
+					<div
+						className={`text-xs font-mono ${isDestructive ? 'text-destructive' : 'text-success'}`}
+					>
 						{lineCount}
 					</div>
 				)}
@@ -314,8 +316,8 @@ function AnnotatedCodeBlock({
 
 				return (
 					<div
-						key={section.id}
 						className={`border-l-2 rounded-r-md px-3 py-2 ${borderClass}`}
+						key={section.id}
 					>
 						<Badge
 							className={`text-[10px] mb-1 ${badgeClass}`}
@@ -560,13 +562,6 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const [phase, setPhase] = useState<Phase>('intro');
 
-	// ── Transition: build -> activate when all steps complete ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
-
 	// ── OptionCard step handler ──
 	const handleOptionClick = (option: StepOption) => {
 		if (option.correct) {
@@ -581,7 +576,7 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 		setPhase('build');
 	};
 
-	const handleActivateQueries = () => {
+	const handleStartReward = () => {
 		setPhase('reward');
 	};
 
@@ -615,8 +610,8 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							The admin dashboard controller has a 60-line index action
-							with inline{' '}
+							The admin dashboard controller has a 60-line index action with
+							inline{' '}
 							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
 								.where().joins().group().order()
 							</code>{' '}
@@ -624,13 +619,13 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 							controller and CSV export job.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Extract the query logic into a composable ProductQuery object
-							so every consumer shares one source of truth.
+							Extract the query logic into a composable ProductQuery object so
+							every consumer shares one source of truth.
 						</p>
 					</div>
 
-					{/* Build / activate phases: step progress */}
-					{(phase === 'build' || phase === 'activate') && (
+					{/* Build phase: step progress */}
+					{phase === 'build' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -697,20 +692,15 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 								{/* Callout */}
 								<div className="w-full max-w-4xl rounded-lg border border-destructive/30 bg-destructive/5 dark:bg-destructive/10 p-3">
 									<p className="text-sm text-destructive font-medium">
-										Same query chain in 3 places. Change the filter
-										logic? Update it everywhere. Add a new filter?
-										Copy-paste across all consumers. The CSV job
-										already has a bug ({">"} vs {">="}) that diverged from the
-										controllers.
+										Same query chain in 3 places. Change the filter logic?
+										Update it everywhere. Add a new filter? Copy-paste across
+										all consumers. The CSV job already has a bug ({'>'} vs{' '}
+										{'>='}) that diverged from the controllers.
 									</p>
 								</div>
 
 								{/* Build the Fix button (always visible) */}
-								<Button
-									className="gap-2"
-									onClick={handleStartBuild}
-									size="lg"
-								>
+								<Button className="gap-2" onClick={handleStartBuild} size="lg">
 									Build the Fix
 									<ArrowRight className="w-4 h-4" />
 								</Button>
@@ -765,11 +755,13 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 									</>
 								)}
 
-								{isViewingCompletedStep && hasNextStep && (
+								{isViewingCompletedStep && (
 									<div className="flex justify-end">
 										<Button
 											className="gap-2"
-											onClick={stepper.nextStep}
+											onClick={
+												hasNextStep ? stepper.nextStep : handleStartReward
+											}
 											size="sm"
 										>
 											Next Step
@@ -781,40 +773,7 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* ── Phase 3: Activate (ADVANTAGE sub-phase a) ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex items-center justify-center p-6">
-							<div className="max-w-md text-center space-y-6">
-								<div className="flex justify-center gap-1">
-									{[1, 2, 3].map((s) => (
-										<Star
-											className={`w-8 h-8 ${
-												s <= stepper.starRating
-													? 'text-yellow-400 fill-yellow-400'
-													: 'text-muted-foreground/30'
-											}`}
-											key={s}
-										/>
-									))}
-								</div>
-								<p className="text-sm text-muted-foreground">
-									Your ProductQuery object is ready. Every consumer now
-									delegates to one composable query object instead of
-									maintaining its own inline chain.
-								</p>
-								<Button
-									className="gap-2"
-									onClick={handleActivateQueries}
-									size="lg"
-								>
-									<Play className="w-4 h-4" />
-									Visualize Queries
-								</Button>
-							</div>
-						</div>
-					)}
-
-					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
+					{/* ── Phase 3: Reward (ADVANTAGE) ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col overflow-auto">
 							<div className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
@@ -842,7 +801,11 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 											>
 												Delegates to ProductQuery
 											</Badge>
-											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">ProductQuery.new{'\n'}  .published(params[:published]){'\n'}  .by_author(params[:author_id]){'\n'}  .sorted.results</pre>
+											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">
+												ProductQuery.new{'\n'} .published(params[:published])
+												{'\n'} .by_author(params[:author_id]){'\n'}{' '}
+												.sorted.results
+											</pre>
 										</div>
 										<div className="mt-1 text-xs text-success font-medium px-3">
 											Clean (5 lines)
@@ -861,7 +824,10 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 											>
 												Delegates to ProductQuery
 											</Badge>
-											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">ProductQuery.new{'\n'}  .by_tag(params[:tag]){'\n'}  .sorted.results</pre>
+											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">
+												ProductQuery.new{'\n'} .by_tag(params[:tag]){'\n'}{' '}
+												.sorted.results
+											</pre>
 										</div>
 										<div className="mt-1 text-xs text-success font-medium px-3">
 											Clean (3 lines)
@@ -880,7 +846,10 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 											>
 												Delegates to ProductQuery
 											</Badge>
-											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">ProductQuery.new{'\n'}  .published(true){'\n'}  .since(date).results</pre>
+											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">
+												ProductQuery.new{'\n'} .published(true){'\n'}{' '}
+												.since(date).results
+											</pre>
 										</div>
 										<div className="mt-1 text-xs text-success font-medium px-3">
 											Clean (3 lines)
@@ -901,7 +870,9 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 											>
 												Filters
 											</Badge>
-											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">.published(flag){'\n'}.by_author(id){'\n'}.by_tag(name)</pre>
+											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">
+												.published(flag){'\n'}.by_author(id){'\n'}.by_tag(name)
+											</pre>
 										</div>
 										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-2 py-1.5">
 											<Badge
@@ -910,7 +881,9 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 											>
 												Aggregates
 											</Badge>
-											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">.with_min_reviews(n){'\n'}.since(date)</pre>
+											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">
+												.with_min_reviews(n){'\n'}.since(date)
+											</pre>
 										</div>
 										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-2 py-1.5">
 											<Badge
@@ -919,7 +892,9 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 											>
 												Ordering
 											</Badge>
-											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">.sorted(col, dir){'\n'}.results</pre>
+											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">
+												.sorted(col, dir){'\n'}.results
+											</pre>
 										</div>
 									</div>
 								</div>
@@ -933,28 +908,38 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 										<div className="flex items-start gap-2">
 											<Check className="w-4 h-4 text-success mt-0.5 shrink-0" />
 											<p className="text-sm text-foreground">
-												<span className="font-medium">Change filter logic once, applies everywhere.</span>{' '}
+												<span className="font-medium">
+													Change filter logic once, applies everywhere.
+												</span>{' '}
 												<span className="text-muted-foreground">
-													Fix the date comparison in ProductQuery, all three consumers get the fix automatically.
+													Fix the date comparison in ProductQuery, all three
+													consumers get the fix automatically.
 												</span>
 											</p>
 										</div>
 										<div className="flex items-start gap-2">
 											<Check className="w-4 h-4 text-success mt-0.5 shrink-0" />
 											<p className="text-sm text-foreground">
-												<span className="font-medium">Add a new filter: one method in ProductQuery.</span>{' '}
+												<span className="font-medium">
+													Add a new filter: one method in ProductQuery.
+												</span>{' '}
 												<span className="text-muted-foreground">
-													All consumers can chain it immediately. No copy-paste across controllers and jobs.
+													All consumers can chain it immediately. No copy-paste
+													across controllers and jobs.
 												</span>
 											</p>
 										</div>
 										<div className="flex items-start gap-2">
 											<Check className="w-4 h-4 text-success mt-0.5 shrink-0" />
 											<p className="text-sm text-foreground">
-												<span className="font-medium">Unit-testable in isolation.</span>{' '}
+												<span className="font-medium">
+													Unit-testable in isolation.
+												</span>{' '}
 												<span className="text-muted-foreground">
 													Test{' '}
-													<code className="text-xs bg-muted px-1 py-0.5 rounded">ProductQuery</code>{' '}
+													<code className="text-xs bg-muted px-1 py-0.5 rounded">
+														ProductQuery
+													</code>{' '}
 													directly without controllers or HTTP requests.
 												</span>
 											</p>

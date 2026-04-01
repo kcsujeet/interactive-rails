@@ -1,7 +1,7 @@
 /**
  * Level 18: Validation Contracts
  *
- * Sequential phase flow: intro -> build -> activate -> reward
+ * Sequential phase flow: intro -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - intro): Static annotated code display (Type 2).
@@ -13,8 +13,7 @@
  *   Step 1: Choose schema approach (OptionCard)
  *   Step 2: Create composed contract (OptionCard)
  *   Step 3: Add cross-field rule (OptionCard)
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Contract" button
- * Phase 4 (ADVANTAGE - reward): Same annotated code style as intro, now
+ * Phase 3 (ADVANTAGE - reward): Same annotated code style as intro, now
  *   showing thin service (green) + contract with composed schemas (green).
  *   "Problems Solved" checklist closing the loop on intro's stated problems.
  *
@@ -24,8 +23,8 @@
  * Teaches: dry-validation gem, Dry::Schema, schema composition, cross-field rules
  */
 
-import { ArrowRight, Check, Play, Star } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ArrowRight, Check } from 'lucide-react';
+import { useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -51,7 +50,7 @@ import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'intro' | 'build' | 'activate' | 'reward';
+type Phase = 'intro' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Annotated code sections (intro)
@@ -331,7 +330,7 @@ end`,
 		return files;
 	}
 
-	// Build / activate / reward phases: evolving code
+	// Build / reward phases: evolving code
 	if (furthestStep === 0) {
 		files.push({
 			filename: 'Gemfile',
@@ -459,13 +458,6 @@ export function Level18ValidationContracts({
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const [phase, setPhase] = useState<Phase>('intro');
 
-	// ── Transition: build -> activate when all steps complete ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
-
 	// ── OptionCard step handler ──
 	const handleOptionClick = (option: StepOption) => {
 		if (option.correct) {
@@ -478,10 +470,6 @@ export function Level18ValidationContracts({
 	// ── Phase transition handlers ──
 	const handleStartBuild = () => {
 		setPhase('build');
-	};
-
-	const handleActivateContract = () => {
-		setPhase('reward');
 	};
 
 	// ── Completion ──
@@ -515,8 +503,8 @@ export function Level18ValidationContracts({
 					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							The registration service (extracted in L16) creates a User,
-							Profile, and NotificationPrefs. Validations are scattered
-							inline inside the service with duplicated{' '}
+							Profile, and NotificationPrefs. Validations are scattered inline
+							inside the service with duplicated{' '}
 							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
 								Result.new
 							</code>{' '}
@@ -529,8 +517,8 @@ export function Level18ValidationContracts({
 						</p>
 					</div>
 
-					{/* Build / activate phases: step progress */}
-					{(phase === 'build' || phase === 'activate') && (
+					{/* Build phases: step progress */}
+					{phase === 'build' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -590,8 +578,8 @@ export function Level18ValidationContracts({
 
 										return (
 											<div
-												key={section.id}
 												className={`border-l-2 rounded-r-md px-3 py-2 ${borderClass}`}
+												key={section.id}
 											>
 												<Badge
 													className={`text-[10px] mb-1 ${badgeClass}`}
@@ -611,19 +599,17 @@ export function Level18ValidationContracts({
 								<div className="w-full max-w-2xl rounded-lg border border-destructive/30 bg-destructive/5 dark:bg-destructive/10 p-3">
 									<p className="text-sm text-destructive font-medium">
 										5 scattered checks, each returning a separate{' '}
-										<code className="text-xs bg-destructive/10 px-1 py-0.5 rounded">Result</code>.
-										Only one error returned per call. Cross-field rules are
-										buried. Cannot reuse validations in other services or
-										test them in isolation.
+										<code className="text-xs bg-destructive/10 px-1 py-0.5 rounded">
+											Result
+										</code>
+										. Only one error returned per call. Cross-field rules are
+										buried. Cannot reuse validations in other services or test
+										them in isolation.
 									</p>
 								</div>
 
 								{/* Build the Fix button (always visible) */}
-								<Button
-									className="gap-2"
-									onClick={handleStartBuild}
-									size="lg"
-								>
+								<Button className="gap-2" onClick={handleStartBuild} size="lg">
 									Build the Fix
 									<ArrowRight className="w-4 h-4" />
 								</Button>
@@ -638,146 +624,100 @@ export function Level18ValidationContracts({
 								{/* Step 0: Terminal choice (install gem) */}
 								{stepper.currentStep === 0 && (
 									<TerminalChoiceStep
-										title="Install dry-validation"
+										commands={INSTALL_GEM_COMMANDS}
+										completed={isViewingCompletedStep}
 										description={
 											<p className="text-sm text-muted-foreground">
-												The dry-validation gem provides
-												contract-based validation with composable
-												schemas and cross-field rules. How do you
-												add it to your Rails project?
+												The dry-validation gem provides contract-based
+												validation with composable schemas and cross-field
+												rules. How do you add it to your Rails project?
 											</p>
 										}
-										commands={INSTALL_GEM_COMMANDS}
-										outputLines={INSTALL_GEM_OUTPUT}
+										hasNext={hasNextStep}
 										initialHistory={buildTerminalHistory(
 											TERMINAL_STEP_MAP,
 											stepper.currentStep,
 										)}
-										completed={isViewingCompletedStep}
-										hasNext={hasNextStep}
 										onCorrect={() => stepper.completeStep()}
-										onWrong={(fb) =>
-											stepper.recordWrongAttempt(fb)
-										}
 										onNext={stepper.nextStep}
+										onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+										outputLines={INSTALL_GEM_OUTPUT}
 										stepKey={stepper.currentStep}
+										title="Install dry-validation"
 									/>
 								)}
 
 								{/* Steps 1-3: OptionCard choices */}
-								{stepper.currentStep >= 1 &&
-									currentOptionConfig && (
-										<>
-											<h3 className="text-lg font-semibold text-foreground">
-												{currentOptionConfig.title}
-											</h3>
-											<p className="text-sm text-muted-foreground">
-												{currentOptionConfig.description}
-											</p>
+								{stepper.currentStep >= 1 && currentOptionConfig && (
+									<>
+										<h3 className="text-lg font-semibold text-foreground">
+											{currentOptionConfig.title}
+										</h3>
+										<p className="text-sm text-muted-foreground">
+											{currentOptionConfig.description}
+										</p>
 
-											{isViewingCompletedStep ? (
-												<div className="space-y-2">
-													{currentOptionConfig.options.map(
-														(opt) => (
-															<OptionCard
-																color="violet"
-																disabled={!opt.correct}
-																key={opt.id}
-																mono
-																name={opt.label}
-																selected={opt.correct}
-																size="lg"
-															/>
-														),
-													)}
-												</div>
-											) : (
-												<>
-													<div className="space-y-2">
-														{currentOptionConfig.options.map(
-															(opt) => (
-																<OptionCard
-																	color="violet"
-																	key={opt.id}
-																	mono
-																	name={opt.label}
-																	onClick={() =>
-																		handleOptionClick(
-																			opt,
-																		)
-																	}
-																	size="lg"
-																/>
-															),
-														)}
-													</div>
-
-													<ErrorFeedback
-														message={
-															stepper.lastFeedback
-														}
-														onDismiss={
-															stepper.clearFeedback
-														}
+										{isViewingCompletedStep ? (
+											<div className="space-y-2">
+												{currentOptionConfig.options.map((opt) => (
+													<OptionCard
+														color="violet"
+														disabled={!opt.correct}
+														key={opt.id}
+														mono
+														name={opt.label}
+														selected={opt.correct}
+														size="lg"
 													/>
-												</>
-											)}
+												))}
+											</div>
+										) : (
+											<>
+												<div className="space-y-2">
+													{currentOptionConfig.options.map((opt) => (
+														<OptionCard
+															color="violet"
+															key={opt.id}
+															mono
+															name={opt.label}
+															onClick={() => handleOptionClick(opt)}
+															size="lg"
+														/>
+													))}
+												</div>
 
-											{isViewingCompletedStep &&
-												hasNextStep && (
-													<div className="flex justify-end">
-														<Button
-															className="gap-2"
-															onClick={
-																stepper.nextStep
-															}
-															size="sm"
-														>
-															Next Step
-															<ArrowRight className="w-4 h-4" />
-														</Button>
-													</div>
-												)}
-										</>
-									)}
+												<ErrorFeedback
+													message={stepper.lastFeedback}
+													onDismiss={stepper.clearFeedback}
+												/>
+											</>
+										)}
+
+										{isViewingCompletedStep && (
+											<div className="flex justify-end">
+												<Button
+													className="gap-2"
+													onClick={
+														hasNextStep
+															? stepper.nextStep
+															: () => {
+																	setPhase('reward');
+																}
+													}
+													size="sm"
+												>
+													Next Step
+													<ArrowRight className="w-4 h-4" />
+												</Button>
+											</div>
+										)}
+									</>
+								)}
 							</div>
 						</div>
 					)}
 
-					{/* ── Phase 3: Activate (ADVANTAGE sub-phase a) ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex items-center justify-center p-6">
-							<div className="max-w-md text-center space-y-6">
-								<div className="flex justify-center gap-1">
-									{[1, 2, 3].map((s) => (
-										<Star
-											className={`w-8 h-8 ${
-												s <= stepper.starRating
-													? 'text-yellow-400 fill-yellow-400'
-													: 'text-muted-foreground/30'
-											}`}
-											key={s}
-										/>
-									))}
-								</div>
-								<p className="text-sm text-muted-foreground">
-									Your validation contract is ready. Watch it catch
-									invalid payloads, missing fields, and cross-field
-									rule violations with consistent, structured errors.
-								</p>
-								<Button
-									className="gap-2"
-									onClick={handleActivateContract}
-									size="lg"
-								>
-									<Play className="w-4 h-4" />
-									Visualize Contract
-								</Button>
-							</div>
-						</div>
-					)}
-
-					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
+					{/* ── Phase 3: Reward (ADVANTAGE) ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col overflow-auto">
 							<div className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
@@ -827,7 +767,9 @@ end
 											>
 												UserSchema
 											</Badge>
-											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">email, password{'\n'}role</pre>
+											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">
+												email, password{'\n'}role
+											</pre>
 										</div>
 										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-2 py-1.5">
 											<Badge
@@ -836,7 +778,9 @@ end
 											>
 												ProfileSchema
 											</Badge>
-											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">display_name{'\n'}bio</pre>
+											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">
+												display_name{'\n'}bio
+											</pre>
 										</div>
 										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-2 py-1.5">
 											<Badge
@@ -845,7 +789,9 @@ end
 											>
 												NotifPrefsSchema
 											</Badge>
-											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">email_digest{'\n'}push_enabled</pre>
+											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">
+												email_digest{'\n'}push_enabled
+											</pre>
 										</div>
 									</div>
 									<div className="border-l-2 border-l-amber-500 bg-amber-500/5 dark:bg-amber-500/10 rounded-r-md px-2 py-1.5">
@@ -855,7 +801,10 @@ end
 										>
 											Cross-Field Rule
 										</Badge>
-										<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">rule(:role, :email_digest) {"{"} creators need weekly {"}"}</pre>
+										<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">
+											rule(:role, :email_digest) {'{'} creators need weekly{' '}
+											{'}'}
+										</pre>
 									</div>
 								</div>
 
@@ -868,28 +817,42 @@ end
 										<div className="flex items-start gap-2">
 											<Check className="w-4 h-4 text-success mt-0.5 shrink-0" />
 											<p className="text-sm text-foreground">
-												<span className="font-medium">All errors returned at once.</span>{' '}
+												<span className="font-medium">
+													All errors returned at once.
+												</span>{' '}
 												<span className="text-muted-foreground">
-													Schema validates every field, returns structured errors for all failures in one response.
+													Schema validates every field, returns structured
+													errors for all failures in one response.
 												</span>
 											</p>
 										</div>
 										<div className="flex items-start gap-2">
 											<Check className="w-4 h-4 text-success mt-0.5 shrink-0" />
 											<p className="text-sm text-foreground">
-												<span className="font-medium">Reusable in any endpoint.</span>{' '}
+												<span className="font-medium">
+													Reusable in any endpoint.
+												</span>{' '}
 												<span className="text-muted-foreground">
-													Admin registration, API import, CSV upload can all call{' '}
-													<code className="text-xs bg-muted px-1 py-0.5 rounded">RegistrationContract.new.call(params)</code>.
+													Admin registration, API import, CSV upload can all
+													call{' '}
+													<code className="text-xs bg-muted px-1 py-0.5 rounded">
+														RegistrationContract.new.call(params)
+													</code>
+													.
 												</span>
 											</p>
 										</div>
 										<div className="flex items-start gap-2">
 											<Check className="w-4 h-4 text-success mt-0.5 shrink-0" />
 											<p className="text-sm text-foreground">
-												<span className="font-medium">Cross-field rules are explicit and testable.</span>{' '}
+												<span className="font-medium">
+													Cross-field rules are explicit and testable.
+												</span>{' '}
 												<span className="text-muted-foreground">
-													<code className="text-xs bg-muted px-1 py-0.5 rounded">rule(:role, :email_digest)</code> lives in the contract, unit-testable without HTTP.
+													<code className="text-xs bg-muted px-1 py-0.5 rounded">
+														rule(:role, :email_digest)
+													</code>{' '}
+													lives in the contract, unit-testable without HTTP.
 												</span>
 											</p>
 										</div>

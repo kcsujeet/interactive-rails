@@ -1,7 +1,7 @@
 /**
  * Level 20: Error Handling
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): Interactive exploration. Click pipeline stages to
@@ -13,16 +13,15 @@
  *   Step 0: Choose where to handle errors (rescue_from in ApplicationController)
  *   Step 1: Map exceptions to status codes (RecordNotFound->404, RecordInvalid->422, ParameterMissing->400)
  *   Step 2: Define the error response shape ({ error: { code, message, details } })
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Error Handling" button
- * Phase 4 (ADVANTAGE - reward): Stress test. Fire error-triggering requests at
+ * Phase 3 (ADVANTAGE - reward): Stress test. Fire error-triggering requests at
  *   the centralized handler and watch consistent JSON responses.
  *
  * Introduces rescue_from as the solution to scattered error handling.
  * Teaches: centralized exception handling, HTTP status mapping, consistent error shape
  */
 
-import { ArrowRight, Check, Play, Star, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowRight, Check, X } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -42,8 +41,8 @@ import {
 	PipelineFlow,
 	type PipelineStage,
 } from '@/components/levels/PipelineFlow';
-import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
+import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import {
 	StageInspector,
 	type StageInspectorData,
@@ -62,7 +61,7 @@ import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'observe' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Discovery definitions (observe phase)
@@ -258,7 +257,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'unauthorized',
 		label: '403 Forbidden',
-		description: 'DELETE another user\'s post',
+		description: "DELETE another user's post",
 		method: 'DELETE',
 		path: '/api/v1/products/1',
 		actor: 'attacker',
@@ -330,21 +329,24 @@ const STRATEGY_OPTIONS: StepOption[] = [
 const MAPPING_OPTIONS: StepOption[] = [
 	{
 		id: 'all-500',
-		label: 'RecordNotFound -> 500, RecordInvalid -> 500, ParameterMissing -> 500',
+		label:
+			'RecordNotFound -> 500, RecordInvalid -> 500, ParameterMissing -> 500',
 		correct: false,
 		feedback:
 			'Returning 500 for everything tells clients nothing. A missing resource, a validation failure, and a malformed request are three different problems with three different status codes.',
 	},
 	{
 		id: 'wrong-codes',
-		label: 'RecordNotFound -> 400, RecordInvalid -> 404, ParameterMissing -> 422',
+		label:
+			'RecordNotFound -> 400, RecordInvalid -> 404, ParameterMissing -> 422',
 		correct: false,
 		feedback:
 			'Those status codes are mismatched. A missing resource is not a bad request, and a validation failure is not a missing resource.',
 	},
 	{
 		id: 'correct-codes',
-		label: 'RecordNotFound -> 404, RecordInvalid -> 422, ParameterMissing -> 400',
+		label:
+			'RecordNotFound -> 404, RecordInvalid -> 422, ParameterMissing -> 400',
 		correct: true,
 	},
 ];
@@ -367,7 +369,8 @@ const SHAPE_OPTIONS: StepOption[] = [
 	},
 	{
 		id: 'structured',
-		label: '{ error: { code: "not_found", message: "Product not found", details: {} } }',
+		label:
+			'{ error: { code: "not_found", message: "Product not found", details: {} } }',
 		correct: true,
 	},
 	{
@@ -465,7 +468,7 @@ end`,
 		return files;
 	}
 
-	// Build / activate / reward phases: show evolving code
+	// Build / reward phases: show evolving code
 	if (furthestStep === 0) {
 		// Step 0: same as observe (player is choosing the strategy)
 		files.push({
@@ -670,17 +673,16 @@ export function Level20ErrorHandling({ onComplete }: LevelComponentProps) {
 	});
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
-	const [inspectorData, setInspectorData] =
-		useState<StageInspectorData | null>(null);
+	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(
+		null,
+	);
 	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
 		new Set(),
 	);
 	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
 
 	// ── Build observe stages dynamically (tracks inspected + last probe) ──
-	const probeDisplay = lastProbeId
-		? PROBE_PIPELINE_MAP[lastProbeId]
-		: null;
+	const probeDisplay = lastProbeId ? PROBE_PIPELINE_MAP[lastProbeId] : null;
 	const observeStages: PipelineStage[] = useMemo(
 		() => [
 			{
@@ -713,9 +715,7 @@ export function Level20ErrorHandling({ onComplete }: LevelComponentProps) {
 				id: 'response',
 				label: 'Response',
 				badge: probeDisplay ? probeDisplay.responseBadge : undefined,
-				variant: (probeDisplay ? 'danger' : 'default') as
-					| 'danger'
-					| 'default',
+				variant: (probeDisplay ? 'danger' : 'default') as 'danger' | 'default',
 				inspectable: true,
 				inspected: inspectedStages.has('response'),
 			},
@@ -740,9 +740,7 @@ export function Level20ErrorHandling({ onComplete }: LevelComponentProps) {
 					: wasAllowed
 						? 'no error'
 						: 'rescue_from',
-				variant: wasBlocked
-					? ('danger' as const)
-					: ('active' as const),
+				variant: wasBlocked ? ('danger' as const) : ('active' as const),
 				badge: wasBlocked ? 'HANDLED' : undefined,
 			},
 			{
@@ -756,13 +754,6 @@ export function Level20ErrorHandling({ onComplete }: LevelComponentProps) {
 			},
 		];
 	}, [lastResult]);
-
-	// ── Transition: build -> activate when all steps complete ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
 
 	// ── Stage click handler (observe phase) ──
 	const handleStageClick = useCallback(
@@ -818,7 +809,7 @@ export function Level20ErrorHandling({ onComplete }: LevelComponentProps) {
 		setPhase('build');
 	};
 
-	const handleActivateHandler = () => {
+	const handleStartReward = () => {
 		setPhase('reward');
 		stressTest.reset();
 	};
@@ -861,14 +852,14 @@ export function Level20ErrorHandling({ onComplete }: LevelComponentProps) {
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Your API returns raw 500 errors with stack traces, plain
-							text 404s, and inconsistent JSON shapes. Every controller
-							has its own begin/rescue block with a different error
-							format. Clients cannot parse errors reliably.
+							Your API returns raw 500 errors with stack traces, plain text
+							404s, and inconsistent JSON shapes. Every controller has its own
+							begin/rescue block with a different error format. Clients cannot
+							parse errors reliably.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							You need to centralize error handling so every exception
-							returns a consistent, structured JSON response.
+							You need to centralize error handling so every exception returns a
+							consistent, structured JSON response.
 						</p>
 					</div>
 
@@ -876,15 +867,15 @@ export function Level20ErrorHandling({ onComplete }: LevelComponentProps) {
 					{phase === 'observe' && (
 						<div className="p-4 border-b border-border">
 							<DiscoveryChecklist
-								discoveries={discoveryGating.discoveries}
 								discoveredCount={discoveryGating.discoveredCount}
+								discoveries={discoveryGating.discoveries}
 								minRequired={discoveryGating.minRequired}
 							/>
 						</div>
 					)}
 
-					{/* Build / activate phases: step progress */}
-					{(phase === 'build' || phase === 'activate') && (
+					{/* Build phase: step progress */}
+					{phase === 'build' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -1025,11 +1016,13 @@ export function Level20ErrorHandling({ onComplete }: LevelComponentProps) {
 									</>
 								)}
 
-								{isViewingCompletedStep && hasNextStep && (
+								{isViewingCompletedStep && (
 									<div className="flex justify-end">
 										<Button
 											className="gap-2"
-											onClick={stepper.nextStep}
+											onClick={
+												hasNextStep ? stepper.nextStep : handleStartReward
+											}
 											size="sm"
 										>
 											Next Step
@@ -1041,39 +1034,7 @@ export function Level20ErrorHandling({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* ── Phase 3: Activate (ADVANTAGE sub-phase a) ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex items-center justify-center p-6">
-							<div className="max-w-md text-center space-y-6">
-								<div className="flex justify-center gap-1">
-									{[1, 2, 3].map((s) => (
-										<Star
-											className={`w-8 h-8 ${
-												s <= stepper.starRating
-													? 'text-yellow-400 fill-yellow-400'
-													: 'text-muted-foreground/30'
-											}`}
-											key={s}
-										/>
-									))}
-								</div>
-								<p className="text-sm text-muted-foreground">
-									Your rescue_from handlers are in place. Watch exceptions
-									get caught and converted into consistent JSON responses.
-								</p>
-								<Button
-									className="gap-2"
-									onClick={handleActivateHandler}
-									size="lg"
-								>
-									<Play className="w-4 h-4" />
-									Visualize Error Handling
-								</Button>
-							</div>
-						</div>
-					)}
-
-					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
+					{/* ── Phase 3: Reward (ADVANTAGE) ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">

@@ -1,21 +1,20 @@
 /**
  * Level 16: Service Objects
  *
- * Sequential phase flow: intro -> build -> activate -> reward
+ * Sequential phase flow: intro -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - intro): Annotated code display showing fat controller
  *   with color-coded responsibility sections. The code tells the story.
  *
- * Phase 2 (HOW - build): 3 OptionCard steps
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Service" button
- * Phase 4 (ADVANTAGE - reward): Two-zone layout with stress test
+ * Phase 2 (HOW - build): 4 OptionCard steps
+ * Phase 3 (ADVANTAGE - reward): Two-zone layout with stress test
  *
  * Teaches: Service object pattern, Result pattern with Data.define, thin controllers
  */
 
-import { ArrowRight, Play, Star } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { ArrowRight } from 'lucide-react';
+import { useCallback, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -38,7 +37,7 @@ import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'intro' | 'build' | 'activate' | 'reward';
+type Phase = 'intro' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Annotated code sections (intro phase)
@@ -77,7 +76,7 @@ if @user.save`,
 		id: 'logging',
 		label: 'Side Effect: Logging',
 		variant: 'side-effect',
-		code: `  Rails.logger.info("New: #\{@user.email}")`,
+		code: `  Rails.logger.info("New: #{@user.email}")`,
 	},
 	{
 		id: 'preferences',
@@ -95,9 +94,6 @@ if @user.save`,
 		code: `  token = @user.generate_token_for(:session)`,
 	},
 ];
-
-
-
 
 // ──────────────────────────────────────────────
 // Step definitions (3 OptionCard steps)
@@ -189,14 +185,16 @@ const SIDE_EFFECTS_OPTIONS: StepOption[] = [
 	},
 	{
 		id: 'separate-services',
-		label: 'Create a separate service for each (WelcomeLogger, PreferenceSetter, TokenGenerator)',
+		label:
+			'Create a separate service for each (WelcomeLogger, PreferenceSetter, TokenGenerator)',
 		correct: false,
 		feedback:
 			'Three extra classes for three lines of code each. Over-extraction makes the workflow harder to follow, not easier.',
 	},
 	{
 		id: 'inline-in-call',
-		label: 'Run them sequentially inside the service\'s #call method, after the save',
+		label:
+			"Run them sequentially inside the service's #call method, after the save",
 		correct: true,
 	},
 	{
@@ -288,7 +286,7 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 
     if @user.save
       # Log welcome message inline
-      Rails.logger.info("New registration: #\{@user.email}")
+      Rails.logger.info("New registration: #{@user.email}")
 
       # Set default preferences inline
       @user.update!(
@@ -318,7 +316,10 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
     params.expect(user: [:email, :password, :name])
   end
 end`,
-			highlight: [6, 7, 8, 9, 10, 11, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29],
+			highlight: [
+				6, 7, 8, 9, 10, 11, 12, 13, 14, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+				27, 28, 29,
+			],
 		});
 		return files;
 	}
@@ -338,7 +339,7 @@ end`,
     return render json: { error: "Name required" }, status: 422 if params[:display_name].blank?
 
     if @user.save
-      Rails.logger.info("New registration: #\{@user.email}")
+      Rails.logger.info("New registration: #{@user.email}")
       @user.update!(locale: "en", timezone: "UTC",
                     notification_preference: "email")
       token = @user.generate_token_for(:session)
@@ -555,7 +556,6 @@ end`,
 	return files;
 }
 
-
 // ──────────────────────────────────────────────
 // Component
 // ──────────────────────────────────────────────
@@ -563,13 +563,6 @@ end`,
 export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const [phase, setPhase] = useState<Phase>('intro');
-
-	// ── Transition: build -> activate when all steps complete ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
 
 	// ── OptionCard step handler ──
 	const handleOptionClick = useCallback(
@@ -586,10 +579,6 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 	// ── Phase transition handlers ──
 	const handleStartBuild = () => {
 		setPhase('build');
-	};
-
-	const handleActivateService = () => {
-		setPhase('reward');
 	};
 
 	// ── Completion ──
@@ -625,9 +614,9 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
 								RegistrationsController#create
 							</code>{' '}
-							action is 80 lines long. It handles validation checks,
-							user creation, logging, preferences, and token
-							generation all inline in one action.
+							action is 80 lines long. It handles validation checks, user
+							creation, logging, preferences, and token generation all inline in
+							one action.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							{phase === 'intro'
@@ -636,7 +625,7 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 						</p>
 					</div>
 
-					{(phase === 'build' || phase === 'activate') && (
+					{phase === 'build' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -648,7 +637,6 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 							/>
 						</div>
 					)}
-
 				</InstructionPanel>
 			</LeftPanel>
 
@@ -686,30 +674,25 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 									</pre>
 
 									{ANNOTATED_SECTIONS.map((section) => {
-										const isSideEffect =
-											section.variant === 'side-effect';
+										const isSideEffect = section.variant === 'side-effect';
 
 										return (
 											<div
-												key={section.id}
 												className={`border-l-2 rounded-r-md px-3 py-2 ${
 													isSideEffect
 														? 'border-l-amber-500 bg-amber-500/5 dark:bg-amber-400/5'
 														: 'border-l-zinc-400 dark:border-l-zinc-600 bg-muted/30'
 												}`}
+												key={section.id}
 											>
 												<div className="flex items-center gap-2 mb-1">
 													<Badge
-														variant={
-															isSideEffect
-																? 'outline'
-																: 'secondary'
-														}
 														className={`text-[10px] px-1.5 py-0 ${
 															isSideEffect
 																? 'border-amber-500/50 text-amber-600 dark:text-amber-400'
 																: 'text-muted-foreground'
 														}`}
+														variant={isSideEffect ? 'outline' : 'secondary'}
 													>
 														{section.label}
 													</Badge>
@@ -734,20 +717,16 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 							<div className="px-6 py-3">
 								<div className="max-w-lg mx-auto">
 									<div className="border border-amber-500/30 bg-amber-500/5 dark:bg-amber-400/5 rounded-lg p-3 text-sm text-foreground">
-										<strong>5 responsibilities in one method.</strong>{' '}
-										This logic can&apos;t be reused by a rake task,
-										tested without HTTP, or understood at a glance.
+										<strong>5 responsibilities in one method.</strong> This
+										logic can&apos;t be reused by a rake task, tested without
+										HTTP, or understood at a glance.
 									</div>
 								</div>
 							</div>
 
 							{/* Build the Fix button (always visible) */}
 							<div className="p-4 flex justify-center">
-								<Button
-									className="gap-2"
-									onClick={handleStartBuild}
-									size="lg"
-								>
+								<Button className="gap-2" onClick={handleStartBuild} size="lg">
 									Build the Fix
 									<ArrowRight className="w-4 h-4" />
 								</Button>
@@ -768,39 +747,31 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 
 								{isViewingCompletedStep ? (
 									<div className="space-y-2">
-										{currentOptionConfig.options.map(
-											(opt) => (
-												<OptionCard
-													color="violet"
-													disabled={!opt.correct}
-													key={opt.id}
-													mono
-													name={opt.label}
-													selected={opt.correct}
-													size="lg"
-												/>
-											),
-										)}
+										{currentOptionConfig.options.map((opt) => (
+											<OptionCard
+												color="violet"
+												disabled={!opt.correct}
+												key={opt.id}
+												mono
+												name={opt.label}
+												selected={opt.correct}
+												size="lg"
+											/>
+										))}
 									</div>
 								) : (
 									<>
 										<div className="space-y-2">
-											{currentOptionConfig.options.map(
-												(opt) => (
-													<OptionCard
-														color="violet"
-														key={opt.id}
-														mono
-														name={opt.label}
-														onClick={() =>
-															handleOptionClick(
-																opt,
-															)
-														}
-														size="lg"
-													/>
-												),
-											)}
+											{currentOptionConfig.options.map((opt) => (
+												<OptionCard
+													color="violet"
+													key={opt.id}
+													mono
+													name={opt.label}
+													onClick={() => handleOptionClick(opt)}
+													size="lg"
+												/>
+											))}
 										</div>
 
 										<ErrorFeedback
@@ -810,11 +781,17 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 									</>
 								)}
 
-								{isViewingCompletedStep && hasNextStep && (
+								{isViewingCompletedStep && (
 									<div className="flex justify-end">
 										<Button
 											className="gap-2"
-											onClick={stepper.nextStep}
+											onClick={
+												hasNextStep
+													? stepper.nextStep
+													: () => {
+															setPhase('reward');
+														}
+											}
 											size="sm"
 										>
 											Next Step
@@ -826,40 +803,7 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* ── Phase 3: Activate ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex items-center justify-center p-6">
-							<div className="max-w-md text-center space-y-6">
-								<div className="flex justify-center gap-1">
-									{[1, 2, 3].map((s) => (
-										<Star
-											className={`w-8 h-8 ${
-												s <= stepper.starRating
-													? 'text-yellow-400 fill-yellow-400'
-													: 'text-muted-foreground/30'
-											}`}
-											key={s}
-										/>
-									))}
-								</div>
-								<p className="text-sm text-muted-foreground">
-									Your service object is extracted. The
-									controller is now 5 lines. Watch the service
-									handle registrations cleanly.
-								</p>
-								<Button
-									className="gap-2"
-									onClick={handleActivateService}
-									size="lg"
-								>
-									<Play className="w-4 h-4" />
-									Visualize Service
-								</Button>
-							</div>
-						</div>
-					)}
-
-					{/* ── Phase 4: Reward ── */}
+					{/* ── Phase 3: Reward ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col overflow-auto">
 							{/* Header */}
@@ -867,7 +811,7 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 								<div className="text-sm font-semibold text-foreground">
 									The Fix: Controller + UserRegistration Service
 								</div>
-								</div>
+							</div>
 
 							{/* Annotated code: thin controller */}
 							<div className="px-6 py-2">
@@ -877,7 +821,10 @@ export function Level16ServiceObjects({ onComplete }: LevelComponentProps) {
 									</div>
 									<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/5 rounded-r-md px-3 py-2">
 										<div className="flex items-center gap-2 mb-1">
-											<Badge variant="secondary" className="text-[10px] px-1.5 py-0 text-success">
+											<Badge
+												className="text-[10px] px-1.5 py-0 text-success"
+												variant="secondary"
+											>
 												Delegates
 											</Badge>
 										</div>
@@ -903,7 +850,10 @@ end`}</pre>
 
 									<div className="border-l-2 border-l-zinc-400 dark:border-l-zinc-600 bg-muted/30 rounded-r-md px-3 py-2">
 										<div className="flex items-center gap-2 mb-1">
-											<Badge variant="secondary" className="text-[10px] px-1.5 py-0 text-muted-foreground">
+											<Badge
+												className="text-[10px] px-1.5 py-0 text-muted-foreground"
+												variant="secondary"
+											>
 												Inline Checks + Core Logic
 											</Badge>
 										</div>
@@ -913,13 +863,18 @@ user = User.new(@params)
 return Result.new(failure) unless user.save`}</pre>
 									</div>
 
-									{ANNOTATED_SECTIONS.filter(s => s.variant === 'side-effect').map((section) => (
+									{ANNOTATED_SECTIONS.filter(
+										(s) => s.variant === 'side-effect',
+									).map((section) => (
 										<div
-											key={section.id}
 											className="border-l-2 border-l-success bg-success/5 dark:bg-success/5 rounded-r-md px-3 py-2"
+											key={section.id}
 										>
 											<div className="flex items-center gap-2 mb-1">
-												<Badge variant="outline" className="text-[10px] px-1.5 py-0 border-success/50 text-success">
+												<Badge
+													className="text-[10px] px-1.5 py-0 border-success/50 text-success"
+													variant="outline"
+												>
 													{section.label.replace('Side Effect: ', 'Isolated: ')}
 												</Badge>
 											</div>
@@ -947,31 +902,51 @@ return Result.new(failure) unless user.save`}</pre>
 										</div>
 										<div className="space-y-1.5 text-sm text-foreground">
 											<div className="flex items-start gap-2">
-												<span className="text-success shrink-0 mt-0.5">&#10003;</span>
-												<span><strong>Reusable by a rake task:</strong> <code className="text-xs bg-muted px-1 py-0.5 rounded">UserRegistration.call(params)</code> works from controllers, rake tasks, console, or tests.</span>
+												<span className="text-success shrink-0 mt-0.5">
+													&#10003;
+												</span>
+												<span>
+													<strong>Reusable by a rake task:</strong>{' '}
+													<code className="text-xs bg-muted px-1 py-0.5 rounded">
+														UserRegistration.call(params)
+													</code>{' '}
+													works from controllers, rake tasks, console, or tests.
+												</span>
 											</div>
 											<div className="flex items-start gap-2">
-												<span className="text-success shrink-0 mt-0.5">&#10003;</span>
-												<span><strong>Testable without HTTP:</strong> Unit test calls <code className="text-xs bg-muted px-1 py-0.5 rounded">UserRegistration.call</code> directly. No request context needed.</span>
+												<span className="text-success shrink-0 mt-0.5">
+													&#10003;
+												</span>
+												<span>
+													<strong>Testable without HTTP:</strong> Unit test
+													calls{' '}
+													<code className="text-xs bg-muted px-1 py-0.5 rounded">
+														UserRegistration.call
+													</code>{' '}
+													directly. No request context needed.
+												</span>
 											</div>
 											<div className="flex items-start gap-2">
-												<span className="text-success shrink-0 mt-0.5">&#10003;</span>
-												<span><strong>Readable at a glance:</strong> Controller is 8 lines. Service has one public method with clear inputs and outputs.</span>
+												<span className="text-success shrink-0 mt-0.5">
+													&#10003;
+												</span>
+												<span>
+													<strong>Readable at a glance:</strong> Controller is 8
+													lines. Service has one public method with clear inputs
+													and outputs.
+												</span>
 											</div>
 										</div>
 									</div>
 								</div>
 							</div>
-
 						</div>
 					)}
 				</div>
 			</CenterPanel>
 
 			<RightPanel>
-				<CodePreviewPanel
-					files={getCodeFiles(phase, stepper.furthestStep)}
-				/>
+				<CodePreviewPanel files={getCodeFiles(phase, stepper.furthestStep)} />
 			</RightPanel>
 		</LevelLayout>
 	);

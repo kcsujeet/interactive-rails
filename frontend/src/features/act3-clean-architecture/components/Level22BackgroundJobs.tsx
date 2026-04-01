@@ -1,7 +1,7 @@
 /**
  * Level 22: Background Jobs
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): Interactive exploration. Click pipeline stages to
@@ -13,15 +13,14 @@
  *   Step 1: Create a background job (OptionCard)
  *   Step 2: Make the job idempotent (OptionCard)
  *   Step 3: Switch service to async (OptionCard)
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Background Jobs" button
- * Phase 4 (ADVANTAGE - reward): Stress test. Fire registration requests and see
+ * Phase 3 (ADVANTAGE - reward): Stress test. Fire registration requests and see
  *   instant responses. Jobs process in background via Solid Queue.
  *
  * Teaches: Solid Queue (Rails 8 default), ActiveJob, perform_later, idempotency
  */
 
-import { ArrowRight, Check, Play, Star, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowRight, Check, X } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -44,8 +43,8 @@ import {
 	PipelineFlow,
 	type PipelineStage,
 } from '@/components/levels/PipelineFlow';
-import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
+import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import {
 	StageInspector,
 	type StageInspectorData,
@@ -64,7 +63,7 @@ import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'observe' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Discovery definitions (observe phase)
@@ -85,7 +84,8 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'register-alice',
 		label: 'Register new user (Alice)',
-		command: 'POST /api/v1/registrations {name: "Alice", email: "alice@example.com"}',
+		command:
+			'POST /api/v1/registrations {name: "Alice", email: "alice@example.com"}',
 		responseLines: [
 			{ text: 'HTTP/1.1 201 Created', color: 'yellow' },
 			{ text: '... waiting for SMTP server ...', color: 'muted' },
@@ -99,10 +99,14 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'register-bob',
 		label: 'Register new user (Bob)',
-		command: 'POST /api/v1/registrations {name: "Bob", email: "bob@example.com"}',
+		command:
+			'POST /api/v1/registrations {name: "Bob", email: "bob@example.com"}',
 		responseLines: [
 			{ text: 'HTTP/1.1 201 Created', color: 'yellow' },
-			{ text: '... waiting for SMTP + external profile sync ...', color: 'muted' },
+			{
+				text: '... waiting for SMTP + external profile sync ...',
+				color: 'muted',
+			},
 			{ text: 'Response time: 4.1s', color: 'red' },
 			{
 				text: 'Email delivery (2.8s) plus external profile sync (1.3s) ran inline. User waited for all of it.',
@@ -113,10 +117,14 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'register-fail',
 		label: 'Register when SMTP is down',
-		command: 'POST /api/v1/registrations {name: "Carol", email: "carol@example.com"}',
+		command:
+			'POST /api/v1/registrations {name: "Carol", email: "carol@example.com"}',
 		responseLines: [
 			{ text: 'HTTP/1.1 500 Internal Server Error', color: 'red' },
-			{ text: 'Net::SMTPAuthenticationError: SMTP connection refused', color: 'red' },
+			{
+				text: 'Net::SMTPAuthenticationError: SMTP connection refused',
+				color: 'red',
+			},
 			{ text: 'Response time: 8.3s (timeout)', color: 'red' },
 			{
 				text: 'The user was created, but deliver_now raised an exception. The entire registration failed because of the mailer.',
@@ -280,8 +288,8 @@ const TERMINAL_STEP_0 = {
 	description: (
 		<p className="text-sm text-muted-foreground">
 			Rails 8 ships with Solid Queue as the default job backend. It is
-			database-backed, so no Redis is needed. Choose the right command to set
-			it up.
+			database-backed, so no Redis is needed. Choose the right command to set it
+			up.
 		</p>
 	),
 	commands: [
@@ -312,14 +320,23 @@ const TERMINAL_STEP_0 = {
 		{ text: 'create  config/queue.yml', color: 'green' as const },
 		{ text: 'create  db/queue_schema.rb', color: 'green' as const },
 		{ text: 'insert  config/application.rb', color: 'green' as const },
-		{ text: '  config.active_job.queue_adapter = :solid_queue', color: 'muted' as const },
-		{ text: 'Solid Queue installed. Database-backed, no Redis needed.', color: 'green' as const },
+		{
+			text: '  config.active_job.queue_adapter = :solid_queue',
+			color: 'muted' as const,
+		},
+		{
+			text: 'Solid Queue installed. Database-backed, no Redis needed.',
+			color: 'green' as const,
+		},
 	],
 };
 
 // Build TerminalStepData map for history (step 0 = terminal, steps 1-3 = null)
 const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
-	{ commands: TERMINAL_STEP_0.commands, outputLines: TERMINAL_STEP_0.outputLines },
+	{
+		commands: TERMINAL_STEP_0.commands,
+		outputLines: TERMINAL_STEP_0.outputLines,
+	},
 	null, // step 1: OptionCard
 	null, // step 2: OptionCard
 	null, // step 3: OptionCard
@@ -486,7 +503,7 @@ end
 		return files;
 	}
 
-	// Build / activate / reward phases: show evolving code
+	// Build / reward phases: show evolving code
 	if (furthestStep === 0) {
 		// Step 0: Configuring Solid Queue
 		files.push({
@@ -639,17 +656,16 @@ export function Level22BackgroundJobs({ onComplete }: LevelComponentProps) {
 	});
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
-	const [inspectorData, setInspectorData] =
-		useState<StageInspectorData | null>(null);
+	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(
+		null,
+	);
 	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
 		new Set(),
 	);
 	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
 
 	// ── Build observe stages dynamically (tracks inspected + last probe) ──
-	const probeDisplay = lastProbeId
-		? PROBE_PIPELINE_MAP[lastProbeId]
-		: null;
+	const probeDisplay = lastProbeId ? PROBE_PIPELINE_MAP[lastProbeId] : null;
 	const observeStages: PipelineStage[] = useMemo(
 		() => [
 			{
@@ -722,13 +738,6 @@ export function Level22BackgroundJobs({ onComplete }: LevelComponentProps) {
 		];
 	}, [lastResult]);
 
-	// ── Transition: build -> activate when all steps complete ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
-
 	// ── Stage click handler (observe phase) ──
 	const handleStageClick = useCallback(
 		(stageId: string) => {
@@ -783,7 +792,7 @@ export function Level22BackgroundJobs({ onComplete }: LevelComponentProps) {
 		setPhase('build');
 	};
 
-	const handleActivateJobs = () => {
+	const handleStartReward = () => {
 		setPhase('reward');
 		stressTest.reset();
 	};
@@ -831,13 +840,13 @@ export function Level22BackgroundJobs({ onComplete }: LevelComponentProps) {
 							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
 								deliver_now
 							</code>
-							, which blocks the HTTP response for 3+ seconds. It also
-							runs an external profile sync and notification setup inline.
+							, which blocks the HTTP response for 3+ seconds. It also runs an
+							external profile sync and notification setup inline.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Users stare at a loading spinner while the SMTP server
-							processes the email. If the mail server is down, the entire
-							registration fails.
+							Users stare at a loading spinner while the SMTP server processes
+							the email. If the mail server is down, the entire registration
+							fails.
 						</p>
 					</div>
 
@@ -845,15 +854,15 @@ export function Level22BackgroundJobs({ onComplete }: LevelComponentProps) {
 					{phase === 'observe' && (
 						<div className="p-4 border-b border-border">
 							<DiscoveryChecklist
-								discoveries={discoveryGating.discoveries}
 								discoveredCount={discoveryGating.discoveredCount}
+								discoveries={discoveryGating.discoveries}
 								minRequired={discoveryGating.minRequired}
 							/>
 						</div>
 					)}
 
-					{/* Build / activate phases: step progress */}
-					{(phase === 'build' || phase === 'activate') && (
+					{/* Build phase: step progress */}
+					{phase === 'build' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -954,21 +963,21 @@ export function Level22BackgroundJobs({ onComplete }: LevelComponentProps) {
 								{/* Step 0: TerminalChoiceStep */}
 								{isTerminalStep && (
 									<TerminalChoiceStep
-										title={TERMINAL_STEP_0.title}
-										description={TERMINAL_STEP_0.description}
 										commands={TERMINAL_STEP_0.commands}
-										outputLines={TERMINAL_STEP_0.outputLines}
+										completed={isViewingCompletedStep}
+										description={TERMINAL_STEP_0.description}
+										hasNext={hasNextStep}
 										initialHistory={buildTerminalHistory(
 											TERMINAL_STEP_MAP,
 											stepper.currentStep,
 										)}
-										completed={isViewingCompletedStep}
-										hasNext={hasNextStep}
 										onCorrect={() => stepper.completeStep()}
-										onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 										onNext={stepper.nextStep}
+										onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+										outputLines={TERMINAL_STEP_0.outputLines}
 										stepKey={stepper.currentStep}
 										terminalTitle="Terminal"
+										title={TERMINAL_STEP_0.title}
 									/>
 								)}
 
@@ -1018,11 +1027,13 @@ export function Level22BackgroundJobs({ onComplete }: LevelComponentProps) {
 											</>
 										)}
 
-										{isViewingCompletedStep && hasNextStep && (
+										{isViewingCompletedStep && (
 											<div className="flex justify-end">
 												<Button
 													className="gap-2"
-													onClick={stepper.nextStep}
+													onClick={
+														hasNextStep ? stepper.nextStep : handleStartReward
+													}
 													size="sm"
 												>
 													Next Step
@@ -1036,40 +1047,7 @@ export function Level22BackgroundJobs({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* ── Phase 3: Activate (ADVANTAGE sub-phase a) ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex items-center justify-center p-6">
-							<div className="max-w-md text-center space-y-6">
-								<div className="flex justify-center gap-1">
-									{[1, 2, 3].map((s) => (
-										<Star
-											className={`w-8 h-8 ${
-												s <= stepper.starRating
-													? 'text-yellow-400 fill-yellow-400'
-													: 'text-muted-foreground/30'
-											}`}
-											key={s}
-										/>
-									))}
-								</div>
-								<p className="text-sm text-muted-foreground">
-									Solid Queue is configured and your jobs are idempotent.
-									Watch registration requests return instantly while jobs
-									process in the background.
-								</p>
-								<Button
-									className="gap-2"
-									onClick={handleActivateJobs}
-									size="lg"
-								>
-									<Play className="w-4 h-4" />
-									Visualize Background Jobs
-								</Button>
-							</div>
-						</div>
-					)}
-
-					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
+					{/* ── Phase 3: Reward (ADVANTAGE) ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">
