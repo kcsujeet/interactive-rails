@@ -374,12 +374,58 @@ The build phase must cover the **complete workflow**:
 - [ ] **Options are shuffled with `shuffleOptions(options, stepIndex)` from `@/lib/shuffleOptions`.** This ensures the correct answer position varies per session. Hand-positioned answers create predictable patterns. Check that both OptionCard and terminal command arrays pass through `shuffleOptions` in a `useMemo`.
 - [ ] **Every OptionCard step has exactly 3 options.**
 - [ ] All options use the same color
-- [ ] Feedback never reveals the correct answer
 - [ ] **Feedback does not contradict earlier steps.** If a technique was correct in step M, step N's feedback must frame it as a context-dependent tradeoff, not as universally bad.
 - [ ] **Inline comments within option labels do not reveal answers.** Describe the mechanism, not why it's right or wrong for this step.
 - [ ] **Step labels do not reveal answers.** Use generic task descriptions, not specific gem/method names.
 - [ ] **Scenario text and descriptions do not reveal answers.**
 - [ ] **Wrong options are contextually plausible.**
+
+#### Feedback answer leak scan (MANDATORY, SEPARATE STEP - do not skip)
+
+**This check has its own section because it was repeatedly missed when buried in the option quality checklist.** Structural checks (shuffleOptions, phase types, code preview indices) are satisfying to verify and consume audit attention. Feedback text review is tedious but critical. Do it as a dedicated pass AFTER all structural checks are done.
+
+**Why this matters:** A feedback string that says "Paranoia overrides destroy globally. Discard is explicit and non-invasive" directly names the correct answer ("Discard"). The player reads the wrong-answer feedback, sees the correct gem name, and picks it without learning anything. This defeats the entire purpose of the level.
+
+**How to check (non-negotiable procedure):**
+
+1. **For each build step**, identify the correct answer's distinctive keywords. These are the gem name, class name, method name, or configuration value that makes the correct answer unique. Write them down.
+
+2. **Read every `feedback` string on every wrong option in that step.** Search for the distinctive keywords from step 1. If ANY keyword appears in ANY feedback string, the feedback reveals the answer.
+
+3. **Check terminal command feedback too.** Terminal steps have wrong commands with feedback strings. The same rule applies: feedback must not name the correct command, gem, or tool.
+
+4. **Check by contrast/implication too.** Feedback that says "X is bad because it does not do Y" reveals Y as the answer. Feedback that says "X overrides destroy. [CorrectGem] is explicit" reveals the correct gem by naming it in contrast. The fix: describe only why X is wrong, not what the alternative does.
+
+**Examples of violations:**
+
+```
+// BAD: Names the correct answer directly
+feedback: "Paranoia overrides destroy. Discard is explicit and non-invasive."
+// The player now knows the answer is "discard"
+
+// BAD: Names the correct gem by contrast
+feedback: "CanCan is outdated. Pundit is the modern standard."
+// The player now knows the answer is "Pundit"
+
+// BAD: Names the correct method
+feedback: "find_each is for iteration. Use find_in_batches for batch processing."
+// The player now knows the answer is "find_in_batches"
+
+// GOOD: Explains why the wrong choice is wrong, nothing more
+feedback: "This gem overrides destroy globally, which breaks existing code that expects destroy to actually remove records."
+
+// GOOD: Describes the requirement without naming the solution
+feedback: "This library is outdated and no longer maintained. You need a policy-based authorization framework."
+
+// GOOD: Points at the flaw without revealing the fix
+feedback: "This method processes one record at a time. You need batch processing to avoid loading everything into memory."
+```
+
+- [ ] **Every feedback string checked against correct answer keywords.** No feedback string in the entire level contains the correct answer's gem name, class name, method name, or distinctive configuration value.
+- [ ] **No feedback reveals by contrast.** Feedback does not say "X is bad, [correct answer] is better."
+- [ ] **Terminal command feedback checked too.** Same rules apply to TerminalChoiceStep wrong command feedback.
+
+Case study: L43 (Soft Deletes) had two violations: `bundle add paranoia` feedback said "Discard is explicit and non-invasive" (naming the correct gem), and `acts_as_paranoid` feedback said "Discard is explicit: you call discard instead of destroy" (naming both the gem and the method). Both directly told the player the answer instead of just explaining why the wrong choice was wrong.
 
 #### Documentation verification (non-negotiable)
 - [ ] Before writing ANY step content, **fetch and read the full README** of the gem/library from its official GitHub repo
