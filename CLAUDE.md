@@ -288,7 +288,7 @@ The content definition has these player-facing fields that **must match the game
 | `trigger.description` | Top of briefing screen | 1-2 sentences: what the player will do in this level |
 | `problem.observation` | Below trigger | What's wrong / what's missing right now |
 | `problem.codeExample` | "THE PROBLEM" code block | Teach concepts and context. **Never show exact answers** the player must choose |
-| `problem.goal` | "YOUR GOAL" section | Describe all steps, not just the first one |
+| `problem.goal` | "YOUR GOAL" section | Describe the outcome, not the tools. **Never name specific gems, methods, or classes** the player will choose in build steps. "Implement soft deletes with an audit trail" is fine. "Install discard gem and PaperTrail" is a spoiler. |
 | `hint.text` | Hint popup (after delay) | Actionable tip for the current interaction |
 | `learningContent.*` | Learning panel | Concept explanation and Rails code examples |
 

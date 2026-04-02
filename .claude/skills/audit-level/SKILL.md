@@ -52,12 +52,24 @@ Case study: L39 originally jumped straight to "Stripe webhook fires twice, custo
 Scan each of these in content.ts AND the component:
 - `trigger.description`
 - `problem.observation`
-- `problem.goal` (can name the solution since it describes what the player will build)
+- `problem.goal` -- **Must NOT name specific gems, tools, methods, or classes that the player will choose in build steps.** Describe the outcome ("implement soft deletes with an audit trail"), not the implementation ("install discard gem and PaperTrail"). If the goal says "Install Pagy" and step 0 asks "which pagination gem?", the step is a trivial lookup. The goal describes WHAT the player will achieve, never HOW (which specific tool).
+- `learningContent.goal` -- Same rule. Describe learning outcomes, not tool names. "Learn to paginate API responses with Link headers" is fine. "Install Pagy and configure Pagy::OPTIONS" is a spoiler.
 - Left panel scenario text
 - Probe labels and story fields
 - `hint.text` (acceptable with delay, but check)
+- **Wrong-option feedback strings** -- See "Feedback answer leak scan" section below. Feedback must never name the correct answer.
 
-Case study: L40 had "v2" as assumed knowledge in three separate places: trigger ("Product wants breaking changes for v2"), problem.observation ("Product wants v2 to return..."), and scenario text. Each was caught and fixed separately because the check was only applied to the trigger the first time. Check all locations in one pass.
+**This check covers TWO distinct failure modes:**
+1. **Content.ts fields** (goal, trigger, observation, hint) that name the solution before the player discovers it.
+2. **Component feedback strings** that name the correct answer when explaining why a wrong choice is wrong.
+
+Both are equally damaging: the player reads the answer before making the choice.
+
+Case study (content.ts): L43's `problem.goal` said "Implement soft deletes with the discard gem and audit trails with PaperTrail." The build step asked "which gem to install?" but the goal already named both gems. The player reads the goal on the briefing screen before gameplay starts, making the gem selection steps trivial.
+
+Case study (feedback): L43's wrong-option feedback said "Paranoia overrides destroy. Discard is explicit and non-invasive." The feedback directly named the correct gem. The player picks the wrong answer, reads the feedback, and now knows exactly what to pick.
+
+Case study (content.ts): L40 had "v2" as assumed knowledge in three separate places: trigger ("Product wants breaking changes for v2"), problem.observation ("Product wants v2 to return..."), and scenario text. Each was caught and fixed separately because the check was only applied to the trigger the first time. Check all locations in one pass.
 
 ### 3. How did the player get into this situation?
 
