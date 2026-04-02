@@ -1393,7 +1393,7 @@ const RATE_LIMIT_OPTIONS: StepOption[] = [
 		name: 'class Api::GatewayController < ApplicationController\n  before_action :check_rate_limit\n\n  def check_rate_limit\n    count = $redis.incr("rate:#{request.ip}")\n    $redis.expire("rate:#{request.ip}", 60) if count == 1\n    head :too_many_requests if count > 60\n  end\nend',
 		correct: false,
 		feedback:
-			'A custom Redis counter works but duplicates what Rails 8 provides natively. The built-in rate_limit macro handles counting, expiry, and response rendering with less code and no external dependency.',
+			'A custom Redis counter works but duplicates what Rails 8 provides natively. The built-in rate limiting macro handles counting, expiry, and response rendering with less code and no external dependency.',
 	},
 ];
 

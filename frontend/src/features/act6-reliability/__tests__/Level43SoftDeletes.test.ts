@@ -77,7 +77,7 @@ const ADD_DISCARD_COMMANDS = [
 		label: 'bundle add paranoia',
 		correct: false,
 		feedback:
-			'Paranoia overrides destroy globally and uses acts_as_paranoid which conflicts with Rails conventions. Discard is explicit and non-invasive.',
+			'Paranoia overrides destroy globally and uses acts_as_paranoid which conflicts with Rails conventions. The modern alternative is explicit and non-invasive, letting existing code work unchanged.',
 	},
 	{
 		id: 'correct',
@@ -121,7 +121,7 @@ const CONFIGURE_MODEL_OPTIONS = [
 		label: 'acts_as_paranoid in model',
 		correct: false,
 		feedback:
-			'acts_as_paranoid (from the paranoia gem) overrides destroy for ALL callers. Discard is explicit: you call discard instead of destroy, so existing code still works.',
+			'acts_as_paranoid (from the paranoia gem) overrides destroy for ALL callers. The better approach is explicit: you choose when to soft-delete, so existing code still works.',
 	},
 	{
 		id: 'correct',
@@ -171,7 +171,7 @@ const ADD_PAPER_TRAIL_COMMANDS = [
 		label: 'bundle add audited',
 		correct: false,
 		feedback:
-			'Audited is an alternative, but PaperTrail is more widely adopted, has better Rails 8 support, and integrates with whodunnit tracking out of the box.',
+			'Audited is an alternative, but the more widely adopted versioning gem has better Rails 8 support and integrates with whodunnit tracking out of the box.',
 	},
 	{
 		id: 'wrong-no-generator',

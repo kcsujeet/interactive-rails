@@ -1289,7 +1289,7 @@ const SHARD_RECORD_OPTIONS: StepOption[] = [
 		name: 'class ShardRecord < ApplicationRecord\n  self.abstract_class = true\n\n  establish_connection :shard_one\n  establish_connection :shard_two\n  establish_connection :shard_three\nend',
 		correct: false,
 		feedback:
-			'establish_connection creates a single connection, not shard routing. Use connects_to with the shards: key so Rails can switch between shards dynamically.',
+			'establish_connection creates a single static connection, not shard routing. Rails provides a declarative method for defining shard mappings that enables dynamic switching at runtime.',
 	},
 ];
 

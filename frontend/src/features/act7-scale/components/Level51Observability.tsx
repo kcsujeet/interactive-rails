@@ -834,7 +834,7 @@ const CUSTOM_FIELDS_OPTIONS: StepOption[] = [
 		name: 'config.log_tags = [:request_id, :user_id]',
 		correct: false,
 		feedback:
-			'log_tags is for the default Rails logger, not Lograge. Lograge uses custom_payload to merge fields into its JSON output for each request.',
+			'log_tags is for the default Rails logger, not Lograge. Lograge has its own hook for merging custom fields into its JSON output for each request.',
 	},
 	{
 		id: 'correct',

@@ -522,7 +522,7 @@ const ADD_DISCARD_COMMANDS = [
 		command: 'bundle add paranoia',
 		correct: false,
 		feedback:
-			'Paranoia overrides destroy globally and uses acts_as_paranoid which conflicts with Rails conventions. Discard is explicit and non-invasive.',
+			'Paranoia overrides destroy globally and uses acts_as_paranoid which conflicts with Rails conventions. The modern alternative is explicit and non-invasive, letting existing code work unchanged.',
 	},
 	{
 		id: 'correct',
@@ -536,7 +536,7 @@ const ADD_DISCARD_COMMANDS = [
 		command: 'rails g migration AddDeletedAtToUsers deleted_at:datetime',
 		correct: false,
 		feedback:
-			'The column name should be discarded_at (Discard convention), not deleted_at. Install the gem first, then add the column.',
+			'You are running a migration before installing the gem. Install the soft-delete gem first, then add the column it expects.',
 	},
 ];
 
@@ -562,7 +562,7 @@ const ADD_COLUMN_COMMANDS = [
 		command: 'rails g migration AddDeletedToUsers deleted:boolean',
 		correct: false,
 		feedback:
-			'A boolean flag loses the timestamp of when the record was discarded. Discard uses discarded_at:datetime so you know exactly when it was soft-deleted.',
+			'A boolean flag loses the timestamp of when the record was soft-deleted. The gem expects a datetime column so you know exactly when it happened.',
 	},
 ];
 
@@ -576,7 +576,7 @@ const CONFIGURE_MODEL_OPTIONS = [
 end`,
 		correct: false,
 		feedback:
-			'acts_as_paranoid (from the paranoia gem) overrides destroy for ALL callers. Discard is explicit: you call discard instead of destroy, so existing code still works.',
+			'acts_as_paranoid (from the paranoia gem) overrides destroy for ALL callers. The better approach is explicit: you choose when to soft-delete, so existing code still works.',
 	},
 	{
 		id: 'correct',
@@ -603,7 +603,7 @@ end`,
 end`,
 		correct: false,
 		feedback:
-			'A custom implementation misses helpers like undiscard!, discarded?, and the kept/discarded scopes. The Discard gem provides all of this with one include.',
+			'A custom implementation misses built-in helpers for undoing deletes, status checks, and query scopes. The gem you installed provides all of this declaratively.',
 	},
 ];
 
@@ -663,7 +663,7 @@ const ADD_PAPER_TRAIL_COMMANDS = [
 		command: 'bundle add audited',
 		correct: false,
 		feedback:
-			'Audited is an alternative, but PaperTrail is more widely adopted, has better Rails 8 support, and integrates with whodunnit tracking out of the box.',
+			'Audited is an alternative, but the more widely adopted versioning gem has better Rails 8 support and integrates with whodunnit tracking out of the box.',
 	},
 	{
 		id: 'wrong-no-generator',

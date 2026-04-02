@@ -596,7 +596,7 @@ const RACK_ATTACK_COMMANDS = [
 		command: 'bundle add rack-throttle',
 		correct: false,
 		feedback:
-			'rack-throttle is unmaintained. rack-attack is the standard Rack-level rate limiting gem with active maintenance.',
+			'rack-throttle is unmaintained and no longer receives security patches. Look for the actively maintained Rack-level rate limiting gem widely adopted in the Rails community.',
 	},
 	{
 		id: 'correct',
@@ -610,7 +610,7 @@ const RACK_ATTACK_COMMANDS = [
 		command: 'bundle add rack-limiter',
 		correct: false,
 		feedback:
-			'rack-limiter is not a standard gem. The widely adopted Rack rate limiting solution is rack-attack.',
+			'rack-limiter is not a standard gem. Look for the widely adopted Rack-level rate limiting solution with throttle, safelist, and blocklist support.',
 	},
 ];
 
