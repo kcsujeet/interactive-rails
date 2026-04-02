@@ -118,7 +118,7 @@ end
 #   ... 97 more queries
 #
 # Total: 101 queries, 850ms`,
-		goal: 'Explore the pipeline to find the N+1 pattern. Then install Prosopite to detect N+1 queries automatically, and enable strict_loading on the Product model.',
+		goal: 'Explore the pipeline to find the N+1 pattern. Then add automatic N+1 detection and prevent lazy-loading regressions at the model level.',
 		thresholds: { maxQueriesPerRequest: 5 },
 	},
 	successConditions: [{ type: 'n1_identified' }],
@@ -127,7 +127,7 @@ end
 	unlockedNodes: ['eager_load'],
 	learningContent: {
 		title: 'The N+1 Query Problem & Detection',
-		goal: `In this level, you'll:\n- learn to spot the N+1 query problem, the most common performance killer in Rails apps.\n- understand why loading 100 posts generates 101 database queries.\n- trace the problem back to association access in serializers.\n- install Prosopite to detect N+1 queries automatically.\n- enable strict_loading to prevent lazy-loading regressions.`,
+		goal: `In this level, you'll:\n- learn to spot the N+1 query problem, the most common performance killer in Rails apps.\n- understand why loading 100 posts generates 101 database queries.\n- trace the problem back to association access in serializers.\n- add automatic N+1 detection that raises in development.\n- prevent lazy-loading regressions at the model level.`,
 		conceptExplanation: `The N+1 problem is the most common performance killer in Rails apps. It happens when you load a collection of records (1 query) and then access an association on each record (N queries).
 
 **The math is brutal:**
@@ -271,7 +271,7 @@ Product.joins(:user)  # INNER JOINs but does NOT load user records`,
 	unlockedNodes: [],
 	learningContent: {
 		title: 'Eager Loading: includes vs preload vs eager_load',
-		goal: `In this level, you'll:\n- fix the N+1 problem using eager loading.\n- learn the three Rails strategies for loading associations in bulk.\n- use includes (the safe default), preload (separate queries, lowest memory), and eager_load (single JOIN for filtering on associated tables).`,
+		goal: `In this level, you'll:\n- fix the N+1 problem using eager loading.\n- learn the three Rails strategies for loading associations in bulk.\n- understand when to use each strategy based on query shape, memory usage, and filtering needs.`,
 		conceptExplanation: `Rails provides three eager loading methods. Each works differently, and the choice matters for both speed AND memory:
 
 **\`includes\`** (recommended default):
@@ -451,7 +451,7 @@ User.all.each { |u| SyncService.process(u) }
 	unlockedNodes: [],
 	learningContent: {
 		title: 'Narrow Fetching: pluck, select & find_in_batches',
-		goal: `In this level, you'll:\n- learn how to fetch only the data you actually need.\n- use pluck for raw arrays with minimal memory.\n- use select to load lightweight ActiveRecord objects.\n- use find_in_batches to process large datasets in manageable chunks.`,
+		goal: `In this level, you'll:\n- learn how to fetch only the data you actually need.\n- choose between raw arrays and lightweight model objects for different use cases.\n- process large datasets in manageable chunks instead of loading everything into memory.`,
 		conceptExplanation: `After fixing N+1 and adding eager loading, the next performance win is fetching less data: not just fewer queries, but fewer columns and smaller batches.
 
 **Production benchmarks (10K posts with 75KB body column):**
@@ -607,14 +607,14 @@ end
 User.find_by(email: params[:email])          # WHERE email = ?
 Product.where(user_id: user.id)                 # Foreign key lookup
 Product.where(published: true).order(:created_at) # Composite query`,
-		goal: 'Generate a migration, add unique/B-tree/composite indexes to the right columns, and run the migration. Verify EXPLAIN shows Index Scan.',
+		goal: 'Generate a migration, add the right indexes for your query patterns, and verify the database uses index scans instead of sequential scans.',
 		thresholds: { maxLatency: 10 },
 	},
 	successConditions: [{ type: 'queries_optimized' }],
 	requiresTests: true,
 	learningContent: {
 		title: 'Database Indexing & EXPLAIN',
-		goal: `In this level, you'll:\n- learn how database indexes dramatically speed up queries.\n- add indexes to columns used in WHERE, ORDER BY, and JOIN clauses.\n- read PostgreSQL EXPLAIN output to tell the difference between slow sequential scans and fast index scans.\n- understand the leftmost prefix rule for composite indexes.`,
+		goal: `In this level, you'll:\n- learn how database indexes dramatically speed up queries.\n- add indexes to columns used in filtering, sorting, and joining.\n- read query execution plans to tell the difference between slow sequential scans and fast index scans.\n- understand how multi-column index ordering affects which queries benefit.`,
 		conceptExplanation: `An index is like a book's table of contents. Without it, the database reads every row (sequential scan). With it, the database jumps directly to matching rows (index scan).
 
 **Production benchmarks (before vs after index):**
@@ -776,14 +776,14 @@ end
 #   ... 97 more COUNT queries
 #
 # includes(:reviews) loads ALL records just to count them!`,
-		goal: 'Generate the counter cache migration, add counter_cache: true to belongs_to, reset existing counters, and update the serializer.',
+		goal: 'Eliminate expensive COUNT queries by storing pre-computed counts directly on the parent table, then update the serializer to use the cached column.',
 		thresholds: { maxQueriesPerRequest: 3 },
 	},
 	successConditions: [{ type: 'counter_cache_configured' }],
 	requiresTests: true,
 	learningContent: {
 		title: 'Counter Caches & Denormalization',
-		goal: `In this level, you'll:\n- eliminate expensive COUNT queries by storing the count directly on the parent table.\n- learn how Rails counter caches work.\n- set up counter_cache: true on a belongs_to association.\n- see how reading a pre-computed column is orders of magnitude faster than counting rows on every request.`,
+		goal: `In this level, you'll:\n- eliminate expensive COUNT queries by storing the count directly on the parent table.\n- learn how Rails counter caches work and when to use them.\n- configure automatic count maintenance on an association.\n- see how reading a pre-computed column is orders of magnitude faster than counting rows on every request.`,
 		conceptExplanation: `A counter cache stores the count of associated records directly on the parent table. Instead of running COUNT(*) on reviews every time, Rails maintains a \`reviews_count\` column on the products table.
 
 **How it works:**
@@ -982,7 +982,7 @@ end
 # 1. Database loads 50K rows into memory
 # 2. Ruby serializes 50K objects (12MB JSON)
 # 3. No pagination headers, no way to request "page 2"`,
-		goal: 'Install Pagy, include Pagy::Method, configure Pagy::OPTIONS[:limit], paginate with pagy(:offset, result.scope), and add RFC 5988 Link headers via headers_hash.',
+		goal: 'Add pagination to your API with configurable page sizes and RFC 5988 Link headers so clients can navigate large result sets efficiently.',
 		thresholds: { maxLatency: 100 },
 	},
 	successConditions: [{ type: 'pagination_implemented' }],
@@ -1200,7 +1200,7 @@ end
 # 1. Full table scan (no index can help with leading %)
 # 2. No relevance ranking (exact match = partial match)
 # 3. No stemming ("running" won't match "run")`,
-		goal: 'Install a full-text search gem, generate a migration with a search column and index, run the migration, configure weighted search scopes, and wire the controller to use the new search.',
+		goal: 'Replace slow pattern-matching queries with proper full-text search that supports ranking, stemming, and weighted columns.',
 		thresholds: { maxLatency: 50 },
 	},
 	successConditions: [{ type: 'search_configured' }],
@@ -1209,7 +1209,7 @@ end
 	unlockedNodes: ['search'],
 	learningContent: {
 		title: 'Full-Text Search: PostgreSQL tsvector & pg_search',
-		goal: `In this level, you'll:\n- discover why LIKE '%query%' forces sequential scans and has no ranking or stemming.\n- install a full-text search gem and generate a migration for a search column with a GIN index.\n- configure search scopes with weighted columns and the English dictionary.\n- wire the controller to use the new search scope.\n- stress-test the solution with varied search queries.`,
+		goal: `In this level, you'll:\n- discover why LIKE '%query%' forces sequential scans and has no ranking or stemming.\n- set up proper full-text search with a dedicated search column and index.\n- configure search scopes with weighted columns for relevance ranking.\n- wire the controller to use the new search.\n- stress-test the solution with varied search queries.`,
 		conceptExplanation: `Relying on LIKE '%query%' for search is a common mistake. It cannot use indexes, has no relevance ranking, and gets slower as data grows.
 
 **PostgreSQL full-text search:**
@@ -1439,7 +1439,7 @@ end
 
 # 200 req/min * 512ms = 1,707ms DB time/sec
 # Database at 170% of available capacity!`,
-		goal: 'Install Solid Cache, wrap the trending query in Rails.cache.fetch with expiration, and add touch: true for automatic cache invalidation.',
+		goal: 'Add application-level caching so expensive computations are only run once, with automatic invalidation when underlying data changes.',
 		thresholds: { minCacheHitRate: 95, maxLatency: 20 },
 	},
 	successConditions: [{ type: 'caching_configured' }],
@@ -1448,7 +1448,7 @@ end
 	unlockedNodes: ['cache'],
 	learningContent: {
 		title: 'Caching: Fragment, Russian Doll & Solid Cache',
-		goal: `In this level, you'll:\n- install Solid Cache, Rails 8's database-backed cache store.\n- run the Solid Cache installer and prepare the cache database.\n- configure the production cache store.\n- wrap the trending query in Rails.cache.fetch with expiration.\n- add touch: true on Review for automatic cache invalidation.`,
+		goal: `In this level, you'll:\n- install a database-backed cache store for Rails 8 (no Redis required).\n- run the installer and prepare the cache database.\n- configure the production cache store.\n- wrap expensive queries with cache reads that expire automatically.\n- set up automatic cache invalidation when associated records change.`,
 		conceptExplanation: `Rails 8 introduces **Solid Cache**, a database-backed cache store that replaces Redis for most caching needs. No additional infrastructure required.
 
 **Production benchmarks:**
@@ -1679,7 +1679,7 @@ end
 	unlockedNodes: [],
 	learningContent: {
 		title: 'HTTP Caching: Cache-Control, ETags & CDNs',
-		goal: `In this level, you'll:\n- learn HTTP-level caching, the first line of defense that prevents requests from reaching your server at all.\n- use ETags with stale? to return 304 Not Modified.\n- configure Cache-Control headers for different scenarios.\n- set up CDN caching for static assets.`,
+		goal: `In this level, you'll:\n- learn HTTP-level caching, the first line of defense that prevents requests from reaching your server at all.\n- use conditional requests and ETags to return 304 Not Modified.\n- configure Cache-Control headers for different scenarios.\n- set up CDN caching for static assets.`,
 		conceptExplanation: `HTTP-level caching is the first line of defense before requests even hit Rails. It prevents requests from reaching your server at all.
 
 **Production benchmarks:**

@@ -52,7 +52,7 @@ Order.create!(customer_id: 42, total: 99_00)            # INSERT ... (competes f
 	unlockedNodes: ['read_replica'],
 	learningContent: {
 		title: 'Multi-Database with connects_to',
-		goal: `In this level, you'll:\n- learn how to scale your database by splitting reads and writes across multiple servers.\n- configure database.yml with primary and replica databases.\n- use Rails' connects_to to route reads to replicas and writes to the primary.\n- handle the tricky edge cases around replication delay.`,
+		goal: `In this level, you'll:\n- learn how to scale your database by splitting reads and writes across multiple servers.\n- configure your application to route reads to replicas and writes to the primary.\n- set up automatic role switching so Rails handles read/write routing transparently.\n- handle the tricky edge cases around replication delay.`,
 		conceptExplanation: `Rails 6+ supports multiple databases natively via \`connects_to\`.
 
 **Key concepts:**
@@ -205,7 +205,7 @@ order.update!(status: "pending")  # Oops, no error raised!
 	],
 	learningContent: {
 		title: 'State Machines with AASM',
-		goal: `In this level, you'll:\n- learn how to model complex workflows using state machines with the AASM gem.\n- define valid states and transitions so records can only move through allowed paths.\n- add guards to enforce business rules.\n- trigger side effects on transitions.`,
+		goal: `In this level, you'll:\n- learn how to model complex workflows using a state machine library.\n- define valid states and transitions so records can only move through allowed paths.\n- add guards to enforce business rules.\n- trigger side effects on transitions.`,
 		conceptExplanation: `State machines formalize which transitions are valid and enforce them at the model level.
 
 **Why not just a string column?**
@@ -355,7 +355,7 @@ Project.where(company_id: current_company.id, status: 'active')
 	unlockedNodes: ['tenant_scope'],
 	learningContent: {
 		title: 'Multi-Tenancy with ActsAsTenant',
-		goal: `In this level, you'll:\n- learn how to build a multi-tenant application where multiple companies share the same database without seeing each other's data.\n- use the acts_as_tenant gem to automatically scope every query to the current tenant.\n- add tenant_id columns and prevent data leaks between organizations.`,
+		goal: `In this level, you'll:\n- learn how to build a multi-tenant application where multiple companies share the same database without seeing each other's data.\n- use automatic tenant scoping so every query is filtered by the current tenant.\n- add tenant_id columns and prevent data leaks between organizations.`,
 		conceptExplanation: `Multi-tenancy strategies:
 
 **Row-level isolation (ActsAsTenant):**
@@ -733,7 +733,7 @@ end
 
 # When billing changes Notification's interface,
 # notifications break. No one knows until production.`,
-		goal: 'Organize code into Packwerk packages with enforced boundaries, public APIs, and CODEOWNERS.',
+		goal: 'Organize code into domain packages with enforced boundaries, public APIs, and ownership rules.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'service_created' }],
@@ -741,7 +741,7 @@ end
 	unlockedNodes: [],
 	learningContent: {
 		title: 'Modular Monolith with Packwerk',
-		goal: `In this level, you'll:\n- learn how to organize a growing monolith into well-defined modules using Packwerk.\n- draw boundaries between domains.\n- mark public APIs versus private internals in each package.\n- enforce those boundaries in CI so teams can work independently without accidentally coupling their code together.`,
+		goal: `In this level, you'll:\n- learn how to organize a growing monolith into well-defined domain packages.\n- draw boundaries between domains.\n- mark public APIs versus private internals in each package.\n- enforce those boundaries in CI so teams can work independently without accidentally coupling their code together.`,
 		conceptExplanation: `The modular monolith is the critical step BEFORE microservice extraction. It enforces domain boundaries within a single deployable codebase.
 
 **Why modular monolith?**

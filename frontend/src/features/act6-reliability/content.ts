@@ -238,7 +238,7 @@ end
 
 # Problem: No per-IP throttling, no per-user API limits,
 # no global safeguard against traffic spikes.`,
-		goal: 'Configure rate limiting at both the controller level (Rails 8 rate_limit) and the Rack level.',
+		goal: 'Configure rate limiting at both the controller level and the middleware level to stop abuse before it reaches your app.',
 		thresholds: { maxErrorRate: 0.01 },
 	},
 	successConditions: [{ type: 'rate_limiting_configured' }],
@@ -246,7 +246,7 @@ end
 	unlockedNodes: ['rate_limiter'],
 	learningContent: {
 		title: 'Rate Limiting: Rails 8 Built-in & Rack::Attack',
-		goal: `In this level, you'll:\n- protect your API from abuse by implementing rate limiting at multiple layers.\n- use Rails 8's built-in rate_limit to throttle requests per controller action.\n- return proper 429 responses with Retry-After headers.\n- understand the trade-offs between fixed window, sliding window, and token bucket strategies.`,
+		goal: `In this level, you'll:\n- protect your API from abuse by implementing rate limiting at multiple layers.\n- throttle requests per controller action using built-in Rails tools.\n- return proper 429 responses with Retry-After headers.\n- understand the trade-offs between fixed window, sliding window, and token bucket strategies.`,
 		conceptExplanation: `Rate limiting protects your app at multiple layers:
 
 **Without rate limiting:**
@@ -479,7 +479,7 @@ end
 # - Can we undo it?
 
 # All answers: "We don't know" and "No"`,
-		goal: 'Implement soft deletes with the discard gem and audit trails with PaperTrail.',
+		goal: 'Implement soft deletes so records can be recovered, with an audit trail tracking every change.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'soft_deletes_configured' }],
@@ -487,7 +487,7 @@ end
 	unlockedNodes: ['audit_trail'],
 	learningContent: {
 		title: 'Soft Deletes & Audit Trails',
-		goal: `In this level, you'll:\n- learn how to "delete" records without actually removing them from the database.\n- implement soft deletes using a deleted_at timestamp column.\n- use the discard gem to filter soft-deleted records transparently.\n- set up an audit trail that tracks who changed what and when for compliance and debugging.`,
+		goal: `In this level, you'll:\n- learn how to "delete" records without actually removing them from the database.\n- implement soft deletes using a timestamp column that marks records as discarded.\n- filter soft-deleted records transparently so they stay hidden from normal queries.\n- set up an audit trail that tracks who changed what and when for compliance and debugging.`,
 		conceptExplanation: `**Soft deletes** mark records as deleted without removing them from the database. The record stays in the table with a \`discarded_at\` timestamp.
 
 **Why soft deletes?**
@@ -723,7 +723,7 @@ rename_column :users, :name, :full_name     # Breaks running app code
 remove_column :users, :legacy_field         # Breaks running app code
 # Note: add_column with a constant default is instant on PG 11+,
 # but change_column type always rewrites the table.`,
-		goal: 'Configure strong_migrations and apply zero-downtime migration patterns.',
+		goal: 'Catch dangerous migration patterns before they reach production and apply zero-downtime alternatives.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'safe_migrations_configured' }],
@@ -731,7 +731,7 @@ remove_column :users, :legacy_field         # Breaks running app code
 	unlockedNodes: [],
 	learningContent: {
 		title: 'Safe Migrations with strong_migrations',
-		goal: `In this level, you'll:\n- learn how to run database migrations safely in production without causing downtime.\n- use the strong_migrations gem to catch dangerous patterns before they reach production.\n- split risky operations like column renames into multiple deploys.\n- test migrations against production-sized datasets.`,
+		goal: `In this level, you'll:\n- learn how to run database migrations safely in production without causing downtime.\n- use automated checks to catch dangerous migration patterns before they reach production.\n- split risky operations like column renames into multiple deploys.\n- test migrations against production-sized datasets.`,
 		conceptExplanation: `**The problem:** Many common migration operations lock tables in production, causing downtime.
 
 **strong_migrations** catches dangerous migrations at development time and suggests safe alternatives.
@@ -968,7 +968,7 @@ AuditLog.where("created_at < ?", 1.year.ago).count
 
 # We need Solid Queue recurring tasks (Rails 8)
 # to automate these maintenance operations.`,
-		goal: 'Configure Solid Queue recurring tasks for automated data maintenance.',
+		goal: 'Set up recurring background tasks for automated data maintenance.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'recurring_jobs_configured' }],
@@ -976,7 +976,7 @@ AuditLog.where("created_at < ?", 1.year.ago).count
 	unlockedNodes: ['scheduler'],
 	learningContent: {
 		title: 'Recurring Jobs with Solid Queue',
-		goal: `In this level, you'll:\n- set up recurring background tasks using Solid Queue's built-in scheduler.\n- define jobs in config/recurring.yml with cron syntax.\n- use dedicated queues for maintenance tasks like cleanup and reporting.\n- learn why Solid Queue handles scheduling natively without needing external cron or Sidekiq.`,
+		goal: `In this level, you'll:\n- set up recurring background tasks using Rails 8's built-in job scheduler.\n- define jobs with cron syntax so they run automatically on a schedule.\n- use dedicated queues for maintenance tasks like cleanup and reporting.\n- learn why a database-backed scheduler handles recurring jobs natively without external dependencies.`,
 		conceptExplanation: `**Solid Queue** is Rails 8's default background job processor. It runs entirely on SQL (no Redis needed) and supports recurring tasks natively.
 
 **Why recurring tasks?**
@@ -1461,7 +1461,7 @@ end
 	unlockedNodes: ['error_monitor'],
 	learningContent: {
 		title: 'Structured Error Monitoring & SLOs',
-		goal: `In this level, you'll:\n- set up structured error monitoring so you know when things break in production before your users tell you.\n- use Rails.error.handle and Rails.error.record to report errors with context like user ID and request ID.\n- route errors to services like Sentry for grouping, alerting, and prioritization.`,
+		goal: `In this level, you'll:\n- set up structured error monitoring so you know when things break in production before your users tell you.\n- report errors with rich context like user ID and request ID so you can reproduce issues quickly.\n- route errors to a monitoring service for grouping, alerting, and prioritization.`,
 		conceptExplanation: `**Error monitoring** transforms raw exceptions into actionable insights:
 
 **Without SLOs:**

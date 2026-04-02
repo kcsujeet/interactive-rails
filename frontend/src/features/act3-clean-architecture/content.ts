@@ -543,7 +543,7 @@ end
 # 2. Can't reuse validations in another endpoint
 # 3. Cross-field rules buried between model checks
 # 4. Can't test validations without running the whole service`,
-		goal: 'Extract scattered validations into composable Dry::Schema definitions, then compose them in a Dry::Validation::Contract with cross-field rules.',
+		goal: 'Extract scattered validations into composable schemas with cross-field rules that can be tested independently.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'form_object_created' }],
@@ -551,7 +551,7 @@ end
 	unlockedNodes: ['form_object'],
 	learningContent: {
 		title: 'Validation Contracts with Dry::Validation',
-		goal: `In this level, you'll:\n- learn how to validate complex, multi-model input using dry-validation contracts.\n- separate schema validation (shape and types) from business rules.\n- compose reusable schemas together.\n- keep cross-field logic in one clean place instead of scattered across controllers.`,
+		goal: `In this level, you'll:\n- learn how to validate complex, multi-model input using validation contracts.\n- separate schema validation (shape and types) from business rules.\n- compose reusable schemas together.\n- keep cross-field logic in one clean place instead of scattered across controllers.`,
 		conceptExplanation: `Validation contracts act as a single entry point for multi-model operations. Using \`dry-validation\` and \`dry-schema\`, you get a clean separation between **schema** (shape & types) and **rules** (business logic).
 
 **Why dry-validation over ActiveModel::Model?**
@@ -1351,7 +1351,7 @@ const level21ActionMailer: Level = {
 # Rails 8 has generates_token_for -- no more rolling your own
 # token columns, expiry logic, or secure_random strings!
 # But we need a mailer to deliver the token to the user.`,
-		goal: 'Build a password reset flow using Rails 8 generates_token_for and Action Mailer.',
+		goal: 'Build a password reset flow with secure, expiring tokens and email delivery.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'mailer_configured' }],
@@ -1359,7 +1359,7 @@ const level21ActionMailer: Level = {
 	unlockedNodes: ['mailer'],
 	learningContent: {
 		title: 'Action Mailer & generates_token_for (Rails 8)',
-		goal: `In this level, you'll:\n- build a password reset flow using Action Mailer and Rails 8's generates_token_for.\n- learn how to send emails asynchronously with deliver_later.\n- generate secure, stateless tokens that auto-expire.\n- verify tokens without storing anything in the database.`,
+		goal: `In this level, you'll:\n- build a complete password reset flow with email delivery and secure tokens.\n- learn how to send emails asynchronously from a Rails application.\n- generate secure, stateless tokens that auto-expire without database storage.\n- verify tokens without storing anything in the database.`,
 		conceptExplanation: `Action Mailer handles email delivery in Rails. Combined with Rails 8's \`generates_token_for\`, you get secure, expiring tokens without storing them in the database.
 
 **generates_token_for (Rails 8):**
@@ -1659,7 +1659,7 @@ end
 # If the email server is slow, every user waits
 # If the external profile sync times out, registration times out
 # If profile setup fails, the entire registration fails`,
-		goal: 'Move side effects to background jobs using ActiveJob and Solid Queue (Rails 8 default, database-backed, no Redis).',
+		goal: 'Move slow side effects out of the request cycle into background jobs using Rails 8 defaults.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'background_jobs_configured' }],
@@ -1667,7 +1667,7 @@ end
 	unlockedNodes: ['background_job'],
 	learningContent: {
 		title: 'Background Jobs with Solid Queue (Rails 8)',
-		goal: `In this level, you'll:\n- learn how to move slow work like email delivery and external API calls out of the request cycle.\n- use ActiveJob with Solid Queue, Rails 8's database-backed job processor that needs no Redis.\n- design your jobs to be idempotent so they're safe to retry.`,
+		goal: `In this level, you'll:\n- learn how to move slow work like email delivery and external API calls out of the request cycle.\n- use Rails 8's database-backed job processor (no Redis required).\n- design your jobs to be idempotent so they're safe to retry.`,
 		conceptExplanation: `Background jobs move slow or unreliable work out of the HTTP request cycle. Rails 8 ships with Solid Queue as the default job backend -- no Redis required.
 
 **Solid Queue (Rails 8 default):**

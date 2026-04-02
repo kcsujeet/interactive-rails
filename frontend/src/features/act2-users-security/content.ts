@@ -104,7 +104,7 @@ bin/rails generate authentication
 	unlockedNodes: ['authentication'],
 	learningContent: {
 		title: 'Rails 8 Authentication & Bearer Tokens',
-		goal: `In this level, you'll:\n- secure your API so every request is tied to a real user.\n- use Rails 8's built-in authentication generator.\n- learn how has_secure_password stores passwords safely with bcrypt.\n- set up Bearer token authentication so clients can prove who they are on every request.`,
+		goal: `In this level, you'll:\n- secure your API so every request is tied to a real user.\n- use Rails 8's built-in authentication generator to scaffold user and session models.\n- learn how Rails stores passwords safely using one-way hashing.\n- set up Bearer token authentication so clients can prove who they are on every request.`,
 		conceptExplanation: `Rails 8 includes a built-in authentication generator, so there is no more Devise dependency for basic auth.
 
 **\`bin/rails generate authentication\`** creates:
@@ -497,7 +497,7 @@ User.find_by(email: "joe@gmail.com")
 
 # Rails 8 introduces 'normalizes' -- a declarative way
 # to clean data before it hits the DB.`,
-		goal: 'Normalize email with Rails 8 normalizes, add an after_create callback for the welcome email, learn the callback lifecycle order, and use after_commit for safe external side effects.',
+		goal: 'Clean and transform user data automatically before saving, hook into the model lifecycle to trigger side effects, and learn the safe way to call external services from callbacks.',
 		thresholds: {},
 	},
 	successConditions: [
@@ -509,7 +509,7 @@ User.find_by(email: "joe@gmail.com")
 	unlockedNodes: ['callback'],
 	learningContent: {
 		title: 'Callbacks & Rails 8 Normalizations',
-		goal: `In this level, you'll:\n- learn how to automatically clean and transform data before it hits the database.\n- use Rails 8's normalizes to strip whitespace and downcase emails.\n- hook into ActiveRecord lifecycle callbacks like before_validation and after_create.\n- understand why after_commit is the safe choice for external side effects.`,
+		goal: `In this level, you'll:\n- learn how to automatically clean and transform data before it hits the database.\n- use a declarative approach to normalize attributes like email before save.\n- hook into ActiveRecord lifecycle callbacks to trigger side effects at the right moment.\n- understand which callback is the safe choice for external services like email delivery.`,
 		conceptExplanation: `Callbacks are hooks into the ActiveRecord lifecycle. They let you run code at specific moments: before validation, before save, after create, after destroy, etc.
 
 **Rails 8 \`normalizes\`:**
@@ -645,12 +645,12 @@ end
 # where each method maps to a controller action:
 #   destroy? -> "Can this user delete this product?"
 #   update?  -> "Can this user edit this product?"`,
-		goal: 'Install Pundit, include its module in ApplicationController, generate the base policy, then build a ProductPolicy and watch it filter requests in real-time.',
+		goal: 'Add policy-based authorization so each controller action checks whether the current user is allowed to perform it, then watch it filter requests in real-time.',
 		thresholds: {},
 	},
 	learningContent: {
 		title: 'Authorization with Pundit & Current.user',
-		goal: `In this level, you'll:\n- learn the difference between authentication ("who are you?") and authorization ("are you allowed to do this?").\n- implement Pundit policy classes that control which users can update or delete specific records.\n- scope queries so users only see data they have permission to access.`,
+		goal: `In this level, you'll:\n- learn the difference between authentication ("who are you?") and authorization ("are you allowed to do this?").\n- implement policy classes that control which users can update or delete specific records.\n- scope queries so users only see data they have permission to access.`,
 		conceptExplanation: `Authorization answers "Can this user do this action on this resource?"
 
 **Pundit** provides a clean, policy-based pattern:
@@ -889,7 +889,7 @@ end
 
 # A request spec hitting POST /api/v1/sessions
 # would have caught this before deploy.`,
-		goal: 'Install rspec-rails and factory_bot_rails, configure FactoryBot in RSpec, define a user factory, and write a request spec for the sessions endpoint.',
+		goal: 'Set up a testing framework with test data factories, define a user factory, and write a request spec for the sessions endpoint.',
 		thresholds: {},
 	},
 	successConditions: [
@@ -901,7 +901,7 @@ end
 	unlockedNodes: ['test'],
 	learningContent: {
 		title: 'RSpec, FactoryBot & Request Specs',
-		goal: `In this level, you'll:\n- set up automated testing for your API using RSpec and FactoryBot.\n- write request specs that send real HTTP requests and verify JSON responses.\n- create reusable test data with factories.\n- learn the testing philosophy that keeps Rails apps reliable as they grow.`,
+		goal: `In this level, you'll:\n- set up automated testing for your API with a testing framework and test data factories.\n- write request specs that send real HTTP requests and verify JSON responses.\n- create reusable test data with factories instead of fixtures.\n- learn the testing philosophy that keeps Rails apps reliable as they grow.`,
 		conceptExplanation: `Testing is not optional for production applications. RSpec is the Ruby community standard.
 
 **Test types (from most to least valuable for APIs):**
@@ -1087,12 +1087,12 @@ end
 #
 # Rails 8 provides params.expect() to filter parameters.
 # It declares which keys are allowed through a whitelist.`,
-		goal: 'Add params.expect to filter incoming parameters, define a safe whitelist of allowed fields, and set product ownership through the current_user association.',
+		goal: 'Filter incoming parameters through a strict whitelist of allowed fields and set product ownership through the current_user association.',
 		thresholds: {},
 	},
 	learningContent: {
 		title: 'Rails 8 Strong Params with params.expect',
-		goal: `In this level, you'll:\n- learn how mass assignment attacks work when controllers pass raw params to models.\n- introduce Rails 8 params.expect() to filter incoming parameters.\n- define a safe whitelist that only includes fields users should set.\n- set ownership through the current_user association instead of user-submitted params.`,
+		goal: `In this level, you'll:\n- learn how mass assignment attacks work when controllers pass raw params to models.\n- use Rails 8's strong parameters to filter incoming request data.\n- define a safe whitelist that only includes fields users should set.\n- set ownership through the current_user association instead of user-submitted params.`,
 		conceptExplanation: `Strong Parameters prevent mass assignment attacks by whitelisting which request params are allowed to reach the model.
 
 **The problem (mass assignment):**
@@ -1210,12 +1210,12 @@ const level15CORS: Level = {
 
 # Rails does not configure CORS out of the box.
 # You need the rack-cors gem to add CORS middleware.`,
-		goal: 'Install the rack-cors gem, configure specific allowed origins (not wildcard), and whitelist the HTTP methods your API uses.',
+		goal: 'Configure cross-origin resource sharing so a separate frontend can call your API, lock down allowed origins, and whitelist specific HTTP methods.',
 		thresholds: {},
 	},
 	learningContent: {
 		title: 'Cross-Origin Resource Sharing (CORS)',
-		goal: `In this level, you'll:\n- understand why browsers block cross-origin requests by default.\n- install the rack-cors gem and configure allowed origins.\n- learn why wildcard origins are dangerous in production.\n- whitelist specific HTTP methods for your API.`,
+		goal: `In this level, you'll:\n- understand why browsers block cross-origin requests by default.\n- install a CORS middleware gem and configure allowed origins.\n- learn why wildcard origins are dangerous in production.\n- whitelist specific HTTP methods for your API.`,
 		conceptExplanation: `CORS (Cross-Origin Resource Sharing) is a browser security feature that blocks requests from one origin to another unless the server explicitly allows it.
 
 **Why CORS exists:**

@@ -235,7 +235,7 @@ end
 	unlockedNodes: ['shard', 'shard_router'],
 	learningContent: {
 		title: 'Horizontal Database Sharding',
-		goal: `In this level, you'll:\n- learn how to scale beyond a single database by splitting data across multiple shards.\n- choose a shard key like tenant_id that keeps related data together.\n- configure Rails' connects_to with multiple shards.\n- set up automatic query routing so your application reads and writes to the correct shard transparently.`,
+		goal: `In this level, you'll:\n- learn how to scale beyond a single database by splitting data across multiple shards.\n- choose a shard key like tenant_id that keeps related data together.\n- configure multiple database shards with automatic routing.\n- set up automatic query routing so your application reads and writes to the correct shard transparently.`,
 		conceptExplanation: `Sharding splits data across multiple database servers (shards).
 
 **The capacity wall (without sharding):**

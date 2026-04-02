@@ -61,7 +61,7 @@ end
 	unlockedNodes: [],
 	learningContent: {
 		title: 'Polymorphic Associations',
-		goal: `In this level, you'll:\n- learn how polymorphic associations let a single model belong to multiple different parent types.\n- use reviewable_type and reviewable_id columns so one Review model can belong to a Product, ProductImage, or ProductVideo.\n- understand when this pattern is the right choice versus separate tables.`,
+		goal: `In this level, you'll:\n- learn how polymorphic associations let a single model belong to multiple different parent types.\n- consolidate duplicate tables into one model that can belong to any reviewable resource.\n- understand when this pattern is the right choice versus separate tables.`,
 		conceptExplanation: `Polymorphic associations let a model belong to more than one other model using a single association.
 
 **How it works:**
@@ -225,7 +225,7 @@ class BoostPost < ApplicationService
     Result.new(success?: true, boost:, errors: [])
   end
 end`,
-		goal: 'Identify the atomicity problem, wrap operations in a transaction, handle custom abort with raise ActiveRecord::Rollback, and build a BoostPost service with contract validation.',
+		goal: 'Identify the atomicity problem, wrap operations in a transaction with proper abort handling, and build a service object that guarantees all-or-nothing semantics.',
 		thresholds: {},
 	},
 	successConditions: [
@@ -236,7 +236,7 @@ end`,
 	unlockedNodes: [],
 	learningContent: {
 		title: 'Transactions (Atomicity)',
-		goal: `In this level, you'll:\n- understand why multi-step writes need atomicity guarantees\n- wrap related database writes in ActiveRecord::Base.transaction\n- use raise ActiveRecord::Rollback for business-rule aborts\n- build a service object that ensures all-or-nothing semantics`,
+		goal: `In this level, you'll:\n- understand why multi-step writes need atomicity guarantees\n- wrap related database writes in a transaction block\n- handle business-rule aborts that trigger a rollback\n- build a service object that ensures all-or-nothing semantics`,
 		conceptExplanation: `Transactions ensure a group of database operations either ALL succeed or ALL fail (rollback). Without transactions, a failure midway through a multi-step write leaves data in an inconsistent state.
 
 **The problem:**
@@ -371,7 +371,7 @@ class PlaceOrder < ApplicationService
     Result.new(success?: true, order: nil, errors: [])
   end
 end`,
-		goal: 'Add a lock_version column, run the migration, add pessimistic locking with Product.lock.find(id), build a PlaceOrder service with contract, and handle StaleObjectError for optimistic locking.',
+		goal: 'Prevent lost updates from concurrent access by adding both optimistic and pessimistic locking strategies, and build a service that handles conflicts gracefully.',
 		thresholds: {},
 	},
 	successConditions: [
@@ -382,7 +382,7 @@ end`,
 	unlockedNodes: [],
 	learningContent: {
 		title: 'Locking (Concurrency Control)',
-		goal: `In this level, you'll:\n- understand how concurrent access causes lost updates\n- add a lock_version column for optimistic locking\n- use Product.lock.find(id) for pessimistic locking (SELECT ... FOR UPDATE)\n- handle StaleObjectError for conflict detection on low-contention resources`,
+		goal: `In this level, you'll:\n- understand how concurrent access causes lost updates\n- add optimistic locking with a version column that detects stale writes\n- add pessimistic locking that holds a database lock during critical sections\n- handle conflict errors gracefully on low-contention resources`,
 		conceptExplanation: `Locking prevents concurrent access from corrupting shared data. Two strategies exist:
 
 **Optimistic Locking (lock_version column):**
@@ -543,7 +543,7 @@ end
 	unlockedNodes: ['s3'],
 	learningContent: {
 		title: 'Active Storage: Uploads, Variants & Direct Upload',
-		goal: `In this level, you'll:\n- learn how to handle file uploads in Rails using Active Storage.\n- attach files to models with has_one_attached and has_many_attached.\n- upload directly to S3 via presigned URLs to bypass the app server.\n- generate image variants like thumbnails and crops on the fly.`,
+		goal: `In this level, you'll:\n- learn how to handle file uploads in Rails using Active Storage.\n- attach single and multiple files to models.\n- upload directly to cloud storage via presigned URLs to bypass the app server.\n- generate image variants like thumbnails and crops on the fly.`,
 		conceptExplanation: `Active Storage manages file uploads in Rails, connecting files to Active Record models.
 
 **Key concepts:**
@@ -687,7 +687,7 @@ const level36Encryption: Level = {
 
 # Email needs deterministic (for login lookups)
 # Phone/address need non-deterministic (no lookups needed)`,
-		goal: 'Use Rails 8 `encrypts` to encrypt user PII at rest. Use deterministic encryption for email (login lookups) and non-deterministic for phone/address.',
+		goal: 'Encrypt user PII at rest using Rails 8 built-in encryption. Choose the right encryption mode for each field based on whether it needs to be queryable.',
 		thresholds: {},
 	},
 	successConditions: [
@@ -698,7 +698,7 @@ const level36Encryption: Level = {
 	unlockedNodes: [],
 	learningContent: {
 		title: 'Rails 8 Encrypted Attributes',
-		goal: `In this level, you'll:\n- learn how to encrypt sensitive data at the application level using Rails 8's built-in encrypts macro.\n- understand the difference between deterministic encryption (queryable but less secure) and non-deterministic encryption (maximum security).\n- know when to use each for fields like SSNs, API keys, and personal data.`,
+		goal: `In this level, you'll:\n- learn how to encrypt sensitive data at the application level using Rails 8's built-in encryption.\n- understand the difference between deterministic encryption (queryable but less secure) and non-deterministic encryption (maximum security).\n- know when to use each mode for fields like SSNs, API keys, and personal data.`,
 		conceptExplanation: `Rails 8 provides built-in attribute encryption via the \`encrypts\` macro. No gems needed.
 
 **Deterministic encryption:**
@@ -850,7 +850,7 @@ class ProcessPayment < ApplicationService
     Result.new(success?: true, payment:, errors: {})
   end
 end`,
-		goal: 'Install Solid Cable, generate a notifications channel, authenticate WebSocket connections, and build a broadcast service using after_create_commit.',
+		goal: 'Replace HTTP polling with WebSocket push for real-time notifications, authenticate connections, and build a broadcast service.',
 		thresholds: {},
 	},
 	successConditions: [],
@@ -858,7 +858,7 @@ end`,
 	unlockedNodes: [],
 	learningContent: {
 		title: 'Real-Time with Action Cable & Solid Cable',
-		goal: `In this level, you'll:\n- Replace HTTP polling with WebSocket push using Action Cable\n- Install Solid Cable (Rails 8 database-backed adapter, no Redis)\n- Authenticate WebSocket connections via encrypted cookies\n- Build a BroadcastNotification service with after_create_commit callbacks`,
+		goal: `In this level, you'll:\n- Replace HTTP polling with WebSocket push for real-time notifications\n- Install a database-backed WebSocket adapter (no Redis required)\n- Authenticate WebSocket connections via encrypted cookies\n- Build a broadcast service that pushes updates when records are created`,
 		conceptExplanation: `Action Cable integrates WebSockets with Rails. Rails 8 uses Solid Cable as the default adapter, storing pub/sub messages in the database instead of Redis.
 
 **Solid Cable (Rails 8 default):**
@@ -1020,7 +1020,7 @@ class ProcessPayment < ApplicationService
     Result.new(success?: true, payment:, errors: {})
   end
 end`,
-		goal: 'Install Faraday and Stoplight, configure timeouts, retry with exponential backoff, and a circuit breaker that fails fast when Stripe is down.',
+		goal: 'Make external API calls resilient with timeouts, retries with exponential backoff, and a circuit breaker that fails fast when the service is down.',
 		thresholds: {},
 	},
 	successConditions: [],
@@ -1577,7 +1577,7 @@ end
 	unlockedNodes: [],
 	learningContent: {
 		title: 'API Versioning & Deprecation',
-		goal: `In this level, you'll:\n- learn how to evolve your API without breaking existing clients.\n- namespace controllers under Api::V1:: and Api::V2:: to run multiple versions side by side.\n- route requests to the correct version.\n- use Sunset headers to announce deprecation dates so clients have time to migrate.`,
+		goal: `In this level, you'll:\n- learn how to evolve your API without breaking existing clients.\n- namespace controllers so multiple API versions coexist side by side.\n- route requests to the correct version.\n- announce deprecation dates in HTTP headers so clients have time to migrate.`,
 		conceptExplanation: `API versioning lets you evolve your API without breaking existing clients.
 
 **Three versioning strategies:**

@@ -41,7 +41,7 @@ const level1Environment: Level = {
 #
 # asdf reads this file and installs/switches
 # to the correct version automatically.`,
-		goal: 'Install asdf, configure .tool-versions with the correct format, install Ruby via asdf, and install Rails via gem.',
+		goal: 'Set up a version manager, pin Ruby and Rails versions for the project, and install the Rails framework.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'slot_filled', slotId: 'environment-ready' }],
@@ -50,7 +50,7 @@ const level1Environment: Level = {
 	darkCanvas: true,
 	learningContent: {
 		title: 'Ruby/Rails Development Environment',
-		goal: `In this level, you'll:\n- set up your Ruby on Rails development environment from scratch.\n- use asdf, a version manager that pins exact Ruby versions per project.\n- configure a .tool-versions file and install Ruby through asdf.\n- install the Rails framework as a Ruby gem.`,
+		goal: `In this level, you'll:\n- set up your Ruby on Rails development environment from scratch.\n- use a version manager that pins exact Ruby versions per project.\n- configure a version file and install Ruby through the version manager.\n- install the Rails framework as a Ruby gem.`,
 		conceptExplanation: `Setting up a consistent dev environment is the first step in any Rails project.
 
 **Why asdf?**
@@ -149,7 +149,7 @@ const level2FirstBoot: Level = {
 #
 # Your job: pick the right database, install it,
 # generate the project, and get the server running.`,
-		goal: 'Choose PostgreSQL as the database, install it, generate an API-only Rails project, create the database, and boot the server.',
+		goal: 'Choose a production-grade database, install it, generate an API-only Rails project, create the database, and boot the server.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'slot_filled', slotId: 'database-slot' }],
@@ -175,7 +175,7 @@ const level2FirstBoot: Level = {
 	darkCanvas: true,
 	learningContent: {
 		title: 'Rails 8 API Application',
-		goal: `In this level, you'll:\n- create your first Rails 8 application.\n- learn why PostgreSQL is the go-to database for production APIs.\n- generate an API-only project with the right flags.\n- discover how Rails 8 replaces Redis with Solid Queue, Solid Cache, and Solid Cable.`,
+		goal: `In this level, you'll:\n- create your first Rails 8 application.\n- learn which database engine is the go-to choice for production APIs.\n- generate an API-only project with the right flags.\n- discover how Rails 8 replaces Redis with database-backed adapters for jobs, caching, and WebSockets.`,
 		conceptExplanation: `Rails 8 introduces major changes to the default stack:
 
 **PostgreSQL vs SQLite:**
@@ -720,7 +720,7 @@ const level7Serializers: Level = {
     }
   }
 }`,
-		goal: 'Choose the right serializer gem, install it, define a ProductSerializer with only safe attributes, and update the controller to use it.',
+		goal: 'Install a serializer gem, define a ProductSerializer with only safe attributes, and update the controller to use it.',
 		thresholds: {},
 	},
 	successConditions: [],
@@ -728,7 +728,7 @@ const level7Serializers: Level = {
 	unlockedNodes: [],
 	learningContent: {
 		title: 'JSON:API Serialization',
-		goal: `In this level, you'll:\n- learn how to control exactly what your API returns to clients.\n- use the jsonapi-serializer gem to shape JSON responses.\n- declare which domain attributes to expose and format prices for display.\n- structure your output to follow the JSON:API standard used by production APIs.`,
+		goal: `In this level, you'll:\n- learn how to control exactly what your API returns to clients.\n- use a serializer gem to shape JSON responses following the JSON:API standard.\n- declare which domain attributes to expose and format prices for display.\n- structure your output the way production APIs do.`,
 		conceptExplanation: `Serializers control what data your API exposes. Without them, \`render json: product\` dumps everything.
 
 **Why serialize?**
