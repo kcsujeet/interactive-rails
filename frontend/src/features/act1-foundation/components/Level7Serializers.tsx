@@ -1,7 +1,7 @@
 /**
  * Level 7: Serializers
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): Interactive exploration. Click pipeline stages to
@@ -13,16 +13,15 @@
  *   Step 2: Base Serializer (OptionCard)
  *   Step 3: Define Attributes (click-to-select)
  *   Step 4: Update Controller (OptionCard)
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Serializer" button
- * Phase 4 (ADVANTAGE - reward): Stress test. Fire request scenarios at the
+ * Phase 3 (ADVANTAGE - reward): Stress test. Fire request scenarios at the
  *   serialized pipeline and watch clean JSON:API responses.
  *
  * Teaches: jsonapi-serializer gem, BaseSerializer, attribute selection,
  *   serializable_hash, JSON:API format
  */
 
-import { ArrowRight, Check, Play, Star } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowRight, Check } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -47,8 +46,8 @@ import {
 	PipelineFlow,
 	type PipelineStage,
 } from '@/components/levels/PipelineFlow';
-import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
+import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import {
 	StageInspector,
 	type StageInspectorData,
@@ -62,12 +61,13 @@ import {
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { shuffleOptions } from '@/lib/shuffleOptions';
 
 // ──────────────────────────────────────────────
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'observe' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Discovery definitions (observe phase)
@@ -369,8 +369,7 @@ const installCommands: TerminalCommand[] = [
 		label: 'rails generate serializer Product',
 		command: 'rails generate serializer Product',
 		correct: false,
-		feedback:
-			'No generator is available yet. The gem must be installed first.',
+		feedback: 'No generator is available yet. The gem must be installed first.',
 	},
 	{
 		id: 'bundle-add',
@@ -480,7 +479,8 @@ const RENDER_OPTIONS: StepOption[] = [
 	},
 	{
 		id: 'serializer',
-		label: 'render json: ProductSerializer.new(product)\n  .serializable_hash.to_json',
+		label:
+			'render json: ProductSerializer.new(product)\n  .serializable_hash.to_json',
 		correct: true,
 	},
 ];
@@ -547,18 +547,60 @@ const OBSERVE_CONNECTIONS: PipelineConnection[] = [
 	{ from: 'request', to: 'router', dots: 'mixed' },
 	{ from: 'router', to: 'controller', dots: 'mixed' },
 	{ from: 'controller', to: 'response', dots: 'mixed' },
-	{ from: 'controller', to: 'model', sourceHandle: 'bottom', targetHandle: 'top', bidirectional: true, dots: 'mixed' },
-	{ from: 'model', to: 'database', sourceHandle: 'bottom', targetHandle: 'top', bidirectional: true, dots: 'mixed' },
-	{ from: 'controller', to: 'serializer', sourceHandle: 'top', targetHandle: 'bottom', bidirectional: true, dots: 'mixed' },
+	{
+		from: 'controller',
+		to: 'model',
+		sourceHandle: 'bottom',
+		targetHandle: 'top',
+		bidirectional: true,
+		dots: 'mixed',
+	},
+	{
+		from: 'model',
+		to: 'database',
+		sourceHandle: 'bottom',
+		targetHandle: 'top',
+		bidirectional: true,
+		dots: 'mixed',
+	},
+	{
+		from: 'controller',
+		to: 'serializer',
+		sourceHandle: 'top',
+		targetHandle: 'bottom',
+		bidirectional: true,
+		dots: 'mixed',
+	},
 ];
 
 const REWARD_CONNECTIONS: PipelineConnection[] = [
 	{ from: 'request', to: 'router', dots: 'clean' },
 	{ from: 'router', to: 'controller', dots: 'clean' },
 	{ from: 'controller', to: 'response', dots: 'clean' },
-	{ from: 'controller', to: 'model', sourceHandle: 'bottom', targetHandle: 'top', bidirectional: true, dots: 'clean' },
-	{ from: 'model', to: 'database', sourceHandle: 'bottom', targetHandle: 'top', bidirectional: true, dots: 'clean' },
-	{ from: 'controller', to: 'serializer', sourceHandle: 'top', targetHandle: 'bottom', bidirectional: true, dots: 'clean' },
+	{
+		from: 'controller',
+		to: 'model',
+		sourceHandle: 'bottom',
+		targetHandle: 'top',
+		bidirectional: true,
+		dots: 'clean',
+	},
+	{
+		from: 'model',
+		to: 'database',
+		sourceHandle: 'bottom',
+		targetHandle: 'top',
+		bidirectional: true,
+		dots: 'clean',
+	},
+	{
+		from: 'controller',
+		to: 'serializer',
+		sourceHandle: 'top',
+		targetHandle: 'bottom',
+		bidirectional: true,
+		dots: 'clean',
+	},
 ];
 
 // ──────────────────────────────────────────────
@@ -593,7 +635,7 @@ end`,
 		return files;
 	}
 
-	// Build / activate / reward phases: show evolving code
+	// Build / reward phases: show evolving code
 
 	if (furthestStep === 0) {
 		files.push({
@@ -734,8 +776,9 @@ export function Level7Serializers({ onComplete }: LevelComponentProps) {
 	});
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
-	const [inspectorData, setInspectorData] =
-		useState<StageInspectorData | null>(null);
+	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(
+		null,
+	);
 	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
 		new Set(),
 	);
@@ -745,9 +788,7 @@ export function Level7Serializers({ onComplete }: LevelComponentProps) {
 	const [selectedAttrs, setSelectedAttrs] = useState<string[]>([]);
 
 	// ── Build observe stages dynamically (tracks inspected + last probe) ──
-	const probeDisplay = lastProbeId
-		? PROBE_PIPELINE_MAP[lastProbeId]
-		: null;
+	const probeDisplay = lastProbeId ? PROBE_PIPELINE_MAP[lastProbeId] : null;
 	const observeStages: PipelineStage[] = useMemo(
 		() => [
 			{
@@ -776,9 +817,7 @@ export function Level7Serializers({ onComplete }: LevelComponentProps) {
 				id: 'response',
 				label: 'Response',
 				badge: probeDisplay ? probeDisplay.responseBadge : undefined,
-				variant: (probeDisplay ? 'danger' : 'default') as
-					| 'danger'
-					| 'default',
+				variant: (probeDisplay ? 'danger' : 'default') as 'danger' | 'default',
 				inspectable: true,
 				inspected: inspectedStages.has('response'),
 			},
@@ -786,9 +825,7 @@ export function Level7Serializers({ onComplete }: LevelComponentProps) {
 				id: 'serializer',
 				label: 'Serializer',
 				position: HUB_POS.serializer,
-				sublabel: probeDisplay
-					? probeDisplay.serializerSublabel
-					: 'Missing!',
+				sublabel: probeDisplay ? probeDisplay.serializerSublabel : 'Missing!',
 				variant: (probeDisplay ? 'danger' : 'inactive') as
 					| 'danger'
 					| 'inactive',
@@ -853,13 +890,6 @@ export function Level7Serializers({ onComplete }: LevelComponentProps) {
 			},
 		];
 	}, [lastResult]);
-
-	// ── Transition: build -> activate when all steps complete ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
 
 	// ── Stage click handler (observe phase) ──
 	const handleStageClick = useCallback(
@@ -937,11 +967,6 @@ export function Level7Serializers({ onComplete }: LevelComponentProps) {
 		setPhase('build');
 	};
 
-	const handleActivateSerializer = () => {
-		setPhase('reward');
-		stressTest.reset();
-	};
-
 	// ── Stress test fire handler ──
 	const handleFireScenario = useCallback(
 		(scenarioId: string) => {
@@ -972,6 +997,13 @@ export function Level7Serializers({ onComplete }: LevelComponentProps) {
 	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 	const currentStepType = STEP_TYPES[stepper.currentStep];
 	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep];
+	const shuffledOptions = useMemo(
+		() =>
+			currentOptionConfig
+				? shuffleOptions(currentOptionConfig.options, stepper.currentStep)
+				: [],
+		[currentOptionConfig, stepper.currentStep],
+	);
 
 	// ── Render ──
 	return (
@@ -982,16 +1014,14 @@ export function Level7Serializers({ onComplete }: LevelComponentProps) {
 					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							In Level 6, your controller returns{' '}
-							<span className="font-mono text-primary">
-								render json: post
-							</span>
-							, which dumps every column as flat JSON. Timestamps,
-							internal IDs, everything.
+							<span className="font-mono text-primary">render json: post</span>,
+							which dumps every column as flat JSON. Timestamps, internal IDs,
+							everything.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							A serializer sits between the controller and the response,
-							shaping the output into the JSON:API standard with only
-							domain-relevant attributes.
+							A serializer sits between the controller and the response, shaping
+							the output into the JSON:API standard with only domain-relevant
+							attributes.
 						</p>
 					</div>
 
@@ -999,15 +1029,15 @@ export function Level7Serializers({ onComplete }: LevelComponentProps) {
 					{phase === 'observe' && (
 						<div className="p-4 border-b border-border">
 							<DiscoveryChecklist
-								discoveries={discoveryGating.discoveries}
 								discoveredCount={discoveryGating.discoveredCount}
+								discoveries={discoveryGating.discoveries}
 								minRequired={discoveryGating.minRequired}
 							/>
 						</div>
 					)}
 
-					{/* Build / activate phases: step progress */}
-					{(phase === 'build' || phase === 'activate') && (
+					{/* Build phase: step progress */}
+					{phase === 'build' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -1031,9 +1061,7 @@ export function Level7Serializers({ onComplete }: LevelComponentProps) {
 										<div className="text-2xl font-bold text-success">
 											{stressTest.allowedCount}
 										</div>
-										<div className="text-xs text-success/70">
-											Serialized
-										</div>
+										<div className="text-xs text-success/70">Serialized</div>
 									</div>
 									<div className="bg-blue-500/20 rounded-lg p-3 text-center">
 										<div className="text-2xl font-bold text-blue-400">
@@ -1124,75 +1152,54 @@ export function Level7Serializers({ onComplete }: LevelComponentProps) {
 
 											{isViewingCompletedStep ? (
 												<div className="space-y-2">
-													{currentOptionConfig.options.map(
-														(opt) => (
-															<OptionCard
-																color="blue"
-																description={
-																	opt.description
-																}
-																disabled={!opt.correct}
-																key={opt.id}
-																mono={!opt.description}
-																name={opt.label}
-																selected={opt.correct}
-																size="lg"
-															/>
-														),
-													)}
+													{shuffledOptions.map((opt) => (
+														<OptionCard
+															color="blue"
+															description={opt.description}
+															disabled={!opt.correct}
+															key={opt.id}
+															mono={!opt.description}
+															name={opt.label}
+															selected={opt.correct}
+															size="lg"
+														/>
+													))}
 												</div>
 											) : (
 												<>
 													<div className="space-y-2">
-														{currentOptionConfig.options.map(
-															(opt) => (
-																<OptionCard
-																	color="blue"
-																	description={
-																		opt.description
-																	}
-																	key={opt.id}
-																	mono={
-																		!opt.description
-																	}
-																	name={opt.label}
-																	onClick={() =>
-																		handleOptionClick(
-																			opt,
-																		)
-																	}
-																	size="lg"
-																/>
-															),
-														)}
+														{shuffledOptions.map((opt) => (
+															<OptionCard
+																color="blue"
+																description={opt.description}
+																key={opt.id}
+																mono={!opt.description}
+																name={opt.label}
+																onClick={() => handleOptionClick(opt)}
+																size="lg"
+															/>
+														))}
 													</div>
 
 													<ErrorFeedback
-														message={
-															stepper.lastFeedback
-														}
-														onDismiss={
-															stepper.clearFeedback
-														}
+														message={stepper.lastFeedback}
+														onDismiss={stepper.clearFeedback}
 													/>
 												</>
 											)}
 
-											{isViewingCompletedStep &&
-												hasNextStep && (
-													<div className="flex justify-end">
-														<Button
-															className="gap-2"
-															onClick={
-																stepper.nextStep
-															}
-															size="sm"
-														>
-															Next Step
-															<ArrowRight className="w-4 h-4" />
-														</Button>
-													</div>
-												)}
+											{isViewingCompletedStep && hasNextStep && (
+												<div className="flex justify-end">
+													<Button
+														className="gap-2"
+														onClick={stepper.nextStep}
+														size="sm"
+													>
+														Next Step
+														<ArrowRight className="w-4 h-4" />
+													</Button>
+												</div>
+											)}
 										</>
 									)}
 
@@ -1204,8 +1211,7 @@ export function Level7Serializers({ onComplete }: LevelComponentProps) {
 											completed={isViewingCompletedStep}
 											description={
 												<p className="text-sm text-muted-foreground">
-													The gem is in your Gemfile.
-													Now install it so it is
+													The gem is in your Gemfile. Now install it so it is
 													available in your Rails app.
 												</p>
 											}
@@ -1214,13 +1220,9 @@ export function Level7Serializers({ onComplete }: LevelComponentProps) {
 												SHELL_STEP_MAP,
 												stepper.currentStep,
 											)}
-											onCorrect={() =>
-												stepper.completeStep()
-											}
+											onCorrect={() => stepper.completeStep()}
 											onNext={stepper.nextStep}
-											onWrong={(fb) =>
-												stepper.recordWrongAttempt(fb)
-											}
+											onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 											outputLines={installOutput}
 											stepKey={stepper.currentStep}
 											title="Install the Gem"
@@ -1241,73 +1243,52 @@ export function Level7Serializers({ onComplete }: LevelComponentProps) {
 
 											{isViewingCompletedStep ? (
 												<div className="space-y-2">
-													{currentOptionConfig.options.map(
-														(opt) => (
-															<OptionCard
-																color="blue"
-																disabled={
-																	!opt.correct
-																}
-																key={opt.id}
-																mono
-																name={opt.label}
-																selected={
-																	opt.correct
-																}
-																size="lg"
-															/>
-														),
-													)}
+													{shuffledOptions.map((opt) => (
+														<OptionCard
+															color="blue"
+															disabled={!opt.correct}
+															key={opt.id}
+															mono
+															name={opt.label}
+															selected={opt.correct}
+															size="lg"
+														/>
+													))}
 												</div>
 											) : (
 												<>
 													<div className="space-y-2">
-														{currentOptionConfig.options.map(
-															(opt) => (
-																<OptionCard
-																	color="blue"
-																	key={opt.id}
-																	mono
-																	name={
-																		opt.label
-																	}
-																	onClick={() =>
-																		handleOptionClick(
-																			opt,
-																		)
-																	}
-																	size="lg"
-																/>
-															),
-														)}
+														{shuffledOptions.map((opt) => (
+															<OptionCard
+																color="blue"
+																key={opt.id}
+																mono
+																name={opt.label}
+																onClick={() => handleOptionClick(opt)}
+																size="lg"
+															/>
+														))}
 													</div>
 
 													<ErrorFeedback
-														message={
-															stepper.lastFeedback
-														}
-														onDismiss={
-															stepper.clearFeedback
-														}
+														message={stepper.lastFeedback}
+														onDismiss={stepper.clearFeedback}
 													/>
 												</>
 											)}
 
-											{isViewingCompletedStep &&
-												hasNextStep && (
-													<div className="flex justify-end">
-														<Button
-															className="gap-2"
-															onClick={
-																stepper.nextStep
-															}
-															size="sm"
-														>
-															Next Step
-															<ArrowRight className="w-4 h-4" />
-														</Button>
-													</div>
-												)}
+											{isViewingCompletedStep && hasNextStep && (
+												<div className="flex justify-end">
+													<Button
+														className="gap-2"
+														onClick={stepper.nextStep}
+														size="sm"
+													>
+														Next Step
+														<ArrowRight className="w-4 h-4" />
+													</Button>
+												</div>
+											)}
 										</>
 									)}
 
@@ -1319,21 +1300,15 @@ export function Level7Serializers({ onComplete }: LevelComponentProps) {
 												Define Attributes
 											</h3>
 											<p className="text-sm text-muted-foreground">
-												Your Product model has{' '}
-												{ATTRIBUTES.length} columns.
-												Pick the domain attributes
-												clients need. Skip bookkeeping
-												columns and anything JSON:API
-												handles automatically.
+												Your Product model has {ATTRIBUTES.length} columns. Pick
+												the domain attributes clients need. Skip bookkeeping
+												columns and anything JSON:API handles automatically.
 											</p>
 
 											{/* Attribute grid */}
 											<div className="grid grid-cols-2 gap-2">
 												{ATTRIBUTES.map((attr) => {
-													const isSelected =
-														selectedAttrs.includes(
-															attr.id,
-														);
+													const isSelected = selectedAttrs.includes(attr.id);
 													return (
 														<Button
 															className={`flex items-center justify-start gap-2 px-3 py-2.5 rounded-lg border text-sm font-mono transition-all ${
@@ -1341,16 +1316,9 @@ export function Level7Serializers({ onComplete }: LevelComponentProps) {
 																	? 'border-emerald-500/60 dark:border-emerald-500/60 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
 																	: 'border-border bg-card hover:border-blue-500/40 text-foreground'
 															} ${isViewingCompletedStep ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-															disabled={
-																isSelected ||
-																isViewingCompletedStep
-															}
+															disabled={isSelected || isViewingCompletedStep}
 															key={attr.id}
-															onClick={() =>
-																handleToggleAttr(
-																	attr,
-																)
-															}
+															onClick={() => handleToggleAttr(attr)}
 														>
 															{isSelected ? (
 																<Check className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
@@ -1366,27 +1334,21 @@ export function Level7Serializers({ onComplete }: LevelComponentProps) {
 											{/* Live serializer preview */}
 											<div className="bg-zinc-100 dark:bg-zinc-900 rounded-lg p-4 font-mono text-sm">
 												<div className="text-zinc-500 dark:text-zinc-400">
-													class ProductSerializer {'<'}{' '}
-													BaseSerializer
+													class ProductSerializer {'<'} BaseSerializer
 												</div>
 												<div className="mt-2">
-													{selectedAttrs.length >
-													0 ? (
-														selectedAttrs.map(
-															(attrId) => (
-																<div
-																	className="ml-4 text-emerald-700 dark:text-emerald-400"
-																	key={attrId}
-																>
-																	attribute :
-																	{attrId}
-																</div>
-															),
-														)
+													{selectedAttrs.length > 0 ? (
+														selectedAttrs.map((attrId) => (
+															<div
+																className="ml-4 text-emerald-700 dark:text-emerald-400"
+																key={attrId}
+															>
+																attribute :{attrId}
+															</div>
+														))
 													) : (
 														<div className="ml-4 text-zinc-400 dark:text-zinc-600 animate-pulse">
-															# select attributes
-															above...
+															# select attributes above...
 														</div>
 													)}
 												</div>
@@ -1396,32 +1358,26 @@ export function Level7Serializers({ onComplete }: LevelComponentProps) {
 											</div>
 
 											<div className="text-xs text-muted-foreground">
-												{selectedAttrs.length} /{' '}
-												{SAFE_ATTRIBUTES.length} domain
+												{selectedAttrs.length} / {SAFE_ATTRIBUTES.length} domain
 												attributes selected
 											</div>
 
 											<ErrorFeedback
 												message={stepper.lastFeedback}
-												onDismiss={
-													stepper.clearFeedback
-												}
+												onDismiss={stepper.clearFeedback}
 											/>
-											{isViewingCompletedStep &&
-												hasNextStep && (
-													<div className="flex justify-end">
-														<Button
-															className="gap-2"
-															onClick={
-																stepper.nextStep
-															}
-															size="sm"
-														>
-															Next Step
-															<ArrowRight className="w-4 h-4" />
-														</Button>
-													</div>
-												)}
+											{isViewingCompletedStep && hasNextStep && (
+												<div className="flex justify-end">
+													<Button
+														className="gap-2"
+														onClick={stepper.nextStep}
+														size="sm"
+													>
+														Next Step
+														<ArrowRight className="w-4 h-4" />
+													</Button>
+												</div>
+											)}
 										</div>
 									)}
 
@@ -1439,112 +1395,62 @@ export function Level7Serializers({ onComplete }: LevelComponentProps) {
 
 											{isViewingCompletedStep ? (
 												<div className="space-y-2">
-													{currentOptionConfig.options.map(
-														(opt) => (
-															<OptionCard
-																color="blue"
-																disabled={
-																	!opt.correct
-																}
-																key={opt.id}
-																mono
-																name={opt.label}
-																selected={
-																	opt.correct
-																}
-																size="lg"
-															/>
-														),
-													)}
+													{shuffledOptions.map((opt) => (
+														<OptionCard
+															color="blue"
+															disabled={!opt.correct}
+															key={opt.id}
+															mono
+															name={opt.label}
+															selected={opt.correct}
+															size="lg"
+														/>
+													))}
 												</div>
 											) : (
 												<>
 													<div className="space-y-2">
-														{currentOptionConfig.options.map(
-															(opt) => (
-																<OptionCard
-																	color="blue"
-																	key={opt.id}
-																	mono
-																	name={
-																		opt.label
-																	}
-																	onClick={() =>
-																		handleOptionClick(
-																			opt,
-																		)
-																	}
-																	size="lg"
-																/>
-															),
-														)}
+														{shuffledOptions.map((opt) => (
+															<OptionCard
+																color="blue"
+																key={opt.id}
+																mono
+																name={opt.label}
+																onClick={() => handleOptionClick(opt)}
+																size="lg"
+															/>
+														))}
 													</div>
 
 													<ErrorFeedback
-														message={
-															stepper.lastFeedback
-														}
-														onDismiss={
-															stepper.clearFeedback
-														}
+														message={stepper.lastFeedback}
+														onDismiss={stepper.clearFeedback}
 													/>
 												</>
 											)}
 
-											{isViewingCompletedStep &&
-												hasNextStep && (
-													<div className="flex justify-end">
-														<Button
-															className="gap-2"
-															onClick={
-																stepper.nextStep
-															}
-															size="sm"
-														>
-															Next Step
-															<ArrowRight className="w-4 h-4" />
-														</Button>
-													</div>
-												)}
+											{isViewingCompletedStep && (
+												<div className="flex justify-end">
+													<Button
+														className="gap-2"
+														onClick={() => {
+															setPhase('reward');
+															stressTest.reset();
+														}}
+														size="sm"
+													>
+														Next Step
+														<ArrowRight className="w-4 h-4" />
+													</Button>
+												</div>
+											)}
 										</>
 									)}
 							</div>
 						</div>
 					)}
 
-					{/* ── Phase 3: Activate (ADVANTAGE sub-phase a) ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex items-center justify-center p-6">
-							<div className="max-w-md text-center space-y-6">
-								<div className="flex justify-center gap-1">
-									{[1, 2, 3].map((s) => (
-										<Star
-											className={`w-8 h-8 ${
-												s <= stepper.starRating
-													? 'text-yellow-400 fill-yellow-400'
-													: 'text-muted-foreground/30'
-											}`}
-											key={s}
-										/>
-									))}
-								</div>
-								<p className="text-sm text-muted-foreground">
-									Your serializer is ready. See the clean
-									JSON:API output replace the raw dump.
-								</p>
-								<Button
-									className="gap-2"
-									onClick={handleActivateSerializer}
-									size="lg"
-								>
-									<Play className="w-4 h-4" />
-									Visualize Serializer
-								</Button>
-							</div>
-						</div>
-					)}
-
-					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
+					{/* ── Phase 3: Reward (ADVANTAGE) ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">
@@ -1562,9 +1468,7 @@ export function Level7Serializers({ onComplete }: LevelComponentProps) {
 									canAutoFire={stressTest.canAutoFire}
 									isAutoFiring={stressTest.isAutoFiring}
 									onFire={handleFireScenario}
-									onToggleAutoFire={
-										stressTest.toggleAutoFire
-									}
+									onToggleAutoFire={stressTest.toggleAutoFire}
 									results={stressTest.results}
 									scenarios={STRESS_SCENARIOS}
 								/>
@@ -1578,7 +1482,9 @@ export function Level7Serializers({ onComplete }: LevelComponentProps) {
 				<CodePreviewPanel
 					files={getCodeFiles(
 						phase,
-						stepper.furthestStep,
+						stepper.isCurrentStepCompleted
+							? stepper.currentStep
+							: stepper.currentStep - 1,
 						selectedAttrs,
 					)}
 				>

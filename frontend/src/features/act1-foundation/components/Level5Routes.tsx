@@ -1,7 +1,7 @@
 /**
  * Level 5: Routes & Request Lifecycle
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): HTTP requests hit the router and get 404 because
@@ -12,15 +12,14 @@
  *   Step 1: Add namespace wrapping (OptionCard)
  *   Step 2: View routes with rails routes (TerminalChoiceStep)
  *   Step 3: Trace the request lifecycle (OptionCard)
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Routes" button
- * Phase 4 (ADVANTAGE - reward): Stress test. Fire HTTP requests at the
+ * Phase 3 (ADVANTAGE - reward): Stress test. Fire HTTP requests at the
  *   routed pipeline and watch them resolve to controller actions.
  *
  * Teaches: resources, namespace, rails routes, request lifecycle
  */
 
-import { ArrowRight, Check, Play, Star, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowRight, Check, X } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -45,8 +44,8 @@ import {
 	PipelineFlow,
 	type PipelineStage,
 } from '@/components/levels/PipelineFlow';
-import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
+import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import {
 	StageInspector,
 	type StageInspectorData,
@@ -60,12 +59,13 @@ import {
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { shuffleOptions } from '@/lib/shuffleOptions';
 
 // ──────────────────────────────────────────────
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'observe' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Discovery definitions (observe phase)
@@ -330,7 +330,8 @@ const NAMESPACE_OPTIONS: StepOption[] = [
 	},
 	{
 		id: 'correct-namespace',
-		label: 'namespace :api do\n  namespace :v1 do\n    resources :posts\n  end\nend',
+		label:
+			'namespace :api do\n  namespace :v1 do\n    resources :posts\n  end\nend',
 		correct: true,
 	},
 	{
@@ -484,23 +485,51 @@ const OBSERVE_CONNECTIONS: PipelineConnection[] = [
 	{ from: 'request', to: 'router', dots: 'mixed' },
 	{ from: 'router', to: 'controller', dots: 'mixed' },
 	{ from: 'controller', to: 'response', dots: 'mixed' },
-	{ from: 'controller', to: 'model', sourceHandle: 'bottom', targetHandle: 'top', bidirectional: true, dots: 'mixed' },
-	{ from: 'model', to: 'database', sourceHandle: 'bottom', targetHandle: 'top', bidirectional: true, dots: 'mixed' },
+	{
+		from: 'controller',
+		to: 'model',
+		sourceHandle: 'bottom',
+		targetHandle: 'top',
+		bidirectional: true,
+		dots: 'mixed',
+	},
+	{
+		from: 'model',
+		to: 'database',
+		sourceHandle: 'bottom',
+		targetHandle: 'top',
+		bidirectional: true,
+		dots: 'mixed',
+	},
 ];
 
 const REWARD_CONNECTIONS: PipelineConnection[] = [
 	{ from: 'request', to: 'router', dots: 'clean' },
 	{ from: 'router', to: 'controller', dots: 'clean' },
 	{ from: 'controller', to: 'response', dots: 'clean' },
-	{ from: 'controller', to: 'model', sourceHandle: 'bottom', targetHandle: 'top', bidirectional: true, dots: 'clean' },
-	{ from: 'model', to: 'database', sourceHandle: 'bottom', targetHandle: 'top', bidirectional: true, dots: 'clean' },
+	{
+		from: 'controller',
+		to: 'model',
+		sourceHandle: 'bottom',
+		targetHandle: 'top',
+		bidirectional: true,
+		dots: 'clean',
+	},
+	{
+		from: 'model',
+		to: 'database',
+		sourceHandle: 'bottom',
+		targetHandle: 'top',
+		bidirectional: true,
+		dots: 'clean',
+	},
 ];
 
 // ──────────────────────────────────────────────
 // Code preview helper
 // ──────────────────────────────────────────────
 
-function getCodeFiles(phase: Phase, furthestStep: number) {
+function getCodeFiles(phase: Phase, completedStep: number) {
 	const files = [];
 
 	// Observe phase: show empty routes.rb
@@ -516,8 +545,8 @@ end`,
 		return files;
 	}
 
-	// Build / activate / reward phases: show evolving code
-	if (furthestStep === 0) {
+	// Build / reward phases: show evolving code
+	if (completedStep === 0) {
 		files.push({
 			filename: 'config/routes.rb',
 			language: 'ruby',
@@ -528,7 +557,7 @@ end`,
 		});
 	}
 
-	if (furthestStep >= 1 && furthestStep < 2) {
+	if (completedStep >= 1 && completedStep < 2) {
 		files.push({
 			filename: 'config/routes.rb',
 			language: 'ruby',
@@ -541,7 +570,7 @@ end`,
 		});
 	}
 
-	if (furthestStep >= 2) {
+	if (completedStep >= 2) {
 		files.push({
 			filename: 'config/routes.rb',
 			language: 'ruby',
@@ -556,7 +585,7 @@ end`,
 		});
 	}
 
-	if (furthestStep >= 3) {
+	if (completedStep >= 3) {
 		files.push({
 			filename: 'Route Table',
 			language: 'ruby',
@@ -571,7 +600,7 @@ end`,
 		});
 	}
 
-	if (furthestStep >= 4) {
+	if (completedStep >= 4) {
 		files.push({
 			filename: 'Request Lifecycle',
 			language: 'ruby',
@@ -607,9 +636,7 @@ function PipelineLegend() {
 				</div>
 				<div className="flex items-center gap-2">
 					<X className="w-4 h-4 text-destructive" />
-					<span className="text-foreground">
-						Unrouted request (404)
-					</span>
+					<span className="text-foreground">Unrouted request (404)</span>
 				</div>
 			</div>
 		</div>
@@ -627,17 +654,16 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 	});
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
-	const [inspectorData, setInspectorData] =
-		useState<StageInspectorData | null>(null);
+	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(
+		null,
+	);
 	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
 		new Set(),
 	);
 	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
 
 	// ── Build observe stages dynamically (tracks inspected + last probe) ──
-	const probeDisplay = lastProbeId
-		? PROBE_PIPELINE_MAP[lastProbeId]
-		: null;
+	const probeDisplay = lastProbeId ? PROBE_PIPELINE_MAP[lastProbeId] : null;
 	const observeStages: PipelineStage[] = useMemo(
 		() => [
 			{
@@ -671,9 +697,7 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 				id: 'response',
 				label: 'Response',
 				sublabel: probeDisplay ? '404 Not Found' : undefined,
-				variant: (probeDisplay ? 'danger' : 'default') as
-					| 'danger'
-					| 'default',
+				variant: (probeDisplay ? 'danger' : 'default') as 'danger' | 'default',
 				inspectable: true,
 				inspected: inspectedStages.has('response'),
 			},
@@ -747,13 +771,6 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 		];
 	}, [lastResult]);
 
-	// ── Transition: build -> activate when all steps complete ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
-
 	// ── Stage click handler (observe phase) ──
 	const handleStageClick = useCallback(
 		(stageId: string) => {
@@ -808,11 +825,6 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 		setPhase('build');
 	};
 
-	const handleActivateRoutes = () => {
-		setPhase('reward');
-		stressTest.reset();
-	};
-
 	// ── Stress test fire handler ──
 	const handleFireScenario = useCallback(
 		(scenarioId: string) => {
@@ -843,6 +855,13 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 	const currentStepType = STEP_TYPES[stepper.currentStep];
 	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep];
+	const shuffledOptions = useMemo(
+		() =>
+			currentOptionConfig
+				? shuffleOptions(currentOptionConfig.options, stepper.currentStep)
+				: [],
+		[currentOptionConfig, stepper.currentStep],
+	);
 
 	// ── Render ──
 	return (
@@ -852,19 +871,16 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Posts work in the console (Levels 3-4), and Puma is running
-							from Level 2. But HTTP requests from the outside world cannot
-							reach your app yet.
+							Posts work in the console (Levels 3-4), and Puma is running from
+							Level 2. But HTTP requests from the outside world cannot reach
+							your app yet.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							The{' '}
-							<span className="text-foreground font-medium">router</span> maps
-							HTTP verbs and URLs to controller actions. Without routes defined
-							in{' '}
-							<span className="font-mono text-primary">
-								config/routes.rb
-							</span>
-							, every request returns 404.
+							The <span className="text-foreground font-medium">router</span>{' '}
+							maps HTTP verbs and URLs to controller actions. Without routes
+							defined in{' '}
+							<span className="font-mono text-primary">config/routes.rb</span>,
+							every request returns 404.
 						</p>
 					</div>
 
@@ -872,15 +888,15 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 					{phase === 'observe' && (
 						<div className="p-4 border-b border-border">
 							<DiscoveryChecklist
-								discoveries={discoveryGating.discoveries}
 								discoveredCount={discoveryGating.discoveredCount}
+								discoveries={discoveryGating.discoveries}
 								minRequired={discoveryGating.minRequired}
 							/>
 						</div>
 					)}
 
-					{/* Build / activate phases: step progress */}
-					{(phase === 'build' || phase === 'activate') && (
+					{/* Build phase: step progress */}
+					{phase === 'build' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -910,7 +926,9 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 										<div className="text-2xl font-bold text-muted-foreground">
 											{stressTest.results.length}
 										</div>
-										<div className="text-xs text-muted-foreground/70">Total</div>
+										<div className="text-xs text-muted-foreground/70">
+											Total
+										</div>
 									</div>
 								</div>
 							</div>
@@ -1016,7 +1034,7 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 
 										{isViewingCompletedStep ? (
 											<div className="space-y-2">
-												{currentOptionConfig.options.map((opt) => (
+												{shuffledOptions.map((opt) => (
 													<OptionCard
 														color="violet"
 														disabled={!opt.correct}
@@ -1031,7 +1049,7 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 										) : (
 											<>
 												<div className="space-y-2">
-													{currentOptionConfig.options.map((opt) => (
+													{shuffledOptions.map((opt) => (
 														<OptionCard
 															color="violet"
 															key={opt.id}
@@ -1050,11 +1068,18 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 											</>
 										)}
 
-										{isViewingCompletedStep && hasNextStep && (
+										{isViewingCompletedStep && (
 											<div className="flex justify-end">
 												<Button
 													className="gap-2"
-													onClick={stepper.nextStep}
+													onClick={
+														hasNextStep
+															? stepper.nextStep
+															: () => {
+																	setPhase('reward');
+																	stressTest.reset();
+																}
+													}
 													size="sm"
 												>
 													Next Step
@@ -1068,39 +1093,7 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* ── Phase 3: Activate (ADVANTAGE sub-phase a) ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex items-center justify-center p-6">
-							<div className="max-w-md text-center space-y-6">
-								<div className="flex justify-center gap-1">
-									{[1, 2, 3].map((s) => (
-										<Star
-											className={`w-8 h-8 ${
-												s <= stepper.starRating
-													? 'text-yellow-400 fill-yellow-400'
-													: 'text-muted-foreground/30'
-											}`}
-											key={s}
-										/>
-									))}
-								</div>
-								<p className="text-sm text-muted-foreground">
-									Your routes are defined. Watch HTTP requests flow through
-									the router to the right controller action.
-								</p>
-								<Button
-									className="gap-2"
-									onClick={handleActivateRoutes}
-									size="lg"
-								>
-									<Play className="w-4 h-4" />
-									Visualize Routes
-								</Button>
-							</div>
-						</div>
-					)}
-
-					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
+					{/* ── Phase 3: Reward (ADVANTAGE) ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">
@@ -1129,7 +1122,14 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 			</CenterPanel>
 
 			<RightPanel>
-				<CodePreviewPanel files={getCodeFiles(phase, stepper.furthestStep)} />
+				<CodePreviewPanel
+					files={getCodeFiles(
+						phase,
+						stepper.isCurrentStepCompleted
+							? stepper.currentStep
+							: stepper.currentStep - 1,
+					)}
+				/>
 			</RightPanel>
 		</LevelLayout>
 	);

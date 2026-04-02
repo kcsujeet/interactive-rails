@@ -1,7 +1,7 @@
 /**
  * Level 8: Associations
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): Interactive exploration. Click pipeline stages to
@@ -14,15 +14,14 @@
  *   Step 3: Auto belongs_to explanation (informational, "Got It" button)
  *   Step 4: Set dependent option (OptionCard)
  *   Step 5: Test the association in Rails console (terminal, irb> prompt)
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Associations" button
- * Phase 4 (ADVANTAGE - reward): Stress test. Fire request scenarios at the
+ * Phase 3 (ADVANTAGE - reward): Stress test. Fire request scenarios at the
  *   associated pipeline and watch create/cascade results.
  *
  * Teaches: has_many, belongs_to, dependent: :destroy, product:references
  */
 
-import { ArrowRight, Check, Play, Star, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowRight, Check, X } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -47,8 +46,8 @@ import {
 	PipelineFlow,
 	type PipelineStage,
 } from '@/components/levels/PipelineFlow';
-import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
+import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import {
 	StageInspector,
 	type StageInspectorData,
@@ -62,12 +61,13 @@ import {
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { shuffleOptions } from '@/lib/shuffleOptions';
 
 // ──────────────────────────────────────────────
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'observe' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Discovery definitions (observe phase)
@@ -124,7 +124,7 @@ const PROBES: ProbeConfig[] = [
 		label: 'Rails console',
 		command: 'rails console: Product.first.reviews',
 		responseLines: [
-			{ text: 'NoMethodError: undefined method `reviews\'', color: 'red' },
+			{ text: "NoMethodError: undefined method `reviews'", color: 'red' },
 			{ text: 'for #<Product id: 1, title: "Laptop Pro">', color: 'muted' },
 			{ text: '', color: 'muted' },
 			{
@@ -551,18 +551,60 @@ const OBSERVE_CONNECTIONS: PipelineConnection[] = [
 	{ from: 'request', to: 'router', dots: 'mixed' },
 	{ from: 'router', to: 'controller', dots: 'mixed' },
 	{ from: 'controller', to: 'response', dots: 'mixed' },
-	{ from: 'controller', to: 'model', sourceHandle: 'bottom', targetHandle: 'top', bidirectional: true, dots: 'mixed' },
-	{ from: 'model', to: 'database', sourceHandle: 'bottom', targetHandle: 'top', bidirectional: true, dots: 'mixed' },
-	{ from: 'controller', to: 'serializer', sourceHandle: 'top', targetHandle: 'bottom', bidirectional: true, dots: 'mixed' },
+	{
+		from: 'controller',
+		to: 'model',
+		sourceHandle: 'bottom',
+		targetHandle: 'top',
+		bidirectional: true,
+		dots: 'mixed',
+	},
+	{
+		from: 'model',
+		to: 'database',
+		sourceHandle: 'bottom',
+		targetHandle: 'top',
+		bidirectional: true,
+		dots: 'mixed',
+	},
+	{
+		from: 'controller',
+		to: 'serializer',
+		sourceHandle: 'top',
+		targetHandle: 'bottom',
+		bidirectional: true,
+		dots: 'mixed',
+	},
 ];
 
 const REWARD_CONNECTIONS: PipelineConnection[] = [
 	{ from: 'request', to: 'router', dots: 'clean' },
 	{ from: 'router', to: 'controller', dots: 'clean' },
 	{ from: 'controller', to: 'response', dots: 'clean' },
-	{ from: 'controller', to: 'model', sourceHandle: 'bottom', targetHandle: 'top', bidirectional: true, dots: 'clean' },
-	{ from: 'model', to: 'database', sourceHandle: 'bottom', targetHandle: 'top', bidirectional: true, dots: 'clean' },
-	{ from: 'controller', to: 'serializer', sourceHandle: 'top', targetHandle: 'bottom', bidirectional: true, dots: 'clean' },
+	{
+		from: 'controller',
+		to: 'model',
+		sourceHandle: 'bottom',
+		targetHandle: 'top',
+		bidirectional: true,
+		dots: 'clean',
+	},
+	{
+		from: 'model',
+		to: 'database',
+		sourceHandle: 'bottom',
+		targetHandle: 'top',
+		bidirectional: true,
+		dots: 'clean',
+	},
+	{
+		from: 'controller',
+		to: 'serializer',
+		sourceHandle: 'top',
+		targetHandle: 'bottom',
+		bidirectional: true,
+		dots: 'clean',
+	},
 ];
 
 // ──────────────────────────────────────────────
@@ -586,7 +628,7 @@ end`,
 		return files;
 	}
 
-	// Build / activate / reward phases: show evolving code
+	// Build / reward phases: show evolving code
 	if (furthestStep === 0) {
 		files.push({
 			filename: 'app/models/product.rb',
@@ -686,15 +728,11 @@ function PipelineLegend() {
 			<div className="space-y-2 text-sm">
 				<div className="flex items-center gap-2">
 					<Check className="w-4 h-4 text-success" />
-					<span className="text-foreground">
-						Successful request (passes)
-					</span>
+					<span className="text-foreground">Successful request (passes)</span>
 				</div>
 				<div className="flex items-center gap-2">
 					<X className="w-4 h-4 text-destructive" />
-					<span className="text-foreground">
-						Failed request (blocked)
-					</span>
+					<span className="text-foreground">Failed request (blocked)</span>
 				</div>
 			</div>
 		</div>
@@ -712,17 +750,16 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 	});
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
-	const [inspectorData, setInspectorData] =
-		useState<StageInspectorData | null>(null);
+	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(
+		null,
+	);
 	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
 		new Set(),
 	);
 	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
 
 	// ── Build observe stages dynamically (tracks inspected + last probe) ──
-	const probeDisplay = lastProbeId
-		? PROBE_PIPELINE_MAP[lastProbeId]
-		: null;
+	const probeDisplay = lastProbeId ? PROBE_PIPELINE_MAP[lastProbeId] : null;
 	const observeStages: PipelineStage[] = useMemo(
 		() => [
 			{
@@ -749,9 +786,7 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 				id: 'response',
 				label: 'Response',
 				sublabel: probeDisplay ? '404' : undefined,
-				variant: (probeDisplay ? 'danger' : 'default') as
-					| 'danger'
-					| 'default',
+				variant: (probeDisplay ? 'danger' : 'default') as 'danger' | 'default',
 				inspectable: true,
 				inspected: inspectedStages.has('response'),
 			},
@@ -834,13 +869,6 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 		];
 	}, [lastResult, lastScenario]);
 
-	// ── Transition: build -> activate when all steps complete ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
-
 	// ── Stage click handler (observe phase) ──
 	const handleStageClick = useCallback(
 		(stageId: string) => {
@@ -895,11 +923,6 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 		setPhase('build');
 	};
 
-	const handleActivateAssociations = () => {
-		setPhase('reward');
-		stressTest.reset();
-	};
-
 	// ── Stress test fire handler ──
 	const handleFireScenario = useCallback(
 		(scenarioId: string) => {
@@ -930,6 +953,13 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 	const currentStepType = STEP_TYPES[stepper.currentStep];
 	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep];
+	const shuffledOptions = useMemo(
+		() =>
+			currentOptionConfig
+				? shuffleOptions(currentOptionConfig.options, stepper.currentStep)
+				: [],
+		[currentOptionConfig, stepper.currentStep],
+	);
 
 	// ── Render ──
 	return (
@@ -939,18 +969,14 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Your Product API works end-to-end: model (L3), CRUD (L4),
-							routes (L5), controller (L6), serializer (L7). But posts
-							exist in isolation: no reviews, no likes, no tags.
+							Your Product API works end-to-end: model (L3), CRUD (L4), routes
+							(L5), controller (L6), serializer (L7). But posts exist in
+							isolation: no reviews, no likes, no tags.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Try accessing reviews on a product and see what happens.
-							Rails{' '}
-							<span className="text-foreground font-medium">
-								associations
-							</span>{' '}
-							(has_many, belongs_to) connect models and provide query
-							methods.
+							Try accessing reviews on a product and see what happens. Rails{' '}
+							<span className="text-foreground font-medium">associations</span>{' '}
+							(has_many, belongs_to) connect models and provide query methods.
 						</p>
 					</div>
 
@@ -958,15 +984,15 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 					{phase === 'observe' && (
 						<div className="p-4 border-b border-border">
 							<DiscoveryChecklist
-								discoveries={discoveryGating.discoveries}
 								discoveredCount={discoveryGating.discoveredCount}
+								discoveries={discoveryGating.discoveries}
 								minRequired={discoveryGating.minRequired}
 							/>
 						</div>
 					)}
 
-					{/* Build / activate phases: step progress */}
-					{(phase === 'build' || phase === 'activate') && (
+					{/* Build phase: step progress */}
+					{phase === 'build' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -990,17 +1016,13 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 										<div className="text-2xl font-bold text-success">
 											{stressTest.allowedCount}
 										</div>
-										<div className="text-xs text-success/70">
-											Allowed
-										</div>
+										<div className="text-xs text-success/70">Allowed</div>
 									</div>
 									<div className="bg-destructive/20 rounded-lg p-3 text-center">
 										<div className="text-2xl font-bold text-destructive">
 											{stressTest.blockedCount}
 										</div>
-										<div className="text-xs text-destructive/70">
-											Blocked
-										</div>
+										<div className="text-xs text-destructive/70">Blocked</div>
 									</div>
 								</div>
 							</div>
@@ -1080,8 +1102,8 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 													<span className="font-mono text-primary">
 														rails generate model
 													</span>
-													. Review follows the same pattern, but
-													needs a field that links it back to Product.
+													. Review follows the same pattern, but needs a field
+													that links it back to Product.
 												</p>
 											}
 											hasNext={hasNextStep}
@@ -1091,9 +1113,7 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 											)}
 											onCorrect={() => stepper.completeStep()}
 											onNext={stepper.nextStep}
-											onWrong={(fb) =>
-												stepper.recordWrongAttempt(fb)
-											}
+											onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 											outputLines={generateOutput}
 											stepKey={stepper.currentStep}
 											title="Generate Review Model"
@@ -1108,9 +1128,8 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 											completed={isViewingCompletedStep}
 											description={
 												<p className="text-sm text-muted-foreground">
-													The migration file has been created. Now
-													apply it to create the reviews table in
-													the database.
+													The migration file has been created. Now apply it to
+													create the reviews table in the database.
 												</p>
 											}
 											hasNext={hasNextStep}
@@ -1120,9 +1139,7 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 											)}
 											onCorrect={() => stepper.completeStep()}
 											onNext={stepper.nextStep}
-											onWrong={(fb) =>
-												stepper.recordWrongAttempt(fb)
-											}
+											onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 											outputLines={migrateOutput}
 											stepKey={stepper.currentStep}
 											title="Run Migration"
@@ -1130,134 +1147,117 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 									)}
 
 								{/* Step 2: Choose Relationship (OptionCard) */}
-								{currentStepType === 'option' &&
-									currentOptionConfig && (
-										<>
-											<h3 className="text-lg font-semibold text-foreground">
-												{currentOptionConfig.title}
-											</h3>
-											<p className="text-sm text-muted-foreground">
-												{currentOptionConfig.description}
-											</p>
+								{currentStepType === 'option' && currentOptionConfig && (
+									<>
+										<h3 className="text-lg font-semibold text-foreground">
+											{currentOptionConfig.title}
+										</h3>
+										<p className="text-sm text-muted-foreground">
+											{currentOptionConfig.description}
+										</p>
 
-											{isViewingCompletedStep ? (
-												<div className="space-y-2">
-													{currentOptionConfig.options.map(
-														(opt) => (
-															<OptionCard
-																color="blue"
-																disabled={!opt.correct}
-																key={opt.id}
-																mono
-																name={opt.label}
-																selected={opt.correct}
-																size="lg"
-															/>
-														),
-													)}
-												</div>
-											) : (
-												<>
-													<div className="space-y-2">
-														{currentOptionConfig.options.map(
-															(opt) => (
-																<OptionCard
-																	color="blue"
-																	key={opt.id}
-																	mono
-																	name={opt.label}
-																	onClick={() =>
-																		handleOptionClick(opt)
-																	}
-																	size="lg"
-																/>
-															),
-														)}
-													</div>
-
-													<ErrorFeedback
-														message={stepper.lastFeedback}
-														onDismiss={stepper.clearFeedback}
+										{isViewingCompletedStep ? (
+											<div className="space-y-2">
+												{shuffledOptions.map((opt) => (
+													<OptionCard
+														color="blue"
+														disabled={!opt.correct}
+														key={opt.id}
+														mono
+														name={opt.label}
+														selected={opt.correct}
+														size="lg"
 													/>
-												</>
-											)}
-
-											{isViewingCompletedStep && hasNextStep && (
-												<div className="flex justify-end">
-													<Button
-														className="gap-2"
-														onClick={stepper.nextStep}
-														size="sm"
-													>
-														Next Step
-														<ArrowRight className="w-4 h-4" />
-													</Button>
+												))}
+											</div>
+										) : (
+											<>
+												<div className="space-y-2">
+													{shuffledOptions.map((opt) => (
+														<OptionCard
+															color="blue"
+															key={opt.id}
+															mono
+															name={opt.label}
+															onClick={() => handleOptionClick(opt)}
+															size="lg"
+														/>
+													))}
 												</div>
-											)}
-										</>
-									)}
+
+												<ErrorFeedback
+													message={stepper.lastFeedback}
+													onDismiss={stepper.clearFeedback}
+												/>
+											</>
+										)}
+
+										{isViewingCompletedStep && hasNextStep && (
+											<div className="flex justify-end">
+												<Button
+													className="gap-2"
+													onClick={stepper.nextStep}
+													size="sm"
+												>
+													Next Step
+													<ArrowRight className="w-4 h-4" />
+												</Button>
+											</div>
+										)}
+									</>
+								)}
 
 								{/* Step 3: Auto belongs_to (Informational) */}
-								{currentStepType === 'info' &&
-									stepper.currentStep === 3 && (
-										<div className="space-y-4">
-											<h3 className="text-lg font-semibold text-foreground">
-												Auto belongs_to
-											</h3>
-											<div className="bg-card rounded-lg border border-border p-6 space-y-3">
-												<p className="text-sm text-foreground">
-													Because you used{' '}
-													<span className="font-mono text-primary">
-														product:references
-													</span>{' '}
-													in the generator, Rails automatically
-													added:
-												</p>
-												<div className="bg-zinc-900 rounded-lg p-4 font-mono text-sm">
-													<div className="text-zinc-400">
-														class Review {'<'}{' '}
-														ApplicationRecord
-													</div>
-													<div className="text-emerald-400 ml-4">
-														belongs_to :product
-													</div>
-													<div className="text-zinc-400">
-														end
-													</div>
+								{currentStepType === 'info' && stepper.currentStep === 3 && (
+									<div className="space-y-4">
+										<h3 className="text-lg font-semibold text-foreground">
+											Auto belongs_to
+										</h3>
+										<div className="bg-card rounded-lg border border-border p-6 space-y-3">
+											<p className="text-sm text-foreground">
+												Because you used{' '}
+												<span className="font-mono text-primary">
+													product:references
+												</span>{' '}
+												in the generator, Rails automatically added:
+											</p>
+											<div className="bg-zinc-900 rounded-lg p-4 font-mono text-sm">
+												<div className="text-zinc-400">
+													class Review {'<'} ApplicationRecord
 												</div>
-												<p className="text-sm text-muted-foreground">
-													The inverse relationship is set up for
-													free. Every Review knows which Product it
-													belongs to.
-												</p>
+												<div className="text-emerald-400 ml-4">
+													belongs_to :product
+												</div>
+												<div className="text-zinc-400">end</div>
 											</div>
-											{!isViewingCompletedStep && (
-												<div className="flex justify-center">
-													<Button
-														onClick={() =>
-															stepper.completeStep()
-														}
-													>
-														Got It
-													</Button>
-												</div>
-											)}
-											{isViewingCompletedStep && hasNextStep && (
-												<div className="flex justify-end">
-													<Button
-														className="gap-2"
-														onClick={stepper.nextStep}
-														size="sm"
-													>
-														Next Step
-														<ArrowRight className="w-4 h-4" />
-													</Button>
-												</div>
-											)}
+											<p className="text-sm text-muted-foreground">
+												The inverse relationship is set up for free. Every
+												Review knows which Product it belongs to.
+											</p>
 										</div>
-									)}
+										{!isViewingCompletedStep && (
+											<div className="flex justify-center">
+												<Button onClick={() => stepper.completeStep()}>
+													Got It
+												</Button>
+											</div>
+										)}
+										{isViewingCompletedStep && hasNextStep && (
+											<div className="flex justify-end">
+												<Button
+													className="gap-2"
+													onClick={stepper.nextStep}
+													size="sm"
+												>
+													Next Step
+													<ArrowRight className="w-4 h-4" />
+												</Button>
+											</div>
+										)}
+									</div>
+								)}
 
-								{/* Step 5: Test It (Terminal, irb> prompt) */}
+								{/* Step 5: Test It (Terminal, irb> prompt) - last step */}
 								{currentStepType === 'terminal' &&
 									stepper.currentStep === 5 && (
 										<TerminalChoiceStep
@@ -1265,21 +1265,18 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 											completed={isViewingCompletedStep}
 											description={
 												<p className="text-sm text-muted-foreground">
-													Create a review through the association.
-													How do you add a child record through the
-													parent?
+													Create a review through the association. How do you
+													add a child record through the parent?
 												</p>
 											}
-											hasNext={hasNextStep}
-											initialHistory={buildTerminalHistory(
-												CONSOLE_STEP_MAP,
-												0,
-											)}
+											hasNext
+											initialHistory={buildTerminalHistory(CONSOLE_STEP_MAP, 0)}
 											onCorrect={() => stepper.completeStep()}
-											onNext={stepper.nextStep}
-											onWrong={(fb) =>
-												stepper.recordWrongAttempt(fb)
-											}
+											onNext={() => {
+												setPhase('reward');
+												stressTest.reset();
+											}}
+											onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 											outputLines={testOutput}
 											prompt="irb>"
 											stepKey={stepper.currentStep}
@@ -1291,39 +1288,7 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* ── Phase 3: Activate (ADVANTAGE sub-phase a) ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex items-center justify-center p-6">
-							<div className="max-w-md text-center space-y-6">
-								<div className="flex justify-center gap-1">
-									{[1, 2, 3].map((s) => (
-										<Star
-											className={`w-8 h-8 ${
-												s <= stepper.starRating
-													? 'text-yellow-400 fill-yellow-400'
-													: 'text-muted-foreground/30'
-											}`}
-											key={s}
-										/>
-									))}
-								</div>
-								<p className="text-sm text-muted-foreground">
-									Your associations are configured. See reviews flow
-									through the pipeline and cascade deletes in action.
-								</p>
-								<Button
-									className="gap-2"
-									onClick={handleActivateAssociations}
-									size="lg"
-								>
-									<Play className="w-4 h-4" />
-									Visualize Associations
-								</Button>
-							</div>
-						</div>
-					)}
-
-					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
+					{/* ── Phase 3: Reward (ADVANTAGE) ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">
@@ -1353,7 +1318,12 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 
 			<RightPanel>
 				<CodePreviewPanel
-					files={getCodeFiles(phase, stepper.furthestStep)}
+					files={getCodeFiles(
+						phase,
+						stepper.isCurrentStepCompleted
+							? stepper.currentStep
+							: stepper.currentStep - 1,
+					)}
 				/>
 			</RightPanel>
 		</LevelLayout>

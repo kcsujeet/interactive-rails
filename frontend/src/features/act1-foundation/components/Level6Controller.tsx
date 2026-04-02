@@ -1,7 +1,7 @@
 /**
  * Level 6: The Controller
  *
- * Sequential phase flow: observe -> build -> activate -> reward
+ * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): Routes exist from Level 5 but the controller class
@@ -11,15 +11,14 @@
  *   Step 0: Generate the namespaced controller (terminal)
  *   Step 1: Add the 5 RESTful actions (click-to-select)
  *   Step 2: Test the endpoint with curl (terminal)
- * Phase 3 (ADVANTAGE - activate): Star rating + "Visualize Controller" button
- * Phase 4 (ADVANTAGE - reward): Stress test. Fire 5 HTTP requests at the
+ * Phase 3 (ADVANTAGE - reward): Stress test. Fire 5 HTTP requests at the
  *   working pipeline and see them resolve successfully.
  *
  * Teaches: rails generate controller, RESTful actions, curl
  */
 
-import { ArrowRight, Check, Play, Star } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ArrowRight, Check } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -43,8 +42,8 @@ import {
 	PipelineFlow,
 	type PipelineStage,
 } from '@/components/levels/PipelineFlow';
-import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
+import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import {
 	StageInspector,
 	type StageInspectorData,
@@ -63,7 +62,7 @@ import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 // Phase type
 // ──────────────────────────────────────────────
 
-type Phase = 'observe' | 'build' | 'activate' | 'reward';
+type Phase = 'observe' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Discovery definitions (observe phase)
@@ -147,7 +146,12 @@ const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 // Map probe IDs to pipeline node display during observe
 const PROBE_PIPELINE_MAP: Record<
 	string,
-	{ routerSublabel: string; routerBadge: string; controllerSublabel: string; controllerBadge: string }
+	{
+		routerSublabel: string;
+		routerBadge: string;
+		controllerSublabel: string;
+		controllerBadge: string;
+	}
 > = {
 	'get-index': {
 		routerSublabel: 'GET -> posts#index',
@@ -383,7 +387,8 @@ const WRONG_ACTION_FEEDBACK: Record<string, string> = {
 	list: '"list" is not a Rails convention. There is a standard RESTful name for listing records.',
 	get: '"get" is not a Rails action. There is a standard RESTful name for displaying a single record.',
 	add: '"add" is not a Rails action. There is a standard RESTful name for saving a new record.',
-	remove: '"remove" is not a Rails action. There is a standard RESTful name for deleting a record.',
+	remove:
+		'"remove" is not a Rails action. There is a standard RESTful name for deleting a record.',
 	new: '"new" renders a form in full-stack Rails. API controllers do not need it.',
 	edit: '"edit" renders a form in full-stack Rails. API controllers do not need it.',
 };
@@ -405,16 +410,44 @@ const OBSERVE_CONNECTIONS: PipelineConnection[] = [
 	{ from: 'request', to: 'router', dots: 'mixed' },
 	{ from: 'router', to: 'controller', dots: 'mixed' },
 	{ from: 'controller', to: 'response', dots: 'mixed' },
-	{ from: 'controller', to: 'model', sourceHandle: 'bottom', targetHandle: 'top', bidirectional: true, dots: 'mixed' },
-	{ from: 'model', to: 'database', sourceHandle: 'bottom', targetHandle: 'top', bidirectional: true, dots: 'mixed' },
+	{
+		from: 'controller',
+		to: 'model',
+		sourceHandle: 'bottom',
+		targetHandle: 'top',
+		bidirectional: true,
+		dots: 'mixed',
+	},
+	{
+		from: 'model',
+		to: 'database',
+		sourceHandle: 'bottom',
+		targetHandle: 'top',
+		bidirectional: true,
+		dots: 'mixed',
+	},
 ];
 
 const REWARD_CONNECTIONS: PipelineConnection[] = [
 	{ from: 'request', to: 'router', dots: 'clean' },
 	{ from: 'router', to: 'controller', dots: 'clean' },
 	{ from: 'controller', to: 'response', dots: 'clean' },
-	{ from: 'controller', to: 'model', sourceHandle: 'bottom', targetHandle: 'top', bidirectional: true, dots: 'clean' },
-	{ from: 'model', to: 'database', sourceHandle: 'bottom', targetHandle: 'top', bidirectional: true, dots: 'clean' },
+	{
+		from: 'controller',
+		to: 'model',
+		sourceHandle: 'bottom',
+		targetHandle: 'top',
+		bidirectional: true,
+		dots: 'clean',
+	},
+	{
+		from: 'model',
+		to: 'database',
+		sourceHandle: 'bottom',
+		targetHandle: 'top',
+		bidirectional: true,
+		dots: 'clean',
+	},
 ];
 
 // ──────────────────────────────────────────────
@@ -444,7 +477,7 @@ function getActionBody(action: string): string {
 
 function getCodeFiles(
 	phase: Phase,
-	furthestStep: number,
+	completedStep: number,
 	placedActions: string[],
 ) {
 	const files = [];
@@ -476,8 +509,8 @@ end`,
 		return files;
 	}
 
-	// Build / activate / reward: evolving code preview
-	if (furthestStep === 0) {
+	// Build / reward: evolving code preview
+	if (completedStep === 0) {
 		files.push({
 			filename: 'app/controllers/api/v1/products_controller.rb',
 			language: 'ruby',
@@ -486,7 +519,7 @@ end`,
 		});
 	}
 
-	if (furthestStep >= 1) {
+	if (completedStep >= 1) {
 		const actionCode =
 			placedActions.length > 0
 				? placedActions
@@ -513,7 +546,7 @@ end`,
 		});
 	}
 
-	if (furthestStep >= 3) {
+	if (completedStep >= 3) {
 		files.push({
 			filename: 'Test Results',
 			language: 'ruby',
@@ -533,13 +566,14 @@ end`,
 // Reward status code map
 // ──────────────────────────────────────────────
 
-const SCENARIO_STATUS_MAP: Record<string, { action: string; status: string }> = {
-	'get-index': { action: 'index', status: '200' },
-	'post-create': { action: 'create', status: '201' },
-	'get-show': { action: 'show', status: '200' },
-	'patch-update': { action: 'update', status: '200' },
-	'delete-destroy': { action: 'destroy', status: '204' },
-};
+const SCENARIO_STATUS_MAP: Record<string, { action: string; status: string }> =
+	{
+		'get-index': { action: 'index', status: '200' },
+		'post-create': { action: 'create', status: '201' },
+		'get-show': { action: 'show', status: '200' },
+		'patch-update': { action: 'update', status: '200' },
+		'delete-destroy': { action: 'destroy', status: '204' },
+	};
 
 // ──────────────────────────────────────────────
 // Pipeline Legend
@@ -572,8 +606,9 @@ export function Level6Controller({ onComplete }: LevelComponentProps) {
 	});
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
-	const [inspectorData, setInspectorData] =
-		useState<StageInspectorData | null>(null);
+	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(
+		null,
+	);
 	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
 		new Set(),
 	);
@@ -583,9 +618,7 @@ export function Level6Controller({ onComplete }: LevelComponentProps) {
 	const [placedActions, setPlacedActions] = useState<string[]>([]);
 
 	// ── Build observe stages dynamically ──
-	const probeDisplay = lastProbeId
-		? PROBE_PIPELINE_MAP[lastProbeId]
-		: null;
+	const probeDisplay = lastProbeId ? PROBE_PIPELINE_MAP[lastProbeId] : null;
 	const observeStages: PipelineStage[] = useMemo(
 		() => [
 			{
@@ -618,9 +651,7 @@ export function Level6Controller({ onComplete }: LevelComponentProps) {
 				id: 'response',
 				label: 'Response',
 				sublabel: probeDisplay ? '500 Error' : undefined,
-				variant: (probeDisplay ? 'danger' : 'default') as
-					| 'danger'
-					| 'default',
+				variant: (probeDisplay ? 'danger' : 'default') as 'danger' | 'default',
 				inspectable: true,
 				inspected: inspectedStages.has('response'),
 			},
@@ -688,13 +719,6 @@ export function Level6Controller({ onComplete }: LevelComponentProps) {
 		];
 	}, [lastResult]);
 
-	// ── Transition: build -> activate when all steps complete ──
-	useEffect(() => {
-		if (phase === 'build' && stepper.isComplete) {
-			setPhase('activate');
-		}
-	}, [phase, stepper.isComplete]);
-
 	// ── Stage click handler (observe phase) ──
 	const handleStageClick = useCallback(
 		(stageId: string) => {
@@ -761,7 +785,7 @@ export function Level6Controller({ onComplete }: LevelComponentProps) {
 		setPhase('build');
 	};
 
-	const handleActivateController = () => {
+	const handleStartReward = () => {
 		setPhase('reward');
 		stressTest.reset();
 	};
@@ -809,9 +833,9 @@ export function Level6Controller({ onComplete }: LevelComponentProps) {
 							controller class does not exist yet.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							The router knows WHERE to send requests, but the controller
-							(the code that handles them) is missing. You need to generate
-							it, add the 5 RESTful actions, and test the endpoint.
+							The router knows WHERE to send requests, but the controller (the
+							code that handles them) is missing. You need to generate it, add
+							the 5 RESTful actions, and test the endpoint.
 						</p>
 					</div>
 
@@ -819,15 +843,15 @@ export function Level6Controller({ onComplete }: LevelComponentProps) {
 					{phase === 'observe' && (
 						<div className="p-4 border-b border-border">
 							<DiscoveryChecklist
-								discoveries={discoveryGating.discoveries}
 								discoveredCount={discoveryGating.discoveredCount}
+								discoveries={discoveryGating.discoveries}
 								minRequired={discoveryGating.minRequired}
 							/>
 						</div>
 					)}
 
-					{/* Build / activate phases: step progress */}
-					{(phase === 'build' || phase === 'activate') && (
+					{/* Build phase: step progress */}
+					{phase === 'build' && (
 						<div className="p-4 border-b border-border">
 							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 								Steps
@@ -936,8 +960,8 @@ export function Level6Controller({ onComplete }: LevelComponentProps) {
 												<span className="font-mono text-primary">
 													namespace :api / :v1
 												</span>{' '}
-												from Level 5. Generate a controller that matches
-												the namespace structure.
+												from Level 5. Generate a controller that matches the
+												namespace structure.
 											</p>
 										}
 										hasNext={hasNextStep}
@@ -978,9 +1002,7 @@ export function Level6Controller({ onComplete }: LevelComponentProps) {
 													return (
 														<Button
 															className={`font-mono text-xs ${
-																isPlaced
-																	? 'opacity-50 cursor-not-allowed'
-																	: ''
+																isPlaced ? 'opacity-50 cursor-not-allowed' : ''
 															}`}
 															disabled={isPlaced || isViewingCompletedStep}
 															key={action}
@@ -1037,7 +1059,7 @@ export function Level6Controller({ onComplete }: LevelComponentProps) {
 									</div>
 								)}
 
-								{/* Step 2: Test Endpoint (Terminal) */}
+								{/* Step 2: Test Endpoint (Terminal, last step) */}
 								{stepper.currentStep === 2 && (
 									<TerminalChoiceStep
 										commands={testCommands}
@@ -1045,17 +1067,17 @@ export function Level6Controller({ onComplete }: LevelComponentProps) {
 										description={
 											<p className="text-sm text-muted-foreground">
 												You booted Puma in Level 2, but had no routes or
-												controller back then. Now both exist. Hit the
-												endpoint to verify it responds.
+												controller back then. Now both exist. Hit the endpoint
+												to verify it responds.
 											</p>
 										}
-										hasNext={hasNextStep}
+										hasNext
 										initialHistory={buildTerminalHistory(
 											SHELL_STEP_MAP,
 											stepper.currentStep,
 										)}
 										onCorrect={() => stepper.completeStep()}
-										onNext={stepper.nextStep}
+										onNext={handleStartReward}
 										onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 										outputLines={testOutput}
 										stepKey={stepper.currentStep}
@@ -1066,40 +1088,7 @@ export function Level6Controller({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* ── Phase 3: Activate (ADVANTAGE sub-phase a) ── */}
-					{phase === 'activate' && (
-						<div className="flex-1 flex items-center justify-center p-6">
-							<div className="max-w-md text-center space-y-6">
-								<div className="flex justify-center gap-1">
-									{[1, 2, 3].map((s) => (
-										<Star
-											className={`w-8 h-8 ${
-												s <= stepper.starRating
-													? 'text-yellow-400 fill-yellow-400'
-													: 'text-muted-foreground/30'
-											}`}
-											key={s}
-										/>
-									))}
-								</div>
-								<p className="text-sm text-muted-foreground">
-									Your controller is built and responding. Fire HTTP requests
-									at all 5 endpoints and watch them resolve through the
-									pipeline.
-								</p>
-								<Button
-									className="gap-2"
-									onClick={handleActivateController}
-									size="lg"
-								>
-									<Play className="w-4 h-4" />
-									Visualize Controller
-								</Button>
-							</div>
-						</div>
-					)}
-
-					{/* ── Phase 4: Reward (ADVANTAGE sub-phase b) ── */}
+					{/* ── Phase 3: Reward (ADVANTAGE) ── */}
 					{phase === 'reward' && (
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">
@@ -1129,7 +1118,13 @@ export function Level6Controller({ onComplete }: LevelComponentProps) {
 
 			<RightPanel>
 				<CodePreviewPanel
-					files={getCodeFiles(phase, stepper.furthestStep, placedActions)}
+					files={getCodeFiles(
+						phase,
+						stepper.isCurrentStepCompleted
+							? stepper.currentStep
+							: stepper.currentStep - 1,
+						placedActions,
+					)}
 				>
 					{phase === 'observe' && (
 						<div className="p-4 border-t border-border">
@@ -1143,16 +1138,12 @@ export function Level6Controller({ onComplete }: LevelComponentProps) {
 										Controller#action
 									</span>
 								</li>
-								<li>
-									Controller name must match the route namespace
-								</li>
-								<li>
-									API controllers need the 5 RESTful actions
-								</li>
+								<li>Controller name must match the route namespace</li>
+								<li>API controllers need the 5 RESTful actions</li>
 							</ul>
 						</div>
 					)}
-					{(phase === 'build' || phase === 'activate') && (
+					{phase === 'build' && (
 						<div className="p-4 border-t border-border">
 							<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
 								RESTful Actions
