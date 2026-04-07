@@ -10,7 +10,6 @@ import type {
 	Dungeon,
 	Progress,
 	Realm,
-	User,
 } from '../../../shared/types';
 
 // In dev, use relative URL (proxied through Astro dev server for same-origin cookies)
@@ -68,35 +67,7 @@ async function fetchApi<T>(
 	return json.data as T;
 }
 
-export interface AuthResponse {
-	user: User;
-}
-
-// Auth endpoints
-export async function signup(
-	email: string,
-	username: string,
-	password: string,
-): Promise<AuthResponse> {
-	return fetchApi('/api/auth/signup', {
-		method: 'POST',
-		body: JSON.stringify({ email, username, password }),
-	});
-}
-
-export async function login(
-	email: string,
-	password: string,
-): Promise<AuthResponse> {
-	return fetchApi('/api/auth/login', {
-		method: 'POST',
-		body: JSON.stringify({ email, password }),
-	});
-}
-
-export async function getMe(): Promise<{ user: User }> {
-	return fetchApi('/api/auth/me');
-}
+// Auth is handled by Better Auth client (see @/lib/auth-client.ts)
 
 // Game endpoints
 export async function getRealms(): Promise<{ realms: Realm[] }> {

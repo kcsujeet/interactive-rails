@@ -1,9 +1,9 @@
 import { atom, computed } from 'nanostores';
+import { authClient } from '@/lib/auth-client';
 import type { User } from '../../../shared/types';
 
 const USER_KEY = 'interactive_rails_user';
 
-// Initialize user from localStorage (for display purposes only, not auth)
 function getInitialUser(): User | null {
 	if (typeof window === 'undefined') return null;
 	const stored = localStorage.getItem(USER_KEY);
@@ -20,17 +20,13 @@ export function initAuth() {
 	const cached = getInitialUser();
 	$user.set(cached);
 
-	// Verify session with server; clear stale state on 401
+	// Verify session with Better Auth
 	if (cached) {
-		fetch('/api/auth/me', { credentials: 'include' })
-			.then((res) => {
-				if (res.status === 401) {
-					clearAuth();
-				}
-			})
-			.catch(() => {
-				// Network error - keep cached state
-			});
+		authClient.getSession().then(({ data, error }) => {
+			if (error || !data) {
+				clearAuth();
+			}
+		});
 	}
 }
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { signup } from '@/lib/api';
+import { authClient } from '@/lib/auth-client';
 import { hasGuestProgress, importGuestProgress } from '@/lib/progress';
 import { setAuth } from '@/stores/authStore';
 import { Button } from '../ui/Button';
@@ -43,8 +43,26 @@ export default function SignupForm() {
 		setIsLoading(true);
 
 		try {
-			const response = await signup(email, username, password);
-			setAuth(response.user);
+			const { data, error: authError } = await authClient.signUp.email({
+				name: username,
+				email,
+				password,
+				username,
+			});
+
+			if (authError) {
+				setError(authError.message ?? 'Signup failed');
+				return;
+			}
+
+			if (data?.user) {
+				setAuth({
+					id: data.user.id,
+					email: data.user.email,
+					username: data.user.username ?? data.user.name,
+				});
+			}
+
 			if (hasGuestProgress()) {
 				const confirmed = window.confirm(
 					'You have guest progress on this device. Import it into your new account?',

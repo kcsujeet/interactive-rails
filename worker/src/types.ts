@@ -4,6 +4,8 @@ export interface Env {
 	DB: D1Database;
 	ENVIRONMENT: string;
 	JWT_SECRET: string;
+	BETTER_AUTH_SECRET: string;
+	BETTER_AUTH_URL: string;
 }
 
 export interface User {

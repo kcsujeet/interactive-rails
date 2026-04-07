@@ -7,9 +7,9 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { HTTP_STATUS } from './constants';
 import { normalizeError } from './errors';
+import { createAuth } from './lib/auth';
 import { generalRateLimiter } from './middleware/rateLimit';
 import { requestIdMiddleware } from './middleware/requestId';
-import { authRoutes } from './routes/auth';
 import { pipelineRoutes } from './routes/pipeline';
 import type { Env } from './types';
 import { logger } from './utils/logger';
@@ -97,7 +97,16 @@ app.get('/health', async (c) => {
 
 // ==================== Routes ====================
 
-app.route('/api/auth', authRoutes);
+// Better Auth handles all /api/auth/* routes
+app.on(['GET', 'POST'], '/api/auth/**', (c) => {
+	const auth = createAuth(
+		c.env.DB,
+		c.env.BETTER_AUTH_SECRET,
+		c.env.BETTER_AUTH_URL,
+	);
+	return auth.handler(c.req.raw);
+});
+
 app.route('/api/pipeline', pipelineRoutes);
 
 // ==================== Error Handling ====================

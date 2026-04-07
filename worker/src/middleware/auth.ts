@@ -1,14 +1,12 @@
 /**
  * Authentication middleware
- * Validates JWT tokens from cookies and attaches userId to context
+ * Validates Better Auth sessions and attaches userId to context
  */
 
-import { getCookie } from 'hono/cookie';
 import { createMiddleware } from 'hono/factory';
-import { AUTH } from '../constants';
 import { UnauthorizedError } from '../errors';
+import { createAuth } from '../lib/auth';
 import type { Env } from '../types';
-import { verifyToken } from '../utils/jwt';
 
 declare module 'hono' {
 	interface ContextVariableMap {
@@ -18,18 +16,20 @@ declare module 'hono' {
 
 export const authMiddleware = createMiddleware<{ Bindings: Env }>(
 	async (c, next) => {
-		const token = getCookie(c, AUTH.COOKIE.NAME);
+		const auth = createAuth(
+			c.env.DB,
+			c.env.BETTER_AUTH_SECRET,
+			c.env.BETTER_AUTH_URL,
+		);
+		const session = await auth.api.getSession({
+			headers: c.req.raw.headers,
+		});
 
-		if (!token) {
+		if (!session) {
 			throw new UnauthorizedError('Authentication required');
 		}
 
-		try {
-			const payload = await verifyToken(token, c.env.JWT_SECRET);
-			c.set('userId', payload.userId);
-			await next();
-		} catch (error) {
-			throw new UnauthorizedError('Invalid or expired token');
-		}
+		c.set('userId', session.user.id);
+		await next();
 	},
 );

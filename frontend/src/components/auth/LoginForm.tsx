@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { login } from '@/lib/api';
+import { authClient } from '@/lib/auth-client';
 import { hasGuestProgress, importGuestProgress } from '@/lib/progress';
 import { setAuth } from '@/stores/authStore';
 import { Button } from '../ui/Button';
@@ -25,8 +25,24 @@ export default function LoginForm() {
 		setIsLoading(true);
 
 		try {
-			const response = await login(email, password);
-			setAuth(response.user);
+			const { data, error: authError } = await authClient.signIn.email({
+				email,
+				password,
+			});
+
+			if (authError) {
+				setError(authError.message ?? 'Login failed');
+				return;
+			}
+
+			if (data?.user) {
+				setAuth({
+					id: data.user.id,
+					email: data.user.email,
+					username: data.user.username ?? data.user.name,
+				});
+			}
+
 			if (hasGuestProgress()) {
 				const confirmed = window.confirm(
 					'You have guest progress on this device. Import it into your account?',
