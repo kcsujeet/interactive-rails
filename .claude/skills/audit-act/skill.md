@@ -13,10 +13,10 @@ The argument should be an act name or number (e.g., "Act 2", "Guards & Gates", "
 
 ## File Locations
 
-- **Act content definitions:** `frontend/src/features/act{N}-{slug}/content.ts`
-- **Level components:** `frontend/src/features/act{N}-{slug}/components/Level{NN}{Name}.tsx`
-- **Acts registry:** `frontend/src/features/acts-registry.ts` (provides `getAct()`, `getLevel()`, `getAllLevels()`, `getActForLevel()`)
-- **Levels registry:** `frontend/src/features/levels-registry.ts` (maps level IDs to components)
+- **Act content definitions:** `src/features/act{N}-{slug}/content.ts`
+- **Level components:** `src/features/act{N}-{slug}/components/Level{NN}{Name}.tsx`
+- **Acts registry:** `src/features/acts-registry.ts` (provides `getAct()`, `getLevel()`, `getAllLevels()`, `getActForLevel()`)
+- **Levels registry:** `src/features/levels-registry.ts` (maps level IDs to components)
 - **Spec:** `docs/spec.md`
 
 Act directory slugs:

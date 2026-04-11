@@ -19,7 +19,7 @@ After completing any work (code changes, fixes, refactors), immediately update t
 **Always check the latest docs of any library before implementing.** Never assume the API from memory. Libraries rename components, change prop names, and introduce breaking changes between versions. Fetch the official docs (GitHub README, npm page, or docs site) and verify the current API before writing any code.
 
 **Run all checks after every change. This is non-negotiable.**
-After making any code changes, run ALL of the following from the `frontend/` directory before reporting done:
+After making any code changes, run ALL of the following from the project root before reporting done:
 1. `bunx tsc --noEmit` (TypeScript type checking, must have zero errors in changed files)
 2. `bunx biome check --write <changed files>` (lint and format, must have zero errors/warnings)
 3. `bun run build` (must succeed)
@@ -227,7 +227,7 @@ const handleVerify = () => {
 
 When creating or redesigning a level component, ensure all three phases are present in the gameplay. Reference `docs/spec.md` for each level's scenario and concept.
 
-**Reference implementation:** Level 12 (Authorization) in `frontend/src/features/act2-users-security/components/Level12Authorization.tsx` is the canonical example of this pattern.
+**Reference implementation:** Level 12 (Authorization) in `src/features/act2-users-security/components/Level12Authorization.tsx` is the canonical example of this pattern.
 
 **Performance-level ADVANTAGE phase convention (Acts 4-8):**
 Every performance-related level must have a full ADVANTAGE phase in its `learningContent` with:

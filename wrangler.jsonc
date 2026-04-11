@@ -1,0 +1,26 @@
+{
+	"name": "interactive-rails",
+	"main": "@astrojs/cloudflare/entrypoints/server",
+	"compatibility_date": "2024-09-23",
+	"compatibility_flags": ["nodejs_compat"],
+	"assets": {
+		"binding": "ASSETS",
+		"directory": "./dist"
+	},
+	"vars": {
+		"ENVIRONMENT": "development",
+		"JWT_SECRET": "dev-secret-change-in-production",
+		"BETTER_AUTH_SECRET": "dev-better-auth-secret-change-in-production",
+		"BETTER_AUTH_URL": "http://localhost:4321"
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "interactive-rails-db",
+			"database_id": "local"
+		}
+	],
+	"observability": {
+		"enabled": true
+	}
+}

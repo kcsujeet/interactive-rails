@@ -160,7 +160,7 @@ bunx wrangler dev
 
 2. **Frontend:** Clear Astro cache
 ```bash
-rm -rf frontend/.astro
+rm -rf .astro
 bun run dev:frontend
 ```
 
@@ -173,7 +173,7 @@ bun run dev:frontend
 **Solution:**
 ```bash
 # Clear Astro cache
-rm -rf frontend/node_modules/.astro
+rm -rf node_modules/.astro
 
 # Restart dev server
 bun run dev:frontend
@@ -218,7 +218,7 @@ echo $TOKEN
 1. **Invalid level ID** - Level IDs follow the pattern: `actN-levelN-slug`
    - Example valid IDs: `act1-level1-stack-choice`, `act2-level12-testing`, `act4-level22-n-plus-one`
 
-2. **Level definition missing** - Check `frontend/src/features/act*-*/content.ts` for valid level definitions
+2. **Level definition missing** - Check `src/features/act*-*/content.ts` for valid level definitions
 
 ---
 
@@ -228,7 +228,7 @@ echo $TOKEN
 
 **Solutions:**
 
-1. Verify the level ID exists in the act content files at `frontend/src/features/act{N}-*/content.ts`
+1. Verify the level ID exists in the act content files at `src/features/act{N}-*/content.ts`
 
 2. Level IDs are defined in the act content files and follow the `actN-levelN-slug` format
 
@@ -335,12 +335,12 @@ bunx wrangler d1 execute interactive-rails-db --command="SELECT * FROM user_prog
 
 1. Check for TypeScript errors:
 ```bash
-cd frontend && bun run astro check
+bun run astro check
 ```
 
 2. Clear cache:
 ```bash
-rm -rf frontend/.astro frontend/dist
+rm -rf .astro dist
 ```
 
 3. Check imports are correct:

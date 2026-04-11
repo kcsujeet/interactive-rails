@@ -131,7 +131,6 @@ bun run deploy:worker
 ### Deploy Frontend Only
 
 ```bash
-cd frontend
 bun run build
 bunx wrangler pages deploy dist
 
@@ -167,7 +166,7 @@ ENVIRONMENT = "production"
 # ]
 ```
 
-### frontend/astro.config.mjs
+### astro.config.mjs
 
 ```javascript
 import { defineConfig } from 'astro/config';
@@ -293,10 +292,10 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
       - name: Build Frontend
-        run: cd frontend && bun run build
+        run: bun run build
 
       - name: Deploy Frontend
-        run: cd frontend && bunx wrangler pages deploy dist --project-name=interactive-rails
+        run: bunx wrangler pages deploy dist --project-name=interactive-rails
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 ```

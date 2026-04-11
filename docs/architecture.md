@@ -2,7 +2,7 @@
 
 ## System Overview
 
-Interactive Rails uses a modern JAMstack architecture optimized for Cloudflare's edge network.
+Interactive Rails uses a unified Astro 6 + Cloudflare Workers architecture. A single deployment serves both static pages and the API.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -11,12 +11,14 @@ Interactive Rails uses a modern JAMstack architecture optimized for Cloudflare's
                                 │
                                 ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Cloudflare CDN/Edge                          │
-│  ┌─────────────────────┐    ┌─────────────────────────────────┐ │
-│  │   Cloudflare Pages  │    │     Cloudflare Workers          │ │
-│  │   (Astro Frontend)  │───▶│     (Hono API)                  │ │
-│  │   Static + Islands  │    │     /api/*                      │ │
-│  └─────────────────────┘    └─────────────────────────────────┘ │
+│                    Cloudflare Workers                           │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │          Astro 6 (SSR + Static)                         │    │
+│  │  ┌──────────────────┐    ┌──────────────────────────┐   │    │
+│  │  │  Static Pages    │    │  /api/* catch-all         │   │    │
+│  │  │  React Islands   │    │  Hono API (auth, pipeline)│   │    │
+│  │  └──────────────────┘    └──────────────────────────┘   │    │
+│  └─────────────────────────────────────────────────────────┘    │
 │                                         │                       │
 │                                         ▼                       │
 │                              ┌─────────────────────┐            │
@@ -32,7 +34,7 @@ Interactive Rails uses a modern JAMstack architecture optimized for Cloudflare's
 - **Bun** - Fast JavaScript runtime, package manager, and test runner
 
 ### Frontend
-- **Astro** (v5.x) - Static site generator with islands architecture
+- **Astro** (v6.x) - Static site generator with islands architecture
 - **React** (v19.x) - Interactive components (game canvas, forms)
 - **Zustand** - State management with Immer middleware
 - **React Flow** (@xyflow/react) - Node-based pipeline visualization
@@ -40,10 +42,9 @@ Interactive Rails uses a modern JAMstack architecture optimized for Cloudflare's
 - **Lucide React** - Icon library
 - **TypeScript** - Type safety throughout
 
-### Backend API
-- **Cloudflare Workers** - Serverless edge functions
-- **Hono** (v4.x) - Lightweight web framework for Workers
-- **Zod** - Runtime validation
+### Backend API (runs inside Astro via Cloudflare adapter)
+- **Hono** (v4.x) - Lightweight web framework, mounted at `/api/*`
+- **Zod** (v4.x) - Runtime validation
 
 ### Database
 - **Cloudflare D1** - SQLite at the edge
@@ -56,90 +57,59 @@ Interactive Rails uses a modern JAMstack architecture optimized for Cloudflare's
 
 ```
 interactive-rails/
-├── package.json              # Root workspace config
-├── bun.lock                  # Bun lockfile
+├── package.json              # Project config (single package)
+├── astro.config.mjs          # Astro + Cloudflare adapter
+├── wrangler.jsonc            # Cloudflare Workers config (D1 bindings)
+├── tsconfig.json             # TypeScript (extends astro/tsconfigs/strict)
 ├── biome.json                # Linter/formatter config
+├── bun.lock                  # Bun lockfile
 │
-├── frontend/                 # Astro application
-│   ├── astro.config.mjs      # Astro + Cloudflare adapter
-│   ├── package.json
-│   ├── tsconfig.json
-│   └── src/
-│       ├── features/          # Feature modules (bulletproof-react)
-│       │   ├── acts-registry.ts        # All acts registry
-│       │   ├── levels-registry.ts      # Level component registry (43 custom)
-│       │   ├── act1-foundation/        # Act content + components
-│       │   │   ├── content.ts          # Level definitions
-│       │   │   ├── index.ts            # Public exports
-│       │   │   └── components/         # Level-specific React components
-│       │   │       ├── Level1StackChoice.tsx
-│       │   │       ├── Level2Model.tsx
-│       │   │       └── ...
-│       │   ├── act2-users-security/
-│       │   ├── act3-clean-architecture/
-│       │   ├── act4-performance/
-│       │   ├── act5-production/
-│       │   ├── act6-reliability/
-│       │   ├── act7-scale/
-│       │   └── act8-mastery/
-│       ├── components/
-│       │   ├── levels/       # Shared level components
-│       │   │   ├── LevelLayout.tsx     # 3-panel layout
-│       │   │   ├── InstructionPanel.tsx # Left panel
-│       │   │   ├── CodePreviewPanel.tsx # Right panel
-│       │   │   ├── LevelHeader.tsx     # Header with submit
-│       │   │   ├── DraggableNode.tsx
-│       │   │   └── useLevelCompletion.ts
-│       │   ├── pipeline/     # Pipeline editor (React Flow)
-│       │   ├── inspector/    # Metrics inspector
-│       │   ├── pages/        # Page-level app components
-│       │   │   ├── ActsListApp.tsx
-│       │   │   ├── ActDetailApp.tsx
-│       │   │   ├── LevelInfoApp.tsx
-│       │   │   ├── LevelPlayApp.tsx
-│       │   │   └── SandboxApp.tsx
-│       │   ├── ui/           # Reusable UI components (shadcn/ui)
-│       │   └── auth/         # Auth components
-│       ├── hooks/             # Shared hooks
-│       │   ├── usePipelineState.ts
-│       │   ├── usePipelineSimulation.ts
-│       │   └── usePipelineValidation.ts
-│       ├── utils/             # Shared utilities
-│       │   ├── SimulationEngine.ts
-│       │   ├── nodeBehavior.ts
-│       │   ├── metrics.ts
-│       │   ├── gameData.ts
-│       │   └── pipelineTemplates.ts  # Reusable pipeline layouts
-│       ├── lib/              # Utilities (api, progress, utils)
-│       ├── types/            # TypeScript definitions (game.ts, level.ts)
-│       ├── stores/           # Zustand state management
-│       ├── layouts/          # Astro layouts
-│       ├── pages/            # Astro routes
-│       │   ├── index.astro
-│       │   └── acts/[actId]/[levelId]/
-│       │       ├── index.astro     # Level info
-│       │       ├── play.astro      # Gameplay
-│       │       └── complete.astro
-│       └── styles/           # Global CSS
+├── src/
+│   ├── server/               # Hono API (mounted at /api/*)
+│   │   ├── index.ts          # Main Hono app
+│   │   ├── types.ts          # Env bindings, entity types
+│   │   ├── constants/        # Game/auth/API constants
+│   │   ├── errors/           # Error classes (AppError hierarchy)
+│   │   ├── lib/auth.ts       # Better Auth configuration
+│   │   ├── middleware/        # Auth, rate limiting, request ID
+│   │   ├── routes/           # Pipeline, auth, game, progress
+│   │   ├── repositories/     # D1 data access layer
+│   │   ├── services/         # Game mechanics, content
+│   │   ├── utils/            # Logger, response helpers
+│   │   └── db/               # SQL schema and migrations
+│   ├── features/             # Feature modules (bulletproof-react)
+│   │   ├── acts-registry.ts  # All acts registry
+│   │   ├── levels-registry.ts # Level component registry
+│   │   ├── act1-foundation/  # Act content + components
+│   │   │   ├── content.ts
+│   │   │   └── components/
+│   │   ├── act2-users-security/
+│   │   ├── act3-clean-architecture/
+│   │   ├── act4-performance/
+│   │   ├── act5-production/
+│   │   ├── act6-reliability/
+│   │   ├── act7-scale/
+│   │   └── act8-mastery/
+│   ├── components/
+│   │   ├── levels/           # Shared level components
+│   │   ├── pipeline/         # Pipeline editor (React Flow)
+│   │   ├── pages/            # Page-level app components
+│   │   ├── ui/               # shadcn/ui components
+│   │   └── auth/             # Auth components
+│   ├── hooks/                # Shared hooks
+│   ├── utils/                # Shared utilities
+│   ├── lib/                  # Utilities (api, auth-client, progress)
+│   ├── types/                # TypeScript definitions
+│   ├── stores/               # Zustand state management
+│   ├── layouts/              # Astro layouts
+│   ├── pages/                # Astro routes
+│   │   ├── index.astro
+│   │   ├── api/[...path].ts  # Catch-all: delegates to Hono app
+│   │   └── acts/[actId]/[levelId]/
+│   └── styles/               # Global CSS
 │
-├── worker/                   # Cloudflare Worker API
-│   ├── wrangler.toml
-│   ├── package.json
-│   └── src/
-│       ├── index.ts          # Main entry, Hono app
-│       ├── types.ts
-│       ├── routes/
-│       │   ├── auth.ts       # /api/auth/*
-│       │   ├── progress.ts   # /api/progress/*
-│       │   └── game.ts       # /api/game/*
-│       ├── middleware/
-│       │   └── auth.ts       # JWT validation
-│       ├── services/
-│       │   ├── auth.ts
-│       │   └── progress.ts
-│       └── db/
-│           └── schema.sql
-│
+├── public/                   # Static assets
+├── shared/                   # Shared types
 └── docs/                     # Documentation
 ```
 
@@ -272,24 +242,35 @@ export function Level24Indexing({ onComplete }: LevelComponentProps) {
 
 ## Environment Configuration
 
-### Frontend (astro.config.mjs)
+### Astro (astro.config.mjs)
 ```javascript
 export default defineConfig({
-  output: 'static',
+  output: 'server',
   adapter: cloudflare(),
-  integrations: [react(), tailwind()],
+  integrations: [react()],
 });
 ```
 
-### Worker (wrangler.toml)
-```toml
-name = "interactive-rails-api"
-main = "src/index.ts"
-compatibility_date = "2024-01-01"
+### Cloudflare (wrangler.jsonc)
+```jsonc
+{
+  "name": "interactive-rails",
+  "main": "@astrojs/cloudflare/entrypoints/server",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": { "binding": "ASSETS", "directory": "./dist" },
+  "d1_databases": [{ "binding": "DB", "database_name": "interactive-rails-db" }]
+}
+```
 
-[[d1_databases]]
-binding = "DB"
-database_name = "interactive-rails-db"
+### API Bindings Access
+```typescript
+// In Astro catch-all route (src/pages/api/[...path].ts)
+import { env } from 'cloudflare:workers';
+import app from '@/server/index';
+return app.fetch(request, env);
+
+// Inside Hono route handlers, access via c.env
+const db = c.env.DB; // D1Database
 ```
 
 ## Security Considerations

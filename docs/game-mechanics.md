@@ -88,7 +88,7 @@ The controller orchestrates both the query path (right to Model/Database) and th
 
 ### Pipeline Templates
 
-Most levels with a standard request cycle use reusable templates from `frontend/src/utils/pipelineTemplates.ts` instead of defining nodes inline:
+Most levels with a standard request cycle use reusable templates from `src/utils/pipelineTemplates.ts` instead of defining nodes inline:
 
 ```typescript
 import { standardPipeline, middlewarePipeline } from "@/utils/pipelineTemplates";
@@ -423,15 +423,15 @@ totalXP = baseXP * starMultiplier[stars] * firstTimeBonus;
 
 | System | Location |
 |--------|----------|
-| Simulation Engine | `frontend/src/utils/SimulationEngine.ts` |
-| Metrics Calculation | `frontend/src/utils/metrics.ts` |
-| Node Behavior | `frontend/src/utils/nodeBehavior.ts` |
-| Pipeline Templates | `frontend/src/utils/pipelineTemplates.ts` |
-| Game Data (node types) | `frontend/src/utils/gameData.ts` |
-| Game Store | `frontend/src/stores/game.ts` |
-| Pipeline Hooks | `frontend/src/hooks/usePipelineState.ts` |
-| Simulation Hook | `frontend/src/hooks/usePipelineSimulation.ts` |
-| Level Components | `frontend/src/features/act*-*/components/` |
-| Level Registry | `frontend/src/features/levels-registry.ts` |
-| Acts Registry | `frontend/src/features/acts-registry.ts` |
-| Shared Level Layout | `frontend/src/components/levels/` |
+| Simulation Engine | `src/utils/SimulationEngine.ts` |
+| Metrics Calculation | `src/utils/metrics.ts` |
+| Node Behavior | `src/utils/nodeBehavior.ts` |
+| Pipeline Templates | `src/utils/pipelineTemplates.ts` |
+| Game Data (node types) | `src/utils/gameData.ts` |
+| Game Store | `src/stores/game.ts` |
+| Pipeline Hooks | `src/hooks/usePipelineState.ts` |
+| Simulation Hook | `src/hooks/usePipelineSimulation.ts` |
+| Level Components | `src/features/act*-*/components/` |
+| Level Registry | `src/features/levels-registry.ts` |
+| Acts Registry | `src/features/acts-registry.ts` |
+| Shared Level Layout | `src/components/levels/` |

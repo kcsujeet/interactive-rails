@@ -67,7 +67,7 @@ This distinction does NOT apply to Type 1 (no observe) or Type 2 (static intro),
 ## Type 2: Static Intro (Detailed Guidance)
 
 **Reference implementation:** Level 16 (Service Objects)
-`frontend/src/features/act3-clean-architecture/components/Level16ServiceObjects.tsx`
+`src/features/act3-clean-architecture/components/Level16ServiceObjects.tsx`
 
 L16 shows a fat controller method with color-coded left-border annotations marking each responsibility section. Side-effect sections (logging, preferences, token) get an amber left border + Badge label. The core logic gets a muted zinc border. Below: a callout stating "4 responsibilities in one method." The player reads the annotated code, sees the problem, and clicks "Build the Fix" immediately.
 

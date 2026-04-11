@@ -78,38 +78,34 @@ The narrative arc takes players from a simple Blog API through a social platform
 
 ```
 interactive-rails/
-├── frontend/              # Astro app with React components
-│   └── src/
-│       ├── pages/         # Astro routes (acts, levels, sandbox)
-│       ├── features/      # Feature modules (bulletproof-react pattern)
-│       │   ├── acts-registry.ts      # All acts registry
-│       │   ├── levels-registry.ts    # Level component registry (56 custom)
-│       │   ├── act1-foundation/      # Act 1 content + components
-│       │   │   ├── content.ts        # Level definitions
-│       │   │   └── components/       # Level-specific React components
-│       │   ├── act2-users-security/
-│       │   ├── act3-clean-architecture/
-│       │   ├── act4-performance/
-│       │   ├── act5-production/
-│       │   ├── act6-reliability/
-│       │   ├── act7-scale/
-│       │   └── act8-mastery/
-│       ├── components/    # Shared components
-│       │   ├── levels/    # Shared level components (LevelLayout, InstructionPanel, etc.)
-│       │   ├── pipeline/  # Pipeline editor components (React Flow)
-│       │   ├── inspector/ # Metrics inspector panel
-│       │   └── ui/        # Reusable UI components (shadcn/ui)
-│       ├── hooks/         # Shared hooks
-│       ├── utils/         # Utilities (SimulationEngine, gameData, pipelineTemplates)
-│       ├── types/         # TypeScript definitions
-│       ├── stores/        # Zustand state (game, pipeline, simulation)
-│       └── styles/        # Global CSS
-├── worker/                # Cloudflare Worker API
-│   └── src/
-│       ├── routes/        # API route handlers
-│       ├── services/      # Business logic
-│       └── db/            # Schema SQL
-└── docs/                  # This documentation
+├── src/
+│   ├── server/            # Hono API (mounted at /api/*)
+│   │   ├── routes/        # API route handlers
+│   │   ├── middleware/     # Auth, rate limiting
+│   │   ├── services/      # Business logic
+│   │   └── db/            # Schema SQL
+│   ├── pages/             # Astro routes (acts, levels, sandbox, API catch-all)
+│   ├── features/          # Feature modules (bulletproof-react pattern)
+│   │   ├── acts-registry.ts      # All acts registry
+│   │   ├── levels-registry.ts    # Level component registry (56 custom)
+│   │   ├── act1-foundation/      # Act content + components
+│   │   ├── act2-users-security/
+│   │   ├── act3-clean-architecture/
+│   │   ├── act4-performance/
+│   │   ├── act5-production/
+│   │   ├── act6-reliability/
+│   │   ├── act7-scale/
+│   │   └── act8-mastery/
+│   ├── components/        # Shared components
+│   │   ├── levels/        # Shared level components
+│   │   ├── pipeline/      # Pipeline editor (React Flow)
+│   │   └── ui/            # shadcn/ui components
+│   ├── hooks/             # Shared hooks
+│   ├── utils/             # Utilities
+│   ├── types/             # TypeScript definitions
+│   ├── stores/            # Zustand state
+│   └── styles/            # Global CSS
+└── docs/                  # Documentation
 ```
 
 ## Important Notes

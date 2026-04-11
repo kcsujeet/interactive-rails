@@ -8,10 +8,10 @@ Game content is defined in the frontend as TypeScript data structures and React 
 
 **Content Locations (bulletproof-react pattern):**
 ```
-frontend/src/features/act*-*/content.ts      # Act and level definitions (8 files)
-frontend/src/features/act*-*/components/     # Level-specific React components
-frontend/src/features/acts-registry.ts       # All acts registry
-frontend/src/features/levels-registry.ts     # Level component registry (55 custom)
+src/features/act*-*/content.ts      # Act and level definitions (8 files)
+src/features/act*-*/components/     # Level-specific React components
+src/features/acts-registry.ts       # All acts registry
+src/features/levels-registry.ts     # Level component registry (55 custom)
 ```
 
 ---
@@ -105,7 +105,7 @@ Interactive Rails (55 levels, 8 acts)
 
 ### TypeScript Interface
 
-The following interfaces are simplified versions of the actual types defined in `frontend/src/types/game.ts` and `frontend/src/types/level.ts`. See those files for the full definitions.
+The following interfaces are simplified versions of the actual types defined in `src/types/game.ts` and `src/types/level.ts`. See those files for the full definitions.
 
 ```typescript
 interface Act {
@@ -178,7 +178,7 @@ interface SuccessCondition {
 ### Example Act Definition
 
 ```typescript
-// frontend/src/features/act1-foundation/content.ts
+// src/features/act1-foundation/content.ts
 import type { Act, Level } from "@/types";
 
 const level1StackChoice: Level = {
@@ -231,12 +231,12 @@ export const actOne: Act = {
 
 ## Level Components
 
-Each level has a corresponding React component registered in `frontend/src/features/levels-registry.ts`. All 55 levels have custom interactive components registered in the level registry.
+Each level has a corresponding React component registered in `src/features/levels-registry.ts`. All 55 levels have custom interactive components registered in the level registry.
 
 ### Component Location
 
 ```
-frontend/src/features/
+src/features/
 ├── act1-foundation/components/
 │   ├── Level1StackChoice.tsx
 │   ├── Level2Model.tsx
@@ -356,7 +356,7 @@ end
 
 ### Pipeline Templates
 
-Most levels use a standard Rails request cycle layout. Rather than duplicating inline node/connection definitions, use the reusable templates from `frontend/src/utils/pipelineTemplates.ts`:
+Most levels use a standard Rails request cycle layout. Rather than duplicating inline node/connection definitions, use the reusable templates from `src/utils/pipelineTemplates.ts`:
 
 ```typescript
 import { standardPipeline, middlewarePipeline } from "@/utils/pipelineTemplates";
@@ -458,20 +458,20 @@ const successConditions: SuccessCondition[] = [
 
 ### Adding a New Level
 
-1. **Update the appropriate act file in `frontend/src/features/actN-*/content.ts`** - Add level definition to the act
+1. **Update the appropriate act file in `src/features/actN-*/content.ts`** - Add level definition to the act
 2. **Use pipeline templates** - For standard request-cycle levels, use `standardPipeline()` or `middlewarePipeline()` from `@/utils/pipelineTemplates` instead of inline node definitions
 3. **Create component** - Add `LevelXXName.tsx` in the act's `components/` folder
-4. **Add to level registry** - Update `frontend/src/features/levels-registry.ts`
+4. **Add to level registry** - Update `src/features/levels-registry.ts`
 5. **Test** - Verify level loads and completes correctly
 
 ### Adding a New Act
 
-1. **Create feature directory** - `frontend/src/features/actN-name/`
-2. **Create content file** - `frontend/src/features/actN-name/content.ts`
-3. **Create index** - `frontend/src/features/actN-name/index.ts` exporting content
-4. **Update acts registry** - Import and add in `frontend/src/features/acts-registry.ts`
+1. **Create feature directory** - `src/features/actN-name/`
+2. **Create content file** - `src/features/actN-name/content.ts`
+3. **Create index** - `src/features/actN-name/index.ts` exporting content
+4. **Update acts registry** - Import and add in `src/features/acts-registry.ts`
 5. **Create components** - Add `components/LevelXXName.tsx` for each level
-6. **Register components** - Import and add in `frontend/src/features/levels-registry.ts`
+6. **Register components** - Import and add in `src/features/levels-registry.ts`
 
 ### Level Component Template
 
@@ -630,11 +630,11 @@ Additional tips:
 
 | Content Type | Location |
 |--------------|----------|
-| Act definitions | `frontend/src/features/act*-*/content.ts` |
-| Level components | `frontend/src/features/act*-*/components/` |
-| Pipeline templates | `frontend/src/utils/pipelineTemplates.ts` |
-| Acts registry | `frontend/src/features/acts-registry.ts` |
-| Level registry | `frontend/src/features/levels-registry.ts` |
-| Node types | `frontend/src/utils/gameData.ts` |
-| Pipeline types | `frontend/src/types/game.ts` |
-| Game store | `frontend/src/stores/game.ts` |
+| Act definitions | `src/features/act*-*/content.ts` |
+| Level components | `src/features/act*-*/components/` |
+| Pipeline templates | `src/utils/pipelineTemplates.ts` |
+| Acts registry | `src/features/acts-registry.ts` |
+| Level registry | `src/features/levels-registry.ts` |
+| Node types | `src/utils/gameData.ts` |
+| Pipeline types | `src/types/game.ts` |
+| Game store | `src/stores/game.ts` |

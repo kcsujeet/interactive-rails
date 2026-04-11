@@ -46,8 +46,7 @@ bun run dev
 ```
 
 **Access:**
-- Frontend: http://localhost:4321
-- Worker API: http://localhost:8787
+- App + API: http://localhost:4321
 
 ---
 
@@ -66,23 +65,19 @@ cd interactive-rails
 # Install all workspace dependencies
 bun install
 
-# This installs:
-# - Root devDependencies
-# - frontend/ dependencies (Astro, React, Zustand, Tailwind)
-# - worker/ dependencies (Hono, Zod, Wrangler)
+# This installs all dependencies (Astro, React, Hono, Zod, Tailwind, etc.)
 ```
 
 ### 3. Database Setup (Optional)
 
-The worker uses Cloudflare D1 (SQLite). For local development, Wrangler emulates D1.
+The app uses Cloudflare D1 (SQLite). For local development, the Astro Cloudflare adapter emulates D1 via `workerd`.
 
 ```bash
-cd worker
 
 # Create tables in local D1 emulator
-bunx wrangler d1 execute interactive-rails-db --file=src/db/schema.sql --local
+bunx wrangler d1 execute interactive-rails-db --file=src/server/db/schema.sql --local
 
-# Database is stored in: worker/.wrangler/state/v3/d1/
+# Database is stored in: .wrangler/state/v3/d1/
 ```
 
 **Note:** The `--local` flag is crucial. Without it, commands run against production D1.
@@ -91,7 +86,7 @@ bunx wrangler d1 execute interactive-rails-db --file=src/db/schema.sql --local
 
 #### Frontend Environment
 
-Create `frontend/.env` if needed:
+Create `.env` if needed:
 ```bash
 NODE_ENV=development
 ```
@@ -103,25 +98,14 @@ For production, set secrets in Cloudflare:
 bunx wrangler secret put JWT_SECRET
 ```
 
-### 5. Start Development Servers
+### 5. Start Development Server
 
-**Option A: Both servers (recommended)**
 ```bash
-# From project root
+# From project root (single command, single server)
 bun run dev
 
-# This runs in parallel:
-# - Frontend: astro dev (port 4321)
-# - Worker: wrangler dev (port 8787)
-```
-
-**Option B: Individual servers**
-```bash
-# Terminal 1 - Frontend
-bun run dev:frontend
-
-# Terminal 2 - Worker
-bun run dev:worker
+# Astro dev server with workerd runtime (port 4321)
+# API runs inside the same server at /api/*
 ```
 
 ---
@@ -132,13 +116,12 @@ bun run dev:worker
 
 | Script | Description |
 |--------|-------------|
-| `dev` | Start both frontend and worker |
-| `dev:frontend` | Start Astro dev server only |
-| `dev:worker` | Start Wrangler dev server only |
-| `build` | Build both for production |
+| `dev` | Start Astro dev server (pages + API) |
+| `build` | Build for production |
+| `deploy` | Build and deploy to Cloudflare Workers |
+| `db:migrate` | Run D1 migration locally |
 | `lint` | Run Biome linter |
-| `lint:fix` | Fix linting issues |
-| `typecheck` | Type check both packages |
+| `typecheck` | Type check the project |
 
 ### Frontend Package.json
 
@@ -147,13 +130,6 @@ bun run dev:worker
 | `dev` | Start dev server (port 4321) |
 | `build` | Production build to `/dist/` |
 | `preview` | Preview production build |
-
-### Worker Package.json
-
-| Script | Description |
-|--------|-------------|
-| `dev` | Start local worker (port 8787) |
-| `deploy` | Deploy to Cloudflare |
 
 ---
 
@@ -196,28 +172,27 @@ Add to `.vscode/settings.json`:
 
 ```bash
 # Delete local D1 data
-rm -rf worker/.wrangler/state
+rm -rf .wrangler/state
 
 # Re-run migration
-cd worker
-bunx wrangler d1 execute interactive-rails-db --file=src/db/schema.sql --local
+bunx wrangler d1 execute interactive-rails-db --file=src/server/db/schema.sql --local
 ```
 
 ### View Local Database
 
 ```bash
 # Find the SQLite file
-ls worker/.wrangler/state/v3/d1/miniflare-D1DatabaseObject/
+ls .wrangler/state/v3/d1/miniflare-D1DatabaseObject/
 
 # Open with SQLite CLI
-sqlite3 worker/.wrangler/state/v3/d1/miniflare-D1DatabaseObject/<hash>.sqlite
+sqlite3 .wrangler/state/v3/d1/miniflare-D1DatabaseObject/<hash>.sqlite
 ```
 
 ### Add a New Level
 
-1. Update the appropriate content file in `frontend/src/features/actN-*/content.ts`
-2. Create component in `frontend/src/features/actN-*/components/LevelXXName.tsx`
-3. Import and register in `frontend/src/features/levels-registry.ts`
+1. Update the appropriate content file in `src/features/actN-*/content.ts`
+2. Create component in `src/features/actN-*/components/LevelXXName.tsx`
+3. Import and register in `src/features/levels-registry.ts`
 4. Test via acts page
 
 ### Test in Sandbox
@@ -257,7 +232,7 @@ If you see `jsxDEV is not a function`:
 
 ```bash
 # Ensure NODE_ENV is set
-echo "NODE_ENV=development" > frontend/.env
+echo "NODE_ENV=development" > .env
 
 # Restart dev server
 bun run dev
@@ -265,14 +240,8 @@ bun run dev
 
 ### CORS Errors
 
-Check `worker/src/index.ts` CORS configuration:
-
-```typescript
-app.use('*', cors({
-  origin: ['http://localhost:4321'],
-  credentials: true,
-}));
-```
+API runs same-origin inside Astro, so CORS is not needed for the frontend.
+If external clients need access, check `src/server/index.ts` CORS configuration.
 
 ### Type Errors
 
@@ -339,41 +308,39 @@ bun run build
 User Browser
      │
      ▼
-┌─────────────┐     ┌─────────────┐
-│   Astro     │────▶│   Worker    │
-│  Frontend   │     │    API      │
-│  :4321      │     │   :8787     │
-└─────────────┘     └─────────────┘
-                          │
-                          ▼
-                    ┌─────────────┐
-                    │     D1      │
-                    │  (SQLite)   │
-                    └─────────────┘
+┌──────────────────────┐
+│   Astro 6 + Hono     │
+│   (single server)    │
+│   :4321              │
+│   ├── pages (SSR)    │
+│   └── /api/* (Hono)  │
+└──────────────────────┘
+          │
+          ▼
+    ┌─────────────┐
+    │     D1      │
+    │  (SQLite)   │
+    └─────────────┘
 ```
 
-### Key Frontend Locations
+### Key Locations
 
 | Feature | Location |
 |---------|----------|
-| Pages | `frontend/src/pages/` |
-| Act content & level definitions | `frontend/src/features/act*-*/content.ts` |
-| Level components (43 custom) | `frontend/src/features/act*-*/components/` |
-| Level component registry | `frontend/src/features/levels-registry.ts` |
-| Acts registry | `frontend/src/features/acts-registry.ts` |
-| Shared level components | `frontend/src/components/levels/` |
-| Pipeline editor | `frontend/src/components/pipeline/` |
-| UI components (shadcn/ui) | `frontend/src/components/ui/` |
-| Shared hooks | `frontend/src/hooks/` |
-| Utilities & simulation | `frontend/src/utils/` |
-| Stores | `frontend/src/stores/` |
-| Styles | `frontend/src/styles/` |
-
-### Key Worker Locations
-
-| Feature | Location |
-|---------|----------|
-| Routes | `worker/src/routes/` |
-| Services | `worker/src/services/` |
-| Middleware | `worker/src/middleware/` |
-| Database schema | `worker/src/db/schema.sql` |
+| Pages | `src/pages/` |
+| API catch-all | `src/pages/api/[...path].ts` |
+| Hono API app | `src/server/` |
+| API routes | `src/server/routes/` |
+| API middleware | `src/server/middleware/` |
+| Database schema | `src/server/db/schema.sql` |
+| Act content & level definitions | `src/features/act*-*/content.ts` |
+| Level components | `src/features/act*-*/components/` |
+| Level component registry | `src/features/levels-registry.ts` |
+| Acts registry | `src/features/acts-registry.ts` |
+| Shared level components | `src/components/levels/` |
+| Pipeline editor | `src/components/pipeline/` |
+| UI components (shadcn/ui) | `src/components/ui/` |
+| Shared hooks | `src/hooks/` |
+| Utilities & simulation | `src/utils/` |
+| Stores | `src/stores/` |
+| Styles | `src/styles/` |
