@@ -21,6 +21,7 @@ export const authMiddleware = createMiddleware<{ Bindings: Env }>(
 			c.env.BETTER_AUTH_SECRET,
 			c.env.BETTER_AUTH_URL,
 		);
+
 		const session = await auth.api.getSession({
 			headers: c.req.raw.headers,
 		});

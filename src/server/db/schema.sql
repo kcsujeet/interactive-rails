@@ -17,7 +17,7 @@ CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 
 -- Player progress (pipeline builder)
 CREATE TABLE IF NOT EXISTS player_progress (
-  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  user_id TEXT PRIMARY KEY REFERENCES "user"(id) ON DELETE CASCADE,
   level INTEGER DEFAULT 1,
   xp INTEGER DEFAULT 0,
   -- JSON arrays of unlocked items
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS player_progress (
 -- Dungeon completion records (levels)
 CREATE TABLE IF NOT EXISTS dungeon_completions (
   id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
   dungeon_id TEXT NOT NULL,
   -- Completion stats
   stars_earned INTEGER NOT NULL CHECK (stars_earned BETWEEN 1 AND 3),
@@ -70,7 +70,7 @@ CREATE INDEX IF NOT EXISTS idx_dungeon_completions_stars ON dungeon_completions(
 -- Metrics snapshots for analytics and leaderboards
 CREATE TABLE IF NOT EXISTS metrics_snapshots (
   id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
   dungeon_id TEXT NOT NULL,
   -- Snapshot data (JSON with full metrics)
   snapshot_data TEXT NOT NULL,
@@ -87,7 +87,7 @@ CREATE INDEX IF NOT EXISTS idx_metrics_snapshots_type ON metrics_snapshots(snaps
 CREATE TABLE IF NOT EXISTS leaderboard_entries (
   id TEXT PRIMARY KEY,
   dungeon_id TEXT NOT NULL,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
   username TEXT NOT NULL,
   -- Scores
   stability INTEGER NOT NULL,
@@ -107,7 +107,7 @@ CREATE INDEX IF NOT EXISTS idx_leaderboard_dungeon_time ON leaderboard_entries(d
 -- User achievements (v2 - expanded)
 CREATE TABLE IF NOT EXISTS user_achievements (
   id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
   achievement_id TEXT NOT NULL,
   -- Achievement metadata
   progress INTEGER DEFAULT 0,
@@ -124,7 +124,7 @@ CREATE INDEX IF NOT EXISTS idx_user_achievements_complete ON user_achievements(u
 -- Sessions for auth (unchanged)
 CREATE TABLE IF NOT EXISTS sessions (
   id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
   token TEXT UNIQUE NOT NULL,
   expires_at DATETIME NOT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
