@@ -214,6 +214,19 @@
 	--animate-damage: damage 0.5s ease-out forwards;
 	--animate-pulse-slow: pulse 3s ease-in-out infinite;
 
+	/* Collapsible */
+	--animate-collapsible-down: collapsible-down 200ms ease-out;
+	--animate-collapsible-up: collapsible-up 200ms ease-out;
+
+	@keyframes collapsible-down {
+		from { height: 0; }
+		to { height: var(--radix-collapsible-content-height); }
+	}
+	@keyframes collapsible-up {
+		from { height: var(--radix-collapsible-content-height); }
+		to { height: 0; }
+	}
+
 	/* UI Animations */
 	--animate-shimmer: shimmer 5s linear infinite;
 
@@ -322,6 +335,7 @@
 	85% { opacity: 1; }
 	100% { top: calc(100% - 7px); opacity: 0; }
 }
+
 
 /* ============================================
    ADDITIONAL BASE STYLES
