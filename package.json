@@ -3,6 +3,10 @@
 	"version": "0.1.0",
 	"type": "module",
 	"private": true,
+	"//overrides": "Pin miniflare to avoid POST+non-2xx crash (fetch failed). Remove once https://github.com/cloudflare/workers-sdk/issues/13013 is fixed.",
+	"overrides": {
+		"miniflare": "4.20251217.0"
+	},
 	"scripts": {
 		"dev": "astro dev",
 		"build": "astro build",

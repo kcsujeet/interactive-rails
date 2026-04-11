@@ -13,7 +13,7 @@ export default defineConfig({
 		plugins: [tailwindcss()],
 		// Optimize Phaser for production
 		optimizeDeps: {
-			include: ['phaser'],
+			include: ['phaser', 'better-auth'],
 		},
 		build: {
 			// Ensure Phaser is bundled correctly

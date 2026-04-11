@@ -84,7 +84,8 @@ app.get('/api/health', async (c) => {
 
 // ==================== Routes ====================
 
-// Better Auth handles all /api/auth/* routes
+// Better Auth: follows the Hono + Cloudflare pattern from
+// https://hono.dev/examples/better-auth-on-cloudflare
 app.on(['GET', 'POST'], '/api/auth/**', (c) => {
 	const auth = createAuth(
 		c.env.DB,

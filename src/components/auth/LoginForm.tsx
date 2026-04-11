@@ -55,8 +55,10 @@ export default function LoginForm() {
 				}
 			}
 			window.location.href = '/acts';
-		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Login failed');
+		} catch (_err) {
+			setError(
+				'Unable to connect to the authentication server. Please try again.',
+			);
 		} finally {
 			setIsLoading(false);
 		}

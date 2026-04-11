@@ -75,22 +75,24 @@ export default function SignupForm() {
 				}
 			}
 			window.location.href = '/acts';
-		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Signup failed');
+		} catch (_err) {
+			setError(
+				'Unable to connect to the authentication server. Please try again.',
+			);
 		} finally {
 			setIsLoading(false);
 		}
 	}
 
 	return (
-		<Card className="w-full max-w-md shadow-xl border-primary/10">
-			<CardHeader>
-				<CardTitle className="text-xl">Create Account</CardTitle>
-				<CardDescription>
-					Join Interactive Rails to start your learning journey
-				</CardDescription>
-			</CardHeader>
-			<form onSubmit={handleSubmit}>
+		<form onSubmit={handleSubmit}>
+			<Card className="w-full max-w-md shadow-xl border-primary/10">
+				<CardHeader>
+					<CardTitle className="text-xl">Create Account</CardTitle>
+					<CardDescription>
+						Join Interactive Rails to start your learning journey
+					</CardDescription>
+				</CardHeader>
 				<CardContent className="space-y-4">
 					{error && (
 						<div className="p-3 rounded-lg bg-destructive/15 border border-destructive/50 text-sm text-destructive">
@@ -190,7 +192,7 @@ export default function SignupForm() {
 						</a>
 					</p>
 				</CardFooter>
-			</form>
-		</Card>
+			</Card>
+		</form>
 	);
 }

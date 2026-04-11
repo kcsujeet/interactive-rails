@@ -8,10 +8,7 @@
 		"directory": "./dist"
 	},
 	"vars": {
-		"ENVIRONMENT": "development",
-		"JWT_SECRET": "dev-secret-change-in-production",
-		"BETTER_AUTH_SECRET": "dev-better-auth-secret-change-in-production",
-		"BETTER_AUTH_URL": "http://localhost:4321"
+		"ENVIRONMENT": "development"
 	},
 	"d1_databases": [
 		{
