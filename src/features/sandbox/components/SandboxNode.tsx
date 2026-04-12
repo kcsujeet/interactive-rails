@@ -44,20 +44,17 @@ export function SandboxNode({ data, selected }: NodeProps<SandboxNodeType>) {
 							/>
 						)}
 					{data.metrics.blockedCount !== undefined && (
-						<MetricRow
-							label="blocked"
-							value={data.metrics.blockedCount}
-							warn
-						/>
+						<MetricRow label="blocked" value={data.metrics.blockedCount} warn />
 					)}
-					{data.metrics.errorRate !== undefined && data.metrics.errorRate > 0 && (
-						<MetricRow
-							label="errors"
-							suffix="%"
-							value={data.metrics.errorRate}
-							warn
-						/>
-					)}
+					{data.metrics.errorRate !== undefined &&
+						data.metrics.errorRate > 0 && (
+							<MetricRow
+								label="errors"
+								suffix="%"
+								value={data.metrics.errorRate}
+								warn
+							/>
+						)}
 				</div>
 			)}
 		</FlowNode>

@@ -33,7 +33,9 @@ import {
 } from '../utils/sandbox-layout';
 import {
 	createInitialMetrics,
+	DEFAULT_PARAMS,
 	type SimMetrics,
+	type SimParams,
 	simulationTick,
 } from '../utils/sandbox-simulation';
 import { SandboxNode } from './SandboxNode';
@@ -47,7 +49,7 @@ export function SandboxApp() {
 	const [edges, setEdges] = useEdgesState(INITIAL_EDGES);
 	const [running, setRunning] = useState(false);
 	const [metrics, setMetrics] = useState<SimMetrics>(createInitialMetrics());
-	const [trafficRate, setTrafficRate] = useState(100);
+	const [params, setParams] = useState<SimParams>({ ...DEFAULT_PARAMS });
 	const tickRef = useRef(0);
 	const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -74,10 +76,18 @@ export function SandboxApp() {
 	const resetSimulation = useCallback(() => {
 		setRunning(false);
 		setMetrics(createInitialMetrics());
+		setParams({ ...DEFAULT_PARAMS });
 		tickRef.current = 0;
 		setNodes(INITIAL_NODES);
 		setEdges(INITIAL_EDGES);
 	}, [setNodes, setEdges]);
+
+	const updateParam = useCallback(
+		<K extends keyof SimParams>(key: K, value: SimParams[K]) => {
+			setParams((p) => ({ ...p, [key]: value }));
+		},
+		[],
+	);
 
 	// Toggle edge animation when simulation starts/stops
 	useEffect(() => {
@@ -98,22 +108,14 @@ export function SandboxApp() {
 			tickRef.current += 1;
 
 			setNodes((currentNodes) => {
-				// Build data map from current nodes
 				const dataMap = new Map<string, SandboxNodeData>();
 				for (const n of currentNodes) {
 					dataMap.set(n.id, n.data);
 				}
 
-				// Run tick
-				const result = simulationTick(
-					dataMap,
-					metrics,
-					tickRef.current,
-					trafficRate,
-				);
+				const result = simulationTick(dataMap, metrics, params);
 				setMetrics(result.metrics);
 
-				// Apply node updates
 				return currentNodes.map((node) => {
 					const update = result.nodeUpdates.get(node.id);
 					if (!update) return node;
@@ -123,7 +125,7 @@ export function SandboxApp() {
 					};
 				});
 			});
-		}, 1000 / 30); // 30 FPS
+		}, 1000 / 30);
 
 		return () => {
 			if (intervalRef.current) {
@@ -131,7 +133,7 @@ export function SandboxApp() {
 				intervalRef.current = null;
 			}
 		};
-	}, [running, trafficRate, metrics, setNodes]);
+	}, [running, params, metrics, setNodes]);
 
 	return (
 		<div className="flex h-full overflow-hidden">
@@ -169,43 +171,92 @@ export function SandboxApp() {
 							<RotateCcw className="w-4 h-4" />
 						</Button>
 					</div>
-
-					{/* Traffic slider */}
-					<div>
-						<div className="flex items-center justify-between mb-1">
-							<span className="text-xs text-muted-foreground">
-								Traffic Volume
-							</span>
-							<span className="text-xs font-mono text-foreground">
-								{trafficRate} req/s
-							</span>
-						</div>
-						<input
-							className="w-full accent-primary"
-							max={1000}
-							min={10}
-							onChange={(e) =>
-								setTrafficRate(Number.parseInt(e.target.value, 10))
-							}
-							step={10}
-							type="range"
-							value={trafficRate}
-						/>
-					</div>
 				</div>
 
-				{/* Tips */}
-				<div className="space-y-2 pt-2 border-t border-border">
+				{/* Tunable parameters */}
+				<div className="space-y-3 pt-3 border-t border-border">
 					<h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-						Try it
+						Parameters
 					</h3>
-					<ul className="space-y-1.5 text-xs text-muted-foreground">
-						<li>Hit Start and watch requests flow through the stack</li>
-						<li>Crank up traffic to 500+ req/s and watch threads fill up</li>
-						<li>Delete the Cache node and see latency spike</li>
-						<li>Remove the Rate Limiter and watch error rates climb</li>
-						<li>Click any node to see its live metrics</li>
-					</ul>
+					<ParamSlider
+						label="Traffic"
+						max={2000}
+						min={10}
+						onChange={(v) => updateParam('trafficRate', v)}
+						step={10}
+						suffix=" req/s"
+						value={params.trafficRate}
+						warn={params.trafficRate > 500}
+					/>
+					<ParamSlider
+						label="DB Latency"
+						max={200}
+						min={1}
+						onChange={(v) => updateParam('dbLatency', v)}
+						step={1}
+						suffix="ms"
+						value={params.dbLatency}
+						warn={params.dbLatency > 50}
+					/>
+					<ParamSlider
+						label="Cache Hit %"
+						max={100}
+						min={0}
+						onChange={(v) => updateParam('cacheHitPercent', v)}
+						step={5}
+						suffix="%"
+						value={params.cacheHitPercent}
+						warn={params.cacheHitPercent < 30}
+					/>
+					<ParamSlider
+						label="Error Injection"
+						max={50}
+						min={0}
+						onChange={(v) => updateParam('errorInjectionPercent', v)}
+						step={1}
+						suffix="%"
+						value={params.errorInjectionPercent}
+						warn={params.errorInjectionPercent > 5}
+					/>
+					<ParamSlider
+						label="Stripe Latency"
+						max={2000}
+						min={50}
+						onChange={(v) => updateParam('stripeLatency', v)}
+						step={50}
+						suffix="ms"
+						value={params.stripeLatency}
+						warn={params.stripeLatency > 500}
+					/>
+					<ParamSlider
+						label="Puma Threads"
+						max={20}
+						min={1}
+						onChange={(v) => updateParam('pumaThreads', v)}
+						step={1}
+						value={params.pumaThreads}
+						warn={params.pumaThreads < 3}
+					/>
+					<ParamSlider
+						label="Rate Limit"
+						max={2000}
+						min={50}
+						onChange={(v) => updateParam('rateLimitThreshold', v)}
+						step={50}
+						suffix=" req/s"
+						value={params.rateLimitThreshold}
+						warn={params.trafficRate > params.rateLimitThreshold}
+					/>
+					<ParamSlider
+						label="Queue Speed"
+						max={20}
+						min={1}
+						onChange={(v) => updateParam('queueProcessingRate', v)}
+						step={1}
+						suffix="/tick"
+						value={params.queueProcessingRate}
+						warn={params.queueProcessingRate < 2}
+					/>
 				</div>
 			</div>
 
@@ -321,6 +372,52 @@ function MetricCard({
 				</span>
 			</div>
 		</Card>
+	);
+}
+
+function ParamSlider({
+	label,
+	value,
+	min,
+	max,
+	step,
+	suffix,
+	warn,
+	onChange,
+}: {
+	label: string;
+	value: number;
+	min: number;
+	max: number;
+	step: number;
+	suffix?: string;
+	warn?: boolean;
+	onChange: (value: number) => void;
+}) {
+	return (
+		<div>
+			<div className="flex items-center justify-between mb-1">
+				<span className="text-xs text-muted-foreground">{label}</span>
+				<span
+					className={cn(
+						'text-xs font-mono',
+						warn ? 'text-destructive font-semibold' : 'text-foreground',
+					)}
+				>
+					{value}
+					{suffix}
+				</span>
+			</div>
+			<input
+				className="w-full accent-primary h-1.5"
+				max={max}
+				min={min}
+				onChange={(e) => onChange(Number.parseInt(e.target.value, 10))}
+				step={step}
+				type="range"
+				value={value}
+			/>
+		</div>
 	);
 }
 
