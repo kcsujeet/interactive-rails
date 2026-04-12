@@ -15,6 +15,23 @@
  */
 
 import type { Edge, Node } from '@xyflow/react';
+import { getNodeStyle } from '@/lib/node-styles';
+
+/** Helper to create node data from the shared style registry */
+function nodeData(
+	label: string,
+	overrides?: Partial<SandboxNodeData>,
+): SandboxNodeData {
+	const style = getNodeStyle(label);
+	return {
+		label,
+		description: style.description,
+		color: style.color,
+		icon: style.icon,
+		status: 'idle' as const,
+		...overrides,
+	};
+}
 
 export interface SandboxNodeData extends Record<string, unknown> {
 	label: string;
@@ -39,144 +56,71 @@ export type SandboxNode = Node<SandboxNodeData>;
 export type SandboxEdge = Edge<Record<string, unknown>>;
 
 export const INITIAL_NODES: SandboxNode[] = [
-	// Col 1: Traffic source
 	{
 		id: 'users',
 		type: 'sandbox',
 		position: { x: 0, y: 220 },
-		data: {
-			label: 'Users',
-			description: 'Traffic source',
-			color: '#3b82f6',
-			icon: 'US',
-			status: 'idle',
-		},
+		data: nodeData('Users'),
 	},
-	// Col 2: CDN (first layer, serves static assets at edge)
 	{
 		id: 'cdn',
 		type: 'sandbox',
 		position: { x: 250, y: 220 },
-		data: {
-			label: 'CDN',
-			description: 'Cloudflare edge cache',
-			color: '#06b6d4',
-			icon: 'CD',
-			status: 'idle',
-		},
+		data: nodeData('CDN'),
 	},
-	// Col 3: Rate Limiter (after CDN, before LB)
 	{
 		id: 'rate-limiter',
 		type: 'sandbox',
 		position: { x: 500, y: 220 },
-		data: {
-			label: 'Rate Limiter',
-			description: 'rack-attack, per-IP throttling',
-			color: '#f97316',
-			icon: 'RL',
-			status: 'idle',
-		},
+		data: nodeData('Rate Limiter'),
 	},
-	// Col 4: Load Balancer
 	{
 		id: 'lb',
 		type: 'sandbox',
 		position: { x: 750, y: 220 },
-		data: {
-			label: 'Load Balancer',
-			description: 'Round-robin distribution',
-			color: '#a78bfa',
-			icon: 'LB',
-			status: 'idle',
-		},
+		data: nodeData('Load Balancer'),
 	},
-	// Col 5: App Servers (stacked)
 	{
 		id: 'app-1',
 		type: 'sandbox',
 		position: { x: 1000, y: 120 },
-		data: {
-			label: 'App Server 1',
-			description: 'Puma (5 threads)',
-			color: '#10b981',
-			icon: 'A1',
-			status: 'idle',
-		},
+		data: nodeData('App Server', { label: 'App Server 1', icon: 'A1' }),
 	},
 	{
 		id: 'app-2',
 		type: 'sandbox',
 		position: { x: 1000, y: 320 },
-		data: {
-			label: 'App Server 2',
-			description: 'Puma (5 threads)',
-			color: '#10b981',
-			icon: 'A2',
-			status: 'idle',
-		},
+		data: nodeData('App Server', { label: 'App Server 2', icon: 'A2' }),
 	},
-	// Col 6: Data layer
 	{
 		id: 'cache',
 		type: 'sandbox',
 		position: { x: 1300, y: 40 },
-		data: {
-			label: 'Solid Cache',
-			description: 'Rails 8 DB-backed cache',
-			color: '#06b6d4',
-			icon: 'SC',
-			status: 'idle',
-		},
+		data: nodeData('Solid Cache'),
 	},
 	{
 		id: 'db-primary',
 		type: 'sandbox',
 		position: { x: 1300, y: 220 },
-		data: {
-			label: 'Database',
-			description: 'PostgreSQL (primary)',
-			color: '#ef4444',
-			icon: 'DB',
-			status: 'idle',
-		},
+		data: nodeData('Database', { description: 'PostgreSQL (primary)' }),
 	},
 	{
 		id: 'db-replica',
 		type: 'sandbox',
 		position: { x: 1300, y: 400 },
-		data: {
-			label: 'DB Replica',
-			description: 'Read replica',
-			color: '#f87171',
-			icon: 'RD',
-			status: 'idle',
-		},
+		data: nodeData('DB Replica'),
 	},
-	// Below apps: async layer
 	{
 		id: 'queue',
 		type: 'sandbox',
 		position: { x: 1000, y: 510 },
-		data: {
-			label: 'Solid Queue',
-			description: 'Rails 8 background jobs',
-			color: '#8b5cf6',
-			icon: 'SQ',
-			status: 'idle',
-		},
+		data: nodeData('Solid Queue'),
 	},
 	{
 		id: 'stripe',
 		type: 'sandbox',
 		position: { x: 1300, y: 560 },
-		data: {
-			label: 'Stripe API',
-			description: 'Payment processing',
-			color: '#f59e0b',
-			icon: 'ST',
-			status: 'idle',
-		},
+		data: nodeData('Stripe API'),
 	},
 ];
 

@@ -4,11 +4,7 @@
  * Used across the sandbox and all level visualizations for consistent styling.
  * Colored icon header + body with optional children for level-specific content.
  *
- * Usage as a React Flow nodeType:
- *   const nodeTypes = { custom: FlowNode };
- *
- * Node data shape:
- *   { label, icon, color, description?, status?, children rendered via React }
+ * Node styles (colors, icons, descriptions) come from @/lib/node-styles.
  */
 
 import { Handle, Position } from '@xyflow/react';
@@ -16,26 +12,18 @@ import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 export interface FlowNodeData extends Record<string, unknown> {
-	/** Node title shown in the header */
 	label: string;
-	/** 2-letter icon code shown in the colored square */
 	icon: string;
-	/** Hex color for the icon square and header tint */
 	color: string;
-	/** Optional subtitle shown below the label in the body */
 	description?: string;
-	/** Visual state: controls border color and optional pulsing dot */
 	status?: 'idle' | 'active' | 'warning' | 'error';
-	/** Whether to show left (target) handle */
 	showTarget?: boolean;
-	/** Whether to show right (source) handle */
 	showSource?: boolean;
 }
 
 interface FlowNodeProps {
 	data: FlowNodeData;
 	selected?: boolean;
-	/** Custom content rendered in the body below the description */
 	children?: ReactNode;
 }
 
@@ -97,13 +85,12 @@ export function FlowNode({ data, selected, children }: FlowNodeProps) {
 
 				{/* Body: children replace description when present */}
 				<div className="px-3 py-2 space-y-1.5">
-					{children ?? (
-						data.description && (
+					{children ??
+						(data.description && (
 							<p className="text-xs text-muted-foreground">
 								{data.description}
 							</p>
-						)
-					)}
+						))}
 				</div>
 			</div>
 			{showSource && (

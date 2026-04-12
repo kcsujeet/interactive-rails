@@ -16,6 +16,7 @@ import {
 	FlowHandles,
 } from '@/components/levels/FlowDiagram';
 import { FlowNode } from '@/components/levels/FlowNode';
+import { getNodeStyle } from '@/lib/node-styles';
 import { cn } from '@/lib/utils';
 
 // ──────────────────────────────────────────────
@@ -130,41 +131,6 @@ const VARIANT_OVERRIDE_COLORS: Record<string, string> = {
 	inactive: '#71717a',
 };
 
-/** Label -> color, icon, and default description */
-const LABEL_STYLES: Record<string, { icon: string; color: string; description: string }> = {
-	Request: { icon: 'RQ', color: '#3b82f6', description: 'Incoming HTTP request' },
-	Router: { icon: 'RT', color: '#a78bfa', description: 'Routes to controller actions' },
-	Controller: { icon: 'CO', color: '#10b981', description: 'Handles request logic' },
-	Model: { icon: 'MO', color: '#f59e0b', description: 'ActiveRecord model' },
-	Database: { icon: 'DB', color: '#ef4444', description: 'PostgreSQL / SQLite' },
-	Serializer: { icon: 'SE', color: '#8b5cf6', description: 'JSON serialization' },
-	Response: { icon: 'RS', color: '#22c55e', description: 'HTTP response' },
-	Middleware: { icon: 'MW', color: '#64748b', description: 'Rack middleware' },
-	Cache: { icon: 'CA', color: '#06b6d4', description: 'Solid Cache' },
-	Service: { icon: 'SV', color: '#6366f1', description: 'Service object' },
-	Mailer: { icon: 'ML', color: '#ec4899', description: 'Action Mailer' },
-	Job: { icon: 'JB', color: '#8b5cf6', description: 'Background job' },
-	Auth: { icon: 'AU', color: '#f97316', description: 'Authentication layer' },
-	Policy: { icon: 'PO', color: '#f97316', description: 'Authorization policy' },
-};
-
-const DEFAULT_STYLE = { icon: '??', color: '#a1a1aa', description: '' };
-
-/** Look up style for a label, checking exact match then partial */
-function getLabelStyle(label: string): { icon: string; color: string; description: string } {
-	if (LABEL_STYLES[label]) return LABEL_STYLES[label];
-	for (const [key, style] of Object.entries(LABEL_STYLES)) {
-		if (label.includes(key)) return style;
-	}
-	const upper = label.replace(/[^A-Z]/g, '');
-	return {
-		icon:
-			upper.length >= 2 ? upper.slice(0, 2) : label.slice(0, 2).toUpperCase(),
-		color: DEFAULT_STYLE.color,
-		description: '',
-	};
-}
-
 const PipelineStageNode = memo(function PipelineStageNode({
 	data,
 }: {
@@ -173,9 +139,9 @@ const PipelineStageNode = memo(function PipelineStageNode({
 	const variant = data.variant || 'default';
 	const isInactive = variant === 'inactive';
 	const showIndicator = data.inspectable && !data.inspected;
-	const labelStyle = getLabelStyle(data.label);
+	const nodeStyle = getNodeStyle(data.label);
 	// Active/danger/inactive override the label's natural color
-	const color = VARIANT_OVERRIDE_COLORS[variant] ?? labelStyle.color;
+	const color = VARIANT_OVERRIDE_COLORS[variant] ?? nodeStyle.color;
 
 	const status =
 		variant === 'active'
@@ -200,9 +166,9 @@ const PipelineStageNode = memo(function PipelineStageNode({
 			<FlowNode
 				data={{
 					label: data.label,
-					icon: labelStyle.icon,
+					icon: nodeStyle.icon,
 					color,
-					description: data.sublabel || labelStyle.description,
+					description: data.sublabel || nodeStyle.description,
 					status,
 					showTarget: false,
 					showSource: false,
