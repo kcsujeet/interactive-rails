@@ -167,6 +167,11 @@ export function ActsListApp() {
 		});
 	}
 
+	const projectFiles = useMemo(
+		() => buildUnifiedProject(completedLevels),
+		[completedLevels],
+	);
+
 	if (loading) {
 		return (
 			<div className="flex items-center justify-center min-h-[60vh]">
@@ -177,11 +182,6 @@ export function ActsListApp() {
 
 	const totalLevels = getTotalLevelCount();
 	const totalCompleted = completedLevels.length;
-
-	const projectFiles = useMemo(
-		() => buildUnifiedProject(completedLevels),
-		[completedLevels],
-	);
 
 	return (
 		<div className="max-w-2xl mx-auto">
