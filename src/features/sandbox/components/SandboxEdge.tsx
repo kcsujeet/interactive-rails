@@ -6,8 +6,7 @@
 import {
 	BaseEdge,
 	type EdgeProps,
-	getSmoothStepPath,
-	useInternalNode,
+	getBezierPath,
 } from '@xyflow/react';
 import { useMemo } from 'react';
 
@@ -26,14 +25,13 @@ export function SandboxEdge({
 	targetPosition,
 	data,
 }: EdgeProps) {
-	const [edgePath] = getSmoothStepPath({
+	const [edgePath] = getBezierPath({
 		sourceX,
 		sourceY,
 		targetX,
 		targetY,
 		sourcePosition,
 		targetPosition,
-		borderRadius: 16,
 	});
 
 	const traffic = (data as SandboxEdgeData)?.traffic ?? 0;
