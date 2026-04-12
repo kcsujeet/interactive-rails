@@ -49,103 +49,59 @@ export interface SandboxNodeData extends Record<string, unknown> {
 		blockedCount?: number;
 		errorRate?: number;
 	};
-	status?: 'idle' | 'active' | 'warning' | 'error';
+	status?: 'idle' | 'active' | 'warning' | 'error' | 'critical';
 }
 
 export type SandboxNode = Node<SandboxNodeData>;
 export type SandboxEdge = Edge<Record<string, unknown>>;
 
+/*
+ * Layout: clean left-to-right flow, no edge crossings.
+ *
+ *  Users -> CDN -> Rate Limiter -> LB -> App 1 ─┐
+ *                                     -> App 2 ─┼─> Cache, DB, Queue, Stripe
+ *                                                │
+ *                                          DB -> Replica
+ *
+ * App servers on left, shared resources stacked on right.
+ * Both servers connect to all shared resources.
+ */
 export const INITIAL_NODES: SandboxNode[] = [
-	{
-		id: 'users',
-		type: 'sandbox',
-		position: { x: 0, y: 220 },
-		data: nodeData('Users'),
-	},
-	{
-		id: 'cdn',
-		type: 'sandbox',
-		position: { x: 250, y: 220 },
-		data: nodeData('CDN'),
-	},
-	{
-		id: 'rate-limiter',
-		type: 'sandbox',
-		position: { x: 500, y: 220 },
-		data: nodeData('Rate Limiter'),
-	},
-	{
-		id: 'lb',
-		type: 'sandbox',
-		position: { x: 750, y: 220 },
-		data: nodeData('Load Balancer'),
-	},
-	{
-		id: 'app-1',
-		type: 'sandbox',
-		position: { x: 1000, y: 120 },
-		data: nodeData('App Server', { label: 'App Server 1', icon: 'A1' }),
-	},
-	{
-		id: 'app-2',
-		type: 'sandbox',
-		position: { x: 1000, y: 320 },
-		data: nodeData('App Server', { label: 'App Server 2', icon: 'A2' }),
-	},
-	{
-		id: 'cache',
-		type: 'sandbox',
-		position: { x: 1300, y: 40 },
-		data: nodeData('Solid Cache'),
-	},
-	{
-		id: 'db-primary',
-		type: 'sandbox',
-		position: { x: 1300, y: 220 },
-		data: nodeData('Database', { description: 'PostgreSQL (primary)' }),
-	},
-	{
-		id: 'db-replica',
-		type: 'sandbox',
-		position: { x: 1300, y: 400 },
-		data: nodeData('DB Replica'),
-	},
-	{
-		id: 'queue',
-		type: 'sandbox',
-		position: { x: 1000, y: 510 },
-		data: nodeData('Solid Queue'),
-	},
-	{
-		id: 'stripe',
-		type: 'sandbox',
-		position: { x: 1300, y: 560 },
-		data: nodeData('Stripe API'),
-	},
+	// Linear entry (y=280 center)
+	{ id: 'users', type: 'sandbox', position: { x: 0, y: 280 }, data: nodeData('Users') },
+	{ id: 'cdn', type: 'sandbox', position: { x: 250, y: 280 }, data: nodeData('CDN') },
+	{ id: 'rate-limiter', type: 'sandbox', position: { x: 500, y: 280 }, data: nodeData('Rate Limiter') },
+	{ id: 'lb', type: 'sandbox', position: { x: 750, y: 280 }, data: nodeData('Load Balancer') },
+	// App servers (stacked vertically, centered on resources)
+	{ id: 'app-1', type: 'sandbox', position: { x: 1050, y: 160 }, data: nodeData('App Server', { label: 'App Server 1', icon: 'A1' }) },
+	{ id: 'app-2', type: 'sandbox', position: { x: 1050, y: 380 }, data: nodeData('App Server', { label: 'App Server 2', icon: 'A2' }) },
+	// Shared resources (stacked vertically, right of app servers)
+	{ id: 'cache', type: 'sandbox', position: { x: 1380, y: 30 }, data: nodeData('Solid Cache') },
+	{ id: 'stripe', type: 'sandbox', position: { x: 1380, y: 180 }, data: nodeData('Stripe API') },
+	{ id: 'db-primary', type: 'sandbox', position: { x: 1380, y: 330 }, data: nodeData('Database', { description: 'PostgreSQL (primary)' }) },
+	{ id: 'queue', type: 'sandbox', position: { x: 1380, y: 480 }, data: nodeData('Solid Queue') },
+	// Replica to the right of DB
+	{ id: 'db-replica', type: 'sandbox', position: { x: 1700, y: 330 }, data: nodeData('DB Replica') },
 ];
 
-// Edges: animated defaults to false, toggled by simulation
-// Flow: Users -> CDN -> Rate Limiter -> LB -> App Servers -> Cache/DB
 export const INITIAL_EDGES: SandboxEdge[] = [
-	// Linear flow: Users -> CDN -> Rate Limiter -> LB
+	// Linear entry
 	{ id: 'e-users-cdn', source: 'users', target: 'cdn' },
 	{ id: 'e-cdn-rl', source: 'cdn', target: 'rate-limiter' },
 	{ id: 'e-rl-lb', source: 'rate-limiter', target: 'lb' },
-	// LB -> App Servers
+	// LB -> both app servers
 	{ id: 'e-lb-app1', source: 'lb', target: 'app-1' },
 	{ id: 'e-lb-app2', source: 'lb', target: 'app-2' },
-	// App Servers -> Solid Cache
+	// App 1 -> all shared resources
 	{ id: 'e-app1-cache', source: 'app-1', target: 'cache' },
-	{ id: 'e-app2-cache', source: 'app-2', target: 'cache' },
-	// App Servers -> DB Primary
+	{ id: 'e-app1-stripe', source: 'app-1', target: 'stripe' },
 	{ id: 'e-app1-db', source: 'app-1', target: 'db-primary' },
+	{ id: 'e-app1-queue', source: 'app-1', target: 'queue' },
+	// App 2 -> all shared resources
+	{ id: 'e-app2-cache', source: 'app-2', target: 'cache' },
+	{ id: 'e-app2-stripe', source: 'app-2', target: 'stripe' },
 	{ id: 'e-app2-db', source: 'app-2', target: 'db-primary' },
-	// DB Primary -> Replica (replication)
-	{ id: 'e-db-replica', source: 'db-primary', target: 'db-replica' },
-	// App -> Queue (async jobs)
 	{ id: 'e-app2-queue', source: 'app-2', target: 'queue' },
-	// Queue -> Stripe (payment processing)
-	{ id: 'e-queue-stripe', source: 'queue', target: 'stripe' },
-	// Queue -> DB (job results)
-	{ id: 'e-queue-db', source: 'queue', target: 'db-primary' },
+	// DB -> Replica
+	{ id: 'e-db-replica', source: 'db-primary', target: 'db-replica' },
 ];

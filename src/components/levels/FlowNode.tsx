@@ -16,7 +16,7 @@ export interface FlowNodeData extends Record<string, unknown> {
 	icon: string;
 	color: string;
 	description?: string;
-	status?: 'idle' | 'active' | 'warning' | 'error';
+	status?: 'idle' | 'active' | 'warning' | 'error' | 'critical';
 	showTarget?: boolean;
 	showSource?: boolean;
 }
@@ -31,12 +31,14 @@ export function FlowNode({ data, selected, children }: FlowNodeProps) {
 	const showTarget = data.showTarget !== false;
 	const showSource = data.showSource !== false;
 
+	const isCritical = data.status === 'critical';
+
 	const statusBorder =
 		data.status === 'active'
 			? 'border-success'
 			: data.status === 'warning'
 				? 'border-warning'
-				: data.status === 'error'
+				: data.status === 'error' || isCritical
 					? 'border-destructive'
 					: 'border-border';
 
@@ -53,6 +55,7 @@ export function FlowNode({ data, selected, children }: FlowNodeProps) {
 				className={cn(
 					'rounded-lg border-2 bg-card shadow-md min-w-40 transition-all',
 					statusBorder,
+					isCritical && 'animate-pulse border-destructive bg-destructive/10',
 					selected &&
 						'ring-2 ring-primary ring-offset-2 ring-offset-background',
 				)}
@@ -78,6 +81,7 @@ export function FlowNode({ data, selected, children }: FlowNodeProps) {
 								data.status === 'active' && 'bg-success animate-pulse',
 								data.status === 'warning' && 'bg-warning animate-pulse',
 								data.status === 'error' && 'bg-destructive animate-pulse',
+								data.status === 'critical' && 'bg-destructive animate-ping',
 							)}
 						/>
 					)}

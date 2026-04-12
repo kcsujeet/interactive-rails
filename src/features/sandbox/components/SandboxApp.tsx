@@ -41,10 +41,15 @@ import {
 	type SimParams,
 	simulationTick,
 } from '../utils/sandbox-simulation';
+import { SandboxEdge } from './SandboxEdge';
 import { SandboxNode } from './SandboxNode';
 
 const nodeTypes: NodeTypes = {
 	sandbox: SandboxNode,
+};
+
+const edgeTypes = {
+	sandboxEdge: SandboxEdge,
 };
 
 export function SandboxApp() {
@@ -99,10 +104,22 @@ export function SandboxApp() {
 		setChaos((c) => ({ ...c, [key]: !c[key] }));
 	}, []);
 
-	// Toggle edge animation when simulation starts/stops
+	// Always use custom edge type; set traffic to 0 when stopped
 	useEffect(() => {
-		setEdges((eds) => eds.map((e) => ({ ...e, animated: running })));
-	}, [running, setEdges]);
+		const effectiveTraffic = running
+			? chaos.ddosAttack
+				? params.trafficRate * 10
+				: params.trafficRate
+			: 0;
+		setEdges((eds) =>
+			eds.map((e) => ({
+				...e,
+				type: 'sandboxEdge',
+				animated: false,
+				data: { ...e.data, traffic: effectiveTraffic },
+			})),
+		);
+	}, [running, setEdges, params.trafficRate, chaos.ddosAttack]);
 
 	// Simulation loop
 	useEffect(() => {
@@ -292,6 +309,7 @@ export function SandboxApp() {
 			<div className="flex-1 min-w-0">
 				<ReactFlow
 					edges={edges}
+					edgeTypes={edgeTypes}
 					fitView
 					fitViewOptions={{ padding: 0.15 }}
 					nodes={nodes}

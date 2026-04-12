@@ -144,12 +144,16 @@ export function simulationTick(
 	m.blockedByRateLimit += rateLimited;
 
 	if (hasNode('rate-limiter')) {
+		const rlRatio = effectiveTraffic / Math.max(1, params.rateLimitThreshold);
 		updates.set('rate-limiter', {
-			status: overThreshold
-				? chaos.ddosAttack
-					? 'error'
-					: 'warning'
-				: 'active',
+			status:
+				rlRatio > 3
+					? 'critical'
+					: rlRatio > 1.5
+						? 'error'
+						: overThreshold
+							? 'warning'
+							: 'active',
 			metrics: {
 				blockedCount: m.blockedByRateLimit,
 				reqPerSec: dynamicRequests,
@@ -177,14 +181,18 @@ export function simulationTick(
 		const nodeId = `app-${i}`;
 		if (hasNode(nodeId)) {
 			const active = i <= params.appServerCount;
+			const threadRatio =
+				reqPerServer / Math.max(1, params.pumaThreadsPerServer);
 			updates.set(nodeId, {
 				status: !active
 					? 'idle'
-					: serversSaturated
-						? 'error'
-						: busyPerServer >= params.pumaThreadsPerServer - 1
-							? 'warning'
-							: 'active',
+					: threadRatio > 2
+						? 'critical'
+						: serversSaturated
+							? 'error'
+							: busyPerServer >= params.pumaThreadsPerServer - 1
+								? 'warning'
+								: 'active',
 				metrics: active
 					? {
 							threadsBusy: busyPerServer,
@@ -210,7 +218,12 @@ export function simulationTick(
 
 	if (hasNode('cache')) {
 		updates.set('cache', {
-			status: effectiveCacheHitRate < 30 ? 'warning' : 'active',
+			status:
+				effectiveCacheHitRate < 10
+					? 'critical'
+					: effectiveCacheHitRate < 30
+						? 'warning'
+						: 'active',
 			metrics: { hitRate: effectiveCacheHitRate, reqPerSec: passedRequests },
 		});
 	}
@@ -224,14 +237,18 @@ export function simulationTick(
 	const effectiveDbLatency = baseDbLatency * loadMultiplier * chaosMultiplier;
 
 	if (hasNode('db-primary')) {
+		const dbStress =
+			effectiveDbLatency > 100 || (chaos.dbLagSpike && dbQueries > 10);
 		updates.set('db-primary', {
-			status: chaos.dbLagSpike
-				? 'error'
-				: dbQueries > 15
+			status: dbStress
+				? 'critical'
+				: chaos.dbLagSpike
 					? 'error'
-					: dbQueries > 8
-						? 'warning'
-						: 'active',
+					: dbQueries > 15
+						? 'error'
+						: dbQueries > 8
+							? 'warning'
+							: 'active',
 			metrics: { queryCount: dbQueries, latency: effectiveDbLatency },
 		});
 	}
@@ -274,7 +291,13 @@ export function simulationTick(
 	if (hasNode('queue')) {
 		updates.set('queue', {
 			status:
-				queueDepth > 50 ? 'error' : queueDepth > 20 ? 'warning' : 'active',
+				queueDepth > 100
+					? 'critical'
+					: queueDepth > 50
+						? 'error'
+						: queueDepth > 20
+							? 'warning'
+							: 'active',
 			metrics: { queueDepth, reqPerSec: newJobs },
 		});
 	}
@@ -283,7 +306,7 @@ export function simulationTick(
 	if (hasNode('stripe')) {
 		const stripeLatency = chaos.stripeDown ? 30000 : 200 + Math.random() * 100;
 		updates.set('stripe', {
-			status: chaos.stripeDown ? 'error' : 'active',
+			status: chaos.stripeDown ? 'critical' : 'active',
 			metrics: {
 				latency: stripeLatency,
 				reqPerSec: chaos.stripeDown ? 0 : Math.round(newJobs * 0.3),
