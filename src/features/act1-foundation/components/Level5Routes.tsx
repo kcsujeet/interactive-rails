@@ -86,6 +86,13 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-posts',
 		label: 'GET /posts',
+		story: [
+			'A frontend developer tries to fetch all products from the API.',
+			'They send a GET request to /posts, expecting a JSON list.',
+			'The Rails router receives the request and looks for a matching route.',
+			'config/routes.rb is empty. No routes are defined at all.',
+			'The router returns a 404. The request never reaches any controller.',
+		],
 		command: 'GET /posts',
 		responseLines: [
 			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
@@ -103,6 +110,13 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'post-posts',
 		label: 'POST /posts',
+		story: [
+			'A customer submits a new product listing through the storefront.',
+			'The form sends a POST request with the product data to /posts.',
+			'The Rails router checks its route table for a POST /posts match.',
+			'Still nothing. The route table is completely empty.',
+			'POST fails with a 404 too. Without routes, no HTTP verb can reach the app.',
+		],
 		command: 'POST /posts {"title":"Hello"}',
 		responseLines: [
 			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
@@ -120,6 +134,13 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-api-posts',
 		label: 'GET /api/v1/products',
+		story: [
+			'The mobile app tries the versioned API endpoint at /api/v1/products.',
+			'This is the proper RESTful namespace for API clients.',
+			'The router looks for a namespace :api > namespace :v1 block.',
+			'No namespaces are configured. The entire route file is empty.',
+			'Even the correctly-structured API path returns a 404.',
+		],
 		command: 'GET /api/v1/products',
 		responseLines: [
 			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },

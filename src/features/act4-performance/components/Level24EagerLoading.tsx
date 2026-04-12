@@ -108,6 +108,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 		],
+		story: [
+			'The product listing page needs to display each product with its author name.',
+			'Four different eager loading strategies are tested against 100 products.',
+			'includes, preload, and eager_load all solve the N+1 in different ways.',
+			'joins looks like it should work, but it only filters. It loads nothing into memory.',
+		],
 	},
 	{
 		id: 'nested-reviews',
@@ -136,6 +142,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 		],
+		story: [
+			'The product detail page shows reviews with reviewer names (two levels deep).',
+			'Nested eager loading requires the full chain: includes(reviews: :user).',
+			'eager_load uses a single wide JOIN, which can spike memory on large datasets.',
+			'Forgetting the nested :user triggers N+1 at the second level.',
+		],
 	},
 	{
 		id: 'filtered-assoc',
@@ -163,6 +175,12 @@ const PROBES: ProbeConfig[] = [
 				text: 'When filtering on associations, you need a JOIN strategy.',
 				color: 'yellow',
 			},
+		],
+		story: [
+			'An admin filters products by active tags using a WHERE clause on the tags table.',
+			'eager_load works because it uses a JOIN, making the tags columns available.',
+			'includes auto-detects the WHERE clause and switches to JOIN mode.',
+			'preload crashes because it runs separate queries and cannot filter across them.',
 		],
 	},
 ];

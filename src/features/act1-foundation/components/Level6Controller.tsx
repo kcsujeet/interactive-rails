@@ -83,6 +83,13 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-index',
 		label: 'GET /api/v1/products',
+		story: [
+			'A customer opens the storefront and the app fetches the product catalog.',
+			'GET /api/v1/products hits the router, which matches it to posts#index.',
+			'The router tries to instantiate Api::V1::ProductsController.',
+			'The controller file does not exist. Rails raises a NameError.',
+			'The request crashes with a 500. Routes work, but there is nothing behind them.',
+		],
 		command: 'GET /api/v1/products',
 		responseLines: [
 			{ text: 'Routing... matched posts#index', color: 'green' },
@@ -101,6 +108,13 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'post-create',
 		label: 'POST /api/v1/products',
+		story: [
+			'A store admin submits a new product through the dashboard.',
+			'The form sends a POST with the product data to /api/v1/products.',
+			'The router matches it to posts#create and tries to load the controller.',
+			'Same crash: Api::V1::ProductsController is not defined anywhere.',
+			'The product is never saved. POST crashes with a 500 just like GET.',
+		],
 		command: 'POST /api/v1/products (body: {title: "Hello"})',
 		responseLines: [
 			{ text: 'Routing... matched posts#create', color: 'green' },
@@ -119,6 +133,13 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'delete-destroy',
 		label: 'DELETE /api/v1/products/1',
+		story: [
+			'An admin removes a discontinued product from the catalog.',
+			'DELETE /api/v1/products/1 hits the router, which matches posts#destroy.',
+			'Rails tries to load the controller class to handle the deletion.',
+			'NameError again. The controller does not exist for any action.',
+			'All 5 resourceful routes (index, show, create, update, destroy) are broken.',
+		],
 		command: 'DELETE /api/v1/products/1',
 		responseLines: [
 			{ text: 'Routing... matched posts#destroy', color: 'green' },

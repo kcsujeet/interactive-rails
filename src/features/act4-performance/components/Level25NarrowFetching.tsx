@@ -120,6 +120,12 @@ const PROBES: ProbeConfig[] = [
 			{ text: 'Memory: 681 MB for 10K rows', color: 'red' },
 			{ text: 'Needed: 2.35 MB (id + email only)', color: 'green' },
 		],
+		story: [
+			'An admin exports all users to CSV for a quarterly report.',
+			'The query loads all 30 columns, including a 75 KB big_text_column per row.',
+			'Only id and email are needed for the export.',
+			'681 MB of memory is allocated when 2.35 MB would suffice.',
+		],
 	},
 	{
 		id: 'dropdown-api',
@@ -132,6 +138,12 @@ const PROBES: ProbeConfig[] = [
 			{ text: '-- Each object: 2.5 KB overhead for 2 values', color: 'red' },
 			{ text: 'Plain arrays would use 80 bytes each', color: 'green' },
 		],
+		story: [
+			'The frontend fetches a dropdown of categories for a product form.',
+			'Category.all instantiates 10,000 full ActiveRecord objects.',
+			'Each object carries 2.5 KB of overhead, but only id and name are used.',
+			'Plain arrays at 80 bytes each would use a fraction of the memory.',
+		],
 	},
 	{
 		id: 'nightly-sync',
@@ -143,6 +155,12 @@ const PROBES: ProbeConfig[] = [
 			{ text: '-- Peak memory: 3.4 GB', color: 'red' },
 			{ text: '-- Server swap triggered, OOM killer invoked', color: 'red' },
 			{ text: 'Batching 1K at a time: ~50 MB constant', color: 'green' },
+		],
+		story: [
+			'A nightly sync job processes all 50,000 users for an external system.',
+			'User.all.each loads every record into memory at once.',
+			'Peak memory hits 3.4 GB, triggering the OOM killer on the server.',
+			'Batching 1,000 records at a time would keep memory at a steady 50 MB.',
 		],
 	},
 ];

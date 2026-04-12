@@ -159,6 +159,12 @@ const PROBES: ProbeConfig[] = [
 			},
 			{ text: 'Execution Time: 512ms. Computed from scratch.', color: 'red' },
 		],
+		story: [
+			'A customer visits the trending products page.',
+			'The server runs a complex query: joins, group, and order across 50,000 rows.',
+			'The computation takes 512ms, built entirely from scratch.',
+			'No cache layer exists to store or reuse the result.',
+		],
 	},
 	{
 		id: 'trending-repeat',
@@ -174,6 +180,12 @@ const PROBES: ProbeConfig[] = [
 			},
 			{ text: 'No cache layer intercepted this request.', color: 'red' },
 		],
+		story: [
+			'The same customer refreshes the trending page 5 seconds later.',
+			'The data has not changed, but the server runs the exact same query again.',
+			'Another 508ms of computation for an identical result.',
+			'Without a cache store, every request pays the full cost.',
+		],
 	},
 	{
 		id: 'check-db-load',
@@ -188,6 +200,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 			{ text: 'Database at 170% of available capacity.', color: 'red' },
+		],
+		story: [
+			'An engineer checks the database connection pool under production load.',
+			'200 requests per minute, each taking 512ms of database time.',
+			'47 of 50 connections are active, with the pool nearly exhausted.',
+			'The database is running at 170% capacity with no caching to reduce load.',
 		],
 	},
 ];

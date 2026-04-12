@@ -510,6 +510,13 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 		],
+		story: [
+			'A seller uploads a 5MB profile photo for their store page.',
+			'The entire file streams through the Rails process into memory.',
+			'Memory jumps from 45MB to 95MB just to handle one upload.',
+			'Ten sellers uploading at the same time would spike memory by 500MB.',
+			'No presigned URL is configured, so every byte passes through the app server.',
+		],
 	},
 	{
 		id: 'request-avatar',
@@ -527,6 +534,13 @@ const PROBES: ProbeConfig[] = [
 			},
 			{ text: 'No CDN or redirect configured.', color: 'red' },
 		],
+		story: [
+			'A customer visits a seller profile to check their store rating.',
+			'The browser requests the seller avatar image.',
+			'Rails reads the entire 5MB file from disk and streams it to the client.',
+			'A Puma worker is blocked for 3 seconds serving this single file.',
+			'No CDN or redirect is configured, so every download ties up a worker.',
+		],
 	},
 	{
 		id: 'list-avatars',
@@ -540,6 +554,13 @@ const PROBES: ProbeConfig[] = [
 				text: 'No thumbnail variant defined. Wasting bandwidth.',
 				color: 'red',
 			},
+		],
+		story: [
+			'A customer browses the marketplace and loads a page of 25 sellers.',
+			'Each seller card shows their avatar image.',
+			'Every avatar is the full 5MB original, with no thumbnail variant.',
+			'The page forces the client to download 125MB of image data.',
+			'No image processing is configured to generate smaller variants.',
 		],
 	},
 ];

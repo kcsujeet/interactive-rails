@@ -98,6 +98,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 		],
+		story: [
+			'An attacker crafts a POST request that includes user_id: 42 in the body.',
+			'The controller passes all params directly to Product.create!.',
+			'No parameter filtering strips out the injected user_id field.',
+			'The product is saved as if user 42 created it, hiding the real author.',
+		],
 	},
 	{
 		id: 'escalate-admin',
@@ -118,6 +124,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 		],
+		story: [
+			'An attacker includes admin: true in a product creation request.',
+			'The controller does not filter which parameters reach the model.',
+			'Product.create! accepts every key in the params hash, including admin.',
+			'The attacker now has an admin-flagged record, escalating their privileges.',
+		],
 	},
 	{
 		id: 'inject-both',
@@ -137,6 +149,12 @@ const PROBES: ProbeConfig[] = [
 				text: 'No filtering at all. Every param the attacker sends gets saved.',
 				color: 'red',
 			},
+		],
+		story: [
+			'An attacker sends a PATCH with both user_id: 99 and admin: true.',
+			'The controller passes the raw params hash to Product.update!.',
+			'Both sensitive fields are written to the database in a single request.',
+			'The attacker has stolen ownership of product #1 and gained admin privileges.',
 		],
 	},
 ];

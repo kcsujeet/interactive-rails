@@ -120,6 +120,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 		],
+		story: [
+			'A customer browses the product listing, which shows a review count badge on each item.',
+			'Rails loads 20 products in one query, then runs COUNT(*) on reviews for each.',
+			'20 separate COUNT queries fire against the reviews table.',
+			'21 total queries for a single page load, and it gets worse with more products.',
+		],
 	},
 ];
 

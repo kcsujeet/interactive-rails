@@ -100,6 +100,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 		],
+		story: [
+			'A mobile app requests product #999, which was deleted yesterday.',
+			'Rails raises ActiveRecord::RecordNotFound with no rescue handler.',
+			'The response is a 500 with a full stack trace in HTML.',
+			'The client expected a JSON 404. Instead it got an HTML error page with internal paths exposed.',
+		],
 	},
 	{
 		id: 'bad-params',
@@ -117,6 +123,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 		],
+		story: [
+			'A frontend developer sends a POST to create a product with an empty body.',
+			'Rails raises ActionController::ParameterMissing and returns a 400.',
+			'The error shape is { message: "..." }, different from every other endpoint.',
+			'The frontend team has to write custom error parsing for each controller.',
+		],
 	},
 	{
 		id: 'missing-user',
@@ -130,6 +142,12 @@ const PROBES: ProbeConfig[] = [
 				text: 'Plain text response! No JSON, no error code, no details.',
 				color: 'red',
 			},
+		],
+		story: [
+			'A client requests user #999, which does not exist.',
+			'This controller returns a plain text "Not found" with a 404 status.',
+			'No JSON body, no error code, no machine-readable details.',
+			'Three endpoints, three completely different error formats. The API is unpredictable.',
 		],
 	},
 ];

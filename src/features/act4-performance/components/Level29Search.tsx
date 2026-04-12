@@ -133,6 +133,12 @@ const PROBES: ProbeConfig[] = [
 			{ text: 'Rows Removed by Filter: 49,500', color: 'muted' },
 			{ text: 'Execution Time: 3,200ms', color: 'red' },
 		],
+		story: [
+			'A customer searches for "rails" in the product catalog.',
+			'PostgreSQL runs a sequential scan across 50,000 rows using LIKE.',
+			'Every row is checked for a substring match, discarding 49,500 non-matches.',
+			'The search takes 3.2 seconds because LIKE cannot use an index.',
+		],
 	},
 	{
 		id: 'search-running',
@@ -147,6 +153,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'muted',
 			},
 			{ text: 'LIKE has no stemming: "running" != "run"', color: 'red' },
+		],
+		story: [
+			'A customer searches for "running" expecting to find a product named "Running Tests in RSpec."',
+			'LIKE performs exact substring matching with no linguistic awareness.',
+			'The word "running" does not match "run" in the title.',
+			'The search returns 0 results, even though a relevant product exists.',
 		],
 	},
 	{
@@ -165,6 +177,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'muted',
 			},
 			{ text: 'No relevance scoring with LIKE queries.', color: 'red' },
+		],
+		story: [
+			'A customer searches for "database" to find the most relevant product.',
+			'LIKE returns matches in insertion order, not by relevance.',
+			'A product with "database" in the title ranks the same as one with a passing mention.',
+			'Without relevance scoring, the best results are buried in the list.',
 		],
 	},
 ];

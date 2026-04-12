@@ -96,6 +96,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 		],
+		story: [
+			'Alice signs up for a new account on the store.',
+			'The controller calls deliver_now to send a welcome email.',
+			'Rails waits 3.2 seconds for the SMTP server to accept and send the email.',
+			'Alice stares at a loading spinner the entire time, waiting for the response.',
+		],
 	},
 	{
 		id: 'register-bob',
@@ -114,6 +120,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 		],
+		story: [
+			'Bob registers and the controller sends a welcome email plus an external profile sync.',
+			'Both operations run synchronously inside the request cycle.',
+			'The email takes 2.8 seconds. The profile sync takes 1.3 seconds.',
+			'Bob waits 4.1 seconds total before seeing a response. Both tasks could have run after the response.',
+		],
 	},
 	{
 		id: 'register-fail',
@@ -131,6 +143,12 @@ const PROBES: ProbeConfig[] = [
 				text: 'The user was created, but deliver_now raised an exception. The entire registration failed because of the mailer.',
 				color: 'yellow',
 			},
+		],
+		story: [
+			'Carol registers, but the SMTP server is down.',
+			'The controller calls deliver_now, which tries to connect for 8.3 seconds before timing out.',
+			'Net::SMTPAuthenticationError propagates up and the entire request returns a 500.',
+			'Carol\'s account was created in the database, but the response says "error." A non-critical email failure killed the registration.',
 		],
 	},
 ];

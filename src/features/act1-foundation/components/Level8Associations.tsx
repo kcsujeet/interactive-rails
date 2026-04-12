@@ -88,6 +88,13 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-reviews',
 		label: 'GET reviews',
+		story: [
+			'A customer wants to read reviews for a product before buying it.',
+			'The frontend sends GET /api/v1/products/1/reviews.',
+			'The router looks for a nested reviews route under products.',
+			'No nested routes exist. Products are defined in isolation.',
+			'The request returns a 404. There is no way to access reviews through the API.',
+		],
 		command: 'GET /api/v1/products/1/reviews',
 		responseLines: [
 			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
@@ -105,6 +112,13 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'post-review',
 		label: 'POST review',
+		story: [
+			'A customer finishes reading a product page and wants to leave a review.',
+			'They submit a POST to /api/v1/products/1/reviews with their feedback.',
+			'The router has no matching route for this path.',
+			'Beyond routing, no Review model exists in the application at all.',
+			'The request fails with a 404. Reviews cannot be created or stored.',
+		],
 		command: 'POST /api/v1/products/1/reviews (body: "Great post!")',
 		responseLines: [
 			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
@@ -122,6 +136,13 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'console-reviews',
 		label: 'Rails console',
+		story: [
+			'A developer opens the Rails console to debug the missing reviews.',
+			'They run Product.first.reviews to check if the association exists.',
+			'Rails raises a NoMethodError: Product has no "reviews" method.',
+			'The Product model has no has_many :reviews declaration.',
+			'Without an association, Rails cannot link products to their reviews.',
+		],
 		command: 'rails console: Product.first.reviews',
 		responseLines: [
 			{ text: "NoMethodError: undefined method `reviews'", color: 'red' },

@@ -132,6 +132,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 		],
+		story: [
+			'A frontend developer calls the products API to populate a listing page.',
+			'The endpoint returns all 50,000 products in a single 12 MB JSON response.',
+			'No pagination is configured, so every request dumps the entire table.',
+			'Response time and payload size grow linearly with the number of products.',
+		],
 	},
 	{
 		id: 'get-mobile',
@@ -151,6 +157,12 @@ const PROBES: ProbeConfig[] = [
 			},
 			{ text: 'App crashed.', color: 'red' },
 		],
+		story: [
+			'A customer opens the product listing on their phone over a 3G connection.',
+			'The browser starts downloading the 12 MB response, taking 45 seconds.',
+			'JSON.parse() attempts to hydrate 50,000 objects in limited mobile memory.',
+			'The app runs out of memory and crashes.',
+		],
 	},
 	{
 		id: 'check-memory',
@@ -167,6 +179,12 @@ const PROBES: ProbeConfig[] = [
 				text: 'Each request allocates ~180MB before serialization.',
 				color: 'red',
 			},
+		],
+		story: [
+			'An engineer checks the server memory after a spike in traffic.',
+			'Each request loads 50,000 ActiveRecord objects plus 50,000 User objects.',
+			'The heap has nearly 3 million live objects, allocating 180 MB per request.',
+			'Under concurrent load, the server quickly exhausts available memory.',
 		],
 	},
 ];

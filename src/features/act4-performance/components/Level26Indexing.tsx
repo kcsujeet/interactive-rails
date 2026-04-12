@@ -220,6 +220,12 @@ const PROBES: ProbeConfig[] = [
 			{ text: '  Rows Removed by Filter: 9999', color: 'yellow' },
 			{ text: '  Execution Time: 820.00 ms', color: 'red' },
 		],
+		story: [
+			'A user logs in by entering their email address.',
+			'PostgreSQL runs a sequential scan across all 10,000 rows in the users table.',
+			'It checks every single row, discarding 9,999 non-matches.',
+			'Login takes 820ms because there is no index on the email column.',
+		],
 	},
 	{
 		id: 'query-fk',
@@ -233,6 +239,12 @@ const PROBES: ProbeConfig[] = [
 			{ text: '  Filter: (user_id = 42)', color: 'muted' },
 			{ text: '  Rows Removed by Filter: 49975', color: 'yellow' },
 			{ text: '  Execution Time: 450.00 ms', color: 'red' },
+		],
+		story: [
+			'A user visits a profile page, which loads all their products.',
+			'The query filters products by user_id, a foreign key column.',
+			'Without an index, PostgreSQL scans all 50,000 rows to find 25 matches.',
+			'49,975 rows are examined and discarded, taking 450ms.',
 		],
 	},
 	{
@@ -249,6 +261,12 @@ const PROBES: ProbeConfig[] = [
 			{ text: '  ->  Seq Scan on posts  (rows=25000)', color: 'red' },
 			{ text: '        Filter: (published = true)', color: 'muted' },
 			{ text: '  Execution Time: 650.00 ms', color: 'red' },
+		],
+		story: [
+			'The homepage displays published products sorted by date.',
+			'PostgreSQL scans 25,000 published rows, then sorts them all by created_at.',
+			'Both the filter and the sort require full table scans without an index.',
+			'A composite index on (published, created_at) would serve both operations.',
 		],
 	},
 ];
@@ -1944,7 +1962,9 @@ export function Level26Indexing({ onComplete }: LevelComponentProps) {
 									disabled={isAnimating}
 									isAutoFiring={stressTest.isAutoFiring}
 									onFire={handleFireScenario}
-									onToggleAutoFire={() => stressTest.toggleAutoFire(handleFireScenario)}
+									onToggleAutoFire={() =>
+										stressTest.toggleAutoFire(handleFireScenario)
+									}
 									results={stressTest.results}
 									scenarios={STRESS_SCENARIOS}
 								/>

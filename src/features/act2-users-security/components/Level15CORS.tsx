@@ -108,6 +108,12 @@ const PROBES: ProbeConfig[] = [
 			},
 			{ text: 'Response Status: (blocked by browser)', color: 'yellow' },
 		],
+		story: [
+			'The React frontend on localhost:3001 fetches products from the Rails API on localhost:3000.',
+			'The browser checks the response for an Access-Control-Allow-Origin header.',
+			'No CORS headers are present in the Rails response.',
+			'The browser blocks the response entirely. The storefront shows no products.',
+		],
 	},
 	{
 		id: 'preflight-delete',
@@ -125,6 +131,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'yellow',
 			},
 		],
+		story: [
+			'An admin clicks "Delete" in the React dashboard, triggering a DELETE request.',
+			'The browser sends a preflight OPTIONS request first (DELETE is not a "simple" method).',
+			'The Rails API responds to OPTIONS with no CORS headers.',
+			'The browser rejects the preflight and never sends the actual DELETE request.',
+		],
 	},
 	{
 		id: 'curl-bypass',
@@ -137,6 +149,12 @@ const PROBES: ProbeConfig[] = [
 				text: 'curl ignores CORS (no browser = no Same-Origin Policy)',
 				color: 'muted',
 			},
+		],
+		story: [
+			'A developer tests the same endpoint using curl from the terminal.',
+			'curl is not a browser and does not enforce the Same-Origin Policy.',
+			'The API returns 200 OK with the full product list.',
+			'This proves the API works fine; the block is a browser-only security feature.',
 		],
 	},
 ];

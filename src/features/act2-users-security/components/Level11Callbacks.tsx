@@ -91,6 +91,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 		],
+		story: [
+			'A user signs up typing "  JOE@GMAIL.COM  " with extra spaces and caps.',
+			'The model saves the email exactly as submitted, with no normalization.',
+			"The database now holds a dirty string that won't match clean lookups.",
+			'Future login attempts with "joe@gmail.com" will fail silently.',
+		],
 	},
 	{
 		id: 'lookup-clean',
@@ -108,6 +114,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 		],
+		story: [
+			'A returning user tries to log in with "joe@gmail.com".',
+			'The query searches for an exact match in the users table.',
+			'The stored value is "  JOE@GMAIL.COM  " (spaces + uppercase).',
+			'find_by returns nil. The user is told their account does not exist.',
+		],
 	},
 	{
 		id: 'check-mailer',
@@ -124,6 +136,12 @@ const PROBES: ProbeConfig[] = [
 				text: 'No after_create callback to trigger the welcome email.',
 				color: 'red',
 			},
+		],
+		story: [
+			'A new customer completes signup and waits for a welcome email.',
+			'User.create! inserts the row but triggers no side effects.',
+			'The model has no after_create callback to enqueue a mailer.',
+			'The customer never receives a welcome email or activation link.',
 		],
 	},
 ];

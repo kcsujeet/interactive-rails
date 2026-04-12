@@ -109,6 +109,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'yellow',
 			},
 		],
+		story: [
+			'A developer renames the Session model\'s "token" column to "auth_token".',
+			'The commit passes the build step (no syntax errors).',
+			'The test gate is empty: zero specs exist to catch the broken method call.',
+			'The deploy goes live. Every login attempt crashes with a NoMethodError for 3 hours.',
+		],
 	},
 	{
 		id: 'untested-endpoint',
@@ -133,6 +139,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'yellow',
 			},
 		],
+		story: [
+			'A developer adds a new products#create action with a typo ("paramss").',
+			'The build passes because Ruby does not check variable names at compile time.',
+			'No request spec or factory exists to exercise the create endpoint.',
+			'The typo hits production. Every product creation attempt returns a 500 error.',
+		],
 	},
 	{
 		id: 'bad-migration',
@@ -156,6 +168,12 @@ const PROBES: ProbeConfig[] = [
 				text: 'Every page that touches User is broken.',
 				color: 'yellow',
 			},
+		],
+		story: [
+			'A developer accidentally includes a migration that drops the email column.',
+			'The build succeeds because migrations run at deploy time, not build time.',
+			'No model or request specs reference the email column, so the test gate is empty.',
+			'After deploy, every endpoint that reads User.email crashes with a missing column error.',
 		],
 	},
 ];

@@ -100,6 +100,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 		],
+		story: [
+			'An anonymous visitor sends a DELETE request to the products API.',
+			'No Authorization header is included in the request.',
+			'The controller does not check for a session or token.',
+			'Product #1 is permanently destroyed. No identity was ever verified.',
+		],
 	},
 	{
 		id: 'create-no-token',
@@ -116,6 +122,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'yellow',
 			},
 		],
+		story: [
+			'A bot sends a POST request to create a new product.',
+			'No login session or API token is attached to the request.',
+			'The controller saves the product with user_id: null.',
+			'A spam product now exists in the database with no traceable author.',
+		],
 	},
 	{
 		id: 'check-identity',
@@ -131,6 +143,12 @@ const PROBES: ProbeConfig[] = [
 				text: 'No user identity. The app cannot tell requests apart.',
 				color: 'yellow',
 			},
+		],
+		story: [
+			'A logged-in user calls the /me endpoint to check their identity.',
+			'The controller has no way to look up the current session.',
+			'current_user returns null for every request.',
+			'The app treats every visitor as the same anonymous entity.',
 		],
 	},
 ];

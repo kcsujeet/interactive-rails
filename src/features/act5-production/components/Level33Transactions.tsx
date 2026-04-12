@@ -116,6 +116,13 @@ const PROBES: ProbeConfig[] = [
 			},
 			{ text: 'No rollback. 10 credits vanished.', color: 'red' },
 		],
+		story: [
+			'A seller clicks "Boost Post" to promote their Laptop Pro listing.',
+			'The system deducts 10 credits from their account and saves immediately.',
+			'Next it tries to create the Boost record, but validation fails.',
+			'The credit deduction already committed. There is no rollback.',
+			'The seller lost 10 credits and got nothing in return.',
+		],
 	},
 	{
 		id: 'log-fail',
@@ -142,6 +149,13 @@ const PROBES: ProbeConfig[] = [
 				text: 'Compliance violation: unaudited credit operation.',
 				color: 'red',
 			},
+		],
+		story: [
+			'Same seller boosts a different product listing.',
+			'Credits are deducted and the Boost record is created successfully.',
+			'The system tries to write the CreditLog entry, but the database connection drops.',
+			'The boost is live and credits are spent, but no audit trail exists.',
+			'Finance has no record of this transaction. Compliance audit fails.',
 		],
 	},
 ];

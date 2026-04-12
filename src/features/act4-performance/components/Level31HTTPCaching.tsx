@@ -91,6 +91,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 		],
+		story: [
+			'A customer visits the product listing, then navigates back to it seconds later.',
+			'Both requests return 200 OK with the full response body.',
+			'The server recomputed the exact same response from scratch both times.',
+			'No HTTP caching headers are set, so the browser cannot cache anything.',
+		],
 	},
 	{
 		id: 'repeat-post',
@@ -109,6 +115,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 		],
+		story: [
+			'A customer views a product detail page, then refreshes the page.',
+			'The product has not changed, yet the server generates the full response again.',
+			'No ETag header was sent, so the browser cannot send If-None-Match.',
+			'A 304 Not Modified response would have saved bandwidth and server time.',
+		],
 	},
 	{
 		id: 'static-asset',
@@ -122,6 +134,12 @@ const PROBES: ProbeConfig[] = [
 				text: 'No Cache-Control on static assets. Browser re-fetches every time.',
 				color: 'yellow',
 			},
+		],
+		story: [
+			'A customer reloads a page that includes a fingerprinted JavaScript bundle.',
+			'The asset file has a content hash in its name, meaning it never changes.',
+			'Without Cache-Control headers, the browser re-downloads the full file.',
+			'Static assets with fingerprints should be cached indefinitely by the browser.',
 		],
 	},
 ];

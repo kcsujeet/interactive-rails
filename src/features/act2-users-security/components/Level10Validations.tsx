@@ -95,6 +95,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'yellow',
 			},
 		],
+		story: [
+			'A user submits the product form without filling in any fields.',
+			'The controller passes empty strings to Product.create!.',
+			'The model has no presence validations on title or body.',
+			'A blank product is saved to the database and shown on the storefront.',
+		],
 	},
 	{
 		id: 'duplicate-email',
@@ -112,6 +118,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'yellow',
 			},
 		],
+		story: [
+			'A new user signs up with joe@test.com, which is already taken.',
+			'The model has no uniqueness validation on the email column.',
+			'A second row with the same email is inserted into the users table.',
+			"Both accounts now receive each other's password reset emails.",
+		],
 	},
 	{
 		id: 'bad-email',
@@ -128,6 +140,12 @@ const PROBES: ProbeConfig[] = [
 				text: 'Malformed email saved. No format validation.',
 				color: 'yellow',
 			},
+		],
+		story: [
+			'A user types "not-an-email" into the email field and submits.',
+			'The model has no format validation on the email column.',
+			'The malformed string is saved as-is to the database.',
+			'Order confirmations and password resets will bounce forever.',
 		],
 	},
 ];

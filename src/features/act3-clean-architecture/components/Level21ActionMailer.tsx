@@ -101,6 +101,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 		],
+		story: [
+			'A customer forgets their password and clicks "Reset password."',
+			'The app sends a POST to /api/v1/password_resets.',
+			'Rails returns 404: no route matches. The endpoint does not exist.',
+			'The customer is stuck with no way to recover their account.',
+		],
 	},
 	{
 		id: 'check-support',
@@ -121,6 +127,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 		],
+		story: [
+			'The support team checks their ticket queue for password-related issues.',
+			'47 manual password reset requests total, 12 this week alone.',
+			'Each one requires a support agent to open a Rails console and reset the password by hand.',
+			'Average resolution time is 3.2 hours per ticket. This does not scale.',
+		],
 	},
 	{
 		id: 'inspect-user',
@@ -136,6 +148,12 @@ const PROBES: ProbeConfig[] = [
 				text: 'The User model has has_secure_password but nothing else for password recovery.',
 				color: 'red',
 			},
+		],
+		story: [
+			'A developer inspects the User model for password recovery methods.',
+			'User.instance_methods.grep(/token|reset|mailer/) returns an empty array.',
+			'The model has has_secure_password for login, but no token generation or mailer integration.',
+			'There is no programmatic way to generate a reset token or send a recovery email.',
 		],
 	},
 ];

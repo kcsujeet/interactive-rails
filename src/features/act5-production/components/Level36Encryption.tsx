@@ -138,6 +138,13 @@ const PROBES: ProbeConfig[] = [
 			{ text: 'carol@startup.dev  | +1-555-0789', color: 'red' },
 			{ text: '# All emails and phones dumped in plaintext!', color: 'yellow' },
 		],
+		story: [
+			'An attacker finds a SQL injection vulnerability in the search endpoint.',
+			"They craft a query that bypasses the WHERE clause: id = '1 OR 1=1'.",
+			'The database returns every row in the users table.',
+			'All emails and phone numbers are stored in plaintext.',
+			'The attacker now has the full customer PII dump.',
+		],
 	},
 	{
 		id: 'backup-leak',
@@ -156,6 +163,13 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 		],
+		story: [
+			'The ops team runs a nightly pg_dump for disaster recovery.',
+			'The backup file is stored on an external server.',
+			'A contractor with backup access runs grep to search for addresses.',
+			'Every customer address appears in plaintext in the dump.',
+			'This is a GDPR violation: PII is accessible outside the application boundary.',
+		],
 	},
 	{
 		id: 'inspect-config',
@@ -166,6 +180,13 @@ const PROBES: ProbeConfig[] = [
 			{ text: 'No encryption keys configured!', color: 'red' },
 			{ text: 'ActiveRecord::Encryption is not initialized.', color: 'yellow' },
 			{ text: 'Run: bin/rails db:encryption:init', color: 'muted' },
+		],
+		story: [
+			'A developer checks whether encryption is set up in this Rails app.',
+			'They inspect the ActiveRecord::Encryption configuration.',
+			'The primary_key returns nil. No encryption keys are configured.',
+			'Without keys, the encrypts declaration in models would have no effect.',
+			'All PII columns are stored and queryable as raw plaintext.',
 		],
 	},
 ];

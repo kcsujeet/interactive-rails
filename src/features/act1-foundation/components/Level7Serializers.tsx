@@ -88,6 +88,13 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-single',
 		label: 'GET /api/v1/products/1',
+		story: [
+			'A customer clicks on a product to view its details.',
+			'The API returns the product as JSON using render json: product.',
+			'Rails dumps every column: id, title, body, published_at, created_at, updated_at.',
+			'The client receives internal timestamps it never asked for.',
+			'All 6 columns are exposed as flat, unstructured JSON with no filtering.',
+		],
 		command: 'GET /api/v1/products/1',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
@@ -104,6 +111,13 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-collection',
 		label: 'GET /api/v1/products',
+		story: [
+			'The storefront loads the product catalog for the homepage.',
+			'The API returns an array of every product in the database.',
+			'Each product object includes created_at and updated_at timestamps.',
+			'These internal timestamps are irrelevant to the frontend display.',
+			'Every record in the collection exposes all columns with no filtering.',
+		],
 		command: 'GET /api/v1/products',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
@@ -129,6 +143,13 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-mobile',
 		label: 'GET /posts/1 (mobile)',
+		story: [
+			'A customer browses products on their phone over a cellular connection.',
+			'The mobile app requests a single product from the API.',
+			'The response is the same bloated JSON: all 6 columns, no structure.',
+			'On a slow connection, the extra bytes add up across many requests.',
+			'Mobile clients download unnecessary data every single time.',
+		],
 		command: 'GET /api/v1/products/1 (mobile client)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },

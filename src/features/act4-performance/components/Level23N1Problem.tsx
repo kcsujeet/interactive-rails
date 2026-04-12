@@ -127,6 +127,12 @@ const PROBES: ProbeConfig[] = [
 			{ text: '  ... 2 more author queries', color: 'red' },
 			{ text: '1 + 5 = 6 queries. That is the N+1 pattern.', color: 'yellow' },
 		],
+		story: [
+			'A customer browses the product listing page with 5 products.',
+			'Rails loads all 5 products in one query, then calls product.user for each.',
+			'Each .user call fires a separate SELECT to fetch the author.',
+			'1 query for products + 5 queries for users = 6 total. That is N+1.',
+		],
 	},
 	{
 		id: 'get-posts-100',
@@ -147,6 +153,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 		],
+		story: [
+			'The product catalog grows to 100 items.',
+			'Same endpoint, same code. Now 101 queries fire on every request.',
+			'Response time jumps to 850ms as the database handles 100 individual lookups.',
+			'The N+1 pattern scales linearly: more products means more queries.',
+		],
 	},
 	{
 		id: 'get-posts-1000',
@@ -164,6 +176,12 @@ const PROBES: ProbeConfig[] = [
 				text: 'Memory: 1,564 MB | Objects allocated: 5,301,574',
 				color: 'red',
 			},
+		],
+		story: [
+			'Production traffic hits the endpoint with 1,000 products in the database.',
+			'1,001 queries fire, taking nearly 5 seconds to complete.',
+			'Memory spikes to 1.5 GB as Rails allocates millions of objects.',
+			'The page is completely unusable. The N+1 problem has become a crisis.',
 		],
 	},
 ];

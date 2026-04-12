@@ -133,6 +133,14 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 		],
+		story: [
+			'Admin A opens the Laptop Pro product page to raise the price by $10.',
+			'Admin B opens the same page at the same time to raise the price by $5.',
+			'Both see the current price: $50.00.',
+			'Admin A saves first, setting it to $60.00.',
+			'Admin B saves a moment later, overwriting it to $55.00 (based on the stale $50).',
+			"Admin A's $10 increase is silently lost.",
+		],
 	},
 	{
 		id: 'concurrent-checkout',
@@ -163,6 +171,14 @@ const PROBES: ProbeConfig[] = [
 				text: "Request A's deduction was silently overwritten.",
 				color: 'red',
 			},
+		],
+		story: [
+			'Customer A adds 10 Laptop Pros to their cart and clicks checkout.',
+			'Customer B adds 8 of the same product and checks out simultaneously.',
+			'Both requests read stock_count: 15 from the database.',
+			'Customer A saves stock_count = 5 (15 minus 10).',
+			'Customer B saves stock_count = 7 (15 minus 8), overwriting the first write.',
+			'18 units were sold but only 8 deducted. Inventory is now wrong.',
 		],
 	},
 ];

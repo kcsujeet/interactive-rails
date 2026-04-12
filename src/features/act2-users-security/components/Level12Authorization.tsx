@@ -102,6 +102,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 		],
+		story: [
+			'user_7 sends a DELETE request for product #42, which belongs to user_3.',
+			'The controller finds the product by ID but never checks ownership.',
+			'Product.find(42).destroy! runs without any authorization gate.',
+			"user_3's product is permanently deleted by someone who had no right to touch it.",
+		],
 	},
 	{
 		id: 'get-drafts',
@@ -126,6 +132,12 @@ const PROBES: ProbeConfig[] = [
 				color: 'yellow',
 			},
 		],
+		story: [
+			'An unauthenticated visitor hits the products index endpoint.',
+			'The controller runs Product.all with no scope filtering.',
+			'Draft products ("Secret Launch", "Internal Roadmap") are included in the response.',
+			'Confidential product listings are exposed to the public internet.',
+		],
 	},
 	{
 		id: 'patch-nonowner',
@@ -141,6 +153,12 @@ const PROBES: ProbeConfig[] = [
 				text: "user_7 edited user_3's post. No ownership check.",
 				color: 'yellow',
 			},
+		],
+		story: [
+			'user_7 sends a PATCH request to update product #42, owned by user_3.',
+			'The controller finds the product and applies the update without checking ownership.',
+			'The title is overwritten to "Hacked" while user_id stays as user_3.',
+			"Any authenticated user can modify any other user's product listings.",
 		],
 	},
 ];
