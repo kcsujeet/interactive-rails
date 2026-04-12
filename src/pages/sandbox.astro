@@ -1,10 +1,8 @@
 ---
-import SandboxApp from '@/components/pages/SandboxApp';
+import SandboxApp from '@/features/sandbox/components/SandboxApp';
 import GameLayout from '@/layouts/GameLayout.astro';
 ---
 
 <GameLayout title="Sandbox | Interactive Rails">
-  <div id="sandbox-app" class="h-[calc(100vh-80px)]">
-    <SandboxApp client:load />
-  </div>
+  <SandboxApp client:load />
 </GameLayout>
