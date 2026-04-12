@@ -78,7 +78,7 @@ export function CodebaseViewerDialog({
 	const effectiveFile = selectedFile ?? files[0];
 	const effectivePath = selectedPath ?? files[0]?.filename ?? null;
 
-	if (files.length === 0) return null;
+	const isEmpty = files.length === 0;
 
 	const stats = `${files.length} file${files.length !== 1 ? 's' : ''}${levelCount ? ` from ${levelCount} level${levelCount !== 1 ? 's' : ''}` : ''}`;
 
@@ -110,14 +110,21 @@ export function CodebaseViewerDialog({
 				</DialogHeader>
 
 				<div className="flex flex-1 min-h-0 overflow-hidden">
-					{/* File tree sidebar */}
-					<div className="w-64 shrink-0 border-r border-border overflow-y-auto bg-muted/30 py-2">
-						<FileTree
-							nodes={tree}
-							onSelect={setSelectedPath}
-							selectedPath={effectivePath}
-						/>
-					</div>
+					{isEmpty ? (
+						<div className="flex-1 flex flex-col items-center justify-center gap-3 text-muted-foreground">
+							<FolderTree className="w-10 h-10" />
+							<p className="text-sm">Complete your first level to see generated code here.</p>
+						</div>
+					) : (
+						<>
+							{/* File tree sidebar */}
+							<div className="w-64 shrink-0 border-r border-border overflow-y-auto bg-muted/30 py-2">
+								<FileTree
+									nodes={tree}
+									onSelect={setSelectedPath}
+									selectedPath={effectivePath}
+								/>
+							</div>
 
 					{/* Code viewer */}
 					<div className="flex-1 min-w-0 flex flex-col">
@@ -165,7 +172,9 @@ export function CodebaseViewerDialog({
 								Select a file to view its contents
 							</div>
 						)}
-					</div>
+							</div>
+						</>
+					)}
 				</div>
 			</DialogContent>
 		</Dialog>

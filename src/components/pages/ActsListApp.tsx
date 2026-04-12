@@ -194,12 +194,10 @@ export function ActsListApp() {
 						Progress through Rails concepts from fundamentals to production.
 					</p>
 				</div>
-				{totalCompleted > 0 && (
-					<CodebaseViewerDialog
-						files={projectFiles}
-						levelCount={totalCompleted}
-					/>
-				)}
+				<CodebaseViewerDialog
+					files={projectFiles}
+					levelCount={totalCompleted}
+				/>
 			</div>
 
 			<div className="mb-8">
