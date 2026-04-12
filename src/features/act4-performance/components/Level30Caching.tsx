@@ -1396,6 +1396,9 @@ export function Level30Caching({ onComplete }: LevelComponentProps) {
 				<InstructionPanel>
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
+						<h3 className="text-sm font-semibold text-foreground mb-2">
+							Scenario
+						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							The trending posts endpoint computes rankings from 50K posts on
 							every request. 200 identical computations per minute, each taking

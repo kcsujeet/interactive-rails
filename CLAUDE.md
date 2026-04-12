@@ -92,7 +92,7 @@ The player **actively explores** the problem through an interactive observe phas
 
 - Center panel: interactive visualization of the problem. Pick the right visualization component for the concept (see below). Below the visualization, add a `ProbeTerminal` where the player fires test requests that reveal vulnerabilities.
 - When a zone/stage is clicked, a `StageInspector` card overlay shows the stage's description and code. Nodes react to probes with visual feedback (color changes, badges, content updates).
-- Left panel: scenario text + `DiscoveryChecklist` showing explore progress (pills with Search/Check icons, progress bar with "X of Y required")
+- Left panel: **"Scenario" heading** (`<h3 className="text-sm font-semibold text-foreground mb-2">Scenario</h3>`) followed by scenario text paragraphs (`text-sm text-muted-foreground`), then `DiscoveryChecklist` showing explore progress (pills with Search/Check icons, progress bar with "X of Y required"). The heading is non-negotiable for visual consistency across all three-phase levels.
 - Right panel: the broken/vulnerable/unoptimized code
 - "Build the Fix" button appears **only when `discoveryGating.isUnlocked`** (player has found enough problems), not on a timer. Uses `animate-in fade-in duration-500`.
 

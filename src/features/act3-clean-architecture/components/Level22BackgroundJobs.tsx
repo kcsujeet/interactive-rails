@@ -855,6 +855,9 @@ export function Level22BackgroundJobs({ onComplete }: LevelComponentProps) {
 				<InstructionPanel>
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
+						<h3 className="text-sm font-semibold text-foreground mb-2">
+							Scenario
+						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Your registration service sends the welcome email with{' '}
 							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">

@@ -1487,7 +1487,18 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 				>
 					<div className="border-t border-border">
 						{phase === 'observe' && (
-							<div className="p-4">
+							<div className="p-4 space-y-4">
+								<div>
+									<h3 className="text-sm font-semibold text-foreground mb-2">
+										Scenario
+									</h3>
+									<p className="text-sm text-muted-foreground">
+										The boost pipeline deducts user credits, creates a boost
+										record, and logs a credit entry. Without a transaction, a
+										failure at step 2 or 3 leaves the database in an
+										inconsistent state.
+									</p>
+								</div>
 								<DiscoveryChecklist
 									discoveredCount={discoveryGating.discoveredCount}
 									discoveries={discoveryGating.discoveries}

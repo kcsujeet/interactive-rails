@@ -989,6 +989,9 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 				<InstructionPanel>
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
+						<h3 className="text-sm font-semibold text-foreground mb-2">
+							Scenario
+						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Your Product API works end-to-end: model (L3), CRUD (L4), routes
 							(L5), controller (L6), serializer (L7). But posts exist in

@@ -855,6 +855,9 @@ export function Level31HTTPCaching({ onComplete }: LevelComponentProps) {
 				<InstructionPanel>
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
+						<h3 className="text-sm font-semibold text-foreground mb-2">
+							Scenario
+						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Your API serves every response from scratch. No caching headers,
 							no ETags, no CDN. 1,000 requests per second all computing the same

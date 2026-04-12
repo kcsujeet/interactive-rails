@@ -1998,7 +1998,17 @@ export function Level35ActiveStorage({ onComplete }: LevelComponentProps) {
 					]}
 					scenario="Users upload 5MB profile photos through the Rails app server. Memory spikes on every upload. Avatar downloads block workers. No thumbnails exist."
 				>
-					<div className="p-4 border-t border-border">
+					<div className="p-4 border-t border-border space-y-4">
+						<div>
+							<h3 className="text-sm font-semibold text-foreground mb-2">
+								Scenario
+							</h3>
+							<p className="text-sm text-muted-foreground">
+								Users upload 5MB profile photos through the Rails app server.
+								Memory spikes on every upload. Avatar downloads block workers.
+								No thumbnails exist.
+							</p>
+						</div>
 						<DiscoveryChecklist
 							discoveredCount={discoveryGating.discoveredCount}
 							discoveries={discoveryGating.discoveries}

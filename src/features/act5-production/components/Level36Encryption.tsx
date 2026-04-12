@@ -1395,7 +1395,17 @@ export function Level36Encryption({ onComplete }: LevelComponentProps) {
 					]}
 					scenario="A GDPR audit flagged that user PII (email, phone, address) is stored in plaintext in the database. A breach would expose everything."
 				>
-					<div className="p-4 border-t border-border">
+					<div className="p-4 border-t border-border space-y-4">
+						<div>
+							<h3 className="text-sm font-semibold text-foreground mb-2">
+								Scenario
+							</h3>
+							<p className="text-sm text-muted-foreground">
+								A GDPR audit flagged that user PII (email, phone, address) is
+								stored in plaintext in the database. A breach would expose
+								everything.
+							</p>
+						</div>
 						<DiscoveryChecklist
 							discoveredCount={discoveryGating.discoveredCount}
 							discoveries={discoveryGating.discoveries}

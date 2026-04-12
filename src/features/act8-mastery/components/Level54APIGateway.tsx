@@ -2417,6 +2417,9 @@ export function Level54APIGateway({ onComplete }: LevelComponentProps) {
 				<div className="flex flex-col h-full overflow-y-auto">
 					{/* Scenario text */}
 					<div className="p-4 border-b border-border space-y-3">
+						<h3 className="text-sm font-semibold text-foreground mb-2">
+							Scenario
+						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Your mobile app calls 6 microservice endpoints directly across 3
 							different hosts. Each uses a different auth mechanism (JWT, API

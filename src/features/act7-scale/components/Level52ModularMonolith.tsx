@@ -1865,6 +1865,9 @@ export function Level52ModularMonolith({ onComplete }: LevelComponentProps) {
 				<div className="flex flex-col h-full overflow-y-auto">
 					{/* Scenario text */}
 					<div className="p-4 border-b border-border space-y-3">
+						<h3 className="text-sm font-semibold text-foreground mb-2">
+							Scenario
+						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Your monolith has 200+ models with no boundaries. A billing change
 							broke notifications because Billing calls Notification internals

@@ -891,6 +891,9 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 				<InstructionPanel>
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
+						<h3 className="text-sm font-semibold text-foreground mb-2">
+							Scenario
+						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Posts work in the console (Levels 3-4), and Puma is running from
 							Level 2. But HTTP requests from the outside world cannot reach

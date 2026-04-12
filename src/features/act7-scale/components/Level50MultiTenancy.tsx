@@ -1813,6 +1813,9 @@ export function Level50MultiTenancy({ onComplete }: LevelComponentProps) {
 				<div className="flex flex-col h-full overflow-y-auto">
 					{/* Scenario text */}
 					<div className="p-4 border-b border-border space-y-3">
+						<h3 className="text-sm font-semibold text-foreground mb-2">
+							Scenario
+						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Company A can see Company B's products and orders. The API returns
 							data from all tenants with no scoping. Customer PII, pricing, and

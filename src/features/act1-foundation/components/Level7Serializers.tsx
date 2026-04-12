@@ -1033,6 +1033,9 @@ export function Level7Serializers({ onComplete }: LevelComponentProps) {
 				<InstructionPanel>
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
+						<h3 className="text-sm font-semibold text-foreground mb-2">
+							Scenario
+						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							In Level 6, your controller returns{' '}
 							<span className="font-mono text-primary">render json: post</span>,

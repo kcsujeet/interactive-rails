@@ -1031,6 +1031,9 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 				<InstructionPanel>
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
+						<h3 className="text-sm font-semibold text-foreground mb-2">
+							Scenario
+						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Your ProductList service loads posts for the API index endpoint.
 							Response times have crept above 2 seconds. The database log

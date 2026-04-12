@@ -494,6 +494,9 @@ After designing and implementing, run `audit-level` to verify compliance with al
 - [ ] **Question 2 (concept foundation) explicitly verified**: Would the player know what this concept is? Has it been introduced in a prior level? If not, the observe phase must introduce it before showing problems.
 - [ ] Choose the visualization type with one-sentence justification
 
+### Left panel consistency
+- [ ] **"Scenario" heading is present** in the observe phase left panel: `<h3 className="text-sm font-semibold text-foreground mb-2">Scenario</h3>` before scenario text paragraphs. Non-negotiable for all three-phase levels.
+
 ### Observe phase design (probes and reward scenarios designed together as pairs)
 - [ ] **Each probe is designed alongside its matching reward scenario as a pair before moving to the next probe**
 - [ ] Zero-knowledge test passes

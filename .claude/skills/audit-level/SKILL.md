@@ -340,7 +340,8 @@ For code examples and flow animation patterns, see the `design-level` skill's ob
 
 #### Left panel (observe)
 
-- [ ] Scenario text (always visible)
+- [ ] **"Scenario" heading is present** (non-negotiable): `<h3 className="text-sm font-semibold text-foreground mb-2">Scenario</h3>` appears before the scenario text paragraphs. Every three-phase level must have this heading for visual consistency.
+- [ ] Scenario text paragraphs (always visible, `text-sm text-muted-foreground`)
 - [ ] `DiscoveryChecklist` component showing discovery progress
 - [ ] Progressive `<Alert variant="info">` hint for non-obvious discovery actions
 

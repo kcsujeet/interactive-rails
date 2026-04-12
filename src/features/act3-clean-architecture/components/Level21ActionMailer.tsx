@@ -873,6 +873,9 @@ export function Level21ActionMailer({ onComplete }: LevelComponentProps) {
 				<InstructionPanel>
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
+						<h3 className="text-sm font-semibold text-foreground mb-2">
+							Scenario
+						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Users who forget their password are completely locked out. There
 							is no self-service recovery flow. Support tickets for manual

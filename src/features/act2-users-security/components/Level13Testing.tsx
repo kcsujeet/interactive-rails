@@ -1011,6 +1011,9 @@ export function Level13Testing({ onComplete }: LevelComponentProps) {
 				<InstructionPanel>
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
+						<h3 className="text-sm font-semibold text-foreground mb-2">
+							Scenario
+						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							A deploy broke the login endpoint. Nobody noticed for 3 hours
 							because there are zero tests. The only safety net was manual

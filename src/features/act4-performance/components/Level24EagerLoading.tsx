@@ -1337,6 +1337,9 @@ export function Level24EagerLoading({ onComplete }: LevelComponentProps) {
 				<InstructionPanel>
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
+						<h3 className="text-sm font-semibold text-foreground mb-2">
+							Scenario
+						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Level 23 exposed the N+1 problem. Now you need to choose the right{' '}
 							<span className="text-foreground font-medium">strategy</span> to

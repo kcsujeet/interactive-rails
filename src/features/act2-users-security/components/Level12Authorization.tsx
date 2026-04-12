@@ -993,6 +993,9 @@ export function Level12Authorization({ onComplete }: LevelComponentProps) {
 				<InstructionPanel>
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
+						<h3 className="text-sm font-semibold text-foreground mb-2">
+							Scenario
+						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Authentication tells you WHO is making the request. But nothing
 							checks whether they are ALLOWED to do what they are asking. User A

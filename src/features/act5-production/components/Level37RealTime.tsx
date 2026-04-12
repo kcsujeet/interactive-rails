@@ -1949,7 +1949,17 @@ export function Level37RealTime({ onComplete }: LevelComponentProps) {
 					]}
 					scenario="50,000 users poll GET /notifications every 2 seconds. That is 25,000 requests per second, and 99% return nothing. Server CPU is at 95%."
 				>
-					<div className="p-4 border-t border-border">
+					<div className="p-4 border-t border-border space-y-4">
+						<div>
+							<h3 className="text-sm font-semibold text-foreground mb-2">
+								Scenario
+							</h3>
+							<p className="text-sm text-muted-foreground">
+								50,000 users poll GET /notifications every 2 seconds. That is
+								25,000 requests per second, and 99% return nothing. Server CPU
+								is at 95%.
+							</p>
+						</div>
 						<DiscoveryChecklist
 							discoveredCount={discoveryGating.discoveredCount}
 							discoveries={discoveryGating.discoveries}

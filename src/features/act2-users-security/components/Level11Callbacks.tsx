@@ -832,6 +832,9 @@ export function Level11Callbacks({ onComplete }: LevelComponentProps) {
 				<InstructionPanel>
 					{/* Scenario (always visible) */}
 					<div className="p-4 border-b border-border space-y-3">
+						<h3 className="text-sm font-semibold text-foreground mb-2">
+							Scenario
+						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Your User model stores emails exactly as typed. Signups arrive as{' '}
 							<span className="font-mono text-primary">

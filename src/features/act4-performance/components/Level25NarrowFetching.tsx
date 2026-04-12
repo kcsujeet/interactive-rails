@@ -1160,6 +1160,9 @@ export function Level25NarrowFetching({ onComplete }: LevelComponentProps) {
 			<LeftPanel>
 				<InstructionPanel>
 					<div className="p-4 border-b border-border space-y-3">
+						<h3 className="text-sm font-semibold text-foreground mb-2">
+							Scenario
+						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Your Rails app is running out of memory in production. Multiple
 							endpoints use{' '}

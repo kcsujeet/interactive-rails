@@ -1871,7 +1871,18 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 				>
 					<div className="border-t border-border">
 						{phase === 'observe' && (
-							<div className="p-4">
+							<div className="p-4 space-y-4">
+								<div>
+									<h3 className="text-sm font-semibold text-foreground mb-2">
+										Scenario
+									</h3>
+									<p className="text-sm text-muted-foreground">
+										Two customers check out the same product simultaneously.
+										Without locking, the last write wins and stock goes
+										negative. Locks serialize access so each request sees the
+										correct inventory.
+									</p>
+								</div>
 								<DiscoveryChecklist
 									discoveredCount={discoveryGating.discoveredCount}
 									discoveries={discoveryGating.discoveries}
