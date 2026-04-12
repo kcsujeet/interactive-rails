@@ -45,7 +45,10 @@ end
 		goal: 'Eliminate expensive COUNT queries by storing pre-computed counts directly on the parent table, then update the serializer to use the cached column.',
 		thresholds: { maxQueriesPerRequest: 3 },
 	},
+	startingPipeline: { nodes: [], connections: [] },
 	successConditions: [{ type: 'counter_cache_configured' }],
+	availableNodes: [],
+	unlockedNodes: [],
 	requiresTests: true,
 	learningContent: {
 		title: 'Counter Caches & Denormalization',

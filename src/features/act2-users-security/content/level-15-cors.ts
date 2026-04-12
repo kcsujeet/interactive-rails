@@ -5,6 +5,10 @@ export const level15CORS: Level = {
 	actId: 2,
 	levelNumber: 15,
 	name: 'CORS',
+	startingPipeline: { nodes: [], connections: [] },
+	successConditions: [],
+	availableNodes: [],
+	unlockedNodes: [],
 	trigger: {
 		type: 'security_audit',
 		description:

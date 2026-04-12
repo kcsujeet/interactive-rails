@@ -109,7 +109,8 @@ const TEMPERATURE_POLICY_OPTIONS = [
 	},
 	{
 		id: 'correct',
-		label: 'Hot < 90 days, warm < 1 year (archive), cold > 1 year (destroy after retention)',
+		label:
+			'Hot < 90 days, warm < 1 year (archive), cold > 1 year (destroy after retention)',
 		correct: true,
 	},
 ];
@@ -193,7 +194,8 @@ const DESTRUCTION_POLICY_OPTIONS = [
 	},
 	{
 		id: 'correct',
-		label: 'Destroy only data past the compliance retention period, with audit log',
+		label:
+			'Destroy only data past the compliance retention period, with audit log',
 		correct: true,
 	},
 	{
@@ -354,9 +356,7 @@ describe('Level 46: Data Lifecycle', () => {
 			expect(DISCOVERY_DEFS[1].label).toBe(
 				'Old order lookups scan entire table',
 			);
-			expect(DISCOVERY_DEFS[2].label).toBe(
-				'Daily backup takes 8 hours',
-			);
+			expect(DISCOVERY_DEFS[2].label).toBe('Daily backup takes 8 hours');
 		});
 
 		test('exact IDs match', () => {
@@ -377,12 +377,8 @@ describe('Level 46: Data Lifecycle', () => {
 		});
 
 		test('exact probe labels', () => {
-			expect(PROBES[0].label).toBe(
-				'Customer views recent orders (slow)',
-			);
-			expect(PROBES[1].label).toBe(
-				'Customer views old order from 2023',
-			);
+			expect(PROBES[0].label).toBe('Customer views recent orders (slow)');
+			expect(PROBES[1].label).toBe('Customer views old order from 2023');
 			expect(PROBES[2].label).toBe('Daily backup takes 8 hours');
 		});
 
@@ -424,9 +420,7 @@ describe('Level 46: Data Lifecycle', () => {
 		});
 
 		test('every discovery reachable via probes', () => {
-			const reachable = new Set(
-				Object.values(PROBE_DISCOVERY_MAP).flat(),
-			);
+			const reachable = new Set(Object.values(PROBE_DISCOVERY_MAP).flat());
 			for (const def of DISCOVERY_DEFS) {
 				expect(reachable.has(def.id)).toBe(true);
 			}
@@ -473,16 +467,13 @@ describe('Level 46: Data Lifecycle', () => {
 					for (const opt of options) {
 						if (!opt.correct) {
 							expect(typeof opt.feedback).toBe('string');
-							expect(opt.feedback.length).toBeGreaterThanOrEqual(
-								20,
-							);
+							expect((opt.feedback ?? '').length).toBeGreaterThanOrEqual(20);
 						}
 					}
 				});
 
 				test('feedback does not reveal the correct answer label', () => {
-					const correctLabel =
-						options.find((o) => o.correct)?.label ?? '';
+					const correctLabel = options.find((o) => o.correct)?.label ?? '';
 					for (const opt of options) {
 						if (!opt.correct && opt.feedback) {
 							expect(opt.feedback).not.toContain(correctLabel);
@@ -510,9 +501,7 @@ describe('Level 46: Data Lifecycle', () => {
 
 		test('every scenario has >= 3 responseLines with real text', () => {
 			for (const scenario of STRESS_SCENARIOS) {
-				expect(
-					scenario.responseLines.length,
-				).toBeGreaterThanOrEqual(3);
+				expect(scenario.responseLines.length).toBeGreaterThanOrEqual(3);
 				for (const line of scenario.responseLines) {
 					expect(line.text.length).toBeGreaterThanOrEqual(5);
 				}
@@ -565,9 +554,7 @@ describe('Level 46: Data Lifecycle', () => {
 
 		test('reward scenarios are a superset of probe concepts', () => {
 			// 3 probes, 4 scenarios (3 matching + 1 additional cold-destroy)
-			expect(STRESS_SCENARIOS.length).toBeGreaterThanOrEqual(
-				PROBES.length,
-			);
+			expect(STRESS_SCENARIOS.length).toBeGreaterThanOrEqual(PROBES.length);
 		});
 	});
 

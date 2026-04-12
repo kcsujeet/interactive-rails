@@ -5,6 +5,10 @@ export const level12Authorization: Level = {
 	actId: 2,
 	levelNumber: 12,
 	name: 'Authorization',
+	startingPipeline: { nodes: [], connections: [] },
+	successConditions: [],
+	availableNodes: [],
+	unlockedNodes: [],
 	trigger: {
 		type: 'security_incident',
 		description:

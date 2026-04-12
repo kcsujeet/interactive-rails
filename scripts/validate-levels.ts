@@ -1,4 +1,4 @@
-import { ACTS, getAllLevels } from '../src/features/acts-registry';
+import { ACTS, getAllLevels } from '../src/lib/acts-registry';
 import { nodeTypes } from '../src/utils/gameData';
 
 const errors: string[] = [];

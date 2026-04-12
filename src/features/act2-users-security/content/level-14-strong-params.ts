@@ -5,6 +5,10 @@ export const level14StrongParams: Level = {
 	actId: 2,
 	levelNumber: 14,
 	name: 'Strong Params',
+	startingPipeline: { nodes: [], connections: [] },
+	successConditions: [],
+	availableNodes: [],
+	unlockedNodes: [],
 	trigger: {
 		type: 'security_audit',
 		description:

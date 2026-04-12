@@ -277,7 +277,6 @@ export function RequestTimeline({
 						Completed
 					</Button>
 					<Button
-						color={filter === 'error' ? 'destructive' : undefined}
 						onClick={() => setFilter('error')}
 						size="sm"
 						variant={filter === 'error' ? 'default' : 'secondary'}

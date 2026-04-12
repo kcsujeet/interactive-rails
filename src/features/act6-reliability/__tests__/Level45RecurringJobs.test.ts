@@ -412,9 +412,7 @@ describe('Level 45: Recurring Jobs', () => {
 		});
 
 		test('every discovery reachable via probes', () => {
-			const reachable = new Set(
-				Object.values(PROBE_DISCOVERY_MAP).flat(),
-			);
+			const reachable = new Set(Object.values(PROBE_DISCOVERY_MAP).flat());
 			for (const def of DISCOVERY_DEFS) {
 				expect(reachable.has(def.id)).toBe(true);
 			}
@@ -461,16 +459,13 @@ describe('Level 45: Recurring Jobs', () => {
 					for (const opt of options) {
 						if (!opt.correct) {
 							expect(typeof opt.feedback).toBe('string');
-							expect(opt.feedback.length).toBeGreaterThanOrEqual(
-								20,
-							);
+							expect((opt.feedback ?? '').length).toBeGreaterThanOrEqual(20);
 						}
 					}
 				});
 
 				test('feedback does not reveal the correct answer label', () => {
-					const correctLabel =
-						options.find((o) => o.correct)?.label ?? '';
+					const correctLabel = options.find((o) => o.correct)?.label ?? '';
 					for (const opt of options) {
 						if (!opt.correct && opt.feedback) {
 							expect(opt.feedback).not.toContain(correctLabel);
@@ -498,9 +493,7 @@ describe('Level 45: Recurring Jobs', () => {
 
 		test('every scenario has >= 3 responseLines with real text', () => {
 			for (const scenario of STRESS_SCENARIOS) {
-				expect(
-					scenario.responseLines.length,
-				).toBeGreaterThanOrEqual(3);
+				expect(scenario.responseLines.length).toBeGreaterThanOrEqual(3);
 				for (const line of scenario.responseLines) {
 					expect(line.text.length).toBeGreaterThanOrEqual(10);
 				}
@@ -547,9 +540,7 @@ describe('Level 45: Recurring Jobs', () => {
 		test('reward scenarios are a superset of probe concepts', () => {
 			// 3 probes map to expired-tokens, orphaned-records, storage-growth
 			// 4 scenarios include those 3 + job-failure
-			expect(STRESS_SCENARIOS.length).toBeGreaterThanOrEqual(
-				PROBES.length,
-			);
+			expect(STRESS_SCENARIOS.length).toBeGreaterThanOrEqual(PROBES.length);
 		});
 	});
 

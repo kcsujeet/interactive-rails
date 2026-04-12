@@ -56,11 +56,11 @@ import { Card } from '@/components/ui/Card';
           window.location.href = '/login';
           return;
         }
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = await response.json().catch(() => ({ error: { message: '' } })) as { error?: { message?: string } };
         throw new Error(errorData?.error?.message || 'Failed to load progress');
       }
 
-      const result = await response.json();
+      const result = await response.json() as { data: Record<string, any> };
       const progress = result.data;
 
       const xpForNextLevel = progress.xpToNextLevel || Math.floor(100 * Math.pow(1.5, progress.level));

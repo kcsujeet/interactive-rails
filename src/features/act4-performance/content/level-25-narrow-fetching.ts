@@ -42,6 +42,7 @@ User.all.each { |u| SyncService.process(u) }
 		goal: 'Explore the data table to discover why SELECT * wastes memory, then choose the right fetching strategy for each scenario.',
 		thresholds: { maxMemoryUsage: 50 },
 	},
+	startingPipeline: { nodes: [], connections: [] },
 	successConditions: [{ type: 'queries_optimized' }],
 	requiresTests: true,
 	availableNodes: [],
