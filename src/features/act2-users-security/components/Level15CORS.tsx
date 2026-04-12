@@ -57,6 +57,7 @@ import {
 } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
+import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-registry';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import {
 	type DiscoveryDef,
@@ -65,6 +66,42 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { shuffleOptions } from '@/lib/shuffleOptions';
+import type { CodeFile } from '@/utils/codeGeneration';
+
+// ──────────────────────────────────────────────
+// Final code files (codebase registry)
+// ──────────────────────────────────────────────
+
+export const FINAL_CODE_FILES: CodeFile[] = [
+	{
+		filename: 'Gemfile',
+		language: 'ruby',
+		code: `source "https://rubygems.org"
+
+gem "rails", "~> 8.0.0"
+gem "pg", "~> 1.1"
+gem "puma", ">= 5.0"
+gem "jbuilder"
+gem "bcrypt", "~> 3.1.7"
+gem "rack-cors"`,
+	},
+	{
+		filename: 'config/initializers/cors.rb',
+		language: 'ruby',
+		code: `Rails.application.config.middleware.insert_before 0, Rack::Cors do
+  allow do
+    origins "https://yourdomain.com", "http://localhost:3001"
+    resource "/api/*",
+      headers: :any,
+      methods: [:get, :post, :put, :patch, :delete, :options],
+      expose: ["Authorization"],
+      max_age: 600
+  end
+end`,
+	},
+];
+
+registerLevelCode('act2-level15-cors', FINAL_CODE_FILES);
 
 // ──────────────────────────────────────────────
 // Phase type

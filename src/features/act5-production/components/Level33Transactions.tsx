@@ -57,6 +57,7 @@ import {
 } from '@/components/levels/ProbeTerminal';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
+import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-registry';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import {
 	type DiscoveryDef,
@@ -67,6 +68,85 @@ import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 import { cn } from '@/lib/utils';
+import type { CodeFile } from '@/utils/codeGeneration';
+
+export const FINAL_CODE_FILES: CodeFile[] = [
+	{
+		filename: 'app/contracts/boost_contract.rb',
+		language: 'ruby',
+		code: `class BoostContract < Dry::Validation::Contract
+  params do
+    required(:user_id).filled(:integer)
+    required(:product_id).filled(:integer)
+    required(:cost).filled(:integer, gt?: 0)
+  end
+end`,
+	},
+	{
+		filename: 'app/services/boost_post.rb',
+		language: 'ruby',
+		code: `class BoostPost < ApplicationService
+  Result = Data.define(:success?, :boost, :errors)
+
+  def initialize(user_id:, product_id:, cost:)
+    @user_id = user_id
+    @product_id = product_id
+    @cost = cost
+  end
+
+  def call
+    v = BoostContract.new.call(
+      user_id: @user_id,
+      product_id: @product_id, cost: @cost)
+    return Result.new(success?: false,
+      boost: nil, errors: v.errors.to_h) if v.failure?
+
+    ActiveRecord::Base.transaction do
+      user = User.find(@user_id)
+      raise ActiveRecord::Rollback if user.credits < @cost
+      user.credits -= @cost
+      user.save!
+      boost = Boost.create!(user:, product_id: @product_id,
+        reach: 5000)
+      CreditLog.create!(user:, amount: -@cost,
+        reason: "boost_post_#{@product_id}")
+      Result.new(success?: true, boost:, errors: [])
+    end || Result.new(success?: false, boost: nil,
+      errors: ["Insufficient credits"])
+  end
+end`,
+	},
+	{
+		filename: 'app/controllers/api/v1/boosts_controller.rb',
+		language: 'ruby',
+		code: `class Api::V1::BoostsController < ApplicationController
+  def create
+    result = BoostPost.call(
+      user_id: Current.user.id,
+      product_id: boost_params[:product_id],
+      cost: boost_params[:cost])
+    if result.success?
+      render json: BoostSerializer.new(result.boost),
+        status: :created
+    else
+      render json: { error: {
+        code: "BOOST_FAILED",
+        message: "Could not boost post",
+        details: result.errors } },
+        status: :unprocessable_entity
+    end
+  end
+
+  private
+
+  def boost_params
+    params.expect(boost: [:product_id, :cost])
+  end
+end`,
+	},
+];
+
+registerLevelCode('act5-level33-transactions', FINAL_CODE_FILES);
 
 // ──────────────────────────────────────────────
 // Phase type

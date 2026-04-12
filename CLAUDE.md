@@ -41,7 +41,20 @@ Default to using Bun instead of Node.js:
 
 ## Project Architecture
 
-- Always follow bulletproof-react project structure. https://github.com/alan2207/bulletproof-react/blob/master/docs/project-structure.md
+**Always follow bulletproof-react project structure. This is non-negotiable.** https://github.com/alan2207/bulletproof-react/blob/master/docs/project-structure.md
+
+Every feature in `src/features/` must use this internal structure (include only what's needed):
+```
+src/features/my-feature/
+  components/     # React components scoped to this feature
+  hooks/          # Custom hooks for this feature
+  utils/          # Utility functions for this feature
+  types/          # TypeScript types for this feature
+  stores/         # State management for this feature
+  api/            # API request declarations for this feature
+```
+
+**Import rules (unidirectional):** shared (`src/components`, `src/lib`, `src/utils`) -> features -> app (pages). Features cannot import from other features. Features cannot import from pages.
 
 ### No Barrel Files
 

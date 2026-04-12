@@ -62,6 +62,7 @@ import {
 } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
+import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-registry';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import {
 	type DiscoveryDef,
@@ -71,6 +72,59 @@ import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { shuffleOptions } from '@/lib/shuffleOptions';
+import type { CodeFile } from '@/utils/codeGeneration';
+
+// ─── Final code files (reward phase, all steps complete) ─────────────
+
+export const FINAL_CODE_FILES: CodeFile[] = [
+	{
+		filename: 'config/database.yml',
+		language: 'yaml',
+		code: `# config/database.yml
+production:
+  primary:
+    adapter: postgresql
+    host: primary-db.example.com
+    database: app_production
+    pool: 25
+  primary_replica:
+    adapter: postgresql
+    host: replica-db.example.com
+    database: app_production
+    replica: true`,
+	},
+	{
+		filename: 'app/models/application_record.rb',
+		language: 'ruby',
+		code: `class ApplicationRecord < ActiveRecord::Base
+  self.abstract_class = true
+
+  connects_to database: {
+    writing: :primary,
+    reading: :primary_replica
+  }
+end`,
+	},
+	{
+		filename: 'config/application.rb',
+		language: 'ruby',
+		code: `# config/application.rb
+config.active_record.database_selector = {
+  delay: 2.seconds
+}
+config.active_record.database_resolver =
+  ActiveRecord::Middleware::DatabaseSelector::Resolver
+config.active_record.database_resolver_context =
+  ActiveRecord::Middleware::DatabaseSelector::Resolver::Session
+
+# Automatic routing:
+# GET requests  -> reading role (replica)
+# POST/PUT/DELETE -> writing role (primary)
+# After a write, reads stay on primary for 2s`,
+	},
+];
+
+registerLevelCode('act7-level48-multi-database', FINAL_CODE_FILES);
 
 // ─── Types ────────────────────────────────────────────────────────────
 

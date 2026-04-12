@@ -54,12 +54,59 @@ import {
 import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
+import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-registry';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { useDiscoveryGating } from '@/hooks/useDiscoveryGating';
 import { useStepGating } from '@/hooks/useStepGating';
 import { useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { shuffleOptions } from '@/lib/shuffleOptions';
+import type { CodeFile } from '@/utils/codeGeneration';
+
+export const FINAL_CODE_FILES: CodeFile[] = [
+	{
+		filename: 'app/jobs/archive_orders_job.rb',
+		language: 'ruby',
+		code: `class ArchiveOrdersJob < ApplicationJob
+  def perform
+    Order.where("created_at < ?", 90.days.ago)
+         .find_in_batches(batch_size: 1_000) do |batch|
+      ArchivedOrder.insert_all(batch.map(&:attributes))
+      Order.where(id: batch.map(&:id)).delete_all
+    end
+  end
+end`,
+	},
+	{
+		filename: 'app/models/order.rb',
+		language: 'ruby',
+		code: `class Order < ApplicationRecord
+  def self.find_with_archive(id)
+    find_by(id: id) ||
+      ArchivedOrder.find_by(id: id)
+  end
+
+  def self.for_customer(customer_id)
+    recent = where(customer_id: customer_id)
+    return recent if recent.exists?
+    ArchivedOrder.where(customer_id: customer_id)
+  end
+end`,
+	},
+	{
+		filename: 'config/recurring.yml',
+		language: 'yaml',
+		code: `archive_orders:
+  class: ArchiveOrdersJob
+  schedule: every day at 2am
+
+destroy_expired_data:
+  class: DestroyExpiredDataJob
+  schedule: every sunday at 3am`,
+	},
+];
+
+registerLevelCode('act6-level46-data-lifecycle', FINAL_CODE_FILES);
 
 // ─── Types ────────────────────────────────────────────────────────────
 

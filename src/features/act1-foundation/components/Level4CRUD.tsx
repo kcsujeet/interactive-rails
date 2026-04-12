@@ -19,8 +19,18 @@ import {
 	type TerminalStep,
 	type ValidationResult,
 } from '@/components/levels';
+import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-registry';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { useStepGating } from '@/hooks/useStepGating';
+import type { CodeFile } from '@/utils/codeGeneration';
+
+// ──────────────────────────────────────────────
+// Final code files (codebase registry)
+// ──────────────────────────────────────────────
+
+export const FINAL_CODE_FILES: CodeFile[] = [];
+
+registerLevelCode('act1-level4-crud', FINAL_CODE_FILES);
 
 const STEPS: TerminalStep[] = [
 	{
@@ -271,9 +281,9 @@ export function Level4CRUD({ onComplete }: LevelComponentProps) {
 					<div className="p-4 border-b border-border">
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							In Level 3, you created the Product model and ran the migration.
-							The table exists but it's empty. Open the Rails console and
-							learn the four operations every model needs: Create, Read,
-							Update, Delete.
+							The table exists but it's empty. Open the Rails console and learn
+							the four operations every model needs: Create, Read, Update,
+							Delete.
 						</p>
 					</div>
 

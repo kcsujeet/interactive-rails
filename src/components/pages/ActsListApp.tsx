@@ -5,12 +5,14 @@
  */
 
 import { Check, ChevronDown, ChevronRight, Lock, Star } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
 	ACTS,
 	getTotalLevelCount,
 	isLevelUnlocked,
 } from '@/features/acts-registry';
+import { CodebaseViewerDialog } from '@/features/codebase-viewer/components/CodebaseViewerDialog';
+import { buildUnifiedProject } from '@/features/codebase-viewer/utils/codebase-registry';
 import type { LevelProgressEntry } from '@/lib/progress';
 import { getProgress } from '@/lib/progress';
 import type { Level } from '@/types/game';
@@ -176,13 +178,28 @@ export function ActsListApp() {
 	const totalLevels = getTotalLevelCount();
 	const totalCompleted = completedLevels.length;
 
+	const projectFiles = useMemo(
+		() => buildUnifiedProject(completedLevels),
+		[completedLevels],
+	);
+
 	return (
 		<div className="max-w-2xl mx-auto">
-			<div className="mb-8">
-				<h1 className="text-2xl font-semibold text-foreground mb-2">Acts</h1>
-				<p className="text-muted-foreground text-sm">
-					Progress through Rails concepts from fundamentals to production.
-				</p>
+			<div className="mb-8 flex items-start justify-between gap-4">
+				<div>
+					<h1 className="text-2xl font-semibold text-foreground mb-2">
+						Acts
+					</h1>
+					<p className="text-muted-foreground text-sm">
+						Progress through Rails concepts from fundamentals to production.
+					</p>
+				</div>
+				{totalCompleted > 0 && (
+					<CodebaseViewerDialog
+						files={projectFiles}
+						levelCount={totalCompleted}
+					/>
+				)}
 			</div>
 
 			<div className="mb-8">

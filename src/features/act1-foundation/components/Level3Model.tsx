@@ -5,6 +5,7 @@
  * Steps: Name the Model -> Define Attributes -> Run Generator -> Run Migration
  */
 
+import { ArrowRight } from 'lucide-react';
 import { useState } from 'react';
 import {
 	buildTerminalHistory,
@@ -25,9 +26,62 @@ import {
 	type ValidationResult,
 } from '@/components/levels';
 import { Button } from '@/components/ui/Button';
+import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-registry';
 import type { LevelComponentProps } from '@/features/levels-registry';
-import { useStepGating, type StepDef } from '@/hooks/useStepGating';
-import { ArrowRight } from 'lucide-react';
+import { type StepDef, useStepGating } from '@/hooks/useStepGating';
+import type { CodeFile } from '@/utils/codeGeneration';
+
+// ──────────────────────────────────────────────
+// Final code files (codebase registry)
+// ──────────────────────────────────────────────
+
+export const FINAL_CODE_FILES: CodeFile[] = [
+	{
+		filename: 'app/models/product.rb',
+		language: 'ruby',
+		code: `class Product < ApplicationRecord
+  # Attributes:
+  # - title        (string)
+  # - body         (text)
+  # - published_at (datetime)
+  #
+  # Auto-generated:
+  # - id         (integer, primary key)
+  # - created_at (datetime)
+  # - updated_at (datetime)
+end`,
+	},
+	{
+		filename: 'db/migrate/create_posts.rb',
+		language: 'ruby',
+		code: `class CreatePosts < ActiveRecord::Migration[8.0]
+  def change
+    create_table :posts do |t|
+      t.string :title
+      t.text :body
+      t.datetime :published_at
+
+      t.timestamps
+    end
+  end
+end`,
+	},
+	{
+		filename: 'db/schema.rb',
+		language: 'ruby',
+		code: `ActiveRecord::Schema[8.0].define(version: 2024_01_01_000000) do
+  create_table "posts", force: :cascade do |t|
+    t.string "title"
+    t.text "body"
+    t.datetime "published_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+end`,
+	},
+];
+
+registerLevelCode('act1-level3-model', FINAL_CODE_FILES);
 
 const STEP_DEFS: StepDef[] = [
 	{ id: 'name-model', title: 'Name the Model' },
@@ -67,25 +121,45 @@ const ATTRIBUTE_SLOTS: AttributeSlot[] = [
 const AVAILABLE_TYPES = ['string', 'text', 'boolean', 'integer', 'datetime'];
 
 const MODEL_NAME_OPTIONS = [
-	{ label: 'Posts', correct: false, feedback: 'Rails models are singular, not plural. Rails auto-pluralizes the table name for you.' },
+	{
+		label: 'Posts',
+		correct: false,
+		feedback:
+			'Rails models are singular, not plural. Rails auto-pluralizes the table name for you.',
+	},
 	{ label: 'Product', correct: true },
-	{ label: 'post', correct: false, feedback: 'Rails models use PascalCase. Check the capitalization convention.' },
-	{ label: 'posts_table', correct: false, feedback: 'You don\'t need to specify the table name. Rails infers it from a singular PascalCase model name.' },
+	{
+		label: 'post',
+		correct: false,
+		feedback:
+			'Rails models use PascalCase. Check the capitalization convention.',
+	},
+	{
+		label: 'posts_table',
+		correct: false,
+		feedback:
+			"You don't need to specify the table name. Rails infers it from a singular PascalCase model name.",
+	},
 ];
 
 // Step 3: Generator commands
 const generatorCommands: TerminalCommand[] = [
 	{
 		id: 'wrong-types',
-		label: 'rails generate model Product title:text body:string published_at:integer',
-		command: 'rails generate model Product title:text body:string published_at:integer',
+		label:
+			'rails generate model Product title:text body:string published_at:integer',
+		command:
+			'rails generate model Product title:text body:string published_at:integer',
 		correct: false,
-		feedback: 'The types are swapped around. Think about which fields are short vs. long, and which stores a point in time.',
+		feedback:
+			'The types are swapped around. Think about which fields are short vs. long, and which stores a point in time.',
 	},
 	{
 		id: 'correct',
-		label: 'rails generate model Product title:string body:text published_at:datetime',
-		command: 'rails generate model Product title:string body:text published_at:datetime',
+		label:
+			'rails generate model Product title:string body:text published_at:datetime',
+		command:
+			'rails generate model Product title:string body:text published_at:datetime',
 		correct: true,
 	},
 	{
@@ -93,13 +167,17 @@ const generatorCommands: TerminalCommand[] = [
 		label: 'rails generate model Product title:string body:text',
 		command: 'rails generate model Product title:string body:text',
 		correct: false,
-		feedback: 'Missing an attribute. The Product model has three fields, not two.',
+		feedback:
+			'Missing an attribute. The Product model has three fields, not two.',
 	},
 ];
 
 const generatorOutput: TerminalOutputLine[] = [
 	{ text: '      invoke  active_record', color: 'green' },
-	{ text: '      create    db/migrate/20240101000000_create_posts.rb', color: 'green' },
+	{
+		text: '      create    db/migrate/20240101000000_create_posts.rb',
+		color: 'green',
+	},
 	{ text: '      create    app/models/product.rb', color: 'green' },
 	{ text: '      invoke    test_unit', color: 'muted' },
 	{ text: '      create      test/models/post_test.rb', color: 'muted' },
@@ -112,7 +190,8 @@ const migrationCommands: TerminalCommand[] = [
 		label: 'rails db:rollback',
 		command: 'rails db:rollback',
 		correct: false,
-		feedback: 'Rollback undoes migrations. You need to apply them, not reverse them.',
+		feedback:
+			'Rollback undoes migrations. You need to apply them, not reverse them.',
 	},
 	{
 		id: 'correct',
@@ -123,10 +202,16 @@ const migrationCommands: TerminalCommand[] = [
 ];
 
 const migrationOutput: TerminalOutputLine[] = [
-	{ text: '== CreatePosts: migrating ====================================', color: 'green' },
+	{
+		text: '== CreatePosts: migrating ====================================',
+		color: 'green',
+	},
 	{ text: '-- create_table(:posts)', color: 'cyan' },
 	{ text: '   -> 0.0012s', color: 'muted' },
-	{ text: '== CreatePosts: migrated (0.0013s) ===========================', color: 'green' },
+	{
+		text: '== CreatePosts: migrated (0.0013s) ===========================',
+		color: 'green',
+	},
 ];
 
 // Terminal step data for building history (steps 0-1 are non-terminal)
@@ -151,9 +236,7 @@ const TERMINAL_STEPS: {
 		description: (
 			<p className="text-sm text-muted-foreground">
 				Pick the correct{' '}
-				<span className="font-mono text-primary">
-					rails generate model
-				</span>{' '}
+				<span className="font-mono text-primary">rails generate model</span>{' '}
 				command with all three attributes.
 			</p>
 		),
@@ -165,8 +248,8 @@ const TERMINAL_STEPS: {
 		title: 'Run Migration',
 		description: (
 			<p className="text-sm text-muted-foreground">
-				The generator created a migration file. Run it to create the
-				products table in the database.
+				The generator created a migration file. Run it to create the products
+				table in the database.
 			</p>
 		),
 		commands: migrationCommands,
@@ -183,9 +266,7 @@ export function Level3Model({ onComplete }: LevelComponentProps) {
 	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 
 	// Step 2: Drag types onto field slots
-	const allSlotsCorrect = slots.every(
-		(s) => s.assignedType === s.correctType,
-	);
+	const allSlotsCorrect = slots.every((s) => s.assignedType === s.correctType);
 
 	const handleTypeDragStart = (e: React.DragEvent, type: string) => {
 		e.dataTransfer.setData('attrType', type);
@@ -202,9 +283,7 @@ export function Level3Model({ onComplete }: LevelComponentProps) {
 
 		if (type === slot.correctType) {
 			setSlots((prev) =>
-				prev.map((s) =>
-					s.field === field ? { ...s, assignedType: type } : s,
-				),
+				prev.map((s) => (s.field === field ? { ...s, assignedType: type } : s)),
 			);
 		} else {
 			// Wrong type feedback
@@ -216,16 +295,20 @@ export function Level3Model({ onComplete }: LevelComponentProps) {
 					datetime: '"title" stores text, not timestamps.',
 				},
 				body: {
-					string: '"string" maxes out at 255 characters. "body" needs to hold full articles and paragraphs.',
+					string:
+						'"string" maxes out at 255 characters. "body" needs to hold full articles and paragraphs.',
 					boolean: '"body" stores content, not true/false.',
 					integer: '"body" stores content, not numbers.',
 					datetime: '"body" stores content, not timestamps.',
 				},
 				published_at: {
-					string: '"published_at" records when the product went live, not text.',
+					string:
+						'"published_at" records when the product went live, not text.',
 					text: '"published_at" records when the product went live, not content.',
-					integer: '"published_at" records when the product went live, not a number.',
-					boolean: '"published_at" records when the product went live, not a flag.',
+					integer:
+						'"published_at" records when the product went live, not a number.',
+					boolean:
+						'"published_at" records when the product went live, not a flag.',
 				},
 			};
 			const fb = feedbackMap[field]?.[type] || `Wrong type for ${field}.`;
@@ -351,9 +434,9 @@ end`,
 					{/* Scenario */}
 					<div className="p-4 border-b border-border">
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							You&apos;re building an e-commerce API. Before writing endpoints, you
-							need to define what a &quot;Product&quot; looks like. In Rails, this
-							is a Model.
+							You&apos;re building an e-commerce API. Before writing endpoints,
+							you need to define what a &quot;Product&quot; looks like. In
+							Rails, this is a Model.
 						</p>
 					</div>
 
@@ -362,7 +445,11 @@ end`,
 						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
 							Steps
 						</div>
-						<StepProgress currentStep={stepper.currentStep} onStepClick={stepper.goToStep} steps={stepper.steps} />
+						<StepProgress
+							currentStep={stepper.currentStep}
+							onStepClick={stepper.goToStep}
+							steps={stepper.steps}
+						/>
 					</div>
 				</InstructionPanel>
 			</LeftPanel>
@@ -456,8 +543,8 @@ end`,
 												<OptionCard
 													color="primary"
 													dragData={type}
-													dragType="attrType"
 													draggable
+													dragType="attrType"
 													isDragging={draggedType === type}
 													key={type}
 													mono
@@ -484,8 +571,16 @@ end`,
 													: 'border-dashed border-border bg-card'
 											}`}
 											key={slot.field}
-											onDragOver={isViewingCompletedStep ? undefined : (e) => e.preventDefault()}
-											onDrop={isViewingCompletedStep ? undefined : (e) => handleTypeDrop(slot.field, e)}
+											onDragOver={
+												isViewingCompletedStep
+													? undefined
+													: (e) => e.preventDefault()
+											}
+											onDrop={
+												isViewingCompletedStep
+													? undefined
+													: (e) => handleTypeDrop(slot.field, e)
+											}
 										>
 											<div className="flex items-center justify-between">
 												<div>
@@ -562,7 +657,9 @@ end`,
 							Key Concepts
 						</div>
 						<ul className="text-xs text-muted-foreground space-y-2">
-							<li>Model names are singular PascalCase (Product, not Products)</li>
+							<li>
+								Model names are singular PascalCase (Product, not Products)
+							</li>
 							<li>Table names are auto-pluralized (posts)</li>
 							<li>
 								<span className="font-mono text-primary">string</span> = short

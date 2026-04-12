@@ -43,10 +43,105 @@ import {
 	type ValidationResult,
 } from '@/components/levels';
 import { Button } from '@/components/ui/Button';
+import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-registry';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 import { cn } from '@/lib/utils';
+import type { CodeFile } from '@/utils/codeGeneration';
+
+export const FINAL_CODE_FILES: CodeFile[] = [
+	{
+		filename: 'app/models/review.rb',
+		language: 'ruby',
+		code: `class Review < ApplicationRecord
+  belongs_to :reviewable, polymorphic: true
+  belongs_to :user
+
+  validates :body, presence: true,
+    length: { maximum: 10_000 }
+end`,
+	},
+	{
+		filename: 'app/models/product.rb',
+		language: 'ruby',
+		code: `class Product < ApplicationRecord
+  has_many :reviews, as: :reviewable,
+    dependent: :destroy
+end
+
+# Photo, Video (same pattern)
+# has_many :reviews, as: :reviewable`,
+	},
+	{
+		filename: 'app/contracts/review_contract.rb',
+		language: 'ruby',
+		code: `class ReviewContract < Dry::Validation::Contract
+  params do
+    required(:body).filled(:string, max_size?: 10_000)
+  end
+end`,
+	},
+	{
+		filename: 'app/services/create_review.rb',
+		language: 'ruby',
+		code: `class CreateReview < ApplicationService
+  Result = Data.define(:success?, :review, :errors)
+
+  def initialize(reviewable:, user:, params:)
+    @reviewable = reviewable
+    @user = user
+    @params = params
+  end
+
+  def call
+    v = ReviewContract.new.call(@params)
+    return Result.new(success?: false,
+      review: nil, errors: v.errors.to_h) if v.failure?
+
+    review = @reviewable.reviews.create!(
+      user: @user, body: v[:body]
+    )
+    Result.new(success?: true, review:, errors: [])
+  end
+end`,
+	},
+	{
+		filename: 'app/controllers/api/v1/reviews_controller.rb',
+		language: 'ruby',
+		code: `class Api::V1::ReviewsController < ApplicationController
+  before_action :set_reviewable
+
+  def create
+    result = CreateReview.call(
+      reviewable: @reviewable,
+      user: Current.user,
+      params: params.expect(review: [:body])
+    )
+    if result.success?
+      render json: ReviewSerializer.new(result.review),
+        status: :created
+    else
+      render json: { error: {
+        code: "VALIDATION_FAILED",
+        message: "Invalid review",
+        details: result.errors
+      } }, status: :unprocessable_entity
+    end
+  end
+
+  private
+
+  def set_reviewable
+    resource, id = request.path.split("/")[3..4]
+    @reviewable = resource.singularize.classify
+      .constantize.find(id)
+  end
+end`,
+	},
+];
+
+registerLevelCode('act5-level32-polymorphic', FINAL_CODE_FILES);
 
 // ──────────────────────────────────────────────
 // Phase type

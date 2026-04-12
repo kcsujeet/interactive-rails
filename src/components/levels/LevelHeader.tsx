@@ -9,12 +9,18 @@ import {
 	AlertCircle,
 	CheckCircle,
 	ChevronLeft,
+	Code2,
 	RefreshCw,
 	X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { getLevelByNumber } from '@/features/acts-registry';
+import { CodebaseViewerDialog } from '@/features/codebase-viewer/components/CodebaseViewerDialog';
+import {
+	buildUnifiedProjectAtStep,
+} from '@/features/codebase-viewer/utils/codebase-registry';
+import type { CodeFile } from '@/utils/codeGeneration';
 import { HelpDialog } from './HelpDialog';
 import { LearningGoalDialog } from './LearningGoalDialog';
 import type { ValidateFn, ValidationResult } from './SubmitButton';
@@ -27,6 +33,12 @@ interface LevelHeaderProps {
 	onReset?: () => void;
 	onValidate: ValidateFn;
 	onComplete: () => void;
+	/** Current code files for the codebase viewer (from the level's getCodeFiles) */
+	currentCodeFiles?: CodeFile[];
+	/** Completed levels for building the cumulative project */
+	completedLevels?: string[];
+	/** Current level ID */
+	currentLevelId?: string;
 }
 
 export function LevelHeader({
@@ -37,6 +49,9 @@ export function LevelHeader({
 	onReset,
 	onValidate,
 	onComplete,
+	currentCodeFiles,
+	completedLevels,
+	currentLevelId,
 }: LevelHeaderProps) {
 	const [lastResult, setLastResult] = useState<ValidationResult | null>(null);
 	const [isCompleting, setIsCompleting] = useState(false);
@@ -91,6 +106,21 @@ export function LevelHeader({
 				</div>
 
 				<div className="justify-self-end flex items-center gap-1">
+					{currentCodeFiles && currentCodeFiles.length > 0 && (
+						<CodebaseViewerDialog
+							files={currentCodeFiles}
+							trigger={
+								<Button
+									className="text-muted-foreground hover:text-foreground text-sm flex items-center gap-2"
+									size="sm"
+									variant="ghost"
+								>
+									<Code2 className="w-4 h-4" />
+									Codebase
+								</Button>
+							}
+						/>
+					)}
 					<LearningGoalDialog learningGoal={learningGoal} />
 					<HelpDialog scenario={scenario} />
 

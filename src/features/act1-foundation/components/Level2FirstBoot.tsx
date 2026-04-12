@@ -26,8 +26,61 @@ import {
 	type ValidationResult,
 } from '@/components/levels';
 import { Button } from '@/components/ui/Button';
+import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-registry';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
+import type { CodeFile } from '@/utils/codeGeneration';
+
+// ──────────────────────────────────────────────
+// Final code files (codebase registry)
+// ──────────────────────────────────────────────
+
+export const FINAL_CODE_FILES: CodeFile[] = [
+	{
+		filename: 'Gemfile',
+		language: 'ruby',
+		code: `source "https://rubygems.org"
+
+gem "rails", "~> 8.0"
+gem "pg"
+gem "puma", ">= 5.0"
+
+# Rails 8 defaults (no Redis needed)
+gem "solid_queue"
+gem "solid_cache"
+gem "solid_cable"`,
+	},
+	{
+		filename: 'config/database.yml',
+		language: 'yaml',
+		code: `default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+
+development:
+  <<: *default
+  database: myapp_development
+
+test:
+  <<: *default
+  database: myapp_test`,
+	},
+	{
+		filename: 'config/application.rb',
+		language: 'ruby',
+		code: `module Myapp
+  class Application < Rails::Application
+    config.load_defaults 8.0
+
+    # API-only mode: leaner middleware stack
+    config.api_only = true
+  end
+end`,
+	},
+];
+
+registerLevelCode('act1-level2-first-boot', FINAL_CODE_FILES);
 
 const STEP_DEFS: StepDef[] = [
 	{ id: 'choose-db', title: 'Choose Database' },
@@ -76,8 +129,7 @@ const generateCommands: TerminalCommand[] = [
 		label: 'rails new myapp',
 		command: 'rails new myapp',
 		correct: false,
-		feedback:
-			'Missing flags. You need API-only mode and a database adapter.',
+		feedback: 'Missing flags. You need API-only mode and a database adapter.',
 	},
 	{
 		id: 'correct',
@@ -187,8 +239,8 @@ const TERMINAL_STEPS: {
 		title: 'Install PostgreSQL',
 		description: (
 			<p className="text-sm text-muted-foreground">
-				PostgreSQL needs a server running on your machine. Which
-				package manager installs system software on macOS?
+				PostgreSQL needs a server running on your machine. Which package manager
+				installs system software on macOS?
 			</p>
 		),
 		commands: installPgCommands,
@@ -210,8 +262,7 @@ const TERMINAL_STEPS: {
 		title: 'Create Database',
 		description: (
 			<p className="text-sm text-muted-foreground">
-				The project is generated. Now create the development and test
-				databases.
+				The project is generated. Now create the development and test databases.
 			</p>
 		),
 		commands: createDbCommands,
@@ -222,8 +273,7 @@ const TERMINAL_STEPS: {
 		title: 'Boot Server',
 		description: (
 			<p className="text-sm text-muted-foreground">
-				Database created. Start the Rails server and verify it
-				responds.
+				Database created. Start the Rails server and verify it responds.
 			</p>
 		),
 		commands: bootCommands,

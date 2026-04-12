@@ -55,12 +55,80 @@ import {
 import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
+import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-registry';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { useDiscoveryGating } from '@/hooks/useDiscoveryGating';
 import { useStepGating } from '@/hooks/useStepGating';
 import { useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { shuffleOptions } from '@/lib/shuffleOptions';
+import type { CodeFile } from '@/utils/codeGeneration';
+
+export const FINAL_CODE_FILES: CodeFile[] = [
+	{
+		filename: 'config/recurring.yml',
+		language: 'yaml',
+		code: `# config/recurring.yml
+production:
+  clean_expired_tokens:
+    class: CleanExpiredTokensJob
+    schedule: "every hour"
+    queue: maintenance
+  purge_orphans:
+    class: PurgeOrphansJob
+    schedule: "every day at 2am"
+    queue: maintenance`,
+	},
+	{
+		filename: 'app/jobs/clean_expired_tokens_job.rb',
+		language: 'ruby',
+		code: `class CleanExpiredTokensJob < ApplicationJob
+  queue_as :maintenance
+
+  retry_on ActiveRecord::ConnectionTimeoutError,
+    wait: 30.seconds, attempts: 3
+
+  discard_on ActiveRecord::RecordNotFound
+
+  def perform
+    start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    expired = Session.where("expires_at < ?", 24.hours.ago)
+    count = expired.count
+
+    expired.in_batches(of: 10_000, &:delete_all)
+
+    duration = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time
+    Rails.logger.info({
+      job: self.class.name,
+      records_purged: count,
+      duration_ms: (duration * 1000).round(2),
+      status: "completed"
+    }.to_json)
+  end
+end`,
+	},
+	{
+		filename: 'app/jobs/purge_orphans_job.rb',
+		language: 'ruby',
+		code: `class PurgeOrphansJob < ApplicationJob
+  queue_as :maintenance
+
+  def perform
+    orphans = OrderItem.left_joins(:order)
+      .where(orders: { id: nil })
+    count = orphans.count
+
+    orphans.in_batches(of: 5_000, &:delete_all)
+
+    Rails.logger.info(
+      "[PurgeOrphansJob] Purged #{count} orphaned records"
+    )
+  end
+end`,
+	},
+];
+
+registerLevelCode('act6-level45-recurring-jobs', FINAL_CODE_FILES);
 
 // ─── Types ────────────────────────────────────────────────────────────
 

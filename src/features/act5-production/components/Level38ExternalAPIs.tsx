@@ -62,12 +62,104 @@ import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-registry';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { useDiscoveryGating } from '@/hooks/useDiscoveryGating';
 import { useStepGating } from '@/hooks/useStepGating';
 import { useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { shuffleOptions } from '@/lib/shuffleOptions';
+import type { CodeFile } from '@/utils/codeGeneration';
+
+export const FINAL_CODE_FILES: CodeFile[] = [
+	{
+		filename: 'app/clients/stripe_client.rb',
+		language: 'ruby',
+		code: `class StripeClient
+  def initialize
+    @connection = Faraday.new(url: 'https://api.stripe.com') do |f|
+      f.request :authorization, 'Bearer',
+        Rails.application.credentials.stripe[:secret_key]
+      f.request :json
+      f.request :retry, {
+        max: 3,
+        interval: 0.5,
+        interval_randomness: 0.5,
+        backoff_factor: 2,
+        retry_statuses: [429, 500, 502, 503, 504],
+        methods: [:get, :head, :options, :put, :delete]
+      }
+      f.response :json
+      f.options.open_timeout = 3
+      f.options.timeout = 10
+    end
+  end
+
+  def create_charge(params)
+    @connection.post('/v1/charges', params)
+  end
+end`,
+	},
+	{
+		filename: 'app/services/process_payment.rb',
+		language: 'ruby',
+		code: `class ProcessPayment < ApplicationService
+  Result = Data.define(:success?, :payment, :errors)
+
+  def initialize(user:, params:)
+    @user = user
+    @params = params
+  end
+
+  def call
+    validation = PaymentContract.new.call(@params)
+    if validation.failure?
+      return Result.new(success?: false, payment: nil,
+        errors: validation.errors.to_h)
+    end
+
+    response = Stoplight('stripe-api')
+      .with_threshold(5)
+      .with_cool_off_time(30)
+      .with_error_handler do |error, handle|
+        raise error if error.is_a?(Faraday::ClientError)
+        handle.call(error)
+      end
+      .run { stripe_client.create_charge(@params) }
+
+    payment = @user.payments.create!(
+      amount: @params[:amount], stripe_id: response.body["id"]
+    )
+    Result.new(success?: true, payment:, errors: {})
+  rescue Stoplight::Error::RedLight
+    Result.new(success?: false, payment: nil,
+      errors: { payment: ["Service temporarily unavailable"] })
+  end
+
+  private
+
+  def stripe_client
+    @stripe_client ||= StripeClient.new
+  end
+end`,
+	},
+	{
+		filename: 'app/contracts/payment_contract.rb',
+		language: 'ruby',
+		code: `class PaymentContract < Dry::Validation::Contract
+  params do
+    required(:amount).filled(:integer, gt?: 0)
+    optional(:currency).filled(:string)
+  end
+
+  rule(:amount) do
+    key.failure('must be at least 50 cents') if value < 50
+  end
+end`,
+	},
+];
+
+registerLevelCode('act5-level38-external-apis', FINAL_CODE_FILES);
 
 // ─── Types ────────────────────────────────────────────────────────────
 

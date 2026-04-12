@@ -49,6 +49,7 @@ import {
 } from '@/components/levels/ProbeTerminal';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
+import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-registry';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import {
 	type DiscoveryDef,
@@ -59,6 +60,65 @@ import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 import { cn } from '@/lib/utils';
+import type { CodeFile } from '@/utils/codeGeneration';
+
+export const FINAL_CODE_FILES: CodeFile[] = [
+	{
+		filename: 'app/models/user.rb',
+		language: 'ruby',
+		code: `class User < ApplicationRecord
+  has_secure_password
+
+  # Deterministic: queryable (find_by, uniqueness)
+  encrypts :email, deterministic: true
+
+  # Non-deterministic: max security, no querying
+  encrypts :phone
+  encrypts :address
+
+  has_one_attached :avatar do |attachable|
+    attachable.variant :thumb, resize_to_limit: [100, 100]
+    attachable.variant :medium, resize_to_limit: [300, 300]
+  end
+
+  validates :email, uniqueness: true
+  validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }
+end`,
+	},
+	{
+		filename: 'app/services/find_user.rb',
+		language: 'ruby',
+		code: `class FindUser < ApplicationService
+  Result = Data.define(:success?, :user, :errors)
+
+  def initialize(email:)
+    @email = email
+  end
+
+  def call
+    v = FindUserContract.new.call(email: @email)
+    return Result.new(success?: false,
+      user: nil, errors: v.errors.to_h) if v.failure?
+
+    user = User.find_by(email: @email)
+    return Result.new(success?: false,
+      user: nil, errors: ["Not found"]) unless user
+
+    Result.new(success?: true, user:, errors: [])
+  end
+end`,
+	},
+	{
+		filename: 'config/credentials.yml.enc',
+		language: 'yaml',
+		code: `active_record_encryption:
+  primary_key: EGY8WhulUOXixybod7ZWwMIL68R9o5kC
+  deterministic_key: aPA5XyALhf75NNnMzaspW7akTfZp0lPY
+  key_derivation_salt: xEY0dt6TZcAMg52K7O84wYzkjvbA62Hz`,
+	},
+];
+
+registerLevelCode('act5-level36-encryption', FINAL_CODE_FILES);
 
 // ──────────────────────────────────────────────
 // Phase type

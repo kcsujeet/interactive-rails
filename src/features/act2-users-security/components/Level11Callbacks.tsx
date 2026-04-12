@@ -44,6 +44,7 @@ import {
 } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
+import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-registry';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import {
 	type DiscoveryDef,
@@ -52,6 +53,47 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { shuffleOptions } from '@/lib/shuffleOptions';
+import type { CodeFile } from '@/utils/codeGeneration';
+
+// ──────────────────────────────────────────────
+// Final code files (codebase registry)
+// ──────────────────────────────────────────────
+
+export const FINAL_CODE_FILES: CodeFile[] = [
+	{
+		filename: 'app/models/user.rb',
+		language: 'ruby',
+		code: `class User < ApplicationRecord
+  has_secure_password
+  validates :email, presence: true, uniqueness: true
+
+  normalizes :email, with: -> e { e.strip.downcase }
+
+  # Lifecycle order:
+  # 1. before_validation (normalizes run here)
+  # 2. before_save
+  # 3. after_save (inside transaction)
+  # 4. after_commit (transaction committed)
+
+  after_create :send_welcome_email
+
+  # Safe for external calls: runs after transaction commits
+  after_commit :sync_to_crm, on: :create
+
+  private
+
+  def send_welcome_email
+    UserMailer.welcome(self).deliver_later
+  end
+
+  def sync_to_crm
+    CrmSyncJob.perform_later(id)
+  end
+end`,
+	},
+];
+
+registerLevelCode('act2-level11-callbacks', FINAL_CODE_FILES);
 
 // ──────────────────────────────────────────────
 // Phase type

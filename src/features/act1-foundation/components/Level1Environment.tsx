@@ -19,8 +19,18 @@ import {
 	type TerminalStep,
 	type ValidationResult,
 } from '@/components/levels';
+import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-registry';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { useStepGating } from '@/hooks/useStepGating';
+import type { CodeFile } from '@/utils/codeGeneration';
+
+// ──────────────────────────────────────────────
+// Final code files (codebase registry)
+// ──────────────────────────────────────────────
+
+export const FINAL_CODE_FILES: CodeFile[] = [];
+
+registerLevelCode('act1-level1-environment', FINAL_CODE_FILES);
 
 const STEPS: TerminalStep[] = [
 	{
@@ -28,8 +38,8 @@ const STEPS: TerminalStep[] = [
 		title: 'Install asdf',
 		description: (
 			<p className="text-sm text-muted-foreground">
-				asdf is a version manager that handles Ruby, Node, Python, and
-				more, all with one tool. How do you install it on macOS?
+				asdf is a version manager that handles Ruby, Node, Python, and more, all
+				with one tool. How do you install it on macOS?
 			</p>
 		),
 		commands: [
@@ -38,8 +48,7 @@ const STEPS: TerminalStep[] = [
 				label: 'apt-get install asdf',
 				command: 'apt-get install asdf',
 				correct: false,
-				feedback:
-					'apt-get is a Linux package manager, not available on macOS.',
+				feedback: 'apt-get is a Linux package manager, not available on macOS.',
 			},
 			{
 				id: 'correct',
@@ -67,17 +76,17 @@ const STEPS: TerminalStep[] = [
 		title: 'Source asdf in .zshrc',
 		description: (
 			<p className="text-sm text-muted-foreground">
-				asdf is installed, but your shell doesn't know about it yet.
-				Which line do you add to{' '}
-				<span className="font-mono text-primary">~/.zshrc</span> to load
-				asdf on every new terminal session?
+				asdf is installed, but your shell doesn't know about it yet. Which line
+				do you add to <span className="font-mono text-primary">~/.zshrc</span>{' '}
+				to load asdf on every new terminal session?
 			</p>
 		),
 		commands: [
 			{
 				id: 'path-only',
 				label: 'export PATH="/opt/homebrew/opt/asdf/bin:$PATH"',
-				command: 'echo \'export PATH="/opt/homebrew/opt/asdf/bin:$PATH"\' >> ~/.zshrc',
+				command:
+					'echo \'export PATH="/opt/homebrew/opt/asdf/bin:$PATH"\' >> ~/.zshrc',
 				correct: false,
 				feedback:
 					"Adding the binary to PATH isn't enough. asdf needs its shell integration sourced to manage shims.",
@@ -99,7 +108,7 @@ const STEPS: TerminalStep[] = [
 			{
 				id: 'alias',
 				label: 'alias asdf="/opt/homebrew/bin/asdf"',
-				command: "echo 'alias asdf=\"/opt/homebrew/bin/asdf\"' >> ~/.zshrc",
+				command: 'echo \'alias asdf="/opt/homebrew/bin/asdf"\' >> ~/.zshrc',
 				correct: false,
 				feedback:
 					'An alias only gives you the command. asdf also needs shell hooks for shim management.',
@@ -116,10 +125,8 @@ const STEPS: TerminalStep[] = [
 		title: 'Configure .tool-versions',
 		description: (
 			<p className="text-sm text-muted-foreground">
-				The{' '}
-				<span className="font-mono text-primary">.tool-versions</span>{' '}
-				file pins your project to a specific Ruby version. Pick the
-				correct format:
+				The <span className="font-mono text-primary">.tool-versions</span> file
+				pins your project to a specific Ruby version. Pick the correct format:
 			</p>
 		),
 		commands: [
@@ -154,20 +161,16 @@ const STEPS: TerminalStep[] = [
 				correct: true,
 			},
 		],
-		outputLines: [
-			{ text: '\u2713 .tool-versions created', color: 'green' },
-		],
+		outputLines: [{ text: '\u2713 .tool-versions created', color: 'green' }],
 	},
 	{
 		id: 'install-ruby',
 		title: 'Install Ruby',
 		description: (
 			<p className="text-sm text-muted-foreground">
-				Your{' '}
-				<span className="font-mono text-primary">.tool-versions</span>{' '}
-				says{' '}
-				<span className="font-mono text-primary">ruby 3.3.6</span>. Now
-				install it through asdf so it reads that file automatically.
+				Your <span className="font-mono text-primary">.tool-versions</span> says{' '}
+				<span className="font-mono text-primary">ruby 3.3.6</span>. Now install
+				it through asdf so it reads that file automatically.
 			</p>
 		),
 		commands: [
@@ -185,7 +188,7 @@ const STEPS: TerminalStep[] = [
 				command: 'ruby install 3.3.6',
 				correct: false,
 				feedback:
-					'That\'s not a valid command. Which tool manages your versions?',
+					"That's not a valid command. Which tool manages your versions?",
 			},
 			{
 				id: 'correct',
@@ -328,9 +331,9 @@ export function Level1Environment({ onComplete }: LevelComponentProps) {
 					<div className="p-4 border-b border-border">
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Before writing any code, you need Ruby and Rails on your machine.
-							Use <span className="font-mono text-primary">asdf</span> to
-							manage versions. It keeps every project pinned to the exact Ruby
-							it needs.
+							Use <span className="font-mono text-primary">asdf</span> to manage
+							versions. It keeps every project pinned to the exact Ruby it
+							needs.
 						</p>
 					</div>
 

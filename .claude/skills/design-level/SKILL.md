@@ -47,6 +47,7 @@ Before designing anything:
 4. **Read [implementation-rules.md](../audit-level/implementation-rules.md).** The bug table lists mistakes that have already been made. Don't add to it.
 5. **Read the spec for this level** in `docs/spec.md`. Understand the concept, scenario, and what the player should learn.
 6. **Read adjacent levels (N-2 to N+2).** Your visualization must be visually distinct from neighbors.
+7. **Follow bulletproof-react project structure.** Any new feature goes in `src/features/<name>/` with `components/`, `utils/`, `hooks/`, `types/` subdirectories. No files at the feature root (except non-barrel re-exports). No cross-feature imports. No code duplication (use lazy evaluation to reference existing functions instead of copying strings).
 
 ## Step 1: Narrative Reasoning (Story First)
 

@@ -56,12 +56,67 @@ import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-registry';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { useDiscoveryGating } from '@/hooks/useDiscoveryGating';
 import { useStepGating } from '@/hooks/useStepGating';
 import { useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { shuffleOptions } from '@/lib/shuffleOptions';
+import type { CodeFile } from '@/utils/codeGeneration';
+
+export const FINAL_CODE_FILES: CodeFile[] = [
+	{
+		filename: 'app/controllers/api/v1/sessions_controller.rb',
+		language: 'ruby',
+		code: `module Api::V1
+  class SessionsController < Api::BaseController
+    rate_limit to: 5, within: 1.minute
+
+    def create
+      result = AuthenticateUser.call(
+        params: params.expect(session: [:email, :password]))
+      if result.success?
+        render json: { token: result.token }
+      else
+        render json: { error: { code: "UNAUTHORIZED",
+          message: "Invalid credentials" } },
+          status: :unauthorized
+      end
+    end
+  end
+end`,
+	},
+	{
+		filename: 'config/initializers/rack_attack.rb',
+		language: 'ruby',
+		code: `Rack::Attack.throttle("req/ip", limit: 100, period: 60) do |req|
+  req.ip if req.path.start_with?("/api/")
+end
+
+Rack::Attack.throttle("login/ip", limit: 5, period: 60) do |req|
+  if req.path == '/api/v1/sessions' && req.post?
+    "#{req.ip}-#{req.params['email']}"
+  end
+end
+
+Rack::Attack.safelist("internal") do |req|
+  req.ip.start_with?("10.") ||
+    req.ip.start_with?("172.16.") ||
+    req.ip == "127.0.0.1"
+end
+
+Rack::Attack.throttled_responder = lambda do |request|
+  retry_after = request.env['rack.attack.match_data'][:period]
+  [429,
+   { 'Content-Type' => 'application/json',
+     'Retry-After' => retry_after.to_s },
+   ['{"error":{"code":"RATE_LIMITED","message":"Too many requests"}}']]
+end`,
+	},
+];
+
+registerLevelCode('act6-level42-rate-limiting', FINAL_CODE_FILES);
 
 // ─── Types ────────────────────────────────────────────────────────────
 

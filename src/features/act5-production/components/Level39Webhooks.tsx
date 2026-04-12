@@ -66,12 +66,117 @@ import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-registry';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { useDiscoveryGating } from '@/hooks/useDiscoveryGating';
 import { useStepGating } from '@/hooks/useStepGating';
 import { useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { shuffleOptions } from '@/lib/shuffleOptions';
+import type { CodeFile } from '@/utils/codeGeneration';
+
+export const FINAL_CODE_FILES: CodeFile[] = [
+	{
+		filename: 'app/services/ingest_stripe_webhook.rb',
+		language: 'ruby',
+		code: `class IngestStripeWebhook < ApplicationService
+  Result = Data.define(:success?, :webhook_event, :errors)
+
+  def initialize(payload:, signature:)
+    @payload = payload
+    @signature = signature
+  end
+
+  def call
+    event = verify_signature!
+    webhook_event = deduplicate!(event)
+    return Result.new(success?: true,
+      webhook_event:, errors: []) if webhook_event.completed?
+
+    ProcessStripeWebhookJob.perform_later(webhook_event.id)
+    Result.new(success?: true, webhook_event:, errors: [])
+  rescue Stripe::SignatureVerificationError
+    Result.new(success?: false, webhook_event: nil,
+      errors: { signature: ["Invalid signature"] })
+  rescue JSON::ParserError
+    Result.new(success?: false, webhook_event: nil,
+      errors: { payload: ["Malformed JSON"] })
+  end
+
+  private
+
+  def verify_signature!
+    Stripe::Webhook.construct_event(
+      @payload, @signature,
+      Rails.application.credentials.stripe[:webhook_secret])
+  end
+
+  def deduplicate!(event)
+    WebhookEvent.create_with(
+      event_type: event.type,
+      payload: event.data.to_h,
+      status: 'pending'
+    ).find_or_create_by!(
+      provider: 'stripe', event_id: event.id)
+  end
+end`,
+	},
+	{
+		filename: 'app/controllers/webhooks/stripe_controller.rb',
+		language: 'ruby',
+		code: `module Webhooks
+  class StripeController < ApplicationController
+    skip_before_action :verify_authenticity_token
+
+    def create
+      result = IngestStripeWebhook.call(
+        payload: request.body.read,
+        signature: request.headers['Stripe-Signature']
+      )
+
+      if result.success?
+        head :ok
+      else
+        head :unauthorized
+      end
+    end
+  end
+end`,
+	},
+	{
+		filename: 'app/jobs/process_stripe_webhook_job.rb',
+		language: 'ruby',
+		code: `class ProcessStripeWebhookJob < ApplicationJob
+  queue_as :webhooks
+  retry_on StandardError,
+    wait: :polynomially_longer, attempts: 5
+
+  def perform(webhook_event_id)
+    webhook_event = WebhookEvent.find(webhook_event_id)
+    return if webhook_event.completed?
+
+    webhook_event.update!(status: 'processing')
+
+    case webhook_event.event_type
+    when 'payment_intent.succeeded'
+      handle_payment_succeeded(webhook_event)
+    when 'customer.subscription.created'
+      handle_subscription_created(webhook_event)
+    when 'charge.refunded'
+      handle_refund(webhook_event)
+    end
+
+    webhook_event.update!(
+      status: 'completed', processed_at: Time.current)
+  rescue => e
+    webhook_event.update!(status: 'failed')
+    raise  # Re-raise so job retries
+  end
+end`,
+	},
+];
+
+registerLevelCode('act5-level39-webhooks', FINAL_CODE_FILES);
 
 // ─── Types ────────────────────────────────────────────────────────────
 

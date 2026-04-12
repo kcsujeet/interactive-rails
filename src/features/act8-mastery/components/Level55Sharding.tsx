@@ -69,6 +69,7 @@ import {
 } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
+import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-registry';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import {
 	type DiscoveryDef,
@@ -78,6 +79,97 @@ import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { shuffleOptions } from '@/lib/shuffleOptions';
+import type { CodeFile } from '@/utils/codeGeneration';
+
+// ─── Final code files (reward phase, all steps complete) ─────────────
+
+export const FINAL_CODE_FILES: CodeFile[] = [
+	{
+		filename: 'config/database.yml',
+		language: 'yaml',
+		code: `# config/database.yml
+production:
+  primary:
+    adapter: postgresql
+    host: primary-db.example.com
+    database: app_production
+    pool: 50
+  shard_one:
+    adapter: postgresql
+    host: shard1.example.com
+    database: app_shard_one
+  shard_two:
+    adapter: postgresql
+    host: shard2.example.com
+    database: app_shard_two
+  shard_three:
+    adapter: postgresql
+    host: shard3.example.com
+    database: app_shard_three`,
+	},
+	{
+		filename: 'app/models/shard_record.rb',
+		language: 'ruby',
+		code: `class ShardRecord < ApplicationRecord
+  self.abstract_class = true
+
+  connects_to shards: {
+    shard_one: { writing: :shard_one },
+    shard_two: { writing: :shard_two },
+    shard_three: { writing: :shard_three }
+  }
+end`,
+	},
+	{
+		filename: 'app/models/concerns/shard_routing.rb',
+		language: 'ruby',
+		code: `module ShardRouting
+  SHARDS = %i[shard_one shard_two shard_three]
+
+  def self.shard_for(company_id)
+    SHARDS[company_id % 3]
+  end
+end`,
+	},
+	{
+		filename: 'app/middleware/shard_resolver.rb',
+		language: 'ruby',
+		code: `class ShardResolver
+  def self.call(request)
+    tenant = ActsAsTenant.current_tenant
+    shard = ShardRouting.shard_for(tenant.id)
+    ActiveRecord::Base.connected_to(shard: shard) { yield }
+  end
+end`,
+	},
+	{
+		filename: 'app/models/order.rb',
+		language: 'ruby',
+		code: `class Order < ShardRecord
+  belongs_to :company
+  belongs_to :customer
+
+  validates :total, presence: true
+end`,
+	},
+	{
+		filename: 'app/services/revenue_report.rb',
+		language: 'ruby',
+		code: `class RevenueReport < ApplicationService
+  SHARDS = %i[shard_one shard_two shard_three]
+
+  def call
+    SHARDS.sum do |shard|
+      ActiveRecord::Base.connected_to(shard: shard) do
+        Order.sum(:total)
+      end
+    end
+  end
+end`,
+	},
+];
+
+registerLevelCode('act8-level55-sharding', FINAL_CODE_FILES);
 
 // ─── Types ────────────────────────────────────────────────────────────
 

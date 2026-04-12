@@ -61,12 +61,76 @@ import {
 } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
+import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-registry';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { useDiscoveryGating } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { shuffleOptions } from '@/lib/shuffleOptions';
+import type { CodeFile } from '@/utils/codeGeneration';
+
+// ─── Final code files (reward phase, all steps complete) ─────────────
+
+export const FINAL_CODE_FILES: CodeFile[] = [
+	{
+		filename: 'Gemfile',
+		language: 'ruby',
+		code: `gem "rails", "~> 8.0.0"
+gem "aasm"
+gem "paper_trail"  # installed in L43`,
+	},
+	{
+		filename: 'app/models/order.rb',
+		language: 'ruby',
+		code: `class Order < ApplicationRecord
+  include AASM
+
+  aasm column: :status do
+    state :pending, initial: true
+    state :confirmed
+    state :shipped
+    state :delivered
+    state :cancelled
+
+    event :confirm do
+      transitions from: :pending, to: :confirmed
+    end
+
+    event :ship do
+      transitions from: :confirmed, to: :shipped,
+        guard: :tracking_number_present?
+    end
+
+    event :deliver do
+      transitions from: :shipped, to: :delivered
+    end
+
+    event :cancel do
+      transitions from: [:pending, :confirmed],
+        to: :cancelled
+    end
+  end
+
+  has_paper_trail on: [:update], only: [:status]
+end`,
+	},
+	{
+		filename: 'app/services/orders/confirm_service.rb',
+		language: 'ruby',
+		code: `class Orders::ConfirmService < ApplicationService
+  def call(order_id:)
+    order = Order.find(order_id)
+    result = order.confirm!
+    Result.new(order: order, success: true)
+  rescue AASM::InvalidTransition => e
+    Result.new(order: order, success: false, error: e.message)
+  end
+end`,
+	},
+];
+
+registerLevelCode('act7-level49-state-machines', FINAL_CODE_FILES);
 
 // ─── Types ────────────────────────────────────────────────────────────
 

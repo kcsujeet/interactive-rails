@@ -80,6 +80,7 @@ import {
 } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
+import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-registry';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import {
 	type DiscoveryDef,
@@ -89,6 +90,124 @@ import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { shuffleOptions } from '@/lib/shuffleOptions';
+import type { CodeFile } from '@/utils/codeGeneration';
+
+// ─── Final code files (reward phase, all steps complete) ─────────────
+
+export const FINAL_CODE_FILES: CodeFile[] = [
+	{
+		filename: 'packs/billing/package.yml',
+		language: 'yaml',
+		code: `# packs/billing/package.yml
+enforce_dependencies: true
+enforce_privacy: true
+dependencies:
+  - packs/core`,
+	},
+	{
+		filename: 'packs/billing/app/models/payment.rb',
+		language: 'ruby',
+		code: `class Payment < BillingRecord
+  include AASM
+  include Wisper::Publisher
+  acts_as_tenant :company
+
+  aasm column: :status do
+    state :pending, initial: true
+    state :processing, :completed, :failed
+
+    event :process do
+      transitions from: :pending, to: :processing
+    end
+    event :complete do
+      transitions from: :processing,
+                  to: :completed,
+                  after: -> { broadcast(:payment_completed, self) }
+    end
+    event :fail do
+      transitions from: :processing, to: :failed
+    end
+  end
+end
+
+# Subscribers enqueue Solid Queue jobs (L22+)
+Wisper.subscribe(ReceiptSubscriber.new)
+
+class ReceiptSubscriber
+  def payment_completed(payment)
+    SendReceiptJob.perform_later(payment.id)
+  end
+end`,
+	},
+	{
+		filename: 'packs/billing/app/models/billing_record.rb',
+		language: 'ruby',
+		code: `class BillingRecord < ApplicationRecord
+  self.abstract_class = true
+
+  connects_to database: {
+    writing: :billing,
+    reading: :billing_replica
+  }
+end`,
+	},
+	{
+		filename: 'app/controllers/billing_gateway_controller.rb',
+		language: 'ruby',
+		code: `class BillingGatewayController < ApplicationController
+  before_action :authenticate_api_client!
+  before_action :rate_limit!
+
+  def proxy
+    if Flipper.enabled?(:billing_v2, current_user)
+      response = BillingClient.forward(
+        method: request.method,
+        path: billing_path,
+        headers: authorized_headers
+      )
+      render json: response.body, status: response.status
+    else
+      legacy_charge(params[:order_id])
+    end
+  end
+end`,
+	},
+	{
+		filename: 'config/initializers/opentelemetry.rb',
+		language: 'ruby',
+		code: `# config/initializers/opentelemetry.rb
+require "opentelemetry/sdk"
+require "opentelemetry/instrumentation/rails"
+
+OpenTelemetry::SDK.configure do |c|
+  c.use "OpenTelemetry::Instrumentation::Rails"
+  c.service_name = "billing-service"
+end
+
+# config/environments/production.rb
+config.lograge.enabled = true
+config.lograge.custom_payload do |controller|
+  { trace_id: OpenTelemetry::Trace.current_span
+      .context.hex_trace_id }
+end`,
+	},
+	{
+		filename: 'config/initializers/flipper.rb',
+		language: 'ruby',
+		code: `# config/initializers/flipper.rb
+Flipper.register(:billing_beta) do |actor|
+  actor.respond_to?(:beta_tester?) &&
+    actor.beta_tester?
+end
+
+# Enable for 5% of traffic
+Flipper.enable_percentage_of_actors(
+  :billing_v2, 5
+)`,
+	},
+];
+
+registerLevelCode('act8-level56-architect', FINAL_CODE_FILES);
 
 // ─── Types ────────────────────────────────────────────────────────────
 

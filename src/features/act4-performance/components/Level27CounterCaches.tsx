@@ -50,6 +50,7 @@ import {
 } from '@/components/levels/ProbeTerminal';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
+import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-registry';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import {
 	type DiscoveryDef,
@@ -59,6 +60,60 @@ import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { cn } from '@/lib/utils';
+import type { CodeFile } from '@/utils/codeGeneration';
+
+// ──────────────────────────────────────────────
+// Final code files for codebase registry
+// ──────────────────────────────────────────────
+
+export const FINAL_CODE_FILES: CodeFile[] = [
+	{
+		filename: 'db/migrate/add_reviews_count_to_posts.rb',
+		language: 'ruby',
+		code: `class AddReviewsCountToPosts < ActiveRecord::Migration[8.0]
+  def change
+    add_column :products, :reviews_count,
+               :integer, default: 0, null: false
+  end
+end`,
+	},
+	{
+		filename: 'app/models/review.rb',
+		language: 'ruby',
+		code: `class Review < ApplicationRecord
+  belongs_to :product, counter_cache: true
+  belongs_to :user
+end`,
+	},
+	{
+		filename: 'app/serializers/product_serializer.rb',
+		language: 'ruby',
+		code: `class ProductSerializer
+  include JSONAPI::Serializer
+
+  attribute :review_count do |product|
+    product.reviews.size  # Uses counter cache!
+  end
+end`,
+	},
+	{
+		filename: 'app/services/post_list.rb',
+		language: 'ruby',
+		code: `class PostList < ApplicationService
+  Result = Data.define(:success?, :posts, :errors)
+
+  def call(params)
+    contract = ListContract.new.call(params)
+    return Result.new(false, [], contract.errors) unless contract.success?
+
+    products = Product.includes(:user).limit(contract[:limit])
+    Result.new(true, products, [])
+  end
+end`,
+	},
+];
+
+registerLevelCode('act4-level27-counter-caches', FINAL_CODE_FILES);
 
 // ──────────────────────────────────────────────
 // Phase type

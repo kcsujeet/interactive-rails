@@ -48,6 +48,7 @@ import {
 } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
+import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-registry';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import {
 	type DiscoveryDef,
@@ -56,6 +57,49 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { shuffleOptions } from '@/lib/shuffleOptions';
+import type { CodeFile } from '@/utils/codeGeneration';
+
+// ──────────────────────────────────────────────
+// Final code files (codebase registry)
+// ──────────────────────────────────────────────
+
+export const FINAL_CODE_FILES: CodeFile[] = [
+	{
+		filename: 'app/models/product.rb',
+		language: 'ruby',
+		code: `class Product < ApplicationRecord
+  validates :title, presence: true
+  validates :body, presence: true
+end`,
+	},
+	{
+		filename: 'app/models/user.rb',
+		language: 'ruby',
+		code: `class User < ApplicationRecord
+  has_secure_password
+  validates :email, uniqueness: { case_sensitive: false }
+  validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }
+end`,
+	},
+	{
+		filename: 'app/controllers/api/v1/products_controller.rb',
+		language: 'ruby',
+		code: `class Api::V1::ProductsController < ApplicationController
+  def create
+    product = Product.new(product_params)
+
+    if product.save
+      render json: ProductSerializer.new(product), status: :created
+    else
+      render json: { errors: product.errors.full_messages },
+             status: :unprocessable_entity
+    end
+  end
+end`,
+	},
+];
+
+registerLevelCode('act2-level10-validations', FINAL_CODE_FILES);
 
 // ──────────────────────────────────────────────
 // Phase type

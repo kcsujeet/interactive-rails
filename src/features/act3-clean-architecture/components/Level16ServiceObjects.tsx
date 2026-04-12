@@ -30,9 +30,81 @@ import {
 } from '@/components/levels';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-registry';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { shuffleOptions } from '@/lib/shuffleOptions';
+import type { CodeFile } from '@/utils/codeGeneration';
+
+// ──────────────────────────────────────────────
+// Final code files for codebase registry
+// ──────────────────────────────────────────────
+
+export const FINAL_CODE_FILES: CodeFile[] = [
+	{
+		filename: 'app/services/user_registration.rb',
+		language: 'ruby',
+		code: `class UserRegistration < ApplicationService
+  Result = Data.define(:success?, :user, :errors)
+
+  def initialize(params)
+    @params = params
+  end
+
+  def call
+    # Inline validation checks (from controller)
+    if @params[:email].blank?
+      return Result.new(success?: false, user: nil, errors: ["Email required"])
+    end
+    if @params[:password].length < 8
+      return Result.new(success?: false, user: nil, errors: ["Password too short"])
+    end
+
+    user = User.new(@params)
+
+    unless user.save
+      return Result.new(
+        success?: false, user: nil,
+        errors: user.errors.full_messages
+      )
+    end
+
+    # Side effects (isolated, testable)
+    Rails.logger.info("New registration: #{user.email}")
+    user.update!(locale: "en", timezone: "UTC",
+                 notification_preference: "email")
+    token = user.generate_token_for(:session)
+
+    Result.new(success?: true, user: user, errors: [])
+  end
+end`,
+	},
+	{
+		filename: 'app/controllers/api/v1/registrations_controller.rb',
+		language: 'ruby',
+		code: `class Api::V1::RegistrationsController < ApplicationController
+  def create
+    result = UserRegistration.call(registration_params)
+
+    if result.success?
+      render json: { user: result.user },
+             status: :created
+    else
+      render json: { errors: result.errors },
+             status: :unprocessable_entity
+    end
+  end
+
+  private
+
+  def registration_params
+    params.expect(user: [:email, :password, :name])
+  end
+end`,
+	},
+];
+
+registerLevelCode('act3-level16-service-objects', FINAL_CODE_FILES);
 
 // ──────────────────────────────────────────────
 // Phase type

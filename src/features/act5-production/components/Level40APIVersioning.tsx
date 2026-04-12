@@ -57,12 +57,90 @@ import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-registry';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { useDiscoveryGating } from '@/hooks/useDiscoveryGating';
 import { useStepGating } from '@/hooks/useStepGating';
 import { useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { shuffleOptions } from '@/lib/shuffleOptions';
+import type { CodeFile } from '@/utils/codeGeneration';
+
+export const FINAL_CODE_FILES: CodeFile[] = [
+	{
+		filename: 'config/routes.rb',
+		language: 'ruby',
+		code: `Rails.application.routes.draw do
+  namespace :api do
+    namespace :v1 do
+      resources :orders, only: [:index, :show, :create]
+    end
+    namespace :v2 do
+      resources :orders, only: [:index, :show, :create]
+    end
+  end
+end`,
+	},
+	{
+		filename: 'app/controllers/api/v1/orders_controller.rb',
+		language: 'ruby',
+		code: `module Api::V1
+  class OrdersController < Api::V1::BaseController
+    def show
+      result = FetchOrder.call(id: params[:id])
+      if result.success?
+        render json: Api::V1::OrderSerializer
+          .new(result.order).serializable_hash
+      else
+        render json: { error: { code: "NOT_FOUND",
+          message: result.errors[:id]&.first } },
+          status: :not_found
+      end
+    end
+  end
+end`,
+	},
+	{
+		filename: 'app/controllers/api/v2/orders_controller.rb',
+		language: 'ruby',
+		code: `module Api::V2
+  class OrdersController < Api::BaseController
+    def show
+      result = FetchOrder.call(id: params[:id])
+      if result.success?
+        render json: Api::V2::OrderSerializer
+          .new(result.order).serializable_hash
+      else
+        render json: { error: { code: "NOT_FOUND",
+          message: result.errors[:id]&.first } },
+          status: :not_found
+      end
+    end
+  end
+end`,
+	},
+	{
+		filename: 'app/controllers/api/v1/base_controller.rb',
+		language: 'ruby',
+		code: `module Api::V1
+  class BaseController < Api::BaseController
+    before_action :add_deprecation_headers
+
+    private
+
+    def add_deprecation_headers
+      response.headers['Deprecation'] = 'true'
+      response.headers['Sunset'] =
+        'Sun, 01 Jun 2027 00:00:00 GMT'
+      response.headers['Link'] =
+        '</api/v2/docs>; rel="successor-version"'
+    end
+  end
+end`,
+	},
+];
+
+registerLevelCode('act5-level40-api-versioning', FINAL_CODE_FILES);
 
 // ─── Types ────────────────────────────────────────────────────────────
 

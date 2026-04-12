@@ -207,6 +207,12 @@ Read the content definition in `content.ts` alongside the component. Check for t
 
 **Cumulative pattern violations are BLOCKING, not medium severity.** A pattern established 30+ levels ago is as fundamental as the phase state machine. If the player has used serializers since L7, showing inline `render json:` at L40 teaches the wrong thing. It's not a style nit. It contradicts what the player learned and undermines the level's own concept. Case study: L40's observe code originally used `render json: { total: order.total_cents }` inline. The level was about changing response formats, but the "before" code didn't use the layer where formats are defined (serializers). The fix: show `OrderSerializer` in the observe code so the problem is "changing THIS serializer breaks partners" and the solution is "create versioned serializers."
 
+### Project Structure (bulletproof-react, non-negotiable)
+
+- [ ] **Feature code follows bulletproof-react layout.** Any new feature directory under `src/features/` must use `components/`, `hooks/`, `utils/`, `types/` subdirectories (include only what's needed). Do NOT place components or utilities at the feature root.
+- [ ] **No cross-feature imports.** Features cannot import from other features. Shared code lives in `src/components/`, `src/lib/`, `src/utils/`, `src/hooks/`.
+- [ ] **No code duplication.** If code strings exist in `getCodeFiles()`, do not duplicate them in static arrays. Use lazy evaluation (`() => getCodeFiles(...)`) to reference the single source of truth.
+
 ### Component Structure (check first, non-negotiable)
 
 - [ ] **`LevelHeader` is present inside `CenterPanel`.** Custom level components are rendered by `LevelPlayApp` without any wrapper. The level itself MUST include `<LevelHeader>` as the first child of `<CenterPanel>`. Without it, the level has no title bar, no Submit button, and no Reset button. Pattern: `<CenterPanel><LevelHeader actNumber={N} levelName="..." levelNumber={NN} onComplete={handleComplete} onReset={handleReset} onValidate={handleValidate} />{renderCenterPanel()}</CenterPanel>`.

@@ -39,9 +39,66 @@ import {
 } from '@/components/levels';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-registry';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { shuffleOptions } from '@/lib/shuffleOptions';
+import type { CodeFile } from '@/utils/codeGeneration';
+
+// ──────────────────────────────────────────────
+// Final code files for codebase registry
+// ──────────────────────────────────────────────
+
+export const FINAL_CODE_FILES: CodeFile[] = [
+	{
+		filename: 'app/models/concerns/taggable.rb',
+		language: 'ruby',
+		code: `module Taggable
+  extend ActiveSupport::Concern
+
+  included do
+    has_many :taggings, as: :taggable
+    has_many :tags, through: :taggings
+
+    scope :tagged_with, ->(name) {
+      joins(:tags).where(tags: { name: name })
+    }
+  end
+
+  def tag_list
+    tags.map(&:name).join(", ")
+  end
+
+  def tag_list=(names)
+    self.tags = names.split(",").map { |n|
+      Tag.find_or_create_by(name: n.strip)
+    }
+  end
+end`,
+	},
+	{
+		filename: 'app/models/product.rb',
+		language: 'ruby',
+		code: `class Product < ApplicationRecord
+  include Taggable
+
+  belongs_to :user
+  has_many :reviews
+end`,
+	},
+	{
+		filename: 'app/models/review.rb',
+		language: 'ruby',
+		code: `class Review < ApplicationRecord
+  include Taggable
+
+  belongs_to :product
+  belongs_to :user
+end`,
+	},
+];
+
+registerLevelCode('act3-level17-concerns', FINAL_CODE_FILES);
 
 // ──────────────────────────────────────────────
 // Phase type
