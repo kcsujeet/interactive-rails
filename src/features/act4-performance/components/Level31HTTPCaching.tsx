@@ -52,71 +52,10 @@ import {
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-// ──────────────────────────────────────────────
-// Final code files for codebase registry
-// ──────────────────────────────────────────────
-
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'app/controllers/api/v1/products_controller.rb',
-		language: 'ruby',
-		code: `class Api::V1::ProductsController < ApplicationController
-  def index
-    result = ProductCatalog.call
-
-    # CDN + browser cache for 1 hour
-    expires_in 1.hour, public: true,
-      's-max-age': 3600
-
-    render json: result.products
-  end
-
-  def show
-    result = PostDetail.call(id: params[:id])
-
-    # ETag from post content
-    # Returns 304 if unchanged
-    if stale?(result.post)
-      render json: result.post
-    end
-    # If not stale, Rails auto-returns 304
-  end
-end`,
-	},
-	{
-		filename: 'config/environments/production.rb',
-		language: 'ruby',
-		code: `Rails.application.configure do
-  # Fingerprinted assets are immutable
-  config.public_file_server.headers = {
-    "Cache-Control" => "public, max-age=31536000, immutable"
-  }
-end`,
-	},
-	{
-		filename: 'app/controllers/api/v1/dashboard_controller.rb',
-		language: 'ruby',
-		code: `class Api::V1::DashboardController < ApplicationController
-  before_action :authenticate_user!
-
-  def orders
-    result = OrderHistory.call(user: current_user)
-
-    # Private: browser only, no CDN
-    # SWR: serve stale while fetching fresh
-    expires_in 1.minute,
-      private: true,
-      stale_while_revalidate: 30.seconds
-
-    render json: result.orders
-  end
-end`,
-	},
-];
-
-registerLevelCode('act4-level31-http-caching', FINAL_CODE_FILES);
+registerLevelCode('act4-level31-http-caching', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ──────────────────────────────────────────────
 // Phase type

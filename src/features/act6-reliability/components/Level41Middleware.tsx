@@ -62,86 +62,10 @@ import { useStepGating } from '@/hooks/useStepGating';
 import { useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { shuffleOptions } from '@/lib/shuffleOptions';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'config/application.rb',
-		language: 'ruby',
-		code: `# Middleware stack (ordered)
-config.middleware.use BotDetector
-config.middleware.use RequestIdTracker
-config.middleware.use RequestLogger`,
-	},
-	{
-		filename: 'lib/middleware/request_id_tracker.rb',
-		language: 'ruby',
-		code: `class RequestIdTracker
-  def initialize(app)
-    @app = app
-  end
-
-  def call(env)
-    request_id = env['HTTP_X_REQUEST_ID'] || SecureRandom.uuid
-    env['HTTP_X_REQUEST_ID'] = request_id
-    Thread.current[:request_id] = request_id
-
-    status, headers, body = @app.call(env)
-    headers['X-Request-Id'] = request_id
-    [status, headers, body]
-  ensure
-    Thread.current[:request_id] = nil
-  end
-end`,
-	},
-	{
-		filename: 'lib/middleware/request_logger.rb',
-		language: 'ruby',
-		code: `class RequestLogger
-  def initialize(app)
-    @app = app
-  end
-
-  def call(env)
-    start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-    status, headers, body = @app.call(env)
-    duration = Process.clock_gettime(Process::CLOCK_MONOTONIC) - start
-
-    Rails.logger.info({
-      method: env['REQUEST_METHOD'],
-      path: env['PATH_INFO'],
-      status: status,
-      duration_ms: (duration * 1000).round(2),
-      request_id: env['HTTP_X_REQUEST_ID']
-    }.to_json)
-    [status, headers, body]
-  end
-end`,
-	},
-	{
-		filename: 'lib/middleware/bot_detector.rb',
-		language: 'ruby',
-		code: `class BotDetector
-  BOT_PATTERNS = /bot|crawler|spider|scraper/i
-
-  def initialize(app)
-    @app = app
-  end
-
-  def call(env)
-    user_agent = env['HTTP_USER_AGENT'] || ''
-    if user_agent.match?(BOT_PATTERNS)
-      [403, { 'Content-Type' => 'application/json' },
-       ['{"error":{"code":"FORBIDDEN","message":"Bot detected"}}']]
-    else
-      @app.call(env)
-    end
-  end
-end`,
-	},
-];
-
-registerLevelCode('act6-level41-middleware', FINAL_CODE_FILES);
+registerLevelCode('act6-level41-middleware', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ─── Types ────────────────────────────────────────────────────────────
 

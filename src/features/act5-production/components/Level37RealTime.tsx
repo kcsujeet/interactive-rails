@@ -73,73 +73,10 @@ import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 import { cn } from '@/lib/utils';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'app/services/broadcast_notification.rb',
-		language: 'ruby',
-		code: `class BroadcastNotification < ApplicationService
-  Result = Data.define(:success?, :notification, :errors)
-
-  def initialize(user:, title:, body:)
-    @user = user; @title = title; @body = body
-  end
-
-  def call
-    v = NotificationContract.new.call(title: @title, body: @body)
-    if v.failure?
-      return Result.new(success?: false, notification: nil,
-        errors: v.errors.to_h)
-    end
-    notification = @user.notifications.create!(
-      title: @title, body: @body)
-    Result.new(success?: true, notification:, errors: {})
-  end
-end`,
-	},
-	{
-		filename: 'app/models/notification.rb',
-		language: 'ruby',
-		code: `class Notification < ApplicationRecord
-  belongs_to :user
-  validates :title, :body, presence: true
-
-  after_create_commit :broadcast_to_user
-
-  private
-
-  def broadcast_to_user
-    NotificationsChannel.broadcast_to(
-      user,
-      NotificationSerializer.new(self).serializable_hash
-    )
-  end
-end`,
-	},
-	{
-		filename: 'app/channels/application_cable/connection.rb',
-		language: 'ruby',
-		code: `module ApplicationCable
-  class Connection < ActionCable::Connection::Base
-    identified_by :current_user
-
-    def connect
-      self.current_user = find_verified_user
-    end
-
-    private
-
-    def find_verified_user
-      verified = User.find_by(id: cookies.encrypted[:user_id])
-      verified || reject_unauthorized_connection
-    end
-  end
-end`,
-	},
-];
-
-registerLevelCode('act5-level37-realtime', FINAL_CODE_FILES);
+registerLevelCode('act5-level37-realtime', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ──────────────────────────────────────────────
 // Phase type

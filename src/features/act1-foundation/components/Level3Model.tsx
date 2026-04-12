@@ -29,13 +29,8 @@ import { Button } from '@/components/ui/Button';
 import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-registry';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-// ──────────────────────────────────────────────
-// Final code files (codebase registry)
-// ──────────────────────────────────────────────
-
-export const FINAL_CODE_FILES: CodeFile[] = [
+registerLevelCode('act1-level3-model', () => [
 	{
 		filename: 'app/models/product.rb',
 		language: 'ruby',
@@ -79,9 +74,7 @@ end`,
   end
 end`,
 	},
-];
-
-registerLevelCode('act1-level3-model', FINAL_CODE_FILES);
+]);
 
 const STEP_DEFS: StepDef[] = [
 	{ id: 'name-model', title: 'Name the Model' },
@@ -498,7 +491,7 @@ end`,
 													if (opt.correct) {
 														stepper.completeStep();
 													} else {
-														stepper.recordWrongAttempt(opt.feedback!);
+														stepper.recordWrongAttempt(opt.feedback ?? '');
 													}
 												}}
 												variant="outline"
@@ -564,6 +557,7 @@ end`,
 
 								<div className="space-y-3">
 									{slots.map((slot) => (
+										// biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop drop zone
 										<div
 											className={`p-4 rounded-lg border-2 transition-all ${
 												slot.assignedType === slot.correctType

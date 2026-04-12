@@ -79,98 +79,10 @@ import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { cn } from '@/lib/utils';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-// ──────────────────────────────────────────────
-// Final code files for codebase registry
-// ──────────────────────────────────────────────
-
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'Gemfile',
-		language: 'ruby',
-		code: `source "https://rubygems.org"
-
-gem "rails", "~> 8.0.0"
-gem "pg", "~> 1.1"
-gem "puma", ">= 5.0"
-gem "jsonapi-serializer"
-gem "pagy", "~> 43.3"
-gem "solid_cache"`,
-	},
-	{
-		filename: 'config/environments/production.rb',
-		language: 'ruby',
-		code: `Rails.application.configure do
-  config.cache_store = :solid_cache_store
-end`,
-	},
-	{
-		filename: 'app/services/trending_products.rb',
-		language: 'ruby',
-		code: `class TrendingProducts < ApplicationService
-  Result = Data.define(:posts, :generated_at)
-
-  def call
-    validation = TrendingContract.new.call({})
-    return Result.new(
-      posts: [], generated_at: Time.current
-    ) if validation.failure?
-
-    products = Rails.cache.fetch(
-      "trending_products",
-      expires_in: 5.minutes
-    ) do
-      Product
-        .joins(:reviews)
-        .where("posts.created_at > ?", 7.days.ago)
-        .group("posts.id")
-        .select("posts.*, COUNT(reviews.id) AS score")
-        .order("score DESC")
-        .limit(20)
-        .includes(:user)
-        .to_a  # Materialize before caching
-    end
-
-    Result.new(posts: products, generated_at: Time.current)
-  end
-end`,
-	},
-	{
-		filename: 'app/models/review.rb',
-		language: 'ruby',
-		code: `class Review < ApplicationRecord
-  belongs_to :product, touch: true
-  belongs_to :user
-
-  validates :body, presence: true
-end`,
-	},
-	{
-		filename: 'app/contracts/trending_contract.rb',
-		language: 'ruby',
-		code: `class TrendingContract < Dry::Validation::Contract
-  params do
-  end
-end`,
-	},
-	{
-		filename: 'app/controllers/api/v1/products_controller.rb',
-		language: 'ruby',
-		code: `class Api::V1::ProductsController < ApplicationController
-  def trending
-    result = TrendingProducts.call
-    if result.posts.any?
-      render json: ProductSerializer.new(result.posts)
-    else
-      render json: { data: [] }
-    end
-  end
-end`,
-	},
-];
-
-registerLevelCode('act4-level30-caching', FINAL_CODE_FILES);
+registerLevelCode('act4-level30-caching', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ──────────────────────────────────────────────
 // Phase type

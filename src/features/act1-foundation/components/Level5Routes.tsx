@@ -61,27 +61,10 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { shuffleOptions } from '@/lib/shuffleOptions';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-// ──────────────────────────────────────────────
-// Final code files (codebase registry)
-// ──────────────────────────────────────────────
-
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'config/routes.rb',
-		language: 'ruby',
-		code: `Rails.application.routes.draw do
-  namespace :api do
-    namespace :v1 do
-      resources :posts
-    end
-  end
-end`,
-	},
-];
-
-registerLevelCode('act1-level5-routes', FINAL_CODE_FILES);
+registerLevelCode('act1-level5-routes', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ──────────────────────────────────────────────
 // Phase type

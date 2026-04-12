@@ -69,52 +69,10 @@ import { useStepGating } from '@/hooks/useStepGating';
 import { useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { shuffleOptions } from '@/lib/shuffleOptions';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'config/initializers/strong_migrations.rb',
-		language: 'ruby',
-		code: `# config/initializers/strong_migrations.rb
-StrongMigrations.target_postgresql_version = 16
-StrongMigrations.start_after = 20240101000000
-StrongMigrations.lock_timeout = 10.seconds
-StrongMigrations.statement_timeout = 1.hour`,
-	},
-	{
-		filename: 'db/migrate/safe_add_priority.rb',
-		language: 'ruby',
-		code: `class AddPriorityToOrders < ActiveRecord::Migration[7.2]
-  def change
-    add_column :orders, :priority, :integer
-  end
-end
-# Backfill: Order.in_batches.update_all(priority: 0)
-# Default: change_column_default :orders, :priority, 0`,
-	},
-	{
-		filename: 'db/migrate/safe_change_total.rb',
-		language: 'ruby',
-		code: `# Add new column, backfill, swap, drop old
-add_column :orders, :total_decimal, :decimal
-# Order.in_batches.update_all("total_decimal = total")
-# Switch app to read total_decimal
-# Drop old column in separate migration`,
-	},
-	{
-		filename: 'db/migrate/safe_add_index.rb',
-		language: 'ruby',
-		code: `class AddCustomerIndexToOrders < ActiveRecord::Migration[7.2]
-  disable_ddl_transaction!
-
-  def change
-    add_index :orders, :customer_id, algorithm: :concurrently
-  end
-end`,
-	},
-];
-
-registerLevelCode('act6-level44-safe-migrations', FINAL_CODE_FILES);
+registerLevelCode('act6-level44-safe-migrations', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ─── Types ────────────────────────────────────────────────────────────
 

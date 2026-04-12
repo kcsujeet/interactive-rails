@@ -47,89 +47,10 @@ import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-reg
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { shuffleOptions } from '@/lib/shuffleOptions';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-// ──────────────────────────────────────────────
-// Final code files for codebase registry
-// ──────────────────────────────────────────────
-
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'app/contracts/registration_contract.rb',
-		language: 'ruby',
-		code: `class RegistrationContract < Dry::Validation::Contract
-  params(UserSchema & ProfileSchema & NotifPrefsSchema)
-
-  rule(:role, :email_digest) do
-    if values[:role] == "creator" &&
-       values[:email_digest] != "weekly"
-      key(:role).failure("creators need weekly digest")
-    end
-  end
-end`,
-	},
-	{
-		filename: 'app/schemas/user_schema.rb',
-		language: 'ruby',
-		code: `UserSchema = Dry::Schema.Params do
-  required(:email).filled(:string,
-    format?: URI::MailTo::EMAIL_REGEXP)
-  required(:password).filled(:string, min_size?: 8)
-  optional(:role).filled(:string)
-end`,
-	},
-	{
-		filename: 'app/schemas/profile_schema.rb',
-		language: 'ruby',
-		code: `ProfileSchema = Dry::Schema.Params do
-  required(:display_name).filled(:string)
-  optional(:bio).filled(:string, max_size?: 500)
-  optional(:location).filled(:string)
-end`,
-	},
-	{
-		filename: 'app/schemas/notif_prefs_schema.rb',
-		language: 'ruby',
-		code: `NotifPrefsSchema = Dry::Schema.Params do
-  required(:email_digest).filled(:string,
-    included_in?: %w[daily weekly monthly never])
-  optional(:push_enabled).filled(:bool)
-  optional(:mentions_only).filled(:bool)
-end`,
-	},
-	{
-		filename: 'app/services/user_registration.rb',
-		language: 'ruby',
-		code: `class UserRegistration < ApplicationService
-  def call
-    result = RegistrationContract.new.call(@params)
-
-    if result.failure?
-      return Result.new(success?: false, errors: result.errors.to_h)
-    end
-
-    attrs = result.to_h
-    user = User.create!(email: attrs[:email],
-                        password: attrs[:password])
-    Profile.create!(user: user,
-                    display_name: attrs[:display_name])
-    NotificationPref.create!(user: user,
-                             email_digest: attrs[:email_digest])
-    Result.new(success?: true, data: user)
-  end
-end`,
-	},
-	{
-		filename: 'Gemfile',
-		language: 'ruby',
-		code: `gem "rails", "~> 8.0"
-gem "puma"
-gem "sqlite3"
-gem "dry-validation"`,
-	},
-];
-
-registerLevelCode('act3-level18-validation-contracts', FINAL_CODE_FILES);
+registerLevelCode('act3-level18-validation-contracts', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ──────────────────────────────────────────────
 // Phase type

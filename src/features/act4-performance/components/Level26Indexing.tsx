@@ -68,27 +68,10 @@ import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { cn } from '@/lib/utils';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-// ──────────────────────────────────────────────
-// Final code files for codebase registry
-// ──────────────────────────────────────────────
-
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'db/migrate/add_indexes.rb',
-		language: 'ruby',
-		code: `class AddIndexes < ActiveRecord::Migration[8.0]
-  def change
-    add_index :users, :email, unique: true
-    add_index :posts, :user_id
-    add_index :posts, [:published, :created_at]
-  end
-end`,
-	},
-];
-
-registerLevelCode('act4-level26-database-indexing', FINAL_CODE_FILES);
+registerLevelCode('act4-level26-database-indexing', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ──────────────────────────────────────────────
 // Phase type

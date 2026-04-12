@@ -64,100 +64,10 @@ import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { shuffleOptions } from '@/lib/shuffleOptions';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'config/initializers/error_subscriber.rb',
-		language: 'ruby',
-		code: `# Rails 8 Error Reporter
-Rails.error.subscribe(ErrorSubscriber.new)
-
-class ErrorSubscriber
-  def report(error, handled:, severity:, context:, source:)
-    ErrorTracker.record(
-      exception_class: error.class.name,
-      message: error.message,
-      severity: severity,
-      user_id: context[:user_id],
-      request_id: context[:request_id],
-      breadcrumbs: context[:breadcrumbs],
-      handled: handled
-    )
-  end
-end`,
-	},
-	{
-		filename: 'app/controllers/application_controller.rb',
-		language: 'ruby',
-		code: `class ApplicationController < ActionController::API
-  before_action :set_error_context
-
-  private
-
-  def set_error_context
-    Rails.error.set_context(
-      user_id: current_user&.id,
-      request_id: request.request_id,
-      breadcrumbs: []
-    )
-  end
-end`,
-	},
-	{
-		filename: 'app/services/error_tracker.rb',
-		language: 'ruby',
-		code: `class ErrorTracker
-  def self.record(exception_class:, message:, severity:,
-                   user_id: nil, request_id: nil,
-                   breadcrumbs: [], handled: false)
-    fingerprint = [
-      exception_class,
-      context[:controller_action]
-    ].compact.join(":")
-
-    group = ErrorGroup.find_or_create_by(fingerprint: fingerprint)
-    group.increment!(:occurrence_count)
-    group.update!(last_seen_at: Time.current)
-
-    check_alert_thresholds(group)
-    check_error_budget
-  end
-
-  def self.check_alert_thresholds(group)
-    if group.occurrence_count == 1
-      AlertService.notify(:new_error, group)
-    end
-    if group.occurrence_count_in_window(5.minutes) > 10
-      AlertService.notify(:rate_spike, group)
-    end
-  end
-
-  def self.check_error_budget
-    rate = ErrorBudget.current_error_rate
-    if rate > 0.01 # 1% budget
-      AlertService.page_oncall(:budget_exceeded, rate)
-    end
-  end
-end`,
-	},
-	{
-		filename: 'config/application.rb',
-		language: 'ruby',
-		code: `module MyApp
-  class Application < Rails::Application
-    config.load_defaults 8.0
-
-    # Error reporter wraps entire middleware stack
-    config.middleware.insert_before 0, ErrorReporter
-
-    config.api_only = true
-  end
-end`,
-	},
-];
-
-registerLevelCode('act6-level47-error-monitoring', FINAL_CODE_FILES);
+registerLevelCode('act6-level47-error-monitoring', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ─── Types ────────────────────────────────────────────────────────────
 

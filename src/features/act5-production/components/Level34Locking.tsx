@@ -71,79 +71,10 @@ import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 import { cn } from '@/lib/utils';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'app/contracts/order_contract.rb',
-		language: 'ruby',
-		code: `class OrderContract < Dry::Validation::Contract
-  params do
-    required(:product_id).filled(:integer)
-    required(:amount).filled(:decimal, gt?: 0)
-  end
-end`,
-	},
-	{
-		filename: 'app/services/place_order.rb',
-		language: 'ruby',
-		code: `class PlaceOrder < ApplicationService
-  Result = Data.define(:success?, :product, :errors)
-
-  def initialize(product_id:, quantity:)
-    @product_id = product_id
-    @quantity = amount
-  end
-
-  def call
-    v = OrderContract.new.call(
-      product_id: @product_id, quantity: @quantity)
-    return Result.new(success?: false,
-      product: nil, errors: v.errors.to_h) if v.failure?
-
-    ActiveRecord::Base.transaction do
-      product = Product.lock.find(@product_id)
-      raise InsufficientStockError if product.stock_count < @quantity
-      product.stock_count -= @quantity
-      product.save!
-      AuditLog.create!(product:, quantity: @quantity,
-        stock_after: product.stock_count)
-      Result.new(success?: true, product:, errors: [])
-    end
-  rescue InsufficientStockError
-    Result.new(success?: false, product: nil,
-      errors: ["Insufficient stock"])
-  end
-end`,
-	},
-	{
-		filename: 'app/controllers/api/v1/orders_controller.rb',
-		language: 'ruby',
-		code: `class Api::V1::OrdersController < ApplicationController
-  def create
-    result = PlaceOrder.call(
-      product_id: params[:id],
-      quantity: params.expect(order: [:product_id, :quantity]))
-    if result.success?
-      render json: OrderSerializer.new(result.order)
-    else
-      render json: { error: {
-        code: "DEDUCTION_FAILED",
-        message: "Could not place order",
-        details: result.errors } },
-        status: :unprocessable_entity
-    end
-  rescue ActiveRecord::StaleObjectError
-    render json: { error: {
-      code: "CONFLICT",
-      message: "Record was modified by another user",
-      details: {} } }, status: :conflict
-  end
-end`,
-	},
-];
-
-registerLevelCode('act5-level34-locking', FINAL_CODE_FILES);
+registerLevelCode('act5-level34-locking', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ──────────────────────────────────────────────
 // Phase type

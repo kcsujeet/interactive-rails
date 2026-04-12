@@ -81,76 +81,10 @@ import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { shuffleOptions } from '@/lib/shuffleOptions';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-// ─── Final code files (reward phase, all steps complete) ─────────────
-
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'Gemfile',
-		language: 'ruby',
-		code: `# Gemfile
-gem "rails", "~> 8.0"
-gem "packwerk", "~> 3.2"`,
-	},
-	{
-		filename: 'packwerk.yml',
-		language: 'yaml',
-		code: `# packwerk.yml
-include:
-  - "components/**/*.rb"
-  - "app/**/*.rb"
-exclude:
-  - "test/**/*"
-  - "spec/**/*"`,
-	},
-	{
-		filename: 'components/billing/package.yml',
-		language: 'yaml',
-		code: `# components/billing/package.yml
-enforce_dependencies: true
-enforce_privacy: true
-dependencies:
-  - users`,
-	},
-	{
-		filename: 'components/billing/app/public/billing_interface.rb',
-		language: 'ruby',
-		code: `# components/billing/app/public/billing_interface.rb
-module BillingInterface
-  def self.create_invoice(user:, items:)
-    Invoice.create!(user: user, line_items: items)
-  end
-
-  def self.find_invoice(id)
-    Invoice.find(id)
-  end
-end
-# Only files in app/public/ are accessible
-# from outside the billing package.`,
-	},
-	{
-		filename: 'components/orders/package.yml',
-		language: 'yaml',
-		code: `# components/orders/package.yml
-enforce_dependencies: true
-enforce_privacy: true
-dependencies:
-  - billing
-  - users`,
-	},
-	{
-		filename: '.github/CODEOWNERS',
-		language: 'bash',
-		code: `# .github/CODEOWNERS
-/components/billing/   @billing-team
-/components/orders/    @orders-team
-/components/inventory/ @inventory-team
-/components/notifications/ @notifications-team`,
-	},
-];
-
-registerLevelCode('act7-level52-modular-monolith', FINAL_CODE_FILES);
+registerLevelCode('act7-level52-modular-monolith', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ─── Types ────────────────────────────────────────────────────────────
 

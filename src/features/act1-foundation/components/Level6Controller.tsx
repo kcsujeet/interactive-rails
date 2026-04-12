@@ -58,58 +58,10 @@ import {
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-// ──────────────────────────────────────────────
-// Final code files (codebase registry)
-// ──────────────────────────────────────────────
-
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'app/controllers/api/v1/products_controller.rb',
-		language: 'ruby',
-		code: `class Api::V1::ProductsController < ApplicationController
-  def index
-    render json: Product.all
-  end
-
-  def show
-    render json: Product.find(params[:id])
-  end
-
-  def create
-    post = Product.new(product_params)
-      if product.save
-        render json: post, status: :created
-      else
-        render json: { errors: product.errors }, status: :unprocessable_entity
-      end
-  end
-
-  def update
-    post = Product.find(params[:id])
-      if product.update(product_params)
-        render json: post
-      else
-        render json: { errors: product.errors }, status: :unprocessable_entity
-      end
-  end
-
-  def destroy
-    Product.find(params[:id]).destroy
-      head :no_content
-  end
-
-  private
-
-  def product_params
-    params.require(:product).permit(:title, :body, :published_at)
-  end
-end`,
-	},
-];
-
-registerLevelCode('act1-level6-controller', FINAL_CODE_FILES);
+registerLevelCode('act1-level6-controller', () =>
+	getCodeFiles('reward', STEP_DEFS.length, RESTFUL_ACTIONS),
+);
 
 // ──────────────────────────────────────────────
 // Phase type

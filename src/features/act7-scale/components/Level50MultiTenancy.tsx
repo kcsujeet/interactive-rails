@@ -79,99 +79,10 @@ import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { shuffleOptions } from '@/lib/shuffleOptions';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-// ─── Final code files (reward phase, all steps complete) ─────────────
-
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'Gemfile',
-		language: 'ruby',
-		code: `gem "rails", "~> 8.0.0"
-gem "acts_as_tenant"`,
-	},
-	{
-		filename: 'db/migrate/add_company_to_products.rb',
-		language: 'ruby',
-		code: `class AddCompanyToProducts < ActiveRecord::Migration[8.0]
-  def change
-    add_reference :products, :company, foreign_key: true
-  end
-end`,
-	},
-	{
-		filename: 'app/controllers/application_controller.rb',
-		language: 'ruby',
-		code: `class ApplicationController < ActionController::API
-  set_current_tenant_through_filter
-  before_action :set_tenant
-
-  private
-
-  def set_tenant
-    current_tenant = Company.find_by!(
-      subdomain: request.subdomains.first
-    )
-    set_current_tenant(current_tenant)
-  end
-end`,
-	},
-	{
-		filename: 'app/models/product.rb',
-		language: 'ruby',
-		code: `class Product < ApplicationRecord
-  acts_as_tenant :company
-
-  validates :name, presence: true
-  validates :sku, uniqueness: { scope: :company_id }
-end`,
-	},
-	{
-		filename: 'app/services/products/list_service.rb',
-		language: 'ruby',
-		code: `class Products::ListService < ApplicationService
-  def call(params:)
-    # acts_as_tenant auto-scopes Product.all
-    # to current tenant, no code changes needed
-    products = Product.all
-    Result.new(products:)
-  end
-end`,
-	},
-	{
-		filename: 'app/controllers/api/v1/products_controller.rb',
-		language: 'ruby',
-		code: `class Api::V1::ProductsController < ApplicationController
-  def index
-    result = Products::ListService.call(params:)
-    render json: ProductSerializer.new(result.products)
-      .serializable_hash
-  end
-end`,
-	},
-	{
-		filename: 'app/models/order.rb',
-		language: 'ruby',
-		code: `class Order < ApplicationRecord
-  acts_as_tenant :company
-
-  has_many :line_items
-  belongs_to :customer
-end`,
-	},
-	{
-		filename: 'db/migrate/add_scoped_index.rb',
-		language: 'ruby',
-		code: `class AddScopedIndex < ActiveRecord::Migration[8.0]
-  def change
-    add_index :products, [:company_id, :sku],
-      unique: true
-  end
-end`,
-	},
-];
-
-registerLevelCode('act7-level50-multi-tenancy', FINAL_CODE_FILES);
+registerLevelCode('act7-level50-multi-tenancy', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ─── Types ────────────────────────────────────────────────────────────
 

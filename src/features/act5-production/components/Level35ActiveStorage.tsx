@@ -82,85 +82,10 @@ import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 import { cn } from '@/lib/utils';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'app/controllers/api/v1/direct_uploads_controller.rb',
-		language: 'ruby',
-		code: `class Api::V1::DirectUploadsController < ApplicationController
-  def create
-    blob = ActiveStorage::Blob.create_before_direct_upload!(
-      **blob_args)
-    render json: {
-      direct_upload: {
-        url: blob.service_url_for_direct_upload,
-        headers: blob.service_headers_for_direct_upload
-      },
-      blob_signed_id: blob.signed_id
-    }
-  end
-
-  private
-
-  def blob_args
-    params.expect(
-      file: [:filename, :byte_size,
-             :checksum, :content_type])
-  end
-end`,
-	},
-	{
-		filename: 'app/services/upload_avatar.rb',
-		language: 'ruby',
-		code: `class UploadAvatar < ApplicationService
-  Result = Data.define(:success?, :user, :errors)
-
-  def initialize(user_id:, blob_signed_id:)
-    @user_id = user_id
-    @blob_signed_id = blob_signed_id
-  end
-
-  def call
-    v = AvatarUploadContract.new.call(
-      user_id: @user_id,
-      blob_signed_id: @blob_signed_id)
-    return Result.new(success?: false,
-      user: nil, errors: v.errors.to_h) if v.failure?
-
-    user = User.find(@user_id)
-    blob = ActiveStorage::Blob.find_signed!(@blob_signed_id)
-    validate_content_type!(blob)
-    validate_file_size!(blob)
-
-    user.avatar.attach(@blob_signed_id)
-    Result.new(success?: true, user:, errors: [])
-  rescue ActiveStorage::FileNotFoundError
-    Result.new(success?: false, user: nil,
-      errors: ["File not found"])
-  end
-end`,
-	},
-	{
-		filename: 'app/models/user.rb',
-		language: 'ruby',
-		code: `class User < ApplicationRecord
-  has_secure_password
-  encrypts :email, deterministic: true
-  encrypts :phone
-  encrypts :address
-
-  has_one_attached :avatar do |attachable|
-    attachable.variant :thumb, resize_to_limit: [100, 100]
-    attachable.variant :medium, resize_to_limit: [300, 300]
-  end
-
-  has_many_attached :documents
-end`,
-	},
-];
-
-registerLevelCode('act5-level35-active-storage', FINAL_CODE_FILES);
+registerLevelCode('act5-level35-active-storage', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ──────────────────────────────────────────────
 // Phase type

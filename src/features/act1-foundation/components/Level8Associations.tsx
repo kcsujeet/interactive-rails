@@ -63,44 +63,10 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { shuffleOptions } from '@/lib/shuffleOptions';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-// ──────────────────────────────────────────────
-// Final code files (codebase registry)
-// ──────────────────────────────────────────────
-
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'db/migrate/create_reviews.rb',
-		language: 'ruby',
-		code: `class CreateReviews < ActiveRecord::Migration[8.0]
-  def change
-    create_table :reviews do |t|
-      t.text :body
-      t.references :post, null: false, foreign_key: true
-
-      t.timestamps
-    end
-  end
-end`,
-	},
-	{
-		filename: 'app/models/review.rb',
-		language: 'ruby',
-		code: `class Review < ApplicationRecord
-  belongs_to :product
-end`,
-	},
-	{
-		filename: 'app/models/product.rb',
-		language: 'ruby',
-		code: `class Product < ApplicationRecord
-  has_many :reviews, dependent: :destroy
-end`,
-	},
-];
-
-registerLevelCode('act1-level8-associations', FINAL_CODE_FILES);
+registerLevelCode('act1-level8-associations', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ──────────────────────────────────────────────
 // Phase type

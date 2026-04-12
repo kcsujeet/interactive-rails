@@ -57,40 +57,10 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { shuffleOptions } from '@/lib/shuffleOptions';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-// ──────────────────────────────────────────────
-// Final code files (codebase registry)
-// ──────────────────────────────────────────────
-
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'app/controllers/api/v1/products_controller.rb',
-		language: 'ruby',
-		code: `class Api::V1::ProductsController < ApplicationController
-  def create
-    product = current_user.posts.create!(product_params)
-    render json: post, status: :created
-  end
-
-  def update
-    product = Product.find(params[:id])
-    product.update!(product_params)
-    render json: post
-  end
-
-  private
-
-  def product_params
-    params.expect(product: [:title, :body])
-    # user_id and admin removed!
-    # Ownership set via current_user.posts association
-  end
-end`,
-	},
-];
-
-registerLevelCode('act2-level14-strong-params', FINAL_CODE_FILES);
+registerLevelCode('act2-level14-strong-params', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ──────────────────────────────────────────────
 // Phase type

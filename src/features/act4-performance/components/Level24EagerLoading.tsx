@@ -53,71 +53,10 @@ import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { cn } from '@/lib/utils';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-// ──────────────────────────────────────────────
-// Final code files for codebase registry
-// ──────────────────────────────────────────────
-
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'app/services/post_list.rb',
-		language: 'ruby',
-		code: `class PostList < ApplicationService
-  Result = Data.define(:success?, :posts, :errors)
-
-  def call(scope: :index, filters: {})
-    products = case scope
-    when :index
-      Product.includes(:user)
-      # 2 queries instead of 101
-    when :feed
-      Product.includes(reviews: :user)
-      # 3 queries instead of 1001
-    when :tagged
-      Product.eager_load(:tags)
-          .where(tags: { active: filters[:tag_active] })
-      # 1 query with LEFT OUTER JOIN
-    end
-
-    Result.new(success?: true, posts: posts, errors: [])
-  end
-end`,
-	},
-	{
-		filename: 'app/controllers/products_controller.rb',
-		language: 'ruby',
-		code: `class PostsController < ApplicationController
-  def index
-    result = PostList.call(scope: :index)
-    render json: ProductSerializer.new(result.posts)
-  end
-
-  def feed
-    result = PostList.call(scope: :feed)
-    render json: FeedSerializer.new(result.posts)
-  end
-
-  def tagged
-    result = PostList.call(
-      scope: :tagged, filters: { tag_active: true }
-    )
-    render json: ProductSerializer.new(result.posts)
-  end
-end`,
-	},
-	{
-		filename: 'app/models/product.rb',
-		language: 'ruby',
-		code: `class Product < ApplicationRecord
-  belongs_to :user
-  has_many :reviews
-  has_many :tags
-end`,
-	},
-];
-
-registerLevelCode('act4-level24-eager-loading', FINAL_CODE_FILES);
+registerLevelCode('act4-level24-eager-loading', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ──────────────────────────────────────────────
 // Phase type

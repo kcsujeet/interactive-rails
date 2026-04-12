@@ -29,13 +29,8 @@ import { Button } from '@/components/ui/Button';
 import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-registry';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-// ──────────────────────────────────────────────
-// Final code files (codebase registry)
-// ──────────────────────────────────────────────
-
-export const FINAL_CODE_FILES: CodeFile[] = [
+registerLevelCode('act1-level2-first-boot', () => [
 	{
 		filename: 'Gemfile',
 		language: 'ruby',
@@ -78,9 +73,7 @@ test:
   end
 end`,
 	},
-];
-
-registerLevelCode('act1-level2-first-boot', FINAL_CODE_FILES);
+]);
 
 const STEP_DEFS: StepDef[] = [
 	{ id: 'choose-db', title: 'Choose Database' },

@@ -84,77 +84,10 @@ import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { shuffleOptions } from '@/lib/shuffleOptions';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-// ─── Final code files (reward phase, all steps complete) ─────────────
-
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'Gemfile',
-		language: 'ruby',
-		code: `# Gemfile
-gem "rails", "~> 8.0"
-gem "wisper", "~> 2.0"  # Domain events`,
-	},
-	{
-		filename: 'app/events/order_completed.rb',
-		language: 'ruby',
-		code: `class OrderCompleted
-  include Wisper::Publisher
-
-  def call(order)
-    broadcast(:order_completed, order)
-  end
-end`,
-	},
-	{
-		filename: 'app/services/checkout_service.rb',
-		language: 'ruby',
-		code: `class CheckoutService < ApplicationService
-  def call(order)
-    order.complete!
-    OrderCompleted.new.call(order)
-    # No more direct service calls!
-  end
-end`,
-	},
-	{
-		filename: 'app/listeners/email_listener.rb',
-		language: 'ruby',
-		code: `class EmailListener
-  def order_completed(order)
-    EmailJob.perform_later(order.id)
-  end
-end`,
-	},
-	{
-		filename: 'config/initializers/wisper.rb',
-		language: 'ruby',
-		code: `# config/initializers/wisper.rb
-Wisper.subscribe(EmailListener.new)
-Wisper.subscribe(InventoryListener.new)
-Wisper.subscribe(AnalyticsListener.new)
-Wisper.subscribe(ShippingListener.new)`,
-	},
-	{
-		filename: 'app/jobs/email_job.rb',
-		language: 'ruby',
-		code: `class EmailJob < ApplicationJob
-  queue_as :default
-  retry_on StandardError, wait: :polynomially_longer
-
-  def perform(order_id)
-    order = Order.find(order_id)
-    EmailService.send_confirmation(order)
-  end
-end
-
-# Each service has its own job with independent retries
-# InventoryJob, AnalyticsJob, ShippingJob follow the same pattern`,
-	},
-];
-
-registerLevelCode('act7-level53-domain-events', FINAL_CODE_FILES);
+registerLevelCode('act7-level53-domain-events', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ─── Types ────────────────────────────────────────────────────────────
 

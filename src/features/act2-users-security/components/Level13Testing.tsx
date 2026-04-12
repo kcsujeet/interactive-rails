@@ -64,86 +64,10 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { shuffleOptions } from '@/lib/shuffleOptions';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-// ──────────────────────────────────────────────
-// Final code files (codebase registry)
-// ──────────────────────────────────────────────
-
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'Gemfile',
-		language: 'ruby',
-		code: `source "https://rubygems.org"
-
-gem "rails", "~> 8.0.0"
-gem "pg", "~> 1.1"
-gem "puma", ">= 5.0"
-gem "bcrypt", "~> 3.1.7"
-
-group :development, :test do
-  gem "rspec-rails"
-  gem "factory_bot_rails"
-end`,
-	},
-	{
-		filename: '.rspec',
-		language: 'plaintext',
-		code: `--require spec_helper
---format documentation
---color`,
-	},
-	{
-		filename: 'spec/rails_helper.rb',
-		language: 'ruby',
-		code: `require "spec_helper"
-ENV["RAILS_ENV"] ||= "test"
-require_relative "../config/environment"
-require "rspec/rails"
-
-RSpec.configure do |config|
-  config.use_transactional_fixtures = true
-  config.infer_spec_type_from_file_location!
-  config.include FactoryBot::Syntax::Methods
-end`,
-	},
-	{
-		filename: 'spec/factories/users.rb',
-		language: 'ruby',
-		code: `FactoryBot.define do
-  factory :user do
-    email { Faker::Internet.email }
-    password { "password123" }
-  end
-end`,
-	},
-	{
-		filename: 'spec/requests/api/v1/sessions_spec.rb',
-		language: 'ruby',
-		code: `require "rails_helper"
-
-RSpec.describe "Sessions API", type: :request do
-  it "returns a token on valid login" do
-    user = create(:user, password: "password123")
-    post "/api/v1/sessions",
-         params: { email: user.email,
-                   password: "password123" }
-    expect(response).to have_http_status(:created)
-    expect(json_response["token"]).to be_present
-  end
-
-  it "returns 401 with wrong password" do
-    user = create(:user, password: "password123")
-    post "/api/v1/sessions",
-         params: { email: user.email,
-                   password: "wrong" }
-    expect(response).to have_http_status(:unauthorized)
-  end
-end`,
-	},
-];
-
-registerLevelCode('act2-level13-testing', FINAL_CODE_FILES);
+registerLevelCode('act2-level13-testing', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ──────────────────────────────────────────────
 // Phase type

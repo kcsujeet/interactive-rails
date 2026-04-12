@@ -61,47 +61,10 @@ import { useStepGating } from '@/hooks/useStepGating';
 import { useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { shuffleOptions } from '@/lib/shuffleOptions';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'app/models/user.rb',
-		language: 'ruby',
-		code: `class User < ApplicationRecord
-  include Discard::Model
-  has_paper_trail
-
-  has_many :orders, dependent: :destroy
-end`,
-	},
-	{
-		filename: 'app/controllers/application_controller.rb',
-		language: 'ruby',
-		code: `class ApplicationController < ActionController::API
-  before_action :set_paper_trail_whodunnit
-
-  private
-
-  def set_paper_trail_whodunnit
-    PaperTrail.request.whodunnit = Current.user&.id
-  end
-end`,
-	},
-	{
-		filename: 'app/services/list_users.rb',
-		language: 'ruby',
-		code: `class ListUsers < ApplicationService
-  Result = Data.define(:success?, :resource, :errors)
-
-  def call
-    users = User.kept  # excludes discarded
-    Result.new(success?: true, resource: users, errors: {})
-  end
-end`,
-	},
-];
-
-registerLevelCode('act6-level43-soft-deletes', FINAL_CODE_FILES);
+registerLevelCode('act6-level43-soft-deletes', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ─── Types ────────────────────────────────────────────────────────────
 

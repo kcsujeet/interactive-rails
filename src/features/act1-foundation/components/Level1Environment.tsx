@@ -22,15 +22,8 @@ import {
 import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-registry';
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { useStepGating } from '@/hooks/useStepGating';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-// ──────────────────────────────────────────────
-// Final code files (codebase registry)
-// ──────────────────────────────────────────────
-
-export const FINAL_CODE_FILES: CodeFile[] = [];
-
-registerLevelCode('act1-level1-environment', FINAL_CODE_FILES);
+registerLevelCode('act1-level1-environment', () => []);
 
 const STEPS: TerminalStep[] = [
 	{

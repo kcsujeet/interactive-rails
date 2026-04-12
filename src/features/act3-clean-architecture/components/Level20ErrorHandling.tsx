@@ -58,87 +58,10 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { shuffleOptions } from '@/lib/shuffleOptions';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-// ──────────────────────────────────────────────
-// Final code files for codebase registry
-// ──────────────────────────────────────────────
-
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'app/controllers/application_controller.rb',
-		language: 'ruby',
-		code: `class ApplicationController < ActionController::API
-  rescue_from ActiveRecord::RecordNotFound,
-              with: :handle_not_found
-  rescue_from ActiveRecord::RecordInvalid,
-              with: :handle_unprocessable
-  rescue_from ActionController::ParameterMissing,
-              with: :handle_bad_request
-  rescue_from Pundit::NotAuthorizedError,
-              with: :handle_forbidden
-
-  private
-
-  def handle_not_found(exception)
-    render json: {
-      error: {
-        code: "not_found",
-        message: exception.message,
-        details: {}
-      }
-    }, status: :not_found
-  end
-
-  def handle_unprocessable(exception)
-    render json: {
-      error: {
-        code: "unprocessable_entity",
-        message: exception.message,
-        details: exception.record.errors.to_hash
-      }
-    }, status: :unprocessable_entity
-  end
-
-  def handle_bad_request(exception)
-    render json: {
-      error: {
-        code: "bad_request",
-        message: exception.message,
-        details: {}
-      }
-    }, status: :bad_request
-  end
-
-  def handle_forbidden(_exception)
-    render json: {
-      error: {
-        code: "forbidden",
-        message: "You are not authorized to perform this action",
-        details: {}
-      }
-    }, status: :forbidden
-  end
-end`,
-	},
-	{
-		filename: 'app/controllers/api/v1/products_controller.rb',
-		language: 'ruby',
-		code: `class Api::V1::ProductsController < ApplicationController
-  def show
-    @product = Product.find(params[:id])
-    render json: @post
-  end
-
-  def create
-    @product = Product.create!(product_params)
-    render json: @post, status: :created
-  end
-end`,
-	},
-];
-
-registerLevelCode('act3-level20-error-handling', FINAL_CODE_FILES);
+registerLevelCode('act3-level20-error-handling', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ──────────────────────────────────────────────
 // Phase type

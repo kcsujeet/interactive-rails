@@ -60,61 +60,10 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { shuffleOptions } from '@/lib/shuffleOptions';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-// ──────────────────────────────────────────────
-// Final code files for codebase registry
-// ──────────────────────────────────────────────
-
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'config/application.rb',
-		language: 'ruby',
-		code: `module MyApp
-  class Application < Rails::Application
-    config.active_job.queue_adapter = :solid_queue
-  end
-end`,
-	},
-	{
-		filename: 'app/jobs/send_welcome_notification_job.rb',
-		language: 'ruby',
-		code: `class SendWelcomeNotificationJob < ApplicationJob
-  queue_as :default
-
-  retry_on Net::SMTPError, wait: :polynomially_longer, attempts: 5
-
-  def perform(user_id)
-    user = User.find(user_id)
-    return if user.welcome_email_sent?
-
-    UserMailer.welcome(user).deliver_now
-    user.update!(welcome_email_sent_at: Time.current)
-  end
-end`,
-	},
-	{
-		filename: 'app/services/user_registration.rb',
-		language: 'ruby',
-		code: `class UserRegistration < ApplicationService
-  def call
-    user = User.create!(@params)
-
-    # All side effects are now background jobs
-    UserMailer.welcome(user).deliver_later
-    SyncExternalProfileJob.perform_later(user.id)
-
-    # Response returns instantly (< 200ms)
-    Result.new(success?: true, user: user)
-  rescue ActiveRecord::RecordInvalid => e
-    Result.new(success?: false, user: nil,
-               errors: e.record.errors.full_messages)
-  end
-end`,
-	},
-];
-
-registerLevelCode('act3-level22-background-jobs', FINAL_CODE_FILES);
+registerLevelCode('act3-level22-background-jobs', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ──────────────────────────────────────────────
 // Phase type

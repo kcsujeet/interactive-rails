@@ -60,64 +60,10 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { shuffleOptions } from '@/lib/shuffleOptions';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-// ──────────────────────────────────────────────
-// Final code files for codebase registry
-// ──────────────────────────────────────────────
-
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'app/models/user.rb',
-		language: 'ruby',
-		code: `class User < ApplicationRecord
-  has_secure_password
-  has_many :products
-  has_many :reviews
-
-  generates_token_for :password_reset,
-                      expires_in: 15.minutes do
-    password_salt&.last(10)
-  end
-end`,
-	},
-	{
-		filename: 'app/mailers/user_mailer.rb',
-		language: 'ruby',
-		code: `class UserMailer < ApplicationMailer
-  def password_reset(user)
-    @user = user
-    @token = user.generate_token_for(:password_reset)
-
-    mail(to: user.email, subject: "Reset your password")
-  end
-end`,
-	},
-	{
-		filename: 'app/controllers/api/v1/password_resets_controller.rb',
-		language: 'ruby',
-		code: `class Api::V1::PasswordResetsController < ApplicationController
-  def create
-    user = User.find_by(email: params[:email])
-    UserMailer.password_reset(user).deliver_later if user
-    render json: { message: "Check your email" }
-  end
-
-  def update
-    user = User.find_by_token_for(:password_reset, params[:token])
-    if user
-      user.update!(password: params[:password])
-      render json: { message: "Password updated" }
-    else
-      render json: { error: "Invalid or expired token" },
-             status: :unprocessable_entity
-    end
-  end
-end`,
-	},
-];
-
-registerLevelCode('act3-level21-action-mailer', FINAL_CODE_FILES);
+registerLevelCode('act3-level21-action-mailer', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ──────────────────────────────────────────────
 // Phase type

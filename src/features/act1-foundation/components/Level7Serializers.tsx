@@ -63,61 +63,10 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { shuffleOptions } from '@/lib/shuffleOptions';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-// ──────────────────────────────────────────────
-// Final code files (codebase registry)
-// ──────────────────────────────────────────────
-
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'Gemfile',
-		language: 'ruby',
-		code: `source "https://rubygems.org"
-
-gem "rails", "~> 8.0"
-gem "pg"
-gem "puma"
-gem "jsonapi-serializer"`,
-	},
-	{
-		filename: 'app/serializers/base_serializer.rb',
-		language: 'ruby',
-		code: `class BaseSerializer
-  include JSONAPI::Serializer
-end`,
-	},
-	{
-		filename: 'app/serializers/product_serializer.rb',
-		language: 'ruby',
-		code: `class ProductSerializer < BaseSerializer
-  attribute :title
-  attribute :body
-  attribute :published_at do |post|
-    product.listed_at&.strftime("%B %d, %Y")
-  end
-end`,
-	},
-	{
-		filename: 'app/controllers/api/v1/products_controller.rb',
-		language: 'ruby',
-		code: `class Api::V1::ProductsController < ApplicationController
-  def show
-    product = Product.find(params[:id])
-    render json: ProductSerializer.new(product)
-                   .serializable_hash.to_json
-  end
-
-  def index
-    products = Product.all
-    render json: ProductSerializer.new(products)
-                   .serializable_hash.to_json
-  end
-end`,
-	},
-];
-
-registerLevelCode('act1-level7-serializers', FINAL_CODE_FILES);
+registerLevelCode('act1-level7-serializers', () =>
+	getCodeFiles('reward', STEP_DEFS.length, SAFE_ATTRIBUTES),
+);
 
 // ──────────────────────────────────────────────
 // Phase type

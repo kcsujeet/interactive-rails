@@ -44,89 +44,10 @@ import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-reg
 import type { LevelComponentProps } from '@/features/levels-registry';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { shuffleOptions } from '@/lib/shuffleOptions';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-// ──────────────────────────────────────────────
-// Final code files for codebase registry
-// ──────────────────────────────────────────────
-
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'app/queries/product_query.rb',
-		language: 'ruby',
-		code: `class ProductQuery < ApplicationQuery
-  def published(flag)
-    return self if flag.blank?
-
-    @scope = @scope.where.not(published_at: nil)
-    self
-  end
-
-  def by_author(author_id)
-    return self if author_id.blank?
-
-    @scope = @scope.where(author_id: author_id)
-    self
-  end
-
-  def since(date)
-    return self if date.blank?
-
-    @scope = @scope.where("published_at >= ?", date)
-    self
-  end
-
-  def with_min_reviews(count)
-    return self if count.blank?
-
-    @scope = @scope
-      .left_joins(:reviews)
-      .group(:id)
-      .having("COUNT(reviews.id) >= ?", count)
-    self
-  end
-
-  def by_tag(tag_name)
-    return self if tag_name.blank?
-
-    @scope = @scope.joins(:tags)
-      .where(tags: { name: tag_name })
-    self
-  end
-
-  def sorted(column = :published_at, dir = :desc)
-    @scope = @scope.order(column => dir)
-    self
-  end
-
-  private
-
-  def default_scope
-    Product.all
-  end
-end`,
-	},
-	{
-		filename: 'app/controllers/admin/products_controller.rb',
-		language: 'ruby',
-		code: `class Admin::PostsController < ApplicationController
-  def index
-    products = ProductQuery.new
-      .published(params[:published])
-      .by_author(params[:author_id])
-      .since(params[:since])
-      .with_min_reviews(params[:min_reviews])
-      .by_tag(params[:tag])
-      .sorted
-      .results
-
-    render json: posts
-  end
-end`,
-	},
-];
-
-registerLevelCode('act3-level19-query-objects', FINAL_CODE_FILES);
+registerLevelCode('act3-level19-query-objects', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ──────────────────────────────────────────────
 // Phase type

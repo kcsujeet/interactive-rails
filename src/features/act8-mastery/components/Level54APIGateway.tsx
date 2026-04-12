@@ -74,83 +74,10 @@ import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { shuffleOptions } from '@/lib/shuffleOptions';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-// ─── Final code files (reward phase, all steps complete) ─────────────
-
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'app/controllers/api/gateway_controller.rb',
-		language: 'ruby',
-		code: `class Api::GatewayController < ApplicationController
-  rate_limit to: 60, within: 1.minute, by: -> { request.remote_ip },
-    with: -> { render json: { error: "Rate limit exceeded" }, status: :too_many_requests }
-
-  before_action :verify_jwt!
-
-  SERVICES = {
-    users: "http://users.internal:3001",
-    orders: "http://orders.internal:3001",
-    inventory: "http://inventory.internal:3002",
-    billing: "http://billing.internal:3003",
-  }
-
-  DASHBOARD_SERVICES = {
-    users: "/api/v1/users/me",
-    orders: "/api/v1/orders",
-    inventory: "/api/v1/stock",
-    billing: "/api/v1/billing/summary",
-  }
-
-  def dashboard
-    results = {}
-    threads = DASHBOARD_SERVICES.map do |key, path|
-      Thread.new { results[key] = fetch_or_default(key, path) }
-    end
-    threads.each(&:join)
-    render json: results
-  end
-
-  private
-
-  def verify_jwt!
-    token = request.headers["Authorization"]&.split(" ")&.last
-    @current_user = JWT.decode(token, Rails.application.secret_key_base)
-  rescue JWT::DecodeError
-    render json: { error: "Unauthorized" }, status: :unauthorized
-  end
-
-  def route_to(service, path)
-    Stoplight("gateway:#{service}")
-      .with_cool_off_time(30)
-      .with_threshold(3)
-      .run { Faraday.get(SERVICES[service] + path) }
-      .fallback { |_e| OpenStruct.new(body: { error: "unavailable" }) }
-  end
-
-  def fetch_or_default(service, path)
-    route_to(service, path).body
-  rescue Faraday::Error
-    { error: "unavailable", cached: true }
-  end
-end`,
-	},
-	{
-		filename: 'config/routes.rb',
-		language: 'ruby',
-		code: `Rails.application.routes.draw do
-  namespace :api do
-    namespace :v1 do
-      get "dashboard", to: "gateway#dashboard"
-      # All external requests go through the gateway
-      # Internal services are not exposed in routes
-    end
-  end
-end`,
-	},
-];
-
-registerLevelCode('act8-level54-api-gateway', FINAL_CODE_FILES);
+registerLevelCode('act8-level54-api-gateway', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ─── Types ────────────────────────────────────────────────────────────
 

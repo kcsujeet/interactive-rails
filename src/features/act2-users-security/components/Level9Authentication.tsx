@@ -65,86 +65,10 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { shuffleOptions } from '@/lib/shuffleOptions';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-// ──────────────────────────────────────────────
-// Final code files (codebase registry)
-// ──────────────────────────────────────────────
-
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'app/models/user.rb',
-		language: 'ruby',
-		code: `class User < ApplicationRecord
-  has_secure_password
-  has_many :sessions, dependent: :destroy
-end`,
-	},
-	{
-		filename: 'app/models/session.rb',
-		language: 'ruby',
-		code: `class Session < ApplicationRecord
-  belongs_to :user
-
-  before_create do
-    self.token = SecureRandom.urlsafe_base64(32)
-  end
-end`,
-	},
-	{
-		filename: 'app/controllers/sessions_controller.rb',
-		language: 'ruby',
-		code: `class SessionsController < ApplicationController
-  allow_unauthenticated_access only: [:create]
-
-  def create
-    user = User.authenticate_by(
-      email: params[:email],
-      password: params[:password]
-    )
-
-    if user
-      session = user.sessions.create!
-      render json: { token: session.token }
-    else
-      render json: { error: "Invalid credentials" },
-             status: :unauthorized
-    end
-  end
-end`,
-	},
-	{
-		filename: 'app/controllers/concerns/authentication.rb',
-		language: 'ruby',
-		code: `module Authentication
-  extend ActiveSupport::Concern
-
-  included do
-    before_action :require_authentication
-  end
-
-  private
-
-  def require_authentication
-    session = Session.find_by(
-      token: request.headers["Authorization"]
-               &.delete_prefix("Bearer ")
-    )
-    resume_session(session)
-  end
-
-  def resume_session(session)
-    Current.session = session
-  end
-
-  def current_user
-    Current.session&.user
-  end
-end`,
-	},
-];
-
-registerLevelCode('act2-level9-authentication', FINAL_CODE_FILES);
+registerLevelCode('act2-level9-authentication', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ──────────────────────────────────────────────
 // Phase type

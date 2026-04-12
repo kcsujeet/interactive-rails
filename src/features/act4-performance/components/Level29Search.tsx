@@ -75,92 +75,10 @@ import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { cn } from '@/lib/utils';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-// ──────────────────────────────────────────────
-// Final code files for codebase registry
-// ──────────────────────────────────────────────
-
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'Gemfile',
-		language: 'ruby',
-		code: `source "https://rubygems.org"
-
-gem "rails", "~> 8.0.0"
-gem "pg", "~> 1.1"
-gem "puma", ">= 5.0"
-gem "pg_search"`,
-	},
-	{
-		filename: 'db/migrate/add_search_to_posts.rb',
-		language: 'ruby',
-		code: `class AddSearchToPosts < ActiveRecord::Migration[8.0]
-  def change
-    add_column :posts, :searchable, :tsvector
-    add_index :posts, :searchable, using: :gin
-
-    execute <<-SQL
-      CREATE TRIGGER posts_search_update
-      BEFORE INSERT OR UPDATE ON posts
-      FOR EACH ROW EXECUTE FUNCTION
-        tsvector_update_trigger(
-          searchable, 'pg_catalog.english',
-          title, body
-        );
-    SQL
-  end
-end`,
-	},
-	{
-		filename: 'app/models/product.rb',
-		language: 'ruby',
-		code: `class Product < ApplicationRecord
-  include PgSearch::Model
-
-  pg_search_scope :search,
-    against: { title: 'A', body: 'B' },
-    using: {
-      tsearch: { dictionary: 'english' }
-    }
-end`,
-	},
-	{
-		filename: 'app/services/post_search.rb',
-		language: 'ruby',
-		code: `class PostSearch < ApplicationService
-  Result = Data.define(:success?, :posts, :errors)
-
-  def initialize(query:)
-    @query = query
-  end
-
-  def call
-    validation = SearchContract.new.call(query: @query)
-    if validation.failure?
-      return Result.new(
-        success?: false, posts: [],
-        errors: validation.errors.to_h
-      )
-    end
-
-    products = Product.search(@query)
-    Result.new(success?: true, posts: posts, errors: [])
-  end
-end`,
-	},
-	{
-		filename: 'app/contracts/search_contract.rb',
-		language: 'ruby',
-		code: `class SearchContract < Dry::Validation::Contract
-  params do
-    required(:query).filled(:string)
-  end
-end`,
-	},
-];
-
-registerLevelCode('act4-level29-search', FINAL_CODE_FILES);
+registerLevelCode('act4-level29-search', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ──────────────────────────────────────────────
 // Phase type

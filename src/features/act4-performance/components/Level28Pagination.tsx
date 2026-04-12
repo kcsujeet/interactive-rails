@@ -67,90 +67,10 @@ import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { cn } from '@/lib/utils';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-// ──────────────────────────────────────────────
-// Final code files for codebase registry
-// ──────────────────────────────────────────────
-
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'Gemfile',
-		language: 'ruby',
-		code: `source "https://rubygems.org"
-
-gem "rails", "~> 8.0.0"
-gem "pg", "~> 1.1"
-gem "puma", ">= 5.0"
-gem "jsonapi-serializer"
-gem "pagy", "~> 43.3"`,
-	},
-	{
-		filename: 'app/controllers/application_controller.rb',
-		language: 'ruby',
-		code: `class ApplicationController < ActionController::API
-  include Pagy::Method
-end`,
-	},
-	{
-		filename: 'config/initializers/pagy.rb',
-		language: 'ruby',
-		code: `# frozen_string_literal: true
-
-Pagy::OPTIONS[:limit] = 25`,
-	},
-	{
-		filename: 'app/controllers/api/v1/products_controller.rb',
-		language: 'ruby',
-		code: `class Api::V1::ProductsController < ApplicationController
-  def index
-    result = PostList.call(page: params[:page])
-    if result.success?
-      @pagy, @posts = pagy(:offset, result.scope)
-      response.headers.merge!(@pagy.headers_hash)
-      render json: ProductSerializer.new(@posts)
-    else
-      render json: { errors: result.errors },
-             status: :unprocessable_entity
-    end
-  end
-end`,
-	},
-	{
-		filename: 'app/contracts/list_contract.rb',
-		language: 'ruby',
-		code: `class ListContract < Dry::Validation::Contract
-  params do
-    optional(:page).filled(:integer, gt?: 0)
-  end
-end`,
-	},
-	{
-		filename: 'app/services/post_list.rb',
-		language: 'ruby',
-		code: `class PostList < ApplicationService
-  Result = Data.define(:success?, :scope, :errors)
-
-  def initialize(page: nil)
-    @page = page
-  end
-
-  def call
-    validation = ListContract.new.call(page: @page)
-    if validation.failure?
-      return Result.new(
-        success?: false, scope: Product.none,
-        errors: validation.errors.to_h
-      )
-    end
-    scope = Product.includes(:user)
-    Result.new(success?: true, scope: scope, errors: [])
-  end
-end`,
-	},
-];
-
-registerLevelCode('act4-level28-pagination', FINAL_CODE_FILES);
+registerLevelCode('act4-level28-pagination', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ──────────────────────────────────────────────
 // Phase type

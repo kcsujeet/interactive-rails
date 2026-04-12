@@ -56,74 +56,10 @@ import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { cn } from '@/lib/utils';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-// ──────────────────────────────────────────────
-// Final code files for codebase registry
-// ──────────────────────────────────────────────
-
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'app/services/user_export.rb',
-		language: 'ruby',
-		code: `class UserExport < ApplicationService
-  Result = Data.define(:success?, :resource, :errors)
-
-  # pluck returns plain arrays (no AR objects)
-  def call
-    rows = User.pluck(:id, :email)
-    csv = CSV.generate { |csv| rows.each { |r| csv << r } }
-    Result.new(success?: true, resource: csv, errors: [])
-  end
-end`,
-	},
-	{
-		filename: 'app/services/category_dropdown.rb',
-		language: 'ruby',
-		code: `class CategoryDropdown < ApplicationService
-  Result = Data.define(:success?, :resource, :errors)
-
-  # pluck for raw key-value pairs
-  def call
-    pairs = Category.pluck(:id, :name)
-    Result.new(success?: true, resource: pairs, errors: [])
-  end
-end`,
-	},
-	{
-		filename: 'app/services/user_listing.rb',
-		language: 'ruby',
-		code: `class UserListing < ApplicationService
-  Result = Data.define(:success?, :resource, :errors)
-
-  # select for model methods (skips large columns)
-  def call
-    users = User.select(:id, :first_name, :last_name)
-    data = users.map { |u|
-      { id: u.id, name: u.full_name }
-    }
-    Result.new(success?: true, resource: data, errors: [])
-  end
-end`,
-	},
-	{
-		filename: 'app/services/nightly_sync.rb',
-		language: 'ruby',
-		code: `class NightlySync < ApplicationService
-  Result = Data.define(:success?, :resource, :errors)
-
-  # find_in_batches: constant memory
-  def call
-    User.find_in_batches(batch_size: 1000) do |batch|
-      batch.each { |u| SyncService.process(u) }
-    end
-    Result.new(success?: true, resource: nil, errors: [])
-  end
-end`,
-	},
-];
-
-registerLevelCode('act4-level25-narrow-fetching', FINAL_CODE_FILES);
+registerLevelCode('act4-level25-narrow-fetching', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ──────────────────────────────────────────────
 // Phase type

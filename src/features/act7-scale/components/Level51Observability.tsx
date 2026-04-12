@@ -74,52 +74,10 @@ import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
 import { shuffleOptions } from '@/lib/shuffleOptions';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-// ─── Final code files (reward phase, all steps complete) ─────────────
-
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'config/environments/production.rb',
-		language: 'ruby',
-		code: `# config/environments/production.rb
-config.lograge.enabled = true
-config.lograge.formatter = Lograge::Formatters::Json.new
-
-config.lograge.custom_payload do |controller|
-  {
-    tenant_id: controller.current_tenant&.id,
-    request_id: controller.request.request_id,
-    user_id: controller.current_user&.id
-  }
-end`,
-	},
-	{
-		filename: 'config/initializers/opentelemetry.rb',
-		language: 'ruby',
-		code: `# config/initializers/opentelemetry.rb
-require "opentelemetry/sdk"
-require "opentelemetry/instrumentation/all"
-
-OpenTelemetry::SDK.configure do |c|
-  c.service_name = "ecommerce"
-  c.use_all
-end`,
-	},
-	{
-		filename: 'app/controllers/health_controller.rb',
-		language: 'ruby',
-		code: `class HealthController < ApplicationController
-  def show
-    result = HealthCheckService.call
-    status = result.values.all? ? :ok : :service_unavailable
-    render json: result, status: status
-  end
-end`,
-	},
-];
-
-registerLevelCode('act7-level51-observability', FINAL_CODE_FILES);
+registerLevelCode('act7-level51-observability', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ─── Types ────────────────────────────────────────────────────────────
 

@@ -66,48 +66,10 @@ import {
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
-import type { CodeFile } from '@/utils/codeGeneration';
 
-// ──────────────────────────────────────────────
-// Final code files for codebase registry
-// ──────────────────────────────────────────────
-
-export const FINAL_CODE_FILES: CodeFile[] = [
-	{
-		filename: 'Gemfile',
-		language: 'ruby',
-		code: `source "https://rubygems.org"
-
-gem "rails", "~> 8.0.0"
-gem "pg", "~> 1.1"
-gem "puma", ">= 5.0"
-gem "prosopite"
-gem "pg_query"`,
-	},
-	{
-		filename: 'config/environments/development.rb',
-		language: 'ruby',
-		code: `Rails.application.configure do
-  # Prosopite: N+1 detection
-  config.after_initialize do
-    Prosopite.rails_logger = true
-    Prosopite.raise = true
-  end
-end`,
-	},
-	{
-		filename: 'app/models/product.rb',
-		language: 'ruby',
-		code: `class Product < ApplicationRecord
-  belongs_to :user
-  has_many :reviews, dependent: :destroy
-
-  self.strict_loading_by_default = true
-end`,
-	},
-];
-
-registerLevelCode('act4-level23-n1-problem', FINAL_CODE_FILES);
+registerLevelCode('act4-level23-n1-problem', () =>
+	getCodeFiles('reward', STEP_DEFS.length),
+);
 
 // ──────────────────────────────────────────────
 // Phase type
