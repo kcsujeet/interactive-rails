@@ -29,15 +29,7 @@ import {
 	getStraightPath,
 	type Node,
 } from '@xyflow/react';
-import {
-	ArrowRight,
-	Database,
-	Globe,
-	ListTodo,
-	Server,
-	ShieldAlert,
-	User,
-} from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
@@ -62,16 +54,17 @@ import {
 	FlowHandles,
 	reversePath,
 } from '@/components/levels/FlowDiagram';
+import { FlowNode, type FlowNodeData } from '@/components/levels/FlowNode';
 import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import { useDiscoveryGating } from '@/hooks/useDiscoveryGating';
 import { useStepGating } from '@/hooks/useStepGating';
 import { useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act5-level39-webhooks', () =>
@@ -1545,21 +1538,14 @@ end`,
 	];
 }
 
-// ─── Custom React Flow nodes ──────────────────────────────────────────
+// ─── Custom React Flow nodes (using shared FlowNode) ─────────────────
 
-const FLASH_BORDER: Record<ZoneFlash, string> = {
-	idle: 'border-border',
-	red: 'border-red-500 dark:border-red-400',
-	green: 'border-emerald-500 dark:border-emerald-400',
-	amber: 'border-amber-500 dark:border-amber-400',
-};
-
-const FLASH_BG: Record<ZoneFlash, string> = {
-	idle: 'bg-card',
-	red: 'bg-red-50 dark:bg-red-950/30',
-	green: 'bg-emerald-50 dark:bg-emerald-950/30',
-	amber: 'bg-amber-50 dark:bg-amber-950/30',
-};
+function flashToStatus(flash: ZoneFlash): FlowNodeData['status'] {
+	if (flash === 'green') return 'active';
+	if (flash === 'amber') return 'warning';
+	if (flash === 'red') return 'error';
+	return 'idle';
+}
 
 // ── Customer node ──
 
@@ -1569,19 +1555,19 @@ interface CustomerNodeData extends SimpleNodeState {
 
 const WebhookCustomerNode = memo(({ data }: { data: CustomerNodeData }) => {
 	const d = data as CustomerNodeData;
+	const flowData: FlowNodeData = {
+		label: 'Customer',
+		icon: 'CU',
+		color: '#3b82f6',
+		description: d.label,
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-36 p-2.5`}
-		>
+		<FlowNode data={flowData}>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1.5">
-				<User className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">Customer</span>
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-		</div>
+		</FlowNode>
 	);
 });
 
@@ -1593,19 +1579,19 @@ interface AttackerNodeData extends SimpleNodeState {
 
 const WebhookAttackerNode = memo(({ data }: { data: AttackerNodeData }) => {
 	const d = data as AttackerNodeData;
+	const flowData: FlowNodeData = {
+		label: 'Attacker',
+		icon: 'AT',
+		color: '#ef4444',
+		description: d.label,
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-36 p-2.5`}
-		>
+		<FlowNode data={flowData}>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1.5">
-				<ShieldAlert className="w-4 h-4 text-red-500 dark:text-red-400 shrink-0" />
-				<span className="text-xs font-semibold text-foreground">Attacker</span>
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-		</div>
+		</FlowNode>
 	);
 });
 
@@ -1617,19 +1603,19 @@ interface StripeNodeData extends SimpleNodeState {
 
 const WebhookStripeNode = memo(({ data }: { data: StripeNodeData }) => {
 	const d = data as StripeNodeData;
+	const flowData: FlowNodeData = {
+		label: 'Stripe',
+		icon: 'ST',
+		color: '#6366f1',
+		description: d.label,
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-36 p-2.5`}
-		>
+		<FlowNode data={flowData}>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1.5">
-				<Globe className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">Stripe</span>
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-		</div>
+		</FlowNode>
 	);
 });
 
@@ -1641,31 +1627,31 @@ interface AppNodeData extends AppVizState {
 
 const WebhookAppNode = memo(({ data }: { data: AppNodeData }) => {
 	const d = data as AppNodeData;
+	const flowData: FlowNodeData = {
+		label: 'Rails App',
+		icon: 'RA',
+		color: '#ef4444',
+		description: d.label,
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-48 p-2.5`}
-		>
+		<FlowNode data={flowData}>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1.5">
-				<Server className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">Rails App</span>
-				{d.badge && (
-					<Badge
-						className={`text-xs ml-auto ${
-							d.badge === '<50ms' || d.badge === 'DEDUP'
-								? 'text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700'
-								: 'text-red-700 dark:text-red-400 border-red-300 dark:border-red-700'
-						}`}
-						variant="outline"
-					>
-						{d.badge}
-					</Badge>
-				)}
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-		</div>
+			{d.badge && (
+				<Badge
+					className={`text-xs ${
+						d.badge === '<50ms' || d.badge === 'DEDUP'
+							? 'text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700'
+							: 'text-red-700 dark:text-red-400 border-red-300 dark:border-red-700'
+					}`}
+					variant="outline"
+				>
+					{d.badge}
+				</Badge>
+			)}
+		</FlowNode>
 	);
 });
 
@@ -1677,19 +1663,19 @@ interface DbNodeData extends DbVizState {
 
 const WebhookDbNode = memo(({ data }: { data: DbNodeData }) => {
 	const d = data as DbNodeData;
+	const flowData: FlowNodeData = {
+		label: d.label,
+		icon: 'DB',
+		color: '#f59e0b',
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-44 p-2.5`}
-		>
+		<FlowNode data={flowData}>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1.5">
-				<Database className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground truncate">
-					{d.label}
-				</span>
-			</div>
 			{d.rows.length > 0 && (
-				<div className="space-y-0.5 mt-1">
+				<div className="space-y-0.5">
 					{d.rows.map((row, i) => (
 						<div
 							className={`text-xs font-mono px-1.5 py-0.5 rounded ${
@@ -1706,7 +1692,7 @@ const WebhookDbNode = memo(({ data }: { data: DbNodeData }) => {
 					))}
 				</div>
 			)}
-		</div>
+		</FlowNode>
 	);
 });
 
@@ -1718,19 +1704,19 @@ interface QueueNodeData extends SimpleNodeState {
 
 const WebhookQueueNode = memo(({ data }: { data: QueueNodeData }) => {
 	const d = data as QueueNodeData;
+	const flowData: FlowNodeData = {
+		label: 'Job Queue',
+		icon: 'JQ',
+		color: '#8b5cf6',
+		description: d.label,
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-40 p-2.5`}
-		>
+		<FlowNode data={flowData}>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1.5">
-				<ListTodo className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">Job Queue</span>
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-		</div>
+		</FlowNode>
 	);
 });
 

@@ -27,7 +27,7 @@ import {
 	getStraightPath,
 	type Node,
 } from '@xyflow/react';
-import { ArrowRight, Bot, Server, User } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
@@ -52,16 +52,17 @@ import {
 	FlowHandles,
 	reversePath,
 } from '@/components/levels/FlowDiagram';
+import { FlowNode, type FlowNodeData } from '@/components/levels/FlowNode';
 import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import { useDiscoveryGating } from '@/hooks/useDiscoveryGating';
 import { useStepGating } from '@/hooks/useStepGating';
 import { useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act6-level42-rate-limiting', () =>
@@ -1036,26 +1037,35 @@ const FLASH_BG: Record<ZoneFlash, string> = {
 	amber: 'bg-amber-50 dark:bg-amber-950/30',
 };
 
+function flashToStatus(flash: ZoneFlash): FlowNodeData['status'] {
+	if (flash === 'green') return 'active';
+	if (flash === 'amber') return 'warning';
+	if (flash === 'red') return 'error';
+	return 'idle';
+}
+
 interface BotNodeData extends SimpleNodeState {
 	[key: string]: unknown;
 }
 const BotNode = memo(({ data }: { data: BotNodeData }) => {
 	const d = data as BotNodeData;
+	const flowData: FlowNodeData = {
+		label: 'Bot / Attacker',
+		icon: 'BT',
+		color: '#ef4444',
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-40 p-2.5`}
-		>
+		<>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1.5">
-				<Bot className="w-4 h-4 text-red-500 dark:text-red-400 shrink-0" />
-				<span className="text-xs font-semibold text-foreground">
-					Bot / Attacker
-				</span>
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-		</div>
+			<FlowNode data={flowData}>
+				<p className="text-xs text-foreground font-medium truncate">
+					{d.label}
+				</p>
+			</FlowNode>
+		</>
 	);
 });
 
@@ -1064,19 +1074,23 @@ interface CustomerNodeData extends SimpleNodeState {
 }
 const CustomerNode = memo(({ data }: { data: CustomerNodeData }) => {
 	const d = data as CustomerNodeData;
+	const flowData: FlowNodeData = {
+		label: 'Customer',
+		icon: 'CU',
+		color: '#3b82f6',
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-40 p-2.5`}
-		>
+		<>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1.5">
-				<User className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">Customer</span>
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-		</div>
+			<FlowNode data={flowData}>
+				<p className="text-xs text-foreground font-medium truncate">
+					{d.label}
+				</p>
+			</FlowNode>
+		</>
 	);
 });
 
@@ -1086,17 +1100,24 @@ interface RlAppData extends AppVizState {
 const RlAppNode = memo(({ data }: { data: RlAppData }) => {
 	const d = data as RlAppData;
 	const showPanels = d.ipLimitLabel || d.userLimitLabel;
+	const flowData: FlowNodeData = {
+		label: 'Rails App',
+		icon: 'RA',
+		color: '#8b5cf6',
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 ${showPanels ? 'w-56' : 'w-48'} p-2.5`}
-		>
+		<>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1.5">
-				<Server className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">Rails App</span>
+			<FlowNode data={flowData}>
+				<p className="text-xs text-foreground font-medium truncate">
+					{d.label}
+				</p>
 				{d.badge && (
 					<Badge
-						className={`text-[9px] ml-auto ${
+						className={`text-[9px] ${
 							d.badge === 'PROTECTED'
 								? 'text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700'
 								: 'text-red-700 dark:text-red-400 border-red-300 dark:border-red-700'
@@ -1106,38 +1127,35 @@ const RlAppNode = memo(({ data }: { data: RlAppData }) => {
 						{d.badge}
 					</Badge>
 				)}
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-			{d.requestCount && (
-				<div className="text-[10px] text-muted-foreground mt-0.5">
-					{d.requestCount}
-				</div>
-			)}
-			{showPanels && (
-				<div className="flex gap-1 mt-2 pt-2 border-t border-border">
-					{d.ipLimitLabel && (
-						<div
-							className={`flex-1 rounded border ${FLASH_BORDER[d.ipLimitFlash]} ${FLASH_BG[d.ipLimitFlash]} p-1 text-center transition-colors duration-300`}
-						>
-							<div className="text-[9px] font-semibold text-foreground truncate">
-								{d.ipLimitLabel}
+				{d.requestCount && (
+					<p className="text-[10px] text-muted-foreground mt-0.5">
+						{d.requestCount}
+					</p>
+				)}
+				{showPanels && (
+					<div className="flex gap-1 mt-2 pt-2 border-t border-border">
+						{d.ipLimitLabel && (
+							<div
+								className={`flex-1 rounded border ${FLASH_BORDER[d.ipLimitFlash]} ${FLASH_BG[d.ipLimitFlash]} p-1 text-center transition-colors duration-300`}
+							>
+								<p className="text-[9px] font-semibold text-foreground truncate">
+									{d.ipLimitLabel}
+								</p>
 							</div>
-						</div>
-					)}
-					{d.userLimitLabel && (
-						<div
-							className={`flex-1 rounded border ${FLASH_BORDER[d.userLimitFlash]} ${FLASH_BG[d.userLimitFlash]} p-1 text-center transition-colors duration-300`}
-						>
-							<div className="text-[9px] font-semibold text-foreground truncate">
-								{d.userLimitLabel}
+						)}
+						{d.userLimitLabel && (
+							<div
+								className={`flex-1 rounded border ${FLASH_BORDER[d.userLimitFlash]} ${FLASH_BG[d.userLimitFlash]} p-1 text-center transition-colors duration-300`}
+							>
+								<p className="text-[9px] font-semibold text-foreground truncate">
+									{d.userLimitLabel}
+								</p>
 							</div>
-						</div>
-					)}
-				</div>
-			)}
-		</div>
+						)}
+					</div>
+				)}
+			</FlowNode>
+		</>
 	);
 });
 

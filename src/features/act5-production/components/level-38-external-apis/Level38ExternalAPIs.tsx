@@ -25,15 +25,7 @@ import {
 	getStraightPath,
 	type Node,
 } from '@xyflow/react';
-import {
-	ArrowRight,
-	Globe,
-	Monitor,
-	RefreshCw,
-	Server,
-	Timer,
-	Unplug,
-} from 'lucide-react';
+import { ArrowRight, RefreshCw, Timer, Unplug } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
@@ -58,16 +50,17 @@ import {
 	FlowHandles,
 	reversePath,
 } from '@/components/levels/FlowDiagram';
+import { FlowNode, type FlowNodeData } from '@/components/levels/FlowNode';
 import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import { useDiscoveryGating } from '@/hooks/useDiscoveryGating';
 import { useStepGating } from '@/hooks/useStepGating';
 import { useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act5-level38-external-apis', () =>
@@ -1566,7 +1559,14 @@ end`,
 	];
 }
 
-// ─── Custom React Flow nodes ──────────────────────────────────────────
+// ─── Custom React Flow nodes (using shared FlowNode) ─────────────────
+
+function flashToStatus(flash: ZoneFlash): FlowNodeData['status'] {
+	if (flash === 'green') return 'active';
+	if (flash === 'amber') return 'warning';
+	if (flash === 'red') return 'error';
+	return 'idle';
+}
 
 const FLASH_BORDER: Record<ZoneFlash, string> = {
 	idle: 'border-border',
@@ -1588,19 +1588,19 @@ interface ClientNodeData extends ClientVizState {
 
 const ClientNode = memo(({ data }: { data: ClientNodeData }) => {
 	const d = data as ClientNodeData;
+	const flowData: FlowNodeData = {
+		label: 'Client',
+		icon: 'CL',
+		color: '#3b82f6',
+		description: d.label,
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-36 p-2.5`}
-		>
+		<FlowNode data={flowData}>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1.5">
-				<Monitor className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">Client</span>
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-		</div>
+		</FlowNode>
 	);
 });
 
@@ -1612,22 +1612,20 @@ interface AppServerNodeData extends AppServerVizState {
 const AppServerNode = memo(({ data }: { data: AppServerNodeData }) => {
 	const d = data as AppServerNodeData;
 	const showMiddleware = d.isReward && d.timeoutLabel;
-
+	const flowData: FlowNodeData = {
+		label: 'Rails App (Puma)',
+		icon: 'RA',
+		color: '#ef4444',
+		description: d.label,
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 ${showMiddleware ? 'w-64' : 'w-48'} p-2.5`}
-		>
+		<FlowNode data={flowData}>
 			<FlowHandles />
-			{/* Header */}
-			<div className="flex items-center gap-2 mb-2">
-				<Server className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">
-					Rails App (Puma)
-				</span>
-			</div>
-
 			{/* Thread pool */}
-			<div className="mb-2">
+			<div className="mb-1">
 				<div className="text-xs text-muted-foreground mb-1">Thread Pool</div>
 				<div className="flex gap-1">
 					{THREAD_KEYS.map((key, idx) => {
@@ -1649,17 +1647,11 @@ const AppServerNode = memo(({ data }: { data: AppServerNodeData }) => {
 					})}
 				</div>
 			</div>
-
-			{/* Status */}
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
 			{d.queueLabel && (
-				<div className="text-xs text-muted-foreground mt-0.5 truncate">
+				<div className="text-xs text-muted-foreground truncate">
 					{d.queueLabel}
 				</div>
 			)}
-
 			{/* Middleware sub-panels (reward only) */}
 			{showMiddleware && (
 				<div className="flex gap-1 mt-2 pt-2 border-t border-border">
@@ -1696,7 +1688,7 @@ const AppServerNode = memo(({ data }: { data: AppServerNodeData }) => {
 					))}
 				</div>
 			)}
-		</div>
+		</FlowNode>
 	);
 });
 
@@ -1706,18 +1698,18 @@ interface StripeNodeData extends StripeVizState {
 
 const StripeNode = memo(({ data }: { data: StripeNodeData }) => {
 	const d = data as StripeNodeData;
-
+	const flowData: FlowNodeData = {
+		label: 'Stripe API',
+		icon: 'ST',
+		color: '#6366f1',
+		description: d.label,
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-36 p-2.5`}
-		>
+		<FlowNode data={flowData}>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-2">
-				<Globe className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">
-					Stripe API
-				</span>
-			</div>
 			<Badge
 				className={`text-xs ${
 					d.status === 'Healthy'
@@ -1730,10 +1722,7 @@ const StripeNode = memo(({ data }: { data: StripeNodeData }) => {
 			>
 				{d.status}
 			</Badge>
-			<div className="text-xs text-foreground font-medium mt-2 truncate">
-				{d.label}
-			</div>
-		</div>
+		</FlowNode>
 	);
 });
 

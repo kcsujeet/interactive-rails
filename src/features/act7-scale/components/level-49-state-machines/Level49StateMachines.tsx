@@ -53,6 +53,7 @@ import {
 	FlowDiagram,
 	FlowHandles,
 } from '@/components/levels/FlowDiagram';
+import { FlowNode, type FlowNodeData } from '@/components/levels/FlowNode';
 import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
 import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import {
@@ -61,12 +62,12 @@ import {
 } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import { useDiscoveryGating } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act7-level49-state-machines', () =>
@@ -1041,37 +1042,47 @@ end`,
 	return files;
 }
 
+// ─── Flash to FlowNode status mapping ────────────────────────────────
+
+function flashToStatus(flash: ZoneFlash): FlowNodeData['status'] {
+	switch (flash) {
+		case 'green':
+			return 'active';
+		case 'red':
+			return 'error';
+		case 'amber':
+			return 'warning';
+		default:
+			return 'idle';
+	}
+}
+
 // ─── Custom React Flow nodes ──────────────────────────────────────────
 
-const StateNode = memo(function StateNode({ data }: { data: StateVizData }) {
-	const flashClass =
-		data.flash === 'green'
-			? 'border-success bg-success/10'
-			: data.flash === 'red'
-				? 'border-destructive bg-destructive/10'
-				: data.flash === 'amber'
-					? 'border-warning bg-warning/10'
-					: 'border-zinc-400 dark:border-zinc-600 bg-card';
-	const labelClass =
-		data.flash === 'green'
-			? 'text-success'
-			: data.flash === 'red'
-				? 'text-destructive'
-				: data.flash === 'amber'
-					? 'text-warning'
-					: 'text-foreground';
+const StateNode = memo(function StateNode({
+	data,
+	selected,
+}: {
+	data: StateVizData;
+	selected?: boolean;
+}) {
+	const flowData: FlowNodeData = {
+		label: data.label,
+		icon: 'SM',
+		color: '#8b5cf6',
+		status: flashToStatus(data.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-full border-2 px-5 py-3 text-center min-w-28 transition-all duration-300 ${flashClass} ${data.isInitial ? 'ring-2 ring-offset-2 ring-primary ring-offset-background' : ''}`}
-		>
+		<FlowNode data={flowData} selected={selected || data.isInitial}>
 			<FlowHandles />
-			<div className={`text-sm font-semibold ${labelClass}`}>{data.label}</div>
 			{data.badge && (
-				<div className="text-xs font-mono text-muted-foreground mt-0.5">
+				<div className="text-xs font-mono text-muted-foreground">
 					{data.badge}
 				</div>
 			)}
-		</div>
+		</FlowNode>
 	);
 });
 

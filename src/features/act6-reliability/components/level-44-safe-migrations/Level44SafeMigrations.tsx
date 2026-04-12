@@ -27,14 +27,7 @@ import {
 	getStraightPath,
 	type Node,
 } from '@xyflow/react';
-import {
-	ArrowRight,
-	Database,
-	Lock,
-	Server,
-	Terminal,
-	Unlock,
-} from 'lucide-react';
+import { ArrowRight, Lock, Unlock } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
@@ -59,15 +52,16 @@ import {
 	FlowHandles,
 	reversePath,
 } from '@/components/levels/FlowDiagram';
+import { FlowNode, type FlowNodeData } from '@/components/levels/FlowNode';
 import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import { useDiscoveryGating } from '@/hooks/useDiscoveryGating';
 import { useStepGating } from '@/hooks/useStepGating';
 import { useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act6-level44-safe-migrations', () =>
@@ -1125,25 +1119,36 @@ const FLASH_BG: Record<ZoneFlash, string> = {
 	amber: 'bg-amber-50 dark:bg-amber-950/30',
 };
 
+function flashToStatus(flash: ZoneFlash): FlowNodeData['status'] {
+	if (flash === 'green') return 'active';
+	if (flash === 'amber') return 'warning';
+	if (flash === 'red') return 'error';
+	return 'idle';
+}
+
 interface DeveloperNodeData extends SimpleNodeState {
 	[key: string]: unknown;
 }
 
 const DeveloperNode = memo(({ data }: { data: DeveloperNodeData }) => {
 	const d = data as DeveloperNodeData;
+	const flowData: FlowNodeData = {
+		label: 'Developer',
+		icon: 'DV',
+		color: '#64748b',
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-40 p-2.5`}
-		>
+		<>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1.5">
-				<Terminal className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">Developer</span>
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-		</div>
+			<FlowNode data={flowData}>
+				<p className="text-xs text-foreground font-medium truncate">
+					{d.label}
+				</p>
+			</FlowNode>
+		</>
 	);
 });
 
@@ -1153,42 +1158,42 @@ interface DatabaseNodeData extends DbNodeState {
 
 const DatabaseNode = memo(({ data }: { data: DatabaseNodeData }) => {
 	const d = data as DatabaseNodeData;
+	const flowData: FlowNodeData = {
+		label: 'Database',
+		icon: 'DB',
+		color: '#10b981',
+		description: d.label,
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-52 p-2.5`}
-		>
+		<>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1.5">
-				<Database className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">Database</span>
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-
-			{d.lockLabel && (
-				<div className="mt-2 pt-2 border-t border-border">
-					<div
-						className={`rounded border ${FLASH_BORDER[d.lockFlash]} ${FLASH_BG[d.lockFlash]} p-1.5 flex items-center gap-1.5 transition-colors duration-300`}
-					>
-						{d.lockFlash === 'red' || d.lockFlash === 'amber' ? (
-							<Lock className="w-3 h-3 text-foreground shrink-0" />
-						) : (
-							<Unlock className="w-3 h-3 text-foreground shrink-0" />
-						)}
-						<span className="text-[10px] font-semibold text-foreground">
-							{d.lockLabel}
-						</span>
+			<FlowNode data={flowData}>
+				{d.lockLabel && (
+					<div className="mt-2 pt-2 border-t border-border">
+						<div
+							className={`rounded border ${FLASH_BORDER[d.lockFlash]} ${FLASH_BG[d.lockFlash]} p-1.5 flex items-center gap-1.5 transition-colors duration-300`}
+						>
+							{d.lockFlash === 'red' || d.lockFlash === 'amber' ? (
+								<Lock className="w-3 h-3 text-foreground shrink-0" />
+							) : (
+								<Unlock className="w-3 h-3 text-foreground shrink-0" />
+							)}
+							<span className="text-[10px] font-semibold text-foreground">
+								{d.lockLabel}
+							</span>
+						</div>
 					</div>
-				</div>
-			)}
-
-			{d.rowsLabel && (
-				<div className="text-[10px] text-muted-foreground mt-1.5">
-					{d.rowsLabel}
-				</div>
-			)}
-		</div>
+				)}
+				{d.rowsLabel && (
+					<p className="text-[10px] text-muted-foreground mt-1.5">
+						{d.rowsLabel}
+					</p>
+				)}
+			</FlowNode>
+		</>
 	);
 });
 
@@ -1198,21 +1203,23 @@ interface ApiNodeData extends SimpleNodeState {
 
 const ApiNode = memo(({ data }: { data: ApiNodeData }) => {
 	const d = data as ApiNodeData;
+	const flowData: FlowNodeData = {
+		label: 'API Requests',
+		icon: 'AP',
+		color: '#8b5cf6',
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-44 p-2.5`}
-		>
+		<>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1.5">
-				<Server className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">
-					API Requests
-				</span>
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-		</div>
+			<FlowNode data={flowData}>
+				<p className="text-xs text-foreground font-medium truncate">
+					{d.label}
+				</p>
+			</FlowNode>
+		</>
 	);
 });
 

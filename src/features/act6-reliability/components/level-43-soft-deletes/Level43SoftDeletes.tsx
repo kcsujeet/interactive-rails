@@ -26,7 +26,7 @@ import {
 	getStraightPath,
 	type Node,
 } from '@xyflow/react';
-import { ArrowRight, Database, Server, ShieldCheck } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
@@ -51,15 +51,16 @@ import {
 	FlowHandles,
 	reversePath,
 } from '@/components/levels/FlowDiagram';
+import { FlowNode, type FlowNodeData } from '@/components/levels/FlowNode';
 import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import { useDiscoveryGating } from '@/hooks/useDiscoveryGating';
 import { useStepGating } from '@/hooks/useStepGating';
 import { useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act6-level43-soft-deletes', () =>
@@ -959,37 +960,35 @@ end`,
 
 // ─── Custom React Flow nodes ──────────────────────────────────────────
 
-const FLASH_BORDER: Record<ZoneFlash, string> = {
-	idle: 'border-border',
-	red: 'border-red-500 dark:border-red-400',
-	green: 'border-emerald-500 dark:border-emerald-400',
-	amber: 'border-amber-500 dark:border-amber-400',
-};
-const FLASH_BG: Record<ZoneFlash, string> = {
-	idle: 'bg-card',
-	red: 'bg-red-50 dark:bg-red-950/30',
-	green: 'bg-emerald-50 dark:bg-emerald-950/30',
-	amber: 'bg-amber-50 dark:bg-amber-950/30',
-};
+function flashToStatus(flash: ZoneFlash): FlowNodeData['status'] {
+	if (flash === 'green') return 'active';
+	if (flash === 'amber') return 'warning';
+	if (flash === 'red') return 'error';
+	return 'idle';
+}
 
 interface AdminNodeData extends SimpleNodeState {
 	[key: string]: unknown;
 }
 const AdminNode = memo(({ data }: { data: AdminNodeData }) => {
 	const d = data as AdminNodeData;
+	const flowData: FlowNodeData = {
+		label: 'Admin',
+		icon: 'AD',
+		color: '#10b981',
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-40 p-2.5`}
-		>
+		<>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1.5">
-				<ShieldCheck className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">Admin</span>
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-		</div>
+			<FlowNode data={flowData}>
+				<p className="text-xs text-foreground font-medium truncate">
+					{d.label}
+				</p>
+			</FlowNode>
+		</>
 	);
 });
 
@@ -998,19 +997,23 @@ interface AppNodeData extends SimpleNodeState {
 }
 const AppNode = memo(({ data }: { data: AppNodeData }) => {
 	const d = data as AppNodeData;
+	const flowData: FlowNodeData = {
+		label: 'Rails App',
+		icon: 'RA',
+		color: '#8b5cf6',
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-44 p-2.5`}
-		>
+		<>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1.5">
-				<Server className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">Rails App</span>
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-		</div>
+			<FlowNode data={flowData}>
+				<p className="text-xs text-foreground font-medium truncate">
+					{d.label}
+				</p>
+			</FlowNode>
+		</>
 	);
 });
 
@@ -1019,38 +1022,40 @@ interface DbNodeData extends DbVizState {
 }
 const DbNode = memo(({ data }: { data: DbNodeData }) => {
 	const d = data as DbNodeData;
+	const flowData: FlowNodeData = {
+		label: d.label,
+		icon: 'DB',
+		color: '#10b981',
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-52 p-2.5`}
-		>
+		<>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1.5">
-				<Database className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground truncate">
-					{d.label}
-				</span>
-			</div>
-			{d.rows.length > 0 && (
-				<div className="space-y-0.5 mt-1">
-					{d.rows.map((row, i) => (
-						<div
-							className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
-								row.color === 'red'
-									? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
-									: row.color === 'green'
-										? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300'
-										: row.color === 'amber'
-											? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
-											: 'bg-muted text-muted-foreground'
-							}`}
-							key={`${row.text}-${i}`}
-						>
-							{row.text}
-						</div>
-					))}
-				</div>
-			)}
-		</div>
+			<FlowNode data={flowData}>
+				{d.rows.length > 0 && (
+					<div className="space-y-0.5 mt-1">
+						{d.rows.map((row, i) => (
+							<div
+								className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+									row.color === 'red'
+										? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
+										: row.color === 'green'
+											? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300'
+											: row.color === 'amber'
+												? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300'
+												: 'bg-muted text-muted-foreground'
+								}`}
+								key={`${row.text}-${i}`}
+							>
+								{row.text}
+							</div>
+						))}
+					</div>
+				)}
+			</FlowNode>
+		</>
 	);
 });
 

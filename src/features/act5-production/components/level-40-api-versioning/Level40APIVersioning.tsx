@@ -28,7 +28,7 @@ import {
 	getStraightPath,
 	type Node,
 } from '@xyflow/react';
-import { ArrowRight, Server, Users } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
@@ -53,16 +53,17 @@ import {
 	FlowHandles,
 	reversePath,
 } from '@/components/levels/FlowDiagram';
+import { FlowNode, type FlowNodeData } from '@/components/levels/FlowNode';
 import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import { useDiscoveryGating } from '@/hooks/useDiscoveryGating';
 import { useStepGating } from '@/hooks/useStepGating';
 import { useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act5-level40-api-versioning', () =>
@@ -1272,7 +1273,14 @@ end`,
 	];
 }
 
-// ─── Custom React Flow nodes ──────────────────────────────────────────
+// ─── Custom React Flow nodes (using shared FlowNode) ─────────────────
+
+function flashToStatus(flash: ZoneFlash): FlowNodeData['status'] {
+	if (flash === 'green') return 'active';
+	if (flash === 'amber') return 'warning';
+	if (flash === 'red') return 'error';
+	return 'idle';
+}
 
 const FLASH_BORDER: Record<ZoneFlash, string> = {
 	idle: 'border-border',
@@ -1297,26 +1305,24 @@ interface PartnerNodeData extends PartnerVizState {
 
 const PartnerNode = memo(({ data }: { data: PartnerNodeData }) => {
 	const d = data as PartnerNodeData;
+	const flowData: FlowNodeData = {
+		label: `${d.version} Partner`,
+		icon: 'PA',
+		color: '#6366f1',
+		description: d.label,
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-40 p-2.5`}
-		>
+		<FlowNode data={flowData}>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1.5">
-				<Users className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">
-					{d.version} Partner
-				</span>
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
 			{d.responseJson && (
-				<div className="text-xs font-mono mt-1 px-1.5 py-0.5 rounded bg-muted text-muted-foreground truncate">
+				<div className="text-xs font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground truncate">
 					{d.responseJson}
 				</div>
 			)}
-		</div>
+		</FlowNode>
 	);
 });
 
@@ -1329,32 +1335,30 @@ interface AppNodeData extends AppVizState {
 const VersionAppNode = memo(({ data }: { data: AppNodeData }) => {
 	const d = data as AppNodeData;
 	const showPanels = d.v1Label || d.v2Label;
-
+	const flowData: FlowNodeData = {
+		label: 'Rails App',
+		icon: 'RA',
+		color: '#ef4444',
+		description: d.label,
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 ${showPanels ? 'w-56' : 'w-48'} p-2.5`}
-		>
+		<FlowNode data={flowData}>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1.5">
-				<Server className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">Rails App</span>
-				{d.badge && (
-					<Badge
-						className={`text-xs ml-auto ${
-							d.badge === 'VERSIONED' || d.badge === 'DEPRECATED'
-								? 'text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700'
-								: 'text-red-700 dark:text-red-400 border-red-300 dark:border-red-700'
-						}`}
-						variant="outline"
-					>
-						{d.badge}
-					</Badge>
-				)}
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-
+			{d.badge && (
+				<Badge
+					className={`text-xs ${
+						d.badge === 'VERSIONED' || d.badge === 'DEPRECATED'
+							? 'text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700'
+							: 'text-red-700 dark:text-red-400 border-red-300 dark:border-red-700'
+					}`}
+					variant="outline"
+				>
+					{d.badge}
+				</Badge>
+			)}
 			{showPanels && (
 				<div className="flex gap-1 mt-2 pt-2 border-t border-border">
 					{d.v1Label && (
@@ -1377,7 +1381,7 @@ const VersionAppNode = memo(({ data }: { data: AppNodeData }) => {
 					)}
 				</div>
 			)}
-		</div>
+		</FlowNode>
 	);
 });
 

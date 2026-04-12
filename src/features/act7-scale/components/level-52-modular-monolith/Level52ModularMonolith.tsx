@@ -30,13 +30,7 @@ import {
 	getStraightPath,
 	type Node,
 } from '@xyflow/react';
-import {
-	ArrowRight,
-	FileCode,
-	Package,
-	Shield,
-	ShieldAlert,
-} from 'lucide-react';
+import { ArrowRight, FileCode, Shield, ShieldAlert } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
@@ -63,6 +57,7 @@ import {
 	FlowHandles,
 	reversePath,
 } from '@/components/levels/FlowDiagram';
+import { FlowNode, type FlowNodeData } from '@/components/levels/FlowNode';
 import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
 import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import {
@@ -71,8 +66,6 @@ import {
 } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import {
 	type DiscoveryDef,
 	useDiscoveryGating,
@@ -80,6 +73,8 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act7-level52-modular-monolith', () =>
@@ -1280,53 +1275,40 @@ gem "rails", "~> 8.0"
 	return files;
 }
 
+// ─── Flash to FlowNode status mapping ────────────────────────────────
+
+function flashToStatus(flash: ZoneFlash): FlowNodeData['status'] {
+	switch (flash) {
+		case 'green':
+			return 'active';
+		case 'red':
+			return 'error';
+		case 'amber':
+			return 'warning';
+		default:
+			return 'idle';
+	}
+}
+
 // ─── Custom React Flow nodes ──────────────────────────────────────────
-
-function flashToClass(flash: ZoneFlash): string {
-	switch (flash) {
-		case 'green':
-			return 'border-success bg-success/10';
-		case 'red':
-			return 'border-destructive bg-destructive/10';
-		case 'amber':
-			return 'border-warning bg-warning/10';
-		default:
-			return 'border-zinc-500 bg-zinc-500/10';
-	}
-}
-
-function flashToIconClass(flash: ZoneFlash): string {
-	switch (flash) {
-		case 'green':
-			return 'text-success';
-		case 'red':
-			return 'text-destructive';
-		case 'amber':
-			return 'text-warning';
-		default:
-			return 'text-zinc-500';
-	}
-}
 
 const PackageNode = memo(function PackageNode({
 	data,
 }: {
 	data: PackageVizState;
 }) {
+	const flowData: FlowNodeData = {
+		label: data.label,
+		icon: 'PK',
+		color: '#71717a',
+		description: data.sublabel ?? undefined,
+		status: flashToStatus(data.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 px-6 py-4 text-center min-w-44 transition-all duration-300 ${flashToClass(data.flash)}`}
-		>
+		<FlowNode data={flowData}>
 			<FlowHandles />
-			<Package
-				className={`w-5 h-5 mx-auto mb-1 ${flashToIconClass(data.flash)}`}
-			/>
-			<div className="text-sm font-semibold text-foreground">{data.label}</div>
-			{data.sublabel && (
-				<div className="text-xs text-muted-foreground mt-0.5">
-					{data.sublabel}
-				</div>
-			)}
 			{data.badge && (
 				<div
 					className={`mt-1 inline-block px-2 py-0.5 rounded-full text-xs font-mono ${
@@ -1344,7 +1326,7 @@ const PackageNode = memo(function PackageNode({
 					Public API
 				</div>
 			)}
-		</div>
+		</FlowNode>
 	);
 });
 

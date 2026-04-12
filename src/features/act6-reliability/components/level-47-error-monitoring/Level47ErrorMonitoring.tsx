@@ -24,15 +24,7 @@ import {
 	getStraightPath,
 	type Node,
 } from '@xyflow/react';
-import {
-	AlertTriangle,
-	ArrowRight,
-	Bell,
-	Bug,
-	Monitor,
-	Search,
-	Server,
-} from 'lucide-react';
+import { AlertTriangle, ArrowRight, Bell, Bug } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	CenterPanel,
@@ -54,15 +46,16 @@ import {
 	FlowHandles,
 	reversePath,
 } from '@/components/levels/FlowDiagram';
+import { FlowNode, type FlowNodeData } from '@/components/levels/FlowNode';
 import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import { useDiscoveryGating } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act6-level47-error-monitoring', () =>
@@ -1202,19 +1195,12 @@ end`,
 
 // ─── Custom React Flow nodes ──────────────────────────────────────────
 
-const FLASH_BORDER: Record<ZoneFlash, string> = {
-	idle: 'border-border',
-	red: 'border-red-500 dark:border-red-400',
-	green: 'border-emerald-500 dark:border-emerald-400',
-	amber: 'border-amber-500 dark:border-amber-400',
-};
-
-const FLASH_BG: Record<ZoneFlash, string> = {
-	idle: 'bg-card',
-	red: 'bg-red-50 dark:bg-red-950/30',
-	green: 'bg-emerald-50 dark:bg-emerald-950/30',
-	amber: 'bg-amber-50 dark:bg-amber-950/30',
-};
+function flashToStatus(flash: ZoneFlash): FlowNodeData['status'] {
+	if (flash === 'green') return 'active';
+	if (flash === 'amber') return 'warning';
+	if (flash === 'red') return 'error';
+	return 'idle';
+}
 
 interface CustomerNodeData extends CustomerVizState {
 	[key: string]: unknown;
@@ -1222,19 +1208,23 @@ interface CustomerNodeData extends CustomerVizState {
 
 const CustomerNode = memo(({ data }: { data: CustomerNodeData }) => {
 	const d = data as CustomerNodeData;
+	const flowData: FlowNodeData = {
+		label: 'Customer',
+		icon: 'CU',
+		color: '#3b82f6',
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-36 p-2.5`}
-		>
+		<>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1.5">
-				<Monitor className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">Customer</span>
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-		</div>
+			<FlowNode data={flowData}>
+				<p className="text-xs text-foreground font-medium truncate">
+					{d.label}
+				</p>
+			</FlowNode>
+		</>
 	);
 });
 
@@ -1244,32 +1234,36 @@ interface AppNodeData extends AppVizState {
 
 const AppNode = memo(({ data }: { data: AppNodeData }) => {
 	const d = data as AppNodeData;
+	const flowData: FlowNodeData = {
+		label: 'Rails App',
+		icon: 'RA',
+		color: '#8b5cf6',
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-48 p-2.5`}
-		>
+		<>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-2">
-				<Server className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">Rails App</span>
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-			{d.errorLog && (
-				<div className="text-[10px] text-muted-foreground mt-1 truncate">
-					{d.errorLog}
-				</div>
-			)}
-			{d.errorCount > 0 && (
-				<div className="mt-1.5 flex items-center gap-1.5">
-					<Bug className="w-3 h-3 text-red-500 dark:text-red-400" />
-					<span className="text-[10px] font-semibold text-red-600 dark:text-red-400">
-						{d.errorCount} error{d.errorCount !== 1 ? 's' : ''}
-					</span>
-				</div>
-			)}
-		</div>
+			<FlowNode data={flowData}>
+				<p className="text-xs text-foreground font-medium truncate">
+					{d.label}
+				</p>
+				{d.errorLog && (
+					<p className="text-[10px] text-muted-foreground mt-1 truncate">
+						{d.errorLog}
+					</p>
+				)}
+				{d.errorCount > 0 && (
+					<div className="mt-1.5 flex items-center gap-1.5">
+						<Bug className="w-3 h-3 text-red-500 dark:text-red-400" />
+						<span className="text-[10px] font-semibold text-red-600 dark:text-red-400">
+							{d.errorCount} error{d.errorCount !== 1 ? 's' : ''}
+						</span>
+					</div>
+				)}
+			</FlowNode>
+		</>
 	);
 });
 
@@ -1279,47 +1273,49 @@ interface MonitorNodeData extends MonitorVizState {
 
 const MonitorNode = memo(({ data }: { data: MonitorNodeData }) => {
 	const d = data as MonitorNodeData;
+	const flowData: FlowNodeData = {
+		label: 'Error Monitor',
+		icon: 'EM',
+		color: '#6366f1',
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-48 p-2.5`}
-		>
+		<>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-2">
-				<Search className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">
-					Error Monitor
-				</span>
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-			{d.grouped && (
-				<div className="mt-1.5 flex items-center gap-1">
-					<Bug className="w-3 h-3 text-amber-500 dark:text-amber-400 shrink-0" />
-					<span className="text-[10px] text-foreground truncate">
-						{d.grouped}
-					</span>
-				</div>
-			)}
-			{d.context && (
-				<div className="text-[10px] text-muted-foreground mt-0.5 truncate">
-					{d.context}
-				</div>
-			)}
-			{d.alertStatus && (
-				<div className="mt-1.5 flex items-center gap-1">
-					{d.alertStatus.startsWith('EXCEEDED') ||
-					d.alertStatus.startsWith('Critical') ? (
-						<AlertTriangle className="w-3 h-3 text-red-500 dark:text-red-400 shrink-0" />
-					) : (
-						<Bell className="w-3 h-3 text-emerald-500 dark:text-emerald-400 shrink-0" />
-					)}
-					<span className="text-[10px] font-semibold text-foreground truncate">
-						{d.alertStatus}
-					</span>
-				</div>
-			)}
-		</div>
+			<FlowNode data={flowData}>
+				<p className="text-xs text-foreground font-medium truncate">
+					{d.label}
+				</p>
+				{d.grouped && (
+					<div className="mt-1.5 flex items-center gap-1">
+						<Bug className="w-3 h-3 text-amber-500 dark:text-amber-400 shrink-0" />
+						<span className="text-[10px] text-foreground truncate">
+							{d.grouped}
+						</span>
+					</div>
+				)}
+				{d.context && (
+					<p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+						{d.context}
+					</p>
+				)}
+				{d.alertStatus && (
+					<div className="mt-1.5 flex items-center gap-1">
+						{d.alertStatus.startsWith('EXCEEDED') ||
+						d.alertStatus.startsWith('Critical') ? (
+							<AlertTriangle className="w-3 h-3 text-red-500 dark:text-red-400 shrink-0" />
+						) : (
+							<Bell className="w-3 h-3 text-emerald-500 dark:text-emerald-400 shrink-0" />
+						)}
+						<span className="text-[10px] font-semibold text-foreground truncate">
+							{d.alertStatus}
+						</span>
+					</div>
+				)}
+			</FlowNode>
+		</>
 	);
 });
 

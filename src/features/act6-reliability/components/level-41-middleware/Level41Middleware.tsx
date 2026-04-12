@@ -27,7 +27,7 @@ import {
 	getStraightPath,
 	type Node,
 } from '@xyflow/react';
-import { ArrowRight, Globe, Layers, Server } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
@@ -52,15 +52,16 @@ import {
 	FlowHandles,
 	reversePath,
 } from '@/components/levels/FlowDiagram';
+import { FlowNode, type FlowNodeData } from '@/components/levels/FlowNode';
 import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import { useDiscoveryGating } from '@/hooks/useDiscoveryGating';
 import { useStepGating } from '@/hooks/useStepGating';
 import { useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act6-level41-middleware', () =>
@@ -1200,25 +1201,36 @@ const FLASH_BG: Record<ZoneFlash, string> = {
 	amber: 'bg-amber-50 dark:bg-amber-950/30',
 };
 
+function flashToStatus(flash: ZoneFlash): FlowNodeData['status'] {
+	if (flash === 'green') return 'active';
+	if (flash === 'amber') return 'warning';
+	if (flash === 'red') return 'error';
+	return 'idle';
+}
+
 interface ClientNodeData extends SimpleNodeState {
 	[key: string]: unknown;
 }
 
 const ClientNode = memo(({ data }: { data: ClientNodeData }) => {
 	const d = data as ClientNodeData;
+	const flowData: FlowNodeData = {
+		label: 'Client',
+		icon: 'CL',
+		color: '#3b82f6',
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-40 p-2.5`}
-		>
+		<>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1.5">
-				<Globe className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">Client</span>
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-		</div>
+			<FlowNode data={flowData}>
+				<p className="text-xs text-foreground font-medium truncate">
+					{d.label}
+				</p>
+			</FlowNode>
+		</>
 	);
 });
 
@@ -1229,54 +1241,55 @@ interface MiddlewareNodeData extends MiddlewareVizState {
 const MiddlewareNode = memo(({ data }: { data: MiddlewareNodeData }) => {
 	const d = data as MiddlewareNodeData;
 	const showLayers = d.requestIdLabel || d.loggerLabel || d.botLabel;
+	const flowData: FlowNodeData = {
+		label: 'Middleware',
+		icon: 'MW',
+		color: '#f59e0b',
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 ${showLayers ? 'w-56' : 'w-48'} p-2.5`}
-		>
+		<>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1.5">
-				<Layers className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">
-					Middleware
-				</span>
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-
-			{showLayers && (
-				<div className="flex gap-1 mt-2 pt-2 border-t border-border">
-					{d.botLabel && (
-						<div
-							className={`flex-1 rounded border ${FLASH_BORDER[d.botFlash]} ${FLASH_BG[d.botFlash]} p-1 text-center transition-colors duration-300`}
-						>
-							<div className="text-[9px] font-semibold text-foreground truncate">
-								{d.botLabel}
+			<FlowNode data={flowData}>
+				<p className="text-xs text-foreground font-medium truncate">
+					{d.label}
+				</p>
+				{showLayers && (
+					<div className="flex gap-1 mt-2 pt-2 border-t border-border">
+						{d.botLabel && (
+							<div
+								className={`flex-1 rounded border ${FLASH_BORDER[d.botFlash]} ${FLASH_BG[d.botFlash]} p-1 text-center transition-colors duration-300`}
+							>
+								<p className="text-[9px] font-semibold text-foreground truncate">
+									{d.botLabel}
+								</p>
 							</div>
-						</div>
-					)}
-					{d.requestIdLabel && (
-						<div
-							className={`flex-1 rounded border ${FLASH_BORDER[d.requestIdFlash]} ${FLASH_BG[d.requestIdFlash]} p-1 text-center transition-colors duration-300`}
-						>
-							<div className="text-[9px] font-semibold text-foreground truncate">
-								{d.requestIdLabel}
+						)}
+						{d.requestIdLabel && (
+							<div
+								className={`flex-1 rounded border ${FLASH_BORDER[d.requestIdFlash]} ${FLASH_BG[d.requestIdFlash]} p-1 text-center transition-colors duration-300`}
+							>
+								<p className="text-[9px] font-semibold text-foreground truncate">
+									{d.requestIdLabel}
+								</p>
 							</div>
-						</div>
-					)}
-					{d.loggerLabel && (
-						<div
-							className={`flex-1 rounded border ${FLASH_BORDER[d.loggerFlash]} ${FLASH_BG[d.loggerFlash]} p-1 text-center transition-colors duration-300`}
-						>
-							<div className="text-[9px] font-semibold text-foreground truncate">
-								{d.loggerLabel}
+						)}
+						{d.loggerLabel && (
+							<div
+								className={`flex-1 rounded border ${FLASH_BORDER[d.loggerFlash]} ${FLASH_BG[d.loggerFlash]} p-1 text-center transition-colors duration-300`}
+							>
+								<p className="text-[9px] font-semibold text-foreground truncate">
+									{d.loggerLabel}
+								</p>
 							</div>
-						</div>
-					)}
-				</div>
-			)}
-		</div>
+						)}
+					</div>
+				)}
+			</FlowNode>
+		</>
 	);
 });
 
@@ -1286,19 +1299,23 @@ interface AppNodeData extends SimpleNodeState {
 
 const AppNode = memo(({ data }: { data: AppNodeData }) => {
 	const d = data as AppNodeData;
+	const flowData: FlowNodeData = {
+		label: 'Rails App',
+		icon: 'RA',
+		color: '#8b5cf6',
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-40 p-2.5`}
-		>
+		<>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1.5">
-				<Server className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">Rails App</span>
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-		</div>
+			<FlowNode data={flowData}>
+				<p className="text-xs text-foreground font-medium truncate">
+					{d.label}
+				</p>
+			</FlowNode>
+		</>
 	);
 });
 

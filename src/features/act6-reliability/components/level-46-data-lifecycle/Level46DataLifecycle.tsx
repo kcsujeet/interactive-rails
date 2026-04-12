@@ -26,7 +26,7 @@ import {
 	getStraightPath,
 	type Node,
 } from '@xyflow/react';
-import { ArrowRight, Database, Globe, HardDrive, Server } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
@@ -51,15 +51,16 @@ import {
 	FlowHandles,
 	reversePath,
 } from '@/components/levels/FlowDiagram';
+import { FlowNode, type FlowNodeData } from '@/components/levels/FlowNode';
 import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import { useDiscoveryGating } from '@/hooks/useDiscoveryGating';
 import { useStepGating } from '@/hooks/useStepGating';
 import { useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act6-level46-data-lifecycle', () =>
@@ -1151,19 +1152,12 @@ destroy_expired_data:
 
 // ─── Custom React Flow nodes ──────────────────────────────────────────
 
-const FLASH_BORDER: Record<ZoneFlash, string> = {
-	idle: 'border-border',
-	red: 'border-red-500 dark:border-red-400',
-	green: 'border-emerald-500 dark:border-emerald-400',
-	amber: 'border-amber-500 dark:border-amber-400',
-};
-
-const FLASH_BG: Record<ZoneFlash, string> = {
-	idle: 'bg-card',
-	red: 'bg-red-50 dark:bg-red-950/30',
-	green: 'bg-emerald-50 dark:bg-emerald-950/30',
-	amber: 'bg-amber-50 dark:bg-amber-950/30',
-};
+function flashToStatus(flash: ZoneFlash): FlowNodeData['status'] {
+	if (flash === 'green') return 'active';
+	if (flash === 'amber') return 'warning';
+	if (flash === 'red') return 'error';
+	return 'idle';
+}
 
 interface CustomerNodeData extends SimpleNodeState {
 	[key: string]: unknown;
@@ -1171,24 +1165,26 @@ interface CustomerNodeData extends SimpleNodeState {
 
 const CustomerNode = memo(({ data }: { data: CustomerNodeData }) => {
 	const d = data as CustomerNodeData;
+	const flowData: FlowNodeData = {
+		label: 'Customer',
+		icon: 'CU',
+		color: '#3b82f6',
+		description: d.label,
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-40 p-2.5`}
-		>
+		<>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1">
-				<Globe className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">Customer</span>
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-			{d.sublabel && (
-				<div className="text-[10px] text-muted-foreground truncate">
-					{d.sublabel}
-				</div>
-			)}
-		</div>
+			<FlowNode data={flowData}>
+				{d.sublabel && (
+					<p className="text-[10px] text-muted-foreground truncate">
+						{d.sublabel}
+					</p>
+				)}
+			</FlowNode>
+		</>
 	);
 });
 
@@ -1198,24 +1194,26 @@ interface AppNodeData extends SimpleNodeState {
 
 const AppNode = memo(({ data }: { data: AppNodeData }) => {
 	const d = data as AppNodeData;
+	const flowData: FlowNodeData = {
+		label: 'Rails App',
+		icon: 'RA',
+		color: '#8b5cf6',
+		description: d.label,
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-40 p-2.5`}
-		>
+		<>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1">
-				<Server className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">Rails App</span>
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-			{d.sublabel && (
-				<div className="text-[10px] text-muted-foreground truncate">
-					{d.sublabel}
-				</div>
-			)}
-		</div>
+			<FlowNode data={flowData}>
+				{d.sublabel && (
+					<p className="text-[10px] text-muted-foreground truncate">
+						{d.sublabel}
+					</p>
+				)}
+			</FlowNode>
+		</>
 	);
 });
 
@@ -1225,72 +1223,76 @@ interface DbNodeData extends SimpleNodeState {
 
 const DbNode = memo(({ data }: { data: DbNodeData }) => {
 	const d = data as DbNodeData;
+	const flowData: FlowNodeData = {
+		label: 'Database',
+		icon: 'DB',
+		color: '#10b981',
+		description: d.label,
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-44 p-2.5`}
-		>
+		<>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1">
-				<Database className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">Database</span>
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-			{d.sublabel && (
-				<div className="text-[10px] text-muted-foreground truncate">
-					{d.sublabel}
-				</div>
-			)}
-		</div>
+			<FlowNode data={flowData}>
+				{d.sublabel && (
+					<p className="text-[10px] text-muted-foreground truncate">
+						{d.sublabel}
+					</p>
+				)}
+			</FlowNode>
+		</>
 	);
 });
 
 const HotDbNode = memo(({ data }: { data: DbNodeData }) => {
 	const d = data as DbNodeData;
+	const flowData: FlowNodeData = {
+		label: 'Hot DB',
+		icon: 'HD',
+		color: '#10b981',
+		description: d.label,
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-44 p-2.5`}
-		>
+		<>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1">
-				<Database className="w-4 h-4 text-emerald-500 dark:text-emerald-400 shrink-0" />
-				<span className="text-xs font-semibold text-foreground">Hot DB</span>
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-			{d.sublabel && (
-				<div className="text-[10px] text-muted-foreground truncate">
-					{d.sublabel}
-				</div>
-			)}
-		</div>
+			<FlowNode data={flowData}>
+				{d.sublabel && (
+					<p className="text-[10px] text-muted-foreground truncate">
+						{d.sublabel}
+					</p>
+				)}
+			</FlowNode>
+		</>
 	);
 });
 
 const ArchiveDbNode = memo(({ data }: { data: DbNodeData }) => {
 	const d = data as DbNodeData;
+	const flowData: FlowNodeData = {
+		label: 'Archive DB',
+		icon: 'AR',
+		color: '#6b7280',
+		description: d.label,
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-48 p-2.5`}
-		>
+		<>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1">
-				<HardDrive className="w-4 h-4 text-muted-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">
-					Archive DB
-				</span>
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-			{d.sublabel && (
-				<div className="text-[10px] text-muted-foreground truncate">
-					{d.sublabel}
-				</div>
-			)}
-		</div>
+			<FlowNode data={flowData}>
+				{d.sublabel && (
+					<p className="text-[10px] text-muted-foreground truncate">
+						{d.sublabel}
+					</p>
+				)}
+			</FlowNode>
+		</>
 	);
 });
 

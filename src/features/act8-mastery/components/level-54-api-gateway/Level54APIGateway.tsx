@@ -29,7 +29,7 @@ import {
 	getStraightPath,
 	type Node,
 } from '@xyflow/react';
-import { ArrowRight, Server, Shield, Smartphone, Zap } from 'lucide-react';
+import { ArrowRight, Shield, Zap } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
@@ -56,6 +56,7 @@ import {
 	FlowHandles,
 	reversePath,
 } from '@/components/levels/FlowDiagram';
+import { FlowNode, type FlowNodeData } from '@/components/levels/FlowNode';
 import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
 import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import {
@@ -64,8 +65,6 @@ import {
 } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import {
 	type DiscoveryDef,
 	useDiscoveryGating,
@@ -73,6 +72,8 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act8-level54-api-gateway', () =>
@@ -1748,6 +1749,21 @@ end`,
 	return files;
 }
 
+// ─── Flash to FlowNode status mapping ────────────────────────────────
+
+function flashToStatus(flash: ZoneFlash): FlowNodeData['status'] {
+	switch (flash) {
+		case 'green':
+			return 'active';
+		case 'red':
+			return 'error';
+		case 'amber':
+			return 'warning';
+		default:
+			return 'idle';
+	}
+}
+
 // ─── Custom React Flow nodes ──────────────────────────────────────────
 
 const ClientNode = memo(function ClientNode({
@@ -1755,35 +1771,19 @@ const ClientNode = memo(function ClientNode({
 }: {
 	data: ClientVizState;
 }) {
-	const flashClass =
-		data.flash === 'green'
-			? 'border-success bg-success/10'
-			: data.flash === 'red'
-				? 'border-destructive bg-destructive/10'
-				: data.flash === 'amber'
-					? 'border-warning bg-warning/10'
-					: 'border-primary bg-primary/10';
-	const iconClass =
-		data.flash === 'green'
-			? 'text-success'
-			: data.flash === 'red'
-				? 'text-destructive'
-				: data.flash === 'amber'
-					? 'text-warning'
-					: 'text-primary';
+	const flowData: FlowNodeData = {
+		label: data.label,
+		icon: 'CL',
+		color: '#6366f1',
+		description: data.sublabel ?? undefined,
+		status: flashToStatus(data.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 px-6 py-4 text-center min-w-44 transition-all duration-300 ${flashClass}`}
-		>
+		<FlowNode data={flowData}>
 			<FlowHandles />
-			<Smartphone className={`w-5 h-5 mx-auto mb-1 ${iconClass}`} />
-			<div className="text-sm font-semibold text-foreground">{data.label}</div>
-			{data.sublabel && (
-				<div className="text-xs text-muted-foreground mt-0.5">
-					{data.sublabel}
-				</div>
-			)}
-		</div>
+		</FlowNode>
 	);
 });
 
@@ -1792,40 +1792,24 @@ const GatewayNode = memo(function GatewayNode({
 }: {
 	data: GatewayVizState;
 }) {
-	const flashClass =
-		data.flash === 'green'
-			? 'border-success bg-success/10'
-			: data.flash === 'red'
-				? 'border-destructive bg-destructive/10'
-				: data.flash === 'amber'
-					? 'border-warning bg-warning/10'
-					: 'border-primary bg-primary/10';
-	const iconClass =
-		data.flash === 'green'
-			? 'text-success'
-			: data.flash === 'red'
-				? 'text-destructive'
-				: data.flash === 'amber'
-					? 'text-warning'
-					: 'text-primary';
+	const flowData: FlowNodeData = {
+		label: data.label,
+		icon: 'GW',
+		color: '#6366f1',
+		description: data.sublabel ?? undefined,
+		status: flashToStatus(data.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 px-6 py-4 text-center min-w-48 transition-all duration-300 ${flashClass}`}
-		>
+		<FlowNode data={flowData}>
 			<FlowHandles />
-			<Shield className={`w-5 h-5 mx-auto mb-1 ${iconClass}`} />
-			<div className="text-sm font-semibold text-foreground">{data.label}</div>
-			{data.sublabel && (
-				<div className="text-xs text-muted-foreground mt-0.5">
-					{data.sublabel}
-				</div>
-			)}
 			{data.badge && (
 				<div className="mt-1 inline-block px-2 py-0.5 rounded-full bg-primary/20 text-primary text-xs font-mono">
 					{data.badge}
 				</div>
 			)}
-		</div>
+		</FlowNode>
 	);
 });
 
@@ -1834,36 +1818,18 @@ const ServiceNode = memo(function ServiceNode({
 }: {
 	data: ServiceVizState;
 }) {
-	const flashClass =
-		data.flash === 'green'
-			? 'border-success bg-success/10'
-			: data.flash === 'red'
-				? 'border-destructive bg-destructive/10'
-				: data.flash === 'amber'
-					? 'border-warning bg-warning/10'
-					: data.flash === 'idle'
-						? 'border-zinc-500 bg-zinc-500/10'
-						: 'border-primary bg-primary/10';
-	const iconClass =
-		data.flash === 'green'
-			? 'text-success'
-			: data.flash === 'red'
-				? 'text-destructive'
-				: data.flash === 'amber'
-					? 'text-warning'
-					: 'text-zinc-500';
+	const flowData: FlowNodeData = {
+		label: data.label,
+		icon: 'SV',
+		color: '#71717a',
+		description: data.sublabel ?? undefined,
+		status: flashToStatus(data.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 px-6 py-4 text-center min-w-44 transition-all duration-300 ${flashClass}`}
-		>
+		<FlowNode data={flowData}>
 			<FlowHandles />
-			<Server className={`w-5 h-5 mx-auto mb-1 ${iconClass}`} />
-			<div className="text-sm font-semibold text-foreground">{data.label}</div>
-			{data.sublabel && (
-				<div className="text-xs text-muted-foreground mt-0.5">
-					{data.sublabel}
-				</div>
-			)}
 			{data.badge && (
 				<div
 					className={`mt-1 inline-block px-2 py-0.5 rounded-full text-xs font-mono ${
@@ -1877,7 +1843,7 @@ const ServiceNode = memo(function ServiceNode({
 					{data.badge}
 				</div>
 			)}
-		</div>
+		</FlowNode>
 	);
 });
 

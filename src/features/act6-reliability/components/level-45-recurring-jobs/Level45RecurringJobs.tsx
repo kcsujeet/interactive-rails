@@ -27,7 +27,7 @@ import {
 	getStraightPath,
 	type Node,
 } from '@xyflow/react';
-import { ArrowRight, Calendar, Database, Server } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
@@ -52,15 +52,16 @@ import {
 	FlowHandles,
 	reversePath,
 } from '@/components/levels/FlowDiagram';
+import { FlowNode, type FlowNodeData } from '@/components/levels/FlowNode';
 import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import { useDiscoveryGating } from '@/hooks/useDiscoveryGating';
 import { useStepGating } from '@/hooks/useStepGating';
 import { useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act6-level45-recurring-jobs', () =>
@@ -1179,19 +1180,12 @@ end`,
 
 // ─── Custom React Flow nodes ──────────────────────────────────────────
 
-const FLASH_BORDER: Record<ZoneFlash, string> = {
-	idle: 'border-border',
-	red: 'border-red-500 dark:border-red-400',
-	green: 'border-emerald-500 dark:border-emerald-400',
-	amber: 'border-amber-500 dark:border-amber-400',
-};
-
-const FLASH_BG: Record<ZoneFlash, string> = {
-	idle: 'bg-card',
-	red: 'bg-red-50 dark:bg-red-950/30',
-	green: 'bg-emerald-50 dark:bg-emerald-950/30',
-	amber: 'bg-amber-50 dark:bg-amber-950/30',
-};
+function flashToStatus(flash: ZoneFlash): FlowNodeData['status'] {
+	if (flash === 'green') return 'active';
+	if (flash === 'amber') return 'warning';
+	if (flash === 'red') return 'error';
+	return 'idle';
+}
 
 interface SchedulerNodeData extends SimpleNodeState {
 	[key: string]: unknown;
@@ -1199,19 +1193,23 @@ interface SchedulerNodeData extends SimpleNodeState {
 
 const SchedulerNode = memo(({ data }: { data: SchedulerNodeData }) => {
 	const d = data as SchedulerNodeData;
+	const flowData: FlowNodeData = {
+		label: 'Scheduler',
+		icon: 'SC',
+		color: '#f97316',
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-44 p-2.5`}
-		>
+		<>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1.5">
-				<Calendar className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">Scheduler</span>
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-		</div>
+			<FlowNode data={flowData}>
+				<p className="text-xs text-foreground font-medium truncate">
+					{d.label}
+				</p>
+			</FlowNode>
+		</>
 	);
 });
 
@@ -1221,19 +1219,23 @@ interface AppNodeData extends SimpleNodeState {
 
 const AppNode = memo(({ data }: { data: AppNodeData }) => {
 	const d = data as AppNodeData;
+	const flowData: FlowNodeData = {
+		label: 'Rails App',
+		icon: 'RA',
+		color: '#8b5cf6',
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-44 p-2.5`}
-		>
+		<>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1.5">
-				<Server className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">Rails App</span>
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-		</div>
+			<FlowNode data={flowData}>
+				<p className="text-xs text-foreground font-medium truncate">
+					{d.label}
+				</p>
+			</FlowNode>
+		</>
 	);
 });
 
@@ -1243,24 +1245,26 @@ interface DbNodeData extends DbNodeState {
 
 const DbNode = memo(({ data }: { data: DbNodeData }) => {
 	const d = data as DbNodeData;
+	const flowData: FlowNodeData = {
+		label: 'Database',
+		icon: 'DB',
+		color: '#10b981',
+		description: d.label,
+		status: flashToStatus(d.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 ${FLASH_BORDER[d.flash]} ${FLASH_BG[d.flash]} transition-colors duration-300 w-44 p-2.5`}
-		>
+		<>
 			<FlowHandles />
-			<div className="flex items-center gap-2 mb-1.5">
-				<Database className="w-4 h-4 text-foreground shrink-0" />
-				<span className="text-xs font-semibold text-foreground">Database</span>
-			</div>
-			<div className="text-xs text-foreground font-medium truncate">
-				{d.label}
-			</div>
-			<div className="mt-1.5 pt-1.5 border-t border-border">
-				<div className="text-[10px] font-mono text-muted-foreground truncate">
-					{d.rowCount}
+			<FlowNode data={flowData}>
+				<div className="mt-1.5 pt-1.5 border-t border-border">
+					<p className="text-[10px] font-mono text-muted-foreground truncate">
+						{d.rowCount}
+					</p>
 				</div>
-			</div>
-		</div>
+			</FlowNode>
+		</>
 	);
 });
 

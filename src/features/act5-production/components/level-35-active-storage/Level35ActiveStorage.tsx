@@ -33,14 +33,7 @@
 
 import type { Edge, EdgeProps, Node } from '@xyflow/react';
 import { BaseEdge, EdgeLabelRenderer, getStraightPath } from '@xyflow/react';
-import {
-	ArrowRight,
-	Cloud,
-	HardDrive,
-	Monitor,
-	Server,
-	Zap,
-} from 'lucide-react';
+import { ArrowRight, HardDrive, Zap } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
@@ -65,14 +58,13 @@ import {
 	FlowHandles,
 	reversePath,
 } from '@/components/levels/FlowDiagram';
+import { FlowNode, type FlowNodeData } from '@/components/levels/FlowNode';
 import {
 	type ProbeConfig,
 	ProbeTerminal,
 } from '@/components/levels/ProbeTerminal';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import {
 	type DiscoveryDef,
 	useDiscoveryGating,
@@ -80,6 +72,8 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 import { cn } from '@/lib/utils';
 
@@ -1463,24 +1457,6 @@ end`,
 // Zone visualization styles
 // ──────────────────────────────────────────────
 
-const ZONE_FLASH_STYLES: Record<ZoneFlash, string> = {
-	idle: 'border-border bg-card',
-	blue: 'border-blue-500 dark:border-blue-400 bg-blue-50 dark:bg-blue-900/30',
-	red: 'border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/30',
-	green:
-		'border-emerald-500 dark:border-emerald-400 bg-emerald-50 dark:bg-emerald-900/30',
-	amber:
-		'border-amber-500 dark:border-amber-400 bg-amber-50 dark:bg-amber-900/30',
-};
-
-const ZONE_LABEL_STYLES: Record<ZoneFlash, string> = {
-	idle: 'text-muted-foreground',
-	blue: 'text-blue-600 dark:text-blue-400',
-	red: 'text-red-600 dark:text-red-400',
-	green: 'text-emerald-600 dark:text-emerald-400',
-	amber: 'text-amber-600 dark:text-amber-400',
-};
-
 const DEFAULT_ZONE: ZoneState = { label: '', flash: 'idle' };
 const DEFAULT_CONN: ConnectorVizState = {
 	active: false,
@@ -1527,8 +1503,15 @@ function MemoryGauge({
 }
 
 // ──────────────────────────────────────────────
-// React Flow: custom zone node
+// React Flow: custom zone node (using shared FlowNode)
 // ──────────────────────────────────────────────
+
+function flashToStatus(flash: ZoneFlash): FlowNodeData['status'] {
+	if (flash === 'green') return 'active';
+	if (flash === 'amber' || flash === 'blue') return 'warning';
+	if (flash === 'red') return 'error';
+	return 'idle';
+}
 
 interface ZoneNodeData {
 	zone: 'client' | 'app' | 's3';
@@ -1538,61 +1521,39 @@ interface ZoneNodeData {
 	[key: string]: unknown;
 }
 
-const ZONE_ICONS = {
-	client: Monitor,
-	app: Server,
-	s3: Cloud,
-} as const;
-
-const ZONE_ICON_CLASSES = {
-	client: 'text-blue-600 dark:text-blue-400',
-	app: 'text-foreground',
-	s3: 'text-amber-600 dark:text-amber-400',
-} as const;
-
-const ZONE_TITLES = {
-	client: 'Client',
-	app: 'App Server',
-	s3: 'S3 Storage',
-} as const;
+const ZONE_META: Record<
+	string,
+	{ label: string; icon: string; color: string }
+> = {
+	client: { label: 'Client', icon: 'CL', color: '#3b82f6' },
+	app: { label: 'App Server', icon: 'AS', color: '#6366f1' },
+	s3: { label: 'S3 Storage', icon: 'S3', color: '#f59e0b' },
+};
 
 const ZoneNode = memo(function ZoneNode({ data }: { data: ZoneNodeData }) {
-	const Icon = ZONE_ICONS[data.zone];
 	const { zoneState } = data;
+	const meta = ZONE_META[data.zone];
+	const flowData: FlowNodeData = {
+		label: meta.label,
+		icon: meta.icon,
+		color: meta.color,
+		description: zoneState.label || undefined,
+		status: flashToStatus(zoneState.flash),
+		showTarget: false,
+		showSource: false,
+	};
 
 	return (
-		<div
-			className={cn(
-				'rounded-xl border-2 p-4 text-center transition-colors duration-300',
-				data.zone === 'app' ? 'w-44' : 'w-36',
-				ZONE_FLASH_STYLES[zoneState.flash],
-			)}
-		>
-			<Icon
-				className={cn('w-6 h-6 mx-auto mb-2', ZONE_ICON_CLASSES[data.zone])}
-			/>
-			<div className="text-sm font-medium text-foreground">
-				{ZONE_TITLES[data.zone]}
-			</div>
-			{zoneState.label && (
-				<div
-					className={cn(
-						'text-xs mt-1 font-mono animate-in fade-in duration-300',
-						ZONE_LABEL_STYLES[zoneState.flash],
-					)}
-				>
-					{zoneState.label}
-				</div>
-			)}
+		<FlowNode data={flowData}>
+			<FlowHandles />
 			{data.memoryMB !== undefined && <MemoryGauge current={data.memoryMB} />}
 			{data.showDisk && (
-				<div className="mt-2 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+				<div className="mt-1 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
 					<HardDrive className="w-3.5 h-3.5" />
 					<span className="font-mono">Local Disk</span>
 				</div>
 			)}
-			<FlowHandles />
-		</div>
+		</FlowNode>
 	);
 });
 

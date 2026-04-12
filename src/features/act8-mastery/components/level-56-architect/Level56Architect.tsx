@@ -33,17 +33,11 @@ import {
 } from '@xyflow/react';
 import {
 	ArrowRight,
-	BarChart3,
-	Box,
-	CreditCard,
 	Database,
 	Eye,
 	Flag,
-	Gift,
 	Globe,
-	Mail,
 	Radio,
-	Server,
 	ShieldCheck,
 } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -72,6 +66,7 @@ import {
 	FlowHandles,
 	reversePath,
 } from '@/components/levels/FlowDiagram';
+import { FlowNode, type FlowNodeData } from '@/components/levels/FlowNode';
 import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
 import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import {
@@ -80,8 +75,6 @@ import {
 } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import {
 	type DiscoveryDef,
 	useDiscoveryGating,
@@ -89,6 +82,8 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act8-level56-architect', () =>
@@ -1606,88 +1601,92 @@ end`,
 	return files;
 }
 
-// ─── Custom React Flow nodes ──────────────────────────────────────────
+// ─── Flash to FlowNode status mapping ────────────────────────────────
 
-function flashToClasses(flash: ZoneFlash) {
-	const border =
-		flash === 'green'
-			? 'border-success bg-success/10'
-			: flash === 'red'
-				? 'border-destructive bg-destructive/10'
-				: flash === 'amber'
-					? 'border-warning bg-warning/10'
-					: 'border-zinc-500 bg-zinc-500/10 dark:border-zinc-600 dark:bg-zinc-600/10';
-	const icon =
-		flash === 'green'
-			? 'text-success'
-			: flash === 'red'
-				? 'text-destructive'
-				: flash === 'amber'
-					? 'text-warning'
-					: 'text-zinc-500 dark:text-zinc-400';
-	return { border, icon };
+function flashToStatus(flash: ZoneFlash): FlowNodeData['status'] {
+	switch (flash) {
+		case 'green':
+			return 'active';
+		case 'red':
+			return 'error';
+		case 'amber':
+			return 'warning';
+		default:
+			return 'idle';
+	}
 }
 
+const SERVICE_ICON_CODE: Record<string, string> = {
+	Stripe: 'ST',
+	EmailService: 'EM',
+	InventoryService: 'IN',
+	AnalyticsService: 'AN',
+	LoyaltyService: 'LY',
+	EmailSubscriber: 'EM',
+	InventorySubscriber: 'IN',
+	AnalyticsSubscriber: 'AN',
+	LoyaltySubscriber: 'LY',
+};
+
+const SERVICE_COLOR: Record<string, string> = {
+	Stripe: '#6366f1',
+	EmailService: '#3b82f6',
+	InventoryService: '#f59e0b',
+	AnalyticsService: '#8b5cf6',
+	LoyaltyService: '#ec4899',
+	EmailSubscriber: '#3b82f6',
+	InventorySubscriber: '#f59e0b',
+	AnalyticsSubscriber: '#8b5cf6',
+	LoyaltySubscriber: '#ec4899',
+};
+
+// ─── Custom React Flow nodes ──────────────────────────────────────────
+
 const OrderNode = memo(function OrderNode({ data }: { data: OrderVizState }) {
-	const { border, icon } = flashToClasses(data.flash);
+	const flowData: FlowNodeData = {
+		label: data.label,
+		icon: 'OR',
+		color: '#f59e0b',
+		description: data.sublabel ?? undefined,
+		status: flashToStatus(data.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 px-6 py-4 text-center min-w-44 transition-all duration-300 ${border}`}
-		>
+		<FlowNode data={flowData}>
 			<FlowHandles />
-			<Box className={`w-5 h-5 mx-auto mb-1 ${icon}`} />
-			<div className="text-sm font-semibold text-foreground">{data.label}</div>
-			{data.sublabel && (
-				<div className="text-xs text-muted-foreground mt-0.5">
-					{data.sublabel}
-				</div>
-			)}
 			{data.badge && (
 				<div className="mt-1 inline-block px-2 py-0.5 rounded-full bg-destructive/20 text-destructive text-xs font-mono">
 					{data.badge}
 				</div>
 			)}
-		</div>
+		</FlowNode>
 	);
 });
-
-const SERVICE_ICON_MAP: Record<string, typeof Server> = {
-	Stripe: CreditCard,
-	EmailService: Mail,
-	InventoryService: Box,
-	AnalyticsService: BarChart3,
-	LoyaltyService: Gift,
-	EmailSubscriber: Mail,
-	InventorySubscriber: Box,
-	AnalyticsSubscriber: BarChart3,
-	LoyaltySubscriber: Gift,
-};
 
 const ServiceNode = memo(function ServiceNode({
 	data,
 }: {
 	data: ServiceVizState;
 }) {
-	const { border, icon } = flashToClasses(data.flash);
-	const IconComp = SERVICE_ICON_MAP[data.label] ?? Server;
+	const flowData: FlowNodeData = {
+		label: data.label,
+		icon: SERVICE_ICON_CODE[data.label] ?? 'SV',
+		color: SERVICE_COLOR[data.label] ?? '#71717a',
+		description: data.sublabel ?? undefined,
+		status: flashToStatus(data.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 px-5 py-3 text-center min-w-36 transition-all duration-300 ${border}`}
-		>
+		<FlowNode data={flowData}>
 			<FlowHandles />
-			<IconComp className={`w-4 h-4 mx-auto mb-1 ${icon}`} />
-			<div className="text-xs font-semibold text-foreground">{data.label}</div>
-			{data.sublabel && (
-				<div className="text-xs text-muted-foreground mt-0.5">
-					{data.sublabel}
-				</div>
-			)}
 			{data.badge && (
 				<div className="mt-1 inline-block px-2 py-0.5 rounded-full bg-warning/20 text-warning text-xs font-mono">
 					{data.badge}
 				</div>
 			)}
-		</div>
+		</FlowNode>
 	);
 });
 
@@ -1696,25 +1695,24 @@ const GatewayNode = memo(function GatewayNode({
 }: {
 	data: GatewayVizState;
 }) {
-	const { border, icon } = flashToClasses(data.flash);
+	const flowData: FlowNodeData = {
+		label: data.label,
+		icon: 'GW',
+		color: '#6366f1',
+		description: data.sublabel ?? undefined,
+		status: flashToStatus(data.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 px-6 py-4 text-center min-w-44 transition-all duration-300 ${border}`}
-		>
+		<FlowNode data={flowData}>
 			<FlowHandles />
-			<Globe className={`w-5 h-5 mx-auto mb-1 ${icon}`} />
-			<div className="text-sm font-semibold text-foreground">{data.label}</div>
-			{data.sublabel && (
-				<div className="text-xs text-muted-foreground mt-0.5">
-					{data.sublabel}
-				</div>
-			)}
 			{data.badge && (
 				<div className="mt-1 inline-block px-2 py-0.5 rounded-full bg-success/20 text-success text-xs font-mono">
 					{data.badge}
 				</div>
 			)}
-		</div>
+		</FlowNode>
 	);
 });
 
@@ -1723,19 +1721,18 @@ const BillingNode = memo(function BillingNode({
 }: {
 	data: BillingVizState;
 }) {
-	const { border, icon } = flashToClasses(data.flash);
+	const flowData: FlowNodeData = {
+		label: data.label,
+		icon: 'BL',
+		color: '#6366f1',
+		description: data.sublabel ?? undefined,
+		status: flashToStatus(data.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 px-6 py-4 text-center min-w-44 transition-all duration-300 ${border}`}
-		>
+		<FlowNode data={flowData}>
 			<FlowHandles />
-			<Database className={`w-5 h-5 mx-auto mb-1 ${icon}`} />
-			<div className="text-sm font-semibold text-foreground">{data.label}</div>
-			{data.sublabel && (
-				<div className="text-xs text-muted-foreground mt-0.5">
-					{data.sublabel}
-				</div>
-			)}
 			{data.badge && (
 				<div className="mt-1 inline-block px-2 py-0.5 rounded-full bg-primary/20 text-primary text-xs font-mono">
 					{data.badge}
@@ -1747,7 +1744,7 @@ const BillingNode = memo(function BillingNode({
 					AASM
 				</div>
 			)}
-		</div>
+		</FlowNode>
 	);
 });
 
@@ -1756,20 +1753,19 @@ const EventBusNode = memo(function EventBusNode({
 }: {
 	data: EventBusVizState;
 }) {
-	const { border, icon } = flashToClasses(data.flash);
+	const flowData: FlowNodeData = {
+		label: data.label,
+		icon: 'EB',
+		color: '#22c55e',
+		description: data.sublabel ?? undefined,
+		status: flashToStatus(data.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={`rounded-xl border-2 px-5 py-3 text-center min-w-36 transition-all duration-300 ${border}`}
-		>
+		<FlowNode data={flowData}>
 			<FlowHandles />
-			<Radio className={`w-4 h-4 mx-auto mb-1 ${icon}`} />
-			<div className="text-xs font-semibold text-foreground">{data.label}</div>
-			{data.sublabel && (
-				<div className="text-xs text-muted-foreground mt-0.5">
-					{data.sublabel}
-				</div>
-			)}
-		</div>
+		</FlowNode>
 	);
 });
 

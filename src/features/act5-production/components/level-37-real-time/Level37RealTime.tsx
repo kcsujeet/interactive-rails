@@ -23,14 +23,7 @@ import {
 	getStraightPath,
 	type Node,
 } from '@xyflow/react';
-import {
-	ArrowRight,
-	Bell,
-	Globe,
-	Server as ServerIcon,
-	Wifi,
-	Zap,
-} from 'lucide-react';
+import { ArrowRight, Bell, Wifi, Zap } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
 	buildTerminalHistory,
@@ -55,6 +48,7 @@ import {
 	FlowHandles,
 	reversePath,
 } from '@/components/levels/FlowDiagram';
+import { FlowNode, type FlowNodeData } from '@/components/levels/FlowNode';
 import {
 	type ProbeConfig,
 	ProbeTerminal,
@@ -62,8 +56,6 @@ import {
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import {
 	type DiscoveryDef,
 	useDiscoveryGating,
@@ -71,6 +63,8 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 import { cn } from '@/lib/utils';
 
@@ -166,21 +160,15 @@ const DEFAULT_EDGE: EdgeVizState = {
 };
 
 // ──────────────────────────────────────────────
-// Custom React Flow nodes
+// Custom React Flow nodes (using shared FlowNode)
 // ──────────────────────────────────────────────
 
-const FLASH_BORDER: Record<ZoneFlash, string> = {
-	idle: 'border-border',
-	red: 'border-red-400 dark:border-red-600',
-	green: 'border-emerald-400 dark:border-emerald-600',
-	amber: 'border-amber-400 dark:border-amber-600',
-};
-const FLASH_BG: Record<ZoneFlash, string> = {
-	idle: 'bg-card',
-	red: 'bg-red-50 dark:bg-red-900/20',
-	green: 'bg-emerald-50 dark:bg-emerald-900/20',
-	amber: 'bg-amber-50 dark:bg-amber-900/20',
-};
+function flashToStatus(flash: ZoneFlash): FlowNodeData['status'] {
+	if (flash === 'green') return 'active';
+	if (flash === 'amber') return 'warning';
+	if (flash === 'red') return 'error';
+	return 'idle';
+}
 
 interface ClientNodeData {
 	label: string;
@@ -194,38 +182,29 @@ const ClientNode = memo(function ClientNode({
 }: {
 	data: ClientNodeData;
 }) {
+	const flowData: FlowNodeData = {
+		label: 'Client',
+		icon: 'CL',
+		color: '#3b82f6',
+		description: '50K users polling',
+		status: flashToStatus(data.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={cn(
-				'rounded-xl border-2 p-3 text-center transition-colors duration-300 w-32',
-				FLASH_BORDER[data.flash],
-				FLASH_BG[data.flash],
-			)}
-		>
-			<Globe className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
-			<div className="text-xs font-semibold text-foreground">Client</div>
-			<div className="text-xs text-muted-foreground">50K users polling</div>
+		<FlowNode data={flowData}>
+			<FlowHandles />
 			{data.label && (
-				<div
-					className={cn(
-						'mt-1.5 text-xs font-mono animate-in fade-in duration-300',
-						data.flash === 'red'
-							? 'text-red-600 dark:text-red-400'
-							: data.flash === 'green'
-								? 'text-emerald-600 dark:text-emerald-400'
-								: 'text-foreground',
-					)}
-				>
+				<div className="text-xs font-mono animate-in fade-in duration-300 text-foreground">
 					{data.label}
 				</div>
 			)}
 			{data.waitingClock !== null && (
-				<div className="mt-1.5 text-xs text-red-600 dark:text-red-400 font-mono font-bold animate-pulse">
+				<div className="text-xs text-red-600 dark:text-red-400 font-mono font-bold animate-pulse">
 					Waiting... {data.waitingClock.toFixed(1)}s
 				</div>
 			)}
-			<FlowHandles />
-		</div>
+		</FlowNode>
 	);
 });
 
@@ -251,44 +230,34 @@ const ServerNode = memo(function ServerNode({
 	data: ServerNodeData;
 }) {
 	const cpuDanger = data.cpu > 80;
+	const flowData: FlowNodeData = {
+		label: 'Server',
+		icon: 'SV',
+		color: cpuDanger ? '#ef4444' : data.isReward ? '#10b981' : '#6366f1',
+		status: flashToStatus(data.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={cn(
-				'rounded-xl border-2 p-3 transition-colors duration-300 w-44',
-				FLASH_BORDER[data.flash],
-				FLASH_BG[data.flash],
+		<FlowNode data={flowData}>
+			<FlowHandles />
+			{data.status503 && (
+				<Badge
+					className="text-red-600 dark:text-red-400 border-red-300 dark:border-red-700"
+					variant="outline"
+				>
+					503
+				</Badge>
 			)}
-		>
-			<div className="flex items-center gap-1 mb-2">
-				<ServerIcon
-					className={cn(
-						'w-4 h-4',
-						cpuDanger
-							? 'text-red-600 dark:text-red-400'
-							: data.isReward
-								? 'text-emerald-600 dark:text-emerald-400'
-								: 'text-muted-foreground',
-					)}
-				/>
-				<span className="text-xs font-semibold text-foreground">Server</span>
-				{data.status503 && (
-					<Badge
-						className="ml-auto text-red-600 dark:text-red-400 border-red-300 dark:border-red-700"
-						variant="outline"
-					>
-						503
-					</Badge>
-				)}
-				{data.isReward && !data.rewardBlocked && (
-					<Badge
-						className="ml-auto text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700"
-						variant="outline"
-					>
-						<Wifi className="w-3 h-3 mr-1" />
-						WS
-					</Badge>
-				)}
-			</div>
+			{data.isReward && !data.rewardBlocked && (
+				<Badge
+					className="text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700"
+					variant="outline"
+				>
+					<Wifi className="w-3 h-3 mr-1" />
+					WS
+				</Badge>
+			)}
 
 			{/* CPU gauge */}
 			<div className="mb-1.5">
@@ -398,9 +367,7 @@ const ServerNode = memo(function ServerNode({
 					{data.rewardLabel}
 				</div>
 			)}
-
-			<FlowHandles />
-		</div>
+		</FlowNode>
 	);
 });
 
@@ -415,35 +382,24 @@ const ProcessorNode = memo(function ProcessorNode({
 }: {
 	data: ProcessorNodeData;
 }) {
+	const flowData: FlowNodeData = {
+		label: 'Payment Processor',
+		icon: 'PP',
+		color: '#f59e0b',
+		description: 'Stripe',
+		status: flashToStatus(data.flash),
+		showTarget: false,
+		showSource: false,
+	};
 	return (
-		<div
-			className={cn(
-				'rounded-xl border-2 p-3 text-center transition-colors duration-300 w-32',
-				FLASH_BORDER[data.flash],
-				FLASH_BG[data.flash],
-			)}
-		>
-			<Zap className="w-5 h-5 mx-auto mb-1 text-amber-600 dark:text-amber-400" />
-			<div className="text-xs font-semibold text-foreground">
-				Payment Processor
-			</div>
-			<div className="text-xs text-muted-foreground">Stripe</div>
+		<FlowNode data={flowData}>
+			<FlowHandles />
 			{data.label && (
-				<div
-					className={cn(
-						'mt-1.5 text-xs font-mono animate-in fade-in duration-300',
-						data.flash === 'green'
-							? 'text-emerald-600 dark:text-emerald-400'
-							: data.flash === 'red'
-								? 'text-red-600 dark:text-red-400'
-								: 'text-amber-600 dark:text-amber-400',
-					)}
-				>
+				<div className="text-xs font-mono animate-in fade-in duration-300 text-foreground">
 					{data.label}
 				</div>
 			)}
-			<FlowHandles />
-		</div>
+		</FlowNode>
 	);
 });
 
