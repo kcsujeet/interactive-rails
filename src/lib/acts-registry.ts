@@ -5,17 +5,16 @@
  * Build a production-grade SaaS while mastering Rails 8
  */
 
-import type { Act, Level } from '@/types';
-
 // Import individual act definitions
-import { actOne } from '@/features/act1-foundation/content/content';
-import { actTwo } from '@/features/act2-users-security/content/content';
-import { actThree } from '@/features/act3-clean-architecture/content/content';
-import { actFour } from '@/features/act4-performance/content/content';
-import { actFive } from '@/features/act5-production/content/content';
-import { actSix } from '@/features/act6-reliability/content/content';
-import { actSeven } from '@/features/act7-scale/content/content';
-import { actEight } from '@/features/act8-mastery/content/content';
+import { actOne } from '@/features/act1-foundation/content/act';
+import { actTwo } from '@/features/act2-users-security/content/act';
+import { actThree } from '@/features/act3-clean-architecture/content/act';
+import { actFour } from '@/features/act4-performance/content/act';
+import { actFive } from '@/features/act5-production/content/act';
+import { actSix } from '@/features/act6-reliability/content/act';
+import { actSeven } from '@/features/act7-scale/content/act';
+import { actEight } from '@/features/act8-mastery/content/act';
+import type { Act, Level } from '@/types';
 
 // ============================================
 // All Acts

@@ -1,0 +1,146 @@
+import type { Level } from '@/types';
+
+export const level7Serializers: Level = {
+	id: 'act1-level7-serializers',
+	actId: 1,
+	levelNumber: 7,
+	name: 'Serializers',
+	trigger: {
+		type: 'user_complaint',
+		description:
+			'The API dumps every column as flat JSON. Choose a serializer gem, install it, declare domain attributes, and shape the output into the JSON:API standard.',
+	},
+	startingPipeline: {
+		nodes: [],
+		connections: [],
+	},
+	problem: {
+		observation: 'API returns all model attributes including internal ones.',
+		rootCause: 'No serialization layer to shape the JSON output.',
+		codeExample: `# Current: render json: product returns EVERYTHING
+{
+  "id": 1,
+  "name": "Laptop",
+  "description": "16-inch display",
+  "price": "999.99",
+  "created_at": "2024-01-01T00:00:00.000Z",     # Internal
+  "updated_at": "2024-01-01T00:00:00.000Z"      # Internal
+}
+
+# We want (JSON:API standard):
+{
+  "data": {
+    "id": "1",
+    "type": "products",
+    "attributes": {
+      "name": "Laptop",
+      "description": "16-inch display",
+      "price": "999.99"
+    }
+  }
+}`,
+		goal: 'Install a serializer gem, define a ProductSerializer with only safe attributes, and update the controller to use it.',
+		thresholds: {},
+	},
+	successConditions: [],
+	availableNodes: [],
+	unlockedNodes: [],
+	learningContent: {
+		title: 'JSON:API Serialization',
+		goal: `In this level, you'll:\n- learn how to control exactly what your API returns to clients.\n- use a serializer gem to shape JSON responses following the JSON:API standard.\n- declare which domain attributes to expose and format prices for display.\n- structure your output the way production APIs do.`,
+		conceptExplanation: `Serializers control what data your API exposes. Without them, \`render json: product\` dumps everything.
+
+**Why serialize?**
+- Choose which attributes to expose (only domain data, not bookkeeping)
+- Format dates, currencies, names
+- Include computed fields (full_name, display_price)
+- Nest related data (product with reviews)
+
+**The JSON:API standard:**
+The industry-standard response format for REST APIs. Used by Stripe, Ember, and thousands of production APIs. It provides:
+- Standardized envelope: \`data\`, \`type\`, \`attributes\`, \`relationships\`
+- Built-in pagination via \`links\`
+- Sparse fieldsets: \`fields[posts]=title,body\`
+- Compound documents: \`include=reviews\`
+- Standardized error format
+
+**Why jsonapi-serializer?**
+- Implements the JSON:API spec out of the box
+- 100x faster than ActiveModelSerializers (AMS)
+- Production-proven, actively maintained
+- Clean DSL: \`attributes\`, \`has_many\`, \`belongs_to\`
+
+**Alternatives and trade-offs:**
+- Blueprinter: simpler flat JSON, not standards-compliant, good for internal APIs
+- Alba: flexible, supports multiple formats, newer
+- Jbuilder: template-based, good for complex views, slower
+- ActiveModelSerializers (AMS): legacy, unmaintained. Avoid.`,
+		railsCodeExample: `# Gemfile
+gem "jsonapi-serializer"
+
+# app/serializers/base_serializer.rb
+class BaseSerializer
+  include JSONAPI::Serializer
+end
+
+# app/serializers/product_serializer.rb
+class ProductSerializer < BaseSerializer
+  attribute :name
+  attribute :description
+
+  attribute :price do |product|
+    product.price.to_s
+  end
+
+  has_many :reviews, serializer: ReviewSerializer
+end
+
+# In controller:
+class Api::V1::ProductsController < ApplicationController
+  def index
+    products = Product.all
+    render json: ProductSerializer.new(products).serializable_hash.to_json
+  end
+
+  def show
+    product = Product.find(params[:id])
+    render json: ProductSerializer.new(product).serializable_hash.to_json
+  end
+end
+
+# JSON:API output:
+# {
+#   "data": {
+#     "id": "1",
+#     "type": "products",
+#     "attributes": {
+#       "name": "Laptop",
+#       "description": "16-inch display",
+#       "price": "999.99"
+#     }
+#   }
+# }`,
+		commonMistakes: [
+			'Dumping all columns with render json: (flat, unstructured, no formatting)',
+			'Not serializing nested associations (N+1 in serializer)',
+			'Over-serializing (returning too much data)',
+			'Different shapes for list vs detail endpoints',
+		],
+		whenToUse:
+			'Every API endpoint should use a serializer. Use JSON:API format for public APIs.',
+		furtherReading: [
+			{
+				title: 'jsonapi-serializer',
+				url: 'https://github.com/jsonapi-serializer/jsonapi-serializer',
+			},
+			{
+				title: 'JSON:API Specification',
+				url: 'https://jsonapi.org/',
+			},
+		],
+	},
+	hint: {
+		delay: 20,
+		text: 'Look for the gem that implements the JSON:API spec and is actively maintained.',
+	},
+};
