@@ -207,10 +207,12 @@ export function ProbeTerminal({
 				<div className="flex flex-wrap gap-2">
 					{probes.map((probe) => {
 						const fired = firedIds.has(probe.id);
+						const btnBase =
+							'font-mono text-xs bg-amber-100 hover:bg-amber-200 text-amber-700 border-amber-300 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700/50';
 						return (
-							<div className="flex items-center gap-1" key={probe.id}>
+							<div className="flex items-stretch" key={probe.id}>
 								<Button
-									className="font-mono text-xs bg-amber-100 hover:bg-amber-200 text-amber-700 border-amber-300 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700/50"
+									className={`${btnBase} ${probe.story ? 'rounded-r-none border-r-0' : ''}`}
 									disabled={animating || disabled}
 									onClick={() => handleProbe(probe)}
 									size="sm"
@@ -222,8 +224,10 @@ export function ProbeTerminal({
 								{probe.story && (
 									<Dialog>
 										<DialogTrigger>
-											<span className="inline-flex items-center justify-center w-5 h-5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer">
-												<Info className="w-3 h-3" />
+											<span
+												className={`${btnBase} inline-flex items-center justify-center px-1.5 h-full rounded-l-none rounded-r-md border border-l-amber-200 dark:border-l-amber-700/30 cursor-pointer transition-colors`}
+											>
+												<Info className="w-3.5 h-3.5" />
 											</span>
 										</DialogTrigger>
 										<DialogContent>
@@ -239,7 +243,7 @@ export function ProbeTerminal({
 									</Dialog>
 								)}
 							</div>
-						)
+						);
 					})}
 				</div>
 			</div>
