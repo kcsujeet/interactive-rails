@@ -134,7 +134,7 @@ export function SandboxApp() {
 	}, [running, trafficRate, metrics, setNodes]);
 
 	return (
-		<div className="flex h-[calc(100vh-3.5rem)] overflow-hidden">
+		<div className="flex h-full overflow-hidden">
 			{/* Left sidebar: info + controls */}
 			<div className="w-72 shrink-0 border-r border-border bg-card overflow-y-auto p-4 space-y-4">
 				<div>
