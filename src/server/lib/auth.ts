@@ -4,6 +4,7 @@
  */
 
 import { betterAuth } from 'better-auth';
+import { customSession } from 'better-auth/plugins';
 
 export function createAuth(db: D1Database, secret: string, baseURL: string) {
 	return betterAuth({
@@ -29,6 +30,24 @@ export function createAuth(db: D1Database, secret: string, baseURL: string) {
 				},
 			},
 		},
+		plugins: [
+			customSession(async ({ user, session }) => {
+				// Strip sensitive fields (token, ipAddress, userAgent) from the response.
+				// username comes from additionalFields, accessed via bracket notation.
+				return {
+					user: {
+						id: user.id,
+						name: user.name,
+						email: user.email,
+						username: user['username' as keyof typeof user] ?? '',
+						image: user.image,
+					},
+					session: {
+						expiresAt: session.expiresAt,
+					},
+				};
+			}),
+		],
 		advanced: {
 			disableCSRFCheck: false,
 		},
