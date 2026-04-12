@@ -12,14 +12,13 @@
 
 import type { Edge, EdgeProps, Node } from '@xyflow/react';
 import { BaseEdge, getSmoothStepPath } from '@xyflow/react';
-import { Database, type LucideIcon, Search, Server } from 'lucide-react';
 import { memo, useMemo } from 'react';
-
 import {
 	AnimatedDots,
 	FlowDiagram,
 	FlowHandles,
 } from '@/components/levels/FlowDiagram';
+import { FlowNode } from '@/components/levels/FlowNode';
 import { cn } from '@/lib/utils';
 
 // ──────────────────────────────────────────────
@@ -121,12 +120,6 @@ export const QUERY_DOTS_DANGER: QueryZoneDot[] = Array.from(
 // Icon map
 // ──────────────────────────────────────────────
 
-const ICON_MAP: Record<string, LucideIcon> = {
-	server: Server,
-	search: Search,
-	database: Database,
-};
-
 // ──────────────────────────────────────────────
 // Badge color map
 // ──────────────────────────────────────────────
@@ -152,30 +145,49 @@ interface ZoneNodeData {
 	[key: string]: unknown;
 }
 
+/** Map zone icon to 2-letter code for FlowNode */
+const ZONE_ICON_CODES: Record<string, string> = {
+	server: 'SV',
+	search: 'SR',
+	database: 'DB',
+};
+
+/** Map zone highlight state to a hex color for the FlowNode header */
+const ZONE_COLORS: Record<string, string> = {
+	green: '#10b981',
+	red: '#ef4444',
+	default: '#a1a1aa',
+};
+
 const QueryZoneNode = memo(function QueryZoneNode({
 	data,
 }: {
 	data: ZoneNodeData;
 }) {
 	const { zone, clickable } = data;
-	const Icon = ICON_MAP[zone.icon] ?? Server;
 	const showIndicator = zone.inspectable && !zone.inspected;
 
 	const isGreen = zone.highlighted && zone.highlightColor === 'green';
 	const isRed = zone.highlighted && zone.highlightColor === 'red';
 
+	const color = isGreen
+		? ZONE_COLORS.green
+		: isRed
+			? ZONE_COLORS.red
+			: ZONE_COLORS.default;
+
+	const status: 'idle' | 'active' | 'warning' | 'error' = isGreen
+		? 'active'
+		: isRed || zone.panic
+			? 'error'
+			: 'idle';
+
 	return (
 		<div
 			className={cn(
-				'rounded-xl border-2 p-4 min-w-[200px] text-left transition-all duration-300 relative',
-				clickable && 'cursor-pointer hover:ring-2 hover:ring-primary/50',
-				isGreen &&
-					!zone.panic &&
-					'border-emerald-500 bg-emerald-100 dark:bg-emerald-900/40',
-				isRed && !zone.panic && 'border-red-500 bg-red-100 dark:bg-red-900/40',
-				zone.panic &&
-					'animate-db-panic border-red-500 bg-red-200 dark:bg-red-950',
-				!zone.highlighted && 'border-border bg-card',
+				'relative',
+				zone.panic && 'animate-db-panic',
+				clickable && 'cursor-pointer',
 			)}
 		>
 			{showIndicator && (
@@ -183,93 +195,91 @@ const QueryZoneNode = memo(function QueryZoneNode({
 					<span className="text-xs font-bold text-zinc-900">?</span>
 				</div>
 			)}
+			<FlowNode
+				data={{
+					label: zone.label,
+					icon: ZONE_ICON_CODES[zone.icon] ?? 'ZN',
+					color,
+					status,
+					showTarget: false,
+					showSource: false,
+				}}
+			>
+				{zone.codeLine && (
+					<div className="text-sm font-mono text-foreground">
+						{zone.codeLine}
+					</div>
+				)}
 
-			{/* Header */}
-			<div className="flex items-center gap-2 mb-2">
-				<Icon className="w-4 h-4 text-muted-foreground" />
-				<span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-					{zone.label}
-				</span>
-			</div>
-
-			{/* Code line */}
-			{zone.codeLine && (
-				<div className="text-sm font-mono text-foreground">{zone.codeLine}</div>
-			)}
-
-			{/* Loop counter */}
-			{zone.loopCounter && (
-				<div className="mt-2 space-y-1 animate-in fade-in duration-300">
-					<div className="text-xs font-mono text-red-700 dark:text-red-400">
+				{zone.loopCounter && (
+					<div className="text-xs font-mono text-red-700 dark:text-red-400 animate-in fade-in duration-300">
 						Iterating post {zone.loopCounter.current} of{' '}
 						{zone.loopCounter.total}...
 					</div>
-				</div>
-			)}
+				)}
 
-			{/* Badge */}
-			{zone.badge && (
-				<div className="mt-2 animate-in fade-in duration-300">
-					<span
-						className={cn(
-							'text-xs px-2 py-0.5 rounded-full font-medium',
-							BADGE_COLORS[zone.badge.color],
-						)}
-					>
-						{zone.badge.text}
-					</span>
-				</div>
-			)}
-
-			{/* Query log */}
-			{zone.queryLog && zone.queryLog.visibleCount > 0 && (
-				<div className="animate-in fade-in duration-300">
-					<div className="font-mono text-[10px] leading-tight space-y-px mb-2 rounded bg-zinc-100 dark:bg-zinc-900 p-2">
-						{zone.queryLog.lines
-							.slice(0, zone.queryLog.visibleCount)
-							.map((line, i) => (
-								<div
-									className={i === 0 ? 'text-emerald-400' : 'text-red-400'}
-									key={`${i}-${line}`}
-								>
-									{line}
-								</div>
-							))}
+				{zone.badge && (
+					<div className="animate-in fade-in duration-300">
+						<span
+							className={cn(
+								'text-xs px-2 py-0.5 rounded-full font-medium',
+								BADGE_COLORS[zone.badge.color],
+							)}
+						>
+							{zone.badge.text}
+						</span>
 					</div>
-				</div>
-			)}
+				)}
 
-			{/* Status text */}
-			{zone.statusText && (
-				<div className="animate-in fade-in duration-300">
+				{zone.queryLog && zone.queryLog.visibleCount > 0 && (
+					<div className="animate-in fade-in duration-300">
+						<div className="font-mono text-[10px] leading-tight space-y-px rounded bg-muted p-2">
+							{zone.queryLog.lines
+								.slice(0, zone.queryLog.visibleCount)
+								.map((line, i) => (
+									<div
+										className={
+											i === 0
+												? 'text-emerald-600 dark:text-emerald-400'
+												: 'text-red-600 dark:text-red-400'
+										}
+										key={`${i}-${line}`}
+									>
+										{line}
+									</div>
+								))}
+						</div>
+					</div>
+				)}
+
+				{zone.statusText && (
 					<div
 						className={cn(
-							'text-sm font-mono font-semibold',
+							'text-sm font-mono font-semibold animate-in fade-in duration-300',
 							STATUS_COLORS[zone.statusText.color],
 						)}
 					>
 						{zone.statusText.text}
 					</div>
-				</div>
-			)}
+				)}
 
-			{/* Status badge */}
-			{zone.statusBadge && (
-				<span
-					className={cn(
-						'mt-1 inline-block text-xs px-2 py-0.5 rounded-full font-medium',
-						BADGE_COLORS[zone.statusBadge.color],
-					)}
-				>
-					{zone.statusBadge.text}
-				</span>
-			)}
+				{zone.statusBadge && (
+					<span
+						className={cn(
+							'inline-block text-xs px-2 py-0.5 rounded-full font-medium',
+							BADGE_COLORS[zone.statusBadge.color],
+						)}
+					>
+						{zone.statusBadge.text}
+					</span>
+				)}
 
-			{/* Waiting text */}
-			{zone.waitingText && (
-				<div className="text-sm text-muted-foreground">{zone.waitingText}</div>
-			)}
-
+				{zone.waitingText && (
+					<div className="text-sm text-muted-foreground">
+						{zone.waitingText}
+					</div>
+				)}
+			</FlowNode>
 			<FlowHandles />
 		</div>
 	);

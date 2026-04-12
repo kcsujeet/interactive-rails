@@ -95,12 +95,15 @@ export function FlowNode({ data, selected, children }: FlowNodeProps) {
 					)}
 				</div>
 
-				{/* Body */}
+				{/* Body: children replace description when present */}
 				<div className="px-3 py-2 space-y-1.5">
-					{data.description && (
-						<p className="text-xs text-muted-foreground">{data.description}</p>
+					{children ?? (
+						data.description && (
+							<p className="text-xs text-muted-foreground">
+								{data.description}
+							</p>
+						)
 					)}
-					{children}
 				</div>
 			</div>
 			{showSource && (

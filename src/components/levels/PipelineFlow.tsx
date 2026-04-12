@@ -15,6 +15,7 @@ import {
 	FlowDiagram,
 	FlowHandles,
 } from '@/components/levels/FlowDiagram';
+import { FlowNode } from '@/components/levels/FlowNode';
 import { cn } from '@/lib/utils';
 
 // ──────────────────────────────────────────────
@@ -122,63 +123,97 @@ interface StageNodeData {
 // Custom node
 // ──────────────────────────────────────────────
 
+/** Variant overrides: active/danger override the label color */
+const VARIANT_OVERRIDE_COLORS: Record<string, string> = {
+	active: '#10b981',
+	danger: '#ef4444',
+	inactive: '#71717a',
+};
+
+/** Label -> color, icon, and default description */
+const LABEL_STYLES: Record<string, { icon: string; color: string; description: string }> = {
+	Request: { icon: 'RQ', color: '#3b82f6', description: 'Incoming HTTP request' },
+	Router: { icon: 'RT', color: '#a78bfa', description: 'Routes to controller actions' },
+	Controller: { icon: 'CO', color: '#10b981', description: 'Handles request logic' },
+	Model: { icon: 'MO', color: '#f59e0b', description: 'ActiveRecord model' },
+	Database: { icon: 'DB', color: '#ef4444', description: 'PostgreSQL / SQLite' },
+	Serializer: { icon: 'SE', color: '#8b5cf6', description: 'JSON serialization' },
+	Response: { icon: 'RS', color: '#22c55e', description: 'HTTP response' },
+	Middleware: { icon: 'MW', color: '#64748b', description: 'Rack middleware' },
+	Cache: { icon: 'CA', color: '#06b6d4', description: 'Solid Cache' },
+	Service: { icon: 'SV', color: '#6366f1', description: 'Service object' },
+	Mailer: { icon: 'ML', color: '#ec4899', description: 'Action Mailer' },
+	Job: { icon: 'JB', color: '#8b5cf6', description: 'Background job' },
+	Auth: { icon: 'AU', color: '#f97316', description: 'Authentication layer' },
+	Policy: { icon: 'PO', color: '#f97316', description: 'Authorization policy' },
+};
+
+const DEFAULT_STYLE = { icon: '??', color: '#a1a1aa', description: '' };
+
+/** Look up style for a label, checking exact match then partial */
+function getLabelStyle(label: string): { icon: string; color: string; description: string } {
+	if (LABEL_STYLES[label]) return LABEL_STYLES[label];
+	for (const [key, style] of Object.entries(LABEL_STYLES)) {
+		if (label.includes(key)) return style;
+	}
+	const upper = label.replace(/[^A-Z]/g, '');
+	return {
+		icon:
+			upper.length >= 2 ? upper.slice(0, 2) : label.slice(0, 2).toUpperCase(),
+		color: DEFAULT_STYLE.color,
+		description: '',
+	};
+}
+
 const PipelineStageNode = memo(function PipelineStageNode({
 	data,
 }: {
 	data: StageNodeData;
 }) {
-	const isActive = data.variant === 'active';
-	const isDanger = data.variant === 'danger';
-	const isInactive = data.variant === 'inactive';
-	const isDefault = !isActive && !isDanger && !isInactive;
+	const variant = data.variant || 'default';
+	const isInactive = variant === 'inactive';
 	const showIndicator = data.inspectable && !data.inspected;
+	const labelStyle = getLabelStyle(data.label);
+	// Active/danger/inactive override the label's natural color
+	const color = VARIANT_OVERRIDE_COLORS[variant] ?? labelStyle.color;
+
+	const status =
+		variant === 'active'
+			? 'active'
+			: variant === 'danger'
+				? 'error'
+				: ('idle' as const);
 
 	return (
 		<div
 			className={cn(
-				'px-6 py-4 rounded-lg border-2 min-w-[120px] text-center relative transition-colors',
-				isActive && 'bg-emerald-900/60 border-emerald-500',
-				isDanger && 'bg-red-900/60 border-red-500',
-				isInactive && 'bg-zinc-900/40 border-zinc-600 border-dashed opacity-60',
-				isDefault && 'bg-zinc-800 border-zinc-600',
-				data.clickable &&
-					'cursor-pointer hover:ring-2 hover:ring-primary/50 transition-shadow',
+				'relative',
+				isInactive && 'opacity-60',
+				data.clickable && 'cursor-pointer',
 			)}
 		>
-			{/* Pulsing ? indicator for uninspected clickable stages */}
 			{showIndicator && (
-				<div className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center animate-pulse">
+				<div className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center animate-pulse z-10">
 					<span className="text-xs font-bold text-zinc-900">?</span>
 				</div>
 			)}
-			<div
-				className={cn(
-					'text-sm font-medium',
-					(isActive || isDanger) && 'text-white',
-					isInactive && 'text-zinc-500',
-					isDefault && 'text-zinc-300',
-				)}
+			<FlowNode
+				data={{
+					label: data.label,
+					icon: labelStyle.icon,
+					color,
+					description: data.sublabel || labelStyle.description,
+					status,
+					showTarget: false,
+					showSource: false,
+				}}
 			>
-				{data.label}
-			</div>
-			{data.sublabel && (
-				<div
-					className={cn(
-						'text-xs mt-1',
-						isActive && 'text-emerald-300',
-						isDanger && 'text-red-300',
-						isInactive && 'text-zinc-600',
-						isDefault && 'text-zinc-500',
-					)}
-				>
-					{data.sublabel}
-				</div>
-			)}
-			{data.badge && (
-				<div className="text-xs font-bold mt-1.5 animate-pulse text-red-400">
-					{data.badge}
-				</div>
-			)}
+				{data.badge && (
+					<div className="text-xs font-bold animate-pulse text-destructive">
+						{data.badge}
+					</div>
+				)}
+			</FlowNode>
 			<FlowHandles />
 		</div>
 	);
