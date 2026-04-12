@@ -15,11 +15,11 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/Button';
-import { getLevelByNumber } from '@/features/acts-registry';
+import { getLevelByNumber } from '@/lib/acts-registry';
 import { CodebaseViewerDialog } from '@/features/codebase-viewer/components/CodebaseViewerDialog';
 import {
 	buildUnifiedProjectAtStep,
-} from '@/features/codebase-viewer/utils/codebase-registry';
+} from '@/lib/codebase-registry';
 import type { CodeFile } from '@/utils/codeGeneration';
 import { HelpDialog } from './HelpDialog';
 import { LearningGoalDialog } from './LearningGoalDialog';

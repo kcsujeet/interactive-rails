@@ -838,7 +838,7 @@ export {
 	getLevel,
 	getNextLevel,
 	isLevelUnlocked,
-} from '@/features/acts-registry';
+} from '@/lib/acts-registry';
 
 /** @deprecated Use levelChallenges instead */
 export const dungeonChallenges = levelChallenges;

@@ -1,7 +1,7 @@
 ---
 import LevelInfoApp from '@/components/pages/LevelInfoApp';
 import GameLayout from '@/layouts/GameLayout.astro';
-import { getLevel } from '@/features/acts-registry';
+import { getLevel } from '@/lib/acts-registry';
 
 const { actId, levelId } = Astro.params;
 const level = getLevel(levelId || '');

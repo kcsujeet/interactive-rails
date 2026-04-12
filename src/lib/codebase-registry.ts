@@ -7,7 +7,7 @@
  * The registry merges them in level order using last-writer-wins for duplicate filenames.
  */
 
-import { getAllLevels } from '@/features/acts-registry';
+import { getAllLevels } from '@/lib/acts-registry';
 import type { CodeFile } from '@/utils/codeGeneration';
 
 /** Lazy getter: returns the final code files for a level */

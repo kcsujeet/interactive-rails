@@ -4,7 +4,7 @@
  */
 
 import { useCallback, useMemo } from 'react';
-import { getLevel } from '@/features/acts-registry';
+import { getLevel } from '@/lib/acts-registry';
 import type {
 	Connection,
 	LiveMetrics,

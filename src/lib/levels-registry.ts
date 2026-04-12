@@ -47,90 +47,90 @@ export interface LevelComponentProps {
 // ===========================================
 // Act 1: The Foundation (Levels 1-8)
 // ===========================================
-import { Level1Environment } from './act1-foundation/components/Level1Environment';
-import { Level2FirstBoot } from './act1-foundation/components/Level2FirstBoot';
-import { Level3Model } from './act1-foundation/components/Level3Model';
-import { Level4CRUD } from './act1-foundation/components/Level4CRUD';
-import { Level5Routes } from './act1-foundation/components/Level5Routes';
-import { Level6Controller } from './act1-foundation/components/Level6Controller';
-import { Level7Serializers } from './act1-foundation/components/Level7Serializers';
-import { Level8Associations } from './act1-foundation/components/Level8Associations';
+import { Level1Environment } from '@/features/act1-foundation/components/Level1Environment';
+import { Level2FirstBoot } from '@/features/act1-foundation/components/Level2FirstBoot';
+import { Level3Model } from '@/features/act1-foundation/components/Level3Model';
+import { Level4CRUD } from '@/features/act1-foundation/components/Level4CRUD';
+import { Level5Routes } from '@/features/act1-foundation/components/Level5Routes';
+import { Level6Controller } from '@/features/act1-foundation/components/Level6Controller';
+import { Level7Serializers } from '@/features/act1-foundation/components/Level7Serializers';
+import { Level8Associations } from '@/features/act1-foundation/components/Level8Associations';
 
 // ===========================================
 // Act 2: Users & Security (Levels 9-15)
 // ===========================================
-import { Level9Authentication } from './act2-users-security/components/Level9Authentication';
-import { Level10Validations } from './act2-users-security/components/Level10Validations';
-import { Level11Callbacks } from './act2-users-security/components/Level11Callbacks';
-import { Level12Authorization } from './act2-users-security/components/Level12Authorization';
-import { Level13Testing } from './act2-users-security/components/Level13Testing';
-import { Level14StrongParams } from './act2-users-security/components/Level14StrongParams';
-import { Level15CORS } from './act2-users-security/components/Level15CORS';
+import { Level9Authentication } from '@/features/act2-users-security/components/Level9Authentication';
+import { Level10Validations } from '@/features/act2-users-security/components/Level10Validations';
+import { Level11Callbacks } from '@/features/act2-users-security/components/Level11Callbacks';
+import { Level12Authorization } from '@/features/act2-users-security/components/Level12Authorization';
+import { Level13Testing } from '@/features/act2-users-security/components/Level13Testing';
+import { Level14StrongParams } from '@/features/act2-users-security/components/Level14StrongParams';
+import { Level15CORS } from '@/features/act2-users-security/components/Level15CORS';
 
 // ===========================================
 // Act 3: Clean Architecture (Levels 16-22)
 // ===========================================
-import { Level16ServiceObjects } from './act3-clean-architecture/components/Level16ServiceObjects';
-import { Level17Concerns } from './act3-clean-architecture/components/Level17Concerns';
-import { Level18ValidationContracts } from './act3-clean-architecture/components/Level18ValidationContracts';
-import { Level19QueryObjects } from './act3-clean-architecture/components/Level19QueryObjects';
-import { Level20ErrorHandling } from './act3-clean-architecture/components/Level20ErrorHandling';
-import { Level21ActionMailer } from './act3-clean-architecture/components/Level21ActionMailer';
-import { Level22BackgroundJobs } from './act3-clean-architecture/components/Level22BackgroundJobs';
+import { Level16ServiceObjects } from '@/features/act3-clean-architecture/components/Level16ServiceObjects';
+import { Level17Concerns } from '@/features/act3-clean-architecture/components/Level17Concerns';
+import { Level18ValidationContracts } from '@/features/act3-clean-architecture/components/Level18ValidationContracts';
+import { Level19QueryObjects } from '@/features/act3-clean-architecture/components/Level19QueryObjects';
+import { Level20ErrorHandling } from '@/features/act3-clean-architecture/components/Level20ErrorHandling';
+import { Level21ActionMailer } from '@/features/act3-clean-architecture/components/Level21ActionMailer';
+import { Level22BackgroundJobs } from '@/features/act3-clean-architecture/components/Level22BackgroundJobs';
 
 // ===========================================
 // Act 4: Performance (Levels 23-31)
 // ===========================================
-import { Level23N1Problem } from './act4-performance/components/Level23N1Problem';
-import { Level24EagerLoading } from './act4-performance/components/Level24EagerLoading';
-import { Level25NarrowFetching } from './act4-performance/components/Level25NarrowFetching';
-import { Level26Indexing } from './act4-performance/components/Level26Indexing';
-import { Level27CounterCaches } from './act4-performance/components/Level27CounterCaches';
-import { Level28Pagination } from './act4-performance/components/Level28Pagination';
-import { Level29Search } from './act4-performance/components/Level29Search';
-import { Level30Caching } from './act4-performance/components/Level30Caching';
-import { Level31HTTPCaching } from './act4-performance/components/Level31HTTPCaching';
+import { Level23N1Problem } from '@/features/act4-performance/components/Level23N1Problem';
+import { Level24EagerLoading } from '@/features/act4-performance/components/Level24EagerLoading';
+import { Level25NarrowFetching } from '@/features/act4-performance/components/Level25NarrowFetching';
+import { Level26Indexing } from '@/features/act4-performance/components/Level26Indexing';
+import { Level27CounterCaches } from '@/features/act4-performance/components/Level27CounterCaches';
+import { Level28Pagination } from '@/features/act4-performance/components/Level28Pagination';
+import { Level29Search } from '@/features/act4-performance/components/Level29Search';
+import { Level30Caching } from '@/features/act4-performance/components/Level30Caching';
+import { Level31HTTPCaching } from '@/features/act4-performance/components/Level31HTTPCaching';
 
 // ===========================================
 // Act 5: Production Features (Levels 32-40)
 // ===========================================
-import { Level32Polymorphic } from './act5-production/components/Level32Polymorphic';
-import { Level33Transactions } from './act5-production/components/Level33Transactions';
-import { Level34Locking } from './act5-production/components/Level34Locking';
-import { Level35ActiveStorage } from './act5-production/components/Level35ActiveStorage';
-import { Level36Encryption } from './act5-production/components/Level36Encryption';
-import { Level37RealTime } from './act5-production/components/Level37RealTime';
-import { Level38ExternalAPIs } from './act5-production/components/Level38ExternalAPIs';
-import { Level39Webhooks } from './act5-production/components/Level39Webhooks';
-import { Level40APIVersioning } from './act5-production/components/Level40APIVersioning';
+import { Level32Polymorphic } from '@/features/act5-production/components/Level32Polymorphic';
+import { Level33Transactions } from '@/features/act5-production/components/Level33Transactions';
+import { Level34Locking } from '@/features/act5-production/components/Level34Locking';
+import { Level35ActiveStorage } from '@/features/act5-production/components/Level35ActiveStorage';
+import { Level36Encryption } from '@/features/act5-production/components/Level36Encryption';
+import { Level37RealTime } from '@/features/act5-production/components/Level37RealTime';
+import { Level38ExternalAPIs } from '@/features/act5-production/components/Level38ExternalAPIs';
+import { Level39Webhooks } from '@/features/act5-production/components/Level39Webhooks';
+import { Level40APIVersioning } from '@/features/act5-production/components/Level40APIVersioning';
 
 // ===========================================
 // Act 6: Reliability (Levels 41-47)
 // ===========================================
-import { Level41Middleware } from './act6-reliability/components/Level41Middleware';
-import { Level42RateLimiting } from './act6-reliability/components/Level42RateLimiting';
-import { Level43SoftDeletes } from './act6-reliability/components/Level43SoftDeletes';
-import { Level44SafeMigrations } from './act6-reliability/components/Level44SafeMigrations';
-import { Level45RecurringJobs } from './act6-reliability/components/Level45RecurringJobs';
-import { Level46DataLifecycle } from './act6-reliability/components/Level46DataLifecycle';
-import { Level47ErrorMonitoring } from './act6-reliability/components/Level47ErrorMonitoring';
+import { Level41Middleware } from '@/features/act6-reliability/components/Level41Middleware';
+import { Level42RateLimiting } from '@/features/act6-reliability/components/Level42RateLimiting';
+import { Level43SoftDeletes } from '@/features/act6-reliability/components/Level43SoftDeletes';
+import { Level44SafeMigrations } from '@/features/act6-reliability/components/Level44SafeMigrations';
+import { Level45RecurringJobs } from '@/features/act6-reliability/components/Level45RecurringJobs';
+import { Level46DataLifecycle } from '@/features/act6-reliability/components/Level46DataLifecycle';
+import { Level47ErrorMonitoring } from '@/features/act6-reliability/components/Level47ErrorMonitoring';
 
 // ===========================================
 // Act 7: Scale (Levels 48-53)
 // ===========================================
-import { Level48MultiDatabase } from './act7-scale/components/Level48MultiDatabase';
-import { Level49StateMachines } from './act7-scale/components/Level49StateMachines';
-import { Level50MultiTenancy } from './act7-scale/components/Level50MultiTenancy';
-import { Level51Observability } from './act7-scale/components/Level51Observability';
-import { Level52ModularMonolith } from './act7-scale/components/Level52ModularMonolith';
-import { Level53DomainEvents } from './act7-scale/components/Level53DomainEvents';
+import { Level48MultiDatabase } from '@/features/act7-scale/components/Level48MultiDatabase';
+import { Level49StateMachines } from '@/features/act7-scale/components/Level49StateMachines';
+import { Level50MultiTenancy } from '@/features/act7-scale/components/Level50MultiTenancy';
+import { Level51Observability } from '@/features/act7-scale/components/Level51Observability';
+import { Level52ModularMonolith } from '@/features/act7-scale/components/Level52ModularMonolith';
+import { Level53DomainEvents } from '@/features/act7-scale/components/Level53DomainEvents';
 
 // ===========================================
 // Act 8: Mastery (Levels 54-56)
 // ===========================================
-import { Level54APIGateway } from './act8-mastery/components/Level54APIGateway';
-import { Level55Sharding } from './act8-mastery/components/Level55Sharding';
-import { Level56Architect } from './act8-mastery/components/Level56Architect';
+import { Level54APIGateway } from '@/features/act8-mastery/components/Level54APIGateway';
+import { Level55Sharding } from '@/features/act8-mastery/components/Level55Sharding';
+import { Level56Architect } from '@/features/act8-mastery/components/Level56Architect';
 
 // Level component registry
 // Levels not listed here use the generic pipeline builder view
@@ -241,11 +241,11 @@ export function hasCustomComponent(levelId: string): boolean {
 }
 
 // Re-export Act 1 level components for direct import
-export { Level1Environment } from './act1-foundation/components/Level1Environment';
-export { Level2FirstBoot } from './act1-foundation/components/Level2FirstBoot';
-export { Level3Model } from './act1-foundation/components/Level3Model';
-export { Level4CRUD } from './act1-foundation/components/Level4CRUD';
-export { Level5Routes } from './act1-foundation/components/Level5Routes';
-export { Level6Controller } from './act1-foundation/components/Level6Controller';
-export { Level7Serializers } from './act1-foundation/components/Level7Serializers';
-export { Level8Associations } from './act1-foundation/components/Level8Associations';
+export { Level1Environment } from '@/features/act1-foundation/components/Level1Environment';
+export { Level2FirstBoot } from '@/features/act1-foundation/components/Level2FirstBoot';
+export { Level3Model } from '@/features/act1-foundation/components/Level3Model';
+export { Level4CRUD } from '@/features/act1-foundation/components/Level4CRUD';
+export { Level5Routes } from '@/features/act1-foundation/components/Level5Routes';
+export { Level6Controller } from '@/features/act1-foundation/components/Level6Controller';
+export { Level7Serializers } from '@/features/act1-foundation/components/Level7Serializers';
+export { Level8Associations } from '@/features/act1-foundation/components/Level8Associations';

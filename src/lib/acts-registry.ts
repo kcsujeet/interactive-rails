@@ -8,14 +8,14 @@
 import type { Act, Level } from '@/types';
 
 // Import individual act definitions
-import { actOne } from './act1-foundation/content';
-import { actTwo } from './act2-users-security/content';
-import { actThree } from './act3-clean-architecture/content';
-import { actFour } from './act4-performance/content';
-import { actFive } from './act5-production/content';
-import { actSix } from './act6-reliability/content';
-import { actSeven } from './act7-scale/content';
-import { actEight } from './act8-mastery/content';
+import { actOne } from '@/features/act1-foundation/content/content';
+import { actTwo } from '@/features/act2-users-security/content/content';
+import { actThree } from '@/features/act3-clean-architecture/content/content';
+import { actFour } from '@/features/act4-performance/content/content';
+import { actFive } from '@/features/act5-production/content/content';
+import { actSix } from '@/features/act6-reliability/content/content';
+import { actSeven } from '@/features/act7-scale/content/content';
+import { actEight } from '@/features/act8-mastery/content/content';
 
 // ============================================
 // All Acts

@@ -19,8 +19,8 @@ import {
 	type TerminalStep,
 	type ValidationResult,
 } from '@/components/levels';
-import { registerLevelCode } from '@/features/codebase-viewer/utils/codebase-registry';
-import type { LevelComponentProps } from '@/features/levels-registry';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { useStepGating } from '@/hooks/useStepGating';
 
 registerLevelCode('act1-level4-crud', () => []);

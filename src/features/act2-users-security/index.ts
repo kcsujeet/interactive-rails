@@ -1,1 +1,0 @@
-export { actTwo } from './content';

@@ -7,8 +7,8 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { getActForLevel, getLevel } from '@/features/acts-registry';
-import { getLevelComponent } from '@/features/levels-registry';
+import { getActForLevel, getLevel } from '@/lib/acts-registry';
+import { getLevelComponent } from '@/lib/levels-registry';
 import { completeLevel as completeLevelProgress } from '@/lib/progress';
 import { generateCodeFiles, getLearningGoal } from '@/utils/codeGeneration';
 import {

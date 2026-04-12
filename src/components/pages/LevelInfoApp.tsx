@@ -6,7 +6,7 @@
 
 import { BookOpen, Code, Info, Play, Target } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { getActForLevel, getLevel } from '@/features/acts-registry';
+import { getActForLevel, getLevel } from '@/lib/acts-registry';
 import { levelChallenges } from '../game-barrel';
 import { Alert, AlertDescription } from '../ui/Alert';
 import { Badge } from '../ui/Badge';

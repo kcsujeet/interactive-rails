@@ -1,1 +1,0 @@
-export { actSeven } from './content';

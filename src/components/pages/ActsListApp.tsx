@@ -10,9 +10,9 @@ import {
 	ACTS,
 	getTotalLevelCount,
 	isLevelUnlocked,
-} from '@/features/acts-registry';
+} from '@/lib/acts-registry';
 import { CodebaseViewerDialog } from '@/features/codebase-viewer/components/CodebaseViewerDialog';
-import { buildUnifiedProject } from '@/features/codebase-viewer/utils/codebase-registry';
+import { buildUnifiedProject } from '@/lib/codebase-registry';
 import type { LevelProgressEntry } from '@/lib/progress';
 import { getProgress } from '@/lib/progress';
 import type { Level } from '@/types/game';
