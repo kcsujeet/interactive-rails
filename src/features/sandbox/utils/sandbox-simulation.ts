@@ -1,8 +1,9 @@
 /**
  * Sandbox Simulation Engine
  *
- * Tick-based simulation that generates request traffic through the production graph.
- * All behavior is driven by tunable parameters the user can adjust in real-time.
+ * Tick-based simulation modeling a real production Rails stack.
+ * Parameters reflect things you actually control in real life.
+ * Metrics emerge from the architecture, not from sliders.
  */
 
 import type { SandboxNodeData } from './sandbox-layout';
@@ -21,27 +22,42 @@ export interface SimMetrics {
 	blockedByRateLimit: number;
 }
 
-/** Tunable parameters the user can adjust to stress-test the system */
+/** Things you actually control in a real project */
 export interface SimParams {
 	trafficRate: number;
-	dbLatency: number;
-	cacheHitPercent: number;
-	errorInjectionPercent: number;
-	stripeLatency: number;
-	pumaThreads: number;
+	appServerCount: number;
+	pumaThreadsPerServer: number;
+	dbReplicaCount: number;
 	rateLimitThreshold: number;
-	queueProcessingRate: number;
+	queueWorkers: number;
+	cacheTtlSeconds: number;
+}
+
+/** Chaos events that happen to you */
+export interface ChaosState {
+	stripeDown: boolean;
+	dbLagSpike: boolean;
+	ddosAttack: boolean;
+	cacheFlush: boolean;
+	replicaPartition: boolean;
 }
 
 export const DEFAULT_PARAMS: SimParams = {
 	trafficRate: 100,
-	dbLatency: 10,
-	cacheHitPercent: 75,
-	errorInjectionPercent: 0,
-	stripeLatency: 250,
-	pumaThreads: 5,
+	appServerCount: 2,
+	pumaThreadsPerServer: 5,
+	dbReplicaCount: 1,
 	rateLimitThreshold: 500,
-	queueProcessingRate: 3,
+	queueWorkers: 3,
+	cacheTtlSeconds: 300,
+};
+
+export const DEFAULT_CHAOS: ChaosState = {
+	stripeDown: false,
+	dbLagSpike: false,
+	ddosAttack: false,
+	cacheFlush: false,
+	replicaPartition: false,
 };
 
 const INITIAL_METRICS: SimMetrics = {
@@ -62,18 +78,27 @@ export function createInitialMetrics(): SimMetrics {
 	return { ...INITIAL_METRICS };
 }
 
-/**
- * Run one simulation tick. All behavior driven by params.
- */
+// Internal: tracks cache warmth (0-100), grows over time with TTL
+let cacheWarmth = 50;
+
+export function resetCacheWarmth(): void {
+	cacheWarmth = 50;
+}
+
 export function simulationTick(
 	nodeDataMap: Map<string, SandboxNodeData>,
 	metrics: SimMetrics,
 	params: SimParams,
+	chaos: ChaosState,
 ): { nodeUpdates: Map<string, Partial<SandboxNodeData>>; metrics: SimMetrics } {
 	const updates = new Map<string, Partial<SandboxNodeData>>();
 	const hasNode = (id: string) => nodeDataMap.has(id);
 
-	const requestsThisTick = params.trafficRate / 30;
+	// Effective traffic (DDoS multiplies it)
+	const effectiveTraffic = chaos.ddosAttack
+		? params.trafficRate * 10
+		: params.trafficRate;
+	const requestsThisTick = effectiveTraffic / 30;
 	const newRequests =
 		Math.random() < requestsThisTick
 			? Math.ceil(requestsThisTick)
@@ -85,152 +110,164 @@ export function simulationTick(
 	// Users
 	if (hasNode('users')) {
 		updates.set('users', {
-			status: 'active',
-			metrics: { reqPerSec: params.trafficRate },
+			status: chaos.ddosAttack ? 'error' : 'active',
+			metrics: { reqPerSec: effectiveTraffic },
 		});
 	}
 
-	// CDN: serves ~40% of requests (static assets)
+	// CDN: static assets (~40%)
 	const cdnHits = Math.round(newRequests * 0.4);
-	const cdnMisses = newRequests - cdnHits;
+	const dynamicRequests = newRequests - cdnHits;
 	if (hasNode('cdn')) {
 		updates.set('cdn', {
 			status: 'active',
 			metrics: {
-				hitRate: 40 + Math.round(Math.random() * 10),
+				hitRate: 40 + Math.round(Math.random() * 5),
 				reqPerSec: newRequests,
 			},
 		});
 	}
 
-	// Rate limiter: blocks traffic exceeding threshold
-	const overThreshold = params.trafficRate > params.rateLimitThreshold;
+	// Rate limiter
+	const overThreshold = effectiveTraffic > params.rateLimitThreshold;
 	const rateLimitPercent =
 		hasNode('rate-limiter') && overThreshold
 			? Math.min(
-					80,
-					((params.trafficRate - params.rateLimitThreshold) /
+					90,
+					((effectiveTraffic - params.rateLimitThreshold) /
 						params.rateLimitThreshold) *
 						100,
 				)
 			: 0;
-	const rateLimited = Math.round(cdnMisses * (rateLimitPercent / 100));
-	const passedRateLimit = cdnMisses - rateLimited;
+	const rateLimited = Math.round(dynamicRequests * (rateLimitPercent / 100));
+	const passedRequests = dynamicRequests - rateLimited;
 	m.blockedByRateLimit += rateLimited;
 
 	if (hasNode('rate-limiter')) {
 		updates.set('rate-limiter', {
-			status: overThreshold ? 'warning' : 'active',
-			metrics: { blockedCount: m.blockedByRateLimit, reqPerSec: cdnMisses },
+			status: overThreshold
+				? chaos.ddosAttack
+					? 'error'
+					: 'warning'
+				: 'active',
+			metrics: {
+				blockedCount: m.blockedByRateLimit,
+				reqPerSec: dynamicRequests,
+			},
 		});
 	}
 
 	// Load balancer
-	const toApp1 = Math.ceil(passedRateLimit / 2);
-	const toApp2 = passedRateLimit - toApp1;
-
 	if (hasNode('lb')) {
 		updates.set('lb', {
 			status: 'active',
-			metrics: { reqPerSec: passedRateLimit },
+			metrics: { reqPerSec: passedRequests },
 		});
 	}
 
-	// App servers: threads are a bottleneck
-	const app1Busy = Math.min(params.pumaThreads, toApp1);
-	const app2Busy = Math.min(params.pumaThreads, toApp2);
-	const app1Saturated = toApp1 > params.pumaThreads;
-	const app2Saturated = toApp2 > params.pumaThreads;
-	const threadBackpressure = app1Saturated || app2Saturated;
-
-	if (hasNode('app-1')) {
-		updates.set('app-1', {
-			status: app1Saturated
-				? 'error'
-				: app1Busy >= params.pumaThreads - 1
-					? 'warning'
-					: 'active',
-			metrics: {
-				threadsBusy: app1Busy,
-				threadsTotal: params.pumaThreads,
-				reqPerSec: toApp1,
-			},
-		});
-	}
-
-	if (hasNode('app-2')) {
-		updates.set('app-2', {
-			status: app2Saturated
-				? 'error'
-				: app2Busy >= params.pumaThreads - 1
-					? 'warning'
-					: 'active',
-			metrics: {
-				threadsBusy: app2Busy,
-				threadsTotal: params.pumaThreads,
-				reqPerSec: toApp2,
-			},
-		});
-	}
-
-	// Cache: hit rate driven by user param
-	const totalAppRequests = toApp1 + toApp2;
-	const effectiveCacheHitRate = hasNode('cache')
-		? params.cacheHitPercent + Math.round(Math.random() * 5 - 2.5)
-		: 0;
-	const cacheHits = Math.round(
-		totalAppRequests * (effectiveCacheHitRate / 100),
+	// App servers: distribute evenly, threads are the bottleneck
+	const reqPerServer = Math.ceil(
+		passedRequests / Math.max(1, params.appServerCount),
 	);
-	const cacheMisses = totalAppRequests - cacheHits;
+	const busyPerServer = Math.min(params.pumaThreadsPerServer, reqPerServer);
+	const serversSaturated = reqPerServer > params.pumaThreadsPerServer;
+
+	// Update app server nodes (app-1 and app-2 always exist, show based on count)
+	for (let i = 1; i <= 2; i++) {
+		const nodeId = `app-${i}`;
+		if (hasNode(nodeId)) {
+			const active = i <= params.appServerCount;
+			updates.set(nodeId, {
+				status: !active
+					? 'idle'
+					: serversSaturated
+						? 'error'
+						: busyPerServer >= params.pumaThreadsPerServer - 1
+							? 'warning'
+							: 'active',
+				metrics: active
+					? {
+							threadsBusy: busyPerServer,
+							threadsTotal: params.pumaThreadsPerServer,
+							reqPerSec: reqPerServer,
+						}
+					: undefined,
+			});
+		}
+	}
+
+	// Cache: hit rate emerges from TTL and warmth (not directly controlled)
+	if (chaos.cacheFlush) cacheWarmth = 0;
+	// Warmth grows toward a ceiling based on TTL (higher TTL = higher ceiling)
+	const ttlCeiling = Math.min(95, 40 + params.cacheTtlSeconds / 10);
+	cacheWarmth = cacheWarmth + (ttlCeiling - cacheWarmth) * 0.02;
+	const effectiveCacheHitRate = hasNode('cache')
+		? Math.round(cacheWarmth + Math.random() * 3 - 1.5)
+		: 0;
+	const cacheMisses = Math.round(
+		passedRequests * ((100 - effectiveCacheHitRate) / 100),
+	);
 
 	if (hasNode('cache')) {
 		updates.set('cache', {
 			status: effectiveCacheHitRate < 30 ? 'warning' : 'active',
-			metrics: { hitRate: effectiveCacheHitRate, reqPerSec: totalAppRequests },
+			metrics: { hitRate: effectiveCacheHitRate, reqPerSec: passedRequests },
 		});
 	}
 
-	// Database: latency driven by user param, load by cache misses
+	// Database: latency emerges from load (cache misses) and chaos
 	const dbQueries = cacheMisses + Math.round(newRequests * 0.1);
 	m.dbQueryCount += dbQueries;
-	const dbOverloaded = dbQueries > 15;
-	const effectiveDbLatency =
-		params.dbLatency * (dbOverloaded ? 3 : 1) +
-		Math.random() * params.dbLatency * 0.5;
+	const baseDbLatency = 5 + Math.random() * 10;
+	const loadMultiplier = dbQueries > 15 ? 3 : dbQueries > 8 ? 1.5 : 1;
+	const chaosMultiplier = chaos.dbLagSpike ? 10 : 1;
+	const effectiveDbLatency = baseDbLatency * loadMultiplier * chaosMultiplier;
 
 	if (hasNode('db-primary')) {
 		updates.set('db-primary', {
-			status: dbOverloaded ? 'error' : dbQueries > 8 ? 'warning' : 'active',
+			status: chaos.dbLagSpike
+				? 'error'
+				: dbQueries > 15
+					? 'error'
+					: dbQueries > 8
+						? 'warning'
+						: 'active',
 			metrics: { queryCount: dbQueries, latency: effectiveDbLatency },
 		});
 	}
 
+	// DB Replica: offloads reads if available and not partitioned
+	const replicaActive = params.dbReplicaCount > 0 && !chaos.replicaPartition;
 	if (hasNode('db-replica')) {
-		const replicaQueries = Math.round(cacheMisses * 0.6);
+		const replicaQueries = replicaActive ? Math.round(cacheMisses * 0.6) : 0;
 		updates.set('db-replica', {
-			status: 'active',
-			metrics: {
-				queryCount: replicaQueries,
-				latency: effectiveDbLatency * 1.1,
-			},
+			status: chaos.replicaPartition
+				? 'error'
+				: replicaActive
+					? 'active'
+					: 'idle',
+			metrics: replicaActive
+				? { queryCount: replicaQueries, latency: effectiveDbLatency * 1.1 }
+				: undefined,
 		});
 	}
 
-	// Errors: injected by user param + natural from overload
-	const naturalErrorRate = threadBackpressure ? 5 + Math.random() * 10 : 0;
-	const totalErrorPercent = Math.min(
-		100,
-		params.errorInjectionPercent + naturalErrorRate,
-	);
-	const erroredRequests = Math.round(newRequests * (totalErrorPercent / 100));
+	// Errors: emerge from overload, not from a slider
+	const threadOverflow = serversSaturated
+		? Math.round(
+				((reqPerServer - params.pumaThreadsPerServer) /
+					params.pumaThreadsPerServer) *
+					30,
+			)
+		: 0;
+	const dbErrors = chaos.dbLagSpike ? 5 : 0;
+	const naturalErrorPercent = Math.min(80, threadOverflow + dbErrors);
+	const erroredRequests = Math.round(newRequests * (naturalErrorPercent / 100));
 	m.failedRequests += erroredRequests;
 
-	// Queue: depth grows if processing rate is lower than incoming jobs
+	// Queue: depth grows based on incoming jobs vs worker capacity
 	const newJobs = Math.round(newRequests * 0.1);
-	const processed = Math.min(
-		m.queueDepth + newJobs,
-		params.queueProcessingRate,
-	);
+	const processed = Math.min(m.queueDepth + newJobs, params.queueWorkers);
 	const queueDepth = Math.max(0, (m.queueDepth || 0) + newJobs - processed);
 	m.queueDepth = queueDepth;
 
@@ -242,26 +279,26 @@ export function simulationTick(
 		});
 	}
 
-	// Stripe: latency driven by user param
+	// Stripe: latency and availability based on chaos
 	if (hasNode('stripe')) {
-		const stripeJitter = params.stripeLatency * 0.3 * Math.random();
+		const stripeLatency = chaos.stripeDown ? 30000 : 200 + Math.random() * 100;
 		updates.set('stripe', {
-			status: params.stripeLatency > 500 ? 'warning' : 'active',
+			status: chaos.stripeDown ? 'error' : 'active',
 			metrics: {
-				latency: params.stripeLatency + stripeJitter,
-				reqPerSec: Math.round(newJobs * 0.3),
+				latency: stripeLatency,
+				reqPerSec: chaos.stripeDown ? 0 : Math.round(newJobs * 0.3),
 			},
 		});
 	}
 
-	// Global metrics
-	const baseLatency = hasNode('cache')
-		? 15 + (100 - effectiveCacheHitRate) * 0.5
-		: 80;
+	// Global metrics (all emergent)
+	const cacheBonus = hasNode('cache')
+		? (100 - effectiveCacheHitRate) * 0.5
+		: 50;
 	const totalLatency =
-		baseLatency + effectiveDbLatency + (threadBackpressure ? 200 : 0);
+		10 + cacheBonus + effectiveDbLatency + (serversSaturated ? 200 : 0);
 
-	m.completedRequests += cdnHits + passedRateLimit - erroredRequests;
+	m.completedRequests += cdnHits + passedRequests - erroredRequests;
 	m.avgLatency = totalLatency;
 	m.p95Latency = totalLatency * 1.8;
 	m.cacheHitRate = effectiveCacheHitRate;
@@ -269,7 +306,7 @@ export function simulationTick(
 		m.totalRequests > 0
 			? Math.round((m.failedRequests / m.totalRequests) * 1000) / 10
 			: 0;
-	m.reqPerSec = params.trafficRate;
+	m.reqPerSec = effectiveTraffic;
 
 	return { nodeUpdates: updates, metrics: m };
 }

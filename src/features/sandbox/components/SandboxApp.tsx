@@ -32,8 +32,11 @@ import {
 	type SandboxNode as SandboxNodeType,
 } from '../utils/sandbox-layout';
 import {
+	type ChaosState,
 	createInitialMetrics,
+	DEFAULT_CHAOS,
 	DEFAULT_PARAMS,
+	resetCacheWarmth,
 	type SimMetrics,
 	type SimParams,
 	simulationTick,
@@ -50,6 +53,7 @@ export function SandboxApp() {
 	const [running, setRunning] = useState(false);
 	const [metrics, setMetrics] = useState<SimMetrics>(createInitialMetrics());
 	const [params, setParams] = useState<SimParams>({ ...DEFAULT_PARAMS });
+	const [chaos, setChaos] = useState<ChaosState>({ ...DEFAULT_CHAOS });
 	const tickRef = useRef(0);
 	const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -77,6 +81,8 @@ export function SandboxApp() {
 		setRunning(false);
 		setMetrics(createInitialMetrics());
 		setParams({ ...DEFAULT_PARAMS });
+		setChaos({ ...DEFAULT_CHAOS });
+		resetCacheWarmth();
 		tickRef.current = 0;
 		setNodes(INITIAL_NODES);
 		setEdges(INITIAL_EDGES);
@@ -88,6 +94,10 @@ export function SandboxApp() {
 		},
 		[],
 	);
+
+	const toggleChaos = useCallback((key: keyof ChaosState) => {
+		setChaos((c) => ({ ...c, [key]: !c[key] }));
+	}, []);
 
 	// Toggle edge animation when simulation starts/stops
 	useEffect(() => {
@@ -113,7 +123,7 @@ export function SandboxApp() {
 					dataMap.set(n.id, n.data);
 				}
 
-				const result = simulationTick(dataMap, metrics, params);
+				const result = simulationTick(dataMap, metrics, params, chaos);
 				setMetrics(result.metrics);
 
 				return currentNodes.map((node) => {
@@ -133,7 +143,7 @@ export function SandboxApp() {
 				intervalRef.current = null;
 			}
 		};
-	}, [running, params, metrics, setNodes]);
+	}, [running, params, chaos, metrics, setNodes]);
 
 	return (
 		<div className="flex h-full overflow-hidden">
@@ -173,10 +183,10 @@ export function SandboxApp() {
 					</div>
 				</div>
 
-				{/* Tunable parameters */}
+				{/* Infrastructure (things you control) */}
 				<div className="space-y-3 pt-3 border-t border-border">
 					<h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-						Parameters
+						Infrastructure
 					</h3>
 					<ParamSlider
 						label="Traffic"
@@ -186,56 +196,30 @@ export function SandboxApp() {
 						step={10}
 						suffix=" req/s"
 						value={params.trafficRate}
-						warn={params.trafficRate > 500}
 					/>
 					<ParamSlider
-						label="DB Latency"
-						max={200}
+						label="App Servers"
+						max={5}
 						min={1}
-						onChange={(v) => updateParam('dbLatency', v)}
+						onChange={(v) => updateParam('appServerCount', v)}
 						step={1}
-						suffix="ms"
-						value={params.dbLatency}
-						warn={params.dbLatency > 50}
+						value={params.appServerCount}
 					/>
 					<ParamSlider
-						label="Cache Hit %"
-						max={100}
-						min={0}
-						onChange={(v) => updateParam('cacheHitPercent', v)}
-						step={5}
-						suffix="%"
-						value={params.cacheHitPercent}
-						warn={params.cacheHitPercent < 30}
-					/>
-					<ParamSlider
-						label="Error Injection"
-						max={50}
-						min={0}
-						onChange={(v) => updateParam('errorInjectionPercent', v)}
-						step={1}
-						suffix="%"
-						value={params.errorInjectionPercent}
-						warn={params.errorInjectionPercent > 5}
-					/>
-					<ParamSlider
-						label="Stripe Latency"
-						max={2000}
-						min={50}
-						onChange={(v) => updateParam('stripeLatency', v)}
-						step={50}
-						suffix="ms"
-						value={params.stripeLatency}
-						warn={params.stripeLatency > 500}
-					/>
-					<ParamSlider
-						label="Puma Threads"
+						label="Threads/Server"
 						max={20}
 						min={1}
-						onChange={(v) => updateParam('pumaThreads', v)}
+						onChange={(v) => updateParam('pumaThreadsPerServer', v)}
 						step={1}
-						value={params.pumaThreads}
-						warn={params.pumaThreads < 3}
+						value={params.pumaThreadsPerServer}
+					/>
+					<ParamSlider
+						label="DB Replicas"
+						max={3}
+						min={0}
+						onChange={(v) => updateParam('dbReplicaCount', v)}
+						step={1}
+						value={params.dbReplicaCount}
 					/>
 					<ParamSlider
 						label="Rate Limit"
@@ -248,14 +232,58 @@ export function SandboxApp() {
 						warn={params.trafficRate > params.rateLimitThreshold}
 					/>
 					<ParamSlider
-						label="Queue Speed"
-						max={20}
+						label="Queue Workers"
+						max={10}
 						min={1}
-						onChange={(v) => updateParam('queueProcessingRate', v)}
+						onChange={(v) => updateParam('queueWorkers', v)}
 						step={1}
-						suffix="/tick"
-						value={params.queueProcessingRate}
-						warn={params.queueProcessingRate < 2}
+						value={params.queueWorkers}
+					/>
+					<ParamSlider
+						label="Cache TTL"
+						max={600}
+						min={0}
+						onChange={(v) => updateParam('cacheTtlSeconds', v)}
+						step={30}
+						suffix="s"
+						value={params.cacheTtlSeconds}
+					/>
+				</div>
+
+				{/* Chaos (things that happen to you) */}
+				<div className="space-y-2 pt-3 border-t border-border">
+					<h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+						Chaos Events
+					</h3>
+					<ChaosToggle
+						active={chaos.ddosAttack}
+						description="10x traffic spike"
+						label="DDoS Attack"
+						onClick={() => toggleChaos('ddosAttack')}
+					/>
+					<ChaosToggle
+						active={chaos.stripeDown}
+						description="Payment API unresponsive"
+						label="Stripe Down"
+						onClick={() => toggleChaos('stripeDown')}
+					/>
+					<ChaosToggle
+						active={chaos.dbLagSpike}
+						description="10x query latency"
+						label="DB Lag Spike"
+						onClick={() => toggleChaos('dbLagSpike')}
+					/>
+					<ChaosToggle
+						active={chaos.cacheFlush}
+						description="Hit rate drops to 0"
+						label="Cache Flush"
+						onClick={() => toggleChaos('cacheFlush')}
+					/>
+					<ChaosToggle
+						active={chaos.replicaPartition}
+						description="Read replica disconnected"
+						label="Replica Partition"
+						onClick={() => toggleChaos('replicaPartition')}
 					/>
 				</div>
 			</div>
@@ -418,6 +446,39 @@ function ParamSlider({
 				value={value}
 			/>
 		</div>
+	);
+}
+
+function ChaosToggle({
+	label,
+	description,
+	active,
+	onClick,
+}: {
+	label: string;
+	description: string;
+	active: boolean;
+	onClick: () => void;
+}) {
+	return (
+		<button
+			className={cn(
+				'w-full text-left px-3 py-2 rounded-lg border text-xs transition-all',
+				active
+					? 'border-destructive bg-destructive/10 text-destructive'
+					: 'border-border bg-card text-muted-foreground hover:border-destructive/50',
+			)}
+			onClick={onClick}
+			type="button"
+		>
+			<div className="flex items-center justify-between">
+				<span className="font-medium">{label}</span>
+				{active && (
+					<span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
+				)}
+			</div>
+			<span className="text-muted-foreground">{description}</span>
+		</button>
 	);
 }
 
