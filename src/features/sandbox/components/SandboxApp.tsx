@@ -7,45 +7,36 @@
  */
 
 import {
-	Background,
-	Controls,
-	MiniMap,
-	ReactFlow,
 	applyEdgeChanges,
 	applyNodeChanges,
-	useEdgesState,
-	useNodesState,
+	Background,
+	Controls,
 	type EdgeChange,
+	MiniMap,
 	type NodeChange,
 	type NodeTypes,
+	ReactFlow,
+	useEdgesState,
+	useNodesState,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import {
-	Database,
-	Globe,
-	Pause,
-	Play,
-	RotateCcw,
-	Server,
-	Shield,
-	Zap,
-} from 'lucide-react';
+import { Pause, Play, RotateCcw } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { cn } from '@/lib/utils';
-import { SandboxNode } from './SandboxNode';
 import {
 	INITIAL_EDGES,
 	INITIAL_NODES,
-	type SandboxNode as SandboxNodeType,
 	type SandboxNodeData,
+	type SandboxNode as SandboxNodeType,
 } from '../utils/sandbox-layout';
 import {
 	createInitialMetrics,
-	simulationTick,
 	type SimMetrics,
+	simulationTick,
 } from '../utils/sandbox-simulation';
+import { SandboxNode } from './SandboxNode';
 
 const nodeTypes: NodeTypes = {
 	sandbox: SandboxNode,
@@ -87,6 +78,11 @@ export function SandboxApp() {
 		setNodes(INITIAL_NODES);
 		setEdges(INITIAL_EDGES);
 	}, [setNodes, setEdges]);
+
+	// Toggle edge animation when simulation starts/stops
+	useEffect(() => {
+		setEdges((eds) => eds.map((e) => ({ ...e, animated: running })));
+	}, [running, setEdges]);
 
 	// Simulation loop
 	useEffect(() => {
@@ -154,11 +150,7 @@ export function SandboxApp() {
 				<div className="space-y-3">
 					<div className="flex gap-2">
 						{!running ? (
-							<Button
-								className="flex-1"
-								onClick={startSimulation}
-								size="sm"
-							>
+							<Button className="flex-1" onClick={startSimulation} size="sm">
 								<Play className="w-4 h-4 mr-1" />
 								Start
 							</Button>
@@ -173,11 +165,7 @@ export function SandboxApp() {
 								Pause
 							</Button>
 						)}
-						<Button
-							onClick={resetSimulation}
-							size="sm"
-							variant="outline"
-						>
+						<Button onClick={resetSimulation} size="sm" variant="outline">
 							<RotateCcw className="w-4 h-4" />
 						</Button>
 					</div>
@@ -206,47 +194,18 @@ export function SandboxApp() {
 					</div>
 				</div>
 
-				{/* Architecture legend */}
-				<div className="space-y-2">
+				{/* Tips */}
+				<div className="space-y-2 pt-2 border-t border-border">
 					<h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-						Architecture
+						Try it
 					</h3>
-					<LegendItem
-						color="#3b82f6"
-						description="End users sending requests"
-						icon={<Globe className="w-3.5 h-3.5" />}
-						label="Users"
-					/>
-					<LegendItem
-						color="#06b6d4"
-						description="Edge caching for static assets"
-						icon={<Zap className="w-3.5 h-3.5" />}
-						label="CDN"
-					/>
-					<LegendItem
-						color="#f97316"
-						description="Per-IP request throttling"
-						icon={<Shield className="w-3.5 h-3.5" />}
-						label="Rate Limiter"
-					/>
-					<LegendItem
-						color="#a78bfa"
-						description="Distributes across app servers"
-						icon={<Server className="w-3.5 h-3.5" />}
-						label="Load Balancer"
-					/>
-					<LegendItem
-						color="#10b981"
-						description="Puma workers processing requests"
-						icon={<Server className="w-3.5 h-3.5" />}
-						label="App Servers"
-					/>
-					<LegendItem
-						color="#ef4444"
-						description="PostgreSQL with read replicas"
-						icon={<Database className="w-3.5 h-3.5" />}
-						label="Database"
-					/>
+					<ul className="space-y-1.5 text-xs text-muted-foreground">
+						<li>Hit Start and watch requests flow through the stack</li>
+						<li>Crank up traffic to 500+ req/s and watch threads fill up</li>
+						<li>Delete the Cache node and see latency spike</li>
+						<li>Remove the Rate Limiter and watch error rates climb</li>
+						<li>Click any node to see its live metrics</li>
+					</ul>
 				</div>
 			</div>
 
@@ -256,8 +215,8 @@ export function SandboxApp() {
 					edges={edges}
 					fitView
 					fitViewOptions={{ padding: 0.15 }}
-					nodeTypes={nodeTypes}
 					nodes={nodes}
+					nodeTypes={nodeTypes}
 					onEdgesChange={onEdgesChange}
 					onNodesChange={onNodesChange}
 					proOptions={{ hideAttribution: true }}
@@ -276,9 +235,7 @@ export function SandboxApp() {
 
 			{/* Right sidebar: metrics */}
 			<div className="w-72 shrink-0 border-l border-border bg-card overflow-y-auto p-4 space-y-4">
-				<h3 className="text-sm font-semibold text-foreground">
-					Live Metrics
-				</h3>
+				<h3 className="text-sm font-semibold text-foreground">Live Metrics</h3>
 
 				<MetricCard
 					label="Throughput"
@@ -308,19 +265,13 @@ export function SandboxApp() {
 					value={metrics.errorRate}
 					warn={metrics.errorRate > 1}
 				/>
-				<MetricCard
-					label="DB Queries"
-					value={metrics.dbQueryCount}
-				/>
+				<MetricCard label="DB Queries" value={metrics.dbQueryCount} />
 				<MetricCard
 					label="Queue Depth"
 					value={metrics.queueDepth}
 					warn={metrics.queueDepth > 20}
 				/>
-				<MetricCard
-					label="Rate Limited"
-					value={metrics.blockedByRateLimit}
-				/>
+				<MetricCard label="Rate Limited" value={metrics.blockedByRateLimit} />
 
 				{/* Status */}
 				<div className="pt-2 border-t border-border">
@@ -339,33 +290,6 @@ export function SandboxApp() {
 						{metrics.totalRequests.toLocaleString()} total requests processed
 					</p>
 				</div>
-			</div>
-		</div>
-	);
-}
-
-function LegendItem({
-	color,
-	label,
-	description,
-	icon,
-}: {
-	color: string;
-	label: string;
-	description: string;
-	icon: React.ReactNode;
-}) {
-	return (
-		<div className="flex items-start gap-2">
-			<span
-				className="w-6 h-6 rounded flex items-center justify-center shrink-0 text-white mt-0.5"
-				style={{ backgroundColor: color }}
-			>
-				{icon}
-			</span>
-			<div className="min-w-0">
-				<p className="text-xs font-medium text-foreground">{label}</p>
-				<p className="text-xs text-muted-foreground">{description}</p>
 			</div>
 		</div>
 	);

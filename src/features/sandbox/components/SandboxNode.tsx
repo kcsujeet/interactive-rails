@@ -3,7 +3,7 @@
  * Card-style layout: colored header with icon + label, body with description and live metrics.
  */
 
-import { Handle, Position, type NodeProps } from '@xyflow/react';
+import { Handle, type NodeProps, Position } from '@xyflow/react';
 import { cn } from '@/lib/utils';
 import type { SandboxNode as SandboxNodeType } from '../utils/sandbox-layout';
 
@@ -25,7 +25,8 @@ export function SandboxNode({ data, selected }: NodeProps<SandboxNodeType>) {
 				className={cn(
 					'rounded-lg border-2 bg-card shadow-md min-w-40 transition-all',
 					statusColor,
-					selected && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
+					selected &&
+						'ring-2 ring-primary ring-offset-2 ring-offset-background',
 				)}
 			>
 				{/* Colored header */}
@@ -99,24 +100,19 @@ export function SandboxNode({ data, selected }: NodeProps<SandboxNodeType>) {
 									warn
 								/>
 							)}
-							{d.metrics.errorRate !== undefined &&
-								d.metrics.errorRate > 0 && (
-									<MetricRow
-										label="errors"
-										suffix="%"
-										value={d.metrics.errorRate}
-										warn
-									/>
-								)}
+							{d.metrics.errorRate !== undefined && d.metrics.errorRate > 0 && (
+								<MetricRow
+									label="errors"
+									suffix="%"
+									value={d.metrics.errorRate}
+									warn
+								/>
+							)}
 						</div>
 					)}
 				</div>
 			</div>
-			<Handle
-				className="w-2.5 h-2.5"
-				position={Position.Right}
-				type="source"
-			/>
+			<Handle className="w-2.5 h-2.5" position={Position.Right} type="source" />
 		</>
 	);
 }

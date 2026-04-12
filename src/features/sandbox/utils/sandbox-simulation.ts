@@ -54,7 +54,10 @@ export function simulationTick(
 
 	// Traffic generation
 	const requestsThisTick = trafficRate / 30; // 30 ticks per second
-	const newRequests = Math.random() < requestsThisTick ? Math.ceil(requestsThisTick) : Math.floor(requestsThisTick);
+	const newRequests =
+		Math.random() < requestsThisTick
+			? Math.ceil(requestsThisTick)
+			: Math.floor(requestsThisTick);
 
 	const m = { ...metrics };
 	m.totalRequests += newRequests;
@@ -133,7 +136,9 @@ export function simulationTick(
 
 	// Cache: hit rate depends on whether cache node exists
 	const totalAppRequests = toApp1 + toApp2;
-	const cacheHitRate = hasNode('cache') ? 70 + Math.round(Math.random() * 15) : 0;
+	const cacheHitRate = hasNode('cache')
+		? 70 + Math.round(Math.random() * 15)
+		: 0;
 	const cacheHits = Math.round(totalAppRequests * (cacheHitRate / 100));
 	const cacheMisses = totalAppRequests - cacheHits;
 
