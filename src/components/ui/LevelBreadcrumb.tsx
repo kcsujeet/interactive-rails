@@ -29,7 +29,7 @@ export function LevelBreadcrumb({
 				</BreadcrumbItem>
 				<BreadcrumbSeparator />
 				<BreadcrumbItem>
-					<BreadcrumbLink href={`/acts/${actId}`}>{actName}</BreadcrumbLink>
+					<BreadcrumbLink href="/acts">{actName}</BreadcrumbLink>
 				</BreadcrumbItem>
 				<BreadcrumbSeparator />
 				<BreadcrumbItem>

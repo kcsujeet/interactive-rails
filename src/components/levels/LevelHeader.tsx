@@ -71,7 +71,7 @@ export function LevelHeader({
 						size="sm"
 						variant="link"
 					>
-						<a className="flex items-center" href={`/acts/${actNumber}`} >
+						<a className="flex items-center" href="/acts" >
 							<ChevronLeft className="w-4 h-4" />
 							Levels
 						</a>
