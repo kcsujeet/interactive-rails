@@ -18,7 +18,7 @@ Every level exists because the app **needs** it at that stage, not because Rails
 
 | # | Name | Concept | Scenario |
 |---|------|---------|----------|
-| 1 | Environment | asdf, Ruby, Rails install | Day 0. Set up your development environment: version manager, Ruby, Rails. |
+| 1 | Environment | mise, Ruby, Rails install | Day 0. Set up your development environment: version manager, Ruby, Rails. |
 | 2 | First Boot | `rails new --api`, PostgreSQL vs SQLite | Day 1. Choose your database. Rails 8 makes SQLite production-ready, PostgreSQL for scale. |
 | 3 | The Model | ActiveRecord, migrations, schema | Need a product catalog. Define what a Product looks like: name, description, price. |
 | 4 | CRUD Operations | ActiveRecord CRUD, Rails console | Model exists but DB is empty. Create, read, update, destroy records. |

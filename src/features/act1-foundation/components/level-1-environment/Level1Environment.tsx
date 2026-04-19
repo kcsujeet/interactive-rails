@@ -1,8 +1,8 @@
 /**
  * Level 1: The Environment
  *
- * 5-step progression to set up a Ruby/Rails dev environment with asdf.
- * Steps: Install asdf -> Source in .zshrc -> Configure .tool-versions -> Install Ruby -> Install Rails
+ * 5-step progression to set up a Ruby/Rails dev environment with mise.
+ * Steps: Install mise -> Activate in .zshrc -> Configure .mise.toml -> Install Ruby -> Install Rails
  */
 
 import {
@@ -19,151 +19,152 @@ import {
 	type TerminalStep,
 	type ValidationResult,
 } from '@/components/levels';
+import { useStepGating } from '@/hooks/useStepGating';
 import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
-import { useStepGating } from '@/hooks/useStepGating';
 
 registerLevelCode('act1-level1-environment', () => []);
 
 const STEPS: TerminalStep[] = [
 	{
-		id: 'install-asdf',
-		title: 'Install asdf',
+		id: 'install-mise',
+		title: 'Install mise',
 		description: (
 			<p className="text-sm text-muted-foreground">
-				asdf is a version manager that handles Ruby, Node, Python, and more, all
-				with one tool. How do you install it on macOS?
+				mise is a fast, Rust-based version manager that handles Ruby, Node,
+				Python, and more with one tool. How do you install it on macOS?
 			</p>
 		),
 		commands: [
 			{
 				id: 'wrong-apt',
-				label: 'apt-get install asdf',
-				command: 'apt-get install asdf',
+				label: 'apt-get install mise',
+				command: 'apt-get install mise',
 				correct: false,
 				feedback: 'apt-get is a Linux package manager, not available on macOS.',
 			},
 			{
 				id: 'correct',
-				label: 'brew install asdf',
-				command: 'brew install asdf',
+				label: 'brew install mise',
+				command: 'brew install mise',
 				correct: true,
 			},
 			{
 				id: 'wrong-npm',
-				label: 'npm install -g asdf',
-				command: 'npm install -g asdf',
+				label: 'npm install -g mise',
+				command: 'npm install -g mise',
 				correct: false,
 				feedback:
-					"asdf isn't a Node package. It's a system tool, not an npm module.",
+					"mise isn't a Node package. It's a system tool, not an npm module.",
 			},
 		],
 		outputLines: [
-			{ text: '==> Downloading asdf...', color: 'cyan' },
-			{ text: '==> Installing asdf', color: 'green' },
-			{ text: '\u2713 asdf installed (v0.14.0)', color: 'green' },
+			{ text: '==> Downloading mise...', color: 'cyan' },
+			{ text: '==> Installing mise', color: 'green' },
+			{ text: '\u2713 mise installed (v2026.4.1)', color: 'green' },
 		],
 	},
 	{
-		id: 'source-asdf',
-		title: 'Source asdf in .zshrc',
+		id: 'activate-mise',
+		title: 'Activate mise in .zshrc',
 		description: (
 			<p className="text-sm text-muted-foreground">
-				asdf is installed, but your shell doesn't know about it yet. Which line
+				mise is installed, but your shell doesn't know about it yet. Which line
 				do you add to <span className="font-mono text-primary">~/.zshrc</span>{' '}
-				to load asdf on every new terminal session?
+				so mise auto-switches Ruby versions on every terminal session?
 			</p>
 		),
 		commands: [
 			{
 				id: 'path-only',
-				label: 'export PATH="/opt/homebrew/opt/asdf/bin:$PATH"',
+				label: 'export PATH="/opt/homebrew/opt/mise/bin:$PATH"',
 				command:
-					'echo \'export PATH="/opt/homebrew/opt/asdf/bin:$PATH"\' >> ~/.zshrc',
+					'echo \'export PATH="/opt/homebrew/opt/mise/bin:$PATH"\' >> ~/.zshrc',
 				correct: false,
 				feedback:
-					"Adding the binary to PATH isn't enough. asdf needs its shell integration sourced to manage shims.",
+					"Adding the binary to PATH isn't enough. mise needs a shell hook to auto-switch versions when you cd into a project.",
 			},
 			{
-				id: 'wrong-path',
-				label: 'source /usr/local/asdf/asdf.sh',
-				command: "echo 'source /usr/local/asdf/asdf.sh' >> ~/.zshrc",
+				id: 'wrong-source',
+				label: 'source /opt/homebrew/opt/mise/mise.sh',
+				command: "echo 'source /opt/homebrew/opt/mise/mise.sh' >> ~/.zshrc",
 				correct: false,
 				feedback:
-					'That path is for older Intel Macs. Homebrew on Apple Silicon installs to /opt/homebrew.',
+					"mise doesn't ship a static shell script to source. Its shell hook is generated dynamically at startup.",
 			},
 			{
 				id: 'correct',
-				label: '. /opt/homebrew/opt/asdf/libexec/asdf.sh',
-				command: "echo '. /opt/homebrew/opt/asdf/libexec/asdf.sh' >> ~/.zshrc",
+				label: 'eval "$(mise activate zsh)"',
+				command: 'echo \'eval "$(mise activate zsh)"\' >> ~/.zshrc',
 				correct: true,
 			},
 			{
 				id: 'alias',
-				label: 'alias asdf="/opt/homebrew/bin/asdf"',
-				command: 'echo \'alias asdf="/opt/homebrew/bin/asdf"\' >> ~/.zshrc',
+				label: 'alias mise="/opt/homebrew/bin/mise"',
+				command: 'echo \'alias mise="/opt/homebrew/bin/mise"\' >> ~/.zshrc',
 				correct: false,
 				feedback:
-					'An alias only gives you the command. asdf also needs shell hooks for shim management.',
+					'An alias only gives you the command. mise also needs a shell hook so it can auto-switch Ruby versions per directory.',
 			},
 		],
 		outputLines: [
 			{ text: '\u2713 Added to ~/.zshrc', color: 'green' },
 			{ text: 'Reloading shell...', color: 'muted' },
-			{ text: '\u2713 asdf loaded', color: 'green' },
+			{ text: '\u2713 mise activated', color: 'green' },
 		],
 	},
 	{
-		id: 'tool-versions',
-		title: 'Configure .tool-versions',
+		id: 'mise-toml',
+		title: 'Configure .mise.toml',
 		description: (
 			<p className="text-sm text-muted-foreground">
-				The <span className="font-mono text-primary">.tool-versions</span> file
-				pins your project to a specific Ruby version. Pick the correct format:
+				mise reads tool versions from{' '}
+				<span className="font-mono text-primary">.mise.toml</span> in your
+				project root. As the extension suggests, it uses TOML syntax. Pick the
+				correct content:
 			</p>
 		),
 		commands: [
 			{
-				id: 'capitalized',
-				label: 'Ruby 3.3.6',
-				command: 'echo "Ruby 3.3.6" > .tool-versions',
-				correct: false,
-				feedback:
-					'asdf plugin names are always lowercase. "Ruby" won\'t be recognized.',
-			},
-			{
 				id: 'yaml',
-				label: 'ruby: 3.3.6',
-				command: 'echo "ruby: 3.3.6" > .tool-versions',
+				label: 'ruby: "3.3.6"',
+				command: `printf 'ruby: "3.3.6"\\n' > .mise.toml`,
 				correct: false,
-				feedback:
-					".tool-versions isn't YAML. Colons are not part of the format.",
+				feedback: "That's YAML syntax. TOML uses `=`, not `:`.",
 			},
 			{
-				id: 'hyphen',
-				label: 'ruby-3.3.6',
-				command: 'echo "ruby-3.3.6" > .tool-versions',
+				id: 'tool-versions-style',
+				label: 'ruby 3.3.6',
+				command: `printf 'ruby 3.3.6\\n' > .mise.toml`,
 				correct: false,
 				feedback:
-					'Hyphens are not the separator in .tool-versions. Try a different delimiter.',
+					"That's the old asdf/.tool-versions format. A .toml file needs proper TOML syntax.",
+			},
+			{
+				id: 'no-section',
+				label: 'ruby = "3.3.6"',
+				command: `printf 'ruby = "3.3.6"\\n' > .mise.toml`,
+				correct: false,
+				feedback:
+					"Valid TOML, but mise won't treat a bare top-level key as a tool declaration. It needs to live under the right grouping.",
 			},
 			{
 				id: 'correct',
-				label: 'ruby 3.3.6',
-				command: 'echo "ruby 3.3.6" > .tool-versions',
+				label: '[tools] > ruby = "3.3.6"',
+				command: `printf '[tools]\\nruby = "3.3.6"\\n' > .mise.toml`,
 				correct: true,
 			},
 		],
-		outputLines: [{ text: '\u2713 .tool-versions created', color: 'green' }],
+		outputLines: [{ text: '\u2713 .mise.toml created', color: 'green' }],
 	},
 	{
 		id: 'install-ruby',
 		title: 'Install Ruby',
 		description: (
 			<p className="text-sm text-muted-foreground">
-				Your <span className="font-mono text-primary">.tool-versions</span> says{' '}
+				Your <span className="font-mono text-primary">.mise.toml</span> pins{' '}
 				<span className="font-mono text-primary">ruby 3.3.6</span>. Now install
-				it through asdf so it reads that file automatically.
+				it through the version manager so it reads that file automatically.
 			</p>
 		),
 		commands: [
@@ -173,7 +174,7 @@ const STEPS: TerminalStep[] = [
 				command: 'brew install ruby',
 				correct: false,
 				feedback:
-					"A system-installed Ruby won't read .tool-versions. You need the version manager to handle it.",
+					"A system-installed Ruby won't read .mise.toml. You need the version manager to handle it.",
 			},
 			{
 				id: 'wrong-ruby',
@@ -185,8 +186,8 @@ const STEPS: TerminalStep[] = [
 			},
 			{
 				id: 'correct',
-				label: 'asdf install ruby',
-				command: 'asdf install ruby',
+				label: 'mise install',
+				command: 'mise install',
 				correct: true,
 			},
 		],
@@ -244,23 +245,24 @@ const STEPS: TerminalStep[] = [
 function getCodeFiles({ furthestStep }: { furthestStep: number }) {
 	const files = [];
 
-	// ~/.zshrc is edited after sourcing asdf (step 1)
+	// ~/.zshrc is edited after activating mise (step 1)
 	if (furthestStep >= 2) {
 		files.push({
 			filename: '~/.zshrc',
 			language: 'bash',
-			code: `# asdf version manager
-. /opt/homebrew/opt/asdf/libexec/asdf.sh`,
+			code: `# mise version manager
+eval "$(mise activate zsh)"`,
 			highlight: [2],
 		});
 	}
 
 	if (furthestStep >= 3) {
 		files.push({
-			filename: '.tool-versions',
-			language: 'bash',
-			code: 'ruby 3.3.6',
-			highlight: [1],
+			filename: '.mise.toml',
+			language: 'toml',
+			code: `[tools]
+ruby = "3.3.6"`,
+			highlight: [2],
 		});
 	}
 
@@ -324,9 +326,8 @@ export function Level1Environment({ onComplete }: LevelComponentProps) {
 					<div className="p-4 border-b border-border">
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Before writing any code, you need Ruby and Rails on your machine.
-							Use <span className="font-mono text-primary">asdf</span> to manage
-							versions. It keeps every project pinned to the exact Ruby it
-							needs.
+							Use a version manager to keep every project pinned to the exact
+							Ruby it needs.
 						</p>
 					</div>
 
