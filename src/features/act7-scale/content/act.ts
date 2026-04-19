@@ -1,10 +1,10 @@
 import type { Act } from '@/types';
-import { level48MultiDatabase } from './level-48-multi-database';
-import { level49StateMachines } from './level-49-state-machines';
-import { level50MultiTenancy } from './level-50-multi-tenancy';
-import { level51Observability } from './level-51-observability';
-import { level52ModularMonolith } from './level-52-modular-monolith';
-import { level53DomainEvents } from './level-53-domain-events';
+import { level49MultiDatabase } from './level-49-multi-database';
+import { level50StateMachines } from './level-50-state-machines';
+import { level51MultiTenancy } from './level-51-multi-tenancy';
+import { level52Observability } from './level-52-observability';
+import { level53ModularMonolith } from './level-53-modular-monolith';
+import { level54DomainEvents } from './level-54-domain-events';
 
 export const actSeven: Act = {
 	id: 7,
@@ -13,12 +13,12 @@ export const actSeven: Act = {
 	description:
 		'Your optimizations from Act 4 carried you this far, but traffic has outgrown a single database. Introduce read replicas, state machines, multi-tenancy, observability, modular architecture, and domain events.',
 	levels: [
-		level48MultiDatabase,
-		level49StateMachines,
-		level50MultiTenancy,
-		level51Observability,
-		level52ModularMonolith,
-		level53DomainEvents,
+		level49MultiDatabase,
+		level50StateMachines,
+		level51MultiTenancy,
+		level52Observability,
+		level53ModularMonolith,
+		level54DomainEvents,
 	],
 	unlockedNodes: ['read_replica', 'state_machine', 'tenant', 'event_bus'],
 	metricsVisible: true,

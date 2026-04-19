@@ -79,9 +79,9 @@ Every level exists because the app **needs** it at that stage, not because Rails
 
 ---
 
-## ACT 5: Production Features (Levels 32-40)
+## ACT 5: Advanced Features (Levels 32-40)
 
-*Time to ship what pays the bills. App: E-commerce with payments.*
+*Beyond CRUD: the Rails features every real app reaches for.*
 
 | # | Name | Concept | Scenario | Tests? |
 |---|------|---------|----------|--------|
@@ -97,46 +97,47 @@ Every level exists because the app **needs** it at that stage, not because Rails
 
 ---
 
-## ACT 6: Reliability (Levels 41-47)
+## ACT 6: Operations (Levels 41-48)
 
-*Users depend on you. Downtime is not an option. App: Production e-commerce.*
+*Ship it, run it, keep it alive.*
 
 | # | Name | Concept | Scenario | Tests? |
 |---|------|---------|----------|--------|
 | 41 | Middleware & Rack | Rack middleware stack, custom middleware | Need request logging, bot detection, request ID tracking. | |
-| 42 | Rate Limiting | Rails 8 `rate_limit`, per-user/per-IP throttling | Bots hammer the API. 10K req/sec from one IP. | Yes |
-| 43 | Soft Deletes & Audit Trails | `discard` gem, PaperTrail | Admin deletes a customer. No undo. No record of changes. | Yes |
-| 44 | Safe Migrations | `strong_migrations`, zero-downtime patterns | Deploy locks the table for 30 seconds. API returns 500s. | |
-| 45 | Recurring Jobs & Scheduling | Solid Queue recurring tasks, data maintenance | Expired tokens pile up. Need automated maintenance. | Yes |
-| 46 | Data Lifecycle | Hot/warm/cold data, archiving, destruction | Old records bloat the DB. Implement data archiving and scheduled destruction policies. | Yes |
-| 47 | Structured Error Monitoring | Exception tracking, error context, error budgets | 500 errors nobody notices until customers complain. | |
+| 42 | Deployment (Kamal) | Kamal 2, Dockerized zero-downtime deploy, rollback, health checks | Manual `scp` + restart drops traffic for 8s every release. No rollback. | |
+| 43 | Rate Limiting | Rails 8 `rate_limit`, per-user/per-IP throttling | Bots hammer the API. 10K req/sec from one IP. | Yes |
+| 44 | Soft Deletes & Audit Trails | `discard` gem, PaperTrail | Admin deletes a customer. No undo. No record of changes. | Yes |
+| 45 | Safe Migrations | `strong_migrations`, zero-downtime patterns | Deploy locks the table for 30 seconds. API returns 500s. | |
+| 46 | Recurring Jobs & Scheduling | Solid Queue recurring tasks, data maintenance | Expired tokens pile up. Need automated maintenance. | Yes |
+| 47 | Data Lifecycle | Hot/warm/cold data, archiving, destruction | Old records bloat the DB. Implement data archiving and scheduled destruction policies. | Yes |
+| 48 | Structured Error Monitoring | Exception tracking, error context, error budgets | 500 errors nobody notices until customers complain. | |
 
 ---
 
-## ACT 7: Scale (Levels 48-53)
+## ACT 7: Scale (Levels 49-54)
 
-*The old tricks are not enough anymore. App: Enterprise e-commerce.*
+*The old tricks are not enough anymore.*
 
 | # | Name | Concept | Scenario | Tests? |
 |---|------|---------|----------|--------|
-| 48 | Multi-Database | `connects_to`, read replicas, `connected_to` | Reads competing with writes. Split databases. | |
-| 49 | State Machines | AASM, transition guards, audit trail | Invalid order state transitions happening. Guard them. | Yes |
-| 50 | Multi-Tenancy | ActsAsTenant, schema-based isolation | B2B SaaS: each company must only see their data. | Yes |
-| 51 | Observability | Structured logging, APM, distributed tracing | PagerDuty fires but nobody knows what's wrong. | |
-| 52 | Modular Monolith | Packwerk, CODEOWNERS, enforced boundaries | Monolith is a tangle. Enforce module boundaries without extracting services. | Yes |
-| 53 | Domain Events & Decoupling | Pub/Sub, domain events, event-driven architecture | Payment failure cascades everywhere. Decouple with events. | Yes |
+| 49 | Multi-Database | `connects_to`, read replicas, `connected_to` | Reads competing with writes. Split databases. | |
+| 50 | State Machines | AASM, transition guards, audit trail | Invalid order state transitions happening. Guard them. | Yes |
+| 51 | Multi-Tenancy | ActsAsTenant, schema-based isolation | B2B SaaS: each company must only see their data. | Yes |
+| 52 | Observability | Structured logging, APM, distributed tracing | PagerDuty fires but nobody knows what's wrong. | |
+| 53 | Modular Monolith | Packwerk, CODEOWNERS, enforced boundaries | Monolith is a tangle. Enforce module boundaries without extracting services. | Yes |
+| 54 | Domain Events & Decoupling | Pub/Sub, domain events, event-driven architecture | Payment failure cascades everywhere. Decouple with events. | Yes |
 
 ---
 
-## ACT 8: Mastery (Levels 54-56)
+## ACT 8: Mastery (Levels 55-57)
 
 *You are the architect now.*
 
 | # | Name | Concept | Scenario |
 |---|------|---------|----------|
-| 54 | API Gateway | Gateway pattern, request routing, auth at edge | Multiple services, each handling auth differently. |
-| 55 | Database Sharding | Horizontal sharding, tenant isolation | 10M users. Single DB at capacity. Shard by tenant. |
-| 56 | The Architect (Capstone) | Full system design, service extraction | Design the complete architecture using every concept learned. |
+| 55 | API Gateway | Gateway pattern, request routing, auth at edge | Multiple services, each handling auth differently. |
+| 56 | Database Sharding | Horizontal sharding, tenant isolation | 10M users. Single DB at capacity. Shard by tenant. |
+| 57 | The Architect (Capstone) | Full system design, service extraction | Design the complete architecture using every concept learned. |
 
 ---
 
@@ -152,15 +153,16 @@ Every level exists because the app **needs** it at that stage, not because Rails
 | `authenticate_by` | L9 | Timing-safe login |
 | `Current` attributes | L9, L12 | Request-scoped user |
 | `generates_token_for` | L21 | Password reset tokens |
-| Solid Queue | L22, L45 | Background jobs, recurring tasks |
+| Solid Queue | L22, L46 | Background jobs, recurring tasks |
 | Solid Cache | L30 | Database-backed caching |
 | Solid Cable | L37 | WebSocket pub/sub |
 | `encrypts` | L36 | Encrypted attributes |
-| Built-in `rate_limit` | L42 | Throttling |
+| Built-in `rate_limit` | L43 | Throttling |
+| Kamal 2 | L42 | Deployment |
 
 ## Stats
 
-- **56 levels, 8 acts**
+- **57 levels, 8 acts**
 - **API-only**, no view/Turbo complexity
 - **~28 levels** requiring tests (from Level 13 onward)
 - **App-driven**: each level solves a real problem, not a feature demo

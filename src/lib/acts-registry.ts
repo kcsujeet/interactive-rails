@@ -11,7 +11,7 @@ import { actTwo } from '@/features/act2-users-security/content/act';
 import { actThree } from '@/features/act3-clean-architecture/content/act';
 import { actFour } from '@/features/act4-performance/content/act';
 import { actFive } from '@/features/act5-production/content/act';
-import { actSix } from '@/features/act6-reliability/content/act';
+import { actSix } from '@/features/act6-operations/content/act';
 import { actSeven } from '@/features/act7-scale/content/act';
 import { actEight } from '@/features/act8-mastery/content/act';
 import type { Act, Level } from '@/types';

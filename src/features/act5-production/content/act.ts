@@ -11,10 +11,10 @@ import { level40APIVersioning } from './level-40-api-versioning';
 
 export const actFive: Act = {
 	id: 5,
-	name: 'Production Features',
-	tagline: 'Time to ship what pays the bills.',
+	name: 'Advanced Features',
+	tagline: 'Beyond CRUD: the features Rails apps reach for when they grow up.',
 	description:
-		'The API is fast and clean. Now build the features that make it a real product: polymorphic associations, transactions, locking, file uploads, encryption, real-time notifications, external API integrations, webhooks, and API versioning.',
+		'The API is fast and clean. Now layer in the advanced Rails features: polymorphic associations, transactions, locking, file uploads, encryption, real-time notifications, external API integrations, webhooks, and API versioning.',
 	levels: [
 		level32Polymorphic,
 		level33Transactions,
