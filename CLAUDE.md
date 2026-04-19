@@ -56,6 +56,45 @@ src/features/my-feature/
 
 **Import rules (unidirectional):** shared (`src/components`, `src/lib`, `src/utils`) -> features -> app (pages). Features cannot import from other features. Features cannot import from pages.
 
+### Per-Level Feature Structure (non-negotiable)
+
+**Every new level must be split into phase components, data files, content, and tests all co-located inside its level directory. A level is never a single 1,000-line file, and level files are never scattered across the feature.** This is bulletproof-react applied to the per-level scope: each level is a self-contained sub-feature.
+
+Required layout for any newly created or refactored level:
+
+```
+src/features/actN-<name>/
+  components/
+    level-<N>-<name>/
+      Level<N><Name>.tsx             # Thin orchestrator: phase state, validation, renders the active phase component. <= ~150 lines.
+      ObservePhase.tsx               # Full observe phase UI (panels, probes, discoveries).
+      BuildPhase.tsx                 # Full build phase UI (steps, terminals, option cards).
+      RewardPhase.tsx                # Full reward phase UI (pipeline + stress test).
+      data/
+        content.ts                   # Level metadata (trigger, problem, learningContent, hint). Exported const imported by the act's act.ts.
+        discoveries.ts               # DISCOVERY_DEFS
+        probes.ts                    # PROBES + PROBE_DISCOVERY_MAP
+        build-steps.ts               # STEP_DEFS + per-step option/command arrays + TERMINAL_STEP_MAP
+        stress-scenarios.ts          # STRESS_SCENARIOS
+        pipeline-stages.ts           # observe + reward stage/connection defs
+        code-files.ts                # getCodeFiles (+ registerLevelCode call)
+      types.ts                       # Level-local types (if any; inline in data file if small)
+      __tests__/
+        Level<N><Name>.test.ts       # Imports from ../data/* directly so data changes are caught at type-check time.
+```
+
+**Non-negotiable rules:**
+- **Everything for a level lives inside its level directory.** Content, data, components, tests — all colocated. Do not scatter a level's files across feature-level `content/`, `components/`, `__tests__/` directories.
+- **Phase components are separate files.** `renderObserve`, `renderBuild`, `renderReward` inside the main component is not acceptable. Each phase is its own `.tsx` file that accepts props and renders independently.
+- **Module-scope data lives in `data/<topic>.ts`.** Never define `DISCOVERY_DEFS`, `PROBES`, `STRESS_SCENARIOS`, step option arrays, or pipeline stages inside the main component file.
+- **No file inside a level directory exceeds ~300 lines.** If one does, split further (e.g., per-step option files, per-phase helper files).
+- **`getCodeFiles` lives in `data/code-files.ts`.** The `registerLevelCode(...)` call lives at the top of that file.
+- **Tests import data directly** (so renaming or restructuring data is caught at type-check time).
+
+The act's `content/act.ts` (which assembles the act's level list) imports each level's content via a relative path into the level's `data/` dir, e.g. `import { level42Deployment } from '../components/level-42-deployment/data/content'`. The legacy `src/features/actN-*/content/level-*.ts` placement is deprecated for new levels.
+
+Legacy levels that predate this rule may still be single-file; the rule applies to every new level and every level that is touched substantively. "I changed one line so I do not have to refactor" does not apply: substantive edits (new phase, new probes, new steps) trigger the split.
+
 ### No Barrel Files
 
 **Never add exports to `index.ts` barrel files.** Import directly from the source module path instead.

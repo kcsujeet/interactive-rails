@@ -21,8 +21,8 @@
  * Act 5: Advanced Features (L32-L40, 9 levels)
  * - Polymorphic, Transactions, Locking, Active Storage, Encryption, Real-Time, External APIs, Webhooks, API Versioning
  *
- * Act 6: Operations (L41-L48, 8 levels; L42 Deployment pending implementation)
- * - Middleware, Deployment (TBD), Rate Limiting, Soft Deletes, Safe Migrations, Recurring Jobs, Data Lifecycle, Error Monitoring
+ * Act 6: Operations (L41-L48, 8 levels)
+ * - Middleware, Deployment (Kamal), Rate Limiting, Soft Deletes, Safe Migrations, Recurring Jobs, Data Lifecycle, Error Monitoring
  *
  * Act 7: Scale (L49-L54, 6 levels)
  * - Multi-Database, State Machines, Multi-Tenancy, Observability, Modular Monolith, Domain Events
@@ -105,9 +105,10 @@ import { Level39Webhooks } from '@/features/act5-production/components/level-39-
 import { Level40APIVersioning } from '@/features/act5-production/components/level-40-api-versioning/Level40APIVersioning';
 
 // ===========================================
-// Act 6: Operations (Levels 41-48; L42 Deployment TBD)
+// Act 6: Operations (Levels 41-48)
 // ===========================================
 import { Level41Middleware } from '@/features/act6-operations/components/level-41-middleware/Level41Middleware';
+import { Level42Deployment } from '@/features/act6-operations/components/level-42-deployment/Level42Deployment';
 import { Level43RateLimiting } from '@/features/act6-operations/components/level-43-rate-limiting/Level43RateLimiting';
 import { Level44SoftDeletes } from '@/features/act6-operations/components/level-44-soft-deletes/Level44SoftDeletes';
 import { Level45SafeMigrations } from '@/features/act6-operations/components/level-45-safe-migrations/Level45SafeMigrations';
@@ -199,7 +200,7 @@ const LEVEL_COMPONENTS: Record<string, ComponentType<LevelComponentProps>> = {
 	// Act 6: Operations
 	// ============================================
 	'act6-level41-middleware': Level41Middleware,
-	// L42 Deployment (Kamal) - component pending
+	'act6-level42-deployment': Level42Deployment,
 	'act6-level43-rate-limiting': Level43RateLimiting,
 	'act6-level44-soft-deletes': Level44SoftDeletes,
 	'act6-level45-safe-migrations': Level45SafeMigrations,

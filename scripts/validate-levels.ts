@@ -59,7 +59,7 @@ for (const act of ACTS) {
 	}
 }
 
-const expectedCount = 56;
+const expectedCount = 57;
 if (allLevels.length !== expectedCount) {
 	errors.push(
 		`Expected ${expectedCount} total levels, found ${allLevels.length}`,

@@ -1,4 +1,5 @@
 import type { Act } from '@/types';
+import { level42Deployment } from '../components/level-42-deployment/data/content';
 import { level41Middleware } from './level-41-middleware';
 import { level43RateLimiting } from './level-43-rate-limiting';
 import { level44SoftDeletes } from './level-44-soft-deletes';
@@ -15,6 +16,7 @@ export const actSix: Act = {
 		'The app is feature-complete. Now put it in production and keep it there: middleware, deployment with Kamal, rate limiting, soft deletes, safe migrations, recurring jobs, data lifecycle, and structured error monitoring.',
 	levels: [
 		level41Middleware,
+		level42Deployment,
 		level43RateLimiting,
 		level44SoftDeletes,
 		level45SafeMigrations,
