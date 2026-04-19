@@ -4,7 +4,7 @@ import type {
 } from '@/components/levels/PipelineFlow';
 import type { StressScenario } from '@/hooks/useStressTest';
 
-export const observeStages: PipelineStage[] = [
+const baseObserveStages: PipelineStage[] = [
 	{
 		id: 'laptop',
 		label: 'Dev Laptop',
@@ -29,14 +29,76 @@ export const observeStages: PipelineStage[] = [
 		sublabel: '(not set up)',
 		variant: 'inactive',
 	},
-	{
-		id: 'server',
-		label: 'Server',
-		sublabel: 'systemctl restart',
+];
+
+interface ServerState {
+	sublabel: string;
+	variant: 'default' | 'active' | 'danger' | 'inactive';
+	badge?: string;
+	laptopSublabel?: string;
+}
+
+const SERVER_STATE_BY_PROBE: Record<string, ServerState> = {
+	'scp-restart': {
+		sublabel: '~8s of 502s during restart',
 		variant: 'danger',
 		badge: '502!',
+		laptopSublabel: 'scp -r . prod:/app',
 	},
-];
+	'git-pull': {
+		sublabel: 'Puma dead: libxml2 missing',
+		variant: 'danger',
+		badge: 'BOOT FAIL',
+		laptopSublabel: 'ssh prod "git pull"',
+	},
+	'bad-release': {
+		sublabel: '500 per request (bad env)',
+		variant: 'danger',
+		badge: '500!',
+		laptopSublabel: 'pushed broken release',
+	},
+	rollback: {
+		sublabel: 'redeploying old sha',
+		variant: 'danger',
+		badge: '502!',
+		laptopSublabel: 'git reset --hard',
+	},
+	'two-servers': {
+		sublabel: 'split-brain: mismatched assets',
+		variant: 'danger',
+		badge: 'DRIFT',
+		laptopSublabel: 'scp to prod1 + prod2',
+	},
+};
+
+const IDLE_SERVER_STATE: ServerState = {
+	sublabel: 'awaiting a deploy attempt',
+	variant: 'default',
+};
+
+export function observeStagesFor(lastProbeId: string | null): PipelineStage[] {
+	const state = lastProbeId
+		? (SERVER_STATE_BY_PROBE[lastProbeId] ?? IDLE_SERVER_STATE)
+		: IDLE_SERVER_STATE;
+
+	const laptop = state.laptopSublabel
+		? { ...baseObserveStages[0], sublabel: state.laptopSublabel }
+		: baseObserveStages[0];
+
+	return [
+		laptop,
+		baseObserveStages[1],
+		baseObserveStages[2],
+		baseObserveStages[3],
+		{
+			id: 'server',
+			label: 'Server',
+			sublabel: state.sublabel,
+			variant: state.variant,
+			badge: state.badge,
+		},
+	];
+}
 
 export const observeConnections: PipelineConnection[] = [
 	{ from: 'laptop', to: 'registry' },
