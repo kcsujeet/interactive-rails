@@ -13,13 +13,10 @@ import {
 	RefreshCw,
 	X,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
-import { getLevelByNumber } from '@/lib/acts-registry';
 import { CodebaseViewerDialog } from '@/features/codebase-viewer/components/CodebaseViewerDialog';
-import {
-	buildUnifiedProjectAtStep,
-} from '@/lib/codebase-registry';
+import { getLevelByNumber } from '@/lib/acts-registry';
 import type { CodeFile } from '@/utils/codeGeneration';
 import { HelpDialog } from './HelpDialog';
 import { LearningGoalDialog } from './LearningGoalDialog';
@@ -35,10 +32,6 @@ interface LevelHeaderProps {
 	onComplete: () => void;
 	/** Current code files for the codebase viewer (from the level's getCodeFiles) */
 	currentCodeFiles?: CodeFile[];
-	/** Completed levels for building the cumulative project */
-	completedLevels?: string[];
-	/** Current level ID */
-	currentLevelId?: string;
 }
 
 export function LevelHeader({
@@ -50,8 +43,6 @@ export function LevelHeader({
 	onValidate,
 	onComplete,
 	currentCodeFiles,
-	completedLevels,
-	currentLevelId,
 }: LevelHeaderProps) {
 	const [lastResult, setLastResult] = useState<ValidationResult | null>(null);
 	const [isCompleting, setIsCompleting] = useState(false);
@@ -63,16 +54,20 @@ export function LevelHeader({
 	const learningGoal = level?.learningContent?.goal;
 
 	const handleSubmit = async () => {
+		// Second click after a successful validation: actually complete the level.
+		if (lastResult?.valid) {
+			setIsCompleting(true);
+			await onComplete();
+			setIsCompleting(false);
+			return;
+		}
+
+		// First click (or retry after a failed validation): just validate.
 		const result = onValidate();
 		setLastResult(result);
 		setShowFeedback(true);
 
-		if (result.valid) {
-			setIsCompleting(true);
-			await onComplete();
-			setIsCompleting(false);
-		} else {
-			// Hide feedback after 5 seconds
+		if (!result.valid) {
 			setTimeout(() => setShowFeedback(false), 5000);
 		}
 	};
@@ -86,7 +81,7 @@ export function LevelHeader({
 						size="sm"
 						variant="link"
 					>
-						<a className="flex items-center" href="/acts" >
+						<a className="flex items-center" href="/acts">
 							<ChevronLeft className="w-4 h-4" />
 							Levels
 						</a>
