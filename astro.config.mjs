@@ -11,12 +11,10 @@ export default defineConfig({
 	integrations: [react()],
 	vite: {
 		plugins: [tailwindcss()],
-		// Optimize Phaser for production
 		optimizeDeps: {
 			include: ['phaser', 'better-auth'],
 		},
 		build: {
-			// Ensure Phaser is bundled correctly
 			commonjsOptions: {
 				include: [/phaser/, /node_modules/],
 			},
