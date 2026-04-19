@@ -91,6 +91,6 @@ export const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 	'scp-restart': ['downtime'],
 	'git-pull': ['irreproducible'],
 	'bad-release': ['no-health-gate'],
-	rollback: ['no-rollback', 'downtime'],
-	'two-servers': ['fleet-fragility', 'irreproducible'],
+	rollback: ['no-rollback'],
+	'two-servers': ['fleet-fragility'],
 };

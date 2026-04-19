@@ -98,6 +98,18 @@ describe('Level 42 Deployment: Probe to discovery mapping', () => {
 			expect(reached.has(d.id)).toBe(true);
 		}
 	});
+
+	test('probe-to-discovery mapping is strictly 1:1', () => {
+		// Non-negotiable rule: every probe must fire before "Build the Fix" appears.
+		// That only works if each probe unlocks exactly one unique discovery.
+		const unlocked: string[] = [];
+		for (const ids of Object.values(PROBE_DISCOVERY_MAP)) {
+			expect(ids).toHaveLength(1);
+			unlocked.push(ids[0]);
+		}
+		expect(new Set(unlocked).size).toBe(unlocked.length);
+		expect(unlocked.length).toBe(DISCOVERY_DEFS.length);
+	});
 });
 
 describe('Level 42 Deployment: Build steps', () => {

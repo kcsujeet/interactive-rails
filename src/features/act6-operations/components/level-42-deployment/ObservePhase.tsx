@@ -57,7 +57,7 @@ export function ObservePhase({
 					<DiscoveryChecklist
 						discoveredCount={discoveryGating.discoveredCount}
 						discoveries={discoveryGating.discoveries}
-						minRequired={3}
+						minRequired={discoveryGating.discoveries.length}
 					/>
 				</div>
 			</LeftPanel>

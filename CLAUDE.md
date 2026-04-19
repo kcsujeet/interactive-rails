@@ -146,7 +146,7 @@ The player **actively explores** the problem through an interactive observe phas
 - When a zone/stage is clicked, a `StageInspector` card overlay shows the stage's description and code. Nodes react to probes with visual feedback (color changes, badges, content updates).
 - Left panel: **"Scenario" heading** (`<h3 className="text-sm font-semibold text-foreground mb-2">Scenario</h3>`) followed by scenario text paragraphs (`text-sm text-muted-foreground`), then `DiscoveryChecklist` showing explore progress (pills with Search/Check icons, progress bar with "X of Y required"). The heading is non-negotiable for visual consistency across all three-phase levels.
 - Right panel: the broken/vulnerable/unoptimized code
-- "Build the Fix" button appears **only when `discoveryGating.isUnlocked`** (player has found enough problems), not on a timer. Uses `animate-in fade-in duration-500`.
+- "Build the Fix" button appears **only when every probe has been fired and every discovery unlocked**, not on a timer. Uses `animate-in fade-in duration-500`. **This is non-negotiable.** The observe phase exists to make the player explore the whole problem surface; letting them skip probes defeats the purpose. Two implications: (1) `useDiscoveryGating(DISCOVERY_DEFS, { minRequired: DISCOVERY_DEFS.length })` — always require all of them; (2) `PROBE_DISCOVERY_MAP` must be 1:1, i.e. each probe unlocks exactly one distinct discovery, and each discovery is unlocked by exactly one probe. Do not reuse a discovery across multiple probes (that would let the player clear the gate without firing every probe).
 
 **Observe phase visualization: choose the right component.**
 
