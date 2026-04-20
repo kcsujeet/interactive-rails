@@ -63,7 +63,15 @@ function makeStages(overrides: StageOverrides): PipelineStage[] {
 
 // ─── Connections ───────────────────────────────────────────
 
+// Observe phase shows just the 2 actors of a manual deploy: Laptop -> Server.
+// Registry/Proxy/Container don't exist yet in the naive deploy world and only
+// appear in the build phase (materializing step by step) and reward phase.
 export const observeConnections: PipelineConnection[] = [
+	{ from: 'laptop', to: 'server' },
+];
+
+// 5-stage chain for build + reward phases.
+export const fullPipelineConnections: PipelineConnection[] = [
 	{ from: 'laptop', to: 'registry' },
 	{ from: 'registry', to: 'proxy' },
 	{ from: 'proxy', to: 'container' },
@@ -77,11 +85,36 @@ export const rewardConnections: PipelineConnection[] = [
 	{ from: 'container', to: 'server', dots: 'clean' },
 ];
 
-export const buildConnections = observeConnections;
+export const buildConnections = fullPipelineConnections;
 
 // ─── Observe idle ──────────────────────────────────────────
 
-export const observeIdleStages: PipelineStage[] = makeStages({});
+function makeObserveStages(
+	laptop: StageSpec,
+	server: StageSpec,
+): PipelineStage[] {
+	return [
+		{
+			id: 'laptop',
+			label: 'Dev Laptop',
+			sublabel: laptop.sublabel,
+			variant: laptop.variant,
+			badge: laptop.badge,
+		},
+		{
+			id: 'server',
+			label: 'Server',
+			sublabel: server.sublabel,
+			variant: server.variant,
+			badge: server.badge,
+		},
+	];
+}
+
+export const observeIdleStages: PipelineStage[] = makeObserveStages(
+	{ sublabel: 'scp + ssh (no deploy tool)', variant: 'active' },
+	{ sublabel: 'awaiting a deploy attempt', variant: 'default' },
+);
 
 // ─── Frames ────────────────────────────────────────────────
 
@@ -91,167 +124,216 @@ export interface PipelineFrame {
 }
 
 /**
- * Multi-frame animations per probe. Each probe plays 3 frames: setup, hit,
- * fallout. After the last frame the stages persist until the next probe or
- * reset clears them.
+ * Each probe plays a 2-stage (Laptop, Server) sequence. Each probe has a
+ * DIFFERENT visual signature: variant cycling, laptop going danger on some
+ * probes, varied frame counts (3 or 4), distinctive badges.
  */
 export const PROBE_FRAMES: Record<string, PipelineFrame[]> = {
+	// Transient restart window. Server red during restart, stays red after
+	// (stranded requests) but no laptop-side failure.
 	'scp-restart': [
 		{
-			stages: makeStages({
-				laptop: { sublabel: 'scp -r . prod:/app', variant: 'active' },
-				server: { sublabel: 'receiving files...', variant: 'default' },
-			}),
+			stages: makeObserveStages(
+				{ sublabel: 'scp -r . prod:/app', variant: 'active' },
+				{ sublabel: 'receiving files...', variant: 'default' },
+			),
 			durationMs: 900,
 		},
 		{
-			stages: makeStages({
-				laptop: { sublabel: 'ssh prod "restart puma"', variant: 'active' },
-				server: {
-					sublabel: 'systemctl restart (in progress)',
+			stages: makeObserveStages(
+				{ sublabel: 'ssh prod "systemctl restart"', variant: 'active' },
+				{
+					sublabel: '8s restart window (requests dropped)',
 					variant: 'danger',
 					badge: 'RESTART',
 				},
-			}),
-			durationMs: 1100,
+			),
+			durationMs: 1300,
 		},
 		{
-			stages: makeStages({
-				laptop: { sublabel: 'done', variant: 'active' },
-				server: {
-					sublabel: '~8s of 502s to real users',
+			stages: makeObserveStages(
+				{ sublabel: 'done (unaware of outage)', variant: 'active' },
+				{
+					sublabel: 'back up, but 14 users saw 502',
 					variant: 'danger',
 					badge: '502!',
 				},
-			}),
-			durationMs: 1600,
+			),
+			durationMs: 1500,
 		},
 	],
+	// Bundle install fails on the server. BOTH laptop and server go red.
+	// This is the only probe where the laptop itself hits a failure.
 	'git-pull': [
 		{
-			stages: makeStages({
-				laptop: { sublabel: 'ssh prod "git pull"', variant: 'active' },
-				server: { sublabel: 'pulling origin...', variant: 'default' },
-			}),
+			stages: makeObserveStages(
+				{ sublabel: 'ssh prod "git pull"', variant: 'active' },
+				{ sublabel: 'pulling origin...', variant: 'default' },
+			),
 			durationMs: 900,
 		},
 		{
-			stages: makeStages({
-				laptop: { sublabel: 'ssh prod "bundle install"', variant: 'active' },
-				server: {
-					sublabel: 'bundling on prod (live traffic!)',
-					variant: 'danger',
+			stages: makeObserveStages(
+				{ sublabel: 'ssh prod "bundle install"', variant: 'active' },
+				{
+					sublabel: 'bundling live (traffic still on)',
+					variant: 'default',
 					badge: 'BUNDLE',
 				},
-			}),
+			),
 			durationMs: 1100,
 		},
 		{
-			stages: makeStages({
-				laptop: { sublabel: 'aborted', variant: 'active' },
-				server: {
-					sublabel: 'Puma dead: libxml2 missing',
+			stages: makeObserveStages(
+				{
+					sublabel: 'ERROR: libxml2 missing on prod',
 					variant: 'danger',
-					badge: 'BOOT FAIL',
+					badge: 'BUNDLE FAIL',
 				},
-			}),
-			durationMs: 1600,
+				{
+					sublabel: 'Puma crashed mid-install',
+					variant: 'danger',
+					badge: 'CRASHED',
+				},
+			),
+			durationMs: 1100,
+		},
+		{
+			stages: makeObserveStages(
+				{ sublabel: 'app is down. SSH back in to fix.', variant: 'danger' },
+				{
+					sublabel: 'no puma, no traffic',
+					variant: 'danger',
+					badge: 'DOWN',
+				},
+			),
+			durationMs: 1400,
 		},
 	],
+	// The deceptive "it's up!" story. Server goes default with "UP" badge in the
+	// middle frame (visually looks fine!) then flips to danger at the end.
+	// This is the only probe with a green "UP" moment mid-sequence.
 	'bad-release': [
 		{
-			stages: makeStages({
-				laptop: { sublabel: 'pushed broken release', variant: 'active' },
-				server: { sublabel: 'puma boot...', variant: 'default' },
-			}),
+			stages: makeObserveStages(
+				{ sublabel: 'pushed release (missing env)', variant: 'active' },
+				{ sublabel: 'puma booting...', variant: 'default' },
+			),
 			durationMs: 900,
 		},
 		{
-			stages: makeStages({
-				laptop: { sublabel: 'done', variant: 'active' },
-				server: {
-					sublabel: 'puma UP — but DATABASE_URL missing',
+			stages: makeObserveStages(
+				{ sublabel: 'done. systemctl says OK.', variant: 'active' },
+				{
+					sublabel: 'puma UP (process is alive)',
 					variant: 'default',
 					badge: 'UP',
 				},
-			}),
-			durationMs: 1100,
+			),
+			durationMs: 1200,
 		},
 		{
-			stages: makeStages({
-				laptop: { sublabel: 'unaware', variant: 'active' },
-				server: {
-					sublabel: '100% of requests raise 500',
+			stages: makeObserveStages(
+				{ sublabel: 'unaware for 11 minutes', variant: 'active' },
+				{
+					sublabel: 'every request 500s (DB url missing)',
 					variant: 'danger',
 					badge: '500!',
 				},
-			}),
+			),
 			durationMs: 1600,
 		},
 	],
+	// Rollback = another full deploy. Laptop stays red through most of the
+	// sequence (multiple risky ops) and server eventually RECOVERS at the
+	// end. Only probe with a "RECOVERED" frame — but the total outage was ~4min.
 	rollback: [
 		{
-			stages: makeStages({
-				laptop: { sublabel: 'git reset --hard abc123', variant: 'active' },
-				server: {
+			stages: makeObserveStages(
+				{ sublabel: 'prod is on fire. rolling back.', variant: 'danger' },
+				{
+					sublabel: 'serving broken v2 (500s)',
+					variant: 'danger',
+					badge: '500!',
+				},
+			),
+			durationMs: 900,
+		},
+		{
+			stages: makeObserveStages(
+				{
+					sublabel: 'git reset --hard <old-sha>',
+					variant: 'danger',
+					badge: 'ROLLING BACK',
+				},
+				{
 					sublabel: 'still serving broken v2',
 					variant: 'danger',
 					badge: '500!',
 				},
-			}),
-			durationMs: 900,
-		},
-		{
-			stages: makeStages({
-				laptop: { sublabel: 'ssh prod "bundle install"', variant: 'active' },
-				server: {
-					sublabel: 'bundling old Gemfile.lock...',
-					variant: 'danger',
-					badge: 'BUNDLE',
-				},
-			}),
+			),
 			durationMs: 1100,
 		},
 		{
-			stages: makeStages({
-				laptop: { sublabel: 'ssh prod "restart puma"', variant: 'active' },
-				server: {
-					sublabel: 'another 12s of 502s',
+			stages: makeObserveStages(
+				{
+					sublabel: 'bundle install + restart puma',
+					variant: 'danger',
+				},
+				{
+					sublabel: '12s restart window on top',
 					variant: 'danger',
 					badge: '502!',
 				},
-			}),
+			),
+			durationMs: 1300,
+		},
+		{
+			stages: makeObserveStages(
+				{ sublabel: 'done. ~4min total outage.', variant: 'active' },
+				{
+					sublabel: 'back on v1 (but users left)',
+					variant: 'default',
+					badge: 'RECOVERED',
+				},
+			),
 			durationMs: 1600,
 		},
 	],
+	// Fleet-level split-brain. Only probe that explicitly references TWO
+	// servers in sublabels and uses SPLIT/DRIFT badges.
 	'two-servers': [
 		{
-			stages: makeStages({
-				laptop: { sublabel: 'scp to prod1 + prod2', variant: 'active' },
-				server: { sublabel: 'receiving files...', variant: 'default' },
-			}),
+			stages: makeObserveStages(
+				{ sublabel: 'scp -> prod1 + prod2 (parallel)', variant: 'active' },
+				{
+					sublabel: 'prod1 + prod2 receiving',
+					variant: 'default',
+					badge: 'FLEET',
+				},
+			),
 			durationMs: 900,
 		},
 		{
-			stages: makeStages({
-				laptop: { sublabel: 'scp prod2 hit blip', variant: 'active' },
-				server: {
-					sublabel: 'prod1 OK  |  prod2 truncated',
+			stages: makeObserveStages(
+				{ sublabel: 'prod2 scp hit network blip', variant: 'active' },
+				{
+					sublabel: 'prod1 OK  |  prod2 file truncated',
 					variant: 'danger',
 					badge: 'DRIFT',
 				},
-			}),
-			durationMs: 1100,
+			),
+			durationMs: 1300,
 		},
 		{
-			stages: makeStages({
-				laptop: { sublabel: 'done', variant: 'active' },
-				server: {
-					sublabel: 'split-brain: mismatched assets',
+			stages: makeObserveStages(
+				{ sublabel: 'done (unaware of drift)', variant: 'active' },
+				{
+					sublabel: '50% users see v1 | 50% see v2 assets',
 					variant: 'danger',
-					badge: 'MIXED',
+					badge: 'SPLIT',
 				},
-			}),
+			),
 			durationMs: 1600,
 		},
 	],
