@@ -1,4 +1,3 @@
-import { useMemo, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -12,8 +11,13 @@ import { PipelineFlow } from '@/components/levels/PipelineFlow';
 import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
 import { Button } from '@/components/ui/Button';
 import type { UseDiscoveryGatingReturn } from '@/hooks/useDiscoveryGating';
-import { observeConnections, observeStagesFor } from './data/pipeline-stages';
+import {
+	observeConnections,
+	observeIdleStages,
+	PROBE_FRAMES,
+} from './data/pipeline-stages';
 import { PROBE_DISCOVERY_MAP, PROBES } from './data/probes';
+import { usePipelineFrames } from './usePipelineFrames';
 
 interface CodeFile {
 	filename: string;
@@ -36,11 +40,12 @@ export function ObservePhase({
 	onValidate,
 	onComplete,
 }: ObservePhaseProps) {
-	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
-	const stages = useMemo(() => observeStagesFor(lastProbeId), [lastProbeId]);
+	const { currentFrame, isPlaying, play } = usePipelineFrames();
+	const stages = currentFrame?.stages ?? observeIdleStages;
 
 	const handleProbe = (probeId: string) => {
-		setLastProbeId(probeId);
+		const frames = PROBE_FRAMES[probeId];
+		if (frames) play(frames);
 		const ids = PROBE_DISCOVERY_MAP[probeId] ?? [];
 		for (const id of ids) discoveryGating.discover(id);
 	};
@@ -81,7 +86,11 @@ export function ObservePhase({
 						<PipelineFlow connections={observeConnections} stages={stages} />
 					</div>
 					<div className="border-t border-border p-4">
-						<ProbeTerminal onProbe={handleProbe} probes={PROBES} />
+						<ProbeTerminal
+							disabled={isPlaying}
+							onProbe={handleProbe}
+							probes={PROBES}
+						/>
 					</div>
 					{discoveryGating.isUnlocked && (
 						<div className="border-t border-border p-4 flex justify-end animate-in fade-in duration-500">

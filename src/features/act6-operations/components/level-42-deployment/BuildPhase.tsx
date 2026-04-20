@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -11,6 +12,7 @@ import {
 	TerminalChoiceStep,
 	type ValidateFn,
 } from '@/components/levels';
+import { PipelineFlow } from '@/components/levels/PipelineFlow';
 import { Button } from '@/components/ui/Button';
 import type { UseStepGatingReturn } from '@/hooks/useStepGating';
 import { shuffleOptions } from '@/lib/shuffleOptions';
@@ -21,6 +23,7 @@ import {
 	STEP_DEFS,
 	TERMINAL_STEP_MAP,
 } from './data/build-steps';
+import { buildConnections, buildStagesFor } from './data/pipeline-stages';
 
 interface CodeFile {
 	filename: string;
@@ -58,6 +61,11 @@ export function BuildPhase({
 	const currentStepIndex = stepper.currentStep;
 	const currentConfig = TERMINAL_STEP_MAP[currentStepIndex];
 	const isTerminalStep = currentConfig !== null;
+
+	const completedStep = stepper.isCurrentStepCompleted
+		? stepper.currentStep
+		: stepper.currentStep - 1;
+	const stages = useMemo(() => buildStagesFor(completedStep), [completedStep]);
 
 	const handleOptionPick = (option: OptionLike) => {
 		if (option.correct) {
@@ -112,7 +120,12 @@ export function BuildPhase({
 					onValidate={onValidate}
 				/>
 				<div className="flex-1 relative bg-background p-6 overflow-auto">
-					<div className="max-w-2xl mx-auto space-y-6">
+					<div className="max-w-4xl mx-auto space-y-6">
+						<div className="rounded-lg border border-border bg-card/50 p-4 min-h-52">
+							<PipelineFlow connections={buildConnections} stages={stages} />
+						</div>
+					</div>
+					<div className="max-w-2xl mx-auto space-y-6 mt-6">
 						{isTerminalStep && currentConfig && (
 							<TerminalChoiceStep
 								commands={currentConfig.commands}

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -10,8 +10,13 @@ import {
 import { PipelineFlow } from '@/components/levels/PipelineFlow';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import type { UseStressTestReturn } from '@/hooks/useStressTest';
-import { rewardConnections, rewardStagesFor } from './data/pipeline-stages';
+import {
+	rewardConnections,
+	rewardIdleStages,
+	SCENARIO_FRAMES,
+} from './data/pipeline-stages';
 import { STRESS_SCENARIOS } from './data/stress-scenarios';
+import { usePipelineFrames } from './usePipelineFrames';
 
 interface CodeFile {
 	filename: string;
@@ -32,13 +37,23 @@ export function RewardPhase({
 	onValidate,
 	onComplete,
 }: RewardPhaseProps) {
-	const stages = useMemo(() => {
-		const last = stressTest.results[stressTest.results.length - 1];
-		const scenario = last
-			? STRESS_SCENARIOS.find((s) => s.id === last.scenarioId)
-			: undefined;
-		return rewardStagesFor(scenario);
-	}, [stressTest.results]);
+	const { currentFrame, isPlaying, play } = usePipelineFrames();
+	const stages = currentFrame?.stages ?? rewardIdleStages;
+
+	const fireRequest = stressTest.fireRequest;
+	const handleFire = useCallback(
+		(scenarioId: string) => {
+			const frames = SCENARIO_FRAMES[scenarioId];
+			if (frames) play(frames);
+			fireRequest(scenarioId);
+		},
+		[fireRequest, play],
+	);
+
+	const toggleAutoFire = stressTest.toggleAutoFire;
+	const handleToggleAutoFire = useCallback(() => {
+		toggleAutoFire(handleFire);
+	}, [toggleAutoFire, handleFire]);
 
 	return (
 		<>
@@ -85,9 +100,10 @@ export function RewardPhase({
 							allowedCount={stressTest.allowedCount}
 							blockedCount={stressTest.blockedCount}
 							canAutoFire={stressTest.canAutoFire}
+							disabled={isPlaying}
 							isAutoFiring={stressTest.isAutoFiring}
-							onFire={stressTest.fireRequest}
-							onToggleAutoFire={stressTest.toggleAutoFire}
+							onFire={handleFire}
+							onToggleAutoFire={handleToggleAutoFire}
 							results={stressTest.results}
 							scenarios={STRESS_SCENARIOS}
 						/>

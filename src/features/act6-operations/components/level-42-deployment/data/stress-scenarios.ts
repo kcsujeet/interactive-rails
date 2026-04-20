@@ -3,7 +3,7 @@ import type { StressScenario } from '@/hooks/useStressTest';
 export const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'deploy-ok',
-		label: 'Deploy a healthy release',
+		label: 'Deploy a healthy release (with Kamal)',
 		description: 'Build, push, rotate container v2. /up responds 200.',
 		method: 'DEPLOY',
 		path: 'v2 (good build)',
@@ -16,6 +16,13 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 			{ text: 'Healthcheck /up -> 200 on both servers.', color: 'green' },
 			{ text: 'Proxy shifted traffic. v1 drained + stopped.', color: 'green' },
 			{ text: '\u2713 0 failed requests during rotation.', color: 'green' },
+		],
+		story: [
+			'Same kind of ship-v2 release you tried to do with scp + restart.',
+			'Kamal builds the image locally, pushes it to the registry.',
+			'A new v2 container boots alongside v1 on each server.',
+			'The proxy polls `/up` on v2. Only when it returns 200 does traffic shift.',
+			'v1 is drained and stopped. Zero requests are lost during rotation.',
 		],
 	},
 	{
@@ -34,6 +41,14 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 			{ text: 'Proxy kept routing to v1.', color: 'green' },
 			{ text: '\u2713 0 failed user requests. v2 aborted.', color: 'green' },
 		],
+		story: [
+			'Same kind of release where DATABASE_URL was missing.',
+			'v2 boots, so systemctl would say "OK" — same as the observe probe.',
+			'This time the proxy polls `/up` before shifting any traffic.',
+			'`/up` returns 500 because the app cannot reach the DB.',
+			'The proxy retries 10 times, then gives up.',
+			'v1 never stops serving. Users see zero 500s.',
+		],
 	},
 	{
 		id: 'rollback',
@@ -49,10 +64,17 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 			{ text: 'Proxy swapped target to v1 container.', color: 'green' },
 			{ text: 'Elapsed: 2.1s. No rebuild, no install.', color: 'green' },
 		],
+		story: [
+			'Same situation as the git-reset rollback — a bad release is serving traffic.',
+			'This time: `kamal rollback <previous-sha>`.',
+			'The v1 image is already on every server (it was the last healthy image).',
+			'The proxy swaps its routing target back to the v1 container.',
+			'Elapsed: about 2 seconds. No rebuild, no bundle install, no outage.',
+		],
 	},
 	{
 		id: 'fleet-deploy',
-		label: 'Deploy across two servers',
+		label: 'Deploy across two servers (staggered)',
 		description: 'Rotate containers on prod1 then prod2, staggered.',
 		method: 'FLEET',
 		path: 'prod1 then prod2',
@@ -68,10 +90,17 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 				color: 'green',
 			},
 		],
+		story: [
+			'Same two-server fleet you tried to scp to by hand.',
+			'Kamal pulls the same image sha onto both servers — no network-blip ambiguity.',
+			'prod1 rotates first. The proxy waits for its `/up` to return 200.',
+			'Once prod1 is healthy, prod2 starts its rotation.',
+			'At least one healthy server is serving at every moment.',
+		],
 	},
 	{
 		id: 'broken-push',
-		label: 'Push an image that fails to build',
+		label: 'Deploy with a broken build',
 		description: 'Dockerfile typo. Build fails locally before prod is touched.',
 		method: 'PUSH',
 		path: 'v3 (bad Dockerfile)',
@@ -86,6 +115,13 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 			{ text: 'kamal deploy aborted before registry push.', color: 'yellow' },
 			{ text: 'Production untouched. Still serving v2.', color: 'green' },
 			{ text: '\u2713 0 failed user requests.', color: 'green' },
+		],
+		story: [
+			'Same drift problem the git-pull probe showed — but caught before prod sees it.',
+			'Kamal builds the image locally first.',
+			'The Dockerfile has a typo. Build fails.',
+			'`kamal deploy` aborts before pushing to the registry.',
+			'Production is never touched. Still serving the previous healthy release.',
 		],
 	},
 ];

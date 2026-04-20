@@ -69,6 +69,18 @@ describe('Level 42 Deployment: Probes', () => {
 			].sort(),
 		);
 	});
+
+	test('every probe has a story with 3-6 bullet points', () => {
+		for (const p of PROBES) {
+			expect(p.story).toBeDefined();
+			const story = p.story as string[];
+			expect(story.length).toBeGreaterThanOrEqual(3);
+			expect(story.length).toBeLessThanOrEqual(6);
+			for (const bullet of story) {
+				expect(bullet.length).toBeGreaterThan(20);
+			}
+		}
+	});
 });
 
 describe('Level 42 Deployment: Probe to discovery mapping', () => {
@@ -201,6 +213,79 @@ describe('Level 42 Deployment: Stress scenarios', () => {
 				'rollback',
 			].sort(),
 		);
+	});
+
+	test('every scenario has a story with 3-6 bullet points', () => {
+		for (const s of STRESS_SCENARIOS) {
+			expect(s.story).toBeDefined();
+			const story = s.story as string[];
+			expect(story.length).toBeGreaterThanOrEqual(3);
+			expect(story.length).toBeLessThanOrEqual(6);
+			for (const bullet of story) {
+				expect(bullet.length).toBeGreaterThan(20);
+			}
+		}
+	});
+});
+
+describe('Level 42 Deployment: Probe-scenario label mirroring', () => {
+	// Each observe probe must have a matching reward scenario. Labels follow
+	// the "same user story, fixed outcome" convention: they either repeat the
+	// observe verb ("Deploy by X" / "Deploy with X") or echo its action word
+	// ("Ship a release that Y" / "Roll back to Z").
+	const PROBE_TO_SCENARIO: Record<string, string> = {
+		'scp-restart': 'deploy-ok',
+		'git-pull': 'broken-push',
+		'bad-release': 'deploy-broken-health',
+		rollback: 'rollback',
+		'two-servers': 'fleet-deploy',
+	};
+
+	test('every probe has a scenario pair', () => {
+		const probeIds = new Set(PROBES.map((p) => p.id));
+		const scenarioIds = new Set(STRESS_SCENARIOS.map((s) => s.id));
+		for (const [probeId, scenarioId] of Object.entries(PROBE_TO_SCENARIO)) {
+			expect(probeIds.has(probeId)).toBe(true);
+			expect(scenarioIds.has(scenarioId)).toBe(true);
+		}
+	});
+
+	test('paired scenario labels share a thematic word with the probe', () => {
+		const pairs: Array<{
+			probeId: string;
+			scenarioId: string;
+			shared: string[];
+		}> = [
+			// scp-restart "Deploy by scp + systemctl restart" -> deploy-ok "Deploy a healthy release (with Kamal)"
+			{ probeId: 'scp-restart', scenarioId: 'deploy-ok', shared: ['Deploy'] },
+			// git-pull "Deploy by ssh + git pull" -> broken-push "Deploy with a broken build"
+			{ probeId: 'git-pull', scenarioId: 'broken-push', shared: ['Deploy'] },
+			// bad-release "Ship a release with a broken env var" -> deploy-broken-health "Ship a release that fails /up"
+			{
+				probeId: 'bad-release',
+				scenarioId: 'deploy-broken-health',
+				shared: ['Ship a release'],
+			},
+			// rollback "Roll back a bad release by git reset" -> rollback "Roll back to the previous image"
+			{ probeId: 'rollback', scenarioId: 'rollback', shared: ['Roll back'] },
+			// two-servers "Deploy to two servers at once" -> fleet-deploy "Deploy across two servers (staggered)"
+			{
+				probeId: 'two-servers',
+				scenarioId: 'fleet-deploy',
+				shared: ['Deploy', 'two servers'],
+			},
+		];
+
+		for (const { probeId, scenarioId, shared } of pairs) {
+			const probe = PROBES.find((p) => p.id === probeId);
+			const scenario = STRESS_SCENARIOS.find((s) => s.id === scenarioId);
+			expect(probe).toBeDefined();
+			expect(scenario).toBeDefined();
+			for (const token of shared) {
+				expect(probe?.label).toContain(token);
+				expect(scenario?.label).toContain(token);
+			}
+		}
 	});
 });
 
