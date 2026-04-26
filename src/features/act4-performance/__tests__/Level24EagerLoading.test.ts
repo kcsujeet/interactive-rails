@@ -237,14 +237,14 @@ const OPTION_STEP_2: StepOption[] = [
 	{
 		id: 'eager-load',
 		label: 'Product.eager_load(:tags).where(tags: { active: true })',
-		correct: true,
+		correct: false,
+		feedback:
+			'eager_load works, but Rails auto-promotes to LEFT OUTER JOIN whenever you filter on the associated table. Forcing the JOIN strategy explicitly here adds words without changing the SQL.',
 	},
 	{
 		id: 'includes-where',
 		label: 'Product.includes(:tags).where(tags: { active: true })',
-		correct: false,
-		feedback:
-			'includes works here (Rails auto-switches to JOIN), but it is implicit. When you filter on an association, being explicit about the JOIN strategy avoids surprises.',
+		correct: true,
 	},
 ];
 
@@ -502,10 +502,11 @@ describe('Level 24: Eager Loading', () => {
 			expect(correct?.label).toBe('Product.includes(reviews: :user)');
 		});
 
-		test('step 2 correct answer uses eager_load for filtering', () => {
+		test('step 2 correct answer uses includes for filtering (Rails auto-promotes to JOIN)', () => {
 			const correct = OPTION_STEP_2.find((o) => o.correct);
-			expect(correct?.label).toContain('eager_load');
+			expect(correct?.label).toContain('includes');
 			expect(correct?.label).toContain('where');
+			expect(correct?.label).not.toContain('eager_load');
 		});
 	});
 

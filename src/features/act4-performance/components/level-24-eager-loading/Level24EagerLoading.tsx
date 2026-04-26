@@ -662,7 +662,7 @@ const OPTION_STEP_CONFIG: Record<
 	2: {
 		title: 'Fix Filtered Query',
 		description:
-			'The service needs products WHERE tags.active = true. This filters by an association column. includes auto-switches to a JOIN here, but which method gives the service explicit control and the best performance?',
+			'The service needs products WHERE tags.active = true. This filters by an association column. Pick the method that handles this with the least ceremony — idiomatic Rails should do the right thing automatically.',
 		options: [
 			{
 				id: 'preload',
@@ -674,14 +674,14 @@ const OPTION_STEP_CONFIG: Record<
 			{
 				id: 'eager-load',
 				label: 'Product.eager_load(:tags).where(tags: { active: true })',
-				correct: true,
+				correct: false,
+				feedback:
+					'eager_load works, but Rails auto-promotes to LEFT OUTER JOIN whenever you filter on the associated table. Forcing the JOIN strategy explicitly here adds words without changing the SQL.',
 			},
 			{
 				id: 'includes-where',
 				label: 'Product.includes(:tags).where(tags: { active: true })',
-				correct: false,
-				feedback:
-					'includes works here (Rails auto-switches to JOIN), but it is implicit. When you filter on an association, being explicit about the JOIN strategy avoids surprises.',
+				correct: true,
 			},
 		],
 	},
