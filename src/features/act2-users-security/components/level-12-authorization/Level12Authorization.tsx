@@ -55,14 +55,14 @@ import {
 } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import {
 	type DiscoveryDef,
 	useDiscoveryGating,
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act2-level12-authorization', () =>
@@ -714,7 +714,7 @@ end`,
 	if (furthestStep >= 4) {
 		// After step 3: ProductPolicy skeleton
 		files.push({
-			filename: 'app/policies/post_policy.rb',
+			filename: 'app/policies/product_policy.rb',
 			language: 'ruby',
 			code:
 				furthestStep >= 7

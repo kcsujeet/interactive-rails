@@ -55,14 +55,14 @@ import {
 } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import {
 	type DiscoveryDef,
 	useDiscoveryGating,
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act2-level13-testing', () =>
@@ -547,7 +547,7 @@ end`,
     post "/api/v1/sessions",
          params: { email: user.email, password: "password123" }
     expect(response).to have_http_status(:created)
-    expect(json_response["token"]).to be_present
+    expect(response.parsed_body["token"]).to be_present
   end
 end`,
 		correct: true,
@@ -775,7 +775,7 @@ RSpec.describe "Sessions API", type: :request do
          params: { email: user.email,
                    password: "password123" }
     expect(response).to have_http_status(:created)
-    expect(json_response["token"]).to be_present
+    expect(response.parsed_body["token"]).to be_present
   end
 
   it "returns 401 with wrong password" do

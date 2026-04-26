@@ -26,9 +26,9 @@ import {
 	type ValidationResult,
 } from '@/components/levels';
 import { Button } from '@/components/ui/Button';
+import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
-import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 
 registerLevelCode('act1-level2-first-boot', () => [
 	{
@@ -283,7 +283,7 @@ export function Level2FirstBoot({ onComplete }: LevelComponentProps) {
 			stepper.completeStep();
 		} else {
 			stepper.recordWrongAttempt(
-				'SQLite only supports one writer at a time. A multi-user API needs a database that handles concurrent writes.',
+				'Rails 8 makes SQLite viable for a single server (WAL mode + IMMEDIATE transactions handle concurrent writes), but a multi-server API needs replication and shared state across hosts. Pick the database that scales horizontally.',
 			);
 		}
 	}
