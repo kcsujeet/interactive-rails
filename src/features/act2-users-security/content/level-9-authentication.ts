@@ -124,7 +124,23 @@ bin/rails generate authentication
 - Adds \`password\` and \`password_confirmation\` virtual attributes
 - Stores a bcrypt hash in \`password_digest\`
 - Provides \`authenticate(password)\` method
-- No plaintext passwords ever touch the database`,
+- No plaintext passwords ever touch the database
+
+**\`Current\` (who is logged in?):**
+- After someone logs in, the rest of your code needs to know who they are. Every controller, every model that checks ownership, every background job
+- The clumsy way: pass the user object as an argument into every method that needs it
+- The Rails way: the auth generator creates a \`Current\` class. After Rails verifies the Bearer token, it stores the session in \`Current.session\` and the logged-in user in \`Current.user\` — for that one request only
+- From there, any controller can just call \`Current.user\` and get the logged-in user. No plumbing
+- Each web request gets its own \`Current\`, so when two users hit your API at the same time, they never see each other's data
+- This is why you will see \`current_user\` "just work" in every controller from now on. It comes from \`Current\`
+
+**\`allow_unauthenticated_access\` (the login escape hatch):**
+- The auth generator wires up an automatic check that runs before every action: "are you logged in?" If not, Rails returns \`401 Unauthorized\`
+- That default is exactly what you want for protected endpoints. But it creates a chicken-and-egg problem: how does anyone log in for the first time if logging in requires being logged in?
+- \`allow_unauthenticated_access only: [:create]\` is how you opt out. It tells Rails: "the create action on this controller (the login action) is the exception. Anyone can hit it without being authenticated"
+- Same idea for signup: put \`allow_unauthenticated_access only: [:new, :create]\` on \`UsersController\` so people can register without already having an account
+- Forget this and your login endpoint returns \`401\` before any user can ever log in — the most common Rails 8 auth bug
+- The pattern is: block everyone by default, then carve out specific exceptions for the few public endpoints. Much safer than "let everyone through, then remember to lock down every new controller"`,
 		railsCodeExample: `# Generate auth scaffolding (Rails 8)
 bin/rails generate authentication
 
