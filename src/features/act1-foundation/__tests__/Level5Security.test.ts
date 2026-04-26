@@ -64,7 +64,7 @@ describe('Level 5: Environment Security', () => {
 				credentialType: null,
 			});
 
-			expect(result.details!.some((d) => d.includes('ENV node'))).toBe(true);
+			expect(result.details?.some((d) => d.includes('ENV node'))).toBe(true);
 		});
 
 		test('should require selecting credential type', () => {
@@ -74,7 +74,7 @@ describe('Level 5: Environment Security', () => {
 			});
 
 			expect(
-				result.details!.some((d) => d.includes('credential storage')),
+				result.details?.some((d) => d.includes('credential storage')),
 			).toBe(true);
 		});
 	});
@@ -95,7 +95,7 @@ describe('Level 5: Environment Security', () => {
 				credentialType: 'public',
 			});
 
-			expect(result.details!.some((d) => d.includes('git history'))).toBe(true);
+			expect(result.details?.some((d) => d.includes('git history'))).toBe(true);
 		});
 	});
 

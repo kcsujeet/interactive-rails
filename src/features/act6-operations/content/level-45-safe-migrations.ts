@@ -83,14 +83,14 @@ end
 # SAFE: Add new column, backfill, swap
 
 # Step 1: Add new column (instant, no lock)
-class AddViewsBigintToPosts < ActiveRecord::Migration[8.0]
+class AddViewsBigintToProducts < ActiveRecord::Migration[8.0]
   def change
     add_column :products, :views_bigint, :bigint
   end
 end
 
 # Step 2: Backfill in batches (no lock, controlled DB load)
-class BackfillViewsBigintOnPosts < ActiveRecord::Migration[8.0]
+class BackfillViewsBigintOnProducts < ActiveRecord::Migration[8.0]
   disable_ddl_transaction!
 
   def up

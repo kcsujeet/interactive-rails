@@ -15,20 +15,20 @@ export const level32Polymorphic: Level = {
 	startingPipeline: standardPipeline(),
 	problem: {
 		observation:
-			'Three separate review tables exist: post_reviews, photo_reviews, video_reviews. Schema is duplicated, queries are scattered, and adding a new reviewable type means a new table and new controller.',
+			'Three separate review tables exist: product_reviews, photo_reviews, video_reviews. Schema is duplicated, queries are scattered, and adding a new reviewable type means a new table and new controller.',
 		rootCause:
 			'Each reviewable model has its own dedicated reviews table instead of using a single polymorphic reviews table.',
 		codeExample: `# Three separate service objects doing the same thing!
-# app/services/create_post_review.rb
-class CreatePostReview < ApplicationService
+# app/services/create_product_review.rb
+class CreateProductReview < ApplicationService
   Result = Data.define(:success?, :review, :errors)
 
-  def initialize(post:, user:, params:)
-    @post = post; @user = user; @params = params
+  def initialize(product:, user:, params:)
+    @product = product; @user = user; @params = params
   end
 
   def call
-    v = PostReviewContract.new.call(@params)
+    v = ProductReviewContract.new.call(@params)
     return Result.new(success?: false,
       review: nil, errors: v.errors.to_h) if v.failure?
     review = @product.product_reviews.create!(
@@ -58,7 +58,7 @@ end
 - Rails resolves the correct parent model at runtime
 
 **When to use polymorphic:**
-- Reviews on multiple types (Posts, Photos, Videos)
+- Reviews on multiple types (Products, Photos, Videos)
 - Taggings across models
 - Attachments on different record types
 - Activity logs referencing various models
@@ -87,7 +87,7 @@ class Review < ApplicationRecord
   validates :body, presence: true, length: { maximum: 10_000 }
 end
 
-# app/models/post.rb (same for Photo, Video)
+# app/models/product.rb (same for Photo, Video)
 class Product < ApplicationRecord
   has_many :reviews, as: :reviewable, dependent: :destroy
 end

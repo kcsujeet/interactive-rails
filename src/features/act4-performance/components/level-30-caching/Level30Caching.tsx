@@ -129,7 +129,7 @@ const LAYERS: LayerDef[] = [
 	{
 		id: 'database',
 		label: 'PostgreSQL',
-		sublabel: '50K posts, joins + group + order',
+		sublabel: '50K products, joins + group + order',
 		icon: 'database',
 	},
 ];
@@ -249,42 +249,42 @@ const ZONE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		stageId: 'service',
 		title: 'TrendingProducts Service',
 		description:
-			'The service computes trending posts from scratch on every call. No caching wrapper around the expensive query.',
+			'The service computes trending products from scratch on every call. No caching wrapper around the expensive query.',
 		code: `# app/services/trending_products.rb
 class TrendingProducts < ApplicationService
-  Result = Data.define(:posts, :generated_at)
+  Result = Data.define(:products, :generated_at)
 
   def call
     validation = TrendingContract.new.call({})
     return Result.new(
-      posts: [], generated_at: Time.current
+      products: [], generated_at: Time.current
     ) if validation.failure?
 
     products = Product
       .joins(:reviews)
-      .where("posts.created_at > ?", 7.days.ago)
-      .group("posts.id")
-      .select("posts.*, COUNT(reviews.id) AS score")
+      .where("products.created_at > ?", 7.days.ago)
+      .group("products.id")
+      .select("products.*, COUNT(reviews.id) AS score")
       .order("score DESC")
       .limit(20)
       .includes(:user)
 
     # Recomputed on EVERY call. No caching!
-    Result.new(posts: posts, generated_at: Time.current)
+    Result.new(products: products, generated_at: Time.current)
   end
 end`,
 	},
 	database: {
 		stageId: 'database',
-		title: 'PostgreSQL (50K Posts)',
+		title: 'PostgreSQL (50K Products)',
 		description:
 			'Joins products and reviews, groups, aggregates, sorts. 512ms per execution. Running 200 times/minute.',
 		code: `EXPLAIN ANALYZE
 SELECT products.*, COUNT(reviews.id) AS score
 FROM products
 INNER JOIN reviews ON reviews.product_id = products.id
-WHERE posts.created_at > NOW() - INTERVAL '7 days'
-GROUP BY posts.id
+WHERE products.created_at > NOW() - INTERVAL '7 days'
+GROUP BY products.id
 ORDER BY score DESC
 LIMIT 20;
 
@@ -626,7 +626,7 @@ const OPTION_STEP_CONFIG: Record<
 	5: {
 		title: 'Cache Invalidation',
 		description:
-			'When a new review is posted, the trending rankings change. The Review model needs to signal that its parent product has changed so cache keys that depend on updated_at are invalidated.',
+			'When a new review is submitted, the trending rankings change. The Review model needs to signal that its parent product has changed so cache keys that depend on updated_at are invalidated.',
 		options: TOUCH_OPTIONS,
 	},
 };
@@ -657,25 +657,25 @@ end`;
 			filename: 'app/services/trending_products.rb',
 			language: 'ruby',
 			code: `class TrendingProducts < ApplicationService
-  Result = Data.define(:posts, :generated_at)
+  Result = Data.define(:products, :generated_at)
 
   def call
     validation = TrendingContract.new.call({})
     return Result.new(
-      posts: [], generated_at: Time.current
+      products: [], generated_at: Time.current
     ) if validation.failure?
 
     products = Product
       .joins(:reviews)
-      .where("posts.created_at > ?", 7.days.ago)
-      .group("posts.id")
-      .select("posts.*, COUNT(reviews.id) AS score")
+      .where("products.created_at > ?", 7.days.ago)
+      .group("products.id")
+      .select("products.*, COUNT(reviews.id) AS score")
       .order("score DESC")
       .limit(20)
       .includes(:user)
 
     # Runs on EVERY request. No caching!
-    Result.new(posts: posts, generated_at: Time.current)
+    Result.new(products: products, generated_at: Time.current)
   end
 end`,
 			highlight: [19],
@@ -686,8 +686,8 @@ end`,
 			code: `class Api::V1::ProductsController < ApplicationController
   def trending
     result = TrendingProducts.call
-    if result.posts.any?
-      render json: ProductSerializer.new(result.posts)
+    if result.products.any?
+      render json: ProductSerializer.new(result.products)
     else
       render json: { data: [] }
     end
@@ -706,25 +706,25 @@ end
 			filename: 'app/services/trending_products.rb',
 			language: 'ruby',
 			code: `class TrendingProducts < ApplicationService
-  Result = Data.define(:posts, :generated_at)
+  Result = Data.define(:products, :generated_at)
 
   def call
     validation = TrendingContract.new.call({})
     return Result.new(
-      posts: [], generated_at: Time.current
+      products: [], generated_at: Time.current
     ) if validation.failure?
 
     products = Product
       .joins(:reviews)
-      .where("posts.created_at > ?", 7.days.ago)
-      .group("posts.id")
-      .select("posts.*, COUNT(reviews.id) AS score")
+      .where("products.created_at > ?", 7.days.ago)
+      .group("products.id")
+      .select("products.*, COUNT(reviews.id) AS score")
       .order("score DESC")
       .limit(20)
       .includes(:user)
 
     # No caching! Runs on every request.
-    Result.new(posts: posts, generated_at: Time.current)
+    Result.new(products: products, generated_at: Time.current)
   end
 end`,
 			highlight: [19],
@@ -798,12 +798,12 @@ end`,
 			filename: 'app/services/trending_products.rb',
 			language: 'ruby',
 			code: `class TrendingProducts < ApplicationService
-  Result = Data.define(:posts, :generated_at)
+  Result = Data.define(:products, :generated_at)
 
   def call
     validation = TrendingContract.new.call({})
     return Result.new(
-      posts: [], generated_at: Time.current
+      products: [], generated_at: Time.current
     ) if validation.failure?
 
     products = Rails.cache.fetch(
@@ -812,16 +812,16 @@ end`,
     ) do
       Product
         .joins(:reviews)
-        .where("posts.created_at > ?", 7.days.ago)
-        .group("posts.id")
-        .select("posts.*, COUNT(reviews.id) AS score")
+        .where("products.created_at > ?", 7.days.ago)
+        .group("products.id")
+        .select("products.*, COUNT(reviews.id) AS score")
         .order("score DESC")
         .limit(20)
         .includes(:user)
         .to_a  # Materialize before caching
     end
 
-    Result.new(posts: posts, generated_at: Time.current)
+    Result.new(products: products, generated_at: Time.current)
   end
 end`,
 			highlight: [10, 11, 12, 23],
@@ -860,8 +860,8 @@ end`,
 			code: `class Api::V1::ProductsController < ApplicationController
   def trending
     result = TrendingProducts.call
-    if result.posts.any?
-      render json: ProductSerializer.new(result.posts)
+    if result.products.any?
+      render json: ProductSerializer.new(result.products)
     else
       render json: { data: [] }
     end
@@ -1413,9 +1413,9 @@ export function Level30Caching({ onComplete }: LevelComponentProps) {
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							The trending posts endpoint computes rankings from 50K posts on
-							every request. 200 identical computations per minute, each taking
-							512ms.
+							The trending products endpoint computes rankings from 50K products
+							on every request. 200 identical computations per minute, each
+							taking 512ms.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Explore the request layers. Find out why the same expensive query

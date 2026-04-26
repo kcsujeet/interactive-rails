@@ -73,22 +73,22 @@ export const level31HTTPCaching: Level = {
 			'Same expensive API response computed on every request. 1,000 req/sec all hitting Rails. Even with Rails.cache, every request still reaches the server.',
 		rootCause:
 			'No HTTP-level caching. No Cache-Control headers, no ETags, no CDN. Every request makes a full round-trip to the server.',
-		codeExample: `# app/services/post_detail.rb
-class PostDetail < ApplicationService
-  Result = Data.define(:post)
+		codeExample: `# app/services/product_detail.rb
+class ProductDetail < ApplicationService
+  Result = Data.define(:product)
   def call
     product = Product.find(@id)
-    Result.new(post: post)
+    Result.new(product: product)
   end
 end
 
 # app/controllers/api/v1/products_controller.rb
 def show
-  result = PostDetail.call(id: params[:id])
-  render json: result.post  # No caching headers!
+  result = ProductDetail.call(id: params[:id])
+  render json: result.product  # No caching headers!
 end
 
-# Every request, even if the post hasn't changed:
+# Every request, even if the product hasn't changed:
 #   First request:  200 OK in 21ms (2 queries)
 #   Second request: 200 OK in 21ms (same computation)
 #
@@ -125,9 +125,9 @@ With CDN:
 **How ETags work:**
 1. Rails generates a weak ETag (hash of response body)
 2. Browser sends it back as \`If-None-Match\` on next request
-3. If the post hasn't changed, Rails returns 304 (empty body)
+3. If the product hasn't changed, Rails returns 304 (empty body)
 4. No serialization, no rendering, no second DB query
-5. The \`stale?\` helper checks \`post.updated_at\` in a single fast query
+5. The \`stale?\` helper checks \`product.updated_at\` in a single fast query
 
 **Key Cache-Control directives:**
 - \`max-age=N\`: Client can reuse for N seconds without asking server
@@ -146,22 +146,22 @@ With CDN:
 - Asset URL changes on every deploy, so stale cache is impossible`,
 		railsCodeExample: `# === Service provides data, controller handles HTTP caching ===
 
-# app/services/post_detail.rb
-class PostDetail < ApplicationService
-  Result = Data.define(:post)
+# app/services/product_detail.rb
+class ProductDetail < ApplicationService
+  Result = Data.define(:product)
   def call
     product = Product.find(@id)
-    Result.new(post: post)
+    Result.new(product: product)
   end
 end
 
 # app/controllers/api/v1/products_controller.rb
 def show
-  result = PostDetail.call(id: params[:id])
+  result = ProductDetail.call(id: params[:id])
 
-  # Returns 304 Not Modified if post hasn't changed
-  if stale?(result.post)
-    render json: result.post
+  # Returns 304 Not Modified if product hasn't changed
+  if stale?(result.product)
+    render json: result.product
   end
 end
 
@@ -193,7 +193,7 @@ config.public_file_server.headers = {
 }
 
 # === Conditional GET flow ===
-# Client: GET /api/posts/42, If-None-Match: "abc123"
+# Client: GET /api/products/42, If-None-Match: "abc123"
 # Server: 304 Not Modified (empty body, 6ms vs 21ms)`,
 		commonMistakes: [
 			'Not using stale? for GET endpoints (every request recomputes the response)',

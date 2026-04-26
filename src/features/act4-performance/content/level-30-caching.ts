@@ -8,7 +8,7 @@ export const level30Caching: Level = {
 	trigger: {
 		type: 'scaling',
 		description:
-			'The trending posts endpoint computes rankings from 50K posts on every request. 200 identical computations per minute, each taking 512ms. Explore the request layers, discover the missing cache, then add Solid Cache.',
+			'The trending products endpoint computes rankings from 50K products on every request. 200 identical computations per minute, each taking 512ms. Explore the request layers, discover the missing cache, then add Solid Cache.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -75,25 +75,25 @@ export const level30Caching: Level = {
 			'No caching layer. Every request recomputes the same result from scratch.',
 		codeExample: `# app/services/trending_products.rb
 class TrendingProducts < ApplicationService
-  Result = Data.define(:posts, :generated_at)
+  Result = Data.define(:products, :generated_at)
 
   def call
     validation = TrendingContract.new.call({})
     return Result.new(
-      posts: [], generated_at: Time.current
+      products: [], generated_at: Time.current
     ) if validation.failure?
 
     # Runs on EVERY request, 200 times/minute
     products = Product
       .joins(:reviews)
-      .where("posts.created_at > ?", 7.days.ago)
-      .group("posts.id")
-      .select("posts.*, COUNT(reviews.id) AS score")
+      .where("products.created_at > ?", 7.days.ago)
+      .group("products.id")
+      .select("products.*, COUNT(reviews.id) AS score")
       .order("score DESC")
       .limit(20)
       .includes(:user)
 
-    Result.new(posts: posts, generated_at: Time.current)
+    Result.new(products: products, generated_at: Time.current)
   end
 end
 
@@ -126,8 +126,8 @@ Fragment cache (cache hit):    17ms → 317x faster
 
 2. **Russian doll caching**: Nested cache blocks
    - Outer collection cache + inner per-record cache
-   - One post update only re-renders that post's fragment, not the entire collection
-   - Still must execute SQL to fetch post IDs, but saves serialization time
+   - One product update only re-renders that product's fragment, not the entire collection
+   - Still must execute SQL to fetch product IDs, but saves serialization time
 
 3. **Low-level cache (Rails.cache)**: Cached in your cache store
    - \`Rails.cache.fetch("key", expires_in: 1.hour) { expensive_query }\`
@@ -154,7 +154,7 @@ Fragment cache (cache hit):    17ms → 317x faster
 - Touch: \`belongs_to :product, touch: true\` cascades cache invalidation
 
 **Real-world pattern, fan-out writing (how Twitter worked with Rails):**
-On each new post, write the post ID into a cached "timeline" list for every follower. Reading a feed becomes \`Product.where(id: cached_ids)\`, trivial. The "Justin Bieber problem": celebrity with millions of followers, each post triggers millions of cache writes. Solution: mixed fan-out. Regular users get fan-out writes; celebrities are exempt (their posts fetched via direct DB query at read time).`,
+On each new product, write the product ID into a cached "timeline" list for every follower. Reading a feed becomes \`Product.where(id: cached_ids)\`, trivial. The "Justin Bieber problem": celebrity with millions of followers, each product triggers millions of cache writes. Solution: mixed fan-out. Regular users get fan-out writes; celebrities are exempt (their products fetched via direct DB query at read time).`,
 		railsCodeExample: `# === Solid Cache Setup (Rails 8) ===
 
 # Gemfile
@@ -171,12 +171,12 @@ config.cache_store = :solid_cache_store
 
 # app/services/trending_products.rb
 class TrendingProducts < ApplicationService
-  Result = Data.define(:posts, :generated_at)
+  Result = Data.define(:products, :generated_at)
 
   def call
     validation = TrendingContract.new.call({})
     return Result.new(
-      posts: [], generated_at: Time.current
+      products: [], generated_at: Time.current
     ) if validation.failure?
 
     products = Rails.cache.fetch(
@@ -184,22 +184,22 @@ class TrendingProducts < ApplicationService
     ) do
       Product
         .joins(:reviews)
-        .where("posts.created_at > ?", 7.days.ago)
-        .group("posts.id")
-        .select("posts.*, COUNT(reviews.id) AS score")
+        .where("products.created_at > ?", 7.days.ago)
+        .group("products.id")
+        .select("products.*, COUNT(reviews.id) AS score")
         .order("score DESC")
         .limit(20)
         .includes(:user)
         .to_a  # Materialize before caching
     end
 
-    Result.new(posts: posts, generated_at: Time.current)
+    Result.new(products: products, generated_at: Time.current)
   end
 end
 
 # Controller stays thin:
 result = TrendingProducts.call
-render json: ProductSerializer.new(result.posts)
+render json: ProductSerializer.new(result.products)
 
 # === Cache Invalidation ===
 class Review < ApplicationRecord

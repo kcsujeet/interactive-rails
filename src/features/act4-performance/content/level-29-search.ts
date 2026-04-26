@@ -70,28 +70,28 @@ export const level29Search: Level = {
 	},
 	problem: {
 		observation:
-			"`GET /api/posts?q=rails` uses `LIKE '%rails%'` which forces a sequential scan. 3 seconds for 50K posts. No relevance ranking.",
+			"`GET /api/products?q=rails` uses `LIKE '%rails%'` which forces a sequential scan. 3 seconds for 50K products. No relevance ranking.",
 		rootCause:
 			'LIKE with a leading wildcard cannot use B-tree indexes. Full-text search requires a different approach.',
-		codeExample: `# app/services/post_search.rb
-class PostSearch < ApplicationService
-  Result = Data.define(:success?, :posts, :errors)
+		codeExample: `# app/services/product_search.rb
+class ProductSearch < ApplicationService
+  Result = Data.define(:success?, :products, :errors)
 
   def call
     validation = SearchContract.new.call(query: @query)
     return Result.new(...) if validation.failure?
 
     products = Product.where(
-      "title LIKE :q OR body LIKE :q",
+      "name LIKE :q OR description LIKE :q",
       q: "%#{@query}%"
     )
-    Result.new(success?: true, posts: posts, errors: [])
+    Result.new(success?: true, products: products, errors: [])
   end
 end
 
 # EXPLAIN for LIKE '%rails%':
-# Seq Scan on posts  (cost=0.00..1250.00 rows=500 width=256)
-#   Filter: ((title ~~ '%rails%') OR (body ~~ '%rails%'))
+# Seq Scan on products  (cost=0.00..1250.00 rows=500 width=256)
+#   Filter: ((name ~~ '%rails%') OR (description ~~ '%rails%'))
 #   Rows Removed by Filter: 49500
 #   Execution Time: 3,200ms
 #
@@ -138,21 +138,21 @@ end
 # Migration: add tsvector column with GIN index
 class AddSearchToProduct < ActiveRecord::Migration[8.0]
   def change
-    add_column :posts, :searchable, :tsvector
-    add_index :posts, :searchable, using: :gin
+    add_column :products, :searchable, :tsvector
+    add_index :products, :searchable, using: :gin
 
     # Trigger to auto-update searchable column
     execute <<-SQL
-      CREATE TRIGGER posts_searchable_update
-      BEFORE INSERT OR UPDATE ON posts
+      CREATE TRIGGER products_searchable_update
+      BEFORE INSERT OR UPDATE ON products
       FOR EACH ROW EXECUTE FUNCTION
-        tsvector_update_trigger(searchable, 'pg_catalog.english', title, body);
+        tsvector_update_trigger(searchable, 'pg_catalog.english', name, description);
     SQL
 
     # Backfill existing records
     execute <<-SQL
       UPDATE products SET searchable =
-        to_tsvector('english', coalesce(title, '') || ' ' || coalesce(body, ''));
+        to_tsvector('english', coalesce(name, '') || ' ' || coalesce(description, ''));
     SQL
   end
 end
@@ -175,7 +175,7 @@ class Product < ApplicationRecord
   include PgSearch::Model
 
   pg_search_scope :search,
-    against: { title: 'A', body: 'B' },  # A = highest weight
+    against: { name: 'A', description: 'B' },  # A = highest weight
     using: {
       tsearch: { prefix: true, dictionary: 'english' },
       trigram: { threshold: 0.3 }  # fuzzy matching
@@ -183,31 +183,31 @@ class Product < ApplicationRecord
 end
 
 # Service object:
-class PostSearch < ApplicationService
-  Result = Data.define(:success?, :posts, :errors)
+class ProductSearch < ApplicationService
+  Result = Data.define(:success?, :products, :errors)
 
   def call
     validation = SearchContract.new.call(query: @query)
-    return Result.new(success?: false, posts: [], errors: validation.errors.to_h) if validation.failure?
+    return Result.new(success?: false, products: [], errors: validation.errors.to_h) if validation.failure?
 
     products = Product.search(@query)
-    Result.new(success?: true, posts: posts, errors: [])
+    Result.new(success?: true, products: products, errors: [])
   end
 end
 
 # === SQLite FTS5 (for SQLite databases) ===
-class CreatePostsSearchIndex < ActiveRecord::Migration[8.0]
+class CreateProductsSearchIndex < ActiveRecord::Migration[8.0]
   def up
     execute <<-SQL
-      CREATE VIRTUAL TABLE posts_fts USING fts5(title, body, content=posts, content_rowid=id);
-      INSERT INTO posts_fts(rowid, title, body) SELECT id, title, body FROM posts;
+      CREATE VIRTUAL TABLE products_fts USING fts5(name, description, content=products, content_rowid=id);
+      INSERT INTO products_fts(rowid, name, description) SELECT id, name, description FROM products;
     SQL
   end
 end
 
 # Query FTS5:
 Product.where(id: Product.connection.select_values(
-  "SELECT rowid FROM posts_fts WHERE posts_fts MATCH ?", query
+  "SELECT rowid FROM products_fts WHERE products_fts MATCH ?", query
 ))`,
 		commonMistakes: [
 			"Using LIKE '%query%' for search (cannot use indexes, no ranking)",

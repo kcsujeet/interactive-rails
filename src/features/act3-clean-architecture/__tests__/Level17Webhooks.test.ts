@@ -65,7 +65,7 @@ describe('Level 17: Webhooks', () => {
 				apiCalls: 10,
 			});
 
-			expect(result.details!.some((d) => d.includes('webhook endpoint'))).toBe(
+			expect(result.details?.some((d) => d.includes('webhook endpoint'))).toBe(
 				true,
 			);
 		});
@@ -77,7 +77,7 @@ describe('Level 17: Webhooks', () => {
 				apiCalls: 0,
 			});
 
-			expect(result.details!.some((d) => d.includes('webhook callbacks'))).toBe(
+			expect(result.details?.some((d) => d.includes('webhook callbacks'))).toBe(
 				true,
 			);
 		});
@@ -92,7 +92,7 @@ describe('Level 17: Webhooks', () => {
 			});
 
 			expect(result.valid).toBe(false);
-			expect(result.details!.some((d) => d.includes('currently 1'))).toBe(true);
+			expect(result.details?.some((d) => d.includes('currently 1'))).toBe(true);
 		});
 	});
 
@@ -151,7 +151,7 @@ describe('Level 17: Webhooks', () => {
 
 	describe('Payment Status Flow', () => {
 		test('polling method checks repeatedly', () => {
-			const method = 'polling';
+			const _method = 'polling';
 			const pollCount = 5;
 			const totalApiCalls = pollCount;
 
@@ -159,7 +159,7 @@ describe('Level 17: Webhooks', () => {
 		});
 
 		test('webhook method waits for callback', () => {
-			const method = 'webhook';
+			const _method = 'webhook';
 			const pollCount = 0;
 			const webhookReceived = true;
 

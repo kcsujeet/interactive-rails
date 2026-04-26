@@ -57,8 +57,6 @@ import {
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import {
 	type DiscoveryDef,
 	useDiscoveryGating,
@@ -66,6 +64,8 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { cn } from '@/lib/utils';
 
 registerLevelCode('act4-level28-pagination', () =>
@@ -120,7 +120,7 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 
 const PROBES: ProbeConfig[] = [
 	{
-		id: 'get-all-posts',
+		id: 'get-all-products',
 		label: 'GET all products',
 		command: 'GET /api/v1/products',
 		responseLines: [
@@ -133,7 +133,7 @@ const PROBES: ProbeConfig[] = [
 				color: 'muted',
 			},
 			{
-				text: 'All 50,000 posts returned. No pagination.',
+				text: 'All 50,000 products returned. No pagination.',
 				color: 'red',
 			},
 		],
@@ -196,7 +196,7 @@ const PROBES: ProbeConfig[] = [
 
 // Map probe IDs to discovery IDs they trigger
 const PROBE_DISCOVERY_MAP: Record<string, string> = {
-	'get-all-posts': 'huge-response',
+	'get-all-products': 'huge-response',
 	'get-mobile': 'mobile-crash',
 	'check-memory': 'memory-spike',
 };
@@ -208,11 +208,11 @@ const PROBE_DISCOVERY_MAP: Record<string, string> = {
 const ZONE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 	database: {
 		stageId: 'database',
-		title: 'PostList Service (Query Logic)',
+		title: 'ProductList Service (Query Logic)',
 		description:
 			'The service returns Product.includes(:user) as the scope with no limit. The controller renders the entire scope without pagination, loading all 50K rows and allocating ~180MB per request.',
-		code: `# app/services/post_list.rb
-class PostList < ApplicationService
+		code: `# app/services/product_list.rb
+class ProductList < ApplicationService
   Result = Data.define(:success?, :scope, :errors)
   def call
     validation = ListContract.new.call({})
@@ -253,7 +253,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'page-1',
 		label: 'GET page 1 (default)',
-		description: 'First page of posts, 25 items',
+		description: 'First page of products, 25 items',
 		method: 'GET',
 		path: '/api/v1/products',
 		actor: 'web client',
@@ -261,7 +261,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'green' },
 			{
-				text: 'Link: </posts?page=2>; rel="next", </posts?page=2000>; rel="last"',
+				text: 'Link: </products?page=2>; rel="next", </products?page=2000>; rel="last"',
 				color: 'green',
 			},
 			{ text: 'Content-Length: 6,250  (6KB, 25 items)', color: 'green' },
@@ -278,7 +278,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'green' },
 			{
-				text: 'Link: </posts?page=49>; rel="prev", </posts?page=51>; rel="next"',
+				text: 'Link: </products?page=49>; rel="prev", </products?page=51>; rel="next"',
 				color: 'green',
 			},
 			{ text: 'Content-Length: 6,250  (6KB, 25 items)', color: 'green' },
@@ -287,7 +287,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'page-2000',
 		label: 'GET page 2000 (last)',
-		description: 'Last page of 50K posts',
+		description: 'Last page of 50K products',
 		method: 'GET',
 		path: '/api/v1/products?page=2000',
 		actor: 'mobile client',
@@ -295,7 +295,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'green' },
 			{
-				text: 'Link: </posts?page=1999>; rel="prev"',
+				text: 'Link: </products?page=1999>; rel="prev"',
 				color: 'green',
 			},
 			{ text: 'Content-Length: 6,250  (6KB, 25 items)', color: 'green' },
@@ -469,21 +469,21 @@ const CONFIGURE_OPTIONS: StepOption[] = [
 const WIRE_INDEX_OPTIONS: StepOption[] = [
 	{
 		id: 'wrong-kaminari-style',
-		label: '@posts = result.scope.page(params[:page]).per(25)',
+		label: '@products = result.scope.page(params[:page]).per(25)',
 		correct: false,
 		feedback:
 			'That is Kaminari syntax. Pagy uses a different API: the pagy() method returns both metadata and the paginated collection.',
 	},
 	{
 		id: 'wrong-manual',
-		label: '@posts = result.scope.limit(25).offset(params[:page].to_i * 25)',
+		label: '@products = result.scope.limit(25).offset(params[:page].to_i * 25)',
 		correct: false,
 		feedback:
 			'Manual LIMIT/OFFSET works but loses pagination metadata (total count, page links). The gem handles this automatically.',
 	},
 	{
 		id: 'correct',
-		label: '@pagy, @posts = pagy(:offset, result.scope)',
+		label: '@pagy, @products = pagy(:offset, result.scope)',
 		correct: true,
 	},
 ];
@@ -491,7 +491,7 @@ const WIRE_INDEX_OPTIONS: StepOption[] = [
 const HEADERS_OPTIONS: StepOption[] = [
 	{
 		id: 'wrong-body',
-		label: 'render json: { data: @posts, meta: { page: @pagy.page } }',
+		label: 'render json: { data: @products, meta: { page: @pagy.page } }',
 		correct: false,
 		feedback:
 			'Embedding pagination in the JSON body is non-standard. RFC 5988 specifies Link headers so the payload stays clean.',
@@ -527,7 +527,7 @@ const OPTION_STEP_CONFIG: Record<
 	2: {
 		title: 'Set Page Size',
 		description:
-			'Configure the default page size in an initializer. The current endpoint returns all 50K posts. Choose a reasonable default.',
+			'Configure the default page size in an initializer. The current endpoint returns all 50K products. Choose a reasonable default.',
 		options: CONFIGURE_OPTIONS,
 	},
 	3: {
@@ -565,9 +565,9 @@ end`;
 			code: contractCode,
 		});
 		files.push({
-			filename: 'app/services/post_list.rb',
+			filename: 'app/services/product_list.rb',
 			language: 'ruby',
-			code: `class PostList < ApplicationService
+			code: `class ProductList < ApplicationService
   Result = Data.define(:success?, :scope, :errors)
 
   def initialize(page: nil)
@@ -595,7 +595,7 @@ end`,
 			language: 'ruby',
 			code: `class Api::V1::ProductsController < ApplicationController
   def index
-    result = PostList.call(page: params[:page])
+    result = ProductList.call(page: params[:page])
     if result.success?
       render json: ProductSerializer.new(result.scope)
     else
@@ -605,7 +605,7 @@ end`,
   end
 end
 
-# Renders ALL of result.scope (50K posts!)
+# Renders ALL of result.scope (50K products!)
 # No pagination. No Link headers.
 # Content-Length: 12,582,912  (12MB!)`,
 			highlight: [5],
@@ -617,9 +617,9 @@ end
 	if (furthestStep === 0) {
 		// Show the broken service (same as observe)
 		files.push({
-			filename: 'app/services/post_list.rb',
+			filename: 'app/services/product_list.rb',
 			language: 'ruby',
-			code: `class PostList < ApplicationService
+			code: `class ProductList < ApplicationService
   Result = Data.define(:success?, :scope, :errors)
 
   def initialize(page: nil)
@@ -687,11 +687,11 @@ Pagy::OPTIONS[:limit] = 25`,
 				furthestStep >= 5
 					? `class Api::V1::ProductsController < ApplicationController
   def index
-    result = PostList.call(page: params[:page])
+    result = ProductList.call(page: params[:page])
     if result.success?
-      @pagy, @posts = pagy(:offset, result.scope)
+      @pagy, @products = pagy(:offset, result.scope)
       response.headers.merge!(@pagy.headers_hash)
-      render json: ProductSerializer.new(@posts)
+      render json: ProductSerializer.new(@products)
     else
       render json: { errors: result.errors },
              status: :unprocessable_entity
@@ -701,15 +701,15 @@ end
 
 # Response:
 # HTTP/1.1 200 OK
-# Link: </posts?page=2>; rel="next",
-#       </posts?page=2000>; rel="last"
+# Link: </products?page=2>; rel="next",
+#       </products?page=2000>; rel="last"
 # Content-Length: 6,250  (25 items only!)`
 					: `class Api::V1::ProductsController < ApplicationController
   def index
-    result = PostList.call(page: params[:page])
+    result = ProductList.call(page: params[:page])
     if result.success?
-      @pagy, @posts = pagy(:offset, result.scope)
-      render json: ProductSerializer.new(@posts)
+      @pagy, @products = pagy(:offset, result.scope)
+      render json: ProductSerializer.new(@products)
     else
       render json: { errors: result.errors },
              status: :unprocessable_entity
@@ -728,9 +728,9 @@ end`,
 			code: contractCode,
 		});
 		files.push({
-			filename: 'app/services/post_list.rb',
+			filename: 'app/services/product_list.rb',
 			language: 'ruby',
-			code: `class PostList < ApplicationService
+			code: `class ProductList < ApplicationService
   Result = Data.define(:success?, :scope, :errors)
 
   def initialize(page: nil)
@@ -1071,7 +1071,7 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 			const page = SCENARIO_PAGE_MAP[lastScenario.id] ?? 1;
 			return {
 				text: `6KB / 25 records (page ${page})`,
-				detail: `Link: </posts?page=${Math.max(1, page - 1)}>; rel="prev"`,
+				detail: `Link: </products?page=${Math.max(1, page - 1)}>; rel="prev"`,
 				variant: 'success',
 			};
 		}
@@ -1115,7 +1115,7 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 						<div className="flex items-center gap-2">
 							<Database className="w-4 h-4 text-muted-foreground" />
 							<span className="text-xs font-semibold text-foreground">
-								Database: posts ({TOTAL_RECORDS.toLocaleString()} rows)
+								Database: products ({TOTAL_RECORDS.toLocaleString()} rows)
 							</span>
 						</div>
 						{isObserve && !inspectedZones.has('database') && (
@@ -1247,9 +1247,9 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							GET /api/posts returns all 50,000 posts at once. The response is
-							12MB of JSON. Mobile clients crash, and the server allocates 180MB
-							per request.
+							GET /api/products returns all 50,000 products at once. The
+							response is 12MB of JSON. Mobile clients crash, and the server
+							allocates 180MB per request.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							You need a pagination gem that supports API-style Link headers,
@@ -1348,7 +1348,7 @@ export function Level28Pagination({ onComplete }: LevelComponentProps) {
 							{/* Header */}
 							<div className="px-6 pt-4 pb-2 flex items-center justify-between">
 								<div className="text-sm font-semibold text-foreground">
-									Page Stack: GET /api/posts
+									Page Stack: GET /api/products
 								</div>
 								{vizMode !== 'idle' && (
 									<span

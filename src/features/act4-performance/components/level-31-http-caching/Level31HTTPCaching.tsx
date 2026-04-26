@@ -44,14 +44,14 @@ import {
 } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import {
 	type DiscoveryDef,
 	useDiscoveryGating,
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 
 registerLevelCode('act4-level31-http-caching', () =>
 	getCodeFiles('reward', STEP_DEFS.length),
@@ -104,9 +104,9 @@ const PROBES: ProbeConfig[] = [
 		],
 	},
 	{
-		id: 'repeat-post',
-		label: 'GET post detail (repeat)',
-		command: 'GET /api/posts/42 (first), then GET /api/posts/42 (second)',
+		id: 'repeat-product',
+		label: 'GET product detail (repeat)',
+		command: 'GET /api/products/42 (first), then GET /api/products/42 (second)',
 		responseLines: [
 			{ text: 'Request 1: 200 OK in 21ms (query + serialize)', color: 'red' },
 			{ text: 'Request 2: 200 OK in 21ms (query + serialize)', color: 'red' },
@@ -152,7 +152,7 @@ const PROBES: ProbeConfig[] = [
 // Map probe IDs to discovery IDs they trigger
 const PROBE_DISCOVERY_MAP: Record<string, string> = {
 	'repeat-products': 'origin-every-time',
-	'repeat-post': 'no-etag',
+	'repeat-product': 'no-etag',
 	'static-asset': 'assets-uncached',
 };
 
@@ -165,7 +165,7 @@ const PROBE_PIPELINE_MAP: Record<
 		cacheSublabel: 'MISS (no headers)',
 		serverBadge: '200',
 	},
-	'repeat-post': {
+	'repeat-product': {
 		cacheSublabel: 'MISS (no ETag)',
 		serverBadge: '200',
 	},
@@ -207,13 +207,13 @@ response.headers
 		title: 'Rails Origin Server',
 		description:
 			'Every request hits the server. The service fetches data, but the controller has no HTTP caching. Full query + serialize on every request, even when nothing changed.',
-		code: `# app/services/post_detail.rb
-result = PostDetail.call(id: params[:id])
+		code: `# app/services/product_detail.rb
+result = ProductDetail.call(id: params[:id])
 
 # Controller: no stale? check, no expires_in
 def show
-  result = PostDetail.call(id: params[:id])
-  render json: result.post  # Full response every time
+  result = ProductDetail.call(id: params[:id])
+  render json: result.product  # Full response every time
 end`,
 	},
 };
@@ -244,11 +244,11 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		],
 	},
 	{
-		id: 'post-304',
-		label: 'GET post detail (304)',
+		id: 'product-304',
+		label: 'GET product detail (304)',
 		description: 'Product unchanged since last request, ETag matches',
 		method: 'GET',
-		path: '/api/posts/42',
+		path: '/api/products/42',
 		actor: 'returning visitor',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -301,11 +301,11 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		],
 	},
 	{
-		id: 'stale-post',
-		label: 'GET post detail (updated)',
+		id: 'stale-product',
+		label: 'GET product detail (updated)',
 		description: 'Product was updated, ETag changed, full response needed',
 		method: 'GET',
-		path: '/api/posts/42',
+		path: '/api/products/42',
 		actor: 'returning visitor',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -393,7 +393,7 @@ const OPTION_STEP_CONFIG: Record<
 			},
 			{
 				id: 'stale',
-				label: 'stale? @post',
+				label: 'stale? @product',
 				correct: true,
 			},
 		],
@@ -508,10 +508,10 @@ end`,
 			language: 'ruby',
 			code: `class Api::V1::ProductsController < ApplicationController
   def show
-    result = PostDetail.call(id: params[:id])
+    result = ProductDetail.call(id: params[:id])
     # No stale? check, no ETags
     # Full query + serialize every time
-    render json: result.post
+    render json: result.product
   end
 end`,
 			highlight: [4, 5],
@@ -560,12 +560,12 @@ end`,
 			language: 'ruby',
 			code: `class Api::V1::ProductsController < ApplicationController
   def show
-    result = PostDetail.call(id: params[:id])
+    result = ProductDetail.call(id: params[:id])
 
-    # ETag from post content
+    # ETag from product content
     # Returns 304 if unchanged
-    if stale?(result.post)
-      render json: result.post
+    if stale?(result.product)
+      render json: result.product
     end
     # If not stale, Rails auto-returns 304
   end
@@ -716,7 +716,8 @@ export function Level31HTTPCaching({ onComplete }: LevelComponentProps) {
 
 		// Determine what type of cache response this is
 		const isCdnHit = scenario?.id === 'public-catalog-hit';
-		const is304 = scenario?.id === 'post-304' || scenario?.id === 'stale-post';
+		const is304 =
+			scenario?.id === 'product-304' || scenario?.id === 'stale-product';
 		const isBrowserCache =
 			scenario?.id === 'static-immutable' || scenario?.id === 'private-browser';
 

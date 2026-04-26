@@ -49,14 +49,14 @@ import {
 } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import {
 	type DiscoveryDef,
 	useDiscoveryGating,
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act3-level20-error-handling', () =>
@@ -86,7 +86,7 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 
 const PROBES: ProbeConfig[] = [
 	{
-		id: 'missing-post',
+		id: 'missing-product',
 		label: 'GET /api/v1/products/999',
 		command: 'GET /api/v1/products/999',
 		responseLines: [
@@ -120,7 +120,7 @@ const PROBES: ProbeConfig[] = [
 			{ text: 'HTTP/1.1 400 Bad Request', color: 'red' },
 			{ text: 'Content-Type: application/json', color: 'muted' },
 			{
-				text: '{"message":"param is missing or the value is empty: post"}',
+				text: '{"message":"param is missing or the value is empty: product"}',
 				color: 'yellow',
 			},
 			{
@@ -159,7 +159,7 @@ const PROBES: ProbeConfig[] = [
 
 // Map probe IDs to discovery IDs they trigger
 const PROBE_DISCOVERY_MAP: Record<string, string> = {
-	'missing-post': 'raw-500-stacktrace',
+	'missing-product': 'raw-500-stacktrace',
 	'bad-params': 'inconsistent-shapes',
 	'missing-user': 'plain-text-404',
 };
@@ -169,7 +169,7 @@ const PROBE_PIPELINE_MAP: Record<
 	string,
 	{ handlerSublabel: string; responseBadge: string }
 > = {
-	'missing-post': {
+	'missing-product': {
 		handlerSublabel: 'NO HANDLER',
 		responseBadge: '500!',
 	},
@@ -196,13 +196,13 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 	},
 	controller: {
 		stageId: 'controller',
-		title: 'PostsController',
+		title: 'ProductsController',
 		description:
 			'Each controller action has its own begin/rescue block. Some return JSON, some return plain text, some let exceptions bubble up as raw 500s with stack traces.',
 		code: `def show
   begin
     @product = Product.find(params[:id])
-    render json: @post
+    render json: @product
   rescue ActiveRecord::RecordNotFound
     render plain: "Not found", status: 500
   end
@@ -211,7 +211,7 @@ end
 def create
   begin
     @product = Product.create!(product_params)
-    render json: @post, status: :created
+    render json: @product, status: :created
   rescue ActiveRecord::RecordInvalid => e
     render json: { msg: e.message }, status: 400
   end
@@ -227,7 +227,7 @@ end`,
 		stageId: 'response',
 		title: 'API Response',
 		description:
-			'Responses are inconsistent. GET /posts/999 returns an HTML stack trace. POST with bad params returns { "message": "..." }. GET /users/999 returns plain text "Not found". Three endpoints, three formats.',
+			'Responses are inconsistent. GET /products/999 returns an HTML stack trace. POST with bad params returns { "message": "..." }. GET /users/999 returns plain text "Not found". Three endpoints, three formats.',
 	},
 };
 
@@ -243,7 +243,7 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
-		id: 'missing-post',
+		id: 'missing-product',
 		label: 'GET /api/v1/products/999',
 		description: 'Request a product that does not exist (was raw 500)',
 		method: 'GET',
@@ -290,7 +290,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'unauthorized',
 		label: '403 Forbidden',
-		description: "DELETE another user's post",
+		description: "DELETE another user's product",
 		method: 'DELETE',
 		path: '/api/v1/products/1',
 		actor: 'attacker',
@@ -299,7 +299,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'valid-show',
 		label: 'Show a product',
-		description: 'GET an existing post',
+		description: 'GET an existing product',
 		method: 'GET',
 		path: '/api/v1/products/1',
 		actor: 'user_3',
@@ -478,7 +478,7 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
   def show
     begin
       @product = Product.find(params[:id])
-      render json: @post
+      render json: @product
     rescue ActiveRecord::RecordNotFound
       render plain: "Not found", status: 500
     end
@@ -487,7 +487,7 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
   def create
     begin
       @product = Product.create!(product_params)
-      render json: @post, status: :created
+      render json: @product, status: :created
     rescue ActiveRecord::RecordInvalid => e
       render json: { msg: e.message }, status: 400
     end
@@ -511,7 +511,7 @@ end`,
   def show
     begin
       @product = Product.find(params[:id])
-      render json: @post
+      render json: @product
     rescue ActiveRecord::RecordNotFound
       render plain: "Not found", status: 500
     end
@@ -520,7 +520,7 @@ end`,
   def create
     begin
       @product = Product.create!(product_params)
-      render json: @post, status: :created
+      render json: @product, status: :created
     rescue ActiveRecord::RecordInvalid => e
       render json: { msg: e.message }, status: 400
     end
@@ -649,12 +649,12 @@ end`,
 			code: `class Api::V1::ProductsController < ApplicationController
   def show
     @product = Product.find(params[:id])
-    render json: @post
+    render json: @product
   end
 
   def create
     @product = Product.create!(product_params)
-    render json: @post, status: :created
+    render json: @product, status: :created
   end
 
   # No begin/rescue needed!

@@ -70,7 +70,10 @@ const PROBES = [
 		responseLines: [
 			{ text: 'Customer A: Product.find(1) => stock_count: 15', color: 'cyan' },
 			{ text: 'Customer B: Product.find(1) => stock_count: 15', color: 'cyan' },
-			{ text: 'Customer A: 15 - 10 = 5, saves stock_count = 5', color: 'yellow' },
+			{
+				text: 'Customer A: 15 - 10 = 5, saves stock_count = 5',
+				color: 'yellow',
+			},
 			{
 				text: 'Customer B: 15 - 8 = 7, saves stock_count = 7 (OVERWRITES 5!)',
 				color: 'red',

@@ -6,7 +6,7 @@
  */
 
 import Editor from '@monaco-editor/react';
-import { Code2, FolderTree, X } from 'lucide-react';
+import { Code2, FolderTree } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import {
@@ -101,9 +101,7 @@ export function CodebaseViewerDialog({
 								<DialogTitle className="text-base">
 									Your Rails Project
 								</DialogTitle>
-								<p className="text-xs text-muted-foreground mt-0.5">
-									{stats}
-								</p>
+								<p className="text-xs text-muted-foreground mt-0.5">{stats}</p>
 							</div>
 						</div>
 					</div>
@@ -113,7 +111,9 @@ export function CodebaseViewerDialog({
 					{isEmpty ? (
 						<div className="flex-1 flex flex-col items-center justify-center gap-3 text-muted-foreground">
 							<FolderTree className="w-10 h-10" />
-							<p className="text-sm">Complete your first level to see generated code here.</p>
+							<p className="text-sm">
+								Complete your first level to see generated code here.
+							</p>
 						</div>
 					) : (
 						<>
@@ -126,52 +126,52 @@ export function CodebaseViewerDialog({
 								/>
 							</div>
 
-					{/* Code viewer */}
-					<div className="flex-1 min-w-0 flex flex-col">
-						{effectiveFile ? (
-							<>
-								<div className="flex items-center gap-2 px-4 py-2 bg-muted/50 border-b border-border text-sm shrink-0">
-									<Code2 className="w-3.5 h-3.5 text-muted-foreground" />
-									<span className="font-mono text-muted-foreground">
-										{effectiveFile.filename}
-									</span>
-								</div>
-								<div className="flex-1 min-h-0">
-									<Editor
-										defaultLanguage="ruby"
-										height="100%"
-										language={getMonacoLanguage(
-											effectiveFile.language,
-											effectiveFile.filename,
-										)}
-										loading={
-											<div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-												Loading editor...
-											</div>
-										}
-										options={{
-											readOnly: true,
-											minimap: { enabled: true },
-											fontSize: 13,
-											fontFamily: "'JetBrains Mono', monospace",
-											lineNumbers: 'on',
-											scrollBeyondLastLine: false,
-											wordWrap: 'on',
-											padding: { top: 12 },
-											renderLineHighlight: 'none',
-											domReadOnly: true,
-											contextmenu: false,
-										}}
-										theme="vs-dark"
-										value={effectiveFile.code.trim()}
-									/>
-								</div>
-							</>
-						) : (
-							<div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-								Select a file to view its contents
-							</div>
-						)}
+							{/* Code viewer */}
+							<div className="flex-1 min-w-0 flex flex-col">
+								{effectiveFile ? (
+									<>
+										<div className="flex items-center gap-2 px-4 py-2 bg-muted/50 border-b border-border text-sm shrink-0">
+											<Code2 className="w-3.5 h-3.5 text-muted-foreground" />
+											<span className="font-mono text-muted-foreground">
+												{effectiveFile.filename}
+											</span>
+										</div>
+										<div className="flex-1 min-h-0">
+											<Editor
+												defaultLanguage="ruby"
+												height="100%"
+												language={getMonacoLanguage(
+													effectiveFile.language,
+													effectiveFile.filename,
+												)}
+												loading={
+													<div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+														Loading editor...
+													</div>
+												}
+												options={{
+													readOnly: true,
+													minimap: { enabled: true },
+													fontSize: 13,
+													fontFamily: "'JetBrains Mono', monospace",
+													lineNumbers: 'on',
+													scrollBeyondLastLine: false,
+													wordWrap: 'on',
+													padding: { top: 12 },
+													renderLineHighlight: 'none',
+													domReadOnly: true,
+													contextmenu: false,
+												}}
+												theme="vs-dark"
+												value={effectiveFile.code.trim()}
+											/>
+										</div>
+									</>
+								) : (
+									<div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+										Select a file to view its contents
+									</div>
+								)}
 							</div>
 						</>
 					)}

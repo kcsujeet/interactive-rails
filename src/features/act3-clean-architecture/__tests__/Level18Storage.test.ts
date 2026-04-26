@@ -71,7 +71,7 @@ describe('Level 18: Cloud Storage', () => {
 				memoryPeak: 0,
 			});
 
-			expect(result.details!.some((d) => d.includes('direct upload'))).toBe(
+			expect(result.details?.some((d) => d.includes('direct upload'))).toBe(
 				true,
 			);
 		});
@@ -83,7 +83,7 @@ describe('Level 18: Cloud Storage', () => {
 				memoryPeak: 50,
 			});
 
-			expect(result.details!.some((d) => d.includes('direct uploads'))).toBe(
+			expect(result.details?.some((d) => d.includes('direct uploads'))).toBe(
 				true,
 			);
 		});
@@ -98,7 +98,7 @@ describe('Level 18: Cloud Storage', () => {
 			});
 
 			expect(result.valid).toBe(false);
-			expect(result.details!.some((d) => d.includes('Memory peak'))).toBe(true);
+			expect(result.details?.some((d) => d.includes('Memory peak'))).toBe(true);
 		});
 
 		test('should be invalid at exactly 100MB', () => {
@@ -121,7 +121,7 @@ describe('Level 18: Cloud Storage', () => {
 			});
 
 			expect(result.valid).toBe(false);
-			expect(result.details!.some((d) => d.includes('currently 1'))).toBe(true);
+			expect(result.details?.some((d) => d.includes('currently 1'))).toBe(true);
 		});
 	});
 

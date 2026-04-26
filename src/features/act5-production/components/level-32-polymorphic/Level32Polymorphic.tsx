@@ -43,9 +43,9 @@ import {
 	type ValidationResult,
 } from '@/components/levels';
 import { Button } from '@/components/ui/Button';
+import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
-import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 import { cn } from '@/lib/utils';
 
@@ -65,13 +65,13 @@ type Phase = 'intro' | 'build' | 'reward';
 
 const DUPLICATE_TABLES = [
 	{
-		name: 'post_reviews',
+		name: 'product_reviews',
 		fkColumn: 'product_id',
 		borderColor: 'border-blue-300 dark:border-blue-600',
 		headerBg: 'bg-blue-50 dark:bg-blue-900/30',
 		textColor: 'text-blue-700 dark:text-blue-300',
 		rows: [
-			{ id: 1, body: 'Great post!', fk: 1, userId: 5, createdAt: 'Mar 12' },
+			{ id: 1, body: 'Great product!', fk: 1, userId: 5, createdAt: 'Mar 12' },
 			{ id: 2, body: 'Helpful guide', fk: 1, userId: 3, createdAt: 'Mar 13' },
 			{ id: 3, body: 'Thanks!', fk: 2, userId: 8, createdAt: 'Mar 14' },
 		],
@@ -123,7 +123,7 @@ const MIGRATION_COMMANDS = [
 		command: 'rails generate model Review body:text product:references',
 		correct: false,
 		feedback:
-			'This creates a foreign key to posts only. You need a polymorphic reference that can point to any parent type.',
+			'This creates a foreign key to products only. You need a polymorphic reference that can point to any parent type.',
 	},
 	{
 		id: 'correct-polymorphic',
@@ -249,7 +249,7 @@ const PARENT_MODEL_OPTIONS = [
 end`,
 		correct: false,
 		feedback:
-			'has_one limits each product to a single review. Posts can have many reviews, so has_many is the correct association.',
+			'has_one limits each product to a single review. Products can have many reviews, so has_many is the correct association.',
 	},
 	{
 		id: 'wrong-no-as',
@@ -442,9 +442,9 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 	if (phase === 'intro') {
 		return [
 			{
-				filename: 'app/models/post_review.rb',
+				filename: 'app/models/product_review.rb',
 				language: 'ruby',
-				code: `class PostReview < ApplicationRecord
+				code: `class ProductReview < ApplicationRecord
   belongs_to :product
   belongs_to :user
 
@@ -475,23 +475,23 @@ end`,
 end`,
 			},
 			{
-				filename: 'app/services/create_post_review.rb',
+				filename: 'app/services/create_product_review.rb',
 				language: 'ruby',
-				code: `class CreatePostReview < ApplicationService
+				code: `class CreateProductReview < ApplicationService
   Result = Data.define(:success?, :review, :errors)
 
-  def initialize(post:, user:, params:)
-    @product = post
+  def initialize(product:, user:, params:)
+    @product = product
     @user = user
     @params = params
   end
 
   def call
-    v = PostReviewContract.new.call(@params)
+    v = ProductReviewContract.new.call(@params)
     return Result.new(success?: false,
       review: nil, errors: v.errors.to_h) if v.failure?
 
-    review = @post.post_reviews.create!(
+    review = @product.product_reviews.create!(
       user: @user, body: v[:body]
     )
     Result.new(success?: true, review:, errors: [])
@@ -840,7 +840,7 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 	const UNIFIED_ROWS = [
 		{
 			id: 1,
-			body: 'Great post!',
+			body: 'Great product!',
 			type: 'Product',
 			typeId: 1,
 			userId: 5,
@@ -902,7 +902,7 @@ export function Level32Polymorphic({ onComplete }: LevelComponentProps) {
 										'New types like Article need zero schema changes',
 									]
 					}
-					scenario="Photos and Videos now need reviews alongside Posts. Three separate review tables with identical schemas, duplicated validations, and scattered queries. Polymorphic associations can unify them."
+					scenario="Photos and Videos now need reviews alongside Products. Three separate review tables with identical schemas, duplicated validations, and scattered queries. Polymorphic associations can unify them."
 				>
 					{/* Phase-specific sidebar content */}
 					<div className="border-t border-border">

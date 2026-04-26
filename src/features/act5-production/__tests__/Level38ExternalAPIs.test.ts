@@ -409,9 +409,7 @@ describe('Level 38: External APIs', () => {
 		});
 
 		test('every discovery is reachable via probes', () => {
-			const allMapped = new Set(
-				Object.values(PROBE_DISCOVERY_MAP).flat(),
-			);
+			const allMapped = new Set(Object.values(PROBE_DISCOVERY_MAP).flat());
 			for (const def of DISCOVERY_DEFS) {
 				expect(allMapped.has(def.id)).toBe(true);
 			}
@@ -429,9 +427,7 @@ describe('Level 38: External APIs', () => {
 		});
 
 		test('stripe-down maps to cascade-failure', () => {
-			expect(PROBE_DISCOVERY_MAP['stripe-down']).toEqual([
-				'cascade-failure',
-			]);
+			expect(PROBE_DISCOVERY_MAP['stripe-down']).toEqual(['cascade-failure']);
 		});
 	});
 
@@ -455,7 +451,7 @@ describe('Level 38: External APIs', () => {
 					const wrongOptions = options.filter((o) => !o.correct);
 					for (const opt of wrongOptions) {
 						expect(opt.feedback).toBeDefined();
-						expect(opt.feedback!.length).toBeGreaterThan(10);
+						expect(opt.feedback?.length).toBeGreaterThan(10);
 					}
 				});
 			});
@@ -464,21 +460,21 @@ describe('Level 38: External APIs', () => {
 		test('INSTALL_FARADAY feedback does not contain "faraday"', () => {
 			const wrong = INSTALL_FARADAY_COMMANDS.filter((o) => !o.correct);
 			for (const opt of wrong) {
-				expect(opt.feedback!.toLowerCase()).not.toContain('faraday');
+				expect(opt.feedback?.toLowerCase()).not.toContain('faraday');
 			}
 		});
 
 		test('INSTALL_STOPLIGHT feedback does not contain "stoplight"', () => {
 			const wrong = INSTALL_STOPLIGHT_COMMANDS.filter((o) => !o.correct);
 			for (const opt of wrong) {
-				expect(opt.feedback!.toLowerCase()).not.toContain('stoplight');
+				expect(opt.feedback?.toLowerCase()).not.toContain('stoplight');
 			}
 		});
 
 		test('CONFIGURE_TIMEOUT feedback does not contain "open_timeout" or "timeout = 10"', () => {
 			const wrong = CONFIGURE_TIMEOUT_OPTIONS.filter((o) => !o.correct);
 			for (const opt of wrong) {
-				expect(opt.feedback!.toLowerCase()).not.toContain('open_timeout');
+				expect(opt.feedback?.toLowerCase()).not.toContain('open_timeout');
 				expect(opt.feedback!).not.toContain('timeout = 10');
 			}
 		});
@@ -486,10 +482,10 @@ describe('Level 38: External APIs', () => {
 		test('CONFIGURE_RETRY feedback does not contain "interval_randomness" or "backoff_factor"', () => {
 			const wrong = CONFIGURE_RETRY_OPTIONS.filter((o) => !o.correct);
 			for (const opt of wrong) {
-				expect(opt.feedback!.toLowerCase()).not.toContain(
+				expect(opt.feedback?.toLowerCase()).not.toContain(
 					'interval_randomness',
 				);
-				expect(opt.feedback!.toLowerCase()).not.toContain('backoff_factor');
+				expect(opt.feedback?.toLowerCase()).not.toContain('backoff_factor');
 			}
 		});
 
@@ -601,9 +597,7 @@ describe('Level 38: External APIs', () => {
 
 			// stripe-503 -> retry-503 (both about 503)
 			const s503Probe = PROBES.find((p) => p.id === 'stripe-503');
-			const retryScenario = STRESS_SCENARIOS.find(
-				(s) => s.id === 'retry-503',
-			);
+			const retryScenario = STRESS_SCENARIOS.find((s) => s.id === 'retry-503');
 			expect(s503Probe?.label).toContain('503');
 			expect(retryScenario?.label).toContain('retry');
 

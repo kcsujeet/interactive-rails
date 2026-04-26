@@ -44,9 +44,9 @@ const PROBES: ProbeConfig[] = [
 		],
 	},
 	{
-		id: 'repeat-post',
-		label: 'GET post detail (repeat)',
-		command: 'GET /api/posts/42 (first), then GET /api/posts/42 (second)',
+		id: 'repeat-product',
+		label: 'GET product detail (repeat)',
+		command: 'GET /api/products/42 (first), then GET /api/products/42 (second)',
 		responseLines: [
 			{ text: 'Request 1: 200 OK in 21ms (query + serialize)', color: 'red' },
 			{ text: 'Request 2: 200 OK in 21ms (query + serialize)', color: 'red' },
@@ -79,7 +79,7 @@ const PROBES: ProbeConfig[] = [
 
 const PROBE_DISCOVERY_MAP: Record<string, string> = {
 	'repeat-products': 'origin-every-time',
-	'repeat-post': 'no-etag',
+	'repeat-product': 'no-etag',
 	'static-asset': 'assets-uncached',
 };
 
@@ -115,11 +115,11 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		],
 	},
 	{
-		id: 'post-304',
-		label: 'GET post detail (304)',
+		id: 'product-304',
+		label: 'GET product detail (304)',
 		description: 'Product unchanged since last request, ETag matches',
 		method: 'GET',
-		path: '/api/posts/42',
+		path: '/api/products/42',
 		actor: 'returning visitor',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -172,11 +172,11 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		],
 	},
 	{
-		id: 'stale-post',
-		label: 'GET post detail (updated)',
+		id: 'stale-product',
+		label: 'GET product detail (updated)',
 		description: 'Product was updated, ETag changed, full response needed',
 		method: 'GET',
-		path: '/api/posts/42',
+		path: '/api/products/42',
 		actor: 'returning visitor',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -245,7 +245,7 @@ const OPTION_STEP_CONFIG: Record<
 			},
 			{
 				id: 'stale',
-				label: 'stale? @post',
+				label: 'stale? @product',
 				correct: true,
 			},
 		],
@@ -372,21 +372,21 @@ describe('Level 31: HTTP Caching & CDNs', () => {
 		});
 
 		test('correct answer is never the first option', () => {
-			for (const [stepIdx, config] of Object.entries(OPTION_STEP_CONFIG)) {
+			for (const [_stepIdx, config] of Object.entries(OPTION_STEP_CONFIG)) {
 				const firstOption = config.options[0];
 				expect(firstOption.correct).toBe(false);
 			}
 		});
 
 		test('each step has exactly one correct option', () => {
-			for (const [stepIdx, config] of Object.entries(OPTION_STEP_CONFIG)) {
+			for (const [_stepIdx, config] of Object.entries(OPTION_STEP_CONFIG)) {
 				const correctCount = config.options.filter((o) => o.correct).length;
 				expect(correctCount).toBe(1);
 			}
 		});
 
 		test('every wrong option has feedback', () => {
-			for (const [stepIdx, config] of Object.entries(OPTION_STEP_CONFIG)) {
+			for (const [_stepIdx, config] of Object.entries(OPTION_STEP_CONFIG)) {
 				for (const opt of config.options) {
 					if (!opt.correct) {
 						expect(opt.feedback).toBeTruthy();
@@ -494,10 +494,10 @@ describe('Level 31: HTTP Caching & CDNs', () => {
 		test('observe code shows service pattern (no raw Product.find in controller)', () => {
 			// The observe code should delegate to services, not do raw ActiveRecord
 			// This is verified by checking the code preview would reference service calls
-			const serviceNames = ['ProductCatalog', 'PostDetail', 'OrderHistory'];
-			// At minimum, the observe phase should reference ProductCatalog and PostDetail
+			const serviceNames = ['ProductCatalog', 'ProductDetail', 'OrderHistory'];
+			// At minimum, the observe phase should reference ProductCatalog and ProductDetail
 			expect(serviceNames).toContain('ProductCatalog');
-			expect(serviceNames).toContain('PostDetail');
+			expect(serviceNames).toContain('ProductDetail');
 		});
 
 		test('build code previews use service pattern', () => {
@@ -510,7 +510,7 @@ describe('Level 31: HTTP Caching & CDNs', () => {
 		});
 
 		test('all 4 endpoint types covered in both build steps and stress scenarios', () => {
-			// Build steps: public catalog, post detail, static assets, user orders
+			// Build steps: public catalog, product detail, static assets, user orders
 			// Stress scenarios should cover all 4 types
 			const buildEndpoints = Object.values(OPTION_STEP_CONFIG).map(
 				(c) => c.title,
@@ -520,10 +520,10 @@ describe('Level 31: HTTP Caching & CDNs', () => {
 			expect(buildEndpoints).toContain('Fingerprinted Static Assets');
 			expect(buildEndpoints).toContain('User Order History');
 
-			// Stress scenarios cover: products, post detail, static, orders, orders CDN blocked, updated post
+			// Stress scenarios cover: products, product detail, static, orders, orders CDN blocked, updated product
 			const stressEndpointPaths = STRESS_SCENARIOS.map((s) => s.path);
 			expect(stressEndpointPaths).toContain('/api/products');
-			expect(stressEndpointPaths).toContain('/api/posts/42');
+			expect(stressEndpointPaths).toContain('/api/products/42');
 			expect(stressEndpointPaths).toContain('/assets/app-a1b2c3.js');
 			expect(stressEndpointPaths).toContain('/api/dashboard/orders');
 		});

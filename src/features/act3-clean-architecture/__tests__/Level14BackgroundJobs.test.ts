@@ -84,7 +84,7 @@ describe('Level 14: Background Jobs', () => {
 				experiencedBlocking: false,
 			});
 
-			expect(result.details!.some((d) => d.includes('blocking behavior'))).toBe(
+			expect(result.details?.some((d) => d.includes('blocking behavior'))).toBe(
 				true,
 			);
 		});
@@ -111,7 +111,7 @@ describe('Level 14: Background Jobs', () => {
 			});
 
 			expect(result.valid).toBe(false);
-			expect(result.details!.some((d) => d.includes('blocking'))).toBe(false);
+			expect(result.details?.some((d) => d.includes('blocking'))).toBe(false);
 		});
 
 		test('should be invalid with worker but no jobs completed', () => {
@@ -123,7 +123,7 @@ describe('Level 14: Background Jobs', () => {
 			});
 
 			expect(result.valid).toBe(false);
-			expect(result.details!.some((d) => d.includes('currently 0'))).toBe(true);
+			expect(result.details?.some((d) => d.includes('currently 0'))).toBe(true);
 		});
 
 		test('should be invalid with only 1 job completed', () => {
@@ -135,7 +135,7 @@ describe('Level 14: Background Jobs', () => {
 			});
 
 			expect(result.valid).toBe(false);
-			expect(result.details!.some((d) => d.includes('currently 1'))).toBe(true);
+			expect(result.details?.some((d) => d.includes('currently 1'))).toBe(true);
 		});
 	});
 
@@ -149,7 +149,7 @@ describe('Level 14: Background Jobs', () => {
 			});
 
 			expect(result.valid).toBe(false);
-			expect(result.details!.some((d) => d.includes('too slow'))).toBe(true);
+			expect(result.details?.some((d) => d.includes('too slow'))).toBe(true);
 		});
 
 		test('should not check response time when worker disabled', () => {
@@ -160,7 +160,7 @@ describe('Level 14: Background Jobs', () => {
 				experiencedBlocking: true,
 			});
 
-			expect(result.details!.some((d) => d.includes('too slow'))).toBe(false);
+			expect(result.details?.some((d) => d.includes('too slow'))).toBe(false);
 		});
 	});
 

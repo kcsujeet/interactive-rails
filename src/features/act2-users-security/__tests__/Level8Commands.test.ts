@@ -60,7 +60,7 @@ describe('Level 8: Command Pattern', () => {
 			});
 
 			expect(result.valid).toBe(false);
-			expect(result.details!.length).toBe(3);
+			expect(result.details?.length).toBe(3);
 		});
 
 		test('should require seeing the problem first', () => {
@@ -107,8 +107,8 @@ describe('Level 8: Command Pattern', () => {
 			});
 
 			expect(result.valid).toBe(false);
-			expect(result.details!.some((d) => d.includes('problem'))).toBe(false);
-			expect(result.details!.some((d) => d.includes('rollback'))).toBe(true);
+			expect(result.details?.some((d) => d.includes('problem'))).toBe(false);
+			expect(result.details?.some((d) => d.includes('rollback'))).toBe(true);
 		});
 
 		test('should be invalid if only saw rollback (skipped problem)', () => {
@@ -143,7 +143,7 @@ describe('Level 8: Command Pattern', () => {
 			});
 
 			expect(result.valid).toBe(false);
-			expect(result.details!.length).toBe(1);
+			expect(result.details?.length).toBe(1);
 		});
 	});
 

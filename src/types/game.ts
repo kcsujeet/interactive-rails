@@ -475,8 +475,8 @@ export interface PlayerProgress {
 export interface AppState {
 	/** Current number of users */
 	userCount: number;
-	/** Current number of posts */
-	postCount: number;
+	/** Current number of products */
+	productCount: number;
 	/** Current number of reviews */
 	reviewCount: number;
 	/** Features that have been added */

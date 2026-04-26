@@ -61,7 +61,7 @@ const PROBE_DISCOVERY_MAP: Record<string, string> = {
 
 // Stage inspector discovery (text-column via big_text_column click)
 const STAGE_DISCOVERY_ID = 'text-column';
-const STAGE_ID = 'big_text_column';
+const _STAGE_ID = 'big_text_column';
 
 // Step definitions (4 OptionCard steps)
 const STEP_DEFS = [
@@ -391,7 +391,7 @@ describe('Level 25: Narrow Fetching', () => {
 
 		test('feedback never reveals the correct answer', () => {
 			// Collect all correct answers
-			const correctAnswers = ALL_OPTION_STEPS.map(
+			const _correctAnswers = ALL_OPTION_STEPS.map(
 				(options) => options.find((o) => o.correct)?.label ?? '',
 			);
 
@@ -504,9 +504,7 @@ describe('Level 25: Narrow Fetching', () => {
 
 		test('nightly sync probe and scenario share label convention', () => {
 			const syncProbe = PROBES.find((p) => p.id === 'nightly-sync');
-			const syncScenario = STRESS_SCENARIOS.find(
-				(s) => s.id === 'batch-sync',
-			);
+			const syncScenario = STRESS_SCENARIOS.find((s) => s.id === 'batch-sync');
 			expect(syncProbe).toBeTruthy();
 			expect(syncScenario).toBeTruthy();
 			expect(syncProbe?.label).toBe('Nightly Sync');

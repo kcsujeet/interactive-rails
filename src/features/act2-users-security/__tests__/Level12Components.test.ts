@@ -54,7 +54,7 @@ function validateLevel12Solution(state: Level12State): ValidationResult {
 
 const INITIAL_BLOCKS: ViewBlock[] = [
 	{ id: 'user-card-1', view: 'users/index', extracted: false },
-	{ id: 'user-card-2', view: 'posts/show', extracted: false },
+	{ id: 'user-card-2', view: 'products/show', extracted: false },
 	{ id: 'user-card-3', view: 'reviews/show', extracted: false },
 ];
 
@@ -77,7 +77,7 @@ describe('Level 12: ViewComponents', () => {
 			});
 
 			expect(result.valid).toBe(false);
-			expect(result.details!.some((d) => d.includes('3 view(s)'))).toBe(true);
+			expect(result.details?.some((d) => d.includes('3 view(s)'))).toBe(true);
 		});
 	});
 
@@ -93,7 +93,7 @@ describe('Level 12: ViewComponents', () => {
 			});
 
 			expect(result.valid).toBe(false);
-			expect(result.details!.some((d) => d.includes('2 view(s)'))).toBe(true);
+			expect(result.details?.some((d) => d.includes('2 view(s)'))).toBe(true);
 		});
 
 		test('should be invalid with 2 views extracted', () => {
@@ -107,7 +107,7 @@ describe('Level 12: ViewComponents', () => {
 			});
 
 			expect(result.valid).toBe(false);
-			expect(result.details!.some((d) => d.includes('1 view(s)'))).toBe(true);
+			expect(result.details?.some((d) => d.includes('1 view(s)'))).toBe(true);
 		});
 
 		test('should be invalid if extractions done but component not created', () => {

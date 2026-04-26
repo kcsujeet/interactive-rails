@@ -141,8 +141,7 @@ const RUN_INSTALL_COMMANDS = [
 		label: 'bin/rails generate solid_cable',
 		command: 'bin/rails generate solid_cable',
 		correct: false,
-		feedback:
-			'Solid Cable uses a Rake task for installation, not a generator.',
+		feedback: 'Solid Cable uses a Rake task for installation, not a generator.',
 	},
 ];
 
@@ -445,9 +444,7 @@ describe('Level 37: Real-Time (Action Cable + Solid Cable)', () => {
 		});
 
 		test('every discovery is reachable via at least one probe', () => {
-			const reachable = new Set(
-				Object.values(PROBE_DISCOVERY_MAP).flat(),
-			);
+			const reachable = new Set(Object.values(PROBE_DISCOVERY_MAP).flat());
 			for (const def of DISCOVERY_DEFS) {
 				expect(reachable.has(def.id)).toBe(true);
 			}
@@ -500,7 +497,7 @@ describe('Level 37: Real-Time (Action Cable + Solid Cable)', () => {
 				for (const opt of options) {
 					if (!opt.correct) {
 						expect(opt.feedback).toBeDefined();
-						expect(opt.feedback!.length).toBeGreaterThan(10);
+						expect(opt.feedback?.length).toBeGreaterThan(10);
 					}
 				}
 			});
@@ -508,9 +505,7 @@ describe('Level 37: Real-Time (Action Cable + Solid Cable)', () => {
 			test(`${name}: feedback does not reveal correct answer`, () => {
 				for (const opt of options) {
 					if (!opt.correct && opt.feedback) {
-						expect(opt.feedback.toLowerCase()).not.toContain(
-							'solid_cable',
-						);
+						expect(opt.feedback.toLowerCase()).not.toContain('solid_cable');
 						expect(opt.feedback.toLowerCase()).not.toContain(
 							'encrypted cookies',
 						);
@@ -592,12 +587,12 @@ describe('Level 37: Real-Time (Action Cable + Solid Cable)', () => {
 		test('observe probes and reward scenarios both cover notifications', () => {
 			const probeLabels = PROBES.map((p) => p.label.toLowerCase());
 			expect(
-				probeLabels.some((l) => l.includes('notification') || l.includes('poll')),
+				probeLabels.some(
+					(l) => l.includes('notification') || l.includes('poll'),
+				),
 			).toBe(true);
 
-			const scenarioLabels = STRESS_SCENARIOS.map((s) =>
-				s.label.toLowerCase(),
-			);
+			const scenarioLabels = STRESS_SCENARIOS.map((s) => s.label.toLowerCase());
 			expect(
 				scenarioLabels.some(
 					(l) => l.includes('push') || l.includes('broadcast'),
@@ -611,9 +606,7 @@ describe('Level 37: Real-Time (Action Cable + Solid Cable)', () => {
 		});
 
 		test('reward scenarios cover the WebSocket solution', () => {
-			const scenarioLabels = STRESS_SCENARIOS.map((s) =>
-				s.label.toLowerCase(),
-			);
+			const scenarioLabels = STRESS_SCENARIOS.map((s) => s.label.toLowerCase());
 			expect(scenarioLabels.some((l) => l.includes('push'))).toBe(true);
 		});
 
@@ -630,33 +623,25 @@ describe('Level 37: Real-Time (Action Cable + Solid Cable)', () => {
 
 	describe('Cumulative pattern compliance', () => {
 		test('broadcast service uses ApplicationService base class', () => {
-			const correctOption = BROADCAST_SERVICE_OPTIONS.find(
-				(o) => o.correct,
-			);
+			const correctOption = BROADCAST_SERVICE_OPTIONS.find((o) => o.correct);
 			expect(correctOption?.code).toContain('< ApplicationService');
 		});
 
 		test('broadcast service uses Result = Data.define pattern', () => {
-			const correctOption = BROADCAST_SERVICE_OPTIONS.find(
-				(o) => o.correct,
-			);
+			const correctOption = BROADCAST_SERVICE_OPTIONS.find((o) => o.correct);
 			expect(correctOption?.code).toContain('Result = Data.define');
 			expect(correctOption?.code).toContain(':success?');
 			expect(correctOption?.code).toContain(':errors');
 		});
 
 		test('broadcast service uses Dry::Validation contract', () => {
-			const correctOption = BROADCAST_SERVICE_OPTIONS.find(
-				(o) => o.correct,
-			);
+			const correctOption = BROADCAST_SERVICE_OPTIONS.find((o) => o.correct);
 			expect(correctOption?.code).toContain('NotificationContract.new.call');
 			expect(correctOption?.code).toContain('validation.failure?');
 		});
 
 		test('broadcast service returns Result on failure', () => {
-			const correctOption = BROADCAST_SERVICE_OPTIONS.find(
-				(o) => o.correct,
-			);
+			const correctOption = BROADCAST_SERVICE_OPTIONS.find((o) => o.correct);
 			expect(correctOption?.code).toContain('Result.new');
 			expect(correctOption?.code).toContain('success?: false');
 		});
@@ -691,14 +676,8 @@ describe('Level 37: Real-Time (Action Cable + Solid Cable)', () => {
 				]),
 				...STEP_DEFS.map((s) => s.label),
 				...STRESS_SCENARIOS.flatMap((s) => [s.label, s.description]),
-				...INSTALL_CABLE_COMMANDS.flatMap((c) => [
-					c.label,
-					c.feedback ?? '',
-				]),
-				...RUN_INSTALL_COMMANDS.flatMap((c) => [
-					c.label,
-					c.feedback ?? '',
-				]),
+				...INSTALL_CABLE_COMMANDS.flatMap((c) => [c.label, c.feedback ?? '']),
+				...RUN_INSTALL_COMMANDS.flatMap((c) => [c.label, c.feedback ?? '']),
 				...CONFIGURE_ADAPTER_OPTIONS.flatMap((o) => [
 					o.label,
 					o.feedback ?? '',

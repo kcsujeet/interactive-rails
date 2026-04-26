@@ -58,8 +58,6 @@ import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import {
 	type DiscoveryDef,
 	useDiscoveryGating,
@@ -67,6 +65,8 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { cn } from '@/lib/utils';
 
 registerLevelCode('act4-level26-database-indexing', () =>
@@ -116,7 +116,7 @@ const QUERY_LANES: QueryLane[] = [
 	{
 		id: 'fk',
 		label: 'Foreign Key Lookup',
-		table: 'posts',
+		table: 'products',
 		sql: 'SELECT * FROM products WHERE user_id = 42',
 		icon: Table2,
 		totalRows: 50000,
@@ -124,7 +124,7 @@ const QUERY_LANES: QueryLane[] = [
 	{
 		id: 'composite',
 		label: 'Composite Query',
-		table: 'posts',
+		table: 'products',
 		sql: 'SELECT * FROM products WHERE published = true ORDER BY created_at',
 		icon: Database,
 		totalRows: 50000,
@@ -142,9 +142,9 @@ const GRID_COLS = 20;
 const GRID_MATCHES: Record<string, number[]> = {
 	// 1 user with that email, placed near the end to maximize visible scan
 	email: [73],
-	// 5 posts by user_id=42, scattered through the table
+	// 5 products by user_id=42, scattered through the table
 	fk: [12, 37, 54, 71, 89],
-	// ~50% of posts are published (every other block)
+	// ~50% of products are published (every other block)
 	composite: Array.from({ length: 50 }, (_, i) => i * 2),
 };
 
@@ -170,7 +170,7 @@ const INDEX_LOOKUP_DATA: Record<
 		],
 	},
 	fk: {
-		name: 'index_posts_on_user_id (B-tree)',
+		name: 'index_products_on_user_id (B-tree)',
 		entries: [
 			{ value: 'user_id = 41', row: 'rows #800..820' },
 			{ value: 'user_id = 42', row: 'rows #821..845', highlight: true },
@@ -179,7 +179,7 @@ const INDEX_LOOKUP_DATA: Record<
 		],
 	},
 	composite: {
-		name: 'index_posts_on_published_created_at',
+		name: 'index_products_on_published_created_at',
 		entries: [
 			{ value: 'false, 2024-01-01', row: 'rows #1..25000' },
 			{ value: 'true, 2024-01-01', row: 'row #25001', highlight: true },
@@ -195,10 +195,10 @@ const INDEX_LOOKUP_DATA: Record<
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{ id: 'seq-scan-email', label: 'Seq Scan on users.email (820ms)' },
-	{ id: 'seq-scan-fk', label: 'Seq Scan on posts.user_id (450ms)' },
+	{ id: 'seq-scan-fk', label: 'Seq Scan on products.user_id (450ms)' },
 	{
 		id: 'seq-scan-composite',
-		label: 'Sort + Seq Scan on published posts (650ms)',
+		label: 'Sort + Seq Scan on published products (650ms)',
 	},
 	{ id: 'no-indexes', label: 'No indexes defined on any table' },
 ];
@@ -234,11 +234,11 @@ const PROBES: ProbeConfig[] = [
 	},
 	{
 		id: 'query-fk',
-		label: 'Load user posts',
+		label: 'Load user products',
 		command: 'EXPLAIN ANALYZE SELECT * FROM products WHERE user_id = 42',
 		responseLines: [
 			{
-				text: 'Seq Scan on posts  (cost=0.00..1125.00 rows=25 width=128)',
+				text: 'Seq Scan on products  (cost=0.00..1125.00 rows=25 width=128)',
 				color: 'red',
 			},
 			{ text: '  Filter: (user_id = 42)', color: 'muted' },
@@ -254,7 +254,7 @@ const PROBES: ProbeConfig[] = [
 	},
 	{
 		id: 'query-composite',
-		label: 'Published posts by date',
+		label: 'Published products by date',
 		command:
 			'EXPLAIN ANALYZE SELECT * FROM products WHERE published = true ORDER BY created_at',
 		responseLines: [
@@ -263,7 +263,7 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 			{ text: '  Sort Key: created_at', color: 'muted' },
-			{ text: '  ->  Seq Scan on posts  (rows=25000)', color: 'red' },
+			{ text: '  ->  Seq Scan on products  (rows=25000)', color: 'red' },
 			{ text: '        Filter: (published = true)', color: 'muted' },
 			{ text: '  Execution Time: 650.00 ms', color: 'red' },
 		],
@@ -301,7 +301,7 @@ const OBSERVE_SCAN_DATA: Record<string, ScanResult> = {
 	},
 	fk: {
 		scanType: 'seq',
-		plan: 'Seq Scan on posts',
+		plan: 'Seq Scan on products',
 		time: '450ms',
 		rowsScanned: 50000,
 		totalRows: 50000,
@@ -309,7 +309,7 @@ const OBSERVE_SCAN_DATA: Record<string, ScanResult> = {
 	},
 	composite: {
 		scanType: 'seq',
-		plan: 'Sort + Seq Scan on posts',
+		plan: 'Sort + Seq Scan on products',
 		time: '650ms',
 		rowsScanned: 50000,
 		totalRows: 50000,
@@ -335,7 +335,7 @@ CREATE TABLE users (
 );
 -- No index on email!
 
-CREATE TABLE posts (
+CREATE TABLE products (
   id bigint PRIMARY KEY,
   user_id bigint REFERENCES users(id),
   title varchar,
@@ -368,23 +368,23 @@ Seq Scan on users  (cost=0.00..245.00)
 		stageId: 'fk',
 		title: 'Foreign Key Lookup Query',
 		description:
-			'UserPostsLoader.call(user_id:) calls Product.where(user_id: @user_id) inside the service. This filters posts by a foreign key. Rails does NOT automatically create indexes on foreign key columns.',
-		code: `-- UserPostsLoader service calls Product.where(user_id: @user_id)
+			'UserProductsLoader.call(user_id:) calls Product.where(user_id: @user_id) inside the service. This filters products by a foreign key. Rails does NOT automatically create indexes on foreign key columns.',
+		code: `-- UserProductsLoader service calls Product.where(user_id: @user_id)
 -- Generated SQL:
 SELECT * FROM products WHERE user_id = 42
 
 -- EXPLAIN output:
-Seq Scan on posts  (cost=0.00..1125.00)
+Seq Scan on products  (cost=0.00..1125.00)
   Filter: (user_id = 42)
   Rows Removed by Filter: 49975
-  -- Scanned all 50,000 posts to find 25!`,
+  -- Scanned all 50,000 products to find 25!`,
 	},
 	composite: {
 		stageId: 'composite',
 		title: 'Composite Query (WHERE + ORDER BY)',
 		description:
-			'PublishedPostsQuery.call filters with Product.where(published: true).order(:created_at) inside the service. Without a composite index, the database does a full scan AND an in-memory sort.',
-		code: `-- PublishedPostsQuery service calls Product.where(published: true).order(:created_at)
+			'PublishedProductsQuery.call filters with Product.where(published: true).order(:created_at) inside the service. Without a composite index, the database does a full scan AND an in-memory sort.',
+		code: `-- PublishedProductsQuery service calls Product.where(published: true).order(:created_at)
 -- Generated SQL:
 SELECT * FROM products
   WHERE published = true
@@ -393,7 +393,7 @@ SELECT * FROM products
 -- EXPLAIN output:
 Sort  (cost=1850.00..1862.50)
   Sort Key: created_at
-  ->  Seq Scan on posts
+  ->  Seq Scan on products
       Filter: (published = true)
   -- Full scan + in-memory sort = double penalty`,
 	},
@@ -427,15 +427,15 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'fk-lookup',
-		label: 'Load user posts',
-		description: 'B-tree index on posts.user_id',
+		label: 'Load user products',
+		description: 'B-tree index on products.user_id',
 		method: 'GET',
-		path: '/api/users/42/posts',
+		path: '/api/users/42/products',
 		actor: 'client',
 		expectedResult: 'allowed',
 		responseLines: [
 			{
-				text: 'Index Scan using index_posts_on_user_id on posts',
+				text: 'Index Scan using index_products_on_user_id on products',
 				color: 'green',
 			},
 			{ text: '  Index Cond: (user_id = 42)', color: 'yellow' },
@@ -445,15 +445,15 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'composite-query',
-		label: 'Published posts sorted',
+		label: 'Published products sorted',
 		description: 'Composite index on [published, created_at]',
 		method: 'GET',
-		path: '/api/posts?published=true&sort=created_at',
+		path: '/api/products?published=true&sort=created_at',
 		actor: 'client',
 		expectedResult: 'allowed',
 		responseLines: [
 			{
-				text: 'Index Scan using index_posts_on_published_and_created_at',
+				text: 'Index Scan using index_products_on_published_and_created_at',
 				color: 'green',
 			},
 			{
@@ -469,15 +469,15 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'created-at-only',
-		label: 'Posts by date only',
+		label: 'Products by date only',
 		description: 'Leftmost prefix rule: composite index cannot help',
 		method: 'GET',
-		path: '/api/posts?sort=created_at',
+		path: '/api/products?sort=created_at',
 		actor: 'client',
 		expectedResult: 'blocked',
 		responseLines: [
 			{
-				text: 'Seq Scan on posts  (cost=0.00..1125.00)',
+				text: 'Seq Scan on products  (cost=0.00..1125.00)',
 				color: 'red',
 			},
 			{
@@ -536,7 +536,7 @@ const REWARD_SCAN_DATA: Record<
 	'fk-lookup': {
 		laneId: 'fk',
 		scanType: 'index',
-		plan: 'Index Scan using index_posts_on_user_id',
+		plan: 'Index Scan using index_products_on_user_id',
 		time: '0.10ms',
 		rowsScanned: 25,
 		totalRows: 50000,
@@ -544,7 +544,7 @@ const REWARD_SCAN_DATA: Record<
 	'composite-query': {
 		laneId: 'composite',
 		scanType: 'index',
-		plan: 'Index Scan using index_posts_on_published_and_created_at',
+		plan: 'Index Scan using index_products_on_published_and_created_at',
 		time: '0.20ms',
 		rowsScanned: 25000,
 		totalRows: 50000,
@@ -552,7 +552,7 @@ const REWARD_SCAN_DATA: Record<
 	'created-at-only': {
 		laneId: 'composite',
 		scanType: 'seq',
-		plan: 'Seq Scan on posts (leftmost prefix violation)',
+		plan: 'Seq Scan on products (leftmost prefix violation)',
 		time: '650ms',
 		rowsScanned: 50000,
 		totalRows: 50000,
@@ -666,10 +666,10 @@ const runMigrationOutput: TerminalOutputLine[] = [
 		color: 'green',
 	},
 	{ text: '   -> 0.0045s', color: 'muted' },
-	{ text: '-- add_index(:posts, :user_id)', color: 'green' },
+	{ text: '-- add_index(:products, :user_id)', color: 'green' },
 	{ text: '   -> 0.0032s', color: 'muted' },
 	{
-		text: '-- add_index(:posts, [:published, :created_at])',
+		text: '-- add_index(:products, [:published, :created_at])',
 		color: 'green',
 	},
 	{ text: '   -> 0.0051s', color: 'muted' },
@@ -742,18 +742,18 @@ const OPTION_STEP_CONFIG: Record<
 	2: {
 		title: 'Foreign Key Index',
 		description:
-			'UserPostsLoader calls Product.where(user_id: @user_id), which scans all 50,000 posts. Rails does not automatically index foreign keys. Which index fixes this?',
+			'UserProductsLoader calls Product.where(user_id: @user_id), which scans all 50,000 products. Rails does not automatically index foreign keys. Which index fixes this?',
 		options: [
 			{
 				id: 'wrong-composite',
-				label: 'add_index :posts, [:user_id, :title]',
+				label: 'add_index :products, [:user_id, :title]',
 				correct: false,
 				feedback:
 					'A composite index on user_id and title is overkill here. The query only filters by user_id.',
 			},
 			{
 				id: 'correct',
-				label: 'add_index :posts, :user_id',
+				label: 'add_index :products, :user_id',
 				correct: true,
 			},
 			{
@@ -768,23 +768,23 @@ const OPTION_STEP_CONFIG: Record<
 	3: {
 		title: 'Composite Index',
 		description:
-			'PublishedPostsQuery calls Product.where(published: true).order(:created_at), which does a sort on top of a Seq Scan. A composite index can cover both the WHERE and ORDER BY. Column order matters: the leftmost prefix rule means the first column must match the WHERE clause.',
+			'PublishedProductsQuery calls Product.where(published: true).order(:created_at), which does a sort on top of a Seq Scan. A composite index can cover both the WHERE and ORDER BY. Column order matters: the leftmost prefix rule means the first column must match the WHERE clause.',
 		options: [
 			{
 				id: 'wrong-order',
-				label: 'add_index :posts, [:created_at, :published]',
+				label: 'add_index :products, [:created_at, :published]',
 				correct: false,
 				feedback:
 					'Column order matters. The WHERE clause filters by published first, so published must be the leftmost column.',
 			},
 			{
 				id: 'correct',
-				label: 'add_index :posts, [:published, :created_at]',
+				label: 'add_index :products, [:published, :created_at]',
 				correct: true,
 			},
 			{
 				id: 'wrong-single',
-				label: 'add_index :posts, :created_at',
+				label: 'add_index :products, :created_at',
 				correct: false,
 				feedback:
 					'A single-column index on created_at cannot cover the WHERE published = true filter. The database still needs a separate scan for the filter.',
@@ -812,7 +812,7 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
   end
   # No index on email!
 
-  create_table "posts" do |t|
+  create_table "products" do |t|
     t.references "user", foreign_key: true
     t.string "title"
     t.text "body"
@@ -897,8 +897,8 @@ end`,
 			code: `class AddIndexes < ActiveRecord::Migration[8.0]
   def change
     add_index :users, :email, unique: true
-    add_index :posts, :user_id
-    # Next: composite index for published posts
+    add_index :products, :user_id
+    # Next: composite index for published products
   end
 end`,
 			highlight: [3, 4],
@@ -910,8 +910,8 @@ end`,
 			code: `class AddIndexes < ActiveRecord::Migration[8.0]
   def change
     add_index :users, :email, unique: true
-    add_index :posts, :user_id
-    add_index :posts, [:published, :created_at]
+    add_index :products, :user_id
+    add_index :products, [:published, :created_at]
   end
 end`,
 			highlight: [3, 4, 5],
@@ -924,8 +924,8 @@ end`,
 			code: `class AddIndexes < ActiveRecord::Migration[8.0]
   def change
     add_index :users, :email, unique: true
-    add_index :posts, :user_id
-    add_index :posts, [:published, :created_at]
+    add_index :products, :user_id
+    add_index :products, [:published, :created_at]
   end
 end`,
 			highlight: [3, 4, 5],
@@ -939,15 +939,15 @@ Index Scan using index_users_on_email on users
   Index Cond: ((email) = 'alice@example.com')
   Execution Time: 0.05 ms  (was 820ms)
 
--- UserPostsLoader.call(user_id: 42)
+-- UserProductsLoader.call(user_id: 42)
 -- Service calls Product.where(user_id: @user_id)
-Index Scan using index_posts_on_user_id on posts
+Index Scan using index_products_on_user_id on products
   Index Cond: (user_id = 42)
   Execution Time: 0.10 ms  (was 450ms)
 
--- PublishedPostsQuery.call
+-- PublishedProductsQuery.call
 -- Service calls Product.where(published: true).order(:created_at)
-Index Scan using index_posts_on_published_and_created_at
+Index Scan using index_products_on_published_and_created_at
   Index Cond: (published = true)
   Execution Time: 0.20 ms  (was 650ms)`,
 			highlight: [3, 5, 9, 11, 15, 17],

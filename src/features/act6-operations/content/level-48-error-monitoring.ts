@@ -171,19 +171,19 @@ end
 # Using Rails.error in Application Code
 # ============================
 
-class Api::V1::PostsController < ApplicationController
+class Api::V1::ProductsController < ApplicationController
   def create
     product = Product.new(product_params)
 
     # Rails.error.handle: captures error but continues execution
     Rails.error.handle(fallback: nil) do
-      NotificationService.notify_followers(post.author)
+      NotificationService.notify_followers(product.author)
     end
 
-    if post.save
+    if product.save
       render json: ProductSerializer.new(product).serializable_hash.to_json, status: :created
     else
-      render json: { errors: post.errors }, status: :unprocessable_entity
+      render json: { errors: product.errors }, status: :unprocessable_entity
     end
   end
 end

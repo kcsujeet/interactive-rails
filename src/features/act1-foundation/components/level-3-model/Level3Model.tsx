@@ -122,20 +122,20 @@ const AVAILABLE_TYPES = [
 
 const MODEL_NAME_OPTIONS = [
 	{
-		label: 'Posts',
+		label: 'Products',
 		correct: false,
 		feedback:
 			'Rails models are singular, not plural. Rails auto-pluralizes the table name for you.',
 	},
 	{ label: 'Product', correct: true },
 	{
-		label: 'post',
+		label: 'product',
 		correct: false,
 		feedback:
 			'Rails models use PascalCase. Check the capitalization convention.',
 	},
 	{
-		label: 'posts_table',
+		label: 'products_table',
 		correct: false,
 		feedback:
 			"You don't need to specify the table name. Rails infers it from a singular PascalCase model name.",

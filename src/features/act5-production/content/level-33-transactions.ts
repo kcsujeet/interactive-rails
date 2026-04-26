@@ -10,7 +10,7 @@ export const level33Transactions: Level = {
 	trigger: {
 		type: 'incident',
 		description:
-			'A user spends 10 credits to boost a post, but the boost record never gets created. The credits are gone with no record of what happened.',
+			'A user spends 10 credits to boost a product, but the boost record never gets created. The credits are gone with no record of what happened.',
 	},
 	startingPipeline: standardPipeline(),
 	problem: {
@@ -19,19 +19,19 @@ export const level33Transactions: Level = {
 		rootCause:
 			'Each database write commits independently. Without a transaction boundary, a failure midway leaves partial writes that corrupt data integrity.',
 		codeExample: `# BAD: Each operation commits independently
-class BoostPost < ApplicationService
+class BoostProduct < ApplicationService
   Result = Data.define(:success?, :boost, :errors)
 
-  def initialize(user_id:, post_id:, cost:)
+  def initialize(user_id:, product_id:, cost:)
     @user_id = user_id
-    @post_id = post_id
+    @product_id = product_id
     @cost = cost
   end
 
   def call
     v = BoostContract.new.call(
       user_id: @user_id,
-      post_id: @post_id, cost: @cost)
+      product_id: @product_id, cost: @cost)
     return Result.new(success?: false,
       boost: nil, errors: v.errors.to_h) if v.failure?
 
@@ -39,11 +39,11 @@ class BoostPost < ApplicationService
     user.credits -= @cost
     user.save!
     # Step 1 committed. If step 2 fails...
-    boost = Boost.create!(user:, post_id: @post_id,
+    boost = Boost.create!(user:, product_id: @product_id,
       reach: 5000)
     # Step 2 committed. If step 3 fails...
     CreditLog.create!(user:, amount: -@cost,
-      reason: "boost_post_#{@post_id}")
+      reason: "boost_product_#{@product_id}")
     Result.new(success?: true, boost:, errors: [])
   end
 end`,
@@ -92,25 +92,25 @@ end
 class BoostContract < Dry::Validation::Contract
   params do
     required(:user_id).filled(:integer)
-    required(:post_id).filled(:integer)
+    required(:product_id).filled(:integer)
     required(:cost).filled(:integer, gt?: 0)
   end
 end
 
-# app/services/boost_post.rb
-class BoostPost < ApplicationService
+# app/services/boost_product.rb
+class BoostProduct < ApplicationService
   Result = Data.define(:success?, :boost, :errors)
 
-  def initialize(user_id:, post_id:, cost:)
+  def initialize(user_id:, product_id:, cost:)
     @user_id = user_id
-    @post_id = post_id
+    @product_id = product_id
     @cost = cost
   end
 
   def call
     v = BoostContract.new.call(
       user_id: @user_id,
-      post_id: @post_id, cost: @cost)
+      product_id: @product_id, cost: @cost)
     return Result.new(success?: false,
       boost: nil, errors: v.errors.to_h) if v.failure?
 
@@ -119,10 +119,10 @@ class BoostPost < ApplicationService
       raise ActiveRecord::Rollback if user.credits < @cost
       user.credits -= @cost
       user.save!
-      boost = Boost.create!(user:, post_id: @post_id,
+      boost = Boost.create!(user:, product_id: @product_id,
         reach: 5000)
       CreditLog.create!(user:, amount: -@cost,
-        reason: "boost_post_#{@post_id}")
+        reason: "boost_product_#{@product_id}")
       Result.new(success?: true, boost:, errors: [])
     end || Result.new(success?: false, boost: nil,
       errors: ["Insufficient credits"])

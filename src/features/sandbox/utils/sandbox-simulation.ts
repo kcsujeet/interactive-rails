@@ -211,7 +211,8 @@ export function simulationTick(
 
 	if (hasNode('db-primary')) {
 		// DB stress comes from: query volume, cache miss ratio, and chaos
-		const cacheMissRatio = passedRequests > 0 ? cacheMisses / passedRequests : 0;
+		const cacheMissRatio =
+			passedRequests > 0 ? cacheMisses / passedRequests : 0;
 		const dbLoad = Math.max(
 			(primaryQueries / 10) * chaosDbMultiplier, // absolute query pressure
 			cacheMissRatio * 1.5 * chaosDbMultiplier, // cache miss pressure (0-1.5)
@@ -247,7 +248,7 @@ export function simulationTick(
 		Math.round(params.pumaThreadsPerServer / dbLatencyFactor) -
 			stripeHangingThreads,
 	);
-	const totalEffectiveThreads =
+	const _totalEffectiveThreads =
 		params.appServerCount * effectiveThreadsPerServer;
 	const reqPerServer = Math.ceil(
 		passedRequests / Math.max(1, params.appServerCount),

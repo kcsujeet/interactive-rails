@@ -56,14 +56,14 @@ import {
 } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import {
 	type DiscoveryDef,
 	useDiscoveryGating,
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act2-level9-authentication', () =>
@@ -82,8 +82,8 @@ type Phase = 'observe' | 'build' | 'reward';
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{ id: 'no-auth-layer', label: 'No authentication layer exists' },
-	{ id: 'anonymous-delete', label: 'Anonymous users can delete posts' },
-	{ id: 'anonymous-create', label: 'Anonymous users can create posts' },
+	{ id: 'anonymous-delete', label: 'Anonymous users can delete products' },
+	{ id: 'anonymous-create', label: 'Anonymous users can create products' },
 	{ id: 'no-user-identity', label: 'No way to know who made a request' },
 ];
 
@@ -119,11 +119,11 @@ const PROBES: ProbeConfig[] = [
 		responseLines: [
 			{ text: 'HTTP/1.1 201 Created', color: 'red' },
 			{
-				text: '{"id":99,"title":"Spam","user_id":null}',
+				text: '{"id":99,"name":"Spam","user_id":null}',
 				color: 'muted',
 			},
 			{
-				text: 'Product created with no user attached. Who wrote it? Nobody knows.',
+				text: 'Product created with no user attached. Who added it? Nobody knows.',
 				color: 'yellow',
 			},
 		],
@@ -131,7 +131,7 @@ const PROBES: ProbeConfig[] = [
 			'A bot sends a POST request to create a new product.',
 			'No login session or API token is attached to the request.',
 			'The controller saves the product with user_id: null.',
-			'A spam product now exists in the database with no traceable author.',
+			'A spam product now exists in the database with no traceable seller.',
 		],
 	},
 	{
@@ -203,10 +203,10 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 	},
 	controller: {
 		stageId: 'controller',
-		title: 'PostsController',
+		title: 'ProductsController',
 		description:
 			'The controller processes every request blindly. It cannot tell if the requester is a logged-in user, an admin, or a random stranger. current_user is always nil.',
-		code: `class PostsController < ApplicationController
+		code: `class ProductsController < ApplicationController
   def destroy
     product = Product.find(params[:id])
     product.destroy  # Who deleted this? No idea.
@@ -218,7 +218,7 @@ end`,
 		stageId: 'model',
 		title: 'Product Model',
 		description:
-			'The model executes every operation the controller asks for. Posts are created with user_id: nil because there is no authenticated user to attach.',
+			'The model executes every operation the controller asks for. Products are created with user_id: nil because there is no authenticated user to attach.',
 	},
 };
 
@@ -236,7 +236,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'valid-get',
 		label: 'GET with valid token',
-		description: 'Authenticated user fetches posts',
+		description: 'Authenticated user fetches products',
 		method: 'GET',
 		path: '/api/v1/products',
 		actor: 'user_1 (valid token)',
@@ -290,7 +290,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'valid-delete',
 		label: 'DELETE with valid token',
-		description: 'Authenticated user deletes own post',
+		description: 'Authenticated user deletes own product',
 		method: 'DELETE',
 		path: '/api/v1/products/5',
 		actor: 'user_1 (valid token)',
@@ -574,12 +574,12 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 		files.push({
 			filename: 'app/controllers/products_controller.rb',
 			language: 'ruby',
-			code: `class PostsController < ApplicationController
+			code: `class ProductsController < ApplicationController
   # No authentication. Anyone can do anything.
 
   def create
     product = Product.create!(product_params)
-    render json: post, status: :created
+    render json: product, status: :created
   end
 
   def destroy
@@ -597,12 +597,12 @@ end`,
 		files.push({
 			filename: 'app/controllers/products_controller.rb',
 			language: 'ruby',
-			code: `class PostsController < ApplicationController
+			code: `class ProductsController < ApplicationController
   # No authentication. Anyone can do anything.
 
   def create
     product = Product.create!(product_params)
-    render json: post, status: :created
+    render json: product, status: :created
   end
 
   def destroy
@@ -937,7 +937,7 @@ export function Level9Authentication({ onComplete }: LevelComponentProps) {
 						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Your API has no authentication. Anyone can create, update, or
-							delete posts without identifying themselves. There is no User
+							delete products without identifying themselves. There is no User
 							model, no sessions, and no token verification.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">

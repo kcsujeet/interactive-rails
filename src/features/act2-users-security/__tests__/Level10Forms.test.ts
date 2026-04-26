@@ -97,7 +97,9 @@ describe('Level 10: Validation Contracts', () => {
 				fields: INITIAL_FIELDS,
 			});
 
-			expect(result.details!.some((d) => d.includes('Validation Contract'))).toBe(true);
+			expect(
+				result.details?.some((d) => d.includes('Validation Contract')),
+			).toBe(true);
 		});
 
 		test('should require submitting form', () => {
@@ -107,7 +109,7 @@ describe('Level 10: Validation Contracts', () => {
 				fields: INITIAL_FIELDS,
 			});
 
-			expect(result.details!.some((d) => d.includes('Submit'))).toBe(true);
+			expect(result.details?.some((d) => d.includes('Submit'))).toBe(true);
 		});
 	});
 
@@ -129,8 +131,8 @@ describe('Level 10: Validation Contracts', () => {
 				fields: INITIAL_FIELDS,
 			});
 
-			expect(result.details!.some((d) => d.includes('Name'))).toBe(true);
-			expect(result.details!.some((d) => d.includes('Email'))).toBe(true);
+			expect(result.details?.some((d) => d.includes('Name'))).toBe(true);
+			expect(result.details?.some((d) => d.includes('Email'))).toBe(true);
 		});
 
 		test('should be invalid with some fields valid', () => {

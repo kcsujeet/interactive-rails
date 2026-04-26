@@ -65,7 +65,7 @@ describe('Level 13: External APIs', () => {
 				timeoutsSeen: 5,
 			});
 
-			expect(result.details!.some((d) => d.includes('Circuit Breaker'))).toBe(
+			expect(result.details?.some((d) => d.includes('Circuit Breaker'))).toBe(
 				true,
 			);
 		});
@@ -77,7 +77,7 @@ describe('Level 13: External APIs', () => {
 				timeoutsSeen: 0,
 			});
 
-			expect(result.details!.some((d) => d.includes('fallback'))).toBe(true);
+			expect(result.details?.some((d) => d.includes('fallback'))).toBe(true);
 		});
 	});
 
@@ -90,7 +90,7 @@ describe('Level 13: External APIs', () => {
 			});
 
 			expect(result.valid).toBe(false);
-			expect(result.details!.some((d) => d.includes('currently 1'))).toBe(true);
+			expect(result.details?.some((d) => d.includes('currently 1'))).toBe(true);
 		});
 
 		test('should be invalid with only 2 fallbacks', () => {
@@ -158,7 +158,7 @@ describe('Level 13: External APIs', () => {
 
 	describe('Timeout Handling', () => {
 		test('without circuit breaker, timeout hangs request', () => {
-			const circuitBreakerEnabled = false;
+			const _circuitBreakerEnabled = false;
 			const willTimeout = true;
 			const latency = willTimeout ? 5000 : 100;
 
@@ -166,7 +166,7 @@ describe('Level 13: External APIs', () => {
 		});
 
 		test('with circuit breaker open, fallback is instant', () => {
-			const circuitBreakerEnabled = true;
+			const _circuitBreakerEnabled = true;
 			const circuitState = 'open';
 			const latency = circuitState === 'open' ? 5 : 5000;
 

@@ -46,8 +46,6 @@ import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import {
 	type DiscoveryDef,
 	useDiscoveryGating,
@@ -55,6 +53,8 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { cn } from '@/lib/utils';
 
 registerLevelCode('act4-level25-narrow-fetching', () =>
@@ -571,7 +571,7 @@ end`,
 		files.push({
 			filename: 'benchmark_comparison.rb',
 			language: 'ruby',
-			code: `# Memory benchmarks (100K posts, 30 columns)
+			code: `# Memory benchmarks (100K products, 30 columns)
 
 # Wide fetch: loads everything
 Product.all

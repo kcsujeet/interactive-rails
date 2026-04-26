@@ -63,7 +63,7 @@ With index: Index Scan using index_users_on_email on users  (cost=0.00..8.27 row
 
 **When to add an index:**
 - Columns in WHERE clauses (\`find_by\`, \`where\`)
-- Foreign key columns (\`user_id\`, \`post_id\`)
+- Foreign key columns (\`user_id\`, \`product_id\`)
 - Columns in ORDER BY
 - Columns in JOIN conditions
 - Columns used in unique constraints
@@ -83,7 +83,7 @@ With index: Index Scan using index_users_on_email on users  (cost=0.00..8.27 row
 - \`Filter\`: Rows are read then filtered (check if an index could avoid this)
 
 **The leftmost prefix rule (critical for composite indexes):**
-An index on \`[status, created_at]\` is like a dictionary sorted by last name then first name. It is perfect for finding "all published posts sorted by date" (filter by status, then sort by created_at). It is nearly useless for "all posts from January" (only filtering by created_at), because the leftmost column must be in the query.
+An index on \`[status, created_at]\` is like a dictionary sorted by last name then first name. It is perfect for finding "all published products sorted by date" (filter by status, then sort by created_at). It is nearly useless for "all products from January" (only filtering by created_at), because the leftmost column must be in the query.
 
 **Composite index benchmarks:**
 \`\`\`
@@ -100,27 +100,27 @@ class AddEmailIndexToUsers < ActiveRecord::Migration[8.0]
 end
 
 # Composite index (column order matters!)
-class AddIndexToPostsPublishedCreatedAt < ActiveRecord::Migration[8.0]
+class AddIndexToProductsPublishedCreatedAt < ActiveRecord::Migration[8.0]
   def change
     # Covers: WHERE published = true AND created_at > ?
     # Also covers: WHERE published = true (leftmost prefix)
     # Does NOT cover: WHERE created_at > ? (not leftmost)
-    add_index :posts, [:published, :created_at]
+    add_index :products, [:published, :created_at]
   end
 end
 
 # Foreign key index (always add these!)
-class AddUserIdIndexToPosts < ActiveRecord::Migration[8.0]
+class AddUserIdIndexToProducts < ActiveRecord::Migration[8.0]
   def change
-    add_index :posts, :user_id
+    add_index :products, :user_id
   end
 end
 
-# Partial index (only index published posts)
-class AddPartialIndexToPublishedPosts < ActiveRecord::Migration[8.0]
+# Partial index (only index published products)
+class AddPartialIndexToPublishedProducts < ActiveRecord::Migration[8.0]
   def change
-    add_index :posts, :created_at, where: "published = true",
-              name: "index_posts_on_created_at_published"
+    add_index :products, :created_at, where: "published = true",
+              name: "index_products_on_created_at_published"
   end
 end
 

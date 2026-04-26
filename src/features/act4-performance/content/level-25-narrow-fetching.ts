@@ -52,11 +52,11 @@ User.all.each { |u| SyncService.process(u) }
 		goal: `In this level, you'll:\n- learn how to fetch only the data you actually need.\n- choose between raw arrays and lightweight model objects for different use cases.\n- process large datasets in manageable chunks instead of loading everything into memory.`,
 		conceptExplanation: `After fixing N+1 and adding eager loading, the next performance win is fetching less data: not just fewer queries, but fewer columns and smaller batches.
 
-**Production benchmarks (10K posts with 75KB body column):**
+**Production benchmarks (10K products with 75KB description column):**
 \`\`\`
 Product.all (wide):           212ms | 681 MB  | 149,000 objects
-Product.select(:id, :title):  53ms |  12 MB  | 107,000 objects → 4x faster, 56x less memory
-Product.pluck(:id, :title):   18ms |   2 MB  |  45,000 objects → 12x faster, 290x less memory
+Product.select(:id, :name):  53ms |  12 MB  | 107,000 objects → 4x faster, 56x less memory
+Product.pluck(:id, :name):   18ms |   2 MB  |  45,000 objects → 12x faster, 290x less memory
 \`\`\`
 
 **Real-world endpoint comparison at scale:**
@@ -69,7 +69,7 @@ Product.pluck (narrow): 76ms → 14x improvement
 
 **\`pluck(:col1, :col2)\`** returns plain Ruby arrays:
 - No ActiveRecord objects created, lowest memory possible
-- Returns \`[[1, "Title"], [2, "Other"]]\` not AR objects
+- Returns \`[[1, "Laptop"], [2, "Phone"]]\` not AR objects
 - Use when you only need data values (CSV export, dropdown options, IDs for queries)
 
 **\`select(:col1, :col2)\`** returns lightweight AR objects:
@@ -89,35 +89,35 @@ Product.pluck (narrow): 76ms → 14x improvement
 
 **Real-world story:** An unpaginated endpoint returning only \`id\` and \`name\` was timing out. Root cause: table had 30+ columns including serialized objects in TEXT fields. One user had stored the entire U.S. Constitution in a text field. The \`SELECT *\` forced the DB to write to disk mid-response.`,
 		railsCodeExample: `# === pluck: raw arrays, minimal memory ===
-Product.where(published: true).pluck(:id, :title)
+Product.where(published: true).pluck(:id, :name)
 # => [[1, "Laptop"], [2, "Phone"]]
-# SELECT id, title FROM posts WHERE published = true
+# SELECT id, name FROM products WHERE published = true
 # No AR objects! Just arrays.
 
 # === select: lightweight AR objects ===
-Product.select(:id, :title, :user_id).includes(:user)
-# SELECT id, title, user_id FROM posts
+Product.select(:id, :name, :user_id).includes(:user)
+# SELECT id, name, user_id FROM products
 # AR objects with only 3 columns loaded
-# post.body → raises ActiveModel::MissingAttributeError
+# product.description → raises ActiveModel::MissingAttributeError
 
 # === find_in_batches: process huge datasets ===
 Product.find_in_batches(batch_size: 1000) do |batch|
-  csv_rows = batch.pluck(:id, :title).map { |r| r.join(",") }
+  csv_rows = batch.pluck(:id, :name).map { |r| r.join(",") }
   File.open("export.csv", "a") { |f| f.write(csv_rows.join("\\n")) }
 end
-# Generates: SELECT * FROM posts WHERE id > 0 LIMIT 1000
-#            SELECT * FROM posts WHERE id > 1000 LIMIT 1000
+# Generates: SELECT * FROM products WHERE id > 0 LIMIT 1000
+#            SELECT * FROM products WHERE id > 1000 LIMIT 1000
 #            ... (1000 records at a time, not 50K at once)
 
 # === Combine for maximum efficiency ===
 # Export endpoint (production-safe):
 def export
   headers["Content-Type"] = "text/csv"
-  headers["Content-Disposition"] = "attachment; filename=posts.csv"
+  headers["Content-Disposition"] = "attachment; filename=products.csv"
 
   # Stream CSV in batches, never loads all records at once
   Product.active.find_in_batches(batch_size: 2000) do |batch|
-    rows = batch.pluck(:id, :title, :created_at)
+    rows = batch.pluck(:id, :name, :created_at)
     response.stream.write(rows.map { |r| r.join(",") }.join("\\n") + "\\n")
   end
 ensure

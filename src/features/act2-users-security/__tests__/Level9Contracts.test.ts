@@ -65,7 +65,7 @@ describe('Level 9: Data Contracts', () => {
 				rejectedCount: 0,
 			});
 
-			expect(result.details!.some((d) => d.includes('Contract node'))).toBe(
+			expect(result.details?.some((d) => d.includes('Contract node'))).toBe(
 				true,
 			);
 		});
@@ -77,7 +77,7 @@ describe('Level 9: Data Contracts', () => {
 				rejectedCount: 0,
 			});
 
-			expect(result.details!.some((d) => d.includes('validate'))).toBe(true);
+			expect(result.details?.some((d) => d.includes('validate'))).toBe(true);
 		});
 	});
 
@@ -90,7 +90,7 @@ describe('Level 9: Data Contracts', () => {
 			});
 
 			expect(result.valid).toBe(false);
-			expect(result.details!.some((d) => d.includes('currently 1'))).toBe(true);
+			expect(result.details?.some((d) => d.includes('currently 1'))).toBe(true);
 		});
 
 		test('should be invalid with only 4 validations', () => {
@@ -167,7 +167,7 @@ describe('Level 9: Data Contracts', () => {
 
 		test('without contract, all particles pass', () => {
 			const contractAdded = false;
-			const isDirty = true;
+			const _isDirty = true;
 
 			// Without contract, everything passes (bad!)
 			const passesThrough = !contractAdded;

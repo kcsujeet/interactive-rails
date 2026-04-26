@@ -796,7 +796,7 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 
 			// Zone-specific content
 			if (zoneId === 'controller') {
-				zone.codeLine = 'PostList.call(params:)';
+				zone.codeLine = 'ProductList.call(params:)';
 				if (isActive && probeZoneData) {
 					zone.badge = { text: probeZoneData.controllerBadge, color: 'green' };
 				}
@@ -878,7 +878,7 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 					zone.highlighted = true;
 					zone.highlightColor = 'green';
 				}
-				zone.codeLine = 'PostList.call(params:)';
+				zone.codeLine = 'ProductList.call(params:)';
 				if (isActive) {
 					zone.badge = { text: '2 queries (eager loaded)', color: 'green' };
 				}
@@ -1040,10 +1040,10 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Your ProductList service loads posts for the API index endpoint.
-							Response times have crept above 2 seconds. The database log
-							reveals a devastating pattern: 1 query for posts, then 1 query for
-							EACH author.
+							Your ProductList service loads products for the API index
+							endpoint. Response times have crept above 2 seconds. The database
+							log reveals a devastating pattern: 1 query for products, then 1
+							query for EACH author.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							The{' '}
@@ -1207,7 +1207,7 @@ export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 												<p className="text-sm text-muted-foreground">
 													Prosopite monitors SQL patterns to detect N+1 queries,
 													including raw SQL and find_each blocks. It needs
-													pg_query for SQL fingerprinting on ProductgreSQL.
+													pg_query for SQL fingerprinting on PostgreSQL.
 												</p>
 											}
 											hasNext={hasNextStep}

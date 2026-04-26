@@ -65,8 +65,6 @@ import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import {
 	type DiscoveryDef,
 	useDiscoveryGating,
@@ -74,6 +72,8 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { cn } from '@/lib/utils';
 
 registerLevelCode('act4-level29-search', () =>
@@ -126,11 +126,11 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'search-rails',
 		label: 'Search "rails"',
-		command: 'GET /api/posts?q=rails (50K rows)',
+		command: 'GET /api/products?q=rails (50K rows)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'yellow' },
 			{ text: '', color: 'muted' },
-			{ text: 'Seq Scan on posts (cost=0.00..1250.00)', color: 'red' },
+			{ text: 'Seq Scan on products (cost=0.00..1250.00)', color: 'red' },
 			{
 				text: "Filter: (title ~~ '%rails%' OR body ~~ '%rails%')",
 				color: 'muted',
@@ -148,7 +148,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'search-running',
 		label: 'Search "running"',
-		command: 'GET /api/posts?q=running (stemming test)',
+		command: 'GET /api/products?q=running (stemming test)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'yellow' },
 			{ text: '', color: 'muted' },
@@ -169,7 +169,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'search-database',
 		label: 'Search "database"',
-		command: 'GET /api/posts?q=database (ranking test)',
+		command: 'GET /api/products?q=database (ranking test)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'yellow' },
 			{ text: '', color: 'muted' },
@@ -201,11 +201,11 @@ const PROBE_DISCOVERY_MAP: Record<string, string> = {
 
 // Match positions per probe (which blocks in the grid light up as matches)
 const OBSERVE_GRID_MATCHES: Record<string, number[]> = {
-	// 6 posts about "rails", scattered through the table
+	// 6 products about "rails", scattered through the table
 	'search-rails': [8, 23, 41, 56, 72, 87],
 	// 0 matches: LIKE has no stemming, "running" != "run"
 	'search-running': [],
-	// 7 posts about "database"
+	// 7 products about "database"
 	'search-database': [3, 15, 31, 47, 62, 78, 91],
 };
 
@@ -213,7 +213,7 @@ const OBSERVE_GRID_MATCHES: Record<string, number[]> = {
 const OBSERVE_SCAN_DATA: Record<string, SearchScanResult> = {
 	'search-rails': {
 		scanType: 'seq',
-		plan: 'Seq Scan on posts (LIKE)',
+		plan: 'Seq Scan on products (LIKE)',
 		time: '3,200ms',
 		rowsScanned: 50000,
 		totalRows: 50000,
@@ -223,7 +223,7 @@ const OBSERVE_SCAN_DATA: Record<string, SearchScanResult> = {
 	},
 	'search-running': {
 		scanType: 'seq',
-		plan: 'Seq Scan on posts (LIKE)',
+		plan: 'Seq Scan on products (LIKE)',
 		time: '3,200ms',
 		rowsScanned: 50000,
 		totalRows: 50000,
@@ -233,7 +233,7 @@ const OBSERVE_SCAN_DATA: Record<string, SearchScanResult> = {
 	},
 	'search-database': {
 		scanType: 'seq',
-		plan: 'Seq Scan on posts (LIKE)',
+		plan: 'Seq Scan on products (LIKE)',
 		time: '3,200ms',
 		rowsScanned: 50000,
 		totalRows: 50000,
@@ -249,11 +249,11 @@ const OBSERVE_SCAN_DATA: Record<string, SearchScanResult> = {
 
 const CONTROLLER_INSPECTOR: StageInspectorData = {
 	stageId: 'controller',
-	title: 'PostSearch Service (Search Logic)',
+	title: 'ProductSearch Service (Search Logic)',
 	description:
 		'The service builds a raw LIKE query with leading wildcards. This forces PostgreSQL into a sequential scan on every search, regardless of indexes. No stemming, no ranking.',
-	code: `class PostSearch < ApplicationService
-  Result = Data.define(:success?, :posts, :errors)
+	code: `class ProductSearch < ApplicationService
+  Result = Data.define(:success?, :products, :errors)
 
   def initialize(query:)
     @query = query
@@ -267,7 +267,7 @@ const CONTROLLER_INSPECTOR: StageInspectorData = {
       "title LIKE :q OR body LIKE :q",
       q: "%#{@query}%"
     )
-    Result.new(success?: true, posts: posts, errors: [])
+    Result.new(success?: true, products: products, errors: [])
   end
 end
 
@@ -292,7 +292,7 @@ const GIN_INDEX_DATA: Record<
 	{ name: string; entries: GinIndexEntry[] }
 > = {
 	'exact-term': {
-		name: 'posts_searchable_idx (GIN)',
+		name: 'products_searchable_idx (GIN)',
 		entries: [
 			{ term: "'postgresql'", rows: 'rows #31, #47' },
 			{
@@ -306,7 +306,7 @@ const GIN_INDEX_DATA: Record<
 		],
 	},
 	'stemmed-term': {
-		name: 'posts_searchable_idx (GIN)',
+		name: 'products_searchable_idx (GIN)',
 		entries: [
 			{ term: "'result'", rows: 'rows #12, #67' },
 			{ term: "'run'", rows: 'rows #5, #19, #44', highlight: true },
@@ -316,7 +316,7 @@ const GIN_INDEX_DATA: Record<
 		],
 	},
 	'ranked-results': {
-		name: 'posts_searchable_idx (GIN)',
+		name: 'products_searchable_idx (GIN)',
 		entries: [
 			{ term: "'data'", rows: 'rows #3, #15, #78' },
 			{
@@ -330,7 +330,7 @@ const GIN_INDEX_DATA: Record<
 		],
 	},
 	'multi-word': {
-		name: 'posts_searchable_idx (GIN)',
+		name: 'products_searchable_idx (GIN)',
 		entries: [
 			{
 				term: "'rubi'",
@@ -358,12 +358,12 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Search exact term',
 		description: 'Search for "rails" with GIN index',
 		method: 'GET',
-		path: '/api/posts?q=rails',
+		path: '/api/products?q=rails',
 		actor: 'user',
 		expectedResult: 'allowed',
 		responseLines: [
 			{
-				text: 'Bitmap Heap Scan using posts_searchable_idx',
+				text: 'Bitmap Heap Scan using products_searchable_idx',
 				color: 'green',
 			},
 			{ text: "  Index Cond: searchable @@ 'rail'", color: 'yellow' },
@@ -376,12 +376,12 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Stemmed search',
 		description: '"running" matches "run" via stemming',
 		method: 'GET',
-		path: '/api/posts?q=running',
+		path: '/api/products?q=running',
 		actor: 'user',
 		expectedResult: 'allowed',
 		responseLines: [
 			{
-				text: 'Bitmap Heap Scan using posts_searchable_idx',
+				text: 'Bitmap Heap Scan using products_searchable_idx',
 				color: 'green',
 			},
 			{
@@ -397,12 +397,12 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Ranked results',
 		description: 'Title matches ranked higher than body',
 		method: 'GET',
-		path: '/api/posts?q=database',
+		path: '/api/products?q=database',
 		actor: 'user',
 		expectedResult: 'allowed',
 		responseLines: [
 			{
-				text: 'Bitmap Heap Scan using posts_searchable_idx',
+				text: 'Bitmap Heap Scan using products_searchable_idx',
 				color: 'green',
 			},
 			{
@@ -418,12 +418,12 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Multi-word query',
 		description: '"ruby testing" uses tsquery AND',
 		method: 'GET',
-		path: '/api/posts?q=ruby+testing',
+		path: '/api/products?q=ruby+testing',
 		actor: 'user',
 		expectedResult: 'allowed',
 		responseLines: [
 			{
-				text: 'Bitmap Heap Scan using posts_searchable_idx',
+				text: 'Bitmap Heap Scan using products_searchable_idx',
 				color: 'green',
 			},
 			{
@@ -439,7 +439,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Empty search blocked',
 		description: 'Empty query string rejected',
 		method: 'GET',
-		path: '/api/posts?q=',
+		path: '/api/products?q=',
 		actor: 'user',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -453,7 +453,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'SQL injection blocked',
 		description: 'Malicious query safely parameterized',
 		method: 'GET',
-		path: "/api/posts?q=' OR 1=1--",
+		path: "/api/products?q=' OR 1=1--",
 		actor: 'attacker',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -482,7 +482,7 @@ const REWARD_GRID_MATCHES: Record<string, number[]> = {
 const REWARD_SCAN_DATA: Record<string, SearchScanResult> = {
 	'exact-term': {
 		scanType: 'gin',
-		plan: 'Bitmap Heap Scan using posts_searchable_idx',
+		plan: 'Bitmap Heap Scan using products_searchable_idx',
 		time: '1.8ms',
 		rowsScanned: 6,
 		totalRows: 50000,
@@ -492,7 +492,7 @@ const REWARD_SCAN_DATA: Record<string, SearchScanResult> = {
 	},
 	'stemmed-term': {
 		scanType: 'gin',
-		plan: 'Bitmap Heap Scan using posts_searchable_idx',
+		plan: 'Bitmap Heap Scan using products_searchable_idx',
 		time: '1.5ms',
 		rowsScanned: 3,
 		totalRows: 50000,
@@ -502,7 +502,7 @@ const REWARD_SCAN_DATA: Record<string, SearchScanResult> = {
 	},
 	'ranked-results': {
 		scanType: 'gin',
-		plan: 'Bitmap Heap Scan using posts_searchable_idx',
+		plan: 'Bitmap Heap Scan using products_searchable_idx',
 		time: '2.1ms',
 		rowsScanned: 7,
 		totalRows: 50000,
@@ -512,7 +512,7 @@ const REWARD_SCAN_DATA: Record<string, SearchScanResult> = {
 	},
 	'multi-word': {
 		scanType: 'gin',
-		plan: 'Bitmap Heap Scan using posts_searchable_idx',
+		plan: 'Bitmap Heap Scan using products_searchable_idx',
 		time: '1.2ms',
 		rowsScanned: 2,
 		totalRows: 50000,
@@ -614,14 +614,14 @@ const generateMigrationCommands: TerminalCommand[] = [
 	},
 	{
 		id: 'correct',
-		label: 'rails generate migration AddSearchToPosts',
-		command: 'rails generate migration AddSearchToPosts',
+		label: 'rails generate migration AddSearchToProducts',
+		command: 'rails generate migration AddSearchToProducts',
 		correct: true,
 	},
 	{
 		id: 'wrong-no-gin',
-		label: 'rails generate migration AddSearchToPosts searchable:tsvector',
-		command: 'rails generate migration AddSearchToPosts searchable:tsvector',
+		label: 'rails generate migration AddSearchToProducts searchable:tsvector',
+		command: 'rails generate migration AddSearchToProducts searchable:tsvector',
 		correct: false,
 		feedback:
 			'Passing the column type on the command line only adds the column. You need to manually add the GIN index and trigger in the migration file.',
@@ -630,7 +630,7 @@ const generateMigrationCommands: TerminalCommand[] = [
 
 const generateMigrationOutput: TerminalOutputLine[] = [
 	{
-		text: '      create  db/migrate/20240101_add_search_to_posts.rb',
+		text: '      create  db/migrate/20240101_add_search_to_products.rb',
 		color: 'green',
 	},
 ];
@@ -666,21 +666,21 @@ const runMigrationCommands: TerminalCommand[] = [
 
 const runMigrationOutput: TerminalOutputLine[] = [
 	{
-		text: '== AddSearchToPosts: migrating =============================',
+		text: '== AddSearchToProducts: migrating =============================',
 		color: 'muted',
 	},
 	{
-		text: '-- add_column(:posts, :searchable, :tsvector)',
+		text: '-- add_column(:products, :searchable, :tsvector)',
 		color: 'green',
 	},
 	{ text: '   -> 0.0038s', color: 'muted' },
 	{
-		text: '-- add_index(:posts, :searchable, {:using=>:gin})',
+		text: '-- add_index(:products, :searchable, {:using=>:gin})',
 		color: 'green',
 	},
 	{ text: '   -> 0.0072s', color: 'muted' },
 	{
-		text: '== AddSearchToPosts: migrated (0.0110s) ====================',
+		text: '== AddSearchToProducts: migrated (0.0110s) ====================',
 		color: 'green',
 	},
 ];
@@ -826,10 +826,10 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 end`,
 		});
 		files.push({
-			filename: 'app/services/post_search.rb',
+			filename: 'app/services/product_search.rb',
 			language: 'ruby',
-			code: `class PostSearch < ApplicationService
-  Result = Data.define(:success?, :posts, :errors)
+			code: `class ProductSearch < ApplicationService
+  Result = Data.define(:success?, :products, :errors)
 
   def initialize(query:)
     @query = query
@@ -839,7 +839,7 @@ end`,
     validation = SearchContract.new.call(query: @query)
     if validation.failure?
       return Result.new(
-        success?: false, posts: [],
+        success?: false, products: [],
         errors: validation.errors.to_h
       )
     end
@@ -848,12 +848,12 @@ end`,
       "title LIKE :q OR body LIKE :q",
       q: "%#{@query}%"
     )
-    Result.new(success?: true, posts: posts, errors: [])
+    Result.new(success?: true, products: products, errors: [])
   end
 end
 
 # EXPLAIN for LIKE '%rails%':
-# Seq Scan on posts  (cost=0.00..1250.00)
+# Seq Scan on products  (cost=0.00..1250.00)
 #   Filter: (title ~~ '%rails%')
 #   Rows Removed by Filter: 49,500
 #   Execution Time: 3,200ms`,
@@ -864,10 +864,10 @@ end
 			language: 'ruby',
 			code: `class Api::V1::ProductsController < ApplicationController
   def index
-    result = PostSearch.call(query: params[:q])
+    result = ProductSearch.call(query: params[:q])
 
     if result.success?
-      render json: result.posts
+      render json: result.products
     else
       render json: { errors: result.errors },
              status: :unprocessable_entity
@@ -881,10 +881,10 @@ end`,
 	// Build / reward phases: evolving code
 	if (furthestStep === 0) {
 		files.push({
-			filename: 'app/services/post_search.rb',
+			filename: 'app/services/product_search.rb',
 			language: 'ruby',
-			code: `class PostSearch < ApplicationService
-  Result = Data.define(:success?, :posts, :errors)
+			code: `class ProductSearch < ApplicationService
+  Result = Data.define(:success?, :products, :errors)
 
   def initialize(query:)
     @query = query
@@ -894,7 +894,7 @@ end`,
     validation = SearchContract.new.call(query: @query)
     if validation.failure?
       return Result.new(
-        success?: false, posts: [],
+        success?: false, products: [],
         errors: validation.errors.to_h
       )
     end
@@ -903,7 +903,7 @@ end`,
       "title LIKE :q OR body LIKE :q",
       q: "%#{@query}%"
     )
-    Result.new(success?: true, posts: posts, errors: [])
+    Result.new(success?: true, products: products, errors: [])
   end
 end`,
 			highlight: [17, 18, 19],
@@ -926,16 +926,16 @@ gem "pg_search"`,
 
 	if (furthestStep >= 2) {
 		files.push({
-			filename: 'db/migrate/add_search_to_posts.rb',
+			filename: 'db/migrate/add_search_to_products.rb',
 			language: 'ruby',
-			code: `class AddSearchToPosts < ActiveRecord::Migration[8.0]
+			code: `class AddSearchToProducts < ActiveRecord::Migration[8.0]
   def change
-    add_column :posts, :searchable, :tsvector
-    add_index :posts, :searchable, using: :gin
+    add_column :products, :searchable, :tsvector
+    add_index :products, :searchable, using: :gin
 
     execute <<-SQL
-      CREATE TRIGGER posts_search_update
-      BEFORE INSERT OR UPDATE ON posts
+      CREATE TRIGGER products_search_update
+      BEFORE INSERT OR UPDATE ON products
       FOR EACH ROW EXECUTE FUNCTION
         tsvector_update_trigger(
           searchable, 'pg_catalog.english',
@@ -954,12 +954,12 @@ end`,
 			filename: 'Migration output',
 			language: 'sql',
 			code: `-- rails db:migrate
-== AddSearchToPosts: migrating ======================
--- add_column(:posts, :searchable, :tsvector)
+== AddSearchToProducts: migrating ======================
+-- add_column(:products, :searchable, :tsvector)
    -> 0.0038s
--- add_index(:posts, :searchable, {:using=>:gin})
+-- add_index(:products, :searchable, {:using=>:gin})
    -> 0.0072s
-== AddSearchToPosts: migrated (0.0110s) =============`,
+== AddSearchToProducts: migrated (0.0110s) =============`,
 			highlight: [3, 5],
 		});
 	}
@@ -988,10 +988,10 @@ end`,
 
 	if (furthestStep >= 6) {
 		files.push({
-			filename: 'app/services/post_search.rb',
+			filename: 'app/services/product_search.rb',
 			language: 'ruby',
-			code: `class PostSearch < ApplicationService
-  Result = Data.define(:success?, :posts, :errors)
+			code: `class ProductSearch < ApplicationService
+  Result = Data.define(:success?, :products, :errors)
 
   def initialize(query:)
     @query = query
@@ -1001,13 +1001,13 @@ end`,
     validation = SearchContract.new.call(query: @query)
     if validation.failure?
       return Result.new(
-        success?: false, posts: [],
+        success?: false, products: [],
         errors: validation.errors.to_h
       )
     end
 
     products = Product.search(@query)
-    Result.new(success?: true, posts: posts, errors: [])
+    Result.new(success?: true, products: products, errors: [])
   end
 end`,
 			highlight: [17],
@@ -1052,7 +1052,7 @@ function DocumentGrid({
 			<div className="flex items-center gap-2 text-xs text-muted-foreground">
 				<Table2 className="w-3.5 h-3.5" />
 				<span className="font-mono">
-					posts ({totalRows.toLocaleString()} rows)
+					products ({totalRows.toLocaleString()} rows)
 				</span>
 				{isActive && scanType === 'seq' && !isDone && (
 					<span className="font-mono text-red-600 dark:text-red-400">
@@ -1187,7 +1187,7 @@ function NoIndexBanner() {
 		<div className="rounded-lg border border-red-500/30 bg-red-50 dark:bg-red-900/10 px-3 py-2 flex items-center gap-2 text-xs">
 			<X className="w-3.5 h-3.5 text-red-500 dark:text-red-400 shrink-0" />
 			<span className="font-mono text-red-700 dark:text-red-400 font-semibold">
-				No GIN index on posts
+				No GIN index on products
 			</span>
 			<span className="text-red-600/60 dark:text-red-400/50">
 				Reading every row (Sequential Scan)
@@ -1549,12 +1549,12 @@ export function Level29Search({ onComplete }: LevelComponentProps) {
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Users want to search posts by keyword, but the current
+							Users want to search products by keyword, but the current
 							implementation uses{' '}
 							<span className="text-foreground font-medium">
 								LIKE &apos;%query%&apos;
 							</span>{' '}
-							which takes 3 seconds on 50K posts. No relevance ranking, no
+							which takes 3 seconds on 50K products. No relevance ranking, no
 							stemming, and no way to use an index.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
@@ -1673,7 +1673,7 @@ export function Level29Search({ onComplete }: LevelComponentProps) {
 											Search Query
 										</span>
 										<span className="text-xs font-mono text-muted-foreground">
-											(posts)
+											(products)
 										</span>
 										{scanDone && observeScan && (
 											<Badge
@@ -1951,7 +1951,7 @@ export function Level29Search({ onComplete }: LevelComponentProps) {
 													Search Query
 												</span>
 												<span className="text-xs font-mono text-muted-foreground">
-													(posts)
+													(products)
 												</span>
 												{rewardDone && rewardScan.scanType === 'gin' && (
 													<Badge

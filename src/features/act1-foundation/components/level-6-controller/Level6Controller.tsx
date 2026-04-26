@@ -330,8 +330,8 @@ const generateCommands: TerminalCommand[] = [
 	},
 	{
 		id: 'correct',
-		label: 'rails generate controller Api::V1::Posts',
-		command: 'rails generate controller Api::V1::Posts',
+		label: 'rails generate controller Api::V1::Products',
+		command: 'rails generate controller Api::V1::Products',
 		correct: true,
 	},
 	{

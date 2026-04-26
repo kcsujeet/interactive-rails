@@ -25,7 +25,7 @@ function validateLevel4Solution(state: Level4State): ValidationResult {
 		errors.push('Add a Database node to the canvas');
 	}
 
-	if (!state.modelsConnectedToDb.has('post-model')) {
+	if (!state.modelsConnectedToDb.has('product-model')) {
 		errors.push('Connect Product model to Database for persistence');
 	}
 
@@ -64,18 +64,20 @@ describe('Level 4: Persistence', () => {
 				modelsConnectedToDb: new Set(),
 			});
 
-			expect(result.details!.some((d) => d.includes('Database node'))).toBe(
+			expect(result.details?.some((d) => d.includes('Database node'))).toBe(
 				true,
 			);
 		});
 
-		test('should require connecting post model', () => {
+		test('should require connecting product model', () => {
 			const result = validateLevel4Solution({
 				databaseAdded: true,
 				modelsConnectedToDb: new Set(),
 			});
 
-			expect(result.details!.some((d) => d.includes('Product model'))).toBe(true);
+			expect(result.details?.some((d) => d.includes('Product model'))).toBe(
+				true,
+			);
 		});
 
 		test('should require connecting review model', () => {
@@ -84,21 +86,21 @@ describe('Level 4: Persistence', () => {
 				modelsConnectedToDb: new Set(),
 			});
 
-			expect(result.details!.some((d) => d.includes('Review model'))).toBe(
+			expect(result.details?.some((d) => d.includes('Review model'))).toBe(
 				true,
 			);
 		});
 	});
 
 	describe('Partial Progress', () => {
-		test('should be invalid with only post connected', () => {
+		test('should be invalid with only product connected', () => {
 			const result = validateLevel4Solution({
 				databaseAdded: true,
-				modelsConnectedToDb: new Set(['post-model']),
+				modelsConnectedToDb: new Set(['product-model']),
 			});
 
 			expect(result.valid).toBe(false);
-			expect(result.details!.some((d) => d.includes('Review'))).toBe(true);
+			expect(result.details?.some((d) => d.includes('Review'))).toBe(true);
 		});
 
 		test('should be invalid with only review connected', () => {
@@ -108,13 +110,13 @@ describe('Level 4: Persistence', () => {
 			});
 
 			expect(result.valid).toBe(false);
-			expect(result.details!.some((d) => d.includes('Product'))).toBe(true);
+			expect(result.details?.some((d) => d.includes('Product'))).toBe(true);
 		});
 
 		test('should be invalid without database', () => {
 			const result = validateLevel4Solution({
 				databaseAdded: false,
-				modelsConnectedToDb: new Set(['post-model', 'review-model']),
+				modelsConnectedToDb: new Set(['product-model', 'review-model']),
 			});
 
 			expect(result.valid).toBe(false);
@@ -125,7 +127,7 @@ describe('Level 4: Persistence', () => {
 		test('should be valid with both models connected', () => {
 			const result = validateLevel4Solution({
 				databaseAdded: true,
-				modelsConnectedToDb: new Set(['post-model', 'review-model']),
+				modelsConnectedToDb: new Set(['product-model', 'review-model']),
 			});
 
 			expect(result.valid).toBe(true);
@@ -134,7 +136,7 @@ describe('Level 4: Persistence', () => {
 		test('should have correct success message', () => {
 			const result = validateLevel4Solution({
 				databaseAdded: true,
-				modelsConnectedToDb: new Set(['post-model', 'review-model']),
+				modelsConnectedToDb: new Set(['product-model', 'review-model']),
 			});
 
 			expect(result.message).toContain('persists');

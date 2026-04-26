@@ -579,25 +579,25 @@ describe('Level 30: Caching', () => {
 		test('service code in zone inspector uses ApplicationService pattern', () => {
 			// The service zone inspector code should follow L16+ patterns
 			const serviceCode = `class TrendingProducts < ApplicationService
-  Result = Data.define(:posts, :generated_at)
+  Result = Data.define(:products, :generated_at)
 
   def call
     validation = TrendingContract.new.call({})
     return Result.new(
-      posts: [], generated_at: Time.current
+      products: [], generated_at: Time.current
     ) if validation.failure?
 
     products = Product
       .joins(:reviews)
-      .where("posts.created_at > ?", 7.days.ago)
-      .group("posts.id")
+      .where("products.created_at > ?", 7.days.ago)
+      .group("products.id")
       .select("products.*, COUNT(reviews.id) AS score")
       .order("score DESC")
       .limit(20)
       .includes(:user)
 
     # Recomputed on EVERY call. No caching!
-    Result.new(posts: posts, generated_at: Time.current)
+    Result.new(products: products, generated_at: Time.current)
   end
 end`;
 			expect(serviceCode).toContain('ApplicationService');

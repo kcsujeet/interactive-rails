@@ -60,20 +60,75 @@ export type SandboxEdge = Edge<Record<string, unknown>>;
 
 export const INITIAL_NODES: SandboxNode[] = [
 	// Col 1: Linear entry flow (y=250 center)
-	{ id: 'users', type: 'sandbox', position: { x: 0, y: 250 }, data: nodeData('Users') },
-	{ id: 'cdn', type: 'sandbox', position: { x: 250, y: 250 }, data: nodeData('CDN') },
-	{ id: 'rate-limiter', type: 'sandbox', position: { x: 500, y: 250 }, data: nodeData('Rate Limiter') },
-	{ id: 'lb', type: 'sandbox', position: { x: 750, y: 250 }, data: nodeData('Load Balancer') },
+	{
+		id: 'users',
+		type: 'sandbox',
+		position: { x: 0, y: 250 },
+		data: nodeData('Users'),
+	},
+	{
+		id: 'cdn',
+		type: 'sandbox',
+		position: { x: 250, y: 250 },
+		data: nodeData('CDN'),
+	},
+	{
+		id: 'rate-limiter',
+		type: 'sandbox',
+		position: { x: 500, y: 250 },
+		data: nodeData('Rate Limiter'),
+	},
+	{
+		id: 'lb',
+		type: 'sandbox',
+		position: { x: 750, y: 250 },
+		data: nodeData('Load Balancer'),
+	},
 	// Col 2: App Servers (stacked, centered on shared resources)
-	{ id: 'app-1', type: 'sandbox', position: { x: 1050, y: 130 }, data: nodeData('App Server', { label: 'App Server 1', icon: 'A1' }) },
-	{ id: 'app-2', type: 'sandbox', position: { x: 1050, y: 370 }, data: nodeData('App Server', { label: 'App Server 2', icon: 'A2' }) },
+	{
+		id: 'app-1',
+		type: 'sandbox',
+		position: { x: 1050, y: 130 },
+		data: nodeData('App Server', { label: 'App Server 1', icon: 'A1' }),
+	},
+	{
+		id: 'app-2',
+		type: 'sandbox',
+		position: { x: 1050, y: 370 },
+		data: nodeData('App Server', { label: 'App Server 2', icon: 'A2' }),
+	},
 	// Col 3: Shared resources (stacked vertically between app servers)
-	{ id: 'cache', type: 'sandbox', position: { x: 1380, y: 50 }, data: nodeData('Solid Cache') },
-	{ id: 'db-primary', type: 'sandbox', position: { x: 1380, y: 240 }, data: nodeData('Database', { description: 'PostgreSQL (primary)' }) },
-	{ id: 'queue', type: 'sandbox', position: { x: 1380, y: 430 }, data: nodeData('Solid Queue') },
+	{
+		id: 'cache',
+		type: 'sandbox',
+		position: { x: 1380, y: 50 },
+		data: nodeData('Solid Cache'),
+	},
+	{
+		id: 'db-primary',
+		type: 'sandbox',
+		position: { x: 1380, y: 240 },
+		data: nodeData('Database', { description: 'PostgreSQL (primary)' }),
+	},
+	{
+		id: 'queue',
+		type: 'sandbox',
+		position: { x: 1380, y: 430 },
+		data: nodeData('Solid Queue'),
+	},
 	// Col 4: External (to the right of what they replicate from / process for)
-	{ id: 'db-replica', type: 'sandbox', position: { x: 1700, y: 240 }, data: nodeData('DB Replica') },
-	{ id: 'stripe', type: 'sandbox', position: { x: 1700, y: 430 }, data: nodeData('Stripe API') },
+	{
+		id: 'db-replica',
+		type: 'sandbox',
+		position: { x: 1700, y: 240 },
+		data: nodeData('DB Replica'),
+	},
+	{
+		id: 'stripe',
+		type: 'sandbox',
+		position: { x: 1700, y: 430 },
+		data: nodeData('Stripe API'),
+	},
 ];
 
 export const INITIAL_EDGES: SandboxEdge[] = [

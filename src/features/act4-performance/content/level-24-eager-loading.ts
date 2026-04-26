@@ -15,16 +15,16 @@ export const level24EagerLoading: Level = {
 			'No eager loading strategy selected. Different scenarios need different approaches, and joins is a common trap that does not prevent N+1.',
 		rootCause:
 			'Associations are lazy-loaded by default. Rails only queries the database when you first access the association.',
-		codeExample: `# app/services/post_list.rb
-class PostList < ApplicationService
-  Result = Data.define(:success?, :posts, :errors)
+		codeExample: `# app/services/product_list.rb
+class ProductList < ApplicationService
+  Result = Data.define(:success?, :products, :errors)
 
   def call
     validation = ListContract.new.call({})
     return Result.new(...) if validation.failure?
 
     products = Product.all  # No eager loading!
-    Result.new(success?: true, posts: posts, errors: [])
+    Result.new(success?: true, products: products, errors: [])
   end
 end
 
@@ -68,7 +68,7 @@ Product.joins(:user)  # INNER JOINs but does NOT load user records`,
 - You will still get N+1 when you access associations after \`joins\`
 - This is a common misconception
 
-**Production benchmarks (simple scenario, posts with users):**
+**Production benchmarks (simple scenario, products with users):**
 \`\`\`
 N+1:        Real 9.545s | User 4.873s | 1,564 MB | 5,301,574 objects
 Preload:    Real 1.34s  | User 0.195s |   682 MB |   148,827 objects → 25x faster
@@ -77,7 +77,7 @@ Eager Load: Real 0.99s  | User 0.238s |   697 MB |   250,610 objects → 20x fas
 
 **Why preload beats eager_load on memory:** \`preload\` runs separate simple queries, creating fewer temporary objects. \`eager_load\` builds a single wide JOIN result; the database returns more columns per row, and ActiveRecord must allocate more intermediate objects to parse the wider result set.
 
-**Complex scenario (posts per category per user, at scale):**
+**Complex scenario (products per category per user, at scale):**
 \`\`\`
 N+1:        Real 73.191s
 Preload:    Real 17.468s → 23x faster
@@ -101,13 +101,13 @@ Eager Load: Real 16.898s → 16x faster
 
 # includes: smart default (use this most of the time)
 Product.includes(:user)
-# Query 1: SELECT "posts".* FROM "posts"
+# Query 1: SELECT "products".* FROM "products"
 # Query 2: SELECT "users".* FROM "users" WHERE "users"."id" IN (1, 2, 3...)
 
 # includes with filtering (auto-switches to JOIN)
 Product.includes(:user).where(users: { role: 'admin' })
-# SELECT "posts".* FROM "posts"
-#   LEFT OUTER JOIN "users" ON "users"."id" = "posts"."user_id"
+# SELECT "products".* FROM "products"
+#   LEFT OUTER JOIN "users" ON "users"."id" = "products"."user_id"
 #   WHERE "users"."role" = 'admin'
 
 # preload: force 2 queries (less memory than eager_load)
@@ -126,7 +126,7 @@ Product.joins(:user).where(users: { role: 'admin' })
 
 # Nested eager loading
 Product.includes(reviews: :user)
-# Query 1: SELECT "posts".* FROM "posts"
+# Query 1: SELECT "products".* FROM "products"
 # Query 2: SELECT "reviews".* FROM "reviews" WHERE product_id IN (...)
 # Query 3: SELECT "users".* FROM "users" WHERE id IN (...)
 

@@ -57,8 +57,6 @@ import {
 } from '@/components/levels/ProbeTerminal';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import {
 	type DiscoveryDef,
 	useDiscoveryGating,
@@ -66,6 +64,8 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 import { cn } from '@/lib/utils';
 
@@ -207,7 +207,7 @@ const TRANSACTION_OPTIONS = [
 		label: `begin
   user.credits -= cost
   user.save!
-  Boost.create!(user:, post:, reach: 5000)
+  Boost.create!(user:, product:, reach: 5000)
   CreditLog.create!(user:, amount: -cost)
 rescue => e
   user.reload  # manual rollback?
@@ -221,9 +221,9 @@ end`,
 		label: `ActiveRecord::Base.transaction do
   user.credits -= cost
   user.save!
-  Boost.create!(user:, post:, reach: 5000)
+  Boost.create!(user:, product:, reach: 5000)
   CreditLog.create!(user:, amount: -cost,
-    reason: "boost_post_#{post.id}")
+    reason: "boost_product_#{product.id}")
 end`,
 		correct: true,
 	},
@@ -231,7 +231,7 @@ end`,
 		id: 'wrong-save-only',
 		label: `user.credits -= cost
 user.save!
-Boost.create!(user:, post:, reach: 5000)
+Boost.create!(user:, product:, reach: 5000)
 CreditLog.create!(user:, amount: -cost)
 # Just let exceptions propagate`,
 		correct: false,
@@ -248,7 +248,7 @@ const ROLLBACK_OPTIONS = [
   user.credits -= cost
   user.save!
   return false if user.credits < 0
-  Boost.create!(user:, post:, reach: 5000)
+  Boost.create!(user:, product:, reach: 5000)
 end`,
 		correct: false,
 		feedback:
@@ -260,7 +260,7 @@ end`,
   user.credits -= cost
   user.save!
   throw :abort if user.credits < 0
-  Boost.create!(user:, post:, reach: 5000)
+  Boost.create!(user:, product:, reach: 5000)
 end`,
 		correct: false,
 		feedback:
@@ -275,7 +275,7 @@ end`,
     raise ActiveRecord::Rollback,
       "Insufficient credits"
   end
-  Boost.create!(user:, post:, reach: 5000)
+  Boost.create!(user:, product:, reach: 5000)
 end`,
 		correct: true,
 	},
@@ -302,7 +302,7 @@ const SERVICE_OPTIONS = [
       boost = Boost.create!(user:, product_id: @product_id,
         reach: 5000)
       CreditLog.create!(user:, amount: -@cost,
-        reason: "boost_post_#{@product_id}")
+        reason: "boost_product_#{@product_id}")
       Result.new(success?: true, boost:, errors: [])
     end
   rescue ActiveRecord::RecordInvalid => e
@@ -340,7 +340,7 @@ end`,
       boost = Boost.create!(user:, product_id: @product_id,
         reach: 5000)
       CreditLog.create!(user:, amount: -@cost,
-        reason: "boost_post_#{@product_id}")
+        reason: "boost_product_#{@product_id}")
       Result.new(success?: true, boost:, errors: [])
     end || Result.new(success?: false, boost: nil,
       errors: ["Insufficient credits"])
@@ -840,7 +840,7 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 	if (phase === 'observe') {
 		return [
 			{
-				filename: 'app/services/boost_post.rb',
+				filename: 'app/services/boost_product.rb',
 				language: 'ruby',
 				code: `class BoostPost < ApplicationService
   Result = Data.define(:success?, :boost, :errors)
@@ -866,7 +866,7 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
       reach: 5000)
     # Step 2 committed. If step 3 fails...
     CreditLog.create!(user:, amount: -@cost,
-      reason: "boost_post_#{@product_id}")
+      reason: "boost_product_#{@product_id}")
     Result.new(success?: true, boost:, errors: [])
   end
 end`,
@@ -879,7 +879,7 @@ end`,
 		if (furthestStep <= 0) {
 			return [
 				{
-					filename: 'app/services/boost_post.rb (broken)',
+					filename: 'app/services/boost_product.rb (broken)',
 					language: 'ruby',
 					code: `# Each operation commits independently.
 # If step 2 or 3 fails, step 1 is already
@@ -896,7 +896,7 @@ CreditLog.create!(...)  # Might fail`,
 		if (furthestStep === 1) {
 			return [
 				{
-					filename: 'app/services/boost_post.rb (next step)',
+					filename: 'app/services/boost_product.rb (next step)',
 					language: 'ruby',
 					code: `# Wrap all operations in a transaction...`,
 				},
@@ -905,14 +905,14 @@ CreditLog.create!(...)  # Might fail`,
 		if (furthestStep === 2) {
 			return [
 				{
-					filename: 'app/services/boost_post.rb (transaction added)',
+					filename: 'app/services/boost_product.rb (transaction added)',
 					language: 'ruby',
 					code: `ActiveRecord::Base.transaction do
   user.credits -= cost
   user.save!
   Boost.create!(user:, product_id:, reach: 5000)
   CreditLog.create!(user:, amount: -cost,
-    reason: "boost_post_#{product_id}")
+    reason: "boost_product_#{product_id}")
 end
 # If any operation raises, ALL are rolled back.
 # But what about business rule failures?`,
@@ -923,7 +923,7 @@ end
 		if (furthestStep === 3) {
 			return [
 				{
-					filename: 'app/services/boost_post.rb (rollback added)',
+					filename: 'app/services/boost_product.rb (rollback added)',
 					language: 'ruby',
 					code: `ActiveRecord::Base.transaction do
   user.credits -= cost
@@ -934,7 +934,7 @@ end
   end
   Boost.create!(user:, product_id:, reach: 5000)
   CreditLog.create!(user:, amount: -cost,
-    reason: "boost_post_#{product_id}")
+    reason: "boost_product_#{product_id}")
 end
 # raise ActiveRecord::Rollback silently aborts
 # the transaction without propagating the error.`,
@@ -958,7 +958,7 @@ end
 end`,
 		},
 		{
-			filename: 'app/services/boost_post.rb',
+			filename: 'app/services/boost_product.rb',
 			language: 'ruby',
 			code: `class BoostPost < ApplicationService
   Result = Data.define(:success?, :boost, :errors)
@@ -984,7 +984,7 @@ end`,
       boost = Boost.create!(user:, product_id: @product_id,
         reach: 5000)
       CreditLog.create!(user:, amount: -@cost,
-        reason: "boost_post_#{@product_id}")
+        reason: "boost_product_#{@product_id}")
       Result.new(success?: true, boost:, errors: [])
     end || Result.new(success?: false, boost: nil,
       errors: ["Insufficient credits"])
@@ -1251,7 +1251,7 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 					setRewardDb({
 						usersCredits: 40,
 						boostRow: { userId: 1, postId: 42, reach: 5000 },
-						creditLogRow: { userId: 1, amount: -10, reason: 'boost_post_42' },
+						creditLogRow: { userId: 1, amount: -10, reason: 'boost_product_42' },
 					});
 					setRewardFlash({
 						users: 'success',

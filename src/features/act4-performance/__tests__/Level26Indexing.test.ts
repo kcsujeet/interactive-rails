@@ -83,14 +83,14 @@ const QUERY_LANES: QueryLane[] = [
 	{
 		id: 'fk',
 		label: 'Foreign Key Lookup',
-		table: 'posts',
+		table: 'products',
 		sql: 'SELECT * FROM products WHERE user_id = 42',
 		totalRows: 50000,
 	},
 	{
 		id: 'composite',
 		label: 'Composite Query',
-		table: 'posts',
+		table: 'products',
 		sql: 'SELECT * FROM products WHERE published = true ORDER BY created_at',
 		totalRows: 50000,
 	},
@@ -128,15 +128,15 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'fk-lookup',
-		label: 'Load user posts',
-		description: 'B-tree index on posts.user_id',
+		label: 'Load user products',
+		description: 'B-tree index on products.user_id',
 		method: 'GET',
-		path: '/api/users/42/posts',
+		path: '/api/users/42/products',
 		actor: 'client',
 		expectedResult: 'allowed',
 		responseLines: [
 			{
-				text: 'Index Scan using index_posts_on_user_id on posts',
+				text: 'Index Scan using index_products_on_user_id on products',
 				color: 'green',
 			},
 			{ text: '  Index Cond: (user_id = 42)', color: 'yellow' },
@@ -146,15 +146,15 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'composite-query',
-		label: 'Published posts sorted',
+		label: 'Published products sorted',
 		description: 'Composite index on [published, created_at]',
 		method: 'GET',
-		path: '/api/posts?published=true&sort=created_at',
+		path: '/api/products?published=true&sort=created_at',
 		actor: 'client',
 		expectedResult: 'allowed',
 		responseLines: [
 			{
-				text: 'Index Scan using index_posts_on_published_created_at on posts',
+				text: 'Index Scan using index_products_on_published_created_at on products',
 				color: 'green',
 			},
 			{
@@ -167,15 +167,15 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'created-at-only',
-		label: 'Posts by date only',
+		label: 'Products by date only',
 		description: 'Leftmost prefix violation',
 		method: 'GET',
-		path: '/api/posts?sort=created_at',
+		path: '/api/products?sort=created_at',
 		actor: 'client',
 		expectedResult: 'blocked',
 		responseLines: [
 			{
-				text: 'Seq Scan on posts  (cost=0.00..1125.00)',
+				text: 'Seq Scan on products  (cost=0.00..1125.00)',
 				color: 'red',
 			},
 			{
@@ -230,7 +230,7 @@ const REWARD_SCAN_DATA: Record<string, RewardScanData> = {
 	'fk-lookup': {
 		laneId: 'fk',
 		scanType: 'index',
-		plan: 'Index Scan using index_posts_on_user_id',
+		plan: 'Index Scan using index_products_on_user_id',
 		time: '0.10ms',
 		rowsScanned: 25,
 		totalRows: 50000,
@@ -238,7 +238,7 @@ const REWARD_SCAN_DATA: Record<string, RewardScanData> = {
 	'composite-query': {
 		laneId: 'composite',
 		scanType: 'index',
-		plan: 'Index Scan using index_posts_on_published_and_created_at',
+		plan: 'Index Scan using index_products_on_published_and_created_at',
 		time: '0.20ms',
 		rowsScanned: 25000,
 		totalRows: 50000,
@@ -246,7 +246,7 @@ const REWARD_SCAN_DATA: Record<string, RewardScanData> = {
 	'created-at-only': {
 		laneId: 'composite',
 		scanType: 'seq',
-		plan: 'Seq Scan on posts (leftmost prefix violation)',
+		plan: 'Seq Scan on products (leftmost prefix violation)',
 		time: '650ms',
 		rowsScanned: 50000,
 		totalRows: 50000,
@@ -275,7 +275,7 @@ const OBSERVE_SCAN_DATA: Record<string, ScanResult> = {
 	},
 	fk: {
 		scanType: 'seq',
-		plan: 'Seq Scan on posts',
+		plan: 'Seq Scan on products',
 		time: '450ms',
 		rowsScanned: 50000,
 		totalRows: 50000,
@@ -283,7 +283,7 @@ const OBSERVE_SCAN_DATA: Record<string, ScanResult> = {
 	},
 	composite: {
 		scanType: 'seq',
-		plan: 'Sort + Seq Scan on posts',
+		plan: 'Sort + Seq Scan on products',
 		time: '650ms',
 		rowsScanned: 50000,
 		totalRows: 50000,
@@ -336,27 +336,24 @@ const OPTION_STEP_CONFIG: Record<
 	},
 	2: {
 		title: 'Foreign Key Index',
-		description:
-			'Product.where(user_id: 42) scans all 50,000 posts.',
+		description: 'Product.where(user_id: 42) scans all 50,000 products.',
 		options: [
 			{
 				id: 'wrong-composite',
-				label: 'add_index :posts, [:user_id, :title]',
+				label: 'add_index :products, [:user_id, :name]',
 				correct: false,
-				feedback:
-					'A composite index on user_id and title is overkill here.',
+				feedback: 'A composite index on user_id and name is overkill here.',
 			},
 			{
 				id: 'correct',
-				label: 'add_index :posts, :user_id',
+				label: 'add_index :products, :user_id',
 				correct: true,
 			},
 			{
 				id: 'wrong-table',
 				label: 'add_index :users, :id',
 				correct: false,
-				feedback:
-					'The primary key already has an index.',
+				feedback: 'The primary key already has an index.',
 			},
 		],
 	},
@@ -367,19 +364,19 @@ const OPTION_STEP_CONFIG: Record<
 		options: [
 			{
 				id: 'wrong-order',
-				label: 'add_index :posts, [:created_at, :published]',
+				label: 'add_index :products, [:created_at, :published]',
 				correct: false,
 				feedback:
 					'Column order matters. The WHERE clause filters by published first.',
 			},
 			{
 				id: 'correct',
-				label: 'add_index :posts, [:published, :created_at]',
+				label: 'add_index :products, [:published, :created_at]',
 				correct: true,
 			},
 			{
 				id: 'wrong-single',
-				label: 'add_index :posts, :created_at',
+				label: 'add_index :products, :created_at',
 				correct: false,
 				feedback:
 					'A single-column index on created_at cannot cover the WHERE published = true filter.',
@@ -499,13 +496,13 @@ describe('Level 26: Database Indexing', () => {
 
 		test('every reward scan maps to a valid lane', () => {
 			const laneIds = new Set(QUERY_LANES.map((l) => l.id));
-			for (const [scenarioId, data] of Object.entries(REWARD_SCAN_DATA)) {
+			for (const [_scenarioId, data] of Object.entries(REWARD_SCAN_DATA)) {
 				expect(laneIds.has(data.laneId)).toBe(true);
 			}
 		});
 
 		test('reward scan SQL must not contradict the lane SQL', () => {
-			for (const [scenarioId, data] of Object.entries(REWARD_SCAN_DATA)) {
+			for (const [_scenarioId, data] of Object.entries(REWARD_SCAN_DATA)) {
 				const lane = QUERY_LANES.find((l) => l.id === data.laneId)!;
 				// The SQL shown to the player is sqlOverride if present, else lane.sql
 				const displayedSql = data.sqlOverride ?? lane.sql;
@@ -523,7 +520,7 @@ describe('Level 26: Database Indexing', () => {
 		});
 
 		test('expected seq scans must have sqlOverride when lane SQL has WHERE', () => {
-			for (const [scenarioId, data] of Object.entries(REWARD_SCAN_DATA)) {
+			for (const [_scenarioId, data] of Object.entries(REWARD_SCAN_DATA)) {
 				if (!data.expected) continue;
 				const lane = QUERY_LANES.find((l) => l.id === data.laneId)!;
 
@@ -531,7 +528,7 @@ describe('Level 26: Database Indexing', () => {
 				// there MUST be a sqlOverride to avoid contradiction
 				if (lane.sql.toUpperCase().includes('WHERE')) {
 					expect(data.sqlOverride).toBeDefined();
-					expect(data.sqlOverride!.toUpperCase()).not.toContain('WHERE');
+					expect(data.sqlOverride?.toUpperCase()).not.toContain('WHERE');
 				}
 			}
 		});
@@ -539,8 +536,8 @@ describe('Level 26: Database Indexing', () => {
 		test('expected seq scans should have labelOverride when lane label mismatches', () => {
 			for (const [scenarioId, data] of Object.entries(REWARD_SCAN_DATA)) {
 				if (!data.expected) continue;
-				const lane = QUERY_LANES.find((l) => l.id === data.laneId)!;
-				const scenario = STRESS_SCENARIOS.find((s) => s.id === scenarioId);
+				const _lane = QUERY_LANES.find((l) => l.id === data.laneId)!;
+				const _scenario = STRESS_SCENARIOS.find((s) => s.id === scenarioId);
 
 				// If the scenario is about a different query type (e.g., admin list all)
 				// the lane label ("Email Lookup") would be misleading without an override
@@ -581,7 +578,7 @@ describe('Level 26: Database Indexing', () => {
 		test('every stress scenario has response lines', () => {
 			for (const scenario of STRESS_SCENARIOS) {
 				expect(scenario.responseLines).toBeDefined();
-				expect(scenario.responseLines!.length).toBeGreaterThan(0);
+				expect(scenario.responseLines?.length).toBeGreaterThan(0);
 			}
 		});
 
@@ -590,7 +587,7 @@ describe('Level 26: Database Indexing', () => {
 				if (scenario.expectedResult !== 'allowed') continue;
 				const data = REWARD_SCAN_DATA[scenario.id];
 				if (data.scanType !== 'index') continue;
-				const hasGreen = scenario.responseLines!.some(
+				const hasGreen = scenario.responseLines?.some(
 					(l) => l.color === 'green',
 				);
 				expect(hasGreen).toBe(true);
@@ -600,9 +597,7 @@ describe('Level 26: Database Indexing', () => {
 		test('blocked scenarios have red response lines', () => {
 			for (const scenario of STRESS_SCENARIOS) {
 				if (scenario.expectedResult !== 'blocked') continue;
-				const hasRed = scenario.responseLines!.some(
-					(l) => l.color === 'red',
-				);
+				const hasRed = scenario.responseLines?.some((l) => l.color === 'red');
 				expect(hasRed).toBe(true);
 			}
 		});
@@ -617,7 +612,7 @@ describe('Level 26: Database Indexing', () => {
 		});
 
 		test('all match positions are within grid bounds', () => {
-			for (const [laneId, matches] of Object.entries(GRID_MATCHES)) {
+			for (const [_laneId, matches] of Object.entries(GRID_MATCHES)) {
 				for (const pos of matches) {
 					expect(pos).toBeGreaterThanOrEqual(0);
 					expect(pos).toBeLessThan(GRID_SIZE);
@@ -633,7 +628,7 @@ describe('Level 26: Database Indexing', () => {
 			expect(GRID_MATCHES.fk.length).toBeGreaterThan(1);
 		});
 
-		test('composite lane has ~50% matches (published posts)', () => {
+		test('composite lane has ~50% matches (published products)', () => {
 			expect(GRID_MATCHES.composite.length).toBe(50);
 		});
 	});
@@ -702,7 +697,7 @@ describe('Level 26: Database Indexing', () => {
 			]) {
 				if (!cmd.correct) {
 					expect(cmd.feedback).toBeDefined();
-					expect(cmd.feedback!.length).toBeGreaterThan(0);
+					expect(cmd.feedback?.length).toBeGreaterThan(0);
 				}
 			}
 			// Option cards
@@ -710,7 +705,7 @@ describe('Level 26: Database Indexing', () => {
 				for (const opt of config.options) {
 					if (!opt.correct) {
 						expect(opt.feedback).toBeDefined();
-						expect(opt.feedback!.length).toBeGreaterThan(0);
+						expect(opt.feedback?.length).toBeGreaterThan(0);
 					}
 				}
 			}
@@ -719,7 +714,7 @@ describe('Level 26: Database Indexing', () => {
 		test('feedback never reveals the correct answer', () => {
 			// Check that wrong-option feedback does not contain the correct option text
 			for (const config of Object.values(OPTION_STEP_CONFIG)) {
-				const correctLabel = config.options.find((o) => o.correct)!.label;
+				const correctLabel = config.options.find((o) => o.correct)?.label;
 				for (const opt of config.options) {
 					if (!opt.correct && opt.feedback) {
 						expect(opt.feedback).not.toContain(correctLabel);
@@ -737,9 +732,7 @@ describe('Level 26: Database Indexing', () => {
 				(c) => c.correct,
 			).length;
 			expect(genCorrect).toBe(1);
-			const runCorrect = runMigrationCommands.filter(
-				(c) => c.correct,
-			).length;
+			const runCorrect = runMigrationCommands.filter((c) => c.correct).length;
 			expect(runCorrect).toBe(1);
 		});
 	});
@@ -780,8 +773,8 @@ describe('Level 26: Database Indexing', () => {
 			// "Find user by email" probe label should match the stress scenario label
 			const probeLabels: Record<string, string> = {
 				'query-email': 'Find user by email',
-				'query-fk': 'Load user posts',
-				'query-composite': 'Published posts by date',
+				'query-fk': 'Load user products',
+				'query-composite': 'Published products by date',
 			};
 			const scenarioLabels: Record<string, string> = {};
 			for (const s of STRESS_SCENARIOS) {

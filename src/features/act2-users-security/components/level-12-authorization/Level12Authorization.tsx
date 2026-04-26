@@ -81,7 +81,7 @@ type Phase = 'observe' | 'build' | 'reward';
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{ id: 'no-policy', label: 'No authorization policy exists' },
-	{ id: 'any-delete', label: 'Any user can delete any post' },
+	{ id: 'any-delete', label: 'Any user can delete any product' },
 	{ id: 'index-leaks', label: 'Index returns all products including drafts' },
 	{ id: 'no-authorize', label: 'Controller has no authorize call' },
 ];
@@ -103,7 +103,7 @@ const PROBES: ProbeConfig[] = [
 				color: 'yellow',
 			},
 			{
-				text: 'No permission check ran. Any user can delete any post.',
+				text: 'No permission check ran. Any user can delete any product.',
 				color: 'red',
 			},
 		],
@@ -121,15 +121,15 @@ const PROBES: ProbeConfig[] = [
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
 			{
-				text: '[{"id":1,"title":"Draft: Secret Launch","published":false},',
+				text: '[{"id":1,"name":"Draft: Secret Launch","published":false},',
 				color: 'muted',
 			},
 			{
-				text: ' {"id":2,"title":"Internal Roadmap","published":false},',
+				text: ' {"id":2,"name":"Internal Roadmap","published":false},',
 				color: 'muted',
 			},
 			{
-				text: ' {"id":3,"title":"Featured Product","published":true}]',
+				text: ' {"id":3,"name":"Featured Product","published":true}]',
 				color: 'muted',
 			},
 			{
@@ -151,18 +151,18 @@ const PROBES: ProbeConfig[] = [
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
 			{
-				text: '{"id":42,"title":"Hacked","user_id":3}',
+				text: '{"id":42,"name":"Hacked","user_id":3}',
 				color: 'muted',
 			},
 			{
-				text: "user_7 edited user_3's post. No ownership check.",
+				text: "user_7 edited user_3's product. No ownership check.",
 				color: 'yellow',
 			},
 		],
 		story: [
 			'user_7 sends a PATCH request to update product #42, owned by user_3.',
 			'The controller finds the product and applies the update without checking ownership.',
-			'The title is overwritten to "Hacked" while user_id stays as user_3.',
+			'The name is overwritten to "Hacked" while user_id stays as user_3.',
 			"Any authenticated user can modify any other user's product listings.",
 		],
 	},
@@ -207,11 +207,11 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 	},
 	controller: {
 		stageId: 'controller',
-		title: 'PostsController',
+		title: 'ProductsController',
 		description:
 			'The controller finds the product and immediately runs the action. There is no authorize call. Any authenticated user can destroy, update, or read any record.',
 		code: `def destroy
-  post = Product.find(params[:id])
+  product = Product.find(params[:id])
   product.destroy  # No permission check!
   head :no_content
 end`,
@@ -243,7 +243,7 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'owner-edit',
-		label: 'Owner edits own post',
+		label: 'Owner edits own product',
 		description: 'Product owner updates their own content',
 		method: 'PATCH',
 		path: '/api/v1/products/42',
@@ -252,8 +252,8 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'admin-delete',
-		label: 'Admin deletes flagged post',
-		description: 'Admin removes a flagged post',
+		label: 'Admin deletes flagged product',
+		description: 'Admin removes a flagged product',
 		method: 'DELETE',
 		path: '/api/v1/products/99',
 		actor: 'admin',
@@ -261,8 +261,8 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'stranger-delete',
-		label: 'Stranger deletes post',
-		description: "Random user tries to delete another user's post",
+		label: 'Stranger deletes product',
+		description: "Random user tries to delete another user's product",
 		method: 'DELETE',
 		path: '/api/v1/products/42',
 		actor: 'stranger (user_7)',
@@ -270,8 +270,8 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'stranger-update',
-		label: 'Stranger updates post',
-		description: "Random user tries to edit another user's post",
+		label: 'Stranger updates product',
+		description: "Random user tries to edit another user's product",
 		method: 'PATCH',
 		path: '/api/v1/products/42',
 		actor: 'stranger (user_7)',
@@ -391,7 +391,7 @@ const INCLUDE_OPTIONS: StepOption[] = [
 
 const generateInstallCommands: TerminalCommand[] = [
 	{
-		id: 'wrong-policy-post',
+		id: 'wrong-policy-product',
 		label: 'rails generate pundit:policy Product',
 		command: 'rails generate pundit:policy Product',
 		correct: false,
@@ -448,8 +448,8 @@ const STEP_OPTIONS: StepOption[][] = [
 			correct: true,
 		},
 		{
-			id: 'posts-policy',
-			label: 'class PostsPolicy < ApplicationPolicy\n  # ...\nend',
+			id: 'products-policy',
+			label: 'class ProductsPolicy < ApplicationPolicy\n  # ...\nend',
 			correct: false,
 			feedback:
 				'Pundit policy names are singular, matching the model name. Product, not Products.',
@@ -469,7 +469,7 @@ const STEP_OPTIONS: StepOption[][] = [
 			label: 'def destroy?\n  true\nend',
 			correct: false,
 			feedback:
-				'That allows everyone to delete any post. Authorization needs a real permission check.',
+				'That allows everyone to delete any product. Authorization needs a real permission check.',
 		},
 		{
 			id: 'owner-or-admin',
@@ -561,7 +561,7 @@ const OPTION_STEP_CONFIG: Record<
 	6: {
 		title: 'Scope the Index Query',
 		description:
-			'The index action does Product.all, leaking drafts and private posts. How do you filter the collection through the policy?',
+			'The index action does Product.all, leaking drafts and private products. How do you filter the collection through the policy?',
 		options: STEP_OPTIONS[3],
 	},
 };
@@ -597,7 +597,7 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 			code: `class Api::V1::ProductsController < ApplicationController
   def destroy
     product = Product.find(params[:id])
-    product.destroy  # Any user can delete ANY post!
+    product.destroy  # Any user can delete ANY product!
     head :no_content
   end
 end`,
@@ -623,7 +623,7 @@ end`,
 			code: `class Api::V1::ProductsController < ApplicationController
   def destroy
     product = Product.find(params[:id])
-    product.destroy  # Any user can delete ANY post!
+    product.destroy  # Any user can delete ANY product!
     head :no_content
   end
 end`,
@@ -1004,7 +1004,7 @@ export function Level12Authorization({ onComplete }: LevelComponentProps) {
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Authentication tells you WHO is making the request. But nothing
 							checks whether they are ALLOWED to do what they are asking. User A
-							can delete User B's posts.
+							can delete User B's products.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Rails deliberately does not ship built-in authorization. The

@@ -5,7 +5,7 @@
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): Interactive exploration. Click pipeline stages to
- *   inspect code, fire API probes to discover that posts are isolated with no
+ *   inspect code, fire API probes to discover that products are isolated with no
  *   way to attach reviews. Discovery gating controls when "Build the Fix" appears.
  * Phase 2 (HOW - build): 6 steps (3 terminal + 1 informational + 2 OptionCard)
  *   Step 0: Generate Review model with product:references (terminal)
@@ -340,7 +340,7 @@ const generateCommands: TerminalCommand[] = [
 		correct: true,
 	},
 	{
-		id: 'wrong-missing-post',
+		id: 'wrong-missing-product',
 		label: 'rails generate model Review body:text',
 		command: 'rails generate model Review body:text',
 		correct: false,

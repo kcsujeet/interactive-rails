@@ -392,9 +392,7 @@ describe('Level 40: API Versioning', () => {
 			expect(probe?.responseLines[1].text).toBe(
 				'# No Deprecation header found',
 			);
-			expect(probe?.responseLines[2].text).toBe(
-				'# No Sunset header found',
-			);
+			expect(probe?.responseLines[2].text).toBe('# No Sunset header found');
 		});
 
 		test('v2-404 probe shows 404 error', () => {
@@ -425,9 +423,7 @@ describe('Level 40: API Versioning', () => {
 		});
 
 		test('every discovery is reachable via probes', () => {
-			const allMapped = new Set(
-				Object.values(PROBE_DISCOVERY_MAP).flat(),
-			);
+			const allMapped = new Set(Object.values(PROBE_DISCOVERY_MAP).flat());
 			for (const def of DISCOVERY_DEFS) {
 				expect(allMapped.has(def.id)).toBe(true);
 			}
@@ -441,15 +437,11 @@ describe('Level 40: API Versioning', () => {
 		});
 
 		test('no-deprecation maps to no-deprecation', () => {
-			expect(PROBE_DISCOVERY_MAP['no-deprecation']).toEqual([
-				'no-deprecation',
-			]);
+			expect(PROBE_DISCOVERY_MAP['no-deprecation']).toEqual(['no-deprecation']);
 		});
 
 		test('v2-404 maps to no-migration-path', () => {
-			expect(PROBE_DISCOVERY_MAP['v2-404']).toEqual([
-				'no-migration-path',
-			]);
+			expect(PROBE_DISCOVERY_MAP['v2-404']).toEqual(['no-migration-path']);
 		});
 	});
 
@@ -473,7 +465,7 @@ describe('Level 40: API Versioning', () => {
 					const wrongOptions = options.filter((o) => !o.correct);
 					for (const opt of wrongOptions) {
 						expect(opt.feedback).toBeDefined();
-						expect(opt.feedback!.length).toBeGreaterThan(10);
+						expect(opt.feedback?.length).toBeGreaterThan(10);
 					}
 				});
 			});
@@ -631,9 +623,7 @@ describe('Level 40: API Versioning', () => {
 
 		test('probe and scenario labels mirror each other', () => {
 			for (const probe of PROBES) {
-				const scenario = STRESS_SCENARIOS.find(
-					(s) => s.id === probe.id,
-				);
+				const scenario = STRESS_SCENARIOS.find((s) => s.id === probe.id);
 				expect(scenario).toBeDefined();
 
 				if (probe.id === 'v1-format-break') {
@@ -653,9 +643,7 @@ describe('Level 40: API Versioning', () => {
 
 		test('reward scenarios include additional scenarios beyond observe probes', () => {
 			const probeIds = new Set(PROBES.map((p) => p.id));
-			const extras = STRESS_SCENARIOS.filter(
-				(s) => !probeIds.has(s.id),
-			);
+			const extras = STRESS_SCENARIOS.filter((s) => !probeIds.has(s.id));
 			expect(extras.length).toBe(2);
 			expect(extras.map((e) => e.id)).toContain('v1-v2-coexist');
 			expect(extras.map((e) => e.id)).toContain('v3-not-found');

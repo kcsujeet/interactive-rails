@@ -247,8 +247,7 @@ const STRESS_SCENARIOS = [
 	{
 		id: 'forged-webhook',
 		label: 'Attacker forges payment webhook (with verification)',
-		description:
-			'No valid Stripe-Signature header, rejected at signature gate',
+		description: 'No valid Stripe-Signature header, rejected at signature gate',
 		method: 'POST' as const,
 		path: '/webhooks/stripe',
 		actor: 'attacker',
@@ -424,18 +423,14 @@ describe('Level 39: Webhooks & Idempotency', () => {
 		});
 
 		test('every discovery is reachable via probes', () => {
-			const allMapped = new Set(
-				Object.values(PROBE_DISCOVERY_MAP).flat(),
-			);
+			const allMapped = new Set(Object.values(PROBE_DISCOVERY_MAP).flat());
 			for (const def of DISCOVERY_DEFS) {
 				expect(allMapped.has(def.id)).toBe(true);
 			}
 		});
 
 		test('forged-webhook maps to no-signature', () => {
-			expect(PROBE_DISCOVERY_MAP['forged-webhook']).toEqual([
-				'no-signature',
-			]);
+			expect(PROBE_DISCOVERY_MAP['forged-webhook']).toEqual(['no-signature']);
 		});
 
 		test('duplicate-event maps to duplicate-credit and no-dedup', () => {
@@ -446,9 +441,7 @@ describe('Level 39: Webhooks & Idempotency', () => {
 		});
 
 		test('slow-processing maps to sync-timeout', () => {
-			expect(PROBE_DISCOVERY_MAP['slow-processing']).toEqual([
-				'sync-timeout',
-			]);
+			expect(PROBE_DISCOVERY_MAP['slow-processing']).toEqual(['sync-timeout']);
 		});
 	});
 
@@ -472,7 +465,7 @@ describe('Level 39: Webhooks & Idempotency', () => {
 					const wrongOptions = options.filter((o) => !o.correct);
 					for (const opt of wrongOptions) {
 						expect(opt.feedback).toBeDefined();
-						expect(opt.feedback!.length).toBeGreaterThan(10);
+						expect(opt.feedback?.length).toBeGreaterThan(10);
 					}
 				});
 			});
@@ -493,9 +486,7 @@ describe('Level 39: Webhooks & Idempotency', () => {
 		});
 
 		test('CONFIGURE_IDEMPOTENCY feedback does not contain "find_or_create_by"', () => {
-			const wrong = CONFIGURE_IDEMPOTENCY_OPTIONS.filter(
-				(o) => !o.correct,
-			);
+			const wrong = CONFIGURE_IDEMPOTENCY_OPTIONS.filter((o) => !o.correct);
 			for (const opt of wrong) {
 				expect(opt.feedback!).not.toContain('find_or_create_by');
 			}
@@ -618,9 +609,7 @@ describe('Level 39: Webhooks & Idempotency', () => {
 
 		test('probe and scenario labels mirror each other', () => {
 			for (const probe of PROBES) {
-				const scenario = STRESS_SCENARIOS.find(
-					(s) => s.id === probe.id,
-				);
+				const scenario = STRESS_SCENARIOS.find((s) => s.id === probe.id);
 				expect(scenario).toBeDefined();
 
 				// Each scenario label should contain the probe's key concept
@@ -641,9 +630,7 @@ describe('Level 39: Webhooks & Idempotency', () => {
 
 		test('reward scenarios include additional scenarios beyond observe probes', () => {
 			const probeIds = new Set(PROBES.map((p) => p.id));
-			const extras = STRESS_SCENARIOS.filter(
-				(s) => !probeIds.has(s.id),
-			);
+			const extras = STRESS_SCENARIOS.filter((s) => !probeIds.has(s.id));
 			expect(extras.length).toBe(2);
 			expect(extras.map((e) => e.id)).toContain('valid-subscription');
 			expect(extras.map((e) => e.id)).toContain('bad-payload');

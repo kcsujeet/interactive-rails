@@ -48,14 +48,14 @@ import {
 } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import {
 	type DiscoveryDef,
 	useDiscoveryGating,
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act2-level10-validations', () =>
@@ -73,7 +73,7 @@ type Phase = 'observe' | 'build' | 'reward';
 // ──────────────────────────────────────────────
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
-	{ id: 'empty-saved', label: 'Empty posts get saved to the database' },
+	{ id: 'empty-saved', label: 'Empty products get saved to the database' },
 	{ id: 'duplicate-email', label: 'Duplicate emails are accepted' },
 	{ id: 'bad-format', label: 'Malformed emails pass through' },
 	{ id: 'no-validations', label: 'Model has no validations' },
@@ -87,23 +87,23 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'empty-post',
 		label: 'POST empty record',
-		command: 'POST /api/v1/products (title: "", body: "")',
+		command: 'POST /api/v1/products (name: "", description: "")',
 		responseLines: [
 			{ text: 'HTTP/1.1 201 Created', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: '{"id":5,"title":"","body":""}',
+				text: '{"id":5,"name":"","description":""}',
 				color: 'muted',
 			},
 			{
-				text: 'Empty post saved. No presence check ran.',
+				text: 'Empty product saved. No presence check ran.',
 				color: 'yellow',
 			},
 		],
 		story: [
 			'A user submits the product form without filling in any fields.',
 			'The controller passes empty strings to Product.create!.',
-			'The model has no presence validations on title or body.',
+			'The model has no presence validations on name or description.',
 			'A blank product is saved to the database and shown on the storefront.',
 		],
 	},
@@ -168,7 +168,7 @@ const PROBE_PIPELINE_MAP: Record<
 	{ modelSublabel: string; dbBadge: string }
 > = {
 	'empty-post': {
-		modelSublabel: 'title: ""',
+		modelSublabel: 'name: ""',
 		dbBadge: '201!',
 	},
 	'duplicate-email': {
@@ -183,7 +183,7 @@ const PROBE_PIPELINE_MAP: Record<
 
 // Map probe IDs to data card display text
 const PROBE_DATA_CARD: Record<string, string> = {
-	'empty-post': '{ title: "", body: "" }',
+	'empty-post': '{ name: "", description: "" }',
 	'duplicate-email': '{ email: "joe@test.com" }',
 	'bad-email': '{ email: "not-an-email" }',
 };
@@ -214,8 +214,8 @@ const OBSERVE_FLOW: Record<string, string[]> = {
 // Reward phase: 3 zones (Input, Validation Gate, Result)
 const REWARD_FLOW: Record<string, string[]> = {
 	'valid-post': [
-		'Valid post: title + body',
-		'validates :title, :body pass',
+		'Valid product: name + description',
+		'validates :name, :description pass',
 		'Saved! 201 Created',
 	],
 	'empty-title': [
@@ -239,8 +239,8 @@ const REWARD_FLOW: Record<string, string[]> = {
 		'Rejected! 422',
 	],
 	'empty-post': [
-		'Post with blank title + body',
-		'validates :title, :body FAILS',
+		'Product with blank name + description',
+		'validates :name, :description FAILS',
 		'Rejected! 422',
 	],
 	'bad-email': [
@@ -257,13 +257,13 @@ const REWARD_FLOW: Record<string, string[]> = {
 const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 	controller: {
 		stageId: 'controller',
-		title: 'PostsController',
+		title: 'ProductsController',
 		description:
 			'The controller receives the request, builds a new record, and calls save. It trusts whatever data comes in.',
 		code: `def create
-  post = Product.new(product_params)
+  product = Product.new(product_params)
   product.save  # Always succeeds, no checks!
-  render json: post, status: :created
+  render json: product, status: :created
 end`,
 	},
 	model: {
@@ -280,7 +280,7 @@ end`,
 		stageId: 'database',
 		title: 'Database (Garbage In)',
 		description:
-			'The database stores whatever the model sends. Empty titles, duplicate emails, and malformed data pile up. Cleaning up later is painful.',
+			'The database stores whatever the model sends. Empty names, duplicate emails, and malformed data pile up. Cleaning up later is painful.',
 	},
 };
 
@@ -296,8 +296,8 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'valid-post',
-		label: 'Valid post with title and body',
-		description: 'A complete post with all required fields',
+		label: 'Valid product with name and description',
+		description: 'A complete product with all required fields',
 		method: 'POST',
 		path: '/api/v1/products',
 		actor: 'authenticated user',
@@ -306,7 +306,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'empty-post',
 		label: 'POST empty record',
-		description: 'Post with blank title and body fields',
+		description: 'Product with blank name and description fields',
 		method: 'POST',
 		path: '/api/v1/products',
 		actor: 'authenticated user',
@@ -315,7 +315,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'empty-title',
 		label: 'Product with blank name',
-		description: 'Missing required title field',
+		description: 'Missing required name field',
 		method: 'POST',
 		path: '/api/v1/products',
 		actor: 'authenticated user',
@@ -379,21 +379,21 @@ interface StepOption {
 const PRESENCE_OPTIONS: StepOption[] = [
 	{
 		id: 'callback',
-		label: 'before_save { raise if title.blank? }',
+		label: 'before_save { raise if name.blank? }',
 		correct: false,
 		feedback:
 			'Raising in a callback crashes the request with a 500. Validations return structured error messages instead.',
 	},
 	{
 		id: 'db-constraint',
-		label: 'add_column :posts, :title, :string, null: false',
+		label: 'add_column :products, :name, :string, null: false',
 		correct: false,
 		feedback:
 			'Database constraints are a safety net, but they return cryptic errors. Model validations give user-friendly messages.',
 	},
 	{
 		id: 'presence',
-		label: 'validates :title, presence: true',
+		label: 'validates :name, presence: true',
 		correct: true,
 	},
 ];
@@ -457,8 +457,8 @@ const FORMAT_OPTIONS: StepOption[] = [
 const testCommands: TerminalCommand[] = [
 	{
 		id: 'valid-check',
-		label: 'post.valid?',
-		command: 'post.valid?',
+		label: 'product.valid?',
+		command: 'product.valid?',
 		correct: false,
 		feedback:
 			'That returns true/false but does not show the error details. You need the actual messages.',
@@ -481,7 +481,7 @@ const testCommands: TerminalCommand[] = [
 
 const testOutput: TerminalOutputLine[] = [
 	{
-		text: '=> ["Title can\'t be blank", "Body can\'t be blank"]',
+		text: '=> ["Name can\'t be blank", "Description can\'t be blank"]',
 		color: 'red',
 	},
 ];
@@ -503,7 +503,7 @@ const OPTION_STEP_CONFIG: Record<
 	0: {
 		title: 'Add Presence Validation',
 		description:
-			'Posts are being created with blank titles. How should you prevent empty values from being saved?',
+			'Products are being created with blank names. How should you prevent empty values from being saved?',
 		options: PRESENCE_OPTIONS,
 	},
 	1: {
@@ -551,12 +551,12 @@ end`,
 	}
 
 	// Build / reward phases: show evolving code
-	const postValidations: string[] = [];
+	const productValidations: string[] = [];
 	const userValidations: string[] = [];
 
 	if (furthestStep >= 1) {
-		postValidations.push('  validates :title, presence: true');
-		postValidations.push('  validates :body, presence: true');
+		productValidations.push('  validates :name, presence: true');
+		productValidations.push('  validates :description, presence: true');
 	}
 
 	if (furthestStep >= 2) {
@@ -575,11 +575,13 @@ end`,
 		filename: 'app/models/product.rb',
 		language: 'ruby',
 		code:
-			postValidations.length > 0
-				? `class Product < ApplicationRecord\n${postValidations.join('\n')}\nend`
+			productValidations.length > 0
+				? `class Product < ApplicationRecord\n${productValidations.join('\n')}\nend`
 				: `class Product < ApplicationRecord\n  # No validations yet.\nend`,
 		highlight:
-			postValidations.length > 0 ? postValidations.map((_, i) => i + 2) : [],
+			productValidations.length > 0
+				? productValidations.map((_, i) => i + 2)
+				: [],
 	});
 
 	if (furthestStep >= 2) {
@@ -825,8 +827,8 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Your database is full of garbage data: empty posts with no title,
-							duplicate emails, and malformed addresses.
+							Your database is full of garbage data: empty products with no
+							name, duplicate emails, and malformed addresses.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							ActiveRecord{' '}
@@ -930,7 +932,7 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 									<pre className="text-xs font-mono text-foreground leading-relaxed">
 										{lastProbeId
 											? PROBE_DATA_CARD[lastProbeId]
-											: '{ title: "...", body: "..." }'}
+											: '{ name: "...", description: "..." }'}
 									</pre>
 									{flowMessages[0] && (flowPhase >= 0 || flowPhase === -1) && (
 										<div
@@ -1151,9 +1153,9 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 										completed={isViewingCompletedStep}
 										description={
 											<p className="text-sm text-muted-foreground">
-												You have a product with no title and no body. The record
-												fails validation. How do you inspect the error messages
-												that explain what went wrong?
+												You have a product with no name and no description. The
+												record fails validation. How do you inspect the error
+												messages that explain what went wrong?
 											</p>
 										}
 										hasNext
@@ -1237,7 +1239,7 @@ export function Level10Validations({ onComplete }: LevelComponentProps) {
 										class Product / User &lt; ApplicationRecord
 									</div>
 									<div className="space-y-0.5 font-mono text-xs text-success">
-										<div>validates :title, presence: true</div>
+										<div>validates :name, presence: true</div>
 										<div>validates :email, uniqueness: true</div>
 										<div>validates :email, format: {'{ ... }'}</div>
 									</div>

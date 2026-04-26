@@ -60,7 +60,7 @@ export const level7Serializers: Level = {
 The industry-standard response format for REST APIs. Used by Stripe, Ember, and thousands of production APIs. It provides:
 - Standardized envelope: \`data\`, \`type\`, \`attributes\`, \`relationships\`
 - Built-in pagination via \`links\`
-- Sparse fieldsets: \`fields[posts]=title,body\`
+- Sparse fieldsets: \`fields[products]=name,description\`
 - Compound documents: \`include=reviews\`
 - Standardized error format
 

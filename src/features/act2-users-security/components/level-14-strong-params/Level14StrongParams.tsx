@@ -48,14 +48,14 @@ import {
 } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import {
 	type DiscoveryDef,
 	useDiscoveryGating,
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act2-level14-strong-params', () =>
@@ -87,15 +87,15 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'inject-user-id',
 		label: 'POST with user_id',
-		command: 'POST /api/v1/products {title: "Hi", user_id: 42}',
+		command: 'POST /api/v1/products {name: "Hi", user_id: 42}',
 		responseLines: [
 			{ text: 'HTTP/1.1 201 Created', color: 'red' },
 			{
-				text: '{"id":5,"title":"Hi","user_id":42,"admin":false}',
+				text: '{"id":5,"name":"Hi","user_id":42,"admin":false}',
 				color: 'muted',
 			},
 			{
-				text: 'user_id accepted! Product created as user 42, not the real author.',
+				text: 'user_id accepted! Product created as user 42, not the real seller.',
 				color: 'yellow',
 			},
 			{
@@ -107,17 +107,17 @@ const PROBES: ProbeConfig[] = [
 			'An attacker crafts a POST request that includes user_id: 42 in the body.',
 			'The controller passes all params directly to Product.create!.',
 			'No parameter filtering strips out the injected user_id field.',
-			'The product is saved as if user 42 created it, hiding the real author.',
+			'The product is saved as if user 42 created it, hiding the real seller.',
 		],
 	},
 	{
 		id: 'escalate-admin',
 		label: 'POST with admin: true',
-		command: 'POST /api/v1/products {title: "Exploit", admin: true}',
+		command: 'POST /api/v1/products {name: "Exploit", admin: true}',
 		responseLines: [
 			{ text: 'HTTP/1.1 201 Created', color: 'red' },
 			{
-				text: '{"id":6,"title":"Exploit","admin":true}',
+				text: '{"id":6,"name":"Exploit","admin":true}',
 				color: 'muted',
 			},
 			{
@@ -199,16 +199,16 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		stageId: 'request',
 		title: 'Incoming Request',
 		description:
-			'POST and PATCH requests include a JSON body. The body can contain ANY key the attacker chooses, including user_id and admin, alongside legitimate fields like title and body.',
+			'POST and PATCH requests include a JSON body. The body can contain ANY key the attacker chooses, including user_id and admin, alongside legitimate fields like name and description.',
 	},
 	controller: {
 		stageId: 'controller',
-		title: 'PostsController',
+		title: 'ProductsController',
 		description:
 			'The controller reads request params directly with no filtering layer. Any key the attacker sends in the JSON body can be passed to the model.',
 		code: `def create
-  post = Product.create!(title: params[:title], body: params[:body])
-  render json: post, status: :created
+  product = Product.create!(name: params[:name], description: params[:description])
+  render json: product, status: :created
 end`,
 	},
 	filter: {
@@ -217,7 +217,7 @@ end`,
 		description:
 			'There is no parameter filtering. The controller reads params directly and passes them to the model. Any key the attacker includes in the request body gets saved to the database.',
 		code: `def create
-  post = Product.create!(title: params[:title], body: params[:body],
+  product = Product.create!(name: params[:name], description: params[:description],
                       user_id: params[:user_id], admin: params[:admin])
   # Every param gets through!
 end`,
@@ -244,7 +244,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'clean-create',
 		label: 'Create with safe params',
-		description: 'POST with only title and body',
+		description: 'POST with only name and description',
 		method: 'POST',
 		path: '/api/v1/products',
 		actor: 'user_3',
@@ -271,7 +271,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'clean-update',
 		label: 'Update with safe params',
-		description: 'PATCH with only title and body',
+		description: 'PATCH with only name and description',
 		method: 'PATCH',
 		path: '/api/v1/products/1',
 		actor: 'owner (user_3)',
@@ -327,7 +327,7 @@ const FILTERING_OPTIONS: StepOption[] = [
 	},
 	{
 		id: 'params-expect',
-		label: 'params.expect(product: [:title, :body])',
+		label: 'params.expect(product: [:name, :description])',
 		correct: true,
 	},
 ];
@@ -336,21 +336,21 @@ const FILTERING_OPTIONS: StepOption[] = [
 const WHITELIST_OPTIONS: StepOption[] = [
 	{
 		id: 'everything',
-		label: 'params.expect(product: [:title, :body, :user_id, :admin])',
+		label: 'params.expect(product: [:name, :description, :user_id, :admin])',
 		correct: false,
 		feedback:
 			'user_id and admin are sensitive fields. Users should never set their own ownership or privilege level through request params.',
 	},
 	{
 		id: 'with-user-id',
-		label: 'params.expect(product: [:title, :body, :user_id])',
+		label: 'params.expect(product: [:name, :description, :user_id])',
 		correct: false,
 		feedback:
-			'user_id controls post ownership. If users can set it, they can impersonate other authors.',
+			'user_id controls product ownership. If users can set it, they can impersonate other sellers.',
 	},
 	{
 		id: 'safe-only',
-		label: 'params.expect(product: [:title, :body])',
+		label: 'params.expect(product: [:name, :description])',
 		correct: true,
 	},
 ];
@@ -369,11 +369,11 @@ const OWNERSHIP_OPTIONS: StepOption[] = [
 		label: 'Product.create!(product_params)',
 		correct: false,
 		feedback:
-			'That does not set user_id at all. The post will not be associated with any user.',
+			'That does not set user_id at all. The product will not be associated with any user.',
 	},
 	{
 		id: 'current-user',
-		label: 'current_user.posts.create!(product_params)',
+		label: 'current_user.products.create!(product_params)',
 		correct: true,
 	},
 ];
@@ -402,7 +402,7 @@ const OPTION_STEP_CONFIG: Record<
 	2: {
 		title: 'Set Ownership Safely',
 		description:
-			'user_id is not in the whitelist, but posts still need an owner. How should the create action associate the product with the current user?',
+			'user_id is not in the whitelist, but products still need an owner. How should the create action associate the product with the current user?',
 		options: OWNERSHIP_OPTIONS,
 	},
 };
@@ -438,18 +438,18 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 			code: `class Api::V1::ProductsController < ApplicationController
   def create
     product = Product.create!(
-      title: params[:title],
-      body: params[:body],
+      name: params[:name],
+      description: params[:description],
       user_id: params[:user_id],  # Attacker-controlled!
       admin: params[:admin]        # Attacker-controlled!
     )
-    render json: post, status: :created
+    render json: product, status: :created
   end
 
   def update
     product = Product.find(params[:id])
-    product.update!(title: params[:title], body: params[:body])
-    render json: post
+    product.update!(name: params[:name], description: params[:description])
+    render json: product
   end
 
   # No parameter filtering at all!
@@ -468,18 +468,18 @@ end`,
 			code: `class Api::V1::ProductsController < ApplicationController
   def create
     product = Product.create!(
-      title: params[:title],
-      body: params[:body],
+      name: params[:name],
+      description: params[:description],
       user_id: params[:user_id],  # Attacker-controlled!
       admin: params[:admin]        # Attacker-controlled!
     )
-    render json: post, status: :created
+    render json: product, status: :created
   end
 
   def update
     product = Product.find(params[:id])
-    product.update!(title: params[:title], body: params[:body])
-    render json: post
+    product.update!(name: params[:name], description: params[:description])
+    render json: product
   end
 
   # No parameter filtering at all!
@@ -496,41 +496,41 @@ end`,
 				furthestStep >= 3
 					? `class Api::V1::ProductsController < ApplicationController
   def create
-    product = current_user.posts.create!(product_params)
-    render json: post, status: :created
+    product = current_user.products.create!(product_params)
+    render json: product, status: :created
   end
 
   def update
     product = Product.find(params[:id])
     product.update!(product_params)
-    render json: post
+    render json: product
   end
 
   private
 
   def product_params
-    params.expect(product: [:title, :body])
+    params.expect(product: [:name, :description])
     # user_id and admin removed!
-    # Ownership set via current_user.posts association
+    # Ownership set via current_user.products association
   end
 end`
 					: furthestStep >= 2
 						? `class Api::V1::ProductsController < ApplicationController
   def create
     product = Product.create!(product_params)
-    render json: post, status: :created
+    render json: product, status: :created
   end
 
   def update
     product = Product.find(params[:id])
     product.update!(product_params)
-    render json: post
+    render json: product
   end
 
   private
 
   def product_params
-    params.expect(product: [:title, :body])
+    params.expect(product: [:name, :description])
     # user_id and admin removed!
     # But how does user_id get set now?
   end
@@ -538,13 +538,13 @@ end`
 						: `class Api::V1::ProductsController < ApplicationController
   def create
     product = Product.create!(product_params)
-    render json: post, status: :created
+    render json: product, status: :created
   end
 
   def update
     product = Product.find(params[:id])
     product.update!(product_params)
-    render json: post
+    render json: product
   end
 
   private
@@ -661,7 +661,7 @@ export function Level14StrongParams({ onComplete }: LevelComponentProps) {
 			{
 				id: 'filter',
 				label: 'params.expect',
-				sublabel: wasBlocked ? 'STRIPPED' : '[:title, :body]',
+				sublabel: wasBlocked ? 'STRIPPED' : '[:name, :description]',
 				variant: wasBlocked ? ('danger' as const) : ('active' as const),
 				badge: wasBlocked ? 'BLOCKED' : undefined,
 			},

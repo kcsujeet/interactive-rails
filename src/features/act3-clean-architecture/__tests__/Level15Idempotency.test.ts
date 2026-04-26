@@ -62,7 +62,7 @@ describe('Level 15: Idempotency', () => {
 			});
 
 			expect(result.valid).toBe(false);
-			expect(result.details!.length).toBe(3);
+			expect(result.details?.length).toBe(3);
 		});
 
 		test('should require seeing overcharge first', () => {
@@ -72,7 +72,7 @@ describe('Level 15: Idempotency', () => {
 				sawOvercharge: false,
 			});
 
-			expect(result.details!.some((d) => d.includes('overcharged'))).toBe(true);
+			expect(result.details?.some((d) => d.includes('overcharged'))).toBe(true);
 		});
 
 		test('should require enabling idempotency', () => {
@@ -83,7 +83,7 @@ describe('Level 15: Idempotency', () => {
 			});
 
 			expect(
-				result.details!.some((d) => d.includes('Enable Idempotency')),
+				result.details?.some((d) => d.includes('Enable Idempotency')),
 			).toBe(true);
 		});
 	});
@@ -97,7 +97,7 @@ describe('Level 15: Idempotency', () => {
 			});
 
 			expect(result.valid).toBe(false);
-			expect(result.details!.some((d) => d.includes('currently 1'))).toBe(true);
+			expect(result.details?.some((d) => d.includes('currently 1'))).toBe(true);
 		});
 
 		test('should be invalid if skipped seeing overcharge', () => {
@@ -108,7 +108,7 @@ describe('Level 15: Idempotency', () => {
 			});
 
 			expect(result.valid).toBe(false);
-			expect(result.details!.some((d) => d.includes('overcharged'))).toBe(true);
+			expect(result.details?.some((d) => d.includes('overcharged'))).toBe(true);
 		});
 	});
 

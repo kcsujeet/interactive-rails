@@ -19,9 +19,9 @@ import {
 	type TerminalStep,
 	type ValidationResult,
 } from '@/components/levels';
+import { useStepGating } from '@/hooks/useStepGating';
 import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
-import { useStepGating } from '@/hooks/useStepGating';
 
 registerLevelCode('act1-level4-crud', () => []);
 
@@ -37,30 +37,32 @@ const STEPS: TerminalStep[] = [
 		commands: [
 			{
 				id: 'new',
-				label: 'Product.new(title: "Hello", body: "My first post")',
-				command: 'Product.new(title: "Hello", body: "My first post")',
+				label: 'Product.new(name: "Hello", description: "My first product")',
+				command: 'Product.new(name: "Hello", description: "My first product")',
 				correct: false,
 				feedback:
 					'"new" builds the object in memory but doesn\'t save it to the database. You need the method that persists immediately.',
 			},
 			{
 				id: 'insert',
-				label: 'Product.insert(title: "Hello", body: "My first post")',
-				command: 'Product.insert(title: "Hello", body: "My first post")',
+				label: 'Product.insert(name: "Hello", description: "My first product")',
+				command:
+					'Product.insert(name: "Hello", description: "My first product")',
 				correct: false,
 				feedback:
 					'"insert" does a raw SQL INSERT, skipping validations and callbacks. For the full lifecycle, pick the method that validates and saves in one step.',
 			},
 			{
 				id: 'create',
-				label: 'Product.create(title: "Hello", body: "My first post")',
-				command: 'Product.create(title: "Hello", body: "My first post")',
+				label: 'Product.create(name: "Hello", description: "My first product")',
+				command:
+					'Product.create(name: "Hello", description: "My first product")',
 				correct: true,
 			},
 		],
 		outputLines: [
 			{
-				text: '=> #<Product id: 1, title: "Hello", body: "My first post">',
+				text: '=> #<Product id: 1, name: "Hello", description: "My first product">',
 				color: 'cyan',
 			},
 		],
@@ -94,12 +96,12 @@ const STEPS: TerminalStep[] = [
 				command: 'Product.where(1)',
 				correct: false,
 				feedback:
-					'"where" takes conditions like where(title: "Hello"), not a bare ID. You need the method designed for primary key lookups.',
+					'"where" takes conditions like where(name: "Hello"), not a bare ID. You need the method designed for primary key lookups.',
 			},
 		],
 		outputLines: [
 			{
-				text: '=> #<Product id: 1, title: "Hello", body: "My first post">',
+				text: '=> #<Product id: 1, name: "Hello", description: "My first product">',
 				color: 'cyan',
 			},
 		],
@@ -109,7 +111,7 @@ const STEPS: TerminalStep[] = [
 		title: 'Update',
 		description: (
 			<p className="text-sm text-muted-foreground">
-				Which command changes the title and saves to the database?
+				Which command changes the name and saves to the database?
 			</p>
 		),
 		commands: [
@@ -123,16 +125,16 @@ const STEPS: TerminalStep[] = [
 			},
 			{
 				id: 'update_column',
-				label: 'product.update_column(:title, "Updated")',
-				command: 'product.update_column(:title, "Updated")',
+				label: 'product.update_column(:name, "Updated")',
+				command: 'product.update_column(:name, "Updated")',
 				correct: false,
 				feedback:
 					'"update_column" skips validations and callbacks. You need the method that goes through the full Rails lifecycle.',
 			},
 			{
 				id: 'update',
-				label: 'product.update(title: "Updated")',
-				command: 'product.update(title: "Updated")',
+				label: 'product.update(name: "Updated")',
+				command: 'product.update(name: "Updated")',
 				correct: true,
 			},
 		],
@@ -149,8 +151,8 @@ const STEPS: TerminalStep[] = [
 		commands: [
 			{
 				id: 'delete',
-				label: 'post.delete',
-				command: 'post.delete',
+				label: 'product.delete',
+				command: 'product.delete',
 				correct: false,
 				feedback:
 					'"delete" runs SQL directly, skipping callbacks. You need the method that runs lifecycle hooks like dependent associations.',
@@ -164,7 +166,7 @@ const STEPS: TerminalStep[] = [
 		],
 		outputLines: [
 			{
-				text: '=> #<Product id: 1, title: "Updated"> (destroyed)',
+				text: '=> #<Product id: 1, name: "Updated"> (destroyed)',
 				color: 'cyan',
 			},
 		],
@@ -217,21 +219,21 @@ function getCodeFiles({ currentStep }: { currentStep: number }) {
 			filename: 'CRUD_cheatsheet.rb',
 			language: 'ruby',
 			code: `# CREATE - Make new records
-Product.create(title: "Hello", body: "World")
-Product.new(title: "Draft").save
+Product.create(name: "Hello", description: "World")
+Product.new(name: "Draft").save
 
 # READ - Fetch records
-Product.all                    # All posts
+Product.all                    # All products
 Product.find(1)               # By ID
-Product.find_by(title: "Hi")  # By attribute
+Product.find_by(name: "Hi")   # By attribute
 
 # UPDATE - Modify records
-post = Product.find(1)
-product.update(title: "New Title")
+product = Product.find(1)
+product.update(name: "New Name")
 
 # DELETE - Remove records
 product.destroy       # Runs callbacks
-post.delete        # Skips callbacks (avoid)`,
+product.delete        # Skips callbacks (avoid)`,
 			highlight: highlightLines,
 		},
 	];
@@ -293,7 +295,7 @@ export function Level4CRUD({ onComplete }: LevelComponentProps) {
 
 					<div className="p-4">
 						<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-							Database: posts
+							Database: products
 						</div>
 						<div className="text-xs font-mono text-muted-foreground">
 							{getDbState(stepper.furthestStep)}

@@ -8,7 +8,7 @@ export const level28Pagination: Level = {
 	trigger: {
 		type: 'performance_alert',
 		description:
-			'GET /api/posts returns all 50,000 posts at once. The response is 12MB of JSON. Mobile clients crash.',
+			'GET /api/products returns all 50,000 products at once. The response is 12MB of JSON. Mobile clients crash.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -70,11 +70,11 @@ export const level28Pagination: Level = {
 	},
 	problem: {
 		observation:
-			'The PostList service returns `Product.includes(:user)` as the scope with no limit. The controller renders the entire scope, loading 50K ActiveRecord objects into memory and sending a 12MB JSON array. There is no way for clients to request a specific page.',
+			'The ProductList service returns `Product.includes(:user)` as the scope with no limit. The controller renders the entire scope, loading 50K ActiveRecord objects into memory and sending a 12MB JSON array. There is no way for clients to request a specific page.',
 		rootCause:
 			'No pagination. The service scope loads the entire table and the controller renders it all.',
-		codeExample: `# app/services/post_list.rb
-class PostList < ApplicationService
+		codeExample: `# app/services/product_list.rb
+class ProductList < ApplicationService
   Result = Data.define(:success?, :scope, :errors)
   def call
     validation = ListContract.new.call(page: @page)
@@ -117,22 +117,22 @@ end
 
 **Production benchmarks (1,000 sequential page requests):**
 \`\`\`
-Offset-based: GET /posts?page=500
-  SQL:      SELECT * FROM posts LIMIT 25 OFFSET 12475
+Offset-based: GET /products?page=500
+  SQL:      SELECT * FROM products LIMIT 25 OFFSET 12475
             (DB must skip over 12,475 rows before returning 25)
   Time:     Real 1.097s | User 391.5ms
 
-Cursor-based: GET /posts?cursor=eyJpZCI6MTI0NzZ9
-  SQL:      SELECT * FROM posts WHERE id > 12476 LIMIT 25
+Cursor-based: GET /products?cursor=eyJpZCI6MTI0NzZ9
+  SQL:      SELECT * FROM products WHERE id > 12476 LIMIT 25
             (DB uses index to jump directly to id=12476)
   Time:     Real 0.327s | User 163.1ms → 2.4x faster
 \`\`\`
 
 **Why cursor-based is faster:** \`OFFSET 12475\` tells the DB "skip the first 12,475 rows"; it still reads and discards them. \`WHERE id > last_seen_id\` gives the DB engine extra context to traverse the B-tree index directly, with no wasted reads regardless of page depth.
 
-**Why cursor-based is more stable:** With offset pagination, inserting a new post shifts every page by one, so users see duplicates or miss posts. With cursor-based, cursors point to specific records, and new inserts don't invalidate existing cursors.
+**Why cursor-based is more stable:** With offset pagination, inserting a new product shifts every page by one, so users see duplicates or miss products. With cursor-based, cursors point to specific records, and new inserts don't invalidate existing cursors.
 
-**The timestamp gotcha:** IDs are unique, but timestamps are NOT. A bulk import of 10,000 posts with identical \`created_at\` means \`WHERE created_at > X\` can skip records with duplicate values. Fix: always add a secondary sort key on a unique column: \`ORDER BY created_at DESC, id DESC\`.
+**The timestamp gotcha:** IDs are unique, but timestamps are NOT. A bulk import of 10,000 products with identical \`created_at\` means \`WHERE created_at > X\` can skip records with duplicate values. Fix: always add a secondary sort key on a unique column: \`ORDER BY created_at DESC, id DESC\`.
 
 **API pagination with Link headers:**
 - Follow RFC 5988: pagination info in response headers, not body
@@ -156,7 +156,7 @@ class ApplicationController < ActionController::API
 end
 
 # Service object provides the scope:
-class PostList < ApplicationService
+class ProductList < ApplicationService
   Result = Data.define(:success?, :scope, :errors)
   def call
     validation = ListContract.new.call(page: @page)
@@ -169,11 +169,11 @@ end
 # Controller paginates the service scope:
 class Api::V1::ProductsController < ApplicationController
   def index
-    result = PostList.call(page: params[:page])
+    result = ProductList.call(page: params[:page])
     if result.success?
-      @pagy, @posts = pagy(:offset, result.scope)
+      @pagy, @products = pagy(:offset, result.scope)
       response.headers.merge!(@pagy.headers_hash)
-      render json: ProductSerializer.new(@posts)
+      render json: ProductSerializer.new(@products)
     else
       render json: { errors: result.errors },
              status: :unprocessable_entity

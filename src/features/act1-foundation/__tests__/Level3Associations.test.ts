@@ -30,11 +30,11 @@ function validateLevel3Solution(state: Level3State): ValidationResult {
 	} else if (state.relationshipType !== 'has_many') {
 		if (state.relationshipType === 'has_one') {
 			errors.push(
-				'has_one limits posts to a single review - use has_many instead',
+				'has_one limits products to a single review - use has_many instead',
 			);
 		} else if (state.relationshipType === 'has_and_belongs_to_many') {
 			errors.push(
-				'has_and_belongs_to_many is for many-to-many - reviews belong to one post',
+				'has_and_belongs_to_many is for many-to-many - reviews belong to one product',
 			);
 		}
 	}
@@ -70,7 +70,7 @@ describe('Level 3: Associations', () => {
 				relationshipType: null,
 			});
 
-			expect(result.details!.some((d) => d.includes('Review model'))).toBe(
+			expect(result.details?.some((d) => d.includes('Review model'))).toBe(
 				true,
 			);
 		});
@@ -81,7 +81,7 @@ describe('Level 3: Associations', () => {
 				relationshipType: null,
 			});
 
-			expect(result.details!.some((d) => d.includes('relationship type'))).toBe(
+			expect(result.details?.some((d) => d.includes('relationship type'))).toBe(
 				true,
 			);
 		});
@@ -95,7 +95,7 @@ describe('Level 3: Associations', () => {
 			});
 
 			expect(result.valid).toBe(false);
-			expect(result.details!.some((d) => d.includes('single review'))).toBe(
+			expect(result.details?.some((d) => d.includes('single review'))).toBe(
 				true,
 			);
 		});
@@ -107,7 +107,7 @@ describe('Level 3: Associations', () => {
 			});
 
 			expect(result.valid).toBe(false);
-			expect(result.details!.some((d) => d.includes('many-to-many'))).toBe(
+			expect(result.details?.some((d) => d.includes('many-to-many'))).toBe(
 				true,
 			);
 		});
@@ -136,20 +136,20 @@ describe('Level 3: Associations', () => {
 	describe('Learning Outcomes', () => {
 		test('has_one creates 1:1 relationship', () => {
 			// has_one means: Product has_one Review (only one)
-			const explanation = 'has_one limits posts to a single review';
+			const explanation = 'has_one limits products to a single review';
 			expect(explanation).toContain('single');
 		});
 
 		test('has_many creates 1:N relationship', () => {
 			// has_many means: Product has_many Reviews (unlimited)
-			const explanation = 'has_many allows unlimited reviews per post';
+			const explanation = 'has_many allows unlimited reviews per product';
 			expect(explanation).toContain('unlimited');
 		});
 
 		test('has_and_belongs_to_many creates N:N relationship', () => {
-			// HABTM means: Reviews shared between posts (wrong for this case)
+			// HABTM means: Reviews shared between products (wrong for this case)
 			const explanation =
-				'has_and_belongs_to_many shares reviews between posts';
+				'has_and_belongs_to_many shares reviews between products';
 			expect(explanation).toContain('shares');
 		});
 	});

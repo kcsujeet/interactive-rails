@@ -245,7 +245,7 @@ end`,
 		stageId: 'serializer',
 		title: 'Serializer (Missing!)',
 		description:
-			'No serializer exists. Without a serialization layer, `render json: post` calls `.to_json` on the model, which serializes every column including internal timestamps and IDs.',
+			'No serializer exists. Without a serialization layer, `render json: product` calls `.to_json` on the model, which serializes every column including internal timestamps and IDs.',
 	},
 	response: {
 		stageId: 'response',
@@ -553,7 +553,7 @@ const OPTION_STEP_CONFIG: Record<
 	4: {
 		title: 'Update Controller',
 		description:
-			'Replace the raw `render json: post` call in your controller. Route the response through the serializer.',
+			'Replace the raw `render json: product` call in your controller. Route the response through the serializer.',
 		options: RENDER_OPTIONS,
 	},
 };
@@ -830,7 +830,7 @@ export function Level7Serializers({ onComplete }: LevelComponentProps) {
 				id: 'controller',
 				label: 'Controller',
 				variant: 'active' as const,
-				sublabel: probeDisplay ? 'render json: post' : undefined,
+				sublabel: probeDisplay ? 'render json: product' : undefined,
 				badge: probeDisplay ? 'raw!' : undefined,
 				inspectable: true,
 				inspected: inspectedStages.has('controller'),
@@ -1039,8 +1039,10 @@ export function Level7Serializers({ onComplete }: LevelComponentProps) {
 						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							In Level 6, your controller returns{' '}
-							<span className="font-mono text-primary">render json: post</span>,
-							which dumps every column as flat JSON. Timestamps, internal IDs,
+							<span className="font-mono text-primary">
+								render json: product
+							</span>
+							, which dumps every column as flat JSON. Timestamps, internal IDs,
 							everything.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">

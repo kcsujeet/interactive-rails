@@ -66,7 +66,7 @@ describe('Level 16: Caching', () => {
 				cacheMisses: 0,
 			});
 
-			expect(result.details!.some((d) => d.includes('Redis'))).toBe(true);
+			expect(result.details?.some((d) => d.includes('Redis'))).toBe(true);
 		});
 
 		test('should require good hit rate', () => {
@@ -76,7 +76,7 @@ describe('Level 16: Caching', () => {
 				cacheMisses: 9,
 			});
 
-			expect(result.details!.some((d) => d.includes('70%'))).toBe(true);
+			expect(result.details?.some((d) => d.includes('70%'))).toBe(true);
 		});
 	});
 
@@ -89,7 +89,7 @@ describe('Level 16: Caching', () => {
 			});
 
 			expect(result.valid).toBe(false);
-			expect(result.details!.some((d) => d.includes('50%'))).toBe(true);
+			expect(result.details?.some((d) => d.includes('50%'))).toBe(true);
 		});
 
 		test('should be invalid with 60% hit rate', () => {
@@ -174,7 +174,7 @@ describe('Level 16: Caching', () => {
 		});
 
 		test('repeated queries should hit cache', () => {
-			const cachedKeys = new Set(['users/1', 'posts/hot']);
+			const cachedKeys = new Set(['users/1', 'products/hot']);
 			const queryType = 'users/1';
 
 			const isCacheHit = cachedKeys.has(queryType);

@@ -103,7 +103,7 @@ class SessionsController < ApplicationController
 end
 
 # app/controllers/api/v1/products_controller.rb
-class Api::V1::PostsController < ApplicationController
+class Api::V1::ProductsController < ApplicationController
   # 100 requests per minute per user
   rate_limit to: 100, within: 1.minute, only: [:index, :show],
     by: -> { current_user&.id || request.remote_ip }
@@ -196,7 +196,7 @@ class RackAttackTest < ActionDispatch::IntegrationTest
 
   test "throttles excessive requests from single IP" do
     301.times do
-      get api_v1_posts_path, headers: { "REMOTE_ADDR" => "1.2.3.4" }
+      get api_v1_products_path, headers: { "REMOTE_ADDR" => "1.2.3.4" }
     end
 
     assert_response 429

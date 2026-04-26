@@ -8,7 +8,7 @@
  *   routes.rb is empty. The player fires probes and inspects stages to discover
  *   that no routes are defined, no namespace exists, and all requests fail.
  * Phase 2 (HOW - build): 4 steps building RESTful routes under /api/v1/
- *   Step 0: Define resources :posts (OptionCard)
+ *   Step 0: Define resources :products (OptionCard)
  *   Step 1: Add namespace wrapping (OptionCard)
  *   Step 2: View routes with rails routes (TerminalChoiceStep)
  *   Step 3: Trace the request lifecycle (OptionCard)
@@ -52,14 +52,14 @@ import {
 } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import {
 	type DiscoveryDef,
 	useDiscoveryGating,
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act1-level5-routes', () =>
@@ -89,21 +89,21 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 
 const PROBES: ProbeConfig[] = [
 	{
-		id: 'get-posts',
-		label: 'GET /posts',
+		id: 'get-products',
+		label: 'GET /products',
 		story: [
 			'A frontend developer tries to fetch all products from the API.',
-			'They send a GET request to /posts, expecting a JSON list.',
+			'They send a GET request to /products, expecting a JSON list.',
 			'The Rails router receives the request and looks for a matching route.',
 			'config/routes.rb is empty. No routes are defined at all.',
 			'The router returns a 404. The request never reaches any controller.',
 		],
-		command: 'GET /posts',
+		command: 'GET /products',
 		responseLines: [
 			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'No route matches [GET] "/posts"',
+				text: 'No route matches [GET] "/products"',
 				color: 'yellow',
 			},
 			{
@@ -113,21 +113,21 @@ const PROBES: ProbeConfig[] = [
 		],
 	},
 	{
-		id: 'post-posts',
-		label: 'POST /posts',
+		id: 'post-products',
+		label: 'POST /products',
 		story: [
 			'A customer submits a new product listing through the storefront.',
-			'The form sends a POST request with the product data to /posts.',
-			'The Rails router checks its route table for a POST /posts match.',
+			'The form sends a POST request with the product data to /products.',
+			'The Rails router checks its route table for a POST /products match.',
 			'Still nothing. The route table is completely empty.',
 			'POST fails with a 404 too. Without routes, no HTTP verb can reach the app.',
 		],
-		command: 'POST /posts {"title":"Hello"}',
+		command: 'POST /products {"name":"Hello"}',
 		responseLines: [
 			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'No route matches [POST] "/posts"',
+				text: 'No route matches [POST] "/products"',
 				color: 'yellow',
 			},
 			{
@@ -137,7 +137,7 @@ const PROBES: ProbeConfig[] = [
 		],
 	},
 	{
-		id: 'get-api-posts',
+		id: 'get-api-products',
 		label: 'GET /api/v1/products',
 		story: [
 			'The mobile app tries the versioned API endpoint at /api/v1/products.',
@@ -164,9 +164,9 @@ const PROBES: ProbeConfig[] = [
 
 // Map probe IDs to discovery IDs they trigger
 const PROBE_DISCOVERY_MAP: Record<string, string> = {
-	'get-posts': 'get-404',
-	'post-posts': 'post-404',
-	'get-api-posts': 'no-namespace',
+	'get-products': 'get-404',
+	'post-products': 'post-404',
+	'get-api-products': 'no-namespace',
 };
 
 // Map probe IDs to pipeline node display during observe
@@ -174,15 +174,15 @@ const PROBE_PIPELINE_MAP: Record<
 	string,
 	{ routerSublabel: string; routerBadge: string }
 > = {
-	'get-posts': {
-		routerSublabel: 'GET /posts',
+	'get-products': {
+		routerSublabel: 'GET /products',
 		routerBadge: '404!',
 	},
-	'post-posts': {
-		routerSublabel: 'POST /posts',
+	'post-products': {
+		routerSublabel: 'POST /products',
 		routerBadge: '404!',
 	},
-	'get-api-posts': {
+	'get-api-products': {
 		routerSublabel: 'GET /api/v1/products',
 		routerBadge: '404!',
 	},
@@ -211,7 +211,7 @@ end`,
 	},
 	controller: {
 		stageId: 'controller',
-		title: 'PostsController (Unreachable)',
+		title: 'ProductsController (Unreachable)',
 		description:
 			'The controller exists and has all five RESTful actions defined, but without routes, no HTTP request can reach it.',
 	},
@@ -242,7 +242,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'get-index',
 		label: 'List all products',
-		description: 'Fetch the collection of posts',
+		description: 'Fetch the collection of products',
 		method: 'GET',
 		path: '/api/v1/products',
 		actor: 'client',
@@ -259,8 +259,8 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'get-show',
-		label: 'Show one post',
-		description: 'Fetch a single post by ID',
+		label: 'Show one product',
+		description: 'Fetch a single product by ID',
 		method: 'GET',
 		path: '/api/v1/products/1',
 		actor: 'client',
@@ -269,7 +269,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'patch-update',
 		label: 'Update a product',
-		description: 'Modify an existing post',
+		description: 'Modify an existing product',
 		method: 'PATCH',
 		path: '/api/v1/products/1',
 		actor: 'client',
@@ -299,7 +299,7 @@ const STEP_DEFS: StepDef[] = [
 
 // Step type indexed by step number
 const STEP_TYPES: ('terminal' | 'option')[] = [
-	'option', // 0: resources :posts
+	'option', // 0: resources :products
 	'option', // 1: namespace wrapping
 	'terminal', // 2: rails routes
 	'option', // 3: trace request lifecycle
@@ -323,21 +323,21 @@ interface StepOption {
 const RESOURCE_OPTIONS: StepOption[] = [
 	{
 		id: 'get-only',
-		label: "get '/posts' => 'posts#index'",
+		label: "get '/products' => 'products#index'",
 		correct: false,
 		feedback:
 			'A single GET route only handles one endpoint. You need all 5 RESTful routes generated with one line.',
 	},
 	{
 		id: 'match',
-		label: "match '/posts', to: 'posts#index'",
+		label: "match '/products', to: 'products#index'",
 		correct: false,
 		feedback:
 			'`match` is for custom one-off routes, not for generating a full set of RESTful endpoints.',
 	},
 	{
 		id: 'resources',
-		label: 'resources :posts',
+		label: 'resources :products',
 		correct: true,
 	},
 ];
@@ -349,7 +349,7 @@ const RESOURCE_OPTIONS: StepOption[] = [
 const NAMESPACE_OPTIONS: StepOption[] = [
 	{
 		id: 'scope-only',
-		label: "scope '/api/v1' do\n  resources :posts\nend",
+		label: "scope '/api/v1' do\n  resources :products\nend",
 		correct: false,
 		feedback:
 			'scope changes only the URL path, not the controller module. Your controller lives in Api::V1, so you need something that maps both.',
@@ -357,12 +357,12 @@ const NAMESPACE_OPTIONS: StepOption[] = [
 	{
 		id: 'correct-namespace',
 		label:
-			'namespace :api do\n  namespace :v1 do\n    resources :posts\n  end\nend',
+			'namespace :api do\n  namespace :v1 do\n    resources :products\n  end\nend',
 		correct: true,
 	},
 	{
 		id: 'single-namespace',
-		label: "namespace 'api/v1' do\n  resources :posts\nend",
+		label: "namespace 'api/v1' do\n  resources :products\nend",
 		correct: false,
 		feedback:
 			'Namespace takes a symbol for each segment. Nesting two namespaces produces the correct module path (Api::V1).',
@@ -404,23 +404,23 @@ const viewRoutesOutput: TerminalOutputLine[] = [
 		color: 'muted',
 	},
 	{
-		text: '  api_v1_posts  GET     /api/v1/products(.:format)        api/v1/posts#index',
+		text: '  api_v1_products  GET     /api/v1/products(.:format)     api/v1/products#index',
 		color: 'green',
 	},
 	{
-		text: '               POST    /api/v1/products(.:format)        api/v1/posts#create',
+		text: '               POST    /api/v1/products(.:format)        api/v1/products#create',
 		color: 'cyan',
 	},
 	{
-		text: '   api_v1_post  GET     /api/v1/products/:id(.:format)    api/v1/posts#show',
+		text: '   api_v1_product  GET     /api/v1/products/:id(.:format) api/v1/products#show',
 		color: 'green',
 	},
 	{
-		text: '               PATCH   /api/v1/products/:id(.:format)    api/v1/posts#update',
+		text: '               PATCH   /api/v1/products/:id(.:format)    api/v1/products#update',
 		color: 'yellow',
 	},
 	{
-		text: '               DELETE  /api/v1/products/:id(.:format)    api/v1/posts#destroy',
+		text: '               DELETE  /api/v1/products/:id(.:format)    api/v1/products#destroy',
 		color: 'red',
 	},
 ];
@@ -477,13 +477,13 @@ const OPTION_STEP_CONFIG: Record<
 	0: {
 		title: 'Define Resource',
 		description:
-			'Which line in config/routes.rb generates all 5 RESTful routes for posts (index, show, create, update, destroy)?',
+			'Which line in config/routes.rb generates all 5 RESTful routes for products (index, show, create, update, destroy)?',
 		options: RESOURCE_OPTIONS,
 	},
 	1: {
 		title: 'Add Namespace',
 		description:
-			'The resource creates /posts, but your API controller lives at Api::V1::ProductsController. How do you nest routes under /api/v1/?',
+			'The resource creates /products, but your API controller lives at Api::V1::ProductsController. How do you nest routes under /api/v1/?',
 		options: NAMESPACE_OPTIONS,
 	},
 	3: {
@@ -588,8 +588,8 @@ end`,
 			filename: 'config/routes.rb',
 			language: 'ruby',
 			code: `Rails.application.routes.draw do
-  resources :posts
-  # But this creates /posts, not /api/v1/products
+  resources :products
+  # But this creates /products, not /api/v1/products
   # We need namespaces!
 end`,
 			highlight: [2],
@@ -603,7 +603,7 @@ end`,
 			code: `Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
-      resources :posts
+      resources :products
     end
   end
 end`,
@@ -617,11 +617,11 @@ end`,
 			language: 'ruby',
 			code: `# rails routes
 #
-# GET    /api/v1/products          => api/v1/posts#index
-# POST   /api/v1/products          => api/v1/posts#create
-# GET    /api/v1/products/:id      => api/v1/posts#show
-# PATCH  /api/v1/products/:id      => api/v1/posts#update
-# DELETE /api/v1/products/:id      => api/v1/posts#destroy`,
+# GET    /api/v1/products          => api/v1/products#index
+# POST   /api/v1/products          => api/v1/products#create
+# GET    /api/v1/products/:id      => api/v1/products#show
+# PATCH  /api/v1/products/:id      => api/v1/products#update
+# DELETE /api/v1/products/:id      => api/v1/products#destroy`,
 			highlight: [3, 4, 5, 6, 7],
 		});
 	}
@@ -634,9 +634,9 @@ end`,
 #
 # 1. Request arrives (GET /api/v1/products)
 # 2. Router matches: Api::V1::ProductsController#index
-# 3. Controller calls: @posts = Product.all
+# 3. Controller calls: @products = Product.all
 # 4. Model queries DB: SELECT * FROM products
-# 5. Controller renders: render json: @posts
+# 5. Controller renders: render json: @products
 # 6. Response: 200 OK with JSON body`,
 			highlight: [3, 4, 5, 6, 7, 8],
 		});
@@ -757,11 +757,11 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 			? STRESS_SCENARIOS.find((s) => s.id === lastResult.scenarioId)
 			: null;
 		const actionMap: Record<string, string> = {
-			'get-index': 'posts#index',
-			'post-create': 'posts#create',
-			'get-show': 'posts#show',
-			'patch-update': 'posts#update',
-			'delete-destroy': 'posts#destroy',
+			'get-index': 'products#index',
+			'post-create': 'products#create',
+			'get-show': 'products#show',
+			'patch-update': 'products#update',
+			'delete-destroy': 'products#destroy',
 		};
 		const matchedAction = scenario ? actionMap[scenario.id] : null;
 		return [
@@ -900,9 +900,9 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Posts work in the console (Levels 3-4), and Puma is running from
-							Level 2. But HTTP requests from the outside world cannot reach
-							your app yet.
+							Products work in the console (Levels 3-4), and Puma is running
+							from Level 2. But HTTP requests from the outside world cannot
+							reach your app yet.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							The <span className="text-foreground font-medium">router</span>{' '}

@@ -30,9 +30,9 @@ import {
 } from '@/components/levels';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
-import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act3-level16-service-objects', () =>

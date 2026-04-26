@@ -37,13 +37,13 @@ const PROBES = [
 	{
 		id: 'search-rails',
 		label: 'Search "rails"',
-		command: 'GET /api/posts?q=rails (50K rows)',
+		command: 'GET /api/products?q=rails (50K rows)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'yellow' },
 			{ text: '', color: 'muted' },
-			{ text: 'Seq Scan on posts (cost=0.00..1250.00)', color: 'red' },
+			{ text: 'Seq Scan on products (cost=0.00..1250.00)', color: 'red' },
 			{
-				text: "Filter: (title ~~ '%rails%' OR body ~~ '%rails%')",
+				text: "Filter: (name ~~ '%rails%' OR description ~~ '%rails%')",
 				color: 'muted',
 			},
 			{ text: 'Rows Removed by Filter: 49,500', color: 'muted' },
@@ -53,7 +53,7 @@ const PROBES = [
 	{
 		id: 'search-running',
 		label: 'Search "running"',
-		command: 'GET /api/posts?q=running (stemming test)',
+		command: 'GET /api/products?q=running (stemming test)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'yellow' },
 			{ text: '', color: 'muted' },
@@ -68,7 +68,7 @@ const PROBES = [
 	{
 		id: 'search-database',
 		label: 'Search "database"',
-		command: 'GET /api/posts?q=database (ranking test)',
+		command: 'GET /api/products?q=database (ranking test)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'yellow' },
 			{ text: '', color: 'muted' },
@@ -77,7 +77,7 @@ const PROBES = [
 				color: 'red',
 			},
 			{
-				text: 'A title match and a body mention are ranked equally.',
+				text: 'A name match and a description mention are ranked equally.',
 				color: 'muted',
 			},
 			{ text: 'No relevance scoring with LIKE queries.', color: 'red' },
@@ -117,7 +117,7 @@ const STRESS_SCENARIOS = [
 		expectedResult: 'allowed',
 		responseLines: [
 			{
-				text: 'Bitmap Heap Scan using posts_searchable_idx',
+				text: 'Bitmap Heap Scan using products_searchable_idx',
 				color: 'green',
 			},
 			{ text: "  Index Cond: searchable @@ 'rail'", color: 'yellow' },
@@ -131,7 +131,7 @@ const STRESS_SCENARIOS = [
 		expectedResult: 'allowed',
 		responseLines: [
 			{
-				text: 'Bitmap Heap Scan using posts_searchable_idx',
+				text: 'Bitmap Heap Scan using products_searchable_idx',
 				color: 'green',
 			},
 			{
@@ -148,11 +148,11 @@ const STRESS_SCENARIOS = [
 		expectedResult: 'allowed',
 		responseLines: [
 			{
-				text: 'Bitmap Heap Scan using posts_searchable_idx',
+				text: 'Bitmap Heap Scan using products_searchable_idx',
 				color: 'green',
 			},
 			{
-				text: "  ts_rank: title(A) > body(B) for 'databas'",
+				text: "  ts_rank: name(A) > description(B) for 'databas'",
 				color: 'yellow',
 			},
 			{ text: '  Rows: 7, sorted by relevance', color: 'green' },
@@ -165,7 +165,7 @@ const STRESS_SCENARIOS = [
 		expectedResult: 'allowed',
 		responseLines: [
 			{
-				text: 'Bitmap Heap Scan using posts_searchable_idx',
+				text: 'Bitmap Heap Scan using products_searchable_idx',
 				color: 'green',
 			},
 			{
@@ -287,12 +287,12 @@ const generateMigrationCommands = [
 	},
 	{
 		id: 'correct',
-		label: 'rails generate migration AddSearchToPosts',
+		label: 'rails generate migration AddSearchToProducts',
 		correct: true,
 	},
 	{
 		id: 'wrong-no-gin',
-		label: 'rails generate migration AddSearchToPosts searchable:tsvector',
+		label: 'rails generate migration AddSearchToProducts searchable:tsvector',
 		correct: false,
 		feedback:
 			'Passing the column type on the command line only adds the column. You need to manually add the GIN index and trigger in the migration file.',
@@ -339,22 +339,22 @@ const INCLUDE_OPTIONS = [
 const SCOPE_OPTIONS = [
 	{
 		id: 'wrong-like-scope',
-		label: 'scope :search, ->(q) {\n  where("title LIKE ?", "%#{q}%")\n}',
+		label: 'scope :search, ->(q) {\n  where("name LIKE ?", "%#{q}%")\n}',
 		correct: false,
 		feedback:
 			'That is the same LIKE approach you are replacing. The gem provides a DSL that uses tsvector under the hood.',
 	},
 	{
 		id: 'wrong-no-weights',
-		label: 'pg_search_scope :search,\n  against: [:title, :body]',
+		label: 'pg_search_scope :search,\n  against: [:name, :description]',
 		correct: false,
 		feedback:
-			'Passing columns as an array gives them equal weight. Title matches should rank higher than body matches for better relevance.',
+			'Passing columns as an array gives them equal weight. Name matches should rank higher than description matches for better relevance.',
 	},
 	{
 		id: 'correct',
 		label:
-			"pg_search_scope :search,\n  against: { title: 'A', body: 'B' },\n  using: {\n    tsearch: { dictionary: 'english' }\n  }",
+			"pg_search_scope :search,\n  against: { name: 'A', description: 'B' },\n  using: {\n    tsearch: { dictionary: 'english' }\n  }",
 		correct: true,
 	},
 ];
@@ -362,7 +362,8 @@ const SCOPE_OPTIONS = [
 const SERVICE_OPTIONS = [
 	{
 		id: 'wrong-keep-like',
-		label: 'Product.where("title LIKE :q OR body LIKE :q", q: "%#{@query}%")',
+		label:
+			'Product.where("name LIKE :q OR description LIKE :q", q: "%#{@query}%")',
 		correct: false,
 		feedback:
 			'That is the same LIKE query you are replacing. You just defined a search scope on the model that uses the GIN index.',
@@ -501,11 +502,11 @@ describe('Level 29: Search', () => {
 				// Should not contain exact correct commands
 				expect(lower).not.toContain('bundle add pg_search');
 				expect(lower).not.toContain(
-					'rails generate migration addsearchtoposts',
+					'rails generate migration addsearchtoproducts',
 				);
 				expect(lower).not.toContain('rails db:migrate');
 				expect(lower).not.toContain('include pgsearch::model');
-				expect(lower).not.toContain('post.search(@query');
+				expect(lower).not.toContain('product.search(@query');
 			}
 		});
 	});
@@ -570,7 +571,9 @@ describe('Level 29: Search', () => {
 
 	describe('Grid data consistency', () => {
 		test('observe match positions are within grid bounds', () => {
-			for (const [probeId, positions] of Object.entries(OBSERVE_GRID_MATCHES)) {
+			for (const [_probeId, positions] of Object.entries(
+				OBSERVE_GRID_MATCHES,
+			)) {
 				for (const pos of positions) {
 					expect(pos).toBeGreaterThanOrEqual(0);
 					expect(pos).toBeLessThan(GRID_SIZE);
@@ -579,7 +582,7 @@ describe('Level 29: Search', () => {
 		});
 
 		test('reward match positions are within grid bounds', () => {
-			for (const [scenarioId, positions] of Object.entries(
+			for (const [_scenarioId, positions] of Object.entries(
 				REWARD_GRID_MATCHES,
 			)) {
 				for (const pos of positions) {

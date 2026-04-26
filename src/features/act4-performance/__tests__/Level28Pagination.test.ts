@@ -67,7 +67,7 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 
 const PROBES: ProbeConfig[] = [
 	{
-		id: 'get-all-posts',
+		id: 'get-all-products',
 		label: 'GET all products',
 		command: 'GET /api/v1/products',
 		responseLines: [
@@ -80,7 +80,7 @@ const PROBES: ProbeConfig[] = [
 				color: 'muted',
 			},
 			{
-				text: 'All 50,000 posts returned. No pagination.',
+				text: 'All 50,000 products returned. No pagination.',
 				color: 'red',
 			},
 		],
@@ -124,7 +124,7 @@ const PROBES: ProbeConfig[] = [
 ];
 
 const PROBE_DISCOVERY_MAP: Record<string, string> = {
-	'get-all-posts': 'huge-response',
+	'get-all-products': 'huge-response',
 	'get-mobile': 'mobile-crash',
 	'check-memory': 'memory-spike',
 };
@@ -213,21 +213,21 @@ const CONFIGURE_OPTIONS: StepOption[] = [
 const WIRE_INDEX_OPTIONS: StepOption[] = [
 	{
 		id: 'wrong-kaminari-style',
-		label: '@posts = result.scope.page(params[:page]).per(25)',
+		label: '@products = result.scope.page(params[:page]).per(25)',
 		correct: false,
 		feedback:
 			'That is Kaminari syntax. Pagy uses a different API: the pagy() method returns both metadata and the paginated collection.',
 	},
 	{
 		id: 'wrong-manual',
-		label: '@posts = result.scope.limit(25).offset(params[:page].to_i * 25)',
+		label: '@products = result.scope.limit(25).offset(params[:page].to_i * 25)',
 		correct: false,
 		feedback:
 			'Manual LIMIT/OFFSET works but loses pagination metadata (total count, page links). The gem handles this automatically.',
 	},
 	{
 		id: 'correct',
-		label: '@pagy, @posts = pagy(:offset, result.scope)',
+		label: '@pagy, @products = pagy(:offset, result.scope)',
 		correct: true,
 	},
 ];
@@ -235,7 +235,7 @@ const WIRE_INDEX_OPTIONS: StepOption[] = [
 const HEADERS_OPTIONS: StepOption[] = [
 	{
 		id: 'wrong-body',
-		label: 'render json: { data: @posts, meta: { page: @pagy.page } }',
+		label: 'render json: { data: @products, meta: { page: @pagy.page } }',
 		correct: false,
 		feedback:
 			'Embedding pagination in the JSON body is non-standard. RFC 5988 specifies Link headers so the payload stays clean.',
@@ -265,7 +265,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'page-1',
 		label: 'GET page 1 (default)',
-		description: 'First page of posts, 25 items',
+		description: 'First page of products, 25 items',
 		method: 'GET',
 		path: '/api/v1/products',
 		actor: 'web client',
@@ -273,7 +273,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'green' },
 			{
-				text: 'Link: </posts?page=2>; rel="next", </posts?page=2000>; rel="last"',
+				text: 'Link: </products?page=2>; rel="next", </products?page=2000>; rel="last"',
 				color: 'green',
 			},
 			{ text: 'Content-Length: 6,250  (6KB, 25 items)', color: 'green' },
@@ -290,7 +290,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'green' },
 			{
-				text: 'Link: </posts?page=49>; rel="prev", </posts?page=51>; rel="next"',
+				text: 'Link: </products?page=49>; rel="prev", </products?page=51>; rel="next"',
 				color: 'green',
 			},
 			{ text: 'Content-Length: 6,250  (6KB, 25 items)', color: 'green' },
@@ -299,7 +299,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'page-2000',
 		label: 'GET page 2000 (last)',
-		description: 'Last page of 50K posts',
+		description: 'Last page of 50K products',
 		method: 'GET',
 		path: '/api/v1/products?page=2000',
 		actor: 'mobile client',
@@ -307,7 +307,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'green' },
 			{
-				text: 'Link: </posts?page=1999>; rel="prev"',
+				text: 'Link: </products?page=1999>; rel="prev"',
 				color: 'green',
 			},
 			{ text: 'Content-Length: 6,250  (6KB, 25 items)', color: 'green' },
@@ -424,8 +424,8 @@ describe('Level 28: Pagination', () => {
 			}
 		});
 
-		test('get-all-posts probe mentions 12MB response', () => {
-			const probe = PROBES.find((p) => p.id === 'get-all-posts');
+		test('get-all-products probe mentions 12MB response', () => {
+			const probe = PROBES.find((p) => p.id === 'get-all-products');
 			expect(probe).toBeTruthy();
 			const has12MB = probe?.responseLines.some((l) => l.text.includes('12'));
 			expect(has12MB).toBe(true);
@@ -696,7 +696,7 @@ describe('Level 28: Pagination', () => {
 	describe('Cross-phase consistency', () => {
 		test('observe probes show the problem (12MB, crash, memory)', () => {
 			const probeIds = PROBES.map((p) => p.id);
-			expect(probeIds).toContain('get-all-posts');
+			expect(probeIds).toContain('get-all-products');
 			expect(probeIds).toContain('get-mobile');
 			expect(probeIds).toContain('check-memory');
 		});

@@ -57,14 +57,14 @@ import {
 } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import {
 	type DiscoveryDef,
 	useDiscoveryGating,
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act2-level15-cors', () =>
@@ -94,8 +94,8 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 
 const PROBES: ProbeConfig[] = [
 	{
-		id: 'fetch-posts',
-		label: 'GET /posts from React',
+		id: 'fetch-products',
+		label: 'GET /products from React',
 		command:
 			'fetch("http://localhost:3000/api/v1/products") // from localhost:3001',
 		responseLines: [
@@ -122,7 +122,7 @@ const PROBES: ProbeConfig[] = [
 	},
 	{
 		id: 'preflight-delete',
-		label: 'DELETE /posts/1 from React',
+		label: 'DELETE /products/1 from React',
 		command:
 			'fetch("http://localhost:3000/api/v1/products/1", { method: "DELETE" })',
 		responseLines: [
@@ -145,11 +145,11 @@ const PROBES: ProbeConfig[] = [
 	},
 	{
 		id: 'curl-bypass',
-		label: 'GET /posts via curl',
+		label: 'GET /products via curl',
 		command: 'curl http://localhost:3000/api/v1/products',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'green' },
-			{ text: '[{"id":1,"title":"Hello World"}, ...]', color: 'green' },
+			{ text: '[{"id":1,"name":"Hello World"}, ...]', color: 'green' },
 			{
 				text: 'curl ignores CORS (no browser = no Same-Origin Policy)',
 				color: 'muted',
@@ -165,7 +165,7 @@ const PROBES: ProbeConfig[] = [
 ];
 
 const PROBE_DISCOVERY_MAP: Record<string, string> = {
-	'fetch-posts': 'browser-blocked',
+	'fetch-products': 'browser-blocked',
 	'preflight-delete': 'preflight-fails',
 	'curl-bypass': 'curl-works',
 };
@@ -207,7 +207,7 @@ const PROBE_PIPELINE_MAP: Record<
 	string,
 	{ gateSublabel: string; gateBadge: string }
 > = {
-	'fetch-posts': { gateSublabel: 'No headers sent', gateBadge: 'BLOCKED' },
+	'fetch-products': { gateSublabel: 'No headers sent', gateBadge: 'BLOCKED' },
 	'preflight-delete': {
 		gateSublabel: 'OPTIONS rejected',
 		gateBadge: 'BLOCKED',
@@ -221,7 +221,7 @@ const PROBE_PIPELINE_MAP: Record<
 // ──────────────────────────────────────────────
 
 const OBSERVE_FLOW: Record<string, string[]> = {
-	'fetch-posts': [
+	'fetch-products': [
 		'fetch() from localhost:3001',
 		'No CORS headers, browser blocks response',
 		'Response blocked before reaching app',
@@ -363,7 +363,7 @@ const HTTP_METHODS_OPTIONS: StepOption[] = [
 		label: 'methods: [:get]',
 		correct: false,
 		feedback:
-			'GET-only blocks all mutations. Your frontend needs to create, update, and delete posts.',
+			'GET-only blocks all mutations. Your frontend needs to create, update, and delete products.',
 	},
 	{
 		id: 'any',
@@ -422,8 +422,8 @@ const OPTION_STEP_CONFIG: Record<
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'frontend-get',
-		label: 'GET /posts (from localhost)',
-		description: 'React frontend fetches posts',
+		label: 'GET /products (from localhost)',
+		description: 'React frontend fetches products',
 		method: 'GET',
 		path: '/api/v1/products',
 		actor: 'localhost:3001',
@@ -431,7 +431,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'frontend-post',
-		label: 'POST /posts (from localhost)',
+		label: 'POST /products (from localhost)',
 		description: 'React frontend creates a product',
 		method: 'POST',
 		path: '/api/v1/products',
@@ -440,7 +440,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'frontend-delete',
-		label: 'DELETE /posts/1 (from localhost)',
+		label: 'DELETE /products/1 (from localhost)',
 		description: 'React frontend deletes a product',
 		method: 'DELETE',
 		path: '/api/v1/products/1',
@@ -449,8 +449,8 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'evil-get',
-		label: 'GET /posts (from evil.com)',
-		description: 'Malicious site reads posts',
+		label: 'GET /products (from evil.com)',
+		description: 'Malicious site reads products',
 		method: 'GET',
 		path: '/api/v1/products',
 		actor: 'evil.example.com',
@@ -458,7 +458,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'evil-delete',
-		label: 'DELETE /posts/1 (from evil.com)',
+		label: 'DELETE /products/1 (from evil.com)',
 		description: 'Malicious site tries to delete',
 		method: 'DELETE',
 		path: '/api/v1/products/1',
@@ -467,7 +467,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'unknown-post',
-		label: 'POST /posts (from unknown)',
+		label: 'POST /products (from unknown)',
 		description: 'Unknown origin creates a product',
 		method: 'POST',
 		path: '/api/v1/products',

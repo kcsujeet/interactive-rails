@@ -8,35 +8,35 @@ export const level27CounterCaches: Level = {
 	trigger: {
 		type: 'performance_alert',
 		description:
-			'Fire requests at the posts index to watch COUNT(*) queries cascade through the query waterfall. Each post fires a separate query just to count its reviews.',
+			'Fire requests at the products index to watch COUNT(*) queries cascade through the query waterfall. Each product fires a separate query just to count its reviews.',
 	},
 	problem: {
 		observation:
-			'`product.reviews.count` runs a COUNT(*) query for every post on the index page. 100 posts = 100 extra COUNT queries.',
+			'`product.reviews.count` runs a COUNT(*) query for every product on the index page. 100 products = 100 extra COUNT queries.',
 		rootCause:
 			'No denormalized count column. Rails must query the reviews table for every product to get the count.',
-		codeExample: `# app/services/post_list.rb
-class PostList < ApplicationService
-  Result = Data.define(:success?, :posts, :errors)
+		codeExample: `# app/services/product_list.rb
+class ProductList < ApplicationService
+  Result = Data.define(:success?, :products, :errors)
 
   def call
     validation = ListContract.new.call({})
     return Result.new(...) if validation.failure?
 
     products = Product.includes(:user)
-    Result.new(success?: true, posts: posts, errors: [])
+    Result.new(success?: true, products: products, errors: [])
   end
 end
 
 # app/serializers/product_serializer.rb
 class ProductSerializer < BaseSerializer
-  attribute :reviews_count do |post|
-    product.reviews.count  # <-- COUNT(*) query per post!
+  attribute :reviews_count do |product|
+    product.reviews.count  # <-- COUNT(*) query per product!
   end
 end
 
-# Database log for 100 posts:
-#   Product Load (1.2ms)  SELECT "posts".* FROM "posts"
+# Database log for 100 products:
+#   Product Load (1.2ms)  SELECT "products".* FROM "products"
 #   (0.4ms)  SELECT COUNT(*) FROM "reviews" WHERE product_id = 1
 #   (0.3ms)  SELECT COUNT(*) FROM "reviews" WHERE product_id = 2
 #   ... 97 more COUNT queries
@@ -56,15 +56,15 @@ end
 		conceptExplanation: `A counter cache stores the count of associated records directly on the parent table. Instead of running COUNT(*) on reviews every time, Rails maintains a \`reviews_count\` column on the products table.
 
 **How it works:**
-- Add a \`reviews_count\` integer column to the posts table (default: 0)
+- Add a \`reviews_count\` integer column to the products table (default: 0)
 - Add \`counter_cache: true\` to the \`belongs_to\` association
 - Rails automatically increments/decrements the count on create/destroy
 - \`product.reviews.count\` reads the column instead of running a query. Zero queries!
 
 **Production benchmarks:**
 \`\`\`
-WITHOUT counter_cache (COUNT query per post):
-  Queries: 101 (1 for posts + 100 COUNT queries)
+WITHOUT counter_cache (COUNT query per product):
+  Queries: 101 (1 for products + 100 COUNT queries)
   Time:    1,551ms
 
 WITH counter_cache:
@@ -91,16 +91,16 @@ UPDATE products SET reviews_count = COALESCE(reviews_count, 0) + 1 WHERE id = 42
 - Precomputed aggregates: For complex calculations (sums, averages)
 - Async counters: For high-write scenarios where lock contention is a concern`,
 		railsCodeExample: `# Step 1: Migration, add counter column
-class AddReviewsCountToPosts < ActiveRecord::Migration[8.0]
+class AddReviewsCountToProducts < ActiveRecord::Migration[8.0]
   def change
-    add_column :posts, :reviews_count, :integer, default: 0, null: false
+    add_column :products, :reviews_count, :integer, default: 0, null: false
   end
 end
 
 # Step 2: Backfill existing counts
 class BackfillReviewsCount < ActiveRecord::Migration[8.0]
   def up
-    Product.find_each do |post|
+    Product.find_each do |product|
       Product.reset_counters(product.id, :reviews)
     end
   end
@@ -117,7 +117,7 @@ end
 
 # Now product.reviews.count uses the cached column:
 product.reviews.count
-# No query! Reads posts.reviews_count directly.
+# No query! Reads products.reviews_count directly.
 
 # Custom column name:
 belongs_to :product, counter_cache: :replies_count
@@ -130,8 +130,8 @@ Product.find_each { |p| Product.reset_counters(p.id, :reviews) }
 
 # In serializer, no query needed:
 class ProductSerializer < BaseSerializer
-  attribute :title
-  attribute :body
+  attribute :name
+  attribute :description
   attribute :reviews_count
 end`,
 		commonMistakes: [
@@ -160,6 +160,6 @@ end`,
 	},
 	hint: {
 		delay: 20,
-		text: 'Fire probes at different post counts to see the query waterfall grow. The COUNT queries multiply because there is no cached value on the parent table.',
+		text: 'Fire probes at different product counts to see the query waterfall grow. The COUNT queries multiply because there is no cached value on the parent table.',
 	},
 };

@@ -22,10 +22,38 @@ const DUPLICATE_TABLES = [
 const SHARED_COLUMNS = ['id', 'body', 'user_id', 'created_at'];
 
 const UNIFIED_ROWS = [
-	{ id: 1, body: 'Great post!', type: 'Product', typeId: 1, userId: 5, createdAt: 'Mar 12' },
-	{ id: 2, body: 'Beautiful shot!', type: 'Photo', typeId: 3, userId: 5, createdAt: 'Mar 10' },
-	{ id: 3, body: 'Awesome video!', type: 'Video', typeId: 7, userId: 2, createdAt: 'Mar 11' },
-	{ id: 4, body: 'Nice analysis', type: 'Article', typeId: 2, userId: 8, createdAt: 'Mar 15' },
+	{
+		id: 1,
+		body: 'Great product!',
+		type: 'Product',
+		typeId: 1,
+		userId: 5,
+		createdAt: 'Mar 12',
+	},
+	{
+		id: 2,
+		body: 'Beautiful shot!',
+		type: 'Photo',
+		typeId: 3,
+		userId: 5,
+		createdAt: 'Mar 10',
+	},
+	{
+		id: 3,
+		body: 'Awesome video!',
+		type: 'Video',
+		typeId: 7,
+		userId: 2,
+		createdAt: 'Mar 11',
+	},
+	{
+		id: 4,
+		body: 'Nice analysis',
+		type: 'Article',
+		typeId: 2,
+		userId: 8,
+		createdAt: 'Mar 15',
+	},
 ];
 
 const STEP_DEFS = [
@@ -42,7 +70,8 @@ const MIGRATION_COMMANDS = [
 		id: 'wrong-separate',
 		label: 'rails g model Review body:text product:references',
 		correct: false,
-		feedback: 'This creates a foreign key to posts only. You need a polymorphic reference that can point to any parent type.',
+		feedback:
+			'This creates a foreign key to products only. You need a polymorphic reference that can point to any parent type.',
 	},
 	{
 		id: 'correct-polymorphic',
@@ -51,38 +80,87 @@ const MIGRATION_COMMANDS = [
 	},
 	{
 		id: 'wrong-string-columns',
-		label: 'rails g model Review body:text reviewable_type:string reviewable_id:integer',
+		label:
+			'rails g model Review body:text reviewable_type:string reviewable_id:integer',
 		correct: false,
-		feedback: 'Adding columns manually works but misses the index. The {polymorphic} flag generates both columns AND the composite index automatically.',
+		feedback:
+			'Adding columns manually works but misses the index. The {polymorphic} flag generates both columns AND the composite index automatically.',
 	},
 ];
 
 const RUN_MIGRATION_COMMANDS = [
-	{ id: 'wrong-setup', label: 'rails db:setup', correct: false, feedback: 'db:setup drops and recreates the database from schema.rb. You only need to run the pending migration.' },
+	{
+		id: 'wrong-setup',
+		label: 'rails db:setup',
+		correct: false,
+		feedback:
+			'db:setup drops and recreates the database from schema.rb. You only need to run the pending migration.',
+	},
 	{ id: 'correct-migrate', label: 'rails db:migrate', correct: true },
-	{ id: 'wrong-seed', label: 'rails db:seed', correct: false, feedback: 'db:seed populates sample data. The migration still needs to run first to create the reviews table.' },
+	{
+		id: 'wrong-seed',
+		label: 'rails db:seed',
+		correct: false,
+		feedback:
+			'db:seed populates sample data. The migration still needs to run first to create the reviews table.',
+	},
 ];
 
 const COMMENT_MODEL_OPTIONS = [
-	{ id: 'wrong-sti', correct: false, feedback: 'Multiple belongs_to associations require all three foreign keys on every row. Most will be null. Polymorphic uses a single type/id pair instead.' },
+	{
+		id: 'wrong-sti',
+		correct: false,
+		feedback:
+			'Multiple belongs_to associations require all three foreign keys on every row. Most will be null. Polymorphic uses a single type/id pair instead.',
+	},
 	{ id: 'correct-polymorphic', correct: true },
-	{ id: 'wrong-no-polymorphic', correct: false, feedback: 'Without `polymorphic: true`, Rails expects a `reviewables` table to exist. The polymorphic flag tells Rails to use the type/id column pair instead.' },
+	{
+		id: 'wrong-no-polymorphic',
+		correct: false,
+		feedback:
+			'Without `polymorphic: true`, Rails expects a `reviewables` table to exist. The polymorphic flag tells Rails to use the type/id column pair instead.',
+	},
 ];
 
 const PARENT_MODEL_OPTIONS = [
-	{ id: 'wrong-has-one', correct: false, feedback: 'has_one limits each product to a single review. Posts can have many reviews, so has_many is the correct association.' },
-	{ id: 'wrong-no-as', correct: false, feedback: 'Without `as: :reviewable`, Rails looks for a `product_id` column on reviews. The `as:` option tells Rails to use the polymorphic reviewable_type/reviewable_id pair.' },
+	{
+		id: 'wrong-has-one',
+		correct: false,
+		feedback:
+			'has_one limits each product to a single review. Products can have many reviews, so has_many is the correct association.',
+	},
+	{
+		id: 'wrong-no-as',
+		correct: false,
+		feedback:
+			'Without `as: :reviewable`, Rails looks for a `product_id` column on reviews. The `as:` option tells Rails to use the polymorphic reviewable_type/reviewable_id pair.',
+	},
 	{ id: 'correct-as-reviewable', correct: true },
 ];
 
 const SERVICE_OPTIONS = [
-	{ id: 'wrong-no-contract', correct: false, feedback: 'Missing input validation via contract. Since L18, services must validate input through a Dry::Validation::Contract before business logic.' },
+	{
+		id: 'wrong-no-contract',
+		correct: false,
+		feedback:
+			'Missing input validation via contract. Since L18, services must validate input through a Dry::Validation::Contract before business logic.',
+	},
 	{ id: 'correct-with-contract', correct: true },
-	{ id: 'wrong-inline-validation', correct: false, feedback: 'Inline validation checks in the service were replaced by Dry::Validation contracts in L18. Use a ReviewContract to validate input.' },
+	{
+		id: 'wrong-inline-validation',
+		correct: false,
+		feedback:
+			'Inline validation checks in the service were replaced by Dry::Validation contracts in L18. Use a ReviewContract to validate input.',
+	},
 ];
 
 const CONTROLLER_OPTIONS = [
-	{ id: 'wrong-direct-create', correct: false, feedback: 'Business logic belongs in service objects, not controllers. The controller should delegate to CreateReview.call and handle the result.' },
+	{
+		id: 'wrong-direct-create',
+		correct: false,
+		feedback:
+			'Business logic belongs in service objects, not controllers. The controller should delegate to CreateReview.call and handle the result.',
+	},
 	{ id: 'correct-service', correct: true },
 ];
 
@@ -220,7 +298,9 @@ describe('Level 32: Polymorphic Associations', () => {
 
 	describe('Cross-phase consistency (intro vs reward)', () => {
 		test('reward unified table covers all intro parent types', () => {
-			const introParents = DUPLICATE_TABLES.map((t) => t.name.replace('_reviews', ''));
+			const introParents = DUPLICATE_TABLES.map((t) =>
+				t.name.replace('_reviews', ''),
+			);
 			const rewardTypes = UNIFIED_ROWS.map((r) => r.type.toLowerCase());
 			for (const parent of introParents) {
 				expect(rewardTypes).toContain(parent);
@@ -257,15 +337,21 @@ describe('Level 32: Polymorphic Associations', () => {
 		});
 
 		test('wrong service options explain why they fail cumulative patterns', () => {
-			const noContract = SERVICE_OPTIONS.find((o) => o.id === 'wrong-no-contract');
+			const noContract = SERVICE_OPTIONS.find(
+				(o) => o.id === 'wrong-no-contract',
+			);
 			expect(noContract?.feedback).toContain('contract');
 
-			const inlineValidation = SERVICE_OPTIONS.find((o) => o.id === 'wrong-inline-validation');
+			const inlineValidation = SERVICE_OPTIONS.find(
+				(o) => o.id === 'wrong-inline-validation',
+			);
 			expect(inlineValidation?.feedback).toContain('contract');
 		});
 
 		test('wrong controller option explains service delegation', () => {
-			const directCreate = CONTROLLER_OPTIONS.find((o) => o.id === 'wrong-direct-create');
+			const directCreate = CONTROLLER_OPTIONS.find(
+				(o) => o.id === 'wrong-direct-create',
+			);
 			expect(directCreate?.feedback).toContain('service object');
 		});
 	});

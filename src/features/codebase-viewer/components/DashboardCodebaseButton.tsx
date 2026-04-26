@@ -23,9 +23,6 @@ export function DashboardCodebaseButton() {
 	);
 
 	return (
-		<CodebaseViewerDialog
-			files={files}
-			levelCount={completedLevels.length}
-		/>
+		<CodebaseViewerDialog files={files} levelCount={completedLevels.length} />
 	);
 }

@@ -39,9 +39,9 @@ import {
 } from '@/components/levels';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
-import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act3-level17-concerns', () =>
@@ -65,27 +65,27 @@ interface AnnotatedSection {
 	code: string;
 }
 
-const POST_SECTIONS: AnnotatedSection[] = [
+const PRODUCT_SECTIONS: AnnotatedSection[] = [
 	{
-		id: 'post-core',
+		id: 'product-core',
 		label: 'Core',
 		variant: 'core',
 		code: 'belongs_to :user\nhas_many :reviews',
 	},
 	{
-		id: 'post-tagging-assoc',
+		id: 'product-tagging-assoc',
 		label: 'Duplicated: Associations',
 		variant: 'duplicated',
 		code: 'has_many :taggings, as: :taggable\nhas_many :tags, through: :taggings',
 	},
 	{
-		id: 'post-tagging-scope',
+		id: 'product-tagging-scope',
 		label: 'Duplicated: Scope',
 		variant: 'duplicated',
 		code: 'scope :tagged_with, ->(name) {\n  joins(:tags).where(tags: { name: name })\n}',
 	},
 	{
-		id: 'post-tagging-methods',
+		id: 'product-tagging-methods',
 		label: 'Duplicated: Methods',
 		variant: 'duplicated',
 		code: 'def tag_list\n  tags.map(&:name).join(", ")\nend\n\ndef tag_list=(names)\n  self.tags = names.split(",").map { |n|\n    Tag.find_or_create_by(name: n.strip)\n  }\nend',
@@ -640,7 +640,7 @@ export function Level17Concerns({ onComplete }: LevelComponentProps) {
 									<AnnotatedCodeBlock
 										borderColor="destructive"
 										modelName="app/models/product.rb"
-										sections={POST_SECTIONS}
+										sections={PRODUCT_SECTIONS}
 									/>
 									<AnnotatedCodeBlock
 										borderColor="destructive"

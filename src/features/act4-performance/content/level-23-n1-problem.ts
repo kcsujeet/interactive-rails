@@ -80,34 +80,34 @@ export const level23N1Problem: Level = {
 	},
 	problem: {
 		observation:
-			'`/api/posts` runs 101 queries for 100 posts. Each post triggers an extra query to fetch its user.',
+			'`/api/products` runs 101 queries for 100 products. Each product triggers an extra query to fetch its user.',
 		rootCause:
-			'N+1 query pattern: 1 query loads all posts, then N individual queries load each user.',
-		codeExample: `# app/services/post_list.rb
-class PostList < ApplicationService
-  Result = Data.define(:success?, :posts, :errors)
+			'N+1 query pattern: 1 query loads all products, then N individual queries load each user.',
+		codeExample: `# app/services/product_list.rb
+class ProductList < ApplicationService
+  Result = Data.define(:success?, :products, :errors)
 
   def call
     validation = ListContract.new.call({})
     return Result.new(...) if validation.failure?
 
     products = Product.all  # No eager loading!
-    Result.new(success?: true, posts: posts, errors: [])
+    Result.new(success?: true, products: products, errors: [])
   end
 end
 
 # app/serializers/product_serializer.rb
 class ProductSerializer < BaseSerializer
-  attribute :title
-  attribute :body
+  attribute :name
+  attribute :description
 
-  attribute :author_name do |post|
-    product.user.name  # <-- triggers a query PER POST
+  attribute :author_name do |product|
+    product.user.name  # <-- triggers a query PER PRODUCT
   end
 end
 
 # Database log:
-#   Product Load (2.1ms)  SELECT "posts".* FROM "posts"
+#   Product Load (2.1ms)  SELECT "products".* FROM "products"
 #   User Load (0.3ms)  SELECT "users".* FROM "users" WHERE "users"."id" = 1
 #   User Load (0.2ms)  SELECT "users".* FROM "users" WHERE "users"."id" = 2
 #   User Load (0.3ms)  SELECT "users".* FROM "users" WHERE "users"."id" = 3
@@ -123,13 +123,13 @@ end
 	unlockedNodes: ['eager_load'],
 	learningContent: {
 		title: 'The N+1 Query Problem & Detection',
-		goal: `In this level, you'll:\n- learn to spot the N+1 query problem, the most common performance killer in Rails apps.\n- understand why loading 100 posts generates 101 database queries.\n- trace the problem back to association access in serializers.\n- add automatic N+1 detection that raises in development.\n- prevent lazy-loading regressions at the model level.`,
+		goal: `In this level, you'll:\n- learn to spot the N+1 query problem, the most common performance killer in Rails apps.\n- understand why loading 100 products generates 101 database queries.\n- trace the problem back to association access in serializers.\n- add automatic N+1 detection that raises in development.\n- prevent lazy-loading regressions at the model level.`,
 		conceptExplanation: `The N+1 problem is the most common performance killer in Rails apps. It happens when you load a collection of records (1 query) and then access an association on each record (N queries).
 
 **The math is brutal:**
-- 100 posts = 101 queries
-- 1,000 posts = 1,001 queries
-- 10,000 posts = 10,001 queries
+- 100 products = 101 queries
+- 1,000 products = 1,001 queries
+- 10,000 products = 10,001 queries
 
 It scales linearly with data size. What works in development with 10 records becomes a disaster in production with 10,000. Twitter's early timeline had this exact problem: loading each tweet's author triggered a separate query.
 
@@ -151,12 +151,12 @@ Preload: 0.195s |   682 MB |   148,827 objects allocated
 - Callbacks that touch associations
 - \`find_each\` blocks with association access`,
 		railsCodeExample: `# The problem: N+1 queries
-@posts = Product.all  # 1 query: SELECT * FROM posts
+@products = Product.all  # 1 query: SELECT * FROM products
 
 # In serializer or view:
-@posts.each do |post|
-  product.user.name       # +1 query per post
-  product.reviews.count  # +1 query per post (even worse: N+1+N)
+@products.each do |product|
+  product.user.name       # +1 query per product
+  product.reviews.count  # +1 query per product (even worse: N+1+N)
 end
 # Total: 1 + N + N queries!
 
@@ -215,6 +215,6 @@ Product.strict_loading.includes(:user).each { |p| p.user }
 	},
 	hint: {
 		delay: 25,
-		text: 'Click pipeline stages and fire probes at different data sizes. Watch how query count scales with post count.',
+		text: 'Click pipeline stages and fire probes at different data sizes. Watch how query count scales with product count.',
 	},
 };
