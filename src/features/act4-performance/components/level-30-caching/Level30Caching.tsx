@@ -69,8 +69,6 @@ import {
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import {
 	type DiscoveryDef,
 	useDiscoveryGating,
@@ -78,6 +76,8 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { cn } from '@/lib/utils';
 
 registerLevelCode('act4-level30-caching', () =>
@@ -566,9 +566,17 @@ const CACHE_FETCH_OPTIONS: StepOption[] = [
 			'Missing an expiration. Without expires_in, the cache never refreshes and serves stale data forever.',
 	},
 	{
-		id: 'correct',
+		id: 'wrong-static-key',
 		label:
 			'Rails.cache.fetch("trending_products", expires_in: 5.minutes) { compute_trending.to_a }',
+		correct: false,
+		feedback:
+			'A literal string key cannot reflect changes to the underlying records. The cache only refreshes when the 5-minute timer expires, even right after a record is updated.',
+	},
+	{
+		id: 'correct',
+		label:
+			'Rails.cache.fetch([Product.maximum(:updated_at).to_i, "trending_products"], expires_in: 5.minutes) { compute_trending.to_a }',
 		correct: true,
 	},
 ];
@@ -612,7 +620,7 @@ const OPTION_STEP_CONFIG: Record<
 	4: {
 		title: 'Add Cache Fetch',
 		description:
-			'The trending query runs on every request. Wrap it so the first request computes and stores the result, and subsequent requests read from cache. Make sure results do not go stale forever.',
+			'The trending query runs on every request. Wrap it so the first request computes and stores the result. The cache must respect both expiration AND changes to the underlying records, so a fresh review is reflected immediately rather than waiting for the timer.',
 		options: CACHE_FETCH_OPTIONS,
 	},
 	5: {
@@ -799,7 +807,7 @@ end`,
     ) if validation.failure?
 
     products = Rails.cache.fetch(
-      "trending_products",
+      [Product.maximum(:updated_at).to_i, "trending_products"],
       expires_in: 5.minutes
     ) do
       Product

@@ -254,9 +254,17 @@ const CACHE_FETCH_OPTIONS: StepOption[] = [
 			'Missing an expiration. Without expires_in, the cache never refreshes and serves stale data forever.',
 	},
 	{
-		id: 'correct',
+		id: 'wrong-static-key',
 		label:
 			'Rails.cache.fetch("trending_products", expires_in: 5.minutes) { compute_trending.to_a }',
+		correct: false,
+		feedback:
+			'A literal string key cannot reflect changes to the underlying records. The cache only refreshes when the 5-minute timer expires, even right after a record is updated.',
+	},
+	{
+		id: 'correct',
+		label:
+			'Rails.cache.fetch([Product.maximum(:updated_at).to_i, "trending_products"], expires_in: 5.minutes) { compute_trending.to_a }',
 		correct: true,
 	},
 ];
