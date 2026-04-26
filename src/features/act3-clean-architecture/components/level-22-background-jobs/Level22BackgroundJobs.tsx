@@ -8,15 +8,17 @@
  *   discover that the registration service sends email with deliver_now (blocks 3s)
  *   and does other inline work synchronously. Fire registration probes to see
  *   slow response times. Discovery gating controls when "Build the Fix" appears.
- * Phase 2 (HOW - build): 4 steps (mix of TerminalChoice and OptionCard)
+ * Phase 2 (HOW - build): 5 steps (2 TerminalChoice + 3 OptionCard)
  *   Step 0: Configure Solid Queue (TerminalChoiceStep)
  *   Step 1: Create a background job (OptionCard)
  *   Step 2: Make the job idempotent (OptionCard)
  *   Step 3: Switch service to async (OptionCard)
+ *   Step 4: Start the worker (TerminalChoiceStep)
  * Phase 3 (ADVANTAGE - reward): Stress test. Fire registration requests and see
  *   instant responses. Jobs process in background via Solid Queue.
  *
- * Teaches: Solid Queue (Rails 8 default), ActiveJob, perform_later, idempotency
+ * Teaches: Solid Queue (Rails 8 default), ActiveJob, perform_later, idempotency,
+ *   bin/jobs worker process
  */
 
 import { ArrowRight, Check, X } from 'lucide-react';
@@ -294,7 +296,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 ];
 
 // ──────────────────────────────────────────────
-// Step definitions (4 steps: 1 TerminalChoice + 3 OptionCard)
+// Step definitions (5 steps: 2 TerminalChoice + 3 OptionCard)
 // ──────────────────────────────────────────────
 
 const STEP_DEFS: StepDef[] = [
@@ -302,6 +304,7 @@ const STEP_DEFS: StepDef[] = [
 	{ id: 'create-job', title: 'Create a Background Job' },
 	{ id: 'make-idempotent', title: 'Make the Job Idempotent' },
 	{ id: 'switch-async', title: 'Switch Service to Async' },
+	{ id: 'start-worker', title: 'Start the Worker' },
 ];
 
 // ──────────────────────────────────────────────
@@ -356,7 +359,88 @@ const TERMINAL_STEP_0 = {
 	],
 };
 
-// Build TerminalStepData map for history (step 0 = terminal, steps 1-3 = null)
+// ──────────────────────────────────────────────
+// Step 4: Start the Worker (TerminalChoiceStep)
+// ──────────────────────────────────────────────
+
+const TERMINAL_STEP_4 = {
+	title: 'Start the Worker',
+	description: (
+		<p className="text-sm text-muted-foreground">
+			<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
+				perform_later
+			</code>{' '}
+			puts the job onto the queue, but the queue is just a database table.
+			Something has to actually pick the jobs up and run them. That something is
+			the <strong>worker</strong>, a separate process you run alongside the web
+			server. In production you run it as a Procfile entry, systemd unit, or
+			Kamal accessory. What command starts it?
+		</p>
+	),
+	commands: [
+		{
+			id: 'rails-server',
+			label: 'rails server',
+			command: 'rails server',
+			correct: false,
+			feedback:
+				'That starts the web process. The worker is a separate process. Running rails server alone leaves jobs queued forever, never executing.',
+		},
+		{
+			id: 'solid-queue-start',
+			label: 'solid_queue start',
+			command: 'solid_queue start',
+			correct: false,
+			feedback:
+				'Close. There is a runner script your Rails app provides in its bin/ directory that starts Solid Queue without typing the gem name.',
+		},
+		{
+			id: 'bin-jobs',
+			label: 'bin/jobs',
+			command: 'bin/jobs',
+			correct: true,
+		},
+	],
+	outputLines: [
+		{ text: '[SolidQueue] Dispatcher started', color: 'green' as const },
+		{
+			text: '[SolidQueue] Worker started (queues=*, threads=5)',
+			color: 'green' as const,
+		},
+		{ text: '', color: 'muted' as const },
+		{
+			text: 'Picked up 3 enqueued jobs from the registration flow:',
+			color: 'cyan' as const,
+		},
+		{
+			text: '  [SendWelcomeNotificationJob] Performing for user 42',
+			color: 'muted' as const,
+		},
+		{
+			text: '  [SendWelcomeNotificationJob] Completed in 287ms',
+			color: 'green' as const,
+		},
+		{
+			text: '  [SyncExternalProfileJob] Performing for user 42',
+			color: 'muted' as const,
+		},
+		{
+			text: '  [SyncExternalProfileJob] Completed in 1284ms',
+			color: 'green' as const,
+		},
+		{
+			text: '  [ApplyDefaultPrefsJob] Completed in 312ms',
+			color: 'green' as const,
+		},
+		{ text: '', color: 'muted' as const },
+		{
+			text: 'Worker idle. Waiting for new jobs.',
+			color: 'green' as const,
+		},
+	],
+};
+
+// Build TerminalStepData map for history (steps 0 + 4 = terminal, steps 1-3 = null)
 const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
 	{
 		commands: TERMINAL_STEP_0.commands,
@@ -365,6 +449,10 @@ const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
 	null, // step 1: OptionCard
 	null, // step 2: OptionCard
 	null, // step 3: OptionCard
+	{
+		commands: TERMINAL_STEP_4.commands,
+		outputLines: TERMINAL_STEP_4.outputLines,
+	},
 ];
 
 // ──────────────────────────────────────────────
@@ -639,6 +727,22 @@ end`,
 		});
 	}
 
+	if (furthestStep >= 4) {
+		// After step 4: show the Procfile that runs both processes
+		files.push({
+			filename: 'Procfile.dev',
+			language: 'text',
+			code: `web: bin/rails server
+jobs: bin/jobs
+
+# Run both at once with: bin/dev
+# In production, run bin/jobs as its own process
+# (Procfile entry on Heroku/Render, systemd unit on
+#  a VPS, or a Kamal accessory).`,
+			highlight: [2],
+		});
+	}
+
 	return files;
 }
 
@@ -851,7 +955,13 @@ export function Level22BackgroundJobs({ onComplete }: LevelComponentProps) {
 	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
 	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
 	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep];
-	const isTerminalStep = stepper.currentStep === 0;
+	const currentTerminalStep =
+		stepper.currentStep === 0
+			? TERMINAL_STEP_0
+			: stepper.currentStep === 4
+				? TERMINAL_STEP_4
+				: null;
+	const isTerminalStep = currentTerminalStep !== null;
 
 	// ── Render ──
 	return (
@@ -988,24 +1098,24 @@ export function Level22BackgroundJobs({ onComplete }: LevelComponentProps) {
 					{phase === 'build' && (
 						<div className="flex-1 overflow-auto p-6">
 							<div className="max-w-2xl mx-auto space-y-4">
-								{/* Step 0: TerminalChoiceStep */}
-								{isTerminalStep && (
+								{/* Steps 0 + 4: TerminalChoiceStep */}
+								{isTerminalStep && currentTerminalStep && (
 									<TerminalChoiceStep
-										commands={TERMINAL_STEP_0.commands}
+										commands={currentTerminalStep.commands}
 										completed={isViewingCompletedStep}
-										description={TERMINAL_STEP_0.description}
+										description={currentTerminalStep.description}
 										hasNext={hasNextStep}
 										initialHistory={buildTerminalHistory(
 											TERMINAL_STEP_MAP,
 											stepper.currentStep,
 										)}
 										onCorrect={() => stepper.completeStep()}
-										onNext={stepper.nextStep}
+										onNext={hasNextStep ? stepper.nextStep : handleStartReward}
 										onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-										outputLines={TERMINAL_STEP_0.outputLines}
+										outputLines={currentTerminalStep.outputLines}
 										stepKey={stepper.currentStep}
 										terminalTitle="Terminal"
-										title={TERMINAL_STEP_0.title}
+										title={currentTerminalStep.title}
 									/>
 								)}
 

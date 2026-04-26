@@ -128,7 +128,15 @@ end
 - Anything that takes more than ~100ms
 
 **Idempotency is critical:**
-Jobs may run more than once (retries, queue restarts). Design every job to be safe to re-run.`,
+Jobs may run more than once (retries, queue restarts). Design every job to be safe to re-run.
+
+**The worker is a separate process:**
+Calling \`perform_later\` puts a row into a database table. That is all it does. Something has to actually pick those rows up and run the jobs, and that something is the **worker** process. Rails 8 ships a runner script at \`bin/jobs\` that boots Solid Queue and starts processing.
+
+- In **development** you run \`bin/dev\` (which uses \`Procfile.dev\` to start \`bin/rails server\` and \`bin/jobs\` together) so jobs execute as you work
+- In **production** you run \`bin/jobs\` as its own process: a Procfile entry on Heroku/Render, a systemd unit on a VPS, or a Kamal accessory
+- If no worker is running, your registration still returns instantly to the user, but the welcome email never sends. The jobs sit in the queue table forever
+- This is the most common Rails 8 background-jobs bug: people set up Solid Queue, write the job, switch to \`deliver_later\`, and forget to run the worker in production. Symptoms: emails never arrive, but the app appears healthy`,
 		railsCodeExample: `# config/application.rb -- Rails 8 default
 config.active_job.queue_adapter = :solid_queue
 
