@@ -61,12 +61,19 @@ end
 - **Variants**: On-the-fly image transformations (resize, crop, convert)
 - **Presigned URLs**: Time-limited URLs that grant temporary access to private files
 
+**How a presigned URL actually gets made:**
+- A common confusion: "presigned URL" sounds like Rails asks S3 to generate one. It does not
+- Rails has the AWS access key and secret in \`config/storage.yml\`. It uses those credentials to **compute the URL locally**, sign it cryptographically, and return it to the client
+- There is **no network call to S3** during this step. The URL is just a string that AWS will recognize as authorized when the client later PUTs the file to it
+- This is why direct upload is so cheap on the Rails side: Rails only handles a tiny metadata request (filename, size, type, checksum) and a tiny URL response. The 5MB photo never touches Rails
+
 **Architecture:**
-1. Client requests a presigned URL from Rails
-2. Client uploads directly to S3 using that URL
-3. Client sends the blob signed_id back to Rails
-4. Rails attaches the blob to the model
-5. Variants are generated lazily on first access`,
+1. Client POSTs the file's metadata (name, byte size, content type, checksum) to Rails. No file bytes yet
+2. Rails creates a \`Blob\` row in its own database and computes a presigned upload URL from \`config/storage.yml\`. Returns the URL plus a \`signed_id\` for the blob
+3. Client PUTs the file bytes directly to S3 using that URL. Rails never sees the file
+4. Client sends the blob's \`signed_id\` back to Rails
+5. Rails calls \`record.avatar.attach(signed_id)\`, which links the blob to the model
+6. Variants (thumbnails, crops) are generated lazily the first time someone requests them`,
 		railsCodeExample: `# Setup: bin/rails active_storage:install && rails db:migrate
 
 # config/storage.yml
