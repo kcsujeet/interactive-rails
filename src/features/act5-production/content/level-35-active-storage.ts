@@ -61,6 +61,14 @@ end
 - **Variants**: On-the-fly image transformations (resize, crop, convert)
 - **Presigned URLs**: Time-limited URLs that grant temporary access to private files
 
+**Where the AWS keys come from (\`Rails.application.credentials\`):**
+- The \`config/storage.yml\` file you see uses \`<%= Rails.application.credentials.dig(:aws, :access_key_id) %>\`. That is Rails reading from an **encrypted credentials file**, not an environment variable, not a \`.env\`
+- Rails ships an encrypted file at \`config/credentials.yml.enc\` for storing secrets (AWS keys, Stripe keys, OAuth tokens, signing keys). The file is committed to git, but it is unreadable without the master key
+- The master key lives at \`config/master.key\` and is **git-ignored** by default. Treat it like a password
+- To edit secrets: \`bin/rails credentials:edit\`. Rails opens an editor, decrypts the file in memory, lets you edit YAML, and re-encrypts on save. You never see the encrypted contents
+- In production, Rails finds the master key from the \`RAILS_MASTER_KEY\` environment variable. Set it on your server (Heroku config var, Kamal secret, Render env var) and Rails decrypts the file at boot
+- This is Rails 8's preferred secrets management. Not \`.env\` files (those leak more easily, are not encrypted at rest, and can ship to git accidentally). Use \`Rails.application.credentials.dig(:section, :key)\` everywhere a third-party API key, signing secret, or OAuth token is needed
+
 **How a presigned URL actually gets made:**
 - A common confusion: "presigned URL" sounds like Rails asks S3 to generate one. It does not
 - Rails has the AWS access key and secret in \`config/storage.yml\`. It uses those credentials to **compute the URL locally**, sign it cryptographically, and return it to the client

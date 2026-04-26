@@ -121,7 +121,15 @@ User.create(email: "joe@test.com")          # Saved again! Duplicate.
 **Custom validators:** Write your own for complex rules
 **Conditional validations:** \`if:\` and \`unless:\` options
 
-When validation fails, \`save\` returns \`false\` and errors are added to the model's \`errors\` collection.`,
+When validation fails, \`save\` returns \`false\` and errors are added to the model's \`errors\` collection.
+
+**Where the error messages come from (\`I18n\`):**
+- When a validation fails, you get \`product.errors.full_messages\` like \`["Name can't be blank", "Price must be greater than 0"]\`. Where do those English strings actually live?
+- Rails ships an internationalization framework called **I18n**. Every built-in validator has a default message stored as a translation key (\`errors.messages.blank\`, \`errors.messages.taken\`, \`errors.messages.invalid\`)
+- The default English translations live inside the \`activemodel\` gem at \`config/locales/en.yml\` (Rails) and similar files. Rails 8 ships English by default; other languages are gem-based (\`gem "rails-i18n"\`)
+- To customize a message: \`validates :name, presence: { message: "is required" }\`. To translate the entire app: add \`config/locales/es.yml\` (or \`fr.yml\`, \`ja.yml\`) with translated keys, then set \`I18n.locale = :es\` per request
+- For an English-only app, you still benefit: \`I18n.t("errors.messages.blank")\` is the canonical way to access these strings in mailers, controllers, anywhere outside the model. Hardcoding strings in code makes them harder to update and translate later
+- Even API-only apps that never plan to translate should know I18n exists. The default messages your validators produce **are** I18n strings. The \`t()\` helper is the path to clean copy management`,
 		railsCodeExample: `# app/models/product.rb
 class Product < ApplicationRecord
   belongs_to :user
