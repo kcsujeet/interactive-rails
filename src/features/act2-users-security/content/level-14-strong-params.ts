@@ -59,6 +59,12 @@ end
 - Raises an error if the required root key is missing (e.g., \`product:\`)
 - Replaces the older \`params.require(:product).permit(:name, :description, :price)\` pattern
 
+**Why \`params.expect\` is stricter than \`params.require().permit()\`:**
+- \`expect\` checks the **shape** of the request, not just the keys
+- If an attacker sends \`product=hacked\` (a plain string) instead of \`product[name]=...\` (a hash with sub-keys), \`params.expect(product: [:name])\` raises \`ActionController::ParameterMissing\` and Rails returns \`400 Bad Request\`
+- The older \`params.require/permit\` pattern can fail in subtler ways: some malformed inputs slip through and you only notice when bad data lands in the database
+- Use \`expect\` for new code in Rails 8: it fails loudly at the security boundary, which is what you want
+
 **Building a safe whitelist:**
 - Only include fields the user is meant to edit (name, description, price)
 - Never include ownership fields (user_id), role fields (admin), or internal state

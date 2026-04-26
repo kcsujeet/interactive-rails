@@ -286,6 +286,16 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		actor: 'attacker',
 		expectedResult: 'blocked',
 	},
+	{
+		id: 'malformed-payload',
+		label: 'POST with malformed body',
+		description:
+			'Attacker sends product as a string ("hacked") instead of a hash. params.expect catches the wrong shape and returns 400 Bad Request.',
+		method: 'POST',
+		path: '/api/v1/products',
+		actor: 'attacker',
+		expectedResult: 'blocked',
+	},
 ];
 
 // ──────────────────────────────────────────────
