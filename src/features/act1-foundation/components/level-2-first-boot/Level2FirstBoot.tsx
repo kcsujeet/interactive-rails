@@ -1,8 +1,8 @@
 /**
  * Level 2: First Boot
  *
- * 5-step progression: choose a database, install it, generate the project,
- * create the database, and boot the server.
+ * 6-step progression: choose a database, install it, generate the project,
+ * explore the generated app, create the database, and boot the server.
  *
  * ID: "act1-level2-first-boot"
  */
@@ -79,6 +79,7 @@ const STEP_DEFS: StepDef[] = [
 	{ id: 'choose-db', title: 'Choose Database' },
 	{ id: 'install-pg', title: 'Install PostgreSQL' },
 	{ id: 'generate-project', title: 'Generate Project' },
+	{ id: 'explore-app', title: 'Explore the App' },
 	{ id: 'create-db', title: 'Create Database' },
 	{ id: 'boot-server', title: 'Boot Server' },
 ];
@@ -159,7 +160,86 @@ const generateOutput: TerminalOutputLine[] = [
 	{ text: 'Bundle complete! 12 Gemfile dependencies.', color: 'green' },
 ];
 
-// Step 4: Create Database commands
+// Step 4: Explore the Generated App commands
+const exploreCommands: TerminalCommand[] = [
+	{
+		id: 'wrong-cat',
+		label: 'cat myapp',
+		command: 'cat myapp',
+		correct: false,
+		feedback:
+			'cat reads files. To list a directory you need a different command.',
+	},
+	{
+		id: 'wrong-find',
+		label: 'find myapp -type f',
+		command: 'find myapp -type f',
+		correct: false,
+		feedback:
+			'find -type f lists every individual file (hundreds of them). You want a high-level view of the directory layout, not every file.',
+	},
+	{
+		id: 'correct',
+		label: 'tree -L 1 myapp',
+		command: 'tree -L 1 myapp',
+		correct: true,
+	},
+];
+
+const exploreOutput: TerminalOutputLine[] = [
+	{ text: 'myapp/', color: 'cyan' },
+	{
+		text: '├── Gemfile                # Ruby gem dependencies',
+		color: 'green',
+	},
+	{
+		text: '├── Gemfile.lock           # Locked gem versions',
+		color: 'muted',
+	},
+	{ text: '├── README.md              # Documentation', color: 'muted' },
+	{ text: '├── Rakefile               # Task runner config', color: 'muted' },
+	{
+		text: '├── app/                   # Your app code (models, controllers, mailers, jobs)',
+		color: 'green',
+	},
+	{
+		text: '├── bin/                   # Runner scripts (rails, setup, dev, jobs)',
+		color: 'green',
+	},
+	{
+		text: '├── config/                # Configuration (routes, database, credentials)',
+		color: 'green',
+	},
+	{
+		text: '├── config.ru              # Rack server entry point',
+		color: 'muted',
+	},
+	{
+		text: '├── db/                    # Migrations, schema, seeds',
+		color: 'green',
+	},
+	{
+		text: '├── lib/                   # Code shared across the app',
+		color: 'muted',
+	},
+	{ text: '├── log/                   # Application logs', color: 'muted' },
+	{
+		text: '├── public/                # Static files served as-is',
+		color: 'muted',
+	},
+	{ text: '├── test/                  # Test files', color: 'muted' },
+	{
+		text: '└── tmp/                   # Cache, sockets, ephemeral data',
+		color: 'muted',
+	},
+	{ text: '', color: 'muted' },
+	{
+		text: 'You will spend most of your time in app/, config/, and db/.',
+		color: 'cyan',
+	},
+];
+
+// Step 5: Create Database commands
 const createDbCommands: TerminalCommand[] = [
 	{
 		id: 'wrong-migrate',
@@ -182,7 +262,7 @@ const createDbOutput: TerminalOutputLine[] = [
 	{ text: `Created database 'myapp_test'`, color: 'green' },
 ];
 
-// Step 5: Boot Server commands
+// Step 6: Boot Server commands
 const bootCommands: TerminalCommand[] = [
 	{
 		id: 'wrong-start',
@@ -215,6 +295,7 @@ const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
 	null, // step 0: Choose Database (OptionCard)
 	{ commands: installPgCommands, outputLines: installPgOutput },
 	{ commands: generateCommands, outputLines: generateOutput },
+	{ commands: exploreCommands, outputLines: exploreOutput },
 	{ commands: createDbCommands, outputLines: createDbOutput },
 	{ commands: bootCommands, outputLines: bootOutput },
 ];
@@ -252,6 +333,19 @@ const TERMINAL_STEPS: {
 	},
 	{
 		stepIndex: 3,
+		title: 'Explore the App',
+		description: (
+			<p className="text-sm text-muted-foreground">
+				<code>rails new</code> generated a full Rails app skeleton. Before
+				creating the database, take a look around. Pick the right command to
+				view the top-level directory layout.
+			</p>
+		),
+		commands: exploreCommands,
+		outputLines: exploreOutput,
+	},
+	{
+		stepIndex: 4,
 		title: 'Create Database',
 		description: (
 			<p className="text-sm text-muted-foreground">
@@ -262,7 +356,7 @@ const TERMINAL_STEPS: {
 		outputLines: createDbOutput,
 	},
 	{
-		stepIndex: 4,
+		stepIndex: 5,
 		title: 'Boot Server',
 		description: (
 			<p className="text-sm text-muted-foreground">
@@ -323,7 +417,8 @@ export function Level2FirstBoot({ onComplete }: LevelComponentProps) {
 	};
 
 	// Code preview - only generated FILES, no terminal (center panel handles that)
-	// furthestStep: 0=start, 1=chose DB, 2=installed PG, 3=generated project, 4=created DB, 5=booted server
+	// furthestStep: 0=start, 1=chose DB, 2=installed PG, 3=generated project,
+	//               4=explored app, 5=created DB, 6=booted server
 	const getCodeFiles = () => {
 		const files = [];
 
@@ -387,6 +482,30 @@ test:
   end
 end`,
 				highlight: [6],
+			});
+		}
+
+		// Directory Layout reference (after explore step)
+		if (stepper.furthestStep >= 4) {
+			files.push({
+				filename: 'Directory Layout',
+				language: 'bash',
+				code: `myapp/
+├── Gemfile                # Ruby gem dependencies
+├── Gemfile.lock           # Locked gem versions
+├── README.md              # Documentation
+├── Rakefile               # Task runner config
+├── app/                   # Your app code (models, controllers, mailers, jobs)
+├── bin/                   # Runner scripts (rails, setup, dev, jobs)
+├── config/                # Configuration (routes, database, credentials)
+├── config.ru              # Rack server entry point
+├── db/                    # Migrations, schema, seeds
+├── lib/                   # Code shared across the app
+├── log/                   # Application logs
+├── public/                # Static files served as-is
+├── test/                  # Test files
+└── tmp/                   # Cache, sockets, ephemeral data`,
+				highlight: [6, 7, 8, 10],
 			});
 		}
 
