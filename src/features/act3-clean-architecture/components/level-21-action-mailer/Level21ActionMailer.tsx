@@ -8,11 +8,12 @@
  *   discover that there is no mailer, no token generation, and no password
  *   reset endpoint. Fire API probes to confirm the dead end.
  *   Discovery gating controls when "Build the Fix" appears.
- * Phase 2 (HOW - build): 4 steps (mix of OptionCard + TerminalChoiceStep)
+ * Phase 2 (HOW - build): 5 steps (mix of OptionCard + TerminalChoiceStep)
  *   Step 0: Add generates_token_for to User model (OptionCard)
  *   Step 1: Generate the mailer (TerminalChoiceStep)
- *   Step 2: Build the password reset email (OptionCard)
- *   Step 3: Create the password reset controller (OptionCard)
+ *   Step 2: Build the password reset email mailer method (OptionCard)
+ *   Step 3: Build the email template with ERB (OptionCard)
+ *   Step 4: Create the password reset controller (OptionCard)
  * Phase 3 (ADVANTAGE - reward): Stress test. Fire password reset scenarios at
  *   the new flow and watch allowed/blocked results.
  *
@@ -330,13 +331,14 @@ const STRESS_SCENARIOS: StressScenario[] = [
 ];
 
 // ──────────────────────────────────────────────
-// Step definitions (4 steps: OptionCard, Terminal, OptionCard, OptionCard)
+// Step definitions (5 steps: OptionCard, Terminal, OptionCard x3)
 // ──────────────────────────────────────────────
 
 const STEP_DEFS: StepDef[] = [
 	{ id: 'add-token', title: 'Add generates_token_for' },
 	{ id: 'generate-mailer', title: 'Generate the Mailer' },
 	{ id: 'build-email', title: 'Build the Reset Email' },
+	{ id: 'build-template', title: 'Build the Email Template' },
 	{ id: 'create-controller', title: 'Create the Controller' },
 ];
 
@@ -397,7 +399,42 @@ const EMAIL_OPTIONS: StepOption[] = [
 	},
 ];
 
-// Step 3: Create the password reset controller
+// Step 3: Build the Email Template (ERB)
+const TEMPLATE_OPTIONS: StepOption[] = [
+	{
+		id: 'mustache-style',
+		label: `<h1>Reset your password</h1>
+<p>Hi {{ user.name }},</p>
+<p>You requested a password reset.</p>
+<p>{{ link_to "Reset password", password_reset_url(token) }}</p>
+<p>This link expires in 15 minutes.</p>`,
+		correct: false,
+		feedback:
+			'Curly-brace interpolation ({{ ... }}) is what JavaScript template libraries use (Handlebars, Vue, Mustache). Rails uses a different template syntax that mixes Ruby code with HTML.',
+	},
+	{
+		id: 'no-output-tag',
+		label: `<h1>Reset your password</h1>
+<p>Hi <% @user.name %>,</p>
+<p>You requested a password reset.</p>
+<p><% link_to "Reset password", password_reset_url(@token) %></p>
+<p>This link expires in 15 minutes.</p>`,
+		correct: false,
+		feedback:
+			'These tags run the Ruby code but do not print anything to the page. The user would see "Hi ," and an empty link. There is a small character difference between "run code" tags and "output the value" tags.',
+	},
+	{
+		id: 'correct-erb',
+		label: `<h1>Reset your password</h1>
+<p>Hi <%= @user.name %>,</p>
+<p>You requested a password reset.</p>
+<p><%= link_to "Reset password", password_reset_url(@token) %></p>
+<p>This link expires in 15 minutes.</p>`,
+		correct: true,
+	},
+];
+
+// Step 4: Create the password reset controller
 const CONTROLLER_OPTIONS: StepOption[] = [
 	{
 		id: 'find-by-token-deliver-now',
@@ -442,6 +479,12 @@ const OPTION_STEP_CONFIG: Record<
 		options: EMAIL_OPTIONS,
 	},
 	3: {
+		title: 'Build the Email Template',
+		description:
+			'The generator created app/views/user_mailer/password_reset.html.erb but it is empty. This is the actual HTML the user receives in their inbox. Rails uses ERB (Embedded Ruby) for templates: HTML with special tags that mix in Ruby code. The mailer method already set @user and @token for the template to use. Pick the version that builds the correct email.',
+		options: TEMPLATE_OPTIONS,
+	},
+	4: {
 		title: 'Create the Controller',
 		description:
 			'The PasswordResetsController#create action receives an email address, looks up the user, and sends the reset email. It must not leak whether the email exists and must not block the request during delivery.',
@@ -505,8 +548,9 @@ const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
 		commands: MAILER_TERMINAL_COMMANDS,
 		outputLines: MAILER_TERMINAL_OUTPUT,
 	}, // Step 1: Terminal
-	null, // Step 2: OptionCard
-	null, // Step 3: OptionCard
+	null, // Step 2: OptionCard (build email method)
+	null, // Step 3: OptionCard (build template)
+	null, // Step 4: OptionCard (create controller)
 ];
 
 // ──────────────────────────────────────────────
@@ -624,6 +668,19 @@ end`
   end
 end`,
 			highlight: furthestStep >= 3 ? [3, 4, 6] : [4],
+		});
+	}
+
+	if (furthestStep >= 3) {
+		files.push({
+			filename: 'app/views/user_mailer/password_reset.html.erb',
+			language: 'erb',
+			code: `<h1>Reset your password</h1>
+<p>Hi <%= @user.name %>,</p>
+<p>You requested a password reset.</p>
+<p><%= link_to "Reset password", password_reset_url(@token) %></p>
+<p>This link expires in 15 minutes.</p>`,
+			highlight: [2, 4],
 		});
 	}
 
