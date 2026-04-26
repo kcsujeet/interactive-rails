@@ -58,14 +58,14 @@ import {
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import {
 	type DiscoveryDef,
 	useDiscoveryGating,
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 
 registerLevelCode('act4-level23-n1-problem', () =>
 	getCodeFiles('reward', STEP_DEFS.length),
@@ -104,7 +104,7 @@ const ZONE_ICON_MAP: Record<string, 'server' | 'search' | 'database'> = {
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{ id: 'n1-pattern', label: 'N+1 query pattern in serializer' },
-	{ id: 'query-count', label: '101 queries for 100 posts' },
+	{ id: 'query-count', label: '101 queries for 100 products' },
 	{ id: 'no-eager-load', label: 'No eager loading on the query' },
 	{ id: 'hidden-in-serializer', label: 'N+1 hides inside the serializer' },
 ];
@@ -115,9 +115,9 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 
 const PROBES: ProbeConfig[] = [
 	{
-		id: 'get-posts-5',
-		label: 'GET /posts (5 posts)',
-		command: 'GET /api/v1/products (5 posts in DB)',
+		id: 'get-products-5',
+		label: 'GET /products (5 products)',
+		command: 'GET /api/v1/products (5 products in DB)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'green' },
 			{ text: '', color: 'muted' },
@@ -129,20 +129,20 @@ const PROBES: ProbeConfig[] = [
 			{ text: '  SELECT * FROM users WHERE id = 1 (+1)', color: 'red' },
 			{ text: '  SELECT * FROM users WHERE id = 2 (+1)', color: 'red' },
 			{ text: '  SELECT * FROM users WHERE id = 3 (+1)', color: 'red' },
-			{ text: '  ... 2 more author queries', color: 'red' },
+			{ text: '  ... 2 more seller queries', color: 'red' },
 			{ text: '1 + 5 = 6 queries. That is the N+1 pattern.', color: 'yellow' },
 		],
 		story: [
 			'A customer browses the product listing page with 5 products.',
 			'Rails loads all 5 products in one query, then calls product.user for each.',
-			'Each .user call fires a separate SELECT to fetch the author.',
-			'1 query for products + 5 queries for users = 6 total. That is N+1.',
+			'Each .user call fires a separate SELECT to fetch the seller.',
+			'1 query for products + 5 queries for sellers = 6 total. That is N+1.',
 		],
 	},
 	{
-		id: 'get-posts-100',
-		label: 'GET /posts (100 posts)',
-		command: 'GET /api/v1/products (100 posts in DB)',
+		id: 'get-products-100',
+		label: 'GET /products (100 products)',
+		command: 'GET /api/v1/products (100 products in DB)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK (850ms)', color: 'yellow' },
 			{ text: '', color: 'muted' },
@@ -166,9 +166,9 @@ const PROBES: ProbeConfig[] = [
 		],
 	},
 	{
-		id: 'get-posts-1000',
-		label: 'GET /posts (1000 posts)',
-		command: 'GET /api/v1/products (1000 posts in DB)',
+		id: 'get-products-1000',
+		label: 'GET /products (1000 products)',
+		command: 'GET /api/v1/products (1000 products in DB)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK (4873ms)', color: 'red' },
 			{ text: '', color: 'muted' },
@@ -193,9 +193,9 @@ const PROBES: ProbeConfig[] = [
 
 // Map probe IDs to discovery IDs they trigger
 const PROBE_DISCOVERY_MAP: Record<string, string> = {
-	'get-posts-5': 'n1-pattern',
-	'get-posts-100': 'query-count',
-	'get-posts-1000': 'no-eager-load',
+	'get-products-5': 'n1-pattern',
+	'get-products-100': 'query-count',
+	'get-products-1000': 'no-eager-load',
 };
 
 // ──────────────────────────────────────────────
@@ -210,19 +210,19 @@ interface ProbeZoneData {
 }
 
 const PROBE_ZONE_MAP: Record<string, ProbeZoneData> = {
-	'get-posts-5': {
+	'get-products-5': {
 		controllerBadge: '1 query',
 		serializerCount: 5,
 		dbTotalQueries: 6,
 		dbTime: '~2.4ms',
 	},
-	'get-posts-100': {
+	'get-products-100': {
 		controllerBadge: '1 query',
 		serializerCount: 100,
 		dbTotalQueries: 101,
 		dbTime: '~850ms',
 	},
-	'get-posts-1000': {
+	'get-products-1000': {
 		controllerBadge: '1 query',
 		serializerCount: 1000,
 		dbTotalQueries: 1001,
@@ -237,23 +237,23 @@ const PROBE_ZONE_MAP: Record<string, ProbeZoneData> = {
 const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 	controller: {
 		stageId: 'controller',
-		title: 'PostsController#index',
+		title: 'ProductsController#index',
 		description:
-			'The controller delegates to PostList service. The service loads posts with Product.all, firing just 1 query. The problem is not here.',
+			'The controller delegates to ProductList service. The service loads products with Product.all, firing just 1 query. The problem is not here.',
 		code: `# app/controllers/api/v1/products_controller.rb
 def index
-  result = PostList.call(params:)
-  render json: ProductSerializer.new(result.posts)
+  result = ProductList.call(params:)
+  render json: ProductSerializer.new(result.products)
 end
 
-# app/services/post_list.rb
-class PostList < ApplicationService
-  Result = Data.define(:success?, :posts, :errors)
+# app/services/product_list.rb
+class ProductList < ApplicationService
+  Result = Data.define(:success?, :products, :errors)
 
   def call
     contract = ListContract.new.call(params)
     products = Product.all  # 1 query, no includes
-    Result.new(success?: true, posts:, errors: [])
+    Result.new(success?: true, products:, errors: [])
   end
 end`,
 	},
@@ -263,8 +263,8 @@ end`,
 		description:
 			'The serializer accesses product.user.name for every product. Each call triggers a separate SELECT query because the user association was never preloaded.',
 		code: `class ProductSerializer < BaseSerializer
-  attribute :title
-  attribute :author_name do |post|
+  attribute :name
+  attribute :seller_name do |product|
     product.user.name  # <-- N+1 trigger!
   end
 end`,
@@ -273,7 +273,7 @@ end`,
 		stageId: 'database',
 		title: 'Database (overwhelmed)',
 		description:
-			'The database receives 1 query for posts, then 1 query per post for the author. With 100 posts that is 101 queries. With 1000 posts, 1001 queries. It scales linearly with data size.',
+			'The database receives 1 query for products, then 1 query per product for the seller. With 100 products that is 101 queries. With 1000 products, 1001 queries. It scales linearly with data size.',
 	},
 };
 
@@ -289,32 +289,32 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
-		id: 'posts-no-includes',
-		label: 'PostList (no includes)',
+		id: 'products-no-includes',
+		label: 'ProductList (no includes)',
 		description:
-			'Service loads posts without eager loading, serializer accesses .user',
+			'Service loads products without eager loading, serializer accesses .user',
 		method: 'GET',
 		path: '/api/v1/products',
-		actor: 'PostList.call',
+		actor: 'ProductList.call',
 		expectedResult: 'blocked',
 	},
 	{
-		id: 'posts-with-includes',
-		label: 'PostList (with includes)',
-		description: 'Service loads posts with eager-loaded users',
+		id: 'products-with-includes',
+		label: 'ProductList (with includes)',
+		description: 'Service loads products with eager-loaded users',
 		method: 'GET',
 		path: '/api/v1/products',
-		actor: 'PostList.call',
+		actor: 'ProductList.call',
 		expectedResult: 'allowed',
 	},
 	{
 		id: 'reviews-no-includes',
 		label: 'ProductList + .reviews.count',
 		description:
-			'Service loads posts, serializer counts reviews without counter cache',
+			'Service loads products, serializer counts reviews without counter cache',
 		method: 'GET',
 		path: '/api/v1/products',
-		actor: 'PostList.call',
+		actor: 'ProductList.call',
 		expectedResult: 'blocked',
 	},
 	{
@@ -322,7 +322,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'find_each { |p| p.user }',
 		description: 'find_each block accessing association without preloading',
 		method: 'TASK',
-		path: '/jobs/export_posts',
+		path: '/jobs/export_products',
 		actor: 'find_each block',
 		expectedResult: 'blocked',
 	},
@@ -373,7 +373,7 @@ const addProsopiteCommands: TerminalCommand[] = [
 		command: 'bundle add prosopite',
 		correct: false,
 		feedback:
-			'Prosopite needs pg_query for SQL fingerprinting on ProductgreSQL. Without it, Prosopite cannot group similar queries to detect N+1 patterns.',
+			'Prosopite needs pg_query for SQL fingerprinting on PostgreSQL. Without it, Prosopite cannot group similar queries to detect N+1 patterns.',
 	},
 	{
 		id: 'correct',
@@ -517,22 +517,22 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 			language: 'ruby',
 			code: `class Api::V1::ProductsController < ApplicationController
   def index
-    result = PostList.call(params:)
-    render json: ProductSerializer.new(result.posts)
+    result = ProductList.call(params:)
+    render json: ProductSerializer.new(result.products)
   end
 end`,
 			highlight: [3],
 		});
 		files.push({
-			filename: 'app/services/post_list.rb',
+			filename: 'app/services/product_list.rb',
 			language: 'ruby',
-			code: `class PostList < ApplicationService
-  Result = Data.define(:success?, :posts, :errors)
+			code: `class ProductList < ApplicationService
+  Result = Data.define(:success?, :products, :errors)
 
   def call
     contract = ListContract.new.call(params)
     products = Product.all  # 1 query, no includes!
-    Result.new(success?: true, posts:, errors: [])
+    Result.new(success?: true, products:, errors: [])
   end
 end`,
 			highlight: [6],
@@ -541,11 +541,11 @@ end`,
 			filename: 'app/serializers/product_serializer.rb',
 			language: 'ruby',
 			code: `class ProductSerializer < BaseSerializer
-  attribute :title
-  attribute :body
+  attribute :name
+  attribute :description
 
-  attribute :author_name do |post|
-    product.user.name  # +1 query PER POST!
+  attribute :seller_name do |product|
+    product.user.name  # +1 query PER PRODUCT!
   end
 end`,
 			highlight: [6],
@@ -556,15 +556,15 @@ end`,
 	// Build / reward phases: show evolving code
 	if (furthestStep === 0) {
 		files.push({
-			filename: 'app/services/post_list.rb',
+			filename: 'app/services/product_list.rb',
 			language: 'ruby',
-			code: `class PostList < ApplicationService
-  Result = Data.define(:success?, :posts, :errors)
+			code: `class ProductList < ApplicationService
+  Result = Data.define(:success?, :products, :errors)
 
   def call
     contract = ListContract.new.call(params)
     products = Product.all  # no includes!
-    Result.new(success?: true, posts:, errors: [])
+    Result.new(success?: true, products:, errors: [])
   end
 end`,
 			highlight: [6],
@@ -573,11 +573,11 @@ end`,
 			filename: 'app/serializers/product_serializer.rb',
 			language: 'ruby',
 			code: `class ProductSerializer < BaseSerializer
-  attribute :title
-  attribute :body
+  attribute :name
+  attribute :description
 
-  attribute :author_name do |post|
-    product.user.name  # +1 query PER POST!
+  attribute :seller_name do |product|
+    product.user.name  # +1 query PER PRODUCT!
   end
 end`,
 			highlight: [6],

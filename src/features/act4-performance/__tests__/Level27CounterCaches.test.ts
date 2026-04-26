@@ -58,27 +58,27 @@ interface StepDef {
 // Data (mirrored from component)
 // ──────────────────────────────────────────────
 
-const OBSERVE_POST_COUNT = 20;
+const OBSERVE_PRODUCT_COUNT = 20;
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{
 		id: 'n-plus-one-counts',
-		label: 'Each post fires a separate COUNT(*) to the reviews table',
+		label: 'Each product fires a separate COUNT(*) to the reviews table',
 	},
 ];
 
 const PROBES: ProbeConfig[] = [
 	{
-		id: 'load-posts',
-		label: 'GET /api/posts',
-		command: 'GET /api/posts?limit=20',
+		id: 'load-products',
+		label: 'GET /api/products',
+		command: 'GET /api/products?limit=20',
 		responseLines: [
 			{
 				text: 'Product Load (1.2ms)  SELECT "products".* FROM "products" LIMIT 20',
 				color: 'green',
 			},
 			{
-				text: '  Loading review counts for 20 posts...',
+				text: '  Loading review counts for 20 products...',
 				color: 'muted',
 			},
 			{
@@ -94,7 +94,7 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 			{
-				text: '  Total: 21 queries for 20 posts',
+				text: '  Total: 21 queries for 20 products',
 				color: 'red',
 			},
 		],
@@ -102,7 +102,7 @@ const PROBES: ProbeConfig[] = [
 ];
 
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
-	'load-posts': ['n-plus-one-counts'],
+	'load-products': ['n-plus-one-counts'],
 };
 
 const STEP_DEFS: StepDef[] = [
@@ -125,9 +125,9 @@ const MIGRATION_COMMANDS: TerminalCommand[] = [
 	{
 		id: 'generate-migration',
 		label:
-			'rails generate migration AddReviewsCountToPosts reviews_count:integer',
+			'rails generate migration AddReviewsCountToProducts reviews_count:integer',
 		command:
-			'rails generate migration AddReviewsCountToPosts reviews_count:integer',
+			'rails generate migration AddReviewsCountToProducts reviews_count:integer',
 		correct: true,
 	},
 	{
@@ -143,8 +143,8 @@ const MIGRATION_COMMANDS: TerminalCommand[] = [
 const RUN_MIGRATION_COMMANDS: TerminalCommand[] = [
 	{
 		id: 'generate-again',
-		label: 'rails generate migration AddReviewsCountToPosts',
-		command: 'rails generate migration AddReviewsCountToPosts',
+		label: 'rails generate migration AddReviewsCountToProducts',
+		command: 'rails generate migration AddReviewsCountToProducts',
 		correct: false,
 		feedback:
 			'The migration file already exists. You need to apply it to the database.',
@@ -175,7 +175,8 @@ const COUNTER_CACHE_OPTIONS: StepOption[] = [
 	},
 	{
 		id: 'after-create',
-		label: 'after_create { Product.increment_counter(:reviews_count, product_id) }',
+		label:
+			'after_create { Product.increment_counter(:reviews_count, product_id) }',
 		correct: false,
 		feedback:
 			'Manual callbacks are error-prone. You would also need after_destroy, after_update, and handle edge cases. Rails provides a built-in option.',
@@ -239,11 +240,11 @@ const ALL_OPTION_STEPS: StepOption[][] = [
 
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
-		id: 'ten-posts',
-		label: '10 posts index',
+		id: 'ten-products',
+		label: '10 products index',
 		description: 'Small page load with counter cache',
 		method: 'GET',
-		path: '/api/posts?limit=10',
+		path: '/api/products?limit=10',
 		actor: 'client',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -259,11 +260,11 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		],
 	},
 	{
-		id: 'fifty-posts',
-		label: '50 posts index',
+		id: 'fifty-products',
+		label: '50 products index',
 		description: 'Medium listing with counter cache',
 		method: 'GET',
-		path: '/api/posts?limit=50',
+		path: '/api/products?limit=50',
 		actor: 'client',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -279,11 +280,11 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		],
 	},
 	{
-		id: 'hundred-posts',
-		label: '100 posts index',
+		id: 'hundred-products',
+		label: '100 products index',
 		description: 'Full page with counter cache',
 		method: 'GET',
-		path: '/api/posts?limit=100',
+		path: '/api/products?limit=100',
 		actor: 'client',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -299,11 +300,11 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		],
 	},
 	{
-		id: 'five-hundred-posts',
-		label: '500 posts export',
+		id: 'five-hundred-products',
+		label: '500 products export',
 		description: 'Admin export with counter cache',
 		method: 'GET',
-		path: '/api/posts?limit=500',
+		path: '/api/products?limit=500',
 		actor: 'admin',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -323,7 +324,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: '.count bypasses cache',
 		description: 'Serializer still using .count instead of .size',
 		method: 'GET',
-		path: '/api/posts?limit=100&method=count',
+		path: '/api/products?limit=100&method=count',
 		actor: 'client',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -373,7 +374,7 @@ describe('Level 27: Counter Caches', () => {
 
 		test('single probe exists', () => {
 			expect(PROBES.length).toBe(1);
-			expect(probe.id).toBe('load-posts');
+			expect(probe.id).toBe('load-products');
 		});
 
 		test('probe has 6 response lines with correct colors', () => {
@@ -406,7 +407,7 @@ describe('Level 27: Counter Caches', () => {
 			const first = probe.responseLines[0];
 			expect(first.color).toBe('green');
 			expect(first.text).toContain('SELECT');
-			expect(first.text).toContain(`LIMIT ${OBSERVE_POST_COUNT}`);
+			expect(first.text).toContain(`LIMIT ${OBSERVE_PRODUCT_COUNT}`);
 		});
 
 		test('response lines show COUNT(*) sample queries (red)', () => {
@@ -419,7 +420,7 @@ describe('Level 27: Counter Caches', () => {
 		test('ellipsis line shows remaining COUNT query count', () => {
 			const ellipsisLine = probe.responseLines[4];
 			expect(ellipsisLine.text).toContain('more COUNT(*)');
-			expect(ellipsisLine.text).toContain(`${OBSERVE_POST_COUNT - 2}`);
+			expect(ellipsisLine.text).toContain(`${OBSERVE_PRODUCT_COUNT - 2}`);
 		});
 
 		test('last response line shows total query count (N+1)', () => {
@@ -427,7 +428,7 @@ describe('Level 27: Counter Caches', () => {
 			expect(last.color).toBe('red');
 			expect(last.text).toContain('Total:');
 			expect(last.text).toContain(
-				`${OBSERVE_POST_COUNT + 1} queries for ${OBSERVE_POST_COUNT} posts`,
+				`${OBSERVE_PRODUCT_COUNT + 1} queries for ${OBSERVE_PRODUCT_COUNT} products`,
 			);
 		});
 	});
@@ -463,7 +464,7 @@ describe('Level 27: Counter Caches', () => {
 			for (const cmd of MIGRATION_COMMANDS) {
 				if (!cmd.correct && cmd.feedback) {
 					expect(cmd.feedback).not.toContain(correctCommand?.command ?? '');
-					expect(cmd.feedback).not.toContain('AddReviewsCountToPosts');
+					expect(cmd.feedback).not.toContain('AddReviewsCountToProducts');
 				}
 			}
 		});
@@ -594,14 +595,14 @@ describe('Level 27: Counter Caches', () => {
 	// ── Cross-phase consistency ──
 
 	describe('Cross-phase consistency', () => {
-		test('reward scenarios cover a range of post counts', () => {
+		test('reward scenarios cover a range of product counts', () => {
 			const scenarioLimits = STRESS_SCENARIOS.filter(
 				(s) => s.expectedResult === 'allowed',
 			).map((s) => {
 				const match = s.path.match(/limit=(\d+)/);
 				return match ? Number.parseInt(match[1], 10) : 0;
 			});
-			// Reward should have varied post counts
+			// Reward should have varied product counts
 			expect(new Set(scenarioLimits).size).toBeGreaterThanOrEqual(2);
 		});
 
@@ -653,13 +654,13 @@ describe('Level 27: Counter Caches', () => {
 	// ── Data consistency ──
 
 	describe('Data consistency', () => {
-		test('probe query count formula: total = OBSERVE_POST_COUNT + 1', () => {
+		test('probe query count formula: total = OBSERVE_PRODUCT_COUNT + 1', () => {
 			const totalLine = PROBES[0].responseLines.find((l) =>
 				l.text.includes('Total:'),
 			);
 			expect(totalLine).toBeTruthy();
 			expect(totalLine?.color).toBe('red');
-			expect(totalLine?.text).toContain(`${OBSERVE_POST_COUNT + 1} queries`);
+			expect(totalLine?.text).toContain(`${OBSERVE_PRODUCT_COUNT + 1} queries`);
 		});
 
 		test('stress scenario paths contain valid limit values', () => {

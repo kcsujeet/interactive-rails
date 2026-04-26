@@ -50,14 +50,14 @@ import {
 } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import {
 	type DiscoveryDef,
 	useDiscoveryGating,
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 
 registerLevelCode('act1-level6-controller', () =>
 	getCodeFiles('reward', STEP_DEFS.length, RESTFUL_ACTIONS),
@@ -90,14 +90,14 @@ const PROBES: ProbeConfig[] = [
 		label: 'GET /api/v1/products',
 		story: [
 			'A customer opens the storefront and the app fetches the product catalog.',
-			'GET /api/v1/products hits the router, which matches it to posts#index.',
+			'GET /api/v1/products hits the router, which matches it to products#index.',
 			'The router tries to instantiate Api::V1::ProductsController.',
 			'The controller file does not exist. Rails raises a NameError.',
 			'The request crashes with a 500. Routes work, but there is nothing behind them.',
 		],
 		command: 'GET /api/v1/products',
 		responseLines: [
-			{ text: 'Routing... matched posts#index', color: 'green' },
+			{ text: 'Routing... matched products#index', color: 'green' },
 			{ text: 'HTTP/1.1 500 Internal Server Error', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
@@ -116,13 +116,13 @@ const PROBES: ProbeConfig[] = [
 		story: [
 			'A store admin submits a new product through the dashboard.',
 			'The form sends a POST with the product data to /api/v1/products.',
-			'The router matches it to posts#create and tries to load the controller.',
+			'The router matches it to products#create and tries to load the controller.',
 			'Same crash: Api::V1::ProductsController is not defined anywhere.',
 			'The product is never saved. POST crashes with a 500 just like GET.',
 		],
-		command: 'POST /api/v1/products (body: {title: "Hello"})',
+		command: 'POST /api/v1/products (body: {name: "Laptop Pro"})',
 		responseLines: [
-			{ text: 'Routing... matched posts#create', color: 'green' },
+			{ text: 'Routing... matched products#create', color: 'green' },
 			{ text: 'HTTP/1.1 500 Internal Server Error', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
@@ -140,14 +140,14 @@ const PROBES: ProbeConfig[] = [
 		label: 'DELETE /api/v1/products/1',
 		story: [
 			'An admin removes a discontinued product from the catalog.',
-			'DELETE /api/v1/products/1 hits the router, which matches posts#destroy.',
+			'DELETE /api/v1/products/1 hits the router, which matches products#destroy.',
 			'Rails tries to load the controller class to handle the deletion.',
 			'NameError again. The controller does not exist for any action.',
 			'All 5 resourceful routes (index, show, create, update, destroy) are broken.',
 		],
 		command: 'DELETE /api/v1/products/1',
 		responseLines: [
-			{ text: 'Routing... matched posts#destroy', color: 'green' },
+			{ text: 'Routing... matched products#destroy', color: 'green' },
 			{ text: 'HTTP/1.1 500 Internal Server Error', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
@@ -180,19 +180,19 @@ const PROBE_PIPELINE_MAP: Record<
 	}
 > = {
 	'get-index': {
-		routerSublabel: 'GET -> posts#index',
+		routerSublabel: 'GET -> products#index',
 		routerBadge: 'Matched!',
 		controllerSublabel: 'NameError!',
 		controllerBadge: '500!',
 	},
 	'post-create': {
-		routerSublabel: 'POST -> posts#create',
+		routerSublabel: 'POST -> products#create',
 		routerBadge: 'Matched!',
 		controllerSublabel: 'NameError!',
 		controllerBadge: '500!',
 	},
 	'delete-destroy': {
-		routerSublabel: 'DELETE -> posts#destroy',
+		routerSublabel: 'DELETE -> products#destroy',
 		routerBadge: 'Matched!',
 		controllerSublabel: 'NameError!',
 		controllerBadge: '500!',
@@ -214,12 +214,12 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		stageId: 'router',
 		title: 'Router (Working)',
 		description:
-			'Routes are defined! resources :posts under namespace :api/:v1 maps all 5 RESTful routes. But the controller they point to does not exist yet.',
+			'Routes are defined! resources :products under namespace :api/:v1 maps all 5 RESTful routes. But the controller they point to does not exist yet.',
 		code: `# config/routes.rb
 Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
-      resources :posts
+      resources :products
     end
   end
 end`,
@@ -236,7 +236,7 @@ end`,
 		stageId: 'model',
 		title: 'Product Model',
 		description:
-			'The Product model is ready (from Level 3). It has title, body, and published_at columns. But requests never reach the model because the controller is missing.',
+			'The Product model is ready (from Level 3). It has name, description, and price columns. But requests never reach the model because the controller is missing.',
 	},
 	response: {
 		stageId: 'response',
@@ -279,7 +279,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'get-show',
 		label: 'GET /api/v1/products/1',
-		description: 'Show a single post',
+		description: 'Show a single product',
 		method: 'GET',
 		path: '/api/v1/products/1',
 		actor: 'client',
@@ -288,7 +288,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'patch-update',
 		label: 'PATCH /api/v1/products/1',
-		description: 'Update an existing post',
+		description: 'Update an existing product',
 		method: 'PATCH',
 		path: '/api/v1/products/1',
 		actor: 'client',
@@ -487,9 +487,9 @@ function getActionBody(action: string): string {
 		case 'show':
 			return 'render json: Product.find(params[:id])';
 		case 'create':
-			return 'post = Product.new(product_params)\n      if product.save\n        render json: post, status: :created\n      else\n        render json: { errors: product.errors }, status: :unprocessable_entity\n      end';
+			return 'product = Product.new(product_params)\n      if product.save\n        render json: product, status: :created\n      else\n        render json: { errors: product.errors }, status: :unprocessable_entity\n      end';
 		case 'update':
-			return 'post = Product.find(params[:id])\n      if product.update(product_params)\n        render json: post\n      else\n        render json: { errors: product.errors }, status: :unprocessable_entity\n      end';
+			return 'product = Product.find(params[:id])\n      if product.update(product_params)\n        render json: product\n      else\n        render json: { errors: product.errors }, status: :unprocessable_entity\n      end';
 		case 'destroy':
 			return 'Product.find(params[:id]).destroy\n      head :no_content';
 		default:
@@ -516,7 +516,7 @@ function getCodeFiles(
 			code: `Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
-      resources :posts
+      resources :products
     end
   end
 end`,
@@ -556,10 +556,10 @@ end`,
 						.join('\n\n')
 				: '  # Add actions here...';
 
-		const needsPostParams =
+		const needsProductParams =
 			placedActions.includes('create') || placedActions.includes('update');
-		const privateSection = needsPostParams
-			? `\n\n  private\n\n  def product_params\n    params.require(:product).permit(:title, :body, :published_at)\n  end`
+		const privateSection = needsProductParams
+			? `\n\n  private\n\n  def product_params\n    params.require(:product).permit(:name, :description, :price)\n  end`
 			: '';
 
 		files.push({

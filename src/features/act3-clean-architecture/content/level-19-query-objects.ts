@@ -63,16 +63,16 @@ class Api::V1::Admin::ProductsController < ApplicationController
     @products = Product.all
 
     # 60 lines of inline query chains!
-    if params[:published].present?
-      @products = @products.where.not(published_at: nil)
+    if params[:listed].present?
+      @products = @products.where.not(listed_at: nil)
     end
 
-    if params[:author_id].present?
-      @products = @products.where(author_id: params[:author_id])
+    if params[:seller_id].present?
+      @products = @products.where(seller_id: params[:seller_id])
     end
 
     if params[:since].present?
-      @products = @products.where("published_at >= ?", params[:since])
+      @products = @products.where("listed_at >= ?", params[:since])
     end
 
     if params[:min_reviews].present?
@@ -86,7 +86,7 @@ class Api::V1::Admin::ProductsController < ApplicationController
       @products = @products.joins(:tags).where(tags: { name: params[:tag] })
     end
 
-    @products = @products.order(params[:sort] || :published_at => :desc)
+    @products = @products.order(params[:sort] || :listed_at => :desc)
 
     render json: @products
   end
@@ -122,7 +122,7 @@ end
 - Same filters are needed in multiple controllers, jobs, or rake tasks
 - Query involves JOINs, GROUP BY, HAVING, or subqueries
 
-**Scopes vs. query objects:** For single-purpose filters, use named scopes (\`scope :visible, -> { where.not(published_at: nil) }\`). Query objects are the next step when you need composable, multi-filter logic that spans parameters.
+**Scopes vs. query objects:** For single-purpose filters, use named scopes (\`scope :visible, -> { where.not(listed_at: nil) }\`). Query objects are the next step when you need composable, multi-filter logic that spans parameters.
 
 **Key principle:** Always return \`ActiveRecord::Relation\`, never \`.to_a\` or \`.map\`. This preserves lazy loading and lets callers add pagination, includes, or further scopes.`,
 		railsCodeExample: `# app/queries/application_query.rb
@@ -146,22 +146,24 @@ end
 
 # app/queries/product_query.rb
 class ProductQuery < ApplicationQuery
-  def published_only
-    @scope = @scope.where.not(published_at: nil)
+  def listed(flag)
+    return self if flag.blank?
+
+    @scope = @scope.where.not(listed_at: nil)
     self
   end
 
-  def by_author(author_id)
-    return self if author_id.blank?
+  def by_seller(seller_id)
+    return self if seller_id.blank?
 
-    @scope = @scope.where(author_id: author_id)
+    @scope = @scope.where(seller_id: seller_id)
     self
   end
 
   def since(date)
     return self if date.blank?
 
-    @scope = @scope.where("published_at >= ?", date)
+    @scope = @scope.where("listed_at >= ?", date)
     self
   end
 
@@ -182,11 +184,11 @@ class ProductQuery < ApplicationQuery
     self
   end
 
-  SORTABLE_COLUMNS = %w[published_at created_at title].freeze
+  SORTABLE_COLUMNS = %w[listed_at created_at name].freeze
   SORT_DIRECTIONS = %w[asc desc].freeze
 
-  def sorted(column = :published_at, direction = :desc)
-    safe_column = SORTABLE_COLUMNS.include?(column.to_s) ? column : :published_at
+  def sorted(column = :listed_at, direction = :desc)
+    safe_column = SORTABLE_COLUMNS.include?(column.to_s) ? column : :listed_at
     safe_direction = SORT_DIRECTIONS.include?(direction.to_s) ? direction : :desc
     @scope = @scope.order(safe_column => safe_direction)
     self
@@ -203,8 +205,8 @@ end
 class Api::V1::Admin::ProductsController < ApplicationController
   def index
     products = ProductQuery.new
-      .published_only
-      .by_author(params[:author_id])
+      .listed(params[:listed])
+      .by_seller(params[:seller_id])
       .since(params[:since])
       .with_min_reviews(params[:min_reviews])
       .by_tag(params[:tag])
@@ -218,8 +220,8 @@ end
 # Reuse in API controller with different base scope:
 class Api::V1::ProductsController < ApplicationController
   def index
-    products = ProductQuery.new(Product.where.not(published_at: nil))
-      .by_author(params[:author_id])
+    products = ProductQuery.new(Product.where.not(listed_at: nil))
+      .by_seller(params[:seller_id])
       .by_tag(params[:tag])
       .sorted
       .results
@@ -232,7 +234,7 @@ end
 class CsvExportJob < ApplicationJob
   def perform(filters)
     products = ProductQuery.new
-      .published_only
+      .listed(true)
       .since(filters[:since])
       .sorted(:created_at, :asc)
       .results
@@ -241,29 +243,29 @@ class CsvExportJob < ApplicationJob
   end
 end
 
-# test/queries/post_query_test.rb
+# test/queries/product_query_test.rb
 class ProductQueryTest < ActiveSupport::TestCase
-  test "published_only filters to products with published_at" do
-    published = products(:with_published_at)
-    unpublished = products(:without_published_at)
+  test "listed filters to products with listed_at" do
+    listed = products(:with_listed_at)
+    unlisted = products(:without_listed_at)
 
-    results = ProductQuery.new.published_only.results
+    results = ProductQuery.new.listed(true).results
 
-    assert_includes results, published
-    refute_includes results, unpublished
+    assert_includes results, listed
+    refute_includes results, unlisted
   end
 
   test "blank params are skipped" do
     all_products = Product.count
-    results = ProductQuery.new.by_author("").results
+    results = ProductQuery.new.by_seller("").results
 
     assert_equal all_products, results.count
   end
 
   test "methods are chainable" do
     results = ProductQuery.new
-      .published_only
-      .by_author(users(:alice).id)
+      .listed(true)
+      .by_seller(users(:alice).id)
       .sorted
       .results
 
@@ -278,8 +280,8 @@ class ProductQueryTest < ActiveSupport::TestCase
   end
 
   test "custom base scope narrows results" do
-    results = ProductQuery.new(Product.where.not(published_at: nil)).results
-    assert results.all? { |p| p.published_at.present? }
+    results = ProductQuery.new(Product.where.not(listed_at: nil)).results
+    assert results.all? { |p| p.listed_at.present? }
   end
 end`,
 		commonMistakes: [

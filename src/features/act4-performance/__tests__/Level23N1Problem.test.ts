@@ -59,32 +59,35 @@ interface StepDef {
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{ id: 'n1-pattern', label: 'N+1 query pattern in serializer' },
-	{ id: 'query-count', label: '101 queries for 100 posts' },
+	{ id: 'query-count', label: '101 queries for 100 products' },
 	{ id: 'no-eager-load', label: 'No eager loading on the query' },
 	{ id: 'hidden-in-serializer', label: 'N+1 hides inside the serializer' },
 ];
 
 const PROBES: ProbeConfig[] = [
 	{
-		id: 'get-posts-5',
-		label: 'GET /posts (5 posts)',
-		command: 'GET /api/v1/products (5 posts in DB)',
+		id: 'get-products-5',
+		label: 'GET /products (5 products)',
+		command: 'GET /api/v1/products (5 products in DB)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'green' },
 			{ text: '', color: 'muted' },
 			{ text: 'SQL queries executed: 6', color: 'yellow' },
-			{ text: '  SELECT * FROM products              (1 query)', color: 'muted' },
+			{
+				text: '  SELECT * FROM products              (1 query)',
+				color: 'muted',
+			},
 			{ text: '  SELECT * FROM users WHERE id = 1 (+1)', color: 'red' },
 			{ text: '  SELECT * FROM users WHERE id = 2 (+1)', color: 'red' },
 			{ text: '  SELECT * FROM users WHERE id = 3 (+1)', color: 'red' },
-			{ text: '  ... 2 more author queries', color: 'red' },
+			{ text: '  ... 2 more seller queries', color: 'red' },
 			{ text: '1 + 5 = 6 queries. That is the N+1 pattern.', color: 'yellow' },
 		],
 	},
 	{
-		id: 'get-posts-100',
-		label: 'GET /posts (100 posts)',
-		command: 'GET /api/v1/products (100 posts in DB)',
+		id: 'get-products-100',
+		label: 'GET /products (100 products)',
+		command: 'GET /api/v1/products (100 products in DB)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK (850ms)', color: 'yellow' },
 			{ text: '', color: 'muted' },
@@ -102,9 +105,9 @@ const PROBES: ProbeConfig[] = [
 		],
 	},
 	{
-		id: 'get-posts-1000',
-		label: 'GET /posts (1000 posts)',
-		command: 'GET /api/v1/products (1000 posts in DB)',
+		id: 'get-products-1000',
+		label: 'GET /products (1000 products)',
+		command: 'GET /api/v1/products (1000 products in DB)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK (4873ms)', color: 'red' },
 			{ text: '', color: 'muted' },
@@ -122,9 +125,9 @@ const PROBES: ProbeConfig[] = [
 ];
 
 const PROBE_DISCOVERY_MAP: Record<string, string> = {
-	'get-posts-5': 'n1-pattern',
-	'get-posts-100': 'query-count',
-	'get-posts-1000': 'no-eager-load',
+	'get-products-5': 'n1-pattern',
+	'get-products-100': 'query-count',
+	'get-products-1000': 'no-eager-load',
 };
 
 const STAGE_DISCOVERY_MAP: Record<string, string> = {
@@ -155,7 +158,7 @@ const addProsopiteCommands: TerminalCommand[] = [
 		command: 'bundle add prosopite',
 		correct: false,
 		feedback:
-			'Prosopite needs pg_query for SQL fingerprinting on ProductgreSQL. Without it, Prosopite cannot group similar queries to detect N+1 patterns.',
+			'Prosopite needs pg_query for SQL fingerprinting on PostgreSQL. Without it, Prosopite cannot group similar queries to detect N+1 patterns.',
 	},
 	{
 		id: 'correct',
@@ -220,32 +223,32 @@ const ALL_OPTION_STEPS: StepOption[][] = [
 
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
-		id: 'posts-no-includes',
-		label: 'PostList (no includes)',
+		id: 'products-no-includes',
+		label: 'ProductList (no includes)',
 		description:
-			'Service loads posts without eager loading, serializer accesses .user',
+			'Service loads products without eager loading, serializer accesses .user',
 		method: 'GET',
 		path: '/api/v1/products',
-		actor: 'PostList.call',
+		actor: 'ProductList.call',
 		expectedResult: 'blocked',
 	},
 	{
-		id: 'posts-with-includes',
-		label: 'PostList (with includes)',
-		description: 'Service loads posts with eager-loaded users',
+		id: 'products-with-includes',
+		label: 'ProductList (with includes)',
+		description: 'Service loads products with eager-loaded users',
 		method: 'GET',
 		path: '/api/v1/products',
-		actor: 'PostList.call',
+		actor: 'ProductList.call',
 		expectedResult: 'allowed',
 	},
 	{
 		id: 'reviews-no-includes',
-		label: 'PostList + .reviews.count',
+		label: 'ProductList + .reviews.count',
 		description:
-			'Service loads posts, serializer counts reviews without counter cache',
+			'Service loads products, serializer counts reviews without counter cache',
 		method: 'GET',
 		path: '/api/v1/products',
-		actor: 'PostList.call',
+		actor: 'ProductList.call',
 		expectedResult: 'blocked',
 	},
 	{
@@ -253,7 +256,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'find_each { |p| p.user }',
 		description: 'find_each block accessing association without preloading',
 		method: 'TASK',
-		path: '/jobs/export_posts',
+		path: '/jobs/export_products',
 		actor: 'find_each block',
 		expectedResult: 'blocked',
 	},
@@ -288,9 +291,7 @@ describe('Level 23: N+1 Problem', () => {
 
 		test('all discoveries are reachable via probes or zone clicks', () => {
 			const reachableViaProbes = new Set(Object.values(PROBE_DISCOVERY_MAP));
-			const reachableViaStages = new Set(
-				Object.values(STAGE_DISCOVERY_MAP),
-			);
+			const reachableViaStages = new Set(Object.values(STAGE_DISCOVERY_MAP));
 			const allReachable = new Set([
 				...reachableViaProbes,
 				...reachableViaStages,
@@ -390,16 +391,12 @@ describe('Level 23: N+1 Problem', () => {
 
 		// Terminal step 0: add prosopite
 		test('terminal step: correct answer is not first', () => {
-			const correctIndex = addProsopiteCommands.findIndex(
-				(c) => c.correct,
-			);
+			const correctIndex = addProsopiteCommands.findIndex((c) => c.correct);
 			expect(correctIndex).toBeGreaterThan(0);
 		});
 
 		test('terminal step: exactly one correct answer', () => {
-			const correctCount = addProsopiteCommands.filter(
-				(c) => c.correct,
-			).length;
+			const correctCount = addProsopiteCommands.filter((c) => c.correct).length;
 			expect(correctCount).toBe(1);
 		});
 
@@ -536,26 +533,25 @@ describe('Level 23: N+1 Problem', () => {
 			expect(STAGE_INSPECTOR_MAP_KEYS).toEqual(observeZoneIds);
 		});
 
-		test('service pattern (PostList) referenced in both probes and stress scenarios', () => {
+		test('service pattern (ProductList) referenced in both probes and stress scenarios', () => {
 			// Probes reference the ProductList service path
 			const probeRefsService = PROBES.some(
-				(p) =>
-					p.command.includes('posts') || p.label.includes('posts'),
+				(p) => p.command.includes('products') || p.label.includes('products'),
 			);
 			expect(probeRefsService).toBe(true);
 
-			// Stress scenarios reference PostList
+			// Stress scenarios reference ProductList
 			const stressRefsService = STRESS_SCENARIOS.some(
 				(s) =>
-					s.actor.includes('PostList') || s.label.includes('PostList'),
+					s.actor.includes('ProductList') || s.label.includes('ProductList'),
 			);
 			expect(stressRefsService).toBe(true);
 		});
 
 		test('probes use consistent label convention (method + resource)', () => {
 			for (const probe of PROBES) {
-				// All probe labels follow "GET /posts (N posts)" pattern
-				expect(probe.label).toMatch(/^GET \/posts/);
+				// All probe labels follow "GET /products (N products)" pattern
+				expect(probe.label).toMatch(/^GET \/products/);
 			}
 		});
 
@@ -588,9 +584,7 @@ describe('Level 23: N+1 Problem', () => {
 
 		test('stress scenarios include both eager-loading and non-eager-loading patterns', () => {
 			const hasEager = STRESS_SCENARIOS.some(
-				(s) =>
-					s.label.includes('includes') ||
-					s.description.includes('eager'),
+				(s) => s.label.includes('includes') || s.description.includes('eager'),
 			);
 			const hasNoEager = STRESS_SCENARIOS.some(
 				(s) =>
@@ -609,7 +603,7 @@ describe('Level 23: N+1 Problem', () => {
 			expect(DISCOVERY_DEFS.length).toBe(4);
 		});
 
-		test('exactly 3 probes (escalating scale: 5, 100, 1000 posts)', () => {
+		test('exactly 3 probes (escalating scale: 5, 100, 1000 products)', () => {
 			expect(PROBES.length).toBe(3);
 		});
 

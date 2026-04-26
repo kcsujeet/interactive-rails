@@ -40,9 +40,9 @@ import {
 } from '@/components/levels';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
-import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act3-level19-query-objects', () =>
@@ -75,15 +75,15 @@ const ADMIN_SECTIONS: AnnotatedSection[] = [
 	},
 	{
 		id: 'admin-published',
-		label: 'Duplicated: Published Filter',
+		label: 'Duplicated: Listed Filter',
 		variant: 'duplicated',
-		code: 'if params[:published].present?\n  @products = @products.where.not(published_at: nil)\nend',
+		code: 'if params[:listed].present?\n  @products = @products.where.not(listed_at: nil)\nend',
 	},
 	{
 		id: 'admin-author',
-		label: 'Duplicated: Author Filter',
+		label: 'Duplicated: Seller Filter',
 		variant: 'duplicated',
-		code: 'if params[:author_id].present?\n  @products = @products.where(author_id: params[:author_id])\nend',
+		code: 'if params[:seller_id].present?\n  @products = @products.where(seller_id: params[:seller_id])\nend',
 	},
 	{
 		id: 'admin-reviews',
@@ -104,25 +104,25 @@ const API_SECTIONS: AnnotatedSection[] = [
 		id: 'api-core',
 		label: 'Core',
 		variant: 'core',
-		code: 'posts = Product.all',
+		code: 'products = Product.all',
 	},
 	{
 		id: 'api-published',
-		label: 'Duplicated: Published Filter',
+		label: 'Duplicated: Listed Filter',
 		variant: 'duplicated',
-		code: 'posts = posts.where.not(published_at: nil) if params[:published]',
+		code: 'products = products.where.not(listed_at: nil) if params[:listed]',
 	},
 	{
 		id: 'api-author',
-		label: 'Duplicated: Author Filter',
+		label: 'Duplicated: Seller Filter',
 		variant: 'duplicated',
-		code: 'posts = posts.where(author_id: params[:author_id]) if params[:author_id]',
+		code: 'products = products.where(seller_id: params[:seller_id]) if params[:seller_id]',
 	},
 	{
 		id: 'api-tag',
 		label: 'Duplicated: Tag Filter',
 		variant: 'duplicated',
-		code: 'posts = posts.joins(:tags).where(tags: { name: params[:tag] }) if params[:tag]',
+		code: 'products = products.joins(:tags).where(tags: { name: params[:tag] }) if params[:tag]',
 	},
 ];
 
@@ -131,19 +131,19 @@ const CSV_SECTIONS: AnnotatedSection[] = [
 		id: 'csv-core',
 		label: 'Core',
 		variant: 'core',
-		code: 'posts = Product.all',
+		code: 'products = Product.all',
 	},
 	{
 		id: 'csv-published',
-		label: 'Duplicated: Published Filter',
+		label: 'Duplicated: Listed Filter',
 		variant: 'duplicated',
-		code: 'posts = posts.where.not(published_at: nil) if filters[:published]',
+		code: 'products = products.where.not(listed_at: nil) if filters[:listed]',
 	},
 	{
 		id: 'csv-since',
 		label: 'Duplicated: Date Filter (BUG)',
 		variant: 'duplicated',
-		code: '# BUG: uses > instead of >=\nposts = posts.where("published_at > ?", filters[:since])',
+		code: '# BUG: uses > instead of >=\nproducts = products.where("listed_at > ?", filters[:since])',
 	},
 ];
 
@@ -236,7 +236,7 @@ const WIRE_OPTIONS: StepOption[] = [
 	},
 	{
 		id: 'call-class-method',
-		label: 'ProductQuery.filter(params[:published], params[:author_id])',
+		label: 'ProductQuery.filter(params[:listed], params[:seller_id])',
 		correct: false,
 		feedback:
 			'A single class method with positional arguments is not composable. Adding a new filter means changing the method signature everywhere it is called.',
@@ -244,7 +244,7 @@ const WIRE_OPTIONS: StepOption[] = [
 	{
 		id: 'chain-methods',
 		label:
-			'ProductQuery.new.published(params[:published]).by_author(params[:author_id]).sorted.results',
+			'ProductQuery.new.listed(params[:listed]).by_seller(params[:seller_id]).sorted.results',
 		correct: true,
 	},
 ];
@@ -352,20 +352,20 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 		files.push({
 			filename: 'app/controllers/admin/products_controller.rb',
 			language: 'ruby',
-			code: `class Admin::PostsController < ApplicationController
+			code: `class Admin::ProductsController < ApplicationController
   def index
     @products = Product.all
 
-    if params[:published].present?
-      @products = @products.where.not(published_at: nil)
+    if params[:listed].present?
+      @products = @products.where.not(listed_at: nil)
     end
 
-    if params[:author_id].present?
-      @products = @products.where(author_id: params[:author_id])
+    if params[:seller_id].present?
+      @products = @products.where(seller_id: params[:seller_id])
     end
 
     if params[:since].present?
-      @products = @products.where("published_at >= ?", params[:since])
+      @products = @products.where("listed_at >= ?", params[:since])
     end
 
     if params[:min_reviews].present?
@@ -380,7 +380,7 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
         .where(tags: { name: params[:tag] })
     end
 
-    @products = @products.order(published_at: :desc)
+    @products = @products.order(listed_at: :desc)
 
     render json: @products
   end
@@ -398,16 +398,16 @@ end
 		files.push({
 			filename: 'app/controllers/admin/products_controller.rb',
 			language: 'ruby',
-			code: `class Admin::PostsController < ApplicationController
+			code: `class Admin::ProductsController < ApplicationController
   def index
     @products = Product.all
 
-    if params[:published].present?
-      @products = @products.where.not(published_at: nil)
+    if params[:listed].present?
+      @products = @products.where.not(listed_at: nil)
     end
 
-    if params[:author_id].present?
-      @products = @products.where(author_id: params[:author_id])
+    if params[:seller_id].present?
+      @products = @products.where(seller_id: params[:seller_id])
     end
 
     if params[:min_reviews].present?
@@ -434,24 +434,24 @@ end
 			code:
 				furthestStep >= 3
 					? `class ProductQuery < ApplicationQuery
-  def published(flag)
+  def listed(flag)
     return self if flag.blank?
 
-    @scope = @scope.where.not(published_at: nil)
+    @scope = @scope.where.not(listed_at: nil)
     self
   end
 
-  def by_author(author_id)
-    return self if author_id.blank?
+  def by_seller(seller_id)
+    return self if seller_id.blank?
 
-    @scope = @scope.where(author_id: author_id)
+    @scope = @scope.where(seller_id: seller_id)
     self
   end
 
   def since(date)
     return self if date.blank?
 
-    @scope = @scope.where("published_at >= ?", date)
+    @scope = @scope.where("listed_at >= ?", date)
     self
   end
 
@@ -473,7 +473,7 @@ end
     self
   end
 
-  def sorted(column = :published_at, dir = :desc)
+  def sorted(column = :listed_at, dir = :desc)
     @scope = @scope.order(column => dir)
     self
   end
@@ -486,17 +486,17 @@ end
 end`
 					: furthestStep >= 2
 						? `class ProductQuery < ApplicationQuery
-  def published(flag)
+  def listed(flag)
     return self if flag.blank?
 
-    @scope = @scope.where.not(published_at: nil)
+    @scope = @scope.where.not(listed_at: nil)
     self  # returns self for chaining
   end
 
-  def by_author(author_id)
-    return self if author_id.blank?
+  def by_seller(seller_id)
+    return self if seller_id.blank?
 
-    @scope = @scope.where(author_id: author_id)
+    @scope = @scope.where(seller_id: seller_id)
     self
   end
 
@@ -532,27 +532,27 @@ end`,
 		files.push({
 			filename: 'app/controllers/admin/products_controller.rb',
 			language: 'ruby',
-			code: `class Admin::PostsController < ApplicationController
+			code: `class Admin::ProductsController < ApplicationController
   def index
     products = ProductQuery.new
-      .published(params[:published])
-      .by_author(params[:author_id])
+      .listed(params[:listed])
+      .by_seller(params[:seller_id])
       .since(params[:since])
       .with_min_reviews(params[:min_reviews])
       .by_tag(params[:tag])
       .sorted
       .results
 
-    render json: posts
+    render json: products
   end
 end
 
 # Reuse in API controller:
-# ProductQuery.new(Product.where.not(published_at: nil))
+# ProductQuery.new(Product.where.not(listed_at: nil))
 #   .by_tag(params[:tag]).sorted.results
 
 # Reuse in background job:
-# ProductQuery.new.published(true).since(date).results`,
+# ProductQuery.new.listed(true).since(date).results`,
 			highlight: [3, 4, 5, 6, 7, 8, 9, 10],
 		});
 	}
@@ -814,8 +814,8 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 												Delegates to ProductQuery
 											</Badge>
 											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">
-												ProductQuery.new{'\n'} .published(params[:published])
-												{'\n'} .by_author(params[:author_id]){'\n'}{' '}
+												ProductQuery.new{'\n'} .listed(params[:listed])
+												{'\n'} .by_seller(params[:seller_id]){'\n'}{' '}
 												.sorted.results
 											</pre>
 										</div>
@@ -859,7 +859,7 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 												Delegates to ProductQuery
 											</Badge>
 											<pre className="text-xs font-mono text-foreground/80 whitespace-pre-wrap">
-												ProductQuery.new{'\n'} .published(true){'\n'}{' '}
+												ProductQuery.new{'\n'} .listed(true){'\n'}{' '}
 												.since(date).results
 											</pre>
 										</div>
@@ -883,7 +883,7 @@ export function Level19QueryObjects({ onComplete }: LevelComponentProps) {
 												Filters
 											</Badge>
 											<pre className="text-[10px] font-mono text-foreground/70 whitespace-pre-wrap">
-												.published(flag){'\n'}.by_author(id){'\n'}.by_tag(name)
+												.listed(flag){'\n'}.by_seller(id){'\n'}.by_tag(name)
 											</pre>
 										</div>
 										<div className="border-l-2 border-l-success bg-success/5 dark:bg-success/10 rounded-r-md px-2 py-1.5">

@@ -26,9 +26,9 @@ import {
 	type ValidationResult,
 } from '@/components/levels';
 import { Button } from '@/components/ui/Button';
+import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
-import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 
 registerLevelCode('act1-level3-model', () => [
 	{
@@ -36,9 +36,9 @@ registerLevelCode('act1-level3-model', () => [
 		language: 'ruby',
 		code: `class Product < ApplicationRecord
   # Attributes:
-  # - title        (string)
-  # - body         (text)
-  # - published_at (datetime)
+  # - name        (string)
+  # - description (text)
+  # - price       (decimal)
   #
   # Auto-generated:
   # - id         (integer, primary key)
@@ -47,14 +47,14 @@ registerLevelCode('act1-level3-model', () => [
 end`,
 	},
 	{
-		filename: 'db/migrate/create_posts.rb',
+		filename: 'db/migrate/create_products.rb',
 		language: 'ruby',
-		code: `class CreatePosts < ActiveRecord::Migration[8.0]
+		code: `class CreateProducts < ActiveRecord::Migration[8.0]
   def change
-    create_table :posts do |t|
-      t.string :title
-      t.text :body
-      t.datetime :published_at
+    create_table :products do |t|
+      t.string :name
+      t.text :description
+      t.decimal :price, precision: 10, scale: 2
 
       t.timestamps
     end
@@ -65,10 +65,10 @@ end`,
 		filename: 'db/schema.rb',
 		language: 'ruby',
 		code: `ActiveRecord::Schema[8.0].define(version: 2024_01_01_000000) do
-  create_table "posts", force: :cascade do |t|
-    t.string "title"
-    t.text "body"
-    t.datetime "published_at"
+  create_table "products", force: :cascade do |t|
+    t.string "name"
+    t.text "description"
+    t.decimal "price", precision: 10, scale: 2
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
@@ -92,26 +92,33 @@ interface AttributeSlot {
 
 const ATTRIBUTE_SLOTS: AttributeSlot[] = [
 	{
-		field: 'title',
-		description: 'Short post title',
+		field: 'name',
+		description: 'Short product name',
 		correctType: 'string',
 		assignedType: null,
 	},
 	{
-		field: 'body',
-		description: 'Long-form content',
+		field: 'description',
+		description: 'Long-form product details',
 		correctType: 'text',
 		assignedType: null,
 	},
 	{
-		field: 'published_at',
-		description: 'When the product went live',
-		correctType: 'datetime',
+		field: 'price',
+		description: 'Monetary value with exact precision',
+		correctType: 'decimal',
 		assignedType: null,
 	},
 ];
 
-const AVAILABLE_TYPES = ['string', 'text', 'boolean', 'integer', 'datetime'];
+const AVAILABLE_TYPES = [
+	'string',
+	'text',
+	'integer',
+	'decimal',
+	'boolean',
+	'datetime',
+];
 
 const MODEL_NAME_OPTIONS = [
 	{
@@ -140,25 +147,25 @@ const generatorCommands: TerminalCommand[] = [
 	{
 		id: 'wrong-types',
 		label:
-			'rails generate model Product title:text body:string published_at:integer',
+			'rails generate model Product name:text description:string price:integer',
 		command:
-			'rails generate model Product title:text body:string published_at:integer',
+			'rails generate model Product name:text description:string price:integer',
 		correct: false,
 		feedback:
-			'The types are swapped around. Think about which fields are short vs. long, and which stores a point in time.',
+			'The types are swapped around. Think about which fields are short vs. long, and which stores money with exact precision.',
 	},
 	{
 		id: 'correct',
 		label:
-			'rails generate model Product title:string body:text published_at:datetime',
+			'rails generate model Product name:string description:text price:decimal',
 		command:
-			'rails generate model Product title:string body:text published_at:datetime',
+			'rails generate model Product name:string description:text price:decimal',
 		correct: true,
 	},
 	{
 		id: 'wrong-missing',
-		label: 'rails generate model Product title:string body:text',
-		command: 'rails generate model Product title:string body:text',
+		label: 'rails generate model Product name:string description:text',
+		command: 'rails generate model Product name:string description:text',
 		correct: false,
 		feedback:
 			'Missing an attribute. The Product model has three fields, not two.',
@@ -168,12 +175,12 @@ const generatorCommands: TerminalCommand[] = [
 const generatorOutput: TerminalOutputLine[] = [
 	{ text: '      invoke  active_record', color: 'green' },
 	{
-		text: '      create    db/migrate/20240101000000_create_posts.rb',
+		text: '      create    db/migrate/20240101000000_create_products.rb',
 		color: 'green',
 	},
 	{ text: '      create    app/models/product.rb', color: 'green' },
 	{ text: '      invoke    test_unit', color: 'muted' },
-	{ text: '      create      test/models/post_test.rb', color: 'muted' },
+	{ text: '      create      test/models/product_test.rb', color: 'muted' },
 ];
 
 // Step 4: Migration command
@@ -196,13 +203,13 @@ const migrationCommands: TerminalCommand[] = [
 
 const migrationOutput: TerminalOutputLine[] = [
 	{
-		text: '== CreatePosts: migrating ====================================',
+		text: '== CreateProducts: migrating =================================',
 		color: 'green',
 	},
-	{ text: '-- create_table(:posts)', color: 'cyan' },
+	{ text: '-- create_table(:products)', color: 'cyan' },
 	{ text: '   -> 0.0012s', color: 'muted' },
 	{
-		text: '== CreatePosts: migrated (0.0013s) ===========================',
+		text: '== CreateProducts: migrated (0.0013s) ========================',
 		color: 'green',
 	},
 ];
@@ -281,27 +288,29 @@ export function Level3Model({ onComplete }: LevelComponentProps) {
 		} else {
 			// Wrong type feedback
 			const feedbackMap: Record<string, Record<string, string>> = {
-				title: {
-					text: '"text" is for long-form content. "title" is a short field (under 255 characters).',
-					boolean: '"title" stores text, not true/false.',
-					integer: '"title" stores text, not numbers.',
-					datetime: '"title" stores text, not timestamps.',
+				name: {
+					text: '"text" is for long-form content. "name" is a short field (under 255 characters).',
+					boolean: '"name" stores text, not true/false.',
+					integer: '"name" stores text, not numbers.',
+					decimal: '"name" stores text, not monetary values.',
+					datetime: '"name" stores text, not timestamps.',
 				},
-				body: {
+				description: {
 					string:
-						'"string" maxes out at 255 characters. "body" needs to hold full articles and paragraphs.',
-					boolean: '"body" stores content, not true/false.',
-					integer: '"body" stores content, not numbers.',
-					datetime: '"body" stores content, not timestamps.',
+						'"string" maxes out at 255 characters. "description" needs to hold full product details and paragraphs.',
+					boolean: '"description" stores content, not true/false.',
+					integer: '"description" stores content, not numbers.',
+					decimal: '"description" stores content, not monetary values.',
+					datetime: '"description" stores content, not timestamps.',
 				},
-				published_at: {
+				price: {
 					string:
-						'"published_at" records when the product went live, not text.',
-					text: '"published_at" records when the product went live, not content.',
+						'"price" stores money. Use a numeric type with exact precision.',
+					text: '"price" stores money, not long content.',
 					integer:
-						'"published_at" records when the product went live, not a number.',
-					boolean:
-						'"published_at" records when the product went live, not a flag.',
+						'"price" needs cents and fractions. integer rounds to whole numbers, which loses every value below the dollar.',
+					boolean: '"price" stores money, not true/false.',
+					datetime: '"price" stores money, not a timestamp.',
 				},
 			};
 			const fb = feedbackMap[field]?.[type] || `Wrong type for ${field}.`;
@@ -355,9 +364,9 @@ export function Level3Model({ onComplete }: LevelComponentProps) {
 				language: 'ruby',
 				code: `class Product < ApplicationRecord
   # Attributes:
-  # - title        (string)
-  # - body         (text)
-  # - published_at (datetime)
+  # - name        (string)
+  # - description (text)
+  # - price       (decimal)
   #
   # Auto-generated:
   # - id         (integer, primary key)
@@ -368,14 +377,14 @@ end`,
 			});
 
 			files.push({
-				filename: 'db/migrate/create_posts.rb',
+				filename: 'db/migrate/create_products.rb',
 				language: 'ruby',
-				code: `class CreatePosts < ActiveRecord::Migration[8.0]
+				code: `class CreateProducts < ActiveRecord::Migration[8.0]
   def change
-    create_table :posts do |t|
-      t.string :title
-      t.text :body
-      t.datetime :published_at
+    create_table :products do |t|
+      t.string :name
+      t.text :description
+      t.decimal :price, precision: 10, scale: 2
 
       t.timestamps
     end
@@ -391,10 +400,10 @@ end`,
 				filename: 'db/schema.rb',
 				language: 'ruby',
 				code: `ActiveRecord::Schema[8.0].define(version: 2024_01_01_000000) do
-  create_table "posts", force: :cascade do |t|
-    t.string "title"
-    t.text "body"
-    t.datetime "published_at"
+  create_table "products", force: :cascade do |t|
+    t.string "name"
+    t.text "description"
+    t.decimal "price", precision: 10, scale: 2
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
@@ -466,7 +475,7 @@ end`,
 									Name the Model
 								</h3>
 								<p className="text-sm text-muted-foreground">
-									What should the model for a blog post be called?
+									What should the model for a single product be called?
 								</p>
 								{isViewingCompletedStep ? (
 									<div className="grid grid-cols-2 gap-3">
@@ -654,12 +663,13 @@ end`,
 							<li>
 								Model names are singular PascalCase (Product, not Products)
 							</li>
-							<li>Table names are auto-pluralized (posts)</li>
+							<li>Table names are auto-pluralized (products)</li>
 							<li>
 								<span className="font-mono text-primary">string</span> = short
 								text (255 chars),{' '}
 								<span className="font-mono text-primary">text</span> = long
-								content
+								content, <span className="font-mono text-primary">decimal</span>{' '}
+								= exact precision for money
 							</li>
 							<li>
 								<span className="font-mono text-primary">id</span>,{' '}

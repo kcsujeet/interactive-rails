@@ -54,14 +54,14 @@ import {
 } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import {
 	type DiscoveryDef,
 	useDiscoveryGating,
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act1-level7-serializers', () =>
@@ -96,15 +96,18 @@ const PROBES: ProbeConfig[] = [
 		story: [
 			'A customer clicks on a product to view its details.',
 			'The API returns the product as JSON using render json: product.',
-			'Rails dumps every column: id, title, body, published_at, created_at, updated_at.',
+			'Rails dumps every column: id, name, description, price, created_at, updated_at.',
 			'The client receives internal timestamps it never asked for.',
 			'All 6 columns are exposed as flat, unstructured JSON with no filtering.',
 		],
 		command: 'GET /api/v1/products/1',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
-			{ text: '{"id":1,"title":"Hello","body":"World",', color: 'muted' },
-			{ text: ' "published_at":"2024-01-01T00:00:00.000Z",', color: 'muted' },
+			{
+				text: '{"id":1,"name":"Laptop Pro","description":"Powerful workstation",',
+				color: 'muted',
+			},
+			{ text: ' "price":"1299.00",', color: 'muted' },
 			{ text: ' "created_at":"2024-01-01T00:00:00.000Z",', color: 'yellow' },
 			{ text: ' "updated_at":"2024-01-01T12:30:00.000Z"}', color: 'yellow' },
 			{
@@ -127,7 +130,7 @@ const PROBES: ProbeConfig[] = [
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
 			{
-				text: '[{"id":1,"title":"Hello","body":"World","published_at":...,',
+				text: '[{"id":1,"name":"Laptop Pro","description":"Powerful...","price":"1299.00",',
 				color: 'muted',
 			},
 			{
@@ -135,7 +138,7 @@ const PROBES: ProbeConfig[] = [
 				color: 'yellow',
 			},
 			{
-				text: ' {"id":2,"title":"Second","body":"Product","published_at":...,',
+				text: ' {"id":2,"name":"Wireless Mouse","description":"Ergonomic...","price":"49.99",',
 				color: 'muted',
 			},
 			{ text: '  "created_at":"...","updated_at":"..."}]', color: 'yellow' },
@@ -147,7 +150,7 @@ const PROBES: ProbeConfig[] = [
 	},
 	{
 		id: 'get-mobile',
-		label: 'GET /posts/1 (mobile)',
+		label: 'GET /products/1 (mobile)',
 		story: [
 			'A customer browses products on their phone over a cellular connection.',
 			'The mobile app requests a single product from the API.',
@@ -159,11 +162,11 @@ const PROBES: ProbeConfig[] = [
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
 			{
-				text: '{"id":1,"title":"Hello","body":"World",',
+				text: '{"id":1,"name":"Laptop Pro","description":"Powerful workstation",',
 				color: 'muted',
 			},
 			{
-				text: ' "published_at":"2024-01-01T00:00:00.000Z",',
+				text: ' "price":"1299.00",',
 				color: 'muted',
 			},
 			{
@@ -220,23 +223,23 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		stageId: 'router',
 		title: 'Router (from Level 5)',
 		description:
-			'Routes match correctly. GET /api/v1/products/1 maps to posts#show. This stage works as expected.',
+			'Routes match correctly. GET /api/v1/products/1 maps to products#show. This stage works as expected.',
 	},
 	controller: {
 		stageId: 'controller',
-		title: 'PostsController',
+		title: 'ProductsController',
 		description:
-			'The show action calls `render json: post`. This dumps the entire model as flat JSON with no filtering or structure.',
+			'The show action calls `render json: product`. This dumps the entire model as flat JSON with no filtering or structure.',
 		code: `def show
-  post = Product.find(params[:id])
-  render json: post  # Dumps everything!
+  product = Product.find(params[:id])
+  render json: product  # Dumps everything!
 end`,
 	},
 	model: {
 		stageId: 'model',
 		title: 'Product Model (from Level 3)',
 		description:
-			'The Product model stores title, body, and published_at. It works correctly. The problem is not the model itself, but how the controller renders it: every column is dumped without filtering.',
+			'The Product model stores name, description, and price. It works correctly. The problem is not the model itself, but how the controller renders it: every column is dumped without filtering.',
 	},
 	serializer: {
 		stageId: 'serializer',
@@ -266,8 +269,8 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'get-show',
-		label: 'GET single post',
-		description: 'Fetch a single post resource',
+		label: 'GET single product',
+		description: 'Fetch a single product resource',
 		method: 'GET',
 		path: '/api/v1/products/1',
 		actor: 'client',
@@ -288,16 +291,16 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		description: 'Create a new product resource',
 		method: 'POST',
 		path: '/api/v1/products',
-		actor: 'author',
+		actor: 'admin',
 		expectedResult: 'allowed',
 	},
 	{
 		id: 'patch-update',
 		label: 'PATCH update',
-		description: 'Update an existing post',
+		description: 'Update an existing product',
 		method: 'PATCH',
 		path: '/api/v1/products/1',
-		actor: 'author',
+		actor: 'admin',
 		expectedResult: 'allowed',
 	},
 	{
@@ -456,7 +459,7 @@ interface AttributeOption {
 }
 
 const ATTRIBUTES: AttributeOption[] = [
-	{ id: 'title', name: 'title', safe: true, feedback: '' },
+	{ id: 'name', name: 'name', safe: true, feedback: '' },
 	{
 		id: 'created_at',
 		name: 'created_at',
@@ -464,7 +467,7 @@ const ATTRIBUTES: AttributeOption[] = [
 		feedback:
 			'Serializers are about choosing what your API exposes. created_at is bookkeeping, not domain data clients need.',
 	},
-	{ id: 'body', name: 'body', safe: true, feedback: '' },
+	{ id: 'description', name: 'description', safe: true, feedback: '' },
 	{
 		id: 'updated_at',
 		name: 'updated_at',
@@ -472,7 +475,7 @@ const ATTRIBUTES: AttributeOption[] = [
 		feedback:
 			'updated_at tracks internal record changes. Expose domain-relevant fields instead.',
 	},
-	{ id: 'published_at', name: 'published_at', safe: true, feedback: '' },
+	{ id: 'price', name: 'price', safe: true, feedback: '' },
 	{
 		id: 'id',
 		name: 'id',
@@ -491,14 +494,14 @@ const SAFE_ATTRIBUTES = ATTRIBUTES.filter((a) => a.safe).map((a) => a.id);
 const RENDER_OPTIONS: StepOption[] = [
 	{
 		id: 'raw-json',
-		label: 'render json: post',
+		label: 'render json: product',
 		correct: false,
 		feedback:
 			'That renders the raw model as flat JSON. Every column is dumped with no structure or formatting.',
 	},
 	{
 		id: 'to-json',
-		label: 'render json: post.to_json',
+		label: 'render json: product.to_json',
 		correct: false,
 		feedback:
 			'to_json also dumps all model attributes. You need to route through the serializer to control the output.',
@@ -648,12 +651,12 @@ function getCodeFiles(
 			code: `class Api::V1::ProductsController < ApplicationController
   def show
     product = Product.find(params[:id])
-    render json: post  # Dumps everything!
+    render json: product  # Dumps everything!
   end
 
   def index
     products = Product.all
-    render json: posts  # Raw array dump
+    render json: products  # Raw array dump
   end
 end`,
 			highlight: [4, 9],
@@ -670,7 +673,7 @@ end`,
 			code: `class Api::V1::ProductsController < ApplicationController
   def show
     product = Product.find(params[:id])
-    render json: post  # Dumps everything!
+    render json: product  # Dumps everything!
   end
 end`,
 			highlight: [4],
@@ -719,14 +722,7 @@ end`,
 	if (furthestStep >= 4) {
 		const attrLines =
 			selectedAttrs.length > 0
-				? selectedAttrs
-						.map((a) => {
-							if (a === 'published_at') {
-								return `  attribute :published_at do |post|\n    product.listed_at&.strftime("%B %d, %Y")\n  end`;
-							}
-							return `  attribute :${a}`;
-						})
-						.join('\n')
+				? selectedAttrs.map((a) => `  attribute :${a}`).join('\n')
 				: '  # attributes...';
 
 		files.push({

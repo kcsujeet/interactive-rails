@@ -79,16 +79,16 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 const PROBES: ProbeConfig[] = [
 	{
 		id: 'basic-users',
-		label: 'Load posts with users',
+		label: 'Load products with users',
 		command: 'Product.all + product.user.name (basic N+1)',
 		responseLines: [
 			{
-				text: 'Scenario: 100 posts, each needs .user.name',
+				text: 'Scenario: 100 products, each needs .user.name',
 				color: 'cyan',
 			},
 			{ text: '', color: 'muted' },
 			{
-				text: 'includes(:user)   => 2 queries (SELECT posts + SELECT users IN(...))',
+				text: 'includes(:user)   => 2 queries (SELECT products + SELECT users IN(...))',
 				color: 'green',
 			},
 			{
@@ -139,7 +139,7 @@ const PROBES: ProbeConfig[] = [
 		command: 'Product.where(tags: { active: true }) (filter on assoc)',
 		responseLines: [
 			{
-				text: 'Scenario: filter posts WHERE tags.active = true',
+				text: 'Scenario: filter products WHERE tags.active = true',
 				color: 'cyan',
 			},
 			{ text: '', color: 'muted' },
@@ -177,7 +177,7 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 };
 
 const STEP_DEFS: StepDef[] = [
-	{ id: 'basic-includes', title: 'Fix Posts with Users' },
+	{ id: 'basic-includes', title: 'Fix Products with Users' },
 	{ id: 'nested-includes', title: 'Fix Nested Associations' },
 	{ id: 'conditional-eager', title: 'Fix Filtered Query' },
 ];
@@ -257,8 +257,8 @@ const ALL_OPTION_STEPS: StepOption[][] = [
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'basic-includes',
-		label: 'Posts with users (includes)',
-		description: 'Load 100 posts with user names',
+		label: 'Products with users (includes)',
+		description: 'Load 100 products with user names',
 		method: 'GET',
 		path: '/api/v1/products',
 		actor: 'includes(:user)',
@@ -276,7 +276,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'filtered-eager',
 		label: 'Filtered by active tags',
-		description: 'Load posts filtered by association column',
+		description: 'Load products filtered by association column',
 		method: 'GET',
 		path: '/api/v1/products?tag=active',
 		actor: 'eager_load(:tags)',
@@ -284,7 +284,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'no-eager-basic',
-		label: 'Posts without eager loading',
+		label: 'Products without eager loading',
 		description: 'Forgot to add includes, N+1 detected',
 		method: 'GET',
 		path: '/api/v1/admin/products',
@@ -306,7 +306,7 @@ const REWARD_LANE_DATA: Record<string, RewardLaneData> = {
 	'basic-includes': {
 		strategy: 'includes(:user)',
 		blocks: [
-			{ label: 'SELECT posts', color: 'green' },
+			{ label: 'SELECT products', color: 'green' },
 			{ label: 'SELECT users WHERE id IN(...)', color: 'green' },
 		],
 		totalLabel: '2 queries',
@@ -315,7 +315,7 @@ const REWARD_LANE_DATA: Record<string, RewardLaneData> = {
 	'nested-includes': {
 		strategy: 'includes(reviews: :user)',
 		blocks: [
-			{ label: 'SELECT posts', color: 'green' },
+			{ label: 'SELECT products', color: 'green' },
 			{ label: 'SELECT reviews IN(...)', color: 'green' },
 			{ label: 'SELECT users IN(...)', color: 'green' },
 		],
@@ -326,7 +326,7 @@ const REWARD_LANE_DATA: Record<string, RewardLaneData> = {
 		strategy: 'eager_load(:tags).where(...)',
 		blocks: [
 			{
-				label: 'SELECT posts LEFT JOIN tags WHERE active',
+				label: 'SELECT products LEFT JOIN tags WHERE active',
 				color: 'green',
 				wide: true,
 			},
@@ -336,14 +336,14 @@ const REWARD_LANE_DATA: Record<string, RewardLaneData> = {
 	},
 	'no-eager-basic': {
 		strategy: 'Product.all (no includes)',
-		blocks: [{ label: 'SELECT posts', color: 'amber' }],
+		blocks: [{ label: 'SELECT products', color: 'amber' }],
 		floodCount: 100,
 		totalLabel: '101 queries!',
 		result: 'fails',
 	},
 	'joins-mistake': {
 		strategy: 'Product.joins(:user)',
-		blocks: [{ label: 'SELECT posts JOIN users', color: 'amber' }],
+		blocks: [{ label: 'SELECT products JOIN users', color: 'amber' }],
 		floodCount: 100,
 		totalLabel: '101 queries!',
 		result: 'fails',
@@ -606,9 +606,7 @@ describe('Level 24: Eager Loading', () => {
 		});
 
 		test('reward scenarios cover all three fix strategies', () => {
-			const strategies = Object.values(REWARD_LANE_DATA).map(
-				(d) => d.strategy,
-			);
+			const strategies = Object.values(REWARD_LANE_DATA).map((d) => d.strategy);
 			expect(strategies.some((s) => s.includes('includes(:user)'))).toBe(true);
 			expect(
 				strategies.some((s) => s.includes('includes(reviews: :user)')),
@@ -636,9 +634,7 @@ describe('Level 24: Eager Loading', () => {
 			expect(correct0?.label).toContain('Product.');
 
 			// Reward lane strategies also reference Product/includes patterns
-			expect(REWARD_LANE_DATA['basic-includes'].strategy).toContain(
-				'includes',
-			);
+			expect(REWARD_LANE_DATA['basic-includes'].strategy).toContain('includes');
 		});
 
 		test('joins trap is taught in observe and tested in reward', () => {

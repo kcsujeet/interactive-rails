@@ -46,11 +46,11 @@ export const level6Controller: Level = {
 - Only \`render json:\`, no HTML views
 
 **The 5 RESTful Actions:**
-- \`index\`: List all records (GET /posts)
-- \`show\`: Get one record (GET /posts/:id)
-- \`create\`: Create a record (POST /posts)
-- \`update\`: Update a record (PATCH /posts/:id)
-- \`destroy\`: Delete a record (DELETE /posts/:id)
+- \`index\`: List all records (GET /products)
+- \`show\`: Get one record (GET /products/:id)
+- \`create\`: Create a record (POST /products)
+- \`update\`: Update a record (PATCH /products/:id)
+- \`destroy\`: Delete a record (DELETE /products/:id)
 
 **Testing your API:**
 - Use curl or Postman to send requests directly

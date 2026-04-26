@@ -5,7 +5,7 @@
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): Custom "Query Cascade" visualization.
- *   Two-table layout: posts grid (left) + reviews table (right).
+ *   Two-table layout: products grid (left) + reviews table (right).
  *   Player fires probes and watches COUNT(*) queries cascade from each product
  *   block to the reviews table, one by one. The blocks turn red sequentially,
  *   showing the N+1 mechanism visually. ProbeTerminal sits below the
@@ -18,7 +18,7 @@
  *   Step 3: Update serializer to use .size (OptionCard)
  *
  * Phase 3 (ADVANTAGE - reward): Same visualization, now showing the fix.
- *   Allowed: all blocks appear green instantly (counts embedded in posts.*).
+ *   Allowed: all blocks appear green instantly (counts embedded in products.*).
  *   Blocked (.count bypasses): red cascade returns, showing the problem persists.
  *
  * Teaches: counter_cache: true, migration conventions, reset_counters, .size vs .count
@@ -50,8 +50,6 @@ import {
 } from '@/components/levels/ProbeTerminal';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import {
 	type DiscoveryDef,
 	useDiscoveryGating,
@@ -59,6 +57,8 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { cn } from '@/lib/utils';
 
 registerLevelCode('act4-level27-counter-caches', () =>
@@ -86,7 +86,7 @@ const OBSERVE_POST_COUNT = 20;
 const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{
 		id: 'n-plus-one-counts',
-		label: 'Each post fires a separate COUNT(*) to the reviews table',
+		label: 'Each product fires a separate COUNT(*) to the reviews table',
 	},
 ];
 
@@ -96,16 +96,16 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 
 const PROBES: ProbeConfig[] = [
 	{
-		id: 'load-posts',
-		label: 'GET /api/posts',
-		command: 'GET /api/posts?limit=20',
+		id: 'load-products',
+		label: 'GET /api/products',
+		command: 'GET /api/products?limit=20',
 		responseLines: [
 			{
 				text: 'Product Load (1.2ms)  SELECT "products".* FROM "products" LIMIT 20',
 				color: 'green',
 			},
 			{
-				text: '  Loading review counts for 20 posts...',
+				text: '  Loading review counts for 20 products...',
 				color: 'muted',
 			},
 			{
@@ -121,7 +121,7 @@ const PROBES: ProbeConfig[] = [
 				color: 'red',
 			},
 			{
-				text: '  Total: 21 queries for 20 posts',
+				text: '  Total: 21 queries for 20 products',
 				color: 'red',
 			},
 		],
@@ -135,7 +135,7 @@ const PROBES: ProbeConfig[] = [
 ];
 
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
-	'load-posts': ['n-plus-one-counts'],
+	'load-products': ['n-plus-one-counts'],
 };
 
 // ──────────────────────────────────────────────
@@ -166,9 +166,9 @@ const MIGRATION_COMMANDS = [
 	{
 		id: 'generate-migration',
 		label:
-			'rails generate migration AddReviewsCountToPosts reviews_count:integer',
+			'rails generate migration AddReviewsCountToProducts reviews_count:integer',
 		command:
-			'rails generate migration AddReviewsCountToPosts reviews_count:integer',
+			'rails generate migration AddReviewsCountToProducts reviews_count:integer',
 		correct: true,
 	},
 	{
@@ -184,7 +184,7 @@ const MIGRATION_COMMANDS = [
 const MIGRATION_OUTPUT = [
 	{ text: 'invoke  active_record', color: 'green' as const },
 	{
-		text: 'create    db/migrate/20240301_add_reviews_count_to_posts.rb',
+		text: 'create    db/migrate/20240301_add_reviews_count_to_products.rb',
 		color: 'green' as const,
 	},
 ];
@@ -196,8 +196,8 @@ const MIGRATION_OUTPUT = [
 const RUN_MIGRATION_COMMANDS = [
 	{
 		id: 'generate-again',
-		label: 'rails generate migration AddReviewsCountToPosts',
-		command: 'rails generate migration AddReviewsCountToPosts',
+		label: 'rails generate migration AddReviewsCountToProducts',
+		command: 'rails generate migration AddReviewsCountToProducts',
 		correct: false,
 		feedback:
 			'The migration file already exists. You need to apply it to the database.',
@@ -220,15 +220,15 @@ const RUN_MIGRATION_COMMANDS = [
 
 const RUN_MIGRATION_OUTPUT = [
 	{
-		text: '== AddReviewsCountToPosts: migrating ========',
+		text: '== AddReviewsCountToProducts: migrating ========',
 		color: 'green' as const,
 	},
 	{
-		text: '-- add_column(:posts, :reviews_count, :integer, default: 0)',
+		text: '-- add_column(:products, :reviews_count, :integer, default: 0)',
 		color: 'green' as const,
 	},
 	{
-		text: '== AddReviewsCountToPosts: migrated (0.0021s)',
+		text: '== AddReviewsCountToProducts: migrated (0.0021s)',
 		color: 'green' as const,
 	},
 ];
@@ -353,11 +353,11 @@ const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
 
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
-		id: 'ten-posts',
-		label: '10 posts index',
+		id: 'ten-products',
+		label: '10 products index',
 		description: 'Small page load with counter cache',
 		method: 'GET',
-		path: '/api/posts?limit=10',
+		path: '/api/products?limit=10',
 		actor: 'client',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -370,11 +370,11 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		],
 	},
 	{
-		id: 'fifty-posts',
-		label: '50 posts index',
+		id: 'fifty-products',
+		label: '50 products index',
 		description: 'Medium listing with counter cache',
 		method: 'GET',
-		path: '/api/posts?limit=50',
+		path: '/api/products?limit=50',
 		actor: 'client',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -387,11 +387,11 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		],
 	},
 	{
-		id: 'hundred-posts',
-		label: '100 posts index',
+		id: 'hundred-products',
+		label: '100 products index',
 		description: 'Full page with counter cache',
 		method: 'GET',
-		path: '/api/posts?limit=100',
+		path: '/api/products?limit=100',
 		actor: 'client',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -404,11 +404,11 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		],
 	},
 	{
-		id: 'five-hundred-posts',
-		label: '500 posts export',
+		id: 'five-hundred-products',
+		label: '500 products export',
 		description: 'Admin export with counter cache',
 		method: 'GET',
-		path: '/api/posts?limit=500',
+		path: '/api/products?limit=500',
 		actor: 'admin',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -425,7 +425,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: '.count bypasses cache',
 		description: 'Serializer still using .count instead of .size',
 		method: 'GET',
-		path: '/api/posts?limit=100&method=count',
+		path: '/api/products?limit=100&method=count',
 		actor: 'client',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -463,10 +463,10 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 	if (phase === 'observe') {
 		return [
 			{
-				filename: 'app/services/post_list.rb',
+				filename: 'app/services/product_list.rb',
 				language: 'ruby',
-				code: `class PostList < ApplicationService
-  Result = Data.define(:success?, :posts, :errors)
+				code: `class ProductList < ApplicationService
+  Result = Data.define(:success?, :products, :errors)
 
   def call(params)
     contract = ListContract.new.call(params)
@@ -506,10 +506,10 @@ end`,
 			{
 				filename: 'app/controllers/products_controller.rb',
 				language: 'ruby',
-				code: `class PostsController < ApplicationController
+				code: `class ProductsController < ApplicationController
   def index
-    result = PostList.call(params)
-    render json: ProductSerializer.new(result.posts)
+    result = ProductList.call(params)
+    render json: ProductSerializer.new(result.products)
   end
 end`,
 			},
@@ -526,7 +526,7 @@ end`,
 end
 
 # Generate a migration to add
-# the counter cache column to posts`,
+# the counter cache column to products`,
 			},
 		];
 	}
@@ -534,10 +534,10 @@ end
 	if (furthestStep === 1) {
 		return [
 			{
-				filename: 'app/services/post_list.rb',
+				filename: 'app/services/product_list.rb',
 				language: 'ruby',
-				code: `class PostList < ApplicationService
-  Result = Data.define(:success?, :posts, :errors)
+				code: `class ProductList < ApplicationService
+  Result = Data.define(:success?, :products, :errors)
 
   def call(params)
     contract = ListContract.new.call(params)
@@ -549,10 +549,10 @@ end
 end`,
 			},
 			{
-				filename: 'db/migrate/add_reviews_count_to_posts.rb',
+				filename: 'db/migrate/add_reviews_count_to_products.rb',
 				language: 'ruby',
 				highlight: [3, 4],
-				code: `class AddReviewsCountToPosts < ActiveRecord::Migration[8.0]
+				code: `class AddReviewsCountToProducts < ActiveRecord::Migration[8.0]
   def change
     add_column :products, :reviews_count,
                :integer, default: 0, null: false
@@ -567,10 +567,10 @@ end
 	if (furthestStep === 2) {
 		return [
 			{
-				filename: 'app/services/post_list.rb',
+				filename: 'app/services/product_list.rb',
 				language: 'ruby',
-				code: `class PostList < ApplicationService
-  Result = Data.define(:success?, :posts, :errors)
+				code: `class ProductList < ApplicationService
+  Result = Data.define(:success?, :products, :errors)
 
   def call(params)
     contract = ListContract.new.call(params)
@@ -596,10 +596,10 @@ end`,
 	if (furthestStep === 3) {
 		return [
 			{
-				filename: 'app/services/post_list.rb',
+				filename: 'app/services/product_list.rb',
 				language: 'ruby',
-				code: `class PostList < ApplicationService
-  Result = Data.define(:success?, :posts, :errors)
+				code: `class ProductList < ApplicationService
+  Result = Data.define(:success?, :products, :errors)
 
   def call(params)
     contract = ListContract.new.call(params)
@@ -628,10 +628,10 @@ end
 	if (furthestStep === 4) {
 		return [
 			{
-				filename: 'app/services/post_list.rb',
+				filename: 'app/services/product_list.rb',
 				language: 'ruby',
-				code: `class PostList < ApplicationService
-  Result = Data.define(:success?, :posts, :errors)
+				code: `class ProductList < ApplicationService
+  Result = Data.define(:success?, :products, :errors)
 
   def call(params)
     contract = ListContract.new.call(params)
@@ -663,10 +663,10 @@ end
 	// All steps complete (reward)
 	return [
 		{
-			filename: 'app/services/post_list.rb',
+			filename: 'app/services/product_list.rb',
 			language: 'ruby',
-			code: `class PostList < ApplicationService
-  Result = Data.define(:success?, :posts, :errors)
+			code: `class ProductList < ApplicationService
+  Result = Data.define(:success?, :products, :errors)
 
   def call(params)
     contract = ListContract.new.call(params)
@@ -719,7 +719,7 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 
 	// ── Visualization state (shared between observe and reward) ──
 	const [vizMode, setVizMode] = useState<VizMode>('idle');
-	const [vizProductCount, setVizPostCount] = useState(0);
+	const [vizProductCount, setVizProductCount] = useState(0);
 	const [cascadeProgress, setCascadeProgress] = useState(0);
 	const [vizAnimating, setVizAnimating] = useState(false);
 	const cascadeTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -731,11 +731,11 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 	}, []);
 
 	const runCascade = useCallback(
-		(postCount: number): number => {
+		(productCount: number): number => {
 			clearCascadeTimers();
-			const displayCount = Math.min(postCount, 100);
+			const displayCount = Math.min(productCount, 100);
 			setVizMode('cascade');
-			setVizPostCount(displayCount);
+			setVizProductCount(displayCount);
 			setCascadeProgress(0);
 			setVizAnimating(true);
 
@@ -770,11 +770,11 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 	);
 
 	const runCachedLoad = useCallback(
-		(postCount: number) => {
+		(productCount: number) => {
 			clearCascadeTimers();
-			const displayCount = Math.min(postCount, 100);
+			const displayCount = Math.min(productCount, 100);
 			setVizMode('cached');
-			setVizPostCount(displayCount);
+			setVizProductCount(displayCount);
 			setCascadeProgress(displayCount);
 			setVizAnimating(true);
 
@@ -790,7 +790,7 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 	const resetVisualization = useCallback(() => {
 		clearCascadeTimers();
 		setVizMode('idle');
-		setVizPostCount(0);
+		setVizProductCount(0);
 		setCascadeProgress(0);
 		setVizAnimating(false);
 	}, [clearCascadeTimers]);
@@ -839,15 +839,15 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 			const scenario = STRESS_SCENARIOS.find((s) => s.id === scenarioId);
 			if (!scenario) return;
 
-			const postCount = Number.parseInt(
+			const productCount = Number.parseInt(
 				scenario.path.match(/limit=(\d+)/)?.[1] ?? '100',
 				10,
 			);
 
 			if (scenario.expectedResult === 'blocked') {
-				runCascade(postCount);
+				runCascade(productCount);
 			} else {
-				runCachedLoad(postCount);
+				runCachedLoad(productCount);
 			}
 		},
 		[vizAnimating, stressTest, runCascade, runCachedLoad],
@@ -920,7 +920,7 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 
 	const renderQueryCascade = () => (
 		<div className="flex gap-3 items-stretch">
-			{/* Posts table */}
+			{/* Products table */}
 			<div className="flex-1 rounded-lg border border-border overflow-hidden flex flex-col max-h-64">
 				<div className="flex-1 min-h-0 overflow-auto">
 					<table className="w-full text-xs font-mono">
@@ -950,7 +950,7 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 										className="text-muted-foreground text-center py-8"
 										colSpan={productColumns.length}
 									>
-										Fire a probe to load posts...
+										Fire a probe to load products...
 									</td>
 								</tr>
 							</tbody>
@@ -973,7 +973,7 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 															? 'bg-red-50 dark:bg-red-950/20'
 															: '',
 											)}
-											key={`post-${block.id}`}
+											key={`product-${block.id}`}
 										>
 											<td className="px-2 py-1 text-muted-foreground">
 												{block.id + 1}
@@ -1117,8 +1117,8 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
 								product.reviews.count
 							</code>{' '}
-							fires a separate COUNT(*) query for every product. 100 posts = 101
-							queries.
+							fires a separate COUNT(*) query for every product. 100 products =
+							101 queries.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							{phase === 'observe'
@@ -1204,7 +1204,7 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 							{/* Header */}
 							<div className="px-6 pt-4 pb-2 flex items-center justify-between">
 								<div className="text-sm font-semibold text-foreground">
-									Query Cascade: GET /api/posts
+									Query Cascade: GET /api/products
 								</div>
 								{vizMode !== 'idle' && (
 									<span className="text-xs font-mono text-destructive font-bold tabular-nums">
@@ -1458,7 +1458,7 @@ export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 					files={getCodeFiles(phase, stepper.furthestStep)}
 					learningGoal={
 						phase === 'observe'
-							? 'Each product.reviews.count fires a COUNT(*) query. With 100 posts, that is 101 total queries.'
+							? 'Each product.reviews.count fires a COUNT(*) query. With 100 products, that is 101 total queries.'
 							: 'counter_cache stores the count on the parent table. Rails auto-increments on create, auto-decrements on destroy.'
 					}
 				>

@@ -54,14 +54,14 @@ import {
 } from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import {
 	type DiscoveryDef,
 	useDiscoveryGating,
 } from '@/hooks/useDiscoveryGating';
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act1-level8-associations', () =>
@@ -81,7 +81,7 @@ type Phase = 'observe' | 'build' | 'reward';
 const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{ id: 'no-review-model', label: 'Review model does not exist' },
 	{ id: 'no-association', label: 'Product has no associations defined' },
-	{ id: 'isolated-posts', label: 'Posts exist in isolation' },
+	{ id: 'isolated-products', label: 'Products exist in isolation' },
 	{ id: 'no-nested-routes', label: 'No nested routes for reviews' },
 ];
 
@@ -109,7 +109,7 @@ const PROBES: ProbeConfig[] = [
 				color: 'yellow',
 			},
 			{
-				text: 'Posts exist in isolation. No review routes defined.',
+				text: 'Products exist in isolation. No review routes defined.',
 				color: 'red',
 			},
 		],
@@ -151,7 +151,7 @@ const PROBES: ProbeConfig[] = [
 		command: 'rails console: Product.first.reviews',
 		responseLines: [
 			{ text: "NoMethodError: undefined method `reviews'", color: 'red' },
-			{ text: 'for #<Product id: 1, title: "Laptop Pro">', color: 'muted' },
+			{ text: 'for #<Product id: 1, name: "Laptop Pro">', color: 'muted' },
 			{ text: '', color: 'muted' },
 			{
 				text: 'Product has no "reviews" method. No association is defined.',
@@ -163,7 +163,7 @@ const PROBES: ProbeConfig[] = [
 
 // Map probe IDs to discovery IDs they trigger
 const PROBE_DISCOVERY_MAP: Record<string, string> = {
-	'get-reviews': 'isolated-posts',
+	'get-reviews': 'isolated-products',
 	'post-review': 'no-review-model',
 	'console-reviews': 'no-association',
 };
@@ -196,32 +196,32 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		stageId: 'request',
 		title: 'Incoming Request',
 		description:
-			'HTTP request targeting reviews on a product. The request expects nested resources at /posts/:id/reviews.',
+			'HTTP request targeting reviews on a product. The request expects nested resources at /products/:id/reviews.',
 	},
 	router: {
 		stageId: 'router',
 		title: 'Router',
 		description:
-			'Routes only define `resources :posts`. There are no nested routes for reviews. Add `resources :reviews` inside the products block to create /posts/:id/reviews.',
+			'Routes only define `resources :products`. There are no nested routes for reviews. Add `resources :reviews` inside the products block to create /products/:id/reviews.',
 		code: `# config/routes.rb
 namespace :api do
   namespace :v1 do
-    resources :posts
+    resources :products
     # No nested routes!
   end
 end`,
 	},
 	controller: {
 		stageId: 'controller',
-		title: 'PostsController',
+		title: 'ProductsController',
 		description:
-			'PostsController handles post CRUD. No ReviewsController exists yet.',
+			'ProductsController handles product CRUD. No ReviewsController exists yet.',
 	},
 	model: {
 		stageId: 'model',
 		title: 'Product Model (Isolated)',
 		description:
-			'Product model has title, body, published_at but no associations. Each model is isolated. Rails associations (has_many, belongs_to) link models and provide query methods like `product.reviews`.',
+			'Product model has name, description, price but no associations. Each model is isolated. Rails associations (has_many, belongs_to) link models and provide query methods like `product.reviews`.',
 		code: `class Product < ApplicationRecord
   # No associations defined
 end`,
@@ -252,7 +252,7 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'create-review',
-		label: 'Create review on post',
+		label: 'Create review on product',
 		description: 'Add a new review through the association',
 		method: 'POST',
 		path: '/api/v1/products/1/reviews',
@@ -261,16 +261,16 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'list-reviews',
-		label: 'List post reviews',
-		description: 'Fetch all reviews for a specific post',
+		label: 'List product reviews',
+		description: 'Fetch all reviews for a specific product',
 		method: 'GET',
 		path: '/api/v1/products/1/reviews',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
 	{
-		id: 'delete-post-cascade',
-		label: 'Delete post (cascade)',
+		id: 'delete-product-cascade',
+		label: 'Delete product (cascade)',
 		description: 'Delete a product and cascade-destroy its reviews',
 		method: 'DELETE',
 		path: '/api/v1/products/1',
@@ -278,8 +278,8 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'allowed',
 	},
 	{
-		id: 'get-post-with-reviews',
-		label: 'Show post with reviews',
+		id: 'get-product-with-reviews',
+		label: 'Show product with reviews',
 		description: 'Fetch a product with its nested reviews',
 		method: 'GET',
 		path: '/api/v1/products/1',
@@ -287,9 +287,9 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'allowed',
 	},
 	{
-		id: 'review-invalid-post',
+		id: 'review-invalid-product',
 		label: 'Review on missing product',
-		description: 'Try to create a review on a non-existent post',
+		description: 'Try to create a review on a non-existent product',
 		method: 'POST',
 		path: '/api/v1/products/999/reviews',
 		actor: 'client',
@@ -422,8 +422,8 @@ const testCommands: TerminalCommand[] = [
 	},
 	{
 		id: 'wrong-manual',
-		label: 'Review.create(body: "Nice!", product_id: post.id)',
-		command: 'Review.create(body: "Nice!", product_id: post.id)',
+		label: 'Review.create(body: "Nice!", product_id: product.id)',
+		command: 'Review.create(body: "Nice!", product_id: product.id)',
 		correct: false,
 		feedback:
 			'This works but bypasses the association. Rails provides a cleaner way to create through the parent object.',
@@ -480,7 +480,7 @@ const RELATIONSHIP_OPTIONS: StepOption[] = [
 		label: 'has_one :reviews',
 		correct: false,
 		feedback:
-			'"has_one" limits the parent to a single child record. Posts should be able to have unlimited reviews.',
+			'"has_one" limits the parent to a single child record. Products should be able to have unlimited reviews.',
 	},
 	{
 		id: 'belongs_to',
@@ -499,7 +499,7 @@ const RELATIONSHIP_OPTIONS: StepOption[] = [
 		label: 'has_and_belongs_to_many :reviews',
 		correct: false,
 		feedback:
-			'"has_and_belongs_to_many" creates a many-to-many relationship. Reviews belong to one post, not shared across many.',
+			'"has_and_belongs_to_many" creates a many-to-many relationship. Reviews belong to one product, not shared across many.',
 	},
 ];
 
@@ -527,7 +527,7 @@ const DEPENDENT_OPTIONS: StepOption[] = [
 		label: 'dependent: :restrict_with_error',
 		correct: false,
 		feedback:
-			'For a blog API, cleaning up reviews on delete is better than preventing deletion entirely.',
+			'For a product API, cleaning up reviews on delete is better than preventing deletion entirely.',
 	},
 	{
 		id: 'destroy',
@@ -647,7 +647,7 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 			language: 'ruby',
 			code: `class Product < ApplicationRecord
   # No associations defined
-  # Posts exist in isolation
+  # Products exist in isolation
 end`,
 			highlight: [2, 3],
 		});
@@ -675,7 +675,7 @@ end`,
   def change
     create_table :reviews do |t|
       t.text :body
-      t.references :post, null: false, foreign_key: true
+      t.references :product, null: false, foreign_key: true
 
       t.timestamps
     end
@@ -728,7 +728,7 @@ end`,
 		files.push({
 			filename: 'Rails Console',
 			language: 'ruby',
-			code: `post = Product.first
+			code: `product = Product.first
 product.reviews.create(body: "Nice!")
 # => #<Review id: 1, body: "Nice!", product_id: 1>
 
@@ -999,7 +999,7 @@ export function Level8Associations({ onComplete }: LevelComponentProps) {
 						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Your Product API works end-to-end: model (L3), CRUD (L4), routes
-							(L5), controller (L6), serializer (L7). But posts exist in
+							(L5), controller (L6), serializer (L7). But products exist in
 							isolation: no reviews, no likes, no tags.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">

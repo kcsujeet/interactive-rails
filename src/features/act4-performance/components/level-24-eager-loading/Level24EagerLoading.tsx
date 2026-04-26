@@ -43,8 +43,6 @@ import {
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Alert, AlertDescription } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
-import type { LevelComponentProps } from '@/lib/levels-registry';
 import {
 	type DiscoveryDef,
 	useDiscoveryGating,
@@ -52,6 +50,8 @@ import {
 import { type StepDef, useStepGating } from '@/hooks/useStepGating';
 import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { ANIMATION_DURATION_MS } from '@/lib/animation';
+import { registerLevelCode } from '@/lib/codebase-registry';
+import type { LevelComponentProps } from '@/lib/levels-registry';
 import { cn } from '@/lib/utils';
 
 registerLevelCode('act4-level24-eager-loading', () =>
@@ -88,16 +88,16 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 const PROBES: ProbeConfig[] = [
 	{
 		id: 'basic-users',
-		label: 'Load posts with users',
+		label: 'Load products with users',
 		command: 'Product.all + product.user.name (basic N+1)',
 		responseLines: [
 			{
-				text: 'Scenario: 100 posts, each needs .user.name',
+				text: 'Scenario: 100 products, each needs .user.name',
 				color: 'cyan',
 			},
 			{ text: '', color: 'muted' },
 			{
-				text: 'includes(:user)   => 2 queries (SELECT posts + SELECT users IN(...))',
+				text: 'includes(:user)   => 2 queries (SELECT products + SELECT users IN(...))',
 				color: 'green',
 			},
 			{
@@ -160,7 +160,7 @@ const PROBES: ProbeConfig[] = [
 		command: 'Product.where(tags: { active: true }) (filter on assoc)',
 		responseLines: [
 			{
-				text: 'Scenario: filter posts WHERE tags.active = true',
+				text: 'Scenario: filter products WHERE tags.active = true',
 				color: 'cyan',
 			},
 			{ text: '', color: 'muted' },
@@ -224,7 +224,7 @@ const PROBE_LANES: Record<string, StrategyLaneData[]> = {
 			name: 'includes',
 			method: 'Product.includes(:user)',
 			blocks: [
-				{ label: 'SELECT posts', color: 'green' },
+				{ label: 'SELECT products', color: 'green' },
 				{ label: 'SELECT users WHERE id IN(...)', color: 'green' },
 			],
 			totalLabel: '2 queries',
@@ -235,7 +235,7 @@ const PROBE_LANES: Record<string, StrategyLaneData[]> = {
 			name: 'preload',
 			method: 'Product.preload(:user)',
 			blocks: [
-				{ label: 'SELECT posts', color: 'green' },
+				{ label: 'SELECT products', color: 'green' },
 				{ label: 'SELECT users WHERE id IN(...)', color: 'green' },
 			],
 			totalLabel: '2 queries',
@@ -247,7 +247,7 @@ const PROBE_LANES: Record<string, StrategyLaneData[]> = {
 			method: 'Product.eager_load(:user)',
 			blocks: [
 				{
-					label: 'SELECT posts LEFT JOIN users',
+					label: 'SELECT products LEFT JOIN users',
 					color: 'green',
 					wide: true,
 				},
@@ -259,7 +259,7 @@ const PROBE_LANES: Record<string, StrategyLaneData[]> = {
 			id: 'joins',
 			name: 'joins',
 			method: 'Product.joins(:user)',
-			blocks: [{ label: 'SELECT posts JOIN users', color: 'amber' }],
+			blocks: [{ label: 'SELECT products JOIN users', color: 'amber' }],
 			floodCount: 100,
 			totalLabel: '101 queries!',
 			result: 'fails',
@@ -271,7 +271,7 @@ const PROBE_LANES: Record<string, StrategyLaneData[]> = {
 			name: 'includes',
 			method: 'Product.includes(reviews: :user)',
 			blocks: [
-				{ label: 'SELECT posts', color: 'green' },
+				{ label: 'SELECT products', color: 'green' },
 				{ label: 'SELECT reviews IN(...)', color: 'green' },
 				{ label: 'SELECT users IN(...)', color: 'green' },
 			],
@@ -283,7 +283,7 @@ const PROBE_LANES: Record<string, StrategyLaneData[]> = {
 			name: 'preload',
 			method: 'Product.preload(reviews: :user)',
 			blocks: [
-				{ label: 'SELECT posts', color: 'green' },
+				{ label: 'SELECT products', color: 'green' },
 				{ label: 'SELECT reviews IN(...)', color: 'green' },
 				{ label: 'SELECT users IN(...)', color: 'green' },
 			],
@@ -296,7 +296,7 @@ const PROBE_LANES: Record<string, StrategyLaneData[]> = {
 			method: 'Product.eager_load(reviews: :user)',
 			blocks: [
 				{
-					label: 'SELECT posts LEFT JOIN reviews, users',
+					label: 'SELECT products LEFT JOIN reviews, users',
 					color: 'amber',
 					wide: true,
 				},
@@ -321,7 +321,7 @@ const PROBE_LANES: Record<string, StrategyLaneData[]> = {
 			method: 'Product.includes(:tags).where(...)',
 			blocks: [
 				{
-					label: 'SELECT posts LEFT JOIN tags WHERE active',
+					label: 'SELECT products LEFT JOIN tags WHERE active',
 					color: 'amber',
 					wide: true,
 				},
@@ -349,7 +349,7 @@ const PROBE_LANES: Record<string, StrategyLaneData[]> = {
 			method: 'Product.eager_load(:tags).where(...)',
 			blocks: [
 				{
-					label: 'SELECT posts LEFT JOIN tags WHERE active',
+					label: 'SELECT products LEFT JOIN tags WHERE active',
 					color: 'green',
 					wide: true,
 				},
@@ -362,7 +362,7 @@ const PROBE_LANES: Record<string, StrategyLaneData[]> = {
 			name: 'joins',
 			method: 'Product.joins(:tags).where(...)',
 			blocks: [
-				{ label: 'SELECT posts JOIN tags WHERE active', color: 'amber' },
+				{ label: 'SELECT products JOIN tags WHERE active', color: 'amber' },
 			],
 			floodCount: 50,
 			totalLabel: '51+ queries!',
@@ -382,13 +382,13 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		description:
 			'Rails decides the best strategy: 2 separate queries (IN clause) when no filtering, or LEFT OUTER JOIN when you chain .where on the association. This is the recommended default for most cases.',
 		code: `# In your service object:
-class PostList < ApplicationService
+class ProductList < ApplicationService
   def call
     products = Product.includes(:user)
     # Query 1: SELECT "products".* FROM "products"
     # Query 2: SELECT "users".* FROM "users"
     #           WHERE "users"."id" IN (1, 2, 3...)
-    Result.new(success?: true, posts: posts, errors: [])
+    Result.new(success?: true, products: products, errors: [])
   end
 end
 
@@ -402,14 +402,14 @@ Product.includes(:user).where(users: { role: 'admin' })
 		description:
 			'Always runs 2 separate queries. Uses less memory than eager_load (148K objects vs 250K). Cannot filter by the associated table. Best when you just need the data without conditions.',
 		code: `# In your service object:
-class PostList < ApplicationService
+class ProductList < ApplicationService
   def call
     products = Product.preload(:user)
     # Always 2 separate queries:
     # Query 1: SELECT "products".* FROM "products"
     # Query 2: SELECT "users".* FROM "users"
     #           WHERE "users"."id" IN (1, 2, 3...)
-    Result.new(success?: true, posts: posts, errors: [])
+    Result.new(success?: true, products: products, errors: [])
   end
 end
 
@@ -423,7 +423,7 @@ Product.preload(:user).where(users: { active: true })
 		description:
 			'Always uses LEFT OUTER JOIN in a single query. Required when you need to filter or sort by association columns. Uses more memory because the JOIN returns wider result rows.',
 		code: `# In your service object:
-class PostList < ApplicationService
+class ProductList < ApplicationService
   def call(filters: {})
     products = Product.eager_load(:tags)
                 .where(tags: { active: filters[:tag_active] })
@@ -431,9 +431,9 @@ class PostList < ApplicationService
     # SELECT "products".*, "tags".*
     #   FROM "products"
     #   LEFT OUTER JOIN "tags"
-    #     ON "tags"."post_id" = "posts"."id"
+    #     ON "tags"."product_id" = "products"."id"
     #   WHERE "tags"."active" = true
-    Result.new(success?: true, posts: posts, errors: [])
+    Result.new(success?: true, products: products, errors: [])
   end
 end`,
 	},
@@ -443,7 +443,7 @@ end`,
 		description:
 			'INNER JOINs the table but does NOT load association records into memory. Accessing product.user after joins still triggers a lazy load. This is the most common mistake when trying to fix N+1 queries.',
 		code: `# Common mistake in a service:
-class PostList < ApplicationService
+class ProductList < ApplicationService
   def call
     products = Product.joins(:user)
                 .where(users: { role: 'admin' })
@@ -452,9 +452,9 @@ class PostList < ApplicationService
     #   WHERE "users"."role" = 'admin'
 
     # BUT: user data is NOT loaded!
-    # posts.each { |p| p.user.name }
+    # products.each { |p| p.user.name }
     # => N+1! Each .user triggers a SELECT
-    Result.new(success?: true, posts: posts, errors: [])
+    Result.new(success?: true, products: products, errors: [])
   end
 end`,
 	},
@@ -475,8 +475,8 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'basic-includes',
-		label: 'Posts with users (includes)',
-		description: 'Load 100 posts with user names',
+		label: 'Products with users (includes)',
+		description: 'Load 100 products with user names',
 		method: 'GET',
 		path: '/api/v1/products',
 		actor: 'includes(:user)',
@@ -494,7 +494,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'filtered-eager',
 		label: 'Filtered by active tags',
-		description: 'Load posts filtered by association column',
+		description: 'Load products filtered by association column',
 		method: 'GET',
 		path: '/api/v1/products?tag=active',
 		actor: 'eager_load(:tags)',
@@ -502,10 +502,10 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'no-eager-basic',
-		label: 'Posts without eager loading',
+		label: 'Products without eager loading',
 		description: 'Forgot to add includes, N+1 detected',
 		method: 'GET',
-		path: '/api/v1/admin/posts',
+		path: '/api/v1/admin/products',
 		actor: 'Product.all (no includes)',
 		expectedResult: 'blocked',
 	},
@@ -534,7 +534,7 @@ const REWARD_LANE_DATA: Record<
 	'basic-includes': {
 		strategy: 'includes(:user)',
 		blocks: [
-			{ label: 'SELECT posts', color: 'green' },
+			{ label: 'SELECT products', color: 'green' },
 			{ label: 'SELECT users WHERE id IN(...)', color: 'green' },
 		],
 		totalLabel: '2 queries',
@@ -543,7 +543,7 @@ const REWARD_LANE_DATA: Record<
 	'nested-includes': {
 		strategy: 'includes(reviews: :user)',
 		blocks: [
-			{ label: 'SELECT posts', color: 'green' },
+			{ label: 'SELECT products', color: 'green' },
 			{ label: 'SELECT reviews IN(...)', color: 'green' },
 			{ label: 'SELECT users IN(...)', color: 'green' },
 		],
@@ -554,7 +554,7 @@ const REWARD_LANE_DATA: Record<
 		strategy: 'eager_load(:tags).where(...)',
 		blocks: [
 			{
-				label: 'SELECT posts LEFT JOIN tags WHERE active',
+				label: 'SELECT products LEFT JOIN tags WHERE active',
 				color: 'green',
 				wide: true,
 			},
@@ -564,14 +564,14 @@ const REWARD_LANE_DATA: Record<
 	},
 	'no-eager-basic': {
 		strategy: 'Product.all (no includes)',
-		blocks: [{ label: 'SELECT posts', color: 'amber' }],
+		blocks: [{ label: 'SELECT products', color: 'amber' }],
 		floodCount: 100,
 		totalLabel: '101 queries!',
 		result: 'fails',
 	},
 	'joins-mistake': {
 		strategy: 'Product.joins(:user)',
-		blocks: [{ label: 'SELECT posts JOIN users', color: 'amber' }],
+		blocks: [{ label: 'SELECT products JOIN users', color: 'amber' }],
 		floodCount: 100,
 		totalLabel: '101 queries!',
 		result: 'fails',
@@ -583,7 +583,7 @@ const REWARD_LANE_DATA: Record<
 // ──────────────────────────────────────────────
 
 const STEP_DEFS: StepDef[] = [
-	{ id: 'basic-includes', title: 'Fix Posts with Users' },
+	{ id: 'basic-includes', title: 'Fix Products with Users' },
 	{ id: 'nested-includes', title: 'Fix Nested Associations' },
 	{ id: 'conditional-eager', title: 'Fix Filtered Query' },
 ];
@@ -608,9 +608,9 @@ const OPTION_STEP_CONFIG: Record<
 	}
 > = {
 	0: {
-		title: 'Fix Posts with Users',
+		title: 'Fix Products with Users',
 		description:
-			'PostList service calls Product.all, triggering 101 queries for 100 posts. Each product.user.name fires a separate SELECT. Which method should the service use to batch all user queries into one?',
+			'ProductList service calls Product.all, triggering 101 queries for 100 products. Each product.user.name fires a separate SELECT. Which method should the service use to batch all user queries into one?',
 		options: [
 			{
 				id: 'joins',
@@ -662,7 +662,7 @@ const OPTION_STEP_CONFIG: Record<
 	2: {
 		title: 'Fix Filtered Query',
 		description:
-			'The service needs posts WHERE tags.active = true. This filters by an association column. includes auto-switches to a JOIN here, but which method gives the service explicit control and the best performance?',
+			'The service needs products WHERE tags.active = true. This filters by an association column. includes auto-switches to a JOIN here, but which method gives the service explicit control and the best performance?',
 		options: [
 			{
 				id: 'preload',
@@ -696,30 +696,30 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 
 	if (phase === 'observe') {
 		files.push({
-			filename: 'app/services/post_list.rb',
+			filename: 'app/services/product_list.rb',
 			language: 'ruby',
-			code: `class PostList < ApplicationService
-  Result = Data.define(:success?, :posts, :errors)
+			code: `class ProductList < ApplicationService
+  Result = Data.define(:success?, :products, :errors)
 
   def call
     products = Product.all  # No eager loading!
-    Result.new(success?: true, posts: posts, errors: [])
+    Result.new(success?: true, products: products, errors: [])
   end
 end
 
-# For 100 posts, this triggers:
-# 1 query for posts
-# + 100 queries for users (one per post)
+# For 100 products, this triggers:
+# 1 query for products
+# + 100 queries for users (one per product)
 # = 101 queries total`,
 			highlight: [5],
 		});
 		files.push({
 			filename: 'app/controllers/products_controller.rb',
 			language: 'ruby',
-			code: `class PostsController < ApplicationController
+			code: `class ProductsController < ApplicationController
   def index
-    result = PostList.call
-    render json: ProductSerializer.new(result.posts)
+    result = ProductList.call
+    render json: ProductSerializer.new(result.products)
   end
 end`,
 		});
@@ -729,14 +729,14 @@ end`,
 	// Build / reward phases
 	if (furthestStep === 0) {
 		files.push({
-			filename: 'app/services/post_list.rb',
+			filename: 'app/services/product_list.rb',
 			language: 'ruby',
-			code: `class PostList < ApplicationService
-  Result = Data.define(:success?, :posts, :errors)
+			code: `class ProductList < ApplicationService
+  Result = Data.define(:success?, :products, :errors)
 
   def call
     products = Product.all  # 101 queries!
-    Result.new(success?: true, posts: posts, errors: [])
+    Result.new(success?: true, products: products, errors: [])
   end
 end`,
 			highlight: [5],
@@ -744,10 +744,10 @@ end`,
 		files.push({
 			filename: 'app/controllers/products_controller.rb',
 			language: 'ruby',
-			code: `class PostsController < ApplicationController
+			code: `class ProductsController < ApplicationController
   def index
-    result = PostList.call
-    render json: ProductSerializer.new(result.posts)
+    result = ProductList.call
+    render json: ProductSerializer.new(result.products)
   end
 end`,
 		});
@@ -755,12 +755,12 @@ end`,
 
 	if (furthestStep >= 1) {
 		files.push({
-			filename: 'app/services/post_list.rb',
+			filename: 'app/services/product_list.rb',
 			language: 'ruby',
 			code:
 				furthestStep >= 3
-					? `class PostList < ApplicationService
-  Result = Data.define(:success?, :posts, :errors)
+					? `class ProductList < ApplicationService
+  Result = Data.define(:success?, :products, :errors)
 
   def call(scope: :index, filters: {})
     products = case scope
@@ -776,12 +776,12 @@ end`,
       # 1 query with LEFT OUTER JOIN
     end
 
-    Result.new(success?: true, posts: posts, errors: [])
+    Result.new(success?: true, products: products, errors: [])
   end
 end`
 					: furthestStep >= 2
-						? `class PostList < ApplicationService
-  Result = Data.define(:success?, :posts, :errors)
+						? `class ProductList < ApplicationService
+  Result = Data.define(:success?, :products, :errors)
 
   def call(scope: :index)
     products = case scope
@@ -793,16 +793,16 @@ end`
       # 3 queries instead of 1001
     end
 
-    Result.new(success?: true, posts: posts, errors: [])
+    Result.new(success?: true, products: products, errors: [])
   end
 end`
-						: `class PostList < ApplicationService
-  Result = Data.define(:success?, :posts, :errors)
+						: `class ProductList < ApplicationService
+  Result = Data.define(:success?, :products, :errors)
 
   def call
     products = Product.includes(:user)
     # 2 queries instead of 101
-    Result.new(success?: true, posts: posts, errors: [])
+    Result.new(success?: true, products: products, errors: [])
   end
 end`,
 			highlight:
@@ -813,40 +813,40 @@ end`,
 			language: 'ruby',
 			code:
 				furthestStep >= 3
-					? `class PostsController < ApplicationController
+					? `class ProductsController < ApplicationController
   def index
-    result = PostList.call(scope: :index)
-    render json: ProductSerializer.new(result.posts)
+    result = ProductList.call(scope: :index)
+    render json: ProductSerializer.new(result.products)
   end
 
   def feed
-    result = PostList.call(scope: :feed)
-    render json: FeedSerializer.new(result.posts)
+    result = ProductList.call(scope: :feed)
+    render json: FeedSerializer.new(result.products)
   end
 
   def tagged
-    result = PostList.call(
+    result = ProductList.call(
       scope: :tagged, filters: { tag_active: true }
     )
-    render json: ProductSerializer.new(result.posts)
+    render json: ProductSerializer.new(result.products)
   end
 end`
 					: furthestStep >= 2
-						? `class PostsController < ApplicationController
+						? `class ProductsController < ApplicationController
   def index
-    result = PostList.call(scope: :index)
-    render json: ProductSerializer.new(result.posts)
+    result = ProductList.call(scope: :index)
+    render json: ProductSerializer.new(result.products)
   end
 
   def feed
-    result = PostList.call(scope: :feed)
-    render json: FeedSerializer.new(result.posts)
+    result = ProductList.call(scope: :feed)
+    render json: FeedSerializer.new(result.products)
   end
 end`
-						: `class PostsController < ApplicationController
+						: `class ProductsController < ApplicationController
   def index
-    result = PostList.call
-    render json: ProductSerializer.new(result.posts)
+    result = ProductList.call
+    render json: ProductSerializer.new(result.products)
   end
 end`,
 		});
@@ -989,7 +989,7 @@ function QueryTimelineLane({
 									'flex items-center gap-1.5',
 									'animate-in fade-in slide-in-from-left-2 duration-300',
 								)}
-								key={i}
+								key={`${block.label}-${i}`}
 							>
 								{i > 0 && (
 									<span className="text-muted-foreground/40 text-xs">
@@ -1018,7 +1018,7 @@ function QueryTimelineLane({
 										(_, i) => (
 											<div
 												className="w-[5px] h-[5px] rounded-[1px] bg-red-500 dark:bg-red-400"
-												key={i}
+												key={`flood-${lane.id}-${i}`}
 												title={`SELECT user WHERE id=${i + 1}`}
 											/>
 										),
@@ -1092,7 +1092,10 @@ function ResultLane({ data }: { data: (typeof REWARD_LANE_DATA)[string] }) {
 			{/* Query blocks */}
 			<div className="flex flex-wrap items-center gap-1.5">
 				{data.blocks.map((block, i) => (
-					<div className="flex items-center gap-1.5" key={i}>
+					<div
+						className="flex items-center gap-1.5"
+						key={`${block.label}-${i}`}
+					>
 						{i > 0 && (
 							<span className="text-muted-foreground/40 text-xs">{'->'}</span>
 						)}
@@ -1115,7 +1118,7 @@ function ResultLane({ data }: { data: (typeof REWARD_LANE_DATA)[string] }) {
 							{Array.from({ length: Math.min(data.floodCount, 60) }, (_, i) => (
 								<div
 									className="w-[5px] h-[5px] rounded-[1px] bg-red-500 dark:bg-red-400"
-									key={i}
+									key={`reward-flood-${data.strategy}-${i}`}
 								/>
 							))}
 							{data.floodCount > 60 && (
