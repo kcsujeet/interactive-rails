@@ -130,6 +130,49 @@ end
 **Idempotency is critical:**
 Jobs may run more than once (retries, queue restarts). Design every job to be safe to re-run.
 
+**Concurrency limits (don't melt the vendor):**
+At scale you might be running 50 worker threads. If your level-22 job calls a third-party API on every run, those 50 threads all hammering the same vendor will trip rate limits, queue up, and slow everything down. Solid Queue's \`limits_concurrency\` caps how many of a given job class run simultaneously, bucketed by a key you choose:
+
+\`\`\`ruby
+class StripeSyncJob < ApplicationJob
+  limits_concurrency to: 5,
+    key: ->(_user_id) { "stripe-api" },
+    duration: 30.seconds
+
+  def perform(user_id)
+    # at most 5 of these run at the same time across ALL workers
+  end
+end
+\`\`\`
+
+The key is a logical bucket: every \`StripeSyncJob\` shares the \`"stripe-api"\` key, so the cap applies across the whole queue. You can also key by argument (\`key: ->(user_id) { user_id }\`) to limit one in-flight job per user, which is useful when each job mutates user-scoped state.
+
+**Failed executions and dead-letter handling:**
+After \`retry_on\` burns through all its attempts, the job lands in \`SolidQueue::FailedExecution\`. That table is your dead-letter queue. Letting it grow unbounded is a bug: a job that has been failing for two weeks is not going to magically succeed, and a silent failure pile-up means your "asynchronous" work is silently broken.
+
+What "owning" the dead-letter queue actually means:
+
+- An **alert** when the failed table is non-empty (Slack, PagerDuty, email): if it's non-empty, someone needs to look at it.
+- A **review process**: an oncall opens the bad row, looks at the exception class and the arguments, decides whether to retry, fix-and-retry, or discard.
+- A **retry path**: \`SolidQueue::FailedExecution#retry\` re-enqueues. The official Rails ops UI for this is **Mission Control Jobs** (\`mission_control-jobs\` gem). Mount it at \`/jobs\` behind admin auth and your oncall has a real tool instead of a Rails console.
+
+A failed-executions table that grows for a week before anyone notices is the production-job equivalent of an uncaught exception in your monitoring blind spot.
+
+**Job uniqueness (queue-level idempotency):**
+A user double-clicks "send invoice." The controller enqueues \`SendInvoiceJob.perform_later(invoice.id)\` twice. The perform-level idempotency guard catches the second run (\`return if invoice.sent?\`), but it still uses two worker slots and two database round-trips. Solid Queue can prevent the duplicate from being enqueued at all:
+
+\`\`\`ruby
+class SendInvoiceJob < ApplicationJob
+  unique :until_executed, lock_ttl: 5.minutes
+
+  def perform(invoice_id)
+    # Same args + same job class within 5 minutes? Only one runs.
+  end
+end
+\`\`\`
+
+\`unique :until_executed\` means: if a job with the same arguments is already pending, drop the duplicate. Belt-and-suspenders with the idempotency guard inside \`perform\`. You want both at scale: queue-level uniqueness saves the worker round-trip, perform-level idempotency saves you when the unique window expires or workers race.
+
 **The worker is a separate process:**
 Calling \`perform_later\` puts a row into a database table. That is all it does. Something has to actually pick those rows up and run the jobs, and that something is the **worker** process. Rails 8 ships a runner script at \`bin/jobs\` that boots Solid Queue and starts processing.
 
@@ -270,6 +313,9 @@ end
 			'Not setting retry policies with retry_on (jobs fail silently and are lost)',
 			'Not separating queues by priority (time-sensitive email should not wait behind analytics)',
 			'Forgetting that Solid Queue uses your database (monitor DB load under heavy job throughput)',
+			'No concurrency limit on a job that hits a rate-limited vendor API (50 workers get throttled and your queue grinds)',
+			'Letting SolidQueue::FailedExecution grow unbounded with no alert or review process (silent dead-letter pile-up)',
+			'Skipping queue-level uniqueness (`unique :until_executed`) for user-triggered actions where double-submits are likely',
 		],
 		whenToUse:
 			'Any operation that takes more than 100ms, calls an external service, or does not need to complete before the HTTP response is sent.',
@@ -281,6 +327,14 @@ end
 			{
 				title: 'Solid Queue (Rails 8 default)',
 				url: 'https://github.com/rails/solid_queue',
+			},
+			{
+				title: 'Mission Control Jobs (admin UI for failed executions)',
+				url: 'https://github.com/rails/mission_control-jobs',
+			},
+			{
+				title: 'Solid Queue concurrency controls (limits_concurrency)',
+				url: 'https://github.com/rails/solid_queue#concurrency-controls',
 			},
 		],
 	},
