@@ -574,9 +574,17 @@ const CACHE_FETCH_OPTIONS: StepOption[] = [
 			'A literal string key cannot reflect changes to the underlying records. The cache only refreshes when the 5-minute timer expires, even right after a record is updated.',
 	},
 	{
-		id: 'correct',
+		id: 'wrong-no-stampede',
 		label:
 			'Rails.cache.fetch([Product.maximum(:updated_at).to_i, "trending_products"], expires_in: 5.minutes) { compute_trending.to_a }',
+		correct: false,
+		feedback:
+			'Versioned key plus expiration is the right shape for ordinary loads. But the instant the key expires under heavy traffic, every concurrent request recomputes from scratch and the database gets hammered with N simultaneous queries instead of one. Needs another option to coordinate concurrent rebuilds.',
+	},
+	{
+		id: 'correct',
+		label:
+			'Rails.cache.fetch([Product.maximum(:updated_at).to_i, "trending_products"], expires_in: 5.minutes, race_condition_ttl: 10.seconds) { compute_trending.to_a }',
 		correct: true,
 	},
 ];
@@ -620,7 +628,7 @@ const OPTION_STEP_CONFIG: Record<
 	4: {
 		title: 'Add Cache Fetch',
 		description:
-			'The trending query runs on every request. Wrap it so the first request computes and stores the result. The cache must respect both expiration AND changes to the underlying records, so a fresh review is reflected immediately rather than waiting for the timer.',
+			'The trending query runs on every request. Wrap it so the first request computes and stores the result. Two constraints: (1) the cache must respect both expiration AND changes to the underlying records, so a fresh review is reflected immediately, and (2) under heavy traffic, when the key expires only ONE concurrent request should recompute, while the rest keep serving the slightly-stale value.',
 		options: CACHE_FETCH_OPTIONS,
 	},
 	5: {
@@ -808,7 +816,8 @@ end`,
 
     products = Rails.cache.fetch(
       [Product.maximum(:updated_at).to_i, "trending_products"],
-      expires_in: 5.minutes
+      expires_in: 5.minutes,
+      race_condition_ttl: 10.seconds
     ) do
       Product
         .joins(:reviews)
@@ -824,7 +833,7 @@ end`,
     Result.new(products: products, generated_at: Time.current)
   end
 end`,
-			highlight: [10, 11, 12, 23],
+			highlight: [10, 11, 12, 13, 24],
 		});
 	}
 

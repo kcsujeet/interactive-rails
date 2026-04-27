@@ -262,9 +262,17 @@ const CACHE_FETCH_OPTIONS: StepOption[] = [
 			'A literal string key cannot reflect changes to the underlying records. The cache only refreshes when the 5-minute timer expires, even right after a record is updated.',
 	},
 	{
-		id: 'correct',
+		id: 'wrong-no-stampede',
 		label:
 			'Rails.cache.fetch([Product.maximum(:updated_at).to_i, "trending_products"], expires_in: 5.minutes) { compute_trending.to_a }',
+		correct: false,
+		feedback:
+			'Versioned key plus expiration is the right shape for ordinary loads. But the instant the key expires under heavy traffic, every concurrent request recomputes from scratch and the database gets hammered with N simultaneous queries instead of one. Needs another option to coordinate concurrent rebuilds.',
+	},
+	{
+		id: 'correct',
+		label:
+			'Rails.cache.fetch([Product.maximum(:updated_at).to_i, "trending_products"], expires_in: 5.minutes, race_condition_ttl: 10.seconds) { compute_trending.to_a }',
 		correct: true,
 	},
 ];
@@ -605,11 +613,26 @@ end`;
 			expect(serviceCode).toContain('TrendingContract');
 		});
 
-		test('cache fetch option includes expires_in and .to_a', () => {
+		test('cache fetch option uses versioned key + expires_in + race_condition_ttl', () => {
 			const correct = CACHE_FETCH_OPTIONS.find((o) => o.correct);
 			expect(correct).toBeDefined();
+			expect(correct?.label).toContain('Product.maximum(:updated_at)');
 			expect(correct?.label).toContain('expires_in');
+			expect(correct?.label).toContain('race_condition_ttl');
 			expect(correct?.label).toContain('.to_a');
+		});
+
+		test('cache stampede has its own wrong-option that the player must reject', () => {
+			// The "no-stampede" wrong option (versioned key + expires_in but
+			// missing race_condition_ttl) is the production gotcha this level
+			// teaches. It must exist and be marked wrong.
+			const noStampede = CACHE_FETCH_OPTIONS.find(
+				(o) => o.id === 'wrong-no-stampede',
+			);
+			expect(noStampede).toBeDefined();
+			expect(noStampede?.correct).toBe(false);
+			expect(noStampede?.label).toContain('Product.maximum(:updated_at)');
+			expect(noStampede?.label).not.toContain('race_condition_ttl');
 		});
 
 		test('touch option uses belongs_to with touch: true', () => {

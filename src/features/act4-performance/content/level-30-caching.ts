@@ -153,6 +153,21 @@ Fragment cache (cache hit):    17ms → 317x faster
 - Manual: \`Rails.cache.delete("key")\`
 - Touch: \`belongs_to :product, touch: true\` cascades cache invalidation
 
+**Cache stampede (the thundering-herd problem):**
+At low traffic, when a hot cache key expires, the next request recomputes and stores the new value. Easy. At high traffic, the moment that hot key expires, every concurrent request sees a miss at the same time and they ALL recompute simultaneously. Your database goes from one query to N parallel queries in a single tick.
+
+The fix is \`race_condition_ttl: 10.seconds\` on the \`Rails.cache.fetch\` call. After expiry, exactly ONE request rebuilds the cache while every other concurrent request continues serving the slightly-stale value (for up to the race_condition_ttl window). The rebuilt value replaces the stale one once the rebuild completes. The database sees one query instead of N.
+
+\`\`\`ruby
+Rails.cache.fetch(
+  key,
+  expires_in: 5.minutes,
+  race_condition_ttl: 10.seconds
+) { expensive_query }
+\`\`\`
+
+This matters at any scale where the cached query is hot enough that multiple concurrent requests can hit the expiry within a few seconds of each other. For most billion-dollar SaaS workloads, that is most of your hot caches.
+
 **Real-world pattern, fan-out writing (how Twitter worked with Rails):**
 On each new product, write the product ID into a cached "timeline" list for every follower. Reading a feed becomes \`Product.where(id: cached_ids)\`, trivial. The "Justin Bieber problem": celebrity with millions of followers, each product triggers millions of cache writes. Solution: mixed fan-out. Regular users get fan-out writes; celebrities are exempt (their products fetched via direct DB query at read time).`,
 		railsCodeExample: `# === Solid Cache Setup (Rails 8) ===
@@ -179,8 +194,13 @@ class TrendingProducts < ApplicationService
       products: [], generated_at: Time.current
     ) if validation.failure?
 
+    # Versioned key + expires_in for ordinary refresh,
+    # race_condition_ttl to coordinate concurrent rebuilds
+    # under heavy traffic.
     products = Rails.cache.fetch(
-      "trending_products", expires_in: 5.minutes
+      [Product.maximum(:updated_at).to_i, "trending_products"],
+      expires_in: 5.minutes,
+      race_condition_ttl: 10.seconds
     ) do
       Product
         .joins(:reviews)
@@ -214,6 +234,7 @@ end
 			'Cache keys that do not include updated_at (stale after updates)',
 			'Over-caching dynamic/personalized content',
 			'Forgetting touch: true on belongs_to (child changes do not invalidate parent cache)',
+			'Forgetting race_condition_ttl on hot keys (cache stampede: N concurrent requests recompute simultaneously when the key expires under load)',
 		],
 		whenToUse:
 			'Cache any computation that runs more than once with the same result. Start with Solid Cache (database-backed). Graduate to Redis/Memcached only if you measure a need.',
