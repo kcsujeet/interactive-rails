@@ -87,7 +87,7 @@ bin/rails generate authentication
 # - Login/logout controller scaffolding
 
 # But we're API-only -- we need Bearer tokens, not cookies.`,
-		goal: 'Generate auth scaffolding, run migrations, configure password hashing, and protect endpoints with Bearer token authentication.',
+		goal: 'Add an authentication layer so every API request can prove which user is making it. Block anonymous access by default, then let clients identify themselves with a token they obtain at login and send on every later request.',
 		thresholds: {},
 	},
 	successConditions: [
@@ -114,22 +114,24 @@ bin/rails generate authentication
 - Client sends \`Authorization: Bearer <token>\` on every request
 - The Authentication concern's \`require_authentication\` verifies it
 
-**\`authenticate_by\` (Rails 8, timing-safe login):**
-- \`User.authenticate_by(email: ..., password: ...)\` returns the user or nil
-- Performs constant-time comparison to prevent timing attacks
-- Replaces the manual \`find_by + authenticate\` pattern
-- Returns nil (not false) on failure -- safe against enumeration
+**\`authenticate_by\` (the modern login check):**
 
-**\`has_secure_password\`:**
-- Adds \`password\` and \`password_confirmation\` virtual attributes
-- Stores a bcrypt hash in \`password_digest\`
-- Provides \`authenticate(password)\` method
-- No plaintext passwords ever touch the database
+The naive login flow is "find the user by email, then check the password." That looks fine but it leaks information. Here is the failure mode:
+
+A wrong-password attempt for a real account takes longer than a "no such email" response, because Rails actually runs the password check in the first case. By trying lots of emails and watching how long the response takes, an attacker can build a list of which emails belong to real customers, without ever guessing a single password. That is called an *enumeration attack*.
+
+\`User.authenticate_by(email: ..., password: ...)\` does both lookups in one call and is built to take the same time whether the email exists or not. Returns the user on success, or \`nil\` on failure. Use this in production. The legacy two-step \`find_by + authenticate\` pattern is fine for a tutorial but leaks timing information once your login endpoint is on the open internet.
+
+**\`has_secure_password\` (how passwords are stored):**
+
+Storing the actual password in your database is dangerous: one leak gives an attacker every login. The fix is *hashing*. Run the password through a one-way function so \`"hunter2"\` becomes something like \`"$2a$12$..."\` and only the hash gets saved. To verify a login, Rails hashes whatever the user just submitted and compares it to the stored hash. The original password is never recovered, never read out of the database.
+
+Adding \`has_secure_password\` to a User model wires this up: setting \`user.password = "..."\` stores the hashed value in a \`password_digest\` column, and \`user.authenticate("...")\` checks a login. The hash function is \`bcrypt\`, which is *deliberately* slow (a few hundred milliseconds per check). Slow is good here: it makes brute-force guessing impractical for an attacker, while a single legitimate login is fast enough that the user does not notice.
 
 **\`Current\` (who is logged in?):**
 - After someone logs in, the rest of your code needs to know who they are. Every controller, every model that checks ownership, every background job
 - The clumsy way: pass the user object as an argument into every method that needs it
-- The Rails way: the auth generator creates a \`Current\` class. After Rails verifies the Bearer token, it stores the session in \`Current.session\` and the logged-in user in \`Current.user\` — for that one request only
+- The Rails way: the auth generator creates a \`Current\` class. After Rails verifies the Bearer token, it stores the session in \`Current.session\` and the logged-in user in \`Current.user\`, for that one request only
 - From there, any controller can just call \`Current.user\` and get the logged-in user. No plumbing
 - Each web request gets its own \`Current\`, so when two users hit your API at the same time, they never see each other's data
 - This is why you will see \`current_user\` "just work" in every controller from now on. It comes from \`Current\`
@@ -139,7 +141,7 @@ bin/rails generate authentication
 - That default is exactly what you want for protected endpoints. But it creates a chicken-and-egg problem: how does anyone log in for the first time if logging in requires being logged in?
 - \`allow_unauthenticated_access only: [:create]\` is how you opt out. It tells Rails: "the create action on this controller (the login action) is the exception. Anyone can hit it without being authenticated"
 - Same idea for signup: put \`allow_unauthenticated_access only: [:new, :create]\` on \`UsersController\` so people can register without already having an account
-- Forget this and your login endpoint returns \`401\` before any user can ever log in — the most common Rails 8 auth bug
+- Forget this and your login endpoint returns \`401\` before any user can ever log in, the most common Rails 8 auth bug
 - The pattern is: block everyone by default, then carve out specific exceptions for the few public endpoints. Much safer than "let everyone through, then remember to lock down every new controller"`,
 		railsCodeExample: `# Generate auth scaffolding (Rails 8)
 bin/rails generate authentication
