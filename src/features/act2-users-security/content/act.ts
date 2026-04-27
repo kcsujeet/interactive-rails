@@ -1,7 +1,7 @@
 import type { Act } from '@/types';
+import { level11Callbacks } from '../components/level-11-callbacks/data/content';
 import { level9Authentication } from './level-9-authentication';
 import { level10Validations } from './level-10-validations';
-import { level11Callbacks } from './level-11-callbacks';
 import { level12Authorization } from './level-12-authorization';
 import { level13Testing } from './level-13-testing';
 import { level14StrongParams } from './level-14-strong-params';
