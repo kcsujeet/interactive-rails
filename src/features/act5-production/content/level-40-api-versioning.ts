@@ -127,7 +127,64 @@ end
 - Announce deprecation date in response headers
 - Add \`Sunset\` header with retirement date
 - Log v1 usage to track migration progress
-- Give partners 6-12 months to migrate`,
+- Give partners 6-12 months to migrate
+
+**Deprecation header format (the RFCs that matter):**
+
+Two RFCs define the wire format. If you want clients (and tooling) to actually read your deprecation signal, follow them:
+
+- **RFC 9745 \`Deprecation\`** carries the date the version became deprecated. Use an HTTP-date string or a Unix timestamp prefixed with \`@\`. \`Deprecation: true\` works in practice but is not RFC-conformant; clients that auto-parse the header (calculating "days since deprecated") will see nothing.
+- **RFC 8594 \`Sunset\`** carries the HTTP-date when the version will go away. After that date the server is allowed to return \`410 Gone\`.
+- \`Link: <https://api.example.com/api/v2/docs>; rel="successor-version"\` is the standard way to point clients at the replacement.
+
+\`\`\`http
+Deprecation: Sat, 01 Jan 2026 00:00:00 GMT
+Sunset:      Mon, 01 Jun 2026 00:00:00 GMT
+Link:        <https://api.example.com/api/v2/docs>; rel="successor-version"
+\`\`\`
+
+**Sunset process (the headers are not enough):**
+
+The headers are the machine-readable announcement. The actual sunset is a process:
+
+1. **Communicate out-of-band**: changelog entry, email to every partner whose API key has hit v1 in the last 30 days, banner in your dev portal. The header is one half of the announcement; humans need the other half.
+2. **Track adoption**: log v1 calls per API key per day. Build a dashboard so you can see the migration curve. If 80% of partners migrated in month 1 and 0% migrated in months 2-5, your sunset date is unrealistic.
+3. **Reach out to laggards 90 days out**: identify partners still on v1, contact them directly, offer a migration call. Surprise 410s on cutover destroy partner trust.
+4. **Gradual enforcement**: 90 days before sunset, headers are already in place. 30 days before, add a banner in dev docs. On sunset day, the route returns \`410 Gone\` with a body that links to the v2 docs. 30 days after, stop logging access and remove the route.
+5. **Partner-by-partner override**: feature-flag a "force v2" toggle keyed on API key, so Partner A who migrated cleanly stays on v2 even if Partner B is still on v1. Lets you cut over the willing without dragging the unwilling.
+
+**Contract tests (prove the shape does not change):**
+
+A versioned API is only "frozen" if you can prove it. Without contract tests, a serializer edit that breaks v1 ships green and the failure surfaces only when Partner A's parser explodes in production. Contract tests assert the response shape against a stored schema:
+
+\`\`\`ruby
+# spec/contracts/api_v1_order_show_spec.rb
+require "rails_helper"
+require "json_schemer"
+
+RSpec.describe "API v1 Order#show contract" do
+  let(:schema) {
+    JSONSchemer.schema(
+      Pathname.new(Rails.root.join("spec/contracts/v1/order_show.json"))
+    )
+  }
+
+  it "returns a v1-shaped response" do
+    order = create(:order, total_cents: 1999)
+    get "/api/v1/orders/#{order.id}"
+    expect(response).to be_successful
+    expect(schema.validate(response.parsed_body).to_a).to be_empty
+  end
+end
+\`\`\`
+
+The schema file (\`order_show.json\`) is checked into the repo and treated as the contract. CI runs the spec on every PR; any serializer edit that breaks the v1 shape fails before merge.
+
+For more rigorous setups:
+- **\`committee\` gem**: validates every request and response against an OpenAPI 3 spec during the test run. The spec doubles as the public dev docs.
+- **Pact (consumer-driven)**: partners publish their expectations as \`pact\` files; your CI runs them against your provider. You learn the moment a change would break Partner A, not three weeks later.
+
+For purely asserting your own response shape, JSON Schema is enough. For partner-driven workflows where you want their expectations to drive your guarantees, Pact is the production-grade tool.`,
 		railsCodeExample: `# config/routes.rb
 Rails.application.routes.draw do
   namespace :api do
@@ -254,6 +311,11 @@ end`,
 			'Sharing serializers between versions (changes leak across versions)',
 			'Not tracking v1 usage to know when it is safe to retire',
 			'Too many live versions (maintain at most 2: current and previous)',
+			'Using `Deprecation: true` instead of an RFC 9745 date string (clients that auto-parse the header cannot calculate days remaining)',
+			'No contract tests on the v1 endpoints (a serializer edit silently breaks the v1 shape and ships green)',
+			'Sunset headers but no out-of-band partner communication (machine-readable announcement only; humans get surprised)',
+			'No partner-by-partner v1-usage dashboard (cannot identify the laggards in the last 90 days)',
+			'Hard cutover from 200 to 410 with no gradual enforcement (no warning banner, no opt-in v2 toggle for migrated partners)',
 		],
 		whenToUse:
 			'Whenever you need breaking changes to response shapes, authentication, or request formats. Version from day one for any public API.',
@@ -263,8 +325,20 @@ end`,
 				url: 'https://guides.rubyonrails.org/api_app.html',
 			},
 			{
-				title: 'Sunset Header RFC',
+				title: 'RFC 9745: The Deprecation HTTP Response Header',
+				url: 'https://datatracker.ietf.org/doc/html/rfc9745',
+			},
+			{
+				title: 'RFC 8594: The Sunset HTTP Header Field',
 				url: 'https://datatracker.ietf.org/doc/html/rfc8594',
+			},
+			{
+				title: 'committee gem (OpenAPI request/response validation)',
+				url: 'https://github.com/interagent/committee',
+			},
+			{
+				title: 'Pact (consumer-driven contract testing)',
+				url: 'https://docs.pact.io/',
 			},
 			{
 				title: 'API Versioning Best Practices',
