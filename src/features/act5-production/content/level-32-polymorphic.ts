@@ -64,9 +64,38 @@ end
 - Activity logs referencing various models
 
 **When NOT to use polymorphic:**
-- When types need different columns (use STI or separate tables)
+- When the number of types is fixed at 2 (just use two belongs_to)
 - When you need database-level foreign key constraints
-- When the number of types is fixed at 2 (just use two belongs_to)`,
+
+**Three patterns, one design space (don't confuse them):**
+
+Rails has three different macros for "this thing has multiple types," and they solve three different problems. Knowing which one fits is half the work:
+
+1. **\`polymorphic: true\`** (this level). One child model belongs to many *unrelated* parent types. The CHILDREN are uniform; the PARENTS differ. Reviews on Products / Photos / Videos all have the same review schema; the things being reviewed are the variety. Use when one child model needs to attach to many different parents.
+
+2. **STI (Single Table Inheritance)**. One parent class, many subclasses, all rows in *one* wide table with a \`type\` column. Use only when subtypes share 90%+ of their columns (\`Vehicle\` → \`Car\`, \`Truck\` — same year, model, vin). Breaks down once subtypes need different columns: the table fills with NULLs and the schema rots.
+
+3. **\`delegated_type\`** (Rails 6.1+, the modern fix for "STI is wrong here"). One parent record with the *common* columns plus a polymorphic association to a subtype record that holds the *specific* columns. Each subtype gets its own table, so no NULLs, but Rails still presents them as one polymorphic abstraction at the API level.
+\`\`\`ruby
+class Entry < ApplicationRecord
+  delegated_type :entryable, types: %w[ Message Comment ]
+end
+
+class Message < ApplicationRecord
+  has_one :entry, as: :entryable, touch: true
+end
+
+class Comment < ApplicationRecord
+  has_one :entry, as: :entryable, touch: true
+end
+\`\`\`
+
+**Quick decision:**
+- One child, many parent types → **polymorphic** (this level).
+- One parent, many subtypes that share most columns → STI.
+- One parent, many subtypes with their own columns → **delegated_type**.
+
+If you reach for STI but find yourself adding subtype-specific columns that mostly hold NULL, switch to \`delegated_type\` instead. The Rails Guides still show STI in many examples — it's the legacy default.`,
 		railsCodeExample: `# Migration
 class CreateReviews < ActiveRecord::Migration[8.0]
   def change
@@ -144,7 +173,7 @@ end`,
 			'Not validating that reviewable_type is in an allowed list',
 		],
 		whenToUse:
-			'When the same child model (reviews, tags, attachments) needs to belong to multiple unrelated parent models with identical schemas.',
+			'When the same child model (reviews, tags, attachments) needs to belong to multiple unrelated parent models with identical schemas. If you reach the opposite shape (one parent, many subtypes with their own columns), use `delegated_type` instead — see the concept explanation.',
 		furtherReading: [
 			{
 				title: 'Rails Polymorphic Associations',
@@ -153,6 +182,10 @@ end`,
 			{
 				title: 'Polymorphic Routes in Rails',
 				url: 'https://api.rubyonrails.org/classes/ActionDispatch/Routing/PolymorphicRoutes.html',
+			},
+			{
+				title: 'ActiveRecord delegated_type (Rails 6.1+)',
+				url: 'https://api.rubyonrails.org/classes/ActiveRecord/DelegatedType.html',
 			},
 		],
 	},
