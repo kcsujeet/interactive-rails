@@ -2,140 +2,132 @@ import { registerLevelCode } from '@/lib/codebase-registry';
 import type { Phase } from '../types';
 import { STEP_DEFS } from './build-steps';
 
-export function getCodeFiles(phase: Phase, furthestStep: number) {
-	const files = [];
+const USER_MODEL_BROKEN = `class User < ApplicationRecord
+  has_secure_password
+  validates :email, presence: true, uniqueness: true
 
-	// Observe phase: show the bare User model
+  # No normalization
+  # Email stored as-is: " JOE@GMAIL.COM "
+end`;
+
+const USER_MODEL_NORMALIZED = `class User < ApplicationRecord
+  has_secure_password
+  validates :email, presence: true, uniqueness: true
+
+  normalizes :email, with: -> e { e.strip.downcase }
+end`;
+
+const PRODUCT_MODEL_WITH_ENUM = `class Product < ApplicationRecord
+  belongs_to :seller, class_name: "User"
+  validates :name, :price_cents, presence: true
+
+  enum :status, draft: "draft",
+                listed: "listed",
+                sold: "sold"
+end`;
+
+const PRODUCT_STATUS_MIGRATION = `class AddStatusToProducts < ActiveRecord::Migration[8.0]
+  def change
+    add_column :products, :status, :string, default: "draft", null: false
+    add_index :products, :status
+  end
+end`;
+
+const USERS_CONTROLLER_WITH_MAILER = `class UsersController < ApplicationController
+  allow_unauthenticated_access only: :create
+
+  def create
+    @user = User.new(user_params)
+    if @user.save
+      UserMailer.welcome(@user).deliver_later
+      render json: @user, status: :created
+    else
+      render json: { errors: @user.errors }, status: :unprocessable_entity
+    end
+  end
+
+  private
+
+  def user_params
+    params.expect(user: [ :email, :password ])
+  end
+end`;
+
+const PRODUCTS_CONTROLLER_MARK_SOLD = `class ProductsController < ApplicationController
+  before_action :require_authentication
+
+  def mark_sold
+    @product = Current.user.products.find(params[:id])
+    @product.update!(status: "sold")
+    AccountingSyncJob.perform_later(@product.id)
+    render json: @product
+  end
+end`;
+
+interface CodeFile {
+	filename: string;
+	language: string;
+	code: string;
+	highlight?: number[];
+}
+
+export function getCodeFiles(phase: Phase, furthestStep: number): CodeFile[] {
+	// Observe phase: just the broken User model
 	if (phase === 'observe') {
-		files.push({
-			filename: 'app/models/user.rb',
-			language: 'ruby',
-			code: `class User < ApplicationRecord
-  has_secure_password
-  validates :email, presence: true, uniqueness: true
+		return [
+			{
+				filename: 'app/models/user.rb',
+				language: 'ruby',
+				code: USER_MODEL_BROKEN,
+				highlight: [5, 6],
+			},
+		];
+	}
 
-  # No normalization
-  # No callbacks
-  # Email stored as-is: " JOE@GMAIL.COM "
-end`,
+	// Build / reward phases: artifacts accumulate as steps complete.
+	const files: CodeFile[] = [];
+
+	// User model: broken until step 0, normalized after
+	files.push({
+		filename: 'app/models/user.rb',
+		language: 'ruby',
+		code: furthestStep >= 1 ? USER_MODEL_NORMALIZED : USER_MODEL_BROKEN,
+		highlight: furthestStep >= 1 ? [5] : [5, 6],
+	});
+
+	// Product model + migration appear after step 1 (status enum)
+	if (furthestStep >= 2) {
+		files.push({
+			filename: 'app/models/product.rb',
+			language: 'ruby',
+			code: PRODUCT_MODEL_WITH_ENUM,
 			highlight: [5, 6, 7],
 		});
-		return files;
-	}
-
-	// Build / reward phases: show evolving code
-	if (furthestStep === 0) {
 		files.push({
-			filename: 'app/models/user.rb',
+			filename: 'db/migrate/20260301000000_add_status_to_products.rb',
 			language: 'ruby',
-			code: `class User < ApplicationRecord
-  has_secure_password
-  validates :email, presence: true, uniqueness: true
-
-  # No normalization
-  # No callbacks
-  # Email stored as-is: " JOE@GMAIL.COM "
-end`,
-			highlight: [5, 6, 7],
+			code: PRODUCT_STATUS_MIGRATION,
+			highlight: [3, 4],
 		});
 	}
 
-	if (furthestStep >= 1 && furthestStep < 2) {
+	// Users controller with welcome-email call appears after step 2
+	if (furthestStep >= 3) {
 		files.push({
-			filename: 'app/models/user.rb',
+			filename: 'app/controllers/users_controller.rb',
 			language: 'ruby',
-			code: `class User < ApplicationRecord
-  has_secure_password
-  validates :email, presence: true, uniqueness: true
-
-  normalizes :email, with: -> e { e.strip.downcase }
-end`,
-			highlight: [5],
+			code: USERS_CONTROLLER_WITH_MAILER,
+			highlight: [7],
 		});
 	}
 
-	if (furthestStep >= 2 && furthestStep < 3) {
-		files.push({
-			filename: 'app/models/user.rb',
-			language: 'ruby',
-			code: `class User < ApplicationRecord
-  has_secure_password
-  validates :email, presence: true, uniqueness: true
-
-  normalizes :email, with: -> e { e.strip.downcase }
-
-  after_create :send_welcome_email
-
-  private
-
-  def send_welcome_email
-    UserMailer.welcome(self).deliver_later
-  end
-end`,
-			highlight: [7, 11, 12, 13],
-		});
-	}
-
-	if (furthestStep >= 3 && furthestStep < 4) {
-		files.push({
-			filename: 'app/models/user.rb',
-			language: 'ruby',
-			code: `class User < ApplicationRecord
-  has_secure_password
-  validates :email, presence: true, uniqueness: true
-
-  normalizes :email, with: -> e { e.strip.downcase }
-
-  # Lifecycle order:
-  # 1. before_validation (normalizes run here)
-  # 2. before_save
-  # 3. after_save (inside transaction)
-  # 4. after_commit (transaction committed)
-
-  after_create :send_welcome_email
-
-  private
-
-  def send_welcome_email
-    UserMailer.welcome(self).deliver_later
-  end
-end`,
-			highlight: [7, 8, 9, 10, 11],
-		});
-	}
-
+	// Products controller with background-job enqueue appears after step 3
 	if (furthestStep >= 4) {
 		files.push({
-			filename: 'app/models/user.rb',
+			filename: 'app/controllers/products_controller.rb',
 			language: 'ruby',
-			code: `class User < ApplicationRecord
-  has_secure_password
-  validates :email, presence: true, uniqueness: true
-
-  normalizes :email, with: -> e { e.strip.downcase }
-
-  # Lifecycle order:
-  # 1. before_validation (normalizes run here)
-  # 2. before_save
-  # 3. after_save (inside transaction)
-  # 4. after_commit (transaction committed)
-
-  after_create :send_welcome_email
-
-  # Safe for external calls: runs after transaction commits
-  after_commit :sync_to_crm, on: :create
-
-  private
-
-  def send_welcome_email
-    UserMailer.welcome(self).deliver_later
-  end
-
-  def sync_to_crm
-    CrmSyncJob.perform_later(id)
-  end
-end`,
-			highlight: [15, 16, 25, 26, 27],
+			code: PRODUCTS_CONTROLLER_MARK_SOLD,
+			highlight: [7],
 		});
 	}
 

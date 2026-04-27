@@ -44,12 +44,10 @@ function ScenarioPanel() {
 				because the stored value does not match.
 			</p>
 			<p className="text-sm text-muted-foreground leading-relaxed">
-				No welcome email fires on signup either. The model has no lifecycle
-				hooks. Rails 8 introduces{' '}
-				<span className="text-foreground font-medium">normalizes</span> for
-				declarative data cleaning, and callbacks like{' '}
-				<span className="text-foreground font-medium">after_create</span> for
-				side effects.
+				No welcome email fires on signup either. And Product has no{' '}
+				<span className="text-foreground font-medium">status</span> field, so
+				the app cannot tell a draft from an active listing or a sold one.
+				Three problems, three different fixes.
 			</p>
 		</div>
 	);

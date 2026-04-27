@@ -62,36 +62,38 @@ export const OBSERVE_FLOW: Record<string, string[]> = {
 	],
 };
 
-// Reward phase: 4 zones (Input, Normalizes, Model, Callbacks)
+// Reward phase: 4 zones (Input, Normalizes, Model, "After Save")
+// The 4th zone shows what runs after the save commits. With the reframed
+// content, that is the controller's next line (mailer or job), not a callback.
 export const REWARD_FLOW: Record<string, string[]> = {
 	'signup-messy': [
 		'"  JOE@GMAIL.COM  " from signup',
 		'strip + downcase: "joe@gmail.com"',
 		'Cleaned email saved to DB',
-		'after_create: welcome email queued',
+		'Controller queues UserMailer.welcome',
 	],
 	'lookup-clean': [
 		'find_by(email: "joe@gmail.com")',
 		'Query value normalized automatically',
 		'Match found in database',
-		'No callback needed for reads',
+		'Read path: no follow-up needed',
 	],
 	'check-mailer': [
 		'New user registration',
 		'Email normalized on write',
 		'User record persisted',
-		'after_create fires: UserMailer.welcome',
+		'Controller fires UserMailer.welcome.deliver_later',
 	],
 	'update-no-welcome': [
 		'PATCH /api/v1/users/5',
 		'Normalizes still runs on update',
 		'Updated record saved',
-		'after_create skipped (not a create)',
+		'Update action does not call welcome mailer',
 	],
 	'rollback-crm': [
 		'POST /users (transaction fails)',
 		'Normalizes runs before validation',
-		'Transaction rolled back',
-		'after_commit PREVENTED (safe!)',
+		'Save raises, controller never reaches enqueue',
+		'No orphan job, no orphan email',
 	],
 };

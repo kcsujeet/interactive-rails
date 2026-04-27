@@ -2,18 +2,19 @@
  * Tests for Level 11: Callbacks & Normalizations
  *
  * Validates step quality, probe-to-discovery mapping, probe-to-scenario coverage,
- * and that step code preview boundaries don't reveal answers.
+ * and that step feedback never reveals the correct answer.
  */
 
 import { describe, expect, test } from 'bun:test';
 import {
-	CALLBACK_OPTIONS,
+	EXTERNAL_SYNC_OPTIONS,
 	NORMALIZATION_OPTIONS,
 	OPTION_STEP_CONFIG,
-	ORDER_OPTIONS,
-	PITFALL_OPTIONS,
+	STATUS_ENUM_OPTIONS,
 	STEP_DEFS,
+	WELCOME_EMAIL_OPTIONS,
 } from '../data/build-steps';
+import { getCodeFiles } from '../data/code-files';
 import { DISCOVERY_DEFS } from '../data/discoveries';
 import { PROBE_DISCOVERY_MAP, PROBES } from '../data/probes';
 import { STRESS_SCENARIOS } from '../data/stress-scenarios';
@@ -21,9 +22,9 @@ import type { StepOption } from '../types';
 
 const ALL_OPTION_SETS: { name: string; options: StepOption[] }[] = [
 	{ name: 'NORMALIZATION_OPTIONS', options: NORMALIZATION_OPTIONS },
-	{ name: 'CALLBACK_OPTIONS', options: CALLBACK_OPTIONS },
-	{ name: 'ORDER_OPTIONS', options: ORDER_OPTIONS },
-	{ name: 'PITFALL_OPTIONS', options: PITFALL_OPTIONS },
+	{ name: 'STATUS_ENUM_OPTIONS', options: STATUS_ENUM_OPTIONS },
+	{ name: 'WELCOME_EMAIL_OPTIONS', options: WELCOME_EMAIL_OPTIONS },
+	{ name: 'EXTERNAL_SYNC_OPTIONS', options: EXTERNAL_SYNC_OPTIONS },
 ];
 
 describe('Level 11: Callbacks & Normalizations', () => {
@@ -41,7 +42,6 @@ describe('Level 11: Callbacks & Normalizations', () => {
 
 		test('every step has at least 3 options', () => {
 			for (const { name, options } of ALL_OPTION_SETS) {
-				expect(options.length).toBeGreaterThanOrEqual(3);
 				expect(options.length, `${name} option count`).toBeGreaterThanOrEqual(
 					3,
 				);
@@ -55,11 +55,7 @@ describe('Level 11: Callbacks & Normalizations', () => {
 			}
 		});
 
-		test('the correct answer is never the first option (relies on shuffle)', () => {
-			// Note: shuffle is applied by the component at render time. We assert
-			// the source-of-truth ordering: the static source array does not put
-			// the correct answer first. (If a future edit reorders, the shuffle
-			// still randomises per step seed.)
+		test('the correct answer is never the first option in source order', () => {
 			for (const { name, options } of ALL_OPTION_SETS) {
 				expect(options[0]?.correct, `${name} first-option correctness`).toBe(
 					false,
@@ -80,11 +76,38 @@ describe('Level 11: Callbacks & Normalizations', () => {
 			}
 		});
 
-		// NOTE: "feedback never reveals the correct answer" leak test will be
-		// added in Batch B once the callback step content is reworked. Current
-		// L11 has known leaks ("create", "welcome") in the legacy CALLBACK_OPTIONS
-		// feedback; we are deliberately not papering over them with a heuristic
-		// that lets them pass.
+		test('feedback never reveals the correct answer', () => {
+			// "Distinctive" = a token in the correct answer's label that does NOT
+			// appear in any wrong option's label. Tokens shared across options are
+			// the level's domain language, not a leak.
+			const tokenize = (s: string) =>
+				s
+					.toLowerCase()
+					.split(/[\s,(){}<>:_[\]]+/)
+					.filter((t) => t.length >= 5);
+			for (const { name, options } of ALL_OPTION_SETS) {
+				const correct = options.find((o) => o.correct);
+				if (!correct) continue;
+				const wrongTokens = new Set<string>();
+				for (const opt of options) {
+					if (opt.correct) continue;
+					for (const t of tokenize(opt.label)) wrongTokens.add(t);
+				}
+				const distinctiveTokens = tokenize(correct.label).filter(
+					(t) => !wrongTokens.has(t),
+				);
+				for (const opt of options) {
+					if (opt.correct || !opt.feedback) continue;
+					const fb = opt.feedback.toLowerCase();
+					for (const token of distinctiveTokens) {
+						expect(
+							fb,
+							`${name} feedback for ${opt.id} should not contain "${token}" (a token unique to the correct answer "${correct.label}")`,
+						).not.toContain(token);
+					}
+				}
+			}
+		});
 	});
 
 	describe('Discovery gating', () => {
@@ -172,6 +195,71 @@ describe('Level 11: Callbacks & Normalizations', () => {
 			);
 			expect(allowed.length).toBeGreaterThan(0);
 			expect(blocked.length).toBeGreaterThan(0);
+		});
+	});
+
+	describe('Code preview boundaries', () => {
+		// For each step (k), the code preview shown WHILE the player is working
+		// on that step is the result of step (k - 1). That preview must not
+		// contain distinctive strings from step k's correct answer.
+		const distinctiveAnswerStringsByStep: Record<number, string[]> = {
+			0: ['normalizes :email'],
+			1: ['enum :status, draft: "draft"'],
+			2: ['UserMailer.welcome', 'deliver_later'],
+			3: ['AccountingSyncJob.perform_later'],
+		};
+
+		test('preview shown while working on step k (= state after step k-1) does not contain step k answer signatures', () => {
+			for (let k = 0; k < STEP_DEFS.length; k++) {
+				const previewStep = k; // = furthestStep when working on step k
+				const files = getCodeFiles('build', previewStep);
+				const blob = files.map((f) => f.code).join('\n');
+				for (const sig of distinctiveAnswerStringsByStep[k] ?? []) {
+					expect(
+						blob,
+						`step ${k} preview (furthestStep=${previewStep}) must NOT contain "${sig}" before the player completes step ${k}`,
+					).not.toContain(sig);
+				}
+			}
+		});
+
+		test('preview accumulates: each completed step produces visible artifacts', () => {
+			// Sanity: the after-step-k preview must contain the just-completed step's signature
+			const sigsAfterCompletion: Record<number, string[]> = {
+				1: ['normalizes :email'],
+				2: ['enum :status, draft: "draft"'],
+				3: ['UserMailer.welcome'],
+				4: ['AccountingSyncJob.perform_later'],
+			};
+			for (const [stepStr, sigs] of Object.entries(sigsAfterCompletion)) {
+				const step = Number(stepStr);
+				const files = getCodeFiles('build', step);
+				const blob = files.map((f) => f.code).join('\n');
+				for (const sig of sigs) {
+					expect(
+						blob,
+						`after step ${step}, preview should contain "${sig}"`,
+					).toContain(sig);
+				}
+			}
+		});
+	});
+
+	describe('Production-safe defaults', () => {
+		test('the correct status enum is string-encoded, not integer-encoded', () => {
+			const correct = STATUS_ENUM_OPTIONS.find((o) => o.correct);
+			expect(correct?.label).toContain('"draft"');
+			expect(correct?.label).not.toMatch(/draft:\s*0/);
+		});
+
+		test('the correct welcome-email option lives in the controller, not the model', () => {
+			const correct = WELCOME_EMAIL_OPTIONS.find((o) => o.correct);
+			expect(correct?.label.toLowerCase()).toContain('controller');
+		});
+
+		test('the correct external-sync option uses a background job, not a callback', () => {
+			const correct = EXTERNAL_SYNC_OPTIONS.find((o) => o.correct);
+			expect(correct?.label).toContain('perform_later');
 		});
 	});
 

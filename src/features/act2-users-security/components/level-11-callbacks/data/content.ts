@@ -8,7 +8,7 @@ export const level11Callbacks: Level = {
 	trigger: {
 		type: 'incident',
 		description:
-			'Emails are stored as " JOE@GMAIL.COM " with extra whitespace and mixed case. User lookups fail because find_by(email:) is case-sensitive. Side effects on create are not firing.',
+			'Emails are stored as " JOE@GMAIL.COM " with extra whitespace and mixed case. User lookups fail because find_by(email:) is case-sensitive. New users sign up but receive no welcome email. Products have no way to track whether they are draft, listed, or sold.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -65,9 +65,9 @@ export const level11Callbacks: Level = {
 	},
 	problem: {
 		observation:
-			'User.find_by(email: "joe@gmail.com") returns nil even though the user exists. The DB has " JOE@GMAIL.COM " stored. New users sign up but never receive a welcome email.',
+			'User.find_by(email: "joe@gmail.com") returns nil even though the user exists. The DB has " JOE@GMAIL.COM " stored. New users sign up but never receive a welcome email. Products have no status field to distinguish draft listings from active ones.',
 		rootCause:
-			'No data normalization before save. No after_create callback to trigger side effects.',
+			'No data normalization before save. The signup controller never triggers a welcome email. The Product model has no fixed-set status attribute.',
 		codeExample: `# Current state: raw data goes straight to DB
 class User < ApplicationRecord
   has_secure_password
@@ -82,11 +82,16 @@ User.find_by(email: "joe@gmail.com")
 # => nil  (case mismatch + whitespace)
 
 # Also: no welcome email is sent after signup.
-# The controller does User.create(...) and that's it.
+# The signup controller does User.create(...) and that's it.
 
-# Rails 8 introduces 'normalizes' -- a declarative way
-# to clean data before it hits the DB.`,
-		goal: 'Clean and transform user data automatically before saving, hook into the model lifecycle to trigger side effects, and learn the safe way to call external services from callbacks.',
+# And Product has no status field --
+# we cannot tell drafts from listed from sold.
+
+# Rails 8 has clean ways to handle each of these
+# patterns: declarative data cleaning, a fixed-set
+# status attribute, and a place for after-save side
+# effects that does not bury them in the model.`,
+		goal: "Clean and transform user data automatically before saving, give Product a fixed-set lifecycle attribute, and find the right place for follow-up actions like welcome emails and third-party sync so they are explicit, fast, and don't fire in every test.",
 		thresholds: {},
 	},
 	successConditions: [
@@ -97,102 +102,107 @@ User.find_by(email: "joe@gmail.com")
 	availableNodes: ['callback'],
 	unlockedNodes: ['callback'],
 	learningContent: {
-		title: 'Callbacks & Rails 8 Normalizations',
-		goal: `In this level, you'll:\n- learn how to automatically clean and transform data before it hits the database.\n- use a declarative approach to normalize attributes like email before save.\n- hook into ActiveRecord lifecycle callbacks to trigger side effects at the right moment.\n- understand which callback is the safe choice for external services like email delivery.`,
-		conceptExplanation: `Callbacks are hooks into the ActiveRecord lifecycle. They let you run code at specific moments: before validation, before save, after create, after destroy, etc.
+		title: 'Normalization, Enums, and Where Side Effects Belong',
+		goal: `In this level, you'll:\n- automatically clean and transform user input before it hits the database.\n- give a model a fixed-set attribute (draft / listed / sold) the database can validate.\n- find the right place for after-save side effects so the model stays simple and tests stay fast.`,
+		conceptExplanation: `**Two jobs the model SHOULD do:**
 
-**Rails 8 \`normalizes\`:**
-A new declarative API for cleaning data before save. Replaces messy \`before_save\` callbacks for simple transformations.
+1. **Normalization** — Rails 8's \`normalizes\` is a declarative API that cleans values BOTH on write and on finder queries. Use it for stripping whitespace, downcasing, and other deterministic shaping of attributes. Replaces the older \`before_save :downcase_email\` recipe, which only ran on writes (so a lookup with a clean value still missed a dirty stored row).
 
-**Common callbacks:**
-- \`before_validation\` -- set defaults, format data
-- \`before_save\` -- compute derived fields
-- \`after_create\` -- send welcome emails, provision resources
-- \`after_commit\` -- safe for external side effects (runs after DB commit)
-- \`before_destroy\` -- check if deletion is allowed
+2. **Fixed-set attributes** — when an attribute is one-of-a-fixed-set (draft / listed / sold, draft / published / archived, queued / running / done), use \`enum\` with **string-encoded** values: \`enum :status, draft: "draft", listed: "listed", sold: "sold"\`. The string keys ARE the database values, so a row dump reads as \`status: "listed"\` instead of \`status: 1\`. You also get \`product.listed?\`, \`product.listed!\`, and the scope \`Product.listed\` for free.
 
-**Callback ordering:** Callbacks run in the order they are defined. Use \`after_commit\` (not \`after_save\`) for external services to avoid triggering on rolled-back transactions.`,
-		railsCodeExample: `# app/models/user.rb
+**One job the model should NOT do: contextual side effects.**
+
+A side effect is "contextual" when it depends on _why_ the record was saved, not the fact that it was saved. Welcome emails fire on signup but not on profile edit. CRM sync fires when a user is first created in production but not when fixtures load in CI. Hiding these in callbacks (\`after_create :send_welcome_email\`) means:
+
+- every test that creates a user fires real mail
+- every seed file does too
+- the trigger gets buried inside the model, invisible to the controller that called \`@user.save\`
+- the model becomes untestable in isolation
+
+The fix is to call mailers and jobs **explicitly** — from the controller, or from a service the controller calls, so the trigger sits next to the action that caused it.`,
+		railsCodeExample: `# app/models/user.rb -- normalization in callbacks IS fine
 class User < ApplicationRecord
   has_secure_password
 
-  # Rails 8: normalizes -- declarative data cleaning
-  normalizes :email, with: -> (email) { email.strip.downcase }
-  normalizes :username, with: -> (username) { username.strip }
+  # 'normalizes' applies on write AND on finder queries
+  normalizes :email, with: -> e { e.strip.downcase }
 
   validates :email, presence: true, uniqueness: true
-
-  # Callbacks for side effects
-  after_create :send_welcome_email
-  after_create :provision_default_settings
-
-  # Use after_commit for external services (safe after DB commit)
-  after_commit :sync_to_crm, on: :create
-
-  private
-
-  def send_welcome_email
-    UserMailer.welcome(self).deliver_later
-  end
-
-  def provision_default_settings
-    settings.create!(theme: "light", notifications: true)
-  end
-
-  def sync_to_crm
-    CrmSyncJob.perform_later(id)
-  end
 end
 
-# app/models/product.rb
+# app/models/product.rb -- string-encoded enum
 class Product < ApplicationRecord
-  normalizes :name, with: -> (name) { name.strip }
+  belongs_to :seller, class_name: "User"
+  validates :name, :price_cents, presence: true
 
-  before_save :set_listed_at, if: :listing?
+  # String-encoded so the DB column reads as
+  # "draft", "listed", "sold" (not 0, 1, 2)
+  enum :status, draft: "draft",
+                listed: "listed",
+                sold: "sold"
+end
 
-  private
+# app/controllers/users_controller.rb
+# Side effect lives next to the controller line that
+# triggered it. Test runs and seeds skip it for free.
+class UsersController < ApplicationController
+  allow_unauthenticated_access only: :create
 
-  def listing?
-    status_changed? && status == "active"
-  end
-
-  def set_listed_at
-    self.listed_at = Time.current
+  def create
+    @user = User.new(user_params)
+    if @user.save
+      UserMailer.welcome(@user).deliver_later
+      render json: @user, status: :created
+    else
+      render json: { errors: @user.errors }, status: :unprocessable_entity
+    end
   end
 end
 
-# normalizes also applies to queries:
-User.find_by(email: "  JOE@GMAIL.COM  ")
-# => Normalizes the query value too! Finds the user.
+# app/controllers/products_controller.rb
+# Third-party sync goes through a background job,
+# enqueued AFTER the save so a rollback never
+# leaves an orphan job behind.
+class ProductsController < ApplicationController
+  before_action :require_authentication
 
-# Compared to the old way:
-# before_save :downcase_email
-# def downcase_email
-#   self.email = email.strip.downcase
-# end
-# ^ This does NOT normalize query values!`,
+  def mark_sold
+    @product = Current.user.products.find(params[:id])
+    @product.update!(status: "sold")
+    AccountingSyncJob.perform_later(@product.id)
+    render json: @product
+  end
+end
+
+# normalizes also applies on the read side:
+User.find_by(email: "  JOE@GMAIL.COM  ")
+# => Rails normalizes the query value too. Match found.`,
 		commonMistakes: [
-			'Using after_save instead of after_commit for external API calls (fires even if transaction rolls back)',
-			'Heavy logic in callbacks that should be in a service object',
-			'Callback chains that are hard to debug (hidden control flow)',
-			'Using before_save for normalization instead of Rails 8 normalizes',
-			'Not using deliver_later for emails (blocks the request)',
+			'Putting mailers, API calls, or job enqueues inside model callbacks. Test runs and seed scripts then fire the side effect every time, and the trigger is invisible to the controller that called save.',
+			'Integer-encoded enums (`enum :status, draft: 0, listed: 1`) -- unreadable in DB dumps, dangerous to reorder in production.',
+			'Using `before_save` for normalization. It only runs on writes, so finder queries against the dirty stored value still miss.',
+			'Forgetting `deliver_later` on a mailer call -- the request blocks until the SMTP send completes.',
+			'Calling external HTTP services synchronously inside a save (whether in a callback or controller). Use a background job so a slow vendor cannot slow the user.',
 		],
 		whenToUse:
-			'Use normalizes for data cleaning. Use callbacks sparingly for simple side effects. For complex workflows, prefer service objects.',
+			'Use `normalizes` for declarative data cleaning. Use `enum` with string-encoded values for any fixed-set attribute. For after-save side effects, call mailers and jobs from the controller (or a service the controller calls), not from model callbacks.',
 		furtherReading: [
-			{
-				title: 'Active Record Callbacks',
-				url: 'https://guides.rubyonrails.org/active_record_callbacks.html',
-			},
 			{
 				title: 'Rails 8 normalizes',
 				url: 'https://api.rubyonrails.org/classes/ActiveRecord/Normalization/ClassMethods.html',
+			},
+			{
+				title: 'ActiveRecord::Enum',
+				url: 'https://api.rubyonrails.org/classes/ActiveRecord/Enum.html',
+			},
+			{
+				title: 'Active Record Callbacks (when they ARE appropriate)',
+				url: 'https://guides.rubyonrails.org/active_record_callbacks.html',
 			},
 		],
 	},
 	hint: {
 		delay: 20,
-		text: 'Click pipeline stages and fire data probes to discover what is missing. Try signing up with a messy email and checking the mailer queue.',
+		text: 'Click each zone in the data flow lane and fire each probe to surface what is missing. Watch what happens (or does not happen) after a save.',
 	},
 };

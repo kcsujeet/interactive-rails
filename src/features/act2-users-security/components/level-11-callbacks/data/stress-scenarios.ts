@@ -4,7 +4,7 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'signup-messy',
 		label: 'POST signup with messy email',
-		description: 'Email with spaces and uppercase gets normalized',
+		description: 'Email with spaces and uppercase gets cleaned by normalizes',
 		method: 'POST',
 		path: '/api/v1/users',
 		actor: '"  JOE@GMAIL.COM  "',
@@ -13,7 +13,7 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'lookup-clean',
 		label: 'GET user by clean email',
-		description: 'Query value normalized automatically by Rails',
+		description: 'Query value is normalized too, so the lookup matches',
 		method: 'GET',
 		path: '/api/v1/users?email=joe@gmail.com',
 		actor: 'system query',
@@ -22,7 +22,8 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'check-mailer',
 		label: 'Check mailer queue after signup',
-		description: 'after_create fires and queues the mailer',
+		description:
+			'Controller calls UserMailer.welcome.deliver_later after the save succeeds',
 		method: 'POST',
 		path: '/api/v1/users',
 		actor: 'new_user',
@@ -31,7 +32,8 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'update-no-welcome',
 		label: 'Update skips welcome email',
-		description: 'after_create does not fire on updates',
+		description:
+			'Profile updates go through a different controller action, so no welcome email fires',
 		method: 'PATCH',
 		path: '/api/v1/users/5',
 		actor: 'existing_user',
@@ -39,8 +41,9 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'rollback-crm',
-		label: 'Rollback prevents CRM sync',
-		description: 'after_commit blocks orphan API calls on rollback',
+		label: 'Rollback prevents orphan sync',
+		description:
+			'Background job only enqueues after the save succeeds, so a rolled-back save leaves no orphan job',
 		method: 'POST',
 		path: '/api/v1/users (rollback)',
 		actor: 'failed_txn',

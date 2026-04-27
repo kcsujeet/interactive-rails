@@ -150,12 +150,12 @@ export function RewardPhase({
 						}`}
 					>
 						{wasBlocked
-							? 'after_commit: PREVENTED'
+							? 'no enqueue (rollback)'
 							: lastScenario?.id === 'check-mailer'
-								? 'welcome queued'
+								? 'controller queued mailer'
 								: lastScenario?.id === 'update-no-welcome'
-									? 'skipped (update)'
-									: 'after_create'}
+									? 'update path: no mailer'
+									: 'save committed'}
 					</div>
 					{flowMessages[3] && (flowPhase >= 6 || flowPhase === -1) && (
 						<div
