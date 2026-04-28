@@ -80,7 +80,7 @@ import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
-registerLevelCode('act8-level56-sharding', () =>
+registerLevelCode('act8-level57-sharding', () =>
 	getCodeFiles('reward', STEP_DEFS.length),
 );
 
@@ -1783,7 +1783,7 @@ const shardEdgeTypes = { shard: ShardEdge };
 
 // ─── Main component ───────────────────────────────────────────────────
 
-export function Level56Sharding({ onComplete }: LevelComponentProps) {
+export function Level57Sharding({ onComplete }: LevelComponentProps) {
 	const [phase, setPhase] = useState<Phase>('observe');
 	const isReward = phase === 'reward';
 
@@ -2459,4 +2459,4 @@ export function Level56Sharding({ onComplete }: LevelComponentProps) {
 	);
 }
 
-export default Level56Sharding;
+export default Level57Sharding;

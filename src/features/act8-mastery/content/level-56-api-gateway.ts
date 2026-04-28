@@ -1,9 +1,9 @@
 import type { Level } from '@/types';
 
-export const level55APIGateway: Level = {
-	id: 'act8-level55-api-gateway',
+export const level56APIGateway: Level = {
+	id: 'act8-level56-api-gateway',
 	actId: 8,
-	levelNumber: 55,
+	levelNumber: 56,
 	name: 'API Gateway',
 	trigger: {
 		type: 'architecture',

@@ -70,7 +70,7 @@ import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
-registerLevelCode('act7-level50-state-machines', () =>
+registerLevelCode('act7-level51-state-machines', () =>
 	getCodeFiles('reward', STEP_DEFS.length),
 );
 
@@ -1155,7 +1155,7 @@ const OBSERVE_INVALID_EDGES = [
 
 // ─── Main component ───────────────────────────────────────────────────
 
-export function Level50StateMachines({ onComplete }: LevelComponentProps) {
+export function Level51StateMachines({ onComplete }: LevelComponentProps) {
 	const [phase, setPhase] = useState<Phase>('observe');
 	const isReward = phase === 'reward';
 
@@ -1689,4 +1689,4 @@ export function Level50StateMachines({ onComplete }: LevelComponentProps) {
 	);
 }
 
-export default Level50StateMachines;
+export default Level51StateMachines;

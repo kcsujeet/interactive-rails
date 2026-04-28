@@ -77,7 +77,7 @@ import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
-registerLevelCode('act7-level53-modular-monolith', () =>
+registerLevelCode('act7-level54-modular-monolith', () =>
 	getCodeFiles('reward', STEP_DEFS.length),
 );
 
@@ -1389,7 +1389,7 @@ const pkgEdgeTypes = { pkg: PackageEdge };
 
 // ─── Main component ───────────────────────────────────────────────────
 
-export function Level53ModularMonolith({ onComplete }: LevelComponentProps) {
+export function Level54ModularMonolith({ onComplete }: LevelComponentProps) {
 	const [phase, setPhase] = useState<Phase>('observe');
 	const isReward = phase === 'reward';
 
@@ -1968,4 +1968,4 @@ export function Level53ModularMonolith({ onComplete }: LevelComponentProps) {
 	);
 }
 
-export default Level53ModularMonolith;
+export default Level54ModularMonolith;

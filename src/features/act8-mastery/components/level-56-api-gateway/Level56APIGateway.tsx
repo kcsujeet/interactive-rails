@@ -76,7 +76,7 @@ import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
-registerLevelCode('act8-level55-api-gateway', () =>
+registerLevelCode('act8-level56-api-gateway', () =>
 	getCodeFiles('reward', STEP_DEFS.length),
 );
 
@@ -1912,7 +1912,7 @@ const gwEdgeTypes = { gw: GatewayEdge };
 
 // ─── Main component ───────────────────────────────────────────────────
 
-export function Level55APIGateway({ onComplete }: LevelComponentProps) {
+export function Level56APIGateway({ onComplete }: LevelComponentProps) {
 	const [phase, setPhase] = useState<Phase>('observe');
 	const isReward = phase === 'reward';
 
@@ -2503,4 +2503,4 @@ export function Level55APIGateway({ onComplete }: LevelComponentProps) {
 	);
 }
 
-export default Level55APIGateway;
+export default Level56APIGateway;

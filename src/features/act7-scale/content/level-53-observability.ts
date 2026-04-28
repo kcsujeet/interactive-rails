@@ -1,9 +1,9 @@
 import type { Level } from '@/types';
 
-export const level52Observability: Level = {
-	id: 'act7-level52-observability',
+export const level53Observability: Level = {
+	id: 'act7-level53-observability',
 	actId: 7,
-	levelNumber: 52,
+	levelNumber: 53,
 	name: 'Observability',
 	trigger: {
 		type: 'incident',

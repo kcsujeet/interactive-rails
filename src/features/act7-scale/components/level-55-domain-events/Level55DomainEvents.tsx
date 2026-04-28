@@ -77,7 +77,7 @@ import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
-registerLevelCode('act7-level54-domain-events', () =>
+registerLevelCode('act7-level55-domain-events', () =>
 	getCodeFiles('reward', STEP_DEFS.length),
 );
 
@@ -1969,7 +1969,7 @@ const eventEdgeTypes = { event: EventEdge };
 
 // ─── Main component ───────────────────────────────────────────────────
 
-export function Level54DomainEvents({ onComplete }: LevelComponentProps) {
+export function Level55DomainEvents({ onComplete }: LevelComponentProps) {
 	const [phase, setPhase] = useState<Phase>('observe');
 	const isReward = phase === 'reward';
 
@@ -2650,4 +2650,4 @@ export function Level54DomainEvents({ onComplete }: LevelComponentProps) {
 	);
 }
 
-export default Level54DomainEvents;
+export default Level55DomainEvents;

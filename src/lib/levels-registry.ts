@@ -4,7 +4,7 @@
  * Maps level IDs to their custom components.
  * Levels without a custom component use the generic pipeline builder.
  *
- * CURRICULUM STRUCTURE (57 levels, 8 acts):
+ * CURRICULUM STRUCTURE (58 levels, 8 acts):
  *
  * Act 1: The Foundation (L1-L8, 8 levels)
  * - Environment, First Boot, Model, CRUD, Routes, Controller, Serializers, Associations
@@ -21,13 +21,13 @@
  * Act 5: Advanced Features (L32-L40, 9 levels)
  * - Polymorphic, Transactions, Locking, Active Storage, Encryption, Real-Time, External APIs, Webhooks, API Versioning
  *
- * Act 6: Operations (L41-L48, 8 levels)
- * - Middleware, Deployment (Kamal), Rate Limiting, Soft Deletes, Safe Migrations, Recurring Jobs, Data Lifecycle, Error Monitoring
+ * Act 6: Operations (L41-L49, 9 levels)
+ * - Middleware, Deployment (Kamal), Rate Limiting, Soft Deletes, Safe Migrations, Recurring Jobs, Data Lifecycle, Error Monitoring, Feature Flags
  *
- * Act 7: Scale (L49-L54, 6 levels)
+ * Act 7: Scale (L50-L55, 6 levels)
  * - Multi-Database, State Machines, Multi-Tenancy, Observability, Modular Monolith, Domain Events
  *
- * Act 8: Mastery (L55-L57, 3 levels)
+ * Act 8: Mastery (L56-L58, 3 levels)
  * - API Gateway, Database Sharding, The Architect (Capstone)
  */
 
@@ -105,7 +105,7 @@ import { Level39Webhooks } from '@/features/act5-production/components/level-39-
 import { Level40APIVersioning } from '@/features/act5-production/components/level-40-api-versioning/Level40APIVersioning';
 
 // ===========================================
-// Act 6: Operations (Levels 41-48)
+// Act 6: Operations (Levels 41-49)
 // ===========================================
 import { Level41Middleware } from '@/features/act6-operations/components/level-41-middleware/Level41Middleware';
 import { Level42Deployment } from '@/features/act6-operations/components/level-42-deployment/Level42Deployment';
@@ -115,23 +115,24 @@ import { Level45SafeMigrations } from '@/features/act6-operations/components/lev
 import { Level46RecurringJobs } from '@/features/act6-operations/components/level-46-recurring-jobs/Level46RecurringJobs';
 import { Level47DataLifecycle } from '@/features/act6-operations/components/level-47-data-lifecycle/Level47DataLifecycle';
 import { Level48ErrorMonitoring } from '@/features/act6-operations/components/level-48-error-monitoring/Level48ErrorMonitoring';
+import { Level49FeatureFlags } from '@/features/act6-operations/components/level-49-feature-flags/Level49FeatureFlags';
 
 // ===========================================
-// Act 7: Scale (Levels 49-54)
+// Act 7: Scale (Levels 50-55)
 // ===========================================
-import { Level49MultiDatabase } from '@/features/act7-scale/components/level-49-multi-database/Level49MultiDatabase';
-import { Level50StateMachines } from '@/features/act7-scale/components/level-50-state-machines/Level50StateMachines';
-import { Level51MultiTenancy } from '@/features/act7-scale/components/level-51-multi-tenancy/Level51MultiTenancy';
-import { Level52Observability } from '@/features/act7-scale/components/level-52-observability/Level52Observability';
-import { Level53ModularMonolith } from '@/features/act7-scale/components/level-53-modular-monolith/Level53ModularMonolith';
-import { Level54DomainEvents } from '@/features/act7-scale/components/level-54-domain-events/Level54DomainEvents';
+import { Level50MultiDatabase } from '@/features/act7-scale/components/level-50-multi-database/Level50MultiDatabase';
+import { Level51StateMachines } from '@/features/act7-scale/components/level-51-state-machines/Level51StateMachines';
+import { Level52MultiTenancy } from '@/features/act7-scale/components/level-52-multi-tenancy/Level52MultiTenancy';
+import { Level53Observability } from '@/features/act7-scale/components/level-53-observability/Level53Observability';
+import { Level54ModularMonolith } from '@/features/act7-scale/components/level-54-modular-monolith/Level54ModularMonolith';
+import { Level55DomainEvents } from '@/features/act7-scale/components/level-55-domain-events/Level55DomainEvents';
 
 // ===========================================
-// Act 8: Mastery (Levels 55-57)
+// Act 8: Mastery (Levels 56-58)
 // ===========================================
-import { Level55APIGateway } from '@/features/act8-mastery/components/level-55-api-gateway/Level55APIGateway';
-import { Level56Sharding } from '@/features/act8-mastery/components/level-56-sharding/Level56Sharding';
-import { Level57Architect } from '@/features/act8-mastery/components/level-57-architect/Level57Architect';
+import { Level56APIGateway } from '@/features/act8-mastery/components/level-56-api-gateway/Level56APIGateway';
+import { Level57Sharding } from '@/features/act8-mastery/components/level-57-sharding/Level57Sharding';
+import { Level58Architect } from '@/features/act8-mastery/components/level-58-architect/Level58Architect';
 
 // Level component registry
 // Levels not listed here use the generic pipeline builder view
@@ -207,23 +208,24 @@ const LEVEL_COMPONENTS: Record<string, ComponentType<LevelComponentProps>> = {
 	'act6-level46-recurring-jobs': Level46RecurringJobs,
 	'act6-level47-data-lifecycle': Level47DataLifecycle,
 	'act6-level48-error-monitoring': Level48ErrorMonitoring,
+	'act6-level49-feature-flags': Level49FeatureFlags,
 
 	// ============================================
 	// Act 7: Scale
 	// ============================================
-	'act7-level49-multi-database': Level49MultiDatabase,
-	'act7-level50-state-machines': Level50StateMachines,
-	'act7-level51-multi-tenancy': Level51MultiTenancy,
-	'act7-level52-observability': Level52Observability,
-	'act7-level53-modular-monolith': Level53ModularMonolith,
-	'act7-level54-domain-events': Level54DomainEvents,
+	'act7-level50-multi-database': Level50MultiDatabase,
+	'act7-level51-state-machines': Level51StateMachines,
+	'act7-level52-multi-tenancy': Level52MultiTenancy,
+	'act7-level53-observability': Level53Observability,
+	'act7-level54-modular-monolith': Level54ModularMonolith,
+	'act7-level55-domain-events': Level55DomainEvents,
 
 	// ============================================
 	// Act 8: Mastery
 	// ============================================
-	'act8-level55-api-gateway': Level55APIGateway,
-	'act8-level56-sharding': Level56Sharding,
-	'act8-level57-architect': Level57Architect,
+	'act8-level56-api-gateway': Level56APIGateway,
+	'act8-level57-sharding': Level57Sharding,
+	'act8-level58-architect': Level58Architect,
 };
 
 /**

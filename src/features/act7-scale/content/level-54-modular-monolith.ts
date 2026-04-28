@@ -1,9 +1,9 @@
 import type { Level } from '@/types';
 
-export const level53ModularMonolith: Level = {
-	id: 'act7-level53-modular-monolith',
+export const level54ModularMonolith: Level = {
+	id: 'act7-level54-modular-monolith',
 	actId: 7,
-	levelNumber: 53,
+	levelNumber: 54,
 	name: 'Modular Monolith',
 	requiresTests: true,
 	trigger: {

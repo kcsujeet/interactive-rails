@@ -1,9 +1,9 @@
 import type { Level } from '@/types';
 
-export const level57Architect: Level = {
-	id: 'act8-level57-architect',
+export const level58Architect: Level = {
+	id: 'act8-level58-architect',
 	actId: 8,
-	levelNumber: 57,
+	levelNumber: 58,
 	name: 'The Architect',
 	isCapstone: true,
 	trigger: {

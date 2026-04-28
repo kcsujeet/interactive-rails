@@ -74,7 +74,7 @@ import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
-registerLevelCode('act7-level49-multi-database', () =>
+registerLevelCode('act7-level50-multi-database', () =>
 	getCodeFiles('reward', STEP_DEFS.length),
 );
 
@@ -1438,7 +1438,7 @@ const dbEdgeTypes = { db: DbEdge };
 
 // ─── Main component ───────────────────────────────────────────────────
 
-export function Level49MultiDatabase({ onComplete }: LevelComponentProps) {
+export function Level50MultiDatabase({ onComplete }: LevelComponentProps) {
 	const [phase, setPhase] = useState<Phase>('observe');
 	const isReward = phase === 'reward';
 
@@ -1940,4 +1940,4 @@ export function Level49MultiDatabase({ onComplete }: LevelComponentProps) {
 	);
 }
 
-export default Level49MultiDatabase;
+export default Level50MultiDatabase;

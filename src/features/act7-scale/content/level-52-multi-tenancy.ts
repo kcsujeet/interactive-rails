@@ -1,9 +1,9 @@
 import type { Level } from '@/types';
 
-export const level51MultiTenancy: Level = {
-	id: 'act7-level51-multi-tenancy',
+export const level52MultiTenancy: Level = {
+	id: 'act7-level52-multi-tenancy',
 	actId: 7,
-	levelNumber: 51,
+	levelNumber: 52,
 	name: 'Multi-Tenancy',
 	requiresTests: true,
 	trigger: {

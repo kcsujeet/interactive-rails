@@ -1,9 +1,9 @@
 import type { Level } from '@/types';
 
-export const level49MultiDatabase: Level = {
-	id: 'act7-level49-multi-database',
+export const level50MultiDatabase: Level = {
+	id: 'act7-level50-multi-database',
 	actId: 7,
-	levelNumber: 49,
+	levelNumber: 50,
 	name: 'Multi-Database',
 	trigger: {
 		type: 'scaling',

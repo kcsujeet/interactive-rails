@@ -1,9 +1,9 @@
 import type { Level } from '@/types';
 
-export const level54DomainEvents: Level = {
-	id: 'act7-level54-domain-events',
+export const level55DomainEvents: Level = {
+	id: 'act7-level55-domain-events',
 	actId: 7,
-	levelNumber: 54,
+	levelNumber: 55,
 	name: 'Domain Events & Decoupling',
 	requiresTests: true,
 	trigger: {

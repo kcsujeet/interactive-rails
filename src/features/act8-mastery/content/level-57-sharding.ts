@@ -1,9 +1,9 @@
 import type { Level } from '@/types';
 
-export const level56Sharding: Level = {
-	id: 'act8-level56-sharding',
+export const level57Sharding: Level = {
+	id: 'act8-level57-sharding',
 	actId: 8,
-	levelNumber: 56,
+	levelNumber: 57,
 	name: 'Database Sharding',
 	trigger: {
 		type: 'scaling',

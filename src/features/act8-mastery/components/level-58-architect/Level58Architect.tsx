@@ -86,7 +86,7 @@ import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
-registerLevelCode('act8-level57-architect', () =>
+registerLevelCode('act8-level58-architect', () =>
 	getCodeFiles('reward', STEP_DEFS.length),
 );
 
@@ -1839,7 +1839,7 @@ const archEdgeTypes = { arch: ArchEdge };
 
 // ─── Main component ───────────────────────────────────────────────────
 
-export function Level57Architect({ onComplete }: LevelComponentProps) {
+export function Level58Architect({ onComplete }: LevelComponentProps) {
 	const [phase, setPhase] = useState<Phase>('observe');
 	const isReward = phase === 'reward';
 
@@ -2627,4 +2627,4 @@ export function Level57Architect({ onComplete }: LevelComponentProps) {
 	);
 }
 
-export default Level57Architect;
+export default Level58Architect;

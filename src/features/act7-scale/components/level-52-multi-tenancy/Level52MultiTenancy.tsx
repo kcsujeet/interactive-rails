@@ -75,7 +75,7 @@ import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
-registerLevelCode('act7-level51-multi-tenancy', () =>
+registerLevelCode('act7-level52-multi-tenancy', () =>
 	getCodeFiles('reward', STEP_DEFS.length),
 );
 
@@ -1388,7 +1388,7 @@ const tenantEdgeTypes = { tenant: TenantEdge };
 
 // ─── Main component ───────────────────────────────────────────────────
 
-export function Level51MultiTenancy({ onComplete }: LevelComponentProps) {
+export function Level52MultiTenancy({ onComplete }: LevelComponentProps) {
 	const [phase, setPhase] = useState<Phase>('observe');
 	const isReward = phase === 'reward';
 
@@ -1905,4 +1905,4 @@ export function Level51MultiTenancy({ onComplete }: LevelComponentProps) {
 	);
 }
 
-export default Level51MultiTenancy;
+export default Level52MultiTenancy;

@@ -179,6 +179,7 @@ export interface SuccessCondition {
 		| 'load_balancing_configured'
 		| 'cdn_configured'
 		| 'rate_limiting_configured'
+		| 'feature_flags_configured'
 		| 'connection_pool_configured'
 		| 'zero_downtime_configured'
 		| 'message_queue_configured'

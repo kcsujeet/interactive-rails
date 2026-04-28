@@ -1,9 +1,9 @@
 import type { Level } from '@/types';
 
-export const level50StateMachines: Level = {
-	id: 'act7-level50-state-machines',
+export const level51StateMachines: Level = {
+	id: 'act7-level51-state-machines',
 	actId: 7,
-	levelNumber: 50,
+	levelNumber: 51,
 	name: 'State Machines',
 	requiresTests: true,
 	trigger: {
