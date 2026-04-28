@@ -27,8 +27,8 @@ export interface PipelineStage {
 	id: string;
 	label: string;
 	sublabel?: string;
-	/** 'default' = zinc, 'active' = emerald, 'danger' = red, 'inactive' = dashed + dimmed */
-	variant?: 'default' | 'active' | 'danger' | 'inactive';
+	/** 'default' = zinc, 'active' = emerald, 'danger' = red, 'critical' = whole-card red pulse, 'inactive' = dashed + dimmed */
+	variant?: 'default' | 'active' | 'danger' | 'critical' | 'inactive';
 	/** Pulsing badge text (e.g. "500!", "FAIL") */
 	badge?: string;
 	/** Whether this stage can be clicked to inspect (shows pulsing ? indicator) */
@@ -49,7 +49,7 @@ export interface PipelineConnection {
 	from: string;
 	to: string;
 	/** Custom dot array, a preset name, or undefined for no dots */
-	dots?: PipelineDot[] | 'mixed' | 'clean';
+	dots?: PipelineDot[] | 'mixed' | 'clean' | 'danger';
 	/** Which side of the source node the edge leaves from. Default: 'right' */
 	sourceHandle?: 'top' | 'right' | 'bottom' | 'left';
 	/** Which side of the target node the edge enters. Default: 'left' */
@@ -71,6 +71,15 @@ export interface PipelineFlowProps {
 	 * - ['request-router', ...]: only listed edges animate (single-pass)
 	 */
 	activeConnections?: string[];
+	/**
+	 * Optional tick. Mixed into dot ids so re-firing the same probe (which
+	 * keeps `activeConnections` identical) still remounts the SVG circles
+	 * and restarts the single-pass `<animateMotion>` element. Without this,
+	 * a second fire of the same probe is silent because React keeps the
+	 * existing circles mounted and SVG animations with `repeatCount: '1'`
+	 * have already completed.
+	 */
+	animationTick?: number;
 }
 
 // ──────────────────────────────────────────────
@@ -92,6 +101,14 @@ export const PIPELINE_DOTS_CLEAN: PipelineDot[] = [
 	{ color: '#22c55e', dur: '3.5s', begin: '-2.4s' },
 ];
 
+/** 4 dots (all red), staggered. Use for actively-broken pipelines. */
+export const PIPELINE_DOTS_DANGER: PipelineDot[] = [
+	{ color: '#ef4444', dur: '3.5s', begin: '0s' },
+	{ color: '#ef4444', dur: '3.5s', begin: '-0.9s' },
+	{ color: '#ef4444', dur: '3.5s', begin: '-1.8s' },
+	{ color: '#ef4444', dur: '3.5s', begin: '-2.7s' },
+];
+
 // ──────────────────────────────────────────────
 // Internal types
 // ──────────────────────────────────────────────
@@ -102,6 +119,8 @@ type EdgeMode = 'idle' | 'active' | 'dormant';
 interface PipelineEdgeData {
 	dots?: DotConfig[];
 	mode: EdgeMode;
+	/** When set, the edge passes this through to AnimatedDots as `restartTick` so the SMIL animation is re-fired imperatively on each tick. Used in active mode. */
+	animationTick?: number;
 	/** True for return edges (dashed line, shifted right/down) */
 	isReturn?: boolean;
 	/** True for forward edges that have a bidirectional counterpart (shifted left/up) */
@@ -112,7 +131,7 @@ interface PipelineEdgeData {
 interface StageNodeData {
 	label: string;
 	sublabel?: string;
-	variant: 'default' | 'active' | 'danger' | 'inactive';
+	variant: 'default' | 'active' | 'danger' | 'critical' | 'inactive';
 	badge?: string;
 	clickable?: boolean;
 	inspectable?: boolean;
@@ -124,10 +143,11 @@ interface StageNodeData {
 // Custom node
 // ──────────────────────────────────────────────
 
-/** Variant overrides: active/danger override the label color */
+/** Variant overrides: active/danger/critical override the label color */
 const VARIANT_OVERRIDE_COLORS: Record<string, string> = {
 	active: '#10b981',
 	danger: '#ef4444',
+	critical: '#ef4444',
 	inactive: '#71717a',
 };
 
@@ -146,9 +166,11 @@ const PipelineStageNode = memo(function PipelineStageNode({
 	const status =
 		variant === 'active'
 			? 'active'
-			: variant === 'danger'
-				? 'error'
-				: ('idle' as const);
+			: variant === 'critical'
+				? 'critical'
+				: variant === 'danger'
+					? 'error'
+					: ('idle' as const);
 
 	return (
 		<div
@@ -210,6 +232,7 @@ function PipelineFlowEdge({
 		mode = 'idle',
 		isReturn = false,
 		isBidirectional = false,
+		animationTick,
 	} = (data ?? {}) as PipelineEdgeData;
 
 	// Only offset edges that are part of a bidirectional pair
@@ -247,13 +270,24 @@ function PipelineFlowEdge({
 			)}
 			{mode !== 'dormant' && dots && (
 				<AnimatedDots
-					dots={dots.map((dot) => ({
+					dots={dots.map((dot, dotIndex) => ({
 						...dot,
 						r: 8,
 						dur: mode === 'active' ? '0.8s' : dot.dur,
 						repeatCount: mode === 'active' ? '1' : 'indefinite',
+						// In `active` mode the animation is single-pass:
+						// AnimatedDots ignores this `begin` (uses
+						// "indefinite" + beginElement()) but still parses
+						// it as the per-dot stagger delay. In `idle` mode
+						// the literal value drives the SVG timeline.
+						begin: mode === 'active' ? `${dotIndex * 0.15}s` : dot.begin,
 					}))}
 					path={edgePath}
+					// Only pass restartTick in active (single-pass) mode.
+					// In idle (indefinite-loop) mode the staggered negative
+					// `begin` values produce the desired ambient cascade
+					// and need no programmatic restart.
+					restartTick={mode === 'active' ? animationTick : undefined}
 				/>
 			)}
 		</>
@@ -272,7 +306,7 @@ const pipelineEdgeTypes = { pipelineFlow: PipelineFlowEdge };
 // ──────────────────────────────────────────────
 
 function resolveDots(
-	dots: PipelineDot[] | 'mixed' | 'clean' | undefined,
+	dots: PipelineDot[] | 'mixed' | 'clean' | 'danger' | undefined,
 	edgeIndex: number,
 ): DotConfig[] | undefined {
 	if (!dots) return undefined;
@@ -280,6 +314,7 @@ function resolveDots(
 	let resolved: PipelineDot[];
 	if (dots === 'mixed') resolved = PIPELINE_DOTS_MIXED;
 	else if (dots === 'clean') resolved = PIPELINE_DOTS_CLEAN;
+	else if (dots === 'danger') resolved = PIPELINE_DOTS_DANGER;
 	else resolved = dots;
 
 	return resolved.map((d, i) => ({
@@ -314,7 +349,8 @@ function buildNodes(stages: PipelineStage[], clickable: boolean): Node[] {
 
 function buildEdges(
 	connections: PipelineConnection[],
-	activeConnectionIds?: string[],
+	activeConnectionIds: string[] | undefined,
+	animationTick: number | undefined,
 ): Edge[] {
 	const edges: Edge[] = [];
 	let edgeIndex = 0;
@@ -343,6 +379,7 @@ function buildEdges(
 				dots: resolveDots(conn.dots, edgeIndex),
 				mode,
 				isBidirectional: conn.bidirectional ?? false,
+				animationTick,
 			} satisfies PipelineEdgeData,
 		});
 		edgeIndex++;
@@ -371,6 +408,7 @@ function buildEdges(
 					dots: resolveDots(conn.dots, edgeIndex),
 					isReturn: true,
 					mode: returnMode,
+					animationTick,
 				} satisfies PipelineEdgeData,
 			});
 			edgeIndex++;
@@ -390,6 +428,7 @@ export function PipelineFlow({
 	onNodeClick,
 	className,
 	activeConnections,
+	animationTick,
 }: PipelineFlowProps) {
 	const isClickable = !!onNodeClick;
 	const nodes = useMemo(
@@ -397,8 +436,8 @@ export function PipelineFlow({
 		[stages, isClickable],
 	);
 	const edges = useMemo(
-		() => buildEdges(connections, activeConnections),
-		[connections, activeConnections],
+		() => buildEdges(connections, activeConnections, animationTick),
+		[connections, activeConnections, animationTick],
 	);
 
 	return (

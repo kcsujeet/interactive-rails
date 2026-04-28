@@ -29,6 +29,9 @@ export interface ProbePedagogyOptions<TState> {
 	 * sublabels) and decides whether the entry would actually mutate
 	 * something on screen.
 	 *
+	 * `state` is guaranteed to be defined: missing entries are reported by
+	 * this helper before the validator runs.
+	 *
 	 * Validators should reject:
 	 * - empty override records (`{}` with no keys)
 	 * - entries that only set neutral fields (no badge / sublabel / variant
@@ -36,7 +39,7 @@ export interface ProbePedagogyOptions<TState> {
 	 * - entries that reuse the exact same state as another probe (caught
 	 *   separately by `expectEveryProbeDrivesDistinctChange`)
 	 */
-	validate: (probeId: string, state: TState | undefined) => string[];
+	validate: (probeId: string, state: TState) => string[];
 }
 
 /**

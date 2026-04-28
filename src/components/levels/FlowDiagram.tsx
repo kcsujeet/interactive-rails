@@ -37,7 +37,7 @@ import type {
 	NodeTypes,
 	ReactFlowInstance,
 } from '@xyflow/react';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 // ──────────────────────────────────────────────
 // FlowDiagram props
@@ -223,28 +223,96 @@ interface AnimatedDotsProps {
 	dots: DotConfig[];
 	/** SVG path string for the dots to travel along */
 	path: string;
+	/**
+	 * When provided, the dots use SMIL's imperative restart API: each
+	 * `<animateMotion>` is rendered with `begin="indefinite"` and is
+	 * triggered by calling `beginElement()` on the element via a ref.
+	 * Whenever this value changes, every dot is re-fired from t=0, with
+	 * a stagger derived from the dot's `begin` offset.
+	 *
+	 * This is the proper way to restart finite-duration SVG animations
+	 * (per the SMIL spec / SVGAnimationElement.beginElement on MDN). React
+	 * key changes and parent unmount-remount do NOT reliably restart the
+	 * animation when React Flow's edge memoization keeps the inner SVG
+	 * subtree alive across data updates.
+	 *
+	 * Leave undefined for indefinite-loop dots (idle mode); the dots will
+	 * use `dot.begin` literally and loop forever, which is the intended
+	 * behaviour for ambient continuous animation.
+	 */
+	restartTick?: number;
 }
 
 /**
  * Renders animated SVG circles that travel along a given path using SVG animateMotion.
  * Place this inside a custom edge component's SVG return.
+ *
+ * For single-pass animations that need to be re-triggered (e.g. on probe
+ * fire), pass `restartTick` and bump it on each fire. The component will
+ * call `beginElement()` on the underlying `<animateMotion>` elements,
+ * which is the standard SMIL way to restart a completed animation.
  */
-export function AnimatedDots({ dots, path }: AnimatedDotsProps) {
+export function AnimatedDots({ dots, path, restartTick }: AnimatedDotsProps) {
+	// `beginElement()` lives on SVGAnimationElement (parent of
+	// SVGAnimateMotionElement). React's SVG types narrow ref callbacks to
+	// SVGElement, so we use `instanceof` to recover the typed reference
+	// without an unsafe cast.
+	const animateRefs = useRef<Map<string, SVGAnimationElement>>(new Map());
+	const restartable = restartTick !== undefined;
+
+	// On every restartTick change, re-fire each dot via beginElement(),
+	// staggered by parsing each dot's `begin` value as a delay.
+	useEffect(() => {
+		if (!restartable) return;
+		const timeouts: ReturnType<typeof setTimeout>[] = [];
+		for (const dot of dots) {
+			const el = animateRefs.current.get(dot.id);
+			if (!el) continue;
+			const delayMs = parseBeginToMs(dot.begin);
+			if (delayMs <= 0) {
+				// beginElement is synchronous; no setTimeout needed.
+				el.beginElement();
+			} else {
+				timeouts.push(setTimeout(() => el.beginElement(), delayMs));
+			}
+		}
+		return () => {
+			for (const t of timeouts) clearTimeout(t);
+		};
+	}, [restartTick, dots, restartable]);
+
 	return (
 		<>
 			{dots.map((dot) => (
 				<circle fill={dot.color} key={dot.id} r={dot.r ?? 4}>
 					<animateMotion
-						begin={dot.begin}
+						begin={restartable ? 'indefinite' : dot.begin}
 						dur={dot.dur}
 						fill="freeze"
 						path={path}
+						ref={(el) => {
+							if (el instanceof SVGAnimationElement) {
+								animateRefs.current.set(dot.id, el);
+							} else {
+								animateRefs.current.delete(dot.id);
+							}
+						}}
 						repeatCount={dot.repeatCount ?? 'indefinite'}
 					/>
 				</circle>
 			))}
 		</>
 	);
+}
+
+// Parse SMIL begin attribute values like "0s", "0.15s", "-0.9s" into ms.
+// Negative values map to 0 because in restartable (single-pass) mode we
+// fire the animation now, not in the past.
+function parseBeginToMs(begin: string): number {
+	const match = begin.trim().match(/^(-?\d*\.?\d+)s$/);
+	if (!match) return 0;
+	const seconds = Number.parseFloat(match[1]);
+	return Math.max(0, seconds * 1000);
 }
 
 // ──────────────────────────────────────────────

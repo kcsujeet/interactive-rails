@@ -1,16 +1,23 @@
 /**
  * Level 49: Feature Flags & Staged Rollouts
  *
- * Batch A scaffolding: minimal stub that compiles and is wired into Act 6.
- * Real observe / build / reward content lands in Batch B with the per-level
- * structure split (data files, phase components, tests).
+ * Sequential phase flow: observe -> build -> reward.
  *
- * Decouples deploy from release. A code change ships off, gets flipped on at
- * release time, can ramp from 5% to 100%, and stays behind a kill switch
- * during incidents.
+ * Observe: pipeline shows the broken state (no Flag Gate, request goes
+ *   straight to NewPaymentProcessor). Probes reveal coupled deploy/release,
+ *   missing launch-time pinning, and missing kill switch.
+ * Build: 5 steps. Two terminal (gem install, run installer + migrate),
+ *   three OptionCard (wrap behind Flipper.enabled?, configure
+ *   percentage_of_actors rollout, mount admin UI behind admin auth).
+ * Reward: pipeline includes the Flag Gate; the gate's sublabel and the
+ *   downstream paths' active/inactive variants react to the last fired
+ *   stress scenario (full launch, gradual 5%, kill switch, beta opt-in).
+ *
+ * Teaches: Flipper, decoupling deploy from release, gradual rollout,
+ * kill-switch operation, admin UI auth.
  */
 
-import { ArrowRight } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -21,63 +28,148 @@ import {
 	RightPanel,
 	type ValidationResult,
 } from '@/components/levels';
-import { Button } from '@/components/ui/Button';
-import { registerLevelCode } from '@/lib/codebase-registry';
+import type { StageInspectorData } from '@/components/levels/StageInspector';
+import { useDiscoveryGating } from '@/hooks/useDiscoveryGating';
+import { useStepGating } from '@/hooks/useStepGating';
+import { useStressTest } from '@/hooks/useStressTest';
 import type { LevelComponentProps } from '@/lib/levels-registry';
-
-const PLACEHOLDER_CODE = `# app/controllers/payments_controller.rb
-class PaymentsController < ApplicationController
-  def create
-    if Flipper.enabled?(:new_payment_processor, current_user)
-      NewPaymentProcessor.charge(...)
-    else
-      LegacyPaymentProcessor.charge(...)
-    end
-  end
-end
-
-# Real implementation lands in the next batch.`;
-
-registerLevelCode('act6-level49-feature-flags', () => [
-	{
-		filename: 'app/controllers/payments_controller.rb',
-		language: 'ruby',
-		code: PLACEHOLDER_CODE,
-	},
-]);
+import { shuffleOptions } from '@/lib/shuffleOptions';
+import { BuildPhase } from './BuildPhase';
+import { OPTION_STEP_CONFIG, STEP_DEFS } from './data/build-steps';
+import { getCodeFiles } from './data/code-files';
+import { DISCOVERY_DEFS } from './data/discoveries';
+import {
+	OBSERVE_CONNECTIONS,
+	OBSERVE_STAGES,
+	REWARD_CONNECTIONS,
+	REWARD_STAGES,
+	STAGE_DISCOVERY_MAP,
+	STAGE_INSPECTOR_MAP,
+} from './data/pipeline-stages';
+import { PROBE_DISCOVERY_MAP, PROBES } from './data/probes';
+import { STRESS_SCENARIOS } from './data/stress-scenarios';
+import { LeftPanelContent } from './LeftPanelContent';
+import { ObservePhase } from './ObservePhase';
+import { RewardPhase } from './RewardPhase';
+import type { Phase, StepOption } from './types';
 
 export function Level49FeatureFlags({ onComplete }: LevelComponentProps) {
-	const validateSolution = (): ValidationResult => ({
-		valid: true,
-		message: 'Feature flags configured.',
+	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
+	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
+		minRequired: DISCOVERY_DEFS.length,
 	});
+	const stressTest = useStressTest(STRESS_SCENARIOS);
+	const [phase, setPhase] = useState<Phase>('observe');
+	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(
+		null,
+	);
+	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
+		new Set(),
+	);
+	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
+	// Bumped on every probe fire so PipelineFlow re-keys its dot circles
+	// and the SVG animations restart even when the same probe is fired
+	// twice. Same idea for the reward phase (`fireTick` below).
+	const [probeTick, setProbeTick] = useState(0);
+
+	const lastResult = stressTest.results[stressTest.results.length - 1];
+
+	const handleStageClick = useCallback(
+		(stageId: string) => {
+			if (phase !== 'observe') return;
+			const data = STAGE_INSPECTOR_MAP[stageId];
+			if (data) setInspectorData(data);
+			setInspectedStages((prev) => {
+				if (prev.has(stageId)) return prev;
+				const next = new Set(prev);
+				next.add(stageId);
+				return next;
+			});
+			const discoveryId = STAGE_DISCOVERY_MAP[stageId];
+			if (discoveryId) discoveryGating.discover(discoveryId);
+		},
+		[phase, discoveryGating],
+	);
+
+	const handleProbe = useCallback(
+		(probeId: string) => {
+			setLastProbeId(probeId);
+			setProbeTick((t) => t + 1);
+			const discoveryId = PROBE_DISCOVERY_MAP[probeId];
+			if (discoveryId) discoveryGating.discover(discoveryId);
+		},
+		[discoveryGating],
+	);
+
+	const handleOptionClick = useCallback(
+		(option: StepOption) => {
+			if (option.correct) {
+				stepper.completeStep();
+			} else if (option.feedback) {
+				stepper.recordWrongAttempt(option.feedback);
+			}
+		},
+		[stepper],
+	);
+
+	const handleStartBuild = () => setPhase('build');
+
+	const handleFireScenario = useCallback(
+		(scenarioId: string) => {
+			stressTest.fireRequest(scenarioId);
+		},
+		[stressTest],
+	);
+
+	const handleTransitionToReward = useCallback(() => {
+		setPhase('reward');
+		stressTest.reset();
+	}, [stressTest]);
+
+	const handleComplete = () => {
+		onComplete({ stars: stepper.starRating });
+	};
+
+	const validateSolution = (): ValidationResult => {
+		if (!stepper.isComplete) {
+			return {
+				valid: false,
+				message: 'Complete all steps first',
+				details: stepper.steps
+					.filter((s) => s.status !== 'completed')
+					.map((s) => s.title),
+			};
+		}
+		return { valid: true, message: 'Feature flags are wired and gated.' };
+	};
+
+	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
+	const hasNextStep = stepper.currentStep < STEP_DEFS.length - 1;
+	const currentOptionConfig = OPTION_STEP_CONFIG[stepper.currentStep];
+
+	const shuffledOptions = useMemo(
+		() =>
+			currentOptionConfig
+				? shuffleOptions(currentOptionConfig.options, stepper.currentStep)
+				: [],
+		[currentOptionConfig, stepper.currentStep],
+	);
+
+	const codePreviewStep = stepper.isCurrentStepCompleted
+		? stepper.currentStep + 1
+		: stepper.currentStep;
 
 	return (
 		<LevelLayout>
 			<LeftPanel>
 				<InstructionPanel>
-					<div className="p-4 border-b border-border space-y-3">
-						<h3 className="text-sm font-semibold text-foreground mb-2">
-							Scenario
-						</h3>
-						<p className="text-sm text-muted-foreground leading-relaxed">
-							A new payment processor is half-built. Marketing wants the launch
-							next Tuesday at 9am sharp; engineering needs to ship the code now
-							and turn it on then. And a third-party integration occasionally
-							goes flaky and needs a kill switch faster than a redeploy.
-						</p>
-						<p className="text-sm text-muted-foreground leading-relaxed">
-							Decouple deploy from release: ship code in the off state, flip a
-							runtime toggle when ready, ramp from 5% to 100%, and keep a kill
-							switch you can hit in seconds during an incident.
-						</p>
-					</div>
-					<div className="p-4 border-b border-border">
-						<p className="text-xs text-muted-foreground italic">
-							This level is currently a Batch A scaffold. The interactive
-							observe / build / reward phases land in the next batch.
-						</p>
-					</div>
+					<LeftPanelContent
+						discoveryGating={discoveryGating}
+						phase={phase}
+						stepper={stepper}
+						stressAllowedCount={stressTest.allowedCount}
+						stressBlockedCount={stressTest.blockedCount}
+					/>
 				</InstructionPanel>
 			</LeftPanel>
 
@@ -86,45 +178,71 @@ export function Level49FeatureFlags({ onComplete }: LevelComponentProps) {
 					actNumber={6}
 					levelName="Feature Flags & Staged Rollouts"
 					levelNumber={49}
-					onComplete={() => onComplete({ stars: 3 })}
+					onComplete={handleComplete}
 					onReset={() => {
 						window.location.reload();
 					}}
 					onValidate={validateSolution}
 				/>
-				<div className="flex-1 flex flex-col items-center justify-center p-8 gap-6 bg-background">
-					<div className="max-w-xl text-center space-y-3">
-						<h2 className="text-2xl font-bold text-foreground">
-							Feature Flags & Staged Rollouts
-						</h2>
-						<p className="text-sm text-muted-foreground">
-							Decouples deploy time from release time. Ship the code now, flip
-							the switch later, ramp gradually, kill instantly.
-						</p>
-						<p className="text-xs text-muted-foreground italic">
-							Full gameplay implementation comes in the next batch.
-						</p>
-					</div>
-					<Button
-						className="gap-2"
-						onClick={() => onComplete({ stars: 3 })}
-						size="lg"
-					>
-						Mark Complete (Scaffold)
-						<ArrowRight className="w-4 h-4" />
-					</Button>
+				<div className="flex-1 flex flex-col bg-background overflow-hidden">
+					{phase === 'observe' && (
+						<ObservePhase
+							animationTick={probeTick}
+							baseStages={OBSERVE_STAGES}
+							canStartBuild={discoveryGating.isUnlocked}
+							connections={OBSERVE_CONNECTIONS}
+							inspectedStages={inspectedStages}
+							inspectorData={inspectorData}
+							lastProbeId={lastProbeId}
+							onCloseInspector={() => setInspectorData(null)}
+							onProbe={handleProbe}
+							onStageClick={handleStageClick}
+							onStartBuild={handleStartBuild}
+							probes={PROBES}
+						/>
+					)}
+
+					{phase === 'build' && (
+						<BuildPhase
+							currentStep={stepper.currentStep}
+							hasNextStep={hasNextStep}
+							isViewingCompletedStep={isViewingCompletedStep}
+							lastFeedback={stepper.lastFeedback}
+							onClearFeedback={stepper.clearFeedback}
+							onCorrectTerminal={() => stepper.completeStep()}
+							onNextStep={stepper.nextStep}
+							onOptionClick={handleOptionClick}
+							onTransitionToReward={handleTransitionToReward}
+							onWrongTerminal={(fb) => stepper.recordWrongAttempt(fb)}
+							shuffledOptions={shuffledOptions}
+						/>
+					)}
+
+					{phase === 'reward' && (
+						<RewardPhase
+							allowedCount={stressTest.allowedCount}
+							animationTick={stressTest.results.length}
+							baseStages={REWARD_STAGES}
+							blockedCount={stressTest.blockedCount}
+							canAutoFire={stressTest.canAutoFire}
+							connections={REWARD_CONNECTIONS}
+							isAutoFiring={stressTest.isAutoFiring}
+							lastResult={lastResult}
+							onFire={handleFireScenario}
+							onToggleAutoFire={stressTest.toggleAutoFire}
+							results={stressTest.results}
+							scenarios={STRESS_SCENARIOS}
+						/>
+					)}
 				</div>
 			</CenterPanel>
 
 			<RightPanel>
 				<CodePreviewPanel
-					files={[
-						{
-							filename: 'app/controllers/payments_controller.rb',
-							language: 'ruby',
-							code: PLACEHOLDER_CODE,
-						},
-					]}
+					files={getCodeFiles(
+						phase,
+						phase === 'reward' ? STEP_DEFS.length : codePreviewStep,
+					)}
 				/>
 			</RightPanel>
 		</LevelLayout>
