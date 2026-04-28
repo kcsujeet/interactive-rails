@@ -9,79 +9,50 @@ import type { StageInspectorData } from '@/components/levels/StageInspector';
 // processor, which is a single point of failure with no kill switch.
 // ───────────────────────────────────────────────────────────────────
 
-// Observe stage positions deliberately mirror REWARD_STAGES so the layout
-// is identical across phases. Only the variants/badges/sublabels differ:
-// observe = broken, reward = working.
+// The observe topology is the system AS IT CURRENTLY EXISTS, before the
+// player has built anything. There is no flag gate yet (that is what
+// the build will add). The legacy processor is not a routable
+// destination yet either (the controller hardcodes the new processor).
+// Showing those nodes here would violate the audit-level rule "the
+// observe phase visualization must only show components that exist in
+// the 'before' state."
 export const OBSERVE_STAGES: PipelineStage[] = [
 	{
 		id: 'client',
 		label: 'Client',
 		sublabel: 'POST /api/v1/payments',
-		position: { x: 60, y: 240 },
+		position: { x: 120, y: 240 },
 		inspectable: true,
 	},
 	{
 		id: 'app-server',
 		label: 'App Server',
 		sublabel: 'PaymentsController#create',
-		variant: 'danger',
-		position: { x: 320, y: 240 },
-		inspectable: true,
-	},
-	{
-		id: 'flag-gate',
-		label: 'Flag Gate',
-		sublabel: '(missing)',
-		// Critical from the start: there is no toggle, no kill switch,
-		// no way to disable the new processor without a redeploy.
+		// AppServer carries the broken-state energy in observe: it is
+		// where the missing toggle / kill switch / scheduling would have
+		// lived. Critical = whole-card pulse + ping ripple.
 		variant: 'critical',
-		badge: 'MISSING',
-		position: { x: 580, y: 240 },
+		badge: 'NO TOGGLE',
+		position: { x: 440, y: 240 },
 		inspectable: true,
 	},
 	{
 		id: 'new-processor',
 		label: 'New Payment Processor',
-		sublabel: '~3% fail at peak',
+		sublabel: 'hardcoded, only path',
 		variant: 'danger',
-		position: { x: 840, y: 120 },
-		inspectable: true,
-	},
-	{
-		id: 'legacy-processor',
-		label: 'Legacy Payment Processor',
-		sublabel: '(wired, but unreachable)',
-		variant: 'inactive',
-		position: { x: 840, y: 360 },
+		position: { x: 760, y: 240 },
 		inspectable: true,
 	},
 ];
 
-// Observe-state edges. The flag-gate -> legacy edge exists structurally
-// (the legacy processor IS wired in, just unreachable from the current
-// controller) but carries no dots: nothing routes there until the player
-// builds the flag gate. The other three edges carry red dots when probes
-// fire, communicating "every request is at risk because the new processor
-// is the only path."
+// Observe-state edges. Two nodes, one path: client -> app -> new
+// processor. Red dots flow when the player fires a probe (single-pass
+// burst), communicating "every request is at risk because the new
+// processor is the only path."
 export const OBSERVE_CONNECTIONS: PipelineConnection[] = [
 	{ from: 'client', to: 'app-server', dots: 'danger' },
-	{ from: 'app-server', to: 'flag-gate', dots: 'danger' },
-	{
-		from: 'flag-gate',
-		to: 'new-processor',
-		dots: 'danger',
-		sourceHandle: 'top',
-		targetHandle: 'left',
-	},
-	{
-		from: 'flag-gate',
-		to: 'legacy-processor',
-		// No dots: the architectural edge is present, but no traffic flows
-		// here in the broken state. The static line keeps the Legacy node
-		// connected to the rest of the graph so it does not float.
-		sourceHandle: 'bottom',
-		targetHandle: 'left',
-	},
+	{ from: 'app-server', to: 'new-processor', dots: 'danger' },
 ];
 
 // ───────────────────────────────────────────────────────────────────
@@ -151,6 +122,11 @@ export const REWARD_CONNECTIONS: PipelineConnection[] = [
 // Stage inspector data (observe phase)
 // ───────────────────────────────────────────────────────────────────
 
+// Inspector data only for nodes that actually exist in the observe
+// topology. The flag-gate and legacy-processor inspectors used to live
+// here but those nodes do not exist in observe (they are added by the
+// build phase), so showing inspector data for them would lie about the
+// "before" state.
 export const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 	client: {
 		stageId: 'client',
@@ -162,7 +138,7 @@ export const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		stageId: 'app-server',
 		title: 'PaymentsController#create',
 		description:
-			'The controller receives the request, parses params, and decides which payment processor to call. Right now, that decision is hardcoded: every request goes to NewPaymentProcessor. There is no toggle.',
+			'The controller receives the request, parses params, and decides which payment processor to call. Right now, that decision is hardcoded: every request goes to NewPaymentProcessor. There is no toggle, no kill switch, no way to schedule a release.',
 		code: `class PaymentsController < ApplicationController
   def create
     # Hardcoded. No flag.
@@ -173,30 +149,19 @@ export const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
   end
 end`,
 	},
-	'flag-gate': {
-		stageId: 'flag-gate',
-		title: 'Flag Gate (missing)',
-		description:
-			'In the desired state, this stage decides at runtime whether to route to the new processor or the legacy one. Right now this stage does not exist; the controller routes unconditionally.',
-	},
 	'new-processor': {
 		stageId: 'new-processor',
 		title: 'New Payment Processor',
 		description:
 			'A new vendor integration. Half-built, occasionally returns 500s on edge cases, and costs roughly 30 minutes of revert-and-redeploy time when it misbehaves at peak. Currently the only path the request can take.',
 	},
-	'legacy-processor': {
-		stageId: 'legacy-processor',
-		title: 'Legacy Payment Processor',
-		description:
-			'The battle-tested processor. Reliable but boring. In the current setup, it is unreachable: the controller does not call it. If we had a flag gate, this would be the safe fallback.',
-	},
 };
 
-// Stages that, when clicked in observe phase, mark a discovery
-export const STAGE_DISCOVERY_MAP: Record<string, string> = {
-	'flag-gate': 'no-kill-switch',
-};
+// All discovery unlocks come from probes. No stage-click discoveries:
+// the 1:1 PROBE_DISCOVERY_MAP rule wants probes to be the source of
+// truth, and there is nothing in the observe topology that would
+// uniquely surface a discovery beyond what the probes already cover.
+export const STAGE_DISCOVERY_MAP: Record<string, string> = {};
 
 // ───────────────────────────────────────────────────────────────────
 // Per-probe pipeline overrides (REQUIRED by .agents/rules/pedagogy.md)
@@ -216,75 +181,55 @@ export interface ProbeObserveOverride {
 }
 
 export const PROBE_OBSERVE_OVERRIDES: Record<string, ProbeObserveOverride> = {
+	// Engineering tries to roll back the new processor. There is no
+	// toggle: the only path is git revert + Kamal redeploy.
 	'rollout-everyone': {
 		stages: {
 			'app-server': {
-				variant: 'danger',
-				sublabel: 'no flag, no rollback',
-			},
-			'flag-gate': {
 				variant: 'critical',
-				badge: 'MISSING',
-				sublabel: '(would have been the kill switch)',
+				badge: 'DEPLOY: 30 min',
+				sublabel: 'rolling back via git revert',
 			},
 			'new-processor': {
 				variant: 'critical',
 				badge: 'FAIL',
-				sublabel: '3% of charges 500ing',
+				sublabel: '3% of charges 500ing during the deploy window',
 			},
 		},
-		activeConnections: [
-			'client-app-server',
-			'app-server-flag-gate',
-			'flag-gate-new-processor',
-		],
+		activeConnections: ['client-app-server', 'app-server-new-processor'],
 	},
+	// Marketing wants Tuesday 9:00am sharp. The deploy window does not
+	// match the launch window. There is no scheduling system.
 	'marketing-pin-time': {
 		stages: {
 			'app-server': {
-				variant: 'danger',
-				sublabel: 'looking for a toggle to flip at 9am',
-			},
-			'flag-gate': {
 				variant: 'critical',
-				badge: 'NO TOGGLE',
-				sublabel: 'no flag, nothing to flip',
+				badge: 'DEPLOY != LAUNCH',
+				sublabel: 'no way to schedule a release',
 			},
 			'new-processor': {
-				variant: 'inactive',
-				sublabel: 'still off, no way to turn on without redeploy',
+				variant: 'danger',
+				sublabel: 'lives or dies with the deploy timing',
 			},
 		},
-		// Marketing IS firing a request: they go to the admin tooling and
-		// try to flip the launch toggle. The request reaches the gate,
-		// but the gate has nothing to flip, so it does NOT continue
-		// downstream to the new processor. Animating only the upstream
-		// edges visualizes "tried to toggle, gate had no switch."
-		activeConnections: ['client-app-server', 'app-server-flag-gate'],
+		activeConnections: ['client-app-server'],
 	},
+	// Vendor returns 500s. There is no kill switch. Customer requests
+	// are still being routed to a failing service.
 	'vendor-flaky': {
 		stages: {
 			'app-server': {
-				variant: 'danger',
-				badge: '30min MTTR',
-				sublabel: 'cannot disable feature',
-			},
-			'flag-gate': {
 				variant: 'critical',
-				badge: 'MISSING',
-				sublabel: '(no kill switch exists)',
+				badge: 'NO KILL SWITCH',
+				sublabel: 'cannot bypass the new processor',
 			},
 			'new-processor': {
 				variant: 'critical',
 				badge: 'TIMEOUT',
-				sublabel: 'vendor 5xx, request still routed here',
+				sublabel: 'vendor 5xx, all customer charges failing',
 			},
 		},
-		activeConnections: [
-			'client-app-server',
-			'app-server-flag-gate',
-			'flag-gate-new-processor',
-		],
+		activeConnections: ['client-app-server', 'app-server-new-processor'],
 	},
 };
 

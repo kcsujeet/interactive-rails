@@ -257,31 +257,50 @@ describe('Level 49: Feature Flags & Staged Rollouts', () => {
 	});
 
 	describe('Pipeline visualization', () => {
-		test('observe pipeline does not include the legacy processor as an active path', () => {
-			const legacy = OBSERVE_STAGES.find((s) => s.id === 'legacy-processor');
-			expect(legacy).toBeDefined();
-			expect(legacy?.variant).toBe('inactive');
+		test('observe topology shows ONLY the system as it currently exists (no flag-gate, no legacy-processor)', () => {
+			// The audit-level rule: "the observe phase visualization must
+			// only show components that exist in the 'before' state."
+			// The flag gate and the legacy processor as a routable
+			// destination are added by the build phase. Showing them in
+			// observe (even as "missing" placeholders) misleads the
+			// player about what the current system actually looks like.
+			const ids = new Set(OBSERVE_STAGES.map((s) => s.id));
+			expect(ids.has('flag-gate')).toBe(false);
+			expect(ids.has('legacy-processor')).toBe(false);
 		});
 
-		test('observe pipeline marks the flag-gate stage as critical (missing kill switch is the headline broken thing)', () => {
-			const gate = OBSERVE_STAGES.find((s) => s.id === 'flag-gate');
-			expect(gate?.variant).toBe('critical');
-			expect(gate?.badge).toBe('MISSING');
+		test('observe topology has exactly the three nodes that currently exist', () => {
+			const ids = new Set(OBSERVE_STAGES.map((s) => s.id));
+			expect(ids).toEqual(new Set(['client', 'app-server', 'new-processor']));
 		});
 
-		test('observe flag-gate -> legacy edge exists structurally but carries no dots (legacy is unreachable in observe)', () => {
-			// The edge exists so the legacy node does not float disconnected
-			// from the rest of the graph. But it has no `dots:` prop, so the
-			// line is static and no traffic visibly flows there in the
-			// broken state.
-			const legacyEdge = OBSERVE_CONNECTIONS.find(
-				(c) => c.from === 'flag-gate' && c.to === 'legacy-processor',
-			);
-			expect(legacyEdge).toBeDefined();
-			expect(legacyEdge?.dots).toBeUndefined();
+		test('app-server carries the broken-state energy (variant critical, NO TOGGLE badge)', () => {
+			const app = OBSERVE_STAGES.find((s) => s.id === 'app-server');
+			expect(app?.variant).toBe('critical');
+			expect(app?.badge).toBe('NO TOGGLE');
 		});
 
-		test('reward connections include both flag-gate -> new and flag-gate -> legacy edges', () => {
+		test('observe edges form a single linear path (client -> app -> new processor)', () => {
+			const edges = OBSERVE_CONNECTIONS.map((c) => `${c.from}-${c.to}`);
+			expect(edges).toEqual([
+				'client-app-server',
+				'app-server-new-processor',
+			]);
+		});
+
+		test('reward topology adds the flag-gate and the legacy-processor (the build adds new infrastructure)', () => {
+			const observeIds = new Set(OBSERVE_STAGES.map((s) => s.id));
+			const rewardIds = new Set(REWARD_STAGES.map((s) => s.id));
+			expect(rewardIds.has('flag-gate')).toBe(true);
+			expect(rewardIds.has('legacy-processor')).toBe(true);
+			// All observe nodes carry over to reward (capability is added,
+			// the existing nodes are not replaced).
+			for (const id of observeIds) {
+				expect(rewardIds.has(id)).toBe(true);
+			}
+		});
+
+		test('reward connections include both flag-gate -> new and flag-gate -> legacy edges (the fork)', () => {
 			const toNew = REWARD_CONNECTIONS.find(
 				(c) => c.from === 'flag-gate' && c.to === 'new-processor',
 			);
@@ -300,12 +319,6 @@ describe('Level 49: Feature Flags & Staged Rollouts', () => {
 		test('every reward stage id is unique', () => {
 			const ids = new Set(REWARD_STAGES.map((s) => s.id));
 			expect(ids.size).toBe(REWARD_STAGES.length);
-		});
-
-		test('reward and observe stages reference the same node ids (the build adds capability, not new nodes)', () => {
-			const observeIds = new Set(OBSERVE_STAGES.map((s) => s.id));
-			const rewardIds = new Set(REWARD_STAGES.map((s) => s.id));
-			expect(observeIds).toEqual(rewardIds);
 		});
 	});
 

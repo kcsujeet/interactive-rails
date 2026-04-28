@@ -5,15 +5,82 @@ paths:
   - "**/data/*.ts"
 ---
 
-# Three-Phase Pedagogy: The Visible-Change Gate
+# Three-Phase Pedagogy
 
-This rule auto-loads when you touch any level file. It exists to catch the **single most common pedagogy failure**: shipping an observe phase where probes update a left-panel checklist but do not visibly mutate the center-panel visualization. The probe terminal text alone does **not** satisfy the observe-phase pedagogy.
+This rule auto-loads when you touch any level file. It is the in-context reminder for the most-violated rules from the `design-level` and `audit-level` skills, plus the lessons earned by shipping bugs in past levels. The skills are the deep reference; this file is what you must cross-check against during implementation.
 
-The deeper guidance lives in the `design-level` and `audit-level` skills (the latter has a Gate Check section explicitly named "Does the Observe Phase Teach the Concept?"). This rule is the in-context reminder so you cannot get to "done" without doing the playthrough.
+The skills:
+- `.agents/skills/audit-level/SKILL.md` (and supporting files in the same directory)
+- `.agents/skills/design-level/SKILL.md` (and supporting files in the same directory)
 
-## The hard gate (do this before declaring a level done)
+The audit-level skill in particular has a "Gate Check: Does the Observe Phase Teach the Concept?" section that you should re-read whenever you touch an observe phase.
 
-For every probe in the level, write down -- in actual words, not in your head -- what the player **literally sees** in the **center panel** at the moment the probe fires. If your honest answer is any of:
+---
+
+## Before you design (pre-flight)
+
+Three non-negotiable foundations. If you skip any of them, every downstream rule in this file is ungrounded.
+
+### 1. Narrative reasoning, written down
+
+Before designing any visualization, answer these in writing -- in your response or in a scratch comment, not in your head:
+
+- **What is the problem this level presents?** One concrete sentence about the player's app, not the Rails concept. ("50K users polling every 2s creates a flood that breaks the server" -- not "the app needs Action Cable.")
+- **Would the player even know what this concept is?** (concept foundation check). Trace back through earlier levels. If L39 says "Stripe webhook fires twice" but no earlier level explained webhooks, the level has a foundation gap and must introduce the concept before showing problems with it.
+- **How did the player get into this situation?** (act context). What features exist after the previous N levels? What would the "before" code realistically look like?
+- **What does the "before" state look like?** This is the observe topology.
+- **What does the "after" state look like?** This is the reward topology.
+
+Then produce the **actor table** -- mandatory output, not optional reasoning:
+
+```
+| Actor    | Role                       | Appears in which probes? |
+|----------|----------------------------|--------------------------|
+| Customer | Initiates payment          | All                      |
+| Stripe   | Sends legitimate callbacks | Probes 2, 3              |
+| Attacker | Sends forged callbacks     | Probe 1                  |
+| Database | Stores credits/events      | All                      |
+```
+
+Two actors with different identities or motivations are different actors, even if they share a channel. Stripe sending a real webhook and an Attacker sending a forged one are separate actors and need separate nodes. Collapsing them into one node destroys the player's ability to see where actions originate.
+
+### 2. Visualization type
+
+Pick one of four. The decision drives the rest of the design:
+
+- **Type 1: no observe phase** (pure setup like `rails new`).
+- **Type 2: static intro** (code-structure problem visible by reading code, no runtime behaviour to simulate). No discovery gating.
+- **Type 3: custom visualization** (concept has a unique spatial/flow metaphor that needs a bespoke layout). Discovery gating required.
+- **Type 4: PipelineFlow** (request lifecycle: a stage is missing/broken in the MVC pipeline). Discovery gating required.
+
+If the answer to "what runtime behaviour does this level need to animate?" is "none," it is Type 2.
+
+Discovery gating belongs ONLY to Types 3 and 4. Do not add `useDiscoveryGating` / `ProbeTerminal` / `DiscoveryChecklist` to Type 1 or Type 2 levels.
+
+### 3. Cumulative patterns
+
+Read `.agents/skills/audit-level/cumulative-patterns.md` before writing any player-visible text. Every architectural pattern established in earlier levels carries forward: service objects (L16+), Dry::Validation contracts (L18+), query objects (L19+), error shape (L20+), JSON:API serializers (L7+), strong params via `expect` (L14+), authentication via `Current.user` (L9+). Showing inline `render json:` at L40 contradicts what the player learned at L7.
+
+---
+
+## Observe phase rules
+
+### Show only what currently exists
+
+The audit-level skill states this explicitly: **"the observe phase visualization must only show components that exist in the 'before' state."** It is the most-violated rule in level pedagogy because pre-showing the missing thing as a placeholder feels helpful. It is not. It is misleading.
+
+The three-phase loop is:
+1. **Observe**: show the system as it currently exists, with the pain points that result from the absence of [the thing the level teaches]. The thing is NOT shown anywhere in the visualization.
+2. **Build**: the player builds the thing.
+3. **Reward**: the system now has the thing; show how the previously-painful actions are now easy.
+
+How to communicate the absence: probes simulate actions that WOULD work if the thing existed. The probe's response and the existing nodes' state show the pain point that results from its absence. (See "Every probe needs an animated dimension" below.)
+
+The reward phase introduces the new nodes/edges that the build phase produced. Observe and reward can have different topologies -- in fact, they should, because the build added something. Shared nodes keep stable positions; new nodes appear in new positions.
+
+### The hard gate (do this before declaring done)
+
+For every probe, write down -- in actual words -- what the player **literally sees** in the **center panel** at the moment the probe fires. If your honest answer is any of:
 
 - "the probe terminal shows response lines"
 - "the discovery checklist updates in the left panel"
@@ -24,20 +91,20 @@ For every probe in the level, write down -- in actual words, not in your head --
 
 A passing answer looks like:
 
-- "the FlagGate node's whole card pulses red (`variant: 'critical'`), gains a `MISSING` badge that pulses, and the edges from Client → AppServer → FlagGate animate with red dots in a single-pass burst. The NewPaymentProcessor's sublabel changes to `3% of charges 500ing`, its variant escalates to `critical`, and a `FAIL` badge appears."
+- "the AppServer pulses red (`variant: 'critical'`), gains a `NO KILL SWITCH` badge, and the edges client → app-server → new-processor animate with red dots in a single-pass burst. The NewPaymentProcessor's sublabel changes to `vendor 5xx, all customer charges failing`, its variant escalates to `critical`, and a `TIMEOUT` badge appears."
 
-The `audit-level` skill formalises this as the "Probe-by-probe playthrough" -- that step is **mandatory during implementation**, not a post-hoc audit step. The `design-level` skill's "Probe Differentiation" rule additionally requires that no two probes produce the same visual change.
+Audit-level formalises this as the "Probe-by-probe playthrough." That step is **mandatory during implementation**, not a post-hoc audit step.
 
-## Visual richness requirements
+### Visual richness requirements
 
-A probe's visible change is not just text. The visualization needs **multiple animated layers**, not one. When you sit and watch a probe fire, you should see at least two of these happening:
+A probe's visible change is not just text. The visualization needs **multiple animated layers**, not one:
 
 - **Whole-card animation** on the most-affected node. PipelineFlow's `variant: 'critical'` triggers `animate-pulse` on the entire card with a red-tinted background, plus an `animate-ping` ripple in the header dot. Use this for the headline broken thing, not just `'danger'` (which only changes border colour).
 - **Edge dot animation.** Connections accept `dots: 'mixed' | 'clean' | 'danger'` or a custom `PipelineDot[]` array. **An edge with no `dots:` prop never animates, regardless of `activeConnections`.** Set `dots:` on every connection that should ever show motion.
 - **Pulsing badges.** PipelineFlow already pulses badge text by default. Use short, urgent badges (`FAIL`, `TIMEOUT`, `MISSING`, `KILL`) -- not full sentences.
-- **Per-probe single-pass bursts.** `activeConnections=['edge-id', ...]` puts those edges into single-pass mode (`repeatCount: '1'`), producing a sharp burst in addition to whatever idle/dormant baseline they have.
+- **Per-probe single-pass bursts.** `activeConnections=['edge-id', ...]` puts those edges into single-pass mode (`repeatCount: '1'`), producing a sharp burst.
 
-Stage variants you actually have available (with what they look like):
+Stage variants you actually have available:
 
 | variant | border | bg | header dot | full-card animation |
 |---------|--------|-----|------------|---------------------|
@@ -47,81 +114,43 @@ Stage variants you actually have available (with what they look like):
 | `critical` | `border-destructive` | `bg-destructive/10` | red, `animate-ping` | `animate-pulse` on the whole card |
 | `inactive` | `border-border` | none | none | `opacity-60` (faded) |
 
-If the level's broken state is the headline of the act (e.g., "missing kill switch is the entire problem"), use `'critical'` from the *base* state -- not just on probe fire. The player should see the broken thing pulsing the moment the level loads.
+If the level's broken state is the headline of the act, use `'critical'` from the *base* state -- not just on probe fire.
 
-## The dormant-edges default
+### Mechanism not metric
 
-`PipelineFlow`'s edge `mode` is computed as:
+The visualization must show WHAT the system is doing, not just a number. A CPU gauge at 95% is a metric. Requests flooding a server and queuing up is a mechanism. If your honest description is "a number changes" or "a status badge updates," redesign. Numbers need context: a "95% CPU" gauge with a label "25K req/sec from 50K users" beneath it traces back to the cause. The metric alone teaches nothing.
 
-```
-activeConnections === undefined  →  'idle'    (continuous animation if dots set)
-activeConnections === []         →  'dormant' (no dots regardless of dots prop)
-activeConnections === ['x', 'y'] →  'active'  (single-pass on listed edges)
-```
+### No node is ever blank during animation
 
-**The first one is a trap.** If the orchestrator passes `undefined` to PipelineFlow before any probe fires, the edges show continuous idle dot flow -- implying "data is flowing right now" before the player has done anything. That misleads the player about what's happening.
+Every node must always show its current state in every frame. If the server is processing, label "Processing...". If it is waiting, "Awaiting response...". If the client is idle, "Waiting for shipment...". When a frame updates only one node, the others keep their previous labels via partial merge -- as long as those previous labels still make sense for the current moment.
 
-Default rule: **pass `[]` (empty array) when no probe / scenario has fired yet.** Only pass `undefined` if the level genuinely has continuous background traffic that should always be visible (rare -- most levels do not).
+### Animations match the story (frame-for-frame)
 
-## Every probe needs an animated dimension
+Every story bullet (the `story?: string[]` field on probes and scenarios) must have a corresponding animation frame, and every frame must have a corresponding story bullet. Read the story and the frame sequence side by side: gaps in either direction are bugs.
+
+Time gaps in the story must be visible in the animation. If the story says "customer places an order, waits for it to ship, then keeps refreshing," the animation must show the time-pass beat (e.g., "Warehouse processing..."). Skipping from "order placed" to "customer refreshes" makes it look instant and misleads about why polling is needed.
+
+### Show duality simultaneously
+
+When the concept is a contrast (encrypted vs plaintext, polling vs push, cached vs uncached, on-deploy vs on-flag), show BOTH sides at once. Side-by-side comparison makes the contrast self-evident. A single view that toggles forces the player to remember.
+
+### Nodes at the same visual level must be the same kind of thing
+
+A `Controller` node and a `Serializer` node work as peers (both are pipeline stages). A `Client` and a `Server` node work as peers (both are systems). But an `App Server` and a `Timeout` node do NOT work as peers: one is a system, the other is configuration inside that system. Render middleware concepts (timeout, retry, circuit breaker) as sub-elements inside their parent node, not as separate peer nodes.
+
+Quick test: write what each node IS in one sentence. If two sentences belong to different categories, the nodes should not look the same.
+
+### Every probe drives a distinct visible state
+
+The `design-level` skill's "Probe Differentiation" rule: each probe must produce a DIFFERENT visual result. If you fire three probes and the visualization looks identical for two of them, redesign. The `expectEveryProbeDrivesDistinctChange` test helper enforces this at CI time.
+
+### Every probe needs an animated dimension
 
 Even probes that aren't about a request flowing need to drive motion. If you find yourself writing `activeConnections: []` for a probe with the justification "this probe is about a process gap, not a request" -- stop. Ask: what action IS the player simulating? Marketing trying to flip a launch toggle is still a request that reaches the system; it just doesn't continue past the gate. Activate the *upstream* edges and stop where the missing thing actually breaks the chain.
 
-If a probe genuinely has no activated edges, it must drive visible animation through other means: a different node escalating to `'critical'`, a badge appearing, a variant change. The "Probe Differentiation" test in `expectEveryProbeDrivesDistinctChange` will fail if two probes produce identical visual state.
+If a probe genuinely has no activated edges, it must drive visible animation through other means: a different node escalating to `'critical'`, a badge appearing, a variant change.
 
-## No floating nodes
-
-Every node visible in the visualization must be structurally connected to the rest of the graph by at least one edge. A node sitting alone with no edges looks like a UI bug, not "this thing exists but is unreachable."
-
-If a node IS unreachable in the current state, render the architectural edge anyway but omit the `dots:` prop. The line is then static (no dot motion), which still communicates "no traffic flows here," but the node is anchored to the graph.
-
-Avoid the inverse trap too: if a node only exists in the reward phase (the player builds new infrastructure), do NOT show it in observe just to keep the layouts symmetric. The build adds capability, not nodes -- when capability and nodes both grow, that is a deliberate design choice that the level should justify.
-
-## Re-firing the same probe must restart the animation
-
-SVG `<animateMotion>` with `repeatCount="1"` plays once and then freezes. The SMIL spec defines the canonical way to restart a finite-duration animation: call `beginElement()` on the animation element via the SVG DOM API. **This is the only approach that works reliably** -- React Flow's edge memoization keeps the inner SVG subtree alive across data updates, so neither key changes nor unmount-remount via prop changes are guaranteed to restart the animation.
-
-Sources (all confirmed before this rule was written):
-- [MDN: SVGAnimationElement.beginElement()](https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimationElement/beginElement)
-- [SMIL Animations spec, beginElement](https://svgwg.org/specs/animations/#__svg__SVGAnimationElement__beginElement)
-- [React Flow performance docs](https://reactflow.dev/learn/advanced-use/performance)
-
-The required setup:
-
-1. Set `begin="indefinite"` on the `<animateMotion>` element. Without this, `beginElement()` is a no-op (per the SMIL spec).
-2. Hold a ref to each animation element (use a callback ref + `instanceof SVGAnimationElement` to narrow the type without an unsafe cast).
-3. In a `useEffect` keyed on the fire tick, call `el.beginElement()` on each ref, with the original `begin` offset converted to a `setTimeout` delay for the staggered cascade.
-4. The first fire, subsequent fires, and re-fires of the same probe all go through the same code path. No special-casing for "first time."
-
-This is implemented in `AnimatedDots` via a `restartTick?: number` prop. Pass it whenever you want the dots to be re-firable; omit it for indefinite-loop dots (idle mode) where the SVG timeline handles things itself.
-
-What does NOT work on its own (all empirically tested in L49):
-
-- **Bumping a tick counter into dot ids.** React Flow's edge memoization caches the inner SVG subtree; even with new dot ids, the original `<circle>` elements stay mounted. The animation does not restart.
-- **Toggling `activeConnections` through `[]` (dormant) and back.** The dormant tick is supposed to unmount AnimatedDots and the active tick is supposed to remount it. React Flow's edge wrapper memoizes the edge component and the SVG subtree never actually unmounts. The animation does not restart.
-- **Changing the React `key` on the wrapping div.** Forces a full unmount-remount of the React Flow subtree, which DOES restart animations, but causes a visible canvas flash and loses any internal React Flow state. Acceptable as a last resort, not as the default.
-
-The general rule for any finite-duration animation primitive: do not rely on React's reconciliation to restart it. Use the primitive's own restart API.
-
-## Research before guessing (level-pedagogy application)
-
-The project-wide rule lives in `.agents/rules/etiquette.md` ("Research before guessing on browser/library/framework quirks") and applies to ALL code, not just levels. When you are debugging a level-pedagogy issue specifically, the same rule applies with these level-specific signals:
-
-- "The dot animation works the first time but not on re-fire." → SVG SMIL element-time / `repeatCount` / `beginElement()` semantics. Read the [MDN beginElement docs](https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimationElement/beginElement) and the [SMIL spec](https://svgwg.org/specs/animations/) before changing code.
-- "The probe state changes in React DevTools but the screen doesn't update." → React Flow's edge memoization. Check the [React Flow performance docs](https://reactflow.dev/learn/advanced-use/performance) for the recommended way to force re-renders.
-- "The CSS class is set but the element doesn't pulse." → check whether the parent variant maps to the right `status` in FlowNode, or read the variant table in this file.
-
-The L49 "silent re-fire" debugging burned three rounds (tick-into-id, dormant-toggle, finally `beginElement()`) because the first two attempts were plausible-sounding hypotheses dressed up as fixes. The MDN docs would have answered the question in two minutes. Always check the docs first when the cause is non-obvious.
-
-## Same layout across phases
-
-Observe and reward stage positions should be identical. The phase transition is about the visualization changing STATE (variants, badges, dot flow, sublabels), not about nodes moving around the screen. Repositioning nodes between phases costs the player a re-orientation tax for no pedagogical gain.
-
-If observe and reward genuinely have different topologies (a node is added in build, an edge is added in build), keep the positions of the shared nodes consistent and only add new nodes/edges in the new positions.
-
-## Probe labels are verb-led actions, not statements
-
-Every probe label describes what the player (or an actor) IS DOING, not a description of a situation. The matching reward stress-scenario label uses the same action.
+### Probe labels are verb-led actions, not statements
 
 ```
 BAD:  "Vendor integration starts misbehaving at peak hours"   (statement)
@@ -131,34 +160,180 @@ GOOD: "Flip launch toggle at Tuesday 9:00am sharp"             (action)
 GOOD: "Roll out new payment processor to all customers"        (action)
 ```
 
-The `design-level` skill's "Every Probe Must Tell a User Story" section formalises this. Statement-shaped labels make probes look passive and disconnected from a user's intent. Verb-led labels match the actor table: Customer / Marketing / Oncall / Attacker is doing this thing, and here is what happens when they try.
+Statement-shaped labels make probes look passive. Verb-led labels match the actor table: who is doing this, why, and what goes wrong when they try.
 
-## The data structure requirement
+### Every probe and scenario has a `story` field
+
+Each probe (observe phase) and each stress scenario (reward phase) must include a `story?: string[]` field with 3-6 short bullets. The Dialog opens when the player clicks the info icon next to the button, providing context without cluttering the label.
+
+Observe stories explain: who, what, why, what goes wrong because of the current system.
+Reward stories explain: same situation, but how the solution changes the outcome ("Same customer doing same thing, but ...").
+
+### PROBE_DISCOVERY_MAP must be 1:1, minRequired = all
+
+`useDiscoveryGating(DISCOVERY_DEFS, { minRequired: DISCOVERY_DEFS.length })` -- always require all of them. The "Build the Fix" button appears only when `discoveryGating.isUnlocked` is true. Not a timer, not a button-click counter. The player must surface every discovery.
+
+`PROBE_DISCOVERY_MAP` must be 1:1: each probe unlocks exactly one distinct discovery, and each discovery is unlocked by exactly one probe. Stage-click discoveries (via `STAGE_DISCOVERY_MAP`) are allowed but should not duplicate what a probe already covers.
+
+### The dormant-edges default
+
+`PipelineFlow`'s edge `mode` is computed as:
+
+```
+activeConnections === undefined  ->  'idle'    (continuous animation if dots set)
+activeConnections === []         ->  'dormant' (no dots regardless of dots prop)
+activeConnections === ['x', 'y'] ->  'active'  (single-pass on listed edges)
+```
+
+**`undefined` is a trap.** It puts edges into continuous idle mode before any probe fires, implying data is flowing before the player has done anything. Default rule: **pass `[]` (empty array) when no probe / scenario has fired yet.** Only pass `undefined` if the level genuinely has continuous background traffic that should always be visible.
+
+### No floating nodes
+
+Every visible node must be structurally connected to the rest of the graph by at least one edge. A node sitting alone with no edges looks like a UI bug.
+
+If a node IS unreachable in the current state, render the architectural edge anyway but omit the `dots:` prop. The line is then static (no dot motion), which still communicates "no traffic flows here," but the node is anchored to the graph.
+
+Inverse trap: if a node only exists in the reward phase (the build introduces new infrastructure), do NOT show it in observe just to keep the layouts symmetric. The build adds capability, not nodes -- and that asymmetry is honest.
+
+### Re-firing the same probe must restart the animation
+
+SVG `<animateMotion>` with `repeatCount="1"` plays once and freezes. The SMIL spec defines the canonical restart: call `beginElement()` on the animation element via the SVG DOM API. **This is the only approach that works reliably** -- React Flow's edge memoization keeps the inner SVG subtree alive across data updates, so neither key changes nor unmount-remount via prop changes are guaranteed to restart.
+
+Sources:
+- [MDN: SVGAnimationElement.beginElement()](https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimationElement/beginElement)
+- [SMIL Animations spec, beginElement](https://svgwg.org/specs/animations/#__svg__SVGAnimationElement__beginElement)
+- [React Flow performance docs](https://reactflow.dev/learn/advanced-use/performance)
+
+Required setup:
+1. Set `begin="indefinite"` on the `<animateMotion>` element.
+2. Hold a ref via callback ref + `instanceof SVGAnimationElement` (no unsafe cast).
+3. In a `useEffect` keyed on the fire tick, call `el.beginElement()` on each ref, with the original `begin` offset converted to a `setTimeout` delay for the staggered cascade.
+
+Implemented in `AnimatedDots` via the `restartTick?: number` prop.
+
+What does NOT work on its own (all empirically tested):
+- **Bumping a tick counter into dot ids.** React Flow's edge memoization defeats it.
+- **Toggling `activeConnections` through `[]` and back.** Same memoization, same failure.
+- **Changing a React `key` on the wrapping div.** Works but causes a canvas flash and loses React Flow's internal state.
+
+---
+
+## Build phase rules
+
+The deeper guidance lives in the `design-level` skill's `build-phase-guide.md`. The most-violated rules:
+
+- **3 options per OptionCard step.** Two is a coin flip.
+- **Use `shuffleOptions(options, stepIndex)` from `@/lib/shuffleOptions`.** Hand-positioning the correct answer at index 2 or 3 produces predictable patterns.
+- **Code preview transition table.** For every `completedStep`, write down what the player sees. Verify the preview does NOT contain the next step's correct answer's distinctive strings.
+- **Feedback never reveals the answer** (and never contradicts an earlier step).
+- **Gem install + generator + db:migrate are real steps.** If the feature requires a gem, the install / generator / migration commands appear as actual steps the player completes.
+
+---
+
+## Reward phase rules
+
+### Reward replays observe with the fix
+
+Non-negotiable from the design-level skill. The reward phase is NOT a feature demo. It replays the SAME story the player saw in observe, with the solution applied:
+
+1. **Start the same way.** Same actor, same first frames.
+2. **Follow the same path.** Same nodes touched, same sequence.
+3. **Diverge ONLY at the moment where the fix changes the outcome.**
+
+If the reward scenario's story does not begin with "Same [person] doing [same thing] ...", it is a feature demo, not a story continuation.
+
+### Design probes and reward scenarios as PAIRS
+
+Non-negotiable. Every observe probe is designed alongside its matching reward scenario, as a pair, before moving to the next probe. Format:
+
+```
+PAIR 1:
+  Observe: "<verb-led action label>"
+    Story: ...
+    Frames: ... [request] -> [thing breaks] -> ...
+  Reward:  "<same action with the fix>"
+    Story: same person doing same thing, but ...
+    Frames: ... [request] -> [thing handled] -> ...
+    Diverges at: frame N
+```
+
+Designing observe probes and reward scenarios in separate passes is the most common cause of reward scenarios drifting into "feature demo" instead of "story continuation."
+
+After all pairs are written, you may add reward-only scenarios for capabilities the build introduces but no probe surfaced. Those come AFTER the paired scenarios.
+
+### Same layout across phases (with caveat)
+
+Observe and reward stage positions should be identical for the **shared** nodes. The phase transition is about visualization state changing (variants, badges, dot flow, sublabels), not about nodes moving around the screen. Repositioning shared nodes between phases costs the player a re-orientation tax for no pedagogical gain.
+
+If the build phase introduces new nodes (the FlagGate appearing in reward when it didn't exist in observe), those new nodes appear in new positions. The shared nodes keep theirs.
+
+---
+
+## Engineering quality
+
+### State machine: observe / build / reward, no activate
+
+Three valid phase patterns, matching the four observe types:
+
+- **Type 1**: `'build' | 'reward'` (no observe).
+- **Type 2**: `'intro' | 'build' | 'reward'` (static intro, no discovery gating).
+- **Types 3/4**: `'observe' | 'build' | 'reward'` (discovery gating).
+
+**No activate phase.** No star-rating screen between build and reward. No "Visualize ___" interstitial. The last build step's "Next Step" button goes directly to reward.
+
+### Test enforcement (CI-level catch)
+
+Every level test file with probes must call both helpers from `@/lib/testing/probe-pedagogy`:
+
+- `expectEveryProbeDrivesVisualChange({ probes, probeStateMap, validate })` -- fails if any probe lacks an entry, or has an entry the validator rejects as "no visible delta" (no badge, no sublabel change, no variant change).
+- `expectEveryProbeDrivesDistinctChange({ probes, probeStateMap, serialize })` -- fails if two probes produce identical visual state.
+
+Plus the strict-tests rule from `.agents/rules/testing.md`: every assertion checks an exact value the player would see (string, ID, count). `array.length > 0` and `expect(X).toBeDefined()` catch nothing.
+
+### Data structure requirement
 
 If the level's observe phase has a `PROBES` array, the level's `data/pipeline-stages.ts` (or equivalent) must export a probe-keyed state map that drives those visible deltas. The exact name varies by level -- `PROBE_PIPELINE_MAP` (L11), `PROBE_OBSERVE_OVERRIDES`, `PROBE_FRAMES` -- but the shape is always: `Record<probeId, { stages, activeConnections }>`. The orchestrator merges those overrides into the base stages on probe fire.
 
 If you cannot point at the data structure that drives per-probe visualisation deltas, the level fails the gate.
 
-## Test enforcement (CI-level catch)
+---
 
-Every level test file with probes must call both helpers from `@/lib/testing/probe-pedagogy`:
+## Engineering process
 
-- `expectEveryProbeDrivesVisualChange({ probes, probeStateMap, validate })` -- fails if any probe lacks an entry, or has an entry the validator rejects as "no visible delta" (no badge, no sublabel change, no variant change).
-- `expectEveryProbeDrivesDistinctChange({ probes, probeStateMap, serialize })` -- fails if two probes produce identical visual state, mirroring the design-level skill's "Probe Differentiation" rule.
+### Research before guessing
 
-This is belt-and-suspenders with the rule above: the rule catches the failure at design time, the tests catch the regression at commit time.
+The general rule lives in `.agents/rules/etiquette.md` and applies project-wide. Level-pedagogy-specific signals:
+
+- "The dot animation works the first time but not on re-fire." → SVG SMIL `repeatCount` / `beginElement()` semantics. Read [MDN beginElement](https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimationElement/beginElement) and the [SMIL spec](https://svgwg.org/specs/animations/) before changing code.
+- "The probe state changes in React DevTools but the screen doesn't update." → React Flow's edge memoization. Check the [React Flow performance docs](https://reactflow.dev/learn/advanced-use/performance).
+- "The CSS class is set but the element doesn't pulse." → check that the parent variant maps to the right `status` in FlowNode (variant table above).
+
+The L49 "silent re-fire" debugging burned three rounds because the first two attempts were plausible-sounding hypotheses dressed up as fixes. The MDN docs would have answered the question in two minutes. Always check the docs first when the cause is non-obvious.
+
+---
 
 ## How this rule was earned
 
-L49 (Feature Flags) was the worked failure example for every section of this rule. The level shipped through three rounds of pedagogy bugs, each surfacing a distinct lesson:
+L49 (Feature Flags) was the worked failure example for nearly every section of this rule. Each shipped iteration surfaced a distinct lesson:
 
-1. **Round 1 -- no per-probe state.** The first implementation had a `PROBES` array and zero probe-keyed state map. Probes only updated the left-panel discovery checklist; the PipelineFlow visualization was static across all three probes. The structural tests passed because none of them checked "does anything happen on screen when a probe fires?" → introduced the data-structure requirement and the `expectEveryProbeDrivesVisualChange` helper.
-2. **Round 2 -- text-only changes.** The second pass added per-probe stage overrides (badge, sublabel, variant), but the actual rendered result still felt static: variant changes only modified border colour, badges pulsed but the rest of the node was static, and edges had no dot animation at all because connections were never given a `dots:` prop. → introduced the `'critical'` variant for whole-card pulse, the `'danger'` dot preset for red flow, and the requirement that connections set `dots:` to be animatable.
-3. **Round 3 -- idle-edge trap.** The third pass had everything wired correctly but defaulted to `activeConnections=undefined`, putting edges into continuous "idle" mode before any probe fired. The visualisation implied data was flowing before the player had done anything. → introduced the dormant-edges-default rule (`[]` not `undefined` for the initial state).
-4. **Round 4 -- silent probe.** One probe (`marketing-pin-time`) had `activeConnections=[]` deliberately, on the reasoning "no request fires for this probe -- it's a scheduling gap." The probe produced text changes but no motion. → introduced the "every probe needs an animated dimension" rule. Even probes about process gaps simulate an action; activate the upstream edges and stop where the missing thing actually breaks the chain.
-5. **Round 5 -- statement-shaped labels.** Two of the three probe labels were descriptive statements ("Marketing wants…", "Vendor integration starts…") rather than verb-led actions. → reinforced the existing design-level "Probe Must Tell a User Story" rule with a worked diff.
-6. **Round 6 -- floating node.** The Legacy Payment Processor node was rendered in the observe phase but had no edges connecting it to the rest of the graph. A structural test deliberately asserted "no flag-gate -> legacy edge in observe" on the reasoning that legacy was unreachable. The visual cost was a node that looked like a UI bug. → introduced the no-floating-nodes rule and the same-layout-across-phases rule. The fix: keep the edge structurally present but omit `dots:` so the line is static, anchoring the node without implying traffic flow.
-7. **Round 7 -- silent re-fire.** The first probe fire produced the expected single-pass dot burst. A second fire of the same probe was silent. Cause: `<animateMotion repeatCount="1">` had already finished, and React Flow's edge memoization kept the inner SVG subtree alive across data updates. Two failed fixes preceded the right one: (a) threading a tick counter into dot ids -- React Flow's memoization defeated it; (b) toggling `activeConnections` through `[]` (dormant) and back -- same memoization, same failure. The correct fix, found only after reading the [MDN beginElement docs](https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimationElement/beginElement) and the [SMIL spec](https://svgwg.org/specs/animations/), is the SVG DOM's native restart API: set `begin="indefinite"` on each `<animateMotion>`, hold a ref to it, and call `el.beginElement()` on each fire. → introduced the re-fire restart rule and the **research-before-guessing** rule.
-8. **Round 7b -- only the first dot of four was visible.** Even on the first fire, only one of the four staggered dots actually appeared on screen. Cause: the indefinite-loop dot presets use negative `begin` values (`-0.9s`, `-1.8s`, `-2.7s`) to stagger the visual cascade. When `mode === 'active'`, PipelineFlow overrode `dur` to `0.8s` but kept those negative begins. A `<animateMotion>` with `begin=-2.7s, dur=0.8s, repeatCount=1` ended at t=-1.9s -- 1.9 seconds *before* the element was mounted, so it never played. Only the dot with `begin=0s` actually fired. → introduced the active-mode positive-cascade rule: when overriding to single-pass, also override `begin` to positive staggered offsets (`0s`, `0.15s`, `0.3s`, ...) so every dot has a future window in which to play.
+1. **Round 1 -- no per-probe state.** First implementation had a `PROBES` array and zero probe-keyed state map. Probes only updated the left-panel discovery checklist; the PipelineFlow visualization was static across all three probes. → introduced the data-structure requirement and the `expectEveryProbeDrivesVisualChange` helper.
 
-The reflexive lesson: structural compliance is necessary but not sufficient. The player's experience is the source of truth, and the only way to verify it is the playthrough -- written down, layer by animated layer, with the variant table and the dormant-edges-default and the verb-led labels and every probe driving distinct motion -- before declaring done.
+2. **Round 2 -- text-only changes.** Per-probe stage overrides existed but `variant: 'danger'` only changed border colour, badges pulsed but the rest of the node was static, and edges had no dot animation because connections were never given a `dots:` prop. → introduced the `'critical'` variant for whole-card pulse, the `'danger'` dot preset, and the `dots:` requirement on connections.
+
+3. **Round 3 -- idle-edge trap.** Default `activeConnections=undefined` put edges into continuous idle mode before any probe fired, implying data was flowing before the player did anything. → introduced the dormant-edges-default rule.
+
+4. **Round 4 -- silent probe.** One probe had `activeConnections=[]` deliberately ("no request fires for this probe"). Text changed but no motion. → introduced the every-probe-needs-an-animated-dimension rule.
+
+5. **Round 5 -- statement-shaped labels.** Two of three probe labels were descriptions, not actions. → reinforced the design-level "Probe Must Tell a User Story" rule.
+
+6. **Round 6 -- floating node.** Legacy Payment Processor had no edges in observe, looking like a UI bug. → introduced the no-floating-nodes rule and the same-layout-across-phases rule (with the new-node caveat in round 8).
+
+7. **Round 7 -- silent re-fire.** First fire animated, second fire of the same probe was silent. Two failed fixes preceded the right one: tick-into-id and dormant-toggle (both defeated by React Flow's edge memoization). The correct fix, found only after reading the [MDN beginElement docs](https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimationElement/beginElement) and the [SMIL spec](https://svgwg.org/specs/animations/), is the SVG DOM's native restart API: `begin="indefinite"` + `el.beginElement()`. → introduced the re-fire restart rule and the **research-before-guessing** rule (now in `.agents/rules/etiquette.md` as a project-wide rule).
+
+8. **Round 7b -- only the first dot of four was visible.** Active-mode override changed `dur` to `0.8s` but kept the indefinite-loop's negative `begin` values. With `begin=-2.7s, dur=0.8s, repeatCount=1` the animation ended 1.9s before the element mounted. → introduced the active-mode positive-cascade rule.
+
+9. **Round 8 -- the FlagGate placeholder in observe.** Observe topology showed the FlagGate as a "missing" placeholder (`variant: 'critical'`, `badge: MISSING`). The reasoning was "the player can see where the fix WILL go." User correction: that violates the audit-level rule and the three-phase pedagogy entirely. The observe phase shows the system as it currently exists -- the FlagGate does not exist yet, so it does not appear. Probes communicate the absence by simulating actions that WOULD work if the FlagGate existed. → introduced the "Observe must only show what currently exists" rule and the worked example.
+
+10. **Round 9 -- pedagogy rule was incomplete.** A pedagogy rule that was meant to prevent skill-level failures was itself missing major rules from the design-level and audit-level skills (narrative reasoning, actor table, concept foundation check, visualization type selection, pair-design probes+scenarios, reward replays observe, mechanism-not-metric, no-node-blank, animations-match-story, show-duality, nodes-same-kind-of-thing, 1:1 PROBE_DISCOVERY_MAP, no-activate-phase). → restructured the rule into Pre-flight / Observe / Build / Reward / Engineering quality / Engineering process sections and audited every section of both skills.
+
+The reflexive lesson: **the pedagogy rule itself must be audited against the skills regularly.** A rule that is incomplete is worse than a rule that is missing entirely, because the rule's existence creates the impression that the contained rules are sufficient.
