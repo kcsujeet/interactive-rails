@@ -62,7 +62,71 @@ end`,
 - **Channel**: Like a controller for WebSockets (subscribe/unsubscribe/receive)
 - **Stream**: A named broadcast target (e.g., "notifications:user_42")
 - **Connection**: The WebSocket connection with authentication
-- **Subscription**: Client subscribes to a channel to receive pushes`,
+- **Subscription**: Client subscribes to a channel to receive pushes
+
+**Token authentication for SPA / mobile clients:**
+The example above uses encrypted cookies for the Connection's identity, which works for a server-rendered Rails app. For a React SPA or mobile client, cookies are not always available; the SPA holds a bearer token. The Connection accepts the token from a query parameter or a custom WebSocket subprotocol header:
+
+\`\`\`ruby
+class ApplicationCable::Connection < ActionCable::Connection::Base
+  identified_by :current_user
+
+  def connect
+    self.current_user = User.authenticate_session_token(
+      request.params[:token]
+    ) || reject_unauthorized_connection
+  end
+end
+\`\`\`
+The token must be short-lived (matches your session token TTL) and must be revocable. Logging out invalidates the session token, which means the next subscribe attempt rejects. Existing connections also need to be torn down: emit a "logout" message on a user-scoped channel and have the client disconnect.
+
+**Broadcast IDs, not full payloads:**
+The example serializes the full notification into the broadcast. At a few hundred concurrent subscribers per stream this is fine; past that, it doubles the database write (audit log of broadcast bytes) and bloats the WebSocket frame. The production-safe default is to broadcast a tiny payload with the id, and let the client fetch the detail:
+
+\`\`\`ruby
+NotificationsChannel.broadcast_to(user, { type: "notification.created", id: notification.id })
+# Client receives event, calls GET /api/v1/notifications/<id> over the cached HTTP path
+\`\`\`
+This also keeps WebSocket and HTTP semantics aligned: the source of truth lives at the GET endpoint, the WebSocket is a notification of "go fetch this." Cache hits on the HTTP side absorb most of the load.
+
+**Per-user rate limiting on subscribe:**
+Each WebSocket subscription opens a server-side resource. A malicious client can subscribe to thousands of channels in a loop. Add a Rack::Attack-style throttle on the subscribe action:
+
+\`\`\`ruby
+class NotificationsChannel < ApplicationCable::Channel
+  SUBSCRIBE_LIMIT = 5
+  SUBSCRIBE_WINDOW = 1.minute
+
+  def subscribed
+    key = "subscribes:#{current_user.id}"
+    count = Rails.cache.increment(key, 1, expires_in: SUBSCRIBE_WINDOW)
+    return reject if count > SUBSCRIBE_LIMIT
+    stream_for current_user
+  end
+end
+\`\`\`
+The connection-level rate limit on the underlying WebSocket is separate (handled by the proxy / Rack::Attack); this limits the per-channel subscribe rate.
+
+**Solid Cable retention tradeoffs:**
+\`message_retention: 1.day\` (the example) keeps every broadcast for 24 hours so a reconnecting client can replay missed messages. The cost: every broadcast writes a row, the table grows linearly with broadcast volume, and the cleanup job has to keep up. For a high-volume notification system, drop retention to 1 hour or even 5 minutes. For low-volume apps, 1 day is fine.
+
+The retention store is what makes Solid Cable horizontally scalable without Redis: subscribe pulls a backlog from the database. If retention is short, late-joining clients miss messages; if retention is long, the database carries the cost. There is no free lunch here; pick based on the application's tolerance for missed events.
+
+**When to graduate from Solid Cable:**
+Solid Cable scales to roughly tens of thousands of concurrent connections per Rails process before the polling adapter (default \`polling_interval: 0.1\` seconds) becomes the bottleneck. Past that, the graduation path is:
+
+1. **AnyCable** (Go-based WebSocket server, drop-in replacement) for hundreds of thousands of concurrent connections.
+2. **A separate WebSocket service** (Phoenix Channels, a Node service) when the team is willing to maintain a non-Rails component.
+
+For a Rails 8 app under "billion-dollar SaaS" load profile, Solid Cable handles the realtime tier of most products without that graduation. The decision is volume-driven; do not graduate prematurely.
+
+**Reconnection and message ordering:**
+WebSockets do not guarantee in-order delivery across reconnects. If the client disconnects mid-broadcast, reconnects, and Solid Cable's retention serves a backlog, the order can shuffle relative to a brand-new broadcast that arrives during reconnect. For ordering-sensitive flows (chat, audit log), include a server-side sequence number in each broadcast and let the client sort:
+
+\`\`\`ruby
+{ type: "message.created", id: msg.id, seq: msg.id, at: msg.created_at.iso8601(6) }
+\`\`\`
+\`seq\` (use the model id, monotonic by definition) lets the client drop duplicates and re-order the small window of overlap.`,
 		railsCodeExample: `# config/cable.yml (Solid Cable, no Redis!)
 production:
   adapter: solid_cable
@@ -144,6 +208,11 @@ end`,
 			'Broadcasting too much data (send IDs, let client fetch details)',
 			'Using Redis when Solid Cable is sufficient (unnecessary infrastructure)',
 			'Broadcasting in the request cycle instead of via model callbacks',
+			'Cookie-based Connection auth on a SPA / mobile client (cookies are not always sent on cross-origin WebSocket upgrades). Use a session token from the bearer header or a signed query param',
+			'Logout that invalidates the session but leaves the WebSocket open (the client keeps receiving private events). Emit a logout event on the user channel and force the client to disconnect',
+			'No per-user subscribe rate limit (a malicious client opens thousands of channels in a loop)',
+			'message_retention: 1.day on a high-volume broadcaster (every broadcast writes a row; the retention table grows faster than cleanup can prune it). Pick a retention window the cleanup job can actually keep up with',
+			'Assuming WebSocket delivery is ordered across reconnects. Include a sequence number in every broadcast for ordering-sensitive flows',
 		],
 		whenToUse:
 			'Live notifications, chat, real-time dashboards, collaborative editing. Replace polling whenever events are infrequent relative to poll interval.',
@@ -155,6 +224,10 @@ end`,
 			{
 				title: 'Solid Cable (Rails 8)',
 				url: 'https://github.com/rails/solid_cable',
+			},
+			{
+				title: 'AnyCable (Go-based WebSocket server)',
+				url: 'https://anycable.io/',
 			},
 		],
 	},

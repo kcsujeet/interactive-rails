@@ -154,7 +154,67 @@ end
 **Idempotency key pattern:**
 - Every Stripe event has a unique \`event.id\`
 - Store it in a \`webhook_events\` table with a unique index
-- INSERT fails on duplicate = already processed = skip`,
+- INSERT fails on duplicate = already processed = skip
+
+**Raw body, not parsed body:**
+Stripe signs the EXACT bytes it sent. Rails normally parses JSON requests so you can read \`params[:foo]\`; for webhook routes, do NOT use parsed params for signature verification. Parsing can re-order keys, escape characters differently, and break the HMAC. Use \`request.raw_post\` (cached, idempotent), or read the body once and stash it:
+
+\`\`\`ruby
+def create
+  payload = request.raw_post     # the exact bytes Stripe sent
+  sig_header = request.headers['Stripe-Signature']
+  event = Stripe::Webhook.construct_event(
+    payload, sig_header, webhook_secret, tolerance: 300
+  )
+end
+\`\`\`
+The \`tolerance\` argument (default 300 seconds) protects against replay attacks: an attacker who captures a valid signed payload cannot re-submit it after 5 minutes because the timestamp inside the signature is too old. Always pass a tolerance.
+
+**Constant-time comparison:**
+The Stripe SDK uses constant-time comparison internally. If you ever hand-roll signature verification for a provider without an SDK, use \`ActiveSupport::SecurityUtils.secure_compare\`, NOT \`==\`. \`==\` short-circuits on the first mismatch, leaking timing information that lets an attacker brute-force the signature byte by byte across many requests. The vulnerability is real; the fix is one line.
+
+**Trust signed payloads as a notification, not as truth:**
+For high-stakes events (payments, refunds, subscription state), the production-safe pattern is to treat the webhook as a NOTIFICATION ("something happened, here is the id") and re-fetch the resource from the API to learn the current state. The webhook payload may be stale by the time the job runs (hours later, after retries), and an attacker who breached your DB could in theory plant a webhook event row. Re-fetching from Stripe is the source of truth:
+
+\`\`\`ruby
+def handle_payment_succeeded(webhook_event)
+  intent_id = webhook_event.payload.dig('object', 'id')
+  intent = Stripe::PaymentIntent.retrieve(intent_id)
+  return unless intent.status == 'succeeded'
+  # credit the user using intent.amount, intent.currency
+end
+\`\`\`
+This costs an extra API call per event but is the only safe pattern for money-moving operations.
+
+**Out-of-order events:**
+Stripe makes no guarantee about delivery order. If retries cause \`payment_intent.succeeded\` to arrive before \`payment_intent.created\`, a handler that does \`Payment.find_by!(stripe_id: ...)\` will fail when the local row does not exist yet. Two safe patterns:
+
+1. \`find_or_create_by!\` on the local Payment using the Stripe id as the natural key, so either event creates the row.
+2. State-machine guards on the model (\`AASM\` or hand-rolled) that reject invalid transitions; the out-of-order webhook is silently a no-op until the prerequisite event lands.
+
+**Per-endpoint secrets:**
+Each Stripe webhook endpoint has its OWN signing secret, not one global secret. Production, staging, and the Stripe-CLI dev tunnel all have different secrets. Route-specific config scales better than \`ENV['STRIPE_WEBHOOK_SECRET']\`:
+
+\`\`\`ruby
+WEBHOOK_SECRETS = {
+  payments: Rails.application.credentials.dig(:stripe, :payments_webhook),
+  subscriptions: Rails.application.credentials.dig(:stripe, :subscriptions_webhook)
+}.freeze
+\`\`\`
+
+**Retention policy for webhook_events:**
+A production deployment processes hundreds of events per day; over a year that is hundreds of thousands of rows. Without a retention policy the table grows forever, the unique index cost grows with it, and lookups slow down. Delete completed events older than 30-90 days via a scheduled job:
+
+\`\`\`ruby
+class CleanupWebhookEventsJob < ApplicationJob
+  def perform
+    WebhookEvent.where(status: 'completed')
+                .where('processed_at < ?', 30.days.ago)
+                .in_batches(of: 1000).delete_all
+  end
+end
+\`\`\`
+Failed events stay forever (or until manually triaged) so you can audit them.`,
 		railsCodeExample: `# Migration: webhook events table
 class CreateWebhookEvents < ActiveRecord::Migration[8.0]
   def change
@@ -276,6 +336,12 @@ end`,
 			'No idempotency check (duplicate events = duplicate side effects)',
 			'Using the event payload for amount/status instead of re-fetching from Stripe API',
 			'Not handling race conditions between webhook and polling (both try to complete payment)',
+			'Verifying the signature against parsed params instead of the raw body (Rails parsing can reorder keys and break the HMAC). Use request.raw_post',
+			'Not passing a tolerance to construct_event (default 300s rejects replays of captured payloads after 5 minutes; without it an old signed payload still verifies forever)',
+			'Hand-rolling signature comparison with == instead of ActiveSupport::SecurityUtils.secure_compare (== short-circuits and leaks timing info)',
+			'Assuming Stripe delivers events in order (retries reorder them; use find_or_create_by! on the natural key, or a state machine that tolerates out-of-order)',
+			'One global STRIPE_WEBHOOK_SECRET for production, staging, and the Stripe CLI dev tunnel (each endpoint has its own secret)',
+			'Letting the webhook_events table grow forever (every successful event stays). Schedule a retention job to delete completed events past 30-90 days',
 		],
 		whenToUse:
 			'Every webhook integration. Stripe, GitHub, Twilio, SendGrid all retry. Your handler MUST be idempotent.',
@@ -291,6 +357,14 @@ end`,
 			{
 				title: 'Idempotent Requests (Stripe)',
 				url: 'https://stripe.com/docs/api/idempotent_requests',
+			},
+			{
+				title: 'ActiveSupport::SecurityUtils.secure_compare',
+				url: 'https://api.rubyonrails.org/classes/ActiveSupport/SecurityUtils.html',
+			},
+			{
+				title: 'Rails request.raw_post',
+				url: 'https://api.rubyonrails.org/classes/ActionDispatch/Request.html#method-i-raw_post',
 			},
 		],
 	},

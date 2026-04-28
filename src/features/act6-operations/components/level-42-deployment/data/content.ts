@@ -57,14 +57,78 @@ ssh user@prod "systemctl restart puma"
 - One command deploys to N servers in a coordinated rotation.
 
 **The two config files:**
-- \`config/deploy.yml\` — service name, Docker image, servers, registry, proxy settings. Committed to the repo.
-- \`.kamal/secrets\` — references env vars and commands that resolve to secrets at deploy time. Never contains literal secret values.
+- \`config/deploy.yml\`: service name, Docker image, servers, registry, proxy settings. Committed to the repo.
+- \`.kamal/secrets\`: references env vars and commands that resolve to secrets at deploy time. Never contains literal secret values.
 
 **Commands you'll meet:**
-- \`kamal init\` — scaffolds the two config files.
-- \`kamal setup\` — first-time deploy. Installs Docker on the server, logs in to the registry, runs your app.
-- \`kamal deploy\` — incremental deploy. Reuses the already-prepared servers.
-- \`kamal rollback\` — flip traffic back to the previous image.`,
+- \`kamal init\` scaffolds the two config files.
+- \`kamal setup\` first-time deploy. Installs Docker on the server, logs in to the registry, runs your app.
+- \`kamal deploy\` incremental deploy. Reuses the already-prepared servers.
+- \`kamal rollback\` flip traffic back to the previous image.
+
+**Database migrations during deploy:**
+A new image is useless if the schema does not match. Kamal supports a pre-deploy hook that runs migrations against the production database BEFORE traffic shifts to the new container:
+
+\`\`\`yaml
+# config/deploy.yml
+boot:
+  pre-connect: |
+    docker run --rm --env-file .env $KAMAL_IMAGE \\
+      bin/rails db:migrate
+\`\`\`
+The pattern is: the new image runs migrations using the new schema, the old containers (still serving traffic) continue against the now-migrated database. This works as long as migrations are backward-compatible (covered in L45's safe-migrations rules). A migration that adds a NOT NULL column without a default will break the old containers immediately. Backward-compatible migrations + Kamal's traffic gate = zero-downtime deploy.
+
+**Accessory containers (workers, scheduler, cache):**
+A Rails 8 app does not run as one container. Solid Queue needs a worker process (\`bin/jobs\`), Solid Cable needs the connection adapter, the recurring scheduler needs to be running somewhere. Kamal models these as accessories:
+
+\`\`\`yaml
+accessories:
+  worker:
+    image: my-registry.example.com/my-org/my-app
+    cmd: bin/jobs
+    host: 192.0.2.10
+    env:
+      secret:
+        - RAILS_MASTER_KEY
+        - DATABASE_URL
+\`\`\`
+The accessory uses the same image as the web service, ensuring the worker and the web app are always at the same SHA. Without an accessory definition, \`perform_later\` queues jobs that nothing ever runs (the most common Rails 8 background-jobs bug, called out in \`rails-conventions.md\`).
+
+**Asset precompilation in the image:**
+The Dockerfile runs \`bundle install\` and \`bin/rails assets:precompile\` at build time so the image ships with compiled assets in \`public/assets/\`. Propshaft (Rails 8's default) fingerprints filenames so the same asset can be cached forever. Kamal's proxy serves them with appropriate cache headers. The build is the slow step; runtime startup is fast.
+
+**Image tag immutability:**
+Kamal tags images by git SHA (\`my-app:abc123\`). The tag is immutable: once built and pushed, that SHA always points to the same bytes. Rollback is just "point traffic back to the SHA from yesterday." This is the foundation of \`kamal rollback\`. Never re-tag an image (\`docker push my-app:abc123\` after rebuilding); if you do, rollback no longer means what you think.
+
+**Logs and debugging:**
+\`\`\`bash
+kamal app logs                  # tail logs from the running container
+kamal app logs --grep "5xx"     # filter for errors
+kamal app exec --interactive    # SSH into the running container shell
+kamal app exec "bin/rails runner 'User.count'"  # one-off Rails command
+kamal proxy logs                # the load balancer / health-check logs
+\`\`\`
+You will need these the first time something fails. The wrong move is to SSH the host and \`docker exec\` directly; the right move is the kamal subcommand which respects the deploy lifecycle.
+
+**Multi-environment setup:**
+\`\`\`bash
+kamal deploy -d staging         # uses config/deploy.staging.yml
+kamal deploy -d production      # uses config/deploy.production.yml
+\`\`\`
+Per-environment files override the base \`config/deploy.yml\`. Different servers, different domains, different secrets, same codebase. Production should run the same image SHA staging just verified.
+
+**Smoke tests after deploy:**
+\`\`\`yaml
+healthcheck:
+  path: /up
+  cmd: bin/rails runner "raise unless User.connection.active?"
+  max_attempts: 10
+  interval: 5s
+\`\`\`
+The proxy only shifts traffic after \`/up\` returns 200, but a deeper smoke test (database connection, dependent service reachable) catches the "boots clean but cannot serve real traffic" failure mode. Add as a pre-traffic hook.
+
+**Master key handling:**
+\`RAILS_MASTER_KEY\` lives outside the repo in \`config/master.key\` (git-ignored). \`.kamal/secrets\` references it via \`$(cat config/master.key)\`. In CI, expose the key as a CI secret env var; locally, keep it on disk. Never commit the master key, never paste it in deploy.yml, never log it. The encrypted credentials file is useless without it; the master key is the entire trust boundary.`,
 		railsCodeExample: `# 1. Add Kamal to the project
 #    $ bundle add kamal
 #    $ kamal init
@@ -116,7 +180,14 @@ DATABASE_URL=$(op read "op://prod/app/DATABASE_URL")
 			'Writing literal passwords in config/deploy.yml instead of referencing them through .kamal/secrets',
 			'Shipping without a /up endpoint so the proxy has no way to health-gate a broken release',
 			'Running kamal deploy on a brand-new host before kamal setup has prepared it',
-			'Assuming the old container keeps running forever — Kamal stops it once the new one is healthy',
+			'Assuming the old container keeps running forever. Kamal stops it once the new one is healthy',
+			'No accessory for the Solid Queue worker. perform_later queues jobs and nothing ever runs them',
+			'Running migrations after traffic has shifted instead of before. The new container hits a schema it expects to exist; the old containers still hit the pre-migrated schema',
+			'Migrations that are not backward-compatible (NOT NULL without default, column rename, type change). Old containers crash the moment the migration commits',
+			'Re-tagging an image SHA after rebuilding (kamal rollback no longer points at the bytes you think it does)',
+			'Committing config/master.key or pasting RAILS_MASTER_KEY into deploy.yml. The master key is the entire trust boundary on the encrypted credentials file',
+			'Skipping the smoke-test step. /up returning 200 only proves the boot loop completed; a smoke test catches "boots clean but cannot reach the database"',
+			'SSHing the host and docker exec-ing directly instead of using kamal app exec. Bypasses the deploy lifecycle and can leave orphaned containers',
 		],
 		whenToUse:
 			'Any Rails 8 app going to real users on one or more Linux servers. Kamal is the default for a reason: it is simple, reproducible, and handles zero-downtime rotations without a PaaS.',
@@ -128,6 +199,18 @@ DATABASE_URL=$(op read "op://prod/app/DATABASE_URL")
 			{
 				title: 'Rails 8 release notes: Kamal',
 				url: 'https://guides.rubyonrails.org/8_0_release_notes.html',
+			},
+			{
+				title: 'Kamal accessories',
+				url: 'https://kamal-deploy.org/docs/configuration/accessories/',
+			},
+			{
+				title: 'Kamal hooks',
+				url: 'https://kamal-deploy.org/docs/hooks/overview/',
+			},
+			{
+				title: 'Kamal proxy and SSL',
+				url: 'https://kamal-deploy.org/docs/configuration/proxy/',
 			},
 		],
 	},
