@@ -103,19 +103,15 @@ What does NOT work on its own (all empirically tested in L49):
 
 The general rule for any finite-duration animation primitive: do not rely on React's reconciliation to restart it. Use the primitive's own restart API.
 
-## Research before guessing on browser/library quirks
+## Research before guessing (level-pedagogy application)
 
-The previous section was rewritten three times because the first two attempts skipped the research step. The first attempt threaded a tick counter into dot ids; the second toggled state through dormant mode. Both were plausible-sounding hypotheses about why React Flow / SMIL might not be restarting animations. Both wasted a full debugging round before falling back to actually reading the docs.
+The project-wide rule lives in `.agents/rules/etiquette.md` ("Research before guessing on browser/library/framework quirks") and applies to ALL code, not just levels. When you are debugging a level-pedagogy issue specifically, the same rule applies with these level-specific signals:
 
-The rule: when something doesn't work and the cause is not obvious from the code in front of you, **stop guessing and look it up**. Use WebSearch for the symptom, WebFetch the canonical docs (MDN for browser APIs, the library's own docs for library behaviour, the spec for ambiguous areas). Cite the sources in the fix's commit message or session log.
+- "The dot animation works the first time but not on re-fire." → SVG SMIL element-time / `repeatCount` / `beginElement()` semantics. Read the [MDN beginElement docs](https://developer.mozilla.org/en-US/docs/Web/API/SVGAnimationElement/beginElement) and the [SMIL spec](https://svgwg.org/specs/animations/) before changing code.
+- "The probe state changes in React DevTools but the screen doesn't update." → React Flow's edge memoization. Check the [React Flow performance docs](https://reactflow.dev/learn/advanced-use/performance) for the recommended way to force re-renders.
+- "The CSS class is set but the element doesn't pulse." → check whether the parent variant maps to the right `status` in FlowNode, or read the variant table in this file.
 
-Concrete signals that you should be researching, not guessing:
-- "It works the first time but not subsequent times." (animation lifecycle quirks)
-- "The state changes but the visual doesn't update." (memoization or reconciliation behaviour)
-- "The docs don't say either way, so I'll try X." (you are about to guess)
-- You are about to write a comment that explains your hypothesis instead of citing a source.
-
-Two failed fixes plus a third correct fix is one fix too many. The cost of a 5-minute search up front is far less than the cost of two iterations of debugging plus the user pointing out the fix still doesn't work.
+The L49 "silent re-fire" debugging burned three rounds (tick-into-id, dormant-toggle, finally `beginElement()`) because the first two attempts were plausible-sounding hypotheses dressed up as fixes. The MDN docs would have answered the question in two minutes. Always check the docs first when the cause is non-obvious.
 
 ## Same layout across phases
 
