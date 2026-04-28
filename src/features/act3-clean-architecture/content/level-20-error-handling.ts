@@ -85,7 +85,83 @@ end
 - \`Pundit::NotAuthorizedError\` -> 403
 - \`ActiveRecord::RecordNotUnique\` -> 409
 
-**Order matters:** rescue_from handlers are matched bottom-up. Put the most specific handlers last (they take priority).`,
+**Order matters:** rescue_from handlers are matched bottom-up. Put the most specific handlers last (they take priority).
+
+**Rescue StandardError, never Exception:**
+\`rescue_from StandardError\` is correct. Do NOT \`rescue_from Exception\` (or bare \`rescue\` in Ruby): \`Exception\` includes \`Interrupt\` (Ctrl+C), \`SystemExit\` (deliberate exit), and \`NoMemoryError\` (out of memory). Catching them turns shut-down signals into infinite loops and hides crash conditions that should kill the process. Every error you actually want to handle is a \`StandardError\` subclass.
+
+**Report exceptions to an external service:**
+Logging \`exception.message\` and the first 20 backtrace lines is the bare minimum. At billion-dollar SaaS scale you want full backtrace, request context, user id, request id, and grouping across similar errors. Use Sentry, Honeybadger, Bugsnag, or Rollbar:
+
+\`\`\`ruby
+def internal_server_error(exception)
+  Sentry.capture_exception(exception, extra: {
+    request_id: request.request_id,
+    user_id: Current.user&.id,
+    path: request.path
+  })
+  Rails.logger.error(exception.message)
+
+  render json: {
+    error: {
+      code: "internal_error",
+      message: "An unexpected error occurred",
+      request_id: request.request_id   # so the client can quote it to support
+    }
+  }, status: :internal_server_error
+end
+\`\`\`
+The \`request_id\` in the response is what closes the loop between the user reporting "I got a 500 at 4:23pm" and the on-call engineer finding the line in the log.
+
+**Validation error shape: \`errors.details\`, not \`errors.messages\`:**
+\`record.errors.messages\` returns \`{ name: ["can't be blank"] }\`, which is hardcoded English. \`record.errors.details\` returns \`{ name: [{ error: :blank }] }\` with structured codes the frontend can localize. Modern API clients want the codes:
+
+\`\`\`ruby
+def unprocessable_entity(exception)
+  render json: {
+    error: {
+      code: "validation_failed",
+      message: I18n.t("errors.validation_failed"),
+      details: exception.record.errors.details   # structured, not strings
+    }
+  }, status: :unprocessable_entity
+end
+\`\`\`
+For a client-side i18n setup, send both: \`details\` for the codes, \`messages\` for the rendered fallback.
+
+**HTTP status codes worth handling:**
+The set in the example covers the common ones, but production APIs also return:
+
+- \`429 Too Many Requests\` (rate-limited) with a \`Retry-After\` header so clients can back off correctly. Bare 403 trains clients to give up; 429 trains them to wait.
+- \`503 Service Unavailable\` (circuit breaker open, dependency down) with \`Retry-After\` so clients distinguish "your bug" from "our bug, try again in 30 seconds."
+- \`409 Conflict\` for optimistic-lock failures (\`ActiveRecord::StaleObjectError\`).
+- \`410 Gone\` for sunset endpoints (signaled in the L40 deprecation flow).
+- \`408 Request Timeout\` if your middleware enforces a per-request budget (slow-client kicks).
+
+Each one is a distinct signal to the client. Returning 500 for all of them tells the client nothing.
+
+**RFC 9457 Problem Details (the IETF standard):**
+The shape \`{ error: { code, message, details } }\` is fine for an internal API. For external partners, the IETF standard is \`application/problem+json\` per RFC 9457 (formerly RFC 7807):
+
+\`\`\`json
+{
+  "type": "https://api.example.com/errors/validation_failed",
+  "title": "Validation failed",
+  "status": 422,
+  "detail": "Name can't be blank",
+  "instance": "/api/v1/products",
+  "errors": [{ "field": "name", "code": "blank" }]
+}
+\`\`\`
+The \`type\` is a stable URL the client can switch on. Greenfield public APIs should ship Problem Details from day one; established APIs can add a content-negotiated alternative under \`Accept: application/problem+json\` without breaking existing clients.
+
+**Service-object Result vs \`rescue_from\`: pick a layer:**
+The Act 3 lineage uses Result objects (\`Data.define(:success?, :record, :errors)\`) for explicit failure paths. Mixing that with \`rescue_from\` requires a clear convention:
+
+- **Service-layer failures** (validation, business rules) return \`Result.new(success?: false, ...)\`. The controller checks \`result.success?\` and renders the appropriate status.
+- **Bare ActiveRecord errors** (RecordNotFound, RecordInvalid from a stray \`!\` somewhere deep) propagate up to \`rescue_from\` as the safety net.
+
+Without a convention, one PR catches \`RecordInvalid\` in \`rescue_from\` and the next PR wraps the same error in a Result, and your error responses become inconsistent across endpoints. Document the layer rule in the codebase and stick to it.`,
 		railsCodeExample: `# app/controllers/application_controller.rb
 class ApplicationController < ActionController::API
   rescue_from StandardError, with: :internal_server_error
@@ -243,6 +319,13 @@ end`,
 			'Rescuing StandardError too broadly without logging the original exception',
 			'Not logging the full exception server-side before rendering the safe client message',
 			'Forgetting to handle ActionController::ParameterMissing from params.expect()',
+			'rescue_from Exception instead of StandardError (catches Interrupt and SystemExit, hides crash signals and breaks Ctrl+C)',
+			'Not reporting exceptions to Sentry/Honeybadger/Bugsnag (logs alone are not enough at scale; you need grouping, frequency, and request context)',
+			'No request_id or correlation id in the 500 response (client cannot quote it to support, support cannot find the line in the log)',
+			'Returning 403 for rate-limit violations instead of 429 with a Retry-After header',
+			'Returning 500 for dependency-down conditions instead of 503 (clients cannot distinguish "your bug" from "our bug, try again in 30s")',
+			'Sending errors.messages (English strings) when the frontend needs errors.details (structured codes for i18n)',
+			'Catching ActiveRecord::RecordInvalid in service objects AND in rescue_from with no documented convention (different endpoints emit different error shapes for the same condition)',
 		],
 		whenToUse:
 			'Every API should have centralized error handling in ApplicationController from day one. It is a prerequisite for a reliable API.',
@@ -254,6 +337,18 @@ end`,
 			{
 				title: 'Rails API Error Handling',
 				url: 'https://guides.rubyonrails.org/api_app.html',
+			},
+			{
+				title: 'RFC 9457: Problem Details for HTTP APIs',
+				url: 'https://www.rfc-editor.org/rfc/rfc9457',
+			},
+			{
+				title: 'Sentry for Ruby on Rails',
+				url: 'https://docs.sentry.io/platforms/ruby/guides/rails/',
+			},
+			{
+				title: 'errors.details vs errors.messages',
+				url: 'https://api.rubyonrails.org/classes/ActiveModel/Errors.html#method-i-details',
 			},
 		],
 	},

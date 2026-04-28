@@ -66,7 +66,67 @@ $ bin/rails middleware
 - Structured request/response logging
 - Bot detection and early rejection
 - Custom security headers
-- Request timing and metrics`,
+- Request timing and metrics
+
+**Per-request state: \`ActiveSupport::CurrentAttributes\` over \`Thread.current\`:**
+The example below stashes the request id in \`Thread.current[:request_id]\`. That works on Puma (threaded) but breaks on fiber-based servers like Falcon, where many fibers share one thread and stomp on each other's thread-locals. Rails ships a primitive for this exact problem:
+
+\`\`\`ruby
+# app/models/current.rb
+class Current < ActiveSupport::CurrentAttributes
+  attribute :request_id, :user, :tenant_id
+end
+
+# In the middleware
+Current.request_id = env['HTTP_X_REQUEST_ID']
+
+# Anywhere in the app
+Rails.logger.info(request_id: Current.request_id)
+\`\`\`
+Rails resets \`CurrentAttributes\` between requests automatically, so the manual \`ensure Thread.current[:request_id] = nil\` cleanup goes away. \`Current\` is fiber-safe and is the only correct choice for any per-request state that crosses files.
+
+**Distributed tracing: \`traceparent\` over \`X-Request-Id\`:**
+\`X-Request-Id\` is fine inside one app. Once you have N services calling each other, the modern standard is the W3C Trace Context header \`traceparent\` (and its companion \`tracestate\`). OpenTelemetry, Datadog, Honeycomb, and Sentry all read it directly. Generate a \`traceparent\` if upstream did not send one, propagate it on every outgoing HTTP call, and log the trace id alongside the request id. Without this, a single request crossing five services produces five disconnected log streams and incident debugging is guesswork.
+
+**Structured logging: \`lograge\` or \`Rails.logger.tagged\`:**
+\`Rails.logger.info({ ... }.to_json)\` works but is fragile (one stray newline in a value breaks the parser). At production scale either:
+
+1. Use the \`lograge\` gem to collapse Rails' default multi-line per-request log into one structured line, with \`Lograge.custom_options\` injecting the trace id and tenant.
+2. Use \`Rails.logger.tagged(Current.request_id) { ... }\` so every line in the request is automatically prefixed with the id, then ship logs via a JSON formatter (Fluent Bit, Vector, the AWS firehose).
+
+Bare \`.to_json\` middleware logging is a starter pattern, not a production one.
+
+**Abuse and bot detection: \`Rack::Attack\` over hand-rolled regex:**
+The hand-rolled \`BOT_PATTERNS\` regex below is a maintenance trap: every new bot is a regex edit. \`Rack::Attack\` is the production standard and supports throttling ("20 requests/sec per IP"), banning ("block this IP for an hour after the third 4xx"), and pattern blocking with built-in safe lists for known good crawlers. Pair with \`Rack::Attack.throttled_response\` to return \`429 Too Many Requests\` with a \`Retry-After\` header, not \`403\`.
+
+\`\`\`ruby
+# config/initializers/rack_attack.rb
+class Rack::Attack
+  throttle("req/ip", limit: 300, period: 5.minutes) { |req| req.ip }
+  blocklist("scrape-bots") do |req|
+    Rack::Attack::Fail2Ban.filter("scrape-#{req.ip}",
+      maxretry: 5, findtime: 1.minute, bantime: 1.hour) do
+      req.path.start_with?("/api/") && req.user_agent =~ /\\b(curl|wget)\\b/i
+    end
+  end
+end
+\`\`\`
+
+**Health-check exemption:**
+Rails 8 ships a health-check route at \`/up\`. Load balancers hit it every few seconds. If your logging middleware logs \`/up\` and your bot-detection middleware 403s curl-style user agents, the load balancer floods the logs and eventually trips the bot detector. Production middleware skips both for known health-check paths:
+
+\`\`\`ruby
+def call(env)
+  return @app.call(env) if env['PATH_INFO'] == '/up'
+  # ... real work
+end
+\`\`\`
+
+**Rack 3: header keys are lowercase:**
+Rack 3 (Rails 7.1+) requires response header keys to be lowercase strings. The example writes \`headers['X-Request-Id']\`; under Rack 3 that should be \`headers['x-request-id']\`. Mixed-case keys still work for now via deprecation shims but will break in future Rack versions. New code: lowercase everywhere.
+
+**Middleware order: verify with \`bin/rails middleware\`:**
+\`insert_before 0\` puts a middleware above \`HostAuthorization\`, which means it runs even on requests that would otherwise be rejected for a bad Host header. That is fine for request-id assignment (you want every request tagged) but wrong for anything that assumes the request has been validated. After every middleware change, run \`bin/rails middleware\` and read the stack top-to-bottom.`,
 		railsCodeExample: `# lib/middleware/request_id_tracker.rb
 class RequestIdTracker
   def initialize(app)
@@ -166,6 +226,13 @@ end
 			'Middleware that catches exceptions silently (hiding errors)',
 			'Inserting middleware in the wrong order (logging after auth, etc.)',
 			'Not cleaning up Thread.current after the request (memory leak across requests)',
+			'Using Thread.current for per-request state on fiber-based servers like Falcon (fibers share threads and stomp each other). Use ActiveSupport::CurrentAttributes',
+			'Logging the health-check path (/up) on every load-balancer ping. Skip it explicitly to keep signal-to-noise high',
+			'Hand-rolling bot detection with a regex instead of using Rack::Attack with throttle + Fail2Ban (every new bot is a regex edit and there is no rate-limiting envelope)',
+			'Returning 403 for rate-limit violations instead of 429 with a Retry-After header (clients cannot back off correctly without 429)',
+			'Setting response header keys with mixed case under Rack 3 (works via deprecation shim, will break)',
+			'Generating a fresh X-Request-Id on every hop instead of propagating the upstream value (breaks log correlation across services). Same for traceparent: read it first, only generate when missing',
+			'Using bare Rails.logger.info(...to_json) for production logs. Either tag with Rails.logger.tagged or install lograge so each request emits one structured line',
 		],
 		whenToUse:
 			'Use middleware for concerns that apply to every request: logging, auth, tracking, security headers, bot detection.',
@@ -177,6 +244,22 @@ end
 			{
 				title: 'Rack Specification',
 				url: 'https://github.com/rack/rack/blob/main/SPEC.rdoc',
+			},
+			{
+				title: 'ActiveSupport::CurrentAttributes',
+				url: 'https://api.rubyonrails.org/classes/ActiveSupport/CurrentAttributes.html',
+			},
+			{
+				title: 'Rack::Attack',
+				url: 'https://github.com/rack/rack-attack',
+			},
+			{
+				title: 'W3C Trace Context (traceparent)',
+				url: 'https://www.w3.org/TR/trace-context/',
+			},
+			{
+				title: 'Lograge',
+				url: 'https://github.com/roidrage/lograge',
 			},
 		],
 	},

@@ -63,7 +63,63 @@ export const level36Encryption: Level = {
 - Three keys: \`primary_key\`, \`deterministic_key\`, \`key_derivation_salt\`
 - Data is encrypted before writing to the database
 - Data is decrypted after reading from the database
-- Application code sees plaintext; database stores ciphertext`,
+- Application code sees plaintext; database stores ciphertext
+
+**Frequency analysis (why deterministic is "less secure"):**
+Deterministic encryption produces the same ciphertext for the same plaintext. An attacker who steals the database can count how often each ciphertext appears. If \`status\` is encrypted deterministically, the most common ciphertext is almost certainly \`active\`, and the rare one is \`banned\`. They have not broken the encryption, but they have learned which rows mean what. The rule of thumb: deterministic for fields where the value space is large and uniformly distributed (emails, SSNs); non-deterministic for low-cardinality categorical fields where the distribution itself is sensitive (medical diagnosis, account tier).
+
+**Migrating existing plaintext data (the real procedure):**
+Adding \`encrypts :email\` to a model with existing rows does NOT encrypt them. Reads of those old rows raise an error by default once \`encrypts\` is declared. The safe migration path:
+
+1. Add \`encrypts :email, deterministic: true, support_unencrypted_data: true\` first. The flag tells Rails to read old plaintext rows and encrypt new writes.
+2. Backfill in batches (do NOT load the whole table at once):
+\`\`\`ruby
+User.find_each(batch_size: 1000) do |user|
+  next if user.attribute_was_encrypted?(:email)
+  user.email = user.email   # forces a re-write through the encryptor
+  user.save!(validate: false)
+end
+\`\`\`
+3. Once the backfill completes and verification passes, remove \`support_unencrypted_data: true\` and deploy. From then on, any plaintext row raises and you know the backfill missed something.
+
+The flag \`Rails.application.config.active_record.encryption.support_unencrypted_data = true\` exists as a global escape hatch but is dangerous: a single unencrypted row past the cut-over slips through silently. Per-attribute is safer.
+
+**Key rotation (the production procedure):**
+Rails supports key rotation via the \`previous\` keys list. The procedure:
+
+\`\`\`ruby
+# config/application.rb (or an initializer)
+config.active_record.encryption.previous = [
+  { primary_key: ENV['OLD_PRIMARY_KEY'],
+    deterministic_key: ENV['OLD_DETERMINISTIC_KEY'],
+    key_derivation_salt: ENV['OLD_SALT'] }
+]
+\`\`\`
+Reads try the current key first, fall back to each \`previous\` entry. Writes always use the current key. To complete the rotation:
+
+1. Generate new keys, deploy with both current and previous configured.
+2. Re-encrypt the data: \`Rails.application.config.active_record.encryption.previous_schemes\` lets you trigger \`User.find_each(&:encrypt!)\` (model-level) or batch by attribute.
+3. Once re-encryption is verified, remove the \`previous\` entry. From then on, anything still encrypted with the old key raises.
+
+Compliance review (SOC 2, HIPAA, PCI) usually requires documented rotation cadence (annual at minimum, faster on suspected compromise). Plan for it before launch, not after the audit finding.
+
+**External key management (HSM / cloud KMS):**
+For shops with strict compliance posture (FedRAMP High, HIPAA with BAAs, PCI Level 1), the encryption key cannot live in Rails credentials at all. The pattern is to fetch the data key at boot from AWS KMS, GCP KMS, HashiCorp Vault, or a hardware HSM, and pass it into the encryption config:
+
+\`\`\`ruby
+# config/initializers/encryption_keys.rb
+keys = AwsKmsClient.fetch_encryption_keys  # returns the three-key hash
+Rails.application.config.active_record.encryption.primary_key = keys[:primary]
+Rails.application.config.active_record.encryption.deterministic_key = keys[:deterministic]
+Rails.application.config.active_record.encryption.key_derivation_salt = keys[:salt]
+\`\`\`
+This way the key never sits on disk, key rotation is a KMS API call, and an attacker who reads the application server filesystem still cannot decrypt the database.
+
+**What encryption does NOT replace:**
+- It does not encrypt the column name or row count (an attacker still sees how many users you have).
+- It does not encrypt query patterns (\`WHERE email = ?\` still leaks that you queried by email).
+- Backups inherit the same encryption, but backups also need the key. Plan key escrow for backups.
+- Full-text search becomes impossible. \`encrypts :description\` (non-deterministic) means \`WHERE description LIKE '%foo%'\` returns nothing. If the field needs both encryption and search, use deterministic encryption for exact-match lookup OR push search to a separate index that you encrypt at the document level.`,
 		railsCodeExample: `# Step 1: Generate encryption keys
 # bin/rails db:encryption:init
 # Outputs keys to add to credentials:
@@ -130,6 +186,12 @@ Rails.application.config.active_record.encryption.previous = [
 			'Forgetting to migrate existing plaintext data after adding encrypts',
 			'Not storing encryption keys in Rails credentials (hardcoding in code)',
 			'Not planning for key rotation before going to production',
+			'Adding encrypts to a column with existing rows without support_unencrypted_data: true (every existing row read raises until backfilled)',
+			'Backfilling existing data with User.update_all (skips the encryptor; rows look encrypted but are still plaintext on disk)',
+			'Using deterministic encryption on low-cardinality fields like status or tier (the ciphertext distribution leaks the value distribution)',
+			"Assuming WHERE description LIKE '%foo%' still works after encrypts :description (non-deterministic encryption makes substring search impossible; plan a separate searchable index)",
+			'Storing the encryption key in the same credentials file you commit to git (leaked repo == leaked database). Use ENV-injected keys or a KMS for production',
+			'No documented key rotation cadence (compliance auditors will ask; design for it before launch)',
 		],
 		whenToUse:
 			'Any PII or sensitive data stored in the database. Required for GDPR, HIPAA, SOC2 compliance. Rails 8 makes this a one-liner.',
@@ -141,6 +203,14 @@ Rails.application.config.active_record.encryption.previous = [
 			{
 				title: 'Rails 8 Encryption Guide',
 				url: 'https://edgeguides.rubyonrails.org/active_record_encryption.html',
+			},
+			{
+				title: 'AWS KMS for application-layer encryption',
+				url: 'https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html',
+			},
+			{
+				title: 'GCP Cloud KMS',
+				url: 'https://cloud.google.com/kms/docs/key-management-service',
 			},
 		],
 	},

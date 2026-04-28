@@ -124,7 +124,86 @@ end
 
 **Scopes vs. query objects:** For single-purpose filters, use named scopes (\`scope :visible, -> { where.not(listed_at: nil) }\`). Query objects are the next step when you need composable, multi-filter logic that spans parameters.
 
-**Key principle:** Always return \`ActiveRecord::Relation\`, never \`.to_a\` or \`.map\`. This preserves lazy loading and lets callers add pagination, includes, or further scopes.`,
+**Key principle:** Always return \`ActiveRecord::Relation\`, never \`.to_a\` or \`.map\`. This preserves lazy loading and lets callers add pagination, includes, or further scopes.
+
+**Compose with Pundit, do not bypass authorization:**
+A query object that returns \`Product.all\` returns every product, including ones the current user is not allowed to see. The production-safe pattern combines query objects with \`policy_scope\` so the user's authorization IS the base scope:
+
+\`\`\`ruby
+def index
+  base = policy_scope(Product)            # Pundit narrows to what user can see
+  products = ProductQuery.new(base)
+    .by_seller(params[:seller_id])
+    .results
+  render json: products
+end
+\`\`\`
+The query object never knows about authorization; the caller composes the two layers.
+
+**Eager-load INSIDE the query object:**
+A query object that returns 100 products and then the controller calls \`.map(&:reviews)\` produces 100 + 1 queries. Either: (a) document that the caller must add \`.includes\`, or (b) embed it in the query object as a chainable filter so the dependency is explicit:
+
+\`\`\`ruby
+def with_reviews
+  @scope = @scope.includes(:reviews, :tags)
+  self
+end
+\`\`\`
+Option (b) is the safer default: the consumer of the query object cannot accidentally trigger N+1.
+
+**Cursor pagination over offset pagination:**
+\`Product.limit(100).offset(50_000)\` makes Postgres scan 50,100 rows to return 100. At a few thousand rows the cost is invisible; at a few million it is the slowest endpoint in the app. Cursor pagination uses an indexed comparison instead:
+
+\`\`\`ruby
+def after(last_id)
+  return self if last_id.blank?
+  @scope = @scope.where("products.id > ?", last_id)
+  self
+end
+\`\`\`
+The result is O(1) regardless of how deep the user has paged. The \`pagy\` gem supports both styles. Use offset for admin tables that page 10 deep; use cursor for any list that scrolls.
+
+**EXPLAIN every new query:**
+Before shipping a query object method, run \`Product.all.explain\` (or \`ProductQuery.new.with_min_reviews(5).results.explain\`) and read the plan. Look for \`Seq Scan\` on tables with more than ~10K rows, or \`Sort\` lines without a matching index. The most common production performance bug is "fast in dev because the table has 200 rows; sequential-scans 50M in prod." The fix is almost always an index, occasionally a query rewrite.
+
+**Subquery composition: \`where(id: relation)\`, not \`pluck\`:**
+The wrong shape:
+\`\`\`ruby
+hot_seller_ids = User.where(...).pluck(:id)        # materializes IDs in Ruby
+@scope = @scope.where(seller_id: hot_seller_ids)   # then sends them all back
+\`\`\`
+The right shape:
+\`\`\`ruby
+@scope = @scope.where(seller_id: User.where(...))  # one SQL subquery, indexed
+\`\`\`
+\`pluck\` followed by \`where(id: array)\` is the same query expressed in the worst possible way: round-trip through Ruby memory, then a giant IN clause. Pass the relation, let Postgres push down the join.
+
+**OR composition needs \`merge\` or \`.or\`:**
+Chained \`where\` is implicitly AND. To express "active products that are EITHER discounted OR in the top tag," use \`.or\`:
+
+\`\`\`ruby
+def discounted_or_top_tagged
+  @scope = @scope.where(active: true).where(
+    discounted_scope.or(top_tagged_scope).where_clause.ast
+  )
+  self
+end
+\`\`\`
+Or compose by merging two named scopes. Mixing \`.or\` with eager loading has gotchas (\`includes\` may be silently dropped); test with EXPLAIN.
+
+**Read replicas: route reads to the replica, writes to primary:**
+Most billion-dollar SaaS apps have a primary database for writes and one or more read replicas for analytical queries. Wrapping the query object body in a \`connected_to\` block lets Rails route the SELECTs to the replica:
+
+\`\`\`ruby
+def call
+  ActiveRecord::Base.connected_to(role: :reading) do
+    ProductQuery.new
+      .listed(params[:listed])
+      .results
+  end
+end
+\`\`\`
+Replicas have replication lag (typically 50-500ms). Never use a replica for "I just wrote this row, now read it back" flows; that race condition is the cause of "ghost data" reports.`,
 		railsCodeExample: `# app/queries/application_query.rb
 class ApplicationQuery
   attr_reader :scope
@@ -291,6 +370,12 @@ end`,
 			'One giant method instead of composable filters (defeats the purpose of query objects)',
 			'Putting query object logic in model scopes instead (scopes are fine for simple single-purpose filters, but query objects compose better for multi-filter scenarios)',
 			'Forgetting to pass IDs instead of ActiveRecord objects for serialization-safe job arguments',
+			'Calling Model.all as the base scope instead of policy_scope(Model). The query object now silently bypasses Pundit authorization',
+			'Caller does .results.map(&:reviews) and triggers N+1. Embed .includes in the query object so the eager load is part of the contract',
+			"OFFSET pagination on a table that grows to millions of rows. Use cursor pagination (where('id > ?', last_id)) for any list that scrolls past the first few pages",
+			'Shipping a new query method without running .explain to verify the plan. "Fast in dev, sequential scan in prod" is the most common scaling bug',
+			'Materializing a subquery via pluck (round-trip through Ruby memory). Pass the relation directly: where(seller_id: User.where(...)) lets Postgres push the join down',
+			'Using read replicas for write-then-read flows (replication lag causes ghost-data reports). Reads after writes go to primary',
 		],
 		whenToUse:
 			'When a controller has >15 lines of query logic, when the same filters are needed in multiple controllers or jobs, or when queries involve complex JOINs, GROUP BY, or subqueries.',
@@ -302,6 +387,18 @@ end`,
 			{
 				title: 'Ransack Gem (alternative for simple search/filter UIs)',
 				url: 'https://github.com/activerecord-hackery/ransack',
+			},
+			{
+				title: 'pagy (cursor + offset pagination)',
+				url: 'https://github.com/ddnexus/pagy',
+			},
+			{
+				title: 'Active Record multiple databases (read replicas)',
+				url: 'https://guides.rubyonrails.org/active_record_multiple_databases.html',
+			},
+			{
+				title: 'PostgreSQL EXPLAIN docs',
+				url: 'https://www.postgresql.org/docs/current/sql-explain.html',
 			},
 		],
 	},
