@@ -55,7 +55,43 @@ export const level6Controller: Level = {
 **Testing your API:**
 - Use curl or Postman to send requests directly
 - No browser frontend is needed yet
-- This keeps things simple: one terminal for Rails, one for curl`,
+- This keeps things simple: one terminal for Rails, one for curl
+
+**\`before_action\` to DRY up shared setup:**
+The example below repeats \`Product.find(params[:id])\` in three actions (\`show\`, \`update\`, \`destroy\`). The conventional Rails idiom is a \`before_action\` callback that runs before the listed actions and assigns the shared instance variable:
+
+\`\`\`ruby
+class Api::V1::ProductsController < ApplicationController
+  before_action :set_product, only: [:show, :update, :destroy]
+
+  def show
+    render json: @product
+  end
+
+  def update
+    if @product.update(product_params)
+      render json: @product
+    else
+      render json: { errors: @product.errors }, status: :unprocessable_entity
+    end
+  end
+
+  def destroy
+    @product.destroy
+    head :no_content
+  end
+
+  private
+
+  def set_product
+    @product = Product.find(params[:id])
+  end
+end
+\`\`\`
+A failed \`Product.find\` raises \`ActiveRecord::RecordNotFound\`, which the centralized error handler (taught in L20) converts to a 404. With a single source of truth for "load the product," you get consistent behavior across actions for free.
+
+**Strong parameters: \`params.expect\` is the Rails 8 default:**
+The example below uses \`params.require(:product).permit(...)\`, which is the long-standing form. Rails 8 introduced \`params.expect(product: [:name, :description, :price])\` as the production-safe default for new code. \`expect\` enforces the SHAPE of the request (\`product\` must be a hash, not a string), where \`require/permit\` lets a malformed shape slip through with a confusing error message. L14 teaches \`expect\` in detail; from there onward, all new controllers in this curriculum use it.`,
 		railsCodeExample: `# app/controllers/api/v1/products_controller.rb
 class Api::V1::ProductsController < ApplicationController
   def index
@@ -107,6 +143,9 @@ end
 			'Forgetting to return proper HTTP status codes',
 			'Rendering HTML instead of JSON in API controllers',
 			'Not namespacing controllers under Api::V1 to match routes',
+			'Repeating Product.find(params[:id]) in show / update / destroy. Use before_action :set_product, only: [:show, :update, :destroy] so the lookup lives in one place',
+			'Writing new controllers with params.require(:thing).permit(...) when params.expect(thing: [...]) is the Rails 8 default. The require/permit form is grandfathered for older controllers; new code goes straight to expect',
+			'Returning 200 OK with an error body (clients cannot distinguish success from failure). 422 for validation failures, 404 for missing records, 401 for unauthenticated, 403 for unauthorized',
 		],
 		whenToUse: 'Every API endpoint needs a controller action.',
 		furtherReading: [

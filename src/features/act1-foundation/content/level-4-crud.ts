@@ -62,7 +62,16 @@ export const level4CRUD: Level = {
 **Update:** \`product.update(attrs)\` or \`product.attribute = value\` + \`product.save\`
 **Destroy:** \`product.destroy\` (removes from DB)
 
-ActiveRecord translates these into SQL queries automatically.`,
+ActiveRecord translates these into SQL queries automatically.
+
+**Bang vs non-bang (\`save\` vs \`save!\`, \`create\` vs \`create!\`):**
+Almost every write method has two forms. \`create\` returns the record whether or not it was actually saved (you have to check \`record.persisted?\` or \`record.errors.any?\` to know). \`create!\` raises \`ActiveRecord::RecordInvalid\` if validations fail. Same for \`save\` / \`save!\` and \`update\` / \`update!\`.
+
+The rule:
+- **Use the bang form** in scripts, the console, seeds, migrations, and anywhere you EXPECT the write to succeed. Failure should crash loud, not return a quiet invalid record that propagates downstream.
+- **Use the non-bang form** in controllers and any code that explicitly handles validation failure (\`if product.save; ...; else; render :unprocessable_entity; end\`).
+
+Returning a silently-invalid record is the source of "the record didn't save and I can't figure out why" bugs. Default to bang; switch to non-bang only when you have a branch for the failure path.`,
 		railsCodeExample: `# CREATE - two ways
 product = Product.create(name: "Laptop", description: "16-inch display", price: 999.99)
 # or
@@ -89,6 +98,9 @@ Product.destroy_all                  # DELETE FROM products (careful!)`,
 			'Not checking if save/update returns false',
 			'Using find when find_by would be safer (find raises on not found)',
 			'Calling destroy_all without conditions',
+			'Using create / save / update in scripts and seeds where you expect success. The non-bang form returns silently on validation failure; use create! / save! / update! so failure crashes loud',
+			'Passing Float literals like price: 999.99 to a decimal column. Floats lose precision at large magnitudes; pass BigDecimal("999.99") or "999.99" so the value reaches the database without going through Float',
+			'Using update_column or update_columns to "skip a callback." It also skips validations AND the updated_at timestamp, leaving rows that fail later validations and break audit trails. Almost always the wrong tool',
 		],
 		whenToUse: 'These are the building blocks of every Rails feature.',
 		furtherReading: [

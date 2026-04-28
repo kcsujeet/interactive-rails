@@ -140,7 +140,40 @@ export const level8Associations: Level = {
 **has_many :through**: Products have many categories through categorizations (many-to-many)
 
 The foreign key (\`product_id\`) lives on the \`belongs_to\` side (reviews table).
-Always add \`dependent: :destroy\` to clean up child records.`,
+Always add \`dependent: :destroy\` to clean up child records.
+
+**Pick \`dependent:\` deliberately, never default:**
+Four real choices, each one a different decision:
+- \`:destroy\` runs callbacks on each child (use when children have their own cleanup like after_commit jobs).
+- \`:delete_all\` issues a single \`DELETE FROM reviews WHERE product_id = ?\` and skips callbacks (faster, use when children have no cleanup logic).
+- \`:nullify\` sets \`product_id = NULL\` on children (use when children should outlive their parent).
+- \`:restrict_with_error\` blocks the parent's destroy if any children exist (use when orphans would corrupt invariants).
+
+A bare \`has_many :reviews\` with no \`dependent:\` orphans the children silently when the parent is destroyed. Convention: every \`has_many\` and \`has_one\` ships with an explicit \`dependent:\`.
+
+**Foreign key constraints AT THE DATABASE:**
+\`t.references :product, null: false, foreign_key: true\` adds three things: the \`product_id\` column, an index on it, and a database-level FK constraint. The FK constraint matters: without it, a stray \`Product.delete\` (skipping callbacks) leaves orphaned reviews and the database has no idea. The constraint makes Postgres refuse the delete, and Rails surfaces the error. Defense in depth: \`dependent:\` at the model layer, FK constraint at the database layer.
+
+**\`inverse_of:\` keeps both sides of the relationship in sync:**
+When parent and child are loaded in memory, modifying one should be reflected on the other. Rails 5+ auto-detects \`inverse_of\` in common cases, but explicit is safer:
+
+\`\`\`ruby
+class Product < ApplicationRecord
+  has_many :reviews, inverse_of: :product, dependent: :destroy
+end
+
+class Review < ApplicationRecord
+  belongs_to :product, inverse_of: :reviews
+end
+\`\`\`
+Without \`inverse_of\`, this surprises:
+
+\`\`\`ruby
+product = Product.find(1)
+review = product.reviews.first
+review.product.equal?(product)   # false without inverse_of, true with
+\`\`\`
+Auto-detect fails most often when the FK column name doesn't match (e.g. \`reviewer_id\` instead of \`product_id\`) or when the association uses a custom \`class_name:\`. The failure mode is "the child saw a stale parent in memory" and is painful to debug. Always set \`inverse_of:\` explicitly.`,
 		railsCodeExample: `# app/models/product.rb
 class Product < ApplicationRecord
   has_many :reviews, dependent: :destroy
@@ -175,6 +208,9 @@ end`,
 			'Forgetting dependent: :destroy (orphaned records)',
 			'Not adding a foreign key index',
 			'Not including associations in the serializer',
+			'Declaring has_many without an explicit dependent: option (silent orphans on parent destroy)',
+			'Adding the FK column without foreign_key: true on the migration (database has no referential integrity, an unexpected delete leaves orphans the database does not know about)',
+			'Skipping inverse_of: on bidirectional associations (auto-detect fails on custom class_name or non-conventional FK column, causing in-memory parent/child to drift out of sync)',
 		],
 		whenToUse: 'has_many when one record owns multiple of another type.',
 		furtherReading: [
