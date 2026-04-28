@@ -7,6 +7,7 @@ import { level45SafeMigrations } from './level-45-safe-migrations';
 import { level46RecurringJobs } from './level-46-recurring-jobs';
 import { level47DataLifecycle } from './level-47-data-lifecycle';
 import { level48ErrorMonitoring } from './level-48-error-monitoring';
+import { level49FeatureFlags } from './level-49-feature-flags';
 
 export const actSix: Act = {
 	id: 6,
@@ -23,6 +24,7 @@ export const actSix: Act = {
 		level46RecurringJobs,
 		level47DataLifecycle,
 		level48ErrorMonitoring,
+		level49FeatureFlags,
 	],
 	unlockedNodes: ['middleware', 'rate_limiter', 'audit_trail', 'recurring_job'],
 	metricsVisible: true,
