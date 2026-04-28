@@ -3,48 +3,63 @@ import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
 export const PROBES: ProbeConfig[] = [
 	{
 		id: 'rollout-everyone',
-		label: 'Roll out new payment processor to all customers',
-		command: 'POST /api/v1/payments (every user routes to new processor)',
+		label: 'Customer pays during peak (3% drop, 30 min to roll back)',
+		command: 'POST /api/v1/payments (cart total: $87, 4:23pm peak)',
 		responseLines: [
 			{ text: 'HTTP/1.1 500 Internal Server Error', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: '3% of charges fail at peak traffic (NewPaymentProcessor edge case)',
+				text: 'NewPaymentProcessor edge case under peak load.',
 				color: 'yellow',
 			},
 			{
-				text: 'Only fix: revert + Kamal redeploy. ~30 minutes of impact.',
+				text: 'Customer cart abandoned. Refund will issue automatically.',
+				color: 'yellow',
+			},
+			{
+				text: 'Engineering paged. Rolling back: git revert + Kamal redeploy ~30 min.',
+				color: 'red',
+			},
+			{
+				text: 'During the deploy window, more customers fall into the 3% bucket.',
 				color: 'red',
 			},
 		],
 		story: [
-			'A new payment processor ships behind no flag, so the deploy IS the release.',
-			'Three percent of charges fail at peak. Customers see error toasts.',
-			'There is no toggle. The only way out is to revert the commit and redeploy.',
-			'A Kamal redeploy is roughly 30 minutes door-to-door. The whole time, charges are still failing.',
+			'A customer pays during peak traffic, at 4:23pm.',
+			'The request hits the new payment processor.',
+			'The processor has an edge case that fails 3% of charges under peak load.',
+			'This customer is in the 3%. Their charge returns 500. Customer sees an error.',
+			'Engineering notices. Tries to roll back. Without a runtime toggle, the only option is git revert + Kamal redeploy: about 30 minutes.',
+			'For the next 30 minutes, more customers fall into the 3% bucket and keep getting failed charges.',
 		],
 	},
 	{
 		id: 'marketing-pin-time',
-		label: 'Flip launch toggle at Tuesday 9:00am sharp',
-		command: 'POST /admin/launch-toggles/new_payment_processor/enable',
+		label: 'Customer pays Monday 4pm (after deploy, before launch)',
+		command: 'POST /api/v1/payments (cart total: $59)',
 		responseLines: [
-			{ text: 'HTTP/1.1 409 Conflict', color: 'red' },
+			{ text: 'HTTP/1.1 201 Created', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'Engineering can land code Mon; deploys are coordinated, not exact.',
+				text: 'Charged via NewPaymentProcessor. Feature is live.',
 				color: 'yellow',
 			},
 			{
-				text: 'No mechanism to ship code now and release it at a specific later moment.',
+				text: 'But Marketing has not announced yet. The launch is happening early.',
+				color: 'red',
+			},
+			{
+				text: 'Without a runtime toggle, deploy time IS launch time.',
 				color: 'red',
 			},
 		],
 		story: [
-			'Marketing has scheduled a launch announcement for Tuesday at 9:00am sharp.',
-			'Engineering can have the code merged and deployed by Monday afternoon.',
-			'There is no way to make "code is in production" and "feature is visible to users" happen at different times.',
-			'Either we deploy Tuesday at 9am sharp (risky, hand-wavy) or we miss the announcement window.',
+			'Marketing has scheduled the launch announcement for Tuesday at 9:00am sharp.',
+			'Engineering deployed the new processor Monday at lunch (deploys happen when code is ready).',
+			'A customer pays Monday at 4pm and unknowingly hits the new processor.',
+			'The feature is live, but Marketing has not announced it. The launch is happening off-schedule, before the email blast goes out.',
+			'Without a runtime toggle, you cannot ship the code now and release the feature at a specific later moment.',
 		],
 	},
 	{

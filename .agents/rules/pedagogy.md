@@ -150,6 +150,50 @@ Even probes that aren't about a request flowing need to drive motion. If you fin
 
 If a probe genuinely has no activated edges, it must drive visible animation through other means: a different node escalating to `'critical'`, a badge appearing, a variant change.
 
+### Probe action must match the request flow shown in the visualization
+
+If the probe label describes one kind of action ("Marketing flips a toggle") but the visualization shows a different flow (the customer payment pipeline), the player gets confused. They expect the request to follow the action, and when it stops at an unexpected node or doesn't go anywhere meaningful, they assume the visualization is broken.
+
+Two ways to make probe action and visualization agree:
+
+1. **Reframe the probe as an action that uses the existing flow.** If the topology is the customer payment pipeline, the probe should be a customer action -- ideally an action whose CONSEQUENCE (success or failure) reveals the pain.
+2. **Show the alternate flow explicitly.** If the probe genuinely simulates a different request type (e.g. an admin POST to a non-existent endpoint), make it visually obvious where that request stops and why -- not a quiet dead-end at AppServer with no explanation.
+
+Pain does NOT have to mean a failed request. A request that **succeeds at the wrong time** is also pain: the customer pays, the charge goes through to the new processor, but Marketing has not announced the launch yet. The success itself is the pain. The visualization communicates this through node state (`LIVE EARLY` badge, "serving customers before announcement" sublabel) rather than a 500.
+
+Worked example (L49 marketing-pin-time): the original probe was "Flip launch toggle at Tuesday 9:00am" with badge `DEPLOY != LAUNCH`. The action was an admin toggle attempt; the visualization showed the customer payment pipeline. The request stopped at AppServer with cryptic jargon. Confusing. The fix: reframe the probe as "Customer pays Monday 4pm (after deploy, before launch)." Same pain (timing mismatch), but the request now flows naturally through to NewProcessor with concrete `LIVE EARLY` framing. The visualization matches the action.
+
+### Plain-English badges and sublabels
+
+Audience-first (`.agents/rules/level-content.md`) requires that all player-visible text be readable by a first-time developer. Badges have very limited screen space, so the temptation is to compress to jargon (`DEPLOY != LAUNCH`, `MTTR 30m`, `429 RL`). Resist:
+
+- Use short, urgent words: `FAIL`, `TIMEOUT`, `MISSING`, `KILL`, `LIVE EARLY`, `NO TOGGLE`.
+- Avoid acronyms unless the level itself teaches them: `MTTR`, `SLA`, `MTBF`.
+- Avoid mathematical/operator notation: `DEPLOY != LAUNCH` requires the player to parse `!=` and figure out what either side means.
+- Sublabels can be longer (a short phrase) but must still be plain English: "feature live the moment code deploys" beats "deploy = release coupling."
+
+If a badge is the wrong kind of token (jargon, acronym, operator notation), it does not communicate, no matter how short.
+
+### Visual labels and terminal narrative tell the same story
+
+Badges and sublabels are not decoration. They must spell out the SAME concrete consequence the terminal response and probe story describe. Vague intermediate-state words (`FAIL`, `BAD`, `BROKEN`) communicate that something is wrong but not WHAT or for HOW LONG. The visualization is the player's primary teaching surface; if the badge is vaguer than the terminal text, the visualization is underperforming.
+
+Two checks:
+
+1. **Read the terminal narrative aloud, then read the badges and sublabels.** They should agree on the specific harm: how many users affected, how long the pain lasts, what the operator can or cannot do, what the customer experiences.
+2. **Replace any vague badge with the concrete consequence.** `FAIL` -> `3% FAIL`. `BROKEN` -> `STUCK 30 MIN`. `DOWN` -> `NO KILL SWITCH`.
+
+```
+BAD:  badge "FAIL" + sublabel "edge case"            (vague; what kind of fail? for whom?)
+BAD:  badge "DEPLOY 30 MIN" + sublabel "..."         (timer-style, no consequence)
+GOOD: badge "3% FAIL"
+      + sublabel "edge case under peak load. customer charge returned 500."
+GOOD: badge "STUCK 30 MIN"
+      + sublabel "no kill switch; only fix is a full redeploy"
+```
+
+The two-node split for one probe is a useful pattern: one node carries the operator pain (e.g. AppServer = `STUCK 30 MIN` / "only fix is a full redeploy"), the other carries the customer pain (e.g. NewProcessor = `3% FAIL` / "customer charge returned 500"). Spreading the pain across nodes lets each one tell a fuller piece of the story without overloading any single label.
+
 ### Probe labels are verb-led actions, not statements
 
 ```
@@ -336,4 +380,8 @@ L49 (Feature Flags) was the worked failure example for nearly every section of t
 
 10. **Round 9 -- pedagogy rule was incomplete.** A pedagogy rule that was meant to prevent skill-level failures was itself missing major rules from the design-level and audit-level skills (narrative reasoning, actor table, concept foundation check, visualization type selection, pair-design probes+scenarios, reward replays observe, mechanism-not-metric, no-node-blank, animations-match-story, show-duality, nodes-same-kind-of-thing, 1:1 PROBE_DISCOVERY_MAP, no-activate-phase). → restructured the rule into Pre-flight / Observe / Build / Reward / Engineering quality / Engineering process sections and audited every section of both skills.
 
-The reflexive lesson: **the pedagogy rule itself must be audited against the skills regularly.** A rule that is incomplete is worse than a rule that is missing entirely, because the rule's existence creates the impression that the contained rules are sufficient.
+11. **Round 10 -- probe action did not match the visualization, and badges were jargon.** The marketing-pin-time probe was labelled "Flip launch toggle at Tuesday 9:00am" -- an admin toggle attempt -- but the visualization showed the customer payment pipeline. The request stopped at AppServer for unclear reasons, and the badge said `DEPLOY != LAUNCH`, which required the player to parse the `!=` operator and figure out what either side meant. User complaint: "what is deploy != launch mean? why isn't my request going to the last node?" → introduced the "Probe action must match the request flow" rule (with the reframe-or-show-the-alternate-flow choice and the "pain via success at the wrong time" pattern) and the "Plain-English badges and sublabels" rule (refer to audience-first in `level-content.md`; avoid acronyms / operators / jargon in badges). The fix: reframe the probe as "Customer pays Monday 4pm (after deploy, before launch)" with badges `NO TIMING CONTROL` and `LIVE EARLY`. Same pain, request flows naturally through to NewProcessor.
+
+12. **Round 11 -- visualization labels did not match the terminal narrative.** The rollout-everyone probe terminal said "3% of charges fail at peak traffic (NewPaymentProcessor edge case)" with a story about engineers stuck in a 30-minute revert window, but the node badges said `DEPLOY 30 MIN` and `FAIL` -- vague tokens that communicated something was wrong without saying WHAT, for WHOM, or for HOW LONG. User complaint: "the nodes say 'deploy: 30 in' and 'fail' but the terminal says '3% of charges fail at peak traffic'... 'fail' doesn't convey what went wrong. the visualization is very weak altogether." → introduced the "Visual labels and terminal narrative tell the same story" rule and the two-node split pattern (one node carries operator pain, the other customer pain). Fix: AppServer = `STUCK 30 MIN` / "no kill switch; only fix is a full redeploy"; NewProcessor = `3% FAIL` / "edge case under peak load. customer charge returned 500." Same probe, but the visualization now teaches the same specific harm the terminal describes.
+
+The reflexive lesson: **the pedagogy rule itself must be audited against the skills regularly, and against new failure modes the user surfaces.** A rule that is incomplete is worse than a rule that is missing entirely, because the rule's existence creates the impression that the contained rules are sufficient.

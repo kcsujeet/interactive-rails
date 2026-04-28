@@ -218,13 +218,23 @@ describe('Level 49: Feature Flags & Staged Rollouts', () => {
 			}
 		});
 
-		test('every probe label matches its scenario label exactly', () => {
+		test('every probe and scenario label share the same prefix (the action) per the design-level mirror rule', () => {
+			// design-level skill: probe and scenario labels mirror with a
+			// parenthetical change ("POST create payment" ->
+			// "POST create payment (with push)"). Identical labels are
+			// also allowed. The shared prefix up to the first parenthetical
+			// must match -- it identifies the action being replayed.
+			const stripParenthetical = (s: string) =>
+				s.replace(/\s*\([^)]*\)\s*$/, '').trim();
 			for (const probe of PROBES) {
 				const scenario = STRESS_SCENARIOS.find((s) => s.id === probe.id);
 				expect(scenario, `no scenario for probe ${probe.id}`).toBeDefined();
-				expect(scenario?.label, `label mismatch for ${probe.id}`).toBe(
-					probe.label,
-				);
+				const probeAction = stripParenthetical(probe.label);
+				const scenarioAction = stripParenthetical(scenario?.label ?? '');
+				expect(
+					scenarioAction,
+					`probe "${probe.label}" and scenario "${scenario?.label}" do not share an action prefix`,
+				).toBe(probeAction);
 			}
 		});
 
@@ -282,10 +292,7 @@ describe('Level 49: Feature Flags & Staged Rollouts', () => {
 
 		test('observe edges form a single linear path (client -> app -> new processor)', () => {
 			const edges = OBSERVE_CONNECTIONS.map((c) => `${c.from}-${c.to}`);
-			expect(edges).toEqual([
-				'client-app-server',
-				'app-server-new-processor',
-			]);
+			expect(edges).toEqual(['client-app-server', 'app-server-new-processor']);
 		});
 
 		test('reward topology adds the flag-gate and the legacy-processor (the build adds new infrastructure)', () => {

@@ -181,38 +181,45 @@ export interface ProbeObserveOverride {
 }
 
 export const PROBE_OBSERVE_OVERRIDES: Record<string, ProbeObserveOverride> = {
-	// Engineering tries to roll back the new processor. There is no
-	// toggle: the only path is git revert + Kamal redeploy.
+	// A customer pays at peak. Their request hits a new-processor edge
+	// case that fails 3% of charges. Engineering can only roll back via
+	// a 30-minute redeploy. Each node carries one piece of the pain:
+	// AppServer = the operational pain (stuck for 30 min), NewProcessor
+	// = the customer pain (3% of charges return 500).
 	'rollout-everyone': {
 		stages: {
 			'app-server': {
 				variant: 'critical',
-				badge: 'DEPLOY: 30 min',
-				sublabel: 'rolling back via git revert',
+				badge: 'STUCK 30 MIN',
+				sublabel: 'no kill switch; only fix is a full redeploy',
 			},
 			'new-processor': {
 				variant: 'critical',
-				badge: 'FAIL',
-				sublabel: '3% of charges 500ing during the deploy window',
+				badge: '3% FAIL',
+				sublabel: 'edge case under peak load. customer charge returned 500.',
 			},
 		},
 		activeConnections: ['client-app-server', 'app-server-new-processor'],
 	},
-	// Marketing wants Tuesday 9:00am sharp. The deploy window does not
-	// match the launch window. There is no scheduling system.
+	// A customer pays Monday afternoon -- after the deploy, before
+	// Marketing's Tuesday 9:00am announcement. Without a runtime
+	// toggle, the feature went live the moment the code shipped.
+	// The customer hits the new processor unbeknownst to anyone who
+	// scheduled the launch for Tuesday.
 	'marketing-pin-time': {
 		stages: {
 			'app-server': {
 				variant: 'critical',
-				badge: 'DEPLOY != LAUNCH',
-				sublabel: 'no way to schedule a release',
+				badge: 'NO TIMING CONTROL',
+				sublabel: 'feature live the moment code deploys',
 			},
 			'new-processor': {
-				variant: 'danger',
-				sublabel: 'lives or dies with the deploy timing',
+				variant: 'critical',
+				badge: 'LIVE EARLY',
+				sublabel: 'serving customers before Tuesday 9am announcement',
 			},
 		},
-		activeConnections: ['client-app-server'],
+		activeConnections: ['client-app-server', 'app-server-new-processor'],
 	},
 	// Vendor returns 500s. There is no kill switch. Customer requests
 	// are still being routed to a failing service.
@@ -250,43 +257,44 @@ export const SCENARIO_REWARD_OVERRIDES: Record<string, ScenarioRewardOverride> =
 		'rollout-everyone': {
 			stages: {
 				'flag-gate': {
-					sublabel: '100% (full launch)',
+					sublabel: 'flipped OFF when 3% rate detected',
 					variant: 'active',
+					badge: 'KILLED <1s',
 				},
 				'new-processor': {
-					sublabel: 'serving 100% of traffic',
-					variant: 'active',
+					sublabel: 'edge case bypassed',
+					variant: 'inactive',
 				},
 				'legacy-processor': {
-					sublabel: 'unused',
-					variant: 'inactive',
+					sublabel: 'serving customer payment instead',
+					variant: 'active',
 				},
 			},
 			activeConnections: [
 				'client-app-server',
 				'app-server-flag-gate',
-				'flag-gate-new-processor',
+				'flag-gate-legacy-processor',
 			],
 		},
 		'marketing-pin-time': {
 			stages: {
 				'flag-gate': {
-					sublabel: 'flipped at 9:00am',
+					sublabel: 'flag OFF until Tuesday 9am',
 					variant: 'active',
 				},
 				'new-processor': {
-					sublabel: 'launched on schedule',
-					variant: 'active',
+					sublabel: 'will go live at 9am sharp',
+					variant: 'inactive',
 				},
 				'legacy-processor': {
-					sublabel: 'unused',
-					variant: 'inactive',
+					sublabel: 'serving Monday traffic',
+					variant: 'active',
 				},
 			},
 			activeConnections: [
 				'client-app-server',
 				'app-server-flag-gate',
-				'flag-gate-new-processor',
+				'flag-gate-legacy-processor',
 			],
 		},
 		'vendor-flaky': {

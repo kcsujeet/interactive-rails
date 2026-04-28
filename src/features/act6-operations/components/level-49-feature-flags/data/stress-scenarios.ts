@@ -4,22 +4,22 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 	// Probe-matched scenarios (one per probe, same id and label)
 	{
 		id: 'rollout-everyone',
-		label: 'Roll out new payment processor to all customers',
+		label: 'Customer pays during peak (3% drop, instant rollback)',
 		description:
-			'Flag at 100%: all traffic routes to NewPaymentProcessor. Same as the broken state, but now we can roll back instantly.',
+			'Same customer paying $87 at 4:23pm. Edge case still hits 3%, but now: oncall flips the flag in <1s, traffic shifts back to legacy. Total customer impact ~3% for ~10 seconds, not 30 minutes.',
 		method: 'POST',
 		path: '/api/v1/payments',
-		actor: 'all_customers',
+		actor: 'customer_peak_4_23pm',
 		expectedResult: 'allowed',
 	},
 	{
 		id: 'marketing-pin-time',
-		label: 'Flip launch toggle at Tuesday 9:00am sharp',
+		label: 'Customer pays Monday 4pm (after deploy, before launch)',
 		description:
-			'Code shipped Monday, off. Marketing flips the flag at Tuesday 9:00am. Time-to-launch: <1s.',
+			'Same customer paying Monday 4pm. Code shipped Monday with the flag OFF. Customer routes through legacy. Tuesday 9am: marketing flips the flag. New processor goes live exactly at announcement.',
 		method: 'POST',
-		path: '/admin/flipper/features/new_payment_processor/enable',
-		actor: 'marketing_admin',
+		path: '/api/v1/payments',
+		actor: 'customer_monday_4pm',
 		expectedResult: 'allowed',
 	},
 	{
