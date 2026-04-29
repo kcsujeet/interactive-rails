@@ -106,9 +106,9 @@ User.find_by(email: "joe@gmail.com")
 		goal: `In this level, you'll:\n- automatically clean and transform user input before it hits the database.\n- give a model a fixed-set attribute (draft / listed / sold) the database can validate.\n- find the right place for after-save side effects so the model stays simple and tests stay fast.`,
 		conceptExplanation: `**Two jobs the model SHOULD do:**
 
-1. **Normalization** — Rails 8's \`normalizes\` is a declarative API that cleans values BOTH on write and on finder queries. Use it for stripping whitespace, downcasing, and other deterministic shaping of attributes. Replaces the older \`before_save :downcase_email\` recipe, which only ran on writes (so a lookup with a clean value still missed a dirty stored row).
+1. **Normalization**, Rails 8's \`normalizes\` is a declarative API that cleans values BOTH on write and on finder queries. Use it for stripping whitespace, downcasing, and other deterministic shaping of attributes. Replaces the older \`before_save :downcase_email\` recipe, which only ran on writes (so a lookup with a clean value still missed a dirty stored row).
 
-2. **Fixed-set attributes** — when an attribute is one-of-a-fixed-set (draft / listed / sold, draft / published / archived, queued / running / done), use \`enum\` with **string-encoded** values: \`enum :status, draft: "draft", listed: "listed", sold: "sold"\`. The string keys ARE the database values, so a row dump reads as \`status: "listed"\` instead of \`status: 1\`. You also get \`product.listed?\`, \`product.listed!\`, and the scope \`Product.listed\` for free.
+2. **Fixed-set attributes**, when an attribute is one-of-a-fixed-set (draft / listed / sold, draft / published / archived, queued / running / done), use \`enum\` with **string-encoded** values: \`enum :status, draft: "draft", listed: "listed", sold: "sold"\`. The string keys ARE the database values, so a row dump reads as \`status: "listed"\` instead of \`status: 1\`. You also get \`product.listed?\`, \`product.listed!\`, and the scope \`Product.listed\` for free.
 
 **One job the model should NOT do: contextual side effects.**
 
@@ -119,7 +119,7 @@ A side effect is "contextual" when it depends on _why_ the record was saved, not
 - the trigger gets buried inside the model, invisible to the controller that called \`@user.save\`
 - the model becomes untestable in isolation
 
-The fix is to call mailers and jobs **explicitly** — from the controller, or from a service the controller calls, so the trigger sits next to the action that caused it.`,
+The fix is to call mailers and jobs **explicitly**, from the controller, or from a service the controller calls, so the trigger sits next to the action that caused it.`,
 		railsCodeExample: `# app/models/user.rb -- normalization in callbacks IS fine
 class User < ApplicationRecord
   has_secure_password

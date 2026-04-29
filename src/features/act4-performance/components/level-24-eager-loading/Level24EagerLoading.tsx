@@ -662,7 +662,7 @@ const OPTION_STEP_CONFIG: Record<
 	2: {
 		title: 'Fix Filtered Query',
 		description:
-			'The service needs products WHERE tags.active = true. This filters by an association column. Pick the method that handles this with the least ceremony — idiomatic Rails should do the right thing automatically.',
+			'The service needs products WHERE tags.active = true. This filters by an association column. Pick the method that handles this with the least ceremony, idiomatic Rails should do the right thing automatically.',
 		options: [
 			{
 				id: 'preload',

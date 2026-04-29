@@ -31,7 +31,7 @@ export const NORMALIZATION_OPTIONS: StepOption[] = [
 	},
 ];
 
-// Step 1: Add a status enum (NEW — string-encoded, the production-safe default)
+// Step 1: Add a status enum (NEW, string-encoded, the production-safe default)
 export const STATUS_ENUM_OPTIONS: StepOption[] = [
 	{
 		id: 'plain-string',
@@ -54,7 +54,7 @@ export const STATUS_ENUM_OPTIONS: StepOption[] = [
 	},
 ];
 
-// Step 2: Send the Welcome Email (REFRAMED — anti-pattern motivator)
+// Step 2: Send the Welcome Email (REFRAMED, anti-pattern motivator)
 // Correct answer: extract to an explicit call from the controller, not a callback.
 export const WELCOME_EMAIL_OPTIONS: StepOption[] = [
 	{
@@ -69,7 +69,7 @@ export const WELCOME_EMAIL_OPTIONS: StepOption[] = [
 		label: 'after_commit :send_welcome_email, on: :create',
 		correct: false,
 		feedback:
-			'Moving the side effect to a different lifecycle hook is the same anti-pattern in different clothing. Test runs and seed scripts still fire real mail. The signup controller still hides the trigger. The fix is not a different hook — it is no hook.',
+			'Moving the side effect to a different lifecycle hook is the same anti-pattern in different clothing. Test runs and seed scripts still fire real mail. The signup controller still hides the trigger. The fix is not a different hook, it is no hook.',
 	},
 	{
 		id: 'controller-call',
@@ -78,7 +78,7 @@ export const WELCOME_EMAIL_OPTIONS: StepOption[] = [
 	},
 ];
 
-// Step 3: Sync to External Service (REFRAMED — anti-pattern motivator)
+// Step 3: Sync to External Service (REFRAMED, anti-pattern motivator)
 // Correct answer: enqueue a background job from the controller (or a service)
 // after the save, not from the model lifecycle.
 export const EXTERNAL_SYNC_OPTIONS: StepOption[] = [

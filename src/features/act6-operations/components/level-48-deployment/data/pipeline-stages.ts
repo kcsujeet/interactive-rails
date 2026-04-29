@@ -246,7 +246,7 @@ export const PROBE_FRAMES: Record<string, PipelineFrame[]> = {
 	],
 	// Rollback = another full deploy. Laptop stays red through most of the
 	// sequence (multiple risky ops) and server eventually RECOVERS at the
-	// end. Only probe with a "RECOVERED" frame — but the total outage was ~4min.
+	// end. Only probe with a "RECOVERED" frame, but the total outage was ~4min.
 	rollback: [
 		{
 			stages: makeObserveStages(
@@ -362,7 +362,7 @@ export function buildStagesFor(completedStep: number): PipelineStage[] {
 		variant: 'inactive',
 	};
 	if (completedStep >= 4) {
-		proxySpec = { sublabel: '/up 200 — routing', variant: 'active' };
+		proxySpec = { sublabel: '/up 200, routing', variant: 'active' };
 	} else if (completedStep >= 2) {
 		proxySpec = { sublabel: '/up health check', variant: 'default' };
 	} else if (completedStep >= 1) {
@@ -398,7 +398,7 @@ export function buildStagesFor(completedStep: number): PipelineStage[] {
 export const rewardIdleStages: PipelineStage[] = makeStages({
 	laptop: { sublabel: 'kamal deploy', variant: 'active' },
 	registry: { sublabel: 'image ready (v1)', variant: 'active' },
-	proxy: { sublabel: '/up 200 — routing', variant: 'active' },
+	proxy: { sublabel: '/up 200, routing', variant: 'active' },
 	container: { sublabel: 'v1 healthy', variant: 'active' },
 	server: { sublabel: 'fleet healthy', variant: 'active' },
 });
@@ -433,7 +433,7 @@ export const SCENARIO_FRAMES: Record<string, PipelineFrame[]> = {
 			stages: makeStages({
 				laptop: { sublabel: 'deploy complete', variant: 'active' },
 				registry: { sublabel: 'image: v2', variant: 'active' },
-				proxy: { sublabel: '/up 200 — shifted to v2', variant: 'active' },
+				proxy: { sublabel: '/up 200, shifted to v2', variant: 'active' },
 				container: {
 					sublabel: 'v2 healthy  |  v1 stopped',
 					variant: 'active',
@@ -477,7 +477,7 @@ export const SCENARIO_FRAMES: Record<string, PipelineFrame[]> = {
 			stages: makeStages({
 				laptop: { sublabel: 'deploy aborted', variant: 'active' },
 				registry: { sublabel: 'v1 + v2 tags', variant: 'active' },
-				proxy: { sublabel: 'gate held — v1 only', variant: 'active' },
+				proxy: { sublabel: 'gate held, v1 only', variant: 'active' },
 				container: {
 					sublabel: 'v1 live  |  v2 stopped',
 					variant: 'active',
@@ -525,7 +525,7 @@ export const SCENARIO_FRAMES: Record<string, PipelineFrame[]> = {
 			stages: makeStages({
 				laptop: { sublabel: 'rolled back (2.1s)', variant: 'active' },
 				registry: { sublabel: 'image: v1', variant: 'active' },
-				proxy: { sublabel: '/up 200 — routing v1', variant: 'active' },
+				proxy: { sublabel: '/up 200, routing v1', variant: 'active' },
 				container: { sublabel: 'v1 healthy', variant: 'active' },
 				server: { sublabel: 'fleet serving v1', variant: 'active' },
 			}),
@@ -571,7 +571,7 @@ export const SCENARIO_FRAMES: Record<string, PipelineFrame[]> = {
 			stages: makeStages({
 				laptop: { sublabel: 'fleet deploy complete', variant: 'active' },
 				registry: { sublabel: 'image: v2', variant: 'active' },
-				proxy: { sublabel: '/up 200 — routing v2', variant: 'active' },
+				proxy: { sublabel: '/up 200, routing v2', variant: 'active' },
 				container: {
 					sublabel: 'prod1: v2  |  prod2: v2',
 					variant: 'active',
@@ -587,7 +587,7 @@ export const SCENARIO_FRAMES: Record<string, PipelineFrame[]> = {
 			stages: makeStages({
 				laptop: { sublabel: 'kamal deploy v3', variant: 'active' },
 				registry: { sublabel: 'image: v2', variant: 'active' },
-				proxy: { sublabel: '/up 200 — routing v2', variant: 'active' },
+				proxy: { sublabel: '/up 200, routing v2', variant: 'active' },
 				container: { sublabel: 'v2 healthy', variant: 'active' },
 				server: { sublabel: 'fleet serving v2', variant: 'active' },
 			}),
@@ -601,7 +601,7 @@ export const SCENARIO_FRAMES: Record<string, PipelineFrame[]> = {
 					badge: 'BUILD FAIL',
 				},
 				registry: { sublabel: 'image: v2 (unchanged)', variant: 'active' },
-				proxy: { sublabel: '/up 200 — routing v2', variant: 'active' },
+				proxy: { sublabel: '/up 200, routing v2', variant: 'active' },
 				container: { sublabel: 'v2 healthy', variant: 'active' },
 				server: { sublabel: 'fleet serving v2', variant: 'active' },
 			}),
@@ -614,7 +614,7 @@ export const SCENARIO_FRAMES: Record<string, PipelineFrame[]> = {
 					variant: 'active',
 				},
 				registry: { sublabel: 'image: v2', variant: 'active' },
-				proxy: { sublabel: '/up 200 — routing v2', variant: 'active' },
+				proxy: { sublabel: '/up 200, routing v2', variant: 'active' },
 				container: { sublabel: 'v2 healthy', variant: 'active' },
 				server: { sublabel: 'fleet serving v2', variant: 'active' },
 			}),

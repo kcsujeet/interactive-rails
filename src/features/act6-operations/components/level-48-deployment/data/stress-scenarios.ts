@@ -43,7 +43,7 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 		],
 		story: [
 			'Same kind of release where DATABASE_URL was missing.',
-			'v2 boots, so systemctl would say "OK" — same as the observe probe.',
+			'v2 boots, so systemctl would say "OK", same as the observe probe.',
 			'This time the proxy polls `/up` before shifting any traffic.',
 			'`/up` returns 500 because the app cannot reach the DB.',
 			'The proxy retries 10 times, then gives up.',
@@ -65,7 +65,7 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 			{ text: 'Elapsed: 2.1s. No rebuild, no install.', color: 'green' },
 		],
 		story: [
-			'Same situation as the git-reset rollback — a bad release is serving traffic.',
+			'Same situation as the git-reset rollback, a bad release is serving traffic.',
 			'This time: `kamal rollback <previous-sha>`.',
 			'The v1 image is already on every server (it was the last healthy image).',
 			'The proxy swaps its routing target back to the v1 container.',
@@ -92,7 +92,7 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 		],
 		story: [
 			'Same two-server fleet you tried to scp to by hand.',
-			'Kamal pulls the same image sha onto both servers — no network-blip ambiguity.',
+			'Kamal pulls the same image sha onto both servers, no network-blip ambiguity.',
 			'prod1 rotates first. The proxy waits for its `/up` to return 200.',
 			'Once prod1 is healthy, prod2 starts its rotation.',
 			'At least one healthy server is serving at every moment.',
@@ -117,7 +117,7 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 			{ text: '\u2713 0 failed user requests.', color: 'green' },
 		],
 		story: [
-			'Same drift problem the git-pull probe showed — but caught before prod sees it.',
+			'Same drift problem the git-pull probe showed, but caught before prod sees it.',
 			'Kamal builds the image locally first.',
 			'The Dockerfile has a typo. Build fails.',
 			'`kamal deploy` aborts before pushing to the registry.',
