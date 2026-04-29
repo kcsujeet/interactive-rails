@@ -102,17 +102,19 @@ bin/rails generate authentication
 		goal: `In this level, you'll:\n- secure your API so every request is tied to a real user.\n- use Rails 8's built-in authentication generator to scaffold user and session models.\n- learn how Rails stores passwords safely using one-way hashing.\n- set up Bearer token authentication so clients can prove who they are on every request.`,
 		conceptExplanation: `Rails 8 includes a built-in authentication generator, so there is no more Devise dependency for basic auth.
 
-**\`bin/rails generate authentication\`** creates:
-- User model with \`has_secure_password\` (bcrypt)
-- Session model for managing tokens
-- Authentication concern for controllers
-- Login/logout controller scaffolding
+**\`bin/rails generate authentication\`** creates these files (verified against the [Rails generator templates](https://github.com/rails/rails/tree/main/railties/lib/rails/generators/rails/authentication/templates)):
+- \`User\` model (with \`has_secure_password\`, bcrypt)
+- \`Session\` model (just \`belongs_to :user\`, no \`token\` column by default; the session is identified by its primary-key \`id\`)
+- \`Authentication\` concern (\`Session.find_by(id: cookies.signed[:session_id])\` lookup)
+- \`SessionsController\` (HTML redirects, \`User.authenticate_by(email_address:, password:)\`, \`rate_limit to: 10, within: 3.minutes\`)
 
-**API mode with Bearer tokens:**
-- Sessions use cookies by default, but APIs need tokens
-- Generate a token on login, return it in JSON
-- Client sends \`Authorization: Bearer <token>\` on every request
-- The Authentication concern's \`require_authentication\` verifies it
+**The generator is full-stack, cookie-based, HTML-redirect.** That is the correct default for a Rails app serving HTML pages. For an API-only app the player just generated in L2 (\`--api\` flag), every one of those defaults needs to change:
+
+- Cookies → Bearer tokens. Add a \`token:string\` column to the \`Session\` migration. Look up sessions by token, not by signed-cookie id.
+- HTML redirects → JSON responses. Replace \`redirect_to\` with \`render json:\`.
+- The generator pre-fills \`User.authenticate_by(params.permit(:email_address, :password))\`. The level uses the simpler \`email:\` column name; you can rename in the migration if you prefer.
+
+**The build steps walk through the customizations.** When you read the resulting \`authentication.rb\` concern in the right panel, that is YOUR customized code, not the generator's output verbatim.
 
 **\`authenticate_by\` (the modern login check):**
 
@@ -152,7 +154,8 @@ class User < ApplicationRecord
   has_many :sessions, dependent: :destroy
 end
 
-# app/controllers/concerns/authentication.rb (generated)
+# app/controllers/concerns/authentication.rb (CUSTOMIZED for API + bearer tokens)
+# (generator default does Session.find_by(id: cookies.signed[:session_id]); we replace with the bearer-token lookup below)
 module Authentication
   extend ActiveSupport::Concern
 
