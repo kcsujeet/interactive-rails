@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-// ── Mirrored data from Level43RateLimiting.tsx ──
+// ── Mirrored data from Level42RateLimiting.tsx ──
 
 const DISCOVERY_DEFS = [
 	{ id: 'no-ip-limit', label: 'No per-IP request throttling' },

@@ -58,7 +58,7 @@ import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
-registerLevelCode('act6-level48-error-monitoring', () =>
+registerLevelCode('act6-level47-error-monitoring', () =>
 	getCodeFiles('reward', STEP_DEFS.length),
 );
 
@@ -1414,7 +1414,7 @@ const STEP_DESCRIPTIONS: Record<number, string> = {
 
 // ─── Main component ────────────────────────────────────────────────────
 
-export function Level48ErrorMonitoring({ onComplete }: LevelComponentProps) {
+export function Level47ErrorMonitoring({ onComplete }: LevelComponentProps) {
 	const [phase, setPhase] = useState<'observe' | 'build' | 'reward'>('observe');
 	const isReward = phase === 'reward';
 
@@ -1859,4 +1859,4 @@ export function Level48ErrorMonitoring({ onComplete }: LevelComponentProps) {
 	);
 }
 
-export default Level48ErrorMonitoring;
+export default Level47ErrorMonitoring;

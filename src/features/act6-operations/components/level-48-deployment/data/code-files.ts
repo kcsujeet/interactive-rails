@@ -166,6 +166,6 @@ kamal rollback <previous-sha>`,
 	];
 }
 
-registerLevelCode('act6-level42-deployment', () =>
+registerLevelCode('act6-level48-deployment', () =>
 	getCodeFiles('reward', STEP_DEFS.length),
 );

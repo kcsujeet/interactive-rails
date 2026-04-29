@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-// ── Mirrored data from Level47DataLifecycle.tsx ──
+// ── Mirrored data from Level46DataLifecycle.tsx ──
 
 const DISCOVERY_DEFS = [
 	{ id: 'slow-recent', label: 'Recent order queries scan 50M rows' },

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-// ── Mirrored data from Level48ErrorMonitoring.tsx ──
+// ── Mirrored data from Level47ErrorMonitoring.tsx ──
 
 const DISCOVERY_DEFS = [
 	{ id: 'no-context', label: 'Errors lack user/request context' },

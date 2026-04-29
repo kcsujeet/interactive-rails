@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-// ── Mirrored data from Level45SafeMigrations.tsx ──
+// ── Mirrored data from Level44SafeMigrations.tsx ──
 
 const DISCOVERY_DEFS = [
 	{ id: 'add-column-lock', label: 'add_column with default locks table' },

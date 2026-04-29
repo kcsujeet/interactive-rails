@@ -1,5 +1,5 @@
 /**
- * Level 42: Deployment with Kamal
+ * Level 48: Deployment with Kamal
  *
  * Thin orchestrator. Holds phase state and hooks, hands them to the
  * per-phase components. See ObservePhase, BuildPhase, RewardPhase for the
@@ -24,7 +24,7 @@ import { RewardPhase } from './RewardPhase';
 
 type Phase = 'observe' | 'build' | 'reward';
 
-export function Level42Deployment({ onComplete }: LevelComponentProps) {
+export function Level48Deployment({ onComplete }: LevelComponentProps) {
 	const [phase, setPhase] = useState<Phase>('observe');
 	const [wrongFeedback, setWrongFeedback] = useState<string | null>(null);
 
@@ -95,4 +95,4 @@ export function Level42Deployment({ onComplete }: LevelComponentProps) {
 	);
 }
 
-export default Level42Deployment;
+export default Level48Deployment;

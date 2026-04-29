@@ -64,7 +64,7 @@ import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
-registerLevelCode('act6-level45-safe-migrations', () =>
+registerLevelCode('act6-level44-safe-migrations', () =>
 	getCodeFiles('reward', STEP_DEFS.length),
 );
 
@@ -1298,7 +1298,7 @@ const migEdgeTypes = { mig: MigEdge };
 
 // ─── Main component ────────────────────────────────────────────────────
 
-export function Level45SafeMigrations({ onComplete }: LevelComponentProps) {
+export function Level44SafeMigrations({ onComplete }: LevelComponentProps) {
 	const [phase, setPhase] = useState<'observe' | 'build' | 'reward'>('observe');
 	const isReward = phase === 'reward';
 
@@ -1799,4 +1799,4 @@ export function Level45SafeMigrations({ onComplete }: LevelComponentProps) {
 	);
 }
 
-export default Level45SafeMigrations;
+export default Level44SafeMigrations;

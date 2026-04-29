@@ -1,10 +1,10 @@
 import type { Level } from '@/types';
 import { standardPipeline } from '@/utils/pipelineTemplates';
 
-export const level45SafeMigrations: Level = {
-	id: 'act6-level45-safe-migrations',
+export const level44SafeMigrations: Level = {
+	id: 'act6-level44-safe-migrations',
 	actId: 6,
-	levelNumber: 45,
+	levelNumber: 44,
 	name: 'Safe Migrations',
 	trigger: {
 		type: 'outage',

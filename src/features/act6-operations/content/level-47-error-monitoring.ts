@@ -1,10 +1,10 @@
 import type { Level } from '@/types';
 import { middlewarePipeline } from '@/utils/pipelineTemplates';
 
-export const level48ErrorMonitoring: Level = {
-	id: 'act6-level48-error-monitoring',
+export const level47ErrorMonitoring: Level = {
+	id: 'act6-level47-error-monitoring',
 	actId: 6,
-	levelNumber: 48,
+	levelNumber: 47,
 	name: 'Structured Error Monitoring',
 	trigger: {
 		type: 'user_complaint',
@@ -52,58 +52,53 @@ end
 - set up structured error monitoring so you know when things break in production before your users tell you.
 - report errors with rich context like user ID and request ID so you can reproduce issues quickly.
 - route errors to a monitoring service for grouping, alerting, and prioritization.`,
-		conceptExplanation: `**Error monitoring** transforms raw exceptions into actionable insights:
+		conceptExplanation: `Your app crashes sometimes. When it does, you need to know **when it crashed**, **who it crashed for**, and **what they were doing**. Without that, you find out about errors the same way customers do: someone tweets, someone files a support ticket, hours later. Error monitoring closes that gap.
 
-**Without SLOs:**
-\`\`\`
-PagerDuty fires at 3 AM: "High error rate"
-Team: "Is this a real problem or a blip?"
-      "What's the normal error rate?"
-      "Should we wake more people up?"
-No answers. Every alert feels equally urgent.
-\`\`\`
+This level is about the EXCEPTION layer of observability. (L53 covers the broader picture: logs, metrics, traces. Cross-reference there for latency, performance, and request-flow monitoring.)
 
-**With SLOs:**
+**Without error monitoring:**
 \`\`\`
-SLO:           p95 latency ≤ 200ms, 99% of the time, 30-day rolling window
-Current:       99.3%, within budget
-Error budget:  0.3% remaining (was 1%)
-Alert:         "Error budget at 30%, freeze risky deploys"
-Decision:      Clear, data-driven, no guesswork
+Customer: "Your checkout is broken!"
+Team: "Broken how? When? For everyone or just you?"
+Logs: 18,000 lines of unstructured text. Find the relevant one.
 \`\`\`
 
-**SLOs, SLIs, and error budgets explained:**
-- **SLI (Service Level Indicator):** The metric being measured (e.g., latency p95)
-- **SLO (Service Level Objective):** The goal (e.g., p95 ≤ 200ms, 99% of the time over 30-day window)
-- **SLA (Service Level Agreement):** Contractual agreement with customers (consequences if breached)
-- **Error budget:** If SLO is 99%, you have 1% budget for failures. Spend it on risky deploys/experiments. When exhausted → freeze features, fix reliability
+**With error monitoring (Sentry / Honeybadger / Bugsnag):**
+\`\`\`
+Slack alert: "NoMethodError on PaymentsController#create, 47 occurrences in last 5 min"
+Click through: full backtrace, the exact request params, the user's id, the
+release SHA, breadcrumbs of what happened in the 30 seconds before the crash.
+You know what to fix, who to apologize to, and which release introduced it.
+\`\`\`
 
-**Latency percentiles (measure what matters):**
-- **p50 (median):** Half of requests faster, half slower. Hides tail latency
-- **p75:** 75% of requests faster than this value
-- **p90:** 90% of requests. Starting to see edge cases
-- **p95 (industry standard):** Captures the experience of 1-in-20 users. Alert on this, not averages
-- **p99:** Worst 1%. Often reveals infrastructure problems
-- **p99.9:** Extreme outliers. GC pauses, network hiccups, cold caches
-- **Why not averages?** A 200ms average can hide a p99 of 5 seconds. Averages lie; percentiles reveal the tail
+**What an error monitoring tool gives you:**
+- **Grouping:** Identical exceptions from different users collapse into one issue. 47 customers hit the same NoMethodError -> one entry, count = 47, not 47 separate noise events.
+- **Context:** Every captured error carries the user id, request id, params, IP, headers, and a timeline of recent log lines. You can reproduce the bug without guessing.
+- **Alerting:** Slack / PagerDuty / email when the error rate spikes or a new exception type appears. Tunable so you don't get paged for known noise.
+- **Trends:** "Is this error getting worse or better?" The dashboard answers in seconds.
 
-**Monitoring cost warning:** Coinbase spent $65M/year on Datadog. Temporary metrics from old projects linger forever. Review periodically and delete unused dashboards and metrics.
+**Error-rate SLO (the budget that gates risky deploys):**
+An SLO is a goal you commit to. The simplest one is "99.9% of requests succeed." That gives you a 0.1% **error budget**: room for failures before you've broken your promise. The budget is the link between reliability and feature work:
 
-**Key capabilities:**
-- **Grouping:** Same error type from different users grouped together
-- **Context:** User ID, request params, breadcrumbs attached to every error
-- **Alerting:** Slack/PagerDuty notifications when error rate spikes
-- **Trends:** Is this error getting worse or better over time?
+\`\`\`
+Error-rate SLO: 99.9% of requests succeed (30-day rolling window)
+Budget:         0.1% errors per month (~43 minutes of full outage equivalent)
+Today:          0.06% error rate, 60% budget remaining -> ship freely
+Tomorrow:       0.18% error rate, budget exhausted -> freeze risky deploys until you fix
+\`\`\`
+
+The error budget turns "should we deploy this risky change?" from a gut call into a measurement. If budget is healthy, ship; if exhausted, fix reliability first.
+
+(L53 covers the latency-side equivalent: latency SLOs measured in p95/p99 percentiles. Error monitoring tools track the error-rate side; metrics tools track the latency side.)
 
 **Layers of error handling:**
-1. **Rescue + respond:** Handle known errors gracefully (404, 422)
-2. **Report:** Send unknown errors to monitoring service
-3. **Context:** Attach user, request, and breadcrumb data
-4. **Alert:** Notify the team based on severity and frequency
-5. **Budget:** Track error rate against SLO targets
+1. **Rescue + respond:** Handle known errors gracefully (404 for missing record, 422 for validation failure).
+2. **Report:** Send everything else to the error tracker so the team knows about it.
+3. **Context:** Attach user id, request id, params, and breadcrumbs to every report.
+4. **Alert:** Page the on-call when the error rate or new-exception count crosses a threshold.
+5. **Budget:** Track the error rate against the SLO and gate risky work when budget runs out.
 
-**Rails 8 ErrorReporter:**
-Rails 8 has a built-in \`Rails.error\` reporter that integrates with external services (Sentry, Honeybadger, etc.).`,
+**Rails 8 has \`Rails.error\` built in.** It's a reporter abstraction that fans out to whatever external service you pick (Sentry, Honeybadger, Bugsnag). Use it instead of calling vendor APIs directly so you can swap providers without rewriting your code.`,
 		railsCodeExample: `# ============================
 # Rails 8 Error Reporter Setup
 # ============================

@@ -63,7 +63,7 @@ import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
-registerLevelCode('act6-level47-data-lifecycle', () =>
+registerLevelCode('act6-level46-data-lifecycle', () =>
 	getCodeFiles('reward', STEP_DEFS.length),
 );
 
@@ -1373,7 +1373,7 @@ const dlEdgeTypes = { dl: DlEdge };
 
 // ─── Main component ────────────────────────────────────────────────────
 
-export function Level47DataLifecycle({ onComplete }: LevelComponentProps) {
+export function Level46DataLifecycle({ onComplete }: LevelComponentProps) {
 	const [phase, setPhase] = useState<'observe' | 'build' | 'reward'>('observe');
 	const isReward = phase === 'reward';
 
@@ -1953,4 +1953,4 @@ export function Level47DataLifecycle({ onComplete }: LevelComponentProps) {
 	);
 }
 
-export default Level47DataLifecycle;
+export default Level46DataLifecycle;

@@ -22,7 +22,7 @@
  * - Polymorphic, Transactions, Locking, Active Storage, Encryption, Real-Time, External APIs, Webhooks, API Versioning
  *
  * Act 6: Operations (L41-L49, 9 levels)
- * - Middleware, Deployment (Kamal), Rate Limiting, Soft Deletes, Safe Migrations, Recurring Jobs, Data Lifecycle, Error Monitoring, Feature Flags
+ * - Middleware, Rate Limiting, Soft Deletes, Safe Migrations, Recurring Jobs, Data Lifecycle, Error Monitoring, Deployment (Kamal), Feature Flags
  *
  * Act 7: Scale (L50-L55, 6 levels)
  * - Multi-Database, State Machines, Multi-Tenancy, Observability, Modular Monolith, Domain Events
@@ -108,13 +108,13 @@ import { Level40APIVersioning } from '@/features/act5-production/components/leve
 // Act 6: Operations (Levels 41-49)
 // ===========================================
 import { Level41Middleware } from '@/features/act6-operations/components/level-41-middleware/Level41Middleware';
-import { Level42Deployment } from '@/features/act6-operations/components/level-42-deployment/Level42Deployment';
-import { Level43RateLimiting } from '@/features/act6-operations/components/level-43-rate-limiting/Level43RateLimiting';
-import { Level44SoftDeletes } from '@/features/act6-operations/components/level-44-soft-deletes/Level44SoftDeletes';
-import { Level45SafeMigrations } from '@/features/act6-operations/components/level-45-safe-migrations/Level45SafeMigrations';
-import { Level46RecurringJobs } from '@/features/act6-operations/components/level-46-recurring-jobs/Level46RecurringJobs';
-import { Level47DataLifecycle } from '@/features/act6-operations/components/level-47-data-lifecycle/Level47DataLifecycle';
-import { Level48ErrorMonitoring } from '@/features/act6-operations/components/level-48-error-monitoring/Level48ErrorMonitoring';
+import { Level48Deployment } from '@/features/act6-operations/components/level-48-deployment/Level48Deployment';
+import { Level42RateLimiting } from '@/features/act6-operations/components/level-42-rate-limiting/Level42RateLimiting';
+import { Level43SoftDeletes } from '@/features/act6-operations/components/level-43-soft-deletes/Level43SoftDeletes';
+import { Level44SafeMigrations } from '@/features/act6-operations/components/level-44-safe-migrations/Level44SafeMigrations';
+import { Level45RecurringJobs } from '@/features/act6-operations/components/level-45-recurring-jobs/Level45RecurringJobs';
+import { Level46DataLifecycle } from '@/features/act6-operations/components/level-46-data-lifecycle/Level46DataLifecycle';
+import { Level47ErrorMonitoring } from '@/features/act6-operations/components/level-47-error-monitoring/Level47ErrorMonitoring';
 import { Level49FeatureFlags } from '@/features/act6-operations/components/level-49-feature-flags/Level49FeatureFlags';
 
 // ===========================================
@@ -201,13 +201,13 @@ const LEVEL_COMPONENTS: Record<string, ComponentType<LevelComponentProps>> = {
 	// Act 6: Operations
 	// ============================================
 	'act6-level41-middleware': Level41Middleware,
-	'act6-level42-deployment': Level42Deployment,
-	'act6-level43-rate-limiting': Level43RateLimiting,
-	'act6-level44-soft-deletes': Level44SoftDeletes,
-	'act6-level45-safe-migrations': Level45SafeMigrations,
-	'act6-level46-recurring-jobs': Level46RecurringJobs,
-	'act6-level47-data-lifecycle': Level47DataLifecycle,
-	'act6-level48-error-monitoring': Level48ErrorMonitoring,
+	'act6-level48-deployment': Level48Deployment,
+	'act6-level42-rate-limiting': Level42RateLimiting,
+	'act6-level43-soft-deletes': Level43SoftDeletes,
+	'act6-level44-safe-migrations': Level44SafeMigrations,
+	'act6-level45-recurring-jobs': Level45RecurringJobs,
+	'act6-level46-data-lifecycle': Level46DataLifecycle,
+	'act6-level47-error-monitoring': Level47ErrorMonitoring,
 	'act6-level49-feature-flags': Level49FeatureFlags,
 
 	// ============================================

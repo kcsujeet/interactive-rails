@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-// ── Mirrored data from Level46RecurringJobs.tsx ──
+// ── Mirrored data from Level45RecurringJobs.tsx ──
 
 const DISCOVERY_DEFS = [
 	{ id: 'expired-tokens', label: '2M expired session tokens accumulating' },

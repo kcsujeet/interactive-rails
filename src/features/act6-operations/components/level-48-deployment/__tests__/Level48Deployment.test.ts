@@ -20,7 +20,7 @@ const ALL_OPTION_SETS = [
 	{ name: 'KAMAL_SETUP_COMMANDS', options: KAMAL_SETUP_COMMANDS },
 ];
 
-describe('Level 42 Deployment: Discoveries', () => {
+describe('Level 48 Deployment: Discoveries', () => {
 	test('exactly 5 discoveries', () => {
 		expect(DISCOVERY_DEFS).toHaveLength(5);
 	});
@@ -42,7 +42,7 @@ describe('Level 42 Deployment: Discoveries', () => {
 	});
 });
 
-describe('Level 42 Deployment: Probes', () => {
+describe('Level 48 Deployment: Probes', () => {
 	test('exactly 5 probes', () => {
 		expect(PROBES).toHaveLength(5);
 	});
@@ -83,7 +83,7 @@ describe('Level 42 Deployment: Probes', () => {
 	});
 });
 
-describe('Level 42 Deployment: Probe to discovery mapping', () => {
+describe('Level 48 Deployment: Probe to discovery mapping', () => {
 	test('every probe maps to at least one discovery', () => {
 		for (const probe of PROBES) {
 			const mapped = PROBE_DISCOVERY_MAP[probe.id];
@@ -124,7 +124,7 @@ describe('Level 42 Deployment: Probe to discovery mapping', () => {
 	});
 });
 
-describe('Level 42 Deployment: Build steps', () => {
+describe('Level 48 Deployment: Build steps', () => {
 	test('exactly 5 steps', () => {
 		expect(STEP_DEFS).toHaveLength(5);
 	});
@@ -135,7 +135,7 @@ describe('Level 42 Deployment: Build steps', () => {
 	});
 });
 
-describe('Level 42 Deployment: Build step quality', () => {
+describe('Level 48 Deployment: Build step quality', () => {
 	for (const { name, options } of ALL_OPTION_SETS) {
 		test(`${name} has exactly one correct answer`, () => {
 			const correct = options.filter((o) => o.correct);
@@ -170,7 +170,7 @@ describe('Level 42 Deployment: Build step quality', () => {
 	}
 });
 
-describe('Level 42 Deployment: Stress scenarios', () => {
+describe('Level 48 Deployment: Stress scenarios', () => {
 	test('exactly 5 scenarios', () => {
 		expect(STRESS_SCENARIOS).toHaveLength(5);
 	});
@@ -228,7 +228,7 @@ describe('Level 42 Deployment: Stress scenarios', () => {
 	});
 });
 
-describe('Level 42 Deployment: Probe-scenario label mirroring', () => {
+describe('Level 48 Deployment: Probe-scenario label mirroring', () => {
 	// Each observe probe must have a matching reward scenario. Labels follow
 	// the "same user story, fixed outcome" convention: they either repeat the
 	// observe verb ("Deploy by X" / "Deploy with X") or echo its action word
@@ -289,7 +289,7 @@ describe('Level 42 Deployment: Probe-scenario label mirroring', () => {
 	});
 });
 
-describe('Level 42 Deployment: Phase coverage', () => {
+describe('Level 48 Deployment: Phase coverage', () => {
 	test('reward scenarios span the failure modes uncovered by probes', () => {
 		const scenarioIds = new Set(STRESS_SCENARIOS.map((s) => s.id));
 		expect(scenarioIds.has('deploy-ok')).toBe(true);

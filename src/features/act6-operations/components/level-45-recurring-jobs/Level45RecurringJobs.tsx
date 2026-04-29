@@ -64,7 +64,7 @@ import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
-registerLevelCode('act6-level46-recurring-jobs', () =>
+registerLevelCode('act6-level45-recurring-jobs', () =>
 	getCodeFiles('reward', STEP_DEFS.length),
 );
 
@@ -1343,7 +1343,7 @@ const rjEdgeTypes = { rj: RjEdge };
 
 // ─── Main component ────────────────────────────────────────────────────
 
-export function Level46RecurringJobs({ onComplete }: LevelComponentProps) {
+export function Level45RecurringJobs({ onComplete }: LevelComponentProps) {
 	const [phase, setPhase] = useState<'observe' | 'build' | 'reward'>('observe');
 	const isReward = phase === 'reward';
 
@@ -1849,4 +1849,4 @@ export function Level46RecurringJobs({ onComplete }: LevelComponentProps) {
 	);
 }
 
-export default Level46RecurringJobs;
+export default Level45RecurringJobs;

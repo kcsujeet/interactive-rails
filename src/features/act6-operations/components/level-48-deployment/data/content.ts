@@ -1,10 +1,10 @@
 import type { Level } from '@/types';
 import { standardPipeline } from '@/utils/pipelineTemplates';
 
-export const level42Deployment: Level = {
-	id: 'act6-level42-deployment',
+export const level48Deployment: Level = {
+	id: 'act6-level48-deployment',
 	actId: 6,
-	levelNumber: 42,
+	levelNumber: 48,
 	name: 'Deployment',
 	trigger: {
 		type: 'incident',
@@ -67,16 +67,19 @@ ssh user@prod "systemctl restart puma"
 - \`kamal rollback\` flip traffic back to the previous image.
 
 **Database migrations during deploy:**
-A new image is useless if the schema does not match. Kamal supports a pre-deploy hook that runs migrations against the production database BEFORE traffic shifts to the new container:
+A new image is useless if the schema does not match. Two common patterns:
 
-\`\`\`yaml
-# config/deploy.yml
-boot:
-  pre-connect: |
-    docker run --rm --env-file .env $KAMAL_IMAGE \\
-      bin/rails db:migrate
+1. **Run migrations from inside the container at boot.** The Rails-generated Dockerfile / startup script runs \`bin/rails db:migrate\` before booting the web server. Idempotent on each rotation. Simplest to set up.
+2. **Run migrations explicitly via \`kamal app exec\` after deploy:**
+\`\`\`bash
+kamal deploy
+kamal app exec --reuse 'bin/rails db:migrate'
 \`\`\`
-The pattern is: the new image runs migrations using the new schema, the old containers (still serving traffic) continue against the now-migrated database. This works as long as migrations are backward-compatible (covered in L45's safe-migrations rules). A migration that adds a NOT NULL column without a default will break the old containers immediately. Backward-compatible migrations + Kamal's traffic gate = zero-downtime deploy.
+Per the Kamal docs, \`kamal app exec\` runs a one-off command inside the app container. The \`--reuse\` flag connects to the currently running container instead of starting a new one ([source](https://kamal-deploy.org/docs/commands/running-commands-on-servers/)).
+
+Either pattern only works if migrations are **backward-compatible** (covered in L44 Safe Migrations). A migration that adds a NOT NULL column without a default will break the old containers the moment it commits. Backward-compatible migrations + Kamal's traffic gate = zero-downtime deploy.
+
+(Kamal also supports lifecycle hooks via \`.kamal/hooks/<name>\` executable files. The official docs describe \`pre-deploy\` as the place for "final checks before deploying, e.g., checking CI completed" rather than a prescribed migrations location, so this curriculum picks one of the two patterns above instead.)
 
 **Accessory containers (workers, scheduler, cache):**
 A Rails 8 app does not run as one container. Solid Queue needs a worker process (\`bin/jobs\`), Solid Cable needs the connection adapter, the recurring scheduler needs to be running somewhere. Kamal models these as accessories:
@@ -118,14 +121,16 @@ kamal deploy -d production      # uses config/deploy.production.yml
 Per-environment files override the base \`config/deploy.yml\`. Different servers, different domains, different secrets, same codebase. Production should run the same image SHA staging just verified.
 
 **Smoke tests after deploy:**
-\`\`\`yaml
-healthcheck:
-  path: /up
-  cmd: bin/rails runner "raise unless User.connection.active?"
-  max_attempts: 10
-  interval: 5s
+The proxy's \`/up\` healthcheck only proves the boot loop completed and the route returns 200. It doesn't prove the database is reachable, a dependent service is up, or migrations are applied. The Kamal proxy's \`healthcheck\` block only supports \`path\`, \`interval\`, and \`timeout\` ([source: Kamal proxy.rb](https://github.com/basecamp/kamal/blob/main/lib/kamal/configuration/proxy.rb)); it cannot run arbitrary shell commands. For deeper checks, add a \`.kamal/hooks/post-deploy\` executable:
+
+\`\`\`bash
+# .kamal/hooks/post-deploy (executable, no extension; shebang determines interpreter)
+#!/usr/bin/env bash
+set -e
+kamal app exec --reuse "bin/rails runner 'raise unless ApplicationRecord.connection.active?'"
+kamal app exec --reuse "bin/rails runner 'raise unless Stripe::Account.retrieve.id'"
 \`\`\`
-The proxy only shifts traffic after \`/up\` returns 200, but a deeper smoke test (database connection, dependent service reachable) catches the "boots clean but cannot serve real traffic" failure mode. Add as a pre-traffic hook.
+\`post-deploy\` runs after the new image is serving traffic. Per the Kamal docs ([hooks overview](https://kamal-deploy.org/docs/hooks/overview/)), if a hook script exits non-zero the command will be aborted. Use this for "boots clean but cannot serve real traffic" failure modes.
 
 **Master key handling:**
 \`RAILS_MASTER_KEY\` lives outside the repo in \`config/master.key\` (git-ignored). \`.kamal/secrets\` references it via \`$(cat config/master.key)\`. In CI, expose the key as a CI secret env var; locally, keep it on disk. Never commit the master key, never paste it in deploy.yml, never log it. The encrypted credentials file is useless without it; the master key is the entire trust boundary.`,

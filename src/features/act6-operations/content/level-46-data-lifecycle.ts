@@ -1,9 +1,9 @@
 import type { Level } from '@/types';
 
-export const level47DataLifecycle: Level = {
-	id: 'act6-level47-data-lifecycle',
+export const level46DataLifecycle: Level = {
+	id: 'act6-level46-data-lifecycle',
 	actId: 6,
-	levelNumber: 47,
+	levelNumber: 46,
 	name: 'Data Lifecycle',
 	trigger: {
 		type: 'data_growth',

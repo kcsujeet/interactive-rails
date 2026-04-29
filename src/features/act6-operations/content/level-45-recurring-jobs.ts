@@ -1,9 +1,9 @@
 import type { Level } from '@/types';
 
-export const level46RecurringJobs: Level = {
-	id: 'act6-level46-recurring-jobs',
+export const level45RecurringJobs: Level = {
+	id: 'act6-level45-recurring-jobs',
 	actId: 6,
-	levelNumber: 46,
+	levelNumber: 45,
 	name: 'Recurring Jobs & Scheduling',
 	requiresTests: true,
 	trigger: {

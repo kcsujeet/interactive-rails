@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-// ── Mirrored data from Level44SoftDeletes.tsx ──
+// ── Mirrored data from Level43SoftDeletes.tsx ──
 
 const DISCOVERY_DEFS = [
 	{ id: 'hard-delete', label: 'Records are permanently destroyed' },

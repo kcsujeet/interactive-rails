@@ -71,35 +71,39 @@ Deterministic encryption produces the same ciphertext for the same plaintext. An
 **Migrating existing plaintext data (the real procedure):**
 Adding \`encrypts :email\` to a model with existing rows does NOT encrypt them. Reads of those old rows raise an error by default once \`encrypts\` is declared. The safe migration path:
 
-1. Add \`encrypts :email, deterministic: true, support_unencrypted_data: true\` first. The flag tells Rails to read old plaintext rows and encrypt new writes.
-2. Backfill in batches (do NOT load the whole table at once):
+1. Set the global flag in an initializer: \`config.active_record.encryption.support_unencrypted_data = true\`. Per the [Active Record Encryption guide](https://guides.rubyonrails.org/active_record_encryption.html), this is a Rails-application-wide setting (not a per-attribute option). With it on, reads of plaintext rows succeed without raising.
+2. Add \`encrypts :email, deterministic: true\` to the model and deploy.
+3. Backfill in batches. Rails provides \`record.encrypt\` (a real method on encryptable records, per the encryption guide) that re-encrypts all encrypted attributes on that row in one call:
 \`\`\`ruby
-User.find_each(batch_size: 1000) do |user|
-  next if user.attribute_was_encrypted?(:email)
-  user.email = user.email   # forces a re-write through the encryptor
-  user.save!(validate: false)
-end
+User.find_each(batch_size: 1000, &:encrypt)
 \`\`\`
-3. Once the backfill completes and verification passes, remove \`support_unencrypted_data: true\` and deploy. From then on, any plaintext row raises and you know the backfill missed something.
+Re-running the backfill is idempotent: a row that is already encrypted decrypts to its plaintext, then re-encrypts to the same logical value. The cost is the unconditional write, not duplicate data.
 
-The flag \`Rails.application.config.active_record.encryption.support_unencrypted_data = true\` exists as a global escape hatch but is dangerous: a single unencrypted row past the cut-over slips through silently. Per-attribute is safer.
+4. Once the backfill completes and verification passes, set \`support_unencrypted_data = false\` (or remove the line, since false is the default) and deploy. From then on, any plaintext row raises \`ActiveRecord::Encryption::Errors::Decryption\` and you know the backfill missed something.
+
+The escape-hatch nature of \`support_unencrypted_data\` is dangerous: while it is on, a single unencrypted row past the cut-over slips through silently. Keep it on only as long as the backfill is running.
 
 **Key rotation (the production procedure):**
-Rails supports key rotation via the \`previous\` keys list. The procedure:
+Rails supports key rotation by listing multiple keys; reads try them in order until one decrypts, writes use the first one. Per the [Active Record Encryption guide](https://guides.rubyonrails.org/active_record_encryption.html):
 
-\`\`\`ruby
-# config/application.rb (or an initializer)
-config.active_record.encryption.previous = [
-  { primary_key: ENV['OLD_PRIMARY_KEY'],
-    deterministic_key: ENV['OLD_DETERMINISTIC_KEY'],
-    key_derivation_salt: ENV['OLD_SALT'] }
-]
+\`\`\`yaml
+# config/credentials.yml.enc (edited via bin/rails credentials:edit)
+active_record_encryption:
+  primary_key:
+    - <new_primary_key>     # used for writes; tried first for reads
+    - <old_primary_key>     # fallback for reading old rows
+  key_derivation_salt: <salt>
 \`\`\`
-Reads try the current key first, fall back to each \`previous\` entry. Writes always use the current key. To complete the rotation:
+Procedure:
 
-1. Generate new keys, deploy with both current and previous configured.
-2. Re-encrypt the data: \`Rails.application.config.active_record.encryption.previous_schemes\` lets you trigger \`User.find_each(&:encrypt!)\` (model-level) or batch by attribute.
-3. Once re-encryption is verified, remove the \`previous\` entry. From then on, anything still encrypted with the old key raises.
+1. Add the new primary key at the top of the list, keeping the old one below. Deploy. Old rows decrypt via fallback; new writes use the new key.
+2. Re-encrypt every row through the current key:
+\`\`\`ruby
+User.find_each(batch_size: 1000, &:encrypt)
+\`\`\`
+3. Once re-encryption is verified, remove the old key and deploy. From then on, any row still encrypted with the old key raises on read, surfacing missed rows.
+
+**Critical caveat: rotation is NOT supported for deterministic encryption** ([encryption guide](https://guides.rubyonrails.org/active_record_encryption.html)). If \`encrypts :email, deterministic: true\` (which the example above uses), the deterministic key cannot be rotated. Re-encrypting the same plaintext under a new deterministic key would produce a different ciphertext, breaking the equality lookups (\`find_by(email: ...)\`) that deterministic encryption exists to support. Plan deterministic-key choice as a one-time decision, and isolate any data that may need rotation under non-deterministic encryption.
 
 Compliance review (SOC 2, HIPAA, PCI) usually requires documented rotation cadence (annual at minimum, faster on suspected compromise). Plan for it before launch, not after the audit finding.
 
@@ -186,7 +190,7 @@ Rails.application.config.active_record.encryption.previous = [
 			'Forgetting to migrate existing plaintext data after adding encrypts',
 			'Not storing encryption keys in Rails credentials (hardcoding in code)',
 			'Not planning for key rotation before going to production',
-			'Adding encrypts to a column with existing rows without support_unencrypted_data: true (every existing row read raises until backfilled)',
+			'Adding encrypts to a column with existing rows without setting config.active_record.encryption.support_unencrypted_data = true during the backfill window (every existing row read raises until backfilled)',
 			'Backfilling existing data with User.update_all (skips the encryptor; rows look encrypted but are still plaintext on disk)',
 			'Using deterministic encryption on low-cardinality fields like status or tier (the ciphertext distribution leaks the value distribution)',
 			"Assuming WHERE description LIKE '%foo%' still works after encrypts :description (non-deterministic encryption makes substring search impossible; plan a separate searchable index)",

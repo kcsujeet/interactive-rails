@@ -65,7 +65,7 @@ import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
-registerLevelCode('act6-level43-rate-limiting', () =>
+registerLevelCode('act6-level42-rate-limiting', () =>
 	getCodeFiles('reward', STEP_DEFS.length),
 );
 
@@ -1224,7 +1224,7 @@ const rlEdgeTypes = { rl: RlEdge };
 
 // ─── Main component ────────────────────────────────────────────────────
 
-export function Level43RateLimiting({ onComplete }: LevelComponentProps) {
+export function Level42RateLimiting({ onComplete }: LevelComponentProps) {
 	const [phase, setPhase] = useState<'observe' | 'build' | 'reward'>('observe');
 	const isReward = phase === 'reward';
 
@@ -1696,4 +1696,4 @@ export function Level43RateLimiting({ onComplete }: LevelComponentProps) {
 	);
 }
 
-export default Level43RateLimiting;
+export default Level42RateLimiting;
