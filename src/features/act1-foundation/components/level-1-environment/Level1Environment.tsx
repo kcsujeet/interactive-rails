@@ -127,31 +127,31 @@ const STEPS: TerminalStep[] = [
 		commands: [
 			{
 				id: 'yaml',
-				label: 'ruby: "3.3.6"',
-				command: `printf 'ruby: "3.3.6"\\n' > .mise.toml`,
+				label: 'ruby: "3.4.9"',
+				command: `printf 'ruby: "3.4.9"\\n' > .mise.toml`,
 				correct: false,
 				feedback: "That's YAML syntax. TOML uses `=`, not `:`.",
 			},
 			{
 				id: 'tool-versions-style',
-				label: 'ruby 3.3.6',
-				command: `printf 'ruby 3.3.6\\n' > .mise.toml`,
+				label: 'ruby 3.4.9',
+				command: `printf 'ruby 3.4.9\\n' > .mise.toml`,
 				correct: false,
 				feedback:
 					"That's the old asdf/.tool-versions format. A .toml file needs proper TOML syntax.",
 			},
 			{
 				id: 'no-section',
-				label: 'ruby = "3.3.6"',
-				command: `printf 'ruby = "3.3.6"\\n' > .mise.toml`,
+				label: 'ruby = "3.4.9"',
+				command: `printf 'ruby = "3.4.9"\\n' > .mise.toml`,
 				correct: false,
 				feedback:
 					"Valid TOML, but mise won't treat a bare top-level key as a tool declaration. It needs to live under the right grouping.",
 			},
 			{
 				id: 'correct',
-				label: '[tools] > ruby = "3.3.6"',
-				command: `printf '[tools]\\nruby = "3.3.6"\\n' > .mise.toml`,
+				label: '[tools] > ruby = "3.4.9"',
+				command: `printf '[tools]\\nruby = "3.4.9"\\n' > .mise.toml`,
 				correct: true,
 			},
 		],
@@ -163,7 +163,7 @@ const STEPS: TerminalStep[] = [
 		description: (
 			<p className="text-sm text-muted-foreground">
 				Your <span className="font-mono text-primary">.mise.toml</span> pins{' '}
-				<span className="font-mono text-primary">ruby 3.3.6</span>. Now install
+				<span className="font-mono text-primary">ruby 3.4.9</span>. Now install
 				it through the version manager so it reads that file automatically.
 			</p>
 		),
@@ -178,8 +178,8 @@ const STEPS: TerminalStep[] = [
 			},
 			{
 				id: 'wrong-ruby',
-				label: 'ruby install 3.3.6',
-				command: 'ruby install 3.3.6',
+				label: 'ruby install 3.4.9',
+				command: 'ruby install 3.4.9',
 				correct: false,
 				feedback:
 					"That's not a valid command. Which tool manages your versions?",
@@ -192,10 +192,10 @@ const STEPS: TerminalStep[] = [
 			},
 		],
 		outputLines: [
-			{ text: 'ruby 3.3.6 is being installed...', color: 'cyan' },
-			{ text: 'Downloading ruby-3.3.6.tar.gz...', color: 'muted' },
-			{ text: 'Compiling Ruby 3.3.6...', color: 'muted' },
-			{ text: '\u2713 ruby 3.3.6 installed', color: 'green' },
+			{ text: 'ruby 3.4.9 is being installed...', color: 'cyan' },
+			{ text: 'Downloading ruby-3.4.9.tar.gz...', color: 'muted' },
+			{ text: 'Compiling Ruby 3.4.9...', color: 'muted' },
+			{ text: '\u2713 ruby 3.4.9 installed', color: 'green' },
 		],
 	},
 	{
@@ -232,11 +232,11 @@ const STEPS: TerminalStep[] = [
 			},
 		],
 		outputLines: [
-			{ text: 'Fetching rails-8.0.0.gem', color: 'cyan' },
+			{ text: 'Fetching rails-8.1.3.gem', color: 'cyan' },
 			{ text: 'Installing actionpack-8.0.0...', color: 'muted' },
 			{ text: 'Installing activerecord-8.0.0...', color: 'muted' },
 			{ text: 'Installing railties-8.0.0...', color: 'muted' },
-			{ text: '\u2713 Successfully installed rails-8.0.0', color: 'green' },
+			{ text: '\u2713 Successfully installed rails-8.1.3', color: 'green' },
 			{ text: '27 gems installed', color: 'green' },
 		],
 	},
@@ -261,7 +261,7 @@ eval "$(mise activate zsh)"`,
 			filename: '.mise.toml',
 			language: 'toml',
 			code: `[tools]
-ruby = "3.3.6"`,
+ruby = "3.4.9"`,
 			highlight: [2],
 		});
 	}

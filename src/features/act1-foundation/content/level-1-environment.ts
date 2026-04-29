@@ -66,18 +66,18 @@ echo 'eval "$(mise activate zsh)"' >> ~/.zshrc
 # Pin Ruby in project root (.mise.toml)
 cat <<EOF > .mise.toml
 [tools]
-ruby = "3.3.6"
+ruby = "3.4.9"
 EOF
 
 # Install the pinned Ruby version
 mise install
 
 # Verify
-ruby --version  # => ruby 3.3.6
+ruby --version  # => ruby 3.4.9
 
 # Install Rails
 gem install rails
-rails --version  # => Rails 8.0.0`,
+rails --version  # => Rails 8.1.3`,
 		commonMistakes: [
 			'Installing Ruby via Homebrew directly instead of a version manager (version conflicts across projects)',
 			'Putting tool declarations at the top of .mise.toml without a section header',

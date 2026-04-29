@@ -283,7 +283,7 @@ const bootCommands: TerminalCommand[] = [
 const bootOutput: TerminalOutputLine[] = [
 	{ text: '=> Booting Puma', color: 'cyan' },
 	{
-		text: '=> Rails 8.0.0 application starting in development',
+		text: '=> Rails 8.1.3 application starting in development',
 		color: 'cyan',
 	},
 	{ text: '* Listening on http://127.0.0.1:3000', color: 'green' },
@@ -428,7 +428,7 @@ export function Level2FirstBoot({ onComplete }: LevelComponentProps) {
 				filename: 'Stack',
 				language: 'bash',
 				code: `Database:  PostgreSQL 17
-Framework: Rails 8.0 (API-only)
+Framework: Rails 8.1 (API-only)
 Server:    Puma`,
 				highlight: [1, 2, 3],
 			});
