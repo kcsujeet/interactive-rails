@@ -1433,7 +1433,7 @@ export function Level34Locking({ onComplete }: LevelComponentProps) {
 
 	// Gating hooks
 	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
-		minRequired: 3,
+		minRequired: DISCOVERY_DEFS.length,
 	});
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const stressTest = useStressTest(STRESS_SCENARIOS);

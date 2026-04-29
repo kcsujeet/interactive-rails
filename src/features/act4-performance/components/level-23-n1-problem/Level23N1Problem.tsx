@@ -664,7 +664,7 @@ function DetectionLegend() {
 export function Level23N1Problem({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
-		minRequired: 4,
+		minRequired: DISCOVERY_DEFS.length,
 	});
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');

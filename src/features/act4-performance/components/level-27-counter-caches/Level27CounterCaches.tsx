@@ -711,7 +711,7 @@ end
 
 export function Level27CounterCaches({ onComplete }: LevelComponentProps) {
 	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
-		minRequired: 1,
+		minRequired: DISCOVERY_DEFS.length,
 	});
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const stressTest = useStressTest(STRESS_SCENARIOS);

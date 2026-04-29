@@ -1033,7 +1033,7 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 
 	// Gating hooks
 	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
-		minRequired: 2,
+		minRequired: DISCOVERY_DEFS.length,
 	});
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const stressTest = useStressTest(STRESS_SCENARIOS);
@@ -1251,7 +1251,11 @@ export function Level33Transactions({ onComplete }: LevelComponentProps) {
 					setRewardDb({
 						usersCredits: 40,
 						boostRow: { userId: 1, postId: 42, reach: 5000 },
-						creditLogRow: { userId: 1, amount: -10, reason: 'boost_product_42' },
+						creditLogRow: {
+							userId: 1,
+							amount: -10,
+							reason: 'boost_product_42',
+						},
 					});
 					setRewardFlash({
 						users: 'success',
