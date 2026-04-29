@@ -1,5 +1,17 @@
 {
 	"permissions": {
 		"ask": ["Bash(git commit:*)"]
+	},
+	"hooks": {
+		"UserPromptSubmit": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/research-before-guessing.sh"
+					}
+				]
+			}
+		]
 	}
 }
