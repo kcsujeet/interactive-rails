@@ -27,7 +27,7 @@ bun run dev
 
 ## Project Overview
 
-Players learn Rails 8 by moving through 58 levels across 8 acts. Most levels are custom React experiences with:
+Players learn Rails 8 by moving through 58 levels across 7 acts. Most levels are custom React experiences with:
 
 - a briefing screen that frames the scenario
 - an observe phase where probes and inspections reveal the problem
@@ -46,9 +46,8 @@ Sandbox mode still exists as a free-form request-flow playground, but it is sepa
 | 3 | Clean Architecture | L16-L22 | Service objects, concerns, contracts, query objects, error handling, mailers, background jobs |
 | 4 | Performance | L23-L31 | N+1, eager loading, narrow fetching, indexing, counter caches, pagination, search, caching |
 | 5 | Production Features | L32-L40 | Polymorphic associations, transactions, locking, storage, encryption, real-time, external APIs, webhooks, versioning |
-| 6 | Operations | L41-L49 | Middleware, rate limiting, soft deletes, safe migrations, recurring jobs, data lifecycle, monitoring, deployment, feature flags |
-| 7 | Scale | L50-L55 | Multi-database, state machines, multi-tenancy, observability, modular monolith, domain events |
-| 8 | Mastery | L56-L58 | API gateway, sharding, capstone architecture |
+| 6 | Operations | L41-L50 | Middleware, rate limiting, soft deletes, safe migrations, recurring jobs, data lifecycle, monitoring, observability, deployment, feature flags |
+| 7 | Scale | L51-L58 | Read replicas, sharding, multi-tenancy, state machines, modular monolith, domain events, API gateway, capstone |
 
 ## Key Features
 

@@ -4,7 +4,7 @@
  * Maps level IDs to their custom components, lazy-loaded so each level
  * is its own bundle chunk and is only fetched when the player opens it.
  *
- * CURRICULUM STRUCTURE (58 levels, 8 acts):
+ * CURRICULUM STRUCTURE (58 levels, 7 acts):
  *
  * Act 1: The Foundation (L1-L8, 8 levels)
  * - Environment, First Boot, Model, CRUD, Routes, Controller, Serializers, Associations
@@ -21,14 +21,11 @@
  * Act 5: Advanced Features (L32-L40, 9 levels)
  * - Polymorphic, Transactions, Locking, Active Storage, Encryption, Real-Time, External APIs, Webhooks, API Versioning
  *
- * Act 6: Operations (L41-L49, 9 levels)
- * - Middleware, Rate Limiting, Soft Deletes, Safe Migrations, Recurring Jobs, Data Lifecycle, Error Monitoring, Deployment (Kamal), Feature Flags
+ * Act 6: Operations (L41-L50, 10 levels)
+ * - Middleware, Rate Limiting, Soft Deletes, Safe Migrations, Recurring Jobs, Data Lifecycle, Error Monitoring, Observability, Deployment (Kamal), Feature Flags
  *
- * Act 7: Scale (L50-L55, 6 levels)
- * - Multi-Database, State Machines, Multi-Tenancy, Observability, Modular Monolith, Domain Events
- *
- * Act 8: Mastery (L56-L58, 3 levels)
- * - API Gateway, Database Sharding, The Architect (Capstone)
+ * Act 7: Scale (L51-L58, 8 levels)
+ * - Read Replicas, Sharding, Multi-Tenancy, State Machines, Modular Monolith, Domain Events, API Gateway, The Architect (Capstone)
  */
 
 import { type ComponentType, type LazyExoticComponent, lazy } from 'react';
@@ -408,88 +405,84 @@ const LEVEL_COMPONENTS: Record<string, LazyLevel> = {
 			),
 		'Level47ErrorMonitoring',
 	),
-	'act6-level48-deployment': lazyNamed(
+	'act6-level48-observability': lazyNamed(
 		() =>
 			import(
-				'@/features/act6-operations/components/level-48-deployment/Level48Deployment'
+				'@/features/act6-operations/components/level-48-observability/Level48Observability'
 			),
-		'Level48Deployment',
+		'Level48Observability',
 	),
-	'act6-level49-feature-flags': lazyNamed(
+	'act6-level49-deployment': lazyNamed(
 		() =>
 			import(
-				'@/features/act6-operations/components/level-49-feature-flags/Level49FeatureFlags'
+				'@/features/act6-operations/components/level-49-deployment/Level49Deployment'
 			),
-		'Level49FeatureFlags',
+		'Level49Deployment',
+	),
+	'act6-level50-feature-flags': lazyNamed(
+		() =>
+			import(
+				'@/features/act6-operations/components/level-50-feature-flags/Level50FeatureFlags'
+			),
+		'Level50FeatureFlags',
 	),
 
 	// ============================================
 	// Act 7: Scale
 	// ============================================
-	'act7-level50-multi-database': lazyNamed(
+	'act7-level51-multi-database': lazyNamed(
 		() =>
 			import(
-				'@/features/act7-scale/components/level-50-multi-database/Level50MultiDatabase'
+				'@/features/act7-scale/components/level-51-multi-database/Level51MultiDatabase'
 			),
-		'Level50MultiDatabase',
+		'Level51MultiDatabase',
 	),
-	'act7-level51-state-machines': lazyNamed(
+	'act7-level52-sharding': lazyNamed(
 		() =>
 			import(
-				'@/features/act7-scale/components/level-51-state-machines/Level51StateMachines'
+				'@/features/act7-scale/components/level-52-sharding/Level52Sharding'
 			),
-		'Level51StateMachines',
+		'Level52Sharding',
 	),
-	'act7-level52-multi-tenancy': lazyNamed(
+	'act7-level53-multi-tenancy': lazyNamed(
 		() =>
 			import(
-				'@/features/act7-scale/components/level-52-multi-tenancy/Level52MultiTenancy'
+				'@/features/act7-scale/components/level-53-multi-tenancy/Level53MultiTenancy'
 			),
-		'Level52MultiTenancy',
+		'Level53MultiTenancy',
 	),
-	'act7-level53-observability': lazyNamed(
+	'act7-level54-state-machines': lazyNamed(
 		() =>
 			import(
-				'@/features/act7-scale/components/level-53-observability/Level53Observability'
+				'@/features/act7-scale/components/level-54-state-machines/Level54StateMachines'
 			),
-		'Level53Observability',
+		'Level54StateMachines',
 	),
-	'act7-level54-modular-monolith': lazyNamed(
+	'act7-level55-modular-monolith': lazyNamed(
 		() =>
 			import(
-				'@/features/act7-scale/components/level-54-modular-monolith/Level54ModularMonolith'
+				'@/features/act7-scale/components/level-55-modular-monolith/Level55ModularMonolith'
 			),
-		'Level54ModularMonolith',
+		'Level55ModularMonolith',
 	),
-	'act7-level55-domain-events': lazyNamed(
+	'act7-level56-domain-events': lazyNamed(
 		() =>
 			import(
-				'@/features/act7-scale/components/level-55-domain-events/Level55DomainEvents'
+				'@/features/act7-scale/components/level-56-domain-events/Level56DomainEvents'
 			),
-		'Level55DomainEvents',
+		'Level56DomainEvents',
 	),
-
-	// ============================================
-	// Act 8: Mastery
-	// ============================================
-	'act8-level56-api-gateway': lazyNamed(
+	'act7-level57-api-gateway': lazyNamed(
 		() =>
 			import(
-				'@/features/act8-mastery/components/level-56-api-gateway/Level56APIGateway'
+				'@/features/act7-scale/components/level-57-api-gateway/Level57APIGateway'
 			),
-		'Level56APIGateway',
+		'Level57APIGateway',
 	),
-	'act8-level57-sharding': lazyNamed(
+	'act7-level58-architect': lazyNamed(
 		() =>
 			import(
-				'@/features/act8-mastery/components/level-57-sharding/Level57Sharding'
-			),
-		'Level57Sharding',
-	),
-	'act8-level58-architect': lazyNamed(
-		() =>
-			import(
-				'@/features/act8-mastery/components/level-58-architect/Level58Architect'
+				'@/features/act7-scale/components/level-58-architect/Level58Architect'
 			),
 		'Level58Architect',
 	),

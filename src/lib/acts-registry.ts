@@ -1,7 +1,7 @@
 /**
  * Acts & Levels Content Index
  *
- * Interactive Rails: 58 levels across 8 acts
+ * Interactive Rails: 58 levels across 7 acts
  * Build a production-grade SaaS while mastering Rails 8
  */
 
@@ -13,7 +13,6 @@ import { actFour } from '@/features/act4-performance/content/act';
 import { actFive } from '@/features/act5-production/content/act';
 import { actSix } from '@/features/act6-operations/content/act';
 import { actSeven } from '@/features/act7-scale/content/act';
-import { actEight } from '@/features/act8-mastery/content/act';
 import type { Act, Level } from '@/types';
 
 // ============================================
@@ -28,7 +27,6 @@ export const ACTS: Act[] = [
 	actFive,
 	actSix,
 	actSeven,
-	actEight,
 ];
 
 // ============================================
@@ -150,13 +148,4 @@ export function isActUnlocked(
 }
 
 // Re-export individual acts for direct access
-export {
-	actOne,
-	actTwo,
-	actThree,
-	actFour,
-	actFive,
-	actSix,
-	actSeven,
-	actEight,
-};
+export { actOne, actTwo, actThree, actFour, actFive, actSix, actSeven };

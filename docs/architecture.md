@@ -64,7 +64,6 @@ interactive-rails/
       act5-production/
       act6-operations/
       act7-scale/
-      act8-mastery/
     components/
       levels/               Shared level UI and visualization components
       pipeline/             Sandbox pipeline editor components
