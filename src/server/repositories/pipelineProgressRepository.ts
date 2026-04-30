@@ -12,7 +12,6 @@ export interface UpdatePlayerProgressData {
 	xp?: number;
 	unlockedActions?: string[];
 	unlockedNodes?: string[];
-	unlockedDefenses?: string[];
 	stackChoices?: { database: string; frontend: string } | null;
 	guestImportedAt?: string | null;
 }
@@ -23,8 +22,8 @@ export class PipelineProgressRepository {
 	async createPlayerProgress(data: CreatePlayerProgressData): Promise<void> {
 		await this.db
 			.prepare(
-				`INSERT INTO player_progress (user_id, level, xp, unlocked_actions, unlocked_nodes, unlocked_defenses)
-         VALUES (?, 1, 0, '[]', '["request","router","controller","serializer","response"]', '["index_turret"]')`,
+				`INSERT INTO player_progress (user_id, level, xp, unlocked_actions, unlocked_nodes)
+	         VALUES (?, 1, 0, '[]', '["request","router","controller","serializer","response"]')`,
 			)
 			.bind(data.userId)
 			.run();
@@ -59,10 +58,6 @@ export class PipelineProgressRepository {
 		if (data.unlockedNodes !== undefined) {
 			sets.push('unlocked_nodes = ?');
 			values.push(JSON.stringify(data.unlockedNodes));
-		}
-		if (data.unlockedDefenses !== undefined) {
-			sets.push('unlocked_defenses = ?');
-			values.push(JSON.stringify(data.unlockedDefenses));
 		}
 		if (data.stackChoices !== undefined) {
 			sets.push('stack_choices = ?');

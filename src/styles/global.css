@@ -139,7 +139,6 @@
 	--sidebar-accent-foreground: oklch(0.985 0 0);
 	--sidebar-border: oklch(1 0 0 / 10%);
 	--sidebar-ring: oklch(0.556 0 0);
-
 }
 
 /* ============================================
@@ -203,7 +202,7 @@
 	--color-node-job: #8b5cf6;
 
 	/* Fonts */
-	--font-sans: 'Inter Variable', sans-serif;
+	--font-sans: "Inter Variable", sans-serif;
 	--font-mono: "JetBrains Mono", monospace;
 
 	/* Shadows */
@@ -222,12 +221,20 @@
 	--animate-collapsible-up: collapsible-up 200ms ease-out;
 
 	@keyframes collapsible-down {
-		from { height: 0; }
-		to { height: var(--radix-collapsible-content-height); }
+		from {
+			height: 0;
+		}
+		to {
+			height: var(--radix-collapsible-content-height);
+		}
 	}
 	@keyframes collapsible-up {
-		from { height: var(--radix-collapsible-content-height); }
-		to { height: 0; }
+		from {
+			height: var(--radix-collapsible-content-height);
+		}
+		to {
+			height: 0;
+		}
 	}
 
 	/* UI Animations */
@@ -242,7 +249,7 @@
 
 	/* Hero landing page dot flow */
 	--animate-hero-dot-flow: hero-dot-flow 1.8s ease-in-out infinite;
-	--font-heading: 'Geist Mono Variable', monospace;
+	--font-heading: "Geist Mono Variable", monospace;
 	--radius-3xl: calc(var(--radius) * 2.2);
 	--radius-4xl: calc(var(--radius) * 2.6);
 }
@@ -257,8 +264,8 @@
 	body {
 		@apply bg-background text-foreground;
 	}
-  html {
-    @apply font-sans;
+	html {
+		@apply font-sans;
 	}
 }
 
@@ -322,27 +329,60 @@
 }
 
 @keyframes flow-dot-down {
-	0% { top: 0; opacity: 1; }
-	85% { opacity: 1; }
-	100% { top: 100%; opacity: 0; }
+	0% {
+		top: 0;
+		opacity: 1;
+	}
+	85% {
+		opacity: 1;
+	}
+	100% {
+		top: 100%;
+		opacity: 0;
+	}
 }
 
 @keyframes flow-dot-right {
-	0% { left: 0; opacity: 1; }
-	85% { opacity: 1; }
-	100% { left: 100%; opacity: 0; }
+	0% {
+		left: 0;
+		opacity: 1;
+	}
+	85% {
+		opacity: 1;
+	}
+	100% {
+		left: 100%;
+		opacity: 0;
+	}
 }
 
 @keyframes db-panic {
-	0%, 100% { border-color: var(--destructive); box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); }
-	50% { border-color: color-mix(in oklch, var(--destructive) 40%, transparent); box-shadow: 0 0 4px rgba(239, 68, 68, 0.1); }
+	0%,
+	100% {
+		border-color: var(--destructive);
+		box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+	}
+	50% {
+		border-color: color-mix(in oklch, var(--destructive) 40%, transparent);
+		box-shadow: 0 0 4px rgba(239, 68, 68, 0.1);
+	}
 }
 
 @keyframes hero-dot-flow {
-	0% { top: -7px; opacity: 0; }
-	15% { opacity: 1; }
-	85% { opacity: 1; }
-	100% { top: calc(100% - 7px); opacity: 0; }
+	0% {
+		top: -7px;
+		opacity: 0;
+	}
+	15% {
+		opacity: 1;
+	}
+	85% {
+		opacity: 1;
+	}
+	100% {
+		top: calc(100% - 7px);
+		opacity: 0;
+	}
 }
 
 /* ============================================
@@ -497,18 +537,4 @@ body {
 	);
 	background-size: 200% 100%;
 	animation: shimmer 2s linear infinite;
-}
-
-/* ============================================
-   PHASER GAME CONTAINER
-   ============================================ */
-#phaser-game {
-	width: 100%;
-	height: 100%;
-}
-
-#phaser-game canvas {
-	display: block;
-	width: 100%;
-	height: 100%;
 }

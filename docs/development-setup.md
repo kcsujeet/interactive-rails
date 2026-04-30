@@ -190,9 +190,9 @@ sqlite3 .wrangler/state/v3/d1/miniflare-D1DatabaseObject/<hash>.sqlite
 
 ### Add a New Level
 
-1. Update the appropriate content file in `src/features/actN-*/content.ts`
-2. Create component in `src/features/actN-*/components/LevelXXName.tsx`
-3. Import and register in `src/features/levels-registry.ts`
+1. Update the appropriate act file in `src/features/actN-*/content/act.ts`
+2. Create the level component directory under `src/features/actN-*/components/`
+3. Import and register in `src/lib/levels-registry.ts`
 4. Test via acts page
 
 ### Test in Sandbox
@@ -333,10 +333,10 @@ User Browser
 | API routes | `src/server/routes/` |
 | API middleware | `src/server/middleware/` |
 | Database schema | `src/server/db/schema.sql` |
-| Act content & level definitions | `src/features/act*-*/content.ts` |
+| Act content & level definitions | `src/features/act*-*/content/act.ts` |
 | Level components | `src/features/act*-*/components/` |
-| Level component registry | `src/features/levels-registry.ts` |
-| Acts registry | `src/features/acts-registry.ts` |
+| Level component registry | `src/lib/levels-registry.ts` |
+| Acts registry | `src/lib/acts-registry.ts` |
 | Shared level components | `src/components/levels/` |
 | Pipeline editor | `src/components/pipeline/` |
 | UI components (shadcn/ui) | `src/components/ui/` |

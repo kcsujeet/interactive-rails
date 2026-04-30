@@ -12,12 +12,7 @@ export default defineConfig({
 	vite: {
 		plugins: [tailwindcss()],
 		optimizeDeps: {
-			include: ['phaser', 'better-auth'],
-		},
-		build: {
-			commonjsOptions: {
-				include: [/phaser/, /node_modules/],
-			},
+			include: ['better-auth'],
 		},
 	},
 });

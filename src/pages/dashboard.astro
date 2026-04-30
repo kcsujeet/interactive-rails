@@ -75,6 +75,10 @@ import { DashboardCodebaseButton } from '@/features/codebase-viewer/components/D
         ? `${totalMinutes} min`
         : `${Math.floor(totalMinutes / 60)}h ${totalMinutes % 60}m`;
 
+      const unlockedNodes = progress.unlockedNodes || [];
+      const unlockedActions = progress.unlockedActions || [];
+      const formatUnlockLabel = (value) => escapeHtml(String(value).replace(/_/g, ' '));
+
       container.innerHTML = `
         <div class="${cardClass} p-6">
           <h2 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5 pb-3 border-b border-border">Player Stats</h2>
@@ -116,18 +120,18 @@ import { DashboardCodebaseButton } from '@/features/codebase-viewer/components/D
         </div>
 
         <div class="${cardClass} p-6 col-span-full">
-          <h2 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5 pb-3 border-b border-border">Unlocked Abilities</h2>
+          <h2 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5 pb-3 border-b border-border">Unlocked Tools</h2>
           <div class="grid md:grid-cols-2 gap-6">
             <div>
               <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Nodes</h3>
               <div class="flex flex-wrap gap-2">
-                ${(progress.unlockedNodes || []).map((n: string) => `<span class="px-3 py-1.5 rounded-full text-xs font-medium bg-primary/15 text-primary border border-primary/30 capitalize">${n}</span>`).join('')}
+                ${unlockedNodes.map((n: string) => `<span class="px-3 py-1.5 rounded-full text-xs font-medium bg-primary/15 text-primary border border-primary/30 capitalize">${formatUnlockLabel(n)}</span>`).join('')}
               </div>
             </div>
             <div>
-              <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Defenses</h3>
+              <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Actions</h3>
               <div class="flex flex-wrap gap-2">
-                ${(progress.unlockedDefenses || []).map((d: string) => `<span class="px-3 py-1.5 rounded-full text-xs font-medium bg-success/15 text-success border border-success/30 capitalize">${d.replace('_', ' ')}</span>`).join('')}
+                ${unlockedActions.map((action: string) => `<span class="px-3 py-1.5 rounded-full text-xs font-medium bg-success/15 text-success border border-success/30 capitalize">${formatUnlockLabel(action)}</span>`).join('')}
               </div>
             </div>
           </div>
@@ -139,12 +143,12 @@ import { DashboardCodebaseButton } from '@/features/codebase-viewer/components/D
             <a href="/acts" class="${cardClass} p-6 flex flex-col items-center text-center no-underline hover:bg-accent hover:border-primary/30 hover:shadow-lg transition-all duration-200">
               <svg class="w-10 h-10 mb-3 text-primary" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
               <span class="text-foreground font-semibold mb-1">Acts</span>
-              <span class="text-xs text-muted-foreground">Learn Rails through 35 levels</span>
+              <span class="text-xs text-muted-foreground">Learn Rails through 58 levels</span>
             </a>
             <a href="/sandbox" class="${cardClass} p-6 flex flex-col items-center text-center no-underline hover:bg-accent hover:border-primary/30 hover:shadow-lg transition-all duration-200">
               <svg class="w-10 h-10 mb-3 text-primary" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
               <span class="text-foreground font-semibold mb-1">Sandbox</span>
-              <span class="text-xs text-muted-foreground">Practice building pipelines</span>
+              <span class="text-xs text-muted-foreground">Experiment with request flows</span>
             </a>
           </div>
         </div>

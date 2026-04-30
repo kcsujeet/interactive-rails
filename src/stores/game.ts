@@ -12,7 +12,6 @@ import { create } from 'zustand';
 import { devtools, persist, subscribeWithSelector } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import type { NodeType } from './pipeline';
-import type { DefenseType } from './simulation';
 
 // ============================================
 // Types
@@ -41,7 +40,6 @@ export interface PlayerStats {
 	totalPlayTime: number; // milliseconds
 	perfectScores: number; // 3-star completions
 	highestStabilityAchieved: number;
-	enemiesDefeated: number;
 	nodesPlaced: number;
 	connectionsCreated: number;
 }
@@ -58,7 +56,6 @@ export interface GameState {
 
 	// Unlocks
 	unlockedNodes: NodeType[];
-	unlockedDefenses: DefenseType[];
 	unlockedActions: string[];
 
 	// Level progress
@@ -86,10 +83,8 @@ export interface GameState {
 
 	// Actions - Unlocks
 	unlockNode: (nodeType: NodeType) => void;
-	unlockDefense: (defenseType: DefenseType) => void;
 	unlockAction: (action: string) => void;
 	isNodeUnlocked: (nodeType: NodeType) => boolean;
-	isDefenseUnlocked: (defenseType: DefenseType) => boolean;
 
 	// Actions - Levels
 	setCurrentLevel: (levelId: string | null) => void;
@@ -123,7 +118,6 @@ const INITIAL_UNLOCKED_NODES: NodeType[] = [
 	'response',
 	'controller',
 ];
-const INITIAL_UNLOCKED_DEFENSES: DefenseType[] = [];
 const INITIAL_UNLOCKED_ACTIONS: string[] = [
 	'drag_node',
 	'connect_ports',
@@ -167,14 +161,6 @@ const DEFAULT_ACHIEVEMENTS: Achievement[] = [
 		maxProgress: 100,
 	},
 	{
-		id: 'enemy_slayer',
-		name: 'Enemy Slayer',
-		description: 'Defeat 100 enemies',
-		unlockedAt: null,
-		progress: 0,
-		maxProgress: 100,
-	},
-	{
 		id: 'pipeline_architect',
 		name: 'Pipeline Architect',
 		description: 'Place 50 nodes',
@@ -206,7 +192,6 @@ const DEFAULT_STATS: PlayerStats = {
 	totalPlayTime: 0,
 	perfectScores: 0,
 	highestStabilityAchieved: 0,
-	enemiesDefeated: 0,
 	nodesPlaced: 0,
 	connectionsCreated: 0,
 };
@@ -222,16 +207,6 @@ const NODE_UNLOCK_LEVELS: Record<NodeType, number> = {
 	cache: 10,
 	serializer: 12,
 	background_job: 15,
-};
-
-// Defense unlock requirements by level
-const DEFENSE_UNLOCK_LEVELS: Record<DefenseType, number> = {
-	index_turret: 5,
-	cache_shield: 8,
-	eager_loader: 12,
-	rate_limiter: 15,
-	worker_drone: 18,
-	validator_wall: 20,
 };
 
 // ============================================
@@ -250,7 +225,6 @@ export const useGameStore = create<GameState>()(
 					xp: 0,
 					xpToNextLevel: BASE_XP_PER_LEVEL,
 					unlockedNodes: [...INITIAL_UNLOCKED_NODES],
-					unlockedDefenses: [...INITIAL_UNLOCKED_DEFENSES],
 					unlockedActions: [...INITIAL_UNLOCKED_ACTIONS],
 					completedLevels: new Map(),
 					currentLevelId: null,
@@ -289,7 +263,7 @@ export const useGameStore = create<GameState>()(
 									BASE_XP_PER_LEVEL * XP_SCALING_FACTOR ** (state.level - 1),
 								);
 
-								// Auto-unlock nodes and defenses at new level
+								// Auto-unlock nodes at new level
 								for (const [nodeType, requiredLevel] of Object.entries(
 									NODE_UNLOCK_LEVELS,
 								)) {
@@ -298,17 +272,6 @@ export const useGameStore = create<GameState>()(
 										!state.unlockedNodes.includes(nodeType as NodeType)
 									) {
 										state.unlockedNodes.push(nodeType as NodeType);
-									}
-								}
-
-								for (const [defenseType, requiredLevel] of Object.entries(
-									DEFENSE_UNLOCK_LEVELS,
-								)) {
-									if (
-										requiredLevel === state.level &&
-										!state.unlockedDefenses.includes(defenseType as DefenseType)
-									) {
-										state.unlockedDefenses.push(defenseType as DefenseType);
 									}
 								}
 
@@ -347,14 +310,6 @@ export const useGameStore = create<GameState>()(
 						});
 					},
 
-					unlockDefense: (defenseType) => {
-						set((state) => {
-							if (!state.unlockedDefenses.includes(defenseType)) {
-								state.unlockedDefenses.push(defenseType);
-							}
-						});
-					},
-
 					unlockAction: (action) => {
 						set((state) => {
 							if (!state.unlockedActions.includes(action)) {
@@ -365,10 +320,6 @@ export const useGameStore = create<GameState>()(
 
 					isNodeUnlocked: (nodeType) => {
 						return get().unlockedNodes.includes(nodeType);
-					},
-
-					isDefenseUnlocked: (defenseType) => {
-						return get().unlockedDefenses.includes(defenseType);
 					},
 
 					// Levels
@@ -505,24 +456,6 @@ export const useGameStore = create<GameState>()(
 							state.stats[stat] += amount;
 
 							// Update related achievements
-							if (stat === 'enemiesDefeated') {
-								const enemySlayer = state.achievements.find(
-									(a) => a.id === 'enemy_slayer',
-								);
-								if (enemySlayer) {
-									enemySlayer.progress = Math.min(
-										state.stats.enemiesDefeated,
-										enemySlayer.maxProgress,
-									);
-									if (
-										enemySlayer.progress >= enemySlayer.maxProgress &&
-										!enemySlayer.unlockedAt
-									) {
-										enemySlayer.unlockedAt = new Date().toISOString();
-									}
-								}
-							}
-
 							if (stat === 'nodesPlaced') {
 								const architect = state.achievements.find(
 									(a) => a.id === 'pipeline_architect',
@@ -580,8 +513,6 @@ export const useGameStore = create<GameState>()(
 								state.xpToNextLevel = data.xpToNextLevel;
 							if (data.unlockedNodes !== undefined)
 								state.unlockedNodes = data.unlockedNodes;
-							if (data.unlockedDefenses !== undefined)
-								state.unlockedDefenses = data.unlockedDefenses;
 							if (data.unlockedActions !== undefined)
 								state.unlockedActions = data.unlockedActions;
 							if (data.stats !== undefined) state.stats = data.stats;
@@ -596,7 +527,6 @@ export const useGameStore = create<GameState>()(
 							state.xp = 0;
 							state.xpToNextLevel = BASE_XP_PER_LEVEL;
 							state.unlockedNodes = [...INITIAL_UNLOCKED_NODES];
-							state.unlockedDefenses = [...INITIAL_UNLOCKED_DEFENSES];
 							state.unlockedActions = [...INITIAL_UNLOCKED_ACTIONS];
 							state.completedLevels = new Map();
 							state.currentLevelId = null;
@@ -618,7 +548,6 @@ export const useGameStore = create<GameState>()(
 					xp: state.xp,
 					xpToNextLevel: state.xpToNextLevel,
 					unlockedNodes: state.unlockedNodes,
-					unlockedDefenses: state.unlockedDefenses,
 					unlockedActions: state.unlockedActions,
 					// Note: completedLevels is a Map, needs custom serialization
 					stats: state.stats,
@@ -653,15 +582,8 @@ export const selectTotalStars = (state: GameState) => {
 export const selectCanUnlockNode = (nodeType: NodeType) => (state: GameState) =>
 	state.level >= NODE_UNLOCK_LEVELS[nodeType];
 
-export const selectCanUnlockDefense =
-	(defenseType: DefenseType) => (state: GameState) =>
-		state.level >= DEFENSE_UNLOCK_LEVELS[defenseType];
-
 export const selectNodeUnlockLevel = (nodeType: NodeType) =>
 	NODE_UNLOCK_LEVELS[nodeType];
-
-export const selectDefenseUnlockLevel = (defenseType: DefenseType) =>
-	DEFENSE_UNLOCK_LEVELS[defenseType];
 
 // ============================================
 // Backwards Compatibility Aliases

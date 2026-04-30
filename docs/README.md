@@ -1,119 +1,95 @@
 # Interactive Rails Documentation
 
-Welcome to the Interactive Rails documentation. This folder contains comprehensive documentation for the Interactive Rails project - a gamified web application that teaches Ruby on Rails development through interactive pipeline-building gameplay.
+Interactive Rails is an educational web app for learning Rails 8 API development through structured, interactive levels. The core lesson flow is briefing, observe, build, reward, and completion.
 
 ## Documentation Index
 
 | Document | Description |
 |----------|-------------|
 | [Architecture](./architecture.md) | System architecture, tech stack, and project structure |
-| [Game Mechanics](./game-mechanics.md) | Pipeline building, simulation, and progression systems |
+| [Game Mechanics](./game-mechanics.md) | Current briefing, observe, build, reward, and progression systems |
 | [Content Structure](./content-structure.md) | Acts, levels, and learning content |
 | [Development Setup](./development-setup.md) | Local development environment setup |
 | [Deployment Guide](./deployment-guide.md) | Production deployment to Cloudflare |
-| [API Reference](./api-reference.md) | API endpoint documentation |
+| [API Reference](./api-reference.md) | Mounted API endpoint documentation |
 | [Database Schema](./database-schema.md) | D1 database tables and relationships |
 | [Troubleshooting](./troubleshooting.md) | Common issues and solutions |
 
 ## Quick Start
 
 ```bash
-# Install dependencies
 bun install
-
-# Start development servers (frontend + worker)
 bun run dev
 ```
 
 - Frontend: http://localhost:4321
-- Worker API: http://localhost:8787
+- API: mounted under the same Astro app at `/api/*`
 
 ## Project Overview
 
-Interactive Rails is an educational game where players learn **Rails 8 API-only** development by building a production-grade SaaS while mastering Rails 8 concepts through interactive pipeline-building gameplay.
+Players learn Rails 8 by moving through 58 levels across 8 acts. Most levels are custom React experiences with:
 
-The narrative arc takes players from a simple Blog API through a social platform, into a SaaS with payments, and ultimately to enterprise scale. Rails 8 features like Solid Queue, Solid Cache, Solid Cable, built-in auth, `params.expect()`, and `rate_limit` appear naturally as players progress. Testing is integrated from Level 12 onward.
+- a briefing screen that frames the scenario
+- an observe phase where probes and inspections reveal the problem
+- a build phase where the player chooses commands, code, or focused interactions
+- a reward phase where the fixed system is stress-tested
+- a completion flow that records stars and progress
 
-1. **Concept-specific interactions** - Each level teaches through a unique interactive mechanic (selection, drag-and-drop, simulation, visualization)
-2. **Pipeline building** - 7 levels use a visual pipeline builder where architecture IS the lesson
-3. **Progressing through acts** - 8 acts covering Rails fundamentals to system design mastery
+Sandbox mode still exists as a free-form request-flow playground, but it is separate from the primary level loop.
 
-### Current Status
-
-**8 Acts with 56 Total Levels:**
+## Current Curriculum
 
 | Act | Name | Levels | Focus |
 |-----|------|--------|-------|
-| 1 | The Foundation | 8 (Levels 1-8) | MVC, CRUD, Routes, Controllers, Serializers, Associations, Seeds |
-| 2 | Guards & Gates | 8 (Levels 9-16) | Authentication, Validations, Callbacks, Authorization, Testing, Strong Params, CORS, Scopes & Enums |
-| 3 | Clean Architecture | 7 (Levels 17-23) | Service Objects, Concerns, Validation Contracts, Query Objects, Error Handling, Action Mailer, Background Jobs |
-| 4 | Performance | 9 (Levels 24-32) | N+1 Queries, Eager Loading, Narrow Fetching, Indexing, Counter Caches, Pagination, Search, Caching, HTTP Caching |
-| 5 | Production Features | 8 (Levels 33-40) | Polymorphic, Transactions, Active Storage, Encryption, Real-Time, External APIs, Webhooks, API Versioning |
-| 6 | Reliability | 7 (Levels 41-47) | Middleware, Rate Limiting, Soft Deletes, Safe Migrations, Recurring Jobs, Data Lifecycle, Error Monitoring |
-| 7 | Scale | 6 (Levels 48-53) | Multi-Database, State Machines, Multi-Tenancy, Observability, Modular Monolith, Domain Events |
-| 8 | Mastery | 3 (Levels 54-56) | API Gateway, Database Sharding, The Architect (Capstone) |
+| 1 | The Foundation | L1-L8 | Environment, app boot, models, CRUD, routes, controllers, serializers, associations |
+| 2 | Guards & Gates | L9-L15 | Authentication, validations, callbacks, authorization, testing, strong params, CORS |
+| 3 | Clean Architecture | L16-L22 | Service objects, concerns, contracts, query objects, error handling, mailers, background jobs |
+| 4 | Performance | L23-L31 | N+1, eager loading, narrow fetching, indexing, counter caches, pagination, search, caching |
+| 5 | Production Features | L32-L40 | Polymorphic associations, transactions, locking, storage, encryption, real-time, external APIs, webhooks, versioning |
+| 6 | Operations | L41-L49 | Middleware, rate limiting, soft deletes, safe migrations, recurring jobs, data lifecycle, monitoring, deployment, feature flags |
+| 7 | Scale | L50-L55 | Multi-database, state machines, multi-tenancy, observability, modular monolith, domain events |
+| 8 | Mastery | L56-L58 | API gateway, sharding, capstone architecture |
 
-### Key Features
+## Key Features
 
-- **Pipeline Builder** - Visual drag-and-drop editor for building request flows
-- **Real-time Simulation** - Tick-based engine with live metrics (latency, throughput, queries)
-- **Progress Tracking** - Star ratings, achievements, XP, and level unlocks
-- **Sandbox Mode** - Free-form experimentation without constraints
-- **Learning Content** - Integrated explanations, code examples, and best practices
+- **Three-phase levels**: observe the failure, build the fix, then stress-test the solution.
+- **Concept-specific visualizations**: levels use `PipelineFlow`, `QueryZoneFlow`, or custom visualizations based on the Rails concept.
+- **Focused step mechanics**: terminal choices, option cards, probes, inspectors, and stress tests.
+- **Progress tracking**: completed levels, star ratings, XP, titles, stack choices, and guest progress import.
+- **Codebase viewer**: players can inspect generated Rails files as they move through the curriculum.
 
 ## Tech Stack Summary
 
 | Layer | Technology |
 |-------|------------|
-| Runtime | Bun |
-| Frontend | Astro 5.x + React 19 |
+| Runtime and package manager | Bun |
+| Frontend | Astro + React |
 | State | Zustand |
 | Visualization | React Flow (@xyflow/react) |
-| Styling | Tailwind CSS 4.x |
+| Styling | Tailwind CSS 4 |
 | Backend | Cloudflare Workers + Hono |
-| Database | Cloudflare D1 (SQLite) |
-| Auth | JWT (custom implementation) |
+| Database | Cloudflare D1 |
+| Auth | Better Auth |
 
 ## Key Directories
 
-```
+```text
 interactive-rails/
-├── src/
-│   ├── server/            # Hono API (mounted at /api/*)
-│   │   ├── routes/        # API route handlers
-│   │   ├── middleware/     # Auth, rate limiting
-│   │   ├── services/      # Business logic
-│   │   └── db/            # Schema SQL
-│   ├── pages/             # Astro routes (acts, levels, sandbox, API catch-all)
-│   ├── features/          # Feature modules (bulletproof-react pattern)
-│   │   ├── acts-registry.ts      # All acts registry
-│   │   ├── levels-registry.ts    # Level component registry (56 custom)
-│   │   ├── act1-foundation/      # Act content + components
-│   │   ├── act2-users-security/
-│   │   ├── act3-clean-architecture/
-│   │   ├── act4-performance/
-│   │   ├── act5-production/
-│   │   ├── act6-reliability/
-│   │   ├── act7-scale/
-│   │   └── act8-mastery/
-│   ├── components/        # Shared components
-│   │   ├── levels/        # Shared level components
-│   │   ├── pipeline/      # Pipeline editor (React Flow)
-│   │   └── ui/            # shadcn/ui components
-│   ├── hooks/             # Shared hooks
-│   ├── utils/             # Utilities
-│   ├── types/             # TypeScript definitions
-│   ├── stores/            # Zustand state
-│   └── styles/            # Global CSS
-└── docs/                  # Documentation
+  src/
+    server/             Hono API, auth, repositories, D1 schema
+    pages/              Astro routes and API catch-all
+    features/           Act and level feature modules
+    components/         Shared UI, level, pipeline, and page components
+    hooks/              Shared React hooks
+    lib/                Client utilities, registries, progress helpers
+    stores/             Zustand stores
+    styles/             Global CSS
+  docs/                 Project documentation
 ```
 
 ## Important Notes
 
-1. **Astro Islands**: Most pages are static. Interactive components (game canvas, forms) use `client:load` directive.
-
-2. **State Management**: Zustand stores handle game state, pipeline editor state, and simulation state separately.
-
-3. **Simulation Engine**: Tick-based (30+ FPS) simulation calculates metrics in real-time as requests flow through the pipeline.
-
-4. **Progress Persistence**: Guest progress stored in localStorage, synced to server on login.
+1. Use Bun for local commands.
+2. The current level standard is the sequential three-phase flow: observe, build, reward.
+3. There is no enemy/defense combat loop in the current gameplay.
+4. Legacy storage names such as `dungeon_id` remain in the database for compatibility, but gameplay and docs should refer to levels.

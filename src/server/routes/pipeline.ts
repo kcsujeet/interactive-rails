@@ -1,6 +1,6 @@
 /**
  * Pipeline Routes
- * Handles dungeons, completions, progress, and leaderboards for the pipeline builder game
+ * Handles level completions, progress, imports, and legacy leaderboard reads.
  */
 
 import { zValidator } from '@hono/zod-validator';
@@ -440,8 +440,8 @@ pipelineRoutes.get('/progress', authMiddleware, async (c) => {
 		// Create default progress
 		await db
 			.prepare(
-				`INSERT INTO player_progress (user_id, level, xp, unlocked_nodes, unlocked_defenses)
-        VALUES (?, 1, 0, '["request","router","controller","serializer","response"]', '["index_turret"]')`,
+				`INSERT INTO player_progress (user_id, level, xp, unlocked_nodes)
+	        VALUES (?, 1, 0, '["request","router","controller","serializer","response"]')`,
 			)
 			.bind(userId)
 			.run();
@@ -474,9 +474,6 @@ pipelineRoutes.get('/progress', authMiddleware, async (c) => {
 	const unlockedNodes = JSON.parse(
 		(progress?.unlocked_nodes as string) || '[]',
 	);
-	const unlockedDefenses = JSON.parse(
-		(progress?.unlocked_defenses as string) || '[]',
-	);
 	const unlockedActions = JSON.parse(
 		(progress?.unlocked_actions as string) || '[]',
 	);
@@ -492,7 +489,6 @@ pipelineRoutes.get('/progress', authMiddleware, async (c) => {
 			xp: progress?.xp || 0,
 			xpToNextLevel: xpForLevel((progress?.level as number) + 1 || 2),
 			unlockedNodes,
-			unlockedDefenses,
 			unlockedActions,
 			titles,
 			currentTitle: progress?.current_title || null,
@@ -793,8 +789,8 @@ pipelineRoutes.post(
 		if (!progress) {
 			await db
 				.prepare(
-					`INSERT INTO player_progress (user_id, level, xp, unlocked_nodes, unlocked_defenses, guest_imported_at, stack_choices, last_played_at)
-          VALUES (?, 1, 0, '["request","router","controller","serializer","response"]', '["index_turret"]', CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)`,
+					`INSERT INTO player_progress (user_id, level, xp, unlocked_nodes, guest_imported_at, stack_choices, last_played_at)
+	          VALUES (?, 1, 0, '["request","router","controller","serializer","response"]', CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)`,
 				)
 				.bind(userId, stackChoices ? JSON.stringify(stackChoices) : null)
 				.run();

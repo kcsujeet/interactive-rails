@@ -6,7 +6,6 @@
  *
  * Store Architecture:
  * - pipelineStore: React Flow nodes/edges, selection, history, validation
- * - simulationStore: Tick loop, metrics, enemies, defenses, stability
  * - gameStore: Player progress, XP, unlocks, achievements, stats
  * - uiStore: Modals, panels, toasts, preferences, responsive state
  */
@@ -17,9 +16,7 @@ export {
 	type GameState,
 	type LevelCompletion,
 	type PlayerStats,
-	selectCanUnlockDefense,
 	selectCanUnlockNode,
-	selectDefenseUnlockLevel,
 	selectLevelProgress,
 	selectLockedAchievements,
 	selectNodeUnlockLevel,
@@ -41,26 +38,6 @@ export {
 	selectSelectedNodes,
 	usePipelineStore,
 } from './pipeline';
-// Simulation Store - Real-time simulation engine state
-export {
-	type Defense,
-	type DefenseType,
-	type Enemy,
-	type EnemyType,
-	type Position,
-	type SimulationConfig,
-	type SimulationMetrics,
-	type SimulationStatus,
-	type SimulationStoreState,
-	selectActiveDefenses,
-	selectActiveEnemies,
-	selectIsPaused,
-	selectIsRunning,
-	selectLatencyColor,
-	selectStabilityColor,
-	useSimulationStore,
-} from './simulation';
-
 // UI Store - Interface state and preferences
 export {
 	type ConfirmDialogOptions,

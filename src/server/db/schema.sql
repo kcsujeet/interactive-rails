@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS player_progress (
   -- JSON arrays of unlocked items
   unlocked_actions TEXT DEFAULT '[]',
   unlocked_nodes TEXT DEFAULT '["request","router","controller","view","response"]',
-  unlocked_defenses TEXT DEFAULT '["index_turret"]',
+  unlocked_defenses TEXT DEFAULT '[]',
   -- Stack choices from Level 1
   stack_choices TEXT DEFAULT NULL,
   -- Guest import tracking

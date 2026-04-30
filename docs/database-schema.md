@@ -1,109 +1,41 @@
 # Database Schema
 
-Interactive Rails uses Cloudflare D1 (SQLite) for persistent storage.
-
-## Schema Location
-
-```
-worker/src/db/schema.sql
-```
+Interactive Rails uses Cloudflare D1 for persistent storage. The source schema lives at `src/server/db/schema.sql`.
 
 ## Schema Version
 
-**Version:** v2 (Pipeline Builder System)
+**Version:** v2 progress schema
 
 The schema is optimized for:
-- Progress and completion tracking
-- Client-side simulation (only results are stored)
-- Leaderboards and achievements
 
-## Entity Relationship Diagram
+- user accounts and auth data
+- authenticated progress
+- level completions
+- guest progress imports
+- leaderboard snapshots
+- achievements
 
-```
-┌─────────────────┐
-│     users       │
-├─────────────────┤
-│ id (PK)         │
-│ email           │──────┐
-│ username        │      │
-│ password_hash   │      │
-│ created_at      │      │
-│ updated_at      │      │
-└─────────────────┘      │
-         │               │
-         │ 1:1           │ 1:N
-         ▼               │
-┌─────────────────┐      │
-│ player_progress │      │
-├─────────────────┤      │
-│ user_id (PK/FK) │      │
-│ level           │      │
-│ xp              │      │
-│ unlocked_nodes  │      │
-│ unlocked_defenses│     │
-│ stack_choices   │      │
-│ titles          │      │
-│ total_stars     │      │
-└─────────────────┘      │
-                         │
-┌─────────────────┐      │
-│dungeon_completions│    │
-├─────────────────┤      │
-│ id (PK)         │◀─────┤
-│ user_id (FK)    │      │
-│ dungeon_id      │      │
-│ stars_earned    │      │
-│ final_stability │      │
-│ final_metrics   │      │
-│ attempts        │      │
-└─────────────────┘      │
-                         │
-┌─────────────────┐      │
-│metrics_snapshots│      │
-├─────────────────┤      │
-│ id (PK)         │◀─────┤
-│ user_id (FK)    │      │
-│ dungeon_id      │      │
-│ snapshot_data   │      │
-│ snapshot_type   │      │
-└─────────────────┘      │
-                         │
-┌─────────────────┐      │
-│leaderboard_entries│   │
-├─────────────────┤      │
-│ id (PK)         │◀─────┤
-│ dungeon_id      │      │
-│ user_id (FK)    │      │
-│ stability       │      │
-│ time_seconds    │      │
-│ rank            │      │
-└─────────────────┘      │
-                         │
-┌─────────────────┐      │
-│user_achievements│      │
-├─────────────────┤      │
-│ id (PK)         │◀─────┤
-│ user_id (FK)    │      │
-│ achievement_id  │      │
-│ progress        │      │
-│ is_complete     │      │
-└─────────────────┘      │
-                         │
-┌─────────────────┐      │
-│    sessions     │      │
-├─────────────────┤      │
-│ id (PK)         │◀─────┘
-│ user_id (FK)    │
-│ token           │
-│ expires_at      │
-└─────────────────┘
+Some table and column names still use legacy dungeon vocabulary. In current gameplay, those rows store level completion data.
+
+## Entity Overview
+
+```text
+users
+  |
+  +-- player_progress
+  |
+  +-- dungeon_completions
+  |
+  +-- metrics_snapshots
+  |
+  +-- leaderboard_entries
+  |
+  +-- user_achievements
 ```
 
-## Table Definitions
+## users
 
-### users
-
-Core user account information.
+Core account information.
 
 ```sql
 CREATE TABLE IF NOT EXISTS users (
@@ -114,34 +46,29 @@ CREATE TABLE IF NOT EXISTS users (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
-
-CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 ```
 
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| id | TEXT | PRIMARY KEY | UUID |
-| email | TEXT | UNIQUE, NOT NULL | User's email address |
-| username | TEXT | UNIQUE, NOT NULL | Display name |
-| password_hash | TEXT | NOT NULL | PBKDF2 hashed password |
-| created_at | DATETIME | DEFAULT NOW | Account creation time |
-| updated_at | DATETIME | DEFAULT NOW | Last update time |
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | TEXT | User ID |
+| `email` | TEXT | Unique email address |
+| `username` | TEXT | Unique display name |
+| `password_hash` | TEXT | Password hash for legacy auth paths |
+| `created_at` | DATETIME | Creation timestamp |
+| `updated_at` | DATETIME | Update timestamp |
 
----
+## player_progress
 
-### player_progress
-
-Tracks player's game progress, unlocks, and stats.
+Tracks player-level progress and unlock state.
 
 ```sql
 CREATE TABLE IF NOT EXISTS player_progress (
-  user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  user_id TEXT PRIMARY KEY REFERENCES "user"(id) ON DELETE CASCADE,
   level INTEGER DEFAULT 1,
   xp INTEGER DEFAULT 0,
   unlocked_actions TEXT DEFAULT '[]',
-  unlocked_nodes TEXT DEFAULT '["request","router","controller","serializer","response"]',
-  unlocked_defenses TEXT DEFAULT '["index_turret"]',
+  unlocked_nodes TEXT DEFAULT '["request","router","controller","view","response"]',
+  unlocked_defenses TEXT DEFAULT '[]',
   stack_choices TEXT DEFAULT NULL,
   guest_imported_at DATETIME DEFAULT NULL,
   titles TEXT DEFAULT '[]',
@@ -155,33 +82,30 @@ CREATE TABLE IF NOT EXISTS player_progress (
 );
 ```
 
-| Column | Type | Default | Description |
-|--------|------|---------|-------------|
-| user_id | TEXT | - | Primary key, foreign key to users |
-| level | INTEGER | 1 | Current player level |
-| xp | INTEGER | 0 | Total experience points |
-| unlocked_nodes | TEXT | JSON array | Available pipeline node types |
-| unlocked_defenses | TEXT | JSON array | Available defense types |
-| stack_choices | TEXT | NULL | Level 1 stack choices (JSON) |
-| titles | TEXT | JSON array | Earned titles |
-| total_stars_earned | INTEGER | 0 | Cumulative stars across all levels |
-| dungeons_completed | INTEGER | 0 | Number of levels completed |
+| Column | Type | Description |
+|--------|------|-------------|
+| `user_id` | TEXT | Primary key and user reference |
+| `level` | INTEGER | Player level |
+| `xp` | INTEGER | Total XP |
+| `unlocked_actions` | TEXT | JSON array of unlocked UI or sandbox actions |
+| `unlocked_nodes` | TEXT | JSON array of unlocked pipeline nodes |
+| `unlocked_defenses` | TEXT | Legacy unused JSON field, defaults to `[]` |
+| `stack_choices` | TEXT | JSON stack choices from Level 1 |
+| `guest_imported_at` | DATETIME | Timestamp of one-time guest import |
+| `titles` | TEXT | JSON array of earned titles |
+| `current_title` | TEXT | Active title |
+| `total_play_time_seconds` | INTEGER | Cumulative play time |
+| `dungeons_completed` | INTEGER | Legacy name for levels completed |
+| `total_stars_earned` | INTEGER | Cumulative stars |
 
-**Notes:**
-- JSON columns store arrays as TEXT for SQLite compatibility
-- Default unlocked nodes: request, router, controller, view, response
-- Default unlocked defense: index_turret
+## dungeon_completions
 
----
-
-### dungeon_completions
-
-Records level completions with stats and best scores.
+Records level completions. `dungeon_id` stores the current level ID.
 
 ```sql
 CREATE TABLE IF NOT EXISTS dungeon_completions (
   id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
   dungeon_id TEXT NOT NULL,
   stars_earned INTEGER NOT NULL CHECK (stars_earned BETWEEN 1 AND 3),
   final_stability INTEGER NOT NULL CHECK (final_stability BETWEEN 0 AND 100),
@@ -198,24 +122,23 @@ CREATE TABLE IF NOT EXISTS dungeon_completions (
 
 | Column | Type | Description |
 |--------|------|-------------|
-| dungeon_id | TEXT | Level ID (e.g., "1-1", "2-5") |
-| stars_earned | INTEGER | Current star rating (1-3) |
-| final_stability | INTEGER | Most recent stability score (0-100) |
-| final_metrics | TEXT | JSON snapshot of completion metrics |
-| best_stability | INTEGER | Personal best stability score |
-| best_time_seconds | INTEGER | Personal best completion time |
-| attempts | INTEGER | Total attempt count |
+| `dungeon_id` | TEXT | Legacy name for level ID |
+| `stars_earned` | INTEGER | Best star rating |
+| `final_stability` | INTEGER | Compatibility score field |
+| `time_to_complete_seconds` | INTEGER | Completion time |
+| `final_metrics` | TEXT | JSON metrics snapshot |
+| `best_stability` | INTEGER | Best compatibility score |
+| `best_time_seconds` | INTEGER | Fastest completion time |
+| `attempts` | INTEGER | Attempt count |
 
----
+## metrics_snapshots
 
-### metrics_snapshots
-
-Stores detailed metrics for analytics and leaderboards.
+Stores additional metrics for analytics and leaderboard-related records.
 
 ```sql
 CREATE TABLE IF NOT EXISTS metrics_snapshots (
   id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
   dungeon_id TEXT NOT NULL,
   snapshot_data TEXT NOT NULL,
   snapshot_type TEXT NOT NULL CHECK (snapshot_type IN ('completion', 'personal_best', 'leaderboard')),
@@ -223,15 +146,7 @@ CREATE TABLE IF NOT EXISTS metrics_snapshots (
 );
 ```
 
-| Snapshot Type | Description |
-|---------------|-------------|
-| completion | Regular level completion |
-| personal_best | New personal best score |
-| leaderboard | Leaderboard-qualifying run |
-
----
-
-### leaderboard_entries
+## leaderboard_entries
 
 Denormalized leaderboard cache for fast reads.
 
@@ -239,7 +154,7 @@ Denormalized leaderboard cache for fast reads.
 CREATE TABLE IF NOT EXISTS leaderboard_entries (
   id TEXT PRIMARY KEY,
   dungeon_id TEXT NOT NULL,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
   username TEXT NOT NULL,
   stability INTEGER NOT NULL,
   time_seconds INTEGER NOT NULL,
@@ -251,20 +166,19 @@ CREATE TABLE IF NOT EXISTS leaderboard_entries (
 );
 ```
 
-**Indexes:**
-- `dungeon_id, stability DESC` - For stability leaderboards
-- `dungeon_id, time_seconds ASC` - For speedrun leaderboards
+Indexes:
 
----
+- `idx_leaderboard_dungeon_stability` on `dungeon_id, stability DESC`
+- `idx_leaderboard_dungeon_time` on `dungeon_id, time_seconds ASC`
 
-### user_achievements
+## user_achievements
 
 Tracks achievement progress and completion.
 
 ```sql
 CREATE TABLE IF NOT EXISTS user_achievements (
   id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
   achievement_id TEXT NOT NULL,
   progress INTEGER DEFAULT 0,
   is_complete INTEGER DEFAULT 0,
@@ -274,68 +188,9 @@ CREATE TABLE IF NOT EXISTS user_achievements (
 );
 ```
 
-| Column | Description |
-|--------|-------------|
-| achievement_id | Achievement identifier |
-| progress | Current progress (for incremental achievements) |
-| is_complete | 0 or 1 (SQLite boolean) |
+## Example Queries
 
----
-
-### sessions
-
-Authentication session storage.
-
-```sql
-CREATE TABLE IF NOT EXISTS sessions (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  token TEXT UNIQUE NOT NULL,
-  expires_at DATETIME NOT NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-```
-
----
-
-## Migrations
-
-### Running Migrations
-
-**Local development:**
-```bash
-cd worker
-bunx wrangler d1 execute interactive-rails-db --file=src/db/schema.sql --local
-```
-
-**Production:**
-```bash
-cd worker
-bunx wrangler d1 execute interactive-rails-db --file=src/db/schema.sql
-```
-
-### Reset Local Database
-
-```bash
-rm -rf worker/.wrangler/state
-cd worker
-bunx wrangler d1 execute interactive-rails-db --file=src/db/schema.sql --local
-```
-
----
-
-## Query Examples
-
-### Get player progress
-
-```sql
-SELECT p.*, u.username, u.email
-FROM player_progress p
-JOIN users u ON p.user_id = u.id
-WHERE p.user_id = ?;
-```
-
-### Get level completions for user
+### Get completed levels for a user
 
 ```sql
 SELECT dungeon_id, stars_earned, best_stability, best_time_seconds, attempts
@@ -344,7 +199,7 @@ WHERE user_id = ?
 ORDER BY dungeon_id;
 ```
 
-### Get leaderboard for a level
+### Get a level leaderboard
 
 ```sql
 SELECT username, stability, time_seconds, stars, rank
@@ -354,21 +209,8 @@ ORDER BY stability DESC, time_seconds ASC
 LIMIT 100;
 ```
 
-### Check if user completed a level
+## Cleanup Notes
 
-```sql
-SELECT COUNT(*) > 0 as completed
-FROM dungeon_completions
-WHERE user_id = ? AND dungeon_id = ?;
-```
-
----
-
-## Schema Info View
-
-Check schema version:
-
-```sql
-SELECT * FROM schema_info;
--- Returns: version='v2', schema_type='pipeline_builder'
-```
+- New code should use level terminology in TypeScript and UI copy.
+- Existing database columns with dungeon names are compatibility names.
+- `unlocked_defenses` is retained in the schema to avoid breaking existing databases, but current gameplay does not read or expose it.

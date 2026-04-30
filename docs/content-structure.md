@@ -10,8 +10,8 @@ Game content is defined in the frontend as TypeScript data structures and React 
 ```
 src/features/act*-*/content.ts      # Act and level definitions (8 files)
 src/features/act*-*/components/     # Level-specific React components
-src/features/acts-registry.ts       # All acts registry
-src/features/levels-registry.ts     # Level component registry (55 custom)
+src/lib/acts-registry.ts            # All acts registry
+src/lib/levels-registry.ts          # Level component registry (58 custom)
 ```
 
 ---
@@ -19,7 +19,7 @@ src/features/levels-registry.ts     # Level component registry (55 custom)
 ## Content Hierarchy
 
 ```
-Interactive Rails (55 levels, 8 acts)
+Interactive Rails (58 levels, 8 acts)
 ├── Act 1: The Foundation (8 levels)
 │   ├── Level 1: First Boot
 │   ├── Level 2: The Model
@@ -70,32 +70,34 @@ Interactive Rails (55 levels, 8 acts)
 │   ├── Level 39: Webhooks & Idempotency
 │   └── Level 40: API Versioning
 │
-├── Act 6: Reliability (L41-L47, 7 levels)
+├── Act 6: Operations (L41-L49, 9 levels)
 │   ├── Level 41: Middleware & Rack
 │   ├── Level 42: Rate Limiting
 │   ├── Level 43: Soft Deletes & Audit Trails
 │   ├── Level 44: Safe Migrations
 │   ├── Level 45: Recurring Jobs & Scheduling
 │   ├── Level 46: Data Lifecycle
-│   └── Level 47: Structured Error Monitoring
+│   ├── Level 47: Structured Error Monitoring
+│   ├── Level 48: Deployment
+│   └── Level 49: Feature Flags
 │
-├── Act 7: Scale (L48-L53, 6 levels)
-│   ├── Level 48: Multi-Database
-│   ├── Level 49: State Machines
-│   ├── Level 50: Multi-Tenancy
-│   ├── Level 51: Observability
-│   ├── Level 52: Modular Monolith
-│   └── Level 53: Domain Events & Decoupling
+├── Act 7: Scale (L50-L55, 6 levels)
+│   ├── Level 50: Multi-Database
+│   ├── Level 51: State Machines
+│   ├── Level 52: Multi-Tenancy
+│   ├── Level 53: Observability
+│   ├── Level 54: Modular Monolith
+│   └── Level 55: Domain Events & Decoupling
 │
-└── Act 8: Mastery (L54-L56, 3 levels)
-    ├── Level 54: API Gateway
-    ├── Level 55: Database Sharding
-    └── Level 56: The Architect (Capstone)
+└── Act 8: Mastery (L56-L58, 3 levels)
+    ├── Level 56: API Gateway
+    ├── Level 57: Database Sharding
+    └── Level 58: The Architect (Capstone)
 ```
 
 **Current Status:**
 - 8 acts implemented
-- 56 total levels
+- 58 total levels
 - Rails 8 API-only focused
 - Testing required from Level 13 onward
 
@@ -105,7 +107,7 @@ Interactive Rails (55 levels, 8 acts)
 
 ### TypeScript Interface
 
-The following interfaces are simplified versions of the actual types defined in `src/types/game.ts` and `src/types/level.ts`. See those files for the full definitions.
+The following interfaces are simplified versions of the actual types defined in `src/types/game.ts`. See that file for the full definitions.
 
 ```typescript
 interface Act {
@@ -231,7 +233,7 @@ export const actOne: Act = {
 
 ## Level Components
 
-Each level has a corresponding React component registered in `src/features/levels-registry.ts`. All 55 levels have custom interactive components registered in the level registry.
+Each level has a corresponding React component registered in `src/lib/levels-registry.ts`. All 58 levels have custom interactive components registered in the level registry.
 
 ### Component Location
 
@@ -267,7 +269,7 @@ src/features/
 
 ### Level Component Patterns
 
-**Custom Interactive (55 levels):** 3-panel layout with concept-specific interaction.
+**Custom Interactive (58 levels):** 3-panel layout with concept-specific interaction.
 
 ```typescript
 // features/act4-performance/components/Level24Indexing.tsx
@@ -293,7 +295,7 @@ export function Level24Indexing({ onComplete }: LevelComponentProps) {
 }
 ```
 
-**Pipeline Builder (7 levels):** Some levels use the generic pipeline builder view where the pipeline position IS the lesson. These levels are NOT registered in `levels-registry.ts` and fall through to the generic view.
+**Generic Pipeline Builder:** `LevelPlayApp` still has a fallback for unregistered levels, but the current 58-level curriculum is registered with custom components.
 
 ---
 
@@ -458,20 +460,20 @@ const successConditions: SuccessCondition[] = [
 
 ### Adding a New Level
 
-1. **Update the appropriate act file in `src/features/actN-*/content.ts`** - Add level definition to the act
+1. **Update the appropriate act file in `src/features/actN-*/content/act.ts`** - Add level definition to the act
 2. **Use pipeline templates** - For standard request-cycle levels, use `standardPipeline()` or `middlewarePipeline()` from `@/utils/pipelineTemplates` instead of inline node definitions
 3. **Create component** - Add `LevelXXName.tsx` in the act's `components/` folder
-4. **Add to level registry** - Update `src/features/levels-registry.ts`
+4. **Add to level registry** - Update `src/lib/levels-registry.ts`
 5. **Test** - Verify level loads and completes correctly
 
 ### Adding a New Act
 
 1. **Create feature directory** - `src/features/actN-name/`
-2. **Create content file** - `src/features/actN-name/content.ts`
+2. **Create content file** - `src/features/actN-name/content/act.ts`
 3. **Create index** - `src/features/actN-name/index.ts` exporting content
-4. **Update acts registry** - Import and add in `src/features/acts-registry.ts`
+4. **Update acts registry** - Import and add in `src/lib/acts-registry.ts`
 5. **Create components** - Add `components/LevelXXName.tsx` for each level
-6. **Register components** - Import and add in `src/features/levels-registry.ts`
+6. **Register components** - Import and add in `src/lib/levels-registry.ts`
 
 ### Level Component Template
 
@@ -604,19 +606,23 @@ Additional tips:
 - Webhooks and idempotency
 - API versioning
 
-**Act 6 - Reliability:**
+**Act 6 - Operations:**
 - Middleware and Rack
 - Rate limiting (Rails 8 built-in)
 - Soft deletes and audit trails
 - Safe migrations (zero-downtime)
 - Recurring jobs and scheduling (Solid Queue)
+- Data lifecycle
 - Structured error monitoring
+- Deployment
+- Feature flags
 
 **Act 7 - Scale:**
 - Multi-database (read replicas)
 - State machines
 - Multi-tenancy
 - Observability
+- Modular monolith
 - Domain events and decoupling
 
 **Act 8 - Mastery:**
@@ -630,11 +636,11 @@ Additional tips:
 
 | Content Type | Location |
 |--------------|----------|
-| Act definitions | `src/features/act*-*/content.ts` |
+| Act definitions | `src/features/act*-*/content/act.ts` |
 | Level components | `src/features/act*-*/components/` |
 | Pipeline templates | `src/utils/pipelineTemplates.ts` |
-| Acts registry | `src/features/acts-registry.ts` |
-| Level registry | `src/features/levels-registry.ts` |
+| Acts registry | `src/lib/acts-registry.ts` |
+| Level registry | `src/lib/levels-registry.ts` |
 | Node types | `src/utils/gameData.ts` |
 | Pipeline types | `src/types/game.ts` |
 | Game store | `src/stores/game.ts` |
