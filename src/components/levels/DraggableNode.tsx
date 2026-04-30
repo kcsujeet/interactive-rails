@@ -35,8 +35,8 @@ export function DraggableNode({
 			color={resolveColor(color)}
 			disabled={disabled}
 			dragData={type}
-			dragType="nodeType"
 			draggable
+			dragType="nodeType"
 			icon={DotIcon}
 			isDragging={isDragging}
 			name={name}

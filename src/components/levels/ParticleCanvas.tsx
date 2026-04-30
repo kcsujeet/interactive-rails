@@ -35,7 +35,6 @@ export interface Particle {
 
 interface ParticleCanvasProps {
 	particles: Particle[];
-	onParticleComplete?: (particleId: string) => void;
 	onParticlePoof?: (particleId: string, x: number, y: number) => void;
 	className?: string;
 }
@@ -144,7 +143,6 @@ const PARTICLE_VISUALS: Record<
 
 export function ParticleCanvas({
 	particles,
-	onParticleComplete,
 	onParticlePoof,
 	className = '',
 }: ParticleCanvasProps) {
@@ -176,7 +174,7 @@ export function ParticleCanvas({
 
 			// Draw trail if enabled
 			if (visual.trail && particle.progress > 0.1) {
-				const trailLength = 20;
+				const _trailLength = 20;
 				const trailStartX =
 					particle.x +
 					(particle.targetX - particle.x) *
@@ -259,7 +257,7 @@ export function ParticleCanvas({
 		// Draw poof effects
 		for (const [id, poof] of poofEffects.current) {
 			const opacity = 1 - poof.progress;
-			const size = 20 + poof.progress * 30;
+			const _size = 20 + poof.progress * 30;
 
 			ctx.globalAlpha = opacity * 0.6;
 
@@ -289,7 +287,7 @@ export function ParticleCanvas({
 	}, [particles]);
 
 	// Handle poof effect
-	const triggerPoof = useCallback(
+	const _triggerPoof = useCallback(
 		(id: string, x: number, y: number) => {
 			poofEffects.current.set(id, { x, y, progress: 0 });
 			onParticlePoof?.(id, x, y);
@@ -302,6 +300,9 @@ export function ParticleCanvas({
 		const canvas = canvasRef.current;
 		if (!canvas) return;
 
+		const parent = canvas.parentElement;
+		if (!parent) return;
+
 		const resizeObserver = new ResizeObserver((entries) => {
 			for (const entry of entries) {
 				canvas.width = entry.contentRect.width;
@@ -309,7 +310,7 @@ export function ParticleCanvas({
 			}
 		});
 
-		resizeObserver.observe(canvas.parentElement!);
+		resizeObserver.observe(parent);
 		return () => resizeObserver.disconnect();
 	}, []);
 

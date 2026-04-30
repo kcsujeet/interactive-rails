@@ -6,12 +6,8 @@
 
 import { Check, ChevronDown, ChevronRight, Lock, Star } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import {
-	ACTS,
-	getTotalLevelCount,
-	isLevelUnlocked,
-} from '@/lib/acts-registry';
 import { CodebaseViewerDialog } from '@/features/codebase-viewer/components/CodebaseViewerDialog';
+import { ACTS, getTotalLevelCount, isLevelUnlocked } from '@/lib/acts-registry';
 import { buildUnifiedProject } from '@/lib/codebase-registry';
 import type { LevelProgressEntry } from '@/lib/progress';
 import { getProgress } from '@/lib/progress';
@@ -187,9 +183,7 @@ export function ActsListApp() {
 		<div className="max-w-2xl mx-auto">
 			<div className="mb-8 flex items-start justify-between gap-4">
 				<div>
-					<h1 className="text-2xl font-semibold text-foreground mb-2">
-						Acts
-					</h1>
+					<h1 className="text-2xl font-semibold text-foreground mb-2">Acts</h1>
 					<p className="text-muted-foreground text-sm">
 						Progress through Rails concepts from fundamentals to production.
 					</p>

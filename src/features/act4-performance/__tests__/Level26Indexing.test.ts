@@ -503,7 +503,8 @@ describe('Level 26: Database Indexing', () => {
 
 		test('reward scan SQL must not contradict the lane SQL', () => {
 			for (const [_scenarioId, data] of Object.entries(REWARD_SCAN_DATA)) {
-				const lane = QUERY_LANES.find((l) => l.id === data.laneId)!;
+				const lane = QUERY_LANES.find((l) => l.id === data.laneId);
+				if (!lane) throw new Error(`unknown laneId: ${data.laneId}`);
 				// The SQL shown to the player is sqlOverride if present, else lane.sql
 				const displayedSql = data.sqlOverride ?? lane.sql;
 
@@ -522,7 +523,8 @@ describe('Level 26: Database Indexing', () => {
 		test('expected seq scans must have sqlOverride when lane SQL has WHERE', () => {
 			for (const [_scenarioId, data] of Object.entries(REWARD_SCAN_DATA)) {
 				if (!data.expected) continue;
-				const lane = QUERY_LANES.find((l) => l.id === data.laneId)!;
+				const lane = QUERY_LANES.find((l) => l.id === data.laneId);
+				if (!lane) throw new Error(`unknown laneId: ${data.laneId}`);
 
 				// If the lane SQL has WHERE but the scenario is "expected" (no WHERE clause),
 				// there MUST be a sqlOverride to avoid contradiction
@@ -536,7 +538,7 @@ describe('Level 26: Database Indexing', () => {
 		test('expected seq scans should have labelOverride when lane label mismatches', () => {
 			for (const [scenarioId, data] of Object.entries(REWARD_SCAN_DATA)) {
 				if (!data.expected) continue;
-				const _lane = QUERY_LANES.find((l) => l.id === data.laneId)!;
+				const _lane = QUERY_LANES.find((l) => l.id === data.laneId);
 				const _scenario = STRESS_SCENARIOS.find((s) => s.id === scenarioId);
 
 				// If the scenario is about a different query type (e.g., admin list all)
@@ -568,7 +570,8 @@ describe('Level 26: Database Indexing', () => {
 		test('expected seq scans should only be on allowed scenarios', () => {
 			for (const [scenarioId, data] of Object.entries(REWARD_SCAN_DATA)) {
 				if (!data.expected) continue;
-				const scenario = STRESS_SCENARIOS.find((s) => s.id === scenarioId)!;
+				const scenario = STRESS_SCENARIOS.find((s) => s.id === scenarioId);
+				if (!scenario) throw new Error(`unknown scenarioId: ${scenarioId}`);
 				expect(scenario.expectedResult).toBe('allowed');
 			}
 		});

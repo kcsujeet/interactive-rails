@@ -51,6 +51,8 @@ function BreadcrumbLink({
 
 function BreadcrumbPage({ className, ...props }: React.ComponentProps<'span'>) {
 	return (
+		// biome-ignore lint/a11y/useFocusableInteractive: shadcn breadcrumb convention; current page is non-interactive
+		// biome-ignore lint/a11y/useSemanticElements: shadcn breadcrumb convention; using span with role to match design
 		<span
 			aria-current="page"
 			aria-disabled="true"

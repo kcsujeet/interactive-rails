@@ -46,8 +46,8 @@ function ScenarioPanel() {
 			<p className="text-sm text-muted-foreground leading-relaxed">
 				No welcome email fires on signup either. And Product has no{' '}
 				<span className="text-foreground font-medium">status</span> field, so
-				the app cannot tell a draft from an active listing or a sold one.
-				Three problems, three different fixes.
+				the app cannot tell a draft from an active listing or a sold one. Three
+				problems, three different fixes.
 			</p>
 		</div>
 	);

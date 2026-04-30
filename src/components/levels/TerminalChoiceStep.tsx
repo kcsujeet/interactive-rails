@@ -10,13 +10,13 @@
 
 import { ArrowRight } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { Button } from '@/components/ui/Button';
 import {
 	SimulatedTerminal,
 	type TerminalCommand,
 	type TerminalHistoryEntry,
 	type TerminalOutputLine,
 } from './SimulatedTerminal';
-import { Button } from '@/components/ui/Button';
 
 /**
  * Step definition type for levels where every step is a terminal choice.
@@ -110,10 +110,10 @@ export function TerminalChoiceStep({
 				description
 			)}
 			<SimulatedTerminal
-				key={stepKey}
 				commands={commands}
 				completed={completed}
 				initialHistory={initialHistory}
+				key={stepKey}
 				onCorrect={onCorrect}
 				onWrong={onWrong}
 				outputLines={outputLines}

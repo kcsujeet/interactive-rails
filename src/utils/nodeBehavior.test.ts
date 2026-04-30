@@ -106,27 +106,27 @@ describe('getParticleConfig', () => {
 		test('eager_load: heavy particles for N+1 visualization', () => {
 			const config = getParticleConfig('eager_load', false);
 			expect(config).not.toBeNull();
-			expect(config!.particleCount).toBe(15);
-			expect(config!.spawnRate).toBe(300);
+			expect(config?.particleCount).toBe(15);
+			expect(config?.spawnRate).toBe(300);
 		});
 
 		test('index: slow single particle', () => {
 			const config = getParticleConfig('index', false);
 			expect(config).not.toBeNull();
-			expect(config!.particleCount).toBe(1);
-			expect(config!.speed).toBe(0.03);
+			expect(config?.particleCount).toBe(1);
+			expect(config?.speed).toBe(0.03);
 		});
 
 		test('cache: moderate particles', () => {
 			const config = getParticleConfig('cache', false);
 			expect(config).not.toBeNull();
-			expect(config!.particleCount).toBe(3);
+			expect(config?.particleCount).toBe(3);
 		});
 
 		test('multiple: heavy particles', () => {
 			const config = getParticleConfig('multiple', false);
 			expect(config).not.toBeNull();
-			expect(config!.particleCount).toBe(10);
+			expect(config?.particleCount).toBe(10);
 		});
 	});
 
@@ -134,15 +134,15 @@ describe('getParticleConfig', () => {
 		test('returns calm single particle when solution is placed', () => {
 			const config = getParticleConfig('eager_load', true);
 			expect(config).not.toBeNull();
-			expect(config!.particleCount).toBe(1);
-			expect(config!.spawnRate).toBe(1000);
-			expect(config!.speed).toBe(0.08);
+			expect(config?.particleCount).toBe(1);
+			expect(config?.spawnRate).toBe(1000);
+			expect(config?.speed).toBe(0.08);
 		});
 
 		test('calm particle regardless of solution type', () => {
 			for (const type of ['eager_load', 'index', 'cache', 'multiple']) {
 				const config = getParticleConfig(type, true);
-				expect(config!.particleCount).toBe(1);
+				expect(config?.particleCount).toBe(1);
 			}
 		});
 	});

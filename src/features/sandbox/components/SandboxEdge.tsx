@@ -3,12 +3,7 @@
  * Dot count and color scale with traffic volume.
  */
 
-import {
-	BaseEdge,
-	type EdgeProps,
-	getBezierPath,
-} from '@xyflow/react';
-import { useMemo } from 'react';
+import { BaseEdge, type EdgeProps, getBezierPath } from '@xyflow/react';
 
 interface SandboxEdgeData {
 	traffic?: number;
@@ -73,7 +68,12 @@ export function SandboxEdge({
 			{dotCount > 0 && (
 				<g>
 					{Array.from({ length: dotCount }, (_, i) => (
-						<circle fill={dotColor} key={`${id}-dot-${i}`} r={dotSize}>
+						<circle
+							fill={dotColor}
+							// biome-ignore lint/suspicious/noArrayIndexKey: dots are fixed-position decorative elements; index is identity
+							key={`${id}-dot-${i}`}
+							r={dotSize}
+						>
 							<animateMotion
 								begin={`${-(i / dotCount) * duration}s`}
 								dur={`${duration}s`}

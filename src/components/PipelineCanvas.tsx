@@ -71,7 +71,8 @@ export function PipelineCanvas({
 	nodeOverrides,
 }: PipelineCanvasProps) {
 	return (
-		// biome-ignore lint/a11y/useKeyWithClickEvents: Canvas uses mouse interactions
+		// biome-ignore lint/a11y/useKeyWithClickEvents: legacy pipeline-builder canvas; pointer-only
+		// biome-ignore lint/a11y/noStaticElementInteractions: legacy pipeline-builder canvas; pointer-only
 		<div
 			className={`flex-1 bg-background relative overflow-hidden ${
 				draggedNodeType ? 'ring-2 ring-primary ring-inset' : ''
@@ -136,6 +137,7 @@ export function PipelineCanvas({
 					return (
 						<g key={conn.id}>
 							{/* Forward connection */}
+							{/* biome-ignore lint/a11y/useSemanticElements: SVG path cannot be a <button>; role is the correct affordance */}
 							<path
 								aria-label="Delete connection"
 								className="pointer-events-auto cursor-pointer hover:stroke-opacity-100"
@@ -184,6 +186,7 @@ export function PipelineCanvas({
 							{/* Return connection line for bidirectional pairs */}
 							{isBidirectional && (
 								<>
+									{/* biome-ignore lint/a11y/noStaticElementInteractions: legacy pipeline-builder; pointer-only return-line */}
 									<path
 										className="pointer-events-auto cursor-pointer hover:stroke-opacity-100"
 										d={returnPath}
@@ -284,8 +287,10 @@ export function PipelineCanvas({
 					<div className="text-center max-w-sm">
 						<div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-card border border-border mb-4">
 							<svg
+								aria-label="Empty pipeline"
 								className="w-6 h-6 text-muted-foreground"
 								fill="none"
+								role="img"
 								stroke="currentColor"
 								viewBox="0 0 24 24"
 							>

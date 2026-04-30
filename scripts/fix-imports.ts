@@ -38,7 +38,7 @@ async function fixImports() {
 				// Replace relative imports with @/ alias
 				newFrontmatter = newFrontmatter.replace(
 					/from\s+["'](\.\.\/)+([^"']+)['"]/g,
-					(match, dots, path) => {
+					(match, _dots, path) => {
 						const srcDirs = [
 							'components',
 							'lib',
@@ -64,7 +64,7 @@ async function fixImports() {
 			// For .ts/.tsx files, replace all relative imports
 			newContent = newContent.replace(
 				/from\s+["'](\.\.\/)+([^"']+)['"]/g,
-				(match, dots, path) => {
+				(match, _dots, path) => {
 					const srcDirs = [
 						'components',
 						'lib',
@@ -87,7 +87,7 @@ async function fixImports() {
 			// Handle import statements without 'from' (side effects)
 			newContent = newContent.replace(
 				/import\s+["'](\.\.\/)+([^"']+)['"]/g,
-				(match, dots, path) => {
+				(match, _dots, path) => {
 					const srcDirs = [
 						'components',
 						'lib',
@@ -110,7 +110,7 @@ async function fixImports() {
 
 		if (fileReplacements > 0) {
 			await Bun.write(filePath, newContent);
-			const relativePath = filePath.replace(process.cwd() + '/', '');
+			const relativePath = filePath.replace(`${process.cwd()}/`, '');
 			console.log(`✓ ${relativePath} (${fileReplacements} replacements)`);
 			totalReplacements += fileReplacements;
 		}

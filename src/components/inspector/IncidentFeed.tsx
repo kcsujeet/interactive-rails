@@ -112,7 +112,7 @@ export function IncidentFeed({
 		if (autoScroll && feedRef.current) {
 			feedRef.current.scrollTop = feedRef.current.scrollHeight;
 		}
-	}, [incidents, autoScroll]);
+	}, [autoScroll]);
 
 	// Detect manual scroll
 	const handleScroll = () => {

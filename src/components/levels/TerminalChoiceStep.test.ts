@@ -5,8 +5,8 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { buildTerminalHistory } from './TerminalChoiceStep';
 import type { TerminalStepData } from './TerminalChoiceStep';
+import { buildTerminalHistory } from './TerminalChoiceStep';
 
 const STEP_1: TerminalStepData = {
 	commands: [
@@ -107,12 +107,7 @@ describe('buildTerminalHistory', () => {
 	describe('mixed levels (some steps are null)', () => {
 		test('skips null steps at the beginning', () => {
 			// L3 pattern: [null, null, terminal, terminal]
-			const steps: (TerminalStepData | null)[] = [
-				null,
-				null,
-				STEP_1,
-				STEP_2,
-			];
+			const steps: (TerminalStepData | null)[] = [null, null, STEP_1, STEP_2];
 
 			const history = buildTerminalHistory(steps, 3);
 			expect(history).toHaveLength(1);
@@ -121,12 +116,7 @@ describe('buildTerminalHistory', () => {
 
 		test('skips null step at position 0', () => {
 			// L2 pattern: [null, terminal, terminal, terminal, terminal]
-			const steps: (TerminalStepData | null)[] = [
-				null,
-				STEP_1,
-				STEP_2,
-				STEP_3,
-			];
+			const steps: (TerminalStepData | null)[] = [null, STEP_1, STEP_2, STEP_3];
 
 			const history = buildTerminalHistory(steps, 3);
 			expect(history).toHaveLength(2);
@@ -175,10 +165,7 @@ describe('buildTerminalHistory', () => {
 				outputLines: [],
 			};
 
-			const history = buildTerminalHistory(
-				[noCorrect, STEP_1],
-				2,
-			);
+			const history = buildTerminalHistory([noCorrect, STEP_1], 2);
 			expect(history).toHaveLength(1);
 			expect(history[0].command).toBe('brew install tool');
 		});

@@ -68,8 +68,10 @@ export function SubmitButton({
 				<div className="bg-destructive/10 border border-destructive/50 rounded-lg p-3 animate-shake">
 					<div className="text-destructive text-sm font-medium flex items-center gap-2">
 						<svg
+							aria-label="Error"
 							className="w-4 h-4 shrink-0"
 							fill="currentColor"
+							role="img"
 							viewBox="0 0 20 20"
 						>
 							<path
@@ -82,8 +84,8 @@ export function SubmitButton({
 					</div>
 					{lastResult.details && lastResult.details.length > 0 && (
 						<ul className="mt-2 text-destructive/80 text-xs space-y-1">
-							{lastResult.details.map((detail, i) => (
-								<li className="flex items-start gap-1" key={i}>
+							{lastResult.details.map((detail) => (
+								<li className="flex items-start gap-1" key={detail}>
 									<span className="text-destructive">-</span>
 									{detail}
 								</li>
@@ -98,8 +100,10 @@ export function SubmitButton({
 				<div className="bg-success/10 border border-success/50 rounded-lg p-3">
 					<div className="text-success text-sm font-medium flex items-center gap-2">
 						<svg
+							aria-label="Success"
 							className="w-4 h-4 shrink-0"
 							fill="currentColor"
+							role="img"
 							viewBox="0 0 20 20"
 						>
 							<path

@@ -1,4 +1,3 @@
-import * as React from 'react';
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -9,14 +8,12 @@ import {
 } from './breadcrumb';
 
 interface LevelBreadcrumbProps {
-	actId: number;
 	actName: string;
 	levelNumber: number;
 	currentPage?: 'level' | 'complete';
 }
 
 export function LevelBreadcrumb({
-	actId,
 	actName,
 	levelNumber,
 	currentPage = 'level',

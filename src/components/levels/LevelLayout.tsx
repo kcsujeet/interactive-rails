@@ -14,7 +14,11 @@ interface LevelLayoutProps {
 
 export function LevelLayout({ children }: LevelLayoutProps) {
 	return (
-		<Group className="h-full bg-background" id="level-panels" orientation="horizontal">
+		<Group
+			className="h-full bg-background"
+			id="level-panels"
+			orientation="horizontal"
+		>
 			{children}
 		</Group>
 	);

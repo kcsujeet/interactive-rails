@@ -150,11 +150,11 @@ export default function PipelineCanvas({
 	);
 
 	return (
+		// biome-ignore lint/a11y/noStaticElementInteractions: keyboard handler proxies React Flow's pane events
 		<div
 			className={clsx('w-full h-full', className)}
 			onKeyDown={handleKeyDown}
 			ref={reactFlowWrapper}
-			tabIndex={0}
 		>
 			<ReactFlow
 				className="bg-background"
@@ -217,6 +217,7 @@ export default function PipelineCanvas({
 						<div className="bg-red-900/90 border border-red-700 rounded-lg p-3 shadow-lg">
 							<h4 className="text-sm font-semibold text-red-200 mb-2 flex items-center gap-2">
 								<svg
+									aria-hidden="true"
 									className="w-4 h-4"
 									fill="none"
 									stroke="currentColor"
@@ -232,8 +233,8 @@ export default function PipelineCanvas({
 								Validation Errors
 							</h4>
 							<ul className="text-xs text-red-300 space-y-1">
-								{validationErrors.map((error, index) => (
-									<li className="flex items-start gap-1" key={index}>
+								{validationErrors.map((error) => (
+									<li className="flex items-start gap-1" key={error}>
 										<span className="text-red-400">-</span>
 										<span>{error}</span>
 									</li>
@@ -255,6 +256,7 @@ export default function PipelineCanvas({
 								variant="outline"
 							>
 								<svg
+									aria-hidden="true"
 									className="w-4 h-4"
 									fill="none"
 									stroke="currentColor"
@@ -276,6 +278,7 @@ export default function PipelineCanvas({
 								variant="outline"
 							>
 								<svg
+									aria-hidden="true"
 									className="w-4 h-4"
 									fill="none"
 									stroke="currentColor"

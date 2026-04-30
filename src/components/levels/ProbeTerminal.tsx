@@ -72,7 +72,7 @@ export function ProbeTerminal({
 				behavior: 'smooth',
 			});
 		}
-	}, [history.length, visibleLines]);
+	}, []);
 
 	// Animate output lines
 	useEffect(() => {

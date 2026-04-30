@@ -29,6 +29,7 @@ export const RequestNode = memo(function RequestNode({
 			data={data}
 			icon={
 				<svg
+					aria-hidden="true"
 					className="w-4 h-4"
 					fill="none"
 					stroke="currentColor"
@@ -58,6 +59,7 @@ export const RouterNode = memo(function RouterNode({
 			data={data}
 			icon={
 				<svg
+					aria-hidden="true"
 					className="w-4 h-4"
 					fill="none"
 					stroke="currentColor"
@@ -86,6 +88,7 @@ export const ControllerNode = memo(function ControllerNode({
 			data={data}
 			icon={
 				<svg
+					aria-hidden="true"
 					className="w-4 h-4"
 					fill="none"
 					stroke="currentColor"
@@ -114,6 +117,7 @@ export const ModelNode = memo(function ModelNode({
 			data={data}
 			icon={
 				<svg
+					aria-hidden="true"
 					className="w-4 h-4"
 					fill="none"
 					stroke="currentColor"
@@ -142,6 +146,7 @@ export const DatabaseNode = memo(function DatabaseNode({
 			data={data}
 			icon={
 				<svg
+					aria-hidden="true"
 					className="w-4 h-4"
 					fill="none"
 					stroke="currentColor"
@@ -170,6 +175,7 @@ export const CacheNode = memo(function CacheNode({
 			data={data}
 			icon={
 				<svg
+					aria-hidden="true"
 					className="w-4 h-4"
 					fill="none"
 					stroke="currentColor"
@@ -198,6 +204,7 @@ export const ViewNode = memo(function ViewNode({
 			data={data}
 			icon={
 				<svg
+					aria-hidden="true"
 					className="w-4 h-4"
 					fill="none"
 					stroke="currentColor"
@@ -232,6 +239,7 @@ export const ResponseNode = memo(function ResponseNode({
 			data={data}
 			icon={
 				<svg
+					aria-hidden="true"
 					className="w-4 h-4"
 					fill="none"
 					stroke="currentColor"
@@ -261,6 +269,7 @@ export const BackgroundJobNode = memo(function BackgroundJobNode({
 			data={data}
 			icon={
 				<svg
+					aria-hidden="true"
 					className="w-4 h-4"
 					fill="none"
 					stroke="currentColor"

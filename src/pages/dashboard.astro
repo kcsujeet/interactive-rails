@@ -77,7 +77,7 @@ import { DashboardCodebaseButton } from '@/features/codebase-viewer/components/D
 
       const unlockedNodes = progress.unlockedNodes || [];
       const unlockedActions = progress.unlockedActions || [];
-      const formatUnlockLabel = (value) => escapeHtml(String(value).replace(/_/g, ' '));
+      const formatUnlockLabel = (value: unknown) => escapeHtml(String(value).replace(/_/g, ' '));
 
       container.innerHTML = `
         <div class="${cardClass} p-6">

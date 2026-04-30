@@ -42,10 +42,10 @@ export function ScenarioCards({
 			<div className="p-3 flex flex-wrap gap-2">
 				{scenarios.map((scenario) => (
 					<ScenarioCardButton
-						key={scenario.id}
-						scenario={scenario}
 						disabled={disabled}
+						key={scenario.id}
 						onSelect={onSelect}
+						scenario={scenario}
 					/>
 				))}
 			</div>
@@ -75,14 +75,14 @@ function ScenarioCardButton({
 
 	return (
 		<button
-			type="button"
-			onClick={handleClick}
-			disabled={fired || disabled}
 			className={`text-left border rounded-md px-3 py-2 transition-all duration-300 ${
 				fired
 					? 'border-destructive/30 bg-destructive/5 dark:bg-destructive/10'
 					: 'border-border bg-background hover:ring-2 hover:ring-ring/30 cursor-pointer'
 			} ${disabled && !fired ? 'opacity-50 cursor-not-allowed' : ''}`}
+			disabled={fired || disabled}
+			onClick={handleClick}
+			type="button"
 		>
 			<div className="flex items-start gap-2">
 				{fired ? (

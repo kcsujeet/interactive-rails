@@ -79,6 +79,8 @@ export function PipelineNode({
 	};
 
 	return (
+		// biome-ignore lint/a11y/noStaticElementInteractions: legacy pipeline-builder canvas; pointer-only drag UI
+		// biome-ignore lint/a11y/useKeyWithClickEvents: legacy pipeline-builder canvas; pointer-only drag UI
 		<div
 			className={`absolute transform -translate-x-1/2 -translate-y-1/2 select-none ${
 				isDragging ? 'cursor-grabbing z-20' : 'cursor-grab'
@@ -125,8 +127,10 @@ export function PipelineNode({
 					type="button"
 				>
 					<svg
+						aria-label="Delete"
 						className="w-3.5 h-3.5"
 						fill="none"
+						role="img"
 						stroke="currentColor"
 						strokeWidth={2}
 						viewBox="0 0 24 24"
@@ -142,6 +146,7 @@ export function PipelineNode({
 
 			{/* Input port (left side) - Hide for locked nodes unless it's a specific educational case? Keeping hidden for now */}
 			{!node.locked && node.type !== 'request' && (
+				// biome-ignore lint/a11y/noStaticElementInteractions: legacy pipeline-builder; pointer-only port handle
 				<div
 					className={`absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
 						pendingConnection && !isConnectionSource
@@ -165,6 +170,7 @@ export function PipelineNode({
 
 			{/* Output port (right side) */}
 			{!node.locked && node.type !== 'response' && (
+				// biome-ignore lint/a11y/noStaticElementInteractions: legacy pipeline-builder; pointer-only port handle
 				<div
 					className={`absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-2 flex items-center justify-center cursor-pointer transition-all ${
 						isConnectionSource

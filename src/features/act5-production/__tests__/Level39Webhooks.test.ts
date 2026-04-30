@@ -474,45 +474,45 @@ describe('Level 39: Webhooks & Idempotency', () => {
 		test('CONFIGURE_SIGNATURE feedback does not contain "construct_event"', () => {
 			const wrong = CONFIGURE_SIGNATURE_OPTIONS.filter((o) => !o.correct);
 			for (const opt of wrong) {
-				expect(opt.feedback!).not.toContain('construct_event');
+				expect(opt.feedback ?? '').not.toContain('construct_event');
 			}
 		});
 
 		test('CONFIGURE_SIGNATURE feedback does not contain "Stripe::Webhook"', () => {
 			const wrong = CONFIGURE_SIGNATURE_OPTIONS.filter((o) => !o.correct);
 			for (const opt of wrong) {
-				expect(opt.feedback!).not.toContain('Stripe::Webhook');
+				expect(opt.feedback ?? '').not.toContain('Stripe::Webhook');
 			}
 		});
 
 		test('CONFIGURE_IDEMPOTENCY feedback does not contain "find_or_create_by"', () => {
 			const wrong = CONFIGURE_IDEMPOTENCY_OPTIONS.filter((o) => !o.correct);
 			for (const opt of wrong) {
-				expect(opt.feedback!).not.toContain('find_or_create_by');
+				expect(opt.feedback ?? '').not.toContain('find_or_create_by');
 			}
 		});
 
 		test('CONFIGURE_ASYNC feedback does not contain "perform_later"', () => {
 			const wrong = CONFIGURE_ASYNC_OPTIONS.filter((o) => !o.correct);
 			for (const opt of wrong) {
-				expect(opt.feedback!).not.toContain('perform_later');
+				expect(opt.feedback ?? '').not.toContain('perform_later');
 			}
 		});
 
 		test('BUILD_SERVICE feedback does not contain "IngestStripeWebhook" or "verify_signature!"', () => {
 			const wrong = BUILD_SERVICE_OPTIONS.filter((o) => !o.correct);
 			for (const opt of wrong) {
-				expect(opt.feedback!).not.toContain('IngestStripeWebhook');
-				expect(opt.feedback!).not.toContain('verify_signature!');
-				expect(opt.feedback!).not.toContain('deduplicate!');
+				expect(opt.feedback ?? '').not.toContain('IngestStripeWebhook');
+				expect(opt.feedback ?? '').not.toContain('verify_signature!');
+				expect(opt.feedback ?? '').not.toContain('deduplicate!');
 			}
 		});
 
 		test('GENERATE_MIGRATION feedback does not contain "payload:jsonb" or "status:string"', () => {
 			const wrong = GENERATE_MIGRATION_COMMANDS.filter((o) => !o.correct);
 			for (const opt of wrong) {
-				expect(opt.feedback!).not.toContain('payload:jsonb');
-				expect(opt.feedback!).not.toContain('status:string');
+				expect(opt.feedback ?? '').not.toContain('payload:jsonb');
+				expect(opt.feedback ?? '').not.toContain('status:string');
 			}
 		});
 	});

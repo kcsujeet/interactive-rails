@@ -19,8 +19,8 @@ export const mockUseState = <T>(
 
 // Mock level completion hook
 export const mockCompleteLevel = async (
-	levelId: string,
-	data: { stars: number },
+	_levelId: string,
+	_data: { stars: number },
 ) => {
 	return true;
 };

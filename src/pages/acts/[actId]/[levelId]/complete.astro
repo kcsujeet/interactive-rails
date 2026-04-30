@@ -1,10 +1,6 @@
 ---
 import GameLayout from '@/layouts/GameLayout.astro';
-import {
-	getLevel,
-	getActForLevel,
-	getNextLevel,
-} from '@/lib/acts-registry';
+import { getLevel, getActForLevel, getNextLevel } from '@/lib/acts-registry';
 import { Button } from '@/components/ui/Button';
 import { CodeBlock } from '@/components/ui/CodeBlock';
 import { LevelBreadcrumb } from '@/components/ui/LevelBreadcrumb';
@@ -46,7 +42,6 @@ const scoreMessage =
       {/* Breadcrumb */}
       <LevelBreadcrumb
         client:load
-        actId={act.id}
         actName={act.name}
         levelNumber={level.levelNumber}
         currentPage="complete"

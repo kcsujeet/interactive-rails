@@ -15,7 +15,7 @@ interface ValidationResult {
 // Helper to simulate button behavior
 function simulateSubmitClick(
 	validateFn: () => ValidationResult,
-	onSuccessFn: () => Promise<void>,
+	_onSuccessFn: () => Promise<void>,
 ): { result: ValidationResult; successCalled: boolean } {
 	const result = validateFn();
 	let successCalled = false;

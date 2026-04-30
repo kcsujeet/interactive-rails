@@ -933,7 +933,9 @@ export function findCriticalPath(
 	const visited = new Set<string>();
 
 	while (queue.length > 0) {
-		const { nodeId, path } = queue.shift()!;
+		const head = queue.shift();
+		if (!head) continue;
+		const { nodeId, path } = head;
 
 		if (nodeId === endNode.id) {
 			return path;

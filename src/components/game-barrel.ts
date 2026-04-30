@@ -1,8 +1,8 @@
 // Types
-export * from '@/types/game';
 
 // Hooks
 export * from '@/hooks';
+export * from '@/types/game';
 
 // Data
 export * from '@/utils/gameData';

@@ -48,6 +48,7 @@ export function LevelInfoApp({ levelId }: LevelInfoAppProps) {
 	const [loading, setLoading] = useState(true);
 	const [levelInfo, setLevelInfo] = useState<LevelInfo | null>(null);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: loadLevelInfo should only run once when levelId changes
 	useEffect(() => {
 		loadLevelInfo();
 	}, [levelId]);
@@ -111,7 +112,6 @@ export function LevelInfoApp({ levelId }: LevelInfoAppProps) {
 		<div className="max-w-4xl mx-auto">
 			{/* Breadcrumb */}
 			<LevelBreadcrumb
-				actId={levelInfo.actId}
 				actName={levelInfo.actName}
 				levelNumber={levelInfo.levelNumber}
 			/>
@@ -219,8 +219,8 @@ export function LevelInfoApp({ levelId }: LevelInfoAppProps) {
 							<ul className="space-y-1.5">
 								{levelInfo.learningGoals.map((goal) => (
 									<li
-										key={goal}
 										className="flex items-start gap-2 text-sm text-muted-foreground leading-relaxed"
+										key={goal}
 									>
 										<span className="mt-2 block w-1 h-1 rounded-full bg-primary/50 shrink-0" />
 										{goal}
@@ -234,10 +234,11 @@ export function LevelInfoApp({ levelId }: LevelInfoAppProps) {
 
 			{/* CTA */}
 			<div className="mt-10">
-				<Button
-					className="w-full h-12 text-base shadow-lg shadow-primary/20"
-				>
-					<a href={`/acts/${levelInfo.actId}/${levelId}/play`} className="flex items-center justify-center w-full no-underline">
+				<Button className="w-full h-12 text-base shadow-lg shadow-primary/20">
+					<a
+						className="flex items-center justify-center w-full no-underline"
+						href={`/acts/${levelInfo.actId}/${levelId}/play`}
+					>
 						<Play className="w-5 h-5 mr-2" />
 						Start Challenge
 					</a>

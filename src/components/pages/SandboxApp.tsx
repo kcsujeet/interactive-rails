@@ -204,6 +204,8 @@ export function SandboxApp() {
 						const isSelected = node.id === selectedNodeId;
 
 						return (
+							// biome-ignore lint/a11y/noStaticElementInteractions: sandbox canvas uses pointer-only node selection
+							// biome-ignore lint/a11y/useKeyWithClickEvents: sandbox canvas uses pointer-only node selection
 							<div
 								className={`absolute cursor-pointer transition-shadow ${
 									isSelected
@@ -229,8 +231,10 @@ export function SandboxApp() {
 										type="button"
 									>
 										<svg
+											aria-label="Delete"
 											className="w-3.5 h-3.5"
 											fill="none"
+											role="img"
 											stroke="currentColor"
 											strokeWidth={2}
 											viewBox="0 0 24 24"

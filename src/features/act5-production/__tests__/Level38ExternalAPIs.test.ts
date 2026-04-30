@@ -475,7 +475,7 @@ describe('Level 38: External APIs', () => {
 			const wrong = CONFIGURE_TIMEOUT_OPTIONS.filter((o) => !o.correct);
 			for (const opt of wrong) {
 				expect(opt.feedback?.toLowerCase()).not.toContain('open_timeout');
-				expect(opt.feedback!).not.toContain('timeout = 10');
+				expect(opt.feedback ?? '').not.toContain('timeout = 10');
 			}
 		});
 
@@ -492,15 +492,15 @@ describe('Level 38: External APIs', () => {
 		test('CONFIGURE_CIRCUIT feedback does not contain "with_error_handler" or "ClientError"', () => {
 			const wrong = CONFIGURE_CIRCUIT_OPTIONS.filter((o) => !o.correct);
 			for (const opt of wrong) {
-				expect(opt.feedback!).not.toContain('with_error_handler');
-				expect(opt.feedback!).not.toContain('ClientError');
+				expect(opt.feedback ?? '').not.toContain('with_error_handler');
+				expect(opt.feedback ?? '').not.toContain('ClientError');
 			}
 		});
 
 		test('BUILD_SERVICE feedback does not contain "Stoplight::Error::RedLight"', () => {
 			const wrong = BUILD_SERVICE_OPTIONS.filter((o) => !o.correct);
 			for (const opt of wrong) {
-				expect(opt.feedback!).not.toContain('Stoplight::Error::RedLight');
+				expect(opt.feedback ?? '').not.toContain('Stoplight::Error::RedLight');
 			}
 		});
 	});

@@ -64,7 +64,7 @@ export function SimulatedTerminal({
 		if (scrollRef.current) {
 			scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
 		}
-	}, [history, visibleLines]);
+	}, []);
 
 	// Animate output lines when outputLines change
 	useEffect(() => {

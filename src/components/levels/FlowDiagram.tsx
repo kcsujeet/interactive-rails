@@ -279,7 +279,7 @@ export function AnimatedDots({ dots, path, restartTick }: AnimatedDotsProps) {
 		return () => {
 			for (const t of timeouts) clearTimeout(t);
 		};
-	}, [restartTick, dots, restartable]);
+	}, [dots, restartable]);
 
 	return (
 		<>

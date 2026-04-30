@@ -841,6 +841,7 @@ function DataTableHeatmap({
 											? 'bg-red-400/30 dark:bg-red-500/20'
 											: 'bg-muted',
 							)}
+							// biome-ignore lint/suspicious/noArrayIndexKey: rows are fixed-position indicator bars; index is identity
 							key={i}
 						/>
 					);

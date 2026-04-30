@@ -161,7 +161,7 @@ export function usePipelineValidation(
 	const evaluateCondition = useCallback(
 		(
 			condition: SuccessCondition,
-			metrics?: LiveMetrics,
+			_metrics?: LiveMetrics,
 		): { passed: boolean; message: string } => {
 			switch (condition.type) {
 				case 'node_present': {
@@ -214,8 +214,8 @@ export function usePipelineValidation(
 					const reachable = new Set<string>();
 					const bfsQueue = [reqNode.id];
 					while (bfsQueue.length > 0) {
-						const id = bfsQueue.shift()!;
-						if (reachable.has(id)) continue;
+						const id = bfsQueue.shift();
+						if (id === undefined || reachable.has(id)) continue;
 						reachable.add(id);
 						for (const conn of connections) {
 							if (
@@ -259,7 +259,7 @@ export function usePipelineValidation(
 
 	// Check challenge-specific success condition
 	const checkChallenge = useCallback(
-		(metrics?: LiveMetrics): ValidationResult => {
+		(_metrics?: LiveMetrics): ValidationResult => {
 			// First check legacy challenge format
 			const challenge = levelChallenges[levelId];
 			if (challenge) {

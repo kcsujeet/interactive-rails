@@ -104,7 +104,10 @@ export function useStepGating(
 	const nextStep = useCallback(() => {
 		setFurthestStep((currentFurthest) => {
 			setViewingStep((currentViewing) => {
-				if (currentViewing < currentFurthest && currentViewing < stepDefs.length - 1) {
+				if (
+					currentViewing < currentFurthest &&
+					currentViewing < stepDefs.length - 1
+				) {
 					setLastFeedback(null);
 					return currentViewing + 1;
 				}

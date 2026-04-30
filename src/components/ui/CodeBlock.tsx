@@ -23,6 +23,7 @@ export function CodeBlock({ code, language = 'ruby' }: CodeBlockProps) {
 		<pre className="p-5 text-sm whitespace-pre-wrap font-mono leading-relaxed overflow-x-auto">
 			<code
 				className={`language-${language} hljs`}
+				// biome-ignore lint/security/noDangerouslySetInnerHtml: highlight.js returns sanitized syntax tokens; canonical pattern
 				dangerouslySetInnerHTML={{ __html: highlightedCode }}
 			/>
 		</pre>

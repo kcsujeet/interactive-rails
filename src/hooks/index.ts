@@ -2,10 +2,10 @@ export { useGameChoices } from './useGameChoices';
 export { usePipelineSimulation } from './usePipelineSimulation';
 export { usePipelineState } from './usePipelineState';
 export { usePipelineValidation } from './usePipelineValidation';
-export { useStepGating } from './useStepGating';
 export type {
+	Step,
 	StepDef,
 	StepStatus,
-	Step,
 	UseStepGatingReturn,
 } from './useStepGating';
+export { useStepGating } from './useStepGating';

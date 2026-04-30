@@ -33,10 +33,7 @@ export function FlowConnector({
 
 	return (
 		<div
-			className={
-				className ??
-				`relative ${isVertical ? 'h-8 w-4' : 'w-16 h-4'}`
-			}
+			className={className ?? `relative ${isVertical ? 'h-8 w-4' : 'w-16 h-4'}`}
 		>
 			{/* Static gray line */}
 			<div
@@ -58,12 +55,11 @@ export function FlowConnector({
 				>
 					{Array.from({ length: dotCount }, (_, i) => (
 						<div
-							key={i}
 							className={`absolute w-2 h-2 rounded-full ${dotColor} ${
-								isVertical
-									? 'animate-flow-dot-down'
-									: 'animate-flow-dot-right'
+								isVertical ? 'animate-flow-dot-down' : 'animate-flow-dot-right'
 							}`}
+							// biome-ignore lint/suspicious/noArrayIndexKey: dots are fixed-position decorative elements; index is identity
+							key={i}
 							style={{
 								animationDelay: `${(i * 1.5) / dotCount}s`,
 							}}

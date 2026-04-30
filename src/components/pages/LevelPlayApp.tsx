@@ -6,7 +6,7 @@
  * Falls back to a generic pipeline builder for unimplemented levels.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { getActForLevel, getLevel } from '@/lib/acts-registry';
 import { getLevelComponent } from '@/lib/levels-registry';
 import { completeLevel as completeLevelProgress } from '@/lib/progress';
@@ -237,13 +237,7 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 		} catch (err) {
 			console.error('Failed to save completion:', err);
 		}
-	}, [
-		checkChallenge,
-		liveMetrics,
-		stability,
-		levelId,
-		act,
-	]);
+	}, [checkChallenge, liveMetrics, stability, levelId, act]);
 
 	if (loading) {
 		return (
@@ -257,31 +251,41 @@ export function LevelPlayApp({ levelId }: LevelPlayAppProps) {
 	const CustomLevelComponent = getLevelComponent(levelId);
 	if (CustomLevelComponent) {
 		return (
-			<CustomLevelComponent
-				onComplete={async (data) => {
-					const stars = data?.stars ?? 3;
-					try {
-						const result = await completeLevelProgress({
-							levelId,
-							stars,
-							finalStability: 100,
-							timeToComplete: 120,
-							finalMetrics: {
-								avgLatency: 0,
-								queriesPerRequest: 0,
-								cacheHitRate: 0,
-								errorRate: 0,
-							},
-						});
+			<Suspense
+				fallback={
+					<div className="h-full flex items-center justify-center">
+						<div className="text-sm text-muted-foreground">
+							Loading level...
+						</div>
+					</div>
+				}
+			>
+				<CustomLevelComponent
+					onComplete={async (data) => {
+						const stars = data?.stars ?? 3;
+						try {
+							const result = await completeLevelProgress({
+								levelId,
+								stars,
+								finalStability: 100,
+								timeToComplete: 120,
+								finalMetrics: {
+									avgLatency: 0,
+									queriesPerRequest: 0,
+									cacheHitRate: 0,
+									errorRate: 0,
+								},
+							});
 
-						if (result.success) {
-							window.location.href = `/acts/${act?.id || 1}/${levelId}/complete?stars=${stars}`;
+							if (result.success) {
+								window.location.href = `/acts/${act?.id || 1}/${levelId}/complete?stars=${stars}`;
+							}
+						} catch (err) {
+							console.error('Failed to save level completion:', err);
 						}
-					} catch (err) {
-						console.error('Failed to save level completion:', err);
-					}
-				}}
-			/>
+					}}
+				/>
+			</Suspense>
 		);
 	}
 

@@ -78,8 +78,8 @@ function evaluateCondition(
 			const reachable = new Set<string>();
 			const bfsQueue = [reqNode.id];
 			while (bfsQueue.length > 0) {
-				const id = bfsQueue.shift()!;
-				if (reachable.has(id)) continue;
+				const id = bfsQueue.shift();
+				if (id === undefined || reachable.has(id)) continue;
 				reachable.add(id);
 				for (const conn of connections) {
 					if (conn.sourceNodeId === id && !reachable.has(conn.targetNodeId)) {

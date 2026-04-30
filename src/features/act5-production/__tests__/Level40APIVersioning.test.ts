@@ -474,45 +474,45 @@ describe('Level 40: API Versioning', () => {
 		test('ADD_V2_ROUTES feedback does not contain "namespace :v1" or "namespace :v2"', () => {
 			const wrong = ADD_V2_ROUTES_COMMANDS.filter((o) => !o.correct);
 			for (const opt of wrong) {
-				expect(opt.feedback!).not.toContain('namespace :v1');
-				expect(opt.feedback!).not.toContain('namespace :v2');
+				expect(opt.feedback ?? '').not.toContain('namespace :v1');
+				expect(opt.feedback ?? '').not.toContain('namespace :v2');
 			}
 		});
 
 		test('GENERATE_V2 feedback does not contain "api/v2/orders"', () => {
 			const wrong = GENERATE_V2_COMMANDS.filter((o) => !o.correct);
 			for (const opt of wrong) {
-				expect(opt.feedback!).not.toContain('api/v2/orders');
+				expect(opt.feedback ?? '').not.toContain('api/v2/orders');
 			}
 		});
 
 		test('V2_SERIALIZER feedback does not contain "Api::V2::OrderSerializer"', () => {
 			const wrong = V2_SERIALIZER_OPTIONS.filter((o) => !o.correct);
 			for (const opt of wrong) {
-				expect(opt.feedback!).not.toContain('Api::V2::OrderSerializer');
+				expect(opt.feedback ?? '').not.toContain('Api::V2::OrderSerializer');
 			}
 		});
 
 		test('DEPRECATION feedback does not contain "add_deprecation_headers" or "before_action"', () => {
 			const wrong = DEPRECATION_OPTIONS.filter((o) => !o.correct);
 			for (const opt of wrong) {
-				expect(opt.feedback!).not.toContain('add_deprecation_headers');
-				expect(opt.feedback!).not.toContain('before_action');
+				expect(opt.feedback ?? '').not.toContain('add_deprecation_headers');
+				expect(opt.feedback ?? '').not.toContain('before_action');
 			}
 		});
 
 		test('SUNSET feedback does not contain "2027" or "Jun"', () => {
 			const wrong = SUNSET_OPTIONS.filter((o) => !o.correct);
 			for (const opt of wrong) {
-				expect(opt.feedback!).not.toContain('2027');
-				expect(opt.feedback!).not.toContain('Jun');
+				expect(opt.feedback ?? '').not.toContain('2027');
+				expect(opt.feedback ?? '').not.toContain('Jun');
 			}
 		});
 
 		test('FREEZE_V1 feedback does not contain "Api::V1::OrderSerializer"', () => {
 			const wrong = FREEZE_V1_OPTIONS.filter((o) => !o.correct);
 			for (const opt of wrong) {
-				expect(opt.feedback!).not.toContain('Api::V1::OrderSerializer');
+				expect(opt.feedback ?? '').not.toContain('Api::V1::OrderSerializer');
 			}
 		});
 	});

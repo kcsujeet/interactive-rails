@@ -6,7 +6,15 @@
 		"useIgnoreFile": true
 	},
 	"files": {
-		"ignoreUnknown": false
+		"ignoreUnknown": false,
+		"includes": [
+			"**",
+			"!**/.agents",
+			"!**/dist",
+			"!**/node_modules",
+			"!**/.vscode",
+			"!**/skills-lock.json"
+		]
 	},
 	"formatter": {
 		"enabled": true,
