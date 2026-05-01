@@ -327,12 +327,35 @@ Three valid phase patterns, matching the four observe types:
 
 ### Test enforcement (CI-level catch)
 
-Every level test file with probes must call both helpers from `@/lib/testing/probe-pedagogy`:
+Every level test file with probes must call the helpers from
+`@/lib/testing/probe-pedagogy` and `@/lib/testing/level-pedagogy`. Each
+helper here mechanically enforces a rule from this file or
+`.agents/rules/level-content.md` so authors do not have to remember
+the rule across 58 levels.
+
+**Visualization helpers** (`@/lib/testing/probe-pedagogy`):
 
 - `expectEveryProbeDrivesVisualChange({ probes, probeStateMap, validate })` -- fails if any probe lacks an entry, or has an entry the validator rejects as "no visible delta" (no badge, no sublabel change, no variant change).
 - `expectEveryProbeDrivesDistinctChange({ probes, probeStateMap, serialize })` -- fails if two probes produce identical visual state.
 
+**Per-level pedagogy helpers** (`@/lib/testing/level-pedagogy`):
+
+| Helper | Rule it enforces |
+|---|---|
+| `expectAllDiscoveriesRequired` | "PROBE_DISCOVERY_MAP must be 1:1, minRequired = all" — `useDiscoveryGating(DEFS, { minRequired: DEFS.length })`. |
+| `expectProbeDiscoveryMapOneToOne` | Each probe unlocks exactly one distinct discovery, each discovery is unlocked by exactly one probe. |
+| `expectStoriesPresent` | "Every probe and scenario has a `story` field" — 3-6 substantive bullets per item. |
+| `expectProbesMatchScenarios` | Probe-to-scenario coverage with same id and label (testing.md). Skip if your level uses a separate `PROBE_TO_SCENARIO` mapping; write a level-specific test instead. |
+| `expectBuildStepQuality` | "Wrong-Answer Feedback: Never Reveal Answers" + "correct answer is never first option" + exactly one correct answer + unique ids/labels + substantive feedback. |
+| `expectScenarioBasics` | Scenarios have unique ids and labels and a mix of `'allowed'` / `'blocked'` results. |
+
+**Curriculum-wide helper** (`scripts/validate-levels.ts`, runs in CI):
+
+- Catches level slugs that disagree with `actId` / `levelNumber`. Catches gaps in the contiguous L1..L58 numbering. Catches missing required content fields.
+
 Plus the strict-tests rule from `.agents/rules/testing.md`: every assertion checks an exact value the player would see (string, ID, count). `array.length > 0` and `expect(X).toBeDefined()` catch nothing.
+
+Reference implementation: `Level49Deployment.test.ts` -- shared lints in one `describe` block, level-specific assertions (counts, exact ids, theme-word matching) in another.
 
 ### Data structure requirement
 

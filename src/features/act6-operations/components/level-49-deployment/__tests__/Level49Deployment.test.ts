@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
+	expectBuildStepQuality,
+	expectProbeDiscoveryMapOneToOne,
+	expectScenarioBasics,
+	expectStoriesPresent,
+} from '@/lib/testing/level-pedagogy';
+import {
 	ADD_KAMAL_COMMANDS,
 	DEPLOY_YML_OPTIONS,
 	KAMAL_INIT_COMMANDS,
@@ -20,45 +26,50 @@ const ALL_OPTION_SETS = [
 	{ name: 'KAMAL_SETUP_COMMANDS', options: KAMAL_SETUP_COMMANDS },
 ];
 
-describe('Level 48 Deployment: Discoveries', () => {
-	test('exactly 5 discoveries', () => {
+describe('Level 49 Deployment: shared pedagogy lints', () => {
+	test('PROBE_DISCOVERY_MAP is strictly 1:1', () => {
+		expectProbeDiscoveryMapOneToOne({
+			probes: PROBES,
+			discoveries: DISCOVERY_DEFS,
+			map: PROBE_DISCOVERY_MAP,
+		});
+	});
+
+	test('every probe has 3-6 substantive story bullets', () => {
+		expectStoriesPresent({ items: PROBES, kind: 'probe' });
+	});
+
+	test('every reward scenario has 3-6 substantive story bullets', () => {
+		expectStoriesPresent({ items: STRESS_SCENARIOS, kind: 'scenario' });
+	});
+
+	// expectProbesMatchScenarios is intentionally omitted: this level uses a
+	// PROBE_TO_SCENARIO map (probe ids and scenario ids differ), enforced by
+	// the level-specific "paired scenario labels share a thematic word with
+	// the probe" test below.
+
+	test('reward scenarios pass basic sanity (uniqueness, mix of results)', () => {
+		expectScenarioBasics({ scenarios: STRESS_SCENARIOS });
+	});
+
+	for (const { name, options } of ALL_OPTION_SETS) {
+		test(`build step quality: ${name}`, () => {
+			expectBuildStepQuality({ name, options });
+		});
+	}
+});
+
+// Level-specific assertions — counts, exact ids, theme-word matching that
+// the shared helpers cannot know about.
+describe('Level 49 Deployment: level-specific shape', () => {
+	test('exactly 5 discoveries with unique labels', () => {
 		expect(DISCOVERY_DEFS).toHaveLength(5);
-	});
-
-	test('discovery IDs are unique', () => {
-		const ids = DISCOVERY_DEFS.map((d) => d.id);
-		expect(new Set(ids).size).toBe(ids.length);
-	});
-
-	test('discovery labels are unique', () => {
 		const labels = DISCOVERY_DEFS.map((d) => d.label);
 		expect(new Set(labels).size).toBe(labels.length);
 	});
 
-	test('every discovery label describes a real failure mode', () => {
-		for (const d of DISCOVERY_DEFS) {
-			expect(d.label.length).toBeGreaterThan(20);
-		}
-	});
-});
-
-describe('Level 48 Deployment: Probes', () => {
-	test('exactly 5 probes', () => {
+	test('exactly 5 probes with the expected ids', () => {
 		expect(PROBES).toHaveLength(5);
-	});
-
-	test('probe IDs are unique', () => {
-		const ids = PROBES.map((p) => p.id);
-		expect(new Set(ids).size).toBe(ids.length);
-	});
-
-	test('each probe has 4+ response lines', () => {
-		for (const p of PROBES) {
-			expect(p.responseLines.length).toBeGreaterThanOrEqual(4);
-		}
-	});
-
-	test('exact probe IDs', () => {
 		expect(PROBES.map((p) => p.id).sort()).toEqual(
 			[
 				'bad-release',
@@ -70,140 +81,20 @@ describe('Level 48 Deployment: Probes', () => {
 		);
 	});
 
-	test('every probe has a story with 3-6 bullet points', () => {
+	test('every probe has 4+ response lines', () => {
 		for (const p of PROBES) {
-			expect(p.story).toBeDefined();
-			const story = p.story as string[];
-			expect(story.length).toBeGreaterThanOrEqual(3);
-			expect(story.length).toBeLessThanOrEqual(6);
-			for (const bullet of story) {
-				expect(bullet.length).toBeGreaterThan(20);
-			}
-		}
-	});
-});
-
-describe('Level 48 Deployment: Probe to discovery mapping', () => {
-	test('every probe maps to at least one discovery', () => {
-		for (const probe of PROBES) {
-			const mapped = PROBE_DISCOVERY_MAP[probe.id];
-			expect(mapped).toBeDefined();
-			expect(mapped.length).toBeGreaterThan(0);
+			expect(p.responseLines.length).toBeGreaterThanOrEqual(4);
 		}
 	});
 
-	test('mapped discovery IDs all exist in DISCOVERY_DEFS', () => {
-		const defIds = new Set(DISCOVERY_DEFS.map((d) => d.id));
-		for (const ids of Object.values(PROBE_DISCOVERY_MAP)) {
-			for (const id of ids) {
-				expect(defIds.has(id)).toBe(true);
-			}
-		}
-	});
-
-	test('every discovery is reachable via at least one probe', () => {
-		const reached = new Set<string>();
-		for (const ids of Object.values(PROBE_DISCOVERY_MAP)) {
-			for (const id of ids) reached.add(id);
-		}
-		for (const d of DISCOVERY_DEFS) {
-			expect(reached.has(d.id)).toBe(true);
-		}
-	});
-
-	test('probe-to-discovery mapping is strictly 1:1', () => {
-		// Non-negotiable rule: every probe must fire before "Build the Fix" appears.
-		// That only works if each probe unlocks exactly one unique discovery.
-		const unlocked: string[] = [];
-		for (const ids of Object.values(PROBE_DISCOVERY_MAP)) {
-			expect(ids).toHaveLength(1);
-			unlocked.push(ids[0]);
-		}
-		expect(new Set(unlocked).size).toBe(unlocked.length);
-		expect(unlocked.length).toBe(DISCOVERY_DEFS.length);
-	});
-});
-
-describe('Level 48 Deployment: Build steps', () => {
-	test('exactly 5 steps', () => {
+	test('exactly 5 build steps with unique ids', () => {
 		expect(STEP_DEFS).toHaveLength(5);
-	});
-
-	test('step IDs are unique', () => {
 		const ids = STEP_DEFS.map((s) => s.id);
 		expect(new Set(ids).size).toBe(ids.length);
 	});
-});
 
-describe('Level 48 Deployment: Build step quality', () => {
-	for (const { name, options } of ALL_OPTION_SETS) {
-		test(`${name} has exactly one correct answer`, () => {
-			const correct = options.filter((o) => o.correct);
-			expect(correct).toHaveLength(1);
-		});
-
-		test(`${name} IDs are unique`, () => {
-			const ids = options.map((o) => o.id);
-			expect(new Set(ids).size).toBe(ids.length);
-		});
-
-		test(`${name} labels are unique`, () => {
-			const labels = options.map((o) => o.label);
-			expect(new Set(labels).size).toBe(labels.length);
-		});
-
-		test(`${name}: every wrong option has substantive feedback`, () => {
-			for (const o of options) {
-				if (o.correct) continue;
-				expect(o.feedback).toBeDefined();
-				expect((o.feedback as string).length).toBeGreaterThan(20);
-			}
-		});
-
-		test(`${name}: feedback does not quote the correct label verbatim`, () => {
-			const correctLabel = options.find((o) => o.correct)?.label ?? '';
-			for (const o of options) {
-				if (o.correct) continue;
-				expect(o.feedback ?? '').not.toContain(correctLabel);
-			}
-		});
-	}
-});
-
-describe('Level 48 Deployment: Stress scenarios', () => {
-	test('exactly 5 scenarios', () => {
+	test('exactly 5 stress scenarios with the expected ids', () => {
 		expect(STRESS_SCENARIOS).toHaveLength(5);
-	});
-
-	test('scenario IDs are unique', () => {
-		const ids = STRESS_SCENARIOS.map((s) => s.id);
-		expect(new Set(ids).size).toBe(ids.length);
-	});
-
-	test('scenario labels are unique', () => {
-		const labels = STRESS_SCENARIOS.map((s) => s.label);
-		expect(new Set(labels).size).toBe(labels.length);
-	});
-
-	test('mix of allowed and blocked (at least one of each)', () => {
-		const allowed = STRESS_SCENARIOS.filter(
-			(s) => s.expectedResult === 'allowed',
-		);
-		const blocked = STRESS_SCENARIOS.filter(
-			(s) => s.expectedResult === 'blocked',
-		);
-		expect(allowed.length).toBeGreaterThan(0);
-		expect(blocked.length).toBeGreaterThan(0);
-	});
-
-	test('every scenario has responseLines with at least 4 lines', () => {
-		for (const s of STRESS_SCENARIOS) {
-			expect(s.responseLines).toBeDefined();
-			expect((s.responseLines ?? []).length).toBeGreaterThanOrEqual(4);
-		}
-	});
-
-	test('exact scenario IDs', () => {
 		expect(STRESS_SCENARIOS.map((s) => s.id).sort()).toEqual(
 			[
 				'broken-push',
@@ -215,60 +106,29 @@ describe('Level 48 Deployment: Stress scenarios', () => {
 		);
 	});
 
-	test('every scenario has a story with 3-6 bullet points', () => {
+	test('every scenario has 4+ response lines', () => {
 		for (const s of STRESS_SCENARIOS) {
-			expect(s.story).toBeDefined();
-			const story = s.story as string[];
-			expect(story.length).toBeGreaterThanOrEqual(3);
-			expect(story.length).toBeLessThanOrEqual(6);
-			for (const bullet of story) {
-				expect(bullet.length).toBeGreaterThan(20);
-			}
-		}
-	});
-});
-
-describe('Level 48 Deployment: Probe-scenario label mirroring', () => {
-	// Each observe probe must have a matching reward scenario. Labels follow
-	// the "same user story, fixed outcome" convention: they either repeat the
-	// observe verb ("Deploy by X" / "Deploy with X") or echo its action word
-	// ("Ship a release that Y" / "Roll back to Z").
-	const PROBE_TO_SCENARIO: Record<string, string> = {
-		'scp-restart': 'deploy-ok',
-		'git-pull': 'broken-push',
-		'bad-release': 'deploy-broken-health',
-		rollback: 'rollback',
-		'two-servers': 'fleet-deploy',
-	};
-
-	test('every probe has a scenario pair', () => {
-		const probeIds = new Set(PROBES.map((p) => p.id));
-		const scenarioIds = new Set(STRESS_SCENARIOS.map((s) => s.id));
-		for (const [probeId, scenarioId] of Object.entries(PROBE_TO_SCENARIO)) {
-			expect(probeIds.has(probeId)).toBe(true);
-			expect(scenarioIds.has(scenarioId)).toBe(true);
+			expect((s.responseLines ?? []).length).toBeGreaterThanOrEqual(4);
 		}
 	});
 
+	// Probe and scenario labels share a thematic verb so the player feels
+	// the reward phase replays observe with the fix applied. Generic helpers
+	// cannot know which words count as thematic for this level.
 	test('paired scenario labels share a thematic word with the probe', () => {
 		const pairs: Array<{
 			probeId: string;
 			scenarioId: string;
 			shared: string[];
 		}> = [
-			// scp-restart "Deploy by scp + systemctl restart" -> deploy-ok "Deploy a healthy release (with Kamal)"
 			{ probeId: 'scp-restart', scenarioId: 'deploy-ok', shared: ['Deploy'] },
-			// git-pull "Deploy by ssh + git pull" -> broken-push "Deploy with a broken build"
 			{ probeId: 'git-pull', scenarioId: 'broken-push', shared: ['Deploy'] },
-			// bad-release "Ship a release with a broken env var" -> deploy-broken-health "Ship a release that fails /up"
 			{
 				probeId: 'bad-release',
 				scenarioId: 'deploy-broken-health',
 				shared: ['Ship a release'],
 			},
-			// rollback "Roll back a bad release by git reset" -> rollback "Roll back to the previous image"
 			{ probeId: 'rollback', scenarioId: 'rollback', shared: ['Roll back'] },
-			// two-servers "Deploy to two servers at once" -> fleet-deploy "Deploy across two servers (staggered)"
 			{
 				probeId: 'two-servers',
 				scenarioId: 'fleet-deploy',
@@ -286,16 +146,5 @@ describe('Level 48 Deployment: Probe-scenario label mirroring', () => {
 				expect(scenario?.label).toContain(token);
 			}
 		}
-	});
-});
-
-describe('Level 48 Deployment: Phase coverage', () => {
-	test('reward scenarios span the failure modes uncovered by probes', () => {
-		const scenarioIds = new Set(STRESS_SCENARIOS.map((s) => s.id));
-		expect(scenarioIds.has('deploy-ok')).toBe(true);
-		expect(scenarioIds.has('deploy-broken-health')).toBe(true);
-		expect(scenarioIds.has('rollback')).toBe(true);
-		expect(scenarioIds.has('fleet-deploy')).toBe(true);
-		expect(scenarioIds.has('broken-push')).toBe(true);
 	});
 });
