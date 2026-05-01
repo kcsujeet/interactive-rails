@@ -1,10 +1,10 @@
 import type { Level } from '@/types';
 import { middlewarePipeline } from '@/utils/pipelineTemplates';
 
-export const level43SoftDeletes: Level = {
-	id: 'act6-level43-soft-deletes',
-	actId: 6,
-	levelNumber: 43,
+export const level41SoftDeletes: Level = {
+	id: 'act5-level41-soft-deletes',
+	actId: 5,
+	levelNumber: 41,
 	name: 'Soft Deletes & Audit Trails',
 	requiresTests: true,
 	trigger: {

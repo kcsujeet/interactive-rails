@@ -63,7 +63,7 @@ import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
-registerLevelCode('act6-level43-soft-deletes', () =>
+registerLevelCode('act5-level41-soft-deletes', () =>
 	getCodeFiles('reward', STEP_DEFS.length),
 );
 
@@ -1124,7 +1124,7 @@ const sdEdgeTypes = { sd: SdEdge };
 
 // ─── Main component ────────────────────────────────────────────────────
 
-export function Level43SoftDeletes({ onComplete }: LevelComponentProps) {
+export function Level41SoftDeletes({ onComplete }: LevelComponentProps) {
 	const [phase, setPhase] = useState<'observe' | 'build' | 'reward'>('observe');
 	const isReward = phase === 'reward';
 
@@ -1600,4 +1600,4 @@ export function Level43SoftDeletes({ onComplete }: LevelComponentProps) {
 	);
 }
 
-export default Level43SoftDeletes;
+export default Level41SoftDeletes;

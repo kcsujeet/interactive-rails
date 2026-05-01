@@ -18,11 +18,11 @@
  * Act 4: Performance (L23-L31, 9 levels)
  * - N+1 Problem, Eager Loading, Narrow Fetching, Indexing, Counter Caches, Pagination, Search, Caching, HTTP Caching & CDNs
  *
- * Act 5: Advanced Features (L32-L40, 9 levels)
- * - Polymorphic, Transactions, Locking, Active Storage, Encryption, Real-Time, External APIs, Webhooks, API Versioning
+ * Act 5: Advanced Features (L32-L41, 10 levels)
+ * - Polymorphic, Transactions, Locking, Active Storage, Encryption, Real-Time, External APIs, Webhooks, API Versioning, Soft Deletes
  *
- * Act 6: Operations (L41-L50, 10 levels)
- * - Middleware, Rate Limiting, Soft Deletes, Safe Migrations, Recurring Jobs, Data Lifecycle, Error Monitoring, Observability, Deployment (Kamal), Feature Flags
+ * Act 6: Operations (L42-L50, 9 levels)
+ * - Middleware, Rate Limiting, Safe Migrations, Recurring Jobs, Data Lifecycle, Error Monitoring, Observability, Deployment (Kamal), Feature Flags
  *
  * Act 7: Scale (L51-L58, 8 levels)
  * - Read Replicas, Sharding, Multi-Tenancy, State Machines, Modular Monolith, Domain Events, API Gateway, The Architect (Capstone)
@@ -352,30 +352,30 @@ const LEVEL_COMPONENTS: Record<string, LazyLevel> = {
 			),
 		'Level40APIVersioning',
 	),
+	'act5-level41-soft-deletes': lazyNamed(
+		() =>
+			import(
+				'@/features/act5-production/components/level-41-soft-deletes/Level41SoftDeletes'
+			),
+		'Level41SoftDeletes',
+	),
 
 	// ============================================
 	// Act 6: Operations
 	// ============================================
-	'act6-level41-middleware': lazyNamed(
+	'act6-level42-middleware': lazyNamed(
 		() =>
 			import(
-				'@/features/act6-operations/components/level-41-middleware/Level41Middleware'
+				'@/features/act6-operations/components/level-42-middleware/Level42Middleware'
 			),
-		'Level41Middleware',
+		'Level42Middleware',
 	),
-	'act6-level42-rate-limiting': lazyNamed(
+	'act6-level43-rate-limiting': lazyNamed(
 		() =>
 			import(
-				'@/features/act6-operations/components/level-42-rate-limiting/Level42RateLimiting'
+				'@/features/act6-operations/components/level-43-rate-limiting/Level43RateLimiting'
 			),
-		'Level42RateLimiting',
-	),
-	'act6-level43-soft-deletes': lazyNamed(
-		() =>
-			import(
-				'@/features/act6-operations/components/level-43-soft-deletes/Level43SoftDeletes'
-			),
-		'Level43SoftDeletes',
+		'Level43RateLimiting',
 	),
 	'act6-level44-safe-migrations': lazyNamed(
 		() =>

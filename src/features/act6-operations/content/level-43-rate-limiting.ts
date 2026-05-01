@@ -1,10 +1,10 @@
 import type { Level } from '@/types';
 import { middlewarePipeline } from '@/utils/pipelineTemplates';
 
-export const level42RateLimiting: Level = {
-	id: 'act6-level42-rate-limiting',
+export const level43RateLimiting: Level = {
+	id: 'act6-level43-rate-limiting',
 	actId: 6,
-	levelNumber: 42,
+	levelNumber: 43,
 	name: 'Rate Limiting',
 	requiresTests: true,
 	trigger: {

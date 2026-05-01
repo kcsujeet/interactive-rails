@@ -8,13 +8,14 @@ import { level37Realtime } from './level-37-realtime';
 import { level38ExternalAPIs } from './level-38-external-apis';
 import { level39Webhooks } from './level-39-webhooks';
 import { level40APIVersioning } from './level-40-api-versioning';
+import { level41SoftDeletes } from './level-41-soft-deletes';
 
 export const actFive: Act = {
 	id: 5,
 	name: 'Advanced Features',
 	tagline: 'Beyond CRUD: the features Rails apps reach for when they grow up.',
 	description:
-		'The API is fast and clean. Now layer in the advanced Rails features: polymorphic associations, transactions, locking, file uploads, encryption, real-time notifications, external API integrations, webhooks, and API versioning.',
+		'The API is fast and clean. Now layer in the advanced Rails features: polymorphic associations, transactions, locking, file uploads, encryption, real-time notifications, external API integrations, webhooks, API versioning, and soft deletes.',
 	levels: [
 		level32Polymorphic,
 		level33Transactions,
@@ -25,6 +26,7 @@ export const actFive: Act = {
 		level38ExternalAPIs,
 		level39Webhooks,
 		level40APIVersioning,
+		level41SoftDeletes,
 	],
 	unlockedNodes: ['circuit_breaker', 's3'],
 	metricsVisible: true,

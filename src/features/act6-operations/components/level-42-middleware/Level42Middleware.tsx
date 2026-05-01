@@ -64,7 +64,7 @@ import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
-registerLevelCode('act6-level41-middleware', () =>
+registerLevelCode('act6-level42-middleware', () =>
 	getCodeFiles('reward', STEP_DEFS.length),
 );
 
@@ -1394,7 +1394,7 @@ const mwEdgeTypes = { mw: MwEdge };
 
 // ─── Main component ────────────────────────────────────────────────────
 
-export function Level41Middleware({ onComplete }: LevelComponentProps) {
+export function Level42Middleware({ onComplete }: LevelComponentProps) {
 	const [phase, setPhase] = useState<'observe' | 'build' | 'reward'>('observe');
 	const isReward = phase === 'reward';
 
@@ -1896,4 +1896,4 @@ export function Level41Middleware({ onComplete }: LevelComponentProps) {
 	);
 }
 
-export default Level41Middleware;
+export default Level42Middleware;

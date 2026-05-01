@@ -1,10 +1,10 @@
 import type { Level } from '@/types';
 import { standardPipeline } from '@/utils/pipelineTemplates';
 
-export const level41Middleware: Level = {
-	id: 'act6-level41-middleware',
+export const level42Middleware: Level = {
+	id: 'act6-level42-middleware',
 	actId: 6,
-	levelNumber: 41,
+	levelNumber: 42,
 	name: 'Middleware & Rack',
 	trigger: {
 		type: 'incident',
