@@ -164,11 +164,15 @@ const PROBES: ProbeConfig[] = [
 	},
 ];
 
-// Map probe IDs to discovery IDs they trigger
+// Map probe IDs to discovery IDs they trigger.
+// Pedagogy rule: each probe unlocks exactly one distinct discovery,
+// each discovery is unlocked by exactly one probe. The combined-attack
+// probe owns `raw-params`; clicking the model stage no longer
+// duplicate-unlocks it.
 const PROBE_DISCOVERY_MAP: Record<string, string> = {
 	'inject-user-id': 'user-id-injection',
 	'escalate-admin': 'admin-escalation',
-	'inject-both': 'user-id-injection',
+	'inject-both': 'raw-params',
 };
 
 // Map probe IDs to pipeline node display during observe
@@ -233,7 +237,6 @@ end`,
 // Map stage IDs to discovery IDs they trigger
 const STAGE_DISCOVERY_MAP: Record<string, string> = {
 	filter: 'no-filtering',
-	model: 'raw-params',
 };
 
 // ──────────────────────────────────────────────

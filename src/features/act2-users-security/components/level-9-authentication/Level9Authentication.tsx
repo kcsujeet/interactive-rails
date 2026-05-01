@@ -222,10 +222,12 @@ end`,
 	},
 };
 
-// Map stage IDs to discovery IDs they trigger
+// Map stage IDs to discovery IDs they trigger.
+// Pedagogy rule: every discovery should be unlocked by exactly one source.
+// `no-user-identity` is owned by the check-identity probe; the controller
+// stage only motivates the inspection, it does not duplicate-unlock.
 const STAGE_DISCOVERY_MAP: Record<string, string> = {
 	auth: 'no-auth-layer',
-	controller: 'no-user-identity',
 };
 
 // ──────────────────────────────────────────────

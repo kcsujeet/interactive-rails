@@ -116,14 +116,16 @@ const CIPHERTEXT: Record<string, string> = {
 // ──────────────────────────────────────────────
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
-	{ id: 'plaintext-email', label: 'Emails exposed in plaintext' },
-	{ id: 'plaintext-phone', label: 'Phone numbers exposed in plaintext' },
-	{ id: 'plaintext-address', label: 'Addresses exposed in plaintext' },
+	{ id: 'plaintext-pii', label: 'Customer PII exposed in plaintext' },
+	{ id: 'plaintext-address', label: 'Addresses also leaked through backups' },
 	{ id: 'no-encryption-keys', label: 'No encryption keys configured' },
 ];
 
+// Pedagogy rule: each probe unlocks exactly one distinct discovery,
+// each discovery is unlocked by exactly one probe. (Three probes,
+// three discoveries.)
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
-	'sql-injection': ['plaintext-email', 'plaintext-phone'],
+	'sql-injection': ['plaintext-pii'],
 	'backup-leak': ['plaintext-address'],
 	'inspect-config': ['no-encryption-keys'],
 };
@@ -184,7 +186,10 @@ const PROBES: ProbeConfig[] = [
 			{ text: '=> nil', color: 'red' },
 			{ text: 'No encryption keys configured!', color: 'red' },
 			{ text: 'ActiveRecord::Encryption is not initialized.', color: 'yellow' },
-			{ text: 'Run: bin/rails db:encryption:init', color: 'muted' },
+			{
+				text: '# encrypts in models is a no-op until keys exist.',
+				color: 'muted',
+			},
 		],
 		story: [
 			'A developer checks whether encryption is set up in this Rails app.',
