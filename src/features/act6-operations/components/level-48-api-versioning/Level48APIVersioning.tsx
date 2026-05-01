@@ -153,7 +153,6 @@ const DEFAULT_EDGE: EdgeVizState = {
 
 const DISCOVERY_DEFS = [
 	{ id: 'single-controller', label: 'One controller serves all API versions' },
-	{ id: 'breaking-change', label: 'Response shape change breaks v1 clients' },
 	{ id: 'no-deprecation', label: 'No deprecation warning for v1 consumers' },
 	{ id: 'no-migration-path', label: 'No v2 endpoint exists for new clients' },
 ];
@@ -244,7 +243,7 @@ const PROBES = [
 ];
 
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
-	'v1-format-break': ['single-controller', 'breaking-change'],
+	'v1-format-break': ['single-controller'],
 	'no-deprecation': ['no-deprecation'],
 	'v2-404': ['no-migration-path'],
 };

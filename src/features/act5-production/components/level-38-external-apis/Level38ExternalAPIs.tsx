@@ -170,7 +170,6 @@ const DEFAULT_APP_REWARD: AppServerVizState = {
 
 const DISCOVERY_DEFS = [
 	{ id: 'no-timeout', label: 'No timeout on HTTP requests' },
-	{ id: 'thread-blocking', label: 'Slow API blocks Puma threads' },
 	{ id: 'no-retry', label: 'Transient errors not retried' },
 	{ id: 'cascade-failure', label: 'One failing API takes down entire app' },
 ];
@@ -269,7 +268,7 @@ const PROBES = [
 ];
 
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
-	'slow-stripe': ['no-timeout', 'thread-blocking'],
+	'slow-stripe': ['no-timeout'],
 	'stripe-503': ['no-retry'],
 	'stripe-down': ['cascade-failure'],
 };

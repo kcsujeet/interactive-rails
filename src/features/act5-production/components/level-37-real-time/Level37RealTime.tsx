@@ -1110,7 +1110,6 @@ const REWARD_FRAME_MAP: Record<string, AnimFrame[]> = {
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{ id: 'no-push', label: 'No server-push mechanism exists' },
-	{ id: 'latency-delay', label: 'Payment confirmation delayed by poll cycle' },
 	{ id: 'polling-waste', label: 'Order status refreshes are 99% empty' },
 	{
 		id: 'cpu-spike',
@@ -1121,7 +1120,7 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 	'check-polling': ['polling-waste'],
 	'check-cpu': ['cpu-spike'],
-	'trigger-event': ['no-push', 'latency-delay'],
+	'trigger-event': ['no-push'],
 };
 
 // ──────────────────────────────────────────────

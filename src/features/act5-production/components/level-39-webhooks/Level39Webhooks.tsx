@@ -176,7 +176,6 @@ const DISCOVERY_DEFS = [
 	{ id: 'no-signature', label: 'No signature verification on webhooks' },
 	{ id: 'duplicate-credit', label: 'Duplicate webhook doubles user credit' },
 	{ id: 'sync-timeout', label: 'Synchronous processing risks timeout' },
-	{ id: 'no-dedup', label: 'No event deduplication (event_id not tracked)' },
 ];
 
 // ─── Probe definitions ────────────────────────────────────────────────
@@ -267,7 +266,7 @@ const PROBES = [
 
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 	'forged-webhook': ['no-signature'],
-	'duplicate-event': ['duplicate-credit', 'no-dedup'],
+	'duplicate-event': ['duplicate-credit'],
 	'slow-processing': ['sync-timeout'],
 };
 

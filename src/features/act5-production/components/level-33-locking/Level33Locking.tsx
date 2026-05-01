@@ -92,17 +92,13 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 		label: "Customer A's order overwrites Customer B's stock update",
 	},
 	{
-		id: 'stale-read',
-		label: 'Both requests read the same outdated stock count',
-	},
-	{
 		id: 'no-lock',
 		label: 'No mechanism prevents simultaneous row access',
 	},
 ];
 
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
-	'concurrent-checkout': ['lost-update', 'stale-read'],
+	'concurrent-checkout': ['lost-update'],
 	'stale-product-edit': ['no-lock'],
 };
 

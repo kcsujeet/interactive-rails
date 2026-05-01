@@ -479,14 +479,10 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{ id: 'memory-spike', label: 'File buffers in app server RAM' },
 	{ id: 'no-variants', label: 'No thumbnails, serving 5MB originals' },
 	{ id: 'serving-through-rails', label: 'Downloads block Rails workers' },
-	{
-		id: 'no-direct-upload',
-		label: 'No presigned URL, all traffic through app',
-	},
 ];
 
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
-	'upload-photo': ['memory-spike', 'no-direct-upload'],
+	'upload-photo': ['memory-spike'],
 	'request-avatar': ['serving-through-rails'],
 	'list-avatars': ['no-variants'],
 };
