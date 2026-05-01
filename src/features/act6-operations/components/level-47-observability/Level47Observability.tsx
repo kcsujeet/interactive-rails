@@ -1,5 +1,5 @@
 /**
- * Level 51: Observability
+ * Level 47: Observability
  *
  * Sequential phase flow: observe -> build -> reward
  *
@@ -1801,7 +1801,7 @@ export function Level47Observability({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={7}
 					levelName="Observability"
-					levelNumber={51}
+					levelNumber={47}
 					onComplete={handleComplete}
 					onReset={() => window.location.reload()}
 					onValidate={validateSolution}

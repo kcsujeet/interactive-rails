@@ -1,5 +1,5 @@
 /**
- * Level 45: Recurring Jobs & Scheduling
+ * Level 44: Recurring Jobs & Scheduling
  *
  * Three-phase flow: observe -> build -> reward
  *
@@ -1605,8 +1605,8 @@ export function Level44RecurringJobs({ onComplete }: LevelComponentProps) {
 						<p className="text-sm text-muted-foreground mb-2">
 							Your database has 2M expired session tokens, 500K orphaned
 							records, and 100K stale cache entries. Storage is growing 5% per
-							week. You have Solid Queue from Level 22 for one-off background
-							jobs, but nothing runs on a recurring schedule.
+							week. You have Solid Queue from L36 for one-off background jobs,
+							but nothing runs on a recurring schedule.
 						</p>
 						<p className="text-sm text-muted-foreground">
 							Nobody cleans up because cleanup never happens automatically. Fire
@@ -1829,7 +1829,7 @@ export function Level44RecurringJobs({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={6}
 					levelName="Recurring Jobs"
-					levelNumber={45}
+					levelNumber={44}
 					onComplete={handleComplete}
 					onReset={handleReset}
 					onValidate={handleValidate}

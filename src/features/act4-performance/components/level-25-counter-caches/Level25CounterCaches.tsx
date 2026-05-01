@@ -1,5 +1,5 @@
 /**
- * Level 27: Counter Caches
+ * Level 25: Counter Caches
  *
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
@@ -1189,7 +1189,7 @@ export function Level25CounterCaches({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={4}
 					levelName="Counter Caches"
-					levelNumber={27}
+					levelNumber={25}
 					onComplete={handleComplete}
 					onReset={() => {
 						window.location.reload();

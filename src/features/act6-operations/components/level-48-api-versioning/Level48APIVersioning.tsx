@@ -1,5 +1,5 @@
 /**
- * Level 40: API Versioning
+ * Level 48: API Versioning
  *
  * Three-phase flow: observe -> build -> reward
  *
@@ -1949,7 +1949,7 @@ export function Level48APIVersioning({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={5}
 					levelName="API Versioning"
-					levelNumber={40}
+					levelNumber={48}
 					onComplete={handleComplete}
 					onReset={handleReset}
 					onValidate={handleValidate}

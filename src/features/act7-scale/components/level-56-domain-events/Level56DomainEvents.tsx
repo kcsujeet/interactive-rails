@@ -1,5 +1,5 @@
 /**
- * Level 53: Domain Events & Decoupling
+ * Level 56: Domain Events & Decoupling
  *
  * Sequential phase flow: observe -> build -> reward
  *
@@ -2623,7 +2623,7 @@ export function Level56DomainEvents({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={7}
 					levelName="Domain Events"
-					levelNumber={53}
+					levelNumber={56}
 					onComplete={handleComplete}
 					onReset={() => window.location.reload()}
 					onValidate={validateSolution}

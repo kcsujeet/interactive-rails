@@ -1,5 +1,5 @@
 /**
- * Level 23: The N+1 Problem
+ * Level 21: The N+1 Problem
  *
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
@@ -1138,7 +1138,7 @@ export function Level21N1Problem({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={4}
 					levelName="N+1 Problem"
-					levelNumber={23}
+					levelNumber={21}
 					onComplete={handleComplete}
 					onReset={() => {
 						window.location.reload();

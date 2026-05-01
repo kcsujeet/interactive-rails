@@ -1,5 +1,5 @@
 /**
- * Level 25: Narrow Fetching
+ * Level 23: Narrow Fetching
  *
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
@@ -1290,7 +1290,7 @@ export function Level23NarrowFetching({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={4}
 					levelName="Narrow Fetching"
-					levelNumber={25}
+					levelNumber={23}
 					onComplete={handleComplete}
 					onReset={() => {
 						window.location.reload();

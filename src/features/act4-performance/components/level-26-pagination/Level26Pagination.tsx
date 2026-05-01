@@ -1,5 +1,5 @@
 /**
- * Level 28: Pagination
+ * Level 26: Pagination
  *
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
@@ -1333,7 +1333,7 @@ export function Level26Pagination({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={4}
 					levelName="Pagination"
-					levelNumber={28}
+					levelNumber={26}
 					onComplete={handleComplete}
 					onReset={() => {
 						window.location.reload();

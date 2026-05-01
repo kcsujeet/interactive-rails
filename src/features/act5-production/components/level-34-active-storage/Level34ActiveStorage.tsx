@@ -1,5 +1,5 @@
 /**
- * Level 35: Active Storage
+ * Level 34: Active Storage
  *
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
@@ -2209,7 +2209,7 @@ export function Level34ActiveStorage({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={5}
 					levelName="Active Storage"
-					levelNumber={35}
+					levelNumber={34}
 					onComplete={handleComplete}
 					onReset={() => {
 						setPhase('observe');

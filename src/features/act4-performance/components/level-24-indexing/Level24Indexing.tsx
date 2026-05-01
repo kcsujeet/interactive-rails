@@ -1,5 +1,5 @@
 /**
- * Level 26: Database Indexing
+ * Level 24: Database Indexing
  *
  * Sequential phase flow: observe -> build -> reward
  *
@@ -1715,7 +1715,7 @@ export function Level24Indexing({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={4}
 					levelName="Database Indexing"
-					levelNumber={26}
+					levelNumber={24}
 					onComplete={handleComplete}
 					onReset={() => {
 						window.location.reload();

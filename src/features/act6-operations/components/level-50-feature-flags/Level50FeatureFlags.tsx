@@ -1,5 +1,5 @@
 /**
- * Level 49: Feature Flags & Staged Rollouts
+ * Level 50: Feature Flags & Staged Rollouts
  *
  * Sequential phase flow: observe -> build -> reward.
  *
@@ -177,7 +177,7 @@ export function Level50FeatureFlags({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={6}
 					levelName="Feature Flags & Staged Rollouts"
-					levelNumber={49}
+					levelNumber={50}
 					onComplete={handleComplete}
 					onReset={() => {
 						window.location.reload();

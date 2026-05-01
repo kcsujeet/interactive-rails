@@ -1,5 +1,5 @@
 /**
- * Level 34: Locking (Concurrency Control)
+ * Level 33: Locking (Concurrency Control)
  *
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
@@ -1937,7 +1937,7 @@ export function Level33Locking({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={5}
 					levelName="Locking"
-					levelNumber={34}
+					levelNumber={33}
 					onComplete={handleComplete}
 					onValidate={validateSolution}
 				/>

@@ -1,5 +1,5 @@
 /**
- * Level 32: Polymorphic Associations
+ * Level 30: Polymorphic Associations
  *
  * Sequential phase flow: intro -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
@@ -948,7 +948,7 @@ export function Level30Polymorphic({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={5}
 					levelName="Polymorphic Associations"
-					levelNumber={32}
+					levelNumber={30}
 					onComplete={handleComplete}
 					onValidate={validateSolution}
 				/>

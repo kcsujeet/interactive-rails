@@ -1,5 +1,5 @@
 /**
- * Level 47: Structured Error Monitoring
+ * Level 46: Structured Error Monitoring
  *
  * Sequential phase flow: observe -> build -> reward
  *
@@ -1652,7 +1652,7 @@ export function Level46ErrorMonitoring({ onComplete }: LevelComponentProps) {
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground">
-							Your request logger from Level 41 captures requests, but when
+							Your request logger from L40 captures requests, but when
 							exceptions occur, they vanish into the log with no error-specific
 							context. Nobody notices 500 errors until customers complain.
 						</p>
@@ -1842,7 +1842,7 @@ export function Level46ErrorMonitoring({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={6}
 					levelName="Error Monitoring"
-					levelNumber={47}
+					levelNumber={46}
 					onComplete={handleComplete}
 					onReset={handleReset}
 					onValidate={handleValidate}

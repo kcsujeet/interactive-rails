@@ -1,5 +1,5 @@
 /**
- * Level 36: Encrypted Attributes
+ * Level 10: Encrypted Attributes
  *
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
@@ -1817,7 +1817,7 @@ export function Level10Encryption({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={5}
 					levelName="Encrypted Attributes"
-					levelNumber={36}
+					levelNumber={10}
 					onComplete={handleComplete}
 					onReset={() => {
 						setPhase('observe');

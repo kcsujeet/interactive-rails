@@ -1,5 +1,5 @@
 /**
- * Level 48: Multi-Database
+ * Level 51: Multi-Database
  *
  * Sequential phase flow: observe -> build -> reward
  *
@@ -1913,7 +1913,7 @@ export function Level51MultiDatabase({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={7}
 					levelName="Multi-Database"
-					levelNumber={48}
+					levelNumber={51}
 					onComplete={handleComplete}
 					onReset={() => window.location.reload()}
 					onValidate={validateSolution}

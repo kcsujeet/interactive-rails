@@ -1,5 +1,5 @@
 /**
- * Level 46: Data Lifecycle
+ * Level 45: Data Lifecycle
  *
  * Three-phase flow: observe -> build -> reward
  *
@@ -1933,7 +1933,7 @@ export function Level45DataLifecycle({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={6}
 					levelName="Data Lifecycle"
-					levelNumber={46}
+					levelNumber={45}
 					onComplete={handleComplete}
 					onReset={handleReset}
 					onValidate={handleValidate}

@@ -1,5 +1,5 @@
 /**
- * Level 50: Multi-Tenancy
+ * Level 53: Multi-Tenancy
  *
  * Sequential phase flow: observe -> build -> reward
  *
@@ -1878,7 +1878,7 @@ export function Level53MultiTenancy({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={7}
 					levelName="Multi-Tenancy"
-					levelNumber={50}
+					levelNumber={53}
 					onComplete={handleComplete}
 					onReset={() => window.location.reload()}
 					onValidate={validateSolution}

@@ -1,5 +1,5 @@
 /**
- * Level 12: Authorization
+ * Level 11: Authorization
  *
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
@@ -1070,7 +1070,7 @@ export function Level11Authorization({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={2}
 					levelName="Authorization"
-					levelNumber={12}
+					levelNumber={11}
 					onComplete={handleComplete}
 					onReset={() => {
 						window.location.reload();

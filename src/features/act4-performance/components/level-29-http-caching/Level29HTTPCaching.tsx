@@ -1,5 +1,5 @@
 /**
- * Level 31: HTTP Caching & CDNs
+ * Level 29: HTTP Caching & CDNs
  *
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
@@ -932,7 +932,7 @@ export function Level29HTTPCaching({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={4}
 					levelName="HTTP Caching"
-					levelNumber={31}
+					levelNumber={29}
 					onComplete={handleComplete}
 					onReset={() => window.location.reload()}
 					onValidate={validateSolution}

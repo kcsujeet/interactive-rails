@@ -1,5 +1,5 @@
 /**
- * Level 33: Transactions (Atomicity)
+ * Level 32: Transactions (Atomicity)
  *
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
@@ -1557,7 +1557,7 @@ export function Level32Transactions({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={5}
 					levelName="Transactions"
-					levelNumber={33}
+					levelNumber={32}
 					onComplete={handleComplete}
 					onValidate={validateSolution}
 				/>

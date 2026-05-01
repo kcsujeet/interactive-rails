@@ -1,5 +1,5 @@
 /**
- * Level 44: Safe Migrations
+ * Level 43: Safe Migrations
  *
  * Three-phase flow: observe -> build -> reward
  *
@@ -1779,7 +1779,7 @@ export function Level43SafeMigrations({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={6}
 					levelName="Safe Migrations"
-					levelNumber={44}
+					levelNumber={43}
 					onComplete={handleComplete}
 					onReset={handleReset}
 					onValidate={handleValidate}

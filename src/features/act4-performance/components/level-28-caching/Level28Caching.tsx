@@ -1,5 +1,5 @@
 /**
- * Level 30: Caching
+ * Level 28: Caching
  *
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
@@ -1508,7 +1508,7 @@ export function Level28Caching({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={4}
 					levelName="Caching"
-					levelNumber={30}
+					levelNumber={28}
 					onComplete={handleComplete}
 					onReset={() => {
 						window.location.reload();

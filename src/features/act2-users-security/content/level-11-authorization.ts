@@ -175,6 +175,6 @@ end`,
 	},
 	hint: {
 		delay: 25,
-		text: 'Pundit policy classes are named after the model (ProductPolicy for Product). Each method matches a controller action.',
+		text: 'The convention is one policy class per model, with predicate methods that mirror controller actions one-to-one. Discovering the naming convention is half the work; the other half is choosing where to call the check from inside the controller action.',
 	},
 };

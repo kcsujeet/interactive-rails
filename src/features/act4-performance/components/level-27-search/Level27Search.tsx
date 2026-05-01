@@ -1,5 +1,5 @@
 /**
- * Level 29: Search
+ * Level 27: Search
  *
  * Sequential phase flow: observe -> build -> reward
  *
@@ -1644,7 +1644,7 @@ export function Level27Search({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={4}
 					levelName="Search"
-					levelNumber={29}
+					levelNumber={27}
 					onComplete={handleComplete}
 					onReset={() => {
 						window.location.reload();

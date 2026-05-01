@@ -1,5 +1,5 @@
 /**
- * Level 52: Modular Monolith
+ * Level 55: Modular Monolith
  *
  * Sequential phase flow: observe -> build -> reward
  *
@@ -1941,7 +1941,7 @@ export function Level55ModularMonolith({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={7}
 					levelName="Modular Monolith"
-					levelNumber={52}
+					levelNumber={55}
 					onComplete={handleComplete}
 					onReset={() => window.location.reload()}
 					onValidate={validateSolution}

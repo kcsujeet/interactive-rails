@@ -1,5 +1,5 @@
 /**
- * Level 24: Eager Loading
+ * Level 22: Eager Loading
  *
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
@@ -1442,7 +1442,7 @@ export function Level22EagerLoading({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={4}
 					levelName="Eager Loading"
-					levelNumber={24}
+					levelNumber={22}
 					onComplete={handleComplete}
 					onReset={() => {
 						window.location.reload();

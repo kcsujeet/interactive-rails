@@ -1,5 +1,5 @@
 /**
- * Level 10: Validations
+ * Level 12: Validations
  *
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
@@ -893,7 +893,7 @@ export function Level12Validations({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={2}
 					levelName="Validations"
-					levelNumber={10}
+					levelNumber={12}
 					onComplete={handleComplete}
 					onReset={() => {
 						window.location.reload();

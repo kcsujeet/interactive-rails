@@ -1,5 +1,5 @@
 /**
- * Level 49: State Machines
+ * Level 54: State Machines
  *
  * Sequential phase flow: observe -> build -> reward
  *
@@ -1662,7 +1662,7 @@ export function Level54StateMachines({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={7}
 					levelName="State Machines"
-					levelNumber={49}
+					levelNumber={54}
 					onComplete={handleComplete}
 					onReset={() => window.location.reload()}
 					onValidate={validateSolution}

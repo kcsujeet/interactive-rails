@@ -1,5 +1,5 @@
 /**
- * Level 13: Testing
+ * Level 14: Testing
  *
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
@@ -1089,7 +1089,7 @@ export function Level14Testing({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={2}
 					levelName="Testing"
-					levelNumber={13}
+					levelNumber={14}
 					onComplete={handleComplete}
 					onReset={() => {
 						window.location.reload();

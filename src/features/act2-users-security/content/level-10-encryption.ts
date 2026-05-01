@@ -185,11 +185,10 @@ Rails.application.config.active_record.encryption.previous = [
   { primary_key: "old_key", deterministic_key: "old_det_key", key_derivation_salt: "old_salt" }
 ]`,
 		commonMistakes: [
-			'Using non-deterministic encryption for attributes you need to query (find_by, where)',
-			'Using deterministic encryption for highly sensitive data that never needs querying',
-			'Forgetting to migrate existing plaintext data after adding encrypts',
-			'Not storing encryption keys in Rails credentials (hardcoding in code)',
-			'Not planning for key rotation before going to production',
+			'Picking the same encryption mode for every field. The choice between modes is per-attribute and depends on whether the field needs to be queryable.',
+			'Forgetting to backfill the rows that existed before `encrypts` was added. The new column declaration only encrypts on write; old plaintext rows raise on read once the support flag is removed.',
+			'Hardcoding encryption keys in source files instead of in Rails credentials. A leaked repo then leaks the database too.',
+			'Not planning a key rotation cadence. Compliance audits ask for one, and adding it after the fact is expensive.',
 			'Adding encrypts to a column with existing rows without setting config.active_record.encryption.support_unencrypted_data = true during the backfill window (every existing row read raises until backfilled)',
 			'Backfilling existing data with User.update_all (skips the encryptor; rows look encrypted but are still plaintext on disk)',
 			'Using deterministic encryption on low-cardinality fields like status or tier (the ciphertext distribution leaks the value distribution)',
@@ -220,6 +219,6 @@ Rails.application.config.active_record.encryption.previous = [
 	},
 	hint: {
 		delay: 25,
-		text: 'Use `encrypts :email, deterministic: true` for queryable fields and `encrypts :phone` (non-deterministic) for fields that never need lookups.',
+		text: 'Two encryption modes exist. One produces the same ciphertext every time for a given input -- so equality lookups still work. The other produces a different ciphertext each time -- harder to crack but unqueryable. Pick per-attribute based on whether you ever need to look the row up by that value.',
 	},
 };

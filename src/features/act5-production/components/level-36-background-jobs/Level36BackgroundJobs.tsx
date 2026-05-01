@@ -1,5 +1,5 @@
 /**
- * Level 22: Background Jobs
+ * Level 36: Background Jobs
  *
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
@@ -1043,7 +1043,7 @@ export function Level36BackgroundJobs({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={3}
 					levelName="Background Jobs"
-					levelNumber={22}
+					levelNumber={36}
 					onComplete={handleComplete}
 					onReset={() => {
 						window.location.reload();

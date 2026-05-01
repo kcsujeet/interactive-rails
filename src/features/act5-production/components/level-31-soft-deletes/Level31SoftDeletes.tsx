@@ -1,5 +1,5 @@
 /**
- * Level 43: Soft Deletes & Audit Trails
+ * Level 31: Soft Deletes & Audit Trails
  *
  * Three-phase flow: observe -> build -> reward
  *
@@ -1580,7 +1580,7 @@ export function Level31SoftDeletes({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={6}
 					levelName="Soft Deletes & Audit Trails"
-					levelNumber={43}
+					levelNumber={31}
 					onComplete={handleComplete}
 					onReset={handleReset}
 					onValidate={handleValidate}

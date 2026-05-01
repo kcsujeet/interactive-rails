@@ -1,5 +1,5 @@
 /**
- * Level 56: The Architect (Capstone)
+ * Level 58: The Architect (Capstone)
  *
  * Sequential phase flow: observe -> build -> reward
  *
@@ -2600,7 +2600,7 @@ export function Level58Architect({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={8}
 					levelName="The Architect"
-					levelNumber={56}
+					levelNumber={58}
 					onComplete={handleComplete}
 					onReset={() => window.location.reload()}
 					onValidate={validateSolution}

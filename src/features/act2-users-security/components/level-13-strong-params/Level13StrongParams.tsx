@@ -1,5 +1,5 @@
 /**
- * Level 14: Strong Params
+ * Level 13: Strong Params
  *
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
@@ -859,7 +859,7 @@ export function Level13StrongParams({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={2}
 					levelName="Strong Params"
-					levelNumber={14}
+					levelNumber={13}
 					onComplete={handleComplete}
 					onReset={() => {
 						window.location.reload();

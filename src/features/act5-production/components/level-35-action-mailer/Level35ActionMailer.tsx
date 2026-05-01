@@ -1,5 +1,5 @@
 /**
- * Level 21: Action Mailer
+ * Level 35: Action Mailer
  *
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
@@ -1011,7 +1011,7 @@ export function Level35ActionMailer({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={3}
 					levelName="Action Mailer"
-					levelNumber={21}
+					levelNumber={35}
 					onComplete={handleComplete}
 					onReset={() => {
 						window.location.reload();

@@ -1,5 +1,5 @@
 /**
- * Level 11: Callbacks & Normalizations
+ * Level 15: Callbacks & Normalizations
  *
  * Sequential phase flow: observe -> build -> reward
  * - Observe: Click pipeline stages and fire data probes to discover the missing
@@ -222,7 +222,7 @@ export function Level15Callbacks({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={2}
 					levelName="Callbacks & Normalizations"
-					levelNumber={11}
+					levelNumber={15}
 					onComplete={handleComplete}
 					onReset={() => {
 						window.location.reload();

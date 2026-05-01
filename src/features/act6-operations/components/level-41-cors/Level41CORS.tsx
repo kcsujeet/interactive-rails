@@ -1,5 +1,5 @@
 /**
- * Level 15: CORS
+ * Level 41: CORS
  *
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
@@ -840,7 +840,7 @@ export function Level41CORS({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={2}
 					levelName="CORS"
-					levelNumber={15}
+					levelNumber={41}
 					onComplete={handleComplete}
 					onReset={() => {
 						window.location.reload();

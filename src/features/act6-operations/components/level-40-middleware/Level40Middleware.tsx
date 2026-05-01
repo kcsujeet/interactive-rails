@@ -1,5 +1,5 @@
 /**
- * Level 41: Middleware & Rack
+ * Level 40: Middleware & Rack
  *
  * Three-phase flow: observe -> build -> reward
  *
@@ -1876,7 +1876,7 @@ export function Level40Middleware({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={6}
 					levelName="Middleware & Rack"
-					levelNumber={41}
+					levelNumber={40}
 					onComplete={handleComplete}
 					onReset={handleReset}
 					onValidate={handleValidate}

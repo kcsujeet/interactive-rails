@@ -1,5 +1,5 @@
 /**
- * Level 55: Database Sharding
+ * Level 52: Database Sharding
  *
  * Sequential phase flow: observe -> build -> reward
  *
@@ -2432,7 +2432,7 @@ export function Level52Sharding({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={8}
 					levelName="Database Sharding"
-					levelNumber={55}
+					levelNumber={52}
 					onComplete={handleComplete}
 					onReset={() => window.location.reload()}
 					onValidate={validateSolution}
