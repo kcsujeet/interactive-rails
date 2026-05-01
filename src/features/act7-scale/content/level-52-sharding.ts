@@ -262,6 +262,6 @@ end`,
 	},
 	hint: {
 		delay: 30,
-		text: 'Use Rails connects_to with shards. Route by tenant_id using consistent hashing.',
+		text: 'Same `connects_to` declaration, different argument: instead of a writing/reading split, you list multiple shards and pick which one a given query lands on. The picker is usually a hash of the tenant id so a single tenant always lives on a single shard.',
 	},
 };

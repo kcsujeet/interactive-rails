@@ -285,6 +285,6 @@ end`,
 	},
 	hint: {
 		delay: 20,
-		text: 'Add a Scheduler node for Solid Queue recurring tasks. Define cleanup jobs in config/recurring.yml. Write tests to verify each job cleans the right records.',
+		text: 'You already have the queue from L36. The remaining piece is a scheduler that wakes up on cron-like intervals and enqueues the recurring jobs for you. Solid Queue ships one; you describe what runs when in a single config file.',
 	},
 };

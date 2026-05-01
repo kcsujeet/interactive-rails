@@ -99,6 +99,6 @@ end
 	},
 	hint: {
 		delay: 20,
-		text: 'Install rack-cors with bundle add, then configure specific origins in config/initializers/cors.rb. Never use wildcard origins in production.',
+		text: 'A browser blocks JavaScript from loading data across origins by default. Your Rails app needs to opt-in by sending the right response headers; the standard Rack middleware for that lives in a well-known gem. Production config never uses a wildcard origin -- list the exact origins that should be allowed and reject everything else.',
 	},
 };

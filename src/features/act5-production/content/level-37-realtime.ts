@@ -251,6 +251,6 @@ end`,
 	},
 	hint: {
 		delay: 25,
-		text: 'Install solid_cable, generate a NotificationsChannel, authenticate connections via encrypted cookies, then build a service that creates notifications with after_create_commit broadcasting.',
+		text: 'Three layers: the WebSocket adapter Rails 8 ships by default (no Redis needed), a channel class on top of it that handles per-user subscriptions, and a path from your business logic that pushes events to the channel when a domain change happens.',
 	},
 };

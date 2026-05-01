@@ -171,6 +171,6 @@ end`,
 	},
 	hint: {
 		delay: 25,
-		text: 'Build a thin gateway that authenticates at the edge, routes requests, and aggregates responses.',
+		text: 'Today every backend re-implements auth, rate limiting, and request logging. The gateway is a thin layer in front of all of them: authenticate once at the edge, hand the verified user identity to the backend services, and centralize cross-cutting concerns there.',
 	},
 };

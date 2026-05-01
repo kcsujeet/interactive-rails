@@ -171,6 +171,6 @@ end`,
 	},
 	hint: {
 		delay: 25,
-		text: 'Configure an S3 storage service, use has_one_attached with named variants, and set up a direct upload endpoint with presigned URLs.',
+		text: 'Three things to wire up: a place for blobs to live (object storage in production), a way to declare on the model that it can have a file attached, and an upload path that lets the browser send big files straight to storage instead of through your Rails app.',
 	},
 };

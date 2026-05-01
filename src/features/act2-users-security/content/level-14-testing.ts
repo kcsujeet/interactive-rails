@@ -365,6 +365,6 @@ end`,
 	},
 	hint: {
 		delay: 25,
-		text: 'Start by adding the rspec-rails gem with bundle add, then run the install generator to create the spec directory structure.',
+		text: 'Rails 8 ships with Minitest, but the most widely-used Ruby test framework is a separate gem. Add it through Bundler so it lands in the project Gemfile, then run its setup generator -- the standard Rails way to install a test framework.',
 	},
 };

@@ -239,6 +239,6 @@ end`,
 	},
 	hint: {
 		delay: 25,
-		text: 'Add a Mailer node and connect it to the controller. Use generates_token_for for secure, stateless password reset tokens that auto-expire.',
+		text: 'Two pieces: a class that composes the email (subject, body, recipient) using ERB templates, and a token mechanism for the password-reset link that does not require storing reset tokens in the database. Rails 7.1+ ships a built-in helper for the second piece.',
 	},
 };

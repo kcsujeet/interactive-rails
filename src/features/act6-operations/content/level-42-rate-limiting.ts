@@ -230,6 +230,6 @@ end`,
 	},
 	hint: {
 		delay: 20,
-		text: 'Use Rails 8 rate_limit on the controller for per-action limits, and add Rack::Attack for IP-level throttling. Write tests to verify both layers.',
+		text: 'Two layers, two failure modes. One is "this single user just hit /login 100 times in a minute" -- a per-action check inside the controller. The other is "this IP is hammering everything" -- middleware before Rails even sees the request. Different tools for different shapes.',
 	},
 };

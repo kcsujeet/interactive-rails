@@ -280,6 +280,6 @@ end`,
 	},
 	hint: {
 		delay: 20,
-		text: 'Use ActsAsTenant to automatically scope every query to the current tenant.',
+		text: 'Every query in the app needs an implicit `WHERE tenant_id = ?`. A well-known Ruby gem makes that automatic by setting a per-request tenant once in a `before_action` and rewriting subsequent queries; without it you would litter every query with the filter.',
 	},
 };

@@ -210,6 +210,6 @@ end`,
 	},
 	hint: {
 		delay: 20,
-		text: 'Pagy v43 uses pagy(:offset, scope). The first return value is metadata (page, count, headers_hash), the second is the paginated ActiveRecord relation.',
+		text: 'Server-side pagination needs two things at the same time: a slice of the records for the current page, and metadata (current page, total count) the client uses to render "next / prev". The library you reach for here returns both in one call.',
 	},
 };

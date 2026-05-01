@@ -175,6 +175,6 @@ Order.pending.count     # SELECT COUNT(*) FROM orders WHERE status = 'pending'`,
 	},
 	hint: {
 		delay: 20,
-		text: 'Use AASM to declare states, events, and guarded transitions. Add PaperTrail for audit.',
+		text: 'Rails models do not ship a state machine. A long-standing Ruby gem adds the DSL: declare valid states, declare named transitions, declare guards on each transition. The auditing -- "who changed which state when" -- comes from a different gem you wire into the same model.',
 	},
 };

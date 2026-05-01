@@ -250,6 +250,6 @@ end`,
 	},
 	hint: {
 		delay: 20,
-		text: 'Add Soft Delete and Audit Trail nodes to the pipeline. Use discard for safe deletion and PaperTrail for change tracking. Write tests for both.',
+		text: 'Two separate concerns: marking rows as deleted without removing them, and recording who changed what when. Two well-known Ruby gems each handle one of these cleanly. Resist the temptation to write either by hand.',
 	},
 };

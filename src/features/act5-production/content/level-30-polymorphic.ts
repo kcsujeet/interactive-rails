@@ -191,6 +191,6 @@ end`,
 	},
 	hint: {
 		delay: 25,
-		text: 'Add a single Review model with polymorphic: true. Connect it to Product, ProductImage, and ProductVideo using `as: :reviewable`.',
+		text: 'You have one kind of child (reviews) and three different kinds of parents (products, product images, product videos). Storing three foreign-key columns is wasteful; a single child model that points to "any one of these" is the Rails idiom -- look up the option that lets `belongs_to` accept multiple parent types.',
 	},
 };

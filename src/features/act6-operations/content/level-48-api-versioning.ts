@@ -348,6 +348,6 @@ end`,
 	},
 	hint: {
 		delay: 25,
-		text: 'Namespace routes under /api/v1 and /api/v2 with separate controllers and serializers. Add Deprecation and Sunset headers to v1.',
+		text: 'When v2 launches, every v1 client must be told the old version is going away and when. Two HTTP response headers carry that contract -- one says "deprecated", one says the date it stops working. Set them on every v1 response.',
 	},
 };

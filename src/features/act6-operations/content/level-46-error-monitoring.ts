@@ -305,6 +305,6 @@ end`,
 	},
 	hint: {
 		delay: 20,
-		text: 'Add an Error Monitor node connected to the controller. Use Rails.error with context and set up alerting with error budgets.',
+		text: 'Two questions: when an exception happens, how does your error tracker hear about it (with the request context attached)? And what threshold across "errors per N requests" would tell on-call to stop the deploy? The first is a Rails 7+ API; the second is a budget you pick.',
 	},
 };

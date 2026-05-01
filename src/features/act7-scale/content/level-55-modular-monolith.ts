@@ -194,6 +194,6 @@ config/                    @infra-team
 	},
 	hint: {
 		delay: 25,
-		text: 'Organize code into Packwerk packages by business domain. Define public APIs. Set enforce_dependencies and enforce_privacy to true in package.yml.',
+		text: 'A Ruby gem from Shopify adds package boundaries to a Rails monolith: each package declares its public API and which other packages it depends on. Cross-package access outside that contract becomes a check failure at CI time.',
 	},
 };

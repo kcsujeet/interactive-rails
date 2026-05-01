@@ -204,6 +204,6 @@ end`,
 	},
 	hint: {
 		delay: 25,
-		text: 'Publish an OrderCompleted event from CheckoutService. Let subscribers (Email, Inventory, Analytics, Shipping) react independently.',
+		text: 'Today the OrderService directly calls EmailService, InventoryService, Analytics, and Shipping. The rewrite is to publish ONE event ("OrderCompleted") and let each downstream subscribe. The OrderService no longer knows who listens; new subscribers come and go without touching it.',
 	},
 };

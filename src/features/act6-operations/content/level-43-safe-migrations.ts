@@ -220,6 +220,6 @@ end
 	},
 	hint: {
 		delay: 25,
-		text: 'Use strong_migrations to catch unsafe patterns. Split dangerous migrations into safe multi-step operations.',
+		text: 'Some migration operations lock the table for the whole runtime of the deploy. The fix is mechanical (split into smaller steps) but easy to forget; a Rubygem catches the unsafe patterns at code-review time and refuses to run them.',
 	},
 };

@@ -217,6 +217,6 @@ end`,
 	},
 	hint: {
 		delay: 25,
-		text: 'Add structured logging with Lograge, tracing with OpenTelemetry, and a health check endpoint.',
+		text: 'Three different signals: structured logs (one event = one JSON line), traces (one request fans out across many services), and a health endpoint (a load balancer can poll). Each maps to a different open-source tool; the configuration boilerplate is small.',
 	},
 };

@@ -136,6 +136,6 @@ end
 	},
 	hint: {
 		delay: 20,
-		text: 'Check which fields are in your params.expect whitelist. Remove any field the user should not be able to set directly.',
+		text: 'Look at every column on the model and ask "should an external client be able to set this directly?". Anything they should not (server-managed flags, role assignments, foreign keys to other users) needs to be filtered out at the controller layer before the params reach the model.',
 	},
 };

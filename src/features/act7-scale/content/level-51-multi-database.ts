@@ -111,6 +111,6 @@ end
 	},
 	hint: {
 		delay: 25,
-		text: 'Use connects_to to declare writing and reading roles, then let Rails route automatically.',
+		text: 'Rails ships a declaration on ApplicationRecord that lets you map a "writing role" to the primary database and a "reading role" to a replica. Once that is declared, the routing decision is automatic -- writes go one place, reads can go to the other.',
 	},
 };

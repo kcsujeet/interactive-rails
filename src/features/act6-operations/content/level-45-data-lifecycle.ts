@@ -210,6 +210,6 @@ Order.where(status: "shipped").order(created_at: :desc).limit(25)
 	},
 	hint: {
 		delay: 25,
-		text: 'Classify your data into hot (30 days), warm (30-365 days), and cold (1yr+). Archive cold data to a separate table. Automate with recurring jobs.',
+		text: 'Three storage tiers: rows users actively read (hot), rows queried occasionally (warm), and rows kept only because regulators say so (cold). Each tier has different latency / cost trade-offs; the move between tiers is automated by recurring jobs.',
 	},
 };

@@ -199,6 +199,6 @@ end`,
 	},
 	hint: {
 		delay: 25,
-		text: 'Add a Concern node and connect it to both models. The concern holds the shared tagging logic so each model is just one line: include Taggable.',
+		text: 'Two models need the same behavior. Where in app/ does Rails expect shared model behavior to live so it can be `include`d into each model class with one line?',
 	},
 };
