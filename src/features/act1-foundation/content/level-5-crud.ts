@@ -8,7 +8,7 @@ export const level5CRUD: Level = {
 	trigger: {
 		type: 'new_feature',
 		description:
-			'The Product model exists but the database is empty. Use the Rails console to create, read, update, and destroy your first records.',
+			'Your Product table exists but holds zero rows. Open the Rails console and use ActiveRecord directly to put something in, find it again, change it, and remove it.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -46,7 +46,7 @@ export const level5CRUD: Level = {
 #
 # Some methods skip validations or callbacks.
 # Your job: pick the right one each time.`,
-		goal: 'Run each CRUD operation in the Rails console: create a product, read it back, update it, destroy it, and verify it is gone.',
+		goal: 'End the level having put a record in the database, fetched it back, updated it, removed it, and confirmed the table is empty -- all from the Rails console.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'crud_complete', modelType: 'Product' }],
@@ -94,13 +94,11 @@ product.update(price: 899.99)        # UPDATE products SET price = 899.99 WHERE 
 product.destroy                      # DELETE FROM products WHERE id = 1
 Product.destroy_all                  # DELETE FROM products (careful!)`,
 		commonMistakes: [
-			'Using Product.delete instead of Product.destroy (skips callbacks)',
-			'Not checking if save/update returns false',
-			'Using find when find_by would be safer (find raises on not found)',
-			'Calling destroy_all without conditions',
-			'Using create / save / update in scripts and seeds where you expect success. The non-bang form returns silently on validation failure; use create! / save! / update! so failure crashes loud',
-			'Passing Float literals like price: 999.99 to a decimal column. Floats lose precision at large magnitudes; pass BigDecimal("999.99") or "999.99" so the value reaches the database without going through Float',
-			'Using update_column or update_columns to "skip a callback." It also skips validations AND the updated_at timestamp, leaving rows that fail later validations and break audit trails. Almost always the wrong tool',
+			'Reaching for the lower-level method that bypasses Rails lifecycle hooks when the higher-level one would do exactly what you want. The lower-level method silently skips validations and callbacks.',
+			'Not checking the boolean return value of a non-bang write method. The record looks like it saved; in fact it failed validation and downstream code now uses an unsaved object.',
+			'In scripts, seeds, and the console: using the non-bang variant where you actually expect success. The bang form crashes loud on validation failure; the non-bang form returns the invalid record and downstream code gets confused.',
+			'Putting `Float` literals like `price: 999.99` into a decimal column. Floats lose precision at large magnitudes; let Rails coerce a `String` ("999.99") or use `BigDecimal` so the value never goes through Float at all.',
+			'Using `update_column` to "skip just one callback." It also skips validations and the `updated_at` timestamp, leaving rows that fail later validations and break audit trails. Almost always the wrong tool.',
 		],
 		whenToUse: 'These are the building blocks of every Rails feature.',
 		furtherReading: [

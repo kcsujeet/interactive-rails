@@ -8,7 +8,7 @@ export const level1Environment: Level = {
 	trigger: {
 		type: 'initialization',
 		description:
-			'Before writing any code, set up your dev environment: install a version manager, activate it in your shell, pin Ruby in a project config file, install Ruby, and install Rails.',
+			'Your machine has no Ruby and no Rails. Before writing a single line of code, you need a setup that locks each project to the Ruby version it was built with -- so checking out an older project years from now still runs.',
 	},
 	startingPipeline: {
 		nodes: [{ id: 'terminal', type: 'terminal', x: 500, y: 300, locked: true }],
@@ -27,7 +27,7 @@ export const level1Environment: Level = {
 # A project config file pins the version per-project.
 # The version manager reads this file and switches
 # to the correct Ruby automatically when you cd in.`,
-		goal: 'Set up a version manager, pin Ruby and Rails versions for the project, and install the Rails framework.',
+		goal: 'End with a working Ruby + Rails toolchain that any future project can pin to a specific Ruby version automatically.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'slot_filled', slotId: 'environment-ready' }],
@@ -79,9 +79,9 @@ ruby --version  # => ruby 3.4.9
 gem install rails
 rails --version  # => Rails 8.1.3`,
 		commonMistakes: [
-			'Installing Ruby via Homebrew directly instead of a version manager (version conflicts across projects)',
-			'Putting tool declarations at the top of .mise.toml without a section header',
-			'Forgetting to activate mise in your shell after installing it',
+			'Installing Ruby system-wide so every project shares the same version. Two projects on different Ruby versions then break each other on `cd`.',
+			'Stopping after installing the version manager without wiring it into the shell -- the binary works, but the per-project auto-switch never happens.',
+			'Skipping the project-level version pin. The first new contributor on a different machine ends up with a different Ruby and finds out at runtime.',
 		],
 		whenToUse:
 			'Always set up a version manager and .mise.toml at the start of a new Rails project.',
@@ -98,6 +98,6 @@ rails --version  # => Rails 8.1.3`,
 	},
 	hint: {
 		delay: 30,
-		text: 'Install your version manager with Homebrew on macOS, then declare the Ruby version in .mise.toml under the right TOML section.',
+		text: 'On macOS, the package manager that handles system tools is the same one most developers use for everything else. Once installed, the version manager needs both an entry in your shell startup and a project file declaring which Ruby this project wants -- otherwise it knows nothing.',
 	},
 };

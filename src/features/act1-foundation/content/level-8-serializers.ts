@@ -8,7 +8,7 @@ export const level8Serializers: Level = {
 	trigger: {
 		type: 'user_complaint',
 		description:
-			'The API dumps every column as flat JSON. Choose a serializer gem, install it, declare domain attributes, and shape the output into the JSON:API standard.',
+			'The API works, but every endpoint dumps every column straight to JSON, including bookkeeping fields like `created_at` no client ever asked for. Mobile clients pay for the extra bytes; an internal column rename leaks to every consumer.',
 	},
 	startingPipeline: {
 		nodes: [],
@@ -39,7 +39,7 @@ export const level8Serializers: Level = {
     }
   }
 }`,
-		goal: 'Install a serializer gem, define a ProductSerializer with only safe attributes, and update the controller to use it.',
+		goal: 'End with the API returning a structured envelope of only the attributes you chose to expose, instead of a flat dump of every column.',
 		thresholds: {},
 	},
 	successConditions: [],
@@ -121,10 +121,10 @@ end
 #   }
 # }`,
 		commonMistakes: [
-			'Dumping all columns with render json: (flat, unstructured, no formatting)',
-			'Not serializing nested associations (N+1 in serializer)',
-			'Over-serializing (returning too much data)',
-			'Different shapes for list vs detail endpoints',
+			'Treating the database schema as the public API. Every column gets exposed -- including ones renamed for internal reasons that should never have leaked.',
+			'Letting nested associations lazy-load inside the serializer. One product turns into N+1 queries for related data the moment the serializer touches them.',
+			'Returning every field on every endpoint. The list view does not need the same level of detail as the show view; a smaller payload is faster to send and faster to parse.',
+			'Skipping the serializer entirely for "small" responses. The next person to add a field forgets there was ever a filter, and bookkeeping data is back in the response.',
 		],
 		whenToUse:
 			'Every API endpoint should use a serializer. Use JSON:API format for public APIs.',

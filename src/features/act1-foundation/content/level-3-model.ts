@@ -8,7 +8,7 @@ export const level3Model: Level = {
 	trigger: {
 		type: 'new_feature',
 		description:
-			'Your app is running but the database is empty: no tables, no schema. Define the Product model, choose attribute types, run the generator, and migrate.',
+			'The Rails server boots, but every request you could send it has nothing to fetch. The database is empty -- no tables, no schema. You need to teach Rails what a Product looks like.',
 	},
 	startingPipeline: {
 		nodes: [],
@@ -34,7 +34,7 @@ export const level3Model: Level = {
 
 # Your job: name the model, pick the right types,
 # generate it, and migrate.`,
-		goal: 'Create the Product model: name it correctly, define attributes with proper types, run the generator, and migrate the database.',
+		goal: 'End with a Product table in the database that stores a short product name, a long description, and a price that handles money exactly.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'node_present', nodeType: 'model' }],
@@ -74,10 +74,10 @@ rails db:migrate
 # Check the schema
 rails db:schema:dump`,
 		commonMistakes: [
-			'Too many attributes (start minimal, add later)',
-			'Wrong data types (string vs text for long content)',
-			'Using float for prices (use decimal for exact precision)',
-			'Not running migrations after generating them',
+			'Picking a column type by gut feel instead of by what kind of data the field stores. Each Rails column type maps to a specific SQL type with specific limits.',
+			'Treating "text" and "short text" as the same thing. They are different SQL types in the underlying database.',
+			'Storing money in a type that approximates instead of one that holds exact precision. Reports will drift over time.',
+			'Generating the migration file but forgetting to apply it. The class exists but the table does not.',
 		],
 		whenToUse: 'Create a model for each entity in your domain.',
 		furtherReading: [

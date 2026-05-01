@@ -8,7 +8,7 @@ export const level4Associations: Level = {
 	trigger: {
 		type: 'new_feature',
 		description:
-			'Products need reviews! Generate the Review model, choose the right association type, configure cascade deletion, and test the relationship.',
+			'Products work in isolation, but customers want to leave reviews and you have no way to attach them. Two records that belong together need a relationship Rails understands -- not just two unrelated tables.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -73,24 +73,25 @@ export const level4Associations: Level = {
 			'Products load correctly, but there is no way to include reviews in the API response.',
 		rootCause:
 			'No Review model exists and no association is defined between Product and Review.',
-		codeExample: `# Associations link models together:
-#   has_many    - one-to-many (parent side)
-#   belongs_to  - inverse (child side)
-#   has_one     - one-to-one
-#   has_and_belongs_to_many - many-to-many
+		codeExample: `# Today: two unrelated tables.
 #
-# The foreign key lives on the belongs_to side.
-# Using "product:references" in a generator adds:
-#   - Foreign key column (product_id)
-#   - Database index
-#   - belongs_to association (automatic!)
+# class Product < ApplicationRecord
+#   # name, description, price -- nothing else
+# end
 #
-# When a parent is destroyed, what happens to children?
-#   dependent: :destroy, :nullify, :restrict_with_error
+# (no Review model exists yet)
 #
-# Your job: generate Review, set up the relationship,
-# and handle cascade deletion.`,
-		goal: 'Generate the Review model with product:references, choose the right relationship type, configure dependent destruction, and test the association.',
+# What you want:
+#   Product.first.reviews          # => [Review, Review, ...]
+#   product.reviews.create(...)    # creates a review attached to this product
+#
+# Two questions you will answer along the way:
+#   1. How does the child remember which parent it belongs to?
+#      (a column? an index? a database-level constraint? all three?)
+#   2. When a parent is destroyed, what should happen to its children?
+#      (Rails leaves this unspecified by default -- and that default
+#      is almost never what you actually want.)`,
+		goal: 'End with a Review table linked to Product so `product.reviews` works in the console, and deleting a product cleans up its reviews automatically.',
 		thresholds: {},
 	},
 	successConditions: [
@@ -204,13 +205,10 @@ class ProductSerializer < BaseSerializer
   has_many :reviews, serializer: ReviewSerializer
 end`,
 		commonMistakes: [
-			'Using has_one when you need has_many',
-			'Forgetting dependent: :destroy (orphaned records)',
-			'Not adding a foreign key index',
-			'Not including associations in the serializer',
-			'Declaring has_many without an explicit dependent: option (silent orphans on parent destroy)',
-			'Adding the FK column without foreign_key: true on the migration (database has no referential integrity, an unexpected delete leaves orphans the database does not know about)',
-			'Skipping inverse_of: on bidirectional associations (auto-detect fails on custom class_name or non-conventional FK column, causing in-memory parent/child to drift out of sync)',
+			'Picking the wrong relationship cardinality. A product might have one of something or many -- each is a different declaration, and the wrong one limits the API forever.',
+			'Declaring a relationship without specifying what happens to the children when the parent is destroyed. Rails leaves it unspecified, the database leaves the orphans behind, and reports start to drift.',
+			'Adding a foreign key column without adding the database-level constraint and the index. The relationship works in Ruby, but the database has no way to enforce it -- a stray delete corrupts the table silently.',
+			'Skipping `inverse_of:` on a bidirectional association. Auto-detect fails on custom class names or non-conventional column names, leaving the in-memory parent and child out of sync after a save.',
 		],
 		whenToUse: 'has_many when one record owns multiple of another type.',
 		furtherReading: [
@@ -222,6 +220,6 @@ end`,
 	},
 	hint: {
 		delay: 25,
-		text: 'Use product:references in the generator to automatically add the foreign key, index, and belongs_to. Products have many reviews, not just one.',
+		text: 'When you generate the child model, the field type that LINKS it to the parent gives you three things in one declaration: the foreign key column, an index on it, and the `belongs_to` declaration in the model. Use that field type instead of a bare integer column.',
 	},
 };

@@ -8,7 +8,7 @@ export const level6Routes: Level = {
 	trigger: {
 		type: 'new_feature',
 		description:
-			"CRUD works in the console, but the outside world can't reach your app. Define RESTful routes under /api/v1/ and trace how requests map to controller actions.",
+			'You can read and write Products from the Rails console, but the outside world has no door in. Every HTTP request your server receives gets a 404, because nothing has been told which URLs map to which controller actions.',
 	},
 	startingPipeline: {
 		nodes: [],
@@ -35,7 +35,7 @@ end
 #
 # Your job: define the resource, nest it properly,
 # and trace each route to its action.`,
-		goal: 'Define a resource, wrap it in API namespaces, view the generated routes, and trace each one to its controller action.',
+		goal: 'End with the 5 RESTful endpoints for products live under a versioned API path (something like `/api/v1/products`), each one wired to a controller action.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'pipeline_complete' }],
@@ -84,10 +84,10 @@ rails routes
 # 5. Controller renders: render json: @products
 # 6. Response: 200 OK with JSON body`,
 		commonMistakes: [
-			'Not namespacing API routes under /api/v1',
-			'Defining routes manually instead of using resources',
-			'Forgetting to nest controllers in matching module paths',
-			'Not checking routes with `rails routes`',
+			'Hand-writing each verb-and-path line by line. There is a Rails declaration that generates the standard 5 RESTful routes from a single line; you should reach for it before typing five.',
+			'Forgetting to version the API path. Once a real client is integrated, changing the route shape becomes a cross-team migration; locking in `/api/v1/` from day one buys you a second version later for free.',
+			'Putting routes under a URL prefix without the matching controller module. The URL resolves, the controller class lookup fails -- a confusing pair of errors to debug.',
+			'Not running the Rails CLI command that prints every route, every verb, every path, every action. It is the fastest way to verify what you actually defined.',
 		],
 		whenToUse:
 			'Every controller needs routes. Use resources for standard CRUD.',
@@ -100,6 +100,6 @@ rails routes
 	},
 	hint: {
 		delay: 30,
-		text: 'Start with resources :products, then wrap it in namespace :api and namespace :v1 (outermost first).',
+		text: 'There is one Rails declaration that generates the standard 5 RESTful routes for a model. To put them under a URL prefix and a Ruby module path at the same time, two pieces of routing DSL nest around it -- one per segment of the prefix.',
 	},
 };

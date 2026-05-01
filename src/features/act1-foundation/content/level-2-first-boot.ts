@@ -8,7 +8,7 @@ export const level2FirstBoot: Level = {
 	trigger: {
 		type: 'initialization',
 		description:
-			'Ruby and Rails are installed. Now create your first application: choose PostgreSQL over SQLite, install it, generate an API-only project, create the database, and boot the server.',
+			'Ruby and Rails are on your machine, but no application exists yet. Your job: stand up an API-only Rails project, pick a database that can handle multiple users hitting it at once, and have it responding on http://localhost:3000.',
 	},
 	startingPipeline: {
 		nodes: [{ id: 'terminal', type: 'terminal', x: 500, y: 300, locked: true }],
@@ -35,7 +35,7 @@ export const level2FirstBoot: Level = {
 #
 # Your job: pick the right database, install it,
 # generate the project, and get the server running.`,
-		goal: 'Choose a production-grade database, install it, generate an API-only Rails project, create the database, and boot the server.',
+		goal: 'End with a Rails server running locally that responds to /up with 200 OK, on a database that can serve concurrent API traffic.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'slot_filled', slotId: 'database-slot' }],
@@ -95,10 +95,9 @@ rails server
 curl -I http://localhost:3000/up
 # => HTTP/1.1 200 OK`,
 		commonMistakes: [
-			'Choosing SQLite for a multi-user API (single-writer limitation)',
-			'Forgetting --api flag (includes unnecessary browser middleware)',
-			'Running db:migrate before db:create',
-			'Using "rails start" instead of "rails server"',
+			'Skipping the api-only flag. The full-stack default brings a stack of HTML / cookie / session middleware that an API never uses, slowing every request.',
+			'Trying to run the migration step before the database physically exists -- migrations expect to connect to a live database and only manage its schema.',
+			'Reaching for an unfamiliar verb when the canonical Rails CLI command for booting a web server is right there in the Rails Guides.',
 		],
 		whenToUse:
 			'PostgreSQL for any app serving concurrent users. SQLite only for single-user or embedded apps.',
@@ -115,6 +114,6 @@ curl -I http://localhost:3000/up
 	},
 	hint: {
 		delay: 30,
-		text: 'PostgreSQL handles concurrent writes, so pick it for a multi-user API. Install the server with Homebrew before generating the project.',
+		text: 'Two databases ship with Rails 8: one is single-writer and great for prototypes, one handles concurrent writes and is what production APIs run on. Pick for your traffic shape, then install the database server itself before generating the project.',
 	},
 };

@@ -8,7 +8,7 @@ export const level7Controller: Level = {
 	trigger: {
 		type: 'new_feature',
 		description:
-			'Routes are defined but return "uninitialized constant". Generate a controller, add the 5 RESTful actions, and test with curl. For now, curl is your client. No browser frontend yet.',
+			'Your routes resolve, but every request crashes with "uninitialized constant" -- the controller class they point to does not exist. You have a phone book full of names but no actual people to answer the phone.',
 	},
 	startingPipeline: {
 		nodes: [],
@@ -29,7 +29,7 @@ export const level7Controller: Level = {
 #
 # Your job: generate the controller, add actions,
 # and test the endpoint with curl.`,
-		goal: 'Generate the controller, add the 5 RESTful actions, return JSON responses, and test with curl.',
+		goal: 'End with a controller class behind those routes that returns JSON for each of the 5 RESTful actions, verifiable from the command line.',
 		thresholds: {},
 	},
 	successConditions: [{ type: 'pipeline_complete' }],
@@ -139,13 +139,10 @@ end
 # Rails 8 introduces params.expect() for even stricter
 # filtering -- you'll learn that in a later level.`,
 		commonMistakes: [
-			'Using ActionController::Base in API mode (includes unnecessary middleware)',
-			'Forgetting to return proper HTTP status codes',
-			'Rendering HTML instead of JSON in API controllers',
-			'Not namespacing controllers under Api::V1 to match routes',
-			'Repeating Product.find(params[:id]) in show / update / destroy. Use before_action :set_product, only: [:show, :update, :destroy] so the lookup lives in one place',
-			'Writing new controllers with params.require(:thing).permit(...) when params.expect(thing: [...]) is the Rails 8 default. The require/permit form is grandfathered for older controllers; new code goes straight to expect',
-			'Returning 200 OK with an error body (clients cannot distinguish success from failure). 422 for validation failures, 404 for missing records, 401 for unauthenticated, 403 for unauthorized',
+			'Inheriting from the full-stack controller base class in an API. It drags in cookie / session / CSRF middleware the API never uses, slowing every request.',
+			'Returning 200 OK on a failure path with an error body. Clients have to parse the body to know whether the request succeeded -- when the HTTP status code already exists for that purpose.',
+			'Generating a controller whose class name does not match the route module path. The URL resolves, the class lookup fails, and the error message is "uninitialized constant".',
+			'Repeating the same record lookup in three actions instead of letting one centralized hook run before each. When the lookup needs to change, you change it three times.',
 		],
 		whenToUse: 'Every API endpoint needs a controller action.',
 		furtherReading: [
@@ -161,6 +158,6 @@ end
 	},
 	hint: {
 		delay: 20,
-		text: 'Controller names are plural and must match the route namespace: Api::V1::Products. Actions use Rails conventions like index, show, create.',
+		text: 'The controller name has to satisfy two constraints at once: the resource it serves (which is plural in Rails routing) and the module path that mirrors the URL prefix the routes live under. Get either one wrong and the route resolves to a class Ruby cannot find.',
 	},
 };
