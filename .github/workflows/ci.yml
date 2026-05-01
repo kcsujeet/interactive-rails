@@ -10,6 +10,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  # Run actions/checkout, actions/setup-node, actions/cache, etc. on Node 24
+  # ahead of GitHub's June 2 2026 default flip. Silences the Node 20
+  # deprecation warning. Per
+  # https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   check:
     name: typecheck / test / build / lint
@@ -22,12 +29,11 @@ jobs:
 
       - name: Set up Node.js
         # Astro requires Node v22.12.0 or higher (even-numbered majors only).
-        # See https://docs.astro.build/en/install-and-setup/
-        # Without this, the runner's default Node 20 makes astro sync fail
-        # with "Node.js v20 is not supported by Astro!".
+        # https://docs.astro.build/en/install-and-setup/
+        # Pinned to 24 to match the actions runtime (FORCE_JAVASCRIPT_ACTIONS_TO_NODE24).
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
