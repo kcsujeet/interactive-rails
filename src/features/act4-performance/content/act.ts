@@ -1,13 +1,13 @@
 import type { Act } from '@/types';
-import { level23N1Problem } from './level-23-n1-problem';
-import { level24EagerLoading } from './level-24-eager-loading';
-import { level25NarrowFetching } from './level-25-narrow-fetching';
-import { level26DatabaseIndexing } from './level-26-database-indexing';
-import { level27CounterCaches } from './level-27-counter-caches';
-import { level28Pagination } from './level-28-pagination';
-import { level29Search } from './level-29-search';
-import { level30Caching } from './level-30-caching';
-import { level31HTTPCaching } from './level-31-http-caching';
+import { level21N1Problem } from './level-21-n1-problem';
+import { level22EagerLoading } from './level-22-eager-loading';
+import { level23NarrowFetching } from './level-23-narrow-fetching';
+import { level24Indexing } from './level-24-indexing';
+import { level25CounterCaches } from './level-25-counter-caches';
+import { level26Pagination } from './level-26-pagination';
+import { level27Search } from './level-27-search';
+import { level28Caching } from './level-28-caching';
+import { level29HTTPCaching } from './level-29-http-caching';
 
 export const actFour: Act = {
 	id: 4,
@@ -16,15 +16,15 @@ export const actFour: Act = {
 	description:
 		'Users are multiplying and response times are climbing. Diagnose N+1 queries, add eager loading, narrow fetching, database indexes, counter caches, pagination, search, and caching layers to keep the API fast.',
 	levels: [
-		level23N1Problem,
-		level24EagerLoading,
-		level25NarrowFetching,
-		level26DatabaseIndexing,
-		level27CounterCaches,
-		level28Pagination,
-		level29Search,
-		level30Caching,
-		level31HTTPCaching,
+		level21N1Problem,
+		level22EagerLoading,
+		level23NarrowFetching,
+		level24Indexing,
+		level25CounterCaches,
+		level26Pagination,
+		level27Search,
+		level28Caching,
+		level29HTTPCaching,
 	],
 	unlockedNodes: ['eager_load', 'index', 'cache', 'pagination', 'search'],
 	metricsVisible: true,

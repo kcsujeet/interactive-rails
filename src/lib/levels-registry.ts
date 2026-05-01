@@ -9,20 +9,20 @@
  * Act 1: The Foundation (L1-L8, 8 levels)
  * - Environment, First Boot, Model, Associations, CRUD, Routes, Controller, Serializers
  *
- * Act 2: Users & Security (L9-L15, 7 levels)
- * - Authentication, Validations, Callbacks, Authorization, Testing, Strong Params, CORS
+ * Act 2: Users & Security (L9-L14, 6 levels)
+ * - Authentication, Encryption, Authorization, Validations, Strong Params, Testing
  *
- * Act 3: Clean Architecture (L16-L22, 7 levels)
- * - Service Objects, Concerns, Validation Contracts, Query Objects, Error Handling, Action Mailer, Background Jobs
+ * Act 3: Clean Architecture (L15-L20, 6 levels)
+ * - Callbacks, Service Objects, Concerns, Validation Contracts, Query Objects, Error Handling
  *
- * Act 4: Performance (L23-L31, 9 levels)
+ * Act 4: Performance (L21-L29, 9 levels)
  * - N+1 Problem, Eager Loading, Narrow Fetching, Indexing, Counter Caches, Pagination, Search, Caching, HTTP Caching & CDNs
  *
- * Act 5: Advanced Features (L32-L41, 10 levels)
- * - Polymorphic, Transactions, Locking, Active Storage, Encryption, Real-Time, External APIs, Webhooks, API Versioning, Soft Deletes
+ * Act 5: Advanced Features (L30-L39, 10 levels)
+ * - Polymorphic, Soft Deletes, Transactions, Locking, Active Storage, Action Mailer, Background Jobs, Real-Time, External APIs, Webhooks
  *
- * Act 6: Operations (L42-L50, 9 levels)
- * - Middleware, Rate Limiting, Safe Migrations, Recurring Jobs, Data Lifecycle, Error Monitoring, Observability, Deployment (Kamal), Feature Flags
+ * Act 6: Operations (L40-L50, 11 levels)
+ * - Middleware, CORS, Rate Limiting, Safe Migrations, Recurring Jobs, Data Lifecycle, Error Monitoring, Observability, API Versioning, Deployment (Kamal), Feature Flags
  *
  * Act 7: Scale (L51-L58, 8 levels)
  * - Read Replicas, Sharding, Multi-Tenancy, State Machines, Modular Monolith, Domain Events, API Gateway, The Architect (Capstone)
@@ -56,7 +56,6 @@ function lazyNamed<K extends string>(
 // Level component registry
 // Levels not listed here use the generic pipeline builder view
 const LEVEL_COMPONENTS: Record<string, LazyLevel> = {
-	// (LazyExoticComponent renders identically to ComponentType inside <Suspense>)
 	// ============================================
 	// Act 1: The Foundation
 	// ============================================
@@ -123,52 +122,52 @@ const LEVEL_COMPONENTS: Record<string, LazyLevel> = {
 			),
 		'Level9Authentication',
 	),
-	'act2-level10-validations': lazyNamed(
+	'act2-level10-encryption': lazyNamed(
 		() =>
 			import(
-				'@/features/act2-users-security/components/level-10-validations/Level10Validations'
+				'@/features/act2-users-security/components/level-10-encryption/Level10Encryption'
 			),
-		'Level10Validations',
+		'Level10Encryption',
 	),
-	'act2-level11-callbacks': lazyNamed(
+	'act2-level11-authorization': lazyNamed(
 		() =>
 			import(
-				'@/features/act2-users-security/components/level-11-callbacks/Level11Callbacks'
+				'@/features/act2-users-security/components/level-11-authorization/Level11Authorization'
 			),
-		'Level11Callbacks',
+		'Level11Authorization',
 	),
-	'act2-level12-authorization': lazyNamed(
+	'act2-level12-validations': lazyNamed(
 		() =>
 			import(
-				'@/features/act2-users-security/components/level-12-authorization/Level12Authorization'
+				'@/features/act2-users-security/components/level-12-validations/Level12Validations'
 			),
-		'Level12Authorization',
+		'Level12Validations',
 	),
-	'act2-level13-testing': lazyNamed(
+	'act2-level13-strong-params': lazyNamed(
 		() =>
 			import(
-				'@/features/act2-users-security/components/level-13-testing/Level13Testing'
+				'@/features/act2-users-security/components/level-13-strong-params/Level13StrongParams'
 			),
-		'Level13Testing',
+		'Level13StrongParams',
 	),
-	'act2-level14-strong-params': lazyNamed(
+	'act2-level14-testing': lazyNamed(
 		() =>
 			import(
-				'@/features/act2-users-security/components/level-14-strong-params/Level14StrongParams'
+				'@/features/act2-users-security/components/level-14-testing/Level14Testing'
 			),
-		'Level14StrongParams',
-	),
-	'act2-level15-cors': lazyNamed(
-		() =>
-			import(
-				'@/features/act2-users-security/components/level-15-cors/Level15CORS'
-			),
-		'Level15CORS',
+		'Level14Testing',
 	),
 
 	// ============================================
 	// Act 3: Clean Architecture
 	// ============================================
+	'act3-level15-callbacks': lazyNamed(
+		() =>
+			import(
+				'@/features/act3-clean-architecture/components/level-15-callbacks/Level15Callbacks'
+			),
+		'Level15Callbacks',
+	),
 	'act3-level16-service-objects': lazyNamed(
 		() =>
 			import(
@@ -204,125 +203,125 @@ const LEVEL_COMPONENTS: Record<string, LazyLevel> = {
 			),
 		'Level20ErrorHandling',
 	),
-	'act3-level21-action-mailer': lazyNamed(
-		() =>
-			import(
-				'@/features/act3-clean-architecture/components/level-21-action-mailer/Level21ActionMailer'
-			),
-		'Level21ActionMailer',
-	),
-	'act3-level22-background-jobs': lazyNamed(
-		() =>
-			import(
-				'@/features/act3-clean-architecture/components/level-22-background-jobs/Level22BackgroundJobs'
-			),
-		'Level22BackgroundJobs',
-	),
 
 	// ============================================
 	// Act 4: Performance
 	// ============================================
-	'act4-level23-n1-problem': lazyNamed(
+	'act4-level21-n1-problem': lazyNamed(
 		() =>
 			import(
-				'@/features/act4-performance/components/level-23-n1-problem/Level23N1Problem'
+				'@/features/act4-performance/components/level-21-n1-problem/Level21N1Problem'
 			),
-		'Level23N1Problem',
+		'Level21N1Problem',
 	),
-	'act4-level24-eager-loading': lazyNamed(
+	'act4-level22-eager-loading': lazyNamed(
 		() =>
 			import(
-				'@/features/act4-performance/components/level-24-eager-loading/Level24EagerLoading'
+				'@/features/act4-performance/components/level-22-eager-loading/Level22EagerLoading'
 			),
-		'Level24EagerLoading',
+		'Level22EagerLoading',
 	),
-	'act4-level25-narrow-fetching': lazyNamed(
+	'act4-level23-narrow-fetching': lazyNamed(
 		() =>
 			import(
-				'@/features/act4-performance/components/level-25-narrow-fetching/Level25NarrowFetching'
+				'@/features/act4-performance/components/level-23-narrow-fetching/Level23NarrowFetching'
 			),
-		'Level25NarrowFetching',
+		'Level23NarrowFetching',
 	),
-	'act4-level26-database-indexing': lazyNamed(
+	'act4-level24-indexing': lazyNamed(
 		() =>
 			import(
-				'@/features/act4-performance/components/level-26-indexing/Level26Indexing'
+				'@/features/act4-performance/components/level-24-indexing/Level24Indexing'
 			),
-		'Level26Indexing',
+		'Level24Indexing',
 	),
-	'act4-level27-counter-caches': lazyNamed(
+	'act4-level25-counter-caches': lazyNamed(
 		() =>
 			import(
-				'@/features/act4-performance/components/level-27-counter-caches/Level27CounterCaches'
+				'@/features/act4-performance/components/level-25-counter-caches/Level25CounterCaches'
 			),
-		'Level27CounterCaches',
+		'Level25CounterCaches',
 	),
-	'act4-level28-pagination': lazyNamed(
+	'act4-level26-pagination': lazyNamed(
 		() =>
 			import(
-				'@/features/act4-performance/components/level-28-pagination/Level28Pagination'
+				'@/features/act4-performance/components/level-26-pagination/Level26Pagination'
 			),
-		'Level28Pagination',
+		'Level26Pagination',
 	),
-	'act4-level29-search': lazyNamed(
+	'act4-level27-search': lazyNamed(
 		() =>
 			import(
-				'@/features/act4-performance/components/level-29-search/Level29Search'
+				'@/features/act4-performance/components/level-27-search/Level27Search'
 			),
-		'Level29Search',
+		'Level27Search',
 	),
-	'act4-level30-caching': lazyNamed(
+	'act4-level28-caching': lazyNamed(
 		() =>
 			import(
-				'@/features/act4-performance/components/level-30-caching/Level30Caching'
+				'@/features/act4-performance/components/level-28-caching/Level28Caching'
 			),
-		'Level30Caching',
+		'Level28Caching',
 	),
-	'act4-level31-http-caching': lazyNamed(
+	'act4-level29-http-caching': lazyNamed(
 		() =>
 			import(
-				'@/features/act4-performance/components/level-31-http-caching/Level31HTTPCaching'
+				'@/features/act4-performance/components/level-29-http-caching/Level29HTTPCaching'
 			),
-		'Level31HTTPCaching',
+		'Level29HTTPCaching',
 	),
 
 	// ============================================
 	// Act 5: Advanced Features
 	// ============================================
-	'act5-level32-polymorphic': lazyNamed(
+	'act5-level30-polymorphic': lazyNamed(
 		() =>
 			import(
-				'@/features/act5-production/components/level-32-polymorphic/Level32Polymorphic'
+				'@/features/act5-production/components/level-30-polymorphic/Level30Polymorphic'
 			),
-		'Level32Polymorphic',
+		'Level30Polymorphic',
 	),
-	'act5-level33-transactions': lazyNamed(
+	'act5-level31-soft-deletes': lazyNamed(
 		() =>
 			import(
-				'@/features/act5-production/components/level-33-transactions/Level33Transactions'
+				'@/features/act5-production/components/level-31-soft-deletes/Level31SoftDeletes'
 			),
-		'Level33Transactions',
+		'Level31SoftDeletes',
 	),
-	'act5-level34-locking': lazyNamed(
+	'act5-level32-transactions': lazyNamed(
 		() =>
 			import(
-				'@/features/act5-production/components/level-34-locking/Level34Locking'
+				'@/features/act5-production/components/level-32-transactions/Level32Transactions'
 			),
-		'Level34Locking',
+		'Level32Transactions',
 	),
-	'act5-level35-active-storage': lazyNamed(
+	'act5-level33-locking': lazyNamed(
 		() =>
 			import(
-				'@/features/act5-production/components/level-35-active-storage/Level35ActiveStorage'
+				'@/features/act5-production/components/level-33-locking/Level33Locking'
 			),
-		'Level35ActiveStorage',
+		'Level33Locking',
 	),
-	'act5-level36-encryption': lazyNamed(
+	'act5-level34-active-storage': lazyNamed(
 		() =>
 			import(
-				'@/features/act5-production/components/level-36-encryption/Level36Encryption'
+				'@/features/act5-production/components/level-34-active-storage/Level34ActiveStorage'
 			),
-		'Level36Encryption',
+		'Level34ActiveStorage',
+	),
+	'act5-level35-action-mailer': lazyNamed(
+		() =>
+			import(
+				'@/features/act5-production/components/level-35-action-mailer/Level35ActionMailer'
+			),
+		'Level35ActionMailer',
+	),
+	'act5-level36-background-jobs': lazyNamed(
+		() =>
+			import(
+				'@/features/act5-production/components/level-36-background-jobs/Level36BackgroundJobs'
+			),
+		'Level36BackgroundJobs',
 	),
 	'act5-level37-realtime': lazyNamed(
 		() =>
@@ -345,72 +344,70 @@ const LEVEL_COMPONENTS: Record<string, LazyLevel> = {
 			),
 		'Level39Webhooks',
 	),
-	'act5-level40-api-versioning': lazyNamed(
-		() =>
-			import(
-				'@/features/act5-production/components/level-40-api-versioning/Level40APIVersioning'
-			),
-		'Level40APIVersioning',
-	),
-	'act5-level41-soft-deletes': lazyNamed(
-		() =>
-			import(
-				'@/features/act5-production/components/level-41-soft-deletes/Level41SoftDeletes'
-			),
-		'Level41SoftDeletes',
-	),
 
 	// ============================================
 	// Act 6: Operations
 	// ============================================
-	'act6-level42-middleware': lazyNamed(
+	'act6-level40-middleware': lazyNamed(
 		() =>
 			import(
-				'@/features/act6-operations/components/level-42-middleware/Level42Middleware'
+				'@/features/act6-operations/components/level-40-middleware/Level40Middleware'
 			),
-		'Level42Middleware',
+		'Level40Middleware',
 	),
-	'act6-level43-rate-limiting': lazyNamed(
+	'act6-level41-cors': lazyNamed(
 		() =>
-			import(
-				'@/features/act6-operations/components/level-43-rate-limiting/Level43RateLimiting'
-			),
-		'Level43RateLimiting',
+			import('@/features/act6-operations/components/level-41-cors/Level41CORS'),
+		'Level41CORS',
 	),
-	'act6-level44-safe-migrations': lazyNamed(
+	'act6-level42-rate-limiting': lazyNamed(
 		() =>
 			import(
-				'@/features/act6-operations/components/level-44-safe-migrations/Level44SafeMigrations'
+				'@/features/act6-operations/components/level-42-rate-limiting/Level42RateLimiting'
 			),
-		'Level44SafeMigrations',
+		'Level42RateLimiting',
 	),
-	'act6-level45-recurring-jobs': lazyNamed(
+	'act6-level43-safe-migrations': lazyNamed(
 		() =>
 			import(
-				'@/features/act6-operations/components/level-45-recurring-jobs/Level45RecurringJobs'
+				'@/features/act6-operations/components/level-43-safe-migrations/Level43SafeMigrations'
 			),
-		'Level45RecurringJobs',
+		'Level43SafeMigrations',
 	),
-	'act6-level46-data-lifecycle': lazyNamed(
+	'act6-level44-recurring-jobs': lazyNamed(
 		() =>
 			import(
-				'@/features/act6-operations/components/level-46-data-lifecycle/Level46DataLifecycle'
+				'@/features/act6-operations/components/level-44-recurring-jobs/Level44RecurringJobs'
 			),
-		'Level46DataLifecycle',
+		'Level44RecurringJobs',
 	),
-	'act6-level47-error-monitoring': lazyNamed(
+	'act6-level45-data-lifecycle': lazyNamed(
 		() =>
 			import(
-				'@/features/act6-operations/components/level-47-error-monitoring/Level47ErrorMonitoring'
+				'@/features/act6-operations/components/level-45-data-lifecycle/Level45DataLifecycle'
 			),
-		'Level47ErrorMonitoring',
+		'Level45DataLifecycle',
 	),
-	'act6-level48-observability': lazyNamed(
+	'act6-level46-error-monitoring': lazyNamed(
 		() =>
 			import(
-				'@/features/act6-operations/components/level-48-observability/Level48Observability'
+				'@/features/act6-operations/components/level-46-error-monitoring/Level46ErrorMonitoring'
 			),
-		'Level48Observability',
+		'Level46ErrorMonitoring',
+	),
+	'act6-level47-observability': lazyNamed(
+		() =>
+			import(
+				'@/features/act6-operations/components/level-47-observability/Level47Observability'
+			),
+		'Level47Observability',
+	),
+	'act6-level48-api-versioning': lazyNamed(
+		() =>
+			import(
+				'@/features/act6-operations/components/level-48-api-versioning/Level48APIVersioning'
+			),
+		'Level48APIVersioning',
 	),
 	'act6-level49-deployment': lazyNamed(
 		() =>

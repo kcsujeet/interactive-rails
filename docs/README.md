@@ -41,12 +41,12 @@ Sandbox mode still exists as a free-form request-flow playground, but it is sepa
 
 | Act | Name | Levels | Focus |
 |-----|------|--------|-------|
-| 1 | The Foundation | L1-L8 | Environment, app boot, models, CRUD, routes, controllers, serializers, associations |
-| 2 | Guards & Gates | L9-L15 | Authentication, validations, callbacks, authorization, testing, strong params, CORS |
-| 3 | Clean Architecture | L16-L22 | Service objects, concerns, contracts, query objects, error handling, mailers, background jobs |
-| 4 | Performance | L23-L31 | N+1, eager loading, narrow fetching, indexing, counter caches, pagination, search, caching |
-| 5 | Production Features | L32-L40 | Polymorphic associations, transactions, locking, storage, encryption, real-time, external APIs, webhooks, versioning |
-| 6 | Operations | L41-L50 | Middleware, rate limiting, soft deletes, safe migrations, recurring jobs, data lifecycle, monitoring, observability, deployment, feature flags |
+| 1 | The Foundation | L1-L8 | Environment, app boot, models, associations, CRUD, routes, controllers, serializers |
+| 2 | Users & Security | L9-L14 | Authentication, encryption, authorization, validations, strong params, testing |
+| 3 | Clean Architecture | L15-L20 | Callbacks, service objects, concerns, contracts, query objects, error handling |
+| 4 | Performance | L21-L29 | N+1, eager loading, narrow fetching, indexing, counter caches, pagination, search, caching |
+| 5 | Advanced Features | L30-L39 | Polymorphic, soft deletes, transactions, locking, storage, mailers, background jobs, real-time, external APIs, webhooks |
+| 6 | Operations | L40-L50 | Middleware, CORS, rate limiting, safe migrations, recurring jobs, data lifecycle, monitoring, observability, API versioning, deployment, feature flags |
 | 7 | Scale | L51-L58 | Read replicas, sharding, multi-tenancy, state machines, modular monolith, domain events, API gateway, capstone |
 
 ## Key Features
