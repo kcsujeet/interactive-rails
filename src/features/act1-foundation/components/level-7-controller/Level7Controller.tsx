@@ -1154,64 +1154,7 @@ export function Level7Controller({ onComplete }: LevelComponentProps) {
 							: stepper.currentStep - 1,
 						placedActions,
 					)}
-				>
-					{phase === 'observe' && (
-						<div className="p-4 border-t border-border">
-							<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-								Key Concepts
-							</div>
-							<ul className="text-xs text-muted-foreground space-y-2">
-								<li>
-									Routes map to{' '}
-									<span className="font-mono text-primary">
-										Controller#action
-									</span>
-								</li>
-								<li>Controller name must match the route namespace</li>
-								<li>API controllers need the 5 RESTful actions</li>
-							</ul>
-						</div>
-					)}
-					{phase === 'build' && (
-						<div className="p-4 border-t border-border">
-							<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-								RESTful Actions
-							</div>
-							<div className="text-xs text-muted-foreground space-y-1">
-								<div>
-									<span className="text-emerald-400 dark:text-emerald-300 font-mono">
-										index
-									</span>
-									: List all records
-								</div>
-								<div>
-									<span className="text-emerald-400 dark:text-emerald-300 font-mono">
-										show
-									</span>
-									: Display one record
-								</div>
-								<div>
-									<span className="text-blue-400 dark:text-blue-300 font-mono">
-										create
-									</span>
-									: Save a new record
-								</div>
-								<div>
-									<span className="text-amber-400 dark:text-amber-300 font-mono">
-										update
-									</span>
-									: Modify existing
-								</div>
-								<div>
-									<span className="text-red-400 dark:text-red-300 font-mono">
-										destroy
-									</span>
-									: Delete a record
-								</div>
-							</div>
-						</div>
-					)}
-				</CodePreviewPanel>
+				/>
 			</RightPanel>
 		</LevelLayout>
 	);
