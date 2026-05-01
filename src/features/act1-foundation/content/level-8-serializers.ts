@@ -57,7 +57,7 @@ export const level8Serializers: Level = {
 - Nest related data (product with reviews)
 
 **The JSON:API standard:**
-The industry-standard response format for REST APIs. Used by Stripe, Ember, and thousands of production APIs. It provides:
+A widely-adopted response format for REST APIs (used by Ember Data and many other clients that expect a structured envelope). It provides:
 - Standardized envelope: \`data\`, \`type\`, \`attributes\`, \`relationships\`
 - Built-in pagination via \`links\`
 - Sparse fieldsets: \`fields[products]=name,description\`

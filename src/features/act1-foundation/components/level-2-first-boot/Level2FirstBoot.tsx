@@ -161,6 +161,11 @@ const generateOutput: TerminalOutputLine[] = [
 ];
 
 // Step 4: Explore the Generated App commands
+//
+// `ls -F` is on every macOS / Linux system. We deliberately avoid `tree`
+// here even though its output is prettier -- `tree` is not installed by
+// default on macOS, and we do not want a beginner's first encounter with
+// the directory layout to end with "command not found".
 const exploreCommands: TerminalCommand[] = [
 	{
 		id: 'wrong-cat',
@@ -176,65 +181,44 @@ const exploreCommands: TerminalCommand[] = [
 		command: 'find myapp -type f',
 		correct: false,
 		feedback:
-			'find -type f lists every individual file (hundreds of them). You want a high-level view of the directory layout, not every file.',
+			'find -type f lists every individual file (hundreds of them). You want a high-level view of the top-level directory layout, not every file.',
 	},
 	{
 		id: 'correct',
-		label: 'tree -L 1 myapp',
-		command: 'tree -L 1 myapp',
+		label: 'ls -F myapp',
+		command: 'ls -F myapp',
 		correct: true,
 	},
 ];
 
 const exploreOutput: TerminalOutputLine[] = [
-	{ text: 'myapp/', color: 'cyan' },
+	// `ls -F` adds a trailing slash to directories and an asterisk to
+	// executables, which is how the player tells folders from files.
+	{ text: 'Gemfile        Rakefile       config.ru      log/', color: 'green' },
 	{
-		text: '├── Gemfile                # Ruby gem dependencies',
+		text: 'Gemfile.lock   app/           db/            public/',
 		color: 'green',
 	},
 	{
-		text: '├── Gemfile.lock           # Locked gem versions',
-		color: 'muted',
-	},
-	{ text: '├── README.md              # Documentation', color: 'muted' },
-	{ text: '├── Rakefile               # Task runner config', color: 'muted' },
-	{
-		text: '├── app/                   # Your app code (models, controllers, mailers, jobs)',
+		text: 'README.md      bin/           lib/           test/',
 		color: 'green',
 	},
-	{
-		text: '├── bin/                   # Runner scripts (rails, setup, dev, jobs)',
-		color: 'green',
-	},
-	{
-		text: '├── config/                # Configuration (routes, database, credentials)',
-		color: 'green',
-	},
-	{
-		text: '├── config.ru              # Rack server entry point',
-		color: 'muted',
-	},
-	{
-		text: '├── db/                    # Migrations, schema, seeds',
-		color: 'green',
-	},
-	{
-		text: '├── lib/                   # Code shared across the app',
-		color: 'muted',
-	},
-	{ text: '├── log/                   # Application logs', color: 'muted' },
-	{
-		text: '├── public/                # Static files served as-is',
-		color: 'muted',
-	},
-	{ text: '├── test/                  # Test files', color: 'muted' },
-	{
-		text: '└── tmp/                   # Cache, sockets, ephemeral data',
-		color: 'muted',
-	},
+	{ text: 'config/        tmp/', color: 'green' },
 	{ text: '', color: 'muted' },
 	{
-		text: 'You will spend most of your time in app/, config/, and db/.',
+		text: '# Trailing / marks a directory. Most of your work lives in:',
+		color: 'cyan',
+	},
+	{
+		text: '#   app/      models, controllers, mailers, jobs',
+		color: 'cyan',
+	},
+	{
+		text: '#   config/   routes, database, credentials',
+		color: 'cyan',
+	},
+	{
+		text: '#   db/       migrations, schema, seeds',
 		color: 'cyan',
 	},
 ];

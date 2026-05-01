@@ -1,5 +1,5 @@
 /**
- * Level 7: Serializers
+ * Level 8: Serializers
  *
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
@@ -221,7 +221,7 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 	},
 	router: {
 		stageId: 'router',
-		title: 'Router (from Level 5)',
+		title: 'Router (from L6)',
 		description:
 			'Routes match correctly. GET /api/v1/products/1 maps to products#show. This stage works as expected.',
 	},
@@ -1038,7 +1038,7 @@ export function Level8Serializers({ onComplete }: LevelComponentProps) {
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							In Level 6, your controller returns{' '}
+							In L7, your controller returns{' '}
 							<span className="font-mono text-primary">
 								render json: product
 							</span>
@@ -1109,7 +1109,7 @@ export function Level8Serializers({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={1}
 					levelName="Serializers"
-					levelNumber={7}
+					levelNumber={8}
 					onComplete={handleComplete}
 					onReset={() => {
 						window.location.reload();

@@ -1,5 +1,5 @@
 /**
- * Level 5: Routes & Request Lifecycle
+ * Level 6: Routes & Request Lifecycle
  *
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
@@ -219,7 +219,7 @@ end`,
 		stageId: 'model',
 		title: 'Product Model',
 		description:
-			'The Product model works perfectly in the console (Level 3-4). But the outside world cannot trigger it because requests never reach the controller.',
+			'The Product model works perfectly in the console (set up in L3, exercised in L5). But the outside world cannot trigger it because requests never reach the controller.',
 	},
 	response: {
 		stageId: 'response',
@@ -970,7 +970,7 @@ export function Level6Routes({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={1}
 					levelName="Routes & Request Lifecycle"
-					levelNumber={5}
+					levelNumber={6}
 					onComplete={handleComplete}
 					onReset={() => {
 						window.location.reload();

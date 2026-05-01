@@ -654,32 +654,7 @@ end`,
 			</CenterPanel>
 
 			<RightPanel>
-				<CodePreviewPanel files={getCodeFiles()}>
-					<div className="p-4 border-t border-border">
-						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-							Key Concepts
-						</div>
-						<ul className="text-xs text-muted-foreground space-y-2">
-							<li>
-								Model names are singular PascalCase (Product, not Products)
-							</li>
-							<li>Table names are auto-pluralized (products)</li>
-							<li>
-								<span className="font-mono text-primary">string</span> = short
-								text (255 chars),{' '}
-								<span className="font-mono text-primary">text</span> = long
-								content, <span className="font-mono text-primary">decimal</span>{' '}
-								= exact precision for money
-							</li>
-							<li>
-								<span className="font-mono text-primary">id</span>,{' '}
-								<span className="font-mono text-primary">created_at</span>,{' '}
-								<span className="font-mono text-primary">updated_at</span> are
-								automatic
-							</li>
-						</ul>
-					</div>
-				</CodePreviewPanel>
+				<CodePreviewPanel files={getCodeFiles()} />
 			</RightPanel>
 		</LevelLayout>
 	);

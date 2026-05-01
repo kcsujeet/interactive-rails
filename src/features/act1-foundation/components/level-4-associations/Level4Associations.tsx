@@ -1,5 +1,5 @@
 /**
- * Level 8: Associations
+ * Level 4: Associations
  *
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
@@ -7,6 +7,9 @@
  * Phase 1 (WHY - observe): Interactive exploration. Click pipeline stages to
  *   inspect code, fire API probes to discover that products are isolated with no
  *   way to attach reviews. Discovery gating controls when "Build the Fix" appears.
+ *   (Curriculum order: this level comes right after Model (L3), before CRUD (L5),
+ *   Routes (L6), Controller (L7), Serializers (L8). Pipeline references those
+ *   downstream stages as scaffolding the player will fill in later acts.)
  * Phase 2 (HOW - build): 6 steps (3 terminal + 1 informational + 2 OptionCard)
  *   Step 0: Generate Review model with product:references (terminal)
  *   Step 1: Run migration (terminal)
@@ -124,7 +127,7 @@ const PROBES: ProbeConfig[] = [
 			'Beyond routing, no Review model exists in the application at all.',
 			'The request fails with a 404. Reviews cannot be created or stored.',
 		],
-		command: 'POST /api/v1/products/1/reviews (body: "Great post!")',
+		command: 'POST /api/v1/products/1/reviews (body: "Great laptop!")',
 		responseLines: [
 			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
 			{ text: '', color: 'muted' },
@@ -228,9 +231,9 @@ end`,
 	},
 	serializer: {
 		stageId: 'serializer',
-		title: 'Serializer (from Level 7)',
+		title: 'Serializer (introduced later)',
 		description:
-			'ProductSerializer shapes output into JSON:API format. Once associations are added, the serializer can include nested review data in the response.',
+			'A later level (L8) teaches how to shape JSON output for the API. For now, just know there is a step between the controller and the response that controls how data is rendered. Once associations are added, that step can include nested review data.',
 	},
 	response: {
 		stageId: 'response',
@@ -520,14 +523,14 @@ const DEPENDENT_OPTIONS: StepOption[] = [
 		label: 'dependent: :nullify',
 		correct: false,
 		feedback:
-			'Orphaned reviews with NULL product_id would break your API. You need a strategy that removes them entirely.',
+			'`:nullify` sets product_id to NULL on each review and leaves the review row behind. A review without a product is meaningless to the storefront and clutters reports. Pick the option that handles deletion the way "this review only exists because of this product" implies.',
 	},
 	{
 		id: 'restrict',
 		label: 'dependent: :restrict_with_error',
 		correct: false,
 		feedback:
-			'For a product API, cleaning up reviews on delete is better than preventing deletion entirely.',
+			'`:restrict_with_error` blocks the parent delete entirely if any reviews exist. Useful when orphans would corrupt invariants, but here a deleted product should not be undeletable -- choose the option that handles deletion through the association instead.',
 	},
 	{
 		id: 'destroy',
@@ -998,9 +1001,11 @@ export function Level4Associations({ onComplete }: LevelComponentProps) {
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Your Product API works end-to-end: model (L3), CRUD (L4), routes
-							(L5), controller (L6), serializer (L7). But products exist in
-							isolation: no reviews, no likes, no tags.
+							You have a Product model from L3. The rest of the request pipeline
+							(CRUD, routes, controller, serializer) gets built in later levels.
+							But before any of that, products exist in isolation: no reviews,
+							no likes, no tags. Reviews need a model of their own and a
+							relationship that links them to a product.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
 							Try accessing reviews on a product and see what happens. Rails{' '}
@@ -1064,7 +1069,7 @@ export function Level4Associations({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={1}
 					levelName="Associations"
-					levelNumber={8}
+					levelNumber={4}
 					onComplete={handleComplete}
 					onReset={() => {
 						window.location.reload();

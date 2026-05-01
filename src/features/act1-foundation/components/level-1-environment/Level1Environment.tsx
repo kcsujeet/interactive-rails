@@ -233,9 +233,9 @@ const STEPS: TerminalStep[] = [
 		],
 		outputLines: [
 			{ text: 'Fetching rails-8.1.3.gem', color: 'cyan' },
-			{ text: 'Installing actionpack-8.0.0...', color: 'muted' },
-			{ text: 'Installing activerecord-8.0.0...', color: 'muted' },
-			{ text: 'Installing railties-8.0.0...', color: 'muted' },
+			{ text: 'Installing actionpack-8.1.3...', color: 'muted' },
+			{ text: 'Installing activerecord-8.1.3...', color: 'muted' },
+			{ text: 'Installing railties-8.1.3...', color: 'muted' },
 			{ text: '\u2713 Successfully installed rails-8.1.3', color: 'green' },
 			{ text: '27 gems installed', color: 'green' },
 		],
@@ -268,18 +268,21 @@ ruby = "3.4.9"`,
 
 	if (furthestStep >= 5) {
 		files.push({
-			filename: 'Gemfile (global)',
-			language: 'ruby',
-			code: `source "https://rubygems.org"
+			filename: 'Verify',
+			language: 'bash',
+			code: `# Check the Rails CLI is on your PATH
+$ rails --version
+Rails 8.1.3
 
-gem "rails", "~> 8.0"
-gem "puma", ">= 5.0"
-
-# Rails 8 defaults
-gem "solid_queue"
-gem "solid_cache"
-gem "solid_cable"`,
-			highlight: [3],
+# You now have:
+#   ruby 3.4.9 (managed by mise)
+#   rails 8.1.3 (installed as a system gem)
+#
+# Next: rails new <appname> creates a project,
+# which generates its own Gemfile listing the
+# gems that project depends on. There is no
+# global Gemfile -- Gemfiles live per-project.`,
+			highlight: [2],
 		});
 	}
 

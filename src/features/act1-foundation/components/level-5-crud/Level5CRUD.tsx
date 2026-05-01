@@ -1,5 +1,5 @@
 /**
- * Level 4: CRUD Operations
+ * Level 5: CRUD Operations
  *
  * 5-step progression through Create, Read, Update, Destroy, Verify.
  * Uses TerminalChoiceStep with irb> prompt for Rails Console style.
@@ -207,33 +207,48 @@ const STEPS: TerminalStep[] = [
 	},
 ];
 
-function getCodeFiles({ currentStep }: { currentStep: number }) {
+function getCodeFiles({ furthestStep }: { furthestStep: number }) {
+	// Only show what the player has already discovered. The cheatsheet
+	// fills in step by step so it never spoils the upcoming choice.
+	const sections: string[] = [];
 	const highlightLines: number[] = [];
-	if (currentStep >= 1) highlightLines.push(2, 3);
-	if (currentStep >= 2) highlightLines.push(6, 7, 8);
-	if (currentStep >= 3) highlightLines.push(11, 12);
-	if (currentStep >= 4) highlightLines.push(15);
+
+	if (furthestStep >= 1) {
+		sections.push(`# CREATE - Make new records
+Product.create(name: "Hello", description: "World")`);
+	}
+	if (furthestStep >= 2) {
+		sections.push(`# READ - Fetch records
+Product.all                    # All products
+Product.find(1)               # By ID
+Product.find_by(name: "Hi")   # By attribute`);
+	}
+	if (furthestStep >= 3) {
+		sections.push(`# UPDATE - Modify records
+product = Product.find(1)
+product.update(name: "New Name")`);
+	}
+	if (furthestStep >= 4) {
+		sections.push(`# DELETE - Remove records
+product.destroy       # Runs callbacks`);
+	}
+
+	if (sections.length === 0) {
+		return [
+			{
+				filename: 'Rails console',
+				language: 'ruby',
+				code: '# Pick a command below to fill in your CRUD reference.',
+				highlight: [],
+			},
+		];
+	}
 
 	return [
 		{
-			filename: 'CRUD_cheatsheet.rb',
+			filename: 'CRUD reference',
 			language: 'ruby',
-			code: `# CREATE - Make new records
-Product.create(name: "Hello", description: "World")
-Product.new(name: "Draft").save
-
-# READ - Fetch records
-Product.all                    # All products
-Product.find(1)               # By ID
-Product.find_by(name: "Hi")   # By attribute
-
-# UPDATE - Modify records
-product = Product.find(1)
-product.update(name: "New Name")
-
-# DELETE - Remove records
-product.destroy       # Runs callbacks
-product.delete        # Skips callbacks (avoid)`,
+			code: sections.join('\n\n'),
 			highlight: highlightLines,
 		},
 	];
@@ -308,7 +323,7 @@ export function Level5CRUD({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={1}
 					levelName="CRUD Operations"
-					levelNumber={4}
+					levelNumber={5}
 					onComplete={handleComplete}
 					onReset={() => {
 						window.location.reload();
@@ -344,7 +359,7 @@ export function Level5CRUD({ onComplete }: LevelComponentProps) {
 
 			<RightPanel>
 				<CodePreviewPanel
-					files={getCodeFiles({ currentStep: stepper.currentStep })}
+					files={getCodeFiles({ furthestStep: stepper.furthestStep })}
 				>
 					<div className="p-4 border-t border-border">
 						<div className="text-xs font-semibold text-primary uppercase tracking-wider mb-2">

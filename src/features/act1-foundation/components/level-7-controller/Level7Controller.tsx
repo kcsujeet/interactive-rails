@@ -1,10 +1,10 @@
 /**
- * Level 6: The Controller
+ * Level 7: The Controller
  *
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
- * Phase 1 (WHY - observe): Routes exist from Level 5 but the controller class
+ * Phase 1 (WHY - observe): Routes exist from L6 but the controller class
  *   is missing. Requests match routes successfully, then crash with
  *   "uninitialized constant" at the Controller stage.
  * Phase 2 (HOW - build): 3 steps (2 terminal + 1 custom interactive)
@@ -857,8 +857,8 @@ export function Level7Controller({ onComplete }: LevelComponentProps) {
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							In Level 5, you mapped 5 RESTful routes under /api/v1/products.
-							But hitting any of those URLs returns a 500 error because the
+							In L6, you mapped 5 RESTful routes under /api/v1/products. But
+							hitting any of those URLs returns a 500 error because the
 							controller class does not exist yet.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
@@ -923,7 +923,7 @@ export function Level7Controller({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={1}
 					levelName="The Controller"
-					levelNumber={6}
+					levelNumber={7}
 					onComplete={handleComplete}
 					onReset={() => {
 						window.location.reload();
@@ -989,7 +989,7 @@ export function Level7Controller({ onComplete }: LevelComponentProps) {
 												<span className="font-mono text-primary">
 													namespace :api / :v1
 												</span>{' '}
-												from Level 5. Generate a controller that matches the
+												from L6. Generate a controller that matches the
 												namespace structure.
 											</p>
 										}
