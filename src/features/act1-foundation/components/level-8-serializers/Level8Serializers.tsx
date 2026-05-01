@@ -64,7 +64,7 @@ import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
-registerLevelCode('act1-level7-serializers', () =>
+registerLevelCode('act1-level8-serializers', () =>
 	getCodeFiles('reward', STEP_DEFS.length, SAFE_ATTRIBUTES),
 );
 
@@ -791,7 +791,7 @@ function PipelineLegend() {
 // Component
 // ──────────────────────────────────────────────
 
-export function Level7Serializers({ onComplete }: LevelComponentProps) {
+export function Level8Serializers({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
 		minRequired: DISCOVERY_DEFS.length,
@@ -1554,4 +1554,4 @@ export function Level7Serializers({ onComplete }: LevelComponentProps) {
 	);
 }
 
-export default Level7Serializers;
+export default Level8Serializers;

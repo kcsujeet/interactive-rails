@@ -23,7 +23,7 @@ import { useStepGating } from '@/hooks/useStepGating';
 import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
 
-registerLevelCode('act1-level4-crud', () => []);
+registerLevelCode('act1-level5-crud', () => []);
 
 const STEPS: TerminalStep[] = [
 	{
@@ -246,7 +246,7 @@ function getDbState(furthestStep: number) {
 	return 'Table is empty (Product.count => 0)';
 }
 
-export function Level4CRUD({ onComplete }: LevelComponentProps) {
+export function Level5CRUD({ onComplete }: LevelComponentProps) {
 	const stepDefs = STEPS.map((s) => ({ id: s.id, title: s.title }));
 	const stepper = useStepGating(stepDefs, { autoAdvance: false });
 
@@ -372,4 +372,4 @@ export function Level4CRUD({ onComplete }: LevelComponentProps) {
 	);
 }
 
-export default Level4CRUD;
+export default Level5CRUD;

@@ -1,21 +1,23 @@
 /**
- * Level 5: Routes & Request Lifecycle
+ * Level 8: Associations
  *
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
- * Phase 1 (WHY - observe): HTTP requests hit the router and get 404 because
- *   routes.rb is empty. The player fires probes and inspects stages to discover
- *   that no routes are defined, no namespace exists, and all requests fail.
- * Phase 2 (HOW - build): 4 steps building RESTful routes under /api/v1/
- *   Step 0: Define resources :products (OptionCard)
- *   Step 1: Add namespace wrapping (OptionCard)
- *   Step 2: View routes with rails routes (TerminalChoiceStep)
- *   Step 3: Trace the request lifecycle (OptionCard)
- * Phase 3 (ADVANTAGE - reward): Stress test. Fire HTTP requests at the
- *   routed pipeline and watch them resolve to controller actions.
+ * Phase 1 (WHY - observe): Interactive exploration. Click pipeline stages to
+ *   inspect code, fire API probes to discover that products are isolated with no
+ *   way to attach reviews. Discovery gating controls when "Build the Fix" appears.
+ * Phase 2 (HOW - build): 6 steps (3 terminal + 1 informational + 2 OptionCard)
+ *   Step 0: Generate Review model with product:references (terminal)
+ *   Step 1: Run migration (terminal)
+ *   Step 2: Choose relationship type for Product model (OptionCard)
+ *   Step 3: Auto belongs_to explanation (informational, "Got It" button)
+ *   Step 4: Set dependent option (OptionCard)
+ *   Step 5: Test the association in Rails console (terminal, irb> prompt)
+ * Phase 3 (ADVANTAGE - reward): Stress test. Fire request scenarios at the
+ *   associated pipeline and watch create/cascade results.
  *
- * Teaches: resources, namespace, rails routes, request lifecycle
+ * Teaches: has_many, belongs_to, dependent: :destroy, product:references
  */
 
 import { ArrowRight, Check, X } from 'lucide-react';
@@ -62,7 +64,7 @@ import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
-registerLevelCode('act1-level5-routes', () =>
+registerLevelCode('act1-level4-associations', () =>
 	getCodeFiles('reward', STEP_DEFS.length),
 );
 
@@ -77,10 +79,10 @@ type Phase = 'observe' | 'build' | 'reward';
 // ──────────────────────────────────────────────
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
-	{ id: 'no-routes', label: 'Routes file is empty' },
-	{ id: 'get-404', label: 'GET requests return 404' },
-	{ id: 'post-404', label: 'POST requests return 404' },
-	{ id: 'no-namespace', label: 'No API versioning namespace' },
+	{ id: 'no-review-model', label: 'Review model does not exist' },
+	{ id: 'no-association', label: 'Product has no associations defined' },
+	{ id: 'isolated-products', label: 'Products exist in isolation' },
+	{ id: 'no-nested-routes', label: 'No nested routes for reviews' },
 ];
 
 // ──────────────────────────────────────────────
@@ -89,74 +91,71 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 
 const PROBES: ProbeConfig[] = [
 	{
-		id: 'get-products',
-		label: 'GET /products',
+		id: 'get-reviews',
+		label: 'GET reviews',
 		story: [
-			'A frontend developer tries to fetch all products from the API.',
-			'They send a GET request to /products, expecting a JSON list.',
-			'The Rails router receives the request and looks for a matching route.',
-			'config/routes.rb is empty. No routes are defined at all.',
-			'The router returns a 404. The request never reaches any controller.',
+			'A customer wants to read reviews for a product before buying it.',
+			'The frontend sends GET /api/v1/products/1/reviews.',
+			'The router looks for a nested reviews route under products.',
+			'No nested routes exist. Products are defined in isolation.',
+			'The request returns a 404. There is no way to access reviews through the API.',
 		],
-		command: 'GET /products',
+		command: 'GET /api/v1/products/1/reviews',
 		responseLines: [
 			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'No route matches [GET] "/products"',
+				text: 'No route matches GET "/api/v1/products/1/reviews"',
 				color: 'yellow',
 			},
 			{
-				text: 'The router has no entries. Every request is a dead end.',
+				text: 'Products exist in isolation. No review routes defined.',
 				color: 'red',
 			},
 		],
 	},
 	{
-		id: 'post-products',
-		label: 'POST /products',
+		id: 'post-review',
+		label: 'POST review',
 		story: [
-			'A customer submits a new product listing through the storefront.',
-			'The form sends a POST request with the product data to /products.',
-			'The Rails router checks its route table for a POST /products match.',
-			'Still nothing. The route table is completely empty.',
-			'POST fails with a 404 too. Without routes, no HTTP verb can reach the app.',
+			'A customer finishes reading a product page and wants to leave a review.',
+			'They submit a POST to /api/v1/products/1/reviews with their feedback.',
+			'The router has no matching route for this path.',
+			'Beyond routing, no Review model exists in the application at all.',
+			'The request fails with a 404. Reviews cannot be created or stored.',
 		],
-		command: 'POST /products {"name":"Hello"}',
+		command: 'POST /api/v1/products/1/reviews (body: "Great post!")',
 		responseLines: [
 			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'No route matches [POST] "/products"',
+				text: 'No route matches POST "/api/v1/products/1/reviews"',
 				color: 'yellow',
 			},
 			{
-				text: 'POST fails too. Without routes, no verb can reach the controller.',
+				text: 'No Review model or association exists.',
 				color: 'red',
 			},
 		],
 	},
 	{
-		id: 'get-api-products',
-		label: 'GET /api/v1/products',
+		id: 'console-reviews',
+		label: 'Rails console',
 		story: [
-			'The mobile app tries the versioned API endpoint at /api/v1/products.',
-			'This is the proper RESTful namespace for API clients.',
-			'The router looks for a namespace :api > namespace :v1 block.',
-			'No namespaces are configured. The entire route file is empty.',
-			'Even the correctly-structured API path returns a 404.',
+			'A developer opens the Rails console to debug the missing reviews.',
+			'They run Product.first.reviews to check if the association exists.',
+			'Rails raises a NoMethodError: Product has no "reviews" method.',
+			'The Product model has no has_many :reviews declaration.',
+			'Without an association, Rails cannot link products to their reviews.',
 		],
-		command: 'GET /api/v1/products',
+		command: 'rails console: Product.first.reviews',
 		responseLines: [
-			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
+			{ text: "NoMethodError: undefined method `reviews'", color: 'red' },
+			{ text: 'for #<Product id: 1, name: "Laptop Pro">', color: 'muted' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'No route matches [GET] "/api/v1/products"',
+				text: 'Product has no "reviews" method. No association is defined.',
 				color: 'yellow',
-			},
-			{
-				text: 'Even the versioned API path fails. No namespace is configured.',
-				color: 'red',
 			},
 		],
 	},
@@ -164,27 +163,27 @@ const PROBES: ProbeConfig[] = [
 
 // Map probe IDs to discovery IDs they trigger
 const PROBE_DISCOVERY_MAP: Record<string, string> = {
-	'get-products': 'get-404',
-	'post-products': 'post-404',
-	'get-api-products': 'no-namespace',
+	'get-reviews': 'isolated-products',
+	'post-review': 'no-review-model',
+	'console-reviews': 'no-association',
 };
 
 // Map probe IDs to pipeline node display during observe
 const PROBE_PIPELINE_MAP: Record<
 	string,
-	{ routerSublabel: string; routerBadge: string }
+	{ modelSublabel: string; modelBadge: string }
 > = {
-	'get-products': {
-		routerSublabel: 'GET /products',
-		routerBadge: '404!',
+	'get-reviews': {
+		modelSublabel: 'No .reviews method',
+		modelBadge: '404!',
 	},
-	'post-products': {
-		routerSublabel: 'POST /products',
-		routerBadge: '404!',
+	'post-review': {
+		modelSublabel: 'No Review model',
+		modelBadge: '404!',
 	},
-	'get-api-products': {
-		routerSublabel: 'GET /api/v1/products',
-		routerBadge: '404!',
+	'console-reviews': {
+		modelSublabel: 'NoMethodError',
+		modelBadge: 'ERROR',
 	},
 };
 
@@ -195,43 +194,55 @@ const PROBE_PIPELINE_MAP: Record<
 const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 	request: {
 		stageId: 'request',
-		title: 'Incoming HTTP Request',
+		title: 'Incoming Request',
 		description:
-			'An HTTP request arrives with a verb (GET, POST, PATCH, DELETE) and a URL path. The router must match this combination to a controller action.',
+			'HTTP request targeting reviews on a product. The request expects nested resources at /products/:id/reviews.',
 	},
 	router: {
 		stageId: 'router',
-		title: 'Router (Empty!)',
+		title: 'Router',
 		description:
-			'config/routes.rb is empty. No routes are defined, so every request gets a 404 response. The controller is unreachable.',
+			'Routes only define `resources :products`. There are no nested routes for reviews. Add `resources :reviews` inside the products block to create /products/:id/reviews.',
 		code: `# config/routes.rb
-Rails.application.routes.draw do
-  # Nothing here...
+namespace :api do
+  namespace :v1 do
+    resources :products
+    # No nested routes!
+  end
 end`,
 	},
 	controller: {
 		stageId: 'controller',
-		title: 'ProductsController (Unreachable)',
+		title: 'ProductsController',
 		description:
-			'The controller exists and has all five RESTful actions defined, but without routes, no HTTP request can reach it.',
+			'ProductsController handles product CRUD. No ReviewsController exists yet.',
 	},
 	model: {
 		stageId: 'model',
-		title: 'Product Model',
+		title: 'Product Model (Isolated)',
 		description:
-			'The Product model works perfectly in the console (Level 3-4). But the outside world cannot trigger it because requests never reach the controller.',
+			'Product model has name, description, price but no associations. Each model is isolated. Rails associations (has_many, belongs_to) link models and provide query methods like `product.reviews`.',
+		code: `class Product < ApplicationRecord
+  # No associations defined
+end`,
+	},
+	serializer: {
+		stageId: 'serializer',
+		title: 'Serializer (from Level 7)',
+		description:
+			'ProductSerializer shapes output into JSON:API format. Once associations are added, the serializer can include nested review data in the response.',
 	},
 	response: {
 		stageId: 'response',
 		title: 'Response',
-		description:
-			'Every response is currently a 404 because no routes exist to dispatch requests to the controller.',
+		description: '404 for all review-related requests.',
 	},
 };
 
 // Map stage IDs to discovery IDs they trigger
 const STAGE_DISCOVERY_MAP: Record<string, string> = {
-	router: 'no-routes',
+	model: 'no-review-model',
+	router: 'no-nested-routes',
 };
 
 // ──────────────────────────────────────────────
@@ -240,69 +251,196 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
-		id: 'get-index',
-		label: 'List all products',
-		description: 'Fetch the collection of products',
-		method: 'GET',
-		path: '/api/v1/products',
-		actor: 'client',
-		expectedResult: 'allowed',
-	},
-	{
-		id: 'post-create',
-		label: 'Create a product',
-		description: 'Submit a new product',
+		id: 'create-review',
+		label: 'Create review on product',
+		description: 'Add a new review through the association',
 		method: 'POST',
-		path: '/api/v1/products',
+		path: '/api/v1/products/1/reviews',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
 	{
-		id: 'get-show',
-		label: 'Show one product',
-		description: 'Fetch a single product by ID',
+		id: 'list-reviews',
+		label: 'List product reviews',
+		description: 'Fetch all reviews for a specific product',
 		method: 'GET',
-		path: '/api/v1/products/1',
+		path: '/api/v1/products/1/reviews',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
 	{
-		id: 'patch-update',
-		label: 'Update a product',
-		description: 'Modify an existing product',
-		method: 'PATCH',
-		path: '/api/v1/products/1',
-		actor: 'client',
-		expectedResult: 'allowed',
-	},
-	{
-		id: 'delete-destroy',
-		label: 'Delete a product',
-		description: 'Remove a product by ID',
+		id: 'delete-product-cascade',
+		label: 'Delete product (cascade)',
+		description: 'Delete a product and cascade-destroy its reviews',
 		method: 'DELETE',
 		path: '/api/v1/products/1',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
+	{
+		id: 'get-product-with-reviews',
+		label: 'Show product with reviews',
+		description: 'Fetch a product with its nested reviews',
+		method: 'GET',
+		path: '/api/v1/products/1',
+		actor: 'client',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'review-invalid-product',
+		label: 'Review on missing product',
+		description: 'Try to create a review on a non-existent product',
+		method: 'POST',
+		path: '/api/v1/products/999/reviews',
+		actor: 'client',
+		expectedResult: 'blocked',
+	},
 ];
 
 // ──────────────────────────────────────────────
-// Step definitions (4 steps: 3 OptionCard + 1 terminal)
+// Step definitions (6 steps: 3 terminal + 1 info + 2 OptionCard)
 // ──────────────────────────────────────────────
 
 const STEP_DEFS: StepDef[] = [
-	{ id: 'define-resource', title: 'Define Resource' },
-	{ id: 'add-namespace', title: 'Add Namespace' },
-	{ id: 'view-routes', title: 'View Routes' },
-	{ id: 'trace-request', title: 'Trace a Request' },
+	{ id: 'generate-review', title: 'Generate Review' },
+	{ id: 'run-migration', title: 'Run Migration' },
+	{ id: 'choose-relationship', title: 'Choose Relationship' },
+	{ id: 'auto-belongs-to', title: 'Auto belongs_to' },
+	{ id: 'set-dependent', title: 'Set Dependent' },
+	{ id: 'test-it', title: 'Test It' },
 ];
 
 // Step type indexed by step number
-const STEP_TYPES: ('terminal' | 'option')[] = [
-	'option', // 0: resources :products
-	'option', // 1: namespace wrapping
-	'terminal', // 2: rails routes
-	'option', // 3: trace request lifecycle
+const STEP_TYPES: ('terminal' | 'option' | 'info')[] = [
+	'terminal', // 0: generate model
+	'terminal', // 1: run migration
+	'option', // 2: choose relationship
+	'info', // 3: auto belongs_to
+	'option', // 4: set dependent
+	'terminal', // 5: test it
+];
+
+// ──────────────────────────────────────────────
+// Step 0: Generate Review model (Terminal)
+// ──────────────────────────────────────────────
+
+const generateCommands: TerminalCommand[] = [
+	{
+		id: 'wrong-integer',
+		label: 'rails generate model Review body:text product_id:integer',
+		command: 'rails generate model Review body:text product_id:integer',
+		correct: false,
+		feedback:
+			'Adding an integer column only gives you the column. You miss the automatic index, foreign key, and model association. There is a better field type for linking models.',
+	},
+	{
+		id: 'correct',
+		label: 'rails generate model Review body:text product:references',
+		command: 'rails generate model Review body:text product:references',
+		correct: true,
+	},
+	{
+		id: 'wrong-missing-product',
+		label: 'rails generate model Review body:text',
+		command: 'rails generate model Review body:text',
+		correct: false,
+		feedback:
+			'Without a field that links Review to Product, there is no relationship. You need to declare the connection in the generator.',
+	},
+];
+
+const generateOutput: TerminalOutputLine[] = [
+	{ text: '      invoke  active_record', color: 'green' },
+	{
+		text: '      create    db/migrate/20240101000001_create_reviews.rb',
+		color: 'green',
+	},
+	{ text: '      create    app/models/review.rb', color: 'green' },
+	{ text: '      invoke    test_unit', color: 'muted' },
+];
+
+// ──────────────────────────────────────────────
+// Step 1: Run Migration (Terminal)
+// ──────────────────────────────────────────────
+
+const migrateCommands: TerminalCommand[] = [
+	{
+		id: 'wrong-schema',
+		label: 'rails db:schema:dump',
+		command: 'rails db:schema:dump',
+		correct: false,
+		feedback:
+			'That dumps the current schema to a file. It does not apply pending migrations.',
+	},
+	{
+		id: 'wrong-seed',
+		label: 'rails db:seed',
+		command: 'rails db:seed',
+		correct: false,
+		feedback:
+			'That populates the database with seed data. The reviews table does not exist yet.',
+	},
+	{
+		id: 'correct',
+		label: 'rails db:migrate',
+		command: 'rails db:migrate',
+		correct: true,
+	},
+];
+
+const migrateOutput: TerminalOutputLine[] = [
+	{
+		text: '== CreateReviews: migrating =============================',
+		color: 'muted',
+	},
+	{
+		text: '-- create_table(:reviews)',
+		color: 'green',
+	},
+	{
+		text: '   -> 0.0042s',
+		color: 'muted',
+	},
+	{
+		text: '== CreateReviews: migrated (0.0043s) ====================',
+		color: 'green',
+	},
+];
+
+// ──────────────────────────────────────────────
+// Step 5: Test It (Terminal, irb> prompt)
+// ──────────────────────────────────────────────
+
+const testCommands: TerminalCommand[] = [
+	{
+		id: 'wrong-orphan',
+		label: 'Review.create(body: "Nice!")',
+		command: 'Review.create(body: "Nice!")',
+		correct: false,
+		feedback:
+			'This creates an orphaned Review with no product_id. Use the association method on the parent object instead.',
+	},
+	{
+		id: 'wrong-manual',
+		label: 'Review.create(body: "Nice!", product_id: product.id)',
+		command: 'Review.create(body: "Nice!", product_id: product.id)',
+		correct: false,
+		feedback:
+			'This works but bypasses the association. Rails provides a cleaner way to create through the parent object.',
+	},
+	{
+		id: 'correct',
+		label: 'product.reviews.create(body: "Nice!")',
+		command: 'product.reviews.create(body: "Nice!")',
+		correct: true,
+	},
+];
+
+const testOutput: TerminalOutputLine[] = [
+	{
+		text: '=> #<Review id: 1, body: "Nice!", product_id: 1>',
+		color: 'green',
+	},
 ];
 
 // ──────────────────────────────────────────────
@@ -317,155 +455,88 @@ interface StepOption {
 }
 
 // ──────────────────────────────────────────────
-// Step 0: Define Resource (OptionCard)
-// ──────────────────────────────────────────────
-
-const RESOURCE_OPTIONS: StepOption[] = [
-	{
-		id: 'get-only',
-		label: "get '/products' => 'products#index'",
-		correct: false,
-		feedback:
-			'A single GET route only handles one endpoint. You need all 5 RESTful routes generated with one line.',
-	},
-	{
-		id: 'match',
-		label: "match '/products', to: 'products#index'",
-		correct: false,
-		feedback:
-			'`match` is for custom one-off routes, not for generating a full set of RESTful endpoints.',
-	},
-	{
-		id: 'resources',
-		label: 'resources :products',
-		correct: true,
-	},
-];
-
-// ──────────────────────────────────────────────
-// Step 1: Add Namespace (OptionCard)
-// ──────────────────────────────────────────────
-
-const NAMESPACE_OPTIONS: StepOption[] = [
-	{
-		id: 'scope-only',
-		label: "scope '/api/v1' do\n  resources :products\nend",
-		correct: false,
-		feedback:
-			'scope changes only the URL path, not the controller module. Your controller lives in Api::V1, so you need something that maps both.',
-	},
-	{
-		id: 'correct-namespace',
-		label:
-			'namespace :api do\n  namespace :v1 do\n    resources :products\n  end\nend',
-		correct: true,
-	},
-	{
-		id: 'single-namespace',
-		label: "namespace 'api/v1' do\n  resources :products\nend",
-		correct: false,
-		feedback:
-			'Namespace takes a symbol for each segment. Nesting two namespaces produces the correct module path (Api::V1).',
-	},
-];
-
-// ──────────────────────────────────────────────
-// Step 2: View Routes (Terminal)
-// ──────────────────────────────────────────────
-
-const viewRoutesCommands: TerminalCommand[] = [
-	{
-		id: 'wrong-rake',
-		label: 'rake routes',
-		command: 'rake routes',
-		correct: false,
-		feedback:
-			'"rake routes" is deprecated. Modern Rails has its own CLI for viewing routes.',
-	},
-	{
-		id: 'correct',
-		label: 'rails routes',
-		command: 'rails routes',
-		correct: true,
-	},
-	{
-		id: 'wrong-show',
-		label: 'rails routes:show',
-		command: 'rails routes:show',
-		correct: false,
-		feedback:
-			'There is no routes:show task. The command is simpler than you think.',
-	},
-];
-
-const viewRoutesOutput: TerminalOutputLine[] = [
-	{
-		text: '      Prefix  Verb    URI Pattern                    Controller#Action',
-		color: 'muted',
-	},
-	{
-		text: '  api_v1_products  GET     /api/v1/products(.:format)     api/v1/products#index',
-		color: 'green',
-	},
-	{
-		text: '               POST    /api/v1/products(.:format)        api/v1/products#create',
-		color: 'cyan',
-	},
-	{
-		text: '   api_v1_product  GET     /api/v1/products/:id(.:format) api/v1/products#show',
-		color: 'green',
-	},
-	{
-		text: '               PATCH   /api/v1/products/:id(.:format)    api/v1/products#update',
-		color: 'yellow',
-	},
-	{
-		text: '               DELETE  /api/v1/products/:id(.:format)    api/v1/products#destroy',
-		color: 'red',
-	},
-];
-
-// ──────────────────────────────────────────────
-// Step 3: Trace a Request (OptionCard)
-// ──────────────────────────────────────────────
-
-const TRACE_OPTIONS: StepOption[] = [
-	{
-		id: 'wrong-model-first',
-		label: 'Request -> Model -> Controller -> Router -> Response',
-		correct: false,
-		feedback:
-			'The model does not receive requests directly. HTTP requests must be dispatched by the router before any code runs.',
-	},
-	{
-		id: 'wrong-no-router',
-		label: 'Request -> Controller -> Model -> Response',
-		correct: false,
-		feedback:
-			'Skipping the router means the request has no way to find the right controller. The router is the dispatcher.',
-	},
-	{
-		id: 'correct-lifecycle',
-		label: 'Request -> Router -> Controller -> Model -> Response',
-		correct: true,
-	},
-];
-
-// ──────────────────────────────────────────────
 // Terminal step map (for buildTerminalHistory)
 // ──────────────────────────────────────────────
 
 const SHELL_STEP_MAP: (TerminalStepData | null)[] = [
-	null, // step 0: OptionCard (define resource)
-	null, // step 1: OptionCard (add namespace)
-	{ commands: viewRoutesCommands, outputLines: viewRoutesOutput },
-	null, // step 3: OptionCard (trace request)
+	{ commands: generateCommands, outputLines: generateOutput },
+	{ commands: migrateCommands, outputLines: migrateOutput },
+	null, // step 2: OptionCard (choose relationship)
+	null, // step 3: info (auto belongs_to)
+	null, // step 4: OptionCard (set dependent)
+];
+
+const CONSOLE_STEP_MAP: (TerminalStepData | null)[] = [
+	{ commands: testCommands, outputLines: testOutput },
 ];
 
 // ──────────────────────────────────────────────
-// OptionCard step configs
+// Step 2: Choose Relationship (OptionCard)
 // ──────────────────────────────────────────────
 
+const RELATIONSHIP_OPTIONS: StepOption[] = [
+	{
+		id: 'has_one',
+		label: 'has_one :reviews',
+		correct: false,
+		feedback:
+			'"has_one" limits the parent to a single child record. Products should be able to have unlimited reviews.',
+	},
+	{
+		id: 'belongs_to',
+		label: 'belongs_to :reviews',
+		correct: false,
+		feedback:
+			'"belongs_to" goes on the child side (Review). The parent needs a different declaration to express a one-to-many relationship.',
+	},
+	{
+		id: 'has_many',
+		label: 'has_many :reviews',
+		correct: true,
+	},
+	{
+		id: 'habtm',
+		label: 'has_and_belongs_to_many :reviews',
+		correct: false,
+		feedback:
+			'"has_and_belongs_to_many" creates a many-to-many relationship. Reviews belong to one product, not shared across many.',
+	},
+];
+
+// ──────────────────────────────────────────────
+// Step 4: Set Dependent (OptionCard)
+// ──────────────────────────────────────────────
+
+const DEPENDENT_OPTIONS: StepOption[] = [
+	{
+		id: 'nothing',
+		label: 'No dependent option',
+		correct: false,
+		feedback:
+			'Orphaned reviews would break your API. You need to specify what happens to child records when the parent is deleted.',
+	},
+	{
+		id: 'nullify',
+		label: 'dependent: :nullify',
+		correct: false,
+		feedback:
+			'Orphaned reviews with NULL product_id would break your API. You need a strategy that removes them entirely.',
+	},
+	{
+		id: 'restrict',
+		label: 'dependent: :restrict_with_error',
+		correct: false,
+		feedback:
+			'For a product API, cleaning up reviews on delete is better than preventing deletion entirely.',
+	},
+	{
+		id: 'destroy',
+		label: 'dependent: :destroy',
+		correct: true,
+	},
+];
+
+// Map from step index -> OptionCard data for option-type steps
 const OPTION_STEP_CONFIG: Record<
 	number,
 	{
@@ -474,23 +545,17 @@ const OPTION_STEP_CONFIG: Record<
 		options: StepOption[];
 	}
 > = {
-	0: {
-		title: 'Define Resource',
+	2: {
+		title: 'Choose Relationship',
 		description:
-			'Which line in config/routes.rb generates all 5 RESTful routes for products (index, show, create, update, destroy)?',
-		options: RESOURCE_OPTIONS,
+			'A Product _____ Reviews. What relationship type goes in the Product model?',
+		options: RELATIONSHIP_OPTIONS,
 	},
-	1: {
-		title: 'Add Namespace',
+	4: {
+		title: 'Set Dependent',
 		description:
-			'The resource creates /products, but your API controller lives at Api::V1::ProductsController. How do you nest routes under /api/v1/?',
-		options: NAMESPACE_OPTIONS,
-	},
-	3: {
-		title: 'Trace the Request Lifecycle',
-		description:
-			'When a client sends GET /api/v1/products, what is the correct order of the request lifecycle?',
-		options: TRACE_OPTIONS,
+			'When a Product is destroyed, what should happen to its reviews?',
+		options: DEPENDENT_OPTIONS,
 	},
 };
 
@@ -499,6 +564,7 @@ const OPTION_STEP_CONFIG: Record<
 // ──────────────────────────────────────────────
 
 const HUB_POS = {
+	serializer: { x: 500, y: -180 },
 	model: { x: 500, y: 180 },
 	database: { x: 500, y: 360 },
 } as const;
@@ -527,6 +593,14 @@ const OBSERVE_CONNECTIONS: PipelineConnection[] = [
 		bidirectional: true,
 		dots: 'mixed',
 	},
+	{
+		from: 'controller',
+		to: 'serializer',
+		sourceHandle: 'top',
+		targetHandle: 'bottom',
+		bidirectional: true,
+		dots: 'mixed',
+	},
 ];
 
 const REWARD_CONNECTIONS: PipelineConnection[] = [
@@ -549,96 +623,118 @@ const REWARD_CONNECTIONS: PipelineConnection[] = [
 		bidirectional: true,
 		dots: 'clean',
 	},
+	{
+		from: 'controller',
+		to: 'serializer',
+		sourceHandle: 'top',
+		targetHandle: 'bottom',
+		bidirectional: true,
+		dots: 'clean',
+	},
 ];
 
 // ──────────────────────────────────────────────
 // Code preview helper
 // ──────────────────────────────────────────────
 
-function getCodeFiles(phase: Phase, completedStep: number) {
+function getCodeFiles(phase: Phase, furthestStep: number) {
 	const files = [];
 
-	// Observe phase: show empty routes.rb
+	// Observe phase: show the Product model with no associations
 	if (phase === 'observe') {
 		files.push({
-			filename: 'config/routes.rb',
+			filename: 'app/models/product.rb',
 			language: 'ruby',
-			code: `Rails.application.routes.draw do
-  # No routes defined yet...
+			code: `class Product < ApplicationRecord
+  # No associations defined
+  # Products exist in isolation
 end`,
-			highlight: [2],
+			highlight: [2, 3],
 		});
 		return files;
 	}
 
 	// Build / reward phases: show evolving code
-	if (completedStep === 0) {
+	if (furthestStep === 0) {
 		files.push({
-			filename: 'config/routes.rb',
+			filename: 'app/models/product.rb',
 			language: 'ruby',
-			code: `Rails.application.routes.draw do
-  # No routes defined yet...
+			code: `class Product < ApplicationRecord
+  # No associations yet
 end`,
-			highlight: [2],
+			highlight: [],
 		});
 	}
 
-	if (completedStep >= 1 && completedStep < 2) {
+	if (furthestStep >= 1) {
+		// After step 0: migration file from generator
 		files.push({
-			filename: 'config/routes.rb',
+			filename: 'db/migrate/create_reviews.rb',
 			language: 'ruby',
-			code: `Rails.application.routes.draw do
-  resources :products
-  # But this creates /products, not /api/v1/products
-  # We need namespaces!
-end`,
-			highlight: [2],
-		});
-	}
+			code: `class CreateReviews < ActiveRecord::Migration[8.0]
+  def change
+    create_table :reviews do |t|
+      t.text :body
+      t.references :product, null: false, foreign_key: true
 
-	if (completedStep >= 2) {
-		files.push({
-			filename: 'config/routes.rb',
-			language: 'ruby',
-			code: `Rails.application.routes.draw do
-  namespace :api do
-    namespace :v1 do
-      resources :products
+      t.timestamps
     end
   end
 end`,
-			highlight: [2, 3, 4],
+			highlight: [5],
 		});
 	}
 
-	if (completedStep >= 3) {
+	if (furthestStep >= 2) {
+		// After step 1: Review model with belongs_to (auto-generated)
 		files.push({
-			filename: 'Route Table',
+			filename: 'app/models/review.rb',
 			language: 'ruby',
-			code: `# rails routes
-#
-# GET    /api/v1/products          => api/v1/products#index
-# POST   /api/v1/products          => api/v1/products#create
-# GET    /api/v1/products/:id      => api/v1/products#show
-# PATCH  /api/v1/products/:id      => api/v1/products#update
-# DELETE /api/v1/products/:id      => api/v1/products#destroy`,
-			highlight: [3, 4, 5, 6, 7],
+			code: `class Review < ApplicationRecord
+  belongs_to :product
+end`,
+			highlight: [2],
 		});
 	}
 
-	if (completedStep >= 4) {
+	if (furthestStep >= 3) {
+		// After step 2: Product model with has_many
 		files.push({
-			filename: 'Request Lifecycle',
+			filename: 'app/models/product.rb',
 			language: 'ruby',
-			code: `# GET /api/v1/products
-#
-# 1. Request arrives (GET /api/v1/products)
-# 2. Router matches: Api::V1::ProductsController#index
-# 3. Controller calls: @products = Product.all
-# 4. Model queries DB: SELECT * FROM products
-# 5. Controller renders: render json: @products
-# 6. Response: 200 OK with JSON body`,
-			highlight: [3, 4, 5, 6, 7, 8],
+			code:
+				furthestStep >= 5
+					? `class Product < ApplicationRecord
+  has_many :reviews, dependent: :destroy
+end`
+					: `class Product < ApplicationRecord
+  has_many :reviews
+end`,
+			highlight: [2],
+		});
+	} else if (furthestStep >= 1) {
+		files.push({
+			filename: 'app/models/product.rb',
+			language: 'ruby',
+			code: `class Product < ApplicationRecord
+  # No associations yet
+end`,
+			highlight: [],
+		});
+	}
+
+	if (furthestStep >= 6) {
+		// After step 5 (test): show the console output
+		files.push({
+			filename: 'Rails Console',
+			language: 'ruby',
+			code: `product = Product.first
+product.reviews.create(body: "Nice!")
+# => #<Review id: 1, body: "Nice!", product_id: 1>
+
+product.reviews.count
+# => 1`,
+			highlight: [2, 3],
 		});
 	}
 
@@ -658,11 +754,11 @@ function PipelineLegend() {
 			<div className="space-y-2 text-sm">
 				<div className="flex items-center gap-2">
 					<Check className="w-4 h-4 text-success" />
-					<span className="text-foreground">Routed request (200 OK)</span>
+					<span className="text-foreground">Successful request (passes)</span>
 				</div>
 				<div className="flex items-center gap-2">
 					<X className="w-4 h-4 text-destructive" />
-					<span className="text-foreground">Unrouted request (404)</span>
+					<span className="text-foreground">Failed request (blocked)</span>
 				</div>
 			</div>
 		</div>
@@ -673,7 +769,7 @@ function PipelineLegend() {
 // Component
 // ──────────────────────────────────────────────
 
-export function Level5Routes({ onComplete }: LevelComponentProps) {
+export function Level4Associations({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
 		minRequired: DISCOVERY_DEFS.length,
@@ -701,39 +797,42 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 			{
 				id: 'router',
 				label: 'Router',
-				sublabel: probeDisplay ? probeDisplay.routerSublabel : '(empty)',
-				variant: (probeDisplay ? 'danger' : 'inactive') as
-					| 'danger'
-					| 'inactive',
-				badge: probeDisplay ? probeDisplay.routerBadge : undefined,
+				variant: 'active' as const,
 				inspectable: true,
 				inspected: inspectedStages.has('router'),
 			},
 			{
 				id: 'controller',
 				label: 'Controller',
-				sublabel: probeDisplay ? 'unreachable' : undefined,
-				variant: (probeDisplay ? 'inactive' : 'default') as
-					| 'inactive'
-					| 'default',
+				variant: 'active' as const,
 				inspectable: true,
 				inspected: inspectedStages.has('controller'),
 			},
 			{
 				id: 'response',
 				label: 'Response',
-				sublabel: probeDisplay ? '404 Not Found' : undefined,
+				sublabel: probeDisplay ? '404' : undefined,
 				variant: (probeDisplay ? 'danger' : 'default') as 'danger' | 'default',
 				inspectable: true,
 				inspected: inspectedStages.has('response'),
 			},
 			{
+				id: 'serializer',
+				label: 'Serializer',
+				position: HUB_POS.serializer,
+				variant: 'active' as const,
+				inspectable: true,
+				inspected: inspectedStages.has('serializer'),
+			},
+			{
 				id: 'model',
 				label: 'Model',
 				position: HUB_POS.model,
-				variant: (probeDisplay ? 'inactive' : 'default') as
-					| 'inactive'
-					| 'default',
+				sublabel: probeDisplay ? probeDisplay.modelSublabel : 'No associations',
+				badge: probeDisplay ? probeDisplay.modelBadge : undefined,
+				variant: (probeDisplay ? 'danger' : 'inactive') as
+					| 'danger'
+					| 'inactive',
 				inspectable: true,
 				inspected: inspectedStages.has('model'),
 			},
@@ -741,10 +840,7 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 				id: 'database',
 				label: 'Database',
 				position: HUB_POS.database,
-				sublabel: probeDisplay ? 'unreachable' : undefined,
-				variant: (probeDisplay ? 'inactive' : 'default') as
-					| 'inactive'
-					| 'default',
+				variant: 'active' as const,
 			},
 		],
 		[inspectedStages, probeDisplay],
@@ -752,41 +848,43 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 
 	// ── Build reward stages dynamically (reacts to latest stress test result) ──
 	const lastResult = stressTest.results[stressTest.results.length - 1];
+	const lastScenario = lastResult
+		? STRESS_SCENARIOS.find((s) => s.id === lastResult.scenarioId)
+		: null;
 	const rewardStages: PipelineStage[] = useMemo(() => {
-		const scenario = lastResult
-			? STRESS_SCENARIOS.find((s) => s.id === lastResult.scenarioId)
-			: null;
-		const actionMap: Record<string, string> = {
-			'get-index': 'products#index',
-			'post-create': 'products#create',
-			'get-show': 'products#show',
-			'patch-update': 'products#update',
-			'delete-destroy': 'products#destroy',
-		};
-		const matchedAction = scenario ? actionMap[scenario.id] : null;
+		const wasBlocked = lastResult?.result === 'blocked';
 		return [
 			{ id: 'request', label: 'Request' },
-			{
-				id: 'router',
-				label: 'Router',
-				sublabel: matchedAction ?? 'routes.rb',
-				variant: 'active' as const,
-			},
+			{ id: 'router', label: 'Router', variant: 'active' as const },
 			{
 				id: 'controller',
 				label: 'Controller',
-				sublabel: matchedAction ? `${matchedAction.split('#')[1]}` : undefined,
+				variant: 'active' as const,
 			},
 			{
 				id: 'response',
 				label: 'Response',
-				sublabel: lastResult ? '200 OK' : undefined,
-				variant: lastResult ? ('active' as const) : ('default' as const),
+				sublabel: lastResult
+					? wasBlocked
+						? '404'
+						: lastScenario?.method === 'DELETE'
+							? '204'
+							: '200'
+					: undefined,
+			},
+			{
+				id: 'serializer',
+				label: 'Serializer',
+				position: HUB_POS.serializer,
+				variant: 'active' as const,
 			},
 			{
 				id: 'model',
 				label: 'Model',
 				position: HUB_POS.model,
+				variant: wasBlocked ? ('danger' as const) : ('active' as const),
+				sublabel: wasBlocked ? '404 Not Found' : 'has_many :reviews',
+				badge: wasBlocked ? 'BLOCKED' : undefined,
 			},
 			{
 				id: 'database',
@@ -795,7 +893,7 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 				variant: 'active' as const,
 			},
 		];
-	}, [lastResult]);
+	}, [lastResult, lastScenario]);
 
 	// ── Stage click handler (observe phase) ──
 	const handleStageClick = useCallback(
@@ -874,7 +972,7 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 					.map((s) => s.title),
 			};
 		}
-		return { valid: true, message: 'Routes are configured!' };
+		return { valid: true, message: 'Associations configured correctly!' };
 	};
 
 	const isViewingCompletedStep = stepper.isCurrentStepCompleted;
@@ -900,16 +998,14 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Products work in the console (Levels 3-4), and Puma is running
-							from Level 2. But HTTP requests from the outside world cannot
-							reach your app yet.
+							Your Product API works end-to-end: model (L3), CRUD (L4), routes
+							(L5), controller (L6), serializer (L7). But products exist in
+							isolation: no reviews, no likes, no tags.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							The <span className="text-foreground font-medium">router</span>{' '}
-							maps HTTP verbs and URLs to controller actions. Without routes
-							defined in{' '}
-							<span className="font-mono text-primary">config/routes.rb</span>,
-							every request returns 404.
+							Try accessing reviews on a product and see what happens. Rails{' '}
+							<span className="text-foreground font-medium">associations</span>{' '}
+							(has_many, belongs_to) connect models and provide query methods.
 						</p>
 					</div>
 
@@ -949,15 +1045,13 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 										<div className="text-2xl font-bold text-success">
 											{stressTest.allowedCount}
 										</div>
-										<div className="text-xs text-success/70">Routed</div>
+										<div className="text-xs text-success/70">Allowed</div>
 									</div>
-									<div className="bg-muted/20 rounded-lg p-3 text-center">
-										<div className="text-2xl font-bold text-muted-foreground">
-											{stressTest.results.length}
+									<div className="bg-destructive/20 rounded-lg p-3 text-center">
+										<div className="text-2xl font-bold text-destructive">
+											{stressTest.blockedCount}
 										</div>
-										<div className="text-xs text-muted-foreground/70">
-											Total
-										</div>
+										<div className="text-xs text-destructive/70">Blocked</div>
 									</div>
 								</div>
 							</div>
@@ -969,8 +1063,8 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 			<CenterPanel>
 				<LevelHeader
 					actNumber={1}
-					levelName="Routes & Request Lifecycle"
-					levelNumber={5}
+					levelName="Associations"
+					levelNumber={8}
 					onComplete={handleComplete}
 					onReset={() => {
 						window.location.reload();
@@ -1001,7 +1095,7 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 								<ProbeTerminal
 									onProbe={handleProbe}
 									probes={PROBES}
-									title="HTTP Probe"
+									title="API Probe"
 								/>
 							</div>
 
@@ -1025,16 +1119,20 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 					{phase === 'build' && (
 						<div className="flex-1 overflow-auto p-6">
 							<div className="max-w-2xl mx-auto space-y-4">
-								{/* Terminal step (2: rails routes) */}
+								{/* Step 0: Generate Review (Terminal) */}
 								{currentStepType === 'terminal' &&
-									stepper.currentStep === 2 && (
+									stepper.currentStep === 0 && (
 										<TerminalChoiceStep
-											commands={viewRoutesCommands}
+											commands={generateCommands}
 											completed={isViewingCompletedStep}
 											description={
 												<p className="text-sm text-muted-foreground">
-													Your routes are defined and namespaced. Run the
-													command to see all generated routes.
+													In Level 3, you generated Product with{' '}
+													<span className="font-mono text-primary">
+														rails generate model
+													</span>
+													. Review follows the same pattern, but needs a field
+													that links it back to Product.
 												</p>
 											}
 											hasNext={hasNextStep}
@@ -1045,13 +1143,39 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 											onCorrect={() => stepper.completeStep()}
 											onNext={stepper.nextStep}
 											onWrong={(fb) => stepper.recordWrongAttempt(fb)}
-											outputLines={viewRoutesOutput}
+											outputLines={generateOutput}
 											stepKey={stepper.currentStep}
-											title="View Routes"
+											title="Generate Review Model"
 										/>
 									)}
 
-								{/* OptionCard steps (0, 1, 3) */}
+								{/* Step 1: Run Migration (Terminal) */}
+								{currentStepType === 'terminal' &&
+									stepper.currentStep === 1 && (
+										<TerminalChoiceStep
+											commands={migrateCommands}
+											completed={isViewingCompletedStep}
+											description={
+												<p className="text-sm text-muted-foreground">
+													The migration file has been created. Now apply it to
+													create the reviews table in the database.
+												</p>
+											}
+											hasNext={hasNextStep}
+											initialHistory={buildTerminalHistory(
+												SHELL_STEP_MAP,
+												stepper.currentStep,
+											)}
+											onCorrect={() => stepper.completeStep()}
+											onNext={stepper.nextStep}
+											onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+											outputLines={migrateOutput}
+											stepKey={stepper.currentStep}
+											title="Run Migration"
+										/>
+									)}
+
+								{/* Step 2: Choose Relationship (OptionCard) */}
 								{currentStepType === 'option' && currentOptionConfig && (
 									<>
 										<h3 className="text-lg font-semibold text-foreground">
@@ -1065,7 +1189,7 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 											<div className="space-y-2">
 												{shuffledOptions.map((opt) => (
 													<OptionCard
-														color="violet"
+														color="blue"
 														disabled={!opt.correct}
 														key={opt.id}
 														mono
@@ -1080,7 +1204,7 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 												<div className="space-y-2">
 													{shuffledOptions.map((opt) => (
 														<OptionCard
-															color="violet"
+															color="blue"
 															key={opt.id}
 															mono
 															name={opt.label}
@@ -1097,18 +1221,11 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 											</>
 										)}
 
-										{isViewingCompletedStep && (
+										{isViewingCompletedStep && hasNextStep && (
 											<div className="flex justify-end">
 												<Button
 													className="gap-2"
-													onClick={
-														hasNextStep
-															? stepper.nextStep
-															: () => {
-																	setPhase('reward');
-																	stressTest.reset();
-																}
-													}
+													onClick={stepper.nextStep}
 													size="sm"
 												>
 													Next Step
@@ -1118,6 +1235,84 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 										)}
 									</>
 								)}
+
+								{/* Step 3: Auto belongs_to (Informational) */}
+								{currentStepType === 'info' && stepper.currentStep === 3 && (
+									<div className="space-y-4">
+										<h3 className="text-lg font-semibold text-foreground">
+											Auto belongs_to
+										</h3>
+										<div className="bg-card rounded-lg border border-border p-6 space-y-3">
+											<p className="text-sm text-foreground">
+												Because you used{' '}
+												<span className="font-mono text-primary">
+													product:references
+												</span>{' '}
+												in the generator, Rails automatically added:
+											</p>
+											<div className="bg-zinc-900 rounded-lg p-4 font-mono text-sm">
+												<div className="text-zinc-400">
+													class Review {'<'} ApplicationRecord
+												</div>
+												<div className="text-emerald-400 ml-4">
+													belongs_to :product
+												</div>
+												<div className="text-zinc-400">end</div>
+											</div>
+											<p className="text-sm text-muted-foreground">
+												The inverse relationship is set up for free. Every
+												Review knows which Product it belongs to.
+											</p>
+										</div>
+										{!isViewingCompletedStep && (
+											<div className="flex justify-center">
+												<Button onClick={() => stepper.completeStep()}>
+													Got It
+												</Button>
+											</div>
+										)}
+										{isViewingCompletedStep && hasNextStep && (
+											<div className="flex justify-end">
+												<Button
+													className="gap-2"
+													onClick={stepper.nextStep}
+													size="sm"
+												>
+													Next Step
+													<ArrowRight className="w-4 h-4" />
+												</Button>
+											</div>
+										)}
+									</div>
+								)}
+
+								{/* Step 5: Test It (Terminal, irb> prompt) - last step */}
+								{currentStepType === 'terminal' &&
+									stepper.currentStep === 5 && (
+										<TerminalChoiceStep
+											commands={testCommands}
+											completed={isViewingCompletedStep}
+											description={
+												<p className="text-sm text-muted-foreground">
+													Create a review through the association. How do you
+													add a child record through the parent?
+												</p>
+											}
+											hasNext
+											initialHistory={buildTerminalHistory(CONSOLE_STEP_MAP, 0)}
+											onCorrect={() => stepper.completeStep()}
+											onNext={() => {
+												setPhase('reward');
+												stressTest.reset();
+											}}
+											onWrong={(fb) => stepper.recordWrongAttempt(fb)}
+											outputLines={testOutput}
+											prompt="irb>"
+											stepKey={stepper.currentStep}
+											terminalTitle="Rails Console"
+											title="Test It"
+										/>
+									)}
 							</div>
 						</div>
 					)}
@@ -1164,4 +1359,4 @@ export function Level5Routes({ onComplete }: LevelComponentProps) {
 	);
 }
 
-export default Level5Routes;
+export default Level4Associations;

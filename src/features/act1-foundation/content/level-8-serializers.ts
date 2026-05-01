@@ -1,9 +1,9 @@
 import type { Level } from '@/types';
 
-export const level7Serializers: Level = {
-	id: 'act1-level7-serializers',
+export const level8Serializers: Level = {
+	id: 'act1-level8-serializers',
 	actId: 1,
-	levelNumber: 7,
+	levelNumber: 8,
 	name: 'Serializers',
 	trigger: {
 		type: 'user_complaint',

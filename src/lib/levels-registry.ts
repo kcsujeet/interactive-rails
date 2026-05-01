@@ -7,7 +7,7 @@
  * CURRICULUM STRUCTURE (58 levels, 7 acts):
  *
  * Act 1: The Foundation (L1-L8, 8 levels)
- * - Environment, First Boot, Model, CRUD, Routes, Controller, Serializers, Associations
+ * - Environment, First Boot, Model, Associations, CRUD, Routes, Controller, Serializers
  *
  * Act 2: Users & Security (L9-L15, 7 levels)
  * - Authentication, Validations, Callbacks, Authorization, Testing, Strong Params, CORS
@@ -79,38 +79,38 @@ const LEVEL_COMPONENTS: Record<string, LazyLevel> = {
 			import('@/features/act1-foundation/components/level-3-model/Level3Model'),
 		'Level3Model',
 	),
-	'act1-level4-crud': lazyNamed(
-		() =>
-			import('@/features/act1-foundation/components/level-4-crud/Level4CRUD'),
-		'Level4CRUD',
-	),
-	'act1-level5-routes': lazyNamed(
+	'act1-level4-associations': lazyNamed(
 		() =>
 			import(
-				'@/features/act1-foundation/components/level-5-routes/Level5Routes'
+				'@/features/act1-foundation/components/level-4-associations/Level4Associations'
 			),
-		'Level5Routes',
+		'Level4Associations',
 	),
-	'act1-level6-controller': lazyNamed(
+	'act1-level5-crud': lazyNamed(
+		() =>
+			import('@/features/act1-foundation/components/level-5-crud/Level5CRUD'),
+		'Level5CRUD',
+	),
+	'act1-level6-routes': lazyNamed(
 		() =>
 			import(
-				'@/features/act1-foundation/components/level-6-controller/Level6Controller'
+				'@/features/act1-foundation/components/level-6-routes/Level6Routes'
 			),
-		'Level6Controller',
+		'Level6Routes',
 	),
-	'act1-level7-serializers': lazyNamed(
+	'act1-level7-controller': lazyNamed(
 		() =>
 			import(
-				'@/features/act1-foundation/components/level-7-serializers/Level7Serializers'
+				'@/features/act1-foundation/components/level-7-controller/Level7Controller'
 			),
-		'Level7Serializers',
+		'Level7Controller',
 	),
-	'act1-level8-associations': lazyNamed(
+	'act1-level8-serializers': lazyNamed(
 		() =>
 			import(
-				'@/features/act1-foundation/components/level-8-associations/Level8Associations'
+				'@/features/act1-foundation/components/level-8-serializers/Level8Serializers'
 			),
-		'Level8Associations',
+		'Level8Serializers',
 	),
 
 	// ============================================

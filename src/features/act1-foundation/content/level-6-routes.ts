@@ -1,9 +1,9 @@
 import type { Level } from '@/types';
 
-export const level5Routes: Level = {
-	id: 'act1-level5-routes',
+export const level6Routes: Level = {
+	id: 'act1-level6-routes',
 	actId: 1,
-	levelNumber: 5,
+	levelNumber: 6,
 	name: 'Routes & Request Lifecycle',
 	trigger: {
 		type: 'new_feature',

@@ -1,9 +1,9 @@
 import type { Level } from '@/types';
 
-export const level6Controller: Level = {
-	id: 'act1-level6-controller',
+export const level7Controller: Level = {
+	id: 'act1-level7-controller',
 	actId: 1,
-	levelNumber: 6,
+	levelNumber: 7,
 	name: 'The Controller',
 	trigger: {
 		type: 'new_feature',

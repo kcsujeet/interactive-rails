@@ -59,7 +59,7 @@ import { type StressScenario, useStressTest } from '@/hooks/useStressTest';
 import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
 
-registerLevelCode('act1-level6-controller', () =>
+registerLevelCode('act1-level7-controller', () =>
 	getCodeFiles('reward', STEP_DEFS.length, RESTFUL_ACTIONS),
 );
 
@@ -625,7 +625,7 @@ function PipelineLegend() {
 // Component
 // ──────────────────────────────────────────────
 
-export function Level6Controller({ onComplete }: LevelComponentProps) {
+export function Level7Controller({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
 		minRequired: DISCOVERY_DEFS.length,
@@ -1217,4 +1217,4 @@ export function Level6Controller({ onComplete }: LevelComponentProps) {
 	);
 }
 
-export default Level6Controller;
+export default Level7Controller;
