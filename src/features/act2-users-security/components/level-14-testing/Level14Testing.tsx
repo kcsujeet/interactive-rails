@@ -357,10 +357,10 @@ const addRspecCommands: TerminalCommand[] = [
 ];
 
 const addRspecOutput: TerminalOutputLine[] = [
-	{ text: 'Fetching rspec-rails 7.1.0', color: 'cyan' },
-	{ text: 'Installing rspec-core 3.13.0', color: 'muted' },
-	{ text: 'Installing rspec-expectations 3.13.0', color: 'muted' },
-	{ text: 'Installing rspec-rails 7.1.0', color: 'muted' },
+	{ text: 'Fetching rspec-rails 8.0.4', color: 'cyan' },
+	{ text: 'Installing rspec-core 3.14.2', color: 'muted' },
+	{ text: 'Installing rspec-expectations 3.14.0', color: 'muted' },
+	{ text: 'Installing rspec-rails 8.0.4', color: 'muted' },
 	{ text: 'Bundle complete! 14 Gemfile dependencies.', color: 'green' },
 ];
 
@@ -429,9 +429,9 @@ const addFactoryBotCommands: TerminalCommand[] = [
 ];
 
 const addFactoryBotOutput: TerminalOutputLine[] = [
-	{ text: 'Fetching factory_bot_rails 6.4.4', color: 'cyan' },
-	{ text: 'Installing factory_bot 6.5.0', color: 'muted' },
-	{ text: 'Installing factory_bot_rails 6.4.4', color: 'muted' },
+	{ text: 'Fetching factory_bot_rails 6.5.1', color: 'cyan' },
+	{ text: 'Installing factory_bot 6.6.0', color: 'muted' },
+	{ text: 'Installing factory_bot_rails 6.5.1', color: 'muted' },
 	{ text: 'Bundle complete! 15 Gemfile dependencies.', color: 'green' },
 ];
 

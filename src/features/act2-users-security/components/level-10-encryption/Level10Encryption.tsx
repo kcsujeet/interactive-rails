@@ -1820,7 +1820,7 @@ export function Level10Encryption({ onComplete }: LevelComponentProps) {
 
 			<CenterPanel>
 				<LevelHeader
-					actNumber={5}
+					actNumber={2}
 					levelName="Encrypted Attributes"
 					levelNumber={10}
 					onComplete={handleComplete}

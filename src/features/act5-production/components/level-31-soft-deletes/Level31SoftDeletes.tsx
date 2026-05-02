@@ -1578,7 +1578,7 @@ export function Level31SoftDeletes({ onComplete }: LevelComponentProps) {
 			<LeftPanel>{renderLeftPanel()}</LeftPanel>
 			<CenterPanel>
 				<LevelHeader
-					actNumber={6}
+					actNumber={5}
 					levelName="Soft Deletes & Audit Trails"
 					levelNumber={31}
 					onComplete={handleComplete}

@@ -69,7 +69,7 @@ import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
 import { cn } from '@/lib/utils';
 
-registerLevelCode('act4-level26-database-indexing', () =>
+registerLevelCode('act4-level24-indexing', () =>
 	getCodeFiles('reward', STEP_DEFS.length),
 );
 

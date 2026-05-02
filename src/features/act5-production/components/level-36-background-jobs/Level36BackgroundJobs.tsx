@@ -473,14 +473,14 @@ const JOB_CLASS_OPTIONS: StepOption[] = [
 		label: `class SendWelcomeNotificationJob\n  def perform(user_id)\n    user = User.find(user_id)\n    UserMailer.welcome(user).deliver_now\n  end\nend`,
 		correct: false,
 		feedback:
-			'A plain Ruby class has no queue integration. Background jobs need to inherit from a base class that provides enqueuing, retries, and queue management.',
+			'A plain Ruby class has no queue integration. With nothing wiring it to the job system, calling `perform_later` on it will not enqueue anything.',
 	},
 	{
 		id: 'active-job-object',
 		label: `class SendWelcomeNotificationJob < ApplicationJob\n  queue_as :default\n  def perform(user)\n    UserMailer.welcome(user).deliver_now\n  end\nend`,
 		correct: false,
 		feedback:
-			'Passing an ActiveRecord object to perform_later causes serialization issues. Jobs should receive primitive IDs and look up the record themselves.',
+			'Passing an ActiveRecord object to perform_later causes serialization issues. By the time the job runs, the in-memory copy can be stale or fail to deserialize.',
 	},
 	{
 		id: 'active-job-correct',
@@ -1041,7 +1041,7 @@ export function Level36BackgroundJobs({ onComplete }: LevelComponentProps) {
 
 			<CenterPanel>
 				<LevelHeader
-					actNumber={3}
+					actNumber={5}
 					levelName="Background Jobs"
 					levelNumber={36}
 					onComplete={handleComplete}

@@ -2598,7 +2598,7 @@ export function Level58Architect({ onComplete }: LevelComponentProps) {
 
 			<CenterPanel>
 				<LevelHeader
-					actNumber={8}
+					actNumber={7}
 					levelName="The Architect"
 					levelNumber={58}
 					onComplete={handleComplete}

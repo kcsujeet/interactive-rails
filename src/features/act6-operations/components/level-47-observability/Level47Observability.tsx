@@ -1799,7 +1799,7 @@ export function Level47Observability({ onComplete }: LevelComponentProps) {
 
 			<CenterPanel>
 				<LevelHeader
-					actNumber={7}
+					actNumber={6}
 					levelName="Observability"
 					levelNumber={47}
 					onComplete={handleComplete}

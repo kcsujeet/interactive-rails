@@ -34,9 +34,11 @@ end`,
 	},
 };
 
-// Map stage IDs to discovery IDs they trigger
+// Map stage IDs to discovery IDs they trigger.
+// Pedagogy rule: each discovery is unlocked by exactly one source.
+// `raw-stored` is owned by the signup-messy probe; clicking the
+// normalizes stage surfaces inspector text but does not duplicate-unlock.
 export const STAGE_DISCOVERY_MAP: Record<string, string> = {
-	normalizes: 'raw-stored',
 	callbacks: 'no-hooks',
 };
 

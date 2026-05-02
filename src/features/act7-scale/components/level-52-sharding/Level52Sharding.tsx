@@ -2430,7 +2430,7 @@ export function Level52Sharding({ onComplete }: LevelComponentProps) {
 
 			<CenterPanel>
 				<LevelHeader
-					actNumber={8}
+					actNumber={7}
 					levelName="Database Sharding"
 					levelNumber={52}
 					onComplete={handleComplete}

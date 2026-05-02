@@ -2474,7 +2474,7 @@ export function Level57APIGateway({ onComplete }: LevelComponentProps) {
 
 			<CenterPanel>
 				<LevelHeader
-					actNumber={8}
+					actNumber={7}
 					levelName="API Gateway"
 					levelNumber={57}
 					onComplete={handleComplete}

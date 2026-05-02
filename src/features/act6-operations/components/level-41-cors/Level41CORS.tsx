@@ -838,7 +838,7 @@ export function Level41CORS({ onComplete }: LevelComponentProps) {
 
 			<CenterPanel>
 				<LevelHeader
-					actNumber={2}
+					actNumber={6}
 					levelName="CORS"
 					levelNumber={41}
 					onComplete={handleComplete}

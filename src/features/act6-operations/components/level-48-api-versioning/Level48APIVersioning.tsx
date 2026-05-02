@@ -1946,7 +1946,7 @@ export function Level48APIVersioning({ onComplete }: LevelComponentProps) {
 			<LeftPanel>{renderLeftPanel()}</LeftPanel>
 			<CenterPanel>
 				<LevelHeader
-					actNumber={5}
+					actNumber={6}
 					levelName="API Versioning"
 					levelNumber={48}
 					onComplete={handleComplete}

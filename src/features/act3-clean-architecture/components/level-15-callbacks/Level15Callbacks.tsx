@@ -220,7 +220,7 @@ export function Level15Callbacks({ onComplete }: LevelComponentProps) {
 
 			<CenterPanel>
 				<LevelHeader
-					actNumber={2}
+					actNumber={3}
 					levelName="Callbacks & Normalizations"
 					levelNumber={15}
 					onComplete={handleComplete}

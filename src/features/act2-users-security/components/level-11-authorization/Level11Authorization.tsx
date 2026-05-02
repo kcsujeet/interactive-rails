@@ -230,10 +230,12 @@ end`,
 	},
 };
 
-// Map stage IDs to discovery IDs they trigger
+// Map stage IDs to discovery IDs they trigger.
+// Pedagogy rule: each discovery is unlocked by exactly one source.
+// `no-authorize` is owned by the patch-nonowner probe; clicking the
+// controller surfaces inspector text but does not duplicate-unlock.
 const STAGE_DISCOVERY_MAP: Record<string, string> = {
 	policy: 'no-policy',
-	controller: 'no-authorize',
 };
 
 // ──────────────────────────────────────────────
@@ -794,7 +796,7 @@ end`,
 }
 
 // ──────────────────────────────────────────────
-// Pipeline Legend (matches Level 13 pattern)
+// Pipeline Legend (shared three-phase pattern)
 // ──────────────────────────────────────────────
 
 function PipelineLegend() {

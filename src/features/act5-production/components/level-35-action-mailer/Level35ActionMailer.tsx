@@ -383,7 +383,7 @@ const EMAIL_OPTIONS: StepOption[] = [
 		label: `def password_reset(user)\n  @user = user\n  mail(to: user.email, subject: "Reset your password")\nend`,
 		correct: false,
 		feedback:
-			'The email body needs a reset URL with the token embedded. Without generating and including the token, the user has no way to prove their identity.',
+			'The email body needs a verifiable proof of identity for the recipient. Without it, anyone could claim to be that user.',
 	},
 	{
 		id: 'deliver-now-inline',
@@ -1009,7 +1009,7 @@ export function Level35ActionMailer({ onComplete }: LevelComponentProps) {
 
 			<CenterPanel>
 				<LevelHeader
-					actNumber={3}
+					actNumber={5}
 					levelName="Action Mailer"
 					levelNumber={35}
 					onComplete={handleComplete}
