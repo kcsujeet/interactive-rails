@@ -64,7 +64,12 @@ export function ProbeTerminal({
 	const [visibleLines, setVisibleLines] = useState(0);
 	const scrollRef = useRef<HTMLDivElement>(null);
 
-	// Auto-scroll to bottom when new output appears
+	// Auto-scroll to bottom whenever new output appears. The deps `history`
+	// and `visibleLines` aren't read inside the effect — they're scroll
+	// triggers: every time history grows (new probe response) or visibleLines
+	// changes (typed-out animation step), this re-runs and scrolls to keep
+	// up with the new line. Without these deps the effect runs only on mount.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: deps are intentional scroll triggers
 	useEffect(() => {
 		if (scrollRef.current) {
 			scrollRef.current.scrollTo({
@@ -72,7 +77,7 @@ export function ProbeTerminal({
 				behavior: 'smooth',
 			});
 		}
-	}, []);
+	}, [history, visibleLines]);
 
 	// Animate output lines
 	useEffect(() => {
