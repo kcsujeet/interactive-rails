@@ -113,7 +113,7 @@ const KNOWN_STRANDED_GUARDS = new Set<string>([
 
 describe('static: getCodeFiles guards reachable in-game', () => {
 	test('no NEW level has a stranded guard (baselined existing ones)', async () => {
-		const glob = new Glob('src/features/act*/components/level-*-*/Level*.tsx');
+		const glob = new Glob('src/features/act*/components/level-*-*/**/*.tsx');
 		const newOffenders: string[] = [];
 		const seenOffenders = new Set<string>();
 		for await (const filepath of glob.scan(REPO_ROOT)) {
@@ -328,7 +328,7 @@ export function findPlaceholderViolations(src: string): string[] {
 
 describe('static: observe phase shows only what currently exists', () => {
 	test('no NEW level renders a "(Missing)" placeholder in observe', async () => {
-		const glob = new Glob('src/features/act*/components/level-*-*/Level*.tsx');
+		const glob = new Glob('src/features/act*/components/level-*-*/**/*.tsx');
 		const newOffenders: string[] = [];
 		const seenOffenders = new Set<string>();
 		for await (const filepath of glob.scan(REPO_ROOT)) {
@@ -396,5 +396,122 @@ describe('static: findPlaceholderViolations helper', () => {
 			},
 		`;
 		expect(findPlaceholderViolations(preFixL8).length).toBeGreaterThan(0);
+	});
+});
+
+// ──────────────────────────────────────────────────────────────────────────
+// Static: PipelineFlow edges should not animate by default
+// ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * Per `.agents/rules/pedagogy.md` ("the dormant-edges default — undefined is a
+ * trap"): when no probe / scenario has fired, edges must be dormant. The level
+ * achieves this by passing `activeConnections={[]}` to PipelineFlow. Omitting
+ * the prop puts edges into 'idle' mode, which animates dot motion continuously
+ * before the player has done anything — implying data is flowing when nothing
+ * has happened.
+ *
+ * This test scans every level component file and asserts that any
+ * `<PipelineFlow ...>` JSX includes an `activeConnections=` prop.
+ */
+const KNOWN_AUTO_ANIMATING_EDGES = new Set<string>([
+	'src/features/act1-foundation/components/level-4-associations/Level4Associations.tsx',
+	'src/features/act1-foundation/components/level-6-routes/Level6Routes.tsx',
+	'src/features/act1-foundation/components/level-7-controller/Level7Controller.tsx',
+	'src/features/act2-users-security/components/level-11-authorization/Level11Authorization.tsx',
+	'src/features/act2-users-security/components/level-13-strong-params/Level13StrongParams.tsx',
+	'src/features/act2-users-security/components/level-14-testing/Level14Testing.tsx',
+	'src/features/act3-clean-architecture/components/level-20-error-handling/Level20ErrorHandling.tsx',
+	'src/features/act4-performance/components/level-29-http-caching/Level29HTTPCaching.tsx',
+	'src/features/act5-production/components/level-35-action-mailer/Level35ActionMailer.tsx',
+	'src/features/act5-production/components/level-36-background-jobs/Level36BackgroundJobs.tsx',
+	'src/features/act6-operations/components/level-49-deployment/BuildPhase.tsx',
+	'src/features/act6-operations/components/level-49-deployment/ObservePhase.tsx',
+	'src/features/act6-operations/components/level-49-deployment/RewardPhase.tsx',
+]);
+
+/**
+ * Returns true if the source contains a `<PipelineFlow ...>` JSX render
+ * that does NOT pass `activeConnections=`. Scans every PipelineFlow opening
+ * tag in the file (a level can render it more than once for observe + reward).
+ */
+export function hasAutoAnimatingPipelineFlow(src: string): boolean {
+	// Match `<PipelineFlow` followed by props up to the first `>` (or `/>`).
+	// JSX tags don't nest `<` inside attribute values in any of our levels, so
+	// a non-greedy match up to `>` is reliable.
+	const re = /<PipelineFlow\s[^>]*?>/g;
+	for (const match of src.matchAll(re)) {
+		const tag = match[0];
+		if (!/activeConnections\s*=/.test(tag)) return true;
+	}
+	return false;
+}
+
+describe('static: PipelineFlow edges do not animate by default', () => {
+	test('every PipelineFlow render passes activeConnections= (baselined existing)', async () => {
+		const glob = new Glob('src/features/act*/components/level-*-*/**/*.tsx');
+		const newOffenders: string[] = [];
+		const seenOffenders = new Set<string>();
+		for await (const filepath of glob.scan(REPO_ROOT)) {
+			if (filepath.includes('/__tests__/')) continue;
+			const src = await Bun.file(resolve(REPO_ROOT, filepath)).text();
+			if (!hasAutoAnimatingPipelineFlow(src)) continue;
+			seenOffenders.add(filepath);
+			if (!KNOWN_AUTO_ANIMATING_EDGES.has(filepath)) {
+				newOffenders.push(
+					`${filepath}: <PipelineFlow ...> rendered without activeConnections=`,
+				);
+			}
+		}
+		expect(newOffenders).toEqual([]);
+		const stale = [...KNOWN_AUTO_ANIMATING_EDGES].filter(
+			(p) => !seenOffenders.has(p),
+		);
+		expect(stale, 'KNOWN_AUTO_ANIMATING_EDGES contains stale entries').toEqual(
+			[],
+		);
+	});
+});
+
+describe('static: hasAutoAnimatingPipelineFlow helper', () => {
+	test('flags PipelineFlow without activeConnections', () => {
+		const src = `<PipelineFlow connections={CONNS} stages={stages} />`;
+		expect(hasAutoAnimatingPipelineFlow(src)).toBe(true);
+	});
+
+	test('passes when activeConnections is provided', () => {
+		const src = `<PipelineFlow connections={CONNS} stages={stages} activeConnections={[]} />`;
+		expect(hasAutoAnimatingPipelineFlow(src)).toBe(false);
+	});
+
+	test('flags multi-line tag without activeConnections', () => {
+		const src = `
+			<PipelineFlow
+				connections={OBSERVE_CONNECTIONS}
+				stages={observeStages}
+				onNodeClick={handleStageClick}
+			>
+		`;
+		expect(hasAutoAnimatingPipelineFlow(src)).toBe(true);
+	});
+
+	test('handles two PipelineFlow renders, flags if either is missing the prop', () => {
+		const src = `
+			<PipelineFlow connections={A} activeConnections={[]} />
+			<PipelineFlow connections={B} stages={s} />
+		`;
+		expect(hasAutoAnimatingPipelineFlow(src)).toBe(true);
+	});
+
+	test('passes when all PipelineFlow renders include the prop', () => {
+		const src = `
+			<PipelineFlow connections={A} activeConnections={obs} />
+			<PipelineFlow connections={B} activeConnections={rew} />
+		`;
+		expect(hasAutoAnimatingPipelineFlow(src)).toBe(false);
+	});
+
+	test('passes when there are no PipelineFlow renders at all', () => {
+		expect(hasAutoAnimatingPipelineFlow('// no flow here')).toBe(false);
 	});
 });

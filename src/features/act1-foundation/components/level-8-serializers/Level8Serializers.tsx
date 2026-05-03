@@ -608,6 +608,33 @@ const REWARD_CONNECTIONS: PipelineConnection[] = [
 	},
 ];
 
+// Edges to animate (single-pass burst) when a probe fires in observe.
+// All 3 GET probes follow the same request lifecycle: request -> router ->
+// controller -> (model -> db) -> response.
+const OBSERVE_PROBE_ACTIVE_EDGES: readonly string[] = [
+	'request-router',
+	'router-controller',
+	'controller-model',
+	'model-database',
+	'database-model',
+	'model-controller',
+	'controller-response',
+];
+
+// Edges to animate when a stress scenario fires in reward. Same lifecycle as
+// observe but the response now passes through the serializer.
+const REWARD_SCENARIO_ACTIVE_EDGES: readonly string[] = [
+	'request-router',
+	'router-controller',
+	'controller-model',
+	'model-database',
+	'database-model',
+	'model-controller',
+	'controller-serializer',
+	'serializer-controller',
+	'controller-response',
+];
+
 // ──────────────────────────────────────────────
 // Code preview helper
 // ──────────────────────────────────────────────
@@ -795,6 +822,11 @@ export function Level8Serializers({ onComplete }: LevelComponentProps) {
 		new Set(),
 	);
 	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
+	// Tick increments on every probe / scenario fire. We use it to gate which
+	// edges count as 'active' for the next render only — combined with the
+	// dormant-edges-default rule (pass `[]` when no probe fired), this keeps
+	// edges still by default and produces a single-pass burst on each fire.
+	const [animationTick, setAnimationTick] = useState(0);
 
 	// Step 3: selected attributes
 	const [selectedAttrs, setSelectedAttrs] = useState<string[]>([]);
@@ -921,6 +953,7 @@ export function Level8Serializers({ onComplete }: LevelComponentProps) {
 	const handleProbe = useCallback(
 		(probeId: string) => {
 			setLastProbeId(probeId);
+			setAnimationTick((t) => t + 1);
 			const discoveryId = PROBE_DISCOVERY_MAP[probeId];
 			if (discoveryId) {
 				discoveryGating.discover(discoveryId);
@@ -972,6 +1005,7 @@ export function Level8Serializers({ onComplete }: LevelComponentProps) {
 	const handleFireScenario = useCallback(
 		(scenarioId: string) => {
 			stressTest.fireRequest(scenarioId);
+			setAnimationTick((t) => t + 1);
 		},
 		[stressTest],
 	);
@@ -1102,6 +1136,10 @@ export function Level8Serializers({ onComplete }: LevelComponentProps) {
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">
 								<PipelineFlow
+									activeConnections={
+										lastProbeId ? [...OBSERVE_PROBE_ACTIVE_EDGES] : []
+									}
+									animationTick={animationTick}
 									connections={OBSERVE_CONNECTIONS}
 									onNodeClick={handleStageClick}
 									stages={observeStages}
@@ -1461,6 +1499,10 @@ export function Level8Serializers({ onComplete }: LevelComponentProps) {
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">
 								<PipelineFlow
+									activeConnections={
+										lastResult ? [...REWARD_SCENARIO_ACTIVE_EDGES] : []
+									}
+									animationTick={animationTick}
 									connections={REWARD_CONNECTIONS}
 									stages={rewardStages}
 								/>

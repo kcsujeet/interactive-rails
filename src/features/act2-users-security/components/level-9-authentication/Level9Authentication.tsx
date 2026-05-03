@@ -350,19 +350,26 @@ const generateAuthOutput: TerminalOutputLine[] = [
 		color: 'green',
 	},
 	{
+		text: '      create  app/controllers/passwords_controller.rb',
+		color: 'green',
+	},
+	{
 		text: '      create  app/controllers/concerns/authentication.rb',
 		color: 'cyan',
 	},
+	{ text: '      create  app/mailers/passwords_mailer.rb', color: 'green' },
+	{ text: '        gsub  Gemfile', color: 'yellow' },
 	{
-		text: '      create  db/migrate/20240101_create_users.rb',
+		text: '        gsub  app/controllers/application_controller.rb',
+		color: 'yellow',
+	},
+	{ text: '         run  bundle install --quiet', color: 'muted' },
+	{
+		text: '      create  db/migrate/<timestamp>_create_users.rb',
 		color: 'green',
 	},
 	{
-		text: '      create  db/migrate/20240102_create_sessions.rb',
-		color: 'green',
-	},
-	{
-		text: '      create  app/controllers/passwords_controller.rb',
+		text: '      create  db/migrate/<timestamp>_create_sessions.rb',
 		color: 'green',
 	},
 	{ text: '      invoke  test_unit', color: 'muted' },
@@ -399,23 +406,28 @@ const runMigrationsCommands: TerminalCommand[] = [
 
 const runMigrationsOutput: TerminalOutputLine[] = [
 	{
-		text: '== CreateUsers: migrating ============================',
+		text: '== <timestamp> CreateUsers: migrating ===========================',
 		color: 'green',
 	},
 	{
 		text: '-- create_table(:users)',
 		color: 'muted',
 	},
-	{ text: '   -> 0.0012s', color: 'muted' },
+	{ text: '   -> 0.0152s', color: 'muted' },
 	{
-		text: '== CreateSessions: migrating =========================',
+		text: '-- add_index(:users, :email_address, {unique: true})',
+		color: 'muted',
+	},
+	{ text: '   -> 0.0026s', color: 'muted' },
+	{
+		text: '== <timestamp> CreateSessions: migrating ========================',
 		color: 'green',
 	},
 	{
 		text: '-- create_table(:sessions)',
 		color: 'muted',
 	},
-	{ text: '   -> 0.0008s', color: 'muted' },
+	{ text: '   -> 0.0135s', color: 'muted' },
 ];
 
 // ──────────────────────────────────────────────
@@ -467,7 +479,7 @@ const createSessionCommands: TerminalCommand[] = [
 		command: 'cookies[:user_id] = user.id',
 		correct: false,
 		feedback:
-			'Cookies are for browser apps. API clients need a token in the response body, not a cookie header.',
+			'API-only Rails apps do not include cookie middleware by default. Even if they did, an API needs a token the client can attach to subsequent requests.',
 	},
 	{
 		id: 'correct',
@@ -487,12 +499,20 @@ const createSessionCommands: TerminalCommand[] = [
 
 const createSessionOutput: TerminalOutputLine[] = [
 	{
-		text: '=> #<Session id: 1, user_id: 1, token: "abc123...def789">',
+		text: '=> #<Session id: 1, user_id: 1, token: "zLZXLu8KZiQTRbY...">',
 		color: 'green',
 	},
 	{ text: '', color: 'muted' },
 	{
-		text: '# Client sends: Authorization: Bearer abc123...def789',
+		text: '# `before_create` on the Session model fills in the token via',
+		color: 'cyan',
+	},
+	{
+		text: '# SecureRandom.urlsafe_base64(32). The client sends it back as',
+		color: 'cyan',
+	},
+	{
+		text: '# `Authorization: Bearer <token>` on subsequent requests.',
 		color: 'cyan',
 	},
 ];
@@ -564,6 +584,16 @@ const REWARD_CONNECTIONS: PipelineConnection[] = [
 	{ from: 'controller', to: 'model', dots: 'clean' },
 ];
 
+// All edges in the request lifecycle. Probes (observe) and stress scenarios
+// (reward) both fire a single request that traverses the same path. Pass to
+// `activeConnections` only when something has fired; otherwise pass `[]` so
+// edges stay dormant per the dormant-edges-default rule.
+const REQUEST_LIFECYCLE_EDGES: readonly string[] = [
+	'request-auth',
+	'auth-controller',
+	'controller-model',
+];
+
 // ──────────────────────────────────────────────
 // Code preview helper
 // ──────────────────────────────────────────────
@@ -616,26 +646,28 @@ end`,
 		});
 	}
 
-	// After step 1 (db:migrate): User model skeleton from generator
+	// After step 1 (db:migrate): User model from the auth generator. The
+	// generator already includes has_secure_password (it adds bcrypt to the
+	// Gemfile and the model line in one shot), plus a normalizes call on
+	// email_address and the has_many :sessions association.
 	if (furthestStep >= 2) {
 		files.push({
 			filename: 'app/models/user.rb',
 			language: 'ruby',
-			code:
-				furthestStep >= 3
-					? `class User < ApplicationRecord
+			code: `class User < ApplicationRecord
   has_secure_password
   has_many :sessions, dependent: :destroy
-end`
-					: `class User < ApplicationRecord
-  has_many :sessions, dependent: :destroy
+
+  normalizes :email_address, with: ->(e) { e.strip.downcase }
 end`,
-			highlight: furthestStep >= 3 ? [2] : [],
+			highlight: [2],
 		});
 	}
 
-	// After step 3 (create session): Session model + controller
-	if (furthestStep >= 4) {
+	// After step 3 (create session): Session model with the customized
+	// before_create token generator (the generator's default Session has no
+	// token column; this level adds one + the callback).
+	if (furthestStep >= 3) {
 		files.push({
 			filename: 'app/models/session.rb',
 			language: 'ruby',
@@ -653,29 +685,36 @@ end`,
 			filename: 'app/controllers/sessions_controller.rb',
 			language: 'ruby',
 			code: `class SessionsController < ApplicationController
-  allow_unauthenticated_access only: [:create]
+  allow_unauthenticated_access only: :create
 
   def create
-    user = User.authenticate_by(
-      email: params[:email],
-      password: params[:password]
-    )
+    user = User.authenticate_by(params.permit(:email_address, :password))
 
     if user
-      session = user.sessions.create!
-      render json: { token: session.token }
+      session = user.sessions.create!(
+        ip_address: request.remote_ip,
+        user_agent: request.user_agent,
+      )
+      render json: { token: session.token }, status: :created
     else
-      render json: { error: "Invalid credentials" },
-             status: :unauthorized
+      render json: { error: "Invalid email or password" }, status: :unauthorized
     end
   end
+
+  def destroy
+    Current.session.destroy
+    head :no_content
+  end
 end`,
-			highlight: [5, 6, 7, 11],
+			highlight: [5, 12],
 		});
 	}
 
-	// After step 4 (protect endpoint): Authentication concern with require_authentication
-	if (furthestStep >= 5) {
+	// After step 4 (protect endpoint): the customized Authentication concern
+	// that reads the bearer token from the Authorization header (replacing
+	// the generator's cookie-based default, which does not work in API-only
+	// mode without cookie middleware).
+	if (furthestStep >= 4) {
 		files.push({
 			filename: 'app/controllers/concerns/authentication.rb',
 			language: 'ruby',
@@ -686,25 +725,32 @@ end`,
     before_action :require_authentication
   end
 
+  class_methods do
+    def allow_unauthenticated_access(**options)
+      skip_before_action :require_authentication, **options
+    end
+  end
+
   private
 
   def require_authentication
-    session = Session.find_by(
-      token: request.headers["Authorization"]
-               &.delete_prefix("Bearer ")
-    )
-    resume_session(session)
+    Current.session = find_session_by_bearer_token
+    head :unauthorized unless Current.session
   end
 
-  def resume_session(session)
-    Current.session = session
+  def find_session_by_bearer_token
+    auth = request.headers["Authorization"]
+    return nil unless auth&.start_with?("Bearer ")
+
+    token = auth.delete_prefix("Bearer ")
+    Session.find_by(token: token)
   end
 
   def current_user
     Current.session&.user
   end
 end`,
-			highlight: [5, 11, 12, 13, 14],
+			highlight: [5, 16, 21, 22, 23, 24, 25, 26],
 		});
 	}
 
@@ -757,6 +803,10 @@ export function Level9Authentication({ onComplete }: LevelComponentProps) {
 		new Set(),
 	);
 	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
+	// Increments on every probe / scenario fire so PipelineFlow re-runs the
+	// single-pass dot animation. Default `activeConnections=[]` keeps edges
+	// dormant until the player triggers something.
+	const [animationTick, setAnimationTick] = useState(0);
 
 	// ── Build observe stages dynamically (tracks inspected + last probe) ──
 	const probeDisplay = lastProbeId ? PROBE_PIPELINE_MAP[lastProbeId] : null;
@@ -845,6 +895,7 @@ export function Level9Authentication({ onComplete }: LevelComponentProps) {
 	const handleProbe = useCallback(
 		(probeId: string) => {
 			setLastProbeId(probeId);
+			setAnimationTick((t) => t + 1);
 			const discoveryId = PROBE_DISCOVERY_MAP[probeId];
 			if (discoveryId) {
 				discoveryGating.discover(discoveryId);
@@ -887,6 +938,7 @@ export function Level9Authentication({ onComplete }: LevelComponentProps) {
 	const handleFireScenario = useCallback(
 		(scenarioId: string) => {
 			stressTest.fireRequest(scenarioId);
+			setAnimationTick((t) => t + 1);
 		},
 		[stressTest],
 	);
@@ -1018,6 +1070,10 @@ export function Level9Authentication({ onComplete }: LevelComponentProps) {
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">
 								<PipelineFlow
+									activeConnections={
+										lastProbeId ? [...REQUEST_LIFECYCLE_EDGES] : []
+									}
+									animationTick={animationTick}
 									connections={OBSERVE_CONNECTIONS}
 									onNodeClick={handleStageClick}
 									stages={observeStages}
@@ -1233,6 +1289,10 @@ export function Level9Authentication({ onComplete }: LevelComponentProps) {
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">
 								<PipelineFlow
+									activeConnections={
+										lastResult ? [...REQUEST_LIFECYCLE_EDGES] : []
+									}
+									animationTick={animationTick}
 									connections={REWARD_CONNECTIONS}
 									stages={rewardStages}
 								/>
