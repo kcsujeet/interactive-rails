@@ -237,7 +237,7 @@ const STEPS: TerminalStep[] = [
 			{ text: 'Installing activerecord-8.1.3...', color: 'muted' },
 			{ text: 'Installing railties-8.1.3...', color: 'muted' },
 			{ text: '\u2713 Successfully installed rails-8.1.3', color: 'green' },
-			{ text: '27 gems installed', color: 'green' },
+			{ text: '39 gems installed', color: 'green' },
 		],
 	},
 ];

@@ -355,11 +355,13 @@ const generateCommands: TerminalCommand[] = [
 const generateOutput: TerminalOutputLine[] = [
 	{ text: '      invoke  active_record', color: 'green' },
 	{
-		text: '      create    db/migrate/20240101000001_create_reviews.rb',
+		text: '      create    db/migrate/<timestamp>_create_reviews.rb',
 		color: 'green',
 	},
 	{ text: '      create    app/models/review.rb', color: 'green' },
 	{ text: '      invoke    test_unit', color: 'muted' },
+	{ text: '      create      test/models/review_test.rb', color: 'muted' },
+	{ text: '      create      test/fixtures/reviews.yml', color: 'muted' },
 ];
 
 // ──────────────────────────────────────────────
@@ -393,7 +395,7 @@ const migrateCommands: TerminalCommand[] = [
 
 const migrateOutput: TerminalOutputLine[] = [
 	{
-		text: '== CreateReviews: migrating =============================',
+		text: '== <timestamp> CreateReviews: migrating ====================================',
 		color: 'muted',
 	},
 	{
@@ -401,11 +403,11 @@ const migrateOutput: TerminalOutputLine[] = [
 		color: 'green',
 	},
 	{
-		text: '   -> 0.0042s',
+		text: '   -> 0.0186s',
 		color: 'muted',
 	},
 	{
-		text: '== CreateReviews: migrated (0.0043s) ====================',
+		text: '== <timestamp> CreateReviews: migrated (0.0186s) ===========================',
 		color: 'green',
 	},
 ];
@@ -672,9 +674,9 @@ end`,
 	if (furthestStep >= 1) {
 		// After step 0: migration file from generator
 		files.push({
-			filename: 'db/migrate/create_reviews.rb',
+			filename: 'db/migrate/<timestamp>_create_reviews.rb',
 			language: 'ruby',
-			code: `class CreateReviews < ActiveRecord::Migration[8.0]
+			code: `class CreateReviews < ActiveRecord::Migration[8.1]
   def change
     create_table :reviews do |t|
       t.text :body

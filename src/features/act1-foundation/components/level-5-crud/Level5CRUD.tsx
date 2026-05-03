@@ -166,7 +166,7 @@ const STEPS: TerminalStep[] = [
 		],
 		outputLines: [
 			{
-				text: '=> #<Product id: 1, name: "Updated"> (destroyed)',
+				text: '=> #<Product id: 1, name: "Updated", description: "My first product">',
 				color: 'cyan',
 			},
 		],

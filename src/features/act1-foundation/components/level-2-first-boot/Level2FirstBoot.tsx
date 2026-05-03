@@ -36,14 +36,29 @@ registerLevelCode('act1-level2-first-boot', () => [
 		language: 'ruby',
 		code: `source "https://rubygems.org"
 
-gem "rails", "~> 8.0"
-gem "pg"
+gem "rails", "~> 8.1.3"
+gem "pg", "~> 1.1"
 gem "puma", ">= 5.0"
 
-# Rails 8 defaults (no Redis needed)
-gem "solid_queue"
+gem "tzinfo-data", platforms: %i[ windows jruby ]
+
+# Database-backed adapters for cache, queue, and Action Cable
 gem "solid_cache"
-gem "solid_cable"`,
+gem "solid_queue"
+gem "solid_cable"
+
+gem "bootsnap", require: false
+gem "kamal", require: false
+gem "thruster", require: false
+
+gem "image_processing", "~> 1.2"
+
+group :development, :test do
+  gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
+  gem "bundler-audit", require: false
+  gem "brakeman", require: false
+  gem "rubocop-rails-omakase", require: false
+end`,
 	},
 	{
 		filename: 'config/database.yml',
@@ -51,7 +66,7 @@ gem "solid_cable"`,
 		code: `default: &default
   adapter: postgresql
   encoding: unicode
-  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
 
 development:
   <<: *default
@@ -59,16 +74,43 @@ development:
 
 test:
   <<: *default
-  database: myapp_test`,
+  database: myapp_test
+
+production:
+  primary: &primary_production
+    <<: *default
+    database: myapp_production
+    username: myapp
+    password: <%= ENV["MYAPP_DATABASE_PASSWORD"] %>
+  cache:
+    <<: *primary_production
+    database: myapp_production_cache
+    migrations_paths: db/cache_migrate
+  queue:
+    <<: *primary_production
+    database: myapp_production_queue
+    migrations_paths: db/queue_migrate
+  cable:
+    <<: *primary_production
+    database: myapp_production_cable
+    migrations_paths: db/cable_migrate`,
 	},
 	{
 		filename: 'config/application.rb',
 		language: 'ruby',
-		code: `module Myapp
-  class Application < Rails::Application
-    config.load_defaults 8.0
+		code: `require_relative "boot"
 
-    # API-only mode: leaner middleware stack
+require "rails/all"
+
+Bundler.require(*Rails.groups)
+
+module Myapp
+  class Application < Rails::Application
+    config.load_defaults 8.1
+
+    config.autoload_lib(ignore: %w[assets tasks])
+
+    # API-only mode: leaner middleware stack (no sessions, flash, cookies by default).
     config.api_only = true
   end
 end`,
@@ -142,22 +184,23 @@ const generateCommands: TerminalCommand[] = [
 ];
 
 const generateOutput: TerminalOutputLine[] = [
-	{ text: '      create  .', color: 'green' },
 	{ text: '      create  Gemfile', color: 'green' },
+	{ text: '      create  Dockerfile', color: 'green' },
 	{ text: '      create  Rakefile', color: 'green' },
-	{ text: '      create  config.ru', color: 'green' },
 	{
 		text: '      create  app/controllers/application_controller.rb',
 		color: 'green',
 	},
 	{ text: '      create  app/models/application_record.rb', color: 'green' },
+	{ text: '      create  config/application.rb', color: 'green' },
+	{ text: '      create  config/database.yml', color: 'cyan' },
+	{ text: '         run  bundle install --quiet', color: 'yellow' },
+	{ text: '         run  bundle exec kamal init', color: 'yellow' },
 	{
-		text: '      create  config/database.yml  (postgresql)',
+		text: '       rails  solid_cache:install solid_queue:install solid_cable:install',
 		color: 'cyan',
 	},
-	{ text: '      create  config/application.rb', color: 'green' },
-	{ text: '         run  bundle install', color: 'yellow' },
-	{ text: 'Bundle complete! 12 Gemfile dependencies.', color: 'green' },
+	{ text: '✓ Generated myapp', color: 'green' },
 ];
 
 // Step 4: Explore the Generated App commands
@@ -194,16 +237,23 @@ const exploreCommands: TerminalCommand[] = [
 const exploreOutput: TerminalOutputLine[] = [
 	// `ls -F` adds a trailing slash to directories and an asterisk to
 	// executables, which is how the player tells folders from files.
-	{ text: 'Gemfile        Rakefile       config.ru      log/', color: 'green' },
 	{
-		text: 'Gemfile.lock   app/           db/            public/',
+		text: 'Dockerfile     Rakefile       config/        public/',
 		color: 'green',
 	},
 	{
-		text: 'README.md      bin/           lib/           test/',
+		text: 'Gemfile        README.md      config.ru      script/',
 		color: 'green',
 	},
-	{ text: 'config/        tmp/', color: 'green' },
+	{
+		text: 'Gemfile.lock   app/           db/            storage/',
+		color: 'green',
+	},
+	{
+		text: 'bin/           lib/           log/           test/',
+		color: 'green',
+	},
+	{ text: 'tmp/           vendor/', color: 'green' },
 	{ text: '', color: 'muted' },
 	{
 		text: '# Trailing / marks a directory. Most of your work lives in:',
@@ -425,15 +475,30 @@ Server:    Puma`,
 				language: 'ruby',
 				code: `source "https://rubygems.org"
 
-gem "rails", "~> 8.0"
-gem "pg"
+gem "rails", "~> 8.1.3"
+gem "pg", "~> 1.1"
 gem "puma", ">= 5.0"
 
-# Rails 8 defaults (no Redis needed)
-gem "solid_queue"
+gem "tzinfo-data", platforms: %i[ windows jruby ]
+
+# Database-backed adapters for cache, queue, and Action Cable
 gem "solid_cache"
-gem "solid_cable"`,
-				highlight: [4],
+gem "solid_queue"
+gem "solid_cable"
+
+gem "bootsnap", require: false
+gem "kamal", require: false
+gem "thruster", require: false
+
+gem "image_processing", "~> 1.2"
+
+group :development, :test do
+  gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
+  gem "bundler-audit", require: false
+  gem "brakeman", require: false
+  gem "rubocop-rails-omakase", require: false
+end`,
+				highlight: [9, 10, 11, 12],
 			});
 
 			files.push({
@@ -442,7 +507,7 @@ gem "solid_cable"`,
 				code: `default: &default
   adapter: postgresql
   encoding: unicode
-  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
 
 development:
   <<: *default
@@ -450,22 +515,49 @@ development:
 
 test:
   <<: *default
-  database: myapp_test`,
-				highlight: [2],
+  database: myapp_test
+
+production:
+  primary: &primary_production
+    <<: *default
+    database: myapp_production
+    username: myapp
+    password: <%= ENV["MYAPP_DATABASE_PASSWORD"] %>
+  cache:
+    <<: *primary_production
+    database: myapp_production_cache
+    migrations_paths: db/cache_migrate
+  queue:
+    <<: *primary_production
+    database: myapp_production_queue
+    migrations_paths: db/queue_migrate
+  cable:
+    <<: *primary_production
+    database: myapp_production_cable
+    migrations_paths: db/cable_migrate`,
+				highlight: [2, 7, 11],
 			});
 
 			files.push({
 				filename: 'config/application.rb',
 				language: 'ruby',
-				code: `module Myapp
-  class Application < Rails::Application
-    config.load_defaults 8.0
+				code: `require_relative "boot"
 
-    # API-only mode: leaner middleware stack
+require "rails/all"
+
+Bundler.require(*Rails.groups)
+
+module Myapp
+  class Application < Rails::Application
+    config.load_defaults 8.1
+
+    config.autoload_lib(ignore: %w[assets tasks])
+
+    # API-only mode: leaner middleware stack (no sessions, flash, cookies by default).
     config.api_only = true
   end
 end`,
-				highlight: [6],
+				highlight: [13],
 			});
 		}
 
@@ -475,6 +567,7 @@ end`,
 				filename: 'Directory Layout',
 				language: 'bash',
 				code: `myapp/
+├── Dockerfile             # Container image (Rails 8 default for Kamal deploys)
 ├── Gemfile                # Ruby gem dependencies
 ├── Gemfile.lock           # Locked gem versions
 ├── README.md              # Documentation
@@ -487,9 +580,12 @@ end`,
 ├── lib/                   # Code shared across the app
 ├── log/                   # Application logs
 ├── public/                # Static files served as-is
+├── script/                # One-off Ruby scripts you run by hand
+├── storage/               # Active Storage local-disk uploads
 ├── test/                  # Test files
-└── tmp/                   # Cache, sockets, ephemeral data`,
-				highlight: [6, 7, 8, 10],
+├── tmp/                   # Cache, sockets, ephemeral data
+└── vendor/                # Third-party code vendored into the repo`,
+				highlight: [7, 8, 9, 11],
 			});
 		}
 

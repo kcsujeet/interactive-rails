@@ -35,26 +35,17 @@ registerLevelCode('act1-level3-model', () => [
 		filename: 'app/models/product.rb',
 		language: 'ruby',
 		code: `class Product < ApplicationRecord
-  # Attributes:
-  # - name        (string)
-  # - description (text)
-  # - price       (decimal)
-  #
-  # Auto-generated:
-  # - id         (integer, primary key)
-  # - created_at (datetime)
-  # - updated_at (datetime)
 end`,
 	},
 	{
-		filename: 'db/migrate/create_products.rb',
+		filename: 'db/migrate/<timestamp>_create_products.rb',
 		language: 'ruby',
-		code: `class CreateProducts < ActiveRecord::Migration[8.0]
+		code: `class CreateProducts < ActiveRecord::Migration[8.1]
   def change
     create_table :products do |t|
       t.string :name
       t.text :description
-      t.decimal :price, precision: 10, scale: 2
+      t.decimal :price
 
       t.timestamps
     end
@@ -64,12 +55,14 @@ end`,
 	{
 		filename: 'db/schema.rb',
 		language: 'ruby',
-		code: `ActiveRecord::Schema[8.0].define(version: 2024_01_01_000000) do
+		code: `ActiveRecord::Schema[8.1].define(version: 2026_05_02_000000) do
+  enable_extension "pg_catalog.plpgsql"
+
   create_table "products", force: :cascade do |t|
-    t.string "name"
-    t.text "description"
-    t.decimal "price", precision: 10, scale: 2
     t.datetime "created_at", null: false
+    t.text "description"
+    t.string "name"
+    t.decimal "price"
     t.datetime "updated_at", null: false
   end
 end`,
@@ -175,12 +168,13 @@ const generatorCommands: TerminalCommand[] = [
 const generatorOutput: TerminalOutputLine[] = [
 	{ text: '      invoke  active_record', color: 'green' },
 	{
-		text: '      create    db/migrate/20240101000000_create_products.rb',
+		text: '      create    db/migrate/<timestamp>_create_products.rb',
 		color: 'green',
 	},
 	{ text: '      create    app/models/product.rb', color: 'green' },
 	{ text: '      invoke    test_unit', color: 'muted' },
 	{ text: '      create      test/models/product_test.rb', color: 'muted' },
+	{ text: '      create      test/fixtures/products.yml', color: 'muted' },
 ];
 
 // Step 4: Migration command
@@ -203,13 +197,13 @@ const migrationCommands: TerminalCommand[] = [
 
 const migrationOutput: TerminalOutputLine[] = [
 	{
-		text: '== CreateProducts: migrating =================================',
+		text: '== <timestamp> CreateProducts: migrating ===================================',
 		color: 'green',
 	},
 	{ text: '-- create_table(:products)', color: 'cyan' },
-	{ text: '   -> 0.0012s', color: 'muted' },
+	{ text: '   -> 0.0123s', color: 'muted' },
 	{
-		text: '== CreateProducts: migrated (0.0013s) ========================',
+		text: '== <timestamp> CreateProducts: migrated (0.0123s) ==========================',
 		color: 'green',
 	},
 ];
@@ -363,28 +357,19 @@ export function Level3Model({ onComplete }: LevelComponentProps) {
 				filename: 'app/models/product.rb',
 				language: 'ruby',
 				code: `class Product < ApplicationRecord
-  # Attributes:
-  # - name        (string)
-  # - description (text)
-  # - price       (decimal)
-  #
-  # Auto-generated:
-  # - id         (integer, primary key)
-  # - created_at (datetime)
-  # - updated_at (datetime)
 end`,
 				highlight: [1],
 			});
 
 			files.push({
-				filename: 'db/migrate/create_products.rb',
+				filename: 'db/migrate/<timestamp>_create_products.rb',
 				language: 'ruby',
-				code: `class CreateProducts < ActiveRecord::Migration[8.0]
+				code: `class CreateProducts < ActiveRecord::Migration[8.1]
   def change
     create_table :products do |t|
       t.string :name
       t.text :description
-      t.decimal :price, precision: 10, scale: 2
+      t.decimal :price
 
       t.timestamps
     end
@@ -399,16 +384,18 @@ end`,
 			files.push({
 				filename: 'db/schema.rb',
 				language: 'ruby',
-				code: `ActiveRecord::Schema[8.0].define(version: 2024_01_01_000000) do
+				code: `ActiveRecord::Schema[8.1].define(version: 2026_05_02_000000) do
+  enable_extension "pg_catalog.plpgsql"
+
   create_table "products", force: :cascade do |t|
-    t.string "name"
-    t.text "description"
-    t.decimal "price", precision: 10, scale: 2
     t.datetime "created_at", null: false
+    t.text "description"
+    t.string "name"
+    t.decimal "price"
     t.datetime "updated_at", null: false
   end
 end`,
-				highlight: [3, 4, 5],
+				highlight: [4, 5, 6, 7, 8],
 			});
 		}
 

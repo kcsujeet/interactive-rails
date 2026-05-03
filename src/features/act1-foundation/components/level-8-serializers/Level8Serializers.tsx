@@ -686,9 +686,9 @@ end`,
 			language: 'ruby',
 			code: `source "https://rubygems.org"
 
-gem "rails", "~> 8.0"
-gem "pg"
-gem "puma"
+gem "rails", "~> 8.1.3"
+gem "pg", "~> 1.1"
+gem "puma", ">= 5.0"
 gem "jsonapi-serializer"`,
 			highlight: [6],
 		});
@@ -700,9 +700,9 @@ gem "jsonapi-serializer"`,
 			language: 'ruby',
 			code: `source "https://rubygems.org"
 
-gem "rails", "~> 8.0"
-gem "pg"
-gem "puma"
+gem "rails", "~> 8.1.3"
+gem "pg", "~> 1.1"
+gem "puma", ">= 5.0"
 gem "jsonapi-serializer"`,
 			highlight: [6],
 		});
