@@ -1017,60 +1017,60 @@ end`,
 		];
 	}
 
-	// reward
+	// reward — matches real myapp at the level-10 git tag.
+	// Service-object lookup (FindUser) and email validators are deferred to
+	// later levels (L16 Service Objects, L18 Validation Contracts); showing
+	// them here is premature pedagogy. Active Storage (has_one_attached) is
+	// L34. Encryption alone is what L10 teaches; everything else is noise.
 	return [
 		{
 			filename: 'app/models/user.rb',
 			language: 'ruby',
 			code: `class User < ApplicationRecord
   has_secure_password
+  has_many :sessions, dependent: :destroy
 
-  # Deterministic: queryable (find_by, uniqueness)
-  encrypts :email, deterministic: true
+  normalizes :email_address, with: ->(e) { e.strip.downcase }
 
-  # Non-deterministic: max security, no querying
-  encrypts :phone
+  encrypts :email_address, deterministic: true, downcase: true
+  encrypts :phone, deterministic: true
   encrypts :address
-
-  has_one_attached :avatar do |attachable|
-    attachable.variant :thumb, resize_to_limit: [100, 100]
-    attachable.variant :medium, resize_to_limit: [300, 300]
-  end
-
-  validates :email, uniqueness: true
-  validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }
 end`,
 		},
 		{
-			filename: 'app/services/find_user.rb',
-			language: 'ruby',
-			code: `class FindUser < ApplicationService
-  Result = Data.define(:success?, :user, :errors)
-
-  def initialize(email:)
-    @email = email
-  end
-
-  def call
-    v = FindUserContract.new.call(email: @email)
-    return Result.new(success?: false,
-      user: nil, errors: v.errors.to_h) if v.failure?
-
-    user = User.find_by(email: @email)
-    return Result.new(success?: false,
-      user: nil, errors: ["Not found"]) unless user
-
-    Result.new(success?: true, user:, errors: [])
-  end
-end`,
-		},
-		{
-			filename: 'config/credentials.yml.enc',
+			// Pseudo file: the actual `config/credentials.yml.enc` is
+			// encrypted gibberish on disk (not human-readable). What the
+			// player needs to see is the decrypted YAML they would write
+			// via `bin/rails credentials:edit`. The space in the filename
+			// flags this as a pedagogical view, not a real path.
+			filename: 'Credentials Entry (decrypted view)',
 			language: 'yaml',
-			code: `active_record_encryption:
-  primary_key: EGY8WhulUOXixybod7ZWwMIL68R9o5kC
-  deterministic_key: aPA5XyALhf75NNnMzaspW7akTfZp0lPY
-  key_derivation_salt: xEY0dt6TZcAMg52K7O84wYzkjvbA62Hz`,
+			code: `# Run: bin/rails credentials:edit
+# Rails decrypts config/credentials.yml.enc into your editor.
+# Add the active_record_encryption block, save, and Rails re-encrypts.
+
+active_record_encryption:
+  primary_key: <run \`bin/rails db:encryption:init\` to generate>
+  deterministic_key: <...>
+  key_derivation_salt: <...>`,
+		},
+		{
+			// Pseudo file: console examples showing how the bearer-token
+			// auth flow's lookup-by-email-address still works under
+			// deterministic encryption. The space in the filename flags
+			// this as pedagogical, not a real path.
+			filename: 'Rails console (lookup by encrypted attribute)',
+			language: 'ruby',
+			code: `# Deterministic encryption: same plaintext encrypts to the same
+# ciphertext, so find_by works as if the column were plaintext.
+User.find_by(email_address: "joe@example.com")
+# Active Record encrypts the query value with the same key, then
+# does a normal SQL equality match against the stored ciphertext.
+
+# Non-deterministic encryption (address): can decrypt on read but
+# cannot find_by — every save produces a different ciphertext.
+User.find_by(address: "123 Main St")
+# => returns nil even if a user has that address.`,
 		},
 	];
 }

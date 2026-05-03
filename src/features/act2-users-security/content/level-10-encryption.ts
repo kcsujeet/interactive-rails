@@ -10,28 +10,28 @@ export const level10Encryption: Level = {
 	trigger: {
 		type: 'security_audit',
 		description:
-			'GDPR audit flagged: user PII (emails, phone numbers, addresses) is stored in plaintext. Encrypt at rest immediately.',
+			'Pre-launch security review: every PII column on `users` (email_address, phone, address) is stored as plaintext. Anyone with DB access — a leaked backup, a misconfigured staging environment, a SQL injection — sees every customer. Encrypt at rest before the first signup.',
 	},
 	startingPipeline: standardPipeline({ modelLabel: 'User' }),
 	problem: {
 		observation:
-			'Security audit reveals user emails, phone numbers, and addresses are stored as plaintext in the database. A database breach would expose all PII. Email lookups must still work for login.',
+			'The User model has PII columns (email_address, phone, address) sitting unencrypted in PostgreSQL. Backups, replicas, DB admin access, or a SQL injection would all expose them in plaintext. Login still has to work via `User.authenticate_by(email_address:, password:)`, so any encryption has to keep email lookups working.',
 		rootCause:
-			'No encryption-at-rest for sensitive user attributes. Rails 8 provides built-in encryption via `encrypts` but it has not been configured.',
-		codeExample: `# AUDIT FINDING: Plaintext PII in database
-# SELECT email, phone, address FROM users LIMIT 1;
-# => "alice@example.com", "+1-555-0123", "123 Main St, NYC"
-
-# Anyone with database access sees everything!
-# A SQL injection or backup leak exposes all PII.
-
-# Rails 8 provides: encrypts
-# But we need TWO modes:
-#   - Deterministic: Same input -> same ciphertext (allows find_by)
-#   - Non-deterministic: Same input -> different ciphertext (more secure)
-
-# Email needs deterministic (for login lookups)
-# Phone/address need non-deterministic (no lookups needed)`,
+			'No encryption-at-rest for sensitive user attributes. Rails 8 provides built-in encryption via `encrypts`, but the keys have not been generated and the model has no `encrypts` declarations.',
+		codeExample: `# Right now: plaintext PII in the database.
+# psql -c "SELECT email_address, phone, address FROM users LIMIT 1;"
+# => "alice@example.com" | "+1-555-0123" | "123 Main St, NYC"
+#
+# Anyone with database access sees everything.
+# A leaked backup or SQL injection exposes every customer's identity.
+#
+# Rails 8 provides:  encrypts :column [, deterministic: true]
+#   - Deterministic: same plaintext -> same ciphertext (find_by works)
+#   - Non-deterministic: same plaintext -> different ciphertext (max security)
+#
+# email_address needs deterministic (login looks up by email).
+# phone needs deterministic if you ever search by phone, else non-deterministic.
+# address never needs lookup -> non-deterministic.`,
 		goal: 'Encrypt user PII at rest using Rails 8 built-in encryption. Choose the right encryption mode for each field based on whether it needs to be queryable.',
 		thresholds: {},
 	},
