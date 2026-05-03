@@ -57,9 +57,14 @@ If the answer to "what runtime behaviour does this level need to animate?" is "n
 
 Discovery gating belongs ONLY to Types 3 and 4. Do not add `useDiscoveryGating` / `ProbeTerminal` / `DiscoveryChecklist` to Type 1 or Type 2 levels.
 
-### 3. Cumulative patterns
+### 3. Cumulative patterns (and earned abstractions)
 
-Read `.agents/skills/audit-level/cumulative-patterns.md` before writing any player-visible text. Every architectural pattern established in earlier levels carries forward: service objects (L16+), Dry::Validation contracts (L18+), query objects (L19+), error shape (L20+), JSON:API serializers (L7+), strong params via `expect` (L14+), authentication via `Current.user` (L9+). Showing inline `render json:` at L40 contradicts what the player learned at L7.
+Read `.agents/skills/audit-level/cumulative-patterns.md` before writing any player-visible text. Two rules apply together:
+
+- **Cumulative patterns (looking backward).** Every architectural pattern established in earlier levels carries forward: service objects (L16+), Dry::Validation contracts (L18+), query objects (L19+), error shape (L20+), JSON:API serializers (L7+), strong params via `expect` (L14+), authentication via `Current.user` (L9+). Showing inline `render json:` at L40 contradicts what the player learned at L7.
+- **Earned abstractions (looking forward).** Do NOT use any structure or concept that a *later* level is supposed to introduce. If L48 teaches API versioning, levels before L48 must use `/api/products` (no `/v1/`). If L43 teaches soft deletes, earlier levels use `destroy`, not `discard`. Pre-baking the abstraction steals the lesson from the level that owns it. The `cumulative-patterns.md` § "earned-abstraction rule" has the canonical L48 case study (the curriculum used `/api/v1/products` for 41 levels before L48 was supposed to introduce versioning).
+
+Together: at level N, the curriculum's accumulated state is exactly what was earned by level N-1, no more, no less.
 
 ---
 

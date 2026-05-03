@@ -39,6 +39,27 @@ GOOD (trigger post-fix):  "Pre-launch security review: every PII column
                               curriculum state.
 ```
 
+### L48 API Versioning (fixed 2026-05-03)
+
+The structural sibling of the L10 issue. L10 was a *narrative* time-travel ("audit before deploy"). L48 was a *structural* time-travel: the curriculum had been using `/api/v1/products` since L6, so by the time the player reached L48 — the level that's supposed to introduce versioning — there was nothing left to teach. The "before" state already had v1.
+
+```
+BAD  (pre-fix):  L6 introduced `namespace :api do; namespace :v1 do; ...; end`
+                 → /api/v1/products from day one. 41 levels later, L48 says
+                 "now let's add versioning" — but it was already there. L48's
+                 own `wrong-single-namespace` foil presented the player's
+                 current state (`namespace :api do; resources :orders`) as
+                 the wrong answer.
+
+GOOD (post-fix): L6 introduces just `namespace :api do; resources :products`
+                 → /api/products. Pre-L48 levels stay un-versioned. L48
+                 wraps in v1 (refactor) and adds v2 (evolution). The "before"
+                 state at L48 is honest: it really is the curriculum's
+                 status quo.
+```
+
+The deeper rule (the *forward* version of cumulative-patterns) lives in [cumulative-patterns.md § The earned-abstraction rule](cumulative-patterns.md#the-earned-abstraction-rule-dont-pre-bake-what-a-later-level-teaches). When designing a new level, both rules apply together: every concept earlier levels established carries forward (cumulative-patterns) AND no concept a later level is supposed to introduce can appear early (earned-abstraction).
+
 ## Where to apply this check (every player-visible string)
 
 When auditing a level, scan every one of these surfaces for forbidden tropes:

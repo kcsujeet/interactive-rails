@@ -14,9 +14,9 @@ Before auditing or building any level, read this file and check: "Does the code 
 - **Pattern**: `rails new app_name --api --database=postgresql`
 - **Applies to**: All code assumes API-only mode (no views, no Turbo)
 
-### L5: RESTful Routes with API Namespace
-- **Pattern**: `namespace :api do; namespace :v1 do; resources :posts; end; end`
-- **Applies to**: All controller paths use `Api::V1::` prefix from this point on
+### L6: RESTful Routes with API Namespace
+- **Pattern**: `namespace :api do; resources :products; end` → `/api/products`
+- **Applies to**: All controller paths use `Api::` prefix from this point on. **Versioning is NOT introduced here** — that's L48's lesson. Pre-baking `namespace :v1` would steal from L48.
 
 ### L6: Controller JSON Rendering
 - **Pattern**: `render json: @posts` for responses, `params.require(:post).permit(:title, :body)` for input
@@ -87,7 +87,8 @@ class PostSearch < ApplicationService
 end
 
 # Controller (thin, delegates to service)
-class Api::V1::PostsController < ApplicationController
+# Pre-L48: `Api::PostsController`. Post-L48: `Api::V1::PostsController`.
+class Api::PostsController < ApplicationController
   def index
     result = PostSearch.call(query: params[:q])
     if result.success?
@@ -223,9 +224,10 @@ Patterns above track code conventions (service objects, contracts, serializers).
 - **Infrastructure**: WebhookEvent table, HMAC verification, idempotency
 - **Applies to**: Any level receiving webhooks must show the secure handler
 
-### L40+: API Versioning (v1 + v2 Namespaces)
-- **Infrastructure**: `/api/v1/` and `/api/v2/` routes, versioned controllers and serializers, deprecation headers
-- **Applies to**: Any level showing routes or controllers must show versioned namespaces
+### L48+: API Versioning (v1 + v2 Namespaces)
+- **Pre-L48**: routes are `namespace :api do; resources :products; end` → `/api/products`. Controllers are `Api::ProductsController`. **No version segment.**
+- **Post-L48**: routes wrap in `namespace :v1 do ... end` and add `namespace :v2 do ... end`. Controllers become `Api::V1::ProductsController` / `Api::V2::ProductsController`. Deprecation/Sunset headers ship with v1.
+- **Applies to**: Any level showing routes or controllers must use the form for the level it's at: pre-L48 → un-versioned, L48+ → versioned.
 
 ### L41+: Middleware Stack (Request ID, Logger, Bot Detection)
 - **Infrastructure**: RequestIdTracker, RequestLogger (structured JSON), BotDetector middleware
@@ -270,3 +272,65 @@ When auditing Level N:
 - No contract file shown when service validates input
 - "Before state" claims infrastructure does not exist when an earlier level built it (e.g., "no logging" after L41 added RequestLogger)
 - "Before state" ignores gems/tools from earlier levels in the same act
+
+---
+
+## The earned-abstraction rule (don't pre-bake what a later level teaches)
+
+The mirror image of the cumulative-patterns rule: **a level cannot use a structure that a LATER level is supposed to introduce.** Pre-baking the abstraction steals the lesson from the level that owns it.
+
+The shape of the bug:
+1. Level X is supposed to *introduce* a concept (versioning, soft deletes, query objects, the `Result` pattern, …).
+2. An earlier level Y already uses that concept "for completeness" or "to match best practice."
+3. By the time the player reaches level X, they've been working with the concept for N levels. The "before" state at X already has it. The "introduction" lesson is empty.
+
+The rule: **for every architectural concept, the level that introduces it owns its appearance. No earlier level uses it. No earlier level mentions it as established convention.**
+
+This rule is the *forward* version of the cumulative-patterns rule:
+- Cumulative-patterns (looking backward): "level N must use everything earlier levels established."
+- Earned-abstraction (looking forward): "level N must NOT use anything later levels are supposed to establish."
+
+Both rules together define the curriculum's accumulated state at level N: exactly what was earned by level N-1, no more, no less.
+
+### Case study: API versioning at L6 vs L48 (fixed 2026-05-03)
+
+```
+BAD  (pre-fix):  L6 (Routes) introduced
+                   namespace :api do
+                     namespace :v1 do
+                       resources :products
+                     end
+                   end
+                 → /api/v1/products from day one.
+                 L7-L47 used /api/v1/products everywhere.
+                 ↑ L48 (API Versioning) is supposed to TEACH versioning,
+                   but the player has been on /api/v1/* paths for 41 levels.
+                   The "before" state in L48 was a contradiction:
+                   problem code showed Api::OrdersController (no version),
+                   but the rest of the curriculum showed Api::V1::*. L48's
+                   step 1 (`wrong-single-namespace` foil) presented the
+                   player's own state as the wrong answer.
+
+GOOD (post-fix): L6 introduces just `namespace :api do; resources :products`
+                 → /api/products. No versioning.
+                 L7-L47 use /api/products.
+                 L48's "before" state IS /api/products. Build phase wraps
+                 in `namespace :v1 do` (refactor) and adds `namespace :v2`
+                 (evolution). Versioning is earned at L48.
+```
+
+The lesson didn't change. The structure used by levels before L48 changed — they no longer pre-bake what L48 teaches.
+
+### How to detect this during design and audit
+
+When designing or auditing level N:
+1. Identify the concept(s) the level teaches (the build phase's headline lesson).
+2. Grep the curriculum for that concept appearing in levels < N.
+3. If it appears, you have one of three problems:
+   - **The concept's introduction level is wrong.** Decide which level should own it.
+   - **The earlier level is wrong.** Strip the concept; it shouldn't be there.
+   - **The concept is taught implicitly twice.** Remove the duplicate; rely on the explicit teaching.
+
+When designing level N's "before" state:
+- Walk through the cumulative-patterns table for levels < N and apply each pattern. **STOP.**
+- Do NOT add structure for patterns introduced at level ≥ N. The player hasn't earned them.
