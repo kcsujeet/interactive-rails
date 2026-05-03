@@ -98,17 +98,17 @@ const PROBES: ProbeConfig[] = [
 		label: 'GET reviews',
 		story: [
 			'A customer wants to read reviews for a product before buying it.',
-			'The frontend sends GET /api/v1/products/1/reviews.',
+			'The frontend sends GET /api/products/1/reviews.',
 			'The router looks for a nested reviews route under products.',
 			'No nested routes exist. Products are defined in isolation.',
 			'The request returns a 404. There is no way to access reviews through the API.',
 		],
-		command: 'GET /api/v1/products/1/reviews',
+		command: 'GET /api/products/1/reviews',
 		responseLines: [
 			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'No route matches GET "/api/v1/products/1/reviews"',
+				text: 'No route matches GET "/api/products/1/reviews"',
 				color: 'yellow',
 			},
 			{
@@ -122,17 +122,17 @@ const PROBES: ProbeConfig[] = [
 		label: 'POST review',
 		story: [
 			'A customer finishes reading a product page and wants to leave a review.',
-			'They submit a POST to /api/v1/products/1/reviews with their feedback.',
+			'They submit a POST to /api/products/1/reviews with their feedback.',
 			'The router has no matching route for this path.',
 			'Beyond routing, no Review model exists in the application at all.',
 			'The request fails with a 404. Reviews cannot be created or stored.',
 		],
-		command: 'POST /api/v1/products/1/reviews (body: "Great laptop!")',
+		command: 'POST /api/products/1/reviews (body: "Great laptop!")',
 		responseLines: [
 			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'No route matches POST "/api/v1/products/1/reviews"',
+				text: 'No route matches POST "/api/products/1/reviews"',
 				color: 'yellow',
 			},
 			{
@@ -208,10 +208,8 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 			'Routes only define `resources :products`. There are no nested routes for reviews. Add `resources :reviews` inside the products block to create /products/:id/reviews.',
 		code: `# config/routes.rb
 namespace :api do
-  namespace :v1 do
-    resources :products
-    # No nested routes!
-  end
+  resources :products
+  # No nested routes!
 end`,
 	},
 	controller: {
@@ -258,7 +256,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Create review on product',
 		description: 'Add a new review through the association',
 		method: 'POST',
-		path: '/api/v1/products/1/reviews',
+		path: '/api/products/1/reviews',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
@@ -267,7 +265,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'List product reviews',
 		description: 'Fetch all reviews for a specific product',
 		method: 'GET',
-		path: '/api/v1/products/1/reviews',
+		path: '/api/products/1/reviews',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
@@ -276,7 +274,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Delete product (cascade)',
 		description: 'Delete a product and cascade-destroy its reviews',
 		method: 'DELETE',
-		path: '/api/v1/products/1',
+		path: '/api/products/1',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
@@ -285,7 +283,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Show product with reviews',
 		description: 'Fetch a product with its nested reviews',
 		method: 'GET',
-		path: '/api/v1/products/1',
+		path: '/api/products/1',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
@@ -294,7 +292,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Review on missing product',
 		description: 'Try to create a review on a non-existent product',
 		method: 'POST',
-		path: '/api/v1/products/999/reviews',
+		path: '/api/products/999/reviews',
 		actor: 'client',
 		expectedResult: 'blocked',
 	},

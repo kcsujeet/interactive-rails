@@ -69,7 +69,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'trending-first',
 		label: 'GET trending',
-		command: 'GET /api/v1/products/trending',
+		command: 'GET /api/products/trending',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'yellow' },
 			{ text: 'X-Runtime: 0.512', color: 'red' },
@@ -84,7 +84,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'trending-repeat',
 		label: 'GET trending (again)',
-		command: 'GET /api/v1/products/trending (same request, 5s later)',
+		command: 'GET /api/products/trending (same request, 5s later)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'yellow' },
 			{ text: 'X-Runtime: 0.508', color: 'red' },
@@ -314,7 +314,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET trending (cold)',
 		description: 'First request after cache expiration',
 		method: 'GET',
-		path: '/api/v1/products/trending',
+		path: '/api/products/trending',
 		actor: 'visitor',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -330,7 +330,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET trending (cached)',
 		description: 'Request served from warm cache',
 		method: 'GET',
-		path: '/api/v1/products/trending',
+		path: '/api/products/trending',
 		actor: 'visitor',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -343,7 +343,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET trending (second hit)',
 		description: 'Another visitor, same cached result',
 		method: 'GET',
-		path: '/api/v1/products/trending',
+		path: '/api/products/trending',
 		actor: 'another visitor',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -356,7 +356,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'POST review (touch)',
 		description: 'New review triggers touch: true',
 		method: 'POST',
-		path: '/api/v1/products/42/reviews',
+		path: '/api/products/42/reviews',
 		actor: 'user',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -372,7 +372,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET trending (after touch)',
 		description: 'Request after cache was invalidated',
 		method: 'GET',
-		path: '/api/v1/products/trending',
+		path: '/api/products/trending',
 		actor: 'visitor',
 		expectedResult: 'blocked',
 		responseLines: [

@@ -322,7 +322,7 @@ const PROBE_FRAMES: Record<string, AnimFrame[]> = {
 			edgeC: {
 				active: true,
 				reverse: false,
-				label: 'POST /api/v1/payments',
+				label: 'POST /api/payments',
 				dotColor: 'bg-cyan-500',
 			},
 			app: { label: 'Processing payment...', flash: 'idle', badge: null },
@@ -422,7 +422,7 @@ const PROBE_FRAMES: Record<string, AnimFrame[]> = {
 			edgeC: {
 				active: true,
 				reverse: false,
-				label: 'POST /api/v1/subscriptions',
+				label: 'POST /api/subscriptions',
 				dotColor: 'bg-cyan-500',
 			},
 			app: { label: 'Creating subscription...', flash: 'idle', badge: null },
@@ -525,7 +525,7 @@ const REWARD_FRAMES: Record<string, AnimFrame[]> = {
 			edgeC: {
 				active: true,
 				reverse: false,
-				label: 'POST /api/v1/payments',
+				label: 'POST /api/payments',
 				dotColor: 'bg-cyan-500',
 			},
 			app: { label: 'Processing payment...', flash: 'idle', badge: null },
@@ -629,7 +629,7 @@ const REWARD_FRAMES: Record<string, AnimFrame[]> = {
 			edgeC: {
 				active: true,
 				reverse: false,
-				label: 'POST /api/v1/subscriptions',
+				label: 'POST /api/subscriptions',
 				dotColor: 'bg-cyan-500',
 			},
 			app: { label: 'Creating subscription...', flash: 'idle', badge: null },

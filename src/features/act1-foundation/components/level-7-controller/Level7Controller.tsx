@@ -87,21 +87,21 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-index',
-		label: 'GET /api/v1/products',
+		label: 'GET /api/products',
 		story: [
 			'A customer opens the storefront and the app fetches the product catalog.',
-			'GET /api/v1/products hits the router, which matches it to products#index.',
-			'The router tries to instantiate Api::V1::ProductsController.',
+			'GET /api/products hits the router, which matches it to products#index.',
+			'The router tries to instantiate Api::ProductsController.',
 			'The controller file does not exist. Rails raises a NameError.',
 			'The request crashes with a 500. Routes work, but there is nothing behind them.',
 		],
-		command: 'GET /api/v1/products',
+		command: 'GET /api/products',
 		responseLines: [
 			{ text: 'Routing... matched products#index', color: 'green' },
 			{ text: 'HTTP/1.1 500 Internal Server Error', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'NameError: uninitialized constant Api::V1::ProductsController',
+				text: 'NameError: uninitialized constant Api::ProductsController',
 				color: 'red',
 			},
 			{
@@ -112,21 +112,21 @@ const PROBES: ProbeConfig[] = [
 	},
 	{
 		id: 'post-create',
-		label: 'POST /api/v1/products',
+		label: 'POST /api/products',
 		story: [
 			'A store admin submits a new product through the dashboard.',
-			'The form sends a POST with the product data to /api/v1/products.',
+			'The form sends a POST with the product data to /api/products.',
 			'The router matches it to products#create and tries to load the controller.',
-			'Same crash: Api::V1::ProductsController is not defined anywhere.',
+			'Same crash: Api::ProductsController is not defined anywhere.',
 			'The product is never saved. POST crashes with a 500 just like GET.',
 		],
-		command: 'POST /api/v1/products (body: {name: "Laptop Pro"})',
+		command: 'POST /api/products (body: {name: "Laptop Pro"})',
 		responseLines: [
 			{ text: 'Routing... matched products#create', color: 'green' },
 			{ text: 'HTTP/1.1 500 Internal Server Error', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'NameError: uninitialized constant Api::V1::ProductsController',
+				text: 'NameError: uninitialized constant Api::ProductsController',
 				color: 'red',
 			},
 			{
@@ -137,21 +137,21 @@ const PROBES: ProbeConfig[] = [
 	},
 	{
 		id: 'delete-destroy',
-		label: 'DELETE /api/v1/products/1',
+		label: 'DELETE /api/products/1',
 		story: [
 			'An admin removes a discontinued product from the catalog.',
-			'DELETE /api/v1/products/1 hits the router, which matches products#destroy.',
+			'DELETE /api/products/1 hits the router, which matches products#destroy.',
 			'Rails tries to load the controller class to handle the deletion.',
 			'NameError again. The controller does not exist for any action.',
 			'All 5 resourceful routes (index, show, create, update, destroy) are broken.',
 		],
-		command: 'DELETE /api/v1/products/1',
+		command: 'DELETE /api/products/1',
 		responseLines: [
 			{ text: 'Routing... matched products#destroy', color: 'green' },
 			{ text: 'HTTP/1.1 500 Internal Server Error', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'NameError: uninitialized constant Api::V1::ProductsController',
+				text: 'NameError: uninitialized constant Api::ProductsController',
 				color: 'red',
 			},
 			{
@@ -214,13 +214,11 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		stageId: 'router',
 		title: 'Router (Working)',
 		description:
-			'Routes are defined! resources :products under namespace :api/:v1 maps all 5 RESTful routes. But the controller they point to does not exist yet.',
+			'Routes are defined! resources :products under namespace :api maps all 5 RESTful routes. But the controller they point to does not exist yet.',
 		code: `# config/routes.rb
 Rails.application.routes.draw do
   namespace :api do
-    namespace :v1 do
-      resources :products
-    end
+    resources :products
   end
 end`,
 	},
@@ -228,8 +226,8 @@ end`,
 		stageId: 'controller',
 		title: 'Controller (Missing!)',
 		description:
-			'uninitialized constant Api::V1::ProductsController. The file app/controllers/api/v1/products_controller.rb does not exist. You need to generate it.',
-		code: `# app/controllers/api/v1/products_controller.rb
+			'uninitialized constant Api::ProductsController. The file app/controllers/api/products_controller.rb does not exist. You need to generate it.',
+		code: `# app/controllers/api/products_controller.rb
 # File not found!`,
 	},
 	model: {
@@ -260,46 +258,46 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'get-index',
-		label: 'GET /api/v1/products',
+		label: 'GET /api/products',
 		description: 'List all products',
 		method: 'GET',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
 	{
 		id: 'post-create',
-		label: 'POST /api/v1/products',
+		label: 'POST /api/products',
 		description: 'Create a new product',
 		method: 'POST',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
 	{
 		id: 'get-show',
-		label: 'GET /api/v1/products/1',
+		label: 'GET /api/products/1',
 		description: 'Show a single product',
 		method: 'GET',
-		path: '/api/v1/products/1',
+		path: '/api/products/1',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
 	{
 		id: 'patch-update',
-		label: 'PATCH /api/v1/products/1',
+		label: 'PATCH /api/products/1',
 		description: 'Update an existing product',
 		method: 'PATCH',
-		path: '/api/v1/products/1',
+		path: '/api/products/1',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
 	{
 		id: 'delete-destroy',
-		label: 'DELETE /api/v1/products/1',
+		label: 'DELETE /api/products/1',
 		description: 'Delete a product',
 		method: 'DELETE',
-		path: '/api/v1/products/1',
+		path: '/api/products/1',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
@@ -330,8 +328,8 @@ const generateCommands: TerminalCommand[] = [
 	},
 	{
 		id: 'correct',
-		label: 'rails generate controller Api::V1::Products',
-		command: 'rails generate controller Api::V1::Products',
+		label: 'rails generate controller Api::Products',
+		command: 'rails generate controller Api::Products',
 		correct: true,
 	},
 	{
@@ -346,12 +344,12 @@ const generateCommands: TerminalCommand[] = [
 
 const generateOutput: TerminalOutputLine[] = [
 	{
-		text: '      create  app/controllers/api/v1/products_controller.rb',
+		text: '      create  app/controllers/api/products_controller.rb',
 		color: 'green',
 	},
 	{ text: '      invoke  test_unit', color: 'muted' },
 	{
-		text: '      create    test/controllers/api/v1/products_controller_test.rb',
+		text: '      create    test/controllers/api/products_controller_test.rb',
 		color: 'muted',
 	},
 ];
@@ -363,16 +361,16 @@ const generateOutput: TerminalOutputLine[] = [
 const testCommands: TerminalCommand[] = [
 	{
 		id: 'wrong-browser',
-		label: 'open http://localhost:3000/api/v1/products',
-		command: 'open http://localhost:3000/api/v1/products',
+		label: 'open http://localhost:3000/api/products',
+		command: 'open http://localhost:3000/api/products',
 		correct: false,
 		feedback:
 			'Opening in a browser works for viewing HTML, but API endpoints return JSON. Use a command-line HTTP client to see headers and status codes.',
 	},
 	{
 		id: 'correct',
-		label: 'curl localhost:3000/api/v1/products',
-		command: 'curl localhost:3000/api/v1/products',
+		label: 'curl localhost:3000/api/products',
+		command: 'curl localhost:3000/api/products',
 		correct: true,
 	},
 	{
@@ -515,18 +513,16 @@ function getCodeFiles(
 			language: 'ruby',
 			code: `Rails.application.routes.draw do
   namespace :api do
-    namespace :v1 do
-      resources :products
-    end
+    resources :products
   end
 end`,
-			highlight: [2, 3, 4],
+			highlight: [2, 3],
 		});
 		files.push({
-			filename: 'app/controllers/api/v1/products_controller.rb',
+			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
 			code: `# File not found!
-# uninitialized constant Api::V1::ProductsController
+# uninitialized constant Api::ProductsController
 #
 # The router maps routes to this controller,
 # but the file does not exist yet.`,
@@ -538,7 +534,7 @@ end`,
 	// Build / reward: evolving code preview
 	if (completedStep === 0) {
 		files.push({
-			filename: 'app/controllers/api/v1/products_controller.rb',
+			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
 			code: `# Generate the controller first...`,
 			highlight: [],
@@ -563,9 +559,9 @@ end`,
 			: '';
 
 		files.push({
-			filename: 'app/controllers/api/v1/products_controller.rb',
+			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::ProductsController < ApplicationController
+			code: `class Api::ProductsController < ApplicationController
 ${actionCode}${privateSection}
 end`,
 			highlight: placedActions.map((_, i) => i * 3 + 2),
@@ -576,7 +572,7 @@ end`,
 		files.push({
 			filename: 'Test Results',
 			language: 'ruby',
-			code: `# curl localhost:3000/api/v1/products
+			code: `# curl localhost:3000/api/products
 # => 200 OK
 # []
 #
@@ -857,7 +853,7 @@ export function Level7Controller({ onComplete }: LevelComponentProps) {
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							In L6, you mapped 5 RESTful routes under /api/v1/products. But
+							In L6, you mapped 5 RESTful routes under /api/products. But
 							hitting any of those URLs returns a 500 error because the
 							controller class does not exist yet.
 						</p>
@@ -1049,7 +1045,7 @@ export function Level7Controller({ onComplete }: LevelComponentProps) {
 										{/* Controller skeleton */}
 										<div className="bg-card rounded-lg p-4 font-mono text-sm">
 											<div className="text-zinc-400">
-												class Api::V1::ProductsController {'<'}{' '}
+												class Api::ProductsController {'<'}{' '}
 												ApplicationController
 											</div>
 											{placedActions.map((action) => (

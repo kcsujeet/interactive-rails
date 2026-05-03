@@ -273,9 +273,9 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 
 	if (phase === 'intro') {
 		files.push({
-			filename: 'app/controllers/api/v1/registrations_controller.rb',
+			filename: 'app/controllers/api/registrations_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::RegistrationsController < ApplicationController
+			code: `class Api::RegistrationsController < ApplicationController
   def create
     @user = User.new(registration_params)
 
@@ -333,9 +333,9 @@ end`,
 	// Step 0: fat controller (choosing extraction pattern)
 	if (furthestStep === 0) {
 		files.push({
-			filename: 'app/controllers/api/v1/registrations_controller.rb',
+			filename: 'app/controllers/api/registrations_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::RegistrationsController < ApplicationController
+			code: `class Api::RegistrationsController < ApplicationController
   def create
     @user = User.new(registration_params)
 
@@ -534,9 +534,9 @@ end`,
 			highlight: [2],
 		});
 		files.push({
-			filename: 'app/controllers/api/v1/registrations_controller.rb',
+			filename: 'app/controllers/api/registrations_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::RegistrationsController < ApplicationController
+			code: `class Api::RegistrationsController < ApplicationController
   def create
     result = UserRegistration.call(registration_params)
 

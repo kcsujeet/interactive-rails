@@ -23,8 +23,7 @@ const PROBES = [
 	{
 		id: 'slow-stripe',
 		label: 'POST create payment (slow response)',
-		command:
-			'curl -X POST localhost:3000/api/v1/payments -d \'{"amount": 5000}\'',
+		command: 'curl -X POST localhost:3000/api/payments -d \'{"amount": 5000}\'',
 		responseLines: [
 			{ text: '# Waiting... 10s... 20s... 30s...', color: 'yellow' },
 			{
@@ -41,7 +40,7 @@ const PROBES = [
 	{
 		id: 'stripe-503',
 		label: 'GET check payment status (Stripe 503)',
-		command: 'curl localhost:3000/api/v1/payments/ch_abc/status',
+		command: 'curl localhost:3000/api/payments/ch_abc/status',
 		responseLines: [
 			{ text: '503 Service Unavailable', color: 'red' },
 			{
@@ -62,7 +61,7 @@ const PROBES = [
 		id: 'stripe-down',
 		label: 'Black Friday traffic (Stripe outage)',
 		command:
-			'for i in {1..50}; do curl -X POST localhost:3000/api/v1/payments; done',
+			'for i in {1..50}; do curl -X POST localhost:3000/api/payments; done',
 		responseLines: [
 			{
 				text: '# 50 concurrent checkout requests during Stripe outage',
@@ -245,11 +244,11 @@ const STRESS_SCENARIOS = [
 		label: 'POST create payment (with timeout)',
 		description: 'Same slow Stripe, but timeout kills it at 10s',
 		method: 'POST',
-		path: '/api/v1/payments',
+		path: '/api/payments',
 		actor: 'customer',
 		expectedResult: 'blocked' as const,
 		responseLines: [
-			{ text: 'POST /api/v1/payments -> Stripe API', color: 'cyan' },
+			{ text: 'POST /api/payments -> Stripe API', color: 'cyan' },
 			{ text: 'Timeout: 10s limit reached!', color: 'yellow' },
 			{ text: 'Thread freed after 10s (was 30s before)', color: 'green' },
 			{ text: '503 - { "error": { "code": "TIMEOUT" } }', color: 'red' },
@@ -260,12 +259,12 @@ const STRESS_SCENARIOS = [
 		label: 'GET check payment status (with retry)',
 		description: 'Same 503, but retry middleware handles it',
 		method: 'GET',
-		path: '/api/v1/payments/ch_abc/status',
+		path: '/api/payments/ch_abc/status',
 		actor: 'customer',
 		expectedResult: 'allowed' as const,
 		responseLines: [
 			{
-				text: 'GET /api/v1/payments/ch_abc/status -> Stripe API',
+				text: 'GET /api/payments/ch_abc/status -> Stripe API',
 				color: 'cyan',
 			},
 			{ text: 'Attempt 1: 503 Service Unavailable', color: 'yellow' },
@@ -278,11 +277,11 @@ const STRESS_SCENARIOS = [
 		label: 'Black Friday traffic (with circuit breaker)',
 		description: 'Same outage, but circuit breaker protects the app',
 		method: 'POST',
-		path: '/api/v1/payments',
+		path: '/api/payments',
 		actor: 'customer',
 		expectedResult: 'blocked' as const,
 		responseLines: [
-			{ text: 'POST /api/v1/payments -> Circuit breaker', color: 'cyan' },
+			{ text: 'POST /api/payments -> Circuit breaker', color: 'cyan' },
 			{ text: 'Stoplight: circuit OPEN (5 failures)', color: 'red' },
 			{ text: 'Fail-fast: 2ms (was 30s before!)', color: 'green' },
 			{ text: '503 - { "error": { "code": "CIRCUIT_OPEN" } }', color: 'red' },
@@ -293,11 +292,11 @@ const STRESS_SCENARIOS = [
 		label: 'POST charge (fast response)',
 		description: 'Stripe responds in 200ms, all middleware passes through',
 		method: 'POST',
-		path: '/api/v1/payments',
+		path: '/api/payments',
 		actor: 'customer',
 		expectedResult: 'allowed' as const,
 		responseLines: [
-			{ text: 'POST /api/v1/payments -> Stripe API', color: 'cyan' },
+			{ text: 'POST /api/payments -> Stripe API', color: 'cyan' },
 			{ text: 'Timeout: 200ms (within 10s limit)', color: 'green' },
 			{ text: 'Circuit breaker: CLOSED (healthy)', color: 'green' },
 			{ text: '200 OK - Payment ch_abc123 created', color: 'green' },
@@ -308,11 +307,11 @@ const STRESS_SCENARIOS = [
 		label: 'POST charge (400 bad params)',
 		description: 'Client error, circuit breaker ignores it',
 		method: 'POST',
-		path: '/api/v1/payments',
+		path: '/api/payments',
 		actor: 'customer',
 		expectedResult: 'blocked' as const,
 		responseLines: [
-			{ text: 'POST /api/v1/payments -> Stripe API', color: 'cyan' },
+			{ text: 'POST /api/payments -> Stripe API', color: 'cyan' },
 			{ text: 'Stripe: 400 Bad Request (missing amount)', color: 'red' },
 			{ text: 'Circuit breaker: NOT counted (client error)', color: 'green' },
 			{ text: '400 - { "error": { "code": "VALIDATION" } }', color: 'red' },

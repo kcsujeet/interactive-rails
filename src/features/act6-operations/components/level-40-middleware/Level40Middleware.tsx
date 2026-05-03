@@ -155,7 +155,7 @@ const PROBES = [
 	{
 		id: 'error-no-trace',
 		label: 'Customer reports 500 error (no request ID)',
-		command: 'curl localhost:3000/api/v1/orders/999',
+		command: 'curl localhost:3000/api/orders/999',
 		responseLines: [
 			{ text: '500 Internal Server Error', color: 'red' as const },
 			{ text: '# No X-Request-Id header in response', color: 'red' as const },
@@ -178,10 +178,10 @@ const PROBES = [
 	{
 		id: 'bot-scrape',
 		label: 'Bot scrapes product catalog (undetected)',
-		command: 'for i in {1..1000}; do curl localhost:3000/api/v1/products; done',
+		command: 'for i in {1..1000}; do curl localhost:3000/api/products; done',
 		responseLines: [
 			{
-				text: '# 1000 GET /api/v1/products from same user-agent',
+				text: '# 1000 GET /api/products from same user-agent',
 				color: 'yellow' as const,
 			},
 			{ text: '200 OK (x1000)', color: 'green' as const },
@@ -192,7 +192,7 @@ const PROBES = [
 			},
 		],
 		story: [
-			'A scraper bot hits GET /api/v1/products 1000 times.',
+			'A scraper bot hits GET /api/products 1000 times.',
 			'Every request passes straight through to Rails.',
 			'No middleware inspects the User-Agent or request pattern.',
 			'The bot downloads your entire product catalog undetected.',
@@ -204,7 +204,7 @@ const PROBES = [
 		command: 'tail -f log/production.log | grep "duration"',
 		responseLines: [
 			{ text: '# Rails default log:', color: 'cyan' as const },
-			{ text: 'Started GET "/api/v1/orders"', color: 'muted' as const },
+			{ text: 'Started GET "/api/orders"', color: 'muted' as const },
 			{ text: 'Completed 200 OK in 245ms', color: 'muted' as const },
 			{
 				text: '# No request_id, no user_id, no structured data',
@@ -235,7 +235,7 @@ const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 const PROBE_FRAMES: Record<string, AnimFrame[]> = {
 	'error-no-trace': [
 		{
-			client: { label: 'POST /api/v1/checkout', flash: 'idle' },
+			client: { label: 'POST /api/checkout', flash: 'idle' },
 			edge1: {
 				active: true,
 				reverse: false,
@@ -316,7 +316,7 @@ const PROBE_FRAMES: Record<string, AnimFrame[]> = {
 	],
 	'debug-no-logs': [
 		{
-			client: { label: 'GET /api/v1/orders', flash: 'idle' },
+			client: { label: 'GET /api/orders', flash: 'idle' },
 			edge1: {
 				active: true,
 				reverse: false,
@@ -365,7 +365,7 @@ const PROBE_FRAMES: Record<string, AnimFrame[]> = {
 const REWARD_FRAMES: Record<string, AnimFrame[]> = {
 	'error-no-trace': [
 		{
-			client: { label: 'POST /api/v1/checkout', flash: 'idle' },
+			client: { label: 'POST /api/checkout', flash: 'idle' },
 			edge1: {
 				active: true,
 				reverse: false,
@@ -451,7 +451,7 @@ const REWARD_FRAMES: Record<string, AnimFrame[]> = {
 	],
 	'debug-no-logs': [
 		{
-			client: { label: 'GET /api/v1/orders', flash: 'idle' },
+			client: { label: 'GET /api/orders', flash: 'idle' },
 			edge1: {
 				active: true,
 				reverse: false,
@@ -882,7 +882,7 @@ const STRESS_SCENARIOS = [
 		label: 'Customer reports 500 error (with request ID)',
 		description: 'Error response includes X-Request-Id for tracing',
 		method: 'POST' as const,
-		path: '/api/v1/checkout',
+		path: '/api/checkout',
 		actor: 'customer',
 		expectedResult: 'allowed' as const,
 		responseLines: [
@@ -902,7 +902,7 @@ const STRESS_SCENARIOS = [
 		label: 'Bot scrapes products (blocked by middleware)',
 		description: 'Bot detected and rejected at middleware layer with 403',
 		method: 'GET' as const,
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'bot',
 		expectedResult: 'blocked' as const,
 		responseLines: [
@@ -923,13 +923,13 @@ const STRESS_SCENARIOS = [
 		description:
 			'Request logged with method, path, status, duration, request_id',
 		method: 'GET' as const,
-		path: '/api/v1/orders',
+		path: '/api/orders',
 		actor: 'developer',
 		expectedResult: 'allowed' as const,
 		responseLines: [
 			{ text: '200 OK', color: 'green' },
 			{
-				text: '{"method":"GET","path":"/api/v1/orders","status":200,"duration_ms":245,"request_id":"abc-456"}',
+				text: '{"method":"GET","path":"/api/orders","status":200,"duration_ms":245,"request_id":"abc-456"}',
 				color: 'green',
 			},
 		],

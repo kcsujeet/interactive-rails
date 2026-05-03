@@ -4,7 +4,7 @@ export const PROBES: ProbeConfig[] = [
 	{
 		id: 'signup-messy',
 		label: 'POST signup with messy email',
-		command: 'POST /api/v1/users (email: "  JOE@GMAIL.COM  ")',
+		command: 'POST /api/users (email: "  JOE@GMAIL.COM  ")',
 		responseLines: [
 			{ text: 'HTTP/1.1 201 Created', color: 'red' },
 			{ text: '', color: 'muted' },

@@ -94,7 +94,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'delete-nonowner',
 		label: 'DELETE as non-owner',
-		command: 'DELETE /api/v1/products/42 (as user_7, not the owner)',
+		command: 'DELETE /api/products/42 (as user_7, not the owner)',
 		responseLines: [
 			{ text: 'HTTP/1.1 204 No Content', color: 'red' },
 			{ text: '', color: 'muted' },
@@ -117,7 +117,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-drafts',
 		label: 'GET drafts as stranger',
-		command: 'GET /api/v1/products (as visitor, no auth)',
+		command: 'GET /api/products (as visitor, no auth)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
 			{
@@ -147,7 +147,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'patch-nonowner',
 		label: 'PATCH as non-owner',
-		command: 'PATCH /api/v1/products/42 (as user_7, body: {title: "Hacked"})',
+		command: 'PATCH /api/products/42 (as user_7, body: {title: "Hacked"})',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
 			{
@@ -248,7 +248,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Owner edits own product',
 		description: 'Product owner updates their own content',
 		method: 'PATCH',
-		path: '/api/v1/products/42',
+		path: '/api/products/42',
 		actor: 'owner (user_3)',
 		expectedResult: 'allowed',
 	},
@@ -257,7 +257,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Admin deletes flagged product',
 		description: 'Admin removes a flagged product',
 		method: 'DELETE',
-		path: '/api/v1/products/99',
+		path: '/api/products/99',
 		actor: 'admin',
 		expectedResult: 'allowed',
 	},
@@ -266,7 +266,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Stranger deletes product',
 		description: "Random user tries to delete another user's product",
 		method: 'DELETE',
-		path: '/api/v1/products/42',
+		path: '/api/products/42',
 		actor: 'stranger (user_7)',
 		expectedResult: 'blocked',
 	},
@@ -275,7 +275,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Stranger updates product',
 		description: "Random user tries to edit another user's product",
 		method: 'PATCH',
-		path: '/api/v1/products/42',
+		path: '/api/products/42',
 		actor: 'stranger (user_7)',
 		expectedResult: 'blocked',
 	},
@@ -284,7 +284,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Visitor sees published only',
 		description: 'Unauthenticated visitor views the index',
 		method: 'GET',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'visitor (no auth)',
 		expectedResult: 'allowed',
 	},
@@ -594,9 +594,9 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 	// Observe phase: show the unprotected controller
 	if (phase === 'observe') {
 		files.push({
-			filename: 'app/controllers/api/v1/products_controller.rb',
+			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::ProductsController < ApplicationController
+			code: `class Api::ProductsController < ApplicationController
   def destroy
     product = Product.find(params[:id])
     product.destroy  # Any user can delete ANY product!
@@ -620,9 +620,9 @@ end`,
 
 	if (furthestStep === 0) {
 		files.push({
-			filename: 'app/controllers/api/v1/products_controller.rb',
+			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::ProductsController < ApplicationController
+			code: `class Api::ProductsController < ApplicationController
   def destroy
     product = Product.find(params[:id])
     product.destroy  # Any user can delete ANY product!
@@ -763,11 +763,11 @@ end`,
 	if (furthestStep >= 6) {
 		// After step 5: controller with authorize
 		files.push({
-			filename: 'app/controllers/api/v1/products_controller.rb',
+			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
 			code:
 				furthestStep >= 7
-					? `class Api::V1::ProductsController < ApplicationController
+					? `class Api::ProductsController < ApplicationController
   def index
     products = policy_scope(Product)
     render json: ProductSerializer.new(products)
@@ -780,7 +780,7 @@ end`,
     head :no_content
   end
 end`
-					: `class Api::V1::ProductsController < ApplicationController
+					: `class Api::ProductsController < ApplicationController
   def destroy
     product = Product.find(params[:id])
     authorize product

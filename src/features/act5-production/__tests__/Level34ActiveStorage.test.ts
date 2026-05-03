@@ -34,7 +34,7 @@ const PROBES = [
 	{
 		id: 'upload-photo',
 		label: 'Upload 5MB profile photo',
-		command: 'curl -X POST /api/v1/users/1/avatar -F "file=@photo.jpg"',
+		command: 'curl -X POST /api/users/1/avatar -F "file=@photo.jpg"',
 		responseLines: [
 			{ text: 'Uploading 5MB through Rails process...', color: 'yellow' },
 			{ text: 'Memory: 45MB -> 95MB (+50MB buffering file!)', color: 'red' },
@@ -48,7 +48,7 @@ const PROBES = [
 	{
 		id: 'request-avatar',
 		label: 'Download user avatar',
-		command: 'curl GET /api/v1/users/1/avatar',
+		command: 'curl GET /api/users/1/avatar',
 		responseLines: [
 			{ text: 'send_file user.avatar_path', color: 'yellow' },
 			{ text: 'Entire 5MB read from disk, streamed to client', color: 'red' },
@@ -62,7 +62,7 @@ const PROBES = [
 	{
 		id: 'list-avatars',
 		label: 'List users with avatars',
-		command: 'curl GET /api/v1/users?per_page=25',
+		command: 'curl GET /api/users?per_page=25',
 		responseLines: [
 			{ text: 'Rendering 25 users with avatar URLs...', color: 'yellow' },
 			{ text: 'Each avatar: full 5MB original, no variants!', color: 'red' },
@@ -398,7 +398,7 @@ const CODE_PREVIEW_FILES: Record<
 	],
 	5: [
 		{
-			filename: 'app/controllers/api/v1/direct_uploads_controller.rb',
+			filename: 'app/controllers/api/direct_uploads_controller.rb',
 			containsSnippet: 'create_before_direct_upload!',
 		},
 		{

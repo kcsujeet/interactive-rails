@@ -91,7 +91,7 @@ export const level14Testing: Level = {
 # renamed the 'token' column to 'auth_token'
 # but forgot to update the sessions controller:
 
-class Api::V1::SessionsController < ApplicationController
+class Api::SessionsController < ApplicationController
   def create
     user = User.authenticate_by(
       email: params[:email], password: params[:password]
@@ -104,7 +104,7 @@ class Api::V1::SessionsController < ApplicationController
   end
 end
 
-# A request spec hitting POST /api/v1/sessions
+# A request spec hitting POST /api/sessions
 # would have caught this before deploy.`,
 		goal: 'Set up a testing framework with test data factories, define a user factory, and write a request spec for the sessions endpoint.',
 		thresholds: {},
@@ -182,7 +182,7 @@ With Active Job test adapter, every \`perform_later\` call enqueues into an arra
 
 \`\`\`ruby
 expect {
-  post "/api/v1/users", params: { user: { email: "a@b.com" } }
+  post "/api/users", params: { user: { email: "a@b.com" } }
 }.to have_enqueued_job(WelcomeEmailJob).with(User.last.id)
 
 # Run the queued jobs inline when you need to assert their effects
@@ -254,26 +254,26 @@ FactoryBot.define do
   end
 end
 
-# spec/requests/api/v1/products_spec.rb
+# spec/requests/api/products_spec.rb
 RSpec.describe "Products API", type: :request do
   let(:user) { create(:user) }
   let(:token) { user.sessions.create!.token }
   let(:headers) { { "Authorization" => "Bearer #{token}" } }
 
-  describe "GET /api/v1/products" do
+  describe "GET /api/products" do
     it "returns active products" do
       create_list(:product, 3, user: user)
       create(:product, :draft, user: user)
 
-      get "/api/v1/products", headers: headers
+      get "/api/products", headers: headers
       expect(response).to have_http_status(:ok)
       expect(json_response.length).to eq(3)
     end
   end
 
-  describe "POST /api/v1/products" do
+  describe "POST /api/products" do
     it "creates a product with valid params" do
-      post "/api/v1/products",
+      post "/api/products",
            params: { product: { name: "Laptop", description: "16-inch display", price: 999.99 } },
            headers: headers
       expect(response).to have_http_status(:created)
@@ -281,7 +281,7 @@ RSpec.describe "Products API", type: :request do
     end
 
     it "returns 422 with invalid params" do
-      post "/api/v1/products",
+      post "/api/products",
            params: { product: { name: "", price: -1 } },
            headers: headers
       expect(response).to have_http_status(:unprocessable_entity)
@@ -289,15 +289,15 @@ RSpec.describe "Products API", type: :request do
     end
 
     it "returns 401 without authentication" do
-      post "/api/v1/products", params: { product: { name: "Laptop", price: 999 } }
+      post "/api/products", params: { product: { name: "Laptop", price: 999 } }
       expect(response).to have_http_status(:unauthorized)
     end
   end
 
-  describe "PATCH /api/v1/products/:id" do
+  describe "PATCH /api/products/:id" do
     it "forbids updating another user's product" do
       other_product = create(:product)  # belongs to another user
-      patch "/api/v1/products/#{other_product.id}",
+      patch "/api/products/#{other_product.id}",
             params: { product: { name: "Hacked" } },
             headers: headers
       expect(response).to have_http_status(:forbidden)

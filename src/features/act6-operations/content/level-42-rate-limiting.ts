@@ -19,16 +19,16 @@ export const level42RateLimiting: Level = {
 		rootCause:
 			'No rate limiting at any level. Every request hits the full stack regardless of origin or frequency.',
 		codeExample: `# Server logs show the attack:
-# 10.0.0.42 - POST /api/v1/sessions - 200 - 2ms
-# 10.0.0.42 - POST /api/v1/sessions - 200 - 3ms
-# 10.0.0.42 - POST /api/v1/sessions - 200 - 5ms
+# 10.0.0.42 - POST /api/sessions - 200 - 2ms
+# 10.0.0.42 - POST /api/sessions - 200 - 3ms
+# 10.0.0.42 - POST /api/sessions - 200 - 5ms
 # ... (10,000 per second)
 
 # Meanwhile, real users:
-# 203.0.113.5 - GET /api/v1/products - 504 Gateway Timeout
+# 203.0.113.5 - GET /api/products - 504 Gateway Timeout
 
 # Rails 8 has a built-in rate_limit macro:
-module Api::V1
+module Api
   class SessionsController < Api::BaseController
     rate_limit to: 10, within: 3.minutes, only: :create
     # But we also need IP-level and user-level throttling
@@ -102,15 +102,15 @@ class SessionsController < ApplicationController
     with: -> { render json: { error: "Too many login attempts. Try again later." }, status: :too_many_requests }
 end
 
-# app/controllers/api/v1/products_controller.rb
-class Api::V1::ProductsController < ApplicationController
+# app/controllers/api/products_controller.rb
+class Api::ProductsController < ApplicationController
   # 100 requests per minute per user
   rate_limit to: 100, within: 1.minute, only: [:index, :show],
     by: -> { current_user&.id || request.remote_ip }
 end
 
-# app/controllers/api/v1/password_resets_controller.rb
-class Api::V1::PasswordResetsController < ApplicationController
+# app/controllers/api/password_resets_controller.rb
+class Api::PasswordResetsController < ApplicationController
   # 3 password resets per hour per IP
   rate_limit to: 3, within: 1.hour, only: :create,
     by: -> { request.remote_ip }
@@ -129,12 +129,12 @@ class Rack::Attack
 
   # Strict login throttle
   throttle("logins/ip", limit: 5, period: 20.seconds) do |req|
-    req.ip if req.path == "/api/v1/sessions" && req.post?
+    req.ip if req.path == "/api/sessions" && req.post?
   end
 
   # Throttle password resets by email
   throttle("password_resets/email", limit: 3, period: 1.hour) do |req|
-    if req.path == "/api/v1/password_resets" && req.post?
+    if req.path == "/api/password_resets" && req.post?
       req.params.dig("email")&.downcase
     end
   end
@@ -147,7 +147,7 @@ class Rack::Attack
   # Blocklist repeat offenders
   blocklist("block repeat offenders") do |req|
     Rack::Attack::Allow2Ban.filter(req.ip, maxretry: 20, findtime: 1.minute, bantime: 1.hour) do
-      req.path == "/api/v1/sessions" && req.post?
+      req.path == "/api/sessions" && req.post?
     end
   end
 
@@ -178,10 +178,10 @@ config.middleware.use Rack::Attack
 class SessionsControllerTest < ActionDispatch::IntegrationTest
   test "rate limits login attempts to 10 per 3 minutes" do
     10.times do
-      post api_v1_sessions_path, params: { email: "user@test.com", password: "wrong" }
+      post api_sessions_path, params: { email: "user@test.com", password: "wrong" }
     end
 
-    post api_v1_sessions_path, params: { email: "user@test.com", password: "wrong" }
+    post api_sessions_path, params: { email: "user@test.com", password: "wrong" }
     assert_response :too_many_requests
     assert_includes response.parsed_body["error"], "Too many login attempts"
   end
@@ -196,7 +196,7 @@ class RackAttackTest < ActionDispatch::IntegrationTest
 
   test "throttles excessive requests from single IP" do
     301.times do
-      get api_v1_products_path, headers: { "REMOTE_ADDR" => "1.2.3.4" }
+      get api_products_path, headers: { "REMOTE_ADDR" => "1.2.3.4" }
     end
 
     assert_response 429

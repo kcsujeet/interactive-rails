@@ -387,7 +387,7 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 end
 
 # Same logic copy-pasted in:
-# app/controllers/api/v1/products_controller.rb
+# app/controllers/api/products_controller.rb
 # app/jobs/csv_export_job.rb`,
 			highlight: [5, 6, 9, 10, 13, 14, 17, 18, 19, 20, 21, 24, 25, 26],
 		});

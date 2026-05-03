@@ -20,7 +20,7 @@ export const level41CORS: Level = {
 		rootCause:
 			'curl sends requests directly, so CORS never mattered until now. Browsers enforce the Same-Origin Policy, blocking requests between different origins (ports count). The API must explicitly allow the frontend origin with CORS headers.',
 		codeExample: `# Browser console:
-# "Access to XMLHttpRequest at 'http://localhost:3000/api/v1/products'
+# "Access to XMLHttpRequest at 'http://localhost:3000/api/products'
 #  from origin 'http://localhost:3001' has been blocked by CORS policy"
 
 # The React frontend runs on port 3001

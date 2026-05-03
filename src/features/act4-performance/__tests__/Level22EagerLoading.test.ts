@@ -260,7 +260,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Products with users (includes)',
 		description: 'Load 100 products with user names',
 		method: 'GET',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'includes(:user)',
 		expectedResult: 'allowed',
 	},
@@ -269,7 +269,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Products with nested reviews',
 		description: 'Load products with reviews and their users',
 		method: 'GET',
-		path: '/api/v1/products?include=reviews',
+		path: '/api/products?include=reviews',
 		actor: 'includes(reviews: :user)',
 		expectedResult: 'allowed',
 	},
@@ -278,7 +278,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Filtered by active tags',
 		description: 'Load products filtered by association column',
 		method: 'GET',
-		path: '/api/v1/products?tag=active',
+		path: '/api/products?tag=active',
 		actor: 'eager_load(:tags)',
 		expectedResult: 'allowed',
 	},
@@ -287,7 +287,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Products without eager loading',
 		description: 'Forgot to add includes, N+1 detected',
 		method: 'GET',
-		path: '/api/v1/admin/products',
+		path: '/api/admin/products',
 		actor: 'Product.all (no includes)',
 		expectedResult: 'blocked',
 	},
@@ -296,7 +296,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Using joins (common mistake)',
 		description: 'joins does NOT load associations into memory',
 		method: 'GET',
-		path: '/api/v1/products?admin=true',
+		path: '/api/products?admin=true',
 		actor: 'Product.joins(:user)',
 		expectedResult: 'blocked',
 	},
@@ -615,14 +615,14 @@ describe('Level 24: Eager Loading', () => {
 			expect(strategies.some((s) => s.includes('eager_load'))).toBe(true);
 		});
 
-		test('observe and reward both cover /api/v1/ endpoints', () => {
+		test('observe and reward both cover /api/ endpoints', () => {
 			// Observe probes reference Product queries
 			const probeCommands = PROBES.map((p) => p.command);
 			expect(probeCommands.some((c) => c.includes('Product'))).toBe(true);
 
-			// Reward scenarios all hit /api/v1/ endpoints with products
+			// Reward scenarios all hit /api/ endpoints with products
 			for (const scenario of STRESS_SCENARIOS) {
-				expect(scenario.path).toContain('/api/v1/');
+				expect(scenario.path).toContain('/api/');
 				expect(scenario.path).toContain('products');
 			}
 		});

@@ -18,7 +18,7 @@ const PROBES = [
 	{
 		id: 'csv-export',
 		label: 'CSV Export',
-		command: 'GET /api/v1/users/export.csv (as admin)',
+		command: 'GET /api/users/export.csv (as admin)',
 		responseLines: [
 			{ text: 'SELECT * FROM users;', color: 'yellow' },
 			{ text: '-- 30 columns loaded, only 2 needed (id, email)', color: 'red' },
@@ -30,7 +30,7 @@ const PROBES = [
 	{
 		id: 'dropdown-api',
 		label: 'Dropdown',
-		command: 'GET /api/v1/categories/options (as frontend)',
+		command: 'GET /api/categories/options (as frontend)',
 		responseLines: [
 			{ text: 'categories = Category.all', color: 'yellow' },
 			{ text: 'categories.map { |c| [c.id, c.name] }', color: 'yellow' },
@@ -175,7 +175,7 @@ const STRESS_SCENARIOS = [
 		label: 'CSV Export',
 		description: 'pluck(:id, :email) returns plain arrays',
 		method: 'GET',
-		path: '/api/v1/users/export.csv',
+		path: '/api/users/export.csv',
 		actor: 'admin',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -189,7 +189,7 @@ const STRESS_SCENARIOS = [
 		label: 'Dropdown',
 		description: 'pluck(:id, :name) returns key-value pairs',
 		method: 'GET',
-		path: '/api/v1/categories/options',
+		path: '/api/categories/options',
 		actor: 'frontend',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -206,7 +206,7 @@ const STRESS_SCENARIOS = [
 		label: 'API Response',
 		description: 'select(:id, :first_name, :last_name) for model methods',
 		method: 'GET',
-		path: '/api/v1/users',
+		path: '/api/users',
 		actor: 'client',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -234,7 +234,7 @@ const STRESS_SCENARIOS = [
 		label: 'Wide Fetch',
 		description: 'User.all loads all 30 columns for 50K records',
 		method: 'GET',
-		path: '/api/v1/users/all',
+		path: '/api/users/all',
 		actor: 'legacy_client',
 		expectedResult: 'blocked',
 		responseLines: [

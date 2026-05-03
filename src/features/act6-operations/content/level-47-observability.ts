@@ -55,7 +55,7 @@ Log output:
 **With structured logging + APM:**
 \`\`\`
 Lograge JSON output:
-  {"method":"GET","path":"/api/v1/orders","status":200,
+  {"method":"GET","path":"/api/orders","status":200,
    "duration":45.2,"user_id":42,"company_id":7,"request_id":"abc-123"}
 -> Searchable by any field. Correlatable across services via request_id.
 \`\`\`
@@ -117,7 +117,7 @@ config.lograge.custom_payload do |controller|
 end
 
 # Output:
-# {"method":"GET","path":"/api/v1/orders","status":200,
+# {"method":"GET","path":"/api/orders","status":200,
 #  "duration":45.2,"user_id":42,"company_id":7,"request_id":"abc-123"}
 
 # OpenTelemetry for distributed tracing

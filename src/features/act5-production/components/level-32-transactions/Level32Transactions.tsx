@@ -399,7 +399,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'POST boost (50 credits, valid)',
 		description: 'Boost a product with sufficient credits',
 		method: 'POST',
-		path: '/api/v1/boosts',
+		path: '/api/boosts',
 		actor: 'authenticated user',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -416,7 +416,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'POST boost (30 credits, discount)',
 		description: 'Boost with promotional discount applied',
 		method: 'POST',
-		path: '/api/v1/boosts',
+		path: '/api/boosts',
 		actor: 'user with promo',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -432,7 +432,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'POST boost (Boost.create! fails)',
 		description: 'Boost creation fails mid-transaction, triggering rollback',
 		method: 'POST',
-		path: '/api/v1/boosts',
+		path: '/api/boosts',
 		actor: 'authenticated user',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -453,7 +453,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		description:
 			'Credit log creation fails mid-transaction, entire operation rolled back',
 		method: 'POST',
-		path: '/api/v1/boosts',
+		path: '/api/boosts',
 		actor: 'authenticated user',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -473,7 +473,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'POST boost (-5 credits, invalid)',
 		description: 'Negative cost rejected by contract validation',
 		method: 'POST',
-		path: '/api/v1/boosts',
+		path: '/api/boosts',
 		actor: 'authenticated user',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -493,7 +493,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'POST boost (creation error)',
 		description: 'Boost creation fails mid-transaction, rollback triggered',
 		method: 'POST',
-		path: '/api/v1/boosts',
+		path: '/api/boosts',
 		actor: 'authenticated user',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -513,7 +513,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'POST boost (log fails, rollback)',
 		description: 'Credit log creation fails, entire transaction rolls back',
 		method: 'POST',
-		path: '/api/v1/boosts',
+		path: '/api/boosts',
 		actor: 'authenticated user',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -993,9 +993,9 @@ end`,
 			highlight: [17, 19, 28, 29],
 		},
 		{
-			filename: 'app/controllers/api/v1/boosts_controller.rb',
+			filename: 'app/controllers/api/boosts_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::BoostsController < ApplicationController
+			code: `class Api::BoostsController < ApplicationController
   def create
     result = BoostPost.call(
       user_id: Current.user.id,

@@ -9,7 +9,7 @@ export const level48APIVersioning: Level = {
 	trigger: {
 		type: 'new_feature',
 		description:
-			'Product needs to change the order total from integer cents (1999) to a money object ({ amount: "19.99", currency: "USD" }). But 200 partners depend on the current /api/v1 format. Changing it breaks them all.',
+			'Product needs to change the order total from integer cents (1999) to a money object ({ amount: "19.99", currency: "USD" }). But 200 partners depend on the current /api format. Changing it breaks them all.',
 	},
 	startingPipeline: {
 		nodes: [

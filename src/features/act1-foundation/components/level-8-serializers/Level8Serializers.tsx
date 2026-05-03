@@ -91,7 +91,7 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-single',
-		label: 'GET /api/v1/products/1',
+		label: 'GET /api/products/1',
 		story: [
 			'A customer clicks on a product to view its details.',
 			'The API returns the product as JSON using render json: product.',
@@ -99,7 +99,7 @@ const PROBES: ProbeConfig[] = [
 			'The client receives internal timestamps it never asked for.',
 			'All 6 columns are exposed as flat, unstructured JSON with no filtering.',
 		],
-		command: 'GET /api/v1/products/1',
+		command: 'GET /api/products/1',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
 			{
@@ -117,7 +117,7 @@ const PROBES: ProbeConfig[] = [
 	},
 	{
 		id: 'get-collection',
-		label: 'GET /api/v1/products',
+		label: 'GET /api/products',
 		story: [
 			'The storefront loads the product catalog for the homepage.',
 			'The API returns an array of every product in the database.',
@@ -125,7 +125,7 @@ const PROBES: ProbeConfig[] = [
 			'These internal timestamps are irrelevant to the frontend display.',
 			'Every record in the collection exposes all columns with no filtering.',
 		],
-		command: 'GET /api/v1/products',
+		command: 'GET /api/products',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
 			{
@@ -157,7 +157,7 @@ const PROBES: ProbeConfig[] = [
 			'On a slow connection, the extra bytes add up across many requests.',
 			'Mobile clients download unnecessary data every single time.',
 		],
-		command: 'GET /api/v1/products/1 (mobile client)',
+		command: 'GET /api/products/1 (mobile client)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
 			{
@@ -210,7 +210,7 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		stageId: 'router',
 		title: 'Router (from L6)',
 		description:
-			'Routes match correctly. GET /api/v1/products/1 maps to products#show. This stage works as expected.',
+			'Routes match correctly. GET /api/products/1 maps to products#show. This stage works as expected.',
 	},
 	controller: {
 		stageId: 'controller',
@@ -253,7 +253,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET single product',
 		description: 'Fetch a single product resource',
 		method: 'GET',
-		path: '/api/v1/products/1',
+		path: '/api/products/1',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
@@ -262,7 +262,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET collection',
 		description: 'Fetch all products as a collection',
 		method: 'GET',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
@@ -271,7 +271,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'POST create',
 		description: 'Create a new product resource',
 		method: 'POST',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'admin',
 		expectedResult: 'allowed',
 	},
@@ -280,7 +280,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'PATCH update',
 		description: 'Update an existing product',
 		method: 'PATCH',
-		path: '/api/v1/products/1',
+		path: '/api/products/1',
 		actor: 'admin',
 		expectedResult: 'allowed',
 	},
@@ -289,7 +289,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET raw check',
 		description: 'Verify no timestamps leak through',
 		method: 'GET',
-		path: '/api/v1/products/1',
+		path: '/api/products/1',
 		actor: 'auditor',
 		expectedResult: 'allowed',
 	},
@@ -649,9 +649,9 @@ function getCodeFiles(
 	// Observe phase: show the broken controller
 	if (phase === 'observe') {
 		files.push({
-			filename: 'app/controllers/api/v1/products_controller.rb',
+			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::ProductsController < ApplicationController
+			code: `class Api::ProductsController < ApplicationController
   def show
     product = Product.find(params[:id])
     render json: product  # Dumps everything!
@@ -671,9 +671,9 @@ end`,
 
 	if (furthestStep === 0) {
 		files.push({
-			filename: 'app/controllers/api/v1/products_controller.rb',
+			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::ProductsController < ApplicationController
+			code: `class Api::ProductsController < ApplicationController
   def show
     product = Product.find(params[:id])
     render json: product  # Dumps everything!
@@ -728,9 +728,9 @@ end`,
 
 	if (furthestStep >= 4) {
 		files.push({
-			filename: 'app/controllers/api/v1/products_controller.rb',
+			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::ProductsController < ApplicationController
+			code: `class Api::ProductsController < ApplicationController
   def index
     render json: ProductSerializer.new(Product.all).serializable_hash.to_json
   end

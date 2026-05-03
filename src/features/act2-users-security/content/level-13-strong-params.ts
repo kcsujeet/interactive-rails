@@ -16,11 +16,11 @@ export const level13StrongParams: Level = {
 	},
 	problem: {
 		observation:
-			'POST /api/v1/products accepts ANY field in the request body. A user can set user_id to impersonate another seller or set admin: true to escalate privileges. There is no parameter filtering.',
+			'POST /api/products accepts ANY field in the request body. A user can set user_id to impersonate another seller or set admin: true to escalate privileges. There is no parameter filtering.',
 		rootCause:
 			'The controller reads params directly (params[:name], params[:user_id]) and passes them to the model. Every key the attacker includes in the request body gets saved to the database.',
 		codeExample: `# Current state: NO parameter filtering
-class Api::V1::ProductsController < ApplicationController
+class Api::ProductsController < ApplicationController
   def create
     product = Product.create!(
       name: params[:name],
@@ -34,7 +34,7 @@ class Api::V1::ProductsController < ApplicationController
 end
 
 # What gets through:
-# POST /api/v1/products
+# POST /api/products
 # { "name": "Laptop", "user_id": 42, "admin": true }
 # => user_id set to 42, admin flag set to true!
 #
@@ -75,7 +75,7 @@ end
 - \`params.expect(product: [:name, { variants_attributes: [:size, :color] }])\` allows nested
 - Each nesting level needs its own whitelist audit`,
 		railsCodeExample: `# BEFORE: no filtering (vulnerable)
-class Api::V1::ProductsController < ApplicationController
+class Api::ProductsController < ApplicationController
   def create
     product = Product.create!(
       name: params[:name],
@@ -88,7 +88,7 @@ class Api::V1::ProductsController < ApplicationController
 end
 
 # AFTER: params.expect + current_user (secure)
-class Api::V1::ProductsController < ApplicationController
+class Api::ProductsController < ApplicationController
   def create
     product = current_user.products.create!(product_params)
     render json: product, status: :created

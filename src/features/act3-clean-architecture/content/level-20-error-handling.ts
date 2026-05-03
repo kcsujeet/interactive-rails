@@ -18,8 +18,8 @@ export const level20ErrorHandling: Level = {
 			'API returns inconsistent error formats: sometimes HTML stack traces, sometimes plain text, sometimes JSON with different shapes. Clients cannot reliably parse error responses.',
 		rootCause:
 			'No centralized error handling. Each controller rescues exceptions differently (or not at all), resulting in three different error formats.',
-		codeExample: `# app/controllers/api/v1/products_controller.rb
-class Api::V1::ProductsController < ApplicationController
+		codeExample: `# app/controllers/api/products_controller.rb
+class Api::ProductsController < ApplicationController
   def show
     @product = Product.find(params[:id])  # Raises ActiveRecord::RecordNotFound
     render json: @product
@@ -35,8 +35,8 @@ class Api::V1::ProductsController < ApplicationController
   end
 end
 
-# app/controllers/api/v1/users_controller.rb
-class Api::V1::UsersController < ApplicationController
+# app/controllers/api/users_controller.rb
+class Api::UsersController < ApplicationController
   def show
     @user = User.find(params[:id])
     render json: @user
@@ -149,7 +149,7 @@ The shape \`{ error: { code, message, details } }\` is fine for an internal API.
   "title": "Validation failed",
   "status": 422,
   "detail": "Name can't be blank",
-  "instance": "/api/v1/products",
+  "instance": "/api/products",
   "errors": [{ "field": "name", "code": "blank" }]
 }
 \`\`\`
@@ -235,9 +235,9 @@ class ApplicationController < ActionController::API
 end
 
 # Now controllers are clean -- no rescue blocks needed:
-# app/controllers/api/v1/products_controller.rb
+# app/controllers/api/products_controller.rb
 # (Simple CRUD stays in controllers; multi-step workflows use service objects)
-class Api::V1::ProductsController < ApplicationController
+class Api::ProductsController < ApplicationController
   def show
     product = Product.find(params[:id])  # RecordNotFound -> 404 JSON
     render json: ProductSerializer.new(product).serializable_hash.to_json
@@ -264,19 +264,19 @@ class Api::V1::ProductsController < ApplicationController
 end
 
 # All errors now return consistent JSON:
-# GET /api/v1/products/999
+# GET /api/products/999
 # => 404 { "error": { "code": "not_found", "message": "Product not found" } }
 #
-# POST /api/v1/products with invalid data
+# POST /api/products with invalid data
 # => 422 { "error": { "code": "validation_failed", "message": "...", "details": {...} } }
 #
-# POST /api/v1/products without params key
+# POST /api/products without params key
 # => 400 { "error": { "code": "bad_request", "message": "Missing parameter: product" } }
 
 # test/controllers/error_handling_test.rb
 class ErrorHandlingTest < ActionDispatch::IntegrationTest
   test "returns 404 JSON for missing records" do
-    get api_v1_product_path(id: 999999), as: :json
+    get api_product_path(id: 999999), as: :json
 
     assert_response :not_found
     json = JSON.parse(response.body)
@@ -285,7 +285,7 @@ class ErrorHandlingTest < ActionDispatch::IntegrationTest
   end
 
   test "returns 422 JSON for validation errors" do
-    post api_v1_products_path, params: { product: { name: "" } }, as: :json
+    post api_products_path, params: { product: { name: "" } }, as: :json
 
     assert_response :unprocessable_entity
     json = JSON.parse(response.body)
@@ -294,7 +294,7 @@ class ErrorHandlingTest < ActionDispatch::IntegrationTest
   end
 
   test "returns 400 JSON for missing parameters" do
-    post api_v1_products_path, params: {}, as: :json
+    post api_products_path, params: {}, as: :json
 
     assert_response :bad_request
     json = JSON.parse(response.body)
@@ -304,7 +304,7 @@ class ErrorHandlingTest < ActionDispatch::IntegrationTest
   test "never leaks stack traces in production" do
     # Simulate an unexpected error
     Product.stub(:find, -> (_) { raise "Boom!" }) do
-      get api_v1_product_path(id: 1), as: :json
+      get api_product_path(id: 1), as: :json
     end
 
     assert_response :internal_server_error

@@ -95,7 +95,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'delete-no-token',
 		label: 'DELETE without token',
-		command: 'DELETE /api/v1/products/1 (no Authorization header)',
+		command: 'DELETE /api/products/1 (no Authorization header)',
 		responseLines: [
 			{ text: 'HTTP/1.1 204 No Content', color: 'red' },
 			{ text: '', color: 'muted' },
@@ -115,7 +115,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'create-no-token',
 		label: 'POST without token',
-		command: 'POST /api/v1/products (no Authorization header)',
+		command: 'POST /api/products (no Authorization header)',
 		responseLines: [
 			{ text: 'HTTP/1.1 201 Created', color: 'red' },
 			{
@@ -137,7 +137,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'check-identity',
 		label: 'Check current_user',
-		command: 'GET /api/v1/me (who am I?)',
+		command: 'GET /api/me (who am I?)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
 			{
@@ -240,7 +240,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET with valid token',
 		description: 'Authenticated user fetches products',
 		method: 'GET',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'user_1 (valid token)',
 		expectedResult: 'allowed',
 	},
@@ -249,7 +249,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'POST with valid token',
 		description: 'Authenticated user creates a product',
 		method: 'POST',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'user_1 (valid token)',
 		expectedResult: 'allowed',
 	},
@@ -258,7 +258,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'DELETE without token',
 		description: 'Anonymous request tries to delete',
 		method: 'DELETE',
-		path: '/api/v1/products/1',
+		path: '/api/products/1',
 		actor: 'anonymous (no token)',
 		expectedResult: 'blocked',
 	},
@@ -267,7 +267,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'POST without token',
 		description: 'Anonymous request tries to create a product',
 		method: 'POST',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'anonymous (no token)',
 		expectedResult: 'blocked',
 	},
@@ -276,7 +276,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Check current_user',
 		description: 'Anonymous request checks identity endpoint',
 		method: 'GET',
-		path: '/api/v1/me',
+		path: '/api/me',
 		actor: 'anonymous (no token)',
 		expectedResult: 'blocked',
 	},
@@ -285,7 +285,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'PATCH with expired token',
 		description: 'Revoked session token tries to update',
 		method: 'PATCH',
-		path: '/api/v1/products/1',
+		path: '/api/products/1',
 		actor: 'user_2 (expired token)',
 		expectedResult: 'blocked',
 	},
@@ -294,7 +294,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'DELETE with valid token',
 		description: 'Authenticated user deletes own product',
 		method: 'DELETE',
-		path: '/api/v1/products/5',
+		path: '/api/products/5',
 		actor: 'user_1 (valid token)',
 		expectedResult: 'allowed',
 	},
@@ -722,7 +722,7 @@ end`,
 	//     in its `included` block (default-block).
 	//   - ApplicationController `include Authentication` — applies that
 	//     before_action to every controller that inherits from it.
-	//   - Api::V1::ProductsController inherits from ApplicationController, so
+	//   - Api::ProductsController inherits from ApplicationController, so
 	//     every action requires a valid bearer token automatically. No auth
 	//     code lives in the products controller itself.
 	if (furthestStep >= 4) {
@@ -736,9 +736,9 @@ end`,
 		});
 
 		files.push({
-			filename: 'app/controllers/api/v1/products_controller.rb',
+			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::ProductsController < ApplicationController
+			code: `class Api::ProductsController < ApplicationController
   def index
     render json: ProductSerializer.new(Product.all).serializable_hash.to_json
   end

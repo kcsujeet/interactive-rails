@@ -860,9 +860,9 @@ end
 			highlight: [17, 18, 19],
 		});
 		files.push({
-			filename: 'app/controllers/api/v1/products_controller.rb',
+			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::ProductsController < ApplicationController
+			code: `class Api::ProductsController < ApplicationController
   def index
     result = ProductSearch.call(query: params[:q])
 

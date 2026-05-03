@@ -495,7 +495,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'upload-photo',
 		label: 'Upload 5MB profile photo',
-		command: 'curl -X POST /api/v1/users/1/avatar -F "file=@photo.jpg"',
+		command: 'curl -X POST /api/users/1/avatar -F "file=@photo.jpg"',
 		responseLines: [
 			{ text: 'Uploading 5MB through Rails process...', color: 'yellow' },
 			{ text: 'Memory: 45MB -> 95MB (+50MB buffering file!)', color: 'red' },
@@ -516,7 +516,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'request-avatar',
 		label: 'Download user avatar',
-		command: 'curl GET /api/v1/users/1/avatar',
+		command: 'curl GET /api/users/1/avatar',
 		responseLines: [
 			{ text: 'send_file user.avatar_path', color: 'yellow' },
 			{
@@ -540,7 +540,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'list-avatars',
 		label: 'List users with avatars',
-		command: 'curl GET /api/v1/users?per_page=25',
+		command: 'curl GET /api/users?per_page=25',
 		responseLines: [
 			{ text: 'Rendering 25 users with avatar URLs...', color: 'yellow' },
 			{ text: 'Each avatar: full 5MB original, no variants!', color: 'red' },
@@ -812,7 +812,7 @@ end`,
 const DIRECT_UPLOAD_OPTIONS = [
 	{
 		id: 'wrong-through-rails',
-		label: `class Api::V1::AvatarsController < ApplicationController
+		label: `class Api::AvatarsController < ApplicationController
   def create
     result = UploadAvatar.call(
       user_id: Current.user.id,
@@ -834,7 +834,7 @@ end`,
 	},
 	{
 		id: 'correct-presigned',
-		label: `class Api::V1::DirectUploadsController < ApplicationController
+		label: `class Api::DirectUploadsController < ApplicationController
   def create
     blob = ActiveStorage::Blob.create_before_direct_upload!(
       **blob_args)
@@ -859,7 +859,7 @@ end`,
 	},
 	{
 		id: 'wrong-manual-s3',
-		label: `class Api::V1::DirectUploadsController < ApplicationController
+		label: `class Api::DirectUploadsController < ApplicationController
   def create
     s3 = Aws::S3::Client.new
     presigned = s3.presigned_url(:put_object,
@@ -923,7 +923,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Upload 5MB profile photo',
 		description: 'Seller uploads a product photo',
 		method: 'POST',
-		path: '/api/v1/users/1/avatar',
+		path: '/api/users/1/avatar',
 		actor: 'seller',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -943,7 +943,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Download user avatar',
 		description: 'Customer downloads a single user avatar via CDN',
 		method: 'GET',
-		path: '/api/v1/users/1/avatar?variant=thumb',
+		path: '/api/users/1/avatar?variant=thumb',
 		actor: 'customer',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -963,7 +963,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'List users with avatars',
 		description: 'Customer views user listing page with 25 avatar thumbnails',
 		method: 'GET',
-		path: '/api/v1/users?per_page=25',
+		path: '/api/users?per_page=25',
 		actor: 'customer',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -983,7 +983,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: '10 sellers upload photos',
 		description: '10 sellers upload product photos at the same time',
 		method: 'POST',
-		path: '/api/v1/users/*/avatar',
+		path: '/api/users/*/avatar',
 		actor: '10 sellers',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -1003,7 +1003,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Upload .exe file',
 		description: 'Attacker uploads malware disguised as image',
 		method: 'POST',
-		path: '/api/v1/users/1/avatar',
+		path: '/api/users/1/avatar',
 		actor: 'attacker',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -1020,7 +1020,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Upload 50MB photo',
 		description: 'User tries to upload an oversized file',
 		method: 'POST',
-		path: '/api/v1/users/1/avatar',
+		path: '/api/users/1/avatar',
 		actor: 'seller',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -1068,9 +1068,9 @@ class UploadAvatar < ApplicationService
 end`,
 			},
 			{
-				filename: 'app/controllers/api/v1/avatars_controller.rb',
+				filename: 'app/controllers/api/avatars_controller.rb',
 				language: 'ruby',
-				code: `class Api::V1::AvatarsController < ApplicationController
+				code: `class Api::AvatarsController < ApplicationController
   def create
     result = UploadAvatar.call(
       user_id: Current.user.id,
@@ -1313,9 +1313,9 @@ end`,
 		// completedStep 5: all steps done
 		return [
 			{
-				filename: 'app/controllers/api/v1/direct_uploads_controller.rb',
+				filename: 'app/controllers/api/direct_uploads_controller.rb',
 				language: 'ruby',
-				code: `class Api::V1::DirectUploadsController < ApplicationController
+				code: `class Api::DirectUploadsController < ApplicationController
   def create
     blob = ActiveStorage::Blob.create_before_direct_upload!(
       **blob_args)
@@ -1374,9 +1374,9 @@ end`,
 	// reward
 	return [
 		{
-			filename: 'app/controllers/api/v1/direct_uploads_controller.rb',
+			filename: 'app/controllers/api/direct_uploads_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::DirectUploadsController < ApplicationController
+			code: `class Api::DirectUploadsController < ApplicationController
   def create
     blob = ActiveStorage::Blob.create_before_direct_upload!(
       **blob_args)

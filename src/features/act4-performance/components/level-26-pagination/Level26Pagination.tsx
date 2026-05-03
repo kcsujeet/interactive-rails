@@ -122,7 +122,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-all-products',
 		label: 'GET all products',
-		command: 'GET /api/v1/products',
+		command: 'GET /api/products',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
 			{ text: 'Content-Length: 12,582,912  (12MB!)', color: 'yellow' },
@@ -147,7 +147,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-mobile',
 		label: 'GET from mobile client',
-		command: 'GET /api/v1/products (iPhone, 3G connection)',
+		command: 'GET /api/products (iPhone, 3G connection)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
 			{ text: 'Content-Length: 12,582,912', color: 'muted' },
@@ -255,7 +255,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET page 1 (default)',
 		description: 'First page of products, 25 items',
 		method: 'GET',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'web client',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -272,7 +272,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET page 50',
 		description: 'Middle of the dataset',
 		method: 'GET',
-		path: '/api/v1/products?page=50',
+		path: '/api/products?page=50',
 		actor: 'web client',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -289,7 +289,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET page 2000 (last)',
 		description: 'Last page of 50K products',
 		method: 'GET',
-		path: '/api/v1/products?page=2000',
+		path: '/api/products?page=2000',
 		actor: 'mobile client',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -306,7 +306,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET page 1 (mobile)',
 		description: 'Mobile client gets paginated response',
 		method: 'GET',
-		path: '/api/v1/products?page=1',
+		path: '/api/products?page=1',
 		actor: 'iPhone (3G)',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -323,7 +323,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET page 99999',
 		description: 'Page beyond dataset range',
 		method: 'GET',
-		path: '/api/v1/products?page=99999',
+		path: '/api/products?page=99999',
 		actor: 'API client',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -591,9 +591,9 @@ end`,
 			highlight: [18],
 		});
 		files.push({
-			filename: 'app/controllers/api/v1/products_controller.rb',
+			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::ProductsController < ApplicationController
+			code: `class Api::ProductsController < ApplicationController
   def index
     result = ProductList.call(page: params[:page])
     if result.success?
@@ -681,11 +681,11 @@ Pagy::OPTIONS[:limit] = 25`,
 
 	if (furthestStep >= 4) {
 		files.push({
-			filename: 'app/controllers/api/v1/products_controller.rb',
+			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
 			code:
 				furthestStep >= 5
-					? `class Api::V1::ProductsController < ApplicationController
+					? `class Api::ProductsController < ApplicationController
   def index
     result = ProductList.call(page: params[:page])
     if result.success?
@@ -704,7 +704,7 @@ end
 # Link: </products?page=2>; rel="next",
 #       </products?page=2000>; rel="last"
 # Content-Length: 6,250  (25 items only!)`
-					: `class Api::V1::ProductsController < ApplicationController
+					: `class Api::ProductsController < ApplicationController
   def index
     result = ProductList.call(page: params[:page])
     if result.success?

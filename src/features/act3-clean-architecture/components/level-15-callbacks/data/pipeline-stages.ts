@@ -45,7 +45,7 @@ export const STAGE_DISCOVERY_MAP: Record<string, string> = {
 // Observe phase: 4 zones (Input, Normalizes, Model, Callbacks)
 export const OBSERVE_FLOW: Record<string, string[]> = {
 	'signup-messy': [
-		'POST /api/v1/users from signup form',
+		'POST /api/users from signup form',
 		'No normalizes, raw data passes through',
 		'Saved as "  JOE@GMAIL.COM  "',
 		'No callbacks, nothing else happens',
@@ -87,7 +87,7 @@ export const REWARD_FLOW: Record<string, string[]> = {
 		'Controller fires UserMailer.welcome.deliver_later',
 	],
 	'update-no-welcome': [
-		'PATCH /api/v1/users/5',
+		'PATCH /api/users/5',
 		'Normalizes still runs on update',
 		'Updated record saved',
 		'Update action does not call welcome mailer',

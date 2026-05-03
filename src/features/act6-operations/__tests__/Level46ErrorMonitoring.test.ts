@@ -12,7 +12,7 @@ const PROBES = [
 	{
 		id: 'unnoticed-500',
 		label: 'Customer hits 500 error (unnoticed)',
-		command: 'curl -X GET localhost:3000/api/v1/products/999',
+		command: 'curl -X GET localhost:3000/api/products/999',
 		responseLines: [
 			{
 				text: '# ActiveRecord::RecordNotFound in ProductsController#show',
@@ -42,8 +42,7 @@ const PROBES = [
 	{
 		id: 'duplicate-errors',
 		label: 'Same error happens 50 times',
-		command:
-			'for i in {1..50}; do curl localhost:3000/api/v1/products/999; done',
+		command: 'for i in {1..50}; do curl localhost:3000/api/products/999; done',
 		responseLines: [
 			{
 				text: '# 50 identical RecordNotFound errors in logs',
@@ -73,7 +72,7 @@ const PROBES = [
 	{
 		id: 'no-alert',
 		label: 'Error rate crosses 1% (no alert)',
-		command: 'ab -n 1000 -c 10 localhost:3000/api/v1/checkout',
+		command: 'ab -n 1000 -c 10 localhost:3000/api/checkout',
 		responseLines: [
 			{
 				text: '# 15 of 1000 requests returned 500 (1.5% error rate)',
@@ -291,12 +290,12 @@ const STRESS_SCENARIOS = [
 		label: 'Customer hits 500 error (unnoticed)',
 		description: 'Same 500 error, now captured with full context and alert',
 		method: 'GET',
-		path: '/api/v1/products/999',
+		path: '/api/products/999',
 		actor: 'customer',
 		expectedResult: 'blocked',
 		responseLines: [
 			{
-				text: 'GET /api/v1/products/999 -> RecordNotFound',
+				text: 'GET /api/products/999 -> RecordNotFound',
 				color: 'cyan',
 			},
 			{
@@ -325,7 +324,7 @@ const STRESS_SCENARIOS = [
 		label: 'Same error happens 50 times',
 		description: 'Same 50 errors, now grouped into 1 entry with count',
 		method: 'GET',
-		path: '/api/v1/products/999',
+		path: '/api/products/999',
 		actor: 'customer',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -359,7 +358,7 @@ const STRESS_SCENARIOS = [
 		label: 'Error rate crosses 1% (with alert)',
 		description: 'Same traffic spike, but error budget alert fires immediately',
 		method: 'POST',
-		path: '/api/v1/checkout',
+		path: '/api/checkout',
 		actor: 'customer',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -393,12 +392,12 @@ const STRESS_SCENARIOS = [
 		label: 'Error with breadcrumbs',
 		description: 'Stripe timeout captured with full user journey breadcrumbs',
 		method: 'POST',
-		path: '/api/v1/checkout',
+		path: '/api/checkout',
 		actor: 'customer',
 		expectedResult: 'allowed',
 		responseLines: [
 			{
-				text: 'POST /api/v1/checkout -> Faraday::TimeoutError',
+				text: 'POST /api/checkout -> Faraday::TimeoutError',
 				color: 'cyan',
 			},
 			{

@@ -7,9 +7,9 @@
  * Phase 1 (WHY - observe): HTTP requests hit the router and get 404 because
  *   routes.rb is empty. The player fires probes and inspects stages to discover
  *   that no routes are defined, no namespace exists, and all requests fail.
- * Phase 2 (HOW - build): 4 steps building RESTful routes under /api/v1/
+ * Phase 2 (HOW - build): 4 steps building RESTful routes under /api/
  *   Step 0: Define resources :products (OptionCard)
- *   Step 1: Add namespace wrapping (OptionCard)
+ *   Step 1: Add :api namespace wrapping (OptionCard)
  *   Step 2: View routes with rails routes (TerminalChoiceStep)
  *   Step 3: Trace the request lifecycle (OptionCard)
  * Phase 3 (ADVANTAGE - reward): Stress test. Fire HTTP requests at the
@@ -80,7 +80,7 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{ id: 'no-routes', label: 'Routes file is empty' },
 	{ id: 'get-404', label: 'GET requests return 404' },
 	{ id: 'post-404', label: 'POST requests return 404' },
-	{ id: 'no-namespace', label: 'No API versioning namespace' },
+	{ id: 'no-namespace', label: 'No API namespace' },
 ];
 
 // ──────────────────────────────────────────────
@@ -138,24 +138,24 @@ const PROBES: ProbeConfig[] = [
 	},
 	{
 		id: 'get-api-products',
-		label: 'GET /api/v1/products',
+		label: 'GET /api/products',
 		story: [
-			'The mobile app tries the versioned API endpoint at /api/v1/products.',
+			'The mobile app tries the namespaced API endpoint at /api/products.',
 			'This is the proper RESTful namespace for API clients.',
-			'The router looks for a namespace :api > namespace :v1 block.',
+			'The router looks for a namespace :api block.',
 			'No namespaces are configured. The entire route file is empty.',
 			'Even the correctly-structured API path returns a 404.',
 		],
-		command: 'GET /api/v1/products',
+		command: 'GET /api/products',
 		responseLines: [
 			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'No route matches [GET] "/api/v1/products"',
+				text: 'No route matches [GET] "/api/products"',
 				color: 'yellow',
 			},
 			{
-				text: 'Even the versioned API path fails. No namespace is configured.',
+				text: 'Even the namespaced API path fails. No namespace is configured.',
 				color: 'red',
 			},
 		],
@@ -183,7 +183,7 @@ const PROBE_PIPELINE_MAP: Record<
 		routerBadge: '404!',
 	},
 	'get-api-products': {
-		routerSublabel: 'GET /api/v1/products',
+		routerSublabel: 'GET /api/products',
 		routerBadge: '404!',
 	},
 };
@@ -244,7 +244,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'List all products',
 		description: 'Fetch the collection of products',
 		method: 'GET',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
@@ -253,7 +253,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Create a product',
 		description: 'Submit a new product',
 		method: 'POST',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
@@ -262,7 +262,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Show one product',
 		description: 'Fetch a single product by ID',
 		method: 'GET',
-		path: '/api/v1/products/1',
+		path: '/api/products/1',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
@@ -271,7 +271,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Update a product',
 		description: 'Modify an existing product',
 		method: 'PATCH',
-		path: '/api/v1/products/1',
+		path: '/api/products/1',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
@@ -280,7 +280,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Delete a product',
 		description: 'Remove a product by ID',
 		method: 'DELETE',
-		path: '/api/v1/products/1',
+		path: '/api/products/1',
 		actor: 'client',
 		expectedResult: 'allowed',
 	},
@@ -349,23 +349,22 @@ const RESOURCE_OPTIONS: StepOption[] = [
 const NAMESPACE_OPTIONS: StepOption[] = [
 	{
 		id: 'scope-only',
-		label: "scope '/api/v1' do\n  resources :products\nend",
+		label: "scope '/api' do\n  resources :products\nend",
 		correct: false,
 		feedback:
-			'scope changes only the URL path, not the controller module. Your controller lives in Api::V1, so you need something that maps both.',
+			'scope changes only the URL path, not the controller module. Your controller lives in the Api:: module, so you need something that maps both.',
 	},
 	{
 		id: 'correct-namespace',
-		label:
-			'namespace :api do\n  namespace :v1 do\n    resources :products\n  end\nend',
+		label: 'namespace :api do\n  resources :products\nend',
 		correct: true,
 	},
 	{
-		id: 'single-namespace',
-		label: "namespace 'api/v1' do\n  resources :products\nend",
+		id: 'string-namespace',
+		label: "namespace 'api' do\n  resources :products\nend",
 		correct: false,
 		feedback:
-			'Namespace takes a symbol for each segment. Nesting two namespaces produces the correct module path (Api::V1).',
+			'Namespace expects a symbol, not a string. Symbols give you the URL prefix and the controller module name in one go.',
 	},
 ];
 
@@ -404,23 +403,23 @@ const viewRoutesOutput: TerminalOutputLine[] = [
 		color: 'muted',
 	},
 	{
-		text: '  api_v1_products  GET     /api/v1/products(.:format)     api/v1/products#index',
+		text: '     api_products  GET     /api/products(.:format)         api/products#index',
 		color: 'green',
 	},
 	{
-		text: '               POST    /api/v1/products(.:format)        api/v1/products#create',
+		text: '                  POST    /api/products(.:format)         api/products#create',
 		color: 'cyan',
 	},
 	{
-		text: '   api_v1_product  GET     /api/v1/products/:id(.:format) api/v1/products#show',
+		text: '      api_product  GET     /api/products/:id(.:format)    api/products#show',
 		color: 'green',
 	},
 	{
-		text: '               PATCH   /api/v1/products/:id(.:format)    api/v1/products#update',
+		text: '                  PATCH   /api/products/:id(.:format)    api/products#update',
 		color: 'yellow',
 	},
 	{
-		text: '               DELETE  /api/v1/products/:id(.:format)    api/v1/products#destroy',
+		text: '                  DELETE  /api/products/:id(.:format)    api/products#destroy',
 		color: 'red',
 	},
 ];
@@ -483,13 +482,13 @@ const OPTION_STEP_CONFIG: Record<
 	1: {
 		title: 'Add Namespace',
 		description:
-			'The resource creates /products, but your API controller lives at Api::V1::ProductsController. How do you nest routes under /api/v1/?',
+			'The resource creates /products, but your API controller lives at Api::ProductsController. How do you nest routes under /api/?',
 		options: NAMESPACE_OPTIONS,
 	},
 	3: {
 		title: 'Trace the Request Lifecycle',
 		description:
-			'When a client sends GET /api/v1/products, what is the correct order of the request lifecycle?',
+			'When a client sends GET /api/products, what is the correct order of the request lifecycle?',
 		options: TRACE_OPTIONS,
 	},
 };
@@ -589,8 +588,8 @@ end`,
 			language: 'ruby',
 			code: `Rails.application.routes.draw do
   resources :products
-  # But this creates /products, not /api/v1/products
-  # We need namespaces!
+  # But this creates /products, not /api/products
+  # We need a namespace!
 end`,
 			highlight: [2],
 		});
@@ -602,12 +601,10 @@ end`,
 			language: 'ruby',
 			code: `Rails.application.routes.draw do
   namespace :api do
-    namespace :v1 do
-      resources :products
-    end
+    resources :products
   end
 end`,
-			highlight: [2, 3, 4],
+			highlight: [2, 3],
 		});
 	}
 
@@ -617,11 +614,11 @@ end`,
 			language: 'ruby',
 			code: `# rails routes
 #
-# GET    /api/v1/products          => api/v1/products#index
-# POST   /api/v1/products          => api/v1/products#create
-# GET    /api/v1/products/:id      => api/v1/products#show
-# PATCH  /api/v1/products/:id      => api/v1/products#update
-# DELETE /api/v1/products/:id      => api/v1/products#destroy`,
+# GET    /api/products          => api/products#index
+# POST   /api/products          => api/products#create
+# GET    /api/products/:id      => api/products#show
+# PATCH  /api/products/:id      => api/products#update
+# DELETE /api/products/:id      => api/products#destroy`,
 			highlight: [3, 4, 5, 6, 7],
 		});
 	}
@@ -630,10 +627,10 @@ end`,
 		files.push({
 			filename: 'Request Lifecycle',
 			language: 'ruby',
-			code: `# GET /api/v1/products
+			code: `# GET /api/products
 #
-# 1. Request arrives (GET /api/v1/products)
-# 2. Router matches: Api::V1::ProductsController#index
+# 1. Request arrives (GET /api/products)
+# 2. Router matches: Api::ProductsController#index
 # 3. Controller calls: @products = Product.all
 # 4. Model queries DB: SELECT * FROM products
 # 5. Controller renders: render json: @products

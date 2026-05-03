@@ -845,9 +845,9 @@ end`,
 			highlight: [9, 10],
 		});
 		files.push({
-			filename: 'app/controllers/api/v1/users_controller.rb',
+			filename: 'app/controllers/api/users_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::UsersController < ApplicationController
+			code: `class Api::UsersController < ApplicationController
   def show
     result = UserLookup.call(email: params[:email])
     render json: UserSerializer.new(result.user)

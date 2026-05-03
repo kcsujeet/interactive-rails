@@ -18,11 +18,11 @@ export const level46ErrorMonitoring: Level = {
 		rootCause:
 			'No structured error monitoring. Exceptions are logged but not captured with user context, grouped by type, or alerted on. Request logging shows what happened, but not why it failed.',
 		codeExample: `# Current error handling: nothing
-class Api::V1::ProductsController < Api::BaseController
+class Api::ProductsController < Api::BaseController
   def show
     result = FetchProduct.call(id: params[:id])
     if result.success?
-      render json: Api::V1::ProductSerializer
+      render json: Api::ProductSerializer
         .new(result.resource).serializable_hash
     end
   end
@@ -166,7 +166,7 @@ end
 # Using Rails.error in Application Code
 # ============================
 
-class Api::V1::ProductsController < ApplicationController
+class Api::ProductsController < ApplicationController
   def create
     product = Product.new(product_params)
 

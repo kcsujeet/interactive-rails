@@ -356,7 +356,7 @@ end`,
 const CONTROLLER_OPTIONS = [
 	{
 		id: 'wrong-direct-create',
-		label: `class Api::V1::ReviewsController < ApplicationController
+		label: `class Api::ReviewsController < ApplicationController
   def create
     reviewable = find_reviewable
     review = reviewable.reviews.create!(
@@ -372,7 +372,7 @@ end`,
 	},
 	{
 		id: 'correct-service',
-		label: `class Api::V1::ReviewsController < ApplicationController
+		label: `class Api::ReviewsController < ApplicationController
   def create
     reviewable = find_reviewable
     result = CreateReview.call(
@@ -676,7 +676,7 @@ end`,
 					highlight: [1, 3, 11],
 				},
 				{
-					filename: 'app/controllers/api/v1/reviews_controller.rb (next step)',
+					filename: 'app/controllers/api/reviews_controller.rb (next step)',
 					language: 'ruby',
 					code: `# Wire the controller to delegate to
 # CreateReview.call...`,
@@ -743,9 +743,9 @@ end`,
 end`,
 		},
 		{
-			filename: 'app/controllers/api/v1/reviews_controller.rb',
+			filename: 'app/controllers/api/reviews_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::ReviewsController < ApplicationController
+			code: `class Api::ReviewsController < ApplicationController
   before_action :set_reviewable
 
   def create

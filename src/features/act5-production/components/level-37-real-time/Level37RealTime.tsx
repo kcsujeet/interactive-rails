@@ -1139,7 +1139,7 @@ const PROBES: ProbeConfig[] = [
 			'They wait up to 2 seconds for their next poll cycle to find out if the payment succeeded.',
 		],
 		command:
-			'curl -X POST localhost:3000/api/v1/payments -d \'{"amount": 99.99}\'',
+			'curl -X POST localhost:3000/api/payments -d \'{"amount": 99.99}\'',
 		responseLines: [
 			{ text: '202 Accepted (processing asynchronously)', color: 'cyan' },
 			{ text: '# Stripe confirms payment on the server side.', color: 'green' },
@@ -1163,7 +1163,7 @@ const PROBES: ProbeConfig[] = [
 			'99% of the time, nothing has changed.',
 			'But the server still runs the full pipeline (auth, query, serialize) for each one.',
 		],
-		command: 'curl -s localhost:3000/api/v1/notifications | jq',
+		command: 'curl -s localhost:3000/api/notifications | jq',
 		responseLines: [
 			{ text: '200 OK', color: 'cyan' },
 			{ text: '{ "data": [] }', color: 'yellow' },
@@ -1192,7 +1192,7 @@ const PROBES: ProbeConfig[] = [
 			'New customers trying to browse or check out get 503 errors.',
 			'The site is effectively down because of order status refreshes.',
 		],
-		command: 'curl -s localhost:3000/api/v1/health | jq .server',
+		command: 'curl -s localhost:3000/api/health | jq .server',
 		responseLines: [
 			{
 				text: '{ "cpu": "95%", "connections": 847, "pool_exhausted": true }',
@@ -1348,7 +1348,7 @@ const AUTHENTICATE_CONNECTION_OPTIONS = [
 const BROADCAST_SERVICE_OPTIONS = [
 	{
 		id: 'wrong-inline',
-		label: `class Api::V1::PaymentsController < ApplicationController\n  def create\n    result = ProcessPayment.call(user: Current.user, params:)\n    if result.success?\n      NotificationsChannel.broadcast_to(\n        Current.user, { type: "payment" })\n      render json: result.payment, status: :created\n    end\n  end\nend`,
+		label: `class Api::PaymentsController < ApplicationController\n  def create\n    result = ProcessPayment.call(user: Current.user, params:)\n    if result.success?\n      NotificationsChannel.broadcast_to(\n        Current.user, { type: "payment" })\n      render json: result.payment, status: :created\n    end\n  end\nend`,
 		correct: false,
 		feedback:
 			'Broadcasting in the request cycle blocks the response. Notifications should be triggered by model callbacks or background jobs.',
@@ -1606,9 +1606,9 @@ function getCodeFiles(phase: Phase, completedStep: number) {
 	if (phase === 'observe') {
 		return [
 			{
-				filename: 'app/controllers/api/v1/notifications_controller.rb',
+				filename: 'app/controllers/api/notifications_controller.rb',
 				language: 'ruby',
-				code: `class Api::V1::NotificationsController < ApplicationController\n  # Client polls this every 2 seconds\n  # 50K users = 25K requests/sec\n  def index\n    notifications = Current.user\n      .notifications\n      .where(read_at: nil)\n      .order(created_at: :desc)\n    render json: NotificationSerializer.new(notifications)\n  end\nend`,
+				code: `class Api::NotificationsController < ApplicationController\n  # Client polls this every 2 seconds\n  # 50K users = 25K requests/sec\n  def index\n    notifications = Current.user\n      .notifications\n      .where(read_at: nil)\n      .order(created_at: :desc)\n    render json: NotificationSerializer.new(notifications)\n  end\nend`,
 			},
 			{
 				filename: 'app/services/process_payment.rb',

@@ -219,7 +219,7 @@ const STRESS_SCENARIOS = [
 		label: 'Admin soft-deletes customer (recoverable)',
 		description: 'Record marked as discarded, not destroyed',
 		method: 'DELETE',
-		path: '/api/v1/users/42',
+		path: '/api/users/42',
 		actor: 'admin',
 		expectedResult: 'allowed' as const,
 		responseLines: [
@@ -238,7 +238,7 @@ const STRESS_SCENARIOS = [
 		label: 'Restore accidentally deleted product',
 		description: 'Product restored from soft-deleted state',
 		method: 'POST',
-		path: '/api/v1/products/99/restore',
+		path: '/api/products/99/restore',
 		actor: 'admin',
 		expectedResult: 'allowed' as const,
 		responseLines: [
@@ -257,7 +257,7 @@ const STRESS_SCENARIOS = [
 		label: 'Check who changed order status (with PaperTrail)',
 		description: 'Full version history with whodunnit',
 		method: 'GET',
-		path: '/api/v1/orders/7/versions',
+		path: '/api/orders/7/versions',
 		actor: 'admin',
 		expectedResult: 'allowed' as const,
 		responseLines: [
@@ -277,7 +277,7 @@ const STRESS_SCENARIOS = [
 		label: 'Restore user with audit trail',
 		description: 'Soft delete and restore both tracked by PaperTrail',
 		method: 'POST',
-		path: '/api/v1/users/42/restore',
+		path: '/api/users/42/restore',
 		actor: 'admin',
 		expectedResult: 'allowed' as const,
 		responseLines: [

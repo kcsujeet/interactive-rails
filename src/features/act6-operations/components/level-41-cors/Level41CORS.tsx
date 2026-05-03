@@ -97,10 +97,10 @@ const PROBES: ProbeConfig[] = [
 		id: 'fetch-products',
 		label: 'GET /products from React',
 		command:
-			'fetch("http://localhost:3000/api/v1/products") // from localhost:3001',
+			'fetch("http://localhost:3000/api/products") // from localhost:3001',
 		responseLines: [
 			{
-				text: 'Access to fetch at http://localhost:3000/api/v1/products',
+				text: 'Access to fetch at http://localhost:3000/api/products',
 				color: 'red',
 			},
 			{
@@ -124,9 +124,9 @@ const PROBES: ProbeConfig[] = [
 		id: 'preflight-delete',
 		label: 'DELETE /products/1 from React',
 		command:
-			'fetch("http://localhost:3000/api/v1/products/1", { method: "DELETE" })',
+			'fetch("http://localhost:3000/api/products/1", { method: "DELETE" })',
 		responseLines: [
-			{ text: 'Preflight OPTIONS /api/v1/products/1', color: 'cyan' },
+			{ text: 'Preflight OPTIONS /api/products/1', color: 'cyan' },
 			{
 				text: 'Response to preflight: no Access-Control-Allow-Origin',
 				color: 'red',
@@ -146,7 +146,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'curl-bypass',
 		label: 'GET /products via curl',
-		command: 'curl http://localhost:3000/api/v1/products',
+		command: 'curl http://localhost:3000/api/products',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'green' },
 			{ text: '[{"id":1,"name":"Hello World"}, ...]', color: 'green' },
@@ -425,7 +425,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET /products (from localhost)',
 		description: 'React frontend fetches products',
 		method: 'GET',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'localhost:3001',
 		expectedResult: 'allowed',
 	},
@@ -434,7 +434,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'POST /products (from localhost)',
 		description: 'React frontend creates a product',
 		method: 'POST',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'localhost:3001',
 		expectedResult: 'allowed',
 	},
@@ -443,7 +443,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'DELETE /products/1 (from localhost)',
 		description: 'React frontend deletes a product',
 		method: 'DELETE',
-		path: '/api/v1/products/1',
+		path: '/api/products/1',
 		actor: 'localhost:3001',
 		expectedResult: 'allowed',
 	},
@@ -452,7 +452,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET /products (from evil.com)',
 		description: 'Malicious site reads products',
 		method: 'GET',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'evil.example.com',
 		expectedResult: 'blocked',
 	},
@@ -461,7 +461,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'DELETE /products/1 (from evil.com)',
 		description: 'Malicious site tries to delete',
 		method: 'DELETE',
-		path: '/api/v1/products/1',
+		path: '/api/products/1',
 		actor: 'evil.example.com',
 		expectedResult: 'blocked',
 	},
@@ -470,7 +470,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'POST /products (from unknown)',
 		description: 'Unknown origin creates a product',
 		method: 'POST',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'unknown.site.io',
 		expectedResult: 'blocked',
 	},
@@ -904,9 +904,9 @@ export function Level41CORS({ onComplete }: LevelComponentProps) {
 										</div>
 										<pre className="text-xs font-mono text-foreground/70 leading-relaxed whitespace-pre-wrap">
 											{isCurlProbe
-												? 'curl http://localhost:3000\n  /api/v1/products'
+												? 'curl http://localhost:3000\n  /api/products'
 												: `fetch("http://localhost:3000
-  /api/v1/products")`}
+  /api/products")`}
 										</pre>
 										{flowMessages[0] &&
 											(flowPhase >= 0 || flowPhase === -1) && (

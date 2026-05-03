@@ -16,11 +16,11 @@ export const level11Authorization: Level = {
 	},
 	problem: {
 		observation:
-			'User A logs in and sends DELETE /api/v1/products/42 -- a product owned by User B. It succeeds. Any authenticated user can modify or destroy any product.',
+			'User A logs in and sends DELETE /api/products/42 -- a product owned by User B. It succeeds. Any authenticated user can modify or destroy any product.',
 		rootCause:
 			'Authentication verifies identity but there is no authorization layer checking ownership or permissions.',
 		codeExample: `# Current state: no authorization
-class Api::V1::ProductsController < ApplicationController
+class Api::ProductsController < ApplicationController
   def destroy
     product = Product.find(params[:id])
     product.destroy  # Any user can delete ANY product!
@@ -118,8 +118,8 @@ module ApiAuthentication
   end
 end
 
-# app/controllers/api/v1/products_controller.rb
-class Api::V1::ProductsController < ApplicationController
+# app/controllers/api/products_controller.rb
+class Api::ProductsController < ApplicationController
   include Pundit::Authorization
 
   def index

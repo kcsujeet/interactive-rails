@@ -69,7 +69,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-all-products',
 		label: 'GET all products',
-		command: 'GET /api/v1/products',
+		command: 'GET /api/products',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
 			{ text: 'Content-Length: 12,582,912  (12MB!)', color: 'yellow' },
@@ -88,7 +88,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-mobile',
 		label: 'GET from mobile client',
-		command: 'GET /api/v1/products (iPhone, 3G connection)',
+		command: 'GET /api/products (iPhone, 3G connection)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
 			{ text: 'Content-Length: 12,582,912', color: 'muted' },
@@ -267,7 +267,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET page 1 (default)',
 		description: 'First page of products, 25 items',
 		method: 'GET',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'web client',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -284,7 +284,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET page 50',
 		description: 'Middle of the dataset',
 		method: 'GET',
-		path: '/api/v1/products?page=50',
+		path: '/api/products?page=50',
 		actor: 'web client',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -301,7 +301,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET page 2000 (last)',
 		description: 'Last page of 50K products',
 		method: 'GET',
-		path: '/api/v1/products?page=2000',
+		path: '/api/products?page=2000',
 		actor: 'mobile client',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -318,7 +318,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET page 1 (mobile)',
 		description: 'Mobile client gets paginated response',
 		method: 'GET',
-		path: '/api/v1/products?page=1',
+		path: '/api/products?page=1',
 		actor: 'iPhone (3G)',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -335,7 +335,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET page 99999',
 		description: 'Page beyond dataset range',
 		method: 'GET',
-		path: '/api/v1/products?page=99999',
+		path: '/api/products?page=99999',
 		actor: 'API client',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -714,13 +714,13 @@ describe('Level 28: Pagination', () => {
 		});
 
 		test('observe and reward cover the same endpoint', () => {
-			// Observe probes hit /api/v1/products
+			// Observe probes hit /api/products
 			const observeEndpoint = PROBES[0].command;
-			expect(observeEndpoint).toContain('/api/v1/products');
+			expect(observeEndpoint).toContain('/api/products');
 
-			// Reward scenarios also hit /api/v1/products
+			// Reward scenarios also hit /api/products
 			for (const scenario of STRESS_SCENARIOS) {
-				expect(scenario.path).toContain('/api/v1/products');
+				expect(scenario.path).toContain('/api/products');
 			}
 		});
 	});

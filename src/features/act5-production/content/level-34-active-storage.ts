@@ -128,8 +128,8 @@ class UploadAvatar < ApplicationService
   end
 end
 
-# app/controllers/api/v1/direct_uploads_controller.rb
-class Api::V1::DirectUploadsController < ApplicationController
+# app/controllers/api/direct_uploads_controller.rb
+class Api::DirectUploadsController < ApplicationController
   def create
     blob = ActiveStorage::Blob.create_before_direct_upload!(
       **blob_args)

@@ -209,8 +209,8 @@ class PlaceOrder < ApplicationService
   end
 end
 
-# app/controllers/api/v1/orders_controller.rb
-class Api::V1::OrdersController < ApplicationController
+# app/controllers/api/orders_controller.rb
+class Api::OrdersController < ApplicationController
   def create
     result = PlaceOrder.call(
       product_id: params.expect(order: [:product_id])[:product_id],

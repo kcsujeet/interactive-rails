@@ -28,8 +28,8 @@ export const level35ActionMailer: Level = {
 # Then tells the user to change it. Not scalable!
 
 # What we need:
-# 1. POST /api/v1/password_resets -- generate token, send email
-# 2. PUT  /api/v1/password_resets/:token -- verify token, update password
+# 1. POST /api/password_resets -- generate token, send email
+# 2. PUT  /api/password_resets/:token -- verify token, update password
 
 # Rails 8 has generates_token_for -- no more rolling your own
 # token columns, expiry logic, or secure_random strings!
@@ -111,11 +111,11 @@ end
 <p><%= link_to "Reset Password", @reset_url %></p>
 <p>If you didn't request this, you can safely ignore this email.</p>
 
-# app/controllers/api/v1/password_resets_controller.rb
-class Api::V1::PasswordResetsController < ApplicationController
+# app/controllers/api/password_resets_controller.rb
+class Api::PasswordResetsController < ApplicationController
   skip_before_action :authenticate_user
 
-  # POST /api/v1/password_resets
+  # POST /api/password_resets
   def create
     user = User.find_by(email: params[:email])
 
@@ -127,7 +127,7 @@ class Api::V1::PasswordResetsController < ApplicationController
     render json: { message: "If that email exists, we sent reset instructions." }
   end
 
-  # PUT /api/v1/password_resets/:token
+  # PUT /api/password_resets/:token
   def update
     user = User.find_by_token_for(:password_reset, params[:token])
 
@@ -170,7 +170,7 @@ end
 # test/controllers/password_resets_controller_test.rb
 class PasswordResetsControllerTest < ActionDispatch::IntegrationTest
   test "create always returns success (no email enumeration)" do
-    post api_v1_password_resets_path,
+    post api_password_resets_path,
       params: { email: "nonexistent@example.com" }, as: :json
 
     assert_response :ok
@@ -181,7 +181,7 @@ class PasswordResetsControllerTest < ActionDispatch::IntegrationTest
     user = users(:alice)
     token = user.generate_token_for(:password_reset)
 
-    put api_v1_password_reset_path(token),
+    put api_password_reset_path(token),
       params: { password: "newsecure123" }, as: :json
 
     assert_response :ok
@@ -194,7 +194,7 @@ class PasswordResetsControllerTest < ActionDispatch::IntegrationTest
 
     travel 20.minutes  # Token expired (15 min limit)
 
-    put api_v1_password_reset_path(token),
+    put api_password_reset_path(token),
       params: { password: "newsecure123" }, as: :json
 
     assert_response :unprocessable_entity
@@ -207,12 +207,12 @@ class PasswordResetsControllerTest < ActionDispatch::IntegrationTest
     token = user.generate_token_for(:password_reset)
 
     # First use: succeeds
-    put api_v1_password_reset_path(token),
+    put api_password_reset_path(token),
       params: { password: "newsecure123" }, as: :json
     assert_response :ok
 
     # Second use: fails (password_salt changed)
-    put api_v1_password_reset_path(token),
+    put api_password_reset_path(token),
       params: { password: "another_password" }, as: :json
     assert_response :unprocessable_entity
   end

@@ -236,8 +236,8 @@ class UserRegistration < ApplicationService
 end
 
 # Controller stays thin (unchanged from L16):
-# app/controllers/api/v1/registrations_controller.rb
-class Api::V1::RegistrationsController < ApplicationController
+# app/controllers/api/registrations_controller.rb
+class Api::RegistrationsController < ApplicationController
   def create
     result = UserRegistration.call(registration_params)
 

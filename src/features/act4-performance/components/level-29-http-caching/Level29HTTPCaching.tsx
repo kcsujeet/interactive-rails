@@ -491,9 +491,9 @@ end`,
 			highlight: [],
 		});
 		files.push({
-			filename: 'app/controllers/api/v1/products_controller.rb',
+			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::ProductsController < ApplicationController
+			code: `class Api::ProductsController < ApplicationController
   def index
     result = ProductCatalog.call
     # No Cache-Control headers
@@ -504,9 +504,9 @@ end`,
 			highlight: [4, 5],
 		});
 		files.push({
-			filename: 'app/controllers/api/v1/products_controller.rb',
+			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::ProductsController < ApplicationController
+			code: `class Api::ProductsController < ApplicationController
   def show
     result = ProductDetail.call(id: params[:id])
     # No stale? check, no ETags
@@ -522,9 +522,9 @@ end`,
 	// Build / reward: show evolving code with service pattern
 	if (furthestStep === 0) {
 		files.push({
-			filename: 'app/controllers/api/v1/products_controller.rb',
+			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::ProductsController < ApplicationController
+			code: `class Api::ProductsController < ApplicationController
   def index
     result = ProductCatalog.call
     # No caching: every request hits the server
@@ -537,9 +537,9 @@ end`,
 
 	if (furthestStep >= 1) {
 		files.push({
-			filename: 'app/controllers/api/v1/products_controller.rb',
+			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::ProductsController < ApplicationController
+			code: `class Api::ProductsController < ApplicationController
   def index
     result = ProductCatalog.call
 
@@ -556,9 +556,9 @@ end`,
 
 	if (furthestStep >= 2) {
 		files.push({
-			filename: 'app/controllers/api/v1/products_controller.rb',
+			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::ProductsController < ApplicationController
+			code: `class Api::ProductsController < ApplicationController
   def show
     result = ProductDetail.call(id: params[:id])
 
@@ -595,9 +595,9 @@ end`,
 
 	if (furthestStep >= 4) {
 		files.push({
-			filename: 'app/controllers/api/v1/dashboard_controller.rb',
+			filename: 'app/controllers/api/dashboard_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::DashboardController < ApplicationController
+			code: `class Api::DashboardController < ApplicationController
   before_action :authenticate_user!
 
   def orders

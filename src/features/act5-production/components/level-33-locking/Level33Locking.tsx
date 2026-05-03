@@ -476,7 +476,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'POST order (buy 10)',
 		description: 'Single customer buys 10 units',
 		method: 'POST',
-		path: '/api/v1/orders',
+		path: '/api/orders',
 		actor: 'Customer A',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -493,7 +493,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'POST concurrent orders (locked)',
 		description: 'Two customers order simultaneously with FOR UPDATE lock',
 		method: 'POST',
-		path: '/api/v1/orders',
+		path: '/api/orders',
 		actor: 'Customer A + Customer B',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -520,7 +520,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'POST order (buy 5 units)',
 		description: 'Single checkout: lock product, deduct stock, create order',
 		method: 'POST',
-		path: '/api/v1/orders',
+		path: '/api/orders',
 		actor: 'Customer A',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -538,7 +538,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		description:
 			'Two customers check out simultaneously, both correctly serialized',
 		method: 'POST',
-		path: '/api/v1/orders',
+		path: '/api/orders',
 		actor: 'Customer A + Customer B',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -565,7 +565,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'POST order (buy 100, insufficient)',
 		description: 'Try to order more than available stock',
 		method: 'POST',
-		path: '/api/v1/orders',
+		path: '/api/orders',
 		actor: 'Customer A',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -585,7 +585,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'PATCH product (stale version)',
 		description: 'Edit product that was already modified by another admin',
 		method: 'PATCH',
-		path: '/api/v1/products/1',
+		path: '/api/products/1',
 		actor: 'Admin B (stale)',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -605,7 +605,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'POST order (-5 quantity, invalid)',
 		description: 'Try to deduct a negative amount',
 		method: 'POST',
-		path: '/api/v1/orders',
+		path: '/api/orders',
 		actor: 'Customer A',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -1392,9 +1392,9 @@ end`,
 end`,
 		},
 		{
-			filename: 'app/controllers/api/v1/orders_controller.rb',
+			filename: 'app/controllers/api/orders_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::OrdersController < ApplicationController
+			code: `class Api::OrdersController < ApplicationController
   def create
     result = PlaceOrder.call(
       product_id: params[:id],
@@ -1449,14 +1449,14 @@ export function Level33Locking({ onComplete }: LevelComponentProps) {
 	// Request card states
 	const emptyCardA: RequestCardState = {
 		label: 'Request A',
-		endpoint: 'POST /api/v1/orders',
+		endpoint: 'POST /api/orders',
 		params: '{ product_id: 1, qty: 10 }',
 		color: 'blue',
 		log: [],
 	};
 	const emptyCardB: RequestCardState = {
 		label: 'Request B',
-		endpoint: 'POST /api/v1/orders',
+		endpoint: 'POST /api/orders',
 		params: '{ product_id: 1, qty: 8 }',
 		color: 'purple',
 		log: [],
@@ -1577,14 +1577,14 @@ export function Level33Locking({ onComplete }: LevelComponentProps) {
 				});
 				setRequestA({
 					label: 'Admin A',
-					endpoint: 'PATCH /api/v1/products/1',
+					endpoint: 'PATCH /api/products/1',
 					params: '{ price: "$60.00" }',
 					color: 'blue',
 					log: [],
 				});
 				setRequestB({
 					label: 'Admin B',
-					endpoint: 'PATCH /api/v1/products/1',
+					endpoint: 'PATCH /api/products/1',
 					params: '{ price: "$55.00" }',
 					color: 'purple',
 					log: [],

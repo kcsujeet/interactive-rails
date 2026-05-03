@@ -90,12 +90,12 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 const PROBES: ProbeConfig[] = [
 	{
 		id: 'post-password-reset',
-		label: 'POST /api/v1/password_resets',
-		command: 'POST /api/v1/password_resets {email: "user@example.com"}',
+		label: 'POST /api/password_resets',
+		command: 'POST /api/password_resets {email: "user@example.com"}',
 		responseLines: [
 			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
 			{
-				text: '{"error":"No route matches POST /api/v1/password_resets"}',
+				text: '{"error":"No route matches POST /api/password_resets"}',
 				color: 'muted',
 			},
 			{
@@ -109,7 +109,7 @@ const PROBES: ProbeConfig[] = [
 		],
 		story: [
 			'A customer forgets their password and clicks "Reset password."',
-			'The app sends a POST to /api/v1/password_resets.',
+			'The app sends a POST to /api/password_resets.',
 			'Rails returns 404: no route matches. The endpoint does not exist.',
 			'The customer is stuck with no way to recover their account.',
 		],
@@ -199,7 +199,7 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		stageId: 'request',
 		title: 'Incoming Request',
 		description:
-			'A user who forgot their password tries to POST to /api/v1/password_resets. The request never reaches a controller because no route is defined for password resets.',
+			'A user who forgot their password tries to POST to /api/password_resets. The request never reaches a controller because no route is defined for password resets.',
 	},
 	router: {
 		stageId: 'router',
@@ -208,11 +208,9 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 			'The router has no entry for password_resets. The request hits a 404 dead end. There is no self-service recovery path.',
 		code: `Rails.application.routes.draw do
   namespace :api do
-    namespace :v1 do
-      resources :products
-      resources :reviews
-      # No password_resets route!
-    end
+    resources :products
+    resources :reviews
+    # No password_resets route!
   end
 end`,
 	},
@@ -258,10 +256,10 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'post-password-reset',
-		label: 'POST /api/v1/password_resets',
+		label: 'POST /api/password_resets',
 		description: 'Password reset endpoint now exists (was 404)',
 		method: 'POST',
-		path: '/api/v1/password_resets',
+		path: '/api/password_resets',
 		actor: 'user@example.com',
 		expectedResult: 'allowed',
 	},
@@ -279,7 +277,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Inspect User model',
 		description: 'User now has generates_token_for (was missing)',
 		method: 'GET',
-		path: '/api/v1/user/token_methods',
+		path: '/api/user/token_methods',
 		actor: 'admin',
 		expectedResult: 'allowed',
 	},
@@ -288,7 +286,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Valid email reset',
 		description: 'POST with a registered email address',
 		method: 'POST',
-		path: '/api/v1/password_resets',
+		path: '/api/password_resets',
 		actor: 'user@example.com',
 		expectedResult: 'allowed',
 	},
@@ -297,7 +295,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Non-existent email',
 		description: 'POST with unknown email (same response, no leak)',
 		method: 'POST',
-		path: '/api/v1/password_resets',
+		path: '/api/password_resets',
 		actor: 'nobody@example.com',
 		expectedResult: 'allowed',
 	},
@@ -306,7 +304,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Valid token reset',
 		description: 'PATCH with a fresh, valid token',
 		method: 'PATCH',
-		path: '/api/v1/password_resets/:token',
+		path: '/api/password_resets/:token',
 		actor: 'user@example.com',
 		expectedResult: 'allowed',
 	},
@@ -315,7 +313,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Expired token',
 		description: 'PATCH with a token older than 15 minutes',
 		method: 'PATCH',
-		path: '/api/v1/password_resets/:token',
+		path: '/api/password_resets/:token',
 		actor: 'attacker',
 		expectedResult: 'blocked',
 	},
@@ -324,7 +322,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Already-used token',
 		description: 'PATCH with a token after password was changed',
 		method: 'PATCH',
-		path: '/api/v1/password_resets/:token',
+		path: '/api/password_resets/:token',
 		actor: 'attacker',
 		expectedResult: 'blocked',
 	},
@@ -600,11 +598,9 @@ end`,
 			language: 'ruby',
 			code: `Rails.application.routes.draw do
   namespace :api do
-    namespace :v1 do
-      resources :products
-      resources :reviews
-      # No password_resets route!
-    end
+    resources :products
+    resources :reviews
+    # No password_resets route!
   end
 end`,
 			highlight: [6],
@@ -686,9 +682,9 @@ end`,
 
 	if (furthestStep >= 4) {
 		files.push({
-			filename: 'app/controllers/api/v1/password_resets_controller.rb',
+			filename: 'app/controllers/api/password_resets_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::PasswordResetsController < ApplicationController
+			code: `class Api::PasswordResetsController < ApplicationController
   def create
     user = User.find_by(email: params[:email])
     UserMailer.password_reset(user).deliver_later if user

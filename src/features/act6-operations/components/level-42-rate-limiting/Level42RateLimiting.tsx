@@ -155,8 +155,7 @@ const PROBES = [
 	{
 		id: 'bot-flood',
 		label: 'Bot floods API (10K req/sec from one IP)',
-		command:
-			'for i in {1..10000}; do curl localhost:3000/api/v1/products; done',
+		command: 'for i in {1..10000}; do curl localhost:3000/api/products; done',
 		responseLines: [
 			{
 				text: '# 10,000 requests from 1.2.3.4',
@@ -173,7 +172,7 @@ const PROBES = [
 			},
 		],
 		story: [
-			'A bot sends 10,000 GET /api/v1/products per second from one IP.',
+			'A bot sends 10,000 GET /api/products per second from one IP.',
 			'Every request is served. No throttling.',
 			'Server CPU hits 98%. Response times spike to 5 seconds.',
 			'The entire app slows down for everyone.',
@@ -183,10 +182,10 @@ const PROBES = [
 		id: 'brute-force',
 		label: 'Attacker brute-forces login endpoint',
 		command:
-			'for i in {1..1000}; do curl -X POST localhost:3000/api/v1/sessions -d "password=guess$i"; done',
+			'for i in {1..1000}; do curl -X POST localhost:3000/api/sessions -d "password=guess$i"; done',
 		responseLines: [
 			{
-				text: '# 1,000 POST /api/v1/sessions from one IP',
+				text: '# 1,000 POST /api/sessions from one IP',
 				color: 'yellow' as const,
 			},
 			{ text: '401 Unauthorized (x999)', color: 'red' as const },
@@ -209,7 +208,7 @@ const PROBES = [
 	{
 		id: 'legitimate-blocked',
 		label: 'Customer locked out during bot attack',
-		command: 'curl localhost:3000/api/v1/products  # during bot flood',
+		command: 'curl localhost:3000/api/products  # during bot flood',
 		responseLines: [
 			{
 				text: '# Customer tries to browse products',
@@ -572,7 +571,7 @@ const RAILS_RATE_LIMIT_COMMANDS = [
 		id: 'wrong-before-action',
 		label: 'before_action :check_rate_limit',
 		command:
-			'echo "before_action :check_rate_limit" >> app/controllers/api/v1/sessions_controller.rb',
+			'echo "before_action :check_rate_limit" >> app/controllers/api/sessions_controller.rb',
 		correct: false,
 		feedback:
 			'A custom before_action requires you to implement the entire rate limiting logic yourself. Rails 8 has a built-in rate_limit macro that handles counting, storage, and response.',
@@ -581,14 +580,14 @@ const RAILS_RATE_LIMIT_COMMANDS = [
 		id: 'correct',
 		label: 'rate_limit to: 5, within: 1.minute',
 		command:
-			'echo "rate_limit to: 5, within: 1.minute" >> app/controllers/api/v1/sessions_controller.rb',
+			'echo "rate_limit to: 5, within: 1.minute" >> app/controllers/api/sessions_controller.rb',
 		correct: true,
 	},
 	{
 		id: 'wrong-no-window',
 		label: 'rate_limit to: 5',
 		command:
-			'echo "rate_limit to: 5" >> app/controllers/api/v1/sessions_controller.rb',
+			'echo "rate_limit to: 5" >> app/controllers/api/sessions_controller.rb',
 		correct: false,
 		feedback:
 			'rate_limit requires a within: parameter to define the time window. Without it, Rails does not know when to reset the counter.',
@@ -666,7 +665,7 @@ end`,
 		id: 'correct',
 		label: 'Throttle login by IP + email combination',
 		code: `Rack::Attack.throttle("login/ip", limit: 5, period: 60) do |req|
-  if req.path == '/api/v1/sessions' && req.post?
+  if req.path == '/api/sessions' && req.post?
     "#{req.ip}-#{req.params['email']}"
   end
 end`,
@@ -676,7 +675,7 @@ end`,
 		id: 'wrong-no-ip',
 		label: 'Throttle login by email only',
 		code: `Rack::Attack.throttle("login/email", limit: 5, period: 60) do |req|
-  req.params['email'] if req.path == '/api/v1/sessions' && req.post?
+  req.params['email'] if req.path == '/api/sessions' && req.post?
 end`,
 		correct: false,
 		feedback:
@@ -786,7 +785,7 @@ const STRESS_SCENARIOS = [
 		label: 'Bot floods API (with IP throttle)',
 		description: 'Bot IP blocked after 100 requests',
 		method: 'GET' as const,
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'bot',
 		expectedResult: 'blocked' as const,
 		responseLines: [
@@ -806,7 +805,7 @@ const STRESS_SCENARIOS = [
 		label: 'Attacker brute-forces login (with rate limit)',
 		description: 'Login blocked after 5 attempts per minute',
 		method: 'POST' as const,
-		path: '/api/v1/sessions',
+		path: '/api/sessions',
 		actor: 'attacker',
 		expectedResult: 'blocked' as const,
 		responseLines: [
@@ -826,7 +825,7 @@ const STRESS_SCENARIOS = [
 		label: 'Customer browses during attack (protected)',
 		description: 'Bot throttled, customer gets through',
 		method: 'GET' as const,
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'customer',
 		expectedResult: 'allowed' as const,
 		responseLines: [
@@ -869,9 +868,9 @@ function getCodeFiles(
 	if (phase === 'observe') {
 		return [
 			{
-				filename: 'app/controllers/api/v1/sessions_controller.rb',
+				filename: 'app/controllers/api/sessions_controller.rb',
 				language: 'ruby',
-				code: `module Api::V1
+				code: `module Api
   class SessionsController < Api::BaseController
     # No rate limiting!
     # Accepts unlimited login attempts
@@ -897,9 +896,9 @@ end`,
 
 		if (completedStep >= 0) {
 			files.push({
-				filename: 'app/controllers/api/v1/sessions_controller.rb',
+				filename: 'app/controllers/api/sessions_controller.rb',
 				language: 'ruby',
-				code: `module Api::V1
+				code: `module Api
   class SessionsController < Api::BaseController
     rate_limit to: 5, within: 1.minute
     # 5 login attempts per minute per IP
@@ -927,7 +926,7 @@ end${
 						? `
 
 Rack::Attack.throttle("login/ip", limit: 5, period: 60) do |req|
-  if req.path == '/api/v1/sessions' && req.post?
+  if req.path == '/api/sessions' && req.post?
     "#{req.ip}-#{req.params['email']}"
   end
 end`
@@ -960,7 +959,7 @@ end`
 
 		if (files.length === 0) {
 			files.push({
-				filename: 'app/controllers/api/v1/sessions_controller.rb',
+				filename: 'app/controllers/api/sessions_controller.rb',
 				language: 'ruby',
 				code: '# Step 1: Add rate_limit to the login controller...',
 			});
@@ -971,9 +970,9 @@ end`
 
 	return [
 		{
-			filename: 'app/controllers/api/v1/sessions_controller.rb',
+			filename: 'app/controllers/api/sessions_controller.rb',
 			language: 'ruby',
-			code: `module Api::V1
+			code: `module Api
   class SessionsController < Api::BaseController
     rate_limit to: 5, within: 1.minute
 
@@ -999,7 +998,7 @@ end`,
 end
 
 Rack::Attack.throttle("login/ip", limit: 5, period: 60) do |req|
-  if req.path == '/api/v1/sessions' && req.post?
+  if req.path == '/api/sessions' && req.post?
     "#{req.ip}-#{req.params['email']}"
   end
 end

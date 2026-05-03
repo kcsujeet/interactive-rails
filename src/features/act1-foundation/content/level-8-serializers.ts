@@ -96,7 +96,7 @@ class ProductSerializer < BaseSerializer
 end
 
 # In controller:
-class Api::V1::ProductsController < ApplicationController
+class Api::ProductsController < ApplicationController
   def index
     products = Product.all
     render json: ProductSerializer.new(products).serializable_hash.to_json

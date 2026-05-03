@@ -87,7 +87,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'inject-user-id',
 		label: 'POST with user_id',
-		command: 'POST /api/v1/products {name: "Hi", user_id: 42}',
+		command: 'POST /api/products {name: "Hi", user_id: 42}',
 		responseLines: [
 			{ text: 'HTTP/1.1 201 Created', color: 'red' },
 			{
@@ -113,7 +113,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'escalate-admin',
 		label: 'POST with admin: true',
-		command: 'POST /api/v1/products {name: "Exploit", admin: true}',
+		command: 'POST /api/products {name: "Exploit", admin: true}',
 		responseLines: [
 			{ text: 'HTTP/1.1 201 Created', color: 'red' },
 			{
@@ -139,7 +139,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'inject-both',
 		label: 'PATCH with both fields',
-		command: 'PATCH /api/v1/products/1 {user_id: 99, admin: true}',
+		command: 'PATCH /api/products/1 {user_id: 99, admin: true}',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
 			{
@@ -249,7 +249,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Create with safe params',
 		description: 'POST with only name and description',
 		method: 'POST',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'user_3',
 		expectedResult: 'allowed',
 	},
@@ -258,7 +258,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'POST with user_id',
 		description: 'Try to set ownership via params',
 		method: 'POST',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'attacker',
 		expectedResult: 'blocked',
 	},
@@ -267,7 +267,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'POST with admin: true',
 		description: 'Try to escalate privileges via params',
 		method: 'POST',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'attacker',
 		expectedResult: 'blocked',
 	},
@@ -276,7 +276,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Update with safe params',
 		description: 'PATCH with only name and description',
 		method: 'PATCH',
-		path: '/api/v1/products/1',
+		path: '/api/products/1',
 		actor: 'owner (user_3)',
 		expectedResult: 'allowed',
 	},
@@ -285,7 +285,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'PATCH with user_id + admin',
 		description: 'Try to steal ownership and escalate',
 		method: 'PATCH',
-		path: '/api/v1/products/1',
+		path: '/api/products/1',
 		actor: 'attacker',
 		expectedResult: 'blocked',
 	},
@@ -295,7 +295,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		description:
 			'Attacker sends product as a string ("hacked") instead of a hash. params.expect catches the wrong shape and returns 400 Bad Request.',
 		method: 'POST',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'attacker',
 		expectedResult: 'blocked',
 	},
@@ -446,9 +446,9 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 	// Observe phase: show controller with raw params (no filtering)
 	if (phase === 'observe') {
 		files.push({
-			filename: 'app/controllers/api/v1/products_controller.rb',
+			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::ProductsController < ApplicationController
+			code: `class Api::ProductsController < ApplicationController
   def create
     product = Product.create!(
       name: params[:name],
@@ -476,9 +476,9 @@ end`,
 	if (furthestStep === 0) {
 		// Step 0: same as observe (player is choosing the filtering method)
 		files.push({
-			filename: 'app/controllers/api/v1/products_controller.rb',
+			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::ProductsController < ApplicationController
+			code: `class Api::ProductsController < ApplicationController
   def create
     product = Product.create!(
       name: params[:name],
@@ -503,11 +503,11 @@ end`,
 
 	if (furthestStep >= 1) {
 		files.push({
-			filename: 'app/controllers/api/v1/products_controller.rb',
+			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
 			code:
 				furthestStep >= 3
-					? `class Api::V1::ProductsController < ApplicationController
+					? `class Api::ProductsController < ApplicationController
   def create
     product = current_user.products.create!(product_params)
     render json: product, status: :created
@@ -528,7 +528,7 @@ end`,
   end
 end`
 					: furthestStep >= 2
-						? `class Api::V1::ProductsController < ApplicationController
+						? `class Api::ProductsController < ApplicationController
   def create
     product = Product.create!(product_params)
     render json: product, status: :created
@@ -548,7 +548,7 @@ end`
     # But how does user_id get set now?
   end
 end`
-						: `class Api::V1::ProductsController < ApplicationController
+						: `class Api::ProductsController < ApplicationController
   def create
     product = Product.create!(product_params)
     render json: product, status: :created

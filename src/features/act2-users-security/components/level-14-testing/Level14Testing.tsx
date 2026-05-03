@@ -102,7 +102,7 @@ const PROBES: ProbeConfig[] = [
 			{ text: 'Deploy: SUCCESS', color: 'green' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'POST /api/v1/sessions => 500 Internal Server Error',
+				text: 'POST /api/sessions => 500 Internal Server Error',
 				color: 'red',
 			},
 			{
@@ -132,7 +132,7 @@ const PROBES: ProbeConfig[] = [
 			{ text: 'Deploy: SUCCESS', color: 'green' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'POST /api/v1/products => 500 Internal Server Error',
+				text: 'POST /api/products => 500 Internal Server Error',
 				color: 'red',
 			},
 			{
@@ -162,7 +162,7 @@ const PROBES: ProbeConfig[] = [
 			{ text: 'Deploy: SUCCESS', color: 'green' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'GET /api/v1/users => 500 Internal Server Error',
+				text: 'GET /api/users => 500 Internal Server Error',
 				color: 'red',
 			},
 			{
@@ -544,7 +544,7 @@ end`,
 		label: `RSpec.describe "Sessions API", type: :request do
   it "returns a token on valid login" do
     user = create(:user, password: "password123")
-    post "/api/v1/sessions",
+    post "/api/sessions",
          params: { email: user.email, password: "password123" }
     expect(response).to have_http_status(:created)
     expect(response.parsed_body["token"]).to be_present
@@ -621,9 +621,9 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 	// Observe phase: show the broken controller + empty spec dir
 	if (phase === 'observe') {
 		files.push({
-			filename: 'app/controllers/api/v1/sessions_controller.rb',
+			filename: 'app/controllers/api/sessions_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::SessionsController < ApplicationController
+			code: `class Api::SessionsController < ApplicationController
   def create
     user = User.authenticate_by(
       email: params[:email],
@@ -657,9 +657,9 @@ end
 	// Build / reward phases: show evolving code
 	if (furthestStep === 0) {
 		files.push({
-			filename: 'app/controllers/api/v1/sessions_controller.rb',
+			filename: 'app/controllers/api/sessions_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::SessionsController < ApplicationController
+			code: `class Api::SessionsController < ApplicationController
   def create
     user = User.authenticate_by(
       email: params[:email],
@@ -764,14 +764,14 @@ end`,
 	if (furthestStep >= 6) {
 		// After step 5: Request spec
 		files.push({
-			filename: 'spec/requests/api/v1/sessions_spec.rb',
+			filename: 'spec/requests/api/sessions_spec.rb',
 			language: 'ruby',
 			code: `require "rails_helper"
 
 RSpec.describe "Sessions API", type: :request do
   it "returns a token on valid login" do
     user = create(:user, password: "password123")
-    post "/api/v1/sessions",
+    post "/api/sessions",
          params: { email: user.email,
                    password: "password123" }
     expect(response).to have_http_status(:created)
@@ -780,7 +780,7 @@ RSpec.describe "Sessions API", type: :request do
 
   it "returns 401 with wrong password" do
     user = create(:user, password: "password123")
-    post "/api/v1/sessions",
+    post "/api/sessions",
          params: { email: user.email,
                    password: "wrong" }
     expect(response).to have_http_status(:unauthorized)
@@ -795,7 +795,7 @@ end`,
 		files.push({
 			filename: 'Test Output',
 			language: 'plaintext',
-			code: `$ bundle exec rspec spec/requests/api/v1/sessions_spec.rb
+			code: `$ bundle exec rspec spec/requests/api/sessions_spec.rb
 
 Sessions API
   returns a token on valid login     PASSED

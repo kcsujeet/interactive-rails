@@ -103,7 +103,7 @@ The example serializes the full notification into the broadcast. At a few hundre
 
 \`\`\`ruby
 NotificationsChannel.broadcast_to(user, { type: "notification.created", id: notification.id })
-# Client receives event, calls GET /api/v1/notifications/<id> over the cached HTTP path
+# Client receives event, calls GET /api/notifications/<id> over the cached HTTP path
 \`\`\`
 This also keeps WebSocket and HTTP semantics aligned: the source of truth lives at the GET endpoint, the WebSocket is a notification of "go fetch this." Cache hits on the HTTP side absorb most of the load.
 

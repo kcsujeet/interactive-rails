@@ -87,8 +87,8 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 const PROBES: ProbeConfig[] = [
 	{
 		id: 'missing-product',
-		label: 'GET /api/v1/products/999',
-		command: 'GET /api/v1/products/999',
+		label: 'GET /api/products/999',
+		command: 'GET /api/products/999',
 		responseLines: [
 			{ text: 'HTTP/1.1 500 Internal Server Error', color: 'red' },
 			{ text: 'Content-Type: text/html', color: 'muted' },
@@ -97,7 +97,7 @@ const PROBES: ProbeConfig[] = [
 				color: 'yellow',
 			},
 			{
-				text: "app/controllers/api/v1/products_controller.rb:4:in 'show'",
+				text: "app/controllers/api/products_controller.rb:4:in 'show'",
 				color: 'muted',
 			},
 			{
@@ -114,8 +114,8 @@ const PROBES: ProbeConfig[] = [
 	},
 	{
 		id: 'bad-params',
-		label: 'POST /api/v1/products (bad params)',
-		command: 'POST /api/v1/products {}',
+		label: 'POST /api/products (bad params)',
+		command: 'POST /api/products {}',
 		responseLines: [
 			{ text: 'HTTP/1.1 400 Bad Request', color: 'red' },
 			{ text: 'Content-Type: application/json', color: 'muted' },
@@ -137,8 +137,8 @@ const PROBES: ProbeConfig[] = [
 	},
 	{
 		id: 'missing-user',
-		label: 'GET /api/v1/users/999',
-		command: 'GET /api/v1/users/999',
+		label: 'GET /api/users/999',
+		command: 'GET /api/users/999',
 		responseLines: [
 			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
 			{ text: 'Content-Type: text/plain', color: 'muted' },
@@ -244,28 +244,28 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'missing-product',
-		label: 'GET /api/v1/products/999',
+		label: 'GET /api/products/999',
 		description: 'Request a product that does not exist (was raw 500)',
 		method: 'GET',
-		path: '/api/v1/products/999',
+		path: '/api/products/999',
 		actor: 'user_3',
 		expectedResult: 'blocked',
 	},
 	{
 		id: 'bad-params',
-		label: 'POST /api/v1/products (bad params)',
+		label: 'POST /api/products (bad params)',
 		description: 'POST with missing product key (was inconsistent JSON)',
 		method: 'POST',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'attacker',
 		expectedResult: 'blocked',
 	},
 	{
 		id: 'missing-user',
-		label: 'GET /api/v1/users/999',
+		label: 'GET /api/users/999',
 		description: 'Request a user that does not exist (was plain text)',
 		method: 'GET',
-		path: '/api/v1/users/999',
+		path: '/api/users/999',
 		actor: 'user_3',
 		expectedResult: 'blocked',
 	},
@@ -274,7 +274,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Create a product',
 		description: 'POST with valid title and body',
 		method: 'POST',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'user_3',
 		expectedResult: 'allowed',
 	},
@@ -283,7 +283,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: '422 Unprocessable',
 		description: 'POST with blank title (validation fails)',
 		method: 'POST',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'user_3',
 		expectedResult: 'blocked',
 	},
@@ -292,7 +292,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: '403 Forbidden',
 		description: "DELETE another user's product",
 		method: 'DELETE',
-		path: '/api/v1/products/1',
+		path: '/api/products/1',
 		actor: 'attacker',
 		expectedResult: 'blocked',
 	},
@@ -301,7 +301,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Show a product',
 		description: 'GET an existing product',
 		method: 'GET',
-		path: '/api/v1/products/1',
+		path: '/api/products/1',
 		actor: 'user_3',
 		expectedResult: 'allowed',
 	},
@@ -472,9 +472,9 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 	// Observe phase: show scattered error handling
 	if (phase === 'observe') {
 		files.push({
-			filename: 'app/controllers/api/v1/products_controller.rb',
+			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::ProductsController < ApplicationController
+			code: `class Api::ProductsController < ApplicationController
   def show
     begin
       @product = Product.find(params[:id])
@@ -505,9 +505,9 @@ end`,
 	if (furthestStep === 0) {
 		// Step 0: same as observe (player is choosing the strategy)
 		files.push({
-			filename: 'app/controllers/api/v1/products_controller.rb',
+			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::ProductsController < ApplicationController
+			code: `class Api::ProductsController < ApplicationController
   def show
     begin
       @product = Product.find(params[:id])
@@ -644,9 +644,9 @@ end`,
 
 	if (furthestStep >= 3) {
 		files.push({
-			filename: 'app/controllers/api/v1/products_controller.rb',
+			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::ProductsController < ApplicationController
+			code: `class Api::ProductsController < ApplicationController
   def show
     @product = Product.find(params[:id])
     render json: @product

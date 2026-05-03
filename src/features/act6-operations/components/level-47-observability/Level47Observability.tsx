@@ -216,7 +216,7 @@ const PROBES: ProbeConfig[] = [
 		command: 'grep "duration" log/production.log | sort -t= -k2 -rn | head -5',
 		responseLines: [
 			{
-				text: 'Started GET "/api/v1/products" at 2024-03-15 14:22:33',
+				text: 'Started GET "/api/products" at 2024-03-15 14:22:33',
 				color: 'muted',
 			},
 			{
@@ -274,7 +274,7 @@ const PROBES: ProbeConfig[] = [
 		id: 'find-bottleneck',
 		label: 'Find where time is spent in a request',
 		command:
-			'curl -w "\\nTotal: %{time_total}s\\n" localhost:3000/api/v1/checkout',
+			'curl -w "\\nTotal: %{time_total}s\\n" localhost:3000/api/checkout',
 		responseLines: [
 			{ text: '{"order_id": 4521, "status": "confirmed"}', color: 'muted' },
 			{ text: 'Total: 3.2s', color: 'red' },
@@ -649,7 +649,7 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		description:
 			'Rails default logger outputs multi-line human-readable text. Each request generates 5+ log lines with no consistent format. Searching requires grep and regex. Cannot be indexed or queried by field.',
 		code: `# Default Rails log output:
-Started GET "/api/v1/products" for 10.0.0.1 at 2024-03-15
+Started GET "/api/products" for 10.0.0.1 at 2024-03-15
 Processing by ProductsController#index as JSON
   Product Load (2.1ms)  SELECT "products".*
   Rendered products/index (1.2ms)

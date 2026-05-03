@@ -117,7 +117,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-products-5',
 		label: 'GET /products (5 products)',
-		command: 'GET /api/v1/products (5 products in DB)',
+		command: 'GET /api/products (5 products in DB)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'green' },
 			{ text: '', color: 'muted' },
@@ -142,7 +142,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-products-100',
 		label: 'GET /products (100 products)',
-		command: 'GET /api/v1/products (100 products in DB)',
+		command: 'GET /api/products (100 products in DB)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK (850ms)', color: 'yellow' },
 			{ text: '', color: 'muted' },
@@ -168,7 +168,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'get-products-1000',
 		label: 'GET /products (1000 products)',
-		command: 'GET /api/v1/products (1000 products in DB)',
+		command: 'GET /api/products (1000 products in DB)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK (4873ms)', color: 'red' },
 			{ text: '', color: 'muted' },
@@ -240,7 +240,7 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		title: 'ProductsController#index',
 		description:
 			'The controller delegates to ProductList service. The service loads products with Product.all, firing just 1 query. The problem is not here.',
-		code: `# app/controllers/api/v1/products_controller.rb
+		code: `# app/controllers/api/products_controller.rb
 def index
   result = ProductList.call(params:)
   render json: ProductSerializer.new(result.products)
@@ -294,7 +294,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		description:
 			'Service loads products without eager loading, serializer accesses .user',
 		method: 'GET',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'ProductList.call',
 		expectedResult: 'blocked',
 	},
@@ -303,7 +303,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'ProductList (with includes)',
 		description: 'Service loads products with eager-loaded users',
 		method: 'GET',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'ProductList.call',
 		expectedResult: 'allowed',
 	},
@@ -313,7 +313,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		description:
 			'Service loads products, serializer counts reviews without counter cache',
 		method: 'GET',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'ProductList.call',
 		expectedResult: 'blocked',
 	},
@@ -331,7 +331,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'policy_scope + preload',
 		description: 'Scoped query with preloaded associations',
 		method: 'GET',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'scope + preload',
 		expectedResult: 'allowed',
 	},
@@ -513,9 +513,9 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 	// Observe phase: show the unoptimized controller + service + serializer
 	if (phase === 'observe') {
 		files.push({
-			filename: 'app/controllers/api/v1/products_controller.rb',
+			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::ProductsController < ApplicationController
+			code: `class Api::ProductsController < ApplicationController
   def index
     result = ProductList.call(params:)
     render json: ProductSerializer.new(result.products)

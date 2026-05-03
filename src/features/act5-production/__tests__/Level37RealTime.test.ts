@@ -24,7 +24,7 @@ const PROBES = [
 	{
 		id: 'check-polling',
 		label: 'GET notifications (poll)',
-		command: 'curl -s localhost:3000/api/v1/notifications | jq',
+		command: 'curl -s localhost:3000/api/notifications | jq',
 		responseLines: [
 			{ text: '200 OK', color: 'cyan' },
 			{ text: '{ "notifications": [] }', color: 'amber' },
@@ -38,7 +38,7 @@ const PROBES = [
 	{
 		id: 'check-cpu',
 		label: 'GET server stats',
-		command: 'curl -s localhost:3000/api/v1/health | jq .server',
+		command: 'curl -s localhost:3000/api/health | jq .server',
 		responseLines: [
 			{
 				text: '{ "cpu": "94%", "connections": 847, "pool_exhausted": true }',
@@ -58,7 +58,7 @@ const PROBES = [
 		id: 'trigger-event',
 		label: 'POST create payment',
 		command:
-			'curl -X POST localhost:3000/api/v1/payments -d \'{"amount": 99.99}\'',
+			'curl -X POST localhost:3000/api/payments -d \'{"amount": 99.99}\'',
 		responseLines: [
 			{ text: '201 Created', color: 'cyan' },
 			{
@@ -260,7 +260,7 @@ const BROADCAST_SERVICE_OPTIONS = [
 	{
 		id: 'wrong-inline',
 		label: 'Broadcast inline in controller',
-		code: `class Api::V1::PaymentsController < ApplicationController
+		code: `class Api::PaymentsController < ApplicationController
   def create
     result = ProcessPayment.call(user: Current.user, params:)
     if result.success?

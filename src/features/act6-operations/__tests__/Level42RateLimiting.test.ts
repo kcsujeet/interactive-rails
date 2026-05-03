@@ -15,8 +15,7 @@ const PROBES = [
 	{
 		id: 'bot-flood',
 		label: 'Bot floods API (10K req/sec from one IP)',
-		command:
-			'for i in {1..10000}; do curl localhost:3000/api/v1/products; done',
+		command: 'for i in {1..10000}; do curl localhost:3000/api/products; done',
 		responseLines: [
 			{
 				text: '# 10,000 requests from 1.2.3.4',
@@ -37,10 +36,10 @@ const PROBES = [
 		id: 'brute-force',
 		label: 'Attacker brute-forces login endpoint',
 		command:
-			'for i in {1..1000}; do curl -X POST localhost:3000/api/v1/sessions -d "password=guess$i"; done',
+			'for i in {1..1000}; do curl -X POST localhost:3000/api/sessions -d "password=guess$i"; done',
 		responseLines: [
 			{
-				text: '# 1,000 POST /api/v1/sessions from one IP',
+				text: '# 1,000 POST /api/sessions from one IP',
 				color: 'yellow',
 			},
 			{ text: '401 Unauthorized (x999)', color: 'red' },
@@ -57,7 +56,7 @@ const PROBES = [
 	{
 		id: 'legitimate-blocked',
 		label: 'Customer locked out during bot attack',
-		command: 'curl localhost:3000/api/v1/products  # during bot flood',
+		command: 'curl localhost:3000/api/products  # during bot flood',
 		responseLines: [
 			{
 				text: '# Customer tries to browse products',
@@ -231,7 +230,7 @@ const STRESS_SCENARIOS = [
 		label: 'Bot floods API (with IP throttle)',
 		description: 'Bot IP blocked after 100 requests',
 		method: 'GET',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'bot',
 		expectedResult: 'blocked' as const,
 		responseLines: [
@@ -245,7 +244,7 @@ const STRESS_SCENARIOS = [
 		label: 'Attacker brute-forces login (with rate limit)',
 		description: 'Login blocked after 5 attempts per minute',
 		method: 'POST',
-		path: '/api/v1/sessions',
+		path: '/api/sessions',
 		actor: 'attacker',
 		expectedResult: 'blocked' as const,
 		responseLines: [
@@ -259,7 +258,7 @@ const STRESS_SCENARIOS = [
 		label: 'Customer browses during attack (protected)',
 		description: 'Bot throttled, customer gets through',
 		method: 'GET',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'customer',
 		expectedResult: 'allowed' as const,
 		responseLines: [

@@ -500,7 +500,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET find user by email',
 		description: 'Look up user by encrypted email (deterministic)',
 		method: 'GET',
-		path: '/api/v1/users?email=alice@example.com',
+		path: '/api/users?email=alice@example.com',
 		actor: 'authenticated user',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -517,7 +517,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET find user by phone',
 		description: 'Try to look up by non-deterministic phone',
 		method: 'GET',
-		path: '/api/v1/users?phone=+1-555-0123',
+		path: '/api/users?phone=+1-555-0123',
 		actor: 'authenticated user',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -534,7 +534,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'SQL injection attack',
 		description: 'Attacker tries to dump user table',
 		method: 'GET',
-		path: "/api/v1/users?id=1' OR 1=1",
+		path: "/api/users?id=1' OR 1=1",
 		actor: 'attacker',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -549,7 +549,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'POST create duplicate email',
 		description: 'Try to create user with existing email',
 		method: 'POST',
-		path: '/api/v1/users',
+		path: '/api/users',
 		actor: 'authenticated user',
 		expectedResult: 'blocked',
 		responseLines: [
@@ -566,7 +566,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'GET user profile',
 		description: 'Read user profile (encryption is transparent)',
 		method: 'GET',
-		path: '/api/v1/users/1',
+		path: '/api/users/1',
 		actor: 'authenticated user',
 		expectedResult: 'allowed',
 		responseLines: [
@@ -615,7 +615,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'SQL injection attack',
 		description: 'Attacker exploits SQL injection to dump user table',
 		method: 'GET',
-		path: "/api/v1/users?id=1' OR 1=1",
+		path: "/api/users?id=1' OR 1=1",
 		actor: 'attacker',
 		expectedResult: 'allowed',
 		responseLines: [

@@ -93,7 +93,7 @@ const PROBES: ProbeConfig[] = [
 		id: 'register-alice',
 		label: 'Register new user (Alice)',
 		command:
-			'POST /api/v1/registrations {name: "Alice", email: "alice@example.com"}',
+			'POST /api/registrations {name: "Alice", email: "alice@example.com"}',
 		responseLines: [
 			{ text: 'HTTP/1.1 201 Created', color: 'yellow' },
 			{ text: '... waiting for SMTP server ...', color: 'muted' },
@@ -113,8 +113,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'register-bob',
 		label: 'Register new user (Bob)',
-		command:
-			'POST /api/v1/registrations {name: "Bob", email: "bob@example.com"}',
+		command: 'POST /api/registrations {name: "Bob", email: "bob@example.com"}',
 		responseLines: [
 			{ text: 'HTTP/1.1 201 Created', color: 'yellow' },
 			{
@@ -138,7 +137,7 @@ const PROBES: ProbeConfig[] = [
 		id: 'register-fail',
 		label: 'Register when SMTP is down',
 		command:
-			'POST /api/v1/registrations {name: "Carol", email: "carol@example.com"}',
+			'POST /api/registrations {name: "Carol", email: "carol@example.com"}',
 		responseLines: [
 			{ text: 'HTTP/1.1 500 Internal Server Error', color: 'red' },
 			{
@@ -252,7 +251,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Register new user (Alice)',
 		description: 'POST registration, instant response (was 3.2s)',
 		method: 'POST',
-		path: '/api/v1/registrations',
+		path: '/api/registrations',
 		actor: 'alice@example.com',
 		expectedResult: 'allowed',
 	},
@@ -261,7 +260,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Register new user (Bob)',
 		description: 'POST registration, jobs enqueued async (was 4.1s)',
 		method: 'POST',
-		path: '/api/v1/registrations',
+		path: '/api/registrations',
 		actor: 'bob@example.com',
 		expectedResult: 'allowed',
 	},
@@ -271,7 +270,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		description:
 			'POST registration succeeds, email retried in background (was 500)',
 		method: 'POST',
-		path: '/api/v1/registrations',
+		path: '/api/registrations',
 		actor: 'carol@example.com',
 		expectedResult: 'allowed',
 	},
@@ -289,7 +288,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Register invalid params',
 		description: 'POST registration with missing email',
 		method: 'POST',
-		path: '/api/v1/registrations',
+		path: '/api/registrations',
 		actor: 'visitor',
 		expectedResult: 'blocked',
 	},

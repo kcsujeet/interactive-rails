@@ -82,7 +82,7 @@ class ProductDetail < ApplicationService
   end
 end
 
-# app/controllers/api/v1/products_controller.rb
+# app/controllers/api/products_controller.rb
 def show
   result = ProductDetail.call(id: params[:id])
   render json: result.product  # No caching headers!
@@ -155,7 +155,7 @@ class ProductDetail < ApplicationService
   end
 end
 
-# app/controllers/api/v1/products_controller.rb
+# app/controllers/api/products_controller.rb
 def show
   result = ProductDetail.call(id: params[:id])
 
@@ -165,7 +165,7 @@ def show
   end
 end
 
-# app/controllers/api/v1/products_controller.rb
+# app/controllers/api/products_controller.rb
 def index
   result = ProductCatalog.call
 

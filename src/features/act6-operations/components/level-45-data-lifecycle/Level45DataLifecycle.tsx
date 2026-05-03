@@ -868,7 +868,7 @@ const STRESS_SCENARIOS = [
 		label: 'Customer views recent orders (hot table)',
 		description: 'Query hits hot table with 2.5M rows instead of 50M',
 		method: 'GET' as const,
-		path: '/api/v1/orders',
+		path: '/api/orders',
 		actor: 'customer',
 		expectedResult: 'allowed' as const,
 		responseLines: [
@@ -888,7 +888,7 @@ const STRESS_SCENARIOS = [
 		label: 'Customer views old order (transparent archive read)',
 		description: 'Not found in hot table, seamlessly falls back to archive',
 		method: 'GET' as const,
-		path: '/api/v1/orders/12345',
+		path: '/api/orders/12345',
 		actor: 'customer',
 		expectedResult: 'allowed' as const,
 		responseLines: [

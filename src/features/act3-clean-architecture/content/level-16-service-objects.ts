@@ -18,8 +18,8 @@ export const level16ServiceObjects: Level = {
 			'The create action handles user creation, welcome logging, and newsletter subscription all inline. It is 80 lines, untestable, and breaks when any step fails.',
 		rootCause:
 			'Business logic is embedded in the controller instead of being extracted into a dedicated service object.',
-		codeExample: `# app/controllers/api/v1/registrations_controller.rb
-class Api::V1::RegistrationsController < ApplicationController
+		codeExample: `# app/controllers/api/registrations_controller.rb
+class Api::RegistrationsController < ApplicationController
   def create
     @user = User.new(user_params)
 
@@ -127,8 +127,8 @@ class UserRegistration < ApplicationService
   end
 end
 
-# app/controllers/api/v1/registrations_controller.rb
-class Api::V1::RegistrationsController < ApplicationController
+# app/controllers/api/registrations_controller.rb
+class Api::RegistrationsController < ApplicationController
   def create
     result = UserRegistration.call(registration_params)
 

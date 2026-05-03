@@ -57,8 +57,8 @@ export const level19QueryObjects: Level = {
 			'The admin dashboard controller has a 60-line index action with inline .where().joins().group().order() chains. The same filtering logic is copy-pasted in the API controller and CSV export job with slight inconsistencies.',
 		rootCause:
 			'Complex query logic is embedded in the controller instead of being extracted into a composable query object in app/queries/.',
-		codeExample: `# app/controllers/api/v1/admin/products_controller.rb
-class Api::V1::Admin::ProductsController < ApplicationController
+		codeExample: `# app/controllers/api/admin/products_controller.rb
+class Api::Admin::ProductsController < ApplicationController
   def index
     @products = Product.all
 
@@ -92,7 +92,7 @@ class Api::V1::Admin::ProductsController < ApplicationController
   end
 end
 
-# app/controllers/api/v1/products_controller.rb -- SAME LOGIC COPY-PASTED
+# app/controllers/api/products_controller.rb -- SAME LOGIC COPY-PASTED
 # app/jobs/csv_export_job.rb -- AND AGAIN with slight differences`,
 		goal: 'Extract query logic into a composable ProductQuery object with chainable filter methods that returns ActiveRecord::Relation.',
 		thresholds: {},
@@ -280,8 +280,8 @@ class ProductQuery < ApplicationQuery
   end
 end
 
-# app/controllers/api/v1/admin/products_controller.rb -- clean!
-class Api::V1::Admin::ProductsController < ApplicationController
+# app/controllers/api/admin/products_controller.rb -- clean!
+class Api::Admin::ProductsController < ApplicationController
   def index
     products = ProductQuery.new
       .listed(params[:listed])
@@ -297,7 +297,7 @@ class Api::V1::Admin::ProductsController < ApplicationController
 end
 
 # Reuse in API controller with different base scope:
-class Api::V1::ProductsController < ApplicationController
+class Api::ProductsController < ApplicationController
   def index
     products = ProductQuery.new(Product.where.not(listed_at: nil))
       .by_seller(params[:seller_id])

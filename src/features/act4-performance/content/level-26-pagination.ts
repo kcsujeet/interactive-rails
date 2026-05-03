@@ -167,7 +167,7 @@ class ProductList < ApplicationService
 end
 
 # Controller paginates the service scope:
-class Api::V1::ProductsController < ApplicationController
+class Api::ProductsController < ApplicationController
   def index
     result = ProductList.call(page: params[:page])
     if result.success?

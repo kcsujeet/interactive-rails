@@ -87,7 +87,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'empty-post',
 		label: 'POST empty record',
-		command: 'POST /api/v1/products (name: "", description: "")',
+		command: 'POST /api/products (name: "", description: "")',
 		responseLines: [
 			{ text: 'HTTP/1.1 201 Created', color: 'red' },
 			{ text: '', color: 'muted' },
@@ -110,7 +110,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'duplicate-email',
 		label: 'POST duplicate email',
-		command: 'POST /api/v1/users (email: "joe@test.com") [already exists]',
+		command: 'POST /api/users (email: "joe@test.com") [already exists]',
 		responseLines: [
 			{ text: 'HTTP/1.1 201 Created', color: 'red' },
 			{ text: '', color: 'muted' },
@@ -133,7 +133,7 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'bad-email',
 		label: 'POST invalid email',
-		command: 'POST /api/v1/users (email: "not-an-email")',
+		command: 'POST /api/users (email: "not-an-email")',
 		responseLines: [
 			{ text: 'HTTP/1.1 201 Created', color: 'red' },
 			{ text: '', color: 'muted' },
@@ -195,17 +195,17 @@ const PROBE_DATA_CARD: Record<string, string> = {
 // Observe phase: 3 zones (Input, Model Gate, Database)
 const OBSERVE_FLOW: Record<string, string[]> = {
 	'empty-post': [
-		'POST /api/v1/products from client',
+		'POST /api/products from client',
 		'No validations, passes through',
 		'Empty record saved! 201',
 	],
 	'duplicate-email': [
-		'POST /api/v1/users from client',
+		'POST /api/users from client',
 		'No uniqueness check, passes through',
 		'Duplicate email saved! 201',
 	],
 	'bad-email': [
-		'POST /api/v1/users from client',
+		'POST /api/users from client',
 		'No format check, passes through',
 		'Malformed email saved! 201',
 	],
@@ -299,7 +299,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Valid product with name and description',
 		description: 'A complete product with all required fields',
 		method: 'POST',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'authenticated user',
 		expectedResult: 'allowed',
 	},
@@ -308,7 +308,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'POST empty record',
 		description: 'Product with blank name and description fields',
 		method: 'POST',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'authenticated user',
 		expectedResult: 'blocked',
 	},
@@ -317,7 +317,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'Product with blank name',
 		description: 'Missing required name field',
 		method: 'POST',
-		path: '/api/v1/products',
+		path: '/api/products',
 		actor: 'authenticated user',
 		expectedResult: 'blocked',
 	},
@@ -326,7 +326,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'User with valid email',
 		description: 'New user with unique, properly formatted email',
 		method: 'POST',
-		path: '/api/v1/users',
+		path: '/api/users',
 		actor: 'registration',
 		expectedResult: 'allowed',
 	},
@@ -335,7 +335,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'POST duplicate email',
 		description: 'Email already exists in the database',
 		method: 'POST',
-		path: '/api/v1/users',
+		path: '/api/users',
 		actor: 'registration',
 		expectedResult: 'blocked',
 	},
@@ -344,7 +344,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		label: 'POST invalid email',
 		description: 'Email fails format validation',
 		method: 'POST',
-		path: '/api/v1/users',
+		path: '/api/users',
 		actor: 'registration',
 		expectedResult: 'blocked',
 	},
@@ -599,9 +599,9 @@ end`,
 	// After all steps: show controller error response pattern
 	if (furthestStep >= 4) {
 		files.push({
-			filename: 'app/controllers/api/v1/products_controller.rb',
+			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::V1::ProductsController < ApplicationController
+			code: `class Api::ProductsController < ApplicationController
   def create
     product = Product.new(product_params)
 

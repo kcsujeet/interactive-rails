@@ -148,8 +148,8 @@ class CreateReview < ApplicationService
   end
 end
 
-# app/controllers/api/v1/reviews_controller.rb
-class Api::V1::ReviewsController < ApplicationController
+# app/controllers/api/reviews_controller.rb
+class Api::ReviewsController < ApplicationController
   def create
     result = CreateReview.call(
       reviewable: find_reviewable,

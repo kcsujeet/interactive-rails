@@ -16,7 +16,7 @@ export const level7Controller: Level = {
 	},
 	problem: {
 		observation:
-			'Routes exist but return "uninitialized constant Api::V1::ProductsController".',
+			'Routes exist but return "uninitialized constant Api::ProductsController".',
 		rootCause: 'No controller exists to handle the routed requests.',
 		codeExample: `# Controllers handle requests and return JSON.
 # API controllers inherit from ActionController::API
@@ -61,7 +61,7 @@ export const level7Controller: Level = {
 The example below repeats \`Product.find(params[:id])\` in three actions (\`show\`, \`update\`, \`destroy\`). The conventional Rails idiom is a \`before_action\` callback that runs before the listed actions and assigns the shared instance variable:
 
 \`\`\`ruby
-class Api::V1::ProductsController < ApplicationController
+class Api::ProductsController < ApplicationController
   before_action :set_product, only: [:show, :update, :destroy]
 
   def show
@@ -92,8 +92,8 @@ A failed \`Product.find\` raises \`ActiveRecord::RecordNotFound\`, which the cen
 
 **Strong parameters: \`params.expect\` is the Rails 8 default:**
 The example below uses \`params.require(:product).permit(...)\`, which is the long-standing form. Rails 8 introduced \`params.expect(product: [:name, :description, :price])\` as the production-safe default for new code. \`expect\` enforces the SHAPE of the request (\`product\` must be a hash, not a string), where \`require/permit\` lets a malformed shape slip through with a confusing error message. L14 teaches \`expect\` in detail; from there onward, all new controllers in this curriculum use it.`,
-		railsCodeExample: `# app/controllers/api/v1/products_controller.rb
-class Api::V1::ProductsController < ApplicationController
+		railsCodeExample: `# app/controllers/api/products_controller.rb
+class Api::ProductsController < ApplicationController
   def index
     products = Product.all
     render json: products

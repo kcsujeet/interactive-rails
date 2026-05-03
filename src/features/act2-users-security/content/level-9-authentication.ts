@@ -70,12 +70,12 @@ export const level9Authentication: Level = {
 	},
 	problem: {
 		observation:
-			'Every endpoint is wide open. GET /api/v1/products, DELETE /api/v1/products/1 -- anyone can do anything.',
+			'Every endpoint is wide open. GET /api/products, DELETE /api/products/1 -- anyone can do anything.',
 		rootCause: 'No authentication layer. No User model. No token verification.',
 		codeExample: `# Current state: ZERO authentication
 # Anyone can hit any endpoint:
-curl -X DELETE /api/v1/products/1   # Deleted! No questions asked.
-curl -X POST /api/v1/products       # Created! By who? Nobody knows.
+curl -X DELETE /api/products/1   # Deleted! No questions asked.
+curl -X POST /api/products       # Created! By who? Nobody knows.
 
 # Rails 8 ships an auth generator:
 bin/rails generate authentication
@@ -210,7 +210,7 @@ end
 # POST /sessions { email: "...", password: "..." }
 # => { "token": "abc123..." }
 #
-# GET /api/v1/products -H "Authorization: Bearer abc123..."`,
+# GET /api/products -H "Authorization: Bearer abc123..."`,
 		commonMistakes: [
 			'Using Devise when Rails 8 auth generator is sufficient',
 			'Storing plaintext passwords instead of using has_secure_password',
