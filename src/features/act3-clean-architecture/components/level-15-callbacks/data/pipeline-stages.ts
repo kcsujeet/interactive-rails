@@ -66,13 +66,14 @@ export const OBSERVE_FLOW: Record<string, string[]> = {
 
 // Reward phase: 4 zones (Input, Normalizes, Model, "After Save")
 // The 4th zone shows what runs after the save commits. With the reframed
-// content, that is the controller's next line (mailer or job), not a callback.
+// content, that is the controller's next line (an explicit method call to
+// run the side effect), not a model callback.
 export const REWARD_FLOW: Record<string, string[]> = {
 	'signup-messy': [
 		'"  JOE@GMAIL.COM  " from signup',
 		'strip + downcase: "joe@gmail.com"',
 		'Cleaned email saved to DB',
-		'Controller queues UserMailer.welcome',
+		'Controller calls send_welcome_email',
 	],
 	'lookup-clean': [
 		'find_by(email: "joe@gmail.com")',
@@ -84,7 +85,7 @@ export const REWARD_FLOW: Record<string, string[]> = {
 		'New user registration',
 		'Email normalized on write',
 		'User record persisted',
-		'Controller fires UserMailer.welcome.deliver_later',
+		'Controller calls send_welcome_email(@user)',
 	],
 	'update-no-welcome': [
 		'PATCH /api/users/5',

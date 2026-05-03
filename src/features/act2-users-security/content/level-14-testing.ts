@@ -177,22 +177,6 @@ expect(token).to be_expired
 \`\`\`
 For randomness, seed it: \`srand(spec_seed)\` at the top of \`rails_helper.rb\`, plus \`Faker::Config.random = Random.new(spec_seed)\` so a failing test reproduces locally. Faker by default uses \`SecureRandom\`, which makes "flaky in CI, passes locally" almost guaranteed.
 
-**Background jobs (\`perform_enqueued_jobs\`, \`have_enqueued_job\`):**
-With Active Job test adapter, every \`perform_later\` call enqueues into an array, not a real backend. Use the matchers to assert behavior without running the worker:
-
-\`\`\`ruby
-expect {
-  post "/api/users", params: { user: { email: "a@b.com" } }
-}.to have_enqueued_job(WelcomeEmailJob).with(User.last.id)
-
-# Run the queued jobs inline when you need to assert their effects
-perform_enqueued_jobs do
-  Order.create!(...)
-end
-expect(ActionMailer::Base.deliveries.last.subject).to eq("Order received")
-\`\`\`
-Do NOT use \`deliver_now\` to "make the test simpler." That bypasses the production code path and leaves real bugs uncaught.
-
 **Parallel testing for fast suites:**
 Past ~500 tests, suite time becomes the developer feedback bottleneck. Rails has built-in parallel testing:
 
@@ -213,7 +197,7 @@ Even an API-only Rails app has end-to-end flows that span multiple services: OAu
 
 **Test smells to watch for:**
 - Tests that pass when run in isolation but fail in the full suite (order-dependent state leak; \`config.order = :random\` exposes it).
-- \`sleep N\` anywhere in a spec (almost always a missing \`have_enqueued_job\` or \`wait_until\`).
+- \`sleep N\` anywhere in a spec (almost always a missing async-wait helper).
 - A test that mocks more than three collaborators (the design has too many seams; integration test instead).
 - Mocks that drift from reality ("the test passes but production breaks"). Mock at the boundary (HTTP, file system) using WebMock; do not mock your own classes.`,
 		railsCodeExample: `# Gemfile
@@ -323,8 +307,7 @@ end`,
 			'Testing controller internals instead of HTTP request/response',
 			'Letting tests make real HTTP calls (slow, flaky, leaks credentials). Set WebMock.disable_net_connect! and stub everything',
 			'Hardcoded times in tests (Time.now + 1.day). Use travel_to / freeze_time so the test is deterministic',
-			'Calling deliver_now or perform_now in tests to "make it simpler" (bypasses the queueing path; bugs in the real flow go uncaught)',
-			'sleep N inside a spec (almost always a missing have_enqueued_job assertion or async wait helper)',
+			'sleep N inside a spec (almost always a missing async-wait helper)',
 			'Mocking your own classes instead of mocking the boundary. Mock HTTP and the filesystem; integration-test the seam between your classes',
 			'No parallel test config past ~500 tests (suite slows past the feedback-loop threshold and gets ignored)',
 			'Treating coverage as a CI gate at 90%+ (encourages tests-for-coverage). Use coverage to find files at 0%, not as a forcing function for the rest',

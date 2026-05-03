@@ -205,8 +205,8 @@ describe('Level 11: Callbacks & Normalizations', () => {
 		const distinctiveAnswerStringsByStep: Record<number, string[]> = {
 			0: ['normalizes :email'],
 			1: ['enum :status, draft: "draft"'],
-			2: ['UserMailer.welcome', 'deliver_later'],
-			3: ['AccountingSyncJob.perform_later'],
+			2: ['send_welcome_email(@user)'],
+			3: ['sync_to_accounting(@product.id)'],
 		};
 
 		test('preview shown while working on step k (= state after step k-1) does not contain step k answer signatures', () => {
@@ -228,8 +228,8 @@ describe('Level 11: Callbacks & Normalizations', () => {
 			const sigsAfterCompletion: Record<number, string[]> = {
 				1: ['normalizes :email'],
 				2: ['enum :status, draft: "draft"'],
-				3: ['UserMailer.welcome'],
-				4: ['AccountingSyncJob.perform_later'],
+				3: ['send_welcome_email'],
+				4: ['sync_to_accounting'],
 			};
 			for (const [stepStr, sigs] of Object.entries(sigsAfterCompletion)) {
 				const step = Number(stepStr);
@@ -257,9 +257,9 @@ describe('Level 11: Callbacks & Normalizations', () => {
 			expect(correct?.label.toLowerCase()).toContain('controller');
 		});
 
-		test('the correct external-sync option uses a background job, not a callback', () => {
+		test('the correct external-sync option fires the side effect from the controller, not a callback', () => {
 			const correct = EXTERNAL_SYNC_OPTIONS.find((o) => o.correct);
-			expect(correct?.label).toContain('perform_later');
+			expect(correct?.label.toLowerCase()).toContain('controller');
 		});
 	});
 

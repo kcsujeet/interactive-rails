@@ -73,7 +73,7 @@ export const WELCOME_EMAIL_OPTIONS: StepOption[] = [
 	},
 	{
 		id: 'controller-call',
-		label: 'UserMailer.welcome(@user).deliver_later in UsersController#create',
+		label: 'send_welcome_email(@user) in UsersController#create',
 		correct: true,
 	},
 ];
@@ -97,8 +97,8 @@ export const EXTERNAL_SYNC_OPTIONS: StepOption[] = [
 			'after_commit ties record persistence to the third-party vendor at the model level. The save still blocks the request waiting for the API. Tests that touch Product hit the real vendor. And the trigger is invisible to anyone reading the calling code.',
 	},
 	{
-		id: 'background-job',
-		label: 'AccountingSyncJob.perform_later(product.id) from the controller',
+		id: 'controller-sync-call',
+		label: 'sync_to_accounting(@product.id) from the controller',
 		correct: true,
 	},
 ];

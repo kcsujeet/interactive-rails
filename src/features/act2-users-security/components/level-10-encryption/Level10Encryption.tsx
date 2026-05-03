@@ -9,12 +9,17 @@
  *   All PII columns are plaintext (red). The player fires probes that reveal what
  *   an attacker sees: SQL injection dumps, backup leaks, frequency analysis.
  *
- * Phase 2 (HOW - build): 5 steps (1 terminal + 4 OptionCard)
+ * Phase 2 (HOW - build): 4 steps (1 terminal + 3 OptionCard)
  *   Step 0: Generate encryption keys (terminal)
  *   Step 1: Add keys to Rails credentials (OptionCard)
  *   Step 2: Encrypt email with deterministic mode (OptionCard)
  *   Step 3: Encrypt phone and address with non-deterministic mode (OptionCard)
- *   Step 4: Update service to handle encrypted queries (OptionCard)
+ *
+ * Note: Service objects (L16+) and Dry::Validation contracts (L18+) are
+ * NOT introduced here. The "make queries work with encrypted columns"
+ * lesson is folded into Step 2: choosing deterministic mode means
+ * `User.find_by(email:)` Just Works because Rails encrypts the WHERE
+ * value transparently. No service-layer change needed at L10.
  *
  * Phase 3 (ADVANTAGE - reward): Same table, now showing ciphertext for PII.
  *   Allowed: Deterministic find_by works, app code reads plaintext.
@@ -210,7 +215,6 @@ const STEP_DEFS: StepDef[] = [
 	{ id: 'add-credentials', title: 'Secure Key Storage' },
 	{ id: 'encrypt-email', title: 'Encrypt Email Column' },
 	{ id: 'encrypt-pii', title: 'Encrypt Phone & Address' },
-	{ id: 'update-service', title: 'Update Lookup Service' },
 ];
 
 // Terminal step 0: Generate encryption keys
@@ -380,77 +384,6 @@ end`,
 	},
 ];
 
-// OptionCard step 4: Update service for encrypted queries
-const SERVICE_OPTIONS = [
-	{
-		id: 'wrong-raw-sql',
-		label: `class FindUser < ApplicationService
-  Result = Data.define(:success?, :user, :errors)
-
-  def call
-    v = FindUserContract.new.call(email: @email)
-    return Result.new(success?: false,
-      user: nil, errors: v.errors.to_h) if v.failure?
-
-    user = User.find_by_sql(
-      "SELECT * FROM users WHERE email = '#{@email}'")
-    # Raw SQL bypasses encryption!
-    Result.new(success?: true, user: user.first, errors: [])
-  end
-end`,
-		correct: false,
-		feedback:
-			'Raw SQL queries bypass ActiveRecord encryption entirely. The database stores ciphertext, so a plaintext WHERE clause will never match. Use ActiveRecord query methods which handle encryption transparently.',
-	},
-	{
-		id: 'wrong-manual-encrypt',
-		label: `class FindUser < ApplicationService
-  Result = Data.define(:success?, :user, :errors)
-
-  def initialize(email:)
-    @email = email
-  end
-
-  def call
-    v = FindUserContract.new.call(email: @email)
-    return Result.new(success?: false,
-      user: nil, errors: v.errors.to_h) if v.failure?
-
-    cipher = ActiveRecord::Encryption.encryptor
-    encrypted = cipher.encrypt(@email)
-    user = User.find_by(email: encrypted)
-    Result.new(success?: true, user:, errors: [])
-  end
-end`,
-		correct: false,
-		feedback:
-			'You do not need to manually encrypt query values. ActiveRecord handles encryption and decryption transparently when you use standard query methods like find_by.',
-	},
-	{
-		id: 'correct-activerecord',
-		label: `class FindUser < ApplicationService
-  Result = Data.define(:success?, :user, :errors)
-
-  def initialize(email:)
-    @email = email
-  end
-
-  def call
-    v = FindUserContract.new.call(email: @email)
-    return Result.new(success?: false,
-      user: nil, errors: v.errors.to_h) if v.failure?
-
-    user = User.find_by(email: @email)
-    return Result.new(success?: false,
-      user: nil, errors: ["Not found"]) unless user
-
-    Result.new(success?: true, user:, errors: [])
-  end
-end`,
-		correct: true,
-	},
-];
-
 const OPTION_STEP_CONFIG: Record<
 	number,
 	{
@@ -481,12 +414,6 @@ const OPTION_STEP_CONFIG: Record<
 		description:
 			'Phone and address are never used for lookups. Choose the encryption approach that maximizes security.',
 		options: PII_ENCRYPTION_OPTIONS,
-	},
-	4: {
-		title: 'Update the Lookup Service',
-		description:
-			'The FindUser service needs to work correctly with encrypted email. Choose the right query approach.',
-		options: SERVICE_OPTIONS,
 	},
 };
 
@@ -761,6 +688,9 @@ const REWARD_VIZ: Record<string, RewardVizConfig> = {
 
 function getCodeFiles(phase: Phase, completedStep: number) {
 	if (phase === 'observe') {
+		// Service objects (L16+), Dry::Validation contracts (L18+), and
+		// Active Storage (L34) are NOT shown — they belong to later levels.
+		// L10's "before" state is just the User model with plaintext PII.
 		return [
 			{
 				filename: 'app/models/user.rb',
@@ -777,40 +707,18 @@ function getCodeFiles(phase: Phase, completedStep: number) {
   # No encryption keys configured
   # Database breach = full PII exposure
 
-  has_one_attached :avatar do |attachable|
-    attachable.variant :thumb, resize_to_limit: [100, 100]
-    attachable.variant :medium, resize_to_limit: [300, 300]
-  end
-
   validates :email, uniqueness: true
   validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }
-end`,
-			},
-			{
-				filename: 'app/services/find_user.rb',
-				language: 'ruby',
-				code: `class FindUser < ApplicationService
-  Result = Data.define(:success?, :user, :errors)
-
-  def initialize(email:)
-    @email = email
-  end
-
-  def call
-    v = FindUserContract.new.call(email: @email)
-    return Result.new(success?: false,
-      user: nil, errors: v.errors.to_h) if v.failure?
-
-    user = User.find_by(email: @email)
-    # Works with plaintext... but data is exposed!
-    Result.new(success?: true, user:, errors: [])
-  end
 end`,
 			},
 		];
 	}
 
 	if (phase === 'build') {
+		// Note: Active Storage (`has_one_attached`) is L34 (not shown here).
+		// Service objects (L16+) and Dry::Validation contracts (L18+) are
+		// also not shown. L10's build phase teaches encryption alone.
+
 		// Step 0 (generate keys): db:encryption:init prints to stdout,
 		// no files are modified. Show unchanged "before" model.
 		if (completedStep < 0) {
@@ -825,11 +733,6 @@ end`,
   # email: "alice@example.com"
   # phone: "+1-555-0123"
   # address: "123 Main St, NYC"
-
-  has_one_attached :avatar do |attachable|
-    attachable.variant :thumb, resize_to_limit: [100, 100]
-    attachable.variant :medium, resize_to_limit: [300, 300]
-  end
 
   validates :email, uniqueness: true
   validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }
@@ -852,11 +755,6 @@ end`,
   # email: "alice@example.com"
   # phone: "+1-555-0123"
   # address: "123 Main St, NYC"
-
-  has_one_attached :avatar do |attachable|
-    attachable.variant :thumb, resize_to_limit: [100, 100]
-    attachable.variant :medium, resize_to_limit: [300, 300]
-  end
 
   validates :email, uniqueness: true
   validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }
@@ -887,11 +785,6 @@ end`,
   # phone: "+1-555-0123"        (still plaintext)
   # address: "123 Main St, NYC" (still plaintext)
 
-  has_one_attached :avatar do |attachable|
-    attachable.variant :thumb, resize_to_limit: [100, 100]
-    attachable.variant :medium, resize_to_limit: [300, 300]
-  end
-
   validates :email, uniqueness: true
   validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }
 end`,
@@ -911,91 +804,15 @@ end`,
   # phone and address are still plaintext.
   # They need encryption too.
 
-  has_one_attached :avatar do |attachable|
-    attachable.variant :thumb, resize_to_limit: [100, 100]
-    attachable.variant :medium, resize_to_limit: [300, 300]
-  end
-
   validates :email, uniqueness: true
   validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }
 end`,
 				},
 			];
 		}
-		// After step 3 completed, working on step 4: show model with
-		// all encrypts declarations + the UNCHANGED service (before fix).
-		// Do NOT show the corrected service -- that's the step 4 answer.
-		if (completedStep < 4) {
-			return [
-				{
-					filename: 'app/models/user.rb',
-					language: 'ruby',
-					code: `class User < ApplicationRecord
-  has_secure_password
-
-  encrypts :email, deterministic: true
-  encrypts :phone
-  encrypts :address
-
-  has_one_attached :avatar do |attachable|
-    attachable.variant :thumb, resize_to_limit: [100, 100]
-    attachable.variant :medium, resize_to_limit: [300, 300]
-  end
-
-  validates :email, uniqueness: true
-  validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }
-end`,
-				},
-				{
-					filename: 'app/services/find_user.rb',
-					language: 'ruby',
-					code: `class FindUser < ApplicationService
-  Result = Data.define(:success?, :user, :errors)
-
-  def initialize(email:)
-    @email = email
-  end
-
-  def call
-    v = FindUserContract.new.call(email: @email)
-    return Result.new(success?: false,
-      user: nil, errors: v.errors.to_h) if v.failure?
-
-    user = User.find_by(email: @email)
-    # Works with plaintext... but data is now encrypted!
-    # Does this query approach still work?
-    Result.new(success?: true, user:, errors: [])
-  end
-end`,
-				},
-			];
-		}
-		// All steps complete: show the final corrected code.
+		// All steps complete: show the final state — model with all
+		// encrypts declarations.
 		return [
-			{
-				filename: 'app/services/find_user.rb',
-				language: 'ruby',
-				code: `class FindUser < ApplicationService
-  Result = Data.define(:success?, :user, :errors)
-
-  def initialize(email:)
-    @email = email
-  end
-
-  def call
-    v = FindUserContract.new.call(email: @email)
-    return Result.new(success?: false,
-      user: nil, errors: v.errors.to_h) if v.failure?
-
-    # ActiveRecord encrypts the query value automatically
-    user = User.find_by(email: @email)
-    return Result.new(success?: false,
-      user: nil, errors: ["Not found"]) unless user
-
-    Result.new(success?: true, user:, errors: [])
-  end
-end`,
-			},
 			{
 				filename: 'app/models/user.rb',
 				language: 'ruby',
@@ -1005,11 +822,6 @@ end`,
   encrypts :email, deterministic: true
   encrypts :phone
   encrypts :address
-
-  has_one_attached :avatar do |attachable|
-    attachable.variant :thumb, resize_to_limit: [100, 100]
-    attachable.variant :medium, resize_to_limit: [300, 300]
-  end
 
   validates :email, uniqueness: true
 end`,

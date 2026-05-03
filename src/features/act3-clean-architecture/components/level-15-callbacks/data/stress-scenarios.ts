@@ -21,9 +21,9 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'check-mailer',
-		label: 'Check mailer queue after signup',
+		label: 'Check welcome email after signup',
 		description:
-			'Controller calls UserMailer.welcome.deliver_later after the save succeeds',
+			'Controller calls send_welcome_email(@user) after the save succeeds',
 		method: 'POST',
 		path: '/api/users',
 		actor: 'new_user',
@@ -43,7 +43,7 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 		id: 'rollback-crm',
 		label: 'Rollback prevents orphan sync',
 		description:
-			'Background job only enqueues after the save succeeds, so a rolled-back save leaves no orphan job',
+			'Sync only fires after the save succeeds, so a rolled-back save leaves no orphan side effect',
 		method: 'POST',
 		path: '/api/users (rollback)',
 		actor: 'failed_txn',

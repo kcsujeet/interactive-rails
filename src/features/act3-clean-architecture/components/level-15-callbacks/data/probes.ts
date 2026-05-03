@@ -49,24 +49,24 @@ export const PROBES: ProbeConfig[] = [
 	},
 	{
 		id: 'check-mailer',
-		label: 'Check mailer queue after signup',
-		command: 'ActionMailer::Base.deliveries.count',
+		label: 'Check welcome email after signup',
+		command: 'log "send_welcome_email called?"',
 		responseLines: [
-			{ text: '=> 0', color: 'red' },
+			{ text: '(no log entry)', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'No emails queued. User.create! does nothing beyond INSERT.',
+				text: 'send_welcome_email never ran. User.create! does nothing beyond INSERT.',
 				color: 'yellow',
 			},
 			{
-				text: 'No after_create callback to trigger the welcome email.',
+				text: 'No code path triggers the welcome email after signup.',
 				color: 'red',
 			},
 		],
 		story: [
 			'A new customer completes signup and waits for a welcome email.',
 			'User.create! inserts the row but triggers no side effects.',
-			'The model has no after_create callback to enqueue a mailer.',
+			'Nothing in the model or controller calls send_welcome_email.',
 			'The customer never receives a welcome email or activation link.',
 		],
 	},

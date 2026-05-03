@@ -309,12 +309,18 @@ class Api::ProductsController < ApplicationController
   end
 end
 
-# Reuse in background job:
-class CsvExportJob < ApplicationJob
-  def perform(filters)
+# Reuse from a CSV exporter (any caller can compose
+# the same query — controllers, scripts, later you'll
+# see this called from a background job too):
+class CsvProductExport
+  def initialize(filters)
+    @filters = filters
+  end
+
+  def call
     products = ProductQuery.new
       .listed(true)
-      .since(filters[:since])
+      .since(@filters[:since])
       .sorted(:created_at, :asc)
       .results
 

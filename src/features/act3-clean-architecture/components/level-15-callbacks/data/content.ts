@@ -151,7 +151,7 @@ class UsersController < ApplicationController
   def create
     @user = User.new(user_params)
     if @user.save
-      UserMailer.welcome(@user).deliver_later
+      send_welcome_email(@user)
       render json: @user, status: :created
     else
       render json: { errors: @user.errors }, status: :unprocessable_entity
@@ -160,16 +160,17 @@ class UsersController < ApplicationController
 end
 
 # app/controllers/products_controller.rb
-# Third-party sync goes through a background job,
-# enqueued AFTER the save so a rollback never
-# leaves an orphan job behind.
+# Third-party sync stays alongside the controller line
+# that triggered it. Whether it ends up async (a job)
+# or sync (a direct HTTP call) is an implementation
+# detail you'll wire up in later levels.
 class ProductsController < ApplicationController
   before_action :require_authentication
 
   def mark_sold
     @product = Current.user.products.find(params[:id])
     @product.update!(status: "sold")
-    AccountingSyncJob.perform_later(@product.id)
+    sync_to_accounting(@product.id)
     render json: @product
   end
 end
@@ -178,14 +179,13 @@ end
 User.find_by(email: "  JOE@GMAIL.COM  ")
 # => Rails normalizes the query value too. Match found.`,
 		commonMistakes: [
-			'Putting mailers, API calls, or job enqueues inside model callbacks. Test runs and seed scripts then fire the side effect every time, and the trigger is invisible to the controller that called save.',
+			'Putting side effects (notifications, external syncs, audit writes) inside model callbacks. Test runs and seed scripts then fire the side effect every time, and the trigger is invisible to the controller that called save.',
 			'Integer-encoded enums (`enum :status, draft: 0, listed: 1`) -- unreadable in DB dumps, dangerous to reorder in production.',
 			'Using `before_save` for normalization. It only runs on writes, so finder queries against the dirty stored value still miss.',
-			'Forgetting `deliver_later` on a mailer call -- the request blocks until the SMTP send completes.',
-			'Calling external HTTP services synchronously inside a save (whether in a callback or controller). Use a background job so a slow vendor cannot slow the user.',
+			'Calling slow external services synchronously during a save -- whether from a callback or from the controller. Move slow calls to async machinery (you will see Rails background jobs in a later level).',
 		],
 		whenToUse:
-			'Use `normalizes` for declarative data cleaning. Use `enum` with string-encoded values for any fixed-set attribute. For after-save side effects, call mailers and jobs from the controller (or a service the controller calls), not from model callbacks.',
+			'Use `normalizes` for declarative data cleaning. Use `enum` with string-encoded values for any fixed-set attribute. For after-save side effects, call them from the controller (or a service the controller calls), not from model callbacks.',
 		furtherReading: [
 			{
 				title: 'Rails 8 normalizes',

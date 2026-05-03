@@ -39,7 +39,7 @@ const USERS_CONTROLLER_WITH_MAILER = `class UsersController < ApplicationControl
   def create
     @user = User.new(user_params)
     if @user.save
-      UserMailer.welcome(@user).deliver_later
+      send_welcome_email(@user)
       render json: @user, status: :created
     else
       render json: { errors: @user.errors }, status: :unprocessable_entity
@@ -59,7 +59,7 @@ const PRODUCTS_CONTROLLER_MARK_SOLD = `class ProductsController < ApplicationCon
   def mark_sold
     @product = Current.user.products.find(params[:id])
     @product.update!(status: "sold")
-    AccountingSyncJob.perform_later(@product.id)
+    sync_to_accounting(@product.id)
     render json: @product
   end
 end`;
