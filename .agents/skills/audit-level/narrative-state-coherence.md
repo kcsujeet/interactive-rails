@@ -60,6 +60,20 @@ GOOD (post-fix): L6 introduces just `namespace :api do; resources :products`
 
 The deeper rule (the *forward* version of cumulative-patterns) lives in [cumulative-patterns.md § The earned-abstraction rule](cumulative-patterns.md#the-earned-abstraction-rule-dont-pre-bake-what-a-later-level-teaches). When designing a new level, both rules apply together: every concept earlier levels established carries forward (cumulative-patterns) AND no concept a later level is supposed to introduce can appear early (earned-abstraction).
 
+### Other earned-abstraction case studies (in cumulative-patterns.md)
+
+The earned-abstraction rule manifests on different surfaces. Beyond L48 (structural infrastructure), the same bug class showed up across the curriculum on different surfaces. All five worked examples + the common-shapes taxonomy live in the cumulative-patterns case-studies section:
+
+| Level | Surface | Pattern |
+|-------|---------|---------|
+| L48 | Structural infrastructure | `/api/v1/` baked in pre-L48 |
+| L10 | Architectural patterns | Service objects + contracts in encryption level |
+| L15 | Concrete API references | `UserMailer.welcome.deliver_later` / `AccountingSyncJob.perform_later` in callbacks level |
+| L14 | Test echo | `have_enqueued_job` testing patterns before background jobs exist |
+| L19 | Reuse-context examples | "Reuse in background job: `class CsvExportJob < ApplicationJob`" before jobs exist |
+
+When auditing for narrative-state coherence, run the [quick scan recipe](cumulative-patterns.md#quick-scan-recipe-for-periodic-audits) periodically — it catches all five surfaces.
+
 ## Where to apply this check (every player-visible string)
 
 When auditing a level, scan every one of these surfaces for forbidden tropes:

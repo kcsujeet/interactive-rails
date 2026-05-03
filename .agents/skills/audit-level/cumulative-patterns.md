@@ -292,7 +292,21 @@ This rule is the *forward* version of the cumulative-patterns rule:
 
 Both rules together define the curriculum's accumulated state at level N: exactly what was earned by level N-1, no more, no less.
 
-### Case study: API versioning at L6 vs L48 (fixed 2026-05-03)
+### Common shapes of this bug
+
+The earned-abstraction violation manifests on different surfaces. Each case study below illustrates a different shape; auditing requires checking all of them.
+
+| Shape | Where it hides | Symptom |
+|-------|----------------|---------|
+| **Structural infrastructure** | Routes, URL paths, namespaces, controller class names | The curriculum's URL/file shape pre-bakes a later concept (versioning, multi-tenancy) |
+| **Architectural patterns** | Build-step correct answers, code previews | A level's "correct" code uses a service object, contract, or query object before that pattern is introduced |
+| **Concrete API references** | Code examples in observe/build/reward, build-step labels, scenario stories | Code shown to the player calls a Mailer, Job, Channel, or other framework class from a later level |
+| **Test echo** | `learningContent` testing sections | A testing level teaches matchers (`have_enqueued_job`) for features that haven't been introduced yet |
+| **Reuse-context examples** | "Reuse in X" sections of conceptExplanation | A code example shows the new pattern reused inside a class type the player doesn't have yet |
+
+### Case studies
+
+#### L6 / L48: structural infrastructure (fixed 2026-05-03)
 
 ```
 BAD  (pre-fix):  L6 (Routes) introduced
@@ -319,13 +333,103 @@ GOOD (post-fix): L6 introduces just `namespace :api do; resources :products`
                  (evolution). Versioning is earned at L48.
 ```
 
-The lesson didn't change. The structure used by levels before L48 changed — they no longer pre-bake what L48 teaches.
+#### L10: architectural patterns (fixed 2026-05-03)
+
+```
+BAD  (pre-fix):  L10 (Encryption) Step 4 "Update Lookup Service" taught
+                   class FindUser < ApplicationService
+                     Result = Data.define(:success?, :user, :errors)
+                     def call
+                       v = FindUserContract.new.call(email: @email)
+                       ...
+                       user = User.find_by(email: @email)
+                       Result.new(success?: true, user:, errors: [])
+                     end
+                   end
+                 ↑ ApplicationService + Result are L16 (Service Objects).
+                   Dry::Validation::Contract is L18 (Validation Contracts).
+                   At L10 the player has none of these. L16 and L18's
+                   own teaching surface is empty by the time the player
+                   gets there.
+
+GOOD (post-fix): Step 4 dropped entirely. L10's lesson (encrypts +
+                 deterministic) doesn't need a service step. The
+                 "queries still work" insight is folded into Step 2:
+                 deterministic mode means User.find_by(email:) just
+                 works. No service-layer change.
+```
+
+#### L15: concrete API references (fixed 2026-05-03)
+
+```
+BAD  (pre-fix):  L15 (Callbacks) taught "side effects belong in the
+                 controller, not the callback" using these examples:
+                   UserMailer.welcome(@user).deliver_later        # L35
+                   AccountingSyncJob.perform_later(@product.id)   # L36
+                 References across 6 files: code-files, content,
+                 build-steps, stress-scenarios, pipeline-stages, probes.
+                 Player has zero context for `UserMailer`, `.deliver_later`,
+                 `ApplicationJob`, or `.perform_later` at L15.
+
+GOOD (post-fix): Replaced with method-call abstractions:
+                   send_welcome_email(@user)
+                   sync_to_accounting(@product.id)
+                 Lesson stays intact: side effects belong in the
+                 controller. Whether the side effect is a mailer (L35)
+                 or a job (L36) is implementation detail the player
+                 will wire up later. The level's content explicitly
+                 says so: "you'll wire up [the implementation] in
+                 later levels."
+```
+
+#### L14: test echo (fixed 2026-05-03)
+
+```
+BAD  (pre-fix):  L14 (Testing) had a full "Background jobs
+                 (`perform_enqueued_jobs`, `have_enqueued_job`)" section
+                 in learningContent.conceptExplanation, plus a
+                 commonMistakes bullet about deliver_now/perform_now.
+                 Background jobs are L36; mailers L35. L14 was teaching
+                 how to test patterns the player wouldn't see for 22 more
+                 levels.
+
+GOOD (post-fix): Section dropped. Common-mistake bullet removed. The
+                 sleep-in-spec mistake generalized from "missing
+                 have_enqueued_job" to "missing async-wait helper."
+                 L36 will own the job-testing patterns when it teaches jobs.
+```
+
+#### L19: reuse-context examples (fixed 2026-05-03)
+
+```
+BAD  (pre-fix):  L19 (Query Objects) had a section showing reuse:
+                   # Reuse in background job:
+                   class CsvExportJob < ApplicationJob
+                     def perform(filters)
+                       products = ProductQuery.new...
+                     end
+                   end
+                 ApplicationJob is L36. The "reuse" lesson was real,
+                 but the reuse SITE chosen (a job) was unearned.
+
+GOOD (post-fix): Replaced with a plain Ruby class:
+                   class CsvProductExport
+                     def initialize(filters); @filters = filters; end
+                     def call
+                       products = ProductQuery.new...
+                     end
+                   end
+                 Lesson preserved (query objects compose anywhere). The
+                 reuse context is a class the player can write today.
+                 Comment notes "later you'll see this called from a
+                 background job too" — forward-tease without pre-baking.
+```
 
 ### How to detect this during design and audit
 
 When designing or auditing level N:
 1. Identify the concept(s) the level teaches (the build phase's headline lesson).
-2. Grep the curriculum for that concept appearing in levels < N.
+2. Grep the curriculum for that concept appearing in levels < N. Check **all five surfaces** from the common-shapes table above, not just code blocks.
 3. If it appears, you have one of three problems:
    - **The concept's introduction level is wrong.** Decide which level should own it.
    - **The earlier level is wrong.** Strip the concept; it shouldn't be there.
@@ -334,3 +438,35 @@ When designing or auditing level N:
 When designing level N's "before" state:
 - Walk through the cumulative-patterns table for levels < N and apply each pattern. **STOP.**
 - Do NOT add structure for patterns introduced at level ≥ N. The player hasn't earned them.
+
+### Quick scan recipe (for periodic audits)
+
+The following grep patterns catch the most common violations across the curriculum. Run them periodically to catch regressions:
+
+```bash
+# Service objects (L16+) — should NOT appear in Act 1+2
+grep -rln "ApplicationService\|app/services/" src/features/act1-foundation/ src/features/act2-users-security/
+
+# Dry::Validation contracts (L18+)
+grep -rln "Dry::Validation\|Dry::Schema\|Contract\.new\.call" src/features/act1-foundation/ src/features/act2-users-security/ src/features/act3-clean-architecture/components/level-15-callbacks/ src/features/act3-clean-architecture/components/level-16-service-objects/ src/features/act3-clean-architecture/components/level-17*
+
+# Active Storage (L34+)
+grep -rln "has_one_attached\|has_many_attached" src/features/act1-foundation/ src/features/act2-users-security/ src/features/act3-clean-architecture/ src/features/act4-performance/ src/features/act5-production/components/level-30* src/features/act5-production/components/level-31* src/features/act5-production/components/level-32* src/features/act5-production/components/level-33*
+
+# Action Mailer (L35+)
+grep -rln "ApplicationMailer\|generates_token_for\|deliver_now\|deliver_later" <pre-L35 dirs>
+
+# Background jobs (L36+)
+grep -rln "ApplicationJob\|perform_later\|SolidQueue\|queue_as :default" <pre-L36 dirs>
+
+# Action Cable (L37+)
+grep -rln "ActionCable\|ApplicationCable\|broadcast_to\|SolidCable" <pre-L37 dirs>
+
+# API versioning (L48+)
+grep -rln "Api::V1\|api/v1/\|namespace :v1" <pre-L48 dirs>
+
+# Pundit (L11/L12+)
+grep -rln "include Pundit\|policy_scope\|authorize @\|app/policies/" <pre-L12 dirs>
+```
+
+Adjust the `<pre-LX dirs>` placeholder to the directory glob for levels before each pattern's introduction. False positives appear when pattern strings show up in COMMENTS that explicitly say "X is L34, not shown here." Filter those manually.
