@@ -80,7 +80,6 @@ type Phase = 'observe' | 'build' | 'reward';
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{ id: 'raw-dump', label: 'Controller dumps raw model data' },
-	{ id: 'no-serializer', label: 'No serialization layer exists' },
 	{ id: 'timestamps-exposed', label: 'Bookkeeping columns are exposed' },
 	{ id: 'no-jsonapi', label: 'Response is flat JSON, not JSON:API' },
 ];
@@ -190,22 +189,10 @@ const PROBE_DISCOVERY_MAP: Record<string, string> = {
 };
 
 // Map probe IDs to pipeline node display during observe
-const PROBE_PIPELINE_MAP: Record<
-	string,
-	{ serializerSublabel: string; responseBadge: string }
-> = {
-	'get-single': {
-		serializerSublabel: 'Bypassed!',
-		responseBadge: '6 cols',
-	},
-	'get-collection': {
-		serializerSublabel: 'Bypassed!',
-		responseBadge: 'raw[]',
-	},
-	'get-mobile': {
-		serializerSublabel: 'Bypassed!',
-		responseBadge: 'bloat!',
-	},
+const PROBE_PIPELINE_MAP: Record<string, { responseBadge: string }> = {
+	'get-single': { responseBadge: '6 cols' },
+	'get-collection': { responseBadge: 'raw[]' },
+	'get-mobile': { responseBadge: 'bloat!' },
 };
 
 // ──────────────────────────────────────────────
@@ -241,12 +228,6 @@ end`,
 		description:
 			'The Product model stores name, description, and price. It works correctly. The problem is not the model itself, but how the controller renders it: every column is dumped without filtering.',
 	},
-	serializer: {
-		stageId: 'serializer',
-		title: 'Serializer (Missing!)',
-		description:
-			'No serializer exists. Without a serialization layer, `render json: product` calls `.to_json` on the model, which serializes every column including internal timestamps and IDs.',
-	},
 	response: {
 		stageId: 'response',
 		title: 'Response (Raw Dump)',
@@ -255,12 +236,12 @@ end`,
 	},
 };
 
-// Map stage IDs to discovery IDs they trigger
-const STAGE_DISCOVERY_MAP: Record<string, string> = {
-	serializer: 'no-serializer',
-	response: 'timestamps-exposed',
-	controller: 'raw-dump',
-};
+// Map stage IDs to discovery IDs they trigger.
+// Pedagogy: the serializer does not exist yet in the observe phase, so it is
+// not a node, not clickable, and not a discovery source. Each existing-node
+// click corresponds to one probe-driven discovery already, so this map is
+// currently empty — the 3 discoveries are unlocked by the 3 probes.
+const STAGE_DISCOVERY_MAP: Record<string, string> = {};
 
 // ──────────────────────────────────────────────
 // Stress test scenarios (reward phase)
@@ -572,6 +553,9 @@ const HUB_POS = {
 // Pipeline visualization configs
 // ──────────────────────────────────────────────
 
+// Observe phase: no serializer node yet (it does not exist until the build
+// phase creates it). The serializer absence is communicated via probe
+// responses showing raw, unfiltered JSON dumps.
 const OBSERVE_CONNECTIONS: PipelineConnection[] = [
 	{ from: 'request', to: 'router', dots: 'mixed' },
 	{ from: 'router', to: 'controller', dots: 'mixed' },
@@ -589,14 +573,6 @@ const OBSERVE_CONNECTIONS: PipelineConnection[] = [
 		to: 'database',
 		sourceHandle: 'bottom',
 		targetHandle: 'top',
-		bidirectional: true,
-		dots: 'mixed',
-	},
-	{
-		from: 'controller',
-		to: 'serializer',
-		sourceHandle: 'top',
-		targetHandle: 'bottom',
 		bidirectional: true,
 		dots: 'mixed',
 	},
@@ -680,6 +656,8 @@ end`,
 		});
 	}
 
+	// `furthestStep` is the 0-indexed last completed step (per CLAUDE.md
+	// convention). L8 has 5 steps (indices 0..4), so guards are 0..4.
 	if (furthestStep >= 1) {
 		files.push({
 			filename: 'Gemfile',
@@ -696,20 +674,6 @@ gem "jsonapi-serializer"`,
 
 	if (furthestStep >= 2) {
 		files.push({
-			filename: 'Gemfile',
-			language: 'ruby',
-			code: `source "https://rubygems.org"
-
-gem "rails", "~> 8.1.3"
-gem "pg", "~> 1.1"
-gem "puma", ">= 5.0"
-gem "jsonapi-serializer"`,
-			highlight: [6],
-		});
-	}
-
-	if (furthestStep >= 3) {
-		files.push({
 			filename: 'app/serializers/base_serializer.rb',
 			language: 'ruby',
 			code: `class BaseSerializer
@@ -719,7 +683,7 @@ end`,
 		});
 	}
 
-	if (furthestStep >= 4) {
+	if (furthestStep >= 3) {
 		const attrLines =
 			selectedAttrs.length > 0
 				? selectedAttrs.map((a) => `  attribute :${a}`).join('\n')
@@ -735,24 +699,50 @@ end`,
 		});
 	}
 
-	if (furthestStep >= 5) {
+	if (furthestStep >= 4) {
 		files.push({
 			filename: 'app/controllers/api/v1/products_controller.rb',
 			language: 'ruby',
 			code: `class Api::V1::ProductsController < ApplicationController
-  def show
-    product = Product.find(params[:id])
-    render json: ProductSerializer.new(product)
-                   .serializable_hash.to_json
+  def index
+    render json: ProductSerializer.new(Product.all).serializable_hash.to_json
   end
 
-  def index
-    products = Product.all
-    render json: ProductSerializer.new(products)
-                   .serializable_hash.to_json
+  def show
+    product = Product.find(params[:id])
+    render json: ProductSerializer.new(product).serializable_hash.to_json
+  end
+
+  def create
+    product = Product.new(product_params)
+    if product.save
+      render json: product, status: :created
+    else
+      render json: { errors: product.errors }, status: :unprocessable_entity
+    end
+  end
+
+  def update
+    product = Product.find(params[:id])
+    if product.update(product_params)
+      render json: product
+    else
+      render json: { errors: product.errors }, status: :unprocessable_entity
+    end
+  end
+
+  def destroy
+    Product.find(params[:id]).destroy
+    head :no_content
+  end
+
+  private
+
+  def product_params
+    params.require(:product).permit(:name, :description, :price)
   end
 end`,
-			highlight: [4, 5, 10, 11],
+			highlight: [3, 8],
 		});
 	}
 
@@ -842,17 +832,6 @@ export function Level8Serializers({ onComplete }: LevelComponentProps) {
 				variant: (probeDisplay ? 'danger' : 'default') as 'danger' | 'default',
 				inspectable: true,
 				inspected: inspectedStages.has('response'),
-			},
-			{
-				id: 'serializer',
-				label: 'Serializer',
-				position: HUB_POS.serializer,
-				sublabel: probeDisplay ? probeDisplay.serializerSublabel : 'Missing!',
-				variant: (probeDisplay ? 'danger' : 'inactive') as
-					| 'danger'
-					| 'inactive',
-				inspectable: true,
-				inspected: inspectedStages.has('serializer'),
 			},
 			{
 				id: 'model',

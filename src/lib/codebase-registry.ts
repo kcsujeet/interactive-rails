@@ -86,6 +86,23 @@ export function buildUnifiedProjectAtStep(
 }
 
 /**
+ * Returns the level IDs that have been registered so far.
+ * Used by the codebase validator to enumerate what to check.
+ */
+export function getRegisteredLevelIds(): string[] {
+	return Object.keys(levelCodeGetters);
+}
+
+/**
+ * Returns the CodeFile[] a level registered, or null if no getter exists.
+ * Used by the codebase validator.
+ */
+export function getLevelCode(levelId: string): CodeFile[] | null {
+	const getter = levelCodeGetters[levelId];
+	return getter ? getter() : null;
+}
+
+/**
  * Get stats about the unified project.
  */
 export function getProjectStats(completedLevels: string[]): {

@@ -22,7 +22,8 @@
 		"format:check": "biome format .",
 		"check": "biome check .",
 		"check:fix": "biome check --write .",
-		"validate:levels": "bun run scripts/validate-levels.ts"
+		"validate:levels": "bun run scripts/validate-levels.ts",
+		"validate:codebase": "bun run scripts/validate-codebase.ts"
 	},
 	"dependencies": {
 		"@astrojs/check": "^0.9.8",
