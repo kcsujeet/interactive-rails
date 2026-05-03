@@ -549,7 +549,8 @@ const PROTECT_OPTIONS: ProtectOption[] = [
 	{
 		id: 'before-action',
 		name: 'before_action :require_authentication',
-		description: 'Require valid session token via the Authentication concern',
+		description:
+			'Default-block: the Authentication concern auto-applies this before_action via `included do`. ApplicationController includes the concern, so every controller (ProductsController, ReviewsController, ...) inherits the bearer-token check automatically. Per-action opt-out via allow_unauthenticated_access.',
 		correct: true,
 		feedback: '',
 	},
@@ -714,7 +715,71 @@ end`,
 	// that reads the bearer token from the Authorization header (replacing
 	// the generator's cookie-based default, which does not work in API-only
 	// mode without cookie middleware).
+	//
+	// Also surface ApplicationController and the API ProductsController so
+	// the player can see the full protection chain end-to-end:
+	//   - Authentication concern declares `before_action :require_authentication`
+	//     in its `included` block (default-block).
+	//   - ApplicationController `include Authentication` — applies that
+	//     before_action to every controller that inherits from it.
+	//   - Api::V1::ProductsController inherits from ApplicationController, so
+	//     every action requires a valid bearer token automatically. No auth
+	//     code lives in the products controller itself.
 	if (furthestStep >= 4) {
+		files.push({
+			filename: 'app/controllers/application_controller.rb',
+			language: 'ruby',
+			code: `class ApplicationController < ActionController::API
+  include Authentication
+end`,
+			highlight: [2],
+		});
+
+		files.push({
+			filename: 'app/controllers/api/v1/products_controller.rb',
+			language: 'ruby',
+			code: `class Api::V1::ProductsController < ApplicationController
+  def index
+    render json: ProductSerializer.new(Product.all).serializable_hash.to_json
+  end
+
+  def show
+    product = Product.find(params[:id])
+    render json: ProductSerializer.new(product).serializable_hash.to_json
+  end
+
+  def create
+    product = Product.new(product_params)
+    if product.save
+      render json: product, status: :created
+    else
+      render json: { errors: product.errors }, status: :unprocessable_entity
+    end
+  end
+
+  def update
+    product = Product.find(params[:id])
+    if product.update(product_params)
+      render json: product
+    else
+      render json: { errors: product.errors }, status: :unprocessable_entity
+    end
+  end
+
+  def destroy
+    Product.find(params[:id]).destroy
+    head :no_content
+  end
+
+  private
+
+  def product_params
+    params.require(:product).permit(:name, :description, :price)
+  end
+end`,
+			highlight: [1],
+		});
+
 		files.push({
 			filename: 'app/controllers/concerns/authentication.rb',
 			language: 'ruby',

@@ -515,3 +515,243 @@ describe('static: hasAutoAnimatingPipelineFlow helper', () => {
 		expect(hasAutoAnimatingPipelineFlow('// no flow here')).toBe(false);
 	});
 });
+
+// ──────────────────────────────────────────────────────────────────────────
+// Runtime + static: stress scenarios target endpoints the codebase viewer shows
+// ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * If a level's reward phase fires stress tests against an endpoint (e.g.
+ * `GET /api/v1/products/1`), the level's `getCodeFiles` reward state must
+ * include the controller for that endpoint. Otherwise the player runs
+ * stress tests against an endpoint they cannot see in the codebase viewer
+ * and has no way to understand how the test outcomes are produced. L9
+ * shipped with this gap (stress tests on `/api/v1/products` but no products
+ * controller in the snapshot).
+ *
+ * Implementation: static-scan each level for `STRESS_SCENARIOS = [...]`,
+ * extract every `path:` value, derive the resource name, and check that the
+ * level's runtime `getLevelCode(slug)` output includes a controller file
+ * whose basename matches the resource (or its singular / plural form).
+ */
+const STRESS_PATH_RE = /path:\s*['"`]([^'"`]+)['"`]/g;
+const STRESS_BLOCK_RE = /const STRESS_SCENARIOS\b[^=]*=\s*\[([\s\S]*?)\];/;
+
+export function extractStressPaths(src: string): string[] {
+	const block = src.match(STRESS_BLOCK_RE);
+	if (!block) return [];
+	const paths: string[] = [];
+	for (const m of block[1].matchAll(STRESS_PATH_RE)) {
+		paths.push(m[1]);
+	}
+	return paths;
+}
+
+/**
+ * Best-effort resource name from a Rails-ish path. Strips `:id` segments
+ * and pure-numeric segments; takes the last meaningful segment as the
+ * resource. `/api/v1/products/1` -> `products`. `/session` -> `session`.
+ */
+export function resourceFromPath(path: string): string | null {
+	const segments = path
+		.split('/')
+		.map((s) => s.trim())
+		.filter((s) => s.length > 0)
+		.filter((s) => !s.startsWith(':'))
+		.filter((s) => !/^\d+$/.test(s));
+	if (segments.length === 0) return null;
+	return segments[segments.length - 1];
+}
+
+/**
+ * Returns true if any of the level's snapshot filenames matches the
+ * resource as a controller file (handles both singular and plural forms).
+ *
+ * For resource `products`: matches `products_controller.rb`.
+ * For resource `session`: matches `session_controller.rb` OR
+ * `sessions_controller.rb` (Rails uses plural for resources, singular for
+ * `resource :session`).
+ */
+export function snapshotCoversResource(
+	filenames: string[],
+	resource: string,
+): boolean {
+	const candidates = new Set<string>([
+		`${resource}_controller.rb`,
+		// Naive plural / singular flips covering Rails conventions
+		`${resource}s_controller.rb`,
+		`${resource.replace(/s$/, '')}_controller.rb`,
+	]);
+	for (const f of filenames) {
+		const basename = f.split('/').pop() ?? '';
+		if (candidates.has(basename)) return true;
+	}
+	return false;
+}
+
+/**
+ * Baseline of levels whose stress scenarios target a path the level's
+ * snapshot does NOT include the controller for. Same removal/addition
+ * policy as the other baselines in this file.
+ *
+ * NOTE: this baseline is large (40 entries). The test's heuristic is
+ * deliberately broad — it flags any stress scenario whose `path:` field
+ * doesn't have a matching `*_controller.rb` in the snapshot. False
+ * positives come from levels that overload `path:` for non-HTTP labels
+ * (migration DSL in L43, job names in L44, channel names in L37, etc.)
+ * AND from levels that legitimately don't need to show the controller
+ * (L41 CORS demonstrates middleware behavior; the products controller
+ * itself is unchanged from L7). Each entry is a TODO: either fix the
+ * level (add the controller, or move the scenarios to a different field
+ * that's not `path:`) or remove from the baseline after audit.
+ */
+const KNOWN_MISSING_STRESS_TARGET_CONTROLLER = new Set<string>([
+	'src/features/act1-foundation/components/level-4-associations/Level4Associations.tsx',
+	'src/features/act1-foundation/components/level-6-routes/Level6Routes.tsx',
+	'src/features/act2-users-security/components/level-9-authentication/Level9Authentication.tsx',
+	'src/features/act2-users-security/components/level-10-encryption/Level10Encryption.tsx',
+	'src/features/act2-users-security/components/level-12-validations/Level12Validations.tsx',
+	'src/features/act2-users-security/components/level-14-testing/Level14Testing.tsx',
+	'src/features/act3-clean-architecture/components/level-20-error-handling/Level20ErrorHandling.tsx',
+	'src/features/act4-performance/components/level-21-n1-problem/Level21N1Problem.tsx',
+	'src/features/act4-performance/components/level-22-eager-loading/Level22EagerLoading.tsx',
+	'src/features/act4-performance/components/level-23-narrow-fetching/Level23NarrowFetching.tsx',
+	'src/features/act4-performance/components/level-24-indexing/Level24Indexing.tsx',
+	'src/features/act4-performance/components/level-25-counter-caches/Level25CounterCaches.tsx',
+	'src/features/act4-performance/components/level-26-pagination/Level26Pagination.tsx',
+	'src/features/act4-performance/components/level-27-search/Level27Search.tsx',
+	'src/features/act4-performance/components/level-28-caching/Level28Caching.tsx',
+	'src/features/act4-performance/components/level-29-http-caching/Level29HTTPCaching.tsx',
+	'src/features/act5-production/components/level-31-soft-deletes/Level31SoftDeletes.tsx',
+	'src/features/act5-production/components/level-33-locking/Level33Locking.tsx',
+	'src/features/act5-production/components/level-34-active-storage/Level34ActiveStorage.tsx',
+	'src/features/act5-production/components/level-35-action-mailer/Level35ActionMailer.tsx',
+	'src/features/act5-production/components/level-36-background-jobs/Level36BackgroundJobs.tsx',
+	'src/features/act5-production/components/level-37-real-time/Level37RealTime.tsx',
+	'src/features/act5-production/components/level-38-external-apis/Level38ExternalAPIs.tsx',
+	'src/features/act6-operations/components/level-40-middleware/Level40Middleware.tsx',
+	'src/features/act6-operations/components/level-41-cors/Level41CORS.tsx',
+	'src/features/act6-operations/components/level-42-rate-limiting/Level42RateLimiting.tsx',
+	'src/features/act6-operations/components/level-43-safe-migrations/Level43SafeMigrations.tsx',
+	'src/features/act6-operations/components/level-44-recurring-jobs/Level44RecurringJobs.tsx',
+	'src/features/act6-operations/components/level-45-data-lifecycle/Level45DataLifecycle.tsx',
+	'src/features/act6-operations/components/level-46-error-monitoring/Level46ErrorMonitoring.tsx',
+	'src/features/act6-operations/components/level-47-observability/Level47Observability.tsx',
+	'src/features/act6-operations/components/level-48-api-versioning/Level48APIVersioning.tsx',
+	'src/features/act7-scale/components/level-51-multi-database/Level51MultiDatabase.tsx',
+	'src/features/act7-scale/components/level-52-sharding/Level52Sharding.tsx',
+	'src/features/act7-scale/components/level-53-multi-tenancy/Level53MultiTenancy.tsx',
+	'src/features/act7-scale/components/level-54-state-machines/Level54StateMachines.tsx',
+	'src/features/act7-scale/components/level-55-modular-monolith/Level55ModularMonolith.tsx',
+	'src/features/act7-scale/components/level-56-domain-events/Level56DomainEvents.tsx',
+	'src/features/act7-scale/components/level-57-api-gateway/Level57APIGateway.tsx',
+	'src/features/act7-scale/components/level-58-architect/Level58Architect.tsx',
+]);
+
+describe('static + runtime: stress scenarios show their target controller', () => {
+	test('every stress path has a matching controller in the snapshot', async () => {
+		await importAllLevels();
+		const glob = new Glob('src/features/act*/components/level-*-*/**/*.tsx');
+		const newOffenders: string[] = [];
+		const seenOffenders = new Set<string>();
+		for await (const filepath of glob.scan(REPO_ROOT)) {
+			if (filepath.includes('/__tests__/')) continue;
+			const src = await Bun.file(resolve(REPO_ROOT, filepath)).text();
+			const paths = extractStressPaths(src);
+			if (paths.length === 0) continue;
+
+			// Find the level slug for this file from its registerLevelCode call
+			const slugMatch = src.match(/registerLevelCode\(\s*['"`]([\w-]+)['"`]/);
+			if (!slugMatch) continue;
+			const slug = slugMatch[1];
+			const files = getLevelCode(slug) ?? [];
+			const filenames = files.map((f) => f.filename);
+
+			const uncovered = new Set<string>();
+			for (const path of paths) {
+				const resource = resourceFromPath(path);
+				if (!resource) continue;
+				// Skip Rails internals (`/up` health endpoint, etc.)
+				if (resource === 'up') continue;
+				if (!snapshotCoversResource(filenames, resource)) {
+					uncovered.add(resource);
+				}
+			}
+			if (uncovered.size > 0) {
+				seenOffenders.add(filepath);
+				if (!KNOWN_MISSING_STRESS_TARGET_CONTROLLER.has(filepath)) {
+					newOffenders.push(
+						`${filepath}: stress scenarios target [${[...uncovered].join(', ')}] but the snapshot has no matching controller`,
+					);
+				}
+			}
+		}
+		expect(newOffenders).toEqual([]);
+		const stale = [...KNOWN_MISSING_STRESS_TARGET_CONTROLLER].filter(
+			(p) => !seenOffenders.has(p),
+		);
+		expect(
+			stale,
+			'KNOWN_MISSING_STRESS_TARGET_CONTROLLER contains stale entries',
+		).toEqual([]);
+	});
+});
+
+describe('static: helpers', () => {
+	test('extractStressPaths pulls path values from a STRESS_SCENARIOS array', () => {
+		const src = `
+			const STRESS_SCENARIOS: StressScenario[] = [
+				{ id: 'a', path: '/api/v1/products', method: 'GET' },
+				{ id: 'b', path: '/api/v1/products/1', method: 'DELETE' },
+				{ id: 'c', path: '/session', method: 'POST' },
+			];
+		`;
+		expect(extractStressPaths(src)).toEqual([
+			'/api/v1/products',
+			'/api/v1/products/1',
+			'/session',
+		]);
+	});
+
+	test('extractStressPaths returns [] when no STRESS_SCENARIOS', () => {
+		expect(extractStressPaths('const FOO = [];')).toEqual([]);
+	});
+
+	test('resourceFromPath drops dynamic segments and namespace prefix', () => {
+		expect(resourceFromPath('/api/v1/products/1')).toBe('products');
+		expect(resourceFromPath('/api/v1/products/:id')).toBe('products');
+		expect(resourceFromPath('/api/v1/products')).toBe('products');
+		expect(resourceFromPath('/session')).toBe('session');
+		expect(resourceFromPath('/up')).toBe('up');
+	});
+
+	test('snapshotCoversResource matches plural and singular forms', () => {
+		expect(
+			snapshotCoversResource(
+				['app/controllers/api/v1/products_controller.rb'],
+				'products',
+			),
+		).toBe(true);
+		expect(
+			snapshotCoversResource(
+				['app/controllers/sessions_controller.rb'],
+				'session',
+			),
+		).toBe(true);
+		expect(snapshotCoversResource(['app/models/user.rb'], 'products')).toBe(
+			false,
+		);
+	});
+
+	test('snapshotCoversResource regression: L9 pre-fix would fail for products', () => {
+		// L9's pre-fix snapshot had User, Session, SessionsController,
+		// Authentication concern — but no products_controller.rb.
+		const preFix = [
+			'app/models/user.rb',
+			'app/models/session.rb',
+			'app/controllers/sessions_controller.rb',
+			'app/controllers/concerns/authentication.rb',
+		];
+		expect(snapshotCoversResource(preFix, 'products')).toBe(false);
+	});
+});
