@@ -277,3 +277,124 @@ describe('runtime: registerLevelCode returns no duplicate filenames', () => {
 		);
 	});
 });
+
+// ──────────────────────────────────────────────────────────────────────────
+// Static: observe phase shows only what currently exists
+// ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * Per `.agents/rules/pedagogy.md` ("show only what currently exists"), the
+ * observe phase must NOT render a node for a component the build phase will
+ * introduce. L8 had a `Serializer` node with sublabel "Missing!" — wrong; the
+ * serializer doesn't exist yet, so it shouldn't be a node at all. Probes
+ * communicate the absence by showing what goes wrong (raw JSON, 404, etc.).
+ *
+ * This test catches the textual fingerprints of the bug:
+ *   - inspector titles ending in `(Missing)` / `(Missing!)`
+ *   - stage labels ending in `(Missing)` / `(Missing!)`
+ *   - bare `sublabel: 'Missing'` / `'Missing!'` values
+ *
+ * Pure "No X" sublabels (e.g. `'No WHERE clause'` on an existing query node)
+ * are NOT flagged — those describe an absent property of an existing node,
+ * not a non-existent node.
+ */
+const PLACEHOLDER_PATTERNS: RegExp[] = [
+	/title:\s*['"`][^'"`]+\([Mm]issing!?\)['"`]/,
+	/label:\s*['"`][^'"`]+\([Mm]issing!?\)['"`]/,
+	/sublabel:\s*['"`][Mm]issing!?['"`]/,
+];
+
+const KNOWN_OBSERVE_PHASE_PLACEHOLDERS = new Set<string>([
+	'src/features/act1-foundation/components/level-7-controller/Level7Controller.tsx',
+	'src/features/act2-users-security/components/level-9-authentication/Level9Authentication.tsx',
+	'src/features/act2-users-security/components/level-11-authorization/Level11Authorization.tsx',
+	'src/features/act2-users-security/components/level-13-strong-params/Level13StrongParams.tsx',
+	'src/features/act3-clean-architecture/components/level-20-error-handling/Level20ErrorHandling.tsx',
+	'src/features/act4-performance/components/level-28-caching/Level28Caching.tsx',
+	'src/features/act4-performance/components/level-29-http-caching/Level29HTTPCaching.tsx',
+	'src/features/act5-production/components/level-35-action-mailer/Level35ActionMailer.tsx',
+	'src/features/act6-operations/components/level-41-cors/Level41CORS.tsx',
+	'src/features/act6-operations/components/level-47-observability/Level47Observability.tsx',
+]);
+
+export function findPlaceholderViolations(src: string): string[] {
+	const hits: string[] = [];
+	for (const re of PLACEHOLDER_PATTERNS) {
+		const m = src.match(re);
+		if (m) hits.push(m[0]);
+	}
+	return hits;
+}
+
+describe('static: observe phase shows only what currently exists', () => {
+	test('no NEW level renders a "(Missing)" placeholder in observe', async () => {
+		const glob = new Glob('src/features/act*/components/level-*-*/Level*.tsx');
+		const newOffenders: string[] = [];
+		const seenOffenders = new Set<string>();
+		for await (const filepath of glob.scan(REPO_ROOT)) {
+			if (filepath.includes('/__tests__/')) continue;
+			const src = await Bun.file(resolve(REPO_ROOT, filepath)).text();
+			const hits = findPlaceholderViolations(src);
+			if (hits.length === 0) continue;
+			seenOffenders.add(filepath);
+			if (!KNOWN_OBSERVE_PHASE_PLACEHOLDERS.has(filepath)) {
+				newOffenders.push(`${filepath}: ${hits.join(' | ')}`);
+			}
+		}
+		expect(newOffenders).toEqual([]);
+		const stale = [...KNOWN_OBSERVE_PHASE_PLACEHOLDERS].filter(
+			(p) => !seenOffenders.has(p),
+		);
+		expect(
+			stale,
+			'KNOWN_OBSERVE_PHASE_PLACEHOLDERS contains stale entries',
+		).toEqual([]);
+	});
+});
+
+describe('static: findPlaceholderViolations helper', () => {
+	test('flags inspector title ending in "(Missing!)"', () => {
+		expect(
+			findPlaceholderViolations(`title: 'Serializer (Missing!)',`),
+		).toEqual([`title: 'Serializer (Missing!)'`]);
+	});
+
+	test('flags stage label ending in "(Missing)"', () => {
+		expect(
+			findPlaceholderViolations(`label: 'Cache Layer (Missing)',`),
+		).toEqual([`label: 'Cache Layer (Missing)'`]);
+	});
+
+	test('flags bare sublabel "Missing!" value', () => {
+		expect(findPlaceholderViolations(`sublabel: 'Missing!',`)).toEqual([
+			`sublabel: 'Missing!'`,
+		]);
+	});
+
+	test('does NOT flag legitimate "No X" sublabels (existing node, absent property)', () => {
+		expect(findPlaceholderViolations(`sublabel: 'No WHERE clause',`)).toEqual(
+			[],
+		);
+		expect(
+			findPlaceholderViolations(`sublabel: 'No store configured',`),
+		).toEqual([]);
+		expect(findPlaceholderViolations(`sublabel: 'No fallback',`)).toEqual([]);
+	});
+
+	test('does NOT flag "Missing (404)" inside a sublabel string used on an existing node', () => {
+		// The "Missing (404)" pattern is a probe response state on an existing
+		// node, not a placeholder node. Flagged separately if/when we extend.
+		expect(findPlaceholderViolations(`sublabel: 'Missing (404)',`)).toEqual([]);
+	});
+
+	test('regression: the L8 pre-fix shape would have been flagged', () => {
+		const preFixL8 = `
+			serializer: {
+				stageId: 'serializer',
+				title: 'Serializer (Missing!)',
+				description: 'No serializer exists. ...',
+			},
+		`;
+		expect(findPlaceholderViolations(preFixL8).length).toBeGreaterThan(0);
+	});
+});
