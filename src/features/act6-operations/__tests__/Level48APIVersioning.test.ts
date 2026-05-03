@@ -93,25 +93,46 @@ const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 
 // ── Build step option arrays ──
 
-const ADD_V2_ROUTES_COMMANDS = [
+const WRAP_V1_ROUTES_COMMANDS = [
 	{
-		id: 'wrong-single-namespace',
-		label: 'namespace :api do; resources :orders; end',
+		id: 'wrong-leave-flat',
+		label: 'Leave routes flat: namespace :api do; resources :orders; end',
 		correct: false,
 		feedback:
-			'A single namespace cannot serve two formats. You need separate v1 and v2 namespaces so each version gets its own controllers.',
+			'Leaving the routes flat means a future v2 has nowhere to live. To ship a new format alongside the old one, the existing partners need to be pinned to a stable surface first.',
 	},
 	{
-		id: 'wrong-scope',
-		label: 'scope "/api/v2" do; resources :orders; end',
+		id: 'wrong-scope-v1',
+		label: 'scope "/api/v1" do; resources :orders; end',
 		correct: false,
 		feedback:
-			'scope only changes the URL path, not the controller namespace. Routes would still hit Api::OrdersController instead of Api::V2::OrdersController.',
+			'scope only changes the URL prefix, not the controller module. Routes would point at Api::OrdersController, but the file still lives at app/controllers/api/orders_controller.rb. Module path and URL path must move together.',
 	},
 	{
 		id: 'correct',
-		label:
-			'namespace :api do; namespace :v1 do; ...; namespace :v2 do; ...; end',
+		label: 'namespace :api do; namespace :v1 do; resources :orders; end; end',
+		correct: true,
+	},
+];
+
+const ADD_V2_ROUTES_COMMANDS = [
+	{
+		id: 'wrong-replace-v1',
+		label: 'Replace v1 entirely with v2 (drop the v1 block)',
+		correct: false,
+		feedback:
+			'Replacing the existing version block breaks every partner that integrated with the old format. The whole point of versioning is keeping the old surface stable while you evolve the new one. Both must coexist.',
+	},
+	{
+		id: 'wrong-scope-v2',
+		label: 'scope "/api/v2" do; resources :orders; end',
+		correct: false,
+		feedback:
+			'scope only changes the URL path, not the controller module. Routes still hit Api::OrdersController instead of a dedicated v2 controller.',
+	},
+	{
+		id: 'correct',
+		label: 'Add a parallel namespace block for v2 alongside v1',
 		correct: true,
 	},
 ];
@@ -227,6 +248,7 @@ const FREEZE_V1_OPTIONS = [
 ];
 
 const ALL_OPTION_SETS = [
+	{ name: 'WRAP_V1_ROUTES_COMMANDS', options: WRAP_V1_ROUTES_COMMANDS },
 	{ name: 'ADD_V2_ROUTES_COMMANDS', options: ADD_V2_ROUTES_COMMANDS },
 	{ name: 'GENERATE_V2_COMMANDS', options: GENERATE_V2_COMMANDS },
 	{ name: 'V2_SERIALIZER_OPTIONS', options: V2_SERIALIZER_OPTIONS },
@@ -471,11 +493,17 @@ describe('Level 40: API Versioning', () => {
 			});
 		}
 
-		test('ADD_V2_ROUTES feedback does not contain "namespace :v1" or "namespace :v2"', () => {
+		test('WRAP_V1_ROUTES feedback does not reveal "namespace :v1 do" answer', () => {
+			const wrong = WRAP_V1_ROUTES_COMMANDS.filter((o) => !o.correct);
+			for (const opt of wrong) {
+				expect(opt.feedback ?? '').not.toContain('namespace :v1 do');
+			}
+		});
+
+		test('ADD_V2_ROUTES feedback does not contain "namespace :v2 do" answer', () => {
 			const wrong = ADD_V2_ROUTES_COMMANDS.filter((o) => !o.correct);
 			for (const opt of wrong) {
-				expect(opt.feedback ?? '').not.toContain('namespace :v1');
-				expect(opt.feedback ?? '').not.toContain('namespace :v2');
+				expect(opt.feedback ?? '').not.toContain('namespace :v2 do');
 			}
 		});
 

@@ -8,13 +8,21 @@
  *   Probes show v1 clients breaking on format changes, missing deprecation headers,
  *   and v2 routes not existing.
  *
- * Phase 2 (build): 6 steps
- *   Step 0: Add v2 namespace to routes (terminal)
- *   Step 1: Generate v2 controller (terminal)
- *   Step 2: Create v2 serializer with new response shape (option)
- *   Step 3: Add deprecation headers to v1 (option)
- *   Step 4: Add Sunset header (option)
- *   Step 5: Freeze v1 controller with dedicated serializer (option)
+ * Phase 2 (build): 7 steps
+ *   Step 0: Wrap existing /api/orders routes in :v1 namespace (terminal)
+ *           - Refactor: same routes, just nested. Existing partners pin to v1.
+ *   Step 1: Add :v2 namespace alongside :v1 (terminal)
+ *           - Evolution: now there's room to ship v2 without touching v1.
+ *   Step 2: Generate v2 controller (terminal)
+ *   Step 3: Create v2 serializer with new response shape (option)
+ *   Step 4: Add deprecation headers to v1 (option)
+ *   Step 5: Add Sunset header (option)
+ *   Step 6: Freeze v1 controller with dedicated serializer (option)
+ *
+ * Why two route steps (0 + 1) instead of one: refactoring to v1 and adding v2
+ * are different operations with different risks. Step 0 preserves all existing
+ * behavior; Step 1 introduces evolution capacity. Splitting them makes the
+ * pedagogical distinction explicit.
  *
  * Phase 3 (reward): Same 3 nodes, but App shows v1|v2 split internally.
  *   v1 gets cents format with deprecation headers. v2 gets object format.
@@ -638,7 +646,8 @@ const REWARD_FRAMES: Record<string, AnimFrame[]> = {
 // ─── Build step definitions ────────────────────────────────────────────
 
 const STEP_DEFS = [
-	{ id: 'add-v2-routes', title: 'Add Version Namespace' },
+	{ id: 'wrap-v1', title: 'Wrap Routes in v1' },
+	{ id: 'add-v2-routes', title: 'Add v2 Namespace' },
 	{ id: 'generate-v2-controller', title: 'Generate V2 Controller' },
 	{ id: 'create-v2-serializer', title: 'Create V2 Serializer' },
 	{ id: 'add-deprecation', title: 'Add Deprecation Headers' },
@@ -646,29 +655,63 @@ const STEP_DEFS = [
 	{ id: 'freeze-v1', title: 'Freeze V1 Controller' },
 ];
 
-const ADD_V2_ROUTES_COMMANDS = [
+// Step 0: refactor existing `namespace :api do; resources :orders; end` to
+// `namespace :api do; namespace :v1 do; resources :orders; end; end`. The
+// move pins existing partners to a stable v1 surface; no behavior changes
+// yet. Controller is also moved from app/controllers/api/orders_controller.rb
+// to app/controllers/api/v1/orders_controller.rb (and the class renamed to
+// Api::V1::OrdersController). The build code preview shows that move.
+const WRAP_V1_ROUTES_COMMANDS = [
 	{
-		id: 'wrong-single-namespace',
-		label: 'namespace :api do; resources :orders; end',
-		command:
-			'echo "namespace :api do; resources :orders; end" >> config/routes.rb',
+		id: 'wrong-leave-flat',
+		label: 'Leave routes flat: namespace :api do; resources :orders; end',
+		command: 'echo "(routes unchanged)"',
 		correct: false,
 		feedback:
-			'A single namespace cannot serve two formats. You need separate v1 and v2 namespaces so each version gets its own controllers.',
+			'Leaving the routes flat means a future v2 has nowhere to live. To ship a new format alongside the old one, the existing partners need to be pinned to a stable surface first.',
 	},
 	{
-		id: 'wrong-scope',
+		id: 'wrong-scope-v1',
+		label: 'scope "/api/v1" do; resources :orders; end',
+		command:
+			'echo "scope \\"/api/v1\\" do; resources :orders; end" > config/routes.rb',
+		correct: false,
+		feedback:
+			'scope only changes the URL prefix, not the controller module. Routes would point at Api::OrdersController, but the file still lives at app/controllers/api/orders_controller.rb. Module path and URL path must move together.',
+	},
+	{
+		id: 'correct',
+		label: 'namespace :api do; namespace :v1 do; resources :orders; end; end',
+		command:
+			"cat > config/routes.rb << 'ROUTES'\nRails.application.routes.draw do\n  namespace :api do\n    namespace :v1 do\n      resources :orders\n    end\n  end\nend\nROUTES",
+		correct: true,
+	},
+];
+
+// Step 1: with v1 in place, add v2 alongside. The correct answer ADDS to the
+// existing routes (does not replace v1).
+const ADD_V2_ROUTES_COMMANDS = [
+	{
+		id: 'wrong-replace-v1',
+		label: 'Replace v1 entirely with v2 (drop the v1 block)',
+		command:
+			"cat > config/routes.rb << 'ROUTES'\nRails.application.routes.draw do\n  namespace :api do\n    namespace :v2 do\n      resources :orders\n    end\n  end\nend\nROUTES",
+		correct: false,
+		feedback:
+			'Replacing the existing version block breaks every partner that integrated with the old format. The whole point of versioning is keeping the old surface stable while you evolve the new one. Both must coexist.',
+	},
+	{
+		id: 'wrong-scope-v2',
 		label: 'scope "/api/v2" do; resources :orders; end',
 		command:
 			'echo "scope \\"/api/v2\\" do; resources :orders; end" >> config/routes.rb',
 		correct: false,
 		feedback:
-			'scope only changes the URL path, not the controller namespace. Routes would still hit Api::OrdersController instead of Api::V2::OrdersController.',
+			'scope only changes the URL path, not the controller module. Routes still hit Api::OrdersController instead of a dedicated v2 controller.',
 	},
 	{
 		id: 'correct',
-		label:
-			'namespace :api do; namespace :v1 do; ...; namespace :v2 do; ...; end',
+		label: 'Add a parallel namespace block for v2 alongside v1',
 		command:
 			"cat > config/routes.rb << 'ROUTES'\nRails.application.routes.draw do\n  namespace :api do\n    namespace :v1 do\n      resources :orders\n    end\n    namespace :v2 do\n      resources :orders\n    end\n  end\nend\nROUTES",
 		correct: true,
@@ -897,6 +940,19 @@ end`,
 
 const TERMINAL_STEP_MAP: (TerminalStepData | null)[] = [
 	{
+		commands: WRAP_V1_ROUTES_COMMANDS,
+		outputLines: [
+			{
+				text: 'Routes updated: /api/orders -> /api/v1/orders',
+				color: 'green' as const,
+			},
+			{
+				text: 'Controller moved to app/controllers/api/v1/orders_controller.rb',
+				color: 'green' as const,
+			},
+		],
+	},
+	{
 		commands: ADD_V2_ROUTES_COMMANDS,
 		outputLines: [
 			{
@@ -1085,7 +1141,40 @@ end`,
 	if (phase === 'build') {
 		const files: { filename: string; language: string; code: string }[] = [];
 
-		if (completedStep >= 0) {
+		// Step 0 done: routes wrapped in v1 (refactor — same behaviour, nested
+		// namespace). Controller file moved + class renamed.
+		if (completedStep >= 0 && completedStep < 1) {
+			files.push({
+				filename: 'config/routes.rb',
+				language: 'ruby',
+				code: `Rails.application.routes.draw do
+  namespace :api do
+    namespace :v1 do
+      resources :orders, only: [:index, :show, :create]
+    end
+    # v2 will live here next
+  end
+end`,
+			});
+			files.push({
+				filename: 'app/controllers/api/v1/orders_controller.rb',
+				language: 'ruby',
+				code: `# Same controller as before; just moved into the v1 module.
+# Behavior is unchanged. Existing partners see no difference.
+class Api::V1::OrdersController < ApplicationController
+  def show
+    result = FetchOrder.call(id: params[:id])
+    if result.success?
+      render json: OrderSerializer
+        .new(result.order).serializable_hash
+    end
+  end
+end`,
+			});
+		}
+
+		// Step 1 done: v2 namespace added alongside v1.
+		if (completedStep >= 1) {
 			files.push({
 				filename: 'config/routes.rb',
 				language: 'ruby',
@@ -1102,7 +1191,8 @@ end`,
 			});
 		}
 
-		if (completedStep >= 1) {
+		// Step 2 done: v2 controller stub generated.
+		if (completedStep >= 2) {
 			files.push({
 				filename: 'app/controllers/api/v2/orders_controller.rb',
 				language: 'ruby',
@@ -1116,7 +1206,8 @@ end`,
 			});
 		}
 
-		if (completedStep >= 2) {
+		// Step 3 done: v2 serializer with money-object format.
+		if (completedStep >= 3) {
 			files.push({
 				filename: 'app/serializers/api/v2/order_serializer.rb',
 				language: 'ruby',
@@ -1137,7 +1228,9 @@ end`,
 			});
 		}
 
-		if (completedStep >= 3) {
+		// Step 4 done: v1 base controller with Deprecation + Link headers.
+		// Step 5 done: also adds Sunset header.
+		if (completedStep >= 4) {
 			files.push({
 				filename: 'app/controllers/api/v1/base_controller.rb',
 				language: 'ruby',
@@ -1151,7 +1244,7 @@ end`,
       response.headers['Deprecation'] = 'true'
       response.headers['Link'] =
         '</api/v2/docs>; rel="successor-version"'${
-					completedStep >= 4
+					completedStep >= 5
 						? `
       response.headers['Sunset'] =
         'Sun, 01 Jun 2027 00:00:00 GMT'`
@@ -1163,7 +1256,8 @@ end`,
 			});
 		}
 
-		if (completedStep >= 5) {
+		// Step 6 done: v1 OrdersController frozen with dedicated v1 serializer.
+		if (completedStep >= 6) {
 			files.push({
 				filename: 'app/controllers/api/v1/orders_controller.rb',
 				language: 'ruby',
@@ -1189,7 +1283,7 @@ end`,
 			files.push({
 				filename: 'config/routes.rb',
 				language: 'ruby',
-				code: '# Step 1: Add version namespaces to routes...',
+				code: '# Step 1: Wrap existing routes in :v1 namespace...',
 			});
 		}
 
@@ -1669,7 +1763,7 @@ export function Level48APIVersioning({ onComplete }: LevelComponentProps) {
 	// ── Build step config ──
 	const currentStepConfig = useMemo(() => {
 		const idx = stepper.currentStep;
-		if (idx <= 1) {
+		if (idx <= 2) {
 			const termData = TERMINAL_STEP_MAP[idx];
 			return {
 				type: 'terminal' as const,
@@ -1680,10 +1774,10 @@ export function Level48APIVersioning({ onComplete }: LevelComponentProps) {
 			};
 		}
 		const stepOptions: Record<number, typeof V2_SERIALIZER_OPTIONS> = {
-			2: V2_SERIALIZER_OPTIONS,
-			3: DEPRECATION_OPTIONS,
-			4: SUNSET_OPTIONS,
-			5: FREEZE_V1_OPTIONS,
+			3: V2_SERIALIZER_OPTIONS,
+			4: DEPRECATION_OPTIONS,
+			5: SUNSET_OPTIONS,
+			6: FREEZE_V1_OPTIONS,
 		};
 		return {
 			type: 'option' as const,
@@ -1705,9 +1799,10 @@ export function Level48APIVersioning({ onComplete }: LevelComponentProps) {
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground mb-2">
-							Since Level 5, your API has lived under /api/v1. 200 partners
-							integrated with this format. Product now needs to change the order
-							total from integer cents (1999) to a structured money object.
+							Since Level 6, your API has lived under /api with no version
+							segment. 200 partners have integrated against the current format.
+							Product now needs to change the order total from integer cents
+							(1999) to a structured money object.
 						</p>
 						<p className="text-sm text-muted-foreground">
 							But there is only one controller serving all clients. Changing the
