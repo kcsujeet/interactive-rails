@@ -95,7 +95,13 @@ The zones, nodes, and flow in the observe phase must reflect what actually exist
 
 The build steps should transform the "before" state into the "after" state. Every step should make sense in sequence. If step 1 is "Install Active Storage" but the observe code already uses Active Storage APIs, the bridge is broken.
 
-**If any of these questions reveal an inconsistency, stop and fix the narrative before proceeding with the rest of the audit.** Structural compliance, animation quality, and visualization design are all downstream of narrative coherence.
+### 6. Does the narrative state match the curriculum's actual state at this level?
+
+The trigger description, scenario text, and probe stories must be coherent with where the curriculum actually is at this level. **No time-travel narration.** A level that says "an audit flagged…" but is positioned before the app has shipped, has users, or has audit relationships, is time-traveling — fix the framing, not the lesson.
+
+For the forbidden-tropes table (pre-deploy, no users yet, no payments yet, no production data, no API versioning), the L10 case study, and the full list of player-visible strings to scan, see [narrative-state-coherence.md](narrative-state-coherence.md).
+
+**If any of these questions (1–6) reveal an inconsistency, stop and fix the narrative before proceeding with the rest of the audit.** Structural compliance, animation quality, and visualization design are all downstream of narrative coherence.
 
 ---
 

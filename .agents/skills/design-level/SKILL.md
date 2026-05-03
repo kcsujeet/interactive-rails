@@ -97,6 +97,10 @@ Trace the concept back through earlier levels. If L38 taught outbound Stripe API
 
 Think about what the app looks like after N levels of building. What features exist? What would the "before" code realistically look like? Would the player have used the naive approach, a partial approach, or no implementation at all?
 
+**Narrative-state coherence (the "no time travel" rule).** The trigger description, scenario text, and probe stories must be coherent with where the curriculum is at this level. Never narrate from a future state — if the trigger or story uses a trope that requires the app to be in production with users / payments / monitoring / audit relationships, and we haven't built that yet, the level is time-traveling. Fix the framing, not the lesson.
+
+For the forbidden-tropes table (pre-deploy, no users, no payments, no production data, no API versioning) and the L10 case study (`"GDPR audit flagged"` -> `"Pre-launch security review"`), see [../audit-level/narrative-state-coherence.md](../audit-level/narrative-state-coherence.md). Apply this check to every player-visible string at design time so the bad framing never lands.
+
 ### 4. What does the "before" state look like?
 
 The observe phase visualization must only show components that exist in the "before" state. If WebSocket isn't configured yet, don't show a WebSocket lane. If S3 isn't installed, don't show an S3 zone.
