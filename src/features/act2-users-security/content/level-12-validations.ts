@@ -82,15 +82,15 @@ end
 
 class User < ApplicationRecord
   has_secure_password
-  # No email uniqueness check!
+  # No email_address uniqueness check!
 end
 
 # What gets through:
 Product.create(name: "", price: nil)        # Saved! No name, no price.
 Product.create(name: "a" * 1000, price: -5) # Saved! Absurd name, negative price.
-User.create(email: "not-an-email")          # Saved! Invalid email.
-User.create(email: "joe@test.com")          # Saved!
-User.create(email: "joe@test.com")          # Saved again! Duplicate.
+User.create(email_address: "not-an-email")          # Saved! Invalid email format.
+User.create(email_address: "joe@test.com")          # Saved!
+User.create(email_address: "joe@test.com")          # RecordNotUnique raised; client sees a 500.
 
 # The database is full of garbage.`,
 		goal: 'Add presence, uniqueness, and format validations to your models, then inspect error messages in the Rails console.',
@@ -146,15 +146,15 @@ end
 class User < ApplicationRecord
   has_secure_password
 
-  validates :email, presence: true,
+  validates :email_address, presence: true,
                     uniqueness: { case_sensitive: false },
                     format: { with: URI::MailTo::EMAIL_REGEXP,
-                              message: "must be a valid email address" }
+                              message: "must be a valid email_address address" }
 end
 
 # In the controller, return validation errors as JSON:
 def create
-  product = current_user.products.build(product_params)
+  product = Current.user.products.build(product_params)
   if product.save
     render json: ProductSerializer.new(product).serializable_hash.to_json, status: :created
   else

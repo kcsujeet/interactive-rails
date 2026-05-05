@@ -110,35 +110,40 @@ const PROBES: ProbeConfig[] = [
 	{
 		id: 'duplicate-email',
 		label: 'POST duplicate email',
-		command: 'POST /api/users (email: "joe@test.com") [already exists]',
+		command: 'POST /api/users (email_address: "joe@test.com") [already exists]',
 		responseLines: [
-			{ text: 'HTTP/1.1 201 Created', color: 'red' },
+			{ text: 'HTTP/1.1 500 Internal Server Error', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: '{"id":8,"email":"joe@test.com"}',
+				text: 'ActiveRecord::RecordNotUnique',
+				color: 'yellow',
+			},
+			{
+				text: 'PG::UniqueViolation: ERROR: duplicate key value',
 				color: 'muted',
 			},
 			{
-				text: 'Duplicate email saved. No uniqueness check.',
+				text: 'The DB unique index catches it, but the client sees a 500 with a stack trace, not a clean error.',
 				color: 'yellow',
 			},
 		],
 		story: [
 			'A new user signs up with joe@test.com, which is already taken.',
-			'The model has no uniqueness validation on the email column.',
-			'A second row with the same email is inserted into the users table.',
-			"Both accounts now receive each other's password reset emails.",
+			'The model has no uniqueness validation, so User.create! fires straight at the database.',
+			'The database unique index (added by the auth generator in Level 9) rejects the duplicate row.',
+			'The exception bubbles up to the client as a 500 with a Postgres-flavored stack trace.',
+			'A model-level validation would catch this earlier and return a clean 422 with a readable message.',
 		],
 	},
 	{
 		id: 'bad-email',
 		label: 'POST invalid email',
-		command: 'POST /api/users (email: "not-an-email")',
+		command: 'POST /api/users (email_address: "not-an-email")',
 		responseLines: [
 			{ text: 'HTTP/1.1 201 Created', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: '{"id":9,"email":"not-an-email"}',
+				text: '{"id":9,"email_address":"not-an-email"}',
 				color: 'muted',
 			},
 			{
@@ -148,7 +153,7 @@ const PROBES: ProbeConfig[] = [
 		],
 		story: [
 			'A user types "not-an-email" into the email field and submits.',
-			'The model has no format validation on the email column.',
+			'The model has no format validation on the email_address column.',
 			'The malformed string is saved as-is to the database.',
 			'Order confirmations and password resets will bounce forever.',
 		],
@@ -173,7 +178,7 @@ const PROBE_PIPELINE_MAP: Record<
 	},
 	'duplicate-email': {
 		modelSublabel: 'joe@test.com',
-		dbBadge: '201!',
+		dbBadge: '500!',
 	},
 	'bad-email': {
 		modelSublabel: 'not-an-email',
@@ -184,8 +189,8 @@ const PROBE_PIPELINE_MAP: Record<
 // Map probe IDs to data card display text
 const PROBE_DATA_CARD: Record<string, string> = {
 	'empty-post': '{ name: "", description: "" }',
-	'duplicate-email': '{ email: "joe@test.com" }',
-	'bad-email': '{ email: "not-an-email" }',
+	'duplicate-email': '{ email_address: "joe@test.com" }',
+	'bad-email': '{ email_address: "not-an-email" }',
 };
 
 // ──────────────────────────────────────────────
@@ -201,8 +206,8 @@ const OBSERVE_FLOW: Record<string, string[]> = {
 	],
 	'duplicate-email': [
 		'POST /api/users from client',
-		'No uniqueness check, passes through',
-		'Duplicate email saved! 201',
+		'Reaches DB without a model-level check',
+		'PG::UniqueViolation -> 500 stack trace',
 	],
 	'bad-email': [
 		'POST /api/users from client',
@@ -224,8 +229,8 @@ const REWARD_FLOW: Record<string, string[]> = {
 		'Rejected! 422',
 	],
 	'valid-user': [
-		'User with valid email',
-		'validates :email passes',
+		'User with valid email_address',
+		'validates :email_address passes',
 		'Saved! 201 Created',
 	],
 	'duplicate-email': [
@@ -323,8 +328,8 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	},
 	{
 		id: 'valid-user',
-		label: 'User with valid email',
-		description: 'New user with unique, properly formatted email',
+		label: 'User with valid email_address',
+		description: 'New user with unique, properly formatted email_address',
 		method: 'POST',
 		path: '/api/users',
 		actor: 'registration',
@@ -405,14 +410,14 @@ const PRESENCE_OPTIONS: StepOption[] = [
 const UNIQUENESS_OPTIONS: StepOption[] = [
 	{
 		id: 'manual-check',
-		label: 'User.find_by(email: email).nil?',
+		label: 'User.find_by(email_address: email_address).nil?',
 		correct: false,
 		feedback:
 			'Manual lookups have race conditions. Two requests can check simultaneously and both pass.',
 	},
 	{
 		id: 'uniqueness',
-		label: 'validates :email, uniqueness: { case_sensitive: false }',
+		label: 'validates :email_address, uniqueness: { case_sensitive: false }',
 		correct: true,
 	},
 	{
@@ -431,21 +436,22 @@ const UNIQUENESS_OPTIONS: StepOption[] = [
 const FORMAT_OPTIONS: StepOption[] = [
 	{
 		id: 'simple-regex',
-		label: 'validates :email, format: { with: /@/ }',
+		label: 'validates :email_address, format: { with: /@/ }',
 		correct: false,
 		feedback:
-			'A single @ check is too permissive. "not@valid" would pass. Use the standard email regexp.',
+			'A single @ check is too permissive. "not@valid" would pass. Use the standard email_address regexp.',
 	},
 	{
 		id: 'custom-method',
 		label: 'validate :check_email_format',
 		correct: false,
 		feedback:
-			'Writing custom email regex is error-prone. Ruby ships a battle-tested pattern in URI::MailTo.',
+			'Writing custom email_address regex is error-prone. Ruby ships a battle-tested pattern in URI::MailTo.',
 	},
 	{
 		id: 'uri-regexp',
-		label: 'validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }',
+		label:
+			'validates :email_address, format: { with: URI::MailTo::EMAIL_REGEXP }',
 		correct: true,
 	},
 ];
@@ -515,7 +521,7 @@ const OPTION_STEP_CONFIG: Record<
 	2: {
 		title: 'Add Format Validation',
 		description:
-			'Uniqueness alone is not enough. Strings like "not-an-email" still pass. Add a format check to ensure the email matches a proper pattern.',
+			'Uniqueness alone is not enough. Strings like "not-an-email" still pass. Add a format check to ensure the email_address matches a proper pattern.',
 		options: FORMAT_OPTIONS,
 	},
 };
@@ -543,7 +549,7 @@ end`,
 			language: 'ruby',
 			code: `class User < ApplicationRecord
   has_secure_password
-  # No email validation!
+  # No email_address validation!
 end`,
 			highlight: [3],
 		});
@@ -559,16 +565,17 @@ end`,
 		productValidations.push('  validates :description, presence: true');
 	}
 
+	// Steps 1 (uniqueness) and 2 (format) accumulate options on the same
+	// `validates :email_address` call. Multi-line layout matches the
+	// real myapp model — one option per line for readability and to
+	// keep diffs minimal as constraints are added.
 	if (furthestStep >= 2) {
-		userValidations.push(
-			'  validates :email, uniqueness: { case_sensitive: false }',
-		);
-	}
-
-	if (furthestStep >= 3) {
-		userValidations.push(
-			'  validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }',
-		);
+		const opts = ['    presence: true'];
+		opts.push('    uniqueness: { case_sensitive: false }');
+		if (furthestStep >= 3) {
+			opts.push('    format: { with: URI::MailTo::EMAIL_REGEXP }');
+		}
+		userValidations.push(`  validates :email_address,\n${opts.join(',\n')}`);
 	}
 
 	files.push({
@@ -603,17 +610,16 @@ end`,
 			language: 'ruby',
 			code: `class Api::ProductsController < ApplicationController
   def create
-    product = Product.new(product_params)
-
+    product = Current.user.products.new(product_params)
+    authorize product
     if product.save
-      render json: ProductSerializer.new(product), status: :created
+      render json: product, status: :created
     else
-      render json: { errors: product.errors.full_messages },
-             status: :unprocessable_entity
+      render json: { errors: product.errors.full_messages }, status: :unprocessable_entity
     end
   end
 end`,
-			highlight: [7, 8, 9],
+			highlight: [7, 8],
 		});
 	}
 
@@ -1240,8 +1246,8 @@ export function Level12Validations({ onComplete }: LevelComponentProps) {
 									</div>
 									<div className="space-y-0.5 font-mono text-xs text-success">
 										<div>validates :name, presence: true</div>
-										<div>validates :email, uniqueness: true</div>
-										<div>validates :email, format: {'{ ... }'}</div>
+										<div>validates :email_address, uniqueness: true</div>
+										<div>validates :email_address, format: {'{ ... }'}</div>
 									</div>
 									{flowMessages[1] && (flowPhase >= 2 || flowPhase === -1) && (
 										<div
