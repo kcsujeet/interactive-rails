@@ -63,7 +63,7 @@ end
 		railsCodeExample: `# app/policies/product_policy.rb
 class ProductPolicy < ApplicationPolicy
   def show?
-    true  # Anyone can view active products
+    true  # Anyone can view a product
   end
 
   def create?
@@ -71,26 +71,25 @@ class ProductPolicy < ApplicationPolicy
   end
 
   def update?
-    owner_or_admin?
+    owner?
   end
 
   def destroy?
-    owner_or_admin?
+    owner?
   end
 
   private
 
-  def owner_or_admin?
-    record.user == user || user.admin?
+  def owner?
+    record.user == user
   end
 
+  # Scope is where collection filters live. Today everyone
+  # sees the full catalog; when visibility rules arrive
+  # (admin / published / archived), this is where they go.
   class Scope < ApplicationPolicy::Scope
     def resolve
-      if user.admin?
-        scope.all
-      else
-        scope.where(status: "active")
-      end
+      scope.all
     end
   end
 end
@@ -158,7 +157,7 @@ end`,
 			'Checking permissions in the controller instead of the policy',
 			'Not scoping index queries with policy_scope (leaking private data)',
 			'Confusing authentication (who) with authorization (can)',
-			'Not testing policy edge cases (admin vs owner vs stranger)',
+			'Not testing policy edge cases (owner vs stranger; signed-in vs unauthenticated)',
 		],
 		whenToUse:
 			'Every action that modifies data or returns user-specific content needs authorization. Add Pundit policies from the start.',

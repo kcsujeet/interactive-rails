@@ -82,7 +82,10 @@ type Phase = 'observe' | 'build' | 'reward';
 const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{ id: 'no-policy', label: 'No authorization policy exists' },
 	{ id: 'any-delete', label: 'Any user can delete any product' },
-	{ id: 'index-leaks', label: 'Index returns all products including drafts' },
+	{
+		id: 'index-no-filter',
+		label: 'Index returns every product across all users',
+	},
 	{ id: 'no-authorize', label: 'Controller has no authorize call' },
 ];
 
@@ -115,33 +118,33 @@ const PROBES: ProbeConfig[] = [
 		],
 	},
 	{
-		id: 'get-drafts',
-		label: 'GET drafts as stranger',
-		command: 'GET /api/products (as visitor, no auth)',
+		id: 'view-others-products',
+		label: 'GET index as user_7',
+		command: 'GET /api/products (as user_7)',
 		responseLines: [
 			{ text: 'HTTP/1.1 200 OK', color: 'red' },
 			{
-				text: '[{"id":1,"name":"Draft: Secret Launch","published":false},',
+				text: '[{"id":1,"name":"Mug","user_id":3},',
 				color: 'muted',
 			},
 			{
-				text: ' {"id":2,"name":"Internal Roadmap","published":false},',
+				text: ' {"id":2,"name":"Notebook","user_id":3},',
 				color: 'muted',
 			},
 			{
-				text: ' {"id":3,"name":"Featured Product","published":true}]',
+				text: ' {"id":42,"name":"Sticker Pack","user_id":3}]',
 				color: 'muted',
 			},
 			{
-				text: 'Product.all returns everything. Drafts are visible to anyone.',
+				text: 'Product.all returns every product, regardless of who created it.',
 				color: 'yellow',
 			},
 		],
 		story: [
-			'An unauthenticated visitor hits the products index endpoint.',
-			'The controller runs Product.all with no scope filtering.',
-			'Draft products ("Secret Launch", "Internal Roadmap") are included in the response.',
-			'Confidential product listings are exposed to the public internet.',
+			'user_7 hits the products index endpoint.',
+			'The controller runs Product.all with no filtering.',
+			'Every product across every user comes back, including ones owned by user_3.',
+			'There is no central place to scope this when ownership rules tighten later. The query is hardcoded in the controller.',
 		],
 	},
 	{
@@ -171,7 +174,7 @@ const PROBES: ProbeConfig[] = [
 // Map probe IDs to discovery IDs they trigger
 const PROBE_DISCOVERY_MAP: Record<string, string> = {
 	'delete-nonowner': 'any-delete',
-	'get-drafts': 'index-leaks',
+	'view-others-products': 'index-no-filter',
 	'patch-nonowner': 'no-authorize',
 };
 
@@ -184,8 +187,8 @@ const PROBE_PIPELINE_MAP: Record<
 		policySublabel: 'DELETE user_7',
 		modelBadge: '204!',
 	},
-	'get-drafts': {
-		policySublabel: 'GET visitor',
+	'view-others-products': {
+		policySublabel: 'GET user_7',
 		modelBadge: '200!',
 	},
 	'patch-nonowner': {
@@ -253,15 +256,6 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'allowed',
 	},
 	{
-		id: 'admin-delete',
-		label: 'Admin deletes flagged product',
-		description: 'Admin removes a flagged product',
-		method: 'DELETE',
-		path: '/api/products/99',
-		actor: 'admin',
-		expectedResult: 'allowed',
-	},
-	{
 		id: 'stranger-delete',
 		label: 'Stranger deletes product',
 		description: "Random user tries to delete another user's product",
@@ -280,12 +274,12 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		expectedResult: 'blocked',
 	},
 	{
-		id: 'visitor-index',
-		label: 'Visitor sees published only',
-		description: 'Unauthenticated visitor views the index',
+		id: 'view-others-products',
+		label: 'GET index as user_7',
+		description: 'Authenticated user views the catalog',
 		method: 'GET',
 		path: '/api/products',
-		actor: 'visitor (no auth)',
+		actor: 'user_7',
 		expectedResult: 'allowed',
 	},
 ];
@@ -460,22 +454,22 @@ const STEP_OPTIONS: StepOption[][] = [
 	// Step 4: Define the destroy? Method
 	[
 		{
-			id: 'admin-only',
-			label: 'def destroy?\n  user.admin?\nend',
+			id: 'persisted-check',
+			label: 'def destroy?\n  record.persisted?\nend',
 			correct: false,
 			feedback:
-				'That only allows admins. Product owners should also be able to delete their own products.',
+				'persisted? is a record-state check, not a permission check. It returns true for every saved record, regardless of who is asking.',
 		},
 		{
 			id: 'allow-all',
 			label: 'def destroy?\n  true\nend',
 			correct: false,
 			feedback:
-				'That allows everyone to delete any product. Authorization needs a real permission check.',
+				'That allows everyone to delete any product. Authorization needs a real permission check tied to the user.',
 		},
 		{
-			id: 'owner-or-admin',
-			label: 'def destroy?\n  record.user == user || user.admin?\nend',
+			id: 'owner-only',
+			label: 'def destroy?\n  record.user == user\nend',
 			correct: true,
 		},
 	],
@@ -483,11 +477,10 @@ const STEP_OPTIONS: StepOption[][] = [
 	[
 		{
 			id: 'inline-check',
-			label:
-				'if current_user.admin? || product.user == current_user\n  product.destroy\nend',
+			label: 'if product.user == current_user\n  product.destroy\nend',
 			correct: false,
 			feedback:
-				'Inline permission checks duplicate logic that belongs in the policy. The controller should delegate.',
+				'Inline permission checks duplicate logic that belongs in the policy. The controller should delegate to a single source of truth.',
 		},
 		{
 			id: 'before-action',
@@ -551,7 +544,7 @@ const OPTION_STEP_CONFIG: Record<
 	4: {
 		title: 'Define the destroy? Method',
 		description:
-			'Product owners and admins should be able to delete. Everyone else should be blocked. Which permission logic is correct?',
+			'Product owners should be able to delete their own products. Everyone else should be blocked. Which permission logic is correct?',
 		options: STEP_OPTIONS[1],
 	},
 	5: {
@@ -563,7 +556,7 @@ const OPTION_STEP_CONFIG: Record<
 	6: {
 		title: 'Scope the Index Query',
 		description:
-			'The index action does Product.all, leaking drafts and private products. How do you filter the collection through the policy?',
+			'The index action does Product.all, hardcoding the query in the controller. How do you delegate the collection-filtering decision to the policy class so future ownership rules live in one place?',
 		options: STEP_OPTIONS[3],
 	},
 };
@@ -640,44 +633,54 @@ end`,
 			language: 'ruby',
 			code: `source "https://rubygems.org"
 
-gem "rails", "~> 8.0.0"
+gem "rails", "~> 8.1.3"
 gem "pg", "~> 1.1"
 gem "puma", ">= 5.0"
-gem "jbuilder"
 gem "bcrypt", "~> 3.1.7"
 gem "pundit"`,
-			highlight: [8],
+			highlight: [7],
 		});
 	}
 
 	if (furthestStep >= 2) {
 		// After step 1: ApplicationController with include Pundit::Authorization
+		// Includes Authentication (from L9) and pundit_user override so Pundit
+		// reads Current.user (set by the L9 auth concern).
 		files.push({
 			filename: 'app/controllers/application_controller.rb',
 			language: 'ruby',
 			code:
 				furthestStep >= 7
 					? `class ApplicationController < ActionController::API
+  include Authentication
   include Pundit::Authorization
 
-  rescue_from Pundit::NotAuthorizedError do |e|
-    render json: { error: "Not authorized" },
-           status: :forbidden
+  rescue_from Pundit::NotAuthorizedError do
+    render json: { error: "Not authorized" }, status: :forbidden
+  end
+
+  private
+
+  def pundit_user
+    Current.user
   end
 end`
 					: `class ApplicationController < ActionController::API
+  include Authentication
   include Pundit::Authorization
 end`,
-			highlight: furthestStep >= 7 ? [2, 4, 5, 6] : [2],
+			highlight: furthestStep >= 7 ? [3, 5, 6, 7, 11, 12, 13] : [3],
 		});
 	}
 
 	if (furthestStep >= 3) {
-		// After step 2: ApplicationPolicy from generator (matches pundit:install output)
+		// After step 2: ApplicationPolicy from generator (Pundit 2.5.x output)
 		files.push({
 			filename: 'app/policies/application_policy.rb',
 			language: 'ruby',
-			code: `class ApplicationPolicy
+			code: `# frozen_string_literal: true
+
+class ApplicationPolicy
   attr_reader :user, :record
 
   def initialize(user, record)
@@ -685,13 +688,33 @@ end`,
     @record = record
   end
 
-  def index?    = false
-  def show?     = false
-  def create?   = false
-  def new?      = create?
-  def update?   = false
-  def edit?     = update?
-  def destroy?  = false
+  def index?
+    false
+  end
+
+  def show?
+    false
+  end
+
+  def create?
+    false
+  end
+
+  def new?
+    create?
+  end
+
+  def update?
+    false
+  end
+
+  def edit?
+    update?
+  end
+
+  def destroy?
+    false
+  end
 
   class Scope
     def initialize(user, scope)
@@ -700,8 +723,7 @@ end`,
     end
 
     def resolve
-      raise NoMethodError,
-        "You must define #resolve in #{self.class}"
+      raise NoMethodError, "You must define #resolve in #{self.class}"
     end
 
     private
@@ -709,7 +731,7 @@ end`,
     attr_reader :user, :scope
   end
 end`,
-			highlight: [9, 10, 11, 12, 13, 14, 15],
+			highlight: [11, 15, 19, 27, 35],
 		});
 	}
 
@@ -720,42 +742,72 @@ end`,
 			language: 'ruby',
 			code:
 				furthestStep >= 7
-					? `class ProductPolicy < ApplicationPolicy
-  # user  - the signed-in user (from Pundit)
+					? `# frozen_string_literal: true
+
+class ProductPolicy < ApplicationPolicy
+  # user   - the signed-in user (set by Pundit from Current.user)
   # record - the Product instance being checked
 
-  def destroy?
-    record.user == user || user.admin?
+  def show?
+    true
   end
 
+  def create?
+    user.present?
+  end
+
+  def update?
+    owner?
+  end
+
+  def destroy?
+    owner?
+  end
+
+  private
+
+  def owner?
+    user.present? && record.user == user
+  end
+
+  # Scope is the central place to filter collections.
+  # Today every signed-in user sees every product;
+  # when ownership rules tighten, this is where the
+  # filter goes. Controllers do not duplicate it.
   class Scope < ApplicationPolicy::Scope
     def resolve
-      if user.admin?
-        scope.all
-      else
-        scope.where(published: true)
-      end
+      scope.all
     end
   end
 end`
 					: furthestStep >= 5
-						? `class ProductPolicy < ApplicationPolicy
-  # user  - the signed-in user (from Pundit)
+						? `# frozen_string_literal: true
+
+class ProductPolicy < ApplicationPolicy
+  # user   - the signed-in user (set by Pundit from Current.user)
   # record - the Product instance being checked
 
   def destroy?
-    record.user == user || user.admin?
+    owner?
+  end
+
+  private
+
+  def owner?
+    user.present? && record.user == user
   end
 end`
-						: `class ProductPolicy < ApplicationPolicy
-  # user  - the signed-in user (from Pundit)
+						: `# frozen_string_literal: true
+
+class ProductPolicy < ApplicationPolicy
+  # user   - the signed-in user (set by Pundit from Current.user)
   # record - the Product instance being checked
 end`,
 			highlight:
 				furthestStep >= 7
-					? [5, 6, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+					? [19, 20, 21, 25, 26, 27]
 					: furthestStep >= 5
-						? [5, 6]
+						? [7, 8, 9, 13, 14, 15]
 						: [],
 		});
 	}
