@@ -73,10 +73,15 @@ type Phase = 'observe' | 'build' | 'reward';
 // ──────────────────────────────────────────────
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
-	{ id: 'no-filtering', label: 'No parameter filtering at all' },
-	{ id: 'user-id-injection', label: 'user_id can be set via request body' },
-	{ id: 'admin-escalation', label: 'admin flag can be set via request body' },
-	{ id: 'raw-params', label: 'Controller passes raw params to model' },
+	{ id: 'no-filter', label: 'No centralized parameter filter' },
+	{
+		id: 'user-id-injection',
+		label: 'user_id slips through if added to the field list',
+	},
+	{
+		id: 'shape-attack',
+		label: 'Malformed body shape produces silent empty records',
+	},
 ];
 
 // ──────────────────────────────────────────────
@@ -85,81 +90,84 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 
 const PROBES: ProbeConfig[] = [
 	{
-		id: 'inject-user-id',
-		label: 'POST with user_id',
-		command: 'POST /api/products {name: "Hi", user_id: 42}',
+		id: 'duplicate-field-list',
+		label: 'Inspect the controller',
+		command: 'cat app/controllers/api/products_controller.rb',
 		responseLines: [
-			{ text: 'HTTP/1.1 201 Created', color: 'red' },
 			{
-				text: '{"id":5,"name":"Hi","user_id":42,"admin":false}',
-				color: 'muted',
+				text: '# create  -> name:, description:, price: (3 lines)',
+				color: 'cyan',
 			},
 			{
-				text: 'user_id accepted! Product created as user 42, not the real seller.',
+				text: '# update  -> name:, description:, price: (3 lines)',
+				color: 'cyan',
+			},
+			{
+				text: 'The same field list is hardcoded in two places.',
 				color: 'yellow',
 			},
 			{
-				text: 'No parameter filtering. user_id passes straight through to the model.',
+				text: 'No central whitelist. Adding a 4th field means editing both create and update.',
 				color: 'red',
 			},
 		],
 		story: [
-			'An attacker crafts a POST request that includes user_id: 42 in the body.',
-			'The controller passes all params directly to Product.create!.',
-			'No parameter filtering strips out the injected user_id field.',
-			'The product is saved as if user 42 created it, hiding the real seller.',
+			'You inspect the controller. create and update each list the allowed fields by hand.',
+			'The whitelist is duplicated. Adding a new field means editing both methods.',
+			'A reviewer auditing "what fields can users set?" has to read every action.',
+			'There is no single source of truth for the per-controller whitelist.',
 		],
 	},
 	{
-		id: 'escalate-admin',
-		label: 'POST with admin: true',
-		command: 'POST /api/products {name: "Exploit", admin: true}',
+		id: 'inject-user-id-via-edit',
+		label: 'Imagine adding user_id to the list',
+		command: 'POST /api/products  body: { name: "Hi", user_id: 42 }',
 		responseLines: [
 			{ text: 'HTTP/1.1 201 Created', color: 'red' },
 			{
-				text: '{"id":6,"name":"Exploit","admin":true}',
+				text: '{ "id": 5, "name": "Hi", "user_id": 42 }   # ownership stolen',
 				color: 'muted',
 			},
 			{
-				text: 'admin: true accepted! Privilege escalation succeeded.',
+				text: 'If anyone adds user_id: params[:user_id] to the create action,',
 				color: 'yellow',
 			},
 			{
-				text: 'No parameter filtering. admin: true passes straight through to the model.',
+				text: 'the field list IS the security boundary. A typo there is a CVE.',
 				color: 'red',
 			},
 		],
 		story: [
-			'An attacker includes admin: true in a product creation request.',
-			'The controller does not filter which parameters reach the model.',
-			'Product.create! accepts every key in the params hash, including admin.',
-			'The attacker now has an admin-flagged record, escalating their privileges.',
+			'Right now the controller does NOT read params[:user_id], so user_id is safe.',
+			'But the field list is the only thing protecting ownership from mass-assignment.',
+			'A future developer adding user_id: params[:user_id] (e.g., for an admin feature) silently breaks the security boundary.',
+			'Centralized whitelists make this kind of regression visible: one method to audit, one method to forbid.',
 		],
 	},
 	{
-		id: 'inject-both',
-		label: 'PATCH with both fields',
-		command: 'PATCH /api/products/1 {user_id: 99, admin: true}',
+		id: 'malformed-shape',
+		label: 'POST with malformed body',
+		command: 'POST /api/products?product=hacked',
 		responseLines: [
-			{ text: 'HTTP/1.1 200 OK', color: 'red' },
+			{ text: 'HTTP/1.1 422 Unprocessable Entity', color: 'red' },
 			{
-				text: '{"id":1,"user_id":99,"admin":true}',
+				text: '{ "errors": ["Name can\'t be blank", "Description can\'t be blank", ...] }',
 				color: 'muted',
 			},
 			{
-				text: 'Both fields accepted. Ownership stolen AND admin escalated.',
+				text: 'params[:name] returned nil. Product saved with all-nil fields, then validates rejected it.',
 				color: 'yellow',
 			},
 			{
-				text: 'No filtering at all. Every param the attacker sends gets saved.',
+				text: 'No clear "your shape is wrong" signal. The client sees validation noise instead of a 400.',
 				color: 'red',
 			},
 		],
 		story: [
-			'An attacker sends a PATCH with both user_id: 99 and admin: true.',
-			'The controller passes the raw params hash to Product.update!.',
-			'Both sensitive fields are written to the database in a single request.',
-			'The attacker has stolen ownership of product #1 and gained admin privileges.',
+			'Attacker sends `?product=hacked` — the body is a string, not a hash.',
+			'Each params[:name] / params[:description] / params[:price] returns nil.',
+			'Product is built with all-nil attributes and fails validation, returning 422.',
+			'The client gets validation errors instead of a clean "wrong request shape" 400. The shape mismatch is invisible.',
 		],
 	},
 ];
@@ -170,9 +178,9 @@ const PROBES: ProbeConfig[] = [
 // probe owns `raw-params`; clicking the model stage no longer
 // duplicate-unlocks it.
 const PROBE_DISCOVERY_MAP: Record<string, string> = {
-	'inject-user-id': 'user-id-injection',
-	'escalate-admin': 'admin-escalation',
-	'inject-both': 'raw-params',
+	'duplicate-field-list': 'no-filter',
+	'inject-user-id-via-edit': 'user-id-injection',
+	'malformed-shape': 'shape-attack',
 };
 
 // Map probe IDs to pipeline node display during observe
@@ -180,17 +188,17 @@ const PROBE_PIPELINE_MAP: Record<
 	string,
 	{ filterSublabel: string; modelBadge: string }
 > = {
-	'inject-user-id': {
-		filterSublabel: 'NO FILTER',
+	'duplicate-field-list': {
+		filterSublabel: 'duplicated in 2 actions',
+		modelBadge: 'OK',
+	},
+	'inject-user-id-via-edit': {
+		filterSublabel: 'one-typo away',
 		modelBadge: '201!',
 	},
-	'escalate-admin': {
-		filterSublabel: 'NO FILTER',
-		modelBadge: '201!',
-	},
-	'inject-both': {
-		filterSublabel: 'NO FILTER',
-		modelBadge: '200!',
+	'malformed-shape': {
+		filterSublabel: 'shape unchecked',
+		modelBadge: '422',
 	},
 };
 
@@ -203,40 +211,54 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		stageId: 'request',
 		title: 'Incoming Request',
 		description:
-			'POST and PATCH requests include a JSON body. The body can contain ANY key the attacker chooses, including user_id and admin, alongside legitimate fields like name and description.',
+			'POST and PATCH requests include a JSON body. The body can contain any keys the attacker chooses. The controller has to decide which keys to actually read and which to ignore.',
 	},
 	controller: {
 		stageId: 'controller',
 		title: 'ProductsController',
 		description:
-			'The controller reads request params directly with no filtering layer. Any key the attacker sends in the JSON body can be passed to the model.',
+			'The controller pulls each allowed field out of params by name. create and update both repeat the same field list. Ownership is set via Current.user.products, so a user_id sent in the body is currently ignored — but only because no one has added user_id: params[:user_id] to the field list.',
 		code: `def create
-  product = Product.create!(name: params[:name], description: params[:description])
-  render json: product, status: :created
+  product = Current.user.products.new(
+    name: params[:name],
+    description: params[:description],
+    price: params[:price]
+  )
+  authorize product
+  if product.save
+    render json: product, status: :created
+  else
+    render json: { errors: product.errors.full_messages },
+           status: :unprocessable_entity
+  end
 end`,
 	},
 	filter: {
 		stageId: 'filter',
-		title: 'Parameter Filtering (Missing!)',
+		title: 'Parameter Filter (decentralized)',
 		description:
-			'There is no parameter filtering. The controller reads params directly and passes them to the model. Any key the attacker includes in the request body gets saved to the database.',
-		code: `def create
-  product = Product.create!(name: params[:name], description: params[:description],
-                      user_id: params[:user_id], admin: params[:admin])
-  # Every param gets through!
-end`,
+			'There is no centralized filter. Each action lists allowed fields inline. Adding a field requires editing every action that builds a Product. The whitelist is duplicated; the security boundary lives across multiple methods.',
+		code: `# create says:
+name: params[:name], description: params[:description], price: params[:price]
+
+# update says (same list, separate place):
+name: params[:name], description: params[:description], price: params[:price]
+
+# Two copies of the whitelist. One source of truth would be safer.`,
 	},
 	model: {
 		stageId: 'model',
 		title: 'Product Model',
 		description:
-			'The model receives ALL params and saves them to the database. With no filtering, every value the attacker sends gets persisted, including user_id and admin.',
+			'The model receives whatever the controller chose to pass. validates :name / :description / :price catches blank or malformed values. But the controller decides which keys to forward — that is the security boundary the model cannot enforce.',
 	},
 };
 
 // Map stage IDs to discovery IDs they trigger
 const STAGE_DISCOVERY_MAP: Record<string, string> = {
-	filter: 'no-filtering',
+	// All discoveries are probe-driven now. Stage clicks open inspector
+	// cards but don't unlock discoveries (the duplicate-field-list probe
+	// covers `no-filter` already).
 };
 
 // ──────────────────────────────────────────────
@@ -245,59 +267,53 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
-		id: 'clean-create',
-		label: 'Create with safe params',
-		description: 'POST with only name and description',
+		id: 'duplicate-field-list',
+		label: 'POST routes through product_params',
+		description:
+			'product_params lives in one place; create and update both call it. The whitelist is centralized.',
 		method: 'POST',
 		path: '/api/products',
 		actor: 'user_3',
 		expectedResult: 'allowed',
 	},
 	{
-		id: 'inject-user-id',
-		label: 'POST with user_id',
-		description: 'Try to set ownership via params',
+		id: 'inject-user-id-via-edit',
+		label: 'POST with user_id (now ignored)',
+		description:
+			'Attacker sends user_id: 42. The filter does not include user_id, so it is dropped silently. Ownership is set via Current.user.products.',
+		method: 'POST',
+		path: '/api/products',
+		actor: 'attacker',
+		expectedResult: 'allowed',
+	},
+	{
+		id: 'malformed-shape',
+		label: 'POST with malformed body',
+		description:
+			'Attacker sends product as a string instead of a hash. params.expect catches the wrong shape and raises ParameterMissing -> 400 Bad Request.',
 		method: 'POST',
 		path: '/api/products',
 		actor: 'attacker',
 		expectedResult: 'blocked',
 	},
 	{
-		id: 'inject-admin',
-		label: 'POST with admin: true',
-		description: 'Try to escalate privileges via params',
+		id: 'clean-create',
+		label: 'Create with valid body',
+		description:
+			'POST with a properly-shaped product hash. Filter accepts the listed keys.',
 		method: 'POST',
 		path: '/api/products',
-		actor: 'attacker',
-		expectedResult: 'blocked',
+		actor: 'user_3',
+		expectedResult: 'allowed',
 	},
 	{
 		id: 'clean-update',
-		label: 'Update with safe params',
-		description: 'PATCH with only name and description',
+		label: 'Update with valid body',
+		description: 'PATCH with a properly-shaped product hash.',
 		method: 'PATCH',
 		path: '/api/products/1',
 		actor: 'owner (user_3)',
 		expectedResult: 'allowed',
-	},
-	{
-		id: 'inject-both',
-		label: 'PATCH with user_id + admin',
-		description: 'Try to steal ownership and escalate',
-		method: 'PATCH',
-		path: '/api/products/1',
-		actor: 'attacker',
-		expectedResult: 'blocked',
-	},
-	{
-		id: 'malformed-payload',
-		label: 'POST with malformed body',
-		description:
-			'Attacker sends product as a string ("hacked") instead of a hash. params.expect catches the wrong shape and returns 400 Bad Request.',
-		method: 'POST',
-		path: '/api/products',
-		actor: 'attacker',
-		expectedResult: 'blocked',
 	},
 ];
 
@@ -322,15 +338,12 @@ interface StepOption {
 	feedback?: string;
 }
 
-// Step 0: Add Parameter Filtering
+// Step 0: Add Parameter Filtering.
+// Rails 8's production-safe default is `params.expect`. The older
+// `params.require(:product).permit(...)` pattern still works but
+// has subtle shape-checking gaps; it appears here only as a
+// wrong-option foil with feedback that points at expect.
 const FILTERING_OPTIONS: StepOption[] = [
-	{
-		id: 'manual-check',
-		label: 'Check each param manually with if/else',
-		correct: false,
-		feedback:
-			'Manual checks are error-prone and verbose. Rails provides a built-in, declarative way to filter parameters.',
-	},
 	{
 		id: 'permit-all',
 		label: 'params.permit!',
@@ -339,8 +352,15 @@ const FILTERING_OPTIONS: StepOption[] = [
 			'permit! allows EVERYTHING through, which is the same as no filtering at all.',
 	},
 	{
+		id: 'require-permit',
+		label: 'params.require(:product).permit(:name, :description, :price)',
+		correct: false,
+		feedback:
+			'That is the older Rails pattern. It checks the keys but not the SHAPE of the value at :product. Rails 8 ships a stricter alternative built specifically to close that gap.',
+	},
+	{
 		id: 'params-expect',
-		label: 'params.expect(product: [:name, :description])',
+		label: 'params.expect(product: [:name, :description, :price])',
 		correct: true,
 	},
 ];
@@ -348,22 +368,22 @@ const FILTERING_OPTIONS: StepOption[] = [
 // Step 1: Define the Whitelist
 const WHITELIST_OPTIONS: StepOption[] = [
 	{
-		id: 'everything',
-		label: 'params.expect(product: [:name, :description, :user_id, :admin])',
+		id: 'with-user-id',
+		label: 'params.expect(product: [:name, :description, :price, :user_id])',
 		correct: false,
 		feedback:
-			'user_id and admin are sensitive fields. Users should never set their own ownership or privilege level through request params.',
+			'user_id controls product ownership. If users can set it through request params, they can impersonate other sellers. Ownership belongs to the association, not the request body.',
 	},
 	{
-		id: 'with-user-id',
-		label: 'params.expect(product: [:name, :description, :user_id])',
+		id: 'with-id',
+		label: 'params.expect(product: [:id, :name, :description, :price])',
 		correct: false,
 		feedback:
-			'user_id controls product ownership. If users can set it, they can impersonate other sellers.',
+			"id is server-managed. Letting users set it would let an attacker overwrite an existing product by submitting that product's id with new content.",
 	},
 	{
 		id: 'safe-only',
-		label: 'params.expect(product: [:name, :description])',
+		label: 'params.expect(product: [:name, :description, :price])',
 		correct: true,
 	},
 ];
@@ -386,7 +406,7 @@ const OWNERSHIP_OPTIONS: StepOption[] = [
 	},
 	{
 		id: 'current-user',
-		label: 'current_user.products.create!(product_params)',
+		label: 'Current.user.products.create!(product_params)',
 		correct: true,
 	},
 ];
@@ -436,6 +456,32 @@ const REWARD_CONNECTIONS: PipelineConnection[] = [
 	{ from: 'filter', to: 'model', dots: 'clean' },
 ];
 
+// Per-probe / per-scenario edge activation. Default to [] (dormant)
+// so the visualization does NOT animate before any probe fires.
+// Each entry lists the connection keys (`${from}-${to}`) that should
+// flash a single dot pulse when the probe / scenario fires.
+const PROBE_ACTIVE_CONNECTIONS: Record<string, string[]> = {
+	'duplicate-field-list': ['request-controller', 'controller-filter'],
+	'inject-user-id-via-edit': [
+		'request-controller',
+		'controller-filter',
+		'filter-model',
+	],
+	'malformed-shape': ['request-controller', 'controller-filter'],
+};
+
+const SCENARIO_ACTIVE_CONNECTIONS: Record<string, string[]> = {
+	'duplicate-field-list': [
+		'request-controller',
+		'controller-filter',
+		'filter-model',
+	],
+	'inject-user-id-via-edit': ['request-controller', 'controller-filter'],
+	'malformed-shape': ['request-controller', 'controller-filter'],
+	'clean-create': ['request-controller', 'controller-filter', 'filter-model'],
+	'clean-update': ['request-controller', 'controller-filter', 'filter-model'],
+};
+
 // ──────────────────────────────────────────────
 // Code preview helper
 // ──────────────────────────────────────────────
@@ -443,136 +489,74 @@ const REWARD_CONNECTIONS: PipelineConnection[] = [
 function getCodeFiles(phase: Phase, furthestStep: number) {
 	const files = [];
 
-	// Observe phase: show controller with raw params (no filtering)
+	// L13's "before" state matches real myapp at level-12:
+	//   - Current.user.products.new (L11 ownership)
+	//   - authorize product (L11 Pundit)
+	//   - explicit field-by-field params (no centralized filter yet)
+	//   - validates / errors.full_messages (L12 validations)
+	// L13's job: introduce centralized parameter filtering via params.expect.
+	const observeCode = `class Api::ProductsController < ApplicationController
+  def create
+    product = Current.user.products.new(
+      name: params[:name],
+      description: params[:description],
+      price: params[:price]
+    )
+    authorize product
+    if product.save
+      render json: product, status: :created
+    else
+      render json: { errors: product.errors.full_messages }, status: :unprocessable_entity
+    end
+  end
+end`;
+
 	if (phase === 'observe') {
 		files.push({
 			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
-			code: `class Api::ProductsController < ApplicationController
-  def create
-    product = Product.create!(
-      name: params[:name],
-      description: params[:description],
-      user_id: params[:user_id],  # Attacker-controlled!
-      admin: params[:admin]        # Attacker-controlled!
-    )
-    render json: product, status: :created
-  end
-
-  def update
-    product = Product.find(params[:id])
-    product.update!(name: params[:name], description: params[:description])
-    render json: product
-  end
-
-  # No parameter filtering at all!
-end`,
-			highlight: [6, 7],
+			code: observeCode,
+			highlight: [4, 5, 6],
 		});
 		return files;
 	}
 
-	// Build / reward phases: show evolving code
+	// Build phase: still showing "before" until step 0 (params.expect) lands.
 	if (furthestStep === 0) {
-		// Step 0: same as observe (player is choosing the filtering method)
+		files.push({
+			filename: 'app/controllers/api/products_controller.rb',
+			language: 'ruby',
+			code: observeCode,
+			highlight: [4, 5, 6],
+		});
+	}
+
+	// Step 0 done (filter introduced) → step 2 done (whitelist confirmed) →
+	// step 3 done (ownership confirmed). Only one final "after" state to show
+	// since L13's pedagogy is the single switch from explicit-fields to a
+	// centralized expect.
+	if (furthestStep >= 1) {
 		files.push({
 			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
 			code: `class Api::ProductsController < ApplicationController
   def create
-    product = Product.create!(
-      name: params[:name],
-      description: params[:description],
-      user_id: params[:user_id],  # Attacker-controlled!
-      admin: params[:admin]        # Attacker-controlled!
-    )
-    render json: product, status: :created
-  end
-
-  def update
-    product = Product.find(params[:id])
-    product.update!(name: params[:name], description: params[:description])
-    render json: product
-  end
-
-  # No parameter filtering at all!
-end`,
-			highlight: [6, 7],
-		});
-	}
-
-	if (furthestStep >= 1) {
-		files.push({
-			filename: 'app/controllers/api/products_controller.rb',
-			language: 'ruby',
-			code:
-				furthestStep >= 3
-					? `class Api::ProductsController < ApplicationController
-  def create
-    product = current_user.products.create!(product_params)
-    render json: product, status: :created
-  end
-
-  def update
-    product = Product.find(params[:id])
-    product.update!(product_params)
-    render json: product
+    product = Current.user.products.new(product_params)
+    authorize product
+    if product.save
+      render json: product, status: :created
+    else
+      render json: { errors: product.errors.full_messages }, status: :unprocessable_entity
+    end
   end
 
   private
 
   def product_params
-    params.expect(product: [:name, :description])
-    # user_id and admin removed!
-    # Ownership set via current_user.products association
-  end
-end`
-					: furthestStep >= 2
-						? `class Api::ProductsController < ApplicationController
-  def create
-    product = Product.create!(product_params)
-    render json: product, status: :created
-  end
-
-  def update
-    product = Product.find(params[:id])
-    product.update!(product_params)
-    render json: product
-  end
-
-  private
-
-  def product_params
-    params.expect(product: [:name, :description])
-    # user_id and admin removed!
-    # But how does user_id get set now?
-  end
-end`
-						: `class Api::ProductsController < ApplicationController
-  def create
-    product = Product.create!(product_params)
-    render json: product, status: :created
-  end
-
-  def update
-    product = Product.find(params[:id])
-    product.update!(product_params)
-    render json: product
-  end
-
-  private
-
-  def product_params
-    params.expect(product: [...])
-    # Which fields should be allowed?
+    params.expect(product: [:name, :description, :price])
   end
 end`,
-			highlight:
-				furthestStep >= 3
-					? [3, 16, 17, 18]
-					: furthestStep >= 2
-						? [16, 17]
-						: [16],
+			highlight: [3, 13, 14, 15],
 		});
 	}
 
@@ -645,7 +629,9 @@ export function Level13StrongParams({ onComplete }: LevelComponentProps) {
 			{
 				id: 'filter',
 				label: 'Params Filter',
-				sublabel: probeDisplay ? probeDisplay.filterSublabel : '(missing!)',
+				sublabel: probeDisplay
+					? probeDisplay.filterSublabel
+					: 'inline per action',
 				variant: (probeDisplay ? 'danger' : 'inactive') as
 					| 'danger'
 					| 'inactive',
@@ -664,8 +650,26 @@ export function Level13StrongParams({ onComplete }: LevelComponentProps) {
 		[inspectedStages, probeDisplay],
 	);
 
+	// Per-probe edge activation. Default to [] so edges are dormant until
+	// the player fires a probe; firing a probe lights only that probe's
+	// connections in single-pass mode.
+	const observeActiveConnections = useMemo(
+		() => (lastProbeId ? (PROBE_ACTIVE_CONNECTIONS[lastProbeId] ?? []) : []),
+		[lastProbeId],
+	);
+
 	// ── Build reward stages dynamically (reacts to latest stress test result) ──
 	const lastResult = stressTest.results[stressTest.results.length - 1];
+
+	// Per-scenario edge activation. Default to [] so the reward pipeline
+	// is dormant until the player fires a stress scenario.
+	const rewardActiveConnections = useMemo(
+		() =>
+			lastResult
+				? (SCENARIO_ACTIVE_CONNECTIONS[lastResult.scenarioId] ?? [])
+				: [],
+		[lastResult],
+	);
 	const rewardStages: PipelineStage[] = useMemo(() => {
 		const wasBlocked = lastResult?.result === 'blocked';
 		return [
@@ -876,6 +880,7 @@ export function Level13StrongParams({ onComplete }: LevelComponentProps) {
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">
 								<PipelineFlow
+									activeConnections={observeActiveConnections}
 									connections={OBSERVE_CONNECTIONS}
 									onNodeClick={handleStageClick}
 									stages={observeStages}
@@ -994,6 +999,7 @@ export function Level13StrongParams({ onComplete }: LevelComponentProps) {
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">
 								<PipelineFlow
+									activeConnections={rewardActiveConnections}
 									connections={REWARD_CONNECTIONS}
 									stages={rewardStages}
 								/>

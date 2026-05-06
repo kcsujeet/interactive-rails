@@ -189,6 +189,8 @@ For code examples and flow animation patterns, see the `design-level` skill's ob
 - [ ] `StageInspector` overlay on click
 - [ ] Node variants react to probes via `useMemo`
 - [ ] Node colors match their state (broken = `'danger'`, downstream = `'inactive'`, working = `'active'`)
+- [ ] **Every `<PipelineFlow>` JSX render passes `activeConnections=` (NEVER omit).** Default value when no probe / scenario has fired is `[]` (dormant), not `undefined` (which causes continuous idle animation). Grep the source for `<PipelineFlow` and verify every match has `activeConnections=` in the props. The CI test `KNOWN_AUTO_ANIMATING_EDGES` baselines existing offenders; any level you newly create or substantially modify must pass without being added to that baseline.
+- [ ] **Per-probe and per-scenario activation maps cover every probe / scenario id.** Compute `activeConnections` as `lastProbeId ? PROBE_ACTIVE_CONNECTIONS[lastProbeId] ?? [] : []` (and equivalent for scenarios). The fallback `?? []` is required so a missing map entry doesn't fall through to `undefined`.
 
 For hub-and-spoke layout, satellite state rules, and sequential edge animation, see [pipelineflow-guide.md](pipelineflow-guide.md).
 

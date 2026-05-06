@@ -66,23 +66,27 @@ Implementation specifics for the hub-and-spoke layout described in Type 4 above.
 
 ## Sequential Edge Animation
 
-**The core rule: use `activeConnections` prop to control which edges animate.** The `activeConnections` prop on PipelineFlow controls edge animation:
-- `undefined` (default): all edges show idle animation (backward compat)
-- `[]`: fully dormant, no dots on any edge
-- `['request-router', 'controller-model']`: only listed edges animate (single-pass)
+**The core rule: animations only run on probe/scenario fire.** The `activeConnections` prop on PipelineFlow controls edge animation. It has THREE distinct modes:
+- `undefined`: **continuous idle animation** — edges run in an infinite loop. **This is a trap.** It implies data is flowing before the player has done anything.
+- `[]`: **fully dormant** — no dots, no motion. **This is the default state every level should pass when no probe / scenario has fired.**
+- `['request-router', 'controller-model']`: **single-pass bursts** — only listed edges animate, once.
 
 Connection IDs use `from-to` format (e.g., `"request-router"`, `"controller-model"`). For bidirectional edges, the return direction uses `"model-controller"`.
 
 **How levels use it:**
-1. Define a `FLOW_SEQUENCE: string[]` listing edge IDs in animation order
-2. On probe/stress-test fire, advance through the sequence with ~600ms per edge
-3. Pass `activeConnections={currentEdgeIds}` to PipelineFlow
+1. Define a per-probe `Record<probeId, string[]>` (or per-scenario for reward) mapping each probe/scenario to the connection keys it activates.
+2. Track the most recent probe/scenario in component state (`lastProbeId`, `lastResult`).
+3. Compute `activeConnections` as: `lastProbeId ? PROBE_ACTIVE_CONNECTIONS[lastProbeId] ?? [] : []`. **Default to `[]`, never `undefined`.**
+4. Pass `activeConnections={computed}` to every `<PipelineFlow>` render.
 
-**Idle state:** When no probe is active, `activeConnections` is `undefined` (not `[]`). An empty array means fully dormant.
+**Default rule (NON-NEGOTIABLE):** Every `<PipelineFlow>` JSX render MUST pass `activeConnections=` explicitly. The default value when no probe / scenario has fired is `[]` (dormant), not `undefined` (continuous idle animation). Pass `undefined` ONLY if the level genuinely has continuous background traffic that should always be visible — and document why in a comment.
+
+**Audit check (NON-NEGOTIABLE):** Before declaring a level done, grep its source for `<PipelineFlow` and verify every match passes `activeConnections=`. The CI test at `scripts/__tests__/level-reveal-consistency.test.ts` (`KNOWN_AUTO_ANIMATING_EDGES`) baselines existing offenders and forbids new ones; new levels must not be added to that baseline.
 
 **Checklist for sequential animation:**
-- [ ] `FLOW_SEQUENCE` defined with correct order matching real data flow
+- [ ] `activeConnections` prop passed to PipelineFlow (NEVER omit; default to `[]`)
+- [ ] Per-probe / per-scenario maps cover every probe and scenario id
+- [ ] `FLOW_SEQUENCE` (when used for staggered timing) matches real data flow
 - [ ] Bidirectional edges have TWO entries (forward + return), never simultaneous
-- [ ] `activeConnections` prop passed to PipelineFlow
 - [ ] Probes/stress-tests disabled during animation (see "Animation locking" section in SKILL.md)
 - [ ] Node variants update in sync with the sequence

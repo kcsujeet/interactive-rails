@@ -611,7 +611,11 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
   # No authentication. Anyone can do anything.
 
   def create
-    product = Product.create!(product_params)
+    product = Product.create!(
+      name: params[:name],
+      description: params[:description],
+      price: params[:price]
+    )
     render json: product, status: :created
   end
 
@@ -634,7 +638,11 @@ end`,
   # No authentication. Anyone can do anything.
 
   def create
-    product = Product.create!(product_params)
+    product = Product.create!(
+      name: params[:name],
+      description: params[:description],
+      price: params[:price]
+    )
     render json: product, status: :created
   end
 
@@ -749,7 +757,11 @@ end`,
   end
 
   def create
-    product = Product.new(product_params)
+    product = Product.new(
+      name: params[:name],
+      description: params[:description],
+      price: params[:price]
+    )
     if product.save
       render json: product, status: :created
     else
@@ -759,7 +771,11 @@ end`,
 
   def update
     product = Product.find(params[:id])
-    if product.update(product_params)
+    if product.update(
+      name: params[:name],
+      description: params[:description],
+      price: params[:price]
+    )
       render json: product
     else
       render json: { errors: product.errors }, status: :unprocessable_entity
@@ -771,11 +787,6 @@ end`,
     head :no_content
   end
 
-  private
-
-  def product_params
-    params.require(:product).permit(:name, :description, :price)
-  end
 end`,
 			highlight: [1],
 		});

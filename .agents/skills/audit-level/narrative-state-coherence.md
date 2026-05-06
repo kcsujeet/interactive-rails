@@ -71,6 +71,7 @@ The earned-abstraction rule manifests on different surfaces. Beyond L48 (structu
 | L15 | Concrete API references | `UserMailer.welcome.deliver_later` / `AccountingSyncJob.perform_later` in callbacks level |
 | L14 | Test echo | `have_enqueued_job` testing patterns before background jobs exist |
 | L19 | Reuse-context examples | "Reuse in background job: `class CsvExportJob < ApplicationJob`" before jobs exist |
+| L7 | Audit blind spot | `params.require/permit` baked into the Controller level — the original audit didn't scan for strong-params patterns. L13 (Strong Params) owned the lesson but the player had been using it since L7. |
 
 When auditing for narrative-state coherence, run the [quick scan recipe](cumulative-patterns.md#quick-scan-recipe-for-periodic-audits) periodically — it catches all five surfaces.
 

@@ -152,7 +152,7 @@ The core principle: every visualization must be understandable by a player who h
 
 **Type 4 (PipelineFlow):** Ask: "Do the pipeline nodes visually react to probes?" Then check:
 1. **Do node variants change on probe fire?** Broken -> `'danger'`, downstream -> `'inactive'`, working -> `'active'`.
-2. **Do edges animate sequentially?** `activeConnections` should light up edges in order.
+2. **Do edges animate ONLY on probe fire?** `activeConnections` must default to `[]` (dormant) and become `['edge-id', ...]` only when a probe fires. **Passing `undefined` puts edges into continuous idle animation, which implies data is flowing before the player has done anything — a trap.** Grep for `<PipelineFlow` and verify every match has `activeConnections=` in the props (the CI test at `KNOWN_AUTO_ANIMATING_EDGES` enforces this).
 3. **Does StageInspector reveal meaningful code on click?**
 
 **If any sub-check fails, do not proceed with the rest of the audit.** Flag the observe phase as fundamentally broken and redesign it before checking anything else.

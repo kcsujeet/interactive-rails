@@ -485,9 +485,9 @@ function getActionBody(action: string): string {
 		case 'show':
 			return 'render json: Product.find(params[:id])';
 		case 'create':
-			return 'product = Product.new(product_params)\n      if product.save\n        render json: product, status: :created\n      else\n        render json: { errors: product.errors }, status: :unprocessable_entity\n      end';
+			return 'product = Product.new(\n        name: params[:name],\n        description: params[:description],\n        price: params[:price]\n      )\n      if product.save\n        render json: product, status: :created\n      else\n        render json: { errors: product.errors }, status: :unprocessable_entity\n      end';
 		case 'update':
-			return 'product = Product.find(params[:id])\n      if product.update(product_params)\n        render json: product\n      else\n        render json: { errors: product.errors }, status: :unprocessable_entity\n      end';
+			return 'product = Product.find(params[:id])\n      if product.update(\n        name: params[:name],\n        description: params[:description],\n        price: params[:price]\n      )\n        render json: product\n      else\n        render json: { errors: product.errors }, status: :unprocessable_entity\n      end';
 		case 'destroy':
 			return 'Product.find(params[:id]).destroy\n      head :no_content';
 		default:
@@ -552,17 +552,14 @@ end`,
 						.join('\n\n')
 				: '  # Add actions here...';
 
-		const needsProductParams =
-			placedActions.includes('create') || placedActions.includes('update');
-		const privateSection = needsProductParams
-			? `\n\n  private\n\n  def product_params\n    params.require(:product).permit(:name, :description, :price)\n  end`
-			: '';
-
+		// L7 intentionally uses explicit field assignment (no strong params).
+		// Centralized parameter filtering is L13's lesson; introducing it here
+		// would steal that level's reveal.
 		files.push({
 			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
 			code: `class Api::ProductsController < ApplicationController
-${actionCode}${privateSection}
+${actionCode}
 end`,
 			highlight: placedActions.map((_, i) => i * 3 + 2),
 		});

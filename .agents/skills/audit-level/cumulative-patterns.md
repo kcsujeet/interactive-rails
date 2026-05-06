@@ -425,6 +425,102 @@ GOOD (post-fix): Replaced with a plain Ruby class:
                  background job too" — forward-tease without pre-baking.
 ```
 
+#### L7: structural infrastructure pre-baking strong params (fixed 2026-05-05)
+
+```
+BAD  (pre-fix):  L7 (Controller) reward state used
+                   def create
+                     product = Product.new(product_params)
+                     ...
+                   end
+
+                   private
+
+                   def product_params
+                     params.require(:product).permit(:name, :description, :price)
+                   end
+                 — and L7's content had a 60-word forward-tease about
+                 params.expect ("the Rails 8 default for new code...
+                 L14 teaches expect in detail; from there onward, all
+                 new controllers in this curriculum use it").
+                 By L13 (the Strong Params level) the player had been
+                 using strong params for 6 levels. L13's lesson was
+                 empty — same shape as the L48 versioning bug.
+
+                 The author's reframe attempt (Session 14) made L13
+                 "upgrade require/permit to expect", which preserves
+                 the require/permit teaching the player never explicitly
+                 received. Rails-conventions.md already says expect is
+                 the production-safe default for new code; teaching
+                 require/permit as the answer contradicts the project's
+                 Rails 8 stance.
+
+GOOD (post-fix): L7 uses explicit field-by-field assignment:
+                   product = Product.new(
+                     name: params[:name],
+                     description: params[:description],
+                     price: params[:price]
+                   )
+                 No private product_params method. No params.expect
+                 tease in the content (replaced with a "later you'll
+                 see a centralized whitelist" sentence).
+
+                 Cascade: L8 (Serializers), L9 (Auth), L11 (Authorization),
+                 L12 (Validations) controllers all carry the same
+                 explicit-field pattern forward.
+
+                 L13 owns Strong Params end-to-end — introduces
+                 params.expect as the central whitelist. The older
+                 require/permit pattern appears only as a wrong-option
+                 foil with feedback that points at expect. The player
+                 never writes require/permit; they only learn to
+                 recognize it (so they can read older codebases).
+
+                 myapp re-tag chain: level-8 through level-12 commits
+                 amended to use explicit field assignment; level-13 is
+                 a new commit introducing params.expect.
+```
+
+#### How this miss got past the original earned-abstraction audit
+
+The audit (Session 8) used a grep recipe that scanned for specific
+patterns introduced at specific levels:
+  - `ApplicationService\|app/services/` (L16+)
+  - `Dry::Validation\|Contract\.new\.call` (L18+)
+  - `has_one_attached\|has_many_attached` (L34+)
+  - …
+
+It did not scan for `params.require\b\|params\.permit\b\|params\.expect\b`.
+Strong Params wasn't on the audit checklist because the auditor
+trusted that an L7-level concept ("controllers handle requests") was
+foundational enough to include parameter filtering.
+
+It isn't. **Centralized parameter filtering is a strong-params concept,
+which is its own level (L13).** The L7 "Controller" lesson is about the
+controller layer — actions, rendering, finding records, error
+responses — not about how to filter incoming params.
+
+**Add to the periodic-audit grep recipe:**
+
+```bash
+# Strong Params (L13+) — should NOT appear in pre-L13 levels
+grep -rln "params\.require\|params\.permit\|params\.expect\|product_params\b" \
+  src/features/act1-foundation/ \
+  src/features/act2-users-security/components/level-9-* \
+  src/features/act2-users-security/components/level-10-* \
+  src/features/act2-users-security/components/level-11-* \
+  src/features/act2-users-security/components/level-12-* \
+  src/features/act2-users-security/content/level-9-* \
+  src/features/act2-users-security/content/level-10-* \
+  src/features/act2-users-security/content/level-11-* \
+  src/features/act2-users-security/content/level-12-*
+```
+
+**The deeper lesson:** the audit's blind spots are the patterns it
+forgot to scan for. Periodic audits should expand the grep recipe
+whenever a NEW earned-abstraction violation gets caught, so the next
+audit covers that surface too.
+
 ### How to detect this during design and audit
 
 When designing or auditing level N:

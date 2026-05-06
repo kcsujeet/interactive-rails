@@ -69,7 +69,11 @@ class Api::ProductsController < ApplicationController
   end
 
   def update
-    if @product.update(product_params)
+    if @product.update(
+      name: params[:name],
+      description: params[:description],
+      price: params[:price]
+    )
       render json: @product
     else
       render json: { errors: @product.errors }, status: :unprocessable_entity
@@ -90,8 +94,8 @@ end
 \`\`\`
 A failed \`Product.find\` raises \`ActiveRecord::RecordNotFound\`, which the centralized error handler (taught in L20) converts to a 404. With a single source of truth for "load the product," you get consistent behavior across actions for free.
 
-**Strong parameters: \`params.expect\` is the Rails 8 default:**
-The example below uses \`params.require(:product).permit(...)\`, which is the long-standing form. Rails 8 introduced \`params.expect(product: [:name, :description, :price])\` as the production-safe default for new code. \`expect\` enforces the SHAPE of the request (\`product\` must be a hash, not a string), where \`require/permit\` lets a malformed shape slip through with a confusing error message. L14 teaches \`expect\` in detail; from there onward, all new controllers in this curriculum use it.`,
+**A note on parameter handling at this level:**
+The \`create\` and \`update\` actions below pull each field out of \`params\` by name (\`params[:name]\`, \`params[:description]\`, \`params[:price]\`). This is the simplest thing that works for a single controller, and it makes the lesson here about the controller layer itself, not about parameter filtering. A later level introduces a centralized whitelist that lives in one private method per controller — for now, lean on field-by-field extraction.`,
 		railsCodeExample: `# app/controllers/api/products_controller.rb
 class Api::ProductsController < ApplicationController
   def index
@@ -105,7 +109,11 @@ class Api::ProductsController < ApplicationController
   end
 
   def create
-    product = Product.new(product_params)
+    product = Product.new(
+      name: params[:name],
+      description: params[:description],
+      price: params[:price]
+    )
     if product.save
       render json: product, status: :created
     else
@@ -115,7 +123,11 @@ class Api::ProductsController < ApplicationController
 
   def update
     product = Product.find(params[:id])
-    if product.update(product_params)
+    if product.update(
+      name: params[:name],
+      description: params[:description],
+      price: params[:price]
+    )
       render json: product
     else
       render json: { errors: product.errors }, status: :unprocessable_entity
@@ -127,17 +139,11 @@ class Api::ProductsController < ApplicationController
     product.destroy
     head :no_content
   end
-
-  private
-
-  def product_params
-    params.require(:product).permit(:name, :description, :price)
-  end
 end
 
-# Parameter filtering keeps user input safe.
-# Rails 8 introduces params.expect() for even stricter
-# filtering -- you'll learn that in a later level.`,
+# Each action lists exactly the fields it accepts, by name.
+# A later level introduces a centralized whitelist so this list
+# lives in one place per controller.`,
 		commonMistakes: [
 			'Inheriting from the full-stack controller base class in an API. It drags in cookie / session / CSRF middleware the API never uses, slowing every request.',
 			'Returning 200 OK on a failure path with an error body. Clients have to parse the body to know whether the request succeeded -- when the HTTP status code already exists for that purpose.',
