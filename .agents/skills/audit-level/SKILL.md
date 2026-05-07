@@ -24,6 +24,29 @@ For **designing** a new level or **redesigning** a broken visualization, use the
 
 **Read [implementation-rules.md](implementation-rules.md) before building or modifying any level.** It contains the pre-flight checklist, bug table of past mistakes, and core principles for writing animation frames, code previews, and connectors. Every check in this audit skill applies when BUILDING a level, not just when reviewing one.
 
+## Audit discipline: finding issues does NOT end the audit
+
+**The most common failure mode of this skill is stopping after the first batch of issues turns up.** Each section catches a DIFFERENT class of bug. Skipping later sections because earlier ones already produced a fix list means that bug class never gets caught.
+
+| Section | Catches |
+|---------|---------|
+| Step -1 (narrative reasoning) | Trigger / observation / probe stories that contradict the curriculum's actual state at this level |
+| Step 0 (WebFetch external APIs) | Fabricated method names, wrong gem inheritance, stale class hierarchies |
+| Gate Check Step 1 (type-fit) | Levels using Type 4 (PipelineFlow + probes) when their lesson is code-structure (Type 2), or vice versa |
+| Gate Check Step 2 (design) | Visualizations that show metrics instead of mechanisms; ProbeTerminal-only with no visual component |
+| Gate Check Step 3 (probe-by-probe playthrough) | Visual contradictions inside a single node (red border + green "OK" badge), identical animations across probes, animations that don't match probe labels |
+| Phase 1 / 2 / 3 checklists | Structural compliance, accessibility, rendering issues |
+
+**The discipline:** run every check, log every issue, THEN start fixing. Fixing mid-audit is the trap — once you have a list of obvious narrative issues to fix, momentum pulls you out of the audit. Resist. Finish the audit first.
+
+**Case study (2026-05-06):** L13 audit. Step -1 caught 6 narrative issues immediately (admin column fabricated against schema, `current_user` vs `Current.user`, stage inspector mismatch, `problem.goal` answer leak, conceptExplanation "Replaces" overstatement, probe foundation gaps). Auditor declared the audit complete and started fixing. **Never ran Step 1 (type-fit) or Step 3 (probe-by-probe playthrough).** Shipped a level with:
+- A `duplicate-field-list` probe whose label is an inspection, not an action ("Inspect the controller") — would have been caught by "Probes are problems" (`pedagogy.md` § Observe phase rules: probes are verb-led actions, not inspections).
+- A `Product Model` node with a red border and a green `OK` badge inside — would have been caught by Step 3 (probe-by-probe playthrough): "every visual indicator inside a node must agree."
+- Probes that didn't represent fireable problems (one was hypothetical: "imagine adding user_id"; iteration 2 expected a happy-path response) — would have been caught by "Probes are problems" (`pedagogy.md` § Observe phase rules).
+- A separate Type-fit failure: an auditor recommended Type 2 for L13 because "the lesson is code-structure refactoring" — wrong, L13 has runtime behavior (shape attacks, mass-assignment exploits). Type 4 is correct. Would have been caught by the Type 2 disqualification gate (Step 2 below).
+
+The rules existed. The auditor didn't run them. **The audit is a checklist, not a fix list.**
+
 ## Step -1: Narrative Reasoning (DO THIS BEFORE ANYTHING ELSE)
 
 **Before any structural check, before any visualization review, before reading the code: answer these questions about the level's story.** This is the foundation everything else is built on. If the story is wrong, no amount of correct animation or structural compliance matters.
@@ -101,7 +124,19 @@ The trigger description, scenario text, and probe stories must be coherent with 
 
 For the forbidden-tropes table (pre-deploy, no users yet, no payments yet, no production data, no API versioning), the L10 case study, and the full list of player-visible strings to scan, see [narrative-state-coherence.md](narrative-state-coherence.md).
 
-**If any of these questions (1–6) reveal an inconsistency, stop and fix the narrative before proceeding with the rest of the audit.** Structural compliance, animation quality, and visualization design are all downstream of narrative coherence.
+### 7. (Form-axis levels only) What canonical bug class does this level fix, and does the before-state exhibit it?
+
+Run this check ONLY for form-axis levels (those replacing an existing pattern's form — see `pedagogy.md` § Cumulative patterns for the category check). Existence-axis levels (e.g., L9 auth, L14 testing) skip Question 7.
+
+1. WebFetch the canonical docs for the pattern this level teaches.
+2. Quote the sentence(s) that name the problem the pattern was built to solve.
+3. Re-read the before-state. Does it exhibit that problem?
+
+If the before-state is already safe — if the bug the pattern fixes does not exist in earlier levels — the level cannot teach what it claims to teach. Either the before-state must be redesigned to exhibit the bug, or the level's claimed purpose must be revised.
+
+**Case study (L13 Strong Params, 2026-05-06):** Per the [Rails Action Controller guide](https://guides.rubyonrails.org/action_controller_overview.html): *"With Action Controller Strong Parameters, parameters cannot be used in Active Model mass assignments until they have been explicitly permitted."* The canonical bug class is mass assignment. After a cumulative-patterns sweep, L7–L12 controllers used explicit-field extraction (mass-assignment-safe by construction). L13's claim to teach "Strong Params: the security feature" was hollow — the bug class did not exist in the before-state. Question 7 forces the WebFetch + before-state check; running it would have caught this. The fix per [ActionController::Parameters docs](https://api.rubyonrails.org/classes/ActionController/Parameters.html): pre-L13 controllers use `to_unsafe_h` (real mass-assignment vulnerability, no `permit`/`expect` API exposed).
+
+**If any of these questions (1–7) reveal an inconsistency, log it as an audit issue — but DO NOT start fixing yet.** Structural compliance, animation quality, and visualization design are all downstream of narrative coherence, but they are also CHECKS YOU STILL NEED TO RUN. Continue to Step 0 (WebFetch) and Gate Check (type-fit + design + probe-by-probe playthrough). The "audit discipline" rule at the top of this file is the canonical reason: each section catches a different bug class, and stopping after Step -1 leaves type-fit and probe-by-probe checks un-run.
 
 ---
 
@@ -145,6 +180,16 @@ The core principle: every visualization must be understandable by a player who h
 
 **Type 2 (static intro):** Ask: "Does the annotated code display make the structural problem self-evident?" If it needs extensive text explanation, either the annotations are insufficient or it should be Type 3.
 
+**Type 2 disqualification gate (NON-NEGOTIABLE).** Before settling on Type 2, verify the lesson has NO runtime behavioral differences to demonstrate. Specifically, answer NO to all three:
+
+1. Does the level involve different inputs producing different outcomes (e.g., attack payloads succeed vs fail, valid vs invalid data, broken vs fixed behavior)?
+2. Does the reward phase need to show the fix's effect on running code (not just the new code's text)?
+3. Does the lesson have security or correctness implications (vulnerability vs protection)?
+
+Any YES disqualifies Type 2. Choose Type 3 (custom visualization) or Type 4 (PipelineFlow) so the player can SEE the runtime difference, not just read about it.
+
+**Case study (L13 Strong Params, 2026-05-06):** During L13 redesign, an auditor recommended Type 2 because "the lesson is code-structure refactoring — replace explicit fields with `params.expect`." Wrong. L13's lesson also includes mass-assignment vulnerability (runtime — `role=admin` succeeds in the before-state, fails in the after-state per [Rails Action Controller docs](https://guides.rubyonrails.org/action_controller_overview.html)). The reward phase needs to demonstrate `params.expect` rejecting attack payloads (runtime). Type 4 with PipelineFlow + probes is correct. The Type 2 misrecommendation came from collapsing "the lesson involves code" into "the lesson is ONLY code structure" — false. A lesson can involve code AND runtime behavior; Type 2 is reserved for the rare cases that involve ONLY code structure with no runtime aspect at all.
+
 **Type 3 (custom visualization):** Ask: **"If I were a player who had never heard of [concept], would I understand what it IS and DOES by watching this visualization?"** Then check:
 1. **Is there a visual component above/alongside the ProbeTerminal?** If the center panel is ONLY a ProbeTerminal with no visual component, the level has no visualization. Stop and redesign.
 2. **Does that visual component show objects (blocks, arrows, cards, zones, grids) that animate and change state?** If it only shows text, numbers, or static labels, it's a metric display, not a mechanism. Stop and redesign.
@@ -176,6 +221,8 @@ The core principle: every visualization must be understandable by a player who h
 **If visual signals within a node contradict each other, the visualization fails.** Every visual indicator inside a node (gauges, progress bars, badges, labels, border color) must agree on whether the state is healthy or dangerous. A node with a red danger border but a green memory gauge, or a "BLOCKED" label with a healthy progress bar, sends mixed signals. When a probe frame sets `flash: 'red'` on a zone, check that ALL internal indicators (memoryMB, bandwidthLabel, badges) also reflect the danger state. Case study: L35's list probe set `flash: 'red'` on the App Server (red border, red label text) but never set `memoryMB`, so the memory gauge stayed at 45MB (green). The node screamed danger at the border but showed "everything is fine" inside.
 
 **Do not skip this step.** Case study: L35 Active Storage passed all structural checks (ProbeTerminal present, FlowConnector present, discoveries defined, animation locking correct) but all three probes played the exact same animation. See the `design-level` skill's visualization-examples.md "Audit Trap" section.
+
+Second case study: L13 (2026-05-06). The auditor ran Step -1 thoroughly, found 6 narrative issues, declared the audit complete, and skipped Step 3 entirely. Result: shipped a level where the `duplicate-field-list` probe sets `dbBadge: 'OK'` on the model AND the orchestrator's logic flips `variant: 'danger'` on every probe fire. Result on screen: red Product Model border with a green "OK" badge inside. The visual-signals-must-agree rule existed; the auditor just didn't run the check. The fix is not adding more rules — it's actually running the rules that exist.
 
 For detailed case studies (L27 terminal-only failure, ProbeTerminal-is-not-a-visualization architecture), see the `design-level` skill's observe-phase-guide.md.
 

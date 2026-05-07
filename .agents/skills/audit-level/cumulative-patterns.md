@@ -8,6 +8,22 @@ Before auditing or building any level, read this file and check: "Does the code 
 
 ---
 
+## The two axes: existence vs form
+
+Cumulative-patterns operates on two orthogonal axes (see `.agents/rules/pedagogy.md` § Cumulative patterns for the rule):
+
+- **Existence**: monotonically additive. Features only exist after the level that introduces them. Pre-introduction levels do not reference the feature.
+- **Form**: per-feature. Existing features may take a naive/inferior shape until a later level reveals it and replaces it.
+
+Before auditing or designing any level, determine its category:
+
+- **Introducing-axis levels** bring a feature into existence. Pre-state is absence. No precursor exists or is required. Examples: L1–L6, L9 (auth), L14 (testing).
+- **Replacing-axis levels** replace the form of an existing feature. Pre-state is the inferior form, which must (a) exhibit the problem the new form fixes (lesson-survival), AND (b) not expose the new form's API (earned-abstraction). Examples: L7 (serializers), L11 (authorization), L13 (strong params), L16+ (services), L18+ (Dry::Validation), L48 (versioning).
+
+The per-act sections below track both axes: each level's introduced concept (existence-axis), and for replacing-axis levels, the inferior form earlier levels must use (form-axis).
+
+---
+
 ## Act 1: Foundation (L1-L8)
 
 ### L2: Rails 8 API-Only App
@@ -480,6 +496,41 @@ GOOD (post-fix): L7 uses explicit field-by-field assignment:
                  amended to use explicit field assignment; level-13 is
                  a new commit introducing params.expect.
 ```
+
+#### Lesson-survival outcome (added 2026-05-06)
+
+The L7 strip succeeded at honoring earned-abstraction (no `permit`/`expect`
+pre-baked at L7) but went too far on the form axis: replacing
+`params.require/permit` with explicit-field extraction left the pre-L13
+form mass-assignment-safe by construction. L13's canonical purpose
+(mass-assignment protection per the [Rails Action Controller guide](https://guides.rubyonrails.org/action_controller_overview.html))
+had no bug class to fix in the before-state. The level became a sterile
+DRY exercise.
+
+The fix: re-do the L7–L12 form so controllers use
+`Product.create(params[:product].to_unsafe_h)` (and update equivalents).
+Per the [ActionController::Parameters docs](https://api.rubyonrails.org/classes/ActionController/Parameters.html),
+`to_unsafe_h` returns *"an unsafe, unfiltered ActiveSupport::HashWithIndifferentAccess
+representation of the parameters"* — bypassing strong-params filtering
+entirely. This is the actually-naive Rails 8 pattern: it does not expose
+`permit`/`expect` (earned-abstraction stays intact), and it exhibits real
+mass-assignment vulnerability (lesson-survival satisfied).
+
+Both axes must hold simultaneously:
+- **Earned-abstraction (form-axis):** the inferior form must NOT expose the
+  new form's API. `to_unsafe_h` is a different API path; no `permit`/`expect`.
+- **Lesson-survival (form-axis):** the inferior form must EXHIBIT the bug
+  the new form fixes. `to_unsafe_h` is mass-assignment-vulnerable;
+  `params.expect` is the protection.
+
+Two failure modes to watch for in future cumulative-patterns sweeps:
+1. Strip leaves a form that's safe-by-construction → lesson dies.
+2. "Localized exception" proposed at the introducing level only (e.g., "use
+   `to_unsafe_h` only at L13's before-state") → cumulative-patterns regression
+   from earlier levels' safer form. The inferior form must live THROUGHOUT
+   earlier levels, not be parachuted in at the introducing level.
+
+Both checks must pass; one without the other produces broken pedagogy.
 
 #### How this miss got past the original earned-abstraction audit
 

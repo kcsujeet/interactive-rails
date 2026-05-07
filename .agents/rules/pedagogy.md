@@ -57,18 +57,57 @@ If the answer to "what runtime behaviour does this level need to animate?" is "n
 
 Discovery gating belongs ONLY to Types 3 and 4. Do not add `useDiscoveryGating` / `ProbeTerminal` / `DiscoveryChecklist` to Type 1 or Type 2 levels.
 
-### 3. Cumulative patterns (and earned abstractions)
+### 3. Cumulative patterns: existence vs form
 
-Read `.agents/skills/audit-level/cumulative-patterns.md` before writing any player-visible text. Two rules apply together:
+Read `.agents/skills/audit-level/cumulative-patterns.md` before writing any player-visible text. Cumulative-patterns operates on TWO orthogonal axes; collapsing them produces sterile or contradictory levels.
 
-- **Cumulative patterns (looking backward).** Every architectural pattern established in earlier levels carries forward: service objects (L16+), Dry::Validation contracts (L18+), query objects (L19+), error shape (L20+), JSON:API serializers (L7+), strong params via `expect` (L14+), authentication via `Current.user` (L9+). Showing inline `render json:` at L40 contradicts what the player learned at L7.
-- **Earned abstractions (looking forward).** Do NOT use any structure or concept that a *later* level is supposed to introduce. If L48 teaches API versioning, levels before L48 must use `/api/products` (no `/v1/`). If L43 teaches soft deletes, earlier levels use `destroy`, not `discard`. Pre-baking the abstraction steals the lesson from the level that owns it. The bug class shows up on FIVE surfaces (structural infrastructure, architectural patterns, concrete API references, test echo, reuse-context examples) — see `cumulative-patterns.md` § "Common shapes of this bug" + 5 worked case studies (L48, L10, L15, L14, L19). The same file has a quick-scan grep recipe for periodic curriculum-wide audits.
+- **Existence (monotonically additive).** Features only exist after the level that introduces them. Pre-L9 has no auth machinery (no `Current.user`, no session, no `before_action`). Pre-L14 has no test files. No pre-emptive existence; earlier levels do not reference a feature that has not been built.
+- **Form (per-feature, replaceable).** Features that DO exist by level N may take a naive/inferior shape until a later level reveals it as wrong and replaces it. The naive shape IS the cumulative-pattern carried forward — and it must satisfy two constraints: (a) it must NOT pre-bake the new shape's API (earned-abstraction), and (b) it must EXHIBIT whatever problem the new shape fixes (lesson-survival). Either fails and the introducing level has nothing to teach.
 
-Together: at level N, the curriculum's accumulated state is exactly what was earned by level N-1, no more, no less.
+**Category check before designing or auditing any level:** is this level introducing a feature that did not exist (existence-axis), or replacing the form of an existing feature (form-axis)?
+
+| Category | Pre-state | Earlier-level requirement |
+|----------|-----------|---------------------------|
+| **Introducing** | Feature absent. | Earlier levels do not reference the feature. |
+| **Replacing** | Feature exists in inferior form. | Earlier levels carry the inferior form. It must exhibit the problem the new form fixes AND must not expose the new form's API. |
+
+Examples — Introducing-axis: L1–L6 (Rails install, model, migration, routing, controller), L9 (auth), L14 (testing). Replacing-axis: L7 (serializers replaces inline `render json:`), L11 (authorization replaces unscoped finds), L13 (strong params replaces `to_unsafe_h` mass assignment), L16+ (services), L18+ (Dry::Validation), L19+ (query objects), L48 (API versioning replaces unversioned `/api/`).
+
+**The carry-forward rule (form-axis).** Once a replacing-axis level lands, the new form carries forward. Showing inline `render json:` at L40 contradicts what the player learned at L7. The grep recipe in `cumulative-patterns.md` scans for these regressions.
+
+**The earned-abstraction rule (form-axis).** Earlier levels use the inferior form, not the new form. Pre-L13 controllers use `to_unsafe_h`, not `permit`/`expect`. Pre-L48 paths use `/api/products`, not `/v1/`. Five surfaces to check (structural infrastructure, architectural patterns, concrete API references, test echo, reuse-context examples) — see `cumulative-patterns.md` § "Common shapes of this bug" with 5 worked case studies.
+
+**The lesson-survival rule (form-axis).** Before designing, write down the canonical bug class the new form fixes (cite docs). Then verify the inferior form exhibits that bug. If the inferior form is safe-by-construction, the lesson dies. Strong params is the worked case: explicit-field extraction is mass-assignment-safe by construction; `to_unsafe_h` is the actually-vulnerable form per the [Rails ActionController::Parameters docs](https://api.rubyonrails.org/classes/ActionController/Parameters.html). The earlier-level form must be `to_unsafe_h`-style for L13's security lesson to survive.
+
+Together: at level N, every existing feature is in its naive form; no future API is pre-baked; nothing absent is referenced.
+
+**Case study (this conversation, 2026-05-06):** L13 redesign cycled through three failure modes:
+1. Pre-baked `params.require/permit` at L7 — earned-abstraction violation (form-axis: pre-baked future API).
+2. Stripped to explicit-field extraction at L7–L12 — earned-abstraction satisfied but lesson-survival failed (form is mass-assignment-safe by construction; the bug L13 fixes does not exist in the before-state).
+3. Initial fix proposal scoped `to_unsafe_h` to L13's before-state only — would have created a localized regression from L7–L12's safe pattern. The inferior form must live THROUGHOUT the earlier levels, not be parachuted in at the introducing level. A separate fourth misstep overgeneralized "every concept has a naive precursor" — false. Authentication (L9) is existence-axis with no precursor. The right framing is per-level category check; only form-axis levels have precursors.
+
+The corrected landing: pre-L13 controllers use `to_unsafe_h`-style mass assignment per [ActionController::Parameters docs](https://api.rubyonrails.org/classes/ActionController/Parameters.html); L13 reveals it and replaces with `params.expect`. Both axes satisfied; lesson survives.
 
 ---
 
 ## Observe phase rules
+
+### Probes are problems
+
+Every probe represents a distinct failure mode in the before-state that the build phase resolves. No happy paths. No "here's how it works correctly already." No hypotheticals.
+
+Three probe failure modes that invalidate a probe set:
+
+- **Happy-path probe**: shows the system working correctly in the before-state. There is no contrast probe — the reward phase IS the contrast.
+- **Hypothetical probe**: a label that asks the player to imagine a change rather than fire a concrete action ("Inspect the controller", "Imagine adding user_id to the list"). Probes are verb-led actions, not inspections.
+- **Convergent probes**: two or more probes exhibiting the same failure mode and resolving identically. Each probe must teach a distinct aspect of the problem.
+
+**Case study (L13 Strong Params probe iterations, 2026-05-06):**
+- Iteration 1 (`duplicate-field-list`, `inject-user-id-via-edit`, `malformed-shape`): `inject-user-id` was hypothetical ("imagine adding user_id"). Fail.
+- Iteration 2 (`extra keys → 201`, `malformed shape → 422`, `valid body → 201`): probes 1 and 3 showed the system working correctly. Fail (happy paths).
+- Iteration 3 (three distinct mass-assignment exploits, all causing privilege escalation in the before-state, all resolved by `params.expect`): correct.
+
+The wrong instinct each time: include a "happy path" probe to "show the contrast." There is no contrast probe inside the observe phase; the reward phase IS the contrast.
 
 ### Show only what currently exists
 

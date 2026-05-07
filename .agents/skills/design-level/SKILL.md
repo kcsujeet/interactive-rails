@@ -49,6 +49,21 @@ Before designing anything:
 6. **Read adjacent levels (N-2 to N+2).** Your visualization must be visually distinct from neighbors.
 7. **Follow bulletproof-react project structure.** Any new feature goes in `src/features/<name>/` with `components/`, `utils/`, `hooks/`, `types/` subdirectories. No files at the feature root (except non-barrel re-exports). No cross-feature imports. No code duplication (use lazy evaluation to reference existing functions instead of copying strings).
 
+## Step 0.5: Lock the Canonical Purpose (form-axis levels only)
+
+For form-axis levels (those replacing an existing pattern's form — see `.agents/rules/pedagogy.md` § Cumulative patterns for the existence-vs-form category check), execute these steps BEFORE any visualization, probe, or build-step design:
+
+1. **WebFetch the canonical docs** for the pattern this level teaches. Cached knowledge is not allowed; the canonical docs are authoritative.
+2. **Quote the sentence(s)** that explain what bug class the pattern exists to fix.
+3. **Confirm the planned before-state exhibits that bug class.** If it does not, redesign the before-state OR redesign the level's purpose — do not proceed with a sterile lesson.
+4. **Probes derive from the bug class**, not from the pattern's API surface.
+
+If you cannot articulate (1)–(3) in writing with a docs citation, do not proceed to visualization design. The level's pedagogical purpose must be locked before its mechanics.
+
+**Existence-axis levels skip Step 0.5.** A level introducing a feature that did not exist (e.g., L9 authentication, L14 testing) has no before-state form to evaluate; design proceeds to Step 1 directly.
+
+**Case study (L13 Strong Params, 2026-05-06):** Three iterations of L13 visualization, probe set, and build steps were designed before anyone WebFetched the [Rails Action Controller guide](https://guides.rubyonrails.org/action_controller_overview.html). Iteration 1 taught "ergonomics" (DRY centralization). Iteration 2 taught "shape attacks" (400 vs 422). Both missed the canonical purpose (mass-assignment protection) because Step 0.5 never ran. After the WebFetch surfaced the canonical framing, the design corrected to: before-state uses `to_unsafe_h` per [ActionController::Parameters docs](https://api.rubyonrails.org/classes/ActionController/Parameters.html); probes fire mass-assignment payloads (`role=admin`); build introduces `params.expect` to whitelist.
+
 ## Step 1: Narrative Reasoning (Story First)
 
 Before any visual design, answer these five questions. **Write the answers down explicitly in your response, not just in your head.** Do not proceed to Step 2 until all five are answered in writing. This is the single most effective defense against narrative and visualization bugs.
