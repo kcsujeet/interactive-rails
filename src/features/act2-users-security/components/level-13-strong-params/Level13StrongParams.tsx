@@ -300,7 +300,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		id: 'self-promote-update',
 		label: 'PATCH with featured: true (now blocked)',
 		description:
-			'Owner sends only { featured: true } in the body. params.expect raises ParameterMissing because the whitelist requires non-empty allowed fields. Product is unchanged.',
+			'Owner sends only { featured: true } in the body. params.expect filters featured out of the whitelist and returns an empty hash. update({}) is a no-op; the product stays unchanged. Self-promotion attempt fails silently.',
 		method: 'PATCH',
 		path: '/api/products/3',
 		actor: 'owner (user_3)',
@@ -669,9 +669,7 @@ export function Level13StrongParams({ onComplete }: LevelComponentProps) {
 			{
 				id: 'filter',
 				label: 'Params Filter',
-				sublabel: probeDisplay
-					? probeDisplay.filterSublabel
-					: 'inline per action',
+				sublabel: probeDisplay ? probeDisplay.filterSublabel : 'no whitelist',
 				variant: (probeDisplay ? 'danger' : 'inactive') as
 					| 'danger'
 					| 'inactive',
@@ -681,7 +679,7 @@ export function Level13StrongParams({ onComplete }: LevelComponentProps) {
 			{
 				id: 'model',
 				label: 'Product Model',
-				badge: probeDisplay ? probeDisplay.modelBadge : 'SAVES ALL',
+				badge: probeDisplay ? probeDisplay.modelBadge : undefined,
 				variant: (probeDisplay ? 'danger' : 'default') as 'danger' | 'default',
 				inspectable: true,
 				inspected: inspectedStages.has('model'),
@@ -718,7 +716,7 @@ export function Level13StrongParams({ onComplete }: LevelComponentProps) {
 			{
 				id: 'filter',
 				label: 'params.expect',
-				sublabel: wasBlocked ? 'STRIPPED' : '[:name, :description]',
+				sublabel: wasBlocked ? 'STRIPPED' : '[:name, :description, :price]',
 				variant: wasBlocked ? ('danger' as const) : ('active' as const),
 				badge: wasBlocked ? 'BLOCKED' : undefined,
 			},
@@ -833,21 +831,25 @@ export function Level13StrongParams({ onComplete }: LevelComponentProps) {
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Your controller passes raw request params directly to the model
-							with no filtering. A malicious user can send any field they want,
-							including{' '}
+							Your controller calls{' '}
+							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
+								params[:product].to_unsafe_h
+							</code>
+							, which hands every field in the request body straight to the
+							model. A malicious user can include sensitive fields like{' '}
+							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
+								featured
+							</code>{' '}
+							(admin-curated homepage flag) or{' '}
 							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
 								user_id
 							</code>{' '}
-							and{' '}
-							<code className="text-foreground text-xs bg-muted px-1 py-0.5 rounded">
-								admin
-							</code>
-							, and it gets saved to the database.
+							(ownership) and the columns get written.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							You need to add parameter filtering to prevent mass assignment
-							attacks and keep sensitive fields out of user control.
+							Replace the unsafe shortcut with a real whitelist that lists only
+							the fields users are allowed to set, so admin-only and
+							server-managed columns stay out of user control.
 						</p>
 					</div>
 

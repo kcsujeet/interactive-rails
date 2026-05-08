@@ -12,7 +12,7 @@ export const level13StrongParams: Level = {
 	trigger: {
 		type: 'security_audit',
 		description:
-			'Marketing has shipped a "featured products" homepage section, curated by admins via a new featured boolean column on Product. A security review then flags the existing controller: it has been calling params[:product].to_unsafe_h since L7, which mass-assigns every field a request includes. Any logged-in user can self-promote their product to featured (or transfer it to a victim) with a single API call.',
+			'Marketing has speccd a "featured products" homepage section, curated by admins via a new featured boolean column on Product. Before that ships, a pre-launch security review flags the existing controller: it has been calling params[:product].to_unsafe_h since L7, which mass-assigns every field a request includes. Any logged-in user could self-promote their product to featured (or transfer it to a victim) with a single API call.',
 	},
 	problem: {
 		observation:
