@@ -485,9 +485,9 @@ function getActionBody(action: string): string {
 		case 'show':
 			return 'render json: Product.find(params[:id])';
 		case 'create':
-			return 'product = Product.new(\n        name: params[:name],\n        description: params[:description],\n        price: params[:price]\n      )\n      if product.save\n        render json: product, status: :created\n      else\n        render json: { errors: product.errors }, status: :unprocessable_entity\n      end';
+			return 'product = Product.new(params[:product].to_unsafe_h)\n      if product.save\n        render json: product, status: :created\n      else\n        render json: { errors: product.errors }, status: :unprocessable_entity\n      end';
 		case 'update':
-			return 'product = Product.find(params[:id])\n      if product.update(\n        name: params[:name],\n        description: params[:description],\n        price: params[:price]\n      )\n        render json: product\n      else\n        render json: { errors: product.errors }, status: :unprocessable_entity\n      end';
+			return 'product = Product.find(params[:id])\n      if product.update(params[:product].to_unsafe_h)\n        render json: product\n      else\n        render json: { errors: product.errors }, status: :unprocessable_entity\n      end';
 		case 'destroy':
 			return 'Product.find(params[:id]).destroy\n      head :no_content';
 		default:
@@ -552,9 +552,9 @@ end`,
 						.join('\n\n')
 				: '  # Add actions here...';
 
-		// L7 intentionally uses explicit field assignment (no strong params).
-		// Centralized parameter filtering is L13's lesson; introducing it here
-		// would steal that level's reveal.
+		// L7 uses params[:product].to_unsafe_h (the naive Rails 8 shortcut that
+		// bypasses strong-params filtering). L13 reveals this as a mass-assignment
+		// vulnerability and replaces it with params.expect.
 		files.push({
 			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',

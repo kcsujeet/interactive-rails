@@ -69,11 +69,7 @@ class Api::ProductsController < ApplicationController
   end
 
   def update
-    if @product.update(
-      name: params[:name],
-      description: params[:description],
-      price: params[:price]
-    )
+    if @product.update(params[:product].to_unsafe_h)
       render json: @product
     else
       render json: { errors: @product.errors }, status: :unprocessable_entity
@@ -95,7 +91,7 @@ end
 A failed \`Product.find\` raises \`ActiveRecord::RecordNotFound\`, which the centralized error handler (taught in L20) converts to a 404. With a single source of truth for "load the product," you get consistent behavior across actions for free.
 
 **A note on parameter handling at this level:**
-The \`create\` and \`update\` actions below pull each field out of \`params\` by name (\`params[:name]\`, \`params[:description]\`, \`params[:price]\`). This is the simplest thing that works for a single controller, and it makes the lesson here about the controller layer itself, not about parameter filtering. A later level introduces a centralized whitelist that lives in one private method per controller — for now, lean on field-by-field extraction.`,
+Rails wraps the request body in an \`ActionController::Parameters\` object at \`params[:product]\`. To pass it to \`Model.new\` or \`record.update\`, you call \`.to_unsafe_h\` to get a plain hash. This is the simplest thing that works, and the lesson here is about the controller layer itself, not about parameter filtering. \`to_unsafe_h\` skips strong-params filtering entirely — a later level reveals this as a security gap and introduces a proper whitelist; for now, lean on the naive shortcut.`,
 		railsCodeExample: `# app/controllers/api/products_controller.rb
 class Api::ProductsController < ApplicationController
   def index
@@ -109,11 +105,7 @@ class Api::ProductsController < ApplicationController
   end
 
   def create
-    product = Product.new(
-      name: params[:name],
-      description: params[:description],
-      price: params[:price]
-    )
+    product = Product.new(params[:product].to_unsafe_h)
     if product.save
       render json: product, status: :created
     else
@@ -123,11 +115,7 @@ class Api::ProductsController < ApplicationController
 
   def update
     product = Product.find(params[:id])
-    if product.update(
-      name: params[:name],
-      description: params[:description],
-      price: params[:price]
-    )
+    if product.update(params[:product].to_unsafe_h)
       render json: product
     else
       render json: { errors: product.errors }, status: :unprocessable_entity
@@ -141,9 +129,9 @@ class Api::ProductsController < ApplicationController
   end
 end
 
-# Each action lists exactly the fields it accepts, by name.
-# A later level introduces a centralized whitelist so this list
-# lives in one place per controller.`,
+# Each action calls .to_unsafe_h on params[:product] to skip
+# strong-params filtering. A later level reveals this as unsafe
+# and introduces a proper whitelist with params.expect.`,
 		commonMistakes: [
 			'Inheriting from the full-stack controller base class in an API. It drags in cookie / session / CSRF middleware the API never uses, slowing every request.',
 			'Returning 200 OK on a failure path with an error body. Clients have to parse the body to know whether the request succeeded -- when the HTTP status code already exists for that purpose.',

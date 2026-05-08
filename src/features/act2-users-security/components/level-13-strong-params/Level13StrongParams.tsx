@@ -4,19 +4,28 @@
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
- * Phase 1 (WHY - observe): Interactive exploration. Click pipeline stages to
- *   discover that the controller passes raw request params directly to the
- *   model with no filtering. Fire API probes to inject user_id and admin.
- *   Discovery gating controls when "Build the Fix" appears.
- * Phase 2 (HOW - build): 3 OptionCard steps introducing params.expect
- *   Step 0: Introduce params.expect (choose the right filtering method)
- *   Step 1: Define the Whitelist (choose which fields to allow)
- *   Step 2: Set Ownership Safely (current_user association)
- * Phase 3 (ADVANTAGE - reward): Stress test. Fire param payloads at the
- *   tightened filter and watch allowed/blocked results.
+ * Pre-state (carries forward from L7-L12): controllers call
+ *   params[:product].to_unsafe_h, the documented Rails escape hatch that
+ *   returns "an unsafe, unfiltered representation of the parameters." Every
+ *   key the request includes reaches the model. Marketing has just added a
+ *   `featured` boolean column to Product (admin-only homepage flag); the
+ *   to_unsafe_h shortcut lets any logged-in user mass-assign featured.
  *
- * Introduces params.expect as the solution to mass assignment.
- * Teaches: parameter filtering, whitelist definition, ownership via association
+ * Phase 1 (WHY - observe): Three probes demonstrate mass-assignment exploits:
+ *   - self-promote-create: POST with featured: true -> product saved featured.
+ *   - self-promote-update: PATCH with featured: true -> existing product flipped.
+ *   - compound-frame: PATCH with featured + user_id -> featured AND transferred.
+ * Phase 2 (HOW - build): 3 OptionCard steps that replace to_unsafe_h:
+ *   Step 0: Replace to_unsafe_h with params.expect (the real filter).
+ *   Step 1: Define the Whitelist (exclude featured + user_id).
+ *   Step 2: Set Ownership Safely (Current.user association, not request body).
+ * Phase 3 (ADVANTAGE - reward): the same three exploits are now blocked;
+ *   clean create/update still pass cleanly.
+ *
+ * Canonical purpose per the Rails Action Controller guide: strong params
+ * prevent mass assignment. Sources cited inline in feedback strings.
+ * Teaches: mass-assignment vulnerability, params.expect, whitelist design,
+ *   ownership via association.
  */
 
 import { ArrowRight, Check, X } from 'lucide-react';
@@ -73,14 +82,17 @@ type Phase = 'observe' | 'build' | 'reward';
 // ──────────────────────────────────────────────
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
-	{ id: 'no-filter', label: 'No centralized parameter filter' },
 	{
-		id: 'user-id-injection',
-		label: 'user_id slips through if added to the field list',
+		id: 'self-promote-create',
+		label: 'Any user can self-promote to featured on create',
 	},
 	{
-		id: 'shape-attack',
-		label: 'Malformed body shape produces silent empty records',
+		id: 'self-promote-update',
+		label: 'Existing products can be flipped to featured on update',
+	},
+	{
+		id: 'compound-frame',
+		label: 'Multiple sensitive fields can be injected together',
 	},
 ];
 
@@ -90,115 +102,115 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 
 const PROBES: ProbeConfig[] = [
 	{
-		id: 'duplicate-field-list',
-		label: 'Inspect the controller',
-		command: 'cat app/controllers/api/products_controller.rb',
-		responseLines: [
-			{
-				text: '# create  -> name:, description:, price: (3 lines)',
-				color: 'cyan',
-			},
-			{
-				text: '# update  -> name:, description:, price: (3 lines)',
-				color: 'cyan',
-			},
-			{
-				text: 'The same field list is hardcoded in two places.',
-				color: 'yellow',
-			},
-			{
-				text: 'No central whitelist. Adding a 4th field means editing both create and update.',
-				color: 'red',
-			},
-		],
-		story: [
-			'You inspect the controller. create and update each list the allowed fields by hand.',
-			'The whitelist is duplicated. Adding a new field means editing both methods.',
-			'A reviewer auditing "what fields can users set?" has to read every action.',
-			'There is no single source of truth for the per-controller whitelist.',
-		],
-	},
-	{
-		id: 'inject-user-id-via-edit',
-		label: 'Imagine adding user_id to the list',
-		command: 'POST /api/products  body: { name: "Hi", user_id: 42 }',
+		id: 'self-promote-create',
+		label: 'POST with featured: true (self-promote)',
+		command:
+			'POST /api/products  body: { product: { name: "Buy crypto!", description: "limited offer", price: 1, featured: true } }',
 		responseLines: [
 			{ text: 'HTTP/1.1 201 Created', color: 'red' },
 			{
-				text: '{ "id": 5, "name": "Hi", "user_id": 42 }   # ownership stolen',
+				text: '{ "id": 9, "name": "Buy crypto!", "featured": true }   # promoted to homepage',
 				color: 'muted',
 			},
 			{
-				text: 'If anyone adds user_id: params[:user_id] to the create action,',
+				text: 'to_unsafe_h passed every field through, including featured.',
 				color: 'yellow',
 			},
 			{
-				text: 'the field list IS the security boundary. A typo there is a CVE.',
+				text: 'A spam product is now pinned to the homepage alongside admin picks.',
 				color: 'red',
 			},
 		],
 		story: [
-			'Right now the controller does NOT read params[:user_id], so user_id is safe.',
-			'But the field list is the only thing protecting ownership from mass-assignment.',
-			'A future developer adding user_id: params[:user_id] (e.g., for an admin feature) silently breaks the security boundary.',
-			'Centralized whitelists make this kind of regression visible: one method to audit, one method to forbid.',
+			'A user sends a POST with featured: true in the body, alongside the legitimate fields.',
+			'The controller calls params[:product].to_unsafe_h, which returns the raw hash with NO filtering.',
+			'Product.new(...) accepts every field, including featured. The product is saved as featured: true.',
+			'The user just promoted their own product to the homepage without admin approval.',
 		],
 	},
 	{
-		id: 'malformed-shape',
-		label: 'POST with malformed body',
-		command: 'POST /api/products?product=hacked',
+		id: 'self-promote-update',
+		label: 'PATCH your product to featured',
+		command: 'PATCH /api/products/3  body: { product: { featured: true } }',
 		responseLines: [
-			{ text: 'HTTP/1.1 422 Unprocessable Entity', color: 'red' },
+			{ text: 'HTTP/1.1 200 OK', color: 'red' },
 			{
-				text: '{ "errors": ["Name can\'t be blank", "Description can\'t be blank", ...] }',
+				text: '{ "id": 3, "name": "Mug", "featured": true }   # self-flipped',
 				color: 'muted',
 			},
 			{
-				text: 'params[:name] returned nil. Product saved with all-nil fields, then validates rejected it.',
+				text: 'product.update mass-assigned featured. No audit trail, no admin gate.',
 				color: 'yellow',
 			},
 			{
-				text: 'No clear "your shape is wrong" signal. The client sees validation noise instead of a 400.',
+				text: 'Anyone who owns a product can promote it at will.',
 				color: 'red',
 			},
 		],
 		story: [
-			'Attacker sends `?product=hacked` — the body is a string, not a hash.',
-			'Each params[:name] / params[:description] / params[:price] returns nil.',
-			'Product is built with all-nil attributes and fails validation, returning 422.',
-			'The client gets validation errors instead of a clean "wrong request shape" 400. The shape mismatch is invisible.',
+			'The owner of product 3 sends a PATCH with only { featured: true } in the body.',
+			'product.update(params[:product].to_unsafe_h) writes the field directly to the row.',
+			'The existing product flips to featured. No admin saw it. No audit log.',
+			'Self-promotion is a one-line request, available to every authenticated user.',
+		],
+	},
+	{
+		id: 'compound-frame',
+		label: 'PATCH with featured + user_id (frame attack)',
+		command:
+			'PATCH /api/products/3  body: { product: { featured: true, user_id: 99 } }',
+		responseLines: [
+			{ text: 'HTTP/1.1 200 OK', color: 'red' },
+			{
+				text: '{ "id": 3, "user_id": 99, "featured": true }   # transferred + featured',
+				color: 'muted',
+			},
+			{
+				text: 'BOTH sensitive fields were mass-assigned in one request.',
+				color: 'yellow',
+			},
+			{
+				text: 'Spam product is now featured AND attributed to user 99.',
+				color: 'red',
+			},
+		],
+		story: [
+			'The attacker stacks two injections in one PATCH: featured: true + user_id: 99.',
+			'to_unsafe_h hands the entire hash to product.update. update() writes both columns.',
+			'The product is now pinned to the homepage AND owned by user 99 (the victim).',
+			'The vulnerability is general: ANY field present in params reaches the model. The protection is not in the code anywhere.',
 		],
 	},
 ];
 
 // Map probe IDs to discovery IDs they trigger.
 // Pedagogy rule: each probe unlocks exactly one distinct discovery,
-// each discovery is unlocked by exactly one probe. The combined-attack
-// probe owns `raw-params`; clicking the model stage no longer
-// duplicate-unlocks it.
+// each discovery is unlocked by exactly one probe.
 const PROBE_DISCOVERY_MAP: Record<string, string> = {
-	'duplicate-field-list': 'no-filter',
-	'inject-user-id-via-edit': 'user-id-injection',
-	'malformed-shape': 'shape-attack',
+	'self-promote-create': 'self-promote-create',
+	'self-promote-update': 'self-promote-update',
+	'compound-frame': 'compound-frame',
 };
 
-// Map probe IDs to pipeline node display during observe
+// Map probe IDs to pipeline node display during observe.
+// Every probe routes through the (bypassed) filter and reaches the model
+// with extra fields intact, so all three show the model accepting the
+// injection. Sublabels and badges differ to keep probes visually distinct.
 const PROBE_PIPELINE_MAP: Record<
 	string,
 	{ filterSublabel: string; modelBadge: string }
 > = {
-	'duplicate-field-list': {
-		filterSublabel: 'duplicated in 2 actions',
-		modelBadge: 'OK',
+	'self-promote-create': {
+		filterSublabel: 'bypassed (to_unsafe_h)',
+		modelBadge: 'featured!',
 	},
-	'inject-user-id-via-edit': {
-		filterSublabel: 'one-typo away',
-		modelBadge: '201!',
+	'self-promote-update': {
+		filterSublabel: 'bypassed (to_unsafe_h)',
+		modelBadge: 'flipped',
 	},
-	'malformed-shape': {
-		filterSublabel: 'shape unchecked',
-		modelBadge: '422',
+	'compound-frame': {
+		filterSublabel: 'bypassed (to_unsafe_h)',
+		modelBadge: 'owned + featured',
 	},
 };
 
@@ -211,22 +223,29 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		stageId: 'request',
 		title: 'Incoming Request',
 		description:
-			'POST and PATCH requests include a JSON body. The body can contain any keys the attacker chooses. The controller has to decide which keys to actually read and which to ignore.',
+			'POST and PATCH requests include a JSON body. The body can contain ANY keys the attacker chooses, including admin-only fields (featured) and auto-managed fields (user_id, id). The controller has to decide which keys to actually accept and which to drop.',
 	},
 	controller: {
 		stageId: 'controller',
-		title: 'ProductsController',
+		title: 'ProductsController (uses to_unsafe_h)',
 		description:
-			'The controller pulls each allowed field out of params by name. create and update both repeat the same field list. Ownership is set via Current.user.products, so a user_id sent in the body is currently ignored — but only because no one has added user_id: params[:user_id] to the field list.',
+			'The controller calls .to_unsafe_h on params[:product]. Per Rails docs, to_unsafe_h returns "an unsafe, unfiltered representation of the parameters" — every key the attacker sent reaches the model. The controller is doing zero filtering.',
 		code: `def create
-  product = Current.user.products.new(
-    name: params[:name],
-    description: params[:description],
-    price: params[:price]
-  )
+  product = Current.user.products.new(params[:product].to_unsafe_h)
   authorize product
   if product.save
     render json: product, status: :created
+  else
+    render json: { errors: product.errors.full_messages },
+           status: :unprocessable_entity
+  end
+end
+
+def update
+  product = Current.user.products.find(params[:id])
+  authorize product
+  if product.update(params[:product].to_unsafe_h)
+    render json: product
   else
     render json: { errors: product.errors.full_messages },
            status: :unprocessable_entity
@@ -235,22 +254,23 @@ end`,
 	},
 	filter: {
 		stageId: 'filter',
-		title: 'Parameter Filter (decentralized)',
+		title: 'Parameter Filter (bypassed)',
 		description:
-			'There is no centralized filter. Each action lists allowed fields inline. Adding a field requires editing every action that builds a Product. The whitelist is duplicated; the security boundary lives across multiple methods.',
-		code: `# create says:
-name: params[:name], description: params[:description], price: params[:price]
+			'There is no parameter filter. to_unsafe_h is a documented escape hatch on ActionController::Parameters that returns the raw hash with no permission checks. The security boundary that strong params would enforce is missing entirely.',
+		code: `# Current code:
+params[:product].to_unsafe_h
+# => returns ALL keys: name, description, price, featured, user_id, id, ...
+# => no whitelist, no shape check, no protection.
 
-# update says (same list, separate place):
-name: params[:name], description: params[:description], price: params[:price]
-
-# Two copies of the whitelist. One source of truth would be safer.`,
+# What strong params would do (later):
+params.expect(product: [:name, :description, :price])
+# => only the listed keys; everything else dropped.`,
 	},
 	model: {
 		stageId: 'model',
 		title: 'Product Model',
 		description:
-			'The model receives whatever the controller chose to pass. validates :name / :description / :price catches blank or malformed values. But the controller decides which keys to forward — that is the security boundary the model cannot enforce.',
+			"The model has a featured boolean column (admin-curated homepage flag). Validations cover blank/malformed values on user-settable fields, but Active Record will mass-assign ANY column the controller hands it. The model cannot tell which fields are user-settable and which are admin-only — that is the controller's job.",
 	},
 };
 
@@ -267,32 +287,32 @@ const STAGE_DISCOVERY_MAP: Record<string, string> = {
 
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
-		id: 'duplicate-field-list',
-		label: 'POST routes through product_params',
+		id: 'self-promote-create',
+		label: 'POST with featured: true (now blocked)',
 		description:
-			'product_params lives in one place; create and update both call it. The whitelist is centralized.',
-		method: 'POST',
-		path: '/api/products',
-		actor: 'user_3',
-		expectedResult: 'allowed',
-	},
-	{
-		id: 'inject-user-id-via-edit',
-		label: 'POST with user_id (now ignored)',
-		description:
-			'Attacker sends user_id: 42. The filter does not include user_id, so it is dropped silently. Ownership is set via Current.user.products.',
+			'Attacker sends featured: true with the legitimate fields. params.expect drops featured (not in whitelist). Product is created with featured: false. Self-promotion attempt fails silently.',
 		method: 'POST',
 		path: '/api/products',
 		actor: 'attacker',
-		expectedResult: 'allowed',
+		expectedResult: 'blocked',
 	},
 	{
-		id: 'malformed-shape',
-		label: 'POST with malformed body',
+		id: 'self-promote-update',
+		label: 'PATCH with featured: true (now blocked)',
 		description:
-			'Attacker sends product as a string instead of a hash. params.expect catches the wrong shape and raises ParameterMissing -> 400 Bad Request.',
-		method: 'POST',
-		path: '/api/products',
+			'Owner sends only { featured: true } in the body. params.expect raises ParameterMissing because the whitelist requires non-empty allowed fields. Product is unchanged.',
+		method: 'PATCH',
+		path: '/api/products/3',
+		actor: 'owner (user_3)',
+		expectedResult: 'blocked',
+	},
+	{
+		id: 'compound-frame',
+		label: 'PATCH with featured + user_id (now blocked)',
+		description:
+			'Attacker stacks featured and user_id in one PATCH. params.expect drops both (neither is in the whitelist). Product stays unchanged: still owned by the original user, still not featured.',
+		method: 'PATCH',
+		path: '/api/products/3',
 		actor: 'attacker',
 		expectedResult: 'blocked',
 	},
@@ -300,7 +320,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 		id: 'clean-create',
 		label: 'Create with valid body',
 		description:
-			'POST with a properly-shaped product hash. Filter accepts the listed keys.',
+			'POST with only the whitelisted fields (name, description, price). params.expect accepts the call and the product is saved normally.',
 		method: 'POST',
 		path: '/api/products',
 		actor: 'user_3',
@@ -309,7 +329,8 @@ const STRESS_SCENARIOS: StressScenario[] = [
 	{
 		id: 'clean-update',
 		label: 'Update with valid body',
-		description: 'PATCH with a properly-shaped product hash.',
+		description:
+			'PATCH with only the whitelisted fields. params.expect accepts the call and the product is updated normally.',
 		method: 'PATCH',
 		path: '/api/products/1',
 		actor: 'owner (user_3)',
@@ -322,7 +343,7 @@ const STRESS_SCENARIOS: StressScenario[] = [
 // ──────────────────────────────────────────────
 
 const STEP_DEFS: StepDef[] = [
-	{ id: 'add-filtering', title: 'Add Parameter Filtering' },
+	{ id: 'add-filtering', title: 'Replace to_unsafe_h with a Real Filter' },
 	{ id: 'define-whitelist', title: 'Define the Whitelist' },
 	{ id: 'set-ownership', title: 'Set Ownership Safely' },
 ];
@@ -338,25 +359,24 @@ interface StepOption {
 	feedback?: string;
 }
 
-// Step 0: Add Parameter Filtering.
-// Rails 8's production-safe default is `params.expect`. The older
-// `params.require(:product).permit(...)` pattern still works but
-// has subtle shape-checking gaps; it appears here only as a
-// wrong-option foil with feedback that points at expect.
+// Step 0: Replace the to_unsafe_h call with a real filter.
+// Rails 8's production-safe default is `params.expect`. The naive
+// `to_unsafe_h` (the status quo from L7-L12) and `permit!` are both
+// wrong-option foils — neither filters anything.
 const FILTERING_OPTIONS: StepOption[] = [
 	{
-		id: 'permit-all',
-		label: 'params.permit!',
+		id: 'unsafe-h',
+		label: 'params[:product].to_unsafe_h',
 		correct: false,
 		feedback:
-			'permit! allows EVERYTHING through, which is the same as no filtering at all.',
+			'That is what the controller already does. The Rails docs literally call it "an unsafe, unfiltered representation" — extra fields like featured and user_id pass straight through.',
 	},
 	{
-		id: 'require-permit',
-		label: 'params.require(:product).permit(:name, :description, :price)',
+		id: 'permit-all',
+		label: 'params[:product].permit!',
 		correct: false,
 		feedback:
-			'That is the older Rails pattern. It checks the keys but not the SHAPE of the value at :product. Rails 8 ships a stricter alternative built specifically to close that gap.',
+			'permit! marks every key as permitted. It silences the ForbiddenAttributesError but lets every field through, including the ones an attacker injects. Same outcome as to_unsafe_h.',
 	},
 	{
 		id: 'params-expect',
@@ -365,21 +385,21 @@ const FILTERING_OPTIONS: StepOption[] = [
 	},
 ];
 
-// Step 1: Define the Whitelist
+// Step 1: Define the Whitelist (which fields users can set vs which are admin-only / server-managed)
 const WHITELIST_OPTIONS: StepOption[] = [
+	{
+		id: 'with-featured',
+		label: 'params.expect(product: [:name, :description, :price, :featured])',
+		correct: false,
+		feedback:
+			'featured is the admin-curated homepage flag. If users can set it through request params, they can self-promote — exactly the attack you just observed. Admin-only columns belong out of the whitelist.',
+	},
 	{
 		id: 'with-user-id',
 		label: 'params.expect(product: [:name, :description, :price, :user_id])',
 		correct: false,
 		feedback:
-			'user_id controls product ownership. If users can set it through request params, they can impersonate other sellers. Ownership belongs to the association, not the request body.',
-	},
-	{
-		id: 'with-id',
-		label: 'params.expect(product: [:id, :name, :description, :price])',
-		correct: false,
-		feedback:
-			"id is server-managed. Letting users set it would let an attacker overwrite an existing product by submitting that product's id with new content.",
+			'user_id controls product ownership. If users can set it through request params, they can transfer products to victims (frame attack). Ownership belongs to the association, not the request body.',
 	},
 	{
 		id: 'safe-only',
@@ -421,21 +441,21 @@ const OPTION_STEP_CONFIG: Record<
 	}
 > = {
 	0: {
-		title: 'Add Parameter Filtering',
+		title: 'Replace to_unsafe_h with a Real Filter',
 		description:
-			'The controller passes raw params directly to the model. Any key an attacker sends gets saved. How should Rails filter incoming parameters?',
+			'The controller has been calling params[:product].to_unsafe_h since L7, which lets every field through. Pick the Rails 8 filter that declares which keys reach the model.',
 		options: FILTERING_OPTIONS,
 	},
 	1: {
 		title: 'Define the Whitelist',
 		description:
-			'params.expect filters the request body to only the keys you allow. Which fields should users be able to set on a Product?',
+			'params.expect drops every key not in the whitelist. Which fields should logged-in users be allowed to set on a Product? (The schema has name, description, price, user_id, and the new featured boolean.)',
 		options: WHITELIST_OPTIONS,
 	},
 	2: {
 		title: 'Set Ownership Safely',
 		description:
-			'user_id is not in the whitelist, but products still need an owner. How should the create action associate the product with the current user?',
+			'user_id is excluded from the whitelist, but products still need an owner. How should the create action associate the product with the current user without trusting the request body?',
 		options: OWNERSHIP_OPTIONS,
 	},
 };
@@ -460,24 +480,27 @@ const REWARD_CONNECTIONS: PipelineConnection[] = [
 // so the visualization does NOT animate before any probe fires.
 // Each entry lists the connection keys (`${from}-${to}`) that should
 // flash a single dot pulse when the probe / scenario fires.
+// Observe: every probe shows the request reaching the model with extras
+// intact (filter is bypassed, so dots flow all the way through).
 const PROBE_ACTIVE_CONNECTIONS: Record<string, string[]> = {
-	'duplicate-field-list': ['request-controller', 'controller-filter'],
-	'inject-user-id-via-edit': [
+	'self-promote-create': [
 		'request-controller',
 		'controller-filter',
 		'filter-model',
 	],
-	'malformed-shape': ['request-controller', 'controller-filter'],
+	'self-promote-update': [
+		'request-controller',
+		'controller-filter',
+		'filter-model',
+	],
+	'compound-frame': ['request-controller', 'controller-filter', 'filter-model'],
 };
 
+// Reward: blocked attacks stop at the filter; clean requests reach the model.
 const SCENARIO_ACTIVE_CONNECTIONS: Record<string, string[]> = {
-	'duplicate-field-list': [
-		'request-controller',
-		'controller-filter',
-		'filter-model',
-	],
-	'inject-user-id-via-edit': ['request-controller', 'controller-filter'],
-	'malformed-shape': ['request-controller', 'controller-filter'],
+	'self-promote-create': ['request-controller', 'controller-filter'],
+	'self-promote-update': ['request-controller', 'controller-filter'],
+	'compound-frame': ['request-controller', 'controller-filter'],
 	'clean-create': ['request-controller', 'controller-filter', 'filter-model'],
 	'clean-update': ['request-controller', 'controller-filter', 'filter-model'],
 };
@@ -489,22 +512,31 @@ const SCENARIO_ACTIVE_CONNECTIONS: Record<string, string[]> = {
 function getCodeFiles(phase: Phase, furthestStep: number) {
 	const files = [];
 
-	// L13's "before" state matches real myapp at level-12:
+	// L13's "before" state inherits from L7-L12:
 	//   - Current.user.products.new (L11 ownership)
 	//   - authorize product (L11 Pundit)
-	//   - explicit field-by-field params (no centralized filter yet)
+	//   - params[:product].to_unsafe_h (the naive Rails 8 shortcut from L7)
 	//   - validates / errors.full_messages (L12 validations)
-	// L13's job: introduce centralized parameter filtering via params.expect.
+	// L13's setup: marketing already added a `featured` boolean column to
+	// Product (admin-only, default false). The to_unsafe_h call lets users
+	// mass-assign featured (and any other column).
+	// L13's job: replace to_unsafe_h with params.expect (a real whitelist).
 	const observeCode = `class Api::ProductsController < ApplicationController
   def create
-    product = Current.user.products.new(
-      name: params[:name],
-      description: params[:description],
-      price: params[:price]
-    )
+    product = Current.user.products.new(params[:product].to_unsafe_h)
     authorize product
     if product.save
       render json: product, status: :created
+    else
+      render json: { errors: product.errors.full_messages }, status: :unprocessable_entity
+    end
+  end
+
+  def update
+    product = Current.user.products.find(params[:id])
+    authorize product
+    if product.update(params[:product].to_unsafe_h)
+      render json: product
     else
       render json: { errors: product.errors.full_messages }, status: :unprocessable_entity
     end
@@ -516,7 +548,7 @@ end`;
 			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
 			code: observeCode,
-			highlight: [4, 5, 6],
+			highlight: [3, 13],
 		});
 		return files;
 	}
@@ -527,14 +559,12 @@ end`;
 			filename: 'app/controllers/api/products_controller.rb',
 			language: 'ruby',
 			code: observeCode,
-			highlight: [4, 5, 6],
+			highlight: [3, 13],
 		});
 	}
 
-	// Step 0 done (filter introduced) → step 2 done (whitelist confirmed) →
-	// step 3 done (ownership confirmed). Only one final "after" state to show
-	// since L13's pedagogy is the single switch from explicit-fields to a
-	// centralized expect.
+	// After step 0 (filter introduced), the controller centralizes the
+	// whitelist into product_params and both create and update call it.
 	if (furthestStep >= 1) {
 		files.push({
 			filename: 'app/controllers/api/products_controller.rb',
@@ -550,13 +580,23 @@ end`;
     end
   end
 
+  def update
+    product = Current.user.products.find(params[:id])
+    authorize product
+    if product.update(product_params)
+      render json: product
+    else
+      render json: { errors: product.errors.full_messages }, status: :unprocessable_entity
+    end
+  end
+
   private
 
   def product_params
     params.expect(product: [:name, :description, :price])
   end
 end`,
-			highlight: [3, 13, 14, 15],
+			highlight: [3, 14, 23, 24, 25],
 		});
 	}
 

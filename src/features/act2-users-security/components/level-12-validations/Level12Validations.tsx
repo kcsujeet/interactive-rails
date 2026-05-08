@@ -266,11 +266,7 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 		description:
 			'The controller receives the request, builds a new record, and calls save. It trusts whatever data comes in.',
 		code: `def create
-  product = Product.new(
-    name: params[:name],
-    description: params[:description],
-    price: params[:price]
-  )
+  product = Product.new(params[:product].to_unsafe_h)
   product.save  # Always succeeds, no checks!
   render json: product, status: :created
 end`,
@@ -614,11 +610,7 @@ end`,
 			language: 'ruby',
 			code: `class Api::ProductsController < ApplicationController
   def create
-    product = Current.user.products.new(
-      name: params[:name],
-      description: params[:description],
-      price: params[:price]
-    )
+    product = Current.user.products.new(params[:product].to_unsafe_h)
     authorize product
     if product.save
       render json: product, status: :created
@@ -627,7 +619,7 @@ end`,
     end
   end
 end`,
-			highlight: [11, 12],
+			highlight: [7, 8],
 		});
 	}
 

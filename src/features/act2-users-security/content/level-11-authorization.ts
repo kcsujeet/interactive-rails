@@ -129,11 +129,7 @@ class Api::ProductsController < ApplicationController
   def update
     product = Product.find(params[:id])
     authorize product  # Raises Pundit::NotAuthorizedError if denied
-    if product.update(
-      name: params[:name],
-      description: params[:description],
-      price: params[:price]
-    )
+    if product.update(params[:product].to_unsafe_h)
       render json: ProductSerializer.new(product).serializable_hash.to_json
     else
       render json: { errors: product.errors.full_messages }, status: :unprocessable_entity

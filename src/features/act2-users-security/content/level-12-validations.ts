@@ -154,11 +154,7 @@ end
 
 # In the controller, return validation errors as JSON:
 def create
-  product = Current.user.products.build(
-    name: params[:name],
-    description: params[:description],
-    price: params[:price]
-  )
+  product = Current.user.products.build(params[:product].to_unsafe_h)
   if product.save
     render json: ProductSerializer.new(product).serializable_hash.to_json, status: :created
   else
