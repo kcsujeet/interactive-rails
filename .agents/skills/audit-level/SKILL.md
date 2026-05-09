@@ -155,6 +155,35 @@ Before auditing or building any level that involves a gem, library, or Rails fea
 
 This step is non-negotiable. Skipping it has caused bugs in the past (wrong Scope inheritance, missing `include` steps, fake generator output).
 
+## Step 0.5: Cross-verify against the myapp project (NON-NEGOTIABLE)
+
+The curriculum is anchored to a real Rails app at `project/myapp/` (gitignored). Each level corresponds to a tagged commit (`level-N`) representing the actual on-disk state after that level's commands and edits run against Rails 8 + PostgreSQL. The level definitions in `src/features/` simulate this state via `getCodeFiles`, stage inspector code, probe response lines, terminal output, and build-step file diffs.
+
+**Rule:** the simulated content in a level MUST match what `git show level-N:<path>` produces in the myapp project. When the two disagree, the level is wrong (not myapp). If myapp itself is wrong, fix it first via real Rails commands, then mirror the actual output into the level — never the other way around.
+
+What to cross-verify:
+
+- **`getCodeFiles` reward snapshot** vs. actual files in `git show level-N:<file>` (myapp).
+- **Stage inspector `code` field** vs. actual code at the same level tag.
+- **Probe / scenario response lines** that simulate Rails behavior — verify against `bin/rails routes`, `bin/rails runner`, `curl`, or specs run at the relevant tag.
+- **Terminal output for build-step commands** (`bin/rails generate ...`, `bundle add ...`, `bin/rails db:migrate`) vs. actual stdout when those commands run against the prior level's tag.
+- **Code preview transitions** between build steps vs. the diff between `level-(N-1)` and `level-N` commits.
+
+Concrete check:
+
+```bash
+cd project/myapp
+git show level-13:app/controllers/api/products_controller.rb
+# vs. the level's getCodeFiles('reward', LAST_STEP) for L13
+# and vs. the STAGE_INSPECTOR_MAP['controller'].code field
+```
+
+If they differ, decide: did the level fabricate a method/file/output, or did myapp drift? Per the canonical-docs rule, the source of truth flows: official docs → real command in myapp → level data. Never the reverse.
+
+This applies to BOTH form-axis levels (where the form must match across L7-L12, L13, etc.) and existence-axis levels (where the generator output, gem install commands, and migration files must match real Rails 8 / gem behavior).
+
+**Case study (L13 Strong Params, 2026-05-09):** The L13 redesign in `src/` was committed before myapp's commit chain was rewritten. For ~24 hours, src/ taught `params.expect(product: [:name, :description, :price])` while myapp's `level-13` tag still had the older `params.require(:product).permit(...)` pattern. A player following the curriculum end-to-end with `git checkout level-13` in myapp would have seen a different controller than the game promised. Phase C re-tagged myapp commits `level-8` through `level-13` to match the redesigned curriculum. Running this Step 0.5 check would have flagged the misalignment immediately.
+
 ## Gate Check: Does the Observe Phase Teach the Concept? (EVALUATE FIRST)
 
 **This is the single most important check in the entire audit. Evaluate it BEFORE any structural compliance checks. If this fails, nothing else matters.**

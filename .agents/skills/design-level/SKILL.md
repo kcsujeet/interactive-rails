@@ -49,6 +49,22 @@ Before designing anything:
 6. **Read adjacent levels (N-2 to N+2).** Your visualization must be visually distinct from neighbors.
 7. **Follow bulletproof-react project structure.** Any new feature goes in `src/features/<name>/` with `components/`, `utils/`, `hooks/`, `types/` subdirectories. No files at the feature root (except non-barrel re-exports). No cross-feature imports. No code duplication (use lazy evaluation to reference existing functions instead of copying strings).
 
+## Step 0.4: Anchor to the myapp project (NON-NEGOTIABLE)
+
+The curriculum is anchored to a real Rails app at `project/myapp/` (gitignored). Each level corresponds to a tagged commit (`level-N`) representing the actual on-disk state after that level's commands and edits run against Rails 8 + PostgreSQL. Before designing any code preview, generator command, response line, or build-step diff:
+
+1. Check out (or `git show`) the **previous level's tag** in myapp to see the actual "before" state your level builds on:
+   ```bash
+   cd project/myapp && git show level-12:app/controllers/api/products_controller.rb
+   ```
+2. If the level introduces a new gem, generator, or migration, **run the real command in myapp** at the prior level's tag and capture the actual stdout / file diffs. Mirror those into the level definition — never invent the output from memory.
+3. The level's "after" state must match what `git show level-N:<path>` produces (or will produce, once you commit the new myapp tag) for every file the level touches.
+4. If myapp's level-N tag does not yet exist (e.g., you are designing a brand-new level), the order is: real Rails commands in myapp → tag the new commit → mirror the actual output into the level. Never the reverse.
+
+The source of truth flows: official docs (Step 0.5) → real command in myapp (Step 0.4) → level data. Treat the level as a faithful simulation of the real project, never as a substitute for it.
+
+**Case study (L13 Strong Params, 2026-05-09):** The L13 redesign in `src/` was committed before myapp's commit chain was rewritten. For about a day, src/ taught `params.expect(product: [:name, :description, :price])` while myapp's `level-13` tag still had the older `params.require(:product).permit(...)` pattern. Anchoring to the myapp tag during design would have surfaced the mismatch immediately and forced the myapp re-tag (the form-axis precursor `to_unsafe_h` at L7-L12, plus the new featured migration + params.expect at L13) to land at the same time as the curriculum changes.
+
 ## Step 0.5: Lock the Canonical Purpose (form-axis levels only)
 
 For form-axis levels (those replacing an existing pattern's form — see `.agents/rules/pedagogy.md` § Cumulative patterns for the existence-vs-form category check), execute these steps BEFORE any visualization, probe, or build-step design:
