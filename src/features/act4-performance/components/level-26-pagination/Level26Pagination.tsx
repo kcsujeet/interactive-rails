@@ -1365,7 +1365,7 @@ export function Level26Pagination({ onComplete }: LevelComponentProps) {
 							</div>
 
 							{/* Visualization */}
-							<div className="px-6 pb-2">{renderPageStack()}</div>
+							<div className="px-6 pb-4">{renderPageStack()}</div>
 
 							{/* StageInspector overlay */}
 							{inspectorData && (
@@ -1378,7 +1378,7 @@ export function Level26Pagination({ onComplete }: LevelComponentProps) {
 							)}
 
 							{/* Probe terminal */}
-							<div className="px-6 pb-2 flex-1 min-h-0 flex flex-col">
+							<div className="px-6 pb-4 flex-1 min-h-0 flex flex-col">
 								<ProbeTerminal
 									className="flex-1 flex flex-col"
 									disabled={vizAnimating}
@@ -1532,10 +1532,10 @@ export function Level26Pagination({ onComplete }: LevelComponentProps) {
 							</div>
 
 							{/* Visualization */}
-							<div className="px-6 pb-2">{renderPageStack()}</div>
+							<div className="px-6 pb-4">{renderPageStack()}</div>
 
 							{/* Stress test controls */}
-							<div className="px-6 pb-2 flex-1 min-h-0">
+							<div className="px-6 pb-4 flex-1 min-h-0">
 								<StressTestPanel
 									allowedCount={stressTest.allowedCount}
 									blockedCount={stressTest.blockedCount}

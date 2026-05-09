@@ -1329,7 +1329,7 @@ export function Level10Encryption({ onComplete }: LevelComponentProps) {
 				<div className="flex-1 flex flex-col">
 					{renderDatabaseTable(false)}
 
-					<div className="mt-auto px-6 pb-2">
+					<div className="mt-auto px-6 pb-4">
 						<ProbeTerminal
 							disabled={flowPhase !== -1}
 							onProbe={handleProbe}
@@ -1614,7 +1614,7 @@ export function Level10Encryption({ onComplete }: LevelComponentProps) {
 					</div>
 				</div>
 
-				<div className="mt-auto px-6 pb-2">
+				<div className="mt-auto px-6 pb-4">
 					<StressTestPanel
 						allowedCount={stressTest.allowedCount}
 						blockedCount={stressTest.blockedCount}

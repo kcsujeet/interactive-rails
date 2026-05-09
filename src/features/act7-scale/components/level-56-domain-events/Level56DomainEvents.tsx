@@ -2374,7 +2374,7 @@ export function Level56DomainEvents({ onComplete }: LevelComponentProps) {
 							/>
 						)}
 					</div>
-					<div className="px-6 pb-2">
+					<div className="px-6 pb-4">
 						<ProbeTerminal
 							disabled={vizAnimating}
 							onProbe={handleProbe}
@@ -2514,7 +2514,7 @@ export function Level56DomainEvents({ onComplete }: LevelComponentProps) {
 						nodeTypes={eventNodeTypes}
 					/>
 				</div>
-				<div className="px-6 pb-2">
+				<div className="px-6 pb-4">
 					<StressTestPanel
 						allowedCount={stressTest.allowedCount}
 						blockedCount={stressTest.blockedCount}

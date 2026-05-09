@@ -1398,7 +1398,7 @@ export function Level54StateMachines({ onComplete }: LevelComponentProps) {
 							/>
 						)}
 					</div>
-					<div className="px-6 pb-2">
+					<div className="px-6 pb-4">
 						<ProbeTerminal
 							disabled={vizAnimating}
 							onProbe={handleProbe}
@@ -1558,7 +1558,7 @@ export function Level54StateMachines({ onComplete }: LevelComponentProps) {
 						nodeTypes={stateNodeTypes}
 					/>
 				</div>
-				<div className="px-6 pb-2">
+				<div className="px-6 pb-4">
 					<StressTestPanel
 						allowedCount={stressTest.allowedCount}
 						blockedCount={stressTest.blockedCount}

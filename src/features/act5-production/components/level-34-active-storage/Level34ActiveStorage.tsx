@@ -2062,7 +2062,7 @@ export function Level34ActiveStorage({ onComplete }: LevelComponentProps) {
 				<div className="flex-1 flex flex-col min-h-0">
 					{renderUploadPipeline()}
 
-					<div className="px-6 pb-2">
+					<div className="px-6 pb-4">
 						<ProbeTerminal
 							disabled={vizAnimating}
 							onProbe={handleProbe}
@@ -2178,7 +2178,7 @@ export function Level34ActiveStorage({ onComplete }: LevelComponentProps) {
 			<div className="flex-1 flex flex-col">
 				{renderUploadPipeline()}
 
-				<div className="px-6 pb-2">
+				<div className="px-6 pb-4">
 					<StressTestPanel
 						allowedCount={stressTest.allowedCount}
 						blockedCount={stressTest.blockedCount}

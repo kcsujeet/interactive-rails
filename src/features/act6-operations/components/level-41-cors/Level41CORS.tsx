@@ -1087,7 +1087,7 @@ export function Level41CORS({ onComplete }: LevelComponentProps) {
 								)}
 							</div>
 
-							<div className="px-4 pb-2">
+							<div className="px-4 pb-4">
 								<ProbeTerminal
 									disabled={flowPhase !== -1}
 									onProbe={handleProbe}

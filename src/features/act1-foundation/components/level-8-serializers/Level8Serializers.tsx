@@ -1147,7 +1147,7 @@ export function Level8Serializers({ onComplete }: LevelComponentProps) {
 							</div>
 
 							{/* Probe terminal */}
-							<div className="px-6 pb-2">
+							<div className="px-6 pb-4">
 								<ProbeTerminal
 									onProbe={handleProbe}
 									probes={PROBES}
@@ -1503,7 +1503,7 @@ export function Level8Serializers({ onComplete }: LevelComponentProps) {
 							</div>
 
 							{/* Stress test controls below pipeline */}
-							<div className="px-6 pb-2">
+							<div className="px-6 pb-4">
 								<StressTestPanel
 									allowedCount={stressTest.allowedCount}
 									blockedCount={stressTest.blockedCount}

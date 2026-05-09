@@ -957,7 +957,7 @@ export function Level29HTTPCaching({ onComplete }: LevelComponentProps) {
 							</div>
 
 							{/* Probe terminal (bounded, not flex-fill) */}
-							<div className="px-6 pb-2">
+							<div className="px-6 pb-4">
 								<ProbeTerminal
 									onProbe={handleProbe}
 									probes={PROBES}
@@ -1057,7 +1057,7 @@ export function Level29HTTPCaching({ onComplete }: LevelComponentProps) {
 							</div>
 
 							{/* Stress test controls below pipeline (bounded, not flex-fill) */}
-							<div className="px-6 pb-2">
+							<div className="px-6 pb-4">
 								<StressTestPanel
 									allowedCount={stressTest.allowedCount}
 									blockedCount={stressTest.blockedCount}

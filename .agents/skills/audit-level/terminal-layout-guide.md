@@ -2,6 +2,54 @@
 
 Detailed guidance for sizing and layout of ProbeTerminal, StressTestPanel, and SimulatedTerminal within the center panel. The visualization must always remain visible; terminals must never grow to hide it.
 
+## NON-NEGOTIABLE RULE: terminals dock at the bottom of the center panel
+
+In every level, every terminal component (`ProbeTerminal`, `StressTestPanel`, `SimulatedTerminal` / `TerminalChoiceStep`) renders **at the bottom of the center panel**, below the visualization. Never above it. Never beside it. Never floating in the middle.
+
+The center panel column layout is `flex flex-col`:
+1. `LevelHeader` (always first, fixed).
+2. Visualization area (`flex-1 min-h-0`, takes the remaining vertical space, never scrolls).
+3. Terminal (docked at the bottom, fixed natural height).
+
+Why: this is the player's mental model across the entire curriculum. The visualization shows what's happening; the terminal is the player's input affordance to make it happen. Putting the terminal anywhere else breaks that model and forces the player to hunt for the input. It also reliably blows out the page height: when the visualization grows or terminal output streams in, anything above them gets pushed off-screen. With the terminal docked at the bottom and the visualization given `flex-1 min-h-0 overflow-hidden`, the page envelope stays stable.
+
+**Audit recipe (run every audit):** open the level component, find the JSX. Verify:
+
+(a) the terminal component is rendered AFTER the visualization in document order;
+
+(b) the terminal's parent provides bottom-docking (it's the last child of a `flex flex-col` and the visualization above it has `flex-1 min-h-0`);
+
+(c) the terminal wrapper has bottom breathing room — `pb-4` (16px) is the canonical value. `pb-2` (8px) is too tight and reads as "the terminal is bumping into the bottom edge of the panel." `pb-6` is also acceptable but consistent `pb-4` across levels is the goal;
+
+(d) **the visualization fills the full available height between the level header and the terminal**. Custom Type 3 visualizations don't get this for free — `flex-1 min-h-0` on the outer wrapper is necessary but not sufficient. The inner content also needs to stretch. If the visualization is a grid of cards (per L14) or a list of zones, the grid / list itself must also be `flex-1 min-h-0`, AND the cards / zones inside must `h-full` (in a grid cell) or `flex-1` (in a flex container) so they grow to fill. Otherwise the visualization renders at its natural height and a void appears between it and the terminal — the player perceives "broken layout, lots of empty space," not "compact visualization."
+
+`PipelineFlow` and `QueryZoneFlow` handle (d) for free because they fill via React Flow's auto-fit. Custom Type 3 visualizations have to wire it up explicitly.
+
+Any layout that puts the terminal above, beside, or floating; or hugs the bottom edge with `pb-0` / `pb-1` / `pb-2`; or leaves a void above the terminal because the visualization stops at its natural height — fails this rule.
+
+**Custom Type 3 stretch recipe (canonical for non-PipelineFlow visualizations):**
+
+```tsx
+{/* Phase wrapper (already correct in most levels) */}
+<div className="flex-1 flex flex-col relative">
+  {/* Visualization — MUST stretch */}
+  <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+    <div className="grid grid-cols-3 gap-3 flex-1 min-h-0">
+      {/* Each grid cell uses h-full */}
+      <ColumnPanel className="h-full">...</ColumnPanel>
+    </div>
+  </div>
+  {/* Terminal wrapper at bottom with breathing room */}
+  <div className="px-6 pb-4">
+    <ProbeTerminal ... />
+  </div>
+</div>
+```
+
+The chain is: phase wrapper `flex-1 flex flex-col` → visualization `flex-1 min-h-0` → inner content (grid/list) `flex-1 min-h-0` → individual items `h-full` (grid) or `flex-1` (flex). Break the chain anywhere and the void appears.
+
+**Case study (L14, 2026-05-09):** the customer-impact dashboard initially overflowed the center panel — the terminal was below the dashboard but the dashboard was tall enough to push the terminal's button row off-screen. The fix was to compact the dashboard (3-column horizontal grid + slim incident log) so the visualization fits the available height and the terminal stays docked at the bottom with its buttons reachable. Compacting the visualization is the right knob to turn, never moving the terminal somewhere else.
+
 ## Shared Terminal Components
 
 Three shared terminal components exist. Levels must use these instead of building custom terminal UIs:

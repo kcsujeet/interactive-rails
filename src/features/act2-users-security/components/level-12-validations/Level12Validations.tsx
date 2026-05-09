@@ -1062,7 +1062,7 @@ export function Level12Validations({ onComplete }: LevelComponentProps) {
 							</div>
 
 							{/* Probe terminal */}
-							<div className="px-6 pb-2">
+							<div className="px-6 pb-4">
 								<ProbeTerminal
 									disabled={flowPhase !== -1}
 									onProbe={handleProbe}
@@ -1333,7 +1333,7 @@ export function Level12Validations({ onComplete }: LevelComponentProps) {
 							</div>
 
 							{/* Stress test controls */}
-							<div className="px-6 pb-2">
+							<div className="px-6 pb-4">
 								<StressTestPanel
 									allowedCount={stressTest.allowedCount}
 									blockedCount={stressTest.blockedCount}

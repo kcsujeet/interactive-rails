@@ -1214,10 +1214,10 @@ export function Level25CounterCaches({ onComplete }: LevelComponentProps) {
 							</div>
 
 							{/* Visualization */}
-							<div className="px-6 pb-2">{renderQueryCascade()}</div>
+							<div className="px-6 pb-4">{renderQueryCascade()}</div>
 
 							{/* Probe terminal */}
-							<div className="px-6 pb-2 flex-1 min-h-0 flex flex-col">
+							<div className="px-6 pb-4 flex-1 min-h-0 flex flex-col">
 								<ProbeTerminal
 									className="flex-1 flex flex-col"
 									disabled={vizAnimating}
@@ -1389,11 +1389,11 @@ export function Level25CounterCaches({ onComplete }: LevelComponentProps) {
 							</div>
 
 							{/* Visualization */}
-							<div className="px-6 pb-2">{renderQueryCascade()}</div>
+							<div className="px-6 pb-4">{renderQueryCascade()}</div>
 
 							{/* Before/after comparison */}
 							{lastResult && lastScenario && (
-								<div className="px-6 pb-2">
+								<div className="px-6 pb-4">
 									<div className="grid grid-cols-2 gap-3 animate-in fade-in duration-300">
 										<div className="rounded-lg border border-destructive/30 bg-destructive/5 p-2 text-center">
 											<div className="text-xs text-muted-foreground">
@@ -1433,7 +1433,7 @@ export function Level25CounterCaches({ onComplete }: LevelComponentProps) {
 							)}
 
 							{/* Stress test controls */}
-							<div className="px-6 pb-2 flex-1 min-h-0">
+							<div className="px-6 pb-4 flex-1 min-h-0">
 								<StressTestPanel
 									allowedCount={stressTest.allowedCount}
 									blockedCount={stressTest.blockedCount}

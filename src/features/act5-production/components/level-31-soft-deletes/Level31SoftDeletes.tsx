@@ -1448,7 +1448,7 @@ export function Level31SoftDeletes({ onComplete }: LevelComponentProps) {
 							nodeTypes={sdNodeTypes}
 						/>
 					</div>
-					<div className="px-6 pb-2">
+					<div className="px-6 pb-4">
 						<ProbeTerminal
 							disabled={vizAnimating}
 							onProbe={handleProbe}
@@ -1555,7 +1555,7 @@ export function Level31SoftDeletes({ onComplete }: LevelComponentProps) {
 						nodeTypes={sdNodeTypes}
 					/>
 				</div>
-				<div className="flex-1 min-h-0 flex flex-col px-6 pb-2">
+				<div className="flex-1 min-h-0 flex flex-col px-6 pb-4">
 					<StressTestPanel
 						allowedCount={stressTest.allowedCount}
 						blockedCount={stressTest.blockedCount}

@@ -117,6 +117,24 @@ The zones, nodes, and flow in the observe phase must reflect what actually exist
 
 **Check zone rendering is conditional.** If the observe and reward phases show different numbers of zones (e.g., 2 zones in observe, 3 in reward), verify that `renderUploadPipeline` (or equivalent) conditionally renders zones based on phase. Don't render zones that don't exist in the current narrative state.
 
+**Visualization vocabulary must match curriculum state (NON-NEGOTIABLE).** "Components" in this rule means *every concept rendered in the visualization*, not just file-level entities (models, controllers, gems). It includes:
+- Pipeline stage labels (`Build`, `Test Gate`, `Production`, `CI`, `Deploy`).
+- Node sublabels and badges (`PROMOTED`, `STAGING`, `BLOCKED at gate`).
+- Probe labels (`Deploy: drop params.expect filter`).
+- Stress scenario labels (`Promote build to staging`).
+- Stage-inspector titles and descriptions.
+- Edge labels.
+
+For each player-visible string in the visualization, identify the concept it names and the level that introduces that concept. Anything pointing at a level > the current level is a future-concept pre-bake and FAILS this check. Pre-L14 the player has built models, routes, controllers, auth, encryption, Pundit, validations, strong params — they have NOT built CI, build pipelines, deployment, staging, or production environments (those arrive at L40s+). Showing `Build` / `Test Gate` / `Production` nodes at L14 is the same class of bug as L4's original router/controller/serializer pipeline.
+
+**The `inactive` variant does NOT redeem a pre-baked future concept.** Rendering an unfamiliar future-concept node as dimmed/dashed makes it baffling to a first-time developer ("what is this thing? am I supposed to know?") rather than honest. The fix is to remove the node entirely, not soften its variant. Case study: L4 originally showed Router/Controller/Serializer/Response (L6/L7/L8 territory) and tried to make them "less wrong" by setting variants — fix was full visualization redesign with only the two model nodes that actually exist at L4. L14's first cut made the same mistake with a CI/CD pipeline framing (Code/Build/Test Gate/Production) — fix was to drop the pipeline framing entirely, since none of those concepts exist pre-L14.
+
+**Probe + scenario labels must be actions the player can recognize and identify with at this level.** A first-time developer at L14 edits code in their editor, saves, and runs `bin/rails server` or `bundle exec rspec`. They have never deployed, promoted a build, or pushed through a CI gate. A probe labeled `Deploy: ...` assumes vocabulary the curriculum hasn't introduced. Honest probe labels at L14 are things like "Drop params.expect from the controller" (an action the player takes in their editor) — not "Deploy a regression" (an action that requires deployment infrastructure).
+
+Audit recipe: list every node label, sublabel, badge, probe label, scenario label, and stage-inspector title from the level. For each, write down the concept and the level that introduces it. If any item references a concept introduced after the current level, FAIL. If any item uses vocabulary a first-time developer wouldn't recognize at this stage (per `level-content.md` audience rule), FAIL.
+
+**Damage-first check (NON-NEGOTIABLE).** See `pedagogy.md` § "Show the damage, then introduce the fix". The visualization's headline visual weight must rest on the customer-facing damage that occurs when this level's concept is missing — not on artifacts (a spec file, a config file), not on tools (an Editor node, a Test Runner node), not on abstract status grids (`?` / `✓` / `✗` cards). For each level under audit, list the visualization's primary visual elements and ask: "is this the damage, or is it just the artifact / tool / status?" If anything except the damage carries the headline visual weight, FAIL. The smell test from `pedagogy.md` applies: would a first-time developer seeing this observe phase feel motivated to do the build phase, or would they say "neat artifact, I guess?" L14 (Testing) is the worked-failure case study — three iterations polished the wrong answer (pipeline / tool nodes / status cards) before the redesign landed on a customer-impact dashboard that actually stakes the player.
+
 ### 5. Does the build phase bridge from "before" to "after"?
 
 The build steps should transform the "before" state into the "after" state. Every step should make sense in sequence. If step 1 is "Install Active Storage" but the observe code already uses Active Storage APIs, the bridge is broken.

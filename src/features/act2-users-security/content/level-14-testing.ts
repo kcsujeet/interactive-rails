@@ -9,7 +9,7 @@ export const level14Testing: Level = {
 	trigger: {
 		type: 'incident',
 		description:
-			'A deploy broke the login endpoint. Nobody noticed for 3 hours. Set up RSpec and FactoryBot, then write a request spec to prevent this from happening again.',
+			"By Act 2 you've built strong params, authorization, and encryption. Each one prevents a real customer-facing failure. But nothing is automatically checking that those rules still hold after the next refactor. The next regression that ships will reach customers — a spam product pinned FEATURED on the homepage, a stranger deleting someone's listing, a column rename taking login down overnight — and you'll find out hours later, after the damage is done.",
 	},
 	startingPipeline: {
 		nodes: [
@@ -79,34 +79,31 @@ export const level14Testing: Level = {
 	},
 	problem: {
 		observation:
-			'Zero test coverage. Deploys break features silently. The login endpoint was returning 500 for 3 hours and nobody knew until a user complained.',
+			"The protections from earlier levels live only in the code that implements them. The next refactor that breaks one of them lands in customers' homepages, account pages, or login screens before anyone notices. The damage is real: refund requests, support tickets, lost revenue, hours of overnight downtime.",
 		rootCause:
-			'No automated tests. No CI. Manual testing is the only safety net.',
-		codeExample: `# Current state:
-# spec/ directory is empty
-# No test framework configured
-# No factories for creating test data
+			'Rails ships an empty test/ scaffold from "rails new" but no real checks have been written. The only way to verify those protections still hold is to remember every rule and click through the app by hand after every change.',
+		codeExample: `# These protections already exist in your code.
+# Each one prevents a real customer-facing failure.
+# Nothing checks they stay correct after a refactor.
 
-# The login endpoint broke because someone
-# renamed the 'token' column to 'auth_token'
-# but forgot to update the sessions controller:
+# 1. The products controller filters which fields
+#    a regular user can set. Without it, a posted
+#    \`featured: true\` lands on the homepage.
 
-class Api::SessionsController < ApplicationController
-  def create
-    user = User.authenticate_by(
-      email: params[:email], password: params[:password]
-    )
-    if user
-      session = user.sessions.create!
-      render json: { auth_token: session.token },
-             status: :created  # session.token => NoMethodError!
-    end
-  end
-end
+# 2. The destroy action authorizes the user against
+#    the product. Without it, anyone can DELETE
+#    anyone's product.
 
-# A request spec hitting POST /api/sessions
-# would have caught this before deploy.`,
-		goal: 'Set up a testing framework with test data factories, define a user factory, and write a request spec for the sessions endpoint.',
+# 3. Sign-up, login, and lookups all read and write
+#    through the encrypted email column. Renaming
+#    that column breaks login for every customer.
+
+# Running \`bundle exec rspec\` does nothing — rspec
+# is not even installed. No automated check runs
+# when a teammate edits the controller, a policy,
+# or a migration. The first signal that something
+# broke is a customer noticing.`,
+		goal: "Write automated checks that fire before any code reaches a customer. Wire in a real testing framework, configure test-data factories, and create a request spec that exercises the products endpoint end-to-end. After this level, any refactor that breaks a protection from earlier levels turns up as a red test on the developer's machine instead of a damaged homepage, deleted product, or 500 on login.",
 		thresholds: {},
 	},
 	successConditions: [
@@ -118,8 +115,12 @@ end
 	unlockedNodes: ['test'],
 	learningContent: {
 		title: 'RSpec, FactoryBot & Request Specs',
-		goal: `In this level, you'll:\n- set up automated testing for your API with a testing framework and test data factories.\n- write request specs that send real HTTP requests and verify JSON responses.\n- create reusable test data with factories instead of fixtures.\n- learn the testing philosophy that keeps Rails apps reliable as they grow.`,
-		conceptExplanation: `Testing is not optional for production applications. RSpec is the Ruby community standard.
+		goal: `In this level, you'll:\n- write automated checks that fire before any code reaches a customer.\n- write each protection from earlier levels down as a plain-English \`it "..."\` example.\n- generate test data dynamically with factories instead of static fixtures.\n- learn the testing philosophy that keeps Rails apps reliable as they grow.`,
+		conceptExplanation: `Testing is how you write the rules of your app down so a machine can check them on every change, before customers see the damage of a broken rule.
+
+A test is a plain-English assertion about how the app should behave, plus a small piece of code that proves it. RSpec's \`it "blocks a non-owner from updating"\` IS the test name; the body sets up the situation, makes the request, and checks the outcome holds. When a teammate's refactor breaks the rule, the example fails on their machine in 0.3 seconds instead of on a real customer hours later.
+
+RSpec is the Ruby community standard.
 
 **Test types (from most to least valuable for APIs):**
 - **Request specs** -- Test the full stack (HTTP in, JSON out). Your primary test type for APIs.
@@ -314,7 +315,7 @@ end`,
 			'Faker generating non-deterministic data without a seeded Faker::Config.random (CI-only flakes that do not reproduce locally)',
 		],
 		whenToUse:
-			'Write request specs for every API endpoint. Write model specs for complex validations and scopes. Write policy specs for authorization rules.',
+			'Write request specs for every endpoint that has rules customers depend on. Write model specs for validations and scopes. Write policy specs for authorization rules. The goal: every protection in your code has at least one example that fails when the protection is removed.',
 		furtherReading: [
 			{
 				title: 'RSpec Rails',
@@ -348,6 +349,6 @@ end`,
 	},
 	hint: {
 		delay: 25,
-		text: 'Rails 8 ships with Minitest, but the most widely-used Ruby test framework is a separate gem. Add it through Bundler so it lands in the project Gemfile, then run its setup generator -- the standard Rails way to install a test framework.',
+		text: 'Start by adding a real testing framework to the project, then scaffold its config files with the gem-provided generator. Once that is in place, every protection from earlier levels can be written down as a runnable example.',
 	},
 };

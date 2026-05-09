@@ -1533,7 +1533,7 @@ export function Level28Caching({ onComplete }: LevelComponentProps) {
 							</div>
 
 							{/* Visualization */}
-							<div className="px-6 pb-2">{renderCacheWaterfall()}</div>
+							<div className="px-6 pb-4">{renderCacheWaterfall()}</div>
 
 							{/* StageInspector overlay */}
 							{inspectorData && (
@@ -1546,7 +1546,7 @@ export function Level28Caching({ onComplete }: LevelComponentProps) {
 							)}
 
 							{/* Probe terminal */}
-							<div className="px-6 pb-2 flex-1 min-h-0 flex flex-col">
+							<div className="px-6 pb-4 flex-1 min-h-0 flex flex-col">
 								<ProbeTerminal
 									className="flex-1 flex flex-col"
 									disabled={vizAnimating}
@@ -1708,10 +1708,10 @@ export function Level28Caching({ onComplete }: LevelComponentProps) {
 							</div>
 
 							{/* Visualization */}
-							<div className="px-6 pb-2">{renderCacheWaterfall()}</div>
+							<div className="px-6 pb-4">{renderCacheWaterfall()}</div>
 
 							{/* Stress test controls */}
-							<div className="px-6 pb-2 flex-1 min-h-0 flex flex-col">
+							<div className="px-6 pb-4 flex-1 min-h-0 flex flex-col">
 								<StressTestPanel
 									allowedCount={stressTest.allowedCount}
 									blockedCount={stressTest.blockedCount}

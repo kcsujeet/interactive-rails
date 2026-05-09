@@ -92,6 +92,42 @@ The corrected landing: pre-L13 controllers use `to_unsafe_h`-style mass assignme
 
 ## Observe phase rules
 
+### Terminals dock at the bottom of the center panel (NON-NEGOTIABLE)
+
+In every level, every terminal component (`ProbeTerminal`, `StressTestPanel`, `SimulatedTerminal` / `TerminalChoiceStep`) renders **at the bottom of the center panel**, below the visualization. Never above. Never beside. Never floating in the middle.
+
+The canonical center-panel column layout: `LevelHeader` → visualization (`flex-1 min-h-0 overflow-hidden`) → terminal (docked at the bottom, fixed natural height with `pb-4` breathing room). Three sub-rules:
+
+1. **Terminal docked at the bottom**, never above or beside.
+2. **Bottom gap** — `pb-4` is canonical; `pb-2` reads as "bumping the edge."
+3. **Visualization fills the full available height** between the level header and the terminal. `flex-1 min-h-0` on the outer wrapper is necessary but not sufficient — the inner content (grid, list, card stack) must also `flex-1 min-h-0`, and individual items inside must `h-full` (grid cell) or `flex-1` (flex item) so they grow to fill. Otherwise a void appears above the terminal. `PipelineFlow` and `QueryZoneFlow` get this for free; custom Type 3 visualizations have to wire it up explicitly.
+
+The visualization is the knob to turn when the page envelope is too tight — compact the visualization, don't move the terminal. See `.agents/skills/audit-level/terminal-layout-guide.md` for the full rule, the canonical stretch recipe, and the L14 case study.
+
+### Show the damage, then introduce the fix
+
+Every level's observe phase must answer one question: **what bad thing happens to the player's app or to its customers if this level's concept is missing?** The answer is shown concretely, in customer-visible terms, before the build phase introduces the mechanism that prevents it.
+
+Abstract status icons (`?` / `✓` / `✗`), tool nodes ("Editor", "Test Runner", "CI"), and artifact previews (a spec file, a config file, a migration) do NOT pass this rule on their own — none of them stake the player. The player must SEE the damage:
+
+- a wrong price on the homepage (a customer ordered 1,000 units of a $0.01 product)
+- a victim's product showing up under an attacker's account
+- plaintext credentials in a database dump leaked via a backup
+- a customer logged out at 2am because a column rename took the auth flow down
+- a spam product pinned `FEATURED` on the homepage above legit listings
+- a 500 error in an order flow, repeated for hours before anyone notices
+
+**Worked examples already in the curriculum.**
+- L11 (Authorization): User A's `DELETE /api/products/:id` removes User B's product. The visualization shows the deletion. The player wants to stop it.
+- L13 (Strong Params): an authenticated user includes `featured: true` in a POST body; their product appears on the homepage `FEATURED` above legit listings. The player wants to stop it.
+- L10 (Encryption): an attacker dumps the DB and reads every email / phone / address in plaintext. The player wants to stop it.
+
+None of these levels lead with the mechanism (Pundit, `params.expect`, `encrypts`). They lead with the damage. The build phase introduces the mechanism that stops it.
+
+**The smell test.** When sketching a level's observe phase, ask: *would a player who sees this be motivated to do the build phase?* If the player's reaction would be "neat artifact, I guess?" — redesign. If the reaction is "this is bad, I have to fix this" — proceed. The probe-by-probe playthrough is downstream of this question; if the headline visualization shows a tool, an artifact, or a status grid, no amount of probe polish will rescue it.
+
+**Case study (L14 Testing redesigns, 2026-05-09).** Three sequential failures all answered the wrong question: a CI/CD pipeline (pre-baked deployment), Editor + Test Runner nodes (taught dev tools), and Behavior Coverage cards with `?` / `✓` / `✗` icons (abstract). A fourth attempt — a spec file artifact + rspec terminal — was on the artifact path again. Each iteration polished the wrong answer. The right design shows a customer-facing dashboard (homepage / account / login) and renders the real damage when a probe fires (spam product `FEATURED`, a stranger's `DELETE` taking out the player's listing, a 500 error on every login). With automated checks (post-L14), the same regression never reaches the dashboard — the rspec terminal catches it locally in 0.3s and the dashboard stays clean. The contrast is the lesson; the spec file is just the mechanism that produces the contrast.
+
 ### Probes are problems
 
 Every probe represents a distinct failure mode in the before-state that the build phase resolves. No happy paths. No "here's how it works correctly already." No hypotheticals.

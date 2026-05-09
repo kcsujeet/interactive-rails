@@ -4,25 +4,33 @@
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
- * Phase 1 (WHY - observe): Interactive exploration of a deploy pipeline with
- *   an empty test gate. Click stages to inspect them, fire "deploy" probes
- *   to see broken commits pass straight to production. Discovery gating
- *   controls when "Build the Fix" appears.
- * Phase 2 (HOW - build): 6 steps (3 terminal + 3 OptionCard) setting up RSpec + FactoryBot
- *   Step 0: bundle add rspec-rails (terminal)
- *   Step 1: rails generate rspec:install (terminal)
- *   Step 2: bundle add factory_bot_rails (terminal)
- *   Step 3: Configure FactoryBot in RSpec (OptionCard)
- *   Step 4: Write the User Factory (OptionCard)
- *   Step 5: Write the Request Spec (OptionCard)
- * Phase 3 (ADVANTAGE - reward): Stress test. Fire commits at the test gate
- *   and watch clean ones deploy while broken ones get caught.
- *
- * Teaches: RSpec, FactoryBot, request specs
+ * Phase 1 (WHY - observe): Customer-Impact Dashboard. Three customer-facing
+ *   surfaces stacked vertically (Homepage product list, Account page snippet,
+ *   Login form preview). Probes simulate real refactor mistakes from earlier
+ *   levels: dropping a security check (L13 regression), forgetting to put
+ *   authorize back (L11 regression), renaming an email column (L10 regression).
+ *   Each probe paints the customer-visible damage onto the dashboard and adds
+ *   a red incident-log entry with concrete cost (refunds, tickets, lost
+ *   orders). The bottom rspec terminal stays quiet -- no specs run, nothing
+ *   flagged the regression.
+ * Phase 2 (HOW - build): 7 steps (3 terminal + 4 OptionCard) setting up the
+ *   testing framework and writing a real spec.
+ *   Step 0: bundle add rspec-rails --group "development, test" (terminal)
+ *   Step 1: bin/rails generate rspec:install (terminal)
+ *   Step 2: bundle add factory_bot_rails --group "development, test" (terminal)
+ *   Step 3: Create spec/support/factory_bot.rb (OptionCard)
+ *   Step 4: Uncomment the support-file autoload in rails_helper.rb (OptionCard)
+ *   Step 5: Write the User factory (OptionCard)
+ *   Step 6: Write the Products request spec (OptionCard)
+ * Phase 3 (ADVANTAGE - reward): Same dashboard, same regressions. But now a
+ *   spec exists. The dashboard stays clean on every regression scenario; a
+ *   green toast surfaces ("Caught locally...") and the rspec terminal animates
+ *   the actual ....F. output naming the failed `it "..."`. The clean refactor
+ *   passes all 6 examples. The contrast is the lesson.
  */
 
-import { ArrowRight, Check, X } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { ArrowRight } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
 	buildTerminalHistory,
 	CenterPanel,
@@ -42,19 +50,11 @@ import {
 	type ValidationResult,
 } from '@/components/levels';
 import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
-import {
-	type PipelineConnection,
-	PipelineFlow,
-	type PipelineStage,
-} from '@/components/levels/PipelineFlow';
 import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
 import { ProbeTerminal } from '@/components/levels/ProbeTerminal';
-import {
-	StageInspector,
-	type StageInspectorData,
-} from '@/components/levels/StageInspector';
 import { StressTestPanel } from '@/components/levels/StressTestPanel';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import {
 	type DiscoveryDef,
 	useDiscoveryGating,
@@ -66,7 +66,7 @@ import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
 registerLevelCode('act2-level14-testing', () =>
-	getCodeFiles('reward', STEP_DEFS.length),
+	getCodeFiles('reward', STEP_DEFS.length - 1),
 );
 
 // ──────────────────────────────────────────────
@@ -76,255 +76,330 @@ registerLevelCode('act2-level14-testing', () =>
 type Phase = 'observe' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
+// Customer dashboard damage shape
+// ──────────────────────────────────────────────
+//
+// The visualization is three customer-facing surfaces (homepage / account /
+// login). Each probe paints damage onto the matching surface and adds an
+// incident-log entry. In reward, the dashboard stays clean for every
+// regression scenario: the spec catches the change before it reaches a
+// customer.
+
+interface HomepageDamage {
+	spam: true;
+}
+
+interface AccountDamage {
+	deletedByStranger: true;
+}
+
+interface LoginDamage {
+	serverError: true;
+}
+
+interface DashboardDamage {
+	homepage?: HomepageDamage;
+	account?: AccountDamage;
+	login?: LoginDamage;
+	incidentLog: string[];
+}
+
+// ──────────────────────────────────────────────
 // Discovery definitions (observe phase)
 // ──────────────────────────────────────────────
+//
+// IDs match probe IDs 1:1 so the gating helper enforces "fire every probe
+// to surface every distinct piece of customer damage."
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
-	{ id: 'no-framework', label: 'No test framework installed' },
-	{ id: 'empty-specs', label: 'Zero test files exist' },
-	{ id: 'broken-deploy', label: 'Broken code reaches production' },
-	{ id: 'no-test-data', label: 'No factories for test records' },
+	{
+		id: 'spam-product-on-homepage',
+		label: 'Spam product appears FEATURED on the homepage',
+	},
+	{
+		id: 'product-deleted-by-stranger',
+		label: "Customer's own product is deleted by a stranger",
+	},
+	{
+		id: 'login-down-overnight',
+		label: 'Login form 500s for every customer overnight',
+	},
 ];
 
 // ──────────────────────────────────────────────
 // Probe configurations (observe phase)
 // ──────────────────────────────────────────────
+//
+// Each probe simulates a real refactor mistake a teammate could make. The
+// label is plain-English consequence, not Rails-internal jargon. The
+// `damage` payload paints the customer-facing dashboard. The `responseLines`
+// are intentionally quiet: no specs run, the rspec terminal stays empty.
 
-const PROBES: ProbeConfig[] = [
+interface DamagedProbe extends ProbeConfig {
+	damage: DashboardDamage;
+}
+
+const PROBES: DamagedProbe[] = [
 	{
-		id: 'broken-login',
-		label: 'Deploy token rename',
-		command: 'git push origin main (renamed token -> auth_token)',
+		id: 'spam-product-on-homepage',
+		label: 'A junior dev refactors the controller and drops a security check',
+		command: 'bundle exec rspec',
 		responseLines: [
-			{ text: 'Deploying commit a3f91c2...', color: 'cyan' },
-			{ text: 'Build: OK', color: 'green' },
-			{ text: 'Test gate: (empty, no specs to run)', color: 'yellow' },
-			{ text: 'Deploy: SUCCESS', color: 'green' },
-			{ text: '', color: 'muted' },
-			{
-				text: 'POST /api/sessions => 500 Internal Server Error',
-				color: 'red',
-			},
-			{
-				text: "NoMethodError: undefined method 'token' for Session",
-				color: 'red',
-			},
-			{
-				text: 'Users unable to log in. No alert for 3 hours.',
-				color: 'yellow',
-			},
+			{ text: '$ bundle exec rspec', color: 'cyan' },
+			{ text: '# no specs run. nothing flagged this.', color: 'muted' },
 		],
+		damage: {
+			homepage: { spam: true },
+			incidentLog: [
+				'47 customers saw the spam ad before Marketing flagged it.',
+				'12 refund requests filed.',
+				'3-hour exposure window.',
+			],
+		},
 		story: [
-			'A developer renames the Session model\'s "token" column to "auth_token".',
-			'The commit passes the build step (no syntax errors).',
-			'The test gate is empty: zero specs exist to catch the broken method call.',
-			'The deploy goes live. Every login attempt crashes with a NoMethodError for 3 hours.',
+			'A junior dev refactors the products controller and accidentally drops the L13 line that filters which fields users can set.',
+			'A regular user posts featured: true in the body. With the L13 filter gone, the attribute now reaches the model and lands in the database.',
+			'The homepage updates: a spam product titled "Buy Crypto!!!" pinned FEATURED above legit listings.',
+			'Marketing notices three hours later. By then 47 customers have seen it and 12 refund requests are open.',
 		],
 	},
 	{
-		id: 'untested-endpoint',
-		label: 'Deploy broken create',
-		command: 'git push origin main (new products#create with typo)',
+		id: 'product-deleted-by-stranger',
+		label: 'A teammate refactors authorize and forgets to put it back',
+		command: 'bundle exec rspec',
 		responseLines: [
-			{ text: 'Deploying commit 7b2e4d1...', color: 'cyan' },
-			{ text: 'Build: OK', color: 'green' },
-			{ text: 'Test gate: (empty, no specs to run)', color: 'yellow' },
-			{ text: 'Deploy: SUCCESS', color: 'green' },
-			{ text: '', color: 'muted' },
-			{
-				text: 'POST /api/products => 500 Internal Server Error',
-				color: 'red',
-			},
-			{
-				text: "NameError: undefined local variable 'paramss'",
-				color: 'red',
-			},
-			{
-				text: 'No factory to generate test data. No spec to catch the typo.',
-				color: 'yellow',
-			},
+			{ text: '$ bundle exec rspec', color: 'cyan' },
+			{ text: '# no specs run. nothing flagged this.', color: 'muted' },
 		],
+		damage: {
+			account: { deletedByStranger: true },
+			incidentLog: [
+				'Alice opened a support ticket: "Where did my product go?"',
+				'Trust score down.',
+				'Restored manually from a backup.',
+			],
+		},
 		story: [
-			'A developer adds a new products#create action with a typo ("paramss").',
-			'The build passes because Ruby does not check variable names at compile time.',
-			'No request spec or factory exists to exercise the create endpoint.',
-			'The typo hits production. Every product creation attempt returns a 500 error.',
+			'A teammate refactors destroy in the products controller. The ownership check looks unused at a glance and gets removed.',
+			"A non-owner sends DELETE /api/products/:id against Alice's mug. Without the ownership check, the destroy goes through.",
+			'Alice opens her account page. The mug is gone, replaced by a strikethrough card labelled "DELETED by user_99".',
+			'Alice files a support ticket. The team restores the product from a backup. Trust score drops.',
 		],
 	},
 	{
-		id: 'bad-migration',
-		label: 'Deploy dropped column',
-		command: 'git push origin main (removed email column by accident)',
+		id: 'login-down-overnight',
+		label: 'A migration renames the email column',
+		command: 'bundle exec rspec',
 		responseLines: [
-			{ text: 'Deploying commit e5c8a09...', color: 'cyan' },
-			{ text: 'Build: OK', color: 'green' },
-			{ text: 'Test gate: (empty, no specs to run)', color: 'yellow' },
-			{ text: 'Deploy: SUCCESS', color: 'green' },
-			{ text: '', color: 'muted' },
-			{
-				text: 'GET /api/users => 500 Internal Server Error',
-				color: 'red',
-			},
-			{
-				text: "ActiveRecord::StatementInvalid: column 'email' does not exist",
-				color: 'red',
-			},
-			{
-				text: 'Every page that touches User is broken.',
-				color: 'yellow',
-			},
+			{ text: '$ bundle exec rspec', color: 'cyan' },
+			{ text: '# no specs run. nothing flagged this.', color: 'muted' },
 		],
+		damage: {
+			login: { serverError: true },
+			incidentLog: [
+				'All login attempts failed for 6 hours overnight.',
+				'$42K in lost orders.',
+				'PagerDuty fired at 2am.',
+			],
+		},
 		story: [
-			'A developer accidentally includes a migration that drops the email column.',
-			'The build succeeds because migrations run at deploy time, not build time.',
-			'No model or request specs reference the email column, so the test gate is empty.',
-			'After deploy, every endpoint that reads User.email crashes with a missing column error.',
+			'A teammate generates a migration that renames users.email_address to users.email and runs it.',
+			'The encrypted lookup, the auth concern, and the factory all reference email_address. Login crashes globally.',
+			'Every customer hitting the sign-in form sees a 500 error. The Sign-in button is disabled.',
+			'PagerDuty fires at 2am. By the time someone reverts six hours later, the site has lost $42K in orders.',
 		],
 	},
 ];
 
-// Map probe IDs to discovery IDs they trigger
+// Probe -> discovery is 1:1. Each probe surfaces one distinct piece of
+// customer damage, each piece is surfaced by exactly one probe.
 const PROBE_DISCOVERY_MAP: Record<string, string> = {
-	'broken-login': 'broken-deploy',
-	'untested-endpoint': 'no-test-data',
-	'bad-migration': 'empty-specs',
-};
-
-// Map probe IDs to pipeline node display during observe
-const PROBE_PIPELINE_MAP: Record<
-	string,
-	{ testSublabel: string; prodBadge: string }
-> = {
-	'broken-login': { testSublabel: '(no tests)', prodBadge: '500!' },
-	'untested-endpoint': { testSublabel: '(no tests)', prodBadge: '500!' },
-	'bad-migration': { testSublabel: '(no tests)', prodBadge: '500!' },
-};
-
-// ──────────────────────────────────────────────
-// Stage inspector data (observe phase)
-// ──────────────────────────────────────────────
-
-const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
-	code: {
-		stageId: 'code',
-		title: 'Code Push',
-		description:
-			'Developers push commits to the main branch. Each commit might introduce new features, bug fixes, or accidental regressions. Without automated checks, every push is a gamble.',
-	},
-	build: {
-		stageId: 'build',
-		title: 'Build Step',
-		description:
-			'Bundler installs dependencies and compiles assets. The build step only checks that the code can be loaded, not that it works correctly. Syntax errors are caught here, but logic bugs pass through.',
-	},
-	test: {
-		stageId: 'test',
-		title: 'Test Gate (Empty!)',
-		description:
-			'This gate does not exist yet. There is no test framework, no spec files, no factories. Every commit passes through to production without any automated verification.',
-		code: `# spec/ directory:
-# (empty)
-# No .rspec file
-# No spec_helper.rb
-# No rails_helper.rb
-# No factories/
-# No request specs`,
-	},
-	prod: {
-		stageId: 'prod',
-		title: 'Production (Unprotected)',
-		description:
-			'Users hit the live app directly. When a broken commit deploys, real users see 500 errors, broken forms, and missing data. The only "test" is user complaints.',
-	},
-};
-
-// Map stage IDs to discovery IDs they trigger
-const STAGE_DISCOVERY_MAP: Record<string, string> = {
-	test: 'no-framework',
-	prod: 'empty-specs',
+	'spam-product-on-homepage': 'spam-product-on-homepage',
+	'product-deleted-by-stranger': 'product-deleted-by-stranger',
+	'login-down-overnight': 'login-down-overnight',
 };
 
 // ──────────────────────────────────────────────
 // Stress test scenarios (reward phase)
 // ──────────────────────────────────────────────
+//
+// Same three regressions (1:1 with probes) plus a clean-refactor scenario.
+// All four set expectedResult: 'allowed' — from the customer's perspective,
+// "allowed = customer sees nothing wrong." The spec catches the regressions
+// locally; the dashboard stays clean.
 
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
-		id: 'broken-login',
-		label: 'Deploy token rename',
-		description: 'Renamed token column but forgot to update controller',
-		method: 'PUSH',
-		path: 'sessions_controller.rb',
-		actor: 'dev_bob',
-		expectedResult: 'blocked',
-	},
-	{
-		id: 'untested-endpoint',
-		label: 'Deploy broken create',
-		description: 'New products#create with typo, request spec catches it',
-		method: 'PUSH',
-		path: 'products_controller.rb',
-		actor: 'dev_charlie',
-		expectedResult: 'blocked',
-	},
-	{
-		id: 'bad-migration',
-		label: 'Deploy dropped column',
-		description: 'Removed email column by accident, model spec catches it',
-		method: 'PUSH',
-		path: 'user.rb',
-		actor: 'dev_alice',
-		expectedResult: 'blocked',
-	},
-	{
-		id: 'clean-refactor',
-		label: 'Clean model refactor',
-		description: 'Refactored session creation, all specs still pass',
-		method: 'PUSH',
-		path: 'sessions_controller.rb',
-		actor: 'dev_alice',
+		id: 'spam-product-on-homepage',
+		label: 'A junior dev refactors the controller and drops a security check',
+		description:
+			"Same regression as the observe probe. The request spec asserts that a posted product with featured: true ends up with featured = false. The suite goes red on the developer's machine; the change never reaches the homepage.",
+		method: 'rspec',
+		path: 'spec/requests/products_spec.rb',
+		actor: 'before merge',
 		expectedResult: 'allowed',
+		responseLines: [
+			{ text: '$ bundle exec rspec', color: 'cyan' },
+			{ text: 'Run options: include {:focus=>true}', color: 'muted' },
+			{ text: '....F.', color: 'red' },
+			{ text: '', color: 'muted' },
+			{ text: 'Failures:', color: 'red' },
+			{
+				text: '  1) Api::Products POST /api/products drops featured: true (admin-only field)',
+				color: 'red',
+			},
+			{
+				text: '     Failure/Error: expect(Product.last.featured).to be false',
+				color: 'red',
+			},
+			{ text: '       expected false, got true', color: 'red' },
+			{ text: '', color: 'muted' },
+			{
+				text: 'Finished in 0.3 seconds (files took 1.2 seconds to load)',
+				color: 'muted',
+			},
+			{ text: '6 examples, 1 failure', color: 'red' },
+		],
+		story: [
+			'Same junior dev, same edit: they remove the line that filters which fields a regular user can set.',
+			'But you wrote a spec at L14 that posts featured: true and expects Product.last.featured to be false.',
+			"rspec runs in 0.3 seconds on the dev's machine and reports 6 examples, 1 failure.",
+			'The change never reaches the homepage. Customers see the normal three products.',
+		],
 	},
 	{
-		id: 'clean-validation',
-		label: 'Clean validation add',
-		description: 'Added email format validation, specs pass',
-		method: 'PUSH',
-		path: 'user.rb',
-		actor: 'dev_alice',
+		id: 'product-deleted-by-stranger',
+		label: 'A teammate refactors authorize and forgets to put it back',
+		description:
+			'Same regression as the observe probe. The request spec asserts that a non-owner DELETE returns 404 or 403. With the authorize call missing, the suite goes red before merge.',
+		method: 'rspec',
+		path: 'spec/requests/products_spec.rb',
+		actor: 'before merge',
 		expectedResult: 'allowed',
+		responseLines: [
+			{ text: '$ bundle exec rspec', color: 'cyan' },
+			{ text: 'Run options: include {:focus=>true}', color: 'muted' },
+			{ text: '.....F', color: 'red' },
+			{ text: '', color: 'muted' },
+			{ text: 'Failures:', color: 'red' },
+			{
+				text: '  1) Api::Products PATCH /api/products/:id blocks a non-owner with 404 (Pundit + scoped policy)',
+				color: 'red',
+			},
+			{
+				text: '     Failure/Error: expect(response).to have_http_status(:not_found).or have_http_status(:forbidden)',
+				color: 'red',
+			},
+			{
+				text: '       expected the response to have status :not_found or :forbidden, got 200',
+				color: 'red',
+			},
+			{ text: '', color: 'muted' },
+			{
+				text: 'Finished in 0.3 seconds (files took 1.2 seconds to load)',
+				color: 'muted',
+			},
+			{ text: '6 examples, 1 failure', color: 'red' },
+		],
+		story: [
+			'Same teammate, same edit: they remove the ownership check from destroy.',
+			'But you wrote a spec at L14 that deletes a product as a non-owner and expects 404 or 403.',
+			'rspec runs in 0.3 seconds and reports 6 examples, 1 failure.',
+			'Alice never opens a support ticket. Her product stays in her account.',
+		],
 	},
 	{
-		id: 'clean-endpoint',
-		label: 'Clean new endpoint',
-		description: 'Added show action with passing specs',
-		method: 'PUSH',
-		path: 'products_controller.rb',
-		actor: 'dev_bob',
+		id: 'login-down-overnight',
+		label: 'A migration renames the email column',
+		description:
+			'Same migration as the observe probe. The factory still sets email_address; every spec that calls create(:user) errors out. The suite is red before any customer hits the sign-in form.',
+		method: 'rspec',
+		path: 'spec/requests/products_spec.rb',
+		actor: 'before merge',
 		expectedResult: 'allowed',
+		responseLines: [
+			{ text: '$ bundle exec rspec', color: 'cyan' },
+			{ text: 'Run options: include {:focus=>true}', color: 'muted' },
+			{ text: 'EEEEEE', color: 'red' },
+			{ text: '', color: 'muted' },
+			{ text: 'Failures:', color: 'red' },
+			{
+				text: '  1) Api::Products GET /api/products returns the products visible to the current user',
+				color: 'red',
+			},
+			{
+				text: '     Failure/Error: sequence(:email_address) { |n| "user#{n}@example.com" }',
+				color: 'red',
+			},
+			{
+				text: "       NoMethodError: undefined method `email_address=' for #<User>",
+				color: 'red',
+			},
+			{ text: '', color: 'muted' },
+			{
+				text: 'Finished in 0.4 seconds (files took 1.2 seconds to load)',
+				color: 'muted',
+			},
+			{ text: '6 examples, 6 failures', color: 'red' },
+		],
+		story: [
+			'Same teammate, same migration: they rename users.email_address to users.email.',
+			'But you wrote a spec at L14 that creates users via the factory.',
+			'Every example errors out with NoMethodError before it can even hit a request.',
+			'rspec runs in 0.4 seconds and reports 6 examples, 6 failures. Login stays up.',
+		],
+	},
+	{
+		id: 'helper-rename-clean-refactor',
+		label: 'Refactor: rename a private helper method',
+		description:
+			'A real refactor with no behavior change. All six examples pass. The same spec that catches regressions confirms safe edits stay safe.',
+		method: 'rspec',
+		path: 'spec/requests/products_spec.rb',
+		actor: 'before merge',
+		expectedResult: 'allowed',
+		responseLines: [
+			{ text: '$ bundle exec rspec', color: 'cyan' },
+			{ text: 'Run options: include {:focus=>true}', color: 'muted' },
+			{ text: '......', color: 'green' },
+			{ text: '', color: 'muted' },
+			{
+				text: 'Finished in 0.3 seconds (files took 1.2 seconds to load)',
+				color: 'muted',
+			},
+			{ text: '6 examples, 0 failures', color: 'green' },
+		],
+		story: [
+			'A teammate renames a private helper method in products_controller.rb. No public behavior changes.',
+			'They run the spec you wrote at L14.',
+			'All six examples pass. rspec reports "6 examples, 0 failures".',
+			'The same spec that catches regressions also confirms safe edits stay safe. The rename ships with confidence.',
+		],
 	},
 ];
 
 // ──────────────────────────────────────────────
-// Step definitions (6 steps: 3 terminal + 3 OptionCard)
+// Step definitions (7 steps: 3 terminal + 4 OptionCard)
 // ──────────────────────────────────────────────
 
 const STEP_DEFS: StepDef[] = [
-	{ id: 'add-rspec', title: 'Add rspec-rails Gem' },
-	{ id: 'run-rspec-install', title: 'Run RSpec Generator' },
-	{ id: 'add-factory-bot', title: 'Add factory_bot_rails Gem' },
-	{ id: 'configure-factory-bot', title: 'Configure FactoryBot in RSpec' },
-	{ id: 'write-factory', title: 'Write the User Factory' },
-	{ id: 'write-request-spec', title: 'Write the Request Spec' },
+	{ id: 'add-rspec', title: 'Add the test framework gem' },
+	{ id: 'run-rspec-install', title: 'Run the install generator' },
+	{ id: 'add-factory-bot', title: 'Add the factories gem' },
+	{ id: 'create-support-file', title: 'Create the support file' },
+	{ id: 'uncomment-glob', title: 'Autoload spec/support/' },
+	{ id: 'write-factory', title: 'Write the User factory' },
+	{ id: 'write-request-spec', title: 'Write the products request spec' },
 ];
 
 const STEP_TYPES: ('terminal' | 'option')[] = [
-	'terminal', // 0: bundle add rspec-rails
-	'terminal', // 1: rails generate rspec:install
-	'terminal', // 2: bundle add factory_bot_rails
-	'option', // 3: Configure FactoryBot
-	'option', // 4: Write User Factory
-	'option', // 5: Write Request Spec
+	'terminal',
+	'terminal',
+	'terminal',
+	'option',
+	'option',
+	'option',
+	'option',
 ];
 
 // ──────────────────────────────────────────────
@@ -333,35 +408,39 @@ const STEP_TYPES: ('terminal' | 'option')[] = [
 
 const addRspecCommands: TerminalCommand[] = [
 	{
-		id: 'wrong-gem-install',
-		label: 'gem install rspec',
-		command: 'gem install rspec',
+		id: 'wrong-default-group',
+		label: 'bundle add rspec-rails',
+		command: 'bundle add rspec-rails',
 		correct: false,
 		feedback:
-			"That installs system-wide, not into your project's Gemfile. Use the bundler command that adds and installs in one step.",
+			'bundle add without a group puts the gem in the default group. That ships it to production, where you never run specs — wasted memory and a larger Gemfile.lock for nothing. Pick the option that scopes the gem to the groups where it is actually used.',
+	},
+	{
+		id: 'wrong-test-only',
+		label: 'bundle add rspec-rails --group "test"',
+		command: 'bundle add rspec-rails --group "test"',
+		correct: false,
+		feedback:
+			'Test-only is too narrow. The generator that creates spec files runs in the development environment, so the gem has to be loadable there too. Look for the option that includes both groups.',
 	},
 	{
 		id: 'correct',
-		label: 'bundle add rspec-rails',
-		command: 'bundle add rspec-rails',
+		label: 'bundle add rspec-rails --group "development, test"',
+		command: 'bundle add rspec-rails --group "development, test"',
 		correct: true,
-	},
-	{
-		id: 'wrong-npm',
-		label: 'npm install jest',
-		command: 'npm install jest',
-		correct: false,
-		feedback:
-			'Jest is a JavaScript testing framework. You need a Ruby testing framework for a Rails app.',
 	},
 ];
 
 const addRspecOutput: TerminalOutputLine[] = [
+	{ text: 'Fetching gem metadata from https://rubygems.org/.', color: 'muted' },
+	{ text: 'Resolving dependencies...', color: 'muted' },
+	{ text: 'Fetching rspec-support 3.13.5', color: 'cyan' },
+	{ text: 'Fetching rspec-core 3.13.6', color: 'cyan' },
+	{ text: 'Fetching rspec-expectations 3.13.5', color: 'cyan' },
+	{ text: 'Fetching rspec-mocks 3.13.7', color: 'cyan' },
 	{ text: 'Fetching rspec-rails 8.0.4', color: 'cyan' },
-	{ text: 'Installing rspec-core 3.14.2', color: 'muted' },
-	{ text: 'Installing rspec-expectations 3.14.0', color: 'muted' },
 	{ text: 'Installing rspec-rails 8.0.4', color: 'muted' },
-	{ text: 'Bundle complete! 14 Gemfile dependencies.', color: 'green' },
+	{ text: 'Bundle complete!', color: 'green' },
 ];
 
 // ──────────────────────────────────────────────
@@ -371,17 +450,11 @@ const addRspecOutput: TerminalOutputLine[] = [
 const runRspecInstallCommands: TerminalCommand[] = [
 	{
 		id: 'wrong-test-install',
-		label: 'rails generate test:install',
-		command: 'rails generate test:install',
+		label: 'bin/rails generate test:install',
+		command: 'bin/rails generate test:install',
 		correct: false,
 		feedback:
-			'There is no test:install generator. RSpec has its own generator name that matches the gem.',
-	},
-	{
-		id: 'correct',
-		label: 'rails generate rspec:install',
-		command: 'rails generate rspec:install',
-		correct: true,
+			'There is no test:install generator. Each test framework registers a generator named after itself. Pick the option whose generator name matches the gem you just installed.',
 	},
 	{
 		id: 'wrong-rspec-init',
@@ -389,12 +462,19 @@ const runRspecInstallCommands: TerminalCommand[] = [
 		command: 'rspec --init',
 		correct: false,
 		feedback:
-			'That initializes plain RSpec without Rails integration. You need the Rails-specific generator for helpers and config.',
+			'That bootstraps plain RSpec without the Rails integration: no rails_helper.rb, no Active Record hooks, no fixture path config. You need the Rails-aware generator.',
+	},
+	{
+		id: 'correct',
+		label: 'bin/rails generate rspec:install',
+		command: 'bin/rails generate rspec:install',
+		correct: true,
 	},
 ];
 
 const runRspecInstallOutput: TerminalOutputLine[] = [
 	{ text: '      create  .rspec', color: 'green' },
+	{ text: '      create  spec', color: 'green' },
 	{ text: '      create  spec/spec_helper.rb', color: 'green' },
 	{ text: '      create  spec/rails_helper.rb', color: 'green' },
 ];
@@ -405,34 +485,37 @@ const runRspecInstallOutput: TerminalOutputLine[] = [
 
 const addFactoryBotCommands: TerminalCommand[] = [
 	{
-		id: 'wrong-factory-bot',
-		label: 'bundle add factory_bot',
-		command: 'bundle add factory_bot',
+		id: 'wrong-default-group',
+		label: 'bundle add factory_bot_rails',
+		command: 'bundle add factory_bot_rails',
 		correct: false,
 		feedback:
-			'That is the plain Ruby gem. The Rails variant auto-discovers factories and integrates with the test environment.',
+			'No --group means the gem lands in the default production group. Factories are only used in specs; shipping them to production is wasted memory.',
 	},
 	{
-		id: 'wrong-faker',
-		label: 'bundle add faker',
-		command: 'bundle add faker',
+		id: 'wrong-plain-factory',
+		label: 'bundle add factory_bot --group "development, test"',
+		command: 'bundle add factory_bot --group "development, test"',
 		correct: false,
 		feedback:
-			'Faker generates fake data (names, emails). You need a factory library for creating test records.',
+			'That is the plain Ruby variant. The Rails variant auto-discovers spec/factories/*.rb and integrates with the Rails test runner — you would have to wire all of that up by hand otherwise.',
 	},
 	{
 		id: 'correct',
-		label: 'bundle add factory_bot_rails',
-		command: 'bundle add factory_bot_rails',
+		label: 'bundle add factory_bot_rails --group "development, test"',
+		command: 'bundle add factory_bot_rails --group "development, test"',
 		correct: true,
 	},
 ];
 
 const addFactoryBotOutput: TerminalOutputLine[] = [
+	{ text: 'Fetching gem metadata from https://rubygems.org/.', color: 'muted' },
+	{ text: 'Resolving dependencies...', color: 'muted' },
+	{ text: 'Fetching factory_bot 6.6.0', color: 'cyan' },
 	{ text: 'Fetching factory_bot_rails 6.5.1', color: 'cyan' },
 	{ text: 'Installing factory_bot 6.6.0', color: 'muted' },
 	{ text: 'Installing factory_bot_rails 6.5.1', color: 'muted' },
-	{ text: 'Bundle complete! 15 Gemfile dependencies.', color: 'green' },
+	{ text: 'Bundle complete!', color: 'green' },
 ];
 
 // ──────────────────────────────────────────────
@@ -443,9 +526,10 @@ const SHELL_STEP_MAP: (TerminalStepData | null)[] = [
 	{ commands: addRspecCommands, outputLines: addRspecOutput },
 	{ commands: runRspecInstallCommands, outputLines: runRspecInstallOutput },
 	{ commands: addFactoryBotCommands, outputLines: addFactoryBotOutput },
-	null, // step 3: OptionCard
-	null, // step 4: OptionCard
-	null, // step 5: OptionCard
+	null,
+	null,
+	null,
+	null,
 ];
 
 // ──────────────────────────────────────────────
@@ -460,109 +544,164 @@ interface StepOption {
 }
 
 // ──────────────────────────────────────────────
-// Step 3: Configure FactoryBot in RSpec (OptionCard)
+// Step 3: Create the support file (OptionCard)
 // ──────────────────────────────────────────────
 
-const CONFIGURE_FB_OPTIONS: StepOption[] = [
+const SUPPORT_FILE_OPTIONS: StepOption[] = [
 	{
 		id: 'wrong-require',
-		label: 'require "factory_bot"',
+		label: `# spec/support/factory_bot.rb
+require "factory_bot"`,
 		correct: false,
 		feedback:
-			'Requiring the library loads it, but does not make DSL methods like create() and build() available in your specs.',
+			'Requiring the gem only loads the library. It does not make the DSL methods available inside RSpec examples.',
+	},
+	{
+		id: 'wrong-wrong-module',
+		label: `# spec/support/factory_bot.rb
+RSpec.configure do |config|
+  config.include FactoryBot::Methods
+end`,
+		correct: false,
+		feedback:
+			'FactoryBot::Methods is not a real module. The DSL methods (create, build, build_stubbed) live inside a Syntax namespace.',
 	},
 	{
 		id: 'correct',
-		label: 'config.include FactoryBot::Syntax::Methods',
+		label: `# spec/support/factory_bot.rb
+RSpec.configure do |config|
+  config.include FactoryBot::Syntax::Methods
+end`,
 		correct: true,
-	},
-	{
-		id: 'wrong-module',
-		label: 'config.include FactoryBot::Methods',
-		correct: false,
-		feedback:
-			"That module doesn't exist. The DSL methods live in a specific Syntax namespace.",
 	},
 ];
 
 // ──────────────────────────────────────────────
-// Step 4: Write the User Factory (OptionCard)
+// Step 4: Uncomment the support-file autoload (OptionCard)
+// ──────────────────────────────────────────────
+
+const UNCOMMENT_GLOB_OPTIONS: StepOption[] = [
+	{
+		id: 'wrong-direct-include',
+		label: `# spec/rails_helper.rb
+RSpec.configure do |config|
+  config.include FactoryBot::Syntax::Methods
+end`,
+		correct: false,
+		feedback:
+			'Putting the include directly in rails_helper.rb works, but it skips the support-file convention every Rails team uses. The next concern (request helpers, time helpers, WebMock) would also have to live in rails_helper.rb until the file is impossible to read.',
+	},
+	{
+		id: 'wrong-spec-helper',
+		label: `# spec/spec_helper.rb
+require_relative "../spec/support/factory_bot"`,
+		correct: false,
+		feedback:
+			'spec_helper.rb is the framework-only helper that loads before Rails is booted. Loading FactoryBot from there fails — the gem requires Rails to be loaded first.',
+	},
+	{
+		id: 'correct',
+		label: `# spec/rails_helper.rb (uncomment the line)
+Rails.root.glob("spec/support/**/*.rb").sort_by(&:to_s).each { |f| require f }`,
+		correct: true,
+	},
+];
+
+// ──────────────────────────────────────────────
+// Step 5: Write the User factory (OptionCard)
 // ──────────────────────────────────────────────
 
 const WRITE_FACTORY_OPTIONS: StepOption[] = [
 	{
-		id: 'wrong-yaml',
-		label: `# test/fixtures/users.yml
-one:
-  email: user@example.com
-  password_digest: <%= BCrypt::Password.create("pass") %>`,
+		id: 'wrong-fixed-email',
+		label: `FactoryBot.define do
+  factory :user do
+    email_address { "user@example.com" }
+    password { "password123" }
+  end
+end`,
 		correct: false,
 		feedback:
-			'YAML fixtures are static and brittle. Factories generate unique data on each call and compose traits flexibly.',
+			'The User model validates email_address for uniqueness. Two specs that each create(:user) collide on the second insert and one of them blows up with a validation error. Test data has to be unique per call.',
+	},
+	{
+		id: 'wrong-password-digest',
+		label: `FactoryBot.define do
+  factory :user do
+    email_address { "user@example.com" }
+    password_digest { "abc123" }
+  end
+end`,
+		correct: false,
+		feedback:
+			'password_digest writes the column directly and skips has_secure_password. The hash is not a real BCrypt digest, so authenticate_by always returns nil. Login specs would fail even with a "correct" password.',
 	},
 	{
 		id: 'correct',
 		label: `FactoryBot.define do
   factory :user do
-    email { Faker::Internet.email }
+    sequence(:email_address) { |n| "user#{n}@example.com" }
     password { "password123" }
   end
 end`,
 		correct: true,
 	},
-	{
-		id: 'wrong-sql',
-		label: `ActiveRecord::Base.connection.execute(<<~SQL)
-  INSERT INTO users (email, password_digest)
-  VALUES ('test@ex.com', 'abc123')
-SQL`,
-		correct: false,
-		feedback:
-			'Raw SQL bypasses model validations and callbacks. Test data should go through the same code path as production.',
-	},
 ];
 
 // ──────────────────────────────────────────────
-// Step 5: Write the Request Spec (OptionCard)
+// Step 6: Write the products request spec (OptionCard)
 // ──────────────────────────────────────────────
 
 const WRITE_SPEC_OPTIONS: StepOption[] = [
 	{
 		id: 'wrong-controller-spec',
-		label: `RSpec.describe SessionsController, type: :controller do
-  it "sets the session" do
-    post :create, params: { email: "a@b.com", password: "pass" }
-    expect(assigns(:token)).to be_present
+		label: `RSpec.describe Api::ProductsController, type: :controller do
+  it "creates a product" do
+    post :create, params: { product: { name: "X", price: 1 } }
+    expect(assigns(:product)).to be_persisted
   end
 end`,
 		correct: false,
 		feedback:
-			'Controller specs test internals like assigns(). Request specs test the real HTTP cycle your clients experience.',
+			'Controller specs poke at internals like assigns() and skip the full request stack: no real authentication, no Pundit, no params filter. They cannot catch any of the regressions you just observed.',
+	},
+	{
+		id: 'wrong-model-only',
+		label: `RSpec.describe Product, type: :model do
+  it "validates name presence" do
+    expect(build(:product, name: nil)).not_to be_valid
+  end
+end`,
+		correct: false,
+		feedback:
+			'Model specs only test the model in isolation. The regressions you saw all happen at the HTTP layer: dropped params filter, missing authorize call, broken column reference. A model spec would have caught none of them.',
 	},
 	{
 		id: 'correct',
-		label: `RSpec.describe "Sessions API", type: :request do
-  it "returns a token on valid login" do
-    user = create(:user, password: "password123")
-    post "/api/sessions",
-         params: { email: user.email, password: "password123" }
-    expect(response).to have_http_status(:created)
-    expect(response.parsed_body["token"]).to be_present
+		label: `RSpec.describe "Api::Products", type: :request do
+  let(:user)       { create(:user) }
+  let(:other_user) { create(:user) }
+  let(:headers) do
+    session = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "rspec")
+    { "Authorization" => "Bearer #{session.token}" }
+  end
+
+  it "drops featured: true on create" do
+    params = { product: { name: "X", description: "d", price: 1, featured: true } }
+    post "/api/products", params: params, headers: headers, as: :json
+    expect(Product.last.featured).to be false
+  end
+
+  it "blocks a non-owner from updating" do
+    product = create(:product, user: other_user, name: "Theirs")
+    patch "/api/products/#{product.id}",
+          params: { product: { name: "Hijacked" } },
+          headers: headers, as: :json
+    expect(response).to have_http_status(:not_found).or have_http_status(:forbidden)
+    expect(product.reload.name).to eq("Theirs")
   end
 end`,
 		correct: true,
-	},
-	{
-		id: 'wrong-model-spec',
-		label: `RSpec.describe User, type: :model do
-  it "authenticates with correct password" do
-    user = create(:user, password: "password123")
-    expect(user.authenticate("password123")).to eq(user)
-  end
-end`,
-		correct: false,
-		feedback:
-			'Model specs test the model in isolation. The login endpoint broke at the HTTP layer, not the model layer.',
 	},
 ];
 
@@ -576,234 +715,215 @@ const OPTION_STEP_CONFIG: Record<
 	}
 > = {
 	3: {
-		title: 'Configure FactoryBot in RSpec',
+		title: 'Create the support file',
 		description:
-			'FactoryBot is installed but RSpec does not know about it yet. Which line in rails_helper.rb makes create(), build(), and other FactoryBot methods available in every spec?',
-		options: CONFIGURE_FB_OPTIONS,
+			'FactoryBot is installed but RSpec does not know about it yet. Rails specs put one-concern config in spec/support/<concern>.rb. Which file content makes create() and build() available in every spec?',
+		options: SUPPORT_FILE_OPTIONS,
 	},
 	4: {
-		title: 'Write the User Factory',
+		title: 'Autoload spec/support files',
 		description:
-			'Your request spec needs a user to log in with. Which approach creates reusable, dynamic test data?',
-		options: WRITE_FACTORY_OPTIONS,
+			'rails_helper.rb is generated with the support-file autoload commented out. Pick the change that loads every file in spec/support/ for every spec, so the FactoryBot include actually runs.',
+		options: UNCOMMENT_GLOB_OPTIONS,
 	},
 	5: {
-		title: 'Write the Request Spec',
+		title: 'Write the User factory',
 		description:
-			'The login endpoint broke and nobody noticed. Which spec type would have caught it before deploy?',
+			'Your specs need to create users. The User model validates email_address for uniqueness and uses has_secure_password (so passwords are hashed via the password=virtual attribute, not by writing password_digest). Which factory does the right thing?',
+		options: WRITE_FACTORY_OPTIONS,
+	},
+	6: {
+		title: 'Write the products request spec',
+		description:
+			'You want one spec that catches the regressions you just saw: a dropped params filter, a missing authorize call, and a column rename. Which spec exercises the products controller end-to-end and asserts the actual behavior?',
 		options: WRITE_SPEC_OPTIONS,
 	},
 };
-
-// ──────────────────────────────────────────────
-// Pipeline visualization configs
-// ──────────────────────────────────────────────
-
-const OBSERVE_CONNECTIONS: PipelineConnection[] = [
-	{ from: 'code', to: 'build', dots: 'mixed' },
-	{ from: 'build', to: 'test', dots: 'mixed' },
-	{ from: 'test', to: 'prod', dots: 'mixed' },
-];
-
-const REWARD_CONNECTIONS: PipelineConnection[] = [
-	{ from: 'code', to: 'build', dots: 'mixed' },
-	{ from: 'build', to: 'test', dots: 'mixed' },
-	{ from: 'test', to: 'prod', dots: 'clean' },
-];
 
 // ──────────────────────────────────────────────
 // Code preview helper
 // ──────────────────────────────────────────────
 
 function getCodeFiles(phase: Phase, furthestStep: number) {
-	const files = [];
+	const files: {
+		filename: string;
+		language: string;
+		code: string;
+		highlight?: number[];
+	}[] = [];
 
-	// Observe phase: show the broken controller + empty spec dir
 	if (phase === 'observe') {
 		files.push({
-			filename: 'app/controllers/api/sessions_controller.rb',
-			language: 'ruby',
-			code: `class Api::SessionsController < ApplicationController
-  def create
-    user = User.authenticate_by(
-      email: params[:email],
-      password: params[:password]
-    )
-    if user
-      session = user.sessions.create!
-      render json: { auth_token: session.token },
-             status: :created
-    else
-      render json: { error: "Invalid credentials" },
-             status: :unauthorized
-    end
-  end
-end
-
-# Bug: column was renamed from 'token' to 'auth_token'
-# but line 9 still references session.token
-# => NoMethodError: undefined method 'token'
-# => 500 Internal Server Error`,
-			highlight: [9],
-		});
-		files.push({
-			filename: 'spec/',
+			filename: 'Terminal',
 			language: 'plaintext',
-			code: '# (empty directory)\n# No test framework configured\n# No factories\n# No specs',
+			code: `$ bundle exec rspec
+bundler: command not found: rspec
+
+# spec/ directory: does not exist yet.
+# test/ ships from \`rails new\` but only contains
+# the empty Minitest scaffolding (test_helper.rb,
+# models/, controllers/, system/) — no real specs.
+
+# When a teammate edits a controller or runs a
+# migration, nothing in the project asserts that
+# the rules from earlier levels still hold.
+# Every regression reaches a real customer
+# before anyone notices.`,
 		});
 		return files;
 	}
 
-	// Build / reward phases: show evolving code
-	if (furthestStep === 0) {
+	if (furthestStep >= 0) {
+		const showFactory = furthestStep >= 2;
 		files.push({
-			filename: 'app/controllers/api/sessions_controller.rb',
+			filename: 'Gemfile',
 			language: 'ruby',
-			code: `class Api::SessionsController < ApplicationController
-  def create
-    user = User.authenticate_by(
-      email: params[:email],
-      password: params[:password]
-    )
-    if user
-      session = user.sessions.create!
-      render json: { auth_token: session.token },
-             status: :created
-    else
-      render json: { error: "Invalid credentials" },
-             status: :unauthorized
-    end
-  end
-end`,
-			highlight: [9],
+			code: `source "https://rubygems.org"
+
+gem "rails", "~> 8.1.3"
+gem "pg", "~> 1.1"
+gem "puma", ">= 5.0"
+gem "bcrypt", "~> 3.1.7"
+# ... other production gems ...
+
+gem "jsonapi-serializer", "~> 2.2"
+gem "pundit", "~> 2.5"
+
+gem "rspec-rails", "~> 8.0", groups: [:development, :test]${showFactory ? '\n\ngem "factory_bot_rails", "~> 6.5", groups: [:development, :test]' : ''}`,
+			highlight: showFactory ? [12, 14] : [12],
 		});
 	}
 
 	if (furthestStep >= 1) {
-		// After step 0: Gemfile shows rspec-rails
-		files.push({
-			filename: 'Gemfile',
-			language: 'ruby',
-			code:
-				furthestStep >= 3
-					? `source "https://rubygems.org"
-
-gem "rails", "~> 8.0.0"
-gem "pg", "~> 1.1"
-gem "puma", ">= 5.0"
-gem "bcrypt", "~> 3.1.7"
-
-group :development, :test do
-  gem "rspec-rails"
-  gem "factory_bot_rails"
-end`
-					: `source "https://rubygems.org"
-
-gem "rails", "~> 8.0.0"
-gem "pg", "~> 1.1"
-gem "puma", ">= 5.0"
-gem "bcrypt", "~> 3.1.7"
-
-group :development, :test do
-  gem "rspec-rails"
-end`,
-			highlight: furthestStep >= 3 ? [9, 10] : [9],
-		});
-	}
-
-	if (furthestStep >= 2) {
-		// After step 1: .rspec + rails_helper.rb
 		files.push({
 			filename: '.rspec',
 			language: 'plaintext',
-			code: '--require spec_helper\n--format documentation\n--color',
+			code: '--require spec_helper',
 		});
+	}
+
+	if (furthestStep >= 3) {
+		files.push({
+			filename: 'spec/support/factory_bot.rb',
+			language: 'ruby',
+			code: `RSpec.configure do |config|
+  config.include FactoryBot::Syntax::Methods
+end`,
+			highlight: [2],
+		});
+	}
+
+	if (furthestStep >= 4) {
 		files.push({
 			filename: 'spec/rails_helper.rb',
 			language: 'ruby',
-			code:
-				furthestStep >= 4
-					? `require "spec_helper"
+			code: `require "spec_helper"
 ENV["RAILS_ENV"] ||= "test"
 require_relative "../config/environment"
+abort("...production!") if Rails.env.production?
 require "rspec/rails"
+
+# Loads spec/support/**/*.rb (e.g. factory_bot.rb).
+Rails.root.glob("spec/support/**/*.rb").sort_by(&:to_s).each { |f| require f }
 
 RSpec.configure do |config|
   config.use_transactional_fixtures = true
-  config.infer_spec_type_from_file_location!
-  config.include FactoryBot::Syntax::Methods
-end`
-					: `require "spec_helper"
-ENV["RAILS_ENV"] ||= "test"
-require_relative "../config/environment"
-require "rspec/rails"
-
-RSpec.configure do |config|
-  config.use_transactional_fixtures = true
-  config.infer_spec_type_from_file_location!
+  config.filter_rails_from_backtrace!
 end`,
-			highlight: furthestStep >= 4 ? [9] : [],
+			highlight: [8],
 		});
 	}
 
 	if (furthestStep >= 5) {
-		// After step 4: User factory
 		files.push({
 			filename: 'spec/factories/users.rb',
 			language: 'ruby',
 			code: `FactoryBot.define do
   factory :user do
-    email { Faker::Internet.email }
+    sequence(:email_address) { |n| "user#{n}@example.com" }
     password { "password123" }
   end
 end`,
-			highlight: [2, 3, 4],
+			highlight: [3, 4],
+		});
+		files.push({
+			filename: 'spec/factories/products.rb',
+			language: 'ruby',
+			code: `FactoryBot.define do
+  factory :product do
+    sequence(:name) { |n| "Product #{n}" }
+    description { "A high-quality product crafted with care." }
+    price { 19.99 }
+    user
+  end
+end`,
 		});
 	}
 
 	if (furthestStep >= 6) {
-		// After step 5: Request spec
 		files.push({
-			filename: 'spec/requests/api/sessions_spec.rb',
+			filename: 'spec/requests/products_spec.rb',
 			language: 'ruby',
 			code: `require "rails_helper"
 
-RSpec.describe "Sessions API", type: :request do
-  it "returns a token on valid login" do
-    user = create(:user, password: "password123")
-    post "/api/sessions",
-         params: { email: user.email,
-                   password: "password123" }
-    expect(response).to have_http_status(:created)
-    expect(response.parsed_body["token"]).to be_present
+RSpec.describe "Api::Products", type: :request do
+  let(:user)       { create(:user) }
+  let(:other_user) { create(:user) }
+  let(:headers) do
+    session = user.sessions.create!(ip_address: "127.0.0.1", user_agent: "rspec")
+    { "Authorization" => "Bearer #{session.token}" }
   end
 
-  it "returns 401 with wrong password" do
-    user = create(:user, password: "password123")
-    post "/api/sessions",
-         params: { email: user.email,
-                   password: "wrong" }
-    expect(response).to have_http_status(:unauthorized)
+  describe "GET /api/products" do
+    it "returns the products visible to the current user" do
+      create(:product, user: user, name: "Mine")
+      create(:product, user: other_user, name: "Theirs")
+      get "/api/products", headers: headers
+      expect(response).to have_http_status(:ok)
+    end
+
+    it "returns 401 without a token" do
+      get "/api/products"
+      expect(response).to have_http_status(:unauthorized)
+    end
+  end
+
+  describe "POST /api/products" do
+    it "creates a product owned by the current user" do
+      params = { product: { name: "New", description: "Brand new", price: 9.99 } }
+      expect {
+        post "/api/products", params: params, headers: headers, as: :json
+      }.to change(Product, :count).by(1)
+      expect(Product.last.user).to eq(user)
+    end
+
+    it "drops featured: true (admin-only field)" do
+      params = { product: { name: "Sneaky", description: "...", price: 1, featured: true } }
+      post "/api/products", params: params, headers: headers, as: :json
+      expect(Product.last.featured).to be false
+    end
+  end
+
+  describe "PATCH /api/products/:id" do
+    it "lets the owner update their product" do
+      product = create(:product, user: user, name: "Old")
+      patch "/api/products/#{product.id}",
+            params: { product: { name: "New" } },
+            headers: headers, as: :json
+      expect(product.reload.name).to eq("New")
+    end
+
+    it "blocks a non-owner with 404 (Pundit + scoped policy)" do
+      product = create(:product, user: other_user, name: "Theirs")
+      patch "/api/products/#{product.id}",
+            params: { product: { name: "Hijacked" } },
+            headers: headers, as: :json
+      expect(response).to have_http_status(:not_found).or have_http_status(:forbidden)
+      expect(product.reload.name).to eq("Theirs")
+    end
   end
 end`,
-			highlight: [4, 5, 9, 10, 14, 18],
-		});
-	}
-
-	if (furthestStep >= 7) {
-		// All complete: show passing test output
-		files.push({
-			filename: 'Test Output',
-			language: 'plaintext',
-			code: `$ bundle exec rspec spec/requests/api/sessions_spec.rb
-
-Sessions API
-  returns a token on valid login     PASSED
-  returns 401 with wrong password    PASSED
-
-2 examples, 0 failures
-
-Finished in 0.24 seconds`,
+			highlight: [37, 38, 39, 50, 51, 52],
 		});
 	}
 
@@ -811,25 +931,236 @@ Finished in 0.24 seconds`,
 }
 
 // ──────────────────────────────────────────────
-// Pipeline Legend
+// Customer dashboard sub-components
 // ──────────────────────────────────────────────
 
-function PipelineLegend() {
+interface ProductCardSpec {
+	name: string;
+	price: string;
+	featured?: boolean;
+	spam?: boolean;
+	deleted?: boolean;
+}
+
+const HOMEPAGE_IDLE: ProductCardSpec[] = [
+	{ name: 'Ceramic Mug', price: '$19.99' },
+	{ name: 'Sneakers', price: '$89.99' },
+	{ name: 'Notebook', price: '$4.99' },
+];
+
+const HOMEPAGE_SPAM: ProductCardSpec[] = [
+	{ name: 'Buy Crypto!!!', price: '$0.01', spam: true, featured: true },
+	{ name: 'Sneakers', price: '$89.99' },
+	{ name: 'Notebook', price: '$4.99' },
+];
+
+const ACCOUNT_IDLE: ProductCardSpec[] = [
+	{ name: 'Ceramic Mug', price: '$19.99' },
+	{ name: 'Notebook', price: '$4.99' },
+];
+
+const ACCOUNT_DELETED: ProductCardSpec[] = [
+	{ name: 'Ceramic Mug', price: '$19.99', deleted: true },
+	{ name: 'Notebook', price: '$4.99' },
+];
+
+interface ProductCardProps {
+	product: ProductCardSpec;
+}
+
+function ProductCard({ product }: ProductCardProps) {
+	if (product.spam) {
+		return (
+			<div className="rounded-md border-2 border-destructive bg-destructive/10 p-2 relative flex-1 min-h-0 flex flex-col justify-center">
+				<div className="absolute -top-1.5 -right-1.5 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold px-1.5 py-0.5 shadow-md">
+					FEATURED
+				</div>
+				<div className="text-xs font-bold text-destructive truncate">
+					{product.name}
+				</div>
+				<div className="text-xs text-destructive font-semibold">
+					{product.price}
+				</div>
+			</div>
+		);
+	}
+	if (product.deleted) {
+		return (
+			<div className="rounded-md border-2 border-destructive bg-destructive/10 p-2 relative flex-1 min-h-0 flex flex-col justify-center">
+				<div className="absolute -top-1.5 -right-1.5 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold px-1.5 py-0.5 shadow-md">
+					DELETED
+				</div>
+				<div className="text-xs font-bold text-destructive line-through truncate">
+					{product.name}
+				</div>
+				<div className="text-[10px] text-destructive font-semibold">
+					by user_99
+				</div>
+			</div>
+		);
+	}
 	return (
-		<div className="p-4 border-b border-border">
-			<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-				Pipeline Legend
+		<div className="rounded-md border border-border bg-card p-2 flex-1 min-h-0 flex flex-col justify-center">
+			<div className="text-xs font-medium text-foreground truncate">
+				{product.name}
 			</div>
-			<div className="space-y-2 text-sm">
-				<div className="flex items-center gap-2">
-					<Check className="w-4 h-4 text-success" />
-					<span className="text-foreground">Clean commit (tests pass)</span>
-				</div>
-				<div className="flex items-center gap-2">
-					<X className="w-4 h-4 text-destructive" />
-					<span className="text-foreground">Broken commit (tests catch)</span>
-				</div>
+			<div className="text-xs text-muted-foreground">{product.price}</div>
+		</div>
+	);
+}
+
+interface ColumnPanelProps {
+	title: string;
+	children: React.ReactNode;
+}
+
+function ColumnPanel({ title, children }: ColumnPanelProps) {
+	return (
+		<div className="border border-border rounded-md p-2 flex flex-col gap-1.5 min-w-0 h-full">
+			<div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+				{title}
 			</div>
+			{children}
+		</div>
+	);
+}
+
+interface HomepageProductsProps {
+	damage?: HomepageDamage;
+}
+
+function HomepageProducts({ damage }: HomepageProductsProps) {
+	const products = damage ? HOMEPAGE_SPAM : HOMEPAGE_IDLE;
+	return (
+		<ColumnPanel title="Home Page">
+			<div className="flex flex-col gap-1.5 flex-1 min-h-0">
+				{products.map((p) => (
+					<ProductCard key={p.name} product={p} />
+				))}
+			</div>
+		</ColumnPanel>
+	);
+}
+
+interface AccountListProps {
+	damage?: AccountDamage;
+}
+
+function AccountList({ damage }: AccountListProps) {
+	const products = damage ? ACCOUNT_DELETED : ACCOUNT_IDLE;
+	return (
+		<ColumnPanel title="Account Page (Alice)">
+			<div className="flex flex-col gap-1.5 flex-1 min-h-0">
+				{products.map((p) => (
+					<ProductCard key={p.name} product={p} />
+				))}
+			</div>
+		</ColumnPanel>
+	);
+}
+
+interface LoginPreviewProps {
+	damage?: LoginDamage;
+}
+
+function LoginPreview({ damage }: LoginPreviewProps) {
+	const broken = !!damage;
+	if (broken) {
+		return (
+			<ColumnPanel title="Login Page">
+				<div className="rounded-md border-2 border-destructive bg-destructive/10 p-3 flex flex-col gap-2 items-center justify-center flex-1 min-h-0 relative">
+					<div className="rounded bg-destructive text-destructive-foreground px-2 py-1 text-xs font-bold shadow-md tracking-wider">
+						SERVER ERROR 500
+					</div>
+					<div className="text-[10px] text-destructive font-semibold text-center leading-tight">
+						Sign-in unavailable
+					</div>
+					<Button
+						className="w-full h-8 text-xs mt-1 opacity-50"
+						disabled
+						size="sm"
+						variant="outline"
+					>
+						Sign in
+					</Button>
+				</div>
+			</ColumnPanel>
+		);
+	}
+	return (
+		<ColumnPanel title="Login Page">
+			<div className="rounded-md border border-border bg-background p-3 flex flex-col gap-2 flex-1 min-h-0 justify-center">
+				<div className="rounded border border-border bg-muted/50 px-2 py-1.5 text-[10px] text-muted-foreground">
+					email
+				</div>
+				<div className="rounded border border-border bg-muted/50 px-2 py-1.5 text-[10px] text-muted-foreground">
+					password
+				</div>
+				<Button className="w-full h-8 text-xs" size="sm" variant="default">
+					Sign in
+				</Button>
+			</div>
+		</ColumnPanel>
+	);
+}
+
+interface IncidentLogProps {
+	entries: string[];
+}
+
+function IncidentLog({ entries }: IncidentLogProps) {
+	if (entries.length === 0) return null;
+	return (
+		<div className="border border-destructive/40 bg-destructive/5 rounded-md px-3 py-1.5 flex items-center gap-3 flex-wrap">
+			<span className="text-[10px] font-semibold text-destructive uppercase tracking-wider shrink-0">
+				Incident log
+			</span>
+			<ul className="flex items-center gap-3 flex-wrap min-w-0">
+				{entries.map((entry) => (
+					<li
+						className="text-xs text-destructive flex items-center gap-1.5 leading-tight"
+						key={entry}
+					>
+						<span aria-hidden className="text-destructive">
+							•
+						</span>
+						<span>{entry}</span>
+					</li>
+				))}
+			</ul>
+		</div>
+	);
+}
+
+interface CustomerDashboardProps {
+	damage: DashboardDamage | null;
+}
+
+function CustomerDashboard({ damage }: CustomerDashboardProps) {
+	return (
+		<div className="flex-1 min-h-0 overflow-hidden px-4 pt-4 pb-2 flex flex-col">
+			<div className="max-w-4xl w-full mx-auto flex-1 min-h-0 flex flex-col gap-2">
+				<div className="grid grid-cols-3 gap-3 flex-1 min-h-0">
+					<HomepageProducts damage={damage?.homepage} />
+					<AccountList damage={damage?.account} />
+					<LoginPreview damage={damage?.login} />
+				</div>
+				<IncidentLog entries={damage?.incidentLog ?? []} />
+			</div>
+		</div>
+	);
+}
+
+interface RegressionToastProps {
+	message: string;
+}
+
+function RegressionToast({ message }: RegressionToastProps) {
+	return (
+		<div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 animate-in fade-in slide-in-from-top-2 duration-300">
+			<Card className="px-4 py-3 border-success/50 bg-success/10 max-w-xl">
+				<div className="text-sm text-success font-medium">{message}</div>
+			</Card>
 		</div>
 	);
 }
@@ -845,97 +1176,41 @@ export function Level14Testing({ onComplete }: LevelComponentProps) {
 	});
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
-	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(
-		null,
-	);
-	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
-		new Set(),
-	);
 	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
+	const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-	// ── Build observe stages dynamically (tracks inspected + last probe) ──
-	const probeDisplay = lastProbeId ? PROBE_PIPELINE_MAP[lastProbeId] : null;
-	const observeStages: PipelineStage[] = useMemo(
-		() => [
-			{
-				id: 'code',
-				label: 'Code',
-				inspectable: true,
-				inspected: inspectedStages.has('code'),
-			},
-			{
-				id: 'build',
-				label: 'Build',
-				inspectable: true,
-				inspected: inspectedStages.has('build'),
-			},
-			{
-				id: 'test',
-				label: 'Test Gate',
-				sublabel: probeDisplay ? probeDisplay.testSublabel : '(no tests)',
-				variant: 'inactive' as const,
-				inspectable: true,
-				inspected: inspectedStages.has('test'),
-			},
-			{
-				id: 'prod',
-				label: 'Production',
-				badge: probeDisplay ? probeDisplay.prodBadge : undefined,
-				variant: (probeDisplay ? 'danger' : 'default') as 'danger' | 'default',
-				inspectable: true,
-				inspected: inspectedStages.has('prod'),
-			},
-		],
-		[inspectedStages, probeDisplay],
-	);
+	// ── Observe-phase damage state ──
+	// The dashboard paints the customer-visible damage of whichever probe
+	// fired most recently. Pre-fire it shows the clean idle state.
+	const observeDamage = useMemo<DashboardDamage | null>(() => {
+		if (!lastProbeId) return null;
+		const probe = PROBES.find((p) => p.id === lastProbeId);
+		return probe?.damage ?? null;
+	}, [lastProbeId]);
 
-	// ── Build reward stages dynamically (reacts to latest stress test result) ──
+	// ── Reward-phase toast ──
+	// In reward, every regression scenario fires a toast describing the
+	// rspec catch. The clean-refactor scenario fires "All checks pass".
+	// The dashboard stays clean across all four scenarios — the spec runs
+	// before the change ever reaches a customer.
 	const lastResult = stressTest.results[stressTest.results.length - 1];
-	const rewardStages: PipelineStage[] = useMemo(() => {
-		const wasBlocked = lastResult?.result === 'blocked';
-		return [
-			{ id: 'code', label: 'Code' },
-			{ id: 'build', label: 'Build' },
-			{
-				id: 'test',
-				label: 'RSpec',
-				sublabel: wasBlocked ? 'FAILURE' : '2 specs, 0 failures',
-				variant: wasBlocked ? ('danger' as const) : ('active' as const),
-				badge: wasBlocked ? '1 FAILED' : undefined,
-			},
-			{
-				id: 'prod',
-				label: 'Production',
-				sublabel: wasBlocked ? '(blocked)' : 'deployed',
-				variant: wasBlocked ? ('default' as const) : ('active' as const),
-			},
-		];
-	}, [lastResult]);
 
-	// ── Stage click handler (observe phase) ──
-	const handleStageClick = useCallback(
-		(stageId: string) => {
-			if (phase !== 'observe') return;
-
-			const data = STAGE_INSPECTOR_MAP[stageId];
-			if (!data) return;
-
-			setInspectorData(data);
-			setInspectedStages((prev) => {
-				if (prev.has(stageId)) return prev;
-				const next = new Set(prev);
-				next.add(stageId);
-				return next;
-			});
-
-			// Trigger discovery if this stage has one
-			const discoveryId = STAGE_DISCOVERY_MAP[stageId];
-			if (discoveryId) {
-				discoveryGating.discover(discoveryId);
-			}
-		},
-		[phase, discoveryGating],
-	);
+	useEffect(() => {
+		if (phase !== 'reward' || !lastResult) return;
+		const scenario = STRESS_SCENARIOS.find(
+			(s) => s.id === lastResult.scenarioId,
+		);
+		if (!scenario) return;
+		const message =
+			scenario.id === 'helper-rename-clean-refactor'
+				? 'All checks pass. (rspec ran 6 examples in 0.3s; 0 failures)'
+				: `Caught locally. The change never reached customers. (rspec ran 6 examples in 0.3s; ${
+						scenario.id === 'login-down-overnight' ? '6 failures' : '1 failure'
+					})`;
+		setToastMessage(message);
+		const timeout = setTimeout(() => setToastMessage(null), 4000);
+		return () => clearTimeout(timeout);
+	}, [phase, lastResult]);
 
 	// ── Probe handler (observe phase) ──
 	const handleProbe = useCallback(
@@ -969,6 +1244,7 @@ export function Level14Testing({ onComplete }: LevelComponentProps) {
 	const handleStartReward = () => {
 		setPhase('reward');
 		stressTest.reset();
+		setToastMessage(null);
 	};
 
 	// ── Stress test fire handler ──
@@ -1020,17 +1296,15 @@ export function Level14Testing({ onComplete }: LevelComponentProps) {
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							A deploy broke the login endpoint. Nobody noticed for 3 hours
-							because there are zero tests. The only safety net was manual
-							testing.
+							Across earlier levels you built rules into your app: contact info
+							goes through the encrypted column, only the owner can change a
+							product, admin-only fields stay admin-only. Right now those rules
+							live only in the code that implements them.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							The community standard is{' '}
-							<span className="text-foreground font-medium">RSpec</span> for
-							test structure and{' '}
-							<span className="text-foreground font-medium">FactoryBot</span>{' '}
-							for test data. Request specs test the full HTTP request/response
-							cycle.
+							The next refactor that breaks one of them will reach customers
+							before anyone notices. Watch what that looks like, then add
+							automated checks that catch the change locally.
 						</p>
 					</div>
 
@@ -1059,28 +1333,31 @@ export function Level14Testing({ onComplete }: LevelComponentProps) {
 						</div>
 					)}
 
-					{/* Reward phase: legend + counters */}
+					{/* Reward phase: counters */}
 					{phase === 'reward' && (
-						<>
-							<PipelineLegend />
-
-							<div className="p-4">
-								<div className="grid grid-cols-2 gap-3">
-									<div className="bg-success/20 rounded-lg p-3 text-center">
-										<div className="text-2xl font-bold text-success">
-											{stressTest.allowedCount}
-										</div>
-										<div className="text-xs text-success/70">Deployed</div>
+						<div className="p-4">
+							<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+								Customer impact
+							</div>
+							<div className="grid grid-cols-2 gap-3">
+								<div className="bg-success/20 rounded-lg p-3 text-center">
+									<div className="text-2xl font-bold text-success">
+										{stressTest.allowedCount}
 									</div>
-									<div className="bg-destructive/20 rounded-lg p-3 text-center">
-										<div className="text-2xl font-bold text-destructive">
-											{stressTest.blockedCount}
-										</div>
-										<div className="text-xs text-destructive/70">Caught</div>
+									<div className="text-xs text-success/70">
+										Customers see normal data
+									</div>
+								</div>
+								<div className="bg-destructive/20 rounded-lg p-3 text-center">
+									<div className="text-2xl font-bold text-destructive">
+										{stressTest.blockedCount}
+									</div>
+									<div className="text-xs text-destructive/70">
+										Customers see damage
 									</div>
 								</div>
 							</div>
-						</>
+						</div>
 					)}
 				</InstructionPanel>
 			</LeftPanel>
@@ -1100,27 +1377,15 @@ export function Level14Testing({ onComplete }: LevelComponentProps) {
 				<div className="flex-1 flex flex-col bg-background overflow-hidden">
 					{/* ── Phase 1: Observe (WHY) ── */}
 					{phase === 'observe' && (
-						<div className="flex-1 flex flex-col">
-							<div className="flex-1 relative">
-								<PipelineFlow
-									connections={OBSERVE_CONNECTIONS}
-									onNodeClick={handleStageClick}
-									stages={observeStages}
-								/>
-								{inspectorData && (
-									<StageInspector
-										data={inspectorData}
-										onClose={() => setInspectorData(null)}
-									/>
-								)}
-							</div>
+						<div className="flex-1 flex flex-col relative">
+							<CustomerDashboard damage={observeDamage} />
 
 							{/* Probe terminal */}
-							<div className="px-6 pb-2">
+							<div className="px-6 pb-4">
 								<ProbeTerminal
 									onProbe={handleProbe}
 									probes={PROBES}
-									title="Deploy Probe"
+									title="Simulate a refactor"
 								/>
 							</div>
 
@@ -1152,8 +1417,8 @@ export function Level14Testing({ onComplete }: LevelComponentProps) {
 											completed={isViewingCompletedStep}
 											description={
 												<p className="text-sm text-muted-foreground">
-													RSpec is the Ruby community standard for testing. Add
-													it to your project dependencies.
+													Add the testing framework gem to your Gemfile, but
+													only in the groups where it is actually used.
 												</p>
 											}
 											hasNext={hasNextStep}
@@ -1166,7 +1431,7 @@ export function Level14Testing({ onComplete }: LevelComponentProps) {
 											onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 											outputLines={addRspecOutput}
 											stepKey={stepper.currentStep}
-											title="Add rspec-rails Gem"
+											title="Add the test framework gem"
 										/>
 									)}
 
@@ -1177,8 +1442,8 @@ export function Level14Testing({ onComplete }: LevelComponentProps) {
 											completed={isViewingCompletedStep}
 											description={
 												<p className="text-sm text-muted-foreground">
-													RSpec needs a spec directory, helpers, and config
-													files. Run the install generator to scaffold them.
+													Run the gem-provided install generator to scaffold a
+													spec/ directory, .rspec config, and helper files.
 												</p>
 											}
 											hasNext={hasNextStep}
@@ -1191,7 +1456,7 @@ export function Level14Testing({ onComplete }: LevelComponentProps) {
 											onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 											outputLines={runRspecInstallOutput}
 											stepKey={stepper.currentStep}
-											title="Run RSpec Generator"
+											title="Run the install generator"
 										/>
 									)}
 
@@ -1202,8 +1467,9 @@ export function Level14Testing({ onComplete }: LevelComponentProps) {
 											completed={isViewingCompletedStep}
 											description={
 												<p className="text-sm text-muted-foreground">
-													FactoryBot creates test data with sensible defaults.
-													Add the Rails-integrated version to your project.
+													Add the factories gem so your specs can build test
+													records with sensible defaults. Same group rules as
+													the framework gem.
 												</p>
 											}
 											hasNext={hasNextStep}
@@ -1216,11 +1482,11 @@ export function Level14Testing({ onComplete }: LevelComponentProps) {
 											onWrong={(fb) => stepper.recordWrongAttempt(fb)}
 											outputLines={addFactoryBotOutput}
 											stepKey={stepper.currentStep}
-											title="Add factory_bot_rails Gem"
+											title="Add the factories gem"
 										/>
 									)}
 
-								{/* OptionCard steps (3, 4, 5) */}
+								{/* OptionCard steps (3, 4, 5, 6) */}
 								{currentStepType === 'option' && currentOptionConfig && (
 									<>
 										<h3 className="text-lg font-semibold text-foreground">
@@ -1299,16 +1565,13 @@ export function Level14Testing({ onComplete }: LevelComponentProps) {
 
 					{/* ── Phase 3: Reward (ADVANTAGE) ── */}
 					{phase === 'reward' && (
-						<div className="flex-1 flex flex-col">
-							<div className="flex-1 relative">
-								<PipelineFlow
-									connections={REWARD_CONNECTIONS}
-									stages={rewardStages}
-								/>
-							</div>
+						<div className="flex-1 flex flex-col relative">
+							{toastMessage && <RegressionToast message={toastMessage} />}
 
-							{/* Stress test controls below pipeline */}
-							<div className="px-6 pb-2">
+							<CustomerDashboard damage={null} />
+
+							{/* Stress test controls */}
+							<div className="px-6 pb-4">
 								<StressTestPanel
 									allowedCount={stressTest.allowedCount}
 									blockedCount={stressTest.blockedCount}
