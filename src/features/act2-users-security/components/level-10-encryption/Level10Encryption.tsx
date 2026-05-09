@@ -1,29 +1,38 @@
 /**
  * Level 10: Encrypted Attributes
  *
+ * Aligned with myapp at the level-10 git tag: User has email_address (deterministic
+ * + downcase), phone (deterministic), address (default/non-deterministic).
+ *
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): Custom "Database Breach View" visualization.
- *   A database table showing 3 user rows with columns: id, email, phone, address.
- *   All PII columns are plaintext (red). The player fires probes that reveal what
- *   an attacker sees: SQL injection dumps, backup leaks, frequency analysis.
+ *   A database table showing 3 user rows with columns: id, email_address, phone,
+ *   address. All PII columns are plaintext (red). The player fires probes that
+ *   show three distinct leak surfaces: SQL injection (primary DB), backup grep
+ *   (offline copies), and tail of production query logs (every WHERE value
+ *   logged with PII).
  *
  * Phase 2 (HOW - build): 4 steps (1 terminal + 3 OptionCard)
  *   Step 0: Generate encryption keys (terminal)
  *   Step 1: Add keys to Rails credentials (OptionCard)
- *   Step 2: Encrypt email with deterministic mode (OptionCard)
- *   Step 3: Encrypt phone and address with non-deterministic mode (OptionCard)
+ *   Step 2: Encrypt email_address with the right options for case-insensitive
+ *           login lookups (OptionCard)
+ *   Step 3: Encrypt phone (queryable for support) and address with the right
+ *           mode for each (OptionCard)
  *
- * Note: Service objects (L16+) and Dry::Validation contracts (L18+) are
- * NOT introduced here. The "make queries work with encrypted columns"
- * lesson is folded into Step 2: choosing deterministic mode means
- * `User.find_by(email:)` Just Works because Rails encrypts the WHERE
- * value transparently. No service-layer change needed at L10.
+ * Note: Validations are L12 (per cumulative-patterns), service objects (L16+)
+ * and Dry::Validation contracts (L18+) are later. The "make queries work with
+ * encrypted columns" lesson is folded into Step 2 + Step 3: choosing the
+ * right mode per column means User.authenticate_by(email_address:) and the
+ * support-agent phone lookup Just Work because Rails encrypts the WHERE value
+ * transparently when the column is deterministic.
  *
  * Phase 3 (ADVANTAGE - reward): Same table, now showing ciphertext for PII.
- *   Allowed: Deterministic find_by works, app code reads plaintext.
- *   Blocked: Non-deterministic find_by fails, attacker sees gibberish.
+ *   Allowed: Authenticate by email_address, look up by phone (deterministic),
+ *     read profile (transparent decrypt), all attacker actions return ciphertext.
+ *   Blocked: find_by(address:) returns nil (non-deterministic).
  *
  * Teaches: Rails 8 encrypts, deterministic vs non-deterministic,
  *   db:encryption:init, credentials, transparent encryption
@@ -83,24 +92,21 @@ type Phase = 'observe' | 'build' | 'reward';
 const SAMPLE_USERS = [
 	{
 		id: 1,
-		email: 'alice@example.com',
+		email_address: 'alice@example.com',
 		phone: '+1-555-0123',
 		address: '123 Main St, NYC',
-		name: 'Alice',
 	},
 	{
 		id: 2,
-		email: 'bob@corp.io',
+		email_address: 'bob@corp.io',
 		phone: '+1-555-0456',
 		address: '456 Oak Ave, LA',
-		name: 'Bob',
 	},
 	{
 		id: 3,
-		email: 'carol@startup.dev',
+		email_address: 'carol@startup.dev',
 		phone: '+1-555-0789',
 		address: '789 Pine Rd, SF',
-		name: 'Carol',
 	},
 ];
 
@@ -123,7 +129,7 @@ const CIPHERTEXT: Record<string, string> = {
 const DISCOVERY_DEFS: DiscoveryDef[] = [
 	{ id: 'plaintext-pii', label: 'Customer PII exposed in plaintext' },
 	{ id: 'plaintext-address', label: 'Addresses also leaked through backups' },
-	{ id: 'no-encryption-keys', label: 'No encryption keys configured' },
+	{ id: 'plaintext-logs', label: 'Production query logs leak PII too' },
 ];
 
 // Pedagogy rule: each probe unlocks exactly one distinct discovery,
@@ -132,7 +138,7 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 	'sql-injection': ['plaintext-pii'],
 	'backup-leak': ['plaintext-address'],
-	'inspect-config': ['no-encryption-keys'],
+	'tail-query-logs': ['plaintext-logs'],
 };
 
 // ──────────────────────────────────────────────
@@ -142,8 +148,8 @@ const PROBE_DISCOVERY_MAP: Record<string, string[]> = {
 const PROBES: ProbeConfig[] = [
 	{
 		id: 'sql-injection',
-		label: 'SQL injection attack',
-		command: "SELECT email, phone FROM users WHERE id = '1 OR 1=1'",
+		label: 'Exploit SQL injection on the search endpoint',
+		command: "SELECT email_address, phone FROM users WHERE id = '1 OR 1=1'",
 		responseLines: [
 			{ text: 'alice@example.com  | +1-555-0123', color: 'red' },
 			{ text: 'bob@corp.io        | +1-555-0456', color: 'red' },
@@ -160,7 +166,7 @@ const PROBES: ProbeConfig[] = [
 	},
 	{
 		id: 'backup-leak',
-		label: 'Database backup exposed',
+		label: 'Grep an exposed database backup',
 		command: 'pg_dump myapp_production | grep address',
 		responseLines: [
 			{ text: '123 Main St, NYC', color: 'red' },
@@ -184,24 +190,38 @@ const PROBES: ProbeConfig[] = [
 		],
 	},
 	{
-		id: 'inspect-config',
-		label: 'Check encryption config',
-		command: 'rails runner "puts ActiveRecord::Encryption.config.primary_key"',
+		id: 'tail-query-logs',
+		label: 'Tail the production query logs',
+		command: 'tail -f log/production.log | grep "User Load"',
 		responseLines: [
-			{ text: '=> nil', color: 'red' },
-			{ text: 'No encryption keys configured!', color: 'red' },
-			{ text: 'ActiveRecord::Encryption is not initialized.', color: 'yellow' },
 			{
-				text: '# encrypts in models is a no-op until keys exist.',
-				color: 'muted',
+				text: 'User Load (1.2ms) SELECT * FROM users WHERE',
+				color: 'red',
+			},
+			{
+				text: "  email_address = 'alice@example.com' LIMIT 1",
+				color: 'red',
+			},
+			{
+				text: 'User Load (0.9ms) SELECT * FROM users WHERE',
+				color: 'red',
+			},
+			{ text: "  phone = '+1-555-0456' LIMIT 1", color: 'red' },
+			{
+				text: '# Every WHERE clause logs the PII it queried by.',
+				color: 'yellow',
+			},
+			{
+				text: '# Logs ship to S3, Datadog, and a contractor laptop.',
+				color: 'red',
 			},
 		],
 		story: [
-			'A developer checks whether encryption is set up in this Rails app.',
-			'They inspect the ActiveRecord::Encryption configuration.',
-			'The primary_key returns nil. No encryption keys are configured.',
-			'Without keys, the encrypts declaration in models would have no effect.',
-			'All PII columns are stored and queryable as raw plaintext.',
+			'A platform engineer tails production logs to debug a slow request.',
+			'Each SQL query Rails executes is logged with the literal WHERE values.',
+			'Login lookups print the user email; support lookups print the phone.',
+			'These log files ship to S3, Datadog, and a contractor laptop nightly.',
+			'Plaintext PII has now leaked outside the database without any breach.',
 		],
 	},
 ];
@@ -314,73 +334,74 @@ ActiveRecord::Encryption.configure(
 	},
 ];
 
-// OptionCard step 2: Encrypt email (deterministic)
+// OptionCard step 2: Encrypt email_address (queryable + case-insensitive)
 const EMAIL_ENCRYPTION_OPTIONS = [
 	{
 		id: 'wrong-non-deterministic',
 		label: `class User < ApplicationRecord
-  encrypts :email
+  encrypts :email_address
   # Default mode: each encryption produces
   # a unique ciphertext, even for the same value
 end`,
 		correct: false,
 		feedback:
-			'Non-deterministic encryption means the same email produces different ciphertext each time. The database cannot match on it, breaking login lookups and uniqueness validation.',
+			'Default mode produces a different ciphertext on every write. The database cannot equality-match against it, so authenticate_by(email_address:) returns nil for every login.',
 	},
 	{
-		id: 'correct-deterministic',
+		id: 'wrong-deterministic-only',
 		label: `class User < ApplicationRecord
-  encrypts :email, deterministic: true
-  # Deterministic mode: same plaintext always
-  # produces the same ciphertext
+  encrypts :email_address, deterministic: true
+  # Same plaintext always produces the same
+  # ciphertext, so find_by works
+end`,
+		correct: false,
+		feedback:
+			'That works for case-sensitive lookups, but "ALICE@EXAMPLE.COM" and "alice@example.com" now hash to different ciphertexts. Logging in with the wrong case fails. Email lookups need to be case-insensitive.',
+	},
+	{
+		id: 'correct-deterministic-downcase',
+		label: `class User < ApplicationRecord
+  encrypts :email_address, deterministic: true, downcase: true
+  # Same plaintext always produces the same
+  # ciphertext, and casing is normalized before
+  # encryption so login is case-insensitive
+end`,
+		correct: true,
+	},
+];
+
+// OptionCard step 3: Encrypt phone (queryable for support) and address (default)
+const PII_ENCRYPTION_OPTIONS = [
+	{
+		id: 'wrong-default-phone',
+		label: `class User < ApplicationRecord
+  encrypts :email_address, deterministic: true, downcase: true
+  encrypts :phone
+  encrypts :address
+end`,
+		correct: false,
+		feedback:
+			'Support agents look users up by phone when customers call in. With the default mode, find_by(phone:) silently returns nil because each encryption produces a different ciphertext. Phone needs the same lookup capability email does.',
+	},
+	{
+		id: 'correct-phone-deterministic',
+		label: `class User < ApplicationRecord
+  encrypts :email_address, deterministic: true, downcase: true
+  encrypts :phone, deterministic: true
+  encrypts :address
 end`,
 		correct: true,
 	},
 	{
-		id: 'wrong-downcase-only',
+		id: 'wrong-address-deterministic',
 		label: `class User < ApplicationRecord
-  encrypts :email, downcase: true
-  # Normalize to lowercase before encrypting
-end`,
-		correct: false,
-		feedback:
-			'The downcase option normalizes the value but does not set the encryption mode. Without deterministic: true, this still uses non-deterministic encryption by default.',
-	},
-];
-
-// OptionCard step 3: Encrypt phone and address (non-deterministic)
-const PII_ENCRYPTION_OPTIONS = [
-	{
-		id: 'wrong-deterministic-pii',
-		label: `class User < ApplicationRecord
-  encrypts :email, deterministic: true
+  encrypts :email_address, deterministic: true, downcase: true
   encrypts :phone, deterministic: true
   encrypts :address, deterministic: true
 end`,
 		correct: false,
 		feedback:
-			'Deterministic mode is a tradeoff: it enables querying but identical values produce identical ciphertext. Email needed that tradeoff for login lookups. Phone and address are never queried, so there is no reason to accept weaker encryption for them.',
-	},
-	{
-		id: 'correct-non-deterministic',
-		label: `class User < ApplicationRecord
-  encrypts :email, deterministic: true
-  encrypts :phone
-  encrypts :address
-end`,
-		correct: true,
-	},
-	{
-		id: 'wrong-encrypt-name',
-		label: `class User < ApplicationRecord
-  encrypts :email, deterministic: true
-  encrypts :phone
-  encrypts :address
-  encrypts :name
-end`,
-		correct: false,
-		feedback:
-			'Name is not PII in this context and does not need encryption. Over-encrypting adds performance overhead (encryption/decryption on every read/write) with no security benefit.',
+			'Addresses are never used as a lookup key. Making them queryable accepts the frequency-analysis tradeoff (identical addresses share ciphertext) without buying anything in return.',
 	},
 ];
 
@@ -404,15 +425,15 @@ const OPTION_STEP_CONFIG: Record<
 		options: CREDENTIALS_OPTIONS,
 	},
 	2: {
-		title: 'Encrypt the Email Column',
+		title: 'Encrypt the email_address Column',
 		description:
-			'Email is used for login (find_by) and uniqueness validation. Choose the right encryption mode.',
+			'authenticate_by(email_address:) needs to find the user. Logins are case-insensitive: "Alice@Example.com" and "alice@example.com" must resolve to the same row.',
 		options: EMAIL_ENCRYPTION_OPTIONS,
 	},
 	3: {
 		title: 'Encrypt Phone & Address',
 		description:
-			'Phone and address are never used for lookups. Choose the encryption approach that maximizes security.',
+			'Support agents look users up by phone when customers call in. Addresses are never used as a lookup key. Pick the right mode for each.',
 		options: PII_ENCRYPTION_OPTIONS,
 	},
 };
@@ -423,138 +444,33 @@ const OPTION_STEP_CONFIG: Record<
 
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
-		id: 'find-by-email',
-		label: 'GET find user by email',
-		description: 'Look up user by encrypted email (deterministic)',
-		method: 'GET',
-		path: '/api/users?email=alice@example.com',
-		actor: 'authenticated user',
-		expectedResult: 'allowed',
-		responseLines: [
-			{ text: '200 OK', color: 'green' },
-			{ text: 'User.find_by(email: "alice@example.com")', color: 'cyan' },
-			{
-				text: 'Deterministic: query value encrypted, matched in DB.',
-				color: 'green',
-			},
-		],
-	},
-	{
-		id: 'find-by-phone',
-		label: 'GET find user by phone',
-		description: 'Try to look up by non-deterministic phone',
-		method: 'GET',
-		path: '/api/users?phone=+1-555-0123',
-		actor: 'authenticated user',
-		expectedResult: 'blocked',
-		responseLines: [
-			{ text: '422 Unprocessable Entity', color: 'red' },
-			{ text: 'ActiveRecord::EncryptionError', color: 'yellow' },
-			{
-				text: 'Cannot query non-deterministic column. Each encryption differs.',
-				color: 'red',
-			},
-		],
-	},
-	{
-		id: 'attacker-dump',
-		label: 'SQL injection attack',
-		description: 'Attacker tries to dump user table',
+		id: 'sql-injection',
+		label: 'Exploit SQL injection on the search endpoint',
+		description: 'Attacker tries to dump the users table',
 		method: 'GET',
 		path: "/api/users?id=1' OR 1=1",
 		actor: 'attacker',
 		expectedResult: 'allowed',
 		responseLines: [
 			{ text: '200 OK (but data is encrypted!)', color: 'green' },
-			{ text: 'email: {"p":"dB3dhj...","h":{"iv":"f9w..."}}', color: 'cyan' },
-			{ text: 'phone: {"p":"aX4kLm...","h":{"iv":"j8r..."}}', color: 'cyan' },
-			{ text: 'Attacker sees ciphertext, not PII.', color: 'green' },
-		],
-	},
-	{
-		id: 'uniqueness-validation',
-		label: 'POST create duplicate email',
-		description: 'Try to create user with existing email',
-		method: 'POST',
-		path: '/api/users',
-		actor: 'authenticated user',
-		expectedResult: 'blocked',
-		responseLines: [
-			{ text: '422 Unprocessable Entity', color: 'red' },
-			{ text: '{ error: { code: "VALIDATION_FAILED" } }', color: 'yellow' },
 			{
-				text: 'validates :email, uniqueness: true works with deterministic!',
+				text: 'email_address: {"p":"dB3dhj...","h":{"iv":"f9w..."}}',
 				color: 'cyan',
 			},
-		],
-	},
-	{
-		id: 'transparent-read',
-		label: 'GET user profile',
-		description: 'Read user profile (encryption is transparent)',
-		method: 'GET',
-		path: '/api/users/1',
-		actor: 'authenticated user',
-		expectedResult: 'allowed',
-		responseLines: [
-			{ text: '200 OK', color: 'green' },
-			{ text: 'email: "alice@example.com" (auto-decrypted)', color: 'cyan' },
-			{ text: 'phone: "+1-555-0123" (auto-decrypted)', color: 'cyan' },
-			{
-				text: 'App code sees plaintext. DB stores ciphertext.',
-				color: 'green',
-			},
-		],
-	},
-	{
-		id: 'backup-safe',
-		label: 'Database backup audit',
-		description: 'Verify PII is encrypted in database backups',
-		method: 'GET',
-		path: '/admin/audit/backup-check',
-		actor: 'security auditor',
-		expectedResult: 'allowed',
-		responseLines: [
-			{ text: '200 OK', color: 'green' },
-			{ text: 'All PII columns encrypted at rest.', color: 'green' },
-			{ text: 'Backup leak would expose only ciphertext.', color: 'cyan' },
-			{ text: 'GDPR compliance: PASS', color: 'green' },
-		],
-	},
-	{
-		id: 'encryption-config',
-		label: 'Check encryption config',
-		description: 'Verify encryption keys are configured',
-		method: 'GET',
-		path: '/admin/audit/encryption-status',
-		actor: 'security auditor',
-		expectedResult: 'allowed',
-		responseLines: [
-			{ text: '200 OK', color: 'green' },
-			{ text: 'primary_key: configured', color: 'cyan' },
-			{ text: 'deterministic_key: configured', color: 'cyan' },
-			{ text: 'key_derivation_salt: configured', color: 'cyan' },
-			{ text: 'ActiveRecord::Encryption: ACTIVE', color: 'green' },
-		],
-	},
-	{
-		id: 'sql-injection',
-		label: 'SQL injection attack',
-		description: 'Attacker exploits SQL injection to dump user table',
-		method: 'GET',
-		path: "/api/users?id=1' OR 1=1",
-		actor: 'attacker',
-		expectedResult: 'allowed',
-		responseLines: [
-			{ text: '200 OK (but data is encrypted!)', color: 'green' },
-			{ text: 'email: {"p":"dB3dhj...","h":{"iv":"f9w..."}}', color: 'cyan' },
 			{ text: 'phone: {"p":"aX4kLm...","h":{"iv":"j8r..."}}', color: 'cyan' },
 			{ text: 'Attacker sees ciphertext, not PII.', color: 'green' },
+		],
+		story: [
+			'Same attacker, same SQL injection payload that dumped every row before.',
+			'The query still bypasses the WHERE clause and returns all users.',
+			'But the email_address, phone, and address columns now contain ciphertext.',
+			'The encryption key is in Rails credentials, not the database.',
+			'The attacker walks away with random bytes instead of customer PII.',
 		],
 	},
 	{
 		id: 'backup-leak',
-		label: 'Database backup exposed',
+		label: 'Grep an exposed database backup',
 		description: 'Database backup file is leaked externally',
 		method: 'GET',
 		path: '/admin/audit/backup-check',
@@ -565,24 +481,160 @@ const STRESS_SCENARIOS: StressScenario[] = [
 				text: 'Backup contains only ciphertext for PII columns.',
 				color: 'green',
 			},
-			{ text: 'email: {"p":"dB3dhj...","h":{"iv":"f9w..."}}', color: 'cyan' },
-			{ text: 'address: {"p":"nQ2zRt...","h":{"iv":"w7k..."}}', color: 'cyan' },
+			{
+				text: 'email_address: {"p":"dB3dhj...","h":{"iv":"f9w..."}}',
+				color: 'cyan',
+			},
+			{
+				text: 'address: {"p":"gT5uBn...","h":{"iv":"e1d..."}}',
+				color: 'cyan',
+			},
 			{ text: 'No plaintext PII in backup. GDPR safe.', color: 'green' },
+		],
+		story: [
+			'Same nightly pg_dump, same contractor with backup access.',
+			'They run the same grep that turned up every customer address before.',
+			'The dump file still contains every row of the users table.',
+			'But the address column is now encrypted bytes on disk.',
+			'No matches for "Main St", "Oak Ave", or "Pine Rd" anywhere in the file.',
 		],
 	},
 	{
-		id: 'inspect-config',
-		label: 'Check encryption config',
-		description: 'Verify encryption keys are properly configured',
+		id: 'tail-query-logs',
+		label: 'Tail the production query logs',
+		description: 'Read SQL queries that Rails logs to disk',
 		method: 'GET',
-		path: '/admin/audit/encryption-status',
-		actor: 'security auditor',
+		path: '/admin/audit/log-check',
+		actor: 'platform engineer',
+		expectedResult: 'allowed',
+		responseLines: [
+			{
+				text: 'User Load (1.2ms) SELECT * FROM users WHERE',
+				color: 'cyan',
+			},
+			{
+				text: '  email_address = \'{"p":"dB3dhj...","h":{"iv":"f9w..."}}\' LIMIT 1',
+				color: 'cyan',
+			},
+			{
+				text: '# WHERE values are encrypted before they hit SQL.',
+				color: 'green',
+			},
+			{
+				text: '# Logs ship the same ciphertext the database stores.',
+				color: 'green',
+			},
+		],
+		story: [
+			'Same engineer tails the same production logs to debug a slow request.',
+			'The User Load lines still print SELECT statements with their WHERE values.',
+			'But Active Record encrypts the lookup value before sending the query.',
+			'The log file now contains ciphertext, not plaintext PII.',
+			'Logs ship to S3 and Datadog with no extra exposure surface.',
+		],
+	},
+	{
+		id: 'find-by-email',
+		label: 'Authenticate by email_address',
+		description: 'Login lookup via authenticate_by',
+		method: 'POST',
+		path: '/api/sessions',
+		actor: 'customer',
 		expectedResult: 'allowed',
 		responseLines: [
 			{ text: '200 OK', color: 'green' },
-			{ text: 'primary_key: configured', color: 'cyan' },
-			{ text: 'deterministic_key: configured', color: 'cyan' },
-			{ text: 'ActiveRecord::Encryption: ACTIVE', color: 'green' },
+			{
+				text: 'User.authenticate_by(email_address: "alice@example.com", ...)',
+				color: 'cyan',
+			},
+			{
+				text: 'Lookup value encrypted with the same key, equality match wins.',
+				color: 'green',
+			},
+		],
+		story: [
+			'A customer signs in with their email and password.',
+			'authenticate_by encrypts the email_address before querying.',
+			'The ciphertext matches the row stored at signup, so the user is found.',
+			'has_secure_password verifies the password digest.',
+			'Encryption is invisible to the auth flow; login still works.',
+		],
+	},
+	{
+		id: 'find-by-phone-support',
+		label: 'Look up a customer by phone (support)',
+		description: 'Support agent finds a user during a call',
+		method: 'GET',
+		path: '/admin/users?phone=%2B1-555-0123',
+		actor: 'support agent',
+		expectedResult: 'allowed',
+		responseLines: [
+			{ text: '200 OK', color: 'green' },
+			{ text: 'User.find_by(phone: "+1-555-0123")', color: 'cyan' },
+			{
+				text: 'Phone encrypted deterministically too. Match found.',
+				color: 'green',
+			},
+		],
+		story: [
+			'A customer calls support and gives their phone number for verification.',
+			'The agent searches the admin tool by phone.',
+			'phone is encrypted deterministically, so the lookup value hashes the same way.',
+			'find_by(phone:) returns the row.',
+			'Same workflow as before; no support process changed.',
+		],
+	},
+	{
+		id: 'find-by-address-fails',
+		label: 'Try to look up a user by address',
+		description: 'Demonstrates non-deterministic mode',
+		method: 'GET',
+		path: '/admin/users?address=123%20Main%20St',
+		actor: 'support agent',
+		expectedResult: 'blocked',
+		responseLines: [
+			{ text: '404 Not Found', color: 'red' },
+			{ text: 'User.find_by(address: "123 Main St, NYC")', color: 'cyan' },
+			{ text: '=> nil', color: 'red' },
+			{
+				text: 'Each save encrypts to a different ciphertext, so no row matches.',
+				color: 'yellow',
+			},
+		],
+		story: [
+			'A new feature tries to find a user by street address.',
+			'address is encrypted in default (non-deterministic) mode.',
+			'Every write produces a different ciphertext, even for the same plaintext.',
+			'The query value also encrypts to a unique ciphertext that matches nothing.',
+			'find_by silently returns nil. By design: address was never a lookup key.',
+		],
+	},
+	{
+		id: 'transparent-read',
+		label: 'Read a user profile',
+		description: 'App reads decrypted plaintext transparently',
+		method: 'GET',
+		path: '/api/users/1',
+		actor: 'customer',
+		expectedResult: 'allowed',
+		responseLines: [
+			{ text: '200 OK', color: 'green' },
+			{
+				text: 'email_address: "alice@example.com" (auto-decrypted)',
+				color: 'cyan',
+			},
+			{ text: 'phone: "+1-555-0123" (auto-decrypted)', color: 'cyan' },
+			{
+				text: 'App code sees plaintext. DB stores ciphertext.',
+				color: 'green',
+			},
+		],
+		story: [
+			'A customer loads their profile page.',
+			'Active Record reads the encrypted columns from PostgreSQL.',
+			'The encryptor decrypts each column with the primary key from credentials.',
+			'The controller and view see plain Ruby strings.',
+			'Encryption is transparent everywhere except at rest.',
 		],
 	},
 ];
@@ -603,82 +655,60 @@ interface RewardVizConfig {
 }
 
 const REWARD_VIZ: Record<string, RewardVizConfig> = {
-	'find-by-email': {
-		banner: 'Deterministic: query encrypted, matched in DB. User found.',
-		bannerType: 'success',
-		perspective: 'both',
-		highlightCols: ['email'],
-		focusRow: 1,
-	},
-	'find-by-phone': {
-		banner:
-			'Non-deterministic: same phone encrypts differently each time. No match possible.',
-		bannerType: 'danger',
-		perspective: 'db',
-		highlightCols: ['phone'],
-		focusRow: null,
-	},
-	'attacker-dump': {
-		banner:
-			'Attacker dumped the table but sees only ciphertext. No PII exposed.',
-		bannerType: 'success',
-		perspective: 'db',
-		highlightCols: ['email', 'phone', 'address'],
-		focusRow: null,
-	},
-	'uniqueness-validation': {
-		banner:
-			'Deterministic email: duplicate detected via ciphertext match. 422 rejected.',
-		bannerType: 'danger',
-		perspective: 'both',
-		highlightCols: ['email'],
-		focusRow: 1,
-	},
-	'transparent-read': {
-		banner:
-			'App reads plaintext automatically. Encryption is invisible to application code.',
-		bannerType: 'success',
-		perspective: 'both',
-		highlightCols: ['email', 'phone', 'address'],
-		focusRow: 1,
-	},
-	'backup-safe': {
-		banner: 'Database backup contains only ciphertext. GDPR compliance: PASS.',
-		bannerType: 'success',
-		perspective: 'db',
-		highlightCols: ['email', 'phone', 'address'],
-		focusRow: null,
-	},
-	'encryption-config': {
-		banner:
-			'All three encryption keys configured. ActiveRecord::Encryption is active.',
-		bannerType: 'info',
-		perspective: 'app',
-		highlightCols: [],
-		focusRow: null,
-	},
 	'sql-injection': {
 		banner:
 			'Attacker dumped the table but sees only ciphertext. No PII exposed.',
 		bannerType: 'success',
 		perspective: 'db',
-		highlightCols: ['email', 'phone', 'address'],
+		highlightCols: ['email_address', 'phone', 'address'],
 		focusRow: null,
 	},
 	'backup-leak': {
 		banner: 'Database backup contains only ciphertext. GDPR compliance: PASS.',
 		bannerType: 'success',
 		perspective: 'db',
-		highlightCols: ['email', 'phone', 'address'],
+		highlightCols: ['email_address', 'phone', 'address'],
 		focusRow: null,
 	},
-	'inspect-config': {
+	'tail-query-logs': {
 		banner:
-			'All encryption keys configured. ActiveRecord::Encryption is active.',
-		bannerType: 'info',
-		perspective: 'app',
-		highlightCols: [],
+			'WHERE values are encrypted before they hit SQL. Logs ship ciphertext, not PII.',
+		bannerType: 'success',
+		perspective: 'db',
+		highlightCols: ['email_address', 'phone'],
 		focusRow: null,
+	},
+	'find-by-email': {
+		banner:
+			'authenticate_by encrypts the lookup value with the same key. Login works.',
+		bannerType: 'success',
+		perspective: 'both',
+		highlightCols: ['email_address'],
+		focusRow: 1,
+	},
+	'find-by-phone-support': {
+		banner:
+			'phone is deterministic too. Support lookups by phone still find the row.',
+		bannerType: 'success',
+		perspective: 'both',
+		highlightCols: ['phone'],
+		focusRow: 1,
+	},
+	'find-by-address-fails': {
+		banner:
+			'address is non-deterministic. Each ciphertext is unique, so find_by returns nil.',
+		bannerType: 'danger',
+		perspective: 'db',
+		highlightCols: ['address'],
+		focusRow: null,
+	},
+	'transparent-read': {
+		banner:
+			'App reads plaintext automatically. Encryption is invisible to application code.',
+		bannerType: 'success',
+		perspective: 'both',
+		highlightCols: ['email_address', 'phone', 'address'],
+		focusRow: 1,
 	},
 };
 
@@ -688,27 +718,28 @@ const REWARD_VIZ: Record<string, RewardVizConfig> = {
 
 function getCodeFiles(phase: Phase, completedStep: number) {
 	if (phase === 'observe') {
-		// Service objects (L16+), Dry::Validation contracts (L18+), and
-		// Active Storage (L34) are NOT shown — they belong to later levels.
-		// L10's "before" state is just the User model with plaintext PII.
+		// Validations land at L12 (per cumulative-patterns); service objects
+		// (L16+), Dry::Validation contracts (L18+), and Active Storage (L34)
+		// are also later levels. L10's "before" state is the User model with
+		// plaintext PII and no encrypts declarations.
 		return [
 			{
 				filename: 'app/models/user.rb',
 				language: 'ruby',
 				code: `class User < ApplicationRecord
   has_secure_password
+  has_many :sessions, dependent: :destroy
+
+  normalizes :email_address, with: ->(e) { e.strip.downcase }
 
   # PII stored in PLAINTEXT!
-  # email: "alice@example.com"
+  # email_address: "alice@example.com"
   # phone: "+1-555-0123"
   # address: "123 Main St, NYC"
 
   # No encrypts declarations
   # No encryption keys configured
   # Database breach = full PII exposure
-
-  validates :email, uniqueness: true
-  validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }
 end`,
 			},
 		];
@@ -719,6 +750,12 @@ end`,
 		// Service objects (L16+) and Dry::Validation contracts (L18+) are
 		// also not shown. L10's build phase teaches encryption alone.
 
+		const baseModel = `class User < ApplicationRecord
+  has_secure_password
+  has_many :sessions, dependent: :destroy
+
+  normalizes :email_address, with: ->(e) { e.strip.downcase }`;
+
 		// Step 0 (generate keys): db:encryption:init prints to stdout,
 		// no files are modified. Show unchanged "before" model.
 		if (completedStep < 0) {
@@ -726,16 +763,12 @@ end`,
 				{
 					filename: 'app/models/user.rb',
 					language: 'ruby',
-					code: `class User < ApplicationRecord
-  has_secure_password
+					code: `${baseModel}
 
   # PII stored in PLAINTEXT!
-  # email: "alice@example.com"
+  # email_address: "alice@example.com"
   # phone: "+1-555-0123"
   # address: "123 Main St, NYC"
-
-  validates :email, uniqueness: true
-  validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }
 end`,
 				},
 			];
@@ -748,16 +781,12 @@ end`,
 				{
 					filename: 'app/models/user.rb',
 					language: 'ruby',
-					code: `class User < ApplicationRecord
-  has_secure_password
+					code: `${baseModel}
 
   # PII stored in PLAINTEXT!
-  # email: "alice@example.com"
+  # email_address: "alice@example.com"
   # phone: "+1-555-0123"
   # address: "123 Main St, NYC"
-
-  validates :email, uniqueness: true
-  validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }
 end`,
 				},
 			];
@@ -777,16 +806,12 @@ end`,
 				{
 					filename: 'app/models/user.rb',
 					language: 'ruby',
-					code: `class User < ApplicationRecord
-  has_secure_password
+					code: `${baseModel}
 
   # Keys are stored. Now encrypt the PII columns.
-  # email: "alice@example.com"  (still plaintext)
-  # phone: "+1-555-0123"        (still plaintext)
-  # address: "123 Main St, NYC" (still plaintext)
-
-  validates :email, uniqueness: true
-  validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }
+  # email_address: "alice@example.com"  (still plaintext)
+  # phone: "+1-555-0123"                (still plaintext)
+  # address: "123 Main St, NYC"         (still plaintext)
 end`,
 				},
 			];
@@ -796,34 +821,27 @@ end`,
 				{
 					filename: 'app/models/user.rb',
 					language: 'ruby',
-					code: `class User < ApplicationRecord
-  has_secure_password
+					code: `${baseModel}
 
-  encrypts :email, deterministic: true
+  encrypts :email_address, deterministic: true, downcase: true
 
   # phone and address are still plaintext.
   # They need encryption too.
-
-  validates :email, uniqueness: true
-  validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }
 end`,
 				},
 			];
 		}
 		// All steps complete: show the final state — model with all
-		// encrypts declarations.
+		// encrypts declarations matching myapp at the level-10 tag.
 		return [
 			{
 				filename: 'app/models/user.rb',
 				language: 'ruby',
-				code: `class User < ApplicationRecord
-  has_secure_password
+				code: `${baseModel}
 
-  encrypts :email, deterministic: true
-  encrypts :phone
+  encrypts :email_address, deterministic: true, downcase: true
+  encrypts :phone, deterministic: true
   encrypts :address
-
-  validates :email, uniqueness: true
 end`,
 			},
 		];
@@ -929,33 +947,28 @@ export function Level10Encryption({ onComplete }: LevelComponentProps) {
 			setFlowPhase(0);
 			const timers: ReturnType<typeof setTimeout>[] = [];
 
-			if (probeId === 'inspect-config') {
-				// Config check: no table highlight, just a brief flash on the header
-				setHighlightedCols([]);
-				const tEnd = setTimeout(() => {
-					setFlowPhase(-1);
-				}, ANIMATION_DURATION_MS * 2);
-				timers.push(tEnd);
-			} else {
-				// Determine which columns to highlight based on probe
-				const cols =
-					probeId === 'sql-injection' ? ['email', 'phone'] : ['address'];
-				setHighlightedCols(cols);
+			// Determine which columns to highlight based on probe
+			const colsByProbe: Record<string, string[]> = {
+				'sql-injection': ['email_address', 'phone'],
+				'backup-leak': ['address'],
+				'tail-query-logs': ['email_address', 'phone'],
+			};
+			const cols = colsByProbe[probeId] ?? [];
+			setHighlightedCols(cols);
 
-				// Animate rows sequentially
-				for (let i = 0; i < SAMPLE_USERS.length; i++) {
-					const t = setTimeout(() => {
-						setHighlightedRow(SAMPLE_USERS[i].id);
-					}, i * ANIMATION_DURATION_MS);
-					timers.push(t);
-				}
-				const tEnd = setTimeout(() => {
-					setHighlightedRow(null);
-					setHighlightedCols([]);
-					setFlowPhase(-1);
-				}, SAMPLE_USERS.length * ANIMATION_DURATION_MS);
-				timers.push(tEnd);
+			// Animate rows sequentially
+			for (let i = 0; i < SAMPLE_USERS.length; i++) {
+				const t = setTimeout(() => {
+					setHighlightedRow(SAMPLE_USERS[i].id);
+				}, i * ANIMATION_DURATION_MS);
+				timers.push(t);
 			}
+			const tEnd = setTimeout(() => {
+				setHighlightedRow(null);
+				setHighlightedCols([]);
+				setFlowPhase(-1);
+			}, SAMPLE_USERS.length * ANIMATION_DURATION_MS);
+			timers.push(tEnd);
 
 			timersRef.current.push(...timers);
 		},
@@ -1024,7 +1037,7 @@ export function Level10Encryption({ onComplete }: LevelComponentProps) {
 	// ── Render: Database table visualization ──
 	const renderDatabaseTable = (encrypted: boolean) => {
 		const lastScenarioId = lastResult?.scenarioId;
-		const isAttackerView = encrypted && lastScenarioId === 'attacker-dump';
+		const isAttackerView = encrypted && lastScenarioId === 'sql-injection';
 
 		// In observe phase, only highlight specific columns per probe
 		// In reward phase, use green for allowed, red for blocked
@@ -1111,7 +1124,8 @@ export function Level10Encryption({ onComplete }: LevelComponentProps) {
 												: 'text-red-700 dark:text-red-400',
 										)}
 									>
-										email {encrypted ? '(deterministic)' : '(plaintext!)'}
+										email_address{' '}
+										{encrypted ? '(deterministic)' : '(plaintext!)'}
 									</span>
 								</th>
 								<th className="px-3 py-2 text-left font-medium">
@@ -1122,7 +1136,7 @@ export function Level10Encryption({ onComplete }: LevelComponentProps) {
 												: 'text-red-700 dark:text-red-400',
 										)}
 									>
-										phone {encrypted ? '(non-det)' : '(plaintext!)'}
+										phone {encrypted ? '(deterministic)' : '(plaintext!)'}
 									</span>
 								</th>
 								<th className="px-3 py-2 text-left font-medium">
@@ -1135,9 +1149,6 @@ export function Level10Encryption({ onComplete }: LevelComponentProps) {
 									>
 										address {encrypted ? '(non-det)' : '(plaintext!)'}
 									</span>
-								</th>
-								<th className="px-3 py-2 text-left font-medium text-muted-foreground">
-									name
 								</th>
 							</tr>
 						</thead>
@@ -1155,16 +1166,16 @@ export function Level10Encryption({ onComplete }: LevelComponentProps) {
 										<td className="px-3 py-2 font-mono text-muted-foreground">
 											{user.id}
 										</td>
-										<td className={cellClass('email', isHighlighted)}>
+										<td className={cellClass('email_address', isHighlighted)}>
 											{encrypted ? (
 												<span className="flex items-center gap-1">
 													<Lock className="w-3 h-3 shrink-0" />
 													<span className="truncate max-w-32">
-														{CIPHERTEXT[user.email]}
+														{CIPHERTEXT[user.email_address]}
 													</span>
 												</span>
 											) : (
-												user.email
+												user.email_address
 											)}
 										</td>
 										<td className={cellClass('phone', isHighlighted)}>
@@ -1191,9 +1202,6 @@ export function Level10Encryption({ onComplete }: LevelComponentProps) {
 												user.address
 											)}
 										</td>
-										<td className="px-3 py-2 font-mono text-foreground">
-											{user.name}
-										</td>
 									</tr>
 								);
 							})}
@@ -1213,9 +1221,9 @@ export function Level10Encryption({ onComplete }: LevelComponentProps) {
 					instructions={[
 						'Fire probes to see what an attacker can extract.',
 						'Notice all PII columns are readable in plaintext.',
-						'Check the encryption configuration.',
+						'Trace where the PII leaks beyond the database itself.',
 					]}
-					scenario="A GDPR audit flagged that user PII (email, phone, address) is stored in plaintext in the database. A breach would expose everything."
+					scenario="A GDPR audit flagged that user PII (email_address, phone, address) is stored in plaintext in the database. A breach would expose everything."
 				>
 					<div className="p-4 border-t border-border space-y-4">
 						<div>
@@ -1223,9 +1231,9 @@ export function Level10Encryption({ onComplete }: LevelComponentProps) {
 								Scenario
 							</h3>
 							<p className="text-sm text-muted-foreground">
-								A GDPR audit flagged that user PII (email, phone, address) is
-								stored in plaintext in the database. A breach would expose
-								everything.
+								A GDPR audit flagged that user PII (email_address, phone,
+								address) is stored in plaintext in the database. A breach would
+								expose everything.
 							</p>
 						</div>
 						<DiscoveryChecklist
@@ -1241,15 +1249,14 @@ export function Level10Encryption({ onComplete }: LevelComponentProps) {
 		if (phase === 'build') {
 			return (
 				<InstructionPanel
-					goal="Encrypt PII at rest using Rails 8 encrypted attributes."
+					goal="Apply application-layer encryption to the sensitive User columns we identified."
 					instructions={[
 						'Generate the three encryption keys.',
 						'Store keys securely in Rails credentials.',
-						'Add deterministic encryption for email (queryable).',
-						'Add non-deterministic encryption for phone and address.',
-						'Update the lookup service for encrypted queries.',
+						'Apply application-layer encryption to email_address with the right options for login.',
+						'Apply application-layer encryption to phone and address, picking the right mode for each.',
 					]}
-					scenario="Rails 8 provides built-in encryption via the encrypts macro. Deterministic encryption allows querying, non-deterministic provides maximum security."
+					scenario="Rails 8 ships built-in encryption via the encrypts macro. Pick the right options per column based on whether the field needs to be looked up."
 				>
 					<div className="p-4 border-t border-border">
 						<StepProgress
@@ -1266,9 +1273,9 @@ export function Level10Encryption({ onComplete }: LevelComponentProps) {
 			<InstructionPanel
 				goal="Stress-test the encrypted database."
 				instructions={[
-					'Query by email (deterministic) and verify it works.',
-					'Try querying by phone and see it fail.',
-					'Simulate an attacker dump and see only ciphertext.',
+					'Replay the same attacker actions and see only ciphertext.',
+					'Authenticate by email_address and look up by phone for support.',
+					'Try a non-deterministic lookup and see it return nil.',
 				]}
 				scenario="PII is encrypted at rest. The app sees plaintext. The database stores ciphertext. Attackers see gibberish."
 			>
@@ -1594,7 +1601,7 @@ export function Level10Encryption({ onComplete }: LevelComponentProps) {
 								<Eye className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />,
 								'border-emerald-300 dark:border-emerald-700',
 								false,
-								['email', 'phone', 'address'],
+								['email_address', 'phone', 'address'],
 							)}
 						{showDb &&
 							renderMiniTable(
@@ -1602,7 +1609,7 @@ export function Level10Encryption({ onComplete }: LevelComponentProps) {
 								<Database className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />,
 								'border-amber-300 dark:border-amber-700',
 								true,
-								['email', 'phone', 'address'],
+								['email_address', 'phone', 'address'],
 							)}
 					</div>
 				</div>

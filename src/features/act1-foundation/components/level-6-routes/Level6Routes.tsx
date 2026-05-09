@@ -550,6 +550,37 @@ const REWARD_CONNECTIONS: PipelineConnection[] = [
 	},
 ];
 
+// Per-probe / per-scenario edge activation. Default to [] (dormant)
+// so the visualization does NOT animate before any probe fires.
+// Each entry lists the connection keys (`${from}-${to}`) that should
+// flash a single dot pulse when the probe / scenario fires.
+// Observe: every probe represents an HTTP request that hits the router
+// and immediately 404s. The request edge animates; downstream edges
+// stay dormant because the controller is unreachable.
+const PROBE_ACTIVE_CONNECTIONS: Record<string, string[]> = {
+	'get-products': ['request-router'],
+	'post-products': ['request-router'],
+	'get-api-products': ['request-router'],
+};
+
+// Reward: every RESTful action successfully traverses the full pipeline:
+// router -> controller -> model -> database -> back -> response.
+const FULL_PIPELINE_CONNECTIONS = [
+	'request-router',
+	'router-controller',
+	'controller-response',
+	'controller-model',
+	'model-database',
+];
+
+const SCENARIO_ACTIVE_CONNECTIONS: Record<string, string[]> = {
+	'get-index': FULL_PIPELINE_CONNECTIONS,
+	'post-create': FULL_PIPELINE_CONNECTIONS,
+	'get-show': FULL_PIPELINE_CONNECTIONS,
+	'patch-update': FULL_PIPELINE_CONNECTIONS,
+	'delete-destroy': FULL_PIPELINE_CONNECTIONS,
+};
+
 // ──────────────────────────────────────────────
 // Code preview helper
 // ──────────────────────────────────────────────
@@ -747,8 +778,26 @@ export function Level6Routes({ onComplete }: LevelComponentProps) {
 		[inspectedStages, probeDisplay],
 	);
 
+	// Per-probe edge activation. Default to [] so edges are dormant until
+	// the player fires a probe; firing a probe lights only that probe's
+	// connections in single-pass mode.
+	const observeActiveConnections = useMemo(
+		() => (lastProbeId ? (PROBE_ACTIVE_CONNECTIONS[lastProbeId] ?? []) : []),
+		[lastProbeId],
+	);
+
 	// ── Build reward stages dynamically (reacts to latest stress test result) ──
 	const lastResult = stressTest.results[stressTest.results.length - 1];
+
+	// Per-scenario edge activation. Default to [] so the reward pipeline
+	// is dormant until the player fires a stress scenario.
+	const rewardActiveConnections = useMemo(
+		() =>
+			lastResult
+				? (SCENARIO_ACTIVE_CONNECTIONS[lastResult.scenarioId] ?? [])
+				: [],
+		[lastResult],
+	);
 	const rewardStages: PipelineStage[] = useMemo(() => {
 		const scenario = lastResult
 			? STRESS_SCENARIOS.find((s) => s.id === lastResult.scenarioId)
@@ -981,6 +1030,7 @@ export function Level6Routes({ onComplete }: LevelComponentProps) {
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">
 								<PipelineFlow
+									activeConnections={observeActiveConnections}
 									connections={OBSERVE_CONNECTIONS}
 									onNodeClick={handleStageClick}
 									stages={observeStages}
@@ -1124,6 +1174,7 @@ export function Level6Routes({ onComplete }: LevelComponentProps) {
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">
 								<PipelineFlow
+									activeConnections={rewardActiveConnections}
 									connections={REWARD_CONNECTIONS}
 									stages={rewardStages}
 								/>

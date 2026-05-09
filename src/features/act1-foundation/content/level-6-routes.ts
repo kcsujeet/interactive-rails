@@ -23,18 +23,23 @@ Rails.application.routes.draw do
 end
 
 # Routes map HTTP verbs + URLs to controller actions.
-# In a full-stack app, resources generates 7 routes
-# (including new/edit for HTML forms).
-# In API-only mode, new and edit are excluded --
-# leaving 5 RESTful actions:
-#   index, show, create, update, destroy
+# REST gives you 5 standard actions for an API-only app
+# (the HTML form pages new and edit are not needed):
+#   index   GET   /products       -- list
+#   show    GET   /products/:id   -- read one
+#   create  POST  /products       -- create
+#   update  PATCH /products/:id   -- update
+#   destroy DELETE /products/:id  -- delete
 #
-# Namespaces nest routes under a URL prefix:
-#   /products      => products#index
-#   /api/products  => api/products#index
+# Hand-writing each verb-and-path line by line is tedious
+# and easy to get wrong. Rails has a single declaration
+# that generates all five from the model name. To keep
+# API endpoints organised under a URL prefix AND a Ruby
+# module path, the routing DSL has a separate construct.
 #
-# Your job: define the resource, nest it under the
-# API namespace, and trace each route to its action.`,
+# Your job: declare the five RESTful endpoints and nest
+# them under an API URL prefix, then verify with the
+# Rails CLI command that prints every route.`,
 		goal: 'End with the 5 RESTful endpoints for products live under a namespaced API path (something like `/api/products`), each one wired to a controller action.',
 		thresholds: {},
 	},
@@ -43,48 +48,47 @@ end
 	unlockedNodes: [],
 	learningContent: {
 		title: 'RESTful Routes & the Request Lifecycle',
-		goal: `In this level, you'll:\n- connect your app to the outside world by defining RESTful routes.\n- learn how Rails maps HTTP verbs and URLs to controller actions using resources.\n- namespace routes under /api/ to keep API endpoints organized.\n- trace a request from the moment it arrives to the response that goes back.`,
+		goal: `In this level, you'll:\n- connect your app to the outside world by declaring the 5 RESTful endpoints for a resource.\n- nest those endpoints under a URL prefix and a matching Ruby module path so API code lives in its own namespace.\n- verify what the router knows by listing every defined route from the command line.\n- trace a request from the moment it arrives to the response that goes back.`,
 		conceptExplanation: `Every HTTP request follows this path:
 
-1. **Request** arrives (GET /api/products)
-2. **Router** maps URL to controller action (\`routes.rb\`)
+1. **Request** arrives (GET /api/products).
+2. **Router** maps URL to controller action (\`routes.rb\`).
 3. **Controller** processes the request:
-   - Calls **Model** to query/write the database
-   - **Database** returns data to the model, which returns it to the controller
-4. **Response** sent back to client
+   - Calls **Model** to query/write the database.
+   - **Database** returns data to the model, which returns it to the controller.
+4. **Response** sent back to client.
 
 The **Router** is the gateway. Without it, requests have no way to reach your controller.
 
-**\`resources :products\`** in an API-only app generates 5 RESTful actions (index, show, create, update, destroy). The \`new\` and \`edit\` actions are excluded because API controllers don't serve HTML forms.
-**Namespacing** under \`/api/\` keeps API routes organized and lays the groundwork for adding versioning later when a second client requires it.`,
-		railsCodeExample: `# config/routes.rb
-Rails.application.routes.draw do
-  namespace :api do
-    resources :products
-    # Generates:
-    # GET    /api/products          => api/products#index
-    # POST   /api/products          => api/products#create
-    # GET    /api/products/:id      => api/products#show
-    # PATCH  /api/products/:id      => api/products#update
-    # PUT    /api/products/:id      => api/products#update
-    # DELETE /api/products/:id      => api/products#destroy
-  end
-end
+**The 5 RESTful actions for an API:**
+For each resource (Product, Review, User) you typically expose five HTTP endpoints: list-all, show-one, create-one, update-one, delete-one. In a JSON API there are no HTML form pages, so the two actions that exist only to render forms (new, edit) are excluded.
 
-# Check your routes:
-rails routes
+**One declaration generates all five:**
+Hand-writing each of the five verb-and-path lines is repetitive and easy to get wrong. Rails ships a single routing declaration that takes the resource name and produces all five routes by convention.
 
-# The request lifecycle:
-# 1. Client sends: GET /api/products
-# 2. Router matches: Api::ProductsController#index
-# 3. Controller calls Model: @products = Product.all
-# 4. Model queries DB: SELECT * FROM products
-# 5. Controller renders: render json: @products
-# 6. Response: 200 OK with JSON body`,
+**Nesting under a URL prefix and a Ruby module:**
+A URL prefix (\`/api/\`) keeps API routes organised and lays the groundwork for versioning later when a second client requires it. The Rails router has two constructs that look similar but behave differently:
+- One only changes the URL path, leaving controllers in the top-level namespace.
+- The other changes the URL path AND the Ruby module path, so the matching controllers must live in an \`Api::\` module. Use this for API endpoints; it keeps the controller class structure mirroring the URL structure.`,
+		railsCodeExample: `# After completing this level you will have:
+# 1. declared the 5 RESTful endpoints for the Product resource
+#    using the single route declaration that generates them all
+# 2. nested those endpoints under an API URL prefix using the
+#    routing construct that also nests the matching controllers
+#    in a Ruby module (so URL and class structure match)
+# 3. verified the result by running the Rails CLI command that
+#    prints every defined route
+
+# Verify (after the level):
+# Each line of the route printout will look something like:
+#   GET    /api/products       api/products#index
+#   POST   /api/products       api/products#create
+#   GET    /api/products/:id   api/products#show
+#   PATCH  /api/products/:id   api/products#update
+#   DELETE /api/products/:id   api/products#destroy`,
 		commonMistakes: [
 			'Hand-writing each verb-and-path line by line. There is a Rails declaration that generates the standard 5 RESTful routes from a single line; you should reach for it before typing five.',
-			'Reaching for `scope` when you wanted `namespace`. `scope` only changes the URL path; `namespace` changes the URL path AND the controller module. Mixing them produces "uninitialized constant" errors.',
-			'Putting routes under a URL prefix without the matching controller module. The URL resolves, the controller class lookup fails -- a confusing pair of errors to debug.',
+			'Putting routes under a URL prefix without the matching controller module. The URL resolves, the controller class lookup fails -- a confusing pair of errors to debug. Pick the routing construct that adjusts both the URL and the Ruby module path.',
 			'Not running the Rails CLI command that prints every route, every verb, every path, every action. It is the fastest way to verify what you actually defined.',
 		],
 		whenToUse:

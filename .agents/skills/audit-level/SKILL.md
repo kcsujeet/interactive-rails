@@ -16,6 +16,9 @@ Audit a level component to verify it follows the mandatory three-phase sequentia
 - [cross-phase-consistency.md](cross-phase-consistency.md): Visual language consistency, probe-to-scenario mapping, reward loop closure.
 - [terminal-layout-guide.md](terminal-layout-guide.md): Terminal sizing patterns (A/B/C), flex layout rules.
 
+**Project-wide design lens:**
+- [`.agents/rules/rails-principles.md`](../../../.agents/rules/rails-principles.md) § "The Shopify lens (design for billion-dollar scale, on Rails 8)": when stuck on a Rails design choice, ask "what would Shopify do, **on Rails 8**?" Rails 8 modern API surface (params.expect, Solid Queue/Cache/Cable, Kamal 2, Thruster, Propshaft, `bin/rails generate authentication`, `User.authenticate_by`) takes priority over legacy patterns. Reject weak defenses ("what if X is forgotten") that lint / specs / CI already catch. Single source of truth beats redundancy. **Apply this lens whenever the audit surfaces a "should the level use pattern A or pattern B?" decision.**
+
 ## Related Skill: design-level
 
 For **designing** a new level or **redesigning** a broken visualization, use the `design-level` skill. It provides the creative design workflow (visualization concept, probe design, build step design, reward design). This skill (`audit-level`) focuses on **reviewing and verifying** an existing level against the standards.

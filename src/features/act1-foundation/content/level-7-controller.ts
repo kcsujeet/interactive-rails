@@ -18,17 +18,28 @@ export const level7Controller: Level = {
 		observation:
 			'Routes exist but return "uninitialized constant Api::ProductsController".',
 		rootCause: 'No controller exists to handle the routed requests.',
-		codeExample: `# Controllers handle requests and return JSON.
-# API controllers inherit from ActionController::API
-# (skips cookie/session middleware by default).
+		codeExample: `# Controllers handle requests and return JSON in API mode.
+# An API controller is a leaner base class than the
+# full-stack default: cookie, session, flash, and CSRF
+# middleware are skipped because no HTML browser session
+# is involved.
 #
-# The 5 RESTful actions:
-#   index, show, create, update, destroy
-#   (API controllers don't need: new, edit)
-#   (also not: list, get, add, remove)
+# The 5 RESTful actions for a JSON API:
+#   index   list-all
+#   show    read-one
+#   create  create-one
+#   update  update-one
+#   destroy delete-one
+# (No new/edit -- those exist only for HTML form pages.)
 #
-# Your job: generate the controller, add actions,
-# and test the endpoint with curl.`,
+# Two constraints: the controller's class name must match
+# both the resource (plural Rails convention) and the
+# Ruby module path (mirroring the URL prefix the routes
+# live under). Either one wrong and the URL resolves to
+# a class Ruby cannot find.
+#
+# Your job: generate the controller, fill in the five
+# actions, and verify the endpoint with curl.`,
 		goal: 'End with a controller class behind those routes that returns JSON for each of the 5 RESTful actions, verifiable from the command line.',
 		thresholds: {},
 	},
@@ -37,7 +48,7 @@ export const level7Controller: Level = {
 	unlockedNodes: [],
 	learningContent: {
 		title: 'API Controllers & JSON Responses',
-		goal: `In this level, you'll:\n- build the controller that handles incoming API requests and returns JSON responses.\n- learn how to generate a controller and wire up the five RESTful actions (index, show, create, update, destroy).\n- test your endpoints with curl from the command line.`,
+		goal: `In this level, you'll:\n- build the controller that handles incoming API requests and returns JSON responses.\n- generate the controller class (whose name must match both the resource and the routes' module path) and wire up the five RESTful actions.\n- exercise the endpoint by sending a real HTTP request from the command line.`,
 		conceptExplanation: `Controllers are the C in MVC. In API mode, they receive HTTP requests and return JSON.
 
 **API vs Full-Stack Controllers:**

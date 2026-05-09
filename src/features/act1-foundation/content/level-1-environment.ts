@@ -36,55 +36,42 @@ export const level1Environment: Level = {
 	darkCanvas: true,
 	learningContent: {
 		title: 'Ruby/Rails Development Environment',
-		goal: `In this level, you'll:\n- set up your Ruby on Rails development environment from scratch.\n- use a version manager that pins exact Ruby versions per project.\n- configure a version file and install Ruby through the version manager.\n- install the Rails framework as a Ruby gem.`,
+		goal: `In this level, you'll:\n- set up a Ruby on Rails development environment from scratch.\n- pick a version manager so each project locks to its own Ruby version.\n- write a project-level config file and install the pinned Ruby through the manager.\n- install the Rails framework so the rails CLI is on your PATH.`,
 		conceptExplanation: `Setting up a consistent dev environment is the first step in any Rails project.
 
-**Why mise?**
-- Written in Rust, so it's fast and has no shell startup overhead
-- Manages multiple runtime versions (Ruby, Node, Python, etc.) with one tool
-- Per-project version pinning via \`.mise.toml\`
-- Team members always use the same Ruby version
-- No conflicts between projects needing different versions
-- Ruby support is built in, no separate plugin install
+**Why a version manager:**
+- Two projects on the same laptop often need different Ruby versions; a system-wide Ruby breaks one of them on every \`cd\`.
+- A version manager keeps multiple Rubies installed side-by-side and switches between them based on a project-level config file.
+- The good ones also handle Node, Python, and other runtimes with the same tool, so you only learn one workflow.
+- The good ones are written for speed, so the per-shell activation cost is essentially zero.
 
-**The .mise.toml file:**
-- Lives in your project root
-- TOML syntax with tools declared under \`[tools]\`
-- mise reads it automatically when you \`cd\` into the directory
-- Also supports per-project env vars and tasks in the same file
+**The project-level pin:**
+- Lives in your project root and is checked into git.
+- Names the exact Ruby version the project was built with (e.g. \`3.4.9\`).
+- The version manager reads it automatically when you \`cd\` into the directory and switches Ruby for you.
+- Without this file, the next contributor's machine picks a different Ruby and surprises them at runtime.
 
 **Ruby gems:**
-- Rails is distributed as a Ruby gem
-- \`gem install rails\` installs the Rails CLI
-- The \`rails new\` command then generates project scaffolding`,
-		railsCodeExample: `# Install mise (macOS)
-brew install mise
+- Rails itself is distributed as a Ruby gem (a Ruby package).
+- Installing the Rails gem puts the \`rails\` CLI on your PATH.
+- From there, \`rails new myapp\` generates a fresh project skeleton.`,
+		railsCodeExample: `# After completing this level you will have run something like:
+# 1. installed a version manager via your OS package manager
+# 2. wired the version manager into your shell startup
+# 3. created a project-level config file pinning Ruby to a specific version
+# 4. installed that pinned Ruby through the version manager
+# 5. installed the Rails framework gem
 
-# Activate mise in your shell
-echo 'eval "$(mise activate zsh)"' >> ~/.zshrc
-
-# Pin Ruby in project root (.mise.toml)
-cat <<EOF > .mise.toml
-[tools]
-ruby = "3.4.9"
-EOF
-
-# Install the pinned Ruby version
-mise install
-
-# Verify
+# Verify (after the level):
 ruby --version  # => ruby 3.4.9
-
-# Install Rails
-gem install rails
-rails --version  # => Rails 8.1.3`,
+rails --version # => Rails 8.1.3`,
 		commonMistakes: [
 			'Installing Ruby system-wide so every project shares the same version. Two projects on different Ruby versions then break each other on `cd`.',
 			'Stopping after installing the version manager without wiring it into the shell -- the binary works, but the per-project auto-switch never happens.',
 			'Skipping the project-level version pin. The first new contributor on a different machine ends up with a different Ruby and finds out at runtime.',
 		],
 		whenToUse:
-			'Always set up a version manager and .mise.toml at the start of a new Rails project.',
+			'Always set up a version manager and a project-level Ruby pin at the start of a new Rails project.',
 		furtherReading: [
 			{
 				title: 'mise-en-place Documentation',
@@ -98,6 +85,6 @@ rails --version  # => Rails 8.1.3`,
 	},
 	hint: {
 		delay: 30,
-		text: 'On macOS, the package manager that handles system tools is the same one most developers use for everything else. Once installed, the version manager needs both an entry in your shell startup and a project file declaring which Ruby this project wants -- otherwise it knows nothing.',
+		text: 'Pick a version manager that ships per-project Ruby pinning, then ensure two pieces are in place: a shell-startup hook that activates it, and a project-root file declaring which Ruby this project wants. Either one missing and the auto-switch never happens.',
 	},
 };

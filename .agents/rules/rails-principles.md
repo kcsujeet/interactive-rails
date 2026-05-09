@@ -11,6 +11,41 @@ The philosophy behind the patterns in `rails-conventions.md`. Adapted from the R
 
 When a level proposes a pattern, ask: does it follow these principles? When a level shows a "before" state, does it cleanly demonstrate one of the anti-patterns?
 
+## The Shopify lens (design for billion-dollar scale, on Rails 8)
+
+When stuck on a Rails design choice — which pattern, which gem, which API surface — ask: **"What would Shopify do, on Rails 8?"** (or Stripe, Airbnb, GitHub — any staff-engineer-at-scale Rails shop, running the modern stack). This is the project's primary design lens. The audience is first-time developers, but the patterns the curriculum teaches must be the ones billion-dollar shops actually run in production *today*, not the textbook examples and not the Rails 6 / Rails 7 patterns those shops have since migrated off.
+
+**Rails 8 priority is part of the lens.** Whenever Rails 8 ships a modern alternative to an older pattern, the modern alternative wins. Examples:
+
+- **Strong params**: `params.expect(product: [:name, ...])` over `params.require(:product).permit(:name, ...)` (Rails 8+ shape-aware filtering).
+- **Authentication**: `bin/rails generate authentication` (Rails 8 built-in) over Devise. `User.authenticate_by` over manual `find_by + authenticate` (timing-safe, Rails 8+).
+- **Background jobs / cache / cable**: Solid Queue, Solid Cache, Solid Cable (Rails 8 defaults) over Sidekiq + Redis / Memcached.
+- **Deploy**: Kamal 2 + Thruster (Rails 8 defaults) over Capistrano + nginx.
+- **Asset pipeline**: Propshaft (Rails 8 default) over Sprockets.
+- **DB**: SQLite with WAL + IMMEDIATE transactions is a viable production default on Rails 8 (per the 8.0 release notes); previously it was a dev-only shortcut.
+
+If a peer billion-dollar Rails shop is still on the older pattern because they're on an older Rails, that's irrelevant — the curriculum teaches Rails 8, so the right reference is "what would they do *if they were starting fresh on Rails 8*?" Whenever a Rails Guides example shows the legacy pattern (the Guides often do, for backward-compat reasons), default to the Rails 8 production-safe variant. See `rails-conventions.md` for the concrete pattern list and `Rails 8 Reference` in `CLAUDE.md` for what's actually new in 8 vs backported from earlier versions.
+
+**Reject weak defenses for design choices.** Arguments of the shape "what if [obvious safeguard] is forgotten?" or "what if [trivial bug] ships?" do not justify design at this scale. Billion-dollar codebases have:
+- Test suites that fail when invariants break.
+- Lints / static analysis (e.g. Pundit's `after_action :verify_authorized`, RuboCop, Brakeman).
+- CI that gates merges.
+- Code review by experienced engineers.
+
+Designing for "what if `authorize` is forgotten" is defense against a non-bug — the lint catches it before it ships. Designing for "what if the cache key is wrong" is also a non-bug — that's what test coverage exists for. Use these "what ifs" as a smell test: if your only argument for a pattern is a hypothetical that real engineering practices already catch, your reasoning is too weak. Find a stronger reason or pick the canonical pattern.
+
+**Single source of truth beats redundancy.** A billion-dollar codebase prefers one place for each rule — the policy class for authorization, the validator for data, the migration for schema, the serializer for JSON shape — over distributing the rule across multiple layers "just in case." Distribution makes the rule harder to evolve (admin overrides, support agents, shared resources, multi-tenancy) and harder to test in isolation.
+
+**Case study (2026-05-09, L11 / L13 design):** During the L1-L13 audit fix batch, the simulated L13 `update` finder was changed from `Product.find(params[:id])` (Pundit canonical, single source of truth in the policy class) to `Current.user.products.find(params[:id])` (scoped find that duplicates ownership into the SQL). The justification was "defense-in-depth: 404 even if `authorize` is forgotten." That justification is the smell described above: a billion-dollar Rails shop wouldn't forget `authorize` — Pundit's `verify_authorized` lint plus policy specs catch missing calls before they ship. The "forgotten authorize" hypothetical is a non-bug. Designing the find around it duplicates the rule across find AND policy, weakening single-source-of-truth. The reasoning was reverted: the canonical post-L11 pattern is `Product.find + authorize` (find loads the record; the policy class is the only place ownership rules live).
+
+**The lens at a glance.** When in doubt, ask:
+1. What does Shopify (or a peer billion-dollar Rails shop) do here, **on Rails 8**?
+2. Where does the rule LIVE — one place, or scattered across layers?
+3. Is my justification a real engineering concern, or a hypothetical that lints / specs / CI already catch?
+4. Is this the Rails 8 modern API, or am I about to teach a Rails 6 / Rails 7 pattern that a Rails 8 shop has already migrated off?
+
+If (1), (3), and (4) all push toward the same pattern, that's the answer. If they conflict, weight (3) and (4) heavily — design for non-bugs is wasted complexity, and teaching legacy Rails surface contradicts the curriculum's stated audience.
+
 ## Principles (what to do)
 
 - **KISS — Keep it boring.** Prefer standard CRUD, conventional routing, fat models with simple predicates. No abstractions until complexity demands them. If a junior developer can't understand the level's correct answer in 30 seconds, the level is teaching the wrong thing.

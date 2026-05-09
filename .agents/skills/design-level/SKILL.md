@@ -35,6 +35,9 @@ These files are shared between both skills. They live in `audit-level/` and are 
 - [terminal-layout-guide.md](../audit-level/terminal-layout-guide.md): Terminal sizing patterns (A/B/C).
 - [cross-phase-consistency.md](../audit-level/cross-phase-consistency.md): Visual language consistency rules.
 
+**Project-wide design lens:**
+- [`.agents/rules/rails-principles.md`](../../../.agents/rules/rails-principles.md) § "The Shopify lens (design for billion-dollar scale, on Rails 8)": when stuck on a Rails design choice (which pattern, which gem, which API), ask "what would Shopify do, **on Rails 8**?" Rails 8 modern surface (params.expect, Solid Queue/Cache/Cable, Kamal 2, Thruster, Propshaft, `bin/rails generate authentication`, `User.authenticate_by`, etc.) takes priority over Rails 6/7 patterns even when peer shops haven't migrated yet. Reject "what if X is forgotten" defenses — lints / specs / CI catch those non-bugs. Single source of truth beats redundancy across layers.
+
 ---
 
 ## Step 0: Read Before You Write (Non-Negotiable)

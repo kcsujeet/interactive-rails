@@ -22,17 +22,22 @@ export const level10Encryption: Level = {
 # psql -c "SELECT email_address, phone, address FROM users LIMIT 1;"
 # => "alice@example.com" | "+1-555-0123" | "123 Main St, NYC"
 #
-# Anyone with database access sees everything.
-# A leaked backup or SQL injection exposes every customer's identity.
+# Anyone with database access sees everything. A leaked
+# backup or SQL injection exposes every customer's identity.
 #
-# Rails 8 provides:  encrypts :column [, deterministic: true]
-#   - Deterministic: same plaintext -> same ciphertext (find_by works)
-#   - Non-deterministic: same plaintext -> different ciphertext (max security)
+# Rails 8 ships two encryption modes for a column:
+#   - One mode produces the SAME ciphertext for the same
+#     plaintext, so equality lookups (find_by) still work.
+#     Use this for fields you have to look up by value.
+#   - The other mode produces a DIFFERENT ciphertext each
+#     time, so it cannot be queried but is harder to
+#     attack. Use this for fields you only ever read out.
 #
-# email_address needs deterministic (login looks up by email).
-# phone needs deterministic if you ever search by phone, else non-deterministic.
-# address never needs lookup -> non-deterministic.`,
-		goal: 'Encrypt user PII at rest using Rails 8 built-in encryption. Choose the right encryption mode for each field based on whether it needs to be queryable.',
+# Constraint: login goes through a method that looks the
+# user up by email_address, so whatever encryption mode
+# you pick for that column has to keep that lookup
+# working.`,
+		goal: 'Encrypt the sensitive User columns at the application layer so the database stores ciphertext while the app keeps reading plaintext. Login lookups must keep working.',
 		thresholds: {},
 	},
 	successConditions: [
@@ -43,7 +48,7 @@ export const level10Encryption: Level = {
 	unlockedNodes: [],
 	learningContent: {
 		title: 'Rails 8 Encrypted Attributes',
-		goal: `In this level, you'll:\n- learn how to encrypt sensitive data at the application level using Rails 8's built-in encryption.\n- understand the difference between deterministic encryption (queryable but less secure) and non-deterministic encryption (maximum security).\n- know when to use each mode for fields like SSNs, API keys, and personal data.`,
+		goal: `In this level, you'll:\n- learn how to encrypt sensitive User columns at the application layer using Rails 8's built-in encryption.\n- understand why some fields need to stay queryable (login lookups) while others do not.\n- choose the right encryption mode per field for fields like emails, phone numbers, addresses, SSNs, and API keys.`,
 		conceptExplanation: `Rails 8 provides built-in attribute encryption via the \`encrypts\` macro. No gems needed.
 
 **Deterministic encryption:**

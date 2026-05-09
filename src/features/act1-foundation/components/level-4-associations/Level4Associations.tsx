@@ -4,12 +4,13 @@
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
- * Phase 1 (WHY - observe): Interactive exploration. Click pipeline stages to
- *   inspect code, fire API probes to discover that products are isolated with no
- *   way to attach reviews. Discovery gating controls when "Build the Fix" appears.
- *   (Curriculum order: this level comes right after Model (L3), before CRUD (L5),
- *   Routes (L6), Controller (L7), Serializers (L8). Pipeline references those
- *   downstream stages as scaffolding the player will fill in later acts.)
+ * Phase 1 (WHY - observe): Interactive exploration of two Active Record models.
+ *   At L4 the player only has `bin/rails console` and the Product model from L3.
+ *   No controllers, no routes, no API exist yet (those are L6, L7, L8).
+ *   Probes are console commands the player runs against the existing app.
+ *   They reveal that Product is an island: the Review model does not exist,
+ *   the has_many association does not exist, and the foreign key linking
+ *   Review back to Product does not exist either.
  * Phase 2 (HOW - build): 6 steps (3 terminal + 1 informational + 2 OptionCard)
  *   Step 0: Generate Review model with product:references (terminal)
  *   Step 1: Run migration (terminal)
@@ -17,8 +18,8 @@
  *   Step 3: Auto belongs_to explanation (informational, "Got It" button)
  *   Step 4: Set dependent option (OptionCard)
  *   Step 5: Test the association in Rails console (terminal, irb> prompt)
- * Phase 3 (ADVANTAGE - reward): Stress test. Fire request scenarios at the
- *   associated pipeline and watch create/cascade results.
+ * Phase 3 (ADVANTAGE - reward): Stress test. The same console probes the
+ *   player ran in observe now succeed because the association exists.
  *
  * Teaches: has_many, belongs_to, dependent: :destroy, product:references
  */
@@ -79,222 +80,320 @@ type Phase = 'observe' | 'build' | 'reward';
 
 // ──────────────────────────────────────────────
 // Discovery definitions (observe phase)
+//
+// L4 only has Active Record models and the Rails console at this point.
+// No controllers, routes, or API exist yet (those land in L6-L8).
+// Each discovery corresponds to one console probe.
 // ──────────────────────────────────────────────
 
 const DISCOVERY_DEFS: DiscoveryDef[] = [
+	{ id: 'no-reviews-method', label: 'Product has no .reviews method' },
 	{ id: 'no-review-model', label: 'Review model does not exist' },
-	{ id: 'no-association', label: 'Product has no associations defined' },
-	{ id: 'isolated-products', label: 'Products exist in isolation' },
-	{ id: 'no-nested-routes', label: 'No nested routes for reviews' },
+	{ id: 'no-product-id-column', label: 'No foreign key links the two tables' },
 ];
 
 // ──────────────────────────────────────────────
 // Probe configurations (observe phase)
+//
+// Every probe is a `bin/rails console` command the player can actually
+// type at L4. No HTTP requests, no routes, no controllers.
 // ──────────────────────────────────────────────
 
 const PROBES: ProbeConfig[] = [
 	{
-		id: 'get-reviews',
-		label: 'GET reviews',
+		id: 'reviews-on-product',
+		label: 'Product.first.reviews',
 		story: [
-			'A customer wants to read reviews for a product before buying it.',
-			'The frontend sends GET /api/products/1/reviews.',
-			'The router looks for a nested reviews route under products.',
-			'No nested routes exist. Products are defined in isolation.',
-			'The request returns a 404. There is no way to access reviews through the API.',
+			'You open the Rails console and load the first product.',
+			'You type product.reviews to see what reviews it has.',
+			'Rails raises NoMethodError. Product has no .reviews method.',
+			'Without an association, the parent model has no way to ask for its children.',
 		],
-		command: 'GET /api/products/1/reviews',
+		command: 'rails c -> Product.first.reviews',
 		responseLines: [
-			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
-			{ text: '', color: 'muted' },
+			{ text: 'product = Product.first', color: 'muted' },
 			{
-				text: 'No route matches GET "/api/products/1/reviews"',
-				color: 'yellow',
+				text: '=> #<Product id: 1, name: "Laptop Pro">',
+				color: 'green',
+			},
+			{ text: 'product.reviews', color: 'muted' },
+			{
+				text: "NoMethodError: undefined method `reviews' for #<Product>",
+				color: 'red',
 			},
 			{
-				text: 'Products exist in isolation. No review routes defined.',
-				color: 'red',
+				text: 'Product has no association declaration.',
+				color: 'yellow',
 			},
 		],
 	},
 	{
-		id: 'post-review',
-		label: 'POST review',
+		id: 'review-model-exists',
+		label: 'Review.count',
 		story: [
-			'A customer finishes reading a product page and wants to leave a review.',
-			'They submit a POST to /api/products/1/reviews with their feedback.',
-			'The router has no matching route for this path.',
-			'Beyond routing, no Review model exists in the application at all.',
-			'The request fails with a 404. Reviews cannot be created or stored.',
+			'You try to query the Review model directly to see if any rows exist.',
+			'Rails cannot find a constant named Review.',
+			'No app/models/review.rb file exists. The class has never been defined.',
+			'There is no Review model and no reviews table. Just Product.',
 		],
-		command: 'POST /api/products/1/reviews (body: "Great laptop!")',
+		command: 'rails c -> Review.count',
 		responseLines: [
-			{ text: 'HTTP/1.1 404 Not Found', color: 'red' },
-			{ text: '', color: 'muted' },
+			{ text: 'Review.count', color: 'muted' },
 			{
-				text: 'No route matches POST "/api/products/1/reviews"',
-				color: 'yellow',
+				text: 'NameError: uninitialized constant Review',
+				color: 'red',
 			},
 			{
-				text: 'No Review model or association exists.',
-				color: 'red',
+				text: 'No Review model exists. Only Product is defined.',
+				color: 'yellow',
 			},
 		],
 	},
 	{
-		id: 'console-reviews',
-		label: 'Rails console',
+		id: 'inspect-product-columns',
+		label: 'Product.columns_hash.keys',
 		story: [
-			'A developer opens the Rails console to debug the missing reviews.',
-			'They run Product.first.reviews to check if the association exists.',
-			'Rails raises a NoMethodError: Product has no "reviews" method.',
-			'The Product model has no has_many :reviews declaration.',
-			'Without an association, Rails cannot link products to their reviews.',
+			'You list the columns on the products table.',
+			'You see name, description, price -- the three columns from L3.',
+			'There is no product_id column anywhere because the reviews table itself does not exist.',
+			'Without a foreign key, there is no way to remember which review belongs to which product.',
 		],
-		command: 'rails console: Product.first.reviews',
+		command: 'rails c -> Product.columns_hash.keys',
 		responseLines: [
-			{ text: "NoMethodError: undefined method `reviews'", color: 'red' },
-			{ text: 'for #<Product id: 1, name: "Laptop Pro">', color: 'muted' },
-			{ text: '', color: 'muted' },
+			{ text: 'Product.columns_hash.keys', color: 'muted' },
 			{
-				text: 'Product has no "reviews" method. No association is defined.',
+				text: '=> ["id", "name", "description", "price", "created_at", "updated_at"]',
+				color: 'green',
+			},
+			{
+				text: 'No reviews table, no product_id foreign key. Two records cannot link.',
 				color: 'yellow',
 			},
 		],
 	},
 ];
 
-// Map probe IDs to discovery IDs they trigger
+// Map probe IDs to discovery IDs they trigger (1:1)
 const PROBE_DISCOVERY_MAP: Record<string, string> = {
-	'get-reviews': 'isolated-products',
-	'post-review': 'no-review-model',
-	'console-reviews': 'no-association',
+	'reviews-on-product': 'no-reviews-method',
+	'review-model-exists': 'no-review-model',
+	'inspect-product-columns': 'no-product-id-column',
 };
 
-// Map probe IDs to pipeline node display during observe
-const PROBE_PIPELINE_MAP: Record<
-	string,
-	{ modelSublabel: string; modelBadge: string }
-> = {
-	'get-reviews': {
-		modelSublabel: 'No .reviews method',
-		modelBadge: '404!',
+// Map probe IDs to per-probe pipeline node display during observe.
+// Each probe lights up a different aspect of the missing relationship.
+interface ProbePipelineDisplay {
+	productSublabel?: string;
+	productBadge?: string;
+	productVariant?: PipelineStage['variant'];
+	reviewSublabel?: string;
+	reviewBadge?: string;
+	reviewVariant?: PipelineStage['variant'];
+}
+
+const PROBE_PIPELINE_MAP: Record<string, ProbePipelineDisplay> = {
+	'reviews-on-product': {
+		productSublabel: 'no .reviews method',
+		productBadge: 'NoMethodError',
+		productVariant: 'danger',
+		reviewSublabel: 'never declared',
+		reviewVariant: 'inactive',
 	},
-	'post-review': {
-		modelSublabel: 'No Review model',
-		modelBadge: '404!',
+	'review-model-exists': {
+		productSublabel: 'no associations',
+		productVariant: 'danger',
+		reviewSublabel: 'class missing',
+		reviewBadge: 'NameError',
+		reviewVariant: 'inactive',
 	},
-	'console-reviews': {
-		modelSublabel: 'NoMethodError',
-		modelBadge: 'ERROR',
+	'inspect-product-columns': {
+		productSublabel: 'name, description, price',
+		productVariant: 'danger',
+		reviewSublabel: 'no reviews table',
+		reviewBadge: 'no FK',
+		reviewVariant: 'inactive',
 	},
 };
 
 // ──────────────────────────────────────────────
 // Stage inspector data (observe phase)
+//
+// Inspectors describe the two model files and the schema. No router,
+// controller, or serializer cards -- those concepts do not exist yet.
 // ──────────────────────────────────────────────
 
 const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
-	request: {
-		stageId: 'request',
-		title: 'Incoming Request',
+	product: {
+		stageId: 'product',
+		title: 'Product Model',
 		description:
-			'HTTP request targeting reviews on a product. The request expects nested resources at /products/:id/reviews.',
-	},
-	router: {
-		stageId: 'router',
-		title: 'Router',
-		description:
-			'Routes only define `resources :products`. There are no nested routes for reviews. Add `resources :reviews` inside the products block to create /products/:id/reviews.',
-		code: `# config/routes.rb
-namespace :api do
-  resources :products
-  # No nested routes!
+			'The Product model from L3. It has a name, description, and price column. There are no associations on it yet, so it cannot ask for related records.',
+		code: `# app/models/product.rb
+class Product < ApplicationRecord
+  # No associations defined.
 end`,
 	},
-	controller: {
-		stageId: 'controller',
-		title: 'ProductsController',
+	review: {
+		stageId: 'review',
+		title: 'Review Model (does not exist)',
 		description:
-			'ProductsController handles product CRUD. No ReviewsController exists yet.',
+			'There is no app/models/review.rb file. No reviews table either. The build phase will generate the Review model, the migration, and the foreign key all at once.',
 	},
-	model: {
-		stageId: 'model',
-		title: 'Product Model (Isolated)',
+	schema: {
+		stageId: 'schema',
+		title: 'Database Schema',
 		description:
-			'Product model has name, description, price but no associations. Each model is isolated. Rails associations (has_many, belongs_to) link models and provide query methods like `product.reviews`.',
-		code: `class Product < ApplicationRecord
-  # No associations defined
-end`,
-	},
-	serializer: {
-		stageId: 'serializer',
-		title: 'Serializer (introduced later)',
-		description:
-			'A later level (L8) teaches how to shape JSON output for the API. For now, just know there is a step between the controller and the response that controls how data is rendered. Once associations are added, that step can include nested review data.',
-	},
-	response: {
-		stageId: 'response',
-		title: 'Response',
-		description: '404 for all review-related requests.',
+			'Postgres only has a products table. No reviews table, no product_id foreign key, no index. Two unrelated tables would still leave the data unlinked at the database level.',
+		code: `# db/schema.rb (current)
+create_table "products" do |t|
+  t.string   "name"
+  t.text     "description"
+  t.decimal  "price"
+  t.datetime "created_at"
+  t.datetime "updated_at"
+end
+# (no reviews table)`,
 	},
 };
 
-// Map stage IDs to discovery IDs they trigger
-const STAGE_DISCOVERY_MAP: Record<string, string> = {
-	model: 'no-review-model',
-	router: 'no-nested-routes',
+// Map stage IDs to discovery IDs they trigger.
+// Stage clicks do NOT duplicate probe-triggered discoveries -- the schema
+// inspector only opens the inspector card. Discoveries are probe-driven.
+const STAGE_DISCOVERY_MAP: Record<string, string> = {};
+
+// ──────────────────────────────────────────────
+// Pipeline visualization configs
+//
+// Two-node, model-only layout. Product on the left, Review on the right,
+// with a single bidirectional edge between them representing the
+// missing has_many / belongs_to relationship.
+// ──────────────────────────────────────────────
+
+const NODE_POS = {
+	product: { x: 200, y: 200 },
+	review: { x: 700, y: 200 },
+} as const;
+
+const OBSERVE_CONNECTIONS: PipelineConnection[] = [
+	{
+		from: 'product',
+		to: 'review',
+		dots: 'mixed',
+	},
+];
+
+const REWARD_CONNECTIONS: PipelineConnection[] = [
+	{
+		from: 'product',
+		to: 'review',
+		bidirectional: true,
+		dots: 'clean',
+	},
+];
+
+// Per-probe edge activation. Each probe lights the (broken) link between
+// the two models in single-pass mode so the player sees a one-shot dot
+// flow that stops at the missing target.
+const PROBE_ACTIVE_CONNECTIONS: Record<string, string[]> = {
+	'reviews-on-product': ['product-review'],
+	'review-model-exists': ['product-review'],
+	'inspect-product-columns': ['product-review'],
+};
+
+// Per-scenario edge activation in reward. Same console probes, but now
+// the link works, so dots reach Review and the return path animates too.
+const SCENARIO_ACTIVE_CONNECTIONS: Record<string, string[]> = {
+	'reviews-on-product': ['product-review', 'review-product'],
+	'review-model-exists': ['product-review', 'review-product'],
+	'inspect-product-columns': ['product-review', 'review-product'],
+	'create-review-through-association': ['product-review', 'review-product'],
+	'cascade-on-destroy': ['product-review', 'review-product'],
 };
 
 // ──────────────────────────────────────────────
 // Stress test scenarios (reward phase)
+//
+// First three scenarios mirror the observe probes 1:1 (same id, same
+// label, same console command). The next two are reward-only scenarios
+// that demonstrate capabilities the build introduces: creating a review
+// through the association, and the destroy cascade.
 // ──────────────────────────────────────────────
 
 const STRESS_SCENARIOS: StressScenario[] = [
 	{
-		id: 'create-review',
-		label: 'Create review on product',
-		description: 'Add a new review through the association',
-		method: 'POST',
-		path: '/api/products/1/reviews',
-		actor: 'client',
-		expectedResult: 'allowed',
-	},
-	{
-		id: 'list-reviews',
-		label: 'List product reviews',
-		description: 'Fetch all reviews for a specific product',
+		id: 'reviews-on-product',
+		label: 'Product.first.reviews',
+		description: 'Same console command, but now the association exists',
 		method: 'GET',
-		path: '/api/products/1/reviews',
-		actor: 'client',
+		path: 'rails c',
+		actor: 'developer',
 		expectedResult: 'allowed',
+		story: [
+			'Same developer doing the same thing in the Rails console.',
+			'They load the first product and call product.reviews.',
+			'Rails uses the has_many declaration to issue a SELECT on the reviews table.',
+			'An empty array comes back -- no errors, just no rows yet.',
+		],
 	},
 	{
-		id: 'delete-product-cascade',
-		label: 'Delete product (cascade)',
-		description: 'Delete a product and cascade-destroy its reviews',
+		id: 'review-model-exists',
+		label: 'Review.count',
+		description: 'The Review model and reviews table now exist',
+		method: 'GET',
+		path: 'rails c',
+		actor: 'developer',
+		expectedResult: 'allowed',
+		story: [
+			'Same developer asking the same question.',
+			'They run Review.count to confirm the model loads.',
+			'Rails finds app/models/review.rb and runs SELECT COUNT(*) on the reviews table.',
+			'It returns 0 (an empty table) without raising.',
+		],
+	},
+	{
+		id: 'inspect-product-columns',
+		label: 'Review.columns_hash.keys',
+		description: 'The reviews table now has a product_id foreign key',
+		method: 'GET',
+		path: 'rails c',
+		actor: 'developer',
+		expectedResult: 'allowed',
+		story: [
+			'Same developer inspecting the schema, but this time on the reviews table.',
+			'They see id, body, product_id, created_at, updated_at.',
+			'product_id is the foreign key the migration added via t.references.',
+			'An index on product_id and a database-level FK constraint come along for free.',
+		],
+	},
+	{
+		id: 'create-review-through-association',
+		label: 'product.reviews.create(body: "Nice!")',
+		description: 'Add a review through the association',
+		method: 'POST',
+		path: 'rails c',
+		actor: 'developer',
+		expectedResult: 'allowed',
+		story: [
+			'A developer wants to attach a review to a product in the console.',
+			'They call product.reviews.create(body: "Nice!").',
+			'Rails sets product_id on the new Review record automatically.',
+			'A new row lands in the reviews table, linked to this product.',
+		],
+	},
+	{
+		id: 'cascade-on-destroy',
+		label: 'Product.first.destroy',
+		description: 'Destroy a product and cascade-delete its reviews',
 		method: 'DELETE',
-		path: '/api/products/1',
-		actor: 'client',
+		path: 'rails c',
+		actor: 'developer',
 		expectedResult: 'allowed',
-	},
-	{
-		id: 'get-product-with-reviews',
-		label: 'Show product with reviews',
-		description: 'Fetch a product with its nested reviews',
-		method: 'GET',
-		path: '/api/products/1',
-		actor: 'client',
-		expectedResult: 'allowed',
-	},
-	{
-		id: 'review-invalid-product',
-		label: 'Review on missing product',
-		description: 'Try to create a review on a non-existent product',
-		method: 'POST',
-		path: '/api/products/999/reviews',
-		actor: 'client',
-		expectedResult: 'blocked',
+		story: [
+			'A developer destroys a product that already has reviews attached.',
+			'Without dependent: :destroy, the reviews would be left orphaned.',
+			'With dependent: :destroy, Rails calls .destroy on each review first.',
+			'Both the product row and its reviews are gone in a single transaction.',
+		],
 	},
 ];
 
@@ -563,80 +662,6 @@ const OPTION_STEP_CONFIG: Record<
 };
 
 // ──────────────────────────────────────────────
-// Hub layout positions (Controller is the hub)
-// ──────────────────────────────────────────────
-
-const HUB_POS = {
-	serializer: { x: 500, y: -180 },
-	model: { x: 500, y: 180 },
-	database: { x: 500, y: 360 },
-} as const;
-
-// ──────────────────────────────────────────────
-// Pipeline visualization configs
-// ──────────────────────────────────────────────
-
-const OBSERVE_CONNECTIONS: PipelineConnection[] = [
-	{ from: 'request', to: 'router', dots: 'mixed' },
-	{ from: 'router', to: 'controller', dots: 'mixed' },
-	{ from: 'controller', to: 'response', dots: 'mixed' },
-	{
-		from: 'controller',
-		to: 'model',
-		sourceHandle: 'bottom',
-		targetHandle: 'top',
-		bidirectional: true,
-		dots: 'mixed',
-	},
-	{
-		from: 'model',
-		to: 'database',
-		sourceHandle: 'bottom',
-		targetHandle: 'top',
-		bidirectional: true,
-		dots: 'mixed',
-	},
-	{
-		from: 'controller',
-		to: 'serializer',
-		sourceHandle: 'top',
-		targetHandle: 'bottom',
-		bidirectional: true,
-		dots: 'mixed',
-	},
-];
-
-const REWARD_CONNECTIONS: PipelineConnection[] = [
-	{ from: 'request', to: 'router', dots: 'clean' },
-	{ from: 'router', to: 'controller', dots: 'clean' },
-	{ from: 'controller', to: 'response', dots: 'clean' },
-	{
-		from: 'controller',
-		to: 'model',
-		sourceHandle: 'bottom',
-		targetHandle: 'top',
-		bidirectional: true,
-		dots: 'clean',
-	},
-	{
-		from: 'model',
-		to: 'database',
-		sourceHandle: 'bottom',
-		targetHandle: 'top',
-		bidirectional: true,
-		dots: 'clean',
-	},
-	{
-		from: 'controller',
-		to: 'serializer',
-		sourceHandle: 'top',
-		targetHandle: 'bottom',
-		bidirectional: true,
-		dots: 'clean',
-	},
-];
-
-// ──────────────────────────────────────────────
 // Code preview helper
 // ──────────────────────────────────────────────
 
@@ -649,10 +674,9 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
 			filename: 'app/models/product.rb',
 			language: 'ruby',
 			code: `class Product < ApplicationRecord
-  # No associations defined
-  # Products exist in isolation
+  # No associations defined.
 end`,
-			highlight: [2, 3],
+			highlight: [2],
 		});
 		return files;
 	}
@@ -752,16 +776,16 @@ function PipelineLegend() {
 	return (
 		<div className="p-4 border-b border-border">
 			<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-				Pipeline Legend
+				Console Probe Legend
 			</div>
 			<div className="space-y-2 text-sm">
 				<div className="flex items-center gap-2">
 					<Check className="w-4 h-4 text-success" />
-					<span className="text-foreground">Successful request (passes)</span>
+					<span className="text-foreground">Console call returns a value</span>
 				</div>
 				<div className="flex items-center gap-2">
 					<X className="w-4 h-4 text-destructive" />
-					<span className="text-foreground">Failed request (blocked)</span>
+					<span className="text-foreground">Console call raises an error</span>
 				</div>
 			</div>
 		</div>
@@ -792,111 +816,124 @@ export function Level4Associations({ onComplete }: LevelComponentProps) {
 	const observeStages: PipelineStage[] = useMemo(
 		() => [
 			{
-				id: 'request',
-				label: 'Request',
+				id: 'product',
+				label: 'Product Model',
+				position: NODE_POS.product,
+				sublabel: probeDisplay?.productSublabel ?? 'name, description, price',
+				badge: probeDisplay?.productBadge,
+				variant: probeDisplay?.productVariant ?? 'default',
 				inspectable: true,
-				inspected: inspectedStages.has('request'),
+				inspected: inspectedStages.has('product'),
 			},
 			{
-				id: 'router',
-				label: 'Router',
-				variant: 'active' as const,
+				id: 'review',
+				label: 'Review Model',
+				position: NODE_POS.review,
+				sublabel: probeDisplay?.reviewSublabel ?? 'does not exist',
+				badge: probeDisplay?.reviewBadge,
+				variant: probeDisplay?.reviewVariant ?? 'inactive',
 				inspectable: true,
-				inspected: inspectedStages.has('router'),
+				inspected: inspectedStages.has('review'),
 			},
 			{
-				id: 'controller',
-				label: 'Controller',
-				variant: 'active' as const,
+				id: 'schema',
+				label: 'Database Schema',
+				position: { x: 450, y: 380 },
+				sublabel: 'products table only',
+				variant: 'inactive',
 				inspectable: true,
-				inspected: inspectedStages.has('controller'),
-			},
-			{
-				id: 'response',
-				label: 'Response',
-				sublabel: probeDisplay ? '404' : undefined,
-				variant: (probeDisplay ? 'danger' : 'default') as 'danger' | 'default',
-				inspectable: true,
-				inspected: inspectedStages.has('response'),
-			},
-			{
-				id: 'serializer',
-				label: 'Serializer',
-				position: HUB_POS.serializer,
-				variant: 'active' as const,
-				inspectable: true,
-				inspected: inspectedStages.has('serializer'),
-			},
-			{
-				id: 'model',
-				label: 'Model',
-				position: HUB_POS.model,
-				sublabel: probeDisplay ? probeDisplay.modelSublabel : 'No associations',
-				badge: probeDisplay ? probeDisplay.modelBadge : undefined,
-				variant: (probeDisplay ? 'danger' : 'inactive') as
-					| 'danger'
-					| 'inactive',
-				inspectable: true,
-				inspected: inspectedStages.has('model'),
-			},
-			{
-				id: 'database',
-				label: 'Database',
-				position: HUB_POS.database,
-				variant: 'active' as const,
+				inspected: inspectedStages.has('schema'),
 			},
 		],
 		[inspectedStages, probeDisplay],
 	);
 
+	// Per-probe edge activation. Default to [] so edges are dormant until
+	// the player fires a probe.
+	const observeActiveConnections = useMemo(
+		() => (lastProbeId ? (PROBE_ACTIVE_CONNECTIONS[lastProbeId] ?? []) : []),
+		[lastProbeId],
+	);
+
 	// ── Build reward stages dynamically (reacts to latest stress test result) ──
 	const lastResult = stressTest.results[stressTest.results.length - 1];
-	const lastScenario = lastResult
-		? STRESS_SCENARIOS.find((s) => s.id === lastResult.scenarioId)
-		: null;
+
+	const rewardActiveConnections = useMemo(
+		() =>
+			lastResult
+				? (SCENARIO_ACTIVE_CONNECTIONS[lastResult.scenarioId] ?? [])
+				: [],
+		[lastResult],
+	);
+
 	const rewardStages: PipelineStage[] = useMemo(() => {
-		const wasBlocked = lastResult?.result === 'blocked';
+		// Per-scenario reward display: each scenario shows the same console
+		// command from observe, but now it succeeds. The two new scenarios
+		// (create + cascade) demonstrate capabilities the build introduced.
+		const display: Record<
+			string,
+			{
+				productSublabel: string;
+				reviewSublabel: string;
+				reviewVariant: PipelineStage['variant'];
+				reviewBadge?: string;
+			}
+		> = {
+			'reviews-on-product': {
+				productSublabel: 'has_many :reviews',
+				reviewSublabel: 'returns []',
+				reviewVariant: 'active',
+			},
+			'review-model-exists': {
+				productSublabel: 'has_many :reviews',
+				reviewSublabel: 'class loaded, table empty',
+				reviewVariant: 'active',
+			},
+			'inspect-product-columns': {
+				productSublabel: 'has_many :reviews',
+				reviewSublabel: 'product_id + index + FK',
+				reviewVariant: 'active',
+			},
+			'create-review-through-association': {
+				productSublabel: 'product.reviews.create',
+				reviewSublabel: 'new row, product_id set',
+				reviewVariant: 'active',
+				reviewBadge: '+1',
+			},
+			'cascade-on-destroy': {
+				productSublabel: 'destroy cascades',
+				reviewSublabel: 'reviews destroyed too',
+				reviewVariant: 'active',
+				reviewBadge: 'CASCADE',
+			},
+		};
+
+		const current = lastResult ? display[lastResult.scenarioId] : null;
 		return [
-			{ id: 'request', label: 'Request' },
-			{ id: 'router', label: 'Router', variant: 'active' as const },
 			{
-				id: 'controller',
-				label: 'Controller',
+				id: 'product',
+				label: 'Product Model',
+				position: NODE_POS.product,
+				sublabel: current?.productSublabel ?? 'has_many :reviews',
 				variant: 'active' as const,
 			},
 			{
-				id: 'response',
-				label: 'Response',
-				sublabel: lastResult
-					? wasBlocked
-						? '404'
-						: lastScenario?.method === 'DELETE'
-							? '204'
-							: '200'
-					: undefined,
+				id: 'review',
+				label: 'Review Model',
+				position: NODE_POS.review,
+				sublabel: current?.reviewSublabel ?? 'belongs_to :product',
+				badge: current?.reviewBadge,
+				variant: current?.reviewVariant ?? ('active' as const),
 			},
 			{
-				id: 'serializer',
-				label: 'Serializer',
-				position: HUB_POS.serializer,
-				variant: 'active' as const,
-			},
-			{
-				id: 'model',
-				label: 'Model',
-				position: HUB_POS.model,
-				variant: wasBlocked ? ('danger' as const) : ('active' as const),
-				sublabel: wasBlocked ? '404 Not Found' : 'has_many :reviews',
-				badge: wasBlocked ? 'BLOCKED' : undefined,
-			},
-			{
-				id: 'database',
-				label: 'Database',
-				position: HUB_POS.database,
+				id: 'schema',
+				label: 'Database Schema',
+				position: { x: 450, y: 380 },
+				sublabel: 'products + reviews (FK)',
 				variant: 'active' as const,
 			},
 		];
-	}, [lastResult, lastScenario]);
+	}, [lastResult]);
 
 	// ── Stage click handler (observe phase) ──
 	const handleStageClick = useCallback(
@@ -914,7 +951,7 @@ export function Level4Associations({ onComplete }: LevelComponentProps) {
 				return next;
 			});
 
-			// Trigger discovery if this stage has one
+			// Stage clicks no longer drive discoveries (probes do that 1:1).
 			const discoveryId = STAGE_DISCOVERY_MAP[stageId];
 			if (discoveryId) {
 				discoveryGating.discover(discoveryId);
@@ -1001,16 +1038,15 @@ export function Level4Associations({ onComplete }: LevelComponentProps) {
 							Scenario
 						</h3>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							You have a Product model from L3. The rest of the request pipeline
-							(CRUD, routes, controller, serializer) gets built in later levels.
-							But before any of that, products exist in isolation: no reviews,
-							no likes, no tags. Reviews need a model of their own and a
-							relationship that links them to a product.
+							You have a Product model from L3 and a Rails console open. The
+							storefront wants reviews attached to each product, but right now
+							Product is alone: no second model, no foreign key, no way for one
+							record to ask for the other.
 						</p>
 						<p className="text-sm text-muted-foreground leading-relaxed">
-							Try accessing reviews on a product and see what happens. Rails{' '}
+							Try a few console calls to see exactly what is missing. Rails{' '}
 							<span className="text-foreground font-medium">associations</span>{' '}
-							(has_many, belongs_to) connect models and provide query methods.
+							are how two models declare that they belong together.
 						</p>
 					</div>
 
@@ -1083,6 +1119,7 @@ export function Level4Associations({ onComplete }: LevelComponentProps) {
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">
 								<PipelineFlow
+									activeConnections={observeActiveConnections}
 									connections={OBSERVE_CONNECTIONS}
 									onNodeClick={handleStageClick}
 									stages={observeStages}
@@ -1100,7 +1137,7 @@ export function Level4Associations({ onComplete }: LevelComponentProps) {
 								<ProbeTerminal
 									onProbe={handleProbe}
 									probes={PROBES}
-									title="API Probe"
+									title="Rails Console Probe"
 								/>
 							</div>
 
@@ -1327,6 +1364,7 @@ export function Level4Associations({ onComplete }: LevelComponentProps) {
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">
 								<PipelineFlow
+									activeConnections={rewardActiveConnections}
 									connections={REWARD_CONNECTIONS}
 									stages={rewardStages}
 								/>

@@ -77,17 +77,19 @@ export const level9Authentication: Level = {
 curl -X DELETE /api/products/1   # Deleted! No questions asked.
 curl -X POST /api/products       # Created! By who? Nobody knows.
 
-# Rails 8 ships an auth generator:
-bin/rails generate authentication
-
-# This creates:
-# - User model with has_secure_password
-# - Session model for token management
-# - Authentication concern for controllers
-# - Login/logout controller scaffolding
-
-# But we're API-only -- we need Bearer tokens, not cookies.`,
-		goal: 'Add an authentication layer so every API request can prove which user is making it. Block anonymous access by default, then let clients identify themselves with a token they obtain at login and send on every later request.',
+# What you need:
+# - A User model that stores passwords safely (one-way hashed,
+#   never plaintext).
+# - A Session record so the server can recognise a returning
+#   client without making them re-enter their password every
+#   request.
+# - A controller-level check that runs before every action,
+#   blocks unauthenticated requests by default, and allows
+#   per-action exceptions for the login and signup endpoints.
+#
+# This is an API-only app, so any session has to ride on an
+# HTTP header (the Authorization header), not a cookie.`,
+		goal: 'Add an authentication layer so every API request can prove which user is making it. Block anonymous access by default, then let clients identify themselves with a credential they obtain at login and send on every later request.',
 		thresholds: {},
 	},
 	successConditions: [
@@ -99,7 +101,7 @@ bin/rails generate authentication
 	unlockedNodes: ['authentication'],
 	learningContent: {
 		title: 'Rails 8 Authentication & Bearer Tokens',
-		goal: `In this level, you'll:\n- secure your API so every request is tied to a real user.\n- use Rails 8's built-in authentication generator to scaffold user and session models.\n- learn how Rails stores passwords safely using one-way hashing.\n- set up Bearer token authentication so clients can prove who they are on every request.`,
+		goal: `In this level, you'll:\n- secure your API so every request is tied to a real user.\n- use Rails 8's built-in authentication scaffolding for user and session models, then adapt it for an API-only app.\n- learn how Rails stores passwords safely using one-way hashing instead of plaintext.\n- replace the cookie-based default with a token sent on the Authorization header so non-browser clients can authenticate.`,
 		conceptExplanation: `Rails 8 includes a built-in authentication generator, so there is no more Devise dependency for basic auth.
 
 **\`bin/rails generate authentication\`** creates these files (verified against the [Rails generator templates](https://github.com/rails/rails/tree/main/railties/lib/rails/generators/rails/authentication/templates)):
@@ -212,11 +214,11 @@ end
 #
 # GET /api/products -H "Authorization: Bearer abc123..."`,
 		commonMistakes: [
-			'Using Devise when Rails 8 auth generator is sufficient',
-			'Storing plaintext passwords instead of using has_secure_password',
-			'Using cookie-based sessions in API-only mode',
-			'Not expiring or rotating Bearer tokens',
-			'Forgetting allow_unauthenticated_access on login/signup endpoints',
+			'Reaching for a third-party auth gem when Rails 8 ships authentication scaffolding in the core framework that covers basic user + session needs.',
+			'Storing plaintext passwords instead of one-way hashing them. A leaked database then leaks every login.',
+			'Using cookie-based sessions in an API-only app. Non-browser clients have no cookie jar; the session has to ride on an HTTP header instead.',
+			'Not expiring or rotating long-lived session credentials. Once issued they keep working forever, which is the worst case after a leak.',
+			'Forgetting to mark the login and signup endpoints as accessible without authentication. The default-block behaviour then returns 401 before any user can ever log in -- the most common Rails 8 auth bug.',
 		],
 		whenToUse:
 			'Every API that has user-specific data needs authentication. Start with Rails 8 auth generator and adapt for Bearer tokens.',

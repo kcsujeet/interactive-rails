@@ -207,7 +207,7 @@ describe('static: scanLevelSource helpers', () => {
 		expect(r.maxGuard).toBe(5);
 		expect(r.convention).toBe('zero-based');
 		expect(r.inGameMax).toBe(4);
-		expect(r.maxGuard! > r.inGameMax!).toBe(true);
+		expect((r.maxGuard ?? 0) > (r.inGameMax ?? 0)).toBe(true);
 	});
 
 	test('1-based level with guard==length is OK (not flagged)', () => {
@@ -228,7 +228,7 @@ describe('static: scanLevelSource helpers', () => {
 		expect(r.maxGuard).toBe(4);
 		expect(r.convention).toBe('one-based');
 		expect(r.inGameMax).toBe(4);
-		expect(r.maxGuard! > r.inGameMax!).toBe(false);
+		expect((r.maxGuard ?? 0) > (r.inGameMax ?? 0)).toBe(false);
 	});
 });
 
@@ -413,10 +413,6 @@ describe('static: findPlaceholderViolations helper', () => {
  * `<PipelineFlow ...>` JSX includes an `activeConnections=` prop.
  */
 const KNOWN_AUTO_ANIMATING_EDGES = new Set<string>([
-	'src/features/act1-foundation/components/level-4-associations/Level4Associations.tsx',
-	'src/features/act1-foundation/components/level-6-routes/Level6Routes.tsx',
-	'src/features/act1-foundation/components/level-7-controller/Level7Controller.tsx',
-	'src/features/act2-users-security/components/level-11-authorization/Level11Authorization.tsx',
 	'src/features/act2-users-security/components/level-14-testing/Level14Testing.tsx',
 	'src/features/act3-clean-architecture/components/level-20-error-handling/Level20ErrorHandling.tsx',
 	'src/features/act4-performance/components/level-29-http-caching/Level29HTTPCaching.tsx',

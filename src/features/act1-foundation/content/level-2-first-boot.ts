@@ -8,7 +8,7 @@ export const level2FirstBoot: Level = {
 	trigger: {
 		type: 'initialization',
 		description:
-			'Ruby and Rails are on your machine, but no application exists yet. Your job: stand up an API-only Rails project, pick a database that can handle multiple users hitting it at once, and have it responding on http://localhost:3000.',
+			'Ruby and Rails are on your machine, but no application exists yet. Your job: stand up a JSON-only Rails project, pick a database that can handle multiple users hitting it at once, and have it responding on http://localhost:3000.',
 	},
 	startingPipeline: {
 		nodes: [{ id: 'terminal', type: 'terminal', x: 500, y: 300, locked: true }],
@@ -18,23 +18,20 @@ export const level2FirstBoot: Level = {
 		observation:
 			'No application exists yet. You have Ruby and Rails but no project.',
 		rootCause: 'No application created yet.',
-		codeExample: `# Rails 8 supports two databases out of the box:
+		codeExample: `# Rails 8 supports two databases out of the box.
+# One is single-writer and file-based -- great for prototypes
+# and embedded apps, not ideal for concurrent API traffic.
+# The other is multi-user with concurrent writes, sharding,
+# read replicas, and advanced queries -- the production
+# standard for web APIs.
 #
-# PostgreSQL:
-#   - Multi-user, concurrent writes
-#   - Sharding, read replicas, advanced queries
-#   - The production standard for web APIs
+# Generating the project also requires telling Rails it is
+# an API-only app (no HTML views, leaner middleware stack)
+# and pointing it at the chosen database adapter.
 #
-# SQLite:
-#   - Single-writer, file-based
-#   - Great for prototypes and embedded apps
-#   - Not ideal for concurrent API requests
-#
-# The --api flag creates a lean app:
-#   ActionController::API (leaner middleware stack)
-#
-# Your job: pick the right database, install it,
-# generate the project, and get the server running.`,
+# Your job: pick the right database, install it, generate
+# the project with the right flags, and get the server
+# running on http://localhost:3000.`,
 		goal: 'End with a Rails server running locally that responds to /up with 200 OK, on a database that can serve concurrent API traffic.',
 		thresholds: {},
 	},
@@ -61,46 +58,41 @@ export const level2FirstBoot: Level = {
 	darkCanvas: true,
 	learningContent: {
 		title: 'Rails 8 API Application',
-		goal: `In this level, you'll:\n- create your first Rails 8 application.\n- learn which database engine is the go-to choice for production APIs.\n- generate an API-only project with the right flags.\n- discover how Rails 8 replaces Redis with database-backed adapters for jobs, caching, and WebSockets.`,
+		goal: `In this level, you'll:\n- create your first Rails 8 application.\n- pick the database engine that fits a production API serving concurrent traffic.\n- generate the project with the right flags so it boots in JSON-only mode.\n- see how Rails 8 ships database-backed adapters for jobs, caching, and WebSockets so a fresh app no longer needs a separate Redis.`,
 		conceptExplanation: `Rails 8 introduces major changes to the default stack:
 
-**PostgreSQL vs SQLite:**
-- PostgreSQL: Battle-tested, supports sharding, read replicas, advanced queries, concurrent writes
-- SQLite: Rails 8 enables WAL mode and IMMEDIATE transactions by default, but it's still single-writer
+**Picking a database:**
+- One option is single-writer and file-based. Rails 8 enables WAL mode and IMMEDIATE transactions by default, which is enough for prototypes and single-user tools, but not for an API multiple clients hit at the same time.
+- The other option is a battle-tested multi-user database that supports sharding, read replicas, advanced queries, and concurrent writes. That is the standard production choice for web APIs and what the rest of this curriculum assumes.
 
-**API-only mode (\`--api\`):**
-- Inherits from \`ActionController::API\` instead of \`ActionController::Base\`
-- Skips cookie, session, and flash middleware by default (can be added back)
-- Lighter middleware stack, faster responses
-- Perfect for React/mobile frontends
+**JSON-only mode:**
+- A flag at project generation strips out HTML view rendering, cookies, sessions, flash, and CSRF middleware that an API never needs.
+- The resulting controllers inherit from a leaner base class. Faster responses, fewer moving parts, perfect for React/mobile frontends.
+- All of those middleware pieces can be added back later if needed.
 
-**Rails 8 Defaults (no Redis needed):**
+**Rails 8 background defaults (no Redis needed):**
 - Solid Queue for background jobs
 - Solid Cache for caching
-- Solid Cable for WebSockets`,
-		railsCodeExample: `# Install PostgreSQL
-brew install postgresql@17
+- Solid Cable for WebSockets
 
-# Create a new Rails 8 API app
-rails new myapp --api --database=postgresql
+All three are database-backed, so a fresh Rails 8 app boots without a separate Redis or Memcached.`,
+		railsCodeExample: `# After completing this level you will have:
+# 1. installed the database server through your OS package manager
+# 2. generated a Rails 8 project with the JSON-only flag and the right
+#    database adapter
+# 3. created the database for your fresh project
+# 4. booted the local Rails web server
 
-# Create the database
-cd myapp
-rails db:create
-
-# Boot the server
-rails server
-
-# Test it
+# Verify (after the level):
 curl -I http://localhost:3000/up
 # => HTTP/1.1 200 OK`,
 		commonMistakes: [
-			'Skipping the api-only flag. The full-stack default brings a stack of HTML / cookie / session middleware that an API never uses, slowing every request.',
+			'Skipping the JSON-only flag at generation. The full-stack default brings a stack of HTML / cookie / session middleware that an API never uses, slowing every request.',
 			'Trying to run the migration step before the database physically exists -- migrations expect to connect to a live database and only manage its schema.',
 			'Reaching for an unfamiliar verb when the canonical Rails CLI command for booting a web server is right there in the Rails Guides.',
 		],
 		whenToUse:
-			'PostgreSQL for any app serving concurrent users. SQLite only for single-user or embedded apps.',
+			'A multi-user database for any app serving concurrent users. Single-writer file-based databases only for single-user or embedded apps.',
 		furtherReading: [
 			{
 				title: 'Rails Getting Started',

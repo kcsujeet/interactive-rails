@@ -26,57 +26,70 @@ The per-act sections below track both axes: each level's introduced concept (exi
 
 ## Act 1: Foundation (L1-L8)
 
+### L1: Environment Setup
+- **Pattern**: `mise` for Ruby version management, `brew install postgresql@17`, `gem install rails`
+- **Applies to**: Subsequent levels assume Ruby 3.4.x via mise + PostgreSQL available locally
+
 ### L2: Rails 8 API-Only App
-- **Pattern**: `rails new app_name --api --database=postgresql`
-- **Applies to**: All code assumes API-only mode (no views, no Turbo)
+- **Pattern**: `rails new myapp --api --database=postgresql`
+- **Applies to**: All code assumes API-only mode (no views, no Turbo). Rails 8 defaults: solid_cache, solid_queue, solid_cable, kamal, thruster, bootsnap
+
+### L3: First Model (Product)
+- **Pattern**: `bin/rails generate model Product name:string description:text price:decimal`, then `bin/rails db:migrate`
+- **Applies to**: Product is the canonical e-commerce resource. Schema is `name (string)`, `description (text)`, `price (decimal)`. **No validations, no associations, no encryption** — those are L12 / L4 / L10.
+
+### L4: Associations
+- **Pattern**: `has_many :reviews, dependent: :destroy` on Product, `belongs_to :product` on Review. Migration uses `t.references :product, null: false, foreign_key: true`.
+- **Applies to**: Review is the second model. Pre-L4: only Product exists. **No User model yet** (that's L9), so reviews don't reference users at L4.
+
+### L5: CRUD via Rails Console
+- **Pattern**: `bin/rails console`, then `Product.create(...)`, `Product.find(id)`, `product.update(...)`, `product.destroy`
+- **Applies to**: First exposure to Active Record CRUD. **No controllers, no routes, no API** (those are L6/L7).
 
 ### L6: RESTful Routes with API Namespace
 - **Pattern**: `namespace :api do; resources :products; end` → `/api/products`
-- **Applies to**: All controller paths use `Api::` prefix from this point on. **Versioning is NOT introduced here** — that's L48's lesson. Pre-baking `namespace :v1` would steal from L48.
+- **Applies to**: All controller paths use `Api::` prefix from this point on. **Versioning is NOT introduced here** — that's L48's lesson. Pre-baking `namespace :v1` steals from L48.
 
-### L6: Controller JSON Rendering
-- **Pattern**: `render json: @posts` for responses, `params.require(:post).permit(:title, :body)` for input
-- **Applies to**: All controllers render JSON
+### L7: Controller (with naive params handling)
+- **Pattern**: `Api::ProductsController < ApplicationController` with `index/show/create/update/destroy`. Uses `params[:product].to_unsafe_h` for create/update — the **naive Rails 8 shortcut documented in [ActionController::Parameters](https://api.rubyonrails.org/classes/ActionController/Parameters.html)** that bypasses strong-params filtering.
+- **Applies to**: Pre-L13 controllers MUST use `to_unsafe_h` (not `permit`/`expect`). This is the form-axis precursor for L13's strong-params lesson. `to_unsafe_h` carries forward through L8-L12.
 
-### L7: Serializers (jsonapi-serializer gem)
-- **Pattern**: `ProductSerializer`, `has_many :reviews`, `attributes :title, :body`
-- **Applies to**: All JSON responses should reference serializers where applicable
-
-### L8: Associations
-- **Pattern**: `has_many :reviews, dependent: :destroy`, `belongs_to :post`
-- **Applies to**: All model code should reflect established associations
+### L8: Serializers (jsonapi-serializer gem)
+- **Pattern**: `bundle add jsonapi-serializer`, `BaseSerializer` includes `JSONAPI::Serializer`, `ProductSerializer < BaseSerializer; attributes :name, :description, :price`. Controller calls `ProductSerializer.new(record).serializable_hash.to_json`.
+- **Applies to**: All JSON responses for `index` and `show` use the serializer. `create` and `update` may keep raw `render json: product` (matches myapp `level-8`). Controllers still use `params[:product].to_unsafe_h` (carry-forward from L7).
 
 ---
 
-## Act 2: Guards & Gates (L9-L15)
+## Act 2: Users & Security (L9-L14)
 
 ### L9: Authentication (Rails 8 built-in)
-- **Pattern**: `has_secure_password`, `authenticate_by(email:)`, `Current.user` for request context
-- **Applies to**: Any code showing authentication or current user access
+- **Pattern**: `bin/rails generate authentication`, customize for API + bearer tokens. `has_secure_password`, `User.authenticate_by(email_address:, password:)`, `Current.user`, `Current.session`, `Authentication` concern with `before_action :require_authentication`, `allow_unauthenticated_access only: [:create]` on login.
+- **Applies to**: User model with `email_address`, `password_digest` columns; Session model with `token` column; bearer-token auth in API. Controllers still use `params[:product].to_unsafe_h`.
 
-### L10: Model Validations
-- **Pattern**: `validates :email, presence: true, uniqueness: true`
-- **Applies to**: All models should have appropriate validations
+### L10: Active Record Encryption
+- **Pattern**: `bin/rails db:encryption:init` to generate keys, then on User: `encrypts :email_address, deterministic: true, downcase: true`, `encrypts :phone, deterministic: true`, `encrypts :address` (non-deterministic). Migration adds `phone` and `address` columns to users.
+- **Applies to**: Sensitive User fields encrypted at the application layer. Deterministic encryption (`deterministic: true`) for fields needing `find_by` lookup; non-deterministic for the rest. Controllers still use `params[:product].to_unsafe_h`.
 
-### L11: Normalization
-- **Pattern**: `normalizes :email, with: ->(e) { e.strip.downcase }`
-- **Applies to**: Any model with user-input string fields
+### L11: Authorization (Pundit) + Ownership
+- **Pattern**: Setup commit adds `belongs_to :user` to Product + `has_many :products` to User (with foreign key migration). Then `bundle add pundit`, `bin/rails generate pundit:install`. `ApplicationController` includes `Pundit::Authorization`. `ProductPolicy < ApplicationPolicy` defines `update?`/`destroy?` predicates checking `record.user == user`. Controllers use the canonical Pundit pattern — **single source of truth for authorization is the policy class, never duplicated into the find query**:
+  - `index` → `policy_scope(Product)` (ownership-aware collection filter)
+  - `show` / `update` / `destroy` → `Product.find(params[:id])` + `authorize product` (find loads the record; the policy decides access)
+  - `create` → `Current.user.products.new(params[:product].to_unsafe_h)` + `authorize product` (association builder sets `user_id`; policy still gates the write)
+- **Applies to**: Authorization scoped to ownership. Pre-L11 controllers do unscoped `Product.find(params[:id])` with no `authorize` (IDOR). Post-L11 controllers add `authorize` per action; the policy class is the only place ownership rules live.
+- **Why not `Current.user.products.find` for read/write paths?** Because that duplicates authorization into the SQL, splitting the rule across two layers (the find and the policy). At Shopify scale, ownership rules belong in policies — testable in isolation, lintable via `after_action :verify_authorized`, and easy to evolve (e.g. when admins, support agents, or shared resources need exceptions). "What if `authorize` is forgotten?" is not a real scenario in a billion-dollar codebase: Pundit's `verify_authorized` lint + policy specs catch missing calls before they ship. Designing for that hypothetical is defense-in-depth on a non-bug.
+- Controllers still use `params[:product].to_unsafe_h` (form-axis precursor for L13).
 
-### L12: Authorization (Pundit gem)
-- **Pattern**: `include Pundit`, `authorize @post`, policy objects in `app/policies/`
-- **Applies to**: Any controller action that needs access control
+### L12: Model Validations
+- **Pattern**: On Product: `validates :name, presence: true, length: { minimum: 3, maximum: 255 }`, `validates :description, presence: true, length: { minimum: 10 }`, `validates :price, presence: true, numericality: { greater_than: 0 }`. Controllers render `errors.full_messages` instead of raw `errors`.
+- **Applies to**: All models should have appropriate validations from L12 onward. Controllers still use `params[:product].to_unsafe_h`.
 
-### L13: Testing (RSpec + FactoryBot)
-- **Pattern**: `bundle add rspec-rails factory_bot_rails`, request specs
-- **Applies to**: Test files should use RSpec from this point on
+### L13: Strong Params (Rails 8 `params.expect`)
+- **Pattern**: Migration adds `featured: boolean, default: false, null: false` (admin-only homepage flag). Replace `params[:product].to_unsafe_h` in controllers with a `product_params` private method using `params.expect(product: [:name, :description, :price])`. The whitelist excludes `:featured` (admin-only) and `:user_id` (auto-set via `Current.user.products` association).
+- **Applies to**: All controllers from L13 onward use `params.expect` via a centralized `<resource>_params` private method. `to_unsafe_h` is replaced. Per [Rails Action Controller guide](https://guides.rubyonrails.org/action_controller_overview.html), strong params prevent mass-assignment vulnerabilities.
 
-### L14: Strong Params (Rails 8)
-- **Pattern**: `params.expect(post: [:title, :body])` (Rails 8 strict params)
-- **Applies to**: All controller params filtering
-
-### L15: CORS (rack-cors gem)
-- **Pattern**: `config/initializers/cors.rb` with allowed origins
-- **Applies to**: API configuration
+### L14: Testing (RSpec + FactoryBot)
+- **Pattern**: `bundle add rspec-rails factory_bot_rails --group "test"`, `bin/rails generate rspec:install`, request specs in `spec/requests/`, factories in `spec/factories/`.
+- **Applies to**: All test files from L14 onward use RSpec + FactoryBot. Pre-L14: no test files, just framework defaults.
 
 ---
 

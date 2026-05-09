@@ -12,14 +12,14 @@ export const level11Authorization: Level = {
 	trigger: {
 		type: 'security_incident',
 		description:
-			"Users can authenticate, data is validated, and emails are normalized. But User A can still edit User B's products. Authentication tells us WHO is making the request, but nothing checks whether they are ALLOWED to do what they are asking.",
+			"Users can authenticate, data is validated, and emails are normalized. But User A can still edit and delete User B's products. Authentication tells us WHO is making the request, but nothing checks whether they are ALLOWED to do what they are asking.",
 	},
 	problem: {
 		observation:
 			'User A logs in and sends DELETE /api/products/42 -- a product owned by User B. It succeeds. Any authenticated user can modify or destroy any product.',
 		rootCause:
 			'Authentication verifies identity but there is no authorization layer checking ownership or permissions.',
-		codeExample: `# Current state: no authorization
+		codeExample: `# Current state: no ownership check
 class Api::ProductsController < ApplicationController
   def destroy
     product = Product.find(params[:id])
@@ -28,139 +28,75 @@ class Api::ProductsController < ApplicationController
   end
 end
 
-# Authentication: "Who are you?" (Bearer token)
-# Authorization:  "Can you do this?" (???)
+# Authentication: "Who are you?" (Bearer token, from L9)
+# Authorization:  "Are you allowed to do THIS thing to
+#                  THIS record?"
 #
-# Rails ships authentication (Level 9) but NOT authorization.
-# The community standard is Pundit (gem "pundit").
-# Pundit gives each model a policy class (ProductPolicy),
-# where each method maps to a controller action:
-#   destroy? -> "Can this user delete this product?"
-#   update?  -> "Can this user edit this product?"`,
-		goal: 'Add policy-based authorization so each controller action checks whether the current user is allowed to perform it, then watch it filter requests in real-time.',
+# Rails ships authentication scaffolding in core, but
+# authorization is left to the application: every Rails
+# app picks a library or rolls its own. The dominant
+# Ruby pattern is to put the rules in their own classes
+# (one per model), keyed by the action being attempted,
+# so the controller stays one line: "is this allowed?"
+# and the answer lives somewhere testable.`,
+		goal: 'Add per-record ownership checks so each controller action verifies the current user is allowed to perform it on this specific record, then watch the rules filter requests in real-time.',
 		thresholds: {},
 	},
 	learningContent: {
-		title: 'Authorization with Pundit & Current.user',
-		goal: `In this level, you'll:\n- learn the difference between authentication ("who are you?") and authorization ("are you allowed to do this?").\n- implement policy classes that control which users can update or delete specific records.\n- scope queries so users only see data they have permission to access.`,
+		title: 'Authorization & Per-Record Ownership Checks',
+		goal: `In this level, you'll:\n- learn the difference between authentication ("who are you?") and authorization ("are you allowed to do this?").\n- introduce dedicated rule classes that decide whether a given user is allowed to update or delete a given record.\n- filter list endpoints so users only see records they have permission to access.`,
 		conceptExplanation: `Authorization answers "Can this user do this action on this resource?"
 
-**Pundit** provides a clean, policy-based pattern:
-- One policy class per model, named by convention: \`Product\` -> \`ProductPolicy\`, \`Review\` -> \`ReviewPolicy\`
-- When you call \`authorize product\`, Pundit infers \`ProductPolicy\` from the record's class and calls the method matching the current action (e.g. \`destroy?\`)
-- Each method corresponds to a controller action (\`update?\`, \`destroy?\`)
-- Policies are plain Ruby objects, easy to test
-- Scopes filter collections based on user permissions
+**Why it lives in its own layer:**
+- Putting the check inline in the controller works for one action but does not scale: every action needs its own ownership condition, and the conditions get duplicated across controllers and tests.
+- Putting the check on the model couples persistence to permissions: the same record can be edited by an admin but not a regular user, so "can update" is not a property of the record alone.
+- The clean place is a rule layer that takes (current user, target record) and returns a boolean per action. The controller becomes one line: "is this allowed?"
+
+**The Ruby ecosystem standard:**
+The dominant Ruby authorization library follows this pattern:
+- One rule class per model, named by convention from the model name.
+- Each rule class exposes one boolean method per controller action (one for update, one for destroy, etc.).
+- The controller calls a single helper that infers the rule class from the record's class, looks up the matching method for the current action, and either lets the request through or raises an authorization error.
+- A separate "scope" mechanism filters collections so list endpoints only return records the current user can see.
+
+The library keeps the rules as plain Ruby objects, which makes each one trivial to unit-test.
 
 **Current.user (Rails built-in):**
-- Thread-safe, request-scoped attributes
-- Set in a \`before_action\`, available everywhere in the request
-- Replaces passing \`current_user\` through method arguments
+- Authentication (L9) leaves the logged-in user in a thread-safe, request-scoped \`Current.user\` attribute.
+- Anywhere in the request you can read \`Current.user\` instead of threading the user through method arguments.
+- Per-request: parallel requests for User A and User B never see each other's user.
 
 **Authentication vs Authorization:**
-- Authentication: "Who are you?" (Level 9)
-- Authorization: "Are you allowed to do this?" (This level)`,
-		railsCodeExample: `# app/policies/product_policy.rb
-class ProductPolicy < ApplicationPolicy
-  def show?
-    true  # Anyone can view a product
-  end
+- Authentication: "Who are you?" (Level 9).
+- Authorization: "Are you allowed to do this?" (This level).`,
+		railsCodeExample: `# After completing this level you will have:
+# 1. added the dominant Ruby authorization library to your
+#    Gemfile through the bundle CLI
+# 2. mixed its module into ApplicationController so every
+#    controller can call its check helper
+# 3. run its install generator to create an ApplicationPolicy
+#    base class plus the conventional app/policies/ directory
+# 4. written a per-model rule class with one boolean method
+#    per action (update, destroy) returning true only when
+#    the current user owns the record
+# 5. called the check helper from the controller's update and
+#    destroy actions so unauthorized requests get a 403
+# 6. used the library's collection-filter helper inside the
+#    index action so users only see records they can access
 
-  def create?
-    user.present?  # Any authenticated user can create
-  end
-
-  def update?
-    owner?
-  end
-
-  def destroy?
-    owner?
-  end
-
-  private
-
-  def owner?
-    record.user == user
-  end
-
-  # Scope is where collection filters live. Today everyone
-  # sees the full catalog; when visibility rules arrive
-  # (admin / published / archived), this is where they go.
-  class Scope < ApplicationPolicy::Scope
-    def resolve
-      scope.all
-    end
-  end
-end
-
-# app/models/current.rb (Rails built-in)
-class Current < ActiveSupport::CurrentAttributes
-  attribute :user, :session
-end
-
-# Set Current.user in authentication concern
-module ApiAuthentication
-  extend ActiveSupport::Concern
-
-  included do
-    before_action :authenticate_user
-  end
-
-  private
-
-  def authenticate_user
-    authenticate_or_request_with_http_token do |token, _options|
-      session = Session.find_by(token: token)
-      Current.user = session&.user
-    end
-  end
-end
-
-# app/controllers/api/products_controller.rb
-class Api::ProductsController < ApplicationController
-  include Pundit::Authorization
-
-  def index
-    products = policy_scope(Product)
-    render json: ProductSerializer.new(products).serializable_hash.to_json
-  end
-
-  def update
-    product = Product.find(params[:id])
-    authorize product  # Raises Pundit::NotAuthorizedError if denied
-    if product.update(params[:product].to_unsafe_h)
-      render json: ProductSerializer.new(product).serializable_hash.to_json
-    else
-      render json: { errors: product.errors.full_messages }, status: :unprocessable_entity
-    end
-  end
-
-  def destroy
-    product = Product.find(params[:id])
-    authorize product
-    product.destroy
-    head :no_content
-  end
-end
-
-# Handle authorization failures globally
-class ApplicationController < ActionController::API
-  include Pundit::Authorization
-
-  rescue_from Pundit::NotAuthorizedError do |e|
-    render json: { error: "Not authorized" }, status: :forbidden
-  end
-end`,
+# After the level the request flow looks like:
+#   DELETE /api/products/42 (User A, owner)      -> 204 No Content
+#   DELETE /api/products/42 (User B, not owner)  -> 403 Forbidden
+# without any ownership branching in the controller itself.`,
 		commonMistakes: [
-			'Forgetting to call authorize in controller actions (use after_action :verify_authorized)',
-			'Checking permissions in the controller instead of the policy',
-			'Not scoping index queries with policy_scope (leaking private data)',
-			'Confusing authentication (who) with authorization (can)',
-			'Not testing policy edge cases (owner vs stranger; signed-in vs unauthenticated)',
+			'Forgetting to call the authorization helper in controller actions. The action runs unprotected and any authenticated user can hit it.',
+			'Putting permission rules inline in the controller instead of in dedicated rule classes. They drift across controllers and become impossible to unit-test.',
+			'Forgetting to filter index/list queries through the collection-filter mechanism, so users see records they have no right to access.',
+			'Confusing authentication (who) with authorization (can). They are different layers; you need both.',
+			'Not testing rule edge cases (owner vs stranger; signed-in vs unauthenticated; admin override).',
 		],
 		whenToUse:
-			'Every action that modifies data or returns user-specific content needs authorization. Add Pundit policies from the start.',
+			'Every action that modifies data or returns user-specific content needs an authorization check. Add the rule layer from the start; retrofitting is painful.',
 		furtherReading: [
 			{
 				title: 'Pundit',
@@ -174,6 +110,6 @@ end`,
 	},
 	hint: {
 		delay: 25,
-		text: 'The convention is one policy class per model, with predicate methods that mirror controller actions one-to-one. Discovering the naming convention is half the work; the other half is choosing where to call the check from inside the controller action.',
+		text: 'Look for the dominant Ruby library that puts authorization rules in their own classes (one per model), keyed by the action being attempted. The controller stays one line per action: "is this allowed?" The answer lives somewhere testable.',
 	},
 };

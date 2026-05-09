@@ -93,7 +93,7 @@ User.create(email_address: "joe@test.com")          # Saved!
 User.create(email_address: "joe@test.com")          # RecordNotUnique raised; client sees a 500.
 
 # The database is full of garbage.`,
-		goal: 'Add presence, uniqueness, and format validations to your models, then inspect error messages in the Rails console.',
+		goal: 'Reject the bad data at the model layer before it ever reaches the database, then inspect the resulting error messages from the Rails console.',
 		thresholds: {},
 	},
 	successConditions: [
@@ -105,7 +105,7 @@ User.create(email_address: "joe@test.com")          # RecordNotUnique raised; cl
 	unlockedNodes: ['validation'],
 	learningContent: {
 		title: 'ActiveRecord Validations',
-		goal: `In this level, you'll:\n- learn how to reject bad data before it ever reaches the database.\n- add ActiveRecord validations like presence, uniqueness, format, and length to your models.\n- understand when validations run in the lifecycle.\n- return meaningful error messages to API clients.`,
+		goal: `In this level, you'll:\n- learn how to reject bad data at the model layer before it ever reaches the database.\n- pick the right built-in ActiveRecord validator for each kind of failure (blank field, duplicate value, malformed string).\n- understand when validations run in the record lifecycle.\n- return meaningful error messages to API clients.`,
 		conceptExplanation: `Validations ensure only valid data gets saved to the database. They run before \`save\`, \`create\`, and \`update\`.
 
 **Built-in validators:**
@@ -198,6 +198,6 @@ end`,
 	},
 	hint: {
 		delay: 20,
-		text: 'Click the pipeline stages and fire data probes to discover what gets through. Then build presence, uniqueness, and format validations.',
+		text: 'Click the pipeline stages and fire data probes to discover what gets through. Each kind of bad data (blank field, duplicate value, malformed string) needs its own kind of model-level check. Look at the built-in ActiveRecord validators list and pick the one that fits the failure mode.',
 	},
 };

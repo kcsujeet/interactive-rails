@@ -242,7 +242,7 @@ const STAGE_INSPECTOR_MAP: Record<string, StageInspectorData> = {
 end
 
 def update
-  product = Current.user.products.find(params[:id])
+  product = Product.find(params[:id])
   authorize product
   if product.update(params[:product].to_unsafe_h)
     render json: product
@@ -533,7 +533,7 @@ function getCodeFiles(phase: Phase, furthestStep: number) {
   end
 
   def update
-    product = Current.user.products.find(params[:id])
+    product = Product.find(params[:id])
     authorize product
     if product.update(params[:product].to_unsafe_h)
       render json: product
@@ -581,7 +581,7 @@ end`;
   end
 
   def update
-    product = Current.user.products.find(params[:id])
+    product = Product.find(params[:id])
     authorize product
     if product.update(product_params)
       render json: product

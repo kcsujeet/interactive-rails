@@ -47,68 +47,42 @@ export const level8Serializers: Level = {
 	unlockedNodes: [],
 	learningContent: {
 		title: 'JSON:API Serialization',
-		goal: `In this level, you'll:\n- learn how to control exactly what your API returns to clients.\n- use a serializer gem to shape JSON responses following the JSON:API standard.\n- declare which domain attributes to expose and format prices for display.\n- structure your output the way production APIs do.`,
-		conceptExplanation: `Serializers control what data your API exposes. Without them, \`render json: product\` dumps everything.
+		goal: `In this level, you'll:\n- learn how to control exactly what your API returns to clients.\n- pick a serializer library that follows a recognised JSON envelope standard.\n- declare which domain attributes to expose and format values (like prices) for display.\n- structure your output the way production APIs do.`,
+		conceptExplanation: `Serializers control what data your API exposes. Without them, \`render json: product\` dumps every column on the model -- including bookkeeping fields like \`created_at\` that no client asked for, and any column renamed for internal reasons that was never meant to leak.
 
 **Why serialize?**
-- Choose which attributes to expose (only domain data, not bookkeeping)
-- Format dates, currencies, names
-- Include computed fields (full_name, display_price)
-- Nest related data (product with reviews)
+- Choose which attributes to expose (only domain data, not bookkeeping).
+- Format dates, currencies, names consistently.
+- Include computed fields (full_name, display_price) that have no column behind them.
+- Nest related data (product with reviews) in a controlled way that does not trigger N+1.
 
 **The JSON:API standard:**
 A widely-adopted response format for REST APIs (used by Ember Data and many other clients that expect a structured envelope). It provides:
-- Standardized envelope: \`data\`, \`type\`, \`attributes\`, \`relationships\`
-- Built-in pagination via \`links\`
-- Sparse fieldsets: \`fields[products]=name,description\`
-- Compound documents: \`include=reviews\`
-- Standardized error format
+- Standardised envelope: \`data\`, \`type\`, \`attributes\`, \`relationships\`.
+- Built-in pagination via \`links\`.
+- Sparse fieldsets: \`fields[products]=name,description\`.
+- Compound documents: \`include=reviews\`.
+- Standardised error format.
 
-**Why jsonapi-serializer?**
-- Implements the JSON:API spec out of the box
-- 100x faster than ActiveModelSerializers (AMS)
-- Production-proven, actively maintained
-- Clean DSL: \`attributes\`, \`has_many\`, \`belongs_to\`
+**Picking a serializer library:**
+The Ruby ecosystem ships several serializer libraries; the differences come down to spec conformance, performance, and DSL ergonomics:
+- Some implement the JSON:API spec out of the box, are 100x faster than the legacy ActiveModelSerializers gem, and are still actively maintained.
+- Some produce a flat (non-standardised) JSON shape that is fine for internal APIs but does not match the JSON:API envelope.
+- Some are template-based (closer to a view layer) and slower; useful for complex computed shapes, less useful for high-throughput JSON APIs.
+- The legacy ActiveModelSerializers gem is unmaintained and not a sensible choice for a new app.
 
-**Alternatives and trade-offs:**
-- Blueprinter: simpler flat JSON, not standards-compliant, good for internal APIs
-- Alba: flexible, supports multiple formats, newer
-- Jbuilder: template-based, good for complex views, slower
-- ActiveModelSerializers (AMS): legacy, unmaintained. Avoid.`,
-		railsCodeExample: `# Gemfile
-gem "jsonapi-serializer"
+When in doubt for a new public API: pick the library that is JSON:API-conformant, fast, and active.`,
+		railsCodeExample: `# After completing this level you will have:
+# 1. picked a JSON:API-conformant serializer library and added
+#    it to your Gemfile via the bundle CLI
+# 2. created a base serializer class that mixes in the library's
+#    serializer module
+# 3. created a serializer per model that lists which attributes
+#    the API should expose, plus a formatted attribute for price
+# 4. wired the controller to render the serializer's output
+#    instead of dumping the raw model
 
-# app/serializers/base_serializer.rb
-class BaseSerializer
-  include JSONAPI::Serializer
-end
-
-# app/serializers/product_serializer.rb
-class ProductSerializer < BaseSerializer
-  attribute :name
-  attribute :description
-
-  attribute :price do |product|
-    product.price.to_s
-  end
-
-  has_many :reviews, serializer: ReviewSerializer
-end
-
-# In controller:
-class Api::ProductsController < ApplicationController
-  def index
-    products = Product.all
-    render json: ProductSerializer.new(products).serializable_hash.to_json
-  end
-
-  def show
-    product = Product.find(params[:id])
-    render json: ProductSerializer.new(product).serializable_hash.to_json
-  end
-end
-
-# JSON:API output:
+# JSON:API output (after the level):
 # {
 #   "data": {
 #     "id": "1",
@@ -141,6 +115,6 @@ end
 	},
 	hint: {
 		delay: 20,
-		text: 'Look for the gem that implements the JSON:API spec and is actively maintained.',
+		text: 'Among the Ruby serializer libraries, look for the one that is JSON:API-conformant, fast, and still actively maintained. The legacy mainstream one is no longer maintained; the one you want is its actively-maintained successor.',
 	},
 };

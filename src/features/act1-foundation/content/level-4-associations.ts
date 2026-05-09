@@ -8,7 +8,7 @@ export const level4Associations: Level = {
 	trigger: {
 		type: 'new_feature',
 		description:
-			'Products work in isolation, but customers want to leave reviews and you have no way to attach them. Two records that belong together need a relationship Rails understands -- not just two unrelated tables.',
+			'Your app has a Product model from L3, but only that one model. Customers want to leave reviews, and a second model on its own would still be unlinked to the first. Two records that belong together need a relationship Rails understands.',
 	},
 	startingPipeline: {
 		nodes: [
@@ -70,28 +70,24 @@ export const level4Associations: Level = {
 	},
 	problem: {
 		observation:
-			'Products load correctly, but there is no way to include reviews in the API response.',
+			'In the Rails console, Product is the only model that loads. Asking a product for related records raises NoMethodError, and the second model the storefront needs has not been built yet.',
 		rootCause:
-			'No Review model exists and no association is defined between Product and Review.',
-		codeExample: `# Today: two unrelated tables.
+			'No second model exists and no association is defined linking Product to its children.',
+		codeExample: `# Today: only one model exists.
 #
 # class Product < ApplicationRecord
 #   # name, description, price -- nothing else
 # end
 #
-# (no Review model exists yet)
-#
-# What you want:
-#   Product.first.reviews          # => [Review, Review, ...]
-#   product.reviews.create(...)    # creates a review attached to this product
+# (no Review model exists yet, no reviews table either)
 #
 # Two questions you will answer along the way:
-#   1. How does the child remember which parent it belongs to?
+#   1. How does a child record remember which parent it belongs to?
 #      (a column? an index? a database-level constraint? all three?)
 #   2. When a parent is destroyed, what should happen to its children?
 #      (Rails leaves this unspecified by default -- and that default
 #      is almost never what you actually want.)`,
-		goal: 'End with a Review table linked to Product so `product.reviews` works in the console, and deleting a product cleans up its reviews automatically.',
+		goal: 'End with a second model linked to Product so a parent record can ask for its children in the console, and deleting a product cleans up its children automatically.',
 		thresholds: {},
 	},
 	successConditions: [
@@ -132,7 +128,7 @@ export const level4Associations: Level = {
 	],
 	learningContent: {
 		title: 'ActiveRecord Associations',
-		goal: `In this level, you'll:\n- link models together using ActiveRecord associations.\n- learn how has_many and belongs_to create one-to-many relationships.\n- understand where the foreign key lives.\n- set up dependent: :destroy so deleting a product automatically cleans up its reviews.`,
+		goal: `In this level, you'll:\n- link two models so a parent can list its children and a child can name its parent.\n- pick the right cardinality (one-to-one, one-to-many, many-to-many) for the relationship.\n- understand where the foreign key column lives, and back it with a database-level constraint and an index.\n- decide what happens to children when the parent is destroyed, instead of leaving the default unspecified.`,
 		conceptExplanation: `Associations define relationships between models:
 
 **has_many**: A product has many reviews (one-to-many)
@@ -153,62 +149,26 @@ Four real choices, each one a different decision:
 A bare \`has_many :reviews\` with no \`dependent:\` orphans the children silently when the parent is destroyed. Convention: every \`has_many\` and \`has_one\` ships with an explicit \`dependent:\`.
 
 **Foreign key constraints AT THE DATABASE:**
-\`t.references :product, null: false, foreign_key: true\` adds three things: the \`product_id\` column, an index on it, and a database-level FK constraint. The FK constraint matters: without it, a stray \`Product.delete\` (skipping callbacks) leaves orphaned reviews and the database has no idea. The constraint makes Postgres refuse the delete, and Rails surfaces the error. Defense in depth: \`dependent:\` at the model layer, FK constraint at the database layer.
+The migration field type that links two tables (used in the build phase) gives you three things at once: the foreign key column, an index on it, and a database-level FK constraint. The FK constraint matters: without it, a stray \`Product.delete\` (skipping callbacks) leaves orphaned children and the database has no idea. The constraint makes Postgres refuse the delete, and Rails surfaces the error. Defense in depth: \`dependent:\` at the model layer, FK constraint at the database layer.`,
+		railsCodeExample: `# After completing this level you will have:
+# 1. generated a Review model linked to Product through a
+#    migration field type that creates the foreign key column,
+#    its index, and the database-level FK constraint at once
+# 2. declared the parent->children association on Product with
+#    an explicit cleanup behaviour so destroying a parent does
+#    not leave orphaned children
+# 3. declared the child->parent association on Review
+# 4. exercised the link in the console:
+#    product.reviews and product.reviews.create(body: "...")
 
-**\`inverse_of:\` keeps both sides of the relationship in sync:**
-When parent and child are loaded in memory, modifying one should be reflected on the other. Rails 5+ auto-detects \`inverse_of\` in common cases, but explicit is safer:
-
-\`\`\`ruby
-class Product < ApplicationRecord
-  has_many :reviews, inverse_of: :product, dependent: :destroy
-end
-
-class Review < ApplicationRecord
-  belongs_to :product, inverse_of: :reviews
-end
-\`\`\`
-Without \`inverse_of\`, this surprises:
-
-\`\`\`ruby
+# Verify (after the level):
 product = Product.find(1)
-review = product.reviews.first
-review.product.equal?(product)   # false without inverse_of, true with
-\`\`\`
-Auto-detect fails most often when the FK column name doesn't match (e.g. \`reviewer_id\` instead of \`product_id\`) or when the association uses a custom \`class_name:\`. The failure mode is "the child saw a stale parent in memory" and is painful to debug. Always set \`inverse_of:\` explicitly.`,
-		railsCodeExample: `# app/models/product.rb
-class Product < ApplicationRecord
-  has_many :reviews, dependent: :destroy
-end
-
-# app/models/review.rb
-class Review < ApplicationRecord
-  belongs_to :product
-end
-
-# Migration for reviews:
-create_table :reviews do |t|
-  t.references :product, null: false, foreign_key: true
-  t.text :body
-  t.integer :rating
-  t.timestamps
-end
-
-# Usage:
-product = Product.find(1)
-product.reviews                    # All reviews for this product
-product.reviews.create(body: "Great laptop!", rating: 5)
-
-# In serializer:
-class ProductSerializer < BaseSerializer
-  attribute :name
-  attribute :description
-  has_many :reviews, serializer: ReviewSerializer
-end`,
+product.reviews          # => collection of reviews for this product
+product.destroy          # => reviews go with it, no orphans left behind`,
 		commonMistakes: [
-			'Picking the wrong relationship cardinality. A product might have one of something or many -- each is a different declaration, and the wrong one limits the API forever.',
+			'Picking the wrong relationship cardinality. A product might have one of something or many -- each is a different declaration, and the wrong one limits how the records can be related forever.',
 			'Declaring a relationship without specifying what happens to the children when the parent is destroyed. Rails leaves it unspecified, the database leaves the orphans behind, and reports start to drift.',
 			'Adding a foreign key column without adding the database-level constraint and the index. The relationship works in Ruby, but the database has no way to enforce it -- a stray delete corrupts the table silently.',
-			'Skipping `inverse_of:` on a bidirectional association. Auto-detect fails on custom class names or non-conventional column names, leaving the in-memory parent and child out of sync after a save.',
 		],
 		whenToUse: 'has_many when one record owns multiple of another type.',
 		furtherReading: [
@@ -220,6 +180,6 @@ end`,
 	},
 	hint: {
 		delay: 25,
-		text: 'When you generate the child model, the field type that LINKS it to the parent gives you three things in one declaration: the foreign key column, an index on it, and the `belongs_to` declaration in the model. Use that field type instead of a bare integer column.',
+		text: 'When generating the child model, picking a field type that knows about the parent saves you three separate steps. A bare integer column would leave the database without an index, without a foreign key constraint, and the model without an automatic association.',
 	},
 };

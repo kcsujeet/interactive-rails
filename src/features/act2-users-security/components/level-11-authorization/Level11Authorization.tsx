@@ -577,6 +577,38 @@ const REWARD_CONNECTIONS: PipelineConnection[] = [
 	{ from: 'policy', to: 'model', dots: 'clean' },
 ];
 
+// Per-probe / per-scenario edge activation. Default to [] (dormant)
+// so the visualization does NOT animate before any probe fires.
+// Each entry lists the connection keys (`${from}-${to}`) that should
+// flash a single dot pulse when the probe / scenario fires.
+// Observe: every probe shows the request reaching the model with no
+// policy gate enforced (the policy stage exists in the diagram but is
+// "missing" — the request flows past it to the model anyway).
+const PROBE_OBSERVE_CONNECTIONS = [
+	'request-controller',
+	'controller-policy',
+	'policy-model',
+];
+
+const PROBE_ACTIVE_CONNECTIONS: Record<string, string[]> = {
+	'delete-nonowner': PROBE_OBSERVE_CONNECTIONS,
+	'view-others-products': PROBE_OBSERVE_CONNECTIONS,
+	'patch-nonowner': PROBE_OBSERVE_CONNECTIONS,
+};
+
+// Reward: blocked scenarios stop at the policy gate (403 Forbidden);
+// allowed scenarios reach the model.
+const SCENARIO_ACTIVE_CONNECTIONS: Record<string, string[]> = {
+	'owner-edit': ['request-controller', 'controller-policy', 'policy-model'],
+	'stranger-delete': ['request-controller', 'controller-policy'],
+	'stranger-update': ['request-controller', 'controller-policy'],
+	'view-others-products': [
+		'request-controller',
+		'controller-policy',
+		'policy-model',
+	],
+};
+
 // ──────────────────────────────────────────────
 // Code preview helper
 // ──────────────────────────────────────────────
@@ -930,8 +962,26 @@ export function Level11Authorization({ onComplete }: LevelComponentProps) {
 		[inspectedStages, probeDisplay],
 	);
 
+	// Per-probe edge activation. Default to [] so edges are dormant until
+	// the player fires a probe; firing a probe lights only that probe's
+	// connections in single-pass mode.
+	const observeActiveConnections = useMemo(
+		() => (lastProbeId ? (PROBE_ACTIVE_CONNECTIONS[lastProbeId] ?? []) : []),
+		[lastProbeId],
+	);
+
 	// ── Build reward stages dynamically (reacts to latest stress test result) ──
 	const lastResult = stressTest.results[stressTest.results.length - 1];
+
+	// Per-scenario edge activation. Default to [] so the reward pipeline
+	// is dormant until the player fires a stress scenario.
+	const rewardActiveConnections = useMemo(
+		() =>
+			lastResult
+				? (SCENARIO_ACTIVE_CONNECTIONS[lastResult.scenarioId] ?? [])
+				: [],
+		[lastResult],
+	);
 	const rewardStages: PipelineStage[] = useMemo(() => {
 		const wasBlocked = lastResult?.result === 'blocked';
 		return [
@@ -1138,6 +1188,7 @@ export function Level11Authorization({ onComplete }: LevelComponentProps) {
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">
 								<PipelineFlow
+									activeConnections={observeActiveConnections}
 									connections={OBSERVE_CONNECTIONS}
 									onNodeClick={handleStageClick}
 									stages={observeStages}
@@ -1312,6 +1363,7 @@ export function Level11Authorization({ onComplete }: LevelComponentProps) {
 						<div className="flex-1 flex flex-col">
 							<div className="flex-1 relative">
 								<PipelineFlow
+									activeConnections={rewardActiveConnections}
 									connections={REWARD_CONNECTIONS}
 									stages={rewardStages}
 								/>
