@@ -68,6 +68,18 @@ The source of truth flows: official docs (Step 0.5) → real command in myapp (S
 
 **Case study (L13 Strong Params, 2026-05-09):** The L13 redesign in `src/` was committed before myapp's commit chain was rewritten. For about a day, src/ taught `params.expect(product: [:name, :description, :price])` while myapp's `level-13` tag still had the older `params.require(:product).permit(...)` pattern. Anchoring to the myapp tag during design would have surfaced the mismatch immediately and forced the myapp re-tag (the form-axis precursor `to_unsafe_h` at L7-L12, plus the new featured migration + params.expect at L13) to land at the same time as the curriculum changes.
 
+## Step 0.45: Damage-first smell test (mandatory output, before any visualization design)
+
+Before sketching the observe phase, answer in writing:
+
+> *"If a first-time developer with no Rails background sees this observe phase, would their reaction be 'this is bad, I have to fix this' — or 'I don't understand what I'm looking at'?"*
+
+The answer must be the first option. If it's anything else — "neat artifact," "I see the cause but not the consequence," "I don't know what these zones mean" — the design is not done. See `.agents/rules/pedagogy.md` § "The smell test" for the full criteria.
+
+This question is **mandatory output** for every observe-phase design or redesign. If you report "done" without this answered explicitly, the work is incomplete regardless of what other checks pass.
+
+**Lens-on-touch rule.** When redesigning a level that was first designed before the consequences-first lens was codified (2026-05-09), the existing visualization is *presumed drift* until it passes this smell test. Working around an existing pre-lens visualization to "stay in scope" is the trap that produced the L15 repeat-failure (see `pedagogy.md` case study).
+
 ## Step 0.5: Lock the Canonical Purpose (form-axis levels only)
 
 For form-axis levels (those replacing an existing pattern's form — see `.agents/rules/pedagogy.md` § Cumulative patterns for the existence-vs-form category check), execute these steps BEFORE any visualization, probe, or build-step design:

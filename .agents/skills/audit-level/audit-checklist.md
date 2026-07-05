@@ -200,6 +200,61 @@ For detailed guidance on code preview accuracy, option quality, feedback consist
 
 The build phase must cover the **complete workflow**:
 
+### Step scope: on-concept + non-redundant (MANDATORY, SEPARATE STEP — do not skip)
+
+**This check has its own section because it is a distinct failure shape from option quality and answer leaks.** Each step might individually have 3 well-shuffled options with non-leaking feedback — and the level can still be wrong because the *set* of steps is wrong. Two failure shapes:
+
+1. **Off-concept step.** A step that teaches a concept the level title doesn't name. Often dropped in to feed a damage surface in the visualization, or to set up a future level by reference. **Drop it. Don't carry an off-concept step to satisfy a visualization slot.**
+
+2. **Duplicate-lesson step.** Two steps that present the same structural choice (same three Rails patterns dressed in different fictional vocabulary). After step N's choice, the lesson is learned. Step N+1 with structurally identical options is a drill, not a new lesson. **Drop one of the two.**
+
+**How to check (non-negotiable procedure):**
+
+1. **Read the level title.** Write it down literally.
+2. **For each step**, write the one-sentence lesson it teaches in plain language.
+3. **Off-concept scan.** For each one-sentence lesson, ask: "is this on-concept with the level title?" If the answer is "this is teaching X, but the level is about Y," the step is off-concept. Drop it (or broaden the level title honestly).
+4. **Duplicate-lesson scan.** Read the one-sentence lessons side by side. Are any two the same lesson with different surface vocabulary? If yes, drop one.
+5. **Tail-wags-dog scan.** If the visualization wants N surfaces (e.g., a 3-column dashboard) and the level only has M < N genuine on-concept lessons, **cut surfaces, do not pad steps**. A 2-surface dashboard is honest; a 3-surface dashboard with one off-concept lane is dishonest.
+
+**Worked failure (L15 pre-tightening, 2026-05-09).** L15 ("Callbacks & Normalizations") shipped with four steps:
+
+| Step | One-sentence lesson | On-concept? | Duplicate? |
+|---|---|---|---|
+| 0 | `normalizes` is the canonical callback macro for normalization | yes | — |
+| 1 | `enum :status` is the canonical fixed-set lifecycle attribute | **no** (modeling, not callbacks) | — |
+| 2 | A welcome email is a side effect → controller, not a callback | yes (anti-callback) | — |
+| 3 | An external sync is a side effect → controller, not a callback | yes (anti-callback) | **yes** (same as step 2) |
+
+Step 1 was off-concept (modeling), shipped to feed a third damage surface in the customer-impact dashboard. Steps 2 and 3 were structurally identical — same three options (`after_create` / `after_commit` / controller-call), same correct answer. Three earlier audits passed L15 at 4 steps because each step *individually* passed option-quality and answer-leak checks. None of them asked: *"do these four steps teach four lessons, or two lessons twice plus one off-concept lesson?"* The fix dropped step 1 (and the third dashboard surface) and dropped step 3, landing at 2 steps that match the level title.
+
+**Examples of violations:**
+
+```
+// BAD: off-concept step in a callback level
+Level: "Callbacks & Normalizations"
+Steps:
+  0. Normalize the Product Name        // on-concept (callback for normalization)
+  1. Add a Status Enum                  // OFF-CONCEPT (modeling, not callbacks)
+  2. Send the Welcome Email             // on-concept (anti-callback)
+  3. Sync to External Service           // duplicate of step 2
+
+// BAD: duplicate-lesson steps
+Steps:
+  0. Send the Welcome Email             // pick: after_create / after_commit / controller-call
+  1. Sync to External Service           // pick: after_create / after_commit / controller-call (SAME structural choice)
+
+// GOOD: every step earns its place
+Level: "Callbacks & Normalizations"
+Steps:
+  0. Normalize the Product Name (positive callback example)
+  1. Send the Welcome Email (negative callback example -- side effect, not callback)
+```
+
+- [ ] **Step list written down with one-sentence lessons.** Every step has a one-sentence lesson in plain language.
+- [ ] **Off-concept scan complete.** Every one-sentence lesson is on-concept with the level title.
+- [ ] **Duplicate-lesson scan complete.** No two steps teach the same structural choice with different surface vocabulary.
+- [ ] **Tail-wags-dog scan complete.** Visualization surface count matches genuine on-concept lesson count. If the visualization has more surfaces than the level has lessons, surfaces were cut, not steps padded.
+
 ### Structure
 - [ ] **Gem/dependency installation is included** if the feature requires a gem (`bundle add <gem>`). Non-negotiable.
 - [ ] **Generator/setup commands are included** if the gem has one (`rails generate <gem>:install`). Non-negotiable.
@@ -274,6 +329,76 @@ feedback: "This method processes one record at a time. You need batch processing
 - [ ] **Terminal command feedback checked too.** Same rules apply to TerminalChoiceStep wrong command feedback.
 
 Case study: L43 (Soft Deletes) had two violations: `bundle add paranoia` feedback said "Discard is explicit and non-invasive" (naming the correct gem), and `acts_as_paranoid` feedback said "Discard is explicit: you call discard instead of destroy" (naming both the gem and the method). Both directly told the player the answer instead of just explaining why the wrong choice was wrong.
+
+### Observe code preview answer-leak scan (MANDATORY, SEPARATE STEP — do not skip)
+
+**This check has its own section because it is a distinct leak surface from the feedback scan above.** The `feedback answer leak scan` covers wrong-option feedback strings. THIS scan covers the observe-phase right panel — `getCodeFiles('observe', ...)`. Both leaks reveal the answer; both must be checked separately.
+
+**Why this matters.** The right panel during observe is the de facto `problem.codeExample` surface. CLAUDE.md says: "Teach concepts and context. **Never show exact answers** the player must choose." A code preview that shows the correct answer's exact API (in a reference file or in a comment) hands the answer to the player before they reach the OptionCard. The player's "choice" between three Rails patterns becomes a substitution exercise: copy the API from the reference, swap the field name.
+
+**Two leak shapes (both fail the rule):**
+
+1. **Reference-file leak.** A file that legitimately contains the answer pattern is shown in observe as "reference context for what the broken file lacks." The intent is pedagogically friendly — "compare User and Product, see the missing pattern." The effect is a leak: the player sees the exact API.
+
+   - **Worked case (L15, 2026-05-09).** `getCodeFiles('observe', ...)` returned both `app/models/product.rb` (broken) AND `app/models/user.rb` (with `normalizes :email_address, with: ->(e) { e.strip.downcase }` highlighted at line 6). Step 0's correct OptionCard answer is `normalizes :name, with: ->(n) { n.strip }`. Identical pattern; the player only had to substitute the field name and lambda body. **Legitimacy of file contents is not the same as legitimacy of displaying those contents in observe.** User reappears in build/reward where the OptionCard is the answer surface — at that point seeing User adds no new information beyond what the OptionCard already shows.
+
+2. **Comment-text leak.** A comment inside the broken file names the specific API the player must discover.
+
+   - **Worked case (same L15 pass).** `PRODUCT_MODEL_BROKEN` had `# No normalizes on name -- "  Ceramic Mug  " saves dirty.` The comment named `normalizes` — exactly the Rails API the player will choose between three options on the OptionCard. Rephrased to symptom language: `# Name saves with whatever whitespace the seller typed.` — describes the absence without naming the API.
+
+**How to check (non-negotiable procedure):**
+
+1. **Identify every step's answer-API token.** For each OptionCard step, extract the API name(s) from the correct answer. Examples: `normalizes`, `enum :status`, `authorize`, `params.expect`, `encrypts :col`, `belongs_to :user`. Write them down.
+
+2. **Read every file returned by `getCodeFiles('observe', ...)` in full.** Every code line. Every comment. Search for any of the API tokens from step 1.
+
+3. **Reference-file rule.** If a file in observe contains an answer-API token *because that file legitimately uses the API in real myapp*, the file does not belong in observe. Hide it. (It can reappear in build/reward.)
+
+4. **Comment-text rule.** If a comment names an answer-API token to describe the absence (`# No normalizes on name`, `# missing authorize`, `# add encrypts here`), rephrase to symptom language that points at the gap without naming the API. Plain English about what goes wrong > Rails-internal jargon naming the fix.
+
+**Examples of violations:**
+
+```ruby
+# BAD: comment names the API the player will choose
+# No normalizes on name -- "  Ceramic Mug  " saves dirty.
+
+# BAD: comment names the policy method the player will choose
+# Missing authorize @product before destroy
+
+# BAD: comment names the strong-params method
+# Uses to_unsafe_h instead of params.expect
+
+# GOOD: describes the symptom, not the fix
+# Name saves with whatever whitespace the seller typed.
+
+# GOOD: points at the gap, not the mechanism
+# Anyone signed in can delete this product, even non-owners.
+
+# GOOD: describes what the player will see go wrong
+# All POST attributes go straight to the model, including admin flags.
+```
+
+```ts
+// BAD: observe returns a reference file containing the answer pattern
+if (phase === 'observe') {
+  return [
+    { filename: 'app/models/product.rb', code: PRODUCT_MODEL_BROKEN },
+    { filename: 'app/models/user.rb', code: USER_MODEL_REFERENCE }, // contains `normalizes :email_address`
+  ];
+}
+
+// GOOD: observe shows only the file the player is here to fix
+if (phase === 'observe') {
+  return [
+    { filename: 'app/models/product.rb', code: PRODUCT_MODEL_BROKEN },
+  ];
+}
+```
+
+- [ ] **Every observe-phase file scanned for every step's answer-API token.** No file in `getCodeFiles('observe', ...)` contains the literal API name(s) the OptionCard asks the player to choose.
+- [ ] **No reference-file leak.** A file that legitimately contains the answer pattern in real myapp does NOT appear in `getCodeFiles('observe', ...)`. Hidden in observe; reintroduced in build/reward.
+- [ ] **No comment-text leak.** Comments inside the broken file describe the *symptom* (whitespace, missing lifecycle field, anyone-can-edit, plaintext-on-disk) without naming the API the player will choose.
+- [ ] **Test mirrors the rule.** The level's test file contains an assertion: `getCodeFiles('observe', ...).map(f => f.code).join('\n')` does NOT contain any answer-API token. Reference: `Level15Callbacks.test.ts` "observe preview must NOT contain any normalizes reference".
 
 ### Documentation verification (non-negotiable)
 - [ ] Before writing ANY step content, **fetch and read the full README** of the gem/library from its official GitHub repo

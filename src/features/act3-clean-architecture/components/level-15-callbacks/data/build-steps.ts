@@ -2,60 +2,40 @@ import type { StepDef } from '@/hooks/useStepGating';
 import type { StepOption } from '../types';
 
 export const STEP_DEFS: StepDef[] = [
-	{ id: 'choose-normalization', title: 'Normalize the Email' },
-	{ id: 'add-status-enum', title: 'Add a Status Enum' },
+	{ id: 'choose-normalization', title: 'Normalize the Product Name' },
 	{ id: 'send-welcome-email', title: 'Send the Welcome Email' },
-	{ id: 'sync-external', title: 'Sync to External Service' },
 ];
 
-// Step 0: Normalize the email
+// Step 0: Normalize the Product name on writes AND on finder queries.
+// Positive callback example: `normalizes` is the canonical Rails 8 callback
+// macro for normalization-only side effects (sources cited in content.ts
+// learningContent.furtherReading -> Rails 8 normalizes API doc).
 export const NORMALIZATION_OPTIONS: StepOption[] = [
 	{
 		id: 'before-validation',
-		label: 'before_validation :downcase_email',
+		label: 'before_validation :strip_name',
 		correct: false,
 		feedback:
-			"Manual hooks work, but they don't clean values used in finder queries. Rails 8 has a declarative API that handles both writes AND reads, so a lookup by a messy email still finds the record.",
+			'Manual hooks like this only run on writes. A buyer searching by the clean value still goes against the dirty stored row, so the lookup misses. The fix needs to clean values on BOTH writes and reads.',
 	},
 	{
 		id: 'normalizes',
-		label: 'normalizes :email, with: -> e { e.strip.downcase }',
+		label: 'normalizes :name, with: ->(n) { n.strip }',
 		correct: true,
 	},
 	{
 		id: 'before-save',
-		label: 'before_save { self.email = email.strip.downcase }',
+		label: 'before_save { self.name = name.strip }',
 		correct: false,
 		feedback:
-			"This pattern runs after validation, so a uniqueness check sees the raw value, not the cleaned one. Two users could register with 'Joe@Gmail.com' and 'joe@gmail.com' and both pass uniqueness validation. Lookups by clean values also still fail.",
+			'This hook runs after validation, so a uniqueness check sees the raw value, not the cleaned one. It also still does nothing for finder queries: a buyer searching by the clean value still misses the dirty stored row.',
 	},
 ];
 
-// Step 1: Add a status enum (NEW, string-encoded, the production-safe default)
-export const STATUS_ENUM_OPTIONS: StepOption[] = [
-	{
-		id: 'plain-string',
-		label: 'add_column :products, :status, :string',
-		correct: false,
-		feedback:
-			'A bare string column accepts ANY value. There is no helper to check the current state, no protection against typos, and no validation that a value is one of a fixed set. A misspelling silently saves a broken row that breaks every query that filters by it.',
-	},
-	{
-		id: 'integer-encoded',
-		label: 'enum :status, draft: 0, listed: 1, sold: 2',
-		correct: false,
-		feedback:
-			'Number codes are unreadable in a database dump (status: 1 means nothing without the model open) and dangerous in production: reordering or inserting a value renumbers existing rows. SQL queries like WHERE status = 1 are also opaque to anyone reading them.',
-	},
-	{
-		id: 'string-encoded',
-		label: 'enum :status, draft: "draft", listed: "listed", sold: "sold"',
-		correct: true,
-	},
-];
-
-// Step 2: Send the Welcome Email (REFRAMED, anti-pattern motivator)
+// Step 1: Send the Welcome Email (negative callback example).
 // Correct answer: extract to an explicit call from the controller, not a callback.
+// This is the canonical "callbacks: normalization only, side effects elsewhere"
+// teaching from rails-principles.md.
 export const WELCOME_EMAIL_OPTIONS: StepOption[] = [
 	{
 		id: 'after-create-callback',
@@ -78,58 +58,21 @@ export const WELCOME_EMAIL_OPTIONS: StepOption[] = [
 	},
 ];
 
-// Step 3: Sync to External Service (REFRAMED, anti-pattern motivator)
-// Correct answer: enqueue a background job from the controller (or a service)
-// after the save, not from the model lifecycle.
-export const EXTERNAL_SYNC_OPTIONS: StepOption[] = [
-	{
-		id: 'after-save-inline',
-		label: 'after_save { AccountingApi.sync(self) }',
-		correct: false,
-		feedback:
-			'Calling the third-party HTTP service inside a save means every save waits for that vendor to respond. If they are slow, every save is slow. If they are down, every save fails. And after_save fires on every save (including unrelated edits), not just sales.',
-	},
-	{
-		id: 'after-commit-callback',
-		label: 'after_commit :sync_to_accounting, on: :update',
-		correct: false,
-		feedback:
-			'after_commit ties record persistence to the third-party vendor at the model level. The save still blocks the request waiting for the API. Tests that touch Product hit the real vendor. And the trigger is invisible to anyone reading the calling code.',
-	},
-	{
-		id: 'controller-sync-call',
-		label: 'sync_to_accounting(@product.id) from the controller',
-		correct: true,
-	},
-];
-
 // Map step index to option config
 export const OPTION_STEP_CONFIG: Record<
 	number,
 	{ title: string; description: string; options: StepOption[] }
 > = {
 	0: {
-		title: 'Normalize the Email',
+		title: 'Normalize the Product Name',
 		description:
-			'Emails are stored with leading and trailing spaces and inconsistent casing. Pick the way to clean the email field so writes and finder queries are both consistent.',
+			'Sellers submit product names with extra whitespace and inconsistent casing ("  Ceramic Mug  ", "ceramic mug"). When buyers search the storefront for "Ceramic Mug" the dirty stored value does not match. Pick the way to clean the name field so writes AND finder queries are both consistent.',
 		options: NORMALIZATION_OPTIONS,
 	},
 	1: {
-		title: 'Add a Status Enum',
-		description:
-			'Products move through a lifecycle: drafted by the seller, then listed for sale, then sold. Add a status field so the model can track which stage a product is in. Pick the way to model this fixed set of values.',
-		options: STATUS_ENUM_OPTIONS,
-	},
-	2: {
 		title: 'Send the Welcome Email',
 		description:
 			'After a user signs up successfully, we want to send them a welcome email. The signup controller has a saved @user. Where should the email-sending code live? Think about which option keeps the signup controller readable AND lets test runs and seed files create users without firing real mail.',
 		options: WELCOME_EMAIL_OPTIONS,
-	},
-	3: {
-		title: 'Sync to External Service',
-		description:
-			'When a Product is marked as sold, we need to notify a third-party accounting service over HTTP. The vendor API is slow and occasionally down. Where should this notification go so the user-facing save stays fast and never breaks when the vendor breaks?',
-		options: EXTERNAL_SYNC_OPTIONS,
 	},
 };

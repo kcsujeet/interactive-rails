@@ -1,106 +1,115 @@
 import type { ProbeConfig } from '@/components/levels/ProbeTerminal';
 
-export const PROBES: ProbeConfig[] = [
+// Damage payload paints the customer-facing dashboard when a probe fires.
+// Two customer surfaces (storefront search, signup confirmation) -- one for
+// each on-concept step. Each probe paints damage on exactly one surface
+// plus an incident-log line summarizing the customer-visible cost.
+
+export interface StorefrontDamage {
+	emptyResults: true;
+	storedValue: string; // the dirty stored row, e.g. '"  Ceramic Mug  "'
+}
+
+export interface SignupDamage {
+	duplicateAccounts: true;
+	primaryEmail: string;
+	duplicateEmail: string;
+}
+
+export interface DashboardDamage {
+	storefront?: StorefrontDamage;
+	signup?: SignupDamage;
+	incidentLog: string[];
+}
+
+export interface DamagedProbe extends ProbeConfig {
+	damage: DashboardDamage;
+}
+
+// Probes show the damage that customers experience because of the missing
+// normalization (positive callback case) and the missing welcome-email
+// trigger (negative callback case, fix is in the controller). Each probe
+// is a customer-facing failure (lost sale, duplicate accounts), not an
+// artifact inspection.
+export const PROBES: DamagedProbe[] = [
 	{
-		id: 'signup-messy',
-		label: 'POST signup with messy email',
-		command: 'POST /api/users (email: "  JOE@GMAIL.COM  ")',
+		id: 'buyer-search-misses',
+		label: 'Buyer searches the storefront for "Ceramic Mug"',
+		command: 'GET /api/products?name=Ceramic+Mug',
 		responseLines: [
-			{ text: 'HTTP/1.1 201 Created', color: 'red' },
+			{ text: 'HTTP/1.1 200 OK', color: 'cyan' },
+			{ text: '{"data":[]}  # 0 results', color: 'red' },
 			{ text: '', color: 'muted' },
 			{
-				text: '{"id":5,"email":"  JOE@GMAIL.COM  "}',
+				text: 'Stored row: name = "  Ceramic Mug  " (seller typed extra spaces).',
 				color: 'yellow',
 			},
 			{
-				text: 'Email stored with leading spaces and uppercase. No cleanup.',
+				text: 'find_by(name: "Ceramic Mug") misses. Buyer leaves. Seller loses the sale.',
 				color: 'red',
 			},
 		],
+		damage: {
+			storefront: {
+				emptyResults: true,
+				storedValue: '"  Ceramic Mug  "',
+			},
+			incidentLog: [
+				'47 buyers searched "Ceramic Mug" today and got 0 results.',
+				'Marketplace lost ~$1.2K in GMV before anyone noticed.',
+			],
+		},
 		story: [
-			'A user signs up typing "  JOE@GMAIL.COM  " with extra spaces and caps.',
-			'The model saves the email exactly as submitted, with no normalization.',
-			"The database now holds a dirty string that won't match clean lookups.",
-			'Future login attempts with "joe@gmail.com" will fail silently.',
+			'A seller submits a new listing with name "  Ceramic Mug  " (extra whitespace).',
+			'The model saves the value exactly as typed -- no cleanup before the INSERT.',
+			'Hours later, a buyer searches the storefront for "Ceramic Mug".',
+			'The query is a clean string match against a dirty stored value. It returns 0 results.',
+			'The buyer assumes the listing does not exist and leaves. The seller loses the sale.',
 		],
 	},
 	{
-		id: 'lookup-clean',
-		label: 'GET user by clean email',
-		command: 'User.find_by(email: "joe@gmail.com")',
+		id: 'duplicate-signup',
+		label: 'New user signs up, never receives a welcome email',
+		command: 'POST /api/users (signup)',
 		responseLines: [
-			{ text: '=> nil', color: 'red' },
+			{ text: 'HTTP/1.1 201 Created', color: 'cyan' },
 			{ text: '', color: 'muted' },
 			{
-				text: 'DB has "  JOE@GMAIL.COM  " but query uses "joe@gmail.com".',
+				text: '(no welcome email sent. UsersController#create only does User.new + save.)',
 				color: 'yellow',
 			},
 			{
-				text: 'Case mismatch + whitespace. Lookup fails silently.',
+				text: 'Customer waits, assumes signup failed, signs up again with a different address.',
+				color: 'red',
+			},
+			{
+				text: 'Two accounts now exist for the same person. Cold inbox + duplicate-account confusion.',
 				color: 'red',
 			},
 		],
-		story: [
-			'A returning user tries to log in with "joe@gmail.com".',
-			'The query searches for an exact match in the users table.',
-			'The stored value is "  JOE@GMAIL.COM  " (spaces + uppercase).',
-			'find_by returns nil. The user is told their account does not exist.',
-		],
-	},
-	{
-		id: 'check-mailer',
-		label: 'Check welcome email after signup',
-		command: 'log "send_welcome_email called?"',
-		responseLines: [
-			{ text: '(no log entry)', color: 'red' },
-			{ text: '', color: 'muted' },
-			{
-				text: 'send_welcome_email never ran. User.create! does nothing beyond INSERT.',
-				color: 'yellow',
+		damage: {
+			signup: {
+				duplicateAccounts: true,
+				primaryEmail: 'alice@example.com',
+				duplicateEmail: 'alice2@example.com',
 			},
-			{
-				text: 'No code path triggers the welcome email after signup.',
-				color: 'red',
-			},
-		],
+			incidentLog: [
+				'No welcome email arrived. The customer signed up twice.',
+				'Support now juggles two accounts for one person. Order history is split.',
+			],
+		},
 		story: [
 			'A new customer completes signup and waits for a welcome email.',
-			'User.create! inserts the row but triggers no side effects.',
-			'Nothing in the model or controller calls send_welcome_email.',
-			'The customer never receives a welcome email or activation link.',
+			'The controller does User.new(user_params) + save and renders the JSON response.',
+			'Nothing in the model or controller triggers a welcome email after the save.',
+			'After 10 minutes with no email, the customer assumes the form was broken.',
+			'They sign up again with a different address. Now two accounts exist for one person.',
 		],
 	},
 ];
 
 // Map probe IDs to discovery IDs they trigger
 export const PROBE_DISCOVERY_MAP: Record<string, string> = {
-	'signup-messy': 'raw-stored',
-	'lookup-clean': 'lookup-fails',
-	'check-mailer': 'no-welcome',
-};
-
-// Map probe IDs to pipeline node display during observe
-export const PROBE_PIPELINE_MAP: Record<
-	string,
-	{ normalizesSublabel: string; callbacksBadge: string }
-> = {
-	'signup-messy': {
-		normalizesSublabel: '"  JOE@GMAIL.COM  "',
-		callbacksBadge: 'RAW!',
-	},
-	'lookup-clean': {
-		normalizesSublabel: 'nil (mismatch)',
-		callbacksBadge: 'MISS!',
-	},
-	'check-mailer': {
-		normalizesSublabel: '(skipped)',
-		callbacksBadge: '0 emails',
-	},
-};
-
-// Map probe IDs to data display text
-export const PROBE_DATA_CARD: Record<string, string> = {
-	'signup-messy': '"  JOE@GMAIL.COM  "',
-	'lookup-clean': '"joe@gmail.com"',
-	'check-mailer': 'User.create!',
+	'buyer-search-misses': 'buyer-cant-find',
+	'duplicate-signup': 'duplicate-accounts',
 };

@@ -8,7 +8,7 @@ export const level15Callbacks: Level = {
 	trigger: {
 		type: 'incident',
 		description:
-			'Emails are stored as " JOE@GMAIL.COM " with extra whitespace and mixed case. User lookups fail because find_by(email:) is case-sensitive. New users sign up but receive no welcome email. Products have no way to track whether they are draft, listed, or sold.',
+			'Sellers submit product names with extra whitespace and odd casing, so buyers cannot find listings on the storefront. New users sign up but receive no welcome email and create duplicate accounts. Both failures point at the same question: what does the model lifecycle belong to, and what does it not?',
 	},
 	startingPipeline: {
 		nodes: [
@@ -65,81 +65,89 @@ export const level15Callbacks: Level = {
 	},
 	problem: {
 		observation:
-			'User.find_by(email: "joe@gmail.com") returns nil even though the user exists. The DB has " JOE@GMAIL.COM " stored. New users sign up but never receive a welcome email. Products have no status field to distinguish draft listings from active ones.',
+			'A seller submits "  Ceramic Mug  " (with whitespace) and the row stores it dirty. A buyer searches the storefront for "Ceramic Mug" and finds zero results, even though the listing exists. Separately, new users sign up but never receive a welcome email, so they assume the form was broken and sign up again with a different address. One failure is data that should have been cleaned by the model. The other is a side effect that should NOT have lived in the model.',
 		rootCause:
-			'No data normalization before save. The signup controller never triggers a welcome email. The Product model has no fixed-set status attribute.',
+			'No data normalization on Product writes or finder queries. The signup controller never triggers a welcome email after a successful save.',
 		codeExample: `# Current state: raw data goes straight to DB
-class User < ApplicationRecord
-  has_secure_password
-  validates :email, presence: true, uniqueness: true
+class Product < ApplicationRecord
+  belongs_to :user
+  validates :name, presence: true, length: { minimum: 3, maximum: 255 }
+  validates :description, presence: true, length: { minimum: 10 }
+  validates :price, presence: true, numericality: { greater_than: 0 }
 end
 
 # What happens:
-User.create(email: "  JOE@GMAIL.COM  ")
-# => Stored as "  JOE@GMAIL.COM  "
+Product.create!(name: "  Ceramic Mug  ", ...)
+# => Stored as "  Ceramic Mug  "
 
-User.find_by(email: "joe@gmail.com")
-# => nil  (case mismatch + whitespace)
+Product.find_by(name: "Ceramic Mug")
+# => nil  (whitespace mismatch)
 
 # Also: no welcome email is sent after signup.
-# The signup controller does User.create(...) and that's it.
+# UsersController#create does User.new + save and that's it.
 
-# And Product has no status field --
-# we cannot tell drafts from listed from sold.
-
-# Rails 8 has clean ways to handle each of these
-# patterns: declarative data cleaning, a fixed-set
-# status attribute, and a place for after-save side
-# effects that does not bury them in the model.`,
-		goal: "Clean and transform user data automatically before saving, give Product a fixed-set lifecycle attribute, and find the right place for follow-up actions like welcome emails and third-party sync so they are explicit, fast, and don't fire in every test.",
+# Rails 8 has a clean way to handle data cleaning
+# (a declarative model API that runs on writes AND
+# reads). And there is a clear answer to "where do
+# after-save side effects belong" -- not in the model.`,
+		goal: "Clean and transform the product name automatically before saving, and find the right place for follow-up actions like welcome emails so they are explicit, fast, and don't fire in every test.",
 		thresholds: {},
 	},
-	successConditions: [
-		{ type: 'callbacks_configured' },
-		{ type: 'node_present', nodeType: 'callback' },
-		{ type: 'connection', sourceType: 'model', targetType: 'callback' },
-	],
-	availableNodes: ['callback'],
-	unlockedNodes: ['callback'],
+	successConditions: [{ type: 'callbacks_configured' }],
+	availableNodes: [],
+	unlockedNodes: [],
 	learningContent: {
-		title: 'Normalization, Enums, and Where Side Effects Belong',
-		goal: `In this level, you'll:\n- automatically clean and transform user input before it hits the database.\n- give a model a fixed-set attribute (draft / listed / sold) the database can validate.\n- find the right place for after-save side effects so the model stays simple and tests stay fast.`,
-		conceptExplanation: `**Two jobs the model SHOULD do:**
+		title: 'Callbacks: Normalization vs Side Effects',
+		goal: `In this level, you'll:\n- automatically clean and transform product names before they hit the database, on both writes and reads.\n- find the right place for after-save side effects so the model stays simple and tests stay fast.`,
+		conceptExplanation: `**The rule: callbacks are for normalization. Side effects belong elsewhere.**
 
-1. **Normalization**, Rails 8's \`normalizes\` is a declarative API that cleans values BOTH on write and on finder queries. Use it for stripping whitespace, downcasing, and other deterministic shaping of attributes. Replaces the older \`before_save :downcase_email\` recipe, which only ran on writes (so a lookup with a clean value still missed a dirty stored row).
+**What callbacks ARE for: deterministic shaping of attributes.**
 
-2. **Fixed-set attributes**, when an attribute is one-of-a-fixed-set (draft / listed / sold, draft / published / archived, queued / running / done), use \`enum\` with **string-encoded** values: \`enum :status, draft: "draft", listed: "listed", sold: "sold"\`. The string keys ARE the database values, so a row dump reads as \`status: "listed"\` instead of \`status: 1\`. You also get \`product.listed?\`, \`product.listed!\`, and the scope \`Product.listed\` for free.
+Rails 8's \`normalizes\` is a declarative API that cleans values BOTH on write and on finder queries. Use it for stripping whitespace and other deterministic shaping. It replaces the older \`before_save :strip_whitespace\` recipe, which only ran on writes (so a lookup with a clean value still missed a dirty stored row). The User model already uses this for \`email_address\` (the auth generator added it back in level 9). Now Product needs the same treatment for the seller-submitted name.
 
-**One job the model should NOT do: contextual side effects.**
+Other callback macros in the same family: \`before_validation\` and \`after_initialize\`. They are all fine when the work is normalization-only.
 
-A side effect is "contextual" when it depends on _why_ the record was saved, not the fact that it was saved. Welcome emails fire on signup but not on profile edit. CRM sync fires when a user is first created in production but not when fixtures load in CI. Hiding these in callbacks (\`after_create :send_welcome_email\`) means:
+**What callbacks are NOT for: contextual side effects.**
+
+A side effect is "contextual" when it depends on _why_ the record was saved, not the fact that it was saved. Welcome emails fire on signup but not on profile edit. A loyalty-points credit fires on order completion but not on order edit. Hiding these in callbacks (\`after_create :send_welcome_email\`) means:
 
 - every test that creates a user fires real mail
 - every seed file does too
 - the trigger gets buried inside the model, invisible to the controller that called \`@user.save\`
 - the model becomes untestable in isolation
 
-The fix is to call mailers and jobs **explicitly**, from the controller, or from a service the controller calls, so the trigger sits next to the action that caused it.`,
-		railsCodeExample: `# app/models/user.rb -- normalization in callbacks IS fine
+The fix is to call mailers and external services **explicitly**, from the controller, or from a service the controller calls, so the trigger sits next to the action that caused it.`,
+		railsCodeExample: `# app/models/user.rb -- normalization is fine in the model
+# (the auth generator already added this in level 9)
 class User < ApplicationRecord
   has_secure_password
+  has_many :sessions, dependent: :destroy
+  has_many :products, dependent: :destroy
 
   # 'normalizes' applies on write AND on finder queries
-  normalizes :email, with: -> e { e.strip.downcase }
+  normalizes :email_address, with: ->(e) { e.strip.downcase }
 
-  validates :email, presence: true, uniqueness: true
+  encrypts :email_address, deterministic: true, downcase: true
+  encrypts :phone, deterministic: true
+  encrypts :address
+
+  validates :email_address,
+    presence: true,
+    uniqueness: { case_sensitive: false },
+    format: { with: URI::MailTo::EMAIL_REGEXP }
 end
 
-# app/models/product.rb -- string-encoded enum
+# app/models/product.rb -- declarative normalization
 class Product < ApplicationRecord
-  belongs_to :seller, class_name: "User"
-  validates :name, :price_cents, presence: true
+  belongs_to :user
+  has_many :reviews, dependent: :destroy
 
-  # String-encoded so the DB column reads as
-  # "draft", "listed", "sold" (not 0, 1, 2)
-  enum :status, draft: "draft",
-                listed: "listed",
-                sold: "sold"
+  # Same pattern that User uses for email_address
+  normalizes :name, with: ->(n) { n.strip }
+
+  validates :name, presence: true, length: { minimum: 3, maximum: 255 }
+  validates :description, presence: true, length: { minimum: 10 }
+  validates :price, presence: true, numericality: { greater_than: 0 }
 end
 
 # app/controllers/users_controller.rb
@@ -159,41 +167,20 @@ class UsersController < ApplicationController
   end
 end
 
-# app/controllers/products_controller.rb
-# Third-party sync stays alongside the controller line
-# that triggered it. Whether it ends up async (a job)
-# or sync (a direct HTTP call) is an implementation
-# detail you'll wire up in later levels.
-class ProductsController < ApplicationController
-  before_action :require_authentication
-
-  def mark_sold
-    @product = Current.user.products.find(params[:id])
-    @product.update!(status: "sold")
-    sync_to_accounting(@product.id)
-    render json: @product
-  end
-end
-
 # normalizes also applies on the read side:
-User.find_by(email: "  JOE@GMAIL.COM  ")
+Product.find_by(name: "  Ceramic Mug  ")
 # => Rails normalizes the query value too. Match found.`,
 		commonMistakes: [
-			'Putting side effects (notifications, external syncs, audit writes) inside model callbacks. Test runs and seed scripts then fire the side effect every time, and the trigger is invisible to the controller that called save.',
-			'Integer-encoded enums (`enum :status, draft: 0, listed: 1`) -- unreadable in DB dumps, dangerous to reorder in production.',
+			'Putting side effects (notifications, audit writes, related-record creation) inside model callbacks. Test runs and seed scripts then fire the side effect every time, and the trigger is invisible to the controller that called save.',
 			'Using `before_save` for normalization. It only runs on writes, so finder queries against the dirty stored value still miss.',
-			'Calling slow external services synchronously during a save -- whether from a callback or from the controller. Move slow calls to async machinery (you will see Rails background jobs in a later level).',
+			'Switching `after_create` to `after_commit` and assuming the testability problem goes away. It does not -- the side effect still fires in every test and seed run.',
 		],
 		whenToUse:
-			'Use `normalizes` for declarative data cleaning. Use `enum` with string-encoded values for any fixed-set attribute. For after-save side effects, call them from the controller (or a service the controller calls), not from model callbacks.',
+			'Use `normalizes` for declarative data cleaning. For after-save side effects (mailers, third-party calls, related-record writes), call them from the controller or from a service the controller calls, not from model callbacks.',
 		furtherReading: [
 			{
 				title: 'Rails 8 normalizes',
 				url: 'https://api.rubyonrails.org/classes/ActiveRecord/Normalization/ClassMethods.html',
-			},
-			{
-				title: 'ActiveRecord::Enum',
-				url: 'https://api.rubyonrails.org/classes/ActiveRecord/Enum.html',
 			},
 			{
 				title: 'Active Record Callbacks (when they ARE appropriate)',
@@ -203,6 +190,6 @@ User.find_by(email: "  JOE@GMAIL.COM  ")
 	},
 	hint: {
 		delay: 20,
-		text: 'Click each zone in the data flow lane and fire each probe to surface what is missing. Watch what happens (or does not happen) after a save.',
+		text: 'Fire each customer impact probe and watch what shows up on the dashboard. Each probe paints a different customer-facing failure.',
 	},
 };

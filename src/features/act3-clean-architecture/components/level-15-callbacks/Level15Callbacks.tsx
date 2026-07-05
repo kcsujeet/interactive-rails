@@ -2,15 +2,25 @@
  * Level 15: Callbacks & Normalizations
  *
  * Sequential phase flow: observe -> build -> reward
- * - Observe: Click pipeline stages and fire data probes to discover the missing
- *   normalizes/callback layers. Discovery gating controls when "Build the Fix" appears.
- * - Build: 4 OptionCard steps (normalize, add callback, order callbacks, avoid pitfall).
- * - Reward: Stress test the working pipeline.
+ * - Observe: Customer Impact Dashboard. Two customer-facing surfaces
+ *   (storefront search, signup confirmation) stay clean idle. Each probe
+ *   paints damage on the matching surface plus an incident-log entry, so
+ *   the player sees the customer-visible cost (empty results, duplicate
+ *   accounts) before the build phase introduces the fix.
+ * - Build: 2 OptionCard steps:
+ *     0. Normalize the Product name (positive callback example).
+ *     1. Send the welcome email from the controller (negative callback
+ *        example -- "side effect, not callback").
+ * - Reward: Same dashboard. With the fix, the customer-facing surfaces
+ *   stay clean across every scenario. A toast describes each catch.
  *
- * Teaches: Rails 8 normalizes, after_create, callback ordering, after_commit.
+ * Teaches the rule "callbacks: normalization only, side effects elsewhere"
+ * via one positive and one negative example. (See pedagogy.md case study
+ * "L15 tightening: off-concept step + duplicate-lesson step" for why the
+ * status-enum + external-sync steps were dropped.)
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
 	CenterPanel,
 	CodePreviewPanel,
@@ -21,7 +31,6 @@ import {
 	RightPanel,
 	type ValidationResult,
 } from '@/components/levels';
-import type { StageInspectorData } from '@/components/levels/StageInspector';
 import { useDiscoveryGating } from '@/hooks/useDiscoveryGating';
 import { useStepGating } from '@/hooks/useStepGating';
 import { useStressTest } from '@/hooks/useStressTest';
@@ -31,13 +40,7 @@ import { BuildPhase } from './BuildPhase';
 import { OPTION_STEP_CONFIG, STEP_DEFS } from './data/build-steps';
 import { getCodeFiles } from './data/code-files';
 import { DISCOVERY_DEFS } from './data/discoveries';
-import {
-	OBSERVE_FLOW,
-	REWARD_FLOW,
-	STAGE_DISCOVERY_MAP,
-	STAGE_INSPECTOR_MAP,
-} from './data/pipeline-stages';
-import { PROBE_DISCOVERY_MAP, PROBE_PIPELINE_MAP, PROBES } from './data/probes';
+import { PROBE_DISCOVERY_MAP, PROBES } from './data/probes';
 import { STRESS_SCENARIOS } from './data/stress-scenarios';
 import { LeftPanelContent } from './LeftPanelContent';
 import { ObservePhase } from './ObservePhase';
@@ -51,82 +54,16 @@ export function Level15Callbacks({ onComplete }: LevelComponentProps) {
 	});
 	const stressTest = useStressTest(STRESS_SCENARIOS);
 	const [phase, setPhase] = useState<Phase>('observe');
-	const [inspectorData, setInspectorData] = useState<StageInspectorData | null>(
-		null,
-	);
-	const [inspectedStages, setInspectedStages] = useState<Set<string>>(
-		new Set(),
-	);
 	const [lastProbeId, setLastProbeId] = useState<string | null>(null);
 
-	const probeDisplay = lastProbeId ? PROBE_PIPELINE_MAP[lastProbeId] : null;
-
-	const lastResult = stressTest.results[stressTest.results.length - 1];
-	const lastScenario = lastResult
-		? (STRESS_SCENARIOS.find((s) => s.id === lastResult.scenarioId) ?? null)
-		: null;
-	const wasBlocked = lastResult?.result === 'blocked';
-
-	// ── Flow animation state ──
-	const [flowPhase, setFlowPhase] = useState(-1);
-	const [flowMessages, setFlowMessages] = useState<string[]>([]);
-	const flowTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-
-	const clearFlow = useCallback(() => {
-		for (const t of flowTimeoutsRef.current) clearTimeout(t);
-		flowTimeoutsRef.current = [];
-	}, []);
-
-	const runFlow = useCallback(
-		(messages: string[]) => {
-			clearFlow();
-			setFlowMessages(messages);
-			const totalPhases = messages.length * 2 - 1;
-			const delay = 1500;
-
-			setFlowPhase(0);
-
-			for (let p = 1; p <= totalPhases; p++) {
-				const t = setTimeout(() => {
-					setFlowPhase(p);
-				}, delay * p);
-				flowTimeoutsRef.current.push(t);
-			}
-
-			const endT = setTimeout(
-				() => {
-					setFlowPhase(-1);
-				},
-				delay * (totalPhases + 2),
-			);
-			flowTimeoutsRef.current.push(endT);
-		},
-		[clearFlow],
-	);
-
-	useEffect(() => {
-		return () => clearFlow();
-	}, [clearFlow]);
-
-	const handleStageClick = useCallback(
-		(stageId: string) => {
-			if (phase !== 'observe') return;
-			const data = STAGE_INSPECTOR_MAP[stageId];
-			if (!data) return;
-			setInspectorData(data);
-			setInspectedStages((prev) => {
-				if (prev.has(stageId)) return prev;
-				const next = new Set(prev);
-				next.add(stageId);
-				return next;
-			});
-			const discoveryId = STAGE_DISCOVERY_MAP[stageId];
-			if (discoveryId) {
-				discoveryGating.discover(discoveryId);
-			}
-		},
-		[phase, discoveryGating],
-	);
+	// ── Observe-phase damage state ──
+	// The dashboard paints the customer-visible damage of whichever probe
+	// fired most recently. Pre-fire it shows the clean idle state.
+	const observeDamage = useMemo(() => {
+		if (!lastProbeId) return null;
+		const probe = PROBES.find((p) => p.id === lastProbeId);
+		return probe?.damage ?? null;
+	}, [lastProbeId]);
 
 	const handleProbe = useCallback(
 		(probeId: string) => {
@@ -135,13 +72,8 @@ export function Level15Callbacks({ onComplete }: LevelComponentProps) {
 			if (discoveryId) {
 				discoveryGating.discover(discoveryId);
 			}
-			const messages = OBSERVE_FLOW[probeId];
-			if (messages) runFlow(messages);
-			setInspectedStages(
-				new Set(['input', 'normalizes', 'model', 'callbacks']),
-			);
 		},
-		[discoveryGating, runFlow],
+		[discoveryGating],
 	);
 
 	const handleOptionClick = useCallback(
@@ -160,10 +92,8 @@ export function Level15Callbacks({ onComplete }: LevelComponentProps) {
 	const handleFireScenario = useCallback(
 		(scenarioId: string) => {
 			stressTest.fireRequest(scenarioId);
-			const messages = REWARD_FLOW[scenarioId];
-			if (messages) runFlow(messages);
 		},
-		[stressTest, runFlow],
+		[stressTest],
 	);
 
 	const handleTransitionToReward = useCallback(() => {
@@ -234,16 +164,9 @@ export function Level15Callbacks({ onComplete }: LevelComponentProps) {
 					{phase === 'observe' && (
 						<ObservePhase
 							canStartBuild={discoveryGating.isUnlocked}
-							flowMessages={flowMessages}
-							flowPhase={flowPhase}
-							inspectedStages={inspectedStages}
-							inspectorData={inspectorData}
-							lastProbeId={lastProbeId}
-							onCloseInspector={() => setInspectorData(null)}
+							damage={observeDamage}
 							onProbe={handleProbe}
-							onStageClick={handleStageClick}
 							onStartBuild={handleStartBuild}
-							probeDisplay={probeDisplay}
 							probes={PROBES}
 						/>
 					)}
@@ -267,16 +190,11 @@ export function Level15Callbacks({ onComplete }: LevelComponentProps) {
 							allowedCount={stressTest.allowedCount}
 							blockedCount={stressTest.blockedCount}
 							canAutoFire={stressTest.canAutoFire}
-							flowMessages={flowMessages}
-							flowPhase={flowPhase}
 							isAutoFiring={stressTest.isAutoFiring}
-							lastResult={lastResult}
-							lastScenario={lastScenario}
 							onFire={handleFireScenario}
 							onToggleAutoFire={stressTest.toggleAutoFire}
 							results={stressTest.results}
 							scenarios={STRESS_SCENARIOS}
-							wasBlocked={wasBlocked}
 						/>
 					)}
 				</div>

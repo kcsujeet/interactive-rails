@@ -2,35 +2,48 @@ import { registerLevelCode } from '@/lib/codebase-registry';
 import type { Phase } from '../types';
 import { STEP_DEFS } from './build-steps';
 
-const USER_MODEL_BROKEN = `class User < ApplicationRecord
+// User model is already in its post-L9/L10/L13 shape: auth (has_secure_password,
+// sessions), products association (added at L11 setup), normalizes :email_address,
+// encrypts (L10), and validations. L15 does not change User -- it is shown as
+// reference context in build/reward (NOT in observe; see code-files observe
+// branch for why).
+const USER_MODEL_REFERENCE = `class User < ApplicationRecord
   has_secure_password
-  validates :email, presence: true, uniqueness: true
+  has_many :sessions, dependent: :destroy
+  has_many :products, dependent: :destroy
 
-  # No normalization
-  # Email stored as-is: " JOE@GMAIL.COM "
+  normalizes :email_address, with: ->(e) { e.strip.downcase }
+
+  encrypts :email_address, deterministic: true, downcase: true
+  encrypts :phone, deterministic: true
+  encrypts :address
+
+  validates :email_address,
+    presence: true,
+    uniqueness: { case_sensitive: false },
+    format: { with: URI::MailTo::EMAIL_REGEXP }
 end`;
 
-const USER_MODEL_NORMALIZED = `class User < ApplicationRecord
-  has_secure_password
-  validates :email, presence: true, uniqueness: true
+const PRODUCT_MODEL_BROKEN = `class Product < ApplicationRecord
+  belongs_to :user
+  has_many :reviews, dependent: :destroy
 
-  normalizes :email, with: -> e { e.strip.downcase }
+  validates :name, presence: true, length: { minimum: 3, maximum: 255 }
+  validates :description, presence: true, length: { minimum: 10 }
+  validates :price, presence: true, numericality: { greater_than: 0 }
+
+  # Name saves with whatever whitespace the seller typed.
 end`;
 
-const PRODUCT_MODEL_WITH_ENUM = `class Product < ApplicationRecord
-  belongs_to :seller, class_name: "User"
-  validates :name, :price_cents, presence: true
+const PRODUCT_MODEL_NORMALIZED = `class Product < ApplicationRecord
+  belongs_to :user
+  has_many :reviews, dependent: :destroy
 
-  enum :status, draft: "draft",
-                listed: "listed",
-                sold: "sold"
-end`;
+  normalizes :name, with: ->(n) { n.strip }
 
-const PRODUCT_STATUS_MIGRATION = `class AddStatusToProducts < ActiveRecord::Migration[8.0]
-  def change
-    add_column :products, :status, :string, default: "draft", null: false
-    add_index :products, :status
-  end
+  validates :name, presence: true, length: { minimum: 3, maximum: 255 }
+  validates :description, presence: true, length: { minimum: 10 }
+  validates :price, presence: true, numericality: { greater_than: 0 }
 end`;
 
 const USERS_CONTROLLER_WITH_MAILER = `class UsersController < ApplicationController
@@ -49,18 +62,11 @@ const USERS_CONTROLLER_WITH_MAILER = `class UsersController < ApplicationControl
   private
 
   def user_params
-    params.expect(user: [ :email, :password ])
+    params.expect(user: [ :email_address, :password ])
   end
-end`;
 
-const PRODUCTS_CONTROLLER_MARK_SOLD = `class ProductsController < ApplicationController
-  before_action :require_authentication
-
-  def mark_sold
-    @product = Current.user.products.find(params[:id])
-    @product.update!(status: "sold")
-    sync_to_accounting(@product.id)
-    render json: @product
+  def send_welcome_email(user)
+    Rails.logger.info "TODO welcome email to #{user.email_address}"
   end
 end`;
 
@@ -72,61 +78,55 @@ interface CodeFile {
 }
 
 export function getCodeFiles(phase: Phase, furthestStep: number): CodeFile[] {
-	// Observe phase: just the broken User model
+	// Observe phase: show ONLY the broken Product model. User.rb in real
+	// myapp contains `normalizes :email_address` from L9's Rails 8 auth
+	// generator, and step 0's correct answer is the same pattern with
+	// `:name` instead of `:email_address`. Showing User in observe pre-leaks
+	// the answer; reintroduce User in build/reward where the OptionCard is
+	// the answer surface.
 	if (phase === 'observe') {
 		return [
 			{
-				filename: 'app/models/user.rb',
+				filename: 'app/models/product.rb',
 				language: 'ruby',
-				code: USER_MODEL_BROKEN,
-				highlight: [5, 6],
+				code: PRODUCT_MODEL_BROKEN,
+				highlight: [9, 10],
 			},
 		];
 	}
 
 	// Build / reward phases: artifacts accumulate as steps complete.
+	// `furthestStep` is the index of the last completed step (caller passes
+	// `isCurrentStepCompleted ? currentStep : currentStep - 1`). So step k's
+	// artifact appears when furthestStep >= k.
 	const files: CodeFile[] = [];
 
-	// User model: broken until step 0, normalized after
+	// Step 0 (Normalize): Product gains `normalizes :name`.
+	const productCode =
+		furthestStep >= 0 ? PRODUCT_MODEL_NORMALIZED : PRODUCT_MODEL_BROKEN;
+	const productHighlight = furthestStep >= 0 ? [4] : [9, 10];
+	files.push({
+		filename: 'app/models/product.rb',
+		language: 'ruby',
+		code: productCode,
+		highlight: productHighlight,
+	});
+
+	// Always show the User model as reference context.
 	files.push({
 		filename: 'app/models/user.rb',
 		language: 'ruby',
-		code: furthestStep >= 1 ? USER_MODEL_NORMALIZED : USER_MODEL_BROKEN,
-		highlight: furthestStep >= 1 ? [5] : [5, 6],
+		code: USER_MODEL_REFERENCE,
+		highlight: [6],
 	});
 
-	// Product model + migration appear after step 1 (status enum)
-	if (furthestStep >= 2) {
-		files.push({
-			filename: 'app/models/product.rb',
-			language: 'ruby',
-			code: PRODUCT_MODEL_WITH_ENUM,
-			highlight: [5, 6, 7],
-		});
-		files.push({
-			filename: 'db/migrate/20260301000000_add_status_to_products.rb',
-			language: 'ruby',
-			code: PRODUCT_STATUS_MIGRATION,
-			highlight: [3, 4],
-		});
-	}
-
-	// Users controller with welcome-email call appears after step 2
-	if (furthestStep >= 3) {
+	// Step 1 (Send Welcome Email): UsersController#create gains the explicit
+	// send_welcome_email(@user) call after save.
+	if (furthestStep >= 1) {
 		files.push({
 			filename: 'app/controllers/users_controller.rb',
 			language: 'ruby',
 			code: USERS_CONTROLLER_WITH_MAILER,
-			highlight: [7],
-		});
-	}
-
-	// Products controller with background-job enqueue appears after step 3
-	if (furthestStep >= 4) {
-		files.push({
-			filename: 'app/controllers/products_controller.rb',
-			language: 'ruby',
-			code: PRODUCTS_CONTROLLER_MARK_SOLD,
 			highlight: [7],
 		});
 	}

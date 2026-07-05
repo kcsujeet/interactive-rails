@@ -128,6 +128,25 @@ None of these levels lead with the mechanism (Pundit, `params.expect`, `encrypts
 
 **Case study (L14 Testing redesigns, 2026-05-09).** Three sequential failures all answered the wrong question: a CI/CD pipeline (pre-baked deployment), Editor + Test Runner nodes (taught dev tools), and Behavior Coverage cards with `?` / `✓` / `✗` icons (abstract). A fourth attempt — a spec file artifact + rspec terminal — was on the artifact path again. Each iteration polished the wrong answer. The right design shows a customer-facing dashboard (homepage / account / login) and renders the real damage when a probe fires (spam product `FEATURED`, a stranger's `DELETE` taking out the player's listing, a 500 error on every login). With automated checks (post-L14), the same regression never reaches the dashboard — the rspec terminal catches it locally in 0.3s and the dashboard stays clean. The contrast is the lesson; the spec file is just the mechanism that produces the contrast.
 
+**Case study (L15 Callbacks repeat-failure, 2026-05-09).** L15 was touched the day after the L14 redesign and the lens was codified. The pre-existing L15 visualization (a vertical zone lane: Incoming Request → Normalizes → Product Model → After Save) was kept on the assumption that a fuller redesign was out of scope. Labels were rephrased to mention customer impact in the body text. **It failed the smell test the moment a player saw it.** "Incoming Request: ' Ceramic Mug '" reads as nonsense; "Normalizes (Product) (skipped)" requires Rails-internal mental model of the save lifecycle to interpret. The audit had flagged "probes are artifact-focused, not customer-facing" but it was tagged "minor" and skipped. The lesson is twofold:
+
+- **Lens-on-touch rule (NON-NEGOTIABLE).** When a level is touched after this rule was codified, the visualization itself is in scope, not just the content / data drift. Pre-lens visualizations are *presumed drift* until they pass both the damage-first check and the smell test. Working around an existing pre-lens visualization to "stay in scope" is the trap.
+- **Show-the-damage findings are critical, not minor.** An audit that lists `show-the-damage` as "minor" because schema drifts seem more fixable is the audit-discipline trap re-running. The damage-first check is the headline question; everything else is downstream. A FAIL on damage-first means the level cannot ship until the visualization is redesigned — even if every other check passes.
+
+### The smell test (run it explicitly, in writing)
+
+Before claiming any observe-phase design or redesign is done, answer this question in writing:
+
+> *"If a first-time developer with no Rails background sees this observe phase, would their reaction be 'this is bad, I have to fix this' — or 'I don't understand what I'm looking at'?"*
+
+If the answer is anything other than the first, redesign. Specifically:
+
+- "I don't understand what these zones / nodes / labels mean" → the visualization is using internal-developer vocabulary. Redesign with customer-facing surfaces.
+- "Neat artifact, I guess?" → the visualization is showing a tool / file / abstract status, not damage. Redesign with concrete customer harm.
+- "I see the cause but not the consequence" → the visualization shows the *internals of the bug* but not the *user-visible result*. Redesign so the result is the headline.
+
+This question is mandatory output for every observe-phase design or redesign. If a fix-agent reports "done" without this answered in writing, the work is incomplete regardless of what other checks pass.
+
 ### Probes are problems
 
 Every probe represents a distinct failure mode in the before-state that the build phase resolves. No happy paths. No "here's how it works correctly already." No hypotheticals.
@@ -157,6 +176,17 @@ The three-phase loop is:
 How to communicate the absence: probes simulate actions that WOULD work if the thing existed. The probe's response and the existing nodes' state show the pain point that results from its absence. (See "Every probe needs an animated dimension" below.)
 
 The reward phase introduces the new nodes/edges that the build phase produced. Observe and reward can have different topologies -- in fact, they should, because the build added something. Shared nodes keep stable positions; new nodes appear in new positions.
+
+### Observe right-panel: hide the answer API
+
+The right panel during observe (the file list returned by `getCodeFiles('observe', ...)`) is the de facto `problem.codeExample` surface. CLAUDE.md's rule for that surface — *"Teach concepts and context. Never show exact answers the player must choose."* — applies in full. Two leak shapes both fail it:
+
+- **Reference-file leak.** Showing a file that legitimately contains the answer pattern as "reference context for what the broken file lacks." Example: `app/models/user.rb` contains `normalizes :email_address, with: ->(e) { e.strip.downcase }` from L9's Rails 8 auth generator. Step 0's correct answer at L15 is `normalizes :name, with: ->(n) { n.strip }`. Showing User in observe lets the player substitute the field name and lambda body — there's no choice left to make on the OptionCard. **Legitimacy of file contents is not the same as legitimacy of displaying those contents in observe.** Hide the reference file in observe; reintroduce it in build/reward where the OptionCard is the answer surface (and seeing User adds no new information beyond what the OptionCard already shows).
+- **Comment-text leak.** Comments inside the broken file that name the specific API the player must discover. `# No normalizes on name` (in `PRODUCT_MODEL_BROKEN`) tells the player the answer is `normalizes` — exactly the Rails API they will choose between three options on the OptionCard. Rephrase to symptom language: `# Name saves with whatever whitespace the seller typed.` Plain English about what goes wrong > Rails-internal jargon naming the fix.
+
+**The audit step.** For every level with both observe phase and OptionCard build steps, scan `getCodeFiles('observe', ...)` against every step's answer-API tokens. The full procedure (with examples and the test pattern) lives in [audit-level/audit-checklist.md § Observe code preview answer-leak scan](../skills/audit-level/audit-checklist.md). Mirror the assertion in the level's test file — reference: `Level15Callbacks.test.ts` "observe preview must NOT contain any normalizes reference".
+
+**Case study (L15, 2026-05-09).** The right panel during observe showed both `app/models/product.rb` (broken) AND `app/models/user.rb` with `normalizes :email_address` highlighted as "the pattern Product needs." The intent was a cross-file comparison ("look, User has it, Product doesn't") — pedagogically friendly framing, exact answer-API leak in practice. The same pass surfaced the comment-text leak (`# No normalizes on name`) inside `PRODUCT_MODEL_BROKEN`. Both shipped through three earlier audits because the existing "Code preview boundaries" test only covered the build-phase preview, not the observe right panel. Fix: remove the User reference from the observe branch of `getCodeFiles`, rephrase the broken comment, add two new strict tests guarding both leaks. The lesson — same one as L13's code-preview boundary fix — is that the observe right panel is the de facto `problem.codeExample` surface, not just supporting context.
 
 ### The hard gate (do this before declaring done)
 
@@ -351,6 +381,30 @@ The deeper guidance lives in the `design-level` skill's `build-phase-guide.md`. 
 - **Code preview transition table.** For every `completedStep`, write down what the player sees. Verify the preview does NOT contain the next step's correct answer's distinctive strings.
 - **Feedback never reveals the answer** (and never contradicts an earlier step).
 - **Gem install + generator + db:migrate are real steps.** If the feature requires a gem, the install / generator / migration commands appear as actual steps the player completes.
+
+### Every step must be on-concept with the level title
+
+Every OptionCard step earns its place by teaching a lesson **on-concept with the level's title**. If a step is on a concept the level title doesn't name, it has to come out (or the level title has to broaden honestly). Don't carry an off-concept step because it sets up a damage surface, fills a third slot, or hands work to a later level by reference.
+
+**The check.** Read the level title. For each step, ask: *"is this step teaching a piece of [the title concept], or is it teaching something else?"* If the answer is "something else," the step is off-concept and must come out.
+
+**The trap.** When the visualization wants N surfaces (e.g., a 3-column customer-impact dashboard), the level needs N concepts to feed those surfaces. If the level only has 2 genuine on-concept lessons, the third concept gets invented to fill the third slot. The visualization wags the curriculum. **Cut the third surface, don't pad with an off-concept step.** A 2-surface dashboard is honest; a 3-surface dashboard with one off-concept lane is dishonest.
+
+### Two steps that teach the same structural choice are one step
+
+Two OptionCard steps teaching the same structural decision (callback-anti-pattern vs controller-call, or the equivalent in any axis) are pedagogically redundant. After step N's choice, the lesson is learned. Step N+1 with structurally identical options dressed in different fictional clothing is a drill, not a new lesson.
+
+**The check.** For two steps in the same level, ask: *"do these two steps teach a different structural choice, or the same structural choice with different surface-level vocabulary?"* If the structural choice is the same (e.g., both have `after_create` / `after_commit` / controller-call as the three options), drop one.
+
+**Worked failure (L15 pre-tightening, 2026-05-09).** L15 originally shipped with four steps: (0) `normalizes :name`, (1) `enum :status, draft: "draft", ...`, (2) Send the Welcome Email, (3) Sync to External Service. Two distinct issues:
+
+1. **Off-concept**: step 1 (status enum) was *modeling/lifecycle*, not callbacks or normalization. It existed because the customer-impact dashboard wanted three surfaces (Storefront / Signup / Listing) and the third surface needed a concept. Tail-wags-dog. **Fix: drop step 1 entirely; the dashboard collapses to 2 surfaces.** Status enums find a proper home in a future modeling level.
+
+2. **Duplicate lesson**: steps 2 and 3 had identical structural shape — both presented `after_create :foo` / `after_commit :foo, on: :create` / `controller-call` and asked the player to pick the controller-call. After step 2 the player has learned "side effect, not callback." Step 3 was the same drill with `sync_to_accounting` swapped for `send_welcome_email`. **Fix: pick one (welcome email — better connection to L9 auth + L13 strong params); drop the other.**
+
+**Lesson.** Three earlier audits passed L15 at 4 steps because each step *individually* satisfied the option-quality and answer-leak rules. None of them asked the only question that mattered: *"do these four steps teach four lessons or two lessons twice?"* That question is now in this rule.
+
+The smell test for build-phase scope (run it explicitly, in writing): for each step, write down the one-sentence lesson it teaches. If two sentences are the same, the level has one too many steps. If a sentence doesn't match the level title, the level has a step in the wrong house.
 
 ---
 

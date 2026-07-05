@@ -1,4 +1,3 @@
-import { Check, X } from 'lucide-react';
 import { StepProgress } from '@/components/levels';
 import { DiscoveryChecklist } from '@/components/levels/DiscoveryChecklist';
 import type {
@@ -8,46 +7,25 @@ import type {
 import type { UseStepGatingReturn } from '@/hooks/useStepGating';
 import type { Phase } from './types';
 
-function PipelineLegend() {
-	return (
-		<div className="p-4 border-b border-border">
-			<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-				Pipeline Legend
-			</div>
-			<div className="space-y-2 text-sm">
-				<div className="flex items-center gap-2">
-					<Check className="w-4 h-4 text-success" />
-					<span className="text-foreground">Data processed correctly</span>
-				</div>
-				<div className="flex items-center gap-2">
-					<X className="w-4 h-4 text-destructive" />
-					<span className="text-foreground">
-						Side effect prevented (rollback)
-					</span>
-				</div>
-			</div>
-		</div>
-	);
-}
-
 function ScenarioPanel() {
 	return (
 		<div className="p-4 border-b border-border space-y-3">
 			<h3 className="text-sm font-semibold text-foreground mb-2">Scenario</h3>
 			<p className="text-sm text-muted-foreground leading-relaxed">
-				Your User model stores emails exactly as typed. Signups arrive as{' '}
+				Your Product model stores names exactly as the seller typed them.
+				Listings come in as{' '}
 				<span className="font-mono text-primary">
-					&quot; JOE@GMAIL.COM &quot;
+					&quot; Ceramic Mug &quot;
 				</span>{' '}
-				with extra whitespace and mixed case. Lookups by{' '}
-				<span className="font-mono text-primary">joe@gmail.com</span> fail
-				because the stored value does not match.
+				with extra whitespace, so when buyers search the storefront for{' '}
+				<span className="font-mono text-primary">Ceramic Mug</span> the dirty
+				stored row does not match. Sales walk out the door.
 			</p>
 			<p className="text-sm text-muted-foreground leading-relaxed">
-				No welcome email fires on signup either. And Product has no{' '}
-				<span className="text-foreground font-medium">status</span> field, so
-				the app cannot tell a draft from an active listing or a sold one. Three
-				problems, three different fixes.
+				New users sign up but never receive a welcome email, so they assume the
+				form was broken and create a duplicate account. And Product has no
+				lifecycle field, so a seller has nowhere to mark a listing as no longer
+				available. Three customer-facing failures, three different fixes.
 			</p>
 		</div>
 	);
@@ -62,16 +40,23 @@ function StressTestCounters({
 }) {
 	return (
 		<div className="p-4">
+			<div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+				Customer impact
+			</div>
 			<div className="grid grid-cols-2 gap-3">
 				<div className="bg-success/20 rounded-lg p-3 text-center">
 					<div className="text-2xl font-bold text-success">{allowedCount}</div>
-					<div className="text-xs text-success/70">Processed</div>
+					<div className="text-xs text-success/70">
+						Customers see clean data
+					</div>
 				</div>
 				<div className="bg-destructive/20 rounded-lg p-3 text-center">
 					<div className="text-2xl font-bold text-destructive">
 						{blockedCount}
 					</div>
-					<div className="text-xs text-destructive/70">Prevented</div>
+					<div className="text-xs text-destructive/70">
+						Side effect prevented
+					</div>
 				</div>
 			</div>
 		</div>
@@ -121,13 +106,10 @@ export function LeftPanelContent({
 			)}
 
 			{phase === 'reward' && (
-				<>
-					<PipelineLegend />
-					<StressTestCounters
-						allowedCount={stressAllowedCount}
-						blockedCount={stressBlockedCount}
-					/>
-				</>
+				<StressTestCounters
+					allowedCount={stressAllowedCount}
+					blockedCount={stressBlockedCount}
+				/>
 			)}
 		</>
 	);
