@@ -2,8 +2,8 @@ import type { Act } from '@/types';
 import { level1Environment } from './level-1-environment';
 import { level2FirstBoot } from './level-2-first-boot';
 import { level3Model } from './level-3-model';
-import { level4Associations } from './level-4-associations';
-import { level5CRUD } from './level-5-crud';
+import { level4CRUD } from './level-4-crud';
+import { level5Associations } from './level-5-associations';
 import { level6Routes } from './level-6-routes';
 import { level7Controller } from './level-7-controller';
 import { level8Serializers } from './level-8-serializers';
@@ -18,8 +18,8 @@ export const actOne: Act = {
 		level1Environment,
 		level2FirstBoot,
 		level3Model,
-		level4Associations,
-		level5CRUD,
+		level4CRUD,
+		level5Associations,
 		level6Routes,
 		level7Controller,
 		level8Serializers,

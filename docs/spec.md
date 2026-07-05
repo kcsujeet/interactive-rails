@@ -23,8 +23,8 @@ Every level exists because the app **needs** it at that stage, not because Rails
 | 1 | The Environment | mise, Ruby, Rails install | Day 0. No Ruby, no Rails. Set up a version manager so each project locks to the Ruby it was built with. |
 | 2 | First Boot | `rails new --api`, SQLite (WAL) vs PostgreSQL | Stand up a JSON-only Rails project, pick a database that handles concurrent users, boot it on localhost:3000. |
 | 3 | The Model | ActiveRecord, migrations, schema | The server boots but the database is empty. Teach Rails what a Product looks like: name, description, price. |
-| 4 | Associations | `has_many`, `belongs_to`, cascade deletion | Customers want reviews. Two records that belong together need a relationship Rails understands. |
-| 5 | CRUD Operations | ActiveRecord CRUD, Rails console | The Product table holds zero rows. Create, read, update, and destroy records from the console. |
+| 4 | CRUD Operations | ActiveRecord CRUD, Rails console | The Product table holds zero rows. Create, read, update, and destroy records from the console. |
+| 5 | Associations | `has_many`, `belongs_to`, cascade deletion | Customers want reviews. Two records that belong together need a relationship Rails understands. |
 | 6 | Routes & Request Lifecycle | `resources`, namespaces, request flow | Every HTTP request 404s. Map verbs and URLs to controller actions under /api/v1/. |
 | 7 | The Controller | API controllers, `render json:`, RESTful actions | Routes resolve but crash with "uninitialized constant". Build the controller that answers them. |
 | 8 | Serializers | JSON shaping, jsonapi-serializer (JSON:API standard) | Every endpoint dumps every column to JSON. Control exactly what the client sees. |

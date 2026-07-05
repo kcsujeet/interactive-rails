@@ -7,7 +7,7 @@
  * CURRICULUM STRUCTURE (58 levels, 7 acts):
  *
  * Act 1: The Foundation (L1-L8, 8 levels)
- * - Environment, First Boot, Model, Associations, CRUD, Routes, Controller, Serializers
+ * - Environment, First Boot, Model, CRUD, Associations, Routes, Controller, Serializers
  *
  * Act 2: Users & Security (L9-L14, 6 levels)
  * - Authentication, Encryption, Authorization, Validations, Strong Params, Testing
@@ -78,17 +78,17 @@ const LEVEL_COMPONENTS: Record<string, LazyLevel> = {
 			import('@/features/act1-foundation/components/level-3-model/Level3Model'),
 		'Level3Model',
 	),
-	'act1-level4-associations': lazyNamed(
+	'act1-level4-crud': lazyNamed(
+		() =>
+			import('@/features/act1-foundation/components/level-4-crud/Level4CRUD'),
+		'Level4CRUD',
+	),
+	'act1-level5-associations': lazyNamed(
 		() =>
 			import(
-				'@/features/act1-foundation/components/level-4-associations/Level4Associations'
+				'@/features/act1-foundation/components/level-5-associations/Level5Associations'
 			),
-		'Level4Associations',
-	),
-	'act1-level5-crud': lazyNamed(
-		() =>
-			import('@/features/act1-foundation/components/level-5-crud/Level5CRUD'),
-		'Level5CRUD',
+		'Level5Associations',
 	),
 	'act1-level6-routes': lazyNamed(
 		() =>

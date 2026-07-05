@@ -219,7 +219,7 @@ end`,
 		stageId: 'model',
 		title: 'Product Model',
 		description:
-			'The Product model works perfectly in the console (set up in L3, exercised in L5). But the outside world cannot trigger it because requests never reach the controller.',
+			'The Product model works perfectly in the console (set up in L3, exercised in L4). But the outside world cannot trigger it because requests never reach the controller.',
 	},
 	response: {
 		stageId: 'response',

@@ -1,5 +1,5 @@
 /**
- * Tests for Level 5: CRUD Operations.
+ * Tests for Level 4: CRUD Operations.
  *
  * Type 1 (no observe phase): Rails Console terminal-choice walkthrough
  * of Create, Read, Update, Destroy, Verify on the Product model.
@@ -167,7 +167,7 @@ const CORRECT_ANSWER_KEYWORDS: Record<string, string[]> = {
 // Tests
 // ─────────────────────────────────────────────
 
-describe('Level 5: CRUD Operations: build step quality', () => {
+describe('Level 4: CRUD Operations: build step quality', () => {
 	test('every step has exactly one correct option', () => {
 		for (const { name, options } of ALL_STEPS) {
 			const correctCount = options.filter((o) => o.correct).length;
@@ -225,7 +225,7 @@ describe('Level 5: CRUD Operations: build step quality', () => {
 	});
 });
 
-describe('Level 5: CRUD Operations: narrative consistency', () => {
+describe('Level 4: CRUD Operations: narrative consistency', () => {
 	test('create step uses Product.create (validates + persists)', () => {
 		const correct = CREATE_OPTIONS.find((o) => o.correct);
 		expect(correct?.label).toContain('Product.create(');

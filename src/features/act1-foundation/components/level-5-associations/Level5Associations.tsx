@@ -1,11 +1,11 @@
 /**
- * Level 4: Associations
+ * Level 5: Associations
  *
  * Sequential phase flow: observe -> build -> reward
  * Each phase occupies the full center panel. One thing at a time.
  *
  * Phase 1 (WHY - observe): Interactive exploration of two Active Record models.
- *   At L4 the player only has `bin/rails console` and the Product model from L3.
+ *   At L5 the player has the Product model from L3 and console CRUD from L4.
  *   No controllers, no routes, no API exist yet (those are L6, L7, L8).
  *   Probes are console commands the player runs against the existing app.
  *   They reveal that Product is an island: the Review model does not exist,
@@ -68,7 +68,7 @@ import { registerLevelCode } from '@/lib/codebase-registry';
 import type { LevelComponentProps } from '@/lib/levels-registry';
 import { shuffleOptions } from '@/lib/shuffleOptions';
 
-registerLevelCode('act1-level4-associations', () =>
+registerLevelCode('act1-level5-associations', () =>
 	getCodeFiles('reward', STEP_DEFS.length),
 );
 
@@ -81,7 +81,7 @@ type Phase = 'observe' | 'build' | 'reward';
 // ──────────────────────────────────────────────
 // Discovery definitions (observe phase)
 //
-// L4 only has Active Record models and the Rails console at this point.
+// L5 has Active Record models and console CRUD skills at this point.
 // No controllers, routes, or API exist yet (those land in L6-L8).
 // Each discovery corresponds to one console probe.
 // ──────────────────────────────────────────────
@@ -96,22 +96,25 @@ const DISCOVERY_DEFS: DiscoveryDef[] = [
 // Probe configurations (observe phase)
 //
 // Every probe is a `bin/rails console` command the player can actually
-// type at L4. No HTTP requests, no routes, no controllers.
+// type at L5. No HTTP requests, no routes, no controllers.
 // ──────────────────────────────────────────────
 
 const PROBES: ProbeConfig[] = [
 	{
 		id: 'reviews-on-product',
-		label: 'Product.first.reviews',
+		label: 'product.reviews',
 		story: [
-			'You open the Rails console and load the first product.',
+			'You open the Rails console and create a product, the skill from L4.',
 			'You type product.reviews to see what reviews it has.',
 			'Rails raises NoMethodError. Product has no .reviews method.',
 			'Without an association, the parent model has no way to ask for its children.',
 		],
-		command: 'rails c -> Product.first.reviews',
+		command: 'rails c -> product.reviews',
 		responseLines: [
-			{ text: 'product = Product.first', color: 'muted' },
+			{
+				text: 'product = Product.create!(name: "Laptop Pro", price: 1299)',
+				color: 'muted',
+			},
 			{
 				text: '=> #<Product id: 1, name: "Laptop Pro">',
 				color: 'green',
@@ -796,7 +799,7 @@ function PipelineLegend() {
 // Component
 // ──────────────────────────────────────────────
 
-export function Level4Associations({ onComplete }: LevelComponentProps) {
+export function Level5Associations({ onComplete }: LevelComponentProps) {
 	const stepper = useStepGating(STEP_DEFS, { autoAdvance: false });
 	const discoveryGating = useDiscoveryGating(DISCOVERY_DEFS, {
 		minRequired: DISCOVERY_DEFS.length,
@@ -1105,7 +1108,7 @@ export function Level4Associations({ onComplete }: LevelComponentProps) {
 				<LevelHeader
 					actNumber={1}
 					levelName="Associations"
-					levelNumber={4}
+					levelNumber={5}
 					onComplete={handleComplete}
 					onReset={() => {
 						window.location.reload();
@@ -1402,4 +1405,4 @@ export function Level4Associations({ onComplete }: LevelComponentProps) {
 	);
 }
 
-export default Level4Associations;
+export default Level5Associations;

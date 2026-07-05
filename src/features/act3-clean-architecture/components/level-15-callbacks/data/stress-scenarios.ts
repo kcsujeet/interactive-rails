@@ -44,18 +44,18 @@ export const STRESS_SCENARIOS: StressScenario[] = [
 		responseLines: [
 			{ text: 'HTTP/1.1 201 Created', color: 'cyan' },
 			{
-				text: 'send_welcome_email(@user) -> queued (job id 8a2c)',
+				text: 'send_welcome_email(@user) -> welcome hook fired for amy@shop.com',
 				color: 'green',
 			},
 			{
-				text: 'Customer receives the welcome email within seconds. No duplicate signup.',
+				text: 'The welcome hook fires exactly once, in plain sight of the controller. No duplicate signup.',
 				color: 'green',
 			},
 		],
 		story: [
 			'Same customer, same signup form.',
 			'After @user.save succeeds, the controller now calls send_welcome_email(@user) on the next line.',
-			'The customer gets the welcome email seconds later and stops worrying.',
+			'The trigger is explicit and testable now; wiring real delivery is a mailer job for a later level.',
 			'No duplicate account is created. Support has one account per person, as it should be.',
 		],
 	},

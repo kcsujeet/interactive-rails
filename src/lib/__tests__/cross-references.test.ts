@@ -24,15 +24,16 @@ const FEATURES_ROOT = resolve(import.meta.dir, '..', '..', 'features');
 
 // file (relative to src/features) -> names of the levels it references.
 const CROSS_REFERENCES: Record<string, string[]> = {
-	'act1-foundation/content/level-4-associations.ts': ['The Model'],
+	'act1-foundation/content/level-5-associations.ts': ['The Model'],
 	'act1-foundation/content/level-7-controller.ts': ['Error Handling'],
-	'act1-foundation/components/level-4-associations/Level4Associations.tsx': [
+	'act1-foundation/components/level-4-crud/Level4CRUD.tsx': ['The Model'],
+	'act1-foundation/components/level-5-associations/Level5Associations.tsx': [
 		'The Model',
+		'CRUD Operations',
 		'Routes & Request Lifecycle',
 		'The Controller',
 		'Serializers',
 	],
-	'act1-foundation/components/level-5-crud/Level5CRUD.tsx': ['The Model'],
 	'act1-foundation/components/level-6-routes/Level6Routes.tsx': [
 		'First Boot',
 		'The Model',

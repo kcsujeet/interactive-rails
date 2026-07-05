@@ -1357,8 +1357,9 @@ export function Level31SoftDeletes({ onComplete }: LevelComponentProps) {
 						</h3>
 						<p className="text-sm text-muted-foreground mb-2">
 							Outside attackers are locked out by auth and authorization, but
-							internal mistakes are just as dangerous. An admin runs User.find(42).destroy and the
-							user is permanently deleted. No undo. No record of who did it.
+							internal mistakes are just as dangerous. An admin runs
+							User.find(42).destroy and the user is permanently deleted. No
+							undo. No record of who did it.
 						</p>
 						<p className="text-sm text-muted-foreground">
 							This is the third time this month. You need soft deletes so

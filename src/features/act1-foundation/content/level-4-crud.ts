@@ -1,9 +1,9 @@
 import type { Level } from '@/types';
 
-export const level5CRUD: Level = {
-	id: 'act1-level5-crud',
+export const level4CRUD: Level = {
+	id: 'act1-level4-crud',
 	actId: 1,
-	levelNumber: 5,
+	levelNumber: 4,
 	name: 'CRUD Operations',
 	trigger: {
 		type: 'new_feature',

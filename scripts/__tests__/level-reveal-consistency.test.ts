@@ -97,7 +97,7 @@ function detectConvention(src: string): StepConvention {
  * Adding to this set is forbidden — new levels must not introduce this bug.
  */
 const KNOWN_STRANDED_GUARDS = new Set<string>([
-	'src/features/act1-foundation/components/level-4-associations/Level4Associations.tsx',
+	'src/features/act1-foundation/components/level-5-associations/Level5Associations.tsx',
 	'src/features/act1-foundation/components/level-6-routes/Level6Routes.tsx',
 	'src/features/act1-foundation/components/level-7-controller/Level7Controller.tsx',
 	'src/features/act2-users-security/components/level-11-authorization/Level11Authorization.tsx',
@@ -592,7 +592,7 @@ export function snapshotCoversResource(
  * that's not `path:`) or remove from the baseline after audit.
  */
 const KNOWN_MISSING_STRESS_TARGET_CONTROLLER = new Set<string>([
-	'src/features/act1-foundation/components/level-4-associations/Level4Associations.tsx',
+	'src/features/act1-foundation/components/level-5-associations/Level5Associations.tsx',
 	'src/features/act1-foundation/components/level-6-routes/Level6Routes.tsx',
 	'src/features/act2-users-security/components/level-9-authentication/Level9Authentication.tsx',
 	'src/features/act2-users-security/components/level-10-encryption/Level10Encryption.tsx',

@@ -55,7 +55,7 @@ describe('Act 1 homework exercises', () => {
 		expect(commandsOf('act1-level3-model')).toContain(
 			'bin/rails generate model Product name:string description:text price:decimal',
 		);
-		expect(commandsOf('act1-level5-crud')).toContain('bin/rails console');
+		expect(commandsOf('act1-level4-crud')).toContain('bin/rails console');
 		expect(commandsOf('act1-level6-routes')).toContain(
 			'bin/rails routes -g products',
 		);
